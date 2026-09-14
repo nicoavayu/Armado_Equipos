@@ -1,7 +1,7 @@
 {
   "empty_public_schema": true,
   "only_migration": "00000000000000_torneos_baseline_v1.sql",
-  "sha256": "ecc60aec99552b6b8e6ce334e168adc4da45d4ffd88f604d1b443cb3824d5af2",
+  "sha256": "7ec33549c8ce398c1e8330794aa19fda80321c597ff61ed3134382513639cffb",
   "installed": true,
   "image": "public.ecr.aws/supabase/postgres:17.6.1.143",
   "image_id": "sha256:80d7b27c3e8d77cfa7226eee9508671796da214781ff15a35b3670d7ad5ee453",

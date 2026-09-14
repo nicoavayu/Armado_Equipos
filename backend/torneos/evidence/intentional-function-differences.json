@@ -1,18 +1,474 @@
 [
   {
     "function": "accept_tournament_team_invitation",
-    "change": "fail closed; requires certified Core directory/team/verified-email contract"
+    "change": "Phase 2B: verified email comes from the attested Core verified-email contract instead of auth.users; invitation state/expiry/manager checks retained"
+  },
+  {
+    "function": "acknowledge_tournament_document",
+    "change": "Phase 2B: organization-derived authority over a season-scoped resource requires the actor's season assignment (R1); participant, manager and player branches unchanged"
+  },
+  {
+    "function": "add_tournament_match_event",
+    "change": "Phase 2B: organization-derived authority over a season-scoped resource requires the actor's season assignment (R2); participant, manager and player branches unchanged"
+  },
+  {
+    "function": "append_tournament_playoff_phase",
+    "change": "Phase 2B: organization-derived authority over a season-scoped resource requires the actor's season assignment (R2); participant, manager and player branches unchanged"
+  },
+  {
+    "function": "archive_tournament_announcement",
+    "change": "Phase 2B: organization-derived authority over a season-scoped resource requires the actor's season assignment (R1); participant, manager and player branches unchanged"
+  },
+  {
+    "function": "archive_tournament_document",
+    "change": "Phase 2B: organization-derived authority over a season-scoped resource requires the actor's season assignment (R1); participant, manager and player branches unchanged"
+  },
+  {
+    "function": "archive_tournament_fixture",
+    "change": "Phase 2B: organization-derived authority over a season-scoped resource requires the actor's season assignment (R2); participant, manager and player branches unchanged"
+  },
+  {
+    "function": "archive_tournament_team_entry",
+    "change": "Phase 2B: organization-derived authority over a season-scoped resource requires the actor's season assignment (R2); participant, manager and player branches unchanged"
+  },
+  {
+    "function": "assert_tournament_fixture_scope",
+    "change": "Phase 2B: organization-derived authority over a season-scoped resource requires the actor's season assignment (R3); participant, manager and player branches unchanged"
+  },
+  {
+    "function": "assign_tournament_media_photographer",
+    "change": "Phase 2B: organization-derived authority over a season-scoped resource requires the actor's season assignment (R1); participant, manager and player branches unchanged"
+  },
+  {
+    "function": "authorize_tournament_media_read",
+    "change": "Phase 2B: organization-derived authority over a season-scoped resource requires the actor's season assignment (R1); participant, manager and player branches unchanged"
+  },
+  {
+    "function": "authorize_tournament_social_export",
+    "change": "Phase 2B: organization-derived authority over a season-scoped resource requires the actor's season assignment (R2); participant, manager and player branches unchanged"
+  },
+  {
+    "function": "auto_schedule_tournament_matches",
+    "change": "Phase 2B: organization-derived authority over a season-scoped resource requires the actor's season assignment (R2); participant, manager and player branches unchanged"
+  },
+  {
+    "function": "begin_tournament_media_asset_delete",
+    "change": "Phase 2B: organization-derived authority over a season-scoped resource requires the actor's season assignment (R1); participant, manager and player branches unchanged"
+  },
+  {
+    "function": "can_access_tournament_communications",
+    "change": "Phase 2B: organization-derived authority over a season-scoped resource requires the actor's season assignment (R3); participant, manager and player branches unchanged"
+  },
+  {
+    "function": "can_edit_tournament_team_entry",
+    "change": "Phase 2B: organization-derived authority over a season-scoped resource requires the actor's season assignment (R2); participant, manager and player branches unchanged"
+  },
+  {
+    "function": "can_manage_tournament_match_squad",
+    "change": "Phase 2B: organization-derived authority over a season-scoped resource requires the actor's season assignment (R2); participant, manager and player branches unchanged"
+  },
+  {
+    "function": "can_manage_tournament_team_visual_assets_as",
+    "change": "Phase 2B: organization-derived authority over a season-scoped resource requires the actor's season assignment (R3); participant, manager and player branches unchanged"
+  },
+  {
+    "function": "can_moderate_tournament_team_visual_assets_as",
+    "change": "Phase 2B: organization-derived authority over a season-scoped resource requires the actor's season assignment (R3); participant, manager and player branches unchanged"
+  },
+  {
+    "function": "can_read_tournament_fixture_scope",
+    "change": "Phase 2B: organization-derived authority over a season-scoped resource requires the actor's season assignment (R3); participant, manager and player branches unchanged"
+  },
+  {
+    "function": "can_read_tournament_match",
+    "change": "Phase 2B: organization-derived authority over a season-scoped resource requires the actor's season assignment (R3); participant, manager and player branches unchanged"
+  },
+  {
+    "function": "can_read_tournament_match_operation",
+    "change": "Phase 2B: organization-derived authority over a season-scoped resource requires the actor's season assignment (R2); participant, manager and player branches unchanged"
+  },
+  {
+    "function": "can_read_tournament_participant_hub",
+    "change": "Phase 2B: organization-derived authority over a season-scoped resource requires the actor's season assignment (R3); participant, manager and player branches unchanged"
+  },
+  {
+    "function": "can_read_tournament_player_portrait_as",
+    "change": "Phase 2B: organization-derived authority over a season-scoped resource requires the actor's season assignment (R3); participant, manager and player branches unchanged"
+  },
+  {
+    "function": "can_read_tournament_projection_scope",
+    "change": "Phase 2B: organization-derived authority over a season-scoped resource requires the actor's season assignment (R3); participant, manager and player branches unchanged"
+  },
+  {
+    "function": "can_read_tournament_team_entry",
+    "change": "Phase 2B: organization-derived authority over a season-scoped resource requires the actor's season assignment (R2); participant, manager and player branches unchanged"
+  },
+  {
+    "function": "can_read_tournament_team_photo_as",
+    "change": "Phase 2B: organization-derived authority over a season-scoped resource requires the actor's season assignment (R3); participant, manager and player branches unchanged"
+  },
+  {
+    "function": "cancel_tournament_match",
+    "change": "Phase 2B: organization-derived authority over a season-scoped resource requires the actor's season assignment (R2); participant, manager and player branches unchanged"
+  },
+  {
+    "function": "cancel_tournament_media_upload_session",
+    "change": "Phase 2B: organization-derived authority over a season-scoped resource requires the actor's season assignment (R1); participant, manager and player branches unchanged"
+  },
+  {
+    "function": "cancel_tournament_purchase",
+    "change": "Phase 2B: organization-derived authority over a season-scoped resource requires the actor's season assignment (R1); participant, manager and player branches unchanged"
+  },
+  {
+    "function": "change_tournament_media_gallery_state",
+    "change": "Phase 2B: organization-derived authority over a season-scoped resource requires the actor's season assignment (R1); participant, manager and player branches unchanged"
+  },
+  {
+    "function": "change_tournament_status",
+    "change": "Phase 2B: organization-derived authority over a season-scoped resource requires the actor's season assignment (R2); participant, manager and player branches unchanged"
+  },
+  {
+    "function": "complete_tournament_media_asset_delete",
+    "change": "Phase 2B: organization-derived authority over a season-scoped resource requires the actor's season assignment (R1); participant, manager and player branches unchanged"
+  },
+  {
+    "function": "create_fake_tournament_purchase",
+    "change": "Phase 2B: organization-derived authority over a season-scoped resource requires the actor's season assignment (R2); participant, manager and player branches unchanged"
+  },
+  {
+    "function": "create_tournament_announcement_draft",
+    "change": "Phase 2B: organization-derived authority over a season-scoped resource requires the actor's season assignment (R2); participant, manager and player branches unchanged"
+  },
+  {
+    "function": "create_tournament_disciplinary_override",
+    "change": "Phase 2B: organization-derived authority over a season-scoped resource requires the actor's season assignment (R1); participant, manager and player branches unchanged"
+  },
+  {
+    "function": "create_tournament_document",
+    "change": "Phase 2B: organization-derived authority over a season-scoped resource requires the actor's season assignment (R2); participant, manager and player branches unchanged"
+  },
+  {
+    "function": "create_tournament_document_version",
+    "change": "Phase 2B: organization-derived authority over a season-scoped resource requires the actor's season assignment (R1); participant, manager and player branches unchanged"
+  },
+  {
+    "function": "create_tournament_match_correction",
+    "change": "Phase 2B: organization-derived authority over a season-scoped resource requires the actor's season assignment (R2); participant, manager and player branches unchanged"
+  },
+  {
+    "function": "create_tournament_media_gallery",
+    "change": "Phase 2B: organization-derived authority over a season-scoped resource requires the actor's season assignment (R2); participant, manager and player branches unchanged"
+  },
+  {
+    "function": "create_tournament_points_adjustment",
+    "change": "Phase 2B: organization-derived authority over a season-scoped resource requires the actor's season assignment (R2); participant, manager and player branches unchanged"
+  },
+  {
+    "function": "create_tournament_season_purchase",
+    "change": "Phase 2B: organization-derived authority over a season-scoped resource requires the actor's season assignment (R2); participant, manager and player branches unchanged"
   },
   {
     "function": "create_tournament_team_entry",
-    "change": "manual/provisional flow retained; explicit destination season access required before idempotency lookup (Phase 2A security fix); Core import still fails closed pending SQL adapter"
+    "change": "manual/provisional flow retained; explicit destination season access required before idempotency lookup (Phase 2A security fix); Phase 2B: Core team import consumes the attested frozen snapshot (name from Core, colors as submitted, candidates stored privately); manual/provisional flow and Phase 2A season guard retained"
+  },
+  {
+    "function": "create_tournament_with_defaults",
+    "change": "Phase 2B: organization-derived authority over a season-scoped resource requires the actor's season assignment (R2); participant, manager and player branches unchanged"
+  },
+  {
+    "function": "finish_tournament_competition",
+    "change": "Phase 2B: organization-derived authority over a season-scoped resource requires the actor's season assignment (R2); participant, manager and player branches unchanged"
+  },
+  {
+    "function": "get_match_squad_context",
+    "change": "Phase 2B: organization-derived authority over a season-scoped resource requires the actor's season assignment (R2); participant, manager and player branches unchanged"
+  },
+  {
+    "function": "get_published_tournament_documents",
+    "change": "Phase 2B: organization-derived authority over a season-scoped resource requires the actor's season assignment (R3); participant, manager and player branches unchanged"
+  },
+  {
+    "function": "get_tournament_announcement",
+    "change": "Phase 2B: organization-derived authority over a season-scoped resource requires the actor's season assignment (R1); participant, manager and player branches unchanged"
+  },
+  {
+    "function": "get_tournament_branding_context",
+    "change": "Phase 2B: organization-derived authority over a season-scoped resource requires the actor's season assignment (R3); participant, manager and player branches unchanged"
+  },
+  {
+    "function": "get_tournament_communications_admin_context",
+    "change": "Phase 2B: organization-derived authority over a season-scoped resource requires the actor's season assignment (R3); participant, manager and player branches unchanged"
+  },
+  {
+    "function": "get_tournament_fixture_context",
+    "change": "Phase 2B: organization-derived authority over a season-scoped resource requires the actor's season assignment (R2); participant, manager and player branches unchanged"
+  },
+  {
+    "function": "get_tournament_match_operations_context",
+    "change": "Phase 2B: organization-derived authority over a season-scoped resource requires the actor's season assignment (R2); participant, manager and player branches unchanged"
+  },
+  {
+    "function": "get_tournament_media_admin_context",
+    "change": "Phase 2B: organization-derived authority over a season-scoped resource requires the actor's season assignment (R2); participant, manager and player branches unchanged"
+  },
+  {
+    "function": "get_tournament_public_page_settings",
+    "change": "Phase 2B: organization-derived authority over a season-scoped resource requires the actor's season assignment (R2); participant, manager and player branches unchanged"
+  },
+  {
+    "function": "get_tournament_purchase",
+    "change": "Phase 2B: organization-derived authority over a season-scoped resource requires the actor's season assignment (R1); participant, manager and player branches unchanged"
+  },
+  {
+    "function": "get_tournament_schedule_context",
+    "change": "Phase 2B: organization-derived authority over a season-scoped resource requires the actor's season assignment (R2); participant, manager and player branches unchanged"
+  },
+  {
+    "function": "get_tournament_social_snapshot_plan_legacy",
+    "change": "Phase 2B: organization-derived authority over a season-scoped resource requires the actor's season assignment (R2); participant, manager and player branches unchanged"
+  },
+  {
+    "function": "get_tournament_standings_context",
+    "change": "Phase 2B: organization-derived authority over a season-scoped resource requires the actor's season assignment (R2); participant, manager and player branches unchanged"
+  },
+  {
+    "function": "get_tournament_statistics_context",
+    "change": "Phase 2B: organization-derived authority over a season-scoped resource requires the actor's season assignment (R2); participant, manager and player branches unchanged"
+  },
+  {
+    "function": "get_tournament_team_visual_policy",
+    "change": "Phase 2B: organization-derived authority over a season-scoped resource requires the actor's season assignment (R2); participant, manager and player branches unchanged"
+  },
+  {
+    "function": "get_tournament_teams_context",
+    "change": "Phase 2B: organization-derived authority over a season-scoped resource requires the actor's season assignment (R3); participant, manager and player branches unchanged"
+  },
+  {
+    "function": "handle_tournament_media_report",
+    "change": "Phase 2B: organization-derived authority over a season-scoped resource requires the actor's season assignment (R1); participant, manager and player branches unchanged"
+  },
+  {
+    "function": "invite_tournament_team_manager",
+    "change": "Phase 2B: organization-derived authority over a season-scoped resource requires the actor's season assignment (R2); participant, manager and player branches unchanged"
+  },
+  {
+    "function": "lock_tournament_roster",
+    "change": "Phase 2B: organization-derived authority over a season-scoped resource requires the actor's season assignment (R2); participant, manager and player branches unchanged"
+  },
+  {
+    "function": "make_tournament_match_official",
+    "change": "Phase 2B: organization-derived authority over a season-scoped resource requires the actor's season assignment (R2); participant, manager and player branches unchanged"
+  },
+  {
+    "function": "manage_tournament_media_consent",
+    "change": "Phase 2B: organization-derived authority over a season-scoped resource requires the actor's season assignment (R1); participant, manager and player branches unchanged"
+  },
+  {
+    "function": "mark_tournament_suspension_served",
+    "change": "Phase 2B: organization-derived authority over a season-scoped resource requires the actor's season assignment (R1); participant, manager and player branches unchanged"
+  },
+  {
+    "function": "open_tournament_match_operation",
+    "change": "Phase 2B: organization-derived authority over a season-scoped resource requires the actor's season assignment (R2); participant, manager and player branches unchanged"
+  },
+  {
+    "function": "postpone_tournament_match",
+    "change": "Phase 2B: organization-derived authority over a season-scoped resource requires the actor's season assignment (R2); participant, manager and player branches unchanged"
+  },
+  {
+    "function": "preview_tournament_announcement_audience",
+    "change": "Phase 2B: organization-derived authority over a season-scoped resource requires the actor's season assignment (R1); participant, manager and player branches unchanged"
+  },
+  {
+    "function": "publish_tournament_announcement",
+    "change": "Phase 2B: organization-derived authority over a season-scoped resource requires the actor's season assignment (R1); participant, manager and player branches unchanged"
+  },
+  {
+    "function": "publish_tournament_document_version",
+    "change": "Phase 2B: organization-derived authority over a season-scoped resource requires the actor's season assignment (R1); participant, manager and player branches unchanged"
+  },
+  {
+    "function": "publish_tournament_fixture",
+    "change": "Phase 2B: organization-derived authority over a season-scoped resource requires the actor's season assignment (R2); participant, manager and player branches unchanged"
+  },
+  {
+    "function": "publish_tournament_media_gallery",
+    "change": "Phase 2B: organization-derived authority over a season-scoped resource requires the actor's season assignment (R1); participant, manager and player branches unchanged"
+  },
+  {
+    "function": "publish_tournament_standings_revision",
+    "change": "Phase 2B: organization-derived authority over a season-scoped resource requires the actor's season assignment (R1); participant, manager and player branches unchanged"
+  },
+  {
+    "function": "rank_tournament_standings",
+    "change": "Phase 2B: recreate temporary work relation before privileged DML; never reuse caller-owned triggers/defaults/rules"
+  },
+  {
+    "function": "ready_tournament_match",
+    "change": "Phase 2B: organization-derived authority over a season-scoped resource requires the actor's season assignment (R2); participant, manager and player branches unchanged"
+  },
+  {
+    "function": "rebuild_tournament_standings",
+    "change": "Phase 2B: recreate temporary work relation before privileged DML; never reuse caller-owned triggers/defaults/rules"
+  },
+  {
+    "function": "rebuild_tournament_standings",
+    "change": "Phase 2B: organization-derived authority over a season-scoped resource requires the actor's season assignment (R2); participant, manager and player branches unchanged"
+  },
+  {
+    "function": "reject_tournament_projection_mutation",
+    "change": "Phase 2B: projection immutability allows the function owner instead of the hardcoded postgres role name (same intent, portable owner)"
+  },
+  {
+    "function": "reopen_tournament_competition",
+    "change": "Phase 2B: organization-derived authority over a season-scoped resource requires the actor's season assignment (R2); participant, manager and player branches unchanged"
+  },
+  {
+    "function": "reorder_tournament_media_item",
+    "change": "Phase 2B: organization-derived authority over a season-scoped resource requires the actor's season assignment (R1); participant, manager and player branches unchanged"
+  },
+  {
+    "function": "request_tournament_match_correction",
+    "change": "Phase 2B: organization-derived authority over a season-scoped resource requires the actor's season assignment (R2); participant, manager and player branches unchanged"
+  },
+  {
+    "function": "reschedule_tournament_match",
+    "change": "Phase 2B: organization-derived authority over a season-scoped resource requires the actor's season assignment (R2); participant, manager and player branches unchanged"
+  },
+  {
+    "function": "resolve_tournament_qualification",
+    "change": "Phase 2B: organization-derived authority over a season-scoped resource requires the actor's season assignment (R1); participant, manager and player branches unchanged"
+  },
+  {
+    "function": "restore_tournament_match_unscheduled",
+    "change": "Phase 2B: organization-derived authority over a season-scoped resource requires the actor's season assignment (R2); participant, manager and player branches unchanged"
+  },
+  {
+    "function": "review_tournament_match_operation",
+    "change": "Phase 2B: organization-derived authority over a season-scoped resource requires the actor's season assignment (R2); participant, manager and player branches unchanged"
+  },
+  {
+    "function": "revoke_tournament_announcement",
+    "change": "Phase 2B: organization-derived authority over a season-scoped resource requires the actor's season assignment (R1); participant, manager and player branches unchanged"
+  },
+  {
+    "function": "revoke_tournament_points_adjustment",
+    "change": "Phase 2B: organization-derived authority over a season-scoped resource requires the actor's season assignment (R1); participant, manager and player branches unchanged"
+  },
+  {
+    "function": "save_tournament_category",
+    "change": "Phase 2B: organization-derived authority over a season-scoped resource requires the actor's season assignment (R2); participant, manager and player branches unchanged"
+  },
+  {
+    "function": "save_tournament_match_operation_draft",
+    "change": "Phase 2B: organization-derived authority over a season-scoped resource requires the actor's season assignment (R2); participant, manager and player branches unchanged"
+  },
+  {
+    "function": "save_tournament_schedule_windows",
+    "change": "Phase 2B: organization-derived authority over a season-scoped resource requires the actor's season assignment (R2); participant, manager and player branches unchanged"
+  },
+  {
+    "function": "schedule_tournament_match",
+    "change": "Phase 2B: organization-derived authority over a season-scoped resource requires the actor's season assignment (R2); participant, manager and player branches unchanged"
+  },
+  {
+    "function": "schedule_tournament_match_resumption",
+    "change": "Phase 2B: organization-derived authority over a season-scoped resource requires the actor's season assignment (R2); participant, manager and player branches unchanged"
   },
   {
     "function": "search_tournament_arma2_teams",
-    "change": "fail closed; requires certified Core directory/team/verified-email contract"
+    "change": "Phase 2B: teams come from the attested Core directory contract (owner/admin importable, discoverable); season access and 2..100 query length required; colors/format null"
   },
   {
     "function": "search_tournament_players",
-    "change": "fail closed; requires certified Core directory/team/verified-email contract"
+    "change": "Phase 2B: players come from the attested Core directory contract; season access and 2..100 query length required; Core team name/priority not part of the contract (teamName null); local shadow identities allocated for results"
+  },
+  {
+    "function": "set_active_tournament_context",
+    "change": "Phase 2B: organization-derived authority over a season-scoped resource requires the actor's season assignment (R2); participant, manager and player branches unchanged"
+  },
+  {
+    "function": "set_tournament_announcement_audience",
+    "change": "Phase 2B: organization-derived authority over a season-scoped resource requires the actor's season assignment (R1); participant, manager and player branches unchanged"
+  },
+  {
+    "function": "set_tournament_announcement_link",
+    "change": "Phase 2B: organization-derived authority over a season-scoped resource requires the actor's season assignment (R1); participant, manager and player branches unchanged"
+  },
+  {
+    "function": "set_tournament_match_outcome",
+    "change": "Phase 2B: organization-derived authority over a season-scoped resource requires the actor's season assignment (R2); participant, manager and player branches unchanged"
+  },
+  {
+    "function": "set_tournament_match_score",
+    "change": "Phase 2B: organization-derived authority over a season-scoped resource requires the actor's season assignment (R2); participant, manager and player branches unchanged"
+  },
+  {
+    "function": "set_tournament_media_cover",
+    "change": "Phase 2B: organization-derived authority over a season-scoped resource requires the actor's season assignment (R1); participant, manager and player branches unchanged"
+  },
+  {
+    "function": "set_tournament_public_page_published",
+    "change": "Phase 2B: organization-derived authority over a season-scoped resource requires the actor's season assignment (R2); participant, manager and player branches unchanged"
+  },
+  {
+    "function": "set_tournament_team_visual_policy",
+    "change": "Phase 2B: organization-derived authority over a season-scoped resource requires the actor's season assignment (R2); participant, manager and player branches unchanged"
+  },
+  {
+    "function": "start_tournament_competition",
+    "change": "Phase 2B: organization-derived authority over a season-scoped resource requires the actor's season assignment (R2); participant, manager and player branches unchanged"
+  },
+  {
+    "function": "submit_tournament_match_operation",
+    "change": "Phase 2B: organization-derived authority over a season-scoped resource requires the actor's season assignment (R2); participant, manager and player branches unchanged"
+  },
+  {
+    "function": "supersede_tournament_fixture",
+    "change": "Phase 2B: organization-derived authority over a season-scoped resource requires the actor's season assignment (R2); participant, manager and player branches unchanged"
+  },
+  {
+    "function": "tournament_registration_checklist",
+    "change": "Phase 2B: organization-derived authority over a season-scoped resource requires the actor's season assignment (R2); participant, manager and player branches unchanged"
+  },
+  {
+    "function": "transition_tournament_media_asset",
+    "change": "Phase 2B: organization-derived authority over a season-scoped resource requires the actor's season assignment (R1); participant, manager and player branches unchanged"
+  },
+  {
+    "function": "update_tournament_announcement_draft",
+    "change": "Phase 2B: organization-derived authority over a season-scoped resource requires the actor's season assignment (R1); participant, manager and player branches unchanged"
+  },
+  {
+    "function": "update_tournament_configuration",
+    "change": "Phase 2B: organization-derived authority over a season-scoped resource requires the actor's season assignment (R2); participant, manager and player branches unchanged"
+  },
+  {
+    "function": "update_tournament_document_draft",
+    "change": "Phase 2B: organization-derived authority over a season-scoped resource requires the actor's season assignment (R1); participant, manager and player branches unchanged"
+  },
+  {
+    "function": "update_tournament_media_gallery",
+    "change": "Phase 2B: organization-derived authority over a season-scoped resource requires the actor's season assignment (R1); participant, manager and player branches unchanged"
+  },
+  {
+    "function": "validate_tournament_match_operation",
+    "change": "Phase 2B: organization-derived authority over a season-scoped resource requires the actor's season assignment (R2); participant, manager and player branches unchanged"
+  },
+  {
+    "function": "void_tournament_match_event",
+    "change": "Phase 2B: organization-derived authority over a season-scoped resource requires the actor's season assignment (R2); participant, manager and player branches unchanged"
+  },
+  {
+    "function": "void_tournament_match_operation",
+    "change": "Phase 2B: organization-derived authority over a season-scoped resource requires the actor's season assignment (R2); participant, manager and player branches unchanged"
+  },
+  {
+    "function": "withdraw_tournament_competition_participant",
+    "change": "Phase 2B: organization-derived authority over a season-scoped resource requires the actor's season assignment (R2); participant, manager and player branches unchanged"
+  },
+  {
+    "function": "withdraw_tournament_team_entry",
+    "change": "Phase 2B: organization-derived authority over a season-scoped resource requires the actor's season assignment (R2); participant, manager and player branches unchanged"
   }
 ]

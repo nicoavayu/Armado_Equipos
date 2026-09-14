@@ -1,0 +1,18 @@
+PASS can_read_tournament_fixture_scope: admin alpha-cup
+PASS can_read_tournament_fixture_scope: admin beta-cup
+PASS can_read_tournament_fixture_scope: admin other-cup
+PASS can_read_tournament_fixture_scope: owner retains access
+PASS can_read_tournament_fixture_scope: forged local/Core mapping denied
+PASS can_read_tournament_fixture_scope: anon execute denied
+PASS can_read_tournament_projection_scope: admin alpha-cup
+PASS can_read_tournament_projection_scope: admin beta-cup
+PASS can_read_tournament_projection_scope: admin other-cup
+PASS can_read_tournament_projection_scope: owner retains access
+PASS can_read_tournament_projection_scope: forged local/Core mapping denied
+PASS can_read_tournament_projection_scope: anon execute denied
+PASS teams context: admin alpha-cup
+PASS teams context: owner beta-cup
+PASS teams context: admin beta-cup
+PASS teams context: admin other-cup
+PASS teams context: anon execute denied
+PASS unassigned admin cannot see tournament through RLS

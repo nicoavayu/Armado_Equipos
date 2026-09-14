@@ -37,9 +37,11 @@ compare('tables',lambda x:x['name'],[t for t in h['tables'] if t['name'] not in 
 compare('indexes',lambda x:x['name'],[i for i in h['indexes'] if i['table'] not in excluded],[i for i in b['indexes'] if i['table']!='torneos_identity'])
 compare('policies',lambda x:x['table']+'.'+x['name'],h['policies'],[p for p in b['policies'] if p['table']!='torneos_identity'])
 compare('triggers',lambda x:x['table']+'.'+x['name'],h['triggers'],[t for t in b['triggers'] if t['table']!='torneos_identity'])
-compare('functions',lambda x:x['name']+'('+x['signature']+')',[f for f in h['functions'] if f['name']!='public.team_user_is_admin_or_owner'],[f for f in b['functions'] if f['name'] not in ('public.gen_random_uuid','private.check_token','private.current_identity_id','private.prevent_identity_reassignment')])
+compare('functions',lambda x:x['name']+'('+x['signature']+')',[f for f in h['functions'] if f['name']!='public.team_user_is_admin_or_owner'],[f for f in b['functions'] if f['name'] not in ('public.gen_random_uuid','private.check_token','private.current_identity_id','private.prevent_identity_reassignment','private.core_contract_request_hash','private.consume_core_attestation','private.authorize_core_contract','private.has_tournament_season_access_as')])
+intentional={}
+for r in json.loads((BASE/'evidence/intentional-function-differences.json').read_text()): intentional.setdefault(r['function'],[]).append(r['change'])
 for d in differences:
- if d['kind']=='functions':d['reason']='Core boundary adaptation; see intentional-function-differences.json' if d['object'].split('(')[0].split('.')[-1] in ['accept_tournament_team_invitation','search_tournament_players','search_tournament_arma2_teams','create_tournament_team_entry'] else 'review required'
+ if d['kind']=='functions':d['reason']=' | '.join(intentional.get(d['object'].split('(')[0].split('.')[-1], ['review required']))
  elif d['kind']=='tables' and d['object']=='tournament_team_entries':d['reason']='opaque Core team id: physical Core FK removed'
  else:d['reason']='review required'
 # Attribute-level equivalence and duplicates are machine-readable, not inferred from names.

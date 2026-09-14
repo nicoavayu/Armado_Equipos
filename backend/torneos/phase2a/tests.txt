@@ -63,6 +63,6 @@ test_whitespace_email_denied (__main__.Contracts) ... ok
 test_wrong_service_key (__main__.Contracts) ... ok
 
 ----------------------------------------------------------------------
-Ran 63 tests in 1.162s
+Ran 63 tests in 1.153s
 
 OK

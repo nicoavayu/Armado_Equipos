@@ -1,24 +1,24 @@
-26 errors; 81 total diagnostics
-rank_tournament_standings(uuid) 19 relation "pg_temp.tournament_rank_work" does not exist
-rank_tournament_standings(uuid) 35 relation "pg_temp.tournament_rank_work" does not exist
-rank_tournament_standings(uuid) 40 relation "pg_temp.tournament_rank_work" does not exist
-rank_tournament_standings(uuid) 45 relation "pg_temp.tournament_rank_work" does not exist
-rank_tournament_standings(uuid) 50 relation "pg_temp.tournament_rank_work" does not exist
-rank_tournament_standings(uuid) 56 relation "pg_temp.tournament_rank_work" does not exist
-rank_tournament_standings(uuid) 59 relation "pg_temp.tournament_rank_work" does not exist
-rank_tournament_standings(uuid) 62 relation "pg_temp.tournament_rank_work" does not exist
-rank_tournament_standings(uuid) 121 relation "pg_temp.tournament_rank_work" does not exist
-rank_tournament_standings(uuid) 136 relation "pg_temp.tournament_rank_work" does not exist
-rank_tournament_standings(uuid) 138 relation "pg_temp.tournament_rank_work" does not exist
-rank_tournament_standings(uuid) 149 relation "pg_temp.tournament_rank_work" does not exist
-rank_tournament_standings(uuid) 154 relation "pg_temp.tournament_rank_work" does not exist
-rank_tournament_standings(uuid) 160 relation "pg_temp.tournament_rank_work" does not exist
-rank_tournament_standings(uuid) 176 relation "pg_temp.tournament_rank_work" does not exist
-rank_tournament_standings(uuid) 184 relation "pg_temp.tournament_rank_work" does not exist
-rebuild_tournament_standings(uuid,uuid,uuid,uuid,uuid,text,uuid) 514 relation "pg_temp.tournament_discipline_event_work" does not exist
-rebuild_tournament_standings(uuid,uuid,uuid,uuid,uuid,text,uuid) 547 relation "pg_temp.tournament_discipline_event_work" does not exist
-rebuild_tournament_standings(uuid,uuid,uuid,uuid,uuid,text,uuid) 577 relation "pg_temp.tournament_discipline_event_work" does not exist
-rebuild_tournament_standings(uuid,uuid,uuid,uuid,uuid,text,uuid) 608 relation "pg_temp.tournament_discipline_event_work" does not exist
+26 errors; 71 total diagnostics
+rank_tournament_standings(uuid) 23 relation "pg_temp.tournament_rank_work" does not exist
+rank_tournament_standings(uuid) 39 relation "pg_temp.tournament_rank_work" does not exist
+rank_tournament_standings(uuid) 44 relation "pg_temp.tournament_rank_work" does not exist
+rank_tournament_standings(uuid) 49 relation "pg_temp.tournament_rank_work" does not exist
+rank_tournament_standings(uuid) 54 relation "pg_temp.tournament_rank_work" does not exist
+rank_tournament_standings(uuid) 60 relation "pg_temp.tournament_rank_work" does not exist
+rank_tournament_standings(uuid) 63 relation "pg_temp.tournament_rank_work" does not exist
+rank_tournament_standings(uuid) 66 relation "pg_temp.tournament_rank_work" does not exist
+rank_tournament_standings(uuid) 125 relation "pg_temp.tournament_rank_work" does not exist
+rank_tournament_standings(uuid) 140 relation "pg_temp.tournament_rank_work" does not exist
+rank_tournament_standings(uuid) 142 relation "pg_temp.tournament_rank_work" does not exist
+rank_tournament_standings(uuid) 153 relation "pg_temp.tournament_rank_work" does not exist
+rank_tournament_standings(uuid) 158 relation "pg_temp.tournament_rank_work" does not exist
+rank_tournament_standings(uuid) 164 relation "pg_temp.tournament_rank_work" does not exist
+rank_tournament_standings(uuid) 180 relation "pg_temp.tournament_rank_work" does not exist
+rank_tournament_standings(uuid) 188 relation "pg_temp.tournament_rank_work" does not exist
+rebuild_tournament_standings(uuid,uuid,uuid,uuid,uuid,text,uuid) 518 relation "pg_temp.tournament_discipline_event_work" does not exist
+rebuild_tournament_standings(uuid,uuid,uuid,uuid,uuid,text,uuid) 551 relation "pg_temp.tournament_discipline_event_work" does not exist
+rebuild_tournament_standings(uuid,uuid,uuid,uuid,uuid,text,uuid) 581 relation "pg_temp.tournament_discipline_event_work" does not exist
+rebuild_tournament_standings(uuid,uuid,uuid,uuid,uuid,text,uuid) 612 relation "pg_temp.tournament_discipline_event_work" does not exist
 request_tournament_media_upload_session(uuid,text,text,bigint,uuid) 119 relation "storage.objects" does not exist
 tournament_media_storage_contract_status() 11 relation "storage.buckets" does not exist
 validate_tournament_fixture_member_scope() 14 record "new" has no field "group_id"

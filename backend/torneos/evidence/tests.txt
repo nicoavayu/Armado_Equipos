@@ -49,11 +49,32 @@ PASS unpublished public page returns null
 PASS published public page returns intended tournament
 PASS unpublish removes anonymous page
 PASS manual team and roster creation works
-PASS Core team import fails closed
+PASS Core team import without server attestation fails closed
 PASS media storage status fails closed
 PASS pipeline not activated
-PASS Core player search explicit pending contract
-PASS Core team search explicit pending contract
-PASS verified email invite explicit pending contract
+PASS Core player search without server attestation fails closed
+PASS Core team search without server attestation fails closed
+PASS invitation token check precedes any Core contract
+PASS anon has no privilege on Core attestations
+PASS anon has no privilege on Core snapshots
+PASS anon cannot execute Core boundary helpers
+PASS authenticated has no privilege on Core attestations
+PASS authenticated has no privilege on Core snapshots
+PASS authenticated cannot execute Core boundary helpers
+PASS service_role has no privilege on Core attestations
+PASS service_role has no privilege on Core snapshots
+PASS service_role cannot execute Core boundary helpers
+PASS adapter role is NOLOGIN append-only
+PASS adapter role cannot read domain tables
+PASS attestation TTL bounded by constraint
+PASS anon-executable read requires identity: get_published_tournament_standings
+PASS anon-executable read requires identity: get_published_tournament_statistics
+PASS anon-executable read requires identity: get_published_tournament_teams
+PASS anon-executable read requires identity: get_published_tournament_documents
+PASS anon-executable read requires identity: get_published_tournament_matches
+PASS anon-executable read requires identity: get_published_tournament_media
+PASS anon-executable read requires identity: get_tournament_participant_hub
+PASS anon-executable read requires identity: get_tournament_participant_match
+PASS anon-executable read requires identity: get_tournament_announcement
 PASS Mercado Pago provider RPC absent
-58/58 passed
+79/79 passed

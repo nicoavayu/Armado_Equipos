@@ -1,0 +1,1 @@
+{"security_definer": 305, "disposed": 305, "unknown": 0, "categories": {"ADAPTER_ONLY": 1, "CATALOG_READ": 1, "CLIENT_PREDICATE": 16, "CLIENT_RPC_DELEGATED": 2, "CLIENT_RPC_GUARDED": 144, "CORE_CONTRACT_BOUND": 4, "IDENTITY_GATED_READ": 9, "INTERNAL": 9, "PUBLIC_READ": 3, "SERVICE_ONLY": 106, "TRIGGER": 10}, "exercised": 170}

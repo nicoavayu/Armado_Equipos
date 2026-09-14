@@ -1,0 +1,98 @@
+{
+  "can_read_tournament_fixture_scope": [
+    [
+      "      and tournament.status <> 'archived'",
+      "      and tournament.status <> 'archived'\n      and public.has_tournament_season_access(p_organization_id, tournament.season_id)"
+    ]
+  ],
+  "can_read_tournament_projection_scope": [
+    [
+      "        public.has_tournament_organization_capability(p_organization_id, 'standings.read')",
+      "        (public.has_tournament_organization_capability(p_organization_id, 'standings.read')\n          and public.has_tournament_season_access(p_organization_id, tournament.season_id))"
+    ]
+  ],
+  "get_tournament_teams_context": [
+    [
+      "      AND status <> 'archived'",
+      "      AND status <> 'archived'\n      AND public.has_tournament_season_access(p_organization_id, season_id)"
+    ]
+  ],
+  "assert_tournament_fixture_scope": [
+    [
+      "    and season.status in ('draft', 'active')\n",
+      "    and season.status in ('draft', 'active')\n    and public.has_tournament_season_access(p_organization_id, season.id)\n"
+    ]
+  ],
+  "can_read_tournament_match": [
+    [
+      "        public.has_tournament_organization_capability(\n          match_row.organization_id, 'matches.read'\n        )\n        or exists (",
+      "        (public.has_tournament_organization_capability(\n          match_row.organization_id, 'matches.read'\n        ) and public.has_tournament_season_access(match_row.organization_id, match_row.season_id))\n        or exists ("
+    ]
+  ],
+  "can_read_tournament_participant_hub": [
+    [
+      "        exists (\n          select 1\n          from public.tournament_organization_members membership\n          where membership.organization_id = tournament.organization_id\n            and membership.user_id = auth.uid()\n            and membership.status = 'active'\n        )\n        or exists (\n          select 1\n          from public.tournament_team_entries entry\n",
+      "        public.has_tournament_season_access(tournament.organization_id, tournament.season_id)\n        or exists (\n          select 1\n          from public.tournament_team_entries entry\n"
+    ]
+  ],
+  "can_access_tournament_communications": [
+    [
+      "        exists (\n          select 1\n          from public.tournament_organization_members membership\n          where membership.organization_id = tournament.organization_id\n            and membership.user_id = auth.uid()\n            and membership.status = 'active'\n        )\n        or exists (\n          select 1\n          from public.tournament_categories category\n",
+      "        public.has_tournament_season_access(tournament.organization_id, tournament.season_id)\n        or exists (\n          select 1\n          from public.tournament_categories category\n"
+    ]
+  ],
+  "can_manage_tournament_team_visual_assets_as": [
+    [
+      "              AND membership.status = 'active'\n              AND p_organization_capability = ANY(\n                public.tournament_role_capabilities(membership.role)\n              )\n          )\n",
+      "              AND membership.status = 'active'\n              AND private.has_tournament_season_access_as(p_organization_id, entry.season_id, p_actor_user_id)\n              AND p_organization_capability = ANY(\n                public.tournament_role_capabilities(membership.role)\n              )\n          )\n"
+    ]
+  ],
+  "can_read_tournament_team_photo_as": [
+    [
+      "              AND membership.status = 'active'\n              AND 'team_entries.read' = ANY(",
+      "              AND membership.status = 'active'\n              AND private.has_tournament_season_access_as(p_organization_id, entry.season_id, p_actor_user_id)\n              AND 'team_entries.read' = ANY("
+    ]
+  ],
+  "can_read_tournament_player_portrait_as": [
+    [
+      "              AND membership.status = 'active'\n              AND 'roster_players.read' = ANY(",
+      "              AND membership.status = 'active'\n              AND private.has_tournament_season_access_as(p_organization_id, entry.season_id, p_actor_user_id)\n              AND 'roster_players.read' = ANY("
+    ]
+  ],
+  "can_moderate_tournament_team_visual_assets_as": [
+    [
+      "        AND p_organization_capability = ANY(\n          public.tournament_role_capabilities(membership.role)\n        )\n    );",
+      "        AND private.has_tournament_season_access_as(p_organization_id, entry.season_id, p_actor_user_id)\n        AND p_organization_capability = ANY(\n          public.tournament_role_capabilities(membership.role)\n        )\n    );"
+    ]
+  ],
+  "get_tournament_branding_context": [
+    [
+      "    IF v_tournament.id IS NULL OR NOT (\n      public.has_tournament_organization_capability(\n        p_organization_id,\n        'tournaments.read'\n      )\n      OR public.can_read_tournament_participant_hub(p_tournament_id, NULL)",
+      "    IF v_tournament.id IS NULL OR NOT (\n      (public.has_tournament_organization_capability(\n        p_organization_id,\n        'tournaments.read'\n      ) AND public.has_tournament_season_access(p_organization_id, v_tournament.season_id))\n      OR public.can_read_tournament_participant_hub(p_tournament_id, NULL)"
+    ]
+  ],
+  "get_published_tournament_documents": [
+    [
+      "  select public.has_tournament_communications_capability(\n    tournament.organization_id,'documents.read'\n  ) into v_can_manage\n",
+      "  select (public.has_tournament_communications_capability(\n    tournament.organization_id,'documents.read'\n  ) and public.has_tournament_season_access(tournament.organization_id, tournament.season_id)) into v_can_manage\n"
+    ]
+  ],
+  "get_tournament_communications_admin_context": [
+    [
+      "  if v_capabilities is null or not ('announcements.read' = any(v_capabilities)) then\n    raise exception using errcode = '42501', message = 'TORNEOS_COMMUNICATION_FORBIDDEN';\n  end if;\n",
+      "  if v_capabilities is null or not ('announcements.read' = any(v_capabilities)) then\n    raise exception using errcode = '42501', message = 'TORNEOS_COMMUNICATION_FORBIDDEN';\n  end if;\n  if p_tournament_id is not null and not exists (\n    select 1 from public.tournaments scoped_tournament\n    where scoped_tournament.id = p_tournament_id\n      and scoped_tournament.organization_id = p_organization_id\n      and public.has_tournament_season_access(p_organization_id, scoped_tournament.season_id)\n  ) then\n    raise exception using errcode = '42501', message = 'TORNEOS_COMMUNICATION_FORBIDDEN';\n  end if;\n"
+    ],
+    [
+      "      where tournament.organization_id = p_organization_id\n        and tournament.status <> 'archived'\n        and (p_tournament_id is null or tournament.id = p_tournament_id)\n",
+      "      where tournament.organization_id = p_organization_id\n        and tournament.status <> 'archived'\n        and (p_tournament_id is null or tournament.id = p_tournament_id)\n        and public.has_tournament_season_access(p_organization_id, tournament.season_id)\n"
+    ],
+    [
+      "        where organization_id = p_organization_id\n          and (p_tournament_id is null or tournament_id = p_tournament_id)\n        order by updated_at desc\n",
+      "        where organization_id = p_organization_id\n          and (p_tournament_id is null or tournament_id = p_tournament_id)\n          and public.has_tournament_season_access(p_organization_id, season_id)\n        order by updated_at desc\n"
+    ],
+    [
+      "      where document.organization_id = p_organization_id\n        and (p_tournament_id is null or document.tournament_id = p_tournament_id)\n",
+      "      where document.organization_id = p_organization_id\n        and (p_tournament_id is null or document.tournament_id = p_tournament_id)\n        and public.has_tournament_season_access(p_organization_id, document.season_id)\n"
+    ]
+  ]
+}

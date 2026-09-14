@@ -40,4 +40,4 @@ La firma eliminada de `complete_tournament_media_simple_upload` cambia sus nombr
 
 ## Conservados
 
-Los 103 nombres de tablas finales y las definiciones de 358 funciones históricas están en INVENTORY.md. 354 funciones conservan definición/ACL tras normalizar identidad; cuatro tienen diferencias explícitas de boundary y bloquean equivalencia funcional completa.
+Los 103 nombres de tablas finales y las definiciones de 358 funciones históricas están en INVENTORY.md. Las diferencias de definición respecto del histórico están enumeradas una por una en evidence/intentional-function-differences.json (boundary Core, scope de temporada, relaciones temporales, portabilidad del owner); evidence/equivalence.json no deja ninguna diferencia sin motivo.

@@ -1,0 +1,1927 @@
+{
+  "summary": {
+    "functions": 179,
+    "swept": 154,
+    "SCOPED": 101,
+    "LEAK": 0,
+    "CAPABILITY_DENIED": 1,
+    "PRECONDITION": 4,
+    "INCONCLUSIVE": 33,
+    "ORG_SCOPED": 15,
+    "ORG_LEAK": 0,
+    "NOT_SWEPT": 25
+  },
+  "admin_assigned_seasons": "season-one",
+  "fixtures": {
+    "play": {
+      "A": {
+        "organization_id": "e9ad3ed9-4e02-4c04-a145-b28d8adda272",
+        "season_id": "612949e1-d06b-4e58-b6d5-17ca6875d956",
+        "venue_id": "2f474f2a-cb66-4e6d-b980-ddac24a0f186",
+        "court_id": "91b8e0cc-760c-4c1f-9c34-e528a4141a98",
+        "entitlement_capability": "advanced_stats",
+        "tournament_id": "54c2834c-f857-49f8-b3ab-5f1d83418850",
+        "category_id": "50f47ca1-8450-4e71-8ce2-6383f3a9594d",
+        "team_entry_id": "710d5e95-a411-4748-a87f-611770297d55",
+        "roster_id": "7672434c-93fe-44a6-8aaf-163b0c599f8d",
+        "provisional_player_id": "2c0db3a2-8864-4baa-ba1e-3d93e65e7ee1",
+        "roster_player_id": "2118e1cb-a883-4363-a828-732a804fa99d",
+        "participant_set_id": "fb1c8733-8f26-45cf-a417-a7644db0cbb6",
+        "participant_id": "49816101-15ce-430e-91bf-7bc2108ba2aa",
+        "fixture_version_id": "6f740de1-39f3-4629-bb79-e81638220983",
+        "phase_id": "0c9f416b-ac7c-4731-b579-8b3f6db2308c",
+        "round_id": "f6dc5b3e-9228-476a-bc6a-9304f8421bed",
+        "group_id": "",
+        "match_id": "e1e3d217-c459-4196-adb0-25a3dbb91a67",
+        "home_team_entry_id": "4111dc1b-6f56-494d-ad8c-f5a09518519e",
+        "match_operation_id": "185b051e-55c6-4437-abb8-68e9bbb0319b",
+        "revision_id": "47e61224-04dc-42d5-b654-c855e3a95fd1",
+        "announcement_id": "15dadc14-49ad-4ae3-b500-4f92169fac0a",
+        "document_id": "2a1bad58-a2ea-40a5-ba24-d941903eff07",
+        "version_id": "ad18e6b0-0879-4a8d-a3f1-7c8bcf499551",
+        "gallery_id": "456fcc15-a536-401a-82d1-f115a6cc06b1"
+      },
+      "B": {
+        "organization_id": "e9ad3ed9-4e02-4c04-a145-b28d8adda272",
+        "season_id": "5b8f4f78-c6b4-47cc-bea8-4065cbd3e13c",
+        "venue_id": "2f474f2a-cb66-4e6d-b980-ddac24a0f186",
+        "court_id": "91b8e0cc-760c-4c1f-9c34-e528a4141a98",
+        "entitlement_capability": "advanced_stats",
+        "tournament_id": "abd9f6ac-33a4-480b-9926-5356919c0181",
+        "category_id": "7f0e2c2c-e259-479c-b630-709c4f5d2254",
+        "team_entry_id": "09d78728-4753-43cc-b9d4-b2f5c838522f",
+        "roster_id": "3f0e267b-078b-42fb-a86d-976421b6471f",
+        "provisional_player_id": "2d012db8-1ca1-4977-9bd1-659cb4512222",
+        "roster_player_id": "f054592c-6c54-47ee-a6bb-52615ed52d7d",
+        "participant_set_id": "03e69dd5-b5e5-4a90-909f-19abdc8a8eca",
+        "participant_id": "45299669-85ac-48a5-ae0c-cd04da857446",
+        "fixture_version_id": "e4592499-78e5-4796-bdc5-3039c14d0580",
+        "phase_id": "de82d281-7ce7-4fba-9ee7-2ed06afbccfa",
+        "round_id": "2d245b96-503c-4b0b-acf1-4c6468c62954",
+        "group_id": "",
+        "match_id": "7c918c77-a0cb-4d53-8053-ea5472c22ed8",
+        "home_team_entry_id": "4fc44ca8-5438-4a99-8744-c4e685151930",
+        "match_operation_id": "6a8dbf98-b82f-42f4-be51-bfb3e7b1b51e",
+        "revision_id": "7b5ffd2f-378b-45a9-9735-67d24ea6dd3d",
+        "announcement_id": "93626a33-0847-4607-be74-fd64aecb5b22",
+        "document_id": "7f6716c7-98d3-42c8-837f-e59dff53b6b3",
+        "version_id": "3ebc3ce2-bb76-46ce-918c-9cb3890ed373",
+        "gallery_id": "9a751939-3057-4bfb-ae18-4eaa3a9e3409"
+      }
+    },
+    "reg": {
+      "A": {
+        "organization_id": "e9ad3ed9-4e02-4c04-a145-b28d8adda272",
+        "season_id": "612949e1-d06b-4e58-b6d5-17ca6875d956",
+        "venue_id": "2f474f2a-cb66-4e6d-b980-ddac24a0f186",
+        "court_id": "91b8e0cc-760c-4c1f-9c34-e528a4141a98",
+        "entitlement_capability": "advanced_stats",
+        "tournament_id": "6dc3fc07-a44f-45ad-9f34-0cce0d6841ea",
+        "category_id": "ed2efba7-7834-4fb1-a9d9-d7daa17bcb57",
+        "team_entry_id": "72a50c1c-a649-48a3-8436-e5ebb6705994",
+        "roster_id": "a1f7a9a8-8774-4f2f-93d6-9200ea83b03b",
+        "provisional_player_id": "3734e268-d756-4475-a27a-9d50d6954b26",
+        "roster_player_id": "0465c3ba-5f0c-4056-b162-fb4d78652ea2",
+        "submitted_entry_id": "524e0b8a-71fd-49f8-b6be-15bf458e1e83",
+        "participant_set_id": "",
+        "participant_id": "",
+        "fixture_version_id": "",
+        "phase_id": "",
+        "round_id": "",
+        "group_id": "",
+        "match_id": "",
+        "match_operation_id": "",
+        "revision_id": "",
+        "announcement_id": "f48073d7-edd3-45c3-b3ea-72123ae510ca",
+        "document_id": "c62c0b8b-aa9c-4354-9fa0-e3f5ad42889c",
+        "version_id": "16c676b8-d676-486d-9ace-4d433c44be87",
+        "gallery_id": "f3823d3d-c9f0-4d70-ab3f-1d5708cff173"
+      },
+      "B": {
+        "organization_id": "e9ad3ed9-4e02-4c04-a145-b28d8adda272",
+        "season_id": "5b8f4f78-c6b4-47cc-bea8-4065cbd3e13c",
+        "venue_id": "2f474f2a-cb66-4e6d-b980-ddac24a0f186",
+        "court_id": "91b8e0cc-760c-4c1f-9c34-e528a4141a98",
+        "entitlement_capability": "advanced_stats",
+        "tournament_id": "445bcafc-84e5-4349-ad57-380032a7405f",
+        "category_id": "23deb971-fd92-4843-b25f-d886bcb56a7e",
+        "team_entry_id": "c5900f8b-d8bc-4f99-90f0-57af9a88e9c4",
+        "roster_id": "9f8c6549-c460-42cf-98c1-4577804c933e",
+        "provisional_player_id": "77a33872-5b3d-41bc-ac0e-00d0231e4a5d",
+        "roster_player_id": "46dec8af-7f5d-481b-825b-91c1c0ef93e8",
+        "submitted_entry_id": "2f6c1743-9d51-4914-b1f0-ccfcbd5dfd35",
+        "participant_set_id": "",
+        "participant_id": "",
+        "fixture_version_id": "",
+        "phase_id": "",
+        "round_id": "",
+        "group_id": "",
+        "match_id": "",
+        "match_operation_id": "",
+        "revision_id": "",
+        "announcement_id": "84b03729-a921-4490-9415-5552ab3e6c6b",
+        "document_id": "ce2391dc-e3b1-488c-ba67-9c1bbeed1525",
+        "version_id": "760daf61-e0ab-458a-965b-4591f9e140dd",
+        "gallery_id": "c9c2f172-0e6c-43c2-8900-3aabedba802a"
+      }
+    }
+  },
+  "fixture_log": [
+    [
+      "create_tournament_venue",
+      "org",
+      "ok"
+    ],
+    [
+      "create_tournament_court",
+      "org",
+      "ok"
+    ],
+    [
+      "create_tournament_with_defaults",
+      "sweep-play-a",
+      "ok"
+    ],
+    [
+      "create_tournament_team_entry",
+      "sweep-play-a",
+      "ok"
+    ],
+    [
+      "create_tournament_team_entry",
+      "sweep-play-a",
+      "ok"
+    ],
+    [
+      "create_tournament_team_entry",
+      "sweep-play-a",
+      "ok"
+    ],
+    [
+      "create_tournament_team_entry",
+      "sweep-play-a",
+      "ok"
+    ],
+    [
+      "create_tournament_team_entry",
+      "sweep-play-a",
+      "ok"
+    ],
+    [
+      "create_tournament_provisional_player",
+      "sweep-play-a",
+      "ok"
+    ],
+    [
+      "add_tournament_roster_player",
+      "sweep-play-a",
+      "ok"
+    ],
+    [
+      "freeze_tournament_participants",
+      "sweep-play-a",
+      "ok"
+    ],
+    [
+      "generate_tournament_fixture",
+      "sweep-play-a",
+      "ok"
+    ],
+    [
+      "publish_tournament_fixture",
+      "sweep-play-a",
+      "ok"
+    ],
+    [
+      "start_tournament_competition",
+      "sweep-play-a",
+      "ok"
+    ],
+    [
+      "schedule_tournament_match",
+      "sweep-play-a",
+      "ok"
+    ],
+    [
+      "open_tournament_match_operation",
+      "sweep-play-a",
+      "ok"
+    ],
+    [
+      "rebuild_tournament_standings",
+      "sweep-play-a",
+      "ok"
+    ],
+    [
+      "create_tournament_announcement_draft",
+      "sweep-play-a",
+      "ok"
+    ],
+    [
+      "create_tournament_document",
+      "sweep-play-a",
+      "ok"
+    ],
+    [
+      "create_tournament_media_gallery",
+      "sweep-play-a",
+      "ok"
+    ],
+    [
+      "create_tournament_with_defaults",
+      "sweep-play-b",
+      "ok"
+    ],
+    [
+      "create_tournament_team_entry",
+      "sweep-play-b",
+      "ok"
+    ],
+    [
+      "create_tournament_team_entry",
+      "sweep-play-b",
+      "ok"
+    ],
+    [
+      "create_tournament_team_entry",
+      "sweep-play-b",
+      "ok"
+    ],
+    [
+      "create_tournament_team_entry",
+      "sweep-play-b",
+      "ok"
+    ],
+    [
+      "create_tournament_team_entry",
+      "sweep-play-b",
+      "ok"
+    ],
+    [
+      "create_tournament_provisional_player",
+      "sweep-play-b",
+      "ok"
+    ],
+    [
+      "add_tournament_roster_player",
+      "sweep-play-b",
+      "ok"
+    ],
+    [
+      "freeze_tournament_participants",
+      "sweep-play-b",
+      "ok"
+    ],
+    [
+      "generate_tournament_fixture",
+      "sweep-play-b",
+      "ok"
+    ],
+    [
+      "publish_tournament_fixture",
+      "sweep-play-b",
+      "ok"
+    ],
+    [
+      "start_tournament_competition",
+      "sweep-play-b",
+      "ok"
+    ],
+    [
+      "schedule_tournament_match",
+      "sweep-play-b",
+      "ok"
+    ],
+    [
+      "open_tournament_match_operation",
+      "sweep-play-b",
+      "ok"
+    ],
+    [
+      "rebuild_tournament_standings",
+      "sweep-play-b",
+      "ok"
+    ],
+    [
+      "create_tournament_announcement_draft",
+      "sweep-play-b",
+      "ok"
+    ],
+    [
+      "create_tournament_document",
+      "sweep-play-b",
+      "ok"
+    ],
+    [
+      "create_tournament_media_gallery",
+      "sweep-play-b",
+      "ok"
+    ],
+    [
+      "create_tournament_with_defaults",
+      "sweep-reg-a",
+      "ok"
+    ],
+    [
+      "create_tournament_team_entry",
+      "sweep-reg-a",
+      "ok"
+    ],
+    [
+      "create_tournament_team_entry",
+      "sweep-reg-a",
+      "ok"
+    ],
+    [
+      "create_tournament_team_entry",
+      "sweep-reg-a",
+      "ok"
+    ],
+    [
+      "create_tournament_team_entry",
+      "sweep-reg-a",
+      "ok"
+    ],
+    [
+      "create_tournament_team_entry",
+      "sweep-reg-a",
+      "ok"
+    ],
+    [
+      "create_tournament_provisional_player",
+      "sweep-reg-a",
+      "ok"
+    ],
+    [
+      "add_tournament_roster_player",
+      "sweep-reg-a",
+      "ok"
+    ],
+    [
+      "create_tournament_announcement_draft",
+      "sweep-reg-a",
+      "ok"
+    ],
+    [
+      "create_tournament_document",
+      "sweep-reg-a",
+      "ok"
+    ],
+    [
+      "create_tournament_media_gallery",
+      "sweep-reg-a",
+      "ok"
+    ],
+    [
+      "create_tournament_with_defaults",
+      "sweep-reg-b",
+      "ok"
+    ],
+    [
+      "create_tournament_team_entry",
+      "sweep-reg-b",
+      "ok"
+    ],
+    [
+      "create_tournament_team_entry",
+      "sweep-reg-b",
+      "ok"
+    ],
+    [
+      "create_tournament_team_entry",
+      "sweep-reg-b",
+      "ok"
+    ],
+    [
+      "create_tournament_team_entry",
+      "sweep-reg-b",
+      "ok"
+    ],
+    [
+      "create_tournament_team_entry",
+      "sweep-reg-b",
+      "ok"
+    ],
+    [
+      "create_tournament_provisional_player",
+      "sweep-reg-b",
+      "ok"
+    ],
+    [
+      "add_tournament_roster_player",
+      "sweep-reg-b",
+      "ok"
+    ],
+    [
+      "create_tournament_announcement_draft",
+      "sweep-reg-b",
+      "ok"
+    ],
+    [
+      "create_tournament_document",
+      "sweep-reg-b",
+      "ok"
+    ],
+    [
+      "create_tournament_media_gallery",
+      "sweep-reg-b",
+      "ok"
+    ]
+  ],
+  "results": [
+    {
+      "function": "accept_tournament_team_invitation(text)",
+      "verdict": "NOT_SWEPT",
+      "reason": "Core-wired; season scope covered by test_core_wiring.py"
+    },
+    {
+      "function": "acknowledge_tournament_document(uuid,boolean)",
+      "verdict": "NOT_SWEPT",
+      "reason": "self-scoped: acts only on the current identity's own rows"
+    },
+    {
+      "function": "add_tournament_match_event(uuid,uuid,jsonb)",
+      "returns": "jsonb",
+      "verdict": "SCOPED",
+      "fixture_pair": "play",
+      "admin_assigned_season": "23502 null value in column \"team_entry_id\" of relation \"tournament_match_events\" violates not-null constraint",
+      "admin_unassigned_season": "42501 TORNEOS_MATCH_FORBIDDEN",
+      "owner_unassigned_season": "23502 null value in column \"team_entry_id\" of relation \"tournament_match_events\" violates not-null constraint"
+    },
+    {
+      "function": "add_tournament_roster_player(uuid,uuid,uuid,uuid,uuid,text,text,smallint,text,text,boolean)",
+      "returns": "jsonb",
+      "verdict": "SCOPED",
+      "fixture_pair": "reg",
+      "admin_assigned_season": "23505 TORNEOS_DUPLICATE_PLAYER",
+      "admin_unassigned_season": "42501 TORNEOS_RESOURCE_FORBIDDEN",
+      "owner_unassigned_season": "23505 TORNEOS_DUPLICATE_PLAYER"
+    },
+    {
+      "function": "append_tournament_playoff_phase(uuid,uuid,uuid,uuid,integer,boolean,uuid)",
+      "returns": "jsonb",
+      "verdict": "SCOPED",
+      "fixture_pair": "play",
+      "admin_assigned_season": "23514 TORNEOS_PLAYOFF_SOURCE_INVALID",
+      "admin_unassigned_season": "42501 TORNEOS_RESOURCE_FORBIDDEN",
+      "owner_unassigned_season": "23514 TORNEOS_PLAYOFF_SOURCE_INVALID"
+    },
+    {
+      "function": "archive_tournament_team_entry(uuid,uuid,text)",
+      "returns": "jsonb",
+      "verdict": "SCOPED",
+      "fixture_pair": "play",
+      "admin_assigned_season": "OK {\"status\": \"archived\", \"entryId\": \"710d5e95-a411-4748-a87f-611770297d55\"}",
+      "admin_unassigned_season": "42501 TORNEOS_RESOURCE_FORBIDDEN",
+      "owner_unassigned_season": "OK {\"status\": \"archived\", \"entryId\": \"09d78728-4753-43cc-b9d4-b2f5c838522f\"}"
+    },
+    {
+      "function": "assign_tournament_season_member(uuid,uuid,uuid)",
+      "returns": "jsonb",
+      "verdict": "SCOPED",
+      "fixture_pair": "play",
+      "admin_assigned_season": "22023 TORNEOS_SEASON_ASSIGNMENT_INVALID",
+      "admin_unassigned_season": "42501 TORNEOS_SEASON_ASSIGNMENT_FORBIDDEN",
+      "owner_unassigned_season": "22023 TORNEOS_SEASON_ASSIGNMENT_INVALID"
+    },
+    {
+      "function": "authorize_tournament_social_export(uuid,uuid,text,text,boolean)",
+      "returns": "jsonb",
+      "verdict": "INCONCLUSIVE",
+      "fixture_pair": "play",
+      "admin_assigned_season": "42501 TORNEOS_BRANDING_PREMIUM_REQUIRED",
+      "admin_unassigned_season": "42501 TORNEOS_SOCIAL_EXPORT_FORBIDDEN",
+      "owner_unassigned_season": "42501 TORNEOS_BRANDING_PREMIUM_REQUIRED"
+    },
+    {
+      "function": "auto_schedule_tournament_matches(uuid,uuid)",
+      "returns": "jsonb",
+      "verdict": "SCOPED",
+      "fixture_pair": "play",
+      "admin_assigned_season": "23514 TORNEOS_AUTOSCHEDULE_RANGE_REQUIRED",
+      "admin_unassigned_season": "42501 TORNEOS_RESOURCE_FORBIDDEN",
+      "owner_unassigned_season": "23514 TORNEOS_AUTOSCHEDULE_RANGE_REQUIRED"
+    },
+    {
+      "function": "can_manage_tournament_player_portrait(uuid,uuid)",
+      "returns": "boolean",
+      "verdict": "SCOPED",
+      "fixture_pair": "play",
+      "admin_assigned_season": "OK true",
+      "admin_unassigned_season": "OK false",
+      "owner_unassigned_season": "OK true"
+    },
+    {
+      "function": "can_read_tournament_fixture_scope(uuid,uuid)",
+      "returns": "boolean",
+      "verdict": "SCOPED",
+      "fixture_pair": "play",
+      "admin_assigned_season": "OK true",
+      "admin_unassigned_season": "OK false",
+      "owner_unassigned_season": "OK true"
+    },
+    {
+      "function": "can_read_tournament_match(uuid)",
+      "returns": "boolean",
+      "verdict": "SCOPED",
+      "fixture_pair": "play",
+      "admin_assigned_season": "OK true",
+      "admin_unassigned_season": "OK false",
+      "owner_unassigned_season": "OK true"
+    },
+    {
+      "function": "can_read_tournament_player_portrait(uuid,uuid)",
+      "returns": "boolean",
+      "verdict": "SCOPED",
+      "fixture_pair": "play",
+      "admin_assigned_season": "OK true",
+      "admin_unassigned_season": "OK false",
+      "owner_unassigned_season": "OK true"
+    },
+    {
+      "function": "can_read_tournament_projection_scope(uuid,uuid)",
+      "returns": "boolean",
+      "verdict": "SCOPED",
+      "fixture_pair": "play",
+      "admin_assigned_season": "OK true",
+      "admin_unassigned_season": "OK false",
+      "owner_unassigned_season": "OK true"
+    },
+    {
+      "function": "can_read_tournament_team_entry(uuid,uuid)",
+      "returns": "boolean",
+      "verdict": "SCOPED",
+      "fixture_pair": "play",
+      "admin_assigned_season": "OK true",
+      "admin_unassigned_season": "OK false",
+      "owner_unassigned_season": "OK true"
+    },
+    {
+      "function": "can_update_tournament_team_branding(uuid,uuid)",
+      "returns": "boolean",
+      "verdict": "SCOPED",
+      "fixture_pair": "play",
+      "admin_assigned_season": "OK true",
+      "admin_unassigned_season": "OK false",
+      "owner_unassigned_season": "OK true"
+    },
+    {
+      "function": "can_write_tournament_branding_object(text)",
+      "verdict": "NOT_SWEPT",
+      "reason": "no organization or season-scoped resource parameter (self-scoped or public)"
+    },
+    {
+      "function": "cancel_tournament_media_upload_session(uuid)",
+      "verdict": "NOT_SWEPT",
+      "reason": "no organization or season-scoped resource parameter (self-scoped or public)"
+    },
+    {
+      "function": "cancel_tournament_purchase(uuid)",
+      "returns": "jsonb",
+      "verdict": "INCONCLUSIVE",
+      "fixture_pair": "play",
+      "admin_assigned_season": "42501 TORNEOS_PURCHASE_FORBIDDEN",
+      "admin_unassigned_season": "42501 TORNEOS_PURCHASE_FORBIDDEN",
+      "owner_unassigned_season": "42501 TORNEOS_PURCHASE_FORBIDDEN"
+    },
+    {
+      "function": "change_tournament_media_gallery_state(uuid,text,text)",
+      "returns": "jsonb",
+      "verdict": "INCONCLUSIVE",
+      "fixture_pair": "play",
+      "admin_assigned_season": "42501 TORNEOS_MEDIA_FORBIDDEN",
+      "admin_unassigned_season": "42501 TORNEOS_MEDIA_FORBIDDEN",
+      "owner_unassigned_season": "42501 TORNEOS_MEDIA_FORBIDDEN"
+    },
+    {
+      "function": "change_tournament_status(uuid,uuid,text)",
+      "returns": "jsonb",
+      "verdict": "SCOPED",
+      "fixture_pair": "play",
+      "admin_assigned_season": "22023 TORNEOS_INVALID_TOURNAMENT_TRANSITION",
+      "admin_unassigned_season": "42501 TORNEOS_RESOURCE_FORBIDDEN",
+      "owner_unassigned_season": "22023 TORNEOS_INVALID_TOURNAMENT_TRANSITION"
+    },
+    {
+      "function": "create_fake_tournament_season_purchase(uuid,uuid,text,uuid,text)",
+      "returns": "jsonb",
+      "verdict": "SCOPED",
+      "fixture_pair": "play",
+      "admin_assigned_season": "22023 TORNEOS_PRODUCT_UNAVAILABLE",
+      "admin_unassigned_season": "42501 TORNEOS_BILLING_FORBIDDEN",
+      "owner_unassigned_season": "22023 TORNEOS_PRODUCT_UNAVAILABLE"
+    },
+    {
+      "function": "create_manual_fixture_version(uuid,uuid,uuid,uuid,uuid)",
+      "returns": "jsonb",
+      "verdict": "SCOPED",
+      "fixture_pair": "reg",
+      "admin_assigned_season": "23514 TORNEOS_PARTICIPANTS_NOT_FROZEN",
+      "admin_unassigned_season": "42501 TORNEOS_RESOURCE_FORBIDDEN",
+      "owner_unassigned_season": "23514 TORNEOS_PARTICIPANTS_NOT_FROZEN"
+    },
+    {
+      "function": "create_tournament_announcement_draft(uuid,uuid,uuid,text,text,text,text,text,text,timestamp with time zone,uuid,text,uuid)",
+      "returns": "uuid",
+      "verdict": "SCOPED",
+      "fixture_pair": "play",
+      "admin_assigned_season": "OK 2b0bcee2-1cfa-41ac-8246-4ad7e9db4623",
+      "admin_unassigned_season": "42501 TORNEOS_COMMUNICATION_FORBIDDEN",
+      "owner_unassigned_season": "OK 3d893062-5332-4552-ae12-47ee702f0134"
+    },
+    {
+      "function": "create_tournament_court(uuid,uuid,text,text,text)",
+      "returns": "jsonb",
+      "verdict": "ORG_SCOPED",
+      "fixture_pair": "org",
+      "owner_own_organization": "OK {\"id\": \"fa4c65b7-8210-4f18-bcb8-10a68bc5c49e\", \"name\": \"Sweep name\", \"status\": \"active\", \"venueId\": \"2f474f2a-cb66-4e6d-b980-ddac24a0f186\"}",
+      "foreign_owner_same_arguments": "42501 TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "function": "create_tournament_disciplinary_override(uuid,text,integer,text,uuid)",
+      "returns": "uuid",
+      "verdict": "INCONCLUSIVE",
+      "fixture_pair": "play",
+      "admin_assigned_season": "42501 TORNEOS_DISCIPLINE_FORBIDDEN",
+      "admin_unassigned_season": "42501 TORNEOS_DISCIPLINE_FORBIDDEN",
+      "owner_unassigned_season": "42501 TORNEOS_DISCIPLINE_FORBIDDEN"
+    },
+    {
+      "function": "create_tournament_document(uuid,uuid,uuid,text,text,text,text,text,timestamp with time zone,uuid)",
+      "returns": "jsonb",
+      "verdict": "SCOPED",
+      "fixture_pair": "play",
+      "admin_assigned_season": "OK {\"versionId\": \"aeb0416f-024c-4b91-863c-6f32f84402eb\", \"documentId\": \"d79c3d16-6c97-4cd4-a9d8-b9ad106c52d6\"}",
+      "admin_unassigned_season": "42501 TORNEOS_DOCUMENT_FORBIDDEN",
+      "owner_unassigned_season": "OK {\"versionId\": \"9ee2b2e7-e876-484a-9957-4b40a48c7468\", \"documentId\": \"86071aba-8505-4256-8368-16bf6fce798f\"}"
+    },
+    {
+      "function": "create_tournament_match_correction(uuid,uuid)",
+      "returns": "jsonb",
+      "verdict": "INCONCLUSIVE",
+      "fixture_pair": "play",
+      "admin_assigned_season": "42501 TORNEOS_MATCH_FORBIDDEN",
+      "admin_unassigned_season": "42501 TORNEOS_MATCH_FORBIDDEN",
+      "owner_unassigned_season": "42501 TORNEOS_MATCH_FORBIDDEN"
+    },
+    {
+      "function": "create_tournament_media_gallery(uuid,uuid,uuid,uuid,uuid,text,text,text,uuid)",
+      "returns": "uuid",
+      "verdict": "SCOPED",
+      "fixture_pair": "play",
+      "admin_assigned_season": "OK 511443a7-daea-4726-b032-a8e568d65c0c",
+      "admin_unassigned_season": "42501 TORNEOS_MEDIA_FORBIDDEN",
+      "owner_unassigned_season": "OK 7734e3f5-a5be-4167-8eac-ffa38f24799f"
+    },
+    {
+      "function": "create_tournament_organization(text,text,uuid)",
+      "verdict": "NOT_SWEPT",
+      "reason": "no organization or season-scoped resource parameter (self-scoped or public)"
+    },
+    {
+      "function": "create_tournament_points_adjustment(uuid,uuid,uuid,uuid,uuid,integer,text,uuid)",
+      "returns": "uuid",
+      "verdict": "INCONCLUSIVE",
+      "fixture_pair": "play",
+      "admin_assigned_season": "42501 TORNEOS_STANDINGS_FORBIDDEN",
+      "admin_unassigned_season": "42501 TORNEOS_STANDINGS_FORBIDDEN",
+      "owner_unassigned_season": "42501 TORNEOS_STANDINGS_FORBIDDEN"
+    },
+    {
+      "function": "create_tournament_provisional_player(uuid,uuid,text)",
+      "returns": "jsonb",
+      "verdict": "SCOPED",
+      "fixture_pair": "reg",
+      "admin_assigned_season": "OK {\"id\": \"57f42b86-d48e-44c2-918a-928fa23c0d20\", \"claimStatus\": \"unclaimed\", \"displayName\": \"Sweep name\"}",
+      "admin_unassigned_season": "42501 TORNEOS_RESOURCE_FORBIDDEN",
+      "owner_unassigned_season": "OK {\"id\": \"d7c2cf76-29ac-4716-bbfb-c3e0809227a9\", \"claimStatus\": \"unclaimed\", \"displayName\": \"Sweep name\"}"
+    },
+    {
+      "function": "create_tournament_season(uuid,text,text,date,date,uuid)",
+      "returns": "jsonb",
+      "verdict": "ORG_SCOPED",
+      "fixture_pair": "org",
+      "owner_own_organization": "OK {\"id\": \"b4e755f0-8095-47f1-aa4d-82457da192c9\", \"name\": \"Sweep name\", \"slug\": \"sweep-5d433887\", \"status\": \"draft\", \"endDate\": null, \"createdAt\": \"2026-09-14T15:0",
+      "foreign_owner_same_arguments": "42501 TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "function": "create_tournament_season_purchase(uuid,uuid,text,uuid,text,text)",
+      "returns": "jsonb",
+      "verdict": "SCOPED",
+      "fixture_pair": "play",
+      "admin_assigned_season": "22023 TORNEOS_PRODUCT_UNAVAILABLE",
+      "admin_unassigned_season": "42501 TORNEOS_BILLING_FORBIDDEN",
+      "owner_unassigned_season": "22023 TORNEOS_PRODUCT_UNAVAILABLE"
+    },
+    {
+      "function": "create_tournament_team_entry(uuid,uuid,uuid,uuid,text,text,text,text,text,uuid,text,text,uuid)",
+      "verdict": "NOT_SWEPT",
+      "reason": "Core-wired; season scope covered by test_core_wiring.py"
+    },
+    {
+      "function": "create_tournament_venue(uuid,text,text,text,double precision,double precision,text,text,text)",
+      "returns": "jsonb",
+      "verdict": "ORG_SCOPED",
+      "fixture_pair": "org",
+      "owner_own_organization": "OK {\"id\": \"30d8b6a7-a985-47a9-8eec-8c89b08be599\", \"name\": \"Sweep name\", \"status\": \"active\"}",
+      "foreign_owner_same_arguments": "42501 TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "function": "create_tournament_with_defaults(uuid,uuid,text,text,text,text,text,text,date,date,uuid)",
+      "returns": "jsonb",
+      "verdict": "SCOPED",
+      "fixture_pair": "play",
+      "admin_assigned_season": "OK {\"id\": \"f86f9ba6-8fca-4503-ad31-70d6a7f72d2c\", \"name\": \"Sweep name\", \"slug\": \"sweep-3ff6df47\", \"status\": \"draft\", \"seasonId\": \"612949e1-d06b-4e58-b6d5-17ca6875d",
+      "admin_unassigned_season": "42501 TORNEOS_RESOURCE_FORBIDDEN",
+      "owner_unassigned_season": "OK {\"id\": \"0f66802e-b90b-4cfc-8c41-3cf4dbbc2f22\", \"name\": \"Sweep name\", \"slug\": \"sweep-dec56d41\", \"status\": \"draft\", \"seasonId\": \"5b8f4f78-c6b4-47cc-bea8-4065cbd3e"
+    },
+    {
+      "function": "execute_tournament_group_draw(uuid,uuid,uuid,integer,text,boolean)",
+      "returns": "jsonb",
+      "verdict": "SCOPED",
+      "fixture_pair": "reg",
+      "admin_assigned_season": "23514 TORNEOS_INVALID_GROUP_COUNT",
+      "admin_unassigned_season": "42501 TORNEOS_RESOURCE_FORBIDDEN",
+      "owner_unassigned_season": "23514 TORNEOS_INVALID_GROUP_COUNT"
+    },
+    {
+      "function": "finish_tournament_competition(uuid,uuid)",
+      "returns": "jsonb",
+      "verdict": "SCOPED",
+      "fixture_pair": "play",
+      "admin_assigned_season": "22023 TORNEOS_COMPETITION_HAS_PENDING_COMMITMENTS",
+      "admin_unassigned_season": "42501 TORNEOS_RESOURCE_FORBIDDEN",
+      "owner_unassigned_season": "22023 TORNEOS_COMPETITION_HAS_PENDING_COMMITMENTS"
+    },
+    {
+      "function": "freeze_tournament_participants(uuid,uuid,uuid,uuid)",
+      "returns": "jsonb",
+      "verdict": "SCOPED",
+      "fixture_pair": "reg",
+      "admin_assigned_season": "23514 TORNEOS_PENDING_REGISTRATIONS",
+      "admin_unassigned_season": "42501 TORNEOS_RESOURCE_FORBIDDEN",
+      "owner_unassigned_season": "23514 TORNEOS_PENDING_REGISTRATIONS"
+    },
+    {
+      "function": "generate_tournament_fixture(uuid,uuid,uuid,text,jsonb,uuid)",
+      "returns": "jsonb",
+      "verdict": "SCOPED",
+      "fixture_pair": "reg",
+      "admin_assigned_season": "23514 TORNEOS_PARTICIPANTS_NOT_FROZEN",
+      "admin_unassigned_season": "42501 TORNEOS_RESOURCE_FORBIDDEN",
+      "owner_unassigned_season": "23514 TORNEOS_PARTICIPANTS_NOT_FROZEN"
+    },
+    {
+      "function": "get_effective_tournament_entitlements(uuid,uuid)",
+      "returns": "jsonb",
+      "verdict": "SCOPED",
+      "fixture_pair": "play",
+      "admin_assigned_season": "OK {\"plan\": \"FREE\", \"media\": {\"galleryAssetLimit\": 25, \"essentialAssetsCountTowardLimit\": false}, \"offer\": {\"code\": \"launch\", \"label\": \"Precio lanzamiento\", \"versi",
+      "admin_unassigned_season": "42501 TORNEOS_ENTITLEMENTS_FORBIDDEN",
+      "owner_unassigned_season": "OK {\"plan\": \"FREE\", \"media\": {\"galleryAssetLimit\": 25, \"essentialAssetsCountTowardLimit\": false}, \"offer\": {\"code\": \"launch\", \"label\": \"Precio lanzamiento\", \"versi"
+    },
+    {
+      "function": "get_effective_tournament_season_entitlements(uuid,uuid)",
+      "returns": "jsonb",
+      "verdict": "SCOPED",
+      "fixture_pair": "play",
+      "admin_assigned_season": "OK {\"plan\": \"FREE\", \"media\": {\"galleryAssetLimit\": 25, \"essentialAssetsCountTowardLimit\": false}, \"offer\": {\"code\": \"launch\", \"label\": \"Precio lanzamiento\", \"versi",
+      "admin_unassigned_season": "42501 TORNEOS_ENTITLEMENTS_FORBIDDEN",
+      "owner_unassigned_season": "OK {\"plan\": \"FREE\", \"media\": {\"galleryAssetLimit\": 25, \"essentialAssetsCountTowardLimit\": false}, \"offer\": {\"code\": \"launch\", \"label\": \"Precio lanzamiento\", \"versi"
+    },
+    {
+      "function": "get_managed_tournament_matches()",
+      "verdict": "NOT_SWEPT",
+      "reason": "no organization or season-scoped resource parameter (self-scoped or public)"
+    },
+    {
+      "function": "get_match_squad_context(uuid,uuid,uuid)",
+      "returns": "jsonb",
+      "verdict": "SCOPED",
+      "fixture_pair": "play",
+      "admin_assigned_season": "OK {\"squad\": null, \"status\": \"scheduled\", \"matchId\": \"e1e3d217-c459-4196-adb0-25a3dbb91a67\", \"players\": [], \"teamName\": \"Team sweep-play-a 3\", \"teamSize\": 5, \"team",
+      "admin_unassigned_season": "42501 TORNEOS_MATCH_FORBIDDEN",
+      "owner_unassigned_season": "OK {\"squad\": null, \"status\": \"scheduled\", \"matchId\": \"7c918c77-a0cb-4d53-8053-ea5472c22ed8\", \"players\": [], \"teamName\": \"Team sweep-play-b 3\", \"teamSize\": 5, \"team"
+    },
+    {
+      "function": "get_my_managed_match_squad_context(uuid)",
+      "verdict": "NOT_SWEPT",
+      "reason": "self-scoped: acts only on the current identity's own rows"
+    },
+    {
+      "function": "get_my_tournament_memberships(integer,integer)",
+      "verdict": "NOT_SWEPT",
+      "reason": "no organization or season-scoped resource parameter (self-scoped or public)"
+    },
+    {
+      "function": "get_my_tournament_notification_preferences(uuid)",
+      "returns": "jsonb",
+      "verdict": "SCOPED",
+      "fixture_pair": "play",
+      "admin_assigned_season": "OK {\"callups\": true, \"general\": true, \"channels\": {\"push\": false, \"email\": false, \"internal\": true}, \"documents\": true, \"summaries\": true, \"discipline\": true, \"mat",
+      "admin_unassigned_season": "42501 TORNEOS_COMMUNICATION_FORBIDDEN",
+      "owner_unassigned_season": "OK {\"callups\": true, \"general\": true, \"channels\": {\"push\": false, \"email\": false, \"internal\": true}, \"documents\": true, \"summaries\": true, \"discipline\": true, \"mat"
+    },
+    {
+      "function": "get_player_tournament_matches()",
+      "verdict": "NOT_SWEPT",
+      "reason": "no organization or season-scoped resource parameter (self-scoped or public)"
+    },
+    {
+      "function": "get_player_tournament_statistics(uuid)",
+      "verdict": "NOT_SWEPT",
+      "reason": "self-scoped: acts only on the current identity's own rows"
+    },
+    {
+      "function": "get_player_tournament_suspensions(uuid)",
+      "verdict": "NOT_SWEPT",
+      "reason": "self-scoped: acts only on the current identity's own rows"
+    },
+    {
+      "function": "get_public_tournament_branding(text)",
+      "verdict": "NOT_SWEPT",
+      "reason": "no organization or season-scoped resource parameter (self-scoped or public)"
+    },
+    {
+      "function": "get_public_tournament_commercial_catalog(integer)",
+      "verdict": "NOT_SWEPT",
+      "reason": "no organization or season-scoped resource parameter (self-scoped or public)"
+    },
+    {
+      "function": "get_public_tournament_page(text,text)",
+      "verdict": "NOT_SWEPT",
+      "reason": "no organization or season-scoped resource parameter (self-scoped or public)"
+    },
+    {
+      "function": "get_published_tournament_documents(uuid,uuid)",
+      "returns": "jsonb",
+      "verdict": "SCOPED",
+      "fixture_pair": "play",
+      "admin_assigned_season": "OK {\"items\": [], \"canManage\": true}",
+      "admin_unassigned_season": "42501 TORNEOS_DOCUMENT_FORBIDDEN",
+      "owner_unassigned_season": "OK {\"items\": [], \"canManage\": true}"
+    },
+    {
+      "function": "get_published_tournament_matches(uuid,uuid,text,uuid,integer,integer)",
+      "returns": "jsonb",
+      "verdict": "SCOPED",
+      "fixture_pair": "play",
+      "admin_assigned_season": "OK {\"items\": [{\"away\": {\"name\": \"Team sweep-play-a 2\", \"shortName\": null, \"shieldPath\": null, \"teamEntryId\": \"0a7192eb-2530-4fcf-9d9e-cd98a653838a\", \"participantId",
+      "admin_unassigned_season": "42501 TORNEOS_HUB_FORBIDDEN",
+      "owner_unassigned_season": "OK {\"items\": [{\"away\": {\"name\": \"Team sweep-play-b 4\", \"shortName\": null, \"shieldPath\": null, \"teamEntryId\": \"248abaf5-59e3-49b9-85e3-4e7a414c3cad\", \"participantId"
+    },
+    {
+      "function": "get_published_tournament_media(uuid,uuid,uuid,integer,integer)",
+      "returns": "jsonb",
+      "verdict": "SCOPED",
+      "fixture_pair": "play",
+      "admin_assigned_season": "OK {\"items\": [], \"delivery\": {\"status\": \"staging_required\", \"originalsRestricted\": true, \"signedUrlTtlSeconds\": 300}}",
+      "admin_unassigned_season": "42501 TORNEOS_MEDIA_FORBIDDEN",
+      "owner_unassigned_season": "OK {\"items\": [], \"delivery\": {\"status\": \"staging_required\", \"originalsRestricted\": true, \"signedUrlTtlSeconds\": 300}}"
+    },
+    {
+      "function": "get_published_tournament_standings(uuid,uuid,uuid,uuid)",
+      "returns": "jsonb",
+      "verdict": "SCOPED",
+      "fixture_pair": "play",
+      "admin_assigned_season": "OK {\"revision\": null, \"standings\": []}",
+      "admin_unassigned_season": "42501 TORNEOS_HUB_FORBIDDEN",
+      "owner_unassigned_season": "OK {\"revision\": null, \"standings\": []}"
+    },
+    {
+      "function": "get_published_tournament_statistics(uuid,uuid,uuid,uuid)",
+      "returns": "jsonb",
+      "verdict": "SCOPED",
+      "fixture_pair": "play",
+      "admin_assigned_season": "OK {\"teams\": [], \"players\": [], \"discipline\": [], \"revisionId\": null}",
+      "admin_unassigned_season": "42501 TORNEOS_HUB_FORBIDDEN",
+      "owner_unassigned_season": "OK {\"teams\": [], \"players\": [], \"discipline\": [], \"revisionId\": null}"
+    },
+    {
+      "function": "get_published_tournament_teams(uuid,uuid,integer,integer)",
+      "returns": "jsonb",
+      "verdict": "SCOPED",
+      "fixture_pair": "play",
+      "admin_assigned_season": "OK {\"items\": [{\"name\": \"Team sweep-play-a 1\", \"played\": null, \"points\": null, \"roster\": [], \"status\": \"active\", \"isMyTeam\": null, \"position\": null, \"nextMatch\": nu",
+      "admin_unassigned_season": "42501 TORNEOS_HUB_FORBIDDEN",
+      "owner_unassigned_season": "OK {\"items\": [{\"name\": \"Team sweep-play-b 1\", \"played\": null, \"points\": null, \"roster\": [], \"status\": \"active\", \"isMyTeam\": null, \"position\": null, \"nextMatch\": nu"
+    },
+    {
+      "function": "get_team_registration_context(uuid,uuid)",
+      "returns": "jsonb",
+      "verdict": "SCOPED",
+      "fixture_pair": "play",
+      "admin_assigned_season": "OK {\"audit\": [{\"id\": 52, \"action\": \"roster_player.added\", \"metadata\": {\"identityType\": \"provisional\"}, \"createdAt\": \"2026-09-14T15:09:18.086683+00:00\", \"resourceTy",
+      "admin_unassigned_season": "42501 TORNEOS_RESOURCE_FORBIDDEN",
+      "owner_unassigned_season": "OK {\"audit\": [{\"id\": 69, \"action\": \"roster_player.added\", \"metadata\": {\"identityType\": \"provisional\"}, \"createdAt\": \"2026-09-14T15:09:20.172567+00:00\", \"resourceTy"
+    },
+    {
+      "function": "get_tournament_announcement(uuid)",
+      "returns": "jsonb",
+      "verdict": "SCOPED",
+      "fixture_pair": "play",
+      "admin_assigned_season": "OK {\"id\": \"15dadc14-49ad-4ae3-b500-4f92169fac0a\", \"body\": \"Sweep body\", \"type\": \"general\", \"links\": [], \"title\": \"Sweep title\", \"status\": \"draft\", \"summary\": \"Swee",
+      "admin_unassigned_season": "42501 TORNEOS_COMMUNICATION_FORBIDDEN",
+      "owner_unassigned_season": "OK {\"id\": \"93626a33-0847-4607-be74-fd64aecb5b22\", \"body\": \"Sweep body\", \"type\": \"general\", \"links\": [], \"title\": \"Sweep title\", \"status\": \"draft\", \"summary\": \"Swee"
+    },
+    {
+      "function": "get_tournament_branding_context(uuid,uuid)",
+      "returns": "jsonb",
+      "verdict": "SCOPED",
+      "fixture_pair": "play",
+      "admin_assigned_season": "OK {\"tournaments\": [{\"id\": \"54c2834c-f857-49f8-b3ab-5f1d83418850\", \"logoPath\": null}], \"organization\": {\"id\": \"e9ad3ed9-4e02-4c04-a145-b28d8adda272\", \"name\": \"Alph",
+      "admin_unassigned_season": "42501 TORNEOS_RESOURCE_FORBIDDEN",
+      "owner_unassigned_season": "OK {\"tournaments\": [{\"id\": \"abd9f6ac-33a4-480b-9926-5356919c0181\", \"logoPath\": null}], \"organization\": {\"id\": \"e9ad3ed9-4e02-4c04-a145-b28d8adda272\", \"name\": \"Alph"
+    },
+    {
+      "function": "get_tournament_communications_admin_context(uuid,uuid)",
+      "returns": "jsonb",
+      "verdict": "SCOPED",
+      "fixture_pair": "play",
+      "admin_assigned_season": "OK {\"channels\": {\"push\": false, \"email\": false, \"internal\": true}, \"documents\": [{\"id\": \"2a1bad58-a2ea-40a5-ba24-d941903eff07\", \"type\": \"regulation\", \"title\": \"Swe",
+      "admin_unassigned_season": "42501 TORNEOS_COMMUNICATION_FORBIDDEN",
+      "owner_unassigned_season": "OK {\"channels\": {\"push\": false, \"email\": false, \"internal\": true}, \"documents\": [{\"id\": \"7f6716c7-98d3-42c8-837f-e59dff53b6b3\", \"type\": \"regulation\", \"title\": \"Swe"
+    },
+    {
+      "function": "get_tournament_communications_inbox(uuid,text,integer,integer)",
+      "verdict": "NOT_SWEPT",
+      "reason": "self-scoped: acts only on the current identity's own rows"
+    },
+    {
+      "function": "get_tournament_competition_context(uuid)",
+      "returns": "jsonb",
+      "verdict": "ORG_SCOPED",
+      "fixture_pair": "org",
+      "owner_own_organization": "OK {\"formats\": [{\"code\": \"league\", \"name\": \"Liga\", \"description\": \"Todos compiten por puntos en una o dos ruedas.\"}, {\"code\": \"knockout\", \"name\": \"Eliminaci\u00f3n dire",
+      "foreign_owner_same_arguments": "42501 TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "function": "get_tournament_creation_eligibility(uuid)",
+      "returns": "jsonb",
+      "verdict": "ORG_SCOPED",
+      "fixture_pair": "org",
+      "owner_own_organization": "OK {\"status\": \"free_available\", \"schemaVersion\": 2, \"commercialUnit\": \"season\", \"organizationId\": \"e9ad3ed9-4e02-4c04-a145-b28d8adda272\", \"hasConsumedFreeTournamen",
+      "foreign_owner_same_arguments": "42501 TORNEOS_PLAN_FORBIDDEN"
+    },
+    {
+      "function": "get_tournament_fixture_context(uuid,uuid,uuid)",
+      "returns": "jsonb",
+      "verdict": "SCOPED",
+      "fixture_pair": "play",
+      "admin_assigned_season": "OK {\"pots\": [], \"groups\": [], \"phases\": [{\"id\": \"0c9f416b-ac7c-4731-b579-8b3f6db2308c\", \"name\": \"Liga\", \"status\": \"generated\", \"phaseType\": \"league\", \"configuratio",
+      "admin_unassigned_season": "42501 TORNEOS_RESOURCE_FORBIDDEN",
+      "owner_unassigned_season": "OK {\"pots\": [], \"groups\": [], \"phases\": [{\"id\": \"de82d281-7ce7-4fba-9ee7-2ed06afbccfa\", \"name\": \"Liga\", \"status\": \"generated\", \"phaseType\": \"league\", \"configuratio"
+    },
+    {
+      "function": "get_tournament_match_operation_context(uuid,uuid)",
+      "returns": "jsonb",
+      "verdict": "SCOPED",
+      "fixture_pair": "play",
+      "admin_assigned_season": "OK {\"score\": null, \"events\": [], \"outcome\": null, \"players\": [], \"reviews\": [], \"operation\": {\"id\": \"185b051e-55c6-4437-abb8-68e9bbb0319b\", \"notes\": null, \"status\"",
+      "admin_unassigned_season": "42501 TORNEOS_MATCH_FORBIDDEN",
+      "owner_unassigned_season": "OK {\"score\": null, \"events\": [], \"outcome\": null, \"players\": [], \"reviews\": [], \"operation\": {\"id\": \"6a8dbf98-b82f-42f4-be51-bfb3e7b1b51e\", \"notes\": null, \"status\""
+    },
+    {
+      "function": "get_tournament_match_operations_context(uuid,uuid,uuid)",
+      "returns": "jsonb",
+      "verdict": "SCOPED",
+      "fixture_pair": "play",
+      "admin_assigned_season": "OK {\"matches\": [{\"id\": \"e1e3d217-c459-4196-adb0-25a3dbb91a67\", \"court\": \"Court 1\", \"venue\": \"Sweep Venue\", \"roundId\": \"f6dc5b3e-9228-476a-bc6a-9304f8421bed\", \"away",
+      "admin_unassigned_season": "42501 TORNEOS_MATCH_FORBIDDEN",
+      "owner_unassigned_season": "OK {\"matches\": [{\"id\": \"7c918c77-a0cb-4d53-8053-ea5472c22ed8\", \"court\": \"Court 1\", \"venue\": \"Sweep Venue\", \"roundId\": \"2d245b96-503c-4b0b-acf1-4c6468c62954\", \"away"
+    },
+    {
+      "function": "get_tournament_media_admin_context(uuid,uuid,text,integer,integer)",
+      "returns": "jsonb",
+      "verdict": "SCOPED",
+      "fixture_pair": "play",
+      "admin_assigned_season": "OK {\"reports\": [], \"storage\": {\"bucket\": \"tournament-media\", \"private\": true, \"blockers\": [\"storage.bucket_absent\", \"storage.service_policies_absent\", \"service.sig",
+      "admin_unassigned_season": "42501 TORNEOS_MEDIA_FORBIDDEN",
+      "owner_unassigned_season": "OK {\"reports\": [], \"storage\": {\"bucket\": \"tournament-media\", \"private\": true, \"blockers\": [\"storage.bucket_absent\", \"storage.service_policies_absent\", \"service.sig"
+    },
+    {
+      "function": "get_tournament_media_asset_processing_tiers(uuid)",
+      "returns": "jsonb",
+      "verdict": "ORG_SCOPED",
+      "fixture_pair": "org",
+      "owner_own_organization": "OK {}",
+      "foreign_owner_same_arguments": "42501 TORNEOS_MEDIA_FORBIDDEN"
+    },
+    {
+      "function": "get_tournament_media_upload_capability(uuid)",
+      "returns": "jsonb",
+      "verdict": "ORG_SCOPED",
+      "fixture_pair": "org",
+      "owner_own_organization": "OK {\"mode\": \"PROCESSOR_EXTERNAL\", \"bucket\": \"tournament-media\", \"signer\": null, \"maxEdge\": 12000, \"private\": true, \"storage\": {\"bucket\": \"tournament-media\", \"polic",
+      "foreign_owner_same_arguments": "42501 TORNEOS_MEDIA_FORBIDDEN"
+    },
+    {
+      "function": "get_tournament_participant_hub(uuid,uuid)",
+      "returns": "jsonb",
+      "verdict": "SCOPED",
+      "fixture_pair": "play",
+      "admin_assigned_season": "OK {\"alerts\": [], \"myTeam\": null, \"audience\": {\"isPlayer\": false, \"managerRole\": null, \"canManageTeam\": null, \"organizationRole\": \"admin\", \"canManageTournament\": t",
+      "admin_unassigned_season": "42501 TORNEOS_HUB_FORBIDDEN",
+      "owner_unassigned_season": "OK {\"alerts\": [], \"myTeam\": null, \"audience\": {\"isPlayer\": false, \"managerRole\": null, \"canManageTeam\": null, \"organizationRole\": \"owner\", \"canManageTournament\": t"
+    },
+    {
+      "function": "get_tournament_participant_match(uuid)",
+      "returns": "jsonb",
+      "verdict": "SCOPED",
+      "fixture_pair": "play",
+      "admin_assigned_season": "OK {\"away\": {\"name\": \"Team sweep-play-a 2\", \"shortName\": null, \"shieldPath\": null, \"teamEntryId\": \"0a7192eb-2530-4fcf-9d9e-cd98a653838a\"}, \"home\": {\"name\": \"Team s",
+      "admin_unassigned_season": "42501 TORNEOS_HUB_FORBIDDEN",
+      "owner_unassigned_season": "OK {\"away\": {\"name\": \"Team sweep-play-b 4\", \"shortName\": null, \"shieldPath\": null, \"teamEntryId\": \"248abaf5-59e3-49b9-85e3-4e7a414c3cad\"}, \"home\": {\"name\": \"Team s"
+    },
+    {
+      "function": "get_tournament_player_portrait_ref(uuid,uuid,text)",
+      "returns": "jsonb",
+      "verdict": "INCONCLUSIVE",
+      "fixture_pair": "play",
+      "admin_assigned_season": "42501 TORNEOS_PORTRAIT_FORBIDDEN",
+      "admin_unassigned_season": "42501 TORNEOS_PORTRAIT_FORBIDDEN",
+      "owner_unassigned_season": "42501 TORNEOS_PORTRAIT_FORBIDDEN"
+    },
+    {
+      "function": "get_tournament_public_page_settings(uuid,uuid)",
+      "returns": "jsonb",
+      "verdict": "SCOPED",
+      "fixture_pair": "play",
+      "admin_assigned_season": "OK {\"eligible\": true, \"published\": false, \"publicPath\": null, \"publicSlug\": null, \"publishedAt\": null, \"unavailableReason\": null}",
+      "admin_unassigned_season": "42501 TORNEOS_RESOURCE_FORBIDDEN",
+      "owner_unassigned_season": "OK {\"eligible\": true, \"published\": false, \"publicPath\": null, \"publicSlug\": null, \"publishedAt\": null, \"unavailableReason\": null}"
+    },
+    {
+      "function": "get_tournament_purchase(uuid)",
+      "returns": "jsonb",
+      "verdict": "INCONCLUSIVE",
+      "fixture_pair": "play",
+      "admin_assigned_season": "42501 TORNEOS_PURCHASE_FORBIDDEN",
+      "admin_unassigned_season": "42501 TORNEOS_PURCHASE_FORBIDDEN",
+      "owner_unassigned_season": "42501 TORNEOS_PURCHASE_FORBIDDEN"
+    },
+    {
+      "function": "get_tournament_schedule_context(uuid,uuid,uuid)",
+      "returns": "jsonb",
+      "verdict": "SCOPED",
+      "fixture_pair": "play",
+      "admin_assigned_season": "OK {\"courts\": [{\"id\": \"91b8e0cc-760c-4c1f-9c34-e528a4141a98\", \"name\": \"Court 1\", \"notes\": null, \"status\": \"active\", \"venueId\": \"2f474f2a-cb66-4e6d-b980-ddac24a0f18",
+      "admin_unassigned_season": "42501 TORNEOS_RESOURCE_FORBIDDEN",
+      "owner_unassigned_season": "OK {\"courts\": [{\"id\": \"91b8e0cc-760c-4c1f-9c34-e528a4141a98\", \"name\": \"Court 1\", \"notes\": null, \"status\": \"active\", \"venueId\": \"2f474f2a-cb66-4e6d-b980-ddac24a0f18"
+    },
+    {
+      "function": "get_tournament_season_media_usage(uuid,uuid)",
+      "returns": "jsonb",
+      "verdict": "SCOPED",
+      "fixture_pair": "play",
+      "admin_assigned_season": "OK {\"plan\": \"FREE\", \"limit\": 25, \"usage\": 0, \"seasonId\": \"612949e1-d06b-4e58-b6d5-17ca6875d956\", \"remaining\": 25, \"assetCount\": 0, \"pendingCount\": 0, \"schemaVersio",
+      "admin_unassigned_season": "42501 TORNEOS_MEDIA_FORBIDDEN",
+      "owner_unassigned_season": "OK {\"plan\": \"FREE\", \"limit\": 25, \"usage\": 0, \"seasonId\": \"5b8f4f78-c6b4-47cc-bea8-4065cbd3e13c\", \"remaining\": 25, \"assetCount\": 0, \"pendingCount\": 0, \"schemaVersio"
+    },
+    {
+      "function": "get_tournament_social_snapshot(uuid,uuid,uuid,uuid,text,uuid,uuid)",
+      "returns": "jsonb",
+      "verdict": "SCOPED",
+      "fixture_pair": "play",
+      "admin_assigned_season": "OK {\"plan\": \"FREE\", \"piece\": \"standings\", \"social\": {\"baseFamilyLimit\": 3, \"premiumResultStyles\": false}, \"source\": {\"groupId\": null, \"phaseId\": \"0c9f416b-ac7c-473",
+      "admin_unassigned_season": "42501 TORNEOS_SOCIAL_FORBIDDEN",
+      "owner_unassigned_season": "OK {\"plan\": \"FREE\", \"piece\": \"standings\", \"social\": {\"baseFamilyLimit\": 3, \"premiumResultStyles\": false}, \"source\": {\"groupId\": null, \"phaseId\": \"de82d281-7ce7-4fb"
+    },
+    {
+      "function": "get_tournament_social_studio_context(uuid)",
+      "returns": "jsonb",
+      "verdict": "ORG_SCOPED",
+      "fixture_pair": "org",
+      "owner_own_organization": "OK {\"brand\": {\"canHideArma2Logo\": true, \"organizationName\": \"Alpha League\"}, \"tournaments\": [{\"id\": \"445bcafc-84e5-4349-ad57-380032a7405f\", \"name\": \"sweep-reg-b\",",
+      "foreign_owner_same_arguments": "42501 TORNEOS_SOCIAL_FORBIDDEN"
+    },
+    {
+      "function": "get_tournament_standings_context(uuid,uuid,uuid,uuid,uuid)",
+      "returns": "jsonb",
+      "verdict": "SCOPED",
+      "fixture_pair": "play",
+      "admin_assigned_season": "OK {\"revision\": {\"id\": \"47e61224-04dc-42d5-b654-c855e3a95fd1\", \"number\": 1, \"reason\": \"sweep\", \"status\": \"draft\", \"publishedAt\": null, \"calculatedAt\": \"2026-09-14T",
+      "admin_unassigned_season": "42501 TORNEOS_STANDINGS_FORBIDDEN",
+      "owner_unassigned_season": "OK {\"revision\": {\"id\": \"7b5ffd2f-378b-45a9-9735-67d24ea6dd3d\", \"number\": 1, \"reason\": \"sweep\", \"status\": \"draft\", \"publishedAt\": null, \"calculatedAt\": \"2026-09-14T"
+    },
+    {
+      "function": "get_tournament_statistics_context(uuid,uuid,uuid,uuid,uuid)",
+      "returns": "jsonb",
+      "verdict": "SCOPED",
+      "fixture_pair": "play",
+      "admin_assigned_season": "OK {\"teams\": [{\"name\": \"Team sweep-play-a 1\", \"goals\": 0, \"redCards\": 0, \"awayPlayed\": 0, \"homePlayed\": 0, \"shieldPath\": null, \"teamEntryId\": \"b5e4ffc6-7283-4464-b",
+      "admin_unassigned_season": "42501 TORNEOS_STATISTICS_FORBIDDEN",
+      "owner_unassigned_season": "OK {\"teams\": [{\"name\": \"Team sweep-play-b 1\", \"goals\": 0, \"redCards\": 0, \"awayPlayed\": 0, \"homePlayed\": 0, \"shieldPath\": null, \"teamEntryId\": \"b0e90e71-75ce-4ffb-9"
+    },
+    {
+      "function": "get_tournament_team_photo_state(uuid,uuid)",
+      "returns": "jsonb",
+      "verdict": "SCOPED",
+      "fixture_pair": "play",
+      "admin_assigned_season": "OK {\"current\": null, \"canManage\": true, \"candidate\": null, \"canModerate\": true, \"teamEntryId\": \"710d5e95-a411-4748-a87f-611770297d55\", \"organizationId\": \"e9ad3ed9-",
+      "admin_unassigned_season": "42501 TORNEOS_TEAM_PHOTO_FORBIDDEN",
+      "owner_unassigned_season": "OK {\"current\": null, \"canManage\": true, \"candidate\": null, \"canModerate\": true, \"teamEntryId\": \"09d78728-4753-43cc-b9d4-b2f5c838522f\", \"organizationId\": \"e9ad3ed9-"
+    },
+    {
+      "function": "get_tournament_team_visual_policy(uuid,uuid)",
+      "returns": "jsonb",
+      "verdict": "SCOPED",
+      "fixture_pair": "play",
+      "admin_assigned_season": "OK {\"policy\": \"organization_only\", \"canUpdate\": true, \"tournamentId\": \"54c2834c-f857-49f8-b3ab-5f1d83418850\", \"organizationId\": \"e9ad3ed9-4e02-4c04-a145-b28d8adda2",
+      "admin_unassigned_season": "42501 TORNEOS_RESOURCE_FORBIDDEN",
+      "owner_unassigned_season": "OK {\"policy\": \"organization_only\", \"canUpdate\": true, \"tournamentId\": \"abd9f6ac-33a4-480b-9926-5356919c0181\", \"organizationId\": \"e9ad3ed9-4e02-4c04-a145-b28d8adda2"
+    },
+    {
+      "function": "get_tournament_teams_context(uuid,uuid)",
+      "returns": "jsonb",
+      "verdict": "SCOPED",
+      "fixture_pair": "play",
+      "admin_assigned_season": "OK {\"entries\": [{\"id\": \"b5e4ffc6-7283-4464-b5f0-02753ba2d184\", \"name\": \"Team sweep-play-a 1\", \"linked\": false, \"roster\": {\"id\": \"f192c7c5-9001-4c10-ad9c-f8e53127bf",
+      "admin_unassigned_season": "42501 TORNEOS_RESOURCE_FORBIDDEN",
+      "owner_unassigned_season": "OK {\"entries\": [{\"id\": \"b0e90e71-75ce-4ffb-9596-2f3a64661c40\", \"name\": \"Team sweep-play-b 1\", \"linked\": false, \"roster\": {\"id\": \"536b0db3-8fc3-441e-acb7-b77791e501"
+    },
+    {
+      "function": "get_tournament_workspace_context()",
+      "verdict": "NOT_SWEPT",
+      "reason": "no organization or season-scoped resource parameter (self-scoped or public)"
+    },
+    {
+      "function": "handle_tournament_media_report(uuid,text,text)",
+      "verdict": "NOT_SWEPT",
+      "reason": "no organization or season-scoped resource parameter (self-scoped or public)"
+    },
+    {
+      "function": "has_organization_consumed_free_tournament(uuid)",
+      "returns": "boolean",
+      "verdict": "ORG_SCOPED",
+      "fixture_pair": "org",
+      "owner_own_organization": "OK false",
+      "foreign_owner_same_arguments": "42501 TORNEOS_PLAN_FORBIDDEN"
+    },
+    {
+      "function": "has_tournament_capability(uuid,uuid,text)",
+      "returns": "boolean",
+      "verdict": "SCOPED",
+      "fixture_pair": "play",
+      "admin_assigned_season": "OK true",
+      "admin_unassigned_season": "OK false",
+      "owner_unassigned_season": "OK true"
+    },
+    {
+      "function": "has_tournament_entitlement(uuid,uuid,text)",
+      "returns": "boolean",
+      "verdict": "INCONCLUSIVE",
+      "fixture_pair": "play",
+      "admin_assigned_season": "OK false",
+      "admin_unassigned_season": "OK false",
+      "owner_unassigned_season": "OK false"
+    },
+    {
+      "function": "has_tournament_organization_capability(uuid,text)",
+      "returns": "boolean",
+      "verdict": "ORG_SCOPED",
+      "fixture_pair": "org",
+      "owner_own_organization": "OK true",
+      "foreign_owner_same_arguments": "OK false"
+    },
+    {
+      "function": "has_tournament_season_access(uuid,uuid)",
+      "returns": "boolean",
+      "verdict": "SCOPED",
+      "fixture_pair": "play",
+      "admin_assigned_season": "OK true",
+      "admin_unassigned_season": "OK false",
+      "owner_unassigned_season": "OK true"
+    },
+    {
+      "function": "has_tournament_season_capability(uuid,uuid,text)",
+      "returns": "boolean",
+      "verdict": "SCOPED",
+      "fixture_pair": "play",
+      "admin_assigned_season": "OK true",
+      "admin_unassigned_season": "OK false",
+      "owner_unassigned_season": "OK true"
+    },
+    {
+      "function": "invite_tournament_team_manager(uuid,uuid,text,text,text)",
+      "returns": "jsonb",
+      "verdict": "SCOPED",
+      "fixture_pair": "reg",
+      "admin_assigned_season": "OK {\"token\": \"7c73f901e226417867726a05486e1179973866b71070a23e9a5de20ecc718fe9\", \"expiresAt\": \"2026-09-21T15:09:33.110755+00:00\", \"environment\": \"test-only\", \"invi",
+      "admin_unassigned_season": "42501 TORNEOS_RESOURCE_FORBIDDEN",
+      "owner_unassigned_season": "OK {\"token\": \"a836a3c50bb0ef651ef8d3871936a6aa448296377bb63d6994ede1df0d9af241\", \"expiresAt\": \"2026-09-21T15:09:33.07085+00:00\", \"environment\": \"test-only\", \"invit"
+    },
+    {
+      "function": "is_tournament_organization_member(uuid)",
+      "returns": "boolean",
+      "verdict": "ORG_SCOPED",
+      "fixture_pair": "org",
+      "owner_own_organization": "OK true",
+      "foreign_owner_same_arguments": "OK false"
+    },
+    {
+      "function": "is_tournament_organization_slug_available(text)",
+      "verdict": "NOT_SWEPT",
+      "reason": "no organization or season-scoped resource parameter (self-scoped or public)"
+    },
+    {
+      "function": "is_tournament_team_manager(uuid,boolean)",
+      "verdict": "NOT_SWEPT",
+      "reason": "self-scoped: acts only on the current identity's own rows"
+    },
+    {
+      "function": "list_tournament_player_portrait_refs(uuid,uuid)",
+      "returns": "jsonb",
+      "verdict": "SCOPED",
+      "fixture_pair": "play",
+      "admin_assigned_season": "OK {\"players\": [{\"portrait\": null, \"canManage\": true, \"rosterPlayerId\": \"2118e1cb-a883-4363-a828-732a804fa99d\"}], \"teamEntryId\": \"710d5e95-a411-4748-a87f-611770297",
+      "admin_unassigned_season": "42501 TORNEOS_PORTRAIT_FORBIDDEN",
+      "owner_unassigned_season": "OK {\"players\": [{\"portrait\": null, \"canManage\": true, \"rosterPlayerId\": \"f054592c-6c54-47ee-a6bb-52615ed52d7d\"}], \"teamEntryId\": \"09d78728-4753-43cc-b9d4-b2f5c8385"
+    },
+    {
+      "function": "list_tournament_season_member_assignments(uuid,uuid)",
+      "returns": "jsonb",
+      "verdict": "SCOPED",
+      "fixture_pair": "play",
+      "admin_assigned_season": "OK [{\"id\": \"d6762362-2c7f-42c7-8dcd-c9f8556e8888\", \"role\": \"admin\", \"status\": \"active\", \"userId\": \"93a15f75-15f9-4c7f-966d-11795aec0474\", \"assignedAt\": \"2026-09-14",
+      "admin_unassigned_season": "42501 TORNEOS_SEASON_ASSIGNMENT_FORBIDDEN",
+      "owner_unassigned_season": "OK [{\"id\": \"81a2b66c-9028-47f3-a361-00145cba57d0\", \"role\": \"collaborator\", \"status\": \"active\", \"userId\": \"996f765e-286f-495e-9873-2fce2160f377\", \"assignedAt\": \"202"
+    },
+    {
+      "function": "lock_tournament_roster(uuid,uuid,uuid)",
+      "returns": "jsonb",
+      "verdict": "INCONCLUSIVE",
+      "fixture_pair": "play",
+      "admin_assigned_season": "42501 TORNEOS_RESOURCE_FORBIDDEN",
+      "admin_unassigned_season": "42501 TORNEOS_RESOURCE_FORBIDDEN",
+      "owner_unassigned_season": "42501 TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "function": "make_tournament_match_official(uuid,uuid)",
+      "returns": "jsonb",
+      "verdict": "INCONCLUSIVE",
+      "fixture_pair": "play",
+      "admin_assigned_season": "42501 TORNEOS_MATCH_FORBIDDEN",
+      "admin_unassigned_season": "42501 TORNEOS_MATCH_FORBIDDEN",
+      "owner_unassigned_season": "42501 TORNEOS_MATCH_FORBIDDEN"
+    },
+    {
+      "function": "mark_tournament_announcement_read(uuid,boolean)",
+      "verdict": "NOT_SWEPT",
+      "reason": "self-scoped: acts only on the current identity's own rows"
+    },
+    {
+      "function": "mark_tournament_suspension_served(uuid,uuid,text)",
+      "returns": "uuid",
+      "verdict": "INCONCLUSIVE",
+      "fixture_pair": "play",
+      "admin_assigned_season": "42501 TORNEOS_DISCIPLINE_FORBIDDEN",
+      "admin_unassigned_season": "42501 TORNEOS_DISCIPLINE_FORBIDDEN",
+      "owner_unassigned_season": "42501 TORNEOS_DISCIPLINE_FORBIDDEN"
+    },
+    {
+      "function": "open_tournament_match_operation(uuid,uuid,text)",
+      "returns": "jsonb",
+      "verdict": "SCOPED",
+      "fixture_pair": "play",
+      "admin_assigned_season": "OK {\"score\": null, \"events\": [], \"outcome\": null, \"players\": [], \"reviews\": [], \"operation\": {\"id\": \"185b051e-55c6-4437-abb8-68e9bbb0319b\", \"notes\": null, \"status\"",
+      "admin_unassigned_season": "42501 TORNEOS_MATCH_FORBIDDEN",
+      "owner_unassigned_season": "OK {\"score\": null, \"events\": [], \"outcome\": null, \"players\": [], \"reviews\": [], \"operation\": {\"id\": \"6a8dbf98-b82f-42f4-be51-bfb3e7b1b51e\", \"notes\": null, \"status\""
+    },
+    {
+      "function": "preview_tournament_announcement_audience(uuid)",
+      "returns": "jsonb",
+      "verdict": "SCOPED",
+      "fixture_pair": "play",
+      "admin_assigned_season": "OK {\"roles\": [], \"teams\": [], \"channel\": \"internal_only\", \"revalidatedAt\": \"2026-09-14T15:09:34.130738+00:00\", \"announcementId\": \"15dadc14-49ad-4ae3-b500-4f92169fa",
+      "admin_unassigned_season": "42501 TORNEOS_COMMUNICATION_FORBIDDEN",
+      "owner_unassigned_season": "OK {\"roles\": [], \"teams\": [], \"channel\": \"internal_only\", \"revalidatedAt\": \"2026-09-14T15:09:34.066478+00:00\", \"announcementId\": \"93626a33-0847-4607-be74-fd64aecb5"
+    },
+    {
+      "function": "publish_tournament_announcement(uuid,integer)",
+      "returns": "jsonb",
+      "verdict": "SCOPED",
+      "fixture_pair": "play",
+      "admin_assigned_season": "23514 TORNEOS_AUDIENCE_REQUIRED",
+      "admin_unassigned_season": "42501 TORNEOS_COMMUNICATION_FORBIDDEN",
+      "owner_unassigned_season": "23514 TORNEOS_AUDIENCE_REQUIRED"
+    },
+    {
+      "function": "publish_tournament_document_version(uuid)",
+      "returns": "jsonb",
+      "verdict": "SCOPED",
+      "fixture_pair": "play",
+      "admin_assigned_season": "OK {\"status\": \"published\", \"versionId\": \"ad18e6b0-0879-4a8d-a3f1-7c8bcf499551\", \"documentId\": \"2a1bad58-a2ea-40a5-ba24-d941903eff07\"}",
+      "admin_unassigned_season": "42501 TORNEOS_DOCUMENT_FORBIDDEN",
+      "owner_unassigned_season": "OK {\"status\": \"published\", \"versionId\": \"3ebc3ce2-bb76-46ce-918c-9cb3890ed373\", \"documentId\": \"7f6716c7-98d3-42c8-837f-e59dff53b6b3\"}"
+    },
+    {
+      "function": "publish_tournament_fixture(uuid,uuid)",
+      "returns": "jsonb",
+      "verdict": "INCONCLUSIVE",
+      "fixture_pair": "play",
+      "admin_assigned_season": "42501 TORNEOS_RESOURCE_FORBIDDEN",
+      "admin_unassigned_season": "42501 TORNEOS_RESOURCE_FORBIDDEN",
+      "owner_unassigned_season": "42501 TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "function": "publish_tournament_media_gallery(uuid)",
+      "returns": "jsonb",
+      "verdict": "SCOPED",
+      "fixture_pair": "play",
+      "admin_assigned_season": "22023 TORNEOS_MEDIA_GALLERY_NOT_PUBLISHABLE",
+      "admin_unassigned_season": "42501 TORNEOS_MEDIA_FORBIDDEN",
+      "owner_unassigned_season": "22023 TORNEOS_MEDIA_GALLERY_NOT_PUBLISHABLE"
+    },
+    {
+      "function": "publish_tournament_standings_revision(uuid,text)",
+      "returns": "uuid",
+      "verdict": "SCOPED",
+      "fixture_pair": "play",
+      "admin_assigned_season": "OK 47e61224-04dc-42d5-b654-c855e3a95fd1",
+      "admin_unassigned_season": "42501 TORNEOS_STANDINGS_FORBIDDEN",
+      "owner_unassigned_season": "OK 7b5ffd2f-378b-45a9-9735-67d24ea6dd3d"
+    },
+    {
+      "function": "rebuild_tournament_standings(uuid,uuid,uuid,uuid,uuid,text,uuid)",
+      "returns": "uuid",
+      "verdict": "SCOPED",
+      "fixture_pair": "play",
+      "admin_assigned_season": "22023 TORNEOS_STANDINGS_DRAFT_EXISTS",
+      "admin_unassigned_season": "42501 TORNEOS_STANDINGS_FORBIDDEN",
+      "owner_unassigned_season": "22023 TORNEOS_STANDINGS_DRAFT_EXISTS"
+    },
+    {
+      "function": "record_manual_match_availability(uuid,uuid,uuid,text,text,text)",
+      "returns": "jsonb",
+      "verdict": "INCONCLUSIVE",
+      "fixture_pair": "play",
+      "admin_assigned_season": "42501 TORNEOS_MATCH_FORBIDDEN",
+      "admin_unassigned_season": "42501 TORNEOS_MATCH_FORBIDDEN",
+      "owner_unassigned_season": "42501 TORNEOS_MATCH_FORBIDDEN"
+    },
+    {
+      "function": "remove_tournament_roster_player(uuid,uuid,uuid)",
+      "returns": "jsonb",
+      "verdict": "SCOPED",
+      "fixture_pair": "reg",
+      "admin_assigned_season": "OK {\"id\": \"0465c3ba-5f0c-4056-b162-fb4d78652ea2\", \"status\": \"removed\"}",
+      "admin_unassigned_season": "42501 TORNEOS_RESOURCE_FORBIDDEN",
+      "owner_unassigned_season": "OK {\"id\": \"46dec8af-7f5d-481b-825b-91c1c0ef93e8\", \"status\": \"removed\"}"
+    },
+    {
+      "function": "remove_tournament_season_member_assignment(uuid,uuid,uuid)",
+      "returns": "boolean",
+      "verdict": "SCOPED",
+      "fixture_pair": "play",
+      "admin_assigned_season": "OK false",
+      "admin_unassigned_season": "42501 TORNEOS_SEASON_ASSIGNMENT_FORBIDDEN",
+      "owner_unassigned_season": "OK false"
+    },
+    {
+      "function": "reopen_tournament_competition(uuid,uuid,text)",
+      "returns": "jsonb",
+      "verdict": "CAPABILITY_DENIED",
+      "fixture_pair": "play",
+      "admin_assigned_season": "42501 TORNEOS_RESOURCE_FORBIDDEN",
+      "admin_unassigned_season": "42501 TORNEOS_RESOURCE_FORBIDDEN",
+      "owner_unassigned_season": "OK {\"id\": \"abd9f6ac-33a4-480b-9926-5356919c0181\", \"status\": \"active\", \"reopenedAt\": null, \"reopenCount\": 0, \"alreadyActive\": true}"
+    },
+    {
+      "function": "reopen_tournament_participants(uuid,uuid,uuid,text)",
+      "returns": "jsonb",
+      "verdict": "INCONCLUSIVE",
+      "fixture_pair": "play",
+      "admin_assigned_season": "42501 TORNEOS_RESOURCE_FORBIDDEN",
+      "admin_unassigned_season": "42501 TORNEOS_RESOURCE_FORBIDDEN",
+      "owner_unassigned_season": "42501 TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "function": "reorder_tournament_media_item(uuid,uuid,integer)",
+      "returns": "jsonb",
+      "verdict": "SCOPED",
+      "fixture_pair": "play",
+      "admin_assigned_season": "22023 TORNEOS_MEDIA_ORDER_INVALID",
+      "admin_unassigned_season": "42501 TORNEOS_MEDIA_FORBIDDEN",
+      "owner_unassigned_season": "22023 TORNEOS_MEDIA_ORDER_INVALID"
+    },
+    {
+      "function": "replace_tournament_announcement_audience(uuid,text,uuid,uuid,uuid,uuid)",
+      "returns": "uuid",
+      "verdict": "SCOPED",
+      "fixture_pair": "play",
+      "admin_assigned_season": "23514 new row for relation \"tournament_announcement_audiences\" violates check constraint \"tournament_announcement_audiences_shape_check\"",
+      "admin_unassigned_season": "42501 TORNEOS_COMMUNICATION_FORBIDDEN",
+      "owner_unassigned_season": "23514 new row for relation \"tournament_announcement_audiences\" violates check constraint \"tournament_announcement_audiences_shape_check\""
+    },
+    {
+      "function": "report_tournament_media_asset(uuid,text,text,boolean,uuid)",
+      "returns": "jsonb",
+      "verdict": "INCONCLUSIVE",
+      "fixture_pair": "play",
+      "admin_assigned_season": "42501 TORNEOS_MEDIA_FORBIDDEN",
+      "admin_unassigned_season": "42501 TORNEOS_MEDIA_FORBIDDEN",
+      "owner_unassigned_season": "42501 TORNEOS_MEDIA_FORBIDDEN"
+    },
+    {
+      "function": "request_tournament_match_correction(uuid,uuid,text)",
+      "returns": "jsonb",
+      "verdict": "INCONCLUSIVE",
+      "fixture_pair": "play",
+      "admin_assigned_season": "42501 TORNEOS_MATCH_FORBIDDEN",
+      "admin_unassigned_season": "42501 TORNEOS_MATCH_FORBIDDEN",
+      "owner_unassigned_season": "42501 TORNEOS_MATCH_FORBIDDEN"
+    },
+    {
+      "function": "request_tournament_media_upload_session(uuid,text,text,bigint,uuid)",
+      "returns": "jsonb",
+      "verdict": "PRECONDITION",
+      "fixture_pair": "play",
+      "admin_assigned_season": "55000 TORNEOS_MEDIA_PIPELINE_NOT_READY",
+      "admin_unassigned_season": "55000 TORNEOS_MEDIA_PIPELINE_NOT_READY",
+      "owner_unassigned_season": "55000 TORNEOS_MEDIA_PIPELINE_NOT_READY"
+    },
+    {
+      "function": "reschedule_tournament_match(uuid,uuid,timestamp with time zone,uuid,uuid,integer,text,boolean)",
+      "returns": "jsonb",
+      "verdict": "SCOPED",
+      "fixture_pair": "play",
+      "admin_assigned_season": "OK {\"status\": \"scheduled\", \"matchId\": \"e1e3d217-c459-4196-adb0-25a3dbb91a67\"}",
+      "admin_unassigned_season": "42501 TORNEOS_RESOURCE_FORBIDDEN",
+      "owner_unassigned_season": "OK {\"status\": \"scheduled\", \"matchId\": \"7c918c77-a0cb-4d53-8053-ea5472c22ed8\"}"
+    },
+    {
+      "function": "resolve_tournament_qualification(uuid,text)",
+      "returns": "jsonb",
+      "verdict": "INCONCLUSIVE",
+      "fixture_pair": "play",
+      "admin_assigned_season": "42501 TORNEOS_QUALIFICATION_FORBIDDEN",
+      "admin_unassigned_season": "42501 TORNEOS_QUALIFICATION_FORBIDDEN",
+      "owner_unassigned_season": "42501 TORNEOS_QUALIFICATION_FORBIDDEN"
+    },
+    {
+      "function": "respond_match_availability(uuid,text,text)",
+      "verdict": "NOT_SWEPT",
+      "reason": "self-scoped: acts only on the current identity's own rows"
+    },
+    {
+      "function": "review_tournament_match_operation(uuid,uuid,text,text)",
+      "returns": "jsonb",
+      "verdict": "INCONCLUSIVE",
+      "fixture_pair": "play",
+      "admin_assigned_season": "42501 TORNEOS_MATCH_FORBIDDEN",
+      "admin_unassigned_season": "42501 TORNEOS_MATCH_FORBIDDEN",
+      "owner_unassigned_season": "42501 TORNEOS_MATCH_FORBIDDEN"
+    },
+    {
+      "function": "review_tournament_team_entry(uuid,uuid,text,text,jsonb)",
+      "returns": "jsonb",
+      "verdict": "INCONCLUSIVE",
+      "fixture_pair": "play",
+      "admin_assigned_season": "42501 TORNEOS_RESOURCE_FORBIDDEN",
+      "admin_unassigned_season": "42501 TORNEOS_RESOURCE_FORBIDDEN",
+      "owner_unassigned_season": "42501 TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "function": "revoke_tournament_player_portrait_publication(uuid,uuid)",
+      "returns": "jsonb",
+      "verdict": "INCONCLUSIVE",
+      "fixture_pair": "play",
+      "admin_assigned_season": "42501 TORNEOS_PORTRAIT_FORBIDDEN",
+      "admin_unassigned_season": "42501 TORNEOS_PORTRAIT_FORBIDDEN",
+      "owner_unassigned_season": "42501 TORNEOS_PORTRAIT_FORBIDDEN"
+    },
+    {
+      "function": "revoke_tournament_points_adjustment(uuid,text)",
+      "returns": "uuid",
+      "verdict": "INCONCLUSIVE",
+      "fixture_pair": "play",
+      "admin_assigned_season": "42501 TORNEOS_STANDINGS_FORBIDDEN",
+      "admin_unassigned_season": "42501 TORNEOS_STANDINGS_FORBIDDEN",
+      "owner_unassigned_season": "42501 TORNEOS_STANDINGS_FORBIDDEN"
+    },
+    {
+      "function": "revoke_tournament_team_photo(uuid,uuid)",
+      "returns": "jsonb",
+      "verdict": "INCONCLUSIVE",
+      "fixture_pair": "play",
+      "admin_assigned_season": "42501 TORNEOS_TEAM_PHOTO_FORBIDDEN",
+      "admin_unassigned_season": "42501 TORNEOS_TEAM_PHOTO_FORBIDDEN",
+      "owner_unassigned_season": "42501 TORNEOS_TEAM_PHOTO_FORBIDDEN"
+    },
+    {
+      "function": "save_match_squad(uuid,uuid,uuid,jsonb)",
+      "returns": "jsonb",
+      "verdict": "SCOPED",
+      "fixture_pair": "play",
+      "admin_assigned_season": "22023 TORNEOS_MATCH_OPERATION_ACTIVE",
+      "admin_unassigned_season": "42501 TORNEOS_MATCH_FORBIDDEN",
+      "owner_unassigned_season": "22023 TORNEOS_MATCH_OPERATION_ACTIVE"
+    },
+    {
+      "function": "save_tournament_category(uuid,uuid,uuid,text,text,text,integer,smallint,smallint,text,text,smallint,text)",
+      "returns": "jsonb",
+      "verdict": "SCOPED",
+      "fixture_pair": "reg",
+      "admin_assigned_season": "22023 TORNEOS_INVALID_CATEGORY",
+      "admin_unassigned_season": "42501 TORNEOS_RESOURCE_FORBIDDEN",
+      "owner_unassigned_season": "22023 TORNEOS_INVALID_CATEGORY"
+    },
+    {
+      "function": "save_tournament_draw_pots(uuid,uuid,uuid,jsonb)",
+      "returns": "jsonb",
+      "verdict": "INCONCLUSIVE",
+      "fixture_pair": "play",
+      "admin_assigned_season": "42501 TORNEOS_RESOURCE_FORBIDDEN",
+      "admin_unassigned_season": "42501 TORNEOS_RESOURCE_FORBIDDEN",
+      "owner_unassigned_season": "42501 TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "function": "save_tournament_match_operation_draft(uuid,uuid,text,text)",
+      "returns": "jsonb",
+      "verdict": "SCOPED",
+      "fixture_pair": "play",
+      "admin_assigned_season": "OK {\"score\": null, \"events\": [], \"outcome\": null, \"players\": [], \"reviews\": [], \"operation\": {\"id\": \"185b051e-55c6-4437-abb8-68e9bbb0319b\", \"notes\": \"sweep\", \"stat",
+      "admin_unassigned_season": "42501 TORNEOS_MATCH_FORBIDDEN",
+      "owner_unassigned_season": "OK {\"score\": null, \"events\": [], \"outcome\": null, \"players\": [], \"reviews\": [], \"operation\": {\"id\": \"6a8dbf98-b82f-42f4-be51-bfb3e7b1b51e\", \"notes\": \"sweep\", \"stat"
+    },
+    {
+      "function": "save_tournament_schedule_windows(uuid,uuid,jsonb)",
+      "returns": "jsonb",
+      "verdict": "SCOPED",
+      "fixture_pair": "play",
+      "admin_assigned_season": "OK {\"windowCount\": 0, \"tournamentId\": \"54c2834c-f857-49f8-b3ab-5f1d83418850\"}",
+      "admin_unassigned_season": "42501 TORNEOS_RESOURCE_FORBIDDEN",
+      "owner_unassigned_season": "OK {\"windowCount\": 0, \"tournamentId\": \"abd9f6ac-33a4-480b-9926-5356919c0181\"}"
+    },
+    {
+      "function": "schedule_tournament_match(uuid,uuid,timestamp with time zone,uuid,uuid,integer,boolean,text)",
+      "returns": "jsonb",
+      "verdict": "INCONCLUSIVE",
+      "fixture_pair": "play",
+      "admin_assigned_season": "42501 TORNEOS_RESOURCE_FORBIDDEN",
+      "admin_unassigned_season": "42501 TORNEOS_RESOURCE_FORBIDDEN",
+      "owner_unassigned_season": "42501 TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "function": "search_tournament_arma2_teams(uuid,uuid,text,integer)",
+      "verdict": "NOT_SWEPT",
+      "reason": "Core-wired; season scope covered by test_core_wiring.py"
+    },
+    {
+      "function": "search_tournament_players(uuid,uuid,text,integer,uuid)",
+      "verdict": "NOT_SWEPT",
+      "reason": "Core-wired; season scope covered by test_core_wiring.py"
+    },
+    {
+      "function": "set_active_tournament_context(uuid,uuid,uuid)",
+      "returns": "jsonb",
+      "verdict": "SCOPED",
+      "fixture_pair": "play",
+      "admin_assigned_season": "OK {\"activeSeasonId\": \"612949e1-d06b-4e58-b6d5-17ca6875d956\", \"organizationId\": \"e9ad3ed9-4e02-4c04-a145-b28d8adda272\", \"activeTournamentId\": \"54c2834c-f857-49f8-b",
+      "admin_unassigned_season": "42501 TORNEOS_CONTEXT_FORBIDDEN",
+      "owner_unassigned_season": "OK {\"activeSeasonId\": \"5b8f4f78-c6b4-47cc-bea8-4065cbd3e13c\", \"organizationId\": \"e9ad3ed9-4e02-4c04-a145-b28d8adda272\", \"activeTournamentId\": \"abd9f6ac-33a4-480b-9"
+    },
+    {
+      "function": "set_my_tournament_hub_category(uuid,uuid)",
+      "returns": "jsonb",
+      "verdict": "SCOPED",
+      "fixture_pair": "play",
+      "admin_assigned_season": "OK {\"updatedAt\": \"2026-09-14T15:09:38.53726+00:00\", \"categoryId\": \"50f47ca1-8450-4e71-8ce2-6383f3a9594d\", \"categoryName\": \"Open\", \"tournamentId\": \"54c2834c-f857-49",
+      "admin_unassigned_season": "42501 TORNEOS_HUB_FORBIDDEN",
+      "owner_unassigned_season": "OK {\"updatedAt\": \"2026-09-14T15:09:38.494997+00:00\", \"categoryId\": \"7f0e2c2c-e259-479c-b630-709c4f5d2254\", \"categoryName\": \"Open\", \"tournamentId\": \"abd9f6ac-33a4-4"
+    },
+    {
+      "function": "set_tournament_announcement_audience(uuid,text,uuid,uuid,uuid,uuid)",
+      "returns": "uuid",
+      "verdict": "SCOPED",
+      "fixture_pair": "play",
+      "admin_assigned_season": "23514 new row for relation \"tournament_announcement_audiences\" violates check constraint \"tournament_announcement_audiences_shape_check\"",
+      "admin_unassigned_season": "42501 TORNEOS_COMMUNICATION_FORBIDDEN",
+      "owner_unassigned_season": "23514 new row for relation \"tournament_announcement_audiences\" violates check constraint \"tournament_announcement_audiences_shape_check\""
+    },
+    {
+      "function": "set_tournament_announcement_link(uuid,text,uuid,text,text,integer)",
+      "returns": "uuid",
+      "verdict": "SCOPED",
+      "fixture_pair": "play",
+      "admin_assigned_season": "OK fd934591-ef9d-415c-b85f-8a80cb361e37",
+      "admin_unassigned_season": "42501 TORNEOS_COMMUNICATION_FORBIDDEN",
+      "owner_unassigned_season": "OK 80b7823a-ae0c-451f-a792-15e2acac86e7"
+    },
+    {
+      "function": "set_tournament_branding_reference(uuid,text,uuid,text)",
+      "returns": "jsonb",
+      "verdict": "PRECONDITION",
+      "fixture_pair": "org",
+      "owner_own_organization": "22023 TORNEOS_BRANDING_INVALID_REFERENCE",
+      "foreign_owner_same_arguments": "22023 TORNEOS_BRANDING_INVALID_REFERENCE"
+    },
+    {
+      "function": "set_tournament_match_outcome(uuid,uuid,jsonb)",
+      "returns": "jsonb",
+      "verdict": "SCOPED",
+      "fixture_pair": "play",
+      "admin_assigned_season": "23502 null value in column \"outcome_type\" of relation \"tournament_match_outcomes\" violates not-null constraint",
+      "admin_unassigned_season": "42501 TORNEOS_MATCH_FORBIDDEN",
+      "owner_unassigned_season": "23502 null value in column \"outcome_type\" of relation \"tournament_match_outcomes\" violates not-null constraint"
+    },
+    {
+      "function": "set_tournament_match_score(uuid,uuid,jsonb)",
+      "returns": "jsonb",
+      "verdict": "SCOPED",
+      "fixture_pair": "play",
+      "admin_assigned_season": "OK {\"score\": {\"match_id\": \"e1e3d217-c459-4196-adb0-25a3dbb91a67\", \"away_score\": 0, \"created_at\": \"2026-09-14T15:09:39.121073+00:00\", \"home_score\": 1, \"score_type\":",
+      "admin_unassigned_season": "42501 TORNEOS_MATCH_FORBIDDEN",
+      "owner_unassigned_season": "OK {\"score\": {\"match_id\": \"7c918c77-a0cb-4d53-8053-ea5472c22ed8\", \"away_score\": 0, \"created_at\": \"2026-09-14T15:09:39.083595+00:00\", \"home_score\": 1, \"score_type\":"
+    },
+    {
+      "function": "set_tournament_media_cover(uuid,uuid)",
+      "returns": "jsonb",
+      "verdict": "SCOPED",
+      "fixture_pair": "play",
+      "admin_assigned_season": "22023 TORNEOS_MEDIA_COVER_INVALID",
+      "admin_unassigned_season": "42501 TORNEOS_MEDIA_FORBIDDEN",
+      "owner_unassigned_season": "22023 TORNEOS_MEDIA_COVER_INVALID"
+    },
+    {
+      "function": "set_tournament_player_portrait_crop(uuid,uuid,numeric,numeric,numeric)",
+      "returns": "jsonb",
+      "verdict": "INCONCLUSIVE",
+      "fixture_pair": "play",
+      "admin_assigned_season": "42501 TORNEOS_PORTRAIT_FORBIDDEN",
+      "admin_unassigned_season": "42501 TORNEOS_PORTRAIT_FORBIDDEN",
+      "owner_unassigned_season": "42501 TORNEOS_PORTRAIT_FORBIDDEN"
+    },
+    {
+      "function": "set_tournament_player_portrait_editorial_status(uuid,uuid,text)",
+      "returns": "jsonb",
+      "verdict": "INCONCLUSIVE",
+      "fixture_pair": "play",
+      "admin_assigned_season": "42501 TORNEOS_PORTRAIT_FORBIDDEN",
+      "admin_unassigned_season": "42501 TORNEOS_PORTRAIT_FORBIDDEN",
+      "owner_unassigned_season": "42501 TORNEOS_PORTRAIT_FORBIDDEN"
+    },
+    {
+      "function": "set_tournament_public_page_published(uuid,uuid,boolean)",
+      "returns": "jsonb",
+      "verdict": "SCOPED",
+      "fixture_pair": "play",
+      "admin_assigned_season": "OK {\"eligible\": true, \"published\": true, \"publicPath\": \"/torneos/publico/alpha-league-sweep-play-a-c293d124cf\", \"publicSlug\": \"alpha-league-sweep-play-a-c293d124cf",
+      "admin_unassigned_season": "42501 TORNEOS_PUBLIC_PAGE_FORBIDDEN",
+      "owner_unassigned_season": "OK {\"eligible\": true, \"published\": true, \"publicPath\": \"/torneos/publico/alpha-league-sweep-play-b-c25635ede4\", \"publicSlug\": \"alpha-league-sweep-play-b-c25635ede4"
+    },
+    {
+      "function": "set_tournament_social_permission(uuid,uuid,boolean)",
+      "returns": "jsonb",
+      "verdict": "ORG_SCOPED",
+      "fixture_pair": "org",
+      "owner_own_organization": "22023 TORNEOS_SOCIAL_GRANT_INVALID",
+      "foreign_owner_same_arguments": "42501 TORNEOS_SOCIAL_FORBIDDEN"
+    },
+    {
+      "function": "set_tournament_team_photo_editorial_status(uuid,uuid,text,text)",
+      "returns": "jsonb",
+      "verdict": "PRECONDITION",
+      "fixture_pair": "play",
+      "admin_assigned_season": "22023 TORNEOS_TEAM_PHOTO_STATE_INVALID",
+      "admin_unassigned_season": "22023 TORNEOS_TEAM_PHOTO_STATE_INVALID",
+      "owner_unassigned_season": "22023 TORNEOS_TEAM_PHOTO_STATE_INVALID"
+    },
+    {
+      "function": "set_tournament_team_visual_policy(uuid,uuid,text)",
+      "returns": "jsonb",
+      "verdict": "SCOPED",
+      "fixture_pair": "play",
+      "admin_assigned_season": "OK {\"policy\": \"organization_only\", \"canUpdate\": true, \"tournamentId\": \"54c2834c-f857-49f8-b3ab-5f1d83418850\", \"organizationId\": \"e9ad3ed9-4e02-4c04-a145-b28d8adda2",
+      "admin_unassigned_season": "42501 TORNEOS_VISUAL_POLICY_FORBIDDEN",
+      "owner_unassigned_season": "OK {\"policy\": \"organization_only\", \"canUpdate\": true, \"tournamentId\": \"abd9f6ac-33a4-480b-9926-5356919c0181\", \"organizationId\": \"e9ad3ed9-4e02-4c04-a145-b28d8adda2"
+    },
+    {
+      "function": "set_tournament_workspace_preference(text,uuid)",
+      "returns": "jsonb",
+      "verdict": "PRECONDITION",
+      "fixture_pair": "org",
+      "owner_own_organization": "22023 TORNEOS_INVALID_WORKSPACE",
+      "foreign_owner_same_arguments": "22023 TORNEOS_INVALID_WORKSPACE"
+    },
+    {
+      "function": "start_tournament_competition(uuid,uuid)",
+      "returns": "jsonb",
+      "verdict": "SCOPED",
+      "fixture_pair": "play",
+      "admin_assigned_season": "OK {\"id\": \"54c2834c-f857-49f8-b3ab-5f1d83418850\", \"status\": \"active\", \"startedAt\": \"2026-09-14T15:09:18.573663+00:00\", \"alreadyStarted\": true, \"unscheduledMatches\"",
+      "admin_unassigned_season": "42501 TORNEOS_RESOURCE_FORBIDDEN",
+      "owner_unassigned_season": "OK {\"id\": \"abd9f6ac-33a4-480b-9926-5356919c0181\", \"status\": \"active\", \"startedAt\": \"2026-09-14T15:09:20.6454+00:00\", \"alreadyStarted\": true, \"unscheduledMatches\":"
+    },
+    {
+      "function": "submit_match_squad(uuid,uuid,uuid)",
+      "returns": "jsonb",
+      "verdict": "INCONCLUSIVE",
+      "fixture_pair": "play",
+      "admin_assigned_season": "42501 TORNEOS_MATCH_FORBIDDEN",
+      "admin_unassigned_season": "42501 TORNEOS_MATCH_FORBIDDEN",
+      "owner_unassigned_season": "42501 TORNEOS_MATCH_FORBIDDEN"
+    },
+    {
+      "function": "submit_tournament_match_operation(uuid,uuid)",
+      "returns": "jsonb",
+      "verdict": "SCOPED",
+      "fixture_pair": "play",
+      "admin_assigned_season": "23514 TORNEOS_MATCH_OPERATION_INVALID",
+      "admin_unassigned_season": "42501 TORNEOS_MATCH_FORBIDDEN",
+      "owner_unassigned_season": "23514 TORNEOS_MATCH_OPERATION_INVALID"
+    },
+    {
+      "function": "submit_tournament_team_entry(uuid,uuid)",
+      "returns": "jsonb",
+      "verdict": "SCOPED",
+      "fixture_pair": "reg",
+      "admin_assigned_season": "23514 TORNEOS_ROSTER_INCOMPLETE",
+      "admin_unassigned_season": "42501 TORNEOS_RESOURCE_FORBIDDEN",
+      "owner_unassigned_season": "23514 TORNEOS_ROSTER_INCOMPLETE"
+    },
+    {
+      "function": "supersede_tournament_fixture(uuid,uuid,uuid)",
+      "returns": "jsonb",
+      "verdict": "INCONCLUSIVE",
+      "fixture_pair": "play",
+      "admin_assigned_season": "42501 TORNEOS_RESOURCE_FORBIDDEN",
+      "admin_unassigned_season": "42501 TORNEOS_RESOURCE_FORBIDDEN",
+      "owner_unassigned_season": "42501 TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "function": "tournament_role_capabilities(text)",
+      "verdict": "NOT_SWEPT",
+      "reason": "no organization or season-scoped resource parameter (self-scoped or public)"
+    },
+    {
+      "function": "transition_tournament_media_asset(uuid,text,text)",
+      "returns": "jsonb",
+      "verdict": "INCONCLUSIVE",
+      "fixture_pair": "play",
+      "admin_assigned_season": "42501 TORNEOS_MEDIA_FORBIDDEN",
+      "admin_unassigned_season": "42501 TORNEOS_MEDIA_FORBIDDEN",
+      "owner_unassigned_season": "42501 TORNEOS_MEDIA_FORBIDDEN"
+    },
+    {
+      "function": "update_draft_fixture(uuid,uuid,text,jsonb)",
+      "returns": "jsonb",
+      "verdict": "INCONCLUSIVE",
+      "fixture_pair": "play",
+      "admin_assigned_season": "42501 TORNEOS_RESOURCE_FORBIDDEN",
+      "admin_unassigned_season": "42501 TORNEOS_RESOURCE_FORBIDDEN",
+      "owner_unassigned_season": "42501 TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "function": "update_my_tournament_notification_preferences(uuid,boolean,boolean,boolean,boolean,boolean,boolean)",
+      "returns": "jsonb",
+      "verdict": "SCOPED",
+      "fixture_pair": "play",
+      "admin_assigned_season": "OK {\"callups\": true, \"general\": true, \"channels\": {\"push\": false, \"email\": false, \"internal\": true}, \"documents\": true, \"summaries\": true, \"discipline\": true, \"mat",
+      "admin_unassigned_season": "42501 TORNEOS_COMMUNICATION_FORBIDDEN",
+      "owner_unassigned_season": "OK {\"callups\": true, \"general\": true, \"channels\": {\"push\": false, \"email\": false, \"internal\": true}, \"documents\": true, \"summaries\": true, \"discipline\": true, \"mat"
+    },
+    {
+      "function": "update_tournament_announcement_draft(uuid,text,text,text,text,text,timestamp with time zone)",
+      "returns": "uuid",
+      "verdict": "SCOPED",
+      "fixture_pair": "play",
+      "admin_assigned_season": "OK 15dadc14-49ad-4ae3-b500-4f92169fac0a",
+      "admin_unassigned_season": "42501 TORNEOS_COMMUNICATION_FORBIDDEN",
+      "owner_unassigned_season": "OK 93626a33-0847-4607-be74-fd64aecb5b22"
+    },
+    {
+      "function": "update_tournament_configuration(uuid,uuid,jsonb)",
+      "returns": "jsonb",
+      "verdict": "SCOPED",
+      "fixture_pair": "reg",
+      "admin_assigned_season": "OK {\"id\": \"6dc3fc07-a44f-45ad-9f34-0cce0d6841ea\", \"name\": \"sweep-reg-a\", \"slug\": \"sweep-reg-a\", \"status\": \"registration\", \"seasonId\": \"612949e1-d06b-4e58-b6d5-17ca",
+      "admin_unassigned_season": "42501 TORNEOS_RESOURCE_FORBIDDEN",
+      "owner_unassigned_season": "OK {\"id\": \"445bcafc-84e5-4349-ad57-380032a7405f\", \"name\": \"sweep-reg-b\", \"slug\": \"sweep-reg-b\", \"status\": \"registration\", \"seasonId\": \"5b8f4f78-c6b4-47cc-bea8-4065"
+    },
+    {
+      "function": "update_tournament_court(uuid,uuid,jsonb)",
+      "returns": "jsonb",
+      "verdict": "ORG_SCOPED",
+      "fixture_pair": "org",
+      "owner_own_organization": "OK {\"id\": \"91b8e0cc-760c-4c1f-9c34-e528a4141a98\", \"name\": \"Court 1\", \"status\": \"active\"}",
+      "foreign_owner_same_arguments": "42501 TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "function": "update_tournament_media_gallery(uuid,text,text,text,boolean)",
+      "returns": "jsonb",
+      "verdict": "SCOPED",
+      "fixture_pair": "play",
+      "admin_assigned_season": "OK {\"status\": \"draft\", \"galleryId\": \"456fcc15-a536-401a-82d1-f115a6cc06b1\"}",
+      "admin_unassigned_season": "42501 TORNEOS_MEDIA_FORBIDDEN",
+      "owner_unassigned_season": "OK {\"status\": \"draft\", \"galleryId\": \"9a751939-3057-4bfb-ae18-4eaa3a9e3409\"}"
+    },
+    {
+      "function": "update_tournament_organization(uuid,text,text,text)",
+      "returns": "jsonb",
+      "verdict": "ORG_SCOPED",
+      "fixture_pair": "org",
+      "owner_own_organization": "22023 TORNEOS_INVALID_STATUS",
+      "foreign_owner_same_arguments": "42501 TORNEOS_ORGANIZATION_FORBIDDEN"
+    },
+    {
+      "function": "update_tournament_roster_player(uuid,uuid,uuid,smallint,text,text,boolean)",
+      "returns": "jsonb",
+      "verdict": "SCOPED",
+      "fixture_pair": "reg",
+      "admin_assigned_season": "OK {\"id\": \"0465c3ba-5f0c-4056-b162-fb4d78652ea2\", \"updatedAt\": \"2026-09-14T15:09:41.882711+00:00\"}",
+      "admin_unassigned_season": "42501 TORNEOS_RESOURCE_FORBIDDEN",
+      "owner_unassigned_season": "OK {\"id\": \"46dec8af-7f5d-481b-825b-91c1c0ef93e8\", \"updatedAt\": \"2026-09-14T15:09:41.843549+00:00\"}"
+    },
+    {
+      "function": "update_tournament_season(uuid,uuid,text,text,date,date,text,boolean,boolean)",
+      "returns": "jsonb",
+      "verdict": "SCOPED",
+      "fixture_pair": "play",
+      "admin_assigned_season": "22023 TORNEOS_INVALID_SEASON_TRANSITION",
+      "admin_unassigned_season": "42501 TORNEOS_RESOURCE_FORBIDDEN",
+      "owner_unassigned_season": "22023 TORNEOS_INVALID_SEASON_TRANSITION"
+    },
+    {
+      "function": "update_tournament_team_entry(uuid,uuid,jsonb)",
+      "returns": "jsonb",
+      "verdict": "SCOPED",
+      "fixture_pair": "reg",
+      "admin_assigned_season": "OK {\"status\": \"in_progress\", \"entryId\": \"72a50c1c-a649-48a3-8436-e5ebb6705994\", \"updatedAt\": \"2026-09-14T15:09:42.194622+00:00\"}",
+      "admin_unassigned_season": "42501 TORNEOS_RESOURCE_FORBIDDEN",
+      "owner_unassigned_season": "OK {\"status\": \"in_progress\", \"entryId\": \"c5900f8b-d8bc-4f99-90f0-57af9a88e9c4\", \"updatedAt\": \"2026-09-14T15:09:42.152537+00:00\"}"
+    },
+    {
+      "function": "update_tournament_venue(uuid,uuid,jsonb)",
+      "returns": "jsonb",
+      "verdict": "ORG_SCOPED",
+      "fixture_pair": "org",
+      "owner_own_organization": "OK {\"id\": \"2f474f2a-cb66-4e6d-b980-ddac24a0f186\", \"name\": \"Sweep Venue\", \"status\": \"active\"}",
+      "foreign_owner_same_arguments": "42501 TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "function": "validate_tournament_fixture(uuid,uuid)",
+      "returns": "jsonb",
+      "verdict": "SCOPED",
+      "fixture_pair": "play",
+      "admin_assigned_season": "OK {\"valid\": true, \"blockers\": [], \"warnings\": [], \"checkedAt\": \"2026-09-14T15:09:42.389693+00:00\"}",
+      "admin_unassigned_season": "42501 TORNEOS_RESOURCE_FORBIDDEN",
+      "owner_unassigned_season": "OK {\"valid\": true, \"blockers\": [], \"warnings\": [], \"checkedAt\": \"2026-09-14T15:09:42.350764+00:00\"}"
+    },
+    {
+      "function": "validate_tournament_match_operation(uuid,uuid)",
+      "returns": "jsonb",
+      "verdict": "INCONCLUSIVE",
+      "fixture_pair": "play",
+      "admin_assigned_season": "42501 TORNEOS_MATCH_FORBIDDEN",
+      "admin_unassigned_season": "42501 TORNEOS_MATCH_FORBIDDEN",
+      "owner_unassigned_season": "42501 TORNEOS_MATCH_FORBIDDEN"
+    },
+    {
+      "function": "validate_tournament_match_schedule(uuid,uuid,timestamp with time zone,uuid,uuid,integer)",
+      "returns": "jsonb",
+      "verdict": "SCOPED",
+      "fixture_pair": "play",
+      "admin_assigned_season": "OK {\"valid\": true, \"blockers\": [], \"warnings\": [], \"checkedAt\": \"2026-09-14T15:09:42.644473+00:00\", \"bufferMinutes\": 0}",
+      "admin_unassigned_season": "42501 TORNEOS_RESOURCE_FORBIDDEN",
+      "owner_unassigned_season": "OK {\"valid\": true, \"blockers\": [], \"warnings\": [], \"checkedAt\": \"2026-09-14T15:09:42.605685+00:00\", \"bufferMinutes\": 0}"
+    },
+    {
+      "function": "void_tournament_match_event(uuid,uuid,text)",
+      "returns": "jsonb",
+      "verdict": "INCONCLUSIVE",
+      "fixture_pair": "play",
+      "admin_assigned_season": "42501 TORNEOS_MATCH_FORBIDDEN",
+      "admin_unassigned_season": "42501 TORNEOS_MATCH_FORBIDDEN",
+      "owner_unassigned_season": "42501 TORNEOS_MATCH_FORBIDDEN"
+    },
+    {
+      "function": "void_tournament_match_operation(uuid,uuid,text)",
+      "returns": "jsonb",
+      "verdict": "SCOPED",
+      "fixture_pair": "play",
+      "admin_assigned_season": "OK {\"score\": null, \"events\": [], \"outcome\": null, \"players\": [], \"reviews\": [], \"operation\": {\"id\": \"185b051e-55c6-4437-abb8-68e9bbb0319b\", \"notes\": \"sweep reason\"",
+      "admin_unassigned_season": "42501 TORNEOS_MATCH_FORBIDDEN",
+      "owner_unassigned_season": "OK {\"score\": null, \"events\": [], \"outcome\": null, \"players\": [], \"reviews\": [], \"operation\": {\"id\": \"6a8dbf98-b82f-42f4-be51-bfb3e7b1b51e\", \"notes\": \"sweep reason\""
+    },
+    {
+      "function": "withdraw_tournament_competition_participant(uuid,uuid,uuid,text,text)",
+      "returns": "jsonb",
+      "verdict": "SCOPED",
+      "fixture_pair": "reg",
+      "admin_assigned_season": "22023 TORNEOS_INVALID_TOURNAMENT_TRANSITION",
+      "admin_unassigned_season": "42501 TORNEOS_RESOURCE_FORBIDDEN",
+      "owner_unassigned_season": "22023 TORNEOS_INVALID_TOURNAMENT_TRANSITION"
+    },
+    {
+      "function": "withdraw_tournament_team_entry(uuid,uuid,text)",
+      "returns": "jsonb",
+      "verdict": "SCOPED",
+      "fixture_pair": "reg",
+      "admin_assigned_season": "OK {\"status\": \"withdrawn\", \"entryId\": \"72a50c1c-a649-48a3-8436-e5ebb6705994\"}",
+      "admin_unassigned_season": "42501 TORNEOS_RESOURCE_FORBIDDEN",
+      "owner_unassigned_season": "OK {\"status\": \"withdrawn\", \"entryId\": \"c5900f8b-d8bc-4f99-90f0-57af9a88e9c4\"}"
+    }
+  ]
+}

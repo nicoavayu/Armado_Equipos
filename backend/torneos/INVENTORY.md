@@ -4022,15 +4022,31 @@ WITH CHECK: None
 
 ## Funciones y grants
 
-362 funciones del candidato: 358 Torneos históricas, wrapper local gen_random_uuid y tres helpers privados. Las 304 SECURITY DEFINER históricas permanecen como RPC/helpers con sus ACL finales: moverlas de schema alteraría la API. Esto exige completar revisión semántica y pruebas antes de certificar.
+366 funciones del candidato: 358 Torneos históricas, wrapper local gen_random_uuid, tres helpers privados de identidad, tres del boundary Core (Phase 2B) y uno de scope de temporada. Las 305 SECURITY DEFINER permanecen como RPC/helpers con sus ACL finales: moverlas de schema alteraría la API. Su disposición semántica está en evidence/security-definer-review.json (Phase 2B).
+
+### private.authorize_core_contract(p_contract text, p_request jsonb)
+
+Retorna `jsonb`; SECURITY DEFINER: `True`; settings: `['search_path=""']`; ACL: `['supabase_admin=X/supabase_admin', 'torneos_core_adapter=X/supabase_admin']`.
 
 ### private.check_token()
 
 Retorna `void`; SECURITY DEFINER: `False`; settings: `['search_path=""']`; ACL: `['supabase_admin=X/supabase_admin', 'anon=X/supabase_admin', 'authenticated=X/supabase_admin', 'service_role=X/supabase_admin']`.
 
+### private.consume_core_attestation(p_contract text, p_request jsonb)
+
+Retorna `jsonb`; SECURITY DEFINER: `False`; settings: `['search_path=""']`; ACL: `['supabase_admin=X/supabase_admin']`.
+
+### private.core_contract_request_hash(p_contract text, p_request jsonb)
+
+Retorna `text`; SECURITY DEFINER: `False`; settings: `['search_path=""']`; ACL: `['supabase_admin=X/supabase_admin']`.
+
 ### private.current_identity_id()
 
 Retorna `uuid`; SECURITY DEFINER: `False`; settings: `['search_path=""']`; ACL: `['supabase_admin=X/supabase_admin', 'anon=X/supabase_admin', 'authenticated=X/supabase_admin', 'service_role=X/supabase_admin']`.
+
+### private.has_tournament_season_access_as(p_organization_id uuid, p_season_id uuid, p_actor_user_id uuid)
+
+Retorna `boolean`; SECURITY DEFINER: `False`; settings: `['search_path=""']`; ACL: `['supabase_admin=X/supabase_admin']`.
 
 ### private.prevent_identity_reassignment()
 

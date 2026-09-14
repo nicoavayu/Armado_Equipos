@@ -116,7 +116,100 @@ CREATE FUNCTION public.accept_tournament_team_invitation(p_token text) RETURNS j
     LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO ''
     AS $$
-BEGIN RAISE SQLSTATE '0A000' USING MESSAGE='TORNEOS_CORE_BRIDGE_CONTRACT_PENDING'; END;
+declare
+  v_invitation public.tournament_team_invitations%rowtype;
+  v_verification jsonb;
+begin
+  if private.current_identity_id() is null or char_length(coalesce(p_token, '')) <> 64 then
+    raise exception using errcode = '42501', message = 'TORNEOS_INVITATION_INVALID';
+  end if;
+  select * into v_invitation from public.tournament_team_invitations
+  where token_hash = encode(public.digest(p_token, 'sha256'), 'hex');
+  if v_invitation.id is null then
+    raise exception using errcode = '42501', message = 'TORNEOS_INVITATION_INVALID';
+  end if;
+  perform 1
+  from public.tournament_team_entries entry
+  where entry.id = v_invitation.team_entry_id
+    and entry.organization_id = v_invitation.organization_id
+  for update;
+  select * into v_invitation from public.tournament_team_invitations
+  where token_hash = encode(public.digest(p_token, 'sha256'), 'hex') for update;
+  if v_invitation.id is null or v_invitation.status <> 'pending' then
+    raise exception using errcode = '42501', message = 'TORNEOS_INVITATION_INVALID';
+  end if;
+  if v_invitation.expires_at <= now() then
+    raise exception using errcode = '42501', message = 'TORNEOS_INVITATION_EXPIRED';
+  end if;
+  if not exists (
+    select 1
+    from public.tournament_organizations organization
+    join public.tournament_team_entries entry
+      on entry.organization_id = organization.id
+    join public.tournaments tournament
+      on tournament.organization_id = entry.organization_id
+      and tournament.id = entry.tournament_id
+    join public.tournament_categories category
+      on category.organization_id = entry.organization_id
+      and category.tournament_id = entry.tournament_id
+      and category.id = entry.category_id
+    where organization.id = v_invitation.organization_id
+      and organization.status = 'active'
+      and entry.id = v_invitation.team_entry_id
+      and entry.status in ('invited', 'in_progress', 'changes_requested')
+      and tournament.id = v_invitation.tournament_id
+      and tournament.status = 'registration'
+      and (
+        tournament.registration_opens_at is null
+        or now() >= tournament.registration_opens_at
+      )
+      and (
+        tournament.registration_closes_at is null
+        or now() <= tournament.registration_closes_at
+      )
+      and category.status = 'active'
+  ) or not exists (
+    select 1
+    from public.tournament_team_managers manager
+    where manager.id = v_invitation.manager_id
+      and manager.organization_id = v_invitation.organization_id
+      and manager.team_entry_id = v_invitation.team_entry_id
+      and manager.status = 'pending'
+  ) then
+    raise exception using errcode = '42501', message = 'TORNEOS_INVITATION_INVALID';
+  end if;
+  -- Phase 2B: Core verified-email contract, attested server-side for this identity,
+  -- Core session and exactly this invitation target; single use, short lived.
+  v_verification := private.consume_core_attestation(
+    'verified_email',
+    jsonb_build_object('expected_email', v_invitation.email_normalized)
+  );
+  if (v_verification->>'verified') is distinct from 'true'
+    or (v_verification->>'matches') is distinct from 'true'
+  then
+    raise exception using errcode = '42501', message = 'TORNEOS_INVITATION_INVALID';
+  end if;
+  update public.tournament_team_managers set
+    user_id = private.current_identity_id(), status = 'active', accepted_at = now()
+  where id = v_invitation.manager_id
+    and organization_id = v_invitation.organization_id
+    and team_entry_id = v_invitation.team_entry_id
+    and status = 'pending';
+  update public.tournament_team_invitations set status = 'accepted', accepted_at = now()
+  where id = v_invitation.id;
+  update public.tournament_team_entries set status = case when status = 'invited' then 'in_progress' else status end
+  where id = v_invitation.team_entry_id;
+  perform public.append_tournament_audit(
+    v_invitation.organization_id, 'team_manager.invitation_accepted',
+    'team_manager', v_invitation.manager_id, v_invitation.team_entry_id,
+    v_invitation.tournament_id, '{}'::jsonb
+  );
+  return jsonb_build_object(
+    'teamEntryId', v_invitation.team_entry_id,
+    'organizationId', v_invitation.organization_id,
+    'status', 'accepted'
+  );
+end;
 $$;
 
 
@@ -150,9 +243,9 @@ begin
       and not public.can_read_tournament_participant_hub(
         v_document.tournament_id,v_document.category_id
       )
-      and not public.has_tournament_communications_capability(
+      and not (public.has_tournament_communications_capability(
         v_document.organization_id,'documents.read'
-      )
+      ) and public.has_tournament_season_access(v_document.organization_id, v_document.season_id))
     )
   then
     raise exception using errcode = '42501', message = 'TORNEOS_DOCUMENT_FORBIDDEN';
@@ -324,9 +417,9 @@ begin
   select * into v_operation from public.tournament_match_operations
   where id = p_match_operation_id and organization_id = p_organization_id for update;
   if v_operation.id is null or v_operation.status <> 'draft'
-    or not public.has_tournament_organization_capability(
+    or not (public.has_tournament_organization_capability(
       p_organization_id, 'match_events.create'
-    )
+    ) and public.has_tournament_season_access(p_organization_id, (select o.season_id from public.tournament_match_operations o where o.id = p_match_operation_id and o.organization_id = p_organization_id)))
   then
     raise exception using errcode = '42501', message = 'TORNEOS_MATCH_FORBIDDEN';
   end if;
@@ -708,9 +801,9 @@ begin
     raise exception using errcode = '22023', message = 'TORNEOS_INVALID_QUALIFIERS';
   end if;
 
-  if not public.has_tournament_organization_capability(
+  if not (public.has_tournament_organization_capability(
     p_organization_id, 'fixture.publish'
-  ) then
+  ) and public.has_tournament_season_access(p_organization_id, (select t.season_id from public.tournaments t where t.id = p_tournament_id and t.organization_id = p_organization_id))) then
     raise exception using errcode = '42501', message = 'TORNEOS_RESOURCE_FORBIDDEN';
   end if;
   if exists (
@@ -1032,9 +1125,9 @@ begin
     raise exception using errcode = '42501', message = 'TORNEOS_AUTH_REQUIRED';
   end if;
   if v_announcement.id is null
-    or not public.has_tournament_communications_capability(
+    or not (public.has_tournament_communications_capability(
       v_announcement.organization_id,'announcements.archive'
-    )
+    ) and public.has_tournament_season_access(v_announcement.organization_id, v_announcement.season_id))
     or v_announcement.status not in ('published','superseded')
   then
     raise exception using errcode = '42501', message = 'TORNEOS_COMMUNICATION_FORBIDDEN';
@@ -1070,9 +1163,9 @@ begin
   where document.id = p_document_id
   for update;
   if v_document.id is null
-    or not public.has_tournament_communications_capability(
+    or not (public.has_tournament_communications_capability(
       v_document.organization_id,'documents.archive'
-    )
+    ) and public.has_tournament_season_access(v_document.organization_id, v_document.season_id))
   then
     raise exception using errcode = '42501', message = 'TORNEOS_DOCUMENT_FORBIDDEN';
   end if;
@@ -1101,9 +1194,9 @@ declare
   v_reason text := btrim(coalesce(p_reason, ''));
 begin
   if private.current_identity_id() is null or char_length(v_reason) not between 3 and 500
-    or not public.has_tournament_organization_capability(
+    or not (public.has_tournament_organization_capability(
       p_organization_id, 'fixture.archive'
-    )
+    ) and public.has_tournament_season_access(p_organization_id, (select v.season_id from public.tournament_fixture_versions v where v.id = p_fixture_version_id and v.organization_id = p_organization_id)))
   then
     raise exception using errcode = '42501', message = 'TORNEOS_RESOURCE_FORBIDDEN';
   end if;
@@ -1135,10 +1228,10 @@ CREATE FUNCTION public.archive_tournament_team_entry(p_organization_id uuid, p_t
     AS $$
 declare v_entry public.tournament_team_entries%rowtype;
 begin
-  if private.current_identity_id() is null or not public.has_tournament_organization_capability(
+  if private.current_identity_id() is null or not (public.has_tournament_organization_capability(
     p_organization_id,
     'team_entries.archive'
-  ) then
+  ) and public.has_tournament_season_access(p_organization_id, (select e.season_id from public.tournament_team_entries e where e.id = p_team_entry_id and e.organization_id = p_organization_id))) then
     raise exception using errcode = '42501', message = 'TORNEOS_RESOURCE_FORBIDDEN';
   end if;
   if char_length(btrim(coalesce(p_reason, ''))) not between 3 and 1200 then
@@ -1207,6 +1300,7 @@ begin
     and tournament.id = p_tournament_id
     and tournament.status = any(p_allowed_statuses)
     and season.status in ('draft', 'active')
+    and public.has_tournament_season_access(p_organization_id, season.id)
     and category.id = p_category_id
     and category.status = 'active';
   if not found then
@@ -1263,9 +1357,9 @@ declare
   v_gallery public.tournament_media_galleries%rowtype;
 begin
   select * into v_gallery from public.tournament_media_galleries where id = p_gallery_id;
-  if v_gallery.id is null or not public.has_tournament_media_capability(
+  if v_gallery.id is null or not (public.has_tournament_media_capability(
     v_gallery.organization_id,'media.update_gallery'
-  ) then
+  ) and public.has_tournament_season_access(v_gallery.organization_id, v_gallery.season_id)) then
     raise exception using errcode = '42501', message = 'TORNEOS_MEDIA_FORBIDDEN';
   end if;
   perform pg_catalog.pg_advisory_xact_lock(
@@ -1436,9 +1530,9 @@ BEGIN
     'request.jwt.claim.sub', p_actor_user_id::text, true
   );
   BEGIN
-    v_is_staff := public.has_tournament_media_capability(
+    v_is_staff := (public.has_tournament_media_capability(
       v_asset.organization_id, 'media.read'
-    );
+    ) and public.has_tournament_season_access(v_asset.organization_id, (select g.season_id from public.tournament_media_galleries g where g.id = v_asset.gallery_id)));
     v_owns_upload := v_asset.uploaded_by = p_actor_user_id AND EXISTS (
       SELECT 1
       FROM public.tournament_media_assignments assignment
@@ -1448,9 +1542,9 @@ BEGIN
         AND assignment.can_upload
     );
     v_can_read_original := v_owns_upload
-      OR public.has_tournament_media_capability(
+      OR (public.has_tournament_media_capability(
         v_asset.organization_id, 'media.review'
-      );
+      ) and public.has_tournament_season_access(v_asset.organization_id, (select g.season_id from public.tournament_media_galleries g where g.id = v_asset.gallery_id)));
     v_is_participant := v_asset.status = 'published'
       AND v_gallery.status = 'published'
       AND public.tournament_media_asset_has_internal_consent(p_asset_id)
@@ -1617,7 +1711,7 @@ begin
   where organization_id=p_organization_id and id=p_tournament_id;
   if v_season_id is null
     or not public.has_tournament_season_access(p_organization_id,v_season_id)
-    or not public.has_tournament_social_capability(p_organization_id,'social.export') then
+    or not (public.has_tournament_social_capability(p_organization_id,'social.export') and public.has_tournament_season_access(p_organization_id, (select t.season_id from public.tournaments t where t.id = p_tournament_id and t.organization_id = p_organization_id))) then
     raise exception using errcode='42501',message='TORNEOS_SOCIAL_EXPORT_FORBIDDEN';
   end if;
 
@@ -1738,9 +1832,9 @@ declare
   v_last_validation jsonb;
   v_done boolean;
 begin
-  if private.current_identity_id() is null or not public.has_tournament_organization_capability(
+  if private.current_identity_id() is null or not (public.has_tournament_organization_capability(
     p_organization_id, 'matches.schedule'
-  ) then
+  ) and public.has_tournament_season_access(p_organization_id, (select v.season_id from public.tournament_fixture_versions v where v.id = p_fixture_version_id and v.organization_id = p_organization_id))) then
     raise exception using errcode = '42501', message = 'TORNEOS_RESOURCE_FORBIDDEN';
   end if;
   select version.* into v_version from public.tournament_fixture_versions version
@@ -1917,9 +2011,9 @@ BEGIN
     'request.jwt.claim.sub', p_actor_user_id::text, true
   );
   BEGIN
-    IF NOT public.has_tournament_media_capability(
+    IF NOT (public.has_tournament_media_capability(
       v_asset.organization_id, 'media.revoke'
-    ) THEN
+    ) and public.has_tournament_season_access(v_asset.organization_id, (select g.season_id from public.tournament_media_galleries g where g.id = v_asset.gallery_id))) THEN
       RAISE EXCEPTION USING
         errcode = '42501', message = 'TORNEOS_MEDIA_FORBIDDEN';
     END IF;
@@ -2445,13 +2539,7 @@ CREATE FUNCTION public.can_access_tournament_communications(p_tournament_id uuid
     where tournament.id = p_tournament_id
       and organization.status = 'active'
       and (
-        exists (
-          select 1
-          from public.tournament_organization_members membership
-          where membership.organization_id = tournament.organization_id
-            and membership.user_id = private.current_identity_id()
-            and membership.status = 'active'
-        )
+        public.has_tournament_season_access(tournament.organization_id, tournament.season_id)
         or exists (
           select 1
           from public.tournament_categories category
@@ -2566,10 +2654,10 @@ CREATE FUNCTION public.can_edit_tournament_team_entry(p_organization_id uuid, p_
       and category.status = 'active'
       and entry.status in ('draft', 'invited', 'in_progress', 'changes_requested')
       and (
-        public.has_tournament_organization_capability(
+        (public.has_tournament_organization_capability(
           p_organization_id,
           'team_entries.update'
-        )
+        ) and public.has_tournament_season_access(p_organization_id, (select e.season_id from public.tournament_team_entries e where e.id = p_team_entry_id and e.organization_id = p_organization_id)))
         or exists (
           select 1
           from public.tournament_team_managers manager
@@ -2624,9 +2712,9 @@ CREATE FUNCTION public.can_manage_tournament_match_squad(p_organization_id uuid,
         and p_team_entry_id in (teams.home_team_entry_id, teams.away_team_entry_id)
     )
     and (
-      public.has_tournament_organization_capability(
+      (public.has_tournament_organization_capability(
         p_organization_id, 'match_squads.manage'
-      )
+      ) and public.has_tournament_season_access(p_organization_id, (select e.season_id from public.tournament_team_entries e where e.id = p_team_entry_id and e.organization_id = p_organization_id)))
       or public.is_tournament_team_manager(p_team_entry_id, false)
     );
 $$;
@@ -2702,6 +2790,7 @@ CREATE FUNCTION public.can_manage_tournament_team_visual_assets_as(p_organizatio
             WHERE membership.organization_id = p_organization_id
               AND membership.user_id = p_actor_user_id
               AND membership.status = 'active'
+              AND private.has_tournament_season_access_as(p_organization_id, entry.season_id, p_actor_user_id)
               AND p_organization_capability = ANY(
                 public.tournament_role_capabilities(membership.role)
               )
@@ -2775,6 +2864,7 @@ CREATE FUNCTION public.can_moderate_tournament_team_visual_assets_as(p_organizat
         AND entry.status <> 'archived'
         AND organization.status = 'active'
         AND tournament.status <> 'archived'
+        AND private.has_tournament_season_access_as(p_organization_id, entry.season_id, p_actor_user_id)
         AND p_organization_capability = ANY(
           public.tournament_role_capabilities(membership.role)
         )
@@ -2806,6 +2896,7 @@ CREATE FUNCTION public.can_read_tournament_fixture_scope(p_organization_id uuid,
       and organization.status = 'active'
       and tournament.id = p_tournament_id
       and tournament.status <> 'archived'
+      and public.has_tournament_season_access(p_organization_id, tournament.season_id)
       and public.has_tournament_organization_capability(
         p_organization_id,
         'fixture.read'
@@ -2832,9 +2923,9 @@ CREATE FUNCTION public.can_read_tournament_match(p_match_id uuid) RETURNS boolea
       and organization.status = 'active'
       and tournament.status <> 'archived'
       and (
-        public.has_tournament_organization_capability(
+        (public.has_tournament_organization_capability(
           match_row.organization_id, 'matches.read'
-        )
+        ) and public.has_tournament_season_access(match_row.organization_id, match_row.season_id))
         or exists (
           select 1
           from public.tournament_competition_participants participant
@@ -2869,9 +2960,9 @@ CREATE FUNCTION public.can_read_tournament_match_operation(p_organization_id uui
     SET search_path TO ''
     AS $$
   select private.current_identity_id() is not null
-    and public.has_tournament_organization_capability(
+    and (public.has_tournament_organization_capability(
       p_organization_id, 'match_operations.read'
-    )
+    ) and public.has_tournament_season_access(p_organization_id, (select m.season_id from public.tournament_matches m where m.id = p_match_id and m.organization_id = p_organization_id)))
     and exists (
     select 1
     from public.tournament_matches match_row
@@ -2908,13 +2999,7 @@ CREATE FUNCTION public.can_read_tournament_participant_hub(p_tournament_id uuid,
         )
       )
       and (
-        exists (
-          select 1
-          from public.tournament_organization_members membership
-          where membership.organization_id = tournament.organization_id
-            and membership.user_id = private.current_identity_id()
-            and membership.status = 'active'
-        )
+        public.has_tournament_season_access(tournament.organization_id, tournament.season_id)
         or exists (
           select 1
           from public.tournament_team_entries entry
@@ -2986,6 +3071,7 @@ CREATE FUNCTION public.can_read_tournament_player_portrait_as(p_organization_id 
             WHERE membership.organization_id = p_organization_id
               AND membership.user_id = p_actor_user_id
               AND membership.status = 'active'
+              AND private.has_tournament_season_access_as(p_organization_id, entry.season_id, p_actor_user_id)
               AND 'roster_players.read' = ANY(
                 public.tournament_role_capabilities(membership.role)
               )
@@ -3034,7 +3120,8 @@ CREATE FUNCTION public.can_read_tournament_projection_scope(p_organization_id uu
       and organization.status = 'active'
       and tournament.status <> 'archived'
       and (
-        public.has_tournament_organization_capability(p_organization_id, 'standings.read')
+        (public.has_tournament_organization_capability(p_organization_id, 'standings.read')
+          and public.has_tournament_season_access(p_organization_id, tournament.season_id))
         or exists (
           select 1
           from public.tournament_team_entries entry
@@ -3087,10 +3174,10 @@ CREATE FUNCTION public.can_read_tournament_team_entry(p_organization_id uuid, p_
       and tournament.status <> 'archived'
       and category.status = 'active'
       and (
-        public.has_tournament_organization_capability(
+        (public.has_tournament_organization_capability(
           p_organization_id,
           'team_entries.read'
-        )
+        ) and public.has_tournament_season_access(p_organization_id, (select e.season_id from public.tournament_team_entries e where e.id = p_team_entry_id and e.organization_id = p_organization_id)))
         or public.is_tournament_team_manager(p_team_entry_id, false)
       )
   );
@@ -3126,6 +3213,7 @@ CREATE FUNCTION public.can_read_tournament_team_photo_as(p_organization_id uuid,
             WHERE membership.organization_id = p_organization_id
               AND membership.user_id = p_actor_user_id
               AND membership.status = 'active'
+              AND private.has_tournament_season_access_as(p_organization_id, entry.season_id, p_actor_user_id)
               AND 'team_entries.read' = ANY(
                 public.tournament_role_capabilities(membership.role)
               )
@@ -3243,9 +3331,9 @@ declare
   v_reason text := btrim(coalesce(p_reason, ''));
 begin
   if private.current_identity_id() is null or char_length(v_reason) not between 3 and 500
-    or not public.has_tournament_organization_capability(
+    or not (public.has_tournament_organization_capability(
       p_organization_id, 'matches.cancel'
-    )
+    ) and public.has_tournament_season_access(p_organization_id, (select m.season_id from public.tournament_matches m where m.id = p_match_id and m.organization_id = p_organization_id)))
   then
     raise exception using errcode = '42501', message = 'TORNEOS_RESOURCE_FORBIDDEN';
   end if;
@@ -3313,9 +3401,9 @@ begin
   where id = p_session_id
   for update;
   if v_session.requested_by <> private.current_identity_id()
-    and not public.has_tournament_media_capability(
+    and not (public.has_tournament_media_capability(
       v_session.organization_id,'media.update_gallery'
-    )
+    ) and public.has_tournament_season_access(v_session.organization_id, (select g.season_id from public.tournament_media_galleries g where g.id = v_session.gallery_id)))
   then
     raise exception using errcode = '42501', message = 'TORNEOS_MEDIA_FORBIDDEN';
   end if;
@@ -3355,7 +3443,7 @@ begin
   where id = p_purchase_id for update;
   if v_purchase.id is null or not (
     v_purchase.buyer_user_id = private.current_identity_id()
-    or public.has_tournament_organization_capability(v_purchase.organization_id,'billing.manage')
+    or (public.has_tournament_organization_capability(v_purchase.organization_id,'billing.manage') and public.has_tournament_season_access(v_purchase.organization_id, v_purchase.season_id))
   ) then
     raise exception using errcode = '42501', message = 'TORNEOS_PURCHASE_FORBIDDEN';
   end if;
@@ -3410,7 +3498,7 @@ begin
   v_status := case p_action when 'archive' then 'archived' when 'revoke' then 'revoked' end;
   v_capability := case p_action when 'archive' then 'media.archive' when 'revoke' then 'media.revoke' end;
   if v_gallery.id is null or v_status is null
-    or not public.has_tournament_media_capability(v_gallery.organization_id,v_capability)
+    or not (public.has_tournament_media_capability(v_gallery.organization_id,v_capability) and public.has_tournament_season_access(v_gallery.organization_id, v_gallery.season_id))
   then
     raise exception using errcode = '42501', message = 'TORNEOS_MEDIA_FORBIDDEN';
   end if;
@@ -3469,10 +3557,10 @@ begin
   if private.current_identity_id() is null then
     raise exception using errcode = '42501', message = 'TORNEOS_AUTH_REQUIRED';
   end if;
-  if not public.has_tournament_organization_capability(
+  if not (public.has_tournament_organization_capability(
     p_organization_id,
     v_capability
-  ) then
+  ) and public.has_tournament_season_access(p_organization_id, (select t.season_id from public.tournaments t where t.id = p_tournament_id and t.organization_id = p_organization_id))) then
     raise exception using errcode = '42501', message = 'TORNEOS_RESOURCE_FORBIDDEN';
   end if;
 
@@ -3713,9 +3801,9 @@ BEGIN
     'request.jwt.claim.sub', p_actor_user_id::text, true
   );
   BEGIN
-    IF NOT public.has_tournament_media_capability(
+    IF NOT (public.has_tournament_media_capability(
       v_asset.organization_id, 'media.revoke'
-    ) THEN
+    ) and public.has_tournament_season_access(v_asset.organization_id, (select g.season_id from public.tournament_media_galleries g where g.id = v_asset.gallery_id))) THEN
       RAISE EXCEPTION USING
         errcode = '42501', message = 'TORNEOS_MEDIA_FORBIDDEN';
     END IF;
@@ -4312,7 +4400,7 @@ begin
   if private.current_identity_id() is null then
     raise exception using errcode = '42501', message = 'TORNEOS_AUTH_REQUIRED';
   end if;
-  if not public.has_tournament_organization_capability(p_organization_id,'billing.manage') then
+  if not (public.has_tournament_organization_capability(p_organization_id,'billing.manage') and public.has_tournament_season_access(p_organization_id, (select t.season_id from public.tournaments t where t.id = p_tournament_id and t.organization_id = p_organization_id))) then
     raise exception using errcode = '42501', message = 'TORNEOS_BILLING_FORBIDDEN';
   end if;
   if p_idempotency_key is null or p_provider_environment not in ('local','qa') then
@@ -4672,9 +4760,9 @@ begin
   if p_idempotency_key is null then
     raise exception using errcode = '22023', message = 'TORNEOS_IDEMPOTENCY_REQUIRED';
   end if;
-  if not public.has_tournament_communications_capability(
+  if not (public.has_tournament_communications_capability(
     p_organization_id,'announcements.create'
-  ) then
+  ) and public.has_tournament_season_access(p_organization_id, (select t.season_id from public.tournaments t where t.id = p_tournament_id and t.organization_id = p_organization_id))) then
     raise exception using errcode = '42501', message = 'TORNEOS_COMMUNICATION_FORBIDDEN';
   end if;
   select * into v_tournament
@@ -4695,9 +4783,9 @@ begin
     raise exception using errcode = '42501', message = 'TORNEOS_COMMUNICATION_FORBIDDEN';
   end if;
   if p_scheduled_for is not null
-    and not public.has_tournament_communications_capability(
+    and not (public.has_tournament_communications_capability(
       p_organization_id,'announcements.schedule'
-    )
+    ) and public.has_tournament_season_access(p_organization_id, (select t.season_id from public.tournaments t where t.id = p_tournament_id and t.organization_id = p_organization_id)))
   then
     raise exception using errcode = '42501', message = 'TORNEOS_COMMUNICATION_FORBIDDEN';
   end if;
@@ -4831,9 +4919,9 @@ begin
   end if;
   select * into v_suspension from public.tournament_player_suspensions
   where id = p_suspension_id;
-  if v_suspension.id is null or not public.has_tournament_organization_capability(
+  if v_suspension.id is null or not (public.has_tournament_organization_capability(
     v_suspension.organization_id, 'discipline.override'
-  ) or not exists (
+  ) and public.has_tournament_season_access(v_suspension.organization_id, (select t.season_id from public.tournaments t where t.id = v_suspension.tournament_id))) or not exists (
     select 1
     from public.tournament_standings_revisions revision
     where revision.id = v_suspension.revision_id
@@ -4966,9 +5054,9 @@ begin
   if p_idempotency_key is null then
     raise exception using errcode = '22023', message = 'TORNEOS_IDEMPOTENCY_REQUIRED';
   end if;
-  if not public.has_tournament_communications_capability(
+  if not (public.has_tournament_communications_capability(
     p_organization_id,'documents.create'
-  ) then
+  ) and public.has_tournament_season_access(p_organization_id, (select t.season_id from public.tournaments t where t.id = p_tournament_id and t.organization_id = p_organization_id))) then
     raise exception using errcode = '42501', message = 'TORNEOS_DOCUMENT_FORBIDDEN';
   end if;
   select * into v_tournament
@@ -5058,9 +5146,9 @@ begin
   for update;
   if v_document.id is null
     or v_document.status = 'archived'
-    or not public.has_tournament_communications_capability(
+    or not (public.has_tournament_communications_capability(
       v_document.organization_id,'documents.update_draft'
-    )
+    ) and public.has_tournament_season_access(v_document.organization_id, v_document.season_id))
     or p_correction_reason is null
     or char_length(btrim(p_correction_reason)) < 4
   then
@@ -5114,9 +5202,9 @@ begin
         and review.review_type = 'correction'
         and review.status = 'open'
     )
-    or not public.has_tournament_organization_capability(
+    or not (public.has_tournament_organization_capability(
       p_organization_id, 'match_operations.correct'
-    )
+    ) and public.has_tournament_season_access(p_organization_id, (select o.season_id from public.tournament_match_operations o where o.id = p_match_operation_id and o.organization_id = p_organization_id)))
   then
     raise exception using errcode = '42501', message = 'TORNEOS_MATCH_FORBIDDEN';
   end if;
@@ -5246,9 +5334,9 @@ begin
     raise exception using errcode = '22023', message = 'TORNEOS_IDEMPOTENCY_REQUIRED';
   end if;
 
-  if not public.has_tournament_media_capability(
+  if not (public.has_tournament_media_capability(
     p_organization_id, 'media.create_gallery'
-  ) then
+  ) and public.has_tournament_season_access(p_organization_id, (select t.season_id from public.tournaments t where t.id = p_tournament_id and t.organization_id = p_organization_id))) then
     raise exception using errcode = '42501', message = 'TORNEOS_MEDIA_FORBIDDEN';
   end if;
   perform pg_catalog.pg_advisory_xact_lock(
@@ -5564,9 +5652,9 @@ begin
     and organization_id = p_organization_id
     and status = 'published';
   if v_fixture.id is null
-    or not public.has_tournament_organization_capability(
+    or not (public.has_tournament_organization_capability(
       p_organization_id, 'standings.override'
-    )
+    ) and public.has_tournament_season_access(p_organization_id, (select v.season_id from public.tournament_fixture_versions v where v.id = p_fixture_version_id and v.organization_id = p_organization_id)))
     or not exists (
       select 1 from public.tournament_scoring_rules scoring
       where scoring.tournament_id = v_fixture.tournament_id
@@ -5841,7 +5929,7 @@ begin
   if private.current_identity_id() is null then
     raise exception using errcode = '42501', message = 'TORNEOS_AUTH_REQUIRED';
   end if;
-  if not public.has_tournament_organization_capability(p_organization_id,'billing.manage') then
+  if not (public.has_tournament_organization_capability(p_organization_id,'billing.manage') and public.has_tournament_season_access(p_organization_id, p_season_id)) then
     raise exception using errcode = '42501', message = 'TORNEOS_BILLING_FORBIDDEN';
   end if;
   if p_idempotency_key is null or not (
@@ -5943,7 +6031,7 @@ declare
   v_uid uuid := private.current_identity_id();
   v_tournament public.tournaments%rowtype;
   v_category public.tournament_categories%rowtype;
-
+  v_snapshot jsonb;
   v_entry public.tournament_team_entries%rowtype;
   v_roster public.tournament_rosters%rowtype;
   v_manager public.tournament_team_managers%rowtype;
@@ -5996,7 +6084,18 @@ begin
     raise exception using errcode = '22023', message = 'TORNEOS_MANAGER_INVITATION_REQUIRED';
   end if;
   if p_arma2_team_id is not null then
-    raise SQLSTATE '0A000' using message='TORNEOS_CORE_TEAM_IMPORT_CONTRACT_PENDING';
+    -- Phase 2B: frozen Core team snapshot attested for this actor, destination and team.
+    v_snapshot := private.consume_core_attestation(
+      'team_snapshot',
+      jsonb_build_object(
+        'organizationId', p_organization_id, 'tournamentId', p_tournament_id,
+        'categoryId', p_category_id, 'coreTeamId', p_arma2_team_id
+      )
+    );
+    if (v_snapshot->>'core_team_id')::uuid is distinct from p_arma2_team_id then
+      raise exception using errcode = '42501', message = 'TORNEOS_RESOURCE_FORBIDDEN';
+    end if;
+    v_name := btrim(v_snapshot->>'name');
   end if;
   if char_length(v_name) not between 2 and 100 then
     raise exception using errcode = '22023', message = 'TORNEOS_INVALID_TEAM_ENTRY';
@@ -6019,6 +6118,17 @@ begin
     v_primary_color, v_secondary_color, 'draft',
     v_source, v_uid, p_idempotency_key
   ) returning * into v_entry;
+
+  if p_arma2_team_id is not null then
+    insert into private.tournament_team_entry_core_snapshots (
+      team_entry_id, organization_id, tournament_id, core_team_id, name, crest_url,
+      players, source_revision, captured_at, imported_by
+    ) values (
+      v_entry.id, p_organization_id, p_tournament_id, p_arma2_team_id,
+      v_snapshot->>'name', v_snapshot->>'crest_url', coalesce(v_snapshot->'players', '[]'::jsonb),
+      (v_snapshot->>'source_revision')::integer, to_timestamp((v_snapshot->>'captured_at')::bigint), v_uid
+    );
+  end if;
 
   insert into public.tournament_rosters (
     organization_id, team_entry_id, version, status, created_by
@@ -6132,10 +6242,10 @@ begin
   if v_user_id is null then
     raise exception using errcode = '42501', message = 'TORNEOS_AUTH_REQUIRED';
   end if;
-  if not public.has_tournament_organization_capability(
+  if not (public.has_tournament_organization_capability(
     p_organization_id,
     'tournaments.create'
-  ) then
+  ) and public.has_tournament_season_access(p_organization_id, p_season_id)) then
     raise exception using errcode = '42501', message = 'TORNEOS_RESOURCE_FORBIDDEN';
   end if;
   if p_idempotency_key is null then
@@ -7179,9 +7289,9 @@ begin
   if private.current_identity_id() is null then
     raise exception using errcode = '42501', message = 'TORNEOS_AUTH_REQUIRED';
   end if;
-  if not public.has_tournament_organization_capability(
+  if not (public.has_tournament_organization_capability(
     p_organization_id, 'tournaments.finish'
-  ) then
+  ) and public.has_tournament_season_access(p_organization_id, (select t.season_id from public.tournaments t where t.id = p_tournament_id and t.organization_id = p_organization_id))) then
     raise exception using errcode = '42501', message = 'TORNEOS_RESOURCE_FORBIDDEN';
   end if;
 
@@ -7848,9 +7958,9 @@ CREATE FUNCTION public.get_match_squad_context(p_organization_id uuid, p_match_i
     AS $$
   select case
     when not (
-      public.has_tournament_organization_capability(
+      (public.has_tournament_organization_capability(
         p_organization_id, 'match_squads.read'
-      )
+      ) and public.has_tournament_season_access(p_organization_id, (select e.season_id from public.tournament_team_entries e where e.id = p_team_entry_id and e.organization_id = p_organization_id)))
       or public.can_manage_tournament_match_squad(
         p_organization_id, p_match_id, p_team_entry_id
       )
@@ -8917,9 +9027,9 @@ begin
   if private.current_identity_id() is null then
     raise exception using errcode = '42501', message = 'TORNEOS_AUTH_REQUIRED';
   end if;
-  select public.has_tournament_communications_capability(
+  select (public.has_tournament_communications_capability(
     tournament.organization_id,'documents.read'
-  ) into v_can_manage
+  ) and public.has_tournament_season_access(tournament.organization_id, tournament.season_id)) into v_can_manage
   from public.tournaments tournament where tournament.id = p_tournament_id;
   if not v_can_manage and not public.can_access_tournament_communications(p_tournament_id) then
     raise exception using errcode = '42501', message = 'TORNEOS_DOCUMENT_FORBIDDEN';
@@ -9894,9 +10004,9 @@ begin
   from public.tournament_announcements announcement
   where announcement.id = p_announcement_id;
   v_can_manage := v_announcement.id is not null
-    and public.has_tournament_communications_capability(
+    and (public.has_tournament_communications_capability(
       v_announcement.organization_id,'announcements.read'
-    );
+    ) and public.has_tournament_season_access(v_announcement.organization_id, v_announcement.season_id));
   select * into v_delivery
   from public.tournament_announcement_deliveries delivery
   where delivery.announcement_id = p_announcement_id
@@ -10013,10 +10123,10 @@ BEGIN
       AND tournament.status <> 'archived';
 
     IF v_tournament.id IS NULL OR NOT (
-      public.has_tournament_organization_capability(
+      (public.has_tournament_organization_capability(
         p_organization_id,
         'tournaments.read'
-      )
+      ) AND public.has_tournament_season_access(p_organization_id, v_tournament.season_id))
       OR public.can_read_tournament_participant_hub(p_tournament_id, NULL)
     ) THEN
       RAISE EXCEPTION USING ERRCODE = '42501', MESSAGE = 'TORNEOS_RESOURCE_FORBIDDEN';
@@ -10064,6 +10174,14 @@ begin
     and membership.status = 'active'
     and organization.status = 'active';
   if v_capabilities is null or not ('announcements.read' = any(v_capabilities)) then
+    raise exception using errcode = '42501', message = 'TORNEOS_COMMUNICATION_FORBIDDEN';
+  end if;
+  if p_tournament_id is not null and not exists (
+    select 1 from public.tournaments scoped_tournament
+    where scoped_tournament.id = p_tournament_id
+      and scoped_tournament.organization_id = p_organization_id
+      and public.has_tournament_season_access(p_organization_id, scoped_tournament.season_id)
+  ) then
     raise exception using errcode = '42501', message = 'TORNEOS_COMMUNICATION_FORBIDDEN';
   end if;
   return jsonb_build_object(
@@ -10116,6 +10234,7 @@ begin
       where tournament.organization_id = p_organization_id
         and tournament.status <> 'archived'
         and (p_tournament_id is null or tournament.id = p_tournament_id)
+        and public.has_tournament_season_access(p_organization_id, tournament.season_id)
     ),'[]'::jsonb),
     'announcements',coalesce((
       select jsonb_agg(jsonb_build_object(
@@ -10133,6 +10252,7 @@ begin
         from public.tournament_announcements
         where organization_id = p_organization_id
           and (p_tournament_id is null or tournament_id = p_tournament_id)
+          and public.has_tournament_season_access(p_organization_id, season_id)
         order by updated_at desc
         limit 100
       ) announcement
@@ -10148,6 +10268,7 @@ begin
       from public.tournament_documents document
       where document.organization_id = p_organization_id
         and (p_tournament_id is null or document.tournament_id = p_tournament_id)
+        and public.has_tournament_season_access(p_organization_id, document.season_id)
     ),'[]'::jsonb)
   );
 end;
@@ -10602,9 +10723,9 @@ CREATE FUNCTION public.get_tournament_fixture_context(p_organization_id uuid, p_
 declare
   v_is_manager boolean;
 begin
-  v_is_manager := not public.has_tournament_organization_capability(
+  v_is_manager := not (public.has_tournament_organization_capability(
     p_organization_id, 'fixture.read'
-  );
+  ) and public.has_tournament_season_access(p_organization_id, (select t.season_id from public.tournaments t where t.id = p_tournament_id and t.organization_id = p_organization_id)));
   if private.current_identity_id() is null or not exists (
     select 1 from public.tournament_categories category
     join public.tournaments tournament
@@ -10915,9 +11036,9 @@ CREATE FUNCTION public.get_tournament_match_operations_context(p_organization_id
     SET search_path TO ''
     AS $$
   select case
-    when not public.has_tournament_organization_capability(
+    when not (public.has_tournament_organization_capability(
       p_organization_id, 'match_operations.read'
-    ) then public.raise_tournament_match_error('TORNEOS_MATCH_FORBIDDEN')
+    ) and public.has_tournament_season_access(p_organization_id, (select t.season_id from public.tournaments t where t.id = p_tournament_id and t.organization_id = p_organization_id))) then public.raise_tournament_match_error('TORNEOS_MATCH_FORBIDDEN')
     else jsonb_build_object(
       'matches', coalesce((
         select jsonb_agg(jsonb_build_object(
@@ -11015,15 +11136,15 @@ declare
   v_can_handle_reports boolean;
   v_readiness jsonb;
 begin
-  if not public.has_tournament_media_capability(p_organization_id,'media.read') then
+  if not (public.has_tournament_media_capability(p_organization_id,'media.read') and public.has_tournament_season_access(p_organization_id, (select t.season_id from public.tournaments t where t.id = p_tournament_id and t.organization_id = p_organization_id))) then
     raise exception using errcode = '42501', message = 'TORNEOS_MEDIA_FORBIDDEN';
   end if;
   if p_limit < 1 or p_limit > 100 or p_offset < 0 then
     raise exception using errcode = '22023', message = 'TORNEOS_MEDIA_FILTER_INVALID';
   end if;
-  v_can_handle_reports := public.has_tournament_media_capability(
+  v_can_handle_reports := (public.has_tournament_media_capability(
     p_organization_id,'media.handle_reports'
-  );
+  ) and public.has_tournament_season_access(p_organization_id, (select t.season_id from public.tournaments t where t.id = p_tournament_id and t.organization_id = p_organization_id)));
   v_readiness := public.tournament_media_pipeline_readiness();
   select jsonb_build_object(
     'storage',jsonb_build_object(
@@ -12085,10 +12206,10 @@ BEGIN
   IF private.current_identity_id() IS NULL THEN
     RAISE EXCEPTION USING ERRCODE = '42501', MESSAGE = 'TORNEOS_AUTH_REQUIRED';
   END IF;
-  IF NOT public.has_tournament_organization_capability(
+  IF NOT (public.has_tournament_organization_capability(
     p_organization_id,
     'tournaments.read'
-  ) THEN
+  ) and public.has_tournament_season_access(p_organization_id, (select t.season_id from public.tournaments t where t.id = p_tournament_id and t.organization_id = p_organization_id))) THEN
     RAISE EXCEPTION USING ERRCODE = '42501', MESSAGE = 'TORNEOS_RESOURCE_FORBIDDEN';
   END IF;
 
@@ -12154,7 +12275,7 @@ begin
   select * into v_purchase from public.tournament_purchases where id = p_purchase_id;
   if v_purchase.id is null or not (
     v_purchase.buyer_user_id = private.current_identity_id()
-    or public.has_tournament_organization_capability(v_purchase.organization_id,'billing.manage')
+    or (public.has_tournament_organization_capability(v_purchase.organization_id,'billing.manage') and public.has_tournament_season_access(v_purchase.organization_id, v_purchase.season_id))
   ) then
     raise exception using errcode = '42501', message = 'TORNEOS_PURCHASE_FORBIDDEN';
   end if;
@@ -12174,9 +12295,9 @@ CREATE FUNCTION public.get_tournament_schedule_context(p_organization_id uuid, p
 declare
   v_is_manager boolean;
 begin
-  v_is_manager := not public.has_tournament_organization_capability(
+  v_is_manager := not (public.has_tournament_organization_capability(
     p_organization_id, 'fixture.read'
-  );
+  ) and public.has_tournament_season_access(p_organization_id, (select t.season_id from public.tournaments t where t.id = p_tournament_id and t.organization_id = p_organization_id)));
   if private.current_identity_id() is null or not exists (
     select 1
     from public.tournament_categories category
@@ -12376,7 +12497,7 @@ DECLARE
     'best_eleven','mvp','round_summary','semifinals','final','champion'
   ];
 BEGIN
-  IF NOT public.has_tournament_social_capability(p_organization_id, 'social.read') THEN
+  IF NOT (public.has_tournament_social_capability(p_organization_id, 'social.read') and public.has_tournament_season_access(p_organization_id, (select t.season_id from public.tournaments t where t.id = p_tournament_id and t.organization_id = p_organization_id))) THEN
     RAISE EXCEPTION USING ERRCODE = '42501', MESSAGE = 'TORNEOS_SOCIAL_FORBIDDEN';
   END IF;
   IF p_piece IS NULL OR NOT (p_piece = ANY(v_pieces)) THEN
@@ -12688,9 +12809,9 @@ begin
   ) then
     raise exception using errcode = '42501', message = 'TORNEOS_STANDINGS_FORBIDDEN';
   end if;
-  v_can_manage := public.has_tournament_organization_capability(
+  v_can_manage := (public.has_tournament_organization_capability(
     p_organization_id, 'standings.rebuild'
-  );
+  ) and public.has_tournament_season_access(p_organization_id, (select t.season_id from public.tournaments t where t.id = p_tournament_id and t.organization_id = p_organization_id)));
   select * into v_revision
   from public.tournament_standings_revisions
   where organization_id = p_organization_id and tournament_id = p_tournament_id
@@ -12770,9 +12891,9 @@ begin
   ) then
     raise exception using errcode = '42501', message = 'TORNEOS_STATISTICS_FORBIDDEN';
   end if;
-  v_can_manage := public.has_tournament_organization_capability(
+  v_can_manage := (public.has_tournament_organization_capability(
     p_organization_id, 'statistics.rebuild'
-  );
+  ) and public.has_tournament_season_access(p_organization_id, (select t.season_id from public.tournaments t where t.id = p_tournament_id and t.organization_id = p_organization_id)));
   select id into v_revision_id
   from public.tournament_standings_revisions
   where organization_id = p_organization_id and tournament_id = p_tournament_id
@@ -12921,9 +13042,9 @@ DECLARE
   v_policy text;
 BEGIN
   IF private.current_identity_id() IS NULL
-    OR NOT public.has_tournament_organization_capability(
+    OR NOT (public.has_tournament_organization_capability(
       p_organization_id, 'tournaments.read'
-    )
+    ) and public.has_tournament_season_access(p_organization_id, (select t.season_id from public.tournaments t where t.id = p_tournament_id and t.organization_id = p_organization_id)))
   THEN
     RAISE EXCEPTION USING ERRCODE = '42501', MESSAGE = 'TORNEOS_RESOURCE_FORBIDDEN';
   END IF;
@@ -12944,9 +13065,9 @@ BEGIN
     'tournamentId', p_tournament_id,
     'policy', v_policy,
     -- Quien sólo puede leer ve la política pero no el control.
-    'canUpdate', public.has_tournament_organization_capability(
+    'canUpdate', (public.has_tournament_organization_capability(
       p_organization_id, 'tournaments.update'
-    )
+    ) and public.has_tournament_season_access(p_organization_id, (select t.season_id from public.tournaments t where t.id = p_tournament_id and t.organization_id = p_organization_id)))
   );
 END;
 $$;
@@ -12975,6 +13096,7 @@ BEGIN
     WHERE id = p_tournament_id
       AND organization_id = p_organization_id
       AND status <> 'archived'
+      AND public.has_tournament_season_access(p_organization_id, season_id)
   ) THEN
     RAISE EXCEPTION USING ERRCODE = '42501', MESSAGE = 'TORNEOS_RESOURCE_FORBIDDEN';
   END IF;
@@ -13229,9 +13351,9 @@ declare
 begin
   select * into v_report
   from public.tournament_media_reports where id = p_report_id for update;
-  if v_report.id is null or not public.has_tournament_media_capability(
+  if v_report.id is null or not (public.has_tournament_media_capability(
     v_report.organization_id,'media.handle_reports'
-  ) then
+  ) and public.has_tournament_season_access(v_report.organization_id, (select g.season_id from public.tournament_media_galleries g where g.id = v_report.gallery_id))) then
     raise exception using errcode = '42501', message = 'TORNEOS_MEDIA_FORBIDDEN';
   end if;
   if p_status not in ('under_review','resolved','dismissed') then
@@ -13557,9 +13679,9 @@ declare
 begin
   select * into v_entry from public.tournament_team_entries
   where id = p_team_entry_id and organization_id = p_organization_id for update;
-  if v_entry.id is null or not public.has_tournament_organization_capability(
+  if v_entry.id is null or not (public.has_tournament_organization_capability(
     p_organization_id, 'team_managers.invite'
-  ) or not public.can_edit_tournament_team_entry(
+  ) and public.has_tournament_season_access(p_organization_id, (select e.season_id from public.tournament_team_entries e where e.id = p_team_entry_id and e.organization_id = p_organization_id))) or not public.can_edit_tournament_team_entry(
     p_organization_id,
     p_team_entry_id
   ) then raise exception using errcode = '42501', message = 'TORNEOS_RESOURCE_FORBIDDEN'; end if;
@@ -14118,10 +14240,10 @@ declare
   v_entry public.tournament_team_entries%rowtype;
   v_roster public.tournament_rosters%rowtype;
 begin
-  if private.current_identity_id() is null or not public.has_tournament_organization_capability(
+  if private.current_identity_id() is null or not (public.has_tournament_organization_capability(
     p_organization_id,
     'rosters.lock'
-  ) then
+  ) and public.has_tournament_season_access(p_organization_id, (select e.season_id from public.tournament_team_entries e where e.id = p_team_entry_id and e.organization_id = p_organization_id))) then
     raise exception using errcode = '42501', message = 'TORNEOS_RESOURCE_FORBIDDEN';
   end if;
   select * into v_entry
@@ -14189,9 +14311,9 @@ begin
   select * into v_operation from public.tournament_match_operations
   where id = p_match_operation_id and organization_id = p_organization_id for update;
   if v_operation.id is null
-    or not public.has_tournament_organization_capability(
+    or not (public.has_tournament_organization_capability(
       p_organization_id, 'match_operations.make_official'
-    )
+    ) and public.has_tournament_season_access(p_organization_id, (select o.season_id from public.tournament_match_operations o where o.id = p_match_operation_id and o.organization_id = p_organization_id)))
   then
     raise exception using errcode = '42501', message = 'TORNEOS_MATCH_FORBIDDEN';
   end if;
@@ -14275,9 +14397,9 @@ declare
   v_subject_user_id uuid;
 begin
   select * into v_asset from public.tournament_media_assets where id = p_asset_id;
-  if v_asset.id is null or not public.has_tournament_media_capability(
+  if v_asset.id is null or not (public.has_tournament_media_capability(
     v_asset.organization_id,'media.manage_consent'
-  ) then
+  ) and public.has_tournament_season_access(v_asset.organization_id, (select g.season_id from public.tournament_media_galleries g where g.id = v_asset.gallery_id))) then
     raise exception using errcode = '42501', message = 'TORNEOS_MEDIA_FORBIDDEN';
   end if;
   perform pg_catalog.pg_advisory_xact_lock(
@@ -14490,9 +14612,9 @@ begin
   end if;
   select * into v_suspension from public.tournament_player_suspensions
   where id = p_suspension_id;
-  if v_suspension.id is null or not public.has_tournament_organization_capability(
+  if v_suspension.id is null or not (public.has_tournament_organization_capability(
     v_suspension.organization_id, 'suspensions.mark_served'
-  ) then
+  ) and public.has_tournament_season_access(v_suspension.organization_id, (select t.season_id from public.tournaments t where t.id = v_suspension.tournament_id))) then
     raise exception using errcode = '42501', message = 'TORNEOS_DISCIPLINE_FORBIDDEN';
   end if;
   perform pg_advisory_xact_lock(hashtextextended(
@@ -14667,9 +14789,9 @@ begin
   select * into v_match from public.tournament_matches
   where id = p_match_id and organization_id = p_organization_id for update;
   if v_match.id is null
-    or not public.has_tournament_organization_capability(
+    or not (public.has_tournament_organization_capability(
       p_organization_id, 'match_operations.open'
-    )
+    ) and public.has_tournament_season_access(p_organization_id, (select m.season_id from public.tournament_matches m where m.id = p_match_id and m.organization_id = p_organization_id)))
   then
     raise exception using errcode = '42501', message = 'TORNEOS_MATCH_FORBIDDEN';
   end if;
@@ -14783,9 +14905,9 @@ declare
   v_reason text := btrim(coalesce(p_reason, ''));
 begin
   if private.current_identity_id() is null or char_length(v_reason) not between 3 and 500
-    or not public.has_tournament_organization_capability(
+    or not (public.has_tournament_organization_capability(
       p_organization_id, 'matches.postpone'
-    )
+    ) and public.has_tournament_season_access(p_organization_id, (select m.season_id from public.tournament_matches m where m.id = p_match_id and m.organization_id = p_organization_id)))
   then
     raise exception using errcode = '42501', message = 'TORNEOS_RESOURCE_FORBIDDEN';
   end if;
@@ -14851,9 +14973,9 @@ begin
     raise exception using errcode = '42501', message = 'TORNEOS_AUTH_REQUIRED';
   end if;
   if v_announcement.id is null
-    or not public.has_tournament_communications_capability(
+    or not (public.has_tournament_communications_capability(
       v_announcement.organization_id,'audiences.preview'
-    )
+    ) and public.has_tournament_season_access(v_announcement.organization_id, v_announcement.season_id))
   then
     raise exception using errcode = '42501', message = 'TORNEOS_COMMUNICATION_FORBIDDEN';
   end if;
@@ -15356,9 +15478,9 @@ begin
   where announcement.id = p_announcement_id
   for update;
   if v_announcement.id is null
-    or not public.has_tournament_communications_capability(
+    or not (public.has_tournament_communications_capability(
       v_announcement.organization_id,'announcements.publish'
-    )
+    ) and public.has_tournament_season_access(v_announcement.organization_id, v_announcement.season_id))
   then
     raise exception using errcode = '42501', message = 'TORNEOS_COMMUNICATION_FORBIDDEN';
   end if;
@@ -15524,9 +15646,9 @@ begin
   for update;
   if v_version.id is null or v_version.status <> 'draft'
     or v_document.status = 'archived'
-    or not public.has_tournament_communications_capability(
+    or not (public.has_tournament_communications_capability(
       v_version.organization_id,'documents.publish'
-    )
+    ) and public.has_tournament_season_access(v_version.organization_id, (select d.season_id from public.tournament_documents d where d.id = v_version.document_id)))
   then
     raise exception using errcode = '42501', message = 'TORNEOS_DOCUMENT_FORBIDDEN';
   end if;
@@ -15575,7 +15697,7 @@ begin
     and version.status = 'draft'
   for update;
   if v_version.id is null
-    or not public.has_tournament_organization_capability(p_organization_id, 'fixture.publish')
+    or not (public.has_tournament_organization_capability(p_organization_id, 'fixture.publish') and public.has_tournament_season_access(p_organization_id, (select v.season_id from public.tournament_fixture_versions v where v.id = p_fixture_version_id and v.organization_id = p_organization_id)))
   then
     raise exception using errcode = '42501', message = 'TORNEOS_RESOURCE_FORBIDDEN';
   end if;
@@ -15607,9 +15729,9 @@ begin
     and version.status = 'published'
   for update;
   if v_previous.id is not null then
-    if not public.has_tournament_organization_capability(
+    if not (public.has_tournament_organization_capability(
       p_organization_id, 'fixture.supersede'
-    ) then
+    ) and public.has_tournament_season_access(p_organization_id, (select v.season_id from public.tournament_fixture_versions v where v.id = p_fixture_version_id and v.organization_id = p_organization_id))) then
       raise exception using errcode = '42501', message = 'TORNEOS_RESOURCE_FORBIDDEN';
     end if;
     update public.tournament_fixture_versions
@@ -15693,9 +15815,9 @@ begin
   );
   select * into v_gallery
   from public.tournament_media_galleries where id = p_gallery_id for update;
-  if v_gallery.id is null or not public.has_tournament_media_capability(
+  if v_gallery.id is null or not (public.has_tournament_media_capability(
     v_gallery.organization_id,'media.publish'
-  ) then
+  ) and public.has_tournament_season_access(v_gallery.organization_id, v_gallery.season_id)) then
     raise exception using errcode = '42501', message = 'TORNEOS_MEDIA_FORBIDDEN';
   end if;
   if v_gallery.status = 'published' then
@@ -15772,9 +15894,9 @@ begin
   end if;
   select * into v_revision from public.tournament_standings_revisions
   where id = p_revision_id;
-  if v_revision.id is null or not public.has_tournament_organization_capability(
+  if v_revision.id is null or not (public.has_tournament_organization_capability(
     v_revision.organization_id, 'standings.publish'
-  ) then
+  ) and public.has_tournament_season_access(v_revision.organization_id, v_revision.season_id)) then
     raise exception using errcode = '42501', message = 'TORNEOS_STANDINGS_FORBIDDEN';
   end if;
   perform pg_advisory_xact_lock(hashtextextended(
@@ -15994,7 +16116,11 @@ declare
   v_partitions_before integer;
   v_partitions_after integer;
 begin
-  create temporary table if not exists pg_temp.tournament_rank_work (
+  -- Never execute DML on a caller-owned temporary relation under elevated privileges.
+  if pg_catalog.to_regclass('pg_temp.tournament_rank_work') is not null then
+    drop table pg_temp.tournament_rank_work;
+  end if;
+  create temporary table pg_temp.tournament_rank_work (
     participant_id uuid primary key,
     rank_key text not null default '',
     criterion_value numeric not null default 0,
@@ -16202,9 +16328,9 @@ CREATE FUNCTION public.ready_tournament_match(p_organization_id uuid, p_match_id
 declare
   v_match public.tournament_matches%rowtype;
 begin
-  if private.current_identity_id() is null or not public.has_tournament_organization_capability(
+  if private.current_identity_id() is null or not (public.has_tournament_organization_capability(
     p_organization_id, 'matches.schedule'
-  ) then
+  ) and public.has_tournament_season_access(p_organization_id, (select m.season_id from public.tournament_matches m where m.id = p_match_id and m.organization_id = p_organization_id))) then
     raise exception using errcode = '42501', message = 'TORNEOS_RESOURCE_FORBIDDEN';
   end if;
   select match_row.* into v_match
@@ -16267,9 +16393,9 @@ begin
   if private.current_identity_id() is null then
     raise exception using errcode = '42501', message = 'TORNEOS_AUTH_REQUIRED';
   end if;
-  if not public.has_tournament_organization_capability(
+  if not (public.has_tournament_organization_capability(
     p_organization_id, 'standings.rebuild'
-  ) then
+  ) and public.has_tournament_season_access(p_organization_id, (select t.season_id from public.tournaments t where t.id = p_tournament_id and t.organization_id = p_organization_id))) then
     raise exception using errcode = '42501', message = 'TORNEOS_STANDINGS_FORBIDDEN';
   end if;
   if p_idempotency_key is null or char_length(btrim(coalesce(p_reason, ''))) < 3 then
@@ -16751,7 +16877,11 @@ begin
   where stats.revision_id = v_revision.id
     and stats.participant_id = summary.participant_id;
 
-  create temporary table if not exists pg_temp.tournament_discipline_event_work (
+  -- Never execute DML on a caller-owned temporary relation under elevated privileges.
+  if pg_catalog.to_regclass('pg_temp.tournament_discipline_event_work') is not null then
+    drop table pg_temp.tournament_discipline_event_work;
+  end if;
+  create temporary table pg_temp.tournament_discipline_event_work (
     event_id uuid primary key,
     match_operation_id uuid not null,
     match_id uuid not null,
@@ -17251,7 +17381,12 @@ CREATE FUNCTION public.reject_tournament_projection_mutation() RETURNS trigger
     SET search_path TO ''
     AS $$
 begin
-  if current_user not in ('postgres', 'service_role') then
+  -- Phase 2B: platform mutations run as the function owner (DEFINER context) or the service role;
+  -- the owner role name is not hardcoded, so the isolated baseline is portable.
+  if current_user <> 'service_role' and current_user <> (
+    select r.rolname from pg_catalog.pg_proc p join pg_catalog.pg_roles r on r.oid = p.proowner
+    where p.oid = 'public.reject_tournament_projection_mutation'::regproc
+  ) then
     raise exception using errcode = '42501', message = 'TORNEOS_PROJECTION_IMMUTABLE';
   end if;
   return coalesce(new, old);
@@ -17361,9 +17496,9 @@ begin
     raise exception using errcode = '42501', message = 'TORNEOS_AUTH_REQUIRED';
   end if;
   -- `tournaments.reopen` sólo la tiene el propietario.
-  if not public.has_tournament_organization_capability(
+  if not (public.has_tournament_organization_capability(
     p_organization_id, 'tournaments.reopen'
-  ) then
+  ) and public.has_tournament_season_access(p_organization_id, (select t.season_id from public.tournaments t where t.id = p_tournament_id and t.organization_id = p_organization_id))) then
     raise exception using errcode = '42501', message = 'TORNEOS_RESOURCE_FORBIDDEN';
   end if;
   if char_length(v_reason) not between 3 and 500 then
@@ -17522,9 +17657,9 @@ declare
 begin
   select * into v_gallery
   from public.tournament_media_galleries where id = p_gallery_id for update;
-  if v_gallery.id is null or not public.has_tournament_media_capability(
+  if v_gallery.id is null or not (public.has_tournament_media_capability(
     v_gallery.organization_id,'media.update_gallery'
-  ) then
+  ) and public.has_tournament_season_access(v_gallery.organization_id, v_gallery.season_id)) then
     raise exception using errcode = '42501', message = 'TORNEOS_MEDIA_FORBIDDEN';
   end if;
   if v_gallery.status not in ('draft','under_review') then
@@ -17694,9 +17829,9 @@ begin
   where id = p_match_operation_id and organization_id = p_organization_id for update;
   if v_operation.id is null or v_operation.status <> 'official'
     or char_length(btrim(coalesce(p_reason, ''))) not between 3 and 2000
-    or not public.has_tournament_organization_capability(
+    or not (public.has_tournament_organization_capability(
       p_organization_id, 'match_operations.request_correction'
-    )
+    ) and public.has_tournament_season_access(p_organization_id, (select o.season_id from public.tournament_match_operations o where o.id = p_match_operation_id and o.organization_id = p_organization_id)))
   then
     raise exception using errcode = '42501', message = 'TORNEOS_MATCH_FORBIDDEN';
   end if;
@@ -18124,9 +18259,9 @@ declare
   v_reason text := btrim(coalesce(p_reason, ''));
 begin
   if private.current_identity_id() is null or char_length(v_reason) not between 3 and 500
-    or not public.has_tournament_organization_capability(
+    or not (public.has_tournament_organization_capability(
       p_organization_id, 'matches.reschedule'
-    )
+    ) and public.has_tournament_season_access(p_organization_id, (select m.season_id from public.tournament_matches m where m.id = p_match_id and m.organization_id = p_organization_id)))
   then
     raise exception using errcode = '42501', message = 'TORNEOS_RESOURCE_FORBIDDEN';
   end if;
@@ -18162,9 +18297,9 @@ begin
   end if;
   if jsonb_array_length(v_validation->'warnings') > 0 and (
     not p_override_warnings
-    or not public.has_tournament_organization_capability(
+    or not (public.has_tournament_organization_capability(
       p_organization_id, 'schedule_conflicts.override'
-    )
+    ) and public.has_tournament_season_access(p_organization_id, (select m.season_id from public.tournament_matches m where m.id = p_match_id and m.organization_id = p_organization_id)))
   ) then
     raise exception using errcode = '23514', message = 'TORNEOS_SCHEDULE_WARNING_CONFIRMATION';
   end if;
@@ -18533,9 +18668,9 @@ begin
   end if;
   select * into v_revision from public.tournament_standings_revisions
   where id = p_revision_id and status = 'published' for share;
-  if v_revision.id is null or not public.has_tournament_organization_capability(
+  if v_revision.id is null or not (public.has_tournament_organization_capability(
     v_revision.organization_id, 'qualification.resolve'
-  ) then
+  ) and public.has_tournament_season_access(v_revision.organization_id, v_revision.season_id)) then
     raise exception using errcode = '42501', message = 'TORNEOS_QUALIFICATION_FORBIDDEN';
   end if;
   if char_length(btrim(coalesce(p_reason, ''))) < 3 then
@@ -18884,9 +19019,9 @@ declare
   v_reason text := btrim(coalesce(p_reason, ''));
 begin
   if private.current_identity_id() is null or char_length(v_reason) not between 3 and 500
-    or not public.has_tournament_organization_capability(
+    or not (public.has_tournament_organization_capability(
       p_organization_id, 'matches.reschedule'
-    )
+    ) and public.has_tournament_season_access(p_organization_id, (select m.season_id from public.tournament_matches m where m.id = p_match_id and m.organization_id = p_organization_id)))
   then
     raise exception using errcode = '42501', message = 'TORNEOS_RESOURCE_FORBIDDEN';
   end if;
@@ -18946,9 +19081,9 @@ begin
   if v_operation.id is null or v_operation.status not in ('submitted', 'under_review')
     or p_decision not in ('approved', 'rejected')
     or char_length(btrim(coalesce(p_reason, ''))) not between 3 and 2000
-    or not public.has_tournament_organization_capability(
+    or not (public.has_tournament_organization_capability(
       p_organization_id, 'match_operations.review'
-    )
+    ) and public.has_tournament_season_access(p_organization_id, (select o.season_id from public.tournament_match_operations o where o.id = p_match_operation_id and o.organization_id = p_organization_id)))
   then
     raise exception using errcode = '42501', message = 'TORNEOS_MATCH_FORBIDDEN';
   end if;
@@ -19113,9 +19248,9 @@ begin
     raise exception using errcode = '42501', message = 'TORNEOS_AUTH_REQUIRED';
   end if;
   if v_announcement.id is null
-    or not public.has_tournament_communications_capability(
+    or not (public.has_tournament_communications_capability(
       v_announcement.organization_id,'announcements.revoke'
-    )
+    ) and public.has_tournament_season_access(v_announcement.organization_id, v_announcement.season_id))
     or v_announcement.status <> 'published'
     or p_reason is null or char_length(btrim(p_reason)) < 4
   then
@@ -19210,9 +19345,9 @@ begin
   select * into v_adjustment
   from public.tournament_points_adjustments
   where id = p_adjustment_id;
-  if v_adjustment.id is null or not public.has_tournament_organization_capability(
+  if v_adjustment.id is null or not (public.has_tournament_organization_capability(
     v_adjustment.organization_id, 'standings.override'
-  ) then
+  ) and public.has_tournament_season_access(v_adjustment.organization_id, (select t.season_id from public.tournaments t where t.id = v_adjustment.tournament_id))) then
     raise exception using errcode = '42501', message = 'TORNEOS_STANDINGS_FORBIDDEN';
   end if;
   perform pg_advisory_xact_lock(hashtextextended(
@@ -19478,10 +19613,10 @@ begin
   if private.current_identity_id() is null then
     raise exception using errcode = '42501', message = 'TORNEOS_AUTH_REQUIRED';
   end if;
-  if not public.has_tournament_organization_capability(
+  if not (public.has_tournament_organization_capability(
     p_organization_id,
     v_capability
-  ) then
+  ) and public.has_tournament_season_access(p_organization_id, (select t.season_id from public.tournaments t where t.id = p_tournament_id and t.organization_id = p_organization_id))) then
     raise exception using errcode = '42501', message = 'TORNEOS_RESOURCE_FORBIDDEN';
   end if;
   perform 1
@@ -19797,9 +19932,9 @@ begin
   select * into v_operation from public.tournament_match_operations
   where id = p_match_operation_id and organization_id = p_organization_id for update;
   if v_operation.id is null or v_operation.status <> 'draft'
-    or not public.has_tournament_organization_capability(
+    or not (public.has_tournament_organization_capability(
       p_organization_id, 'match_operations.update_draft'
-    )
+    ) and public.has_tournament_season_access(p_organization_id, (select o.season_id from public.tournament_match_operations o where o.id = p_match_operation_id and o.organization_id = p_organization_id)))
     or p_match_status not in (
       'ready', 'in_progress', 'suspended', 'abandoned',
       'played', 'administrative', 'voided'
@@ -19831,9 +19966,9 @@ declare
   v_court_id uuid;
 begin
   if private.current_identity_id() is null
-    or not public.has_tournament_organization_capability(
+    or not (public.has_tournament_organization_capability(
       p_organization_id, 'schedule_windows.manage'
-    )
+    ) and public.has_tournament_season_access(p_organization_id, (select t.season_id from public.tournaments t where t.id = p_tournament_id and t.organization_id = p_organization_id)))
     or jsonb_typeof(p_windows) <> 'array'
     or jsonb_array_length(p_windows) > 500
     or not exists (
@@ -19930,9 +20065,9 @@ declare
   v_reason text := btrim(coalesce(p_override_reason, ''));
 begin
   if private.current_identity_id() is null
-    or not public.has_tournament_organization_capability(
+    or not (public.has_tournament_organization_capability(
       p_organization_id, 'matches.schedule'
-    )
+    ) and public.has_tournament_season_access(p_organization_id, (select m.season_id from public.tournament_matches m where m.id = p_match_id and m.organization_id = p_organization_id)))
   then
     raise exception using errcode = '42501', message = 'TORNEOS_RESOURCE_FORBIDDEN';
   end if;
@@ -19970,9 +20105,9 @@ begin
   if jsonb_array_length(v_validation->'warnings') > 0 and (
     not p_override_warnings
     or char_length(v_reason) not between 3 and 500
-    or not public.has_tournament_organization_capability(
+    or not (public.has_tournament_organization_capability(
       p_organization_id, 'schedule_conflicts.override'
-    )
+    ) and public.has_tournament_season_access(p_organization_id, (select m.season_id from public.tournament_matches m where m.id = p_match_id and m.organization_id = p_organization_id)))
   ) then
     raise exception using errcode = '23514', message = 'TORNEOS_SCHEDULE_WARNING_CONFIRMATION';
   end if;
@@ -20023,9 +20158,9 @@ begin
   where id = p_match_operation_id and organization_id = p_organization_id for update;
   if v_operation.id is null or v_operation.status <> 'draft'
     or v_operation.match_status <> 'suspended'
-    or not public.has_tournament_organization_capability(
+    or not (public.has_tournament_organization_capability(
       p_organization_id, 'match_outcomes.manage'
-    )
+    ) and public.has_tournament_season_access(p_organization_id, (select o.season_id from public.tournament_match_operations o where o.id = p_match_operation_id and o.organization_id = p_organization_id)))
     or char_length(btrim(coalesce(p_reason, ''))) not between 3 and 1000
   then
     raise exception using errcode = '42501', message = 'TORNEOS_MATCH_FORBIDDEN';
@@ -20064,7 +20199,65 @@ CREATE FUNCTION public.search_tournament_arma2_teams(p_organization_id uuid, p_t
     LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO ''
     AS $$
-BEGIN RAISE SQLSTATE '0A000' USING MESSAGE='TORNEOS_CORE_BRIDGE_CONTRACT_PENDING'; END;
+declare
+  v_result jsonb;
+  v_directory jsonb;
+  v_limit integer := least(greatest(coalesce(p_limit, 8), 1), 12);
+begin
+  if private.current_identity_id() is null
+    or not public.has_tournament_organization_capability(p_organization_id, 'team_entries.create')
+    or not exists (
+      select 1 from public.tournaments
+      where id = p_tournament_id and organization_id = p_organization_id
+        and status = 'registration'
+        and public.has_tournament_season_access(p_organization_id, season_id)
+    )
+    or char_length(btrim(coalesce(p_query, ''))) not between 2 and 100
+  then raise exception using errcode = '42501', message = 'TORNEOS_RESOURCE_FORBIDDEN'; end if;
+  if (
+    select count(*)
+    from public.tournament_audit_log audit
+    where audit.actor_user_id = private.current_identity_id()
+      and audit.action = 'search.teams'
+      and audit.created_at > now() - interval '1 minute'
+  ) >= 30 then
+    raise exception using errcode = 'P0001', message = 'TORNEOS_SEARCH_RATE_LIMITED';
+  end if;
+  -- Phase 2B: Core directory contract (teams the caller may import). Colors/format are not
+  -- part of the certified contract and are null.
+  v_directory := private.consume_core_attestation(
+    'directory_teams',
+    jsonb_build_object(
+      'organizationId', p_organization_id, 'tournamentId', p_tournament_id,
+      'query', btrim(p_query), 'limit', v_limit
+    )
+  );
+  select coalesce(jsonb_agg(jsonb_build_object(
+    'id', item->>'core_team_id',
+    'name', item->>'name',
+    'crestUrl', item->'crest_url',
+    'primaryColor', null,
+    'secondaryColor', null,
+    'format', null
+  ) order by item->>'name', item->>'core_team_id'), '[]'::jsonb)
+  into v_result
+  from jsonb_array_elements(coalesce(v_directory->'items', '[]'::jsonb)) item;
+  perform public.append_tournament_audit(
+    p_organization_id,
+    'search.teams',
+    'tournament',
+    p_tournament_id,
+    null,
+    p_tournament_id,
+    jsonb_build_object(
+      'queryLength',
+      char_length(btrim(p_query)),
+      'resultCount',
+      jsonb_array_length(v_result)
+    )
+  );
+  return v_result;
+end;
 $$;
 
 
@@ -20076,7 +20269,89 @@ CREATE FUNCTION public.search_tournament_players(p_organization_id uuid, p_tourn
     LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO ''
     AS $$
-BEGIN RAISE SQLSTATE '0A000' USING MESSAGE='TORNEOS_CORE_BRIDGE_CONTRACT_PENDING'; END;
+declare
+  v_result jsonb;
+  v_directory jsonb;
+  v_limit integer := least(greatest(coalesce(p_limit, 8), 1), 12);
+begin
+  if private.current_identity_id() is null
+    or not (
+      public.has_tournament_organization_capability(
+        p_organization_id,
+        'roster_players.read'
+      )
+      or (
+        p_team_entry_id is not null
+        and public.can_edit_tournament_team_entry(
+          p_organization_id,
+          p_team_entry_id
+        )
+        and exists (
+          select 1
+          from public.tournament_team_entries entry
+          where entry.id = p_team_entry_id
+            and entry.organization_id = p_organization_id
+            and entry.tournament_id = p_tournament_id
+        )
+      )
+    )
+    or not exists (
+      select 1 from public.tournaments
+      where id = p_tournament_id and organization_id = p_organization_id and status <> 'archived'
+        and public.has_tournament_season_access(p_organization_id, season_id)
+    )
+    or char_length(btrim(coalesce(p_query, ''))) not between 2 and 100
+  then raise exception using errcode = '42501', message = 'TORNEOS_RESOURCE_FORBIDDEN'; end if;
+  if (
+    select count(*)
+    from public.tournament_audit_log audit
+    where audit.actor_user_id = private.current_identity_id()
+      and audit.action = 'search.players'
+      and audit.created_at > now() - interval '1 minute'
+  ) >= 30 then
+    raise exception using errcode = 'P0001', message = 'TORNEOS_SEARCH_RATE_LIMITED';
+  end if;
+  -- Phase 2B: Core directory contract (players). Each result is a current, discoverable
+  -- Core account; its local shadow identity is allocated exactly as the certified bridge does.
+  v_directory := private.consume_core_attestation(
+    'directory_players',
+    jsonb_build_object(
+      'organizationId', p_organization_id, 'tournamentId', p_tournament_id,
+      'teamEntryId', p_team_entry_id, 'query', btrim(p_query), 'limit', v_limit
+    )
+  );
+  insert into public.torneos_identity (core_user_id)
+  select (item->>'core_user_id')::uuid
+  from jsonb_array_elements(coalesce(v_directory->'items', '[]'::jsonb)) item
+  on conflict (core_user_id) do nothing;
+  select coalesce(jsonb_agg(jsonb_build_object(
+    'userId', identity.id,
+    'displayName', item->>'display_name',
+    'avatarUrl', item->'avatar_url',
+    'positions', coalesce(item->'positions', '[]'::jsonb),
+    'linkedAccount', true,
+    'teamName', null
+  ) order by item->>'display_name', identity.id), '[]'::jsonb)
+  into v_result
+  from jsonb_array_elements(coalesce(v_directory->'items', '[]'::jsonb)) item
+  join public.torneos_identity identity
+    on identity.core_user_id = (item->>'core_user_id')::uuid;
+  perform public.append_tournament_audit(
+    p_organization_id,
+    'search.players',
+    'tournament',
+    p_tournament_id,
+    p_team_entry_id,
+    p_tournament_id,
+    jsonb_build_object(
+      'queryLength',
+      char_length(btrim(p_query)),
+      'resultCount',
+      jsonb_array_length(v_result)
+    )
+  );
+  return v_result;
+end;
 $$;
 
 
@@ -20094,10 +20369,10 @@ begin
   if v_user_id is null then
     raise exception using errcode = '42501', message = 'TORNEOS_AUTH_REQUIRED';
   end if;
-  if not public.has_tournament_organization_capability(
+  if not (public.has_tournament_organization_capability(
     p_organization_id,
     'workspace.access'
-  ) then
+  ) and public.has_tournament_season_access(p_organization_id, p_season_id)) then
     raise exception using errcode = '42501', message = 'TORNEOS_CONTEXT_FORBIDDEN';
   end if;
   perform 1
@@ -20228,14 +20503,14 @@ begin
   end if;
   if v_announcement.id is null
     or v_announcement.status not in ('draft','scheduled')
-    or not public.has_tournament_communications_capability(
+    or not (public.has_tournament_communications_capability(
       v_announcement.organization_id,'announcements.update_draft'
-    )
+    ) and public.has_tournament_season_access(v_announcement.organization_id, v_announcement.season_id))
     or (
       v_announcement.author_user_id <> private.current_identity_id()
-      and not public.has_tournament_communications_capability(
+      and not (public.has_tournament_communications_capability(
         v_announcement.organization_id,'announcements.publish'
-      )
+      ) and public.has_tournament_season_access(v_announcement.organization_id, v_announcement.season_id))
     )
   then
     raise exception using errcode = '42501', message = 'TORNEOS_COMMUNICATION_FORBIDDEN';
@@ -20311,14 +20586,14 @@ begin
   end if;
   if v_announcement.id is null
     or v_announcement.status not in ('draft','scheduled')
-    or not public.has_tournament_communications_capability(
+    or not (public.has_tournament_communications_capability(
       v_announcement.organization_id,'announcements.update_draft'
-    )
+    ) and public.has_tournament_season_access(v_announcement.organization_id, v_announcement.season_id))
     or (
       v_announcement.author_user_id <> private.current_identity_id()
-      and not public.has_tournament_communications_capability(
+      and not (public.has_tournament_communications_capability(
         v_announcement.organization_id,'announcements.publish'
-      )
+      ) and public.has_tournament_season_access(v_announcement.organization_id, v_announcement.season_id))
     )
   then
     raise exception using errcode = '42501', message = 'TORNEOS_COMMUNICATION_FORBIDDEN';
@@ -20619,18 +20894,18 @@ begin
   select * into v_operation from public.tournament_match_operations
   where id = p_match_operation_id and organization_id = p_organization_id for update;
   if v_operation.id is null or v_operation.status <> 'draft'
-    or not public.has_tournament_organization_capability(
+    or not (public.has_tournament_organization_capability(
       p_organization_id, 'match_outcomes.manage'
-    )
+    ) and public.has_tournament_season_access(p_organization_id, (select o.season_id from public.tournament_match_operations o where o.id = p_match_operation_id and o.organization_id = p_organization_id)))
   then
     raise exception using errcode = '42501', message = 'TORNEOS_MATCH_FORBIDDEN';
   end if;
   if p_outcome->>'outcomeType' in (
     'home_no_show', 'away_no_show', 'double_no_show',
     'walkover_home', 'walkover_away', 'administrative_result'
-  ) and not public.has_tournament_organization_capability(
+  ) and not (public.has_tournament_organization_capability(
     p_organization_id, 'match_administrative_results.manage'
-  ) then
+  ) and public.has_tournament_season_access(p_organization_id, (select o.season_id from public.tournament_match_operations o where o.id = p_match_operation_id and o.organization_id = p_organization_id))) then
     raise exception using errcode = '42501', message = 'TORNEOS_MATCH_FORBIDDEN';
   end if;
   insert into public.tournament_match_outcomes (
@@ -20711,16 +20986,16 @@ begin
   select * into v_operation from public.tournament_match_operations
   where id = p_match_operation_id and organization_id = p_organization_id for update;
   if v_operation.id is null or v_operation.status <> 'draft'
-    or not public.has_tournament_organization_capability(
+    or not (public.has_tournament_organization_capability(
       p_organization_id, 'match_scores.manage'
-    )
+    ) and public.has_tournament_season_access(p_organization_id, (select o.season_id from public.tournament_match_operations o where o.id = p_match_operation_id and o.organization_id = p_organization_id)))
   then
     raise exception using errcode = '42501', message = 'TORNEOS_MATCH_FORBIDDEN';
   end if;
   if p_score->>'scoreType' in ('administrative', 'walkover')
-    and not public.has_tournament_organization_capability(
+    and not (public.has_tournament_organization_capability(
       p_organization_id, 'match_administrative_results.manage'
-    )
+    ) and public.has_tournament_season_access(p_organization_id, (select o.season_id from public.tournament_match_operations o where o.id = p_match_operation_id and o.organization_id = p_organization_id)))
   then
     raise exception using errcode = '42501', message = 'TORNEOS_MATCH_FORBIDDEN';
   end if;
@@ -20769,9 +21044,9 @@ declare
 begin
   select * into v_gallery
   from public.tournament_media_galleries where id = p_gallery_id;
-  if v_gallery.id is null or not public.has_tournament_media_capability(
+  if v_gallery.id is null or not (public.has_tournament_media_capability(
     v_gallery.organization_id,'media.set_cover'
-  ) then
+  ) and public.has_tournament_season_access(v_gallery.organization_id, v_gallery.season_id)) then
     raise exception using errcode = '42501', message = 'TORNEOS_MEDIA_FORBIDDEN';
   end if;
   perform pg_catalog.pg_advisory_xact_lock(
@@ -20947,10 +21222,10 @@ BEGIN
   IF p_published IS NULL THEN
     RAISE EXCEPTION USING ERRCODE = '22023', MESSAGE = 'TORNEOS_PUBLIC_PAGE_INVALID_STATE';
   END IF;
-  IF NOT public.has_tournament_organization_capability(
+  IF NOT (public.has_tournament_organization_capability(
     p_organization_id,
     'tournaments.update'
-  ) THEN
+  ) and public.has_tournament_season_access(p_organization_id, (select t.season_id from public.tournaments t where t.id = p_tournament_id and t.organization_id = p_organization_id))) THEN
     RAISE EXCEPTION USING ERRCODE = '42501', MESSAGE = 'TORNEOS_PUBLIC_PAGE_FORBIDDEN';
   END IF;
 
@@ -21223,9 +21498,9 @@ BEGIN
   ) THEN
     RAISE EXCEPTION USING ERRCODE = '22023', MESSAGE = 'TORNEOS_VISUAL_POLICY_INVALID';
   END IF;
-  IF NOT public.has_tournament_organization_capability(
+  IF NOT (public.has_tournament_organization_capability(
     p_organization_id, 'tournaments.update'
-  ) THEN
+  ) and public.has_tournament_season_access(p_organization_id, (select t.season_id from public.tournaments t where t.id = p_tournament_id and t.organization_id = p_organization_id))) THEN
     RAISE EXCEPTION USING ERRCODE = '42501', MESSAGE = 'TORNEOS_VISUAL_POLICY_FORBIDDEN';
   END IF;
 
@@ -21359,9 +21634,9 @@ begin
   if private.current_identity_id() is null then
     raise exception using errcode = '42501', message = 'TORNEOS_AUTH_REQUIRED';
   end if;
-  if not public.has_tournament_organization_capability(
+  if not (public.has_tournament_organization_capability(
     p_organization_id, 'tournaments.start'
-  ) then
+  ) and public.has_tournament_season_access(p_organization_id, (select t.season_id from public.tournaments t where t.id = p_tournament_id and t.organization_id = p_organization_id))) then
     raise exception using errcode = '42501', message = 'TORNEOS_RESOURCE_FORBIDDEN';
   end if;
 
@@ -21585,9 +21860,9 @@ begin
   select * into v_operation from public.tournament_match_operations
   where id = p_match_operation_id and organization_id = p_organization_id for update;
   if v_operation.id is null or v_operation.status <> 'draft'
-    or not public.has_tournament_organization_capability(
+    or not (public.has_tournament_organization_capability(
       p_organization_id, 'match_operations.submit'
-    )
+    ) and public.has_tournament_season_access(p_organization_id, (select o.season_id from public.tournament_match_operations o where o.id = p_match_operation_id and o.organization_id = p_organization_id)))
   then
     raise exception using errcode = '42501', message = 'TORNEOS_MATCH_FORBIDDEN';
   end if;
@@ -21678,9 +21953,9 @@ declare
   v_version public.tournament_fixture_versions%rowtype;
 begin
   if private.current_identity_id() is null
-    or not public.has_tournament_organization_capability(
+    or not (public.has_tournament_organization_capability(
       p_organization_id, 'fixture.supersede'
-    )
+    ) and public.has_tournament_season_access(p_organization_id, (select v.season_id from public.tournament_fixture_versions v where v.id = p_fixture_version_id and v.organization_id = p_organization_id)))
   then
     raise exception using errcode = '42501', message = 'TORNEOS_RESOURCE_FORBIDDEN';
   end if;
@@ -23230,10 +23505,10 @@ declare
   v_fair_play_enabled boolean;
 begin
   if private.current_identity_id() is null
-    or not public.has_tournament_organization_capability(
+    or not (public.has_tournament_organization_capability(
       p_organization_id,
       'tournaments.read'
-    )
+    ) and public.has_tournament_season_access(p_organization_id, (select t.season_id from public.tournaments t where t.id = p_tournament_id and t.organization_id = p_organization_id)))
   then
     raise exception using errcode = '42501', message = 'TORNEOS_RESOURCE_FORBIDDEN';
   end if;
@@ -23807,9 +24082,9 @@ BEGIN
   IF p_action IN ('hide','revoke','request_deletion') THEN
     v_capability := 'media.revoke';
   END IF;
-  IF NOT public.has_tournament_media_capability(
+  IF NOT (public.has_tournament_media_capability(
     v_asset.organization_id,v_capability
-  ) THEN
+  ) and public.has_tournament_season_access(v_asset.organization_id, (select g.season_id from public.tournament_media_galleries g where g.id = v_asset.gallery_id))) THEN
     RAISE EXCEPTION USING errcode = '42501', message = 'TORNEOS_MEDIA_FORBIDDEN';
   END IF;
   v_next := CASE
@@ -24146,22 +24421,22 @@ begin
   end if;
   if v_announcement.id is null
     or v_announcement.status not in ('draft','scheduled')
-    or not public.has_tournament_communications_capability(
+    or not (public.has_tournament_communications_capability(
       v_announcement.organization_id,'announcements.update_draft'
-    )
+    ) and public.has_tournament_season_access(v_announcement.organization_id, v_announcement.season_id))
     or (
       v_announcement.author_user_id <> private.current_identity_id()
-      and not public.has_tournament_communications_capability(
+      and not (public.has_tournament_communications_capability(
         v_announcement.organization_id,'announcements.publish'
-      )
+      ) and public.has_tournament_season_access(v_announcement.organization_id, v_announcement.season_id))
     )
   then
     raise exception using errcode = '42501', message = 'TORNEOS_COMMUNICATION_FORBIDDEN';
   end if;
   if p_scheduled_for is not null
-    and not public.has_tournament_communications_capability(
+    and not (public.has_tournament_communications_capability(
       v_announcement.organization_id,'announcements.schedule'
-    )
+    ) and public.has_tournament_season_access(v_announcement.organization_id, v_announcement.season_id))
   then
     raise exception using errcode = '42501', message = 'TORNEOS_COMMUNICATION_FORBIDDEN';
   end if;
@@ -24214,10 +24489,10 @@ begin
   if private.current_identity_id() is null then
     raise exception using errcode = '42501', message = 'TORNEOS_AUTH_REQUIRED';
   end if;
-  if not public.has_tournament_organization_capability(
+  if not (public.has_tournament_organization_capability(
     p_organization_id,
     'tournaments.update'
-  ) then
+  ) and public.has_tournament_season_access(p_organization_id, (select t.season_id from public.tournaments t where t.id = p_tournament_id and t.organization_id = p_organization_id))) then
     raise exception using errcode = '42501', message = 'TORNEOS_RESOURCE_FORBIDDEN';
   end if;
   if jsonb_typeof(v_patch) <> 'object'
@@ -24340,10 +24615,10 @@ begin
   end;
 
   if v_patch ? 'scoring' then
-    if not public.has_tournament_organization_capability(
+    if not (public.has_tournament_organization_capability(
       p_organization_id,
       'competition_rules.update'
-    ) then
+    ) and public.has_tournament_season_access(p_organization_id, (select t.season_id from public.tournaments t where t.id = p_tournament_id and t.organization_id = p_organization_id))) then
       raise exception using errcode = '42501', message = 'TORNEOS_RESOURCE_FORBIDDEN';
     end if;
     v_scoring := v_patch->'scoring';
@@ -24391,10 +24666,10 @@ begin
   end if;
 
   if v_patch ? 'tiebreaks' then
-    if not public.has_tournament_organization_capability(
+    if not (public.has_tournament_organization_capability(
       p_organization_id,
       'competition_rules.update'
-    ) then
+    ) and public.has_tournament_season_access(p_organization_id, (select t.season_id from public.tournaments t where t.id = p_tournament_id and t.organization_id = p_organization_id))) then
       raise exception using errcode = '42501', message = 'TORNEOS_RESOURCE_FORBIDDEN';
     end if;
     v_tiebreaks := v_patch->'tiebreaks';
@@ -24438,10 +24713,10 @@ begin
   end if;
 
   if v_patch ? 'discipline' then
-    if not public.has_tournament_organization_capability(
+    if not (public.has_tournament_organization_capability(
       p_organization_id,
       'competition_rules.update'
-    ) then
+    ) and public.has_tournament_season_access(p_organization_id, (select t.season_id from public.tournaments t where t.id = p_tournament_id and t.organization_id = p_organization_id))) then
       raise exception using errcode = '42501', message = 'TORNEOS_RESOURCE_FORBIDDEN';
     end if;
     v_discipline := v_patch->'discipline';
@@ -24585,9 +24860,9 @@ begin
   for update;
   if v_version.id is null
     or v_version.status <> 'draft'
-    or not public.has_tournament_communications_capability(
+    or not (public.has_tournament_communications_capability(
       v_version.organization_id,'documents.update_draft'
-    )
+    ) and public.has_tournament_season_access(v_version.organization_id, (select d.season_id from public.tournament_documents d where d.id = v_version.document_id)))
   then
     raise exception using errcode = '42501', message = 'TORNEOS_DOCUMENT_FORBIDDEN';
   end if;
@@ -24613,9 +24888,9 @@ begin
   select * into v_gallery
   from public.tournament_media_galleries
   where id = p_gallery_id;
-  if v_gallery.id is null or not public.has_tournament_media_capability(
+  if v_gallery.id is null or not (public.has_tournament_media_capability(
     v_gallery.organization_id,'media.update_gallery'
-  ) then
+  ) and public.has_tournament_season_access(v_gallery.organization_id, v_gallery.season_id)) then
     raise exception using errcode = '42501', message = 'TORNEOS_MEDIA_FORBIDDEN';
   end if;
   perform pg_catalog.pg_advisory_xact_lock(
@@ -25297,9 +25572,9 @@ begin
   select * into v_operation from public.tournament_match_operations
   where id = p_match_operation_id and organization_id = p_organization_id for update;
   if v_operation.id is null or v_operation.status <> 'under_review'
-    or not public.has_tournament_organization_capability(
+    or not (public.has_tournament_organization_capability(
       p_organization_id, 'match_operations.validate'
-    )
+    ) and public.has_tournament_season_access(p_organization_id, (select o.season_id from public.tournament_match_operations o where o.id = p_match_operation_id and o.organization_id = p_organization_id)))
   then
     raise exception using errcode = '42501', message = 'TORNEOS_MATCH_FORBIDDEN';
   end if;
@@ -26316,9 +26591,9 @@ begin
   where id = p_event_id and organization_id = p_organization_id
   for update;
   if v_event.id is null or v_event.voided_at is not null or v_operation.status <> 'draft'
-    or not public.has_tournament_organization_capability(
+    or not (public.has_tournament_organization_capability(
       p_organization_id, 'match_events.void'
-    )
+    ) and public.has_tournament_season_access(p_organization_id, (select m.season_id from public.tournament_match_events ev join public.tournament_matches m on m.id = ev.match_id where ev.id = p_event_id and ev.organization_id = p_organization_id)))
     or char_length(btrim(coalesce(p_reason, ''))) not between 3 and 500
   then
     raise exception using errcode = '42501', message = 'TORNEOS_MATCH_FORBIDDEN';
@@ -26354,9 +26629,9 @@ begin
   where id = p_match_operation_id and organization_id = p_organization_id for update;
   if v_operation.id is null or v_operation.status in ('official', 'superseded', 'voided')
     or char_length(btrim(coalesce(p_reason, ''))) not between 3 and 1000
-    or not public.has_tournament_organization_capability(
+    or not (public.has_tournament_organization_capability(
       p_organization_id, 'match_operations.void'
-    )
+    ) and public.has_tournament_season_access(p_organization_id, (select o.season_id from public.tournament_match_operations o where o.id = p_match_operation_id and o.organization_id = p_organization_id)))
   then
     raise exception using errcode = '42501', message = 'TORNEOS_MATCH_FORBIDDEN';
   end if;
@@ -26395,9 +26670,9 @@ begin
   if private.current_identity_id() is null then
     raise exception using errcode = '42501', message = 'TORNEOS_AUTH_REQUIRED';
   end if;
-  if not public.has_tournament_organization_capability(
+  if not (public.has_tournament_organization_capability(
     p_organization_id, 'participants.withdraw'
-  ) then
+  ) and public.has_tournament_season_access(p_organization_id, (select t.season_id from public.tournaments t where t.id = p_tournament_id and t.organization_id = p_organization_id))) then
     raise exception using errcode = '42501', message = 'TORNEOS_RESOURCE_FORBIDDEN';
   end if;
   if v_reason_code not in (
@@ -26626,7 +26901,7 @@ begin
   where id = p_team_entry_id and organization_id = p_organization_id for update;
   if v_entry.id is null or v_entry.status not in ('draft','invited','in_progress','changes_requested','approved')
     or not (
-      public.has_tournament_organization_capability(p_organization_id, 'team_entries.withdraw')
+      (public.has_tournament_organization_capability(p_organization_id, 'team_entries.withdraw') and public.has_tournament_season_access(p_organization_id, (select e.season_id from public.tournament_team_entries e where e.id = p_team_entry_id and e.organization_id = p_organization_id)))
       or exists (
         select 1
         from public.tournament_team_managers manager
@@ -41306,6 +41581,304 @@ GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.user_workspace_preferences TO 
 --
 
 
+
+-- Phase 2B: Core contract boundary for the four historical Core-dependent RPCs.
+-- The Torneos server calls the certified Core contract (Phase 2A) and records a
+-- single-use attestation bound to the local identity, the Core session and the
+-- exact request. The historical RPC re-authorizes locally, then consumes it.
+-- Nothing here is a client-settable GUC, a request-body flag, an email claim, or a
+-- browser-readable attestation table.
+CREATE ROLE torneos_core_adapter NOLOGIN NOINHERIT;
+GRANT USAGE ON SCHEMA private TO torneos_core_adapter;
+
+CREATE TABLE private.core_contract_attestations (
+ id uuid PRIMARY KEY DEFAULT pg_catalog.gen_random_uuid(),
+ identity_id uuid NOT NULL REFERENCES public.torneos_identity(id) ON DELETE CASCADE,
+ session_id uuid NOT NULL,
+ contract text NOT NULL CHECK (contract IN ('verified_email','directory_players','directory_teams','team_snapshot')),
+ request_hash text NOT NULL CHECK (request_hash ~ '^[0-9a-f]{64}$'),
+ response jsonb NOT NULL CHECK (jsonb_typeof(response) = 'object'),
+ observed_at timestamptz NOT NULL,
+ created_at timestamptz NOT NULL DEFAULT now(),
+ expires_at timestamptz NOT NULL DEFAULT now() + interval '10 seconds',
+ consumed_at timestamptz,
+ CONSTRAINT core_contract_attestations_ttl CHECK (expires_at > created_at AND expires_at <= created_at + interval '10 seconds'),
+ CONSTRAINT core_contract_attestations_fresh CHECK (observed_at >= created_at - interval '10 seconds' AND observed_at <= created_at + interval '5 seconds')
+);
+CREATE INDEX core_contract_attestations_lookup ON private.core_contract_attestations (identity_id, session_id, contract, request_hash) WHERE consumed_at IS NULL;
+ALTER TABLE private.core_contract_attestations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE private.core_contract_attestations FORCE ROW LEVEL SECURITY;
+REVOKE ALL ON private.core_contract_attestations FROM PUBLIC, anon, authenticated, service_role;
+-- The adapter can only append; it never reads, replays, extends or deletes an attestation.
+GRANT INSERT ON private.core_contract_attestations TO torneos_core_adapter;
+CREATE POLICY adapter_attest ON private.core_contract_attestations FOR INSERT TO torneos_core_adapter WITH CHECK (true);
+
+-- Torneos-owned frozen competition snapshot (Phase 2A contract 3). Not a Core mirror.
+CREATE TABLE private.tournament_team_entry_core_snapshots (
+ team_entry_id uuid PRIMARY KEY REFERENCES public.tournament_team_entries(id) ON DELETE CASCADE,
+ organization_id uuid NOT NULL,
+ tournament_id uuid NOT NULL,
+ core_team_id uuid NOT NULL,
+ name text NOT NULL,
+ crest_url text,
+ players jsonb NOT NULL DEFAULT '[]'::jsonb CHECK (jsonb_typeof(players) = 'array'),
+ source_revision integer NOT NULL,
+ captured_at timestamptz NOT NULL,
+ imported_by uuid NOT NULL REFERENCES public.torneos_identity(id),
+ created_at timestamptz NOT NULL DEFAULT now()
+);
+ALTER TABLE private.tournament_team_entry_core_snapshots ENABLE ROW LEVEL SECURITY;
+ALTER TABLE private.tournament_team_entry_core_snapshots FORCE ROW LEVEL SECURITY;
+REVOKE ALL ON private.tournament_team_entry_core_snapshots FROM PUBLIC, anon, authenticated, service_role, torneos_core_adapter;
+
+-- One hash implementation: the adapter stores what SQL computed; the RPC recomputes from its own validated inputs.
+CREATE FUNCTION private.core_contract_request_hash(p_contract text, p_request jsonb) RETURNS text
+LANGUAGE sql IMMUTABLE SET search_path = '' AS $$
+ SELECT encode(extensions.digest(convert_to(p_contract || E'\n' || p_request::text, 'UTF8'), 'sha256'), 'hex')
+$$;
+
+-- Single-use consumption. Executable only by the function owner from the historical DEFINER RPCs.
+CREATE FUNCTION private.consume_core_attestation(p_contract text, p_request jsonb) RETURNS jsonb
+LANGUAGE plpgsql SECURITY INVOKER SET search_path = '' AS $$
+DECLARE
+ v_identity uuid := private.current_identity_id();
+ v_session uuid;
+ v_attestation private.core_contract_attestations%rowtype;
+BEGIN
+ IF v_identity IS NULL THEN
+  RAISE EXCEPTION USING ERRCODE = '42501', MESSAGE = 'TORNEOS_AUTH_REQUIRED';
+ END IF;
+ BEGIN
+  v_session := (nullif(current_setting('request.jwt.claims', true), '')::jsonb->>'session_id')::uuid;
+ EXCEPTION WHEN invalid_text_representation THEN
+  v_session := NULL;
+ END;
+ IF v_session IS NULL THEN
+  RAISE EXCEPTION USING ERRCODE = '42501', MESSAGE = 'TORNEOS_AUTH_REQUIRED';
+ END IF;
+ SELECT * INTO v_attestation
+ FROM private.core_contract_attestations attestation
+ WHERE attestation.identity_id = v_identity
+  AND attestation.session_id = v_session
+  AND attestation.contract = p_contract
+  AND attestation.request_hash = private.core_contract_request_hash(p_contract, p_request)
+  AND attestation.consumed_at IS NULL
+  AND attestation.expires_at > now()
+ ORDER BY attestation.created_at DESC
+ LIMIT 1
+ FOR UPDATE;
+ IF v_attestation.id IS NULL THEN
+  RAISE EXCEPTION USING ERRCODE = '42501', MESSAGE = 'TORNEOS_CORE_ATTESTATION_REQUIRED';
+ END IF;
+ UPDATE private.core_contract_attestations SET consumed_at = now() WHERE id = v_attestation.id;
+ RETURN v_attestation.response;
+END $$;
+
+-- Server-side pre-authorization: the same local predicate the RPC applies, evaluated
+-- for the verified claims before any Core call. Returns the exact Core request and its hash.
+CREATE FUNCTION private.authorize_core_contract(p_contract text, p_request jsonb) RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
+DECLARE
+ v_identity uuid := private.current_identity_id();
+ v_invitation public.tournament_team_invitations%rowtype;
+ v_token text;
+ v_organization_id uuid;
+ v_tournament_id uuid;
+ v_category_id uuid;
+ v_team_entry_id uuid;
+ v_core_team_id uuid;
+ v_query text;
+ v_limit integer;
+ v_request jsonb;
+ v_core_request jsonb;
+BEGIN
+ IF v_identity IS NULL THEN
+  RAISE EXCEPTION USING ERRCODE = '42501', MESSAGE = 'TORNEOS_AUTH_REQUIRED';
+ END IF;
+ IF p_request IS NULL OR jsonb_typeof(p_request) <> 'object' THEN
+  RAISE EXCEPTION USING ERRCODE = '22023', MESSAGE = 'TORNEOS_INVALID_CORE_CONTRACT_REQUEST';
+ END IF;
+ IF p_contract = 'verified_email' THEN
+  v_token := p_request->>'token';
+  IF char_length(coalesce(v_token, '')) <> 64 THEN
+   RAISE EXCEPTION USING ERRCODE = '42501', MESSAGE = 'TORNEOS_INVITATION_INVALID';
+  END IF;
+  SELECT * INTO v_invitation FROM public.tournament_team_invitations
+  WHERE token_hash = encode(public.digest(v_token, 'sha256'), 'hex');
+  IF v_invitation.id IS NULL OR v_invitation.status <> 'pending' THEN
+   RAISE EXCEPTION USING ERRCODE = '42501', MESSAGE = 'TORNEOS_INVITATION_INVALID';
+  END IF;
+  IF v_invitation.expires_at <= now() THEN
+   RAISE EXCEPTION USING ERRCODE = '42501', MESSAGE = 'TORNEOS_INVITATION_EXPIRED';
+  END IF;
+  IF NOT EXISTS (
+   SELECT 1
+   FROM public.tournament_organizations organization
+   JOIN public.tournament_team_entries entry ON entry.organization_id = organization.id
+   JOIN public.tournaments tournament
+    ON tournament.organization_id = entry.organization_id AND tournament.id = entry.tournament_id
+   JOIN public.tournament_categories category
+    ON category.organization_id = entry.organization_id
+    AND category.tournament_id = entry.tournament_id
+    AND category.id = entry.category_id
+   WHERE organization.id = v_invitation.organization_id
+    AND organization.status = 'active'
+    AND entry.id = v_invitation.team_entry_id
+    AND entry.status IN ('invited', 'in_progress', 'changes_requested')
+    AND tournament.id = v_invitation.tournament_id
+    AND tournament.status = 'registration'
+    AND (tournament.registration_opens_at IS NULL OR now() >= tournament.registration_opens_at)
+    AND (tournament.registration_closes_at IS NULL OR now() <= tournament.registration_closes_at)
+    AND category.status = 'active'
+  ) OR NOT EXISTS (
+   SELECT 1 FROM public.tournament_team_managers manager
+   WHERE manager.id = v_invitation.manager_id
+    AND manager.organization_id = v_invitation.organization_id
+    AND manager.team_entry_id = v_invitation.team_entry_id
+    AND manager.status = 'pending'
+  ) THEN
+   RAISE EXCEPTION USING ERRCODE = '42501', MESSAGE = 'TORNEOS_INVITATION_INVALID';
+  END IF;
+  v_request := jsonb_build_object('expected_email', v_invitation.email_normalized);
+  v_core_request := v_request;
+ ELSIF p_contract IN ('directory_players', 'directory_teams') THEN
+  v_organization_id := (p_request->>'organization_id')::uuid;
+  v_tournament_id := (p_request->>'tournament_id')::uuid;
+  v_team_entry_id := (p_request->>'team_entry_id')::uuid;
+  v_query := btrim(coalesce(p_request->>'query', ''));
+  v_limit := least(greatest(coalesce((p_request->>'limit')::integer, 8), 1), 12);
+  IF char_length(v_query) < 2 OR char_length(v_query) > 100 THEN
+   RAISE EXCEPTION USING ERRCODE = '42501', MESSAGE = 'TORNEOS_RESOURCE_FORBIDDEN';
+  END IF;
+  IF p_contract = 'directory_players' THEN
+   IF NOT (
+     public.has_tournament_organization_capability(v_organization_id, 'roster_players.read')
+     OR (
+      v_team_entry_id IS NOT NULL
+      AND public.can_edit_tournament_team_entry(v_organization_id, v_team_entry_id)
+      AND EXISTS (
+       SELECT 1 FROM public.tournament_team_entries entry
+       WHERE entry.id = v_team_entry_id
+        AND entry.organization_id = v_organization_id
+        AND entry.tournament_id = v_tournament_id
+      )
+     )
+    ) OR NOT EXISTS (
+     SELECT 1 FROM public.tournaments
+     WHERE id = v_tournament_id AND organization_id = v_organization_id AND status <> 'archived'
+      AND public.has_tournament_season_access(v_organization_id, season_id)
+    )
+   THEN
+    RAISE EXCEPTION USING ERRCODE = '42501', MESSAGE = 'TORNEOS_RESOURCE_FORBIDDEN';
+   END IF;
+   IF (
+    SELECT count(*) FROM public.tournament_audit_log audit
+    WHERE audit.actor_user_id = v_identity AND audit.action = 'search.players'
+     AND audit.created_at > now() - interval '1 minute'
+   ) >= 30 THEN
+    RAISE EXCEPTION USING ERRCODE = 'P0001', MESSAGE = 'TORNEOS_SEARCH_RATE_LIMITED';
+   END IF;
+   v_request := jsonb_build_object(
+    'organizationId', v_organization_id, 'tournamentId', v_tournament_id,
+    'teamEntryId', v_team_entry_id, 'query', v_query, 'limit', v_limit);
+   v_core_request := jsonb_build_object('kind', 'players', 'query', v_query, 'limit', v_limit, 'cursor', NULL);
+  ELSE
+   IF NOT public.has_tournament_organization_capability(v_organization_id, 'team_entries.create')
+    OR NOT EXISTS (
+     SELECT 1 FROM public.tournaments
+     WHERE id = v_tournament_id AND organization_id = v_organization_id AND status = 'registration'
+      AND public.has_tournament_season_access(v_organization_id, season_id)
+    )
+   THEN
+    RAISE EXCEPTION USING ERRCODE = '42501', MESSAGE = 'TORNEOS_RESOURCE_FORBIDDEN';
+   END IF;
+   IF (
+    SELECT count(*) FROM public.tournament_audit_log audit
+    WHERE audit.actor_user_id = v_identity AND audit.action = 'search.teams'
+     AND audit.created_at > now() - interval '1 minute'
+   ) >= 30 THEN
+    RAISE EXCEPTION USING ERRCODE = 'P0001', MESSAGE = 'TORNEOS_SEARCH_RATE_LIMITED';
+   END IF;
+   v_request := jsonb_build_object(
+    'organizationId', v_organization_id, 'tournamentId', v_tournament_id, 'query', v_query, 'limit', v_limit);
+   v_core_request := jsonb_build_object('kind', 'teams', 'query', v_query, 'limit', v_limit, 'cursor', NULL);
+  END IF;
+ ELSIF p_contract = 'team_snapshot' THEN
+  v_organization_id := (p_request->>'organization_id')::uuid;
+  v_tournament_id := (p_request->>'tournament_id')::uuid;
+  v_category_id := (p_request->>'category_id')::uuid;
+  v_core_team_id := (p_request->>'core_team_id')::uuid;
+  IF v_core_team_id IS NULL THEN
+   RAISE EXCEPTION USING ERRCODE = '22023', MESSAGE = 'TORNEOS_INVALID_TEAM_ENTRY';
+  END IF;
+  IF NOT public.has_tournament_organization_capability(v_organization_id, 'team_entries.create') THEN
+   RAISE EXCEPTION USING ERRCODE = '42501', MESSAGE = 'TORNEOS_RESOURCE_FORBIDDEN';
+  END IF;
+  IF NOT EXISTS (
+   SELECT 1 FROM public.tournaments scoped_tournament
+   WHERE scoped_tournament.id = v_tournament_id
+    AND scoped_tournament.organization_id = v_organization_id
+    AND public.has_tournament_season_access(v_organization_id, scoped_tournament.season_id)
+  ) THEN
+   RAISE EXCEPTION USING ERRCODE = '42501', MESSAGE = 'TORNEOS_RESOURCE_FORBIDDEN';
+  END IF;
+  IF NOT EXISTS (
+   SELECT 1 FROM public.tournaments tournament
+   JOIN public.tournament_categories category
+    ON category.tournament_id = tournament.id AND category.organization_id = tournament.organization_id
+   WHERE tournament.id = v_tournament_id AND tournament.organization_id = v_organization_id
+    AND tournament.status = 'registration' AND tournament.archived_at IS NULL
+    AND (tournament.registration_opens_at IS NULL OR now() >= tournament.registration_opens_at)
+    AND (tournament.registration_closes_at IS NULL OR now() <= tournament.registration_closes_at)
+    AND category.id = v_category_id AND category.status = 'active'
+  ) THEN
+   RAISE EXCEPTION USING ERRCODE = '42501', MESSAGE = 'TORNEOS_REGISTRATION_CLOSED';
+  END IF;
+  v_request := jsonb_build_object(
+   'organizationId', v_organization_id, 'tournamentId', v_tournament_id,
+   'categoryId', v_category_id, 'coreTeamId', v_core_team_id);
+  v_core_request := jsonb_build_object('core_team_id', v_core_team_id);
+ ELSE
+  RAISE EXCEPTION USING ERRCODE = '22023', MESSAGE = 'TORNEOS_INVALID_CORE_CONTRACT';
+ END IF;
+ RETURN jsonb_build_object(
+  'contract', p_contract,
+  'identity_id', v_identity,
+  'core_request', v_core_request,
+  'request_hash', private.core_contract_request_hash(p_contract, v_request)
+ );
+EXCEPTION WHEN invalid_text_representation THEN
+ RAISE EXCEPTION USING ERRCODE = '22023', MESSAGE = 'TORNEOS_INVALID_CORE_CONTRACT_REQUEST';
+END $$;
+
+REVOKE ALL ON FUNCTION private.core_contract_request_hash(text, jsonb), private.consume_core_attestation(text, jsonb), private.authorize_core_contract(text, jsonb) FROM PUBLIC, anon, authenticated, service_role, torneos_core_adapter;
+GRANT EXECUTE ON FUNCTION private.authorize_core_contract(text, jsonb) TO torneos_core_adapter;
+
+-- Phase 2B: season seat model helper for internal "_as" authorization helpers that receive
+-- the actor explicitly. Same rule as public.has_tournament_season_access: owners always
+-- pass; admins/collaborators need an assignment to that season. Owner-only execution.
+CREATE FUNCTION private.has_tournament_season_access_as(p_organization_id uuid, p_season_id uuid, p_actor_user_id uuid) RETURNS boolean
+LANGUAGE sql STABLE SECURITY INVOKER SET search_path = '' AS $$
+ SELECT p_actor_user_id IS NOT NULL AND EXISTS (
+  SELECT 1
+  FROM public.tournament_organization_members membership
+  JOIN public.tournament_organizations organization ON organization.id = membership.organization_id
+  WHERE membership.organization_id = p_organization_id
+   AND membership.user_id = p_actor_user_id
+   AND membership.status = 'active'
+   AND organization.status = 'active'
+   AND (
+    membership.role = 'owner'
+    OR EXISTS (
+     SELECT 1 FROM public.tournament_season_member_assignments assignment
+     WHERE assignment.organization_id = p_organization_id
+      AND assignment.season_id = p_season_id
+      AND assignment.membership_id = membership.id
+    )
+   )
+ );
+$$;
+REVOKE ALL ON FUNCTION private.has_tournament_season_access_as(uuid, uuid, uuid) FROM PUBLIC, anon, authenticated, service_role, torneos_core_adapter;
 
 -- Final catalog seed data (no migration/backfill history).
 INSERT INTO public.tournament_competition_formats (code, name, description) VALUES ('league', 'Liga', 'Todos compiten por puntos en una o dos ruedas.');

@@ -98,8 +98,8 @@
   {
     "name": "valid certified claim tuple accepted",
     "pass": true,
-    "actual": "533424df-40c7-4f03-863d-e0e84f6074a2",
-    "expected": "533424df-40c7-4f03-863d-e0e84f6074a2"
+    "actual": "8cef8597-eb2a-43be-a22c-71cd47c70091",
+    "expected": "8cef8597-eb2a-43be-a22c-71cd47c70091"
   },
   {
     "name": "identity invalid core_user_id rejected",
@@ -152,8 +152,8 @@
   {
     "name": "second bridge exchange reuses identity",
     "pass": true,
-    "actual": "533424df-40c7-4f03-863d-e0e84f6074a2",
-    "expected": "533424df-40c7-4f03-863d-e0e84f6074a2"
+    "actual": "8cef8597-eb2a-43be-a22c-71cd47c70091",
+    "expected": "8cef8597-eb2a-43be-a22c-71cd47c70091"
   },
   {
     "name": "PK rejects duplicate identity",
@@ -322,7 +322,7 @@
     "expected": true
   },
   {
-    "name": "Core team import fails closed",
+    "name": "Core team import without server attestation fails closed",
     "pass": true,
     "actual": true,
     "expected": true
@@ -340,19 +340,145 @@
     "expected": "false"
   },
   {
-    "name": "Core player search explicit pending contract",
+    "name": "Core player search without server attestation fails closed",
     "pass": true,
     "actual": true,
     "expected": true
   },
   {
-    "name": "Core team search explicit pending contract",
+    "name": "Core team search without server attestation fails closed",
     "pass": true,
     "actual": true,
     "expected": true
   },
   {
-    "name": "verified email invite explicit pending contract",
+    "name": "invitation token check precedes any Core contract",
+    "pass": true,
+    "actual": true,
+    "expected": true
+  },
+  {
+    "name": "anon has no privilege on Core attestations",
+    "pass": true,
+    "actual": "f",
+    "expected": "f"
+  },
+  {
+    "name": "anon has no privilege on Core snapshots",
+    "pass": true,
+    "actual": "f",
+    "expected": "f"
+  },
+  {
+    "name": "anon cannot execute Core boundary helpers",
+    "pass": true,
+    "actual": "f",
+    "expected": "f"
+  },
+  {
+    "name": "authenticated has no privilege on Core attestations",
+    "pass": true,
+    "actual": "f",
+    "expected": "f"
+  },
+  {
+    "name": "authenticated has no privilege on Core snapshots",
+    "pass": true,
+    "actual": "f",
+    "expected": "f"
+  },
+  {
+    "name": "authenticated cannot execute Core boundary helpers",
+    "pass": true,
+    "actual": "f",
+    "expected": "f"
+  },
+  {
+    "name": "service_role has no privilege on Core attestations",
+    "pass": true,
+    "actual": "f",
+    "expected": "f"
+  },
+  {
+    "name": "service_role has no privilege on Core snapshots",
+    "pass": true,
+    "actual": "f",
+    "expected": "f"
+  },
+  {
+    "name": "service_role cannot execute Core boundary helpers",
+    "pass": true,
+    "actual": "f",
+    "expected": "f"
+  },
+  {
+    "name": "adapter role is NOLOGIN append-only",
+    "pass": true,
+    "actual": "false,true,false,false,false",
+    "expected": "false,true,false,false,false"
+  },
+  {
+    "name": "adapter role cannot read domain tables",
+    "pass": true,
+    "actual": "f",
+    "expected": "f"
+  },
+  {
+    "name": "attestation TTL bounded by constraint",
+    "pass": true,
+    "actual": true,
+    "expected": true
+  },
+  {
+    "name": "anon-executable read requires identity: get_published_tournament_standings",
+    "pass": true,
+    "actual": true,
+    "expected": true
+  },
+  {
+    "name": "anon-executable read requires identity: get_published_tournament_statistics",
+    "pass": true,
+    "actual": true,
+    "expected": true
+  },
+  {
+    "name": "anon-executable read requires identity: get_published_tournament_teams",
+    "pass": true,
+    "actual": true,
+    "expected": true
+  },
+  {
+    "name": "anon-executable read requires identity: get_published_tournament_documents",
+    "pass": true,
+    "actual": true,
+    "expected": true
+  },
+  {
+    "name": "anon-executable read requires identity: get_published_tournament_matches",
+    "pass": true,
+    "actual": true,
+    "expected": true
+  },
+  {
+    "name": "anon-executable read requires identity: get_published_tournament_media",
+    "pass": true,
+    "actual": true,
+    "expected": true
+  },
+  {
+    "name": "anon-executable read requires identity: get_tournament_participant_hub",
+    "pass": true,
+    "actual": true,
+    "expected": true
+  },
+  {
+    "name": "anon-executable read requires identity: get_tournament_participant_match",
+    "pass": true,
+    "actual": true,
+    "expected": true
+  },
+  {
+    "name": "anon-executable read requires identity: get_tournament_announcement",
     "pass": true,
     "actual": true,
     "expected": true

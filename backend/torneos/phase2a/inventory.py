@@ -15,7 +15,7 @@ select p.oid::regprocedure::text function,n.nspname||'.'||p.proname name,
 from pg_proc p join pg_namespace n on n.oid=p.pronamespace join pg_roles r on r.oid=p.proowner
 where n.nspname in ('public','private')) x"""))
 review=[]; lines=['# Phase 2A executable inventory','',
-'Complete inventory; **not a completed semantic certification**. `acl:*` tests validate effective privileges, owner and fixed search path for every function. They do not prove input validation, delegated authorization, or cross-workspace correctness.',
+'Complete inventory. `acl:*` tests validate effective privileges, owner and fixed search path for every function. The semantic disposition of every SECURITY DEFINER function is in `evidence/security-definer-review.json` (Phase 2B); this table only points to it.',
 '', 'Owner `supabase_admin` bypasses RLS in this local lab. DEFINER functions therefore require explicit authorization in their bodies/callees. `service_role` grants are server privileges, never evidence of end-user authorization.',
 '', '| Function (exact signature) | Mode | Owner | EXECUTE roles | Review / reason | Test |', '|---|---|---|---|---|---|']
 for i,f in enumerate(rows,1):
@@ -27,12 +27,12 @@ for i,f in enumerate(rows,1):
     public=any(a.startswith('=') and 'X' in a.split('=')[1].split('/')[0] for a in acl)
     expected={role:any(a.startswith(role+'=') and 'X' in a.split('=')[1].split('/')[0] for a in acl) or public for role in ('anon','authenticated','service_role')}
     passed=(all(f[r]==expected[r] for r in expected) and (not f['security_definer'] or ('search_path=""' in (f['settings'] or []) and not public)) and f['owner']=='supabase_admin')
-    if f['name']=='public.create_tournament_team_entry':
-        status='PARTIAL: cross-season create fixed/tested; Core import remains closed'
-    elif 'CONTRACT_PENDING' in body:
-        status='BLOCKED: Core adapter absent; denial tested by tools/test.py'
+    dispositions=json.loads((BASE/'evidence/security-definer-review.json').read_text())['functions'] if (BASE/'evidence/security-definer-review.json').exists() else []
+    disposed={r['function']:r['category'] for r in dispositions}
+    if f['security_definer']:
+        status=('DISPOSED: '+disposed[f['function']]+' (evidence/security-definer-review.json)') if f['function'] in disposed else 'UNKNOWN: no Phase 2B disposition'
     else:
-        status='PENDING: per-function functional authorization and necessity review'
+        status='INVOKER: caller privileges and RLS apply'
     reason=('RLS bypass / caller and delegate checks require verification' if f['security_definer'] else 'Caller privileges and RLS apply; privileged caller inheritance still requires review')
     if f['trigger_used']:reason+='; trigger context'
     if 'pg_temp.' in body:status+='; pre-existing temp relation ownership requires adversarial test'
@@ -46,5 +46,5 @@ for i,f in enumerate(rows,1):
     lines.append('| `'+f['function']+'` | '+('DEFINER' if f['security_definer'] else 'INVOKER')+' | '+f['owner']+' | '+(', '.join(roles) or 'owner only')+' | '+status+' | `'+record['test_id']+'` '+('PASS' if passed else 'FAIL')+' |')
 (BASE/'phase2a/function-inventory.json').write_text(json.dumps(review,indent=2)+'\n')
 (BASE/'phase2a/FUNCTIONS.md').write_text('\n'.join(lines)+'\n')
-result={'functions':len(rows),'security_definer':sum(f['security_definer'] for f in rows),'acl_checks_pass':sum(r['acl_test_pass'] for r in review),'semantic_certification':False}
+result={'functions':len(rows),'security_definer':sum(f['security_definer'] for f in rows),'acl_checks_pass':sum(r['acl_test_pass'] for r in review),'semantic_certification':all(r['semantic_status'].startswith(('DISPOSED','INVOKER')) for r in review),'undisposed_definer':[r['function'] for r in review if r['semantic_status'].startswith('UNKNOWN')]}
 (BASE/'phase2a/inventory-results.json').write_text(json.dumps(result,indent=2)+'\n');print(json.dumps(result));assert all(r['acl_test_pass'] for r in review)

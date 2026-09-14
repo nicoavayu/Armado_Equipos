@@ -1,0 +1,3833 @@
+[
+  {
+    "function": "private.authorize_core_contract",
+    "signature": "p_contract text, p_request jsonb",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "torneos_core_adapter=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.accept_tournament_team_invitation",
+    "signature": "p_token text",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.acknowledge_tournament_document",
+    "signature": "p_version_id uuid, p_confirm boolean",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.activate_verified_fake_tournament_purchase",
+    "signature": "p_purchase_id uuid, p_provider_payment_id text, p_simulated_activation_error_code text",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": false,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.activate_verified_tournament_purchase",
+    "signature": "p_purchase_id uuid, p_provider text, p_provider_environment text, p_provider_status text, p_provider_status_detail text, p_provider_payment_id text, p_simulated_activation_error_code text",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": false,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.add_tournament_match_event",
+    "signature": "p_organization_id uuid, p_match_operation_id uuid, p_event jsonb",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.add_tournament_roster_player",
+    "signature": "p_organization_id uuid, p_team_entry_id uuid, p_roster_id uuid, p_arma2_user_id uuid, p_provisional_player_id uuid, p_display_name text, p_avatar_url text, p_shirt_number smallint, p_primary_position text, p_secondary_position text, p_is_goalkeeper boolean",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.append_tournament_audit",
+    "signature": "p_organization_id uuid, p_action text, p_resource_type text, p_resource_id uuid, p_team_entry_id uuid, p_tournament_id uuid, p_metadata jsonb",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.append_tournament_playoff_phase",
+    "signature": "p_organization_id uuid, p_tournament_id uuid, p_category_id uuid, p_source_phase_id uuid, p_qualifier_count integer, p_double_leg boolean, p_idempotency_key uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "authenticated=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.apply_fake_tournament_payment_status",
+    "signature": "p_purchase_id uuid, p_status text, p_provider_status_detail text, p_provider_payment_id text, p_simulated_activation_error_code text",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": false,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.apply_tournament_purchase_reversal",
+    "signature": "p_purchase_id uuid, p_action text, p_reason text",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": false,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.approve_tournament_team_entry",
+    "signature": "p_organization_id uuid, p_team_entry_id uuid, p_reason text",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.archive_tournament_announcement",
+    "signature": "p_announcement_id uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.archive_tournament_document",
+    "signature": "p_document_id uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.archive_tournament_fixture",
+    "signature": "p_organization_id uuid, p_fixture_version_id uuid, p_reason text",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.archive_tournament_team_entry",
+    "signature": "p_organization_id uuid, p_team_entry_id uuid, p_reason text",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.assert_tournament_fixture_scope",
+    "signature": "p_organization_id uuid, p_tournament_id uuid, p_category_id uuid, p_capability text, p_allowed_statuses text[]",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.assign_first_free_plan_on_tournament_insert",
+    "signature": "",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin"
+    ],
+    "direct_identity_check": false,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.assign_tournament_media_photographer",
+    "signature": "p_gallery_id uuid, p_user_id uuid, p_revoke boolean",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.assign_tournament_season_member",
+    "signature": "p_organization_id uuid, p_season_id uuid, p_membership_id uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "authenticated=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.attest_tournament_media_service",
+    "signature": "p_service text, p_release text, p_capabilities jsonb, p_ttl_seconds integer",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": false,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.authorize_tournament_media_read",
+    "signature": "p_actor_user_id uuid, p_asset_id uuid, p_kind text",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": false,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.authorize_tournament_media_upload_target",
+    "signature": "p_session_id uuid, p_token text, p_actor_user_id uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": false,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.authorize_tournament_player_portrait_read",
+    "signature": "p_actor_user_id uuid, p_portrait_id uuid, p_variant text, p_audience text",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": false,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.authorize_tournament_social_export",
+    "signature": "p_organization_id uuid, p_tournament_id uuid, p_piece text, p_theme text, p_include_arma2_branding boolean",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "authenticated=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": false,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.authorize_tournament_team_photo_read",
+    "signature": "p_actor_user_id uuid, p_team_photo_id uuid, p_variant text, p_audience text",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": false,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.auto_schedule_tournament_matches",
+    "signature": "p_organization_id uuid, p_fixture_version_id uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.begin_tournament_media_asset_delete",
+    "signature": "p_actor_user_id uuid, p_asset_id uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": false,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.begin_tournament_player_portrait_delete",
+    "signature": "p_actor_user_id uuid, p_portrait_id uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": false,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.begin_tournament_team_photo_delete",
+    "signature": "p_actor_user_id uuid, p_team_photo_id uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": false,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.bulk_schedule_tournament_matches",
+    "signature": "p_organization_id uuid, p_assignments jsonb",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.can_access_tournament_communications",
+    "signature": "p_tournament_id uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.can_current_user_access_tournament_announcement",
+    "signature": "p_announcement_id uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.can_current_user_read_media_gallery",
+    "signature": "p_gallery_id uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.can_edit_tournament_team_entry",
+    "signature": "p_organization_id uuid, p_team_entry_id uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.can_manage_tournament_match_squad",
+    "signature": "p_organization_id uuid, p_match_id uuid, p_team_entry_id uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.can_manage_tournament_player_portrait",
+    "signature": "p_organization_id uuid, p_roster_player_id uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "authenticated=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.can_manage_tournament_player_portrait_as",
+    "signature": "p_organization_id uuid, p_roster_player_id uuid, p_actor_user_id uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": false,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.can_manage_tournament_team_visual_assets_as",
+    "signature": "p_organization_id uuid, p_team_entry_id uuid, p_actor_user_id uuid, p_organization_capability text",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": false,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.can_moderate_tournament_team_visual_assets_as",
+    "signature": "p_organization_id uuid, p_team_entry_id uuid, p_actor_user_id uuid, p_organization_capability text",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": false,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.can_read_tournament_fixture_scope",
+    "signature": "p_organization_id uuid, p_tournament_id uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.can_read_tournament_match",
+    "signature": "p_match_id uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.can_read_tournament_match_operation",
+    "signature": "p_organization_id uuid, p_match_id uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.can_read_tournament_participant_hub",
+    "signature": "p_tournament_id uuid, p_category_id uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.can_read_tournament_player_portrait",
+    "signature": "p_organization_id uuid, p_roster_player_id uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "authenticated=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.can_read_tournament_player_portrait_as",
+    "signature": "p_organization_id uuid, p_roster_player_id uuid, p_actor_user_id uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": false,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.can_read_tournament_projection_scope",
+    "signature": "p_organization_id uuid, p_tournament_id uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.can_read_tournament_team_entry",
+    "signature": "p_organization_id uuid, p_team_entry_id uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.can_read_tournament_team_photo_as",
+    "signature": "p_organization_id uuid, p_team_entry_id uuid, p_actor_user_id uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": false,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.can_update_tournament_team_branding",
+    "signature": "p_organization_id uuid, p_team_entry_id uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "authenticated=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.can_write_tournament_branding_object",
+    "signature": "p_name text",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "authenticated=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.cancel_tournament_match",
+    "signature": "p_organization_id uuid, p_match_id uuid, p_reason text",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.cancel_tournament_media_upload_session",
+    "signature": "p_session_id uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.cancel_tournament_purchase",
+    "signature": "p_purchase_id uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "authenticated=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.change_tournament_media_gallery_state",
+    "signature": "p_gallery_id uuid, p_action text, p_reason text",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin"
+    ],
+    "direct_identity_check": false,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.change_tournament_status",
+    "signature": "p_organization_id uuid, p_tournament_id uuid, p_status text",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.cleanup_tournament_media_processing_jobs",
+    "signature": "p_limit integer",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": false,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.cleanup_tournament_media_upload_sessions",
+    "signature": "p_limit integer",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": false,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.clear_tournament_entitlement_override",
+    "signature": "p_organization_id uuid, p_tournament_id uuid, p_capability text",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": false,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.complete_tournament_media_asset_delete",
+    "signature": "p_actor_user_id uuid, p_asset_id uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": false,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.complete_tournament_media_processing_job",
+    "signature": "p_job_id uuid, p_lease_token text, p_asset_id uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": false,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.complete_tournament_media_simple_upload",
+    "signature": "p_actor_user_id uuid, p_session_id uuid, p_token text, p_detected_mime text, p_byte_size bigint, p_width integer, p_height integer, p_checksum_sha256 text, p_metadata_stripped boolean",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": false,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.complete_tournament_media_upload",
+    "signature": "p_session_id uuid, p_token text, p_detected_mime text, p_byte_size bigint, p_width integer, p_height integer, p_checksum_sha256 text",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.complete_tournament_media_upload_for_actor",
+    "signature": "p_actor_user_id uuid, p_session_id uuid, p_token text, p_detected_mime text, p_byte_size bigint, p_width integer, p_height integer, p_checksum_sha256 text",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": false,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.complete_tournament_media_upload_for_job",
+    "signature": "p_job_id uuid, p_lease_token text, p_detected_mime text, p_byte_size bigint, p_width integer, p_height integer, p_checksum_sha256 text",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": false,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.complete_tournament_player_portrait_delete",
+    "signature": "p_actor_user_id uuid, p_portrait_id uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": false,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.complete_tournament_team_photo_delete",
+    "signature": "p_actor_user_id uuid, p_team_photo_id uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": false,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.create_fake_tournament_purchase",
+    "signature": "p_organization_id uuid, p_tournament_id uuid, p_product_code text, p_idempotency_key uuid, p_provider_environment text",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.create_fake_tournament_season_purchase",
+    "signature": "p_organization_id uuid, p_season_id uuid, p_product_code text, p_idempotency_key uuid, p_provider_environment text",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "authenticated=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": false,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.create_manual_fixture_version",
+    "signature": "p_organization_id uuid, p_tournament_id uuid, p_category_id uuid, p_source_fixture_version_id uuid, p_idempotency_key uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.create_tournament_announcement_draft",
+    "signature": "p_organization_id uuid, p_tournament_id uuid, p_category_id uuid, p_announcement_type text, p_title text, p_summary text, p_body text, p_priority text, p_acknowledgement_mode text, p_scheduled_for timestamp with time zone, p_supersedes_id uuid, p_correction_reason text, p_idempotency_key uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.create_tournament_court",
+    "signature": "p_organization_id uuid, p_venue_id uuid, p_name text, p_sport_modality text, p_notes text",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.create_tournament_disciplinary_override",
+    "signature": "p_suspension_id uuid, p_action text, p_matches integer, p_reason text, p_idempotency_key uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.create_tournament_document",
+    "signature": "p_organization_id uuid, p_tournament_id uuid, p_category_id uuid, p_document_type text, p_title text, p_summary text, p_body text, p_acknowledgement_mode text, p_effective_at timestamp with time zone, p_idempotency_key uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.create_tournament_document_version",
+    "signature": "p_document_id uuid, p_summary text, p_body text, p_effective_at timestamp with time zone, p_correction_reason text",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.create_tournament_match_correction",
+    "signature": "p_organization_id uuid, p_match_operation_id uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.create_tournament_media_gallery",
+    "signature": "p_organization_id uuid, p_tournament_id uuid, p_category_id uuid, p_round_id uuid, p_match_id uuid, p_title text, p_description text, p_visibility text, p_idempotency_key uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.create_tournament_organization",
+    "signature": "p_name text, p_slug text, p_idempotency_key uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.create_tournament_points_adjustment",
+    "signature": "p_organization_id uuid, p_fixture_version_id uuid, p_phase_id uuid, p_group_id uuid, p_participant_id uuid, p_points integer, p_reason text, p_idempotency_key uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.create_tournament_provisional_player",
+    "signature": "p_organization_id uuid, p_team_entry_id uuid, p_display_name text",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.create_tournament_season",
+    "signature": "p_organization_id uuid, p_name text, p_slug text, p_start_date date, p_end_date date, p_idempotency_key uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.create_tournament_season_purchase",
+    "signature": "p_organization_id uuid, p_season_id uuid, p_product_code text, p_idempotency_key uuid, p_provider text, p_provider_environment text",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "authenticated=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.create_tournament_team_entry",
+    "signature": "p_organization_id uuid, p_tournament_id uuid, p_category_id uuid, p_arma2_team_id uuid, p_name text, p_short_name text, p_primary_color text, p_secondary_color text, p_registration_source text, p_manager_user_id uuid, p_manager_email text, p_manager_display_name text, p_idempotency_key uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.create_tournament_venue",
+    "signature": "p_organization_id uuid, p_name text, p_address text, p_place_id text, p_latitude double precision, p_longitude double precision, p_locality text, p_timezone text, p_notes text",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.create_tournament_with_defaults",
+    "signature": "p_organization_id uuid, p_season_id uuid, p_name text, p_slug text, p_description text, p_sport_modality text, p_competition_format text, p_gender_category text, p_start_date date, p_end_date date, p_idempotency_key uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.current_user_has_media_team_relation",
+    "signature": "p_team_entry_id uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.current_user_tournament_social_capabilities",
+    "signature": "p_organization_id uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.enforce_tournament_media_gallery_limit",
+    "signature": "",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin"
+    ],
+    "direct_identity_check": false,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.enforce_tournament_media_matchday_limit",
+    "signature": "",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin"
+    ],
+    "direct_identity_check": false,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.enforce_tournament_premium_gate",
+    "signature": "",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin"
+    ],
+    "direct_identity_check": false,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.enforce_tournament_season_purchase_scope",
+    "signature": "",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.enforce_tournament_season_root_write_scope",
+    "signature": "",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.enforce_tournament_status_premium_gate",
+    "signature": "",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin"
+    ],
+    "direct_identity_check": false,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.enqueue_tournament_media_processing_job",
+    "signature": "p_session_id uuid, p_token text, p_actor_user_id uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": false,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.execute_tournament_group_draw",
+    "signature": "p_organization_id uuid, p_tournament_id uuid, p_category_id uuid, p_group_count integer, p_seed text, p_publish boolean",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin"
+    ],
+    "direct_identity_check": false,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.fail_tournament_media_processing_job",
+    "signature": "p_job_id uuid, p_lease_token text, p_failure_code text",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": false,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.fail_tournament_media_upload_session",
+    "signature": "p_session_id uuid, p_failure_code text",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": false,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.fail_tournament_player_portrait_upload",
+    "signature": "p_actor_user_id uuid, p_portrait_id uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": false,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.fail_tournament_team_photo_upload",
+    "signature": "p_actor_user_id uuid, p_team_photo_id uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": false,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.finalize_tournament_media_variants",
+    "signature": "p_asset_id uuid, p_variants jsonb",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": false,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.finalize_tournament_player_portrait_upload",
+    "signature": "p_actor_user_id uuid, p_portrait_id uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": false,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.finalize_tournament_team_photo_upload",
+    "signature": "p_actor_user_id uuid, p_team_photo_id uuid, p_checksum_sha256 text",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": false,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.finish_tournament_competition",
+    "signature": "p_organization_id uuid, p_tournament_id uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "authenticated=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.freeze_tournament_participants",
+    "signature": "p_organization_id uuid, p_tournament_id uuid, p_category_id uuid, p_idempotency_key uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.generate_tournament_fixture",
+    "signature": "p_organization_id uuid, p_tournament_id uuid, p_category_id uuid, p_seed text, p_configuration jsonb, p_idempotency_key uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.get_effective_tournament_entitlements",
+    "signature": "p_organization_id uuid, p_tournament_id uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "authenticated=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.get_effective_tournament_season_entitlements",
+    "signature": "p_organization_id uuid, p_season_id uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "authenticated=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.get_managed_tournament_matches",
+    "signature": "",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.get_match_squad_context",
+    "signature": "p_organization_id uuid, p_match_id uuid, p_team_entry_id uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin"
+    ],
+    "direct_identity_check": false,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.get_my_current_tournament_roster_players",
+    "signature": "",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.get_my_managed_match_squad_context",
+    "signature": "p_match_id uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.get_my_tournament_memberships",
+    "signature": "p_limit integer, p_offset integer",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.get_my_tournament_notification_preferences",
+    "signature": "p_tournament_id uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.get_player_tournament_matches",
+    "signature": "",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.get_player_tournament_statistics",
+    "signature": "p_tournament_id uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.get_player_tournament_suspensions",
+    "signature": "p_tournament_id uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.get_public_tournament_branding",
+    "signature": "p_public_slug text",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "anon=X/supabase_admin",
+      "authenticated=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": false,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.get_public_tournament_commercial_catalog",
+    "signature": "p_version integer",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "anon=X/supabase_admin",
+      "authenticated=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": false,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.get_public_tournament_page",
+    "signature": "p_public_slug text, p_category_slug text",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "anon=X/supabase_admin",
+      "authenticated=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": false,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.get_published_tournament_documents",
+    "signature": "p_tournament_id uuid, p_category_id uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin",
+      "anon=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.get_published_tournament_matches",
+    "signature": "p_tournament_id uuid, p_category_id uuid, p_view text, p_team_entry_id uuid, p_limit integer, p_offset integer",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin",
+      "anon=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.get_published_tournament_media",
+    "signature": "p_tournament_id uuid, p_category_id uuid, p_match_id uuid, p_limit integer, p_offset integer",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin",
+      "anon=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.get_published_tournament_standings",
+    "signature": "p_tournament_id uuid, p_category_id uuid, p_phase_id uuid, p_group_id uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin",
+      "anon=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.get_published_tournament_statistics",
+    "signature": "p_tournament_id uuid, p_category_id uuid, p_phase_id uuid, p_group_id uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin",
+      "anon=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.get_published_tournament_teams",
+    "signature": "p_tournament_id uuid, p_category_id uuid, p_limit integer, p_offset integer",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin",
+      "anon=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.get_team_registration_context",
+    "signature": "p_organization_id uuid, p_team_entry_id uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.get_tournament_announcement",
+    "signature": "p_announcement_id uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin",
+      "anon=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.get_tournament_branding_context",
+    "signature": "p_organization_id uuid, p_tournament_id uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "authenticated=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.get_tournament_communications_admin_context",
+    "signature": "p_organization_id uuid, p_tournament_id uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.get_tournament_communications_inbox",
+    "signature": "p_tournament_id uuid, p_filter text, p_limit integer, p_offset integer",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.get_tournament_competition_context",
+    "signature": "p_organization_id uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "authenticated=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.get_tournament_competition_context_organization_legacy",
+    "signature": "p_organization_id uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.get_tournament_creation_eligibility",
+    "signature": "p_organization_id uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "authenticated=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.get_tournament_fixture_context",
+    "signature": "p_organization_id uuid, p_tournament_id uuid, p_category_id uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.get_tournament_match_operation_context",
+    "signature": "p_organization_id uuid, p_match_operation_id uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin"
+    ],
+    "direct_identity_check": false,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.get_tournament_match_operations_context",
+    "signature": "p_organization_id uuid, p_tournament_id uuid, p_category_id uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin"
+    ],
+    "direct_identity_check": false,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.get_tournament_media_admin_context",
+    "signature": "p_organization_id uuid, p_tournament_id uuid, p_status text, p_limit integer, p_offset integer",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.get_tournament_media_asset_processing_tiers",
+    "signature": "p_organization_id uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "authenticated=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.get_tournament_media_upload_capability",
+    "signature": "p_organization_id uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "authenticated=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.get_tournament_participant_hub",
+    "signature": "p_tournament_id uuid, p_category_id uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin",
+      "anon=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.get_tournament_participant_match",
+    "signature": "p_match_id uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin",
+      "anon=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.get_tournament_player_portrait_ref",
+    "signature": "p_organization_id uuid, p_roster_player_id uuid, p_variant text",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "authenticated=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.get_tournament_public_page_settings",
+    "signature": "p_organization_id uuid, p_tournament_id uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "authenticated=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.get_tournament_purchase",
+    "signature": "p_purchase_id uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "authenticated=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.get_tournament_schedule_context",
+    "signature": "p_organization_id uuid, p_tournament_id uuid, p_category_id uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.get_tournament_season_media_usage",
+    "signature": "p_organization_id uuid, p_season_id uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "authenticated=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": false,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.get_tournament_social_snapshot",
+    "signature": "p_organization_id uuid, p_tournament_id uuid, p_category_id uuid, p_phase_id uuid, p_piece text, p_round_id uuid, p_group_id uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "authenticated=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": false,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.get_tournament_social_snapshot_plan_legacy",
+    "signature": "p_organization_id uuid, p_tournament_id uuid, p_category_id uuid, p_phase_id uuid, p_piece text, p_round_id uuid, p_group_id uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": false,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.get_tournament_social_studio_context",
+    "signature": "p_organization_id uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "authenticated=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": false,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.get_tournament_social_studio_context_organization_legacy",
+    "signature": "p_organization_id uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": false,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.get_tournament_standings_context",
+    "signature": "p_organization_id uuid, p_tournament_id uuid, p_category_id uuid, p_phase_id uuid, p_group_id uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.get_tournament_statistics_context",
+    "signature": "p_organization_id uuid, p_tournament_id uuid, p_category_id uuid, p_phase_id uuid, p_group_id uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.get_tournament_team_photo_state",
+    "signature": "p_organization_id uuid, p_team_entry_id uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "authenticated=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.get_tournament_team_visual_policy",
+    "signature": "p_organization_id uuid, p_tournament_id uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "authenticated=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.get_tournament_teams_context",
+    "signature": "p_organization_id uuid, p_tournament_id uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.get_tournament_workspace_context",
+    "signature": "",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.grant_tournament_premium",
+    "signature": "p_organization_id uuid, p_tournament_id uuid, p_source text, p_reason text",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin"
+    ],
+    "direct_identity_check": false,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.grant_tournament_season_premium",
+    "signature": "p_organization_id uuid, p_season_id uuid, p_purchase_id uuid, p_reason text",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": false,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.handle_tournament_media_report",
+    "signature": "p_report_id uuid, p_status text, p_resolution text",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.has_organization_consumed_free_tournament",
+    "signature": "p_organization_id uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "authenticated=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.has_tournament_capability",
+    "signature": "p_organization_id uuid, p_tournament_id uuid, p_capability text",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "authenticated=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": false,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.has_tournament_communications_capability",
+    "signature": "p_organization_id uuid, p_capability text",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.has_tournament_entitlement",
+    "signature": "p_organization_id uuid, p_tournament_id uuid, p_capability text",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "authenticated=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": false,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.has_tournament_media_assignment",
+    "signature": "p_gallery_id uuid, p_action text",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.has_tournament_media_capability",
+    "signature": "p_organization_id uuid, p_capability text",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.has_tournament_organization_capability",
+    "signature": "p_organization_id uuid, p_capability text",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.has_tournament_season_access",
+    "signature": "p_organization_id uuid, p_season_id uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "authenticated=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.has_tournament_season_capability",
+    "signature": "p_organization_id uuid, p_season_id uuid, p_capability text",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "authenticated=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.has_tournament_social_capability",
+    "signature": "p_organization_id uuid, p_capability text",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.invite_tournament_team_manager",
+    "signature": "p_organization_id uuid, p_team_entry_id uuid, p_email text, p_display_name text, p_role text",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.is_tournament_organization_member",
+    "signature": "p_organization_id uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.is_tournament_organization_slug_available",
+    "signature": "p_slug text",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.is_tournament_plan_grant_effective",
+    "signature": "p_grant_id uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": false,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.is_tournament_season_plan_grant_effective",
+    "signature": "p_grant_id uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": false,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.is_tournament_team_manager",
+    "signature": "p_team_entry_id uuid, p_require_edit boolean",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.is_tournament_team_roster_member_as",
+    "signature": "p_team_entry_id uuid, p_actor_user_id uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": false,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.lease_tournament_media_processing_jobs",
+    "signature": "p_worker_id text, p_lease_seconds integer, p_limit integer",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": false,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.list_tournament_media_retention_candidates",
+    "signature": "p_organization_id uuid, p_tournament_id uuid, p_as_of timestamp with time zone",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": false,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.list_tournament_player_portrait_refs",
+    "signature": "p_organization_id uuid, p_team_entry_id uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "authenticated=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.list_tournament_season_member_assignments",
+    "signature": "p_organization_id uuid, p_season_id uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "authenticated=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": false,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.lock_tournament_roster",
+    "signature": "p_organization_id uuid, p_team_entry_id uuid, p_roster_id uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.make_tournament_match_official",
+    "signature": "p_organization_id uuid, p_match_operation_id uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.manage_tournament_media_consent",
+    "signature": "p_asset_id uuid, p_roster_player_id uuid, p_subject_user_id uuid, p_use_scope text, p_status text, p_legal_basis text",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.mark_tournament_announcement_read",
+    "signature": "p_announcement_id uuid, p_confirm boolean",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.mark_tournament_suspension_served",
+    "signature": "p_suspension_id uuid, p_match_id uuid, p_note text",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.open_tournament_match_operation",
+    "signature": "p_organization_id uuid, p_match_id uuid, p_override_reason text",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.postpone_tournament_match",
+    "signature": "p_organization_id uuid, p_match_id uuid, p_reason text",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.preview_tournament_announcement_audience",
+    "signature": "p_announcement_id uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.protect_active_tournament_fixture_draft",
+    "signature": "",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin"
+    ],
+    "direct_identity_check": false,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.protect_tournament_completed_competition",
+    "signature": "",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": false,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.publish_tournament_announcement",
+    "signature": "p_announcement_id uuid, p_expected_recipient_count integer",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.publish_tournament_document_version",
+    "signature": "p_version_id uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.publish_tournament_fixture",
+    "signature": "p_organization_id uuid, p_fixture_version_id uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.publish_tournament_media_gallery",
+    "signature": "p_gallery_id uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.publish_tournament_standings_revision",
+    "signature": "p_revision_id uuid, p_reason text",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.ready_tournament_match",
+    "signature": "p_organization_id uuid, p_match_id uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.rebuild_tournament_discipline",
+    "signature": "p_organization_id uuid, p_tournament_id uuid, p_category_id uuid, p_phase_id uuid, p_group_id uuid, p_reason text, p_idempotency_key uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": false,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.rebuild_tournament_standings",
+    "signature": "p_organization_id uuid, p_tournament_id uuid, p_category_id uuid, p_phase_id uuid, p_group_id uuid, p_reason text, p_idempotency_key uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.record_manual_match_availability",
+    "signature": "p_organization_id uuid, p_match_id uuid, p_roster_player_id uuid, p_response text, p_reason text, p_comment text",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.record_tournament_purchase_preference",
+    "signature": "p_purchase_id uuid, p_provider text, p_provider_environment text, p_provider_preference_id text, p_preference_expires_at timestamp with time zone",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": false,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.reject_tournament_team_entry",
+    "signature": "p_organization_id uuid, p_team_entry_id uuid, p_reason text",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.remove_tournament_roster_player",
+    "signature": "p_organization_id uuid, p_team_entry_id uuid, p_roster_player_id uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.remove_tournament_season_member_assignment",
+    "signature": "p_organization_id uuid, p_season_id uuid, p_membership_id uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "authenticated=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.reopen_tournament_competition",
+    "signature": "p_organization_id uuid, p_tournament_id uuid, p_reason text",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "authenticated=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.reopen_tournament_participants",
+    "signature": "p_organization_id uuid, p_tournament_id uuid, p_category_id uuid, p_reason text",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.reorder_tournament_media_item",
+    "signature": "p_gallery_id uuid, p_asset_id uuid, p_target_order integer",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin"
+    ],
+    "direct_identity_check": false,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.replace_tournament_announcement_audience",
+    "signature": "p_announcement_id uuid, p_audience_type text, p_category_id uuid, p_team_entry_id uuid, p_match_id uuid, p_specific_user_id uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.report_tournament_media_asset",
+    "signature": "p_asset_id uuid, p_reason text, p_detail text, p_request_hide boolean, p_idempotency_key uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.request_tournament_match_correction",
+    "signature": "p_organization_id uuid, p_match_operation_id uuid, p_reason text",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.request_tournament_media_upload_session",
+    "signature": "p_gallery_id uuid, p_file_name text, p_declared_mime text, p_byte_size bigint, p_idempotency_key uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.request_tournament_player_portrait_upload",
+    "signature": "p_actor_user_id uuid, p_organization_id uuid, p_roster_player_id uuid, p_mime_type text, p_byte_size bigint, p_width integer, p_height integer",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": false,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.request_tournament_team_photo_upload",
+    "signature": "p_actor_user_id uuid, p_organization_id uuid, p_team_entry_id uuid, p_mime_type text, p_byte_size bigint, p_width integer, p_height integer",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": false,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.reschedule_tournament_match",
+    "signature": "p_organization_id uuid, p_match_id uuid, p_scheduled_at timestamp with time zone, p_venue_id uuid, p_court_id uuid, p_duration_minutes integer, p_reason text, p_override_warnings boolean",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.resolve_effective_tournament_entitlements_at",
+    "signature": "p_organization_id uuid, p_tournament_id uuid, p_as_of timestamp with time zone, p_participant_only boolean",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": false,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.resolve_effective_tournament_season_entitlements_at",
+    "signature": "p_organization_id uuid, p_season_id uuid, p_as_of timestamp with time zone, p_participant_only boolean, p_tournament_id uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": false,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.resolve_tournament_announcement_recipients",
+    "signature": "p_announcement_id uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": false,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.resolve_tournament_qualification",
+    "signature": "p_revision_id uuid, p_reason text",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.respond_match_availability",
+    "signature": "p_match_id uuid, p_response text, p_comment text",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.restore_tournament_match_unscheduled",
+    "signature": "p_organization_id uuid, p_match_id uuid, p_reason text",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.review_tournament_match_operation",
+    "signature": "p_organization_id uuid, p_match_operation_id uuid, p_decision text, p_reason text",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.review_tournament_team_entry",
+    "signature": "p_organization_id uuid, p_team_entry_id uuid, p_decision text, p_reason text, p_issues jsonb",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.revoke_tournament_announcement",
+    "signature": "p_announcement_id uuid, p_reason text",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.revoke_tournament_media_service_attestation",
+    "signature": "p_service text",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": false,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.revoke_tournament_player_portrait_publication",
+    "signature": "p_organization_id uuid, p_portrait_id uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "authenticated=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.revoke_tournament_points_adjustment",
+    "signature": "p_adjustment_id uuid, p_reason text",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.revoke_tournament_team_invitation",
+    "signature": "p_organization_id uuid, p_invitation_id uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.revoke_tournament_team_photo",
+    "signature": "p_organization_id uuid, p_team_photo_id uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "authenticated=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.save_match_squad",
+    "signature": "p_organization_id uuid, p_match_id uuid, p_team_entry_id uuid, p_players jsonb",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.save_tournament_category",
+    "signature": "p_organization_id uuid, p_tournament_id uuid, p_category_id uuid, p_name text, p_slug text, p_description text, p_sort_order integer, p_min_age smallint, p_max_age smallint, p_gender_category text, p_sport_modality text, p_team_size smallint, p_status text",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.save_tournament_draw_pots",
+    "signature": "p_organization_id uuid, p_tournament_id uuid, p_category_id uuid, p_pots jsonb",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin"
+    ],
+    "direct_identity_check": false,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.save_tournament_match_operation_draft",
+    "signature": "p_organization_id uuid, p_match_operation_id uuid, p_match_status text, p_notes text",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.save_tournament_schedule_windows",
+    "signature": "p_organization_id uuid, p_tournament_id uuid, p_windows jsonb",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.schedule_tournament_match",
+    "signature": "p_organization_id uuid, p_match_id uuid, p_scheduled_at timestamp with time zone, p_venue_id uuid, p_court_id uuid, p_duration_minutes integer, p_override_warnings boolean, p_override_reason text",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.schedule_tournament_match_resumption",
+    "signature": "p_organization_id uuid, p_match_operation_id uuid, p_scheduled_at timestamp with time zone, p_venue_id uuid, p_court_id uuid, p_reason text",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.search_tournament_arma2_teams",
+    "signature": "p_organization_id uuid, p_tournament_id uuid, p_query text, p_limit integer",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.search_tournament_players",
+    "signature": "p_organization_id uuid, p_tournament_id uuid, p_query text, p_limit integer, p_team_entry_id uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.set_active_tournament_context",
+    "signature": "p_organization_id uuid, p_season_id uuid, p_tournament_id uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.set_my_tournament_hub_category",
+    "signature": "p_tournament_id uuid, p_category_id uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.set_tournament_announcement_audience",
+    "signature": "p_announcement_id uuid, p_audience_type text, p_category_id uuid, p_team_entry_id uuid, p_match_id uuid, p_specific_user_id uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.set_tournament_announcement_link",
+    "signature": "p_announcement_id uuid, p_link_type text, p_resource_id uuid, p_external_url text, p_label text, p_sort_order integer",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.set_tournament_branding_reference",
+    "signature": "p_organization_id uuid, p_entity_kind text, p_entity_id uuid, p_path text",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "authenticated=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.set_tournament_entitlement_override",
+    "signature": "p_organization_id uuid, p_tournament_id uuid, p_capability text, p_enabled boolean, p_expires_at timestamp with time zone, p_reason text",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": false,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.set_tournament_match_outcome",
+    "signature": "p_organization_id uuid, p_match_operation_id uuid, p_outcome jsonb",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.set_tournament_match_score",
+    "signature": "p_organization_id uuid, p_match_operation_id uuid, p_score jsonb",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.set_tournament_media_cover",
+    "signature": "p_gallery_id uuid, p_asset_id uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin"
+    ],
+    "direct_identity_check": false,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.set_tournament_organization_subscription",
+    "signature": "p_organization_id uuid, p_status text, p_starts_at timestamp with time zone, p_current_period_end timestamp with time zone, p_grace_until timestamp with time zone, p_cancelled_at timestamp with time zone, p_post_expiration_retention_days integer",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin"
+    ],
+    "direct_identity_check": false,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.set_tournament_player_portrait_crop",
+    "signature": "p_organization_id uuid, p_portrait_id uuid, p_focal_x numeric, p_focal_y numeric, p_zoom numeric",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "authenticated=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.set_tournament_player_portrait_editorial_status",
+    "signature": "p_organization_id uuid, p_portrait_id uuid, p_editorial_status text",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "authenticated=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.set_tournament_public_page_published",
+    "signature": "p_organization_id uuid, p_tournament_id uuid, p_published boolean",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "authenticated=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.set_tournament_social_permission",
+    "signature": "p_organization_id uuid, p_user_id uuid, p_can_export boolean",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.set_tournament_team_photo_editorial_status",
+    "signature": "p_organization_id uuid, p_team_photo_id uuid, p_editorial_status text, p_review_reason text",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "authenticated=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.set_tournament_team_visual_policy",
+    "signature": "p_organization_id uuid, p_tournament_id uuid, p_policy text",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "authenticated=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.set_tournament_workspace_preference",
+    "signature": "p_workspace_type text, p_organization_id uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.start_tournament_competition",
+    "signature": "p_organization_id uuid, p_tournament_id uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "authenticated=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.submit_match_squad",
+    "signature": "p_organization_id uuid, p_match_id uuid, p_team_entry_id uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.submit_tournament_match_operation",
+    "signature": "p_organization_id uuid, p_match_operation_id uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.submit_tournament_team_entry",
+    "signature": "p_organization_id uuid, p_team_entry_id uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.supersede_tournament_fixture",
+    "signature": "p_organization_id uuid, p_fixture_version_id uuid, p_idempotency_key uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.tag_tournament_media_asset",
+    "signature": "p_asset_id uuid, p_relation_type text, p_match_id uuid, p_team_entry_id uuid, p_roster_player_id uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.tournament_competition_open_commitments",
+    "signature": "p_organization_id uuid, p_tournament_id uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": false,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.tournament_match_team_entries",
+    "signature": "p_match_id uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": false,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.tournament_media_asset_has_internal_consent",
+    "signature": "p_asset_id uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": false,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.tournament_media_asset_publication_ready",
+    "signature": "p_asset_id uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin"
+    ],
+    "direct_identity_check": false,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.tournament_media_backend_fingerprint",
+    "signature": "",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": false,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.tournament_media_current_pipeline_mode",
+    "signature": "",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": false,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.tournament_media_effective_readiness",
+    "signature": "",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": false,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.tournament_media_gallery_sports_round",
+    "signature": "p_gallery_id uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin"
+    ],
+    "direct_identity_check": false,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.tournament_media_known_object_names",
+    "signature": "p_organization_id uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": false,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.tournament_media_mvp_user_can_upload",
+    "signature": "p_user_id uuid, p_gallery_id uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin"
+    ],
+    "direct_identity_check": false,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.tournament_media_pipeline_readiness",
+    "signature": "",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": false,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.tournament_media_require_pipeline_ready",
+    "signature": "",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin"
+    ],
+    "direct_identity_check": false,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.tournament_media_require_upload_tier",
+    "signature": "p_processing_tier text",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin"
+    ],
+    "direct_identity_check": false,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.tournament_media_storage_contract_status",
+    "signature": "",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": false,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.tournament_media_user_can_upload",
+    "signature": "p_user_id uuid, p_gallery_id uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": false,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.tournament_purchase_projection",
+    "signature": "p_purchase tournament_purchases",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": false,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.tournament_registration_checklist",
+    "signature": "p_organization_id uuid, p_tournament_id uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.tournament_requires_premium",
+    "signature": "p_organization_id uuid, p_tournament_id uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": false,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.tournament_role_capabilities",
+    "signature": "p_role text",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin"
+    ],
+    "direct_identity_check": false,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.tournament_season_member_assignment_limit",
+    "signature": "",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin"
+    ],
+    "direct_identity_check": false,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.tournament_social_match_rows",
+    "signature": "p_fixture_version_id uuid, p_phase_id uuid, p_round_id uuid, p_only_played boolean",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": false,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.tournament_social_next_fixture",
+    "signature": "p_fixture_version_id uuid, p_phase_id uuid, p_group_id uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin"
+    ],
+    "direct_identity_check": false,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.tournament_social_player_candidates",
+    "signature": "p_fixture_version_id uuid, p_players jsonb",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin"
+    ],
+    "direct_identity_check": false,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.tournament_social_published_scope",
+    "signature": "p_organization_id uuid, p_tournament_id uuid, p_category_id uuid, p_phase_id uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": false,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.transition_tournament_media_asset",
+    "signature": "p_asset_id uuid, p_action text, p_reason text",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.update_draft_fixture",
+    "signature": "p_organization_id uuid, p_fixture_version_id uuid, p_action text, p_payload jsonb",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.update_my_tournament_notification_preferences",
+    "signature": "p_tournament_id uuid, p_general boolean, p_match_changes boolean, p_callups boolean, p_discipline boolean, p_documents boolean, p_summaries boolean",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.update_tournament_announcement_draft",
+    "signature": "p_announcement_id uuid, p_title text, p_summary text, p_body text, p_priority text, p_acknowledgement_mode text, p_scheduled_for timestamp with time zone",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.update_tournament_configuration",
+    "signature": "p_organization_id uuid, p_tournament_id uuid, p_patch jsonb",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.update_tournament_court",
+    "signature": "p_organization_id uuid, p_court_id uuid, p_patch jsonb",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.update_tournament_document_draft",
+    "signature": "p_version_id uuid, p_summary text, p_body text, p_effective_at timestamp with time zone",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.update_tournament_media_gallery",
+    "signature": "p_gallery_id uuid, p_title text, p_description text, p_visibility text, p_submit_for_review boolean",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin"
+    ],
+    "direct_identity_check": false,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.update_tournament_organization",
+    "signature": "p_organization_id uuid, p_name text, p_slug text, p_status text",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.update_tournament_roster_player",
+    "signature": "p_organization_id uuid, p_team_entry_id uuid, p_roster_player_id uuid, p_shirt_number smallint, p_primary_position text, p_secondary_position text, p_is_goalkeeper boolean",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.update_tournament_season",
+    "signature": "p_organization_id uuid, p_season_id uuid, p_name text, p_slug text, p_start_date date, p_end_date date, p_status text, p_clear_start_date boolean, p_clear_end_date boolean",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.update_tournament_team_entry",
+    "signature": "p_organization_id uuid, p_team_entry_id uuid, p_patch jsonb",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.update_tournament_venue",
+    "signature": "p_organization_id uuid, p_venue_id uuid, p_patch jsonb",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.validate_tournament_fixture",
+    "signature": "p_organization_id uuid, p_fixture_version_id uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.validate_tournament_match_operation",
+    "signature": "p_organization_id uuid, p_match_operation_id uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.validate_tournament_match_operation_payload",
+    "signature": "p_match_operation_id uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": false,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.validate_tournament_match_schedule",
+    "signature": "p_organization_id uuid, p_match_id uuid, p_scheduled_at timestamp with time zone, p_venue_id uuid, p_court_id uuid, p_duration_minutes integer",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.validate_tournament_roster",
+    "signature": "p_organization_id uuid, p_team_entry_id uuid, p_roster_id uuid",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.void_tournament_match_event",
+    "signature": "p_organization_id uuid, p_event_id uuid, p_reason text",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.void_tournament_match_operation",
+    "signature": "p_organization_id uuid, p_match_operation_id uuid, p_reason text",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.withdraw_tournament_competition_participant",
+    "signature": "p_organization_id uuid, p_tournament_id uuid, p_team_entry_id uuid, p_reason_code text, p_reason_text text",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "authenticated=X/supabase_admin",
+      "service_role=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  },
+  {
+    "function": "public.withdraw_tournament_team_entry",
+    "signature": "p_organization_id uuid, p_team_entry_id uuid, p_reason text",
+    "fixed_search_path": true,
+    "public_execute": false,
+    "acl": [
+      "supabase_admin=X/supabase_admin",
+      "service_role=X/supabase_admin",
+      "authenticated=X/supabase_admin"
+    ],
+    "direct_identity_check": true,
+    "semantic_disposition": "see evidence/security-definer-review.json"
+  }
+]

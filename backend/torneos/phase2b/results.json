@@ -1,0 +1,110 @@
+{
+  "conclusion": "A) CLEAN TORNEOS BASELINE PASS",
+  "failed_conditions": [],
+  "conditions": {
+    "four_core_rpcs_work_against_local_contract": true,
+    "temp_relation_bug_fixed_and_tested": true,
+    "season_scope_bug_fixed_and_tested": true,
+    "all_security_definer_disposed": true,
+    "inventory_acl_owner_search_path": true,
+    "installs_from_empty_database": true,
+    "baseline_regressions_pass": true,
+    "no_physical_core_fk_or_secrets": true,
+    "equivalence_closed_except_intentional": true
+  },
+  "baseline_checks": {
+    "pass": 79,
+    "total": 79
+  },
+  "mock_contract_tests": {
+    "pass": 63,
+    "total": 63
+  },
+  "core_wiring_tests": {
+    "pass": 68,
+    "total": 68
+  },
+  "temp_relation_probes": {
+    "pass": 11,
+    "total": 11
+  },
+  "season_read_probes": {
+    "pass": 18,
+    "total": 18
+  },
+  "season_scope_sweep": {
+    "functions": 179,
+    "swept": 154,
+    "SCOPED": 101,
+    "LEAK": 0,
+    "CAPABILITY_DENIED": 1,
+    "PRECONDITION": 4,
+    "INCONCLUSIVE": 33,
+    "ORG_SCOPED": 15,
+    "ORG_LEAK": 0,
+    "NOT_SWEPT": 25
+  },
+  "security_definer_review": {
+    "security_definer": 305,
+    "disposed": 305,
+    "unknown": 0,
+    "categories": {
+      "ADAPTER_ONLY": 1,
+      "CATALOG_READ": 1,
+      "CLIENT_PREDICATE": 16,
+      "CLIENT_RPC_DELEGATED": 2,
+      "CLIENT_RPC_GUARDED": 144,
+      "CORE_CONTRACT_BOUND": 4,
+      "IDENTITY_GATED_READ": 9,
+      "INTERNAL": 9,
+      "PUBLIC_READ": 3,
+      "SERVICE_ONLY": 106,
+      "TRIGGER": 10
+    },
+    "exercised": 170
+  },
+  "acl_owner_search_path": {
+    "pass": 366,
+    "total": 366
+  },
+  "equivalence": [
+    {
+      "kind": "tables",
+      "historical": 103,
+      "baseline": 103,
+      "equal_after_identity_normalization": 102
+    },
+    {
+      "kind": "indexes",
+      "historical": 367,
+      "baseline": 367,
+      "equal_after_identity_normalization": 367
+    },
+    {
+      "kind": "policies",
+      "historical": 61,
+      "baseline": 61,
+      "equal_after_identity_normalization": 61
+    },
+    {
+      "kind": "triggers",
+      "historical": 110,
+      "baseline": 110,
+      "equal_after_identity_normalization": 110
+    },
+    {
+      "kind": "functions",
+      "historical": 358,
+      "baseline": 358,
+      "equal_after_identity_normalization": 241
+    }
+  ],
+  "intentional_differences": 118,
+  "historical_core_paths_unblocked": 4,
+  "core_contract_scope": "Core contract integration certified against the Phase 2A local contract implementation. Real Core endpoint implementation remains pending and is required before Production.",
+  "limitations": [
+    "Season sweep: INCONCLUSIVE rows are functions whose owner control could not be satisfied by the fixtures (assets, purchases, advanced match states); the build-time season rule is applied to them and the admin was denied on the unassigned season in every such run.",
+    "plpgsql_check diagnostics are recorded and classified (temp relations, storage, shared trigger fields); they are not functional failures.",
+    "The gateway HTTP routing for the four Core RPCs is modelled by phase2b/adapter.py against the local lab; the Phase 1.5 Node gateway itself is unchanged."
+  ]
+}

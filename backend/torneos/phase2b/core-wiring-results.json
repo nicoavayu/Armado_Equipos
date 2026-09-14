@@ -1,0 +1,274 @@
+[
+  {
+    "name": "accept: Core outage fails closed",
+    "pass": true
+  },
+  {
+    "name": "accept: outage left invitation pending and no attestation",
+    "pass": true
+  },
+  {
+    "name": "accept: unverified Core email denied",
+    "pass": true
+  },
+  {
+    "name": "accept: changed Core email denied",
+    "pass": true
+  },
+  {
+    "name": "accept: other identity with the token denied",
+    "pass": true
+  },
+  {
+    "name": "accept: denied attempts left no positive verdict behind",
+    "pass": true
+  },
+  {
+    "name": "accept: verified matching email accepted",
+    "pass": true
+  },
+  {
+    "name": "accept: manager bound to the local identity",
+    "pass": true
+  },
+  {
+    "name": "accept: entry moved to in_progress and audit recorded",
+    "pass": true
+  },
+  {
+    "name": "accept: attestation single-use marker set",
+    "pass": true
+  },
+  {
+    "name": "accept: second acceptance rejected",
+    "pass": true
+  },
+  {
+    "name": "accept: expired invitation denied before Core",
+    "pass": true
+  },
+  {
+    "name": "accept: pre-authorization failure wrote no attestation",
+    "pass": true
+  },
+  {
+    "name": "accept: attestation bound to invitation target, not reusable for another invitation",
+    "pass": true
+  },
+  {
+    "name": "accept: attestation bound to Core session",
+    "pass": true
+  },
+  {
+    "name": "accept: expired attestation rejected",
+    "pass": true
+  },
+  {
+    "name": "accept: revoked Core session denied by Core",
+    "pass": true
+  },
+  {
+    "name": "accept: anon cannot execute",
+    "pass": true
+  },
+  {
+    "name": "players: discoverable Core players returned, hidden excluded",
+    "pass": true
+  },
+  {
+    "name": "players: historical shape preserved with local identities",
+    "pass": true
+  },
+  {
+    "name": "players: result userId is the local shadow identity",
+    "pass": true
+  },
+  {
+    "name": "players: certified bridge upsert reuses the allocated identity",
+    "pass": true
+  },
+  {
+    "name": "players: search result usable by the historical roster flow",
+    "pass": true
+  },
+  {
+    "name": "players: audit row records the search",
+    "pass": true
+  },
+  {
+    "name": "players: attested request served once",
+    "pass": true
+  },
+  {
+    "name": "players: replay of a consumed attestation denied",
+    "pass": true
+  },
+  {
+    "name": "players: attestation bound to the exact query",
+    "pass": true
+  },
+  {
+    "name": "players: attestation bound to the tournament",
+    "pass": true
+  },
+  {
+    "name": "players: attestation bound to the identity",
+    "pass": true
+  },
+  {
+    "name": "players: assigned admin searches own season",
+    "pass": true
+  },
+  {
+    "name": "players: admin without season access denied before Core",
+    "pass": true
+  },
+  {
+    "name": "players: outsider denied before Core",
+    "pass": true
+  },
+  {
+    "name": "players: other workspace tournament denied",
+    "pass": true
+  },
+  {
+    "name": "players: query below 2 characters denied",
+    "pass": true
+  },
+  {
+    "name": "players: query above 100 characters denied",
+    "pass": true
+  },
+  {
+    "name": "players: local denials made exactly one Core call (the assigned admin)",
+    "pass": true
+  },
+  {
+    "name": "players: local rate limit applied before Core",
+    "pass": true
+  },
+  {
+    "name": "players: authenticated cannot read attestations",
+    "pass": true
+  },
+  {
+    "name": "players: adapter role cannot read attestations back",
+    "pass": true
+  },
+  {
+    "name": "players: adapter role cannot execute domain RPC",
+    "pass": true
+  },
+  {
+    "name": "teams: only importable discoverable Core teams returned",
+    "pass": true
+  },
+  {
+    "name": "teams: historical shape preserved; colors/format outside the contract are null",
+    "pass": true
+  },
+  {
+    "name": "teams: tournament not in registration denied before Core",
+    "pass": true
+  },
+  {
+    "name": "teams: admin without season access denied",
+    "pass": true
+  },
+  {
+    "name": "teams: outsider denied",
+    "pass": true
+  },
+  {
+    "name": "teams: anon cannot execute",
+    "pass": true
+  },
+  {
+    "name": "teams: Core outage yields no results",
+    "pass": true
+  },
+  {
+    "name": "import: non-importer denied by Core (hidden team, admin without import authority)",
+    "pass": true
+  },
+  {
+    "name": "import: entry created from the attested snapshot",
+    "pass": true
+  },
+  {
+    "name": "import: name from Core, colors as submitted, source arma2_team",
+    "pass": true
+  },
+  {
+    "name": "import: frozen snapshot stored privately with visible candidates only",
+    "pass": true
+  },
+  {
+    "name": "import: candidates are not roster members",
+    "pass": true
+  },
+  {
+    "name": "import: idempotent retry returns the original entry after fresh Core authorization",
+    "pass": true
+  },
+  {
+    "name": "import: later Core edits do not rewrite the frozen snapshot",
+    "pass": true
+  },
+  {
+    "name": "import: same Core team with another key rejected as already registered",
+    "pass": true
+  },
+  {
+    "name": "import: team without importer authority denied by Core",
+    "pass": true
+  },
+  {
+    "name": "import: deleted Core team denied",
+    "pass": true
+  },
+  {
+    "name": "import: admin without season access denied before Core",
+    "pass": true
+  },
+  {
+    "name": "import: outsider denied before Core",
+    "pass": true
+  },
+  {
+    "name": "import: unknown category denied before Core",
+    "pass": true
+  },
+  {
+    "name": "import: local denials made no Core call",
+    "pass": true
+  },
+  {
+    "name": "import: hidden team is still importable by its authorized importer with the known id",
+    "pass": true
+  },
+  {
+    "name": "import: snapshot attestation bound to the Core team",
+    "pass": true
+  },
+  {
+    "name": "import: response/team mismatch rejected even with a matching hash",
+    "pass": true
+  },
+  {
+    "name": "import: oversized Core team rejected, never truncated",
+    "pass": true
+  },
+  {
+    "name": "import: manual entry path unchanged",
+    "pass": true
+  },
+  {
+    "name": "boundary: no attestation older than its TTL is consumable",
+    "pass": true
+  },
+  {
+    "name": "boundary: every consumed attestation belonged to the consuming identity",
+    "pass": true
+  }
+]

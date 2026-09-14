@@ -1,4 +1,6 @@
-# Phase 2A — B) BLOCKED
+> Superseded by Phase 2B: the Core adapter, the four historical RPC paths, the systematic season-scope fix and the 305/305 SECURITY DEFINER disposition are in [../phase2b/REPORT.md](../phase2b/REPORT.md).
+
+# Phase 2A — B) BLOCKED (historical)
 
 The requested final certification is **not complete**. There is useful isolated implementation and new passing evidence, but the Core contract PoC is not wired to the four historical RPC paths and the 304 SECURITY DEFINER functions do not all have completed semantic review. **Do not label this candidate PASS.**
 

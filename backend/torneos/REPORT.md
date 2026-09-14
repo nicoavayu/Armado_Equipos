@@ -1,8 +1,8 @@
-> Phase 2A follow-up: see [phase2a/REPORT.md](phase2a/REPORT.md) for the current partial implementation, season-access fix and explicit remaining certification gates. Status remains BLOCKED.
+> Este documento es el informe histórico de Phase 2 (foundation). Sus bloqueantes fueron cerrados en Phase 2A/2B: ver [phase2b/REPORT.md](phase2b/REPORT.md), conclusión **A) CLEAN TORNEOS BASELINE PASS** contra el contrato Core local de Phase 2A. La implementación del endpoint Core real sigue pendiente y es requisito antes de Production.
 
 # Phase 2 — Clean baseline foundation
 
-**Conclusión binaria: B) BLOCKED.** Hay un baseline candidato instalado y probado localmente. No hay equivalencia funcional completa ni aprobación para usarlo como release. No se creó Supabase Production, no se conectó a Production Core/Torneos, no hubo deploy ni Phase 3.
+**Conclusión binaria de esta fase (histórica): B) BLOCKED.** Hay un baseline candidato instalado y probado localmente. No hay equivalencia funcional completa ni aprobación para usarlo como release. No se creó Supabase Production, no se conectó a Production Core/Torneos, no hubo deploy ni Phase 3.
 
 El bloqueo concreto es que el contrato SSO aprobado acredita identidad/sesión; no acredita email verificado para aceptar invitaciones, directorio de jugadores ni autorización/importación de equipos Core. Sustituir esas dependencias por datos supuestos o por respuestas vacías hubiera escondido pérdida de funcionalidad. El candidato devuelve un error explícito para esos caminos. Esa pérdida temporal **no satisface** la condición del pedido “No perder funcionalidad final existente”.
 

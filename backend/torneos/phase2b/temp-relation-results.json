@@ -1,0 +1,46 @@
+[
+  {
+    "name": "historical ranking executes caller trigger as owner (vulnerability reproduced)",
+    "pass": true
+  },
+  {
+    "name": "actual ranking nested execution: table",
+    "pass": true
+  },
+  {
+    "name": "actual ranking nested execution: none",
+    "pass": true
+  },
+  {
+    "name": "actual ranking nested execution: view",
+    "pass": true
+  },
+  {
+    "name": "exact discipline initialization nested execution: table",
+    "pass": true
+  },
+  {
+    "name": "exact discipline initialization nested execution: none",
+    "pass": true
+  },
+  {
+    "name": "exact discipline initialization nested execution: view",
+    "pass": true
+  },
+  {
+    "name": "anon cannot directly execute internal ranking",
+    "pass": true
+  },
+  {
+    "name": "authenticated cannot directly execute internal ranking",
+    "pass": true
+  },
+  {
+    "name": "no test wrappers retained",
+    "pass": true
+  },
+  {
+    "name": "no temporary relation reuse remains in candidate",
+    "pass": true
+  }
+]
