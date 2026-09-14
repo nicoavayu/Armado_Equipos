@@ -98,8 +98,8 @@
   {
     "name": "valid certified claim tuple accepted",
     "pass": true,
-    "actual": "c378151a-f7f6-4c0d-9838-62b95262f92b",
-    "expected": "c378151a-f7f6-4c0d-9838-62b95262f92b"
+    "actual": "533424df-40c7-4f03-863d-e0e84f6074a2",
+    "expected": "533424df-40c7-4f03-863d-e0e84f6074a2"
   },
   {
     "name": "identity invalid core_user_id rejected",
@@ -152,8 +152,8 @@
   {
     "name": "second bridge exchange reuses identity",
     "pass": true,
-    "actual": "c378151a-f7f6-4c0d-9838-62b95262f92b",
-    "expected": "c378151a-f7f6-4c0d-9838-62b95262f92b"
+    "actual": "533424df-40c7-4f03-863d-e0e84f6074a2",
+    "expected": "533424df-40c7-4f03-863d-e0e84f6074a2"
   },
   {
     "name": "PK rejects duplicate identity",

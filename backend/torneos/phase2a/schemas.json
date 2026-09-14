@@ -1,0 +1,355 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:arma2:core-torneos:phase2a:v1",
+  "$defs": {
+    "verifiedEmailRequest": {
+      "type": "object",
+      "properties": {
+        "core_user_id": {
+          "type": "string",
+          "minLength": 36,
+          "maxLength": 36,
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        },
+        "session_id": {
+          "type": "string",
+          "minLength": 36,
+          "maxLength": 36,
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        },
+        "expected_email": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 254,
+          "pattern": "^[^\\s@]+@[^\\s@]+$"
+        }
+      },
+      "required": [
+        "core_user_id",
+        "session_id",
+        "expected_email"
+      ],
+      "additionalProperties": false
+    },
+    "verifiedEmailResponse": {
+      "type": "object",
+      "properties": {
+        "verified": {
+          "type": "boolean"
+        },
+        "matches": {
+          "type": "boolean"
+        },
+        "checked_at": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "verified",
+        "matches",
+        "checked_at"
+      ],
+      "additionalProperties": false
+    },
+    "directoryRequest": {
+      "type": "object",
+      "properties": {
+        "core_user_id": {
+          "type": "string",
+          "minLength": 36,
+          "maxLength": 36,
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        },
+        "session_id": {
+          "type": "string",
+          "minLength": 36,
+          "maxLength": 36,
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        },
+        "kind": {
+          "enum": [
+            "players",
+            "teams"
+          ]
+        },
+        "query": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 100
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 12
+        },
+        "cursor": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1,
+          "maxLength": 2048
+        }
+      },
+      "required": [
+        "core_user_id",
+        "session_id",
+        "kind",
+        "query",
+        "limit",
+        "cursor"
+      ],
+      "additionalProperties": false
+    },
+    "playersResponse": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "core_user_id": {
+                "type": "string",
+                "minLength": 36,
+                "maxLength": 36,
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+              },
+              "display_name": {
+                "type": "string",
+                "minLength": 2,
+                "maxLength": 100
+              },
+              "avatar_url": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "maxLength": 2048,
+                "pattern": "^https://[^\\s]+$"
+              },
+              "positions": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 32
+                },
+                "maxItems": 8
+              }
+            },
+            "required": [
+              "core_user_id",
+              "display_name",
+              "avatar_url",
+              "positions"
+            ],
+            "additionalProperties": false
+          },
+          "maxItems": 12
+        },
+        "next_cursor": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1,
+          "maxLength": 2048
+        }
+      },
+      "required": [
+        "items",
+        "next_cursor"
+      ],
+      "additionalProperties": false
+    },
+    "teamsResponse": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "core_team_id": {
+                "type": "string",
+                "minLength": 36,
+                "maxLength": 36,
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+              },
+              "name": {
+                "type": "string",
+                "minLength": 2,
+                "maxLength": 100
+              },
+              "crest_url": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "maxLength": 2048,
+                "pattern": "^https://[^\\s]+$"
+              }
+            },
+            "required": [
+              "core_team_id",
+              "name",
+              "crest_url"
+            ],
+            "additionalProperties": false
+          },
+          "maxItems": 12
+        },
+        "next_cursor": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1,
+          "maxLength": 2048
+        }
+      },
+      "required": [
+        "items",
+        "next_cursor"
+      ],
+      "additionalProperties": false
+    },
+    "teamSnapshotRequest": {
+      "type": "object",
+      "properties": {
+        "core_user_id": {
+          "type": "string",
+          "minLength": 36,
+          "maxLength": 36,
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        },
+        "session_id": {
+          "type": "string",
+          "minLength": 36,
+          "maxLength": 36,
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        },
+        "core_team_id": {
+          "type": "string",
+          "minLength": 36,
+          "maxLength": 36,
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        }
+      },
+      "required": [
+        "core_user_id",
+        "session_id",
+        "core_team_id"
+      ],
+      "additionalProperties": false
+    },
+    "teamSnapshotResponse": {
+      "type": "object",
+      "properties": {
+        "core_team_id": {
+          "type": "string",
+          "minLength": 36,
+          "maxLength": 36,
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 100
+        },
+        "crest_url": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 2048,
+          "pattern": "^https://[^\\s]+$"
+        },
+        "players": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "core_user_id": {
+                "type": "string",
+                "minLength": 36,
+                "maxLength": 36,
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+              },
+              "display_name": {
+                "type": "string",
+                "minLength": 2,
+                "maxLength": 100
+              },
+              "avatar_url": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "maxLength": 2048,
+                "pattern": "^https://[^\\s]+$"
+              },
+              "positions": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 32
+                },
+                "maxItems": 8
+              }
+            },
+            "required": [
+              "core_user_id",
+              "display_name",
+              "avatar_url",
+              "positions"
+            ],
+            "additionalProperties": false
+          },
+          "maxItems": 80
+        },
+        "source_revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "captured_at": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "core_team_id",
+        "name",
+        "crest_url",
+        "players",
+        "source_revision",
+        "captured_at"
+      ],
+      "additionalProperties": false
+    },
+    "errorResponse": {
+      "type": "object",
+      "properties": {
+        "error": {
+          "enum": [
+            "FORBIDDEN",
+            "INVALID_REQUEST",
+            "CORE_UNAVAILABLE",
+            "SERVICE_AUTH_REQUIRED",
+            "REPLAY",
+            "NOT_FOUND",
+            "INVALID_CURSOR",
+            "RATE_LIMITED"
+          ]
+        }
+      },
+      "required": [
+        "error"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

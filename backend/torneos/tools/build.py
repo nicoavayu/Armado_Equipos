@@ -28,12 +28,15 @@ for f in c['functions']:
    changes.append({'function':name,'change':'fail closed; requires certified Core directory/team/verified-email contract'})
   elif name=='create_tournament_team_entry':
    new=new.replace('v_arma2_team public.teams%rowtype;','')
+   anchor="  if p_idempotency_key is null then raise exception using errcode = '22023', message = 'TORNEOS_IDEMPOTENCY_REQUIRED'; end if;"
+   assert new.count(anchor)==1
+   new=new.replace(anchor,(BASE/'phase2a/team-entry-season-guard.sql').read_text()+anchor)
    start=new.index('  if p_arma2_team_id is not null then')
    end=new.index('  end if;',start)+len('  end if;')
    # Nested missing-team IF is inside this branch; consume the outer end too.
    end=new.index('  end if;',end)+len('  end if;')
    new=new[:start]+"  if p_arma2_team_id is not null then\n    raise SQLSTATE '0A000' using message='TORNEOS_CORE_TEAM_IMPORT_CONTRACT_PENDING';\n  end if;"+new[end:]
-   changes.append({'function':name,'change':'manual/provisional flow retained; Core import fails closed pending bridge contract'})
+   changes.append({'function':name,'change':'manual/provisional flow retained; explicit destination season access required before idempotency lookup (Phase 2A security fix); Core import still fails closed pending SQL adapter'})
   if new!=body: dump=dump.replace(m.group(0),m.group(0).replace(body,new))
 # Identity UUIDs in historical user_id/arma2_user_id columns now mean local identity.id.
 dump=dump.replace('auth.uid()', 'private.current_identity_id()').replace('auth.users','public.torneos_identity')

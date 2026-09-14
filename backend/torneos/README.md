@@ -1,3 +1,5 @@
+> Phase 2A follow-up: see [phase2a/REPORT.md](phase2a/REPORT.md) for the current partial implementation, season-access fix and explicit remaining certification gates. Status remains BLOCKED.
+
 # Torneos isolated baseline v1 — local candidate
 
 **BLOCKED: not a certified release.** Read [REPORT.md](REPORT.md). The SQL installs from an empty database, but preserving all historical functionality requires Core contracts beyond the certified identity-only bridge.

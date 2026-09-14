@@ -1,3 +1,5 @@
+> Phase 2A follow-up: see [phase2a/REPORT.md](phase2a/REPORT.md) for the current partial implementation, season-access fix and explicit remaining certification gates. Status remains BLOCKED.
+
 # Phase 2 — Clean baseline foundation
 
 **Conclusión binaria: B) BLOCKED.** Hay un baseline candidato instalado y probado localmente. No hay equivalencia funcional completa ni aprobación para usarlo como release. No se creó Supabase Production, no se conectó a Production Core/Torneos, no hubo deploy ni Phase 3.

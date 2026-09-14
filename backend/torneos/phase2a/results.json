@@ -1,0 +1,14 @@
+{
+  "baseline_checks": 58,
+  "baseline_all_pass": true,
+  "contracts_suite_pass": true,
+  "season_denial_pass": true,
+  "inventory": {
+    "functions": 362,
+    "security_definer": 304,
+    "acl_checks_pass": 362,
+    "semantic_certification": false
+  },
+  "conclusion": "B) BLOCKED",
+  "historical_core_paths_unblocked": 0
+}

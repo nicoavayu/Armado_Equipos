@@ -5,7 +5,7 @@
   },
   {
     "function": "create_tournament_team_entry",
-    "change": "manual/provisional flow retained; Core import fails closed pending bridge contract"
+    "change": "manual/provisional flow retained; explicit destination season access required before idempotency lookup (Phase 2A security fix); Core import still fails closed pending SQL adapter"
   },
   {
     "function": "search_tournament_arma2_teams",
