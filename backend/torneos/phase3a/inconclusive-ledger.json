@@ -1,0 +1,312 @@
+{
+  "source": "backend/torneos/phase2b/season-scope-sweep.json (Phase 2B, commit b5c5d4af)",
+  "count": 33,
+  "by_area": {
+    "commercial/entitlements": 4,
+    "media/assets pipeline": 8,
+    "other": 9,
+    "advanced competition states": 12
+  },
+  "status": "RESIDUAL RISK — not proven; every function keeps the build-time season rule and the admin was denied on the unassigned season, but no positive (owner) control was satisfiable with the fixtures",
+  "required_before_production": "Specific fixtures/coverage for every function that remains reachable by an enabled feature (media pipeline, purchases/entitlements, advanced match states); otherwise keep the feature disabled behind its gate.",
+  "phase3a_changes": 0,
+  "functions": [
+    {
+      "function": "authorize_tournament_social_export(uuid,uuid,text,text,boolean)",
+      "area": "commercial/entitlements",
+      "phase2b_verdict": "INCONCLUSIVE",
+      "phase2b_owner_control": "42501 TORNEOS_BRANDING_PREMIUM_REQUIRED",
+      "phase2b_admin_unassigned_season": "42501 TORNEOS_SOCIAL_EXPORT_FORBIDDEN",
+      "phase3a_status": "NOT_EXERCISED",
+      "phase3a_note": "Not reachable by the Phase 3A Core contracts; static season rule applied by the generator; no positive owner control yet."
+    },
+    {
+      "function": "cancel_tournament_purchase(uuid)",
+      "area": "commercial/entitlements",
+      "phase2b_verdict": "INCONCLUSIVE",
+      "phase2b_owner_control": "42501 TORNEOS_PURCHASE_FORBIDDEN",
+      "phase2b_admin_unassigned_season": "42501 TORNEOS_PURCHASE_FORBIDDEN",
+      "phase3a_status": "NOT_EXERCISED",
+      "phase3a_note": "Not reachable by the Phase 3A Core contracts; static season rule applied by the generator; no positive owner control yet."
+    },
+    {
+      "function": "change_tournament_media_gallery_state(uuid,text,text)",
+      "area": "media/assets pipeline",
+      "phase2b_verdict": "INCONCLUSIVE",
+      "phase2b_owner_control": "42501 TORNEOS_MEDIA_FORBIDDEN",
+      "phase2b_admin_unassigned_season": "42501 TORNEOS_MEDIA_FORBIDDEN",
+      "phase3a_status": "NOT_EXERCISED",
+      "phase3a_note": "Not reachable by the Phase 3A Core contracts; static season rule applied by the generator; no positive owner control yet."
+    },
+    {
+      "function": "create_tournament_disciplinary_override(uuid,text,integer,text,uuid)",
+      "area": "other",
+      "phase2b_verdict": "INCONCLUSIVE",
+      "phase2b_owner_control": "42501 TORNEOS_DISCIPLINE_FORBIDDEN",
+      "phase2b_admin_unassigned_season": "42501 TORNEOS_DISCIPLINE_FORBIDDEN",
+      "phase3a_status": "NOT_EXERCISED",
+      "phase3a_note": "Not reachable by the Phase 3A Core contracts; static season rule applied by the generator; no positive owner control yet."
+    },
+    {
+      "function": "create_tournament_match_correction(uuid,uuid)",
+      "area": "advanced competition states",
+      "phase2b_verdict": "INCONCLUSIVE",
+      "phase2b_owner_control": "42501 TORNEOS_MATCH_FORBIDDEN",
+      "phase2b_admin_unassigned_season": "42501 TORNEOS_MATCH_FORBIDDEN",
+      "phase3a_status": "NOT_EXERCISED",
+      "phase3a_note": "Not reachable by the Phase 3A Core contracts; static season rule applied by the generator; no positive owner control yet."
+    },
+    {
+      "function": "create_tournament_points_adjustment(uuid,uuid,uuid,uuid,uuid,integer,text,uuid)",
+      "area": "other",
+      "phase2b_verdict": "INCONCLUSIVE",
+      "phase2b_owner_control": "42501 TORNEOS_STANDINGS_FORBIDDEN",
+      "phase2b_admin_unassigned_season": "42501 TORNEOS_STANDINGS_FORBIDDEN",
+      "phase3a_status": "NOT_EXERCISED",
+      "phase3a_note": "Not reachable by the Phase 3A Core contracts; static season rule applied by the generator; no positive owner control yet."
+    },
+    {
+      "function": "get_tournament_player_portrait_ref(uuid,uuid,text)",
+      "area": "media/assets pipeline",
+      "phase2b_verdict": "INCONCLUSIVE",
+      "phase2b_owner_control": "42501 TORNEOS_PORTRAIT_FORBIDDEN",
+      "phase2b_admin_unassigned_season": "42501 TORNEOS_PORTRAIT_FORBIDDEN",
+      "phase3a_status": "NOT_EXERCISED",
+      "phase3a_note": "Not reachable by the Phase 3A Core contracts; static season rule applied by the generator; no positive owner control yet."
+    },
+    {
+      "function": "get_tournament_purchase(uuid)",
+      "area": "commercial/entitlements",
+      "phase2b_verdict": "INCONCLUSIVE",
+      "phase2b_owner_control": "42501 TORNEOS_PURCHASE_FORBIDDEN",
+      "phase2b_admin_unassigned_season": "42501 TORNEOS_PURCHASE_FORBIDDEN",
+      "phase3a_status": "NOT_EXERCISED",
+      "phase3a_note": "Not reachable by the Phase 3A Core contracts; static season rule applied by the generator; no positive owner control yet."
+    },
+    {
+      "function": "has_tournament_entitlement(uuid,uuid,text)",
+      "area": "commercial/entitlements",
+      "phase2b_verdict": "INCONCLUSIVE",
+      "phase2b_owner_control": "OK false",
+      "phase2b_admin_unassigned_season": "OK false",
+      "phase3a_status": "NOT_EXERCISED",
+      "phase3a_note": "Not reachable by the Phase 3A Core contracts; static season rule applied by the generator; no positive owner control yet."
+    },
+    {
+      "function": "lock_tournament_roster(uuid,uuid,uuid)",
+      "area": "other",
+      "phase2b_verdict": "INCONCLUSIVE",
+      "phase2b_owner_control": "42501 TORNEOS_RESOURCE_FORBIDDEN",
+      "phase2b_admin_unassigned_season": "42501 TORNEOS_RESOURCE_FORBIDDEN",
+      "phase3a_status": "NOT_EXERCISED",
+      "phase3a_note": "Not reachable by the Phase 3A Core contracts; static season rule applied by the generator; no positive owner control yet."
+    },
+    {
+      "function": "make_tournament_match_official(uuid,uuid)",
+      "area": "advanced competition states",
+      "phase2b_verdict": "INCONCLUSIVE",
+      "phase2b_owner_control": "42501 TORNEOS_MATCH_FORBIDDEN",
+      "phase2b_admin_unassigned_season": "42501 TORNEOS_MATCH_FORBIDDEN",
+      "phase3a_status": "NOT_EXERCISED",
+      "phase3a_note": "Not reachable by the Phase 3A Core contracts; static season rule applied by the generator; no positive owner control yet."
+    },
+    {
+      "function": "mark_tournament_suspension_served(uuid,uuid,text)",
+      "area": "other",
+      "phase2b_verdict": "INCONCLUSIVE",
+      "phase2b_owner_control": "42501 TORNEOS_DISCIPLINE_FORBIDDEN",
+      "phase2b_admin_unassigned_season": "42501 TORNEOS_DISCIPLINE_FORBIDDEN",
+      "phase3a_status": "NOT_EXERCISED",
+      "phase3a_note": "Not reachable by the Phase 3A Core contracts; static season rule applied by the generator; no positive owner control yet."
+    },
+    {
+      "function": "publish_tournament_fixture(uuid,uuid)",
+      "area": "advanced competition states",
+      "phase2b_verdict": "INCONCLUSIVE",
+      "phase2b_owner_control": "42501 TORNEOS_RESOURCE_FORBIDDEN",
+      "phase2b_admin_unassigned_season": "42501 TORNEOS_RESOURCE_FORBIDDEN",
+      "phase3a_status": "NOT_EXERCISED",
+      "phase3a_note": "Not reachable by the Phase 3A Core contracts; static season rule applied by the generator; no positive owner control yet."
+    },
+    {
+      "function": "record_manual_match_availability(uuid,uuid,uuid,text,text,text)",
+      "area": "advanced competition states",
+      "phase2b_verdict": "INCONCLUSIVE",
+      "phase2b_owner_control": "42501 TORNEOS_MATCH_FORBIDDEN",
+      "phase2b_admin_unassigned_season": "42501 TORNEOS_MATCH_FORBIDDEN",
+      "phase3a_status": "NOT_EXERCISED",
+      "phase3a_note": "Not reachable by the Phase 3A Core contracts; static season rule applied by the generator; no positive owner control yet."
+    },
+    {
+      "function": "reopen_tournament_participants(uuid,uuid,uuid,text)",
+      "area": "other",
+      "phase2b_verdict": "INCONCLUSIVE",
+      "phase2b_owner_control": "42501 TORNEOS_RESOURCE_FORBIDDEN",
+      "phase2b_admin_unassigned_season": "42501 TORNEOS_RESOURCE_FORBIDDEN",
+      "phase3a_status": "NOT_EXERCISED",
+      "phase3a_note": "Not reachable by the Phase 3A Core contracts; static season rule applied by the generator; no positive owner control yet."
+    },
+    {
+      "function": "report_tournament_media_asset(uuid,text,text,boolean,uuid)",
+      "area": "media/assets pipeline",
+      "phase2b_verdict": "INCONCLUSIVE",
+      "phase2b_owner_control": "42501 TORNEOS_MEDIA_FORBIDDEN",
+      "phase2b_admin_unassigned_season": "42501 TORNEOS_MEDIA_FORBIDDEN",
+      "phase3a_status": "NOT_EXERCISED",
+      "phase3a_note": "Not reachable by the Phase 3A Core contracts; static season rule applied by the generator; no positive owner control yet."
+    },
+    {
+      "function": "request_tournament_match_correction(uuid,uuid,text)",
+      "area": "advanced competition states",
+      "phase2b_verdict": "INCONCLUSIVE",
+      "phase2b_owner_control": "42501 TORNEOS_MATCH_FORBIDDEN",
+      "phase2b_admin_unassigned_season": "42501 TORNEOS_MATCH_FORBIDDEN",
+      "phase3a_status": "NOT_EXERCISED",
+      "phase3a_note": "Not reachable by the Phase 3A Core contracts; static season rule applied by the generator; no positive owner control yet."
+    },
+    {
+      "function": "resolve_tournament_qualification(uuid,text)",
+      "area": "other",
+      "phase2b_verdict": "INCONCLUSIVE",
+      "phase2b_owner_control": "42501 TORNEOS_QUALIFICATION_FORBIDDEN",
+      "phase2b_admin_unassigned_season": "42501 TORNEOS_QUALIFICATION_FORBIDDEN",
+      "phase3a_status": "NOT_EXERCISED",
+      "phase3a_note": "Not reachable by the Phase 3A Core contracts; static season rule applied by the generator; no positive owner control yet."
+    },
+    {
+      "function": "review_tournament_match_operation(uuid,uuid,text,text)",
+      "area": "advanced competition states",
+      "phase2b_verdict": "INCONCLUSIVE",
+      "phase2b_owner_control": "42501 TORNEOS_MATCH_FORBIDDEN",
+      "phase2b_admin_unassigned_season": "42501 TORNEOS_MATCH_FORBIDDEN",
+      "phase3a_status": "NOT_EXERCISED",
+      "phase3a_note": "Not reachable by the Phase 3A Core contracts; static season rule applied by the generator; no positive owner control yet."
+    },
+    {
+      "function": "review_tournament_team_entry(uuid,uuid,text,text,jsonb)",
+      "area": "other",
+      "phase2b_verdict": "INCONCLUSIVE",
+      "phase2b_owner_control": "42501 TORNEOS_RESOURCE_FORBIDDEN",
+      "phase2b_admin_unassigned_season": "42501 TORNEOS_RESOURCE_FORBIDDEN",
+      "phase3a_status": "NOT_EXERCISED",
+      "phase3a_note": "Not reachable by the Phase 3A Core contracts; static season rule applied by the generator; no positive owner control yet."
+    },
+    {
+      "function": "revoke_tournament_player_portrait_publication(uuid,uuid)",
+      "area": "media/assets pipeline",
+      "phase2b_verdict": "INCONCLUSIVE",
+      "phase2b_owner_control": "42501 TORNEOS_PORTRAIT_FORBIDDEN",
+      "phase2b_admin_unassigned_season": "42501 TORNEOS_PORTRAIT_FORBIDDEN",
+      "phase3a_status": "NOT_EXERCISED",
+      "phase3a_note": "Not reachable by the Phase 3A Core contracts; static season rule applied by the generator; no positive owner control yet."
+    },
+    {
+      "function": "revoke_tournament_points_adjustment(uuid,text)",
+      "area": "other",
+      "phase2b_verdict": "INCONCLUSIVE",
+      "phase2b_owner_control": "42501 TORNEOS_STANDINGS_FORBIDDEN",
+      "phase2b_admin_unassigned_season": "42501 TORNEOS_STANDINGS_FORBIDDEN",
+      "phase3a_status": "NOT_EXERCISED",
+      "phase3a_note": "Not reachable by the Phase 3A Core contracts; static season rule applied by the generator; no positive owner control yet."
+    },
+    {
+      "function": "revoke_tournament_team_photo(uuid,uuid)",
+      "area": "media/assets pipeline",
+      "phase2b_verdict": "INCONCLUSIVE",
+      "phase2b_owner_control": "42501 TORNEOS_TEAM_PHOTO_FORBIDDEN",
+      "phase2b_admin_unassigned_season": "42501 TORNEOS_TEAM_PHOTO_FORBIDDEN",
+      "phase3a_status": "NOT_EXERCISED",
+      "phase3a_note": "Not reachable by the Phase 3A Core contracts; static season rule applied by the generator; no positive owner control yet."
+    },
+    {
+      "function": "save_tournament_draw_pots(uuid,uuid,uuid,jsonb)",
+      "area": "other",
+      "phase2b_verdict": "INCONCLUSIVE",
+      "phase2b_owner_control": "42501 TORNEOS_RESOURCE_FORBIDDEN",
+      "phase2b_admin_unassigned_season": "42501 TORNEOS_RESOURCE_FORBIDDEN",
+      "phase3a_status": "NOT_EXERCISED",
+      "phase3a_note": "Not reachable by the Phase 3A Core contracts; static season rule applied by the generator; no positive owner control yet."
+    },
+    {
+      "function": "schedule_tournament_match(uuid,uuid,timestamp with time zone,uuid,uuid,integer,boolean,text)",
+      "area": "advanced competition states",
+      "phase2b_verdict": "INCONCLUSIVE",
+      "phase2b_owner_control": "42501 TORNEOS_RESOURCE_FORBIDDEN",
+      "phase2b_admin_unassigned_season": "42501 TORNEOS_RESOURCE_FORBIDDEN",
+      "phase3a_status": "NOT_EXERCISED",
+      "phase3a_note": "Not reachable by the Phase 3A Core contracts; static season rule applied by the generator; no positive owner control yet."
+    },
+    {
+      "function": "set_tournament_player_portrait_crop(uuid,uuid,numeric,numeric,numeric)",
+      "area": "media/assets pipeline",
+      "phase2b_verdict": "INCONCLUSIVE",
+      "phase2b_owner_control": "42501 TORNEOS_PORTRAIT_FORBIDDEN",
+      "phase2b_admin_unassigned_season": "42501 TORNEOS_PORTRAIT_FORBIDDEN",
+      "phase3a_status": "NOT_EXERCISED",
+      "phase3a_note": "Not reachable by the Phase 3A Core contracts; static season rule applied by the generator; no positive owner control yet."
+    },
+    {
+      "function": "set_tournament_player_portrait_editorial_status(uuid,uuid,text)",
+      "area": "media/assets pipeline",
+      "phase2b_verdict": "INCONCLUSIVE",
+      "phase2b_owner_control": "42501 TORNEOS_PORTRAIT_FORBIDDEN",
+      "phase2b_admin_unassigned_season": "42501 TORNEOS_PORTRAIT_FORBIDDEN",
+      "phase3a_status": "NOT_EXERCISED",
+      "phase3a_note": "Not reachable by the Phase 3A Core contracts; static season rule applied by the generator; no positive owner control yet."
+    },
+    {
+      "function": "submit_match_squad(uuid,uuid,uuid)",
+      "area": "advanced competition states",
+      "phase2b_verdict": "INCONCLUSIVE",
+      "phase2b_owner_control": "42501 TORNEOS_MATCH_FORBIDDEN",
+      "phase2b_admin_unassigned_season": "42501 TORNEOS_MATCH_FORBIDDEN",
+      "phase3a_status": "NOT_EXERCISED",
+      "phase3a_note": "Not reachable by the Phase 3A Core contracts; static season rule applied by the generator; no positive owner control yet."
+    },
+    {
+      "function": "supersede_tournament_fixture(uuid,uuid,uuid)",
+      "area": "advanced competition states",
+      "phase2b_verdict": "INCONCLUSIVE",
+      "phase2b_owner_control": "42501 TORNEOS_RESOURCE_FORBIDDEN",
+      "phase2b_admin_unassigned_season": "42501 TORNEOS_RESOURCE_FORBIDDEN",
+      "phase3a_status": "NOT_EXERCISED",
+      "phase3a_note": "Not reachable by the Phase 3A Core contracts; static season rule applied by the generator; no positive owner control yet."
+    },
+    {
+      "function": "transition_tournament_media_asset(uuid,text,text)",
+      "area": "media/assets pipeline",
+      "phase2b_verdict": "INCONCLUSIVE",
+      "phase2b_owner_control": "42501 TORNEOS_MEDIA_FORBIDDEN",
+      "phase2b_admin_unassigned_season": "42501 TORNEOS_MEDIA_FORBIDDEN",
+      "phase3a_status": "NOT_EXERCISED",
+      "phase3a_note": "Not reachable by the Phase 3A Core contracts; static season rule applied by the generator; no positive owner control yet."
+    },
+    {
+      "function": "update_draft_fixture(uuid,uuid,text,jsonb)",
+      "area": "advanced competition states",
+      "phase2b_verdict": "INCONCLUSIVE",
+      "phase2b_owner_control": "42501 TORNEOS_RESOURCE_FORBIDDEN",
+      "phase2b_admin_unassigned_season": "42501 TORNEOS_RESOURCE_FORBIDDEN",
+      "phase3a_status": "NOT_EXERCISED",
+      "phase3a_note": "Not reachable by the Phase 3A Core contracts; static season rule applied by the generator; no positive owner control yet."
+    },
+    {
+      "function": "validate_tournament_match_operation(uuid,uuid)",
+      "area": "advanced competition states",
+      "phase2b_verdict": "INCONCLUSIVE",
+      "phase2b_owner_control": "42501 TORNEOS_MATCH_FORBIDDEN",
+      "phase2b_admin_unassigned_season": "42501 TORNEOS_MATCH_FORBIDDEN",
+      "phase3a_status": "NOT_EXERCISED",
+      "phase3a_note": "Not reachable by the Phase 3A Core contracts; static season rule applied by the generator; no positive owner control yet."
+    },
+    {
+      "function": "void_tournament_match_event(uuid,uuid,text)",
+      "area": "advanced competition states",
+      "phase2b_verdict": "INCONCLUSIVE",
+      "phase2b_owner_control": "42501 TORNEOS_MATCH_FORBIDDEN",
+      "phase2b_admin_unassigned_season": "42501 TORNEOS_MATCH_FORBIDDEN",
+      "phase3a_status": "NOT_EXERCISED",
+      "phase3a_note": "Not reachable by the Phase 3A Core contracts; static season rule applied by the generator; no positive owner control yet."
+    }
+  ]
+}

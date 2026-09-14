@@ -1,0 +1,16 @@
+{
+  "name": "arma2-core-contracts-phase3a",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "prepare:local": "node lab.mjs prepare",
+    "up": "node lab.mjs up",
+    "test": "node --test --test-concurrency=1 test.mjs",
+    "down": "node lab.mjs down",
+    "destroy": "node lab.mjs destroy"
+  },
+  "dependencies": {
+    "jose": "6.2.12",
+    "pg": "8.23.0"
+  }
+}

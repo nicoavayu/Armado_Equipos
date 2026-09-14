@@ -1,0 +1,53 @@
+
+> test
+> node --test --test-concurrency=1 test.mjs
+
+▶ Phase 3A — real Core contracts → Torneos end-to-end
+  ✔ lab: only the gateway is published; databases, Auth, REST and the Edge Function are internal (64.465458ms)
+  ✔ lab: Core is the real schema at HEAD plus the Phase 3A migration; Torneos is the unchanged certified baseline (655.723ms)
+  ✔ lab: contract entry point is service_role-only; helper tables are owner-only (655.206417ms)
+  ✔ verified email: Core outage fails closed (503), invitation stays pending, no attestation (1102.803833ms)
+  ✔ verified email: wrong email denied by the real Core verdict (matches=false) (168.206209ms)
+  ✔ verified email: unverified Core account denied (verified=false) (108.447625ms)
+  ✔ verified email: Core email change invalidates the old invitation; a new invite to the new address passes (171.253833ms)
+  ✔ verified email: verified matching email accepted through the whole chain; manager bound to the local identity (144.789667ms)
+  ✔ verified email: second acceptance rejected; Core never learns the address (response carries no email) (69.239875ms)
+  ✔ verified email: disabled (banned) Core user denied at the gateway and by Core itself (255.476333ms)
+  ✔ verified email: real logout revokes the Core session — exchange, RPC and the Core contract all deny (504.477334ms)
+  ✔ directory: authorized owner search returns discoverable Core players with the historical shape and local identities (84.319375ms)
+  ✔ directory: result usable by the historical roster flow; the certified bridge upsert reuses the allocated identity (101.931833ms)
+  ✔ directory: deleted Core account disappears from search (133.737625ms)
+  ✔ directory: unauthorized callers denied BEFORE Core (outsider, other workspace, unassigned season, bad query) (146.613625ms)
+  ✔ directory: assigned admin passes on its season (season scope PASS) (14.068083ms)
+  ✔ directory (Core endpoint): keyset pagination with session-bound, short-lived cursors (517.66975ms)
+  ✔ directory (Core endpoint): accent/case-insensitive match, privacy allowlist, wrong session/user denied (494.499791ms)
+  ✔ directory (Core endpoint): 30 requests per actor per rolling minute, then 429 (3369.676292ms)
+  ✔ directory: Torneos local rate limit (30/min audit rows) blocks before Core (203.077666ms)
+  ✔ directory: teams search returns only teams the caller may import in Core (owner/admin), historical shape, colors null (174.89875ms)
+  ✔ directory: Core outage yields no results; unrelated Torneos reads keep working (979.698875ms)
+  ✔ import: authorized owner imports a frozen snapshot (name from Core, visible candidates only, no roster members) (260.033791ms)
+  ✔ import: unauthorized in Core (not owner/admin of the team) denied by Core; unauthorized in Torneos denied before Core (154.093166ms)
+  ✔ import: idempotent retry re-authorizes with Core and returns the original entry; frozen snapshot ignores later Core edits (769.666875ms)
+  ✔ import: another competition captures a fresh version (current Core name and roster) (147.456292ms)
+  ✔ import: deleted/inactive Core team denied by Core (retry included); over-limit rosters rejected, never truncated (6836.674084ms)
+  ✔ import: Core outage fails closed with no entry created (1139.69275ms)
+  ✔ binding: attestation is single-use, bound to identity, Core session, request hash and TTL (SQL boundary with real attestations) (1184.205125ms)
+  ✔ binding: snapshot attestation bound to the Core team; response/team mismatch rejected even with a matching hash (466.113584ms)
+  ✔ security: forged attestations impossible for client roles; adapter role is append-only and cannot run domain RPCs (832.524208ms)
+  ✔ security: Torneos bearer binding — wrong session, wrong core_user_id, expired, wrong issuer/audience, untrusted key all denied (245.524958ms)
+  ✔ security: Core service authentication — forged signature, skewed time, replayed nonce, wrong path, wrong method, oversized body (1158.501625ms)
+  ✔ security: no secrets in logs, published config or Torneos; service key confined to Core-side containers (497.664041ms)
+  ✔ security: no cross-database access — Core contract SQL touches no Torneos objects; Torneos has no Core tables, FDW or dblink (316.822084ms)
+  ✔ e2e: cross-season DENY for the admin on every Core-dependent RPC; cross-workspace DENY for the owner (181.433375ms)
+  ✔ e2e: season scope PASS — the assigned admin completes a Core-dependent import on its own season (165.00625ms)
+  ✔ FINDING P3A-F1: on a real Supabase database the certified baseline leaves anon/authenticated EXECUTE on its public functions (579.278875ms)
+  ✔ e2e: every consumed attestation belonged to the consuming identity; no live positive verdict is left behind (156.486708ms)
+✔ Phase 3A — real Core contracts → Torneos end-to-end (28946.013875ms)
+ℹ tests 40
+ℹ suites 0
+ℹ pass 40
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 29031.803834

@@ -1,0 +1,27 @@
+▶ pure contract module
+  ✔ route resolution tolerates the gateway prefix and rejects unknown paths (0.453042ms)
+  ✔ service secret must be at least 32 hex bytes (0.131958ms)
+  ✔ service authentication: window, format and signature (3.56225ms)
+  ✔ closed request schemas (0.493708ms)
+  ✔ cursors are bound, signed and short-lived (2.045291ms)
+✔ pure contract module (82.765625ms)
+▶ request pipeline with a fake SQL executor
+  ✔ verified email passes through the SQL verdict and binds the nonce (19.955292ms)
+  ✔ denials from SQL keep their status and body (1.669625ms)
+  ✔ directory: has_more becomes a signed cursor and the next page carries `after` (1.925416ms)
+  ✔ transport and schema rejections never reach SQL (0.938833ms)
+  ✔ SQL failure is a sanitized 503 and logs nothing about the request (0.402667ms)
+✔ request pipeline with a fake SQL executor (48.705041ms)
+▶ Deno wiring: env secret gates the handler and the service RPC is called exactly as the SQL expects
+  ✔ configured secret (22.25475ms)
+[TORNEOS_CORE_CONTRACT] release=0.1.0 service secret misconfigured
+  ✔ missing secret fails closed without touching the database (19.160125ms)
+✔ Deno wiring: env secret gates the handler and the service RPC is called exactly as the SQL expects (41.650875ms)
+ℹ tests 15
+ℹ suites 0
+ℹ pass 15
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 422.053417

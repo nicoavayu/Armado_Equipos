@@ -1,0 +1,13 @@
+{
+  "finding": "P3A-F1",
+  "severity": "blocker before any Production Torneos project",
+  "observed_on": "supabase/postgres:17.6.1.143 `postgres` database, baseline installed as supabase_admin",
+  "default_acl_public_functions": "{postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}",
+  "anon_execute_public_functions": "358/359",
+  "anon_execute_security_definer": "304/304",
+  "certified_expectation": "Phase 2B tools/test.py on template0: no anon EXECUTE on DEFINER functions",
+  "reachable_through_certified_gateway": false,
+  "reachable_through_direct_postgrest": true,
+  "baseline_changed": false,
+  "proposed_minimal_fix": "In the generator prologue add the schema-scoped form used for tables: ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC, anon, authenticated, service_role; (and the same FOR ROLE postgres when migrations run as postgres), then re-run the Phase 2B certification on a real Supabase database as well as on template0."
+}

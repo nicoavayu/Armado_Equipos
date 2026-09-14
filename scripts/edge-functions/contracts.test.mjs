@@ -20,6 +20,7 @@ const expectedFunctions = [
   'push-auto-match-now',
   'push-dispatch-now',
   'push-sender',
+  'torneos-core-contract',
   'tournament-checkout',
   'tournament-fake-payment',
   'tournament-media-processor',
@@ -54,7 +55,8 @@ const userFunctions = new Set([
   'tournament-team-photos',
 ]);
 
-const backendFunctions = new Set(['push-sender']);
+// Service-to-service (HMAC in the handler, verify_jwt = false).
+const backendFunctions = new Set(['push-sender', 'torneos-core-contract']);
 
 test('the complete Edge Function inventory is classified', () => {
   assert.deepEqual(functionNames, expectedFunctions);
