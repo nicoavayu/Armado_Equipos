@@ -1,0 +1,4900 @@
+{
+  "total": 305,
+  "maintained": 305,
+  "categories": {
+    "ADAPTER_ONLY": 1,
+    "CATALOG_READ": 1,
+    "CLIENT_PREDICATE": 16,
+    "CLIENT_RPC_DELEGATED": 2,
+    "CLIENT_RPC_GUARDED": 144,
+    "CORE_CONTRACT_BOUND": 4,
+    "IDENTITY_GATED_READ": 9,
+    "INTERNAL": 9,
+    "PUBLIC_READ": 3,
+    "SERVICE_ONLY": 106,
+    "TRIGGER": 10
+  },
+  "functions": [
+    {
+      "function": "private.authorize_core_contract(text,jsonb)",
+      "category": "ADAPTER_ONLY",
+      "phase2b_grantees": [
+        "adapter"
+      ],
+      "real_stack_grantees": [
+        "adapter"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "accept_tournament_team_invitation(text)",
+      "category": "CORE_CONTRACT_BOUND",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "acknowledge_tournament_document(uuid,boolean)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "activate_verified_fake_tournament_purchase(uuid,text,text)",
+      "category": "SERVICE_ONLY",
+      "phase2b_grantees": [
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "activate_verified_tournament_purchase(uuid,text,text,text,text,text,text)",
+      "category": "SERVICE_ONLY",
+      "phase2b_grantees": [
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "add_tournament_match_event(uuid,uuid,jsonb)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "add_tournament_roster_player(uuid,uuid,uuid,uuid,uuid,text,text,smallint,text,text,boolean)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "append_tournament_audit(uuid,text,text,uuid,uuid,uuid,jsonb)",
+      "category": "SERVICE_ONLY",
+      "phase2b_grantees": [
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "append_tournament_playoff_phase(uuid,uuid,uuid,uuid,integer,boolean,uuid)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "apply_fake_tournament_payment_status(uuid,text,text,text,text)",
+      "category": "SERVICE_ONLY",
+      "phase2b_grantees": [
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "apply_tournament_purchase_reversal(uuid,text,text)",
+      "category": "SERVICE_ONLY",
+      "phase2b_grantees": [
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "approve_tournament_team_entry(uuid,uuid,text)",
+      "category": "SERVICE_ONLY",
+      "phase2b_grantees": [
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "archive_tournament_announcement(uuid)",
+      "category": "SERVICE_ONLY",
+      "phase2b_grantees": [
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "archive_tournament_document(uuid)",
+      "category": "SERVICE_ONLY",
+      "phase2b_grantees": [
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "archive_tournament_fixture(uuid,uuid,text)",
+      "category": "SERVICE_ONLY",
+      "phase2b_grantees": [
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "archive_tournament_team_entry(uuid,uuid,text)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "assert_tournament_fixture_scope(uuid,uuid,uuid,text,text[])",
+      "category": "SERVICE_ONLY",
+      "phase2b_grantees": [
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "assign_first_free_plan_on_tournament_insert()",
+      "category": "TRIGGER",
+      "phase2b_grantees": [],
+      "real_stack_grantees": [],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "assign_tournament_media_photographer(uuid,uuid,boolean)",
+      "category": "SERVICE_ONLY",
+      "phase2b_grantees": [
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "assign_tournament_season_member(uuid,uuid,uuid)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "attest_tournament_media_service(text,text,jsonb,integer)",
+      "category": "SERVICE_ONLY",
+      "phase2b_grantees": [
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "authorize_tournament_media_read(uuid,uuid,text)",
+      "category": "SERVICE_ONLY",
+      "phase2b_grantees": [
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "authorize_tournament_media_upload_target(uuid,text,uuid)",
+      "category": "SERVICE_ONLY",
+      "phase2b_grantees": [
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "authorize_tournament_player_portrait_read(uuid,uuid,text,text)",
+      "category": "SERVICE_ONLY",
+      "phase2b_grantees": [
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "authorize_tournament_social_export(uuid,uuid,text,text,boolean)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "authorize_tournament_team_photo_read(uuid,uuid,text,text)",
+      "category": "SERVICE_ONLY",
+      "phase2b_grantees": [
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "auto_schedule_tournament_matches(uuid,uuid)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "begin_tournament_media_asset_delete(uuid,uuid)",
+      "category": "SERVICE_ONLY",
+      "phase2b_grantees": [
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "begin_tournament_player_portrait_delete(uuid,uuid)",
+      "category": "SERVICE_ONLY",
+      "phase2b_grantees": [
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "begin_tournament_team_photo_delete(uuid,uuid)",
+      "category": "SERVICE_ONLY",
+      "phase2b_grantees": [
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "bulk_schedule_tournament_matches(uuid,jsonb)",
+      "category": "SERVICE_ONLY",
+      "phase2b_grantees": [
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "can_access_tournament_communications(uuid)",
+      "category": "SERVICE_ONLY",
+      "phase2b_grantees": [
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "can_current_user_access_tournament_announcement(uuid)",
+      "category": "SERVICE_ONLY",
+      "phase2b_grantees": [
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "can_current_user_read_media_gallery(uuid)",
+      "category": "SERVICE_ONLY",
+      "phase2b_grantees": [
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "can_edit_tournament_team_entry(uuid,uuid)",
+      "category": "SERVICE_ONLY",
+      "phase2b_grantees": [
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "can_manage_tournament_match_squad(uuid,uuid,uuid)",
+      "category": "SERVICE_ONLY",
+      "phase2b_grantees": [
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "can_manage_tournament_player_portrait(uuid,uuid)",
+      "category": "CLIENT_PREDICATE",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "can_manage_tournament_player_portrait_as(uuid,uuid,uuid)",
+      "category": "SERVICE_ONLY",
+      "phase2b_grantees": [
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "can_manage_tournament_team_visual_assets_as(uuid,uuid,uuid,text)",
+      "category": "SERVICE_ONLY",
+      "phase2b_grantees": [
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "can_moderate_tournament_team_visual_assets_as(uuid,uuid,uuid,text)",
+      "category": "SERVICE_ONLY",
+      "phase2b_grantees": [
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "can_read_tournament_fixture_scope(uuid,uuid)",
+      "category": "CLIENT_PREDICATE",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "can_read_tournament_match(uuid)",
+      "category": "CLIENT_PREDICATE",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "can_read_tournament_match_operation(uuid,uuid)",
+      "category": "SERVICE_ONLY",
+      "phase2b_grantees": [
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "can_read_tournament_participant_hub(uuid,uuid)",
+      "category": "SERVICE_ONLY",
+      "phase2b_grantees": [
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "can_read_tournament_player_portrait(uuid,uuid)",
+      "category": "CLIENT_PREDICATE",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "can_read_tournament_player_portrait_as(uuid,uuid,uuid)",
+      "category": "SERVICE_ONLY",
+      "phase2b_grantees": [
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "can_read_tournament_projection_scope(uuid,uuid)",
+      "category": "CLIENT_PREDICATE",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "can_read_tournament_team_entry(uuid,uuid)",
+      "category": "CLIENT_PREDICATE",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "can_read_tournament_team_photo_as(uuid,uuid,uuid)",
+      "category": "SERVICE_ONLY",
+      "phase2b_grantees": [
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "can_update_tournament_team_branding(uuid,uuid)",
+      "category": "CLIENT_PREDICATE",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "can_write_tournament_branding_object(text)",
+      "category": "CLIENT_PREDICATE",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "cancel_tournament_match(uuid,uuid,text)",
+      "category": "SERVICE_ONLY",
+      "phase2b_grantees": [
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "cancel_tournament_media_upload_session(uuid)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "cancel_tournament_purchase(uuid)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "change_tournament_media_gallery_state(uuid,text,text)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "change_tournament_status(uuid,uuid,text)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "cleanup_tournament_media_processing_jobs(integer)",
+      "category": "SERVICE_ONLY",
+      "phase2b_grantees": [
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "cleanup_tournament_media_upload_sessions(integer)",
+      "category": "SERVICE_ONLY",
+      "phase2b_grantees": [
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "clear_tournament_entitlement_override(uuid,uuid,text)",
+      "category": "SERVICE_ONLY",
+      "phase2b_grantees": [
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "complete_tournament_media_asset_delete(uuid,uuid)",
+      "category": "SERVICE_ONLY",
+      "phase2b_grantees": [
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "complete_tournament_media_processing_job(uuid,text,uuid)",
+      "category": "SERVICE_ONLY",
+      "phase2b_grantees": [
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "complete_tournament_media_simple_upload(uuid,uuid,text,text,bigint,integer,integer,text,boolean)",
+      "category": "SERVICE_ONLY",
+      "phase2b_grantees": [
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "complete_tournament_media_upload(uuid,text,text,bigint,integer,integer,text)",
+      "category": "SERVICE_ONLY",
+      "phase2b_grantees": [
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "complete_tournament_media_upload_for_actor(uuid,uuid,text,text,bigint,integer,integer,text)",
+      "category": "SERVICE_ONLY",
+      "phase2b_grantees": [
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "complete_tournament_media_upload_for_job(uuid,text,text,bigint,integer,integer,text)",
+      "category": "SERVICE_ONLY",
+      "phase2b_grantees": [
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "complete_tournament_player_portrait_delete(uuid,uuid)",
+      "category": "SERVICE_ONLY",
+      "phase2b_grantees": [
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "complete_tournament_team_photo_delete(uuid,uuid)",
+      "category": "SERVICE_ONLY",
+      "phase2b_grantees": [
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "create_fake_tournament_purchase(uuid,uuid,text,uuid,text)",
+      "category": "SERVICE_ONLY",
+      "phase2b_grantees": [
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "create_fake_tournament_season_purchase(uuid,uuid,text,uuid,text)",
+      "category": "CLIENT_RPC_DELEGATED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "create_manual_fixture_version(uuid,uuid,uuid,uuid,uuid)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "create_tournament_announcement_draft(uuid,uuid,uuid,text,text,text,text,text,text,timestamp with time zone,uuid,text,uuid)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "create_tournament_court(uuid,uuid,text,text,text)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "create_tournament_disciplinary_override(uuid,text,integer,text,uuid)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "create_tournament_document(uuid,uuid,uuid,text,text,text,text,text,timestamp with time zone,uuid)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "create_tournament_document_version(uuid,text,text,timestamp with time zone,text)",
+      "category": "SERVICE_ONLY",
+      "phase2b_grantees": [
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "create_tournament_match_correction(uuid,uuid)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "create_tournament_media_gallery(uuid,uuid,uuid,uuid,uuid,text,text,text,uuid)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "create_tournament_organization(text,text,uuid)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "create_tournament_points_adjustment(uuid,uuid,uuid,uuid,uuid,integer,text,uuid)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "create_tournament_provisional_player(uuid,uuid,text)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "create_tournament_season(uuid,text,text,date,date,uuid)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "create_tournament_season_purchase(uuid,uuid,text,uuid,text,text)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "create_tournament_team_entry(uuid,uuid,uuid,uuid,text,text,text,text,text,uuid,text,text,uuid)",
+      "category": "CORE_CONTRACT_BOUND",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "create_tournament_venue(uuid,text,text,text,double precision,double precision,text,text,text)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "create_tournament_with_defaults(uuid,uuid,text,text,text,text,text,text,date,date,uuid)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "current_user_has_media_team_relation(uuid)",
+      "category": "SERVICE_ONLY",
+      "phase2b_grantees": [
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "current_user_tournament_social_capabilities(uuid)",
+      "category": "SERVICE_ONLY",
+      "phase2b_grantees": [
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "enforce_tournament_media_gallery_limit()",
+      "category": "TRIGGER",
+      "phase2b_grantees": [],
+      "real_stack_grantees": [],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "enforce_tournament_media_matchday_limit()",
+      "category": "TRIGGER",
+      "phase2b_grantees": [],
+      "real_stack_grantees": [],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "enforce_tournament_premium_gate()",
+      "category": "TRIGGER",
+      "phase2b_grantees": [],
+      "real_stack_grantees": [],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "enforce_tournament_season_purchase_scope()",
+      "category": "TRIGGER",
+      "phase2b_grantees": [],
+      "real_stack_grantees": [],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "enforce_tournament_season_root_write_scope()",
+      "category": "TRIGGER",
+      "phase2b_grantees": [],
+      "real_stack_grantees": [],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "enforce_tournament_status_premium_gate()",
+      "category": "TRIGGER",
+      "phase2b_grantees": [],
+      "real_stack_grantees": [],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "enqueue_tournament_media_processing_job(uuid,text,uuid)",
+      "category": "SERVICE_ONLY",
+      "phase2b_grantees": [
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "execute_tournament_group_draw(uuid,uuid,uuid,integer,text,boolean)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "fail_tournament_media_processing_job(uuid,text,text)",
+      "category": "SERVICE_ONLY",
+      "phase2b_grantees": [
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "fail_tournament_media_upload_session(uuid,text)",
+      "category": "SERVICE_ONLY",
+      "phase2b_grantees": [
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "fail_tournament_player_portrait_upload(uuid,uuid)",
+      "category": "SERVICE_ONLY",
+      "phase2b_grantees": [
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "fail_tournament_team_photo_upload(uuid,uuid)",
+      "category": "SERVICE_ONLY",
+      "phase2b_grantees": [
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "finalize_tournament_media_variants(uuid,jsonb)",
+      "category": "SERVICE_ONLY",
+      "phase2b_grantees": [
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "finalize_tournament_player_portrait_upload(uuid,uuid)",
+      "category": "SERVICE_ONLY",
+      "phase2b_grantees": [
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "finalize_tournament_team_photo_upload(uuid,uuid,text)",
+      "category": "SERVICE_ONLY",
+      "phase2b_grantees": [
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "finish_tournament_competition(uuid,uuid)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "freeze_tournament_participants(uuid,uuid,uuid,uuid)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "generate_tournament_fixture(uuid,uuid,uuid,text,jsonb,uuid)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "get_effective_tournament_entitlements(uuid,uuid)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "get_effective_tournament_season_entitlements(uuid,uuid)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "get_managed_tournament_matches()",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "get_match_squad_context(uuid,uuid,uuid)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "get_my_current_tournament_roster_players()",
+      "category": "SERVICE_ONLY",
+      "phase2b_grantees": [
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "get_my_managed_match_squad_context(uuid)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "get_my_tournament_memberships(integer,integer)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "get_my_tournament_notification_preferences(uuid)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "get_player_tournament_matches()",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "get_player_tournament_statistics(uuid)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "get_player_tournament_suspensions(uuid)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "get_public_tournament_branding(text)",
+      "category": "PUBLIC_READ",
+      "phase2b_grantees": [
+        "anon",
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "anon",
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "get_public_tournament_commercial_catalog(integer)",
+      "category": "PUBLIC_READ",
+      "phase2b_grantees": [
+        "anon",
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "anon",
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "get_public_tournament_page(text,text)",
+      "category": "PUBLIC_READ",
+      "phase2b_grantees": [
+        "anon",
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "anon",
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "get_published_tournament_documents(uuid,uuid)",
+      "category": "IDENTITY_GATED_READ",
+      "phase2b_grantees": [
+        "anon",
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "anon",
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "get_published_tournament_matches(uuid,uuid,text,uuid,integer,integer)",
+      "category": "IDENTITY_GATED_READ",
+      "phase2b_grantees": [
+        "anon",
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "anon",
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "get_published_tournament_media(uuid,uuid,uuid,integer,integer)",
+      "category": "IDENTITY_GATED_READ",
+      "phase2b_grantees": [
+        "anon",
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "anon",
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "get_published_tournament_standings(uuid,uuid,uuid,uuid)",
+      "category": "IDENTITY_GATED_READ",
+      "phase2b_grantees": [
+        "anon",
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "anon",
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "get_published_tournament_statistics(uuid,uuid,uuid,uuid)",
+      "category": "IDENTITY_GATED_READ",
+      "phase2b_grantees": [
+        "anon",
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "anon",
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "get_published_tournament_teams(uuid,uuid,integer,integer)",
+      "category": "IDENTITY_GATED_READ",
+      "phase2b_grantees": [
+        "anon",
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "anon",
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "get_team_registration_context(uuid,uuid)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "get_tournament_announcement(uuid)",
+      "category": "IDENTITY_GATED_READ",
+      "phase2b_grantees": [
+        "anon",
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "anon",
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "get_tournament_branding_context(uuid,uuid)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "get_tournament_communications_admin_context(uuid,uuid)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "get_tournament_communications_inbox(uuid,text,integer,integer)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "get_tournament_competition_context(uuid)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "get_tournament_competition_context_organization_legacy(uuid)",
+      "category": "SERVICE_ONLY",
+      "phase2b_grantees": [
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "get_tournament_creation_eligibility(uuid)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "get_tournament_fixture_context(uuid,uuid,uuid)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "get_tournament_match_operation_context(uuid,uuid)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "get_tournament_match_operations_context(uuid,uuid,uuid)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "get_tournament_media_admin_context(uuid,uuid,text,integer,integer)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "get_tournament_media_asset_processing_tiers(uuid)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated"
+      ],
+      "real_stack_grantees": [
+        "authenticated"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "get_tournament_media_upload_capability(uuid)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated"
+      ],
+      "real_stack_grantees": [
+        "authenticated"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "get_tournament_participant_hub(uuid,uuid)",
+      "category": "IDENTITY_GATED_READ",
+      "phase2b_grantees": [
+        "anon",
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "anon",
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "get_tournament_participant_match(uuid)",
+      "category": "IDENTITY_GATED_READ",
+      "phase2b_grantees": [
+        "anon",
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "anon",
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "get_tournament_player_portrait_ref(uuid,uuid,text)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "get_tournament_public_page_settings(uuid,uuid)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "get_tournament_purchase(uuid)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "get_tournament_schedule_context(uuid,uuid,uuid)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "get_tournament_season_media_usage(uuid,uuid)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "get_tournament_social_snapshot(uuid,uuid,uuid,uuid,text,uuid,uuid)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "get_tournament_social_snapshot_plan_legacy(uuid,uuid,uuid,uuid,text,uuid,uuid)",
+      "category": "SERVICE_ONLY",
+      "phase2b_grantees": [
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "get_tournament_social_studio_context(uuid)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "get_tournament_social_studio_context_organization_legacy(uuid)",
+      "category": "SERVICE_ONLY",
+      "phase2b_grantees": [
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "get_tournament_standings_context(uuid,uuid,uuid,uuid,uuid)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "get_tournament_statistics_context(uuid,uuid,uuid,uuid,uuid)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "get_tournament_team_photo_state(uuid,uuid)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "get_tournament_team_visual_policy(uuid,uuid)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "get_tournament_teams_context(uuid,uuid)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "get_tournament_workspace_context()",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "grant_tournament_premium(uuid,uuid,text,text)",
+      "category": "INTERNAL",
+      "phase2b_grantees": [],
+      "real_stack_grantees": [],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "grant_tournament_season_premium(uuid,uuid,uuid,text)",
+      "category": "SERVICE_ONLY",
+      "phase2b_grantees": [
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "handle_tournament_media_report(uuid,text,text)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "has_organization_consumed_free_tournament(uuid)",
+      "category": "CLIENT_PREDICATE",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "has_tournament_capability(uuid,uuid,text)",
+      "category": "CLIENT_PREDICATE",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "has_tournament_communications_capability(uuid,text)",
+      "category": "SERVICE_ONLY",
+      "phase2b_grantees": [
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "has_tournament_entitlement(uuid,uuid,text)",
+      "category": "CLIENT_RPC_DELEGATED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "has_tournament_media_assignment(uuid,text)",
+      "category": "SERVICE_ONLY",
+      "phase2b_grantees": [
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "has_tournament_media_capability(uuid,text)",
+      "category": "SERVICE_ONLY",
+      "phase2b_grantees": [
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "has_tournament_organization_capability(uuid,text)",
+      "category": "CLIENT_PREDICATE",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "has_tournament_season_access(uuid,uuid)",
+      "category": "CLIENT_PREDICATE",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "has_tournament_season_capability(uuid,uuid,text)",
+      "category": "CLIENT_PREDICATE",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "has_tournament_social_capability(uuid,text)",
+      "category": "SERVICE_ONLY",
+      "phase2b_grantees": [
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "invite_tournament_team_manager(uuid,uuid,text,text,text)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "is_tournament_organization_member(uuid)",
+      "category": "CLIENT_PREDICATE",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "is_tournament_organization_slug_available(text)",
+      "category": "CLIENT_PREDICATE",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "is_tournament_plan_grant_effective(uuid)",
+      "category": "SERVICE_ONLY",
+      "phase2b_grantees": [
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "is_tournament_season_plan_grant_effective(uuid)",
+      "category": "SERVICE_ONLY",
+      "phase2b_grantees": [
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "is_tournament_team_manager(uuid,boolean)",
+      "category": "CLIENT_PREDICATE",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "is_tournament_team_roster_member_as(uuid,uuid)",
+      "category": "SERVICE_ONLY",
+      "phase2b_grantees": [
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "lease_tournament_media_processing_jobs(text,integer,integer)",
+      "category": "SERVICE_ONLY",
+      "phase2b_grantees": [
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "list_tournament_media_retention_candidates(uuid,uuid,timestamp with time zone)",
+      "category": "SERVICE_ONLY",
+      "phase2b_grantees": [
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "list_tournament_player_portrait_refs(uuid,uuid)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "list_tournament_season_member_assignments(uuid,uuid)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "lock_tournament_roster(uuid,uuid,uuid)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "make_tournament_match_official(uuid,uuid)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "manage_tournament_media_consent(uuid,uuid,uuid,text,text,text)",
+      "category": "SERVICE_ONLY",
+      "phase2b_grantees": [
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "mark_tournament_announcement_read(uuid,boolean)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "mark_tournament_suspension_served(uuid,uuid,text)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "open_tournament_match_operation(uuid,uuid,text)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "postpone_tournament_match(uuid,uuid,text)",
+      "category": "SERVICE_ONLY",
+      "phase2b_grantees": [
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "preview_tournament_announcement_audience(uuid)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "protect_active_tournament_fixture_draft()",
+      "category": "TRIGGER",
+      "phase2b_grantees": [],
+      "real_stack_grantees": [],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "protect_tournament_completed_competition()",
+      "category": "TRIGGER",
+      "phase2b_grantees": [
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "publish_tournament_announcement(uuid,integer)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "publish_tournament_document_version(uuid)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "publish_tournament_fixture(uuid,uuid)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "publish_tournament_media_gallery(uuid)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "publish_tournament_standings_revision(uuid,text)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "ready_tournament_match(uuid,uuid)",
+      "category": "SERVICE_ONLY",
+      "phase2b_grantees": [
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "rebuild_tournament_discipline(uuid,uuid,uuid,uuid,uuid,text,uuid)",
+      "category": "SERVICE_ONLY",
+      "phase2b_grantees": [
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "rebuild_tournament_standings(uuid,uuid,uuid,uuid,uuid,text,uuid)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "record_manual_match_availability(uuid,uuid,uuid,text,text,text)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "record_tournament_purchase_preference(uuid,text,text,text,timestamp with time zone)",
+      "category": "SERVICE_ONLY",
+      "phase2b_grantees": [
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "reject_tournament_team_entry(uuid,uuid,text)",
+      "category": "SERVICE_ONLY",
+      "phase2b_grantees": [
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "remove_tournament_roster_player(uuid,uuid,uuid)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "remove_tournament_season_member_assignment(uuid,uuid,uuid)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "reopen_tournament_competition(uuid,uuid,text)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "reopen_tournament_participants(uuid,uuid,uuid,text)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "reorder_tournament_media_item(uuid,uuid,integer)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "replace_tournament_announcement_audience(uuid,text,uuid,uuid,uuid,uuid)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "report_tournament_media_asset(uuid,text,text,boolean,uuid)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "request_tournament_match_correction(uuid,uuid,text)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "request_tournament_media_upload_session(uuid,text,text,bigint,uuid)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "request_tournament_player_portrait_upload(uuid,uuid,uuid,text,bigint,integer,integer)",
+      "category": "SERVICE_ONLY",
+      "phase2b_grantees": [
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "request_tournament_team_photo_upload(uuid,uuid,uuid,text,bigint,integer,integer)",
+      "category": "SERVICE_ONLY",
+      "phase2b_grantees": [
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "reschedule_tournament_match(uuid,uuid,timestamp with time zone,uuid,uuid,integer,text,boolean)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "resolve_effective_tournament_entitlements_at(uuid,uuid,timestamp with time zone,boolean)",
+      "category": "SERVICE_ONLY",
+      "phase2b_grantees": [
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "resolve_effective_tournament_season_entitlements_at(uuid,uuid,timestamp with time zone,boolean,uuid)",
+      "category": "SERVICE_ONLY",
+      "phase2b_grantees": [
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "resolve_tournament_announcement_recipients(uuid)",
+      "category": "SERVICE_ONLY",
+      "phase2b_grantees": [
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "resolve_tournament_qualification(uuid,text)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "respond_match_availability(uuid,text,text)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "restore_tournament_match_unscheduled(uuid,uuid,text)",
+      "category": "SERVICE_ONLY",
+      "phase2b_grantees": [
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "review_tournament_match_operation(uuid,uuid,text,text)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "review_tournament_team_entry(uuid,uuid,text,text,jsonb)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "revoke_tournament_announcement(uuid,text)",
+      "category": "SERVICE_ONLY",
+      "phase2b_grantees": [
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "revoke_tournament_media_service_attestation(text)",
+      "category": "SERVICE_ONLY",
+      "phase2b_grantees": [
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "revoke_tournament_player_portrait_publication(uuid,uuid)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "revoke_tournament_points_adjustment(uuid,text)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "revoke_tournament_team_invitation(uuid,uuid)",
+      "category": "SERVICE_ONLY",
+      "phase2b_grantees": [
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "revoke_tournament_team_photo(uuid,uuid)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "save_match_squad(uuid,uuid,uuid,jsonb)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "save_tournament_category(uuid,uuid,uuid,text,text,text,integer,smallint,smallint,text,text,smallint,text)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "save_tournament_draw_pots(uuid,uuid,uuid,jsonb)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "save_tournament_match_operation_draft(uuid,uuid,text,text)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "save_tournament_schedule_windows(uuid,uuid,jsonb)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "schedule_tournament_match(uuid,uuid,timestamp with time zone,uuid,uuid,integer,boolean,text)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "schedule_tournament_match_resumption(uuid,uuid,timestamp with time zone,uuid,uuid,text)",
+      "category": "SERVICE_ONLY",
+      "phase2b_grantees": [
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "search_tournament_arma2_teams(uuid,uuid,text,integer)",
+      "category": "CORE_CONTRACT_BOUND",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "search_tournament_players(uuid,uuid,text,integer,uuid)",
+      "category": "CORE_CONTRACT_BOUND",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "set_active_tournament_context(uuid,uuid,uuid)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "set_my_tournament_hub_category(uuid,uuid)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "set_tournament_announcement_audience(uuid,text,uuid,uuid,uuid,uuid)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "set_tournament_announcement_link(uuid,text,uuid,text,text,integer)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "set_tournament_branding_reference(uuid,text,uuid,text)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "set_tournament_entitlement_override(uuid,uuid,text,boolean,timestamp with time zone,text)",
+      "category": "SERVICE_ONLY",
+      "phase2b_grantees": [
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "set_tournament_match_outcome(uuid,uuid,jsonb)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "set_tournament_match_score(uuid,uuid,jsonb)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "set_tournament_media_cover(uuid,uuid)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "set_tournament_organization_subscription(uuid,text,timestamp with time zone,timestamp with time zone,timestamp with time zone,timestamp with time zone,integer)",
+      "category": "INTERNAL",
+      "phase2b_grantees": [],
+      "real_stack_grantees": [],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "set_tournament_player_portrait_crop(uuid,uuid,numeric,numeric,numeric)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "set_tournament_player_portrait_editorial_status(uuid,uuid,text)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "set_tournament_public_page_published(uuid,uuid,boolean)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "set_tournament_social_permission(uuid,uuid,boolean)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "set_tournament_team_photo_editorial_status(uuid,uuid,text,text)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "set_tournament_team_visual_policy(uuid,uuid,text)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "set_tournament_workspace_preference(text,uuid)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "start_tournament_competition(uuid,uuid)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "submit_match_squad(uuid,uuid,uuid)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "submit_tournament_match_operation(uuid,uuid)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "submit_tournament_team_entry(uuid,uuid)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "supersede_tournament_fixture(uuid,uuid,uuid)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "tag_tournament_media_asset(uuid,text,uuid,uuid,uuid)",
+      "category": "SERVICE_ONLY",
+      "phase2b_grantees": [
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "tournament_competition_open_commitments(uuid,uuid)",
+      "category": "SERVICE_ONLY",
+      "phase2b_grantees": [
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "tournament_match_team_entries(uuid)",
+      "category": "SERVICE_ONLY",
+      "phase2b_grantees": [
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "tournament_media_asset_has_internal_consent(uuid)",
+      "category": "SERVICE_ONLY",
+      "phase2b_grantees": [
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "tournament_media_asset_publication_ready(uuid)",
+      "category": "INTERNAL",
+      "phase2b_grantees": [],
+      "real_stack_grantees": [],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "tournament_media_backend_fingerprint()",
+      "category": "SERVICE_ONLY",
+      "phase2b_grantees": [
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "tournament_media_current_pipeline_mode()",
+      "category": "SERVICE_ONLY",
+      "phase2b_grantees": [
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "tournament_media_effective_readiness()",
+      "category": "SERVICE_ONLY",
+      "phase2b_grantees": [
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "tournament_media_gallery_sports_round(uuid)",
+      "category": "INTERNAL",
+      "phase2b_grantees": [],
+      "real_stack_grantees": [],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "tournament_media_known_object_names(uuid)",
+      "category": "SERVICE_ONLY",
+      "phase2b_grantees": [
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "tournament_media_mvp_user_can_upload(uuid,uuid)",
+      "category": "INTERNAL",
+      "phase2b_grantees": [],
+      "real_stack_grantees": [],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "tournament_media_pipeline_readiness()",
+      "category": "SERVICE_ONLY",
+      "phase2b_grantees": [
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "tournament_media_require_pipeline_ready()",
+      "category": "INTERNAL",
+      "phase2b_grantees": [],
+      "real_stack_grantees": [],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "tournament_media_require_upload_tier(text)",
+      "category": "INTERNAL",
+      "phase2b_grantees": [],
+      "real_stack_grantees": [],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "tournament_media_storage_contract_status()",
+      "category": "SERVICE_ONLY",
+      "phase2b_grantees": [
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "tournament_media_user_can_upload(uuid,uuid)",
+      "category": "SERVICE_ONLY",
+      "phase2b_grantees": [
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "tournament_purchase_projection(tournament_purchases)",
+      "category": "SERVICE_ONLY",
+      "phase2b_grantees": [
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "tournament_registration_checklist(uuid,uuid)",
+      "category": "SERVICE_ONLY",
+      "phase2b_grantees": [
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "tournament_requires_premium(uuid,uuid)",
+      "category": "SERVICE_ONLY",
+      "phase2b_grantees": [
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "tournament_role_capabilities(text)",
+      "category": "CATALOG_READ",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "tournament_season_member_assignment_limit()",
+      "category": "TRIGGER",
+      "phase2b_grantees": [],
+      "real_stack_grantees": [],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "tournament_social_match_rows(uuid,uuid,uuid,boolean)",
+      "category": "SERVICE_ONLY",
+      "phase2b_grantees": [
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "tournament_social_next_fixture(uuid,uuid,uuid)",
+      "category": "INTERNAL",
+      "phase2b_grantees": [],
+      "real_stack_grantees": [],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "tournament_social_player_candidates(uuid,jsonb)",
+      "category": "INTERNAL",
+      "phase2b_grantees": [],
+      "real_stack_grantees": [],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "tournament_social_published_scope(uuid,uuid,uuid,uuid)",
+      "category": "SERVICE_ONLY",
+      "phase2b_grantees": [
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "transition_tournament_media_asset(uuid,text,text)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "update_draft_fixture(uuid,uuid,text,jsonb)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "update_my_tournament_notification_preferences(uuid,boolean,boolean,boolean,boolean,boolean,boolean)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "update_tournament_announcement_draft(uuid,text,text,text,text,text,timestamp with time zone)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "update_tournament_configuration(uuid,uuid,jsonb)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "update_tournament_court(uuid,uuid,jsonb)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "update_tournament_document_draft(uuid,text,text,timestamp with time zone)",
+      "category": "SERVICE_ONLY",
+      "phase2b_grantees": [
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "update_tournament_media_gallery(uuid,text,text,text,boolean)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "update_tournament_organization(uuid,text,text,text)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "update_tournament_roster_player(uuid,uuid,uuid,smallint,text,text,boolean)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "update_tournament_season(uuid,uuid,text,text,date,date,text,boolean,boolean)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "update_tournament_team_entry(uuid,uuid,jsonb)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "update_tournament_venue(uuid,uuid,jsonb)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "validate_tournament_fixture(uuid,uuid)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "validate_tournament_match_operation(uuid,uuid)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "validate_tournament_match_operation_payload(uuid)",
+      "category": "SERVICE_ONLY",
+      "phase2b_grantees": [
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "validate_tournament_match_schedule(uuid,uuid,timestamp with time zone,uuid,uuid,integer)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "validate_tournament_roster(uuid,uuid,uuid)",
+      "category": "SERVICE_ONLY",
+      "phase2b_grantees": [
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "void_tournament_match_event(uuid,uuid,text)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "void_tournament_match_operation(uuid,uuid,text)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "withdraw_tournament_competition_participant(uuid,uuid,uuid,text,text)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    },
+    {
+      "function": "withdraw_tournament_team_entry(uuid,uuid,text)",
+      "category": "CLIENT_RPC_GUARDED",
+      "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "real_stack_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "owner": "supabase_admin",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "disposition_maintained": true
+    }
+  ]
+}

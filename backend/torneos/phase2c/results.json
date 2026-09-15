@@ -1,0 +1,141 @@
+{
+  "conclusion": "A) REAL SUPABASE BASELINE HARDENED + RECERTIFIED",
+  "failed_conditions": [],
+  "conditions": {
+    "baseline_is_phase2c_hardened": true,
+    "certified_on_real_supabase_image": true,
+    "anon_execute_only_explicit_public": true,
+    "authenticated_execute_only_explicit": true,
+    "no_public_execute_no_anon_sequences": true,
+    "future_objects_denied_by_default": true,
+    "fix_only_removes_privilege": true,
+    "real_equals_template0": true,
+    "acl_suite_pass": true,
+    "security_definer_305_recertified": true,
+    "service_only_and_internal_unreachable": true,
+    "phase3a_e2e_no_regression": true,
+    "phase2b_recert_pass": true,
+    "season_leaks_closed": true,
+    "p3a_f1_closed": true,
+    "no_core_fk_or_secrets": true
+  },
+  "objective": "Correct only the baseline ACL/grant model to be safe on a real Supabase install; no business-behaviour change.",
+  "branch": "claude/supabase-acl-hardening-c23094",
+  "base_commit": "317c2b19 (Phase 3A HEAD)",
+  "baseline_sha256": {
+    "phase2b": "7ec33549c8ce398c1e8330794aa19fda80321c597ff61ed3134382513639cffb",
+    "phase2c": "97634b658c91b620c60bdceb53c9638a601fa7aba01ae3a999e6857e37d08692"
+  },
+  "cause": "Schema-scoped default ACLs of the Supabase image (installing role, schema public: functions/sequences/tables -> anon, authenticated, service_role) are added on top of global default ACLs; the certified prologue revoked function defaults globally and table defaults per schema only, so functions and sequences kept the image grants and the per-object REVOKE ... FROM PUBLIC could not remove an explicit anon grant.",
+  "minimal_fix": "backend/torneos/tools/build.py prologue: ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE ALL ON SEQUENCES FROM PUBLIC,anon,authenticated,service_role; ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC,anon,authenticated,service_role;",
+  "effective_execute_by_role_on_real_image": {
+    "before(phase2b_candidate)": {
+      "anon": {
+        "public_functions": 358,
+        "private_functions": 2,
+        "security_definer": 304
+      },
+      "authenticated": {
+        "public_functions": 358,
+        "private_functions": 2,
+        "security_definer": 304
+      },
+      "service_role": {
+        "public_functions": 358,
+        "private_functions": 2,
+        "security_definer": 304
+      },
+      "postgres": {
+        "public_functions": 359,
+        "private_functions": 2,
+        "security_definer": 304
+      }
+    },
+    "after(phase2c_candidate)": {
+      "anon": {
+        "public_functions": 12,
+        "private_functions": 2,
+        "security_definer": 12
+      },
+      "authenticated": {
+        "public_functions": 180,
+        "private_functions": 2,
+        "security_definer": 179
+      },
+      "service_role": {
+        "public_functions": 328,
+        "private_functions": 2,
+        "security_definer": 284
+      },
+      "postgres": {
+        "public_functions": 359,
+        "private_functions": 2,
+        "security_definer": 304
+      }
+    }
+  },
+  "sequence_privilege_on_real_image": {
+    "before": {
+      "anon": 7,
+      "authenticated": 7,
+      "service_role": 7,
+      "postgres": 7
+    },
+    "after": {
+      "anon": 0,
+      "authenticated": 4,
+      "service_role": 4,
+      "postgres": 7
+    }
+  },
+  "real_vs_template0": {
+    "objects_compared": 479,
+    "api_privilege_mismatches": 0
+  },
+  "security_definer_recertified": {
+    "total": 305,
+    "maintained": 305,
+    "categories": {
+      "ADAPTER_ONLY": 1,
+      "CATALOG_READ": 1,
+      "CLIENT_PREDICATE": 16,
+      "CLIENT_RPC_DELEGATED": 2,
+      "CLIENT_RPC_GUARDED": 144,
+      "CORE_CONTRACT_BOUND": 4,
+      "IDENTITY_GATED_READ": 9,
+      "INTERNAL": 9,
+      "PUBLIC_READ": 3,
+      "SERVICE_ONLY": 106,
+      "TRIGGER": 10
+    }
+  },
+  "acl_suite": {
+    "pass": 16,
+    "fail": 0
+  },
+  "phase3a_e2e_rerun": {
+    "pass": 40,
+    "fail": 0,
+    "findings": 0,
+    "total": 40
+  },
+  "phase2b_recert": "A) CLEAN TORNEOS BASELINE PASS",
+  "p3a_r1_disposition": {
+    "classification": "A) intentional and safe, with a test",
+    "summary": "create_tournament_team_entry answers the idempotent replay before consuming the fresh team_snapshot attestation, so a positive verdict stays unconsumed for <= 10 s. It is bound to identity, Core session, contract and the exact org/tournament/category/team hash, and any RPC call with those inputs hits the replay/already-registered path first; a duplicate is rejected (409) with nothing consumed and nothing created, and it expires within the certified 10 s TTL. No fix required before staging.",
+    "test": "integration/torneos-core-contracts/test.mjs :: 'P3A-R1 disposition (A)'"
+  },
+  "inconclusive_33": {
+    "count": 33,
+    "status": "RESIDUAL RISK — not proven; kept as a ledger",
+    "by_area": {
+      "commercial/entitlements": 4,
+      "media/assets pipeline": 8,
+      "other": 9,
+      "advanced competition states": 12
+    },
+    "staging_rule": "Do not block staging unless a feature we enable makes one reachable; every one keeps the build-time season rule and the admin was denied on the unassigned season. Needs specific fixtures before the reaching feature is enabled.",
+    "phase2c_reachable": false
+  },
+  "scope": "Non-production only. No staging, no Production, no Phase 3B, no Mercado Pago, no SSO change, no Core-contract change."
+}

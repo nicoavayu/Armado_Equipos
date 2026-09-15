@@ -78,6 +78,14 @@ function coreCall(path, payload, { time, nonce, secret, method = 'POST' } = {}) 
   responses.push(parsed.body);
   return { status: parsed.status, body: parsed.body ? JSON.parse(parsed.body) : null, nonce: n, time: t };
 }
+function directTorneosRpc(token, name, body) {
+  // Attacker position INSIDE the private network: the RPC without the gateway/adapter in front.
+  const out = inGateway(`const r = await fetch(${JSON.stringify(`http://torneos-rest:3000/rpc/${name}`)}, { method: 'POST', headers: { 'content-type': 'application/json', ...(${JSON.stringify(token)} ? { authorization: 'Bearer ' + ${JSON.stringify(token)} } : {}) }, body: ${JSON.stringify(JSON.stringify(body))} });
+    console.log(JSON.stringify({ status: r.status, body: await r.text() }));`);
+  const parsed = JSON.parse(out.trim().split('\n').pop());
+  let b = null; try { b = parsed.body ? JSON.parse(parsed.body) : null; } catch { b = parsed.body; }
+  return { status: parsed.status, body: b };
+}
 function directTorneosRest(token, path) {
   // Attacker position INSIDE the private network, bypassing the gateway.
   const out = inGateway(`const r = await fetch(${JSON.stringify(`http://torneos-rest:3000${path}`)}, { headers: { authorization: 'Bearer ' + ${JSON.stringify(token)} } });
@@ -219,9 +227,9 @@ test('Phase 3A — real Core contracts → Torneos end-to-end', async (t) => {
       assert.match(compose, /internal: true/);
       assert.equal((compose.match(/egress\]/g) ?? []).length, 1, 'only core-functions has outbound access (module resolution)');
     });
-    await check('lab: Core is the real schema at HEAD plus the Phase 3A migration; Torneos is the unchanged certified baseline', async () => {
+    await check('lab: Core is the real schema at HEAD plus the Phase 3A migration; Torneos is the Phase 2C ACL-hardened certified baseline', async () => {
       const install = JSON.parse(await readFile('.runtime/install.json', 'utf8'));
-      assert.equal(install.torneos.sha256, '7ec33549c8ce398c1e8330794aa19fda80321c597ff61ed3134382513639cffb');
+      assert.equal(install.torneos.sha256, '97634b658c91b620c60bdceb53c9638a601fa7aba01ae3a999e6857e37d08692');
       assert.equal(install.torneos.sha256, install.torneos.certified_sha256);
       assert.equal(coreSql("select count(*) from pg_tables where schemaname='public'").trim(), '153', 'all 42 Core migrations applied');
       assert.equal(coreSql("select count(*) from pg_proc where proname like 'torneos_contract_%'").trim(), '5');
@@ -517,6 +525,29 @@ test('Phase 3A — real Core contracts → Torneos end-to-end', async (t) => {
       assert.equal(dup.status, 409);
       assert.equal(dup.body.message ?? dup.body.error, 'TORNEOS_TEAM_ALREADY_REGISTERED');
     });
+    await check('P3A-R1 disposition (A): the retry attestation left unconsumed confers nothing beyond the same actor, Core session and exact target; duplicates are blocked and it expires', async () => {
+      // The historical RPC answers an idempotent replay before consume_core_attestation, so the
+      // positive team_snapshot attestation of a retry stays alive ≤ 10 s. Attacker position: the
+      // RPC reached directly (no adapter, no fresh attestation) by every party that could try.
+      const live = () => torneosSql(`select count(*) from private.core_contract_attestations where contract='team_snapshot' and identity_id=${lit(owner.identity)} and consumed_at is null and expires_at > now()`).trim();
+      assert.ok(Number(live()) >= 1, 'a positive attestation for the exact target is alive');
+      const params = (categoryId) => ({ p_organization_id: org, p_tournament_id: alpha, p_category_id: categoryId, p_arma2_team_id: teamA, p_name: null, p_short_name: null, p_primary_color: null, p_secondary_color: null, p_registration_source: 'arma2_team', p_manager_user_id: null, p_manager_email: null, p_manager_display_name: null, p_idempotency_key: randomUUID() });
+      const otherCategory = torneosSql(`insert into public.tournament_categories(organization_id,tournament_id,name,slug) values (${lit(org)},${lit(alpha)},'Phase 2C','phase-2c-${RUN}') returning id`).trim();
+      const denied = (r, who) => { assert.equal(r.status, 403, `${who}: ${JSON.stringify(r.body)}`); assert.equal(r.body.message, 'TORNEOS_CORE_ATTESTATION_REQUIRED', who); };
+      denied(directTorneosRpc(await tok(admin), 'create_tournament_team_entry', params(category)), 'another identity with local authority on the same target');
+      denied(directTorneosRpc(await forgedToken({ sub: owner.identity, core_user_id: owner.coreUserId, session_id: randomUUID() }), 'create_tournament_team_entry', params(category)), 'same identity, another Core session');
+      denied(directTorneosRpc(await tok(owner), 'create_tournament_team_entry', params(otherCategory)), 'same identity and session, different target (hash)');
+      const before = live();
+      const dup = directTorneosRpc(await tok(owner), 'create_tournament_team_entry', params(category));
+      assert.equal(dup.status, 409, JSON.stringify(dup.body)); assert.equal(dup.body.message, 'TORNEOS_TEAM_ALREADY_REGISTERED');
+      assert.equal(live(), before, 'the duplicate attempt rolls back: nothing consumed, nothing created');
+      assert.equal(torneosSql(`select count(*) from public.tournament_team_entries where tournament_id=${lit(alpha)} and arma2_team_id=${lit(teamA)}`).trim(), '1');
+      const remaining = Number(torneosSql(`select coalesce(ceil(extract(epoch from max(expires_at) - now()) * 1000), 0) from private.core_contract_attestations where contract='team_snapshot' and identity_id=${lit(owner.identity)} and consumed_at is null`).trim());
+      await new Promise(r => setTimeout(r, Math.max(0, remaining) + 500));
+      assert.equal(live(), '0', 'expired within the certified 10 s TTL');
+      denied(directTorneosRpc(await tok(owner), 'create_tournament_team_entry', params(category)), 'same actor after expiry');
+      assert.equal(torneosSql("select count(*) from private.core_contract_attestations where consumed_at is null and expires_at > created_at + interval '10 seconds'").trim(), '0');
+    });
     await check('import: another competition captures a fresh version (current Core name and roster)', async () => {
       torneosSql(`update public.tournaments set status='registration' where id=${lit(beta)}`);
       const r = await rpc('create_tournament_team_entry', await tok(owner), { p_organization_id: org, p_tournament_id: beta, p_category_id: categoryBeta, p_arma2_team_id: teamA, p_name: null, p_short_name: null, p_primary_color: null, p_secondary_color: null, p_registration_source: 'arma2_team', p_manager_user_id: null, p_manager_email: null, p_manager_display_name: null, p_idempotency_key: randomUUID() });
@@ -589,7 +620,7 @@ test('Phase 3A — real Core contracts → Torneos end-to-end', async (t) => {
       assert.match(sqlError(() => asUser({ ...claims, session_id: randomUUID() }, `select public.search_tournament_players(${lit(org)},${lit(alpha)},${lit(`${RUN} player`)},8,null)`)) ?? '', /TORNEOS_CORE_ATTESTATION_REQUIRED/, 'bound to the Core session');
       torneosSql("update private.core_contract_attestations set created_at=now()-interval '30 seconds', observed_at=now()-interval '30 seconds', expires_at=now()-interval '20 seconds' where consumed_at is null");
       assert.match(sqlError(() => asUser(claims, `select public.search_tournament_players(${lit(org)},${lit(alpha)},${lit(`${RUN} player`)},8,null)`)) ?? '', /TORNEOS_CORE_ATTESTATION_REQUIRED/, 'expired attestation rejected');
-      assert.match(sqlError(() => asUser(claims, `select public.search_tournament_players(${lit(org)},${lit(alpha)},${lit(`${RUN} player`)},8,null)`, 'anon')) ?? '', /permission denied|TORNEOS_/, 'anon obtains nothing (see finding P3A-F1 for the EXECUTE grant itself)');
+      assert.match(sqlError(() => asUser(claims, `select public.search_tournament_players(${lit(org)},${lit(alpha)},${lit(`${RUN} player`)},8,null)`, 'anon')) ?? '', /permission denied|TORNEOS_/, 'anon obtains nothing (EXECUTE itself revoked in Phase 2C; see P3A-F1 closure)');
       assert.equal(torneosSql("select count(*) from private.core_contract_attestations where consumed_at is null and expires_at > created_at + interval '10 seconds'").trim(), '0');
     });
     await check('binding: snapshot attestation bound to the Core team; response/team mismatch rejected even with a matching hash', async () => {
@@ -711,37 +742,49 @@ test('Phase 3A — real Core contracts → Torneos end-to-end', async (t) => {
       assert.equal(torneosSql(`select name from public.tournament_team_entries where id=${lit(r.body.entryId)}`).trim(), `${RUN} Alpha Admins`);
       assert.equal(torneosSql(`select imported_by from private.tournament_team_entry_core_snapshots where team_entry_id=${lit(r.body.entryId)}`).trim(), admin.identity);
     });
-    // ================================================================ 6. baseline finding (documented, NOT fixed here)
-    await check('FINDING P3A-F1: on a real Supabase database the certified baseline leaves anon/authenticated EXECUTE on its public functions', async () => {
-      // Phase 2B certified "no anon EXECUTE" on a template0 database (no default ACLs). The
-      // Supabase image ships schema-scoped default ACLs for the installing role in `public`
-      // (functions → anon, authenticated, service_role). The baseline's global
-      // `ALTER DEFAULT PRIVILEGES REVOKE EXECUTE ON FUNCTIONS` does not override the
-      // schema-scoped grant, and the per-function `REVOKE ... FROM PUBLIC` does not touch the
-      // explicit anon grant. Tables are unaffected because that line is `IN SCHEMA public`.
-      const defaultAcl = torneosSql("select defaclacl::text from pg_default_acl where defaclrole='supabase_admin'::regrole and defaclnamespace='public'::regnamespace and defaclobjtype='f'").trim();
-      assert.match(defaultAcl, /anon=X/, 'image default ACL grants anon EXECUTE on functions created in public');
-      assert.equal(torneosSql("select count(*) filter (where has_function_privilege('anon', p.oid, 'EXECUTE'))||'/'||count(*) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public'").trim(), '358/359');
-      assert.equal(torneosSql("select count(*) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='private' and has_function_privilege('anon', p.oid, 'EXECUTE') and p.proname not in ('check_token','current_identity_id')").trim(), '0', 'explicit per-function revokes (private schema) hold');
-      assert.equal(torneosSql("select count(*) from information_schema.role_table_grants where table_schema='public' and grantee='anon' and privilege_type <> 'SELECT'").trim(), '0', 'table defaults were schema-scoped and hold');
-      // Reachability: the certified gateway (the only published surface) refuses anon; direct PostgREST would not.
+    // ================================================================ 6. baseline ACL on the real Supabase database (P3A-F1 closed in Phase 2C)
+    await check('P3A-F1 closed: on the real Supabase database the corrected baseline leaves no accidental EXECUTE or sequence privilege; a directly exposed Data API denies SERVICE_ONLY before the body', async () => {
+      // Phase 3A observed the Supabase image's schema-scoped default ACLs adding anon/authenticated/
+      // service_role EXECUTE (358/359 public functions, 304/304 DEFINER) and sequence privileges to
+      // every object the baseline created. The Phase 2C prologue revokes those schema-scoped defaults
+      // (functions and sequences) for the installer, so every API-role privilege is an explicit GRANT.
+      const count = (q) => torneosSql(q).trim();
+      const installerDefaults = JSON.parse(count("select coalesce(json_object_agg(defaclobjtype, coalesce(defaclacl::text,'')),'{}') from pg_default_acl where defaclrole='supabase_admin'::regrole and defaclnamespace='public'::regnamespace"));
+      for (const [type, acl] of Object.entries(installerDefaults)) assert.ok(!/anon=|authenticated=|service_role=/.test(acl), `installer default ACL ${type}: ${acl}`);
+      assert.match(count("select defaclacl::text from pg_default_acl where defaclrole='postgres'::regrole and defaclnamespace='public'::regnamespace and defaclobjtype='f'"), /anon=X/, 'image default ACLs are still the platform\'s (real Supabase database)');
+      const after = {
+        anon_execute_public_functions: count("select count(*) filter (where has_function_privilege('anon', p.oid, 'EXECUTE'))||'/'||count(*) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public'"),
+        authenticated_execute_public_functions: count("select count(*) filter (where has_function_privilege('authenticated', p.oid, 'EXECUTE'))||'/'||count(*) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public'"),
+        service_role_execute_public_functions: count("select count(*) filter (where has_function_privilege('service_role', p.oid, 'EXECUTE'))||'/'||count(*) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public'"),
+        anon_execute_security_definer: count("select count(*) filter (where has_function_privilege('anon', p.oid, 'EXECUTE'))||'/'||count(*) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.prosecdef"),
+        anon_execute_private_beyond_token_helpers: count("select count(*) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='private' and has_function_privilege('anon', p.oid, 'EXECUTE') and p.proname not in ('check_token','current_identity_id')"),
+        public_execute_functions: count("select count(*) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname in ('public','private') and exists (select 1 from aclexplode(coalesce(p.proacl,acldefault('f',p.proowner))) a where a.grantee=0 and a.privilege_type='EXECUTE')"),
+        anon_sequence_privilege: count("select count(*) from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='public' and c.relkind='S' and (has_sequence_privilege('anon',c.oid,'USAGE') or has_sequence_privilege('anon',c.oid,'SELECT') or has_sequence_privilege('anon',c.oid,'UPDATE'))") + '/' + count("select count(*) from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='public' and c.relkind='S'"),
+        anon_non_select_table_grants: count("select count(*) from information_schema.role_table_grants where table_schema='public' and grantee='anon' and privilege_type <> 'SELECT'"),
+      };
+      assert.deepEqual(after, { anon_execute_public_functions: '12/359', authenticated_execute_public_functions: '180/359', service_role_execute_public_functions: '328/359', anon_execute_security_definer: '12/304', anon_execute_private_beyond_token_helpers: '0', public_execute_functions: '0', anon_sequence_privilege: '0/7', anon_non_select_table_grants: '0' });
+      // Reachability: the certified gateway refuses anon; a directly exposed Data API now denies by ACL, before the body.
       assert.equal((await request('/torneos/rest/v1/rpc/tournament_media_pipeline_readiness', null, 'POST', {})).status, 401);
-      const direct = inGateway(`const r = await fetch('http://torneos-rest:3000/rpc/tournament_media_pipeline_readiness', { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' }); console.log(r.status);`);
-      assert.equal(direct.trim(), '200', 'SERVICE_ONLY DEFINER function executes for anon on a directly exposed Data API');
+      const direct = directTorneosRpc(null, 'tournament_media_pipeline_readiness', {});
+      assert.equal(direct.status, 401, JSON.stringify(direct.body));
+      assert.equal(direct.body.code, '42501'); assert.match(direct.body.message, /permission denied for function tournament_media_pipeline_readiness/);
+      const asUserDirect = directTorneosRpc(await tok(owner), 'tournament_media_pipeline_readiness', {});
+      assert.equal(asUserDirect.status, 403); assert.match(asUserDirect.body.message, /permission denied for function/);
       await writeFile('evidence/finding-p3a-f1.json', JSON.stringify({
         finding: 'P3A-F1',
-        severity: 'blocker before any Production Torneos project',
+        status: 'CLOSED in Phase 2C (baseline prologue fix, recertified on this real Supabase stack and on template0)',
         observed_on: 'supabase/postgres:17.6.1.143 `postgres` database, baseline installed as supabase_admin',
-        default_acl_public_functions: defaultAcl,
-        anon_execute_public_functions: torneosSql("select count(*) filter (where has_function_privilege('anon', p.oid, 'EXECUTE'))||'/'||count(*) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public'").trim(),
-        anon_execute_security_definer: torneosSql("select count(*) filter (where has_function_privilege('anon', p.oid, 'EXECUTE'))||'/'||count(*) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.prosecdef").trim(),
-        certified_expectation: 'Phase 2B tools/test.py on template0: no anon EXECUTE on DEFINER functions',
+        cause: 'Schema-scoped default ACLs of the Supabase image (installing role, schema public: functions/sequences/tables -> anon, authenticated, service_role) are added on top of global default ACLs; the certified prologue revoked function defaults globally and table defaults per schema only, so functions and sequences kept the image grants and the per-object REVOKE ... FROM PUBLIC could not remove an explicit anon grant.',
+        fix: 'backend/torneos/tools/build.py prologue: ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE ALL ON SEQUENCES FROM PUBLIC,anon,authenticated,service_role; ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC,anon,authenticated,service_role;',
+        phase3a_observed: { anon_execute_public_functions: '358/359', anon_execute_security_definer: '304/304', anon_sequence_privilege: '7/7', direct_postgrest_service_only_as_anon: 200 },
+        phase2c_observed: { ...after, direct_postgrest_service_only_as_anon: direct.status, direct_postgrest_service_only_as_authenticated: asUserDirect.status },
+        installer_default_acl_after_install: installerDefaults,
         reachable_through_certified_gateway: false,
-        reachable_through_direct_postgrest: true,
-        baseline_changed: false,
-        proposed_minimal_fix: 'In the generator prologue add the schema-scoped form used for tables: ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC, anon, authenticated, service_role; (and the same FOR ROLE postgres when migrations run as postgres), then re-run the Phase 2B certification on a real Supabase database as well as on template0.',
+        reachable_through_direct_postgrest: false,
+        baseline_changed: true,
+        evidence: ['integration/torneos-core-contracts/evidence/acl-results.json', 'backend/torneos/phase2c/evidence/real-image-acl-diff.json'],
       }, null, 2) + '\n');
-    }, 'FINDING');
+    });
     await check('e2e: every consumed attestation belonged to the consuming identity; no live positive verdict is left behind', async () => {
       assert.equal(torneosSql('select count(*) from private.core_contract_attestations a where consumed_at is not null and not exists (select 1 from public.torneos_identity i where i.id=a.identity_id)').trim(), '0');
       assert.equal(torneosSql("select count(*) from private.core_contract_attestations where consumed_at is null and expires_at > now() and (response->>'matches'='true' or response ? 'items' or response ? 'players')").trim(), '0');

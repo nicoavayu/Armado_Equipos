@@ -13,7 +13,7 @@ INCONCLUSIVE make_tournament_match_official(uuid,uuid) | 42501 TORNEOS_MATCH_FOR
 INCONCLUSIVE mark_tournament_suspension_served(uuid,uuid,text) | 42501 TORNEOS_DISCIPLINE_FORBIDDEN | 42501 TORNEOS_DISCIPLINE_FORBIDDEN | 42501 TORNEOS_DISCIPLINE_FORBIDDEN
 INCONCLUSIVE publish_tournament_fixture(uuid,uuid) | 42501 TORNEOS_RESOURCE_FORBIDDEN | 42501 TORNEOS_RESOURCE_FORBIDDEN | 42501 TORNEOS_RESOURCE_FORBIDDEN
 INCONCLUSIVE record_manual_match_availability(uuid,uuid,uuid,text,text,text) | 42501 TORNEOS_MATCH_FORBIDDEN | 42501 TORNEOS_MATCH_FORBIDDEN | 42501 TORNEOS_MATCH_FORBIDDEN
-CAPABILITY_DENIED reopen_tournament_competition(uuid,uuid,text) | 42501 TORNEOS_RESOURCE_FORBIDDEN | 42501 TORNEOS_RESOURCE_FORBIDDEN | OK {"id": "abd9f6ac-33a4-480b-9926-5356919c0181", "status": "active", "reopenedAt": null, "reopenCount": 0, "alreadyActive": true}
+CAPABILITY_DENIED reopen_tournament_competition(uuid,uuid,text) | 42501 TORNEOS_RESOURCE_FORBIDDEN | 42501 TORNEOS_RESOURCE_FORBIDDEN | OK {"id": "57ee4207-2f8e-4a9f-9fea-1e4b4b3381be", "status": "active", "reopenedAt": null, "reopenCount": 0, "alreadyActive": true}
 INCONCLUSIVE reopen_tournament_participants(uuid,uuid,uuid,text) | 42501 TORNEOS_RESOURCE_FORBIDDEN | 42501 TORNEOS_RESOURCE_FORBIDDEN | 42501 TORNEOS_RESOURCE_FORBIDDEN
 INCONCLUSIVE report_tournament_media_asset(uuid,text,text,boolean,uuid) | 42501 TORNEOS_MEDIA_FORBIDDEN | 42501 TORNEOS_MEDIA_FORBIDDEN | 42501 TORNEOS_MEDIA_FORBIDDEN
 INCONCLUSIVE request_tournament_match_correction(uuid,uuid,text) | 42501 TORNEOS_MATCH_FORBIDDEN | 42501 TORNEOS_MATCH_FORBIDDEN | 42501 TORNEOS_MATCH_FORBIDDEN

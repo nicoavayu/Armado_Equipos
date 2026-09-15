@@ -1,7 +1,7 @@
 {
-  "generated_at": "2026-09-14T19:38:54.708Z",
+  "generated_at": "2026-09-14T20:46:53.848Z",
   "base": "http://127.0.0.1:58420",
-  "pass": 38,
+  "pass": 40,
   "fail": 0,
   "results": [
     {
@@ -9,7 +9,7 @@
       "status": "PASS"
     },
     {
-      "name": "lab: Core is the real schema at HEAD plus the Phase 3A migration; Torneos is the unchanged certified baseline",
+      "name": "lab: Core is the real schema at HEAD plus the Phase 3A migration; Torneos is the Phase 2C ACL-hardened certified baseline",
       "status": "PASS"
     },
     {
@@ -105,6 +105,10 @@
       "status": "PASS"
     },
     {
+      "name": "P3A-R1 disposition (A): the retry attestation left unconsumed confers nothing beyond the same actor, Core session and exact target; duplicates are blocked and it expires",
+      "status": "PASS"
+    },
+    {
       "name": "import: another competition captures a fresh version (current Core name and roster)",
       "status": "PASS"
     },
@@ -153,8 +157,8 @@
       "status": "PASS"
     },
     {
-      "name": "FINDING P3A-F1: on a real Supabase database the certified baseline leaves anon/authenticated EXECUTE on its public functions",
-      "status": "FINDING"
+      "name": "P3A-F1 closed: on the real Supabase database the corrected baseline leaves no accidental EXECUTE or sequence privilege; a directly exposed Data API denies SERVICE_ONLY before the body",
+      "status": "PASS"
     },
     {
       "name": "e2e: every consumed attestation belonged to the consuming identity; no live positive verdict is left behind",

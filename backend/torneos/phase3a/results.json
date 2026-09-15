@@ -12,24 +12,24 @@
     "security_e2e": true,
     "scope_e2e": true,
     "no_failed_checks": true,
-    "baseline_unchanged": true,
+    "baseline_acl_hardened_phase2c": true,
     "no_secrets_in_lab_evidence": true
   },
   "core_repo": "nicoavayu/Armado_Equipos (this repository): supabase/migrations + supabase/functions",
   "branch": "claude/torneos-phase3a-core-contracts-ac1d84",
   "base_commit": "b5c5d4af (Phase 2B)",
   "core_migration_sha256": "2967ae6f67e36877c4931cb7821535eab10c5b7312026846f619b14fb045672c",
-  "torneos_baseline_sha256": "7ec33549c8ce398c1e8330794aa19fda80321c597ff61ed3134382513639cffb",
-  "baseline_changes": 0,
+  "torneos_baseline_sha256": "97634b658c91b620c60bdceb53c9638a601fa7aba01ae3a999e6857e37d08692",
+  "baseline_changes": "1 line (Phase 2C ACL hardening); see backend/torneos/phase2c/",
   "core_unit_tests": {
     "pass": 15,
     "fail": 0
   },
   "e2e_checks": {
-    "pass": 38,
+    "pass": 40,
     "fail": 0,
-    "findings": 1,
-    "total": 39
+    "findings": 0,
+    "total": 40
   },
   "phase2b_reference": "A) CLEAN TORNEOS BASELINE PASS",
   "inconclusive_functions": {
@@ -45,8 +45,9 @@
   "blockers_before_production": [
     {
       "id": "P3A-F1",
-      "summary": "On a real Supabase database the certified Torneos baseline leaves anon/authenticated EXECUTE on its public functions (358/359 public, 304/304 SECURITY DEFINER); unreachable through the certified gateway, reachable through a directly exposed Data API.",
-      "baseline_changed": false,
+      "summary": "CLOSED in Phase 2C: the baseline generator now revokes the Supabase image schema-scoped default ACLs for functions and sequences, so anon/authenticated EXECUTE and sequence privilege are explicit-grant only. Recertified on a real Supabase stack and template0; see backend/torneos/phase2c/.",
+      "baseline_changed": true,
+      "status": "CLOSED in Phase 2C (baseline prologue fix, recertified on this real Supabase stack and on template0)",
       "evidence": "integration/torneos-core-contracts/evidence/finding-p3a-f1.json"
     },
     {

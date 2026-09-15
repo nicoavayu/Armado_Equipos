@@ -11,6 +11,8 @@ import test from 'node:test';
 import { pathToFileURL } from 'node:url';
 import ts from 'typescript';
 
+let loadCounter = 0;
+
 const sharedPath = path.join(process.cwd(), 'supabase', 'functions', '_shared', 'torneosCoreContract.ts');
 const indexPath = path.join(process.cwd(), 'supabase', 'functions', 'torneos-core-contract', 'index.ts');
 
@@ -47,7 +49,9 @@ async function loadModules(environment = {}) {
     async loadIndex(service) {
       globalThis.__contractService = service;
       globalThis.__contractHandler = undefined;
-      await import(pathToFileURL(path.join(outDir, 'index.mjs')).href + `?t=${Date.now()}`);
+      // Monotonic cache-buster: two loadIndex calls in the same millisecond would otherwise
+      // reuse the cached module (a faster runtime exposes this) and skip its handler side effect.
+      await import(pathToFileURL(path.join(outDir, 'index.mjs')).href + `?t=${Date.now()}-${loadCounter++}`);
       return globalThis.__contractHandler;
     },
     async cleanup() {

@@ -1,0 +1,30 @@
+
+> test:acl
+> node --test --test-concurrency=1 acl.test.mjs
+
+▶ Phase 2C — real Supabase stack ACL certification
+  ✔ install: corrected baseline installed from an empty real Supabase database (image default ACLs present, installer supabase_admin) (295.375958ms)
+  ✔ grants: effective privilege inventory per function, sequence and relation (written to evidence) (167.374083ms)
+  ✔ anon: all 106 SERVICE_ONLY functions DENY (catalog EXECUTE false; Data API 42501 before the body) (194.583458ms)
+  ✔ anon: all 9 INTERNAL functions DENY (catalog EXECUTE false; Data API 42501 before the body) (130.580542ms)
+  ✔ authenticated: all 106 SERVICE_ONLY functions DENY with a valid bearer (198.502292ms)
+  ✔ authenticated: all 9 INTERNAL functions DENY with a valid bearer (no certified exception exists) (140.854375ms)
+  ✔ bearers: TRIGGER and ADAPTER_ONLY DEFINER functions are unreachable by anon/authenticated bearers and keep their certified grantees (0.378959ms)
+  ✔ public RPCs: exactly the 12 explicitly granted anon functions execute for anon (3 PUBLIC_READ + 9 IDENTITY_GATED_READ) (243.475167ms)
+  ✔ authenticated RPCs: the 180 explicitly granted functions execute with a valid bearer (guarded DEFINER write + predicate) (278.20025ms)
+  ✔ 305/305 SECURITY DEFINER functions keep their Phase 2B grantees, owner and fixed search_path on the real stack (66.35525ms)
+  ✔ no privilege escalation: role graph, PostgREST role switch, sequences, private schema (1444.363541ms)
+  ✔ no cross-workspace: another identity cannot read or mutate the organization through the Data API (263.07275ms)
+  ✔ no cross-season: an organization admin without a season assignment has no access to that season (418.553417ms)
+  ✔ no physical Core dependency: no FK outside public/private, no auth schema, no FDW/dblink (254.156042ms)
+  ✔ Data API: anon OpenAPI exposes only the anon-executable RPCs; SERVICE_ONLY/INTERNAL absent for anon and for a bearer (193.371416ms)
+  ✔ no secrets: lab secrets and JWTs absent from the baseline and from this suite's evidence (3.342625ms)
+✔ Phase 2C — real Supabase stack ACL certification (4364.289583ms)
+ℹ tests 17
+ℹ suites 0
+ℹ pass 17
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4437.289208

@@ -40,7 +40,8 @@ the gateway only receives what it needs (`.runtime/server/config.json`).
 
 ## Evidence
 
-`evidence/e2e-results.json`, `evidence/e2e-tests.txt` (40 checks: 39 PASS + 1 FINDING),
+`evidence/e2e-results.json`, `evidence/e2e-tests.txt` (40 checks, all PASS after Phase 2C),
 `evidence/core-unit-tests.txt` (15/15), `evidence/install.json` (migration hashes),
-`evidence/gateway-vs-phase15.diff`, `evidence/finding-p3a-f1.json` and
-`evidence/finding-p3a-f1-anon-sweep.json`. Report: `backend/torneos/phase3a/REPORT.md`.
+`evidence/gateway-vs-phase15.diff`, `evidence/finding-p3a-f1.json` (P3A-F1 CLOSED in Phase 2C) and
+`evidence/finding-p3a-f1-anon-sweep.json`. Phase 2C ACL certification: `npm run test:acl`
+(`evidence/acl-*.json`). Reports: `backend/torneos/phase3a/REPORT.md`, `backend/torneos/phase2c/REPORT.md`.

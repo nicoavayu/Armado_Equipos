@@ -6,6 +6,7 @@
     "prepare:local": "node lab.mjs prepare",
     "up": "node lab.mjs up",
     "test": "node --test --test-concurrency=1 test.mjs",
+    "test:acl": "node --test --test-concurrency=1 acl.test.mjs",
     "down": "node lab.mjs down",
     "destroy": "node lab.mjs destroy"
   },

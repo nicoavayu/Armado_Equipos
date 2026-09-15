@@ -1,5 +1,11 @@
 # Phase 3A — Real Core contract implementation, non-production end-to-end
 
+> **Addendum (Phase 2C, 2026-09-14):** P3A-F1 (§16) is **CLOSED**. The baseline generator
+> now also revokes the Supabase image's schema-scoped default ACLs for functions and
+> sequences, recertified on a real Supabase stack and on template0. P3A-R1 is classified
+> **A) intentional and safe (with a test)**. Baseline SHA-256 moved `7ec33549…` → `97634b65…`.
+> See `backend/torneos/phase2c/REPORT.md`. This section is kept as the original Phase 3A record.
+
 **Conclusión binaria: A) REAL CORE CONTRACTS + TORNEOS E2E PASS** (calculada por
 `phase3a/summarize.py` desde la evidencia; ver `results.json`). **STOP.**
 

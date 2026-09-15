@@ -8,6 +8,13 @@ CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA extensions;
 REVOKE CREATE ON SCHEMA public FROM PUBLIC,anon,authenticated,service_role;
 ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE ALL ON TABLES FROM PUBLIC,anon,authenticated,service_role;
 ALTER DEFAULT PRIVILEGES REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC,anon,authenticated,service_role;
+-- Phase 2C: a Supabase database ships schema-scoped default ACLs for the installing role in
+-- public (functions, sequences, tables -> anon, authenticated, service_role). Schema-scoped
+-- defaults are ADDED to the global ones, so the global revoke above cannot remove them and a
+-- per-object REVOKE ... FROM PUBLIC does not touch an explicit anon grant. Revoke the
+-- schema-scoped entries too: every API-role privilege below is then an explicit GRANT.
+ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE ALL ON SEQUENCES FROM PUBLIC,anon,authenticated,service_role;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC,anon,authenticated,service_role;
 CREATE SCHEMA private;
 REVOKE ALL ON SCHEMA private FROM PUBLIC;
 CREATE ROLE torneos_identity_writer NOLOGIN NOINHERIT;

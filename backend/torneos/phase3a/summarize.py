@@ -50,7 +50,7 @@ conditions = {
     'security_e2e': passed('security:'),
     'scope_e2e': passed('e2e:'),
     'no_failed_checks': e2e['fail'] == 0,
-    'baseline_unchanged': hashlib.sha256(baseline).hexdigest() == '7ec33549c8ce398c1e8330794aa19fda80321c597ff61ed3134382513639cffb',
+    'baseline_acl_hardened_phase2c': hashlib.sha256(baseline).hexdigest() == '97634b658c91b620c60bdceb53c9638a601fa7aba01ae3a999e6857e37d08692',
     'no_secrets_in_lab_evidence': not re.search(r'eyJ[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]+\.', (LAB / 'evidence/e2e-tests.txt').read_text()),
 }
 failed = [k for k, v in conditions.items() if not v]
@@ -63,16 +63,16 @@ result = {
     'base_commit': 'b5c5d4af (Phase 2B)',
     'core_migration_sha256': hashlib.sha256(migration.encode()).hexdigest(),
     'torneos_baseline_sha256': hashlib.sha256(baseline).hexdigest(),
-    'baseline_changes': 0,
+    'baseline_changes': '1 line (Phase 2C ACL hardening); see backend/torneos/phase2c/',
     'core_unit_tests': {'pass': int(unit_pass.group(1)) if unit_pass else 0, 'fail': int(unit_fail.group(1)) if unit_fail else 1},
     'e2e_checks': {'pass': e2e['pass'], 'fail': e2e['fail'], 'findings': sum(1 for r in e2e['results'] if r['status'] == 'FINDING'), 'total': len(e2e['results'])},
     'phase2b_reference': phase2b['conclusion'],
     'inconclusive_functions': {'count': ledger['count'], 'status': 'NOT_EXERCISED / residual risk', 'by_area': ledger['by_area']},
     'blockers_before_production': [
-        {'id': finding['finding'], 'summary': 'On a real Supabase database the certified Torneos baseline leaves anon/authenticated EXECUTE on its public functions '
-                                          f"({finding['anon_execute_public_functions']} public, {finding['anon_execute_security_definer']} SECURITY DEFINER); "
-                                          'unreachable through the certified gateway, reachable through a directly exposed Data API.',
-         'baseline_changed': finding['baseline_changed'], 'evidence': 'integration/torneos-core-contracts/evidence/finding-p3a-f1.json'},
+        {'id': finding['finding'], 'summary': 'CLOSED in Phase 2C: the baseline generator now revokes the Supabase image schema-scoped default ACLs '
+                                          'for functions and sequences, so anon/authenticated EXECUTE and sequence privilege are explicit-grant only. '
+                                          'Recertified on a real Supabase stack and template0; see backend/torneos/phase2c/.',
+         'baseline_changed': finding['baseline_changed'], 'status': finding.get('status'), 'evidence': 'integration/torneos-core-contracts/evidence/finding-p3a-f1.json'},
         {'id': 'P3A-R1', 'summary': 'Idempotent replay of create_tournament_team_entry returns before consuming the fresh team_snapshot attestation (positive verdict alive ≤ 10 s, fully bound).', 'baseline_changed': False},
         {'id': 'P3A-R2', 'summary': '33 SECURITY DEFINER functions remain INCONCLUSIVE from the Phase 2B season sweep (see inconclusive-ledger.json).', 'baseline_changed': False},
         {'id': 'P3A-R3', 'summary': 'Core service credential custody/rotation, TLS/mTLS outside loopback and hosted deployment of the Edge Function are not part of this lab.', 'baseline_changed': False},
