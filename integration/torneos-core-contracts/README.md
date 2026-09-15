@@ -13,8 +13,8 @@ Branch `claude/torneos-phase3a-core-contracts-ac1d84` on `b5c5d4af` (Phase 2B).
 | Core sessions | real GoTrue (`/signup`, `/token`, `/user`, `/logout`, admin API) | `supabase/gotrue:v2.194.0` |
 | Core endpoint | `supabase/functions/torneos-core-contract/index.ts` + `_shared/torneosCoreContract.ts` | `supabase/edge-runtime:v1.74.2` |
 | Core SQL | `public.torneos_contract_execute` (migration `20260914120000_torneos_core_contract_v1.sql`) | PostgREST `v14.15` as `service_role` |
-| Torneos | `backend/torneos/supabase/migrations/00000000000000_torneos_baseline_v1.sql`, **unchanged** (`7ec33549…`) | PostgREST `v14.15` + JWKS |
-| Identity bridge | `integration/torneos-sso/token.mjs` mounted verbatim; `gateway.mjs` = Phase 1.5 `server.mjs` + 4 RPC routes | node 22 |
+| Torneos | `backend/torneos/supabase/migrations/` applied in order: baseline `00000000000000` (Phase 2D `f857bd09…`) + staging v1 RPC exposure gate `00000000000001` | PostgREST `v14.15` + JWKS |
+| Identity bridge | `integration/torneos-sso/token.mjs` mounted verbatim; `gateway.mjs` = Phase 1.5 `server.mjs` + 4 RPC routes + Phase 2D staging v1 RPC allowlist (`backend/torneos/phase2d/staging-v1-rpc-allowlist.json`, mounted read-only) | node 22 |
 | Adapter | `adapter.mjs` (real counterpart of `backend/torneos/phase2b/adapter.py`) + `core-client.mjs` (Node port of Phase 2A `CoreClient`) | node 22 |
 
 Only the gateway is published (`127.0.0.1:58420`). Databases, Auth, REST and the
@@ -28,6 +28,8 @@ does). `core-api.mjs` is the Kong substitute the Edge Function's supabase-js tal
 npm ci --prefix integration/torneos-core-contracts --ignore-scripts
 npm --prefix integration/torneos-core-contracts run up
 npm --prefix integration/torneos-core-contracts test
+npm --prefix integration/torneos-core-contracts run test:acl        # Phase 2C ACL certification
+npm --prefix integration/torneos-core-contracts run test:exposure   # Phase 2D staging RPC exposure gate
 node --test scripts/edge-functions/torneos-core-contract.test.mjs
 npm --prefix integration/torneos-core-contracts run down      # keeps volumes
 npm --prefix integration/torneos-core-contracts run destroy   # drops volumes
@@ -44,4 +46,6 @@ the gateway only receives what it needs (`.runtime/server/config.json`).
 `evidence/core-unit-tests.txt` (15/15), `evidence/install.json` (migration hashes),
 `evidence/gateway-vs-phase15.diff`, `evidence/finding-p3a-f1.json` (P3A-F1 CLOSED in Phase 2C) and
 `evidence/finding-p3a-f1-anon-sweep.json`. Phase 2C ACL certification: `npm run test:acl`
-(`evidence/acl-*.json`). Reports: `backend/torneos/phase3a/REPORT.md`, `backend/torneos/phase2c/REPORT.md`.
+(`evidence/acl-*.json`). Phase 2D exposure gate: `npm run test:exposure` (`evidence/exposure-*.json`:
+ACL before/after of the 33, P0 actor matrix, direct PostgREST and gateway sweeps). Reports:
+`backend/torneos/phase3a/REPORT.md`, `backend/torneos/phase2c/REPORT.md`, `backend/torneos/phase2d/REPORT.md`.

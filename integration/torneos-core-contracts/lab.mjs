@@ -118,7 +118,10 @@ export async function applyCore() {
   return record;
 }
 export async function installTorneos(c) {
-  const file = `${repo}backend/torneos/supabase/migrations/00000000000000_torneos_baseline_v1.sql`;
+  const dir = `${repo}backend/torneos/supabase/migrations/`;
+  const files = (await readdir(dir)).filter(f => /^\d{14}_.*\.sql$/.test(f)).sort();
+  if (files[0] !== '00000000000000_torneos_baseline_v1.sql') throw new Error('Torneos baseline must be the first migration');
+  const file = dir + files[0];
   const source = await readFile(file, 'utf8');
   const sha256 = createHash('sha256').update(source).digest('hex');
   const certified = JSON.parse(await readFile(`${repo}backend/torneos/evidence/install.json`, 'utf8')).sha256;
@@ -127,6 +130,14 @@ export async function installTorneos(c) {
   if (sql('torneos-db', "select to_regclass('public.torneos_identity') is null").trim() === 't') {
     sql('torneos-db', source);  // same owner as the certified Phase 2B lab (supabase_admin)
     installed = true;
+  }
+  // Phase 2D: later Torneos migrations (the staging v1 RPC exposure gate) apply in order after the
+  // baseline, as the same installer; they are idempotent, so a kept volume re-applies them.
+  const followUps = [];
+  for (const name of files.slice(1)) {
+    const text = await readFile(dir + name, 'utf8');
+    sql('torneos-db', text);
+    followUps.push({ file: (dir + name).slice(repo.length), sha256: createHash('sha256').update(text).digest('hex'), applied: true });
   }
   // Server logins: NOINHERIT members of the baseline's NOLOGIN roles; the gateway must SET ROLE.
   sql('torneos-db', `
@@ -139,7 +150,7 @@ export async function installTorneos(c) {
     GRANT torneos_identity_writer TO lab_identity_writer;
     GRANT torneos_core_adapter TO lab_core_adapter;
     ALTER ROLE authenticator PASSWORD '${c.dbPassword}';`);
-  return { file: file.slice(repo.length), sha256, installed, certified_sha256: certified };
+  return { file: file.slice(repo.length), sha256, installed, certified_sha256: certified, migrations_after_baseline: followUps };
 }
 async function main() {
   if (process.argv[2] === 'prepare') return prepare();

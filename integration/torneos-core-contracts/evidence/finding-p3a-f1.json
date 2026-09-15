@@ -12,7 +12,7 @@
   },
   "phase2c_observed": {
     "anon_execute_public_functions": "12/359",
-    "authenticated_execute_public_functions": "180/359",
+    "authenticated_execute_public_functions": "147/359",
     "service_role_execute_public_functions": "328/359",
     "anon_execute_security_definer": "12/304",
     "anon_execute_private_beyond_token_helpers": "0",

@@ -227,10 +227,11 @@ test('Phase 3A — real Core contracts → Torneos end-to-end', async (t) => {
       assert.match(compose, /internal: true/);
       assert.equal((compose.match(/egress\]/g) ?? []).length, 1, 'only core-functions has outbound access (module resolution)');
     });
-    await check('lab: Core is the real schema at HEAD plus the Phase 3A migration; Torneos is the Phase 2C ACL-hardened certified baseline', async () => {
+    await check('lab: Core is the real schema at HEAD plus the Phase 3A migration; Torneos is the Phase 2D certified baseline (Phase 2C ACL model + P0 season guard) plus the staging v1 RPC exposure gate', async () => {
       const install = JSON.parse(await readFile('.runtime/install.json', 'utf8'));
-      assert.equal(install.torneos.sha256, '97634b658c91b620c60bdceb53c9638a601fa7aba01ae3a999e6857e37d08692');
+      assert.equal(install.torneos.sha256, 'f857bd0939054bc1a32a3855894b7b20e14a0c7456c9d5c8c5e8432e5b8ed19f');
       assert.equal(install.torneos.sha256, install.torneos.certified_sha256);
+      assert.deepEqual(install.torneos.migrations_after_baseline.map(m => [m.file.split('/').pop(), m.applied]), [['00000000000001_staging_v1_rpc_exposure.sql', true]], 'Phase 2D gate applied after the baseline');
       assert.equal(coreSql("select count(*) from pg_tables where schemaname='public'").trim(), '153', 'all 42 Core migrations applied');
       assert.equal(coreSql("select count(*) from pg_proc where proname like 'torneos_contract_%'").trim(), '5');
       assert.equal(torneosSql("select count(*) from pg_tables where schemaname='public'").trim(), '104');
@@ -762,7 +763,9 @@ test('Phase 3A — real Core contracts → Torneos end-to-end', async (t) => {
         anon_sequence_privilege: count("select count(*) from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='public' and c.relkind='S' and (has_sequence_privilege('anon',c.oid,'USAGE') or has_sequence_privilege('anon',c.oid,'SELECT') or has_sequence_privilege('anon',c.oid,'UPDATE'))") + '/' + count("select count(*) from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='public' and c.relkind='S'"),
         anon_non_select_table_grants: count("select count(*) from information_schema.role_table_grants where table_schema='public' and grantee='anon' and privilege_type <> 'SELECT'"),
       };
-      assert.deepEqual(after, { anon_execute_public_functions: '12/359', authenticated_execute_public_functions: '180/359', service_role_execute_public_functions: '328/359', anon_execute_security_definer: '12/304', anon_execute_private_beyond_token_helpers: '0', public_execute_functions: '0', anon_sequence_privilege: '0/7', anon_non_select_table_grants: '0' });
+      // Phase 2C measured 180/359 for authenticated on the baseline alone; Phase 2D's staging v1 gate removes exactly its manifest.
+      const gate = JSON.parse(await readFile(`${repo}backend/torneos/phase2d/staging-v1-rpc-gate.json`, 'utf8'));
+      assert.deepEqual(after, { anon_execute_public_functions: '12/359', authenticated_execute_public_functions: `${180 - gate.functions.length}/359`, service_role_execute_public_functions: '328/359', anon_execute_security_definer: '12/304', anon_execute_private_beyond_token_helpers: '0', public_execute_functions: '0', anon_sequence_privilege: '0/7', anon_non_select_table_grants: '0' });
       // Reachability: the certified gateway refuses anon; a directly exposed Data API now denies by ACL, before the body.
       assert.equal((await request('/torneos/rest/v1/rpc/tournament_media_pipeline_readiness', null, 'POST', {})).status, 401);
       const direct = directTorneosRpc(null, 'tournament_media_pipeline_readiness', {});

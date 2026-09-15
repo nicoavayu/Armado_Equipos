@@ -8447,7 +8447,7 @@
       ],
       "trigger_used": false,
       "category": "CLIENT_RPC_GUARDED",
-      "disposition": "Direct identity/capability/scope guard before reads and writes",
+      "disposition": "Direct identity/capability/scope guard before reads and writes; season rule applied",
       "definer_necessity": [
         "writes tables clients cannot write (no client write policies exist)"
       ],
@@ -8455,11 +8455,12 @@
       "closed_tables_read": [],
       "authorization_evidence": {
         "direct_guards": [
-          "has_tournament_organization_capability"
+          "has_tournament_organization_capability",
+          "has_tournament_season_access"
         ],
         "identity_check": true,
         "self_scoped": true,
-        "season_rule": "",
+        "season_rule": "Phase 2D: organization-derived authority over a season-scoped resource requires the actor's season assignment (R3-2D); participant, manager and player branches unchanged",
         "season_sweep": "INCONCLUSIVE"
       },
       "dynamic_sql": false,
@@ -8467,7 +8468,7 @@
       "exercised_by": [
         "phase2b/season_scope_sweep.py"
       ],
-      "intentional_difference": "",
+      "intentional_difference": "Phase 2D: organization-derived authority over a season-scoped resource requires the actor's season assignment (R3-2D); participant, manager and player branches unchanged",
       "notes": [
         "season sweep: INCONCLUSIVE (owner control unavailable; static rule applied; admin denied on the unassigned season)"
       ]

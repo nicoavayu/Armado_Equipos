@@ -1,0 +1,1435 @@
+{
+  "phase": "2D",
+  "source": "backend/torneos/phase3a/inconclusive-ledger.json (33) + phase2d/staging-v1-rpc-gate.json (parent path)",
+  "summary": {
+    "certified": 1,
+    "not_exercised_server_side_disabled": 32,
+    "parent_paths_gated": 1,
+    "rule": "A disabled function must be certified with its own fixture/test before a GRANT migration and an allowlist entry re-enable it."
+  },
+  "functions": [
+    {
+      "function": "authorize_tournament_social_export(uuid,uuid,text,text,boolean)",
+      "area": "commercial/entitlements",
+      "phase2b_verdict": "INCONCLUSIVE",
+      "phase3a_status": "NOT_EXERCISED",
+      "acl_before_992dd282": {
+        "anon": false,
+        "authenticated": true,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "authenticated",
+          "service_role"
+        ]
+      },
+      "acl_after_phase2d": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "service_role"
+        ],
+        "anon_openapi": false
+      },
+      "phase2d_status": "NOT_EXERCISED — SERVER-SIDE DISABLED FOR STAGING V1",
+      "db_gate": "REVOKE EXECUTE FROM anon, authenticated (00000000000001_staging_v1_rpc_exposure.sql); service_role kept",
+      "gateway_allowlisted": false,
+      "direct_postgrest": {
+        "anon": "DENIED_BEFORE_BODY",
+        "authenticated": "DENIED_BEFORE_BODY"
+      },
+      "gateway_valid_core_session": [
+        403,
+        "rpc not enabled"
+      ],
+      "re_enable_requires": "fixture/test certification of this function + explicit GRANT migration after the gate + allowlist entry",
+      "notes": []
+    },
+    {
+      "function": "cancel_tournament_purchase(uuid)",
+      "area": "commercial/entitlements",
+      "phase2b_verdict": "INCONCLUSIVE",
+      "phase3a_status": "NOT_EXERCISED",
+      "acl_before_992dd282": {
+        "anon": false,
+        "authenticated": true,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "authenticated",
+          "service_role"
+        ]
+      },
+      "acl_after_phase2d": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "service_role"
+        ],
+        "anon_openapi": false
+      },
+      "phase2d_status": "NOT_EXERCISED — SERVER-SIDE DISABLED FOR STAGING V1",
+      "db_gate": "REVOKE EXECUTE FROM anon, authenticated (00000000000001_staging_v1_rpc_exposure.sql); service_role kept",
+      "gateway_allowlisted": false,
+      "direct_postgrest": {
+        "anon": "DENIED_BEFORE_BODY",
+        "authenticated": "DENIED_BEFORE_BODY"
+      },
+      "gateway_valid_core_session": [
+        403,
+        "rpc not enabled"
+      ],
+      "re_enable_requires": "fixture/test certification of this function + explicit GRANT migration after the gate + allowlist entry",
+      "notes": []
+    },
+    {
+      "function": "change_tournament_media_gallery_state(uuid,text,text)",
+      "area": "media/assets pipeline",
+      "phase2b_verdict": "INCONCLUSIVE",
+      "phase3a_status": "NOT_EXERCISED",
+      "acl_before_992dd282": {
+        "anon": false,
+        "authenticated": true,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "authenticated",
+          "service_role"
+        ]
+      },
+      "acl_after_phase2d": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "service_role"
+        ],
+        "anon_openapi": false
+      },
+      "phase2d_status": "NOT_EXERCISED — SERVER-SIDE DISABLED FOR STAGING V1",
+      "db_gate": "REVOKE EXECUTE FROM anon, authenticated (00000000000001_staging_v1_rpc_exposure.sql); service_role kept",
+      "gateway_allowlisted": false,
+      "direct_postgrest": {
+        "anon": "DENIED_BEFORE_BODY",
+        "authenticated": "DENIED_BEFORE_BODY"
+      },
+      "gateway_valid_core_session": [
+        403,
+        "rpc not enabled"
+      ],
+      "re_enable_requires": "fixture/test certification of this function + explicit GRANT migration after the gate + allowlist entry",
+      "notes": []
+    },
+    {
+      "function": "create_tournament_disciplinary_override(uuid,text,integer,text,uuid)",
+      "area": "other",
+      "phase2b_verdict": "INCONCLUSIVE",
+      "phase3a_status": "NOT_EXERCISED",
+      "acl_before_992dd282": {
+        "anon": false,
+        "authenticated": true,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "authenticated",
+          "service_role"
+        ]
+      },
+      "acl_after_phase2d": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "service_role"
+        ],
+        "anon_openapi": false
+      },
+      "phase2d_status": "NOT_EXERCISED — SERVER-SIDE DISABLED FOR STAGING V1",
+      "db_gate": "REVOKE EXECUTE FROM anon, authenticated (00000000000001_staging_v1_rpc_exposure.sql); service_role kept",
+      "gateway_allowlisted": false,
+      "direct_postgrest": {
+        "anon": "DENIED_BEFORE_BODY",
+        "authenticated": "DENIED_BEFORE_BODY"
+      },
+      "gateway_valid_core_session": [
+        403,
+        "rpc not enabled"
+      ],
+      "re_enable_requires": "fixture/test certification of this function + explicit GRANT migration after the gate + allowlist entry",
+      "notes": []
+    },
+    {
+      "function": "create_tournament_match_correction(uuid,uuid)",
+      "area": "advanced competition states",
+      "phase2b_verdict": "INCONCLUSIVE",
+      "phase3a_status": "NOT_EXERCISED",
+      "acl_before_992dd282": {
+        "anon": false,
+        "authenticated": true,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "authenticated",
+          "service_role"
+        ]
+      },
+      "acl_after_phase2d": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "service_role"
+        ],
+        "anon_openapi": false
+      },
+      "phase2d_status": "NOT_EXERCISED — SERVER-SIDE DISABLED FOR STAGING V1",
+      "db_gate": "REVOKE EXECUTE FROM anon, authenticated (00000000000001_staging_v1_rpc_exposure.sql); service_role kept",
+      "gateway_allowlisted": false,
+      "direct_postgrest": {
+        "anon": "DENIED_BEFORE_BODY",
+        "authenticated": "DENIED_BEFORE_BODY"
+      },
+      "gateway_valid_core_session": [
+        403,
+        "rpc not enabled"
+      ],
+      "re_enable_requires": "fixture/test certification of this function + explicit GRANT migration after the gate + allowlist entry",
+      "notes": []
+    },
+    {
+      "function": "create_tournament_points_adjustment(uuid,uuid,uuid,uuid,uuid,integer,text,uuid)",
+      "area": "other",
+      "phase2b_verdict": "INCONCLUSIVE",
+      "phase3a_status": "NOT_EXERCISED",
+      "acl_before_992dd282": {
+        "anon": false,
+        "authenticated": true,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "authenticated",
+          "service_role"
+        ]
+      },
+      "acl_after_phase2d": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "service_role"
+        ],
+        "anon_openapi": false
+      },
+      "phase2d_status": "NOT_EXERCISED — SERVER-SIDE DISABLED FOR STAGING V1",
+      "db_gate": "REVOKE EXECUTE FROM anon, authenticated (00000000000001_staging_v1_rpc_exposure.sql); service_role kept",
+      "gateway_allowlisted": false,
+      "direct_postgrest": {
+        "anon": "DENIED_BEFORE_BODY",
+        "authenticated": "DENIED_BEFORE_BODY"
+      },
+      "gateway_valid_core_session": [
+        403,
+        "rpc not enabled"
+      ],
+      "re_enable_requires": "fixture/test certification of this function + explicit GRANT migration after the gate + allowlist entry",
+      "notes": []
+    },
+    {
+      "function": "get_tournament_player_portrait_ref(uuid,uuid,text)",
+      "area": "media/assets pipeline",
+      "phase2b_verdict": "INCONCLUSIVE",
+      "phase3a_status": "NOT_EXERCISED",
+      "acl_before_992dd282": {
+        "anon": false,
+        "authenticated": true,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "authenticated",
+          "service_role"
+        ]
+      },
+      "acl_after_phase2d": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "service_role"
+        ],
+        "anon_openapi": false
+      },
+      "phase2d_status": "NOT_EXERCISED — SERVER-SIDE DISABLED FOR STAGING V1",
+      "db_gate": "REVOKE EXECUTE FROM anon, authenticated (00000000000001_staging_v1_rpc_exposure.sql); service_role kept",
+      "gateway_allowlisted": false,
+      "direct_postgrest": {
+        "anon": "DENIED_BEFORE_BODY",
+        "authenticated": "DENIED_BEFORE_BODY"
+      },
+      "gateway_valid_core_session": [
+        403,
+        "rpc not enabled"
+      ],
+      "re_enable_requires": "fixture/test certification of this function + explicit GRANT migration after the gate + allowlist entry",
+      "notes": []
+    },
+    {
+      "function": "get_tournament_purchase(uuid)",
+      "area": "commercial/entitlements",
+      "phase2b_verdict": "INCONCLUSIVE",
+      "phase3a_status": "NOT_EXERCISED",
+      "acl_before_992dd282": {
+        "anon": false,
+        "authenticated": true,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "authenticated",
+          "service_role"
+        ]
+      },
+      "acl_after_phase2d": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "service_role"
+        ],
+        "anon_openapi": false
+      },
+      "phase2d_status": "NOT_EXERCISED — SERVER-SIDE DISABLED FOR STAGING V1",
+      "db_gate": "REVOKE EXECUTE FROM anon, authenticated (00000000000001_staging_v1_rpc_exposure.sql); service_role kept",
+      "gateway_allowlisted": false,
+      "direct_postgrest": {
+        "anon": "DENIED_BEFORE_BODY",
+        "authenticated": "DENIED_BEFORE_BODY"
+      },
+      "gateway_valid_core_session": [
+        403,
+        "rpc not enabled"
+      ],
+      "re_enable_requires": "fixture/test certification of this function + explicit GRANT migration after the gate + allowlist entry",
+      "notes": []
+    },
+    {
+      "function": "has_tournament_entitlement(uuid,uuid,text)",
+      "area": "commercial/entitlements",
+      "phase2b_verdict": "INCONCLUSIVE",
+      "phase3a_status": "NOT_EXERCISED",
+      "acl_before_992dd282": {
+        "anon": false,
+        "authenticated": true,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "authenticated",
+          "service_role"
+        ]
+      },
+      "acl_after_phase2d": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "service_role"
+        ],
+        "anon_openapi": false
+      },
+      "phase2d_status": "NOT_EXERCISED — SERVER-SIDE DISABLED FOR STAGING V1",
+      "db_gate": "REVOKE EXECUTE FROM anon, authenticated (00000000000001_staging_v1_rpc_exposure.sql); service_role kept",
+      "gateway_allowlisted": false,
+      "direct_postgrest": {
+        "anon": "DENIED_BEFORE_BODY",
+        "authenticated": "DENIED_BEFORE_BODY"
+      },
+      "gateway_valid_core_session": [
+        403,
+        "rpc not enabled"
+      ],
+      "re_enable_requires": "fixture/test certification of this function + explicit GRANT migration after the gate + allowlist entry",
+      "notes": []
+    },
+    {
+      "function": "lock_tournament_roster(uuid,uuid,uuid)",
+      "area": "other",
+      "phase2b_verdict": "INCONCLUSIVE",
+      "phase3a_status": "NOT_EXERCISED",
+      "acl_before_992dd282": {
+        "anon": false,
+        "authenticated": true,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "authenticated",
+          "service_role"
+        ]
+      },
+      "acl_after_phase2d": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "service_role"
+        ],
+        "anon_openapi": false
+      },
+      "phase2d_status": "NOT_EXERCISED — SERVER-SIDE DISABLED FOR STAGING V1",
+      "db_gate": "REVOKE EXECUTE FROM anon, authenticated (00000000000001_staging_v1_rpc_exposure.sql); service_role kept",
+      "gateway_allowlisted": false,
+      "direct_postgrest": {
+        "anon": "DENIED_BEFORE_BODY",
+        "authenticated": "DENIED_BEFORE_BODY"
+      },
+      "gateway_valid_core_session": [
+        403,
+        "rpc not enabled"
+      ],
+      "re_enable_requires": "fixture/test certification of this function + explicit GRANT migration after the gate + allowlist entry",
+      "notes": []
+    },
+    {
+      "function": "make_tournament_match_official(uuid,uuid)",
+      "area": "advanced competition states",
+      "phase2b_verdict": "INCONCLUSIVE",
+      "phase3a_status": "NOT_EXERCISED",
+      "acl_before_992dd282": {
+        "anon": false,
+        "authenticated": true,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "authenticated",
+          "service_role"
+        ]
+      },
+      "acl_after_phase2d": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "service_role"
+        ],
+        "anon_openapi": false
+      },
+      "phase2d_status": "NOT_EXERCISED — SERVER-SIDE DISABLED FOR STAGING V1",
+      "db_gate": "REVOKE EXECUTE FROM anon, authenticated (00000000000001_staging_v1_rpc_exposure.sql); service_role kept",
+      "gateway_allowlisted": false,
+      "direct_postgrest": {
+        "anon": "DENIED_BEFORE_BODY",
+        "authenticated": "DENIED_BEFORE_BODY"
+      },
+      "gateway_valid_core_session": [
+        403,
+        "rpc not enabled"
+      ],
+      "re_enable_requires": "fixture/test certification of this function + explicit GRANT migration after the gate + allowlist entry",
+      "notes": []
+    },
+    {
+      "function": "mark_tournament_suspension_served(uuid,uuid,text)",
+      "area": "other",
+      "phase2b_verdict": "INCONCLUSIVE",
+      "phase3a_status": "NOT_EXERCISED",
+      "acl_before_992dd282": {
+        "anon": false,
+        "authenticated": true,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "authenticated",
+          "service_role"
+        ]
+      },
+      "acl_after_phase2d": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "service_role"
+        ],
+        "anon_openapi": false
+      },
+      "phase2d_status": "NOT_EXERCISED — SERVER-SIDE DISABLED FOR STAGING V1",
+      "db_gate": "REVOKE EXECUTE FROM anon, authenticated (00000000000001_staging_v1_rpc_exposure.sql); service_role kept",
+      "gateway_allowlisted": false,
+      "direct_postgrest": {
+        "anon": "DENIED_BEFORE_BODY",
+        "authenticated": "DENIED_BEFORE_BODY"
+      },
+      "gateway_valid_core_session": [
+        403,
+        "rpc not enabled"
+      ],
+      "re_enable_requires": "fixture/test certification of this function + explicit GRANT migration after the gate + allowlist entry",
+      "notes": []
+    },
+    {
+      "function": "publish_tournament_fixture(uuid,uuid)",
+      "area": "advanced competition states",
+      "phase2b_verdict": "INCONCLUSIVE",
+      "phase3a_status": "NOT_EXERCISED",
+      "acl_before_992dd282": {
+        "anon": false,
+        "authenticated": true,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "authenticated",
+          "service_role"
+        ]
+      },
+      "acl_after_phase2d": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "service_role"
+        ],
+        "anon_openapi": false
+      },
+      "phase2d_status": "NOT_EXERCISED — SERVER-SIDE DISABLED FOR STAGING V1",
+      "db_gate": "REVOKE EXECUTE FROM anon, authenticated (00000000000001_staging_v1_rpc_exposure.sql); service_role kept",
+      "gateway_allowlisted": false,
+      "direct_postgrest": {
+        "anon": "DENIED_BEFORE_BODY",
+        "authenticated": "DENIED_BEFORE_BODY"
+      },
+      "gateway_valid_core_session": [
+        403,
+        "rpc not enabled"
+      ],
+      "re_enable_requires": "fixture/test certification of this function + explicit GRANT migration after the gate + allowlist entry",
+      "notes": []
+    },
+    {
+      "function": "record_manual_match_availability(uuid,uuid,uuid,text,text,text)",
+      "area": "advanced competition states",
+      "phase2b_verdict": "INCONCLUSIVE",
+      "phase3a_status": "NOT_EXERCISED",
+      "acl_before_992dd282": {
+        "anon": false,
+        "authenticated": true,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "authenticated",
+          "service_role"
+        ]
+      },
+      "acl_after_phase2d": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "service_role"
+        ],
+        "anon_openapi": false
+      },
+      "phase2d_status": "NOT_EXERCISED — SERVER-SIDE DISABLED FOR STAGING V1",
+      "db_gate": "REVOKE EXECUTE FROM anon, authenticated (00000000000001_staging_v1_rpc_exposure.sql); service_role kept",
+      "gateway_allowlisted": false,
+      "direct_postgrest": {
+        "anon": "DENIED_BEFORE_BODY",
+        "authenticated": "DENIED_BEFORE_BODY"
+      },
+      "gateway_valid_core_session": [
+        403,
+        "rpc not enabled"
+      ],
+      "re_enable_requires": "fixture/test certification of this function + explicit GRANT migration after the gate + allowlist entry",
+      "notes": []
+    },
+    {
+      "function": "reopen_tournament_participants(uuid,uuid,uuid,text)",
+      "area": "other",
+      "phase2b_verdict": "INCONCLUSIVE",
+      "phase3a_status": "NOT_EXERCISED",
+      "acl_before_992dd282": {
+        "anon": false,
+        "authenticated": true,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "authenticated",
+          "service_role"
+        ]
+      },
+      "acl_after_phase2d": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "service_role"
+        ],
+        "anon_openapi": false
+      },
+      "phase2d_status": "NOT_EXERCISED — SERVER-SIDE DISABLED FOR STAGING V1",
+      "db_gate": "REVOKE EXECUTE FROM anon, authenticated (00000000000001_staging_v1_rpc_exposure.sql); service_role kept",
+      "gateway_allowlisted": false,
+      "direct_postgrest": {
+        "anon": "DENIED_BEFORE_BODY",
+        "authenticated": "DENIED_BEFORE_BODY"
+      },
+      "gateway_valid_core_session": [
+        403,
+        "rpc not enabled"
+      ],
+      "re_enable_requires": "fixture/test certification of this function + explicit GRANT migration after the gate + allowlist entry",
+      "notes": []
+    },
+    {
+      "function": "report_tournament_media_asset(uuid,text,text,boolean,uuid)",
+      "area": "media/assets pipeline",
+      "phase2b_verdict": "INCONCLUSIVE",
+      "phase3a_status": "NOT_EXERCISED",
+      "acl_before_992dd282": {
+        "anon": false,
+        "authenticated": true,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "authenticated",
+          "service_role"
+        ]
+      },
+      "acl_after_phase2d": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "service_role"
+        ],
+        "anon_openapi": false
+      },
+      "phase2d_status": "NOT_EXERCISED — SERVER-SIDE DISABLED FOR STAGING V1",
+      "db_gate": "REVOKE EXECUTE FROM anon, authenticated (00000000000001_staging_v1_rpc_exposure.sql); service_role kept",
+      "gateway_allowlisted": false,
+      "direct_postgrest": {
+        "anon": "DENIED_BEFORE_BODY",
+        "authenticated": "DENIED_BEFORE_BODY"
+      },
+      "gateway_valid_core_session": [
+        403,
+        "rpc not enabled"
+      ],
+      "re_enable_requires": "fixture/test certification of this function + explicit GRANT migration after the gate + allowlist entry",
+      "notes": []
+    },
+    {
+      "function": "request_tournament_match_correction(uuid,uuid,text)",
+      "area": "advanced competition states",
+      "phase2b_verdict": "INCONCLUSIVE",
+      "phase3a_status": "NOT_EXERCISED",
+      "acl_before_992dd282": {
+        "anon": false,
+        "authenticated": true,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "authenticated",
+          "service_role"
+        ]
+      },
+      "acl_after_phase2d": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "service_role"
+        ],
+        "anon_openapi": false
+      },
+      "phase2d_status": "NOT_EXERCISED — SERVER-SIDE DISABLED FOR STAGING V1",
+      "db_gate": "REVOKE EXECUTE FROM anon, authenticated (00000000000001_staging_v1_rpc_exposure.sql); service_role kept",
+      "gateway_allowlisted": false,
+      "direct_postgrest": {
+        "anon": "DENIED_BEFORE_BODY",
+        "authenticated": "DENIED_BEFORE_BODY"
+      },
+      "gateway_valid_core_session": [
+        403,
+        "rpc not enabled"
+      ],
+      "re_enable_requires": "fixture/test certification of this function + explicit GRANT migration after the gate + allowlist entry",
+      "notes": []
+    },
+    {
+      "function": "resolve_tournament_qualification(uuid,text)",
+      "area": "other",
+      "phase2b_verdict": "INCONCLUSIVE",
+      "phase3a_status": "NOT_EXERCISED",
+      "acl_before_992dd282": {
+        "anon": false,
+        "authenticated": true,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "authenticated",
+          "service_role"
+        ]
+      },
+      "acl_after_phase2d": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "service_role"
+        ],
+        "anon_openapi": false
+      },
+      "phase2d_status": "NOT_EXERCISED — SERVER-SIDE DISABLED FOR STAGING V1",
+      "db_gate": "REVOKE EXECUTE FROM anon, authenticated (00000000000001_staging_v1_rpc_exposure.sql); service_role kept",
+      "gateway_allowlisted": false,
+      "direct_postgrest": {
+        "anon": "DENIED_BEFORE_BODY",
+        "authenticated": "DENIED_BEFORE_BODY"
+      },
+      "gateway_valid_core_session": [
+        403,
+        "rpc not enabled"
+      ],
+      "re_enable_requires": "fixture/test certification of this function + explicit GRANT migration after the gate + allowlist entry",
+      "notes": []
+    },
+    {
+      "function": "review_tournament_match_operation(uuid,uuid,text,text)",
+      "area": "advanced competition states",
+      "phase2b_verdict": "INCONCLUSIVE",
+      "phase3a_status": "NOT_EXERCISED",
+      "acl_before_992dd282": {
+        "anon": false,
+        "authenticated": true,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "authenticated",
+          "service_role"
+        ]
+      },
+      "acl_after_phase2d": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "service_role"
+        ],
+        "anon_openapi": false
+      },
+      "phase2d_status": "NOT_EXERCISED — SERVER-SIDE DISABLED FOR STAGING V1",
+      "db_gate": "REVOKE EXECUTE FROM anon, authenticated (00000000000001_staging_v1_rpc_exposure.sql); service_role kept",
+      "gateway_allowlisted": false,
+      "direct_postgrest": {
+        "anon": "DENIED_BEFORE_BODY",
+        "authenticated": "DENIED_BEFORE_BODY"
+      },
+      "gateway_valid_core_session": [
+        403,
+        "rpc not enabled"
+      ],
+      "re_enable_requires": "fixture/test certification of this function + explicit GRANT migration after the gate + allowlist entry",
+      "notes": []
+    },
+    {
+      "function": "review_tournament_team_entry(uuid,uuid,text,text,jsonb)",
+      "area": "other",
+      "phase2b_verdict": "INCONCLUSIVE",
+      "phase3a_status": "NOT_EXERCISED",
+      "acl_before_992dd282": {
+        "anon": false,
+        "authenticated": true,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "authenticated",
+          "service_role"
+        ]
+      },
+      "acl_after_phase2d": {
+        "anon": false,
+        "authenticated": true,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "authenticated",
+          "service_role"
+        ],
+        "anon_openapi": false
+      },
+      "phase2d_status": "CERTIFIED",
+      "certified_on": "real Supabase stack (PostgREST + gateway + real Core session), fixture built through the allowlisted RPCs",
+      "fix": "season rule R3-2D (generator): organization capability AND has_tournament_season_access(entry season); the CASE capability argument had escaped the Phase 2B R2 pattern",
+      "matrix": {
+        "pass": [
+          "owner (gateway, real Core session) / approved",
+          "owner / changes_requested",
+          "owner / rejected",
+          "admin seated on season A / approved",
+          "admin seated on season B (season B entry) / approved"
+        ],
+        "deny": [
+          "admin unassigned (member, no season seat)",
+          "admin seated on season B reviews a season A entry",
+          "admin seated on season B, changes_requested on season A entry",
+          "admin seated on season B, rejected on season A entry",
+          "other workspace owner with the entry's org id",
+          "other workspace owner with their own org id",
+          "owner with a foreign org id",
+          "admin A on season B entry (cross-season, seat elsewhere)",
+          "anon (direct PostgREST)",
+          "anon (gateway)"
+        ],
+        "rejected": [
+          "decision \"maybe\"",
+          "reason too short",
+          "reason too long",
+          "issues is an object",
+          "approve with invalid roster"
+        ]
+      },
+      "wrappers": "approve_tournament_team_entry / reject_tournament_team_entry: SERVICE_ONLY (no client EXECUTE, not allowlisted); as service_role with an identity they delegate to review and inherit its guards",
+      "gateway_allowlisted": true,
+      "evidence": [
+        "integration/torneos-core-contracts/evidence/exposure-p0-matrix.json",
+        "integration/torneos-core-contracts/evidence/exposure-results.json"
+      ]
+    },
+    {
+      "function": "revoke_tournament_player_portrait_publication(uuid,uuid)",
+      "area": "media/assets pipeline",
+      "phase2b_verdict": "INCONCLUSIVE",
+      "phase3a_status": "NOT_EXERCISED",
+      "acl_before_992dd282": {
+        "anon": false,
+        "authenticated": true,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "authenticated",
+          "service_role"
+        ]
+      },
+      "acl_after_phase2d": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "service_role"
+        ],
+        "anon_openapi": false
+      },
+      "phase2d_status": "NOT_EXERCISED — SERVER-SIDE DISABLED FOR STAGING V1",
+      "db_gate": "REVOKE EXECUTE FROM anon, authenticated (00000000000001_staging_v1_rpc_exposure.sql); service_role kept",
+      "gateway_allowlisted": false,
+      "direct_postgrest": {
+        "anon": "DENIED_BEFORE_BODY",
+        "authenticated": "DENIED_BEFORE_BODY"
+      },
+      "gateway_valid_core_session": [
+        403,
+        "rpc not enabled"
+      ],
+      "re_enable_requires": "fixture/test certification of this function + explicit GRANT migration after the gate + allowlist entry",
+      "notes": []
+    },
+    {
+      "function": "revoke_tournament_points_adjustment(uuid,text)",
+      "area": "other",
+      "phase2b_verdict": "INCONCLUSIVE",
+      "phase3a_status": "NOT_EXERCISED",
+      "acl_before_992dd282": {
+        "anon": false,
+        "authenticated": true,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "authenticated",
+          "service_role"
+        ]
+      },
+      "acl_after_phase2d": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "service_role"
+        ],
+        "anon_openapi": false
+      },
+      "phase2d_status": "NOT_EXERCISED — SERVER-SIDE DISABLED FOR STAGING V1",
+      "db_gate": "REVOKE EXECUTE FROM anon, authenticated (00000000000001_staging_v1_rpc_exposure.sql); service_role kept",
+      "gateway_allowlisted": false,
+      "direct_postgrest": {
+        "anon": "DENIED_BEFORE_BODY",
+        "authenticated": "DENIED_BEFORE_BODY"
+      },
+      "gateway_valid_core_session": [
+        403,
+        "rpc not enabled"
+      ],
+      "re_enable_requires": "fixture/test certification of this function + explicit GRANT migration after the gate + allowlist entry",
+      "notes": []
+    },
+    {
+      "function": "revoke_tournament_team_photo(uuid,uuid)",
+      "area": "media/assets pipeline",
+      "phase2b_verdict": "INCONCLUSIVE",
+      "phase3a_status": "NOT_EXERCISED",
+      "acl_before_992dd282": {
+        "anon": false,
+        "authenticated": true,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "authenticated",
+          "service_role"
+        ]
+      },
+      "acl_after_phase2d": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "service_role"
+        ],
+        "anon_openapi": false
+      },
+      "phase2d_status": "NOT_EXERCISED — SERVER-SIDE DISABLED FOR STAGING V1",
+      "db_gate": "REVOKE EXECUTE FROM anon, authenticated (00000000000001_staging_v1_rpc_exposure.sql); service_role kept",
+      "gateway_allowlisted": false,
+      "direct_postgrest": {
+        "anon": "DENIED_BEFORE_BODY",
+        "authenticated": "DENIED_BEFORE_BODY"
+      },
+      "gateway_valid_core_session": [
+        403,
+        "rpc not enabled"
+      ],
+      "re_enable_requires": "fixture/test certification of this function + explicit GRANT migration after the gate + allowlist entry",
+      "notes": []
+    },
+    {
+      "function": "save_tournament_draw_pots(uuid,uuid,uuid,jsonb)",
+      "area": "other",
+      "phase2b_verdict": "INCONCLUSIVE",
+      "phase3a_status": "NOT_EXERCISED",
+      "acl_before_992dd282": {
+        "anon": false,
+        "authenticated": true,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "authenticated",
+          "service_role"
+        ]
+      },
+      "acl_after_phase2d": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "service_role"
+        ],
+        "anon_openapi": false
+      },
+      "phase2d_status": "NOT_EXERCISED — SERVER-SIDE DISABLED FOR STAGING V1",
+      "db_gate": "REVOKE EXECUTE FROM anon, authenticated (00000000000001_staging_v1_rpc_exposure.sql); service_role kept",
+      "gateway_allowlisted": false,
+      "direct_postgrest": {
+        "anon": "DENIED_BEFORE_BODY",
+        "authenticated": "DENIED_BEFORE_BODY"
+      },
+      "gateway_valid_core_session": [
+        403,
+        "rpc not enabled"
+      ],
+      "re_enable_requires": "fixture/test certification of this function + explicit GRANT migration after the gate + allowlist entry",
+      "notes": []
+    },
+    {
+      "function": "schedule_tournament_match(uuid,uuid,timestamp with time zone,uuid,uuid,integer,boolean,text)",
+      "area": "advanced competition states",
+      "phase2b_verdict": "INCONCLUSIVE",
+      "phase3a_status": "NOT_EXERCISED",
+      "acl_before_992dd282": {
+        "anon": false,
+        "authenticated": true,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "authenticated",
+          "service_role"
+        ]
+      },
+      "acl_after_phase2d": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "service_role"
+        ],
+        "anon_openapi": false
+      },
+      "phase2d_status": "NOT_EXERCISED — SERVER-SIDE DISABLED FOR STAGING V1",
+      "db_gate": "REVOKE EXECUTE FROM anon, authenticated (00000000000001_staging_v1_rpc_exposure.sql); service_role kept",
+      "gateway_allowlisted": false,
+      "direct_postgrest": {
+        "anon": "DENIED_BEFORE_BODY",
+        "authenticated": "DENIED_BEFORE_BODY"
+      },
+      "gateway_valid_core_session": [
+        403,
+        "rpc not enabled"
+      ],
+      "re_enable_requires": "fixture/test certification of this function + explicit GRANT migration after the gate + allowlist entry",
+      "notes": [
+        "reachable internally from auto_schedule_tournament_matches (client RPC, SCOPED in Phase 2B): that parent is gated too"
+      ]
+    },
+    {
+      "function": "set_tournament_player_portrait_crop(uuid,uuid,numeric,numeric,numeric)",
+      "area": "media/assets pipeline",
+      "phase2b_verdict": "INCONCLUSIVE",
+      "phase3a_status": "NOT_EXERCISED",
+      "acl_before_992dd282": {
+        "anon": false,
+        "authenticated": true,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "authenticated",
+          "service_role"
+        ]
+      },
+      "acl_after_phase2d": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "service_role"
+        ],
+        "anon_openapi": false
+      },
+      "phase2d_status": "NOT_EXERCISED — SERVER-SIDE DISABLED FOR STAGING V1",
+      "db_gate": "REVOKE EXECUTE FROM anon, authenticated (00000000000001_staging_v1_rpc_exposure.sql); service_role kept",
+      "gateway_allowlisted": false,
+      "direct_postgrest": {
+        "anon": "DENIED_BEFORE_BODY",
+        "authenticated": "DENIED_BEFORE_BODY"
+      },
+      "gateway_valid_core_session": [
+        403,
+        "rpc not enabled"
+      ],
+      "re_enable_requires": "fixture/test certification of this function + explicit GRANT migration after the gate + allowlist entry",
+      "notes": []
+    },
+    {
+      "function": "set_tournament_player_portrait_editorial_status(uuid,uuid,text)",
+      "area": "media/assets pipeline",
+      "phase2b_verdict": "INCONCLUSIVE",
+      "phase3a_status": "NOT_EXERCISED",
+      "acl_before_992dd282": {
+        "anon": false,
+        "authenticated": true,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "authenticated",
+          "service_role"
+        ]
+      },
+      "acl_after_phase2d": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "service_role"
+        ],
+        "anon_openapi": false
+      },
+      "phase2d_status": "NOT_EXERCISED — SERVER-SIDE DISABLED FOR STAGING V1",
+      "db_gate": "REVOKE EXECUTE FROM anon, authenticated (00000000000001_staging_v1_rpc_exposure.sql); service_role kept",
+      "gateway_allowlisted": false,
+      "direct_postgrest": {
+        "anon": "DENIED_BEFORE_BODY",
+        "authenticated": "DENIED_BEFORE_BODY"
+      },
+      "gateway_valid_core_session": [
+        403,
+        "rpc not enabled"
+      ],
+      "re_enable_requires": "fixture/test certification of this function + explicit GRANT migration after the gate + allowlist entry",
+      "notes": []
+    },
+    {
+      "function": "submit_match_squad(uuid,uuid,uuid)",
+      "area": "advanced competition states",
+      "phase2b_verdict": "INCONCLUSIVE",
+      "phase3a_status": "NOT_EXERCISED",
+      "acl_before_992dd282": {
+        "anon": false,
+        "authenticated": true,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "authenticated",
+          "service_role"
+        ]
+      },
+      "acl_after_phase2d": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "service_role"
+        ],
+        "anon_openapi": false
+      },
+      "phase2d_status": "NOT_EXERCISED — SERVER-SIDE DISABLED FOR STAGING V1",
+      "db_gate": "REVOKE EXECUTE FROM anon, authenticated (00000000000001_staging_v1_rpc_exposure.sql); service_role kept",
+      "gateway_allowlisted": false,
+      "direct_postgrest": {
+        "anon": "DENIED_BEFORE_BODY",
+        "authenticated": "DENIED_BEFORE_BODY"
+      },
+      "gateway_valid_core_session": [
+        403,
+        "rpc not enabled"
+      ],
+      "re_enable_requires": "fixture/test certification of this function + explicit GRANT migration after the gate + allowlist entry",
+      "notes": []
+    },
+    {
+      "function": "supersede_tournament_fixture(uuid,uuid,uuid)",
+      "area": "advanced competition states",
+      "phase2b_verdict": "INCONCLUSIVE",
+      "phase3a_status": "NOT_EXERCISED",
+      "acl_before_992dd282": {
+        "anon": false,
+        "authenticated": true,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "authenticated",
+          "service_role"
+        ]
+      },
+      "acl_after_phase2d": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "service_role"
+        ],
+        "anon_openapi": false
+      },
+      "phase2d_status": "NOT_EXERCISED — SERVER-SIDE DISABLED FOR STAGING V1",
+      "db_gate": "REVOKE EXECUTE FROM anon, authenticated (00000000000001_staging_v1_rpc_exposure.sql); service_role kept",
+      "gateway_allowlisted": false,
+      "direct_postgrest": {
+        "anon": "DENIED_BEFORE_BODY",
+        "authenticated": "DENIED_BEFORE_BODY"
+      },
+      "gateway_valid_core_session": [
+        403,
+        "rpc not enabled"
+      ],
+      "re_enable_requires": "fixture/test certification of this function + explicit GRANT migration after the gate + allowlist entry",
+      "notes": []
+    },
+    {
+      "function": "transition_tournament_media_asset(uuid,text,text)",
+      "area": "media/assets pipeline",
+      "phase2b_verdict": "INCONCLUSIVE",
+      "phase3a_status": "NOT_EXERCISED",
+      "acl_before_992dd282": {
+        "anon": false,
+        "authenticated": true,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "authenticated",
+          "service_role"
+        ]
+      },
+      "acl_after_phase2d": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "service_role"
+        ],
+        "anon_openapi": false
+      },
+      "phase2d_status": "NOT_EXERCISED — SERVER-SIDE DISABLED FOR STAGING V1",
+      "db_gate": "REVOKE EXECUTE FROM anon, authenticated (00000000000001_staging_v1_rpc_exposure.sql); service_role kept",
+      "gateway_allowlisted": false,
+      "direct_postgrest": {
+        "anon": "DENIED_BEFORE_BODY",
+        "authenticated": "DENIED_BEFORE_BODY"
+      },
+      "gateway_valid_core_session": [
+        403,
+        "rpc not enabled"
+      ],
+      "re_enable_requires": "fixture/test certification of this function + explicit GRANT migration after the gate + allowlist entry",
+      "notes": []
+    },
+    {
+      "function": "update_draft_fixture(uuid,uuid,text,jsonb)",
+      "area": "advanced competition states",
+      "phase2b_verdict": "INCONCLUSIVE",
+      "phase3a_status": "NOT_EXERCISED",
+      "acl_before_992dd282": {
+        "anon": false,
+        "authenticated": true,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "authenticated",
+          "service_role"
+        ]
+      },
+      "acl_after_phase2d": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "service_role"
+        ],
+        "anon_openapi": false
+      },
+      "phase2d_status": "NOT_EXERCISED — SERVER-SIDE DISABLED FOR STAGING V1",
+      "db_gate": "REVOKE EXECUTE FROM anon, authenticated (00000000000001_staging_v1_rpc_exposure.sql); service_role kept",
+      "gateway_allowlisted": false,
+      "direct_postgrest": {
+        "anon": "DENIED_BEFORE_BODY",
+        "authenticated": "DENIED_BEFORE_BODY"
+      },
+      "gateway_valid_core_session": [
+        403,
+        "rpc not enabled"
+      ],
+      "re_enable_requires": "fixture/test certification of this function + explicit GRANT migration after the gate + allowlist entry",
+      "notes": [
+        "season rule NOT applied by the generator (CASE capability argument escapes the R2 pattern, same class as the P0); must receive the rule and a fixture before its feature is enabled"
+      ]
+    },
+    {
+      "function": "validate_tournament_match_operation(uuid,uuid)",
+      "area": "advanced competition states",
+      "phase2b_verdict": "INCONCLUSIVE",
+      "phase3a_status": "NOT_EXERCISED",
+      "acl_before_992dd282": {
+        "anon": false,
+        "authenticated": true,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "authenticated",
+          "service_role"
+        ]
+      },
+      "acl_after_phase2d": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "service_role"
+        ],
+        "anon_openapi": false
+      },
+      "phase2d_status": "NOT_EXERCISED — SERVER-SIDE DISABLED FOR STAGING V1",
+      "db_gate": "REVOKE EXECUTE FROM anon, authenticated (00000000000001_staging_v1_rpc_exposure.sql); service_role kept",
+      "gateway_allowlisted": false,
+      "direct_postgrest": {
+        "anon": "DENIED_BEFORE_BODY",
+        "authenticated": "DENIED_BEFORE_BODY"
+      },
+      "gateway_valid_core_session": [
+        403,
+        "rpc not enabled"
+      ],
+      "re_enable_requires": "fixture/test certification of this function + explicit GRANT migration after the gate + allowlist entry",
+      "notes": []
+    },
+    {
+      "function": "void_tournament_match_event(uuid,uuid,text)",
+      "area": "advanced competition states",
+      "phase2b_verdict": "INCONCLUSIVE",
+      "phase3a_status": "NOT_EXERCISED",
+      "acl_before_992dd282": {
+        "anon": false,
+        "authenticated": true,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "authenticated",
+          "service_role"
+        ]
+      },
+      "acl_after_phase2d": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "service_role"
+        ],
+        "anon_openapi": false
+      },
+      "phase2d_status": "NOT_EXERCISED — SERVER-SIDE DISABLED FOR STAGING V1",
+      "db_gate": "REVOKE EXECUTE FROM anon, authenticated (00000000000001_staging_v1_rpc_exposure.sql); service_role kept",
+      "gateway_allowlisted": false,
+      "direct_postgrest": {
+        "anon": "DENIED_BEFORE_BODY",
+        "authenticated": "DENIED_BEFORE_BODY"
+      },
+      "gateway_valid_core_session": [
+        403,
+        "rpc not enabled"
+      ],
+      "re_enable_requires": "fixture/test certification of this function + explicit GRANT migration after the gate + allowlist entry",
+      "notes": []
+    },
+    {
+      "function": "auto_schedule_tournament_matches(uuid,uuid)",
+      "area": "parent path",
+      "phase2b_verdict": "SCOPED",
+      "phase3a_status": "n/a (not in the 33)",
+      "acl_before_992dd282": {
+        "anon": false,
+        "authenticated": true,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "authenticated",
+          "service_role"
+        ]
+      },
+      "acl_after_phase2d": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "service_role"
+        ],
+        "anon_openapi": false
+      },
+      "phase2d_status": "GATED FOR STAGING V1 (parent path)",
+      "reason": "client-executable RPC that reaches a gated function internally: auto_schedule_tournament_matches -> schedule_tournament_match",
+      "db_gate": "REVOKE EXECUTE FROM anon, authenticated; service_role kept",
+      "gateway_allowlisted": false,
+      "direct_postgrest": {
+        "anon": "DENIED_BEFORE_BODY",
+        "authenticated": "DENIED_BEFORE_BODY"
+      },
+      "gateway_valid_core_session": [
+        403,
+        "rpc not enabled"
+      ],
+      "re_enable_requires": "enable schedule_tournament_match first (its own certification), then GRANT + allowlist"
+    }
+  ]
+}

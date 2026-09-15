@@ -1,0 +1,67 @@
+{
+  "phase": "2D",
+  "scope": "Torneos gateway RPC allowlist for staging v1. The gateway refuses POST /torneos/rest/v1/rpc/<name> for any name outside these features even with a valid Core session and a valid identity bearer. It is the second layer: the database ACL (baseline + 00000000000001_staging_v1_rpc_exposure.sql) remains the final boundary for a client that reaches PostgREST directly.",
+  "derived_from": "the staging v1 minimum feature set already approved: organizations/workspaces, collaborators, seasons, tournaments, team registration/basic roster, invitations, Core team import, team entry review (certified in Phase 2D). Everything else stays OFF.",
+  "anon_note": "The gateway has no anonymous RPC path (a bearer is mandatory), so the 12 anon-executable read RPCs of the baseline are not part of this list; they remain governed by the database ACL only.",
+  "features": {
+    "organizations_workspaces": [
+      "create_tournament_organization",
+      "update_tournament_organization",
+      "is_tournament_organization_slug_available",
+      "is_tournament_organization_member",
+      "has_tournament_organization_capability",
+      "has_tournament_capability",
+      "tournament_role_capabilities",
+      "get_my_tournament_memberships",
+      "get_tournament_workspace_context",
+      "set_tournament_workspace_preference",
+      "set_active_tournament_context"
+    ],
+    "collaborators": [
+      "assign_tournament_season_member",
+      "remove_tournament_season_member_assignment",
+      "list_tournament_season_member_assignments",
+      "has_tournament_season_access",
+      "has_tournament_season_capability"
+    ],
+    "seasons": [
+      "create_tournament_season",
+      "update_tournament_season"
+    ],
+    "tournaments": [
+      "create_tournament_with_defaults",
+      "update_tournament_configuration",
+      "change_tournament_status",
+      "save_tournament_category",
+      "get_tournament_competition_context",
+      "get_tournament_creation_eligibility",
+      "has_organization_consumed_free_tournament"
+    ],
+    "team_registration_basic_roster": [
+      "create_tournament_team_entry",
+      "update_tournament_team_entry",
+      "submit_tournament_team_entry",
+      "withdraw_tournament_team_entry",
+      "archive_tournament_team_entry",
+      "get_team_registration_context",
+      "get_tournament_teams_context",
+      "can_read_tournament_team_entry",
+      "is_tournament_team_manager",
+      "add_tournament_roster_player",
+      "update_tournament_roster_player",
+      "remove_tournament_roster_player",
+      "create_tournament_provisional_player",
+      "search_tournament_players"
+    ],
+    "invitations": [
+      "invite_tournament_team_manager",
+      "accept_tournament_team_invitation"
+    ],
+    "core_team_import": [
+      "search_tournament_arma2_teams"
+    ],
+    "team_entry_review": [
+      "review_tournament_team_entry"
+    ]
+  }
+}

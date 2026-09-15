@@ -1,8 +1,12 @@
 {
   "summary": {
-    "image": "public.ecr.aws/supabase/postgres:17.6.1.143",
+    "label": "before-real",
     "database": "postgres",
+    "image": "public.ecr.aws/supabase/postgres:17.6.1.143",
     "installer": "supabase_admin",
+    "sources": [
+      "00000000000000_torneos_baseline_v1.sql@992dd282"
+    ],
     "functions_total": 366,
     "public_functions": 359,
     "security_definer": 305,
@@ -13,9 +17,9 @@
         "security_definer": 12
       },
       "authenticated": {
-        "public_functions": 147,
+        "public_functions": 180,
         "private_functions": 2,
-        "security_definer": 146
+        "security_definer": 179
       },
       "service_role": {
         "public_functions": 328,
@@ -29,14 +33,12 @@
       }
     },
     "public_execute_functions": 0,
-    "sequences_total": 7,
     "sequence_privilege": {
       "anon": 0,
       "authenticated": 4,
       "service_role": 4,
       "postgres": 7
     },
-    "relations_total": 106,
     "relation_privilege": {
       "anon": 78,
       "authenticated": 80,
@@ -723,7 +725,7 @@
         "torneos_identity_writer": false
       },
       {
-        "acl": "{supabase_admin=X/supabase_admin,postgres=X/supabase_admin,service_role=X/supabase_admin}",
+        "acl": "{supabase_admin=X/supabase_admin,postgres=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}",
         "anon": false,
         "name": "authorize_tournament_social_export",
         "owner": "supabase_admin",
@@ -736,7 +738,7 @@
         ],
         "service_role": true,
         "trigger_used": false,
-        "authenticated": false,
+        "authenticated": true,
         "security_definer": true,
         "torneos_core_adapter": false,
         "torneos_identity_writer": false
@@ -761,7 +763,7 @@
         "torneos_identity_writer": false
       },
       {
-        "acl": "{supabase_admin=X/supabase_admin,postgres=X/supabase_admin,service_role=X/supabase_admin}",
+        "acl": "{supabase_admin=X/supabase_admin,postgres=X/supabase_admin,service_role=X/supabase_admin,authenticated=X/supabase_admin}",
         "anon": false,
         "name": "auto_schedule_tournament_matches",
         "owner": "supabase_admin",
@@ -774,7 +776,7 @@
         ],
         "service_role": true,
         "trigger_used": false,
-        "authenticated": false,
+        "authenticated": true,
         "security_definer": true,
         "torneos_core_adapter": false,
         "torneos_identity_writer": false
@@ -1312,7 +1314,7 @@
         "torneos_identity_writer": false
       },
       {
-        "acl": "{supabase_admin=X/supabase_admin,postgres=X/supabase_admin,service_role=X/supabase_admin}",
+        "acl": "{supabase_admin=X/supabase_admin,postgres=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}",
         "anon": false,
         "name": "cancel_tournament_purchase",
         "owner": "supabase_admin",
@@ -1325,13 +1327,13 @@
         ],
         "service_role": true,
         "trigger_used": false,
-        "authenticated": false,
+        "authenticated": true,
         "security_definer": true,
         "torneos_core_adapter": false,
         "torneos_identity_writer": false
       },
       {
-        "acl": "{supabase_admin=X/supabase_admin,postgres=X/supabase_admin,service_role=X/supabase_admin}",
+        "acl": "{supabase_admin=X/supabase_admin,postgres=X/supabase_admin,service_role=X/supabase_admin,authenticated=X/supabase_admin}",
         "anon": false,
         "name": "change_tournament_media_gallery_state",
         "owner": "supabase_admin",
@@ -1344,7 +1346,7 @@
         ],
         "service_role": true,
         "trigger_used": false,
-        "authenticated": false,
+        "authenticated": true,
         "security_definer": true,
         "torneos_core_adapter": false,
         "torneos_identity_writer": false
@@ -1673,7 +1675,7 @@
         "torneos_identity_writer": false
       },
       {
-        "acl": "{supabase_admin=X/supabase_admin,postgres=X/supabase_admin,service_role=X/supabase_admin}",
+        "acl": "{supabase_admin=X/supabase_admin,postgres=X/supabase_admin,service_role=X/supabase_admin,authenticated=X/supabase_admin}",
         "anon": false,
         "name": "create_tournament_disciplinary_override",
         "owner": "supabase_admin",
@@ -1686,7 +1688,7 @@
         ],
         "service_role": true,
         "trigger_used": false,
-        "authenticated": false,
+        "authenticated": true,
         "security_definer": true,
         "torneos_core_adapter": false,
         "torneos_identity_writer": false
@@ -1730,7 +1732,7 @@
         "torneos_identity_writer": false
       },
       {
-        "acl": "{supabase_admin=X/supabase_admin,postgres=X/supabase_admin,service_role=X/supabase_admin}",
+        "acl": "{supabase_admin=X/supabase_admin,postgres=X/supabase_admin,service_role=X/supabase_admin,authenticated=X/supabase_admin}",
         "anon": false,
         "name": "create_tournament_match_correction",
         "owner": "supabase_admin",
@@ -1743,7 +1745,7 @@
         ],
         "service_role": true,
         "trigger_used": false,
-        "authenticated": false,
+        "authenticated": true,
         "security_definer": true,
         "torneos_core_adapter": false,
         "torneos_identity_writer": false
@@ -1787,7 +1789,7 @@
         "torneos_identity_writer": false
       },
       {
-        "acl": "{supabase_admin=X/supabase_admin,postgres=X/supabase_admin,service_role=X/supabase_admin}",
+        "acl": "{supabase_admin=X/supabase_admin,postgres=X/supabase_admin,service_role=X/supabase_admin,authenticated=X/supabase_admin}",
         "anon": false,
         "name": "create_tournament_points_adjustment",
         "owner": "supabase_admin",
@@ -1800,7 +1802,7 @@
         ],
         "service_role": true,
         "trigger_used": false,
-        "authenticated": false,
+        "authenticated": true,
         "security_definer": true,
         "torneos_core_adapter": false,
         "torneos_identity_writer": false
@@ -3060,7 +3062,7 @@
         "torneos_identity_writer": false
       },
       {
-        "acl": "{supabase_admin=X/supabase_admin,postgres=X/supabase_admin,service_role=X/supabase_admin}",
+        "acl": "{supabase_admin=X/supabase_admin,postgres=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}",
         "anon": false,
         "name": "get_tournament_player_portrait_ref",
         "owner": "supabase_admin",
@@ -3073,7 +3075,7 @@
         ],
         "service_role": true,
         "trigger_used": false,
-        "authenticated": false,
+        "authenticated": true,
         "security_definer": true,
         "torneos_core_adapter": false,
         "torneos_identity_writer": false
@@ -3098,7 +3100,7 @@
         "torneos_identity_writer": false
       },
       {
-        "acl": "{supabase_admin=X/supabase_admin,postgres=X/supabase_admin,service_role=X/supabase_admin}",
+        "acl": "{supabase_admin=X/supabase_admin,postgres=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}",
         "anon": false,
         "name": "get_tournament_purchase",
         "owner": "supabase_admin",
@@ -3111,7 +3113,7 @@
         ],
         "service_role": true,
         "trigger_used": false,
-        "authenticated": false,
+        "authenticated": true,
         "security_definer": true,
         "torneos_core_adapter": false,
         "torneos_identity_writer": false
@@ -3459,7 +3461,7 @@
         "torneos_identity_writer": false
       },
       {
-        "acl": "{supabase_admin=X/supabase_admin,postgres=X/supabase_admin,service_role=X/supabase_admin}",
+        "acl": "{supabase_admin=X/supabase_admin,postgres=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}",
         "anon": false,
         "name": "has_tournament_entitlement",
         "owner": "supabase_admin",
@@ -3472,7 +3474,7 @@
         ],
         "service_role": true,
         "trigger_used": false,
-        "authenticated": false,
+        "authenticated": true,
         "security_definer": true,
         "torneos_core_adapter": false,
         "torneos_identity_writer": false
@@ -3858,7 +3860,7 @@
         "torneos_identity_writer": false
       },
       {
-        "acl": "{supabase_admin=X/supabase_admin,postgres=X/supabase_admin,service_role=X/supabase_admin}",
+        "acl": "{supabase_admin=X/supabase_admin,postgres=X/supabase_admin,service_role=X/supabase_admin,authenticated=X/supabase_admin}",
         "anon": false,
         "name": "lock_tournament_roster",
         "owner": "supabase_admin",
@@ -3871,13 +3873,13 @@
         ],
         "service_role": true,
         "trigger_used": false,
-        "authenticated": false,
+        "authenticated": true,
         "security_definer": true,
         "torneos_core_adapter": false,
         "torneos_identity_writer": false
       },
       {
-        "acl": "{supabase_admin=X/supabase_admin,postgres=X/supabase_admin,service_role=X/supabase_admin}",
+        "acl": "{supabase_admin=X/supabase_admin,postgres=X/supabase_admin,service_role=X/supabase_admin,authenticated=X/supabase_admin}",
         "anon": false,
         "name": "make_tournament_match_official",
         "owner": "supabase_admin",
@@ -3890,7 +3892,7 @@
         ],
         "service_role": true,
         "trigger_used": false,
-        "authenticated": false,
+        "authenticated": true,
         "security_definer": true,
         "torneos_core_adapter": false,
         "torneos_identity_writer": false
@@ -3934,7 +3936,7 @@
         "torneos_identity_writer": false
       },
       {
-        "acl": "{supabase_admin=X/supabase_admin,postgres=X/supabase_admin,service_role=X/supabase_admin}",
+        "acl": "{supabase_admin=X/supabase_admin,postgres=X/supabase_admin,service_role=X/supabase_admin,authenticated=X/supabase_admin}",
         "anon": false,
         "name": "mark_tournament_suspension_served",
         "owner": "supabase_admin",
@@ -3947,7 +3949,7 @@
         ],
         "service_role": true,
         "trigger_used": false,
-        "authenticated": false,
+        "authenticated": true,
         "security_definer": true,
         "torneos_core_adapter": false,
         "torneos_identity_writer": false
@@ -4352,7 +4354,7 @@
         "torneos_identity_writer": false
       },
       {
-        "acl": "{supabase_admin=X/supabase_admin,postgres=X/supabase_admin,service_role=X/supabase_admin}",
+        "acl": "{supabase_admin=X/supabase_admin,postgres=X/supabase_admin,service_role=X/supabase_admin,authenticated=X/supabase_admin}",
         "anon": false,
         "name": "publish_tournament_fixture",
         "owner": "supabase_admin",
@@ -4365,7 +4367,7 @@
         ],
         "service_role": true,
         "trigger_used": false,
-        "authenticated": false,
+        "authenticated": true,
         "security_definer": true,
         "torneos_core_adapter": false,
         "torneos_identity_writer": false
@@ -4504,7 +4506,7 @@
         "torneos_identity_writer": false
       },
       {
-        "acl": "{supabase_admin=X/supabase_admin,postgres=X/supabase_admin,service_role=X/supabase_admin}",
+        "acl": "{supabase_admin=X/supabase_admin,postgres=X/supabase_admin,service_role=X/supabase_admin,authenticated=X/supabase_admin}",
         "anon": false,
         "name": "record_manual_match_availability",
         "owner": "supabase_admin",
@@ -4517,7 +4519,7 @@
         ],
         "service_role": true,
         "trigger_used": false,
-        "authenticated": false,
+        "authenticated": true,
         "security_definer": true,
         "torneos_core_adapter": false,
         "torneos_identity_writer": false
@@ -4751,7 +4753,7 @@
         "torneos_identity_writer": false
       },
       {
-        "acl": "{supabase_admin=X/supabase_admin,postgres=X/supabase_admin,service_role=X/supabase_admin}",
+        "acl": "{supabase_admin=X/supabase_admin,postgres=X/supabase_admin,service_role=X/supabase_admin,authenticated=X/supabase_admin}",
         "anon": false,
         "name": "reopen_tournament_participants",
         "owner": "supabase_admin",
@@ -4764,7 +4766,7 @@
         ],
         "service_role": true,
         "trigger_used": false,
-        "authenticated": false,
+        "authenticated": true,
         "security_definer": true,
         "torneos_core_adapter": false,
         "torneos_identity_writer": false
@@ -4808,7 +4810,7 @@
         "torneos_identity_writer": false
       },
       {
-        "acl": "{supabase_admin=X/supabase_admin,postgres=X/supabase_admin,service_role=X/supabase_admin}",
+        "acl": "{supabase_admin=X/supabase_admin,postgres=X/supabase_admin,service_role=X/supabase_admin,authenticated=X/supabase_admin}",
         "anon": false,
         "name": "report_tournament_media_asset",
         "owner": "supabase_admin",
@@ -4821,13 +4823,13 @@
         ],
         "service_role": true,
         "trigger_used": false,
-        "authenticated": false,
+        "authenticated": true,
         "security_definer": true,
         "torneos_core_adapter": false,
         "torneos_identity_writer": false
       },
       {
-        "acl": "{supabase_admin=X/supabase_admin,postgres=X/supabase_admin,service_role=X/supabase_admin}",
+        "acl": "{supabase_admin=X/supabase_admin,postgres=X/supabase_admin,service_role=X/supabase_admin,authenticated=X/supabase_admin}",
         "anon": false,
         "name": "request_tournament_match_correction",
         "owner": "supabase_admin",
@@ -4840,7 +4842,7 @@
         ],
         "service_role": true,
         "trigger_used": false,
-        "authenticated": false,
+        "authenticated": true,
         "security_definer": true,
         "torneos_core_adapter": false,
         "torneos_identity_writer": false
@@ -4979,7 +4981,7 @@
         "torneos_identity_writer": false
       },
       {
-        "acl": "{supabase_admin=X/supabase_admin,postgres=X/supabase_admin,service_role=X/supabase_admin}",
+        "acl": "{supabase_admin=X/supabase_admin,postgres=X/supabase_admin,service_role=X/supabase_admin,authenticated=X/supabase_admin}",
         "anon": false,
         "name": "resolve_tournament_qualification",
         "owner": "supabase_admin",
@@ -4992,7 +4994,7 @@
         ],
         "service_role": true,
         "trigger_used": false,
-        "authenticated": false,
+        "authenticated": true,
         "security_definer": true,
         "torneos_core_adapter": false,
         "torneos_identity_writer": false
@@ -5055,7 +5057,7 @@
         "torneos_identity_writer": false
       },
       {
-        "acl": "{supabase_admin=X/supabase_admin,postgres=X/supabase_admin,service_role=X/supabase_admin}",
+        "acl": "{supabase_admin=X/supabase_admin,postgres=X/supabase_admin,service_role=X/supabase_admin,authenticated=X/supabase_admin}",
         "anon": false,
         "name": "review_tournament_match_operation",
         "owner": "supabase_admin",
@@ -5068,7 +5070,7 @@
         ],
         "service_role": true,
         "trigger_used": false,
-        "authenticated": false,
+        "authenticated": true,
         "security_definer": true,
         "torneos_core_adapter": false,
         "torneos_identity_writer": false
@@ -5131,7 +5133,7 @@
         "torneos_identity_writer": false
       },
       {
-        "acl": "{supabase_admin=X/supabase_admin,postgres=X/supabase_admin,service_role=X/supabase_admin}",
+        "acl": "{supabase_admin=X/supabase_admin,postgres=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}",
         "anon": false,
         "name": "revoke_tournament_player_portrait_publication",
         "owner": "supabase_admin",
@@ -5144,13 +5146,13 @@
         ],
         "service_role": true,
         "trigger_used": false,
-        "authenticated": false,
+        "authenticated": true,
         "security_definer": true,
         "torneos_core_adapter": false,
         "torneos_identity_writer": false
       },
       {
-        "acl": "{supabase_admin=X/supabase_admin,postgres=X/supabase_admin,service_role=X/supabase_admin}",
+        "acl": "{supabase_admin=X/supabase_admin,postgres=X/supabase_admin,service_role=X/supabase_admin,authenticated=X/supabase_admin}",
         "anon": false,
         "name": "revoke_tournament_points_adjustment",
         "owner": "supabase_admin",
@@ -5163,7 +5165,7 @@
         ],
         "service_role": true,
         "trigger_used": false,
-        "authenticated": false,
+        "authenticated": true,
         "security_definer": true,
         "torneos_core_adapter": false,
         "torneos_identity_writer": false
@@ -5188,7 +5190,7 @@
         "torneos_identity_writer": false
       },
       {
-        "acl": "{supabase_admin=X/supabase_admin,postgres=X/supabase_admin,service_role=X/supabase_admin}",
+        "acl": "{supabase_admin=X/supabase_admin,postgres=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}",
         "anon": false,
         "name": "revoke_tournament_team_photo",
         "owner": "supabase_admin",
@@ -5201,7 +5203,7 @@
         ],
         "service_role": true,
         "trigger_used": false,
-        "authenticated": false,
+        "authenticated": true,
         "security_definer": true,
         "torneos_core_adapter": false,
         "torneos_identity_writer": false
@@ -5245,7 +5247,7 @@
         "torneos_identity_writer": false
       },
       {
-        "acl": "{supabase_admin=X/supabase_admin,postgres=X/supabase_admin,service_role=X/supabase_admin}",
+        "acl": "{supabase_admin=X/supabase_admin,postgres=X/supabase_admin,service_role=X/supabase_admin,authenticated=X/supabase_admin}",
         "anon": false,
         "name": "save_tournament_draw_pots",
         "owner": "supabase_admin",
@@ -5258,7 +5260,7 @@
         ],
         "service_role": true,
         "trigger_used": false,
-        "authenticated": false,
+        "authenticated": true,
         "security_definer": true,
         "torneos_core_adapter": false,
         "torneos_identity_writer": false
@@ -5302,7 +5304,7 @@
         "torneos_identity_writer": false
       },
       {
-        "acl": "{supabase_admin=X/supabase_admin,postgres=X/supabase_admin,service_role=X/supabase_admin}",
+        "acl": "{supabase_admin=X/supabase_admin,postgres=X/supabase_admin,service_role=X/supabase_admin,authenticated=X/supabase_admin}",
         "anon": false,
         "name": "schedule_tournament_match",
         "owner": "supabase_admin",
@@ -5315,7 +5317,7 @@
         ],
         "service_role": true,
         "trigger_used": false,
-        "authenticated": false,
+        "authenticated": true,
         "security_definer": true,
         "torneos_core_adapter": false,
         "torneos_identity_writer": false
@@ -5568,7 +5570,7 @@
         "torneos_identity_writer": false
       },
       {
-        "acl": "{supabase_admin=X/supabase_admin,postgres=X/supabase_admin,service_role=X/supabase_admin}",
+        "acl": "{supabase_admin=X/supabase_admin,postgres=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}",
         "anon": false,
         "name": "set_tournament_player_portrait_crop",
         "owner": "supabase_admin",
@@ -5581,13 +5583,13 @@
         ],
         "service_role": true,
         "trigger_used": false,
-        "authenticated": false,
+        "authenticated": true,
         "security_definer": true,
         "torneos_core_adapter": false,
         "torneos_identity_writer": false
       },
       {
-        "acl": "{supabase_admin=X/supabase_admin,postgres=X/supabase_admin,service_role=X/supabase_admin}",
+        "acl": "{supabase_admin=X/supabase_admin,postgres=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}",
         "anon": false,
         "name": "set_tournament_player_portrait_editorial_status",
         "owner": "supabase_admin",
@@ -5600,7 +5602,7 @@
         ],
         "service_role": true,
         "trigger_used": false,
-        "authenticated": false,
+        "authenticated": true,
         "security_definer": true,
         "torneos_core_adapter": false,
         "torneos_identity_writer": false
@@ -5720,7 +5722,7 @@
         "torneos_identity_writer": false
       },
       {
-        "acl": "{supabase_admin=X/supabase_admin,postgres=X/supabase_admin,service_role=X/supabase_admin}",
+        "acl": "{supabase_admin=X/supabase_admin,postgres=X/supabase_admin,service_role=X/supabase_admin,authenticated=X/supabase_admin}",
         "anon": false,
         "name": "submit_match_squad",
         "owner": "supabase_admin",
@@ -5733,7 +5735,7 @@
         ],
         "service_role": true,
         "trigger_used": false,
-        "authenticated": false,
+        "authenticated": true,
         "security_definer": true,
         "torneos_core_adapter": false,
         "torneos_identity_writer": false
@@ -5777,7 +5779,7 @@
         "torneos_identity_writer": false
       },
       {
-        "acl": "{supabase_admin=X/supabase_admin,postgres=X/supabase_admin,service_role=X/supabase_admin}",
+        "acl": "{supabase_admin=X/supabase_admin,postgres=X/supabase_admin,service_role=X/supabase_admin,authenticated=X/supabase_admin}",
         "anon": false,
         "name": "supersede_tournament_fixture",
         "owner": "supabase_admin",
@@ -5790,7 +5792,7 @@
         ],
         "service_role": true,
         "trigger_used": false,
-        "authenticated": false,
+        "authenticated": true,
         "security_definer": true,
         "torneos_core_adapter": false,
         "torneos_identity_writer": false
@@ -6556,7 +6558,7 @@
         "torneos_identity_writer": false
       },
       {
-        "acl": "{supabase_admin=X/supabase_admin,postgres=X/supabase_admin,service_role=X/supabase_admin}",
+        "acl": "{supabase_admin=X/supabase_admin,postgres=X/supabase_admin,service_role=X/supabase_admin,authenticated=X/supabase_admin}",
         "anon": false,
         "name": "transition_tournament_media_asset",
         "owner": "supabase_admin",
@@ -6569,13 +6571,13 @@
         ],
         "service_role": true,
         "trigger_used": false,
-        "authenticated": false,
+        "authenticated": true,
         "security_definer": true,
         "torneos_core_adapter": false,
         "torneos_identity_writer": false
       },
       {
-        "acl": "{supabase_admin=X/supabase_admin,postgres=X/supabase_admin,service_role=X/supabase_admin}",
+        "acl": "{supabase_admin=X/supabase_admin,postgres=X/supabase_admin,service_role=X/supabase_admin,authenticated=X/supabase_admin}",
         "anon": false,
         "name": "update_draft_fixture",
         "owner": "supabase_admin",
@@ -6588,7 +6590,7 @@
         ],
         "service_role": true,
         "trigger_used": false,
-        "authenticated": false,
+        "authenticated": true,
         "security_definer": true,
         "torneos_core_adapter": false,
         "torneos_identity_writer": false
@@ -6860,7 +6862,7 @@
         "torneos_identity_writer": false
       },
       {
-        "acl": "{supabase_admin=X/supabase_admin,postgres=X/supabase_admin,service_role=X/supabase_admin}",
+        "acl": "{supabase_admin=X/supabase_admin,postgres=X/supabase_admin,service_role=X/supabase_admin,authenticated=X/supabase_admin}",
         "anon": false,
         "name": "validate_tournament_match_operation",
         "owner": "supabase_admin",
@@ -6873,7 +6875,7 @@
         ],
         "service_role": true,
         "trigger_used": false,
-        "authenticated": false,
+        "authenticated": true,
         "security_definer": true,
         "torneos_core_adapter": false,
         "torneos_identity_writer": false
@@ -7031,7 +7033,7 @@
         "torneos_identity_writer": false
       },
       {
-        "acl": "{supabase_admin=X/supabase_admin,postgres=X/supabase_admin,service_role=X/supabase_admin}",
+        "acl": "{supabase_admin=X/supabase_admin,postgres=X/supabase_admin,service_role=X/supabase_admin,authenticated=X/supabase_admin}",
         "anon": false,
         "name": "void_tournament_match_event",
         "owner": "supabase_admin",
@@ -7044,7 +7046,7 @@
         ],
         "service_role": true,
         "trigger_used": false,
-        "authenticated": false,
+        "authenticated": true,
         "security_definer": true,
         "torneos_core_adapter": false,
         "torneos_identity_writer": false

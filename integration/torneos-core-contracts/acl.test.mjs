@@ -4,6 +4,10 @@
 // evidence/acl-results.json, inventories to evidence/acl-*.json. Nothing touches a
 // remote target; the attacker position is a direct PostgREST client INSIDE the network
 // (a published Data API), which the certified gateway never exposes.
+// Phase 2D: the lab now installs the staging v1 RPC exposure gate after the baseline
+// (00000000000001_staging_v1_rpc_exposure.sql). The expectations below derive the client
+// counts from the gate manifest, and the 305/305 disposition is checked modulo that gate
+// (a gated function keeps its Phase 2B category with `authenticated` removed).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
@@ -18,8 +22,11 @@ const torneosSql = (q) => sql('torneos-db', q);
 const lit = (v) => `'${String(v).replace(/'/g, "''")}'`;
 const inventorySql = await readFile(`${repo}backend/torneos/phase2c/acl-inventory.sql`, 'utf8');
 const review = JSON.parse(await readFile(`${repo}backend/torneos/evidence/security-definer-review.json`, 'utf8'));
-const template0 = JSON.parse(await readFile(`${repo}backend/torneos/phase2c/evidence/real-image-acl-after-template0.json`, 'utf8')).inventory;
+const template0 = JSON.parse(await readFile(`${repo}backend/torneos/phase2d/evidence/real-image-acl-after-template0.json`, 'utf8')).inventory;
 const baselineSql = await readFile(`${repo}backend/torneos/supabase/migrations/00000000000000_torneos_baseline_v1.sql`, 'utf8');
+// Phase 2D staging v1 gate: these functions lose client EXECUTE after the baseline installs.
+const gate = JSON.parse(await readFile(`${repo}backend/torneos/phase2d/staging-v1-rpc-gate.json`, 'utf8'));
+const GATED = new Set(gate.functions.map(g => g.function));
 
 /** Direct PostgREST calls from inside the private network, batched in one container exec. */
 function restBatch(calls) {
@@ -73,7 +80,7 @@ test('Phase 2C — real Supabase stack ACL certification', async (t) => {
       assert.equal(install.torneos.sha256, sha, 'lab installed the candidate in this tree');
       assert.equal(install.torneos.certified_sha256, sha, 'candidate hash equals the Phase 2B lab install record');
       assert.equal(install.torneos.installed, true, 'installed by this lab from an empty volume');
-      assert.match(sha, /^97634b65/, 'Phase 2C candidate');
+      assert.match(sha, /^f857bd09/, 'Phase 2D candidate (Phase 2C ACL model + P0 season guard)');
       // Real image database: the platform role's own schema-scoped defaults are untouched (still grant anon),
       // the installer's were revoked by the baseline prologue; every function is owned by the installer.
       const defaults = JSON.parse(torneosSql("select json_agg(json_build_object('role',r.rolname,'type',d.defaclobjtype,'acl',d.defaclacl::text) order by r.rolname,d.defaclobjtype) from pg_default_acl d join pg_roles r on r.oid=d.defaclrole join pg_namespace n on n.oid=d.defaclnamespace where n.nspname='public'"));
@@ -105,7 +112,9 @@ test('Phase 2C — real Supabase stack ACL certification', async (t) => {
       };
       await writeFile('evidence/acl-inventory-real-stack.json', JSON.stringify({ summary, inventory }, null, 2) + '\n');
       assert.deepEqual(summary.execute.anon, { public_functions: 12, private_functions: 2, security_definer: 12 });
-      assert.deepEqual(summary.execute.authenticated, { public_functions: 180, private_functions: 2, security_definer: 179 });
+      // Phase 2C measured 180 / 179 on the baseline alone; the Phase 2D gate removes exactly its manifest (33 SECURITY DEFINER RPCs).
+      assert.equal(GATED.size, 33);
+      assert.deepEqual(summary.execute.authenticated, { public_functions: 180 - GATED.size, private_functions: 2, security_definer: 179 - GATED.size });
       assert.deepEqual(summary.execute.service_role, { public_functions: 328, private_functions: 2, security_definer: 284 });
       assert.equal(summary.public_execute_functions, 0, 'no function is executable by PUBLIC');
       assert.deepEqual(summary.sequence_privilege, { anon: 0, authenticated: 4, service_role: 4, postgres: 7 });
@@ -173,10 +182,11 @@ test('Phase 2C — real Supabase stack ACL certification', async (t) => {
       assert.equal(page.status, 200); assert.equal(page.body, null, 'unpublished page is null for anon');
     });
     let org;
-    await check('authenticated RPCs: the 180 explicitly granted functions execute with a valid bearer (guarded DEFINER write + predicate)', async () => {
+    await check('authenticated RPCs: the explicitly granted functions (180 in the baseline minus the 33 gated) execute with a valid bearer (guarded DEFINER write + predicate)', async () => {
       const authFns = publicFns.filter(f => f.authenticated).map(f => f.function).sort();
       const t0Fns = template0.functions.filter(f => f.schema === 'public' && f.authenticated).map(f => f.function).sort();
-      assert.deepEqual(authFns, t0Fns); assert.equal(authFns.length, 180);
+      assert.deepEqual(authFns, t0Fns); assert.equal(authFns.length, 180 - GATED.size);
+      assert.deepEqual(authFns.filter(f => GATED.has(f)), [], 'no gated function is executable by authenticated');
       const slug = `phase2c-${randomUUID().slice(0, 8)}`;
       const r = restBatch([{ id: 'org', path: '/rpc/create_tournament_organization', token: actorToken, body: { p_name: 'Phase 2C League', p_slug: slug, p_idempotency_key: randomUUID() } }])[0];
       assert.equal(r.status, 200, JSON.stringify(r.body));
@@ -186,18 +196,20 @@ test('Phase 2C — real Supabase stack ACL certification', async (t) => {
       const read = restBatch([{ id: 'read', path: `/tournament_organizations?select=slug&id=eq.${org}`, method: 'GET', token: actorToken }])[0];
       assert.deepEqual(read.body, [{ slug }]);
     });
-    await check('305/305 SECURITY DEFINER functions keep their Phase 2B grantees, owner and fixed search_path on the real stack', async () => {
+    await check('305/305 SECURITY DEFINER functions keep their Phase 2B grantees (modulo the Phase 2D staging v1 gate), owner and fixed search_path on the real stack', async () => {
       const rows = [];
       for (const f of review.functions) {
         const row = fnByName.get(f.function);
         assert.ok(row, `missing ${f.function}`);
         const grantees = ['anon', 'authenticated', 'service_role'].filter(r => row[r]).concat(row.torneos_core_adapter ? ['adapter'] : []);
-        const ok = JSON.stringify(grantees) === JSON.stringify(f.grantees) && row.security_definer && row.owner === 'supabase_admin' && (row.settings ?? []).includes('search_path=""')
+        // A gated function keeps its ledger category; the gate only removes the client roles.
+        const expected = GATED.has(f.function) ? f.grantees.filter(g => !['anon', 'authenticated'].includes(g)) : f.grantees;
+        const ok = JSON.stringify(grantees) === JSON.stringify(expected) && row.security_definer && row.owner === 'supabase_admin' && (row.settings ?? []).includes('search_path=""')
           && (['PUBLIC_READ', 'IDENTITY_GATED_READ'].includes(f.category) ? row.anon : !row.anon)
           && (['SERVICE_ONLY', 'INTERNAL', 'TRIGGER', 'ADAPTER_ONLY'].includes(f.category) ? (!row.anon && !row.authenticated) : true);
-        rows.push({ function: f.function, category: f.category, phase2b_grantees: f.grantees, real_stack_grantees: grantees, owner: row.owner, settings: row.settings, disposition_maintained: ok });
+        rows.push({ function: f.function, category: f.category, phase2b_grantees: f.grantees, staging_v1_gated: GATED.has(f.function), expected_grantees: expected, real_stack_grantees: grantees, owner: row.owner, settings: row.settings, disposition_maintained: ok });
       }
-      await writeFile('evidence/acl-security-definer-recert.json', JSON.stringify({ total: rows.length, maintained: rows.filter(r => r.disposition_maintained).length, categories: Object.fromEntries([...new Set(rows.map(r => r.category))].sort().map(c => [c, rows.filter(r => r.category === c).length])), functions: rows }, null, 2) + '\n');
+      await writeFile('evidence/acl-security-definer-recert.json', JSON.stringify({ total: rows.length, maintained: rows.filter(r => r.disposition_maintained).length, staging_v1_gated: rows.filter(r => r.staging_v1_gated).length, categories: Object.fromEntries([...new Set(rows.map(r => r.category))].sort().map(c => [c, rows.filter(r => r.category === c).length])), functions: rows }, null, 2) + '\n');
       assert.equal(rows.filter(r => !r.disposition_maintained).length, 0);
       assert.equal(rows.length, 305);
       assert.equal(torneosSql("select count(*) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname in ('public','private') and p.prosecdef").trim(), '305');

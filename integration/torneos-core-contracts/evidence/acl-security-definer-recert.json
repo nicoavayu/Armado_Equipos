@@ -1,6 +1,7 @@
 {
   "total": 305,
   "maintained": 305,
+  "staging_v1_gated": 33,
   "categories": {
     "ADAPTER_ONLY": 1,
     "CATALOG_READ": 1,
@@ -21,6 +22,10 @@
       "phase2b_grantees": [
         "adapter"
       ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
+        "adapter"
+      ],
       "real_stack_grantees": [
         "adapter"
       ],
@@ -34,6 +39,11 @@
       "function": "accept_tournament_team_invitation(text)",
       "category": "CORE_CONTRACT_BOUND",
       "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "authenticated",
         "service_role"
       ],
@@ -54,6 +64,11 @@
         "authenticated",
         "service_role"
       ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
+        "authenticated",
+        "service_role"
+      ],
       "real_stack_grantees": [
         "authenticated",
         "service_role"
@@ -68,6 +83,10 @@
       "function": "activate_verified_fake_tournament_purchase(uuid,text,text)",
       "category": "SERVICE_ONLY",
       "phase2b_grantees": [
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "service_role"
       ],
       "real_stack_grantees": [
@@ -85,6 +104,10 @@
       "phase2b_grantees": [
         "service_role"
       ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
+        "service_role"
+      ],
       "real_stack_grantees": [
         "service_role"
       ],
@@ -98,6 +121,11 @@
       "function": "add_tournament_match_event(uuid,uuid,jsonb)",
       "category": "CLIENT_RPC_GUARDED",
       "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "authenticated",
         "service_role"
       ],
@@ -118,6 +146,11 @@
         "authenticated",
         "service_role"
       ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
+        "authenticated",
+        "service_role"
+      ],
       "real_stack_grantees": [
         "authenticated",
         "service_role"
@@ -134,6 +167,10 @@
       "phase2b_grantees": [
         "service_role"
       ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
+        "service_role"
+      ],
       "real_stack_grantees": [
         "service_role"
       ],
@@ -147,6 +184,11 @@
       "function": "append_tournament_playoff_phase(uuid,uuid,uuid,uuid,integer,boolean,uuid)",
       "category": "CLIENT_RPC_GUARDED",
       "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "authenticated",
         "service_role"
       ],
@@ -166,6 +208,10 @@
       "phase2b_grantees": [
         "service_role"
       ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
+        "service_role"
+      ],
       "real_stack_grantees": [
         "service_role"
       ],
@@ -179,6 +225,10 @@
       "function": "apply_tournament_purchase_reversal(uuid,text,text)",
       "category": "SERVICE_ONLY",
       "phase2b_grantees": [
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "service_role"
       ],
       "real_stack_grantees": [
@@ -196,6 +246,10 @@
       "phase2b_grantees": [
         "service_role"
       ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
+        "service_role"
+      ],
       "real_stack_grantees": [
         "service_role"
       ],
@@ -209,6 +263,10 @@
       "function": "archive_tournament_announcement(uuid)",
       "category": "SERVICE_ONLY",
       "phase2b_grantees": [
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "service_role"
       ],
       "real_stack_grantees": [
@@ -226,6 +284,10 @@
       "phase2b_grantees": [
         "service_role"
       ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
+        "service_role"
+      ],
       "real_stack_grantees": [
         "service_role"
       ],
@@ -241,6 +303,10 @@
       "phase2b_grantees": [
         "service_role"
       ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
+        "service_role"
+      ],
       "real_stack_grantees": [
         "service_role"
       ],
@@ -254,6 +320,11 @@
       "function": "archive_tournament_team_entry(uuid,uuid,text)",
       "category": "CLIENT_RPC_GUARDED",
       "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "authenticated",
         "service_role"
       ],
@@ -273,6 +344,10 @@
       "phase2b_grantees": [
         "service_role"
       ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
+        "service_role"
+      ],
       "real_stack_grantees": [
         "service_role"
       ],
@@ -286,6 +361,8 @@
       "function": "assign_first_free_plan_on_tournament_insert()",
       "category": "TRIGGER",
       "phase2b_grantees": [],
+      "staging_v1_gated": false,
+      "expected_grantees": [],
       "real_stack_grantees": [],
       "owner": "supabase_admin",
       "settings": [
@@ -297,6 +374,10 @@
       "function": "assign_tournament_media_photographer(uuid,uuid,boolean)",
       "category": "SERVICE_ONLY",
       "phase2b_grantees": [
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "service_role"
       ],
       "real_stack_grantees": [
@@ -312,6 +393,11 @@
       "function": "assign_tournament_season_member(uuid,uuid,uuid)",
       "category": "CLIENT_RPC_GUARDED",
       "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "authenticated",
         "service_role"
       ],
@@ -331,6 +417,10 @@
       "phase2b_grantees": [
         "service_role"
       ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
+        "service_role"
+      ],
       "real_stack_grantees": [
         "service_role"
       ],
@@ -344,6 +434,10 @@
       "function": "authorize_tournament_media_read(uuid,uuid,text)",
       "category": "SERVICE_ONLY",
       "phase2b_grantees": [
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "service_role"
       ],
       "real_stack_grantees": [
@@ -361,6 +455,10 @@
       "phase2b_grantees": [
         "service_role"
       ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
+        "service_role"
+      ],
       "real_stack_grantees": [
         "service_role"
       ],
@@ -374,6 +472,10 @@
       "function": "authorize_tournament_player_portrait_read(uuid,uuid,text,text)",
       "category": "SERVICE_ONLY",
       "phase2b_grantees": [
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "service_role"
       ],
       "real_stack_grantees": [
@@ -392,8 +494,11 @@
         "authenticated",
         "service_role"
       ],
+      "staging_v1_gated": true,
+      "expected_grantees": [
+        "service_role"
+      ],
       "real_stack_grantees": [
-        "authenticated",
         "service_role"
       ],
       "owner": "supabase_admin",
@@ -406,6 +511,10 @@
       "function": "authorize_tournament_team_photo_read(uuid,uuid,text,text)",
       "category": "SERVICE_ONLY",
       "phase2b_grantees": [
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "service_role"
       ],
       "real_stack_grantees": [
@@ -424,8 +533,11 @@
         "authenticated",
         "service_role"
       ],
+      "staging_v1_gated": true,
+      "expected_grantees": [
+        "service_role"
+      ],
       "real_stack_grantees": [
-        "authenticated",
         "service_role"
       ],
       "owner": "supabase_admin",
@@ -438,6 +550,10 @@
       "function": "begin_tournament_media_asset_delete(uuid,uuid)",
       "category": "SERVICE_ONLY",
       "phase2b_grantees": [
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "service_role"
       ],
       "real_stack_grantees": [
@@ -455,6 +571,10 @@
       "phase2b_grantees": [
         "service_role"
       ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
+        "service_role"
+      ],
       "real_stack_grantees": [
         "service_role"
       ],
@@ -468,6 +588,10 @@
       "function": "begin_tournament_team_photo_delete(uuid,uuid)",
       "category": "SERVICE_ONLY",
       "phase2b_grantees": [
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "service_role"
       ],
       "real_stack_grantees": [
@@ -485,6 +609,10 @@
       "phase2b_grantees": [
         "service_role"
       ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
+        "service_role"
+      ],
       "real_stack_grantees": [
         "service_role"
       ],
@@ -498,6 +626,10 @@
       "function": "can_access_tournament_communications(uuid)",
       "category": "SERVICE_ONLY",
       "phase2b_grantees": [
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "service_role"
       ],
       "real_stack_grantees": [
@@ -515,6 +647,10 @@
       "phase2b_grantees": [
         "service_role"
       ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
+        "service_role"
+      ],
       "real_stack_grantees": [
         "service_role"
       ],
@@ -528,6 +664,10 @@
       "function": "can_current_user_read_media_gallery(uuid)",
       "category": "SERVICE_ONLY",
       "phase2b_grantees": [
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "service_role"
       ],
       "real_stack_grantees": [
@@ -545,6 +685,10 @@
       "phase2b_grantees": [
         "service_role"
       ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
+        "service_role"
+      ],
       "real_stack_grantees": [
         "service_role"
       ],
@@ -560,6 +704,10 @@
       "phase2b_grantees": [
         "service_role"
       ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
+        "service_role"
+      ],
       "real_stack_grantees": [
         "service_role"
       ],
@@ -573,6 +721,11 @@
       "function": "can_manage_tournament_player_portrait(uuid,uuid)",
       "category": "CLIENT_PREDICATE",
       "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "authenticated",
         "service_role"
       ],
@@ -592,6 +745,10 @@
       "phase2b_grantees": [
         "service_role"
       ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
+        "service_role"
+      ],
       "real_stack_grantees": [
         "service_role"
       ],
@@ -605,6 +762,10 @@
       "function": "can_manage_tournament_team_visual_assets_as(uuid,uuid,uuid,text)",
       "category": "SERVICE_ONLY",
       "phase2b_grantees": [
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "service_role"
       ],
       "real_stack_grantees": [
@@ -622,6 +783,10 @@
       "phase2b_grantees": [
         "service_role"
       ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
+        "service_role"
+      ],
       "real_stack_grantees": [
         "service_role"
       ],
@@ -635,6 +800,11 @@
       "function": "can_read_tournament_fixture_scope(uuid,uuid)",
       "category": "CLIENT_PREDICATE",
       "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "authenticated",
         "service_role"
       ],
@@ -655,6 +825,11 @@
         "authenticated",
         "service_role"
       ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
+        "authenticated",
+        "service_role"
+      ],
       "real_stack_grantees": [
         "authenticated",
         "service_role"
@@ -669,6 +844,10 @@
       "function": "can_read_tournament_match_operation(uuid,uuid)",
       "category": "SERVICE_ONLY",
       "phase2b_grantees": [
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "service_role"
       ],
       "real_stack_grantees": [
@@ -686,6 +865,10 @@
       "phase2b_grantees": [
         "service_role"
       ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
+        "service_role"
+      ],
       "real_stack_grantees": [
         "service_role"
       ],
@@ -699,6 +882,11 @@
       "function": "can_read_tournament_player_portrait(uuid,uuid)",
       "category": "CLIENT_PREDICATE",
       "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "authenticated",
         "service_role"
       ],
@@ -718,6 +906,10 @@
       "phase2b_grantees": [
         "service_role"
       ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
+        "service_role"
+      ],
       "real_stack_grantees": [
         "service_role"
       ],
@@ -731,6 +923,11 @@
       "function": "can_read_tournament_projection_scope(uuid,uuid)",
       "category": "CLIENT_PREDICATE",
       "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "authenticated",
         "service_role"
       ],
@@ -751,6 +948,11 @@
         "authenticated",
         "service_role"
       ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
+        "authenticated",
+        "service_role"
+      ],
       "real_stack_grantees": [
         "authenticated",
         "service_role"
@@ -767,6 +969,10 @@
       "phase2b_grantees": [
         "service_role"
       ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
+        "service_role"
+      ],
       "real_stack_grantees": [
         "service_role"
       ],
@@ -780,6 +986,11 @@
       "function": "can_update_tournament_team_branding(uuid,uuid)",
       "category": "CLIENT_PREDICATE",
       "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "authenticated",
         "service_role"
       ],
@@ -800,6 +1011,11 @@
         "authenticated",
         "service_role"
       ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
+        "authenticated",
+        "service_role"
+      ],
       "real_stack_grantees": [
         "authenticated",
         "service_role"
@@ -816,6 +1032,10 @@
       "phase2b_grantees": [
         "service_role"
       ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
+        "service_role"
+      ],
       "real_stack_grantees": [
         "service_role"
       ],
@@ -829,6 +1049,11 @@
       "function": "cancel_tournament_media_upload_session(uuid)",
       "category": "CLIENT_RPC_GUARDED",
       "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "authenticated",
         "service_role"
       ],
@@ -849,8 +1074,11 @@
         "authenticated",
         "service_role"
       ],
+      "staging_v1_gated": true,
+      "expected_grantees": [
+        "service_role"
+      ],
       "real_stack_grantees": [
-        "authenticated",
         "service_role"
       ],
       "owner": "supabase_admin",
@@ -866,8 +1094,11 @@
         "authenticated",
         "service_role"
       ],
+      "staging_v1_gated": true,
+      "expected_grantees": [
+        "service_role"
+      ],
       "real_stack_grantees": [
-        "authenticated",
         "service_role"
       ],
       "owner": "supabase_admin",
@@ -880,6 +1111,11 @@
       "function": "change_tournament_status(uuid,uuid,text)",
       "category": "CLIENT_RPC_GUARDED",
       "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "authenticated",
         "service_role"
       ],
@@ -899,6 +1135,10 @@
       "phase2b_grantees": [
         "service_role"
       ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
+        "service_role"
+      ],
       "real_stack_grantees": [
         "service_role"
       ],
@@ -912,6 +1152,10 @@
       "function": "cleanup_tournament_media_upload_sessions(integer)",
       "category": "SERVICE_ONLY",
       "phase2b_grantees": [
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "service_role"
       ],
       "real_stack_grantees": [
@@ -929,6 +1173,10 @@
       "phase2b_grantees": [
         "service_role"
       ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
+        "service_role"
+      ],
       "real_stack_grantees": [
         "service_role"
       ],
@@ -942,6 +1190,10 @@
       "function": "complete_tournament_media_asset_delete(uuid,uuid)",
       "category": "SERVICE_ONLY",
       "phase2b_grantees": [
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "service_role"
       ],
       "real_stack_grantees": [
@@ -959,6 +1211,10 @@
       "phase2b_grantees": [
         "service_role"
       ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
+        "service_role"
+      ],
       "real_stack_grantees": [
         "service_role"
       ],
@@ -972,6 +1228,10 @@
       "function": "complete_tournament_media_simple_upload(uuid,uuid,text,text,bigint,integer,integer,text,boolean)",
       "category": "SERVICE_ONLY",
       "phase2b_grantees": [
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "service_role"
       ],
       "real_stack_grantees": [
@@ -989,6 +1249,10 @@
       "phase2b_grantees": [
         "service_role"
       ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
+        "service_role"
+      ],
       "real_stack_grantees": [
         "service_role"
       ],
@@ -1002,6 +1266,10 @@
       "function": "complete_tournament_media_upload_for_actor(uuid,uuid,text,text,bigint,integer,integer,text)",
       "category": "SERVICE_ONLY",
       "phase2b_grantees": [
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "service_role"
       ],
       "real_stack_grantees": [
@@ -1019,6 +1287,10 @@
       "phase2b_grantees": [
         "service_role"
       ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
+        "service_role"
+      ],
       "real_stack_grantees": [
         "service_role"
       ],
@@ -1032,6 +1304,10 @@
       "function": "complete_tournament_player_portrait_delete(uuid,uuid)",
       "category": "SERVICE_ONLY",
       "phase2b_grantees": [
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "service_role"
       ],
       "real_stack_grantees": [
@@ -1049,6 +1325,10 @@
       "phase2b_grantees": [
         "service_role"
       ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
+        "service_role"
+      ],
       "real_stack_grantees": [
         "service_role"
       ],
@@ -1064,6 +1344,10 @@
       "phase2b_grantees": [
         "service_role"
       ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
+        "service_role"
+      ],
       "real_stack_grantees": [
         "service_role"
       ],
@@ -1077,6 +1361,11 @@
       "function": "create_fake_tournament_season_purchase(uuid,uuid,text,uuid,text)",
       "category": "CLIENT_RPC_DELEGATED",
       "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "authenticated",
         "service_role"
       ],
@@ -1097,6 +1386,11 @@
         "authenticated",
         "service_role"
       ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
+        "authenticated",
+        "service_role"
+      ],
       "real_stack_grantees": [
         "authenticated",
         "service_role"
@@ -1111,6 +1405,11 @@
       "function": "create_tournament_announcement_draft(uuid,uuid,uuid,text,text,text,text,text,text,timestamp with time zone,uuid,text,uuid)",
       "category": "CLIENT_RPC_GUARDED",
       "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "authenticated",
         "service_role"
       ],
@@ -1131,6 +1430,11 @@
         "authenticated",
         "service_role"
       ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
+        "authenticated",
+        "service_role"
+      ],
       "real_stack_grantees": [
         "authenticated",
         "service_role"
@@ -1148,8 +1452,11 @@
         "authenticated",
         "service_role"
       ],
+      "staging_v1_gated": true,
+      "expected_grantees": [
+        "service_role"
+      ],
       "real_stack_grantees": [
-        "authenticated",
         "service_role"
       ],
       "owner": "supabase_admin",
@@ -1162,6 +1469,11 @@
       "function": "create_tournament_document(uuid,uuid,uuid,text,text,text,text,text,timestamp with time zone,uuid)",
       "category": "CLIENT_RPC_GUARDED",
       "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "authenticated",
         "service_role"
       ],
@@ -1181,6 +1493,10 @@
       "phase2b_grantees": [
         "service_role"
       ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
+        "service_role"
+      ],
       "real_stack_grantees": [
         "service_role"
       ],
@@ -1197,8 +1513,11 @@
         "authenticated",
         "service_role"
       ],
+      "staging_v1_gated": true,
+      "expected_grantees": [
+        "service_role"
+      ],
       "real_stack_grantees": [
-        "authenticated",
         "service_role"
       ],
       "owner": "supabase_admin",
@@ -1211,6 +1530,11 @@
       "function": "create_tournament_media_gallery(uuid,uuid,uuid,uuid,uuid,text,text,text,uuid)",
       "category": "CLIENT_RPC_GUARDED",
       "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "authenticated",
         "service_role"
       ],
@@ -1231,6 +1555,11 @@
         "authenticated",
         "service_role"
       ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
+        "authenticated",
+        "service_role"
+      ],
       "real_stack_grantees": [
         "authenticated",
         "service_role"
@@ -1248,8 +1577,11 @@
         "authenticated",
         "service_role"
       ],
+      "staging_v1_gated": true,
+      "expected_grantees": [
+        "service_role"
+      ],
       "real_stack_grantees": [
-        "authenticated",
         "service_role"
       ],
       "owner": "supabase_admin",
@@ -1262,6 +1594,11 @@
       "function": "create_tournament_provisional_player(uuid,uuid,text)",
       "category": "CLIENT_RPC_GUARDED",
       "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "authenticated",
         "service_role"
       ],
@@ -1282,6 +1619,11 @@
         "authenticated",
         "service_role"
       ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
+        "authenticated",
+        "service_role"
+      ],
       "real_stack_grantees": [
         "authenticated",
         "service_role"
@@ -1296,6 +1638,11 @@
       "function": "create_tournament_season_purchase(uuid,uuid,text,uuid,text,text)",
       "category": "CLIENT_RPC_GUARDED",
       "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "authenticated",
         "service_role"
       ],
@@ -1316,6 +1663,11 @@
         "authenticated",
         "service_role"
       ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
+        "authenticated",
+        "service_role"
+      ],
       "real_stack_grantees": [
         "authenticated",
         "service_role"
@@ -1330,6 +1682,11 @@
       "function": "create_tournament_venue(uuid,text,text,text,double precision,double precision,text,text,text)",
       "category": "CLIENT_RPC_GUARDED",
       "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "authenticated",
         "service_role"
       ],
@@ -1350,6 +1707,11 @@
         "authenticated",
         "service_role"
       ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
+        "authenticated",
+        "service_role"
+      ],
       "real_stack_grantees": [
         "authenticated",
         "service_role"
@@ -1364,6 +1726,10 @@
       "function": "current_user_has_media_team_relation(uuid)",
       "category": "SERVICE_ONLY",
       "phase2b_grantees": [
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "service_role"
       ],
       "real_stack_grantees": [
@@ -1381,6 +1747,10 @@
       "phase2b_grantees": [
         "service_role"
       ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
+        "service_role"
+      ],
       "real_stack_grantees": [
         "service_role"
       ],
@@ -1394,6 +1764,8 @@
       "function": "enforce_tournament_media_gallery_limit()",
       "category": "TRIGGER",
       "phase2b_grantees": [],
+      "staging_v1_gated": false,
+      "expected_grantees": [],
       "real_stack_grantees": [],
       "owner": "supabase_admin",
       "settings": [
@@ -1405,6 +1777,8 @@
       "function": "enforce_tournament_media_matchday_limit()",
       "category": "TRIGGER",
       "phase2b_grantees": [],
+      "staging_v1_gated": false,
+      "expected_grantees": [],
       "real_stack_grantees": [],
       "owner": "supabase_admin",
       "settings": [
@@ -1416,6 +1790,8 @@
       "function": "enforce_tournament_premium_gate()",
       "category": "TRIGGER",
       "phase2b_grantees": [],
+      "staging_v1_gated": false,
+      "expected_grantees": [],
       "real_stack_grantees": [],
       "owner": "supabase_admin",
       "settings": [
@@ -1427,6 +1803,8 @@
       "function": "enforce_tournament_season_purchase_scope()",
       "category": "TRIGGER",
       "phase2b_grantees": [],
+      "staging_v1_gated": false,
+      "expected_grantees": [],
       "real_stack_grantees": [],
       "owner": "supabase_admin",
       "settings": [
@@ -1438,6 +1816,8 @@
       "function": "enforce_tournament_season_root_write_scope()",
       "category": "TRIGGER",
       "phase2b_grantees": [],
+      "staging_v1_gated": false,
+      "expected_grantees": [],
       "real_stack_grantees": [],
       "owner": "supabase_admin",
       "settings": [
@@ -1449,6 +1829,8 @@
       "function": "enforce_tournament_status_premium_gate()",
       "category": "TRIGGER",
       "phase2b_grantees": [],
+      "staging_v1_gated": false,
+      "expected_grantees": [],
       "real_stack_grantees": [],
       "owner": "supabase_admin",
       "settings": [
@@ -1460,6 +1842,10 @@
       "function": "enqueue_tournament_media_processing_job(uuid,text,uuid)",
       "category": "SERVICE_ONLY",
       "phase2b_grantees": [
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "service_role"
       ],
       "real_stack_grantees": [
@@ -1475,6 +1861,11 @@
       "function": "execute_tournament_group_draw(uuid,uuid,uuid,integer,text,boolean)",
       "category": "CLIENT_RPC_GUARDED",
       "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "authenticated",
         "service_role"
       ],
@@ -1494,6 +1885,10 @@
       "phase2b_grantees": [
         "service_role"
       ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
+        "service_role"
+      ],
       "real_stack_grantees": [
         "service_role"
       ],
@@ -1507,6 +1902,10 @@
       "function": "fail_tournament_media_upload_session(uuid,text)",
       "category": "SERVICE_ONLY",
       "phase2b_grantees": [
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "service_role"
       ],
       "real_stack_grantees": [
@@ -1524,6 +1923,10 @@
       "phase2b_grantees": [
         "service_role"
       ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
+        "service_role"
+      ],
       "real_stack_grantees": [
         "service_role"
       ],
@@ -1537,6 +1940,10 @@
       "function": "fail_tournament_team_photo_upload(uuid,uuid)",
       "category": "SERVICE_ONLY",
       "phase2b_grantees": [
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "service_role"
       ],
       "real_stack_grantees": [
@@ -1554,6 +1961,10 @@
       "phase2b_grantees": [
         "service_role"
       ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
+        "service_role"
+      ],
       "real_stack_grantees": [
         "service_role"
       ],
@@ -1567,6 +1978,10 @@
       "function": "finalize_tournament_player_portrait_upload(uuid,uuid)",
       "category": "SERVICE_ONLY",
       "phase2b_grantees": [
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "service_role"
       ],
       "real_stack_grantees": [
@@ -1584,6 +1999,10 @@
       "phase2b_grantees": [
         "service_role"
       ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
+        "service_role"
+      ],
       "real_stack_grantees": [
         "service_role"
       ],
@@ -1597,6 +2016,11 @@
       "function": "finish_tournament_competition(uuid,uuid)",
       "category": "CLIENT_RPC_GUARDED",
       "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "authenticated",
         "service_role"
       ],
@@ -1617,6 +2041,11 @@
         "authenticated",
         "service_role"
       ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
+        "authenticated",
+        "service_role"
+      ],
       "real_stack_grantees": [
         "authenticated",
         "service_role"
@@ -1631,6 +2060,11 @@
       "function": "generate_tournament_fixture(uuid,uuid,uuid,text,jsonb,uuid)",
       "category": "CLIENT_RPC_GUARDED",
       "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "authenticated",
         "service_role"
       ],
@@ -1651,6 +2085,11 @@
         "authenticated",
         "service_role"
       ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
+        "authenticated",
+        "service_role"
+      ],
       "real_stack_grantees": [
         "authenticated",
         "service_role"
@@ -1665,6 +2104,11 @@
       "function": "get_effective_tournament_season_entitlements(uuid,uuid)",
       "category": "CLIENT_RPC_GUARDED",
       "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "authenticated",
         "service_role"
       ],
@@ -1685,6 +2129,11 @@
         "authenticated",
         "service_role"
       ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
+        "authenticated",
+        "service_role"
+      ],
       "real_stack_grantees": [
         "authenticated",
         "service_role"
@@ -1699,6 +2148,11 @@
       "function": "get_match_squad_context(uuid,uuid,uuid)",
       "category": "CLIENT_RPC_GUARDED",
       "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "authenticated",
         "service_role"
       ],
@@ -1718,6 +2172,10 @@
       "phase2b_grantees": [
         "service_role"
       ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
+        "service_role"
+      ],
       "real_stack_grantees": [
         "service_role"
       ],
@@ -1731,6 +2189,11 @@
       "function": "get_my_managed_match_squad_context(uuid)",
       "category": "CLIENT_RPC_GUARDED",
       "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "authenticated",
         "service_role"
       ],
@@ -1751,6 +2214,11 @@
         "authenticated",
         "service_role"
       ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
+        "authenticated",
+        "service_role"
+      ],
       "real_stack_grantees": [
         "authenticated",
         "service_role"
@@ -1765,6 +2233,11 @@
       "function": "get_my_tournament_notification_preferences(uuid)",
       "category": "CLIENT_RPC_GUARDED",
       "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "authenticated",
         "service_role"
       ],
@@ -1785,6 +2258,11 @@
         "authenticated",
         "service_role"
       ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
+        "authenticated",
+        "service_role"
+      ],
       "real_stack_grantees": [
         "authenticated",
         "service_role"
@@ -1799,6 +2277,11 @@
       "function": "get_player_tournament_statistics(uuid)",
       "category": "CLIENT_RPC_GUARDED",
       "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "authenticated",
         "service_role"
       ],
@@ -1819,6 +2302,11 @@
         "authenticated",
         "service_role"
       ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
+        "authenticated",
+        "service_role"
+      ],
       "real_stack_grantees": [
         "authenticated",
         "service_role"
@@ -1833,6 +2321,12 @@
       "function": "get_public_tournament_branding(text)",
       "category": "PUBLIC_READ",
       "phase2b_grantees": [
+        "anon",
+        "authenticated",
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "anon",
         "authenticated",
         "service_role"
@@ -1856,6 +2350,12 @@
         "authenticated",
         "service_role"
       ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
+        "anon",
+        "authenticated",
+        "service_role"
+      ],
       "real_stack_grantees": [
         "anon",
         "authenticated",
@@ -1871,6 +2371,12 @@
       "function": "get_public_tournament_page(text,text)",
       "category": "PUBLIC_READ",
       "phase2b_grantees": [
+        "anon",
+        "authenticated",
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "anon",
         "authenticated",
         "service_role"
@@ -1894,6 +2400,12 @@
         "authenticated",
         "service_role"
       ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
+        "anon",
+        "authenticated",
+        "service_role"
+      ],
       "real_stack_grantees": [
         "anon",
         "authenticated",
@@ -1909,6 +2421,12 @@
       "function": "get_published_tournament_matches(uuid,uuid,text,uuid,integer,integer)",
       "category": "IDENTITY_GATED_READ",
       "phase2b_grantees": [
+        "anon",
+        "authenticated",
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "anon",
         "authenticated",
         "service_role"
@@ -1932,6 +2450,12 @@
         "authenticated",
         "service_role"
       ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
+        "anon",
+        "authenticated",
+        "service_role"
+      ],
       "real_stack_grantees": [
         "anon",
         "authenticated",
@@ -1947,6 +2471,12 @@
       "function": "get_published_tournament_standings(uuid,uuid,uuid,uuid)",
       "category": "IDENTITY_GATED_READ",
       "phase2b_grantees": [
+        "anon",
+        "authenticated",
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "anon",
         "authenticated",
         "service_role"
@@ -1970,6 +2500,12 @@
         "authenticated",
         "service_role"
       ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
+        "anon",
+        "authenticated",
+        "service_role"
+      ],
       "real_stack_grantees": [
         "anon",
         "authenticated",
@@ -1985,6 +2521,12 @@
       "function": "get_published_tournament_teams(uuid,uuid,integer,integer)",
       "category": "IDENTITY_GATED_READ",
       "phase2b_grantees": [
+        "anon",
+        "authenticated",
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "anon",
         "authenticated",
         "service_role"
@@ -2007,6 +2549,11 @@
         "authenticated",
         "service_role"
       ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
+        "authenticated",
+        "service_role"
+      ],
       "real_stack_grantees": [
         "authenticated",
         "service_role"
@@ -2021,6 +2568,12 @@
       "function": "get_tournament_announcement(uuid)",
       "category": "IDENTITY_GATED_READ",
       "phase2b_grantees": [
+        "anon",
+        "authenticated",
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "anon",
         "authenticated",
         "service_role"
@@ -2043,6 +2596,11 @@
         "authenticated",
         "service_role"
       ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
+        "authenticated",
+        "service_role"
+      ],
       "real_stack_grantees": [
         "authenticated",
         "service_role"
@@ -2057,6 +2615,11 @@
       "function": "get_tournament_communications_admin_context(uuid,uuid)",
       "category": "CLIENT_RPC_GUARDED",
       "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "authenticated",
         "service_role"
       ],
@@ -2077,6 +2640,11 @@
         "authenticated",
         "service_role"
       ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
+        "authenticated",
+        "service_role"
+      ],
       "real_stack_grantees": [
         "authenticated",
         "service_role"
@@ -2091,6 +2659,11 @@
       "function": "get_tournament_competition_context(uuid)",
       "category": "CLIENT_RPC_GUARDED",
       "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "authenticated",
         "service_role"
       ],
@@ -2110,6 +2683,10 @@
       "phase2b_grantees": [
         "service_role"
       ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
+        "service_role"
+      ],
       "real_stack_grantees": [
         "service_role"
       ],
@@ -2123,6 +2700,11 @@
       "function": "get_tournament_creation_eligibility(uuid)",
       "category": "CLIENT_RPC_GUARDED",
       "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "authenticated",
         "service_role"
       ],
@@ -2143,6 +2725,11 @@
         "authenticated",
         "service_role"
       ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
+        "authenticated",
+        "service_role"
+      ],
       "real_stack_grantees": [
         "authenticated",
         "service_role"
@@ -2157,6 +2744,11 @@
       "function": "get_tournament_match_operation_context(uuid,uuid)",
       "category": "CLIENT_RPC_GUARDED",
       "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "authenticated",
         "service_role"
       ],
@@ -2177,6 +2769,11 @@
         "authenticated",
         "service_role"
       ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
+        "authenticated",
+        "service_role"
+      ],
       "real_stack_grantees": [
         "authenticated",
         "service_role"
@@ -2191,6 +2788,11 @@
       "function": "get_tournament_media_admin_context(uuid,uuid,text,integer,integer)",
       "category": "CLIENT_RPC_GUARDED",
       "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "authenticated",
         "service_role"
       ],
@@ -2210,6 +2812,10 @@
       "phase2b_grantees": [
         "authenticated"
       ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
+        "authenticated"
+      ],
       "real_stack_grantees": [
         "authenticated"
       ],
@@ -2225,6 +2831,10 @@
       "phase2b_grantees": [
         "authenticated"
       ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
+        "authenticated"
+      ],
       "real_stack_grantees": [
         "authenticated"
       ],
@@ -2238,6 +2848,12 @@
       "function": "get_tournament_participant_hub(uuid,uuid)",
       "category": "IDENTITY_GATED_READ",
       "phase2b_grantees": [
+        "anon",
+        "authenticated",
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "anon",
         "authenticated",
         "service_role"
@@ -2261,6 +2877,12 @@
         "authenticated",
         "service_role"
       ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
+        "anon",
+        "authenticated",
+        "service_role"
+      ],
       "real_stack_grantees": [
         "anon",
         "authenticated",
@@ -2279,8 +2901,11 @@
         "authenticated",
         "service_role"
       ],
+      "staging_v1_gated": true,
+      "expected_grantees": [
+        "service_role"
+      ],
       "real_stack_grantees": [
-        "authenticated",
         "service_role"
       ],
       "owner": "supabase_admin",
@@ -2293,6 +2918,11 @@
       "function": "get_tournament_public_page_settings(uuid,uuid)",
       "category": "CLIENT_RPC_GUARDED",
       "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "authenticated",
         "service_role"
       ],
@@ -2313,8 +2943,11 @@
         "authenticated",
         "service_role"
       ],
+      "staging_v1_gated": true,
+      "expected_grantees": [
+        "service_role"
+      ],
       "real_stack_grantees": [
-        "authenticated",
         "service_role"
       ],
       "owner": "supabase_admin",
@@ -2327,6 +2960,11 @@
       "function": "get_tournament_schedule_context(uuid,uuid,uuid)",
       "category": "CLIENT_RPC_GUARDED",
       "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "authenticated",
         "service_role"
       ],
@@ -2347,6 +2985,11 @@
         "authenticated",
         "service_role"
       ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
+        "authenticated",
+        "service_role"
+      ],
       "real_stack_grantees": [
         "authenticated",
         "service_role"
@@ -2361,6 +3004,11 @@
       "function": "get_tournament_social_snapshot(uuid,uuid,uuid,uuid,text,uuid,uuid)",
       "category": "CLIENT_RPC_GUARDED",
       "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "authenticated",
         "service_role"
       ],
@@ -2380,6 +3028,10 @@
       "phase2b_grantees": [
         "service_role"
       ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
+        "service_role"
+      ],
       "real_stack_grantees": [
         "service_role"
       ],
@@ -2393,6 +3045,11 @@
       "function": "get_tournament_social_studio_context(uuid)",
       "category": "CLIENT_RPC_GUARDED",
       "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "authenticated",
         "service_role"
       ],
@@ -2412,6 +3069,10 @@
       "phase2b_grantees": [
         "service_role"
       ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
+        "service_role"
+      ],
       "real_stack_grantees": [
         "service_role"
       ],
@@ -2425,6 +3086,11 @@
       "function": "get_tournament_standings_context(uuid,uuid,uuid,uuid,uuid)",
       "category": "CLIENT_RPC_GUARDED",
       "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "authenticated",
         "service_role"
       ],
@@ -2445,6 +3111,11 @@
         "authenticated",
         "service_role"
       ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
+        "authenticated",
+        "service_role"
+      ],
       "real_stack_grantees": [
         "authenticated",
         "service_role"
@@ -2459,6 +3130,11 @@
       "function": "get_tournament_team_photo_state(uuid,uuid)",
       "category": "CLIENT_RPC_GUARDED",
       "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "authenticated",
         "service_role"
       ],
@@ -2479,6 +3155,11 @@
         "authenticated",
         "service_role"
       ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
+        "authenticated",
+        "service_role"
+      ],
       "real_stack_grantees": [
         "authenticated",
         "service_role"
@@ -2493,6 +3174,11 @@
       "function": "get_tournament_teams_context(uuid,uuid)",
       "category": "CLIENT_RPC_GUARDED",
       "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "authenticated",
         "service_role"
       ],
@@ -2513,6 +3199,11 @@
         "authenticated",
         "service_role"
       ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
+        "authenticated",
+        "service_role"
+      ],
       "real_stack_grantees": [
         "authenticated",
         "service_role"
@@ -2527,6 +3218,8 @@
       "function": "grant_tournament_premium(uuid,uuid,text,text)",
       "category": "INTERNAL",
       "phase2b_grantees": [],
+      "staging_v1_gated": false,
+      "expected_grantees": [],
       "real_stack_grantees": [],
       "owner": "supabase_admin",
       "settings": [
@@ -2538,6 +3231,10 @@
       "function": "grant_tournament_season_premium(uuid,uuid,uuid,text)",
       "category": "SERVICE_ONLY",
       "phase2b_grantees": [
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "service_role"
       ],
       "real_stack_grantees": [
@@ -2553,6 +3250,11 @@
       "function": "handle_tournament_media_report(uuid,text,text)",
       "category": "CLIENT_RPC_GUARDED",
       "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "authenticated",
         "service_role"
       ],
@@ -2573,6 +3275,11 @@
         "authenticated",
         "service_role"
       ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
+        "authenticated",
+        "service_role"
+      ],
       "real_stack_grantees": [
         "authenticated",
         "service_role"
@@ -2587,6 +3294,11 @@
       "function": "has_tournament_capability(uuid,uuid,text)",
       "category": "CLIENT_PREDICATE",
       "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "authenticated",
         "service_role"
       ],
@@ -2606,6 +3318,10 @@
       "phase2b_grantees": [
         "service_role"
       ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
+        "service_role"
+      ],
       "real_stack_grantees": [
         "service_role"
       ],
@@ -2622,8 +3338,11 @@
         "authenticated",
         "service_role"
       ],
+      "staging_v1_gated": true,
+      "expected_grantees": [
+        "service_role"
+      ],
       "real_stack_grantees": [
-        "authenticated",
         "service_role"
       ],
       "owner": "supabase_admin",
@@ -2636,6 +3355,10 @@
       "function": "has_tournament_media_assignment(uuid,text)",
       "category": "SERVICE_ONLY",
       "phase2b_grantees": [
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "service_role"
       ],
       "real_stack_grantees": [
@@ -2653,6 +3376,10 @@
       "phase2b_grantees": [
         "service_role"
       ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
+        "service_role"
+      ],
       "real_stack_grantees": [
         "service_role"
       ],
@@ -2666,6 +3393,11 @@
       "function": "has_tournament_organization_capability(uuid,text)",
       "category": "CLIENT_PREDICATE",
       "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "authenticated",
         "service_role"
       ],
@@ -2686,6 +3418,11 @@
         "authenticated",
         "service_role"
       ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
+        "authenticated",
+        "service_role"
+      ],
       "real_stack_grantees": [
         "authenticated",
         "service_role"
@@ -2700,6 +3437,11 @@
       "function": "has_tournament_season_capability(uuid,uuid,text)",
       "category": "CLIENT_PREDICATE",
       "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "authenticated",
         "service_role"
       ],
@@ -2719,6 +3461,10 @@
       "phase2b_grantees": [
         "service_role"
       ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
+        "service_role"
+      ],
       "real_stack_grantees": [
         "service_role"
       ],
@@ -2732,6 +3478,11 @@
       "function": "invite_tournament_team_manager(uuid,uuid,text,text,text)",
       "category": "CLIENT_RPC_GUARDED",
       "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "authenticated",
         "service_role"
       ],
@@ -2752,6 +3503,11 @@
         "authenticated",
         "service_role"
       ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
+        "authenticated",
+        "service_role"
+      ],
       "real_stack_grantees": [
         "authenticated",
         "service_role"
@@ -2766,6 +3522,11 @@
       "function": "is_tournament_organization_slug_available(text)",
       "category": "CLIENT_PREDICATE",
       "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "authenticated",
         "service_role"
       ],
@@ -2785,6 +3546,10 @@
       "phase2b_grantees": [
         "service_role"
       ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
+        "service_role"
+      ],
       "real_stack_grantees": [
         "service_role"
       ],
@@ -2800,6 +3565,10 @@
       "phase2b_grantees": [
         "service_role"
       ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
+        "service_role"
+      ],
       "real_stack_grantees": [
         "service_role"
       ],
@@ -2813,6 +3582,11 @@
       "function": "is_tournament_team_manager(uuid,boolean)",
       "category": "CLIENT_PREDICATE",
       "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "authenticated",
         "service_role"
       ],
@@ -2832,6 +3606,10 @@
       "phase2b_grantees": [
         "service_role"
       ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
+        "service_role"
+      ],
       "real_stack_grantees": [
         "service_role"
       ],
@@ -2845,6 +3623,10 @@
       "function": "lease_tournament_media_processing_jobs(text,integer,integer)",
       "category": "SERVICE_ONLY",
       "phase2b_grantees": [
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "service_role"
       ],
       "real_stack_grantees": [
@@ -2862,6 +3644,10 @@
       "phase2b_grantees": [
         "service_role"
       ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
+        "service_role"
+      ],
       "real_stack_grantees": [
         "service_role"
       ],
@@ -2875,6 +3661,11 @@
       "function": "list_tournament_player_portrait_refs(uuid,uuid)",
       "category": "CLIENT_RPC_GUARDED",
       "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "authenticated",
         "service_role"
       ],
@@ -2895,6 +3686,11 @@
         "authenticated",
         "service_role"
       ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
+        "authenticated",
+        "service_role"
+      ],
       "real_stack_grantees": [
         "authenticated",
         "service_role"
@@ -2912,8 +3708,11 @@
         "authenticated",
         "service_role"
       ],
+      "staging_v1_gated": true,
+      "expected_grantees": [
+        "service_role"
+      ],
       "real_stack_grantees": [
-        "authenticated",
         "service_role"
       ],
       "owner": "supabase_admin",
@@ -2929,8 +3728,11 @@
         "authenticated",
         "service_role"
       ],
+      "staging_v1_gated": true,
+      "expected_grantees": [
+        "service_role"
+      ],
       "real_stack_grantees": [
-        "authenticated",
         "service_role"
       ],
       "owner": "supabase_admin",
@@ -2943,6 +3745,10 @@
       "function": "manage_tournament_media_consent(uuid,uuid,uuid,text,text,text)",
       "category": "SERVICE_ONLY",
       "phase2b_grantees": [
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "service_role"
       ],
       "real_stack_grantees": [
@@ -2958,6 +3764,11 @@
       "function": "mark_tournament_announcement_read(uuid,boolean)",
       "category": "CLIENT_RPC_GUARDED",
       "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "authenticated",
         "service_role"
       ],
@@ -2978,8 +3789,11 @@
         "authenticated",
         "service_role"
       ],
+      "staging_v1_gated": true,
+      "expected_grantees": [
+        "service_role"
+      ],
       "real_stack_grantees": [
-        "authenticated",
         "service_role"
       ],
       "owner": "supabase_admin",
@@ -2992,6 +3806,11 @@
       "function": "open_tournament_match_operation(uuid,uuid,text)",
       "category": "CLIENT_RPC_GUARDED",
       "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "authenticated",
         "service_role"
       ],
@@ -3011,6 +3830,10 @@
       "phase2b_grantees": [
         "service_role"
       ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
+        "service_role"
+      ],
       "real_stack_grantees": [
         "service_role"
       ],
@@ -3024,6 +3847,11 @@
       "function": "preview_tournament_announcement_audience(uuid)",
       "category": "CLIENT_RPC_GUARDED",
       "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "authenticated",
         "service_role"
       ],
@@ -3041,6 +3869,8 @@
       "function": "protect_active_tournament_fixture_draft()",
       "category": "TRIGGER",
       "phase2b_grantees": [],
+      "staging_v1_gated": false,
+      "expected_grantees": [],
       "real_stack_grantees": [],
       "owner": "supabase_admin",
       "settings": [
@@ -3052,6 +3882,10 @@
       "function": "protect_tournament_completed_competition()",
       "category": "TRIGGER",
       "phase2b_grantees": [
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "service_role"
       ],
       "real_stack_grantees": [
@@ -3067,6 +3901,11 @@
       "function": "publish_tournament_announcement(uuid,integer)",
       "category": "CLIENT_RPC_GUARDED",
       "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "authenticated",
         "service_role"
       ],
@@ -3087,6 +3926,11 @@
         "authenticated",
         "service_role"
       ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
+        "authenticated",
+        "service_role"
+      ],
       "real_stack_grantees": [
         "authenticated",
         "service_role"
@@ -3104,8 +3948,11 @@
         "authenticated",
         "service_role"
       ],
+      "staging_v1_gated": true,
+      "expected_grantees": [
+        "service_role"
+      ],
       "real_stack_grantees": [
-        "authenticated",
         "service_role"
       ],
       "owner": "supabase_admin",
@@ -3118,6 +3965,11 @@
       "function": "publish_tournament_media_gallery(uuid)",
       "category": "CLIENT_RPC_GUARDED",
       "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "authenticated",
         "service_role"
       ],
@@ -3138,6 +3990,11 @@
         "authenticated",
         "service_role"
       ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
+        "authenticated",
+        "service_role"
+      ],
       "real_stack_grantees": [
         "authenticated",
         "service_role"
@@ -3152,6 +4009,10 @@
       "function": "ready_tournament_match(uuid,uuid)",
       "category": "SERVICE_ONLY",
       "phase2b_grantees": [
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "service_role"
       ],
       "real_stack_grantees": [
@@ -3169,6 +4030,10 @@
       "phase2b_grantees": [
         "service_role"
       ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
+        "service_role"
+      ],
       "real_stack_grantees": [
         "service_role"
       ],
@@ -3182,6 +4047,11 @@
       "function": "rebuild_tournament_standings(uuid,uuid,uuid,uuid,uuid,text,uuid)",
       "category": "CLIENT_RPC_GUARDED",
       "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "authenticated",
         "service_role"
       ],
@@ -3202,8 +4072,11 @@
         "authenticated",
         "service_role"
       ],
+      "staging_v1_gated": true,
+      "expected_grantees": [
+        "service_role"
+      ],
       "real_stack_grantees": [
-        "authenticated",
         "service_role"
       ],
       "owner": "supabase_admin",
@@ -3216,6 +4089,10 @@
       "function": "record_tournament_purchase_preference(uuid,text,text,text,timestamp with time zone)",
       "category": "SERVICE_ONLY",
       "phase2b_grantees": [
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "service_role"
       ],
       "real_stack_grantees": [
@@ -3233,6 +4110,10 @@
       "phase2b_grantees": [
         "service_role"
       ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
+        "service_role"
+      ],
       "real_stack_grantees": [
         "service_role"
       ],
@@ -3246,6 +4127,11 @@
       "function": "remove_tournament_roster_player(uuid,uuid,uuid)",
       "category": "CLIENT_RPC_GUARDED",
       "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "authenticated",
         "service_role"
       ],
@@ -3266,6 +4152,11 @@
         "authenticated",
         "service_role"
       ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
+        "authenticated",
+        "service_role"
+      ],
       "real_stack_grantees": [
         "authenticated",
         "service_role"
@@ -3280,6 +4171,11 @@
       "function": "reopen_tournament_competition(uuid,uuid,text)",
       "category": "CLIENT_RPC_GUARDED",
       "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "authenticated",
         "service_role"
       ],
@@ -3300,8 +4196,11 @@
         "authenticated",
         "service_role"
       ],
+      "staging_v1_gated": true,
+      "expected_grantees": [
+        "service_role"
+      ],
       "real_stack_grantees": [
-        "authenticated",
         "service_role"
       ],
       "owner": "supabase_admin",
@@ -3314,6 +4213,11 @@
       "function": "reorder_tournament_media_item(uuid,uuid,integer)",
       "category": "CLIENT_RPC_GUARDED",
       "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "authenticated",
         "service_role"
       ],
@@ -3334,6 +4238,11 @@
         "authenticated",
         "service_role"
       ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
+        "authenticated",
+        "service_role"
+      ],
       "real_stack_grantees": [
         "authenticated",
         "service_role"
@@ -3351,8 +4260,11 @@
         "authenticated",
         "service_role"
       ],
+      "staging_v1_gated": true,
+      "expected_grantees": [
+        "service_role"
+      ],
       "real_stack_grantees": [
-        "authenticated",
         "service_role"
       ],
       "owner": "supabase_admin",
@@ -3368,8 +4280,11 @@
         "authenticated",
         "service_role"
       ],
+      "staging_v1_gated": true,
+      "expected_grantees": [
+        "service_role"
+      ],
       "real_stack_grantees": [
-        "authenticated",
         "service_role"
       ],
       "owner": "supabase_admin",
@@ -3382,6 +4297,11 @@
       "function": "request_tournament_media_upload_session(uuid,text,text,bigint,uuid)",
       "category": "CLIENT_RPC_GUARDED",
       "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "authenticated",
         "service_role"
       ],
@@ -3401,6 +4321,10 @@
       "phase2b_grantees": [
         "service_role"
       ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
+        "service_role"
+      ],
       "real_stack_grantees": [
         "service_role"
       ],
@@ -3416,6 +4340,10 @@
       "phase2b_grantees": [
         "service_role"
       ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
+        "service_role"
+      ],
       "real_stack_grantees": [
         "service_role"
       ],
@@ -3429,6 +4357,11 @@
       "function": "reschedule_tournament_match(uuid,uuid,timestamp with time zone,uuid,uuid,integer,text,boolean)",
       "category": "CLIENT_RPC_GUARDED",
       "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "authenticated",
         "service_role"
       ],
@@ -3448,6 +4381,10 @@
       "phase2b_grantees": [
         "service_role"
       ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
+        "service_role"
+      ],
       "real_stack_grantees": [
         "service_role"
       ],
@@ -3463,6 +4400,10 @@
       "phase2b_grantees": [
         "service_role"
       ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
+        "service_role"
+      ],
       "real_stack_grantees": [
         "service_role"
       ],
@@ -3476,6 +4417,10 @@
       "function": "resolve_tournament_announcement_recipients(uuid)",
       "category": "SERVICE_ONLY",
       "phase2b_grantees": [
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "service_role"
       ],
       "real_stack_grantees": [
@@ -3494,8 +4439,11 @@
         "authenticated",
         "service_role"
       ],
+      "staging_v1_gated": true,
+      "expected_grantees": [
+        "service_role"
+      ],
       "real_stack_grantees": [
-        "authenticated",
         "service_role"
       ],
       "owner": "supabase_admin",
@@ -3508,6 +4456,11 @@
       "function": "respond_match_availability(uuid,text,text)",
       "category": "CLIENT_RPC_GUARDED",
       "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "authenticated",
         "service_role"
       ],
@@ -3527,6 +4480,10 @@
       "phase2b_grantees": [
         "service_role"
       ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
+        "service_role"
+      ],
       "real_stack_grantees": [
         "service_role"
       ],
@@ -3543,8 +4500,11 @@
         "authenticated",
         "service_role"
       ],
+      "staging_v1_gated": true,
+      "expected_grantees": [
+        "service_role"
+      ],
       "real_stack_grantees": [
-        "authenticated",
         "service_role"
       ],
       "owner": "supabase_admin",
@@ -3557,6 +4517,11 @@
       "function": "review_tournament_team_entry(uuid,uuid,text,text,jsonb)",
       "category": "CLIENT_RPC_GUARDED",
       "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "authenticated",
         "service_role"
       ],
@@ -3576,6 +4541,10 @@
       "phase2b_grantees": [
         "service_role"
       ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
+        "service_role"
+      ],
       "real_stack_grantees": [
         "service_role"
       ],
@@ -3589,6 +4558,10 @@
       "function": "revoke_tournament_media_service_attestation(text)",
       "category": "SERVICE_ONLY",
       "phase2b_grantees": [
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "service_role"
       ],
       "real_stack_grantees": [
@@ -3607,8 +4580,11 @@
         "authenticated",
         "service_role"
       ],
+      "staging_v1_gated": true,
+      "expected_grantees": [
+        "service_role"
+      ],
       "real_stack_grantees": [
-        "authenticated",
         "service_role"
       ],
       "owner": "supabase_admin",
@@ -3624,8 +4600,11 @@
         "authenticated",
         "service_role"
       ],
+      "staging_v1_gated": true,
+      "expected_grantees": [
+        "service_role"
+      ],
       "real_stack_grantees": [
-        "authenticated",
         "service_role"
       ],
       "owner": "supabase_admin",
@@ -3638,6 +4617,10 @@
       "function": "revoke_tournament_team_invitation(uuid,uuid)",
       "category": "SERVICE_ONLY",
       "phase2b_grantees": [
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "service_role"
       ],
       "real_stack_grantees": [
@@ -3656,8 +4639,11 @@
         "authenticated",
         "service_role"
       ],
+      "staging_v1_gated": true,
+      "expected_grantees": [
+        "service_role"
+      ],
       "real_stack_grantees": [
-        "authenticated",
         "service_role"
       ],
       "owner": "supabase_admin",
@@ -3670,6 +4656,11 @@
       "function": "save_match_squad(uuid,uuid,uuid,jsonb)",
       "category": "CLIENT_RPC_GUARDED",
       "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "authenticated",
         "service_role"
       ],
@@ -3690,6 +4681,11 @@
         "authenticated",
         "service_role"
       ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
+        "authenticated",
+        "service_role"
+      ],
       "real_stack_grantees": [
         "authenticated",
         "service_role"
@@ -3707,8 +4703,11 @@
         "authenticated",
         "service_role"
       ],
+      "staging_v1_gated": true,
+      "expected_grantees": [
+        "service_role"
+      ],
       "real_stack_grantees": [
-        "authenticated",
         "service_role"
       ],
       "owner": "supabase_admin",
@@ -3721,6 +4720,11 @@
       "function": "save_tournament_match_operation_draft(uuid,uuid,text,text)",
       "category": "CLIENT_RPC_GUARDED",
       "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "authenticated",
         "service_role"
       ],
@@ -3741,6 +4745,11 @@
         "authenticated",
         "service_role"
       ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
+        "authenticated",
+        "service_role"
+      ],
       "real_stack_grantees": [
         "authenticated",
         "service_role"
@@ -3758,8 +4767,11 @@
         "authenticated",
         "service_role"
       ],
+      "staging_v1_gated": true,
+      "expected_grantees": [
+        "service_role"
+      ],
       "real_stack_grantees": [
-        "authenticated",
         "service_role"
       ],
       "owner": "supabase_admin",
@@ -3772,6 +4784,10 @@
       "function": "schedule_tournament_match_resumption(uuid,uuid,timestamp with time zone,uuid,uuid,text)",
       "category": "SERVICE_ONLY",
       "phase2b_grantees": [
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "service_role"
       ],
       "real_stack_grantees": [
@@ -3787,6 +4803,11 @@
       "function": "search_tournament_arma2_teams(uuid,uuid,text,integer)",
       "category": "CORE_CONTRACT_BOUND",
       "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "authenticated",
         "service_role"
       ],
@@ -3807,6 +4828,11 @@
         "authenticated",
         "service_role"
       ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
+        "authenticated",
+        "service_role"
+      ],
       "real_stack_grantees": [
         "authenticated",
         "service_role"
@@ -3821,6 +4847,11 @@
       "function": "set_active_tournament_context(uuid,uuid,uuid)",
       "category": "CLIENT_RPC_GUARDED",
       "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "authenticated",
         "service_role"
       ],
@@ -3841,6 +4872,11 @@
         "authenticated",
         "service_role"
       ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
+        "authenticated",
+        "service_role"
+      ],
       "real_stack_grantees": [
         "authenticated",
         "service_role"
@@ -3855,6 +4891,11 @@
       "function": "set_tournament_announcement_audience(uuid,text,uuid,uuid,uuid,uuid)",
       "category": "CLIENT_RPC_GUARDED",
       "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "authenticated",
         "service_role"
       ],
@@ -3875,6 +4916,11 @@
         "authenticated",
         "service_role"
       ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
+        "authenticated",
+        "service_role"
+      ],
       "real_stack_grantees": [
         "authenticated",
         "service_role"
@@ -3889,6 +4935,11 @@
       "function": "set_tournament_branding_reference(uuid,text,uuid,text)",
       "category": "CLIENT_RPC_GUARDED",
       "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "authenticated",
         "service_role"
       ],
@@ -3908,6 +4959,10 @@
       "phase2b_grantees": [
         "service_role"
       ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
+        "service_role"
+      ],
       "real_stack_grantees": [
         "service_role"
       ],
@@ -3921,6 +4976,11 @@
       "function": "set_tournament_match_outcome(uuid,uuid,jsonb)",
       "category": "CLIENT_RPC_GUARDED",
       "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "authenticated",
         "service_role"
       ],
@@ -3941,6 +5001,11 @@
         "authenticated",
         "service_role"
       ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
+        "authenticated",
+        "service_role"
+      ],
       "real_stack_grantees": [
         "authenticated",
         "service_role"
@@ -3958,6 +5023,11 @@
         "authenticated",
         "service_role"
       ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
+        "authenticated",
+        "service_role"
+      ],
       "real_stack_grantees": [
         "authenticated",
         "service_role"
@@ -3972,6 +5042,8 @@
       "function": "set_tournament_organization_subscription(uuid,text,timestamp with time zone,timestamp with time zone,timestamp with time zone,timestamp with time zone,integer)",
       "category": "INTERNAL",
       "phase2b_grantees": [],
+      "staging_v1_gated": false,
+      "expected_grantees": [],
       "real_stack_grantees": [],
       "owner": "supabase_admin",
       "settings": [
@@ -3986,8 +5058,11 @@
         "authenticated",
         "service_role"
       ],
+      "staging_v1_gated": true,
+      "expected_grantees": [
+        "service_role"
+      ],
       "real_stack_grantees": [
-        "authenticated",
         "service_role"
       ],
       "owner": "supabase_admin",
@@ -4003,8 +5078,11 @@
         "authenticated",
         "service_role"
       ],
+      "staging_v1_gated": true,
+      "expected_grantees": [
+        "service_role"
+      ],
       "real_stack_grantees": [
-        "authenticated",
         "service_role"
       ],
       "owner": "supabase_admin",
@@ -4017,6 +5095,11 @@
       "function": "set_tournament_public_page_published(uuid,uuid,boolean)",
       "category": "CLIENT_RPC_GUARDED",
       "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "authenticated",
         "service_role"
       ],
@@ -4037,6 +5120,11 @@
         "authenticated",
         "service_role"
       ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
+        "authenticated",
+        "service_role"
+      ],
       "real_stack_grantees": [
         "authenticated",
         "service_role"
@@ -4051,6 +5139,11 @@
       "function": "set_tournament_team_photo_editorial_status(uuid,uuid,text,text)",
       "category": "CLIENT_RPC_GUARDED",
       "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "authenticated",
         "service_role"
       ],
@@ -4071,6 +5164,11 @@
         "authenticated",
         "service_role"
       ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
+        "authenticated",
+        "service_role"
+      ],
       "real_stack_grantees": [
         "authenticated",
         "service_role"
@@ -4085,6 +5183,11 @@
       "function": "set_tournament_workspace_preference(text,uuid)",
       "category": "CLIENT_RPC_GUARDED",
       "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "authenticated",
         "service_role"
       ],
@@ -4105,6 +5208,11 @@
         "authenticated",
         "service_role"
       ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
+        "authenticated",
+        "service_role"
+      ],
       "real_stack_grantees": [
         "authenticated",
         "service_role"
@@ -4122,8 +5230,11 @@
         "authenticated",
         "service_role"
       ],
+      "staging_v1_gated": true,
+      "expected_grantees": [
+        "service_role"
+      ],
       "real_stack_grantees": [
-        "authenticated",
         "service_role"
       ],
       "owner": "supabase_admin",
@@ -4136,6 +5247,11 @@
       "function": "submit_tournament_match_operation(uuid,uuid)",
       "category": "CLIENT_RPC_GUARDED",
       "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "authenticated",
         "service_role"
       ],
@@ -4156,6 +5272,11 @@
         "authenticated",
         "service_role"
       ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
+        "authenticated",
+        "service_role"
+      ],
       "real_stack_grantees": [
         "authenticated",
         "service_role"
@@ -4173,8 +5294,11 @@
         "authenticated",
         "service_role"
       ],
+      "staging_v1_gated": true,
+      "expected_grantees": [
+        "service_role"
+      ],
       "real_stack_grantees": [
-        "authenticated",
         "service_role"
       ],
       "owner": "supabase_admin",
@@ -4187,6 +5311,10 @@
       "function": "tag_tournament_media_asset(uuid,text,uuid,uuid,uuid)",
       "category": "SERVICE_ONLY",
       "phase2b_grantees": [
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "service_role"
       ],
       "real_stack_grantees": [
@@ -4204,6 +5332,10 @@
       "phase2b_grantees": [
         "service_role"
       ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
+        "service_role"
+      ],
       "real_stack_grantees": [
         "service_role"
       ],
@@ -4217,6 +5349,10 @@
       "function": "tournament_match_team_entries(uuid)",
       "category": "SERVICE_ONLY",
       "phase2b_grantees": [
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "service_role"
       ],
       "real_stack_grantees": [
@@ -4234,6 +5370,10 @@
       "phase2b_grantees": [
         "service_role"
       ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
+        "service_role"
+      ],
       "real_stack_grantees": [
         "service_role"
       ],
@@ -4247,6 +5387,8 @@
       "function": "tournament_media_asset_publication_ready(uuid)",
       "category": "INTERNAL",
       "phase2b_grantees": [],
+      "staging_v1_gated": false,
+      "expected_grantees": [],
       "real_stack_grantees": [],
       "owner": "supabase_admin",
       "settings": [
@@ -4258,6 +5400,10 @@
       "function": "tournament_media_backend_fingerprint()",
       "category": "SERVICE_ONLY",
       "phase2b_grantees": [
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "service_role"
       ],
       "real_stack_grantees": [
@@ -4275,6 +5421,10 @@
       "phase2b_grantees": [
         "service_role"
       ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
+        "service_role"
+      ],
       "real_stack_grantees": [
         "service_role"
       ],
@@ -4290,6 +5440,10 @@
       "phase2b_grantees": [
         "service_role"
       ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
+        "service_role"
+      ],
       "real_stack_grantees": [
         "service_role"
       ],
@@ -4303,6 +5457,8 @@
       "function": "tournament_media_gallery_sports_round(uuid)",
       "category": "INTERNAL",
       "phase2b_grantees": [],
+      "staging_v1_gated": false,
+      "expected_grantees": [],
       "real_stack_grantees": [],
       "owner": "supabase_admin",
       "settings": [
@@ -4314,6 +5470,10 @@
       "function": "tournament_media_known_object_names(uuid)",
       "category": "SERVICE_ONLY",
       "phase2b_grantees": [
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "service_role"
       ],
       "real_stack_grantees": [
@@ -4329,6 +5489,8 @@
       "function": "tournament_media_mvp_user_can_upload(uuid,uuid)",
       "category": "INTERNAL",
       "phase2b_grantees": [],
+      "staging_v1_gated": false,
+      "expected_grantees": [],
       "real_stack_grantees": [],
       "owner": "supabase_admin",
       "settings": [
@@ -4340,6 +5502,10 @@
       "function": "tournament_media_pipeline_readiness()",
       "category": "SERVICE_ONLY",
       "phase2b_grantees": [
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "service_role"
       ],
       "real_stack_grantees": [
@@ -4355,6 +5521,8 @@
       "function": "tournament_media_require_pipeline_ready()",
       "category": "INTERNAL",
       "phase2b_grantees": [],
+      "staging_v1_gated": false,
+      "expected_grantees": [],
       "real_stack_grantees": [],
       "owner": "supabase_admin",
       "settings": [
@@ -4366,6 +5534,8 @@
       "function": "tournament_media_require_upload_tier(text)",
       "category": "INTERNAL",
       "phase2b_grantees": [],
+      "staging_v1_gated": false,
+      "expected_grantees": [],
       "real_stack_grantees": [],
       "owner": "supabase_admin",
       "settings": [
@@ -4377,6 +5547,10 @@
       "function": "tournament_media_storage_contract_status()",
       "category": "SERVICE_ONLY",
       "phase2b_grantees": [
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "service_role"
       ],
       "real_stack_grantees": [
@@ -4394,6 +5568,10 @@
       "phase2b_grantees": [
         "service_role"
       ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
+        "service_role"
+      ],
       "real_stack_grantees": [
         "service_role"
       ],
@@ -4407,6 +5585,10 @@
       "function": "tournament_purchase_projection(tournament_purchases)",
       "category": "SERVICE_ONLY",
       "phase2b_grantees": [
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "service_role"
       ],
       "real_stack_grantees": [
@@ -4424,6 +5606,10 @@
       "phase2b_grantees": [
         "service_role"
       ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
+        "service_role"
+      ],
       "real_stack_grantees": [
         "service_role"
       ],
@@ -4437,6 +5623,10 @@
       "function": "tournament_requires_premium(uuid,uuid)",
       "category": "SERVICE_ONLY",
       "phase2b_grantees": [
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "service_role"
       ],
       "real_stack_grantees": [
@@ -4455,6 +5645,11 @@
         "authenticated",
         "service_role"
       ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
+        "authenticated",
+        "service_role"
+      ],
       "real_stack_grantees": [
         "authenticated",
         "service_role"
@@ -4469,6 +5664,8 @@
       "function": "tournament_season_member_assignment_limit()",
       "category": "TRIGGER",
       "phase2b_grantees": [],
+      "staging_v1_gated": false,
+      "expected_grantees": [],
       "real_stack_grantees": [],
       "owner": "supabase_admin",
       "settings": [
@@ -4480,6 +5677,10 @@
       "function": "tournament_social_match_rows(uuid,uuid,uuid,boolean)",
       "category": "SERVICE_ONLY",
       "phase2b_grantees": [
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "service_role"
       ],
       "real_stack_grantees": [
@@ -4495,6 +5696,8 @@
       "function": "tournament_social_next_fixture(uuid,uuid,uuid)",
       "category": "INTERNAL",
       "phase2b_grantees": [],
+      "staging_v1_gated": false,
+      "expected_grantees": [],
       "real_stack_grantees": [],
       "owner": "supabase_admin",
       "settings": [
@@ -4506,6 +5709,8 @@
       "function": "tournament_social_player_candidates(uuid,jsonb)",
       "category": "INTERNAL",
       "phase2b_grantees": [],
+      "staging_v1_gated": false,
+      "expected_grantees": [],
       "real_stack_grantees": [],
       "owner": "supabase_admin",
       "settings": [
@@ -4517,6 +5722,10 @@
       "function": "tournament_social_published_scope(uuid,uuid,uuid,uuid)",
       "category": "SERVICE_ONLY",
       "phase2b_grantees": [
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "service_role"
       ],
       "real_stack_grantees": [
@@ -4535,8 +5744,11 @@
         "authenticated",
         "service_role"
       ],
+      "staging_v1_gated": true,
+      "expected_grantees": [
+        "service_role"
+      ],
       "real_stack_grantees": [
-        "authenticated",
         "service_role"
       ],
       "owner": "supabase_admin",
@@ -4552,8 +5764,11 @@
         "authenticated",
         "service_role"
       ],
+      "staging_v1_gated": true,
+      "expected_grantees": [
+        "service_role"
+      ],
       "real_stack_grantees": [
-        "authenticated",
         "service_role"
       ],
       "owner": "supabase_admin",
@@ -4566,6 +5781,11 @@
       "function": "update_my_tournament_notification_preferences(uuid,boolean,boolean,boolean,boolean,boolean,boolean)",
       "category": "CLIENT_RPC_GUARDED",
       "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "authenticated",
         "service_role"
       ],
@@ -4586,6 +5806,11 @@
         "authenticated",
         "service_role"
       ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
+        "authenticated",
+        "service_role"
+      ],
       "real_stack_grantees": [
         "authenticated",
         "service_role"
@@ -4600,6 +5825,11 @@
       "function": "update_tournament_configuration(uuid,uuid,jsonb)",
       "category": "CLIENT_RPC_GUARDED",
       "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "authenticated",
         "service_role"
       ],
@@ -4620,6 +5850,11 @@
         "authenticated",
         "service_role"
       ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
+        "authenticated",
+        "service_role"
+      ],
       "real_stack_grantees": [
         "authenticated",
         "service_role"
@@ -4636,6 +5871,10 @@
       "phase2b_grantees": [
         "service_role"
       ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
+        "service_role"
+      ],
       "real_stack_grantees": [
         "service_role"
       ],
@@ -4649,6 +5888,11 @@
       "function": "update_tournament_media_gallery(uuid,text,text,text,boolean)",
       "category": "CLIENT_RPC_GUARDED",
       "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "authenticated",
         "service_role"
       ],
@@ -4669,6 +5913,11 @@
         "authenticated",
         "service_role"
       ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
+        "authenticated",
+        "service_role"
+      ],
       "real_stack_grantees": [
         "authenticated",
         "service_role"
@@ -4683,6 +5932,11 @@
       "function": "update_tournament_roster_player(uuid,uuid,uuid,smallint,text,text,boolean)",
       "category": "CLIENT_RPC_GUARDED",
       "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "authenticated",
         "service_role"
       ],
@@ -4703,6 +5957,11 @@
         "authenticated",
         "service_role"
       ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
+        "authenticated",
+        "service_role"
+      ],
       "real_stack_grantees": [
         "authenticated",
         "service_role"
@@ -4717,6 +5976,11 @@
       "function": "update_tournament_team_entry(uuid,uuid,jsonb)",
       "category": "CLIENT_RPC_GUARDED",
       "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "authenticated",
         "service_role"
       ],
@@ -4737,6 +6001,11 @@
         "authenticated",
         "service_role"
       ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
+        "authenticated",
+        "service_role"
+      ],
       "real_stack_grantees": [
         "authenticated",
         "service_role"
@@ -4751,6 +6020,11 @@
       "function": "validate_tournament_fixture(uuid,uuid)",
       "category": "CLIENT_RPC_GUARDED",
       "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "authenticated",
         "service_role"
       ],
@@ -4771,8 +6045,11 @@
         "authenticated",
         "service_role"
       ],
+      "staging_v1_gated": true,
+      "expected_grantees": [
+        "service_role"
+      ],
       "real_stack_grantees": [
-        "authenticated",
         "service_role"
       ],
       "owner": "supabase_admin",
@@ -4785,6 +6062,10 @@
       "function": "validate_tournament_match_operation_payload(uuid)",
       "category": "SERVICE_ONLY",
       "phase2b_grantees": [
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "service_role"
       ],
       "real_stack_grantees": [
@@ -4800,6 +6081,11 @@
       "function": "validate_tournament_match_schedule(uuid,uuid,timestamp with time zone,uuid,uuid,integer)",
       "category": "CLIENT_RPC_GUARDED",
       "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "authenticated",
         "service_role"
       ],
@@ -4819,6 +6105,10 @@
       "phase2b_grantees": [
         "service_role"
       ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
+        "service_role"
+      ],
       "real_stack_grantees": [
         "service_role"
       ],
@@ -4835,8 +6125,11 @@
         "authenticated",
         "service_role"
       ],
+      "staging_v1_gated": true,
+      "expected_grantees": [
+        "service_role"
+      ],
       "real_stack_grantees": [
-        "authenticated",
         "service_role"
       ],
       "owner": "supabase_admin",
@@ -4849,6 +6142,11 @@
       "function": "void_tournament_match_operation(uuid,uuid,text)",
       "category": "CLIENT_RPC_GUARDED",
       "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "authenticated",
         "service_role"
       ],
@@ -4869,6 +6167,11 @@
         "authenticated",
         "service_role"
       ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
+        "authenticated",
+        "service_role"
+      ],
       "real_stack_grantees": [
         "authenticated",
         "service_role"
@@ -4883,6 +6186,11 @@
       "function": "withdraw_tournament_team_entry(uuid,uuid,text)",
       "category": "CLIENT_RPC_GUARDED",
       "phase2b_grantees": [
+        "authenticated",
+        "service_role"
+      ],
+      "staging_v1_gated": false,
+      "expected_grantees": [
         "authenticated",
         "service_role"
       ],

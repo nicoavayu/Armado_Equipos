@@ -1,3 +1,5 @@
+> Phase 2D: see [phase2d/REPORT.md](phase2d/REPORT.md). Status: **A) STAGING RPC EXPOSURE GATE PASS** — `review_tournament_team_entry` certified on the real stack (season rule R3-2D), the other 32 INCONCLUSIVE RPCs plus their one parent path server-side disabled for staging v1 (`supabase/migrations/00000000000001_staging_v1_rpc_exposure.sql` + gateway allowlist `phase2d/staging-v1-rpc-allowlist.json`). Phase 2C (real Supabase ACL hardening, P3A-F1 closed): [phase2c/REPORT.md](phase2c/REPORT.md).
+
 > Phase 2B: see [phase2b/REPORT.md](phase2b/REPORT.md). Status: **A) CLEAN TORNEOS BASELINE PASS** against the Phase 2A local Core contract. Real Core endpoint implementation remains pending and is required before Production. Phase 2A history: [phase2a/REPORT.md](phase2a/REPORT.md).
 
 # Torneos isolated baseline v1 — local candidate

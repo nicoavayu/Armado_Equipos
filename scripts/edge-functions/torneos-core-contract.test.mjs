@@ -116,7 +116,9 @@ test('pure contract module', async (t) => {
       await assert.rejects(verifyServiceAuth(SECRET, '/v1/directory', headers(sign('/v1/directory', body, { secret: randomBytes(32) })), body, NOW), { code: 'SERVICE_AUTH_REQUIRED' });
       await assert.rejects(verifyServiceAuth(SECRET, '/v1/directory', { ...headers(ok), nonce: 'short' }, body, NOW), { code: 'SERVICE_AUTH_REQUIRED' });
       await assert.rejects(verifyServiceAuth(SECRET, '/v1/directory', { ...headers(ok), signature: null }, body, NOW), { code: 'SERVICE_AUTH_REQUIRED' });
-      await assert.rejects(verifyServiceAuth(SECRET, '/v1/directory', { ...headers(ok), signature: ok['x-signature'].slice(0, 63) + '0' }, body, NOW), { code: 'SERVICE_AUTH_REQUIRED' });
+      // Flip the last hex digit to a guaranteed-different one (a fixed '0' left the signature intact 1/16 of the runs).
+      const flipped = ok['x-signature'].slice(0, 63) + ((parseInt(ok['x-signature'].slice(63), 16) + 1) % 16).toString(16);
+      await assert.rejects(verifyServiceAuth(SECRET, '/v1/directory', { ...headers(ok), signature: flipped }, body, NOW), { code: 'SERVICE_AUTH_REQUIRED' });
     });
     await t.test('closed request schemas', () => {
       const ve = validateRequest('/v1/verified-email', { core_user_id: USER, session_id: SESSION, expected_email: 'a@b.c' });

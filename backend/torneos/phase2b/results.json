@@ -96,10 +96,10 @@
       "kind": "functions",
       "historical": 358,
       "baseline": 358,
-      "equal_after_identity_normalization": 241
+      "equal_after_identity_normalization": 240
     }
   ],
-  "intentional_differences": 118,
+  "intentional_differences": 119,
   "historical_core_paths_unblocked": 4,
   "core_contract_scope": "Core contract integration certified against the Phase 2A local contract implementation. Real Core endpoint implementation remains pending and is required before Production.",
   "limitations": [

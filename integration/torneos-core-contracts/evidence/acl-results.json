@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-14T20:44:07.928Z",
+  "generated_at": "2026-09-15T03:57:11.937Z",
   "base": "http://127.0.0.1:58420",
   "pass": 16,
   "fail": 0,
@@ -37,11 +37,11 @@
       "status": "PASS"
     },
     {
-      "name": "authenticated RPCs: the 180 explicitly granted functions execute with a valid bearer (guarded DEFINER write + predicate)",
+      "name": "authenticated RPCs: the explicitly granted functions (180 in the baseline minus the 33 gated) execute with a valid bearer (guarded DEFINER write + predicate)",
       "status": "PASS"
     },
     {
-      "name": "305/305 SECURITY DEFINER functions keep their Phase 2B grantees, owner and fixed search_path on the real stack",
+      "name": "305/305 SECURITY DEFINER functions keep their Phase 2B grantees (modulo the Phase 2D staging v1 gate), owner and fixed search_path on the real stack",
       "status": "PASS"
     },
     {

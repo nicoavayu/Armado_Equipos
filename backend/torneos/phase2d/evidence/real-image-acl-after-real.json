@@ -1,8 +1,13 @@
 {
   "summary": {
-    "image": "public.ecr.aws/supabase/postgres:17.6.1.143",
+    "label": "after-real",
     "database": "postgres",
+    "image": "public.ecr.aws/supabase/postgres:17.6.1.143",
     "installer": "supabase_admin",
+    "sources": [
+      "00000000000000_torneos_baseline_v1.sql",
+      "00000000000001_staging_v1_rpc_exposure.sql"
+    ],
     "functions_total": 366,
     "public_functions": 359,
     "security_definer": 305,
@@ -29,14 +34,12 @@
       }
     },
     "public_execute_functions": 0,
-    "sequences_total": 7,
     "sequence_privilege": {
       "anon": 0,
       "authenticated": 4,
       "service_role": 4,
       "postgres": 7
     },
-    "relations_total": 106,
     "relation_privilege": {
       "anon": 78,
       "authenticated": 80,

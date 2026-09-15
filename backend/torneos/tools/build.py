@@ -47,7 +47,9 @@ for f in c['functions']:
    changes.append({'function':name,'change':'Phase 2B: projection immutability allows the function owner instead of the hardcoded postgres role name (same intent, portable owner)'})
   new,rules=season_scope.apply(name,f['signature'],new)
   if rules:
-   changes.append({'function':name,'change':'Phase 2B: organization-derived authority over a season-scoped resource requires the actor\'s season assignment ('+'/'.join(rules)+'); participant, manager and player branches unchanged'})
+   # R3-2D edits are the Phase 2D closure of capability calls whose argument is a CASE expression.
+   phase='Phase 2D' if all(r.endswith('-2D') for r in rules) else 'Phase 2B'
+   changes.append({'function':name,'change':phase+': organization-derived authority over a season-scoped resource requires the actor\'s season assignment ('+'/'.join(rules)+'); participant, manager and player branches unchanged'})
   if new!=body: dump=dump.replace(m.group(0),m.group(0).replace(body,new))
 # Identity UUIDs in historical user_id/arma2_user_id columns now mean local identity.id.
 dump=dump.replace('auth.uid()', 'private.current_identity_id()').replace('auth.users','public.torneos_identity')

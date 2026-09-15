@@ -348,6 +348,10 @@
     "change": "Phase 2B: organization-derived authority over a season-scoped resource requires the actor's season assignment (R2); participant, manager and player branches unchanged"
   },
   {
+    "function": "review_tournament_team_entry",
+    "change": "Phase 2D: organization-derived authority over a season-scoped resource requires the actor's season assignment (R3-2D); participant, manager and player branches unchanged"
+  },
+  {
     "function": "revoke_tournament_announcement",
     "change": "Phase 2B: organization-derived authority over a season-scoped resource requires the actor's season assignment (R1); participant, manager and player branches unchanged"
   },

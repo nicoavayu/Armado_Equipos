@@ -213,8 +213,15 @@
   ],
   "torneos": {
     "file": "backend/torneos/supabase/migrations/00000000000000_torneos_baseline_v1.sql",
-    "sha256": "7ec33549c8ce398c1e8330794aa19fda80321c597ff61ed3134382513639cffb",
+    "sha256": "f857bd0939054bc1a32a3855894b7b20e14a0c7456c9d5c8c5e8432e5b8ed19f",
     "installed": true,
-    "certified_sha256": "7ec33549c8ce398c1e8330794aa19fda80321c597ff61ed3134382513639cffb"
+    "certified_sha256": "f857bd0939054bc1a32a3855894b7b20e14a0c7456c9d5c8c5e8432e5b8ed19f",
+    "migrations_after_baseline": [
+      {
+        "file": "backend/torneos/supabase/migrations/00000000000001_staging_v1_rpc_exposure.sql",
+        "sha256": "3df4b96eecc7321eaeda84a480f089fe4bff2b28c20aa4479db92caf33457e62",
+        "applied": true
+      }
+    ]
   }
 }

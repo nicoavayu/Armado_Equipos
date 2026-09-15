@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-14T20:46:53.848Z",
+  "generated_at": "2026-09-15T04:01:29.235Z",
   "base": "http://127.0.0.1:58420",
   "pass": 40,
   "fail": 0,
@@ -9,7 +9,7 @@
       "status": "PASS"
     },
     {
-      "name": "lab: Core is the real schema at HEAD plus the Phase 3A migration; Torneos is the Phase 2C ACL-hardened certified baseline",
+      "name": "lab: Core is the real schema at HEAD plus the Phase 3A migration; Torneos is the Phase 2D certified baseline (Phase 2C ACL model + P0 season guard) plus the staging v1 RPC exposure gate",
       "status": "PASS"
     },
     {

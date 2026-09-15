@@ -102,11 +102,14 @@ def apply(name, signature, body):
         rules.add('R1')
         return '(' + match.group(0) + ' and public.has_tournament_season_access(' + org + ', ' + ROWTYPES[table].format(v=variable) + '))'
     body = CAPABILITY.sub(wrap, body)
-    edits = json.loads((BASE / 'phase2b/season-scope-edits.json').read_text())
-    if name in edits:
-        pairs = edits[name] if isinstance(edits[name][0], list) else [edits[name]]
-        for old, new in pairs:
-            assert body.count(old) == 1, (name, old[:60])
-            body = body.replace(old, new)
-        rules.add('R3')
+    # R3 anchored edits: Phase 2B set, then the Phase 2D set (capability calls whose argument is a
+    # CASE expression escape the CAPABILITY pattern above, so R2 never reached them).
+    for phase, tag in (('phase2b', 'R3'), ('phase2d', 'R3-2D')):
+        edits = json.loads((BASE / phase / 'season-scope-edits.json').read_text())
+        if name in edits:
+            pairs = edits[name] if isinstance(edits[name][0], list) else [edits[name]]
+            for old, new in pairs:
+                assert body.count(old) == 1, (name, old[:60])
+                body = body.replace(old, new)
+            rules.add(tag)
     return body, sorted(rules)

@@ -19147,12 +19147,14 @@ declare
   v_roster public.tournament_rosters%rowtype;
   v_validation jsonb;
 begin
-  if private.current_identity_id() is null or not public.has_tournament_organization_capability(
+  -- Phase 2D: the capability argument is a CASE expression, which the Phase 2B R2 pattern did not
+  -- match; organization authority over this entry's season requires the actor's season assignment.
+  if private.current_identity_id() is null or not (public.has_tournament_organization_capability(
     p_organization_id,
     case when p_decision = 'approved' then 'team_entries.approve'
          when p_decision = 'rejected' then 'team_entries.reject'
          else 'team_entries.review' end
-  ) then raise exception using errcode = '42501', message = 'TORNEOS_RESOURCE_FORBIDDEN'; end if;
+  ) and public.has_tournament_season_access(p_organization_id, (select e.season_id from public.tournament_team_entries e where e.id = p_team_entry_id and e.organization_id = p_organization_id))) then raise exception using errcode = '42501', message = 'TORNEOS_RESOURCE_FORBIDDEN'; end if;
   if p_decision not in ('changes_requested', 'approved', 'rejected')
     or char_length(btrim(coalesce(p_reason, ''))) not between 3 and 1200
     or jsonb_typeof(coalesce(p_issues, '[]'::jsonb)) <> 'array'

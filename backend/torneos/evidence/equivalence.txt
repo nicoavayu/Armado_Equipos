@@ -27,10 +27,10 @@
     "kind": "functions",
     "historical": 358,
     "baseline": 358,
-    "equal_after_identity_normalization": 241
+    "equal_after_identity_normalization": 240
   }
 ]
-Differences 118 duplicate indexes []
+Differences 119 duplicate indexes []
 
 tables tournament_team_entries opaque Core team id: physical Core FK removed
 functions public.accept_tournament_team_invitation(p_token text) Phase 2B: verified email comes from the attested Core verified-email contract instead of auth.users; invitation state/expiry/manager checks retained
@@ -119,6 +119,7 @@ functions public.reschedule_tournament_match(p_organization_id uuid, p_match_id 
 functions public.resolve_tournament_qualification(p_revision_id uuid, p_reason text) Phase 2B: organization-derived authority over a season-scoped resource requires the actor's season assignment (R1); participant, manager and player branches unchanged
 functions public.restore_tournament_match_unscheduled(p_organization_id uuid, p_match_id uuid, p_reason text) Phase 2B: organization-derived authority over a season-scoped resource requires the actor's season assignment (R2); participant, manager and player branches unchanged
 functions public.review_tournament_match_operation(p_organization_id uuid, p_match_operation_id uuid, p_decision text, p_reason text) Phase 2B: organization-derived authority over a season-scoped resource requires the actor's season assignment (R2); participant, manager and player branches unchanged
+functions public.review_tournament_team_entry(p_organization_id uuid, p_team_entry_id uuid, p_decision text, p_reason text, p_issues jsonb) Phase 2D: organization-derived authority over a season-scoped resource requires the actor's season assignment (R3-2D); participant, manager and player branches unchanged
 functions public.revoke_tournament_announcement(p_announcement_id uuid, p_reason text) Phase 2B: organization-derived authority over a season-scoped resource requires the actor's season assignment (R1); participant, manager and player branches unchanged
 functions public.revoke_tournament_points_adjustment(p_adjustment_id uuid, p_reason text) Phase 2B: organization-derived authority over a season-scoped resource requires the actor's season assignment (R1); participant, manager and player branches unchanged
 functions public.save_tournament_category(p_organization_id uuid, p_tournament_id uuid, p_category_id uuid, p_name text, p_slug text, p_description text, p_sort_order integer, p_min_age smallint, p_max_age smallint, p_gender_category text, p_sport_modality text, p_team_size smallint, p_status text) Phase 2B: organization-derived authority over a season-scoped resource requires the actor's season assignment (R2); participant, manager and player branches unchanged

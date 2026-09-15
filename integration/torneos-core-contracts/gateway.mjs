@@ -5,6 +5,9 @@
 // roles of the certified baseline (torneos_identity_writer / torneos_core_adapter
 // instead of the PoC writer), the RPC pre-step, and the removal of the static app and
 // Core REST proxy that this lab does not exercise. token.mjs is mounted verbatim.
+// Phase 2D: an explicit staging v1 RPC allowlist (backend/torneos/phase2d/staging-v1-rpc-allowlist.json,
+// mounted read-only) gates POST /torneos/rest/v1/rpc/<name>; any other RPC is refused after the
+// bearer is verified, even for a valid Core session. The database ACL stays the final boundary.
 import http from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { decodeJwt } from 'jose';
@@ -16,6 +19,10 @@ import { Adapter, AdapterDenied, CONTRACTS } from './adapter.mjs';
 const origin = 'http://127.0.0.1:58420';
 const readConfig = async () => JSON.parse(await readFile('.runtime/server/config.json', 'utf8'));
 const initial = await readConfig();
+// Staging v1 RPC allowlist: fail closed if the file is missing, malformed or empty.
+const allowlistDoc = JSON.parse(await readFile('staging-v1-rpc-allowlist.json', 'utf8'));
+const RPC_ALLOWLIST = new Set(Object.values(allowlistDoc.features ?? {}).flat().filter(n => /^[a-z0-9_]+$/.test(n)));
+if (RPC_ALLOWLIST.size === 0) throw new Error('staging v1 RPC allowlist is empty');
 const pool = (host, user, password) => new pg.Pool({ host, database: 'postgres', user, password,
   connectionTimeoutMillis: 2000, statement_timeout: 2000 });
 const core = pool('core-db', 'poc_session_reader', initial.readerPassword);
@@ -151,10 +158,13 @@ const server = http.createServer(async (req, res) => {
     if (rest && ['GET', 'HEAD', 'POST', 'PATCH', 'DELETE'].includes(req.method)) {
       const token = bearer(req);
       const p = await verifyToken(token, await readConfig());
+      const rpc = rest[2];
+      // Phase 2D: RPC names outside the staging v1 allowlist never reach PostgREST through this
+      // gateway (verified bearer or not; the answer is a plain refusal, not a proxied 42501).
+      if (rpc && !RPC_ALLOWLIST.has(rpc)) return json(res, 403, { error: 'rpc not enabled' });
       await activeSession(p.core_user_id, p.session_id);
       if (!await identityExists(p.sub, p.core_user_id)) throw new Error('identity mismatch');
       let raw;
-      const rpc = rest[2];
       if (req.method === 'POST' && rpc && CONTRACTS[rpc]) {
         raw = await body(req);
         let parsed;

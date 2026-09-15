@@ -1,22 +1,22 @@
 ▶ pure contract module
-  ✔ route resolution tolerates the gateway prefix and rejects unknown paths (0.38275ms)
-  ✔ service secret must be at least 32 hex bytes (0.110458ms)
-  ✔ service authentication: window, format and signature (3.117916ms)
-  ✔ closed request schemas (0.456334ms)
-  ✔ cursors are bound, signed and short-lived (1.614542ms)
-✔ pure contract module (67.014667ms)
+  ✔ route resolution tolerates the gateway prefix and rejects unknown paths (0.416333ms)
+  ✔ service secret must be at least 32 hex bytes (0.131583ms)
+  ✔ service authentication: window, format and signature (3.215125ms)
+  ✔ closed request schemas (0.504167ms)
+  ✔ cursors are bound, signed and short-lived (2.09975ms)
+✔ pure contract module (80.189333ms)
 ▶ request pipeline with a fake SQL executor
-  ✔ verified email passes through the SQL verdict and binds the nonce (17.300458ms)
-  ✔ denials from SQL keep their status and body (1.605625ms)
-  ✔ directory: has_more becomes a signed cursor and the next page carries `after` (1.608ms)
-  ✔ transport and schema rejections never reach SQL (1.017875ms)
-  ✔ SQL failure is a sanitized 503 and logs nothing about the request (0.461708ms)
-✔ request pipeline with a fake SQL executor (42.076125ms)
+  ✔ verified email passes through the SQL verdict and binds the nonce (20.431375ms)
+  ✔ denials from SQL keep their status and body (1.801708ms)
+  ✔ directory: has_more becomes a signed cursor and the next page carries `after` (2.038375ms)
+  ✔ transport and schema rejections never reach SQL (1.12475ms)
+  ✔ SQL failure is a sanitized 503 and logs nothing about the request (0.466333ms)
+✔ request pipeline with a fake SQL executor (49.774333ms)
 ▶ Deno wiring: env secret gates the handler and the service RPC is called exactly as the SQL expects
-  ✔ configured secret (18.344375ms)
+  ✔ configured secret (20.147458ms)
 [TORNEOS_CORE_CONTRACT] release=0.1.0 service secret misconfigured
-  ✔ missing secret fails closed without touching the database (15.500958ms)
-✔ Deno wiring: env secret gates the handler and the service RPC is called exactly as the SQL expects (34.032125ms)
+  ✔ missing secret fails closed without touching the database (18.33625ms)
+✔ Deno wiring: env secret gates the handler and the service RPC is called exactly as the SQL expects (38.713542ms)
 ℹ tests 15
 ℹ suites 0
 ℹ pass 15
@@ -24,4 +24,4 @@
 ℹ cancelled 0
 ℹ skipped 0
 ℹ todo 0
-ℹ duration_ms 363.887333
+ℹ duration_ms 408.184
