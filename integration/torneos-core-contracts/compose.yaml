@@ -108,6 +108,23 @@ services:
     volumes:
       - ./.runtime/public:/keys:ro
     networks: [isolated]
+  # Phase 3B: the same certified gateway ported to a Supabase Edge Function of the TORNEOS
+  # project (backend/torneos/supabase/functions/torneos-gateway), hosted by the real
+  # edge-runtime next to the Node gateway so both can be driven by the same suites and
+  # compared. Its configuration/secrets come from .runtime/torneos-gateway.env (generated
+  # by lab.mjs; never the Core service key). Published on loopback like the Node gateway;
+  # `egress` only for Deno module resolution, exactly like core-functions.
+  torneos-functions:
+    image: public.ecr.aws/supabase/edge-runtime:v1.74.2
+    command: [start, --main-service, /home/deno/main, --port, "9000"]
+    depends_on: [core-auth, core-api, torneos-rest]
+    env_file: [.runtime/torneos-gateway.env]
+    volumes:
+      - ../../backend/torneos/supabase/functions:/home/deno/functions:ro
+      - ./torneos-edge-main:/home/deno/main:ro
+      - torneos-deno-cache:/root/.cache/deno
+    ports: ["127.0.0.1:58421:9000"]
+    networks: [isolated, egress]
   gateway:
     image: node:22.22.0-bookworm-slim
     working_dir: /lab
@@ -139,3 +156,4 @@ volumes:
   core-data:
   torneos-data:
   deno-cache:
+  torneos-deno-cache:

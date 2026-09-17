@@ -1,0 +1,282 @@
+{
+  "generated_at": "2026-09-17T16:16:25.489Z",
+  "tool": "phase3b/remote/offline-rehearsal.mjs",
+  "container": "arma2-core-contracts-phase3a-core-db-1",
+  "clone_db": "r3_offline_20260917t161625z",
+  "remote_requests": 0,
+  "migrations": [
+    {
+      "version": "20260914120000",
+      "sha256": "2967ae6f67e36877c4931cb7821535eab10c5b7312026846f619b14fb045672c",
+      "apply_sql_sha256": "3d3e2845987ccdfd74b77ace51195865234066bb5828280fb0c8114969b84485",
+      "ledger_digest": "09ad7d261523fa1c2bb6e203a1624467"
+    },
+    {
+      "version": "20260915120000",
+      "sha256": "5256413839ad0abe9c9533a675461cc6589fd720e6b2bede3bc8d201a75ce422",
+      "apply_sql_sha256": "859fa7a30dee4a03376a662ab74427927c6a8b8a404556abdd3bfa59e5e5b78c",
+      "ledger_digest": "b424cc66022e7ab721e8070d0b05cdc7"
+    }
+  ],
+  "rollback_sql_sha256": "08edcd0e5eb8b614cbc79a1af770f914e26abb523bc90e849f2ceed2a72d6853",
+  "phases": {
+    "pins_and_lab": {
+      "ok": true,
+      "image": "public.ecr.aws/supabase/postgres:17.6.1.143",
+      "source": {
+        "server_version": "17.6",
+        "contract_installed": true,
+        "public_functions": 625,
+        "has_ledger_schema": false
+      }
+    },
+    "clone": {
+      "ok": true,
+      "restore_errors": 0,
+      "clone": {
+        "public_functions": 625,
+        "contract_installed": true,
+        "auth_users": 187,
+        "core_tables": true
+      }
+    },
+    "ledger_shape": {
+      "ok": true,
+      "diff": [],
+      "standard_conforming_strings": "on"
+    },
+    "writer_privileges": {
+      "ok": true,
+      "writer": {
+        "writer": "postgres",
+        "database": "r3_offline_20260917t161625z",
+        "database_owner": "postgres",
+        "database_create": true,
+        "app_private_present": true,
+        "app_private_owner": "postgres",
+        "app_private_create": true,
+        "public_create": true,
+        "ledger_insert": true,
+        "ledger_delete": true,
+        "ledger_owner": "postgres"
+      },
+      "note": "postgres (the platform writer) owns the database as on hosted Supabase"
+    },
+    "cli_rows_round_trip": {
+      "ok": true,
+      "note": "dollar-quoted INSERT ⇄ md5(array_to_string(statements, chr(30))): 7 split rows reproduced + 2 legacy blobs equal to their pinned fingerprints",
+      "verdict": {
+        "reproduced": 7,
+        "legacy_matched": 2,
+        "mismatched": 0,
+        "absent": 0,
+        "expected": {
+          "reproduced": 7,
+          "legacy": 2
+        },
+        "ok": true
+      }
+    },
+    "rollback_initial": {
+      "ok": true,
+      "residue": []
+    },
+    "apply": {
+      "ok": true,
+      "applied": [
+        {
+          "version": "20260914120000",
+          "before": {
+            "installed": false,
+            "ledger": "absent"
+          },
+          "after": {
+            "installed": true,
+            "ledger": "ours"
+          },
+          "apply_sql_sha256": "3d3e2845987ccdfd74b77ace51195865234066bb5828280fb0c8114969b84485"
+        },
+        {
+          "version": "20260915120000",
+          "before": {
+            "installed": false,
+            "ledger": "absent"
+          },
+          "after": {
+            "installed": true,
+            "ledger": "ours"
+          },
+          "apply_sql_sha256": "859fa7a30dee4a03376a662ab74427927c6a8b8a404556abdd3bfa59e5e5b78c"
+        }
+      ]
+    },
+    "ledger": {
+      "ok": true,
+      "rows": [
+        {
+          "version": "20260914120000",
+          "name": "torneos_core_contract_v1",
+          "statements_count": 22,
+          "statements_digest": "09ad7d261523fa1c2bb6e203a1624467",
+          "statements_bytes": 16688,
+          "created_by_is_null": true,
+          "idempotency_key_is_null": true,
+          "rollback_is_null": true
+        },
+        {
+          "version": "20260915120000",
+          "name": "torneos_core_contract_v1_1_session",
+          "statements_count": 3,
+          "statements_digest": "b424cc66022e7ab721e8070d0b05cdc7",
+          "statements_bytes": 12088,
+          "created_by_is_null": true,
+          "idempotency_key_is_null": true,
+          "rollback_is_null": true
+        }
+      ]
+    },
+    "acl": {
+      "ok": true,
+      "failures": [],
+      "acl": {
+        "functions": [
+          {
+            "signature": "public.torneos_contract_execute(text,text,jsonb)",
+            "present": true,
+            "security_definer": true,
+            "search_path_empty": true,
+            "owner": "postgres",
+            "execute": {
+              "anon": false,
+              "authenticated": false,
+              "service_role": true
+            }
+          },
+          {
+            "signature": "app_private.torneos_contract_email(text)",
+            "present": true,
+            "security_definer": false,
+            "search_path_empty": true,
+            "owner": "postgres",
+            "execute": {
+              "anon": false,
+              "authenticated": false,
+              "service_role": false
+            }
+          },
+          {
+            "signature": "app_private.torneos_contract_url(text)",
+            "present": true,
+            "security_definer": false,
+            "search_path_empty": true,
+            "owner": "postgres",
+            "execute": {
+              "anon": false,
+              "authenticated": false,
+              "service_role": false
+            }
+          },
+          {
+            "signature": "app_private.torneos_contract_visible_player(uuid)",
+            "present": true,
+            "security_definer": false,
+            "search_path_empty": true,
+            "owner": "postgres",
+            "execute": {
+              "anon": false,
+              "authenticated": false,
+              "service_role": false
+            }
+          },
+          {
+            "signature": "app_private.torneos_contract_importable_team(uuid,uuid)",
+            "present": true,
+            "security_definer": false,
+            "search_path_empty": true,
+            "owner": "postgres",
+            "execute": {
+              "anon": false,
+              "authenticated": false,
+              "service_role": false
+            }
+          }
+        ],
+        "tables": [
+          {
+            "name": "app_private.torneos_contract_nonces",
+            "present": true,
+            "rls": true,
+            "owner": "postgres",
+            "privileges": {
+              "anon": false,
+              "authenticated": false,
+              "service_role": false
+            },
+            "indexes": [
+              "torneos_contract_nonces_expiry",
+              "torneos_contract_nonces_pkey"
+            ]
+          },
+          {
+            "name": "app_private.torneos_contract_rate_events",
+            "present": true,
+            "rls": true,
+            "owner": "postgres",
+            "privileges": {
+              "anon": false,
+              "authenticated": false,
+              "service_role": false
+            },
+            "indexes": [
+              "torneos_contract_rate_events_actor",
+              "torneos_contract_rate_events_pkey"
+            ]
+          }
+        ],
+        "schema": {
+          "app_private_present": true,
+          "usage": {
+            "anon": true,
+            "authenticated": true,
+            "service_role": true
+          }
+        },
+        "session_branch": true,
+        "stray_objects": 0,
+        "stray_relations": 0
+      }
+    },
+    "rerun_idempotent": {
+      "ok": true,
+      "second_apply_error": "ERROR:  relation \"torneos_contract_nonces\" already exists",
+      "ledger_rows_unchanged": true,
+      "reconcile_insert_alone": true
+    },
+    "rollback": {
+      "ok": true,
+      "residue": []
+    },
+    "residue": {
+      "ok": true,
+      "app_private_present": true
+    },
+    "catalog_unchanged": {
+      "ok": true,
+      "note": "1482 catalog entries outside the contract identical before apply and after rollback",
+      "hash": "c245933ec00446723c590b0954da0371"
+    },
+    "rollback_rerun_noop": {
+      "ok": true,
+      "cli_rows_untouched": 9
+    }
+  },
+  "pass": true,
+  "image": "public.ecr.aws/supabase/postgres:17.6.1.143",
+  "source": {
+    "server_version": "17.6",
+    "contract_installed": true,
+    "public_functions": 625,
+    "has_ledger_schema": false
+  },
+  "clone_dropped": true
+}

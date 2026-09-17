@@ -1,0 +1,234 @@
+{
+  "generated_at": "2026-09-15T20:28:16.347Z",
+  "tool": "integration/torneos-isolated-local/lab.mjs up",
+  "phase": "3B",
+  "step": "R2-local bootstrap",
+  "project": "arma2-torneos-isolated-local",
+  "target": {
+    "kind": "local docker compose",
+    "rest": "http://127.0.0.1:58430",
+    "gateway_port_reserved_for_R4": 58431,
+    "remote_requests": 0
+  },
+  "image": "public.ecr.aws/supabase/postgres:17.6.1.143",
+  "image_id": "sha256:80d7b27c3e8d77cfa7226eee9508671796da214781ff15a35b3670d7ad5ee453",
+  "postgrest_image": "public.ecr.aws/supabase/postgrest:v14.15",
+  "baseline_sha256": "f857bd0939054bc1a32a3855894b7b20e14a0c7456c9d5c8c5e8432e5b8ed19f",
+  "gate_sha256": "3df4b96eecc7321eaeda84a480f089fe4bff2b28c20aa4479db92caf33457e62",
+  "verify_sql_sha256": "0d6ef458d0d46375d8332c6a85e014597a7d30f0d4891d1b62e12df88c9c844c",
+  "expect_sha256": "2c0772c2bda3433e60a44c00b62a8ef79de976c205a7a88379c9e44dfdb81118",
+  "isolation_preflight": {
+    "findings": [],
+    "services_rendered": [
+      "torneos-db",
+      "torneos-rest"
+    ]
+  },
+  "preflight": {
+    "installer": "supabase_admin",
+    "server_version": "17.6",
+    "public_relations": 0,
+    "pgcrypto_available": 1,
+    "torneos_roles": 0,
+    "identity_table": false,
+    "db_host_ref": "postgres"
+  },
+  "install": {
+    "installer": "supabase_admin",
+    "baseline_bytes": 1860198,
+    "gate_bytes": 28092,
+    "post_install": "identical to phase3b/remote/bootstrap-torneos.sh (edge logins NOINHERIT, pgrst.db_pre_request=private.check_token, notify pgrst)",
+    "local_transport_only": "alter role authenticator password (PostgREST connection)"
+  },
+  "verification": {
+    "installer": "supabase_admin",
+    "server_version": "17.6",
+    "public_tables": 104,
+    "public_functions": 359,
+    "security_definer": 304,
+    "anon_execute": 12,
+    "authenticated_execute": 147,
+    "service_role_execute": 328,
+    "anon_sequences": 0,
+    "gated_present": 33,
+    "gated_anon_execute": 0,
+    "gated_authenticated_execute": 0,
+    "gated_service_role_execute": 33,
+    "p0_authenticated_execute": true,
+    "identity_rls": true,
+    "roles": [
+      {
+        "rolname": "torneos_core_adapter",
+        "login": false,
+        "inherit": false,
+        "super": false,
+        "bypassrls": false
+      },
+      {
+        "rolname": "torneos_edge_core_adapter",
+        "login": true,
+        "inherit": false,
+        "super": false,
+        "bypassrls": false
+      },
+      {
+        "rolname": "torneos_edge_identity_writer",
+        "login": true,
+        "inherit": false,
+        "super": false,
+        "bypassrls": false
+      },
+      {
+        "rolname": "torneos_identity_writer",
+        "login": false,
+        "inherit": false,
+        "super": false,
+        "bypassrls": false
+      }
+    ],
+    "writer_members": [
+      "torneos_edge_identity_writer"
+    ],
+    "adapter_members": [
+      "torneos_edge_core_adapter"
+    ],
+    "pre_request": [
+      "pgrst.db_pre_request=private.check_token"
+    ],
+    "extensions": [
+      "pg_stat_statements 1.11",
+      "pgcrypto 1.3",
+      "plpgsql 1.0",
+      "supabase_vault 0.3.1",
+      "uuid-ossp 1.1"
+    ],
+    "foreign_servers": 0,
+    "table_owners": [
+      "supabase_admin"
+    ],
+    "function_owners": [
+      "supabase_admin"
+    ],
+    "seeds": {
+      "sport_modalities": 6,
+      "competition_formats": 5,
+      "role_capabilities": 285,
+      "plan_catalog": 2
+    },
+    "cron_jobs": -1,
+    "storage_buckets": -1
+  },
+  "verification_error": null,
+  "expectations": [
+    {
+      "key": "public_functions",
+      "expected": "359",
+      "got": "359",
+      "ok": true
+    },
+    {
+      "key": "security_definer",
+      "expected": "304",
+      "got": "304",
+      "ok": true
+    },
+    {
+      "key": "anon_execute",
+      "expected": "12",
+      "got": "12",
+      "ok": true
+    },
+    {
+      "key": "authenticated_execute",
+      "expected": "147",
+      "got": "147",
+      "ok": true
+    },
+    {
+      "key": "service_role_execute",
+      "expected": "328",
+      "got": "328",
+      "ok": true
+    },
+    {
+      "key": "anon_sequences",
+      "expected": "0",
+      "got": "0",
+      "ok": true
+    },
+    {
+      "key": "gated_present",
+      "expected": "33",
+      "got": "33",
+      "ok": true
+    },
+    {
+      "key": "gated_anon_execute",
+      "expected": "0",
+      "got": "0",
+      "ok": true
+    },
+    {
+      "key": "gated_authenticated_execute",
+      "expected": "0",
+      "got": "0",
+      "ok": true
+    },
+    {
+      "key": "gated_service_role_execute",
+      "expected": "33",
+      "got": "33",
+      "ok": true
+    },
+    {
+      "key": "p0_authenticated_execute",
+      "expected": "true",
+      "got": "true",
+      "ok": true
+    },
+    {
+      "key": "identity_rls",
+      "expected": "true",
+      "got": "true",
+      "ok": true
+    },
+    {
+      "key": "foreign_servers",
+      "expected": "0",
+      "got": "0",
+      "ok": true
+    },
+    {
+      "key": "writer_members",
+      "expected": "[\"torneos_edge_identity_writer\"]",
+      "got": "[\"torneos_edge_identity_writer\"]",
+      "ok": true
+    },
+    {
+      "key": "adapter_members",
+      "expected": "[\"torneos_edge_core_adapter\"]",
+      "got": "[\"torneos_edge_core_adapter\"]",
+      "ok": true
+    },
+    {
+      "key": "pre_request",
+      "expected": "[\"pgrst.db_pre_request=private.check_token\"]",
+      "got": "[\"pgrst.db_pre_request=private.check_token\"]",
+      "ok": true
+    }
+  ],
+  "expectations_passed": 16,
+  "expectations_total": 16,
+  "catalog_hash": "617d205bb09d1d4e8c9e7afce8d148b3603f40c0907806d05048072c809c7394",
+  "run": {
+    "stamp": "20260915T202810Z",
+    "started_at": "2026-09-15T20:28:10.658Z",
+    "fresh_volume": true
+  },
+  "ok": true,
+  "custody": {
+    "db_password": ".runtime/config.json (0600, gitignored; lab secret)",
+    "edge_logins": ".runtime/config.json",
+    "bridge_keys": ".runtime/config.json (p3b-k1 active, p3b-k2 standby); JWKS .runtime/public/jwks.json"
+  }
+}

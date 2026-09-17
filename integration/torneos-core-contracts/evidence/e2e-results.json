@@ -1,11 +1,13 @@
 {
-  "generated_at": "2026-09-15T04:01:29.235Z",
+  "generated_at": "2026-09-15T06:39:16.762Z",
+  "gateway": "node",
   "base": "http://127.0.0.1:58420",
+  "auth_base": "http://127.0.0.1:58420",
   "pass": 40,
   "fail": 0,
   "results": [
     {
-      "name": "lab: only the gateway is published; databases, Auth, REST and the Edge Function are internal",
+      "name": "lab: only the two gateways are published; databases, Auth, REST and the Edge Functions are internal",
       "status": "PASS"
     },
     {

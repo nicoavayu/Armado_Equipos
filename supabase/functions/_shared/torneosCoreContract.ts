@@ -6,8 +6,9 @@
 // Everything here uses WebCrypto only, so the same code is exercised by the
 // Deno function and by the Node unit harness in scripts/edge-functions/.
 //
-// Wire contract (backend/torneos/phase2a/CONTRACTS.md, schemas.json):
-//   POST /v1/verified-email | /v1/directory | /v1/team-snapshot
+// Wire contract (backend/torneos/phase2a/CONTRACTS.md, schemas.json; Phase 3B session op:
+// backend/torneos/phase3b/contracts/session.schema.json):
+//   POST /v1/verified-email | /v1/directory | /v1/team-snapshot | /v1/session
 //   Headers X-Time (unix seconds), X-Nonce (32 hex), X-Signature (hex HMAC-SHA256
 //   over `path + "\n" + X-Time + "\n" + X-Nonce + "\n" + body`), ±30 s window.
 //   Errors are `{ "error": "CODE" }`; every response is `Cache-Control: no-store`.
@@ -16,6 +17,9 @@ export const CONTRACT_ROUTES: Record<string, string> = {
   "/v1/verified-email": "verified_email",
   "/v1/directory": "directory",
   "/v1/team-snapshot": "team_snapshot",
+  // Phase 3B (v1.1): the Core session authority verdict on its own, for the hosted
+  // Torneos gateway's per-request online revocation check (Core only over HTTPS).
+  "/v1/session": "session",
 }
 
 export const MAX_BODY_BYTES = 16384
@@ -149,6 +153,11 @@ export type ValidatedRequest = {
 export function validateRequest(path: string, raw: unknown): ValidatedRequest {
   const operation = CONTRACT_ROUTES[path]
   if (!operation) throw new ContractError(404, "NOT_FOUND")
+  if (operation === "session") {
+    const r = exactKeys(raw, ["core_user_id", "session_id"])
+    if (!isCanonicalUuid(r.core_user_id) || !isCanonicalUuid(r.session_id)) throw new ContractError(400, "INVALID_REQUEST")
+    return { operation, coreUserId: r.core_user_id, sessionId: r.session_id, sqlRequest: { core_user_id: r.core_user_id, session_id: r.session_id } }
+  }
   if (operation === "verified_email") {
     const r = exactKeys(raw, ["core_user_id", "session_id", "expected_email"])
     if (!isCanonicalUuid(r.core_user_id) || !isCanonicalUuid(r.session_id)) throw new ContractError(400, "INVALID_REQUEST")

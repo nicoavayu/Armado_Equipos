@@ -1,0 +1,13 @@
+✔ token.ts ≡ token.mjs: constants, cross-verification both ways, identical rejections (155.675166ms)
+✔ core-client.ts validate() ≡ core-client.mjs validate() on the Phase 2A schemas + session schema (39.254709ms)
+✔ adapter.ts ≡ adapter.mjs: contracts, request mappers, SQL error mapping, role discipline (33.992583ms)
+✔ config.ts fails closed: every missing/malformed value disables the gateway; Production refused; routePath (81.069209ms)
+✔ bundled documents are byte-identical to their canonical sources; function tree carries no secret material (2.437166ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 564.074708

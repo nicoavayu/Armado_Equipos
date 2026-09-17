@@ -13,6 +13,13 @@ export const root = fileURLToPath(new URL('.', import.meta.url));
 export const repo = fileURLToPath(new URL('../../', import.meta.url));
 export const PROJECT = 'arma2-core-contracts-phase3a';
 export const BASE = 'http://127.0.0.1:58420';
+// Phase 3B: the Edge Function port of the same gateway (torneos-functions service).
+export const EDGE_BASE = 'http://127.0.0.1:58421/torneos-gateway';
+// Suites drive one gateway for exchange/RPC/reads: the Node one by default, the Edge one
+// with GATEWAY=edge. Auth fixtures always go through the Node gateway's /auth/v1 proxy
+// (the Edge gateway does not proxy Core Auth: a real browser talks to Core directly).
+export const GATEWAY_BASE = process.env.GATEWAY === 'edge' ? EDGE_BASE : BASE;
+export const GATEWAY_NAME = process.env.GATEWAY === 'edge' ? 'edge' : 'node';
 const docker = process.platform === 'darwin'
   ? '/Applications/Docker.app/Contents/Resources/bin/docker' : 'docker';
 
@@ -50,6 +57,25 @@ export function sql(service, query, user = 'supabase_admin') {
 export async function config() {
   return JSON.parse(await readFile(new URL('.runtime/config.json', import.meta.url)));
 }
+export async function writeEdgeEnv(c) {
+  // Configuration of the Edge gateway (Phase 3B): exactly what the hosted function would
+  // receive as secrets — never Core's JWT secret, service key or DB admin password.
+  const bridge = Buffer.from(JSON.stringify({ keys: c.keys, activeKid: c.activeKid, trustedKids: c.trustedKids })).toString('base64');
+  const lines = [
+    `TORNEOS_GATEWAY_PUBLIC_URL=${EDGE_BASE}`,
+    'TORNEOS_ALLOWED_ORIGIN=http://127.0.0.1:58421',
+    'CORE_AUTH_URL=http://core-auth:9999',
+    `CORE_JWT_ISSUER=${BASE}/auth/v1`,
+    `CORE_CONTRACT_URL=${c.coreContractUrl}`,
+    `TORNEOS_CONTRACT_SERVICE_SECRET=${c.coreContractSecret}`,
+    'TORNEOS_REST_URL=http://torneos-rest:3000',
+    `TORNEOS_ANON_KEY=${c.anonKey}`,
+    `TORNEOS_DB_IDENTITY_WRITER_URL=postgres://lab_identity_writer:${c.writerPassword}@torneos-db:5432/postgres`,
+    `TORNEOS_DB_CORE_ADAPTER_URL=postgres://lab_core_adapter:${c.adapterPassword}@torneos-db:5432/postgres`,
+    `TORNEOS_BRIDGE_KEYS=${bridge}`,
+  ];
+  await writeFile(`${root}.runtime/torneos-gateway.env`, lines.join('\n') + '\n', { mode: 0o600 });
+}
 export async function writeServerConfig(c) {
   // The running gateway needs neither Core's JWT secret nor any DB admin password.
   await mkdir(`${root}.runtime/server`, { recursive: true, mode: 0o700 });
@@ -82,6 +108,7 @@ async function prepare() {
     await writeFile(`${root}.runtime/public/jwks.json`, JSON.stringify({ keys: [keys[0].publicKey] }));
   }
   await writeServerConfig(await config());
+  await writeEdgeEnv(await config());
 }
 async function waitFor(label, probe, attempts = 90) {
   for (let i = 0; i < attempts; i++) {
@@ -104,16 +131,23 @@ export async function applyCore() {
   const files = await coreMigrations();
   const fresh = sql('core-db', "select to_regclass('public.usuarios') is null").trim() === 't';
   const missingContract = sql('core-db', "select to_regprocedure('public.torneos_contract_execute(text,text,jsonb)') is null").trim() === 't';
+  // Phase 3B: the v1.1 `session` operation is a `create or replace` of the entry point; a
+  // kept volume gets it when its current definition lacks the branch.
+  const missingSession = missingContract || sql('core-db', "select position('p_operation = ''session''' in pg_get_functiondef('public.torneos_contract_execute(text,text,jsonb)'::regprocedure)) = 0").trim() === 't';
   const record = [];
   for (const file of files) {
     const source = await readFile(file, 'utf8');
     const isContract = file.endsWith('20260914120000_torneos_core_contract_v1.sql');
-    const apply = fresh || (isContract && missingContract);
+    const isSession = file.endsWith('20260915120000_torneos_core_contract_v1_1_session.sql');
+    const apply = fresh || (isContract && missingContract) || (isSession && missingSession);
     if (apply) sql('core-db', source, 'postgres');
     record.push({ file: file.slice(repo.length), sha256: createHash('sha256').update(source).digest('hex'), applied_this_run: apply });
   }
   if (sql('core-db', "select to_regprocedure('public.torneos_contract_execute(text,text,jsonb)') is null").trim() === 't') {
     throw new Error('Core contract migration is not installed');
+  }
+  if (sql('core-db', "select position('p_operation = ''session''' in pg_get_functiondef('public.torneos_contract_execute(text,text,jsonb)'::regprocedure)) = 0").trim() === 't') {
+    throw new Error('Core contract v1.1 (session) is not installed');
   }
   return record;
 }
@@ -177,6 +211,11 @@ async function main() {
     const torneos = await installTorneos(c);
     dc(['up', '-d']);
     await waitFor('gateway', async () => (await fetch(`${BASE}/health`)).ok);
+    // The Edge gateway boots its worker on first request (module resolution on first boot).
+    await waitFor('torneos-functions', async () => {
+      const r = await fetch(`${EDGE_BASE}/health`, { signal: AbortSignal.timeout(90000) });
+      return r.ok;
+    }, 6);
     // Warm the Deno module cache of the real function (first boot downloads its imports).
     await waitFor('core-functions', () => {
       const out = inGateway(`const r = await fetch('http://core-api:8000/functions/v1/torneos-core-contract/v1/verified-email',

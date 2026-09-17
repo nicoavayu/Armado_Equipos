@@ -1,27 +1,23 @@
-
-> test:exposure
-> node --test --test-concurrency=1 exposure.test.mjs
-
 ▶ Phase 2D — staging RPC exposure gate on the real Supabase stack
-  ✔ install: Phase 2D baseline + staging v1 gate installed from empty real Supabase database volumes; gateway carries the allowlist (1400.14175ms)
-  ✔ acl: the 33 INCONCLUSIVE + the parent path — before (992dd282 on the real image) vs after (live stack): only review keeps authenticated EXECUTE; anon none; service_role kept; no adapter/writer grants (999.03675ms)
-  ✔ allowlist: staging v1 RPC allowlist is disjoint from the gate, executable by authenticated, and every entry except the P0 carries a positive Phase 2B verdict (241.303416ms)
-  ✔ fixture: organization, two seasons, two tournaments in registration, categories and collaborators through the allowlisted RPCs (gateway, real Core session) (1680.649041ms)
-  ✔ fixture: submitted team entries with a valid roster (5 eligible players, unique shirts, valid positions, 1 goalkeeper, roster settings, active manager) built through the allowlisted RPCs (5313.115333ms)
-  ✔ P0 deny: admin without a season seat, admin seated on another season, another workspace owner (both org ids), wrong org id, anon — TORNEOS_RESOURCE_FORBIDDEN / 42501, zero writes (3986.852666ms)
-  ✔ P0 invalid payload: unknown decision, short/long reason, non-array issues → 22023 TORNEOS_INVALID_REVIEW; missing entry / non-submitted entry → forbidden; zero writes (2099.332958ms)
-  ✔ P0 invalid roster: goalkeeper removed after submission → approve fails 23514 TORNEOS_ROSTER_INCOMPLETE with the validation detail; entry, roster, players, reviews and audit untouched (1373.767875ms)
-  ✔ P0 approve (owner, through the gateway and the allowlist): status approved, roster approved, pending players become eligible, review + audit rows correct (1130.229291ms)
-  ✔ P0 changes_requested (owner): entry and roster go to changes_requested, no approval timestamps, issues persisted in the review row and counted in the audit (1941.3445ms)
-  ✔ P0 reject (owner): status rejected with rejected_at, roster stays submitted, review + audit rows correct (946.230292ms)
-  ✔ P0 approve (admin seated on the entry's season): PASS after the same admin was denied on the other season; audit names the admin (1929.889292ms)
-  ✔ wrappers approve/reject: no client EXECUTE (anon + authenticated 42501 before the body; gateway 403 not allowlisted); as service_role with the owner's identity they delegate to review; unseated admin denied; no identity → TORNEOS_AUTH_REQUIRED (3993.158375ms)
-  ✔ 32 OFF + parent, direct PostgREST: anon DENY and authenticated (valid bearer) DENY — 42501 permission denied before the body, catalog EXECUTE false (2519.610542ms)
-  ✔ 32 OFF + parent, gateway: a valid Core session with a valid bridge bearer is refused (403 rpc not enabled) for POST and GET; an allowlisted RPC with the same bearer passes; an invalid bearer is 401 (585.604416ms)
-  ✔ parent path: auto_schedule_tournament_matches (client RPC at 992dd282 that calls schedule_tournament_match) is gated at the DB and at the gateway; schedule_tournament_match has no other client-reachable caller (512.3045ms)
-  ✔ staging v1 features: the allowlisted RPCs exercised by this suite through the gateway all succeeded; SSO exchange, session check and identity binding unchanged (632.685541ms)
-  ✔ no secrets: lab secrets, bearers and invitation tokens are absent from the Phase 2D artifacts and evidence (1.769958ms)
-✔ Phase 2D — staging RPC exposure gate on the real Supabase stack (33043.894291ms)
+  ✔ install: Phase 2D baseline + staging v1 gate installed from empty real Supabase database volumes; gateway carries the allowlist (279.5415ms)
+  ✔ acl: the 33 INCONCLUSIVE + the parent path — before (992dd282 on the real image) vs after (live stack): only review keeps authenticated EXECUTE; anon none; service_role kept; no adapter/writer grants (282.533166ms)
+  ✔ allowlist: staging v1 RPC allowlist is disjoint from the gate, executable by authenticated, and every entry except the P0 carries a positive Phase 2B verdict (77.922375ms)
+  ✔ fixture: organization, two seasons, two tournaments in registration, categories and collaborators through the allowlisted RPCs (gateway, real Core session) (462.335084ms)
+  ✔ fixture: submitted team entries with a valid roster (5 eligible players, unique shirts, valid positions, 1 goalkeeper, roster settings, active manager) built through the allowlisted RPCs (1214.471542ms)
+  ✔ P0 deny: admin without a season seat, admin seated on another season, another workspace owner (both org ids), wrong org id, anon — TORNEOS_RESOURCE_FORBIDDEN / 42501, zero writes (1042.855791ms)
+  ✔ P0 invalid payload: unknown decision, short/long reason, non-array issues → 22023 TORNEOS_INVALID_REVIEW; missing entry / non-submitted entry → forbidden; zero writes (603.556541ms)
+  ✔ P0 invalid roster: goalkeeper removed after submission → approve fails 23514 TORNEOS_ROSTER_INCOMPLETE with the validation detail; entry, roster, players, reviews and audit untouched (374.861958ms)
+  ✔ P0 approve (owner, through the gateway and the allowlist): status approved, roster approved, pending players become eligible, review + audit rows correct (355.837541ms)
+  ✔ P0 changes_requested (owner): entry and roster go to changes_requested, no approval timestamps, issues persisted in the review row and counted in the audit (522.503166ms)
+  ✔ P0 reject (owner): status rejected with rejected_at, roster stays submitted, review + audit rows correct (291.979042ms)
+  ✔ P0 approve (admin seated on the entry's season): PASS after the same admin was denied on the other season; audit names the admin (553.363125ms)
+  ✔ wrappers approve/reject: no client EXECUTE (anon + authenticated 42501 before the body; gateway 403 not allowlisted); as service_role with the owner's identity they delegate to review; unseated admin denied; no identity → TORNEOS_AUTH_REQUIRED (1193.78475ms)
+  ✔ 32 OFF + parent, direct PostgREST: anon DENY and authenticated (valid bearer) DENY — 42501 permission denied before the body, catalog EXECUTE false (549.102875ms)
+  ✔ 32 OFF + parent, gateway: a valid Core session with a valid bridge bearer is refused (403 rpc not enabled) for POST and GET; an allowlisted RPC with the same bearer passes; an invalid bearer is 401 (93.147958ms)
+  ✔ parent path: auto_schedule_tournament_matches (client RPC at 992dd282 that calls schedule_tournament_match) is gated at the DB and at the gateway; schedule_tournament_match has no other client-reachable caller (168.340042ms)
+  ✔ staging v1 features: the allowlisted RPCs exercised by this suite through the gateway all succeeded; SSO exchange, session check and identity binding unchanged (129.436292ms)
+  ✔ no secrets: lab secrets, bearers and invitation tokens are absent from the Phase 2D artifacts and evidence (2.186375ms)
+✔ Phase 2D — staging RPC exposure gate on the real Supabase stack (8693.584834ms)
 ℹ tests 19
 ℹ suites 0
 ℹ pass 19
@@ -29,4 +25,4 @@
 ℹ cancelled 0
 ℹ skipped 0
 ℹ todo 0
-ℹ duration_ms 33136.368666
+ℹ duration_ms 8771.103292

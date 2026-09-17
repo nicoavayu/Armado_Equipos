@@ -95,6 +95,7 @@ test('pure contract module', async (t) => {
       assert.equal(contractPath('/functions/v1/torneos-core-contract/v1/directory', 'torneos-core-contract'), '/v1/directory');
       assert.equal(contractPath('/v1/team-snapshot', 'torneos-core-contract'), '/v1/team-snapshot');
       assert.equal(contractPath('/torneos-core-contract', 'torneos-core-contract'), null);
+      assert.equal(contractPath('/torneos-core-contract/v1/session', 'torneos-core-contract'), '/v1/session');
       assert.equal(contractPath('/torneos-core-contract/v1/other', 'torneos-core-contract'), null);
       assert.equal(contractPath('/other-function/v1/directory', 'torneos-core-contract'), null);
     });
@@ -150,6 +151,18 @@ test('pure contract module', async (t) => {
       assert.deepEqual(validateRequest('/v1/team-snapshot', { core_user_id: USER, session_id: SESSION, core_team_id: TEAM }).sqlRequest,
         { core_user_id: USER, session_id: SESSION, core_team_id: TEAM });
       assert.throws(() => validateRequest('/v1/team-snapshot', { core_user_id: USER, session_id: SESSION, core_team_id: 'nope' }), { code: 'INVALID_REQUEST' });
+      // Phase 3B v1.1: session validation carries only the two binding ids, nothing else.
+      const session = validateRequest('/v1/session', { core_user_id: USER, session_id: SESSION });
+      assert.equal(session.operation, 'session');
+      assert.deepEqual(session.sqlRequest, { core_user_id: USER, session_id: SESSION });
+      assert.equal(session.directory, undefined);
+      for (const bad of [
+        { core_user_id: USER },
+        { core_user_id: USER, session_id: SESSION, expected_email: 'a@b.c' },
+        { core_user_id: USER, session_id: SESSION.toUpperCase() },
+        { core_user_id: USER, session_id: 'nope' },
+        {}, [], null,
+      ]) assert.throws(() => validateRequest('/v1/session', bad), { code: 'INVALID_REQUEST' });
       assert.throws(() => validateRequest('/v1/nope', {}), { code: 'NOT_FOUND' });
       assert.ok(new ContractError(400, 'X') instanceof Error);
     });
@@ -201,6 +214,17 @@ test('request pipeline with a fake SQL executor', async (t) => {
       assert.equal(r.headers.get('cache-control'), 'no-store');
       assert.equal(calls.at(-1).operation, 'verified_email');
       assert.equal(calls.at(-1).nonce, nonce);
+    });
+    await t.test('session: verdict passes through, nonce bound, no cursor machinery', async () => {
+      verdicts.push({ status: 200, body: { active: true, checked_at: NOW } });
+      const req = request('/v1/session', { core_user_id: USER, session_id: SESSION });
+      const nonce = req.headers.get('x-nonce');
+      const r = await readJson(await handle(req));
+      assert.deepEqual([r.status, r.body], [200, { active: true, checked_at: NOW }]);
+      assert.deepEqual(calls.at(-1), { operation: 'session', nonce, sqlRequest: { core_user_id: USER, session_id: SESSION } });
+      verdicts.push({ status: 403, body: { error: 'FORBIDDEN' } });
+      const denied = await readJson(await handle(request('/v1/session', { core_user_id: USER, session_id: SESSION })));
+      assert.deepEqual([denied.status, denied.body], [403, { error: 'FORBIDDEN' }]);
     });
     await t.test('denials from SQL keep their status and body', async () => {
       for (const [status, error] of [[403, 'FORBIDDEN'], [404, 'NOT_FOUND'], [429, 'RATE_LIMITED'], [401, 'REPLAY'], [409, 'INVALID_REQUEST']]) {

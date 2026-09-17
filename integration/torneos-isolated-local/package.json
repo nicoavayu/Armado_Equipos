@@ -1,0 +1,17 @@
+{
+  "name": "arma2-torneos-isolated-local",
+  "private": true,
+  "type": "module",
+  "description": "Phase 3B R2 LOCAL — isolated Torneos non-production stack (no Core service, no remote target). Dependency-free: RS256 via node:crypto.",
+  "scripts": {
+    "prepare:local": "node lab.mjs prepare",
+    "up": "node lab.mjs up",
+    "certify": "node lab.mjs certify",
+    "reset": "node lab.mjs reset",
+    "status": "node lab.mjs status",
+    "drift": "node lab.mjs drift",
+    "down": "node lab.mjs down",
+    "destroy": "node lab.mjs destroy",
+    "test": "node --test --test-concurrency=1 ../../backend/torneos/phase3b/local/local.test.mjs"
+  }
+}

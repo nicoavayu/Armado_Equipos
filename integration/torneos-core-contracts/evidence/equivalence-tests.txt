@@ -1,0 +1,17 @@
+▶ Phase 3B — Node gateway ≡ Edge gateway (same requests, same verdicts)
+  ✔ public endpoints: health, jwks (same trusted keys), unknown paths, method not allowed (50.720125ms)
+  ✔ exchange: same identity, same claims (iss/aud/sub/core_user_id/session_id/role/ttl/kid), on both gateways (292.30525ms)
+  ✔ RPC: allowlisted (200 same body), the 33 OFF (403 rpc not enabled, POST and GET), table reads (RLS), bad requests (423.578ms)
+  ✔ bearer contract: forged/expired/wrong issuer/audience/kid/role/session/core_user_id denied identically (50.984959ms)
+  ✔ revocation: logout, SQL-revoked session, banned user, expired not_after — both gateways deny exchange and RPC (561.345292ms)
+  ✔ outages: GoTrue down → 503 on both; Core contract down → D1 (Edge refuses every session-gated request, Node keeps its DB-to-DB verdict), pre-session refusals identical (3183.669ms)
+  ✔ secrets: neither gateway leaks secrets or session tokens in responses or logs (227.408208ms)
+✔ Phase 3B — Node gateway ≡ Edge gateway (same requests, same verdicts) (5141.64725ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 8
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 5226.618625

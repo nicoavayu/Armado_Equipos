@@ -16,7 +16,7 @@ import assert from 'node:assert/strict';
 import { readFile, writeFile, mkdir, readdir } from 'node:fs/promises';
 import { createHash, randomUUID, randomBytes } from 'node:crypto';
 import { SignJWT, importPKCS8, decodeJwt } from 'jose';
-import { config, sql, sqlTry, inGateway, BASE, repo } from './lab.mjs';
+import { config, sql, sqlTry, inGateway, BASE, GATEWAY_BASE, GATEWAY_NAME, repo } from './lab.mjs';
 
 const cfg = await config();
 const results = [];
@@ -44,7 +44,9 @@ const PARENTS = gate.functions.filter(g => g.area === 'parent path').map(g => g.
 // ---------------------------------------------------------------- transport helpers
 /** Through the published gateway (host loopback), like a staging client. */
 async function request(path, token, method = 'GET', data) {
-  const r = await fetch(`${BASE}${path}`, { method, headers: { connection: 'close',
+  // Phase 3B: Core Auth fixtures through the Node gateway; the gateway under test serves the rest.
+  const base = path.startsWith('/auth/v1') ? BASE : GATEWAY_BASE;
+  const r = await fetch(`${base}${path}`, { method, headers: { connection: 'close',
     ...(token ? { authorization: `Bearer ${token}` } : {}), ...(data !== undefined ? { 'content-type': 'application/json' } : {}) },
     body: data !== undefined ? JSON.stringify(data) : undefined });
   const text = await r.text(); let body = null;
@@ -535,11 +537,13 @@ test('Phase 2D — staging RPC exposure gate on the real Supabase stack', async 
     });
   } finally {
     await mkdir('evidence', { recursive: true });
-    await writeFile('evidence/exposure-acl-33.json', JSON.stringify({ before_source: 'phase2d/evidence/real-image-acl-before-real.json (992dd282 baseline on the real image)', after_source: 'live lab stack (baseline f857bd09… + 00000000000001 gate)', functions: evidence.acl33 }, null, 2) + '\n');
-    await writeFile('evidence/exposure-gateway-sweep.json', JSON.stringify({ session: 'real Core session (GoTrue) + bridge bearer via /exchange', rows: evidence.gatewaySweep }, null, 2) + '\n');
-    await writeFile('evidence/exposure-postgrest-sweep.json', JSON.stringify({ position: 'direct PostgREST inside the private network', rows: evidence.directSweep }, null, 2) + '\n');
-    await writeFile('evidence/exposure-p0-matrix.json', JSON.stringify({ function: P0, wrappers: ['approve_tournament_team_entry', 'reject_tournament_team_entry'], rows: evidence.p0, coverage: evidence.coverage }, null, 2) + '\n');
-    await writeFile('evidence/exposure-results.json', JSON.stringify({ generated_at: new Date().toISOString(), base: BASE, run: RUN,
+    // Phase 3B: the edge run writes its own evidence set; node keeps the Phase 2D file names.
+    const suffix = GATEWAY_NAME === 'edge' ? '-edge' : '';
+    await writeFile(`evidence/exposure-acl-33${suffix}.json`, JSON.stringify({ before_source: 'phase2d/evidence/real-image-acl-before-real.json (992dd282 baseline on the real image)', after_source: 'live lab stack (baseline f857bd09… + 00000000000001 gate)', functions: evidence.acl33 }, null, 2) + '\n');
+    await writeFile(`evidence/exposure-gateway-sweep${suffix}.json`, JSON.stringify({ gateway: GATEWAY_NAME, session: 'real Core session (GoTrue) + bridge bearer via /exchange', rows: evidence.gatewaySweep }, null, 2) + '\n');
+    await writeFile(`evidence/exposure-postgrest-sweep${suffix}.json`, JSON.stringify({ position: 'direct PostgREST inside the private network', rows: evidence.directSweep }, null, 2) + '\n');
+    await writeFile(`evidence/exposure-p0-matrix${suffix}.json`, JSON.stringify({ gateway: GATEWAY_NAME, function: P0, wrappers: ['approve_tournament_team_entry', 'reject_tournament_team_entry'], rows: evidence.p0, coverage: evidence.coverage }, null, 2) + '\n');
+    await writeFile(`evidence/exposure-results${suffix}.json`, JSON.stringify({ generated_at: new Date().toISOString(), gateway: GATEWAY_NAME, base: GATEWAY_BASE, run: RUN,
       pass: results.filter(r => r.status === 'PASS').length, fail: results.filter(r => r.status === 'FAIL').length, results }, null, 2) + '\n');
   }
 });

@@ -1,0 +1,53 @@
+{
+  "decision": "ACCEPTED",
+  "classification": "KNOWN AVAILABILITY TRADE-OFF, NOT SECURITY REGRESSION",
+  "scope": "Phase 3B (remote Core ↔ Torneos separation, non-production)",
+  "decided_by": "operator (Nico)",
+  "decided_at": "2026-09-15",
+  "difference": "D1",
+  "what_was_accepted": "Both gateways require an ONLINE Core session verdict for every authenticated Torneos request. The Node gateway obtained it DB-to-DB from auth.sessions; the Edge gateway obtains it over HTTPS through the Core contract (`session` op, v1.1). Preserving the Node behaviour during a core-functions outage would require violating a constraint already decided (DB-to-DB, verdict cache / revocation window, shared Core service_role, or a new authority surface on Core).",
+  "approved_remote_semantics": [
+    "every authenticated Torneos request requires a CURRENT Core session verdict",
+    "Core contract unavailable → 503 CORE_UNAVAILABLE",
+    "never serve with a stale session",
+    "revocation / ban / soft-delete stay immediate (next request)",
+    "no verdict cache",
+    "no DB-to-DB between Torneos and Core",
+    "no Core service_role in Torneos"
+  ],
+  "documented_as": "known availability dependency: the availability of the Core Edge Functions runtime (torneos-core-contract) is on the per-request critical path of every session-gated Torneos request, in addition to GoTrue and the Core database that were already on the Node gateway's critical path",
+  "alternatives_rejected": [
+    "A",
+    "B",
+    "C",
+    "D",
+    "E",
+    "F"
+  ],
+  "alternatives_note": "not to be implemented in Phase 3B; A/B degrade revocation, C/D/E expand trust or open a new Core surface, F does not restore equivalence",
+  "basis": {
+    "evidence": [
+      "integration/torneos-core-contracts/evidence/d1-session-authority.json",
+      "integration/torneos-core-contracts/evidence/d1-tests.txt",
+      "integration/torneos-core-contracts/evidence/equivalence-results.json"
+    ],
+    "report_section": "backend/torneos/phase3b/REPORT.md §4.2.1",
+    "summary_expected": {
+      "gotrue_user_alone_refuses": {
+        "not_after": false,
+        "banned": false,
+        "soft_deleted": false,
+        "logout": true
+      },
+      "node_serves_without_online_verdict": false,
+      "edge_serves_without_online_verdict": false,
+      "edge_session_verdicts_per_gated_request": 1,
+      "node_session_verdicts_via_contract": 0,
+      "edge_refusal_when_core_db_down": {
+        "status": 503,
+        "body": "CORE_UNAVAILABLE"
+      }
+    },
+    "note": "the decision is bound to these evidence values, not to file bytes: if a re-run of d1.test.mjs changes any of them, summarize.py marks the decision stale and Phase 3B falls back to BLOCKED until it is re-confirmed"
+  }
+}

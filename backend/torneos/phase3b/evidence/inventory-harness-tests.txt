@@ -1,0 +1,28 @@
+✔ Production denylist: ref, path, body, token (0.926084ms)
+✔ envelope: only GET and read-only POST /database/query (0.145333ms)
+✔ SQL guard: every probe is a single read; writes are refused even inside CTEs (0.170958ms)
+✔ mgmt.mjs source has no write method and no CLI/link usage (0.397583ms)
+✔ projections drop every sensitive field (0.85275ms)
+✔ redaction: the PAT never reaches output (0.049083ms)
+✔ op projects: classifies Production out of the target set without targeting it (0.166ms)
+✔ op project-inventory: read-only GETs + read-only SQL, per-probe error isolation, refuses Production (0.890333ms)
+✔ run: PAT validation and unknown ops fail closed before any transport call (0.146167ms)
+✔ CLI: stdin contract, PAT redacted from the failure line, no network for a bad PAT (113.399167ms)
+✔ inventory.sh: credential contract (tty, builtin printf pipe, no argv/env/file, unset on exit) (2.496458ms)
+✔ inventory.sh: without a TTY it stops before reading anything (5.1715ms)
+✔ op org: one read-only GET, plan projected, billing/members never emitted, fails closed without a plan (0.503791ms)
+✔ projections follow the current Management API: ref/organization_slug preferred, id kept for consumers (0.069458ms)
+✔ R2 project name: non-production label mandatory, production labels refused, duplicates refused, preflight list mandatory (0.264709ms)
+✔ R2 create body: organization_slug + region_selection (OpenAPI 2026-09-15), no deprecated organization_id/region/plan, smallest size by default (0.090375ms)
+✔ R2 create op: exactly one POST /v1/projects, db_pass redacted, Production/foreign ref or name mismatch in the response is refused (0.312833ms)
+✔ R2 runner contract: read-only preflight, plan/cost shown, --plan-only stops, human phrase gates the only write, evidence prefixes (2.687458ms)
+✔ R2 runner: without a TTY it stops before reading anything (no PAT, no network) (10.456958ms)
+✔ bootstrap-torneos.sh: verification SQL and expectations come from phase3b/contracts (V2), pinned at runtime, rendered bytes match the pin (3.405791ms)
+ℹ tests 20
+ℹ suites 0
+ℹ pass 20
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 213.671542

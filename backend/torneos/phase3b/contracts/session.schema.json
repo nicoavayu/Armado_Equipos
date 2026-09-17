@@ -1,0 +1,23 @@
+{
+  "$comment": "Phase 3B — Core contract v1.1 `session` operation. Same keyword subset as backend/torneos/phase2a/schemas.json (which stays byte-identical to Phase 2A): no $ref, closed objects. Request: {core_user_id, session_id}. Response: {active, checked_at}. Denials are 403 FORBIDDEN from the same Core session authority check every other operation runs first.",
+  "$defs": {
+    "sessionRequest": {
+      "type": "object",
+      "properties": {
+        "core_user_id": { "type": "string", "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$" },
+        "session_id": { "type": "string", "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$" }
+      },
+      "required": ["core_user_id", "session_id"],
+      "additionalProperties": false
+    },
+    "sessionResponse": {
+      "type": "object",
+      "properties": {
+        "active": { "type": "boolean", "enum": [true] },
+        "checked_at": { "type": "integer", "minimum": 0 }
+      },
+      "required": ["active", "checked_at"],
+      "additionalProperties": false
+    }
+  }
+}

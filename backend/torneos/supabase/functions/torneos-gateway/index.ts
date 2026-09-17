@@ -1,0 +1,236 @@
+// backend/torneos/supabase/functions/torneos-gateway/index.ts
+//
+// Phase 3B — the certified Torneos identity gateway (integration/torneos-core-contracts/
+// gateway.mjs: Phase 1.5 bridge + Phase 3A Core-contract adapter + Phase 2D staging v1 RPC
+// allowlist) ported to a Supabase Edge Function of the TORNEOS project. Same semantics:
+//
+//   • Core session validation online on every exchange and on every proxied RPC
+//   • RS256 emission/verification with the certified key ring (token.ts, jose)
+//   • sub = local identity, core_user_id + session_id bindings, jti, iss/aud/TTL constants
+//   • Core-contract adapter with request-hash binding and single-use attestations
+//   • staging v1 RPC allowlist applied after the bearer is verified (403 `rpc not enabled`)
+//   • logout / revocation / ban / deletion → 401; Core or Torneos dependency down → 503
+//   • fail closed: any unexpected error is `401 {error:'access denied'}`; nothing is logged
+//
+// What changes, and only this: the loopback constants become validated configuration
+// (config.ts); the Core session lookup is no longer a SQL read of Core's auth schema but
+// the Core contract's `session` operation over HTTPS (Core is reached ONLY over HTTPS);
+// `/auth/v1/*` is not proxied (the browser talks to Core Auth directly); CORS is answered
+// for exactly one allowed origin; the trusted JWKS is published for verifiers. Secrets
+// (service HMAC, RS256 private key, database logins) live only in this function's env.
+import { decodeJwt } from "npm:jose@6.2.12"
+import { issueToken, verifyToken, uuid, jwks, TTL, type TorneosClaims } from "./token.ts"
+import { CoreClient, Denied, ROUTES } from "./core-client.ts"
+import { Adapter, AdapterDenied, CONTRACTS } from "./adapter.ts"
+import { connect, allocateIdentity, identityExists, isUnavailable, type Sql } from "./db.ts"
+import { loadConfig, routePath, ConfigError, type GatewayConfig } from "./config.ts"
+import allowlistDoc from "./staging-v1-rpc-allowlist.json" with { type: "json" }
+
+// Staging v1 RPC allowlist: fail closed if the document is malformed or empty.
+const RPC_ALLOWLIST = new Set(Object.values((allowlistDoc as { features?: Record<string, string[]> }).features ?? {}).flat().filter((n) => /^[a-z0-9_]+$/.test(n)))
+if (RPC_ALLOWLIST.size === 0) throw new Error("staging v1 RPC allowlist is empty")
+
+class Unavailable extends Error {}
+// The Core contract endpoint (session verdicts) is unreachable or faulting: the same
+// sanitized code the adapter uses for Core-dependent RPCs, so the client sees one signal.
+class CoreUnavailable extends Unavailable {}
+
+type Runtime = {
+  cfg: GatewayConfig
+  identity: Sql
+  adapterSql: Sql
+  adapter: Adapter
+  core: CoreClient
+}
+let runtime: Runtime | null = null
+let bootError: string | null = null
+
+export function boot(env: Record<string, string | undefined>): Runtime {
+  const cfg = loadConfig(env)
+  const identity = connect(cfg.identityWriterUrl, { sslCa: cfg.dbSslCa })
+  const adapterSql = connect(cfg.coreAdapterUrl, { sslCa: cfg.dbSslCa })
+  const coreHeaders = cfg.coreAnonKey ? { apikey: cfg.coreAnonKey } : {}
+  // The Core service secret lives only in this function's env and in Core's function env.
+  const core = new CoreClient(cfg.coreContractUrl, cfg.coreContractSecret, { extraHeaders: coreHeaders })
+  return { cfg, identity, adapterSql, adapter: new Adapter(adapterSql, core), core }
+}
+
+function getRuntime(): Runtime {
+  if (runtime) return runtime
+  if (bootError) throw new Unavailable()
+  try {
+    runtime = boot(Deno.env.toObject())
+    return runtime
+  } catch (error) {
+    // Configuration faults disable the gateway; the reason is logged once, without values.
+    bootError = error instanceof ConfigError ? error.message : "boot failed"
+    console.error(`[torneos-gateway] disabled: ${bootError}`)
+    throw new Unavailable()
+  }
+}
+
+const NO_STORE = { "cache-control": "no-store", "x-content-type-options": "nosniff", "referrer-policy": "no-referrer" }
+function corsHeaders(cfg: GatewayConfig | null, origin: string | null): Record<string, string> {
+  if (!cfg || !origin || origin !== cfg.allowedOrigin) return {}
+  return {
+    "access-control-allow-origin": cfg.allowedOrigin,
+    "access-control-allow-methods": "GET, HEAD, POST, PATCH, DELETE, OPTIONS",
+    "access-control-allow-headers": "authorization, content-type, accept, prefer, range, apikey, x-client-info, x-supabase-api-version",
+    "access-control-expose-headers": "content-range",
+    "access-control-max-age": "600",
+    "vary": "origin",
+  }
+}
+function json(status: number, body: unknown, extra: Record<string, string> = {}): Response {
+  return new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json", ...NO_STORE, ...extra } })
+}
+async function dependencyFetch(url: string, options: RequestInit): Promise<Response> {
+  try { return await fetch(url, options) } catch { throw new Unavailable() }
+}
+function bearer(req: Request): string {
+  const value = req.headers.get("authorization")
+  if (!value?.startsWith("Bearer ") || value.length > 12000) throw new Error("unauthorized")
+  return value.slice(7)
+}
+async function body(req: Request): Promise<Uint8Array> {
+  const declared = req.headers.get("content-length")
+  if (declared !== null && (!/^[0-9]+$/.test(declared) || Number(declared) > 16384)) throw new Error("body too large")
+  if (!req.body) return new Uint8Array(0)
+  const chunks: Uint8Array[] = []
+  let size = 0
+  const reader = req.body.getReader()
+  for (;;) {
+    const { done, value } = await reader.read()
+    if (done) break
+    size += value.length
+    if (size > 16384) { await reader.cancel(); throw new Error("body too large") }
+    chunks.push(value)
+  }
+  const out = new Uint8Array(size)
+  let offset = 0
+  for (const chunk of chunks) { out.set(chunk, offset); offset += chunk.length }
+  return out
+}
+
+/** Core session authority, over HTTPS only: GoTrue health + the Core contract `session` verdict. */
+async function activeSession(rt: Runtime, userId: string, sessionId: string): Promise<void> {
+  if (!uuid(userId) || !uuid(sessionId)) throw new Error("unauthorized")
+  // Explicit fail-closed contract even if GoTrue is down while its DB is alive.
+  const health = await dependencyFetch(`${rt.cfg.coreAuthUrl}/health`, {
+    headers: rt.cfg.coreAnonKey ? { apikey: rt.cfg.coreAnonKey } : {}, signal: AbortSignal.timeout(2000) })
+  if (!health.ok) throw new Unavailable()
+  try {
+    const verdict = await rt.core.call(ROUTES.session, { core_user_id: userId, session_id: sessionId })
+    if (verdict.active !== true) throw new Error("inactive session")
+  } catch (error) {
+    if (error instanceof Denied) {
+      if (error.status >= 500) throw new CoreUnavailable()
+      throw new Error("inactive session")
+    }
+    throw error
+  }
+}
+
+async function verifiedCore(rt: Runtime, token: string): Promise<{ userId: string; sessionId: string }> {
+  const response = await dependencyFetch(`${rt.cfg.coreAuthUrl}/user`, {
+    headers: { authorization: `Bearer ${token}`, ...(rt.cfg.coreAnonKey ? { apikey: rt.cfg.coreAnonKey } : {}) },
+    signal: AbortSignal.timeout(3000) })
+  if (!response.ok) throw new Error("unauthorized")
+  const user = await response.json()
+  // Decode only after GoTrue has cryptographically verified this exact bearer.
+  const p = decodeJwt(token) as Record<string, unknown>
+  if (p.sub !== user.id || p.aud !== "authenticated" || p.role !== "authenticated" ||
+      p.iss !== `${rt.cfg.coreJwtIssuer}` || user.is_anonymous === true) throw new Error("unauthorized")
+  if (typeof p.session_id !== "string") throw new Error("unauthorized")
+  await activeSession(rt, user.id, p.session_id)
+  return { userId: user.id, sessionId: p.session_id }
+}
+
+async function proxy(rt: Runtime, req: Request, url: string, token: string | undefined, raw: Uint8Array | undefined, cors: Record<string, string>): Promise<Response> {
+  const headers: Record<string, string> = {}
+  if (token) headers.authorization = `Bearer ${token}`
+  if (rt.cfg.torneosAnonKey) headers.apikey = rt.cfg.torneosAnonKey
+  for (const name of ["accept", "content-type", "prefer", "range"]) {
+    const value = req.headers.get(name)
+    if (value) headers[name] = value
+  }
+  const r = await dependencyFetch(url, { method: req.method, headers,
+    body: ["GET", "HEAD"].includes(req.method) ? undefined : (raw ?? await body(req)),
+    redirect: "error", signal: AbortSignal.timeout(5000) })
+  const out: Record<string, string> = { "content-type": r.headers.get("content-type") ?? "application/json", ...NO_STORE, ...cors }
+  if (r.headers.has("content-range")) out["content-range"] = r.headers.get("content-range")!
+  return new Response(await r.arrayBuffer(), { status: r.status, headers: out })
+}
+
+export async function handle(req: Request): Promise<Response> {
+  const origin = req.headers.get("origin")
+  let cors: Record<string, string> = {}
+  try {
+    const rt = getRuntime()
+    cors = corsHeaders(rt.cfg, origin)
+    const expectedHost = rt.cfg.publicUrl.host
+    const hostOk = [req.headers.get("host"), req.headers.get("x-forwarded-host")].includes(expectedHost)
+    if (!hostOk || (origin && origin !== rt.cfg.allowedOrigin)) return json(403, { error: "origin rejected" })
+    const url = new URL(req.url)
+    const path = routePath(url.pathname)
+    if (path === null) return json(404, { error: "not found" }, cors)
+    if (req.method === "OPTIONS") {
+      return new Response(null, { status: origin && cors["access-control-allow-origin"] ? 204 : 403, headers: { ...NO_STORE, ...cors } })
+    }
+    if (req.method === "GET" && path === "/config") {
+      return json(200, { coreUrl: rt.cfg.coreAuthUrl.replace(/\/auth\/v1$/, ""), torneosUrl: `${rt.cfg.publicUrl.href.replace(/\/$/, "")}/torneos`,
+        anonKey: rt.cfg.torneosAnonKey ?? "" }, cors)
+    }
+    if (req.method === "GET" && path === "/.well-known/jwks.json") return json(200, jwks(rt.cfg.bridge), cors)
+    if (req.method === "GET" && path === "/health") {
+      const r = await dependencyFetch(`${rt.cfg.coreAuthUrl}/health`, { headers: rt.cfg.coreAnonKey ? { apikey: rt.cfg.coreAnonKey } : {}, signal: AbortSignal.timeout(2000) })
+      return json(r.ok ? 200 : 503, { ready: r.ok }, cors)
+    }
+    if (req.method === "POST" && path === "/exchange") {
+      const raw = await body(req)
+      const text = new TextDecoder().decode(raw)
+      if (raw.length && text !== "{}") return json(400, { error: "exchange accepts no identity or role input" }, cors)
+      const c = await verifiedCore(rt, bearer(req))
+      const row = await allocateIdentity(rt.identity, c.userId)
+      const token = await issueToken(rt.cfg.bridge, row, c.sessionId)
+      return json(200, { access_token: token, token_type: "Bearer", expires_in: TTL }, cors)
+    }
+    const rest = /^\/torneos\/rest\/v1\/(rpc\/([a-z0-9_]+)|[a-z0-9_]+)$/.exec(path)
+    if (rest && ["GET", "HEAD", "POST", "PATCH", "DELETE"].includes(req.method)) {
+      const token = bearer(req)
+      const p: TorneosClaims = await verifyToken(token, rt.cfg.bridge)
+      const rpc = rest[2]
+      // Phase 2D: RPC names outside the staging v1 allowlist never reach PostgREST through this
+      // gateway (verified bearer or not; the answer is a plain refusal, not a proxied 42501).
+      if (rpc && !RPC_ALLOWLIST.has(rpc)) return json(403, { error: "rpc not enabled" }, cors)
+      await activeSession(rt, p.core_user_id, p.session_id)
+      if (!await identityExists(rt.identity, p.sub, p.core_user_id)) throw new Error("identity mismatch")
+      let raw: Uint8Array | undefined
+      if (req.method === "POST" && rpc && CONTRACTS[rpc]) {
+        raw = await body(req)
+        let parsed: unknown
+        try { parsed = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(raw)) } catch { return json(400, { error: "invalid json" }, cors) }
+        if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return json(400, { error: "invalid json" }, cors)
+        const request = CONTRACTS[rpc].request(parsed as Record<string, unknown>)
+        if (request) {
+          try {
+            await rt.adapter.prepare(p, CONTRACTS[rpc].contract, request)
+          } catch (error) {
+            if (error instanceof AdapterDenied || error instanceof Denied) return json(error.status, { error: error.code }, cors)
+            throw error
+          }
+        }
+      }
+      return await proxy(rt, req, `${rt.cfg.torneosRestUrl}${path.slice("/torneos/rest/v1".length)}${url.search}`, token, raw, cors)
+    }
+    return json(404, { error: "not found" }, cors)
+  } catch (error) {
+    // Never log request, bearer, SQL, errors with context, or response bodies.
+    if (error instanceof CoreUnavailable) return json(503, { error: "CORE_UNAVAILABLE" }, cors)
+    const unavailable = error instanceof Unavailable || isUnavailable(error)
+    return json(unavailable ? 503 : 401, { error: "access denied" }, cors)
+  }
+}
+
+// deno-lint-ignore no-explicit-any
+if (typeof (globalThis as any).Deno?.serve === "function") (globalThis as any).Deno.serve(handle)

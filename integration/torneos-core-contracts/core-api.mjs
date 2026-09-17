@@ -20,9 +20,18 @@ async function body(req) {
   return Buffer.concat(chunks);
 }
 
+// Lab-only counter (Phase 3B): `session` verdicts evaluated by the Core contract (status 200/403,
+// i.e. the request passed service auth and consumed a nonce). Lets the suites separate the Edge
+// gateway's per-request session checks from contract-operation evaluations in nonce counts.
+const counters = { session_verdicts: 0 };
+
 http.createServer(async (req, res) => {
   try {
     const url = new URL(req.url, 'http://core-api:8000');
+    if (req.method === 'GET' && url.pathname === '/_lab/counters') {
+      res.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store' });
+      return res.end(JSON.stringify(counters));
+    }
     const target = targets.find(([prefix]) => url.pathname.startsWith(prefix));
     if (!target) { res.writeHead(404, { 'content-type': 'application/json' }); return res.end('{"error":"not found"}'); }
     const headers = {};
@@ -33,6 +42,7 @@ http.createServer(async (req, res) => {
       method: req.method, headers, redirect: 'error', signal: AbortSignal.timeout(8000),
       body: ['GET', 'HEAD'].includes(req.method) ? undefined : await body(req),
     });
+    if (url.pathname === '/functions/v1/torneos-core-contract/v1/session' && [200, 403].includes(upstream.status)) counters.session_verdicts += 1;
     const out = { 'content-type': upstream.headers.get('content-type') ?? 'application/json', 'cache-control': 'no-store' };
     if (upstream.headers.has('content-range')) out['content-range'] = upstream.headers.get('content-range');
     res.writeHead(upstream.status, out);

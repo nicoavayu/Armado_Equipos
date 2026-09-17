@@ -12,7 +12,7 @@ import assert from 'node:assert/strict';
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { randomUUID, createHmac, randomBytes } from 'node:crypto';
 import { SignJWT, importPKCS8, decodeJwt } from 'jose';
-import { config, dc, sql, sqlTry, inGateway, BASE, repo } from './lab.mjs';
+import { config, dc, sql, sqlTry, inGateway, BASE, GATEWAY_BASE, GATEWAY_NAME, repo } from './lab.mjs';
 
 const results = [];
 const seenSecrets = [];
@@ -23,7 +23,10 @@ const RUN = 'r' + randomBytes(2).toString('hex');
 
 // ---------------------------------------------------------------- transport helpers
 async function request(path, token, method = 'GET', data, extraHeaders = {}) {
-  const r = await fetch(`${BASE}${path}`, { method, headers: {
+  // Phase 3B: Core Auth fixtures always through the Node gateway's /auth/v1 proxy; the
+  // gateway under test (GATEWAY=node|edge) serves exchange, config, health and /torneos.
+  const base = path.startsWith('/auth/v1') ? BASE : GATEWAY_BASE;
+  const r = await fetch(`${base}${path}`, { method, headers: {
     connection: 'close',
     ...(token ? { authorization: `Bearer ${token}` } : {}),
     ...(data !== undefined ? { 'content-type': 'application/json' } : {}),
@@ -54,8 +57,15 @@ function sqlError(fn) {
 function torneosErr(query) { const r = sqlTry('torneos-db', query); return r.ok ? null : r.error; }
 function coreErr(query) { const r = sqlTry('core-db', query, 'postgres'); return r.ok ? null : r.error; }
 // Lab instrumentation on the Core side: every contract evaluation consumes a nonce.
+// Phase 3B: the Edge gateway validates the Core session through the contract's `session`
+// operation on every request; those verdicts (counted by core-api) are subtracted so this
+// counter keeps meaning "contract OPERATION evaluations" for both gateways.
+function sessionVerdicts() {
+  const out = inGateway(`const r = await fetch('http://core-api:8000/_lab/counters'); console.log((await r.json()).session_verdicts);`);
+  return Number(out.trim().split('\n').pop());
+}
 function coreCalls() {
-  return Number(coreSql('select count(*) from lab_phase3a.core_calls').trim());
+  return Number(coreSql('select count(*) from lab_phase3a.core_calls').trim()) - sessionVerdicts();
 }
 async function adminApi(method, path, body) {
   const out = inGateway(`const r = await fetch(${JSON.stringify(`http://core-auth:9999/admin${path}`)}, { method: ${JSON.stringify(method)},
@@ -215,17 +225,18 @@ test('Phase 3A — real Core contracts → Torneos end-to-end', async (t) => {
 
   try {
     // ================================================================ lab shape
-    await check('lab: only the gateway is published; databases, Auth, REST and the Edge Function are internal', async () => {
+    await check('lab: only the two gateways are published; databases, Auth, REST and the Edge Functions are internal', async () => {
       const ps = dc(['ps', '--format', 'json'], undefined, true).trim().split('\n').map(JSON.parse);
-      assert.equal(ps.length, 8);
+      assert.equal(ps.length, 9);
       for (const service of ps) {
         const ports = (service.Publishers ?? []).filter(p => p.PublishedPort);
-        if (service.Service === 'gateway') { assert.equal(ports.length, 1); assert.equal(ports[0].URL, '127.0.0.1'); }
+        // Phase 3B: the Node gateway and its Edge Function port are the only published services.
+        if (['gateway', 'torneos-functions'].includes(service.Service)) { assert.equal(ports.length, 1); assert.equal(ports[0].URL, '127.0.0.1'); }
         else assert.equal(ports.length, 0, `${service.Service} publishes nothing`);
       }
       const compose = await readFile('compose.yaml', 'utf8');
       assert.match(compose, /internal: true/);
-      assert.equal((compose.match(/egress\]/g) ?? []).length, 1, 'only core-functions has outbound access (module resolution)');
+      assert.equal((compose.match(/egress\]/g) ?? []).length, 2, 'only the two edge runtimes have outbound access (module resolution)');
     });
     await check('lab: Core is the real schema at HEAD plus the Phase 3A migration; Torneos is the Phase 2D certified baseline (Phase 2C ACL model + P0 season guard) plus the staging v1 RPC exposure gate', async () => {
       const install = JSON.parse(await readFile('.runtime/install.json', 'utf8'));
@@ -462,16 +473,28 @@ test('Phase 3A — real Core contracts → Torneos end-to-end', async (t) => {
       }
       assert.equal(coreCalls(), n);
     });
-    await check('directory: Core outage yields no results; unrelated Torneos reads keep working', async () => {
+    await check(GATEWAY_NAME === 'edge'
+      ? 'directory: Core contract outage fails closed for EVERY gateway request (Edge: the session verdict comes from Core over HTTPS); no partial write'
+      : 'directory: Core outage yields no results; unrelated Torneos reads keep working', async () => {
       setService('core-functions', 'stop');
       try {
         const r = await rpc('search_tournament_arma2_teams', await tok(owner), { p_organization_id: org, p_tournament_id: alpha, p_query: `${RUN} alpha`, p_limit: 8 });
         assert.deepEqual([r.status, r.body], [503, { error: 'CORE_UNAVAILABLE' }]);
         const read = await request(`/torneos/rest/v1/tournament_organizations?select=id,slug`, await tok(owner));
-        assert.equal(read.status, 200);
-        assert.deepEqual(read.body.map(o => o.slug), [`alpha-league-${RUN}`], 'RLS still scopes the read to the caller workspace');
+        const entriesBefore = Number(torneosSql(`select count(*) from public.tournament_team_entries where organization_id=${lit(org)}`).trim());
         const manualEntry = await rpc('create_tournament_team_entry', await tok(owner), { p_organization_id: org, p_tournament_id: alpha, p_category_id: category, p_arma2_team_id: null, p_name: 'Manual During Outage', p_short_name: null, p_primary_color: null, p_secondary_color: null, p_registration_source: 'manual', p_manager_user_id: null, p_manager_email: null, p_manager_display_name: null, p_idempotency_key: randomUUID() });
-        assert.equal(manualEntry.status, 200, 'non-Core RPC keeps working during the outage');
+        if (GATEWAY_NAME === 'edge') {
+          // Documented Phase 3B difference (D1): without any Core database access, the Edge gateway
+          // cannot validate a session while the Core contract endpoint is down, so it refuses
+          // everything (503 CORE_UNAVAILABLE) instead of serving Core-independent traffic.
+          assert.deepEqual([read.status, read.body], [503, { error: 'CORE_UNAVAILABLE' }], 'reads fail closed during the Core contract outage');
+          assert.deepEqual([manualEntry.status, manualEntry.body], [503, { error: 'CORE_UNAVAILABLE' }], 'non-Core RPC fails closed during the outage');
+          assert.equal(Number(torneosSql(`select count(*) from public.tournament_team_entries where organization_id=${lit(org)}`).trim()), entriesBefore, 'no partial write');
+        } else {
+          assert.equal(read.status, 200);
+          assert.deepEqual(read.body.map(o => o.slug), [`alpha-league-${RUN}`], 'RLS still scopes the read to the caller workspace');
+          assert.equal(manualEntry.status, 200, 'non-Core RPC keeps working during the outage');
+        }
       } finally { setService('core-functions', 'start'); await waitCoreFunctions(); }
     });
 
@@ -696,7 +719,7 @@ test('Phase 3A — real Core contracts → Torneos end-to-end', async (t) => {
     await check('security: no secrets in logs, published config or Torneos; service key confined to Core-side containers', async () => {
       const secrets = [cfg.coreContractSecret, cfg.serviceRoleKey, cfg.coreSecret, cfg.dbPassword, cfg.readerPassword, cfg.writerPassword, cfg.adapterPassword,
         ...cfg.keys.map(k => k.privateKey.split('\n').slice(1, 3).join('\n')), ...seenSecrets.filter(Boolean)];
-      const logs = ['gateway', 'core-functions', 'core-api', 'torneos-rest', 'core-rest', 'core-auth'].map(s => dc(['logs', '--no-log-prefix', s], undefined, true)).join('\n');
+      const logs = ['gateway', 'torneos-functions', 'core-functions', 'core-api', 'torneos-rest', 'core-rest', 'core-auth'].map(s => dc(['logs', '--no-log-prefix', s], undefined, true)).join('\n');
       for (const secret of secrets) assert.ok(!logs.includes(secret), 'service logs never contain a secret or a session token');
       const publicConfig = await request('/config');
       assert.deepEqual(Object.keys(publicConfig.body).sort(), ['anonKey', 'coreUrl', 'torneosUrl']);
@@ -708,8 +731,13 @@ test('Phase 3A — real Core contracts → Torneos end-to-end', async (t) => {
       const services = JSON.parse(composeCfg).services;
       const holders = Object.entries(services).filter(([, s]) => JSON.stringify(s.environment ?? {}).includes(cfg.serviceRoleKey)).map(([n]) => n);
       assert.deepEqual(holders, ['core-functions'], 'only the Core Edge Function holds the Core service key');
-      const secretHolders = Object.entries(services).filter(([, s]) => JSON.stringify(s.environment ?? {}).includes(cfg.coreContractSecret)).map(([n]) => n);
-      assert.deepEqual(secretHolders, ['core-functions'], 'the gateway reads the contract secret from its private config file, not from compose env');
+      const secretHolders = Object.entries(services).filter(([, s]) => JSON.stringify(s.environment ?? {}).includes(cfg.coreContractSecret)).map(([n]) => n).sort();
+      // Phase 3B: the Edge gateway receives the contract secret the way the hosted function does (its own env);
+      // the Node gateway still reads it from its private config file.
+      assert.deepEqual(secretHolders, ['core-functions', 'torneos-functions'], 'only the two contract endpoints hold the contract secret');
+      assert.ok(!JSON.stringify(services['torneos-functions'].environment ?? {}).includes(cfg.serviceRoleKey), 'the Edge gateway never holds the Core service key');
+      assert.ok(!JSON.stringify(services['torneos-functions'].environment ?? {}).includes(cfg.coreSecret), 'the Edge gateway never holds the Core JWT secret');
+      assert.ok(!JSON.stringify(services['torneos-functions'].environment ?? {}).includes(cfg.readerPassword), 'the Edge gateway has no Core database login');
       assert.ok(!services.gateway.volumes.some(v => v.source?.includes('.runtime/config.json')));
       assert.ok(services['torneos-rest'].volumes.every(v => v.source?.endsWith('.runtime/public')), 'PostgREST mounts only the public JWKS');
       const bridgeFile = JSON.parse(await readFile('.runtime/server/config.json', 'utf8'));
@@ -794,9 +822,12 @@ test('Phase 3A — real Core contracts → Torneos end-to-end', async (t) => {
     });
   } finally {
     await mkdir('evidence', { recursive: true });
-    await writeFile('evidence/e2e-results.json', JSON.stringify({
+    // Phase 3B: one evidence file per gateway under test (node → the Phase 3A file name).
+    await writeFile(GATEWAY_NAME === 'edge' ? 'evidence/e2e-results-edge.json' : 'evidence/e2e-results.json', JSON.stringify({
       generated_at: new Date().toISOString(),
-      base: BASE,
+      gateway: GATEWAY_NAME,
+      base: GATEWAY_BASE,
+      auth_base: BASE,
       pass: results.filter(r => r.status === 'PASS').length,
       fail: results.filter(r => r.status === 'FAIL').length,
       results,

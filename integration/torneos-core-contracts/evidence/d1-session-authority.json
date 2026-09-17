@@ -1,0 +1,409 @@
+{
+  "generated_at": "2026-09-15T15:40:09.438Z",
+  "node": "http://127.0.0.1:58420",
+  "edge": "http://127.0.0.1:58421/torneos-gateway",
+  "run": "d5cfa",
+  "conclusion": "D1 is not a fail-closed regression: neither gateway serves a session-gated request without an online Core session verdict. The difference is the identity of the verdict transport (Node: auth.sessions DB-to-DB; Edge: Core contract `session` over HTTPS). Preserving the Node behaviour on the Edge gateway requires DB-to-DB, a revocation window, or a new Core surface / trust expansion — STOP, decision for the operator.",
+  "summary": {
+    "gotrue_user_alone_refuses": {
+      "not_after": false,
+      "banned": false,
+      "soft_deleted": false,
+      "logout": true
+    },
+    "node_serves_without_online_verdict": false,
+    "edge_serves_without_online_verdict": false,
+    "node_refusal_when_core_db_down": {
+      "status": 401,
+      "body": "access denied",
+      "driver_code": "ENOTFOUND",
+      "note": "pre-existing mapping gap of the certified Node gateway: refusal preserved, status 401 instead of 503"
+    },
+    "edge_refusal_when_core_db_down": {
+      "status": 503,
+      "body": "CORE_UNAVAILABLE"
+    },
+    "d1_class": [
+      "/exchange",
+      "every /torneos/rest/v1 request past the bearer check and the RPC allowlist"
+    ],
+    "d1_root_cause": "the session verdict itself: Node reads auth.sessions DB-to-DB (forbidden for the Edge gateway); Edge obtains it from the Core contract `session` operation over HTTPS, so the contract endpoint IS its session-authority transport",
+    "edge_session_verdicts_per_gated_request": 1,
+    "node_session_verdicts_via_contract": 0
+  },
+  "rows": [
+    {
+      "experiment": "E1",
+      "name": "gotrue /user: live session",
+      "gotrue": 200
+    },
+    {
+      "experiment": "E1",
+      "name": "gotrue /user: session not_after in the past",
+      "gotrue": 200
+    },
+    {
+      "experiment": "E1",
+      "name": "not_after in the past: RPC",
+      "request": {
+        "path": "/torneos/rest/v1/rpc/get_my_tournament_memberships",
+        "method": "POST",
+        "auth": "bearer"
+      },
+      "node": {
+        "status": 401,
+        "body": {
+          "error": "access denied"
+        }
+      },
+      "edge": {
+        "status": 401,
+        "body": {
+          "error": "access denied"
+        }
+      }
+    },
+    {
+      "experiment": "E1",
+      "name": "gotrue /user: user banned",
+      "gotrue": 200
+    },
+    {
+      "experiment": "E1",
+      "name": "banned: RPC",
+      "request": {
+        "path": "/torneos/rest/v1/rpc/get_my_tournament_memberships",
+        "method": "POST",
+        "auth": "bearer"
+      },
+      "node": {
+        "status": 401,
+        "body": {
+          "error": "access denied"
+        }
+      },
+      "edge": {
+        "status": 401,
+        "body": {
+          "error": "access denied"
+        }
+      }
+    },
+    {
+      "experiment": "E1",
+      "name": "gotrue /user: user deleted_at set",
+      "gotrue": 200
+    },
+    {
+      "experiment": "E1",
+      "name": "soft-deleted: RPC",
+      "request": {
+        "path": "/torneos/rest/v1/rpc/get_my_tournament_memberships",
+        "method": "POST",
+        "auth": "bearer"
+      },
+      "node": {
+        "status": 401,
+        "body": {
+          "error": "access denied"
+        }
+      },
+      "edge": {
+        "status": 401,
+        "body": {
+          "error": "access denied"
+        }
+      }
+    },
+    {
+      "experiment": "E1",
+      "name": "gotrue /user: restored",
+      "gotrue": 200
+    },
+    {
+      "experiment": "E1",
+      "name": "restored: RPC",
+      "request": {
+        "path": "/torneos/rest/v1/rpc/get_my_tournament_memberships",
+        "method": "POST",
+        "auth": "bearer"
+      },
+      "node": {
+        "status": 200,
+        "body": {
+          "items": [],
+          "pagination": {
+            "limit": 20,
+            "total": 0,
+            "offset": 0,
+            "hasMore": false
+          }
+        }
+      },
+      "edge": {
+        "status": 200,
+        "body": {
+          "items": [],
+          "pagination": {
+            "limit": 20,
+            "total": 0,
+            "offset": 0,
+            "hasMore": false
+          }
+        }
+      }
+    },
+    {
+      "experiment": "E1",
+      "name": "gotrue /user: after logout (session deleted)",
+      "gotrue": 403
+    },
+    {
+      "experiment": "E2",
+      "name": "core-db down: /health",
+      "request": {
+        "path": "/health",
+        "method": "GET",
+        "auth": "none"
+      },
+      "node": {
+        "status": 200,
+        "body": {
+          "ready": true
+        }
+      },
+      "edge": {
+        "status": 200,
+        "body": {
+          "ready": true
+        }
+      }
+    },
+    {
+      "experiment": "E2",
+      "name": "core-db down: Core-independent RPC",
+      "request": {
+        "path": "/torneos/rest/v1/rpc/get_my_tournament_memberships",
+        "method": "POST",
+        "auth": "bearer"
+      },
+      "node": {
+        "status": 401,
+        "body": {
+          "error": "access denied"
+        }
+      },
+      "edge": {
+        "status": 503,
+        "body": {
+          "error": "CORE_UNAVAILABLE"
+        }
+      }
+    },
+    {
+      "experiment": "E2",
+      "name": "core-db down: table read",
+      "request": {
+        "path": "/torneos/rest/v1/tournament_organizations?select=slug",
+        "method": "GET",
+        "auth": "bearer"
+      },
+      "node": {
+        "status": 401,
+        "body": {
+          "error": "access denied"
+        }
+      },
+      "edge": {
+        "status": 503,
+        "body": {
+          "error": "CORE_UNAVAILABLE"
+        }
+      }
+    },
+    {
+      "experiment": "E2",
+      "name": "core-db down: Core-dependent RPC denied locally when Core is up",
+      "request": {
+        "path": "/torneos/rest/v1/rpc/search_tournament_players",
+        "method": "POST",
+        "auth": "bearer"
+      },
+      "node": {
+        "status": 401,
+        "body": {
+          "error": "access denied"
+        }
+      },
+      "edge": {
+        "status": 503,
+        "body": {
+          "error": "CORE_UNAVAILABLE"
+        }
+      }
+    },
+    {
+      "experiment": "E2",
+      "name": "core-db down: exchange",
+      "request": {
+        "path": "/exchange",
+        "method": "POST",
+        "auth": "bearer"
+      },
+      "node": {
+        "status": 401,
+        "body": {
+          "error": "access denied"
+        }
+      },
+      "edge": {
+        "status": 401,
+        "body": {
+          "error": "access denied"
+        }
+      }
+    },
+    {
+      "experiment": "E2",
+      "name": "core-db down: OFF rpc (allowlist before the session verdict)",
+      "request": {
+        "path": "/torneos/rest/v1/rpc/publish_tournament_fixture",
+        "method": "POST",
+        "auth": "bearer"
+      },
+      "node": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        }
+      },
+      "edge": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        }
+      }
+    },
+    {
+      "experiment": "E3",
+      "name": "core-functions down: /health",
+      "request": {
+        "path": "/health",
+        "method": "GET",
+        "auth": "none"
+      },
+      "node": {
+        "status": 200,
+        "body": {
+          "ready": true
+        }
+      },
+      "edge": {
+        "status": 200,
+        "body": {
+          "ready": true
+        }
+      }
+    },
+    {
+      "experiment": "E3",
+      "name": "core-functions down: Core-independent RPC",
+      "request": {
+        "path": "/torneos/rest/v1/rpc/get_my_tournament_memberships",
+        "method": "POST",
+        "auth": "bearer"
+      },
+      "node": {
+        "status": 200,
+        "body": {
+          "items": [],
+          "pagination": {
+            "limit": 20,
+            "total": 0,
+            "offset": 0,
+            "hasMore": false
+          }
+        }
+      },
+      "edge": {
+        "status": 503,
+        "body": {
+          "error": "CORE_UNAVAILABLE"
+        }
+      }
+    },
+    {
+      "experiment": "E3",
+      "name": "core-functions down: Core-dependent RPC denied locally on Node",
+      "request": {
+        "path": "/torneos/rest/v1/rpc/search_tournament_players",
+        "method": "POST",
+        "auth": "bearer"
+      },
+      "node": {
+        "status": 403,
+        "body": {
+          "error": "TORNEOS_RESOURCE_FORBIDDEN"
+        }
+      },
+      "edge": {
+        "status": 503,
+        "body": {
+          "error": "CORE_UNAVAILABLE"
+        }
+      }
+    },
+    {
+      "experiment": "E3",
+      "name": "core-functions down: exchange",
+      "request": {
+        "path": "/exchange",
+        "method": "POST",
+        "auth": "bearer"
+      },
+      "node": {
+        "status": 200,
+        "body": {
+          "access_token": "<token>",
+          "token_type": "Bearer",
+          "expires_in": 120
+        }
+      },
+      "edge": {
+        "status": 503,
+        "body": {
+          "error": "CORE_UNAVAILABLE"
+        }
+      }
+    },
+    {
+      "experiment": "E3",
+      "name": "core-functions down: OFF rpc (allowlist before the session verdict)",
+      "request": {
+        "path": "/torneos/rest/v1/rpc/publish_tournament_fixture",
+        "method": "POST",
+        "auth": "bearer"
+      },
+      "node": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        }
+      },
+      "edge": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        }
+      }
+    },
+    {
+      "experiment": "E4",
+      "name": "session verdicts consumed at Core",
+      "edge_requests": 7,
+      "edge_verdicts": 7,
+      "node_requests": 6,
+      "node_verdicts": 0
+    }
+  ]
+}

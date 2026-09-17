@@ -1,4 +1,5 @@
 {
+  "gateway": "node",
   "session": "real Core session (GoTrue) + bridge bearer via /exchange",
   "rows": [
     {

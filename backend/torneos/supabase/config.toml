@@ -1,0 +1,11 @@
+# Torneos project — Edge Functions configuration (Phase 3B).
+# This is the TORNEOS project's function tree (backend/torneos/supabase/functions), never
+# Core's (supabase/functions). Deployment is done through the Management API with these
+# same flags; this file documents them and keeps the local edge-runtime lab honest.
+
+# Identity gateway: receives Core access tokens (exchange) and Torneos RS256 bearers
+# (proxied RPC/reads). Neither is a Torneos-project Auth JWT, so the platform verifier
+# must be off; the function verifies every bearer itself (GoTrue /user + Core contract
+# session verdict, or the certified RS256 key ring) and fails closed.
+[functions.torneos-gateway]
+verify_jwt = false

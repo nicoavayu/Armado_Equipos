@@ -1,0 +1,1599 @@
+{
+  "generated_at": "2026-09-15T20:28:00.704Z",
+  "tool": "backend/torneos/phase3b/local/certify-torneos-local.mjs",
+  "phase": "3B",
+  "step": "R2-local certify",
+  "project": "arma2-torneos-isolated-local",
+  "bootstrap_run": {
+    "stamp": "20260915T202636Z",
+    "started_at": "2026-09-15T20:26:36.054Z",
+    "fresh_volume": true
+  },
+  "rest": "http://127.0.0.1:58430",
+  "image": "public.ecr.aws/supabase/postgres:17.6.1.143",
+  "image_id": "sha256:80d7b27c3e8d77cfa7226eee9508671796da214781ff15a35b3670d7ad5ee453",
+  "baseline_sha256": "f857bd0939054bc1a32a3855894b7b20e14a0c7456c9d5c8c5e8432e5b8ed19f",
+  "gate_sha256": "3df4b96eecc7321eaeda84a480f089fe4bff2b28c20aa4479db92caf33457e62",
+  "verify_sql_sha256": "0d6ef458d0d46375d8332c6a85e014597a7d30f0d4891d1b62e12df88c9c844c",
+  "expect_sha256": "2c0772c2bda3433e60a44c00b62a8ef79de976c205a7a88379c9e44dfdb81118",
+  "checks_passed": 17,
+  "checks_total": 17,
+  "ok": true,
+  "catalog_hash": "617d205bb09d1d4e8c9e7afce8d148b3603f40c0907806d05048072c809c7394",
+  "api_view_sha256": "c212beccfa46208a589a58dc2fe3934d4a520279bfbcf137e288148e20a794dc",
+  "certified_view_sha256": "c212beccfa46208a589a58dc2fe3934d4a520279bfbcf137e288148e20a794dc",
+  "equivalence": {
+    "compared": 479,
+    "mismatches": [],
+    "counts": {
+      "functions": 366,
+      "relations": 106,
+      "sequences": 7
+    },
+    "live_summary": {
+      "anon_write_privilege_relations": 0,
+      "execute": {
+        "anon": {
+          "private_functions": 2,
+          "public_functions": 12
+        },
+        "authenticated": {
+          "private_functions": 2,
+          "public_functions": 147
+        },
+        "service_role": {
+          "private_functions": 2,
+          "public_functions": 328
+        }
+      },
+      "public_execute_functions": 0,
+      "public_functions": 359,
+      "relation_privilege": {
+        "anon": 78,
+        "authenticated": 80,
+        "service_role": 100
+      },
+      "security_definer_public": 304,
+      "security_definer_total": 305,
+      "sequence_privilege": {
+        "anon": 0,
+        "authenticated": 4,
+        "service_role": 4
+      }
+    }
+  },
+  "catalog": {
+    "verify_sql_sha256": "0d6ef458d0d46375d8332c6a85e014597a7d30f0d4891d1b62e12df88c9c844c",
+    "expect_sha256": "2c0772c2bda3433e60a44c00b62a8ef79de976c205a7a88379c9e44dfdb81118",
+    "verification": {
+      "installer": "supabase_admin",
+      "server_version": "17.6",
+      "public_tables": 104,
+      "public_functions": 359,
+      "security_definer": 304,
+      "anon_execute": 12,
+      "authenticated_execute": 147,
+      "service_role_execute": 328,
+      "anon_sequences": 0,
+      "gated_present": 33,
+      "gated_anon_execute": 0,
+      "gated_authenticated_execute": 0,
+      "gated_service_role_execute": 33,
+      "p0_authenticated_execute": true,
+      "identity_rls": true,
+      "roles": [
+        {
+          "rolname": "torneos_core_adapter",
+          "login": false,
+          "inherit": false,
+          "super": false,
+          "bypassrls": false
+        },
+        {
+          "rolname": "torneos_edge_core_adapter",
+          "login": true,
+          "inherit": false,
+          "super": false,
+          "bypassrls": false
+        },
+        {
+          "rolname": "torneos_edge_identity_writer",
+          "login": true,
+          "inherit": false,
+          "super": false,
+          "bypassrls": false
+        },
+        {
+          "rolname": "torneos_identity_writer",
+          "login": false,
+          "inherit": false,
+          "super": false,
+          "bypassrls": false
+        }
+      ],
+      "writer_members": [
+        "torneos_edge_identity_writer"
+      ],
+      "adapter_members": [
+        "torneos_edge_core_adapter"
+      ],
+      "pre_request": [
+        "pgrst.db_pre_request=private.check_token"
+      ],
+      "extensions": [
+        "pg_stat_statements 1.11",
+        "pgcrypto 1.3",
+        "plpgsql 1.0",
+        "supabase_vault 0.3.1",
+        "uuid-ossp 1.1"
+      ],
+      "foreign_servers": 0,
+      "table_owners": [
+        "supabase_admin"
+      ],
+      "function_owners": [
+        "supabase_admin"
+      ],
+      "seeds": {
+        "sport_modalities": 6,
+        "competition_formats": 5,
+        "role_capabilities": 285,
+        "plan_catalog": 2
+      },
+      "cron_jobs": -1,
+      "storage_buckets": -1
+    },
+    "expectations": [
+      {
+        "key": "public_functions",
+        "expected": "359",
+        "got": "359",
+        "ok": true
+      },
+      {
+        "key": "security_definer",
+        "expected": "304",
+        "got": "304",
+        "ok": true
+      },
+      {
+        "key": "anon_execute",
+        "expected": "12",
+        "got": "12",
+        "ok": true
+      },
+      {
+        "key": "authenticated_execute",
+        "expected": "147",
+        "got": "147",
+        "ok": true
+      },
+      {
+        "key": "service_role_execute",
+        "expected": "328",
+        "got": "328",
+        "ok": true
+      },
+      {
+        "key": "anon_sequences",
+        "expected": "0",
+        "got": "0",
+        "ok": true
+      },
+      {
+        "key": "gated_present",
+        "expected": "33",
+        "got": "33",
+        "ok": true
+      },
+      {
+        "key": "gated_anon_execute",
+        "expected": "0",
+        "got": "0",
+        "ok": true
+      },
+      {
+        "key": "gated_authenticated_execute",
+        "expected": "0",
+        "got": "0",
+        "ok": true
+      },
+      {
+        "key": "gated_service_role_execute",
+        "expected": "33",
+        "got": "33",
+        "ok": true
+      },
+      {
+        "key": "p0_authenticated_execute",
+        "expected": "true",
+        "got": "true",
+        "ok": true
+      },
+      {
+        "key": "identity_rls",
+        "expected": "true",
+        "got": "true",
+        "ok": true
+      },
+      {
+        "key": "foreign_servers",
+        "expected": "0",
+        "got": "0",
+        "ok": true
+      },
+      {
+        "key": "writer_members",
+        "expected": "[\"torneos_edge_identity_writer\"]",
+        "got": "[\"torneos_edge_identity_writer\"]",
+        "ok": true
+      },
+      {
+        "key": "adapter_members",
+        "expected": "[\"torneos_edge_core_adapter\"]",
+        "got": "[\"torneos_edge_core_adapter\"]",
+        "ok": true
+      },
+      {
+        "key": "pre_request",
+        "expected": "[\"pgrst.db_pre_request=private.check_token\"]",
+        "got": "[\"pgrst.db_pre_request=private.check_token\"]",
+        "ok": true
+      }
+    ],
+    "catalog_hash": "617d205bb09d1d4e8c9e7afce8d148b3603f40c0907806d05048072c809c7394"
+  },
+  "data_api": {
+    "anon_openapi": {
+      "paths": 91,
+      "rpc_paths": 12,
+      "gated_listed": 0
+    },
+    "gated_sweep": [
+      {
+        "function": "authorize_tournament_social_export",
+        "role": "anon",
+        "post": {
+          "status": 401,
+          "code": "42501",
+          "message": "permission denied for function authorize_tournament_social_export"
+        },
+        "get": {
+          "status": 400,
+          "code": "22P02"
+        },
+        "verdict": "DENIED_BEFORE_BODY"
+      },
+      {
+        "function": "cancel_tournament_purchase",
+        "role": "anon",
+        "post": {
+          "status": 401,
+          "code": "42501",
+          "message": "permission denied for function cancel_tournament_purchase"
+        },
+        "get": {
+          "status": 400,
+          "code": "22P02"
+        },
+        "verdict": "DENIED_BEFORE_BODY"
+      },
+      {
+        "function": "change_tournament_media_gallery_state",
+        "role": "anon",
+        "post": {
+          "status": 401,
+          "code": "42501",
+          "message": "permission denied for function change_tournament_media_gallery_state"
+        },
+        "get": {
+          "status": 400,
+          "code": "22P02"
+        },
+        "verdict": "DENIED_BEFORE_BODY"
+      },
+      {
+        "function": "create_tournament_disciplinary_override",
+        "role": "anon",
+        "post": {
+          "status": 401,
+          "code": "42501",
+          "message": "permission denied for function create_tournament_disciplinary_override"
+        },
+        "get": {
+          "status": 400,
+          "code": "22P02"
+        },
+        "verdict": "DENIED_BEFORE_BODY"
+      },
+      {
+        "function": "create_tournament_match_correction",
+        "role": "anon",
+        "post": {
+          "status": 401,
+          "code": "42501",
+          "message": "permission denied for function create_tournament_match_correction"
+        },
+        "get": {
+          "status": 400,
+          "code": "22P02"
+        },
+        "verdict": "DENIED_BEFORE_BODY"
+      },
+      {
+        "function": "create_tournament_points_adjustment",
+        "role": "anon",
+        "post": {
+          "status": 401,
+          "code": "42501",
+          "message": "permission denied for function create_tournament_points_adjustment"
+        },
+        "get": {
+          "status": 400,
+          "code": "22P02"
+        },
+        "verdict": "DENIED_BEFORE_BODY"
+      },
+      {
+        "function": "get_tournament_player_portrait_ref",
+        "role": "anon",
+        "post": {
+          "status": 401,
+          "code": "42501",
+          "message": "permission denied for function get_tournament_player_portrait_ref"
+        },
+        "get": {
+          "status": 400,
+          "code": "22P02"
+        },
+        "verdict": "DENIED_BEFORE_BODY"
+      },
+      {
+        "function": "get_tournament_purchase",
+        "role": "anon",
+        "post": {
+          "status": 401,
+          "code": "42501",
+          "message": "permission denied for function get_tournament_purchase"
+        },
+        "get": {
+          "status": 400,
+          "code": "22P02"
+        },
+        "verdict": "DENIED_BEFORE_BODY"
+      },
+      {
+        "function": "has_tournament_entitlement",
+        "role": "anon",
+        "post": {
+          "status": 401,
+          "code": "42501",
+          "message": "permission denied for function has_tournament_entitlement"
+        },
+        "get": {
+          "status": 400,
+          "code": "22P02"
+        },
+        "verdict": "DENIED_BEFORE_BODY"
+      },
+      {
+        "function": "lock_tournament_roster",
+        "role": "anon",
+        "post": {
+          "status": 401,
+          "code": "42501",
+          "message": "permission denied for function lock_tournament_roster"
+        },
+        "get": {
+          "status": 400,
+          "code": "22P02"
+        },
+        "verdict": "DENIED_BEFORE_BODY"
+      },
+      {
+        "function": "make_tournament_match_official",
+        "role": "anon",
+        "post": {
+          "status": 401,
+          "code": "42501",
+          "message": "permission denied for function make_tournament_match_official"
+        },
+        "get": {
+          "status": 400,
+          "code": "22P02"
+        },
+        "verdict": "DENIED_BEFORE_BODY"
+      },
+      {
+        "function": "mark_tournament_suspension_served",
+        "role": "anon",
+        "post": {
+          "status": 401,
+          "code": "42501",
+          "message": "permission denied for function mark_tournament_suspension_served"
+        },
+        "get": {
+          "status": 400,
+          "code": "22P02"
+        },
+        "verdict": "DENIED_BEFORE_BODY"
+      },
+      {
+        "function": "publish_tournament_fixture",
+        "role": "anon",
+        "post": {
+          "status": 401,
+          "code": "42501",
+          "message": "permission denied for function publish_tournament_fixture"
+        },
+        "get": {
+          "status": 400,
+          "code": "22P02"
+        },
+        "verdict": "DENIED_BEFORE_BODY"
+      },
+      {
+        "function": "record_manual_match_availability",
+        "role": "anon",
+        "post": {
+          "status": 401,
+          "code": "42501",
+          "message": "permission denied for function record_manual_match_availability"
+        },
+        "get": {
+          "status": 400,
+          "code": "22P02"
+        },
+        "verdict": "DENIED_BEFORE_BODY"
+      },
+      {
+        "function": "reopen_tournament_participants",
+        "role": "anon",
+        "post": {
+          "status": 401,
+          "code": "42501",
+          "message": "permission denied for function reopen_tournament_participants"
+        },
+        "get": {
+          "status": 400,
+          "code": "22P02"
+        },
+        "verdict": "DENIED_BEFORE_BODY"
+      },
+      {
+        "function": "report_tournament_media_asset",
+        "role": "anon",
+        "post": {
+          "status": 401,
+          "code": "42501",
+          "message": "permission denied for function report_tournament_media_asset"
+        },
+        "get": {
+          "status": 400,
+          "code": "22P02"
+        },
+        "verdict": "DENIED_BEFORE_BODY"
+      },
+      {
+        "function": "request_tournament_match_correction",
+        "role": "anon",
+        "post": {
+          "status": 401,
+          "code": "42501",
+          "message": "permission denied for function request_tournament_match_correction"
+        },
+        "get": {
+          "status": 400,
+          "code": "22P02"
+        },
+        "verdict": "DENIED_BEFORE_BODY"
+      },
+      {
+        "function": "resolve_tournament_qualification",
+        "role": "anon",
+        "post": {
+          "status": 401,
+          "code": "42501",
+          "message": "permission denied for function resolve_tournament_qualification"
+        },
+        "get": {
+          "status": 400,
+          "code": "22P02"
+        },
+        "verdict": "DENIED_BEFORE_BODY"
+      },
+      {
+        "function": "review_tournament_match_operation",
+        "role": "anon",
+        "post": {
+          "status": 401,
+          "code": "42501",
+          "message": "permission denied for function review_tournament_match_operation"
+        },
+        "get": {
+          "status": 400,
+          "code": "22P02"
+        },
+        "verdict": "DENIED_BEFORE_BODY"
+      },
+      {
+        "function": "revoke_tournament_player_portrait_publication",
+        "role": "anon",
+        "post": {
+          "status": 401,
+          "code": "42501",
+          "message": "permission denied for function revoke_tournament_player_portrait_publication"
+        },
+        "get": {
+          "status": 400,
+          "code": "22P02"
+        },
+        "verdict": "DENIED_BEFORE_BODY"
+      },
+      {
+        "function": "revoke_tournament_points_adjustment",
+        "role": "anon",
+        "post": {
+          "status": 401,
+          "code": "42501",
+          "message": "permission denied for function revoke_tournament_points_adjustment"
+        },
+        "get": {
+          "status": 400,
+          "code": "22P02"
+        },
+        "verdict": "DENIED_BEFORE_BODY"
+      },
+      {
+        "function": "revoke_tournament_team_photo",
+        "role": "anon",
+        "post": {
+          "status": 401,
+          "code": "42501",
+          "message": "permission denied for function revoke_tournament_team_photo"
+        },
+        "get": {
+          "status": 400,
+          "code": "22P02"
+        },
+        "verdict": "DENIED_BEFORE_BODY"
+      },
+      {
+        "function": "save_tournament_draw_pots",
+        "role": "anon",
+        "post": {
+          "status": 401,
+          "code": "42501",
+          "message": "permission denied for function save_tournament_draw_pots"
+        },
+        "get": {
+          "status": 400,
+          "code": "22P02"
+        },
+        "verdict": "DENIED_BEFORE_BODY"
+      },
+      {
+        "function": "schedule_tournament_match",
+        "role": "anon",
+        "post": {
+          "status": 401,
+          "code": "42501",
+          "message": "permission denied for function schedule_tournament_match"
+        },
+        "get": {
+          "status": 400,
+          "code": "22P02"
+        },
+        "verdict": "DENIED_BEFORE_BODY"
+      },
+      {
+        "function": "set_tournament_player_portrait_crop",
+        "role": "anon",
+        "post": {
+          "status": 401,
+          "code": "42501",
+          "message": "permission denied for function set_tournament_player_portrait_crop"
+        },
+        "get": {
+          "status": 400,
+          "code": "22P02"
+        },
+        "verdict": "DENIED_BEFORE_BODY"
+      },
+      {
+        "function": "set_tournament_player_portrait_editorial_status",
+        "role": "anon",
+        "post": {
+          "status": 401,
+          "code": "42501",
+          "message": "permission denied for function set_tournament_player_portrait_editorial_status"
+        },
+        "get": {
+          "status": 400,
+          "code": "22P02"
+        },
+        "verdict": "DENIED_BEFORE_BODY"
+      },
+      {
+        "function": "submit_match_squad",
+        "role": "anon",
+        "post": {
+          "status": 401,
+          "code": "42501",
+          "message": "permission denied for function submit_match_squad"
+        },
+        "get": {
+          "status": 400,
+          "code": "22P02"
+        },
+        "verdict": "DENIED_BEFORE_BODY"
+      },
+      {
+        "function": "supersede_tournament_fixture",
+        "role": "anon",
+        "post": {
+          "status": 401,
+          "code": "42501",
+          "message": "permission denied for function supersede_tournament_fixture"
+        },
+        "get": {
+          "status": 400,
+          "code": "22P02"
+        },
+        "verdict": "DENIED_BEFORE_BODY"
+      },
+      {
+        "function": "transition_tournament_media_asset",
+        "role": "anon",
+        "post": {
+          "status": 401,
+          "code": "42501",
+          "message": "permission denied for function transition_tournament_media_asset"
+        },
+        "get": {
+          "status": 400,
+          "code": "22P02"
+        },
+        "verdict": "DENIED_BEFORE_BODY"
+      },
+      {
+        "function": "update_draft_fixture",
+        "role": "anon",
+        "post": {
+          "status": 401,
+          "code": "42501",
+          "message": "permission denied for function update_draft_fixture"
+        },
+        "get": {
+          "status": 400,
+          "code": "22P02"
+        },
+        "verdict": "DENIED_BEFORE_BODY"
+      },
+      {
+        "function": "validate_tournament_match_operation",
+        "role": "anon",
+        "post": {
+          "status": 401,
+          "code": "42501",
+          "message": "permission denied for function validate_tournament_match_operation"
+        },
+        "get": {
+          "status": 400,
+          "code": "22P02"
+        },
+        "verdict": "DENIED_BEFORE_BODY"
+      },
+      {
+        "function": "void_tournament_match_event",
+        "role": "anon",
+        "post": {
+          "status": 401,
+          "code": "42501",
+          "message": "permission denied for function void_tournament_match_event"
+        },
+        "get": {
+          "status": 400,
+          "code": "22P02"
+        },
+        "verdict": "DENIED_BEFORE_BODY"
+      },
+      {
+        "function": "auto_schedule_tournament_matches",
+        "role": "anon",
+        "post": {
+          "status": 401,
+          "code": "42501",
+          "message": "permission denied for function auto_schedule_tournament_matches"
+        },
+        "get": {
+          "status": 400,
+          "code": "22P02"
+        },
+        "verdict": "DENIED_BEFORE_BODY"
+      },
+      {
+        "function": "authorize_tournament_social_export",
+        "role": "authenticated",
+        "post": {
+          "status": 403,
+          "code": "42501",
+          "message": "permission denied for function authorize_tournament_social_export"
+        },
+        "get": {
+          "status": 400,
+          "code": "22P02"
+        },
+        "verdict": "DENIED_BEFORE_BODY"
+      },
+      {
+        "function": "cancel_tournament_purchase",
+        "role": "authenticated",
+        "post": {
+          "status": 403,
+          "code": "42501",
+          "message": "permission denied for function cancel_tournament_purchase"
+        },
+        "get": {
+          "status": 400,
+          "code": "22P02"
+        },
+        "verdict": "DENIED_BEFORE_BODY"
+      },
+      {
+        "function": "change_tournament_media_gallery_state",
+        "role": "authenticated",
+        "post": {
+          "status": 403,
+          "code": "42501",
+          "message": "permission denied for function change_tournament_media_gallery_state"
+        },
+        "get": {
+          "status": 400,
+          "code": "22P02"
+        },
+        "verdict": "DENIED_BEFORE_BODY"
+      },
+      {
+        "function": "create_tournament_disciplinary_override",
+        "role": "authenticated",
+        "post": {
+          "status": 403,
+          "code": "42501",
+          "message": "permission denied for function create_tournament_disciplinary_override"
+        },
+        "get": {
+          "status": 400,
+          "code": "22P02"
+        },
+        "verdict": "DENIED_BEFORE_BODY"
+      },
+      {
+        "function": "create_tournament_match_correction",
+        "role": "authenticated",
+        "post": {
+          "status": 403,
+          "code": "42501",
+          "message": "permission denied for function create_tournament_match_correction"
+        },
+        "get": {
+          "status": 400,
+          "code": "22P02"
+        },
+        "verdict": "DENIED_BEFORE_BODY"
+      },
+      {
+        "function": "create_tournament_points_adjustment",
+        "role": "authenticated",
+        "post": {
+          "status": 403,
+          "code": "42501",
+          "message": "permission denied for function create_tournament_points_adjustment"
+        },
+        "get": {
+          "status": 400,
+          "code": "22P02"
+        },
+        "verdict": "DENIED_BEFORE_BODY"
+      },
+      {
+        "function": "get_tournament_player_portrait_ref",
+        "role": "authenticated",
+        "post": {
+          "status": 403,
+          "code": "42501",
+          "message": "permission denied for function get_tournament_player_portrait_ref"
+        },
+        "get": {
+          "status": 400,
+          "code": "22P02"
+        },
+        "verdict": "DENIED_BEFORE_BODY"
+      },
+      {
+        "function": "get_tournament_purchase",
+        "role": "authenticated",
+        "post": {
+          "status": 403,
+          "code": "42501",
+          "message": "permission denied for function get_tournament_purchase"
+        },
+        "get": {
+          "status": 400,
+          "code": "22P02"
+        },
+        "verdict": "DENIED_BEFORE_BODY"
+      },
+      {
+        "function": "has_tournament_entitlement",
+        "role": "authenticated",
+        "post": {
+          "status": 403,
+          "code": "42501",
+          "message": "permission denied for function has_tournament_entitlement"
+        },
+        "get": {
+          "status": 400,
+          "code": "22P02"
+        },
+        "verdict": "DENIED_BEFORE_BODY"
+      },
+      {
+        "function": "lock_tournament_roster",
+        "role": "authenticated",
+        "post": {
+          "status": 403,
+          "code": "42501",
+          "message": "permission denied for function lock_tournament_roster"
+        },
+        "get": {
+          "status": 400,
+          "code": "22P02"
+        },
+        "verdict": "DENIED_BEFORE_BODY"
+      },
+      {
+        "function": "make_tournament_match_official",
+        "role": "authenticated",
+        "post": {
+          "status": 403,
+          "code": "42501",
+          "message": "permission denied for function make_tournament_match_official"
+        },
+        "get": {
+          "status": 400,
+          "code": "22P02"
+        },
+        "verdict": "DENIED_BEFORE_BODY"
+      },
+      {
+        "function": "mark_tournament_suspension_served",
+        "role": "authenticated",
+        "post": {
+          "status": 403,
+          "code": "42501",
+          "message": "permission denied for function mark_tournament_suspension_served"
+        },
+        "get": {
+          "status": 400,
+          "code": "22P02"
+        },
+        "verdict": "DENIED_BEFORE_BODY"
+      },
+      {
+        "function": "publish_tournament_fixture",
+        "role": "authenticated",
+        "post": {
+          "status": 403,
+          "code": "42501",
+          "message": "permission denied for function publish_tournament_fixture"
+        },
+        "get": {
+          "status": 400,
+          "code": "22P02"
+        },
+        "verdict": "DENIED_BEFORE_BODY"
+      },
+      {
+        "function": "record_manual_match_availability",
+        "role": "authenticated",
+        "post": {
+          "status": 403,
+          "code": "42501",
+          "message": "permission denied for function record_manual_match_availability"
+        },
+        "get": {
+          "status": 400,
+          "code": "22P02"
+        },
+        "verdict": "DENIED_BEFORE_BODY"
+      },
+      {
+        "function": "reopen_tournament_participants",
+        "role": "authenticated",
+        "post": {
+          "status": 403,
+          "code": "42501",
+          "message": "permission denied for function reopen_tournament_participants"
+        },
+        "get": {
+          "status": 400,
+          "code": "22P02"
+        },
+        "verdict": "DENIED_BEFORE_BODY"
+      },
+      {
+        "function": "report_tournament_media_asset",
+        "role": "authenticated",
+        "post": {
+          "status": 403,
+          "code": "42501",
+          "message": "permission denied for function report_tournament_media_asset"
+        },
+        "get": {
+          "status": 400,
+          "code": "22P02"
+        },
+        "verdict": "DENIED_BEFORE_BODY"
+      },
+      {
+        "function": "request_tournament_match_correction",
+        "role": "authenticated",
+        "post": {
+          "status": 403,
+          "code": "42501",
+          "message": "permission denied for function request_tournament_match_correction"
+        },
+        "get": {
+          "status": 400,
+          "code": "22P02"
+        },
+        "verdict": "DENIED_BEFORE_BODY"
+      },
+      {
+        "function": "resolve_tournament_qualification",
+        "role": "authenticated",
+        "post": {
+          "status": 403,
+          "code": "42501",
+          "message": "permission denied for function resolve_tournament_qualification"
+        },
+        "get": {
+          "status": 400,
+          "code": "22P02"
+        },
+        "verdict": "DENIED_BEFORE_BODY"
+      },
+      {
+        "function": "review_tournament_match_operation",
+        "role": "authenticated",
+        "post": {
+          "status": 403,
+          "code": "42501",
+          "message": "permission denied for function review_tournament_match_operation"
+        },
+        "get": {
+          "status": 400,
+          "code": "22P02"
+        },
+        "verdict": "DENIED_BEFORE_BODY"
+      },
+      {
+        "function": "revoke_tournament_player_portrait_publication",
+        "role": "authenticated",
+        "post": {
+          "status": 403,
+          "code": "42501",
+          "message": "permission denied for function revoke_tournament_player_portrait_publication"
+        },
+        "get": {
+          "status": 400,
+          "code": "22P02"
+        },
+        "verdict": "DENIED_BEFORE_BODY"
+      },
+      {
+        "function": "revoke_tournament_points_adjustment",
+        "role": "authenticated",
+        "post": {
+          "status": 403,
+          "code": "42501",
+          "message": "permission denied for function revoke_tournament_points_adjustment"
+        },
+        "get": {
+          "status": 400,
+          "code": "22P02"
+        },
+        "verdict": "DENIED_BEFORE_BODY"
+      },
+      {
+        "function": "revoke_tournament_team_photo",
+        "role": "authenticated",
+        "post": {
+          "status": 403,
+          "code": "42501",
+          "message": "permission denied for function revoke_tournament_team_photo"
+        },
+        "get": {
+          "status": 400,
+          "code": "22P02"
+        },
+        "verdict": "DENIED_BEFORE_BODY"
+      },
+      {
+        "function": "save_tournament_draw_pots",
+        "role": "authenticated",
+        "post": {
+          "status": 403,
+          "code": "42501",
+          "message": "permission denied for function save_tournament_draw_pots"
+        },
+        "get": {
+          "status": 400,
+          "code": "22P02"
+        },
+        "verdict": "DENIED_BEFORE_BODY"
+      },
+      {
+        "function": "schedule_tournament_match",
+        "role": "authenticated",
+        "post": {
+          "status": 403,
+          "code": "42501",
+          "message": "permission denied for function schedule_tournament_match"
+        },
+        "get": {
+          "status": 400,
+          "code": "22P02"
+        },
+        "verdict": "DENIED_BEFORE_BODY"
+      },
+      {
+        "function": "set_tournament_player_portrait_crop",
+        "role": "authenticated",
+        "post": {
+          "status": 403,
+          "code": "42501",
+          "message": "permission denied for function set_tournament_player_portrait_crop"
+        },
+        "get": {
+          "status": 400,
+          "code": "22P02"
+        },
+        "verdict": "DENIED_BEFORE_BODY"
+      },
+      {
+        "function": "set_tournament_player_portrait_editorial_status",
+        "role": "authenticated",
+        "post": {
+          "status": 403,
+          "code": "42501",
+          "message": "permission denied for function set_tournament_player_portrait_editorial_status"
+        },
+        "get": {
+          "status": 400,
+          "code": "22P02"
+        },
+        "verdict": "DENIED_BEFORE_BODY"
+      },
+      {
+        "function": "submit_match_squad",
+        "role": "authenticated",
+        "post": {
+          "status": 403,
+          "code": "42501",
+          "message": "permission denied for function submit_match_squad"
+        },
+        "get": {
+          "status": 400,
+          "code": "22P02"
+        },
+        "verdict": "DENIED_BEFORE_BODY"
+      },
+      {
+        "function": "supersede_tournament_fixture",
+        "role": "authenticated",
+        "post": {
+          "status": 403,
+          "code": "42501",
+          "message": "permission denied for function supersede_tournament_fixture"
+        },
+        "get": {
+          "status": 400,
+          "code": "22P02"
+        },
+        "verdict": "DENIED_BEFORE_BODY"
+      },
+      {
+        "function": "transition_tournament_media_asset",
+        "role": "authenticated",
+        "post": {
+          "status": 403,
+          "code": "42501",
+          "message": "permission denied for function transition_tournament_media_asset"
+        },
+        "get": {
+          "status": 400,
+          "code": "22P02"
+        },
+        "verdict": "DENIED_BEFORE_BODY"
+      },
+      {
+        "function": "update_draft_fixture",
+        "role": "authenticated",
+        "post": {
+          "status": 403,
+          "code": "42501",
+          "message": "permission denied for function update_draft_fixture"
+        },
+        "get": {
+          "status": 400,
+          "code": "22P02"
+        },
+        "verdict": "DENIED_BEFORE_BODY"
+      },
+      {
+        "function": "validate_tournament_match_operation",
+        "role": "authenticated",
+        "post": {
+          "status": 403,
+          "code": "42501",
+          "message": "permission denied for function validate_tournament_match_operation"
+        },
+        "get": {
+          "status": 400,
+          "code": "22P02"
+        },
+        "verdict": "DENIED_BEFORE_BODY"
+      },
+      {
+        "function": "void_tournament_match_event",
+        "role": "authenticated",
+        "post": {
+          "status": 403,
+          "code": "42501",
+          "message": "permission denied for function void_tournament_match_event"
+        },
+        "get": {
+          "status": 400,
+          "code": "22P02"
+        },
+        "verdict": "DENIED_BEFORE_BODY"
+      },
+      {
+        "function": "auto_schedule_tournament_matches",
+        "role": "authenticated",
+        "post": {
+          "status": 403,
+          "code": "42501",
+          "message": "permission denied for function auto_schedule_tournament_matches"
+        },
+        "get": {
+          "status": 400,
+          "code": "22P02"
+        },
+        "verdict": "DENIED_BEFORE_BODY"
+      }
+    ],
+    "p0": {
+      "function": "review_tournament_team_entry(uuid,uuid,text,text,jsonb)",
+      "parameters": [
+        "p_organization_id",
+        "p_team_entry_id",
+        "p_decision",
+        "p_reason",
+        "p_issues"
+      ],
+      "authenticated": {
+        "status": 403,
+        "code": "42501",
+        "message": "TORNEOS_RESOURCE_FORBIDDEN",
+        "reached_body": true
+      },
+      "anon": {
+        "status": 401,
+        "code": "42501",
+        "message": "permission denied for function review_tournament_team_entry"
+      }
+    },
+    "forged_bearers": [
+      {
+        "case": "untrusted kid (standby p3b-k2, not in JWKS)",
+        "status": 401,
+        "code": "PGRST301",
+        "rpc_status": 401,
+        "rpc_code": "PGRST301",
+        "ok": true
+      },
+      {
+        "case": "expired",
+        "status": 401,
+        "code": "PGRST303",
+        "rpc_status": 401,
+        "rpc_code": "PGRST303",
+        "ok": true
+      },
+      {
+        "case": "wrong aud",
+        "status": 401,
+        "code": "PGRST303",
+        "rpc_status": 401,
+        "rpc_code": "PGRST303",
+        "ok": true
+      },
+      {
+        "case": "alg none",
+        "status": 401,
+        "code": "PGRST301",
+        "rpc_status": 401,
+        "rpc_code": "PGRST301",
+        "ok": true
+      },
+      {
+        "case": "wrong iss",
+        "status": 401,
+        "code": "PT401",
+        "rpc_status": 401,
+        "rpc_code": "PT401",
+        "ok": true
+      },
+      {
+        "case": "TTL 3600 (exp-iat ≠ 120)",
+        "status": 401,
+        "code": "PT401",
+        "rpc_status": 401,
+        "rpc_code": "PT401",
+        "ok": true
+      },
+      {
+        "case": "nbf ≠ iat",
+        "status": 401,
+        "code": "PT401",
+        "rpc_status": 401,
+        "rpc_code": "PT401",
+        "ok": true
+      },
+      {
+        "case": "unknown identity (sub not in torneos_identity)",
+        "status": 401,
+        "code": "PT401",
+        "rpc_status": 401,
+        "rpc_code": "PT401",
+        "ok": true
+      },
+      {
+        "case": "core_user_id mismatch",
+        "status": 401,
+        "code": "PT401",
+        "rpc_status": 401,
+        "rpc_code": "PT401",
+        "ok": true
+      },
+      {
+        "case": "missing session_id",
+        "status": 401,
+        "code": "PT401",
+        "rpc_status": 401,
+        "rpc_code": "PT401",
+        "ok": true
+      },
+      {
+        "case": "role service_role claim",
+        "status": 401,
+        "code": "PT401",
+        "rpc_status": 401,
+        "rpc_code": "PT401",
+        "ok": true
+      }
+    ],
+    "identity_table": {
+      "anon_read": {
+        "status": 401,
+        "code": "42501"
+      },
+      "authenticated_insert": {
+        "status": 403,
+        "code": "42501"
+      }
+    },
+    "allowlist": {
+      "size": 43,
+      "subset_of_authenticated_execute": true,
+      "disjoint_from_gate": true,
+      "gate_size": 33,
+      "sha256": "149c7659f27aa6d61b512c44e1b0b0fa1bff700d4a0a3f9bdb4024418227b78c"
+    },
+    "identity_rows": 0
+  },
+  "isolation": {
+    "containers": {
+      "torneos-db": {
+        "image": "public.ecr.aws/supabase/postgres:17.6.1.143",
+        "image_id": "sha256:80d7b27c3e8d77cfa7226eee9508671796da214781ff15a35b3670d7ad5ee453",
+        "networks": [
+          "arma2-torneos-isolated-local_isolated"
+        ],
+        "ports": [],
+        "mounts": [
+          {
+            "type": "volume",
+            "source": "arma2-torneos-isolated-local_torneos-data",
+            "destination": "/var/lib/postgresql/data",
+            "rw": true
+          }
+        ],
+        "project": "arma2-torneos-isolated-local",
+        "phase_label": "3b-local-torneos"
+      },
+      "torneos-rest": {
+        "image": "public.ecr.aws/supabase/postgrest:v14.15",
+        "image_id": "sha256:2f8e7b656f09db697a8875177694b417b35cb76c21370de07fc54e711e902326",
+        "networks": [
+          "arma2-torneos-isolated-local_isolated",
+          "arma2-torneos-isolated-local_loopback-ingress"
+        ],
+        "ports": [
+          "127.0.0.1:58430->3000/tcp"
+        ],
+        "mounts": [
+          {
+            "type": "bind",
+            "source": "/Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/integration/torneos-isolated-local/.runtime/public",
+            "destination": "/keys",
+            "rw": false
+          }
+        ],
+        "project": "arma2-torneos-isolated-local",
+        "phase_label": "3b-local-torneos"
+      }
+    },
+    "dns_from_db": {
+      "resolvable_exit_codes": {
+        "core-db": "2",
+        "core-auth": "2",
+        "core-api": "2",
+        "core-rest": "2",
+        "arma2-core-contracts-phase3a-core-db-1": "2",
+        "arma2-sso-phase15-core-db-1": "2",
+        "supabase_db_arma2-torneos-qa-seed": "2"
+      },
+      "torneos_rest_resolvable_exit": "0"
+    },
+    "egress_from_db": {
+      "default_routes": 0,
+      "connect_attempts": {
+        "192.0.2.1/443": "bash: connect: Network unreachable bash: line 1: /dev/tcp/192.0.2.1/443: Network unreachable rc=1",
+        "198.51.100.1/53": "bash: connect: Network unreachable bash: line 1: /dev/tcp/198.51.100.1/53: Network unreachable rc=1"
+      }
+    },
+    "database": {
+      "extensions": [
+        "pg_stat_statements",
+        "pgcrypto",
+        "plpgsql",
+        "supabase_vault",
+        "uuid-ossp"
+      ],
+      "network_extensions_installed": [],
+      "foreign_servers": 0,
+      "foreign_tables": 0,
+      "fk_total": 303,
+      "fk_leaving_torneos": 0,
+      "functions_referencing_auth_schema": 0,
+      "core_monolith_usuarios": false,
+      "core_contract_execute": false,
+      "app_private_schema": false,
+      "public_tables": 104,
+      "tournament_tables": 101,
+      "db_pre_request": [
+        "pgrst.db_pre_request=private.check_token"
+      ],
+      "login_roles": [
+        "authenticator",
+        "postgres",
+        "supabase_admin",
+        "supabase_auth_admin",
+        "supabase_etl_admin",
+        "supabase_read_only_user",
+        "supabase_replication_admin",
+        "supabase_storage_admin",
+        "torneos_edge_core_adapter",
+        "torneos_edge_identity_writer"
+      ]
+    }
+  },
+  "http_requests": {
+    "total": 160,
+    "hosts": [
+      "127.0.0.1:58430"
+    ],
+    "remote": 0
+  },
+  "checks": [
+    {
+      "section": "A",
+      "name": "catalog matches the shared expect document (same SQL + same 16 expectations as the remote runner)",
+      "ok": true,
+      "detail": {
+        "passed": "16/16",
+        "catalog_hash": "617d205bb09d1d4e8c9e7afce8d148b3603f40c0907806d05048072c809c7394",
+        "server_version": "17.6"
+      }
+    },
+    {
+      "section": "B",
+      "name": "phase2c/acl-inventory.sql on the live stack ≡ certified Phase 2D after-real (api_view): 0 mismatches / 479 objects",
+      "ok": true,
+      "detail": {
+        "compared": 479,
+        "mismatches": 0,
+        "api_view_sha256": "c212beccfa46208a589a58dc2fe3934d4a520279bfbcf137e288148e20a794dc",
+        "certified_view_sha256": "c212beccfa46208a589a58dc2fe3934d4a520279bfbcf137e288148e20a794dc"
+      }
+    },
+    {
+      "section": "C",
+      "name": "declared parameters of the 33 gated RPCs and P0 resolved from the live catalog",
+      "ok": true
+    },
+    {
+      "section": "C",
+      "name": "anon OpenAPI: PostgREST answers on loopback; none of the 33 gated RPCs is listed for anon",
+      "ok": true,
+      "detail": {
+        "paths": 91,
+        "rpc_paths": 12,
+        "gated_listed": 0
+      }
+    },
+    {
+      "section": "C",
+      "name": "33 gated RPCs as anon: 42501 permission denied for function (before the body), POST and GET",
+      "ok": true,
+      "detail": {
+        "denied": 33
+      }
+    },
+    {
+      "section": "C",
+      "name": "identity seeding path = the gateway's: torneos_edge_identity_writer over TCP/scram, INSERT refused without SET ROLE (NOINHERIT), allowed after SET ROLE torneos_identity_writer",
+      "ok": true,
+      "detail": {
+        "login": "torneos_edge_identity_writer",
+        "transport": "tcp scram torneos-db:5432",
+        "noinherit_enforced": true
+      }
+    },
+    {
+      "section": "C",
+      "name": "valid RS256 bearer (kid p3b-k1, TTL 120) reaches PostgREST: own identity row readable (RLS own_identity), exactly 1 row",
+      "ok": true
+    },
+    {
+      "section": "C",
+      "name": "33 gated RPCs as authenticated (valid bearer): 42501 permission denied for function (before the body), POST and GET",
+      "ok": true,
+      "detail": {
+        "denied": 33
+      }
+    },
+    {
+      "section": "C",
+      "name": "P0 review_tournament_team_entry as authenticated: EXECUTE reaches the function body (not \"permission denied for function\"); as anon: denied before the body",
+      "ok": true,
+      "detail": {
+        "function": "review_tournament_team_entry(uuid,uuid,text,text,jsonb)",
+        "parameters": [
+          "p_organization_id",
+          "p_team_entry_id",
+          "p_decision",
+          "p_reason",
+          "p_issues"
+        ],
+        "authenticated": {
+          "status": 403,
+          "code": "42501",
+          "message": "TORNEOS_RESOURCE_FORBIDDEN",
+          "reached_body": true
+        },
+        "anon": {
+          "status": 401,
+          "code": "42501",
+          "message": "permission denied for function review_tournament_team_entry"
+        }
+      }
+    },
+    {
+      "section": "C",
+      "name": "forged bearers are refused with 401: untrusted kid / expired / wrong aud (PostgREST), wrong iss / TTL≠120 / nbf≠iat / unknown identity / missing session_id / role≠authenticated (PT401 from private.check_token), alg none",
+      "ok": true,
+      "detail": {
+        "cases": 11,
+        "all_401": true,
+        "pt401": 7
+      }
+    },
+    {
+      "section": "C",
+      "name": "torneos_identity: anon cannot read (42501 permission denied for table); authenticated cannot INSERT (42501)",
+      "ok": true
+    },
+    {
+      "section": "C",
+      "name": "staging v1 allowlist (43) ⊆ authenticated EXECUTE on the live catalog, ∩ gate = ∅, every name exists",
+      "ok": true,
+      "detail": {
+        "size": 43,
+        "subset_of_authenticated_execute": true,
+        "disjoint_from_gate": true,
+        "gate_size": 33,
+        "sha256": "149c7659f27aa6d61b512c44e1b0b0fa1bff700d4a0a3f9bdb4024418227b78c"
+      }
+    },
+    {
+      "section": "C",
+      "name": "synthetic identity removed; torneos_identity has 0 rows",
+      "ok": true
+    },
+    {
+      "section": "D",
+      "name": "containers: torneos-db + torneos-rest only (no gateway in R2), certified image ids, internal network, loopback-only ports, mounts inside this worktree",
+      "ok": true,
+      "detail": {
+        "services": [
+          "torneos-db",
+          "torneos-rest"
+        ]
+      }
+    },
+    {
+      "section": "D",
+      "name": "from torneos-db: no Core service resolvable (core-db, core-auth, core-api, the Phase 3A/1.5/QA containers), internal DNS works for torneos-rest, NO default route, TCP connect to TEST-NET fails immediately (network unreachable — no packet leaves)",
+      "ok": true,
+      "detail": {
+        "core_hosts_unresolvable": true,
+        "default_routes": 0,
+        "egress": "network unreachable"
+      }
+    },
+    {
+      "section": "D",
+      "name": "database: extensions = {pg_stat_statements, pgcrypto, plpgsql, supabase_vault, uuid-ossp}; dblink/postgres_fdw/pg_net/http NOT installed; 0 foreign servers; 0 FK leaving public/private; 0 references to auth.* from Torneos functions; no Core monolith or Core contract objects",
+      "ok": true,
+      "detail": {
+        "extensions": [
+          "pg_stat_statements",
+          "pgcrypto",
+          "plpgsql",
+          "supabase_vault",
+          "uuid-ossp"
+        ],
+        "fk_total": 303,
+        "public_tables": 104,
+        "login_roles": [
+          "authenticator",
+          "postgres",
+          "supabase_admin",
+          "supabase_auth_admin",
+          "supabase_etl_admin",
+          "supabase_read_only_user",
+          "supabase_replication_admin",
+          "supabase_storage_admin",
+          "torneos_edge_core_adapter",
+          "torneos_edge_identity_writer"
+        ]
+      }
+    },
+    {
+      "section": "D",
+      "name": "runtime request guard: every HTTP request of this run went to 127.0.0.1:58430 (remote literals/imports are asserted offline by local.test.mjs)",
+      "ok": true,
+      "detail": {
+        "http_requests": 160,
+        "hosts": [
+          "127.0.0.1:58430"
+        ]
+      }
+    }
+  ]
+}

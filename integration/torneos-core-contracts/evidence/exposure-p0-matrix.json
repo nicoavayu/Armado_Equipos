@@ -1,4 +1,5 @@
 {
+  "gateway": "node",
   "function": "review_tournament_team_entry",
   "wrappers": [
     "approve_tournament_team_entry",

@@ -1,0 +1,60 @@
+{
+  "generated_at": "2026-09-15T17:19:43.775Z",
+  "tool": "integration/torneos-isolated-local/lab.mjs up",
+  "phase": "3B",
+  "step": "R2-local bootstrap",
+  "project": "arma2-torneos-isolated-local",
+  "target": {
+    "kind": "local docker compose",
+    "rest": "http://127.0.0.1:58430",
+    "gateway_port_reserved_for_R4": 58431,
+    "remote_requests": 0
+  },
+  "image": "public.ecr.aws/supabase/postgres:17.6.1.143",
+  "image_id": "sha256:80d7b27c3e8d77cfa7226eee9508671796da214781ff15a35b3670d7ad5ee453",
+  "postgrest_image": "public.ecr.aws/supabase/postgrest:v14.15",
+  "baseline_sha256": "f857bd0939054bc1a32a3855894b7b20e14a0c7456c9d5c8c5e8432e5b8ed19f",
+  "gate_sha256": "3df4b96eecc7321eaeda84a480f089fe4bff2b28c20aa4479db92caf33457e62",
+  "verify_sql_sha256": "7b8881ea6c8faafd3a949dd29895e42e61645e186206bb8b239a1e8b1666b7e0",
+  "expect_sha256": "2c0772c2bda3433e60a44c00b62a8ef79de976c205a7a88379c9e44dfdb81118",
+  "isolation_preflight": {
+    "findings": [],
+    "services_rendered": [
+      "torneos-db",
+      "torneos-rest"
+    ]
+  },
+  "preflight": {
+    "installer": "supabase_admin",
+    "server_version": "17.6",
+    "public_relations": 0,
+    "pgcrypto_available": 1,
+    "torneos_roles": 0,
+    "identity_table": false,
+    "db_host_ref": "postgres"
+  },
+  "install": {
+    "installer": "supabase_admin",
+    "baseline_bytes": 1860198,
+    "gate_bytes": 28092,
+    "post_install": "identical to phase3b/remote/bootstrap-torneos.sh (edge logins NOINHERIT, pgrst.db_pre_request=private.check_token, notify pgrst)",
+    "local_transport_only": "alter role authenticator password (PostgREST connection)"
+  },
+  "verification": null,
+  "verification_error": "ERROR:  relation \"cron.job\" does not exist",
+  "expectations": [],
+  "expectations_passed": 0,
+  "expectations_total": 16,
+  "catalog_hash": null,
+  "run": {
+    "stamp": "20260915T171938Z",
+    "started_at": "2026-09-15T17:19:38.150Z",
+    "fresh_volume": true
+  },
+  "ok": false,
+  "custody": {
+    "db_password": ".runtime/config.json (0600, gitignored; lab secret)",
+    "edge_logins": ".runtime/config.json",
+    "bridge_keys": ".runtime/config.json (p3b-k1 active, p3b-k2 standby); JWKS .runtime/public/jwks.json"
+  }
+}
