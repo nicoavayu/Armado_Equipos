@@ -179,6 +179,7 @@ export function assertRequestEnvelope({ method, path, body }) {
 export function httpsRequest({ pat, method, path, body }) {
   assertNoProduction('token', pat);
   const payload = assertRequestEnvelope({ method, path, body });
+  const started = Date.now();
   return new Promise((resolve, reject) => {
     const headers = { Authorization: `Bearer ${pat}`, Accept: 'application/json', 'User-Agent': 'arma2-torneos-phase3b-inventory/1' };
     if (payload !== null) { headers['Content-Type'] = 'application/json'; headers['Content-Length'] = Buffer.byteLength(payload); }
@@ -195,7 +196,8 @@ export function httpsRequest({ pat, method, path, body }) {
       });
     });
     req.setTimeout(CONNECT_TIMEOUT_MS, () => req.destroy(new Error('idle_timeout')));
-    req.on('error', (err) => reject(new AbortError(`request_failed_${err.message}`)));
+    // The failure line carries where and when (never the token): the shell runner persists it verbatim.
+    req.on('error', (err) => { const e = new AbortError(redact(`request_failed_${err.message}`)); e.detail = { method, path, code: err.code ?? null, elapsed_ms: Date.now() - started, idle_timeout_ms: CONNECT_TIMEOUT_MS }; reject(e); });
     if (payload !== null) req.write(payload);
     req.end();
   });
@@ -358,13 +360,16 @@ async function main() {
   let request;
   try { request = JSON.parse(stdin); } catch { process.stdout.write('{"ok":false,"error":"stdin_not_json"}\n'); process.exit(1); }
   if (request?.pat) registerSecret(request.pat);
-  const deadline = setTimeout(() => { process.stdout.write('{"ok":false,"error":"deadline_exceeded"}\n'); process.exit(1); }, DEADLINE_MS);
+  const startedAt = Date.now();
+  const deadline = setTimeout(() => { process.stdout.write(JSON.stringify({ ok: false, op: request?.op ?? null, error: 'deadline_exceeded', detail: { deadline_ms: DEADLINE_MS, elapsed_ms: Date.now() - startedAt } }) + '\n'); process.exit(1); }, DEADLINE_MS);
   deadline.unref?.();
   try {
     const result = await run(request);
+    clearTimeout(deadline);
     process.stdout.write(redact(JSON.stringify({ ok: true, op: request.op, ...result })) + '\n');
   } catch (error) {
-    process.stdout.write(redact(JSON.stringify({ ok: false, error: error?.message ?? 'error' })) + '\n');
+    clearTimeout(deadline);
+    process.stdout.write(redact(JSON.stringify({ ok: false, op: request?.op ?? null, error: error?.message ?? 'error', detail: error?.detail ?? null, elapsed_ms: Date.now() - startedAt })) + '\n');
     process.exit(1);
   }
 }

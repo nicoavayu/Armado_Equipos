@@ -8,6 +8,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { spawnSync } from 'node:child_process';
+import os from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { split, splitAndTrim } from './cli_parser.mjs';
 import * as C from './core-contract.mjs';
@@ -481,7 +482,7 @@ const idx = (s, needle) => { const i = s.indexOf(needle); assert.ok(i >= 0, `mis
 test('deploy-core-contract.sh: pins before PAT → read-only preflight → evidence → preflight-only/dry-run stops → HUMAN phrase → apply → secret state machine → deploy → signed harness → ACL → evidence', () => {
   const s = SRC('deploy-core-contract.sh');
   assert.equal(spawnSync('bash', ['-n', path.join(HERE, 'deploy-core-contract.sh')], { encoding: 'utf8' }).status, 0);
-  const order = ['step "0. pins', 'read_pat', 'step "1. PREFLIGHT', 'LEDGER_SHAPE_UNEXPECTED', 'cli_verdict.ok', 'r3-preflight-failed-$STAMP.json', 'canonical rows of Core staging not reproduced', 'SECRET_REMOTE_PRESENT_KEYCHAIN_ABSENT', 'r3-preflight-$STAMP.json', 'PHASE3B_R3_PREFLIGHT_ONLY_STOP', 'PHASE3B_CORE_CONTRACT_DRYRUN', 'step "HUMAN AUTHORIZATION"', 'APPLY R3 $CORE_REF', 'mgmt_write apply-core-contract ",\\"ref\\":\\"$CORE_REF\\",\\"repo\\":$(json_escape "$REPO")"', 'step "3. service secret', 'SECRET_ACTION="generated+stored+set"', 'SECRET_ACTION="reconciled-from-keychain"', 'SECRET_ACTION="reused-pending-probe"', 'step "4. deploy', 'DEP="$(mgmt_write deploy-function ",\\"ref\\":\\"$CORE_REF\\",\\"slug\\":\\"$SLUG\\",\\"repo\\":$(json_escape "$REPO")")"', 'step "5. signed harness', 'if [[ "$VERDICT" == "SECRET_MISMATCH" && "$SECRET_ACTION" == "reused-pending-probe" ]]', '\nunset CONTRACT_SECRET\n', 'SIGNED_HARNESS_PASS', 'step "6. ACL probe', 'aclFailures', 'core-contract-$STAMP.json', 'PHASE3B_CORE_CONTRACT_DEPLOYED'];
+  const order = ['node_json() {', 'jv() {', 'r3_failure_evidence() {', 'failure_detail() {', 'preflight_failed() {', 'stage_failed() {', 'preflight_stop_evidence() {', 'step "0. pins', 'read_pat', 'step "1. PREFLIGHT', 'LEDGER_SHAPE_UNEXPECTED', 'cli_verdict.ok', 'preflight_stop_evidence CLI_ROWS_NOT_REPRODUCED', 'canonical rows of Core staging not reproduced', 'SECRET_REMOTE_PRESENT_KEYCHAIN_ABSENT', 'r3-preflight-$STAMP.json', 'PHASE3B_R3_PREFLIGHT_ONLY_STOP', 'PHASE3B_CORE_CONTRACT_DRYRUN', 'step "HUMAN AUTHORIZATION"', 'APPLY R3 $CORE_REF', 'mgmt_write apply-core-contract ",\\"ref\\":\\"$CORE_REF\\",\\"repo\\":$(json_escape "$REPO")"', 'step "3. service secret', 'SECRET_ACTION="generated+stored+set"', 'SECRET_ACTION="reconciled-from-keychain"', 'SECRET_ACTION="reused-pending-probe"', 'step "4. deploy', 'DEP="$(mgmt_write deploy-function ",\\"ref\\":\\"$CORE_REF\\",\\"slug\\":\\"$SLUG\\",\\"repo\\":$(json_escape "$REPO")")"', 'step "5. signed harness', 'if [[ "$VERDICT" == "SECRET_MISMATCH" && "$SECRET_ACTION" == "reused-pending-probe" ]]', '\nunset CONTRACT_SECRET\n', 'SIGNED_HARNESS_PASS', 'step "6. ACL probe', 'aclFailures', 'core-contract-$STAMP.json', 'PHASE3B_CORE_CONTRACT_DEPLOYED'];
   let last = -1; for (const n of order) { const i = idx(s, n); assert.ok(i > last, `out of order: ${n}`); last = i; }
   assert.ok(idx(s, 'renderAll') < idx(s, 'read_pat'), 'pins verified before the PAT');
   assert.ok(idx(s, 'loadRollbackSql') < idx(s, 'read_pat'), 'rollback pin verified before the PAT');
@@ -493,20 +494,48 @@ test('deploy-core-contract.sh: pins before PAT → read-only preflight → evide
   assert.doesNotMatch(s, /unsigned_probe_status|must fail closed: 401\/403\/503/, 'the old 503-tolerant probe is gone');
   assert.match(s, /\[\[ "\$VERDICT" != "SIGNED_HARNESS_PASS" \]\]/);
   assert.match(s, /trap 'cleanup_secrets; unset CONTRACT_SECRET' EXIT INT TERM HUP/);
-  assert.match(s, /\[\[ "\$\(printf '%s' "\$FN_AFTER" \| json_field fn\.verify_jwt\)" == "false" \]\] \|\| abort/);
-  assert.match(s, /r3-failed-\$STAMP\.json/, 'a failed harness leaves failure evidence, never core-contract-*');
-  assert.match(s, /promote_evidence "\$TMP" "\$EVIDENCE_DIR\/r3-preflight-failed-\$STAMP\.json"/, 'a CLI-rows STOP persists the observed fingerprints before aborting');
-  assert.ok(idx(s, 'r3-preflight-failed-$STAMP.json') < idx(s, 'SECRET_REMOTE_PRESENT_KEYCHAIN_ABSENT'), 'the failed-preflight evidence is written inside the ledger gate');
-  // the later preflight STOPs (inconsistent contract/ledger state, secret on Core without Keychain) persist
-  // the observation too, before abort, with their own stop code; the helper carries no secret value
-  assert.equal((s.match(/promote_evidence "\$(TMP|tmp)" "\$EVIDENCE_DIR\/r3-preflight-failed-\$STAMP\.json" \|\| true/g) || []).length, 2, 'two writers of the failed-preflight evidence: the cli-rows gate + the shared helper for the later STOPs');
-  assert.match(s, /preflight_stop_evidence\(\) \{ # \$1=stop code \$2=detail \(JSON\)/);
+  assert.match(s, /\[\[ "\$\(printf '%s' "\$FN_AFTER" \| json_field fn\.verify_jwt\)" == "false" \]\] \|\| stage_failed "4\. deploy read-back"/);
+  assert.match(s, /r3-failed-\$STAMP\.json/, 'a failed stage leaves failure evidence, never core-contract-*');
+  // ONE writer for both evidence families (r3-preflight-failed-* before the phrase, r3-failed-* after it),
+  // defined before the first capture so that a read failure in step 1 is persisted too; read_only follows the family
+  assert.equal((s.match(/promote_evidence "\$tmp" "\$EVIDENCE_DIR\/\$1-\$STAMP\.json" \|\| true/g) || []).length, 1, 'one writer of the failure evidence');
+  assert.equal((s.match(/promote_evidence "\$(TMP|tmp)" "\$EVIDENCE_DIR\/r3-(preflight-)?failed-\$STAMP\.json"/g) || []).length, 0, 'no ad-hoc writer of the failure families remains');
+  assert.match(s, /preflight_stop_evidence\(\) \{ r3_failure_evidence r3-preflight-failed "\$1" "\$2"; \} # \$1=stop code \$2=detail \(JSON\)/);
   assert.match(s, /grep -q true && \{ preflight_stop_evidence CONTRACT_LEDGER_STATE_INCONSISTENT [^\n]*; abort "inconsistent contract\/ledger state/);
   assert.match(s, /\|\| \{ preflight_stop_evidence SECRET_REMOTE_PRESENT_KEYCHAIN_ABSENT "\{\\"secret_name\\":\\"\$SECRET_NAME\\",\\"remote\\":\\"PRESENT\\",\\"keychain\\":\\"\$KC_STATE\\"\}"; abort "SECRET_REMOTE_PRESENT_KEYCHAIN_ABSENT/);
-  assert.ok(idx(s, 'canonical rows of Core staging not reproduced') < idx(s, 'preflight_stop_evidence() {') && idx(s, 'preflight_stop_evidence() {') < idx(s, 'CONTRACT_LEDGER_STATE_INCONSISTENT'), 'helper defined after the cli-rows gate, before its first use');
-  const helper = s.slice(idx(s, 'preflight_stop_evidence() {'), idx(s, 'preflight_stop_evidence() {') + 1200);
-  assert.doesNotMatch(helper, /CONTRACT_SECRET|\$PAT|secret_names|keychain_read/, 'the stop evidence never carries a secret value or the secret inventory');
-  assert.match(helper, /"read_only":true/);
+  assert.ok(idx(s, 'r3_failure_evidence() {') < idx(s, 'step "0. pins') && idx(s, 'stage_failed() {') < idx(s, 'read_pat'), 'the failure helpers exist before any credential is read and before the first capture');
+  const helper = s.slice(idx(s, 'r3_failure_evidence() {'), idx(s, 'failure_detail() {'));
+  assert.doesNotMatch(helper, /CONTRACT_SECRET|\$PAT|SECRETS_NOW|secret_names|keychain_read|\bAFTER\b|\$SET\b/, 'the failure evidence never carries a secret value or the secret inventory');
+  assert.match(helper, /"read_only":%s/); assert.match(helper, /ro=true/);
+  for (const k of ['"stop":"%s"', '"failed_at":"%s"', '"detail":%s', '"pins":%s', '"ledger":%s', '"ledger_raw":%s', '"migrations":%s', '"deploy":%s', '"function":%s', '"probe":%s', '"acl_after":%s', '"acl_failures":%s', '"ledger_after":%s']) assert.ok(helper.includes(k), k);
+  assert.match(helper, /"\$\{KC_STATE:-unread\}" "\$\{REMOTE_SECRET:-unread\}"/, 'set -u safe: stages that never ran read as unread/null');
+  for (const fn of ['preflight_failed', 'stage_failed']) {
+    const body = s.slice(idx(s, `${fn}() {`), idx(s, `${fn}() {`) + 420);
+    assert.match(body, /out="\$\(redact_known "\$3"\)"/, `${fn}: the captured output is redacted before stderr and before the evidence`);
+    assert.match(body, /printf '%s\\n' "\$out" >&2/, `${fn}: the captured output reaches stderr`);
+    assert.match(body, /failure_detail "\$2" "\$out"/, `${fn}: exit code + output persisted`);
+    assert.ok(body.indexOf('>&2') < body.indexOf('r3_failure_evidence') && body.indexOf('r3_failure_evidence') < body.indexOf('abort "'), `${fn}: stderr → evidence → abort`);
+  }
+  // every capture that can fail is guarded ON ITS OWN LINE (a bare `X="$(…)"` under set -e dies in the assignment)
+  const lines = s.split('\n');
+  const captureStart = /^\s*[A-Z_]+="\$\((mgmt|mgmt_write|node|printf '%s' "\$[A-Z_]+" \| node|keychain_read|mktemp|gen_hex)\b/;
+  let open = null; const unguarded = []; let guarded = 0;
+  for (const l of lines) {
+    if (open === null) { if (!captureStart.test(l)) continue; open = l; }
+    if (/\)"( \|\| |;| *$)/.test(l) || /^\s*[A-Z_]+="\$\([^\n]*\)"/.test(l)) { const closing = l; if (/\)" \|\| (stage_failed|preflight_failed|abort)\b/.test(closing)) guarded++; else unguarded.push(open.slice(0, 60)); open = null; }
+  }
+  assert.deepEqual(unguarded, [], 'unguarded captures'); assert.equal(guarded, 23, `guarded captures: ${guarded}`);
+  for (const stage of ['"2. migrations"', '"3. secret generation"', '"3. keychain add"', '"3. keychain read"', '"3. set-secrets"', '"3. set-secrets verify"', '"4. deploy"', '"4. deploy read-back"', '"5. signed harness"', '"6. acl probe"', '"6. acl evaluation"', '"6. acl expectations"', '"6. ledger after"']) assert.ok(s.includes(`stage_failed ${stage}`), `stage ${stage}`);
+  for (const code of ['PROJECT_READ_FAILED', 'LEDGER_READ_FAILED', 'LEDGER_EVAL_FAILED', 'SECRET_NAMES_READ_FAILED', 'FUNCTION_READ_FAILED', 'ACL_READ_FAILED', 'DRYRUN_APPLY_FAILED', 'DRYRUN_DEPLOY_FAILED']) assert.ok(s.includes(`preflight_failed ${code}`), `stop code ${code}`);
+  assert.doesNotMatch(s, /nothing partially applied/, 'a failed apply POST is NOT claimed to be side-effect free: the server may have committed (idle_timeout) — re-observe');
+  assert.match(s, /verify with --preflight-only before any re-run/);
+  assert.match(s, /\|\| VERDICT="PROBE_OUTPUT_NOT_JSON"/, 'a non-JSON probe output is a verdict, not a silent death');
+  // the secret-names inventory (AFTER, SECRETS_NOW) may be handed over ONLY on its own failed capture line
+  // (`"$?"`: node exited non-zero → the variable holds the {"ok":false} line, never the inventory); a secret value never
+  assert.doesNotMatch(s, /(stage_failed|preflight_failed) [A-Z_"0-9. -]+ 1 "\$(AFTER|SECRETS_NOW)"/, 'the inventory is never persisted from a later check');
+  assert.doesNotMatch(s, /(stage_failed|preflight_failed) [^;\n]*"\$CONTRACT_SECRET"/, 'a secret value is never captured output');
+  assert.match(s, /stage_failed "3\. set-secrets verify" 1 "" "set-secrets did not take effect/);
+  assert.match(s, /preflight_failed SECRET_NAMES_READ_FAILED 1 "" "secret names read failed/);
   assert.doesNotMatch(s, /CLI_MATCHED" -ge 1/, 'no loose cardinality: the verdict fixes 7 reproduced + 2 legacy exactly');
   assert.doesNotMatch(s, /rollback-core-contract\.sh"?\s*$/m, 'the rollback is never executed by the apply runner');
 });
@@ -580,4 +609,219 @@ test('summarize_r3: a dry-run, a 503/404 probe, a missing ledger row or an ACL f
   assert.equal(py({ ...evidenceOk, core_ref: PROD })[0], false);
   // the legacy evidence shape (unsigned_probe_status 503) is never accepted
   assert.deepEqual(py({ generated_at: 'x', core_ref: CORE, mode: 'apply', unsigned_probe_status: '503', migrations: [] }), [false, false, false]);
+});
+
+// ───────────────────────── capture contract: the silent failure of 2026-09-17T17:08Z ─────────────────────────
+// The runner's own helper block (node_json … preflight_stop_evidence) is executed by bash 3.2 with lib.sh sourced,
+// mgmt/mgmt_write stubbed, EVIDENCE_DIR in a temp dir. No tty, no network, no Keychain.
+const RUNNER_SRC = SRC('deploy-core-contract.sh');
+const HELPERS = RUNNER_SRC.slice(idx(RUNNER_SRC, 'node_json() {'), idx(RUNNER_SRC, '\nstep "0. pins'));
+const FAKE_PAT = 'sbp_TESTPATTESTPATTESTPATTESTPAT01';
+function runHarness(body, { stamp = '20990101T000000Z', mode = 'apply' } = {}) {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'r3-capture-'));
+  const script = `set -euo pipefail
+source ${JSON.stringify(path.join(HERE, 'lib.sh'))}
+EVIDENCE_DIR=${JSON.stringify(dir)}; MODE=${JSON.stringify(mode)}; CORE_REF=${JSON.stringify(CORE)}; STAMP=${JSON.stringify(stamp)}
+SECRETS_KNOWN+=(${JSON.stringify(FAKE_PAT)}); SECRETS_KNOWN+=(${JSON.stringify(SECRET)})
+${HELPERS}
+${body}
+`;
+  const r = spawnSync('bash', ['-c', script], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], timeout: 30000 });
+  const files = fs.readdirSync(dir).filter((f) => !f.startsWith('.'));
+  const evidence = Object.fromEntries(files.map((f) => [f, JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8'))]));
+  const raw = Object.fromEntries(files.map((f) => [f, fs.readFileSync(path.join(dir, f), 'utf8')]));
+  fs.rmSync(dir, { recursive: true, force: true });
+  return { status: r.status, stdout: r.stdout, stderr: r.stderr, files, evidence, raw };
+}
+const STUB_FAIL = (fn, out, rc = 1) => `${fn}() { printf '%s\\n' ${JSON.stringify(out)}; return ${rc}; }`;
+const ERR_APPLY = '{"ok":false,"op":"apply-core-contract","error":"apply_status_500_20260914120000_torneos_core_contract_v1.sql_boom","detail":{"phase":"apply","version":"20260914120000","status":500,"elapsed_ms":812},"elapsed_ms":2210}';
+
+test('capture contract: the OLD pattern reproduces the silent failure — EXIT 1, empty stderr, no evidence, the error JSON lost', () => {
+  const r = runHarness(`${STUB_FAIL('mgmt_write', ERR_APPLY)}
+PINS='{"migrations":[]}'
+MIG="$(mgmt_write apply-core-contract ",\\"ref\\":\\"$CORE_REF\\"")"
+printf '%s\\n' "$MIG" >&2; abort "migrations failed (nothing partially applied: each version is one transaction)"`);
+  assert.equal(r.status, 1);
+  assert.equal(r.stderr, '', 'nothing reaches stderr: the shell died in the assignment');
+  assert.equal(r.stdout, '');
+  assert.deepEqual(r.files, [], 'no evidence file');
+});
+
+test('capture contract: the fixed pattern preserves the error JSON, the exit code and writes r3-failed-* from step 2', () => {
+  const r = runHarness(`${STUB_FAIL('mgmt_write', ERR_APPLY)}
+PINS='{"migrations":[{"version":"20260914120000"}]}'; PROJ='{"ok":true,"project":{"id":"${CORE}","name":"arma2-torneos-staging"}}'; KC_STATE=ABSENT; REMOTE_SECRET=absent
+LEDGER_EVAL='{"versions":[{"version":"20260914120000","decision":"apply"}]}'; LEDGER='{"ok":true,"shape":{"x":1},"rows":[],"installed":{"20260914120000":{"installed":false}},"all_versions":[]}'
+MIG="$(mgmt_write apply-core-contract ",\\"ref\\":\\"$CORE_REF\\"")" || stage_failed "2. migrations" "$?" "$MIG" "migrations failed"
+printf 'NOT_REACHED\\n'`);
+  assert.equal(r.status, 1);
+  assert.doesNotMatch(r.stdout, /NOT_REACHED/);
+  assert.ok(r.stderr.includes(ERR_APPLY), 'the error JSON reaches stderr verbatim');
+  assert.match(r.stderr, /!! ABORT: migrations failed \(stage: 2\. migrations, exit 1; evidence r3-failed-20990101T000000Z\.json\)/);
+  assert.deepEqual(r.files, ['r3-failed-20990101T000000Z.json']);
+  assert.match(r.stdout, /EVIDENCE .*r3-failed-20990101T000000Z\.json\n[0-9a-f]{64}  /);
+  const e = r.evidence['r3-failed-20990101T000000Z.json'];
+  assert.equal(e.mode, 'apply'); assert.equal(e.read_only, false); assert.equal(e.core_ref, CORE);
+  assert.equal(e.stop, '2. migrations'); assert.equal(e.failed_at, '2. migrations');
+  assert.deepEqual(e.detail, { exit_code: 1, output: JSON.parse(ERR_APPLY) });
+  assert.equal(e.detail.output.detail.phase, 'apply'); assert.equal(e.detail.output.detail.elapsed_ms, 812);
+  assert.deepEqual(e.project, { id: CORE, name: 'arma2-torneos-staging' });
+  assert.deepEqual(e.pins, { migrations: [{ version: '20260914120000' }] });
+  assert.equal(e.keychain, 'ABSENT'); assert.equal(e.remote_secret, 'absent'); assert.equal(e.secret_action, null);
+  assert.deepEqual(e.ledger, { versions: [{ version: '20260914120000', decision: 'apply' }] });
+  assert.deepEqual(e.ledger_raw, { shape: { x: 1 }, rows: [], installed: { '20260914120000': { installed: false } }, all_versions: [] });
+  // stages that never ran are null, not missing and not a set -u crash
+  for (const k of ['migrations', 'deploy', 'function', 'probe', 'acl_after', 'acl_failures', 'ledger_after', 'function_before', 'acl_before']) { assert.ok(k in e, k); assert.equal(e[k], null, k); }
+  assert.doesNotMatch(r.raw['r3-failed-20990101T000000Z.json'], /sbp_|secret_names/);
+});
+
+test('capture contract: a stage that exits 0 with {"ok":false} is caught by the second line, exit code 1 recorded', () => {
+  const r = runHarness(`${STUB_FAIL('mgmt', '{"ok":false,"error":"project_status_503"}', 0)}
+PINS='{}'
+PROJ="$(mgmt project ",\\"ref\\":\\"$CORE_REF\\"")" || preflight_failed PROJECT_READ_FAILED "$?" "$PROJ" "project read failed"
+printf '%s' "$PROJ" | json_field ok | grep -q true || preflight_failed PROJECT_READ_FAILED 1 "$PROJ" "project read failed"
+printf 'NOT_REACHED\\n'`, { mode: '--preflight-only' });
+  assert.equal(r.status, 1); assert.doesNotMatch(r.stdout, /NOT_REACHED/);
+  assert.match(r.stderr, /project_status_503/); assert.match(r.stderr, /!! ABORT: project read failed \(exit 1; evidence r3-preflight-failed-20990101T000000Z\.json\)/);
+  const e = r.evidence['r3-preflight-failed-20990101T000000Z.json'];
+  assert.equal(e.read_only, true); assert.equal(e.mode, '--preflight-only'); assert.equal(e.stop, 'PROJECT_READ_FAILED');
+  assert.deepEqual(e.detail, { exit_code: 1, output: { ok: false, error: 'project_status_503' } });
+  assert.equal(e.project, null, 'an error line has no .project → null, never a broken template');
+  assert.equal(e.keychain, 'unread'); assert.equal(e.remote_secret, 'unread'); assert.equal(e.ledger, null); assert.equal(e.ledger_raw, null);
+  assert.doesNotMatch(r.raw['r3-preflight-failed-20990101T000000Z.json'], /secret_names|sbp_/);
+});
+
+test('capture contract: a failure at the ACL stage (step 6) carries every earlier stage — migrations, deploy, function, probe, secret action', () => {
+  const MIGS = '{"ok":true,"op":"apply-core-contract","migrations":[{"version":"20260914120000","decision":"apply","applied":true,"installed_after":true,"ledger_after":"ours","apply_status":201,"apply_elapsed_ms":1543},{"version":"20260915120000","decision":"apply","applied":true,"installed_after":true,"ledger_after":"ours","apply_status":201,"apply_elapsed_ms":402}]}';
+  const ERR_ACL = '{"ok":false,"op":"core-contract-acl","error":"request_failed_idle_timeout","detail":{"method":"POST","path":"/v1/projects/' + CORE + '/database/query","code":null,"elapsed_ms":20004,"idle_timeout_ms":20000},"elapsed_ms":20010}';
+  const r = runHarness(`${STUB_FAIL('mgmt', ERR_ACL)}
+PINS='{"p":1}'; PROJ='{"ok":true,"project":{"id":"${CORE}"}}'; KC_STATE=PRESENT; REMOTE_SECRET=PRESENT; SECRET_ACTION="generated+stored+set"
+MIG='${MIGS}'; DEP='{"ok":true,"op":"deploy-function","deployed":"torneos-core-contract","files":[{"path":"a.ts","sha256":"aa"}]}'
+FN_NOW='{"ok":true,"present":false,"fn":null}'; FN_AFTER='{"ok":true,"present":true,"fn":{"slug":"torneos-core-contract","status":"ACTIVE","verify_jwt":false,"ezbr_sha256":"ee"}}'
+PROBE_OUT='{"ok":true,"verdict":"SIGNED_HARNESS_PASS","checks":[{"name":"unsigned","ok":true}]}'; ACL_BEFORE='{"ok":true,"acl":{"functions":[]}}'
+ACL_AFTER="$(mgmt core-contract-acl ",\\"ref\\":\\"$CORE_REF\\"")" || stage_failed "6. acl probe" "$?" "$ACL_AFTER" "acl read failed"
+printf 'NOT_REACHED\\n'`);
+  assert.equal(r.status, 1); assert.doesNotMatch(r.stdout, /NOT_REACHED/);
+  assert.ok(r.stderr.includes(ERR_ACL)); assert.match(r.stderr, /!! ABORT: acl read failed \(stage: 6\. acl probe, exit 1; evidence r3-failed-20990101T000000Z\.json\)/);
+  const e = r.evidence['r3-failed-20990101T000000Z.json'];
+  assert.equal(e.failed_at, '6. acl probe');
+  assert.equal(e.detail.output.detail.idle_timeout_ms, 20000); assert.equal(e.detail.output.detail.elapsed_ms, 20004);
+  assert.deepEqual(e.migrations, JSON.parse(MIGS).migrations);
+  assert.equal(e.migrations[0].apply_elapsed_ms, 1543);
+  assert.equal(e.deploy.deployed, 'torneos-core-contract'); assert.deepEqual(e.function, { slug: 'torneos-core-contract', status: 'ACTIVE', verify_jwt: false, ezbr_sha256: 'ee' });
+  assert.equal(e.probe.verdict, 'SIGNED_HARNESS_PASS'); assert.equal(e.secret_action, 'generated+stored+set');
+  assert.equal(e.keychain, 'PRESENT'); assert.equal(e.remote_secret, 'PRESENT');
+  assert.deepEqual(e.function_before, { ok: true, present: false, fn: null }); assert.deepEqual(e.acl_before, { functions: [] });
+  assert.equal(e.acl_after, null); assert.equal(e.acl_failures, null); assert.equal(e.ledger_after, null);
+});
+
+test('capture contract: ACL expectations not met and a non-JSON captured output are persisted as text; ledger_after read', () => {
+  const r = runHarness(`ACL_FAILS='["public.torneos_contract_execute(text,text,jsonb): execute anon=true expected false"]'
+ACL_AFTER='{"ok":true,"acl":{"functions":[{"signature":"f","execute":{"anon":true}}]}}'; MIG='{"ok":true,"migrations":[]}'; PINS='{}'
+LEDGER_AFTER='not json at all
+second line'
+[[ "$ACL_FAILS" == "[]" ]] || { printf '  %s\\n' "$ACL_FAILS"; stage_failed "6. acl expectations" 1 "$ACL_FAILS" "ACL expectations not met — NOT deployed"; }
+printf 'NOT_REACHED\\n'`);
+  assert.equal(r.status, 1);
+  const e = r.evidence['r3-failed-20990101T000000Z.json'];
+  assert.equal(e.failed_at, '6. acl expectations');
+  assert.deepEqual(e.acl_failures, ['public.torneos_contract_execute(text,text,jsonb): execute anon=true expected false']);
+  assert.deepEqual(e.detail.output, ['public.torneos_contract_execute(text,text,jsonb): execute anon=true expected false']);
+  assert.deepEqual(e.acl_after, { functions: [{ signature: 'f', execute: { anon: true } }] });
+  assert.equal(e.ledger_after, 'not json at all\nsecond line', 'a non-JSON value is kept as a string, never dropped');
+  assert.deepEqual(e.migrations, []);
+});
+
+test('capture contract: a known secret in the captured output is redacted on stderr and in the evidence (pure bash, before promote_evidence)', () => {
+  const leak = `{"ok":false,"error":"set_secrets_status_400_echo ${SECRET} token ${FAKE_PAT}"}`;
+  const r = runHarness(`${STUB_FAIL('mgmt_write', leak)}
+PINS='{}'; MIG='{"ok":true,"migrations":[]}'; SECRET_ACTION="generated+stored+set"
+SET="$(mgmt_write set-secrets)" || stage_failed "3. set-secrets" "$?" "$SET" "set-secrets failed"
+printf 'NOT_REACHED\\n'`);
+  assert.equal(r.status, 1);
+  assert.doesNotMatch(r.stderr, new RegExp(SECRET)); assert.doesNotMatch(r.stderr, /sbp_TESTPAT/);
+  assert.match(r.stderr, /set_secrets_status_400_echo «REDACTED» token «REDACTED»/);
+  assert.match(r.stderr, /!! ABORT: set-secrets failed \(stage: 3\. set-secrets, exit 1/);
+  assert.deepEqual(r.files, ['r3-failed-20990101T000000Z.json'], 'the redacted evidence passes promote_evidence');
+  const raw = r.raw['r3-failed-20990101T000000Z.json'];
+  assert.doesNotMatch(raw, new RegExp(SECRET)); assert.doesNotMatch(raw, /sbp_TESTPAT/); assert.match(raw, /«REDACTED» token «REDACTED»/);
+  assert.equal(r.evidence['r3-failed-20990101T000000Z.json'].detail.output.error, 'set_secrets_status_400_echo «REDACTED» token «REDACTED»');
+});
+
+test('capture contract: when the evidence cannot be promoted (same-second stamp) the error still reached stderr first', () => {
+  const r = runHarness(`${STUB_FAIL('mgmt_write', ERR_APPLY)}
+PINS='{}'
+printf '{}' > "$EVIDENCE_DIR/r3-failed-$STAMP.json"
+MIG="$(mgmt_write apply-core-contract)" || stage_failed "2. migrations" "$?" "$MIG" "migrations failed"
+printf 'NOT_REACHED\\n'`);
+  assert.equal(r.status, 1); assert.doesNotMatch(r.stdout, /NOT_REACHED/);
+  assert.ok(r.stderr.includes(ERR_APPLY)); assert.match(r.stderr, /EVIDENCE_EXISTS/);
+});
+
+test('capture contract: jv — unset → null, JSON → value, field path, non-JSON → string; under set -u', () => {
+  const r = runHarness(`unset MAYBE || true
+A='{"x":{"y":[1,2]},"z":"s"}'; B='plain text'; C=''
+printf '%s|%s|%s|%s|%s|%s|%s\\n' "$(jv MAYBE)" "$(jv A)" "$(jv A x.y)" "$(jv A z)" "$(jv A nope)" "$(jv B)" "$(jv C)"`);
+  assert.equal(r.status, 0, r.stderr);
+  assert.equal(r.stdout, 'null|{"x":{"y":[1,2]},"z":"s"}|[1,2]|"s"|null|"plain text"|null\n');
+});
+
+test('lib.sh: redact_known replaces every known secret (≥ 8 chars) without any process seeing it in argv', () => {
+  const r = spawnSync('bash', ['-c', `set -euo pipefail; source ${JSON.stringify(path.join(HERE, 'lib.sh'))}; SECRETS_KNOWN=(${JSON.stringify(FAKE_PAT)} "ab" ${JSON.stringify(SECRET)}); redact_known "a ${FAKE_PAT} b ${SECRET} c ab d"`], { encoding: 'utf8' });
+  assert.equal(r.status, 0); assert.equal(r.stdout, 'a «REDACTED» b «REDACTED» c ab d');
+  assert.match(SRC('lib.sh'), /out="\$\{out\/\/"\$s"\/«REDACTED»\}"/, 'pure bash substitution');
+});
+
+// ───────────────────────── mgmt-write: failure detail (phase, version, status, elapsed_ms) ─────────────────────────
+test('mgmt-write: a failed apply POST carries phase/version/status/elapsed_ms and says the server state must be re-observed', async () => {
+  const f = fakeCore(fresh({ failWrite: true }));
+  const t = async (req) => { const res = await f.transport(req); return req.body?.read_only ? res : { ...res, elapsed_ms: 777 }; };
+  let caught; try { await runWrite({ op: 'apply-core-contract', pat: PAT, ref: CORE, repo: REPO }, t); } catch (e) { caught = e; }
+  assert.ok(caught instanceof AbortError); assert.match(caught.message, /apply_status_400/);
+  assert.deepEqual(caught.detail, { phase: 'apply', version: '20260914120000', query_bytes: V1.apply_sql_bytes, server_state_after_failure: 'UNKNOWN_reobserve_with_preflight_only', status: 400, elapsed_ms: 777 });
+  assert.equal(f.state.writes.length, 1);
+  // a transport failure (idle_timeout / reset) on the write: the transport's own detail is kept and tagged with the phase
+  const g = fakeCore(fresh());
+  const cut = async (req) => { if (req.method === 'POST' && !req.body?.read_only) { const e = new AbortError('request_failed_idle_timeout'); e.detail = { method: 'POST', path: req.reqPath, code: null, elapsed_ms: 20003, idle_timeout_ms: 20000, body_bytes: 33960 }; throw e; } return g.transport(req); };
+  let cutErr; try { await runWrite({ op: 'apply-core-contract', pat: PAT, ref: CORE, repo: REPO }, cut); } catch (e) { cutErr = e; }
+  assert.match(cutErr.message, /request_failed_idle_timeout/);
+  assert.deepEqual(cutErr.detail, { phase: 'apply', version: '20260914120000', query_bytes: V1.apply_sql_bytes, server_state_after_failure: 'UNKNOWN_reobserve_with_preflight_only', method: 'POST', path: `/v1/projects/${CORE}/database/query`, code: null, elapsed_ms: 20003, idle_timeout_ms: 20000, body_bytes: 33960 });
+  assert.equal(g.state.writes.length, 0, 'the fake never received the document: nothing was simulated as applied');
+  // post-apply checks name their phase and keep the apply status/elapsed
+  const h = fakeCore(fresh());
+  const ghost = async (req) => { const res = await h.transport(req); if (req.method === 'POST' && !req.body?.read_only) { h.state.installed.v1 = false; return { ...res, elapsed_ms: 1500 }; } return res; };
+  let ghostErr; try { await runWrite({ op: 'apply-core-contract', pat: PAT, ref: CORE, repo: REPO }, ghost); } catch (e) { ghostErr = e; }
+  assert.match(ghostErr.message, /apply_not_effective_20260914120000/);
+  assert.deepEqual(ghostErr.detail, { phase: 'post-apply', version: '20260914120000', apply_status: 201, apply_elapsed_ms: 1500, installed_after: false, ledger_after: 'ours' });
+  // probes name their phase too; STOP decisions carry the observed pair
+  const p = fakeCore(fresh()); const probeFail = async (req) => (req.body?.query === C.MIGRATIONS[0].probe ? { status: 500, body: null, raw: 'db down', elapsed_ms: 12 } : p.transport(req));
+  let probeErr; try { await runWrite({ op: 'apply-core-contract', pat: PAT, ref: CORE, repo: REPO }, probeFail); } catch (e) { probeErr = e; }
+  assert.match(probeErr.message, /probe_status_500_db down/); assert.deepEqual(probeErr.detail, { phase: 'probe-before', version: '20260914120000', status: 500, elapsed_ms: 12 });
+  let stopErr; try { await runWrite({ op: 'apply-core-contract', pat: PAT, ref: CORE, repo: REPO }, fakeCore(fresh({ installed: { v1: true, v11: false }, ledger: { '20260914120000': 'foreign' } })).transport); } catch (e) { stopErr = e; }
+  assert.deepEqual(stopErr.detail, { phase: 'decision', version: '20260914120000', installed_before: true, ledger_before: 'foreign' });
+  // the success entries record the apply status and the measured time of the write
+  const ok = fakeCore(fresh()); const timed = async (req) => { const res = await ok.transport(req); return req.body?.read_only ? res : { ...res, elapsed_ms: 1234 }; };
+  const out = await runWrite({ op: 'apply-core-contract', pat: PAT, ref: CORE, repo: REPO }, timed);
+  assert.deepEqual(out.migrations.map((m) => [m.applied, m.apply_status, m.apply_elapsed_ms]), [[true, 201, 1234], [true, 201, 1234]]);
+  const dry = await runWrite({ op: 'apply-core-contract', pat: PAT, ref: CORE, repo: REPO, dryRun: true }, fakeCore(fresh()).transport);
+  assert.ok(dry.migrations.every((m) => m.dry_run === true && !('apply_status' in m)));
+});
+
+test('mgmt-write / mgmt CLI: the failure line is one JSON with op, error, detail and elapsed_ms; exit 1; no network needed', () => {
+  const w = spawnSync(process.execPath, [path.join(HERE, 'mgmt-write.mjs')], { input: JSON.stringify({ op: 'apply-core-contract', pat: PAT, ref: 'abcdefghijabcdefghij', repo: REPO }), encoding: 'utf8', timeout: 20000 });
+  assert.equal(w.status, 1);
+  const lines = w.stdout.trim().split('\n'); assert.equal(lines.length, 1, 'exactly one line');
+  const j = JSON.parse(lines[0]);
+  assert.equal(j.ok, false); assert.equal(j.op, 'apply-core-contract'); assert.match(j.error, /target_not_core_staging/); assert.equal(j.detail, null); assert.equal(typeof j.elapsed_ms, 'number');
+  assert.doesNotMatch(w.stdout, /sbp_0123/);
+  const r = spawnSync(process.execPath, [path.join(HERE, 'mgmt.mjs')], { input: JSON.stringify({ op: 'core-ledger', pat: PAT, ref: PROD }), encoding: 'utf8', timeout: 20000 });
+  assert.equal(r.status, 1);
+  const k = JSON.parse(r.stdout.trim()); assert.equal(k.ok, false); assert.equal(k.op, 'core-ledger'); assert.match(k.error, /ref_is_production/); assert.equal(k.detail, null); assert.equal(typeof k.elapsed_ms, 'number');
+  for (const f of ['mgmt.mjs', 'mgmt-write.mjs']) {
+    const src = SRC(f);
+    assert.match(src, /e\.detail = \{ method, path(: reqPath)?, code: err\.code \?\? null, elapsed_ms: Date\.now\(\) - started, idle_timeout_ms: CONNECT_TIMEOUT_MS/, `${f}: transport failures carry where/when`);
+    assert.match(src, /clearTimeout\(deadline\)/, `${f}: the deadline never races a written line`);
+    assert.doesNotMatch(src.slice(src.indexOf('e.detail = {'), src.indexOf('e.detail = {') + 200), /\bpat\b|Authorization|\bbody\b(?!_bytes)/, `${f}: the detail never carries the token or the body`);
+  }
+  assert.equal(SRC('mgmt-write.mjs').match(/const CONNECT_TIMEOUT_MS = (\d+);/)[1], '20000', 'idle timeout unchanged (no evidence yet to change it)');
+  assert.equal(SRC('mgmt-write.mjs').match(/const DEADLINE_MS = (\d+);/)[1], '180000');
 });

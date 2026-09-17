@@ -28,9 +28,17 @@ import { pathToFileURL } from 'node:url';
 import { PROD_REF, API_HOST, PAT_PATTERN, REF_PATTERN, ORG_SLUG_PATTERN, AbortError, assertNoProduction, assertNonProductionRef, redact, registerSecret, projectFunction, projectProject, assertReadOnlySql } from './mgmt.mjs';
 import { MIGRATIONS as CONTRACT_MIGRATIONS, renderAll, ledgerInsertSql, ledgerRowsSql, LEDGER_SHAPE_SQL, ledgerShapeDiff, CORE_REF } from './core-contract.mjs';
 
+// Socket idle timeout (no byte in either direction for this long → the request is destroyed; the
+// server may still be executing) and the whole-process deadline. Observed 2026-09-17T17:08Z: the
+// APPLY was cut < 106 s after the phrase with its error lost by the shell; the next failure carries
+// `detail` (phase, version, status, elapsed_ms, code) so the timeout question can be answered from
+// evidence instead of being guessed. The values themselves are unchanged.
 const CONNECT_TIMEOUT_MS = 20000;
 const DEADLINE_MS = 180000;
-function fail(error) { throw new AbortError(redact(error)); }
+/** Every refusal is an AbortError; `detail` (optional, never a secret) travels to the {"ok":false} line. */
+function fail(error, detail) { const e = new AbortError(redact(error)); if (detail !== undefined) e.detail = detail; throw e; }
+/** Re-throw with the apply phase/version attached when the transport failed without one. */
+function tagged(error, tag) { if (error instanceof AbortError && error.detail && typeof error.detail === 'object' && !('phase' in error.detail)) error.detail = { ...tag, ...error.detail }; else if (error instanceof AbortError && !error.detail) error.detail = { ...tag }; return error; }
 
 export const ALLOWED_REGIONS = new Set(['us-east-1', 'us-east-2', 'us-west-1', 'us-west-2', 'sa-east-1', 'eu-west-1', 'eu-west-2', 'eu-central-1']);
 // The name must carry a non-production marker as a whole dash-separated label anywhere after
@@ -65,6 +73,7 @@ export function httpsRequest({ pat, method, reqPath, body, contentType = 'applic
   assertWritePath(method, reqPath);
   const payload = body === undefined ? null : (Buffer.isBuffer(body) ? body : Buffer.from(JSON.stringify(body)));
   if (payload !== null) assertNoProduction('body', payload.toString('latin1'));
+  const started = Date.now();
   return new Promise((resolve, reject) => {
     const headers = { Authorization: `Bearer ${pat}`, Accept: 'application/json', 'User-Agent': 'arma2-torneos-phase3b-bootstrap/1' };
     if (payload !== null) { headers['Content-Type'] = contentType; headers['Content-Length'] = payload.length; }
@@ -75,11 +84,11 @@ export function httpsRequest({ pat, method, reqPath, body, contentType = 'applic
       res.on('end', () => {
         const text = Buffer.concat(chunks).toString('utf8');
         let parsed = null; try { parsed = text ? JSON.parse(text) : null; } catch { parsed = null; }
-        resolve({ status: res.statusCode, body: parsed, raw: text });
+        resolve({ status: res.statusCode, body: parsed, raw: text, elapsed_ms: Date.now() - started });
       });
     });
     req.setTimeout(CONNECT_TIMEOUT_MS, () => req.destroy(new Error('idle_timeout')));
-    req.on('error', (err) => reject(new AbortError(`request_failed_${err.message}`)));
+    req.on('error', (err) => { const e = new AbortError(redact(`request_failed_${err.message}`)); e.detail = { method, path: reqPath, code: err.code ?? null, elapsed_ms: Date.now() - started, idle_timeout_ms: CONNECT_TIMEOUT_MS, body_bytes: payload === null ? 0 : payload.length }; reject(e); });
     if (payload !== null) req.write(payload);
     req.end();
   });
@@ -213,10 +222,11 @@ export async function opThirdPartyAuth(transport, pat, { ref, jwks, issuer }) {
 // file can send is the rendered apply document of each version (file bytes + ledger INSERT, one
 // transaction) or the ledger INSERT alone (reconciliation). Target: Core staging only.
 export const CORE_CONTRACT_MIGRATIONS = CONTRACT_MIGRATIONS;
-async function readRows(transport, pat, ref, query) {
+async function readRows(transport, pat, ref, query, tag = {}) {
   assertReadOnlySql(query);
-  const res = await transport({ pat, method: 'POST', reqPath: `/v1/projects/${ref}/database/query`, body: { query, read_only: true } });
-  if (res.status !== 200 && res.status !== 201) fail(`probe_status_${res.status}_${(res.raw ?? '').slice(0, 120)}`);
+  let res;
+  try { res = await transport({ pat, method: 'POST', reqPath: `/v1/projects/${ref}/database/query`, body: { query, read_only: true } }); } catch (error) { throw tagged(error, tag); }
+  if (res.status !== 200 && res.status !== 201) fail(`probe_status_${res.status}_${(res.raw ?? '').slice(0, 120)}`, { ...tag, status: res.status, elapsed_ms: res.elapsed_ms ?? null });
   return Array.isArray(res.body) ? res.body : (res.body?.result ?? []);
 }
 /** absent | ours | foreign — what the ledger says about one version, by statements digest. */
@@ -238,26 +248,32 @@ export async function opApplyCoreContract(transport, pat, { ref, repo, dryRun })
   if (ref !== CORE_REF) fail('apply_core_contract_target_not_core_staging__ABORT');
   const rendered = renderAll(repo); // pins: migration bytes, ledger rows, apply SQL
   // Ledger shape gate (strategy A requires the hosted shape observed 2026-08-07).
-  const shape = (await readRows(transport, pat, ref, LEDGER_SHAPE_SQL))[0]?.shape ?? null;
+  const shape = (await readRows(transport, pat, ref, LEDGER_SHAPE_SQL, { phase: 'ledger-shape' }))[0]?.shape ?? null;
   const shapeDiff = ledgerShapeDiff(shape);
-  if (shapeDiff.length) fail(`ledger_shape_unexpected__${shapeDiff.join(' | ').slice(0, 300)}__ABORT`);
+  if (shapeDiff.length) fail(`ledger_shape_unexpected__${shapeDiff.join(' | ').slice(0, 300)}__ABORT`, { phase: 'ledger-shape' });
   const applied = [];
   for (const m of rendered) {
-    const installedBefore = (await readRows(transport, pat, ref, m.probe))[0]?.installed === true;
-    const ledgerBefore = ledgerState(await readRows(transport, pat, ref, ledgerRowsSql([m.version])), m);
+    const installedBefore = (await readRows(transport, pat, ref, m.probe, { phase: 'probe-before', version: m.version }))[0]?.installed === true;
+    const ledgerBefore = ledgerState(await readRows(transport, pat, ref, ledgerRowsSql([m.version]), { phase: 'ledger-before', version: m.version }), m);
     const decision = applyDecision(installedBefore, ledgerBefore);
     const entry = { version: m.version, file: m.file, sha256: m.migration_sha256, apply_sql_sha256: m.apply_sql_sha256, apply_sql_bytes: m.apply_sql_bytes, ledger: { name: m.name, statements_count: m.row.statements_count, statements_digest: m.row.statements_digest, statements_bytes: m.row.statements_bytes }, installed_before: installedBefore, ledger_before: ledgerBefore, decision };
-    if (decision.startsWith('STOP:')) fail(`${decision.slice(5)}_${m.version}__ABORT`);
+    if (decision.startsWith('STOP:')) fail(`${decision.slice(5)}_${m.version}__ABORT`, { phase: 'decision', version: m.version, installed_before: installedBefore, ledger_before: ledgerBefore });
     if (decision === 'skip') { applied.push({ ...entry, applied: false, installed_after: true, ledger_after: 'ours' }); continue; }
     if (dryRun === true) { applied.push({ ...entry, applied: false, dry_run: true }); continue; }
     const query = decision === 'apply' ? m.apply_sql : `begin;\n${ledgerInsertSql(m.row)}\ncommit;\n`;
-    const res = await transport({ pat, method: 'POST', reqPath: `/v1/projects/${ref}/database/query`, body: { query } });
-    if (res.status !== 200 && res.status !== 201) fail(`apply_status_${res.status}_${path.basename(m.file)}_${(res.raw ?? '').slice(0, 200)}`);
-    const installedAfter = (await readRows(transport, pat, ref, m.probe))[0]?.installed === true;
-    const ledgerAfter = ledgerState(await readRows(transport, pat, ref, ledgerRowsSql([m.version])), m);
-    if (!installedAfter) fail(`apply_not_effective_${path.basename(m.file)}__ABORT`);
-    if (ledgerAfter !== 'ours') fail(`ledger_not_recorded_${m.version}_${ledgerAfter}__ABORT`);
-    applied.push({ ...entry, applied: true, installed_after: true, ledger_after: 'ours' });
+    // The write itself. A transport failure here (idle_timeout, reset) is the ONE case where the server
+    // may have committed without the client knowing: the detail says so, the caller must re-observe.
+    const tag = { phase: decision === 'apply' ? 'apply' : 'reconcile-ledger', version: m.version, query_bytes: Buffer.byteLength(query), server_state_after_failure: 'UNKNOWN_reobserve_with_preflight_only' };
+    let res;
+    try { res = await transport({ pat, method: 'POST', reqPath: `/v1/projects/${ref}/database/query`, body: { query } }); } catch (error) { throw tagged(error, tag); }
+    if (res.status !== 200 && res.status !== 201) fail(`apply_status_${res.status}_${path.basename(m.file)}_${(res.raw ?? '').slice(0, 200)}`, { ...tag, status: res.status, elapsed_ms: res.elapsed_ms ?? null });
+    const applyElapsed = res.elapsed_ms ?? null;
+    const after = { phase: 'post-apply', version: m.version, apply_status: res.status, apply_elapsed_ms: applyElapsed };
+    const installedAfter = (await readRows(transport, pat, ref, m.probe, { ...after, phase: 'probe-after' }))[0]?.installed === true;
+    const ledgerAfter = ledgerState(await readRows(transport, pat, ref, ledgerRowsSql([m.version]), { ...after, phase: 'ledger-after' }), m);
+    if (!installedAfter) fail(`apply_not_effective_${path.basename(m.file)}__ABORT`, { ...after, installed_after: false, ledger_after: ledgerAfter });
+    if (ledgerAfter !== 'ours') fail(`ledger_not_recorded_${m.version}_${ledgerAfter}__ABORT`, { ...after, installed_after: true, ledger_after: ledgerAfter });
+    applied.push({ ...entry, applied: true, installed_after: true, ledger_after: 'ours', apply_status: res.status, apply_elapsed_ms: applyElapsed });
   }
   return { migrations: applied, ledger_shape_ok: true, ledger_strategy: 'A: INSERT INTO supabase_migrations.schema_migrations(version, name, statements) in the same transaction as the migration (CLI db push row shape; statements = parser.SplitAndTrim)' };
 }
@@ -283,13 +299,17 @@ async function main() {
   if (request?.pat) registerSecret(request.pat);
   if (request?.db_pass) registerSecret(request.db_pass);
   for (const s of request?.secrets ?? []) if (typeof s?.value === 'string') registerSecret(s.value);
-  const deadline = setTimeout(() => { process.stdout.write('{"ok":false,"error":"deadline_exceeded"}\n'); process.exit(1); }, DEADLINE_MS);
+  const startedAt = Date.now();
+  const deadline = setTimeout(() => { process.stdout.write(JSON.stringify({ ok: false, op: request?.op ?? null, error: 'deadline_exceeded', detail: { deadline_ms: DEADLINE_MS, elapsed_ms: Date.now() - startedAt } }) + '\n'); process.exit(1); }, DEADLINE_MS);
   deadline.unref?.();
   try {
     const result = await run(request);
+    clearTimeout(deadline);
     process.stdout.write(redact(JSON.stringify({ ok: true, op: request.op, ...result })) + '\n');
   } catch (error) {
-    process.stdout.write(redact(JSON.stringify({ ok: false, error: error?.message ?? 'error' })) + '\n');
+    clearTimeout(deadline);
+    // One line, always: the shell runner persists it verbatim (r3-failed-*.json) and exits with our status.
+    process.stdout.write(redact(JSON.stringify({ ok: false, op: request?.op ?? null, error: error?.message ?? 'error', detail: error?.detail ?? null, elapsed_ms: Date.now() - startedAt })) + '\n');
     process.exit(1);
   }
 }

@@ -45,7 +45,7 @@ assert_ref() { # $1=label $2=value
 assert_not_prod() { [[ "$2" != *"$PROD_REF"* ]] || abort "$1 carries the Production ref — refused"; }
 read_pat() {
   printf 'Supabase PAT (sbp_…), no echo: ' > /dev/tty
-  IFS= read -rs PAT < /dev/tty
+  IFS= read -rs PAT < /dev/tty || { printf '\n' > /dev/tty; abort "PAT_NOT_PROVIDED (EOF on the tty)"; } # EOF would otherwise kill the shell silently under set -e
   printf '\n' > /dev/tty
   [[ "$PAT" =~ ^sbp_[A-Za-z0-9_]{20,160}$ ]] || abort "pat malformed"
   [[ "$PAT" != *"$PROD_REF"* ]] || abort "PRODUCTION_REF_IN_TOKEN"
@@ -54,7 +54,7 @@ read_pat() {
 read_secret() { # $1=var name $2=prompt $3=regex
   local __v
   printf '%s: ' "$2" > /dev/tty
-  IFS= read -rs __v < /dev/tty
+  IFS= read -rs __v < /dev/tty || { printf '\n' > /dev/tty; abort "$1 not provided (EOF on the tty)"; }
   printf '\n' > /dev/tty
   [[ "$__v" =~ $3 ]] || abort "$1 malformed"
   printf -v "$1" '%s' "$__v"
@@ -74,6 +74,17 @@ keychain_check() { python3 "$KEYCHAIN" check "$1" "$2"; local rc=$?; return $rc;
 keychain_add() { printf '%s' "$3" | python3 "$KEYCHAIN" add "$1" "$2"; }
 keychain_read() { # $1=service $2=account → value on stdout (captured by caller into a variable)
   /usr/bin/security find-generic-password -s "$1" -a "$2" -w 2>/dev/null
+}
+# Text with every known secret (the PAT, a contract secret) replaced, for output that is about to be
+# shown or persisted (a captured error line from node, which redacts its own output already). Pure
+# bash: the secret never becomes an argv of any process. promote_evidence stays the last gate.
+redact_known() { # $1=text → stdout
+  local out="$1" s
+  for s in ${SECRETS_KNOWN[@]+"${SECRETS_KNOWN[@]}"}; do
+    [[ -n "$s" && ${#s} -ge 8 ]] || continue
+    out="${out//"$s"/«REDACTED»}"
+  done
+  printf '%s' "$out"
 }
 promote_evidence() { # $1=tmp $2=final — refuse if any known secret appears; never overwrite evidence
   [[ ! -e "$2" ]] || { rm -f "$1"; abort "EVIDENCE_EXISTS $2 (same-second stamp; re-run)"; }
