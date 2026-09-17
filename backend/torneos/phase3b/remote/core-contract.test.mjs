@@ -13,7 +13,7 @@ import { fileURLToPath } from 'node:url';
 import { split, splitAndTrim } from './cli_parser.mjs';
 import * as C from './core-contract.mjs';
 import { assertReadOnlySql, run as runRead, QA_USERS_SQL, sessionExistsSql, AbortError } from './mgmt.mjs';
-import { run as runWrite, ledgerState, applyDecision, assertWritePath } from './mgmt-write.mjs';
+import { run as runWrite, ledgerState, applyDecision, assertWritePath, WRITER_CONTEXT_SQL } from './mgmt-write.mjs';
 import { run as runRollback, assertRollbackPath, ALLOWED } from './mgmt-rollback.mjs';
 import { probe, probeOnce, sign, classify } from './probe-core-contract.mjs';
 import { runD1Positive, assertAnonKey } from './d1-positive.mjs';
@@ -212,6 +212,10 @@ function fakeCore(state) {
     log.push({ method: req.method, path: reqPath, body: req.body });
     if (req.method === 'POST' && reqPath.endsWith('/database/query')) {
       const q = req.body.query;
+      if (q === WRITER_CONTEXT_SQL) {
+        assert.equal(req.body.read_only, false);
+        return {status:201, body:[state.writerContext ?? {api_role:'postgres', session_role:'postgres', transaction_read_only:'off', in_recovery:false}]};
+      }
       if (req.body.read_only) {
         assertReadOnlySql(q);
         if (q === C.LEDGER_SHAPE_SQL) return { status: 200, body: [{ shape: shapeRow() }] };
@@ -257,8 +261,8 @@ test('D/apply: fresh Core staging → exactly two writes (the pinned apply docum
   assert.deepEqual(out.migrations.map((m) => [m.decision, m.applied, m.installed_after, m.ledger_after]), [['apply', true, true, 'ours'], ['apply', true, true, 'ours']]);
   assert.equal(out.ledger_shape_ok, true);
   assert.ok(f.log.every((l) => l.path === `/v1/projects/${CORE}/database/query`));
-  assert.ok(f.log.filter((l) => !l.body.read_only).length === 2);
-  assert.ok(f.log.findIndex((l) => l.body.query === C.LEDGER_SHAPE_SQL) < f.log.findIndex((l) => !l.body.read_only), 'the shape gate runs before the first write');
+  assert.ok(f.log.filter((l) => (!l.body.read_only && l.body.query !== WRITER_CONTEXT_SQL)).length === 2);
+  assert.ok(f.log.findIndex((l) => l.body.query === C.LEDGER_SHAPE_SQL) < f.log.findIndex((l) => (!l.body.read_only && l.body.query !== WRITER_CONTEXT_SQL)), 'the shape gate runs before the first write');
 });
 
 test('D/apply: re-run on an installed+recorded Core → skip, 0 writes; installed but unrecorded → the INSERT alone (reconcile)', async () => {
@@ -783,14 +787,14 @@ test('mgmt-write: a failed apply POST carries phase/version/status/elapsed_ms an
   assert.equal(f.state.writes.length, 1);
   // a transport failure (idle_timeout / reset) on the write: the transport's own detail is kept and tagged with the phase
   const g = fakeCore(fresh());
-  const cut = async (req) => { if (req.method === 'POST' && !req.body?.read_only) { const e = new AbortError('request_failed_idle_timeout'); e.detail = { method: 'POST', path: req.reqPath, code: null, elapsed_ms: 20003, idle_timeout_ms: 20000, body_bytes: 33960 }; throw e; } return g.transport(req); };
+  const cut = async (req) => { if (req.method === 'POST' && !req.body?.read_only && req.body.query !== WRITER_CONTEXT_SQL) { const e = new AbortError('request_failed_idle_timeout'); e.detail = { method: 'POST', path: req.reqPath, code: null, elapsed_ms: 20003, idle_timeout_ms: 20000, body_bytes: 33960 }; throw e; } return g.transport(req); };
   let cutErr; try { await runWrite({ op: 'apply-core-contract', pat: PAT, ref: CORE, repo: REPO }, cut); } catch (e) { cutErr = e; }
   assert.match(cutErr.message, /request_failed_idle_timeout/);
   assert.deepEqual(cutErr.detail, { phase: 'apply', version: '20260914120000', query_bytes: V1.apply_sql_bytes, server_state_after_failure: 'UNKNOWN_reobserve_with_preflight_only', method: 'POST', path: `/v1/projects/${CORE}/database/query`, code: null, elapsed_ms: 20003, idle_timeout_ms: 20000, body_bytes: 33960 });
   assert.equal(g.state.writes.length, 0, 'the fake never received the document: nothing was simulated as applied');
   // post-apply checks name their phase and keep the apply status/elapsed
   const h = fakeCore(fresh());
-  const ghost = async (req) => { const res = await h.transport(req); if (req.method === 'POST' && !req.body?.read_only) { h.state.installed.v1 = false; return { ...res, elapsed_ms: 1500 }; } return res; };
+  const ghost = async (req) => { const res = await h.transport(req); if (req.method === 'POST' && !req.body?.read_only && req.body.query !== WRITER_CONTEXT_SQL) { h.state.installed.v1 = false; return { ...res, elapsed_ms: 1500 }; } return res; };
   let ghostErr; try { await runWrite({ op: 'apply-core-contract', pat: PAT, ref: CORE, repo: REPO }, ghost); } catch (e) { ghostErr = e; }
   assert.match(ghostErr.message, /apply_not_effective_20260914120000/);
   assert.deepEqual(ghostErr.detail, { phase: 'post-apply', version: '20260914120000', apply_status: 201, apply_elapsed_ms: 1500, installed_after: false, ledger_after: 'ours' });
@@ -826,4 +830,13 @@ test('mgmt-write / mgmt CLI: the failure line is one JSON with op, error, detail
   }
   assert.equal(SRC('mgmt-write.mjs').match(/const CONNECT_TIMEOUT_MS = (\d+);/)[1], '20000', 'idle timeout unchanged (no evidence yet to change it)');
   assert.equal(SRC('mgmt-write.mjs').match(/const DEADLINE_MS = (\d+);/)[1], '180000');
+});
+
+ test('writer context: read-only PAT stops before migration writes, including dry-run', async () => {
+  for (const dryRun of [false,true]) {
+    const f = fakeCore(fresh({writerContext:{api_role:'supabase_read_only_user',session_role:'supabase_read_only_user',transaction_read_only:'on',in_recovery:false}}));
+    await assert.rejects(runWrite({op:'apply-core-contract',pat:PAT,ref:CORE,repo:REPO,dryRun},f.transport), e => e.detail?.phase === 'writer-context' && /effective_writer_unavailable/.test(e.message));
+    assert.equal(f.state.writes.length,0);
+    assert.equal(f.log.length,1);
+  }
 });

@@ -243,10 +243,23 @@ export function applyDecision(installed, ledger) {
   if (installed && ledger === 'foreign') return 'STOP:ledger_row_not_ours';
   return 'STOP:ledger_row_without_objects';
 }
+// A catalog check of postgres privileges cannot establish the PAT's effective SQL role.
+export const WRITER_CONTEXT_SQL = "select current_user as api_role, session_user as session_role, current_setting('transaction_read_only') as transaction_read_only, pg_is_in_recovery() as in_recovery";
+assertReadOnlySql(WRITER_CONTEXT_SQL);
+export async function assertWriterContext(transport, pat, ref) {
+  let res;
+  try { res = await transport({pat, method:'POST', reqPath:`/v1/projects/${ref}/database/query`, body:{query:WRITER_CONTEXT_SQL, read_only:false}}); }
+  catch(error) { throw tagged(error, {phase:'writer-context'}); }
+  const observed = (Array.isArray(res.body) ? res.body : res.body?.result)?.[0] ?? null;
+  if (![200,201].includes(res.status) || observed?.api_role !== 'postgres' || observed?.transaction_read_only !== 'off' || observed?.in_recovery !== false)
+    fail('effective_writer_unavailable__check_PAT_database_write_permission__ABORT', {phase:'writer-context',status:res.status,observed});
+  return observed;
+}
 export async function opApplyCoreContract(transport, pat, { ref, repo, dryRun }) {
   assertNonProductionRef(ref);
   if (ref !== CORE_REF) fail('apply_core_contract_target_not_core_staging__ABORT');
   const rendered = renderAll(repo); // pins: migration bytes, ledger rows, apply SQL
+  await assertWriterContext(transport, pat, ref); // SELECT only, before any migration write
   // Ledger shape gate (strategy A requires the hosted shape observed 2026-08-07).
   const shape = (await readRows(transport, pat, ref, LEDGER_SHAPE_SQL, { phase: 'ledger-shape' }))[0]?.shape ?? null;
   const shapeDiff = ledgerShapeDiff(shape);
