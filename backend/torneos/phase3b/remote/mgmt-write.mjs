@@ -265,7 +265,7 @@ export async function opApplyCoreContract(transport, pat, { ref, repo, dryRun })
     // may have committed without the client knowing: the detail says so, the caller must re-observe.
     const tag = { phase: decision === 'apply' ? 'apply' : 'reconcile-ledger', version: m.version, query_bytes: Buffer.byteLength(query), server_state_after_failure: 'UNKNOWN_reobserve_with_preflight_only' };
     let res;
-    try { res = await transport({ pat, method: 'POST', reqPath: `/v1/projects/${ref}/database/query`, body: { query } }); } catch (error) { throw tagged(error, tag); }
+    try { res = await transport({ pat, method: 'POST', reqPath: `/v1/projects/${ref}/database/query`, body: { query, read_only: false } }); } catch (error) { throw tagged(error, tag); }
     if (res.status !== 200 && res.status !== 201) fail(`apply_status_${res.status}_${path.basename(m.file)}_${(res.raw ?? '').slice(0, 200)}`, { ...tag, status: res.status, elapsed_ms: res.elapsed_ms ?? null });
     const applyElapsed = res.elapsed_ms ?? null;
     const after = { phase: 'post-apply', version: m.version, apply_status: res.status, apply_elapsed_ms: applyElapsed };

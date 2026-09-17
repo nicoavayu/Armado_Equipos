@@ -222,6 +222,8 @@ function fakeCore(state) {
         if (q === C.CONTRACT_ACL_SQL) return { status: 200, body: [{ acl: state.acl ?? aclOf(state) }] };
         return { status: 400, body: { message: 'unknown probe' } };
       }
+      // SQL writes must opt in explicitly; omission must never pass unnoticed in the fake.
+      assert.equal(req.body.read_only, false, 'SQL write requires explicit read_only:false');
       // write: simulate the effect
       state.writes.push(q);
       if (state.failWrite) return { status: 400, body: { message: 'boom' }, raw: 'boom' };

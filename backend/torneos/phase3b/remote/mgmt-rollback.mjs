@@ -74,7 +74,7 @@ export async function opRollbackSql(transport, pat, { ref, dryRun }) {
   if (foreign.length) fail(`ledger_rows_not_ours_${foreign.map((r) => r.version).join('_')}__ABORT`);
   const aclBefore = (await readRows(transport, pat, CONTRACT_ACL_SQL))[0]?.acl ?? null;
   if (dryRun === true) return { dryRun: true, rollback_sql_sha256: sha256, rollback_sql_bytes: Buffer.byteLength(text, 'utf8'), ledger_rows_before: rowsBefore.map((r) => r.version), acl_before: aclBefore };
-  const res = await transport({ pat, method: 'POST', reqPath: `/v1/projects/${CORE_REF}/database/query`, body: { query: text } });
+  const res = await transport({ pat, method: 'POST', reqPath: `/v1/projects/${CORE_REF}/database/query`, body: { query: text, read_only: false } });
   if (res.status !== 200 && res.status !== 201) fail(`rollback_sql_status_${res.status}_${(res.raw ?? '').slice(0, 200)}`);
   const aclAfter = (await readRows(transport, pat, CONTRACT_ACL_SQL))[0]?.acl ?? null;
   const residue = rollbackResidue(aclAfter);
