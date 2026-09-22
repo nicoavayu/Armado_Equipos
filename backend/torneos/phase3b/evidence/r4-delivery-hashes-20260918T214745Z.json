@@ -1,0 +1,406 @@
+{
+  "utc": "20260918T214745Z",
+  "status": "R4_1A_AND_PREPARE_PREFLIGHT_PASS",
+  "files": [
+    {
+      "path": "/Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/evidence/r4-egress-test-20260918T142605Z.json",
+      "sha256": "51f05b67b8ee3d0400d79b521f7d13dd33aa0ef9e4741532826b128f0bef51b5"
+    },
+    {
+      "path": "/Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/evidence/r4-egress-test-20260918T142722Z.json",
+      "sha256": "7284cdcced3908b8e1d3461beb5e6e497d9b4b6f844377b6790a371ce5a8f8d8"
+    },
+    {
+      "path": "/Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/evidence/r4-egress-test-20260918T142747Z.json",
+      "sha256": "84419e2c5cc6240dc0a5392516cc1ca81680394796d0e11c8b7bc6a587bfbacf"
+    },
+    {
+      "path": "/Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/evidence/r4-egress-test-20260918T213218Z.json",
+      "sha256": "69a1d659d98720369d94b3dd7a2caff2cc6bd3ad9d65b5a32b9eed9b1ee43a97"
+    },
+    {
+      "path": "/Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/evidence/r4-egress-test-20260918T213318Z.json",
+      "sha256": "17ed9adc6ad70b4fb147a0a4467b67c283413b249f2c2e4bfeee00f0ba8b2999"
+    },
+    {
+      "path": "/Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/evidence/r4-egress-test-20260918T213439Z.json",
+      "sha256": "e02d822cffdd5646939f58a068f49c37b6179a637b7a80dcd3096fec7cb3981b"
+    },
+    {
+      "path": "/Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/evidence/r4-egress-test-20260918T213522Z.json",
+      "sha256": "a06f2074f2e6867c6266ecc8284b3496e9e0292ed03341b7a0785c68d08147ee"
+    },
+    {
+      "path": "/Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/evidence/r4-egress-test-20260918T213704Z.json",
+      "sha256": "95d115f58878c320c1304786026ac55fd039e69a6dbdc520fcdabdd8cedad974"
+    },
+    {
+      "path": "/Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/evidence/r4-egress-test-20260918T214046Z.json",
+      "sha256": "9696db24fe8addb2b23b0fe82fa5b61cd0421b0c6b139347623521635cbaec6e"
+    },
+    {
+      "path": "/Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/evidence/r4-egress-test-20260918T214108Z.json",
+      "sha256": "a8f7f4b34ec89f6515dca4810cad9ab06552efcfb35bae59a9c69f72e7b0c9f4"
+    },
+    {
+      "path": "/Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/evidence/r4-egress-test-20260918T214224Z.json",
+      "sha256": "6e8fdbe1c8e7e193b53d518f7c8bf76ce35f6a15cbd58bbec7a9121fd64c4e90"
+    },
+    {
+      "path": "/Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/evidence/r4-egress-test-20260918T214318Z.json",
+      "sha256": "46f2275af48a10885d6aaff09a14f67b7858ece729a36e179c0ae2fb98b78b42"
+    },
+    {
+      "path": "/Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/evidence/r4-egress-test-20260918T214404Z.json",
+      "sha256": "8af8c3a9638c7405cd986f1ce16841dc9fcf7fe3ff1eec621082ec9f612090cd"
+    },
+    {
+      "path": "/Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/evidence/r4-egress-test-20260918T214452Z.json",
+      "sha256": "44f639f25d17ef8f3e3034c9ed926c8d25788680cbf6bb828f347b8aa784ea90"
+    },
+    {
+      "path": "/Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/evidence/r4-hashes-20260918T142605Z.json",
+      "sha256": "81b14b06fa64dda08d39afaa4937ca48031a64722154247c031fc8e5dfc97b56"
+    },
+    {
+      "path": "/Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/evidence/r4-hashes-20260918T142722Z.json",
+      "sha256": "442b91c01c3057f188d0b4680139c3d2c033c76860ab049e8d8d7de8911a9091"
+    },
+    {
+      "path": "/Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/evidence/r4-hashes-20260918T142747Z.json",
+      "sha256": "a2f76935a4baee209a6e0e72404afe254d1bfe47e113027dfa97fedf49c8f7f8"
+    },
+    {
+      "path": "/Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/evidence/r4-hashes-20260918T213218Z.json",
+      "sha256": "33253ec3bdc356497c612500ed7b527934b768a2f94bc7b7fcc488b67bc5829a"
+    },
+    {
+      "path": "/Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/evidence/r4-hashes-20260918T213318Z.json",
+      "sha256": "e6118b48f6b8408f25f62645d38b3ba68c4f00745f40f9518e40de223925e5ce"
+    },
+    {
+      "path": "/Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/evidence/r4-hashes-20260918T213439Z.json",
+      "sha256": "8cfbd0842eca2dcfdd8cd90bc3cd522ea816b13ddf5c340b92c9e54e9d4231d0"
+    },
+    {
+      "path": "/Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/evidence/r4-hashes-20260918T213522Z.json",
+      "sha256": "b35f42d1e41eb942e0bca0351e97ab64c5b7ac0679589b6c1dd30e071c4632f5"
+    },
+    {
+      "path": "/Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/evidence/r4-hashes-20260918T213704Z.json",
+      "sha256": "7199c5dcc68a1c255bb1b3af1bed5fd58a54873e27d046089107591e333ed32e"
+    },
+    {
+      "path": "/Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/evidence/r4-hashes-20260918T214046Z.json",
+      "sha256": "956084d1f0f906d2edda020b2cb25d809c8e9c65912987b0df2d0209b099f98e"
+    },
+    {
+      "path": "/Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/evidence/r4-hashes-20260918T214108Z.json",
+      "sha256": "00a6a53cc19a335f6e62f4e5ce4cca20525c0673d8876321a9d4b09000e8a9b6"
+    },
+    {
+      "path": "/Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/evidence/r4-hashes-20260918T214224Z.json",
+      "sha256": "225de3c5e5c01bc386f59be3cf0f69e7ad0df1a2903ba6550779ff2ab3cd2b18"
+    },
+    {
+      "path": "/Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/evidence/r4-hashes-20260918T214318Z.json",
+      "sha256": "717ee9ce4282d26d20dac433606a7c874c6464de3d558691b9d50282ea38bb65"
+    },
+    {
+      "path": "/Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/evidence/r4-hashes-20260918T214404Z.json",
+      "sha256": "a29248e3acfeda1dcc0d2fda27d060df4c4c4729fac5294cd82c87a80e54c686"
+    },
+    {
+      "path": "/Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/evidence/r4-hashes-20260918T214452Z.json",
+      "sha256": "9759d494c6d756815bb24ed764d9e4e740244ef29c6b97b2bae925dea46dad34"
+    },
+    {
+      "path": "/Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/evidence/r4-isolation-design-20260918T142605Z.json",
+      "sha256": "f3c4c9c955019079b2f0455edf30e792aaf6745372f14e4d3449d5ecf5b3dbf6"
+    },
+    {
+      "path": "/Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/evidence/r4-isolation-design-20260918T142722Z.json",
+      "sha256": "c934f8d0b5c79f7620e859a5b502c7b9f4b6372eb2f31a2b27ff0d3e6a0b7c28"
+    },
+    {
+      "path": "/Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/evidence/r4-isolation-design-20260918T142747Z.json",
+      "sha256": "cbff745ed024ebd4eaee1711526fe618f3a557f24a27ff0c561c95020590f994"
+    },
+    {
+      "path": "/Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/evidence/r4-isolation-design-20260918T213218Z.json",
+      "sha256": "9b06ee5fef138be743924a51cc11b851fbec48aaa3ac34222b843510a6e9bfe3"
+    },
+    {
+      "path": "/Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/evidence/r4-isolation-design-20260918T213318Z.json",
+      "sha256": "4aa9e7a844b08d2ec90ac7ac4b5fba4706879ba419e4f43d2bcbb365042121ae"
+    },
+    {
+      "path": "/Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/evidence/r4-isolation-design-20260918T213439Z.json",
+      "sha256": "94870ebd27c8e3e14477063c6b24f978cd8f98ac982cb77e355c37b9b372a6f3"
+    },
+    {
+      "path": "/Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/evidence/r4-isolation-design-20260918T213522Z.json",
+      "sha256": "f367e85283ea3e942b91683a0ff4b04a67f131562beea2792c3642d10958cecd"
+    },
+    {
+      "path": "/Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/evidence/r4-isolation-design-20260918T213704Z.json",
+      "sha256": "6a755f22f005f7c418accd56eb1151dfb89918ebf853a150bef0984b23a50f41"
+    },
+    {
+      "path": "/Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/evidence/r4-isolation-design-20260918T214046Z.json",
+      "sha256": "3049eb22259b8fad5ed99e9f4c921eeb491b7e6b41ba41ab292d44853117db3b"
+    },
+    {
+      "path": "/Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/evidence/r4-isolation-design-20260918T214108Z.json",
+      "sha256": "09969ef85d73208f873091d048266dd9f53d6143b09e8222e7210b1e04b4a168"
+    },
+    {
+      "path": "/Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/evidence/r4-isolation-design-20260918T214224Z.json",
+      "sha256": "7134ea3d502bd2ccaf30f65b732910372d85773664eb4b651b99729e62d648f7"
+    },
+    {
+      "path": "/Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/evidence/r4-isolation-design-20260918T214318Z.json",
+      "sha256": "c1fcada6c1925ea4df9ef9459dc61c894c8ceb5a379cb67dc2436348b5ea982f"
+    },
+    {
+      "path": "/Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/evidence/r4-isolation-design-20260918T214404Z.json",
+      "sha256": "2e0d355c8993bb51e1695d6b402d47f282b6288a8ed0b9a0bbfc58a23e67a551"
+    },
+    {
+      "path": "/Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/evidence/r4-isolation-design-20260918T214452Z.json",
+      "sha256": "7206c84913ff33ec382bca47cf0f1cac0164cde5720246700a80b2c2e900aef2"
+    },
+    {
+      "path": "/Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/evidence/r4-offline-deps-20260918T142605Z.json",
+      "sha256": "ba7b72b5d386160a9c84d0f9dc579c716855cc7220132f10bb13c78853a6e083"
+    },
+    {
+      "path": "/Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/evidence/r4-offline-deps-20260918T142722Z.json",
+      "sha256": "3f250f75706c06660858a0a0dd8015d16a2f05bc02f12c20fc0b1f81d5c22964"
+    },
+    {
+      "path": "/Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/evidence/r4-offline-deps-20260918T142747Z.json",
+      "sha256": "564a1348c1b8a9c65e444473c1eab951a7c16590d6ac2c39768b02ec3119a9cf"
+    },
+    {
+      "path": "/Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/evidence/r4-offline-deps-20260918T213218Z.json",
+      "sha256": "98aeb8efceaa2ffbbd54d14b2c7cd514db2a58722c046d8389fb4aff7d7fafd8"
+    },
+    {
+      "path": "/Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/evidence/r4-offline-deps-20260918T213318Z.json",
+      "sha256": "d7d23156ad8dc89f54cee1027f8071c62c1153b4b0af94c48ae389d8f33b48e0"
+    },
+    {
+      "path": "/Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/evidence/r4-offline-deps-20260918T213439Z.json",
+      "sha256": "4d06134cf837255c74b2152b3762d2683cf29a06d269bc2afc67822357646b76"
+    },
+    {
+      "path": "/Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/evidence/r4-offline-deps-20260918T213522Z.json",
+      "sha256": "1d81ed4ca1e814817f8554a2349a90a9f32a01eea766724606dd4d8fd3c72caf"
+    },
+    {
+      "path": "/Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/evidence/r4-offline-deps-20260918T213704Z.json",
+      "sha256": "10e3289dc41fa63d77e19285860ac300bddc735bfd387d4e86f103f9e64eb9d7"
+    },
+    {
+      "path": "/Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/evidence/r4-offline-deps-20260918T214046Z.json",
+      "sha256": "6ae1b4a31790b5ac17f491b59c527ba1478f900a537dc53a9b4c59ae5693a405"
+    },
+    {
+      "path": "/Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/evidence/r4-offline-deps-20260918T214108Z.json",
+      "sha256": "1abc4f66b0f72419882c3e879911965019c28e76e00c7f05fb3f3b1b92723797"
+    },
+    {
+      "path": "/Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/evidence/r4-offline-deps-20260918T214224Z.json",
+      "sha256": "b2f8bdaf75c3b5fe5daf15658464b61ac598d7a2fb5956fc61520d4321bdbfe9"
+    },
+    {
+      "path": "/Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/evidence/r4-offline-deps-20260918T214318Z.json",
+      "sha256": "5e551e110eeb6042038a56275f85effc91d8f8f05ab5844e9b00de38ab149482"
+    },
+    {
+      "path": "/Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/evidence/r4-offline-deps-20260918T214404Z.json",
+      "sha256": "1f659d550d4c00b80541c0c34b144b3cad3f5186a0c751cde4b2d99262756bce"
+    },
+    {
+      "path": "/Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/evidence/r4-offline-deps-20260918T214452Z.json",
+      "sha256": "ec39e1fa08613917ca43b849a3bf41d97b5b98c5404d2510e495e42420f2fbed"
+    },
+    {
+      "path": "/Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/evidence/r4-preflight-20260918T142605Z.json",
+      "sha256": "bba545efeea39c5441506c7965d9631b2eeb76bd8511f95f56b2d223c33f4ff3"
+    },
+    {
+      "path": "/Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/evidence/r4-preflight-20260918T142722Z.json",
+      "sha256": "f8ddd84b4141a626434a717d05222fb1541aeab67e03cc877c774ebb5667a811"
+    },
+    {
+      "path": "/Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/evidence/r4-preflight-20260918T142747Z.json",
+      "sha256": "75a23a583bddf876e103a9faf39329e89b814a19e4ebdce0362e4fabfa29d29d"
+    },
+    {
+      "path": "/Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/evidence/r4-preflight-20260918T213218Z.json",
+      "sha256": "af2a88c402a362226b90f227229dd73b4ba01b30756dfd152702964176a9436d"
+    },
+    {
+      "path": "/Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/evidence/r4-preflight-20260918T213318Z.json",
+      "sha256": "bd4ee5a32684c8c0807c37fde3f2a0e1a211e1013e335471be4b48e7a8ceb85d"
+    },
+    {
+      "path": "/Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/evidence/r4-preflight-20260918T213439Z.json",
+      "sha256": "582710167c7fd17a6828e5901ed618edd608934ef99fe73ceaa29ed8d7af3f2d"
+    },
+    {
+      "path": "/Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/evidence/r4-preflight-20260918T213522Z.json",
+      "sha256": "b6eea37718a2fe00329fccbce31f59390cb45586c482d2c30160d398fb7bc4e3"
+    },
+    {
+      "path": "/Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/evidence/r4-preflight-20260918T213704Z.json",
+      "sha256": "57908878679f2f2ebc55847df0f3481501328dd7ef9d0ab71d6a94b1d926185a"
+    },
+    {
+      "path": "/Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/evidence/r4-preflight-20260918T214046Z.json",
+      "sha256": "5db3b9aef1a07e131fdfc1c2b2c7071b8f3248be56ba0b8035f497fdd19e563d"
+    },
+    {
+      "path": "/Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/evidence/r4-preflight-20260918T214108Z.json",
+      "sha256": "2ee8ff3ae9fecfc53b64f1277347ff78255ee09ce59de56b20b4e98cd3d73e4f"
+    },
+    {
+      "path": "/Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/evidence/r4-preflight-20260918T214224Z.json",
+      "sha256": "dcedd574c25d8c29058cf50be73de94d7002818cd030a7d917d64967e51055a5"
+    },
+    {
+      "path": "/Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/evidence/r4-preflight-20260918T214318Z.json",
+      "sha256": "b8f60baecaea176cb895d376d84c16c0d79cdce2cf5450f5d4f495974d207f99"
+    },
+    {
+      "path": "/Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/evidence/r4-preflight-20260918T214404Z.json",
+      "sha256": "de1515198a1b3ad32a39dce66fb184da523b7f935b51d329a4f0d299c89a2056"
+    },
+    {
+      "path": "/Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/evidence/r4-preflight-20260918T214452Z.json",
+      "sha256": "f8a81e9240b0c07612894a0ed37ff2126a50d25b9a8bdeba631b6d48d3f1c65b"
+    },
+    {
+      "path": "/Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/evidence/r4-preflight-20260918T214523Z.json",
+      "sha256": "c628fc2b3e38805e57d26e072a02e83bbf01e364764f6261d06137f5d800c585"
+    },
+    {
+      "path": "/Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/evidence/r4-prepare-20260918T214517Z.json",
+      "sha256": "033ef68c63a7e70e8a9be4a9090a1a7ddc3cbf530ceaf1bcce822fbada384a60"
+    },
+    {
+      "path": "/Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/evidence/r4-secret-custody-20260918T142605Z.json",
+      "sha256": "cd41f474f5bbf450fe424f9ed3ae9eaa8f26affb8e3cfab822f3a1e6bf725b74"
+    },
+    {
+      "path": "/Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/evidence/r4-secret-custody-20260918T142722Z.json",
+      "sha256": "71fc63485193b7a8b1d701cbb8f37ac94e07725b3aff6babc627d68c5b914456"
+    },
+    {
+      "path": "/Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/evidence/r4-secret-custody-20260918T142747Z.json",
+      "sha256": "d45dbf5873e221850910765f0b5c2473d4899753aee28d5a42b4319f85cbbfc2"
+    },
+    {
+      "path": "/Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/evidence/r4-secret-custody-20260918T213218Z.json",
+      "sha256": "19baa2324998c172cb85381ece24f351578389f52dbde061222586be8f1d0221"
+    },
+    {
+      "path": "/Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/evidence/r4-secret-custody-20260918T213318Z.json",
+      "sha256": "252f5395da44b39579e49147f84326ba89bc5b1819200fd948857a730720ec76"
+    },
+    {
+      "path": "/Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/evidence/r4-secret-custody-20260918T213439Z.json",
+      "sha256": "e92384e4d28e122350b006cc3b6e408e5bdf491d3e313dd255c12d581afddb3e"
+    },
+    {
+      "path": "/Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/evidence/r4-secret-custody-20260918T213522Z.json",
+      "sha256": "e95989db6b97fb44daf3195234a60b8094ae928f151d2fc0cc781c25f46861c7"
+    },
+    {
+      "path": "/Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/evidence/r4-secret-custody-20260918T213704Z.json",
+      "sha256": "caea5c802eb1ddef42319f84f9e64797cdc719784e2cc6882d0a305f4f79853e"
+    },
+    {
+      "path": "/Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/evidence/r4-secret-custody-20260918T214046Z.json",
+      "sha256": "9c49c17eb9ea6fb072da3b83b421c7493bf07d33864a6e6302113383060ebb54"
+    },
+    {
+      "path": "/Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/evidence/r4-secret-custody-20260918T214108Z.json",
+      "sha256": "2635ac35202fab81a797ceb492e3d7b6df45667d5f81c1c332b54382c96fe689"
+    },
+    {
+      "path": "/Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/evidence/r4-secret-custody-20260918T214224Z.json",
+      "sha256": "1564454347a53e0eee79817f6ab9e9ef7db7500865c3226d87759c9f8f43dc75"
+    },
+    {
+      "path": "/Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/evidence/r4-secret-custody-20260918T214318Z.json",
+      "sha256": "b6b42915a89bbe5411a63d80512d56eff54e7c65d3301862bfcb635f8c9cb444"
+    },
+    {
+      "path": "/Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/evidence/r4-secret-custody-20260918T214404Z.json",
+      "sha256": "8a8dcaff88236d708d025e8cd121947f3bb17626176ef4062945ff98d2072576"
+    },
+    {
+      "path": "/Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/evidence/r4-secret-custody-20260918T214452Z.json",
+      "sha256": "fd452ac29fcba4383049c6c150f4e5c5224bf80b01e673cf31e85b488ab1f114"
+    },
+    {
+      "path": "/Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/R4.1-DELIVERY-20260918T214745Z.md",
+      "sha256": "1766c8d58f684f8813e4c84fcd716e6fa691c123b75ca6321cef5784c6413083"
+    },
+    {
+      "path": "/Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/r4/.gitignore",
+      "sha256": "78670129a10afa4cc28ff2f8b5b8033651992506642036607f3973201852279a"
+    },
+    {
+      "path": "/Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/r4/README.md",
+      "sha256": "e80dda0c4a81130f1769f4b35cbf121a9a5299286d30c01393d30bc9040d88be"
+    },
+    {
+      "path": "/Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/r4/audit.mjs",
+      "sha256": "328c513dd8f611002da470ffb8eef74f96a563221cc475482ff2be6a2d8feea5"
+    },
+    {
+      "path": "/Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/r4/custody.ts",
+      "sha256": "7fd9c09a7c38ffc7e1ae28ce51ab241d9175f3a2afb692e691d9a700eb65b2f3"
+    },
+    {
+      "path": "/Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/r4/gateway/index.ts",
+      "sha256": "315a451105a00b69bf366209ac28a89923fbb94d0bc7674a8f20d650c4aafbb8"
+    },
+    {
+      "path": "/Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/r4/harness/index.ts",
+      "sha256": "8165be969670114ff52b12525091a95c65d18b7f2eb4818a92309c6c95b1ad4d"
+    },
+    {
+      "path": "/Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/r4/proxy.mjs",
+      "sha256": "4ef4877a3cebec51e680a3bc17add92e62cf3ae82545b3e085b0a362cf785463"
+    },
+    {
+      "path": "/Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/r4/proxy.test.mjs",
+      "sha256": "f173852aab0a3195487254ae93e85c3e3be42ff5bc55982ccdea36966e931c2b"
+    },
+    {
+      "path": "/Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/r4/runner.mjs",
+      "sha256": "a11d54a3d5eb26b9fabf0fd52b8b5288d2cc4f7bf36785a60ffa5009784dfbf1"
+    },
+    {
+      "path": "/Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/r4/transport.ts",
+      "sha256": "4d8027191ba64e4c9dda70ec17a47cb35b1b14a73a35d0392601020c8634acbb"
+    },
+    {
+      "path": "/Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/r4/.runtime/gateway.eszip",
+      "sha256": "ee5fb43d2630bcb56df57067c6c181e3675b11c38aad03598473ee01e2c1abea"
+    },
+    {
+      "path": "/Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/r4/.runtime/harness.eszip",
+      "sha256": "91cef0bf552c5d46b67c835da379629c921c10a8925b2da4011080da70ba19fc"
+    },
+    {
+      "path": "/Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/r4/.runtime/prepared.json",
+      "sha256": "033ef68c63a7e70e8a9be4a9090a1a7ddc3cbf530ceaf1bcce822fbada384a60"
+    }
+  ]
+}

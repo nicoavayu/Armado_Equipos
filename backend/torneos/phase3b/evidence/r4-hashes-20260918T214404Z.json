@@ -1,0 +1,77 @@
+{
+  "utc": "20260918T214404Z",
+  "files": [
+    {
+      "file": "r4-isolation-design-20260918T214404Z.json",
+      "sha256": "2e0d355c8993bb51e1695d6b402d47f282b6288a8ed0b9a0bbfc58a23e67a551"
+    },
+    {
+      "file": "r4-offline-deps-20260918T214404Z.json",
+      "sha256": "1f659d550d4c00b80541c0c34b144b3cad3f5186a0c751cde4b2d99262756bce"
+    },
+    {
+      "file": "r4-secret-custody-20260918T214404Z.json",
+      "sha256": "8a8dcaff88236d708d025e8cd121947f3bb17626176ef4062945ff98d2072576"
+    },
+    {
+      "file": "r4-egress-test-20260918T214404Z.json",
+      "sha256": "8af8c3a9638c7405cd986f1ce16841dc9fcf7fe3ff1eec621082ec9f612090cd"
+    },
+    {
+      "file": "r4-preflight-20260918T214404Z.json",
+      "sha256": "de1515198a1b3ad32a39dce66fb184da523b7f935b51d329a4f0d299c89a2056"
+    }
+  ],
+  "sources": [
+    {
+      "path": ".gitignore",
+      "sha256": "78670129a10afa4cc28ff2f8b5b8033651992506642036607f3973201852279a",
+      "bytes": 25
+    },
+    {
+      "path": "audit.mjs",
+      "sha256": "a97bb178da397b92ee9a060a15b581ff88aafacee233291ce147953832faede6",
+      "bytes": 17336
+    },
+    {
+      "path": "custody.ts",
+      "sha256": "7fd9c09a7c38ffc7e1ae28ce51ab241d9175f3a2afb692e691d9a700eb65b2f3",
+      "bytes": 1549
+    },
+    {
+      "path": "gateway/index.ts",
+      "sha256": "315a451105a00b69bf366209ac28a89923fbb94d0bc7674a8f20d650c4aafbb8",
+      "bytes": 555
+    },
+    {
+      "path": "harness/index.ts",
+      "sha256": "e5fbde7c793f33e7df2d511d3428ba3f1a023115e67ed85340f3e80a627c355b",
+      "bytes": 7818
+    },
+    {
+      "path": "proxy.mjs",
+      "sha256": "4ef4877a3cebec51e680a3bc17add92e62cf3ae82545b3e085b0a362cf785463",
+      "bytes": 3204
+    },
+    {
+      "path": "proxy.test.mjs",
+      "sha256": "f173852aab0a3195487254ae93e85c3e3be42ff5bc55982ccdea36966e931c2b",
+      "bytes": 1405
+    },
+    {
+      "path": "README.md",
+      "sha256": "e80dda0c4a81130f1769f4b35cbf121a9a5299286d30c01393d30bc9040d88be",
+      "bytes": 6267
+    },
+    {
+      "path": "runner.mjs",
+      "sha256": "a11d54a3d5eb26b9fabf0fd52b8b5288d2cc4f7bf36785a60ffa5009784dfbf1",
+      "bytes": 8431
+    },
+    {
+      "path": "transport.ts",
+      "sha256": "4d8027191ba64e4c9dda70ec17a47cb35b1b14a73a35d0392601020c8634acbb",
+      "bytes": 629
+    }
+  ]
+}

@@ -1,0 +1,54 @@
+[r42 16:37:22] step handoff_check: PASS
+[r42 16:37:23] step core_project_guard: PASS
+[r42 16:37:23] step core_contract_function_guard: PASS
+[r42 16:37:25] step core_keys: PASS
+[r42 16:37:25] step authorization: PASS
+[r42 16:37:25] runner preflight: PASS 
+[r42 16:37:25] step runner_preflight: PASS
+[r42 16:37:29] audit start-gateway: STARTED_PENDING_SMOKE 
+[r42 16:37:29] step start_gateway: PASS
+[r42 16:37:29] runner smoke: PASS 
+[r42 16:37:29] step smoke: PASS
+[r42 16:37:29] block qa_users
+[r42 16:37:33] block exchange_valid
+[r42 16:37:40] block token_valid
+[r42 16:37:41] block wrong_issuer
+[r42 16:37:41] block wrong_audience
+[r42 16:37:41] block wrong_kid
+[r42 16:37:41] block expired
+[r42 16:37:41] block wrong_ttl
+[r42 16:37:41] block claim_validation
+[r42 16:37:41] block session_identity_binding
+[r42 16:37:43] block fixtures
+[r42 16:38:59] block live_contracts
+[r42 16:38:59] block request_binding
+[r42 16:39:14] block replay
+[r42 16:39:17] block logout_revocation
+[r42 16:39:21] block core_session_inactive
+[r42 16:39:27] block core_auth_unavailable
+[r42 16:39:27]   FAIL Core origin unreachable from the gateway namespace (proxy /32 removed): /health 503, exchange 503, RPC 503 (transport fail-closed); routes restored → 200: ASSERT {"ip":"172.29.0.2","routes":[{"dst":"default","type":"unreachable"},{"dst":"172.27.0.2","type":"unicast","dev":"eth1","scope":"link"},{"dst":"172.27.0.3","type":"unicast","dev":"eth1","scope":"
+[r42 16:39:27] block core_contract_unavailable
+[r42 16:39:27] outage harness bundled offline sha256=a192d6d23b3d10d6eb8cca4cd67460ecfdaf26cf6e44ad4f8a9b48fe2c185525
+[r42 16:40:16]   FAIL live: with Core unreachable a verified bearer never reaches Torneos (503, no fallback): ASSERT {"ip":"172.29.0.2","routes":[{"dst":"default","type":"unreachable"},{"dst":"172.27.0.2","type":"unicast","dev":"eth1","scope":"link"},{"dst":"172.27.0.3","type":"unicast","dev":"eth1","scope":"
+[r42 16:40:16] block core_response_stale
+[r42 16:40:16] block torneos_rest_unavailable
+[r42 16:40:16]   FAIL Torneos REST unreachable from the gateway namespace (REST /32 removed): verified bearer + live Core → 503; restored → 200: ASSERT {"ip":"172.27.0.3","routes":[{"dst":"default","type":"unreachable"},{"dst":"172.27.0.2","type":"unicast","dev":"eth1","scope":"link"},{"dst":"172.27.0.3","type":"unicast","dev":"eth1","scope":"
+[r42 16:40:16] block allowlist
+[r42 16:40:16]   FAIL all 43 allowlisted RPCs dispatch through the gateway (none refused by the gateway; each reaches PostgREST or the Core-contract adapter): fetch failed
+[r42 16:40:16]   FAIL directory_teams through the gateway → live Core contract attested and consumed (200): ASSERT {"expected":200}
+[r42 16:40:16] block gated
+[r42 16:40:19] block p0_review_tournament_team_entry
+[r42 16:40:35] block cross_user
+[r42 16:40:37] block cross_workspace
+[r42 16:40:40] block cross_season
+[r42 16:40:45] block no_cache
+[r42 16:40:45] block secret_boundary
+[r42 16:40:45] block isolation
+[r42 16:40:45]   FAIL gateway routes: exactly DB /32, REST /32, proxy /32 and unreachable IPv4/IPv6 defaults: ASSERT {"label":["unreachable default ","172.27.0.2 dev eth1 scope link ","172.27.0.3 dev eth1 scope link ","172.29.0.2 dev eth0 scope link"],"actual":["172.27.0.2","172.27.0.3","172.29.0.2"],"expecte
+[r42 16:40:46] block cleanup
+[r42 16:40:56] step matrix: FAIL
+[r42 16:40:56] operator aborted: STEP_FAILED: matrix
+[r42 16:40:56] runner cleanup: PASS 
+[r42 16:40:56] summary /Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/evidence/r4-summary-20260920T163717Z.json
+[r42 16:40:56] VERDICT R4_FAIL
+{"verdict":"R4_FAIL","blockers":["matrix"],"summary":"r4-summary-20260920T163717Z.json","evidence":{"gatewayStart":{"path":"r4-gateway-start-20260920T163725Z.json","sha256":"605cc97959d288a3386d347b5863cfa61f912511d900f2ccf4113d0503c0d945"},"smoke":{"path":"r4-smoke-20260920T163729Z.json","sha256":"9b59f11f33a9a710d89fa45def496011b43427dddcf6f0b01df10fe1c7c6ef4d"},"matrix":{"path":"r4-matrix-20260920T163717Z.json","sha256":"c472e2f9a4657cc4700372abe568a7f5874004ca5189cd4b9860d9fa6e9dbd4c"},"outage":{"path":"r4-outage-20260920T163717Z.json","sha256":"9c150c2906ef79f1342ab27e8cb8c6748e0f44fb99bba0a815b10523bd5be3e5"},"isolation":{"path":"r4-isolation-20260920T163717Z.json","sha256":"d88affa3fbb378be75363ebd45be29c20d1255e7b14ce4b7d8bee00cf9b61b68"},"detail":{"path":"r4-matrix-detail-20260920T163717Z.json","sha256":"aba75481425be5d8ec2bd7b4937694bb27899864575f13bbd5f2ab28aa85d639"},"cleanup":{"path":"r4-cleanup-20260920T163717Z.json","sha256":"cde27a83cb2521b81fa6b20f5bea7e8777fe4cf70cb74ca5559f4e1faf97d2a4"}}}

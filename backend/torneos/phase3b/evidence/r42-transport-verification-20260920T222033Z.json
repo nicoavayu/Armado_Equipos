@@ -1,0 +1,279 @@
+{
+  "status": "PASS",
+  "scope": "targeted transport only; not R4.2 certification",
+  "inputs": [
+    {
+      "path": "r42-targeted-transport-20260920T214654Z.json",
+      "sha256": "a50652af8f2cfc7c7cf845e7716ffb80cfdb2d32555f6641d6c4fdc4abc60f28"
+    },
+    {
+      "path": "r42-targeted-transport-20260920T221604Z.json",
+      "sha256": "3ec010e7f14776e52b649e3e0c29c6da59a32e45001061e3c46872d4f16a9628"
+    }
+  ],
+  "checks": [
+    {
+      "name": "A: eight normal exchanges without harness succeed",
+      "pass": true
+    },
+    {
+      "name": "B: stale socket; peer close precedes send; no proxy request; both processes alive",
+      "pass": true
+    },
+    {
+      "name": "C/D: first exchange after same synchronous harness succeeds on fresh connection",
+      "pass": true
+    },
+    {
+      "name": "E: three deterministic stale failures without offline harness",
+      "pass": true
+    },
+    {
+      "name": "F: async idle succeeds with original dispatcher",
+      "pass": true
+    },
+    {
+      "name": "G: actual async offline harness twice; first exchange succeeds; event loop runs; no retries",
+      "pass": true
+    },
+    {
+      "name": "Health 200 before/after; stable container identity/start/restart counts",
+      "pass": true
+    },
+    {
+      "name": "Postfix routes present, unchanged in every case, including at all failures",
+      "pass": true
+    },
+    {
+      "name": "All diagnostic responses retain no-store; no full-matrix certification implied",
+      "pass": true
+    },
+    {
+      "name": "Postfix has exactly the three expected negative controls and no warm/health errors",
+      "pass": true
+    },
+    {
+      "name": "Both QA cleanups complete",
+      "pass": true
+    }
+  ],
+  "failures": [
+    {
+      "case": "B",
+      "closedAt": "2026-09-20T21:47:44.162Z",
+      "attemptedAt": "2026-09-20T21:48:26.851Z",
+      "EOFAt": "2026-09-20T21:48:26.854Z",
+      "client": {
+        "localAddress": "127.0.0.1",
+        "localPort": 62596,
+        "remoteAddress": "127.0.0.1",
+        "remotePort": 58431,
+        "bytesWritten": 9181,
+        "bytesRead": 8605,
+        "destroyed": false,
+        "readyState": "open"
+      },
+      "peer": {
+        "at": "2026-09-20T21:47:44.162Z",
+        "event": "close",
+        "localAddress": "172.30.0.2",
+        "localPort": 9000,
+        "remoteAddress": "172.30.0.1",
+        "remotePort": 55376,
+        "bytesWritten": 8605,
+        "bytesRead": 9181,
+        "hadError": false
+      },
+      "error": {
+        "name": "TypeError",
+        "code": null,
+        "errno": null,
+        "syscall": null,
+        "message": "fetch failed",
+        "cause": {
+          "name": "SocketError",
+          "code": "UND_ERR_SOCKET",
+          "errno": null,
+          "syscall": null,
+          "message": "other side closed",
+          "cause": null,
+          "socket": {
+            "localAddress": "127.0.0.1",
+            "localPort": 62596,
+            "remoteAddress": "127.0.0.1",
+            "remotePort": 58431,
+            "bytesWritten": 10459,
+            "bytesRead": 8605,
+            "destroyed": null,
+            "readyState": null
+          }
+        },
+        "socket": null
+      }
+    },
+    {
+      "case": "E-block-only",
+      "closedAt": "2026-09-20T22:16:52.367Z",
+      "attemptedAt": "2026-09-20T22:16:54.725Z",
+      "EOFAt": "2026-09-20T22:16:54.726Z",
+      "client": {
+        "localAddress": "127.0.0.1",
+        "localPort": 62807,
+        "remoteAddress": "127.0.0.1",
+        "remotePort": 58431,
+        "bytesWritten": 226,
+        "bytesRead": 280,
+        "destroyed": false,
+        "readyState": "open"
+      },
+      "peer": {
+        "at": "2026-09-20T22:16:52.367Z",
+        "event": "close",
+        "localAddress": "172.30.0.2",
+        "localPort": 9000,
+        "remoteAddress": "172.30.0.1",
+        "remotePort": 56000,
+        "bytesWritten": 280,
+        "bytesRead": 226,
+        "hadError": false
+      },
+      "error": {
+        "name": "TypeError",
+        "code": null,
+        "errno": null,
+        "syscall": null,
+        "message": "fetch failed",
+        "cause": {
+          "name": "SocketError",
+          "code": "UND_ERR_SOCKET",
+          "errno": null,
+          "syscall": null,
+          "message": "other side closed",
+          "cause": null,
+          "socket": {
+            "localAddress": "127.0.0.1",
+            "localPort": 62807,
+            "remoteAddress": "127.0.0.1",
+            "remotePort": 58431,
+            "bytesWritten": 1515,
+            "bytesRead": 280,
+            "destroyed": null,
+            "readyState": null
+          }
+        },
+        "socket": null
+      }
+    },
+    {
+      "case": "E-block-repeat",
+      "closedAt": "2026-09-20T22:17:06.081Z",
+      "attemptedAt": "2026-09-20T22:17:08.625Z",
+      "EOFAt": "2026-09-20T22:17:08.626Z",
+      "client": {
+        "localAddress": "127.0.0.1",
+        "localPort": 62813,
+        "remoteAddress": "127.0.0.1",
+        "remotePort": 58431,
+        "bytesWritten": 228,
+        "bytesRead": 280,
+        "destroyed": false,
+        "readyState": "open"
+      },
+      "peer": {
+        "at": "2026-09-20T22:17:06.081Z",
+        "event": "close",
+        "localAddress": "172.30.0.2",
+        "localPort": 9000,
+        "remoteAddress": "172.30.0.1",
+        "remotePort": 61588,
+        "bytesWritten": 280,
+        "bytesRead": 228,
+        "hadError": false
+      },
+      "error": {
+        "name": "TypeError",
+        "code": null,
+        "errno": null,
+        "syscall": null,
+        "message": "fetch failed",
+        "cause": {
+          "name": "SocketError",
+          "code": "UND_ERR_SOCKET",
+          "errno": null,
+          "syscall": null,
+          "message": "other side closed",
+          "cause": null,
+          "socket": {
+            "localAddress": "127.0.0.1",
+            "localPort": 62813,
+            "remoteAddress": "127.0.0.1",
+            "remotePort": 58431,
+            "bytesWritten": 1519,
+            "bytesRead": 280,
+            "destroyed": null,
+            "readyState": null
+          }
+        },
+        "socket": null
+      }
+    },
+    {
+      "case": "E-block-third",
+      "closedAt": "2026-09-20T22:17:19.489Z",
+      "attemptedAt": "2026-09-20T22:17:21.805Z",
+      "EOFAt": "2026-09-20T22:17:21.805Z",
+      "client": {
+        "localAddress": "127.0.0.1",
+        "localPort": 62817,
+        "remoteAddress": "127.0.0.1",
+        "remotePort": 58431,
+        "bytesWritten": 227,
+        "bytesRead": 280,
+        "destroyed": false,
+        "readyState": "open"
+      },
+      "peer": {
+        "at": "2026-09-20T22:17:19.489Z",
+        "event": "close",
+        "localAddress": "172.30.0.2",
+        "localPort": 9000,
+        "remoteAddress": "172.30.0.1",
+        "remotePort": 62740,
+        "bytesWritten": 280,
+        "bytesRead": 227,
+        "hadError": false
+      },
+      "error": {
+        "name": "TypeError",
+        "code": null,
+        "errno": null,
+        "syscall": null,
+        "message": "fetch failed",
+        "cause": {
+          "name": "SocketError",
+          "code": "UND_ERR_SOCKET",
+          "errno": null,
+          "syscall": null,
+          "message": "other side closed",
+          "cause": null,
+          "socket": {
+            "localAddress": "127.0.0.1",
+            "localPort": 62817,
+            "remoteAddress": "127.0.0.1",
+            "remotePort": 58431,
+            "bytesWritten": 1517,
+            "bytesRead": 280,
+            "destroyed": null,
+            "readyState": null
+          }
+        },
+        "socket": null
+      }
+    }
+  ],
+  "baselineRepeat": {
+    "status": 200,
+    "note": "Original pool scheduling chose a new connection; no retry. E explicitly prewarms the pool for deterministic control."
+  },
+  "routeCaptureLimitation": "Initial diagnosis used unsupported ip -j; its gatewayRoutesAndTCP field contains TCP only. Corrected plain ip -f inet route is verified in postfix."
+}

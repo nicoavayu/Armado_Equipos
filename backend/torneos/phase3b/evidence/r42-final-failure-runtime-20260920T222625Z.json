@@ -1,0 +1,27 @@
+{
+  "stamp": "20260920T222625Z",
+  "utc": "2026-09-20T22:29:32.115Z",
+  "containers": [
+    {
+      "name": "/arma2-r42-20260920t222628z-gateway",
+      "id": "56fb49b5fb62ff8988bd3af214714449a47d040f31d9f11965e3c71595034e46",
+      "running": true,
+      "status": "running",
+      "startedAt": "2026-09-20T22:26:38.992870585Z",
+      "restartCount": 0,
+      "oomKilled": false,
+      "exitCode": 0
+    },
+    {
+      "name": "/arma2-r42-20260920t222628z-proxy",
+      "id": "8a5d89fcae7b1dda6cc667791dfb0b78c3273c5dc0809e6055b55d6ed04af6fc",
+      "running": true,
+      "status": "running",
+      "startedAt": "2026-09-20T22:26:34.864731333Z",
+      "restartCount": 0,
+      "oomKilled": false,
+      "exitCode": 0
+    }
+  ],
+  "productionRequests": 0
+}

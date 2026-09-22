@@ -1,0 +1,129 @@
+{
+  "schema": "R4.2.final-blockers-delivery.v1",
+  "run": "20260920T170732Z",
+  "verdict": "R4_FAIL",
+  "stopped": true,
+  "productionRequests": 0,
+  "files": [
+    {
+      "path": "r4/audit.mjs",
+      "sha256": "476c885df505584ac5f6052652d0bc4379db7dc3cfee59e861566d7161833d5f"
+    },
+    {
+      "path": "r4/proxy.mjs",
+      "sha256": "8496e57eba81ce7ce242c37ed35eed4836be882b68426c564e2cf1853d9ac23c"
+    },
+    {
+      "path": "r4/proxy.test.mjs",
+      "sha256": "3cd06d43539b23e70daaa91572d263a11017847c1bcc2e280f8693be48b8d552"
+    },
+    {
+      "path": "r42/lib.mjs",
+      "sha256": "2c29e44b5714a162afa1f0ca2369003b0edced29273273feb20398feab9be7d2"
+    },
+    {
+      "path": "r42/matrix.mjs",
+      "sha256": "916f3bf490fd03d6dc37230d1908f0ad4e59823bb2478155e002a86b651be993"
+    },
+    {
+      "path": "r42/operator.mjs",
+      "sha256": "7425eacb835eacf02ff24f534fc728218bd3a3afb6ce40018bfff21184c0aa96"
+    },
+    {
+      "path": "r42/outage-harness/index.ts",
+      "sha256": "ae182b5b94a0f1771ddb9e2f9adc957aecd495392a80315905c72d21d471f30e"
+    },
+    {
+      "path": "r42/r42.test.mjs",
+      "sha256": "0fa73cd16492bb3e53e104351b1cfff4fa130c4c712855438c384e85af508a3f"
+    },
+    {
+      "path": "r42/README.md",
+      "sha256": "e3ac7a6ce2b200b81940aa6a8ce6603231cf4839ccc000cfdb96d2dea701013f"
+    },
+    {
+      "path": "r42/blocker-transport-diagnostic.mjs",
+      "sha256": "c494b148f599941ff23353f76c750863b30a31aeb2ba17a426dfc92850b15c47"
+    },
+    {
+      "path": "R4.2-FINAL-BLOCKERS-20260920T170732Z.md",
+      "sha256": "805fd20ba01bf217a5de039f646d9fdbdfd1749c1af74cf76332aa539e924508"
+    },
+    {
+      "path": "evidence/r4-cleanup-20260920T170732Z.json",
+      "sha256": "a1d57336fe5d9d53cc183ccd2d804983bc58dbb762f1c211698533a949ced0d6"
+    },
+    {
+      "path": "evidence/r4-isolation-20260920T170732Z.json",
+      "sha256": "bd54d459e5f326db32fe768c828c5ffe326a6cdbb0ac99a07d13dac494dfe889"
+    },
+    {
+      "path": "evidence/r4-matrix-20260920T170732Z.json",
+      "sha256": "f762ee86a433e7b0f0e7d8b0faa5d7fff917704c72fc259160308166773b8be6"
+    },
+    {
+      "path": "evidence/r4-matrix-detail-20260920T170732Z.json",
+      "sha256": "75bd38002a0d9480ded0c168cc6ed97875a8c6567625ec3929deb8be9302339a"
+    },
+    {
+      "path": "evidence/r4-outage-20260920T170732Z.json",
+      "sha256": "95b4b77397ed59e8f207d3bd7dbb6d44f3cf9200d9434c61913ceda19d9015ec"
+    },
+    {
+      "path": "evidence/r4-summary-20260920T170732Z.json",
+      "sha256": "b82233e2b8a06243abd2b5289ea529647c76f09e2ad9b3ee7748fe2c18cbf8b4"
+    },
+    {
+      "path": "evidence/r4-terminal-20260920T170732Z.log",
+      "sha256": "63d9a44a0ec6735013ab9e052acf1f1a99864613db3080d6efa90da2795373ae"
+    },
+    {
+      "path": "evidence/r42-final-blockers-diagnosis-20260920T170732Z.json",
+      "sha256": "2cf2279a46a4a39a84d13bd798917f3bd1f088ac01fbfd34d0f8428673c0ae81"
+    },
+    {
+      "path": "evidence/r42-blocker-transport-diagnostic-20260920T170412Z.json",
+      "sha256": "abbb3d293421ac0a06a4e8b380ba4298e9b02b1c727b53c3c595271acb294163"
+    },
+    {
+      "path": "evidence/r42-final-blockers-offline-tests.txt",
+      "sha256": "dbc0105244d3fbfd8bd2404afd8e0681acbd56a67787372e1c3b31949847c657"
+    },
+    {
+      "path": "evidence/r42-final-blockers-offline-outage.txt",
+      "sha256": "8bb42e3c5f5260f65e3ecb4616956fabca309503224a17810fc9ae00bff78427"
+    },
+    {
+      "path": "evidence/r4-egress-test-20260920T170508Z.json",
+      "sha256": "76629f4b557da15d41bbff5d1193fc23af36684aca4c5ceea9532db005ee586a"
+    },
+    {
+      "path": "evidence/r4-hashes-20260920T170508Z.json",
+      "sha256": "e5be71db20c9371ed0d0f31207d678c2820753106d191d56dbcbc7198ec719b2"
+    },
+    {
+      "path": "evidence/r4-isolation-design-20260920T170508Z.json",
+      "sha256": "28cccfc6fe9d7c547e2544ca38f426ddd5197aa71701837f190a20bc90c08aaf"
+    },
+    {
+      "path": "evidence/r4-offline-deps-20260920T170508Z.json",
+      "sha256": "ce63690335dac35c5d5d8529cfaae02fc5008d339178eda58750ff89007e5223"
+    },
+    {
+      "path": "evidence/r4-preflight-20260920T170508Z.json",
+      "sha256": "da26b96af5234bee86eaa5d7dc6bcf7976a4eba6a330d1d390f43b25854661b2"
+    },
+    {
+      "path": "evidence/r4-secret-custody-20260920T170508Z.json",
+      "sha256": "dce556397b8288534df75fb4e87e7b4a995a3c77ec3bcc4e4de3a48f44762e8e"
+    },
+    {
+      "path": "evidence/r4-prepare-20260920T170539Z.json",
+      "sha256": "2578892a13c4d5a92b555456ffef8edd1d0962c7c8daecc976836bae73863b9a"
+    },
+    {
+      "path": "evidence/r4-preflight-20260920T170544Z.json",
+      "sha256": "969d86b5403121ce6ee9682221ac1aec077e4757269892dd9a564600ac7d50a5"
+    }
+  ]
+}

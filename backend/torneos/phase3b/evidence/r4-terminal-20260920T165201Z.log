@@ -1,0 +1,50 @@
+[r42 16:52:06] step handoff_check: PASS
+[r42 16:52:07] step core_project_guard: PASS
+[r42 16:52:08] step core_contract_function_guard: PASS
+[r42 16:52:10] step core_keys: PASS
+[r42 16:52:10] step authorization: PASS
+[r42 16:52:10] runner preflight: PASS 
+[r42 16:52:10] step runner_preflight: PASS
+[r42 16:52:14] audit start-gateway: STARTED_PENDING_SMOKE 
+[r42 16:52:14] step start_gateway: PASS
+[r42 16:52:15] runner smoke: PASS 
+[r42 16:52:15] step smoke: PASS
+[r42 16:52:15] block qa_users
+[r42 16:52:19] block exchange_valid
+[r42 16:52:25] block token_valid
+[r42 16:52:26] block wrong_issuer
+[r42 16:52:26] block wrong_audience
+[r42 16:52:26] block wrong_kid
+[r42 16:52:26] block expired
+[r42 16:52:26] block wrong_ttl
+[r42 16:52:26] block claim_validation
+[r42 16:52:26] block session_identity_binding
+[r42 16:52:29] block fixtures
+[r42 16:53:51] block live_contracts
+[r42 16:53:51] block request_binding
+[r42 16:54:05] block replay
+[r42 16:54:08] block logout_revocation
+[r42 16:54:11] block core_session_inactive
+[r42 16:54:17] block core_auth_unavailable
+[r42 16:54:49] block core_contract_unavailable
+[r42 16:54:49] outage harness bundled offline sha256=a192d6d23b3d10d6eb8cca4cd67460ecfdaf26cf6e44ad4f8a9b48fe2c185525
+[r42 16:55:36]   FAIL live: with Core unreachable a verified bearer never reaches Torneos (503, no fallback): fetch failed
+[r42 16:55:36] block core_response_stale
+[r42 16:55:36] block torneos_rest_unavailable
+[r42 16:55:40] block allowlist
+[r42 16:56:07] block gated
+[r42 16:56:07] block p0_review_tournament_team_entry
+[r42 16:56:23] block cross_user
+[r42 16:56:24] block cross_workspace
+[r42 16:56:27] block cross_season
+[r42 16:56:32] block no_cache
+[r42 16:56:32]   FAIL every gateway response carried cache-control: no-store; revocations and outages took effect on the very next request (no cached verdict, no stale failure): ASSERT {"actual":["/health","/exchange","/torneos/rest/v1/rpc/get_my_tournament_memberships"],"expected":[]}
+[r42 16:56:32] block secret_boundary
+[r42 16:56:33] block isolation
+[r42 16:56:33] block cleanup
+[r42 16:56:42] step matrix: FAIL
+[r42 16:56:42] operator aborted: STEP_FAILED: matrix
+[r42 16:56:42] runner cleanup: PASS 
+[r42 16:56:43] summary /Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/evidence/r4-summary-20260920T165201Z.json
+[r42 16:56:43] VERDICT R4_FAIL
+{"verdict":"R4_FAIL","blockers":["matrix"],"summary":"r4-summary-20260920T165201Z.json","evidence":{"gatewayStart":{"path":"r4-gateway-start-20260920T165210Z.json","sha256":"b73d23ace3d0cb039c59485f87996b31e72d7c00b2fbe3b6dabdd9c3103e025d"},"smoke":{"path":"r4-smoke-20260920T165215Z.json","sha256":"f3d70eeb0bc81ac31fe937302fddc1dabdec22d198d089a69fe0c4e4e0200cea"},"matrix":{"path":"r4-matrix-20260920T165201Z.json","sha256":"536f1b157f08f5c4c5350bd8582ed7d1d17fe7ffafa2eb54b88fc4a306eb3b29"},"outage":{"path":"r4-outage-20260920T165201Z.json","sha256":"e340fa3f57d65585200471483a3766b4b2cc01297b1239f5f9d11167c0f50765"},"isolation":{"path":"r4-isolation-20260920T165201Z.json","sha256":"84565b69ecaed8bcfb789d8898d56e7143d608e482ee253b0be63204cb90578c"},"detail":{"path":"r4-matrix-detail-20260920T165201Z.json","sha256":"a1d2316d11e94f28cb0724ed26ac3f2fcfcba67f683554c452af6071b3b13f86"},"cleanup":{"path":"r4-cleanup-20260920T165201Z.json","sha256":"cb1d92fefb832072edc93905ec4ac3033eef4d662071b174175a68a45f0db859"}}}

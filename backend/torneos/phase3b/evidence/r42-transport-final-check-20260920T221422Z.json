@@ -1,0 +1,45 @@
+{
+  "stamp": "20260920T221422Z",
+  "unchanged": {
+    "r4": true,
+    "gateway": true
+  },
+  "r2": {
+    "dbHealthy": true,
+    "dbRunning": true,
+    "restRunning": true,
+    "idsUnchanged": true,
+    "startedUnchanged": true,
+    "catalogUnchanged": true,
+    "ringUnchanged": true,
+    "jwksUnchanged": true
+  },
+  "resources": {
+    "containers": "",
+    "networks": "",
+    "authorizationAbsent": true,
+    "runStateAbsent": true
+  },
+  "secretPatternScan": {
+    "pass": true,
+    "files": 11
+  },
+  "coreSessionCheck": {
+    "name": "core_sessions_zero",
+    "status": "PASS",
+    "sessions": [
+      {
+        "role": "transport",
+        "id": "40f87851",
+        "sessionPresent": false,
+        "userSessions": 0,
+        "deleted": true
+      }
+    ]
+  },
+  "production": {
+    "requests": 0,
+    "scope": "targeted runner guarded staging only; no Production action"
+  },
+  "fullMatrixExecuted": false
+}

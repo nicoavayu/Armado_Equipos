@@ -1,0 +1,92 @@
+{
+  "utc": "20260920T163432Z",
+  "files": [
+    {
+      "file": "r4-isolation-design-20260920T163432Z.json",
+      "sha256": "4a6bf1adfff3e287bbc2212c81f57b346b91fafde07be5a193bc9824b2a3bdd2"
+    },
+    {
+      "file": "r4-offline-deps-20260920T163432Z.json",
+      "sha256": "0318d8d59d1aca78caf43ca805f01841d99fd5ab04e2b84b5868cd71f6e94db5"
+    },
+    {
+      "file": "r4-secret-custody-20260920T163432Z.json",
+      "sha256": "e2b8d0c2604af4a77c74f9123818fa32af316625b6a194020b1e779d0b304d68"
+    },
+    {
+      "file": "r4-egress-test-20260920T163432Z.json",
+      "sha256": "43434e339d3e55431c6a06137b2bc0f07d1acfd9fee223ac8c04e9f04452a224"
+    },
+    {
+      "file": "r4-preflight-20260920T163432Z.json",
+      "sha256": "e22449c4c7f5e3cb6b558eed162b16fd8328e4887808f7d29c35d5e59c55b4c9"
+    }
+  ],
+  "sources": [
+    {
+      "path": ".gitignore",
+      "sha256": "78670129a10afa4cc28ff2f8b5b8033651992506642036607f3973201852279a",
+      "bytes": 25
+    },
+    {
+      "path": "audit.mjs",
+      "sha256": "2d28f682a76302dda25f430d86dc99da8572dfd30aca0a3eaa31c3ba0cd383df",
+      "bytes": 21006
+    },
+    {
+      "path": "authorization.mjs",
+      "sha256": "fa607a460d3536522d4508b002266dcbd3c66449a5b13028dccb67155c43244b",
+      "bytes": 1050
+    },
+    {
+      "path": "certification.mjs",
+      "sha256": "2f6b3a9b2ccef92d383e349587d7629f95f31dce6e951dcb65a9dc9470cd93f9",
+      "bytes": 1336
+    },
+    {
+      "path": "custody.ts",
+      "sha256": "7fd9c09a7c38ffc7e1ae28ce51ab241d9175f3a2afb692e691d9a700eb65b2f3",
+      "bytes": 1549
+    },
+    {
+      "path": "gateway/index.ts",
+      "sha256": "315a451105a00b69bf366209ac28a89923fbb94d0bc7674a8f20d650c4aafbb8",
+      "bytes": 555
+    },
+    {
+      "path": "harness/index.ts",
+      "sha256": "8165be969670114ff52b12525091a95c65d18b7f2eb4818a92309c6c95b1ad4d",
+      "bytes": 7941
+    },
+    {
+      "path": "lifecycle.test.mjs",
+      "sha256": "78869b0ea3e11c97444e720fcfb74bd23314f08349bdd320a00f31ec12b1f6d4",
+      "bytes": 2105
+    },
+    {
+      "path": "proxy.mjs",
+      "sha256": "b8ec1db7660f0c8153cd2db90d2b5cf46a114db87a4c08d75cfb8647a58dac3b",
+      "bytes": 4163
+    },
+    {
+      "path": "proxy.test.mjs",
+      "sha256": "f173852aab0a3195487254ae93e85c3e3be42ff5bc55982ccdea36966e931c2b",
+      "bytes": 1405
+    },
+    {
+      "path": "README.md",
+      "sha256": "42deea350be0ad8a15caf21276f27f0852dadbc95277cd045f96f06997d4850a",
+      "bytes": 7345
+    },
+    {
+      "path": "runner.mjs",
+      "sha256": "8f950a8f7dc5a81f880337c7c1e7f5381fc9593a22465b022fd36f2c0e94f494",
+      "bytes": 12623
+    },
+    {
+      "path": "transport.ts",
+      "sha256": "4d8027191ba64e4c9dda70ec17a47cb35b1b14a73a35d0392601020c8634acbb",
+      "bytes": 629
+    }
+  ]
+}

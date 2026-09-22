@@ -1,0 +1,13 @@
+{
+  "utc": "20260921T040136Z",
+  "phase": "R4.2",
+  "status": "PASS",
+  "run": "arma2-r42-20260921t035621z",
+  "gatewayBundleSHA256": "cc5b1d451fc9ef4498ad927caee37a65aab90ff44ad6ef1cf77e176f989d7e17",
+  "matrixSHA256": "7c425c24f3ad8a3930cb05fd6698d236172d4e9114d6d957073d9669b54505e8",
+  "smokeSHA256": "a5d9153ccc2fd2a6fcc31b54f24f126d65bbaa0b6da05322fe5ec82de1172784",
+  "allowlistCount": 43,
+  "gatedCount": 33,
+  "caseCount": 26,
+  "source": "validated external R4.2 matrix evidence; this command does not create QA/fixtures"
+}

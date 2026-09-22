@@ -1,0 +1,39 @@
+[r42 04:38:02] step handoff_check: PASS
+[r42 04:38:02] step core_project_guard: PASS
+[r42 04:38:03] step core_contract_function_guard: PASS
+[r42 04:38:04] step core_keys: PASS
+[r42 04:38:04] step authorization: PASS
+[r42 04:38:04] runner preflight: PASS 
+[r42 04:38:04] step runner_preflight: PASS
+[r42 04:38:08] audit start-gateway: STARTED_PENDING_SMOKE 
+[r42 04:38:08] step start_gateway: PASS
+[r42 04:38:10] runner smoke: PASS 
+[r42 04:38:10] step smoke: PASS
+[r42 04:38:10] block qa_users
+[r42 04:38:12] block core_login
+[r42 04:38:16] block exchange
+[r42 04:38:18] block shadow_identity
+[r42 04:38:25] block workspace
+[r42 04:38:32] block season
+[r42 04:38:35] block tournament
+[r42 04:38:47] block collaborator
+[r42 04:38:54] block team_registration
+[r42 04:38:59] block roster
+[r42 04:39:09] block invitation
+[r42 04:39:15] block core_fixture
+[r42 04:39:16] block core_team_import
+[r42 04:39:32] block p0_review
+[r42 04:39:40] block cross_user
+[r42 04:39:49] block cross_workspace
+[r42 04:39:53] block cross_season
+[r42 04:39:57] block bearer_invalid
+[r42 04:40:00] block bearer_expired
+[r42 04:40:20]   FAIL forged expired bearer → 401; the REAL first bridge bearer of the run is refused once its 120 s TTL has elapsed (measured), while the owner's fresh bearer works: ASSERT {"label":{"stale":{"items":[{"role":"owner","logoPath":null,"position":null,"readOnly":false,"teamName":null,"nextMatch":null,"categoryId":"e529f328-326b-4857-9c9c-7030d90853f5","seasonName":"Temporada A 2026","teamEntryId":null,"cat
+[r42 04:40:20] journey aborted: JOURNEY_STOP_ON_FAILURE: forged expired bearer → 401; the REAL first bridge bearer of the run is refused once its 120 s TTL has elapsed (measured), while the owner's fresh bearer works
+[r42 04:40:20] block cleanup
+[r42 04:40:29] step journey: FAIL
+[r42 04:40:29] operator aborted: STEP_FAILED: journey
+[r42 04:40:29] runner cleanup: PASS 
+[r42 04:40:30] summary /Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/evidence/r5-summary-20260921T043550Z.json
+[r42 04:40:30] VERDICT R5_FAIL
+{"verdict":"R5_FAIL","blockers":["journey"],"summary":"r5-summary-20260921T043550Z.json","evidence":{"gatewayStart":{"path":"r4-gateway-start-20260921T043804Z.json","sha256":"6014cfe2cbb02c0ae889bcec59cc829fcb9c4ce5a62b9a338c17c9becf84241e"},"smoke":{"path":"r4-smoke-20260921T043810Z.json","sha256":"0360c5760a4eda1d4766bab15ebce38f89b58e2da150ade75f2f8ecd425f30ca"},"outage":{"path":"r5-outage-20260921T043550Z.json","sha256":"fc22246d879bce8185fe716549d9617afad3eea105fde35c059c3381bfac46d1"},"journey":{"path":"r5-journey-20260921T043550Z.json","sha256":"bc663d6a7b742bfa08ff79dad5bcc6f75bfd72499bd8f10321c1909340f5eb06"},"cleanup":{"path":"r5-cleanup-20260921T043550Z.json","sha256":"769aa8a42706ed00d58d9aaefe3d0f968b5598ba59574c9250ee2a2489d550bd"}}}

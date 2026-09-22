@@ -1,0 +1,57 @@
+{
+  "utc": "20260918T213439Z",
+  "files": [
+    {
+      "file": "r4-isolation-design-20260918T213439Z.json",
+      "sha256": "94870ebd27c8e3e14477063c6b24f978cd8f98ac982cb77e355c37b9b372a6f3"
+    },
+    {
+      "file": "r4-offline-deps-20260918T213439Z.json",
+      "sha256": "4d06134cf837255c74b2152b3762d2683cf29a06d269bc2afc67822357646b76"
+    },
+    {
+      "file": "r4-secret-custody-20260918T213439Z.json",
+      "sha256": "e92384e4d28e122350b006cc3b6e408e5bdf491d3e313dd255c12d581afddb3e"
+    },
+    {
+      "file": "r4-egress-test-20260918T213439Z.json",
+      "sha256": "e02d822cffdd5646939f58a068f49c37b6179a637b7a80dcd3096fec7cb3981b"
+    },
+    {
+      "file": "r4-preflight-20260918T213439Z.json",
+      "sha256": "582710167c7fd17a6828e5901ed618edd608934ef99fe73ceaa29ed8d7af3f2d"
+    }
+  ],
+  "sources": [
+    {
+      "path": ".gitignore",
+      "sha256": "78670129a10afa4cc28ff2f8b5b8033651992506642036607f3973201852279a",
+      "bytes": 25
+    },
+    {
+      "path": "audit.mjs",
+      "sha256": "85d9305d0470d29f92d0b3cfe5c1facf7a382b3a3818a2baa34965ecd0d10c71",
+      "bytes": 15802
+    },
+    {
+      "path": "harness/index.ts",
+      "sha256": "f17a09356412728b793c1de7e5aa1de49d885193afc5e61430bbd7997763c252",
+      "bytes": 5876
+    },
+    {
+      "path": "proxy.mjs",
+      "sha256": "f4ea597ab31019905eadd843229c8c677393e388af4461744cf6674cde9e77f4",
+      "bytes": 2950
+    },
+    {
+      "path": "proxy.test.mjs",
+      "sha256": "fa2a8d3081a5b5ae9f3e5bcec1957e6b0d94e8d8aad7f7940cc979fe42732d67",
+      "bytes": 1044
+    },
+    {
+      "path": "transport.ts",
+      "sha256": "4d8027191ba64e4c9dda70ec17a47cb35b1b14a73a35d0392601020c8634acbb",
+      "bytes": 629
+    }
+  ]
+}

@@ -1,0 +1,343 @@
+{
+ "pass": true,
+ "results": [
+  {
+   "name": "local identities inserted as torneos_identity_writer",
+   "pass": true,
+   "detail": 5
+  },
+  {
+   "name": "fixtures through the allowlisted RPCs (direct PostgREST, seeded acceptance)",
+   "pass": true,
+   "detail": {
+    "entries": 7,
+    "acceptance": true
+   }
+  },
+  {
+   "name": "P0 approve via direct PostgREST + audit/review readers",
+   "pass": true,
+   "detail": {
+    "approve": 200,
+    "deny": 403,
+    "cross": 403
+   }
+  },
+  {
+   "name": "token variants at the database contract (direct PostgREST): every DB-covered variant → 401/403; typ/session_id format are gateway-only",
+   "pass": true,
+   "detail": {
+    "wrong_issuer": 401,
+    "wrong_audience": 401,
+    "unknown_kid": 401,
+    "standby_kid_p3b_k2": 401,
+    "expired": 401,
+    "ttl_121": 401,
+    "ttl_60": 401,
+    "nbf_not_iat": 401,
+    "iat_future": 401,
+    "role_service_role": 401,
+    "role_anon": 401,
+    "alg_none": 401,
+    "typ_not_jwt": 200,
+    "sub_not_uuid": 401,
+    "core_user_id_not_uuid": 401,
+    "session_id_not_uuid": 200,
+    "jti_missing": 401,
+    "session_id_missing": 401,
+    "core_user_id_missing": 401,
+    "garbage": 401,
+    "empty": 401
+   }
+  },
+  {
+   "name": "PGRST202 on an unknown argument (the attestation checks rely on it) and TORNEOS_CORE_ATTESTATION_REQUIRED without an attestation",
+   "pass": true,
+   "detail": {
+    "extra": "PGRST202",
+    "required": "TORNEOS_CORE_ATTESTATION_REQUIRED",
+    "teams": "TORNEOS_CORE_ATTESTATION_REQUIRED"
+   }
+  },
+  {
+   "name": "33 gated: direct anon and authenticated → 42501 before body",
+   "pass": true,
+   "detail": {
+    "gated": 33
+   }
+  },
+  {
+   "name": "43 allowlisted null-argument calls resolve at PostgREST (no PGRST202) — shapes for the gateway dispatch block",
+   "pass": true,
+   "detail": {
+    "create_tournament_organization": {
+     "status": 400,
+     "code": "22023",
+     "message": "TORNEOS_IDEMPOTENCY_REQUIRED"
+    },
+    "update_tournament_organization": {
+     "status": 403,
+     "code": "42501",
+     "message": "TORNEOS_ORGANIZATION_FORBIDDEN"
+    },
+    "is_tournament_organization_slug_available": {
+     "status": 200,
+     "code": null,
+     "message": ""
+    },
+    "is_tournament_organization_member": {
+     "status": 200,
+     "code": null,
+     "message": ""
+    },
+    "has_tournament_organization_capability": {
+     "status": 200,
+     "code": null,
+     "message": ""
+    },
+    "has_tournament_capability": {
+     "status": 200,
+     "code": null,
+     "message": ""
+    },
+    "tournament_role_capabilities": {
+     "status": 200,
+     "code": null,
+     "message": ""
+    },
+    "get_my_tournament_memberships": {
+     "status": 200,
+     "code": null,
+     "message": ""
+    },
+    "get_tournament_workspace_context": {
+     "status": 200,
+     "code": null,
+     "message": ""
+    },
+    "set_tournament_workspace_preference": {
+     "status": 400,
+     "code": "22023",
+     "message": "TORNEOS_INVALID_WORKSPACE"
+    },
+    "set_active_tournament_context": {
+     "status": 403,
+     "code": "42501",
+     "message": "TORNEOS_CONTEXT_FORBIDDEN"
+    },
+    "assign_tournament_season_member": {
+     "status": 403,
+     "code": "42501",
+     "message": "TORNEOS_SEASON_ASSIGNMENT_FORBIDDEN"
+    },
+    "remove_tournament_season_member_assignment": {
+     "status": 403,
+     "code": "42501",
+     "message": "TORNEOS_SEASON_ASSIGNMENT_FORBIDDEN"
+    },
+    "list_tournament_season_member_assignments": {
+     "status": 403,
+     "code": "42501",
+     "message": "TORNEOS_SEASON_ASSIGNMENT_FORBIDDEN"
+    },
+    "has_tournament_season_access": {
+     "status": 200,
+     "code": null,
+     "message": ""
+    },
+    "has_tournament_season_capability": {
+     "status": 200,
+     "code": null,
+     "message": ""
+    },
+    "create_tournament_season": {
+     "status": 403,
+     "code": "42501",
+     "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    "update_tournament_season": {
+     "status": 403,
+     "code": "42501",
+     "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    "create_tournament_with_defaults": {
+     "status": 403,
+     "code": "42501",
+     "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    "update_tournament_configuration": {
+     "status": 403,
+     "code": "42501",
+     "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    "change_tournament_status": {
+     "status": 403,
+     "code": "42501",
+     "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    "save_tournament_category": {
+     "status": 403,
+     "code": "42501",
+     "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    "get_tournament_competition_context": {
+     "status": 403,
+     "code": "42501",
+     "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    "get_tournament_creation_eligibility": {
+     "status": 403,
+     "code": "42501",
+     "message": "TORNEOS_PLAN_FORBIDDEN"
+    },
+    "has_organization_consumed_free_tournament": {
+     "status": 403,
+     "code": "42501",
+     "message": "TORNEOS_PLAN_FORBIDDEN"
+    },
+    "create_tournament_team_entry": {
+     "status": 403,
+     "code": "42501",
+     "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    "update_tournament_team_entry": {
+     "status": 403,
+     "code": "42501",
+     "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    "submit_tournament_team_entry": {
+     "status": 403,
+     "code": "42501",
+     "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    "withdraw_tournament_team_entry": {
+     "status": 403,
+     "code": "42501",
+     "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    "archive_tournament_team_entry": {
+     "status": 403,
+     "code": "42501",
+     "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    "get_team_registration_context": {
+     "status": 403,
+     "code": "42501",
+     "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    "get_tournament_teams_context": {
+     "status": 403,
+     "code": "42501",
+     "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    "can_read_tournament_team_entry": {
+     "status": 200,
+     "code": null,
+     "message": ""
+    },
+    "is_tournament_team_manager": {
+     "status": 200,
+     "code": null,
+     "message": ""
+    },
+    "add_tournament_roster_player": {
+     "status": 403,
+     "code": "42501",
+     "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    "update_tournament_roster_player": {
+     "status": 403,
+     "code": "42501",
+     "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    "remove_tournament_roster_player": {
+     "status": 403,
+     "code": "42501",
+     "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    "create_tournament_provisional_player": {
+     "status": 403,
+     "code": "42501",
+     "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    "search_tournament_players": {
+     "status": 403,
+     "code": "42501",
+     "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    "invite_tournament_team_manager": {
+     "status": 403,
+     "code": "42501",
+     "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    "accept_tournament_team_invitation": {
+     "status": 403,
+     "code": "42501",
+     "message": "TORNEOS_INVITATION_INVALID"
+    },
+    "search_tournament_arma2_teams": {
+     "status": 403,
+     "code": "42501",
+     "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    "review_tournament_team_entry": {
+     "status": 403,
+     "code": "42501",
+     "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    }
+   }
+  },
+  {
+   "name": "declared argument names for the real-argument calls",
+   "pass": true,
+   "detail": {
+    "get_tournament_workspace_context": "",
+    "get_tournament_competition_context": "p_organization_id uuid",
+    "get_tournament_teams_context": "p_organization_id uuid, p_tournament_id uuid",
+    "get_team_registration_context": "p_organization_id uuid, p_team_entry_id uuid",
+    "has_tournament_season_access": "p_organization_id uuid, p_season_id uuid",
+    "has_tournament_season_capability": "p_organization_id uuid, p_season_id uuid, p_capability text",
+    "has_tournament_organization_capability": "p_organization_id uuid, p_capability text",
+    "has_tournament_capability": "p_organization_id uuid, p_tournament_id uuid, p_capability text",
+    "is_tournament_organization_member": "p_organization_id uuid",
+    "is_tournament_organization_slug_available": "p_slug text",
+    "tournament_role_capabilities": "p_role text",
+    "get_tournament_creation_eligibility": "p_organization_id uuid",
+    "has_organization_consumed_free_tournament": "p_organization_id uuid",
+    "can_read_tournament_team_entry": "p_organization_id uuid, p_team_entry_id uuid",
+    "is_tournament_team_manager": "p_team_entry_id uuid, p_require_edit boolean DEFAULT false",
+    "search_tournament_arma2_teams": "p_organization_id uuid, p_tournament_id uuid, p_query text, p_limit integer DEFAULT 8"
+   }
+  },
+  {
+   "name": "cleanup: every run row removed, counts back to baseline, catalog SHA unchanged",
+   "pass": true,
+   "detail": {
+    "planned": [
+     "public.torneos_identity",
+     "public.tournament_audit_log",
+     "public.tournament_categories",
+     "public.tournament_discipline_rules",
+     "public.tournament_organization_members",
+     "public.tournament_organizations",
+     "public.tournament_provisional_players",
+     "public.tournament_roster_players",
+     "public.tournament_roster_settings",
+     "public.tournament_rosters",
+     "public.tournament_scoring_rules",
+     "public.tournament_season_member_assignments",
+     "public.tournament_seasons",
+     "public.tournament_team_entries",
+     "public.tournament_team_invitations",
+     "public.tournament_team_managers",
+     "public.tournament_team_reviews",
+     "public.tournament_tiebreak_rules",
+     "public.tournaments",
+     "public.user_tournament_context_preferences",
+     "public.user_workspace_preferences"
+    ],
+    "catalog": "a45abe402d83c011"
+   }
+  }
+ ]
+}

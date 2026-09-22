@@ -1,0 +1,3531 @@
+{
+  "schema": "R4.2.route-transport.v1",
+  "stamp": "20260920T234910Z",
+  "variant": "route-loaded",
+  "run": "arma2-r42-20260920t234913z",
+  "gateway": "arma2-r42-20260920t234913z-gateway",
+  "proxy": "arma2-r42-20260920t234913z-proxy",
+  "restIP": "172.27.0.3",
+  "node": "v25.2.1",
+  "undici": "7.16.0",
+  "startedAt": "2026-09-20T23:49:18.092Z",
+  "scope": "targeted torneos_rest_unavailable only; one QA user; one bearer; REST /32 route fault of the matrix; no fixtures; no matrix; no certify; one attempt per request",
+  "steps": [
+    {
+      "name": "route_diagnosis_controls",
+      "status": "FAIL"
+    }
+  ],
+  "calls": [
+    {
+      "case": "setup",
+      "id": "initial-health",
+      "path": "/health",
+      "method": "GET",
+      "at": "2026-09-20T23:49:19.623Z",
+      "mono": 8741.662,
+      "httpResponse": true,
+      "status": 200,
+      "error": null,
+      "bodyKind": "json",
+      "cacheControl": "no-store",
+      "keepAlive": null,
+      "connection": "close",
+      "ms": 209.957,
+      "done": {
+        "at": "2026-09-20T23:49:19.833Z",
+        "mono": 8951.674
+      }
+    },
+    {
+      "case": "setup",
+      "id": "setup-exchange",
+      "path": "/exchange",
+      "method": "POST",
+      "at": "2026-09-20T23:49:19.833Z",
+      "mono": 8952.042,
+      "httpResponse": true,
+      "status": 200,
+      "error": null,
+      "bodyKind": "json",
+      "cacheControl": "no-store",
+      "keepAlive": "timeout=5",
+      "connection": "keep-alive",
+      "ms": 1756.781,
+      "done": {
+        "at": "2026-09-20T23:49:21.590Z",
+        "mono": 10708.848
+      }
+    },
+    {
+      "case": "B-loaded",
+      "id": "B-loaded-pre-health",
+      "path": "/health",
+      "method": "GET",
+      "at": "2026-09-20T23:50:05.206Z",
+      "mono": 54324.197,
+      "httpResponse": true,
+      "status": 200,
+      "error": null,
+      "bodyKind": "json",
+      "cacheControl": "no-store",
+      "keepAlive": "timeout=5",
+      "connection": "keep-alive",
+      "ms": 434.917,
+      "done": {
+        "at": "2026-09-20T23:50:05.641Z",
+        "mono": 54759.13
+      }
+    },
+    {
+      "case": "B-loaded",
+      "id": "B-loaded-pre-rpc-corefault",
+      "path": "/torneos/rest/v1/rpc/get_my_tournament_memberships",
+      "method": "POST",
+      "at": "2026-09-20T23:50:05.641Z",
+      "mono": 54759.303,
+      "httpResponse": true,
+      "status": 503,
+      "error": "CORE_UNAVAILABLE",
+      "bodyKind": "json",
+      "cacheControl": "no-store",
+      "keepAlive": "timeout=5",
+      "connection": "keep-alive",
+      "ms": 290.94,
+      "done": {
+        "at": "2026-09-20T23:50:05.932Z",
+        "mono": 55050.265
+      }
+    },
+    {
+      "case": "B-loaded",
+      "id": "B-loaded-pre-recovery",
+      "path": "/torneos/rest/v1/rpc/get_my_tournament_memberships",
+      "method": "POST",
+      "at": "2026-09-20T23:50:06.115Z",
+      "mono": 55233.08,
+      "httpResponse": true,
+      "status": 200,
+      "error": null,
+      "bodyKind": "json",
+      "cacheControl": "no-store",
+      "keepAlive": "timeout=5",
+      "connection": "keep-alive",
+      "ms": 966.359,
+      "done": {
+        "at": "2026-09-20T23:50:07.081Z",
+        "mono": 56199.455
+      }
+    },
+    {
+      "case": "B-loaded",
+      "id": "B-loaded-rpc",
+      "path": "/torneos/rest/v1/rpc/get_my_tournament_memberships",
+      "method": "POST",
+      "at": "2026-09-20T23:50:07.350Z",
+      "mono": 56468.152,
+      "httpResponse": true,
+      "status": 503,
+      "error": "access denied",
+      "bodyKind": "json",
+      "cacheControl": "no-store",
+      "keepAlive": "timeout=5",
+      "connection": "keep-alive",
+      "ms": 5796.298,
+      "done": {
+        "at": "2026-09-20T23:50:13.146Z",
+        "mono": 62264.484
+      }
+    },
+    {
+      "case": "B-loaded",
+      "id": "B-loaded-table",
+      "path": "/torneos/rest/v1/torneos_identity",
+      "method": "GET",
+      "at": "2026-09-20T23:50:13.146Z",
+      "mono": 62264.802,
+      "httpResponse": true,
+      "status": 503,
+      "error": "access denied",
+      "bodyKind": "json",
+      "cacheControl": "no-store",
+      "keepAlive": "timeout=5",
+      "connection": "keep-alive",
+      "ms": 821.685,
+      "done": {
+        "at": "2026-09-20T23:50:13.968Z",
+        "mono": 63086.518
+      }
+    },
+    {
+      "case": "B-loaded",
+      "id": "B-loaded-recovery-rpc",
+      "path": "/torneos/rest/v1/rpc/get_my_tournament_memberships",
+      "method": "POST",
+      "at": "2026-09-20T23:50:14.257Z",
+      "mono": 63375.659,
+      "httpResponse": true,
+      "status": 200,
+      "error": null,
+      "bodyKind": "json",
+      "cacheControl": "no-store",
+      "keepAlive": "timeout=5",
+      "connection": "keep-alive",
+      "ms": 715.702,
+      "done": {
+        "at": "2026-09-20T23:50:14.973Z",
+        "mono": 64091.381
+      }
+    },
+    {
+      "case": "B-loaded",
+      "id": "B-loaded-health-after",
+      "path": "/health",
+      "method": "GET",
+      "at": "2026-09-20T23:50:14.973Z",
+      "mono": 64091.507,
+      "httpResponse": true,
+      "status": 200,
+      "error": null,
+      "bodyKind": "json",
+      "cacheControl": "no-store",
+      "keepAlive": "timeout=5",
+      "connection": "keep-alive",
+      "ms": 196.963,
+      "done": {
+        "at": "2026-09-20T23:50:15.170Z",
+        "mono": 64288.496
+      }
+    },
+    {
+      "case": "B-padded",
+      "id": "B-padded-pre-health",
+      "path": "/health",
+      "method": "GET",
+      "at": "2026-09-20T23:50:15.502Z",
+      "mono": 64620.115,
+      "httpResponse": true,
+      "status": 200,
+      "error": null,
+      "bodyKind": "json",
+      "cacheControl": "no-store",
+      "keepAlive": "timeout=5",
+      "connection": "keep-alive",
+      "ms": 183.424,
+      "done": {
+        "at": "2026-09-20T23:50:15.685Z",
+        "mono": 64803.56
+      }
+    },
+    {
+      "case": "B-padded",
+      "id": "B-padded-pre-rpc-corefault",
+      "path": "/torneos/rest/v1/rpc/get_my_tournament_memberships",
+      "method": "POST",
+      "at": "2026-09-20T23:50:15.685Z",
+      "mono": 64803.705,
+      "httpResponse": true,
+      "status": 503,
+      "error": "CORE_UNAVAILABLE",
+      "bodyKind": "json",
+      "cacheControl": "no-store",
+      "keepAlive": "timeout=5",
+      "connection": "keep-alive",
+      "ms": 222.43,
+      "done": {
+        "at": "2026-09-20T23:50:15.908Z",
+        "mono": 65026.156
+      }
+    },
+    {
+      "case": "B-padded",
+      "id": "B-padded-pre-recovery",
+      "path": "/torneos/rest/v1/rpc/get_my_tournament_memberships",
+      "method": "POST",
+      "at": "2026-09-20T23:50:16.081Z",
+      "mono": 65199.705,
+      "httpResponse": true,
+      "status": 200,
+      "error": null,
+      "bodyKind": "json",
+      "cacheControl": "no-store",
+      "keepAlive": "timeout=5",
+      "connection": "keep-alive",
+      "ms": 601.862,
+      "done": {
+        "at": "2026-09-20T23:50:16.683Z",
+        "mono": 65801.579
+      }
+    },
+    {
+      "case": "B-padded",
+      "id": "B-padded-rpc",
+      "path": "/torneos/rest/v1/rpc/get_my_tournament_memberships",
+      "method": "POST",
+      "at": "2026-09-20T23:50:21.215Z",
+      "mono": 70333.717,
+      "httpResponse": true,
+      "status": 503,
+      "error": "access denied",
+      "bodyKind": "json",
+      "cacheControl": "no-store",
+      "keepAlive": "timeout=5",
+      "connection": "keep-alive",
+      "ms": 5988.103,
+      "done": {
+        "at": "2026-09-20T23:50:27.204Z",
+        "mono": 76321.873
+      }
+    },
+    {
+      "case": "B-padded",
+      "id": "B-padded-table",
+      "path": "/torneos/rest/v1/torneos_identity",
+      "method": "GET",
+      "at": "2026-09-20T23:50:27.204Z",
+      "mono": 76322.134,
+      "httpResponse": true,
+      "status": 503,
+      "error": "access denied",
+      "bodyKind": "json",
+      "cacheControl": "no-store",
+      "keepAlive": "timeout=5",
+      "connection": "keep-alive",
+      "ms": 693.844,
+      "done": {
+        "at": "2026-09-20T23:50:27.898Z",
+        "mono": 77015.998
+      }
+    },
+    {
+      "case": "B-padded",
+      "id": "B-padded-recovery-rpc",
+      "path": "/torneos/rest/v1/rpc/get_my_tournament_memberships",
+      "method": "POST",
+      "at": "2026-09-20T23:50:28.171Z",
+      "mono": 77289.169,
+      "httpResponse": true,
+      "status": 200,
+      "error": null,
+      "bodyKind": "json",
+      "cacheControl": "no-store",
+      "keepAlive": "timeout=5",
+      "connection": "keep-alive",
+      "ms": 621.767,
+      "done": {
+        "at": "2026-09-20T23:50:28.793Z",
+        "mono": 77910.954
+      }
+    },
+    {
+      "case": "B-padded",
+      "id": "B-padded-health-after",
+      "path": "/health",
+      "method": "GET",
+      "at": "2026-09-20T23:50:28.793Z",
+      "mono": 77911.16,
+      "httpResponse": true,
+      "status": 200,
+      "error": null,
+      "bodyKind": "json",
+      "cacheControl": "no-store",
+      "keepAlive": "timeout=5",
+      "connection": "keep-alive",
+      "ms": 190.129,
+      "done": {
+        "at": "2026-09-20T23:50:28.983Z",
+        "mono": 78101.3
+      }
+    },
+    {
+      "case": "C-padded",
+      "id": "C-padded-pre-health",
+      "path": "/health",
+      "method": "GET",
+      "at": "2026-09-20T23:50:29.288Z",
+      "mono": 78406.124,
+      "httpResponse": true,
+      "status": 200,
+      "error": null,
+      "bodyKind": "json",
+      "cacheControl": "no-store",
+      "keepAlive": "timeout=5",
+      "connection": "keep-alive",
+      "ms": 181.175,
+      "done": {
+        "at": "2026-09-20T23:50:29.469Z",
+        "mono": 78587.312
+      }
+    },
+    {
+      "case": "C-padded",
+      "id": "C-padded-pre-rpc-corefault",
+      "path": "/torneos/rest/v1/rpc/get_my_tournament_memberships",
+      "method": "POST",
+      "at": "2026-09-20T23:50:29.469Z",
+      "mono": 78587.445,
+      "httpResponse": true,
+      "status": 503,
+      "error": "CORE_UNAVAILABLE",
+      "bodyKind": "json",
+      "cacheControl": "no-store",
+      "keepAlive": "timeout=5",
+      "connection": "keep-alive",
+      "ms": 280.309,
+      "done": {
+        "at": "2026-09-20T23:50:29.750Z",
+        "mono": 78867.767
+      }
+    },
+    {
+      "case": "C-padded",
+      "id": "C-padded-pre-recovery",
+      "path": "/torneos/rest/v1/rpc/get_my_tournament_memberships",
+      "method": "POST",
+      "at": "2026-09-20T23:50:29.920Z",
+      "mono": 79037.912,
+      "httpResponse": true,
+      "status": 200,
+      "error": null,
+      "bodyKind": "json",
+      "cacheControl": "no-store",
+      "keepAlive": "timeout=5",
+      "connection": "keep-alive",
+      "ms": 1185.7,
+      "done": {
+        "at": "2026-09-20T23:50:31.105Z",
+        "mono": 80223.647
+      }
+    },
+    {
+      "case": "C-padded",
+      "id": "C-padded-rpc",
+      "path": "/torneos/rest/v1/rpc/get_my_tournament_memberships",
+      "method": "POST",
+      "at": "2026-09-20T23:50:35.051Z",
+      "mono": 84168.698,
+      "httpResponse": true,
+      "status": 503,
+      "error": "access denied",
+      "bodyKind": "json",
+      "cacheControl": "no-store",
+      "keepAlive": "timeout=5",
+      "connection": "keep-alive",
+      "ms": 6301.029,
+      "done": {
+        "at": "2026-09-20T23:50:41.352Z",
+        "mono": 90469.75
+      }
+    },
+    {
+      "case": "C-padded",
+      "id": "C-padded-table",
+      "path": "/torneos/rest/v1/torneos_identity",
+      "method": "GET",
+      "at": "2026-09-20T23:50:41.352Z",
+      "mono": 90469.883,
+      "httpResponse": true,
+      "status": 503,
+      "error": "access denied",
+      "bodyKind": "json",
+      "cacheControl": "no-store",
+      "keepAlive": "timeout=5",
+      "connection": "keep-alive",
+      "ms": 947.809,
+      "done": {
+        "at": "2026-09-20T23:50:42.300Z",
+        "mono": 91417.745
+      }
+    },
+    {
+      "case": "C-padded",
+      "id": "C-padded-recovery-rpc",
+      "path": "/torneos/rest/v1/rpc/get_my_tournament_memberships",
+      "method": "POST",
+      "at": "2026-09-20T23:50:42.577Z",
+      "mono": 91694.756,
+      "httpResponse": true,
+      "status": 200,
+      "error": null,
+      "bodyKind": "json",
+      "cacheControl": "no-store",
+      "keepAlive": "timeout=5",
+      "connection": "keep-alive",
+      "ms": 709.631,
+      "done": {
+        "at": "2026-09-20T23:50:43.286Z",
+        "mono": 92404.409
+      }
+    },
+    {
+      "case": "C-padded",
+      "id": "C-padded-health-after",
+      "path": "/health",
+      "method": "GET",
+      "at": "2026-09-20T23:50:43.286Z",
+      "mono": 92404.509,
+      "httpResponse": true,
+      "status": 200,
+      "error": null,
+      "bodyKind": "json",
+      "cacheControl": "no-store",
+      "keepAlive": "timeout=5",
+      "connection": "keep-alive",
+      "ms": 189.094,
+      "done": {
+        "at": "2026-09-20T23:50:43.476Z",
+        "mono": 92593.636
+      }
+    },
+    {
+      "case": "D",
+      "id": "D-health",
+      "path": "/health",
+      "method": "GET",
+      "at": "2026-09-20T23:50:43.620Z",
+      "mono": 92738.271,
+      "httpResponse": true,
+      "status": 200,
+      "error": null,
+      "bodyKind": "json",
+      "cacheControl": "no-store",
+      "keepAlive": "timeout=5",
+      "connection": "keep-alive",
+      "ms": 199.165,
+      "done": {
+        "at": "2026-09-20T23:50:43.819Z",
+        "mono": 92937.452
+      }
+    }
+  ],
+  "ops": [
+    {
+      "case": "B-loaded",
+      "phase": "preamble",
+      "kind": "sync",
+      "cmd": "ip -f inet route; echo ---; ip -f inet6 route",
+      "netAdmin": false,
+      "at": "2026-09-20T23:50:05.992Z",
+      "mono": 55110.678,
+      "ms": 122.346,
+      "status": 0
+    },
+    {
+      "case": "B-loaded",
+      "phase": "fault",
+      "kind": "sync",
+      "cmd": "ip route del 172.27.0.3/32 dev eth0",
+      "netAdmin": true,
+      "at": "2026-09-20T23:50:07.081Z",
+      "mono": 56199.824,
+      "ms": 127.346,
+      "status": 0
+    },
+    {
+      "case": "B-loaded",
+      "phase": "fault",
+      "kind": "sync",
+      "cmd": "ip -f inet route; echo ---; ip -f inet6 route",
+      "netAdmin": false,
+      "at": "2026-09-20T23:50:07.209Z",
+      "mono": 56327.216,
+      "ms": 140.729,
+      "status": 0
+    },
+    {
+      "case": "B-loaded",
+      "phase": "fault",
+      "kind": "sync",
+      "cmd": "ip route replace 172.27.0.3/32 dev eth0",
+      "netAdmin": true,
+      "at": "2026-09-20T23:50:13.968Z",
+      "mono": 63086.77,
+      "ms": 140.141,
+      "status": 0
+    },
+    {
+      "case": "B-padded",
+      "phase": "preamble",
+      "kind": "sync",
+      "cmd": "ip -f inet route; echo ---; ip -f inet6 route",
+      "netAdmin": false,
+      "at": "2026-09-20T23:50:15.958Z",
+      "mono": 65076.588,
+      "ms": 123.075,
+      "status": 0
+    },
+    {
+      "case": "B-padded",
+      "phase": "fault",
+      "kind": "sync",
+      "cmd": "ip route del 172.27.0.3/32 dev eth0",
+      "netAdmin": true,
+      "at": "2026-09-20T23:50:16.683Z",
+      "mono": 65801.745,
+      "ms": 128.06,
+      "status": 0
+    },
+    {
+      "case": "B-padded",
+      "phase": "fault",
+      "kind": "sync",
+      "cmd": "ip -f inet route; echo ---; ip -f inet6 route",
+      "netAdmin": false,
+      "at": "2026-09-20T23:50:16.812Z",
+      "mono": 65929.853,
+      "ms": 148.619,
+      "status": 0
+    },
+    {
+      "case": "B-padded",
+      "phase": "fault",
+      "kind": "sync",
+      "cmd": "ip route replace 172.27.0.3/32 dev eth0",
+      "netAdmin": true,
+      "at": "2026-09-20T23:50:27.898Z",
+      "mono": 77016.203,
+      "ms": 132.93,
+      "status": 0
+    },
+    {
+      "case": "C-padded",
+      "phase": "preamble",
+      "kind": "sync",
+      "cmd": "ip -f inet route; echo ---; ip -f inet6 route",
+      "netAdmin": false,
+      "at": "2026-09-20T23:50:29.801Z",
+      "mono": 78919.392,
+      "ms": 118.474,
+      "status": 0
+    },
+    {
+      "case": "C-padded",
+      "phase": "fault",
+      "kind": "async",
+      "cmd": "ip route del 172.27.0.3/32 dev eth0",
+      "netAdmin": true,
+      "at": "2026-09-20T23:50:31.106Z",
+      "mono": 80224.211,
+      "ms": 140.007,
+      "status": 0
+    },
+    {
+      "case": "C-padded",
+      "phase": "fault",
+      "kind": "async",
+      "cmd": "ip -f inet route; echo ---; ip -f inet6 route",
+      "netAdmin": false,
+      "at": "2026-09-20T23:50:31.246Z",
+      "mono": 80364.255,
+      "ms": 145.824,
+      "status": 0
+    },
+    {
+      "case": "C-padded",
+      "phase": "fault",
+      "kind": "async",
+      "cmd": "ip route replace 172.27.0.3/32 dev eth0",
+      "netAdmin": true,
+      "at": "2026-09-20T23:50:42.300Z",
+      "mono": 91417.978,
+      "ms": 137.15,
+      "status": 0
+    }
+  ],
+  "events": [
+    {
+      "at": "2026-09-20T23:49:19.625Z",
+      "mono": 8744.052,
+      "case": "setup",
+      "event": "undici:client:sendHeaders",
+      "path": "/torneos-gateway/health",
+      "socket": {
+        "localAddress": "127.0.0.1",
+        "localPort": 63862,
+        "remoteAddress": "127.0.0.1",
+        "remotePort": 58431,
+        "bytesWritten": 0,
+        "bytesRead": 0,
+        "destroyed": false,
+        "readyState": "open"
+      },
+      "error": null
+    },
+    {
+      "at": "2026-09-20T23:49:19.832Z",
+      "mono": 8950.687,
+      "case": "setup",
+      "event": "client:socket:error",
+      "origin": "http://127.0.0.1:58431",
+      "initial": {
+        "localAddress": "127.0.0.1",
+        "localPort": 63862,
+        "remoteAddress": "127.0.0.1",
+        "remotePort": 58431,
+        "bytesWritten": 0,
+        "bytesRead": 0,
+        "destroyed": false,
+        "readyState": "open"
+      },
+      "socket": {
+        "localAddress": null,
+        "localPort": null,
+        "remoteAddress": "127.0.0.1",
+        "remotePort": 58431,
+        "bytesWritten": 216,
+        "bytesRead": 252,
+        "destroyed": true,
+        "readyState": "closed"
+      },
+      "error": {
+        "name": "InformationalError",
+        "code": "UND_ERR_INFO",
+        "errno": null,
+        "syscall": null,
+        "message": "reset",
+        "cause": null,
+        "socket": null
+      }
+    },
+    {
+      "at": "2026-09-20T23:49:19.836Z",
+      "mono": 8954.54,
+      "case": "setup",
+      "event": "client:socket:close",
+      "origin": "http://127.0.0.1:58431",
+      "initial": {
+        "localAddress": "127.0.0.1",
+        "localPort": 63862,
+        "remoteAddress": "127.0.0.1",
+        "remotePort": 58431,
+        "bytesWritten": 0,
+        "bytesRead": 0,
+        "destroyed": false,
+        "readyState": "open"
+      },
+      "socket": {
+        "localAddress": null,
+        "localPort": null,
+        "remoteAddress": "127.0.0.1",
+        "remotePort": 58431,
+        "bytesWritten": 216,
+        "bytesRead": 252,
+        "destroyed": true,
+        "readyState": "closed"
+      }
+    },
+    {
+      "at": "2026-09-20T23:49:19.836Z",
+      "mono": 8955.096,
+      "case": "setup",
+      "event": "undici:client:sendHeaders",
+      "path": "/torneos-gateway/exchange",
+      "socket": {
+        "localAddress": "127.0.0.1",
+        "localPort": 63863,
+        "remoteAddress": "127.0.0.1",
+        "remotePort": 58431,
+        "bytesWritten": 0,
+        "bytesRead": 0,
+        "destroyed": false,
+        "readyState": "open"
+      },
+      "error": null
+    },
+    {
+      "at": "2026-09-20T23:49:21.589Z",
+      "mono": 10707.487,
+      "case": "setup",
+      "event": "client:socket:error",
+      "origin": "http://127.0.0.1:58431",
+      "initial": {
+        "localAddress": "127.0.0.1",
+        "localPort": 63863,
+        "remoteAddress": "127.0.0.1",
+        "remotePort": 58431,
+        "bytesWritten": 0,
+        "bytesRead": 0,
+        "destroyed": false,
+        "readyState": "open"
+      },
+      "socket": {
+        "localAddress": null,
+        "localPort": null,
+        "remoteAddress": "127.0.0.1",
+        "remotePort": 58431,
+        "bytesWritten": 1271,
+        "bytesRead": 1192,
+        "destroyed": true,
+        "readyState": "closed"
+      },
+      "error": {
+        "name": "ClientDestroyedError",
+        "code": "UND_ERR_DESTROYED",
+        "errno": null,
+        "syscall": null,
+        "message": "The client is destroyed",
+        "cause": null,
+        "socket": null
+      }
+    },
+    {
+      "at": "2026-09-20T23:49:21.589Z",
+      "mono": 10707.579,
+      "case": "setup",
+      "event": "client:socket:close",
+      "origin": "http://127.0.0.1:58431",
+      "initial": {
+        "localAddress": "127.0.0.1",
+        "localPort": 63863,
+        "remoteAddress": "127.0.0.1",
+        "remotePort": 58431,
+        "bytesWritten": 0,
+        "bytesRead": 0,
+        "destroyed": false,
+        "readyState": "open"
+      },
+      "socket": {
+        "localAddress": null,
+        "localPort": null,
+        "remoteAddress": "127.0.0.1",
+        "remotePort": 58431,
+        "bytesWritten": 1271,
+        "bytesRead": 1192,
+        "destroyed": true,
+        "readyState": "closed"
+      }
+    },
+    {
+      "at": "2026-09-20T23:50:05.207Z",
+      "mono": 54325.26,
+      "case": "B-loaded",
+      "event": "undici:client:sendHeaders",
+      "path": "/torneos-gateway/health",
+      "socket": {
+        "localAddress": "127.0.0.1",
+        "localPort": 63869,
+        "remoteAddress": "127.0.0.1",
+        "remotePort": 58431,
+        "bytesWritten": 0,
+        "bytesRead": 0,
+        "destroyed": false,
+        "readyState": "open"
+      },
+      "error": null
+    },
+    {
+      "at": "2026-09-20T23:50:05.642Z",
+      "mono": 54760.367,
+      "case": "B-loaded",
+      "event": "undici:client:sendHeaders",
+      "path": "/torneos-gateway/torneos/rest/v1/rpc/get_my_tournament_memberships",
+      "socket": {
+        "localAddress": "127.0.0.1",
+        "localPort": 63871,
+        "remoteAddress": "127.0.0.1",
+        "remotePort": 58431,
+        "bytesWritten": 0,
+        "bytesRead": 0,
+        "destroyed": false,
+        "readyState": "open"
+      },
+      "error": null
+    },
+    {
+      "at": "2026-09-20T23:50:06.115Z",
+      "mono": 55233.695,
+      "case": "B-loaded",
+      "event": "undici:client:sendHeaders",
+      "path": "/torneos-gateway/torneos/rest/v1/rpc/get_my_tournament_memberships",
+      "socket": {
+        "localAddress": "127.0.0.1",
+        "localPort": 63869,
+        "remoteAddress": "127.0.0.1",
+        "remotePort": 58431,
+        "bytesWritten": 226,
+        "bytesRead": 280,
+        "destroyed": false,
+        "readyState": "open"
+      },
+      "error": null
+    },
+    {
+      "at": "2026-09-20T23:50:07.350Z",
+      "mono": 56468.661,
+      "case": "B-loaded",
+      "event": "undici:client:sendHeaders",
+      "path": "/torneos-gateway/torneos/rest/v1/rpc/get_my_tournament_memberships",
+      "socket": {
+        "localAddress": "127.0.0.1",
+        "localPort": 63871,
+        "remoteAddress": "127.0.0.1",
+        "remotePort": 58431,
+        "bytesWritten": 1206,
+        "bytesRead": 355,
+        "destroyed": false,
+        "readyState": "open"
+      },
+      "error": null
+    },
+    {
+      "at": "2026-09-20T23:50:10.351Z",
+      "mono": 59469.602,
+      "case": "B-loaded",
+      "event": "client:socket:error",
+      "origin": "http://127.0.0.1:58431",
+      "initial": {
+        "localAddress": "127.0.0.1",
+        "localPort": 63869,
+        "remoteAddress": "127.0.0.1",
+        "remotePort": 58431,
+        "bytesWritten": 0,
+        "bytesRead": 0,
+        "destroyed": false,
+        "readyState": "open"
+      },
+      "socket": {
+        "localAddress": null,
+        "localPort": null,
+        "remoteAddress": "127.0.0.1",
+        "remotePort": 58431,
+        "bytesWritten": 1427,
+        "bytesRead": 668,
+        "destroyed": true,
+        "readyState": "closed"
+      },
+      "error": {
+        "name": "InformationalError",
+        "code": "UND_ERR_INFO",
+        "errno": null,
+        "syscall": null,
+        "message": "socket idle timeout",
+        "cause": null,
+        "socket": null
+      }
+    },
+    {
+      "at": "2026-09-20T23:50:10.351Z",
+      "mono": 59469.708,
+      "case": "B-loaded",
+      "event": "client:socket:close",
+      "origin": "http://127.0.0.1:58431",
+      "initial": {
+        "localAddress": "127.0.0.1",
+        "localPort": 63869,
+        "remoteAddress": "127.0.0.1",
+        "remotePort": 58431,
+        "bytesWritten": 0,
+        "bytesRead": 0,
+        "destroyed": false,
+        "readyState": "open"
+      },
+      "socket": {
+        "localAddress": null,
+        "localPort": null,
+        "remoteAddress": "127.0.0.1",
+        "remotePort": 58431,
+        "bytesWritten": 1427,
+        "bytesRead": 668,
+        "destroyed": true,
+        "readyState": "closed"
+      }
+    },
+    {
+      "at": "2026-09-20T23:50:13.148Z",
+      "mono": 62266.29,
+      "case": "B-loaded",
+      "event": "undici:client:sendHeaders",
+      "path": "/torneos-gateway/torneos/rest/v1/torneos_identity?select=id",
+      "socket": {
+        "localAddress": "127.0.0.1",
+        "localPort": 63872,
+        "remoteAddress": "127.0.0.1",
+        "remotePort": 58431,
+        "bytesWritten": 0,
+        "bytesRead": 0,
+        "destroyed": false,
+        "readyState": "open"
+      },
+      "error": null
+    },
+    {
+      "at": "2026-09-20T23:50:14.258Z",
+      "mono": 63376.312,
+      "case": "B-loaded",
+      "event": "undici:client:sendHeaders",
+      "path": "/torneos-gateway/torneos/rest/v1/rpc/get_my_tournament_memberships",
+      "socket": {
+        "localAddress": "127.0.0.1",
+        "localPort": 63872,
+        "remoteAddress": "127.0.0.1",
+        "remotePort": 58431,
+        "bytesWritten": 1133,
+        "bytesRead": 352,
+        "destroyed": false,
+        "readyState": "open"
+      },
+      "error": null
+    },
+    {
+      "at": "2026-09-20T23:50:14.973Z",
+      "mono": 64091.815,
+      "case": "B-loaded",
+      "event": "undici:client:sendHeaders",
+      "path": "/torneos-gateway/health",
+      "socket": {
+        "localAddress": "127.0.0.1",
+        "localPort": 63871,
+        "remoteAddress": "127.0.0.1",
+        "remotePort": 58431,
+        "bytesWritten": 2398,
+        "bytesRead": 707,
+        "destroyed": false,
+        "readyState": "open"
+      },
+      "error": null
+    },
+    {
+      "at": "2026-09-20T23:50:15.502Z",
+      "mono": 64620.306,
+      "case": "B-padded",
+      "event": "undici:client:sendHeaders",
+      "path": "/torneos-gateway/health",
+      "socket": {
+        "localAddress": "127.0.0.1",
+        "localPort": 63872,
+        "remoteAddress": "127.0.0.1",
+        "remotePort": 58431,
+        "bytesWritten": 2334,
+        "bytesRead": 740,
+        "destroyed": false,
+        "readyState": "open"
+      },
+      "error": null
+    },
+    {
+      "at": "2026-09-20T23:50:15.686Z",
+      "mono": 64804.014,
+      "case": "B-padded",
+      "event": "undici:client:sendHeaders",
+      "path": "/torneos-gateway/torneos/rest/v1/rpc/get_my_tournament_memberships",
+      "socket": {
+        "localAddress": "127.0.0.1",
+        "localPort": 63871,
+        "remoteAddress": "127.0.0.1",
+        "remotePort": 58431,
+        "bytesWritten": 2626,
+        "bytesRead": 987,
+        "destroyed": false,
+        "readyState": "open"
+      },
+      "error": null
+    },
+    {
+      "at": "2026-09-20T23:50:16.082Z",
+      "mono": 65200.108,
+      "case": "B-padded",
+      "event": "undici:client:sendHeaders",
+      "path": "/torneos-gateway/torneos/rest/v1/rpc/get_my_tournament_memberships",
+      "socket": {
+        "localAddress": "127.0.0.1",
+        "localPort": 63872,
+        "remoteAddress": "127.0.0.1",
+        "remotePort": 58431,
+        "bytesWritten": 2560,
+        "bytesRead": 1020,
+        "destroyed": false,
+        "readyState": "open"
+      },
+      "error": null
+    },
+    {
+      "at": "2026-09-20T23:50:21.217Z",
+      "mono": 70335.117,
+      "case": "B-padded",
+      "event": "undici:client:sendHeaders",
+      "path": "/torneos-gateway/torneos/rest/v1/rpc/get_my_tournament_memberships",
+      "socket": {
+        "localAddress": "127.0.0.1",
+        "localPort": 63871,
+        "remoteAddress": "127.0.0.1",
+        "remotePort": 58431,
+        "bytesWritten": 3832,
+        "bytesRead": 1342,
+        "destroyed": false,
+        "readyState": "open"
+      },
+      "error": null
+    },
+    {
+      "at": "2026-09-20T23:50:22.686Z",
+      "mono": 71804.515,
+      "case": "B-padded",
+      "event": "client:socket:end",
+      "origin": "http://127.0.0.1:58431",
+      "initial": {
+        "localAddress": "127.0.0.1",
+        "localPort": 63872,
+        "remoteAddress": "127.0.0.1",
+        "remotePort": 58431,
+        "bytesWritten": 0,
+        "bytesRead": 0,
+        "destroyed": false,
+        "readyState": "open"
+      },
+      "socket": {
+        "localAddress": null,
+        "localPort": null,
+        "remoteAddress": "127.0.0.1",
+        "remotePort": 58431,
+        "bytesWritten": 3761,
+        "bytesRead": 1408,
+        "destroyed": true,
+        "readyState": "closed"
+      }
+    },
+    {
+      "at": "2026-09-20T23:50:22.686Z",
+      "mono": 71804.602,
+      "case": "B-padded",
+      "event": "client:socket:error",
+      "origin": "http://127.0.0.1:58431",
+      "initial": {
+        "localAddress": "127.0.0.1",
+        "localPort": 63872,
+        "remoteAddress": "127.0.0.1",
+        "remotePort": 58431,
+        "bytesWritten": 0,
+        "bytesRead": 0,
+        "destroyed": false,
+        "readyState": "open"
+      },
+      "socket": {
+        "localAddress": null,
+        "localPort": null,
+        "remoteAddress": "127.0.0.1",
+        "remotePort": 58431,
+        "bytesWritten": 3761,
+        "bytesRead": 1408,
+        "destroyed": true,
+        "readyState": "closed"
+      },
+      "error": {
+        "name": "SocketError",
+        "code": "UND_ERR_SOCKET",
+        "errno": null,
+        "syscall": null,
+        "message": "other side closed",
+        "cause": null,
+        "socket": {
+          "localAddress": "127.0.0.1",
+          "localPort": 63872,
+          "remoteAddress": "127.0.0.1",
+          "remotePort": 58431,
+          "bytesWritten": 3761,
+          "bytesRead": 1408,
+          "destroyed": null,
+          "readyState": null
+        }
+      }
+    },
+    {
+      "at": "2026-09-20T23:50:22.686Z",
+      "mono": 71804.721,
+      "case": "B-padded",
+      "event": "client:socket:close",
+      "origin": "http://127.0.0.1:58431",
+      "initial": {
+        "localAddress": "127.0.0.1",
+        "localPort": 63872,
+        "remoteAddress": "127.0.0.1",
+        "remotePort": 58431,
+        "bytesWritten": 0,
+        "bytesRead": 0,
+        "destroyed": false,
+        "readyState": "open"
+      },
+      "socket": {
+        "localAddress": null,
+        "localPort": null,
+        "remoteAddress": "127.0.0.1",
+        "remotePort": 58431,
+        "bytesWritten": 3761,
+        "bytesRead": 1408,
+        "destroyed": true,
+        "readyState": "closed"
+      }
+    },
+    {
+      "at": "2026-09-20T23:50:27.205Z",
+      "mono": 76323.378,
+      "case": "B-padded",
+      "event": "undici:client:sendHeaders",
+      "path": "/torneos-gateway/torneos/rest/v1/torneos_identity?select=id",
+      "socket": {
+        "localAddress": "127.0.0.1",
+        "localPort": 63884,
+        "remoteAddress": "127.0.0.1",
+        "remotePort": 58431,
+        "bytesWritten": 0,
+        "bytesRead": 0,
+        "destroyed": false,
+        "readyState": "open"
+      },
+      "error": null
+    },
+    {
+      "at": "2026-09-20T23:50:28.171Z",
+      "mono": 77289.608,
+      "case": "B-padded",
+      "event": "undici:client:sendHeaders",
+      "path": "/torneos-gateway/torneos/rest/v1/rpc/get_my_tournament_memberships",
+      "socket": {
+        "localAddress": "127.0.0.1",
+        "localPort": 63884,
+        "remoteAddress": "127.0.0.1",
+        "remotePort": 58431,
+        "bytesWritten": 1133,
+        "bytesRead": 352,
+        "destroyed": false,
+        "readyState": "open"
+      },
+      "error": null
+    },
+    {
+      "at": "2026-09-20T23:50:28.793Z",
+      "mono": 77911.458,
+      "case": "B-padded",
+      "event": "undici:client:sendHeaders",
+      "path": "/torneos-gateway/health",
+      "socket": {
+        "localAddress": "127.0.0.1",
+        "localPort": 63871,
+        "remoteAddress": "127.0.0.1",
+        "remotePort": 58431,
+        "bytesWritten": 5024,
+        "bytesRead": 1694,
+        "destroyed": false,
+        "readyState": "open"
+      },
+      "error": null
+    },
+    {
+      "at": "2026-09-20T23:50:29.288Z",
+      "mono": 78406.32,
+      "case": "C-padded",
+      "event": "undici:client:sendHeaders",
+      "path": "/torneos-gateway/health",
+      "socket": {
+        "localAddress": "127.0.0.1",
+        "localPort": 63884,
+        "remoteAddress": "127.0.0.1",
+        "remotePort": 58431,
+        "bytesWritten": 2334,
+        "bytesRead": 740,
+        "destroyed": false,
+        "readyState": "open"
+      },
+      "error": null
+    },
+    {
+      "at": "2026-09-20T23:50:29.470Z",
+      "mono": 78587.765,
+      "case": "C-padded",
+      "event": "undici:client:sendHeaders",
+      "path": "/torneos-gateway/torneos/rest/v1/rpc/get_my_tournament_memberships",
+      "socket": {
+        "localAddress": "127.0.0.1",
+        "localPort": 63871,
+        "remoteAddress": "127.0.0.1",
+        "remotePort": 58431,
+        "bytesWritten": 5252,
+        "bytesRead": 1974,
+        "destroyed": false,
+        "readyState": "open"
+      },
+      "error": null
+    },
+    {
+      "at": "2026-09-20T23:50:29.920Z",
+      "mono": 79038.294,
+      "case": "C-padded",
+      "event": "undici:client:sendHeaders",
+      "path": "/torneos-gateway/torneos/rest/v1/rpc/get_my_tournament_memberships",
+      "socket": {
+        "localAddress": "127.0.0.1",
+        "localPort": 63884,
+        "remoteAddress": "127.0.0.1",
+        "remotePort": 58431,
+        "bytesWritten": 2560,
+        "bytesRead": 1020,
+        "destroyed": false,
+        "readyState": "open"
+      },
+      "error": null
+    },
+    {
+      "at": "2026-09-20T23:50:32.751Z",
+      "mono": 81869.273,
+      "case": "C-padded",
+      "event": "client:socket:error",
+      "origin": "http://127.0.0.1:58431",
+      "initial": {
+        "localAddress": "127.0.0.1",
+        "localPort": 63871,
+        "remoteAddress": "127.0.0.1",
+        "remotePort": 58431,
+        "bytesWritten": 0,
+        "bytesRead": 0,
+        "destroyed": false,
+        "readyState": "open"
+      },
+      "socket": {
+        "localAddress": null,
+        "localPort": null,
+        "remoteAddress": "127.0.0.1",
+        "remotePort": 58431,
+        "bytesWritten": 6458,
+        "bytesRead": 2329,
+        "destroyed": true,
+        "readyState": "closed"
+      },
+      "error": {
+        "name": "InformationalError",
+        "code": "UND_ERR_INFO",
+        "errno": null,
+        "syscall": null,
+        "message": "socket idle timeout",
+        "cause": null,
+        "socket": null
+      }
+    },
+    {
+      "at": "2026-09-20T23:50:32.751Z",
+      "mono": 81869.439,
+      "case": "C-padded",
+      "event": "client:socket:close",
+      "origin": "http://127.0.0.1:58431",
+      "initial": {
+        "localAddress": "127.0.0.1",
+        "localPort": 63871,
+        "remoteAddress": "127.0.0.1",
+        "remotePort": 58431,
+        "bytesWritten": 0,
+        "bytesRead": 0,
+        "destroyed": false,
+        "readyState": "open"
+      },
+      "socket": {
+        "localAddress": null,
+        "localPort": null,
+        "remoteAddress": "127.0.0.1",
+        "remotePort": 58431,
+        "bytesWritten": 6458,
+        "bytesRead": 2329,
+        "destroyed": true,
+        "readyState": "closed"
+      }
+    },
+    {
+      "at": "2026-09-20T23:50:34.111Z",
+      "mono": 83229.416,
+      "case": "C-padded",
+      "event": "client:socket:error",
+      "origin": "http://127.0.0.1:58431",
+      "initial": {
+        "localAddress": "127.0.0.1",
+        "localPort": 63884,
+        "remoteAddress": "127.0.0.1",
+        "remotePort": 58431,
+        "bytesWritten": 0,
+        "bytesRead": 0,
+        "destroyed": false,
+        "readyState": "open"
+      },
+      "socket": {
+        "localAddress": null,
+        "localPort": null,
+        "remoteAddress": "127.0.0.1",
+        "remotePort": 58431,
+        "bytesWritten": 3761,
+        "bytesRead": 1408,
+        "destroyed": true,
+        "readyState": "closed"
+      },
+      "error": {
+        "name": "InformationalError",
+        "code": "UND_ERR_INFO",
+        "errno": null,
+        "syscall": null,
+        "message": "socket idle timeout",
+        "cause": null,
+        "socket": null
+      }
+    },
+    {
+      "at": "2026-09-20T23:50:34.112Z",
+      "mono": 83229.841,
+      "case": "C-padded",
+      "event": "client:socket:close",
+      "origin": "http://127.0.0.1:58431",
+      "initial": {
+        "localAddress": "127.0.0.1",
+        "localPort": 63884,
+        "remoteAddress": "127.0.0.1",
+        "remotePort": 58431,
+        "bytesWritten": 0,
+        "bytesRead": 0,
+        "destroyed": false,
+        "readyState": "open"
+      },
+      "socket": {
+        "localAddress": null,
+        "localPort": null,
+        "remoteAddress": "127.0.0.1",
+        "remotePort": 58431,
+        "bytesWritten": 3761,
+        "bytesRead": 1408,
+        "destroyed": true,
+        "readyState": "closed"
+      }
+    },
+    {
+      "at": "2026-09-20T23:50:35.052Z",
+      "mono": 84170.459,
+      "case": "C-padded",
+      "event": "undici:client:sendHeaders",
+      "path": "/torneos-gateway/torneos/rest/v1/rpc/get_my_tournament_memberships",
+      "socket": {
+        "localAddress": "127.0.0.1",
+        "localPort": 63886,
+        "remoteAddress": "127.0.0.1",
+        "remotePort": 58431,
+        "bytesWritten": 0,
+        "bytesRead": 0,
+        "destroyed": false,
+        "readyState": "open"
+      },
+      "error": null
+    },
+    {
+      "at": "2026-09-20T23:50:41.352Z",
+      "mono": 90470.168,
+      "case": "C-padded",
+      "event": "undici:client:sendHeaders",
+      "path": "/torneos-gateway/torneos/rest/v1/torneos_identity?select=id",
+      "socket": {
+        "localAddress": "127.0.0.1",
+        "localPort": 63886,
+        "remoteAddress": "127.0.0.1",
+        "remotePort": 58431,
+        "bytesWritten": 1192,
+        "bytesRead": 352,
+        "destroyed": false,
+        "readyState": "open"
+      },
+      "error": null
+    },
+    {
+      "at": "2026-09-20T23:50:42.577Z",
+      "mono": 91695.135,
+      "case": "C-padded",
+      "event": "undici:client:sendHeaders",
+      "path": "/torneos-gateway/torneos/rest/v1/rpc/get_my_tournament_memberships",
+      "socket": {
+        "localAddress": "127.0.0.1",
+        "localPort": 63886,
+        "remoteAddress": "127.0.0.1",
+        "remotePort": 58431,
+        "bytesWritten": 2325,
+        "bytesRead": 704,
+        "destroyed": false,
+        "readyState": "open"
+      },
+      "error": null
+    },
+    {
+      "at": "2026-09-20T23:50:43.287Z",
+      "mono": 92405.172,
+      "case": "C-padded",
+      "event": "undici:client:sendHeaders",
+      "path": "/torneos-gateway/health",
+      "socket": {
+        "localAddress": "127.0.0.1",
+        "localPort": 63888,
+        "remoteAddress": "127.0.0.1",
+        "remotePort": 58431,
+        "bytesWritten": 0,
+        "bytesRead": 0,
+        "destroyed": false,
+        "readyState": "open"
+      },
+      "error": null
+    },
+    {
+      "at": "2026-09-20T23:50:43.620Z",
+      "mono": 92738.505,
+      "case": "D",
+      "event": "undici:client:sendHeaders",
+      "path": "/torneos-gateway/health",
+      "socket": {
+        "localAddress": "127.0.0.1",
+        "localPort": 63886,
+        "remoteAddress": "127.0.0.1",
+        "remotePort": 58431,
+        "bytesWritten": 3526,
+        "bytesRead": 1092,
+        "destroyed": false,
+        "readyState": "open"
+      },
+      "error": null
+    }
+  ],
+  "cases": [
+    {
+      "name": "H",
+      "harness": {
+        "ms": 43304.03,
+        "pass": true,
+        "tests": 29,
+        "bundleSHA256": "be45c9fbd7e5f3a9aad76e411825a689a3c21a7e99268f28c069afc3501e3eee"
+      },
+      "loop": {
+        "ticks": 857,
+        "maxGapMs": 52,
+        "eldMaxMs": 14,
+        "eldMeanMs": 11
+      }
+    },
+    {
+      "name": "B-loaded",
+      "mode": "sync (spawnSync docker run, historical matrix)",
+      "before": {
+        "at": "2026-09-20T23:50:05.156Z",
+        "mono": 54274.507,
+        "containers": {
+          "gateway": {
+            "id": "101e25c83a9c",
+            "running": true,
+            "status": "running",
+            "restartCount": 0,
+            "startedAt": "2026-09-20T23:49:15.622511379Z",
+            "finishedAt": "0001-01-01T00:00:00Z",
+            "exitCode": 0,
+            "oomKilled": false
+          },
+          "proxy": {
+            "id": "eb092dba071d",
+            "running": true,
+            "status": "running",
+            "restartCount": 0,
+            "startedAt": "2026-09-20T23:49:13.902457628Z",
+            "finishedAt": "0001-01-01T00:00:00Z",
+            "exitCode": 0,
+            "oomKilled": false
+          }
+        },
+        "routes": "unreachable default \n172.27.0.2 dev eth0 scope link \n172.27.0.3 dev eth0 scope link \n172.29.0.2 dev eth1 scope link \n---\nunreachable default dev lo  metric 1024",
+        "proxyTCPAndFault": "  sl  local_address rem_address   st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode                                                     \n   0: 0B00007F:852B 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 29343821 1 000000004ff4d9fc 100 0 0 10 0                  \n   1: 00000000:2328 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 29336807 1 000000006c81365d 100 0 0 10 0                  \n   2: 00000000:01BB 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 29336808 1 0000000099bc3eba 100 0 0 10 0                  \n   3: 0100007F:240D 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 29334341 1 0000000002c30c73 100 0 0 10 0                  \n   4: 02001EAC:AB8E 0A261268:01BB 06 00000000:00000000 03:00000874 00000000     0        0 0 3 00000000972627f7                                      \n   5: 02001DAC:01BB 03001DAC:80E2 06 00000000:00000000 03:0000081D 00000000     0        0 0 3 00000000d375a613                                      \n   6: 0100007F:B904 0100007F:240D 06 00000000:00000000 03:0000053E 00000000     0        0 0 3 0000000039ee8120                                      \n   7: 0100007F:240D 0100007F:B910 06 00000000:00000000 03:0000053F 00000000     0        0 0 3 00000000bc1d8482                                      \n   8: 02001DAC:E9BC 03001DAC:2328 06 00000000:00000000 03:0000086A 00000000     0        0 0 3 00000000fc28d1ed                                      \n   9: 02001EAC:2328 01001EAC:DE3C 06 00000000:00000000 03:000005C6 00000000     0        0 0 3 00000000afb77b74                                      \n  10: 02001DAC:01BB 03001DAC:80E6 06 00000000:00000000 03:0000084F 00000000     0        0 0 3 0000000044a89a52                                      \n  11: 02001DAC:01BB 03001DAC:80F2 06 00000000:00000000 03:000008CA 00000000     0        0 0 3 00000000daf8f951                                      \n"
+      },
+      "preamble": {
+        "ctlOnMs": 49.481,
+        "health": {
+          "case": "B-loaded",
+          "id": "B-loaded-pre-health",
+          "path": "/health",
+          "method": "GET",
+          "at": "2026-09-20T23:50:05.206Z",
+          "mono": 54324.197,
+          "httpResponse": true,
+          "status": 200,
+          "error": null,
+          "bodyKind": "json",
+          "cacheControl": "no-store",
+          "keepAlive": "timeout=5",
+          "connection": "keep-alive",
+          "ms": 434.917,
+          "done": {
+            "at": "2026-09-20T23:50:05.641Z",
+            "mono": 54759.13
+          }
+        },
+        "rpcCoreFault": {
+          "case": "B-loaded",
+          "id": "B-loaded-pre-rpc-corefault",
+          "path": "/torneos/rest/v1/rpc/get_my_tournament_memberships",
+          "method": "POST",
+          "at": "2026-09-20T23:50:05.641Z",
+          "mono": 54759.303,
+          "httpResponse": true,
+          "status": 503,
+          "error": "CORE_UNAVAILABLE",
+          "bodyKind": "json",
+          "cacheControl": "no-store",
+          "keepAlive": "timeout=5",
+          "connection": "keep-alive",
+          "ms": 290.94,
+          "done": {
+            "at": "2026-09-20T23:50:05.932Z",
+            "mono": 55050.265
+          }
+        },
+        "ctlOffMs": 60.078,
+        "routesUnchanged": true,
+        "routesMs": 122.461,
+        "recovery": {
+          "case": "B-loaded",
+          "id": "B-loaded-pre-recovery",
+          "path": "/torneos/rest/v1/rpc/get_my_tournament_memberships",
+          "method": "POST",
+          "at": "2026-09-20T23:50:06.115Z",
+          "mono": 55233.08,
+          "httpResponse": true,
+          "status": 200,
+          "error": null,
+          "bodyKind": "json",
+          "cacheControl": "no-store",
+          "keepAlive": "timeout=5",
+          "connection": "keep-alive",
+          "ms": 966.359,
+          "done": {
+            "at": "2026-09-20T23:50:07.081Z",
+            "mono": 56199.455
+          }
+        },
+        "expected": {
+          "health": 200,
+          "rpcCoreFault": "503 CORE_UNAVAILABLE",
+          "recovery": 200
+        },
+        "ok": true
+      },
+      "healthBefore": null,
+      "lastResponse": {
+        "at": "2026-09-20T23:50:07.081Z",
+        "mono": 56199.455
+      },
+      "otherSocketLastResponse": {
+        "at": "2026-09-20T23:50:05.932Z",
+        "mono": 55050.265
+      },
+      "routeOpsDone": {
+        "at": "2026-09-20T23:50:07.350Z",
+        "mono": 56468.12
+      },
+      "routeOpsMs": 268.483,
+      "dispatchAt": {
+        "at": "2026-09-20T23:50:07.350Z",
+        "mono": 56468.139
+      },
+      "blockedBeforeRpcMs": 268.489,
+      "during": {
+        "rpc": {
+          "case": "B-loaded",
+          "id": "B-loaded-rpc",
+          "path": "/torneos/rest/v1/rpc/get_my_tournament_memberships",
+          "method": "POST",
+          "at": "2026-09-20T23:50:07.350Z",
+          "mono": 56468.152,
+          "httpResponse": true,
+          "status": 503,
+          "error": "access denied",
+          "bodyKind": "json",
+          "cacheControl": "no-store",
+          "keepAlive": "timeout=5",
+          "connection": "keep-alive",
+          "ms": 5796.298,
+          "done": {
+            "at": "2026-09-20T23:50:13.146Z",
+            "mono": 62264.484
+          }
+        },
+        "table": {
+          "case": "B-loaded",
+          "id": "B-loaded-table",
+          "path": "/torneos/rest/v1/torneos_identity",
+          "method": "GET",
+          "at": "2026-09-20T23:50:13.146Z",
+          "mono": 62264.802,
+          "httpResponse": true,
+          "status": 503,
+          "error": "access denied",
+          "bodyKind": "json",
+          "cacheControl": "no-store",
+          "keepAlive": "timeout=5",
+          "connection": "keep-alive",
+          "ms": 821.685,
+          "done": {
+            "at": "2026-09-20T23:50:13.968Z",
+            "mono": 63086.518
+          }
+        }
+      },
+      "restoredAt": {
+        "at": "2026-09-20T23:50:14.109Z",
+        "mono": 63226.953
+      },
+      "faultTotalMs": 7027.306,
+      "loop": {
+        "ticks": 131,
+        "maxGapMs": 269,
+        "eldMaxMs": 14,
+        "eldMeanMs": 11
+      },
+      "routesDuring": "unreachable default \n172.27.0.2 dev eth0 scope link \n172.29.0.2 dev eth1 scope link \n---\nunreachable default dev lo  metric 1024",
+      "ops": [
+        {
+          "case": "B-loaded",
+          "phase": "fault",
+          "kind": "sync",
+          "cmd": "ip route del 172.27.0.3/32 dev eth0",
+          "netAdmin": true,
+          "at": "2026-09-20T23:50:07.081Z",
+          "mono": 56199.824,
+          "ms": 127.346,
+          "status": 0
+        },
+        {
+          "case": "B-loaded",
+          "phase": "fault",
+          "kind": "sync",
+          "cmd": "ip -f inet route; echo ---; ip -f inet6 route",
+          "netAdmin": false,
+          "at": "2026-09-20T23:50:07.209Z",
+          "mono": 56327.216,
+          "ms": 140.729,
+          "status": 0
+        },
+        {
+          "case": "B-loaded",
+          "phase": "fault",
+          "kind": "sync",
+          "cmd": "ip route replace 172.27.0.3/32 dev eth0",
+          "netAdmin": true,
+          "at": "2026-09-20T23:50:13.968Z",
+          "mono": 63086.77,
+          "ms": 140.141,
+          "status": 0
+        }
+      ],
+      "helperBeforeRpcMs": 268.075,
+      "otherSocketIdleAtDispatchMs": 1418,
+      "routesAfter": "unreachable default \n172.27.0.2 dev eth0 scope link \n172.27.0.3 dev eth0 scope link \n172.29.0.2 dev eth1 scope link \n---\nunreachable default dev lo  metric 1024",
+      "routesRestored": true,
+      "recovery": {
+        "case": "B-loaded",
+        "id": "B-loaded-recovery-rpc",
+        "path": "/torneos/rest/v1/rpc/get_my_tournament_memberships",
+        "method": "POST",
+        "at": "2026-09-20T23:50:14.257Z",
+        "mono": 63375.659,
+        "httpResponse": true,
+        "status": 200,
+        "error": null,
+        "bodyKind": "json",
+        "cacheControl": "no-store",
+        "keepAlive": "timeout=5",
+        "connection": "keep-alive",
+        "ms": 715.702,
+        "done": {
+          "at": "2026-09-20T23:50:14.973Z",
+          "mono": 64091.381
+        }
+      },
+      "healthAfter": {
+        "case": "B-loaded",
+        "id": "B-loaded-health-after",
+        "path": "/health",
+        "method": "GET",
+        "at": "2026-09-20T23:50:14.973Z",
+        "mono": 64091.507,
+        "httpResponse": true,
+        "status": 200,
+        "error": null,
+        "bodyKind": "json",
+        "cacheControl": "no-store",
+        "keepAlive": "timeout=5",
+        "connection": "keep-alive",
+        "ms": 196.963,
+        "done": {
+          "at": "2026-09-20T23:50:15.170Z",
+          "mono": 64288.496
+        }
+      },
+      "after": {
+        "at": "2026-09-20T23:50:15.300Z",
+        "mono": 64418.355,
+        "containers": {
+          "gateway": {
+            "id": "101e25c83a9c",
+            "running": true,
+            "status": "running",
+            "restartCount": 0,
+            "startedAt": "2026-09-20T23:49:15.622511379Z",
+            "finishedAt": "0001-01-01T00:00:00Z",
+            "exitCode": 0,
+            "oomKilled": false
+          },
+          "proxy": {
+            "id": "eb092dba071d",
+            "running": true,
+            "status": "running",
+            "restartCount": 0,
+            "startedAt": "2026-09-20T23:49:13.902457628Z",
+            "finishedAt": "0001-01-01T00:00:00Z",
+            "exitCode": 0,
+            "oomKilled": false
+          }
+        },
+        "routes": "unreachable default \n172.27.0.2 dev eth0 scope link \n172.27.0.3 dev eth0 scope link \n172.29.0.2 dev eth1 scope link \n---\nunreachable default dev lo  metric 1024",
+        "proxyTCPAndFault": "  sl  local_address rem_address   st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode                                                     \n   0: 0B00007F:852B 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 29343821 1 000000004ff4d9fc 100 0 0 10 0                  \n   1: 00000000:2328 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 29336807 1 000000006c81365d 100 0 0 10 0                  \n   2: 00000000:01BB 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 29336808 1 0000000099bc3eba 100 0 0 10 0                  \n   3: 0100007F:240D 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 29334341 1 0000000002c30c73 100 0 0 10 0                  \n   4: 02001EAC:2328 01001EAC:F016 01 00000000:00000000 00:00000000 00000000     0        0 29353214 2 00000000ca25ca9e 20 4 32 10 -1                 \n   5: 02001DAC:01BB 03001DAC:E4CE 01 00000000:00000000 00:00000000 00000000     0        0 29354420 2 0000000038a8e3ae 20 4 30 10 -1                 \n   6: 02001DAC:01BB 03001DAC:A288 01 00000000:00000000 00:00000000 00000000     0        0 29353211 1 000000004d86845b 20 4 30 10 -1                 \n   7: 02001DAC:01BB 03001DAC:A28A 06 00000000:00000000 03:00001623 00000000     0        0 0 3 0000000047cef3fd                                      \n   8: 02001EAC:AB8E 0A261268:01BB 06 00000000:00000000 03:0000047C 00000000     0        0 0 3 00000000972627f7                                      \n   9: 02001DAC:01BB 03001DAC:80E2 06 00000000:00000000 03:00000425 00000000     0        0 0 3 00000000d375a613                                      \n  10: 02001EAC:D70C 0A261268:01BB 06 00000000:00000000 03:000016A3 00000000     0        0 0 3 000000000083334b                                      \n  11: 02001EAC:D710 0A261268:01BB 01 00000000:00000000 02:00000019 00000000     0        0 29352695 2 0000000093593dd6 20 4 30 10 -1                 \n  12: 02001DAC:01BB 03001DAC:A2AA 01 00000000:00000000 00:00000000 00000000     0        0 29354252 1 000000006f15f9f4 20 4 30 10 -1                 \n  13: 0100007F:B904 0100007F:240D 06 00000000:00000000 03:00000145 00000000     0        0 0 3 0000000039ee8120                                      \n  14: 02001DAC:01BB 03001DAC:A2A6 06 00000000:00000000 03:00001652 00000000     0        0 0 3 00000000c9d0e065                                      \n  15: 02001DAC:A006 03001DAC:2328 01 00000000:00000000 02:00000004 00000000     0        0 29346670 2 000000009bfd546a 20 4 28 10 -1                 \n  16: 0100007F:240D 0100007F:B910 06 00000000:00000000 03:00000146 00000000     0        0 0 3 00000000bc1d8482                                      \n  17: 02001DAC:E9BC 03001DAC:2328 06 00000000:00000000 03:00000471 00000000     0        0 0 3 00000000fc28d1ed                                      \n  18: 02001EAC:2328 01001EAC:DE3C 06 00000000:00000000 03:000001CD 00000000     0        0 0 3 00000000afb77b74                                      \n  19: 02001DAC:01BB 03001DAC:80E6 06 00000000:00000000 03:00000457 00000000     0        0 0 3 0000000044a89a52                                      \n  20: 02001EAC:2328 01001EAC:F01E 01 00000000:00000000 00:00000000 00000000     0        0 29353381 1 0000000090a1d648 20 4 32 10 -1                 \n  21: 02001DAC:01BB 03001DAC:80F2 06 00000000:00000000 03:000004D2 00000000     0        0 0 3 00000000daf8f951                                      \n"
+      },
+      "rpcSocketFailure": false,
+      "rpcFailedAfterMs": null,
+      "summary": {
+        "helperBeforeRpcMs": 268.075,
+        "blockedBeforeRpcMs": 268.489,
+        "otherSocketIdleAtDispatchMs": 1418,
+        "pad": null,
+        "rpc": "503 access denied",
+        "rpcCacheControl": "no-store",
+        "table": 503,
+        "recovery": 200,
+        "health": [
+          200,
+          200
+        ],
+        "routesRestored": true,
+        "stable": true,
+        "loop": {
+          "ticks": 131,
+          "maxGapMs": 269,
+          "eldMaxMs": 14,
+          "eldMeanMs": 11
+        }
+      },
+      "expected": null
+    },
+    {
+      "name": "B-padded",
+      "mode": "sync (spawnSync docker run, historical matrix)",
+      "before": {
+        "at": "2026-09-20T23:50:15.453Z",
+        "mono": 64571.141,
+        "containers": {
+          "gateway": {
+            "id": "101e25c83a9c",
+            "running": true,
+            "status": "running",
+            "restartCount": 0,
+            "startedAt": "2026-09-20T23:49:15.622511379Z",
+            "finishedAt": "0001-01-01T00:00:00Z",
+            "exitCode": 0,
+            "oomKilled": false
+          },
+          "proxy": {
+            "id": "eb092dba071d",
+            "running": true,
+            "status": "running",
+            "restartCount": 0,
+            "startedAt": "2026-09-20T23:49:13.902457628Z",
+            "finishedAt": "0001-01-01T00:00:00Z",
+            "exitCode": 0,
+            "oomKilled": false
+          }
+        },
+        "routes": "unreachable default \n172.27.0.2 dev eth0 scope link \n172.27.0.3 dev eth0 scope link \n172.29.0.2 dev eth1 scope link \n---\nunreachable default dev lo  metric 1024",
+        "proxyTCPAndFault": "  sl  local_address rem_address   st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode                                                     \n   0: 0B00007F:852B 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 29343821 1 000000004ff4d9fc 100 0 0 10 0                  \n   1: 00000000:2328 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 29336807 1 000000006c81365d 100 0 0 10 0                  \n   2: 00000000:01BB 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 29336808 1 0000000099bc3eba 100 0 0 10 0                  \n   3: 0100007F:240D 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 29334341 1 0000000002c30c73 100 0 0 10 0                  \n   4: 02001EAC:2328 01001EAC:F016 01 00000000:00000000 00:00000000 00000000     0        0 29353214 2 00000000ca25ca9e 20 4 32 10 -1                 \n   5: 02001DAC:01BB 03001DAC:E4CE 01 00000000:00000000 00:00000000 00000000     0        0 29354420 2 0000000038a8e3ae 20 4 30 10 -1                 \n   6: 02001DAC:01BB 03001DAC:A288 01 00000000:00000000 00:00000000 00000000     0        0 29353211 1 000000004d86845b 20 4 30 10 -1                 \n   7: 02001DAC:01BB 03001DAC:A28A 06 00000000:00000000 03:00001617 00000000     0        0 0 3 0000000047cef3fd                                      \n   8: 02001EAC:AB8E 0A261268:01BB 06 00000000:00000000 03:00000470 00000000     0        0 0 3 00000000972627f7                                      \n   9: 02001DAC:01BB 03001DAC:80E2 06 00000000:00000000 03:00000419 00000000     0        0 0 3 00000000d375a613                                      \n  10: 02001EAC:D70C 0A261268:01BB 06 00000000:00000000 03:00001697 00000000     0        0 0 3 000000000083334b                                      \n  11: 02001EAC:D710 0A261268:01BB 01 00000000:00000000 02:0000000E 00000000     0        0 29352695 2 0000000093593dd6 20 4 30 10 -1                 \n  12: 02001DAC:01BB 03001DAC:A2AA 01 00000000:00000000 00:00000000 00000000     0        0 29354252 1 000000006f15f9f4 20 4 30 10 -1                 \n  13: 0100007F:B904 0100007F:240D 06 00000000:00000000 03:00000139 00000000     0        0 0 3 0000000039ee8120                                      \n  14: 02001DAC:01BB 03001DAC:A2A6 06 00000000:00000000 03:00001646 00000000     0        0 0 3 00000000c9d0e065                                      \n  15: 02001DAC:A006 03001DAC:2328 01 00000000:00000000 02:00000053 00000000     0        0 29346670 2 000000009bfd546a 20 4 28 10 -1                 \n  16: 0100007F:240D 0100007F:B910 06 00000000:00000000 03:0000013A 00000000     0        0 0 3 00000000bc1d8482                                      \n  17: 02001DAC:E9BC 03001DAC:2328 06 00000000:00000000 03:00000465 00000000     0        0 0 3 00000000fc28d1ed                                      \n  18: 02001EAC:2328 01001EAC:DE3C 06 00000000:00000000 03:000001C1 00000000     0        0 0 3 00000000afb77b74                                      \n  19: 02001DAC:01BB 03001DAC:80E6 06 00000000:00000000 03:0000044B 00000000     0        0 0 3 0000000044a89a52                                      \n  20: 02001EAC:2328 01001EAC:F01E 01 00000000:00000000 00:00000000 00000000     0        0 29353381 1 0000000090a1d648 20 4 32 10 -1                 \n  21: 02001DAC:01BB 03001DAC:80F2 06 00000000:00000000 03:000004C6 00000000     0        0 0 3 00000000daf8f951                                      \n"
+      },
+      "preamble": {
+        "ctlOnMs": 48.93,
+        "health": {
+          "case": "B-padded",
+          "id": "B-padded-pre-health",
+          "path": "/health",
+          "method": "GET",
+          "at": "2026-09-20T23:50:15.502Z",
+          "mono": 64620.115,
+          "httpResponse": true,
+          "status": 200,
+          "error": null,
+          "bodyKind": "json",
+          "cacheControl": "no-store",
+          "keepAlive": "timeout=5",
+          "connection": "keep-alive",
+          "ms": 183.424,
+          "done": {
+            "at": "2026-09-20T23:50:15.685Z",
+            "mono": 64803.56
+          }
+        },
+        "rpcCoreFault": {
+          "case": "B-padded",
+          "id": "B-padded-pre-rpc-corefault",
+          "path": "/torneos/rest/v1/rpc/get_my_tournament_memberships",
+          "method": "POST",
+          "at": "2026-09-20T23:50:15.685Z",
+          "mono": 64803.705,
+          "httpResponse": true,
+          "status": 503,
+          "error": "CORE_UNAVAILABLE",
+          "bodyKind": "json",
+          "cacheControl": "no-store",
+          "keepAlive": "timeout=5",
+          "connection": "keep-alive",
+          "ms": 222.43,
+          "done": {
+            "at": "2026-09-20T23:50:15.908Z",
+            "mono": 65026.156
+          }
+        },
+        "ctlOffMs": 50.253,
+        "routesUnchanged": true,
+        "routesMs": 123.123,
+        "recovery": {
+          "case": "B-padded",
+          "id": "B-padded-pre-recovery",
+          "path": "/torneos/rest/v1/rpc/get_my_tournament_memberships",
+          "method": "POST",
+          "at": "2026-09-20T23:50:16.081Z",
+          "mono": 65199.705,
+          "httpResponse": true,
+          "status": 200,
+          "error": null,
+          "bodyKind": "json",
+          "cacheControl": "no-store",
+          "keepAlive": "timeout=5",
+          "connection": "keep-alive",
+          "ms": 601.862,
+          "done": {
+            "at": "2026-09-20T23:50:16.683Z",
+            "mono": 65801.579
+          }
+        },
+        "expected": {
+          "health": 200,
+          "rpcCoreFault": "503 CORE_UNAVAILABLE",
+          "recovery": 200
+        },
+        "ok": true
+      },
+      "healthBefore": null,
+      "lastResponse": {
+        "at": "2026-09-20T23:50:16.683Z",
+        "mono": 65801.579
+      },
+      "otherSocketLastResponse": {
+        "at": "2026-09-20T23:50:15.908Z",
+        "mono": 65026.156
+      },
+      "routeOpsDone": {
+        "at": "2026-09-20T23:50:16.960Z",
+        "mono": 66078.509
+      },
+      "routeOpsMs": 276.79,
+      "pad": {
+        "kind": "sync",
+        "targetIdleMs": 5300,
+        "otherSocketIdleBeforePadMs": 1052,
+        "waitMs": 4248,
+        "otherSocketIdleAtDispatchMs": 5307
+      },
+      "dispatchAt": {
+        "at": "2026-09-20T23:50:21.215Z",
+        "mono": 70333.598
+      },
+      "blockedBeforeRpcMs": 4531.904,
+      "during": {
+        "rpc": {
+          "case": "B-padded",
+          "id": "B-padded-rpc",
+          "path": "/torneos/rest/v1/rpc/get_my_tournament_memberships",
+          "method": "POST",
+          "at": "2026-09-20T23:50:21.215Z",
+          "mono": 70333.717,
+          "httpResponse": true,
+          "status": 503,
+          "error": "access denied",
+          "bodyKind": "json",
+          "cacheControl": "no-store",
+          "keepAlive": "timeout=5",
+          "connection": "keep-alive",
+          "ms": 5988.103,
+          "done": {
+            "at": "2026-09-20T23:50:27.204Z",
+            "mono": 76321.873
+          }
+        },
+        "table": {
+          "case": "B-padded",
+          "id": "B-padded-table",
+          "path": "/torneos/rest/v1/torneos_identity",
+          "method": "GET",
+          "at": "2026-09-20T23:50:27.204Z",
+          "mono": 76322.134,
+          "httpResponse": true,
+          "status": 503,
+          "error": "access denied",
+          "bodyKind": "json",
+          "cacheControl": "no-store",
+          "keepAlive": "timeout=5",
+          "connection": "keep-alive",
+          "ms": 693.844,
+          "done": {
+            "at": "2026-09-20T23:50:27.898Z",
+            "mono": 77015.998
+          }
+        }
+      },
+      "restoredAt": {
+        "at": "2026-09-20T23:50:28.031Z",
+        "mono": 77149.176
+      },
+      "faultTotalMs": 11347.458,
+      "loop": {
+        "ticks": 132,
+        "maxGapMs": 4535,
+        "eldMaxMs": 13,
+        "eldMeanMs": 11
+      },
+      "routesDuring": "unreachable default \n172.27.0.2 dev eth0 scope link \n172.29.0.2 dev eth1 scope link \n---\nunreachable default dev lo  metric 1024",
+      "ops": [
+        {
+          "case": "B-padded",
+          "phase": "fault",
+          "kind": "sync",
+          "cmd": "ip route del 172.27.0.3/32 dev eth0",
+          "netAdmin": true,
+          "at": "2026-09-20T23:50:16.683Z",
+          "mono": 65801.745,
+          "ms": 128.06,
+          "status": 0
+        },
+        {
+          "case": "B-padded",
+          "phase": "fault",
+          "kind": "sync",
+          "cmd": "ip -f inet route; echo ---; ip -f inet6 route",
+          "netAdmin": false,
+          "at": "2026-09-20T23:50:16.812Z",
+          "mono": 65929.853,
+          "ms": 148.619,
+          "status": 0
+        },
+        {
+          "case": "B-padded",
+          "phase": "fault",
+          "kind": "sync",
+          "cmd": "ip route replace 172.27.0.3/32 dev eth0",
+          "netAdmin": true,
+          "at": "2026-09-20T23:50:27.898Z",
+          "mono": 77016.203,
+          "ms": 132.93,
+          "status": 0
+        }
+      ],
+      "helperBeforeRpcMs": 276.679,
+      "otherSocketIdleAtDispatchMs": 5307,
+      "routesAfter": "unreachable default \n172.27.0.2 dev eth0 scope link \n172.27.0.3 dev eth0 scope link \n172.29.0.2 dev eth1 scope link \n---\nunreachable default dev lo  metric 1024",
+      "routesRestored": true,
+      "recovery": {
+        "case": "B-padded",
+        "id": "B-padded-recovery-rpc",
+        "path": "/torneos/rest/v1/rpc/get_my_tournament_memberships",
+        "method": "POST",
+        "at": "2026-09-20T23:50:28.171Z",
+        "mono": 77289.169,
+        "httpResponse": true,
+        "status": 200,
+        "error": null,
+        "bodyKind": "json",
+        "cacheControl": "no-store",
+        "keepAlive": "timeout=5",
+        "connection": "keep-alive",
+        "ms": 621.767,
+        "done": {
+          "at": "2026-09-20T23:50:28.793Z",
+          "mono": 77910.954
+        }
+      },
+      "healthAfter": {
+        "case": "B-padded",
+        "id": "B-padded-health-after",
+        "path": "/health",
+        "method": "GET",
+        "at": "2026-09-20T23:50:28.793Z",
+        "mono": 77911.16,
+        "httpResponse": true,
+        "status": 200,
+        "error": null,
+        "bodyKind": "json",
+        "cacheControl": "no-store",
+        "keepAlive": "timeout=5",
+        "connection": "keep-alive",
+        "ms": 190.129,
+        "done": {
+          "at": "2026-09-20T23:50:28.983Z",
+          "mono": 78101.3
+        }
+      },
+      "after": {
+        "at": "2026-09-20T23:50:29.104Z",
+        "mono": 78222.02,
+        "containers": {
+          "gateway": {
+            "id": "101e25c83a9c",
+            "running": true,
+            "status": "running",
+            "restartCount": 0,
+            "startedAt": "2026-09-20T23:49:15.622511379Z",
+            "finishedAt": "0001-01-01T00:00:00Z",
+            "exitCode": 0,
+            "oomKilled": false
+          },
+          "proxy": {
+            "id": "eb092dba071d",
+            "running": true,
+            "status": "running",
+            "restartCount": 0,
+            "startedAt": "2026-09-20T23:49:13.902457628Z",
+            "finishedAt": "0001-01-01T00:00:00Z",
+            "exitCode": 0,
+            "oomKilled": false
+          }
+        },
+        "routes": "unreachable default \n172.27.0.2 dev eth0 scope link \n172.27.0.3 dev eth0 scope link \n172.29.0.2 dev eth1 scope link \n---\nunreachable default dev lo  metric 1024",
+        "proxyTCPAndFault": "  sl  local_address rem_address   st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode                                                     \n   0: 0B00007F:852B 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 29343821 1 000000004ff4d9fc 100 0 0 10 0                  \n   1: 00000000:2328 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 29336807 1 000000006c81365d 100 0 0 10 0                  \n   2: 00000000:01BB 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 29336808 1 0000000099bc3eba 100 0 0 10 0                  \n   3: 0100007F:240D 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 29334341 1 0000000002c30c73 100 0 0 10 0                  \n   4: 02001EAC:2328 01001EAC:F016 01 00000000:00000000 00:00000000 00000000     0        0 29353214 2 00000000ca25ca9e 20 4 32 10 -1                 \n   5: 02001DAC:01BB 03001DAC:E4CE 06 00000000:00000000 03:0000145E 00000000     0        0 0 3 000000000eed63e6                                      \n   6: 02001DAC:01BB 03001DAC:E4E8 01 00000000:00000000 00:00000000 00000000     0        0 29351689 1 00000000ea2662fa 20 4 30 10 -1                 \n   7: 02001EAC:8622 0A261268:01BB 06 00000000:00000000 03:000016BB 00000000     0        0 0 3 0000000039ee8120                                      \n   8: 02001DAC:01BB 03001DAC:A288 06 00000000:00000000 03:00001492 00000000     0        0 0 3 00000000306fa52e                                      \n   9: 02001DAC:01BB 03001DAC:A28A 06 00000000:00000000 03:000010BF 00000000     0        0 0 3 0000000047cef3fd                                      \n  10: 02001EAC:C3A8 0A261268:01BB 01 00000000:00000000 02:00000023 00000000     0        0 29351912 3 000000008f522160 21 4 31 10 -1                 \n  11: 02001EAC:D70C 0A261268:01BB 06 00000000:00000000 03:0000113E 00000000     0        0 0 3 000000000083334b                                      \n  12: 02001EAC:D710 0A261268:01BB 06 00000000:00000000 03:00001678 00000000     0        0 0 3 00000000937d5095                                      \n  13: 02001DAC:01BB 03001DAC:E4D2 01 00000000:00000000 00:00000000 00000000     0        0 29351660 1 00000000d2a8de22 20 4 30 10 -1                 \n  14: 02001DAC:01BB 03001DAC:A2AA 06 00000000:00000000 03:000014F4 00000000     0        0 0 3 00000000374e444f                                      \n  15: 02001DAC:01BB 03001DAC:A2A6 06 00000000:00000000 03:000010ED 00000000     0        0 0 3 00000000c9d0e065                                      \n  16: 02001DAC:A006 03001DAC:2328 01 00000000:00000000 02:0000000F 00000000     0        0 29346670 3 000000009bfd546a 20 4 31 10 -1                 \n  17: 02001EAC:2328 01001EAC:F01E 06 00000000:00000000 03:000014F6 00000000     0        0 0 3 00000000ba5e954e                                      \n  18: 02001EAC:2328 01001EAC:EC7C 01 00000000:00000000 00:00000000 00000000     0        0 29351911 1 00000000cdb4f100 20 4 32 10 -1                 \n  19: 02001DAC:01BB 03001DAC:80F2 06 00000000:00000000 03:00000000 00000000     0        0 0 3 00000000daf8f951                                      \n  20: 02001DAC:01BB 03001DAC:CFDA 01 00000000:00000000 00:00000000 00000000     0        0 29365533 2 00000000c826f79b 20 4 30 10 -1                 \n"
+      },
+      "rpcSocketFailure": false,
+      "rpcFailedAfterMs": null,
+      "summary": {
+        "helperBeforeRpcMs": 276.679,
+        "blockedBeforeRpcMs": 4531.904,
+        "otherSocketIdleAtDispatchMs": 5307,
+        "pad": {
+          "kind": "sync",
+          "targetIdleMs": 5300,
+          "otherSocketIdleBeforePadMs": 1052,
+          "waitMs": 4248,
+          "otherSocketIdleAtDispatchMs": 5307
+        },
+        "rpc": "503 access denied",
+        "rpcCacheControl": "no-store",
+        "table": 503,
+        "recovery": 200,
+        "health": [
+          200,
+          200
+        ],
+        "routesRestored": true,
+        "stable": true,
+        "loop": {
+          "ticks": 132,
+          "maxGapMs": 4535,
+          "eldMaxMs": 13,
+          "eldMeanMs": 11
+        }
+      },
+      "expected": false
+    },
+    {
+      "name": "C-padded",
+      "mode": "async (dAsync docker run, event loop free)",
+      "before": {
+        "at": "2026-09-20T23:50:29.244Z",
+        "mono": 78362.309,
+        "containers": {
+          "gateway": {
+            "id": "101e25c83a9c",
+            "running": true,
+            "status": "running",
+            "restartCount": 0,
+            "startedAt": "2026-09-20T23:49:15.622511379Z",
+            "finishedAt": "0001-01-01T00:00:00Z",
+            "exitCode": 0,
+            "oomKilled": false
+          },
+          "proxy": {
+            "id": "eb092dba071d",
+            "running": true,
+            "status": "running",
+            "restartCount": 0,
+            "startedAt": "2026-09-20T23:49:13.902457628Z",
+            "finishedAt": "0001-01-01T00:00:00Z",
+            "exitCode": 0,
+            "oomKilled": false
+          }
+        },
+        "routes": "unreachable default \n172.27.0.2 dev eth0 scope link \n172.27.0.3 dev eth0 scope link \n172.29.0.2 dev eth1 scope link \n---\nunreachable default dev lo  metric 1024",
+        "proxyTCPAndFault": "  sl  local_address rem_address   st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode                                                     \n   0: 0B00007F:852B 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 29343821 1 000000004ff4d9fc 100 0 0 10 0                  \n   1: 00000000:2328 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 29336807 1 000000006c81365d 100 0 0 10 0                  \n   2: 00000000:01BB 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 29336808 1 0000000099bc3eba 100 0 0 10 0                  \n   3: 0100007F:240D 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 29334341 1 0000000002c30c73 100 0 0 10 0                  \n   4: 02001EAC:2328 01001EAC:F016 01 00000000:00000000 00:00000000 00000000     0        0 29353214 2 00000000ca25ca9e 20 4 32 10 -1                 \n   5: 02001DAC:01BB 03001DAC:E4CE 06 00000000:00000000 03:00001453 00000000     0        0 0 3 000000000eed63e6                                      \n   6: 02001DAC:01BB 03001DAC:E4E8 01 00000000:00000000 00:00000000 00000000     0        0 29351689 1 00000000ea2662fa 20 4 30 10 -1                 \n   7: 02001EAC:8622 0A261268:01BB 06 00000000:00000000 03:000016AF 00000000     0        0 0 3 0000000039ee8120                                      \n   8: 02001DAC:01BB 03001DAC:A288 06 00000000:00000000 03:00001487 00000000     0        0 0 3 00000000306fa52e                                      \n   9: 02001DAC:01BB 03001DAC:A28A 06 00000000:00000000 03:000010B3 00000000     0        0 0 3 0000000047cef3fd                                      \n  10: 02001EAC:C3A8 0A261268:01BB 01 00000000:00000000 02:00000017 00000000     0        0 29351912 2 000000008f522160 21 4 28 10 -1                 \n  11: 02001EAC:D70C 0A261268:01BB 06 00000000:00000000 03:00001133 00000000     0        0 0 3 000000000083334b                                      \n  12: 02001EAC:D710 0A261268:01BB 06 00000000:00000000 03:0000166D 00000000     0        0 0 3 00000000937d5095                                      \n  13: 02001DAC:01BB 03001DAC:E4D2 01 00000000:00000000 00:00000000 00000000     0        0 29351660 1 00000000d2a8de22 20 4 30 10 -1                 \n  14: 02001DAC:01BB 03001DAC:A2AA 06 00000000:00000000 03:000014E9 00000000     0        0 0 3 00000000374e444f                                      \n  15: 02001DAC:01BB 03001DAC:A2A6 06 00000000:00000000 03:000010E2 00000000     0        0 0 3 00000000c9d0e065                                      \n  16: 02001DAC:A006 03001DAC:2328 01 00000000:00000000 02:00000003 00000000     0        0 29346670 2 000000009bfd546a 20 4 28 10 -1                 \n  17: 02001EAC:2328 01001EAC:F01E 06 00000000:00000000 03:000014EB 00000000     0        0 0 3 00000000ba5e954e                                      \n  18: 02001EAC:2328 01001EAC:EC7C 01 00000000:00000000 00:00000000 00000000     0        0 29351911 1 00000000cdb4f100 20 4 32 10 -1                 \n  19: 02001DAC:01BB 03001DAC:80F2 06 00000000:00000000 03:00000000 00000000     0        0 0 3 00000000daf8f951                                      \n  20: 02001DAC:01BB 03001DAC:CFDA 01 00000000:00000000 00:00000000 00000000     0        0 29365533 2 00000000c826f79b 20 4 30 10 -1                 \n"
+      },
+      "preamble": {
+        "ctlOnMs": 43.775,
+        "health": {
+          "case": "C-padded",
+          "id": "C-padded-pre-health",
+          "path": "/health",
+          "method": "GET",
+          "at": "2026-09-20T23:50:29.288Z",
+          "mono": 78406.124,
+          "httpResponse": true,
+          "status": 200,
+          "error": null,
+          "bodyKind": "json",
+          "cacheControl": "no-store",
+          "keepAlive": "timeout=5",
+          "connection": "keep-alive",
+          "ms": 181.175,
+          "done": {
+            "at": "2026-09-20T23:50:29.469Z",
+            "mono": 78587.312
+          }
+        },
+        "rpcCoreFault": {
+          "case": "C-padded",
+          "id": "C-padded-pre-rpc-corefault",
+          "path": "/torneos/rest/v1/rpc/get_my_tournament_memberships",
+          "method": "POST",
+          "at": "2026-09-20T23:50:29.469Z",
+          "mono": 78587.445,
+          "httpResponse": true,
+          "status": 503,
+          "error": "CORE_UNAVAILABLE",
+          "bodyKind": "json",
+          "cacheControl": "no-store",
+          "keepAlive": "timeout=5",
+          "connection": "keep-alive",
+          "ms": 280.309,
+          "done": {
+            "at": "2026-09-20T23:50:29.750Z",
+            "mono": 78867.767
+          }
+        },
+        "ctlOffMs": 51.485,
+        "routesUnchanged": true,
+        "routesMs": 118.536,
+        "recovery": {
+          "case": "C-padded",
+          "id": "C-padded-pre-recovery",
+          "path": "/torneos/rest/v1/rpc/get_my_tournament_memberships",
+          "method": "POST",
+          "at": "2026-09-20T23:50:29.920Z",
+          "mono": 79037.912,
+          "httpResponse": true,
+          "status": 200,
+          "error": null,
+          "bodyKind": "json",
+          "cacheControl": "no-store",
+          "keepAlive": "timeout=5",
+          "connection": "keep-alive",
+          "ms": 1185.7,
+          "done": {
+            "at": "2026-09-20T23:50:31.105Z",
+            "mono": 80223.647
+          }
+        },
+        "expected": {
+          "health": 200,
+          "rpcCoreFault": "503 CORE_UNAVAILABLE",
+          "recovery": 200
+        },
+        "ok": true
+      },
+      "healthBefore": null,
+      "lastResponse": {
+        "at": "2026-09-20T23:50:31.105Z",
+        "mono": 80223.647
+      },
+      "otherSocketLastResponse": {
+        "at": "2026-09-20T23:50:29.750Z",
+        "mono": 78867.767
+      },
+      "routeOpsDone": {
+        "at": "2026-09-20T23:50:31.392Z",
+        "mono": 80510.112
+      },
+      "routeOpsMs": 285.97,
+      "pad": {
+        "kind": "async",
+        "targetIdleMs": 5300,
+        "otherSocketIdleBeforePadMs": 1642,
+        "waitMs": 3658,
+        "otherSocketIdleAtDispatchMs": 5301
+      },
+      "dispatchAt": {
+        "at": "2026-09-20T23:50:35.050Z",
+        "mono": 84168.65
+      },
+      "blockedBeforeRpcMs": 3944.519,
+      "during": {
+        "rpc": {
+          "case": "C-padded",
+          "id": "C-padded-rpc",
+          "path": "/torneos/rest/v1/rpc/get_my_tournament_memberships",
+          "method": "POST",
+          "at": "2026-09-20T23:50:35.051Z",
+          "mono": 84168.698,
+          "httpResponse": true,
+          "status": 503,
+          "error": "access denied",
+          "bodyKind": "json",
+          "cacheControl": "no-store",
+          "keepAlive": "timeout=5",
+          "connection": "keep-alive",
+          "ms": 6301.029,
+          "done": {
+            "at": "2026-09-20T23:50:41.352Z",
+            "mono": 90469.75
+          }
+        },
+        "table": {
+          "case": "C-padded",
+          "id": "C-padded-table",
+          "path": "/torneos/rest/v1/torneos_identity",
+          "method": "GET",
+          "at": "2026-09-20T23:50:41.352Z",
+          "mono": 90469.883,
+          "httpResponse": true,
+          "status": 503,
+          "error": "access denied",
+          "bodyKind": "json",
+          "cacheControl": "no-store",
+          "keepAlive": "timeout=5",
+          "connection": "keep-alive",
+          "ms": 947.809,
+          "done": {
+            "at": "2026-09-20T23:50:42.300Z",
+            "mono": 91417.745
+          }
+        }
+      },
+      "restoredAt": {
+        "at": "2026-09-20T23:50:42.437Z",
+        "mono": 91555.16
+      },
+      "faultTotalMs": 11331.018,
+      "loop": {
+        "ticks": 222,
+        "maxGapMs": 52,
+        "eldMaxMs": 13,
+        "eldMeanMs": 11
+      },
+      "routesDuring": "unreachable default \n172.27.0.2 dev eth0 scope link \n172.29.0.2 dev eth1 scope link \n---\nunreachable default dev lo  metric 1024",
+      "ops": [
+        {
+          "case": "C-padded",
+          "phase": "fault",
+          "kind": "async",
+          "cmd": "ip route del 172.27.0.3/32 dev eth0",
+          "netAdmin": true,
+          "at": "2026-09-20T23:50:31.106Z",
+          "mono": 80224.211,
+          "ms": 140.007,
+          "status": 0
+        },
+        {
+          "case": "C-padded",
+          "phase": "fault",
+          "kind": "async",
+          "cmd": "ip -f inet route; echo ---; ip -f inet6 route",
+          "netAdmin": false,
+          "at": "2026-09-20T23:50:31.246Z",
+          "mono": 80364.255,
+          "ms": 145.824,
+          "status": 0
+        },
+        {
+          "case": "C-padded",
+          "phase": "fault",
+          "kind": "async",
+          "cmd": "ip route replace 172.27.0.3/32 dev eth0",
+          "netAdmin": true,
+          "at": "2026-09-20T23:50:42.300Z",
+          "mono": 91417.978,
+          "ms": 137.15,
+          "status": 0
+        }
+      ],
+      "helperBeforeRpcMs": 285.831,
+      "otherSocketIdleAtDispatchMs": 5301,
+      "routesAfter": "unreachable default \n172.27.0.2 dev eth0 scope link \n172.27.0.3 dev eth0 scope link \n172.29.0.2 dev eth1 scope link \n---\nunreachable default dev lo  metric 1024",
+      "routesRestored": true,
+      "recovery": {
+        "case": "C-padded",
+        "id": "C-padded-recovery-rpc",
+        "path": "/torneos/rest/v1/rpc/get_my_tournament_memberships",
+        "method": "POST",
+        "at": "2026-09-20T23:50:42.577Z",
+        "mono": 91694.756,
+        "httpResponse": true,
+        "status": 200,
+        "error": null,
+        "bodyKind": "json",
+        "cacheControl": "no-store",
+        "keepAlive": "timeout=5",
+        "connection": "keep-alive",
+        "ms": 709.631,
+        "done": {
+          "at": "2026-09-20T23:50:43.286Z",
+          "mono": 92404.409
+        }
+      },
+      "healthAfter": {
+        "case": "C-padded",
+        "id": "C-padded-health-after",
+        "path": "/health",
+        "method": "GET",
+        "at": "2026-09-20T23:50:43.286Z",
+        "mono": 92404.509,
+        "httpResponse": true,
+        "status": 200,
+        "error": null,
+        "bodyKind": "json",
+        "cacheControl": "no-store",
+        "keepAlive": "timeout=5",
+        "connection": "keep-alive",
+        "ms": 189.094,
+        "done": {
+          "at": "2026-09-20T23:50:43.476Z",
+          "mono": 92593.636
+        }
+      },
+      "after": {
+        "at": "2026-09-20T23:50:43.620Z",
+        "mono": 92738.07,
+        "containers": {
+          "gateway": {
+            "id": "101e25c83a9c",
+            "running": true,
+            "status": "running",
+            "restartCount": 0,
+            "startedAt": "2026-09-20T23:49:15.622511379Z",
+            "finishedAt": "0001-01-01T00:00:00Z",
+            "exitCode": 0,
+            "oomKilled": false
+          },
+          "proxy": {
+            "id": "eb092dba071d",
+            "running": true,
+            "status": "running",
+            "restartCount": 0,
+            "startedAt": "2026-09-20T23:49:13.902457628Z",
+            "finishedAt": "0001-01-01T00:00:00Z",
+            "exitCode": 0,
+            "oomKilled": false
+          }
+        },
+        "routes": "unreachable default \n172.27.0.2 dev eth0 scope link \n172.27.0.3 dev eth0 scope link \n172.29.0.2 dev eth1 scope link \n---\nunreachable default dev lo  metric 1024",
+        "proxyTCPAndFault": "  sl  local_address rem_address   st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode                                                     \n   0: 0B00007F:852B 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 29343821 1 000000004ff4d9fc 100 0 0 10 0                  \n   1: 00000000:2328 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 29336807 1 000000006c81365d 100 0 0 10 0                  \n   2: 00000000:01BB 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 29336808 1 0000000099bc3eba 100 0 0 10 0                  \n   3: 0100007F:240D 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 29334341 1 0000000002c30c73 100 0 0 10 0                  \n   4: 02001DAC:01BB 03001DAC:E4CE 06 00000000:00000000 03:00000EB4 00000000     0        0 0 3 000000000eed63e6                                      \n   5: 02001DAC:01BB 03001DAC:E4E8 06 00000000:00000000 03:0000144B 00000000     0        0 0 3 00000000e6f997b1                                      \n   6: 02001EAC:8622 0A261268:01BB 06 00000000:00000000 03:00001110 00000000     0        0 0 3 0000000039ee8120                                      \n   7: 02001DAC:01BB 03001DAC:A288 06 00000000:00000000 03:00000EE8 00000000     0        0 0 3 00000000306fa52e                                      \n   8: 02001DAC:01BB 03001DAC:A28A 06 00000000:00000000 03:00000B14 00000000     0        0 0 3 0000000047cef3fd                                      \n   9: 02001EAC:C3A8 0A261268:01BB 06 00000000:00000000 03:00001697 00000000     0        0 0 3 0000000058149e79                                      \n  10: 02001EAC:D70C 0A261268:01BB 06 00000000:00000000 03:00000B94 00000000     0        0 0 3 000000000083334b                                      \n  11: 02001EAC:D710 0A261268:01BB 06 00000000:00000000 03:000010CE 00000000     0        0 0 3 00000000937d5095                                      \n  12: 02001EAC:E502 0A261268:01BB 01 00000000:00000000 02:00000017 00000000     0        0 29362909 2 000000009f7bc879 21 4 28 10 -1                 \n  13: 02001DAC:01BB 03001DAC:CFF6 06 00000000:00000000 03:0000168E 00000000     0        0 0 3 0000000044a89a52                                      \n  14: 02001DAC:01BB 03001DAC:E4D2 06 00000000:00000000 03:000013DC 00000000     0        0 0 3 00000000b9ca5d3a                                      \n  15: 02001DAC:01BB 03001DAC:BF70 01 00000000:00000000 00:00000000 00000000     0        0 29370439 1 000000008f522160 20 4 30 10 -1                 \n  16: 02001DAC:01BB 03001DAC:BF74 01 00000000:00000000 00:00000000 00000000     0        0 29362961 2 00000000a011e239 20 4 30 10 -1                 \n  17: 02001DAC:01BB 03001DAC:A2AA 06 00000000:00000000 03:00000F4A 00000000     0        0 0 3 00000000374e444f                                      \n  18: 02001DAC:01BB 03001DAC:A2A6 06 00000000:00000000 03:00000B43 00000000     0        0 0 3 00000000c9d0e065                                      \n  19: 02001DAC:A006 03001DAC:2328 01 00000000:00000000 02:0000004C 00000000     0        0 29346670 2 000000009bfd546a 20 4 28 10 -1                 \n  20: 02001EAC:2328 01001EAC:F328 01 00000000:00000000 00:00000000 00000000     0        0 29370461 2 00000000a4b07690 20 4 30 10 -1                 \n  21: 02001DAC:01BB 03001DAC:D000 06 00000000:00000000 03:000014EC 00000000     0        0 0 3 0000000045ebfc41                                      \n  22: 02001DAC:01BB 03001DAC:CFE8 01 00000000:00000000 00:00000000 00000000     0        0 29367421 1 000000000987b60e 20 4 30 10 -1                 \n  23: 02001EAC:2328 01001EAC:F01E 06 00000000:00000000 03:00000F4B 00000000     0        0 0 3 00000000ba5e954e                                      \n  24: 02001EAC:2328 01001EAC:F31E 01 00000000:00000000 00:00000000 00000000     0        0 29364830 1 000000003491e6e2 20 4 32 10 -1                 \n  25: 02001DAC:01BB 03001DAC:CFDA 06 00000000:00000000 03:0000141A 00000000     0        0 0 3 0000000058750cb6                                      \n"
+      },
+      "rpcSocketFailure": false,
+      "rpcFailedAfterMs": null,
+      "summary": {
+        "helperBeforeRpcMs": 285.831,
+        "blockedBeforeRpcMs": 3944.519,
+        "otherSocketIdleAtDispatchMs": 5301,
+        "pad": {
+          "kind": "async",
+          "targetIdleMs": 5300,
+          "otherSocketIdleBeforePadMs": 1642,
+          "waitMs": 3658,
+          "otherSocketIdleAtDispatchMs": 5301
+        },
+        "rpc": "503 access denied",
+        "rpcCacheControl": "no-store",
+        "table": 503,
+        "recovery": 200,
+        "health": [
+          200,
+          200
+        ],
+        "routesRestored": true,
+        "stable": true,
+        "loop": {
+          "ticks": 222,
+          "maxGapMs": 52,
+          "eldMaxMs": 13,
+          "eldMeanMs": 11
+        }
+      },
+      "expected": true
+    },
+    {
+      "name": "D",
+      "note": "first RPC after C-padded restored the route (its recovery), then a fresh health",
+      "rpc": {
+        "case": "C-padded",
+        "id": "C-padded-recovery-rpc",
+        "path": "/torneos/rest/v1/rpc/get_my_tournament_memberships",
+        "method": "POST",
+        "at": "2026-09-20T23:50:42.577Z",
+        "mono": 91694.756,
+        "httpResponse": true,
+        "status": 200,
+        "error": null,
+        "bodyKind": "json",
+        "cacheControl": "no-store",
+        "keepAlive": "timeout=5",
+        "connection": "keep-alive",
+        "ms": 709.631,
+        "done": {
+          "at": "2026-09-20T23:50:43.286Z",
+          "mono": 92404.409
+        }
+      },
+      "health": {
+        "case": "D",
+        "id": "D-health",
+        "path": "/health",
+        "method": "GET",
+        "at": "2026-09-20T23:50:43.620Z",
+        "mono": 92738.271,
+        "httpResponse": true,
+        "status": 200,
+        "error": null,
+        "bodyKind": "json",
+        "cacheControl": "no-store",
+        "keepAlive": "timeout=5",
+        "connection": "keep-alive",
+        "ms": 199.165,
+        "done": {
+          "at": "2026-09-20T23:50:43.819Z",
+          "mono": 92937.452
+        }
+      },
+      "after": {
+        "at": "2026-09-20T23:50:43.948Z",
+        "mono": 93065.649,
+        "containers": {
+          "gateway": {
+            "id": "101e25c83a9c",
+            "running": true,
+            "status": "running",
+            "restartCount": 0,
+            "startedAt": "2026-09-20T23:49:15.622511379Z",
+            "finishedAt": "0001-01-01T00:00:00Z",
+            "exitCode": 0,
+            "oomKilled": false
+          },
+          "proxy": {
+            "id": "eb092dba071d",
+            "running": true,
+            "status": "running",
+            "restartCount": 0,
+            "startedAt": "2026-09-20T23:49:13.902457628Z",
+            "finishedAt": "0001-01-01T00:00:00Z",
+            "exitCode": 0,
+            "oomKilled": false
+          }
+        },
+        "routes": "unreachable default \n172.27.0.2 dev eth0 scope link \n172.27.0.3 dev eth0 scope link \n172.29.0.2 dev eth1 scope link \n---\nunreachable default dev lo  metric 1024",
+        "proxyTCPAndFault": "  sl  local_address rem_address   st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode                                                     \n   0: 0B00007F:852B 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 29343821 1 000000004ff4d9fc 100 0 0 10 0                  \n   1: 00000000:2328 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 29336807 1 000000006c81365d 100 0 0 10 0                  \n   2: 00000000:01BB 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 29336808 1 0000000099bc3eba 100 0 0 10 0                  \n   3: 0100007F:240D 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 29334341 1 0000000002c30c73 100 0 0 10 0                  \n   4: 02001DAC:01BB 03001DAC:E4CE 06 00000000:00000000 03:00000E93 00000000     0        0 0 3 000000000eed63e6                                      \n   5: 02001DAC:01BB 03001DAC:E4E8 06 00000000:00000000 03:0000142A 00000000     0        0 0 3 00000000e6f997b1                                      \n   6: 02001EAC:8622 0A261268:01BB 06 00000000:00000000 03:000010EF 00000000     0        0 0 3 0000000039ee8120                                      \n   7: 02001DAC:01BB 03001DAC:A288 06 00000000:00000000 03:00000EC7 00000000     0        0 0 3 00000000306fa52e                                      \n   8: 02001DAC:01BB 03001DAC:A28A 06 00000000:00000000 03:00000AF3 00000000     0        0 0 3 0000000047cef3fd                                      \n   9: 02001EAC:C3A8 0A261268:01BB 06 00000000:00000000 03:00001676 00000000     0        0 0 3 0000000058149e79                                      \n  10: 02001EAC:D70C 0A261268:01BB 06 00000000:00000000 03:00000B73 00000000     0        0 0 3 000000000083334b                                      \n  11: 02001EAC:D710 0A261268:01BB 06 00000000:00000000 03:000010AD 00000000     0        0 0 3 00000000937d5095                                      \n  12: 02001EAC:E502 0A261268:01BB 01 00000000:00000000 02:0000004C 00000000     0        0 29362909 2 000000009f7bc879 21 4 30 10 -1                 \n  13: 02001DAC:01BB 03001DAC:CFF6 06 00000000:00000000 03:0000166D 00000000     0        0 0 3 0000000044a89a52                                      \n  14: 02001DAC:01BB 03001DAC:E4D2 06 00000000:00000000 03:000013BC 00000000     0        0 0 3 00000000b9ca5d3a                                      \n  15: 02001DAC:01BB 03001DAC:BF70 01 00000000:00000000 00:00000000 00000000     0        0 29370439 1 000000008f522160 20 4 30 10 -1                 \n  16: 02001DAC:01BB 03001DAC:BF74 01 00000000:00000000 00:00000000 00000000     0        0 29362961 1 00000000a011e239 20 4 30 10 -1                 \n  17: 02001DAC:01BB 03001DAC:A2AA 06 00000000:00000000 03:00000F29 00000000     0        0 0 3 00000000374e444f                                      \n  18: 02001DAC:01BB 03001DAC:A2A6 06 00000000:00000000 03:00000B22 00000000     0        0 0 3 00000000c9d0e065                                      \n  19: 02001DAC:A006 03001DAC:2328 01 00000000:00000000 02:0000002B 00000000     0        0 29346670 2 000000009bfd546a 20 4 30 10 -1                 \n  20: 02001EAC:2328 01001EAC:F328 01 00000000:00000000 00:00000000 00000000     0        0 29370461 1 00000000a4b07690 20 4 30 10 -1                 \n  21: 02001DAC:01BB 03001DAC:D000 06 00000000:00000000 03:000014CB 00000000     0        0 0 3 0000000045ebfc41                                      \n  22: 02001DAC:01BB 03001DAC:CFE8 01 00000000:00000000 00:00000000 00000000     0        0 29367421 2 000000000987b60e 20 4 30 10 -1                 \n  23: 02001EAC:2328 01001EAC:F01E 06 00000000:00000000 03:00000F2B 00000000     0        0 0 3 00000000ba5e954e                                      \n  24: 02001EAC:2328 01001EAC:F31E 01 00000000:00000000 00:00000000 00000000     0        0 29364830 2 000000003491e6e2 20 4 32 10 -1                 \n  25: 02001DAC:01BB 03001DAC:CFDA 06 00000000:00000000 03:000013F9 00000000     0        0 0 3 0000000058750cb6                                      \n"
+      },
+      "summary": {
+        "rpc": 200,
+        "health": 200
+      }
+    }
+  ],
+  "cleanup": {
+    "qa": true,
+    "sessions": true,
+    "rows": true,
+    "catalogUnchanged": true,
+    "logout": 204,
+    "delete": {
+      "deleted": true,
+      "deleteStatus": 200,
+      "afterStatus": 404
+    },
+    "rowsDetail": {
+      "ok": true,
+      "executed": true,
+      "error": null,
+      "delta": [
+        "public.torneos_identity"
+      ],
+      "planned": [
+        "public.torneos_identity"
+      ],
+      "mismatches": [],
+      "after": {
+        "private.core_contract_attestations": 0,
+        "private.tournament_team_entry_core_snapshots": 0,
+        "public.torneos_identity": 0,
+        "public.tournament_announcement_audiences": 0,
+        "public.tournament_announcement_deliveries": 0,
+        "public.tournament_announcement_links": 0,
+        "public.tournament_announcements": 0,
+        "public.tournament_audit_log": 0,
+        "public.tournament_categories": 0,
+        "public.tournament_commercial_offers": 1,
+        "public.tournament_commercial_products": 1,
+        "public.tournament_competition_formats": 5,
+        "public.tournament_competition_participants": 0,
+        "public.tournament_courts": 0,
+        "public.tournament_disciplinary_overrides": 0,
+        "public.tournament_discipline_ledgers": 0,
+        "public.tournament_discipline_rules": 0,
+        "public.tournament_document_acknowledgements": 0,
+        "public.tournament_document_versions": 0,
+        "public.tournament_documents": 0,
+        "public.tournament_draw_pot_members": 0,
+        "public.tournament_draw_pots": 0,
+        "public.tournament_entitlement_capabilities": 28,
+        "public.tournament_entitlement_overrides": 0,
+        "public.tournament_fixture_versions": 0,
+        "public.tournament_group_members": 0,
+        "public.tournament_groups": 0,
+        "public.tournament_legacy_organization_subscriptions": 0,
+        "public.tournament_legacy_subscription_plans": 2,
+        "public.tournament_match_availability_responses": 0,
+        "public.tournament_match_events": 0,
+        "public.tournament_match_operation_players": 0,
+        "public.tournament_match_operations": 0,
+        "public.tournament_match_outcomes": 0,
+        "public.tournament_match_reschedules": 0,
+        "public.tournament_match_resumptions": 0,
+        "public.tournament_match_reviews": 0,
+        "public.tournament_match_scores": 0,
+        "public.tournament_match_sources": 0,
+        "public.tournament_match_squad_players": 0,
+        "public.tournament_match_squads": 0,
+        "public.tournament_matches": 0,
+        "public.tournament_media_assets": 0,
+        "public.tournament_media_assignments": 0,
+        "public.tournament_media_consent_events": 0,
+        "public.tournament_media_consents": 0,
+        "public.tournament_media_galleries": 0,
+        "public.tournament_media_gallery_items": 0,
+        "public.tournament_media_moderation_actions": 0,
+        "public.tournament_media_pipeline_configuration": 1,
+        "public.tournament_media_processing_jobs": 0,
+        "public.tournament_media_relations": 0,
+        "public.tournament_media_reports": 0,
+        "public.tournament_media_service_attestations": 0,
+        "public.tournament_media_upload_sessions": 0,
+        "public.tournament_media_variants": 0,
+        "public.tournament_notification_preferences": 0,
+        "public.tournament_organization_entitlement_overrides": 0,
+        "public.tournament_organization_members": 0,
+        "public.tournament_organization_plan_state": 0,
+        "public.tournament_organization_role_capabilities": 285,
+        "public.tournament_organizations": 0,
+        "public.tournament_participant_hub_preferences": 0,
+        "public.tournament_participant_sets": 0,
+        "public.tournament_phases": 0,
+        "public.tournament_plan_catalog": 2,
+        "public.tournament_plan_grant_events": 0,
+        "public.tournament_plan_grants": 0,
+        "public.tournament_player_portraits": 0,
+        "public.tournament_player_statistics": 0,
+        "public.tournament_player_suspensions": 0,
+        "public.tournament_points_adjustments": 0,
+        "public.tournament_pricing_config": 1,
+        "public.tournament_projection_sources": 0,
+        "public.tournament_provisional_players": 0,
+        "public.tournament_public_pages": 0,
+        "public.tournament_purchase_events": 0,
+        "public.tournament_purchases": 0,
+        "public.tournament_qualification_resolutions": 0,
+        "public.tournament_qualification_slots": 0,
+        "public.tournament_roster_players": 0,
+        "public.tournament_roster_settings": 0,
+        "public.tournament_rosters": 0,
+        "public.tournament_rounds": 0,
+        "public.tournament_schedule_windows": 0,
+        "public.tournament_scoring_rules": 0,
+        "public.tournament_season_member_assignments": 0,
+        "public.tournament_season_plan_grant_events": 0,
+        "public.tournament_season_plan_grants": 0,
+        "public.tournament_seasons": 0,
+        "public.tournament_social_permissions": 0,
+        "public.tournament_sport_modalities": 6,
+        "public.tournament_standings_revisions": 0,
+        "public.tournament_suspension_served_matches": 0,
+        "public.tournament_team_entries": 0,
+        "public.tournament_team_invitations": 0,
+        "public.tournament_team_managers": 0,
+        "public.tournament_team_photos": 0,
+        "public.tournament_team_reviews": 0,
+        "public.tournament_team_standings": 0,
+        "public.tournament_team_statistics": 0,
+        "public.tournament_tiebreak_rules": 0,
+        "public.tournament_venues": 0,
+        "public.tournaments": 0,
+        "public.user_tournament_context_preferences": 0,
+        "public.user_workspace_preferences": 0
+      },
+      "scope": {
+        "orgs": [],
+        "discoveredOrgs": [],
+        "identities": 1,
+        "coreUserIds": 1
+      }
+    }
+  },
+  "status": "FAIL",
+  "instrumentation": "METADATA_OBSERVER_INSTALLED",
+  "tokenClaims": {
+    "sub": "544064d2",
+    "ttl": 120
+  },
+  "diagnosis": {
+    "proxyKeepAliveMs": 5000,
+    "sync": [
+      {
+        "name": "B-loaded",
+        "helperBeforeRpcMs": 268.075,
+        "blockedBeforeRpcMs": 268.489,
+        "pad": null,
+        "otherSocketIdleAtDispatchMs": 1418,
+        "ops": [
+          [
+            "ip route del",
+            127.346
+          ],
+          [
+            "ip -f inet",
+            140.729
+          ],
+          [
+            "ip route replace",
+            140.141
+          ]
+        ],
+        "loopMaxGapMs": 269,
+        "rpc": "503 access denied",
+        "reproduced": false,
+        "rpcFailedAfterMs": null,
+        "consistentWithKeepAlive": true
+      },
+      {
+        "name": "B-padded",
+        "helperBeforeRpcMs": 276.679,
+        "blockedBeforeRpcMs": 4531.904,
+        "pad": {
+          "kind": "sync",
+          "targetIdleMs": 5300,
+          "otherSocketIdleBeforePadMs": 1052,
+          "waitMs": 4248,
+          "otherSocketIdleAtDispatchMs": 5307
+        },
+        "otherSocketIdleAtDispatchMs": 5307,
+        "ops": [
+          [
+            "ip route del",
+            128.06
+          ],
+          [
+            "ip -f inet",
+            148.619
+          ],
+          [
+            "ip route replace",
+            132.93
+          ]
+        ],
+        "loopMaxGapMs": 4535,
+        "rpc": "503 access denied",
+        "reproduced": false,
+        "rpcFailedAfterMs": null,
+        "consistentWithKeepAlive": false
+      }
+    ],
+    "async": [
+      {
+        "name": "C-padded",
+        "helperBeforeRpcMs": 285.831,
+        "pad": {
+          "kind": "async",
+          "targetIdleMs": 5300,
+          "otherSocketIdleBeforePadMs": 1642,
+          "waitMs": 3658,
+          "otherSocketIdleAtDispatchMs": 5301
+        },
+        "otherSocketIdleAtDispatchMs": 5301,
+        "loopTicksDuringFault": 222,
+        "loopMaxGapMs": 52,
+        "rpc": "503 access denied",
+        "cacheControl": "no-store",
+        "table": 503,
+        "recovery": 200
+      }
+    ],
+    "reproduced": false,
+    "reproducedBy": [],
+    "wireErrorWhenRestUnreachable": [
+      "access denied"
+    ]
+  },
+  "expectations": {
+    "harness": true,
+    "preambles": true,
+    "paddedSyncReproduces": false,
+    "syncCasesRecover": true,
+    "asyncFault503": true,
+    "asyncFaultNoStore": true,
+    "asyncLoopFree": true,
+    "recovery200": true,
+    "oneAttemptEach": true,
+    "noUnexpectedFailures": true,
+    "health": true,
+    "processes": true,
+    "routes": true
+  },
+  "qaUsers": [
+    {
+      "role": "route",
+      "id": "4cedebd2-254d-4966-9d9d-660743512820",
+      "lastSession": "d52d5b20-e298-49f0-a2f7-ffeb0797033b",
+      "deleted": true
+    }
+  ],
+  "complete": true,
+  "logs": {
+    "gateway": "\n",
+    "proxy": "2026-09-20T23:49:18.478941214Z R42_TRANSPORT {\"at\":\"2026-09-20T23:49:18.478Z\",\"event\":\"server\",\"keepAliveTimeout\":5000,\"keepAliveTimeoutBuffer\":1000,\"headersTimeout\":60000}\n2026-09-20T23:49:19.628085672Z R42_TRANSPORT {\"at\":\"2026-09-20T23:49:19.627Z\",\"event\":\"connection\",\"localAddress\":\"172.30.0.2\",\"localPort\":9000,\"remoteAddress\":\"172.30.0.1\",\"remotePort\":56892,\"bytesWritten\":0,\"bytesRead\":0}\n2026-09-20T23:49:19.629625839Z R42_TRANSPORT {\"at\":\"2026-09-20T23:49:19.629Z\",\"event\":\"request\",\"id\":\"initial-health\",\"path\":\"/torneos-gateway/health\",\"localAddress\":\"172.30.0.2\",\"localPort\":9000,\"remoteAddress\":\"172.30.0.1\",\"remotePort\":56892,\"bytesWritten\":0,\"bytesRead\":216}\n2026-09-20T23:49:19.827990548Z R42_TRANSPORT {\"at\":\"2026-09-20T23:49:19.827Z\",\"event\":\"response\",\"id\":\"initial-health\",\"status\":200,\"localAddress\":\"172.30.0.2\",\"localPort\":9000,\"remoteAddress\":\"172.30.0.1\",\"remotePort\":56892,\"bytesWritten\":252,\"bytesRead\":216}\n2026-09-20T23:49:19.828323048Z R42_TRANSPORT {\"at\":\"2026-09-20T23:49:19.828Z\",\"event\":\"close\",\"localAddress\":\"172.30.0.2\",\"localPort\":9000,\"remoteAddress\":\"172.30.0.1\",\"remotePort\":56892,\"bytesWritten\":252,\"bytesRead\":216,\"hadError\":false}\n2026-09-20T23:49:19.834847756Z R42_TRANSPORT {\"at\":\"2026-09-20T23:49:19.834Z\",\"event\":\"connection\",\"localAddress\":\"172.30.0.2\",\"localPort\":9000,\"remoteAddress\":\"172.30.0.1\",\"remotePort\":56902,\"bytesWritten\":0,\"bytesRead\":0}\n2026-09-20T23:49:19.836740548Z R42_TRANSPORT {\"at\":\"2026-09-20T23:49:19.836Z\",\"event\":\"request\",\"id\":\"setup-exchange\",\"path\":\"/torneos-gateway/exchange\",\"localAddress\":\"172.30.0.2\",\"localPort\":9000,\"remoteAddress\":\"172.30.0.1\",\"remotePort\":56902,\"bytesWritten\":0,\"bytesRead\":1271}\n2026-09-20T23:49:21.584983715Z R42_TRANSPORT {\"at\":\"2026-09-20T23:49:21.584Z\",\"event\":\"response\",\"id\":\"setup-exchange\",\"status\":200,\"localAddress\":\"172.30.0.2\",\"localPort\":9000,\"remoteAddress\":\"172.30.0.1\",\"remotePort\":56902,\"bytesWritten\":1192,\"bytesRead\":1271}\n2026-09-20T23:49:21.587997590Z R42_TRANSPORT {\"at\":\"2026-09-20T23:49:21.587Z\",\"event\":\"close\",\"localAddress\":\"172.30.0.2\",\"localPort\":9000,\"remoteAddress\":\"172.30.0.1\",\"remotePort\":56902,\"bytesWritten\":1192,\"bytesRead\":1271,\"hadError\":false}\n2026-09-20T23:50:05.206998263Z R42_TRANSPORT {\"at\":\"2026-09-20T23:50:05.206Z\",\"event\":\"connection\",\"localAddress\":\"172.30.0.2\",\"localPort\":9000,\"remoteAddress\":\"172.30.0.1\",\"remotePort\":61446,\"bytesWritten\":0,\"bytesRead\":0}\n2026-09-20T23:50:05.207477680Z R42_TRANSPORT {\"at\":\"2026-09-20T23:50:05.207Z\",\"event\":\"request\",\"id\":\"B-loaded-pre-health\",\"path\":\"/torneos-gateway/health\",\"localAddress\":\"172.30.0.2\",\"localPort\":9000,\"remoteAddress\":\"172.30.0.1\",\"remotePort\":61446,\"bytesWritten\":0,\"bytesRead\":226}\n2026-09-20T23:50:05.638892180Z R42_TRANSPORT {\"at\":\"2026-09-20T23:50:05.638Z\",\"event\":\"response\",\"id\":\"B-loaded-pre-health\",\"status\":200,\"localAddress\":\"172.30.0.2\",\"localPort\":9000,\"remoteAddress\":\"172.30.0.1\",\"remotePort\":61446,\"bytesWritten\":280,\"bytesRead\":226}\n2026-09-20T23:50:05.641864680Z R42_TRANSPORT {\"at\":\"2026-09-20T23:50:05.641Z\",\"event\":\"connection\",\"localAddress\":\"172.30.0.2\",\"localPort\":9000,\"remoteAddress\":\"172.30.0.1\",\"remotePort\":61462,\"bytesWritten\":0,\"bytesRead\":0}\n2026-09-20T23:50:05.642151347Z R42_TRANSPORT {\"at\":\"2026-09-20T23:50:05.642Z\",\"event\":\"request\",\"id\":\"B-loaded-pre-rpc-corefault\",\"path\":\"/torneos-gateway/torneos/rest/v1/rpc/get_my_tournament_memberships\",\"localAddress\":\"172.30.0.2\",\"localPort\":9000,\"remoteAddress\":\"172.30.0.1\",\"remotePort\":61462,\"bytesWritten\":0,\"bytesRead\":1206}\n2026-09-20T23:50:05.928269389Z R42_FAULT contract\n2026-09-20T23:50:05.929337472Z R42_TRANSPORT {\"at\":\"2026-09-20T23:50:05.929Z\",\"event\":\"response\",\"id\":\"B-loaded-pre-rpc-corefault\",\"status\":503,\"localAddress\":\"172.30.0.2\",\"localPort\":9000,\"remoteAddress\":\"172.30.0.1\",\"remotePort\":61462,\"bytesWritten\":355,\"bytesRead\":1206}\n2026-09-20T23:50:06.115792555Z R42_TRANSPORT {\"at\":\"2026-09-20T23:50:06.115Z\",\"event\":\"request\",\"id\":\"B-loaded-pre-recovery\",\"path\":\"/torneos-gateway/torneos/rest/v1/rpc/get_my_tournament_memberships\",\"localAddress\":\"172.30.0.2\",\"localPort\":9000,\"remoteAddress\":\"172.30.0.1\",\"remotePort\":61446,\"bytesWritten\":280,\"bytesRead\":1427}\n2026-09-20T23:50:07.080209375Z R42_TRANSPORT {\"at\":\"2026-09-20T23:50:07.080Z\",\"event\":\"response\",\"id\":\"B-loaded-pre-recovery\",\"status\":200,\"localAddress\":\"172.30.0.2\",\"localPort\":9000,\"remoteAddress\":\"172.30.0.1\",\"remotePort\":61446,\"bytesWritten\":668,\"bytesRead\":1427}\n2026-09-20T23:50:07.351539500Z R42_TRANSPORT {\"at\":\"2026-09-20T23:50:07.351Z\",\"event\":\"request\",\"id\":\"B-loaded-rpc\",\"path\":\"/torneos-gateway/torneos/rest/v1/rpc/get_my_tournament_memberships\",\"localAddress\":\"172.30.0.2\",\"localPort\":9000,\"remoteAddress\":\"172.30.0.1\",\"remotePort\":61462,\"bytesWritten\":355,\"bytesRead\":2398}\n2026-09-20T23:50:10.351987085Z R42_TRANSPORT {\"at\":\"2026-09-20T23:50:10.351Z\",\"event\":\"close\",\"localAddress\":\"172.30.0.2\",\"localPort\":9000,\"remoteAddress\":\"172.30.0.1\",\"remotePort\":61446,\"bytesWritten\":668,\"bytesRead\":1427,\"hadError\":false}\n2026-09-20T23:50:13.144301211Z R42_TRANSPORT {\"at\":\"2026-09-20T23:50:13.143Z\",\"event\":\"response\",\"id\":\"B-loaded-rpc\",\"status\":503,\"localAddress\":\"172.30.0.2\",\"localPort\":9000,\"remoteAddress\":\"172.30.0.1\",\"remotePort\":61462,\"bytesWritten\":707,\"bytesRead\":2398}\n2026-09-20T23:50:13.149161711Z R42_TRANSPORT {\"at\":\"2026-09-20T23:50:13.148Z\",\"event\":\"connection\",\"localAddress\":\"172.30.0.2\",\"localPort\":9000,\"remoteAddress\":\"172.30.0.1\",\"remotePort\":61470,\"bytesWritten\":0,\"bytesRead\":0}\n2026-09-20T23:50:13.149641044Z R42_TRANSPORT {\"at\":\"2026-09-20T23:50:13.149Z\",\"event\":\"request\",\"id\":\"B-loaded-table\",\"path\":\"/torneos-gateway/torneos/rest/v1/torneos_identity\",\"localAddress\":\"172.30.0.2\",\"localPort\":9000,\"remoteAddress\":\"172.30.0.1\",\"remotePort\":61470,\"bytesWritten\":0,\"bytesRead\":1133}\n2026-09-20T23:50:13.963508045Z R42_TRANSPORT {\"at\":\"2026-09-20T23:50:13.963Z\",\"event\":\"response\",\"id\":\"B-loaded-table\",\"status\":503,\"localAddress\":\"172.30.0.2\",\"localPort\":9000,\"remoteAddress\":\"172.30.0.1\",\"remotePort\":61470,\"bytesWritten\":352,\"bytesRead\":1133}\n2026-09-20T23:50:14.259024837Z R42_TRANSPORT {\"at\":\"2026-09-20T23:50:14.258Z\",\"event\":\"request\",\"id\":\"B-loaded-recovery-rpc\",\"path\":\"/torneos-gateway/torneos/rest/v1/rpc/get_my_tournament_memberships\",\"localAddress\":\"172.30.0.2\",\"localPort\":9000,\"remoteAddress\":\"172.30.0.1\",\"remotePort\":61470,\"bytesWritten\":352,\"bytesRead\":2334}\n2026-09-20T23:50:14.971827379Z R42_TRANSPORT {\"at\":\"2026-09-20T23:50:14.971Z\",\"event\":\"response\",\"id\":\"B-loaded-recovery-rpc\",\"status\":200,\"localAddress\":\"172.30.0.2\",\"localPort\":9000,\"remoteAddress\":\"172.30.0.1\",\"remotePort\":61470,\"bytesWritten\":740,\"bytesRead\":2334}\n2026-09-20T23:50:14.973914420Z R42_TRANSPORT {\"at\":\"2026-09-20T23:50:14.973Z\",\"event\":\"request\",\"id\":\"B-loaded-health-after\",\"path\":\"/torneos-gateway/health\",\"localAddress\":\"172.30.0.2\",\"localPort\":9000,\"remoteAddress\":\"172.30.0.1\",\"remotePort\":61462,\"bytesWritten\":707,\"bytesRead\":2626}\n2026-09-20T23:50:15.169244295Z R42_TRANSPORT {\"at\":\"2026-09-20T23:50:15.169Z\",\"event\":\"response\",\"id\":\"B-loaded-health-after\",\"status\":200,\"localAddress\":\"172.30.0.2\",\"localPort\":9000,\"remoteAddress\":\"172.30.0.1\",\"remotePort\":61462,\"bytesWritten\":987,\"bytesRead\":2626}\n2026-09-20T23:50:15.502659754Z R42_TRANSPORT {\"at\":\"2026-09-20T23:50:15.502Z\",\"event\":\"request\",\"id\":\"B-padded-pre-health\",\"path\":\"/torneos-gateway/health\",\"localAddress\":\"172.30.0.2\",\"localPort\":9000,\"remoteAddress\":\"172.30.0.1\",\"remotePort\":61470,\"bytesWritten\":740,\"bytesRead\":2560}\n2026-09-20T23:50:15.684377337Z R42_TRANSPORT {\"at\":\"2026-09-20T23:50:15.684Z\",\"event\":\"response\",\"id\":\"B-padded-pre-health\",\"status\":200,\"localAddress\":\"172.30.0.2\",\"localPort\":9000,\"remoteAddress\":\"172.30.0.1\",\"remotePort\":61470,\"bytesWritten\":1020,\"bytesRead\":2560}\n2026-09-20T23:50:15.686353962Z R42_TRANSPORT {\"at\":\"2026-09-20T23:50:15.686Z\",\"event\":\"request\",\"id\":\"B-padded-pre-rpc-corefault\",\"path\":\"/torneos-gateway/torneos/rest/v1/rpc/get_my_tournament_memberships\",\"localAddress\":\"172.30.0.2\",\"localPort\":9000,\"remoteAddress\":\"172.30.0.1\",\"remotePort\":61462,\"bytesWritten\":987,\"bytesRead\":3832}\n2026-09-20T23:50:15.905602087Z R42_FAULT contract\n2026-09-20T23:50:15.906422962Z R42_TRANSPORT {\"at\":\"2026-09-20T23:50:15.906Z\",\"event\":\"response\",\"id\":\"B-padded-pre-rpc-corefault\",\"status\":503,\"localAddress\":\"172.30.0.2\",\"localPort\":9000,\"remoteAddress\":\"172.30.0.1\",\"remotePort\":61462,\"bytesWritten\":1342,\"bytesRead\":3832}\n2026-09-20T23:50:16.082522421Z R42_TRANSPORT {\"at\":\"2026-09-20T23:50:16.082Z\",\"event\":\"request\",\"id\":\"B-padded-pre-recovery\",\"path\":\"/torneos-gateway/torneos/rest/v1/rpc/get_my_tournament_memberships\",\"localAddress\":\"172.30.0.2\",\"localPort\":9000,\"remoteAddress\":\"172.30.0.1\",\"remotePort\":61470,\"bytesWritten\":1020,\"bytesRead\":3761}\n2026-09-20T23:50:16.682638713Z R42_TRANSPORT {\"at\":\"2026-09-20T23:50:16.682Z\",\"event\":\"response\",\"id\":\"B-padded-pre-recovery\",\"status\":200,\"localAddress\":\"172.30.0.2\",\"localPort\":9000,\"remoteAddress\":\"172.30.0.1\",\"remotePort\":61470,\"bytesWritten\":1408,\"bytesRead\":3761}\n2026-09-20T23:50:21.220733715Z R42_TRANSPORT {\"at\":\"2026-09-20T23:50:21.220Z\",\"event\":\"request\",\"id\":\"B-padded-rpc\",\"path\":\"/torneos-gateway/torneos/rest/v1/rpc/get_my_tournament_memberships\",\"localAddress\":\"172.30.0.2\",\"localPort\":9000,\"remoteAddress\":\"172.30.0.1\",\"remotePort\":61462,\"bytesWritten\":1342,\"bytesRead\":5024}\n2026-09-20T23:50:22.684935007Z R42_TRANSPORT {\"at\":\"2026-09-20T23:50:22.684Z\",\"event\":\"timeout\",\"localAddress\":null,\"localPort\":null,\"remoteAddress\":\"172.30.0.1\",\"remotePort\":61470,\"bytesWritten\":1408,\"bytesRead\":3761}\n2026-09-20T23:50:22.684984757Z R42_TRANSPORT {\"at\":\"2026-09-20T23:50:22.684Z\",\"event\":\"close\",\"localAddress\":\"172.30.0.2\",\"localPort\":9000,\"remoteAddress\":\"172.30.0.1\",\"remotePort\":61470,\"bytesWritten\":1408,\"bytesRead\":3761,\"hadError\":false}\n2026-09-20T23:50:27.200953968Z R42_TRANSPORT {\"at\":\"2026-09-20T23:50:27.200Z\",\"event\":\"response\",\"id\":\"B-padded-rpc\",\"status\":503,\"localAddress\":\"172.30.0.2\",\"localPort\":9000,\"remoteAddress\":\"172.30.0.1\",\"remotePort\":61462,\"bytesWritten\":1694,\"bytesRead\":5024}\n2026-09-20T23:50:27.206824343Z R42_TRANSPORT {\"at\":\"2026-09-20T23:50:27.206Z\",\"event\":\"connection\",\"localAddress\":\"172.30.0.2\",\"localPort\":9000,\"remoteAddress\":\"172.30.0.1\",\"remotePort\":60540,\"bytesWritten\":0,\"bytesRead\":0}\n2026-09-20T23:50:27.207567134Z R42_TRANSPORT {\"at\":\"2026-09-20T23:50:27.207Z\",\"event\":\"request\",\"id\":\"B-padded-table\",\"path\":\"/torneos-gateway/torneos/rest/v1/torneos_identity\",\"localAddress\":\"172.30.0.2\",\"localPort\":9000,\"remoteAddress\":\"172.30.0.1\",\"remotePort\":60540,\"bytesWritten\":0,\"bytesRead\":1133}\n2026-09-20T23:50:27.896262635Z R42_TRANSPORT {\"at\":\"2026-09-20T23:50:27.896Z\",\"event\":\"response\",\"id\":\"B-padded-table\",\"status\":503,\"localAddress\":\"172.30.0.2\",\"localPort\":9000,\"remoteAddress\":\"172.30.0.1\",\"remotePort\":60540,\"bytesWritten\":352,\"bytesRead\":1133}\n2026-09-20T23:50:28.172208135Z R42_TRANSPORT {\"at\":\"2026-09-20T23:50:28.172Z\",\"event\":\"request\",\"id\":\"B-padded-recovery-rpc\",\"path\":\"/torneos-gateway/torneos/rest/v1/rpc/get_my_tournament_memberships\",\"localAddress\":\"172.30.0.2\",\"localPort\":9000,\"remoteAddress\":\"172.30.0.1\",\"remotePort\":60540,\"bytesWritten\":352,\"bytesRead\":2334}\n2026-09-20T23:50:28.791682260Z R42_TRANSPORT {\"at\":\"2026-09-20T23:50:28.791Z\",\"event\":\"response\",\"id\":\"B-padded-recovery-rpc\",\"status\":200,\"localAddress\":\"172.30.0.2\",\"localPort\":9000,\"remoteAddress\":\"172.30.0.1\",\"remotePort\":60540,\"bytesWritten\":740,\"bytesRead\":2334}\n2026-09-20T23:50:28.793996218Z R42_TRANSPORT {\"at\":\"2026-09-20T23:50:28.793Z\",\"event\":\"request\",\"id\":\"B-padded-health-after\",\"path\":\"/torneos-gateway/health\",\"localAddress\":\"172.30.0.2\",\"localPort\":9000,\"remoteAddress\":\"172.30.0.1\",\"remotePort\":61462,\"bytesWritten\":1694,\"bytesRead\":5252}\n2026-09-20T23:50:28.982587177Z R42_TRANSPORT {\"at\":\"2026-09-20T23:50:28.982Z\",\"event\":\"response\",\"id\":\"B-padded-health-after\",\"status\":200,\"localAddress\":\"172.30.0.2\",\"localPort\":9000,\"remoteAddress\":\"172.30.0.1\",\"remotePort\":61462,\"bytesWritten\":1974,\"bytesRead\":5252}\n2026-09-20T23:50:29.288668802Z R42_TRANSPORT {\"at\":\"2026-09-20T23:50:29.288Z\",\"event\":\"request\",\"id\":\"C-padded-pre-health\",\"path\":\"/torneos-gateway/health\",\"localAddress\":\"172.30.0.2\",\"localPort\":9000,\"remoteAddress\":\"172.30.0.1\",\"remotePort\":60540,\"bytesWritten\":740,\"bytesRead\":2560}\n2026-09-20T23:50:29.468435594Z R42_TRANSPORT {\"at\":\"2026-09-20T23:50:29.468Z\",\"event\":\"response\",\"id\":\"C-padded-pre-health\",\"status\":200,\"localAddress\":\"172.30.0.2\",\"localPort\":9000,\"remoteAddress\":\"172.30.0.1\",\"remotePort\":60540,\"bytesWritten\":1020,\"bytesRead\":2560}\n2026-09-20T23:50:29.469961219Z R42_TRANSPORT {\"at\":\"2026-09-20T23:50:29.469Z\",\"event\":\"request\",\"id\":\"C-padded-pre-rpc-corefault\",\"path\":\"/torneos-gateway/torneos/rest/v1/rpc/get_my_tournament_memberships\",\"localAddress\":\"172.30.0.2\",\"localPort\":9000,\"remoteAddress\":\"172.30.0.1\",\"remotePort\":61462,\"bytesWritten\":1974,\"bytesRead\":6458}\n2026-09-20T23:50:29.747607177Z R42_FAULT contract\n2026-09-20T23:50:29.748397761Z R42_TRANSPORT {\"at\":\"2026-09-20T23:50:29.748Z\",\"event\":\"response\",\"id\":\"C-padded-pre-rpc-corefault\",\"status\":503,\"localAddress\":\"172.30.0.2\",\"localPort\":9000,\"remoteAddress\":\"172.30.0.1\",\"remotePort\":61462,\"bytesWritten\":2329,\"bytesRead\":6458}\n2026-09-20T23:50:29.920640386Z R42_TRANSPORT {\"at\":\"2026-09-20T23:50:29.920Z\",\"event\":\"request\",\"id\":\"C-padded-pre-recovery\",\"path\":\"/torneos-gateway/torneos/rest/v1/rpc/get_my_tournament_memberships\",\"localAddress\":\"172.30.0.2\",\"localPort\":9000,\"remoteAddress\":\"172.30.0.1\",\"remotePort\":60540,\"bytesWritten\":1020,\"bytesRead\":3761}\n2026-09-20T23:50:31.104437345Z R42_TRANSPORT {\"at\":\"2026-09-20T23:50:31.103Z\",\"event\":\"response\",\"id\":\"C-padded-pre-recovery\",\"status\":200,\"localAddress\":\"172.30.0.2\",\"localPort\":9000,\"remoteAddress\":\"172.30.0.1\",\"remotePort\":60540,\"bytesWritten\":1408,\"bytesRead\":3761}\n2026-09-20T23:50:32.751646054Z R42_TRANSPORT {\"at\":\"2026-09-20T23:50:32.751Z\",\"event\":\"close\",\"localAddress\":\"172.30.0.2\",\"localPort\":9000,\"remoteAddress\":\"172.30.0.1\",\"remotePort\":61462,\"bytesWritten\":2329,\"bytesRead\":6458,\"hadError\":false}\n2026-09-20T23:50:34.114247013Z R42_TRANSPORT {\"at\":\"2026-09-20T23:50:34.113Z\",\"event\":\"close\",\"localAddress\":\"172.30.0.2\",\"localPort\":9000,\"remoteAddress\":\"172.30.0.1\",\"remotePort\":60540,\"bytesWritten\":1408,\"bytesRead\":3761,\"hadError\":false}\n2026-09-20T23:50:35.054515430Z R42_TRANSPORT {\"at\":\"2026-09-20T23:50:35.053Z\",\"event\":\"connection\",\"localAddress\":\"172.30.0.2\",\"localPort\":9000,\"remoteAddress\":\"172.30.0.1\",\"remotePort\":62238,\"bytesWritten\":0,\"bytesRead\":0}\n2026-09-20T23:50:35.055238638Z R42_TRANSPORT {\"at\":\"2026-09-20T23:50:35.054Z\",\"event\":\"request\",\"id\":\"C-padded-rpc\",\"path\":\"/torneos-gateway/torneos/rest/v1/rpc/get_my_tournament_memberships\",\"localAddress\":\"172.30.0.2\",\"localPort\":9000,\"remoteAddress\":\"172.30.0.1\",\"remotePort\":62238,\"bytesWritten\":0,\"bytesRead\":1192}\n2026-09-20T23:50:41.346311752Z R42_TRANSPORT {\"at\":\"2026-09-20T23:50:41.344Z\",\"event\":\"response\",\"id\":\"C-padded-rpc\",\"status\":503,\"localAddress\":\"172.30.0.2\",\"localPort\":9000,\"remoteAddress\":\"172.30.0.1\",\"remotePort\":62238,\"bytesWritten\":352,\"bytesRead\":1192}\n2026-09-20T23:50:41.353328668Z R42_TRANSPORT {\"at\":\"2026-09-20T23:50:41.353Z\",\"event\":\"request\",\"id\":\"C-padded-table\",\"path\":\"/torneos-gateway/torneos/rest/v1/torneos_identity\",\"localAddress\":\"172.30.0.2\",\"localPort\":9000,\"remoteAddress\":\"172.30.0.1\",\"remotePort\":62238,\"bytesWritten\":352,\"bytesRead\":2325}\n2026-09-20T23:50:42.297194711Z R42_TRANSPORT {\"at\":\"2026-09-20T23:50:42.296Z\",\"event\":\"response\",\"id\":\"C-padded-table\",\"status\":503,\"localAddress\":\"172.30.0.2\",\"localPort\":9000,\"remoteAddress\":\"172.30.0.1\",\"remotePort\":62238,\"bytesWritten\":704,\"bytesRead\":2325}\n2026-09-20T23:50:42.577465211Z R42_TRANSPORT {\"at\":\"2026-09-20T23:50:42.577Z\",\"event\":\"request\",\"id\":\"C-padded-recovery-rpc\",\"path\":\"/torneos-gateway/torneos/rest/v1/rpc/get_my_tournament_memberships\",\"localAddress\":\"172.30.0.2\",\"localPort\":9000,\"remoteAddress\":\"172.30.0.1\",\"remotePort\":62238,\"bytesWritten\":704,\"bytesRead\":3526}\n2026-09-20T23:50:43.285226336Z R42_TRANSPORT {\"at\":\"2026-09-20T23:50:43.285Z\",\"event\":\"response\",\"id\":\"C-padded-recovery-rpc\",\"status\":200,\"localAddress\":\"172.30.0.2\",\"localPort\":9000,\"remoteAddress\":\"172.30.0.1\",\"remotePort\":62238,\"bytesWritten\":1092,\"bytesRead\":3526}\n2026-09-20T23:50:43.287487961Z R42_TRANSPORT {\"at\":\"2026-09-20T23:50:43.287Z\",\"event\":\"connection\",\"localAddress\":\"172.30.0.2\",\"localPort\":9000,\"remoteAddress\":\"172.30.0.1\",\"remotePort\":62248,\"bytesWritten\":0,\"bytesRead\":0}\n2026-09-20T23:50:43.288108461Z R42_TRANSPORT {\"at\":\"2026-09-20T23:50:43.288Z\",\"event\":\"request\",\"id\":\"C-padded-health-after\",\"path\":\"/torneos-gateway/health\",\"localAddress\":\"172.30.0.2\",\"localPort\":9000,\"remoteAddress\":\"172.30.0.1\",\"remotePort\":62248,\"bytesWritten\":0,\"bytesRead\":228}\n2026-09-20T23:50:43.473759795Z R42_TRANSPORT {\"at\":\"2026-09-20T23:50:43.473Z\",\"event\":\"response\",\"id\":\"C-padded-health-after\",\"status\":200,\"localAddress\":\"172.30.0.2\",\"localPort\":9000,\"remoteAddress\":\"172.30.0.1\",\"remotePort\":62248,\"bytesWritten\":280,\"bytesRead\":228}\n2026-09-20T23:50:43.620510586Z R42_TRANSPORT {\"at\":\"2026-09-20T23:50:43.620Z\",\"event\":\"request\",\"id\":\"D-health\",\"path\":\"/torneos-gateway/health\",\"localAddress\":\"172.30.0.2\",\"localPort\":9000,\"remoteAddress\":\"172.30.0.1\",\"remotePort\":62238,\"bytesWritten\":1092,\"bytesRead\":3741}\n2026-09-20T23:50:43.818261545Z R42_TRANSPORT {\"at\":\"2026-09-20T23:50:43.818Z\",\"event\":\"response\",\"id\":\"D-health\",\"status\":200,\"localAddress\":\"172.30.0.2\",\"localPort\":9000,\"remoteAddress\":\"172.30.0.1\",\"remotePort\":62238,\"bytesWritten\":1372,\"bytesRead\":3741}\n\n2026-09-20T23:49:18.132562755Z Debugger listening on ws://127.0.0.1:9229/3f8a9d51-57b8-485c-8c54-6253ff3b92a1\n2026-09-20T23:49:18.132584838Z For help, see: https://nodejs.org/en/docs/inspector\n2026-09-20T23:49:18.476831089Z Debugger attached.\n2026-09-20T23:49:18.479666964Z Debugger ending on ws://127.0.0.1:9229/3f8a9d51-57b8-485c-8c54-6253ff3b92a1\n2026-09-20T23:49:18.479674005Z For help, see: https://nodejs.org/en/docs/inspector\n"
+  },
+  "proxyEvents": [
+    {
+      "at": "2026-09-20T23:49:18.478Z",
+      "event": "server",
+      "keepAliveTimeout": 5000,
+      "keepAliveTimeoutBuffer": 1000,
+      "headersTimeout": 60000
+    },
+    {
+      "at": "2026-09-20T23:49:19.627Z",
+      "event": "connection",
+      "localAddress": "172.30.0.2",
+      "localPort": 9000,
+      "remoteAddress": "172.30.0.1",
+      "remotePort": 56892,
+      "bytesWritten": 0,
+      "bytesRead": 0
+    },
+    {
+      "at": "2026-09-20T23:49:19.629Z",
+      "event": "request",
+      "id": "initial-health",
+      "path": "/torneos-gateway/health",
+      "localAddress": "172.30.0.2",
+      "localPort": 9000,
+      "remoteAddress": "172.30.0.1",
+      "remotePort": 56892,
+      "bytesWritten": 0,
+      "bytesRead": 216
+    },
+    {
+      "at": "2026-09-20T23:49:19.827Z",
+      "event": "response",
+      "id": "initial-health",
+      "status": 200,
+      "localAddress": "172.30.0.2",
+      "localPort": 9000,
+      "remoteAddress": "172.30.0.1",
+      "remotePort": 56892,
+      "bytesWritten": 252,
+      "bytesRead": 216
+    },
+    {
+      "at": "2026-09-20T23:49:19.828Z",
+      "event": "close",
+      "localAddress": "172.30.0.2",
+      "localPort": 9000,
+      "remoteAddress": "172.30.0.1",
+      "remotePort": 56892,
+      "bytesWritten": 252,
+      "bytesRead": 216,
+      "hadError": false
+    },
+    {
+      "at": "2026-09-20T23:49:19.834Z",
+      "event": "connection",
+      "localAddress": "172.30.0.2",
+      "localPort": 9000,
+      "remoteAddress": "172.30.0.1",
+      "remotePort": 56902,
+      "bytesWritten": 0,
+      "bytesRead": 0
+    },
+    {
+      "at": "2026-09-20T23:49:19.836Z",
+      "event": "request",
+      "id": "setup-exchange",
+      "path": "/torneos-gateway/exchange",
+      "localAddress": "172.30.0.2",
+      "localPort": 9000,
+      "remoteAddress": "172.30.0.1",
+      "remotePort": 56902,
+      "bytesWritten": 0,
+      "bytesRead": 1271
+    },
+    {
+      "at": "2026-09-20T23:49:21.584Z",
+      "event": "response",
+      "id": "setup-exchange",
+      "status": 200,
+      "localAddress": "172.30.0.2",
+      "localPort": 9000,
+      "remoteAddress": "172.30.0.1",
+      "remotePort": 56902,
+      "bytesWritten": 1192,
+      "bytesRead": 1271
+    },
+    {
+      "at": "2026-09-20T23:49:21.587Z",
+      "event": "close",
+      "localAddress": "172.30.0.2",
+      "localPort": 9000,
+      "remoteAddress": "172.30.0.1",
+      "remotePort": 56902,
+      "bytesWritten": 1192,
+      "bytesRead": 1271,
+      "hadError": false
+    },
+    {
+      "at": "2026-09-20T23:50:05.206Z",
+      "event": "connection",
+      "localAddress": "172.30.0.2",
+      "localPort": 9000,
+      "remoteAddress": "172.30.0.1",
+      "remotePort": 61446,
+      "bytesWritten": 0,
+      "bytesRead": 0
+    },
+    {
+      "at": "2026-09-20T23:50:05.207Z",
+      "event": "request",
+      "id": "B-loaded-pre-health",
+      "path": "/torneos-gateway/health",
+      "localAddress": "172.30.0.2",
+      "localPort": 9000,
+      "remoteAddress": "172.30.0.1",
+      "remotePort": 61446,
+      "bytesWritten": 0,
+      "bytesRead": 226
+    },
+    {
+      "at": "2026-09-20T23:50:05.638Z",
+      "event": "response",
+      "id": "B-loaded-pre-health",
+      "status": 200,
+      "localAddress": "172.30.0.2",
+      "localPort": 9000,
+      "remoteAddress": "172.30.0.1",
+      "remotePort": 61446,
+      "bytesWritten": 280,
+      "bytesRead": 226
+    },
+    {
+      "at": "2026-09-20T23:50:05.641Z",
+      "event": "connection",
+      "localAddress": "172.30.0.2",
+      "localPort": 9000,
+      "remoteAddress": "172.30.0.1",
+      "remotePort": 61462,
+      "bytesWritten": 0,
+      "bytesRead": 0
+    },
+    {
+      "at": "2026-09-20T23:50:05.642Z",
+      "event": "request",
+      "id": "B-loaded-pre-rpc-corefault",
+      "path": "/torneos-gateway/torneos/rest/v1/rpc/get_my_tournament_memberships",
+      "localAddress": "172.30.0.2",
+      "localPort": 9000,
+      "remoteAddress": "172.30.0.1",
+      "remotePort": 61462,
+      "bytesWritten": 0,
+      "bytesRead": 1206
+    },
+    {
+      "at": "2026-09-20T23:50:05.929Z",
+      "event": "response",
+      "id": "B-loaded-pre-rpc-corefault",
+      "status": 503,
+      "localAddress": "172.30.0.2",
+      "localPort": 9000,
+      "remoteAddress": "172.30.0.1",
+      "remotePort": 61462,
+      "bytesWritten": 355,
+      "bytesRead": 1206
+    },
+    {
+      "at": "2026-09-20T23:50:06.115Z",
+      "event": "request",
+      "id": "B-loaded-pre-recovery",
+      "path": "/torneos-gateway/torneos/rest/v1/rpc/get_my_tournament_memberships",
+      "localAddress": "172.30.0.2",
+      "localPort": 9000,
+      "remoteAddress": "172.30.0.1",
+      "remotePort": 61446,
+      "bytesWritten": 280,
+      "bytesRead": 1427
+    },
+    {
+      "at": "2026-09-20T23:50:07.080Z",
+      "event": "response",
+      "id": "B-loaded-pre-recovery",
+      "status": 200,
+      "localAddress": "172.30.0.2",
+      "localPort": 9000,
+      "remoteAddress": "172.30.0.1",
+      "remotePort": 61446,
+      "bytesWritten": 668,
+      "bytesRead": 1427
+    },
+    {
+      "at": "2026-09-20T23:50:07.351Z",
+      "event": "request",
+      "id": "B-loaded-rpc",
+      "path": "/torneos-gateway/torneos/rest/v1/rpc/get_my_tournament_memberships",
+      "localAddress": "172.30.0.2",
+      "localPort": 9000,
+      "remoteAddress": "172.30.0.1",
+      "remotePort": 61462,
+      "bytesWritten": 355,
+      "bytesRead": 2398
+    },
+    {
+      "at": "2026-09-20T23:50:10.351Z",
+      "event": "close",
+      "localAddress": "172.30.0.2",
+      "localPort": 9000,
+      "remoteAddress": "172.30.0.1",
+      "remotePort": 61446,
+      "bytesWritten": 668,
+      "bytesRead": 1427,
+      "hadError": false
+    },
+    {
+      "at": "2026-09-20T23:50:13.143Z",
+      "event": "response",
+      "id": "B-loaded-rpc",
+      "status": 503,
+      "localAddress": "172.30.0.2",
+      "localPort": 9000,
+      "remoteAddress": "172.30.0.1",
+      "remotePort": 61462,
+      "bytesWritten": 707,
+      "bytesRead": 2398
+    },
+    {
+      "at": "2026-09-20T23:50:13.148Z",
+      "event": "connection",
+      "localAddress": "172.30.0.2",
+      "localPort": 9000,
+      "remoteAddress": "172.30.0.1",
+      "remotePort": 61470,
+      "bytesWritten": 0,
+      "bytesRead": 0
+    },
+    {
+      "at": "2026-09-20T23:50:13.149Z",
+      "event": "request",
+      "id": "B-loaded-table",
+      "path": "/torneos-gateway/torneos/rest/v1/torneos_identity",
+      "localAddress": "172.30.0.2",
+      "localPort": 9000,
+      "remoteAddress": "172.30.0.1",
+      "remotePort": 61470,
+      "bytesWritten": 0,
+      "bytesRead": 1133
+    },
+    {
+      "at": "2026-09-20T23:50:13.963Z",
+      "event": "response",
+      "id": "B-loaded-table",
+      "status": 503,
+      "localAddress": "172.30.0.2",
+      "localPort": 9000,
+      "remoteAddress": "172.30.0.1",
+      "remotePort": 61470,
+      "bytesWritten": 352,
+      "bytesRead": 1133
+    },
+    {
+      "at": "2026-09-20T23:50:14.258Z",
+      "event": "request",
+      "id": "B-loaded-recovery-rpc",
+      "path": "/torneos-gateway/torneos/rest/v1/rpc/get_my_tournament_memberships",
+      "localAddress": "172.30.0.2",
+      "localPort": 9000,
+      "remoteAddress": "172.30.0.1",
+      "remotePort": 61470,
+      "bytesWritten": 352,
+      "bytesRead": 2334
+    },
+    {
+      "at": "2026-09-20T23:50:14.971Z",
+      "event": "response",
+      "id": "B-loaded-recovery-rpc",
+      "status": 200,
+      "localAddress": "172.30.0.2",
+      "localPort": 9000,
+      "remoteAddress": "172.30.0.1",
+      "remotePort": 61470,
+      "bytesWritten": 740,
+      "bytesRead": 2334
+    },
+    {
+      "at": "2026-09-20T23:50:14.973Z",
+      "event": "request",
+      "id": "B-loaded-health-after",
+      "path": "/torneos-gateway/health",
+      "localAddress": "172.30.0.2",
+      "localPort": 9000,
+      "remoteAddress": "172.30.0.1",
+      "remotePort": 61462,
+      "bytesWritten": 707,
+      "bytesRead": 2626
+    },
+    {
+      "at": "2026-09-20T23:50:15.169Z",
+      "event": "response",
+      "id": "B-loaded-health-after",
+      "status": 200,
+      "localAddress": "172.30.0.2",
+      "localPort": 9000,
+      "remoteAddress": "172.30.0.1",
+      "remotePort": 61462,
+      "bytesWritten": 987,
+      "bytesRead": 2626
+    },
+    {
+      "at": "2026-09-20T23:50:15.502Z",
+      "event": "request",
+      "id": "B-padded-pre-health",
+      "path": "/torneos-gateway/health",
+      "localAddress": "172.30.0.2",
+      "localPort": 9000,
+      "remoteAddress": "172.30.0.1",
+      "remotePort": 61470,
+      "bytesWritten": 740,
+      "bytesRead": 2560
+    },
+    {
+      "at": "2026-09-20T23:50:15.684Z",
+      "event": "response",
+      "id": "B-padded-pre-health",
+      "status": 200,
+      "localAddress": "172.30.0.2",
+      "localPort": 9000,
+      "remoteAddress": "172.30.0.1",
+      "remotePort": 61470,
+      "bytesWritten": 1020,
+      "bytesRead": 2560
+    },
+    {
+      "at": "2026-09-20T23:50:15.686Z",
+      "event": "request",
+      "id": "B-padded-pre-rpc-corefault",
+      "path": "/torneos-gateway/torneos/rest/v1/rpc/get_my_tournament_memberships",
+      "localAddress": "172.30.0.2",
+      "localPort": 9000,
+      "remoteAddress": "172.30.0.1",
+      "remotePort": 61462,
+      "bytesWritten": 987,
+      "bytesRead": 3832
+    },
+    {
+      "at": "2026-09-20T23:50:15.906Z",
+      "event": "response",
+      "id": "B-padded-pre-rpc-corefault",
+      "status": 503,
+      "localAddress": "172.30.0.2",
+      "localPort": 9000,
+      "remoteAddress": "172.30.0.1",
+      "remotePort": 61462,
+      "bytesWritten": 1342,
+      "bytesRead": 3832
+    },
+    {
+      "at": "2026-09-20T23:50:16.082Z",
+      "event": "request",
+      "id": "B-padded-pre-recovery",
+      "path": "/torneos-gateway/torneos/rest/v1/rpc/get_my_tournament_memberships",
+      "localAddress": "172.30.0.2",
+      "localPort": 9000,
+      "remoteAddress": "172.30.0.1",
+      "remotePort": 61470,
+      "bytesWritten": 1020,
+      "bytesRead": 3761
+    },
+    {
+      "at": "2026-09-20T23:50:16.682Z",
+      "event": "response",
+      "id": "B-padded-pre-recovery",
+      "status": 200,
+      "localAddress": "172.30.0.2",
+      "localPort": 9000,
+      "remoteAddress": "172.30.0.1",
+      "remotePort": 61470,
+      "bytesWritten": 1408,
+      "bytesRead": 3761
+    },
+    {
+      "at": "2026-09-20T23:50:21.220Z",
+      "event": "request",
+      "id": "B-padded-rpc",
+      "path": "/torneos-gateway/torneos/rest/v1/rpc/get_my_tournament_memberships",
+      "localAddress": "172.30.0.2",
+      "localPort": 9000,
+      "remoteAddress": "172.30.0.1",
+      "remotePort": 61462,
+      "bytesWritten": 1342,
+      "bytesRead": 5024
+    },
+    {
+      "at": "2026-09-20T23:50:22.684Z",
+      "event": "timeout",
+      "localAddress": null,
+      "localPort": null,
+      "remoteAddress": "172.30.0.1",
+      "remotePort": 61470,
+      "bytesWritten": 1408,
+      "bytesRead": 3761
+    },
+    {
+      "at": "2026-09-20T23:50:22.684Z",
+      "event": "close",
+      "localAddress": "172.30.0.2",
+      "localPort": 9000,
+      "remoteAddress": "172.30.0.1",
+      "remotePort": 61470,
+      "bytesWritten": 1408,
+      "bytesRead": 3761,
+      "hadError": false
+    },
+    {
+      "at": "2026-09-20T23:50:27.200Z",
+      "event": "response",
+      "id": "B-padded-rpc",
+      "status": 503,
+      "localAddress": "172.30.0.2",
+      "localPort": 9000,
+      "remoteAddress": "172.30.0.1",
+      "remotePort": 61462,
+      "bytesWritten": 1694,
+      "bytesRead": 5024
+    },
+    {
+      "at": "2026-09-20T23:50:27.206Z",
+      "event": "connection",
+      "localAddress": "172.30.0.2",
+      "localPort": 9000,
+      "remoteAddress": "172.30.0.1",
+      "remotePort": 60540,
+      "bytesWritten": 0,
+      "bytesRead": 0
+    },
+    {
+      "at": "2026-09-20T23:50:27.207Z",
+      "event": "request",
+      "id": "B-padded-table",
+      "path": "/torneos-gateway/torneos/rest/v1/torneos_identity",
+      "localAddress": "172.30.0.2",
+      "localPort": 9000,
+      "remoteAddress": "172.30.0.1",
+      "remotePort": 60540,
+      "bytesWritten": 0,
+      "bytesRead": 1133
+    },
+    {
+      "at": "2026-09-20T23:50:27.896Z",
+      "event": "response",
+      "id": "B-padded-table",
+      "status": 503,
+      "localAddress": "172.30.0.2",
+      "localPort": 9000,
+      "remoteAddress": "172.30.0.1",
+      "remotePort": 60540,
+      "bytesWritten": 352,
+      "bytesRead": 1133
+    },
+    {
+      "at": "2026-09-20T23:50:28.172Z",
+      "event": "request",
+      "id": "B-padded-recovery-rpc",
+      "path": "/torneos-gateway/torneos/rest/v1/rpc/get_my_tournament_memberships",
+      "localAddress": "172.30.0.2",
+      "localPort": 9000,
+      "remoteAddress": "172.30.0.1",
+      "remotePort": 60540,
+      "bytesWritten": 352,
+      "bytesRead": 2334
+    },
+    {
+      "at": "2026-09-20T23:50:28.791Z",
+      "event": "response",
+      "id": "B-padded-recovery-rpc",
+      "status": 200,
+      "localAddress": "172.30.0.2",
+      "localPort": 9000,
+      "remoteAddress": "172.30.0.1",
+      "remotePort": 60540,
+      "bytesWritten": 740,
+      "bytesRead": 2334
+    },
+    {
+      "at": "2026-09-20T23:50:28.793Z",
+      "event": "request",
+      "id": "B-padded-health-after",
+      "path": "/torneos-gateway/health",
+      "localAddress": "172.30.0.2",
+      "localPort": 9000,
+      "remoteAddress": "172.30.0.1",
+      "remotePort": 61462,
+      "bytesWritten": 1694,
+      "bytesRead": 5252
+    },
+    {
+      "at": "2026-09-20T23:50:28.982Z",
+      "event": "response",
+      "id": "B-padded-health-after",
+      "status": 200,
+      "localAddress": "172.30.0.2",
+      "localPort": 9000,
+      "remoteAddress": "172.30.0.1",
+      "remotePort": 61462,
+      "bytesWritten": 1974,
+      "bytesRead": 5252
+    },
+    {
+      "at": "2026-09-20T23:50:29.288Z",
+      "event": "request",
+      "id": "C-padded-pre-health",
+      "path": "/torneos-gateway/health",
+      "localAddress": "172.30.0.2",
+      "localPort": 9000,
+      "remoteAddress": "172.30.0.1",
+      "remotePort": 60540,
+      "bytesWritten": 740,
+      "bytesRead": 2560
+    },
+    {
+      "at": "2026-09-20T23:50:29.468Z",
+      "event": "response",
+      "id": "C-padded-pre-health",
+      "status": 200,
+      "localAddress": "172.30.0.2",
+      "localPort": 9000,
+      "remoteAddress": "172.30.0.1",
+      "remotePort": 60540,
+      "bytesWritten": 1020,
+      "bytesRead": 2560
+    },
+    {
+      "at": "2026-09-20T23:50:29.469Z",
+      "event": "request",
+      "id": "C-padded-pre-rpc-corefault",
+      "path": "/torneos-gateway/torneos/rest/v1/rpc/get_my_tournament_memberships",
+      "localAddress": "172.30.0.2",
+      "localPort": 9000,
+      "remoteAddress": "172.30.0.1",
+      "remotePort": 61462,
+      "bytesWritten": 1974,
+      "bytesRead": 6458
+    },
+    {
+      "at": "2026-09-20T23:50:29.748Z",
+      "event": "response",
+      "id": "C-padded-pre-rpc-corefault",
+      "status": 503,
+      "localAddress": "172.30.0.2",
+      "localPort": 9000,
+      "remoteAddress": "172.30.0.1",
+      "remotePort": 61462,
+      "bytesWritten": 2329,
+      "bytesRead": 6458
+    },
+    {
+      "at": "2026-09-20T23:50:29.920Z",
+      "event": "request",
+      "id": "C-padded-pre-recovery",
+      "path": "/torneos-gateway/torneos/rest/v1/rpc/get_my_tournament_memberships",
+      "localAddress": "172.30.0.2",
+      "localPort": 9000,
+      "remoteAddress": "172.30.0.1",
+      "remotePort": 60540,
+      "bytesWritten": 1020,
+      "bytesRead": 3761
+    },
+    {
+      "at": "2026-09-20T23:50:31.103Z",
+      "event": "response",
+      "id": "C-padded-pre-recovery",
+      "status": 200,
+      "localAddress": "172.30.0.2",
+      "localPort": 9000,
+      "remoteAddress": "172.30.0.1",
+      "remotePort": 60540,
+      "bytesWritten": 1408,
+      "bytesRead": 3761
+    },
+    {
+      "at": "2026-09-20T23:50:32.751Z",
+      "event": "close",
+      "localAddress": "172.30.0.2",
+      "localPort": 9000,
+      "remoteAddress": "172.30.0.1",
+      "remotePort": 61462,
+      "bytesWritten": 2329,
+      "bytesRead": 6458,
+      "hadError": false
+    },
+    {
+      "at": "2026-09-20T23:50:34.113Z",
+      "event": "close",
+      "localAddress": "172.30.0.2",
+      "localPort": 9000,
+      "remoteAddress": "172.30.0.1",
+      "remotePort": 60540,
+      "bytesWritten": 1408,
+      "bytesRead": 3761,
+      "hadError": false
+    },
+    {
+      "at": "2026-09-20T23:50:35.053Z",
+      "event": "connection",
+      "localAddress": "172.30.0.2",
+      "localPort": 9000,
+      "remoteAddress": "172.30.0.1",
+      "remotePort": 62238,
+      "bytesWritten": 0,
+      "bytesRead": 0
+    },
+    {
+      "at": "2026-09-20T23:50:35.054Z",
+      "event": "request",
+      "id": "C-padded-rpc",
+      "path": "/torneos-gateway/torneos/rest/v1/rpc/get_my_tournament_memberships",
+      "localAddress": "172.30.0.2",
+      "localPort": 9000,
+      "remoteAddress": "172.30.0.1",
+      "remotePort": 62238,
+      "bytesWritten": 0,
+      "bytesRead": 1192
+    },
+    {
+      "at": "2026-09-20T23:50:41.344Z",
+      "event": "response",
+      "id": "C-padded-rpc",
+      "status": 503,
+      "localAddress": "172.30.0.2",
+      "localPort": 9000,
+      "remoteAddress": "172.30.0.1",
+      "remotePort": 62238,
+      "bytesWritten": 352,
+      "bytesRead": 1192
+    },
+    {
+      "at": "2026-09-20T23:50:41.353Z",
+      "event": "request",
+      "id": "C-padded-table",
+      "path": "/torneos-gateway/torneos/rest/v1/torneos_identity",
+      "localAddress": "172.30.0.2",
+      "localPort": 9000,
+      "remoteAddress": "172.30.0.1",
+      "remotePort": 62238,
+      "bytesWritten": 352,
+      "bytesRead": 2325
+    },
+    {
+      "at": "2026-09-20T23:50:42.296Z",
+      "event": "response",
+      "id": "C-padded-table",
+      "status": 503,
+      "localAddress": "172.30.0.2",
+      "localPort": 9000,
+      "remoteAddress": "172.30.0.1",
+      "remotePort": 62238,
+      "bytesWritten": 704,
+      "bytesRead": 2325
+    },
+    {
+      "at": "2026-09-20T23:50:42.577Z",
+      "event": "request",
+      "id": "C-padded-recovery-rpc",
+      "path": "/torneos-gateway/torneos/rest/v1/rpc/get_my_tournament_memberships",
+      "localAddress": "172.30.0.2",
+      "localPort": 9000,
+      "remoteAddress": "172.30.0.1",
+      "remotePort": 62238,
+      "bytesWritten": 704,
+      "bytesRead": 3526
+    },
+    {
+      "at": "2026-09-20T23:50:43.285Z",
+      "event": "response",
+      "id": "C-padded-recovery-rpc",
+      "status": 200,
+      "localAddress": "172.30.0.2",
+      "localPort": 9000,
+      "remoteAddress": "172.30.0.1",
+      "remotePort": 62238,
+      "bytesWritten": 1092,
+      "bytesRead": 3526
+    },
+    {
+      "at": "2026-09-20T23:50:43.287Z",
+      "event": "connection",
+      "localAddress": "172.30.0.2",
+      "localPort": 9000,
+      "remoteAddress": "172.30.0.1",
+      "remotePort": 62248,
+      "bytesWritten": 0,
+      "bytesRead": 0
+    },
+    {
+      "at": "2026-09-20T23:50:43.288Z",
+      "event": "request",
+      "id": "C-padded-health-after",
+      "path": "/torneos-gateway/health",
+      "localAddress": "172.30.0.2",
+      "localPort": 9000,
+      "remoteAddress": "172.30.0.1",
+      "remotePort": 62248,
+      "bytesWritten": 0,
+      "bytesRead": 228
+    },
+    {
+      "at": "2026-09-20T23:50:43.473Z",
+      "event": "response",
+      "id": "C-padded-health-after",
+      "status": 200,
+      "localAddress": "172.30.0.2",
+      "localPort": 9000,
+      "remoteAddress": "172.30.0.1",
+      "remotePort": 62248,
+      "bytesWritten": 280,
+      "bytesRead": 228
+    },
+    {
+      "at": "2026-09-20T23:50:43.620Z",
+      "event": "request",
+      "id": "D-health",
+      "path": "/torneos-gateway/health",
+      "localAddress": "172.30.0.2",
+      "localPort": 9000,
+      "remoteAddress": "172.30.0.1",
+      "remotePort": 62238,
+      "bytesWritten": 1092,
+      "bytesRead": 3741
+    },
+    {
+      "at": "2026-09-20T23:50:43.818Z",
+      "event": "response",
+      "id": "D-health",
+      "status": 200,
+      "localAddress": "172.30.0.2",
+      "localPort": 9000,
+      "remoteAddress": "172.30.0.1",
+      "remotePort": 62238,
+      "bytesWritten": 1372,
+      "bytesRead": 3741
+    }
+  ],
+  "finishedAt": "2026-09-20T23:50:45.757Z"
+}

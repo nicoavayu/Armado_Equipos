@@ -1,0 +1,188 @@
+{
+  "schema": "R4.2.summary.v1",
+  "stamp": "20260920T162319Z",
+  "mode": "minimal",
+  "utc": "2026-09-20T16:23:27.467Z",
+  "verdict": "R4_MINIMAL_FAIL",
+  "steps": [
+    {
+      "name": "handoff_check",
+      "status": "PASS",
+      "r41aStamp": "20260920T162103Z",
+      "r41aSealSHA256": "eabf051d5331654494add6ea6a034dc254b1c14589f77f5daf8f2fd200cfeb0d",
+      "free": true,
+      "r2": {
+        "dbId": true,
+        "dbImage": true,
+        "dbStarted": true,
+        "dbNetworks": true,
+        "dbMounts": true,
+        "dbHealthy": true,
+        "restId": true,
+        "restStarted": true,
+        "restNetworks": true,
+        "catalog": true,
+        "ring": true,
+        "jwks": true,
+        "catalogSHA256": "a45abe402d83c01102d5c007ea02c7095a3e9e49ec7377c407f57acad66ac54e"
+      },
+      "prepared": true,
+      "runJson": false,
+      "auth": false,
+      "r4containers": "",
+      "r4networks": ""
+    },
+    {
+      "name": "core_project_guard",
+      "status": "PASS",
+      "project": "arma2-torneos-staging",
+      "projectStatus": "ACTIVE_HEALTHY"
+    },
+    {
+      "name": "core_contract_function_guard",
+      "status": "PASS",
+      "fn": "torneos-core-contract",
+      "fnStatus": "ACTIVE",
+      "ezbr_sha256": "1072419517953eee8e8021f9691d1a5b1efb1f871c4d13290f644d119caded2c"
+    },
+    {
+      "name": "core_keys",
+      "status": "PASS",
+      "anonKind": "legacy-anon",
+      "serviceKind": "legacy-service_role",
+      "keysListed": 4
+    },
+    {
+      "name": "authorization",
+      "status": "PASS",
+      "expiresAt": "2026-09-20T18:23:29.574Z",
+      "commands": [
+        "start-gateway",
+        "smoke",
+        "certify"
+      ]
+    },
+    {
+      "name": "runner_preflight",
+      "status": "PASS",
+      "evidence": "/Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/evidence/r4-preflight-20260920T162329Z.json"
+    },
+    {
+      "name": "start_gateway",
+      "status": "PASS",
+      "evidence": "/Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/evidence/r4-gateway-start-20260920T162329Z.json"
+    },
+    {
+      "name": "smoke",
+      "status": "FAIL",
+      "reason": "HASH_DRIFT_dep_analysis_cache_v2-shm"
+    },
+    {
+      "name": "cleanup",
+      "status": "FAIL",
+      "runtime": {
+        "status": "PASS",
+        "removed": [
+          "arma2-r42-20260920t162329z-proxy",
+          "arma2-r42-20260920t162329z-gateway",
+          "arma2-r42-20260920t162329z-internal",
+          "arma2-r42-20260920t162329z-egress"
+        ],
+        "remaining": {
+          "containers": "",
+          "networks": ""
+        },
+        "authorizationRemoved": true,
+        "runJsonRemoved": true,
+        "port58431Free": true
+      },
+      "r2": {
+        "dbId": true,
+        "dbImage": true,
+        "dbStarted": true,
+        "dbNetworks": true,
+        "dbMounts": true,
+        "dbHealthy": true,
+        "restId": true,
+        "restStarted": true,
+        "restNetworks": true,
+        "catalog": true,
+        "ring": true,
+        "jwks": true,
+        "catalogSHA256": "a45abe402d83c01102d5c007ea02c7095a3e9e49ec7377c407f57acad66ac54e"
+      },
+      "torneosRowsOutsideSeed": []
+    }
+  ],
+  "blockers": [
+    "smoke: HASH_DRIFT_dep_analysis_cache_v2-shm",
+    "cleanup incomplete"
+  ],
+  "evidence": {
+    "gatewayStart": {
+      "path": "r4-gateway-start-20260920T162329Z.json",
+      "sha256": "14d8cbec150bd3dfe8417f110a04da870f91806d2a8dbf441537ccf018d639ad"
+    },
+    "smoke": null,
+    "cleanup": {
+      "path": "r4-cleanup-20260920T162319Z.json",
+      "sha256": "2e9cf0afe163c9559621a6047bf1a27cc5f89d9d2bdd4f9b20aedce278ecc0a1"
+    }
+  },
+  "run": "arma2-r42-20260920t162329z",
+  "gatewayBundleSHA256": "cc5b1d451fc9ef4498ad927caee37a65aab90ff44ad6ef1cf77e176f989d7e17",
+  "blocks": [],
+  "informative": [],
+  "totals": null,
+  "liveContracts": null,
+  "r2": {
+    "before": {
+      "dbId": true,
+      "dbImage": true,
+      "dbStarted": true,
+      "dbNetworks": true,
+      "dbMounts": true,
+      "dbHealthy": true,
+      "restId": true,
+      "restStarted": true,
+      "restNetworks": true,
+      "catalog": true,
+      "ring": true,
+      "jwks": true,
+      "catalogSHA256": "a45abe402d83c01102d5c007ea02c7095a3e9e49ec7377c407f57acad66ac54e"
+    },
+    "after": {
+      "dbId": true,
+      "dbImage": true,
+      "dbStarted": true,
+      "dbNetworks": true,
+      "dbMounts": true,
+      "dbHealthy": true,
+      "restId": true,
+      "restStarted": true,
+      "restNetworks": true,
+      "catalog": true,
+      "ring": true,
+      "jwks": true,
+      "catalogSHA256": "a45abe402d83c01102d5c007ea02c7095a3e9e49ec7377c407f57acad66ac54e"
+    }
+  },
+  "r41a": {
+    "stamp": "20260920T162103Z",
+    "sealSHA256": "eabf051d5331654494add6ea6a034dc254b1c14589f77f5daf8f2fd200cfeb0d"
+  },
+  "gatewayStarted": true,
+  "differencesFromHistoricalLab": [
+    "Core is the REAL remote staging project (GoTrue password grant on admin-created QA users; Core contract over HTTPS through the R4.1 exact-SNI proxy) instead of the local Core lab with signup.",
+    "Manager acceptance ran through the live verified_email contract (Phase 2D seeded it); directory_players / directory_teams ran live; team_snapshot was not exercised (no Core team fixture on staging).",
+    "Outages: Core and Torneos REST unreachability injected as /32 route removal inside the run-owned gateway namespace (no fault injected into Core staging or R2 services); contract-specific 5xx/timeout/stale/malformed cases ran on the real gateway modules in the certified Edge runtime with --network none (r4-outage).",
+    "start-gateway invoked as runner preflight + audit.mjs start-gateway (the same provisioning the runner delegates to) to avoid the runner's 45 s child timeout; smoke/certify/cleanup used the sealed runner.",
+    "Direct database-side probes went to the R2 loopback PostgREST (127.0.0.1:58430) instead of an in-network exec."
+  ],
+  "evidenceHashes": {
+    "r4-cleanup-20260920T162319Z.json": "2e9cf0afe163c9559621a6047bf1a27cc5f89d9d2bdd4f9b20aedce278ecc0a1",
+    "r4-gateway-start-20260920T162329Z.json": "14d8cbec150bd3dfe8417f110a04da870f91806d2a8dbf441537ccf018d639ad",
+    "r4-preflight-20260920T162329Z.json": "d8fc28a33712fefb9351000cba4b9f98ea3524bb5651b8da772917eacb363a20",
+    "r4-terminal-20260920T162319Z.log": "4a87c65fcc6c996c70300dc99d271e93a541b703a43bf58c54558cfa1e96f37a"
+  }
+}

@@ -17,7 +17,7 @@
 //
 // Credentials arrive as ONE JSON document on STDIN: {"op": ..., "pat": "...", "ref"?: ...}.
 //   op = orgs | org | projects | project | project-inventory
-//      | core-ledger | core-contract-acl | secret-names | function | core-qa-users | core-session-exists
+//      | core-ledger | core-contract-acl | secret-names | function | core-qa-users | core-session-exists | core-team-exists
 //        (Phase 3B R3: read-only preflight/postflight of the Core contract on Core staging;
 //        the SQL comes from core-contract.mjs and passes the same read-only guard)
 // Output: one JSON line on stdout. The PAT never appears in it.
@@ -332,8 +332,22 @@ export async function opCoreSessionExists(transport, pat, ref, sessionId, userId
   return { ref, session_present: r.rows[0]?.session_present === true, user_sessions: Number(r.rows[0]?.user_sessions) };
 }
 
+// Phase 3B R5: the Core team fixture the R5 journey creates in Core staging (as the QA owner) must be gone
+// after cleanup. Read-only existence probe, same transport and guards as the session probe.
+export function teamExistsSql(teamId) {
+  const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+  if (!UUID.test(teamId)) fail('uuid_malformed__ABORT');
+  return `select exists (select 1 from public.teams t where t.id = '${teamId}') as team_present, (select count(*) from public.team_members m where m.team_id = '${teamId}') as team_members`;
+}
+export async function opCoreTeamExists(transport, pat, ref, teamId) {
+  assertNonProductionRef(ref);
+  const r = await readSql(transport, pat, ref, teamExistsSql(teamId));
+  if (r.error) fail(`team_probe_${r.error}`);
+  return { ref, team_present: r.rows[0]?.team_present === true, team_members: Number(r.rows[0]?.team_members) };
+}
+
 export async function run(request, transport = httpsRequest) {
-  const { op, pat, ref, slug, session_id, user_id } = request ?? {};
+  const { op, pat, ref, slug, session_id, user_id, team_id } = request ?? {};
   if (typeof pat !== 'string' || !PAT_PATTERN.test(pat)) fail('missing_or_malformed_pat');
   registerSecret(pat);
   assertNoProduction('token', pat);
@@ -348,6 +362,7 @@ export async function run(request, transport = httpsRequest) {
   if (op === 'function') return opFunction(transport, pat, ref, slug ?? FUNCTION_SLUG);
   if (op === 'core-qa-users') return opCoreQaUsers(transport, pat, ref);
   if (op === 'core-session-exists') return opCoreSessionExists(transport, pat, ref, session_id, user_id);
+  if (op === 'core-team-exists') return opCoreTeamExists(transport, pat, ref, team_id);
   fail('unknown_op');
 }
 

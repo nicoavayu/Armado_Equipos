@@ -1,0 +1,33 @@
+✔ token.ts ≡ token.mjs: constants, cross-verification both ways, identical rejections (200.901334ms)
+✔ core-client.ts validate() ≡ core-client.mjs validate() on the Phase 2A schemas + session schema (41.272167ms)
+✔ core-client.ts freshness: certified 3 s past window kept, bounded +5 s future clock skew, fail closed beyond both (R4.2 20260918T224221Z) (40.992ms)
+✔ adapter.ts ≡ adapter.mjs: contracts, request mappers, SQL error mapping, role discipline (32.191625ms)
+✔ config.ts fails closed: every missing/malformed value disables the gateway; Production refused; routePath (46.834458ms)
+✔ bundled documents are byte-identical to their canonical sources; function tree carries no secret material (3.657667ms)
+✔ R4.2 requires explicit operation, matching seal and unexpired authorization (2.126708ms)
+✔ certification rejects empty, mismatched and incomplete coverage without running a matrix (0.273083ms)
+✔ Core admin secrets and wrong-project legacy keys never enter the gateway (0.24725ms)
+✔ exact authority; no absolute URL, wildcard, CONNECT or upgrade tunnel (0.630125ms)
+✔ all redirects fail closed including Location on a non-3xx response (0.081167ms)
+✔ DNS rebinding cannot select local, reserved or IPv6 addresses (3.345625ms)
+✔ ingress no-store covers success, passthrough 401/403/503, and proxy-owned denial/unavailability (9.69125ms)
+✔ fault scopes separate Core Auth from contract; empty control preserves all traffic (0.091667ms)
+✔ a valid bridge token carries the certified claim contract and verifies with the active key (59.846333ms)
+✔ every negative variant differs from the contract in exactly the intended way (64.491125ms)
+✔ secret registry: redaction and evidence refusal (0.245958ms)
+✔ guarded fetch refuses any origin outside the run and Production before any network use (0.277583ms)
+✔ delete plan: run-scoped predicates only; no predicate → null; empty lists never produce IN () (0.171084ms)
+✔ run registry: records immediately after each creation, scopes cleanup without the fixture aggregate, refuses empty ids (0.827125ms)
+✔ buildFixtures journals every organization the moment its call returns, even when a later call fails (R4.2 20260918T224221Z) (0.363292ms)
+✔ Core keys: only staging public anon/publishable enters the gateway; only staging service key creates QA (0.37075ms)
+✔ authorization document satisfies the sealed R4.1 validator for the three commands and only them; expires; refuses admin keys (0.200417ms)
+✔ assembled matrix passes the sealed validateMatrix only with every required block PASS, exact 43/33 coverage and full cleanup (0.570166ms)
+✔ guarded fetch preserves no-response transport failures instead of manufacturing HTTP 503 (0.357083ms)
+ℹ tests 25
+ℹ suites 0
+ℹ pass 25
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 666.995375

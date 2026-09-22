@@ -1,0 +1,62 @@
+{
+  "schema": "R4.2.cleanup.v1",
+  "stamp": "20260920T163550Z",
+  "run": "arma2-r42-20260920t163559z",
+  "qa": {
+    "qa": true,
+    "sessions": true,
+    "rows": true,
+    "detail": {
+      "logout": 204,
+      "deleted": true,
+      "deleteStatus": 200,
+      "afterStatus": 404,
+      "id": "4679cdc8-607d-422b-ab27-fa0aab0df9bf",
+      "lastSession": "c753dd53-0099-4ded-97da-9a30819f1da5"
+    },
+    "rowsDetail": {
+      "ok": true,
+      "executed": true,
+      "planned": [
+        "public.torneos_identity"
+      ],
+      "mismatches": [],
+      "error": null
+    },
+    "catalogUnchanged": true
+  },
+  "coreSessions": null,
+  "runtime": {
+    "status": "PASS",
+    "removed": [
+      "arma2-r42-20260920t163559z-proxy",
+      "arma2-r42-20260920t163559z-gateway",
+      "arma2-r42-20260920t163559z-internal",
+      "arma2-r42-20260920t163559z-egress"
+    ],
+    "remaining": {
+      "containers": "",
+      "networks": ""
+    },
+    "authorizationRemoved": true,
+    "runJsonRemoved": true,
+    "port58431Free": true
+  },
+  "r2": {
+    "dbId": true,
+    "dbImage": true,
+    "dbStarted": true,
+    "dbNetworks": true,
+    "dbMounts": true,
+    "dbHealthy": true,
+    "restId": true,
+    "restStarted": true,
+    "restNetworks": true,
+    "catalog": true,
+    "ring": true,
+    "jwks": true,
+    "catalogSHA256": "a45abe402d83c01102d5c007ea02c7095a3e9e49ec7377c407f57acad66ac54e"
+  },
+  "torneosRowsOutsideSeed": [],
+  "complete": true
+}

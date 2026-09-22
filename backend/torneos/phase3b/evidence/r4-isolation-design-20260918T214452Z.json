@@ -1,0 +1,235 @@
+{
+  "utc": "20260918T214452Z",
+  "status": "PASS",
+  "architecture": {
+    "gatewayNetworks": [
+      "arma2-torneos-isolated-local_isolated",
+      "temporary internal bridge"
+    ],
+    "proxyNetworks": [
+      "temporary internal bridge",
+      "temporary egress bridge"
+    ],
+    "gatewayDNS": "loopback only; local names pinned",
+    "proxy": "TLS-terminating reverse proxy; exact SNI + HTTP Host; fixed upstream hostname; verified upstream TLS; dynamic public IPv4 DNS fail-closed",
+    "redirects": "all upstream 3xx/Location refused; fetch redirect:error; raw follow cannot leave internal networks",
+    "gatewayRealStarted": false,
+    "capabilities": "ALL dropped; no-new-privileges; read-only filesystem",
+    "proxyIPForwarding": false,
+    "routing": "gateway namespace: only DB /32, REST /32, proxy /32; unreachable IPv4/IPv6 default; temporary NET_ADMIN helper removed before injection"
+  },
+  "baselineBefore": {
+    "db": {
+      "id": "11174d24af7577e19745e3309859bb8547ec63a146803fd4fed21b43fe3907e8",
+      "image": "sha256:80d7b27c3e8d77cfa7226eee9508671796da214781ff15a35b3670d7ad5ee453",
+      "started": "2026-09-18T13:48:14.710745416Z",
+      "mounts": [
+        {
+          "Type": "volume",
+          "Name": "arma2-torneos-isolated-local_torneos-data",
+          "Source": "/var/lib/docker/volumes/arma2-torneos-isolated-local_torneos-data/_data",
+          "Destination": "/var/lib/postgresql/data",
+          "Driver": "local",
+          "Mode": "rw",
+          "RW": true,
+          "Propagation": ""
+        }
+      ],
+      "networks": {
+        "arma2-torneos-isolated-local_isolated": {
+          "IPAMConfig": null,
+          "Links": null,
+          "Aliases": [
+            "arma2-torneos-isolated-local-torneos-db-1",
+            "torneos-db"
+          ],
+          "DriverOpts": null,
+          "GwPriority": 0,
+          "NetworkID": "198f10241adf0f80fbe59a4f1ccc4bba07a5d90c2cc26fee31113b20987979c1",
+          "EndpointID": "f72d2c235917d85a23ca9ba38af9cb19f8a8ffa1c7eeccdacfe980fd17988ed7",
+          "Gateway": "",
+          "IPAddress": "172.27.0.2",
+          "MacAddress": "0a:82:cf:95:c5:81",
+          "IPPrefixLen": 16,
+          "IPv6Gateway": "",
+          "GlobalIPv6Address": "",
+          "GlobalIPv6PrefixLen": 0,
+          "DNSNames": [
+            "arma2-torneos-isolated-local-torneos-db-1",
+            "torneos-db",
+            "11174d24af75"
+          ]
+        }
+      },
+      "health": "healthy"
+    },
+    "rest": {
+      "id": "6c19b824a63351ab22d3bdcb2d2b3b514809f48826e18b3f1b6453463a9ce3f3",
+      "image": "sha256:2f8e7b656f09db697a8875177694b417b35cb76c21370de07fc54e711e902326",
+      "started": "2026-09-18T13:48:16.906816209Z",
+      "networks": {
+        "arma2-torneos-isolated-local_isolated": {
+          "IPAMConfig": null,
+          "Links": null,
+          "Aliases": [
+            "arma2-torneos-isolated-local-torneos-rest-1",
+            "torneos-rest"
+          ],
+          "DriverOpts": null,
+          "GwPriority": 0,
+          "NetworkID": "198f10241adf0f80fbe59a4f1ccc4bba07a5d90c2cc26fee31113b20987979c1",
+          "EndpointID": "71df74ed6c7022681aa8b4368cdc2eef666bedea714a92ec915eaa4464d4dc6d",
+          "Gateway": "",
+          "IPAddress": "172.27.0.3",
+          "MacAddress": "8e:70:be:2a:3c:86",
+          "IPPrefixLen": 16,
+          "IPv6Gateway": "",
+          "GlobalIPv6Address": "",
+          "GlobalIPv6PrefixLen": 0,
+          "DNSNames": [
+            "arma2-torneos-isolated-local-torneos-rest-1",
+            "torneos-rest",
+            "6c19b824a633"
+          ]
+        },
+        "arma2-torneos-isolated-local_loopback-ingress": {
+          "IPAMConfig": null,
+          "Links": null,
+          "Aliases": [
+            "arma2-torneos-isolated-local-torneos-rest-1",
+            "torneos-rest"
+          ],
+          "DriverOpts": null,
+          "GwPriority": 0,
+          "NetworkID": "7ced62ceffd785b499879e15299c57a8efea258cba16409db6ad9db915167bac",
+          "EndpointID": "6163b90da90573f1303fff5ba229f4eef8a5d98f8a793d136bbfb3aeb6bc373b",
+          "Gateway": "172.28.0.1",
+          "IPAddress": "172.28.0.2",
+          "MacAddress": "e6:49:8b:26:59:a4",
+          "IPPrefixLen": 16,
+          "IPv6Gateway": "",
+          "GlobalIPv6Address": "",
+          "GlobalIPv6PrefixLen": 0,
+          "DNSNames": [
+            "arma2-torneos-isolated-local-torneos-rest-1",
+            "torneos-rest",
+            "6c19b824a633"
+          ]
+        }
+      }
+    },
+    "catalogSHA256": "a45abe402d83c01102d5c007ea02c7095a3e9e49ec7377c407f57acad66ac54e",
+    "ringSHA256": "7abbfe10f501d4d86ded445891d4afc98a097737b4469cff36edf64006d76f4b",
+    "jwksSHA256": "1cb94b073933add9a8016154afd762253a8bc6960edf7f1e86296feec6f5cb2e"
+  },
+  "baselineAfter": {
+    "db": {
+      "id": "11174d24af7577e19745e3309859bb8547ec63a146803fd4fed21b43fe3907e8",
+      "image": "sha256:80d7b27c3e8d77cfa7226eee9508671796da214781ff15a35b3670d7ad5ee453",
+      "started": "2026-09-18T13:48:14.710745416Z",
+      "mounts": [
+        {
+          "Type": "volume",
+          "Name": "arma2-torneos-isolated-local_torneos-data",
+          "Source": "/var/lib/docker/volumes/arma2-torneos-isolated-local_torneos-data/_data",
+          "Destination": "/var/lib/postgresql/data",
+          "Driver": "local",
+          "Mode": "rw",
+          "RW": true,
+          "Propagation": ""
+        }
+      ],
+      "networks": {
+        "arma2-torneos-isolated-local_isolated": {
+          "IPAMConfig": null,
+          "Links": null,
+          "Aliases": [
+            "arma2-torneos-isolated-local-torneos-db-1",
+            "torneos-db"
+          ],
+          "DriverOpts": null,
+          "GwPriority": 0,
+          "NetworkID": "198f10241adf0f80fbe59a4f1ccc4bba07a5d90c2cc26fee31113b20987979c1",
+          "EndpointID": "f72d2c235917d85a23ca9ba38af9cb19f8a8ffa1c7eeccdacfe980fd17988ed7",
+          "Gateway": "",
+          "IPAddress": "172.27.0.2",
+          "MacAddress": "0a:82:cf:95:c5:81",
+          "IPPrefixLen": 16,
+          "IPv6Gateway": "",
+          "GlobalIPv6Address": "",
+          "GlobalIPv6PrefixLen": 0,
+          "DNSNames": [
+            "arma2-torneos-isolated-local-torneos-db-1",
+            "torneos-db",
+            "11174d24af75"
+          ]
+        }
+      },
+      "health": "healthy"
+    },
+    "rest": {
+      "id": "6c19b824a63351ab22d3bdcb2d2b3b514809f48826e18b3f1b6453463a9ce3f3",
+      "image": "sha256:2f8e7b656f09db697a8875177694b417b35cb76c21370de07fc54e711e902326",
+      "started": "2026-09-18T13:48:16.906816209Z",
+      "networks": {
+        "arma2-torneos-isolated-local_isolated": {
+          "IPAMConfig": null,
+          "Links": null,
+          "Aliases": [
+            "arma2-torneos-isolated-local-torneos-rest-1",
+            "torneos-rest"
+          ],
+          "DriverOpts": null,
+          "GwPriority": 0,
+          "NetworkID": "198f10241adf0f80fbe59a4f1ccc4bba07a5d90c2cc26fee31113b20987979c1",
+          "EndpointID": "71df74ed6c7022681aa8b4368cdc2eef666bedea714a92ec915eaa4464d4dc6d",
+          "Gateway": "",
+          "IPAddress": "172.27.0.3",
+          "MacAddress": "8e:70:be:2a:3c:86",
+          "IPPrefixLen": 16,
+          "IPv6Gateway": "",
+          "GlobalIPv6Address": "",
+          "GlobalIPv6PrefixLen": 0,
+          "DNSNames": [
+            "arma2-torneos-isolated-local-torneos-rest-1",
+            "torneos-rest",
+            "6c19b824a633"
+          ]
+        },
+        "arma2-torneos-isolated-local_loopback-ingress": {
+          "IPAMConfig": null,
+          "Links": null,
+          "Aliases": [
+            "arma2-torneos-isolated-local-torneos-rest-1",
+            "torneos-rest"
+          ],
+          "DriverOpts": null,
+          "GwPriority": 0,
+          "NetworkID": "7ced62ceffd785b499879e15299c57a8efea258cba16409db6ad9db915167bac",
+          "EndpointID": "6163b90da90573f1303fff5ba229f4eef8a5d98f8a793d136bbfb3aeb6bc373b",
+          "Gateway": "172.28.0.1",
+          "IPAddress": "172.28.0.2",
+          "MacAddress": "e6:49:8b:26:59:a4",
+          "IPPrefixLen": 16,
+          "IPv6Gateway": "",
+          "GlobalIPv6Address": "",
+          "GlobalIPv6PrefixLen": 0,
+          "DNSNames": [
+            "arma2-torneos-isolated-local-torneos-rest-1",
+            "torneos-rest",
+            "6c19b824a633"
+          ]
+        }
+      }
+    },
+    "catalogSHA256": "a45abe402d83c01102d5c007ea02c7095a3e9e49ec7377c407f57acad66ac54e",
+    "ringSHA256": "7abbfe10f501d4d86ded445891d4afc98a097737b4469cff36edf64006d76f4b",
+    "jwksSHA256": "1cb94b073933add9a8016154afd762253a8bc6960edf7f1e86296feec6f5cb2e"
+  },
+  "r2Unchanged": true,
+  "cleanup": {
+    "ephemeralCertificateFilesRemoved": true,
+    "containersRemoved": true,
+    "networksRemoved": true
+  }
+}

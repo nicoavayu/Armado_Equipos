@@ -1,0 +1,474 @@
+{
+  "schema": "R4.2.matrix.v1",
+  "run": "arma2-r42-20260920t163725z",
+  "stamp": "20260920T163717Z",
+  "gatewayBundleSHA256": "cc5b1d451fc9ef4498ad927caee37a65aab90ff44ad6ef1cf77e176f989d7e17",
+  "status": "FAIL",
+  "cleanup": {
+    "qa": true,
+    "fixtures": true,
+    "sessions": true
+  },
+  "cases": [
+    {
+      "name": "exchange_valid",
+      "status": "PASS",
+      "checks": 2,
+      "artifacts": [
+        {
+          "path": "r4-matrix-detail-20260920T163717Z.json",
+          "sha256": "aba75481425be5d8ec2bd7b4937694bb27899864575f13bbd5f2ab28aa85d639"
+        }
+      ]
+    },
+    {
+      "name": "token_valid",
+      "status": "PASS",
+      "checks": 1,
+      "artifacts": [
+        {
+          "path": "r4-matrix-detail-20260920T163717Z.json",
+          "sha256": "aba75481425be5d8ec2bd7b4937694bb27899864575f13bbd5f2ab28aa85d639"
+        }
+      ]
+    },
+    {
+      "name": "wrong_issuer",
+      "status": "PASS",
+      "checks": 1,
+      "artifacts": [
+        {
+          "path": "r4-matrix-detail-20260920T163717Z.json",
+          "sha256": "aba75481425be5d8ec2bd7b4937694bb27899864575f13bbd5f2ab28aa85d639"
+        }
+      ]
+    },
+    {
+      "name": "wrong_audience",
+      "status": "PASS",
+      "checks": 1,
+      "artifacts": [
+        {
+          "path": "r4-matrix-detail-20260920T163717Z.json",
+          "sha256": "aba75481425be5d8ec2bd7b4937694bb27899864575f13bbd5f2ab28aa85d639"
+        }
+      ]
+    },
+    {
+      "name": "wrong_kid",
+      "status": "PASS",
+      "checks": 2,
+      "artifacts": [
+        {
+          "path": "r4-matrix-detail-20260920T163717Z.json",
+          "sha256": "aba75481425be5d8ec2bd7b4937694bb27899864575f13bbd5f2ab28aa85d639"
+        }
+      ]
+    },
+    {
+      "name": "expired",
+      "status": "PASS",
+      "checks": 1,
+      "artifacts": [
+        {
+          "path": "r4-matrix-detail-20260920T163717Z.json",
+          "sha256": "aba75481425be5d8ec2bd7b4937694bb27899864575f13bbd5f2ab28aa85d639"
+        }
+      ]
+    },
+    {
+      "name": "wrong_ttl",
+      "status": "PASS",
+      "checks": 4,
+      "artifacts": [
+        {
+          "path": "r4-matrix-detail-20260920T163717Z.json",
+          "sha256": "aba75481425be5d8ec2bd7b4937694bb27899864575f13bbd5f2ab28aa85d639"
+        }
+      ]
+    },
+    {
+      "name": "claim_validation",
+      "status": "PASS",
+      "checks": 12,
+      "artifacts": [
+        {
+          "path": "r4-matrix-detail-20260920T163717Z.json",
+          "sha256": "aba75481425be5d8ec2bd7b4937694bb27899864575f13bbd5f2ab28aa85d639"
+        }
+      ]
+    },
+    {
+      "name": "session_identity_binding",
+      "status": "PASS",
+      "checks": 4,
+      "artifacts": [
+        {
+          "path": "r4-matrix-detail-20260920T163717Z.json",
+          "sha256": "aba75481425be5d8ec2bd7b4937694bb27899864575f13bbd5f2ab28aa85d639"
+        }
+      ]
+    },
+    {
+      "name": "request_binding",
+      "status": "PASS",
+      "checks": 6,
+      "artifacts": [
+        {
+          "path": "r4-matrix-detail-20260920T163717Z.json",
+          "sha256": "aba75481425be5d8ec2bd7b4937694bb27899864575f13bbd5f2ab28aa85d639"
+        }
+      ]
+    },
+    {
+      "name": "replay",
+      "status": "PASS",
+      "checks": 3,
+      "artifacts": [
+        {
+          "path": "r4-matrix-detail-20260920T163717Z.json",
+          "sha256": "aba75481425be5d8ec2bd7b4937694bb27899864575f13bbd5f2ab28aa85d639"
+        }
+      ]
+    },
+    {
+      "name": "logout_revocation",
+      "status": "PASS",
+      "checks": 1,
+      "artifacts": [
+        {
+          "path": "r4-matrix-detail-20260920T163717Z.json",
+          "sha256": "aba75481425be5d8ec2bd7b4937694bb27899864575f13bbd5f2ab28aa85d639"
+        }
+      ]
+    },
+    {
+      "name": "core_session_inactive",
+      "status": "PASS",
+      "checks": 3,
+      "artifacts": [
+        {
+          "path": "r4-matrix-detail-20260920T163717Z.json",
+          "sha256": "aba75481425be5d8ec2bd7b4937694bb27899864575f13bbd5f2ab28aa85d639"
+        }
+      ]
+    },
+    {
+      "name": "core_auth_unavailable",
+      "status": "FAIL",
+      "checks": 1,
+      "artifacts": [
+        {
+          "path": "r4-matrix-detail-20260920T163717Z.json",
+          "sha256": "aba75481425be5d8ec2bd7b4937694bb27899864575f13bbd5f2ab28aa85d639"
+        },
+        {
+          "path": "r4-outage-20260920T163717Z.json",
+          "sha256": "9c150c2906ef79f1342ab27e8cb8c6748e0f44fb99bba0a815b10523bd5be3e5"
+        }
+      ]
+    },
+    {
+      "name": "core_contract_unavailable",
+      "status": "FAIL",
+      "checks": 2,
+      "artifacts": [
+        {
+          "path": "r4-matrix-detail-20260920T163717Z.json",
+          "sha256": "aba75481425be5d8ec2bd7b4937694bb27899864575f13bbd5f2ab28aa85d639"
+        },
+        {
+          "path": "r4-outage-20260920T163717Z.json",
+          "sha256": "9c150c2906ef79f1342ab27e8cb8c6748e0f44fb99bba0a815b10523bd5be3e5"
+        }
+      ]
+    },
+    {
+      "name": "core_response_stale",
+      "status": "PASS",
+      "checks": 2,
+      "artifacts": [
+        {
+          "path": "r4-matrix-detail-20260920T163717Z.json",
+          "sha256": "aba75481425be5d8ec2bd7b4937694bb27899864575f13bbd5f2ab28aa85d639"
+        },
+        {
+          "path": "r4-outage-20260920T163717Z.json",
+          "sha256": "9c150c2906ef79f1342ab27e8cb8c6748e0f44fb99bba0a815b10523bd5be3e5"
+        }
+      ]
+    },
+    {
+      "name": "torneos_rest_unavailable",
+      "status": "FAIL",
+      "checks": 1,
+      "artifacts": [
+        {
+          "path": "r4-matrix-detail-20260920T163717Z.json",
+          "sha256": "aba75481425be5d8ec2bd7b4937694bb27899864575f13bbd5f2ab28aa85d639"
+        }
+      ]
+    },
+    {
+      "name": "allowlist",
+      "status": "FAIL",
+      "checks": 2,
+      "artifacts": [
+        {
+          "path": "r4-matrix-detail-20260920T163717Z.json",
+          "sha256": "aba75481425be5d8ec2bd7b4937694bb27899864575f13bbd5f2ab28aa85d639"
+        }
+      ]
+    },
+    {
+      "name": "gated",
+      "status": "PASS",
+      "checks": 2,
+      "artifacts": [
+        {
+          "path": "r4-matrix-detail-20260920T163717Z.json",
+          "sha256": "aba75481425be5d8ec2bd7b4937694bb27899864575f13bbd5f2ab28aa85d639"
+        }
+      ]
+    },
+    {
+      "name": "p0_review_tournament_team_entry",
+      "status": "PASS",
+      "checks": 7,
+      "artifacts": [
+        {
+          "path": "r4-matrix-detail-20260920T163717Z.json",
+          "sha256": "aba75481425be5d8ec2bd7b4937694bb27899864575f13bbd5f2ab28aa85d639"
+        }
+      ]
+    },
+    {
+      "name": "cross_user",
+      "status": "PASS",
+      "checks": 1,
+      "artifacts": [
+        {
+          "path": "r4-matrix-detail-20260920T163717Z.json",
+          "sha256": "aba75481425be5d8ec2bd7b4937694bb27899864575f13bbd5f2ab28aa85d639"
+        }
+      ]
+    },
+    {
+      "name": "cross_workspace",
+      "status": "PASS",
+      "checks": 1,
+      "artifacts": [
+        {
+          "path": "r4-matrix-detail-20260920T163717Z.json",
+          "sha256": "aba75481425be5d8ec2bd7b4937694bb27899864575f13bbd5f2ab28aa85d639"
+        }
+      ]
+    },
+    {
+      "name": "cross_season",
+      "status": "PASS",
+      "checks": 1,
+      "artifacts": [
+        {
+          "path": "r4-matrix-detail-20260920T163717Z.json",
+          "sha256": "aba75481425be5d8ec2bd7b4937694bb27899864575f13bbd5f2ab28aa85d639"
+        }
+      ]
+    },
+    {
+      "name": "no_cache",
+      "status": "PASS",
+      "checks": 1,
+      "artifacts": [
+        {
+          "path": "r4-matrix-detail-20260920T163717Z.json",
+          "sha256": "aba75481425be5d8ec2bd7b4937694bb27899864575f13bbd5f2ab28aa85d639"
+        }
+      ]
+    },
+    {
+      "name": "secret_boundary",
+      "status": "PASS",
+      "checks": 1,
+      "artifacts": [
+        {
+          "path": "r4-matrix-detail-20260920T163717Z.json",
+          "sha256": "aba75481425be5d8ec2bd7b4937694bb27899864575f13bbd5f2ab28aa85d639"
+        }
+      ]
+    },
+    {
+      "name": "isolation",
+      "status": "FAIL",
+      "checks": 7,
+      "artifacts": [
+        {
+          "path": "r4-isolation-20260920T163717Z.json",
+          "sha256": "d88affa3fbb378be75363ebd45be29c20d1255e7b14ce4b7d8bee00cf9b61b68"
+        },
+        {
+          "path": "r4-matrix-detail-20260920T163717Z.json",
+          "sha256": "aba75481425be5d8ec2bd7b4937694bb27899864575f13bbd5f2ab28aa85d639"
+        }
+      ]
+    }
+  ],
+  "missingRequired": [],
+  "allowlistCovered": [],
+  "gatedCovered": [
+    "authorize_tournament_social_export",
+    "cancel_tournament_purchase",
+    "change_tournament_media_gallery_state",
+    "create_tournament_disciplinary_override",
+    "create_tournament_match_correction",
+    "create_tournament_points_adjustment",
+    "get_tournament_player_portrait_ref",
+    "get_tournament_purchase",
+    "has_tournament_entitlement",
+    "lock_tournament_roster",
+    "make_tournament_match_official",
+    "mark_tournament_suspension_served",
+    "publish_tournament_fixture",
+    "record_manual_match_availability",
+    "reopen_tournament_participants",
+    "report_tournament_media_asset",
+    "request_tournament_match_correction",
+    "resolve_tournament_qualification",
+    "review_tournament_match_operation",
+    "revoke_tournament_player_portrait_publication",
+    "revoke_tournament_points_adjustment",
+    "revoke_tournament_team_photo",
+    "save_tournament_draw_pots",
+    "schedule_tournament_match",
+    "set_tournament_player_portrait_crop",
+    "set_tournament_player_portrait_editorial_status",
+    "submit_match_squad",
+    "supersede_tournament_fixture",
+    "transition_tournament_media_asset",
+    "update_draft_fixture",
+    "validate_tournament_match_operation",
+    "void_tournament_match_event",
+    "auto_schedule_tournament_matches"
+  ],
+  "informative": [
+    {
+      "name": "qa_users",
+      "status": "PASS",
+      "checks": 1
+    },
+    {
+      "name": "fixtures",
+      "status": "PASS",
+      "checks": 1
+    },
+    {
+      "name": "live_contracts",
+      "status": "PASS",
+      "checks": 1
+    },
+    {
+      "name": "cleanup",
+      "status": "PASS",
+      "checks": 5
+    }
+  ],
+  "totals": {
+    "blocks": 30,
+    "checks": 78,
+    "failedChecks": 6,
+    "gatewayResponses": 281,
+    "outageTests": 28
+  },
+  "liveContracts": {
+    "verified_email": 7,
+    "seededAcceptances": 0
+  },
+  "qaUsers": [
+    {
+      "role": "owner",
+      "email": "q***@accounts.invalid",
+      "id": "132c3a17-e022-430a-bc37-a824d784c2f8",
+      "lastSession": "54698754-bccd-4b86-abb5-ee1a26a61cd2",
+      "deleted": true,
+      "deleteStatus": 200,
+      "afterStatus": 404
+    },
+    {
+      "role": "admin",
+      "email": "q***@accounts.invalid",
+      "id": "647ec6db-7a9c-4592-a064-bf27b4591ebf",
+      "lastSession": "35dd4275-2b20-412d-abb3-12f86c5efe09",
+      "deleted": true,
+      "deleteStatus": 200,
+      "afterStatus": 404
+    },
+    {
+      "role": "member",
+      "email": "q***@accounts.invalid",
+      "id": "de86565c-d5b7-4245-a587-ee4de2757d5b",
+      "lastSession": "e64deb7f-d0ca-47b1-aef0-a7b62f48d591",
+      "deleted": true,
+      "deleteStatus": 200,
+      "afterStatus": 404
+    },
+    {
+      "role": "outsider",
+      "email": "q***@accounts.invalid",
+      "id": "93bca168-dbea-4869-bb6a-3d419cd40612",
+      "lastSession": "6ce06748-aa3e-4106-8e31-b4b9900d144b",
+      "deleted": true,
+      "deleteStatus": 200,
+      "afterStatus": 404
+    },
+    {
+      "role": "captain",
+      "email": "q***@accounts.invalid",
+      "id": "7911f0d8-dcc3-4c86-b276-804c03ccae2d",
+      "lastSession": "0b8e725f-ae6f-4d19-a0e1-5e98d97668e0",
+      "deleted": true,
+      "deleteStatus": 200,
+      "afterStatus": 404
+    }
+  ],
+  "coreSessionVerification": {
+    "sessions": [
+      {
+        "role": "owner",
+        "id": "132c3a17",
+        "sessionPresent": false,
+        "userSessions": 0,
+        "deleted": true
+      },
+      {
+        "role": "admin",
+        "id": "647ec6db",
+        "sessionPresent": false,
+        "userSessions": 0,
+        "deleted": true
+      },
+      {
+        "role": "member",
+        "id": "de86565c",
+        "sessionPresent": false,
+        "userSessions": 0,
+        "deleted": true
+      },
+      {
+        "role": "outsider",
+        "id": "93bca168",
+        "sessionPresent": false,
+        "userSessions": 0,
+        "deleted": true
+      },
+      {
+        "role": "captain",
+        "id": "7911f0d8",
+        "sessionPresent": false,
+        "userSessions": 0,
+        "deleted": true
+      }
+    ],
+    "leftovers": 0,
+    "source": "Management API read-only SQL (core-session-exists, core-qa-users)"
+  }
+}

@@ -1,0 +1,69 @@
+
+=== 0. pins (before any credential is read)
+  [ok] 20260914120000 file 2967ae6f67e3… apply-sql 3d3e2845987c… (33935 B) ledger 22 stmts md5 09ad7d261523fa1c2bb6e203a1624467
+  [ok] 20260915120000 file 5256413839ad… apply-sql 859fa7a30dee… (24408 B) ledger 3 stmts md5 b424cc66022e7ab721e8070d0b05cdc7
+  [ok] rollback sql 08edcd0e5eb8…  cli_parser 1ab11b26450a…
+
+=== custody preflight (Keychain arma2-torneos-nonprod-core / contract-secret)
+KEYCHAIN_ENTRY_ABSENT
+  [ok] Keychain: ABSENT
+
+=== 1. PREFLIGHT (read-only): project, ledger shape, CLI rows, contract state, secret, function
+  [ok] project hhyvmhgpapyuzjgxfnqv = arma2-torneos-staging ACTIVE_HEALTHY (NON_PRODUCTION)
+  [ok] ledger shape == hosted shape (6 columns, PK version, UNIQUE idempotency_key NULLS DISTINCT); rows=9 max=20260810215224 standard_conforming_strings=on
+  [ok] catalog privileges for postgres (effective PAT role checked separately before apply): database owner postgres, CREATE on database/public/app_private, INSERT+DELETE on the ledger; app_private owner postgres
+  [ok] canonical rows of Core staging: 7 CLI-shaped rows reproduced byte-for-byte by cli_parser + 2 legacy single-blob rows equal to their pinned fingerprints (mismatched 0, absent 0)
+  20260914120000: objects absent, ledger absent → apply
+  20260915120000: objects absent, ledger absent → apply
+  [ok] secret: Keychain ABSENT / Core absent → generate 32 random bytes (hex) → Keychain add → set-secrets on Core → verify by signed probe
+  [ok] function torneos-core-contract: present=false
+
+=== R3 plan (nothing written yet)
+  target           : hhyvmhgpapyuzjgxfnqv (arma2-torneos-staging) — Production rcyuuoaqfwcembdajcss denylisted
+  migrations       : 20260914120000→apply, 20260915120000→apply
+  ledger           : strategy A (INSERT (version,name,statements) in the SAME transaction; CLI row shape)
+  secret           : generate 32 random bytes (hex) → Keychain add → set-secrets on Core → verify by signed probe
+  function         : deploy torneos-core-contract (verify_jwt=false, 3 files, CLI-shaped multipart) → read back → signed harness (9 exact answers) → ACL probe
+  rollback         : rollback-core-contract.sh (pinned 08edcd0e5eb8…), prepared, NOT run here
+EVIDENCE /Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/remote/../evidence/r3-preflight-20260917T214621Z.json
+72c1888301d5d9d0ecd9fd020b370fccb3361446aca2b8b971e74c676b22152f  /Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/remote/../evidence/r3-preflight-20260917T214621Z.json
+
+=== HUMAN AUTHORIZATION
+
+=== 2. Core contract migrations + ledger rows (one transaction each, probe-first)
+  [ok] 20260914120000 apply → applied ledger ours (756 ms)
+  [ok] 20260915120000 apply → applied ledger ours (3163 ms)
+
+=== 3. service secret (TORNEOS_CONTRACT_SERVICE_SECRET): Keychain ABSENT / Core absent
+KEYCHAIN_ADD_OK
+  [ok] generated, stored in Keychain, set on Core (value never printed)
+
+=== 4. deploy torneos-core-contract (verify_jwt=false)
+  [{"path":"functions/_shared/supabaseApiKeys.ts","bytes":3622,"sha256":"5d6cc3aec5fbcd2a3b5d46b254957d2275c811b4660ff2e8afdcfa30fc94170a"},{"path":"functions/_shared/torneosCoreContract.ts","bytes":16849,"sha256":"83d129020be52dbc0e28ca4aa97d27a28fe9b2eded700f9ca6af0e69507812d7"},{"path":"functions/torneos-core-contract/index.ts","bytes":2828,"sha256":"41e012f03b72d24e1f386ce3902bbab6aff2b2bdcf7ec96a325f588a77b0d269"}]
+  [ok] deployed: version 1, ezbr 107241951795…, verify_jwt=false, ACTIVE
+
+=== 5. signed harness (9 exact answers; secret from the Keychain via stdin only; retries for propagation)
+  [ok] unsigned POST /v1/session → 401 {"error":"SERVICE_AUTH_REQUIRED"}
+  [ok] signed with a random key → rejected → 401 {"error":"SERVICE_AUTH_REQUIRED"}
+  [ok] signed, X-Time 120 s old → rejected → 401 {"error":"SERVICE_AUTH_REQUIRED"}
+  [ok] signed POST /v1/session, unknown session → Core verdict → 403 {"error":"FORBIDDEN"}
+  [ok] replay of the previous request (same nonce) → consumed → 401 {"error":"REPLAY"}
+  [ok] signed POST /v1/verified-email, unknown session → Core verdict (v1 route) → 403 {"error":"FORBIDDEN"}
+  [ok] signed POST /v1/session, malformed schema → rejected after auth → 400 {"error":"INVALID_REQUEST"}
+  [ok] signed POST /v1/nope → unknown route → 404 {"error":"NOT_FOUND"}
+  [ok] GET /v1/session → method refused → 404 {"error":"NOT_FOUND"}
+  attempts 1
+
+=== 6. ACL probe (anon / authenticated / service_role on every contract object)
+  [ok] public.torneos_contract_execute(text,text,jsonb) execute anon=false authenticated=false service_role=true secdef=true
+  [ok] app_private.torneos_contract_email(text) execute anon=false authenticated=false service_role=false secdef=false
+  [ok] app_private.torneos_contract_url(text) execute anon=false authenticated=false service_role=false secdef=false
+  [ok] app_private.torneos_contract_visible_player(uuid) execute anon=false authenticated=false service_role=false secdef=false
+  [ok] app_private.torneos_contract_importable_team(uuid,uuid) execute anon=false authenticated=false service_role=false secdef=false
+  [ok] app_private.torneos_contract_nonces rls=true privileges anon=false authenticated=false service_role=false indexes=["torneos_contract_nonces_expiry","torneos_contract_nonces_pkey"]
+  [ok] app_private.torneos_contract_rate_events rls=true privileges anon=false authenticated=false service_role=false indexes=["torneos_contract_rate_events_actor","torneos_contract_rate_events_pkey"]
+EVIDENCE /Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/remote/../evidence/core-contract-20260917T214621Z.json
+5255249af48a6a8714c018f9fc53f601e949210323666ff8eb82fdaa6a9e4c88  /Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/remote/../evidence/core-contract-20260917T214621Z.json
+PHASE3B_CORE_CONTRACT_DEPLOYED hhyvmhgpapyuzjgxfnqv
+
+RUNNER_EXIT=0

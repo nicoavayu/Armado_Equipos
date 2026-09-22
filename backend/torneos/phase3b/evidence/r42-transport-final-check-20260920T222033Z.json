@@ -1,0 +1,78 @@
+{
+  "stamp": "20260920T222033Z",
+  "unchanged": {
+    "r4": true,
+    "gateway": true
+  },
+  "r2": {
+    "dbHealthy": true,
+    "dbRunning": true,
+    "restRunning": true,
+    "idsUnchanged": true,
+    "startedUnchanged": true,
+    "catalogUnchanged": true,
+    "ringUnchanged": true,
+    "jwksUnchanged": true,
+    "networksUnchanged": true,
+    "mountsUnchanged": true
+  },
+  "resources": {
+    "containers": "",
+    "networks": "",
+    "authorizationAbsent": true,
+    "runStateAbsent": true
+  },
+  "secretPatternScan": {
+    "pass": true,
+    "files": 17
+  },
+  "coreSessionCheck": {
+    "name": "core_sessions_zero",
+    "status": "PASS",
+    "sessions": [
+      {
+        "role": "transport",
+        "id": "b8b3576a",
+        "sessionPresent": false,
+        "userSessions": 0,
+        "deleted": true
+      }
+    ]
+  },
+  "production": {
+    "requests": 0,
+    "scope": "hardcoded staging Management API guards, guarded Core client and loopback-only diagnostic fetch; no Production action"
+  },
+  "fullMatrixExecuted": false,
+  "probe": {
+    "responses": 38,
+    "expectedSocketFailures": 3,
+    "expectations": {
+      "noUnexpectedFailures": true,
+      "normal": true,
+      "cases": true,
+      "health": true,
+      "offline": true,
+      "processes": true,
+      "routes": true
+    },
+    "workers": [
+      {
+        "name": "G-worker",
+        "ms": 59231,
+        "pass": true,
+        "tests": 29,
+        "bundleSHA256": "be45c9fbd7e5f3a9aad76e411825a689a3c21a7e99268f28c069afc3501e3eee",
+        "eventLoopTicks": 587
+      },
+      {
+        "name": "G-worker-repeat",
+        "ms": 54753,
+        "pass": true,
+        "tests": 29,
+        "bundleSHA256": "be45c9fbd7e5f3a9aad76e411825a689a3c21a7e99268f28c069afc3501e3eee",
+        "eventLoopTicks": 542
+      }
+    ]
+  }
+}

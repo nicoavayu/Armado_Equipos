@@ -1,0 +1,884 @@
+{
+  "stamp": "20260921T174318Z",
+  "node": "v25.2.1",
+  "cases": [
+    {
+      "name": "normal",
+      "parent": [],
+      "execArgv": [],
+      "removed": [],
+      "harness": {
+        "schema": "R4.2.outage.v1",
+        "tests": [
+          {
+            "name": "core_contract_transport_reset → 503 CORE_UNAVAILABLE",
+            "pass": true,
+            "detail": {
+              "status": 503,
+              "body": {
+                "error": "CORE_UNAVAILABLE"
+              },
+              "cacheControl": "no-store",
+              "coreCalls": [
+                "/auth/v1/health",
+                "/functions/v1/torneos-core-contract/v1/session"
+              ]
+            }
+          },
+          {
+            "name": "core_contract_500 → 503 CORE_UNAVAILABLE",
+            "pass": true,
+            "detail": {
+              "status": 503,
+              "body": {
+                "error": "CORE_UNAVAILABLE"
+              },
+              "cacheControl": "no-store",
+              "coreCalls": [
+                "/auth/v1/health",
+                "/functions/v1/torneos-core-contract/v1/session"
+              ]
+            }
+          },
+          {
+            "name": "core_contract_502 → 503 CORE_UNAVAILABLE",
+            "pass": true,
+            "detail": {
+              "status": 503,
+              "body": {
+                "error": "CORE_UNAVAILABLE"
+              },
+              "cacheControl": "no-store",
+              "coreCalls": [
+                "/auth/v1/health",
+                "/functions/v1/torneos-core-contract/v1/session"
+              ]
+            }
+          },
+          {
+            "name": "core_contract_timeout (>2 s) → 503 CORE_UNAVAILABLE",
+            "pass": true,
+            "detail": {
+              "status": 503,
+              "body": {
+                "error": "CORE_UNAVAILABLE"
+              },
+              "cacheControl": "no-store",
+              "coreCalls": [
+                "/auth/v1/health",
+                "/functions/v1/torneos-core-contract/v1/session"
+              ]
+            }
+          },
+          {
+            "name": "core_contract_stale (checked_at −10 s) → 503 CORE_UNAVAILABLE",
+            "pass": true,
+            "detail": {
+              "status": 503,
+              "body": {
+                "error": "CORE_UNAVAILABLE"
+              },
+              "cacheControl": "no-store",
+              "coreCalls": [
+                "/auth/v1/health",
+                "/functions/v1/torneos-core-contract/v1/session"
+              ]
+            }
+          },
+          {
+            "name": "core_contract_future (checked_at +10 s) → 503 CORE_UNAVAILABLE",
+            "pass": true,
+            "detail": {
+              "status": 503,
+              "body": {
+                "error": "CORE_UNAVAILABLE"
+              },
+              "cacheControl": "no-store",
+              "coreCalls": [
+                "/auth/v1/health",
+                "/functions/v1/torneos-core-contract/v1/session"
+              ]
+            }
+          },
+          {
+            "name": "core_contract_skew_past_2 (checked_at floor(now)−2: 2–3 s old) → passes freshness (503 access denied: DB unreachable here)",
+            "pass": true,
+            "detail": {
+              "status": 503,
+              "body": {
+                "error": "access denied"
+              },
+              "cacheControl": "no-store",
+              "coreCalls": [
+                "/auth/v1/health",
+                "/functions/v1/torneos-core-contract/v1/session"
+              ]
+            }
+          },
+          {
+            "name": "core_contract_skew_past_4 (checked_at floor(now)−4: 4–5 s old) → 503 CORE_UNAVAILABLE",
+            "pass": true,
+            "detail": {
+              "status": 503,
+              "body": {
+                "error": "CORE_UNAVAILABLE"
+              },
+              "cacheControl": "no-store",
+              "coreCalls": [
+                "/auth/v1/health",
+                "/functions/v1/torneos-core-contract/v1/session"
+              ]
+            }
+          },
+          {
+            "name": "core_contract_skew_future_1 (checked_at floor(now)+1: 0–1 s ahead — the R4.2 failure class) → passes freshness",
+            "pass": true,
+            "detail": {
+              "status": 503,
+              "body": {
+                "error": "access denied"
+              },
+              "cacheControl": "no-store",
+              "coreCalls": [
+                "/auth/v1/health",
+                "/functions/v1/torneos-core-contract/v1/session"
+              ]
+            }
+          },
+          {
+            "name": "core_contract_skew_future_5 (checked_at floor(now)+5: 4–5 s ahead) → passes freshness",
+            "pass": true,
+            "detail": {
+              "status": 503,
+              "body": {
+                "error": "access denied"
+              },
+              "cacheControl": "no-store",
+              "coreCalls": [
+                "/auth/v1/health",
+                "/functions/v1/torneos-core-contract/v1/session"
+              ]
+            }
+          },
+          {
+            "name": "core_contract_skew_future_6 (checked_at floor(now)+6: 5–6 s ahead) → 503 CORE_UNAVAILABLE",
+            "pass": true,
+            "detail": {
+              "status": 503,
+              "body": {
+                "error": "CORE_UNAVAILABLE"
+              },
+              "cacheControl": "no-store",
+              "coreCalls": [
+                "/auth/v1/health",
+                "/functions/v1/torneos-core-contract/v1/session"
+              ]
+            }
+          },
+          {
+            "name": "core_contract_skew_repeat: 8 consecutive verdicts from a Core clock 0–1 s ahead all pass freshness; one Core session call each (no cached verdict)",
+            "pass": true,
+            "detail": {
+              "outcomes": [
+                "503 access denied"
+              ],
+              "sessionCalls": 8
+            }
+          },
+          {
+            "name": "core_contract_malformed_json → 503 CORE_UNAVAILABLE",
+            "pass": true,
+            "detail": {
+              "status": 503,
+              "body": {
+                "error": "CORE_UNAVAILABLE"
+              },
+              "cacheControl": "no-store",
+              "coreCalls": [
+                "/auth/v1/health",
+                "/functions/v1/torneos-core-contract/v1/session"
+              ]
+            }
+          },
+          {
+            "name": "core_contract_schema_violation → 503 CORE_UNAVAILABLE",
+            "pass": true,
+            "detail": {
+              "status": 503,
+              "body": {
+                "error": "CORE_UNAVAILABLE"
+              },
+              "cacheControl": "no-store",
+              "coreCalls": [
+                "/auth/v1/health",
+                "/functions/v1/torneos-core-contract/v1/session"
+              ]
+            }
+          },
+          {
+            "name": "core_contract_200_active_false (outside the closed schema enum [true]; the real Core answers 403) → 503 CORE_UNAVAILABLE",
+            "pass": true,
+            "detail": {
+              "status": 503,
+              "body": {
+                "error": "CORE_UNAVAILABLE"
+              },
+              "cacheControl": "no-store",
+              "coreCalls": [
+                "/auth/v1/health",
+                "/functions/v1/torneos-core-contract/v1/session"
+              ]
+            }
+          },
+          {
+            "name": "core_contract_403 (Core verdict) → 401 access denied",
+            "pass": true,
+            "detail": {
+              "status": 401,
+              "body": {
+                "error": "access denied"
+              },
+              "cacheControl": "no-store",
+              "coreCalls": [
+                "/auth/v1/health",
+                "/functions/v1/torneos-core-contract/v1/session"
+              ]
+            }
+          },
+          {
+            "name": "core_contract_401 → 401 access denied",
+            "pass": true,
+            "detail": {
+              "status": 401,
+              "body": {
+                "error": "access denied"
+              },
+              "cacheControl": "no-store",
+              "coreCalls": [
+                "/auth/v1/health",
+                "/functions/v1/torneos-core-contract/v1/session"
+              ]
+            }
+          },
+          {
+            "name": "core_auth_health_503 (rpc) → 503 access denied",
+            "pass": true,
+            "detail": {
+              "status": 503,
+              "body": {
+                "error": "access denied"
+              },
+              "cacheControl": "no-store",
+              "coreCalls": [
+                "/auth/v1/health"
+              ]
+            }
+          },
+          {
+            "name": "core_auth_health_503 (/health) → 503 ready:false",
+            "pass": true,
+            "detail": {
+              "status": 503,
+              "body": {
+                "ready": false
+              },
+              "cacheControl": "no-store",
+              "coreCalls": [
+                "/auth/v1/health"
+              ]
+            }
+          },
+          {
+            "name": "core_auth_user_500 (exchange) → 401 access denied",
+            "pass": true,
+            "detail": {
+              "status": 401,
+              "body": {
+                "error": "access denied"
+              },
+              "cacheControl": "no-store",
+              "coreCalls": [
+                "/auth/v1/user"
+              ]
+            }
+          },
+          {
+            "name": "core_auth_user_401 (exchange) → 401 access denied",
+            "pass": true,
+            "detail": {
+              "status": 401,
+              "body": {
+                "error": "access denied"
+              },
+              "cacheControl": "no-store",
+              "coreCalls": [
+                "/auth/v1/user"
+              ]
+            }
+          },
+          {
+            "name": "core_auth_health_503 (exchange) → 503 access denied",
+            "pass": true,
+            "detail": {
+              "status": 503,
+              "body": {
+                "error": "access denied"
+              },
+              "cacheControl": "no-store",
+              "coreCalls": [
+                "/auth/v1/user",
+                "/auth/v1/health"
+              ]
+            }
+          },
+          {
+            "name": "exchange with active Core but Torneos DB unreachable → 503 access denied (fail closed, no token)",
+            "pass": true,
+            "detail": {
+              "status": 503,
+              "body": {
+                "error": "access denied"
+              },
+              "cacheControl": "no-store",
+              "coreCalls": [
+                "/auth/v1/user",
+                "/auth/v1/health",
+                "/functions/v1/torneos-core-contract/v1/session"
+              ]
+            }
+          },
+          {
+            "name": "rpc with active Core but Torneos DB unreachable → 503 access denied",
+            "pass": true,
+            "detail": {
+              "status": 503,
+              "body": {
+                "error": "access denied"
+              },
+              "cacheControl": "no-store",
+              "coreCalls": [
+                "/auth/v1/health",
+                "/functions/v1/torneos-core-contract/v1/session"
+              ]
+            }
+          },
+          {
+            "name": "gated rpc is refused before any Core call (allowlist precedes session authority)",
+            "pass": true,
+            "detail": {
+              "status": 403,
+              "body": {
+                "error": "rpc not enabled"
+              },
+              "cacheControl": "no-store",
+              "coreCalls": 0
+            }
+          },
+          {
+            "name": "invalid bearer is refused before any Core call",
+            "pass": true,
+            "detail": {
+              "status": 401,
+              "body": {
+                "error": "access denied"
+              },
+              "cacheControl": "no-store",
+              "coreCalls": 0
+            }
+          },
+          {
+            "name": "wrong Host is refused (origin rejected)",
+            "pass": true,
+            "detail": {
+              "status": 403,
+              "body": {
+                "error": "origin rejected"
+              },
+              "cacheControl": "no-store"
+            }
+          },
+          {
+            "name": "exchange refuses identity/role input in the body",
+            "pass": true,
+            "detail": {
+              "status": 400,
+              "body": {
+                "error": "exchange accepts no identity or role input"
+              },
+              "cacheControl": "no-store"
+            }
+          },
+          {
+            "name": "every response carries cache-control: no-store",
+            "pass": true,
+            "detail": {
+              "checked": 28,
+              "allNoStore": true
+            }
+          }
+        ],
+        "network": "none",
+        "secrets": "none",
+        "pass": true,
+        "bundleSHA256": "be45c9fbd7e5f3a9aad76e411825a689a3c21a7e99268f28c069afc3501e3eee",
+        "edgeImage": "sha256:a82676277615aee03c4f288cbbbf68dedb5ba8693073e567ab8dbfdd11ba5d45",
+        "exit": 1,
+        "mode": "real gateway modules in the certified Edge runtime, --network none, no secret; Core/REST responses stubbed"
+      }
+    },
+    {
+      "name": "input-type-module",
+      "parent": [
+        "--input-type=module"
+      ],
+      "execArgv": [],
+      "removed": [
+        "--input-type=module"
+      ],
+      "harness": {
+        "schema": "R4.2.outage.v1",
+        "tests": [
+          {
+            "name": "core_contract_transport_reset → 503 CORE_UNAVAILABLE",
+            "pass": true,
+            "detail": {
+              "status": 503,
+              "body": {
+                "error": "CORE_UNAVAILABLE"
+              },
+              "cacheControl": "no-store",
+              "coreCalls": [
+                "/auth/v1/health",
+                "/functions/v1/torneos-core-contract/v1/session"
+              ]
+            }
+          },
+          {
+            "name": "core_contract_500 → 503 CORE_UNAVAILABLE",
+            "pass": true,
+            "detail": {
+              "status": 503,
+              "body": {
+                "error": "CORE_UNAVAILABLE"
+              },
+              "cacheControl": "no-store",
+              "coreCalls": [
+                "/auth/v1/health",
+                "/functions/v1/torneos-core-contract/v1/session"
+              ]
+            }
+          },
+          {
+            "name": "core_contract_502 → 503 CORE_UNAVAILABLE",
+            "pass": true,
+            "detail": {
+              "status": 503,
+              "body": {
+                "error": "CORE_UNAVAILABLE"
+              },
+              "cacheControl": "no-store",
+              "coreCalls": [
+                "/auth/v1/health",
+                "/functions/v1/torneos-core-contract/v1/session"
+              ]
+            }
+          },
+          {
+            "name": "core_contract_timeout (>2 s) → 503 CORE_UNAVAILABLE",
+            "pass": true,
+            "detail": {
+              "status": 503,
+              "body": {
+                "error": "CORE_UNAVAILABLE"
+              },
+              "cacheControl": "no-store",
+              "coreCalls": [
+                "/auth/v1/health",
+                "/functions/v1/torneos-core-contract/v1/session"
+              ]
+            }
+          },
+          {
+            "name": "core_contract_stale (checked_at −10 s) → 503 CORE_UNAVAILABLE",
+            "pass": true,
+            "detail": {
+              "status": 503,
+              "body": {
+                "error": "CORE_UNAVAILABLE"
+              },
+              "cacheControl": "no-store",
+              "coreCalls": [
+                "/auth/v1/health",
+                "/functions/v1/torneos-core-contract/v1/session"
+              ]
+            }
+          },
+          {
+            "name": "core_contract_future (checked_at +10 s) → 503 CORE_UNAVAILABLE",
+            "pass": true,
+            "detail": {
+              "status": 503,
+              "body": {
+                "error": "CORE_UNAVAILABLE"
+              },
+              "cacheControl": "no-store",
+              "coreCalls": [
+                "/auth/v1/health",
+                "/functions/v1/torneos-core-contract/v1/session"
+              ]
+            }
+          },
+          {
+            "name": "core_contract_skew_past_2 (checked_at floor(now)−2: 2–3 s old) → passes freshness (503 access denied: DB unreachable here)",
+            "pass": true,
+            "detail": {
+              "status": 503,
+              "body": {
+                "error": "access denied"
+              },
+              "cacheControl": "no-store",
+              "coreCalls": [
+                "/auth/v1/health",
+                "/functions/v1/torneos-core-contract/v1/session"
+              ]
+            }
+          },
+          {
+            "name": "core_contract_skew_past_4 (checked_at floor(now)−4: 4–5 s old) → 503 CORE_UNAVAILABLE",
+            "pass": true,
+            "detail": {
+              "status": 503,
+              "body": {
+                "error": "CORE_UNAVAILABLE"
+              },
+              "cacheControl": "no-store",
+              "coreCalls": [
+                "/auth/v1/health",
+                "/functions/v1/torneos-core-contract/v1/session"
+              ]
+            }
+          },
+          {
+            "name": "core_contract_skew_future_1 (checked_at floor(now)+1: 0–1 s ahead — the R4.2 failure class) → passes freshness",
+            "pass": true,
+            "detail": {
+              "status": 503,
+              "body": {
+                "error": "access denied"
+              },
+              "cacheControl": "no-store",
+              "coreCalls": [
+                "/auth/v1/health",
+                "/functions/v1/torneos-core-contract/v1/session"
+              ]
+            }
+          },
+          {
+            "name": "core_contract_skew_future_5 (checked_at floor(now)+5: 4–5 s ahead) → passes freshness",
+            "pass": true,
+            "detail": {
+              "status": 503,
+              "body": {
+                "error": "access denied"
+              },
+              "cacheControl": "no-store",
+              "coreCalls": [
+                "/auth/v1/health",
+                "/functions/v1/torneos-core-contract/v1/session"
+              ]
+            }
+          },
+          {
+            "name": "core_contract_skew_future_6 (checked_at floor(now)+6: 5–6 s ahead) → 503 CORE_UNAVAILABLE",
+            "pass": true,
+            "detail": {
+              "status": 503,
+              "body": {
+                "error": "CORE_UNAVAILABLE"
+              },
+              "cacheControl": "no-store",
+              "coreCalls": [
+                "/auth/v1/health",
+                "/functions/v1/torneos-core-contract/v1/session"
+              ]
+            }
+          },
+          {
+            "name": "core_contract_skew_repeat: 8 consecutive verdicts from a Core clock 0–1 s ahead all pass freshness; one Core session call each (no cached verdict)",
+            "pass": true,
+            "detail": {
+              "outcomes": [
+                "503 access denied"
+              ],
+              "sessionCalls": 8
+            }
+          },
+          {
+            "name": "core_contract_malformed_json → 503 CORE_UNAVAILABLE",
+            "pass": true,
+            "detail": {
+              "status": 503,
+              "body": {
+                "error": "CORE_UNAVAILABLE"
+              },
+              "cacheControl": "no-store",
+              "coreCalls": [
+                "/auth/v1/health",
+                "/functions/v1/torneos-core-contract/v1/session"
+              ]
+            }
+          },
+          {
+            "name": "core_contract_schema_violation → 503 CORE_UNAVAILABLE",
+            "pass": true,
+            "detail": {
+              "status": 503,
+              "body": {
+                "error": "CORE_UNAVAILABLE"
+              },
+              "cacheControl": "no-store",
+              "coreCalls": [
+                "/auth/v1/health",
+                "/functions/v1/torneos-core-contract/v1/session"
+              ]
+            }
+          },
+          {
+            "name": "core_contract_200_active_false (outside the closed schema enum [true]; the real Core answers 403) → 503 CORE_UNAVAILABLE",
+            "pass": true,
+            "detail": {
+              "status": 503,
+              "body": {
+                "error": "CORE_UNAVAILABLE"
+              },
+              "cacheControl": "no-store",
+              "coreCalls": [
+                "/auth/v1/health",
+                "/functions/v1/torneos-core-contract/v1/session"
+              ]
+            }
+          },
+          {
+            "name": "core_contract_403 (Core verdict) → 401 access denied",
+            "pass": true,
+            "detail": {
+              "status": 401,
+              "body": {
+                "error": "access denied"
+              },
+              "cacheControl": "no-store",
+              "coreCalls": [
+                "/auth/v1/health",
+                "/functions/v1/torneos-core-contract/v1/session"
+              ]
+            }
+          },
+          {
+            "name": "core_contract_401 → 401 access denied",
+            "pass": true,
+            "detail": {
+              "status": 401,
+              "body": {
+                "error": "access denied"
+              },
+              "cacheControl": "no-store",
+              "coreCalls": [
+                "/auth/v1/health",
+                "/functions/v1/torneos-core-contract/v1/session"
+              ]
+            }
+          },
+          {
+            "name": "core_auth_health_503 (rpc) → 503 access denied",
+            "pass": true,
+            "detail": {
+              "status": 503,
+              "body": {
+                "error": "access denied"
+              },
+              "cacheControl": "no-store",
+              "coreCalls": [
+                "/auth/v1/health"
+              ]
+            }
+          },
+          {
+            "name": "core_auth_health_503 (/health) → 503 ready:false",
+            "pass": true,
+            "detail": {
+              "status": 503,
+              "body": {
+                "ready": false
+              },
+              "cacheControl": "no-store",
+              "coreCalls": [
+                "/auth/v1/health"
+              ]
+            }
+          },
+          {
+            "name": "core_auth_user_500 (exchange) → 401 access denied",
+            "pass": true,
+            "detail": {
+              "status": 401,
+              "body": {
+                "error": "access denied"
+              },
+              "cacheControl": "no-store",
+              "coreCalls": [
+                "/auth/v1/user"
+              ]
+            }
+          },
+          {
+            "name": "core_auth_user_401 (exchange) → 401 access denied",
+            "pass": true,
+            "detail": {
+              "status": 401,
+              "body": {
+                "error": "access denied"
+              },
+              "cacheControl": "no-store",
+              "coreCalls": [
+                "/auth/v1/user"
+              ]
+            }
+          },
+          {
+            "name": "core_auth_health_503 (exchange) → 503 access denied",
+            "pass": true,
+            "detail": {
+              "status": 503,
+              "body": {
+                "error": "access denied"
+              },
+              "cacheControl": "no-store",
+              "coreCalls": [
+                "/auth/v1/user",
+                "/auth/v1/health"
+              ]
+            }
+          },
+          {
+            "name": "exchange with active Core but Torneos DB unreachable → 503 access denied (fail closed, no token)",
+            "pass": true,
+            "detail": {
+              "status": 503,
+              "body": {
+                "error": "access denied"
+              },
+              "cacheControl": "no-store",
+              "coreCalls": [
+                "/auth/v1/user",
+                "/auth/v1/health",
+                "/functions/v1/torneos-core-contract/v1/session"
+              ]
+            }
+          },
+          {
+            "name": "rpc with active Core but Torneos DB unreachable → 503 access denied",
+            "pass": true,
+            "detail": {
+              "status": 503,
+              "body": {
+                "error": "access denied"
+              },
+              "cacheControl": "no-store",
+              "coreCalls": [
+                "/auth/v1/health",
+                "/functions/v1/torneos-core-contract/v1/session"
+              ]
+            }
+          },
+          {
+            "name": "gated rpc is refused before any Core call (allowlist precedes session authority)",
+            "pass": true,
+            "detail": {
+              "status": 403,
+              "body": {
+                "error": "rpc not enabled"
+              },
+              "cacheControl": "no-store",
+              "coreCalls": 0
+            }
+          },
+          {
+            "name": "invalid bearer is refused before any Core call",
+            "pass": true,
+            "detail": {
+              "status": 401,
+              "body": {
+                "error": "access denied"
+              },
+              "cacheControl": "no-store",
+              "coreCalls": 0
+            }
+          },
+          {
+            "name": "wrong Host is refused (origin rejected)",
+            "pass": true,
+            "detail": {
+              "status": 403,
+              "body": {
+                "error": "origin rejected"
+              },
+              "cacheControl": "no-store"
+            }
+          },
+          {
+            "name": "exchange refuses identity/role input in the body",
+            "pass": true,
+            "detail": {
+              "status": 400,
+              "body": {
+                "error": "exchange accepts no identity or role input"
+              },
+              "cacheControl": "no-store"
+            }
+          },
+          {
+            "name": "every response carries cache-control: no-store",
+            "pass": true,
+            "detail": {
+              "checked": 28,
+              "allNoStore": true
+            }
+          }
+        ],
+        "network": "none",
+        "secrets": "none",
+        "pass": true,
+        "bundleSHA256": "be45c9fbd7e5f3a9aad76e411825a689a3c21a7e99268f28c069afc3501e3eee",
+        "edgeImage": "sha256:a82676277615aee03c4f288cbbbf68dedb5ba8693073e567ab8dbfdd11ba5d45",
+        "exit": 1,
+        "mode": "real gateway modules in the certified Edge runtime, --network none, no secret; Core/REST responses stubbed"
+      }
+    }
+  ],
+  "status": "PASS",
+  "filter": "PASS",
+  "rootCause": {
+    "parent": [
+      "--input-type=module"
+    ],
+    "error": "ERR_INPUT_TYPE_NOT_ALLOWED",
+    "expected": true
+  },
+  "preserved": {
+    "parent": [
+      "--input-type",
+      "module",
+      "--trace-warnings"
+    ],
+    "execArgv": [
+      "--trace-warnings"
+    ],
+    "removed": [
+      "--input-type",
+      "module"
+    ],
+    "observed": [
+      "--trace-warnings"
+    ]
+  }
+}

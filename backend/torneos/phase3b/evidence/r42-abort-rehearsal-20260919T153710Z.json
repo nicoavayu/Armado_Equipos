@@ -1,0 +1,87 @@
+{
+ "pass": true,
+ "results": [
+  {
+   "name": "A1 fixture aborts mid-way (create_tournament_provisional_player #3 → 503): F stays null, registry already holds the created resources",
+   "pass": true,
+   "detail": {
+    "aborted": "FIXTURE_RPC_FAILED: create_tournament_provisional_player 503 {\"error\":\"CORE_UNAV",
+    "registry": {
+     "organization": 2,
+     "season": 2,
+     "tournament": 2,
+     "category": 2,
+     "membership_seed": 2,
+     "season_assignment": 1,
+     "team_entry": 1,
+     "roster": 1,
+     "provisional_player": 2,
+     "roster_player": 2
+    },
+    "residueTables": 18
+   }
+  },
+  {
+   "name": "A2 negative control — the pre-fix scope (orgs from the null aggregate = []) cannot clean: count mismatch, rollback, rows remain",
+   "pass": true,
+   "detail": {
+    "mismatches": 18,
+    "error": "ERROR:  R42_CLEANUP_COUNT_MISMATCH: public.tournament_audit_"
+   }
+  },
+  {
+   "name": "A3 registry scope removes everything the aborted build created: exact baseline, catalog unchanged",
+   "pass": true,
+   "detail": {
+    "planned": 18,
+    "tables": [
+     "public.torneos_identity",
+     "public.tournament_audit_log",
+     "public.tournament_categories",
+     "public.tournament_discipline_rules",
+     "public.tournament_organization_members",
+     "public.tournament_organizations",
+     "public.tournament_provisional_players",
+     "public.tournament_roster_players",
+     "public.tournament_roster_settings",
+     "public.tournament_rosters",
+     "public.tournament_scoring_rules",
+     "public.tournament_season_member_assignments",
+     "public.tournament_seasons",
+     "public.tournament_team_entries",
+     "public.tournament_tiebreak_rules",
+     "public.tournaments",
+     "public.user_tournament_context_preferences",
+     "public.user_workspace_preferences"
+    ]
+   }
+  },
+  {
+   "name": "B1 abort on the second create_tournament_organization: registry holds exactly one org; cleanup restores the baseline",
+   "pass": true,
+   "detail": {
+    "planned": [
+     "public.torneos_identity",
+     "public.tournament_organization_members",
+     "public.tournament_organizations",
+     "public.user_workspace_preferences"
+    ]
+   }
+  },
+  {
+   "name": "C1 abort mid-way, then cleanup with an EMPTY org list and only the run tag: orgs rediscovered by slug, baseline restored",
+   "pass": true,
+   "detail": {
+    "planned": 20
+   }
+  },
+  {
+   "name": "final: R2 exactly as found (counts + catalog SHA)",
+   "pass": true,
+   "detail": {
+    "catalog": "a45abe402d83c011",
+    "tables": 106
+   }
+  }
+ ]
+}

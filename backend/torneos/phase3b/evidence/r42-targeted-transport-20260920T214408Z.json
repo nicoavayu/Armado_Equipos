@@ -1,0 +1,1635 @@
+{
+  "schema": "R4.2.transport.v1",
+  "stamp": "20260920T214408Z",
+  "run": "arma2-r42-20260920t214412z",
+  "node": "v25.2.1",
+  "undici": "7.16.0",
+  "scope": "targeted A/B/C/D only; one QA; no fixtures; no faults; no matrix",
+  "steps": [],
+  "calls": [
+    {
+      "case": null,
+      "id": "initial-health",
+      "at": "2026-09-20T21:44:36.921Z",
+      "url": "http://127.0.0.1:58431/torneos-gateway/health",
+      "path": "/health",
+      "httpResponse": false,
+      "error": {
+        "name": "TypeError",
+        "code": null,
+        "errno": null,
+        "syscall": null,
+        "message": "fetch failed",
+        "cause": {
+          "name": "Error",
+          "code": "ECONNREFUSED",
+          "errno": -61,
+          "syscall": "connect",
+          "message": "connect ECONNREFUSED 127.0.0.1:58431",
+          "cause": null,
+          "socket": null
+        },
+        "socket": null
+      },
+      "atError": "2026-09-20T21:44:36.924Z",
+      "atErrorState": {
+        "at": "2026-09-20T21:44:39.442Z",
+        "containers": {
+          "gateway": {
+            "id": "a6d3f2e9bfafba94803e78f3c9709f168d0f2b3dfd4a81cfe3030d03f9f5aa4f",
+            "running": true,
+            "restartCount": 0,
+            "startedAt": "2026-09-20T21:44:19.4554848Z",
+            "finishedAt": "0001-01-01T00:00:00Z",
+            "exitCode": 0,
+            "oomKilled": false
+          },
+          "proxy": {
+            "id": "f627a025903243f15d2b20f7bbb9235c62fdad4c1c6708c6b3ff9c3cb7a75e3d",
+            "running": false,
+            "restartCount": 0,
+            "startedAt": "2026-09-20T21:44:15.755167007Z",
+            "finishedAt": "2026-09-20T21:44:35.775521669Z",
+            "exitCode": 1,
+            "oomKilled": false
+          }
+        },
+        "gatewayRoutesAndTCP": "  sl  local_address rem_address   st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode                                                     \n   0: 00000000:2328 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 27569136 1 000000007973bdf4 100 0 0 10 0                  \n   1: 0B00007F:8209 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 27576742 1 000000004cd4b095 100 0 0 10 0                  \n  sl  local_address                         remote_address                        st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode\n",
+        "proxyTCPAndFault": ""
+      },
+      "ms": 2520
+    },
+    {
+      "case": "A",
+      "id": "A-health-before",
+      "at": "2026-09-20T21:44:41.289Z",
+      "url": "http://127.0.0.1:58431/torneos-gateway/health",
+      "path": "/health",
+      "httpResponse": false,
+      "error": {
+        "name": "TypeError",
+        "code": null,
+        "errno": null,
+        "syscall": null,
+        "message": "fetch failed",
+        "cause": {
+          "name": "Error",
+          "code": "ECONNREFUSED",
+          "errno": -61,
+          "syscall": "connect",
+          "message": "connect ECONNREFUSED 127.0.0.1:58431",
+          "cause": null,
+          "socket": null
+        },
+        "socket": null
+      },
+      "atError": "2026-09-20T21:44:41.291Z",
+      "atErrorState": {
+        "at": "2026-09-20T21:44:43.154Z",
+        "containers": {
+          "gateway": {
+            "id": "a6d3f2e9bfafba94803e78f3c9709f168d0f2b3dfd4a81cfe3030d03f9f5aa4f",
+            "running": true,
+            "restartCount": 0,
+            "startedAt": "2026-09-20T21:44:19.4554848Z",
+            "finishedAt": "0001-01-01T00:00:00Z",
+            "exitCode": 0,
+            "oomKilled": false
+          },
+          "proxy": {
+            "id": "f627a025903243f15d2b20f7bbb9235c62fdad4c1c6708c6b3ff9c3cb7a75e3d",
+            "running": false,
+            "restartCount": 0,
+            "startedAt": "2026-09-20T21:44:15.755167007Z",
+            "finishedAt": "2026-09-20T21:44:35.775521669Z",
+            "exitCode": 1,
+            "oomKilled": false
+          }
+        },
+        "gatewayRoutesAndTCP": "  sl  local_address rem_address   st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode                                                     \n   0: 00000000:2328 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 27569136 1 000000007973bdf4 100 0 0 10 0                  \n   1: 0B00007F:8209 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 27576742 1 000000004cd4b095 100 0 0 10 0                  \n  sl  local_address                         remote_address                        st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode\n",
+        "proxyTCPAndFault": ""
+      },
+      "ms": 1865
+    },
+    {
+      "case": "A",
+      "id": "A-exchange-0",
+      "at": "2026-09-20T21:44:43.154Z",
+      "url": "http://127.0.0.1:58431/torneos-gateway/exchange",
+      "path": "/exchange",
+      "httpResponse": false,
+      "error": {
+        "name": "TypeError",
+        "code": null,
+        "errno": null,
+        "syscall": null,
+        "message": "fetch failed",
+        "cause": {
+          "name": "Error",
+          "code": "ECONNREFUSED",
+          "errno": -61,
+          "syscall": "connect",
+          "message": "connect ECONNREFUSED 127.0.0.1:58431",
+          "cause": null,
+          "socket": null
+        },
+        "socket": null
+      },
+      "atError": "2026-09-20T21:44:43.155Z",
+      "atErrorState": {
+        "at": "2026-09-20T21:44:44.939Z",
+        "containers": {
+          "gateway": {
+            "id": "a6d3f2e9bfafba94803e78f3c9709f168d0f2b3dfd4a81cfe3030d03f9f5aa4f",
+            "running": true,
+            "restartCount": 0,
+            "startedAt": "2026-09-20T21:44:19.4554848Z",
+            "finishedAt": "0001-01-01T00:00:00Z",
+            "exitCode": 0,
+            "oomKilled": false
+          },
+          "proxy": {
+            "id": "f627a025903243f15d2b20f7bbb9235c62fdad4c1c6708c6b3ff9c3cb7a75e3d",
+            "running": false,
+            "restartCount": 0,
+            "startedAt": "2026-09-20T21:44:15.755167007Z",
+            "finishedAt": "2026-09-20T21:44:35.775521669Z",
+            "exitCode": 1,
+            "oomKilled": false
+          }
+        },
+        "gatewayRoutesAndTCP": "  sl  local_address rem_address   st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode                                                     \n   0: 00000000:2328 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 27569136 1 000000007973bdf4 100 0 0 10 0                  \n   1: 0B00007F:8209 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 27576742 1 000000004cd4b095 100 0 0 10 0                  \n  sl  local_address                         remote_address                        st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode\n",
+        "proxyTCPAndFault": ""
+      },
+      "ms": 1785
+    },
+    {
+      "case": "A",
+      "id": "A-exchange-1",
+      "at": "2026-09-20T21:44:44.939Z",
+      "url": "http://127.0.0.1:58431/torneos-gateway/exchange",
+      "path": "/exchange",
+      "httpResponse": false,
+      "error": {
+        "name": "TypeError",
+        "code": null,
+        "errno": null,
+        "syscall": null,
+        "message": "fetch failed",
+        "cause": {
+          "name": "Error",
+          "code": "ECONNREFUSED",
+          "errno": -61,
+          "syscall": "connect",
+          "message": "connect ECONNREFUSED 127.0.0.1:58431",
+          "cause": null,
+          "socket": null
+        },
+        "socket": null
+      },
+      "atError": "2026-09-20T21:44:44.943Z",
+      "atErrorState": {
+        "at": "2026-09-20T21:44:46.580Z",
+        "containers": {
+          "gateway": {
+            "id": "a6d3f2e9bfafba94803e78f3c9709f168d0f2b3dfd4a81cfe3030d03f9f5aa4f",
+            "running": true,
+            "restartCount": 0,
+            "startedAt": "2026-09-20T21:44:19.4554848Z",
+            "finishedAt": "0001-01-01T00:00:00Z",
+            "exitCode": 0,
+            "oomKilled": false
+          },
+          "proxy": {
+            "id": "f627a025903243f15d2b20f7bbb9235c62fdad4c1c6708c6b3ff9c3cb7a75e3d",
+            "running": false,
+            "restartCount": 0,
+            "startedAt": "2026-09-20T21:44:15.755167007Z",
+            "finishedAt": "2026-09-20T21:44:35.775521669Z",
+            "exitCode": 1,
+            "oomKilled": false
+          }
+        },
+        "gatewayRoutesAndTCP": "  sl  local_address rem_address   st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode                                                     \n   0: 00000000:2328 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 27569136 1 000000007973bdf4 100 0 0 10 0                  \n   1: 0B00007F:8209 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 27576742 1 000000004cd4b095 100 0 0 10 0                  \n  sl  local_address                         remote_address                        st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode\n",
+        "proxyTCPAndFault": ""
+      },
+      "ms": 1641
+    },
+    {
+      "case": "A",
+      "id": "A-exchange-2",
+      "at": "2026-09-20T21:44:46.580Z",
+      "url": "http://127.0.0.1:58431/torneos-gateway/exchange",
+      "path": "/exchange",
+      "httpResponse": false,
+      "error": {
+        "name": "TypeError",
+        "code": null,
+        "errno": null,
+        "syscall": null,
+        "message": "fetch failed",
+        "cause": {
+          "name": "Error",
+          "code": "ECONNREFUSED",
+          "errno": -61,
+          "syscall": "connect",
+          "message": "connect ECONNREFUSED 127.0.0.1:58431",
+          "cause": null,
+          "socket": null
+        },
+        "socket": null
+      },
+      "atError": "2026-09-20T21:44:46.582Z",
+      "atErrorState": {
+        "at": "2026-09-20T21:44:48.292Z",
+        "containers": {
+          "gateway": {
+            "id": "a6d3f2e9bfafba94803e78f3c9709f168d0f2b3dfd4a81cfe3030d03f9f5aa4f",
+            "running": true,
+            "restartCount": 0,
+            "startedAt": "2026-09-20T21:44:19.4554848Z",
+            "finishedAt": "0001-01-01T00:00:00Z",
+            "exitCode": 0,
+            "oomKilled": false
+          },
+          "proxy": {
+            "id": "f627a025903243f15d2b20f7bbb9235c62fdad4c1c6708c6b3ff9c3cb7a75e3d",
+            "running": false,
+            "restartCount": 0,
+            "startedAt": "2026-09-20T21:44:15.755167007Z",
+            "finishedAt": "2026-09-20T21:44:35.775521669Z",
+            "exitCode": 1,
+            "oomKilled": false
+          }
+        },
+        "gatewayRoutesAndTCP": "  sl  local_address rem_address   st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode                                                     \n   0: 00000000:2328 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 27569136 1 000000007973bdf4 100 0 0 10 0                  \n   1: 0B00007F:8209 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 27576742 1 000000004cd4b095 100 0 0 10 0                  \n  sl  local_address                         remote_address                        st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode\n",
+        "proxyTCPAndFault": ""
+      },
+      "ms": 1712
+    },
+    {
+      "case": "A",
+      "id": "A-exchange-3",
+      "at": "2026-09-20T21:44:48.292Z",
+      "url": "http://127.0.0.1:58431/torneos-gateway/exchange",
+      "path": "/exchange",
+      "httpResponse": false,
+      "error": {
+        "name": "TypeError",
+        "code": null,
+        "errno": null,
+        "syscall": null,
+        "message": "fetch failed",
+        "cause": {
+          "name": "Error",
+          "code": "ECONNREFUSED",
+          "errno": -61,
+          "syscall": "connect",
+          "message": "connect ECONNREFUSED 127.0.0.1:58431",
+          "cause": null,
+          "socket": null
+        },
+        "socket": null
+      },
+      "atError": "2026-09-20T21:44:48.295Z",
+      "atErrorState": {
+        "at": "2026-09-20T21:44:50.649Z",
+        "containers": {
+          "gateway": {
+            "id": "a6d3f2e9bfafba94803e78f3c9709f168d0f2b3dfd4a81cfe3030d03f9f5aa4f",
+            "running": true,
+            "restartCount": 0,
+            "startedAt": "2026-09-20T21:44:19.4554848Z",
+            "finishedAt": "0001-01-01T00:00:00Z",
+            "exitCode": 0,
+            "oomKilled": false
+          },
+          "proxy": {
+            "id": "f627a025903243f15d2b20f7bbb9235c62fdad4c1c6708c6b3ff9c3cb7a75e3d",
+            "running": false,
+            "restartCount": 0,
+            "startedAt": "2026-09-20T21:44:15.755167007Z",
+            "finishedAt": "2026-09-20T21:44:35.775521669Z",
+            "exitCode": 1,
+            "oomKilled": false
+          }
+        },
+        "gatewayRoutesAndTCP": "  sl  local_address rem_address   st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode                                                     \n   0: 00000000:2328 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 27569136 1 000000007973bdf4 100 0 0 10 0                  \n   1: 0B00007F:8209 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 27576742 1 000000004cd4b095 100 0 0 10 0                  \n  sl  local_address                         remote_address                        st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode\n",
+        "proxyTCPAndFault": ""
+      },
+      "ms": 2357
+    },
+    {
+      "case": "A",
+      "id": "A-exchange-4",
+      "at": "2026-09-20T21:44:50.649Z",
+      "url": "http://127.0.0.1:58431/torneos-gateway/exchange",
+      "path": "/exchange",
+      "httpResponse": false,
+      "error": {
+        "name": "TypeError",
+        "code": null,
+        "errno": null,
+        "syscall": null,
+        "message": "fetch failed",
+        "cause": {
+          "name": "Error",
+          "code": "ECONNREFUSED",
+          "errno": -61,
+          "syscall": "connect",
+          "message": "connect ECONNREFUSED 127.0.0.1:58431",
+          "cause": null,
+          "socket": null
+        },
+        "socket": null
+      },
+      "atError": "2026-09-20T21:44:50.653Z",
+      "atErrorState": {
+        "at": "2026-09-20T21:44:53.765Z",
+        "containers": {
+          "gateway": {
+            "id": "a6d3f2e9bfafba94803e78f3c9709f168d0f2b3dfd4a81cfe3030d03f9f5aa4f",
+            "running": true,
+            "restartCount": 0,
+            "startedAt": "2026-09-20T21:44:19.4554848Z",
+            "finishedAt": "0001-01-01T00:00:00Z",
+            "exitCode": 0,
+            "oomKilled": false
+          },
+          "proxy": {
+            "id": "f627a025903243f15d2b20f7bbb9235c62fdad4c1c6708c6b3ff9c3cb7a75e3d",
+            "running": false,
+            "restartCount": 0,
+            "startedAt": "2026-09-20T21:44:15.755167007Z",
+            "finishedAt": "2026-09-20T21:44:35.775521669Z",
+            "exitCode": 1,
+            "oomKilled": false
+          }
+        },
+        "gatewayRoutesAndTCP": "  sl  local_address rem_address   st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode                                                     \n   0: 00000000:2328 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 27569136 1 000000007973bdf4 100 0 0 10 0                  \n   1: 0B00007F:8209 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 27576742 1 000000004cd4b095 100 0 0 10 0                  \n  sl  local_address                         remote_address                        st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode\n",
+        "proxyTCPAndFault": ""
+      },
+      "ms": 3116
+    },
+    {
+      "case": "A",
+      "id": "A-exchange-5",
+      "at": "2026-09-20T21:44:53.765Z",
+      "url": "http://127.0.0.1:58431/torneos-gateway/exchange",
+      "path": "/exchange",
+      "httpResponse": false,
+      "error": {
+        "name": "TypeError",
+        "code": null,
+        "errno": null,
+        "syscall": null,
+        "message": "fetch failed",
+        "cause": {
+          "name": "Error",
+          "code": "ECONNREFUSED",
+          "errno": -61,
+          "syscall": "connect",
+          "message": "connect ECONNREFUSED 127.0.0.1:58431",
+          "cause": null,
+          "socket": null
+        },
+        "socket": null
+      },
+      "atError": "2026-09-20T21:44:53.766Z",
+      "atErrorState": {
+        "at": "2026-09-20T21:44:56.210Z",
+        "containers": {
+          "gateway": {
+            "id": "a6d3f2e9bfafba94803e78f3c9709f168d0f2b3dfd4a81cfe3030d03f9f5aa4f",
+            "running": true,
+            "restartCount": 0,
+            "startedAt": "2026-09-20T21:44:19.4554848Z",
+            "finishedAt": "0001-01-01T00:00:00Z",
+            "exitCode": 0,
+            "oomKilled": false
+          },
+          "proxy": {
+            "id": "f627a025903243f15d2b20f7bbb9235c62fdad4c1c6708c6b3ff9c3cb7a75e3d",
+            "running": false,
+            "restartCount": 0,
+            "startedAt": "2026-09-20T21:44:15.755167007Z",
+            "finishedAt": "2026-09-20T21:44:35.775521669Z",
+            "exitCode": 1,
+            "oomKilled": false
+          }
+        },
+        "gatewayRoutesAndTCP": "  sl  local_address rem_address   st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode                                                     \n   0: 00000000:2328 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 27569136 1 000000007973bdf4 100 0 0 10 0                  \n   1: 0B00007F:8209 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 27576742 1 000000004cd4b095 100 0 0 10 0                  \n  sl  local_address                         remote_address                        st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode\n",
+        "proxyTCPAndFault": ""
+      },
+      "ms": 2445
+    },
+    {
+      "case": "A",
+      "id": "A-exchange-6",
+      "at": "2026-09-20T21:44:56.210Z",
+      "url": "http://127.0.0.1:58431/torneos-gateway/exchange",
+      "path": "/exchange",
+      "httpResponse": false,
+      "error": {
+        "name": "TypeError",
+        "code": null,
+        "errno": null,
+        "syscall": null,
+        "message": "fetch failed",
+        "cause": {
+          "name": "Error",
+          "code": "ECONNREFUSED",
+          "errno": -61,
+          "syscall": "connect",
+          "message": "connect ECONNREFUSED 127.0.0.1:58431",
+          "cause": null,
+          "socket": null
+        },
+        "socket": null
+      },
+      "atError": "2026-09-20T21:44:56.211Z",
+      "atErrorState": {
+        "at": "2026-09-20T21:44:58.733Z",
+        "containers": {
+          "gateway": {
+            "id": "a6d3f2e9bfafba94803e78f3c9709f168d0f2b3dfd4a81cfe3030d03f9f5aa4f",
+            "running": true,
+            "restartCount": 0,
+            "startedAt": "2026-09-20T21:44:19.4554848Z",
+            "finishedAt": "0001-01-01T00:00:00Z",
+            "exitCode": 0,
+            "oomKilled": false
+          },
+          "proxy": {
+            "id": "f627a025903243f15d2b20f7bbb9235c62fdad4c1c6708c6b3ff9c3cb7a75e3d",
+            "running": false,
+            "restartCount": 0,
+            "startedAt": "2026-09-20T21:44:15.755167007Z",
+            "finishedAt": "2026-09-20T21:44:35.775521669Z",
+            "exitCode": 1,
+            "oomKilled": false
+          }
+        },
+        "gatewayRoutesAndTCP": "  sl  local_address rem_address   st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode                                                     \n   0: 00000000:2328 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 27569136 1 000000007973bdf4 100 0 0 10 0                  \n   1: 0B00007F:8209 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 27576742 1 000000004cd4b095 100 0 0 10 0                  \n  sl  local_address                         remote_address                        st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode\n",
+        "proxyTCPAndFault": ""
+      },
+      "ms": 2523
+    },
+    {
+      "case": "A",
+      "id": "A-exchange-7",
+      "at": "2026-09-20T21:44:58.733Z",
+      "url": "http://127.0.0.1:58431/torneos-gateway/exchange",
+      "path": "/exchange",
+      "httpResponse": false,
+      "error": {
+        "name": "TypeError",
+        "code": null,
+        "errno": null,
+        "syscall": null,
+        "message": "fetch failed",
+        "cause": {
+          "name": "Error",
+          "code": "ECONNREFUSED",
+          "errno": -61,
+          "syscall": "connect",
+          "message": "connect ECONNREFUSED 127.0.0.1:58431",
+          "cause": null,
+          "socket": null
+        },
+        "socket": null
+      },
+      "atError": "2026-09-20T21:44:58.734Z",
+      "atErrorState": {
+        "at": "2026-09-20T21:45:01.061Z",
+        "containers": {
+          "gateway": {
+            "id": "a6d3f2e9bfafba94803e78f3c9709f168d0f2b3dfd4a81cfe3030d03f9f5aa4f",
+            "running": true,
+            "restartCount": 0,
+            "startedAt": "2026-09-20T21:44:19.4554848Z",
+            "finishedAt": "0001-01-01T00:00:00Z",
+            "exitCode": 0,
+            "oomKilled": false
+          },
+          "proxy": {
+            "id": "f627a025903243f15d2b20f7bbb9235c62fdad4c1c6708c6b3ff9c3cb7a75e3d",
+            "running": false,
+            "restartCount": 0,
+            "startedAt": "2026-09-20T21:44:15.755167007Z",
+            "finishedAt": "2026-09-20T21:44:35.775521669Z",
+            "exitCode": 1,
+            "oomKilled": false
+          }
+        },
+        "gatewayRoutesAndTCP": "  sl  local_address rem_address   st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode                                                     \n   0: 00000000:2328 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 27569136 1 000000007973bdf4 100 0 0 10 0                  \n   1: 0B00007F:8209 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 27576742 1 000000004cd4b095 100 0 0 10 0                  \n  sl  local_address                         remote_address                        st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode\n",
+        "proxyTCPAndFault": ""
+      },
+      "ms": 2328
+    },
+    {
+      "case": "A",
+      "id": "A-health-after",
+      "at": "2026-09-20T21:45:01.061Z",
+      "url": "http://127.0.0.1:58431/torneos-gateway/health",
+      "path": "/health",
+      "httpResponse": false,
+      "error": {
+        "name": "TypeError",
+        "code": null,
+        "errno": null,
+        "syscall": null,
+        "message": "fetch failed",
+        "cause": {
+          "name": "Error",
+          "code": "ECONNREFUSED",
+          "errno": -61,
+          "syscall": "connect",
+          "message": "connect ECONNREFUSED 127.0.0.1:58431",
+          "cause": null,
+          "socket": null
+        },
+        "socket": null
+      },
+      "atError": "2026-09-20T21:45:01.062Z",
+      "atErrorState": {
+        "at": "2026-09-20T21:45:02.607Z",
+        "containers": {
+          "gateway": {
+            "id": "a6d3f2e9bfafba94803e78f3c9709f168d0f2b3dfd4a81cfe3030d03f9f5aa4f",
+            "running": true,
+            "restartCount": 0,
+            "startedAt": "2026-09-20T21:44:19.4554848Z",
+            "finishedAt": "0001-01-01T00:00:00Z",
+            "exitCode": 0,
+            "oomKilled": false
+          },
+          "proxy": {
+            "id": "f627a025903243f15d2b20f7bbb9235c62fdad4c1c6708c6b3ff9c3cb7a75e3d",
+            "running": false,
+            "restartCount": 0,
+            "startedAt": "2026-09-20T21:44:15.755167007Z",
+            "finishedAt": "2026-09-20T21:44:35.775521669Z",
+            "exitCode": 1,
+            "oomKilled": false
+          }
+        },
+        "gatewayRoutesAndTCP": "  sl  local_address rem_address   st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode                                                     \n   0: 00000000:2328 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 27569136 1 000000007973bdf4 100 0 0 10 0                  \n   1: 0B00007F:8209 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 27576742 1 000000004cd4b095 100 0 0 10 0                  \n  sl  local_address                         remote_address                        st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode\n",
+        "proxyTCPAndFault": ""
+      },
+      "ms": 1545
+    },
+    {
+      "case": "B",
+      "id": "B-health-before",
+      "at": "2026-09-20T21:45:07.521Z",
+      "url": "http://127.0.0.1:58431/torneos-gateway/health",
+      "path": "/health",
+      "httpResponse": false,
+      "error": {
+        "name": "TypeError",
+        "code": null,
+        "errno": null,
+        "syscall": null,
+        "message": "fetch failed",
+        "cause": {
+          "name": "Error",
+          "code": "ECONNREFUSED",
+          "errno": -61,
+          "syscall": "connect",
+          "message": "connect ECONNREFUSED 127.0.0.1:58431",
+          "cause": null,
+          "socket": null
+        },
+        "socket": null
+      },
+      "atError": "2026-09-20T21:45:07.522Z",
+      "atErrorState": {
+        "at": "2026-09-20T21:45:10.638Z",
+        "containers": {
+          "gateway": {
+            "id": "a6d3f2e9bfafba94803e78f3c9709f168d0f2b3dfd4a81cfe3030d03f9f5aa4f",
+            "running": true,
+            "restartCount": 0,
+            "startedAt": "2026-09-20T21:44:19.4554848Z",
+            "finishedAt": "0001-01-01T00:00:00Z",
+            "exitCode": 0,
+            "oomKilled": false
+          },
+          "proxy": {
+            "id": "f627a025903243f15d2b20f7bbb9235c62fdad4c1c6708c6b3ff9c3cb7a75e3d",
+            "running": false,
+            "restartCount": 0,
+            "startedAt": "2026-09-20T21:44:15.755167007Z",
+            "finishedAt": "2026-09-20T21:44:35.775521669Z",
+            "exitCode": 1,
+            "oomKilled": false
+          }
+        },
+        "gatewayRoutesAndTCP": "  sl  local_address rem_address   st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode                                                     \n   0: 00000000:2328 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 27569136 1 000000007973bdf4 100 0 0 10 0                  \n   1: 0B00007F:8209 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 27576742 1 000000004cd4b095 100 0 0 10 0                  \n  sl  local_address                         remote_address                        st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode\n",
+        "proxyTCPAndFault": ""
+      },
+      "ms": 3117
+    },
+    {
+      "case": "B",
+      "id": "B-exchange",
+      "at": "2026-09-20T21:46:16.149Z",
+      "url": "http://127.0.0.1:58431/torneos-gateway/exchange",
+      "path": "/exchange",
+      "httpResponse": false,
+      "error": {
+        "name": "TypeError",
+        "code": null,
+        "errno": null,
+        "syscall": null,
+        "message": "fetch failed",
+        "cause": {
+          "name": "Error",
+          "code": "ECONNREFUSED",
+          "errno": -61,
+          "syscall": "connect",
+          "message": "connect ECONNREFUSED 127.0.0.1:58431",
+          "cause": null,
+          "socket": null
+        },
+        "socket": null
+      },
+      "atError": "2026-09-20T21:46:16.150Z",
+      "atErrorState": {
+        "at": "2026-09-20T21:46:17.968Z",
+        "containers": {
+          "gateway": {
+            "id": "a6d3f2e9bfafba94803e78f3c9709f168d0f2b3dfd4a81cfe3030d03f9f5aa4f",
+            "running": true,
+            "restartCount": 0,
+            "startedAt": "2026-09-20T21:44:19.4554848Z",
+            "finishedAt": "0001-01-01T00:00:00Z",
+            "exitCode": 0,
+            "oomKilled": false
+          },
+          "proxy": {
+            "id": "f627a025903243f15d2b20f7bbb9235c62fdad4c1c6708c6b3ff9c3cb7a75e3d",
+            "running": false,
+            "restartCount": 0,
+            "startedAt": "2026-09-20T21:44:15.755167007Z",
+            "finishedAt": "2026-09-20T21:44:35.775521669Z",
+            "exitCode": 1,
+            "oomKilled": false
+          }
+        },
+        "gatewayRoutesAndTCP": "  sl  local_address rem_address   st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode                                                     \n   0: 00000000:2328 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 27569136 1 000000007973bdf4 100 0 0 10 0                  \n   1: 0B00007F:8209 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 27576742 1 000000004cd4b095 100 0 0 10 0                  \n  sl  local_address                         remote_address                        st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode\n",
+        "proxyTCPAndFault": ""
+      },
+      "ms": 1819
+    },
+    {
+      "case": "B",
+      "id": "B-health-after",
+      "at": "2026-09-20T21:46:17.968Z",
+      "url": "http://127.0.0.1:58431/torneos-gateway/health",
+      "path": "/health",
+      "httpResponse": false,
+      "error": {
+        "name": "TypeError",
+        "code": null,
+        "errno": null,
+        "syscall": null,
+        "message": "fetch failed",
+        "cause": {
+          "name": "Error",
+          "code": "ECONNREFUSED",
+          "errno": -61,
+          "syscall": "connect",
+          "message": "connect ECONNREFUSED 127.0.0.1:58431",
+          "cause": null,
+          "socket": null
+        },
+        "socket": null
+      },
+      "atError": "2026-09-20T21:46:17.969Z",
+      "atErrorState": {
+        "at": "2026-09-20T21:46:20.211Z",
+        "containers": {
+          "gateway": {
+            "id": "a6d3f2e9bfafba94803e78f3c9709f168d0f2b3dfd4a81cfe3030d03f9f5aa4f",
+            "running": true,
+            "restartCount": 0,
+            "startedAt": "2026-09-20T21:44:19.4554848Z",
+            "finishedAt": "0001-01-01T00:00:00Z",
+            "exitCode": 0,
+            "oomKilled": false
+          },
+          "proxy": {
+            "id": "f627a025903243f15d2b20f7bbb9235c62fdad4c1c6708c6b3ff9c3cb7a75e3d",
+            "running": false,
+            "restartCount": 0,
+            "startedAt": "2026-09-20T21:44:15.755167007Z",
+            "finishedAt": "2026-09-20T21:44:35.775521669Z",
+            "exitCode": 1,
+            "oomKilled": false
+          }
+        },
+        "gatewayRoutesAndTCP": "  sl  local_address rem_address   st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode                                                     \n   0: 00000000:2328 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 27569136 1 000000007973bdf4 100 0 0 10 0                  \n   1: 0B00007F:8209 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 27576742 1 000000004cd4b095 100 0 0 10 0                  \n  sl  local_address                         remote_address                        st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode\n",
+        "proxyTCPAndFault": ""
+      },
+      "ms": 2243
+    },
+    {
+      "case": "C",
+      "id": "C-health-before",
+      "at": "2026-09-20T21:46:25.439Z",
+      "url": "http://127.0.0.1:58431/torneos-gateway/health",
+      "path": "/health",
+      "httpResponse": false,
+      "error": {
+        "name": "TypeError",
+        "code": null,
+        "errno": null,
+        "syscall": null,
+        "message": "fetch failed",
+        "cause": {
+          "name": "Error",
+          "code": "ECONNREFUSED",
+          "errno": -61,
+          "syscall": "connect",
+          "message": "connect ECONNREFUSED 127.0.0.1:58431",
+          "cause": null,
+          "socket": null
+        },
+        "socket": null
+      },
+      "atError": "2026-09-20T21:46:25.441Z",
+      "atErrorState": {
+        "at": "2026-09-20T21:46:27.952Z",
+        "containers": {
+          "gateway": {
+            "id": "a6d3f2e9bfafba94803e78f3c9709f168d0f2b3dfd4a81cfe3030d03f9f5aa4f",
+            "running": true,
+            "restartCount": 0,
+            "startedAt": "2026-09-20T21:44:19.4554848Z",
+            "finishedAt": "0001-01-01T00:00:00Z",
+            "exitCode": 0,
+            "oomKilled": false
+          },
+          "proxy": {
+            "id": "f627a025903243f15d2b20f7bbb9235c62fdad4c1c6708c6b3ff9c3cb7a75e3d",
+            "running": false,
+            "restartCount": 0,
+            "startedAt": "2026-09-20T21:44:15.755167007Z",
+            "finishedAt": "2026-09-20T21:44:35.775521669Z",
+            "exitCode": 1,
+            "oomKilled": false
+          }
+        },
+        "gatewayRoutesAndTCP": "  sl  local_address rem_address   st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode                                                     \n   0: 00000000:2328 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 27569136 1 000000007973bdf4 100 0 0 10 0                  \n   1: 0B00007F:8209 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 27576742 1 000000004cd4b095 100 0 0 10 0                  \n  sl  local_address                         remote_address                        st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode\n",
+        "proxyTCPAndFault": ""
+      },
+      "ms": 2513
+    }
+  ],
+  "events": [
+    {
+      "at": "2026-09-20T21:44:36.923Z",
+      "case": null,
+      "event": "undici:request:error",
+      "path": "/torneos-gateway/health",
+      "socket": null,
+      "error": {
+        "name": "Error",
+        "code": "ECONNREFUSED",
+        "errno": -61,
+        "syscall": "connect",
+        "message": "connect ECONNREFUSED 127.0.0.1:58431",
+        "cause": null,
+        "socket": null
+      }
+    },
+    {
+      "at": "2026-09-20T21:44:41.290Z",
+      "case": "A",
+      "event": "undici:request:error",
+      "path": "/torneos-gateway/health",
+      "socket": null,
+      "error": {
+        "name": "Error",
+        "code": "ECONNREFUSED",
+        "errno": -61,
+        "syscall": "connect",
+        "message": "connect ECONNREFUSED 127.0.0.1:58431",
+        "cause": null,
+        "socket": null
+      }
+    },
+    {
+      "at": "2026-09-20T21:44:43.155Z",
+      "case": "A",
+      "event": "undici:request:error",
+      "path": "/torneos-gateway/exchange",
+      "socket": null,
+      "error": {
+        "name": "Error",
+        "code": "ECONNREFUSED",
+        "errno": -61,
+        "syscall": "connect",
+        "message": "connect ECONNREFUSED 127.0.0.1:58431",
+        "cause": null,
+        "socket": null
+      }
+    },
+    {
+      "at": "2026-09-20T21:44:44.942Z",
+      "case": "A",
+      "event": "undici:request:error",
+      "path": "/torneos-gateway/exchange",
+      "socket": null,
+      "error": {
+        "name": "Error",
+        "code": "ECONNREFUSED",
+        "errno": -61,
+        "syscall": "connect",
+        "message": "connect ECONNREFUSED 127.0.0.1:58431",
+        "cause": null,
+        "socket": null
+      }
+    },
+    {
+      "at": "2026-09-20T21:44:46.582Z",
+      "case": "A",
+      "event": "undici:request:error",
+      "path": "/torneos-gateway/exchange",
+      "socket": null,
+      "error": {
+        "name": "Error",
+        "code": "ECONNREFUSED",
+        "errno": -61,
+        "syscall": "connect",
+        "message": "connect ECONNREFUSED 127.0.0.1:58431",
+        "cause": null,
+        "socket": null
+      }
+    },
+    {
+      "at": "2026-09-20T21:44:48.295Z",
+      "case": "A",
+      "event": "undici:request:error",
+      "path": "/torneos-gateway/exchange",
+      "socket": null,
+      "error": {
+        "name": "Error",
+        "code": "ECONNREFUSED",
+        "errno": -61,
+        "syscall": "connect",
+        "message": "connect ECONNREFUSED 127.0.0.1:58431",
+        "cause": null,
+        "socket": null
+      }
+    },
+    {
+      "at": "2026-09-20T21:44:50.653Z",
+      "case": "A",
+      "event": "undici:request:error",
+      "path": "/torneos-gateway/exchange",
+      "socket": null,
+      "error": {
+        "name": "Error",
+        "code": "ECONNREFUSED",
+        "errno": -61,
+        "syscall": "connect",
+        "message": "connect ECONNREFUSED 127.0.0.1:58431",
+        "cause": null,
+        "socket": null
+      }
+    },
+    {
+      "at": "2026-09-20T21:44:53.766Z",
+      "case": "A",
+      "event": "undici:request:error",
+      "path": "/torneos-gateway/exchange",
+      "socket": null,
+      "error": {
+        "name": "Error",
+        "code": "ECONNREFUSED",
+        "errno": -61,
+        "syscall": "connect",
+        "message": "connect ECONNREFUSED 127.0.0.1:58431",
+        "cause": null,
+        "socket": null
+      }
+    },
+    {
+      "at": "2026-09-20T21:44:56.211Z",
+      "case": "A",
+      "event": "undici:request:error",
+      "path": "/torneos-gateway/exchange",
+      "socket": null,
+      "error": {
+        "name": "Error",
+        "code": "ECONNREFUSED",
+        "errno": -61,
+        "syscall": "connect",
+        "message": "connect ECONNREFUSED 127.0.0.1:58431",
+        "cause": null,
+        "socket": null
+      }
+    },
+    {
+      "at": "2026-09-20T21:44:58.734Z",
+      "case": "A",
+      "event": "undici:request:error",
+      "path": "/torneos-gateway/exchange",
+      "socket": null,
+      "error": {
+        "name": "Error",
+        "code": "ECONNREFUSED",
+        "errno": -61,
+        "syscall": "connect",
+        "message": "connect ECONNREFUSED 127.0.0.1:58431",
+        "cause": null,
+        "socket": null
+      }
+    },
+    {
+      "at": "2026-09-20T21:45:01.062Z",
+      "case": "A",
+      "event": "undici:request:error",
+      "path": "/torneos-gateway/health",
+      "socket": null,
+      "error": {
+        "name": "Error",
+        "code": "ECONNREFUSED",
+        "errno": -61,
+        "syscall": "connect",
+        "message": "connect ECONNREFUSED 127.0.0.1:58431",
+        "cause": null,
+        "socket": null
+      }
+    },
+    {
+      "at": "2026-09-20T21:45:07.522Z",
+      "case": "B",
+      "event": "undici:request:error",
+      "path": "/torneos-gateway/health",
+      "socket": null,
+      "error": {
+        "name": "Error",
+        "code": "ECONNREFUSED",
+        "errno": -61,
+        "syscall": "connect",
+        "message": "connect ECONNREFUSED 127.0.0.1:58431",
+        "cause": null,
+        "socket": null
+      }
+    },
+    {
+      "at": "2026-09-20T21:46:16.150Z",
+      "case": "B",
+      "event": "undici:request:error",
+      "path": "/torneos-gateway/exchange",
+      "socket": null,
+      "error": {
+        "name": "Error",
+        "code": "ECONNREFUSED",
+        "errno": -61,
+        "syscall": "connect",
+        "message": "connect ECONNREFUSED 127.0.0.1:58431",
+        "cause": null,
+        "socket": null
+      }
+    },
+    {
+      "at": "2026-09-20T21:46:17.969Z",
+      "case": "B",
+      "event": "undici:request:error",
+      "path": "/torneos-gateway/health",
+      "socket": null,
+      "error": {
+        "name": "Error",
+        "code": "ECONNREFUSED",
+        "errno": -61,
+        "syscall": "connect",
+        "message": "connect ECONNREFUSED 127.0.0.1:58431",
+        "cause": null,
+        "socket": null
+      }
+    },
+    {
+      "at": "2026-09-20T21:46:25.440Z",
+      "case": "C",
+      "event": "undici:request:error",
+      "path": "/torneos-gateway/health",
+      "socket": null,
+      "error": {
+        "name": "Error",
+        "code": "ECONNREFUSED",
+        "errno": -61,
+        "syscall": "connect",
+        "message": "connect ECONNREFUSED 127.0.0.1:58431",
+        "cause": null,
+        "socket": null
+      }
+    }
+  ],
+  "cases": [
+    {
+      "name": "A",
+      "before": {
+        "at": "2026-09-20T21:44:41.289Z",
+        "containers": {
+          "gateway": {
+            "id": "a6d3f2e9bfafba94803e78f3c9709f168d0f2b3dfd4a81cfe3030d03f9f5aa4f",
+            "running": true,
+            "restartCount": 0,
+            "startedAt": "2026-09-20T21:44:19.4554848Z",
+            "finishedAt": "0001-01-01T00:00:00Z",
+            "exitCode": 0,
+            "oomKilled": false
+          },
+          "proxy": {
+            "id": "f627a025903243f15d2b20f7bbb9235c62fdad4c1c6708c6b3ff9c3cb7a75e3d",
+            "running": false,
+            "restartCount": 0,
+            "startedAt": "2026-09-20T21:44:15.755167007Z",
+            "finishedAt": "2026-09-20T21:44:35.775521669Z",
+            "exitCode": 1,
+            "oomKilled": false
+          }
+        },
+        "gatewayRoutesAndTCP": "  sl  local_address rem_address   st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode                                                     \n   0: 00000000:2328 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 27569136 1 000000007973bdf4 100 0 0 10 0                  \n   1: 0B00007F:8209 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 27576742 1 000000004cd4b095 100 0 0 10 0                  \n  sl  local_address                         remote_address                        st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode\n",
+        "proxyTCPAndFault": ""
+      },
+      "healthBefore": {
+        "case": "A",
+        "id": "A-health-before",
+        "at": "2026-09-20T21:44:41.289Z",
+        "url": "http://127.0.0.1:58431/torneos-gateway/health",
+        "path": "/health",
+        "httpResponse": false,
+        "error": {
+          "name": "TypeError",
+          "code": null,
+          "errno": null,
+          "syscall": null,
+          "message": "fetch failed",
+          "cause": {
+            "name": "Error",
+            "code": "ECONNREFUSED",
+            "errno": -61,
+            "syscall": "connect",
+            "message": "connect ECONNREFUSED 127.0.0.1:58431",
+            "cause": null,
+            "socket": null
+          },
+          "socket": null
+        },
+        "atError": "2026-09-20T21:44:41.291Z",
+        "atErrorState": {
+          "at": "2026-09-20T21:44:43.154Z",
+          "containers": {
+            "gateway": {
+              "id": "a6d3f2e9bfafba94803e78f3c9709f168d0f2b3dfd4a81cfe3030d03f9f5aa4f",
+              "running": true,
+              "restartCount": 0,
+              "startedAt": "2026-09-20T21:44:19.4554848Z",
+              "finishedAt": "0001-01-01T00:00:00Z",
+              "exitCode": 0,
+              "oomKilled": false
+            },
+            "proxy": {
+              "id": "f627a025903243f15d2b20f7bbb9235c62fdad4c1c6708c6b3ff9c3cb7a75e3d",
+              "running": false,
+              "restartCount": 0,
+              "startedAt": "2026-09-20T21:44:15.755167007Z",
+              "finishedAt": "2026-09-20T21:44:35.775521669Z",
+              "exitCode": 1,
+              "oomKilled": false
+            }
+          },
+          "gatewayRoutesAndTCP": "  sl  local_address rem_address   st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode                                                     \n   0: 00000000:2328 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 27569136 1 000000007973bdf4 100 0 0 10 0                  \n   1: 0B00007F:8209 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 27576742 1 000000004cd4b095 100 0 0 10 0                  \n  sl  local_address                         remote_address                        st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode\n",
+          "proxyTCPAndFault": ""
+        },
+        "ms": 1865
+      },
+      "healthAfter": {
+        "case": "A",
+        "id": "A-health-after",
+        "at": "2026-09-20T21:45:01.061Z",
+        "url": "http://127.0.0.1:58431/torneos-gateway/health",
+        "path": "/health",
+        "httpResponse": false,
+        "error": {
+          "name": "TypeError",
+          "code": null,
+          "errno": null,
+          "syscall": null,
+          "message": "fetch failed",
+          "cause": {
+            "name": "Error",
+            "code": "ECONNREFUSED",
+            "errno": -61,
+            "syscall": "connect",
+            "message": "connect ECONNREFUSED 127.0.0.1:58431",
+            "cause": null,
+            "socket": null
+          },
+          "socket": null
+        },
+        "atError": "2026-09-20T21:45:01.062Z",
+        "atErrorState": {
+          "at": "2026-09-20T21:45:02.607Z",
+          "containers": {
+            "gateway": {
+              "id": "a6d3f2e9bfafba94803e78f3c9709f168d0f2b3dfd4a81cfe3030d03f9f5aa4f",
+              "running": true,
+              "restartCount": 0,
+              "startedAt": "2026-09-20T21:44:19.4554848Z",
+              "finishedAt": "0001-01-01T00:00:00Z",
+              "exitCode": 0,
+              "oomKilled": false
+            },
+            "proxy": {
+              "id": "f627a025903243f15d2b20f7bbb9235c62fdad4c1c6708c6b3ff9c3cb7a75e3d",
+              "running": false,
+              "restartCount": 0,
+              "startedAt": "2026-09-20T21:44:15.755167007Z",
+              "finishedAt": "2026-09-20T21:44:35.775521669Z",
+              "exitCode": 1,
+              "oomKilled": false
+            }
+          },
+          "gatewayRoutesAndTCP": "  sl  local_address rem_address   st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode                                                     \n   0: 00000000:2328 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 27569136 1 000000007973bdf4 100 0 0 10 0                  \n   1: 0B00007F:8209 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 27576742 1 000000004cd4b095 100 0 0 10 0                  \n  sl  local_address                         remote_address                        st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode\n",
+          "proxyTCPAndFault": ""
+        },
+        "ms": 1545
+      },
+      "after": {
+        "at": "2026-09-20T21:45:04.949Z",
+        "containers": {
+          "gateway": {
+            "id": "a6d3f2e9bfafba94803e78f3c9709f168d0f2b3dfd4a81cfe3030d03f9f5aa4f",
+            "running": true,
+            "restartCount": 0,
+            "startedAt": "2026-09-20T21:44:19.4554848Z",
+            "finishedAt": "0001-01-01T00:00:00Z",
+            "exitCode": 0,
+            "oomKilled": false
+          },
+          "proxy": {
+            "id": "f627a025903243f15d2b20f7bbb9235c62fdad4c1c6708c6b3ff9c3cb7a75e3d",
+            "running": false,
+            "restartCount": 0,
+            "startedAt": "2026-09-20T21:44:15.755167007Z",
+            "finishedAt": "2026-09-20T21:44:35.775521669Z",
+            "exitCode": 1,
+            "oomKilled": false
+          }
+        },
+        "gatewayRoutesAndTCP": "  sl  local_address rem_address   st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode                                                     \n   0: 00000000:2328 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 27569136 1 000000007973bdf4 100 0 0 10 0                  \n   1: 0B00007F:8209 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 27576742 1 000000004cd4b095 100 0 0 10 0                  \n  sl  local_address                         remote_address                        st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode\n",
+        "proxyTCPAndFault": ""
+      }
+    },
+    {
+      "name": "B",
+      "before": {
+        "at": "2026-09-20T21:45:07.521Z",
+        "containers": {
+          "gateway": {
+            "id": "a6d3f2e9bfafba94803e78f3c9709f168d0f2b3dfd4a81cfe3030d03f9f5aa4f",
+            "running": true,
+            "restartCount": 0,
+            "startedAt": "2026-09-20T21:44:19.4554848Z",
+            "finishedAt": "0001-01-01T00:00:00Z",
+            "exitCode": 0,
+            "oomKilled": false
+          },
+          "proxy": {
+            "id": "f627a025903243f15d2b20f7bbb9235c62fdad4c1c6708c6b3ff9c3cb7a75e3d",
+            "running": false,
+            "restartCount": 0,
+            "startedAt": "2026-09-20T21:44:15.755167007Z",
+            "finishedAt": "2026-09-20T21:44:35.775521669Z",
+            "exitCode": 1,
+            "oomKilled": false
+          }
+        },
+        "gatewayRoutesAndTCP": "  sl  local_address rem_address   st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode                                                     \n   0: 00000000:2328 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 27569136 1 000000007973bdf4 100 0 0 10 0                  \n   1: 0B00007F:8209 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 27576742 1 000000004cd4b095 100 0 0 10 0                  \n  sl  local_address                         remote_address                        st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode\n",
+        "proxyTCPAndFault": ""
+      },
+      "healthBefore": {
+        "case": "B",
+        "id": "B-health-before",
+        "at": "2026-09-20T21:45:07.521Z",
+        "url": "http://127.0.0.1:58431/torneos-gateway/health",
+        "path": "/health",
+        "httpResponse": false,
+        "error": {
+          "name": "TypeError",
+          "code": null,
+          "errno": null,
+          "syscall": null,
+          "message": "fetch failed",
+          "cause": {
+            "name": "Error",
+            "code": "ECONNREFUSED",
+            "errno": -61,
+            "syscall": "connect",
+            "message": "connect ECONNREFUSED 127.0.0.1:58431",
+            "cause": null,
+            "socket": null
+          },
+          "socket": null
+        },
+        "atError": "2026-09-20T21:45:07.522Z",
+        "atErrorState": {
+          "at": "2026-09-20T21:45:10.638Z",
+          "containers": {
+            "gateway": {
+              "id": "a6d3f2e9bfafba94803e78f3c9709f168d0f2b3dfd4a81cfe3030d03f9f5aa4f",
+              "running": true,
+              "restartCount": 0,
+              "startedAt": "2026-09-20T21:44:19.4554848Z",
+              "finishedAt": "0001-01-01T00:00:00Z",
+              "exitCode": 0,
+              "oomKilled": false
+            },
+            "proxy": {
+              "id": "f627a025903243f15d2b20f7bbb9235c62fdad4c1c6708c6b3ff9c3cb7a75e3d",
+              "running": false,
+              "restartCount": 0,
+              "startedAt": "2026-09-20T21:44:15.755167007Z",
+              "finishedAt": "2026-09-20T21:44:35.775521669Z",
+              "exitCode": 1,
+              "oomKilled": false
+            }
+          },
+          "gatewayRoutesAndTCP": "  sl  local_address rem_address   st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode                                                     \n   0: 00000000:2328 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 27569136 1 000000007973bdf4 100 0 0 10 0                  \n   1: 0B00007F:8209 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 27576742 1 000000004cd4b095 100 0 0 10 0                  \n  sl  local_address                         remote_address                        st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode\n",
+          "proxyTCPAndFault": ""
+        },
+        "ms": 3117
+      },
+      "offline": {
+        "ms": 65510,
+        "pass": true,
+        "tests": 29,
+        "bundleSHA256": "be45c9fbd7e5f3a9aad76e411825a689a3c21a7e99268f28c069afc3501e3eee"
+      },
+      "exchange": {
+        "case": "B",
+        "id": "B-exchange",
+        "at": "2026-09-20T21:46:16.149Z",
+        "url": "http://127.0.0.1:58431/torneos-gateway/exchange",
+        "path": "/exchange",
+        "httpResponse": false,
+        "error": {
+          "name": "TypeError",
+          "code": null,
+          "errno": null,
+          "syscall": null,
+          "message": "fetch failed",
+          "cause": {
+            "name": "Error",
+            "code": "ECONNREFUSED",
+            "errno": -61,
+            "syscall": "connect",
+            "message": "connect ECONNREFUSED 127.0.0.1:58431",
+            "cause": null,
+            "socket": null
+          },
+          "socket": null
+        },
+        "atError": "2026-09-20T21:46:16.150Z",
+        "atErrorState": {
+          "at": "2026-09-20T21:46:17.968Z",
+          "containers": {
+            "gateway": {
+              "id": "a6d3f2e9bfafba94803e78f3c9709f168d0f2b3dfd4a81cfe3030d03f9f5aa4f",
+              "running": true,
+              "restartCount": 0,
+              "startedAt": "2026-09-20T21:44:19.4554848Z",
+              "finishedAt": "0001-01-01T00:00:00Z",
+              "exitCode": 0,
+              "oomKilled": false
+            },
+            "proxy": {
+              "id": "f627a025903243f15d2b20f7bbb9235c62fdad4c1c6708c6b3ff9c3cb7a75e3d",
+              "running": false,
+              "restartCount": 0,
+              "startedAt": "2026-09-20T21:44:15.755167007Z",
+              "finishedAt": "2026-09-20T21:44:35.775521669Z",
+              "exitCode": 1,
+              "oomKilled": false
+            }
+          },
+          "gatewayRoutesAndTCP": "  sl  local_address rem_address   st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode                                                     \n   0: 00000000:2328 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 27569136 1 000000007973bdf4 100 0 0 10 0                  \n   1: 0B00007F:8209 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 27576742 1 000000004cd4b095 100 0 0 10 0                  \n  sl  local_address                         remote_address                        st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode\n",
+          "proxyTCPAndFault": ""
+        },
+        "ms": 1819
+      },
+      "healthAfter": {
+        "case": "B",
+        "id": "B-health-after",
+        "at": "2026-09-20T21:46:17.968Z",
+        "url": "http://127.0.0.1:58431/torneos-gateway/health",
+        "path": "/health",
+        "httpResponse": false,
+        "error": {
+          "name": "TypeError",
+          "code": null,
+          "errno": null,
+          "syscall": null,
+          "message": "fetch failed",
+          "cause": {
+            "name": "Error",
+            "code": "ECONNREFUSED",
+            "errno": -61,
+            "syscall": "connect",
+            "message": "connect ECONNREFUSED 127.0.0.1:58431",
+            "cause": null,
+            "socket": null
+          },
+          "socket": null
+        },
+        "atError": "2026-09-20T21:46:17.969Z",
+        "atErrorState": {
+          "at": "2026-09-20T21:46:20.211Z",
+          "containers": {
+            "gateway": {
+              "id": "a6d3f2e9bfafba94803e78f3c9709f168d0f2b3dfd4a81cfe3030d03f9f5aa4f",
+              "running": true,
+              "restartCount": 0,
+              "startedAt": "2026-09-20T21:44:19.4554848Z",
+              "finishedAt": "0001-01-01T00:00:00Z",
+              "exitCode": 0,
+              "oomKilled": false
+            },
+            "proxy": {
+              "id": "f627a025903243f15d2b20f7bbb9235c62fdad4c1c6708c6b3ff9c3cb7a75e3d",
+              "running": false,
+              "restartCount": 0,
+              "startedAt": "2026-09-20T21:44:15.755167007Z",
+              "finishedAt": "2026-09-20T21:44:35.775521669Z",
+              "exitCode": 1,
+              "oomKilled": false
+            }
+          },
+          "gatewayRoutesAndTCP": "  sl  local_address rem_address   st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode                                                     \n   0: 00000000:2328 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 27569136 1 000000007973bdf4 100 0 0 10 0                  \n   1: 0B00007F:8209 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 27576742 1 000000004cd4b095 100 0 0 10 0                  \n  sl  local_address                         remote_address                        st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode\n",
+          "proxyTCPAndFault": ""
+        },
+        "ms": 2243
+      },
+      "after": {
+        "at": "2026-09-20T21:46:22.517Z",
+        "containers": {
+          "gateway": {
+            "id": "a6d3f2e9bfafba94803e78f3c9709f168d0f2b3dfd4a81cfe3030d03f9f5aa4f",
+            "running": true,
+            "restartCount": 0,
+            "startedAt": "2026-09-20T21:44:19.4554848Z",
+            "finishedAt": "0001-01-01T00:00:00Z",
+            "exitCode": 0,
+            "oomKilled": false
+          },
+          "proxy": {
+            "id": "f627a025903243f15d2b20f7bbb9235c62fdad4c1c6708c6b3ff9c3cb7a75e3d",
+            "running": false,
+            "restartCount": 0,
+            "startedAt": "2026-09-20T21:44:15.755167007Z",
+            "finishedAt": "2026-09-20T21:44:35.775521669Z",
+            "exitCode": 1,
+            "oomKilled": false
+          }
+        },
+        "gatewayRoutesAndTCP": "  sl  local_address rem_address   st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode                                                     \n   0: 00000000:2328 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 27569136 1 000000007973bdf4 100 0 0 10 0                  \n   1: 0B00007F:8209 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 27576742 1 000000004cd4b095 100 0 0 10 0                  \n  sl  local_address                         remote_address                        st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode\n",
+        "proxyTCPAndFault": ""
+      }
+    },
+    {
+      "name": "C",
+      "before": {
+        "at": "2026-09-20T21:46:25.439Z",
+        "containers": {
+          "gateway": {
+            "id": "a6d3f2e9bfafba94803e78f3c9709f168d0f2b3dfd4a81cfe3030d03f9f5aa4f",
+            "running": true,
+            "restartCount": 0,
+            "startedAt": "2026-09-20T21:44:19.4554848Z",
+            "finishedAt": "0001-01-01T00:00:00Z",
+            "exitCode": 0,
+            "oomKilled": false
+          },
+          "proxy": {
+            "id": "f627a025903243f15d2b20f7bbb9235c62fdad4c1c6708c6b3ff9c3cb7a75e3d",
+            "running": false,
+            "restartCount": 0,
+            "startedAt": "2026-09-20T21:44:15.755167007Z",
+            "finishedAt": "2026-09-20T21:44:35.775521669Z",
+            "exitCode": 1,
+            "oomKilled": false
+          }
+        },
+        "gatewayRoutesAndTCP": "  sl  local_address rem_address   st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode                                                     \n   0: 00000000:2328 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 27569136 1 000000007973bdf4 100 0 0 10 0                  \n   1: 0B00007F:8209 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 27576742 1 000000004cd4b095 100 0 0 10 0                  \n  sl  local_address                         remote_address                        st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode\n",
+        "proxyTCPAndFault": ""
+      },
+      "healthBefore": {
+        "case": "C",
+        "id": "C-health-before",
+        "at": "2026-09-20T21:46:25.439Z",
+        "url": "http://127.0.0.1:58431/torneos-gateway/health",
+        "path": "/health",
+        "httpResponse": false,
+        "error": {
+          "name": "TypeError",
+          "code": null,
+          "errno": null,
+          "syscall": null,
+          "message": "fetch failed",
+          "cause": {
+            "name": "Error",
+            "code": "ECONNREFUSED",
+            "errno": -61,
+            "syscall": "connect",
+            "message": "connect ECONNREFUSED 127.0.0.1:58431",
+            "cause": null,
+            "socket": null
+          },
+          "socket": null
+        },
+        "atError": "2026-09-20T21:46:25.441Z",
+        "atErrorState": {
+          "at": "2026-09-20T21:46:27.952Z",
+          "containers": {
+            "gateway": {
+              "id": "a6d3f2e9bfafba94803e78f3c9709f168d0f2b3dfd4a81cfe3030d03f9f5aa4f",
+              "running": true,
+              "restartCount": 0,
+              "startedAt": "2026-09-20T21:44:19.4554848Z",
+              "finishedAt": "0001-01-01T00:00:00Z",
+              "exitCode": 0,
+              "oomKilled": false
+            },
+            "proxy": {
+              "id": "f627a025903243f15d2b20f7bbb9235c62fdad4c1c6708c6b3ff9c3cb7a75e3d",
+              "running": false,
+              "restartCount": 0,
+              "startedAt": "2026-09-20T21:44:15.755167007Z",
+              "finishedAt": "2026-09-20T21:44:35.775521669Z",
+              "exitCode": 1,
+              "oomKilled": false
+            }
+          },
+          "gatewayRoutesAndTCP": "  sl  local_address rem_address   st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode                                                     \n   0: 00000000:2328 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 27569136 1 000000007973bdf4 100 0 0 10 0                  \n   1: 0B00007F:8209 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 27576742 1 000000004cd4b095 100 0 0 10 0                  \n  sl  local_address                         remote_address                        st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode\n",
+          "proxyTCPAndFault": ""
+        },
+        "ms": 2513
+      }
+    }
+  ],
+  "cleanup": {
+    "qa": true,
+    "sessions": true,
+    "rows": true,
+    "catalogUnchanged": true,
+    "logout": 204,
+    "delete": {
+      "deleted": true,
+      "deleteStatus": 200,
+      "afterStatus": 404
+    },
+    "rowsDetail": {
+      "ok": true,
+      "delta": [],
+      "executed": false,
+      "after": {
+        "private.core_contract_attestations": 0,
+        "private.tournament_team_entry_core_snapshots": 0,
+        "public.torneos_identity": 0,
+        "public.tournament_announcement_audiences": 0,
+        "public.tournament_announcement_deliveries": 0,
+        "public.tournament_announcement_links": 0,
+        "public.tournament_announcements": 0,
+        "public.tournament_audit_log": 0,
+        "public.tournament_categories": 0,
+        "public.tournament_commercial_offers": 1,
+        "public.tournament_commercial_products": 1,
+        "public.tournament_competition_formats": 5,
+        "public.tournament_competition_participants": 0,
+        "public.tournament_courts": 0,
+        "public.tournament_disciplinary_overrides": 0,
+        "public.tournament_discipline_ledgers": 0,
+        "public.tournament_discipline_rules": 0,
+        "public.tournament_document_acknowledgements": 0,
+        "public.tournament_document_versions": 0,
+        "public.tournament_documents": 0,
+        "public.tournament_draw_pot_members": 0,
+        "public.tournament_draw_pots": 0,
+        "public.tournament_entitlement_capabilities": 28,
+        "public.tournament_entitlement_overrides": 0,
+        "public.tournament_fixture_versions": 0,
+        "public.tournament_group_members": 0,
+        "public.tournament_groups": 0,
+        "public.tournament_legacy_organization_subscriptions": 0,
+        "public.tournament_legacy_subscription_plans": 2,
+        "public.tournament_match_availability_responses": 0,
+        "public.tournament_match_events": 0,
+        "public.tournament_match_operation_players": 0,
+        "public.tournament_match_operations": 0,
+        "public.tournament_match_outcomes": 0,
+        "public.tournament_match_reschedules": 0,
+        "public.tournament_match_resumptions": 0,
+        "public.tournament_match_reviews": 0,
+        "public.tournament_match_scores": 0,
+        "public.tournament_match_sources": 0,
+        "public.tournament_match_squad_players": 0,
+        "public.tournament_match_squads": 0,
+        "public.tournament_matches": 0,
+        "public.tournament_media_assets": 0,
+        "public.tournament_media_assignments": 0,
+        "public.tournament_media_consent_events": 0,
+        "public.tournament_media_consents": 0,
+        "public.tournament_media_galleries": 0,
+        "public.tournament_media_gallery_items": 0,
+        "public.tournament_media_moderation_actions": 0,
+        "public.tournament_media_pipeline_configuration": 1,
+        "public.tournament_media_processing_jobs": 0,
+        "public.tournament_media_relations": 0,
+        "public.tournament_media_reports": 0,
+        "public.tournament_media_service_attestations": 0,
+        "public.tournament_media_upload_sessions": 0,
+        "public.tournament_media_variants": 0,
+        "public.tournament_notification_preferences": 0,
+        "public.tournament_organization_entitlement_overrides": 0,
+        "public.tournament_organization_members": 0,
+        "public.tournament_organization_plan_state": 0,
+        "public.tournament_organization_role_capabilities": 285,
+        "public.tournament_organizations": 0,
+        "public.tournament_participant_hub_preferences": 0,
+        "public.tournament_participant_sets": 0,
+        "public.tournament_phases": 0,
+        "public.tournament_plan_catalog": 2,
+        "public.tournament_plan_grant_events": 0,
+        "public.tournament_plan_grants": 0,
+        "public.tournament_player_portraits": 0,
+        "public.tournament_player_statistics": 0,
+        "public.tournament_player_suspensions": 0,
+        "public.tournament_points_adjustments": 0,
+        "public.tournament_pricing_config": 1,
+        "public.tournament_projection_sources": 0,
+        "public.tournament_provisional_players": 0,
+        "public.tournament_public_pages": 0,
+        "public.tournament_purchase_events": 0,
+        "public.tournament_purchases": 0,
+        "public.tournament_qualification_resolutions": 0,
+        "public.tournament_qualification_slots": 0,
+        "public.tournament_roster_players": 0,
+        "public.tournament_roster_settings": 0,
+        "public.tournament_rosters": 0,
+        "public.tournament_rounds": 0,
+        "public.tournament_schedule_windows": 0,
+        "public.tournament_scoring_rules": 0,
+        "public.tournament_season_member_assignments": 0,
+        "public.tournament_season_plan_grant_events": 0,
+        "public.tournament_season_plan_grants": 0,
+        "public.tournament_seasons": 0,
+        "public.tournament_social_permissions": 0,
+        "public.tournament_sport_modalities": 6,
+        "public.tournament_standings_revisions": 0,
+        "public.tournament_suspension_served_matches": 0,
+        "public.tournament_team_entries": 0,
+        "public.tournament_team_invitations": 0,
+        "public.tournament_team_managers": 0,
+        "public.tournament_team_photos": 0,
+        "public.tournament_team_reviews": 0,
+        "public.tournament_team_standings": 0,
+        "public.tournament_team_statistics": 0,
+        "public.tournament_tiebreak_rules": 0,
+        "public.tournament_venues": 0,
+        "public.tournaments": 0,
+        "public.user_tournament_context_preferences": 0,
+        "public.user_workspace_preferences": 0
+      },
+      "scope": {
+        "orgs": [],
+        "discoveredOrgs": [],
+        "identities": 0,
+        "coreUserIds": 1
+      }
+    }
+  },
+  "status": "FAIL",
+  "instrumentation": "METADATA_OBSERVER_INSTALLED",
+  "dispatcherConstructor": "Agent",
+  "aborted": "OUTAGE_NO_RESULT",
+  "qaUsers": [
+    {
+      "role": "transport",
+      "id": "6a70c260-5b67-47c9-bfe6-e54c1e5f9818",
+      "lastSession": "02b878e3-a10d-4fd8-a141-3451e0c9740b",
+      "deleted": true
+    }
+  ],
+  "complete": true,
+  "logs": {
+    "gateway": "\n",
+    "proxy": "2026-09-20T21:44:35.400213627Z R42_TRANSPORT {\"at\":\"2026-09-20T21:44:35.396Z\",\"event\":\"server\",\"keepAliveTimeout\":5000,\"keepAliveTimeoutBuffer\":1000,\"headersTimeout\":60000}\n\n2026-09-20T21:44:34.850019418Z Debugger listening on ws://127.0.0.1:9229/1f612203-6928-450b-bf0a-32da4502f78b\n2026-09-20T21:44:34.850066627Z For help, see: https://nodejs.org/en/docs/inspector\n2026-09-20T21:44:35.383358502Z Debugger attached.\n2026-09-20T21:44:35.415941710Z Debugger ending on ws://127.0.0.1:9229/1f612203-6928-450b-bf0a-32da4502f78b\n2026-09-20T21:44:35.415993002Z For help, see: https://nodejs.org/en/docs/inspector\n2026-09-20T21:44:35.527561835Z Debugger attached.\n2026-09-20T21:44:35.534055044Z Waiting for the debugger to disconnect...\n2026-09-20T21:44:35.737637210Z node:internal/modules/esm/utils:273\n2026-09-20T21:44:35.737675044Z   throw new ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING();\n2026-09-20T21:44:35.737679710Z         ^\n2026-09-20T21:44:35.737684419Z \n2026-09-20T21:44:35.737690710Z TypeError [ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING]: A dynamic import callback was not specified.\n2026-09-20T21:44:35.737694669Z     at importModuleDynamicallyCallback (node:internal/modules/esm/utils:273:9)\n2026-09-20T21:44:35.737698544Z     at <anonymous>:1:1 {\n2026-09-20T21:44:35.737707669Z   code: 'ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING'\n2026-09-20T21:44:35.737711585Z }\n2026-09-20T21:44:35.737715044Z \n2026-09-20T21:44:35.737718252Z Node.js v22.22.0\n"
+  }
+}

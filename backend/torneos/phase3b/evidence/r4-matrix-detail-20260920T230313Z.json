@@ -1,0 +1,1019 @@
+{
+  "schema": "R4.2.matrix-detail.v1",
+  "run": "arma2-r42-20260920t230323z",
+  "stamp": "20260920T230313Z",
+  "blocks": [
+    {
+      "name": "qa_users",
+      "status": "PASS",
+      "checks": [
+        {
+          "name": "five dedicated synthetic QA users created on Core staging with purpose phase3b-r42",
+          "pass": true,
+          "detail": [
+            {
+              "role": "owner",
+              "email": "q***@accounts.invalid",
+              "id": "d91cd12e",
+              "session": "7a394923",
+              "aud": "authenticated",
+              "iss": "https://hhyvmhgpapyuzjgxfnqv.supabase.co/auth/v1"
+            },
+            {
+              "role": "admin",
+              "email": "q***@accounts.invalid",
+              "id": "bdb6f99b",
+              "session": "0505d119",
+              "aud": "authenticated",
+              "iss": "https://hhyvmhgpapyuzjgxfnqv.supabase.co/auth/v1"
+            },
+            {
+              "role": "member",
+              "email": "q***@accounts.invalid",
+              "id": "fd7dd89c",
+              "session": "db86f9e8",
+              "aud": "authenticated",
+              "iss": "https://hhyvmhgpapyuzjgxfnqv.supabase.co/auth/v1"
+            },
+            {
+              "role": "outsider",
+              "email": "q***@accounts.invalid",
+              "id": "248e787e",
+              "session": "be643b39",
+              "aud": "authenticated",
+              "iss": "https://hhyvmhgpapyuzjgxfnqv.supabase.co/auth/v1"
+            },
+            {
+              "role": "captain",
+              "email": "q***@accounts.invalid",
+              "id": "e98e77f3",
+              "session": "d0dc1dff",
+              "aud": "authenticated",
+              "iss": "https://hhyvmhgpapyuzjgxfnqv.supabase.co/auth/v1"
+            }
+          ]
+        }
+      ],
+      "informative": true
+    },
+    {
+      "name": "exchange_valid",
+      "status": "PASS",
+      "checks": [
+        {
+          "name": "POST /exchange with a live Core bearer → 200, RS256 p3b-k1, certified claim contract, identity allocated",
+          "pass": true,
+          "detail": {
+            "sub": "5623aa54",
+            "kid": "p3b-k1",
+            "ttl": 120
+          }
+        },
+        {
+          "name": "exchange without / with garbage / with unsigned Core-shaped bearer → 401; identity or role input → 400",
+          "pass": true,
+          "detail": {
+            "none": {
+              "error": "access denied"
+            },
+            "forged": {
+              "error": "access denied"
+            },
+            "roleBody": {
+              "error": "exchange accepts no identity or role input"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "token_valid",
+      "status": "PASS",
+      "checks": [
+        {
+          "name": "valid bridge bearer → allowlisted RPC 200 and table read through the proxy (own identity row only)",
+          "pass": true,
+          "detail": {
+            "rpc": 200,
+            "identityRows": 1
+          }
+        }
+      ]
+    },
+    {
+      "name": "wrong_issuer",
+      "status": "PASS",
+      "checks": [
+        {
+          "name": "wrong_issuer: gateway RPC → 401 and direct PostgREST → 401/403",
+          "pass": true,
+          "detail": {
+            "gateway": 401,
+            "direct": 401,
+            "directCode": "PT401",
+            "dbCovered": true
+          }
+        }
+      ]
+    },
+    {
+      "name": "wrong_audience",
+      "status": "PASS",
+      "checks": [
+        {
+          "name": "wrong_audience: gateway RPC → 401 and direct PostgREST → 401/403",
+          "pass": true,
+          "detail": {
+            "gateway": 401,
+            "direct": 401,
+            "directCode": "PGRST303",
+            "dbCovered": true
+          }
+        }
+      ]
+    },
+    {
+      "name": "wrong_kid",
+      "status": "PASS",
+      "checks": [
+        {
+          "name": "unknown_kid: gateway RPC → 401 and direct PostgREST → 401/403",
+          "pass": true,
+          "detail": {
+            "gateway": 401,
+            "direct": 401,
+            "directCode": "PGRST301",
+            "dbCovered": true
+          }
+        },
+        {
+          "name": "standby_kid_p3b_k2: gateway RPC → 401 and direct PostgREST → 401/403",
+          "pass": true,
+          "detail": {
+            "gateway": 401,
+            "direct": 401,
+            "directCode": "PGRST301",
+            "dbCovered": true
+          }
+        }
+      ]
+    },
+    {
+      "name": "expired",
+      "status": "PASS",
+      "checks": [
+        {
+          "name": "expired: gateway RPC → 401 and direct PostgREST → 401/403",
+          "pass": true,
+          "detail": {
+            "gateway": 401,
+            "direct": 401,
+            "directCode": "PGRST303",
+            "dbCovered": true
+          }
+        }
+      ]
+    },
+    {
+      "name": "wrong_ttl",
+      "status": "PASS",
+      "checks": [
+        {
+          "name": "ttl_121: gateway RPC → 401 and direct PostgREST → 401/403",
+          "pass": true,
+          "detail": {
+            "gateway": 401,
+            "direct": 401,
+            "directCode": "PT401",
+            "dbCovered": true
+          }
+        },
+        {
+          "name": "ttl_60: gateway RPC → 401 and direct PostgREST → 401/403",
+          "pass": true,
+          "detail": {
+            "gateway": 401,
+            "direct": 401,
+            "directCode": "PT401",
+            "dbCovered": true
+          }
+        },
+        {
+          "name": "nbf_not_iat: gateway RPC → 401 and direct PostgREST → 401/403",
+          "pass": true,
+          "detail": {
+            "gateway": 401,
+            "direct": 401,
+            "directCode": "PT401",
+            "dbCovered": true
+          }
+        },
+        {
+          "name": "iat_future: gateway RPC → 401 and direct PostgREST → 401/403",
+          "pass": true,
+          "detail": {
+            "gateway": 401,
+            "direct": 401,
+            "directCode": "PGRST303",
+            "dbCovered": true
+          }
+        }
+      ]
+    },
+    {
+      "name": "claim_validation",
+      "status": "PASS",
+      "checks": [
+        {
+          "name": "role_service_role: gateway RPC → 401 and direct PostgREST → 401/403",
+          "pass": true,
+          "detail": {
+            "gateway": 401,
+            "direct": 401,
+            "directCode": "PT401",
+            "dbCovered": true
+          }
+        },
+        {
+          "name": "role_anon: gateway RPC → 401 and direct PostgREST → 401/403",
+          "pass": true,
+          "detail": {
+            "gateway": 401,
+            "direct": 401,
+            "directCode": "42501",
+            "dbCovered": true
+          }
+        },
+        {
+          "name": "alg_none: gateway RPC → 401 and direct PostgREST → 401/403",
+          "pass": true,
+          "detail": {
+            "gateway": 401,
+            "direct": 401,
+            "directCode": "PGRST301",
+            "dbCovered": true
+          }
+        },
+        {
+          "name": "typ_not_jwt: gateway RPC → 401 (gateway-only strictness; direct recorded)",
+          "pass": true,
+          "detail": {
+            "gateway": 401,
+            "direct": 200,
+            "directCode": null,
+            "dbCovered": false
+          }
+        },
+        {
+          "name": "sub_not_uuid: gateway RPC → 401 and direct PostgREST → 401/403",
+          "pass": true,
+          "detail": {
+            "gateway": 401,
+            "direct": 401,
+            "directCode": "PT401",
+            "dbCovered": true
+          }
+        },
+        {
+          "name": "core_user_id_not_uuid: gateway RPC → 401 and direct PostgREST → 401/403",
+          "pass": true,
+          "detail": {
+            "gateway": 401,
+            "direct": 401,
+            "directCode": "PT401",
+            "dbCovered": true
+          }
+        },
+        {
+          "name": "session_id_not_uuid: gateway RPC → 401 (gateway-only strictness; direct recorded)",
+          "pass": true,
+          "detail": {
+            "gateway": 401,
+            "direct": 200,
+            "directCode": null,
+            "dbCovered": false
+          }
+        },
+        {
+          "name": "jti_missing: gateway RPC → 401 and direct PostgREST → 401/403",
+          "pass": true,
+          "detail": {
+            "gateway": 401,
+            "direct": 401,
+            "directCode": "PT401",
+            "dbCovered": true
+          }
+        },
+        {
+          "name": "session_id_missing: gateway RPC → 401 and direct PostgREST → 401/403",
+          "pass": true,
+          "detail": {
+            "gateway": 401,
+            "direct": 401,
+            "directCode": "PT401",
+            "dbCovered": true
+          }
+        },
+        {
+          "name": "core_user_id_missing: gateway RPC → 401 and direct PostgREST → 401/403",
+          "pass": true,
+          "detail": {
+            "gateway": 401,
+            "direct": 401,
+            "directCode": "PT401",
+            "dbCovered": true
+          }
+        },
+        {
+          "name": "garbage: gateway RPC → 401 and direct PostgREST → 401/403",
+          "pass": true,
+          "detail": {
+            "gateway": 401,
+            "direct": 401,
+            "directCode": "PGRST301",
+            "dbCovered": true
+          }
+        },
+        {
+          "name": "empty: gateway RPC → 401 (gateway-only strictness; direct recorded)",
+          "pass": true,
+          "detail": {
+            "gateway": 401,
+            "direct": 401,
+            "directCode": "42501",
+            "dbCovered": false
+          }
+        }
+      ]
+    },
+    {
+      "name": "session_identity_binding",
+      "status": "PASS",
+      "checks": [
+        {
+          "name": "valid signature, real identity, unknown Core session → 401 (Core session authority)",
+          "pass": true,
+          "detail": {
+            "error": "access denied"
+          }
+        },
+        {
+          "name": "owner identity bound to the outsider Core user/session → 401 (identity ≠ core_user_id)",
+          "pass": true,
+          "detail": {
+            "error": "access denied"
+          }
+        },
+        {
+          "name": "owner Core user with the admin live session id → 401 (session belongs to another user)",
+          "pass": true,
+          "detail": {
+            "error": "access denied"
+          }
+        },
+        {
+          "name": "unknown local identity with the owner Core user/session → 401",
+          "pass": true,
+          "detail": {
+            "error": "access denied"
+          }
+        }
+      ]
+    },
+    {
+      "name": "fixtures",
+      "status": "PASS",
+      "checks": [
+        {
+          "name": "P0 fixture through the allowlisted RPCs with real Core sessions: org, 2 seasons, 2 tournaments in registration, seats, 7 submitted entries",
+          "pass": true,
+          "detail": {
+            "org": "e83162f1",
+            "org2": "825d490e",
+            "entries": 7,
+            "acceptance": [
+              {
+                "entry": "Matrix FC",
+                "status": 200,
+                "live": true,
+                "code": null,
+                "seeded": false
+              },
+              {
+                "entry": "Approve FC",
+                "status": 200,
+                "live": true,
+                "code": null,
+                "seeded": false
+              },
+              {
+                "entry": "Changes FC",
+                "status": 200,
+                "live": true,
+                "code": null,
+                "seeded": false
+              },
+              {
+                "entry": "Reject FC",
+                "status": 200,
+                "live": true,
+                "code": null,
+                "seeded": false
+              },
+              {
+                "entry": "Invalid FC",
+                "status": 200,
+                "live": true,
+                "code": null,
+                "seeded": false
+              },
+              {
+                "entry": "Admin Seat FC",
+                "status": 200,
+                "live": true,
+                "code": null,
+                "seeded": false
+              },
+              {
+                "entry": "Bravo FC",
+                "status": 200,
+                "live": true,
+                "code": null,
+                "seeded": false
+              }
+            ]
+          }
+        }
+      ],
+      "informative": true
+    },
+    {
+      "name": "live_contracts",
+      "status": "PASS",
+      "checks": [
+        {
+          "name": "verified_email: every manager acceptance was attested live by Core staging (no seeding)",
+          "pass": true,
+          "detail": {
+            "accepted": 7
+          }
+        }
+      ],
+      "informative": true
+    },
+    {
+      "name": "request_binding",
+      "status": "PASS",
+      "checks": [
+        {
+          "name": "directory_players through the gateway: Core attested → RPC consumed the attestation (live contract, 200)",
+          "pass": true,
+          "detail": {
+            "status": 200,
+            "items": 5
+          }
+        },
+        {
+          "name": "attestation is bound to the request hash: same actor/session, different query → TORNEOS_CORE_ATTESTATION_REQUIRED",
+          "pass": true,
+          "detail": {
+            "code": "42501",
+            "details": null,
+            "hint": null,
+            "message": "TORNEOS_CORE_ATTESTATION_REQUIRED"
+          }
+        },
+        {
+          "name": "attestation is bound to the Core session: same identity+hash, another session id → REQUIRED",
+          "pass": true,
+          "detail": {
+            "code": "42501",
+            "details": null,
+            "hint": null,
+            "message": "TORNEOS_CORE_ATTESTATION_REQUIRED"
+          }
+        },
+        {
+          "name": "attestation is bound to the contract: same params on directory_teams → REQUIRED",
+          "pass": true,
+          "detail": {
+            "code": "42501",
+            "details": null,
+            "hint": null,
+            "message": "TORNEOS_CORE_ATTESTATION_REQUIRED"
+          }
+        },
+        {
+          "name": "exact identity+session+hash within TTL consumes the pending attestation → 200; a second use → REQUIRED (single use)",
+          "pass": true,
+          "detail": {
+            "first": 200,
+            "replay": "TORNEOS_CORE_ATTESTATION_REQUIRED"
+          }
+        },
+        {
+          "name": "time binding: pending attestation older than 10 s → REQUIRED",
+          "pass": true,
+          "detail": {
+            "code": "42501",
+            "details": null,
+            "hint": null,
+            "message": "TORNEOS_CORE_ATTESTATION_REQUIRED"
+          }
+        }
+      ]
+    },
+    {
+      "name": "replay",
+      "status": "PASS",
+      "checks": [
+        {
+          "name": "attestation replay (consumed) → REQUIRED; no gateway path re-uses an attestation",
+          "pass": true,
+          "detail": {
+            "code": "42501",
+            "details": null,
+            "hint": null,
+            "message": "TORNEOS_CORE_ATTESTATION_REQUIRED"
+          }
+        },
+        {
+          "name": "Core nonce replay: the same signed /v1/session request twice → 200 then 401 REPLAY (operator-held HMAC, direct Core probe)",
+          "pass": true,
+          "detail": {
+            "first": 200,
+            "second": {
+              "error": "REPLAY"
+            }
+          }
+        },
+        {
+          "name": "a bridge bearer is a bearer within its 120 s TTL (two uses → 200, 200); revocation is session-bound (next block)",
+          "pass": true,
+          "detail": {
+            "uses": 2
+          }
+        }
+      ]
+    },
+    {
+      "name": "logout_revocation",
+      "status": "PASS",
+      "checks": [
+        {
+          "name": "member: bearer 200 → GoTrue logout(local) → same bearer 401 ×3 immediately → old Core token cannot exchange",
+          "pass": true,
+          "detail": {
+            "afterLogout": [
+              {
+                "status": 401,
+                "ms": 827
+              },
+              {
+                "status": 401,
+                "ms": 695
+              },
+              {
+                "status": 401,
+                "ms": 654
+              }
+            ],
+            "exchangeWithLoggedOutCoreToken": 401
+          }
+        }
+      ]
+    },
+    {
+      "name": "core_session_inactive",
+      "status": "PASS",
+      "checks": [
+        {
+          "name": "nonexistent Core session (valid signature) → 401",
+          "pass": true,
+          "detail": {
+            "error": "access denied"
+          }
+        },
+        {
+          "name": "revoked session: member logs in twice; logout(others) from s2 → bearer bound to s1 401, bearer bound to s2 200",
+          "pass": true,
+          "detail": {
+            "s1": 401,
+            "s2": 200
+          }
+        },
+        {
+          "name": "logged-out session id inside an otherwise valid bearer → 401 (no stale verdict)",
+          "pass": true,
+          "detail": {
+            "error": "access denied"
+          }
+        }
+      ]
+    },
+    {
+      "name": "core_auth_unavailable",
+      "status": "PASS",
+      "checks": [
+        {
+          "name": "Core Auth transport reset at run-owned proxy; ingress preserved: /health, exchange, RPC return gateway JSON 503; first recovery → 200",
+          "pass": true,
+          "detail": {
+            "health": 503,
+            "exchange": 503,
+            "rpc": 503,
+            "rpcBody": {
+              "error": "access denied"
+            },
+            "fault": "auth transport reset",
+            "ingressPreserved": true,
+            "recovery": {
+              "status": 200,
+              "attempt": 1,
+              "attempts": [
+                200
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "core_contract_unavailable",
+      "status": "PASS",
+      "checks": [
+        {
+          "name": "offline harness: real gateway modules, contract 500/502/timeout → 503 CORE_UNAVAILABLE (see r4-outage artifact)",
+          "pass": true,
+          "detail": {
+            "tests": 29,
+            "pass": true,
+            "bundleSHA256": "be45c9fbd7e5f3a9aad76e411825a689a3c21a7e99268f28c069afc3501e3eee"
+          }
+        },
+        {
+          "name": "live: with Core unreachable a verified bearer never reaches Torneos (503, no fallback)",
+          "pass": true,
+          "detail": {
+            "status": 503,
+            "body": {
+              "error": "CORE_UNAVAILABLE"
+            },
+            "cacheControl": "no-store",
+            "fault": "contract transport reset",
+            "ingressPreserved": true,
+            "recovery": {
+              "status": 200,
+              "attempt": 1,
+              "attempts": [
+                200
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "core_response_stale",
+      "status": "PASS",
+      "checks": [
+        {
+          "name": "offline harness: stale / future / malformed / schema-violating / active:false contract responses → 503 CORE_UNAVAILABLE",
+          "pass": true,
+          "detail": {
+            "covered": 5
+          }
+        },
+        {
+          "name": "offline harness: Core auth health 503 / user 500 → fail closed (503 / 401); Torneos DB unreachable → 503",
+          "pass": true,
+          "detail": {
+            "covered": 6
+          }
+        }
+      ]
+    },
+    {
+      "name": "torneos_rest_unavailable",
+      "status": "FAIL",
+      "checks": [
+        {
+          "name": "Torneos REST unreachable from the gateway namespace (REST /32 removed): verified bearer + live Core → 503; restored → 200",
+          "pass": false,
+          "error": "HTTP_TRANSPORT_FAILED: {\"origin\":\"http://127.0.0.1:58431\",\"path\":\"/torneos-gateway/torneos/rest/v1/rpc/get_my_tournament_memberships\",\"httpResponse\":false,\"name\":\"TypeError\",\"message\":\"fetch failed\",\"causeCode\":\"UND_ERR_SOCKET\",\"causeName\":\"SocketError\"}"
+        }
+      ]
+    },
+    {
+      "name": "cleanup",
+      "status": "PASS",
+      "checks": [
+        {
+          "name": "a bridge bearer issued before deletion is refused after the QA users are gone (no stale session)",
+          "pass": true,
+          "detail": "issued"
+        },
+        {
+          "name": "Core: every QA session logged out (scope=global)",
+          "pass": true,
+          "detail": {
+            "owner": 204,
+            "admin": 204,
+            "member": 204,
+            "outsider": 204,
+            "captain": 204
+          }
+        },
+        {
+          "name": "Core: every QA user hard-deleted after an identity/purpose guard (only users this run created)",
+          "pass": true,
+          "detail": {
+            "owner": {
+              "deleted": true,
+              "deleteStatus": 200,
+              "afterStatus": 404
+            },
+            "admin": {
+              "deleted": true,
+              "deleteStatus": 200,
+              "afterStatus": 404
+            },
+            "member": {
+              "deleted": true,
+              "deleteStatus": 200,
+              "afterStatus": 404
+            },
+            "outsider": {
+              "deleted": true,
+              "deleteStatus": 200,
+              "afterStatus": 404
+            },
+            "captain": {
+              "deleted": true,
+              "deleteStatus": 200,
+              "afterStatus": 404
+            }
+          }
+        },
+        {
+          "name": "pre-deletion bearer → 401 through the gateway",
+          "pass": true,
+          "detail": 401
+        },
+        {
+          "name": "Torneos: every row this run created removed (count-verified against the pre-run baseline, one transaction); catalog SHA unchanged",
+          "pass": true,
+          "detail": {
+            "tables": 21
+          }
+        }
+      ],
+      "informative": true
+    }
+  ],
+  "liveContracts": {
+    "verified_email": 7,
+    "seededAcceptances": 0
+  },
+  "aborted": "MATRIX_STOP_ON_FAILURE: Torneos REST unreachable from the gateway namespace (REST /32 removed): verified bearer + live Core → 503; restored → 200",
+  "cleanup": {
+    "qa": true,
+    "fixtures": true,
+    "sessions": false,
+    "sessionsLoggedOut": true,
+    "usersDeleted": true,
+    "detail": {
+      "users": [
+        {
+          "role": "owner",
+          "email": "q***@accounts.invalid",
+          "id": "d91cd12e-1edb-4033-92fa-619c15936184",
+          "lastSession": "7a394923-3693-40a1-ae40-750b8ae12a9f",
+          "deleted": true,
+          "deleteStatus": 200,
+          "afterStatus": 404
+        },
+        {
+          "role": "admin",
+          "email": "q***@accounts.invalid",
+          "id": "bdb6f99b-79de-45a8-8328-0795a8ea615c",
+          "lastSession": "0505d119-e224-448d-9310-eca2863d67d4",
+          "deleted": true,
+          "deleteStatus": 200,
+          "afterStatus": 404
+        },
+        {
+          "role": "member",
+          "email": "q***@accounts.invalid",
+          "id": "fd7dd89c-e541-428d-ae3d-879e1d5f61db",
+          "lastSession": "7d08a332-24d2-42e8-9c62-2ffbc4525750",
+          "deleted": true,
+          "deleteStatus": 200,
+          "afterStatus": 404
+        },
+        {
+          "role": "outsider",
+          "email": "q***@accounts.invalid",
+          "id": "248e787e-fa96-4f0f-aac7-624465c65db7",
+          "lastSession": "be643b39-fb11-48ed-bae6-239faf20ad57",
+          "deleted": true,
+          "deleteStatus": 200,
+          "afterStatus": 404
+        },
+        {
+          "role": "captain",
+          "email": "q***@accounts.invalid",
+          "id": "e98e77f3-b7a7-4f88-98d9-a1fa9b49f219",
+          "lastSession": "d0dc1dff-b617-49e4-a232-b4adac1e3050",
+          "deleted": true,
+          "deleteStatus": 200,
+          "afterStatus": 404
+        }
+      ],
+      "fixtures": {
+        "ok": true,
+        "executed": true,
+        "planned": [
+          "private.core_contract_attestations",
+          "public.torneos_identity",
+          "public.tournament_audit_log",
+          "public.tournament_categories",
+          "public.tournament_discipline_rules",
+          "public.tournament_organization_members",
+          "public.tournament_organizations",
+          "public.tournament_provisional_players",
+          "public.tournament_roster_players",
+          "public.tournament_roster_settings",
+          "public.tournament_rosters",
+          "public.tournament_scoring_rules",
+          "public.tournament_season_member_assignments",
+          "public.tournament_seasons",
+          "public.tournament_team_entries",
+          "public.tournament_team_invitations",
+          "public.tournament_team_managers",
+          "public.tournament_tiebreak_rules",
+          "public.tournaments",
+          "public.user_tournament_context_preferences",
+          "public.user_workspace_preferences"
+        ],
+        "mismatches": [],
+        "error": null,
+        "scope": {
+          "orgs": [
+            "e83162f1-268c-42b5-b171-ddc26e6bd35a",
+            "825d490e-a373-452b-9fc3-ec6a9edfb058"
+          ],
+          "discoveredOrgs": [
+            "e83162f1-268c-42b5-b171-ddc26e6bd35a",
+            "825d490e-a373-452b-9fc3-ec6a9edfb058"
+          ],
+          "identities": 5,
+          "coreUserIds": 5
+        }
+      },
+      "registry": {
+        "fixturesCompleted": true,
+        "counts": {
+          "organization": 2,
+          "season": 2,
+          "tournament": 2,
+          "category": 2,
+          "membership_seed": 2,
+          "season_assignment": 1,
+          "team_entry": 7,
+          "roster": 7,
+          "provisional_player": 35,
+          "roster_player": 35,
+          "manager_invitation": 7,
+          "acceptance_attestation": 7
+        },
+        "orgs": [
+          "e83162f1-268c-42b5-b171-ddc26e6bd35a",
+          "825d490e-a373-452b-9fc3-ec6a9edfb058"
+        ]
+      },
+      "routesRestored": null
+    }
+  },
+  "noStore": {
+    "responses": 183,
+    "violations": [],
+    "classes": {
+      "/exchange | 200 | ": {
+        "count": 12,
+        "cacheControl": "no-store"
+      },
+      "/exchange | 401 | access denied": {
+        "count": 4,
+        "cacheControl": "no-store"
+      },
+      "/exchange | 400 | exchange accepts no identity or role input": {
+        "count": 1,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/get_my_tournament_memberships | 200 | ": {
+        "count": 7,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/torneos_identity | 200 | ": {
+        "count": 1,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/get_my_tournament_memberships | 401 | access denied": {
+        "count": 32,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/create_tournament_organization | 200 | ": {
+        "count": 2,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/create_tournament_season | 200 | ": {
+        "count": 2,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/create_tournament_with_defaults | 200 | ": {
+        "count": 2,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/save_tournament_category | 200 | ": {
+        "count": 2,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/change_tournament_status | 200 | ": {
+        "count": 2,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/assign_tournament_season_member | 200 | ": {
+        "count": 1,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/list_tournament_season_member_assignments | 200 | ": {
+        "count": 1,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/create_tournament_team_entry | 200 | ": {
+        "count": 7,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/update_tournament_team_entry | 200 | ": {
+        "count": 7,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/create_tournament_provisional_player | 200 | ": {
+        "count": 35,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/add_tournament_roster_player | 200 | ": {
+        "count": 35,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/invite_tournament_team_manager | 200 | ": {
+        "count": 7,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/accept_tournament_team_invitation | 200 | ": {
+        "count": 7,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/submit_tournament_team_entry | 200 | ": {
+        "count": 7,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/search_tournament_players | 200 | ": {
+        "count": 1,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/search_tournament_players | 404 | ": {
+        "count": 2,
+        "cacheControl": "no-store"
+      },
+      "/health | 503 | access denied": {
+        "count": 1,
+        "cacheControl": "no-store"
+      },
+      "/exchange | 503 | access denied": {
+        "count": 1,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/get_my_tournament_memberships | 503 | access denied": {
+        "count": 1,
+        "cacheControl": "no-store"
+      },
+      "/health | 200 | ": {
+        "count": 2,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/get_my_tournament_memberships | 503 | CORE_UNAVAILABLE": {
+        "count": 1,
+        "cacheControl": "no-store"
+      }
+    }
+  },
+  "baseline": {
+    "catalogSHA256": "a45abe402d83c01102d5c007ea02c7095a3e9e49ec7377c407f57acad66ac54e",
+    "r2": {
+      "db": "11174d24af7577e19745e3309859bb8547ec63a146803fd4fed21b43fe3907e8",
+      "rest": "6c19b824a63351ab22d3bdcb2d2b3b514809f48826e18b3f1b6453463a9ce3f3"
+    }
+  }
+}

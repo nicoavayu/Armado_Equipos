@@ -1,0 +1,1353 @@
+{
+  "utc": "20260918T213218Z",
+  "status": "PASS",
+  "packages": [
+    {
+      "specifier": "npm:jose@6.2.12",
+      "version": "6.2.12",
+      "origin": "https://registry.npmjs.org/jose",
+      "localSource": "read-only copy of arma2-core-contracts-phase3a_torneos-deno-cache",
+      "dependencies": {},
+      "files": [
+        {
+          "path": "dist/types/index.d.ts",
+          "sha256": "1decd2094835e939269d137c31570d789f9d190cd40d520f18df46dc98e6d474",
+          "bytes": 4196
+        },
+        {
+          "path": "dist/types/jwe/compact/decrypt.d.ts",
+          "sha256": "76699c49b3f5919f7c82ec6d09da531c479d31cf780437492bf00a7f147c9d91",
+          "bytes": 1494
+        },
+        {
+          "path": "dist/types/jwe/compact/encrypt.d.ts",
+          "sha256": "9f450508b77198f06c1598a9b3181025e35204d29184b37d209a46f5443d40dc",
+          "bytes": 1618
+        },
+        {
+          "path": "dist/types/jwe/flattened/decrypt.d.ts",
+          "sha256": "442726c2735b859945978e97b9a42b2fe3a55a52b46dba9c92e1ee13c55a99ea",
+          "bytes": 1510
+        },
+        {
+          "path": "dist/types/jwe/flattened/encrypt.d.ts",
+          "sha256": "68f92cdddf1813db729f08247202bd21b5ab7ecefd97ad86b8d58dad97b363a4",
+          "bytes": 2076
+        },
+        {
+          "path": "dist/types/jwe/general/decrypt.d.ts",
+          "sha256": "86d1bddb614724ed990fe87b2d0147cd051c8b0e09655c0d59b903c1b36884d8",
+          "bytes": 1733
+        },
+        {
+          "path": "dist/types/jwe/general/encrypt.d.ts",
+          "sha256": "e0c5ee64017425014096a61602ab1219a3d373a50623a829d10d295107b3c4b7",
+          "bytes": 2310
+        },
+        {
+          "path": "dist/types/jwk/embedded.d.ts",
+          "sha256": "3be6e994180df1fa1a57706eb9070f905b88a31133ad962052685c6d864f986d",
+          "bytes": 576
+        },
+        {
+          "path": "dist/types/jwk/thumbprint.d.ts",
+          "sha256": "b53e6017f30437096813ba5b191ba8f207cc68b5c49fc7d5c373a5977eb3b227",
+          "bytes": 772
+        },
+        {
+          "path": "dist/types/jwks/local.d.ts",
+          "sha256": "8ee019582cfb775345530144dcefa2a1b9bd3b97e24d3b031cdf199cf3d885ff",
+          "bytes": 816
+        },
+        {
+          "path": "dist/types/jwks/remote.d.ts",
+          "sha256": "589cce09cb9171d4291f410f6a7663958f49ed23b59e535d8723f5ee520c2992",
+          "bytes": 3907
+        },
+        {
+          "path": "dist/types/jws/compact/sign.d.ts",
+          "sha256": "f18428de5e6ed60a80296b31a13bb3afafac33c90dd3e018a0ca586e6443d14b",
+          "bytes": 731
+        },
+        {
+          "path": "dist/types/jws/compact/verify.d.ts",
+          "sha256": "e4a374a242d8648a15355ab2e43987223d3f9df7c3c1f5b82dad43ad325dc8db",
+          "bytes": 1582
+        },
+        {
+          "path": "dist/types/jws/flattened/sign.d.ts",
+          "sha256": "e2ada078de4a29afdc03408cb4c89d41afcd33f9ac62b41697cde281fc8a151b",
+          "bytes": 883
+        },
+        {
+          "path": "dist/types/jws/flattened/verify.d.ts",
+          "sha256": "6f00ac42b0b33712d9f71e3c002d5aa2679e74984cbdeb3ec21392ea1f4362d7",
+          "bytes": 1601
+        },
+        {
+          "path": "dist/types/jws/general/sign.d.ts",
+          "sha256": "39601e5ad5e6182e39c7220dd4e98bc5d12c308d03fd9a8c201e2a14d4c51531",
+          "bytes": 1626
+        },
+        {
+          "path": "dist/types/jws/general/verify.d.ts",
+          "sha256": "3f268a41fd940011dab145f6df0f02405eaac656c4e8a6a61446fcf6968a649b",
+          "bytes": 1846
+        },
+        {
+          "path": "dist/types/jwt/decrypt.d.ts",
+          "sha256": "9523431a52cbfe2abb5613725f428ae71decc4aac8866c72271e60600dc5b5c7",
+          "bytes": 2150
+        },
+        {
+          "path": "dist/types/jwt/encrypt.d.ts",
+          "sha256": "ec0a24abe53f1b2cd1a8267eb7e4d68ecaa683672f7042c14f20e7f2ae5b9ccf",
+          "bytes": 2484
+        },
+        {
+          "path": "dist/types/jwt/sign.d.ts",
+          "sha256": "f02f7e5f3ca4ba961f1ec2d00bcee9d6f4d845b5675d0853f9a51ba1fcc71caf",
+          "bytes": 881
+        },
+        {
+          "path": "dist/types/jwt/unsecured.d.ts",
+          "sha256": "3ec59ac803112f958e436b7226847f92740ae808dd7726669a63f44ad44e5f17",
+          "bytes": 1012
+        },
+        {
+          "path": "dist/types/jwt/verify.d.ts",
+          "sha256": "8a6223315a35d4be210cebb17fd3bf4b39730fa231b09f44329e3dfffc594058",
+          "bytes": 2256
+        },
+        {
+          "path": "dist/types/key/export.d.ts",
+          "sha256": "0f85f184b10b605b5a451b4c1ea4dae6504f15b09d3dfc6f29393c24048d8382",
+          "bytes": 660
+        },
+        {
+          "path": "dist/types/key/generate_key_pair.d.ts",
+          "sha256": "28c819853632e67bfcefaa28284cc903a097d91ac8a363e7e0130029f9652525",
+          "bytes": 1668
+        },
+        {
+          "path": "dist/types/key/generate_secret.d.ts",
+          "sha256": "322c0faa6c21776a8bc9c601671608789207973f4538738c1f048dd1022e6588",
+          "bytes": 1780
+        },
+        {
+          "path": "dist/types/key/import.d.ts",
+          "sha256": "7b650a37673c22b7c8da82d35221133408fde0ee1943de09b2b110f28481f56f",
+          "bytes": 3289
+        },
+        {
+          "path": "dist/types/types.d.ts",
+          "sha256": "642694c151675c36a5b4fe6a8336612090cdad7377497db0d5eb19180999cc74",
+          "bytes": 22374
+        },
+        {
+          "path": "dist/types/util/base64url.d.ts",
+          "sha256": "5191f81538f064a1a28b0b59b413f4435e71421168fea5e0afb5ebd5ed41a265",
+          "bytes": 619
+        },
+        {
+          "path": "dist/types/util/decode_jwt.d.ts",
+          "sha256": "3e5ddd42de79da6aee4c6b5f6cc1807df3affd1c7226a46cb34be82781be8fdc",
+          "bytes": 424
+        },
+        {
+          "path": "dist/types/util/decode_protected_header.d.ts",
+          "sha256": "e2a3ee25f43d163379f1fb2ea7ae3bba1703c8e08f6723eb7c3ece5122de34f8",
+          "bytes": 532
+        },
+        {
+          "path": "dist/types/util/errors.d.ts",
+          "sha256": "b515a0dad294d5c0dfedec02baa55ff950269ae668581a19dd36c7e5f67c5bd5",
+          "bytes": 7891
+        },
+        {
+          "path": "dist/webapi/index.js",
+          "sha256": "f198638529597ab18dc3d2799f362106121f90cf0b0c43e75c3dffa5cc6b8590",
+          "bytes": 2376
+        },
+        {
+          "path": "dist/webapi/jwe/compact/decrypt.js",
+          "sha256": "c08202f5114caee270bcaa0ed3e119acb241f88d51c6d65a34a1fd6a3353cd2a",
+          "bytes": 217
+        },
+        {
+          "path": "dist/webapi/jwe/compact/encrypt.js",
+          "sha256": "8db8eb9fa34a0187c0ff26e04c37024af421f2f265255d60a01c0edf416f2f85",
+          "bytes": 978
+        },
+        {
+          "path": "dist/webapi/jwe/flattened/decrypt.js",
+          "sha256": "4964d31fafb143a8f15cf4820214b268706dbbd569bdedaa9b24a11520f6c6b2",
+          "bytes": 659
+        },
+        {
+          "path": "dist/webapi/jwe/flattened/encrypt.js",
+          "sha256": "e1fe288a34aae4938dbdd13b86e33e54fef9ff3f3c55a2354ab9d7b5665d1e92",
+          "bytes": 1369
+        },
+        {
+          "path": "dist/webapi/jwe/general/decrypt.js",
+          "sha256": "3a721fc3958f36c3bed7764a032238b35f9172bf95d40a7e28a4cea4d7ccd511",
+          "bytes": 1811
+        },
+        {
+          "path": "dist/webapi/jwe/general/encrypt.js",
+          "sha256": "2b0bdf8227f2c88fbacf7965cc78809f14b844e76a179a16099b60cf1562012b",
+          "bytes": 4388
+        },
+        {
+          "path": "dist/webapi/jwk/embedded.js",
+          "sha256": "449f2b08f47d006a4b937201692b7a830c9e9ac785e82073c1f6f9792642f91d",
+          "bytes": 1134
+        },
+        {
+          "path": "dist/webapi/jwk/thumbprint.js",
+          "sha256": "a1a3918fc1e2d3a8e70d613bf7b486eeac39c1ef9fcb4b36e028460276565e41",
+          "bytes": 2682
+        },
+        {
+          "path": "dist/webapi/jwks/local.js",
+          "sha256": "ac751386e13c8b5c0ef87848ae98e2a97dd6eaa3973346edff3b29350d3945b0",
+          "bytes": 2779
+        },
+        {
+          "path": "dist/webapi/jwks/remote.js",
+          "sha256": "b0860b27b5cb461bc743291a228da93c387a664d989fc69829a9626bfa0de264",
+          "bytes": 4238
+        },
+        {
+          "path": "dist/webapi/jws/compact/sign.js",
+          "sha256": "09450f2b3763b531d28bec9796d2f3ff0064c7b07dde15f7d1e1e7693e2ec12a",
+          "bytes": 702
+        },
+        {
+          "path": "dist/webapi/jws/compact/verify.js",
+          "sha256": "6d1109739b895858c7006d02ef91f8b13ce5ae8c91996d1f1c0b57c1ab33c398",
+          "bytes": 243
+        },
+        {
+          "path": "dist/webapi/jws/flattened/sign.js",
+          "sha256": "01cb90bcf39d8aa9bcf6d3efd36f5b80c112e547ef5448d7512b7aafa72bb6dd",
+          "bytes": 757
+        },
+        {
+          "path": "dist/webapi/jws/flattened/verify.js",
+          "sha256": "ff23003a7b0a4d8a7add2cd8b13b72393b863f6f251ddd814f08d69b35be3b2e",
+          "bytes": 538
+        },
+        {
+          "path": "dist/webapi/jws/general/sign.js",
+          "sha256": "226bf031e03174e6a505c534b4bdd228d8d677cf2c494ffc7c618dfd535f5b55",
+          "bytes": 1895
+        },
+        {
+          "path": "dist/webapi/jws/general/verify.js",
+          "sha256": "4623bf6e59023c7a2bfe5cf9d40b5d1e9f8165f2f18b4374e061911582041a4a",
+          "bytes": 1967
+        },
+        {
+          "path": "dist/webapi/jwt/decrypt.js",
+          "sha256": "233bb797f9239582ada83fac5723c818dfa0f24e9a864680759df5f2bb5b260c",
+          "bytes": 841
+        },
+        {
+          "path": "dist/webapi/jwt/encrypt.js",
+          "sha256": "c08c45c7ba87d6bd6d51051cafe80a8ce33150a4cf5116ae03e76e3c65edb2a2",
+          "bytes": 1843
+        },
+        {
+          "path": "dist/webapi/jwt/sign.js",
+          "sha256": "aab04f3c698940af2bae4180bfda71914d36700b70f25afd0fefe3028a45f2dd",
+          "bytes": 719
+        },
+        {
+          "path": "dist/webapi/jwt/unsecured.js",
+          "sha256": "a9b3d6898039163c1e47573e27290b58fee7a3b8f9a3aac2fe04c1d7a77fb63d",
+          "bytes": 1580
+        },
+        {
+          "path": "dist/webapi/jwt/verify.js",
+          "sha256": "e015a18744717762a1f138d0f0a88a40d3b660bc46f76ddf8309b32987175bef",
+          "bytes": 534
+        },
+        {
+          "path": "dist/webapi/key/export.js",
+          "sha256": "634aee75fbdabbffb73d439ae63305ad043a268354ecf53426b827ba3f81cfb7",
+          "bytes": 1120
+        },
+        {
+          "path": "dist/webapi/key/generate_key_pair.js",
+          "sha256": "97e4e5b66af75700da10fc5807471636b633d7c72c65a7fe50980c4a3a2c6c74",
+          "bytes": 1645
+        },
+        {
+          "path": "dist/webapi/key/generate_secret.js",
+          "sha256": "b6984ddbed52cff9179a1b681076ad6d1529ff50fabc58bb32b9b71752cf9523",
+          "bytes": 1233
+        },
+        {
+          "path": "dist/webapi/key/import.js",
+          "sha256": "ab2f57a9db99e8d48451a8d0a8adf75379381f65b0e3e28ba6c02aa5bb3ee5fa",
+          "bytes": 2279
+        },
+        {
+          "path": "dist/webapi/lib/asn1.js",
+          "sha256": "4945afdb21c49efc7fa703a2e1cde94b8a1d28f13416aafd26128453472903c5",
+          "bytes": 5853
+        },
+        {
+          "path": "dist/webapi/lib/buffer_utils.js",
+          "sha256": "cac7d34f3eab78ad56967097b793f55cd50ae1d7b42012d8e1a1f2736f50d720",
+          "bytes": 2736
+        },
+        {
+          "path": "dist/webapi/lib/content_encryption.js",
+          "sha256": "43b0e897c80a12b42516a6d48cbb2a31ef3a9522eccc5716a01d182cade9eb63",
+          "bytes": 4224
+        },
+        {
+          "path": "dist/webapi/lib/deflate.js",
+          "sha256": "9f7b28c5705633835228c8e11642b860260d62ddda0d76dc02a487664b1d2eb5",
+          "bytes": 1598
+        },
+        {
+          "path": "dist/webapi/lib/jwe_algorithms.js",
+          "sha256": "d41562ff2ccc3599f7189384653fbcd1ff68babd475fe99e31eccb61706abd47",
+          "bytes": 3326
+        },
+        {
+          "path": "dist/webapi/lib/jwe_decrypt.js",
+          "sha256": "5d5ba0ac80a18138940d27b439f4420c16001f4da57c9d1168c7b41e4cfe009b",
+          "bytes": 8956
+        },
+        {
+          "path": "dist/webapi/lib/jwe_encrypt.js",
+          "sha256": "783d800778e27227fb39987be2da1705c96993df614bc30fc08252b9cef137ed",
+          "bytes": 5899
+        },
+        {
+          "path": "dist/webapi/lib/jws_algorithms.js",
+          "sha256": "72e8be8e3d179effde822ecc8f75c7726d7323be718a961837f6882b012992e9",
+          "bytes": 1746
+        },
+        {
+          "path": "dist/webapi/lib/jws_sign.js",
+          "sha256": "f91650ec8e2248bdbcaa0b11a0f4018a4cfd9b42f30219b0ba7e839e86172e70",
+          "bytes": 2738
+        },
+        {
+          "path": "dist/webapi/lib/jws_verify.js",
+          "sha256": "7c236143de90ead568128265a6d9dcfc5cb6a264e5fb0bdc1e39989e2cfc19c2",
+          "bytes": 5402
+        },
+        {
+          "path": "dist/webapi/lib/jwt_claims_set.js",
+          "sha256": "624433ec72028d7feb512151541cfc96726aa8ceaa6f095867989c5eb8c50e5d",
+          "bytes": 7307
+        },
+        {
+          "path": "dist/webapi/lib/key_algorithm.js",
+          "sha256": "4ef0b80292076659b054313f70eeef81cd7df01e2ec9988c24552206bc42cc07",
+          "bytes": 517
+        },
+        {
+          "path": "dist/webapi/lib/key_descriptor.js",
+          "sha256": "80ae05a1fc41271a29dbd5ab717255a1255ee0ac43b6820853d2f338d9e74b46",
+          "bytes": 167
+        },
+        {
+          "path": "dist/webapi/lib/key_management.js",
+          "sha256": "c65e89877bda7df0f5bf08686334a1ab8fe291b4bcdc5599edf901cd7b5cecaf",
+          "bytes": 10987
+        },
+        {
+          "path": "dist/webapi/lib/key.js",
+          "sha256": "e150a72056a69a980a19c23334f5c16e4b9aedfbde9af2702070c5bf93fc075d",
+          "bytes": 7824
+        },
+        {
+          "path": "dist/webapi/lib/validate.js",
+          "sha256": "2a85b6eadc2c03af99f9fbb1cf01198e9ef2e3af5589eadccb2eb17627aeccfb",
+          "bytes": 4678
+        },
+        {
+          "path": "dist/webapi/util/base64url.js",
+          "sha256": "9c9c168e24c5be2db20956262065b94556de959e5dcc62430e31a0f57f821691",
+          "bytes": 490
+        },
+        {
+          "path": "dist/webapi/util/decode_jwt.js",
+          "sha256": "46031ba27050ae0a4da49682a0c799966e21df49b625651e499ddc29cbbf20a2",
+          "bytes": 1053
+        },
+        {
+          "path": "dist/webapi/util/decode_protected_header.js",
+          "sha256": "8d53bde529f722c22f65be574e854a2a04fadd38f919456517707a172a394bda",
+          "bytes": 717
+        },
+        {
+          "path": "dist/webapi/util/errors.js",
+          "sha256": "9bb7503fd84d5387677f1b917969cdf7c20482c3d86e92e64972bc83938b95f8",
+          "bytes": 3305
+        },
+        {
+          "path": "LICENSE.md",
+          "sha256": "8078b0829d6c3e9ecde2f003e1966e4cad3efc6e7a640efbab0313cc166b1af1",
+          "bytes": 1079
+        },
+        {
+          "path": "package.json",
+          "sha256": "faa28d9e4362c02c81ce4c7a3b62443495343830c53de2efcbd8c1088e4ba931",
+          "bytes": 3201
+        },
+        {
+          "path": "README.md",
+          "sha256": "0d5441e41b48444b163c2a593e90b16213e668d861ca79dfcb718bea1e2f8c1d",
+          "bytes": 9033
+        }
+      ]
+    },
+    {
+      "specifier": "npm:postgres@3.4.7",
+      "version": "3.4.7",
+      "origin": "https://registry.npmjs.org/postgres",
+      "localSource": "read-only copy of arma2-core-contracts-phase3a_torneos-deno-cache",
+      "dependencies": {},
+      "files": [
+        {
+          "path": "cf/polyfills.js",
+          "sha256": "c9bfd7d57f1402676a42c8b6a49386ca18f95ccc687fdaad625f3a3fc7ba3f81",
+          "bytes": 5484
+        },
+        {
+          "path": "cf/src/bytes.js",
+          "sha256": "368a278367814e80f7ae816e01e202279f3ce38347f2ac465b562ebeb61d84ca",
+          "bytes": 1399
+        },
+        {
+          "path": "cf/src/connection.js",
+          "sha256": "e0ca7e7b893ede84bb4414aca1472f18bbba495531b4a1b0ad6495c93b32d47e",
+          "bytes": 28330
+        },
+        {
+          "path": "cf/src/errors.js",
+          "sha256": "85cfbed9a5ab0db41ab8e97b806c881af29807dfe99bc656fdf1a18c1c13b6c6",
+          "bytes": 1155
+        },
+        {
+          "path": "cf/src/index.js",
+          "sha256": "7b0bf30f1e703074eb9b60b5ce072b95ebaa3e710361e4852658cce5d509f1c7",
+          "bytes": 15448
+        },
+        {
+          "path": "cf/src/large.js",
+          "sha256": "b02b13cf2b5d435368c7d61989af1692a9965b6edf9b60e1d0bc320ac42f48df",
+          "bytes": 2138
+        },
+        {
+          "path": "cf/src/query.js",
+          "sha256": "67c45a5151032aa46b587abc15381fe4efd97c696e5c1b53082b8161309c4ee2",
+          "bytes": 3600
+        },
+        {
+          "path": "cf/src/queue.js",
+          "sha256": "15e6345adb6708bf3b99ad39fc2231c2fb61de5f6cba4b7a7a6be881482a4ec3",
+          "bytes": 541
+        },
+        {
+          "path": "cf/src/result.js",
+          "sha256": "001ff5e0c8d634674f483d07fbcd620a797e3101f842d6c20ca3ace936260465",
+          "bytes": 416
+        },
+        {
+          "path": "cf/src/subscribe.js",
+          "sha256": "9ce6fd98780e0adff813d13cc03951e5b1c66d602637beb6f9494c40e7b9212e",
+          "bytes": 7663
+        },
+        {
+          "path": "cf/src/types.js",
+          "sha256": "e6c9e8f43272ae853944613560e5eabb15955fd8b2981749e7fa1c9015f370db",
+          "bytes": 10972
+        },
+        {
+          "path": "cjs/package.json",
+          "sha256": "fa6944a20ca5e6fbaf98fd202eb8c7004d5b4ab786e36b9ed02ee31dbe196c9f",
+          "bytes": 19
+        },
+        {
+          "path": "cjs/src/bytes.js",
+          "sha256": "4e13b04c965e8dcc45104091a92318715af96e7f6d820faea9097a014930bc70",
+          "bytes": 1364
+        },
+        {
+          "path": "cjs/src/connection.js",
+          "sha256": "68bac70e765b38266d8ff6e7602870abc63a72560f813c173fdd10d2a9bdab2e",
+          "bytes": 28232
+        },
+        {
+          "path": "cjs/src/errors.js",
+          "sha256": "fad515c5d5e76e0f44e7e4408342301ec4df51517ffdbb836be9942cd48e5a99",
+          "bytes": 1218
+        },
+        {
+          "path": "cjs/src/index.js",
+          "sha256": "478b3c76c6f87c268102786688605cc0187427613fc8531b8be0c3ea87336a57",
+          "bytes": 15419
+        },
+        {
+          "path": "cjs/src/large.js",
+          "sha256": "40b498ca792f3d28b1ce8a99b931cbd9c04c2931366b9fdc93a19083e545b9ff",
+          "bytes": 2152
+        },
+        {
+          "path": "cjs/src/query.js",
+          "sha256": "75ae9c69a1aaf3be4d8d65e4742c36018b89594907b85769e560c2590716c109",
+          "bytes": 3646
+        },
+        {
+          "path": "cjs/src/queue.js",
+          "sha256": "7d20fa53a3930be070609d7912ecd14c347df3526805bca2f6cb7eb35d2e62cf",
+          "bytes": 543
+        },
+        {
+          "path": "cjs/src/result.js",
+          "sha256": "84b46a3940d3bd1fbea85e5beb5b7c652f3f1058fec2c6cc5ce351730533ee10",
+          "bytes": 418
+        },
+        {
+          "path": "cjs/src/subscribe.js",
+          "sha256": "5c6dfb4fa656f814a47749d342daa86a1dbaa9e695f43ac1c7050302c7e91fea",
+          "bytes": 7638
+        },
+        {
+          "path": "cjs/src/types.js",
+          "sha256": "8ba968fc19489cdb670e8fc0d184b942eafa5f3d7a06dca4b165318fcd57e9fb",
+          "bytes": 11476
+        },
+        {
+          "path": "package.json",
+          "sha256": "7324573388770786378751cf5e4267587261e694319be41924dcd2420262eb85",
+          "bytes": 1814
+        },
+        {
+          "path": "README.md",
+          "sha256": "04d0e666d1fb3c02ea497c2732b7ae373ec58418344088b5c54fb0e6458078eb",
+          "bytes": 50385
+        },
+        {
+          "path": "src/bytes.js",
+          "sha256": "53b73b5ee2919ab5561229c62a4e2db578f63ca613b795b380c23cb684f2d514",
+          "bytes": 1362
+        },
+        {
+          "path": "src/connection.js",
+          "sha256": "0847375f271c373745b4c2af1bbb5dc2da5ee6f69937cc52516b5b6a667af7a4",
+          "bytes": 28175
+        },
+        {
+          "path": "src/errors.js",
+          "sha256": "85cfbed9a5ab0db41ab8e97b806c881af29807dfe99bc656fdf1a18c1c13b6c6",
+          "bytes": 1155
+        },
+        {
+          "path": "src/index.js",
+          "sha256": "c68e4fb85975e2c83550d47fe44068a306585afcb63d5c6a6ffd6ba4607a2fc0",
+          "bytes": 15372
+        },
+        {
+          "path": "src/large.js",
+          "sha256": "05ea787f79cefaf16310f14119fbfd36d2fed0795581b0df1b0e63b591a3ed94",
+          "bytes": 2133
+        },
+        {
+          "path": "src/query.js",
+          "sha256": "67c45a5151032aa46b587abc15381fe4efd97c696e5c1b53082b8161309c4ee2",
+          "bytes": 3600
+        },
+        {
+          "path": "src/queue.js",
+          "sha256": "15e6345adb6708bf3b99ad39fc2231c2fb61de5f6cba4b7a7a6be881482a4ec3",
+          "bytes": 541
+        },
+        {
+          "path": "src/result.js",
+          "sha256": "001ff5e0c8d634674f483d07fbcd620a797e3101f842d6c20ca3ace936260465",
+          "bytes": 416
+        },
+        {
+          "path": "src/subscribe.js",
+          "sha256": "5d0b1ec9705281ed4a60236fe5f65654038bae117845a71d19e35374d34c0cfa",
+          "bytes": 7626
+        },
+        {
+          "path": "src/types.js",
+          "sha256": "1883bd4536eab1c94b9e708d325b13708b0f18ec80020e3a825f34a72f603b81",
+          "bytes": 10935
+        },
+        {
+          "path": "types/index.d.ts",
+          "sha256": "12d19496f25ecd6afef2094be494b3b0ae12c02bd631901f6da760c7540a5ec1",
+          "bytes": 24668
+        },
+        {
+          "path": "types/package.json",
+          "sha256": "c96411ecdd1bdeeac8096b325a2da3777775cdfb1357046e8e12f60de96274e6",
+          "bytes": 56
+        },
+        {
+          "path": "types/tsconfig.json",
+          "sha256": "6b56b1f0c7a63493b52bbcf977396dcfc5e894b668ebc827d54809b26ffd3301",
+          "bytes": 215
+        }
+      ]
+    }
+  ],
+  "imports": [
+    {
+      "file": "adapter.ts",
+      "specifier": "./core-client.ts"
+    },
+    {
+      "file": "adapter.ts",
+      "specifier": "./db.ts"
+    },
+    {
+      "file": "adapter.ts",
+      "specifier": "./token.ts"
+    },
+    {
+      "file": "config.ts",
+      "specifier": "./core-client.ts"
+    },
+    {
+      "file": "config.ts",
+      "specifier": "./token.ts"
+    },
+    {
+      "file": "core-client.ts",
+      "specifier": "./schemas.json"
+    },
+    {
+      "file": "core-client.ts",
+      "specifier": "./session.schema.json"
+    },
+    {
+      "file": "db.ts",
+      "specifier": "npm:postgres@3.4.7"
+    },
+    {
+      "file": "index.ts",
+      "specifier": "npm:jose@6.2.12"
+    },
+    {
+      "file": "index.ts",
+      "specifier": "./token.ts"
+    },
+    {
+      "file": "index.ts",
+      "specifier": "./core-client.ts"
+    },
+    {
+      "file": "index.ts",
+      "specifier": "./adapter.ts"
+    },
+    {
+      "file": "index.ts",
+      "specifier": "./db.ts"
+    },
+    {
+      "file": "index.ts",
+      "specifier": "./config.ts"
+    },
+    {
+      "file": "index.ts",
+      "specifier": "./staging-v1-rpc-allowlist.json"
+    },
+    {
+      "file": "token.ts",
+      "specifier": "npm:jose@6.2.12"
+    }
+  ],
+  "jsr": [],
+  "httpsImports": [],
+  "sourceFiles": [
+    {
+      "path": "adapter.ts",
+      "sha256": "b3368986ef9973217aea0cbeef06ca6443bc3423afd55d63ba608abf7bb876e7",
+      "bytes": 5564
+    },
+    {
+      "path": "config.ts",
+      "sha256": "4745c0f2f6336e7a5c148b58c77c474b1d4a7b4d4e2673cd1583b713609f5d95",
+      "bytes": 8135
+    },
+    {
+      "path": "core-client.ts",
+      "sha256": "f2117afb3ca2ed935b9b760930ab490687b3d11c9a6a4a18a6cddfd0f482c616",
+      "bytes": 7618
+    },
+    {
+      "path": "db.ts",
+      "sha256": "8ef15818d2d0656d934e8f393aa6a825a74e9d164e5b5233366f787c09e2a695",
+      "bytes": 3579
+    },
+    {
+      "path": "index.ts",
+      "sha256": "fdb1ed96e547cbf26162dbc14d61135000b1b85c350c7f6c0ad556fb3d397526",
+      "bytes": 13032
+    },
+    {
+      "path": "schemas.json",
+      "sha256": "0363775e5cd8fe49d37dc56dd07dea8a7eb2a3b697d000490252ce62f4aebedd",
+      "bytes": 8940
+    },
+    {
+      "path": "session.schema.json",
+      "sha256": "cffbe79176cbb999f8d76a5ec14fe94bba37d6deb23f0ff696f0150f036adce1",
+      "bytes": 1086
+    },
+    {
+      "path": "staging-v1-rpc-allowlist.json",
+      "sha256": "149c7659f27aa6d61b512c44e1b0b0fa1bff700d4a0a3f9bdb4024418227b78c",
+      "bytes": 2902
+    },
+    {
+      "path": "token.ts",
+      "sha256": "4eedf6e67e7631b7a82da1cfd00219c18493067b927cf69742f652591c5f4be8",
+      "bytes": 3312
+    }
+  ],
+  "cacheManifest": [
+    {
+      "path": "dep_analysis_cache_v2",
+      "sha256": "5a75b331c1d7eea341814908158aaf2d4cb4dfdf951e701858dbe794310bcb52",
+      "bytes": 28672
+    },
+    {
+      "path": "dep_analysis_cache_v2-shm",
+      "sha256": "30f68f6d3dc28e5f01fd12211ce861c3a1bb32de00cce31581352f0c60c924a7",
+      "bytes": 32768
+    },
+    {
+      "path": "dep_analysis_cache_v2-wal",
+      "sha256": "52f3472940f50d804b170bf9000851103c9f6e1308eaedb67b56c25048cadff8",
+      "bytes": 107152
+    },
+    {
+      "path": "node_analysis_cache_v2",
+      "sha256": "ea9a6658641fe74839e45a6bba50315bee27ec61124e9631d475664e851adc17",
+      "bytes": 28672
+    },
+    {
+      "path": "npm/registry.npmjs.org/jose/6.2.12/dist/types/index.d.ts",
+      "sha256": "1decd2094835e939269d137c31570d789f9d190cd40d520f18df46dc98e6d474",
+      "bytes": 4196
+    },
+    {
+      "path": "npm/registry.npmjs.org/jose/6.2.12/dist/types/jwe/compact/decrypt.d.ts",
+      "sha256": "76699c49b3f5919f7c82ec6d09da531c479d31cf780437492bf00a7f147c9d91",
+      "bytes": 1494
+    },
+    {
+      "path": "npm/registry.npmjs.org/jose/6.2.12/dist/types/jwe/compact/encrypt.d.ts",
+      "sha256": "9f450508b77198f06c1598a9b3181025e35204d29184b37d209a46f5443d40dc",
+      "bytes": 1618
+    },
+    {
+      "path": "npm/registry.npmjs.org/jose/6.2.12/dist/types/jwe/flattened/decrypt.d.ts",
+      "sha256": "442726c2735b859945978e97b9a42b2fe3a55a52b46dba9c92e1ee13c55a99ea",
+      "bytes": 1510
+    },
+    {
+      "path": "npm/registry.npmjs.org/jose/6.2.12/dist/types/jwe/flattened/encrypt.d.ts",
+      "sha256": "68f92cdddf1813db729f08247202bd21b5ab7ecefd97ad86b8d58dad97b363a4",
+      "bytes": 2076
+    },
+    {
+      "path": "npm/registry.npmjs.org/jose/6.2.12/dist/types/jwe/general/decrypt.d.ts",
+      "sha256": "86d1bddb614724ed990fe87b2d0147cd051c8b0e09655c0d59b903c1b36884d8",
+      "bytes": 1733
+    },
+    {
+      "path": "npm/registry.npmjs.org/jose/6.2.12/dist/types/jwe/general/encrypt.d.ts",
+      "sha256": "e0c5ee64017425014096a61602ab1219a3d373a50623a829d10d295107b3c4b7",
+      "bytes": 2310
+    },
+    {
+      "path": "npm/registry.npmjs.org/jose/6.2.12/dist/types/jwk/embedded.d.ts",
+      "sha256": "3be6e994180df1fa1a57706eb9070f905b88a31133ad962052685c6d864f986d",
+      "bytes": 576
+    },
+    {
+      "path": "npm/registry.npmjs.org/jose/6.2.12/dist/types/jwk/thumbprint.d.ts",
+      "sha256": "b53e6017f30437096813ba5b191ba8f207cc68b5c49fc7d5c373a5977eb3b227",
+      "bytes": 772
+    },
+    {
+      "path": "npm/registry.npmjs.org/jose/6.2.12/dist/types/jwks/local.d.ts",
+      "sha256": "8ee019582cfb775345530144dcefa2a1b9bd3b97e24d3b031cdf199cf3d885ff",
+      "bytes": 816
+    },
+    {
+      "path": "npm/registry.npmjs.org/jose/6.2.12/dist/types/jwks/remote.d.ts",
+      "sha256": "589cce09cb9171d4291f410f6a7663958f49ed23b59e535d8723f5ee520c2992",
+      "bytes": 3907
+    },
+    {
+      "path": "npm/registry.npmjs.org/jose/6.2.12/dist/types/jws/compact/sign.d.ts",
+      "sha256": "f18428de5e6ed60a80296b31a13bb3afafac33c90dd3e018a0ca586e6443d14b",
+      "bytes": 731
+    },
+    {
+      "path": "npm/registry.npmjs.org/jose/6.2.12/dist/types/jws/compact/verify.d.ts",
+      "sha256": "e4a374a242d8648a15355ab2e43987223d3f9df7c3c1f5b82dad43ad325dc8db",
+      "bytes": 1582
+    },
+    {
+      "path": "npm/registry.npmjs.org/jose/6.2.12/dist/types/jws/flattened/sign.d.ts",
+      "sha256": "e2ada078de4a29afdc03408cb4c89d41afcd33f9ac62b41697cde281fc8a151b",
+      "bytes": 883
+    },
+    {
+      "path": "npm/registry.npmjs.org/jose/6.2.12/dist/types/jws/flattened/verify.d.ts",
+      "sha256": "6f00ac42b0b33712d9f71e3c002d5aa2679e74984cbdeb3ec21392ea1f4362d7",
+      "bytes": 1601
+    },
+    {
+      "path": "npm/registry.npmjs.org/jose/6.2.12/dist/types/jws/general/sign.d.ts",
+      "sha256": "39601e5ad5e6182e39c7220dd4e98bc5d12c308d03fd9a8c201e2a14d4c51531",
+      "bytes": 1626
+    },
+    {
+      "path": "npm/registry.npmjs.org/jose/6.2.12/dist/types/jws/general/verify.d.ts",
+      "sha256": "3f268a41fd940011dab145f6df0f02405eaac656c4e8a6a61446fcf6968a649b",
+      "bytes": 1846
+    },
+    {
+      "path": "npm/registry.npmjs.org/jose/6.2.12/dist/types/jwt/decrypt.d.ts",
+      "sha256": "9523431a52cbfe2abb5613725f428ae71decc4aac8866c72271e60600dc5b5c7",
+      "bytes": 2150
+    },
+    {
+      "path": "npm/registry.npmjs.org/jose/6.2.12/dist/types/jwt/encrypt.d.ts",
+      "sha256": "ec0a24abe53f1b2cd1a8267eb7e4d68ecaa683672f7042c14f20e7f2ae5b9ccf",
+      "bytes": 2484
+    },
+    {
+      "path": "npm/registry.npmjs.org/jose/6.2.12/dist/types/jwt/sign.d.ts",
+      "sha256": "f02f7e5f3ca4ba961f1ec2d00bcee9d6f4d845b5675d0853f9a51ba1fcc71caf",
+      "bytes": 881
+    },
+    {
+      "path": "npm/registry.npmjs.org/jose/6.2.12/dist/types/jwt/unsecured.d.ts",
+      "sha256": "3ec59ac803112f958e436b7226847f92740ae808dd7726669a63f44ad44e5f17",
+      "bytes": 1012
+    },
+    {
+      "path": "npm/registry.npmjs.org/jose/6.2.12/dist/types/jwt/verify.d.ts",
+      "sha256": "8a6223315a35d4be210cebb17fd3bf4b39730fa231b09f44329e3dfffc594058",
+      "bytes": 2256
+    },
+    {
+      "path": "npm/registry.npmjs.org/jose/6.2.12/dist/types/key/export.d.ts",
+      "sha256": "0f85f184b10b605b5a451b4c1ea4dae6504f15b09d3dfc6f29393c24048d8382",
+      "bytes": 660
+    },
+    {
+      "path": "npm/registry.npmjs.org/jose/6.2.12/dist/types/key/generate_key_pair.d.ts",
+      "sha256": "28c819853632e67bfcefaa28284cc903a097d91ac8a363e7e0130029f9652525",
+      "bytes": 1668
+    },
+    {
+      "path": "npm/registry.npmjs.org/jose/6.2.12/dist/types/key/generate_secret.d.ts",
+      "sha256": "322c0faa6c21776a8bc9c601671608789207973f4538738c1f048dd1022e6588",
+      "bytes": 1780
+    },
+    {
+      "path": "npm/registry.npmjs.org/jose/6.2.12/dist/types/key/import.d.ts",
+      "sha256": "7b650a37673c22b7c8da82d35221133408fde0ee1943de09b2b110f28481f56f",
+      "bytes": 3289
+    },
+    {
+      "path": "npm/registry.npmjs.org/jose/6.2.12/dist/types/types.d.ts",
+      "sha256": "642694c151675c36a5b4fe6a8336612090cdad7377497db0d5eb19180999cc74",
+      "bytes": 22374
+    },
+    {
+      "path": "npm/registry.npmjs.org/jose/6.2.12/dist/types/util/base64url.d.ts",
+      "sha256": "5191f81538f064a1a28b0b59b413f4435e71421168fea5e0afb5ebd5ed41a265",
+      "bytes": 619
+    },
+    {
+      "path": "npm/registry.npmjs.org/jose/6.2.12/dist/types/util/decode_jwt.d.ts",
+      "sha256": "3e5ddd42de79da6aee4c6b5f6cc1807df3affd1c7226a46cb34be82781be8fdc",
+      "bytes": 424
+    },
+    {
+      "path": "npm/registry.npmjs.org/jose/6.2.12/dist/types/util/decode_protected_header.d.ts",
+      "sha256": "e2a3ee25f43d163379f1fb2ea7ae3bba1703c8e08f6723eb7c3ece5122de34f8",
+      "bytes": 532
+    },
+    {
+      "path": "npm/registry.npmjs.org/jose/6.2.12/dist/types/util/errors.d.ts",
+      "sha256": "b515a0dad294d5c0dfedec02baa55ff950269ae668581a19dd36c7e5f67c5bd5",
+      "bytes": 7891
+    },
+    {
+      "path": "npm/registry.npmjs.org/jose/6.2.12/dist/webapi/index.js",
+      "sha256": "f198638529597ab18dc3d2799f362106121f90cf0b0c43e75c3dffa5cc6b8590",
+      "bytes": 2376
+    },
+    {
+      "path": "npm/registry.npmjs.org/jose/6.2.12/dist/webapi/jwe/compact/decrypt.js",
+      "sha256": "c08202f5114caee270bcaa0ed3e119acb241f88d51c6d65a34a1fd6a3353cd2a",
+      "bytes": 217
+    },
+    {
+      "path": "npm/registry.npmjs.org/jose/6.2.12/dist/webapi/jwe/compact/encrypt.js",
+      "sha256": "8db8eb9fa34a0187c0ff26e04c37024af421f2f265255d60a01c0edf416f2f85",
+      "bytes": 978
+    },
+    {
+      "path": "npm/registry.npmjs.org/jose/6.2.12/dist/webapi/jwe/flattened/decrypt.js",
+      "sha256": "4964d31fafb143a8f15cf4820214b268706dbbd569bdedaa9b24a11520f6c6b2",
+      "bytes": 659
+    },
+    {
+      "path": "npm/registry.npmjs.org/jose/6.2.12/dist/webapi/jwe/flattened/encrypt.js",
+      "sha256": "e1fe288a34aae4938dbdd13b86e33e54fef9ff3f3c55a2354ab9d7b5665d1e92",
+      "bytes": 1369
+    },
+    {
+      "path": "npm/registry.npmjs.org/jose/6.2.12/dist/webapi/jwe/general/decrypt.js",
+      "sha256": "3a721fc3958f36c3bed7764a032238b35f9172bf95d40a7e28a4cea4d7ccd511",
+      "bytes": 1811
+    },
+    {
+      "path": "npm/registry.npmjs.org/jose/6.2.12/dist/webapi/jwe/general/encrypt.js",
+      "sha256": "2b0bdf8227f2c88fbacf7965cc78809f14b844e76a179a16099b60cf1562012b",
+      "bytes": 4388
+    },
+    {
+      "path": "npm/registry.npmjs.org/jose/6.2.12/dist/webapi/jwk/embedded.js",
+      "sha256": "449f2b08f47d006a4b937201692b7a830c9e9ac785e82073c1f6f9792642f91d",
+      "bytes": 1134
+    },
+    {
+      "path": "npm/registry.npmjs.org/jose/6.2.12/dist/webapi/jwk/thumbprint.js",
+      "sha256": "a1a3918fc1e2d3a8e70d613bf7b486eeac39c1ef9fcb4b36e028460276565e41",
+      "bytes": 2682
+    },
+    {
+      "path": "npm/registry.npmjs.org/jose/6.2.12/dist/webapi/jwks/local.js",
+      "sha256": "ac751386e13c8b5c0ef87848ae98e2a97dd6eaa3973346edff3b29350d3945b0",
+      "bytes": 2779
+    },
+    {
+      "path": "npm/registry.npmjs.org/jose/6.2.12/dist/webapi/jwks/remote.js",
+      "sha256": "b0860b27b5cb461bc743291a228da93c387a664d989fc69829a9626bfa0de264",
+      "bytes": 4238
+    },
+    {
+      "path": "npm/registry.npmjs.org/jose/6.2.12/dist/webapi/jws/compact/sign.js",
+      "sha256": "09450f2b3763b531d28bec9796d2f3ff0064c7b07dde15f7d1e1e7693e2ec12a",
+      "bytes": 702
+    },
+    {
+      "path": "npm/registry.npmjs.org/jose/6.2.12/dist/webapi/jws/compact/verify.js",
+      "sha256": "6d1109739b895858c7006d02ef91f8b13ce5ae8c91996d1f1c0b57c1ab33c398",
+      "bytes": 243
+    },
+    {
+      "path": "npm/registry.npmjs.org/jose/6.2.12/dist/webapi/jws/flattened/sign.js",
+      "sha256": "01cb90bcf39d8aa9bcf6d3efd36f5b80c112e547ef5448d7512b7aafa72bb6dd",
+      "bytes": 757
+    },
+    {
+      "path": "npm/registry.npmjs.org/jose/6.2.12/dist/webapi/jws/flattened/verify.js",
+      "sha256": "ff23003a7b0a4d8a7add2cd8b13b72393b863f6f251ddd814f08d69b35be3b2e",
+      "bytes": 538
+    },
+    {
+      "path": "npm/registry.npmjs.org/jose/6.2.12/dist/webapi/jws/general/sign.js",
+      "sha256": "226bf031e03174e6a505c534b4bdd228d8d677cf2c494ffc7c618dfd535f5b55",
+      "bytes": 1895
+    },
+    {
+      "path": "npm/registry.npmjs.org/jose/6.2.12/dist/webapi/jws/general/verify.js",
+      "sha256": "4623bf6e59023c7a2bfe5cf9d40b5d1e9f8165f2f18b4374e061911582041a4a",
+      "bytes": 1967
+    },
+    {
+      "path": "npm/registry.npmjs.org/jose/6.2.12/dist/webapi/jwt/decrypt.js",
+      "sha256": "233bb797f9239582ada83fac5723c818dfa0f24e9a864680759df5f2bb5b260c",
+      "bytes": 841
+    },
+    {
+      "path": "npm/registry.npmjs.org/jose/6.2.12/dist/webapi/jwt/encrypt.js",
+      "sha256": "c08c45c7ba87d6bd6d51051cafe80a8ce33150a4cf5116ae03e76e3c65edb2a2",
+      "bytes": 1843
+    },
+    {
+      "path": "npm/registry.npmjs.org/jose/6.2.12/dist/webapi/jwt/sign.js",
+      "sha256": "aab04f3c698940af2bae4180bfda71914d36700b70f25afd0fefe3028a45f2dd",
+      "bytes": 719
+    },
+    {
+      "path": "npm/registry.npmjs.org/jose/6.2.12/dist/webapi/jwt/unsecured.js",
+      "sha256": "a9b3d6898039163c1e47573e27290b58fee7a3b8f9a3aac2fe04c1d7a77fb63d",
+      "bytes": 1580
+    },
+    {
+      "path": "npm/registry.npmjs.org/jose/6.2.12/dist/webapi/jwt/verify.js",
+      "sha256": "e015a18744717762a1f138d0f0a88a40d3b660bc46f76ddf8309b32987175bef",
+      "bytes": 534
+    },
+    {
+      "path": "npm/registry.npmjs.org/jose/6.2.12/dist/webapi/key/export.js",
+      "sha256": "634aee75fbdabbffb73d439ae63305ad043a268354ecf53426b827ba3f81cfb7",
+      "bytes": 1120
+    },
+    {
+      "path": "npm/registry.npmjs.org/jose/6.2.12/dist/webapi/key/generate_key_pair.js",
+      "sha256": "97e4e5b66af75700da10fc5807471636b633d7c72c65a7fe50980c4a3a2c6c74",
+      "bytes": 1645
+    },
+    {
+      "path": "npm/registry.npmjs.org/jose/6.2.12/dist/webapi/key/generate_secret.js",
+      "sha256": "b6984ddbed52cff9179a1b681076ad6d1529ff50fabc58bb32b9b71752cf9523",
+      "bytes": 1233
+    },
+    {
+      "path": "npm/registry.npmjs.org/jose/6.2.12/dist/webapi/key/import.js",
+      "sha256": "ab2f57a9db99e8d48451a8d0a8adf75379381f65b0e3e28ba6c02aa5bb3ee5fa",
+      "bytes": 2279
+    },
+    {
+      "path": "npm/registry.npmjs.org/jose/6.2.12/dist/webapi/lib/asn1.js",
+      "sha256": "4945afdb21c49efc7fa703a2e1cde94b8a1d28f13416aafd26128453472903c5",
+      "bytes": 5853
+    },
+    {
+      "path": "npm/registry.npmjs.org/jose/6.2.12/dist/webapi/lib/buffer_utils.js",
+      "sha256": "cac7d34f3eab78ad56967097b793f55cd50ae1d7b42012d8e1a1f2736f50d720",
+      "bytes": 2736
+    },
+    {
+      "path": "npm/registry.npmjs.org/jose/6.2.12/dist/webapi/lib/content_encryption.js",
+      "sha256": "43b0e897c80a12b42516a6d48cbb2a31ef3a9522eccc5716a01d182cade9eb63",
+      "bytes": 4224
+    },
+    {
+      "path": "npm/registry.npmjs.org/jose/6.2.12/dist/webapi/lib/deflate.js",
+      "sha256": "9f7b28c5705633835228c8e11642b860260d62ddda0d76dc02a487664b1d2eb5",
+      "bytes": 1598
+    },
+    {
+      "path": "npm/registry.npmjs.org/jose/6.2.12/dist/webapi/lib/jwe_algorithms.js",
+      "sha256": "d41562ff2ccc3599f7189384653fbcd1ff68babd475fe99e31eccb61706abd47",
+      "bytes": 3326
+    },
+    {
+      "path": "npm/registry.npmjs.org/jose/6.2.12/dist/webapi/lib/jwe_decrypt.js",
+      "sha256": "5d5ba0ac80a18138940d27b439f4420c16001f4da57c9d1168c7b41e4cfe009b",
+      "bytes": 8956
+    },
+    {
+      "path": "npm/registry.npmjs.org/jose/6.2.12/dist/webapi/lib/jwe_encrypt.js",
+      "sha256": "783d800778e27227fb39987be2da1705c96993df614bc30fc08252b9cef137ed",
+      "bytes": 5899
+    },
+    {
+      "path": "npm/registry.npmjs.org/jose/6.2.12/dist/webapi/lib/jws_algorithms.js",
+      "sha256": "72e8be8e3d179effde822ecc8f75c7726d7323be718a961837f6882b012992e9",
+      "bytes": 1746
+    },
+    {
+      "path": "npm/registry.npmjs.org/jose/6.2.12/dist/webapi/lib/jws_sign.js",
+      "sha256": "f91650ec8e2248bdbcaa0b11a0f4018a4cfd9b42f30219b0ba7e839e86172e70",
+      "bytes": 2738
+    },
+    {
+      "path": "npm/registry.npmjs.org/jose/6.2.12/dist/webapi/lib/jws_verify.js",
+      "sha256": "7c236143de90ead568128265a6d9dcfc5cb6a264e5fb0bdc1e39989e2cfc19c2",
+      "bytes": 5402
+    },
+    {
+      "path": "npm/registry.npmjs.org/jose/6.2.12/dist/webapi/lib/jwt_claims_set.js",
+      "sha256": "624433ec72028d7feb512151541cfc96726aa8ceaa6f095867989c5eb8c50e5d",
+      "bytes": 7307
+    },
+    {
+      "path": "npm/registry.npmjs.org/jose/6.2.12/dist/webapi/lib/key_algorithm.js",
+      "sha256": "4ef0b80292076659b054313f70eeef81cd7df01e2ec9988c24552206bc42cc07",
+      "bytes": 517
+    },
+    {
+      "path": "npm/registry.npmjs.org/jose/6.2.12/dist/webapi/lib/key_descriptor.js",
+      "sha256": "80ae05a1fc41271a29dbd5ab717255a1255ee0ac43b6820853d2f338d9e74b46",
+      "bytes": 167
+    },
+    {
+      "path": "npm/registry.npmjs.org/jose/6.2.12/dist/webapi/lib/key_management.js",
+      "sha256": "c65e89877bda7df0f5bf08686334a1ab8fe291b4bcdc5599edf901cd7b5cecaf",
+      "bytes": 10987
+    },
+    {
+      "path": "npm/registry.npmjs.org/jose/6.2.12/dist/webapi/lib/key.js",
+      "sha256": "e150a72056a69a980a19c23334f5c16e4b9aedfbde9af2702070c5bf93fc075d",
+      "bytes": 7824
+    },
+    {
+      "path": "npm/registry.npmjs.org/jose/6.2.12/dist/webapi/lib/validate.js",
+      "sha256": "2a85b6eadc2c03af99f9fbb1cf01198e9ef2e3af5589eadccb2eb17627aeccfb",
+      "bytes": 4678
+    },
+    {
+      "path": "npm/registry.npmjs.org/jose/6.2.12/dist/webapi/util/base64url.js",
+      "sha256": "9c9c168e24c5be2db20956262065b94556de959e5dcc62430e31a0f57f821691",
+      "bytes": 490
+    },
+    {
+      "path": "npm/registry.npmjs.org/jose/6.2.12/dist/webapi/util/decode_jwt.js",
+      "sha256": "46031ba27050ae0a4da49682a0c799966e21df49b625651e499ddc29cbbf20a2",
+      "bytes": 1053
+    },
+    {
+      "path": "npm/registry.npmjs.org/jose/6.2.12/dist/webapi/util/decode_protected_header.js",
+      "sha256": "8d53bde529f722c22f65be574e854a2a04fadd38f919456517707a172a394bda",
+      "bytes": 717
+    },
+    {
+      "path": "npm/registry.npmjs.org/jose/6.2.12/dist/webapi/util/errors.js",
+      "sha256": "9bb7503fd84d5387677f1b917969cdf7c20482c3d86e92e64972bc83938b95f8",
+      "bytes": 3305
+    },
+    {
+      "path": "npm/registry.npmjs.org/jose/6.2.12/LICENSE.md",
+      "sha256": "8078b0829d6c3e9ecde2f003e1966e4cad3efc6e7a640efbab0313cc166b1af1",
+      "bytes": 1079
+    },
+    {
+      "path": "npm/registry.npmjs.org/jose/6.2.12/package.json",
+      "sha256": "faa28d9e4362c02c81ce4c7a3b62443495343830c53de2efcbd8c1088e4ba931",
+      "bytes": 3201
+    },
+    {
+      "path": "npm/registry.npmjs.org/jose/6.2.12/README.md",
+      "sha256": "0d5441e41b48444b163c2a593e90b16213e668d861ca79dfcb718bea1e2f8c1d",
+      "bytes": 9033
+    },
+    {
+      "path": "npm/registry.npmjs.org/jose/registry.json",
+      "sha256": "f89ea797bea8a0ebff9730d8f3d47c32f49e0785eb4c9b89448086f3ad3d15f5",
+      "bytes": 207448
+    },
+    {
+      "path": "npm/registry.npmjs.org/postgres/3.4.7/cf/polyfills.js",
+      "sha256": "c9bfd7d57f1402676a42c8b6a49386ca18f95ccc687fdaad625f3a3fc7ba3f81",
+      "bytes": 5484
+    },
+    {
+      "path": "npm/registry.npmjs.org/postgres/3.4.7/cf/src/bytes.js",
+      "sha256": "368a278367814e80f7ae816e01e202279f3ce38347f2ac465b562ebeb61d84ca",
+      "bytes": 1399
+    },
+    {
+      "path": "npm/registry.npmjs.org/postgres/3.4.7/cf/src/connection.js",
+      "sha256": "e0ca7e7b893ede84bb4414aca1472f18bbba495531b4a1b0ad6495c93b32d47e",
+      "bytes": 28330
+    },
+    {
+      "path": "npm/registry.npmjs.org/postgres/3.4.7/cf/src/errors.js",
+      "sha256": "85cfbed9a5ab0db41ab8e97b806c881af29807dfe99bc656fdf1a18c1c13b6c6",
+      "bytes": 1155
+    },
+    {
+      "path": "npm/registry.npmjs.org/postgres/3.4.7/cf/src/index.js",
+      "sha256": "7b0bf30f1e703074eb9b60b5ce072b95ebaa3e710361e4852658cce5d509f1c7",
+      "bytes": 15448
+    },
+    {
+      "path": "npm/registry.npmjs.org/postgres/3.4.7/cf/src/large.js",
+      "sha256": "b02b13cf2b5d435368c7d61989af1692a9965b6edf9b60e1d0bc320ac42f48df",
+      "bytes": 2138
+    },
+    {
+      "path": "npm/registry.npmjs.org/postgres/3.4.7/cf/src/query.js",
+      "sha256": "67c45a5151032aa46b587abc15381fe4efd97c696e5c1b53082b8161309c4ee2",
+      "bytes": 3600
+    },
+    {
+      "path": "npm/registry.npmjs.org/postgres/3.4.7/cf/src/queue.js",
+      "sha256": "15e6345adb6708bf3b99ad39fc2231c2fb61de5f6cba4b7a7a6be881482a4ec3",
+      "bytes": 541
+    },
+    {
+      "path": "npm/registry.npmjs.org/postgres/3.4.7/cf/src/result.js",
+      "sha256": "001ff5e0c8d634674f483d07fbcd620a797e3101f842d6c20ca3ace936260465",
+      "bytes": 416
+    },
+    {
+      "path": "npm/registry.npmjs.org/postgres/3.4.7/cf/src/subscribe.js",
+      "sha256": "9ce6fd98780e0adff813d13cc03951e5b1c66d602637beb6f9494c40e7b9212e",
+      "bytes": 7663
+    },
+    {
+      "path": "npm/registry.npmjs.org/postgres/3.4.7/cf/src/types.js",
+      "sha256": "e6c9e8f43272ae853944613560e5eabb15955fd8b2981749e7fa1c9015f370db",
+      "bytes": 10972
+    },
+    {
+      "path": "npm/registry.npmjs.org/postgres/3.4.7/cjs/package.json",
+      "sha256": "fa6944a20ca5e6fbaf98fd202eb8c7004d5b4ab786e36b9ed02ee31dbe196c9f",
+      "bytes": 19
+    },
+    {
+      "path": "npm/registry.npmjs.org/postgres/3.4.7/cjs/src/bytes.js",
+      "sha256": "4e13b04c965e8dcc45104091a92318715af96e7f6d820faea9097a014930bc70",
+      "bytes": 1364
+    },
+    {
+      "path": "npm/registry.npmjs.org/postgres/3.4.7/cjs/src/connection.js",
+      "sha256": "68bac70e765b38266d8ff6e7602870abc63a72560f813c173fdd10d2a9bdab2e",
+      "bytes": 28232
+    },
+    {
+      "path": "npm/registry.npmjs.org/postgres/3.4.7/cjs/src/errors.js",
+      "sha256": "fad515c5d5e76e0f44e7e4408342301ec4df51517ffdbb836be9942cd48e5a99",
+      "bytes": 1218
+    },
+    {
+      "path": "npm/registry.npmjs.org/postgres/3.4.7/cjs/src/index.js",
+      "sha256": "478b3c76c6f87c268102786688605cc0187427613fc8531b8be0c3ea87336a57",
+      "bytes": 15419
+    },
+    {
+      "path": "npm/registry.npmjs.org/postgres/3.4.7/cjs/src/large.js",
+      "sha256": "40b498ca792f3d28b1ce8a99b931cbd9c04c2931366b9fdc93a19083e545b9ff",
+      "bytes": 2152
+    },
+    {
+      "path": "npm/registry.npmjs.org/postgres/3.4.7/cjs/src/query.js",
+      "sha256": "75ae9c69a1aaf3be4d8d65e4742c36018b89594907b85769e560c2590716c109",
+      "bytes": 3646
+    },
+    {
+      "path": "npm/registry.npmjs.org/postgres/3.4.7/cjs/src/queue.js",
+      "sha256": "7d20fa53a3930be070609d7912ecd14c347df3526805bca2f6cb7eb35d2e62cf",
+      "bytes": 543
+    },
+    {
+      "path": "npm/registry.npmjs.org/postgres/3.4.7/cjs/src/result.js",
+      "sha256": "84b46a3940d3bd1fbea85e5beb5b7c652f3f1058fec2c6cc5ce351730533ee10",
+      "bytes": 418
+    },
+    {
+      "path": "npm/registry.npmjs.org/postgres/3.4.7/cjs/src/subscribe.js",
+      "sha256": "5c6dfb4fa656f814a47749d342daa86a1dbaa9e695f43ac1c7050302c7e91fea",
+      "bytes": 7638
+    },
+    {
+      "path": "npm/registry.npmjs.org/postgres/3.4.7/cjs/src/types.js",
+      "sha256": "8ba968fc19489cdb670e8fc0d184b942eafa5f3d7a06dca4b165318fcd57e9fb",
+      "bytes": 11476
+    },
+    {
+      "path": "npm/registry.npmjs.org/postgres/3.4.7/package.json",
+      "sha256": "7324573388770786378751cf5e4267587261e694319be41924dcd2420262eb85",
+      "bytes": 1814
+    },
+    {
+      "path": "npm/registry.npmjs.org/postgres/3.4.7/README.md",
+      "sha256": "04d0e666d1fb3c02ea497c2732b7ae373ec58418344088b5c54fb0e6458078eb",
+      "bytes": 50385
+    },
+    {
+      "path": "npm/registry.npmjs.org/postgres/3.4.7/src/bytes.js",
+      "sha256": "53b73b5ee2919ab5561229c62a4e2db578f63ca613b795b380c23cb684f2d514",
+      "bytes": 1362
+    },
+    {
+      "path": "npm/registry.npmjs.org/postgres/3.4.7/src/connection.js",
+      "sha256": "0847375f271c373745b4c2af1bbb5dc2da5ee6f69937cc52516b5b6a667af7a4",
+      "bytes": 28175
+    },
+    {
+      "path": "npm/registry.npmjs.org/postgres/3.4.7/src/errors.js",
+      "sha256": "85cfbed9a5ab0db41ab8e97b806c881af29807dfe99bc656fdf1a18c1c13b6c6",
+      "bytes": 1155
+    },
+    {
+      "path": "npm/registry.npmjs.org/postgres/3.4.7/src/index.js",
+      "sha256": "c68e4fb85975e2c83550d47fe44068a306585afcb63d5c6a6ffd6ba4607a2fc0",
+      "bytes": 15372
+    },
+    {
+      "path": "npm/registry.npmjs.org/postgres/3.4.7/src/large.js",
+      "sha256": "05ea787f79cefaf16310f14119fbfd36d2fed0795581b0df1b0e63b591a3ed94",
+      "bytes": 2133
+    },
+    {
+      "path": "npm/registry.npmjs.org/postgres/3.4.7/src/query.js",
+      "sha256": "67c45a5151032aa46b587abc15381fe4efd97c696e5c1b53082b8161309c4ee2",
+      "bytes": 3600
+    },
+    {
+      "path": "npm/registry.npmjs.org/postgres/3.4.7/src/queue.js",
+      "sha256": "15e6345adb6708bf3b99ad39fc2231c2fb61de5f6cba4b7a7a6be881482a4ec3",
+      "bytes": 541
+    },
+    {
+      "path": "npm/registry.npmjs.org/postgres/3.4.7/src/result.js",
+      "sha256": "001ff5e0c8d634674f483d07fbcd620a797e3101f842d6c20ca3ace936260465",
+      "bytes": 416
+    },
+    {
+      "path": "npm/registry.npmjs.org/postgres/3.4.7/src/subscribe.js",
+      "sha256": "5d0b1ec9705281ed4a60236fe5f65654038bae117845a71d19e35374d34c0cfa",
+      "bytes": 7626
+    },
+    {
+      "path": "npm/registry.npmjs.org/postgres/3.4.7/src/types.js",
+      "sha256": "1883bd4536eab1c94b9e708d325b13708b0f18ec80020e3a825f34a72f603b81",
+      "bytes": 10935
+    },
+    {
+      "path": "npm/registry.npmjs.org/postgres/3.4.7/types/index.d.ts",
+      "sha256": "12d19496f25ecd6afef2094be494b3b0ae12c02bd631901f6da760c7540a5ec1",
+      "bytes": 24668
+    },
+    {
+      "path": "npm/registry.npmjs.org/postgres/3.4.7/types/package.json",
+      "sha256": "c96411ecdd1bdeeac8096b325a2da3777775cdfb1357046e8e12f60de96274e6",
+      "bytes": 56
+    },
+    {
+      "path": "npm/registry.npmjs.org/postgres/3.4.7/types/tsconfig.json",
+      "sha256": "6b56b1f0c7a63493b52bbcf977396dcfc5e894b668ebc827d54809b26ffd3301",
+      "bytes": 215
+    },
+    {
+      "path": "npm/registry.npmjs.org/postgres/registry.json",
+      "sha256": "858f83686cf6ec125666eb040bb71d230684baa2456c8930975a59666f4a0527",
+      "bytes": 39792
+    }
+  ],
+  "bundleExit": 0,
+  "networkDuringBundle": "none",
+  "certifiedEdgeImage": "sha256:a82676277615aee03c4f288cbbbf68dedb5ba8693073e567ab8dbfdd11ba5d45",
+  "bundleSHA256": "b49b5430b349cc6772abd59aa27e0df199bcac97aa5321af2fa2c2befba5a9ac",
+  "runtimeLoad": {
+    "name": "load_all_gateway_modules_offline",
+    "pass": true,
+    "detail": {
+      "served": false,
+      "entrypointImported": true
+    }
+  }
+}

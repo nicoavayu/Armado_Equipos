@@ -1,0 +1,41 @@
+[r42 23:03:20] step handoff_check: PASS
+[r42 23:03:22] step core_project_guard: PASS
+[r42 23:03:22] step core_contract_function_guard: PASS
+[r42 23:03:23] step core_keys: PASS
+[r42 23:03:23] step authorization: PASS
+[r42 23:03:23] runner preflight: PASS 
+[r42 23:03:23] step runner_preflight: PASS
+[r42 23:03:28] audit start-gateway: STARTED_PENDING_SMOKE 
+[r42 23:03:28] step start_gateway: PASS
+[r42 23:03:29] runner smoke: PASS 
+[r42 23:03:29] step smoke: PASS
+[r42 23:03:30] block qa_users
+[r42 23:03:34] block exchange_valid
+[r42 23:03:43] block token_valid
+[r42 23:03:44] block wrong_issuer
+[r42 23:03:44] block wrong_audience
+[r42 23:03:44] block wrong_kid
+[r42 23:03:44] block expired
+[r42 23:03:44] block wrong_ttl
+[r42 23:03:45] block claim_validation
+[r42 23:03:45] block session_identity_binding
+[r42 23:03:49] block fixtures
+[r42 23:05:26] block live_contracts
+[r42 23:05:26] block request_binding
+[r42 23:05:43] block replay
+[r42 23:05:46] block logout_revocation
+[r42 23:05:51] block core_session_inactive
+[r42 23:06:00] block core_auth_unavailable
+[r42 23:06:02] block core_contract_unavailable
+[r42 23:06:05] outage harness bundled offline sha256=be45c9fbd7e5f3a9aad76e411825a689a3c21a7e99268f28c069afc3501e3eee
+[r42 23:07:11] block core_response_stale
+[r42 23:07:11] block torneos_rest_unavailable
+[r42 23:07:17]   FAIL Torneos REST unreachable from the gateway namespace (REST /32 removed): verified bearer + live Core → 503; restored → 200: HTTP_TRANSPORT_FAILED: {"origin":"http://127.0.0.1:58431","path":"/torneos-gateway/torneos/rest/v1/rpc/get_my_tournament_memberships","httpResponse":false,"name":"TypeError","message":"fetch failed","
+[r42 23:07:17] matrix aborted: MATRIX_STOP_ON_FAILURE: Torneos REST unreachable from the gateway namespace (REST /32 removed): verified bearer + live Core → 503; restored → 200
+[r42 23:07:17] block cleanup
+[r42 23:07:27] step matrix: FAIL
+[r42 23:07:27] operator aborted: STEP_FAILED: matrix
+[r42 23:07:31] runner cleanup: PASS 
+[r42 23:07:32] summary /Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/evidence/r4-summary-20260920T230313Z.json
+[r42 23:07:32] VERDICT R4_FAIL
+{"verdict":"R4_FAIL","blockers":["matrix"],"summary":"r4-summary-20260920T230313Z.json","evidence":{"gatewayStart":{"path":"r4-gateway-start-20260920T230323Z.json","sha256":"5a9044d0327958ec329ae41ff5ebab51290f25ebf7f44f42bd1237735fac6c8b"},"smoke":{"path":"r4-smoke-20260920T230329Z.json","sha256":"332e981b10be877eb04669564d7521c64801146edafef75931183516be6fcabc"},"matrix":{"path":"r4-matrix-20260920T230313Z.json","sha256":"759329b86a58b562bd134981d4fb72549b65304fa171cd9d027351dccd3504fb"},"outage":{"path":"r4-outage-20260920T230313Z.json","sha256":"9850d552e772547437c3eea17838ce1218422309d16242ccfb92b56d851a27b4"},"isolation":{"path":"r4-isolation-20260920T230313Z.json","sha256":"cdc1d0b7238cc19ccdfc652e65b84ea40cbf55c43a62351e83a2276ece2123c2"},"detail":{"path":"r4-matrix-detail-20260920T230313Z.json","sha256":"8eceb7007877fe60be7895adfc0924201ac64927bd7877d3a81e5688ae78ee11"},"cleanup":{"path":"r4-cleanup-20260920T230313Z.json","sha256":"157cba4e24451fc46fd17f2037fce77677ab37b746872cb53ea18fa49e835e15"}}}

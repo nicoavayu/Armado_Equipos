@@ -1,0 +1,87 @@
+{
+  "schema": "R5.cleanup.v1",
+  "stamp": "20260921T144426Z",
+  "run": "arma2-r42-20260921t160045z",
+  "qa": {
+    "qa": true,
+    "fixtures": true,
+    "coreFixtures": true,
+    "sessions": true,
+    "complete": true
+  },
+  "coreSessions": {
+    "sessions": [
+      {
+        "role": "owner",
+        "id": "6ab824a4",
+        "sessionPresent": false,
+        "userSessions": 0,
+        "deleted": true
+      },
+      {
+        "role": "admin",
+        "id": "ab5df7f5",
+        "sessionPresent": false,
+        "userSessions": 0,
+        "deleted": true
+      },
+      {
+        "role": "captain",
+        "id": "bf28ead3",
+        "sessionPresent": false,
+        "userSessions": 0,
+        "deleted": true
+      },
+      {
+        "role": "outsider",
+        "id": "4d010b74",
+        "sessionPresent": false,
+        "userSessions": 0,
+        "deleted": true
+      }
+    ],
+    "leftovers": 0,
+    "teams": [
+      {
+        "id": "28307c31",
+        "present": false,
+        "members": 0,
+        "deletedByOwner": true
+      }
+    ],
+    "source": "Management API read-only SQL (core-session-exists, core-qa-users, core-team-exists)"
+  },
+  "runtime": {
+    "status": "PASS",
+    "removed": [
+      "arma2-r42-20260921t160045z-proxy",
+      "arma2-r42-20260921t160045z-gateway",
+      "arma2-r42-20260921t160045z-internal",
+      "arma2-r42-20260921t160045z-egress"
+    ],
+    "remaining": {
+      "containers": "",
+      "networks": ""
+    },
+    "authorizationRemoved": true,
+    "runJsonRemoved": true,
+    "port58431Free": true
+  },
+  "r2": {
+    "dbId": true,
+    "dbImage": true,
+    "dbStarted": true,
+    "dbNetworks": true,
+    "dbMounts": true,
+    "dbHealthy": true,
+    "restId": true,
+    "restStarted": true,
+    "restNetworks": true,
+    "catalog": true,
+    "ring": true,
+    "jwks": true,
+    "catalogSHA256": "a45abe402d83c01102d5c007ea02c7095a3e9e49ec7377c407f57acad66ac54e"
+  },
+  "torneosRowsOutsideSeed": [],
+  "complete": true
+}

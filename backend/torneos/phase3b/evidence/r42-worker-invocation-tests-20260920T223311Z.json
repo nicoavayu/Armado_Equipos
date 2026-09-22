@@ -1,0 +1,32 @@
+{
+  "stamp": "20260920T223311Z",
+  "node": "v25.2.1",
+  "cases": [],
+  "status": "FAIL",
+  "filter": "PASS",
+  "rootCause": {
+    "parent": [
+      "--input-type=module"
+    ],
+    "error": "ERR_INPUT_TYPE_NOT_ALLOWED",
+    "expected": true
+  },
+  "preserved": {
+    "parent": [
+      "--input-type",
+      "module",
+      "--trace-warnings"
+    ],
+    "execArgv": [
+      "--trace-warnings"
+    ],
+    "removed": [
+      "--input-type",
+      "module"
+    ],
+    "observed": [
+      "--trace-warnings"
+    ]
+  },
+  "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n\n1 !== 0\n\n    at [stdin]:5:69\n    at process.processTicksAndRejections (node:internal/process/task_queues:103:5) {\n  generatedMessage: true,\n  code: 'ERR_ASSERTION',\n  actual: 1,\n  expected: 0,\n  operator: 'strictEqual',\n  diff: 'simple'\n}\n\n\n1 !== 0\n"
+}

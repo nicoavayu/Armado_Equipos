@@ -1,0 +1,40 @@
+
+=== 0. pins (before any credential is read)
+  [ok] 20260914120000 file 2967ae6f67e3… apply-sql 3d3e2845987c… (33935 B) ledger 22 stmts md5 09ad7d261523fa1c2bb6e203a1624467
+  [ok] 20260915120000 file 5256413839ad… apply-sql 859fa7a30dee… (24408 B) ledger 3 stmts md5 b424cc66022e7ab721e8070d0b05cdc7
+  [ok] rollback sql 08edcd0e5eb8…  cli_parser 1ab11b26450a…
+
+=== custody preflight (Keychain arma2-torneos-nonprod-core / contract-secret)
+KEYCHAIN_ENTRY_ABSENT
+  [ok] Keychain: ABSENT
+
+=== 1. PREFLIGHT (read-only): project, ledger shape, CLI rows, contract state, secret, function
+  [ok] project hhyvmhgpapyuzjgxfnqv = arma2-torneos-staging ACTIVE_HEALTHY (NON_PRODUCTION)
+  [ok] ledger shape == hosted shape (6 columns, PK version, UNIQUE idempotency_key NULLS DISTINCT); rows=9 max=20260810215224 standard_conforming_strings=on
+  [ok] writer postgres: database owner postgres, CREATE on database/public/app_private, INSERT+DELETE on the ledger; app_private owner postgres
+  [ok] canonical rows of Core staging: 7 CLI-shaped rows reproduced byte-for-byte by cli_parser + 2 legacy single-blob rows equal to their pinned fingerprints (mismatched 0, absent 0)
+  20260914120000: objects absent, ledger absent → apply
+  20260915120000: objects absent, ledger absent → apply
+  [ok] secret: Keychain ABSENT / Core absent → generate 32 random bytes (hex) → Keychain add → set-secrets on Core → verify by signed probe
+  [ok] function torneos-core-contract: present=false
+
+=== R3 plan (nothing written yet)
+  target           : hhyvmhgpapyuzjgxfnqv (arma2-torneos-staging) — Production rcyuuoaqfwcembdajcss denylisted
+  migrations       : 20260914120000→apply, 20260915120000→apply
+  ledger           : strategy A (INSERT (version,name,statements) in the SAME transaction; CLI row shape)
+  secret           : generate 32 random bytes (hex) → Keychain add → set-secrets on Core → verify by signed probe
+  function         : deploy torneos-core-contract (verify_jwt=false, 3 files, CLI-shaped multipart) → read back → signed harness (9 exact answers) → ACL probe
+  rollback         : rollback-core-contract.sh (pinned 08edcd0e5eb8…), prepared, NOT run here
+EVIDENCE /Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/remote/../evidence/r3-preflight-20260917T213640Z.json
+fdadc2f33facc945be0329756943b92d975aa6175887b4eadcd50c363b9ad319  /Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/remote/../evidence/r3-preflight-20260917T213640Z.json
+
+=== HUMAN AUTHORIZATION
+
+=== 2. Core contract migrations + ledger rows (one transaction each, probe-first)
+{"ok":false,"op":"apply-core-contract","error":"apply_status_400_20260914120000_torneos_core_contract_v1.sql_{\"message\":\"Failed to run sql query: ERROR:  25006: cannot execute CREATE SCHEMA in a read-only transaction\\n\"}","detail":{"phase":"apply","version":"20260914120000","query_bytes":33935,"server_state_after_failure":"UNKNOWN_reobserve_with_preflight_only","status":400,"elapsed_ms":650},"elapsed_ms":4473}
+EVIDENCE /Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/remote/../evidence/r3-failed-20260917T213640Z.json
+dd8a75e7d7f15b0128f58fb450a5555cb5c7f2f54984406ac63ca1d8bdfecf80  /Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/remote/../evidence/r3-failed-20260917T213640Z.json
+
+!! ABORT: migrations failed (each version is one transaction: a failed one is rolled back by the server; verify with --preflight-only before any re-run) (stage: 2. migrations, exit 1; evidence r3-failed-20260917T213640Z.json)
+
+RUNNER_EXIT=1

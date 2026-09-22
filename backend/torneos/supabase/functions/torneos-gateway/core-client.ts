@@ -3,7 +3,8 @@
 // X-Nonce / X-Signature = HMAC-SHA256 over path + "\n" + time + "\n" + nonce + "\n" + body),
 // same 2 s timeout, 16 KiB request / 256 KiB response caps, same closed response schemas
 // (schemas.json, byte-identical to Phase 2A; session.schema.json for the v1.1 operation),
-// same team echo check, same 3 s freshness window and the same sanitized errors: the
+// same team echo check, same 3 s freshness window (plus a bounded tolerance for a Core clock
+// slightly AHEAD of this one, see FRESHNESS below) and the same sanitized errors: the
 // downstream body never surfaces, only CORE_DENIED (4xx) or CORE_UNAVAILABLE.
 //
 // Transport policy (fail closed): the base URL is fixed at construction; it must be the
@@ -54,6 +55,28 @@ export function validate(value: unknown, schema: string | Schema): void {
     const v = value as number
     if (v < (schema.minimum ?? -Infinity) || v > (schema.maximum ?? Infinity)) throw new Error("SCHEMA_RANGE")
   }
+}
+
+/**
+ * FRESHNESS of a time-bound Core verdict (`checked_at` / `captured_at`: integer unix seconds,
+ * truncated on Core's Postgres clock). `age = now − observed` must satisfy
+ *   −MAX_FUTURE_SKEW_SECONDS ≤ age ≤ MAX_RESPONSE_AGE_SECONDS
+ * MAX_RESPONSE_AGE_SECONDS is the certified Phase 2A window (2 s HTTP timeout + integer rounding):
+ * anything older is stale and fails closed as CORE_UNAVAILABLE (no cache, no stale verdict).
+ * MAX_FUTURE_SKEW_SECONDS bounds a Core clock AHEAD of this one. R4.2 run 20260918T224221Z
+ * (Core staging vs the local gateway, ≈0.15 s apart) rejected valid verdicts whenever the
+ * truncated `checked_at` crossed a second boundary before this clock did (age ∈ (−0.25, 0)),
+ * i.e. `age >= 0` treated tiny future skew as staleness. 5 s is the tolerance already certified
+ * for the bridge token (token.ts clockTolerance) and by the attestation table
+ * (core_contract_attestations_fresh: observed_at ≤ created_at + 5 s); a verdict further in the
+ * future is a broken clock, not skew, and still fails closed. NaN never passes.
+ */
+export const MAX_RESPONSE_AGE_SECONDS = 3
+export const MAX_FUTURE_SKEW_SECONDS = 5
+export function isFreshObservation(observed: unknown, now: number): boolean {
+  if (typeof observed !== "number" || !Number.isFinite(observed) || !Number.isFinite(now)) return false
+  const age = now - observed
+  return age >= -MAX_FUTURE_SKEW_SECONDS && age <= MAX_RESPONSE_AGE_SECONDS
 }
 
 export const ROUTES: Record<string, string> = {
@@ -149,8 +172,7 @@ export class CoreClient {
       if (path === "/v1/team-snapshot" && result.core_team_id !== request.core_team_id) throw new Error("WRONG_TEAM")
       if (path !== "/v1/directory") {
         const observed = result.checked_at ?? result.captured_at
-        const age = this.clock() - observed
-        if (!(age >= 0 && age <= 3)) throw new Error("STALE_RESPONSE")
+        if (!isFreshObservation(observed, this.clock())) throw new Error("STALE_RESPONSE")
       }
       return result
     } catch {

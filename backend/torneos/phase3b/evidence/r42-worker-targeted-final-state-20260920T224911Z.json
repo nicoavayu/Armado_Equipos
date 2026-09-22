@@ -1,0 +1,84 @@
+{
+  "status": "TARGETED_WORKER_PASS",
+  "scope": "targeted Worker validation only (cases 1-4); full R4.2 matrix NOT executed",
+  "productionRequests": 0,
+  "fullR42Executed": false,
+  "exitContract": {
+    "field": "exit = docker run status of `edge-runtime start --main-service outage.eszip`",
+    "observed": 1,
+    "cause": "harness index.ts:143 calls Deno.exit() after printing R42_OUTAGE_RESULT; Deno.exit is not a function inside the edge-runtime v1.74.2 isolate → TypeError → \"main worker has been destroyed\" → status 1 unconditionally",
+    "historicalRuns": {
+      "r4-outage-postfix-20260919T153710Z": {
+        "pass": true,
+        "tests": 28,
+        "exit": 1
+      },
+      "r4-outage-prefix-20260919T153710Z": {
+        "pass": false,
+        "tests": "25/28",
+        "exit": 1
+      },
+      "r4-outage-20260920T163717Z": {
+        "pass": true,
+        "tests": 28,
+        "exit": 1
+      },
+      "r4-outage-20260920T165201Z": {
+        "pass": true,
+        "tests": 28,
+        "exit": 1
+      },
+      "r4-outage-20260920T170732Z": {
+        "pass": true,
+        "tests": 29,
+        "exit": 1
+      }
+    },
+    "consumers": "matrix.mjs:339 asserts outage.pass and named tests; transport-probe uses pass/tests; no caller reads exit",
+    "successContract": "R42_OUTAGE_RESULT line present (else Stop OUTAGE_NO_RESULT) and report.pass === true",
+    "assertionRemoved": "assert.equal(r.exit,0) in worker-invocation.test.mjs (only change in this task)"
+  },
+  "sources": {
+    "testBefore": "a956b19f27e0876c01f4b3d9bfa586d7d6d0a050e34398165ce7bf621201012a",
+    "testAfter": "b991c67db766bbe7691156dbfbf4bac56e2387d60f5e986a467094c7541553d2",
+    "outage": "a0b78a7179c0b5f9f36d966689b078af506925aee57586b00ce7e7a449a18f18",
+    "outageWorker": "ac9ace484fb9b6ee6b44348cb7c535c4fa8f4d5da93616b8a715848493108507",
+    "harnessIndex": "ae182b5b94a0f1771ddb9e2f9adc957aecd495392a80315905c72d21d471f30e",
+    "changedSinceRegistry": [
+      "backend/torneos/phase3b/r42/outage.mjs",
+      "backend/torneos/phase3b/r42/transport-probe.mjs",
+      "backend/torneos/phase3b/r42/operator.mjs",
+      "backend/torneos/phase3b/r42/run-transport.mjs"
+    ]
+  },
+  "evidence": {
+    "r4-cleanup-20260920T224530Z.json": "f501900320c6494edbdc273ffda4aec0ffb594d95f9bbf3b8a120cd251537455",
+    "r4-gateway-start-20260920T224532Z.json": "79a0d3a487de900a7c0a0b7f92a293924fcaf3c0c35ec1f16452d383e1259ff8",
+    "r4-preflight-20260920T224532Z.json": "2036db04150616822a44e144e3d824028fcca6998793728b0b77bcccc4a7b852",
+    "r4-smoke-20260920T224551Z.json": "d2f3192189a48e7d95c48e431f3a6ae1374db46e1288af54e40817d64227c6f3",
+    "r4-summary-20260920T224530Z.json": "6d5bf0f5e7acb3f8f778b2d1c7a218ff1928f75f17842ebdc2e0befe4b47589e",
+    "r42-targeted-transport-20260920T224530Z.json": "7cd58b7e05681e74a97602dcaa5fb24ffbe779aa1753923eff8506e5a83bff6b",
+    "r42-worker-invocation-tests-20260920T224305Z.json": "d7095ad02d40170c42eb9d430686884ec3b13095de68b4a7fc2e24a27779fafa"
+  },
+  "cleanup": {
+    "containers": "",
+    "networks": "",
+    "authorizationAbsent": true,
+    "runJsonAbsent": true,
+    "preparedPresent": true,
+    "pass": true
+  },
+  "r2": {
+    "dbHealthy": true,
+    "dbRunning": true,
+    "restRunning": true,
+    "dbId": true,
+    "dbStarted": true,
+    "restId": true,
+    "restStarted": true,
+    "catalog": true,
+    "ring": true,
+    "jwks": true,
+    "unchanged": true
+  }
+}

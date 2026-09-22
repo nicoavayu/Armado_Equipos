@@ -1,0 +1,135 @@
+BEGIN
+SELECT 2
+SELECT 5
+CREATE TABLE
+DO
+=== ownership per table (out_of_scope must be 0 everywhere) ===
+t|total|in_scope|out_of_scope|min_created|max_created|pk|predicate
+private.core_contract_attestations|2|2|0|2026-09-18 22:49:16.904647+00|2026-09-18 22:49:28.314184+00|id|identity_id IN (SELECT identity_id FROM r42_ids)
+public.torneos_identity|5|5|0|2026-09-18 22:48:47.939996+00|2026-09-18 22:48:53.324136+00|id|id IN (SELECT identity_id FROM r42_ids)
+public.tournament_audit_log|32|32|0|2026-09-18 22:49:06.848309+00|2026-09-18 22:49:30.384083+00|id|organization_id IN (SELECT org_id FROM r42_scope)
+public.tournament_categories|2|2|0|2026-09-18 22:49:01.700978+00|2026-09-18 22:49:04.174447+00|id|organization_id IN (SELECT org_id FROM r42_scope)
+public.tournament_discipline_rules|2|2|0|2026-09-18 22:49:00.72775+00|2026-09-18 22:49:03.466093+00|tournament_id|organization_id IN (SELECT org_id FROM r42_scope)
+public.tournament_organization_members|4|4|0|2026-09-18 22:48:57.500715+00|2026-09-18 22:49:04.873217+00|id|organization_id IN (SELECT org_id FROM r42_scope)
+public.tournament_organizations|2|2|0|2026-09-18 22:48:57.500715+00|2026-09-18 22:48:58.410007+00|id|id IN (SELECT org_id FROM r42_scope)
+public.tournament_provisional_players|10|10|0|2026-09-18 22:49:08.069281+00|2026-09-18 22:49:25.491441+00|id|organization_id IN (SELECT org_id FROM r42_scope)
+public.tournament_roster_players|10|10|0|2026-09-18 22:49:08.756438+00|2026-09-18 22:49:26.100912+00|id|organization_id IN (SELECT org_id FROM r42_scope)
+public.tournament_roster_settings|1|1|0|2026-09-18 22:49:06.848309+00|2026-09-18 22:49:06.848309+00|tournament_id|organization_id IN (SELECT org_id FROM r42_scope)
+public.tournament_rosters|3|3|0|2026-09-18 22:49:06.848309+00|2026-09-18 22:49:29.632981+00|id|organization_id IN (SELECT org_id FROM r42_scope)
+public.tournament_scoring_rules|2|2|0|2026-09-18 22:49:00.72775+00|2026-09-18 22:49:03.466093+00|tournament_id|organization_id IN (SELECT org_id FROM r42_scope)
+public.tournament_season_member_assignments|1|1|0|2026-09-18 22:49:05.556086+00|2026-09-18 22:49:05.556086+00|id|organization_id IN (SELECT org_id FROM r42_scope)
+public.tournament_seasons|2|2|0|2026-09-18 22:48:59.075851+00|2026-09-18 22:48:59.918034+00|id|organization_id IN (SELECT org_id FROM r42_scope)
+public.tournament_team_entries|3|3|0|2026-09-18 22:49:06.848309+00|2026-09-18 22:49:29.632981+00|id|organization_id IN (SELECT org_id FROM r42_scope)
+public.tournament_team_invitations|2|2|0|2026-09-18 22:49:15.684561+00|2026-09-18 22:49:26.653087+00|id|organization_id IN (SELECT org_id FROM r42_scope)
+public.tournament_team_managers|2|2|0|2026-09-18 22:49:15.684561+00|2026-09-18 22:49:26.653087+00|id|organization_id IN (SELECT org_id FROM r42_scope)
+public.tournament_tiebreak_rules|8|8|0|2026-09-18 22:49:00.72775+00|2026-09-18 22:49:03.466093+00|id|organization_id IN (SELECT org_id FROM r42_scope)
+public.tournaments|2|2|0|2026-09-18 22:49:00.72775+00|2026-09-18 22:49:03.466093+00|id|organization_id IN (SELECT org_id FROM r42_scope)
+public.user_tournament_context_preferences|1|1|0|||user_id,organization_id|organization_id IN (SELECT org_id FROM r42_scope)
+public.user_workspace_preferences|2|2|0|||user_id|user_id IN (SELECT identity_id FROM r42_ids)
+(21 rows)
+=== totals ===
+tables|rows|out_of_scope|first_created|last_created
+21|98|0|2026-09-18 22:48:47.939996+00|2026-09-18 22:49:30.384083+00
+(1 row)
+=== per-row PKs (all 98) ===
+t|pk|owner_ref|created_at
+private.core_contract_attestations|a7e9e8d3-0934-4b57-8685-6309b06f7d34|68cfbd44-ad73-436a-ac30-669e88b2b0cb|2026-09-18 22:49:16.904647+00
+private.core_contract_attestations|2532bcce-0d39-4850-82e2-e9b32c4db55c|68cfbd44-ad73-436a-ac30-669e88b2b0cb|2026-09-18 22:49:28.314184+00
+public.torneos_identity|16f61746-496f-4c3f-97ca-7b8c758505a1|a13a79b6-21a0-48e1-b968-0b308e461b1a|2026-09-18 22:48:47.939996+00
+public.torneos_identity|953ff9f7-8283-4a1a-9cc8-52066ed3a76e|256e7691-2c44-467a-a0d6-7c088df4c2fe|2026-09-18 22:48:50.306096+00
+public.torneos_identity|792556cf-731c-4342-bdcd-cd69c0ea9c34|23e86711-bc57-46e9-a65a-6d3198f5ea7d|2026-09-18 22:48:51.493321+00
+public.torneos_identity|b34a3e69-391d-490f-97dc-cf60a7f30130|a2afe512-ebce-413c-b6ac-b0f865f3ce32|2026-09-18 22:48:52.562358+00
+public.torneos_identity|68cfbd44-ad73-436a-ac30-669e88b2b0cb|eb7e82e0-94e7-435b-aa5d-0b4b2d4f7f04|2026-09-18 22:48:53.324136+00
+public.tournament_audit_log|114|6c3c5fce-0946-4531-b519-d885597309f9|2026-09-18 22:49:06.848309+00
+public.tournament_audit_log|115|6c3c5fce-0946-4531-b519-d885597309f9|2026-09-18 22:49:07.387224+00
+public.tournament_audit_log|116|6c3c5fce-0946-4531-b519-d885597309f9|2026-09-18 22:49:08.069281+00
+public.tournament_audit_log|117|6c3c5fce-0946-4531-b519-d885597309f9|2026-09-18 22:49:08.756438+00
+public.tournament_audit_log|118|6c3c5fce-0946-4531-b519-d885597309f9|2026-09-18 22:49:09.73007+00
+public.tournament_audit_log|119|6c3c5fce-0946-4531-b519-d885597309f9|2026-09-18 22:49:10.427109+00
+public.tournament_audit_log|120|6c3c5fce-0946-4531-b519-d885597309f9|2026-09-18 22:49:11.078757+00
+public.tournament_audit_log|121|6c3c5fce-0946-4531-b519-d885597309f9|2026-09-18 22:49:11.858039+00
+public.tournament_audit_log|122|6c3c5fce-0946-4531-b519-d885597309f9|2026-09-18 22:49:12.801351+00
+public.tournament_audit_log|123|6c3c5fce-0946-4531-b519-d885597309f9|2026-09-18 22:49:13.422113+00
+public.tournament_audit_log|124|6c3c5fce-0946-4531-b519-d885597309f9|2026-09-18 22:49:14.095422+00
+public.tournament_audit_log|125|6c3c5fce-0946-4531-b519-d885597309f9|2026-09-18 22:49:14.851675+00
+public.tournament_audit_log|126|6c3c5fce-0946-4531-b519-d885597309f9|2026-09-18 22:49:15.684561+00
+public.tournament_audit_log|127|6c3c5fce-0946-4531-b519-d885597309f9|2026-09-18 22:49:16.915772+00
+public.tournament_audit_log|128|6c3c5fce-0946-4531-b519-d885597309f9|2026-09-18 22:49:17.562116+00
+public.tournament_audit_log|129|6c3c5fce-0946-4531-b519-d885597309f9|2026-09-18 22:49:18.189339+00
+public.tournament_audit_log|130|6c3c5fce-0946-4531-b519-d885597309f9|2026-09-18 22:49:18.777724+00
+public.tournament_audit_log|131|6c3c5fce-0946-4531-b519-d885597309f9|2026-09-18 22:49:19.819427+00
+public.tournament_audit_log|132|6c3c5fce-0946-4531-b519-d885597309f9|2026-09-18 22:49:20.512641+00
+public.tournament_audit_log|133|6c3c5fce-0946-4531-b519-d885597309f9|2026-09-18 22:49:21.254675+00
+public.tournament_audit_log|134|6c3c5fce-0946-4531-b519-d885597309f9|2026-09-18 22:49:22.064959+00
+public.tournament_audit_log|135|6c3c5fce-0946-4531-b519-d885597309f9|2026-09-18 22:49:22.629203+00
+public.tournament_audit_log|136|6c3c5fce-0946-4531-b519-d885597309f9|2026-09-18 22:49:23.305317+00
+public.tournament_audit_log|137|6c3c5fce-0946-4531-b519-d885597309f9|2026-09-18 22:49:23.923636+00
+public.tournament_audit_log|138|6c3c5fce-0946-4531-b519-d885597309f9|2026-09-18 22:49:24.870552+00
+public.tournament_audit_log|139|6c3c5fce-0946-4531-b519-d885597309f9|2026-09-18 22:49:25.491441+00
+public.tournament_audit_log|140|6c3c5fce-0946-4531-b519-d885597309f9|2026-09-18 22:49:26.100912+00
+public.tournament_audit_log|141|6c3c5fce-0946-4531-b519-d885597309f9|2026-09-18 22:49:26.653087+00
+public.tournament_audit_log|142|6c3c5fce-0946-4531-b519-d885597309f9|2026-09-18 22:49:28.328983+00
+public.tournament_audit_log|143|6c3c5fce-0946-4531-b519-d885597309f9|2026-09-18 22:49:28.940361+00
+public.tournament_audit_log|144|6c3c5fce-0946-4531-b519-d885597309f9|2026-09-18 22:49:29.632981+00
+public.tournament_audit_log|145|6c3c5fce-0946-4531-b519-d885597309f9|2026-09-18 22:49:30.384083+00
+public.tournament_categories|9e54d1ba-d943-4f15-bd88-fe1da9f09cb6|6c3c5fce-0946-4531-b519-d885597309f9|2026-09-18 22:49:01.700978+00
+public.tournament_categories|bb22febf-9926-4b05-bdcb-c46680c70355|6c3c5fce-0946-4531-b519-d885597309f9|2026-09-18 22:49:04.174447+00
+public.tournament_discipline_rules|c0576cf8-5d75-4648-9bb6-f43fd4825c28|6c3c5fce-0946-4531-b519-d885597309f9|2026-09-18 22:49:00.72775+00
+public.tournament_discipline_rules|0bb0bda2-9a38-4e13-a220-61423f4df152|6c3c5fce-0946-4531-b519-d885597309f9|2026-09-18 22:49:03.466093+00
+public.tournament_organization_members|af1fc18c-d960-472f-948d-6929b5fdb195|6c3c5fce-0946-4531-b519-d885597309f9|2026-09-18 22:48:57.500715+00
+public.tournament_organization_members|0677de56-820b-49e7-96f2-f97f99d8f362|23bc7081-61f7-499e-a1b7-3562268f0217|2026-09-18 22:48:58.410007+00
+public.tournament_organization_members|45b49a4a-be81-4398-9111-6bd7bf6a537b|6c3c5fce-0946-4531-b519-d885597309f9|2026-09-18 22:49:04.822569+00
+public.tournament_organization_members|9d9deedd-5238-4d1a-b510-22bce403c066|6c3c5fce-0946-4531-b519-d885597309f9|2026-09-18 22:49:04.873217+00
+public.tournament_organizations|6c3c5fce-0946-4531-b519-d885597309f9|r42-league-20260918t224835|2026-09-18 22:48:57.500715+00
+public.tournament_organizations|23bc7081-61f7-499e-a1b7-3562268f0217|r42-other-20260918t224835|2026-09-18 22:48:58.410007+00
+public.tournament_provisional_players|66e8695d-cddc-454b-bf85-6150f5a1bcf2|6c3c5fce-0946-4531-b519-d885597309f9|2026-09-18 22:49:08.069281+00
+public.tournament_provisional_players|b22a703e-1eda-4bd8-a1ae-6d89553dcd7e|6c3c5fce-0946-4531-b519-d885597309f9|2026-09-18 22:49:09.73007+00
+public.tournament_provisional_players|bd0523c7-6195-449b-a2ed-604b6b5520d8|6c3c5fce-0946-4531-b519-d885597309f9|2026-09-18 22:49:11.078757+00
+public.tournament_provisional_players|9d95c3b1-c91f-484b-99d4-213231f7b0f3|6c3c5fce-0946-4531-b519-d885597309f9|2026-09-18 22:49:12.801351+00
+public.tournament_provisional_players|208937c8-b8b7-4cc1-a1a1-f587a7169678|6c3c5fce-0946-4531-b519-d885597309f9|2026-09-18 22:49:14.095422+00
+public.tournament_provisional_players|135fd788-93f2-4bd3-9c42-c5575733bc68|6c3c5fce-0946-4531-b519-d885597309f9|2026-09-18 22:49:19.819427+00
+public.tournament_provisional_players|94417c66-ee1a-4441-9585-68de06cf4609|6c3c5fce-0946-4531-b519-d885597309f9|2026-09-18 22:49:21.254675+00
+public.tournament_provisional_players|5b1a7701-97c1-414f-9745-717c9ae20a53|6c3c5fce-0946-4531-b519-d885597309f9|2026-09-18 22:49:22.629203+00
+public.tournament_provisional_players|88471c02-8995-4384-991d-9e4329356865|6c3c5fce-0946-4531-b519-d885597309f9|2026-09-18 22:49:23.923636+00
+public.tournament_provisional_players|9d420d13-6c35-4762-a081-22760244fdfe|6c3c5fce-0946-4531-b519-d885597309f9|2026-09-18 22:49:25.491441+00
+public.tournament_roster_players|12b7193f-60c3-48e2-b7e6-ffa0a4a00732|6c3c5fce-0946-4531-b519-d885597309f9|2026-09-18 22:49:08.756438+00
+public.tournament_roster_players|abc1b4c7-41bb-46ce-9438-1e5f261eab7c|6c3c5fce-0946-4531-b519-d885597309f9|2026-09-18 22:49:10.427109+00
+public.tournament_roster_players|e6bb25cf-1c29-471b-8509-cbc24100bdd9|6c3c5fce-0946-4531-b519-d885597309f9|2026-09-18 22:49:11.858039+00
+public.tournament_roster_players|dd74f888-aa1b-42af-911e-874b021aa1bd|6c3c5fce-0946-4531-b519-d885597309f9|2026-09-18 22:49:13.422113+00
+public.tournament_roster_players|a4c3a1ba-e7ce-40e1-8fc8-70c34c69453a|6c3c5fce-0946-4531-b519-d885597309f9|2026-09-18 22:49:14.851675+00
+public.tournament_roster_players|1e1521d8-95f5-4e33-8299-1fc958f53c78|6c3c5fce-0946-4531-b519-d885597309f9|2026-09-18 22:49:20.512641+00
+public.tournament_roster_players|0c4fd2e0-5047-456b-a669-db542a81241f|6c3c5fce-0946-4531-b519-d885597309f9|2026-09-18 22:49:22.064959+00
+public.tournament_roster_players|3ab7ce01-7c38-436c-8f87-9f486fbd6004|6c3c5fce-0946-4531-b519-d885597309f9|2026-09-18 22:49:23.305317+00
+public.tournament_roster_players|4b5f6dcc-8496-438a-a41e-a8df45ad124e|6c3c5fce-0946-4531-b519-d885597309f9|2026-09-18 22:49:24.870552+00
+public.tournament_roster_players|0f8a6756-10a7-4f0c-b324-455e6cdebccd|6c3c5fce-0946-4531-b519-d885597309f9|2026-09-18 22:49:26.100912+00
+public.tournament_roster_settings|c0576cf8-5d75-4648-9bb6-f43fd4825c28|6c3c5fce-0946-4531-b519-d885597309f9|2026-09-18 22:49:06.848309+00
+public.tournament_rosters|6ac22e24-745a-438a-a294-9b8cb47aa48b|6c3c5fce-0946-4531-b519-d885597309f9|2026-09-18 22:49:06.848309+00
+public.tournament_rosters|25d4f3e1-fe91-4fb3-b353-c8ae39044e45|6c3c5fce-0946-4531-b519-d885597309f9|2026-09-18 22:49:18.189339+00
+public.tournament_rosters|bebf1bea-076e-4a8e-9ed5-8dde7c300fd5|6c3c5fce-0946-4531-b519-d885597309f9|2026-09-18 22:49:29.632981+00
+public.tournament_scoring_rules|c0576cf8-5d75-4648-9bb6-f43fd4825c28|6c3c5fce-0946-4531-b519-d885597309f9|2026-09-18 22:49:00.72775+00
+public.tournament_scoring_rules|0bb0bda2-9a38-4e13-a220-61423f4df152|6c3c5fce-0946-4531-b519-d885597309f9|2026-09-18 22:49:03.466093+00
+public.tournament_season_member_assignments|05661571-4a24-472e-b2e5-664bc5d47986|6c3c5fce-0946-4531-b519-d885597309f9|2026-09-18 22:49:05.556086+00
+public.tournament_seasons|8bb60ec7-0577-4e6b-b839-c399bc71aaeb|6c3c5fce-0946-4531-b519-d885597309f9|2026-09-18 22:48:59.075851+00
+public.tournament_seasons|c9c76d70-590b-4641-9517-2db1eb0993c9|6c3c5fce-0946-4531-b519-d885597309f9|2026-09-18 22:48:59.918034+00
+public.tournament_team_entries|a4e73654-af4e-49b9-ad37-5b0cd8518c8c|6c3c5fce-0946-4531-b519-d885597309f9|2026-09-18 22:49:06.848309+00
+public.tournament_team_entries|ee82d6ac-6a90-4569-9030-3381d46a1595|6c3c5fce-0946-4531-b519-d885597309f9|2026-09-18 22:49:18.189339+00
+public.tournament_team_entries|3ed33c87-a0d4-43aa-ab8e-8230c724efe0|6c3c5fce-0946-4531-b519-d885597309f9|2026-09-18 22:49:29.632981+00
+public.tournament_team_invitations|9e8c6d76-9907-493c-b767-c6d2717b1273|6c3c5fce-0946-4531-b519-d885597309f9|2026-09-18 22:49:15.684561+00
+public.tournament_team_invitations|e9c5018f-7c3a-4a81-870f-ea002d041562|6c3c5fce-0946-4531-b519-d885597309f9|2026-09-18 22:49:26.653087+00
+public.tournament_team_managers|29f0bdcd-c352-47eb-91cb-3a14b1f3c047|6c3c5fce-0946-4531-b519-d885597309f9|2026-09-18 22:49:15.684561+00
+public.tournament_team_managers|948c0c88-c9e0-4ef1-b411-9ad936848dc4|6c3c5fce-0946-4531-b519-d885597309f9|2026-09-18 22:49:26.653087+00
+public.tournament_tiebreak_rules|400bb67a-f143-40f5-950e-2b7ef62ee2c9|6c3c5fce-0946-4531-b519-d885597309f9|2026-09-18 22:49:00.72775+00
+public.tournament_tiebreak_rules|64a8e057-9054-44da-a9da-5ca9b4f80992|6c3c5fce-0946-4531-b519-d885597309f9|2026-09-18 22:49:00.72775+00
+public.tournament_tiebreak_rules|3fc5ccd9-3483-4d91-a7a4-275855b05722|6c3c5fce-0946-4531-b519-d885597309f9|2026-09-18 22:49:00.72775+00
+public.tournament_tiebreak_rules|78761087-a693-404c-8c11-599f4c78c322|6c3c5fce-0946-4531-b519-d885597309f9|2026-09-18 22:49:00.72775+00
+public.tournament_tiebreak_rules|316e840e-dff0-4301-9865-4173fd9ae5c5|6c3c5fce-0946-4531-b519-d885597309f9|2026-09-18 22:49:03.466093+00
+public.tournament_tiebreak_rules|2225f394-05ab-4efb-a900-9e1f1cfa51e4|6c3c5fce-0946-4531-b519-d885597309f9|2026-09-18 22:49:03.466093+00
+public.tournament_tiebreak_rules|0ccbc57b-cfac-4d1e-906d-9e39ad3b49ca|6c3c5fce-0946-4531-b519-d885597309f9|2026-09-18 22:49:03.466093+00
+public.tournament_tiebreak_rules|07e1f4eb-6b6a-46e8-a4ba-9637d2191a54|6c3c5fce-0946-4531-b519-d885597309f9|2026-09-18 22:49:03.466093+00
+public.tournaments|c0576cf8-5d75-4648-9bb6-f43fd4825c28|6c3c5fce-0946-4531-b519-d885597309f9|2026-09-18 22:49:00.72775+00
+public.tournaments|0bb0bda2-9a38-4e13-a220-61423f4df152|6c3c5fce-0946-4531-b519-d885597309f9|2026-09-18 22:49:03.466093+00
+public.user_tournament_context_preferences|16f61746-496f-4c3f-97ca-7b8c758505a1/6c3c5fce-0946-4531-b519-d885597309f9|6c3c5fce-0946-4531-b519-d885597309f9|
+public.user_workspace_preferences|16f61746-496f-4c3f-97ca-7b8c758505a1|16f61746-496f-4c3f-97ca-7b8c758505a1|
+public.user_workspace_preferences|b34a3e69-391d-490f-97dc-cf60a7f30130|b34a3e69-391d-490f-97dc-cf60a7f30130|
+(98 rows)
+ROLLBACK

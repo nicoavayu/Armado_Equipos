@@ -1,0 +1,9 @@
+{
+  "schema": "R4.2.sealed-sources-check.v1",
+  "seal": "r4-hashes-20260920T170508Z.json",
+  "sources": 13,
+  "files": 5,
+  "drift": [],
+  "missing": [],
+  "pass": true
+}

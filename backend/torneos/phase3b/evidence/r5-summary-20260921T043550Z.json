@@ -1,0 +1,499 @@
+{
+  "schema": "R5.summary.v1",
+  "stamp": "20260921T043550Z",
+  "mode": "r5",
+  "utc": "2026-09-21T04:38:02.306Z",
+  "verdict": "R5_FAIL",
+  "steps": [
+    {
+      "name": "handoff_check",
+      "status": "PASS",
+      "r41aStamp": "20260920T170508Z",
+      "r41aSealSHA256": "e5be71db20c9371ed0d0f31207d678c2820753106d191d56dbcbc7198ec719b2",
+      "free": true,
+      "r2": {
+        "dbId": true,
+        "dbImage": true,
+        "dbStarted": true,
+        "dbNetworks": true,
+        "dbMounts": true,
+        "dbHealthy": true,
+        "restId": true,
+        "restStarted": true,
+        "restNetworks": true,
+        "catalog": true,
+        "ring": true,
+        "jwks": true,
+        "catalogSHA256": "a45abe402d83c01102d5c007ea02c7095a3e9e49ec7377c407f57acad66ac54e"
+      },
+      "prepared": true,
+      "runJson": false,
+      "auth": false,
+      "r4containers": "",
+      "r4networks": ""
+    },
+    {
+      "name": "core_project_guard",
+      "status": "PASS",
+      "project": "arma2-torneos-staging",
+      "projectStatus": "ACTIVE_HEALTHY"
+    },
+    {
+      "name": "core_contract_function_guard",
+      "status": "PASS",
+      "fn": "torneos-core-contract",
+      "fnStatus": "ACTIVE",
+      "ezbr_sha256": "1072419517953eee8e8021f9691d1a5b1efb1f871c4d13290f644d119caded2c"
+    },
+    {
+      "name": "core_keys",
+      "status": "PASS",
+      "anonKind": "legacy-anon",
+      "serviceKind": "legacy-service_role",
+      "keysListed": 4
+    },
+    {
+      "name": "authorization",
+      "status": "PASS",
+      "expiresAt": "2026-09-21T06:38:04.673Z",
+      "commands": [
+        "start-gateway",
+        "smoke"
+      ]
+    },
+    {
+      "name": "runner_preflight",
+      "status": "PASS",
+      "evidence": "/Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/evidence/r4-preflight-20260921T043804Z.json"
+    },
+    {
+      "name": "start_gateway",
+      "status": "PASS",
+      "evidence": "/Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/evidence/r4-gateway-start-20260921T043804Z.json"
+    },
+    {
+      "name": "smoke",
+      "status": "PASS",
+      "evidence": "/Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/evidence/r4-smoke-20260921T043810Z.json"
+    },
+    {
+      "name": "journey",
+      "status": "FAIL",
+      "blocks": [
+        "core_login:PASS",
+        "exchange:PASS",
+        "shadow_identity:PASS",
+        "workspace:PASS",
+        "season:PASS",
+        "tournament:PASS",
+        "collaborator:PASS",
+        "team_registration:PASS",
+        "roster:PASS",
+        "invitation:PASS",
+        "core_team_import:PASS",
+        "p0_review:PASS",
+        "cross_user:PASS",
+        "cross_workspace:PASS",
+        "cross_season:PASS",
+        "bearer_invalid:PASS",
+        "bearer_expired:FAIL"
+      ],
+      "informative": [
+        "qa_users:PASS",
+        "core_fixture:PASS",
+        "cleanup:PASS"
+      ],
+      "totals": {
+        "blocks": 20,
+        "checks": 32,
+        "failedChecks": 1,
+        "gatewayResponses": 154,
+        "outageTests": 0
+      },
+      "cleanup": {
+        "qa": true,
+        "fixtures": true,
+        "coreFixtures": true,
+        "sessions": true,
+        "complete": true
+      },
+      "missingRequired": [
+        "logout_revocation",
+        "core_unavailable",
+        "core_contract_failure",
+        "torneos_unavailable",
+        "gated_off",
+        "not_allowlisted",
+        "no_fallback",
+        "secret_boundary"
+      ],
+      "aborted": "JOURNEY_STOP_ON_FAILURE: forged expired bearer → 401; the REAL first bridge bearer of the run is refused once its 120 s TTL has elapsed (measured), while the owner's fresh bearer works"
+    },
+    {
+      "name": "cleanup",
+      "status": "PASS",
+      "runtime": {
+        "status": "PASS",
+        "removed": [
+          "arma2-r42-20260921t043804z-proxy",
+          "arma2-r42-20260921t043804z-gateway",
+          "arma2-r42-20260921t043804z-internal",
+          "arma2-r42-20260921t043804z-egress"
+        ],
+        "remaining": {
+          "containers": "",
+          "networks": ""
+        },
+        "authorizationRemoved": true,
+        "runJsonRemoved": true,
+        "port58431Free": true
+      },
+      "r2": {
+        "dbId": true,
+        "dbImage": true,
+        "dbStarted": true,
+        "dbNetworks": true,
+        "dbMounts": true,
+        "dbHealthy": true,
+        "restId": true,
+        "restStarted": true,
+        "restNetworks": true,
+        "catalog": true,
+        "ring": true,
+        "jwks": true,
+        "catalogSHA256": "a45abe402d83c01102d5c007ea02c7095a3e9e49ec7377c407f57acad66ac54e"
+      },
+      "torneosRowsOutsideSeed": []
+    }
+  ],
+  "blockers": [
+    "journey"
+  ],
+  "evidence": {
+    "gatewayStart": {
+      "path": "r4-gateway-start-20260921T043804Z.json",
+      "sha256": "6014cfe2cbb02c0ae889bcec59cc829fcb9c4ce5a62b9a338c17c9becf84241e"
+    },
+    "smoke": {
+      "path": "r4-smoke-20260921T043810Z.json",
+      "sha256": "0360c5760a4eda1d4766bab15ebce38f89b58e2da150ade75f2f8ecd425f30ca"
+    },
+    "outage": {
+      "path": "r5-outage-20260921T043550Z.json",
+      "sha256": "fc22246d879bce8185fe716549d9617afad3eea105fde35c059c3381bfac46d1"
+    },
+    "journey": {
+      "path": "r5-journey-20260921T043550Z.json",
+      "sha256": "bc663d6a7b742bfa08ff79dad5bcc6f75bfd72499bd8f10321c1909340f5eb06"
+    },
+    "cleanup": {
+      "path": "r5-cleanup-20260921T043550Z.json",
+      "sha256": "769aa8a42706ed00d58d9aaefe3d0f968b5598ba59574c9250ee2a2489d550bd"
+    }
+  },
+  "run": "arma2-r42-20260921t043804z",
+  "gatewayBundleSHA256": "cc5b1d451fc9ef4498ad927caee37a65aab90ff44ad6ef1cf77e176f989d7e17",
+  "journey": {
+    "status": "FAIL",
+    "blocks": [
+      {
+        "name": "core_login",
+        "status": "PASS",
+        "checks": 2
+      },
+      {
+        "name": "exchange",
+        "status": "PASS",
+        "checks": 2
+      },
+      {
+        "name": "shadow_identity",
+        "status": "PASS",
+        "checks": 3
+      },
+      {
+        "name": "workspace",
+        "status": "PASS",
+        "checks": 1
+      },
+      {
+        "name": "season",
+        "status": "PASS",
+        "checks": 1
+      },
+      {
+        "name": "tournament",
+        "status": "PASS",
+        "checks": 1
+      },
+      {
+        "name": "collaborator",
+        "status": "PASS",
+        "checks": 1
+      },
+      {
+        "name": "team_registration",
+        "status": "PASS",
+        "checks": 1
+      },
+      {
+        "name": "roster",
+        "status": "PASS",
+        "checks": 2
+      },
+      {
+        "name": "invitation",
+        "status": "PASS",
+        "checks": 1
+      },
+      {
+        "name": "core_team_import",
+        "status": "PASS",
+        "checks": 2
+      },
+      {
+        "name": "p0_review",
+        "status": "PASS",
+        "checks": 2
+      },
+      {
+        "name": "cross_user",
+        "status": "PASS",
+        "checks": 1
+      },
+      {
+        "name": "cross_workspace",
+        "status": "PASS",
+        "checks": 1
+      },
+      {
+        "name": "cross_season",
+        "status": "PASS",
+        "checks": 1
+      },
+      {
+        "name": "bearer_invalid",
+        "status": "PASS",
+        "checks": 1
+      },
+      {
+        "name": "bearer_expired",
+        "status": "FAIL",
+        "checks": 1
+      }
+    ],
+    "informative": [
+      {
+        "name": "qa_users",
+        "status": "PASS",
+        "checks": 1
+      },
+      {
+        "name": "core_fixture",
+        "status": "PASS",
+        "checks": 1
+      },
+      {
+        "name": "cleanup",
+        "status": "PASS",
+        "checks": 6
+      }
+    ],
+    "totals": {
+      "blocks": 20,
+      "checks": 32,
+      "failedChecks": 1,
+      "gatewayResponses": 154,
+      "outageTests": 0
+    },
+    "rpcsExercised": [
+      "accept_tournament_team_invitation",
+      "add_tournament_roster_player",
+      "assign_tournament_season_member",
+      "can_read_tournament_team_entry",
+      "change_tournament_status",
+      "create_tournament_organization",
+      "create_tournament_provisional_player",
+      "create_tournament_season",
+      "create_tournament_team_entry",
+      "create_tournament_with_defaults",
+      "get_my_tournament_memberships",
+      "get_team_registration_context",
+      "get_tournament_competition_context",
+      "get_tournament_creation_eligibility",
+      "get_tournament_teams_context",
+      "get_tournament_workspace_context",
+      "has_organization_consumed_free_tournament",
+      "has_tournament_capability",
+      "has_tournament_organization_capability",
+      "has_tournament_season_access",
+      "has_tournament_season_capability",
+      "invite_tournament_team_manager",
+      "is_tournament_organization_member",
+      "is_tournament_organization_slug_available",
+      "is_tournament_team_manager",
+      "list_tournament_season_member_assignments",
+      "remove_tournament_roster_player",
+      "remove_tournament_season_member_assignment",
+      "review_tournament_team_entry",
+      "save_tournament_category",
+      "search_tournament_arma2_teams",
+      "search_tournament_players",
+      "set_active_tournament_context",
+      "set_tournament_workspace_preference",
+      "submit_tournament_team_entry",
+      "tournament_role_capabilities",
+      "update_tournament_configuration",
+      "update_tournament_organization",
+      "update_tournament_roster_player",
+      "update_tournament_season",
+      "update_tournament_team_entry",
+      "withdraw_tournament_team_entry"
+    ],
+    "rpcsOutsideAllowlist": [],
+    "identityMap": [
+      {
+        "role": "owner",
+        "coreUserId": "0f763ef8-dc5c-4530-a921-854aab9eafa6",
+        "torneosIdentity": "642e3fd1-f223-4d11-9850-d1d861c049b9"
+      },
+      {
+        "role": "admin",
+        "coreUserId": "92b906e7-3c3f-45b1-b240-6ffb411cbc29",
+        "torneosIdentity": "f65dcdab-d44f-466c-9906-afb30517e18c"
+      },
+      {
+        "role": "captain",
+        "coreUserId": "cfd21aa0-5c88-4335-9a65-166b4204c2fb",
+        "torneosIdentity": "3296ac35-301c-4a3f-9069-6c0cc308f667"
+      },
+      {
+        "role": "outsider",
+        "coreUserId": "28f09e9f-db3e-4ccf-bf05-b6a0f00d32df",
+        "torneosIdentity": "e149cd02-17b3-40b9-bd5f-2d800539ac81"
+      }
+    ],
+    "liveContracts": {
+      "verified_email": 2,
+      "directory_players": 1,
+      "directory_teams": 1,
+      "team_snapshot": 1,
+      "seededAcceptances": 0
+    },
+    "coreFixtures": {
+      "teams": [
+        {
+          "id": "1067cef2-b77a-44cc-949f-ee560627911a",
+          "name": "QA R5 Team 20260921t043804",
+          "ownerCoreUserId": "0f763ef8-dc5c-4530-a921-854aab9eafa6",
+          "deleted": true
+        }
+      ]
+    },
+    "cleanup": {
+      "qa": true,
+      "fixtures": true,
+      "coreFixtures": true,
+      "sessions": true,
+      "complete": true
+    },
+    "coreVerification": {
+      "sessions": [
+        {
+          "role": "owner",
+          "id": "0f763ef8",
+          "sessionPresent": false,
+          "userSessions": 0,
+          "deleted": true
+        },
+        {
+          "role": "admin",
+          "id": "92b906e7",
+          "sessionPresent": false,
+          "userSessions": 0,
+          "deleted": true
+        },
+        {
+          "role": "captain",
+          "id": "cfd21aa0",
+          "sessionPresent": false,
+          "userSessions": 0,
+          "deleted": true
+        },
+        {
+          "role": "outsider",
+          "id": "28f09e9f",
+          "sessionPresent": false,
+          "userSessions": 0,
+          "deleted": true
+        }
+      ],
+      "leftovers": 0,
+      "teams": [
+        {
+          "id": "1067cef2",
+          "present": false,
+          "members": 0,
+          "deletedByOwner": true
+        }
+      ],
+      "source": "Management API read-only SQL (core-session-exists, core-qa-users, core-team-exists)"
+    }
+  },
+  "blocks": [],
+  "informative": [],
+  "totals": null,
+  "liveContracts": null,
+  "r2": {
+    "before": {
+      "dbId": true,
+      "dbImage": true,
+      "dbStarted": true,
+      "dbNetworks": true,
+      "dbMounts": true,
+      "dbHealthy": true,
+      "restId": true,
+      "restStarted": true,
+      "restNetworks": true,
+      "catalog": true,
+      "ring": true,
+      "jwks": true,
+      "catalogSHA256": "a45abe402d83c01102d5c007ea02c7095a3e9e49ec7377c407f57acad66ac54e"
+    },
+    "after": {
+      "dbId": true,
+      "dbImage": true,
+      "dbStarted": true,
+      "dbNetworks": true,
+      "dbMounts": true,
+      "dbHealthy": true,
+      "restId": true,
+      "restStarted": true,
+      "restNetworks": true,
+      "catalog": true,
+      "ring": true,
+      "jwks": true,
+      "catalogSHA256": "a45abe402d83c01102d5c007ea02c7095a3e9e49ec7377c407f57acad66ac54e"
+    }
+  },
+  "r41a": {
+    "stamp": "20260920T170508Z",
+    "sealSHA256": "e5be71db20c9371ed0d0f31207d678c2820753106d191d56dbcbc7198ec719b2"
+  },
+  "gatewayStarted": true,
+  "differencesFromHistoricalLab": [
+    "Core is the REAL remote staging project (GoTrue password grant on admin-created QA users; Core contract over HTTPS through the R4.1 exact-SNI proxy) instead of the local Core lab with signup.",
+    "Manager acceptance ran through the live verified_email contract (Phase 2D seeded it); directory_players / directory_teams ran live; team_snapshot was not exercised (no Core team fixture on staging).",
+    "Outages: Core Auth/contract faults injected as path-scoped connection resets in the run-owned proxy, preserving ingress; Torneos REST unreachability injected as /32 route removal inside the run-owned gateway namespace (no fault injected into Core staging or R2 services); contract-specific 5xx/timeout/stale/malformed cases ran on the real gateway modules in the certified Edge runtime with --network none (r4-outage).",
+    "start-gateway invoked as runner preflight + audit.mjs start-gateway (the same provisioning the runner delegates to) to avoid the runner's 45 s child timeout; smoke/certify/cleanup used the sealed runner.",
+    "Direct database-side probes went to the R2 loopback PostgREST (127.0.0.1:58430) instead of an in-network exec."
+  ],
+  "evidenceHashes": {
+    "r4-gateway-start-20260921T043804Z.json": "6014cfe2cbb02c0ae889bcec59cc829fcb9c4ce5a62b9a338c17c9becf84241e",
+    "r4-preflight-20260921T043804Z.json": "85e03ef6c58845ab724a46129c1e787cd4d0a9f0df03d25ba49711b055a05321",
+    "r5-cleanup-20260921T043550Z.json": "769aa8a42706ed00d58d9aaefe3d0f968b5598ba59574c9250ee2a2489d550bd",
+    "r5-journey-20260921T043550Z.json": "bc663d6a7b742bfa08ff79dad5bcc6f75bfd72499bd8f10321c1909340f5eb06",
+    "r5-outage-20260921T043550Z.json": "fc22246d879bce8185fe716549d9617afad3eea105fde35c059c3381bfac46d1",
+    "r5-terminal-20260921T043550Z.log": "b844b62effe0ca5a458d3f06e1ed41ddffdb623bea6b72e7f137b1594e50ee76"
+  }
+}
