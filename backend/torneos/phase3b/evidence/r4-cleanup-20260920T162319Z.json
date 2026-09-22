@@ -1,0 +1,40 @@
+{
+  "schema": "R4.2.cleanup.v1",
+  "stamp": "20260920T162319Z",
+  "run": "arma2-r42-20260920t162329z",
+  "qa": null,
+  "coreSessions": null,
+  "runtime": {
+    "status": "PASS",
+    "removed": [
+      "arma2-r42-20260920t162329z-proxy",
+      "arma2-r42-20260920t162329z-gateway",
+      "arma2-r42-20260920t162329z-internal",
+      "arma2-r42-20260920t162329z-egress"
+    ],
+    "remaining": {
+      "containers": "",
+      "networks": ""
+    },
+    "authorizationRemoved": true,
+    "runJsonRemoved": true,
+    "port58431Free": true
+  },
+  "r2": {
+    "dbId": true,
+    "dbImage": true,
+    "dbStarted": true,
+    "dbNetworks": true,
+    "dbMounts": true,
+    "dbHealthy": true,
+    "restId": true,
+    "restStarted": true,
+    "restNetworks": true,
+    "catalog": true,
+    "ring": true,
+    "jwks": true,
+    "catalogSHA256": "a45abe402d83c01102d5c007ea02c7095a3e9e49ec7377c407f57acad66ac54e"
+  },
+  "torneosRowsOutsideSeed": [],
+  "complete": false
+}

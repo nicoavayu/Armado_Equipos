@@ -1,0 +1,28 @@
+✔ cli_parser is the validated port (sha pinned) and splits all.sql into the 18 CLI fixtures + "\n" (5.250875ms)
+✔ D: migration bytes, CLI-faithful ledger rows and rendered apply SQL match the pins (0.647375ms)
+✔ D: renderApplySql refuses inner/second transaction control and a non-owner file with BEGIN (0.337291ms)
+✔ D: the hosted ledger shape (Production audit 2026-08-07) is the only accepted shape (0.242ms)
+✔ D: every read-only probe passes the mgmt.mjs guard (single SELECT, no write verb, no `;`) (0.25475ms)
+✔ D: the 9 canonical rows of Core staging — 7 reproduced by the splitter + 2 legacy blobs pinned field by field; every deviation is a STOP (241.978292ms)
+✔ D: ledgerState / applyDecision — the complete decision table (0.108917ms)
+✔ D/apply: fresh Core staging → exactly two writes (the pinned apply documents), both probed after (3.355292ms)
+✔ D/apply: re-run on an installed+recorded Core → skip, 0 writes; installed but unrecorded → the INSERT alone (reconcile) (5.90375ms)
+✔ D/apply: STOP states write nothing — foreign ledger row, ledger row without objects, unexpected ledger shape, wrong target (14.678584ms)
+✔ read-only ops: core-ledger / core-contract-acl / secret-names / function / core-qa-users / core-session-exists (0.933167ms)
+✔ E: the pinned rollback SQL — hash, exact object set, guards, no CASCADE, no schema drop, out-of-scope names absent (0.432625ms)
+✔ E: mgmt-rollback — only three request shapes, target hardcoded, digests guarded before the write, residue refused (1.214083ms)
+✔ B.3: signed harness — 9 exact answers → SIGNED_HARNESS_PASS; classification of secret-missing / not-deployed / mismatch; retries (21.758875ms)
+✔ C: D1 positive — login → 200 {active:true} → logout(local) → 403; sanitized output; anon key bound to Core staging (0.938875ms)
+✔ deploy-core-contract.sh: pins before PAT → read-only preflight → evidence → preflight-only/dry-run stops → HUMAN phrase → apply → secret state machine → deploy → signed harness → ACL → evidence (4.031125ms)
+✔ rollback-core-contract.sh: pins before PAT → read-only preflight → foreign rows STOP → preflight-only/dry-run → HUMAN phrase → function → SQL → secret → post-verify → evidence (2.847583ms)
+✔ test-d1-positive.sh: never creates a user, STOPs without a dedicated candidate, credentials via tty only, logout scope=local, masked evidence (2.349583ms)
+✔ runners: without a TTY they stop before reading anything (no PAT, no network, no Keychain) (29.169625ms)
+✔ summarize_r3: a dry-run, a 503/404 probe, a missing ledger row or an ACL failure is never "deployed"; the full synthetic PASS is (1689.253542ms)
+ℹ tests 20
+ℹ suites 0
+ℹ pass 20
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2115.329541

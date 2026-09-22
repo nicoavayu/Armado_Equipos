@@ -1,0 +1,47 @@
+[r42 16:00:42] step handoff_check: PASS
+[r42 16:00:43] step core_project_guard: PASS
+[r42 16:00:44] step core_contract_function_guard: PASS
+[r42 16:00:45] step core_keys: PASS
+[r42 16:00:45] step authorization: PASS
+[r42 16:00:45] runner preflight: PASS 
+[r42 16:00:45] step runner_preflight: PASS
+[r42 16:00:49] audit start-gateway: STARTED_PENDING_SMOKE 
+[r42 16:00:49] step start_gateway: PASS
+[r42 16:00:50] runner smoke: PASS 
+[r42 16:00:50] step smoke: PASS
+[r42 16:00:51] block qa_users
+[r42 16:00:53] block core_login
+[r42 16:00:56] block exchange
+[r42 16:00:58] block shadow_identity
+[r42 16:01:05] block workspace
+[r42 16:01:12] block season
+[r42 16:01:15] block tournament
+[r42 16:01:25] block collaborator
+[r42 16:01:31] block team_registration
+[r42 16:01:36] block roster
+[r42 16:01:46] block invitation
+[r42 16:01:52] block core_fixture
+[r42 16:01:53] block core_team_import
+[r42 16:02:06] block p0_review
+[r42 16:02:14] block cross_user
+[r42 16:02:19] block cross_workspace
+[r42 16:02:23] block cross_season
+[r42 16:02:29] block bearer_invalid
+[r42 16:02:31] block bearer_expired
+[r42 16:03:07] block logout_revocation
+[r42 16:03:16] block core_unavailable
+[r42 16:03:17] block core_contract_failure
+[r42 16:03:19] outage harness bundled offline sha256=be45c9fbd7e5f3a9aad76e411825a689a3c21a7e99268f28c069afc3501e3eee
+[r42 16:04:13] block torneos_unavailable
+[r42 16:04:17] block gated_off
+[r42 16:04:17] block not_allowlisted
+[r42 16:04:17] block no_fallback
+[r42 16:04:18] block secret_boundary
+[r42 16:04:18] block cleanup
+[r42 16:04:27] step journey: PASS
+[r42 16:04:27] step core_sessions_zero: PASS
+[r42 16:04:27] step core_fixtures_zero: PASS
+[r42 16:04:28] runner cleanup: PASS 
+[r42 16:04:28] summary /Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/evidence/r5-summary-20260921T144426Z.json
+[r42 16:04:28] VERDICT R5_HYBRID_E2E_CERTIFIED
+{"verdict":"R5_HYBRID_E2E_CERTIFIED","blockers":[],"summary":"r5-summary-20260921T144426Z.json","evidence":{"gatewayStart":{"path":"r4-gateway-start-20260921T160045Z.json","sha256":"01133b48f60f083f977a7b266cb437e05967fa5976322c34c4836bfdf5cbfed6"},"smoke":{"path":"r4-smoke-20260921T160050Z.json","sha256":"94cf544e6f07917ad8d20480db8d033aa022441b323d256e2d5c4674c8364313"},"outage":{"path":"r5-outage-20260921T144426Z.json","sha256":"1187ad44d15bf26b85a336c2beffaa31d7ff7d9d0d6e6658b066b7ec8151ff04"},"journey":{"path":"r5-journey-20260921T144426Z.json","sha256":"2d9bbe3b519de54a5fefd8a49da4a017868c69c317102dd1e17f05b01cd08aa4"},"cleanup":{"path":"r5-cleanup-20260921T144426Z.json","sha256":"342cd0cf76a076015e94d4c7ef4cb6533b2f1835ee6d37cf7411c913ae7d3262"}}}

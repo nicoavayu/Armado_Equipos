@@ -1,0 +1,3 @@
+{"case":"normal","parent":[],"worker":[],"removed":[],"pass":true,"tests":29}
+{"case":"input-type-module","parent":["--input-type=module"],"worker":[],"removed":["--input-type=module"],"pass":true,"tests":29}
+{"status":"PASS","evidence":"/Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/evidence/r42-worker-invocation-tests-20260920T225757Z.json"}

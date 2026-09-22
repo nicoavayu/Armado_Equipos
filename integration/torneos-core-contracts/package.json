@@ -1,0 +1,22 @@
+{
+  "name": "arma2-core-contracts-phase3a",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "prepare:local": "node lab.mjs prepare",
+    "up": "node lab.mjs up",
+    "test": "node --test --test-concurrency=1 test.mjs",
+    "test:acl": "node --test --test-concurrency=1 acl.test.mjs",
+    "test:exposure": "node --test --test-concurrency=1 exposure.test.mjs",
+    "down": "node lab.mjs down",
+    "destroy": "node lab.mjs destroy",
+    "test:edge": "GATEWAY=edge node --test --test-concurrency=1 test.mjs",
+    "test:exposure:edge": "GATEWAY=edge node --test --test-concurrency=1 exposure.test.mjs",
+    "test:equivalence": "node --test --test-concurrency=1 equivalence.test.mjs",
+    "test:d1": "node --test --test-concurrency=1 d1.test.mjs"
+  },
+  "dependencies": {
+    "jose": "6.2.12",
+    "pg": "8.23.0"
+  }
+}

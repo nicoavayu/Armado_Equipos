@@ -1,0 +1,34 @@
+[r42 22:48:32] step handoff_check: PASS
+[r42 22:48:33] step core_project_guard: PASS
+[r42 22:48:33] step core_contract_function_guard: PASS
+[r42 22:48:35] step core_keys: PASS
+[r42 22:48:35] step authorization: PASS
+[r42 22:48:35] runner preflight: PASS 
+[r42 22:48:35] step runner_preflight: PASS
+[r42 22:48:39] audit start-gateway: STARTED_PENDING_SMOKE 
+[r42 22:48:39] step start_gateway: PASS
+[r42 22:48:41] runner smoke: PASS 
+[r42 22:48:41] step smoke: PASS
+[r42 22:48:41] block qa_users
+[r42 22:48:45] block exchange_valid
+[r42 22:48:48]   FAIL POST /exchange with a live Core bearer → 200, RS256 p3b-k1, certified claim contract, identity allocated: EXCHANGE_FAILED: owner 503 {"error":"CORE_UNAVAILABLE"}
+[r42 22:48:53] block token_valid
+[r42 22:48:53]   FAIL valid bridge bearer → allowlisted RPC 200 and table read through the proxy (own identity row only): ASSERT {"label":{"error":"CORE_UNAVAILABLE"},"actual":503,"expected":200}
+[r42 22:48:53] block wrong_issuer
+[r42 22:48:54] block wrong_audience
+[r42 22:48:54] block wrong_kid
+[r42 22:48:54] block expired
+[r42 22:48:54] block wrong_ttl
+[r42 22:48:54] block claim_validation
+[r42 22:48:54] block session_identity_binding
+[r42 22:48:56] block fixtures
+[r42 22:49:30]   FAIL P0 fixture through the allowlisted RPCs with real Core sessions: org, 2 seasons, 2 tournaments in registration, seats, 7 submitted entries: FIXTURE_RPC_FAILED: create_tournament_provisional_player 503 {"error":"CORE_UNAVAILABLE"}
+[r42 22:49:30] matrix aborted: FIXTURES_FAILED
+[r42 22:49:30] block cleanup
+[r42 22:49:37]   FAIL Torneos: every row this run created removed (count-verified against the pre-run baseline, one transaction); catalog SHA unchanged: ASSERT {"ok":false,"executed":true,"planned":["private.core_contract_attestations","public.torneos_identity","public.tournament_audit_log","public.tournament_categories","public.tournament_discipline_
+[r42 22:49:39] step matrix: FAIL
+[r42 22:49:39] operator aborted: STEP_FAILED: matrix
+[r42 22:49:40] runner cleanup: PASS 
+[r42 22:49:40] summary /Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/evidence/r4-summary-20260918T224221Z.json
+[r42 22:49:40] VERDICT R4_FAIL
+{"verdict":"R4_FAIL","blockers":["matrix","cleanup incomplete"],"summary":"r4-summary-20260918T224221Z.json","evidence":{"gatewayStart":{"path":"r4-gateway-start-20260918T224835Z.json","sha256":"029f18418c5d6147664c0050a6be73dc4a232c9ebe3fb4da387f7cab16c952b0"},"smoke":{"path":"r4-smoke-20260918T224841Z.json","sha256":"ed0119a86ce287a0dcafef057806116d45a615941572381603e3ac755e11c80b"},"matrix":{"path":"r4-matrix-20260918T224221Z.json","sha256":"9766de198287072ffbac0b796c2b11cf51529c9d9809ab2a24194581620fffbd"},"outage":{"path":"r4-outage-20260918T224221Z.json","sha256":"fa18518803decbf98121bfd98eb454c6b0c072de09f4c40944589b1a54e3fa85"},"isolation":{"path":"r4-isolation-20260918T224221Z.json","sha256":"d78b0206766b1a837a3a720a26adbff2bf151f3aedd3947d9b6575e7a096189e"},"detail":{"path":"r4-matrix-detail-20260918T224221Z.json","sha256":"0a70019478bc31c5a1b2fec2559724fcab9505ae7a6da0804a391f6800e70728"},"cleanup":{"path":"r4-cleanup-20260918T224221Z.json","sha256":"35e3aaac9b0d8a45e2d0e2fbed1386d09657c7105d7dbb97ec39bb2d23e98a9b"}}}

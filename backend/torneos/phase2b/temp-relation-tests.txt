@@ -1,0 +1,11 @@
+PASS historical ranking executes caller trigger as owner (vulnerability reproduced)
+PASS actual ranking nested execution: table
+PASS actual ranking nested execution: none
+PASS actual ranking nested execution: view
+PASS exact discipline initialization nested execution: table
+PASS exact discipline initialization nested execution: none
+PASS exact discipline initialization nested execution: view
+PASS anon cannot directly execute internal ranking
+PASS authenticated cannot directly execute internal ranking
+PASS no test wrappers retained
+PASS no temporary relation reuse remains in candidate

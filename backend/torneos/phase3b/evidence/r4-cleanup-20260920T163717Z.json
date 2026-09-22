@@ -1,0 +1,199 @@
+{
+  "schema": "R4.2.cleanup.v1",
+  "stamp": "20260920T163717Z",
+  "run": "arma2-r42-20260920t163725z",
+  "qa": {
+    "qa": true,
+    "fixtures": true,
+    "sessions": false,
+    "sessionsLoggedOut": true,
+    "usersDeleted": true,
+    "detail": {
+      "users": [
+        {
+          "role": "owner",
+          "email": "q***@accounts.invalid",
+          "id": "132c3a17-e022-430a-bc37-a824d784c2f8",
+          "lastSession": "54698754-bccd-4b86-abb5-ee1a26a61cd2",
+          "deleted": true,
+          "deleteStatus": 200,
+          "afterStatus": 404
+        },
+        {
+          "role": "admin",
+          "email": "q***@accounts.invalid",
+          "id": "647ec6db-7a9c-4592-a064-bf27b4591ebf",
+          "lastSession": "35dd4275-2b20-412d-abb3-12f86c5efe09",
+          "deleted": true,
+          "deleteStatus": 200,
+          "afterStatus": 404
+        },
+        {
+          "role": "member",
+          "email": "q***@accounts.invalid",
+          "id": "de86565c-d5b7-4245-a587-ee4de2757d5b",
+          "lastSession": "e64deb7f-d0ca-47b1-aef0-a7b62f48d591",
+          "deleted": true,
+          "deleteStatus": 200,
+          "afterStatus": 404
+        },
+        {
+          "role": "outsider",
+          "email": "q***@accounts.invalid",
+          "id": "93bca168-dbea-4869-bb6a-3d419cd40612",
+          "lastSession": "6ce06748-aa3e-4106-8e31-b4b9900d144b",
+          "deleted": true,
+          "deleteStatus": 200,
+          "afterStatus": 404
+        },
+        {
+          "role": "captain",
+          "email": "q***@accounts.invalid",
+          "id": "7911f0d8-dcc3-4c86-b276-804c03ccae2d",
+          "lastSession": "0b8e725f-ae6f-4d19-a0e1-5e98d97668e0",
+          "deleted": true,
+          "deleteStatus": 200,
+          "afterStatus": 404
+        }
+      ],
+      "fixtures": {
+        "ok": true,
+        "executed": true,
+        "planned": [
+          "private.core_contract_attestations",
+          "public.torneos_identity",
+          "public.tournament_audit_log",
+          "public.tournament_categories",
+          "public.tournament_discipline_rules",
+          "public.tournament_organization_members",
+          "public.tournament_organizations",
+          "public.tournament_provisional_players",
+          "public.tournament_roster_players",
+          "public.tournament_roster_settings",
+          "public.tournament_rosters",
+          "public.tournament_scoring_rules",
+          "public.tournament_season_member_assignments",
+          "public.tournament_seasons",
+          "public.tournament_team_entries",
+          "public.tournament_team_invitations",
+          "public.tournament_team_managers",
+          "public.tournament_team_reviews",
+          "public.tournament_tiebreak_rules",
+          "public.tournaments",
+          "public.user_tournament_context_preferences",
+          "public.user_workspace_preferences"
+        ],
+        "mismatches": [],
+        "error": null,
+        "scope": {
+          "orgs": [
+            "4cf2fd16-0d59-48d0-a70f-0c90d5d3a4ae",
+            "0adf4f67-4164-4b90-8b3f-c870cb23af1f"
+          ],
+          "discoveredOrgs": [
+            "4cf2fd16-0d59-48d0-a70f-0c90d5d3a4ae",
+            "0adf4f67-4164-4b90-8b3f-c870cb23af1f"
+          ],
+          "identities": 5,
+          "coreUserIds": 5
+        }
+      },
+      "registry": {
+        "fixturesCompleted": true,
+        "counts": {
+          "organization": 2,
+          "season": 2,
+          "tournament": 2,
+          "category": 2,
+          "membership_seed": 2,
+          "season_assignment": 1,
+          "team_entry": 7,
+          "roster": 7,
+          "provisional_player": 35,
+          "roster_player": 35,
+          "manager_invitation": 7,
+          "acceptance_attestation": 7
+        },
+        "orgs": [
+          "4cf2fd16-0d59-48d0-a70f-0c90d5d3a4ae",
+          "0adf4f67-4164-4b90-8b3f-c870cb23af1f"
+        ]
+      },
+      "routesRestored": null
+    }
+  },
+  "coreSessions": {
+    "sessions": [
+      {
+        "role": "owner",
+        "id": "132c3a17",
+        "sessionPresent": false,
+        "userSessions": 0,
+        "deleted": true
+      },
+      {
+        "role": "admin",
+        "id": "647ec6db",
+        "sessionPresent": false,
+        "userSessions": 0,
+        "deleted": true
+      },
+      {
+        "role": "member",
+        "id": "de86565c",
+        "sessionPresent": false,
+        "userSessions": 0,
+        "deleted": true
+      },
+      {
+        "role": "outsider",
+        "id": "93bca168",
+        "sessionPresent": false,
+        "userSessions": 0,
+        "deleted": true
+      },
+      {
+        "role": "captain",
+        "id": "7911f0d8",
+        "sessionPresent": false,
+        "userSessions": 0,
+        "deleted": true
+      }
+    ],
+    "leftovers": 0,
+    "source": "Management API read-only SQL (core-session-exists, core-qa-users)"
+  },
+  "runtime": {
+    "status": "PASS",
+    "removed": [
+      "arma2-r42-20260920t163725z-proxy",
+      "arma2-r42-20260920t163725z-gateway",
+      "arma2-r42-20260920t163725z-internal",
+      "arma2-r42-20260920t163725z-egress"
+    ],
+    "remaining": {
+      "containers": "",
+      "networks": ""
+    },
+    "authorizationRemoved": true,
+    "runJsonRemoved": true,
+    "port58431Free": true
+  },
+  "r2": {
+    "dbId": true,
+    "dbImage": true,
+    "dbStarted": true,
+    "dbNetworks": true,
+    "dbMounts": true,
+    "dbHealthy": true,
+    "restId": true,
+    "restStarted": true,
+    "restNetworks": true,
+    "catalog": true,
+    "ring": true,
+    "jwks": true,
+    "catalogSHA256": "a45abe402d83c01102d5c007ea02c7095a3e9e49ec7377c407f57acad66ac54e"
+  },
+  "torneosRowsOutsideSeed": [],
+  "complete": true
+}

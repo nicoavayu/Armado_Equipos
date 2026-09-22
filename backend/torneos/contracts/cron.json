@@ -1,0 +1,11 @@
+{
+  "historical_database_jobs": [],
+  "baseline_database_jobs": [],
+  "activated": false,
+  "runtime_contracts_pending": [
+    "media processor polling: independent runtime, not pg_cron",
+    "media cleanup: independently scoped future runtime",
+    "signer attestation renewal: independently scoped future runtime"
+  ],
+  "excluded": ["Core cron jobs", "production push", "production media", "production feature flags"]
+}

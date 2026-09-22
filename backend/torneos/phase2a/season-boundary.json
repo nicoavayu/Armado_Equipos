@@ -1,0 +1,8 @@
+{
+  "name": "unassigned admin cannot create team in another season",
+  "pass": true,
+  "season_access": false,
+  "assigned_admin_create_pass": true,
+  "transaction": "rollback (including error disconnect)",
+  "before_fix": "Reproduced: season_access=false yet entryId and rosterId returned; rolled back."
+}

@@ -1,0 +1,12 @@
+{
+  "utc": "20260918T214046Z",
+  "status": "BLOCKED",
+  "productionRequests": 0,
+  "deniedDNSNames": "Pinned to TEST-NET-1; no Production lookup or request",
+  "cleanup": {
+    "ephemeralCertificateFilesRemoved": true,
+    "containersRemoved": true,
+    "networksRemoved": true
+  },
+  "blocker": "COMMAND_FAILED:docker:top:1:Error response from daemon: Couldn't find PID field in ps output\n"
+}

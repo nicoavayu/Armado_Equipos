@@ -1,0 +1,270 @@
+--- a/backend/torneos/phase3b/remote/core-contract.mjs
++++ b/backend/torneos/phase3b/remote/core-contract.mjs
+@@ -219,19 +219,27 @@
+  *    20260810160355  applied 2026-08-10T18:43Z via the Management API migrations endpoint (MCP
+  *                    apply_migration, query = whole file → platform version 20260810184310), then
+  *                    re-keyed to 20260810160355 at 19:00Z by a DO block that copied statements/name/
+- *                    created_by/idempotency_key/rollback verbatim.
++ *                    created_by/idempotency_key/rollback verbatim. The migrations endpoint fills
++ *                    created_by, so this row is the ONLY one of the 9 with created_by set: observed
++ *                    live by the read-only preflight of 2026-09-17T16:19:22Z (evidence
++ *                    r3-preflight-failed-20260917T161922Z.json, sha256 35baf9208a7eb037d25e075bcc3b7bed
++ *                    734a78800598d182f1cbd8fe7012f326: ledger_raw.rows created_by_is_null=false,
++ *                    totals.rows_created_by_set=1). The value itself is never read (core-ledger only
++ *                    projects the null flags).
+  *  Each legacy row is pinned as an EXACT fingerprint (version, name, count, digest, bytes, null flags)
+- *  plus the NAMED transformation of the local file that reproduces the blob; nothing is tolerated by
++ *  plus the NAMED transformation of the local file that reproduces the blob; the null flags are pinned
++ *  PER ROW from the remote observation, never inferred from the other row; nothing is tolerated by
+  *  name or by count alone, and any change of a fingerprint — including a legacy row that suddenly
+  *  reproduces the splitter — is a STOP. */
+ export const CLI_WRITTEN_VERSIONS = ['20260727090000', '20260727215106', '20260801090000', '20260802090000', '20260802120000', '20260803090000', '20260809232508', '20260810160355', '20260810215224'];
+ export const LEGACY_BLOB_TRANSFORMS = { file_verbatim: (text) => text };
+ export const LEGACY_LEDGER_ROWS = [
+   { version: '20260803090000', name: 'tournament_social_studio', statements_count: 1, statements_digest: '32ca5266e223c9a15e1611a4ad412fd1', statements_bytes: 24321, created_by_is_null: true, idempotency_key_is_null: true, rollback_is_null: true, transform: 'file_verbatim', provenance: 'execute_sql 2026-08-10T03:24Z, manual bookkeeping INSERT with the whole file dollar-quoted' },
+-  { version: '20260810160355', name: 'tournament_entitlements_foundation', statements_count: 1, statements_digest: '90370d0b8c76cbcde3d413a9d46e29d9', statements_bytes: 41903, created_by_is_null: true, idempotency_key_is_null: true, rollback_is_null: true, transform: 'file_verbatim', provenance: 'Management API migrations endpoint (MCP apply_migration) 2026-08-10T18:43Z as 20260810184310, re-keyed by DO block 19:00Z copying the row' },
++  { version: '20260810160355', name: 'tournament_entitlements_foundation', statements_count: 1, statements_digest: '90370d0b8c76cbcde3d413a9d46e29d9', statements_bytes: 41903, created_by_is_null: false, idempotency_key_is_null: true, rollback_is_null: true, transform: 'file_verbatim', provenance: 'Management API migrations endpoint (MCP apply_migration) 2026-08-10T18:43Z as 20260810184310 (fills created_by), re-keyed by DO block 19:00Z copying the row; created_by_is_null=false observed 2026-09-17T16:19Z (r3-preflight-failed-20260917T161922Z.json)' },
+ ];
+ const LEGACY_BY_VERSION = new Map(LEGACY_LEDGER_ROWS.map((l) => [l.version, l]));
+-for (const l of LEGACY_LEDGER_ROWS) if (!CLI_WRITTEN_VERSIONS.includes(l.version) || l.statements_count !== 1 || !LEGACY_BLOB_TRANSFORMS[l.transform]) fail(`legacy_pin_invalid_${l.version}`);
++export const LEDGER_NULL_FLAGS = ['created_by_is_null', 'idempotency_key_is_null', 'rollback_is_null'];
++for (const l of LEGACY_LEDGER_ROWS) if (!CLI_WRITTEN_VERSIONS.includes(l.version) || l.statements_count !== 1 || !LEGACY_BLOB_TRANSFORMS[l.transform] || LEDGER_NULL_FLAGS.some((k) => typeof l[k] !== 'boolean')) fail(`legacy_pin_invalid_${l.version}`);
+ export const EXPECTED_CLI_ROWS = { reproduced: CLI_WRITTEN_VERSIONS.length - LEGACY_LEDGER_ROWS.length, legacy: LEGACY_LEDGER_ROWS.length };
+ export function localLedgerDigests(repo, versions) {
+   const dir = path.join(repo, 'supabase/migrations');
+@@ -258,7 +266,10 @@
+     if (!r) return { version: l.version, remote: 'absent', match: false };
+     if (!l.file) return { version: l.version, remote: 'present', local_file: null, match: false };
+     const legacy = LEGACY_BY_VERSION.get(l.version);
+-    const observed = { name: r.name, statements_count: Number(r.statements_count), statements_digest: r.statements_digest, statements_bytes: Number(r.statements_bytes), created_by_is_null: r.created_by_is_null === true, idempotency_key_is_null: r.idempotency_key_is_null === true, rollback_is_null: r.rollback_is_null === true };
++    // null flags are compared as observed booleans only: a missing/non-boolean flag (older shape, text
++    // 't'/'f') becomes null and never equals a pinned true OR false.
++    const flag = (v) => (typeof v === 'boolean' ? v : null);
++    const observed = { name: r.name, statements_count: Number(r.statements_count), statements_digest: r.statements_digest, statements_bytes: Number(r.statements_bytes), created_by_is_null: flag(r.created_by_is_null), idempotency_key_is_null: flag(r.idempotency_key_is_null), rollback_is_null: flag(r.rollback_is_null) };
+     if (legacy) {
+       const expected = { name: legacy.name, statements_count: legacy.statements_count, statements_digest: legacy.statements_digest, statements_bytes: legacy.statements_bytes, created_by_is_null: legacy.created_by_is_null, idempotency_key_is_null: legacy.idempotency_key_is_null, rollback_is_null: legacy.rollback_is_null };
+       const blob_ok = l.legacy_blob && l.legacy_blob.statements_digest === legacy.statements_digest && l.legacy_blob.statements_bytes === legacy.statements_bytes;
+--- a/backend/torneos/phase3b/remote/core-contract.test.mjs
++++ b/backend/torneos/phase3b/remote/core-contract.test.mjs
+@@ -122,24 +122,51 @@
+     assert.ok(row.statements_count > 1);
+   }
+   assert.ok(local.filter((x) => !x.legacy_blob).length === 7);
+-  const flags = { created_by_is_null: true, idempotency_key_is_null: true, rollback_is_null: true };
++  // the null flags are pinned PER ROW from the remote observation (never inferred from the other row):
++  // 20260803090000 was bookkept by hand (3 nulls); 20260810160355 came through the Management API
++  // migrations endpoint, which fills created_by — observed live on 2026-09-17T16:19Z, evidence
++  // r3-preflight-failed-20260917T161922Z.json (ledger_raw.rows created_by_is_null=false, rows_created_by_set=1)
++  assert.deepEqual(C.LEDGER_NULL_FLAGS, ['created_by_is_null', 'idempotency_key_is_null', 'rollback_is_null']);
++  assert.deepEqual(C.LEGACY_LEDGER_ROWS.map((l) => [l.version, l.created_by_is_null, l.idempotency_key_is_null, l.rollback_is_null]), [
++    ['20260803090000', true, true, true],
++    ['20260810160355', false, true, true],
++  ]);
++  assert.match(C.LEGACY_LEDGER_ROWS[1].provenance, /r3-preflight-failed-20260917T161922Z\.json/, 'the re-pin cites the observation, not an inference');
++  const cliFlags = { created_by_is_null: true, idempotency_key_is_null: true, rollback_is_null: true };
++  const flagsFor = (version) => { const l = C.LEGACY_LEDGER_ROWS.find((x) => x.version === version); return l ? Object.fromEntries(C.LEDGER_NULL_FLAGS.map((k) => [k, l[k]])) : { ...cliFlags }; };
+   const remoteAsOnCore = local.map((l) => {
+     const legacy = C.LEGACY_LEDGER_ROWS.find((x) => x.version === l.version);
+-    return legacy ? { version: l.version, name: legacy.name, statements_count: '1', statements_digest: legacy.statements_digest, statements_bytes: String(legacy.statements_bytes), ...flags }
+-      : { version: l.version, name: l.name, statements_count: String(l.statements_count), statements_digest: l.statements_digest, statements_bytes: String(l.statements_bytes), ...flags };
++    return legacy ? { version: l.version, name: legacy.name, statements_count: '1', statements_digest: legacy.statements_digest, statements_bytes: String(legacy.statements_bytes), ...flagsFor(l.version) }
++      : { version: l.version, name: l.name, statements_count: String(l.statements_count), statements_digest: l.statements_digest, statements_bytes: String(l.statements_bytes), ...flagsFor(l.version) };
+   });
++  assert.equal(remoteAsOnCore.filter((r) => r.created_by_is_null === false).length, 1, 'exactly one of the 9 rows carries created_by, as on Core (totals.rows_created_by_set = 1)');
+   const good = C.cliRowsVerdict(C.compareLedgerRows(remoteAsOnCore, local));
+   assert.deepEqual(good, { reproduced: 7, legacy_matched: 2, mismatched: 0, absent: 0, expected: { reproduced: 7, legacy: 2 }, ok: true });
+   const stop = (rows) => { const v = C.cliRowsVerdict(C.compareLedgerRows(rows, local)); assert.equal(v.ok, false); return v; };
+   const edit = (version, patch) => remoteAsOnCore.map((r) => (r.version === version ? { ...r, ...patch } : r));
++  // the exact remote rows of the 2026-09-17T16:19Z observation (the 2 legacy rows as core-ledger returned
++  // them, cast to the wire types) yield the required verdict; the OLD inferred pin (created_by_is_null
++  // true on 20260810160355) is what the fail-closed gate caught and must still be a one-field STOP
++  const observed0917 = { '20260803090000': { name: 'tournament_social_studio', statements_count: 1, statements_digest: '32ca5266e223c9a15e1611a4ad412fd1', statements_bytes: 24321, created_by_is_null: true, idempotency_key_is_null: true, rollback_is_null: true }, '20260810160355': { name: 'tournament_entitlements_foundation', statements_count: 1, statements_digest: '90370d0b8c76cbcde3d413a9d46e29d9', statements_bytes: 41903, created_by_is_null: false, idempotency_key_is_null: true, rollback_is_null: true } };
++  for (const [version, o] of Object.entries(observed0917)) { const c = C.compareLedgerRows(edit(version, { ...o, statements_count: String(o.statements_count), statements_bytes: String(o.statements_bytes) }), local).find((x) => x.version === version); assert.deepEqual(c.diff, []); assert.equal(c.match, true); assert.deepEqual(c.expected, o); }
++  const inferred = C.compareLedgerRows(edit('20260810160355', { created_by_is_null: true }), local).find((x) => x.version === '20260810160355');
++  assert.deepEqual(inferred.diff, ['created_by_is_null']); assert.equal(inferred.match, false);
++  assert.deepEqual(stop(edit('20260810160355', { created_by_is_null: true })), { ...good, legacy_matched: 1, mismatched: 1, ok: false });
+   // a legacy row that suddenly reproduces the splitter is a CHANGE of the fingerprint → STOP
+   const soc = local.find((x) => x.version === '20260803090000');
+   assert.deepEqual(stop(edit('20260803090000', { statements_count: String(soc.statements_count), statements_digest: soc.statements_digest, statements_bytes: String(soc.statements_bytes) })), { ...good, legacy_matched: 1, mismatched: 1, ok: false });
+-  // every field of the fingerprint is load-bearing
+-  for (const patch of [{ statements_digest: 'ffff' }, { statements_bytes: '24320' }, { statements_count: '2' }, { name: 'tournament_social_studio_x' }, { created_by_is_null: false }, { idempotency_key_is_null: false }, { rollback_is_null: false }]) {
+-    const v = stop(edit('20260803090000', patch)); assert.equal(v.legacy_matched, 1); assert.equal(v.mismatched, 1);
+-    const c = C.compareLedgerRows(edit('20260803090000', patch), local).find((x) => x.version === '20260803090000'); assert.equal(c.legacy, true); assert.equal(c.diff.length, 1);
++  // every field of the fingerprint is load-bearing, on BOTH legacy rows, and the flag pins are per row:
++  // flipping any flag away from its own row's pin (created_by set on 20260803090000, created_by cleared
++  // on 20260810160355, idempotency/rollback set on either) is exactly one diff and a STOP
++  const flips = (version) => [{ statements_digest: 'ffff' }, { statements_bytes: '1' }, { statements_count: '2' }, { name: `${C.LEGACY_LEDGER_ROWS.find((x) => x.version === version).name}_x` }, ...C.LEDGER_NULL_FLAGS.map((k) => ({ [k]: !flagsFor(version)[k] }))];
++  for (const version of ['20260803090000', '20260810160355']) {
++    for (const patch of flips(version)) {
++      const v = stop(edit(version, patch)); assert.equal(v.legacy_matched, 1, `${version} ${JSON.stringify(patch)}`); assert.equal(v.mismatched, 1);
++      const c = C.compareLedgerRows(edit(version, patch), local).find((x) => x.version === version); assert.equal(c.legacy, true); assert.deepEqual(c.diff, Object.keys(patch));
++    }
+   }
++  // the re-pin never leaks to the other legacy row: swapping the two rows' flag sets is a STOP on both
++  assert.deepEqual(stop(edit('20260803090000', flagsFor('20260810160355')).map((r) => (r.version === '20260810160355' ? { ...r, ...flagsFor('20260803090000') } : r))), { ...good, legacy_matched: 0, mismatched: 2, ok: false });
+   // a third discrepancy on a CLI-shaped row → STOP; the legacy pins never absorb it
+   assert.deepEqual(stop(edit('20260727090000', { statements_digest: 'ffff' })), { ...good, reproduced: 6, mismatched: 1, ok: false });
+   // a CLI-shaped row that becomes a blob → STOP (no tolerance by count)
+@@ -147,9 +174,16 @@
+   // absent rows → STOP; a 10th row is invisible to the comparison (all_versions is checked elsewhere)
+   assert.deepEqual(stop(remoteAsOnCore.filter((r) => r.version !== '20260810160355')), { ...good, legacy_matched: 1, absent: 1, ok: false });
+   assert.equal(stop([]).absent, 9);
+-  assert.equal(C.cliRowsVerdict(C.compareLedgerRows([...remoteAsOnCore, { version: '20260901000000', name: 'x', statements_count: '1', statements_digest: 'aa', statements_bytes: '1', ...flags }], local)).ok, true);
+-  // the flags of a null-less remote row (older shape) never match a pinned legacy row
+-  assert.equal(stop(edit('20260810160355', { created_by_is_null: undefined })).mismatched, 1);
++  assert.equal(C.cliRowsVerdict(C.compareLedgerRows([...remoteAsOnCore, { version: '20260901000000', name: 'x', statements_count: '1', statements_digest: 'aa', statements_bytes: '1', ...cliFlags }], local)).ok, true);
++  // the flags of a null-less remote row (older shape) or a non-boolean flag ('f', 'false', 0) never match
++  // a pinned legacy row — whether the pin is true (20260803090000) or false (20260810160355)
++  for (const version of ['20260803090000', '20260810160355']) {
++    for (const bad of [undefined, null, 'f', 'false', 't', 'true', 0, 1]) {
++      const c = C.compareLedgerRows(edit(version, { created_by_is_null: bad }), local).find((x) => x.version === version);
++      assert.deepEqual(c.diff, ['created_by_is_null'], `${version} created_by_is_null=${String(bad)}`); assert.equal(c.observed.created_by_is_null, null);
++      assert.equal(stop(edit(version, { created_by_is_null: bad })).mismatched, 1);
++    }
++  }
+ });
+ 
+ test('D: ledgerState / applyDecision — the complete decision table', () => {
+@@ -463,6 +497,16 @@
+   assert.match(s, /r3-failed-\$STAMP\.json/, 'a failed harness leaves failure evidence, never core-contract-*');
+   assert.match(s, /promote_evidence "\$TMP" "\$EVIDENCE_DIR\/r3-preflight-failed-\$STAMP\.json"/, 'a CLI-rows STOP persists the observed fingerprints before aborting');
+   assert.ok(idx(s, 'r3-preflight-failed-$STAMP.json') < idx(s, 'SECRET_REMOTE_PRESENT_KEYCHAIN_ABSENT'), 'the failed-preflight evidence is written inside the ledger gate');
++  // the later preflight STOPs (inconsistent contract/ledger state, secret on Core without Keychain) persist
++  // the observation too, before abort, with their own stop code; the helper carries no secret value
++  assert.equal((s.match(/promote_evidence "\$(TMP|tmp)" "\$EVIDENCE_DIR\/r3-preflight-failed-\$STAMP\.json" \|\| true/g) || []).length, 2, 'two writers of the failed-preflight evidence: the cli-rows gate + the shared helper for the later STOPs');
++  assert.match(s, /preflight_stop_evidence\(\) \{ # \$1=stop code \$2=detail \(JSON\)/);
++  assert.match(s, /grep -q true && \{ preflight_stop_evidence CONTRACT_LEDGER_STATE_INCONSISTENT [^\n]*; abort "inconsistent contract\/ledger state/);
++  assert.match(s, /\|\| \{ preflight_stop_evidence SECRET_REMOTE_PRESENT_KEYCHAIN_ABSENT "\{\\"secret_name\\":\\"\$SECRET_NAME\\",\\"remote\\":\\"PRESENT\\",\\"keychain\\":\\"\$KC_STATE\\"\}"; abort "SECRET_REMOTE_PRESENT_KEYCHAIN_ABSENT/);
++  assert.ok(idx(s, 'canonical rows of Core staging not reproduced') < idx(s, 'preflight_stop_evidence() {') && idx(s, 'preflight_stop_evidence() {') < idx(s, 'CONTRACT_LEDGER_STATE_INCONSISTENT'), 'helper defined after the cli-rows gate, before its first use');
++  const helper = s.slice(idx(s, 'preflight_stop_evidence() {'), idx(s, 'preflight_stop_evidence() {') + 1200);
++  assert.doesNotMatch(helper, /CONTRACT_SECRET|\$PAT|secret_names|keychain_read/, 'the stop evidence never carries a secret value or the secret inventory');
++  assert.match(helper, /"read_only":true/);
+   assert.doesNotMatch(s, /CLI_MATCHED" -ge 1/, 'no loose cardinality: the verdict fixes 7 reproduced + 2 legacy exactly');
+   assert.doesNotMatch(s, /rollback-core-contract\.sh"?\s*$/m, 'the rollback is never executed by the apply runner');
+ });
+--- a/backend/torneos/phase3b/remote/offline-rehearsal.mjs
++++ b/backend/torneos/phase3b/remote/offline-rehearsal.mjs
+@@ -6,8 +6,9 @@
+ //
+ //   node backend/torneos/phase3b/remote/offline-rehearsal.mjs
+ //
+-// Phases (every one must pass): clone → hosted ledger shape → 9 CLI rows round-trip →
+-// rollback_initial (the lab already has the contract) → apply (v1, v1.1: one transaction each,
++// Phases (every one must pass): clone → hosted ledger shape → 9 CLI rows round-trip (null flags per
++// row: created_by set on 20260810160355 only) → cli_rows_discrepancy_blocks (a flag flipped on either
++// legacy row is one diff and a STOP verdict; restored → ok) → rollback_initial (the lab already has the contract) → apply (v1, v1.1: one transaction each,
+ // ledger row inside) → ledger (rows == pinned digests) → acl (CONTRACT_OBJECTS) → rerun_idempotent
+ // (a second apply aborts atomically; a missing ledger row is reconciled by the INSERT alone) →
+ // rollback (pinned SQL) → residue → catalog_unchanged (everything outside the contract identical
+@@ -73,7 +74,8 @@
+   phase('clone', cl.status === 0 && restoreErrors === 0 && clone.public_functions === src.public_functions && clone.contract_installed && clone.core_tables, { restore_errors: restoreErrors, clone });
+ 
+   // 2. hosted ledger shape (the platform's 6-column table) + the 9 canonical rows as they exist on Core
+-  //    staging (7 CLI-shaped + 2 legacy single-blob, diagnosis 2026-09-16), round-trip through the verdict
++  //    staging (7 CLI-shaped + 2 legacy single-blob, diagnosis 2026-09-16; null flags PER ROW as observed
++  //    2026-09-17T16:19Z: only 20260810160355 carries created_by), round-trip through the verdict
+   psql(`create schema supabase_migrations; create table supabase_migrations.schema_migrations (version text not null primary key, statements text[], name text, created_by text, idempotency_key text unique, rollback text[]); alter table supabase_migrations.schema_migrations owner to postgres;`, { user: 'supabase_admin' });
+   const shape = one(C.LEDGER_SHAPE_SQL);
+   const shapeDiff = C.ledgerShapeDiff(shape);
+@@ -82,11 +84,38 @@
+   phase('writer_privileges', C.writerPrivilegeFailures(writer).length === 0, { writer, note: 'postgres (the platform writer) owns the database as on hosted Supabase' });
+   const localRows = C.CLI_WRITTEN_VERSIONS.map((v) => { const file = fs.readdirSync(path.join(REPO, 'supabase/migrations')).find((f) => f.startsWith(`${v}_`)); const bytes = fs.readFileSync(path.join(REPO, 'supabase/migrations', file)); const legacy = C.LEGACY_LEDGER_ROWS.find((l) => l.version === v); return { version: v, name: /^([0-9]+)_(.*)\.sql$/.exec(file)[2], statements: legacy ? [C.LEGACY_BLOB_TRANSFORMS[legacy.transform](bytes.toString('utf8'))] : splitAndTrim(bytes) }; });
+   for (const r of localRows) psql(`begin;\n${C.ledgerInsertSql(r)}\ncommit;\n`);
++  // the legacy pins carry the null flags per row: seed created_by where the pin says it is set (the real
++  // value is never read by core-ledger, so the seed is a synthetic marker); idempotency/rollback stay null
++  const expectedFlags = (version) => { const l = C.LEGACY_LEDGER_ROWS.find((x) => x.version === version); return Object.fromEntries(C.LEDGER_NULL_FLAGS.map((k) => [k, l ? l[k] : true])); };
++  const SEEDED_CREATED_BY = 'offline-rehearsal:synthetic-created-by';
++  const seededCreatedBy = C.LEGACY_LEDGER_ROWS.filter((l) => l.created_by_is_null === false).map((l) => l.version);
++  for (const l of C.LEGACY_LEDGER_ROWS) if (l.idempotency_key_is_null !== true || l.rollback_is_null !== true) throw new Error(`rehearsal seeds only created_by; pin ${l.version} sets another column`);
++  for (const v of seededCreatedBy) psql(`update supabase_migrations.schema_migrations set created_by = '${SEEDED_CREATED_BY}' where version = '${v}';`);
++  const flagsMatch = (rs) => rs.length === 9 && rs.every((r) => C.LEDGER_NULL_FLAGS.every((k) => r[k] === expectedFlags(r.version)[k]));
+   const remoteRows = rows(C.ledgerRowsSql(C.CLI_WRITTEN_VERSIONS));
+   const cmp = C.compareLedgerRows(remoteRows, C.localLedgerDigests(REPO, C.CLI_WRITTEN_VERSIONS));
+   const verdict = C.cliRowsVerdict(cmp);
+-  phase('cli_rows_round_trip', verdict.ok && remoteRows.every((r) => r.created_by_is_null && r.idempotency_key_is_null && r.rollback_is_null), { note: 'dollar-quoted INSERT ⇄ md5(array_to_string(statements, chr(30))): 7 split rows reproduced + 2 legacy blobs equal to their pinned fingerprints', verdict });
++  const createdBySet = remoteRows.filter((r) => r.created_by_is_null === false).map((r) => r.version);
++  phase('cli_rows_round_trip', verdict.ok && flagsMatch(remoteRows) && JSON.stringify(createdBySet) === JSON.stringify(['20260810160355']), { note: 'dollar-quoted INSERT ⇄ md5(array_to_string(statements, chr(30))): 7 split rows reproduced + 2 legacy blobs equal to their pinned fingerprints; null flags per row (created_by set on 20260810160355 only)', verdict, rows_created_by_set: createdBySet, flags: Object.fromEntries(remoteRows.map((r) => [r.version, Object.fromEntries(C.LEDGER_NULL_FLAGS.map((k) => [k, r[k]]))])) });
+ 
++  // 2b. a flag discrepancy on EITHER legacy row still blocks: clear created_by where the pin says set
++  //     (the pre-2026-09-17 inferred state), set it where the pin says null; each is exactly one diff and
++  //     a STOP verdict; restoring the seed brings the verdict back to ok. Nothing outside the clone.
++  const verdictNow = () => { const rs = rows(C.ledgerRowsSql(C.CLI_WRITTEN_VERSIONS)); const c = C.compareLedgerRows(rs, C.localLedgerDigests(REPO, C.CLI_WRITTEN_VERSIONS)); return { verdict: C.cliRowsVerdict(c), legacy: Object.fromEntries(c.filter((x) => x.legacy).map((x) => [x.version, { match: x.match, diff: x.diff }])) }; };
++  const discrepancies = [];
++  for (const [version, mutate, restore] of [
++    ['20260810160355', `update supabase_migrations.schema_migrations set created_by = null where version = '20260810160355';`, `update supabase_migrations.schema_migrations set created_by = '${SEEDED_CREATED_BY}' where version = '20260810160355';`],
++    ['20260803090000', `update supabase_migrations.schema_migrations set created_by = '${SEEDED_CREATED_BY}' where version = '20260803090000';`, `update supabase_migrations.schema_migrations set created_by = null where version = '20260803090000';`],
++  ]) {
++    psql(mutate);
++    const mutated = verdictNow();
++    psql(restore);
++    const restored = verdictNow();
++    discrepancies.push({ version, mutated: { verdict: mutated.verdict, row: mutated.legacy[version] }, restored: { verdict_ok: restored.verdict.ok, row: restored.legacy[version] } });
++  }
++  const discrepancyBlocks = discrepancies.every((d) => d.mutated.verdict.ok === false && d.mutated.verdict.mismatched === 1 && d.mutated.verdict.legacy_matched === 1 && d.mutated.verdict.reproduced === 7 && d.mutated.verdict.absent === 0 && d.mutated.row.match === false && JSON.stringify(d.mutated.row.diff) === JSON.stringify(['created_by_is_null']) && d.restored.verdict_ok === true && d.restored.row.match === true && d.restored.row.diff.length === 0);
++  phase('cli_rows_discrepancy_blocks', discrepancyBlocks && verdictNow().verdict.ok && flagsMatch(rows(C.ledgerRowsSql(C.CLI_WRITTEN_VERSIONS))), { note: 'created_by cleared on 20260810160355 / set on 20260803090000 → one diff each, verdict ok=false (7/1/1/0); restored → ok', discrepancies });
++
+   // 3. the lab already carries the contract (no ledger rows): the rollback must clear it
+   const before = one(CATALOG_SQL);
+   psql(rb.text);
+--- a/backend/torneos/phase3b/remote/deploy-core-contract.sh
++++ b/backend/torneos/phase3b/remote/deploy-core-contract.sh
+@@ -96,8 +96,16 @@
+   abort "canonical rows of Core staging not reproduced (splitter reproduced=$CLI_MATCHED/$(printf '%s' "$LEDGER_EVAL" | json_field cli_verdict.expected.reproduced), legacy fingerprints=$CLI_LEGACY/$(printf '%s' "$LEDGER_EVAL" | json_field cli_verdict.expected.legacy), mismatched=$CLI_MISMATCHED, absent=$CLI_ABSENT; evidence r3-preflight-failed-$STAMP.json) — STOP"
+ fi
+ ok "canonical rows of Core staging: $CLI_MATCHED CLI-shaped rows reproduced byte-for-byte by cli_parser + $CLI_LEGACY legacy single-blob rows equal to their pinned fingerprints (mismatched $CLI_MISMATCHED, absent $CLI_ABSENT)"
++# Every later preflight STOP persists the observation too (same file family, its own stop code): a STOP
++# without evidence cannot be explained afterwards. Read-only; the JSON carries no secret value.
++preflight_stop_evidence() { # $1=stop code $2=detail (JSON)
++  local tmp; tmp="$(mktemp "$EVIDENCE_DIR/.r3-preflight-failed-XXXXXX")"
++  printf '{"generated_at":"%s","tool":"phase3b/remote/deploy-core-contract.sh","mode":"%s","read_only":true,"stop":"%s","detail":%s,"core_ref":"%s","project":%s,"pins":%s,"keychain":"%s","remote_secret":"%s","ledger":%s,"ledger_raw":%s}\n' \
++    "$STAMP" "$MODE" "$1" "$2" "$CORE_REF" "$(printf '%s' "$PROJ" | json_field project)" "$PINS" "$KC_STATE" "${REMOTE_SECRET:-unread}" "$LEDGER_EVAL" "$(printf '%s' "$LEDGER" | node_json '({shape:d.shape, rows:d.rows, installed:d.installed, all_versions:d.all_versions})')" > "$tmp"
++  promote_evidence "$tmp" "$EVIDENCE_DIR/r3-preflight-failed-$STAMP.json" || true
++}
+ printf '%s' "$LEDGER_EVAL" | node_json 'd.versions.map(v=>"  "+v.version+": objects "+(v.installed?"INSTALLED":"absent")+", ledger "+v.ledger+" → "+v.decision).join("\n")'; printf '\n'
+-printf '%s' "$LEDGER_EVAL" | json_field stop | grep -q true && abort "inconsistent contract/ledger state on Core staging — STOP (never reapply over a foreign ledger row, never record objects that are not there)"
++printf '%s' "$LEDGER_EVAL" | json_field stop | grep -q true && { preflight_stop_evidence CONTRACT_LEDGER_STATE_INCONSISTENT "$(printf '%s' "$LEDGER_EVAL" | json_field versions)"; abort "inconsistent contract/ledger state on Core staging — STOP (never reapply over a foreign ledger row, never record objects that are not there)"; }
+ 
+ SECRETS_NOW="$(mgmt secret-names ",\"ref\":\"$CORE_REF\"")"
+ printf '%s' "$SECRETS_NOW" | json_field ok | grep -q true || { printf '%s\n' "$SECRETS_NOW" >&2; abort "secret names read failed"; }
+@@ -108,7 +116,7 @@
+   PRESENT/PRESENT) SECRET_PLAN="no write unless the signed probe reports SECRET_MISMATCH → then set-secrets with the Keychain value and re-probe";;
+   ABSENT/PRESENT) SECRET_PLAN="STOP";;
+ esac
+-[[ "$SECRET_PLAN" != "STOP" ]] || abort "SECRET_REMOTE_PRESENT_KEYCHAIN_ABSENT: Core holds a $SECRET_NAME whose value is not in the Keychain; the runner never rotates silently — restore the Keychain entry or delete the Core secret deliberately (rollback-core-contract.sh), then re-run"
++[[ "$SECRET_PLAN" != "STOP" ]] || { preflight_stop_evidence SECRET_REMOTE_PRESENT_KEYCHAIN_ABSENT "{\"secret_name\":\"$SECRET_NAME\",\"remote\":\"PRESENT\",\"keychain\":\"$KC_STATE\"}"; abort "SECRET_REMOTE_PRESENT_KEYCHAIN_ABSENT: Core holds a $SECRET_NAME whose value is not in the Keychain; the runner never rotates silently — restore the Keychain entry or delete the Core secret deliberately (rollback-core-contract.sh), then re-run"; }
+ ok "secret: Keychain $KC_STATE / Core $REMOTE_SECRET → $SECRET_PLAN"
+ 
+ FN_NOW="$(mgmt function ",\"ref\":\"$CORE_REF\",\"slug\":\"$SLUG\"")"
+--- a/backend/torneos/phase3b/summarize_r3.py
++++ b/backend/torneos/phase3b/summarize_r3.py
+@@ -99,7 +99,7 @@
+     if {m['version']: m['apply_sql_sha256'] for m in reh.get('migrations', [])} != r3_apply_sql_pins:
+         return False
+     ph = reh.get('phases') or {}
+-    return reh.get('remote_requests') == 0 and reh.get('clone_dropped') is True and all(ph.get(k, {}).get('ok') is True for k in ('pins_and_lab', 'clone', 'ledger_shape', 'writer_privileges', 'cli_rows_round_trip', 'rollback_initial', 'apply', 'ledger', 'acl', 'rerun_idempotent', 'rollback', 'residue', 'catalog_unchanged', 'rollback_rerun_noop'))
++    return reh.get('remote_requests') == 0 and reh.get('clone_dropped') is True and all(ph.get(k, {}).get('ok') is True for k in ('pins_and_lab', 'clone', 'ledger_shape', 'writer_privileges', 'cli_rows_round_trip', 'cli_rows_discrepancy_blocks', 'rollback_initial', 'apply', 'ledger', 'acl', 'rerun_idempotent', 'rollback', 'residue', 'catalog_unchanged', 'rollback_rerun_noop'))
+ 
+ 
+ def r3_d1_positive(d1p):
+--- a/backend/torneos/phase3b/summarize.py
++++ b/backend/torneos/phase3b/summarize.py
+@@ -180,6 +180,7 @@
+ r3_d1_positive = r3.r3_d1_positive
+ r3_tooling_tests = counts(EVID / 'r3-tooling-tests.txt')
+ r3_rehearsal = latest('r3-offline-rehearsal-*.json')
++r3_pf_failed = latest('r3-preflight-failed-*.json')
+ d1_positive = latest('d1-positive-*.json')
+ 
+ 
+@@ -284,7 +285,10 @@
+         'project_create': (created or {}).get('generated_at'),
+         'bootstrap': (boot or {}).get('generated_at'),
+         'core_contract': (core or {}).get('generated_at'),
+-        'r3_preflight': (latest('r3-preflight-*.json') or {}).get('generated_at'),
++        # the PASS preflight and the fail-closed STOPs are different file families; a plain glob would
++        # sort r3-preflight-failed-* after r3-preflight-<stamp> and report the STOP as the latest preflight
++        'r3_preflight': (latest('r3-preflight-[0-9]*.json') or {}).get('generated_at'),
++        'r3_preflight_failed': {'generated_at': r3_pf_failed.get('generated_at'), 'stop': r3_pf_failed.get('stop')} if r3_pf_failed else None,
+         'r3_offline_rehearsal': (r3_rehearsal or {}).get('generated_at'),
+         'r3_tooling_tests': f"{r3_tooling_tests[0]}/{r3_tooling_tests[0] + max(r3_tooling_tests[1], 0)}",
+         'r3_pins': {'migrations': {m['version']: {'sha256': m['sha256'], 'apply_sql_sha256': m['apply_sql_sha256'], 'ledger_digest': m['ledger_digest']} for m in r3_manifest['migrations']}, 'rollback_sql_sha256': r3_manifest['rollback_sql_sha256'], 'cli_parser_sha256': r3_manifest['cli_parser_sha256'], 'deploy_files': r3_deploy_files},

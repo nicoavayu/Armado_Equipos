@@ -1,0 +1,1118 @@
+{
+  "schema": "R5.journey.v1",
+  "run": "arma2-r42-20260921t043804z",
+  "stamp": "20260921T043550Z",
+  "gatewayBundleSHA256": "cc5b1d451fc9ef4498ad927caee37a65aab90ff44ad6ef1cf77e176f989d7e17",
+  "status": "FAIL",
+  "cleanup": {
+    "qa": true,
+    "fixtures": true,
+    "coreFixtures": true,
+    "sessions": true,
+    "complete": true
+  },
+  "cases": [
+    {
+      "name": "core_login",
+      "status": "PASS",
+      "checks": 2
+    },
+    {
+      "name": "exchange",
+      "status": "PASS",
+      "checks": 2
+    },
+    {
+      "name": "shadow_identity",
+      "status": "PASS",
+      "checks": 3
+    },
+    {
+      "name": "workspace",
+      "status": "PASS",
+      "checks": 1
+    },
+    {
+      "name": "season",
+      "status": "PASS",
+      "checks": 1
+    },
+    {
+      "name": "tournament",
+      "status": "PASS",
+      "checks": 1
+    },
+    {
+      "name": "collaborator",
+      "status": "PASS",
+      "checks": 1
+    },
+    {
+      "name": "team_registration",
+      "status": "PASS",
+      "checks": 1
+    },
+    {
+      "name": "roster",
+      "status": "PASS",
+      "checks": 2
+    },
+    {
+      "name": "invitation",
+      "status": "PASS",
+      "checks": 1
+    },
+    {
+      "name": "core_team_import",
+      "status": "PASS",
+      "checks": 2
+    },
+    {
+      "name": "p0_review",
+      "status": "PASS",
+      "checks": 2
+    },
+    {
+      "name": "cross_user",
+      "status": "PASS",
+      "checks": 1
+    },
+    {
+      "name": "cross_workspace",
+      "status": "PASS",
+      "checks": 1
+    },
+    {
+      "name": "cross_season",
+      "status": "PASS",
+      "checks": 1
+    },
+    {
+      "name": "bearer_invalid",
+      "status": "PASS",
+      "checks": 1
+    },
+    {
+      "name": "bearer_expired",
+      "status": "FAIL",
+      "checks": 1
+    }
+  ],
+  "missingRequired": [
+    "logout_revocation",
+    "core_unavailable",
+    "core_contract_failure",
+    "torneos_unavailable",
+    "gated_off",
+    "not_allowlisted",
+    "no_fallback",
+    "secret_boundary"
+  ],
+  "informative": [
+    {
+      "name": "qa_users",
+      "status": "PASS",
+      "checks": 1
+    },
+    {
+      "name": "core_fixture",
+      "status": "PASS",
+      "checks": 1
+    },
+    {
+      "name": "cleanup",
+      "status": "PASS",
+      "checks": 6
+    }
+  ],
+  "totals": {
+    "blocks": 20,
+    "checks": 32,
+    "failedChecks": 1,
+    "gatewayResponses": 154,
+    "outageTests": 0
+  },
+  "rpcsExercised": [
+    "accept_tournament_team_invitation",
+    "add_tournament_roster_player",
+    "assign_tournament_season_member",
+    "can_read_tournament_team_entry",
+    "change_tournament_status",
+    "create_tournament_organization",
+    "create_tournament_provisional_player",
+    "create_tournament_season",
+    "create_tournament_team_entry",
+    "create_tournament_with_defaults",
+    "get_my_tournament_memberships",
+    "get_team_registration_context",
+    "get_tournament_competition_context",
+    "get_tournament_creation_eligibility",
+    "get_tournament_teams_context",
+    "get_tournament_workspace_context",
+    "has_organization_consumed_free_tournament",
+    "has_tournament_capability",
+    "has_tournament_organization_capability",
+    "has_tournament_season_access",
+    "has_tournament_season_capability",
+    "invite_tournament_team_manager",
+    "is_tournament_organization_member",
+    "is_tournament_organization_slug_available",
+    "is_tournament_team_manager",
+    "list_tournament_season_member_assignments",
+    "remove_tournament_roster_player",
+    "remove_tournament_season_member_assignment",
+    "review_tournament_team_entry",
+    "save_tournament_category",
+    "search_tournament_arma2_teams",
+    "search_tournament_players",
+    "set_active_tournament_context",
+    "set_tournament_workspace_preference",
+    "submit_tournament_team_entry",
+    "tournament_role_capabilities",
+    "update_tournament_configuration",
+    "update_tournament_organization",
+    "update_tournament_roster_player",
+    "update_tournament_season",
+    "update_tournament_team_entry",
+    "withdraw_tournament_team_entry"
+  ],
+  "identityMap": [
+    {
+      "role": "owner",
+      "coreUserId": "0f763ef8-dc5c-4530-a921-854aab9eafa6",
+      "torneosIdentity": "642e3fd1-f223-4d11-9850-d1d861c049b9"
+    },
+    {
+      "role": "admin",
+      "coreUserId": "92b906e7-3c3f-45b1-b240-6ffb411cbc29",
+      "torneosIdentity": "f65dcdab-d44f-466c-9906-afb30517e18c"
+    },
+    {
+      "role": "captain",
+      "coreUserId": "cfd21aa0-5c88-4335-9a65-166b4204c2fb",
+      "torneosIdentity": "3296ac35-301c-4a3f-9069-6c0cc308f667"
+    },
+    {
+      "role": "outsider",
+      "coreUserId": "28f09e9f-db3e-4ccf-bf05-b6a0f00d32df",
+      "torneosIdentity": "e149cd02-17b3-40b9-bd5f-2d800539ac81"
+    }
+  ],
+  "liveContracts": {
+    "verified_email": 2,
+    "directory_players": 1,
+    "directory_teams": 1,
+    "team_snapshot": 1,
+    "seededAcceptances": 0
+  },
+  "coreFixtures": {
+    "teams": [
+      {
+        "id": "1067cef2-b77a-44cc-949f-ee560627911a",
+        "name": "QA R5 Team 20260921t043804",
+        "ownerCoreUserId": "0f763ef8-dc5c-4530-a921-854aab9eafa6",
+        "deleted": true
+      }
+    ]
+  },
+  "artifacts": {
+    "outage": {
+      "path": "r5-outage-20260921T043550Z.json",
+      "sha256": "fc22246d879bce8185fe716549d9617afad3eea105fde35c059c3381bfac46d1"
+    }
+  },
+  "aborted": "JOURNEY_STOP_ON_FAILURE: forged expired bearer → 401; the REAL first bridge bearer of the run is refused once its 120 s TTL has elapsed (measured), while the owner's fresh bearer works",
+  "blocks": [
+    {
+      "name": "qa_users",
+      "status": "PASS",
+      "checks": [
+        {
+          "name": "four dedicated synthetic QA users created on Core staging (purpose phase3b-r5) — never a real or pre-existing account",
+          "pass": true,
+          "detail": [
+            {
+              "role": "owner",
+              "email": "q***@accounts.invalid",
+              "id": "0f763ef8"
+            },
+            {
+              "role": "admin",
+              "email": "q***@accounts.invalid",
+              "id": "92b906e7"
+            },
+            {
+              "role": "captain",
+              "email": "q***@accounts.invalid",
+              "id": "cfd21aa0"
+            },
+            {
+              "role": "outsider",
+              "email": "q***@accounts.invalid",
+              "id": "28f09e9f"
+            }
+          ]
+        }
+      ],
+      "startedAt": "2026-09-21T04:38:10.358Z",
+      "informative": true
+    },
+    {
+      "name": "core_login",
+      "status": "PASS",
+      "checks": [
+        {
+          "name": "every QA user signs in to Core staging (password grant): access token, session_id claim, aud/role authenticated; GET /auth/v1/user returns the same user id",
+          "pass": true,
+          "detail": [
+            {
+              "role": "owner",
+              "id": "0f763ef8",
+              "session": "8fb3ee65"
+            },
+            {
+              "role": "admin",
+              "id": "92b906e7",
+              "session": "a82bd20a"
+            },
+            {
+              "role": "captain",
+              "id": "cfd21aa0",
+              "session": "209f5827"
+            },
+            {
+              "role": "outsider",
+              "id": "28f09e9f",
+              "session": "c31745aa"
+            }
+          ]
+        },
+        {
+          "name": "wrong password → Core refuses the grant (400 invalid credentials); no session is created",
+          "pass": true,
+          "detail": {
+            "status": 400,
+            "code": "invalid_credentials"
+          }
+        }
+      ],
+      "startedAt": "2026-09-21T04:38:12.844Z"
+    },
+    {
+      "name": "exchange",
+      "status": "PASS",
+      "checks": [
+        {
+          "name": "POST /exchange with the live Core bearer → 200 bridge bearer: RS256 p3b-k1 (local ring, not Core), certified claims, TTL 120",
+          "pass": true,
+          "detail": {
+            "sub": "642e3fd1",
+            "coreUserId": "0f763ef8",
+            "kid": "p3b-k1",
+            "ttl": 120,
+            "issuer": "urn:arma2:local:identity-bridge"
+          }
+        },
+        {
+          "name": "exchange without bearer / garbage / unsigned Core-shaped bearer → 401; identity or role input in the body → 400",
+          "pass": true,
+          "detail": {
+            "none": {
+              "error": "access denied"
+            },
+            "forged": {
+              "error": "access denied"
+            },
+            "roleBody": {
+              "error": "exchange accepts no identity or role input"
+            }
+          }
+        }
+      ],
+      "startedAt": "2026-09-21T04:38:16.198Z"
+    },
+    {
+      "name": "shadow_identity",
+      "status": "PASS",
+      "checks": [
+        {
+          "name": "one torneos_identity row {id = sub, core_user_id}; re-exchange and a NEW Core session resolve the SAME identity",
+          "pass": true,
+          "detail": {
+            "identity": "642e3fd1",
+            "sessions": 2
+          }
+        },
+        {
+          "name": "the other three Core users resolve three DISTINCT Torneos identities, each bound to its own core_user_id",
+          "pass": true,
+          "detail": [
+            {
+              "role": "owner",
+              "core": "0f763ef8",
+              "torneos": "642e3fd1"
+            },
+            {
+              "role": "admin",
+              "core": "92b906e7",
+              "torneos": "f65dcdab"
+            },
+            {
+              "role": "captain",
+              "core": "cfd21aa0",
+              "torneos": "3296ac35"
+            },
+            {
+              "role": "outsider",
+              "core": "28f09e9f",
+              "torneos": "e149cd02"
+            }
+          ]
+        },
+        {
+          "name": "no second login: Torneos has no auth users/sessions for these users (auth.users stays 0, no auth.sessions relation, no GoTrue); a Core access token is refused by Torneos REST directly (401); the gateway publishes no Torneos anon key",
+          "pass": true,
+          "detail": {
+            "torneosAuthUsers": 0,
+            "coreTokenAtTorneosRest": 401,
+            "coreTokenCode": "PGRST301",
+            "bridgeTokenAtGateway": 200
+          }
+        }
+      ],
+      "startedAt": "2026-09-21T04:38:18.742Z"
+    },
+    {
+      "name": "workspace",
+      "status": "PASS",
+      "checks": [
+        {
+          "name": "organizations/workspaces: slug check → create org → workspace preference → workspace context (role owner) → rename → membership/capability predicates; outsider creates a second workspace",
+          "pass": true,
+          "detail": {
+            "org": "2588eab3",
+            "org2": "376596bd",
+            "renamed": "R5 League 20260921t043804 Oficial",
+            "capabilities": 129
+          }
+        }
+      ],
+      "startedAt": "2026-09-21T04:38:25.937Z"
+    },
+    {
+      "name": "season",
+      "status": "PASS",
+      "checks": [
+        {
+          "name": "seasons: two seasons in the org → rename one → active context; outsider season in the other workspace",
+          "pass": true,
+          "detail": {
+            "seasonA": "4a9d32b5",
+            "seasonB": "1dcd8ead",
+            "season2": "67ddb89b"
+          }
+        }
+      ],
+      "startedAt": "2026-09-21T04:38:32.746Z"
+    },
+    {
+      "name": "tournament",
+      "status": "PASS",
+      "checks": [
+        {
+          "name": "tournaments: eligibility → create with defaults → category → registration open → configuration patch → competition context; second tournament (season B) and the outsider tournament",
+          "pass": true,
+          "detail": {
+            "tournamentA": "23d94005",
+            "tournamentB": "f415087b",
+            "tournament2": "54bc1211",
+            "eligibility": "object",
+            "consumedFree": false,
+            "configured": true
+          }
+        }
+      ],
+      "startedAt": "2026-09-21T04:38:35.823Z"
+    },
+    {
+      "name": "collaborator",
+      "status": "PASS",
+      "checks": [
+        {
+          "name": "collaborators: membership seeded (staging v1 has no membership RPC — Phase 2D contract) → season seat assigned by RPC → listed → season access A true / B false → review capability → teams context",
+          "pass": true,
+          "detail": {
+            "membership": "a45dfca2",
+            "access": {
+              "adminA": true,
+              "adminB": false,
+              "ownerA": true,
+              "ownerB": true
+            },
+            "teamsContext": "object"
+          }
+        }
+      ],
+      "startedAt": "2026-09-21T04:38:47.457Z"
+    },
+    {
+      "name": "team_registration",
+      "status": "PASS",
+      "checks": [
+        {
+          "name": "team registration: manual entry (draft → in_progress) → registration context → read predicate (owner true, outsider false); a second entry withdrawn",
+          "pass": true,
+          "detail": {
+            "entry": "e95a30a6",
+            "withdrawn": "770e378a",
+            "settings": "5,8,1"
+          }
+        }
+      ],
+      "startedAt": "2026-09-21T04:38:54.363Z"
+    },
+    {
+      "name": "roster",
+      "status": "PASS",
+      "checks": [
+        {
+          "name": "basic roster: 4 provisional players + the captain's Core-backed Torneos identity → edit shirt → add/remove a sixth → 5 active",
+          "pass": true,
+          "detail": {
+            "active": 5,
+            "captainOnRoster": true,
+            "updated": true
+          }
+        },
+        {
+          "name": "directory_players (live Core contract): searching the captain by name returns the captain's shadow identity (linkedAccount) → attestation consumed",
+          "pass": true,
+          "detail": {
+            "items": 4,
+            "captainUserId": "3296ac35",
+            "displayName": "QA R5 captain arma2-r42-20260921t043804z"
+          }
+        }
+      ],
+      "startedAt": "2026-09-21T04:38:59.058Z"
+    },
+    {
+      "name": "invitation",
+      "status": "PASS",
+      "checks": [
+        {
+          "name": "invitation: owner invites the captain (Core email) → captain accepts through the gateway (live verified_email) → manager predicates → captain edits the roster and submits the entry",
+          "pass": true,
+          "detail": {
+            "invitation": "ef484759",
+            "accepted": {
+              "status": "accepted",
+              "teamEntryId": "e95a30a6-02c0-4a53-9b98-49695bb68c86",
+              "organizationId": "2588eab3-ed4a-4866-8ded-992b706df656"
+            },
+            "submitted": "submitted",
+            "counts": {
+              "players": 5,
+              "goalkeepers": 1,
+              "maximumPlayers": 8,
+              "minimumPlayers": 5
+            }
+          }
+        }
+      ],
+      "startedAt": "2026-09-21T04:39:09.776Z"
+    },
+    {
+      "name": "core_fixture",
+      "status": "PASS",
+      "checks": [
+        {
+          "name": "owner creates a Core team in Core staging the way the app does (POST /rest/v1/teams as the owner; RLS teams_insert_owner_only), tagged by run",
+          "pass": true,
+          "detail": {
+            "id": "1067cef2",
+            "name": "QA R5 Team 20260921t043804"
+          }
+        }
+      ],
+      "startedAt": "2026-09-21T04:39:15.860Z",
+      "informative": true
+    },
+    {
+      "name": "core_team_import",
+      "status": "PASS",
+      "checks": [
+        {
+          "name": "directory_teams (live) lists the owner's Core team → create_tournament_team_entry with p_arma2_team_id → team_snapshot (live) frozen into the entry; a second import is refused; then roster + invitation + submit on the imported entry",
+          "pass": true,
+          "detail": {
+            "entry": "3f4d4b90",
+            "coreTeam": "1067cef2",
+            "name": "QA R5 Team 20260921t043804",
+            "secondImport": 409,
+            "invitation": "f512e965",
+            "submitted": "submitted"
+          }
+        },
+        {
+          "name": "cross-user Core authority: the outsider imports the OWNER's Core team into their own workspace → Core answers NOT_FOUND → gateway 404 CORE_DENIED, no attestation, zero writes",
+          "pass": true,
+          "detail": {
+            "status": 404,
+            "body": {
+              "error": "CORE_DENIED"
+            }
+          }
+        }
+      ],
+      "startedAt": "2026-09-21T04:39:16.352Z"
+    },
+    {
+      "name": "p0_review",
+      "status": "PASS",
+      "checks": [
+        {
+          "name": "review_tournament_team_entry: owner changes_requested (issue) → fix → resubmit → seated admin approves the manual entry → owner approves the imported entry; denials (re-review, captain, outsider ×2, invalid payload) write nothing",
+          "pass": true,
+          "detail": {
+            "changesRequested": 200,
+            "resubmitted": "submitted",
+            "adminApproved": 200,
+            "ownerApproved": 200,
+            "denied": [
+              {
+                "label": "owner reviews an approved entry again",
+                "status": 403,
+                "message": "TORNEOS_RESOURCE_FORBIDDEN"
+              },
+              {
+                "label": "captain (manager) reviews own entry",
+                "status": 403,
+                "message": "TORNEOS_RESOURCE_FORBIDDEN"
+              },
+              {
+                "label": "outsider with the entry org",
+                "status": 403,
+                "message": "TORNEOS_RESOURCE_FORBIDDEN"
+              },
+              {
+                "label": "outsider with their own org id",
+                "status": 403,
+                "message": "TORNEOS_RESOURCE_FORBIDDEN"
+              }
+            ],
+            "invalid": 400
+          }
+        },
+        {
+          "name": "anonymous review through the gateway → 401",
+          "pass": true,
+          "detail": {
+            "error": "access denied"
+          }
+        }
+      ],
+      "startedAt": "2026-09-21T04:39:32.569Z"
+    },
+    {
+      "name": "cross_user",
+      "status": "PASS",
+      "checks": [
+        {
+          "name": "outsider reads the org members table → []; owner → rows; every actor sees only its own identity row; the captain (manager, not a member) gets no teams context; outsider's workspace context names only their own org",
+          "pass": true,
+          "detail": {
+            "outsiderRows": 0,
+            "ownerRows": 2,
+            "captainTeamsContext": 403
+          }
+        }
+      ],
+      "startedAt": "2026-09-21T04:39:40.565Z"
+    },
+    {
+      "name": "cross_workspace",
+      "status": "PASS",
+      "checks": [
+        {
+          "name": "outsider: tournaments/entries of the owner's workspace → []; teams context refused; owner writing into the outsider's workspace (season) → 403 zero writes; outsider renaming the owner's org → 403 unchanged",
+          "pass": true,
+          "detail": {
+            "outsiderTournaments": 0,
+            "outsiderEntries": 0,
+            "ownerTournaments": 2,
+            "crossWrite": 403,
+            "crossRename": 403
+          }
+        }
+      ],
+      "startedAt": "2026-09-21T04:39:49.267Z"
+    },
+    {
+      "name": "cross_season",
+      "status": "PASS",
+      "checks": [
+        {
+          "name": "seated admin: season A yes / season B no; registering a team in the season-B tournament → 403 zero writes; teams context B refused; after the owner revokes the seat, season A is refused immediately (no cached grant)",
+          "pass": true,
+          "detail": {
+            "crossSeasonWrite": 403,
+            "teamsContextB": 403,
+            "teamsContextABeforeRevoke": 200,
+            "seatRemoved": true,
+            "teamsContextAAfterRevoke": 403
+          }
+        }
+      ],
+      "startedAt": "2026-09-21T04:39:53.050Z"
+    },
+    {
+      "name": "bearer_invalid",
+      "status": "PASS",
+      "checks": [
+        {
+          "name": "forged/invalid bridge bearers → 401 access denied at the gateway (garbage, empty, alg none, wrong issuer/audience, unknown and standby kid, service_role/anon role, non-uuid sub, unknown session, identity↔user mismatch, another user's session)",
+          "pass": true,
+          "detail": {
+            "garbage": 401,
+            "empty": 401,
+            "alg_none": 401,
+            "wrong_issuer": 401,
+            "wrong_audience": 401,
+            "unknown_kid": 401,
+            "standby_kid_p3b_k2": 401,
+            "role_service_role": 401,
+            "role_anon": 401,
+            "sub_not_uuid": 401,
+            "jti_missing": 401,
+            "unknown_session": 401,
+            "identity_of_owner_with_outsider_user": 401,
+            "owner_user_with_admin_session": 401,
+            "unknown_identity": 401
+          }
+        }
+      ],
+      "startedAt": "2026-09-21T04:39:57.629Z"
+    },
+    {
+      "name": "bearer_expired",
+      "status": "FAIL",
+      "checks": [
+        {
+          "name": "forged expired bearer → 401; the REAL first bridge bearer of the run is refused once its 120 s TTL has elapsed (measured), while the owner's fresh bearer works",
+          "pass": false,
+          "error": "ASSERT {\"label\":{\"stale\":{\"items\":[{\"role\":\"owner\",\"logoPath\":null,\"position\":null,\"readOnly\":false,\"teamName\":null,\"nextMatch\":null,\"categoryId\":\"e529f328-326b-4857-9c9c-7030d90853f5\",\"seasonName\":\"Temporada A 2026\",\"teamEntryId\":null,\"categoryName\":\"Libre\",\"primaryColor\":null,\"seasonStatus\":\"draft\",\"tournamentId\":\"23d94005-a3f0-4bc7-8bce-642837445c26\",\"teamShortName\":null,\"organizationId\":\"2588eab3-ed4a-4866-8ded-992b706df656\",\"teamShieldPath\":null,\"tournamentName\":\"Copa Alpha 20260921t043804 Apertura\",\"organizationName\":\"R5 League 20260921t043804 Oficial\",\"organizationRole\":\"owner\",\"tournamentStat"
+        }
+      ],
+      "startedAt": "2026-09-21T04:40:00.277Z"
+    },
+    {
+      "name": "cleanup",
+      "status": "PASS",
+      "checks": [
+        {
+          "name": "a bridge bearer issued before deletion is kept to prove it is refused once the QA users are gone",
+          "pass": true,
+          "detail": "issued"
+        },
+        {
+          "name": "Core: the owner deletes the run's Core team (DELETE /rest/v1/teams as the owner, RLS teams_delete_owner_only) and can no longer read it",
+          "pass": true,
+          "detail": [
+            {
+              "id": "1067cef2",
+              "deleteStatus": 200,
+              "deletedRows": 1,
+              "readAfter": 0,
+              "deleted": true
+            }
+          ]
+        },
+        {
+          "name": "Core: every QA session logged out (scope=global)",
+          "pass": true,
+          "detail": {
+            "owner": 204,
+            "admin": 204,
+            "captain": 204,
+            "outsider": 204
+          }
+        },
+        {
+          "name": "Core: every QA user hard-deleted after an identity/purpose guard (only users this run created)",
+          "pass": true,
+          "detail": {
+            "owner": {
+              "deleted": true,
+              "deleteStatus": 200,
+              "afterStatus": 404
+            },
+            "admin": {
+              "deleted": true,
+              "deleteStatus": 200,
+              "afterStatus": 404
+            },
+            "captain": {
+              "deleted": true,
+              "deleteStatus": 200,
+              "afterStatus": 404
+            },
+            "outsider": {
+              "deleted": true,
+              "deleteStatus": 200,
+              "afterStatus": 404
+            }
+          }
+        },
+        {
+          "name": "pre-deletion bearer → 401 through the gateway (no stale identity)",
+          "pass": true,
+          "detail": 401
+        },
+        {
+          "name": "Torneos: every row this run created removed in one count-verified transaction (registry + run slugs); catalog SHA unchanged; auth.users still 0",
+          "pass": true,
+          "detail": {
+            "tables": 22,
+            "discoveredOrgs": 2
+          }
+        }
+      ],
+      "startedAt": "2026-09-21T04:40:20.121Z",
+      "informative": true
+    }
+  ],
+  "noStore": {
+    "responses": 154,
+    "violations": [],
+    "classes": {
+      "/exchange | 200 | ": {
+        "count": 10,
+        "cacheControl": "no-store"
+      },
+      "/exchange | 401 | access denied": {
+        "count": 3,
+        "cacheControl": "no-store"
+      },
+      "/exchange | 400 | exchange accepts no identity or role input": {
+        "count": 1,
+        "cacheControl": "no-store"
+      },
+      "/config | 200 | ": {
+        "count": 1,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/get_my_tournament_memberships | 200 | ": {
+        "count": 3,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/is_tournament_organization_slug_available | 200 | ": {
+        "count": 1,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/create_tournament_organization | 200 | ": {
+        "count": 2,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/set_tournament_workspace_preference | 200 | ": {
+        "count": 1,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/get_tournament_workspace_context | 200 | ": {
+        "count": 2,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/update_tournament_organization | 200 | ": {
+        "count": 1,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/is_tournament_organization_member | 200 | ": {
+        "count": 3,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/has_tournament_organization_capability | 200 | ": {
+        "count": 1,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/tournament_role_capabilities | 200 | ": {
+        "count": 1,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/create_tournament_season | 200 | ": {
+        "count": 3,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/update_tournament_season | 200 | ": {
+        "count": 1,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/set_active_tournament_context | 200 | ": {
+        "count": 1,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/get_tournament_creation_eligibility | 200 | ": {
+        "count": 1,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/create_tournament_with_defaults | 200 | ": {
+        "count": 3,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/save_tournament_category | 200 | ": {
+        "count": 3,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/change_tournament_status | 200 | ": {
+        "count": 3,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/update_tournament_configuration | 200 | ": {
+        "count": 1,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/get_tournament_competition_context | 200 | ": {
+        "count": 1,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/has_organization_consumed_free_tournament | 200 | ": {
+        "count": 1,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/has_tournament_capability | 200 | ": {
+        "count": 1,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/has_tournament_season_access | 200 | ": {
+        "count": 6,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/assign_tournament_season_member | 200 | ": {
+        "count": 1,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/list_tournament_season_member_assignments | 200 | ": {
+        "count": 2,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/has_tournament_season_capability | 200 | ": {
+        "count": 1,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/get_tournament_teams_context | 200 | ": {
+        "count": 3,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/create_tournament_team_entry | 200 | ": {
+        "count": 3,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/update_tournament_team_entry | 200 | ": {
+        "count": 2,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/get_team_registration_context | 200 | ": {
+        "count": 2,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/can_read_tournament_team_entry | 200 | ": {
+        "count": 3,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/withdraw_tournament_team_entry | 200 | ": {
+        "count": 1,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/create_tournament_provisional_player | 200 | ": {
+        "count": 10,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/add_tournament_roster_player | 200 | ": {
+        "count": 11,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/update_tournament_roster_player | 200 | ": {
+        "count": 3,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/remove_tournament_roster_player | 200 | ": {
+        "count": 1,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/search_tournament_players | 200 | ": {
+        "count": 1,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/invite_tournament_team_manager | 200 | ": {
+        "count": 2,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/accept_tournament_team_invitation | 200 | ": {
+        "count": 2,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/is_tournament_team_manager | 200 | ": {
+        "count": 2,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/submit_tournament_team_entry | 200 | ": {
+        "count": 3,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/search_tournament_arma2_teams | 200 | ": {
+        "count": 1,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/create_tournament_team_entry | 409 | ": {
+        "count": 1,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/create_tournament_team_entry | 404 | CORE_DENIED": {
+        "count": 1,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/review_tournament_team_entry | 200 | ": {
+        "count": 3,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/review_tournament_team_entry | 403 | ": {
+        "count": 4,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/review_tournament_team_entry | 400 | ": {
+        "count": 1,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/review_tournament_team_entry | 401 | access denied": {
+        "count": 1,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/tournament_organization_members | 200 | ": {
+        "count": 2,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/torneos_identity | 200 | ": {
+        "count": 4,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/get_tournament_teams_context | 403 | ": {
+        "count": 4,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/tournaments | 200 | ": {
+        "count": 2,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/tournament_team_entries | 200 | ": {
+        "count": 1,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/create_tournament_season | 403 | ": {
+        "count": 1,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/update_tournament_organization | 403 | ": {
+        "count": 1,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/create_tournament_team_entry | 403 | ": {
+        "count": 1,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/remove_tournament_season_member_assignment | 200 | ": {
+        "count": 1,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/get_my_tournament_memberships | 401 | access denied": {
+        "count": 17,
+        "cacheControl": "no-store"
+      }
+    }
+  },
+  "noFallback": {
+    "writesDuringFaults": [],
+    "recoveries": []
+  },
+  "qaUsers": [
+    {
+      "role": "owner",
+      "email": "q***@accounts.invalid",
+      "id": "0f763ef8-dc5c-4530-a921-854aab9eafa6",
+      "lastSession": "b8689de6-96b9-455d-8c31-7c58fd6e4560",
+      "deleted": true,
+      "deleteStatus": 200,
+      "afterStatus": 404
+    },
+    {
+      "role": "admin",
+      "email": "q***@accounts.invalid",
+      "id": "92b906e7-3c3f-45b1-b240-6ffb411cbc29",
+      "lastSession": "a82bd20a-c907-420e-900c-cc8d2f66f806",
+      "deleted": true,
+      "deleteStatus": 200,
+      "afterStatus": 404
+    },
+    {
+      "role": "captain",
+      "email": "q***@accounts.invalid",
+      "id": "cfd21aa0-5c88-4335-9a65-166b4204c2fb",
+      "lastSession": "209f5827-4fe5-4aac-b5cc-4d633ec046b4",
+      "deleted": true,
+      "deleteStatus": 200,
+      "afterStatus": 404
+    },
+    {
+      "role": "outsider",
+      "email": "q***@accounts.invalid",
+      "id": "28f09e9f-db3e-4ccf-bf05-b6a0f00d32df",
+      "lastSession": "c31745aa-1a76-47da-94f7-b0e221a6ff64",
+      "deleted": true,
+      "deleteStatus": 200,
+      "afterStatus": 404
+    }
+  ],
+  "allowlistCount": 43,
+  "gatedCount": 33,
+  "rpcsOutsideAllowlist": [],
+  "coreVerification": {
+    "sessions": [
+      {
+        "role": "owner",
+        "id": "0f763ef8",
+        "sessionPresent": false,
+        "userSessions": 0,
+        "deleted": true
+      },
+      {
+        "role": "admin",
+        "id": "92b906e7",
+        "sessionPresent": false,
+        "userSessions": 0,
+        "deleted": true
+      },
+      {
+        "role": "captain",
+        "id": "cfd21aa0",
+        "sessionPresent": false,
+        "userSessions": 0,
+        "deleted": true
+      },
+      {
+        "role": "outsider",
+        "id": "28f09e9f",
+        "sessionPresent": false,
+        "userSessions": 0,
+        "deleted": true
+      }
+    ],
+    "leftovers": 0,
+    "teams": [
+      {
+        "id": "1067cef2",
+        "present": false,
+        "members": 0,
+        "deletedByOwner": true
+      }
+    ],
+    "source": "Management API read-only SQL (core-session-exists, core-qa-users, core-team-exists)"
+  }
+}

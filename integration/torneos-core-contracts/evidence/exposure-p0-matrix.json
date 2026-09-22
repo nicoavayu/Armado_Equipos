@@ -1,0 +1,205 @@
+{
+  "gateway": "node",
+  "function": "review_tournament_team_entry",
+  "wrappers": [
+    "approve_tournament_team_entry",
+    "reject_tournament_team_entry"
+  ],
+  "rows": [
+    {
+      "actor": "admin unassigned (member, no season seat)",
+      "decision": "approved",
+      "result": "DENY",
+      "status": 403,
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "actor": "admin seated on season B reviews a season A entry",
+      "decision": "approved",
+      "result": "DENY",
+      "status": 403,
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "actor": "admin seated on season B, changes_requested on season A entry",
+      "decision": "approved",
+      "result": "DENY",
+      "status": 403,
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "actor": "admin seated on season B, rejected on season A entry",
+      "decision": "approved",
+      "result": "DENY",
+      "status": 403,
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "actor": "other workspace owner with the entry's org id",
+      "decision": "approved",
+      "result": "DENY",
+      "status": 403,
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "actor": "other workspace owner with their own org id",
+      "decision": "approved",
+      "result": "DENY",
+      "status": 403,
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "actor": "owner with a foreign org id",
+      "decision": "approved",
+      "result": "DENY",
+      "status": 403,
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "actor": "admin A on season B entry (cross-season, seat elsewhere)",
+      "decision": "approved",
+      "result": "DENY",
+      "status": 403,
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "actor": "anon (direct PostgREST)",
+      "decision": "approved",
+      "result": "DENY",
+      "status": 401,
+      "message": "permission denied for function review_tournament_team_entry"
+    },
+    {
+      "actor": "anon (gateway)",
+      "decision": "approved",
+      "result": "DENY",
+      "status": 401,
+      "message": "access denied"
+    },
+    {
+      "actor": "owner",
+      "payload": "decision \"maybe\"",
+      "result": "REJECTED_22023",
+      "status": 400,
+      "message": "TORNEOS_INVALID_REVIEW"
+    },
+    {
+      "actor": "owner",
+      "payload": "reason too short",
+      "result": "REJECTED_22023",
+      "status": 400,
+      "message": "TORNEOS_INVALID_REVIEW"
+    },
+    {
+      "actor": "owner",
+      "payload": "reason too long",
+      "result": "REJECTED_22023",
+      "status": 400,
+      "message": "TORNEOS_INVALID_REVIEW"
+    },
+    {
+      "actor": "owner",
+      "payload": "issues is an object",
+      "result": "REJECTED_22023",
+      "status": 400,
+      "message": "TORNEOS_INVALID_REVIEW"
+    },
+    {
+      "actor": "owner",
+      "payload": "approve with invalid roster",
+      "result": "REJECTED_23514",
+      "status": 400,
+      "message": "TORNEOS_ROSTER_INCOMPLETE",
+      "errors": [
+        "minimum_goalkeepers",
+        "minimum_players"
+      ]
+    },
+    {
+      "actor": "owner (gateway, real Core session)",
+      "decision": "approved",
+      "result": "PASS",
+      "status": 200
+    },
+    {
+      "actor": "owner",
+      "decision": "changes_requested",
+      "result": "PASS",
+      "status": 200
+    },
+    {
+      "actor": "owner",
+      "decision": "rejected",
+      "result": "PASS",
+      "status": 200
+    },
+    {
+      "actor": "admin seated on season A",
+      "decision": "approved",
+      "result": "PASS",
+      "status": 200
+    },
+    {
+      "actor": "admin seated on season B (season B entry)",
+      "decision": "approved",
+      "result": "PASS",
+      "status": 200
+    },
+    {
+      "actor": "service_role + owner identity (SQL)",
+      "decision": "approve/reject wrappers",
+      "result": "PASS",
+      "status": "delegated to review"
+    }
+  ],
+  "coverage": {
+    "exercised_through_gateway": [
+      "add_tournament_roster_player",
+      "assign_tournament_season_member",
+      "change_tournament_status",
+      "create_tournament_organization",
+      "create_tournament_provisional_player",
+      "create_tournament_season",
+      "create_tournament_team_entry",
+      "create_tournament_with_defaults",
+      "invite_tournament_team_manager",
+      "list_tournament_season_member_assignments",
+      "review_tournament_team_entry",
+      "save_tournament_category",
+      "submit_tournament_team_entry",
+      "update_tournament_team_entry"
+    ],
+    "allowlist_total": 43,
+    "not_exercised_here": [
+      "update_tournament_organization",
+      "is_tournament_organization_slug_available",
+      "is_tournament_organization_member",
+      "has_tournament_organization_capability",
+      "has_tournament_capability",
+      "tournament_role_capabilities",
+      "get_my_tournament_memberships",
+      "get_tournament_workspace_context",
+      "set_tournament_workspace_preference",
+      "set_active_tournament_context",
+      "remove_tournament_season_member_assignment",
+      "has_tournament_season_access",
+      "has_tournament_season_capability",
+      "update_tournament_season",
+      "update_tournament_configuration",
+      "get_tournament_competition_context",
+      "get_tournament_creation_eligibility",
+      "has_organization_consumed_free_tournament",
+      "withdraw_tournament_team_entry",
+      "archive_tournament_team_entry",
+      "get_team_registration_context",
+      "get_tournament_teams_context",
+      "can_read_tournament_team_entry",
+      "is_tournament_team_manager",
+      "update_tournament_roster_player",
+      "remove_tournament_roster_player",
+      "search_tournament_players",
+      "accept_tournament_team_invitation",
+      "search_tournament_arma2_teams"
+    ]
+  }
+}

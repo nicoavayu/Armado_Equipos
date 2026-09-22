@@ -1,0 +1,369 @@
+{
+  "gateway": "edge",
+  "session": "real Core session (GoTrue) + bridge bearer via /exchange",
+  "rows": [
+    {
+      "function": "authorize_tournament_social_export",
+      "post": [
+        403,
+        "rpc not enabled"
+      ],
+      "get": [
+        403,
+        "rpc not enabled"
+      ]
+    },
+    {
+      "function": "cancel_tournament_purchase",
+      "post": [
+        403,
+        "rpc not enabled"
+      ],
+      "get": [
+        403,
+        "rpc not enabled"
+      ]
+    },
+    {
+      "function": "change_tournament_media_gallery_state",
+      "post": [
+        403,
+        "rpc not enabled"
+      ],
+      "get": [
+        403,
+        "rpc not enabled"
+      ]
+    },
+    {
+      "function": "create_tournament_disciplinary_override",
+      "post": [
+        403,
+        "rpc not enabled"
+      ],
+      "get": [
+        403,
+        "rpc not enabled"
+      ]
+    },
+    {
+      "function": "create_tournament_match_correction",
+      "post": [
+        403,
+        "rpc not enabled"
+      ],
+      "get": [
+        403,
+        "rpc not enabled"
+      ]
+    },
+    {
+      "function": "create_tournament_points_adjustment",
+      "post": [
+        403,
+        "rpc not enabled"
+      ],
+      "get": [
+        403,
+        "rpc not enabled"
+      ]
+    },
+    {
+      "function": "get_tournament_player_portrait_ref",
+      "post": [
+        403,
+        "rpc not enabled"
+      ],
+      "get": [
+        403,
+        "rpc not enabled"
+      ]
+    },
+    {
+      "function": "get_tournament_purchase",
+      "post": [
+        403,
+        "rpc not enabled"
+      ],
+      "get": [
+        403,
+        "rpc not enabled"
+      ]
+    },
+    {
+      "function": "has_tournament_entitlement",
+      "post": [
+        403,
+        "rpc not enabled"
+      ],
+      "get": [
+        403,
+        "rpc not enabled"
+      ]
+    },
+    {
+      "function": "lock_tournament_roster",
+      "post": [
+        403,
+        "rpc not enabled"
+      ],
+      "get": [
+        403,
+        "rpc not enabled"
+      ]
+    },
+    {
+      "function": "make_tournament_match_official",
+      "post": [
+        403,
+        "rpc not enabled"
+      ],
+      "get": [
+        403,
+        "rpc not enabled"
+      ]
+    },
+    {
+      "function": "mark_tournament_suspension_served",
+      "post": [
+        403,
+        "rpc not enabled"
+      ],
+      "get": [
+        403,
+        "rpc not enabled"
+      ]
+    },
+    {
+      "function": "publish_tournament_fixture",
+      "post": [
+        403,
+        "rpc not enabled"
+      ],
+      "get": [
+        403,
+        "rpc not enabled"
+      ]
+    },
+    {
+      "function": "record_manual_match_availability",
+      "post": [
+        403,
+        "rpc not enabled"
+      ],
+      "get": [
+        403,
+        "rpc not enabled"
+      ]
+    },
+    {
+      "function": "reopen_tournament_participants",
+      "post": [
+        403,
+        "rpc not enabled"
+      ],
+      "get": [
+        403,
+        "rpc not enabled"
+      ]
+    },
+    {
+      "function": "report_tournament_media_asset",
+      "post": [
+        403,
+        "rpc not enabled"
+      ],
+      "get": [
+        403,
+        "rpc not enabled"
+      ]
+    },
+    {
+      "function": "request_tournament_match_correction",
+      "post": [
+        403,
+        "rpc not enabled"
+      ],
+      "get": [
+        403,
+        "rpc not enabled"
+      ]
+    },
+    {
+      "function": "resolve_tournament_qualification",
+      "post": [
+        403,
+        "rpc not enabled"
+      ],
+      "get": [
+        403,
+        "rpc not enabled"
+      ]
+    },
+    {
+      "function": "review_tournament_match_operation",
+      "post": [
+        403,
+        "rpc not enabled"
+      ],
+      "get": [
+        403,
+        "rpc not enabled"
+      ]
+    },
+    {
+      "function": "revoke_tournament_player_portrait_publication",
+      "post": [
+        403,
+        "rpc not enabled"
+      ],
+      "get": [
+        403,
+        "rpc not enabled"
+      ]
+    },
+    {
+      "function": "revoke_tournament_points_adjustment",
+      "post": [
+        403,
+        "rpc not enabled"
+      ],
+      "get": [
+        403,
+        "rpc not enabled"
+      ]
+    },
+    {
+      "function": "revoke_tournament_team_photo",
+      "post": [
+        403,
+        "rpc not enabled"
+      ],
+      "get": [
+        403,
+        "rpc not enabled"
+      ]
+    },
+    {
+      "function": "save_tournament_draw_pots",
+      "post": [
+        403,
+        "rpc not enabled"
+      ],
+      "get": [
+        403,
+        "rpc not enabled"
+      ]
+    },
+    {
+      "function": "schedule_tournament_match",
+      "post": [
+        403,
+        "rpc not enabled"
+      ],
+      "get": [
+        403,
+        "rpc not enabled"
+      ]
+    },
+    {
+      "function": "set_tournament_player_portrait_crop",
+      "post": [
+        403,
+        "rpc not enabled"
+      ],
+      "get": [
+        403,
+        "rpc not enabled"
+      ]
+    },
+    {
+      "function": "set_tournament_player_portrait_editorial_status",
+      "post": [
+        403,
+        "rpc not enabled"
+      ],
+      "get": [
+        403,
+        "rpc not enabled"
+      ]
+    },
+    {
+      "function": "submit_match_squad",
+      "post": [
+        403,
+        "rpc not enabled"
+      ],
+      "get": [
+        403,
+        "rpc not enabled"
+      ]
+    },
+    {
+      "function": "supersede_tournament_fixture",
+      "post": [
+        403,
+        "rpc not enabled"
+      ],
+      "get": [
+        403,
+        "rpc not enabled"
+      ]
+    },
+    {
+      "function": "transition_tournament_media_asset",
+      "post": [
+        403,
+        "rpc not enabled"
+      ],
+      "get": [
+        403,
+        "rpc not enabled"
+      ]
+    },
+    {
+      "function": "update_draft_fixture",
+      "post": [
+        403,
+        "rpc not enabled"
+      ],
+      "get": [
+        403,
+        "rpc not enabled"
+      ]
+    },
+    {
+      "function": "validate_tournament_match_operation",
+      "post": [
+        403,
+        "rpc not enabled"
+      ],
+      "get": [
+        403,
+        "rpc not enabled"
+      ]
+    },
+    {
+      "function": "void_tournament_match_event",
+      "post": [
+        403,
+        "rpc not enabled"
+      ],
+      "get": [
+        403,
+        "rpc not enabled"
+      ]
+    },
+    {
+      "function": "auto_schedule_tournament_matches",
+      "post": [
+        403,
+        "rpc not enabled"
+      ],
+      "get": [
+        403,
+        "rpc not enabled"
+      ]
+    }
+  ]
+}

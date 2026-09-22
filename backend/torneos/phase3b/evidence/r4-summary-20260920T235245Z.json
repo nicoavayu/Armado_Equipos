@@ -1,0 +1,457 @@
+{
+  "schema": "R4.2.summary.v1",
+  "stamp": "20260920T235245Z",
+  "mode": "transport",
+  "utc": "2026-09-20T23:52:45.293Z",
+  "verdict": "R42_ROUTE_DIAGNOSIS_REPRODUCED",
+  "steps": [
+    {
+      "name": "handoff_check",
+      "status": "PASS",
+      "r41aStamp": "20260920T170508Z",
+      "r41aSealSHA256": "e5be71db20c9371ed0d0f31207d678c2820753106d191d56dbcbc7198ec719b2",
+      "free": true,
+      "r2": {
+        "dbId": true,
+        "dbImage": true,
+        "dbStarted": true,
+        "dbNetworks": true,
+        "dbMounts": true,
+        "dbHealthy": true,
+        "restId": true,
+        "restStarted": true,
+        "restNetworks": true,
+        "catalog": true,
+        "ring": true,
+        "jwks": true,
+        "catalogSHA256": "a45abe402d83c01102d5c007ea02c7095a3e9e49ec7377c407f57acad66ac54e"
+      },
+      "prepared": true,
+      "runJson": false,
+      "auth": false,
+      "r4containers": "",
+      "r4networks": ""
+    },
+    {
+      "name": "core_project_guard",
+      "status": "PASS",
+      "project": "arma2-torneos-staging",
+      "projectStatus": "ACTIVE_HEALTHY"
+    },
+    {
+      "name": "core_contract_function_guard",
+      "status": "PASS",
+      "fn": "torneos-core-contract",
+      "fnStatus": "ACTIVE",
+      "ezbr_sha256": "1072419517953eee8e8021f9691d1a5b1efb1f871c4d13290f644d119caded2c"
+    },
+    {
+      "name": "core_keys",
+      "status": "PASS",
+      "anonKind": "legacy-anon",
+      "serviceKind": "legacy-service_role",
+      "keysListed": 4
+    },
+    {
+      "name": "authorization",
+      "status": "PASS",
+      "expiresAt": "2026-09-21T01:52:47.899Z",
+      "commands": [
+        "start-gateway",
+        "smoke"
+      ]
+    },
+    {
+      "name": "runner_preflight",
+      "status": "PASS",
+      "evidence": "/Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/evidence/r4-preflight-20260920T235248Z.json"
+    },
+    {
+      "name": "start_gateway",
+      "status": "PASS",
+      "evidence": "/Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/evidence/r4-gateway-start-20260920T235248Z.json"
+    },
+    {
+      "name": "smoke",
+      "status": "PASS",
+      "evidence": "/Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/evidence/r4-smoke-20260920T235252Z.json"
+    },
+    {
+      "name": "transport_probe",
+      "status": "PASS",
+      "steps": [
+        "route_diagnosis_controls:PASS"
+      ],
+      "verdicts": 23,
+      "cleanup": {
+        "qa": true,
+        "sessions": true,
+        "rows": true,
+        "catalogUnchanged": true,
+        "logout": 204,
+        "delete": {
+          "deleted": true,
+          "deleteStatus": 200,
+          "afterStatus": 404
+        },
+        "rowsDetail": {
+          "ok": true,
+          "executed": true,
+          "error": null,
+          "delta": [
+            "public.torneos_identity"
+          ],
+          "planned": [
+            "public.torneos_identity"
+          ],
+          "mismatches": [],
+          "after": {
+            "private.core_contract_attestations": 0,
+            "private.tournament_team_entry_core_snapshots": 0,
+            "public.torneos_identity": 0,
+            "public.tournament_announcement_audiences": 0,
+            "public.tournament_announcement_deliveries": 0,
+            "public.tournament_announcement_links": 0,
+            "public.tournament_announcements": 0,
+            "public.tournament_audit_log": 0,
+            "public.tournament_categories": 0,
+            "public.tournament_commercial_offers": 1,
+            "public.tournament_commercial_products": 1,
+            "public.tournament_competition_formats": 5,
+            "public.tournament_competition_participants": 0,
+            "public.tournament_courts": 0,
+            "public.tournament_disciplinary_overrides": 0,
+            "public.tournament_discipline_ledgers": 0,
+            "public.tournament_discipline_rules": 0,
+            "public.tournament_document_acknowledgements": 0,
+            "public.tournament_document_versions": 0,
+            "public.tournament_documents": 0,
+            "public.tournament_draw_pot_members": 0,
+            "public.tournament_draw_pots": 0,
+            "public.tournament_entitlement_capabilities": 28,
+            "public.tournament_entitlement_overrides": 0,
+            "public.tournament_fixture_versions": 0,
+            "public.tournament_group_members": 0,
+            "public.tournament_groups": 0,
+            "public.tournament_legacy_organization_subscriptions": 0,
+            "public.tournament_legacy_subscription_plans": 2,
+            "public.tournament_match_availability_responses": 0,
+            "public.tournament_match_events": 0,
+            "public.tournament_match_operation_players": 0,
+            "public.tournament_match_operations": 0,
+            "public.tournament_match_outcomes": 0,
+            "public.tournament_match_reschedules": 0,
+            "public.tournament_match_resumptions": 0,
+            "public.tournament_match_reviews": 0,
+            "public.tournament_match_scores": 0,
+            "public.tournament_match_sources": 0,
+            "public.tournament_match_squad_players": 0,
+            "public.tournament_match_squads": 0,
+            "public.tournament_matches": 0,
+            "public.tournament_media_assets": 0,
+            "public.tournament_media_assignments": 0,
+            "public.tournament_media_consent_events": 0,
+            "public.tournament_media_consents": 0,
+            "public.tournament_media_galleries": 0,
+            "public.tournament_media_gallery_items": 0,
+            "public.tournament_media_moderation_actions": 0,
+            "public.tournament_media_pipeline_configuration": 1,
+            "public.tournament_media_processing_jobs": 0,
+            "public.tournament_media_relations": 0,
+            "public.tournament_media_reports": 0,
+            "public.tournament_media_service_attestations": 0,
+            "public.tournament_media_upload_sessions": 0,
+            "public.tournament_media_variants": 0,
+            "public.tournament_notification_preferences": 0,
+            "public.tournament_organization_entitlement_overrides": 0,
+            "public.tournament_organization_members": 0,
+            "public.tournament_organization_plan_state": 0,
+            "public.tournament_organization_role_capabilities": 285,
+            "public.tournament_organizations": 0,
+            "public.tournament_participant_hub_preferences": 0,
+            "public.tournament_participant_sets": 0,
+            "public.tournament_phases": 0,
+            "public.tournament_plan_catalog": 2,
+            "public.tournament_plan_grant_events": 0,
+            "public.tournament_plan_grants": 0,
+            "public.tournament_player_portraits": 0,
+            "public.tournament_player_statistics": 0,
+            "public.tournament_player_suspensions": 0,
+            "public.tournament_points_adjustments": 0,
+            "public.tournament_pricing_config": 1,
+            "public.tournament_projection_sources": 0,
+            "public.tournament_provisional_players": 0,
+            "public.tournament_public_pages": 0,
+            "public.tournament_purchase_events": 0,
+            "public.tournament_purchases": 0,
+            "public.tournament_qualification_resolutions": 0,
+            "public.tournament_qualification_slots": 0,
+            "public.tournament_roster_players": 0,
+            "public.tournament_roster_settings": 0,
+            "public.tournament_rosters": 0,
+            "public.tournament_rounds": 0,
+            "public.tournament_schedule_windows": 0,
+            "public.tournament_scoring_rules": 0,
+            "public.tournament_season_member_assignments": 0,
+            "public.tournament_season_plan_grant_events": 0,
+            "public.tournament_season_plan_grants": 0,
+            "public.tournament_seasons": 0,
+            "public.tournament_social_permissions": 0,
+            "public.tournament_sport_modalities": 6,
+            "public.tournament_standings_revisions": 0,
+            "public.tournament_suspension_served_matches": 0,
+            "public.tournament_team_entries": 0,
+            "public.tournament_team_invitations": 0,
+            "public.tournament_team_managers": 0,
+            "public.tournament_team_photos": 0,
+            "public.tournament_team_reviews": 0,
+            "public.tournament_team_standings": 0,
+            "public.tournament_team_statistics": 0,
+            "public.tournament_tiebreak_rules": 0,
+            "public.tournament_venues": 0,
+            "public.tournaments": 0,
+            "public.user_tournament_context_preferences": 0,
+            "public.user_workspace_preferences": 0
+          },
+          "scope": {
+            "orgs": [],
+            "discoveredOrgs": [],
+            "identities": 1,
+            "coreUserIds": 1
+          }
+        }
+      }
+    },
+    {
+      "name": "core_sessions_zero",
+      "status": "PASS",
+      "sessions": [
+        {
+          "role": "route",
+          "id": "f54972f1",
+          "sessionPresent": false,
+          "userSessions": 0,
+          "deleted": true
+        }
+      ]
+    },
+    {
+      "name": "cleanup",
+      "status": "PASS",
+      "runtime": {
+        "status": "PASS",
+        "removed": [
+          "arma2-r42-20260920t235248z-proxy",
+          "arma2-r42-20260920t235248z-gateway",
+          "arma2-r42-20260920t235248z-internal",
+          "arma2-r42-20260920t235248z-egress"
+        ],
+        "remaining": {
+          "containers": "",
+          "networks": ""
+        },
+        "authorizationRemoved": true,
+        "runJsonRemoved": true,
+        "port58431Free": true
+      },
+      "r2": {
+        "dbId": true,
+        "dbImage": true,
+        "dbStarted": true,
+        "dbNetworks": true,
+        "dbMounts": true,
+        "dbHealthy": true,
+        "restId": true,
+        "restStarted": true,
+        "restNetworks": true,
+        "catalog": true,
+        "ring": true,
+        "jwks": true,
+        "catalogSHA256": "a45abe402d83c01102d5c007ea02c7095a3e9e49ec7377c407f57acad66ac54e"
+      },
+      "torneosRowsOutsideSeed": []
+    }
+  ],
+  "blockers": [],
+  "evidence": {
+    "gatewayStart": {
+      "path": "r4-gateway-start-20260920T235248Z.json",
+      "sha256": "a6cb1f114c18879bf2e0ed213d5ce6410719b1828d5491dfa2f426078404d62a"
+    },
+    "smoke": {
+      "path": "r4-smoke-20260920T235252Z.json",
+      "sha256": "f62bbe253e5999dd5f9b08269113f759ca262115bf5dfb7570f1d9ac7af4a08d"
+    },
+    "transport": {
+      "path": "r42-route-transport-20260920T235245Z.json",
+      "sha256": "305c702303b4340525c6ae6061e1e0921aa1658941d1bb71c0aedd256463ea75"
+    },
+    "cleanup": {
+      "path": "r4-cleanup-20260920T235245Z.json",
+      "sha256": "a9b5a864f349ee7e055c00e74baf6528b91a9033f90a936ebe8d69188a7ad3b3"
+    }
+  },
+  "run": "arma2-r42-20260920t235248z",
+  "gatewayBundleSHA256": "cc5b1d451fc9ef4498ad927caee37a65aab90ff44ad6ef1cf77e176f989d7e17",
+  "routeDiagnosis": {
+    "proxyKeepAliveMs": 5000,
+    "proxyKeepAliveBufferMs": 1000,
+    "proxyCloseMs": 6000,
+    "sync": [
+      {
+        "name": "B-loaded",
+        "helperBeforeRpcMs": 265.092,
+        "blockedBeforeRpcMs": 265.508,
+        "pad": null,
+        "otherSocketIdleAtDispatchMs": 1447,
+        "ops": [
+          [
+            "ip route del",
+            125.309
+          ],
+          [
+            "ip -f inet",
+            139.783
+          ],
+          [
+            "ip route replace",
+            137.683
+          ]
+        ],
+        "loopMaxGapMs": 267,
+        "rpc": "503 access denied",
+        "reproduced": false,
+        "rpcFailedAfterMs": null,
+        "consistentWithProxyClose": true
+      },
+      {
+        "name": "B-padded",
+        "helperBeforeRpcMs": 278.77,
+        "blockedBeforeRpcMs": 5547.287,
+        "pad": {
+          "kind": "sync",
+          "targetIdleMs": 6300,
+          "otherSocketIdleBeforePadMs": 1037,
+          "waitMs": 5263,
+          "otherSocketIdleAtDispatchMs": 6305
+        },
+        "otherSocketIdleAtDispatchMs": 6305,
+        "ops": [
+          [
+            "ip route del",
+            119.174
+          ],
+          [
+            "ip -f inet",
+            159.596
+          ],
+          [
+            "ip route replace",
+            149.083
+          ]
+        ],
+        "loopMaxGapMs": 5549,
+        "rpc": "NO_RESPONSE UND_ERR_SOCKET after 129.296 ms",
+        "reproduced": true,
+        "rpcFailedAfterMs": 129.296,
+        "consistentWithProxyClose": true
+      }
+    ],
+    "async": [
+      {
+        "name": "C-padded",
+        "helperBeforeRpcMs": 272.803,
+        "pad": {
+          "kind": "async",
+          "targetIdleMs": 6300,
+          "otherSocketIdleBeforePadMs": 1239,
+          "waitMs": 5061,
+          "otherSocketIdleAtDispatchMs": 6300
+        },
+        "otherSocketIdleAtDispatchMs": 6300,
+        "loopTicksDuringFault": 235,
+        "loopMaxGapMs": 53,
+        "rpc": "503 access denied",
+        "cacheControl": "no-store",
+        "table": 503,
+        "recovery": 200
+      }
+    ],
+    "reproduced": true,
+    "reproducedBy": [
+      "B-padded"
+    ],
+    "wireErrorWhenRestUnreachable": [
+      "access denied"
+    ]
+  },
+  "routeExpectations": {
+    "harness": true,
+    "preambles": true,
+    "paddedSyncReproduces": true,
+    "syncCasesRecover": true,
+    "asyncFault503": true,
+    "asyncFaultNoStore": true,
+    "asyncLoopFree": true,
+    "recovery200": true,
+    "oneAttemptEach": true,
+    "noUnexpectedFailures": true,
+    "health": true,
+    "processes": true,
+    "routes": true
+  },
+  "blocks": [],
+  "informative": [],
+  "totals": null,
+  "liveContracts": null,
+  "r2": {
+    "before": {
+      "dbId": true,
+      "dbImage": true,
+      "dbStarted": true,
+      "dbNetworks": true,
+      "dbMounts": true,
+      "dbHealthy": true,
+      "restId": true,
+      "restStarted": true,
+      "restNetworks": true,
+      "catalog": true,
+      "ring": true,
+      "jwks": true,
+      "catalogSHA256": "a45abe402d83c01102d5c007ea02c7095a3e9e49ec7377c407f57acad66ac54e"
+    },
+    "after": {
+      "dbId": true,
+      "dbImage": true,
+      "dbStarted": true,
+      "dbNetworks": true,
+      "dbMounts": true,
+      "dbHealthy": true,
+      "restId": true,
+      "restStarted": true,
+      "restNetworks": true,
+      "catalog": true,
+      "ring": true,
+      "jwks": true,
+      "catalogSHA256": "a45abe402d83c01102d5c007ea02c7095a3e9e49ec7377c407f57acad66ac54e"
+    }
+  },
+  "r41a": {
+    "stamp": "20260920T170508Z",
+    "sealSHA256": "e5be71db20c9371ed0d0f31207d678c2820753106d191d56dbcbc7198ec719b2"
+  },
+  "gatewayStarted": true,
+  "differencesFromHistoricalLab": [
+    "Core is the REAL remote staging project (GoTrue password grant on admin-created QA users; Core contract over HTTPS through the R4.1 exact-SNI proxy) instead of the local Core lab with signup.",
+    "Manager acceptance ran through the live verified_email contract (Phase 2D seeded it); directory_players / directory_teams ran live; team_snapshot was not exercised (no Core team fixture on staging).",
+    "Outages: Core Auth/contract faults injected as path-scoped connection resets in the run-owned proxy, preserving ingress; Torneos REST unreachability injected as /32 route removal inside the run-owned gateway namespace (no fault injected into Core staging or R2 services); contract-specific 5xx/timeout/stale/malformed cases ran on the real gateway modules in the certified Edge runtime with --network none (r4-outage).",
+    "start-gateway invoked as runner preflight + audit.mjs start-gateway (the same provisioning the runner delegates to) to avoid the runner's 45 s child timeout; smoke/certify/cleanup used the sealed runner.",
+    "Direct database-side probes went to the R2 loopback PostgREST (127.0.0.1:58430) instead of an in-network exec."
+  ],
+  "evidenceHashes": {
+    "r4-cleanup-20260920T235245Z.json": "a9b5a864f349ee7e055c00e74baf6528b91a9033f90a936ebe8d69188a7ad3b3",
+    "r4-gateway-start-20260920T235248Z.json": "a6cb1f114c18879bf2e0ed213d5ce6410719b1828d5491dfa2f426078404d62a",
+    "r4-preflight-20260920T235248Z.json": "dce565ae8e70f0a64cab988af56da8173bd3376c49f3c174566d642ca17fdd2d",
+    "r42-route-transport-20260920T235245Z.json": "305c702303b4340525c6ae6061e1e0921aa1658941d1bb71c0aedd256463ea75"
+  }
+}

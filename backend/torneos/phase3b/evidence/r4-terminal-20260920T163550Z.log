@@ -1,0 +1,22 @@
+[r42 16:35:55] step handoff_check: PASS
+[r42 16:35:57] step core_project_guard: PASS
+[r42 16:35:57] step core_contract_function_guard: PASS
+[r42 16:35:59] step core_keys: PASS
+[r42 16:35:59] step authorization: PASS
+[r42 16:35:59] runner preflight: PASS 
+[r42 16:35:59] step runner_preflight: PASS
+[r42 16:36:03] audit start-gateway: STARTED_PENDING_SMOKE 
+[r42 16:36:03] step start_gateway: PASS
+[r42 16:36:04] runner smoke: PASS 
+[r42 16:36:04] step smoke: PASS
+[r42 16:36:05] minimal qa_user: PASS
+[r42 16:36:08] minimal exchange_valid: PASS
+[r42 16:36:26] minimal re_exchanges: PASS
+[r42 16:36:52] minimal session_calls: PASS
+[r42 16:36:52] minimal no_core_unavailable: PASS
+[r42 16:36:56] step minimal_probe: PASS
+[r42 16:36:56] step core_sessions_zero: PASS
+[r42 16:36:56] runner cleanup: PASS 
+[r42 16:36:57] summary /Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/evidence/r4-summary-20260920T163550Z.json
+[r42 16:36:57] VERDICT R4_MINIMAL_PASS
+{"verdict":"R4_MINIMAL_PASS","blockers":[],"summary":"r4-summary-20260920T163550Z.json","evidence":{"gatewayStart":{"path":"r4-gateway-start-20260920T163559Z.json","sha256":"d156c86643d7529dd523f0425dd173271a8817f01e571cee6ba4fd8f23b4c1f6"},"smoke":{"path":"r4-smoke-20260920T163604Z.json","sha256":"6dc5c58c8ce8f5ce621f9e098561c4ee3364d313a8c9b8c6569fd74465b729f3"},"minimal":{"path":"r4-minimal-20260920T163550Z.json","sha256":"0d49993d8c6e151117deadc9f76c3f7bcdf99577738d1cbae2684c535a4a5220"},"cleanup":{"path":"r4-cleanup-20260920T163550Z.json","sha256":"bf2531b0f19587ec1cdef6ed3fc7bad2b7b387d57d0f405a919d4c083679816d"}}}

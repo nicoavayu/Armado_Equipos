@@ -1,0 +1,1003 @@
+{
+  "schema": "R4.2.transport.v1",
+  "stamp": "20260920T224530Z",
+  "variant": "worker",
+  "run": "arma2-r42-20260920t224532z",
+  "node": "v25.2.1",
+  "undici": "7.16.0",
+  "scope": "targeted transport only; one QA; no fixtures; no faults; no matrix",
+  "steps": [
+    {
+      "name": "targeted_transport_expectations",
+      "status": "PASS"
+    }
+  ],
+  "calls": [
+    {
+      "case": null,
+      "id": "initial-health",
+      "at": "2026-09-20T22:45:54.949Z",
+      "url": "http://127.0.0.1:58431/torneos-gateway/health",
+      "path": "/health",
+      "httpResponse": true,
+      "status": 200,
+      "error": null,
+      "cacheControl": "no-store",
+      "keepAlive": null,
+      "connection": "close",
+      "ms": 201
+    },
+    {
+      "case": "G-worker",
+      "id": "G-worker-warm-0",
+      "at": "2026-09-20T22:45:56.645Z",
+      "url": "http://127.0.0.1:58431/torneos-gateway/health",
+      "path": "/health",
+      "httpResponse": true,
+      "status": 200,
+      "error": null,
+      "cacheControl": "no-store",
+      "keepAlive": "timeout=5",
+      "connection": "keep-alive",
+      "ms": 592
+    },
+    {
+      "case": "G-worker",
+      "id": "G-worker-warm-1",
+      "at": "2026-09-20T22:45:56.645Z",
+      "url": "http://127.0.0.1:58431/torneos-gateway/health",
+      "path": "/health",
+      "httpResponse": true,
+      "status": 200,
+      "error": null,
+      "cacheControl": "no-store",
+      "keepAlive": "timeout=5",
+      "connection": "keep-alive",
+      "ms": 838
+    },
+    {
+      "case": "G-worker",
+      "id": "G-worker-health-before",
+      "at": "2026-09-20T22:45:57.483Z",
+      "url": "http://127.0.0.1:58431/torneos-gateway/health",
+      "path": "/health",
+      "httpResponse": true,
+      "status": 200,
+      "error": null,
+      "cacheControl": "no-store",
+      "keepAlive": "timeout=5",
+      "connection": "keep-alive",
+      "ms": 202
+    },
+    {
+      "case": "G-worker",
+      "id": "G-worker-exchange",
+      "at": "2026-09-20T22:47:02.466Z",
+      "url": "http://127.0.0.1:58431/torneos-gateway/exchange",
+      "path": "/exchange",
+      "httpResponse": true,
+      "status": 200,
+      "error": null,
+      "cacheControl": "no-store",
+      "keepAlive": "timeout=5",
+      "connection": "keep-alive",
+      "ms": 2276
+    },
+    {
+      "case": "G-worker",
+      "id": "G-worker-health-after",
+      "at": "2026-09-20T22:47:04.742Z",
+      "url": "http://127.0.0.1:58431/torneos-gateway/health",
+      "path": "/health",
+      "httpResponse": true,
+      "status": 200,
+      "error": null,
+      "cacheControl": "no-store",
+      "keepAlive": null,
+      "connection": "close",
+      "ms": 253
+    },
+    {
+      "case": "G-worker-repeat",
+      "id": "G-worker-repeat-warm-0",
+      "at": "2026-09-20T22:47:08.382Z",
+      "url": "http://127.0.0.1:58431/torneos-gateway/health",
+      "path": "/health",
+      "httpResponse": true,
+      "status": 200,
+      "error": null,
+      "cacheControl": "no-store",
+      "keepAlive": "timeout=5",
+      "connection": "keep-alive",
+      "ms": 238
+    },
+    {
+      "case": "G-worker-repeat",
+      "id": "G-worker-repeat-warm-1",
+      "at": "2026-09-20T22:47:08.382Z",
+      "url": "http://127.0.0.1:58431/torneos-gateway/health",
+      "path": "/health",
+      "httpResponse": true,
+      "status": 200,
+      "error": null,
+      "cacheControl": "no-store",
+      "keepAlive": "timeout=5",
+      "connection": "keep-alive",
+      "ms": 603
+    },
+    {
+      "case": "G-worker-repeat",
+      "id": "G-worker-repeat-health-before",
+      "at": "2026-09-20T22:47:08.986Z",
+      "url": "http://127.0.0.1:58431/torneos-gateway/health",
+      "path": "/health",
+      "httpResponse": true,
+      "status": 200,
+      "error": null,
+      "cacheControl": "no-store",
+      "keepAlive": "timeout=5",
+      "connection": "keep-alive",
+      "ms": 269
+    },
+    {
+      "case": "G-worker-repeat",
+      "id": "G-worker-repeat-exchange",
+      "at": "2026-09-20T22:48:03.834Z",
+      "url": "http://127.0.0.1:58431/torneos-gateway/exchange",
+      "path": "/exchange",
+      "httpResponse": true,
+      "status": 200,
+      "error": null,
+      "cacheControl": "no-store",
+      "keepAlive": "timeout=5",
+      "connection": "keep-alive",
+      "ms": 2020
+    },
+    {
+      "case": "G-worker-repeat",
+      "id": "G-worker-repeat-health-after",
+      "at": "2026-09-20T22:48:05.855Z",
+      "url": "http://127.0.0.1:58431/torneos-gateway/health",
+      "path": "/health",
+      "httpResponse": true,
+      "status": 200,
+      "error": null,
+      "cacheControl": "no-store",
+      "keepAlive": null,
+      "connection": "close",
+      "ms": 175
+    }
+  ],
+  "events": [
+    {
+      "at": "2026-09-20T22:45:54.951Z",
+      "case": null,
+      "event": "undici:client:sendHeaders",
+      "path": "/torneos-gateway/health",
+      "socket": {
+        "localAddress": "127.0.0.1",
+        "localPort": 63243,
+        "remoteAddress": "127.0.0.1",
+        "remotePort": 58431,
+        "bytesWritten": 0,
+        "bytesRead": 0,
+        "destroyed": false,
+        "readyState": "open"
+      },
+      "error": null
+    },
+    {
+      "at": "2026-09-20T22:45:55.155Z",
+      "case": "G-worker",
+      "event": "client:close",
+      "initial": {
+        "localAddress": "127.0.0.1",
+        "localPort": 63243,
+        "remoteAddress": "127.0.0.1",
+        "remotePort": 58431,
+        "bytesWritten": 0,
+        "bytesRead": 0,
+        "destroyed": false,
+        "readyState": "open"
+      },
+      "socket": {
+        "localAddress": null,
+        "localPort": null,
+        "remoteAddress": "127.0.0.1",
+        "remotePort": 58431,
+        "bytesWritten": 216,
+        "bytesRead": 252,
+        "destroyed": true,
+        "readyState": "closed"
+      }
+    },
+    {
+      "at": "2026-09-20T22:45:56.646Z",
+      "case": "G-worker",
+      "event": "undici:client:sendHeaders",
+      "path": "/torneos-gateway/health",
+      "socket": {
+        "localAddress": "127.0.0.1",
+        "localPort": 63244,
+        "remoteAddress": "127.0.0.1",
+        "remotePort": 58431,
+        "bytesWritten": 0,
+        "bytesRead": 0,
+        "destroyed": false,
+        "readyState": "open"
+      },
+      "error": null
+    },
+    {
+      "at": "2026-09-20T22:45:56.646Z",
+      "case": "G-worker",
+      "event": "undici:client:sendHeaders",
+      "path": "/torneos-gateway/health",
+      "socket": {
+        "localAddress": "127.0.0.1",
+        "localPort": 63245,
+        "remoteAddress": "127.0.0.1",
+        "remotePort": 58431,
+        "bytesWritten": 0,
+        "bytesRead": 0,
+        "destroyed": false,
+        "readyState": "open"
+      },
+      "error": null
+    },
+    {
+      "at": "2026-09-20T22:45:57.484Z",
+      "case": "G-worker",
+      "event": "undici:client:sendHeaders",
+      "path": "/torneos-gateway/health",
+      "socket": {
+        "localAddress": "127.0.0.1",
+        "localPort": 63244,
+        "remoteAddress": "127.0.0.1",
+        "remotePort": 58431,
+        "bytesWritten": 222,
+        "bytesRead": 280,
+        "destroyed": false,
+        "readyState": "open"
+      },
+      "error": null
+    },
+    {
+      "at": "2026-09-20T22:46:00.485Z",
+      "case": "G-worker",
+      "event": "client:close",
+      "initial": {
+        "localAddress": "127.0.0.1",
+        "localPort": 63245,
+        "remoteAddress": "127.0.0.1",
+        "remotePort": 58431,
+        "bytesWritten": 0,
+        "bytesRead": 0,
+        "destroyed": false,
+        "readyState": "open"
+      },
+      "socket": {
+        "localAddress": null,
+        "localPort": null,
+        "remoteAddress": "127.0.0.1",
+        "remotePort": 58431,
+        "bytesWritten": 222,
+        "bytesRead": 280,
+        "destroyed": true,
+        "readyState": "closed"
+      }
+    },
+    {
+      "at": "2026-09-20T22:46:00.688Z",
+      "case": "G-worker",
+      "event": "client:close",
+      "initial": {
+        "localAddress": "127.0.0.1",
+        "localPort": 63244,
+        "remoteAddress": "127.0.0.1",
+        "remotePort": 58431,
+        "bytesWritten": 0,
+        "bytesRead": 0,
+        "destroyed": false,
+        "readyState": "open"
+      },
+      "socket": {
+        "localAddress": null,
+        "localPort": null,
+        "remoteAddress": "127.0.0.1",
+        "remotePort": 58431,
+        "bytesWritten": 451,
+        "bytesRead": 560,
+        "destroyed": true,
+        "readyState": "closed"
+      }
+    },
+    {
+      "at": "2026-09-20T22:47:02.468Z",
+      "case": "G-worker",
+      "event": "undici:client:sendHeaders",
+      "path": "/torneos-gateway/exchange",
+      "socket": {
+        "localAddress": "127.0.0.1",
+        "localPort": 63299,
+        "remoteAddress": "127.0.0.1",
+        "remotePort": 58431,
+        "bytesWritten": 0,
+        "bytesRead": 0,
+        "destroyed": false,
+        "readyState": "open"
+      },
+      "error": null
+    },
+    {
+      "at": "2026-09-20T22:47:04.743Z",
+      "case": "G-worker",
+      "event": "undici:client:sendHeaders",
+      "path": "/torneos-gateway/health",
+      "socket": {
+        "localAddress": "127.0.0.1",
+        "localPort": 63302,
+        "remoteAddress": "127.0.0.1",
+        "remotePort": 58431,
+        "bytesWritten": 0,
+        "bytesRead": 0,
+        "destroyed": false,
+        "readyState": "open"
+      },
+      "error": null
+    },
+    {
+      "at": "2026-09-20T22:47:05.000Z",
+      "case": "G-worker",
+      "event": "client:close",
+      "initial": {
+        "localAddress": "127.0.0.1",
+        "localPort": 63302,
+        "remoteAddress": "127.0.0.1",
+        "remotePort": 58431,
+        "bytesWritten": 0,
+        "bytesRead": 0,
+        "destroyed": false,
+        "readyState": "open"
+      },
+      "socket": {
+        "localAddress": null,
+        "localPort": null,
+        "remoteAddress": "127.0.0.1",
+        "remotePort": 58431,
+        "bytesWritten": 223,
+        "bytesRead": 252,
+        "destroyed": true,
+        "readyState": "closed"
+      }
+    },
+    {
+      "at": "2026-09-20T22:47:07.743Z",
+      "case": "G-worker-repeat",
+      "event": "client:close",
+      "initial": {
+        "localAddress": "127.0.0.1",
+        "localPort": 63299,
+        "remoteAddress": "127.0.0.1",
+        "remotePort": 58431,
+        "bytesWritten": 0,
+        "bytesRead": 0,
+        "destroyed": false,
+        "readyState": "open"
+      },
+      "socket": {
+        "localAddress": null,
+        "localPort": null,
+        "remoteAddress": "127.0.0.1",
+        "remotePort": 58431,
+        "bytesWritten": 1285,
+        "bytesRead": 1190,
+        "destroyed": true,
+        "readyState": "closed"
+      }
+    },
+    {
+      "at": "2026-09-20T22:47:08.383Z",
+      "case": "G-worker-repeat",
+      "event": "undici:client:sendHeaders",
+      "path": "/torneos-gateway/health",
+      "socket": {
+        "localAddress": "127.0.0.1",
+        "localPort": 63303,
+        "remoteAddress": "127.0.0.1",
+        "remotePort": 58431,
+        "bytesWritten": 0,
+        "bytesRead": 0,
+        "destroyed": false,
+        "readyState": "open"
+      },
+      "error": null
+    },
+    {
+      "at": "2026-09-20T22:47:08.384Z",
+      "case": "G-worker-repeat",
+      "event": "undici:client:sendHeaders",
+      "path": "/torneos-gateway/health",
+      "socket": {
+        "localAddress": "127.0.0.1",
+        "localPort": 63304,
+        "remoteAddress": "127.0.0.1",
+        "remotePort": 58431,
+        "bytesWritten": 0,
+        "bytesRead": 0,
+        "destroyed": false,
+        "readyState": "open"
+      },
+      "error": null
+    },
+    {
+      "at": "2026-09-20T22:47:08.986Z",
+      "case": "G-worker-repeat",
+      "event": "undici:client:sendHeaders",
+      "path": "/torneos-gateway/health",
+      "socket": {
+        "localAddress": "127.0.0.1",
+        "localPort": 63303,
+        "remoteAddress": "127.0.0.1",
+        "remotePort": 58431,
+        "bytesWritten": 229,
+        "bytesRead": 280,
+        "destroyed": false,
+        "readyState": "open"
+      },
+      "error": null
+    },
+    {
+      "at": "2026-09-20T22:47:11.987Z",
+      "case": "G-worker-repeat",
+      "event": "client:close",
+      "initial": {
+        "localAddress": "127.0.0.1",
+        "localPort": 63304,
+        "remoteAddress": "127.0.0.1",
+        "remotePort": 58431,
+        "bytesWritten": 0,
+        "bytesRead": 0,
+        "destroyed": false,
+        "readyState": "open"
+      },
+      "socket": {
+        "localAddress": null,
+        "localPort": null,
+        "remoteAddress": "127.0.0.1",
+        "remotePort": 58431,
+        "bytesWritten": 229,
+        "bytesRead": 280,
+        "destroyed": true,
+        "readyState": "closed"
+      }
+    },
+    {
+      "at": "2026-09-20T22:47:12.258Z",
+      "case": "G-worker-repeat",
+      "event": "client:close",
+      "initial": {
+        "localAddress": "127.0.0.1",
+        "localPort": 63303,
+        "remoteAddress": "127.0.0.1",
+        "remotePort": 58431,
+        "bytesWritten": 0,
+        "bytesRead": 0,
+        "destroyed": false,
+        "readyState": "open"
+      },
+      "socket": {
+        "localAddress": null,
+        "localPort": null,
+        "remoteAddress": "127.0.0.1",
+        "remotePort": 58431,
+        "bytesWritten": 465,
+        "bytesRead": 560,
+        "destroyed": true,
+        "readyState": "closed"
+      }
+    },
+    {
+      "at": "2026-09-20T22:48:03.835Z",
+      "case": "G-worker-repeat",
+      "event": "undici:client:sendHeaders",
+      "path": "/torneos-gateway/exchange",
+      "socket": {
+        "localAddress": "127.0.0.1",
+        "localPort": 63314,
+        "remoteAddress": "127.0.0.1",
+        "remotePort": 58431,
+        "bytesWritten": 0,
+        "bytesRead": 0,
+        "destroyed": false,
+        "readyState": "open"
+      },
+      "error": null
+    },
+    {
+      "at": "2026-09-20T22:48:05.855Z",
+      "case": "G-worker-repeat",
+      "event": "undici:client:sendHeaders",
+      "path": "/torneos-gateway/health",
+      "socket": {
+        "localAddress": "127.0.0.1",
+        "localPort": 63316,
+        "remoteAddress": "127.0.0.1",
+        "remotePort": 58431,
+        "bytesWritten": 0,
+        "bytesRead": 0,
+        "destroyed": false,
+        "readyState": "open"
+      },
+      "error": null
+    },
+    {
+      "at": "2026-09-20T22:48:06.036Z",
+      "case": "G-worker-repeat",
+      "event": "client:close",
+      "initial": {
+        "localAddress": "127.0.0.1",
+        "localPort": 63316,
+        "remoteAddress": "127.0.0.1",
+        "remotePort": 58431,
+        "bytesWritten": 0,
+        "bytesRead": 0,
+        "destroyed": false,
+        "readyState": "open"
+      },
+      "socket": {
+        "localAddress": null,
+        "localPort": null,
+        "remoteAddress": "127.0.0.1",
+        "remotePort": 58431,
+        "bytesWritten": 230,
+        "bytesRead": 252,
+        "destroyed": true,
+        "readyState": "closed"
+      }
+    }
+  ],
+  "cases": [
+    {
+      "name": "G-worker",
+      "before": {
+        "at": "2026-09-20T22:45:56.645Z",
+        "containers": {
+          "gateway": {
+            "id": "7f31a631008c2dacf961baab644b8e32e2fba4ad545ad904b18c77ae1c1be530",
+            "running": true,
+            "restartCount": 0,
+            "startedAt": "2026-09-20T22:45:39.616708293Z",
+            "finishedAt": "0001-01-01T00:00:00Z",
+            "exitCode": 0,
+            "oomKilled": false
+          },
+          "proxy": {
+            "id": "4e3d342ee87ed9b12565fe392cac780f071e72df4c214ed1e34dbcc8ed5e69d8",
+            "running": true,
+            "restartCount": 0,
+            "startedAt": "2026-09-20T22:45:36.792129542Z",
+            "finishedAt": "0001-01-01T00:00:00Z",
+            "exitCode": 0,
+            "oomKilled": false
+          }
+        },
+        "gatewayRoutes": "unreachable default \n172.27.0.2 dev eth1 scope link \n172.27.0.3 dev eth1 scope link \n172.29.0.2 dev eth0 scope link \n",
+        "gatewayTCP": "  sl  local_address rem_address   st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode                                                     \n   0: 0B00007F:8FE9 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 28431988 1 0000000092dc65e7 100 0 0 10 0                  \n   1: 00000000:2328 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 28435901 1 00000000ad01a25d 100 0 0 10 0                  \n   2: 03001DAC:A0C8 02001DAC:01BB 01 00000000:0000001B 02:00000A04 00000000     0        0 28434160 2 00000000d2c407a2 20 4 30 10 -1                 \n   3: 03001DAC:2328 02001DAC:C9FA 06 00000000:00000000 03:0000175B 00000000     0        0 0 3 000000006da2f2ce                                      \n  sl  local_address                         remote_address                        st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode\n",
+        "proxyTCPAndFault": "  sl  local_address rem_address   st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode                                                     \n   0: 00000000:2328 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 28435697 1 000000003cade681 100 0 0 10 0                  \n   1: 00000000:01BB 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 28435698 1 00000000b42cde60 100 0 0 10 0                  \n   2: 0B00007F:9B73 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 28431892 1 000000002e3b6e98 100 0 0 10 0                  \n   3: 0100007F:240D 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 28429009 1 00000000b67c76b8 100 0 0 10 0                  \n   4: 0100007F:240D 0100007F:A91E 06 00000000:00000000 03:000016B3 00000000     0        0 0 3 00000000f89d2043                                      \n   5: 02001DAC:01BB 03001DAC:A0C8 01 00000000:00000000 00:00000000 00000000     0        0 28435930 2 0000000022f6fa07 20 4 30 10 -1                 \n   6: 0100007F:A918 0100007F:240D 06 00000000:00000000 03:000016B1 00000000     0        0 0 3 000000001b7742a6                                      \n   7: 02001EAC:2328 01001EAC:EA38 06 00000000:00000000 03:0000175D 00000000     0        0 0 3 000000001191efad                                      \n   8: 02001EAC:E558 0A261268:01BB 01 00000000:00000000 02:0000003E 00000000     0        0 28435931 2 000000000987b60e 23 4 30 10 -1                 \n  sl  local_address                         remote_address                        st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode\n"
+      },
+      "warm": [
+        {
+          "case": "G-worker",
+          "id": "G-worker-warm-0",
+          "at": "2026-09-20T22:45:56.645Z",
+          "url": "http://127.0.0.1:58431/torneos-gateway/health",
+          "path": "/health",
+          "httpResponse": true,
+          "status": 200,
+          "error": null,
+          "cacheControl": "no-store",
+          "keepAlive": "timeout=5",
+          "connection": "keep-alive",
+          "ms": 592
+        },
+        {
+          "case": "G-worker",
+          "id": "G-worker-warm-1",
+          "at": "2026-09-20T22:45:56.645Z",
+          "url": "http://127.0.0.1:58431/torneos-gateway/health",
+          "path": "/health",
+          "httpResponse": true,
+          "status": 200,
+          "error": null,
+          "cacheControl": "no-store",
+          "keepAlive": "timeout=5",
+          "connection": "keep-alive",
+          "ms": 838
+        }
+      ],
+      "healthBefore": {
+        "case": "G-worker",
+        "id": "G-worker-health-before",
+        "at": "2026-09-20T22:45:57.483Z",
+        "url": "http://127.0.0.1:58431/torneos-gateway/health",
+        "path": "/health",
+        "httpResponse": true,
+        "status": 200,
+        "error": null,
+        "cacheControl": "no-store",
+        "keepAlive": "timeout=5",
+        "connection": "keep-alive",
+        "ms": 202
+      },
+      "workerInvocation": {
+        "parent": [],
+        "execArgv": [],
+        "removed": []
+      },
+      "offline": {
+        "ms": 64780,
+        "pass": true,
+        "tests": 29,
+        "bundleSHA256": "be45c9fbd7e5f3a9aad76e411825a689a3c21a7e99268f28c069afc3501e3eee",
+        "eventLoopTicks": 642
+      },
+      "exchange": {
+        "case": "G-worker",
+        "id": "G-worker-exchange",
+        "at": "2026-09-20T22:47:02.466Z",
+        "url": "http://127.0.0.1:58431/torneos-gateway/exchange",
+        "path": "/exchange",
+        "httpResponse": true,
+        "status": 200,
+        "error": null,
+        "cacheControl": "no-store",
+        "keepAlive": "timeout=5",
+        "connection": "keep-alive",
+        "ms": 2276
+      },
+      "healthAfter": {
+        "case": "G-worker",
+        "id": "G-worker-health-after",
+        "at": "2026-09-20T22:47:04.742Z",
+        "url": "http://127.0.0.1:58431/torneos-gateway/health",
+        "path": "/health",
+        "httpResponse": true,
+        "status": 200,
+        "error": null,
+        "cacheControl": "no-store",
+        "keepAlive": null,
+        "connection": "close",
+        "ms": 253
+      },
+      "after": {
+        "at": "2026-09-20T22:47:06.094Z",
+        "containers": {
+          "gateway": {
+            "id": "7f31a631008c2dacf961baab644b8e32e2fba4ad545ad904b18c77ae1c1be530",
+            "running": true,
+            "restartCount": 0,
+            "startedAt": "2026-09-20T22:45:39.616708293Z",
+            "finishedAt": "0001-01-01T00:00:00Z",
+            "exitCode": 0,
+            "oomKilled": false
+          },
+          "proxy": {
+            "id": "4e3d342ee87ed9b12565fe392cac780f071e72df4c214ed1e34dbcc8ed5e69d8",
+            "running": true,
+            "restartCount": 0,
+            "startedAt": "2026-09-20T22:45:36.792129542Z",
+            "finishedAt": "0001-01-01T00:00:00Z",
+            "exitCode": 0,
+            "oomKilled": false
+          }
+        },
+        "gatewayRoutes": "unreachable default \n172.27.0.2 dev eth1 scope link \n172.27.0.3 dev eth1 scope link \n172.29.0.2 dev eth0 scope link \n",
+        "gatewayTCP": "  sl  local_address rem_address   st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode                                                     \n   0: 0B00007F:8FE9 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 28431988 1 0000000092dc65e7 100 0 0 10 0                  \n   1: 00000000:2328 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 28435901 1 00000000ad01a25d 100 0 0 10 0                  \n   2: 03001DAC:B90A 02001DAC:01BB 01 00000000:00000000 02:00000AAE 00000000     0        0 28449423 2 000000001df8eb65 20 4 33 10 -1                 \n   3: 03001DAC:B912 02001DAC:01BB 01 00000000:0000001B 02:00000AEC 00000000     0        0 28449445 2 00000000c878a7bb 20 4 30 10 -1                 \n   4: 03001DAC:2328 02001DAC:BFBA 06 00000000:00000000 03:00001761 00000000     0        0 0 3 00000000b9a3aa32                                      \n   5: 04001BAC:CCDA 02001BAC:1538 01 00000000:00000000 00:00000000 00000000     0        0 28444342 1 00000000273bb3b2 20 4 12 10 -1                 \n  sl  local_address                         remote_address                        st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode\n",
+        "proxyTCPAndFault": "  sl  local_address rem_address   st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode                                                     \n   0: 00000000:2328 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 28435697 1 000000003cade681 100 0 0 10 0                  \n   1: 00000000:01BB 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 28435698 1 00000000b42cde60 100 0 0 10 0                  \n   2: 0B00007F:9B73 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 28431892 1 000000002e3b6e98 100 0 0 10 0                  \n   3: 0100007F:240D 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 28429009 1 00000000b67c76b8 100 0 0 10 0                  \n   4: 02001DAC:01BB 03001DAC:A846 06 00000000:00000000 03:00000000 00000000     0        0 0 3 000000008e94e07d                                      \n   5: 02001EAC:2328 01001EAC:EE82 06 00000000:00000000 03:00001761 00000000     0        0 0 3 00000000c0e56fe7                                      \n   6: 02001DAC:01BB 03001DAC:A836 06 00000000:00000000 03:00000000 00000000     0        0 0 3 00000000f59811f2                                      \n   7: 02001EAC:89C4 0A261268:01BB 01 00000000:00000000 02:00000002 00000000     0        0 28454159 2 000000004d86845b 21 4 30 10 -1                 \n   8: 02001EAC:9E48 0A261268:01BB 06 00000000:00000000 03:00000000 00000000     0        0 0 3 000000000922b842                                      \n   9: 02001DAC:01BB 03001DAC:B912 01 00000000:00000000 00:00000000 00000000     0        0 28442495 2 000000007be989e8 20 4 30 10 -1                 \n  10: 02001DAC:01BB 03001DAC:B90A 01 00000000:00000000 00:00000000 00000000     0        0 28454158 1 00000000edaae691 20 4 32 10 -1                 \n  11: 02001DAC:BFF6 03001DAC:2328 06 00000000:00000000 03:00000000 00000000     0        0 0 3 00000000d3a237da                                      \n  12: 02001EAC:2328 01001EAC:ED20 01 00000000:00000000 00:00000000 00000000     0        0 28454156 1 000000003c9c0263 20 4 32 10 -1                 \n  sl  local_address                         remote_address                        st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode\n"
+      }
+    },
+    {
+      "name": "G-worker-repeat",
+      "before": {
+        "at": "2026-09-20T22:47:08.382Z",
+        "containers": {
+          "gateway": {
+            "id": "7f31a631008c2dacf961baab644b8e32e2fba4ad545ad904b18c77ae1c1be530",
+            "running": true,
+            "restartCount": 0,
+            "startedAt": "2026-09-20T22:45:39.616708293Z",
+            "finishedAt": "0001-01-01T00:00:00Z",
+            "exitCode": 0,
+            "oomKilled": false
+          },
+          "proxy": {
+            "id": "4e3d342ee87ed9b12565fe392cac780f071e72df4c214ed1e34dbcc8ed5e69d8",
+            "running": true,
+            "restartCount": 0,
+            "startedAt": "2026-09-20T22:45:36.792129542Z",
+            "finishedAt": "0001-01-01T00:00:00Z",
+            "exitCode": 0,
+            "oomKilled": false
+          }
+        },
+        "gatewayRoutes": "unreachable default \n172.27.0.2 dev eth1 scope link \n172.27.0.3 dev eth1 scope link \n172.29.0.2 dev eth0 scope link \n",
+        "gatewayTCP": "  sl  local_address rem_address   st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode                                                     \n   0: 0B00007F:8FE9 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 28431988 1 0000000092dc65e7 100 0 0 10 0                  \n   1: 00000000:2328 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 28435901 1 00000000ad01a25d 100 0 0 10 0                  \n   2: 03001DAC:B90A 02001DAC:01BB 01 00000000:00000000 02:00000A3A 00000000     0        0 28449423 2 000000001df8eb65 20 4 33 10 -1                 \n   3: 03001DAC:B912 02001DAC:01BB 01 00000000:0000001B 02:00000A77 00000000     0        0 28449445 2 00000000c878a7bb 20 4 30 10 -1                 \n   4: 03001DAC:2328 02001DAC:BFBA 06 00000000:00000000 03:000016EC 00000000     0        0 0 3 00000000b9a3aa32                                      \n   5: 04001BAC:CCDA 02001BAC:1538 01 00000000:00000000 00:00000000 00000000     0        0 28444342 1 00000000273bb3b2 20 4 12 10 -1                 \n  sl  local_address                         remote_address                        st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode\n",
+        "proxyTCPAndFault": "  sl  local_address rem_address   st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode                                                     \n   0: 00000000:2328 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 28435697 1 000000003cade681 100 0 0 10 0                  \n   1: 00000000:01BB 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 28435698 1 00000000b42cde60 100 0 0 10 0                  \n   2: 0B00007F:9B73 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 28431892 1 000000002e3b6e98 100 0 0 10 0                  \n   3: 0100007F:240D 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 28429009 1 00000000b67c76b8 100 0 0 10 0                  \n   4: 02001DAC:01BB 03001DAC:A846 06 00000000:00000000 03:00000000 00000000     0        0 0 3 000000008e94e07d                                      \n   5: 02001EAC:2328 01001EAC:EE82 06 00000000:00000000 03:000016EC 00000000     0        0 0 3 00000000c0e56fe7                                      \n   6: 02001DAC:01BB 03001DAC:A836 06 00000000:00000000 03:00000000 00000000     0        0 0 3 00000000f59811f2                                      \n   7: 02001EAC:89C4 0A261268:01BB 01 00000000:00000000 02:00000045 00000000     0        0 28454159 2 000000004d86845b 21 4 30 10 -1                 \n   8: 02001EAC:9E48 0A261268:01BB 06 00000000:00000000 03:00000000 00000000     0        0 0 3 000000000922b842                                      \n   9: 02001DAC:01BB 03001DAC:B912 01 00000000:00000000 00:00000000 00000000     0        0 28442495 1 000000007be989e8 20 4 30 10 -1                 \n  10: 02001DAC:01BB 03001DAC:B90A 01 00000000:00000000 00:00000000 00000000     0        0 28454158 1 00000000edaae691 20 4 32 10 -1                 \n  11: 02001DAC:BFF6 03001DAC:2328 06 00000000:00000000 03:00000000 00000000     0        0 0 3 00000000d3a237da                                      \n  12: 02001EAC:2328 01001EAC:ED20 01 00000000:00000000 00:00000000 00000000     0        0 28454156 1 000000003c9c0263 20 4 32 10 -1                 \n  sl  local_address                         remote_address                        st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode\n"
+      },
+      "warm": [
+        {
+          "case": "G-worker-repeat",
+          "id": "G-worker-repeat-warm-0",
+          "at": "2026-09-20T22:47:08.382Z",
+          "url": "http://127.0.0.1:58431/torneos-gateway/health",
+          "path": "/health",
+          "httpResponse": true,
+          "status": 200,
+          "error": null,
+          "cacheControl": "no-store",
+          "keepAlive": "timeout=5",
+          "connection": "keep-alive",
+          "ms": 238
+        },
+        {
+          "case": "G-worker-repeat",
+          "id": "G-worker-repeat-warm-1",
+          "at": "2026-09-20T22:47:08.382Z",
+          "url": "http://127.0.0.1:58431/torneos-gateway/health",
+          "path": "/health",
+          "httpResponse": true,
+          "status": 200,
+          "error": null,
+          "cacheControl": "no-store",
+          "keepAlive": "timeout=5",
+          "connection": "keep-alive",
+          "ms": 603
+        }
+      ],
+      "healthBefore": {
+        "case": "G-worker-repeat",
+        "id": "G-worker-repeat-health-before",
+        "at": "2026-09-20T22:47:08.986Z",
+        "url": "http://127.0.0.1:58431/torneos-gateway/health",
+        "path": "/health",
+        "httpResponse": true,
+        "status": 200,
+        "error": null,
+        "cacheControl": "no-store",
+        "keepAlive": "timeout=5",
+        "connection": "keep-alive",
+        "ms": 269
+      },
+      "workerInvocation": {
+        "parent": [],
+        "execArgv": [],
+        "removed": []
+      },
+      "offline": {
+        "ms": 54579,
+        "pass": true,
+        "tests": 29,
+        "bundleSHA256": "be45c9fbd7e5f3a9aad76e411825a689a3c21a7e99268f28c069afc3501e3eee",
+        "eventLoopTicks": 540
+      },
+      "exchange": {
+        "case": "G-worker-repeat",
+        "id": "G-worker-repeat-exchange",
+        "at": "2026-09-20T22:48:03.834Z",
+        "url": "http://127.0.0.1:58431/torneos-gateway/exchange",
+        "path": "/exchange",
+        "httpResponse": true,
+        "status": 200,
+        "error": null,
+        "cacheControl": "no-store",
+        "keepAlive": "timeout=5",
+        "connection": "keep-alive",
+        "ms": 2020
+      },
+      "healthAfter": {
+        "case": "G-worker-repeat",
+        "id": "G-worker-repeat-health-after",
+        "at": "2026-09-20T22:48:05.855Z",
+        "url": "http://127.0.0.1:58431/torneos-gateway/health",
+        "path": "/health",
+        "httpResponse": true,
+        "status": 200,
+        "error": null,
+        "cacheControl": "no-store",
+        "keepAlive": null,
+        "connection": "close",
+        "ms": 175
+      },
+      "after": {
+        "at": "2026-09-20T22:48:06.186Z",
+        "containers": {
+          "gateway": {
+            "id": "7f31a631008c2dacf961baab644b8e32e2fba4ad545ad904b18c77ae1c1be530",
+            "running": true,
+            "restartCount": 0,
+            "startedAt": "2026-09-20T22:45:39.616708293Z",
+            "finishedAt": "0001-01-01T00:00:00Z",
+            "exitCode": 0,
+            "oomKilled": false
+          },
+          "proxy": {
+            "id": "4e3d342ee87ed9b12565fe392cac780f071e72df4c214ed1e34dbcc8ed5e69d8",
+            "running": true,
+            "restartCount": 0,
+            "startedAt": "2026-09-20T22:45:36.792129542Z",
+            "finishedAt": "0001-01-01T00:00:00Z",
+            "exitCode": 0,
+            "oomKilled": false
+          }
+        },
+        "gatewayRoutes": "unreachable default \n172.27.0.2 dev eth1 scope link \n172.27.0.3 dev eth1 scope link \n172.29.0.2 dev eth0 scope link \n",
+        "gatewayTCP": "  sl  local_address rem_address   st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode                                                     \n   0: 0B00007F:8FE9 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 28431988 1 0000000092dc65e7 100 0 0 10 0                  \n   1: 00000000:2328 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 28435901 1 00000000ad01a25d 100 0 0 10 0                  \n   2: 03001DAC:91AE 02001DAC:01BB 01 00000000:0000001B 02:00000AD7 00000000     0        0 28470304 2 00000000c8ed4e22 20 4 32 10 -1                 \n   3: 03001DAC:A82C 02001DAC:01BB 01 00000000:0000001B 02:00000B34 00000000     0        0 28470333 2 000000004cd4b095 20 4 32 10 -1                 \n   4: 03001DAC:2328 02001DAC:BC6E 06 00000000:00000000 03:0000176A 00000000     0        0 0 3 00000000219abd78                                      \n   5: 03001DAC:2328 02001DAC:BFBA 06 00000000:00000000 03:00000000 00000000     0        0 0 3 00000000b9a3aa32                                      \n   6: 04001BAC:B422 02001BAC:1538 01 00000000:00000000 00:00000000 00000000     0        0 28470443 1 0000000018d664aa 20 4 12 10 -1                 \n   7: 04001BAC:CCDA 02001BAC:1538 06 00000000:00000000 03:0000074E 00000000     0        0 0 3 00000000cf59fbe8                                      \n  sl  local_address                         remote_address                        st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode\n",
+        "proxyTCPAndFault": "  sl  local_address rem_address   st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode                                                     \n   0: 00000000:2328 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 28435697 1 000000003cade681 100 0 0 10 0                  \n   1: 00000000:01BB 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 28435698 1 00000000b42cde60 100 0 0 10 0                  \n   2: 0B00007F:9B73 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 28431892 1 000000002e3b6e98 100 0 0 10 0                  \n   3: 0100007F:240D 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 28429009 1 00000000b67c76b8 100 0 0 10 0                  \n   4: 02001EAC:2328 01001EAC:D7FE 01 00000000:00000000 00:00000000 00000000     0        0 28463012 1 00000000af7c1685 20 4 32 10 -1                 \n   5: 02001EAC:2328 01001EAC:EE82 06 00000000:00000000 03:00000000 00000000     0        0 0 3 00000000c0e56fe7                                      \n   6: 02001EAC:2328 01001EAC:FA48 06 00000000:00000000 03:0000176A 00000000     0        0 0 3 00000000911af1b3                                      \n   7: 02001DAC:01BB 03001DAC:A82C 01 00000000:00000000 00:00000000 00000000     0        0 28465815 2 0000000070b67ec9 20 4 30 10 -1                 \n   8: 02001DAC:01BB 03001DAC:91AE 01 00000000:00000000 00:00000000 00000000     0        0 28463014 1 00000000a515844e 20 4 32 10 -1                 \n   9: 02001EAC:89C4 0A261268:01BB 06 00000000:00000000 03:0000030B 00000000     0        0 0 3 000000006af41a5d                                      \n  10: 02001EAC:8F96 0A261268:01BB 06 00000000:00000000 03:00000335 00000000     0        0 0 3 000000000eed63e6                                      \n  11: 02001DAC:01BB 03001DAC:B912 06 00000000:00000000 03:00000355 00000000     0        0 0 3 00000000664bede0                                      \n  12: 02001EAC:D5C8 0A261268:01BB 01 00000000:00000000 02:00000049 00000000     0        0 28471314 2 00000000d351cd76 21 4 28 10 -1                 \n  13: 02001DAC:01BB 03001DAC:B90A 06 00000000:00000000 03:0000037B 00000000     0        0 0 3 00000000df8a502c                                      \n  14: 02001DAC:EBB6 03001DAC:2328 06 00000000:00000000 03:000002FE 00000000     0        0 0 3 00000000f59811f2                                      \n  15: 02001DAC:EBB8 03001DAC:2328 06 00000000:00000000 03:00000332 00000000     0        0 0 3 0000000010290821                                      \n  16: 02001DAC:01BB 03001DAC:C46E 06 00000000:00000000 03:00000394 00000000     0        0 0 3 00000000b03c742d                                      \n  sl  local_address                         remote_address                        st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode\n"
+      }
+    }
+  ],
+  "cleanup": {
+    "qa": true,
+    "sessions": true,
+    "rows": true,
+    "catalogUnchanged": true,
+    "logout": 204,
+    "delete": {
+      "deleted": true,
+      "deleteStatus": 200,
+      "afterStatus": 404
+    },
+    "rowsDetail": {
+      "ok": true,
+      "executed": true,
+      "error": null,
+      "delta": [
+        "public.torneos_identity"
+      ],
+      "planned": [
+        "public.torneos_identity"
+      ],
+      "mismatches": [],
+      "after": {
+        "private.core_contract_attestations": 0,
+        "private.tournament_team_entry_core_snapshots": 0,
+        "public.torneos_identity": 0,
+        "public.tournament_announcement_audiences": 0,
+        "public.tournament_announcement_deliveries": 0,
+        "public.tournament_announcement_links": 0,
+        "public.tournament_announcements": 0,
+        "public.tournament_audit_log": 0,
+        "public.tournament_categories": 0,
+        "public.tournament_commercial_offers": 1,
+        "public.tournament_commercial_products": 1,
+        "public.tournament_competition_formats": 5,
+        "public.tournament_competition_participants": 0,
+        "public.tournament_courts": 0,
+        "public.tournament_disciplinary_overrides": 0,
+        "public.tournament_discipline_ledgers": 0,
+        "public.tournament_discipline_rules": 0,
+        "public.tournament_document_acknowledgements": 0,
+        "public.tournament_document_versions": 0,
+        "public.tournament_documents": 0,
+        "public.tournament_draw_pot_members": 0,
+        "public.tournament_draw_pots": 0,
+        "public.tournament_entitlement_capabilities": 28,
+        "public.tournament_entitlement_overrides": 0,
+        "public.tournament_fixture_versions": 0,
+        "public.tournament_group_members": 0,
+        "public.tournament_groups": 0,
+        "public.tournament_legacy_organization_subscriptions": 0,
+        "public.tournament_legacy_subscription_plans": 2,
+        "public.tournament_match_availability_responses": 0,
+        "public.tournament_match_events": 0,
+        "public.tournament_match_operation_players": 0,
+        "public.tournament_match_operations": 0,
+        "public.tournament_match_outcomes": 0,
+        "public.tournament_match_reschedules": 0,
+        "public.tournament_match_resumptions": 0,
+        "public.tournament_match_reviews": 0,
+        "public.tournament_match_scores": 0,
+        "public.tournament_match_sources": 0,
+        "public.tournament_match_squad_players": 0,
+        "public.tournament_match_squads": 0,
+        "public.tournament_matches": 0,
+        "public.tournament_media_assets": 0,
+        "public.tournament_media_assignments": 0,
+        "public.tournament_media_consent_events": 0,
+        "public.tournament_media_consents": 0,
+        "public.tournament_media_galleries": 0,
+        "public.tournament_media_gallery_items": 0,
+        "public.tournament_media_moderation_actions": 0,
+        "public.tournament_media_pipeline_configuration": 1,
+        "public.tournament_media_processing_jobs": 0,
+        "public.tournament_media_relations": 0,
+        "public.tournament_media_reports": 0,
+        "public.tournament_media_service_attestations": 0,
+        "public.tournament_media_upload_sessions": 0,
+        "public.tournament_media_variants": 0,
+        "public.tournament_notification_preferences": 0,
+        "public.tournament_organization_entitlement_overrides": 0,
+        "public.tournament_organization_members": 0,
+        "public.tournament_organization_plan_state": 0,
+        "public.tournament_organization_role_capabilities": 285,
+        "public.tournament_organizations": 0,
+        "public.tournament_participant_hub_preferences": 0,
+        "public.tournament_participant_sets": 0,
+        "public.tournament_phases": 0,
+        "public.tournament_plan_catalog": 2,
+        "public.tournament_plan_grant_events": 0,
+        "public.tournament_plan_grants": 0,
+        "public.tournament_player_portraits": 0,
+        "public.tournament_player_statistics": 0,
+        "public.tournament_player_suspensions": 0,
+        "public.tournament_points_adjustments": 0,
+        "public.tournament_pricing_config": 1,
+        "public.tournament_projection_sources": 0,
+        "public.tournament_provisional_players": 0,
+        "public.tournament_public_pages": 0,
+        "public.tournament_purchase_events": 0,
+        "public.tournament_purchases": 0,
+        "public.tournament_qualification_resolutions": 0,
+        "public.tournament_qualification_slots": 0,
+        "public.tournament_roster_players": 0,
+        "public.tournament_roster_settings": 0,
+        "public.tournament_rosters": 0,
+        "public.tournament_rounds": 0,
+        "public.tournament_schedule_windows": 0,
+        "public.tournament_scoring_rules": 0,
+        "public.tournament_season_member_assignments": 0,
+        "public.tournament_season_plan_grant_events": 0,
+        "public.tournament_season_plan_grants": 0,
+        "public.tournament_seasons": 0,
+        "public.tournament_social_permissions": 0,
+        "public.tournament_sport_modalities": 6,
+        "public.tournament_standings_revisions": 0,
+        "public.tournament_suspension_served_matches": 0,
+        "public.tournament_team_entries": 0,
+        "public.tournament_team_invitations": 0,
+        "public.tournament_team_managers": 0,
+        "public.tournament_team_photos": 0,
+        "public.tournament_team_reviews": 0,
+        "public.tournament_team_standings": 0,
+        "public.tournament_team_statistics": 0,
+        "public.tournament_tiebreak_rules": 0,
+        "public.tournament_venues": 0,
+        "public.tournaments": 0,
+        "public.user_tournament_context_preferences": 0,
+        "public.user_workspace_preferences": 0
+      },
+      "scope": {
+        "orgs": [],
+        "discoveredOrgs": [],
+        "identities": 1,
+        "coreUserIds": 1
+      }
+    }
+  },
+  "status": "PASS",
+  "instrumentation": "METADATA_OBSERVER_INSTALLED",
+  "dispatcherConstructor": "Agent",
+  "expectations": {
+    "noUnexpectedFailures": true,
+    "normal": true,
+    "cases": true,
+    "health": true,
+    "offline": true,
+    "processes": true,
+    "routes": true
+  },
+  "qaUsers": [
+    {
+      "role": "transport",
+      "id": "02123cd4-0771-475e-965b-602d1ed33a92",
+      "lastSession": "96240d31-d36d-4d68-8808-f92d1e5b142a",
+      "deleted": true
+    }
+  ],
+  "complete": true,
+  "logs": {
+    "gateway": "\n",
+    "proxy": "2026-09-20T22:45:53.445633008Z R42_TRANSPORT {\"at\":\"2026-09-20T22:45:53.444Z\",\"event\":\"server\",\"keepAliveTimeout\":5000,\"keepAliveTimeoutBuffer\":1000,\"headersTimeout\":60000}\n2026-09-20T22:45:54.948313842Z R42_TRANSPORT {\"at\":\"2026-09-20T22:45:54.947Z\",\"event\":\"connection\",\"localAddress\":\"172.30.0.2\",\"localPort\":9000,\"remoteAddress\":\"172.30.0.1\",\"remotePort\":59960,\"bytesWritten\":0,\"bytesRead\":0}\n2026-09-20T22:45:54.950621134Z R42_TRANSPORT {\"at\":\"2026-09-20T22:45:54.949Z\",\"event\":\"request\",\"id\":\"initial-health\",\"path\":\"/torneos-gateway/health\",\"localAddress\":\"172.30.0.2\",\"localPort\":9000,\"remoteAddress\":\"172.30.0.1\",\"remotePort\":59960,\"bytesWritten\":0,\"bytesRead\":216}\n2026-09-20T22:45:55.145100384Z R42_TRANSPORT {\"at\":\"2026-09-20T22:45:55.141Z\",\"event\":\"response\",\"id\":\"initial-health\",\"status\":200,\"localAddress\":\"172.30.0.2\",\"localPort\":9000,\"remoteAddress\":\"172.30.0.1\",\"remotePort\":59960,\"bytesWritten\":252,\"bytesRead\":216}\n2026-09-20T22:45:55.145143134Z R42_TRANSPORT {\"at\":\"2026-09-20T22:45:55.141Z\",\"event\":\"close\",\"localAddress\":\"172.30.0.2\",\"localPort\":9000,\"remoteAddress\":\"172.30.0.1\",\"remotePort\":59960,\"bytesWritten\":252,\"bytesRead\":216,\"hadError\":false}\n2026-09-20T22:45:56.643816427Z R42_TRANSPORT {\"at\":\"2026-09-20T22:45:56.642Z\",\"event\":\"connection\",\"localAddress\":\"172.30.0.2\",\"localPort\":9000,\"remoteAddress\":\"172.30.0.1\",\"remotePort\":59974,\"bytesWritten\":0,\"bytesRead\":0}\n2026-09-20T22:45:56.643843718Z R42_TRANSPORT {\"at\":\"2026-09-20T22:45:56.642Z\",\"event\":\"connection\",\"localAddress\":\"172.30.0.2\",\"localPort\":9000,\"remoteAddress\":\"172.30.0.1\",\"remotePort\":59980,\"bytesWritten\":0,\"bytesRead\":0}\n2026-09-20T22:45:56.654267010Z R42_TRANSPORT {\"at\":\"2026-09-20T22:45:56.653Z\",\"event\":\"request\",\"id\":\"G-worker-warm-0\",\"path\":\"/torneos-gateway/health\",\"localAddress\":\"172.30.0.2\",\"localPort\":9000,\"remoteAddress\":\"172.30.0.1\",\"remotePort\":59974,\"bytesWritten\":0,\"bytesRead\":222}\n2026-09-20T22:45:56.655326677Z R42_TRANSPORT {\"at\":\"2026-09-20T22:45:56.654Z\",\"event\":\"request\",\"id\":\"G-worker-warm-1\",\"path\":\"/torneos-gateway/health\",\"localAddress\":\"172.30.0.2\",\"localPort\":9000,\"remoteAddress\":\"172.30.0.1\",\"remotePort\":59980,\"bytesWritten\":0,\"bytesRead\":222}\n2026-09-20T22:45:57.236575677Z R42_TRANSPORT {\"at\":\"2026-09-20T22:45:57.230Z\",\"event\":\"response\",\"id\":\"G-worker-warm-0\",\"status\":200,\"localAddress\":\"172.30.0.2\",\"localPort\":9000,\"remoteAddress\":\"172.30.0.1\",\"remotePort\":59974,\"bytesWritten\":280,\"bytesRead\":222}\n2026-09-20T22:45:57.476283344Z R42_TRANSPORT {\"at\":\"2026-09-20T22:45:57.475Z\",\"event\":\"response\",\"id\":\"G-worker-warm-1\",\"status\":200,\"localAddress\":\"172.30.0.2\",\"localPort\":9000,\"remoteAddress\":\"172.30.0.1\",\"remotePort\":59980,\"bytesWritten\":280,\"bytesRead\":222}\n2026-09-20T22:45:57.481531135Z R42_TRANSPORT {\"at\":\"2026-09-20T22:45:57.480Z\",\"event\":\"request\",\"id\":\"G-worker-health-before\",\"path\":\"/torneos-gateway/health\",\"localAddress\":\"172.30.0.2\",\"localPort\":9000,\"remoteAddress\":\"172.30.0.1\",\"remotePort\":59974,\"bytesWritten\":280,\"bytesRead\":451}\n2026-09-20T22:45:57.678257094Z R42_TRANSPORT {\"at\":\"2026-09-20T22:45:57.677Z\",\"event\":\"response\",\"id\":\"G-worker-health-before\",\"status\":200,\"localAddress\":\"172.30.0.2\",\"localPort\":9000,\"remoteAddress\":\"172.30.0.1\",\"remotePort\":59974,\"bytesWritten\":560,\"bytesRead\":451}\n2026-09-20T22:46:00.489590470Z R42_TRANSPORT {\"at\":\"2026-09-20T22:46:00.487Z\",\"event\":\"close\",\"localAddress\":\"172.30.0.2\",\"localPort\":9000,\"remoteAddress\":\"172.30.0.1\",\"remotePort\":59980,\"bytesWritten\":280,\"bytesRead\":222,\"hadError\":false}\n2026-09-20T22:46:00.692649553Z R42_TRANSPORT {\"at\":\"2026-09-20T22:46:00.692Z\",\"event\":\"close\",\"localAddress\":\"172.30.0.2\",\"localPort\":9000,\"remoteAddress\":\"172.30.0.1\",\"remotePort\":59974,\"bytesWritten\":560,\"bytesRead\":451,\"hadError\":false}\n2026-09-20T22:47:02.474392429Z R42_TRANSPORT {\"at\":\"2026-09-20T22:47:02.471Z\",\"event\":\"connection\",\"localAddress\":\"172.30.0.2\",\"localPort\":9000,\"remoteAddress\":\"172.30.0.1\",\"remotePort\":60704,\"bytesWritten\":0,\"bytesRead\":0}\n2026-09-20T22:47:02.478892596Z R42_TRANSPORT {\"at\":\"2026-09-20T22:47:02.477Z\",\"event\":\"request\",\"id\":\"G-worker-exchange\",\"path\":\"/torneos-gateway/exchange\",\"localAddress\":\"172.30.0.2\",\"localPort\":9000,\"remoteAddress\":\"172.30.0.1\",\"remotePort\":60704,\"bytesWritten\":0,\"bytesRead\":1285}\n2026-09-20T22:47:04.713725847Z R42_TRANSPORT {\"at\":\"2026-09-20T22:47:04.712Z\",\"event\":\"response\",\"id\":\"G-worker-exchange\",\"status\":200,\"localAddress\":\"172.30.0.2\",\"localPort\":9000,\"remoteAddress\":\"172.30.0.1\",\"remotePort\":60704,\"bytesWritten\":1190,\"bytesRead\":1285}\n2026-09-20T22:47:04.750056597Z R42_TRANSPORT {\"at\":\"2026-09-20T22:47:04.748Z\",\"event\":\"connection\",\"localAddress\":\"172.30.0.2\",\"localPort\":9000,\"remoteAddress\":\"172.30.0.1\",\"remotePort\":61058,\"bytesWritten\":0,\"bytesRead\":0}\n2026-09-20T22:47:04.759456222Z R42_TRANSPORT {\"at\":\"2026-09-20T22:47:04.756Z\",\"event\":\"request\",\"id\":\"G-worker-health-after\",\"path\":\"/torneos-gateway/health\",\"localAddress\":\"172.30.0.2\",\"localPort\":9000,\"remoteAddress\":\"172.30.0.1\",\"remotePort\":61058,\"bytesWritten\":0,\"bytesRead\":223}\n2026-09-20T22:47:04.993112764Z R42_TRANSPORT {\"at\":\"2026-09-20T22:47:04.992Z\",\"event\":\"response\",\"id\":\"G-worker-health-after\",\"status\":200,\"localAddress\":\"172.30.0.2\",\"localPort\":9000,\"remoteAddress\":\"172.30.0.1\",\"remotePort\":61058,\"bytesWritten\":252,\"bytesRead\":223}\n2026-09-20T22:47:04.993478847Z R42_TRANSPORT {\"at\":\"2026-09-20T22:47:04.992Z\",\"event\":\"close\",\"localAddress\":\"172.30.0.2\",\"localPort\":9000,\"remoteAddress\":\"172.30.0.1\",\"remotePort\":61058,\"bytesWritten\":252,\"bytesRead\":223,\"hadError\":false}\n2026-09-20T22:47:07.747955959Z R42_TRANSPORT {\"at\":\"2026-09-20T22:47:07.745Z\",\"event\":\"close\",\"localAddress\":\"172.30.0.2\",\"localPort\":9000,\"remoteAddress\":\"172.30.0.1\",\"remotePort\":60704,\"bytesWritten\":1190,\"bytesRead\":1285,\"hadError\":false}\n2026-09-20T22:47:08.384680043Z R42_TRANSPORT {\"at\":\"2026-09-20T22:47:08.384Z\",\"event\":\"connection\",\"localAddress\":\"172.30.0.2\",\"localPort\":9000,\"remoteAddress\":\"172.30.0.1\",\"remotePort\":61066,\"bytesWritten\":0,\"bytesRead\":0}\n2026-09-20T22:47:08.386879751Z R42_TRANSPORT {\"at\":\"2026-09-20T22:47:08.384Z\",\"event\":\"connection\",\"localAddress\":\"172.30.0.2\",\"localPort\":9000,\"remoteAddress\":\"172.30.0.1\",\"remotePort\":61082,\"bytesWritten\":0,\"bytesRead\":0}\n2026-09-20T22:47:08.392036459Z R42_TRANSPORT {\"at\":\"2026-09-20T22:47:08.390Z\",\"event\":\"request\",\"id\":\"G-worker-repeat-warm-0\",\"path\":\"/torneos-gateway/health\",\"localAddress\":\"172.30.0.2\",\"localPort\":9000,\"remoteAddress\":\"172.30.0.1\",\"remotePort\":61066,\"bytesWritten\":0,\"bytesRead\":229}\n2026-09-20T22:47:08.396121918Z R42_TRANSPORT {\"at\":\"2026-09-20T22:47:08.395Z\",\"event\":\"request\",\"id\":\"G-worker-repeat-warm-1\",\"path\":\"/torneos-gateway/health\",\"localAddress\":\"172.30.0.2\",\"localPort\":9000,\"remoteAddress\":\"172.30.0.1\",\"remotePort\":61082,\"bytesWritten\":0,\"bytesRead\":229}\n2026-09-20T22:47:08.613920668Z R42_TRANSPORT {\"at\":\"2026-09-20T22:47:08.613Z\",\"event\":\"response\",\"id\":\"G-worker-repeat-warm-0\",\"status\":200,\"localAddress\":\"172.30.0.2\",\"localPort\":9000,\"remoteAddress\":\"172.30.0.1\",\"remotePort\":61066,\"bytesWritten\":280,\"bytesRead\":229}\n2026-09-20T22:47:08.978022335Z R42_TRANSPORT {\"at\":\"2026-09-20T22:47:08.977Z\",\"event\":\"response\",\"id\":\"G-worker-repeat-warm-1\",\"status\":200,\"localAddress\":\"172.30.0.2\",\"localPort\":9000,\"remoteAddress\":\"172.30.0.1\",\"remotePort\":61082,\"bytesWritten\":280,\"bytesRead\":229}\n2026-09-20T22:47:08.988332293Z R42_TRANSPORT {\"at\":\"2026-09-20T22:47:08.986Z\",\"event\":\"request\",\"id\":\"G-worker-repeat-health-before\",\"path\":\"/torneos-gateway/health\",\"localAddress\":\"172.30.0.2\",\"localPort\":9000,\"remoteAddress\":\"172.30.0.1\",\"remotePort\":61066,\"bytesWritten\":280,\"bytesRead\":465}\n2026-09-20T22:47:09.249039460Z R42_TRANSPORT {\"at\":\"2026-09-20T22:47:09.244Z\",\"event\":\"response\",\"id\":\"G-worker-repeat-health-before\",\"status\":200,\"localAddress\":\"172.30.0.2\",\"localPort\":9000,\"remoteAddress\":\"172.30.0.1\",\"remotePort\":61066,\"bytesWritten\":560,\"bytesRead\":465}\n2026-09-20T22:47:12.011406044Z R42_TRANSPORT {\"at\":\"2026-09-20T22:47:12.007Z\",\"event\":\"close\",\"localAddress\":\"172.30.0.2\",\"localPort\":9000,\"remoteAddress\":\"172.30.0.1\",\"remotePort\":61082,\"bytesWritten\":280,\"bytesRead\":229,\"hadError\":false}\n2026-09-20T22:47:12.269218378Z R42_TRANSPORT {\"at\":\"2026-09-20T22:47:12.261Z\",\"event\":\"close\",\"localAddress\":\"172.30.0.2\",\"localPort\":9000,\"remoteAddress\":\"172.30.0.1\",\"remotePort\":61066,\"bytesWritten\":560,\"bytesRead\":465,\"hadError\":false}\n2026-09-20T22:48:03.835928847Z R42_TRANSPORT {\"at\":\"2026-09-20T22:48:03.835Z\",\"event\":\"connection\",\"localAddress\":\"172.30.0.2\",\"localPort\":9000,\"remoteAddress\":\"172.30.0.1\",\"remotePort\":55294,\"bytesWritten\":0,\"bytesRead\":0}\n2026-09-20T22:48:03.836300555Z R42_TRANSPORT {\"at\":\"2026-09-20T22:48:03.836Z\",\"event\":\"request\",\"id\":\"G-worker-repeat-exchange\",\"path\":\"/torneos-gateway/exchange\",\"localAddress\":\"172.30.0.2\",\"localPort\":9000,\"remoteAddress\":\"172.30.0.1\",\"remotePort\":55294,\"bytesWritten\":0,\"bytesRead\":1292}\n2026-09-20T22:48:05.852484167Z R42_TRANSPORT {\"at\":\"2026-09-20T22:48:05.852Z\",\"event\":\"response\",\"id\":\"G-worker-repeat-exchange\",\"status\":200,\"localAddress\":\"172.30.0.2\",\"localPort\":9000,\"remoteAddress\":\"172.30.0.1\",\"remotePort\":55294,\"bytesWritten\":1192,\"bytesRead\":1292}\n2026-09-20T22:48:05.855288500Z R42_TRANSPORT {\"at\":\"2026-09-20T22:48:05.855Z\",\"event\":\"connection\",\"localAddress\":\"172.30.0.2\",\"localPort\":9000,\"remoteAddress\":\"172.30.0.1\",\"remotePort\":64072,\"bytesWritten\":0,\"bytesRead\":0}\n2026-09-20T22:48:05.855554667Z R42_TRANSPORT {\"at\":\"2026-09-20T22:48:05.855Z\",\"event\":\"request\",\"id\":\"G-worker-repeat-health-after\",\"path\":\"/torneos-gateway/health\",\"localAddress\":\"172.30.0.2\",\"localPort\":9000,\"remoteAddress\":\"172.30.0.1\",\"remotePort\":64072,\"bytesWritten\":0,\"bytesRead\":230}\n2026-09-20T22:48:06.027647500Z R42_TRANSPORT {\"at\":\"2026-09-20T22:48:06.027Z\",\"event\":\"response\",\"id\":\"G-worker-repeat-health-after\",\"status\":200,\"localAddress\":\"172.30.0.2\",\"localPort\":9000,\"remoteAddress\":\"172.30.0.1\",\"remotePort\":64072,\"bytesWritten\":252,\"bytesRead\":230}\n2026-09-20T22:48:06.027952792Z R42_TRANSPORT {\"at\":\"2026-09-20T22:48:06.027Z\",\"event\":\"close\",\"localAddress\":\"172.30.0.2\",\"localPort\":9000,\"remoteAddress\":\"172.30.0.1\",\"remotePort\":64072,\"bytesWritten\":252,\"bytesRead\":230,\"hadError\":false}\n\n2026-09-20T22:45:52.966402883Z Debugger listening on ws://127.0.0.1:9229/1d4820a3-74e2-4bad-b85d-063b3c0338e8\n2026-09-20T22:45:52.966458383Z For help, see: https://nodejs.org/en/docs/inspector\n2026-09-20T22:45:53.438484300Z Debugger attached.\n2026-09-20T22:45:53.449610008Z Debugger ending on ws://127.0.0.1:9229/1d4820a3-74e2-4bad-b85d-063b3c0338e8\n2026-09-20T22:45:53.449658300Z For help, see: https://nodejs.org/en/docs/inspector\n"
+  }
+}

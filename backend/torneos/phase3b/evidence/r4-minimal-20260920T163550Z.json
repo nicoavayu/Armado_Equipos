@@ -1,0 +1,572 @@
+{
+  "schema": "R4.2.minimal.v1",
+  "run": "arma2-r42-20260920t163559z",
+  "stamp": "20260920T163550Z",
+  "gatewayBundleSHA256": "cc5b1d451fc9ef4498ad927caee37a65aab90ff44ad6ef1cf77e176f989d7e17",
+  "coreClientSHA256": "e9014840c73bf8047d2f805da244f25251bdd83514c385e7fe4ddcbf925aa3ae",
+  "rounds": {
+    "reExchanges": 20,
+    "sessionCalls": 40
+  },
+  "steps": [
+    {
+      "name": "qa_user",
+      "status": "PASS",
+      "email": "q***@accounts.invalid",
+      "id": "4679cdc8"
+    },
+    {
+      "name": "exchange_valid",
+      "status": "PASS",
+      "http": 200,
+      "error": null
+    },
+    {
+      "name": "re_exchanges",
+      "status": "PASS",
+      "outcomes": [
+        200
+      ],
+      "count": 20
+    },
+    {
+      "name": "session_calls",
+      "status": "PASS",
+      "outcomes": [
+        200
+      ],
+      "count": 40
+    },
+    {
+      "name": "no_core_unavailable",
+      "status": "PASS",
+      "unavailable": 0,
+      "verdicts": 61,
+      "noStoreViolations": 0,
+      "msMax": 2622
+    }
+  ],
+  "calls": [
+    {
+      "path": "/exchange",
+      "status": 200,
+      "error": null,
+      "ms": 2622,
+      "noStore": true,
+      "at": "2026-09-20T16:36:08.522Z"
+    },
+    {
+      "path": "/exchange",
+      "status": 200,
+      "error": null,
+      "ms": 1149,
+      "noStore": true,
+      "at": "2026-09-20T16:36:09.671Z"
+    },
+    {
+      "path": "/exchange",
+      "status": 200,
+      "error": null,
+      "ms": 1050,
+      "noStore": true,
+      "at": "2026-09-20T16:36:10.721Z"
+    },
+    {
+      "path": "/exchange",
+      "status": 200,
+      "error": null,
+      "ms": 759,
+      "noStore": true,
+      "at": "2026-09-20T16:36:11.480Z"
+    },
+    {
+      "path": "/exchange",
+      "status": 200,
+      "error": null,
+      "ms": 749,
+      "noStore": true,
+      "at": "2026-09-20T16:36:12.230Z"
+    },
+    {
+      "path": "/exchange",
+      "status": 200,
+      "error": null,
+      "ms": 857,
+      "noStore": true,
+      "at": "2026-09-20T16:36:13.087Z"
+    },
+    {
+      "path": "/exchange",
+      "status": 200,
+      "error": null,
+      "ms": 1171,
+      "noStore": true,
+      "at": "2026-09-20T16:36:14.258Z"
+    },
+    {
+      "path": "/exchange",
+      "status": 200,
+      "error": null,
+      "ms": 1057,
+      "noStore": true,
+      "at": "2026-09-20T16:36:15.315Z"
+    },
+    {
+      "path": "/exchange",
+      "status": 200,
+      "error": null,
+      "ms": 1033,
+      "noStore": true,
+      "at": "2026-09-20T16:36:16.348Z"
+    },
+    {
+      "path": "/exchange",
+      "status": 200,
+      "error": null,
+      "ms": 750,
+      "noStore": true,
+      "at": "2026-09-20T16:36:17.098Z"
+    },
+    {
+      "path": "/exchange",
+      "status": 200,
+      "error": null,
+      "ms": 831,
+      "noStore": true,
+      "at": "2026-09-20T16:36:17.929Z"
+    },
+    {
+      "path": "/exchange",
+      "status": 200,
+      "error": null,
+      "ms": 848,
+      "noStore": true,
+      "at": "2026-09-20T16:36:18.778Z"
+    },
+    {
+      "path": "/exchange",
+      "status": 200,
+      "error": null,
+      "ms": 1046,
+      "noStore": true,
+      "at": "2026-09-20T16:36:19.824Z"
+    },
+    {
+      "path": "/exchange",
+      "status": 200,
+      "error": null,
+      "ms": 795,
+      "noStore": true,
+      "at": "2026-09-20T16:36:20.619Z"
+    },
+    {
+      "path": "/exchange",
+      "status": 200,
+      "error": null,
+      "ms": 727,
+      "noStore": true,
+      "at": "2026-09-20T16:36:21.346Z"
+    },
+    {
+      "path": "/exchange",
+      "status": 200,
+      "error": null,
+      "ms": 828,
+      "noStore": true,
+      "at": "2026-09-20T16:36:22.174Z"
+    },
+    {
+      "path": "/exchange",
+      "status": 200,
+      "error": null,
+      "ms": 817,
+      "noStore": true,
+      "at": "2026-09-20T16:36:22.991Z"
+    },
+    {
+      "path": "/exchange",
+      "status": 200,
+      "error": null,
+      "ms": 1141,
+      "noStore": true,
+      "at": "2026-09-20T16:36:24.132Z"
+    },
+    {
+      "path": "/exchange",
+      "status": 200,
+      "error": null,
+      "ms": 780,
+      "noStore": true,
+      "at": "2026-09-20T16:36:24.912Z"
+    },
+    {
+      "path": "/exchange",
+      "status": 200,
+      "error": null,
+      "ms": 723,
+      "noStore": true,
+      "at": "2026-09-20T16:36:25.635Z"
+    },
+    {
+      "path": "/exchange",
+      "status": 200,
+      "error": null,
+      "ms": 687,
+      "noStore": true,
+      "at": "2026-09-20T16:36:26.321Z"
+    },
+    {
+      "path": "/torneos/rest/v1/rpc/get_my_tournament_memberships",
+      "status": 200,
+      "error": null,
+      "ms": 797,
+      "noStore": true,
+      "at": "2026-09-20T16:36:27.118Z"
+    },
+    {
+      "path": "/torneos/rest/v1/rpc/get_my_tournament_memberships",
+      "status": 200,
+      "error": null,
+      "ms": 571,
+      "noStore": true,
+      "at": "2026-09-20T16:36:27.689Z"
+    },
+    {
+      "path": "/torneos/rest/v1/rpc/get_my_tournament_memberships",
+      "status": 200,
+      "error": null,
+      "ms": 601,
+      "noStore": true,
+      "at": "2026-09-20T16:36:28.290Z"
+    },
+    {
+      "path": "/torneos/rest/v1/rpc/get_my_tournament_memberships",
+      "status": 200,
+      "error": null,
+      "ms": 677,
+      "noStore": true,
+      "at": "2026-09-20T16:36:28.968Z"
+    },
+    {
+      "path": "/torneos/rest/v1/rpc/get_my_tournament_memberships",
+      "status": 200,
+      "error": null,
+      "ms": 542,
+      "noStore": true,
+      "at": "2026-09-20T16:36:29.509Z"
+    },
+    {
+      "path": "/torneos/rest/v1/rpc/get_my_tournament_memberships",
+      "status": 200,
+      "error": null,
+      "ms": 606,
+      "noStore": true,
+      "at": "2026-09-20T16:36:30.116Z"
+    },
+    {
+      "path": "/torneos/rest/v1/rpc/get_my_tournament_memberships",
+      "status": 200,
+      "error": null,
+      "ms": 611,
+      "noStore": true,
+      "at": "2026-09-20T16:36:30.727Z"
+    },
+    {
+      "path": "/torneos/rest/v1/rpc/get_my_tournament_memberships",
+      "status": 200,
+      "error": null,
+      "ms": 519,
+      "noStore": true,
+      "at": "2026-09-20T16:36:31.246Z"
+    },
+    {
+      "path": "/torneos/rest/v1/rpc/get_my_tournament_memberships",
+      "status": 200,
+      "error": null,
+      "ms": 535,
+      "noStore": true,
+      "at": "2026-09-20T16:36:31.781Z"
+    },
+    {
+      "path": "/torneos/rest/v1/rpc/get_my_tournament_memberships",
+      "status": 200,
+      "error": null,
+      "ms": 664,
+      "noStore": true,
+      "at": "2026-09-20T16:36:32.446Z"
+    },
+    {
+      "path": "/torneos/rest/v1/rpc/get_my_tournament_memberships",
+      "status": 200,
+      "error": null,
+      "ms": 574,
+      "noStore": true,
+      "at": "2026-09-20T16:36:33.020Z"
+    },
+    {
+      "path": "/torneos/rest/v1/rpc/get_my_tournament_memberships",
+      "status": 200,
+      "error": null,
+      "ms": 615,
+      "noStore": true,
+      "at": "2026-09-20T16:36:33.635Z"
+    },
+    {
+      "path": "/torneos/rest/v1/rpc/get_my_tournament_memberships",
+      "status": 200,
+      "error": null,
+      "ms": 610,
+      "noStore": true,
+      "at": "2026-09-20T16:36:34.245Z"
+    },
+    {
+      "path": "/torneos/rest/v1/rpc/get_my_tournament_memberships",
+      "status": 200,
+      "error": null,
+      "ms": 532,
+      "noStore": true,
+      "at": "2026-09-20T16:36:34.777Z"
+    },
+    {
+      "path": "/torneos/rest/v1/rpc/get_my_tournament_memberships",
+      "status": 200,
+      "error": null,
+      "ms": 561,
+      "noStore": true,
+      "at": "2026-09-20T16:36:35.338Z"
+    },
+    {
+      "path": "/torneos/rest/v1/rpc/get_my_tournament_memberships",
+      "status": 200,
+      "error": null,
+      "ms": 552,
+      "noStore": true,
+      "at": "2026-09-20T16:36:35.890Z"
+    },
+    {
+      "path": "/torneos/rest/v1/rpc/get_my_tournament_memberships",
+      "status": 200,
+      "error": null,
+      "ms": 925,
+      "noStore": true,
+      "at": "2026-09-20T16:36:36.815Z"
+    },
+    {
+      "path": "/torneos/rest/v1/rpc/get_my_tournament_memberships",
+      "status": 200,
+      "error": null,
+      "ms": 574,
+      "noStore": true,
+      "at": "2026-09-20T16:36:37.389Z"
+    },
+    {
+      "path": "/torneos/rest/v1/rpc/get_my_tournament_memberships",
+      "status": 200,
+      "error": null,
+      "ms": 607,
+      "noStore": true,
+      "at": "2026-09-20T16:36:37.996Z"
+    },
+    {
+      "path": "/torneos/rest/v1/rpc/get_my_tournament_memberships",
+      "status": 200,
+      "error": null,
+      "ms": 513,
+      "noStore": true,
+      "at": "2026-09-20T16:36:38.510Z"
+    },
+    {
+      "path": "/torneos/rest/v1/rpc/get_my_tournament_memberships",
+      "status": 200,
+      "error": null,
+      "ms": 609,
+      "noStore": true,
+      "at": "2026-09-20T16:36:39.118Z"
+    },
+    {
+      "path": "/torneos/rest/v1/rpc/get_my_tournament_memberships",
+      "status": 200,
+      "error": null,
+      "ms": 707,
+      "noStore": true,
+      "at": "2026-09-20T16:36:39.826Z"
+    },
+    {
+      "path": "/torneos/rest/v1/rpc/get_my_tournament_memberships",
+      "status": 200,
+      "error": null,
+      "ms": 532,
+      "noStore": true,
+      "at": "2026-09-20T16:36:40.357Z"
+    },
+    {
+      "path": "/torneos/rest/v1/rpc/get_my_tournament_memberships",
+      "status": 200,
+      "error": null,
+      "ms": 916,
+      "noStore": true,
+      "at": "2026-09-20T16:36:41.273Z"
+    },
+    {
+      "path": "/torneos/rest/v1/rpc/get_my_tournament_memberships",
+      "status": 200,
+      "error": null,
+      "ms": 633,
+      "noStore": true,
+      "at": "2026-09-20T16:36:41.907Z"
+    },
+    {
+      "path": "/torneos/rest/v1/rpc/get_my_tournament_memberships",
+      "status": 200,
+      "error": null,
+      "ms": 524,
+      "noStore": true,
+      "at": "2026-09-20T16:36:42.430Z"
+    },
+    {
+      "path": "/torneos/rest/v1/rpc/get_my_tournament_memberships",
+      "status": 200,
+      "error": null,
+      "ms": 574,
+      "noStore": true,
+      "at": "2026-09-20T16:36:43.005Z"
+    },
+    {
+      "path": "/torneos/rest/v1/rpc/get_my_tournament_memberships",
+      "status": 200,
+      "error": null,
+      "ms": 644,
+      "noStore": true,
+      "at": "2026-09-20T16:36:43.649Z"
+    },
+    {
+      "path": "/torneos/rest/v1/rpc/get_my_tournament_memberships",
+      "status": 200,
+      "error": null,
+      "ms": 874,
+      "noStore": true,
+      "at": "2026-09-20T16:36:44.523Z"
+    },
+    {
+      "path": "/torneos/rest/v1/rpc/get_my_tournament_memberships",
+      "status": 200,
+      "error": null,
+      "ms": 504,
+      "noStore": true,
+      "at": "2026-09-20T16:36:45.027Z"
+    },
+    {
+      "path": "/torneos/rest/v1/rpc/get_my_tournament_memberships",
+      "status": 200,
+      "error": null,
+      "ms": 819,
+      "noStore": true,
+      "at": "2026-09-20T16:36:45.846Z"
+    },
+    {
+      "path": "/torneos/rest/v1/rpc/get_my_tournament_memberships",
+      "status": 200,
+      "error": null,
+      "ms": 913,
+      "noStore": true,
+      "at": "2026-09-20T16:36:46.758Z"
+    },
+    {
+      "path": "/torneos/rest/v1/rpc/get_my_tournament_memberships",
+      "status": 200,
+      "error": null,
+      "ms": 575,
+      "noStore": true,
+      "at": "2026-09-20T16:36:47.334Z"
+    },
+    {
+      "path": "/torneos/rest/v1/rpc/get_my_tournament_memberships",
+      "status": 200,
+      "error": null,
+      "ms": 557,
+      "noStore": true,
+      "at": "2026-09-20T16:36:47.891Z"
+    },
+    {
+      "path": "/torneos/rest/v1/rpc/get_my_tournament_memberships",
+      "status": 200,
+      "error": null,
+      "ms": 1060,
+      "noStore": true,
+      "at": "2026-09-20T16:36:48.951Z"
+    },
+    {
+      "path": "/torneos/rest/v1/rpc/get_my_tournament_memberships",
+      "status": 200,
+      "error": null,
+      "ms": 537,
+      "noStore": true,
+      "at": "2026-09-20T16:36:49.488Z"
+    },
+    {
+      "path": "/torneos/rest/v1/rpc/get_my_tournament_memberships",
+      "status": 200,
+      "error": null,
+      "ms": 657,
+      "noStore": true,
+      "at": "2026-09-20T16:36:50.144Z"
+    },
+    {
+      "path": "/torneos/rest/v1/rpc/get_my_tournament_memberships",
+      "status": 200,
+      "error": null,
+      "ms": 532,
+      "noStore": true,
+      "at": "2026-09-20T16:36:50.676Z"
+    },
+    {
+      "path": "/torneos/rest/v1/rpc/get_my_tournament_memberships",
+      "status": 200,
+      "error": null,
+      "ms": 926,
+      "noStore": true,
+      "at": "2026-09-20T16:36:51.602Z"
+    },
+    {
+      "path": "/torneos/rest/v1/rpc/get_my_tournament_memberships",
+      "status": 200,
+      "error": null,
+      "ms": 574,
+      "noStore": true,
+      "at": "2026-09-20T16:36:52.176Z"
+    }
+  ],
+  "cleanup": {
+    "qa": true,
+    "sessions": true,
+    "rows": true,
+    "detail": {
+      "logout": 204,
+      "deleted": true,
+      "deleteStatus": 200,
+      "afterStatus": 404,
+      "id": "4679cdc8-607d-422b-ab27-fa0aab0df9bf",
+      "lastSession": "c753dd53-0099-4ded-97da-9a30819f1da5"
+    },
+    "rowsDetail": {
+      "ok": true,
+      "executed": true,
+      "planned": [
+        "public.torneos_identity"
+      ],
+      "mismatches": [],
+      "error": null
+    },
+    "catalogUnchanged": true
+  },
+  "status": "PASS",
+  "qaUsers": [
+    {
+      "role": "probe",
+      "id": "4679cdc8-607d-422b-ab27-fa0aab0df9bf",
+      "lastSession": "c753dd53-0099-4ded-97da-9a30819f1da5",
+      "deleted": true
+    }
+  ],
+  "complete": true
+}

@@ -31,6 +31,7 @@ import {
   useSearchParams,
 } from 'react-router-dom';
 import { useTorneosCompetition } from '../context/TorneosCompetitionContext';
+import { useTorneosFeatures } from '../context/TorneosFeaturesContext';
 import {
   buildTournamentDraft,
   CHECKLIST_ITEMS,
@@ -228,6 +229,9 @@ export default function TournamentWizardPage() {
     saveCategory,
     changeTournamentStatus,
   } = useTorneosCompetition();
+  // Sub-features served by other RPCs or by storage: they mount only when the
+  // composition serves them, so a closed surface never issues a request.
+  const features = useTorneosFeatures();
   const tournament = useMemo(
     () => tournaments.find((candidate) => candidate.id === tournamentId) || null,
     [tournamentId, tournaments],
@@ -431,7 +435,7 @@ export default function TournamentWizardPage() {
           idempotencyKey: creationKeyRef.current,
         });
         creationKeyRef.current = null;
-        if (hasPendingPremiumIntent()) {
+        if (hasPendingPremiumIntent() && features.plan !== false) {
           clearPremiumIntent();
           navigate(canonicalRoutes.tournamentPlan(organization.id, created.id), { replace: true });
         } else {
@@ -637,7 +641,7 @@ export default function TournamentWizardPage() {
         </div>
       )}
 
-      {!isNew && (
+      {!isNew && features.public_pages !== false && (
         <TournamentPublicPageSettings
           organizationId={organization.id}
           tournamentId={tournament.id}
@@ -645,7 +649,7 @@ export default function TournamentWizardPage() {
         />
       )}
 
-      {!isNew && (
+      {!isNew && features.team_visual_policy !== false && (
         <TeamVisualPolicySettings
           organizationId={organization.id}
           tournamentId={tournament.id}
@@ -676,7 +680,7 @@ export default function TournamentWizardPage() {
 
         {step === 0 && (
           <div className={styles.inputGrid}>
-            {!isNew && (
+            {!isNew && features.branding_assets !== false && (
               <div className={styles.spanTwo}>
                 <BrandingAssetField
                   organizationId={organization.id}

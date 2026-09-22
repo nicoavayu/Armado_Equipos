@@ -1,0 +1,22 @@
+{
+  "utc": "20260920T233923Z",
+  "status": "PASS",
+  "phase": "R4.2",
+  "run": "arma2-r42-20260920t233918z",
+  "gatewayBundleSHA256": "cc5b1d451fc9ef4498ad927caee37a65aab90ff44ad6ef1cf77e176f989d7e17",
+  "probes": [
+    {
+      "path": "/config",
+      "status": 200
+    },
+    {
+      "path": "/.well-known/jwks.json",
+      "status": 200
+    },
+    {
+      "path": "/health",
+      "status": 200
+    }
+  ],
+  "matrixExecuted": false
+}

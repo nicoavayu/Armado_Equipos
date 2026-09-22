@@ -1,0 +1,15 @@
+▶ Phase 3B — D1 review: session authority, its transport, and what each gateway serves without it
+  ✔ E1: GoTrue /user alone is not the session authority — ban, not_after timebox and soft delete pass it and are refused by BOTH gateways (785.209084ms)
+  ✔ E2: Node session-authority transport (core-db) down — the Node gateway refuses every session-gated request too (401 access denied; Edge 503 CORE_UNAVAILABLE); pre-session refusals unchanged (1561.328292ms)
+  ✔ E3: Edge session-authority transport (core-functions) down — the D1 class in full: Node serves Core-independent traffic through its DB-to-DB verdict, Edge refuses everything session-gated (1701.498458ms)
+  ✔ E4: no cached or reused verdict — exactly one Core `session` verdict per Edge session-gated request; the Node gateway asks the contract for none (575.816958ms)
+  ✔ secrets: no secret or session token in gateway logs or in this evidence (211.759542ms)
+✔ Phase 3B — D1 review: session authority, its transport, and what each gateway serves without it (5039.998708ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 6
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 5118.1345

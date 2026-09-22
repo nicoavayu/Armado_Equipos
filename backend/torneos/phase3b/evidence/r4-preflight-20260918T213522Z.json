@@ -1,0 +1,13 @@
+{
+  "utc": "20260918T213522Z",
+  "status": "R4_1A_PASS",
+  "r41bExecuted": false,
+  "reason": "R4.1B may now be implemented",
+  "r2Unchanged": true,
+  "gatewayStarted": false,
+  "matrixExecuted": false,
+  "cleanup": {
+    "containersRemoved": true,
+    "networksRemoved": true
+  }
+}

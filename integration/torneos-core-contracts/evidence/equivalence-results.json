@@ -1,0 +1,3796 @@
+{
+  "generated_at": "2026-09-15T15:41:14.910Z",
+  "node": "http://127.0.0.1:58420",
+  "edge": "http://127.0.0.1:58421/torneos-gateway",
+  "run": "q03fe",
+  "compared": 123,
+  "equivalent": 120,
+  "differences": [
+    {
+      "name": "D1: Core contract outage, Core-independent RPC",
+      "documented": "D1",
+      "justification": "Both gateways require an online Core session verdict per session-gated request; the Node gateway obtains it DB-to-DB (auth.sessions), the Edge gateway over HTTPS from the Core contract `session` op. With the contract endpoint down the Edge gateway has no authorized transport for the verdict and fails closed; the Node gateway keeps its DB transport. Not reproducible on the Edge gateway without DB-to-DB, a revocation window or a new Core surface.",
+      "counterpart": "evidence/d1-session-authority.json (E2: Node refuses everything when core-db is down; E4: one verdict per Edge request, none cached)"
+    },
+    {
+      "name": "D1: Core contract outage, Core-dependent RPC denied locally on Node",
+      "documented": "D1",
+      "justification": "Both gateways require an online Core session verdict per session-gated request; the Node gateway obtains it DB-to-DB (auth.sessions), the Edge gateway over HTTPS from the Core contract `session` op. With the contract endpoint down the Edge gateway has no authorized transport for the verdict and fails closed; the Node gateway keeps its DB transport. Not reproducible on the Edge gateway without DB-to-DB, a revocation window or a new Core surface.",
+      "counterpart": "evidence/d1-session-authority.json (E2: Node refuses everything when core-db is down; E4: one verdict per Edge request, none cached)"
+    },
+    {
+      "name": "D1: Core contract outage, exchange",
+      "documented": "D1",
+      "justification": "Both gateways require an online Core session verdict per session-gated request; the Node gateway obtains it DB-to-DB (auth.sessions), the Edge gateway over HTTPS from the Core contract `session` op. With the contract endpoint down the Edge gateway has no authorized transport for the verdict and fails closed; the Node gateway keeps its DB transport. Not reproducible on the Edge gateway without DB-to-DB, a revocation window or a new Core surface.",
+      "counterpart": "evidence/d1-session-authority.json (E2: Node refuses everything when core-db is down; E4: one verdict per Edge request, none cached)"
+    }
+  ],
+  "rows": [
+    {
+      "name": "health",
+      "request": {
+        "path": "/health",
+        "method": "GET",
+        "auth": "none"
+      },
+      "node": {
+        "status": 200,
+        "body": {
+          "ready": true
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "edge": {
+        "status": 200,
+        "body": {
+          "ready": true
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "equivalent": true
+    },
+    {
+      "name": "unknown path",
+      "request": {
+        "path": "/nope",
+        "method": "GET",
+        "auth": "none"
+      },
+      "node": {
+        "status": 404,
+        "body": {
+          "error": "not found"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "edge": {
+        "status": 404,
+        "body": {
+          "error": "not found"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "equivalent": true
+    },
+    {
+      "name": "rest: unknown shape",
+      "request": {
+        "path": "/torneos/rest/v1/../secret",
+        "method": "GET",
+        "auth": "none"
+      },
+      "node": {
+        "status": 404,
+        "body": {
+          "error": "not found"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "edge": {
+        "status": 404,
+        "body": {
+          "error": "not found"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "equivalent": true
+    },
+    {
+      "name": "exchange: GET not allowed",
+      "request": {
+        "path": "/exchange",
+        "method": "GET",
+        "auth": "none"
+      },
+      "node": {
+        "status": 404,
+        "body": {
+          "error": "not found"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "edge": {
+        "status": 404,
+        "body": {
+          "error": "not found"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "equivalent": true
+    },
+    {
+      "name": "exchange: no bearer",
+      "request": {
+        "path": "/exchange",
+        "method": "POST",
+        "auth": "none"
+      },
+      "node": {
+        "status": 401,
+        "body": {
+          "error": "access denied"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "edge": {
+        "status": 401,
+        "body": {
+          "error": "access denied"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "equivalent": true
+    },
+    {
+      "name": "exchange: identity/role input refused",
+      "request": {
+        "path": "/exchange",
+        "method": "POST",
+        "auth": "bearer"
+      },
+      "node": {
+        "status": 400,
+        "body": {
+          "error": "exchange accepts no identity or role input"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "edge": {
+        "status": 400,
+        "body": {
+          "error": "exchange accepts no identity or role input"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "equivalent": true
+    },
+    {
+      "name": "config (public values differ by deployment: coreUrl/torneosUrl)",
+      "equivalent": true,
+      "node": {
+        "status": 200,
+        "keys": [
+          "anonKey",
+          "coreUrl",
+          "torneosUrl"
+        ]
+      },
+      "edge": {
+        "status": 200,
+        "keys": [
+          "anonKey",
+          "coreUrl",
+          "torneosUrl"
+        ]
+      }
+    },
+    {
+      "name": "exchange: owner",
+      "request": {
+        "path": "/exchange",
+        "method": "POST",
+        "auth": "bearer"
+      },
+      "node": {
+        "status": 200,
+        "body": {
+          "access_token": {
+            "header": {
+              "alg": "RS256",
+              "typ": "JWT",
+              "kid": "p3a-k1"
+            },
+            "claims": {
+              "core_user_id": "f21ff960-f5ac-43c0-9171-70f6530e5aab",
+              "session_id": "c4d5278e-a695-4fa1-9457-c498dccdc58f",
+              "role": "authenticated",
+              "iss": "urn:arma2:local:identity-bridge",
+              "aud": "arma2-torneos-local",
+              "sub": "e854a2b2-6556-40ba-b60b-d5b1c2e9cdee",
+              "iat": "<per-issuance>",
+              "nbf": "<per-issuance>",
+              "exp": "<per-issuance>",
+              "jti": "<per-issuance>",
+              "ttl": 120
+            }
+          },
+          "token_type": "Bearer",
+          "expires_in": 120
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "edge": {
+        "status": 200,
+        "body": {
+          "access_token": {
+            "header": {
+              "alg": "RS256",
+              "typ": "JWT",
+              "kid": "p3a-k1"
+            },
+            "claims": {
+              "core_user_id": "f21ff960-f5ac-43c0-9171-70f6530e5aab",
+              "session_id": "c4d5278e-a695-4fa1-9457-c498dccdc58f",
+              "role": "authenticated",
+              "iss": "urn:arma2:local:identity-bridge",
+              "aud": "arma2-torneos-local",
+              "sub": "e854a2b2-6556-40ba-b60b-d5b1c2e9cdee",
+              "iat": "<per-issuance>",
+              "nbf": "<per-issuance>",
+              "exp": "<per-issuance>",
+              "jti": "<per-issuance>",
+              "ttl": 120
+            }
+          },
+          "token_type": "Bearer",
+          "expires_in": 120
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "equivalent": true
+    },
+    {
+      "name": "exchange: other",
+      "request": {
+        "path": "/exchange",
+        "method": "POST",
+        "auth": "bearer"
+      },
+      "node": {
+        "status": 200,
+        "body": {
+          "access_token": {
+            "header": {
+              "alg": "RS256",
+              "typ": "JWT",
+              "kid": "p3a-k1"
+            },
+            "claims": {
+              "core_user_id": "7028917c-7ab7-41b0-8395-3749efa34024",
+              "session_id": "b51b044d-7598-45f0-9239-0dd796219f87",
+              "role": "authenticated",
+              "iss": "urn:arma2:local:identity-bridge",
+              "aud": "arma2-torneos-local",
+              "sub": "dac75d29-c96e-4f8b-bca5-fbf5a22a9f60",
+              "iat": "<per-issuance>",
+              "nbf": "<per-issuance>",
+              "exp": "<per-issuance>",
+              "jti": "<per-issuance>",
+              "ttl": 120
+            }
+          },
+          "token_type": "Bearer",
+          "expires_in": 120
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "edge": {
+        "status": 200,
+        "body": {
+          "access_token": {
+            "header": {
+              "alg": "RS256",
+              "typ": "JWT",
+              "kid": "p3a-k1"
+            },
+            "claims": {
+              "core_user_id": "7028917c-7ab7-41b0-8395-3749efa34024",
+              "session_id": "b51b044d-7598-45f0-9239-0dd796219f87",
+              "role": "authenticated",
+              "iss": "urn:arma2:local:identity-bridge",
+              "aud": "arma2-torneos-local",
+              "sub": "dac75d29-c96e-4f8b-bca5-fbf5a22a9f60",
+              "iat": "<per-issuance>",
+              "nbf": "<per-issuance>",
+              "exp": "<per-issuance>",
+              "jti": "<per-issuance>",
+              "ttl": 120
+            }
+          },
+          "token_type": "Bearer",
+          "expires_in": 120
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "equivalent": true
+    },
+    {
+      "name": "cross-acceptance: Edge-minted token on Node gateway / Node-minted token on Edge gateway",
+      "equivalent": true,
+      "node": {
+        "status": 200
+      },
+      "edge": {
+        "status": 200
+      }
+    },
+    {
+      "name": "exchange: garbage bearer",
+      "request": {
+        "path": "/exchange",
+        "method": "POST",
+        "auth": "bearer"
+      },
+      "node": {
+        "status": 401,
+        "body": {
+          "error": "access denied"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "edge": {
+        "status": 401,
+        "body": {
+          "error": "access denied"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "equivalent": true
+    },
+    {
+      "name": "exchange: Torneos token is not a Core token",
+      "request": {
+        "path": "/exchange",
+        "method": "POST",
+        "auth": "bearer"
+      },
+      "node": {
+        "status": 401,
+        "body": {
+          "error": "access denied"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "edge": {
+        "status": 401,
+        "body": {
+          "error": "access denied"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "equivalent": true
+    },
+    {
+      "name": "rpc: get_my_tournament_memberships",
+      "request": {
+        "path": "/torneos/rest/v1/rpc/get_my_tournament_memberships",
+        "method": "POST",
+        "auth": "bearer"
+      },
+      "node": {
+        "status": 200,
+        "body": {
+          "items": [],
+          "pagination": {
+            "limit": 20,
+            "total": 0,
+            "offset": 0,
+            "hasMore": false
+          }
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "edge": {
+        "status": 200,
+        "body": {
+          "items": [],
+          "pagination": {
+            "limit": 20,
+            "total": 0,
+            "offset": 0,
+            "hasMore": false
+          }
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "equivalent": true
+    },
+    {
+      "name": "rpc: is_tournament_organization_slug_available",
+      "request": {
+        "path": "/torneos/rest/v1/rpc/is_tournament_organization_slug_available",
+        "method": "POST",
+        "auth": "bearer"
+      },
+      "node": {
+        "status": 200,
+        "body": true,
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "edge": {
+        "status": 200,
+        "body": true,
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "equivalent": true
+    },
+    {
+      "name": "rpc: create org (validation error shape)",
+      "request": {
+        "path": "/torneos/rest/v1/rpc/create_tournament_organization",
+        "method": "POST",
+        "auth": "bearer"
+      },
+      "node": {
+        "status": 404,
+        "body": {
+          "code": "PGRST202",
+          "details": "Searched for the function public.create_tournament_organization with parameter p_name or with a single unnamed json/jsonb parameter, but no matches were found in the schema cache.",
+          "hint": null,
+          "message": "Could not find the function public.create_tournament_organization(p_name) in the schema cache"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "edge": {
+        "status": 404,
+        "body": {
+          "code": "PGRST202",
+          "details": "Searched for the function public.create_tournament_organization with parameter p_name or with a single unnamed json/jsonb parameter, but no matches were found in the schema cache.",
+          "hint": null,
+          "message": "Could not find the function public.create_tournament_organization(p_name) in the schema cache"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "equivalent": true
+    },
+    {
+      "name": "rpc: create_tournament_organization",
+      "request": {
+        "path": "/torneos/rest/v1/rpc/create_tournament_organization",
+        "method": "POST",
+        "auth": "bearer"
+      },
+      "node": {
+        "status": 404,
+        "body": {
+          "code": "PGRST202",
+          "details": "Searched for the function public.create_tournament_organization with parameters p_name, p_slug or with a single unnamed json/jsonb parameter, but no matches were found in the schema cache.",
+          "hint": "Perhaps you meant to call the function public.create_tournament_organization(p_idempotency_key, p_name, p_slug)",
+          "message": "Could not find the function public.create_tournament_organization(p_name, p_slug) in the schema cache"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "edge": {
+        "status": 404,
+        "body": {
+          "code": "PGRST202",
+          "details": "Searched for the function public.create_tournament_organization with parameters p_name, p_slug or with a single unnamed json/jsonb parameter, but no matches were found in the schema cache.",
+          "hint": "Perhaps you meant to call the function public.create_tournament_organization(p_idempotency_key, p_name, p_slug)",
+          "message": "Could not find the function public.create_tournament_organization(p_name, p_slug) in the schema cache"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "equivalent": true,
+      "note": "first call creates (one gateway), second conflicts (the other): statuses may differ by order — compared below by state"
+    },
+    {
+      "name": "read: tournament_organizations (RLS)",
+      "request": {
+        "path": "/torneos/rest/v1/tournament_organizations?select=slug",
+        "method": "GET",
+        "auth": "bearer"
+      },
+      "node": {
+        "status": 200,
+        "body": [],
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "edge": {
+        "status": 200,
+        "body": [],
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "equivalent": true
+    },
+    {
+      "name": "read: other user sees nothing",
+      "request": {
+        "path": "/torneos/rest/v1/tournament_organizations?select=slug",
+        "method": "GET",
+        "auth": "bearer"
+      },
+      "node": {
+        "status": 200,
+        "body": [],
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "edge": {
+        "status": 200,
+        "body": [],
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "equivalent": true
+    },
+    {
+      "name": "read: torneos_identity own row only",
+      "request": {
+        "path": "/torneos/rest/v1/torneos_identity?select=core_user_id",
+        "method": "GET",
+        "auth": "bearer"
+      },
+      "node": {
+        "status": 200,
+        "body": [
+          {
+            "core_user_id": "f21ff960-f5ac-43c0-9171-70f6530e5aab"
+          }
+        ],
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "edge": {
+        "status": 200,
+        "body": [
+          {
+            "core_user_id": "f21ff960-f5ac-43c0-9171-70f6530e5aab"
+          }
+        ],
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "equivalent": true
+    },
+    {
+      "name": "read: anon-less table without bearer",
+      "request": {
+        "path": "/torneos/rest/v1/tournament_organizations?select=slug",
+        "method": "GET",
+        "auth": "none"
+      },
+      "node": {
+        "status": 401,
+        "body": {
+          "error": "access denied"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "edge": {
+        "status": 401,
+        "body": {
+          "error": "access denied"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "equivalent": true
+    },
+    {
+      "name": "rpc: invalid json on a Core-contract RPC",
+      "request": {
+        "path": "/torneos/rest/v1/rpc/search_tournament_players",
+        "method": "POST",
+        "auth": "bearer"
+      },
+      "node": {
+        "status": 400,
+        "body": {
+          "error": "invalid json"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "edge": {
+        "status": 400,
+        "body": {
+          "error": "invalid json"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "equivalent": true
+    },
+    {
+      "name": "rpc: array body on a Core-contract RPC",
+      "request": {
+        "path": "/torneos/rest/v1/rpc/search_tournament_players",
+        "method": "POST",
+        "auth": "bearer"
+      },
+      "node": {
+        "status": 400,
+        "body": {
+          "error": "invalid json"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "edge": {
+        "status": 400,
+        "body": {
+          "error": "invalid json"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "equivalent": true
+    },
+    {
+      "name": "rpc: Core-contract RPC denied locally before Core (outsider org)",
+      "request": {
+        "path": "/torneos/rest/v1/rpc/search_tournament_players",
+        "method": "POST",
+        "auth": "bearer"
+      },
+      "node": {
+        "status": 403,
+        "body": {
+          "error": "TORNEOS_RESOURCE_FORBIDDEN"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "edge": {
+        "status": 403,
+        "body": {
+          "error": "TORNEOS_RESOURCE_FORBIDDEN"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "equivalent": true
+    },
+    {
+      "name": "rpc: body too large",
+      "request": {
+        "path": "/torneos/rest/v1/rpc/get_my_tournament_memberships",
+        "method": "POST",
+        "auth": "bearer"
+      },
+      "node": {
+        "status": 401,
+        "body": {
+          "error": "access denied"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "edge": {
+        "status": 401,
+        "body": {
+          "error": "access denied"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "equivalent": true
+    },
+    {
+      "name": "rpc: unknown name",
+      "request": {
+        "path": "/torneos/rest/v1/rpc/this_does_not_exist",
+        "method": "POST",
+        "auth": "bearer"
+      },
+      "node": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "edge": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "equivalent": true
+    },
+    {
+      "name": "OFF POST authorize_tournament_social_export",
+      "request": {
+        "path": "/torneos/rest/v1/rpc/authorize_tournament_social_export",
+        "method": "POST",
+        "auth": "bearer"
+      },
+      "node": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "edge": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "equivalent": true
+    },
+    {
+      "name": "OFF GET authorize_tournament_social_export",
+      "request": {
+        "path": "/torneos/rest/v1/rpc/authorize_tournament_social_export",
+        "method": "GET",
+        "auth": "bearer"
+      },
+      "node": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "edge": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "equivalent": true
+    },
+    {
+      "name": "OFF POST cancel_tournament_purchase",
+      "request": {
+        "path": "/torneos/rest/v1/rpc/cancel_tournament_purchase",
+        "method": "POST",
+        "auth": "bearer"
+      },
+      "node": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "edge": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "equivalent": true
+    },
+    {
+      "name": "OFF GET cancel_tournament_purchase",
+      "request": {
+        "path": "/torneos/rest/v1/rpc/cancel_tournament_purchase",
+        "method": "GET",
+        "auth": "bearer"
+      },
+      "node": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "edge": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "equivalent": true
+    },
+    {
+      "name": "OFF POST change_tournament_media_gallery_state",
+      "request": {
+        "path": "/torneos/rest/v1/rpc/change_tournament_media_gallery_state",
+        "method": "POST",
+        "auth": "bearer"
+      },
+      "node": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "edge": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "equivalent": true
+    },
+    {
+      "name": "OFF GET change_tournament_media_gallery_state",
+      "request": {
+        "path": "/torneos/rest/v1/rpc/change_tournament_media_gallery_state",
+        "method": "GET",
+        "auth": "bearer"
+      },
+      "node": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "edge": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "equivalent": true
+    },
+    {
+      "name": "OFF POST create_tournament_disciplinary_override",
+      "request": {
+        "path": "/torneos/rest/v1/rpc/create_tournament_disciplinary_override",
+        "method": "POST",
+        "auth": "bearer"
+      },
+      "node": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "edge": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "equivalent": true
+    },
+    {
+      "name": "OFF GET create_tournament_disciplinary_override",
+      "request": {
+        "path": "/torneos/rest/v1/rpc/create_tournament_disciplinary_override",
+        "method": "GET",
+        "auth": "bearer"
+      },
+      "node": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "edge": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "equivalent": true
+    },
+    {
+      "name": "OFF POST create_tournament_match_correction",
+      "request": {
+        "path": "/torneos/rest/v1/rpc/create_tournament_match_correction",
+        "method": "POST",
+        "auth": "bearer"
+      },
+      "node": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "edge": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "equivalent": true
+    },
+    {
+      "name": "OFF GET create_tournament_match_correction",
+      "request": {
+        "path": "/torneos/rest/v1/rpc/create_tournament_match_correction",
+        "method": "GET",
+        "auth": "bearer"
+      },
+      "node": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "edge": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "equivalent": true
+    },
+    {
+      "name": "OFF POST create_tournament_points_adjustment",
+      "request": {
+        "path": "/torneos/rest/v1/rpc/create_tournament_points_adjustment",
+        "method": "POST",
+        "auth": "bearer"
+      },
+      "node": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "edge": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "equivalent": true
+    },
+    {
+      "name": "OFF GET create_tournament_points_adjustment",
+      "request": {
+        "path": "/torneos/rest/v1/rpc/create_tournament_points_adjustment",
+        "method": "GET",
+        "auth": "bearer"
+      },
+      "node": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "edge": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "equivalent": true
+    },
+    {
+      "name": "OFF POST get_tournament_player_portrait_ref",
+      "request": {
+        "path": "/torneos/rest/v1/rpc/get_tournament_player_portrait_ref",
+        "method": "POST",
+        "auth": "bearer"
+      },
+      "node": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "edge": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "equivalent": true
+    },
+    {
+      "name": "OFF GET get_tournament_player_portrait_ref",
+      "request": {
+        "path": "/torneos/rest/v1/rpc/get_tournament_player_portrait_ref",
+        "method": "GET",
+        "auth": "bearer"
+      },
+      "node": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "edge": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "equivalent": true
+    },
+    {
+      "name": "OFF POST get_tournament_purchase",
+      "request": {
+        "path": "/torneos/rest/v1/rpc/get_tournament_purchase",
+        "method": "POST",
+        "auth": "bearer"
+      },
+      "node": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "edge": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "equivalent": true
+    },
+    {
+      "name": "OFF GET get_tournament_purchase",
+      "request": {
+        "path": "/torneos/rest/v1/rpc/get_tournament_purchase",
+        "method": "GET",
+        "auth": "bearer"
+      },
+      "node": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "edge": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "equivalent": true
+    },
+    {
+      "name": "OFF POST has_tournament_entitlement",
+      "request": {
+        "path": "/torneos/rest/v1/rpc/has_tournament_entitlement",
+        "method": "POST",
+        "auth": "bearer"
+      },
+      "node": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "edge": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "equivalent": true
+    },
+    {
+      "name": "OFF GET has_tournament_entitlement",
+      "request": {
+        "path": "/torneos/rest/v1/rpc/has_tournament_entitlement",
+        "method": "GET",
+        "auth": "bearer"
+      },
+      "node": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "edge": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "equivalent": true
+    },
+    {
+      "name": "OFF POST lock_tournament_roster",
+      "request": {
+        "path": "/torneos/rest/v1/rpc/lock_tournament_roster",
+        "method": "POST",
+        "auth": "bearer"
+      },
+      "node": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "edge": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "equivalent": true
+    },
+    {
+      "name": "OFF GET lock_tournament_roster",
+      "request": {
+        "path": "/torneos/rest/v1/rpc/lock_tournament_roster",
+        "method": "GET",
+        "auth": "bearer"
+      },
+      "node": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "edge": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "equivalent": true
+    },
+    {
+      "name": "OFF POST make_tournament_match_official",
+      "request": {
+        "path": "/torneos/rest/v1/rpc/make_tournament_match_official",
+        "method": "POST",
+        "auth": "bearer"
+      },
+      "node": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "edge": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "equivalent": true
+    },
+    {
+      "name": "OFF GET make_tournament_match_official",
+      "request": {
+        "path": "/torneos/rest/v1/rpc/make_tournament_match_official",
+        "method": "GET",
+        "auth": "bearer"
+      },
+      "node": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "edge": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "equivalent": true
+    },
+    {
+      "name": "OFF POST mark_tournament_suspension_served",
+      "request": {
+        "path": "/torneos/rest/v1/rpc/mark_tournament_suspension_served",
+        "method": "POST",
+        "auth": "bearer"
+      },
+      "node": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "edge": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "equivalent": true
+    },
+    {
+      "name": "OFF GET mark_tournament_suspension_served",
+      "request": {
+        "path": "/torneos/rest/v1/rpc/mark_tournament_suspension_served",
+        "method": "GET",
+        "auth": "bearer"
+      },
+      "node": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "edge": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "equivalent": true
+    },
+    {
+      "name": "OFF POST publish_tournament_fixture",
+      "request": {
+        "path": "/torneos/rest/v1/rpc/publish_tournament_fixture",
+        "method": "POST",
+        "auth": "bearer"
+      },
+      "node": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "edge": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "equivalent": true
+    },
+    {
+      "name": "OFF GET publish_tournament_fixture",
+      "request": {
+        "path": "/torneos/rest/v1/rpc/publish_tournament_fixture",
+        "method": "GET",
+        "auth": "bearer"
+      },
+      "node": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "edge": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "equivalent": true
+    },
+    {
+      "name": "OFF POST record_manual_match_availability",
+      "request": {
+        "path": "/torneos/rest/v1/rpc/record_manual_match_availability",
+        "method": "POST",
+        "auth": "bearer"
+      },
+      "node": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "edge": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "equivalent": true
+    },
+    {
+      "name": "OFF GET record_manual_match_availability",
+      "request": {
+        "path": "/torneos/rest/v1/rpc/record_manual_match_availability",
+        "method": "GET",
+        "auth": "bearer"
+      },
+      "node": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "edge": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "equivalent": true
+    },
+    {
+      "name": "OFF POST reopen_tournament_participants",
+      "request": {
+        "path": "/torneos/rest/v1/rpc/reopen_tournament_participants",
+        "method": "POST",
+        "auth": "bearer"
+      },
+      "node": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "edge": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "equivalent": true
+    },
+    {
+      "name": "OFF GET reopen_tournament_participants",
+      "request": {
+        "path": "/torneos/rest/v1/rpc/reopen_tournament_participants",
+        "method": "GET",
+        "auth": "bearer"
+      },
+      "node": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "edge": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "equivalent": true
+    },
+    {
+      "name": "OFF POST report_tournament_media_asset",
+      "request": {
+        "path": "/torneos/rest/v1/rpc/report_tournament_media_asset",
+        "method": "POST",
+        "auth": "bearer"
+      },
+      "node": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "edge": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "equivalent": true
+    },
+    {
+      "name": "OFF GET report_tournament_media_asset",
+      "request": {
+        "path": "/torneos/rest/v1/rpc/report_tournament_media_asset",
+        "method": "GET",
+        "auth": "bearer"
+      },
+      "node": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "edge": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "equivalent": true
+    },
+    {
+      "name": "OFF POST request_tournament_match_correction",
+      "request": {
+        "path": "/torneos/rest/v1/rpc/request_tournament_match_correction",
+        "method": "POST",
+        "auth": "bearer"
+      },
+      "node": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "edge": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "equivalent": true
+    },
+    {
+      "name": "OFF GET request_tournament_match_correction",
+      "request": {
+        "path": "/torneos/rest/v1/rpc/request_tournament_match_correction",
+        "method": "GET",
+        "auth": "bearer"
+      },
+      "node": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "edge": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "equivalent": true
+    },
+    {
+      "name": "OFF POST resolve_tournament_qualification",
+      "request": {
+        "path": "/torneos/rest/v1/rpc/resolve_tournament_qualification",
+        "method": "POST",
+        "auth": "bearer"
+      },
+      "node": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "edge": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "equivalent": true
+    },
+    {
+      "name": "OFF GET resolve_tournament_qualification",
+      "request": {
+        "path": "/torneos/rest/v1/rpc/resolve_tournament_qualification",
+        "method": "GET",
+        "auth": "bearer"
+      },
+      "node": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "edge": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "equivalent": true
+    },
+    {
+      "name": "OFF POST review_tournament_match_operation",
+      "request": {
+        "path": "/torneos/rest/v1/rpc/review_tournament_match_operation",
+        "method": "POST",
+        "auth": "bearer"
+      },
+      "node": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "edge": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "equivalent": true
+    },
+    {
+      "name": "OFF GET review_tournament_match_operation",
+      "request": {
+        "path": "/torneos/rest/v1/rpc/review_tournament_match_operation",
+        "method": "GET",
+        "auth": "bearer"
+      },
+      "node": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "edge": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "equivalent": true
+    },
+    {
+      "name": "OFF POST revoke_tournament_player_portrait_publication",
+      "request": {
+        "path": "/torneos/rest/v1/rpc/revoke_tournament_player_portrait_publication",
+        "method": "POST",
+        "auth": "bearer"
+      },
+      "node": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "edge": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "equivalent": true
+    },
+    {
+      "name": "OFF GET revoke_tournament_player_portrait_publication",
+      "request": {
+        "path": "/torneos/rest/v1/rpc/revoke_tournament_player_portrait_publication",
+        "method": "GET",
+        "auth": "bearer"
+      },
+      "node": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "edge": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "equivalent": true
+    },
+    {
+      "name": "OFF POST revoke_tournament_points_adjustment",
+      "request": {
+        "path": "/torneos/rest/v1/rpc/revoke_tournament_points_adjustment",
+        "method": "POST",
+        "auth": "bearer"
+      },
+      "node": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "edge": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "equivalent": true
+    },
+    {
+      "name": "OFF GET revoke_tournament_points_adjustment",
+      "request": {
+        "path": "/torneos/rest/v1/rpc/revoke_tournament_points_adjustment",
+        "method": "GET",
+        "auth": "bearer"
+      },
+      "node": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "edge": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "equivalent": true
+    },
+    {
+      "name": "OFF POST revoke_tournament_team_photo",
+      "request": {
+        "path": "/torneos/rest/v1/rpc/revoke_tournament_team_photo",
+        "method": "POST",
+        "auth": "bearer"
+      },
+      "node": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "edge": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "equivalent": true
+    },
+    {
+      "name": "OFF GET revoke_tournament_team_photo",
+      "request": {
+        "path": "/torneos/rest/v1/rpc/revoke_tournament_team_photo",
+        "method": "GET",
+        "auth": "bearer"
+      },
+      "node": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "edge": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "equivalent": true
+    },
+    {
+      "name": "OFF POST save_tournament_draw_pots",
+      "request": {
+        "path": "/torneos/rest/v1/rpc/save_tournament_draw_pots",
+        "method": "POST",
+        "auth": "bearer"
+      },
+      "node": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "edge": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "equivalent": true
+    },
+    {
+      "name": "OFF GET save_tournament_draw_pots",
+      "request": {
+        "path": "/torneos/rest/v1/rpc/save_tournament_draw_pots",
+        "method": "GET",
+        "auth": "bearer"
+      },
+      "node": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "edge": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "equivalent": true
+    },
+    {
+      "name": "OFF POST schedule_tournament_match",
+      "request": {
+        "path": "/torneos/rest/v1/rpc/schedule_tournament_match",
+        "method": "POST",
+        "auth": "bearer"
+      },
+      "node": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "edge": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "equivalent": true
+    },
+    {
+      "name": "OFF GET schedule_tournament_match",
+      "request": {
+        "path": "/torneos/rest/v1/rpc/schedule_tournament_match",
+        "method": "GET",
+        "auth": "bearer"
+      },
+      "node": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "edge": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "equivalent": true
+    },
+    {
+      "name": "OFF POST set_tournament_player_portrait_crop",
+      "request": {
+        "path": "/torneos/rest/v1/rpc/set_tournament_player_portrait_crop",
+        "method": "POST",
+        "auth": "bearer"
+      },
+      "node": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "edge": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "equivalent": true
+    },
+    {
+      "name": "OFF GET set_tournament_player_portrait_crop",
+      "request": {
+        "path": "/torneos/rest/v1/rpc/set_tournament_player_portrait_crop",
+        "method": "GET",
+        "auth": "bearer"
+      },
+      "node": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "edge": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "equivalent": true
+    },
+    {
+      "name": "OFF POST set_tournament_player_portrait_editorial_status",
+      "request": {
+        "path": "/torneos/rest/v1/rpc/set_tournament_player_portrait_editorial_status",
+        "method": "POST",
+        "auth": "bearer"
+      },
+      "node": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "edge": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "equivalent": true
+    },
+    {
+      "name": "OFF GET set_tournament_player_portrait_editorial_status",
+      "request": {
+        "path": "/torneos/rest/v1/rpc/set_tournament_player_portrait_editorial_status",
+        "method": "GET",
+        "auth": "bearer"
+      },
+      "node": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "edge": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "equivalent": true
+    },
+    {
+      "name": "OFF POST submit_match_squad",
+      "request": {
+        "path": "/torneos/rest/v1/rpc/submit_match_squad",
+        "method": "POST",
+        "auth": "bearer"
+      },
+      "node": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "edge": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "equivalent": true
+    },
+    {
+      "name": "OFF GET submit_match_squad",
+      "request": {
+        "path": "/torneos/rest/v1/rpc/submit_match_squad",
+        "method": "GET",
+        "auth": "bearer"
+      },
+      "node": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "edge": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "equivalent": true
+    },
+    {
+      "name": "OFF POST supersede_tournament_fixture",
+      "request": {
+        "path": "/torneos/rest/v1/rpc/supersede_tournament_fixture",
+        "method": "POST",
+        "auth": "bearer"
+      },
+      "node": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "edge": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "equivalent": true
+    },
+    {
+      "name": "OFF GET supersede_tournament_fixture",
+      "request": {
+        "path": "/torneos/rest/v1/rpc/supersede_tournament_fixture",
+        "method": "GET",
+        "auth": "bearer"
+      },
+      "node": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "edge": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "equivalent": true
+    },
+    {
+      "name": "OFF POST transition_tournament_media_asset",
+      "request": {
+        "path": "/torneos/rest/v1/rpc/transition_tournament_media_asset",
+        "method": "POST",
+        "auth": "bearer"
+      },
+      "node": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "edge": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "equivalent": true
+    },
+    {
+      "name": "OFF GET transition_tournament_media_asset",
+      "request": {
+        "path": "/torneos/rest/v1/rpc/transition_tournament_media_asset",
+        "method": "GET",
+        "auth": "bearer"
+      },
+      "node": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "edge": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "equivalent": true
+    },
+    {
+      "name": "OFF POST update_draft_fixture",
+      "request": {
+        "path": "/torneos/rest/v1/rpc/update_draft_fixture",
+        "method": "POST",
+        "auth": "bearer"
+      },
+      "node": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "edge": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "equivalent": true
+    },
+    {
+      "name": "OFF GET update_draft_fixture",
+      "request": {
+        "path": "/torneos/rest/v1/rpc/update_draft_fixture",
+        "method": "GET",
+        "auth": "bearer"
+      },
+      "node": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "edge": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "equivalent": true
+    },
+    {
+      "name": "OFF POST validate_tournament_match_operation",
+      "request": {
+        "path": "/torneos/rest/v1/rpc/validate_tournament_match_operation",
+        "method": "POST",
+        "auth": "bearer"
+      },
+      "node": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "edge": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "equivalent": true
+    },
+    {
+      "name": "OFF GET validate_tournament_match_operation",
+      "request": {
+        "path": "/torneos/rest/v1/rpc/validate_tournament_match_operation",
+        "method": "GET",
+        "auth": "bearer"
+      },
+      "node": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "edge": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "equivalent": true
+    },
+    {
+      "name": "OFF POST void_tournament_match_event",
+      "request": {
+        "path": "/torneos/rest/v1/rpc/void_tournament_match_event",
+        "method": "POST",
+        "auth": "bearer"
+      },
+      "node": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "edge": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "equivalent": true
+    },
+    {
+      "name": "OFF GET void_tournament_match_event",
+      "request": {
+        "path": "/torneos/rest/v1/rpc/void_tournament_match_event",
+        "method": "GET",
+        "auth": "bearer"
+      },
+      "node": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "edge": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "equivalent": true
+    },
+    {
+      "name": "OFF POST auto_schedule_tournament_matches",
+      "request": {
+        "path": "/torneos/rest/v1/rpc/auto_schedule_tournament_matches",
+        "method": "POST",
+        "auth": "bearer"
+      },
+      "node": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "edge": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "equivalent": true
+    },
+    {
+      "name": "OFF GET auto_schedule_tournament_matches",
+      "request": {
+        "path": "/torneos/rest/v1/rpc/auto_schedule_tournament_matches",
+        "method": "GET",
+        "auth": "bearer"
+      },
+      "node": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "edge": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "equivalent": true
+    },
+    {
+      "name": "OFF without bearer → 401 before the allowlist",
+      "request": {
+        "path": "/torneos/rest/v1/rpc/publish_tournament_fixture",
+        "method": "POST",
+        "auth": "none"
+      },
+      "node": {
+        "status": 401,
+        "body": {
+          "error": "access denied"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "edge": {
+        "status": 401,
+        "body": {
+          "error": "access denied"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "equivalent": true
+    },
+    {
+      "name": "forged: wrong session",
+      "request": {
+        "path": "/torneos/rest/v1/rpc/get_my_tournament_memberships",
+        "method": "POST",
+        "auth": "bearer"
+      },
+      "node": {
+        "status": 401,
+        "body": {
+          "error": "access denied"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "edge": {
+        "status": 401,
+        "body": {
+          "error": "access denied"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "equivalent": true
+    },
+    {
+      "name": "forged: wrong core_user_id",
+      "request": {
+        "path": "/torneos/rest/v1/rpc/get_my_tournament_memberships",
+        "method": "POST",
+        "auth": "bearer"
+      },
+      "node": {
+        "status": 401,
+        "body": {
+          "error": "access denied"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "edge": {
+        "status": 401,
+        "body": {
+          "error": "access denied"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "equivalent": true
+    },
+    {
+      "name": "forged: wrong sub",
+      "request": {
+        "path": "/torneos/rest/v1/rpc/get_my_tournament_memberships",
+        "method": "POST",
+        "auth": "bearer"
+      },
+      "node": {
+        "status": 401,
+        "body": {
+          "error": "access denied"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "edge": {
+        "status": 401,
+        "body": {
+          "error": "access denied"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "equivalent": true
+    },
+    {
+      "name": "forged: expired",
+      "request": {
+        "path": "/torneos/rest/v1/rpc/get_my_tournament_memberships",
+        "method": "POST",
+        "auth": "bearer"
+      },
+      "node": {
+        "status": 401,
+        "body": {
+          "error": "access denied"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "edge": {
+        "status": 401,
+        "body": {
+          "error": "access denied"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "equivalent": true
+    },
+    {
+      "name": "forged: wrong ttl",
+      "request": {
+        "path": "/torneos/rest/v1/rpc/get_my_tournament_memberships",
+        "method": "POST",
+        "auth": "bearer"
+      },
+      "node": {
+        "status": 401,
+        "body": {
+          "error": "access denied"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "edge": {
+        "status": 401,
+        "body": {
+          "error": "access denied"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "equivalent": true
+    },
+    {
+      "name": "forged: wrong issuer",
+      "request": {
+        "path": "/torneos/rest/v1/rpc/get_my_tournament_memberships",
+        "method": "POST",
+        "auth": "bearer"
+      },
+      "node": {
+        "status": 401,
+        "body": {
+          "error": "access denied"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "edge": {
+        "status": 401,
+        "body": {
+          "error": "access denied"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "equivalent": true
+    },
+    {
+      "name": "forged: wrong audience",
+      "request": {
+        "path": "/torneos/rest/v1/rpc/get_my_tournament_memberships",
+        "method": "POST",
+        "auth": "bearer"
+      },
+      "node": {
+        "status": 401,
+        "body": {
+          "error": "access denied"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "edge": {
+        "status": 401,
+        "body": {
+          "error": "access denied"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "equivalent": true
+    },
+    {
+      "name": "forged: service_role claim",
+      "request": {
+        "path": "/torneos/rest/v1/rpc/get_my_tournament_memberships",
+        "method": "POST",
+        "auth": "bearer"
+      },
+      "node": {
+        "status": 401,
+        "body": {
+          "error": "access denied"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "edge": {
+        "status": 401,
+        "body": {
+          "error": "access denied"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "equivalent": true
+    },
+    {
+      "name": "forged: untrusted kid",
+      "request": {
+        "path": "/torneos/rest/v1/rpc/get_my_tournament_memberships",
+        "method": "POST",
+        "auth": "bearer"
+      },
+      "node": {
+        "status": 401,
+        "body": {
+          "error": "access denied"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "edge": {
+        "status": 401,
+        "body": {
+          "error": "access denied"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "equivalent": true
+    },
+    {
+      "name": "forged: Core token used as Torneos bearer",
+      "request": {
+        "path": "/torneos/rest/v1/rpc/get_my_tournament_memberships",
+        "method": "POST",
+        "auth": "bearer"
+      },
+      "node": {
+        "status": 401,
+        "body": {
+          "error": "access denied"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "edge": {
+        "status": 401,
+        "body": {
+          "error": "access denied"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "equivalent": true
+    },
+    {
+      "name": "exchange: victim",
+      "request": {
+        "path": "/exchange",
+        "method": "POST",
+        "auth": "bearer"
+      },
+      "node": {
+        "status": 200,
+        "body": {
+          "access_token": {
+            "header": {
+              "alg": "RS256",
+              "typ": "JWT",
+              "kid": "p3a-k1"
+            },
+            "claims": {
+              "core_user_id": "fa18f536-a23e-4456-9979-4cbd34bf6eef",
+              "session_id": "b1513322-5c3d-4ff2-bcf7-8e13397cc8cb",
+              "role": "authenticated",
+              "iss": "urn:arma2:local:identity-bridge",
+              "aud": "arma2-torneos-local",
+              "sub": "bdb611d7-3e9f-4acb-be6c-bf56021abbc7",
+              "iat": "<per-issuance>",
+              "nbf": "<per-issuance>",
+              "exp": "<per-issuance>",
+              "jti": "<per-issuance>",
+              "ttl": 120
+            }
+          },
+          "token_type": "Bearer",
+          "expires_in": 120
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "edge": {
+        "status": 200,
+        "body": {
+          "access_token": {
+            "header": {
+              "alg": "RS256",
+              "typ": "JWT",
+              "kid": "p3a-k1"
+            },
+            "claims": {
+              "core_user_id": "fa18f536-a23e-4456-9979-4cbd34bf6eef",
+              "session_id": "b1513322-5c3d-4ff2-bcf7-8e13397cc8cb",
+              "role": "authenticated",
+              "iss": "urn:arma2:local:identity-bridge",
+              "aud": "arma2-torneos-local",
+              "sub": "bdb611d7-3e9f-4acb-be6c-bf56021abbc7",
+              "iat": "<per-issuance>",
+              "nbf": "<per-issuance>",
+              "exp": "<per-issuance>",
+              "jti": "<per-issuance>",
+              "ttl": 120
+            }
+          },
+          "token_type": "Bearer",
+          "expires_in": 120
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "equivalent": true
+    },
+    {
+      "name": "after logout: exchange",
+      "request": {
+        "path": "/exchange",
+        "method": "POST",
+        "auth": "bearer"
+      },
+      "node": {
+        "status": 401,
+        "body": {
+          "error": "access denied"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "edge": {
+        "status": 401,
+        "body": {
+          "error": "access denied"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "equivalent": true
+    },
+    {
+      "name": "after logout: RPC with still-unexpired Torneos bearer",
+      "request": {
+        "path": "/torneos/rest/v1/rpc/get_my_tournament_memberships",
+        "method": "POST",
+        "auth": "bearer"
+      },
+      "node": {
+        "status": 401,
+        "body": {
+          "error": "access denied"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "edge": {
+        "status": 401,
+        "body": {
+          "error": "access denied"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "equivalent": true
+    },
+    {
+      "name": "after logout: OFF still 403 (allowlist before session)",
+      "request": {
+        "path": "/torneos/rest/v1/rpc/publish_tournament_fixture",
+        "method": "POST",
+        "auth": "bearer"
+      },
+      "node": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "edge": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "equivalent": true
+    },
+    {
+      "name": "exchange: other (pre-revocation)",
+      "request": {
+        "path": "/exchange",
+        "method": "POST",
+        "auth": "bearer"
+      },
+      "node": {
+        "status": 200,
+        "body": {
+          "access_token": {
+            "header": {
+              "alg": "RS256",
+              "typ": "JWT",
+              "kid": "p3a-k1"
+            },
+            "claims": {
+              "core_user_id": "7028917c-7ab7-41b0-8395-3749efa34024",
+              "session_id": "b51b044d-7598-45f0-9239-0dd796219f87",
+              "role": "authenticated",
+              "iss": "urn:arma2:local:identity-bridge",
+              "aud": "arma2-torneos-local",
+              "sub": "dac75d29-c96e-4f8b-bca5-fbf5a22a9f60",
+              "iat": "<per-issuance>",
+              "nbf": "<per-issuance>",
+              "exp": "<per-issuance>",
+              "jti": "<per-issuance>",
+              "ttl": 120
+            }
+          },
+          "token_type": "Bearer",
+          "expires_in": 120
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "edge": {
+        "status": 200,
+        "body": {
+          "access_token": {
+            "header": {
+              "alg": "RS256",
+              "typ": "JWT",
+              "kid": "p3a-k1"
+            },
+            "claims": {
+              "core_user_id": "7028917c-7ab7-41b0-8395-3749efa34024",
+              "session_id": "b51b044d-7598-45f0-9239-0dd796219f87",
+              "role": "authenticated",
+              "iss": "urn:arma2:local:identity-bridge",
+              "aud": "arma2-torneos-local",
+              "sub": "dac75d29-c96e-4f8b-bca5-fbf5a22a9f60",
+              "iat": "<per-issuance>",
+              "nbf": "<per-issuance>",
+              "exp": "<per-issuance>",
+              "jti": "<per-issuance>",
+              "ttl": 120
+            }
+          },
+          "token_type": "Bearer",
+          "expires_in": 120
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "equivalent": true
+    },
+    {
+      "name": "SQL-revoked session: RPC",
+      "request": {
+        "path": "/torneos/rest/v1/rpc/get_my_tournament_memberships",
+        "method": "POST",
+        "auth": "bearer"
+      },
+      "node": {
+        "status": 401,
+        "body": {
+          "error": "access denied"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "edge": {
+        "status": 401,
+        "body": {
+          "error": "access denied"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "equivalent": true
+    },
+    {
+      "name": "SQL-revoked session: exchange",
+      "request": {
+        "path": "/exchange",
+        "method": "POST",
+        "auth": "bearer"
+      },
+      "node": {
+        "status": 401,
+        "body": {
+          "error": "access denied"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "edge": {
+        "status": 401,
+        "body": {
+          "error": "access denied"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "equivalent": true
+    },
+    {
+      "name": "exchange: banned (pre-ban)",
+      "request": {
+        "path": "/exchange",
+        "method": "POST",
+        "auth": "bearer"
+      },
+      "node": {
+        "status": 200,
+        "body": {
+          "access_token": {
+            "header": {
+              "alg": "RS256",
+              "typ": "JWT",
+              "kid": "p3a-k1"
+            },
+            "claims": {
+              "core_user_id": "208d9435-26ad-4cdd-9c9d-5dfe6249206a",
+              "session_id": "fbec346f-d498-4226-8570-675ba6fec112",
+              "role": "authenticated",
+              "iss": "urn:arma2:local:identity-bridge",
+              "aud": "arma2-torneos-local",
+              "sub": "2bf2ca88-d4e5-4795-b101-3bb1f8096e05",
+              "iat": "<per-issuance>",
+              "nbf": "<per-issuance>",
+              "exp": "<per-issuance>",
+              "jti": "<per-issuance>",
+              "ttl": 120
+            }
+          },
+          "token_type": "Bearer",
+          "expires_in": 120
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "edge": {
+        "status": 200,
+        "body": {
+          "access_token": {
+            "header": {
+              "alg": "RS256",
+              "typ": "JWT",
+              "kid": "p3a-k1"
+            },
+            "claims": {
+              "core_user_id": "208d9435-26ad-4cdd-9c9d-5dfe6249206a",
+              "session_id": "fbec346f-d498-4226-8570-675ba6fec112",
+              "role": "authenticated",
+              "iss": "urn:arma2:local:identity-bridge",
+              "aud": "arma2-torneos-local",
+              "sub": "2bf2ca88-d4e5-4795-b101-3bb1f8096e05",
+              "iat": "<per-issuance>",
+              "nbf": "<per-issuance>",
+              "exp": "<per-issuance>",
+              "jti": "<per-issuance>",
+              "ttl": 120
+            }
+          },
+          "token_type": "Bearer",
+          "expires_in": 120
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "equivalent": true
+    },
+    {
+      "name": "banned: RPC",
+      "request": {
+        "path": "/torneos/rest/v1/rpc/get_my_tournament_memberships",
+        "method": "POST",
+        "auth": "bearer"
+      },
+      "node": {
+        "status": 401,
+        "body": {
+          "error": "access denied"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "edge": {
+        "status": 401,
+        "body": {
+          "error": "access denied"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "equivalent": true
+    },
+    {
+      "name": "banned: exchange",
+      "request": {
+        "path": "/exchange",
+        "method": "POST",
+        "auth": "bearer"
+      },
+      "node": {
+        "status": 401,
+        "body": {
+          "error": "access denied"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "edge": {
+        "status": 401,
+        "body": {
+          "error": "access denied"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "equivalent": true
+    },
+    {
+      "name": "expired not_after: RPC",
+      "request": {
+        "path": "/torneos/rest/v1/rpc/get_my_tournament_memberships",
+        "method": "POST",
+        "auth": "bearer"
+      },
+      "node": {
+        "status": 401,
+        "body": {
+          "error": "access denied"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "edge": {
+        "status": 401,
+        "body": {
+          "error": "access denied"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "equivalent": true
+    },
+    {
+      "name": "expired not_after: exchange",
+      "request": {
+        "path": "/exchange",
+        "method": "POST",
+        "auth": "bearer"
+      },
+      "node": {
+        "status": 401,
+        "body": {
+          "error": "access denied"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "edge": {
+        "status": 401,
+        "body": {
+          "error": "access denied"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "equivalent": true
+    },
+    {
+      "name": "restored session: RPC",
+      "request": {
+        "path": "/torneos/rest/v1/rpc/get_my_tournament_memberships",
+        "method": "POST",
+        "auth": "bearer"
+      },
+      "node": {
+        "status": 200,
+        "body": {
+          "items": [],
+          "pagination": {
+            "limit": 20,
+            "total": 0,
+            "offset": 0,
+            "hasMore": false
+          }
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "edge": {
+        "status": 200,
+        "body": {
+          "items": [],
+          "pagination": {
+            "limit": 20,
+            "total": 0,
+            "offset": 0,
+            "hasMore": false
+          }
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "equivalent": true
+    },
+    {
+      "name": "GoTrue down: exchange",
+      "request": {
+        "path": "/exchange",
+        "method": "POST",
+        "auth": "bearer"
+      },
+      "node": {
+        "status": 503,
+        "body": {
+          "error": "access denied"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "edge": {
+        "status": 503,
+        "body": {
+          "error": "access denied"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "equivalent": true
+    },
+    {
+      "name": "GoTrue down: RPC",
+      "request": {
+        "path": "/torneos/rest/v1/rpc/get_my_tournament_memberships",
+        "method": "POST",
+        "auth": "bearer"
+      },
+      "node": {
+        "status": 503,
+        "body": {
+          "error": "access denied"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "edge": {
+        "status": 503,
+        "body": {
+          "error": "access denied"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "equivalent": true
+    },
+    {
+      "name": "GoTrue down: health (connection refused → generic 503 on both)",
+      "request": {
+        "path": "/health",
+        "method": "GET",
+        "auth": "none"
+      },
+      "node": {
+        "status": 503,
+        "body": {
+          "error": "access denied"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "edge": {
+        "status": 503,
+        "body": {
+          "error": "access denied"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "equivalent": true
+    },
+    {
+      "name": "D1: Core contract outage, Core-independent RPC",
+      "equivalent": false,
+      "documented": "D1",
+      "justification": "Both gateways require an online Core session verdict per session-gated request; the Node gateway obtains it DB-to-DB (auth.sessions), the Edge gateway over HTTPS from the Core contract `session` op. With the contract endpoint down the Edge gateway has no authorized transport for the verdict and fails closed; the Node gateway keeps its DB transport. Not reproducible on the Edge gateway without DB-to-DB, a revocation window or a new Core surface.",
+      "counterpart": "evidence/d1-session-authority.json (E2: Node refuses everything when core-db is down; E4: one verdict per Edge request, none cached)",
+      "node": {
+        "status": 200
+      },
+      "edge": {
+        "status": 503,
+        "body": {
+          "error": "CORE_UNAVAILABLE"
+        }
+      }
+    },
+    {
+      "name": "D1: Core contract outage, Core-dependent RPC denied locally on Node",
+      "equivalent": false,
+      "documented": "D1",
+      "justification": "Both gateways require an online Core session verdict per session-gated request; the Node gateway obtains it DB-to-DB (auth.sessions), the Edge gateway over HTTPS from the Core contract `session` op. With the contract endpoint down the Edge gateway has no authorized transport for the verdict and fails closed; the Node gateway keeps its DB transport. Not reproducible on the Edge gateway without DB-to-DB, a revocation window or a new Core surface.",
+      "counterpart": "evidence/d1-session-authority.json (E2: Node refuses everything when core-db is down; E4: one verdict per Edge request, none cached)",
+      "node": {
+        "status": 403,
+        "body": {
+          "error": "TORNEOS_RESOURCE_FORBIDDEN"
+        }
+      },
+      "edge": {
+        "status": 503,
+        "body": {
+          "error": "CORE_UNAVAILABLE"
+        }
+      }
+    },
+    {
+      "name": "D1: Core contract outage, exchange",
+      "equivalent": false,
+      "documented": "D1",
+      "justification": "Both gateways require an online Core session verdict per session-gated request; the Node gateway obtains it DB-to-DB (auth.sessions), the Edge gateway over HTTPS from the Core contract `session` op. With the contract endpoint down the Edge gateway has no authorized transport for the verdict and fails closed; the Node gateway keeps its DB transport. Not reproducible on the Edge gateway without DB-to-DB, a revocation window or a new Core surface.",
+      "counterpart": "evidence/d1-session-authority.json (E2: Node refuses everything when core-db is down; E4: one verdict per Edge request, none cached)",
+      "node": {
+        "status": 200,
+        "body": {
+          "access_token": {
+            "header": {
+              "alg": "RS256",
+              "typ": "JWT",
+              "kid": "p3a-k1"
+            },
+            "claims": {
+              "core_user_id": "f21ff960-f5ac-43c0-9171-70f6530e5aab",
+              "session_id": "c4d5278e-a695-4fa1-9457-c498dccdc58f",
+              "role": "authenticated",
+              "iss": "urn:arma2:local:identity-bridge",
+              "aud": "arma2-torneos-local",
+              "sub": "e854a2b2-6556-40ba-b60b-d5b1c2e9cdee",
+              "iat": "<per-issuance>",
+              "nbf": "<per-issuance>",
+              "exp": "<per-issuance>",
+              "jti": "<per-issuance>",
+              "ttl": 120
+            }
+          },
+          "token_type": "Bearer",
+          "expires_in": 120
+        }
+      },
+      "edge": {
+        "status": 503,
+        "body": {
+          "error": "CORE_UNAVAILABLE"
+        }
+      }
+    },
+    {
+      "name": "Core contract down: OFF rpc (allowlist before the session verdict)",
+      "request": {
+        "path": "/torneos/rest/v1/rpc/publish_tournament_fixture",
+        "method": "POST",
+        "auth": "bearer"
+      },
+      "node": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "edge": {
+        "status": 403,
+        "body": {
+          "error": "rpc not enabled"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "equivalent": true
+    },
+    {
+      "name": "Core contract down: garbage bearer",
+      "request": {
+        "path": "/torneos/rest/v1/rpc/get_my_tournament_memberships",
+        "method": "POST",
+        "auth": "bearer"
+      },
+      "node": {
+        "status": 401,
+        "body": {
+          "error": "access denied"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "edge": {
+        "status": 401,
+        "body": {
+          "error": "access denied"
+        },
+        "headers": {
+          "cache-control": "no-store",
+          "content-type": "application/json"
+        }
+      },
+      "equivalent": true
+    }
+  ]
+}

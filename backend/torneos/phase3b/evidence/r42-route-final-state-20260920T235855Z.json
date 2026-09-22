@@ -1,0 +1,218 @@
+{
+  "schema": "R4.2.route-diagnosis-final-state.v1",
+  "utc": "2026-09-20T23:58:55.931Z",
+  "productionRequests": 0,
+  "fullR42Executed": false,
+  "commit": false,
+  "runs": {
+    "20260920T233915Z": {
+      "verdict": "R42_ROUTE_DIAGNOSIS_NOT_REPRODUCED",
+      "run": "arma2-r42-20260920t233918z",
+      "steps": "handoff_check:PASS core_project_guard:PASS core_contract_function_guard:PASS core_keys:PASS authorization:PASS runner_preflight:PASS start_gateway:PASS smoke:PASS transport_probe:PASS core_sessions_zero:PASS cleanup:PASS",
+      "coreSessions": [
+        {
+          "role": "route",
+          "id": "3d501e32",
+          "sessionPresent": false,
+          "userSessions": 0,
+          "deleted": true
+        }
+      ]
+    },
+    "20260920T234910Z": {
+      "verdict": "R42_ROUTE_DIAGNOSIS_FAIL",
+      "run": "arma2-r42-20260920t234913z",
+      "steps": "handoff_check:PASS core_project_guard:PASS core_contract_function_guard:PASS core_keys:PASS authorization:PASS runner_preflight:PASS start_gateway:PASS smoke:PASS transport_probe:FAIL cleanup:PASS"
+    },
+    "20260920T235245Z": {
+      "verdict": "R42_ROUTE_DIAGNOSIS_REPRODUCED",
+      "run": "arma2-r42-20260920t235248z",
+      "steps": "handoff_check:PASS core_project_guard:PASS core_contract_function_guard:PASS core_keys:PASS authorization:PASS runner_preflight:PASS start_gateway:PASS smoke:PASS transport_probe:PASS core_sessions_zero:PASS cleanup:PASS",
+      "coreSessions": [
+        {
+          "role": "route",
+          "id": "f54972f1",
+          "sessionPresent": false,
+          "userSessions": 0,
+          "deleted": true
+        }
+      ]
+    },
+    "20260920T235640Z": {
+      "verdict": "R42_ROUTE_TARGETED_PASS",
+      "run": "arma2-r42-20260920t235642z",
+      "steps": "handoff_check:PASS core_project_guard:PASS core_contract_function_guard:PASS core_keys:PASS authorization:PASS runner_preflight:PASS start_gateway:PASS smoke:PASS transport_probe:PASS core_sessions_zero:PASS cleanup:PASS",
+      "coreSessions": [
+        {
+          "role": "route",
+          "id": "a421f85c",
+          "sessionPresent": false,
+          "userSessions": 0,
+          "deleted": true
+        }
+      ]
+    },
+    "20260920T235717Z": {
+      "verdict": "R42_ROUTE_TARGETED_PASS",
+      "run": "arma2-r42-20260920t235719z",
+      "steps": "handoff_check:PASS core_project_guard:PASS core_contract_function_guard:PASS core_keys:PASS authorization:PASS runner_preflight:PASS start_gateway:PASS smoke:PASS transport_probe:PASS core_sessions_zero:PASS cleanup:PASS",
+      "coreSessions": [
+        {
+          "role": "route",
+          "id": "00a663f2",
+          "sessionPresent": false,
+          "userSessions": 0,
+          "deleted": true
+        }
+      ]
+    }
+  },
+  "cleanups": {
+    "20260920T233915Z": {
+      "complete": true,
+      "run": "arma2-r42-20260920t233918z",
+      "qa": {
+        "qa": true,
+        "sessions": true,
+        "rows": true,
+        "catalogUnchanged": true
+      },
+      "runtime": {
+        "status": "PASS",
+        "removed": 4,
+        "remaining": {
+          "containers": "",
+          "networks": ""
+        },
+        "port58431Free": true,
+        "authorizationRemoved": true,
+        "runJsonRemoved": true
+      },
+      "r2ok": true,
+      "catalog": "a45abe40",
+      "rowsOutsideSeed": []
+    },
+    "20260920T234910Z": {
+      "complete": true,
+      "run": "arma2-r42-20260920t234913z",
+      "qa": {
+        "qa": true,
+        "sessions": true,
+        "rows": true,
+        "catalogUnchanged": true
+      },
+      "runtime": {
+        "status": "PASS",
+        "removed": 4,
+        "remaining": {
+          "containers": "",
+          "networks": ""
+        },
+        "port58431Free": true,
+        "authorizationRemoved": true,
+        "runJsonRemoved": true
+      },
+      "r2ok": true,
+      "catalog": "a45abe40",
+      "rowsOutsideSeed": []
+    },
+    "20260920T235245Z": {
+      "complete": true,
+      "run": "arma2-r42-20260920t235248z",
+      "qa": {
+        "qa": true,
+        "sessions": true,
+        "rows": true,
+        "catalogUnchanged": true
+      },
+      "runtime": {
+        "status": "PASS",
+        "removed": 4,
+        "remaining": {
+          "containers": "",
+          "networks": ""
+        },
+        "port58431Free": true,
+        "authorizationRemoved": true,
+        "runJsonRemoved": true
+      },
+      "r2ok": true,
+      "catalog": "a45abe40",
+      "rowsOutsideSeed": []
+    },
+    "20260920T235640Z": {
+      "complete": true,
+      "run": "arma2-r42-20260920t235642z",
+      "qa": {
+        "qa": true,
+        "sessions": true,
+        "rows": true,
+        "catalogUnchanged": true
+      },
+      "runtime": {
+        "status": "PASS",
+        "removed": 4,
+        "remaining": {
+          "containers": "",
+          "networks": ""
+        },
+        "port58431Free": true,
+        "authorizationRemoved": true,
+        "runJsonRemoved": true
+      },
+      "r2ok": true,
+      "catalog": "a45abe40",
+      "rowsOutsideSeed": []
+    },
+    "20260920T235717Z": {
+      "complete": true,
+      "run": "arma2-r42-20260920t235719z",
+      "qa": {
+        "qa": true,
+        "sessions": true,
+        "rows": true,
+        "catalogUnchanged": true
+      },
+      "runtime": {
+        "status": "PASS",
+        "removed": 4,
+        "remaining": {
+          "containers": "",
+          "networks": ""
+        },
+        "port58431Free": true,
+        "authorizationRemoved": true,
+        "runJsonRemoved": true
+      },
+      "r2ok": true,
+      "catalog": "a45abe40",
+      "rowsOutsideSeed": []
+    }
+  },
+  "sealedSourcesChecked": 0,
+  "sealedSourcesDrift": [],
+  "sealKeysChecked": "r4-hashes-20260920T170508Z.json",
+  "newEvidenceFiles": 15,
+  "newEvidenceNamingProduction": [],
+  "newEvidenceWithTokenShapes": [],
+  "docker": {
+    "containers": "",
+    "networks": "",
+    "authorizationAbsent": true,
+    "runJsonAbsent": true
+  },
+  "r2": {
+    "dbHealthy": true,
+    "dbRunning": true,
+    "restRunning": true,
+    "dbId": true,
+    "dbStarted": true,
+    "restId": true,
+    "restStarted": true,
+    "catalog": true,
+    "ring": true,
+    "jwks": true,
+    "catalogSHA256": "a45abe402d83c01102d5c007ea02c7095a3e9e49ec7377c407f57acad66ac54e"
+  },
+  "pass": true
+}

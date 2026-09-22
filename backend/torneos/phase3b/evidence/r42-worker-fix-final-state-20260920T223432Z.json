@@ -1,0 +1,31 @@
+{
+  "status": "STOP_AFTER_TARGETED_FAILURE",
+  "productionRequests": 0,
+  "fullR42Executed": false,
+  "changedSources": [
+    "backend/torneos/phase3b/r42/outage.mjs",
+    "backend/torneos/phase3b/r42/transport-probe.mjs",
+    "backend/torneos/phase3b/r42/operator.mjs",
+    "backend/torneos/phase3b/r42/run-transport.mjs"
+  ],
+  "cleanup": {
+    "containers": "",
+    "networks": "",
+    "authorizationAbsent": true,
+    "runJsonAbsent": true,
+    "qaCreated": false,
+    "pass": true
+  },
+  "r2": {
+    "dbHealthy": true,
+    "dbRunning": true,
+    "restRunning": true,
+    "dbId": true,
+    "dbStarted": true,
+    "restId": true,
+    "restStarted": true,
+    "catalog": true,
+    "ring": true,
+    "jwks": true
+  }
+}

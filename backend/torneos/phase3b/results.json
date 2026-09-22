@@ -1,0 +1,285 @@
+{
+  "phase": "3B",
+  "base": "2058da03 (Phase 2D)",
+  "architecture": "HYBRID non-production: Core staging REMOTE (hhyvmhgpapyuzjgxfnqv) ↔ Torneos ISOLATED LOCAL (arma2-torneos-isolated-local); remote-to-remote deferred to the final pre-launch gate",
+  "conclusion": "HYBRID_BLOCKED",
+  "local_conditions": {
+    "edge_gateway_e2e_40_checks_pass": true,
+    "node_gateway_e2e_regression_pass": true,
+    "edge_gateway_exposure_pass": true,
+    "node_gateway_exposure_pass": true,
+    "edge_32_off_plus_parent_403_post_and_get": true,
+    "node_vs_edge_equivalence_only_documented_D1": true,
+    "d1_counterpart_evidence_pass": true,
+    "d1_operator_decision_accepted_and_current": true,
+    "offline_port_unit_tests_pass": true,
+    "inventory_harness_tests_pass": true,
+    "core_contract_v1_1_unit_tests_pass": true,
+    "migrations_guard_ok": true,
+    "bundled_documents_byte_identical": true,
+    "baseline_is_phase2d_certified": true,
+    "gate_is_phase2d_certified": true
+  },
+  "hybrid_conditions": {
+    "r1_remote_inventory_written_by_operator": true,
+    "r1_production_classified_and_not_targeted": true,
+    "r2_local_bootstrap_hash_pinned_verified": true,
+    "r2_local_catalog_16_16_shared_contract": true,
+    "r2_local_acl_equivalent_479_objects_0_mismatches": true,
+    "r2_local_data_api_33_gated_denied_p0_reaches_body_forged_401": true,
+    "r2_local_isolation_no_core_no_egress_no_network_extensions": true,
+    "r2_local_reset_reproducible_run1_eq_run2": true,
+    "r2_local_offline_tests_pass": true,
+    "r2_local_zero_remote_requests": true,
+    "r3_tooling_offline_tests_pass": true,
+    "r3_rollback_prepared_and_rehearsed_offline": true,
+    "r3_core_contract_migrations_and_ledger_rows_on_core_staging": false,
+    "r3_core_contract_function_signed_harness_9_exact_answers": false,
+    "r3_core_contract_acl_anon_authenticated_service_role_certified": false,
+    "r3_d1_positive_login_session_200_logout_403_session_gone": false,
+    "r4_torneos_gateway_local_against_core_remote": false,
+    "r5_hybrid_e2e_core_remote_torneos_local_pass": false,
+    "r5_review_tournament_team_entry_certified_hybrid": false,
+    "b04_frontend_dual_backend_build_certified": false
+  },
+  "remote_to_remote_conditions": {
+    "torneos_nonprod_project_created": false,
+    "torneos_remote_bootstrap_verified_shared_contract": false,
+    "torneos_gateway_deployed_hosted": false,
+    "remote_sso_exchange_pass": false,
+    "remote_allowlisted_rpc_pass_B03_closed": false,
+    "remote_32_off_plus_parent_deny": false,
+    "remote_direct_postgrest_deny": false,
+    "remote_logout_revocation_pass": false,
+    "remote_review_tournament_team_entry_certified": false,
+    "remote_core_contracts_e2e_pass": false
+  },
+  "remote_to_remote": {
+    "status": "REMOTE_TO_REMOTE_PENDING_PRELAUNCH",
+    "blocking": false,
+    "pending": [
+      "torneos_nonprod_project_created",
+      "torneos_remote_bootstrap_verified_shared_contract",
+      "torneos_gateway_deployed_hosted",
+      "remote_sso_exchange_pass",
+      "remote_allowlisted_rpc_pass_B03_closed",
+      "remote_32_off_plus_parent_deny",
+      "remote_direct_postgrest_deny",
+      "remote_logout_revocation_pass",
+      "remote_review_tournament_team_entry_certified",
+      "remote_core_contracts_e2e_pass"
+    ],
+    "note": "Creating the remote Torneos project (R2 remote) and certifying remote-to-remote is the FINAL PRE-LAUNCH GATE; it does not block development or the functional/architectural certification."
+  },
+  "blocking_conditions": [
+    "r3_core_contract_migrations_and_ledger_rows_on_core_staging",
+    "r3_core_contract_function_signed_harness_9_exact_answers",
+    "r3_core_contract_acl_anon_authenticated_service_role_certified",
+    "r3_d1_positive_login_session_200_logout_403_session_gone",
+    "r4_torneos_gateway_local_against_core_remote",
+    "r5_hybrid_e2e_core_remote_torneos_local_pass",
+    "r5_review_tournament_team_entry_certified_hybrid",
+    "b04_frontend_dual_backend_build_certified"
+  ],
+  "drift_informative": {
+    "status": "INFORMATIVE_NO_DRIFT",
+    "blocking": false,
+    "informative": true,
+    "image": "public.ecr.aws/supabase/postgres:17.6.1.147",
+    "image_id": "sha256:ac581882596ed0e46937ea6dd53a627d09f53e005d7264c2082a7ff7b62eaaca",
+    "server_version": "17.6",
+    "compared": 479,
+    "mismatches": 0,
+    "expectations_passed": 16,
+    "material_difference": null,
+    "generated_at": "2026-09-15T20:30:03.325Z"
+  },
+  "documented_differences": [
+    {
+      "name": "D1: Core contract outage, Core-independent RPC",
+      "documented": "D1",
+      "justification": "Both gateways require an online Core session verdict per session-gated request; the Node gateway obtains it DB-to-DB (auth.sessions), the Edge gateway over HTTPS from the Core contract `session` op. With the contract endpoint down the Edge gateway has no authorized transport for the verdict and fails closed; the Node gateway keeps its DB transport. Not reproducible on the Edge gateway without DB-to-DB, a revocation window or a new Core surface.",
+      "counterpart": "evidence/d1-session-authority.json (E2: Node refuses everything when core-db is down; E4: one verdict per Edge request, none cached)"
+    },
+    {
+      "name": "D1: Core contract outage, Core-dependent RPC denied locally on Node",
+      "documented": "D1",
+      "justification": "Both gateways require an online Core session verdict per session-gated request; the Node gateway obtains it DB-to-DB (auth.sessions), the Edge gateway over HTTPS from the Core contract `session` op. With the contract endpoint down the Edge gateway has no authorized transport for the verdict and fails closed; the Node gateway keeps its DB transport. Not reproducible on the Edge gateway without DB-to-DB, a revocation window or a new Core surface.",
+      "counterpart": "evidence/d1-session-authority.json (E2: Node refuses everything when core-db is down; E4: one verdict per Edge request, none cached)"
+    },
+    {
+      "name": "D1: Core contract outage, exchange",
+      "documented": "D1",
+      "justification": "Both gateways require an online Core session verdict per session-gated request; the Node gateway obtains it DB-to-DB (auth.sessions), the Edge gateway over HTTPS from the Core contract `session` op. With the contract endpoint down the Edge gateway has no authorized transport for the verdict and fails closed; the Node gateway keeps its DB transport. Not reproducible on the Edge gateway without DB-to-DB, a revocation window or a new Core surface.",
+      "counterpart": "evidence/d1-session-authority.json (E2: Node refuses everything when core-db is down; E4: one verdict per Edge request, none cached)"
+    }
+  ],
+  "d1_review": {
+    "status": "ACCEPTED — known availability trade-off, not a security regression (operator decision 2026-09-15)",
+    "decision": {
+      "decision": "ACCEPTED",
+      "classification": "KNOWN AVAILABILITY TRADE-OFF, NOT SECURITY REGRESSION",
+      "scope": "Phase 3B (remote Core ↔ Torneos separation, non-production)",
+      "decided_by": "operator (Nico)",
+      "decided_at": "2026-09-15",
+      "difference": "D1",
+      "what_was_accepted": "Both gateways require an ONLINE Core session verdict for every authenticated Torneos request. The Node gateway obtained it DB-to-DB from auth.sessions; the Edge gateway obtains it over HTTPS through the Core contract (`session` op, v1.1). Preserving the Node behaviour during a core-functions outage would require violating a constraint already decided (DB-to-DB, verdict cache / revocation window, shared Core service_role, or a new authority surface on Core).",
+      "approved_remote_semantics": [
+        "every authenticated Torneos request requires a CURRENT Core session verdict",
+        "Core contract unavailable → 503 CORE_UNAVAILABLE",
+        "never serve with a stale session",
+        "revocation / ban / soft-delete stay immediate (next request)",
+        "no verdict cache",
+        "no DB-to-DB between Torneos and Core",
+        "no Core service_role in Torneos"
+      ],
+      "documented_as": "known availability dependency: the availability of the Core Edge Functions runtime (torneos-core-contract) is on the per-request critical path of every session-gated Torneos request, in addition to GoTrue and the Core database that were already on the Node gateway's critical path",
+      "alternatives_rejected": [
+        "A",
+        "B",
+        "C",
+        "D",
+        "E",
+        "F"
+      ],
+      "alternatives_note": "not to be implemented in Phase 3B; A/B degrade revocation, C/D/E expand trust or open a new Core surface, F does not restore equivalence",
+      "basis": {
+        "evidence": [
+          "integration/torneos-core-contracts/evidence/d1-session-authority.json",
+          "integration/torneos-core-contracts/evidence/d1-tests.txt",
+          "integration/torneos-core-contracts/evidence/equivalence-results.json"
+        ],
+        "report_section": "backend/torneos/phase3b/REPORT.md §4.2.1",
+        "summary_expected": {
+          "gotrue_user_alone_refuses": {
+            "not_after": false,
+            "banned": false,
+            "soft_deleted": false,
+            "logout": true
+          },
+          "node_serves_without_online_verdict": false,
+          "edge_serves_without_online_verdict": false,
+          "edge_session_verdicts_per_gated_request": 1,
+          "node_session_verdicts_via_contract": 0,
+          "edge_refusal_when_core_db_down": {
+            "status": 503,
+            "body": "CORE_UNAVAILABLE"
+          }
+        },
+        "note": "the decision is bound to these evidence values, not to file bytes: if a re-run of d1.test.mjs changes any of them, summarize.py marks the decision stale and Phase 3B falls back to BLOCKED until it is re-confirmed"
+      }
+    },
+    "conclusion": "D1 is not a fail-closed regression: neither gateway serves a session-gated request without an online Core session verdict. The difference is the identity of the verdict transport (Node: auth.sessions DB-to-DB; Edge: Core contract `session` over HTTPS). Preserving the Node behaviour on the Edge gateway requires DB-to-DB, a revocation window, or a new Core surface / trust expansion — STOP, decision for the operator.",
+    "summary": {
+      "gotrue_user_alone_refuses": {
+        "not_after": false,
+        "banned": false,
+        "soft_deleted": false,
+        "logout": true
+      },
+      "node_serves_without_online_verdict": false,
+      "edge_serves_without_online_verdict": false,
+      "node_refusal_when_core_db_down": {
+        "status": 401,
+        "body": "access denied",
+        "driver_code": "ENOTFOUND",
+        "note": "pre-existing mapping gap of the certified Node gateway: refusal preserved, status 401 instead of 503"
+      },
+      "edge_refusal_when_core_db_down": {
+        "status": 503,
+        "body": "CORE_UNAVAILABLE"
+      },
+      "d1_class": [
+        "/exchange",
+        "every /torneos/rest/v1 request past the bearer check and the RPC allowlist"
+      ],
+      "d1_root_cause": "the session verdict itself: Node reads auth.sessions DB-to-DB (forbidden for the Edge gateway); Edge obtains it from the Core contract `session` operation over HTTPS, so the contract endpoint IS its session-authority transport",
+      "edge_session_verdicts_per_gated_request": 1,
+      "node_session_verdicts_via_contract": 0
+    }
+  },
+  "evidence": {
+    "e2e_node": "40/40",
+    "e2e_edge": "40/40",
+    "exposure_node": "18/18",
+    "exposure_edge": "18/18",
+    "equivalence": "120/123 identical, 3 instances of the single justified difference D1",
+    "d1_counterpart": "6/6",
+    "baseline_sha256": "f857bd0939054bc1a32a3855894b7b20e14a0c7456c9d5c8c5e8432e5b8ed19f",
+    "gate_sha256": "3df4b96eecc7321eaeda84a480f089fe4bff2b28c20aa4479db92caf33457e62",
+    "verify_sql_sha256_rendered": "0d6ef458d0d46375d8332c6a85e014597a7d30f0d4891d1b62e12df88c9c844c",
+    "expect_sha256": "2c0772c2bda3433e60a44c00b62a8ef79de976c205a7a88379c9e44dfdb81118",
+    "remote_inventory": "20260915T154002Z",
+    "local_torneos_bootstrap": "2026-09-15T20:28:16.347Z",
+    "local_torneos_certify_runs": [
+      {
+        "generated_at": "2026-09-15T17:21:07.178Z",
+        "bootstrap_stamp": "20260915T171938Z",
+        "checks": "14/17",
+        "catalog_hash": null,
+        "api_view_sha256": "c212beccfa46208a589a58dc2fe3934d4a520279bfbcf137e288148e20a794dc",
+        "http_requests": 160
+      },
+      {
+        "generated_at": "2026-09-15T17:23:24.288Z",
+        "bootstrap_stamp": "20260915T171938Z",
+        "checks": "16/17",
+        "catalog_hash": null,
+        "api_view_sha256": "c212beccfa46208a589a58dc2fe3934d4a520279bfbcf137e288148e20a794dc",
+        "http_requests": 160
+      },
+      {
+        "generated_at": "2026-09-15T20:28:00.704Z",
+        "bootstrap_stamp": "20260915T202636Z",
+        "checks": "17/17",
+        "catalog_hash": "617d205bb09d1d4e8c9e7afce8d148b3603f40c0907806d05048072c809c7394",
+        "api_view_sha256": "c212beccfa46208a589a58dc2fe3934d4a520279bfbcf137e288148e20a794dc",
+        "http_requests": 160
+      },
+      {
+        "generated_at": "2026-09-15T20:29:28.653Z",
+        "bootstrap_stamp": "20260915T202810Z",
+        "checks": "17/17",
+        "catalog_hash": "617d205bb09d1d4e8c9e7afce8d148b3603f40c0907806d05048072c809c7394",
+        "api_view_sha256": "c212beccfa46208a589a58dc2fe3934d4a520279bfbcf137e288148e20a794dc",
+        "http_requests": 160
+      }
+    ],
+    "local_torneos_tests": "7/7",
+    "local_torneos_drift": "2026-09-15T20:30:03.325Z",
+    "project_create": null,
+    "bootstrap": null,
+    "core_contract": null,
+    "r3_preflight": "20260917T163745Z",
+    "r3_preflight_failed": {
+      "generated_at": "20260917T161922Z",
+      "stop": "CLI_ROWS_NOT_REPRODUCED"
+    },
+    "r3_offline_rehearsal": "2026-09-17T16:35:27.625Z",
+    "r3_tooling_tests": "20/20",
+    "r3_pins": {
+      "migrations": {
+        "20260914120000": {
+          "sha256": "2967ae6f67e36877c4931cb7821535eab10c5b7312026846f619b14fb045672c",
+          "apply_sql_sha256": "3d3e2845987ccdfd74b77ace51195865234066bb5828280fb0c8114969b84485",
+          "ledger_digest": "09ad7d261523fa1c2bb6e203a1624467"
+        },
+        "20260915120000": {
+          "sha256": "5256413839ad0abe9c9533a675461cc6589fd720e6b2bede3bc8d201a75ce422",
+          "apply_sql_sha256": "859fa7a30dee4a03376a662ab74427927c6a8b8a404556abdd3bfa59e5e5b78c",
+          "ledger_digest": "b424cc66022e7ab721e8070d0b05cdc7"
+        }
+      },
+      "rollback_sql_sha256": "08edcd0e5eb8b614cbc79a1af770f914e26abb523bc90e849f2ceed2a72d6853",
+      "cli_parser_sha256": "1ab11b26450ac384a56bd0e50532bdbfe73ae0fa28905629980e8e7a113e65dd",
+      "deploy_files": {
+        "functions/_shared/supabaseApiKeys.ts": "5d6cc3aec5fbcd2a3b5d46b254957d2275c811b4660ff2e8afdcfa30fc94170a",
+        "functions/_shared/torneosCoreContract.ts": "83d129020be52dbc0e28ca4aa97d27a28fe9b2eded700f9ca6af0e69507812d7",
+        "functions/torneos-core-contract/index.ts": "41e012f03b72d24e1f386ce3902bbab6aff2b2bdcf7ec96a325f588a77b0d269"
+      }
+    },
+    "d1_positive": null,
+    "gateway_deploy": null,
+    "remote_certify": null
+  }
+}

@@ -1,0 +1,241 @@
+{
+  "schema": "R4.2.summary.v1",
+  "stamp": "20260920T163550Z",
+  "mode": "minimal",
+  "utc": "2026-09-20T16:35:55.797Z",
+  "verdict": "R4_MINIMAL_PASS",
+  "steps": [
+    {
+      "name": "handoff_check",
+      "status": "PASS",
+      "r41aStamp": "20260920T163432Z",
+      "r41aSealSHA256": "2d5bcdd5b77c15a7892936fd199a8cefcb49d9234e3e6818c3c38a88bacae63b",
+      "free": true,
+      "r2": {
+        "dbId": true,
+        "dbImage": true,
+        "dbStarted": true,
+        "dbNetworks": true,
+        "dbMounts": true,
+        "dbHealthy": true,
+        "restId": true,
+        "restStarted": true,
+        "restNetworks": true,
+        "catalog": true,
+        "ring": true,
+        "jwks": true,
+        "catalogSHA256": "a45abe402d83c01102d5c007ea02c7095a3e9e49ec7377c407f57acad66ac54e"
+      },
+      "prepared": true,
+      "runJson": false,
+      "auth": false,
+      "r4containers": "",
+      "r4networks": ""
+    },
+    {
+      "name": "core_project_guard",
+      "status": "PASS",
+      "project": "arma2-torneos-staging",
+      "projectStatus": "ACTIVE_HEALTHY"
+    },
+    {
+      "name": "core_contract_function_guard",
+      "status": "PASS",
+      "fn": "torneos-core-contract",
+      "fnStatus": "ACTIVE",
+      "ezbr_sha256": "1072419517953eee8e8021f9691d1a5b1efb1f871c4d13290f644d119caded2c"
+    },
+    {
+      "name": "core_keys",
+      "status": "PASS",
+      "anonKind": "legacy-anon",
+      "serviceKind": "legacy-service_role",
+      "keysListed": 4
+    },
+    {
+      "name": "authorization",
+      "status": "PASS",
+      "expiresAt": "2026-09-20T18:35:59.287Z",
+      "commands": [
+        "start-gateway",
+        "smoke",
+        "certify"
+      ]
+    },
+    {
+      "name": "runner_preflight",
+      "status": "PASS",
+      "evidence": "/Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/evidence/r4-preflight-20260920T163559Z.json"
+    },
+    {
+      "name": "start_gateway",
+      "status": "PASS",
+      "evidence": "/Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/evidence/r4-gateway-start-20260920T163559Z.json"
+    },
+    {
+      "name": "smoke",
+      "status": "PASS",
+      "evidence": "/Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/evidence/r4-smoke-20260920T163604Z.json"
+    },
+    {
+      "name": "minimal_probe",
+      "status": "PASS",
+      "steps": [
+        "qa_user:PASS",
+        "exchange_valid:PASS",
+        "re_exchanges:PASS",
+        "session_calls:PASS",
+        "no_core_unavailable:PASS"
+      ],
+      "verdicts": 61,
+      "cleanup": {
+        "qa": true,
+        "sessions": true,
+        "rows": true,
+        "detail": {
+          "logout": 204,
+          "deleted": true,
+          "deleteStatus": 200,
+          "afterStatus": 404,
+          "id": "4679cdc8-607d-422b-ab27-fa0aab0df9bf",
+          "lastSession": "c753dd53-0099-4ded-97da-9a30819f1da5"
+        },
+        "rowsDetail": {
+          "ok": true,
+          "executed": true,
+          "planned": [
+            "public.torneos_identity"
+          ],
+          "mismatches": [],
+          "error": null
+        },
+        "catalogUnchanged": true
+      }
+    },
+    {
+      "name": "core_sessions_zero",
+      "status": "PASS",
+      "sessions": [
+        {
+          "role": "probe",
+          "id": "4679cdc8",
+          "sessionPresent": false,
+          "userSessions": 0,
+          "deleted": true
+        }
+      ]
+    },
+    {
+      "name": "cleanup",
+      "status": "PASS",
+      "runtime": {
+        "status": "PASS",
+        "removed": [
+          "arma2-r42-20260920t163559z-proxy",
+          "arma2-r42-20260920t163559z-gateway",
+          "arma2-r42-20260920t163559z-internal",
+          "arma2-r42-20260920t163559z-egress"
+        ],
+        "remaining": {
+          "containers": "",
+          "networks": ""
+        },
+        "authorizationRemoved": true,
+        "runJsonRemoved": true,
+        "port58431Free": true
+      },
+      "r2": {
+        "dbId": true,
+        "dbImage": true,
+        "dbStarted": true,
+        "dbNetworks": true,
+        "dbMounts": true,
+        "dbHealthy": true,
+        "restId": true,
+        "restStarted": true,
+        "restNetworks": true,
+        "catalog": true,
+        "ring": true,
+        "jwks": true,
+        "catalogSHA256": "a45abe402d83c01102d5c007ea02c7095a3e9e49ec7377c407f57acad66ac54e"
+      },
+      "torneosRowsOutsideSeed": []
+    }
+  ],
+  "blockers": [],
+  "evidence": {
+    "gatewayStart": {
+      "path": "r4-gateway-start-20260920T163559Z.json",
+      "sha256": "d156c86643d7529dd523f0425dd173271a8817f01e571cee6ba4fd8f23b4c1f6"
+    },
+    "smoke": {
+      "path": "r4-smoke-20260920T163604Z.json",
+      "sha256": "6dc5c58c8ce8f5ce621f9e098561c4ee3364d313a8c9b8c6569fd74465b729f3"
+    },
+    "minimal": {
+      "path": "r4-minimal-20260920T163550Z.json",
+      "sha256": "0d49993d8c6e151117deadc9f76c3f7bcdf99577738d1cbae2684c535a4a5220"
+    },
+    "cleanup": {
+      "path": "r4-cleanup-20260920T163550Z.json",
+      "sha256": "bf2531b0f19587ec1cdef6ed3fc7bad2b7b387d57d0f405a919d4c083679816d"
+    }
+  },
+  "run": "arma2-r42-20260920t163559z",
+  "gatewayBundleSHA256": "cc5b1d451fc9ef4498ad927caee37a65aab90ff44ad6ef1cf77e176f989d7e17",
+  "blocks": [],
+  "informative": [],
+  "totals": null,
+  "liveContracts": null,
+  "r2": {
+    "before": {
+      "dbId": true,
+      "dbImage": true,
+      "dbStarted": true,
+      "dbNetworks": true,
+      "dbMounts": true,
+      "dbHealthy": true,
+      "restId": true,
+      "restStarted": true,
+      "restNetworks": true,
+      "catalog": true,
+      "ring": true,
+      "jwks": true,
+      "catalogSHA256": "a45abe402d83c01102d5c007ea02c7095a3e9e49ec7377c407f57acad66ac54e"
+    },
+    "after": {
+      "dbId": true,
+      "dbImage": true,
+      "dbStarted": true,
+      "dbNetworks": true,
+      "dbMounts": true,
+      "dbHealthy": true,
+      "restId": true,
+      "restStarted": true,
+      "restNetworks": true,
+      "catalog": true,
+      "ring": true,
+      "jwks": true,
+      "catalogSHA256": "a45abe402d83c01102d5c007ea02c7095a3e9e49ec7377c407f57acad66ac54e"
+    }
+  },
+  "r41a": {
+    "stamp": "20260920T163432Z",
+    "sealSHA256": "2d5bcdd5b77c15a7892936fd199a8cefcb49d9234e3e6818c3c38a88bacae63b"
+  },
+  "gatewayStarted": true,
+  "differencesFromHistoricalLab": [
+    "Core is the REAL remote staging project (GoTrue password grant on admin-created QA users; Core contract over HTTPS through the R4.1 exact-SNI proxy) instead of the local Core lab with signup.",
+    "Manager acceptance ran through the live verified_email contract (Phase 2D seeded it); directory_players / directory_teams ran live; team_snapshot was not exercised (no Core team fixture on staging).",
+    "Outages: Core and Torneos REST unreachability injected as /32 route removal inside the run-owned gateway namespace (no fault injected into Core staging or R2 services); contract-specific 5xx/timeout/stale/malformed cases ran on the real gateway modules in the certified Edge runtime with --network none (r4-outage).",
+    "start-gateway invoked as runner preflight + audit.mjs start-gateway (the same provisioning the runner delegates to) to avoid the runner's 45 s child timeout; smoke/certify/cleanup used the sealed runner.",
+    "Direct database-side probes went to the R2 loopback PostgREST (127.0.0.1:58430) instead of an in-network exec."
+  ],
+  "evidenceHashes": {
+    "r4-cleanup-20260920T163550Z.json": "bf2531b0f19587ec1cdef6ed3fc7bad2b7b387d57d0f405a919d4c083679816d",
+    "r4-gateway-start-20260920T163559Z.json": "d156c86643d7529dd523f0425dd173271a8817f01e571cee6ba4fd8f23b4c1f6",
+    "r4-minimal-20260920T163550Z.json": "0d49993d8c6e151117deadc9f76c3f7bcdf99577738d1cbae2684c535a4a5220",
+    "r4-preflight-20260920T163559Z.json": "1a88f75fee3e67b94be4ff739dc526d2764febba8ce38e990812d3e49e550573",
+    "r4-terminal-20260920T163550Z.log": "bb5bcd76a78ef233c7272f81d0497e2bc79775e4c19cbf1281326fa7241e052c"
+  }
+}

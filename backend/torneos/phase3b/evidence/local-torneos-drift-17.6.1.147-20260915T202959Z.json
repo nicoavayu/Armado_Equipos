@@ -1,0 +1,294 @@
+{
+  "generated_at": "2026-09-15T20:30:03.325Z",
+  "tool": "backend/torneos/phase3b/local/drift-torneos-local.mjs",
+  "phase": "3B",
+  "step": "R2-local drift (informative)",
+  "informative": true,
+  "blocking": false,
+  "reference": {
+    "image": "public.ecr.aws/supabase/postgres:17.6.1.143",
+    "image_id": "sha256:80d7b27c3e8d77cfa7226eee9508671796da214781ff15a35b3670d7ad5ee453",
+    "certified_inventory": "backend/torneos/phase2d/evidence/real-image-acl-after-real.json"
+  },
+  "image": "public.ecr.aws/supabase/postgres:17.6.1.147",
+  "image_id": "sha256:ac581882596ed0e46937ea6dd53a627d09f53e005d7264c2082a7ff7b62eaaca",
+  "container": "arma2-torneos-drift-17.6.1.147-20260915t202959z",
+  "network": "none",
+  "baseline_sha256": "f857bd0939054bc1a32a3855894b7b20e14a0c7456c9d5c8c5e8432e5b8ed19f",
+  "gate_sha256": "3df4b96eecc7321eaeda84a480f089fe4bff2b28c20aa4479db92caf33457e62",
+  "verify_sql_sha256": "0d6ef458d0d46375d8332c6a85e014597a7d30f0d4891d1b62e12df88c9c844c",
+  "expect_sha256": "2c0772c2bda3433e60a44c00b62a8ef79de976c205a7a88379c9e44dfdb81118",
+  "server_version": "17.6",
+  "preflight": {
+    "public_relations": 0,
+    "torneos_roles": 0,
+    "identity_table": false,
+    "default_acl_public": [
+      {
+        "role": "postgres",
+        "type": "S",
+        "acl": "{postgres=rwU/postgres,anon=rwU/postgres,authenticated=rwU/postgres,service_role=rwU/postgres}"
+      },
+      {
+        "role": "postgres",
+        "type": "f",
+        "acl": "{postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres}"
+      },
+      {
+        "role": "postgres",
+        "type": "r",
+        "acl": "{postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}"
+      },
+      {
+        "role": "supabase_admin",
+        "type": "S",
+        "acl": "{postgres=rwU/supabase_admin,anon=rwU/supabase_admin,authenticated=rwU/supabase_admin,service_role=rwU/supabase_admin}"
+      },
+      {
+        "role": "supabase_admin",
+        "type": "f",
+        "acl": "{postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+      },
+      {
+        "role": "supabase_admin",
+        "type": "r",
+        "acl": "{postgres=arwdDxtm/supabase_admin,anon=arwdDxtm/supabase_admin,authenticated=arwdDxtm/supabase_admin,service_role=arwdDxtm/supabase_admin}"
+      }
+    ]
+  },
+  "install": {
+    "baseline": "installed",
+    "gate": "installed"
+  },
+  "verification": {
+    "installer": "supabase_admin",
+    "server_version": "17.6",
+    "public_tables": 104,
+    "public_functions": 359,
+    "security_definer": 304,
+    "anon_execute": 12,
+    "authenticated_execute": 147,
+    "service_role_execute": 328,
+    "anon_sequences": 0,
+    "gated_present": 33,
+    "gated_anon_execute": 0,
+    "gated_authenticated_execute": 0,
+    "gated_service_role_execute": 33,
+    "p0_authenticated_execute": true,
+    "identity_rls": true,
+    "roles": [
+      {
+        "rolname": "torneos_core_adapter",
+        "login": false,
+        "inherit": false,
+        "super": false,
+        "bypassrls": false
+      },
+      {
+        "rolname": "torneos_edge_core_adapter",
+        "login": true,
+        "inherit": false,
+        "super": false,
+        "bypassrls": false
+      },
+      {
+        "rolname": "torneos_edge_identity_writer",
+        "login": true,
+        "inherit": false,
+        "super": false,
+        "bypassrls": false
+      },
+      {
+        "rolname": "torneos_identity_writer",
+        "login": false,
+        "inherit": false,
+        "super": false,
+        "bypassrls": false
+      }
+    ],
+    "writer_members": [
+      "torneos_edge_identity_writer"
+    ],
+    "adapter_members": [
+      "torneos_edge_core_adapter"
+    ],
+    "pre_request": [
+      "pgrst.db_pre_request=private.check_token"
+    ],
+    "extensions": [
+      "pg_stat_statements 1.11",
+      "pgcrypto 1.3",
+      "plpgsql 1.0",
+      "supabase_vault 0.3.1",
+      "uuid-ossp 1.1"
+    ],
+    "foreign_servers": 0,
+    "table_owners": [
+      "supabase_admin"
+    ],
+    "function_owners": [
+      "supabase_admin"
+    ],
+    "seeds": {
+      "sport_modalities": 6,
+      "competition_formats": 5,
+      "role_capabilities": 285,
+      "plan_catalog": 2
+    },
+    "cron_jobs": -1,
+    "storage_buckets": -1
+  },
+  "expectations": [
+    {
+      "key": "public_functions",
+      "expected": "359",
+      "got": "359",
+      "ok": true
+    },
+    {
+      "key": "security_definer",
+      "expected": "304",
+      "got": "304",
+      "ok": true
+    },
+    {
+      "key": "anon_execute",
+      "expected": "12",
+      "got": "12",
+      "ok": true
+    },
+    {
+      "key": "authenticated_execute",
+      "expected": "147",
+      "got": "147",
+      "ok": true
+    },
+    {
+      "key": "service_role_execute",
+      "expected": "328",
+      "got": "328",
+      "ok": true
+    },
+    {
+      "key": "anon_sequences",
+      "expected": "0",
+      "got": "0",
+      "ok": true
+    },
+    {
+      "key": "gated_present",
+      "expected": "33",
+      "got": "33",
+      "ok": true
+    },
+    {
+      "key": "gated_anon_execute",
+      "expected": "0",
+      "got": "0",
+      "ok": true
+    },
+    {
+      "key": "gated_authenticated_execute",
+      "expected": "0",
+      "got": "0",
+      "ok": true
+    },
+    {
+      "key": "gated_service_role_execute",
+      "expected": "33",
+      "got": "33",
+      "ok": true
+    },
+    {
+      "key": "p0_authenticated_execute",
+      "expected": "true",
+      "got": "true",
+      "ok": true
+    },
+    {
+      "key": "identity_rls",
+      "expected": "true",
+      "got": "true",
+      "ok": true
+    },
+    {
+      "key": "foreign_servers",
+      "expected": "0",
+      "got": "0",
+      "ok": true
+    },
+    {
+      "key": "writer_members",
+      "expected": "[\"torneos_edge_identity_writer\"]",
+      "got": "[\"torneos_edge_identity_writer\"]",
+      "ok": true
+    },
+    {
+      "key": "adapter_members",
+      "expected": "[\"torneos_edge_core_adapter\"]",
+      "got": "[\"torneos_edge_core_adapter\"]",
+      "ok": true
+    },
+    {
+      "key": "pre_request",
+      "expected": "[\"pgrst.db_pre_request=private.check_token\"]",
+      "got": "[\"pgrst.db_pre_request=private.check_token\"]",
+      "ok": true
+    }
+  ],
+  "expectations_passed": 16,
+  "catalog_hash": "617d205bb09d1d4e8c9e7afce8d148b3603f40c0907806d05048072c809c7394",
+  "equivalence_vs_certified": {
+    "compared": 479,
+    "mismatches": [],
+    "counts": {
+      "functions": 366,
+      "relations": 106,
+      "sequences": 7
+    },
+    "live_view_sha256": "c212beccfa46208a589a58dc2fe3934d4a520279bfbcf137e288148e20a794dc",
+    "certified_view_sha256": "c212beccfa46208a589a58dc2fe3934d4a520279bfbcf137e288148e20a794dc",
+    "live_summary": {
+      "anon_write_privilege_relations": 0,
+      "execute": {
+        "anon": {
+          "private_functions": 2,
+          "public_functions": 12
+        },
+        "authenticated": {
+          "private_functions": 2,
+          "public_functions": 147
+        },
+        "service_role": {
+          "private_functions": 2,
+          "public_functions": 328
+        }
+      },
+      "public_execute_functions": 0,
+      "public_functions": 359,
+      "relation_privilege": {
+        "anon": 78,
+        "authenticated": 80,
+        "service_role": 100
+      },
+      "security_definer_public": 304,
+      "security_definer_total": 305,
+      "sequence_privilege": {
+        "anon": 0,
+        "authenticated": 4,
+        "service_role": 4
+      }
+    }
+  },
+  "extensions": [
+    "pg_stat_statements 1.11",
+    "pgcrypto 1.3",
+    "plpgsql 1.0",
+    "supabase_vault 0.3.1",
+    "uuid-ossp 1.1"
+  ],
+  "status": "INFORMATIVE_NO_DRIFT",
+  "material_difference": null,
+  "container_removed": true,
+  "duration_s": 3
+}

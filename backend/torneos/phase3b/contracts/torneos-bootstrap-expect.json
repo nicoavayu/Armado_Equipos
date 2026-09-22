@@ -1,0 +1,18 @@
+{
+  "public_functions": 359,
+  "security_definer": 304,
+  "anon_execute": 12,
+  "authenticated_execute": 147,
+  "service_role_execute": 328,
+  "anon_sequences": 0,
+  "gated_present": 33,
+  "gated_anon_execute": 0,
+  "gated_authenticated_execute": 0,
+  "gated_service_role_execute": 33,
+  "p0_authenticated_execute": true,
+  "identity_rls": true,
+  "foreign_servers": 0,
+  "writer_members": ["torneos_edge_identity_writer"],
+  "adapter_members": ["torneos_edge_core_adapter"],
+  "pre_request": ["pgrst.db_pre_request=private.check_token"]
+}

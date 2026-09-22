@@ -1,0 +1,35 @@
+BEGIN
+SET
+SELECT 2
+SELECT 5
+DO
+CREATE TABLE
+DO
+DO
+step|t|n|expected
+1|private.core_contract_attestations|2|2
+2|public.tournament_audit_log|32|32
+3|public.tournament_team_invitations|2|2
+4|public.tournament_team_managers|2|2
+5|public.tournament_roster_players|10|10
+6|public.tournament_rosters|3|3
+7|public.tournament_provisional_players|10|10
+8|public.tournament_team_entries|3|3
+9|public.user_tournament_context_preferences|1|1
+10|public.tournament_roster_settings|1|1
+11|public.tournament_categories|2|2
+12|public.tournament_discipline_rules|2|2
+13|public.tournament_scoring_rules|2|2
+14|public.tournament_tiebreak_rules|8|8
+15|public.tournaments|2|2
+16|public.tournament_season_member_assignments|1|1
+17|public.tournament_seasons|2|2
+18|public.tournament_organization_members|4|4
+19|public.user_workspace_preferences|2|2
+20|public.tournament_organizations|2|2
+21|public.torneos_identity|5|5
+(21 rows)
+total_deleted
+98
+(1 row)
+ROLLBACK

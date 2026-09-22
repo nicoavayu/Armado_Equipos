@@ -1,0 +1,692 @@
+PASS src/__tests__/torneosStagingV1Composition.test.jsx
+  ● Console
+
+    console.error
+      Warning: `ReactDOMTestUtils.act` is deprecated in favor of `React.act`. Import `act` from `react` instead of `react-dom/test-utils`. See https://react.dev/warnings/react-dom-test-utils for more info.
+
+      126 | function renderPath(path, adapter = createAdapter()) {
+      127 |   currentPath = path;
+    > 128 |   const utils = render(
+          |                       ^
+      129 |     <MemoryRouter initialEntries={[path]}>
+      130 |       <LocationProbe />
+      131 |       <Routes>
+
+      at printWarning (../arma2/node_modules/react-dom/cjs/react-dom-test-utils.development.js:71:30)
+      at error (../arma2/node_modules/react-dom/cjs/react-dom-test-utils.development.js:45:7)
+      at actWithWarning (../arma2/node_modules/react-dom/cjs/react-dom-test-utils.development.js:1736:7)
+      at ../arma2/node_modules/@testing-library/react/dist/act-compat.js:63:25
+      at renderRoot (../arma2/node_modules/@testing-library/react/dist/pure.js:159:26)
+      at render (../arma2/node_modules/@testing-library/react/dist/pure.js:246:10)
+      at renderPath (src/__tests__/torneosStagingV1Composition.test.jsx:128:23)
+      at Object.<anonymous> (src/__tests__/torneosStagingV1Composition.test.jsx:146:25)
+
+    console.warn
+      ⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.
+
+      126 | function renderPath(path, adapter = createAdapter()) {
+      127 |   currentPath = path;
+    > 128 |   const utils = render(
+          |                       ^
+      129 |     <MemoryRouter initialEntries={[path]}>
+      130 |       <LocationProbe />
+      131 |       <Routes>
+
+      at warnOnce (../arma2/node_modules/react-router/lib/deprecations.ts:9:13)
+      at logDeprecation (../arma2/node_modules/react-router/lib/deprecations.ts:14:3)
+      at logV6DeprecationWarnings (../arma2/node_modules/react-router/lib/deprecations.ts:26:5)
+      at ../arma2/node_modules/react-router/lib/components.tsx:257:25
+      at commitHookEffectListMount (../arma2/node_modules/react-dom/cjs/react-dom.development.js:23189:26)
+      at commitPassiveMountOnFiber (../arma2/node_modules/react-dom/cjs/react-dom.development.js:24970:11)
+      at commitPassiveMountEffects_complete (../arma2/node_modules/react-dom/cjs/react-dom.development.js:24930:9)
+      at commitPassiveMountEffects_begin (../arma2/node_modules/react-dom/cjs/react-dom.development.js:24917:7)
+      at commitPassiveMountEffects (../arma2/node_modules/react-dom/cjs/react-dom.development.js:24905:3)
+      at flushPassiveEffectsImpl (../arma2/node_modules/react-dom/cjs/react-dom.development.js:27078:3)
+      at flushPassiveEffects (../arma2/node_modules/react-dom/cjs/react-dom.development.js:27023:14)
+      at ../arma2/node_modules/react-dom/cjs/react-dom.development.js:26808:9
+      at flushActQueue (../arma2/node_modules/react/cjs/react.development.js:2667:24)
+      at act (../arma2/node_modules/react/cjs/react.development.js:2582:11)
+      at actWithWarning (../arma2/node_modules/react-dom/cjs/react-dom-test-utils.development.js:1740:10)
+      at ../arma2/node_modules/@testing-library/react/dist/act-compat.js:63:25
+      at renderRoot (../arma2/node_modules/@testing-library/react/dist/pure.js:159:26)
+      at render (../arma2/node_modules/@testing-library/react/dist/pure.js:246:10)
+      at renderPath (src/__tests__/torneosStagingV1Composition.test.jsx:128:23)
+      at Object.<anonymous> (src/__tests__/torneosStagingV1Composition.test.jsx:146:25)
+
+    console.warn
+      ⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.
+
+      126 | function renderPath(path, adapter = createAdapter()) {
+      127 |   currentPath = path;
+    > 128 |   const utils = render(
+          |                       ^
+      129 |     <MemoryRouter initialEntries={[path]}>
+      130 |       <LocationProbe />
+      131 |       <Routes>
+
+      at warnOnce (../arma2/node_modules/react-router/lib/deprecations.ts:9:13)
+      at logDeprecation (../arma2/node_modules/react-router/lib/deprecations.ts:14:3)
+      at logV6DeprecationWarnings (../arma2/node_modules/react-router/lib/deprecations.ts:37:5)
+      at ../arma2/node_modules/react-router/lib/components.tsx:257:25
+      at commitHookEffectListMount (../arma2/node_modules/react-dom/cjs/react-dom.development.js:23189:26)
+      at commitPassiveMountOnFiber (../arma2/node_modules/react-dom/cjs/react-dom.development.js:24970:11)
+      at commitPassiveMountEffects_complete (../arma2/node_modules/react-dom/cjs/react-dom.development.js:24930:9)
+      at commitPassiveMountEffects_begin (../arma2/node_modules/react-dom/cjs/react-dom.development.js:24917:7)
+      at commitPassiveMountEffects (../arma2/node_modules/react-dom/cjs/react-dom.development.js:24905:3)
+      at flushPassiveEffectsImpl (../arma2/node_modules/react-dom/cjs/react-dom.development.js:27078:3)
+      at flushPassiveEffects (../arma2/node_modules/react-dom/cjs/react-dom.development.js:27023:14)
+      at ../arma2/node_modules/react-dom/cjs/react-dom.development.js:26808:9
+      at flushActQueue (../arma2/node_modules/react/cjs/react.development.js:2667:24)
+      at act (../arma2/node_modules/react/cjs/react.development.js:2582:11)
+      at actWithWarning (../arma2/node_modules/react-dom/cjs/react-dom-test-utils.development.js:1740:10)
+      at ../arma2/node_modules/@testing-library/react/dist/act-compat.js:63:25
+      at renderRoot (../arma2/node_modules/@testing-library/react/dist/pure.js:159:26)
+      at render (../arma2/node_modules/@testing-library/react/dist/pure.js:246:10)
+      at renderPath (src/__tests__/torneosStagingV1Composition.test.jsx:128:23)
+      at Object.<anonymous> (src/__tests__/torneosStagingV1Composition.test.jsx:146:25)
+
+    console.error
+      Warning: An update to TorneosCompetitionProvider inside a test was not wrapped in act(...).
+      
+      When testing, code that causes React state updates should be wrapped into act(...):
+      
+      act(() => {
+        /* fire events that update state */
+      });
+      /* assert on the output */
+      
+      This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+          at TorneosCompetitionProvider (/Users/nicoavayu/Downloads/arma2/arma2-b04-dual-backend-foundation/src/features/torneos/context/TorneosCompetitionContext.jsx:63:3)
+          at OrganizationRouteGuard (/Users/nicoavayu/Downloads/arma2/arma2-b04-dual-backend-foundation/src/features/torneos/components/OrganizationRouteGuard.jsx:10:39)
+          at RenderedRoute (/Users/nicoavayu/Downloads/arma2/arma2/node_modules/react-router/lib/hooks.tsx:658:26)
+          at Routes (/Users/nicoavayu/Downloads/arma2/arma2/node_modules/react-router/lib/components.tsx:512:3)
+          at main
+          at section
+          at div
+          at TorneosShell (/Users/nicoavayu/Downloads/arma2/arma2-b04-dual-backend-foundation/src/features/torneos/components/TorneosShell.jsx:313:31)
+          at TorneosWorkspaceProvider (/Users/nicoavayu/Downloads/arma2/arma2-b04-dual-backend-foundation/src/features/torneos/context/TorneosWorkspaceContext.jsx:64:3)
+          at TorneosFeaturesProvider (/Users/nicoavayu/Downloads/arma2/arma2-b04-dual-backend-foundation/src/features/torneos/context/TorneosFeaturesContext.jsx:10:43)
+          at StagingV1TorneosApp (/Users/nicoavayu/Downloads/arma2/arma2-b04-dual-backend-foundation/src/features/torneos/stagingV1/StagingV1TorneosApp.jsx:20:3)
+          at RenderedRoute (/Users/nicoavayu/Downloads/arma2/arma2/node_modules/react-router/lib/hooks.tsx:658:26)
+          at Routes (/Users/nicoavayu/Downloads/arma2/arma2/node_modules/react-router/lib/components.tsx:512:3)
+          at Router (/Users/nicoavayu/Downloads/arma2/arma2/node_modules/react-router/lib/components.tsx:421:13)
+          at MemoryRouter (/Users/nicoavayu/Downloads/arma2/arma2/node_modules/react-router/lib/components.tsx:225:3)
+
+      131 |       );
+      132 |       if (!mountedRef.current || requestRef.current !== requestId) return normalized;
+    > 133 |       setState((current) => ({
+          |       ^
+      134 |         ...current,
+      135 |         ...normalized,
+      136 |         status: 'ready',
+
+      at printWarning (../arma2/node_modules/react-dom/cjs/react-dom.development.js:86:30)
+      at error (../arma2/node_modules/react-dom/cjs/react-dom.development.js:60:7)
+      at warnIfUpdatesNotWrappedWithActDEV (../arma2/node_modules/react-dom/cjs/react-dom.development.js:27628:9)
+      at scheduleUpdateOnFiber (../arma2/node_modules/react-dom/cjs/react-dom.development.js:25547:5)
+      at setState (../arma2/node_modules/react-dom/cjs/react-dom.development.js:16708:7)
+      at src/features/torneos/context/TorneosCompetitionContext.jsx:133:7
+
+    console.error
+      Warning: An update to TorneosCompetitionProvider inside a test was not wrapped in act(...).
+      
+      When testing, code that causes React state updates should be wrapped into act(...):
+      
+      act(() => {
+        /* fire events that update state */
+      });
+      /* assert on the output */
+      
+      This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+          at TorneosCompetitionProvider (/Users/nicoavayu/Downloads/arma2/arma2-b04-dual-backend-foundation/src/features/torneos/context/TorneosCompetitionContext.jsx:63:3)
+          at OrganizationRouteGuard (/Users/nicoavayu/Downloads/arma2/arma2-b04-dual-backend-foundation/src/features/torneos/components/OrganizationRouteGuard.jsx:10:39)
+          at RenderedRoute (/Users/nicoavayu/Downloads/arma2/arma2/node_modules/react-router/lib/hooks.tsx:658:26)
+          at Routes (/Users/nicoavayu/Downloads/arma2/arma2/node_modules/react-router/lib/components.tsx:512:3)
+          at main
+          at section
+          at div
+          at TorneosShell (/Users/nicoavayu/Downloads/arma2/arma2-b04-dual-backend-foundation/src/features/torneos/components/TorneosShell.jsx:313:31)
+          at TorneosWorkspaceProvider (/Users/nicoavayu/Downloads/arma2/arma2-b04-dual-backend-foundation/src/features/torneos/context/TorneosWorkspaceContext.jsx:64:3)
+          at TorneosFeaturesProvider (/Users/nicoavayu/Downloads/arma2/arma2-b04-dual-backend-foundation/src/features/torneos/context/TorneosFeaturesContext.jsx:10:43)
+          at StagingV1TorneosApp (/Users/nicoavayu/Downloads/arma2/arma2-b04-dual-backend-foundation/src/features/torneos/stagingV1/StagingV1TorneosApp.jsx:20:3)
+          at RenderedRoute (/Users/nicoavayu/Downloads/arma2/arma2/node_modules/react-router/lib/hooks.tsx:658:26)
+          at Routes (/Users/nicoavayu/Downloads/arma2/arma2/node_modules/react-router/lib/components.tsx:512:3)
+          at Router (/Users/nicoavayu/Downloads/arma2/arma2/node_modules/react-router/lib/components.tsx:421:13)
+          at MemoryRouter (/Users/nicoavayu/Downloads/arma2/arma2/node_modules/react-router/lib/components.tsx:225:3)
+
+      131 |       );
+      132 |       if (!mountedRef.current || requestRef.current !== requestId) return normalized;
+    > 133 |       setState((current) => ({
+          |       ^
+      134 |         ...current,
+      135 |         ...normalized,
+      136 |         status: 'ready',
+
+      at printWarning (../arma2/node_modules/react-dom/cjs/react-dom.development.js:86:30)
+      at error (../arma2/node_modules/react-dom/cjs/react-dom.development.js:60:7)
+      at warnIfUpdatesNotWrappedWithActDEV (../arma2/node_modules/react-dom/cjs/react-dom.development.js:27628:9)
+      at scheduleUpdateOnFiber (../arma2/node_modules/react-dom/cjs/react-dom.development.js:25547:5)
+      at setState (../arma2/node_modules/react-dom/cjs/react-dom.development.js:16708:7)
+      at src/features/torneos/context/TorneosCompetitionContext.jsx:133:7
+
+    console.error
+      Warning: An update to TorneosCompetitionProvider inside a test was not wrapped in act(...).
+      
+      When testing, code that causes React state updates should be wrapped into act(...):
+      
+      act(() => {
+        /* fire events that update state */
+      });
+      /* assert on the output */
+      
+      This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+          at TorneosCompetitionProvider (/Users/nicoavayu/Downloads/arma2/arma2-b04-dual-backend-foundation/src/features/torneos/context/TorneosCompetitionContext.jsx:63:3)
+          at OrganizationRouteGuard (/Users/nicoavayu/Downloads/arma2/arma2-b04-dual-backend-foundation/src/features/torneos/components/OrganizationRouteGuard.jsx:10:39)
+          at RenderedRoute (/Users/nicoavayu/Downloads/arma2/arma2/node_modules/react-router/lib/hooks.tsx:658:26)
+          at Routes (/Users/nicoavayu/Downloads/arma2/arma2/node_modules/react-router/lib/components.tsx:512:3)
+          at main
+          at section
+          at div
+          at TorneosShell (/Users/nicoavayu/Downloads/arma2/arma2-b04-dual-backend-foundation/src/features/torneos/components/TorneosShell.jsx:313:31)
+          at TorneosWorkspaceProvider (/Users/nicoavayu/Downloads/arma2/arma2-b04-dual-backend-foundation/src/features/torneos/context/TorneosWorkspaceContext.jsx:64:3)
+          at TorneosFeaturesProvider (/Users/nicoavayu/Downloads/arma2/arma2-b04-dual-backend-foundation/src/features/torneos/context/TorneosFeaturesContext.jsx:10:43)
+          at StagingV1TorneosApp (/Users/nicoavayu/Downloads/arma2/arma2-b04-dual-backend-foundation/src/features/torneos/stagingV1/StagingV1TorneosApp.jsx:20:3)
+          at RenderedRoute (/Users/nicoavayu/Downloads/arma2/arma2/node_modules/react-router/lib/hooks.tsx:658:26)
+          at Routes (/Users/nicoavayu/Downloads/arma2/arma2/node_modules/react-router/lib/components.tsx:512:3)
+          at Router (/Users/nicoavayu/Downloads/arma2/arma2/node_modules/react-router/lib/components.tsx:421:13)
+          at MemoryRouter (/Users/nicoavayu/Downloads/arma2/arma2/node_modules/react-router/lib/components.tsx:225:3)
+
+      131 |       );
+      132 |       if (!mountedRef.current || requestRef.current !== requestId) return normalized;
+    > 133 |       setState((current) => ({
+          |       ^
+      134 |         ...current,
+      135 |         ...normalized,
+      136 |         status: 'ready',
+
+      at printWarning (../arma2/node_modules/react-dom/cjs/react-dom.development.js:86:30)
+      at error (../arma2/node_modules/react-dom/cjs/react-dom.development.js:60:7)
+      at warnIfUpdatesNotWrappedWithActDEV (../arma2/node_modules/react-dom/cjs/react-dom.development.js:27628:9)
+      at scheduleUpdateOnFiber (../arma2/node_modules/react-dom/cjs/react-dom.development.js:25547:5)
+      at setState (../arma2/node_modules/react-dom/cjs/react-dom.development.js:16708:7)
+      at src/features/torneos/context/TorneosCompetitionContext.jsx:133:7
+
+    console.error
+      Warning: An update to TorneosCompetitionProvider inside a test was not wrapped in act(...).
+      
+      When testing, code that causes React state updates should be wrapped into act(...):
+      
+      act(() => {
+        /* fire events that update state */
+      });
+      /* assert on the output */
+      
+      This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+          at TorneosCompetitionProvider (/Users/nicoavayu/Downloads/arma2/arma2-b04-dual-backend-foundation/src/features/torneos/context/TorneosCompetitionContext.jsx:63:3)
+          at OrganizationRouteGuard (/Users/nicoavayu/Downloads/arma2/arma2-b04-dual-backend-foundation/src/features/torneos/components/OrganizationRouteGuard.jsx:10:39)
+          at RenderedRoute (/Users/nicoavayu/Downloads/arma2/arma2/node_modules/react-router/lib/hooks.tsx:658:26)
+          at Routes (/Users/nicoavayu/Downloads/arma2/arma2/node_modules/react-router/lib/components.tsx:512:3)
+          at main
+          at section
+          at div
+          at TorneosShell (/Users/nicoavayu/Downloads/arma2/arma2-b04-dual-backend-foundation/src/features/torneos/components/TorneosShell.jsx:313:31)
+          at TorneosWorkspaceProvider (/Users/nicoavayu/Downloads/arma2/arma2-b04-dual-backend-foundation/src/features/torneos/context/TorneosWorkspaceContext.jsx:64:3)
+          at TorneosFeaturesProvider (/Users/nicoavayu/Downloads/arma2/arma2-b04-dual-backend-foundation/src/features/torneos/context/TorneosFeaturesContext.jsx:10:43)
+          at StagingV1TorneosApp (/Users/nicoavayu/Downloads/arma2/arma2-b04-dual-backend-foundation/src/features/torneos/stagingV1/StagingV1TorneosApp.jsx:20:3)
+          at RenderedRoute (/Users/nicoavayu/Downloads/arma2/arma2/node_modules/react-router/lib/hooks.tsx:658:26)
+          at Routes (/Users/nicoavayu/Downloads/arma2/arma2/node_modules/react-router/lib/components.tsx:512:3)
+          at Router (/Users/nicoavayu/Downloads/arma2/arma2/node_modules/react-router/lib/components.tsx:421:13)
+          at MemoryRouter (/Users/nicoavayu/Downloads/arma2/arma2/node_modules/react-router/lib/components.tsx:225:3)
+
+      131 |       );
+      132 |       if (!mountedRef.current || requestRef.current !== requestId) return normalized;
+    > 133 |       setState((current) => ({
+          |       ^
+      134 |         ...current,
+      135 |         ...normalized,
+      136 |         status: 'ready',
+
+      at printWarning (../arma2/node_modules/react-dom/cjs/react-dom.development.js:86:30)
+      at error (../arma2/node_modules/react-dom/cjs/react-dom.development.js:60:7)
+      at warnIfUpdatesNotWrappedWithActDEV (../arma2/node_modules/react-dom/cjs/react-dom.development.js:27628:9)
+      at scheduleUpdateOnFiber (../arma2/node_modules/react-dom/cjs/react-dom.development.js:25547:5)
+      at setState (../arma2/node_modules/react-dom/cjs/react-dom.development.js:16708:7)
+      at src/features/torneos/context/TorneosCompetitionContext.jsx:133:7
+
+    console.error
+      Warning: An update to TorneosWorkspaceProvider inside a test was not wrapped in act(...).
+      
+      When testing, code that causes React state updates should be wrapped into act(...):
+      
+      act(() => {
+        /* fire events that update state */
+      });
+      /* assert on the output */
+      
+      This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+          at TorneosWorkspaceProvider (/Users/nicoavayu/Downloads/arma2/arma2-b04-dual-backend-foundation/src/features/torneos/context/TorneosWorkspaceContext.jsx:64:3)
+          at TorneosFeaturesProvider (/Users/nicoavayu/Downloads/arma2/arma2-b04-dual-backend-foundation/src/features/torneos/context/TorneosFeaturesContext.jsx:10:43)
+          at StagingV1TorneosApp (/Users/nicoavayu/Downloads/arma2/arma2-b04-dual-backend-foundation/src/features/torneos/stagingV1/StagingV1TorneosApp.jsx:20:3)
+          at RenderedRoute (/Users/nicoavayu/Downloads/arma2/arma2/node_modules/react-router/lib/hooks.tsx:658:26)
+          at Routes (/Users/nicoavayu/Downloads/arma2/arma2/node_modules/react-router/lib/components.tsx:512:3)
+          at Router (/Users/nicoavayu/Downloads/arma2/arma2/node_modules/react-router/lib/components.tsx:421:13)
+          at MemoryRouter (/Users/nicoavayu/Downloads/arma2/arma2/node_modules/react-router/lib/components.tsx:225:3)
+
+      112 |         ) return normalized;
+      113 |         persistValidatedHint(normalized.preference);
+    > 114 |         setState((current) => ({
+          |         ^
+      115 |           ...current,
+      116 |           ...normalized,
+      117 |           status: 'ready',
+
+      at printWarning (../arma2/node_modules/react-dom/cjs/react-dom.development.js:86:30)
+      at error (../arma2/node_modules/react-dom/cjs/react-dom.development.js:60:7)
+      at warnIfUpdatesNotWrappedWithActDEV (../arma2/node_modules/react-dom/cjs/react-dom.development.js:27628:9)
+      at scheduleUpdateOnFiber (../arma2/node_modules/react-dom/cjs/react-dom.development.js:25547:5)
+      at setState (../arma2/node_modules/react-dom/cjs/react-dom.development.js:16708:7)
+      at src/features/torneos/context/TorneosWorkspaceContext.jsx:114:9
+
+    console.error
+      Warning: An update to TorneosWorkspaceProvider inside a test was not wrapped in act(...).
+      
+      When testing, code that causes React state updates should be wrapped into act(...):
+      
+      act(() => {
+        /* fire events that update state */
+      });
+      /* assert on the output */
+      
+      This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+          at TorneosWorkspaceProvider (/Users/nicoavayu/Downloads/arma2/arma2-b04-dual-backend-foundation/src/features/torneos/context/TorneosWorkspaceContext.jsx:64:3)
+          at TorneosFeaturesProvider (/Users/nicoavayu/Downloads/arma2/arma2-b04-dual-backend-foundation/src/features/torneos/context/TorneosFeaturesContext.jsx:10:43)
+          at StagingV1TorneosApp (/Users/nicoavayu/Downloads/arma2/arma2-b04-dual-backend-foundation/src/features/torneos/stagingV1/StagingV1TorneosApp.jsx:20:3)
+          at RenderedRoute (/Users/nicoavayu/Downloads/arma2/arma2/node_modules/react-router/lib/hooks.tsx:658:26)
+          at Routes (/Users/nicoavayu/Downloads/arma2/arma2/node_modules/react-router/lib/components.tsx:512:3)
+          at Router (/Users/nicoavayu/Downloads/arma2/arma2/node_modules/react-router/lib/components.tsx:421:13)
+          at MemoryRouter (/Users/nicoavayu/Downloads/arma2/arma2/node_modules/react-router/lib/components.tsx:225:3)
+
+      112 |         ) return normalized;
+      113 |         persistValidatedHint(normalized.preference);
+    > 114 |         setState((current) => ({
+          |         ^
+      115 |           ...current,
+      116 |           ...normalized,
+      117 |           status: 'ready',
+
+      at printWarning (../arma2/node_modules/react-dom/cjs/react-dom.development.js:86:30)
+      at error (../arma2/node_modules/react-dom/cjs/react-dom.development.js:60:7)
+      at warnIfUpdatesNotWrappedWithActDEV (../arma2/node_modules/react-dom/cjs/react-dom.development.js:27628:9)
+      at scheduleUpdateOnFiber (../arma2/node_modules/react-dom/cjs/react-dom.development.js:25547:5)
+      at setState (../arma2/node_modules/react-dom/cjs/react-dom.development.js:16708:7)
+      at src/features/torneos/context/TorneosWorkspaceContext.jsx:114:9
+
+    console.error
+      Warning: An update to TorneosWorkspaceProvider inside a test was not wrapped in act(...).
+      
+      When testing, code that causes React state updates should be wrapped into act(...):
+      
+      act(() => {
+        /* fire events that update state */
+      });
+      /* assert on the output */
+      
+      This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+          at TorneosWorkspaceProvider (/Users/nicoavayu/Downloads/arma2/arma2-b04-dual-backend-foundation/src/features/torneos/context/TorneosWorkspaceContext.jsx:64:3)
+          at TorneosFeaturesProvider (/Users/nicoavayu/Downloads/arma2/arma2-b04-dual-backend-foundation/src/features/torneos/context/TorneosFeaturesContext.jsx:10:43)
+          at StagingV1TorneosApp (/Users/nicoavayu/Downloads/arma2/arma2-b04-dual-backend-foundation/src/features/torneos/stagingV1/StagingV1TorneosApp.jsx:20:3)
+          at RenderedRoute (/Users/nicoavayu/Downloads/arma2/arma2/node_modules/react-router/lib/hooks.tsx:658:26)
+          at Routes (/Users/nicoavayu/Downloads/arma2/arma2/node_modules/react-router/lib/components.tsx:512:3)
+          at Router (/Users/nicoavayu/Downloads/arma2/arma2/node_modules/react-router/lib/components.tsx:421:13)
+          at MemoryRouter (/Users/nicoavayu/Downloads/arma2/arma2/node_modules/react-router/lib/components.tsx:225:3)
+
+      112 |         ) return normalized;
+      113 |         persistValidatedHint(normalized.preference);
+    > 114 |         setState((current) => ({
+          |         ^
+      115 |           ...current,
+      116 |           ...normalized,
+      117 |           status: 'ready',
+
+      at printWarning (../arma2/node_modules/react-dom/cjs/react-dom.development.js:86:30)
+      at error (../arma2/node_modules/react-dom/cjs/react-dom.development.js:60:7)
+      at warnIfUpdatesNotWrappedWithActDEV (../arma2/node_modules/react-dom/cjs/react-dom.development.js:27628:9)
+      at scheduleUpdateOnFiber (../arma2/node_modules/react-dom/cjs/react-dom.development.js:25547:5)
+      at setState (../arma2/node_modules/react-dom/cjs/react-dom.development.js:16708:7)
+      at src/features/torneos/context/TorneosWorkspaceContext.jsx:114:9
+
+    console.error
+      Warning: An update to TorneosWorkspaceProvider inside a test was not wrapped in act(...).
+      
+      When testing, code that causes React state updates should be wrapped into act(...):
+      
+      act(() => {
+        /* fire events that update state */
+      });
+      /* assert on the output */
+      
+      This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+          at TorneosWorkspaceProvider (/Users/nicoavayu/Downloads/arma2/arma2-b04-dual-backend-foundation/src/features/torneos/context/TorneosWorkspaceContext.jsx:64:3)
+          at TorneosFeaturesProvider (/Users/nicoavayu/Downloads/arma2/arma2-b04-dual-backend-foundation/src/features/torneos/context/TorneosFeaturesContext.jsx:10:43)
+          at StagingV1TorneosApp (/Users/nicoavayu/Downloads/arma2/arma2-b04-dual-backend-foundation/src/features/torneos/stagingV1/StagingV1TorneosApp.jsx:20:3)
+          at RenderedRoute (/Users/nicoavayu/Downloads/arma2/arma2/node_modules/react-router/lib/hooks.tsx:658:26)
+          at Routes (/Users/nicoavayu/Downloads/arma2/arma2/node_modules/react-router/lib/components.tsx:512:3)
+          at Router (/Users/nicoavayu/Downloads/arma2/arma2/node_modules/react-router/lib/components.tsx:421:13)
+          at MemoryRouter (/Users/nicoavayu/Downloads/arma2/arma2/node_modules/react-router/lib/components.tsx:225:3)
+
+      112 |         ) return normalized;
+      113 |         persistValidatedHint(normalized.preference);
+    > 114 |         setState((current) => ({
+          |         ^
+      115 |           ...current,
+      116 |           ...normalized,
+      117 |           status: 'ready',
+
+      at printWarning (../arma2/node_modules/react-dom/cjs/react-dom.development.js:86:30)
+      at error (../arma2/node_modules/react-dom/cjs/react-dom.development.js:60:7)
+      at warnIfUpdatesNotWrappedWithActDEV (../arma2/node_modules/react-dom/cjs/react-dom.development.js:27628:9)
+      at scheduleUpdateOnFiber (../arma2/node_modules/react-dom/cjs/react-dom.development.js:25547:5)
+      at setState (../arma2/node_modules/react-dom/cjs/react-dom.development.js:16708:7)
+      at src/features/torneos/context/TorneosWorkspaceContext.jsx:114:9
+
+    console.error
+      Warning: An update to TorneosCompetitionProvider inside a test was not wrapped in act(...).
+      
+      When testing, code that causes React state updates should be wrapped into act(...):
+      
+      act(() => {
+        /* fire events that update state */
+      });
+      /* assert on the output */
+      
+      This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+          at TorneosCompetitionProvider (/Users/nicoavayu/Downloads/arma2/arma2-b04-dual-backend-foundation/src/features/torneos/context/TorneosCompetitionContext.jsx:63:3)
+          at OrganizationRouteGuard (/Users/nicoavayu/Downloads/arma2/arma2-b04-dual-backend-foundation/src/features/torneos/components/OrganizationRouteGuard.jsx:10:39)
+          at RenderedRoute (/Users/nicoavayu/Downloads/arma2/arma2/node_modules/react-router/lib/hooks.tsx:658:26)
+          at Routes (/Users/nicoavayu/Downloads/arma2/arma2/node_modules/react-router/lib/components.tsx:512:3)
+          at main
+          at section
+          at div
+          at TorneosShell (/Users/nicoavayu/Downloads/arma2/arma2-b04-dual-backend-foundation/src/features/torneos/components/TorneosShell.jsx:313:31)
+          at TorneosWorkspaceProvider (/Users/nicoavayu/Downloads/arma2/arma2-b04-dual-backend-foundation/src/features/torneos/context/TorneosWorkspaceContext.jsx:64:3)
+          at TorneosFeaturesProvider (/Users/nicoavayu/Downloads/arma2/arma2-b04-dual-backend-foundation/src/features/torneos/context/TorneosFeaturesContext.jsx:10:43)
+          at StagingV1TorneosApp (/Users/nicoavayu/Downloads/arma2/arma2-b04-dual-backend-foundation/src/features/torneos/stagingV1/StagingV1TorneosApp.jsx:20:3)
+          at RenderedRoute (/Users/nicoavayu/Downloads/arma2/arma2/node_modules/react-router/lib/hooks.tsx:658:26)
+          at Routes (/Users/nicoavayu/Downloads/arma2/arma2/node_modules/react-router/lib/components.tsx:512:3)
+          at Router (/Users/nicoavayu/Downloads/arma2/arma2/node_modules/react-router/lib/components.tsx:421:13)
+          at MemoryRouter (/Users/nicoavayu/Downloads/arma2/arma2/node_modules/react-router/lib/components.tsx:225:3)
+
+      131 |       );
+      132 |       if (!mountedRef.current || requestRef.current !== requestId) return normalized;
+    > 133 |       setState((current) => ({
+          |       ^
+      134 |         ...current,
+      135 |         ...normalized,
+      136 |         status: 'ready',
+
+      at printWarning (../arma2/node_modules/react-dom/cjs/react-dom.development.js:86:30)
+      at error (../arma2/node_modules/react-dom/cjs/react-dom.development.js:60:7)
+      at warnIfUpdatesNotWrappedWithActDEV (../arma2/node_modules/react-dom/cjs/react-dom.development.js:27628:9)
+      at scheduleUpdateOnFiber (../arma2/node_modules/react-dom/cjs/react-dom.development.js:25547:5)
+      at setState (../arma2/node_modules/react-dom/cjs/react-dom.development.js:16708:7)
+      at src/features/torneos/context/TorneosCompetitionContext.jsx:133:7
+
+    console.error
+      Warning: An update to TorneosDashboard inside a test was not wrapped in act(...).
+      
+      When testing, code that causes React state updates should be wrapped into act(...):
+      
+      act(() => {
+        /* fire events that update state */
+      });
+      /* assert on the output */
+      
+      This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+          at TorneosDashboard (/Users/nicoavayu/Downloads/arma2/arma2-b04-dual-backend-foundation/src/features/torneos/components/TorneosDashboard.jsx:75:44)
+          at RenderedRoute (/Users/nicoavayu/Downloads/arma2/arma2/node_modules/react-router/lib/hooks.tsx:658:26)
+          at Outlet (/Users/nicoavayu/Downloads/arma2/arma2/node_modules/react-router/lib/components.tsx:341:26)
+          at TorneosFixtureProvider (/Users/nicoavayu/Downloads/arma2/arma2-b04-dual-backend-foundation/src/features/torneos/context/TorneosFixtureContext.jsx:33:3)
+          at TorneosCompetitionProvider (/Users/nicoavayu/Downloads/arma2/arma2-b04-dual-backend-foundation/src/features/torneos/context/TorneosCompetitionContext.jsx:63:3)
+          at OrganizationRouteGuard (/Users/nicoavayu/Downloads/arma2/arma2-b04-dual-backend-foundation/src/features/torneos/components/OrganizationRouteGuard.jsx:10:39)
+          at RenderedRoute (/Users/nicoavayu/Downloads/arma2/arma2/node_modules/react-router/lib/hooks.tsx:658:26)
+          at Routes (/Users/nicoavayu/Downloads/arma2/arma2/node_modules/react-router/lib/components.tsx:512:3)
+          at main
+          at section
+          at div
+          at TorneosShell (/Users/nicoavayu/Downloads/arma2/arma2-b04-dual-backend-foundation/src/features/torneos/components/TorneosShell.jsx:313:31)
+          at TorneosWorkspaceProvider (/Users/nicoavayu/Downloads/arma2/arma2-b04-dual-backend-foundation/src/features/torneos/context/TorneosWorkspaceContext.jsx:64:3)
+          at TorneosFeaturesProvider (/Users/nicoavayu/Downloads/arma2/arma2-b04-dual-backend-foundation/src/features/torneos/context/TorneosFeaturesContext.jsx:10:43)
+          at StagingV1TorneosApp (/Users/nicoavayu/Downloads/arma2/arma2-b04-dual-backend-foundation/src/features/torneos/stagingV1/StagingV1TorneosApp.jsx:20:3)
+          at RenderedRoute (/Users/nicoavayu/Downloads/arma2/arma2/node_modules/react-router/lib/hooks.tsx:658:26)
+          at Routes (/Users/nicoavayu/Downloads/arma2/arma2/node_modules/react-router/lib/components.tsx:512:3)
+          at Router (/Users/nicoavayu/Downloads/arma2/arma2/node_modules/react-router/lib/components.tsx:421:13)
+          at MemoryRouter (/Users/nicoavayu/Downloads/arma2/arma2/node_modules/react-router/lib/components.tsx:225:3)
+
+      151 |           ? minimumValue
+      152 |           : null;
+    > 153 |         setTeamsSummary({
+          |         ^
+      154 |           status: 'ready',
+      155 |           error: '',
+      156 |           data: {
+
+      at printWarning (../arma2/node_modules/react-dom/cjs/react-dom.development.js:86:30)
+      at error (../arma2/node_modules/react-dom/cjs/react-dom.development.js:60:7)
+      at warnIfUpdatesNotWrappedWithActDEV (../arma2/node_modules/react-dom/cjs/react-dom.development.js:27628:9)
+      at scheduleUpdateOnFiber (../arma2/node_modules/react-dom/cjs/react-dom.development.js:25547:5)
+      at setTeamsSummary (../arma2/node_modules/react-dom/cjs/react-dom.development.js:16708:7)
+      at src/features/torneos/components/TorneosDashboard.jsx:153:9
+
+    console.error
+      Warning: An update to TorneosLanding inside a test was not wrapped in act(...).
+      
+      When testing, code that causes React state updates should be wrapped into act(...):
+      
+      act(() => {
+        /* fire events that update state */
+      });
+      /* assert on the output */
+      
+      This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+          at TorneosLanding (/Users/nicoavayu/Downloads/arma2/arma2-b04-dual-backend-foundation/src/features/torneos/components/TorneosLanding.jsx:63:31)
+          at RenderedRoute (/Users/nicoavayu/Downloads/arma2/arma2/node_modules/react-router/lib/hooks.tsx:658:26)
+          at Routes (/Users/nicoavayu/Downloads/arma2/arma2/node_modules/react-router/lib/components.tsx:512:3)
+          at main
+          at section
+          at div
+          at TorneosShell (/Users/nicoavayu/Downloads/arma2/arma2-b04-dual-backend-foundation/src/features/torneos/components/TorneosShell.jsx:313:31)
+          at TorneosWorkspaceProvider (/Users/nicoavayu/Downloads/arma2/arma2-b04-dual-backend-foundation/src/features/torneos/context/TorneosWorkspaceContext.jsx:64:3)
+          at TorneosFeaturesProvider (/Users/nicoavayu/Downloads/arma2/arma2-b04-dual-backend-foundation/src/features/torneos/context/TorneosFeaturesContext.jsx:10:43)
+          at StagingV1TorneosApp (/Users/nicoavayu/Downloads/arma2/arma2-b04-dual-backend-foundation/src/features/torneos/stagingV1/StagingV1TorneosApp.jsx:20:3)
+          at RenderedRoute (/Users/nicoavayu/Downloads/arma2/arma2/node_modules/react-router/lib/hooks.tsx:658:26)
+          at Routes (/Users/nicoavayu/Downloads/arma2/arma2/node_modules/react-router/lib/components.tsx:512:3)
+          at Router (/Users/nicoavayu/Downloads/arma2/arma2/node_modules/react-router/lib/components.tsx:421:13)
+          at MemoryRouter (/Users/nicoavayu/Downloads/arma2/arma2/node_modules/react-router/lib/components.tsx:225:3)
+
+      91 |         : await service.loadMyTournaments({ limit: 50, offset: 0 });
+      92 |       if (relationsRequestRef.current !== requestId) return;
+    > 93 |       setRelationsState({
+         |       ^
+      94 |         status: 'ready',
+      95 |         relations: Array.isArray(payload?.items) ? payload.items : [],
+      96 |         error: '',
+
+      at printWarning (../arma2/node_modules/react-dom/cjs/react-dom.development.js:86:30)
+      at error (../arma2/node_modules/react-dom/cjs/react-dom.development.js:60:7)
+      at warnIfUpdatesNotWrappedWithActDEV (../arma2/node_modules/react-dom/cjs/react-dom.development.js:27628:9)
+      at scheduleUpdateOnFiber (../arma2/node_modules/react-dom/cjs/react-dom.development.js:25547:5)
+      at setRelationsState (../arma2/node_modules/react-dom/cjs/react-dom.development.js:16708:7)
+      at src/features/torneos/components/TorneosLanding.jsx:93:7
+
+    console.error
+      Warning: An update to TorneosWorkspaceProvider inside a test was not wrapped in act(...).
+      
+      When testing, code that causes React state updates should be wrapped into act(...):
+      
+      act(() => {
+        /* fire events that update state */
+      });
+      /* assert on the output */
+      
+      This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+          at TorneosWorkspaceProvider (/Users/nicoavayu/Downloads/arma2/arma2-b04-dual-backend-foundation/src/features/torneos/context/TorneosWorkspaceContext.jsx:64:3)
+          at TorneosFeaturesProvider (/Users/nicoavayu/Downloads/arma2/arma2-b04-dual-backend-foundation/src/features/torneos/context/TorneosFeaturesContext.jsx:10:43)
+          at StagingV1TorneosApp (/Users/nicoavayu/Downloads/arma2/arma2-b04-dual-backend-foundation/src/features/torneos/stagingV1/StagingV1TorneosApp.jsx:20:3)
+          at RenderedRoute (/Users/nicoavayu/Downloads/arma2/arma2/node_modules/react-router/lib/hooks.tsx:658:26)
+          at Routes (/Users/nicoavayu/Downloads/arma2/arma2/node_modules/react-router/lib/components.tsx:512:3)
+          at Router (/Users/nicoavayu/Downloads/arma2/arma2/node_modules/react-router/lib/components.tsx:421:13)
+          at MemoryRouter (/Users/nicoavayu/Downloads/arma2/arma2/node_modules/react-router/lib/components.tsx:225:3)
+
+      112 |         ) return normalized;
+      113 |         persistValidatedHint(normalized.preference);
+    > 114 |         setState((current) => ({
+          |         ^
+      115 |           ...current,
+      116 |           ...normalized,
+      117 |           status: 'ready',
+
+      at printWarning (../arma2/node_modules/react-dom/cjs/react-dom.development.js:86:30)
+      at error (../arma2/node_modules/react-dom/cjs/react-dom.development.js:60:7)
+      at warnIfUpdatesNotWrappedWithActDEV (../arma2/node_modules/react-dom/cjs/react-dom.development.js:27628:9)
+      at scheduleUpdateOnFiber (../arma2/node_modules/react-dom/cjs/react-dom.development.js:25547:5)
+      at setState (../arma2/node_modules/react-dom/cjs/react-dom.development.js:16708:7)
+      at src/features/torneos/context/TorneosWorkspaceContext.jsx:114:9
+
+PASS src/__tests__/torneosStagingV1Gate.test.jsx
+  ● Console
+
+    console.error
+      Warning: `ReactDOMTestUtils.act` is deprecated in favor of `React.act`. Import `act` from `react` instead of `react-dom/test-utils`. See https://react.dev/warnings/react-dom-test-utils for more info.
+
+      62 |
+      63 | function renderGate(backendMode, extra = {}) {
+    > 64 |   return render(
+         |                ^
+      65 |     <MemoryRouter initialEntries={['/torneos']}>
+      66 |       <Routes>
+      67 |         <Route path="/torneos/*" element={<TorneosFeatureGate enabled backendMode={backendMode} native={false} {...extra} />} />
+
+      at printWarning (../arma2/node_modules/react-dom/cjs/react-dom-test-utils.development.js:71:30)
+      at error (../arma2/node_modules/react-dom/cjs/react-dom-test-utils.development.js:45:7)
+      at actWithWarning (../arma2/node_modules/react-dom/cjs/react-dom-test-utils.development.js:1736:7)
+      at ../arma2/node_modules/@testing-library/react/dist/act-compat.js:63:25
+      at renderRoot (../arma2/node_modules/@testing-library/react/dist/pure.js:159:26)
+      at render (../arma2/node_modules/@testing-library/react/dist/pure.js:246:10)
+      at renderGate (src/__tests__/torneosStagingV1Gate.test.jsx:64:16)
+      at Object.<anonymous> (src/__tests__/torneosStagingV1Gate.test.jsx:83:5)
+
+    console.warn
+      ⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.
+
+      62 |
+      63 | function renderGate(backendMode, extra = {}) {
+    > 64 |   return render(
+         |                ^
+      65 |     <MemoryRouter initialEntries={['/torneos']}>
+      66 |       <Routes>
+      67 |         <Route path="/torneos/*" element={<TorneosFeatureGate enabled backendMode={backendMode} native={false} {...extra} />} />
+
+      at warnOnce (../arma2/node_modules/react-router/lib/deprecations.ts:9:13)
+      at logDeprecation (../arma2/node_modules/react-router/lib/deprecations.ts:14:3)
+      at logV6DeprecationWarnings (../arma2/node_modules/react-router/lib/deprecations.ts:26:5)
+      at ../arma2/node_modules/react-router/lib/components.tsx:257:25
+      at commitHookEffectListMount (../arma2/node_modules/react-dom/cjs/react-dom.development.js:23189:26)
+      at commitPassiveMountOnFiber (../arma2/node_modules/react-dom/cjs/react-dom.development.js:24970:11)
+      at commitPassiveMountEffects_complete (../arma2/node_modules/react-dom/cjs/react-dom.development.js:24930:9)
+      at commitPassiveMountEffects_begin (../arma2/node_modules/react-dom/cjs/react-dom.development.js:24917:7)
+      at commitPassiveMountEffects (../arma2/node_modules/react-dom/cjs/react-dom.development.js:24905:3)
+      at flushPassiveEffectsImpl (../arma2/node_modules/react-dom/cjs/react-dom.development.js:27078:3)
+      at flushPassiveEffects (../arma2/node_modules/react-dom/cjs/react-dom.development.js:27023:14)
+      at ../arma2/node_modules/react-dom/cjs/react-dom.development.js:26808:9
+      at flushActQueue (../arma2/node_modules/react/cjs/react.development.js:2667:24)
+      at act (../arma2/node_modules/react/cjs/react.development.js:2582:11)
+      at actWithWarning (../arma2/node_modules/react-dom/cjs/react-dom-test-utils.development.js:1740:10)
+      at ../arma2/node_modules/@testing-library/react/dist/act-compat.js:63:25
+      at renderRoot (../arma2/node_modules/@testing-library/react/dist/pure.js:159:26)
+      at render (../arma2/node_modules/@testing-library/react/dist/pure.js:246:10)
+      at renderGate (src/__tests__/torneosStagingV1Gate.test.jsx:64:16)
+      at Object.<anonymous> (src/__tests__/torneosStagingV1Gate.test.jsx:83:5)
+
+    console.warn
+      ⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.
+
+      62 |
+      63 | function renderGate(backendMode, extra = {}) {
+    > 64 |   return render(
+         |                ^
+      65 |     <MemoryRouter initialEntries={['/torneos']}>
+      66 |       <Routes>
+      67 |         <Route path="/torneos/*" element={<TorneosFeatureGate enabled backendMode={backendMode} native={false} {...extra} />} />
+
+      at warnOnce (../arma2/node_modules/react-router/lib/deprecations.ts:9:13)
+      at logDeprecation (../arma2/node_modules/react-router/lib/deprecations.ts:14:3)
+      at logV6DeprecationWarnings (../arma2/node_modules/react-router/lib/deprecations.ts:37:5)
+      at ../arma2/node_modules/react-router/lib/components.tsx:257:25
+      at commitHookEffectListMount (../arma2/node_modules/react-dom/cjs/react-dom.development.js:23189:26)
+      at commitPassiveMountOnFiber (../arma2/node_modules/react-dom/cjs/react-dom.development.js:24970:11)
+      at commitPassiveMountEffects_complete (../arma2/node_modules/react-dom/cjs/react-dom.development.js:24930:9)
+      at commitPassiveMountEffects_begin (../arma2/node_modules/react-dom/cjs/react-dom.development.js:24917:7)
+      at commitPassiveMountEffects (../arma2/node_modules/react-dom/cjs/react-dom.development.js:24905:3)
+      at flushPassiveEffectsImpl (../arma2/node_modules/react-dom/cjs/react-dom.development.js:27078:3)
+      at flushPassiveEffects (../arma2/node_modules/react-dom/cjs/react-dom.development.js:27023:14)
+      at ../arma2/node_modules/react-dom/cjs/react-dom.development.js:26808:9
+      at flushActQueue (../arma2/node_modules/react/cjs/react.development.js:2667:24)
+      at act (../arma2/node_modules/react/cjs/react.development.js:2582:11)
+      at actWithWarning (../arma2/node_modules/react-dom/cjs/react-dom-test-utils.development.js:1740:10)
+      at ../arma2/node_modules/@testing-library/react/dist/act-compat.js:63:25
+      at renderRoot (../arma2/node_modules/@testing-library/react/dist/pure.js:159:26)
+      at render (../arma2/node_modules/@testing-library/react/dist/pure.js:246:10)
+      at renderGate (src/__tests__/torneosStagingV1Gate.test.jsx:64:16)
+      at Object.<anonymous> (src/__tests__/torneosStagingV1Gate.test.jsx:83:5)
+
+    console.error
+      Warning: An update to TorneosCompetitionProvider inside a test was not wrapped in act(...).
+      
+      When testing, code that causes React state updates should be wrapped into act(...):
+      
+      act(() => {
+        /* fire events that update state */
+      });
+      /* assert on the output */
+      
+      This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+          at TorneosCompetitionProvider (/Users/nicoavayu/Downloads/arma2/arma2-b04-dual-backend-foundation/src/features/torneos/context/TorneosCompetitionContext.jsx:63:3)
+          at OrganizationRouteGuard (/Users/nicoavayu/Downloads/arma2/arma2-b04-dual-backend-foundation/src/features/torneos/components/OrganizationRouteGuard.jsx:10:39)
+          at RenderedRoute (/Users/nicoavayu/Downloads/arma2/arma2/node_modules/react-router/lib/hooks.tsx:658:26)
+          at Routes (/Users/nicoavayu/Downloads/arma2/arma2/node_modules/react-router/lib/components.tsx:512:3)
+          at main
+          at section
+          at div
+          at TorneosShell (/Users/nicoavayu/Downloads/arma2/arma2-b04-dual-backend-foundation/src/features/torneos/components/TorneosShell.jsx:313:31)
+          at TorneosWorkspaceProvider (/Users/nicoavayu/Downloads/arma2/arma2-b04-dual-backend-foundation/src/features/torneos/context/TorneosWorkspaceContext.jsx:64:3)
+          at TorneosFeaturesProvider (/Users/nicoavayu/Downloads/arma2/arma2-b04-dual-backend-foundation/src/features/torneos/context/TorneosFeaturesContext.jsx:10:43)
+          at StagingV1TorneosApp (/Users/nicoavayu/Downloads/arma2/arma2-b04-dual-backend-foundation/src/features/torneos/stagingV1/StagingV1TorneosApp.jsx:20:3)
+          at Suspense
+          at TorneosFeatureGate (/Users/nicoavayu/Downloads/arma2/arma2-b04-dual-backend-foundation/src/features/torneos/TorneosFeatureGate.jsx:43:3)
+          at RenderedRoute (/Users/nicoavayu/Downloads/arma2/arma2/node_modules/react-router/lib/hooks.tsx:658:26)
+          at Routes (/Users/nicoavayu/Downloads/arma2/arma2/node_modules/react-router/lib/components.tsx:512:3)
+          at Router (/Users/nicoavayu/Downloads/arma2/arma2/node_modules/react-router/lib/components.tsx:421:13)
+          at MemoryRouter (/Users/nicoavayu/Downloads/arma2/arma2/node_modules/react-router/lib/components.tsx:225:3)
+
+      131 |       );
+      132 |       if (!mountedRef.current || requestRef.current !== requestId) return normalized;
+    > 133 |       setState((current) => ({
+          |       ^
+      134 |         ...current,
+      135 |         ...normalized,
+      136 |         status: 'ready',
+
+      at printWarning (../arma2/node_modules/react-dom/cjs/react-dom.development.js:86:30)
+      at error (../arma2/node_modules/react-dom/cjs/react-dom.development.js:60:7)
+      at warnIfUpdatesNotWrappedWithActDEV (../arma2/node_modules/react-dom/cjs/react-dom.development.js:27628:9)
+      at scheduleUpdateOnFiber (../arma2/node_modules/react-dom/cjs/react-dom.development.js:25547:5)
+      at setState (../arma2/node_modules/react-dom/cjs/react-dom.development.js:16708:7)
+      at src/features/torneos/context/TorneosCompetitionContext.jsx:133:7
+
+PASS src/__tests__/torneosFeatureFlags.test.js
+
+Test Suites: 3 passed, 3 total
+Tests:       44 passed, 44 total
+Snapshots:   0 total
+Time:        1.395 s
+Ran all test suites matching /torneosStagingV1|torneosFeatureFlags/i.

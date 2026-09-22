@@ -1,0 +1,74 @@
+[
+  {
+    "name": "can_read_tournament_fixture_scope: admin alpha-cup",
+    "pass": true
+  },
+  {
+    "name": "can_read_tournament_fixture_scope: admin beta-cup",
+    "pass": true
+  },
+  {
+    "name": "can_read_tournament_fixture_scope: admin other-cup",
+    "pass": true
+  },
+  {
+    "name": "can_read_tournament_fixture_scope: owner retains access",
+    "pass": true
+  },
+  {
+    "name": "can_read_tournament_fixture_scope: forged local/Core mapping denied",
+    "pass": true
+  },
+  {
+    "name": "can_read_tournament_fixture_scope: anon execute denied",
+    "pass": true
+  },
+  {
+    "name": "can_read_tournament_projection_scope: admin alpha-cup",
+    "pass": true
+  },
+  {
+    "name": "can_read_tournament_projection_scope: admin beta-cup",
+    "pass": true
+  },
+  {
+    "name": "can_read_tournament_projection_scope: admin other-cup",
+    "pass": true
+  },
+  {
+    "name": "can_read_tournament_projection_scope: owner retains access",
+    "pass": true
+  },
+  {
+    "name": "can_read_tournament_projection_scope: forged local/Core mapping denied",
+    "pass": true
+  },
+  {
+    "name": "can_read_tournament_projection_scope: anon execute denied",
+    "pass": true
+  },
+  {
+    "name": "teams context: admin alpha-cup",
+    "pass": true
+  },
+  {
+    "name": "teams context: owner beta-cup",
+    "pass": true
+  },
+  {
+    "name": "teams context: admin beta-cup",
+    "pass": true
+  },
+  {
+    "name": "teams context: admin other-cup",
+    "pass": true
+  },
+  {
+    "name": "teams context: anon execute denied",
+    "pass": true
+  },
+  {
+    "name": "unassigned admin cannot see tournament through RLS",
+    "pass": true
+  }
+]

@@ -1,0 +1,10 @@
+{
+  "initial_failures": [
+    "Copied POC browser test targeted obsolete lab login; replaced with actual App/AuthCallback browser tests.",
+    "Jest resetMocks removed mock factory implementation; corrected test fixture.",
+    "Gateway did not preserve Accept header required by Core single-profile queries; forwarded Accept.",
+    "Renewal test observed prior success before network completion; now awaits actual response, and adapter clock reads current Date.now.",
+    "Recovery check raced PostgREST startup; now waits for real API readiness before retry."
+  ],
+  "final_status": "All final suites PASS; no skipped tests"
+}

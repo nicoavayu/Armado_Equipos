@@ -1,0 +1,62 @@
+[
+  {
+    "table": "tournament_competition_formats",
+    "historical_count": 5,
+    "baseline_count": 5,
+    "equal_except_audit_timestamps": true
+  },
+  {
+    "table": "tournament_entitlement_capabilities",
+    "historical_count": 28,
+    "baseline_count": 28,
+    "equal_except_audit_timestamps": true
+  },
+  {
+    "table": "tournament_legacy_subscription_plans",
+    "historical_count": 2,
+    "baseline_count": 2,
+    "equal_except_audit_timestamps": true
+  },
+  {
+    "table": "tournament_media_pipeline_configuration",
+    "historical_count": 1,
+    "baseline_count": 1,
+    "equal_except_audit_timestamps": true
+  },
+  {
+    "table": "tournament_organization_role_capabilities",
+    "historical_count": 285,
+    "baseline_count": 285,
+    "equal_except_audit_timestamps": true
+  },
+  {
+    "table": "tournament_plan_catalog",
+    "historical_count": 2,
+    "baseline_count": 2,
+    "equal_except_audit_timestamps": true
+  },
+  {
+    "table": "tournament_pricing_config",
+    "historical_count": 1,
+    "baseline_count": 1,
+    "equal_except_audit_timestamps": true
+  },
+  {
+    "table": "tournament_sport_modalities",
+    "historical_count": 6,
+    "baseline_count": 6,
+    "equal_except_audit_timestamps": true
+  },
+  {
+    "table": "tournament_commercial_products",
+    "historical_count": 1,
+    "baseline_count": 1,
+    "equal_except_audit_timestamps": true
+  },
+  {
+    "table": "tournament_commercial_offers",
+    "historical_count": 1,
+    "baseline_count": 1,
+    "equal_except_audit_timestamps": true
+  }
+]

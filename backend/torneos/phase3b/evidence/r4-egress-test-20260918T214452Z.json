@@ -1,0 +1,251 @@
+{
+  "utc": "20260918T214452Z",
+  "status": "PASS",
+  "tests": [
+    {
+      "name": "in_memory_gateway_config",
+      "pass": true,
+      "detail": {
+        "valid": true,
+        "keyRingReused": true
+      }
+    },
+    {
+      "name": "load_all_gateway_modules_offline",
+      "pass": true,
+      "detail": {
+        "served": false,
+        "entrypointImported": true
+      }
+    },
+    {
+      "name": "core_staging_exact",
+      "pass": true,
+      "detail": {
+        "status": 401
+      }
+    },
+    {
+      "name": "torneos_rest",
+      "pass": true,
+      "detail": {
+        "status": 200
+      }
+    },
+    {
+      "name": "deny_external_ip",
+      "pass": true,
+      "detail": "transport denied"
+    },
+    {
+      "name": "deny_external_http_ip",
+      "pass": true,
+      "detail": "transport denied"
+    },
+    {
+      "name": "deny_ipv6",
+      "pass": true,
+      "detail": "transport denied"
+    },
+    {
+      "name": "deny_production",
+      "pass": true,
+      "detail": "transport denied"
+    },
+    {
+      "name": "deny_other_supabase",
+      "pass": true,
+      "detail": "transport denied"
+    },
+    {
+      "name": "deny_google",
+      "pass": true,
+      "detail": "transport denied"
+    },
+    {
+      "name": "deny_denoland",
+      "pass": true,
+      "detail": "transport denied"
+    },
+    {
+      "name": "deny_github",
+      "pass": true,
+      "detail": "transport denied"
+    },
+    {
+      "name": "deny_npm",
+      "pass": true,
+      "detail": "transport denied"
+    },
+    {
+      "name": "deny_esm",
+      "pass": true,
+      "detail": "transport denied"
+    },
+    {
+      "name": "deny_external_dns",
+      "pass": true,
+      "detail": "external DNS unavailable"
+    },
+    {
+      "name": "deny_direct_core_ip",
+      "pass": true,
+      "detail": "transport denied"
+    },
+    {
+      "name": "raw_tcp_deny_1.1.1.1_443",
+      "pass": true,
+      "detail": "DENIED"
+    },
+    {
+      "name": "raw_tcp_deny_8.8.8.8_53",
+      "pass": true,
+      "detail": "DENIED"
+    },
+    {
+      "name": "raw_tcp_deny_172.64.149.246_443",
+      "pass": true,
+      "detail": "DENIED"
+    },
+    {
+      "name": "raw_tcp_deny_192.0.2.1_443",
+      "pass": true,
+      "detail": "DENIED"
+    },
+    {
+      "name": "raw_tcp_deny_172.27.0.1_58430",
+      "pass": true,
+      "detail": "DENIED"
+    },
+    {
+      "name": "raw_tcp_deny_172.29.0.1_80",
+      "pass": true,
+      "detail": "DENIED"
+    },
+    {
+      "name": "proxy_deny_production",
+      "pass": true,
+      "detail": "403"
+    },
+    {
+      "name": "proxy_deny_other_supabase",
+      "pass": true,
+      "detail": "403"
+    },
+    {
+      "name": "proxy_deny_google",
+      "pass": true,
+      "detail": "403"
+    },
+    {
+      "name": "proxy_deny_github",
+      "pass": true,
+      "detail": "403"
+    },
+    {
+      "name": "proxy_deny_npm",
+      "pass": true,
+      "detail": "403"
+    },
+    {
+      "name": "proxy_deny_esm",
+      "pass": true,
+      "detail": "403"
+    },
+    {
+      "name": "proxy_deny_denoland",
+      "pass": true,
+      "detail": "403"
+    },
+    {
+      "name": "deny_proxy_wrong_sni",
+      "pass": true,
+      "detail": "TLS rejected"
+    },
+    {
+      "name": "deny_proxy_connect_tunnel",
+      "pass": true,
+      "detail": "tunnel closed"
+    },
+    {
+      "name": "deny_proxy_absolute_url",
+      "pass": true,
+      "detail": "403"
+    },
+    {
+      "name": "redirect_other_host",
+      "pass": true,
+      "detail": {
+        "policyDenied": true,
+        "rawFollowNetworkDenied": true,
+        "source": "local transport-only redirect response"
+      }
+    },
+    {
+      "name": "db_torneos_identity_writer",
+      "pass": true,
+      "detail": {
+        "current_user": "torneos_identity_writer",
+        "session_user": "torneos_edge_identity_writer",
+        "read_only": "on",
+        "can_be_postgres": false
+      }
+    },
+    {
+      "name": "db_torneos_core_adapter",
+      "pass": true,
+      "detail": {
+        "current_user": "torneos_core_adapter",
+        "session_user": "torneos_edge_core_adapter",
+        "read_only": "on",
+        "can_be_postgres": false
+      }
+    },
+    {
+      "name": "raw_dns_same_namespace",
+      "pass": true,
+      "detail": {
+        "code": "ESERVFAIL",
+        "records": 0
+      }
+    }
+  ],
+  "gatewayStarted": false,
+  "custody": {
+    "readOnce": true,
+    "mode": "0600",
+    "artifactRemoved": true
+  },
+  "pass": true,
+  "routes": [
+    {
+      "dst": "default",
+      "type": "unreachable"
+    },
+    {
+      "dst": "172.27.0.2",
+      "type": "unicast",
+      "dev": "eth0",
+      "scope": "link"
+    },
+    {
+      "dst": "172.27.0.3",
+      "type": "unicast",
+      "dev": "eth0",
+      "scope": "link"
+    },
+    {
+      "dst": "172.29.0.2",
+      "type": "unicast",
+      "dev": "eth1",
+      "scope": "link"
+    }
+  ],
+  "productionRequests": 0,
+  "deniedDNSNames": "Pinned to TEST-NET-1; no Production lookup or request",
+  "cleanup": {
+    "ephemeralCertificateFilesRemoved": true,
+    "containersRemoved": true,
+    "networksRemoved": true
+  }
+}

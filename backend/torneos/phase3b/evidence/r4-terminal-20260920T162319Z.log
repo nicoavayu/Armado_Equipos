@@ -1,0 +1,16 @@
+[r42 16:23:27] step handoff_check: PASS
+[r42 16:23:28] step core_project_guard: PASS
+[r42 16:23:28] step core_contract_function_guard: PASS
+[r42 16:23:29] step core_keys: PASS
+[r42 16:23:29] step authorization: PASS
+[r42 16:23:29] runner preflight: PASS 
+[r42 16:23:29] step runner_preflight: PASS
+[r42 16:23:33] audit start-gateway: STARTED_PENDING_SMOKE 
+[r42 16:23:33] step start_gateway: PASS
+[r42 16:23:33] runner smoke: BLOCKED HASH_DRIFT_dep_analysis_cache_v2-shm
+[r42 16:23:33] step smoke: FAIL
+[r42 16:23:33] operator aborted: STEP_FAILED: smoke
+[r42 16:23:34] runner cleanup: PASS 
+[r42 16:23:34] summary /Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/evidence/r4-summary-20260920T162319Z.json
+[r42 16:23:34] VERDICT R4_MINIMAL_FAIL
+{"verdict":"R4_MINIMAL_FAIL","blockers":["smoke: HASH_DRIFT_dep_analysis_cache_v2-shm","cleanup incomplete"],"summary":"r4-summary-20260920T162319Z.json","evidence":{"gatewayStart":{"path":"r4-gateway-start-20260920T162329Z.json","sha256":"14d8cbec150bd3dfe8417f110a04da870f91806d2a8dbf441537ccf018d639ad"},"smoke":null,"cleanup":{"path":"r4-cleanup-20260920T162319Z.json","sha256":"2e9cf0afe163c9559621a6047bf1a27cc5f89d9d2bdd4f9b20aedce278ecc0a1"}}}

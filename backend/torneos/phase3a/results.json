@@ -1,0 +1,70 @@
+{
+  "conclusion": "A) REAL CORE CONTRACTS + TORNEOS E2E PASS",
+  "failed_conditions": [],
+  "conditions": {
+    "core_endpoint_implemented_in_core_repo": true,
+    "core_unit_tests_pass": true,
+    "lab_runs_real_core_schema_and_certified_baseline": true,
+    "verified_email_contract_e2e": true,
+    "directory_contract_e2e": true,
+    "team_import_contract_e2e": true,
+    "binding_replay_ttl_e2e": true,
+    "security_e2e": true,
+    "scope_e2e": true,
+    "no_failed_checks": true,
+    "baseline_acl_hardened_phase2c": true,
+    "no_secrets_in_lab_evidence": true
+  },
+  "core_repo": "nicoavayu/Armado_Equipos (this repository): supabase/migrations + supabase/functions",
+  "branch": "claude/torneos-phase3a-core-contracts-ac1d84",
+  "base_commit": "b5c5d4af (Phase 2B)",
+  "core_migration_sha256": "2967ae6f67e36877c4931cb7821535eab10c5b7312026846f619b14fb045672c",
+  "torneos_baseline_sha256": "97634b658c91b620c60bdceb53c9638a601fa7aba01ae3a999e6857e37d08692",
+  "baseline_changes": "1 line (Phase 2C ACL hardening); see backend/torneos/phase2c/",
+  "core_unit_tests": {
+    "pass": 15,
+    "fail": 0
+  },
+  "e2e_checks": {
+    "pass": 40,
+    "fail": 0,
+    "findings": 0,
+    "total": 40
+  },
+  "phase2b_reference": "A) CLEAN TORNEOS BASELINE PASS",
+  "inconclusive_functions": {
+    "count": 33,
+    "status": "NOT_EXERCISED / residual risk",
+    "by_area": {
+      "commercial/entitlements": 4,
+      "media/assets pipeline": 8,
+      "other": 9,
+      "advanced competition states": 12
+    }
+  },
+  "blockers_before_production": [
+    {
+      "id": "P3A-F1",
+      "summary": "CLOSED in Phase 2C: the baseline generator now revokes the Supabase image schema-scoped default ACLs for functions and sequences, so anon/authenticated EXECUTE and sequence privilege are explicit-grant only. Recertified on a real Supabase stack and template0; see backend/torneos/phase2c/.",
+      "baseline_changed": true,
+      "status": "CLOSED in Phase 2C (baseline prologue fix, recertified on this real Supabase stack and on template0)",
+      "evidence": "integration/torneos-core-contracts/evidence/finding-p3a-f1.json"
+    },
+    {
+      "id": "P3A-R1",
+      "summary": "Idempotent replay of create_tournament_team_entry returns before consuming the fresh team_snapshot attestation (positive verdict alive ≤ 10 s, fully bound).",
+      "baseline_changed": false
+    },
+    {
+      "id": "P3A-R2",
+      "summary": "33 SECURITY DEFINER functions remain INCONCLUSIVE from the Phase 2B season sweep (see inconclusive-ledger.json).",
+      "baseline_changed": false
+    },
+    {
+      "id": "P3A-R3",
+      "summary": "Core service credential custody/rotation, TLS/mTLS outside loopback and hosted deployment of the Edge Function are not part of this lab.",
+      "baseline_changed": false
+    }
+  ],
+  "scope": "Non-production only. No Supabase Production Torneos project, no deploy, no Mercado Pago, no Phase 3B."
+}

@@ -1,0 +1,77 @@
+#!/usr/bin/env node
+// Starts the app against the B04 hybrid lab: Core = the lab's real GoTrue/PostgREST
+// (through the bridge, 58422), Torneos = the lab gateway (through the bridge, 58423).
+// Fail-closed like qa:torneos:review: the lab must be up, the anon key comes from the
+// lab's own .runtime (never printed), every flag is set in the child process and the
+// .env* files never decide the target.
+//
+//   node scripts/torneos-frontend/start-hybrid-lab-app.mjs            (checks only)
+//   node scripts/torneos-frontend/start-hybrid-lab-app.mjs --start    (bridge + app)
+import { spawn } from 'node:child_process';
+import fs from 'node:fs';
+import path from 'node:path';
+import process from 'node:process';
+import { fileURLToPath } from 'node:url';
+
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
+const labRuntime = path.join(root, 'integration/torneos-core-contracts/.runtime/config.json');
+const APP_ORIGIN = 'http://localhost:3000';
+const CORE_URL = 'http://127.0.0.1:58422';
+const GATEWAY_URL = 'http://127.0.0.1:58423';
+
+async function probe(url) {
+  try { const r = await fetch(url, { signal: AbortSignal.timeout(3000) }); return r.status; } catch { return null; }
+}
+
+const gatewayHealth = await probe('http://127.0.0.1:58420/health');
+const coreHealth = await probe('http://127.0.0.1:58424/auth/v1/health');
+if (gatewayHealth !== 200 || coreHealth !== 200) {
+  console.error(`B04 hybrid lab is not up (gateway ${gatewayHealth}, core-api ${coreHealth}).`);
+  console.error('  cd integration/torneos-core-contracts && PHASE3A_LAB_PROJECT=arma2-b04-hybrid-lab node lab.mjs up');
+  console.error('  docker compose -p arma2-b04-hybrid-lab --env-file .runtime/compose.env -f compose.yaml -f compose.b04.yaml up -d core-api');
+  process.exit(1);
+}
+if (!fs.existsSync(labRuntime)) { console.error('lab .runtime/config.json missing'); process.exit(1); }
+const { anonKey } = JSON.parse(fs.readFileSync(labRuntime, 'utf8'));
+if (!anonKey) { console.error('lab anon key missing'); process.exit(1); }
+
+const env = {
+  ...process.env,
+  PORT: '3000',
+  BROWSER: 'none',
+  REACT_APP_SUPABASE_URL: CORE_URL,
+  REACT_APP_SUPABASE_ANON_KEY: anonKey,
+  REACT_APP_TORNEOS_GATEWAY_URL: GATEWAY_URL,
+  REACT_APP_PUBLIC_APP_URL: APP_ORIGIN,
+  REACT_APP_AUTH_REDIRECT_URL: `${APP_ORIGIN}/auth/callback`,
+  REACT_APP_DEPLOY_ENV: 'development',
+  REACT_APP_TORNEOS_DATA_ENV: 'local',
+  REACT_APP_LOCAL_EDIT_MODE: 'false',
+  REACT_APP_TORNEOS_ENABLED: 'true',
+  REACT_APP_TORNEOS_WORKSPACES_ENABLED: 'true',
+  REACT_APP_TORNEOS_WORKSPACE_SWITCHER_ENABLED: 'true',
+  REACT_APP_TORNEOS_DEEP_LINKS_ENABLED: 'true',
+  REACT_APP_TORNEOS_NOTIFICATIONS_ENABLED: 'false',
+  REACT_APP_TORNEOS_OFFICIAL_STATS_ENABLED: 'false',
+  REACT_APP_TORNEOS_PUBLIC_PAGES_ENABLED: 'false',
+  REACT_APP_TORNEOS_MEDIA_ENABLED: 'false',
+  REACT_APP_TORNEOS_MEDIA_UPLOAD_ENABLED: 'false',
+  REACT_APP_TORNEOS_SOCIAL_GENERATOR_ENABLED: 'false',
+  REACT_APP_TORNEOS_MEDIA_SIGNER_READY: 'false',
+  REACT_APP_TORNEOS_MEDIA_WORKER_READY: 'false',
+  REACT_APP_TORNEOS_MEDIA_AV_READY: 'false',
+  REACT_APP_TORNEOS_MEDIA_CLEANUP_READY: 'false',
+  REACT_APP_TORNEOS_MEDIA_OBSERVABILITY_READY: 'false',
+  REACT_APP_TORNEOS_PRODUCTION_ENABLED: 'false',
+  REACT_APP_PRODUCTION_PROJECT_REF: process.env.REACT_APP_PRODUCTION_PROJECT_REF || '',
+  REACT_APP_TORNEOS_ISOLATED_SSO: 'false',
+  B04_LAB_APP_ORIGIN: APP_ORIGIN,
+};
+console.log(`B04 hybrid lab app: Core ${CORE_URL} · gateway ${GATEWAY_URL} · app ${APP_ORIGIN} · DATA_ENV=local · anon key from lab .runtime (not printed)`);
+if (!process.argv.includes('--start')) process.exit(0);
+
+const bridge = spawn(process.execPath, [path.join(root, 'scripts/torneos-frontend/lab-bridge.mjs')], { env, stdio: 'inherit' });
+const app = spawn('npx', ['react-scripts', 'start'], { cwd: root, env, stdio: 'inherit' });
+const stop = () => { bridge.kill(); app.kill(); };
+process.on('SIGINT', stop); process.on('SIGTERM', stop);
+app.on('exit', (code) => { bridge.kill(); process.exit(code ?? 0); });

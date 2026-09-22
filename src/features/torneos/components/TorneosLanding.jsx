@@ -22,6 +22,7 @@ import { getRoleLabel } from '../domain/capabilities';
 import { resolveTorneosUserExperience } from '../domain/userExperience';
 import { capturePremiumIntent, isPremiumIntentSearch, withPremiumIntent } from '../domain/premiumIntent';
 import { useTorneosWorkspace } from '../context/TorneosWorkspaceContext';
+import { useTorneosFeatures } from '../context/TorneosFeaturesContext';
 import { WorkspaceError, WorkspaceLoading } from './WorkspaceState';
 import { canonicalRoutes } from '../routing/canonicalRoutes';
 import MobileAppCallout from './MobileAppCallout';
@@ -40,18 +41,21 @@ const ACTIVITY_LINKS = [
     copy: 'Fixture, tabla, equipos y estadísticas',
     path: '/torneos/mis-torneos',
     icon: Trophy,
+    feature: 'organizations_workspaces',
   },
   {
     title: 'Mis partidos',
     copy: 'Próximos cruces y disponibilidad',
     path: '/torneos/mis-partidos',
     icon: CalendarDays,
+    feature: 'match_operations',
   },
   {
     title: 'Comunicados',
     copy: 'Novedades oficiales de tus competencias',
     path: '/torneos/comunicados',
     icon: Bell,
+    feature: 'communications',
   },
 ];
 
@@ -68,6 +72,8 @@ export default function TorneosLanding() {
     refresh,
     service,
   } = useTorneosWorkspace();
+  const features = useTorneosFeatures();
+  const activityLinks = ACTIVITY_LINKS.filter(({ feature }) => features[feature] !== false);
   const relationsRequestRef = useRef(0);
   const [relationsState, setRelationsState] = useState({
     status: 'loading',
@@ -181,7 +187,7 @@ export default function TorneosLanding() {
             <p>Accesos personales derivados de tu equipo, plantel o rol deportivo real.</p>
           </div>
           <div className={styles.experienceActions}>
-            {ACTIVITY_LINKS.map(({ title, copy, path, icon: Icon }) => (
+            {activityLinks.map(({ title, copy, path, icon: Icon }) => (
               <Link key={path} to={path}>
                 <span><Icon size={21} aria-hidden="true" /></span>
                 <span><strong>{title}</strong><small>{copy}</small></span>

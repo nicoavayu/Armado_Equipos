@@ -1,0 +1,132 @@
+{
+  "utc": "20260918T213218Z",
+  "status": "BLOCKED",
+  "tests": [
+    {
+      "name": "load_all_gateway_modules_offline",
+      "pass": true,
+      "detail": {
+        "served": false,
+        "entrypointImported": true
+      }
+    },
+    {
+      "name": "core_staging_exact",
+      "pass": false,
+      "error": "TypeError"
+    },
+    {
+      "name": "torneos_rest",
+      "pass": true,
+      "detail": {
+        "status": 200
+      }
+    },
+    {
+      "name": "deny_external_ip",
+      "pass": true,
+      "detail": "transport denied"
+    },
+    {
+      "name": "deny_external_http_ip",
+      "pass": true,
+      "detail": "transport denied"
+    },
+    {
+      "name": "deny_ipv6",
+      "pass": true,
+      "detail": "transport denied"
+    },
+    {
+      "name": "deny_production",
+      "pass": true,
+      "detail": "transport denied"
+    },
+    {
+      "name": "deny_other_supabase",
+      "pass": true,
+      "detail": "transport denied"
+    },
+    {
+      "name": "deny_google",
+      "pass": true,
+      "detail": "transport denied"
+    },
+    {
+      "name": "deny_denoland",
+      "pass": true,
+      "detail": "transport denied"
+    },
+    {
+      "name": "deny_esm",
+      "pass": true,
+      "detail": "transport denied"
+    },
+    {
+      "name": "deny_npm",
+      "pass": true,
+      "detail": "transport denied"
+    },
+    {
+      "name": "deny_github",
+      "pass": true,
+      "detail": "transport denied"
+    },
+    {
+      "name": "deny_direct_core_ip",
+      "pass": true,
+      "detail": "transport denied"
+    },
+    {
+      "name": "deny_proxy_host_override",
+      "pass": false,
+      "error": "TypeError"
+    },
+    {
+      "name": "deny_proxy_absolute_url",
+      "pass": false,
+      "error": "InvalidData"
+    },
+    {
+      "name": "redirect_other_host",
+      "pass": true,
+      "detail": {
+        "policyDenied": true,
+        "rawFollowNetworkDenied": true,
+        "source": "local transport-only redirect response"
+      }
+    },
+    {
+      "name": "db_torneos_identity_writer",
+      "pass": true,
+      "detail": {
+        "current_user": "torneos_identity_writer",
+        "session_user": "torneos_edge_identity_writer",
+        "read_only": "on"
+      }
+    },
+    {
+      "name": "db_torneos_core_adapter",
+      "pass": true,
+      "detail": {
+        "current_user": "torneos_core_adapter",
+        "session_user": "torneos_edge_core_adapter",
+        "read_only": "on"
+      }
+    }
+  ],
+  "gatewayStarted": false,
+  "custody": {
+    "readOnce": true,
+    "mode": "0600",
+    "artifactRemoved": true
+  },
+  "pass": false,
+  "productionRequests": 0,
+  "deniedDNSNames": "Pinned to TEST-NET-1; no Production lookup or request",
+  "cleanup": {
+    "containersRemoved": true,
+    "networksRemoved": true
+  },
+  "blocker": "REQUIRED_RUNTIME_TEST_FAILED"
+}

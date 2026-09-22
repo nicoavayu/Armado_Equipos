@@ -1,0 +1,34 @@
+{
+  "stamp": "20260920T170412Z",
+  "scope": "synthetic servers only; no Core, R2 or credentials",
+  "probes": [
+    {
+      "stage": "route present",
+      "httpResponse": true,
+      "status": 200,
+      "cacheControl": "no-store",
+      "body": "GATEWAY",
+      "ms": 40
+    },
+    {
+      "stage": "proxy route removed",
+      "httpResponse": true,
+      "status": 503,
+      "cacheControl": null,
+      "body": "UNAVAILABLE",
+      "ms": 10008
+    },
+    {
+      "stage": "route restored",
+      "httpResponse": true,
+      "status": 200,
+      "cacheControl": "no-store",
+      "body": "GATEWAY",
+      "ms": 3
+    }
+  ],
+  "routesDuring": "unreachable default",
+  "returnRoute": "ip: RTNETLINK answers: Host is unreachable",
+  "gatewayReceivedDuringFault": true,
+  "cleanup": true
+}

@@ -34,6 +34,8 @@ import {
 } from '../routing/canonicalRoutes';
 import { tournamentSurface } from '../routing/legacyRoutes';
 import { useTorneosWorkspace } from '../context/TorneosWorkspaceContext';
+import { useTorneosFeatures } from '../context/TorneosFeaturesContext';
+import FeatureUnavailablePage from './FeatureUnavailablePage';
 import CreateOrganizationPage from './CreateOrganizationPage';
 import CompetitionOverviewPage from './CompetitionOverviewPage';
 import OrganizationMembersPage from './OrganizationMembersPage';
@@ -75,14 +77,19 @@ import styles from './TorneosShell.module.css';
 // usa cuando no —y que resuelve o pregunta en vez de adivinar—. Ninguna de las
 // dos se escribe a mano: el que arma la ruta es siempre el builder.
 //
-const organizationNavigation = [
-  { label: 'Inicio', path: 'inicio', icon: Home, builder: 'organizationHome' },
+// `feature` names the surface of the composition's feature map that serves the
+// entry; when the map turns it off, the entry disappears with its routes.
+export const organizationNavigation = [
+  {
+    label: 'Inicio', path: 'inicio', icon: Home, builder: 'organizationHome', feature: 'organizations_workspaces',
+  },
   {
     label: 'Torneos',
     path: 'torneos',
     icon: Trophy,
     builder: 'organizationTournaments',
     relatedPaths: ['temporadas'],
+    feature: 'tournaments',
   },
   {
     label: 'Equipos',
@@ -90,6 +97,7 @@ const organizationNavigation = [
     icon: UsersRound,
     builder: 'tournamentTeams',
     scoped: true,
+    feature: 'team_registration_basic_roster',
   },
   {
     label: 'Fixture',
@@ -98,6 +106,7 @@ const organizationNavigation = [
     builder: 'tournamentFixture',
     scoped: true,
     relatedPaths: ['programacion', 'sedes'],
+    feature: 'fixtures',
   },
   {
     label: 'Partidos',
@@ -105,6 +114,7 @@ const organizationNavigation = [
     icon: ClipboardList,
     builder: 'tournamentMatches',
     scoped: true,
+    feature: 'match_operations',
   },
   {
     label: 'Competencia',
@@ -112,9 +122,14 @@ const organizationNavigation = [
     icon: Medal,
     builder: 'tournamentTable',
     scoped: true,
+    feature: 'standings',
   },
   {
-    label: 'Comunicaciones', path: 'comunicaciones', icon: Megaphone, builder: 'organizationCommunications',
+    label: 'Comunicaciones',
+    path: 'comunicaciones',
+    icon: Megaphone,
+    builder: 'organizationCommunications',
+    feature: 'communications',
   },
   {
     label: 'Multimedia',
@@ -122,6 +137,7 @@ const organizationNavigation = [
     icon: Images,
     flag: 'mediaEnabled',
     builder: 'organizationMedia',
+    feature: 'media',
   },
   {
     label: 'Estudio Social',
@@ -129,6 +145,7 @@ const organizationNavigation = [
     icon: Sparkles,
     flag: 'socialContentGenerator',
     builder: 'organizationSocialStudio',
+    feature: 'social_studio',
   },
   {
     label: 'Configuración',
@@ -136,6 +153,7 @@ const organizationNavigation = [
     icon: Settings2,
     builder: 'organizationSettings',
     relatedPaths: ['configuracion/plan'],
+    feature: 'organizations_workspaces',
   },
 ];
 
@@ -238,6 +256,7 @@ function OrganizationNavigation({
   tournamentId = null,
   categoryId = null,
   relativePath = '',
+  features,
 }) {
   if (!organization) return null;
   // Estar dentro de un torneo no puede perderse al cambiar de sección: si la
@@ -265,6 +284,8 @@ function OrganizationNavigation({
       {organizationNavigation
         // A flagged surface must not even appear in the nav when it is off.
         .filter(({ flag }) => !flag || torneosFeatureFlags[flag])
+        // Nor a surface the mounted composition does not serve.
+        .filter(({ feature }) => !feature || features[feature] !== false)
         .filter(({ path }) => path !== 'estudio-social' || socialStudioAvailable)
         .map((item) => {
           const { label, path, icon: Icon, relatedPaths = [] } = item;
@@ -292,6 +313,15 @@ export default function TorneosShell() {
   const location = useLocation();
   const { isKeyboardOpen } = useKeyboard();
   const { activeOrganization } = useTorneosWorkspace();
+  const features = useTorneosFeatures();
+  // A route whose surface is off renders the unavailable page instead of its
+  // component, so the component never mounts and never requests anything.
+  const gate = (feature, element) => (
+    features[feature] === false ? <FeatureUnavailablePage feature={feature} /> : element
+  );
+  // The tournament index used to open the fixture; without fixtures it opens
+  // the teams, which is the first operational surface of staging v1.
+  const tournamentIndex = features.fixtures === false ? 'equipos' : 'fixture';
   const showSpaceHeader = shouldShowTorneosSpaceHeader(location.pathname);
   const isCreateOrganizationRoute = /^\/torneos\/nueva-organizacion\/?$/.test(location.pathname);
   const isOrganizationRoute = location.pathname.includes('/torneos/organizacion/');
@@ -331,6 +361,7 @@ export default function TorneosShell() {
           tournamentId={routeTournamentId}
           categoryId={routeCategoryId}
           relativePath={organizationRelativePath}
+          features={features}
         />
 
         <div className={styles.previewNotice}>
@@ -380,18 +411,18 @@ export default function TorneosShell() {
               <Route path="temporadas" element={<Navigate to="../torneos" replace />} />
               <Route path="temporadas/nueva" element={<SeasonFormPage />} />
               <Route path="temporadas/:seasonId" element={<SeasonFormPage />} />
-              <Route path="temporada/:seasonId/plan" element={<PlanExperiencePage />} />
+              <Route path="temporada/:seasonId/plan" element={gate('plan', <PlanExperiencePage />)} />
               <Route
                 path="temporada/:seasonId/plan/compra/:purchaseId/exito"
-                element={<PurchaseStatusPage view="success" />}
+                element={gate('plan', <PurchaseStatusPage view="success" />)}
               />
               <Route
                 path="temporada/:seasonId/plan/compra/:purchaseId/pendiente"
-                element={<PurchaseStatusPage view="pending" />}
+                element={gate('plan', <PurchaseStatusPage view="pending" />)}
               />
               <Route
                 path="temporada/:seasonId/plan/compra/:purchaseId/fallo"
-                element={<PurchaseStatusPage view="failure" />}
+                element={gate('plan', <PurchaseStatusPage view="failure" />)}
               />
               <Route path="torneos" element={<CompetitionOverviewPage />} />
               <Route path="torneos/nuevo" element={<TournamentWizardPage />} />
@@ -405,7 +436,7 @@ export default function TorneosShell() {
               />
               <Route
                 path="equipos/:teamEntryId/identidad-visual"
-                element={<TeamRegistrationPage initialTab="identidad-visual" />}
+                element={gate('team_photos', <TeamRegistrationPage initialTab="identidad-visual" />)}
               />
               <Route
                 path="equipos/:teamEntryId/plantel"
@@ -433,20 +464,20 @@ export default function TorneosShell() {
                 * el modelo, no cortar accesos.
                 */}
               <Route path="torneo/:tournamentId" element={<TournamentRouteGuard />}>
-                <Route index element={<CanonicalIndexRedirect to="fixture" />} />
+                <Route index element={<CanonicalIndexRedirect to={tournamentIndex} />} />
                 <Route path="configuracion" element={<TournamentWizardPage />} />
-                <Route path="plan" element={<LegacyTournamentPlanRedirect />} />
+                <Route path="plan" element={gate('plan', <LegacyTournamentPlanRedirect />)} />
                 <Route
                   path="plan/compra/:purchaseId/exito"
-                  element={<PurchaseStatusPage view="success" />}
+                  element={gate('plan', <PurchaseStatusPage view="success" />)}
                 />
                 <Route
                   path="plan/compra/:purchaseId/pendiente"
-                  element={<PurchaseStatusPage view="pending" />}
+                  element={gate('plan', <PurchaseStatusPage view="pending" />)}
                 />
                 <Route
                   path="plan/compra/:purchaseId/fallo"
-                  element={<PurchaseStatusPage view="failure" />}
+                  element={gate('plan', <PurchaseStatusPage view="failure" />)}
                 />
                 {/*
                   * El listado de equipos es del torneo: `loadTeamsContext` pide
@@ -457,29 +488,29 @@ export default function TorneosShell() {
                   */}
                 <Route path="equipos" element={<TeamsPage />} />
                 <Route path="equipos/nuevo" element={<NewTeamEntryPage />} />
-                <Route path="fixture" element={<FixtureWorkspacePage mode="overview" />} />
-                <Route path="fixture/participantes" element={<FixtureWorkspacePage mode="participants" />} />
-                <Route path="fixture/bombos" element={<FixtureWorkspacePage mode="pots" />} />
-                <Route path="fixture/sorteo" element={<FixtureWorkspacePage mode="draw" />} />
-                <Route path="fixture/grupos" element={<FixtureWorkspacePage mode="groups" />} />
-                <Route path="fixture/generar" element={<FixtureWorkspacePage mode="generate" />} />
-                <Route path="fixture/version/:fixtureVersionId" element={<FixtureWorkspacePage mode="rounds" />} />
-                <Route path="fixture/jornadas" element={<FixtureWorkspacePage mode="rounds" />} />
-                <Route path="fixture/jornadas/:roundId" element={<FixtureWorkspacePage mode="rounds" />} />
-                <Route path="fixture/partidos/:matchId" element={<FixtureWorkspacePage mode="rounds" />} />
-                <Route path="fixture/llave" element={<FixtureWorkspacePage mode="bracket" />} />
-                <Route path="programacion" element={<FixtureWorkspacePage mode="schedule" />} />
-                <Route path="partidos" element={<MatchOperationsPage mode="list" />} />
-                <Route path="partidos/:matchId" element={<MatchOperationsPage mode="detail" />} />
-                <Route path="partidos/:matchId/convocatorias" element={<MatchOperationsPage mode="squads" />} />
-                <Route path="partidos/:matchId/acta" element={<MatchOperationsPage mode="report" />} />
-                <Route path="partidos/:matchId/revision" element={<MatchOperationsPage mode="review" />} />
-                <Route path="partidos/:matchId/historial" element={<MatchOperationsPage mode="history" />} />
-                <Route path="competencia" element={<CanonicalIndexRedirect to="tabla" />} />
-                <Route path="competencia/tabla" element={<CompetitionCenterPage mode="table" />} />
-                <Route path="competencia/estadisticas" element={<CompetitionCenterPage mode="statistics" />} />
-                <Route path="competencia/clasificacion" element={<CompetitionCenterPage mode="qualification" />} />
-                <Route path="competencia/disciplina" element={<CompetitionCenterPage mode="discipline" />} />
+                <Route path="fixture" element={gate('fixtures', <FixtureWorkspacePage mode="overview" />)} />
+                <Route path="fixture/participantes" element={gate('fixtures', <FixtureWorkspacePage mode="participants" />)} />
+                <Route path="fixture/bombos" element={gate('fixtures', <FixtureWorkspacePage mode="pots" />)} />
+                <Route path="fixture/sorteo" element={gate('fixtures', <FixtureWorkspacePage mode="draw" />)} />
+                <Route path="fixture/grupos" element={gate('fixtures', <FixtureWorkspacePage mode="groups" />)} />
+                <Route path="fixture/generar" element={gate('fixtures', <FixtureWorkspacePage mode="generate" />)} />
+                <Route path="fixture/version/:fixtureVersionId" element={gate('fixtures', <FixtureWorkspacePage mode="rounds" />)} />
+                <Route path="fixture/jornadas" element={gate('fixtures', <FixtureWorkspacePage mode="rounds" />)} />
+                <Route path="fixture/jornadas/:roundId" element={gate('fixtures', <FixtureWorkspacePage mode="rounds" />)} />
+                <Route path="fixture/partidos/:matchId" element={gate('fixtures', <FixtureWorkspacePage mode="rounds" />)} />
+                <Route path="fixture/llave" element={gate('fixtures', <FixtureWorkspacePage mode="bracket" />)} />
+                <Route path="programacion" element={gate('fixtures', <FixtureWorkspacePage mode="schedule" />)} />
+                <Route path="partidos" element={gate('match_operations', <MatchOperationsPage mode="list" />)} />
+                <Route path="partidos/:matchId" element={gate('match_operations', <MatchOperationsPage mode="detail" />)} />
+                <Route path="partidos/:matchId/convocatorias" element={gate('match_operations', <MatchOperationsPage mode="squads" />)} />
+                <Route path="partidos/:matchId/acta" element={gate('match_operations', <MatchOperationsPage mode="report" />)} />
+                <Route path="partidos/:matchId/revision" element={gate('match_operations', <MatchOperationsPage mode="review" />)} />
+                <Route path="partidos/:matchId/historial" element={gate('match_operations', <MatchOperationsPage mode="history" />)} />
+                <Route path="competencia" element={gate('standings', <CanonicalIndexRedirect to="tabla" />)} />
+                <Route path="competencia/tabla" element={gate('standings', <CompetitionCenterPage mode="table" />)} />
+                <Route path="competencia/estadisticas" element={gate('standings', <CompetitionCenterPage mode="statistics" />)} />
+                <Route path="competencia/clasificacion" element={gate('standings', <CompetitionCenterPage mode="qualification" />)} />
+                <Route path="competencia/disciplina" element={gate('standings', <CompetitionCenterPage mode="discipline" />)} />
               </Route>
               {/*
                 * Direcciones viejas del torneo. NO se retiran: siguen montadas
@@ -524,62 +555,62 @@ export default function TorneosShell() {
                 * torneo/:tournamentId por uniformidad estética, y por eso
                 * tampoco entran en el barrido de arriba.
                 */}
-              <Route path="sedes" element={<OrganizationVenuesPage />} />
-              <Route path="sedes/:venueId" element={<OrganizationVenuesPage />} />
-              <Route path="comunicaciones" element={<CommunicationsAdminPage />} />
+              <Route path="sedes" element={gate('fixtures', <OrganizationVenuesPage />)} />
+              <Route path="sedes/:venueId" element={gate('fixtures', <OrganizationVenuesPage />)} />
+              <Route path="comunicaciones" element={gate('communications', <CommunicationsAdminPage />)} />
               <Route
                 path="multimedia"
                 element={torneosFeatureFlags.mediaEnabled
-                  ? <MediaAdminPage />
+                  ? gate('media', <MediaAdminPage />)
                   : <Navigate to="../inicio" replace />}
               />
               {torneosFeatureFlags.socialContentGenerator && (
                 <Route
                   path="estudio-social"
-                  element={<SocialStudioPage />}
+                  element={gate('social_studio', <SocialStudioPage />)}
                 />
               )}
               <Route path="configuracion" element={<OrganizationSettingsPage />} />
-              <Route path="configuracion/plan" element={<LegacyPlanRedirect />} />
+              <Route path="configuracion/plan" element={gate('plan', <LegacyPlanRedirect />)} />
               <Route path="miembros" element={<OrganizationMembersPage />} />
             </Route>
-            <Route path="mis-partidos" element={<MyTournamentMatchesPage />} />
-            <Route path="mis-partidos/:matchId" element={<MyTournamentMatchesPage />} />
-            <Route path="mis-partidos/:matchId/convocatoria" element={<CaptainMatchSquadPage />} />
+            <Route path="mis-partidos" element={gate('match_operations', <MyTournamentMatchesPage />)} />
+            <Route path="mis-partidos/:matchId" element={gate('match_operations', <MyTournamentMatchesPage />)} />
+            <Route path="mis-partidos/:matchId/convocatoria" element={gate('match_operations', <CaptainMatchSquadPage />)} />
             <Route path="mis-torneos" element={<MyTournamentsPage />} />
-            <Route path="comunicados" element={<MyCommunicationsPage />} />
-            <Route path="torneo/:tournamentId" element={<TournamentHubPage />} />
+            <Route path="comunicados" element={gate('communications', <MyCommunicationsPage />)} />
+            <Route path="torneo/:tournamentId" element={gate('participant_hub', <TournamentHubPage />)} />
             <Route
               path="torneo/:tournamentId/novedades"
-              element={<TournamentHubPage defaultSection="novedades" />}
+              element={gate('participant_hub', <TournamentHubPage defaultSection="novedades" />)}
             />
             <Route
               path="torneo/:tournamentId/partidos"
-              element={<TournamentHubPage defaultSection="partidos" />}
+              element={gate('participant_hub', <TournamentHubPage defaultSection="partidos" />)}
             />
             <Route
               path="torneo/:tournamentId/partidos/:matchId"
-              element={<TournamentHubPage defaultSection="partidos" matchMode />}
+              element={gate('participant_hub', <TournamentHubPage defaultSection="partidos" matchMode />)}
             />
             <Route
               path="torneo/:tournamentId/tabla"
-              element={<TournamentHubPage defaultSection="tabla" />}
+              element={gate('participant_hub', <TournamentHubPage defaultSection="tabla" />)}
             />
             <Route
               path="torneo/:tournamentId/estadisticas"
-              element={<TournamentHubPage defaultSection="estadisticas" />}
+              element={gate('participant_hub', <TournamentHubPage defaultSection="estadisticas" />)}
             />
             <Route
               path="torneo/:tournamentId/equipos"
-              element={<TournamentHubPage defaultSection="equipos" />}
+              element={gate('participant_hub', <TournamentHubPage defaultSection="equipos" />)}
             />
             <Route
               path="torneo/:tournamentId/fotos"
-              element={<TournamentHubPage defaultSection="fotos" />}
+              element={gate('participant_hub', <TournamentHubPage defaultSection="fotos" />)}
             />
             <Route
               path="torneo/:tournamentId/disciplina"
-              element={<TournamentHubPage defaultSection="disciplina" />}
+              element={gate('participant_hub', <TournamentHubPage defaultSection="disciplina" />)}
             />
             <Route path="invitacion/equipo/:token" element={<TeamInvitationPage />} />
             <Route path="*" element={<Navigate to="/torneos" replace />} />
@@ -594,6 +625,7 @@ export default function TorneosShell() {
           tournamentId={routeTournamentId}
           categoryId={routeCategoryId}
           relativePath={organizationRelativePath}
+          features={features}
         />
       </section>
 

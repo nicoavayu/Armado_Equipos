@@ -41,6 +41,13 @@ verify_jwt = true
 # New secret keys are opaque and cannot pass the gateway JWT verifier.
 verify_jwt = false
 
+# Core → Torneos contract (Phase 3A). Service-to-service: the handler verifies an
+# HMAC-SHA256 signature (TORNEOS_CONTRACT_SERVICE_SECRET) over path/time/nonce/body,
+# and public.torneos_contract_execute consumes the nonce, checks the Core session
+# and applies the privacy projection in one transaction. Never called by a browser.
+[functions.torneos-core-contract]
+verify_jwt = false
+
 [functions.push-dispatch-now]
 verify_jwt = true
 

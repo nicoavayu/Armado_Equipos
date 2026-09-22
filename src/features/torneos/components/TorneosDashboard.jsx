@@ -21,6 +21,7 @@ import { Link, useOutletContext } from 'react-router-dom';
 import { useTorneosCompetition } from '../context/TorneosCompetitionContext';
 import { useTorneosFixture } from '../context/TorneosFixtureContext';
 import { useTorneosWorkspace } from '../context/TorneosWorkspaceContext';
+import { useTorneosFeatures } from '../context/TorneosFeaturesContext';
 import {
   CHECKLIST_ITEMS,
   getOptionName,
@@ -47,10 +48,18 @@ import {
 } from '../domain/competitionLifecycle';
 
 const operationalModules = [
-  { label: 'Partidos', description: 'Resultados, actas e historial', icon: ClipboardList, key: 'matches' },
-  { label: 'Tabla', description: 'Posiciones y desempates', icon: Table2, key: 'table' },
-  { label: 'Disciplina', description: 'Tarjetas, casos y sanciones derivadas', icon: Gavel, key: 'discipline' },
-  { label: 'Comunicaciones', description: 'Avisos para la competencia', icon: Megaphone, key: 'communications' },
+  {
+    label: 'Partidos', description: 'Resultados, actas e historial', icon: ClipboardList, key: 'matches', feature: 'match_operations',
+  },
+  {
+    label: 'Tabla', description: 'Posiciones y desempates', icon: Table2, key: 'table', feature: 'standings',
+  },
+  {
+    label: 'Disciplina', description: 'Tarjetas, casos y sanciones derivadas', icon: Gavel, key: 'discipline', feature: 'standings',
+  },
+  {
+    label: 'Comunicaciones', description: 'Avisos para la competencia', icon: Megaphone, key: 'communications', feature: 'communications',
+  },
 ];
 
 function formatDate(value) {
@@ -106,7 +115,10 @@ export default function TorneosDashboard() {
     discipline: tournamentLink('tournamentDiscipline'),
   };
   const { service } = useTorneosWorkspace();
+  const features = useTorneosFeatures();
   const fixture = useTorneosFixture();
+  const fixturesEnabled = features.fixtures !== false;
+  const availableModules = operationalModules.filter(({ feature }) => features[feature] !== false);
   const teamsRequestRef = useRef(0);
   const [teamsSummary, setTeamsSummary] = useState({
     status: 'idle',
@@ -224,12 +236,18 @@ export default function TorneosDashboard() {
   const completeCount = CHECKLIST_ITEMS.filter((item) => checks[item.key]).length;
   const completion = Math.round((completeCount / CHECKLIST_ITEMS.length) * 100);
   const stage = getTournamentStage(activeTournament.status);
-  const nextStep = getOwnerNextStep({
+  const ownerNextStep = getOwnerNextStep({
     tournament: activeTournament,
     teamsSummary,
     fixture,
     routes,
   });
+  // Without fixtures the journey ends at approved teams: a next step that would
+  // open the fixture is stated, but not linked to a surface that is not served.
+  const fixtureTargets = [routes.fixture, routes.fixtureParticipants, routes.fixtureGenerate, routes.schedule];
+  const nextStep = ownerNextStep && !fixturesEnabled && fixtureTargets.includes(ownerNextStep.to)
+    ? { ...ownerNextStep, to: null, blocked: true }
+    : ownerNextStep;
   const teams = teamsSummary.data;
   const fixtureReady = fixture.status === 'ready';
   const publishedFixture = fixtureReady
@@ -273,10 +291,12 @@ export default function TorneosDashboard() {
             <ArrowRight size={17} />
           </Link>
         )}
-        <CompetitionLifecycleActions
-          organization={organization}
-          tournament={activeTournament}
-        />
+        {features.lifecycle_actions !== false && (
+          <CompetitionLifecycleActions
+            organization={organization}
+            tournament={activeTournament}
+          />
+        )}
       </section>
 
       <section className={styles.summaryGrid} aria-label="Resumen del torneo">
@@ -295,6 +315,7 @@ export default function TorneosDashboard() {
           <strong>{activeTournament.categories?.length || 0}</strong>
           <small>Activas y seleccionables</small>
         </article>
+        {fixturesEnabled && (
         <article>
           <span>Fixture</span>
           {fixture.status === 'loading' || fixture.status === 'idle' ? (
@@ -314,6 +335,7 @@ export default function TorneosDashboard() {
             </>
           )}
         </article>
+        )}
       </section>
 
       <section className={styles.dashboardGrid}>
@@ -376,6 +398,7 @@ export default function TorneosDashboard() {
         </article>
       </section>
 
+      {fixturesEnabled && (
       <section className={styles.dashboardGrid}>
         <article className={styles.panel}>
           <div className={styles.panelHeading}>
@@ -411,7 +434,9 @@ export default function TorneosDashboard() {
           </Link>
         </article>
       </section>
+      )}
 
+      {availableModules.length > 0 && (
       <section className={styles.futureSection} aria-labelledby="available-modules-title">
         <div className={styles.sectionHeading}>
           <span>Operación y seguimiento</span>
@@ -419,7 +444,7 @@ export default function TorneosDashboard() {
           <p>Usan los mismos partidos y datos oficiales que la página pública.</p>
         </div>
         <div className={styles.futureGrid}>
-          {operationalModules.map(({ label, description, icon: Icon, key }) => (
+          {availableModules.map(({ label, description, icon: Icon, key }) => (
             <Link key={label} to={routes[key]}>
               <Icon size={20} aria-hidden="true" />
               <span>
@@ -431,6 +456,7 @@ export default function TorneosDashboard() {
           ))}
         </div>
       </section>
+      )}
     </div>
   );
 }

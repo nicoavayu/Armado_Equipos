@@ -1,0 +1,8 @@
+{
+  "utc": "20260918T215511Z",
+  "status": "PASS",
+  "command": "node --test proxy.test.mjs lifecycle.test.mjs",
+  "tests": 6,
+  "failures": 0,
+  "actualR42CommandsExecuted": false
+}

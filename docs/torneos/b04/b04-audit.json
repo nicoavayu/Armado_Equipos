@@ -1,0 +1,2989 @@
+{
+  "generatedFrom": "2058da039a2a5eaaed22d87d01946bc596ae5f50",
+  "legacyBase": "2058da039a2a5eaaed22d87d01946bc596ae5f50",
+  "coreSingletonSha256": "f39572e4cab0fd287bd1dea2ca87c97bd5500d0eff57cb8de6160f1e3271600c",
+  "reachableCallSignatures": {
+    "src/api/supabaseWrapper.js": "9efd37acfa411583ee3bcdc82e642cd82c84eda2eda019cca8b005acbcc57468",
+    "src/components/AmigosView.js": "ec38209a1ed09f882d858c680081a8f97e8db97e9e7742e1f3646812d4a454b1",
+    "src/components/ArmarEquiposView.js": "c7189e9df625b43f783e5dd39c7f3ae4dede40ec1d0a8489992f0d049364305d",
+    "src/components/AuthProvider.js": "0a0bf99f7b115f6e91124a6da817bc1fb96609bb71a8a0b7496b730c8bb68981",
+    "src/components/AutocompleteSede.js": "3c7e56bb3268df1a4125cac87f53eaaf5a9f554db228262c656f1997381282ed",
+    "src/components/ChatButton.js": "8732c5255b31bbb78d56776f882cd5dda2fa6ddda3366f95273b6451ea78c129",
+    "src/components/FifaHomeContent.js": "7eff02a8177cc63cdd15873ef9f89be9fb892a65a3c852e4d71c06c20134b90b",
+    "src/components/HomeWelcomeCard.jsx": "59110e6ee2bfa5aeacb7f3576ab496534c534846be21450f044cffbb22f135f4",
+    "src/components/InjuryModal.js": "61ff909dff4789ef831cd3dfb77a2e77df0886de67143c7c6ab2a338de1bbc98",
+    "src/components/InviteAmigosModal.js": "5ef6e4a616d401cbdff5de7f7516b41aa48c900a3e5cca242226dc4839969c3f",
+    "src/components/InviteToMatchModal.jsx": "6a42e299f001f5819d46c4a45e9192e3ece39419358e0004cf3ce8e6a5c26d13",
+    "src/components/ManualMatchModal.js": "e4e14bb601cff6762dae4c3459a97fd623da07a4bc3579690255f380bf920951",
+    "src/components/MatchChat.js": "784f6d4a698bea07699b7878ad641f63e5a6e66d4be921f66078623e89693960",
+    "src/components/ProfileCardModal.js": "ae859b5fc8b0fd3ae50954bdd95564860272498386cf4e535a2f7bc740e9d7f3",
+    "src/components/ProfileEditor.js": "7d0eabe48e1ce4920beb4dc58435de4dcc4f8490b4e0edc73bb83cffc8e54b3a",
+    "src/components/ProximosPartidos.js": "30fd588909bb2a1205205936e441cf614757ac3f611f7ab8ea6590e4443fc4f7",
+    "src/components/StatsView.js": "342440d9f68e93219baafa2042ffa3f30419c778723276477bda359b22aa8a6c",
+    "src/components/TeamDisplay.js": "d283d2476b808cb8b362b019ed74d0009fde4f5ec8a44019378ffae07710014f",
+    "src/components/admin/PlayersSection.jsx": "fc904b6eb6ba36510589d9940e704323542fee20e20e7a951ac5046bda75a308",
+    "src/components/admin/SolicitudesSection.jsx": "aa15c356cb06b1520278df26579fa2401d9e9cf119b139bbe1cb81f6653ef5b2",
+    "src/components/friends/InviteGroupToMatchModal.jsx": "0e9d59d329c3c045997bfab1d1f1a4b27b5e99e7cc31ec72a1fea4776f8197c5",
+    "src/components/global-header/AwardsStoryContext.jsx": "28e1a52aba4c966e81a5ebbb5a0a159bb329dc00644ca4301fa038d5dc51d43d",
+    "src/components/jugar/AvailabilityOpportunityCard.jsx": "897c1a9d212f1d618fd55e3a3e66b19885cff5b16e8c481efdc2a8554da27cd3",
+    "src/context/NotificationContext.js": "c1ce433e2e51fb52d9989bca90cd5b7343045083b2178365f226bb9d54da16eb",
+    "src/features/equipos/QuieroJugarEquipos.jsx": "419de39c0196930f7bc66a25093a9cf83125f717ed002cf06c92cc73c86e6b8c",
+    "src/features/equipos/views/EquipoDetalleView.jsx": "41d7b9a51aa1d452032f3a5c44f73280b04a5190da832e0aa454e3bdf5f0b4dd",
+    "src/features/onboarding/pendingIntent.js": "094700d083c8f26876bec39e13634081c16c9dc4529fc62b20fa615c0721c3c1",
+    "src/features/onboarding/storage.js": "b8ddbe2110aa611efb3defc34f41792a72fc0eb5d672bfa858748da6413ccf6a",
+    "src/features/torneos/api/publicTournamentService.js": "bbbe6bc3a4c8f54dbddd8d2ada3d4c2ab3e4858dfa1331608647039c271bc0da",
+    "src/features/torneos/api/tournamentBrandingService.js": "ac0da541e639c64900abf9a9249752926129467d92dd95e1d42304bc043a7d32",
+    "src/features/torneos/api/tournamentMediaUploadClient.js": "9da0b2942845076b059a91aee3626af7aec8102d0b9d79cdcc47698d00d3f5d0",
+    "src/features/torneos/api/tournamentPlayerPortraitService.js": "fca6d5c8be8942dbfee0cf801003214732c7143d4d68c7b16c5d7b66f918e8ed",
+    "src/features/torneos/api/tournamentTeamPhotoService.js": "7a59a1f8919e99f43a99536ec37884c2387eb3a11afa4eab23612b9776aabbea",
+    "src/features/torneos/api/tournamentWorkspaceService.js": "be2f29d8eb4898607299ca1c7a936fe51731f94b217cab483a139de66390b05c",
+    "src/features/torneos/components/MobileAppCallout.jsx": "b33bbd3205ea86246e099ee13f8c7ce6cc378626deba9a9f8294197cdba5246c",
+    "src/features/torneos/context/TorneosWorkspaceContext.jsx": "2989e947a2c7d137309492e645484d6b5e4796e58bdabb98825f702c031797e5",
+    "src/features/torneos/domain/brandingAssets.js": "d61310a6c564670f4ddac9d8d2991c314da3c5a501621f0d8bbbc6f9806cd575",
+    "src/features/torneos/domain/premiumIntent.js": "d017a4b9ad7a5564ff958aaccd571629064db25311d547f34ecaeaca168e1d4c",
+    "src/features/torneos/foundation/torneosClient.js": "9e1a1f8d3802935594dda8cacd5b959895e6f7f2df9cd6db08e688fb2b3ec25d",
+    "src/features/torneos/foundation/torneosTransport.js": "72ffd6b87db63a2fe1acc7a2a2d906f916adeb69089cdaaa3bd21156406a9ae9",
+    "src/features/torneos/isolated/IsolatedTorneosPage.jsx": "648a0c66c255ab6753874e48a8a35467f9a198fd1d9587e47dfaadd2b900ef76",
+    "src/features/torneos/isolated/createTorneosClient.js": "7fa1212c6f9d1f5fb57dd5a594e029986a49b7f531d46f4c9eaf27a25acda3cf",
+    "src/features/torneos/social/socialStudio.js": "9618e2978bb5f45ca23566098bd7b01a3ea9816cae8532cc26ba20ee6d871128",
+    "src/features/torneos/stagingV1/coreSessionBridge.js": "f007b99ff18672322a7fa335d80a60c1287f0ba4cb1e1935fa3d2648cc46b620",
+    "src/hooks/useAdminPanelState.js": "b265d45ab23aac685b3fd3993b51cee72d17cc2fd59c02bc5b8c28f3c14044ec",
+    "src/hooks/useAmigos.js": "17c48e1911d094ee77890e408172a0f98ee153ae9ed19f7d2ecc28f2970ec854",
+    "src/hooks/useNativeFeatures.js": "c88b9f464fe7ef7e5aa4e5c8a8ff7b5e0251dbc9b0763de2eda86e47130628fd",
+    "src/hooks/useSupabaseRealtime.js": "bbee9aabed7b2e6aef995a7652c07c36962f9d63b08949617fd7741160358bf9",
+    "src/lib/supabaseClient.js": "797da8adf4008e5aaec84a0772255d1aa57d18e3f9eb2f4cebb49b396ec36185",
+    "src/pages/AdminPanel.js": "b3beba1156823c02aa05ed9d329bdcb9d7587cdaea877a4c16c9a12a093eae75",
+    "src/pages/EditarPartidoFrecuente.js": "0357a5f93abb68a4337d5bbb3a07d0d96bc2c788945119c96f60928da2f55bb3",
+    "src/pages/EncuestaPartido.js": "9055735c3faf38790d8b17f3d8d7327a6b01ba30b62cfdca93e0bffa207f536f",
+    "src/pages/FormularioNuevoPartidoFlow.js": "995626fe8b6486e480774f37f09d82565d5c3ff4db98700777741bffdf031a91",
+    "src/pages/ListaPartidosFrecuentes.js": "a91a238f89459cb59dd19129277e7490c763e0f670dc807d82bc268f93443750",
+    "src/pages/PartidoInvitacion.js": "3e550e3a5525eb5add4f24605e6bf03d499f4bc546141cf371a648197572706f",
+    "src/pages/QuieroJugar.js": "6f05add6ca774aa2573ff1c1cb94295d79040c536e4633125f748fdade0b0876",
+    "src/pages/ResultadosEncuestaView.js": "73d6239d87be21f497414b616210d790e6e8feb3b8ee8e8e2dea5339585937cd",
+    "src/pages/VotingView.js": "28c2541bb8fb0a394bd7882f3c81bcca72ceb9d8fdb52c7d6b19e78b067d31f2",
+    "src/services/absenceService.js": "165054dc97813a40d84c81f479bd600aaf9ac67b074140a1f2b03cdf9e7be9e3",
+    "src/services/api/playerService.js": "06bc4e7c8f489945673ef62ef2fd92c2ca8017c952f7a95110e80005724d3b13",
+    "src/services/api/supabase.js": "1450e1ee26c49a6e825bc9c4e676bf6f8cb5d4951ec00f52b6911b2783456031",
+    "src/services/auth/socialAuth.js": "b6b782c8ed7081ab253a1c0d60482835b908e029df404475a1ad532ed0804919",
+    "src/services/authLogoutService.js": "fe859f73dee0abd2ec5c2e6d1c4586f1f90be27a47152c25692be007b35fea70",
+    "src/services/awardsService.js": "980bcc97c85cbbe4aae9582f97e175d8faacef5a5ee40389c2c3d116755be07c",
+    "src/services/challengeResultNotificationService.js": "8f8f1b02c783cf7ced404fd81be09eb425e1360c4f537f78fd71f520a5beff0f",
+    "src/services/db/availability.js": "6fbccc53e80d2c7a8f92c329831b636c738d52010e0a3e60a74a9dfa04647e19",
+    "src/services/db/awards.js": "c182a4fb26d395b27dc790e96c5c91ea7393bbadc322e4f906cbde157799623e",
+    "src/services/db/dbErrors.js": "1cce94d7db6cb12b686e84ad0fcbe9043b1b0aff0410f5484e1061f807372583",
+    "src/services/db/frequentMatches.js": "3f4a0040dab299427801c6cc64e65e9f9454d9e91024c935926264c687151dd7",
+    "src/services/db/friends.js": "6f584f99770651d56e2ab6233d489fc3fa176c38b1a1d79da51d53aa7e44c832",
+    "src/services/db/importedMatchPlayers.js": "da81344b390686c6d95e3a3216d69061c4f47869278c802c5363c4d14f111bac",
+    "src/services/db/matchJoinRequests.js": "55a3d71d15f08f5a84b59fc1d479d7599edb7e5200a5438230764c37e59334be",
+    "src/services/db/matchScheduling.js": "66a227f1ea05823b3498b6ecfa9badb489e6ecdb48abfe025b6c58a16f23ed05",
+    "src/services/db/matches.js": "343a5cf96b2df56c2b1fe96025fdd1ef8c3691d41b9f4b3279e35107eb0d88db",
+    "src/services/db/notifications.js": "6a288c071d303e9dffdf23a5f99dcebc4e63a22cea4cd207782e0130ce467819",
+    "src/services/db/openMatches.js": "cd7bfaf0d794dbaeb968b1763036d5f290b0382e9a82a84280dea27eb7a74bbc",
+    "src/services/db/payments.js": "7d21fce6297cec6edb8511bcb7599baefe358df5841643cd9203d4363198a82a",
+    "src/services/db/penalties.js": "e9fac9f08df126c7e6a7530e0f59829a160544138b77b8300d7f6245172313f4",
+    "src/services/db/privateFriendGroups.js": "756aafa2a609b0e6fafb03dfa1d1fe05529c4580845870e5591efaf0c3b30be5",
+    "src/services/db/profiles.js": "c716e4398c4154d6b94099f535c9b1fc3e0b084f1fdc444efc8278b5132468fc",
+    "src/services/db/realtime.js": "7629f351a3c5274635dc8b0933476cfaa12a37bbdd354ba9ce7c751061f2600c",
+    "src/services/db/surveys.js": "d5083e28e35e65895b1ec1cfd5643090c18cbdcaac87b8abe8ecd9b0919f013a",
+    "src/services/db/teamChallenges.js": "f2c254c77ad1eaaa52373eff7f32efe6e7b9eb9558b8af4a0e8c340f213be28a",
+    "src/services/db/teamRankings.js": "b09bc8b6903d2afaaaae6fcc3359ca091fc4cb0ac33776a99ee8f7fe3bc360b5",
+    "src/services/db/teams.js": "ef0109c626837a481a728d613971cfdf3d805f316cb2277d8dba5d5a2591de76",
+    "src/services/db/userIdentity.js": "57cb392bb2114dff52c9d30d636d9200cf60b37b32d64d3191e28ff54904e9f3",
+    "src/services/historySnapshotService.js": "4e8df9f91fc1296309568cc708e17d1bfdf82c40891b57e96620b4de5effa7c6",
+    "src/services/locationService.js": "4d728859d6df2d43800f06078de9ce051c0ab37e3c866ae6ee40f5cd1498f25f",
+    "src/services/matchFinishService.js": "2a276ac7a35e5534e3f56ee7c0520039a93cce1ab510f66542935b0da0973dda",
+    "src/services/matchJoinNotificationService.js": "11cd2d8d1a50fd5277d92477dca0712106b16cf6339502b978ed3e320ed375a7",
+    "src/services/matchStatsService.js": "49e8e137721fe5de993bd8cccc3d13db780a2dbd98906666150c57309e38c928",
+    "src/services/notificationService.js": "d6f765dcbecfb98e89c4171c822dc5fb1e27795fa29faac4b1916e9354bd3301",
+    "src/services/pushDispatchService.js": "a9b6227f68fff883235499f9ea60a4a016941ed01d1c049d81c5ace005b7f73e",
+    "src/services/pushTokenService.js": "edf546ac9e60e1fe8db162548f3812510742711364710458ddd31d3db848c6a6",
+    "src/services/realtimeService.js": "d0ff99b3b50b3ee16ccfb8a3c2b7243fce42870fdd501fe61e55859f2acf018b",
+    "src/services/storage/teamCrests.js": "7f6d2a6a3a704ba328692cf0b0eaf931585839b89f4a22e1f5a4bbfed96d3228",
+    "src/services/surveyCompletionService.js": "e985a2723de2023ac07607b47bb0c99dfc92c2010de6ac32ef10f706844c1b86",
+    "src/services/surveyTeamsService.js": "06afdaeaf1b85aefde0def9f4bba7fe85d0cdd50ad8e256a7be94418e12e54a8",
+    "src/services/votingPhotoUpload.js": "81e968f1687d8a11c573653f4dc4aa716fdd90036614477c166e75386fc623de",
+    "src/utils/activityFeed.js": "87dd4a220d4e7593aeec726c43f38fabe872212839cd6849445ada18682dfc87",
+    "src/utils/authFlowState.js": "bf2b8b0a77dad036a19090da179f1cee84d25b26811d695451f088ea39673967",
+    "src/utils/duplicateCleanup.js": "5d0e2e4b6d66908255c00286ef4f1ecf6852beaa4463c193d482a9def1b9dbe1",
+    "src/utils/groupInviteCache.js": "2ea08722483d3947addba89db12d2b63aa2de27324d7f8b1b8acc8705bc3e96d",
+    "src/utils/homeNextStep.js": "b42688bbe4a360753283739730a7066bb809c9c187d99f8c25a46d4382be57ec",
+    "src/utils/matchNotifications.js": "257ce3778f63ebcf6a18ef897cb109baea20ffb7e81a27f8ac71692abc1cea03",
+    "src/utils/matchResolver.js": "9755dc7003e7e14307c2bd6db8e8e11455f000d9f85ba10f99987b9ba922cbd3",
+    "src/utils/matchStatsManager.js": "5dfaef16301b4271af499499327b3d8fe58d7624fbefc8bf4ded04a851aa08b2",
+    "src/utils/membershipCheck.js": "4cad202048abd1fdd6bd4a70d103f73d701631c3e932361303628ea5742aa5f1",
+    "src/utils/notificationHelpers.js": "8cf799146c0545dd229f6877562fba4f7769b43d6d446234de0bf9aba3864047",
+    "src/utils/notificationRouter.js": "4ae72c73f1cf76352c3fa97e4fa96c33e47ecf5e9eb1e51a0b221e764617ff22",
+    "src/utils/notificationRoutes.js": "34c2b5e7f9367099e74b8501e3340033af39c24fdb0f72ae907953c2eb8c6eca",
+    "src/utils/shareTeamsCard.js": "8def4a837cde2181daf195b72fa133c3f0279670a12998280d61210a42e3a44e",
+    "src/utils/surveyAccess.js": "875f246f186ab6ce307303e70d69f6b852db1711b01183c76e8c519b95947a22",
+    "src/utils/surveyChallengePolicy.js": "e600df4b20e8820c579b4c1da9390145453582090d2bd7b50d5610ed838fc68e",
+    "src/utils/surveySubmitPerformance.js": "3718d13dd3151c1d79217b2377ef6c96942f6b9e000b20688cc1f68f136a525d"
+  },
+  "directSingletonImports": [
+    {
+      "file": "src/api/supabaseWrapper.js",
+      "line": 1,
+      "source": "../lib/supabaseClient"
+    },
+    {
+      "file": "src/components/jugar/AvailabilityOpportunityCard.jsx",
+      "line": 27,
+      "source": "../../lib/supabaseClient"
+    },
+    {
+      "file": "src/features/onboarding/storage.js",
+      "line": 6,
+      "source": "../../lib/supabaseClient"
+    },
+    {
+      "file": "src/features/torneos/isolated/IsolatedTorneosPage.jsx",
+      "line": 4,
+      "source": "../../../lib/supabaseClient"
+    },
+    {
+      "file": "src/lib/coreSupabaseClient.js",
+      "line": 3,
+      "source": "./supabaseClient"
+    },
+    {
+      "file": "src/services/api/supabase.js",
+      "line": 10,
+      "source": "../../lib/supabaseClient"
+    },
+    {
+      "file": "src/services/autoMatchPushService.js",
+      "line": 2,
+      "source": "../lib/supabaseClient"
+    },
+    {
+      "file": "src/services/db/availability.js",
+      "line": 1,
+      "source": "../../lib/supabaseClient"
+    },
+    {
+      "file": "src/services/db/awards.js",
+      "line": 2,
+      "source": "../../lib/supabaseClient"
+    },
+    {
+      "file": "src/services/db/dbErrors.js",
+      "line": 1,
+      "source": "../../lib/supabaseClient"
+    },
+    {
+      "file": "src/services/db/frequentMatches.js",
+      "line": 2,
+      "source": "../../lib/supabaseClient"
+    },
+    {
+      "file": "src/services/db/friends.js",
+      "line": 2,
+      "source": "../../lib/supabaseClient"
+    },
+    {
+      "file": "src/services/db/importedMatchPlayers.js",
+      "line": 1,
+      "source": "../../lib/supabaseClient"
+    },
+    {
+      "file": "src/services/db/matchScheduling.js",
+      "line": 1,
+      "source": "../../lib/supabaseClient"
+    },
+    {
+      "file": "src/services/db/matches.js",
+      "line": 2,
+      "source": "../../lib/supabaseClient"
+    },
+    {
+      "file": "src/services/db/notifications.js",
+      "line": 2,
+      "source": "../../lib/supabaseClient"
+    },
+    {
+      "file": "src/services/db/openMatches.js",
+      "line": 1,
+      "source": "../../lib/supabaseClient"
+    },
+    {
+      "file": "src/services/db/payments.js",
+      "line": 2,
+      "source": "../../lib/supabaseClient"
+    },
+    {
+      "file": "src/services/db/penalties.js",
+      "line": 2,
+      "source": "../../lib/supabaseClient"
+    },
+    {
+      "file": "src/services/db/privateFriendGroups.js",
+      "line": 1,
+      "source": "../../lib/supabaseClient"
+    },
+    {
+      "file": "src/services/db/profiles.js",
+      "line": 1,
+      "source": "../../lib/supabaseClient"
+    },
+    {
+      "file": "src/services/db/realtime.js",
+      "line": 2,
+      "source": "../../lib/supabaseClient"
+    },
+    {
+      "file": "src/services/db/surveys.js",
+      "line": 2,
+      "source": "../../lib/supabaseClient"
+    },
+    {
+      "file": "src/services/db/teamChallenges.js",
+      "line": 2,
+      "source": "../../lib/supabaseClient"
+    },
+    {
+      "file": "src/services/db/teamRankings.js",
+      "line": 1,
+      "source": "../../lib/supabaseClient"
+    },
+    {
+      "file": "src/services/db/teams.js",
+      "line": 2,
+      "source": "../../lib/supabaseClient"
+    },
+    {
+      "file": "src/services/db/userIdentity.js",
+      "line": 1,
+      "source": "../../lib/supabaseClient"
+    },
+    {
+      "file": "src/services/pushDispatchService.js",
+      "line": 2,
+      "source": "../lib/supabaseClient"
+    },
+    {
+      "file": "src/services/storage/teamCrests.js",
+      "line": 1,
+      "source": "../../lib/supabaseClient"
+    },
+    {
+      "file": "src/services/votingPhotoUpload.js",
+      "line": 1,
+      "source": "../lib/supabaseClient"
+    },
+    {
+      "file": "src/supabase.js",
+      "line": 2,
+      "source": "./lib/supabaseClient"
+    },
+    {
+      "file": "src/supabase.js",
+      "line": 16,
+      "source": "./lib/supabaseClient"
+    },
+    {
+      "file": "src/utils/checkView.js",
+      "line": 2,
+      "source": "../lib/supabaseClient"
+    }
+  ],
+  "coreDependencies": [
+    {
+      "file": "src/features/torneos/TorneosApp.jsx",
+      "line": 2,
+      "source": "./context/TorneosWorkspaceContext"
+    },
+    {
+      "file": "src/features/torneos/TorneosApp.jsx",
+      "line": 3,
+      "source": "./components/TorneosShell"
+    },
+    {
+      "file": "src/features/torneos/TorneosApp.jsx",
+      "line": 4,
+      "source": "./api/localReviewWorkspaceService"
+    },
+    {
+      "file": "src/features/torneos/TorneosFeatureGate.jsx",
+      "line": 8,
+      "source": "./TorneosApp"
+    },
+    {
+      "file": "src/features/torneos/TorneosFeatureGate.jsx",
+      "line": 9,
+      "source": "./stagingV1/StagingV1TorneosApp"
+    },
+    {
+      "file": "src/features/torneos/api/localReviewWorkspaceService.js",
+      "line": 1,
+      "source": "./tournamentWorkspaceService"
+    },
+    {
+      "file": "src/features/torneos/api/publicTournamentService.js",
+      "line": 1,
+      "source": "../../../services/api/supabase"
+    },
+    {
+      "file": "src/features/torneos/api/publicTournamentService.js",
+      "line": 2,
+      "source": "../domain/brandingAssets"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentBrandingService.js",
+      "line": 1,
+      "source": "../../../services/api/supabase"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentBrandingService.js",
+      "line": 2,
+      "source": "../domain/brandingAssets"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentMediaUploadClient.js",
+      "line": 19,
+      "source": "../../../services/api/supabase"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentPlayerPortraitService.js",
+      "line": 10,
+      "source": "../../../services/api/supabase"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentTeamPhotoService.js",
+      "line": 13,
+      "source": "../../../services/api/supabase"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 7,
+      "source": "../../../services/api/supabase"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 9,
+      "source": "../domain/brandingAssets"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 10,
+      "source": "./tournamentBrandingService"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 11,
+      "source": "./tournamentMediaUploadClient"
+    },
+    {
+      "file": "src/features/torneos/components/BrandingAssetField.jsx",
+      "line": 3,
+      "source": "../api/tournamentBrandingService"
+    },
+    {
+      "file": "src/features/torneos/components/BrandingAssetField.jsx",
+      "line": 7,
+      "source": "./BrandingImage"
+    },
+    {
+      "file": "src/features/torneos/components/BrandingImage.jsx",
+      "line": 2,
+      "source": "../domain/brandingAssets"
+    },
+    {
+      "file": "src/features/torneos/components/CaptainMatchSquadPage.jsx",
+      "line": 8,
+      "source": "../context/TorneosWorkspaceContext"
+    },
+    {
+      "file": "src/features/torneos/components/CaptainMatchSquadPage.jsx",
+      "line": 9,
+      "source": "./MatchOperationsPage"
+    },
+    {
+      "file": "src/features/torneos/components/CommunicationsAdminPage.jsx",
+      "line": 24,
+      "source": "../context/TorneosWorkspaceContext"
+    },
+    {
+      "file": "src/features/torneos/components/CompetitionCenterPage.jsx",
+      "line": 25,
+      "source": "../context/TorneosWorkspaceContext"
+    },
+    {
+      "file": "src/features/torneos/components/CompetitionCenterPage.jsx",
+      "line": 33,
+      "source": "./BrandingImage"
+    },
+    {
+      "file": "src/features/torneos/components/CompetitionOverviewPage.jsx",
+      "line": 27,
+      "source": "./BrandingImage"
+    },
+    {
+      "file": "src/features/torneos/components/CreateOrganizationPage.jsx",
+      "line": 8,
+      "source": "../context/TorneosWorkspaceContext"
+    },
+    {
+      "file": "src/features/torneos/components/FixtureWorkspacePage.jsx",
+      "line": 45,
+      "source": "./BrandingImage"
+    },
+    {
+      "file": "src/features/torneos/components/MatchOperationsPage.jsx",
+      "line": 37,
+      "source": "../context/TorneosWorkspaceContext"
+    },
+    {
+      "file": "src/features/torneos/components/MediaAdminPage.jsx",
+      "line": 33,
+      "source": "../context/TorneosWorkspaceContext"
+    },
+    {
+      "file": "src/features/torneos/components/MyCommunicationsPage.jsx",
+      "line": 15,
+      "source": "../context/TorneosWorkspaceContext"
+    },
+    {
+      "file": "src/features/torneos/components/MyTournamentMatchesPage.jsx",
+      "line": 19,
+      "source": "../context/TorneosWorkspaceContext"
+    },
+    {
+      "file": "src/features/torneos/components/MyTournamentsPage.jsx",
+      "line": 16,
+      "source": "../context/TorneosWorkspaceContext"
+    },
+    {
+      "file": "src/features/torneos/components/NewTeamEntryPage.jsx",
+      "line": 14,
+      "source": "../context/TorneosWorkspaceContext"
+    },
+    {
+      "file": "src/features/torneos/components/OrganizationMembersPage.jsx",
+      "line": 18,
+      "source": "../context/TorneosWorkspaceContext"
+    },
+    {
+      "file": "src/features/torneos/components/OrganizationRouteGuard.jsx",
+      "line": 6,
+      "source": "../context/TorneosWorkspaceContext"
+    },
+    {
+      "file": "src/features/torneos/components/OrganizationSettingsPage.jsx",
+      "line": 12,
+      "source": "../context/TorneosWorkspaceContext"
+    },
+    {
+      "file": "src/features/torneos/components/OrganizationSettingsPage.jsx",
+      "line": 15,
+      "source": "./BrandingAssetField"
+    },
+    {
+      "file": "src/features/torneos/components/OrganizationVenuesPage.jsx",
+      "line": 4,
+      "source": "../context/TorneosWorkspaceContext"
+    },
+    {
+      "file": "src/features/torneos/components/PersonalWorkspaceSwitcher.jsx",
+      "line": 12,
+      "source": "../context/TorneosWorkspaceContext"
+    },
+    {
+      "file": "src/features/torneos/components/PlanExperiencePage.jsx",
+      "line": 12,
+      "source": "../api/tournamentWorkspaceService"
+    },
+    {
+      "file": "src/features/torneos/components/PlayerPortraitActions.jsx",
+      "line": 4,
+      "source": "../api/tournamentPlayerPortraitService"
+    },
+    {
+      "file": "src/features/torneos/components/PlayerPortraitActions.jsx",
+      "line": 9,
+      "source": "./usePlayerPortraitUrl"
+    },
+    {
+      "file": "src/features/torneos/components/PlayerPortraitActions.jsx",
+      "line": 10,
+      "source": "./PlayerPortraitDialog"
+    },
+    {
+      "file": "src/features/torneos/components/PlayerPortraitDialog.jsx",
+      "line": 10,
+      "source": "./usePlayerPortraitUrl"
+    },
+    {
+      "file": "src/features/torneos/components/PublicTournamentPage.jsx",
+      "line": 12,
+      "source": "../api/publicTournamentService"
+    },
+    {
+      "file": "src/features/torneos/components/PublicTournamentPage.jsx",
+      "line": 19,
+      "source": "./BrandingImage"
+    },
+    {
+      "file": "src/features/torneos/components/PurchaseStatusPage.jsx",
+      "line": 10,
+      "source": "../api/tournamentWorkspaceService"
+    },
+    {
+      "file": "src/features/torneos/components/RosterPlayerPortrait.jsx",
+      "line": 7,
+      "source": "./usePlayerPortraitUrl"
+    },
+    {
+      "file": "src/features/torneos/components/SocialStudioPage.jsx",
+      "line": 27,
+      "source": "../context/TorneosWorkspaceContext"
+    },
+    {
+      "file": "src/features/torneos/components/TeamInvitationPage.jsx",
+      "line": 4,
+      "source": "../context/TorneosWorkspaceContext"
+    },
+    {
+      "file": "src/features/torneos/components/TeamPhotoPanel.jsx",
+      "line": 11,
+      "source": "../api/tournamentTeamPhotoService"
+    },
+    {
+      "file": "src/features/torneos/components/TeamPhotoPanel.jsx",
+      "line": 17,
+      "source": "./useTeamPhotoUrl"
+    },
+    {
+      "file": "src/features/torneos/components/TeamPhotoPanel.jsx",
+      "line": 18,
+      "source": "./BrandingImage"
+    },
+    {
+      "file": "src/features/torneos/components/TeamRegistrationPage.jsx",
+      "line": 20,
+      "source": "../context/TorneosWorkspaceContext"
+    },
+    {
+      "file": "src/features/torneos/components/TeamRegistrationPage.jsx",
+      "line": 33,
+      "source": "./BrandingAssetField"
+    },
+    {
+      "file": "src/features/torneos/components/TeamRegistrationPage.jsx",
+      "line": 34,
+      "source": "./BrandingImage"
+    },
+    {
+      "file": "src/features/torneos/components/TeamRegistrationPage.jsx",
+      "line": 35,
+      "source": "./PlayerPortraitActions"
+    },
+    {
+      "file": "src/features/torneos/components/TeamRegistrationPage.jsx",
+      "line": 36,
+      "source": "./RosterPlayerPortrait"
+    },
+    {
+      "file": "src/features/torneos/components/TeamRegistrationPage.jsx",
+      "line": 37,
+      "source": "./TeamPhotoPanel"
+    },
+    {
+      "file": "src/features/torneos/components/TeamRegistrationPage.jsx",
+      "line": 38,
+      "source": "../api/tournamentPlayerPortraitService"
+    },
+    {
+      "file": "src/features/torneos/components/TeamRegistrationPage.jsx",
+      "line": 39,
+      "source": "../api/tournamentTeamPhotoService"
+    },
+    {
+      "file": "src/features/torneos/components/TeamVisualPolicySettings.jsx",
+      "line": 3,
+      "source": "../api/tournamentWorkspaceService"
+    },
+    {
+      "file": "src/features/torneos/components/TeamsPage.jsx",
+      "line": 22,
+      "source": "../context/TorneosWorkspaceContext"
+    },
+    {
+      "file": "src/features/torneos/components/TeamsPage.jsx",
+      "line": 33,
+      "source": "./BrandingImage"
+    },
+    {
+      "file": "src/features/torneos/components/TorneosDashboard.jsx",
+      "line": 23,
+      "source": "../context/TorneosWorkspaceContext"
+    },
+    {
+      "file": "src/features/torneos/components/TorneosDashboard.jsx",
+      "line": 40,
+      "source": "./BrandingImage"
+    },
+    {
+      "file": "src/features/torneos/components/TorneosLanding.jsx",
+      "line": 24,
+      "source": "../context/TorneosWorkspaceContext"
+    },
+    {
+      "file": "src/features/torneos/components/TorneosShell.jsx",
+      "line": 27,
+      "source": "../../../components/global-header/GlobalHeader"
+    },
+    {
+      "file": "src/features/torneos/components/TorneosShell.jsx",
+      "line": 36,
+      "source": "../context/TorneosWorkspaceContext"
+    },
+    {
+      "file": "src/features/torneos/components/TorneosShell.jsx",
+      "line": 39,
+      "source": "./CreateOrganizationPage"
+    },
+    {
+      "file": "src/features/torneos/components/TorneosShell.jsx",
+      "line": 40,
+      "source": "./CompetitionOverviewPage"
+    },
+    {
+      "file": "src/features/torneos/components/TorneosShell.jsx",
+      "line": 41,
+      "source": "./OrganizationMembersPage"
+    },
+    {
+      "file": "src/features/torneos/components/TorneosShell.jsx",
+      "line": 43,
+      "source": "./OrganizationRouteGuard"
+    },
+    {
+      "file": "src/features/torneos/components/TorneosShell.jsx",
+      "line": 44,
+      "source": "./OrganizationVenuesPage"
+    },
+    {
+      "file": "src/features/torneos/components/TorneosShell.jsx",
+      "line": 46,
+      "source": "./OrganizationSettingsPage"
+    },
+    {
+      "file": "src/features/torneos/components/TorneosShell.jsx",
+      "line": 47,
+      "source": "./PlanExperiencePage"
+    },
+    {
+      "file": "src/features/torneos/components/TorneosShell.jsx",
+      "line": 48,
+      "source": "./PurchaseStatusPage"
+    },
+    {
+      "file": "src/features/torneos/components/TorneosShell.jsx",
+      "line": 50,
+      "source": "./TorneosDashboard"
+    },
+    {
+      "file": "src/features/torneos/components/TorneosShell.jsx",
+      "line": 51,
+      "source": "./TorneosLanding"
+    },
+    {
+      "file": "src/features/torneos/components/TorneosShell.jsx",
+      "line": 53,
+      "source": "./TournamentWizardPage"
+    },
+    {
+      "file": "src/features/torneos/components/TorneosShell.jsx",
+      "line": 54,
+      "source": "./TeamsPage"
+    },
+    {
+      "file": "src/features/torneos/components/TorneosShell.jsx",
+      "line": 55,
+      "source": "./NewTeamEntryPage"
+    },
+    {
+      "file": "src/features/torneos/components/TorneosShell.jsx",
+      "line": 56,
+      "source": "./TeamRegistrationPage"
+    },
+    {
+      "file": "src/features/torneos/components/TorneosShell.jsx",
+      "line": 57,
+      "source": "./TeamInvitationPage"
+    },
+    {
+      "file": "src/features/torneos/components/TorneosShell.jsx",
+      "line": 58,
+      "source": "./WorkspaceSwitcher"
+    },
+    {
+      "file": "src/features/torneos/components/TorneosShell.jsx",
+      "line": 59,
+      "source": "./FixtureWorkspacePage"
+    },
+    {
+      "file": "src/features/torneos/components/TorneosShell.jsx",
+      "line": 60,
+      "source": "./MatchOperationsPage"
+    },
+    {
+      "file": "src/features/torneos/components/TorneosShell.jsx",
+      "line": 61,
+      "source": "./MyTournamentMatchesPage"
+    },
+    {
+      "file": "src/features/torneos/components/TorneosShell.jsx",
+      "line": 62,
+      "source": "./CaptainMatchSquadPage"
+    },
+    {
+      "file": "src/features/torneos/components/TorneosShell.jsx",
+      "line": 63,
+      "source": "./CompetitionCenterPage"
+    },
+    {
+      "file": "src/features/torneos/components/TorneosShell.jsx",
+      "line": 64,
+      "source": "./MyTournamentsPage"
+    },
+    {
+      "file": "src/features/torneos/components/TorneosShell.jsx",
+      "line": 65,
+      "source": "./TournamentHubPage"
+    },
+    {
+      "file": "src/features/torneos/components/TorneosShell.jsx",
+      "line": 66,
+      "source": "./MyCommunicationsPage"
+    },
+    {
+      "file": "src/features/torneos/components/TorneosShell.jsx",
+      "line": 67,
+      "source": "./CommunicationsAdminPage"
+    },
+    {
+      "file": "src/features/torneos/components/TorneosShell.jsx",
+      "line": 68,
+      "source": "./MediaAdminPage"
+    },
+    {
+      "file": "src/features/torneos/components/TorneosShell.jsx",
+      "line": 69,
+      "source": "./SocialStudioPage"
+    },
+    {
+      "file": "src/features/torneos/components/TournamentHubPage.jsx",
+      "line": 36,
+      "source": "../context/TorneosWorkspaceContext"
+    },
+    {
+      "file": "src/features/torneos/components/TournamentHubPage.jsx",
+      "line": 41,
+      "source": "./BrandingImage"
+    },
+    {
+      "file": "src/features/torneos/components/TournamentPublicPageSettings.jsx",
+      "line": 11,
+      "source": "../api/tournamentWorkspaceService"
+    },
+    {
+      "file": "src/features/torneos/components/TournamentWizardPage.jsx",
+      "line": 60,
+      "source": "./TournamentPublicPageSettings"
+    },
+    {
+      "file": "src/features/torneos/components/TournamentWizardPage.jsx",
+      "line": 61,
+      "source": "./TeamVisualPolicySettings"
+    },
+    {
+      "file": "src/features/torneos/components/TournamentWizardPage.jsx",
+      "line": 62,
+      "source": "./BrandingAssetField"
+    },
+    {
+      "file": "src/features/torneos/components/WorkspaceSwitcher.jsx",
+      "line": 12,
+      "source": "../context/TorneosWorkspaceContext"
+    },
+    {
+      "file": "src/features/torneos/components/WorkspaceSwitcher.jsx",
+      "line": 15,
+      "source": "./BrandingImage"
+    },
+    {
+      "file": "src/features/torneos/components/usePlayerPortraitUrl.js",
+      "line": 11,
+      "source": "../api/tournamentPlayerPortraitService"
+    },
+    {
+      "file": "src/features/torneos/components/useTeamPhotoUrl.js",
+      "line": 8,
+      "source": "../api/tournamentTeamPhotoService"
+    },
+    {
+      "file": "src/features/torneos/context/TorneosWorkspaceContext.jsx",
+      "line": 10,
+      "source": "../api/tournamentWorkspaceService"
+    },
+    {
+      "file": "src/features/torneos/domain/brandingAssets.js",
+      "line": 2,
+      "source": "../../../services/api/supabase"
+    },
+    {
+      "file": "src/features/torneos/isolated/IsolatedTorneosPage.jsx",
+      "line": 3,
+      "source": "../../../components/AuthProvider"
+    },
+    {
+      "file": "src/features/torneos/isolated/IsolatedTorneosPage.jsx",
+      "line": 4,
+      "source": "../../../lib/supabaseClient"
+    },
+    {
+      "file": "src/features/torneos/isolated/IsolatedTorneosPage.jsx",
+      "line": 5,
+      "source": "../../../services/authLogoutService"
+    },
+    {
+      "file": "src/features/torneos/stagingV1/StagingV1TorneosApp.jsx",
+      "line": 3,
+      "source": "../context/TorneosWorkspaceContext"
+    },
+    {
+      "file": "src/features/torneos/stagingV1/StagingV1TorneosApp.jsx",
+      "line": 5,
+      "source": "../components/TorneosShell"
+    },
+    {
+      "file": "src/features/torneos/stagingV1/StagingV1TorneosApp.jsx",
+      "line": 7,
+      "source": "./coreSessionBridge"
+    },
+    {
+      "file": "src/features/torneos/stagingV1/coreSessionBridge.js",
+      "line": 4,
+      "source": "../../../lib/coreSupabaseClient"
+    }
+  ],
+  "calls": [
+    {
+      "file": "src/features/torneos/api/publicTournamentService.js",
+      "line": 12,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "get_public_tournament_page"
+      ],
+      "function": "loadPublicTournamentPage",
+      "expression": "supabase.rpc('get_public_tournament_page', { p_public_slug: publicSlug, p_category_slug: categorySlug || null, })"
+    },
+    {
+      "file": "src/features/torneos/api/publicTournamentService.js",
+      "line": 16,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "get_public_tournament_branding"
+      ],
+      "function": "loadPublicTournamentPage",
+      "expression": "supabase.rpc('get_public_tournament_branding', { p_public_slug: publicSlug, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentBrandingService.js",
+      "line": 27,
+      "kind": "storage",
+      "callee": "supabase.storage.from.remove",
+      "targets": [],
+      "function": "removeObject",
+      "expression": "supabase.storage.from(BRANDING_BUCKET).remove([path])"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentBrandingService.js",
+      "line": 27,
+      "kind": "from",
+      "callee": "supabase.storage.from",
+      "targets": [],
+      "function": "removeObject",
+      "expression": "supabase.storage.from(BRANDING_BUCKET)"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentBrandingService.js",
+      "line": 38,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "get_tournament_branding_context"
+      ],
+      "function": "loadTournamentBrandingContext",
+      "expression": "supabase.rpc('get_tournament_branding_context', { p_organization_id: organizationId, p_tournament_id: tournamentId, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentBrandingService.js",
+      "line": 62,
+      "kind": "storage",
+      "callee": "supabase.storage.from.upload",
+      "targets": [],
+      "function": "uploadTournamentBrandingAsset",
+      "expression": "supabase.storage .from(BRANDING_BUCKET) .upload(uploadedPath, prepared.source, { cacheControl: '31536000', contentType: prepared.mime, upsert: false, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentBrandingService.js",
+      "line": 62,
+      "kind": "from",
+      "callee": "supabase.storage.from",
+      "targets": [],
+      "function": "uploadTournamentBrandingAsset",
+      "expression": "supabase.storage .from(BRANDING_BUCKET)"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentBrandingService.js",
+      "line": 71,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "set_tournament_branding_reference"
+      ],
+      "function": "uploadTournamentBrandingAsset",
+      "expression": "supabase.rpc( 'set_tournament_branding_reference', { p_organization_id: organizationId, p_entity_kind: kind, p_entity_id: entityId, p_path: uploadedPath, }, )"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentBrandingService.js",
+      "line": 105,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "set_tournament_branding_reference"
+      ],
+      "function": "removeTournamentBrandingAsset",
+      "expression": "supabase.rpc('set_tournament_branding_reference', { p_organization_id: organizationId, p_entity_kind: kind, p_entity_id: entityId, p_path: null, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentMediaUploadClient.js",
+      "line": 56,
+      "kind": "auth",
+      "callee": "supabase.auth.getSession",
+      "targets": [],
+      "function": "authHeaders",
+      "expression": "supabase.auth.getSession()"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentMediaUploadClient.js",
+      "line": 77,
+      "kind": "transport",
+      "callee": "fetch",
+      "targets": [],
+      "function": "callFunction",
+      "expression": "fetch(`${base}/${name}`, { method: 'POST', headers: { ...(await authHeaders()), ...headers }, body, signal, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentMediaUploadClient.js",
+      "line": 111,
+      "kind": "transport",
+      "callee": "XMLHttpRequest",
+      "targets": [],
+      "function": "<callback>",
+      "expression": "new XMLHttpRequest()"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentPlayerPortraitService.js",
+      "line": 87,
+      "kind": "auth",
+      "callee": "supabase.auth.getSession",
+      "targets": [],
+      "function": "authHeaders",
+      "expression": "supabase.auth.getSession()"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentPlayerPortraitService.js",
+      "line": 107,
+      "kind": "transport",
+      "callee": "fetch",
+      "targets": [],
+      "function": "callPortraitFunction",
+      "expression": "fetch( `${base}/functions/v1/${PORTRAIT_FUNCTION}${query}`, { method, headers: { ...(await authHeaders()), ...headers }, body, signal }, )"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentPlayerPortraitService.js",
+      "line": 135,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "list_tournament_player_portrait_refs"
+      ],
+      "function": "loadRosterPortraits",
+      "expression": "supabase.rpc('list_tournament_player_portrait_refs', { p_organization_id: organizationId, p_team_entry_id: teamEntryId, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentPlayerPortraitService.js",
+      "line": 209,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "set_tournament_player_portrait_crop"
+      ],
+      "function": "setPlayerPortraitCrop",
+      "expression": "supabase.rpc('set_tournament_player_portrait_crop', { p_organization_id: organizationId, p_portrait_id: portraitId, p_focal_x: normalized.x, p_focal_y: normalized.y, p_zoom: normalized.zoom, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentTeamPhotoService.js",
+      "line": 90,
+      "kind": "auth",
+      "callee": "supabase.auth.getSession",
+      "targets": [],
+      "function": "authHeaders",
+      "expression": "supabase.auth.getSession()"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentTeamPhotoService.js",
+      "line": 110,
+      "kind": "transport",
+      "callee": "fetch",
+      "targets": [],
+      "function": "callTeamPhotoFunction",
+      "expression": "fetch( `${base}/functions/v1/${TEAM_PHOTO_FUNCTION}${query}`, { method, headers: { ...(await authHeaders()), ...headers }, body, signal }, )"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentTeamPhotoService.js",
+      "line": 153,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "get_tournament_team_photo_state"
+      ],
+      "function": "loadTeamPhotoState",
+      "expression": "supabase.rpc('get_tournament_team_photo_state', { p_organization_id: organizationId, p_team_entry_id: teamEntryId, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentTeamPhotoService.js",
+      "line": 235,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "set_tournament_team_photo_editorial_status"
+      ],
+      "function": "setTeamPhotoEditorialStatus",
+      "expression": "supabase.rpc('set_tournament_team_photo_editorial_status', { p_organization_id: organizationId, p_team_photo_id: teamPhotoId, p_editorial_status: editorialStatus, p_review_reason: reviewReason, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentTeamPhotoService.js",
+      "line": 252,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "revoke_tournament_team_photo"
+      ],
+      "function": "revokeTeamPhoto",
+      "expression": "supabase.rpc('revoke_tournament_team_photo', { p_organization_id: organizationId, p_team_photo_id: teamPhotoId, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 35,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "get_tournament_workspace_context"
+      ],
+      "function": "loadTournamentWorkspaceContext",
+      "expression": "supabase.rpc('get_tournament_workspace_context')"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 50,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "get_effective_tournament_entitlements"
+      ],
+      "function": "loadEffectiveTournamentEntitlements",
+      "expression": "supabase.rpc('get_effective_tournament_entitlements', { p_organization_id: organizationId, p_tournament_id: tournamentId, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 60,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "get_effective_tournament_season_entitlements"
+      ],
+      "function": "loadEffectiveTournamentSeasonEntitlements",
+      "expression": "supabase.rpc('get_effective_tournament_season_entitlements', { p_organization_id: organizationId, p_season_id: seasonId, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 67,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "get_tournament_creation_eligibility"
+      ],
+      "function": "loadTournamentCreationEligibility",
+      "expression": "supabase.rpc('get_tournament_creation_eligibility', { p_organization_id: organizationId, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 77,
+      "kind": "function",
+      "callee": "supabase.functions.invoke",
+      "targets": [
+        "tournament-checkout"
+      ],
+      "function": "createTournamentCheckout",
+      "expression": "supabase.functions.invoke('tournament-checkout', { body: { organizationId, seasonId, idempotencyKey }, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 107,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "get_tournament_purchase"
+      ],
+      "function": "loadTournamentPurchase",
+      "expression": "supabase.rpc('get_tournament_purchase', { p_purchase_id: purchaseId, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 123,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "get_tournament_season_media_usage"
+      ],
+      "function": "loadTournamentSeasonMediaUsage",
+      "expression": "supabase.rpc('get_tournament_season_media_usage', { p_organization_id: organizationId, p_season_id: seasonId, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 130,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "list_tournament_season_member_assignments"
+      ],
+      "function": "listTournamentSeasonMemberAssignments",
+      "expression": "supabase.rpc('list_tournament_season_member_assignments', { p_organization_id: organizationId, p_season_id: seasonId, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 137,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "assign_tournament_season_member"
+      ],
+      "function": "assignTournamentSeasonMember",
+      "expression": "supabase.rpc('assign_tournament_season_member', { p_organization_id: organizationId, p_season_id: seasonId, p_membership_id: membershipId, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 149,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "remove_tournament_season_member_assignment"
+      ],
+      "function": "removeTournamentSeasonMemberAssignment",
+      "expression": "supabase.rpc('remove_tournament_season_member_assignment', { p_organization_id: organizationId, p_season_id: seasonId, p_membership_id: membershipId, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 157,
+      "kind": "function",
+      "callee": "supabase.functions.invoke",
+      "targets": [
+        "tournament-fake-payment"
+      ],
+      "function": "simulateFakeTournamentPayment",
+      "expression": "supabase.functions.invoke('tournament-fake-payment', { body: { purchaseId, status }, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 167,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "cancel_tournament_purchase"
+      ],
+      "function": "cancelTournamentPurchase",
+      "expression": "supabase.rpc('cancel_tournament_purchase', { p_purchase_id: purchaseId, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 176,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "get_tournament_public_page_settings"
+      ],
+      "function": "loadTournamentPublicPageSettings",
+      "expression": "supabase.rpc('get_tournament_public_page_settings', { p_organization_id: organizationId, p_tournament_id: tournamentId, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 186,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "get_tournament_team_visual_policy"
+      ],
+      "function": "loadTournamentTeamVisualPolicy",
+      "expression": "supabase.rpc('get_tournament_team_visual_policy', { p_organization_id: organizationId, p_tournament_id: tournamentId, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 197,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "set_tournament_team_visual_policy"
+      ],
+      "function": "setTournamentTeamVisualPolicy",
+      "expression": "supabase.rpc('set_tournament_team_visual_policy', { p_organization_id: organizationId, p_tournament_id: tournamentId, p_policy: policy, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 209,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "set_tournament_public_page_published"
+      ],
+      "function": "setTournamentPublicPagePublished",
+      "expression": "supabase.rpc('set_tournament_public_page_published', { p_organization_id: organizationId, p_tournament_id: tournamentId, p_published: Boolean(published), })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 223,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "create_tournament_organization"
+      ],
+      "function": "createTournamentOrganization",
+      "expression": "supabase.rpc('create_tournament_organization', { p_name: name, p_slug: slug, p_idempotency_key: idempotencyKey, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 244,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "set_tournament_workspace_preference"
+      ],
+      "function": "setTournamentWorkspacePreference",
+      "expression": "supabase.rpc('set_tournament_workspace_preference', { p_workspace_type: workspaceType, p_organization_id: organizationId, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 260,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "is_tournament_organization_slug_available"
+      ],
+      "function": "checkTournamentOrganizationSlugAvailability",
+      "expression": "supabase.rpc( 'is_tournament_organization_slug_available', { p_slug: slug }, )"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 281,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "update_tournament_organization"
+      ],
+      "function": "updateTournamentOrganization",
+      "expression": "supabase.rpc('update_tournament_organization', { p_organization_id: organizationId, p_name: name, p_slug: slug, p_status: status, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 296,
+      "kind": "from",
+      "callee": "supabase.from",
+      "targets": [
+        "tournament_organization_members"
+      ],
+      "function": "listTournamentOrganizationMembers",
+      "expression": "supabase .from('tournament_organization_members')"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 311,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "get_tournament_competition_context"
+      ],
+      "function": "loadTournamentCompetitionContext",
+      "expression": "supabase.rpc('get_tournament_competition_context', { p_organization_id: organizationId, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 344,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "create_tournament_season"
+      ],
+      "function": "createTournamentSeason",
+      "expression": "supabase.rpc('create_tournament_season', { p_organization_id: organizationId, p_name: name, p_slug: slug, p_start_date: startDate || null, p_end_date: endDate || null, p_idempotency_key: idempotencyKey, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 370,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "update_tournament_season"
+      ],
+      "function": "updateTournamentSeason",
+      "expression": "supabase.rpc('update_tournament_season', { p_organization_id: organizationId, p_season_id: seasonId, p_name: name, p_slug: slug, p_start_date: startDate || null, p_end_date: endDate || null, p_status: status, p_clear_start_date: startDate === '', p_clear_end_date: endDate === '', })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 403,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "create_tournament_with_defaults"
+      ],
+      "function": "createTournamentCompetition",
+      "expression": "supabase.rpc('create_tournament_with_defaults', { p_organization_id: organizationId, p_season_id: seasonId, p_name: name, p_slug: slug, p_description: description || null, p_sport_modality: sportModality, p_competition_format: competitionFormat, p_gender_category: genderCategory, p_start_date: startDate || null, p_end_date: endDate || null, p_idempotency_key: idempotencyKey, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 430,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "update_tournament_configuration"
+      ],
+      "function": "updateTournamentCompetition",
+      "expression": "supabase.rpc('update_tournament_configuration', { p_organization_id: organizationId, p_tournament_id: tournamentId, p_patch: patch, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 459,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "save_tournament_category"
+      ],
+      "function": "saveTournamentCategory",
+      "expression": "supabase.rpc('save_tournament_category', { p_organization_id: organizationId, p_tournament_id: tournamentId, p_category_id: categoryId, p_name: name, p_slug: slug, p_description: description || null, p_sort_order: sortOrder, p_min_age: minAge, p_max_age: maxAge, p_gender_category: genderCategory, p_sport_modality: sportModality, p_team_size: teamSize, p_status: status, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 488,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "change_tournament_status"
+      ],
+      "function": "changeTournamentCompetitionStatus",
+      "expression": "supabase.rpc('change_tournament_status', { p_organization_id: organizationId, p_tournament_id: tournamentId, p_status: status, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 503,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "start_tournament_competition"
+      ],
+      "function": "startTournamentCompetition",
+      "expression": "supabase.rpc('start_tournament_competition', { p_organization_id: organizationId, p_tournament_id: tournamentId, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 517,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "finish_tournament_competition"
+      ],
+      "function": "finishTournamentCompetition",
+      "expression": "supabase.rpc('finish_tournament_competition', { p_organization_id: organizationId, p_tournament_id: tournamentId, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 535,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "reopen_tournament_competition"
+      ],
+      "function": "reopenTournamentCompetition",
+      "expression": "supabase.rpc('reopen_tournament_competition', { p_organization_id: organizationId, p_tournament_id: tournamentId, p_reason: reason, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 556,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "withdraw_tournament_competition_participant"
+      ],
+      "function": "withdrawTournamentCompetitionParticipant",
+      "expression": "supabase.rpc('withdraw_tournament_competition_participant', { p_organization_id: organizationId, p_tournament_id: tournamentId, p_team_entry_id: teamEntryId, p_reason_code: reasonCode, p_reason_text: reasonText, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 577,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "set_active_tournament_context"
+      ],
+      "function": "setActiveTournamentContext",
+      "expression": "supabase.rpc('set_active_tournament_context', { p_organization_id: organizationId, p_season_id: seasonId, p_tournament_id: tournamentId, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 592,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "get_tournament_teams_context"
+      ],
+      "function": "loadTournamentTeamsContext",
+      "expression": "supabase.rpc('get_tournament_teams_context', { p_organization_id: organizationId, p_tournament_id: tournamentId, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 606,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "get_team_registration_context"
+      ],
+      "function": "loadTeamRegistrationContext",
+      "expression": "supabase.rpc('get_team_registration_context', { p_organization_id: organizationId, p_team_entry_id: teamEntryId, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 618,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "create_tournament_team_entry"
+      ],
+      "function": "createTournamentTeamEntry",
+      "expression": "supabase.rpc('create_tournament_team_entry', { p_organization_id: input.organizationId, p_tournament_id: input.tournamentId, p_category_id: input.categoryId, p_arma2_team_id: input.arma2TeamId || null, p_name: input.name, p_short_name: input.shortName || null, p_primary_color: input.primaryColor || null, p_secondary_color: input.secondaryColor || null, p_registration_source: input.registrationSource, p_manager_user_id: input.managerUserId || null, p_manager_email: input.managerEmail || null, p_manager_display_name: input.managerDisplayName || null, p_idempotency_key: input.idempotencyKey, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 636,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "update_tournament_team_entry"
+      ],
+      "function": "updateTournamentTeamEntry",
+      "expression": "supabase.rpc('update_tournament_team_entry', { p_organization_id: input.organizationId, p_team_entry_id: input.teamEntryId, p_patch: input.patch, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 644,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "create_tournament_provisional_player"
+      ],
+      "function": "createTournamentProvisionalPlayer",
+      "expression": "supabase.rpc('create_tournament_provisional_player', { p_organization_id: input.organizationId, p_team_entry_id: input.teamEntryId, p_display_name: input.displayName, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 652,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "add_tournament_roster_player"
+      ],
+      "function": "addTournamentRosterPlayer",
+      "expression": "supabase.rpc('add_tournament_roster_player', { p_organization_id: input.organizationId, p_team_entry_id: input.teamEntryId, p_roster_id: input.rosterId, p_arma2_user_id: input.arma2UserId || null, p_provisional_player_id: input.provisionalPlayerId || null, p_display_name: input.displayName, p_avatar_url: input.avatarUrl || null, p_shirt_number: input.shirtNumber === '' ? null : input.shirtNumber, p_primary_position: input.primaryPosition || null, p_secondary_position: input.secondaryPosition || null, p_is_goalkeeper: Boolean(input.isGoalkeeper), })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 668,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "update_tournament_roster_player"
+      ],
+      "function": "updateTournamentRosterPlayer",
+      "expression": "supabase.rpc('update_tournament_roster_player', { p_organization_id: input.organizationId, p_team_entry_id: input.teamEntryId, p_roster_player_id: input.rosterPlayerId, p_shirt_number: input.shirtNumber === '' ? null : input.shirtNumber, p_primary_position: input.primaryPosition || null, p_secondary_position: input.secondaryPosition || null, p_is_goalkeeper: Boolean(input.isGoalkeeper), })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 680,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "remove_tournament_roster_player"
+      ],
+      "function": "removeTournamentRosterPlayer",
+      "expression": "supabase.rpc('remove_tournament_roster_player', { p_organization_id: input.organizationId, p_team_entry_id: input.teamEntryId, p_roster_player_id: input.rosterPlayerId, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 688,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "submit_tournament_team_entry"
+      ],
+      "function": "submitTournamentTeamEntry",
+      "expression": "supabase.rpc('submit_tournament_team_entry', { p_organization_id: input.organizationId, p_team_entry_id: input.teamEntryId, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 695,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "review_tournament_team_entry"
+      ],
+      "function": "reviewTournamentTeamEntry",
+      "expression": "supabase.rpc('review_tournament_team_entry', { p_organization_id: input.organizationId, p_team_entry_id: input.teamEntryId, p_decision: input.decision, p_reason: input.reason, p_issues: input.issues || [], })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 705,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "withdraw_tournament_team_entry"
+      ],
+      "function": "withdrawTournamentTeamEntry",
+      "expression": "supabase.rpc('withdraw_tournament_team_entry', { p_organization_id: input.organizationId, p_team_entry_id: input.teamEntryId, p_reason: input.reason, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 713,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "archive_tournament_team_entry"
+      ],
+      "function": "archiveTournamentTeamEntry",
+      "expression": "supabase.rpc('archive_tournament_team_entry', { p_organization_id: input.organizationId, p_team_entry_id: input.teamEntryId, p_reason: input.reason, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 721,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "lock_tournament_roster"
+      ],
+      "function": "lockTournamentRoster",
+      "expression": "supabase.rpc('lock_tournament_roster', { p_organization_id: input.organizationId, p_team_entry_id: input.teamEntryId, p_roster_id: input.rosterId, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 729,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "invite_tournament_team_manager"
+      ],
+      "function": "inviteTournamentTeamManager",
+      "expression": "supabase.rpc('invite_tournament_team_manager', { p_organization_id: input.organizationId, p_team_entry_id: input.teamEntryId, p_email: input.email, p_display_name: input.displayName, p_role: input.role || 'captain', })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 739,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "accept_tournament_team_invitation"
+      ],
+      "function": "acceptTournamentTeamInvitation",
+      "expression": "supabase.rpc('accept_tournament_team_invitation', { p_token: token, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 745,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "search_tournament_players"
+      ],
+      "function": "searchTournamentPlayers",
+      "expression": "supabase.rpc('search_tournament_players', { p_organization_id: input.organizationId, p_tournament_id: input.tournamentId, p_query: input.query, p_limit: input.limit || 8, p_team_entry_id: input.teamEntryId || null, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 755,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "search_tournament_arma2_teams"
+      ],
+      "function": "searchTournamentArma2Teams",
+      "expression": "supabase.rpc('search_tournament_arma2_teams', { p_organization_id: input.organizationId, p_tournament_id: input.tournamentId, p_query: input.query, p_limit: input.limit || 8, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 764,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "get_tournament_fixture_context"
+      ],
+      "function": "loadTournamentFixtureContext",
+      "expression": "supabase.rpc('get_tournament_fixture_context', { p_organization_id: organizationId, p_tournament_id: tournamentId, p_category_id: categoryId, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 772,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "get_tournament_schedule_context"
+      ],
+      "function": "loadTournamentScheduleContext",
+      "expression": "supabase.rpc('get_tournament_schedule_context', { p_organization_id: organizationId, p_tournament_id: tournamentId, p_category_id: categoryId, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 780,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "freeze_tournament_participants"
+      ],
+      "function": "freezeTournamentParticipants",
+      "expression": "supabase.rpc('freeze_tournament_participants', { p_organization_id: input.organizationId, p_tournament_id: input.tournamentId, p_category_id: input.categoryId, p_idempotency_key: input.idempotencyKey, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 789,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "reopen_tournament_participants"
+      ],
+      "function": "reopenTournamentParticipants",
+      "expression": "supabase.rpc('reopen_tournament_participants', { p_organization_id: input.organizationId, p_tournament_id: input.tournamentId, p_category_id: input.categoryId, p_reason: input.reason, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 798,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "save_tournament_draw_pots"
+      ],
+      "function": "saveTournamentDrawPots",
+      "expression": "supabase.rpc('save_tournament_draw_pots', { p_organization_id: input.organizationId, p_tournament_id: input.tournamentId, p_category_id: input.categoryId, p_pots: input.pots, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 807,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "execute_tournament_group_draw"
+      ],
+      "function": "executeTournamentGroupDraw",
+      "expression": "supabase.rpc('execute_tournament_group_draw', { p_organization_id: input.organizationId, p_tournament_id: input.tournamentId, p_category_id: input.categoryId, p_group_count: input.groupCount, p_seed: input.seed, p_publish: Boolean(input.publish), })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 818,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "generate_tournament_fixture"
+      ],
+      "function": "generateTournamentFixture",
+      "expression": "supabase.rpc('generate_tournament_fixture', { p_organization_id: input.organizationId, p_tournament_id: input.tournamentId, p_category_id: input.categoryId, p_seed: input.seed || null, p_configuration: input.configuration || {}, p_idempotency_key: input.idempotencyKey, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 829,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "create_manual_fixture_version"
+      ],
+      "function": "createManualTournamentFixture",
+      "expression": "supabase.rpc('create_manual_fixture_version', { p_organization_id: input.organizationId, p_tournament_id: input.tournamentId, p_category_id: input.categoryId, p_source_fixture_version_id: input.sourceFixtureVersionId || null, p_idempotency_key: input.idempotencyKey, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 839,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "update_draft_fixture"
+      ],
+      "function": "updateDraftTournamentFixture",
+      "expression": "supabase.rpc('update_draft_fixture', { p_organization_id: input.organizationId, p_fixture_version_id: input.fixtureVersionId, p_action: input.action, p_payload: input.payload || {}, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 848,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "validate_tournament_fixture"
+      ],
+      "function": "validateTournamentFixture",
+      "expression": "supabase.rpc('validate_tournament_fixture', { p_organization_id: input.organizationId, p_fixture_version_id: input.fixtureVersionId, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 855,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "publish_tournament_fixture"
+      ],
+      "function": "publishTournamentFixture",
+      "expression": "supabase.rpc('publish_tournament_fixture', { p_organization_id: input.organizationId, p_fixture_version_id: input.fixtureVersionId, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 862,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "append_tournament_playoff_phase"
+      ],
+      "function": "appendTournamentPlayoffPhase",
+      "expression": "supabase.rpc('append_tournament_playoff_phase', { p_organization_id: input.organizationId, p_tournament_id: input.tournamentId, p_category_id: input.categoryId, p_source_phase_id: input.sourcePhaseId, p_qualifier_count: input.qualifierCount, p_double_leg: Boolean(input.doubleLeg), p_idempotency_key: input.idempotencyKey, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 874,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "archive_tournament_fixture"
+      ],
+      "function": "archiveTournamentFixture",
+      "expression": "supabase.rpc('archive_tournament_fixture', { p_organization_id: input.organizationId, p_fixture_version_id: input.fixtureVersionId, p_reason: input.reason, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 882,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "supersede_tournament_fixture"
+      ],
+      "function": "supersedeTournamentFixture",
+      "expression": "supabase.rpc('supersede_tournament_fixture', { p_organization_id: input.organizationId, p_fixture_version_id: input.fixtureVersionId, p_idempotency_key: input.idempotencyKey, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 905,
+      "kind": "from",
+      "callee": "supabase.from",
+      "targets": [
+        "tournament_venues"
+      ],
+      "function": "loadTournamentOrganizationVenues",
+      "expression": "supabase .from('tournament_venues')"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 911,
+      "kind": "from",
+      "callee": "supabase.from",
+      "targets": [
+        "tournament_courts"
+      ],
+      "function": "loadTournamentOrganizationVenues",
+      "expression": "supabase .from('tournament_courts')"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 945,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "create_tournament_venue"
+      ],
+      "function": "createTournamentVenue",
+      "expression": "supabase.rpc('create_tournament_venue', { p_organization_id: input.organizationId, p_name: input.name, p_address: input.address, p_place_id: input.placeId || null, p_latitude: input.latitude ?? null, p_longitude: input.longitude ?? null, p_locality: input.locality || null, p_timezone: input.timezone || 'America/Argentina/Buenos_Aires', p_notes: input.notes || null, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 959,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "update_tournament_venue"
+      ],
+      "function": "updateTournamentVenue",
+      "expression": "supabase.rpc('update_tournament_venue', { p_organization_id: input.organizationId, p_venue_id: input.venueId, p_patch: input.patch, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 967,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "create_tournament_court"
+      ],
+      "function": "createTournamentCourt",
+      "expression": "supabase.rpc('create_tournament_court', { p_organization_id: input.organizationId, p_venue_id: input.venueId, p_name: input.name, p_sport_modality: input.sportModality, p_notes: input.notes || null, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 977,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "update_tournament_court"
+      ],
+      "function": "updateTournamentCourt",
+      "expression": "supabase.rpc('update_tournament_court', { p_organization_id: input.organizationId, p_court_id: input.courtId, p_patch: input.patch, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 985,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "save_tournament_schedule_windows"
+      ],
+      "function": "saveTournamentScheduleWindows",
+      "expression": "supabase.rpc('save_tournament_schedule_windows', { p_organization_id: input.organizationId, p_tournament_id: input.tournamentId, p_windows: input.windows, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 993,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "validate_tournament_match_schedule"
+      ],
+      "function": "validateTournamentMatchSchedule",
+      "expression": "supabase.rpc('validate_tournament_match_schedule', { p_organization_id: input.organizationId, p_match_id: input.matchId, p_scheduled_at: input.scheduledAt, p_venue_id: input.venueId, p_court_id: input.courtId, p_duration_minutes: input.durationMinutes, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 1004,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "schedule_tournament_match"
+      ],
+      "function": "scheduleTournamentMatch",
+      "expression": "supabase.rpc('schedule_tournament_match', { p_organization_id: input.organizationId, p_match_id: input.matchId, p_scheduled_at: input.scheduledAt, p_venue_id: input.venueId, p_court_id: input.courtId, p_duration_minutes: input.durationMinutes, p_override_warnings: Boolean(input.overrideWarnings), p_override_reason: input.overrideReason || null, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 1017,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "reschedule_tournament_match"
+      ],
+      "function": "rescheduleTournamentMatch",
+      "expression": "supabase.rpc('reschedule_tournament_match', { p_organization_id: input.organizationId, p_match_id: input.matchId, p_scheduled_at: input.scheduledAt, p_venue_id: input.venueId, p_court_id: input.courtId, p_duration_minutes: input.durationMinutes, p_reason: input.reason, p_override_warnings: Boolean(input.overrideWarnings), })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 1036,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "postpone_tournament_match",
+        "cancel_tournament_match",
+        "restore_tournament_match_unscheduled"
+      ],
+      "function": "changeTournamentMatchPlan",
+      "expression": "supabase.rpc(rpc, { p_organization_id: input.organizationId, p_match_id: input.matchId, p_reason: input.reason, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 1044,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "auto_schedule_tournament_matches"
+      ],
+      "function": "autoScheduleTournamentMatches",
+      "expression": "supabase.rpc('auto_schedule_tournament_matches', { p_organization_id: input.organizationId, p_fixture_version_id: input.fixtureVersionId, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 1068,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "get_player_tournament_matches"
+      ],
+      "function": "loadPlayerTournamentMatches",
+      "expression": "supabase.rpc('get_player_tournament_matches')"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 1069,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "get_managed_tournament_matches"
+      ],
+      "function": "loadPlayerTournamentMatches",
+      "expression": "supabase.rpc('get_managed_tournament_matches')"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 1088,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "respond_match_availability"
+      ],
+      "function": "respondTournamentMatchAvailability",
+      "expression": "supabase.rpc('respond_match_availability', { p_match_id: input.matchId, p_response: input.response, p_comment: input.comment || null, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 1096,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "record_manual_match_availability"
+      ],
+      "function": "recordManualTournamentMatchAvailability",
+      "expression": "supabase.rpc('record_manual_match_availability', { p_organization_id: input.organizationId, p_match_id: input.matchId, p_roster_player_id: input.rosterPlayerId, p_response: input.response, p_reason: input.reason, p_comment: input.comment || null, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 1107,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "get_tournament_match_operations_context"
+      ],
+      "function": "loadTournamentMatchOperations",
+      "expression": "supabase.rpc('get_tournament_match_operations_context', { p_organization_id: input.organizationId, p_tournament_id: input.tournamentId, p_category_id: input.categoryId || null, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 1115,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "get_tournament_match_operation_context"
+      ],
+      "function": "loadTournamentMatchOperation",
+      "expression": "supabase.rpc('get_tournament_match_operation_context', { p_organization_id: input.organizationId, p_match_operation_id: input.operationId, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 1122,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "get_match_squad_context"
+      ],
+      "function": "loadTournamentMatchSquad",
+      "expression": "supabase.rpc('get_match_squad_context', { p_organization_id: input.organizationId, p_match_id: input.matchId, p_team_entry_id: input.teamEntryId, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 1130,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "get_my_managed_match_squad_context"
+      ],
+      "function": "loadMyManagedTournamentMatchSquad",
+      "expression": "supabase.rpc('get_my_managed_match_squad_context', { p_match_id: matchId, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 1136,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "save_match_squad"
+      ],
+      "function": "saveTournamentMatchSquad",
+      "expression": "supabase.rpc('save_match_squad', { p_organization_id: input.organizationId, p_match_id: input.matchId, p_team_entry_id: input.teamEntryId, p_players: input.players, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 1145,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "submit_match_squad"
+      ],
+      "function": "submitTournamentMatchSquad",
+      "expression": "supabase.rpc('submit_match_squad', { p_organization_id: input.organizationId, p_match_id: input.matchId, p_team_entry_id: input.teamEntryId, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 1153,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "open_tournament_match_operation"
+      ],
+      "function": "openTournamentMatchOperation",
+      "expression": "supabase.rpc('open_tournament_match_operation', { p_organization_id: input.organizationId, p_match_id: input.matchId, p_override_reason: input.overrideReason || null, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 1161,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "save_tournament_match_operation_draft"
+      ],
+      "function": "saveTournamentMatchOperationDraft",
+      "expression": "supabase.rpc('save_tournament_match_operation_draft', { p_organization_id: input.organizationId, p_match_operation_id: input.operationId, p_match_status: input.matchStatus, p_notes: input.notes || null, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 1170,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "set_tournament_match_outcome"
+      ],
+      "function": "setTournamentMatchOutcome",
+      "expression": "supabase.rpc('set_tournament_match_outcome', { p_organization_id: input.organizationId, p_match_operation_id: input.operationId, p_outcome: normalizeMatchOutcome(input.outcome), })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 1178,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "set_tournament_match_score"
+      ],
+      "function": "setTournamentMatchScore",
+      "expression": "supabase.rpc('set_tournament_match_score', { p_organization_id: input.organizationId, p_match_operation_id: input.operationId, p_score: input.score, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 1186,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "add_tournament_match_event"
+      ],
+      "function": "addTournamentMatchEvent",
+      "expression": "supabase.rpc('add_tournament_match_event', { p_organization_id: input.organizationId, p_match_operation_id: input.operationId, p_event: input.event, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 1194,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "void_tournament_match_event"
+      ],
+      "function": "voidTournamentMatchEvent",
+      "expression": "supabase.rpc('void_tournament_match_event', { p_organization_id: input.organizationId, p_event_id: input.eventId, p_reason: input.reason, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 1202,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "submit_tournament_match_operation"
+      ],
+      "function": "submitTournamentMatchOperation",
+      "expression": "supabase.rpc('submit_tournament_match_operation', { p_organization_id: input.organizationId, p_match_operation_id: input.operationId, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 1209,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "review_tournament_match_operation"
+      ],
+      "function": "reviewTournamentMatchOperation",
+      "expression": "supabase.rpc('review_tournament_match_operation', { p_organization_id: input.organizationId, p_match_operation_id: input.operationId, p_decision: input.decision, p_reason: input.reason, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 1218,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "validate_tournament_match_operation"
+      ],
+      "function": "validateTournamentMatchOperation",
+      "expression": "supabase.rpc('validate_tournament_match_operation', { p_organization_id: input.organizationId, p_match_operation_id: input.operationId, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 1225,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "make_tournament_match_official"
+      ],
+      "function": "makeTournamentMatchOfficial",
+      "expression": "supabase.rpc('make_tournament_match_official', { p_organization_id: input.organizationId, p_match_operation_id: input.operationId, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 1232,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "request_tournament_match_correction"
+      ],
+      "function": "requestTournamentMatchCorrection",
+      "expression": "supabase.rpc('request_tournament_match_correction', { p_organization_id: input.organizationId, p_match_operation_id: input.operationId, p_reason: input.reason, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 1240,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "create_tournament_match_correction"
+      ],
+      "function": "createTournamentMatchCorrection",
+      "expression": "supabase.rpc('create_tournament_match_correction', { p_organization_id: input.organizationId, p_match_operation_id: input.operationId, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 1247,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "void_tournament_match_operation"
+      ],
+      "function": "voidTournamentMatchOperation",
+      "expression": "supabase.rpc('void_tournament_match_operation', { p_organization_id: input.organizationId, p_match_operation_id: input.operationId, p_reason: input.reason, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 1265,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "get_tournament_standings_context"
+      ],
+      "function": "loadTournamentStandings",
+      "expression": "supabase.rpc( 'get_tournament_standings_context', projectionScopeParams(input), )"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 1272,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "get_tournament_statistics_context"
+      ],
+      "function": "loadTournamentStatistics",
+      "expression": "supabase.rpc( 'get_tournament_statistics_context', projectionScopeParams(input), )"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 1279,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "rebuild_tournament_standings"
+      ],
+      "function": "rebuildTournamentStandings",
+      "expression": "supabase.rpc('rebuild_tournament_standings', { ...projectionScopeParams(input), p_reason: input.reason, p_idempotency_key: input.idempotencyKey || createIdempotencyKey(), })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 1287,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "publish_tournament_standings_revision"
+      ],
+      "function": "publishTournamentStandings",
+      "expression": "supabase.rpc('publish_tournament_standings_revision', { p_revision_id: input.revisionId, p_reason: input.reason, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 1294,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "resolve_tournament_qualification"
+      ],
+      "function": "resolveTournamentQualification",
+      "expression": "supabase.rpc('resolve_tournament_qualification', { p_revision_id: input.revisionId, p_reason: input.reason, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 1301,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "create_tournament_points_adjustment"
+      ],
+      "function": "createTournamentPointsAdjustment",
+      "expression": "supabase.rpc('create_tournament_points_adjustment', { p_organization_id: input.organizationId, p_fixture_version_id: input.fixtureVersionId, p_phase_id: input.phaseId, p_group_id: input.groupId || null, p_participant_id: input.participantId, p_points: input.points, p_reason: input.reason, p_idempotency_key: input.idempotencyKey || createIdempotencyKey(), })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 1314,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "revoke_tournament_points_adjustment"
+      ],
+      "function": "revokeTournamentPointsAdjustment",
+      "expression": "supabase.rpc('revoke_tournament_points_adjustment', { p_adjustment_id: input.adjustmentId, p_reason: input.reason, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 1321,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "create_tournament_disciplinary_override"
+      ],
+      "function": "createTournamentDisciplinaryOverride",
+      "expression": "supabase.rpc('create_tournament_disciplinary_override', { p_suspension_id: input.suspensionId, p_action: input.action, p_matches: input.matches ?? null, p_reason: input.reason, p_idempotency_key: input.idempotencyKey || createIdempotencyKey(), })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 1331,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "mark_tournament_suspension_served"
+      ],
+      "function": "markTournamentSuspensionServed",
+      "expression": "supabase.rpc('mark_tournament_suspension_served', { p_suspension_id: input.suspensionId, p_match_id: input.matchId, p_note: input.note || null, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 1339,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "get_player_tournament_statistics"
+      ],
+      "function": "loadPlayerTournamentStatistics",
+      "expression": "supabase.rpc('get_player_tournament_statistics', { p_tournament_id: tournamentId, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 1345,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "get_player_tournament_suspensions"
+      ],
+      "function": "loadPlayerTournamentSuspensions",
+      "expression": "supabase.rpc('get_player_tournament_suspensions', { p_tournament_id: tournamentId, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 1354,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "get_my_tournament_memberships"
+      ],
+      "function": "loadMyTournamentMemberships",
+      "expression": "supabase.rpc('get_my_tournament_memberships', { p_limit: limit, p_offset: offset, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 1400,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "get_tournament_participant_hub"
+      ],
+      "function": "loadTournamentParticipantHub",
+      "expression": "supabase.rpc('get_tournament_participant_hub', { p_tournament_id: tournamentId, p_category_id: categoryId, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 1423,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "set_my_tournament_hub_category"
+      ],
+      "function": "setTournamentHubCategory",
+      "expression": "supabase.rpc('set_my_tournament_hub_category', { p_tournament_id: tournamentId, p_category_id: categoryId, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 1437,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "get_published_tournament_matches"
+      ],
+      "function": "loadPublishedTournamentMatches",
+      "expression": "supabase.rpc('get_published_tournament_matches', { p_tournament_id: tournamentId, p_category_id: categoryId, p_view: view, p_team_entry_id: teamEntryId, p_limit: limit, p_offset: offset, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 1448,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "get_tournament_participant_match"
+      ],
+      "function": "loadTournamentParticipantMatch",
+      "expression": "supabase.rpc('get_tournament_participant_match', { p_match_id: matchId, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 1459,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "get_published_tournament_teams"
+      ],
+      "function": "loadPublishedTournamentTeams",
+      "expression": "supabase.rpc('get_published_tournament_teams', { p_tournament_id: tournamentId, p_category_id: categoryId, p_limit: limit, p_offset: offset, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 1473,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "get_published_tournament_standings"
+      ],
+      "function": "loadPublishedTournamentStandings",
+      "expression": "supabase.rpc('get_published_tournament_standings', { p_tournament_id: tournamentId, p_category_id: categoryId, p_phase_id: phaseId, p_group_id: groupId, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 1487,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "get_published_tournament_statistics"
+      ],
+      "function": "loadPublishedTournamentStatistics",
+      "expression": "supabase.rpc('get_published_tournament_statistics', { p_tournament_id: tournamentId, p_category_id: categoryId, p_phase_id: phaseId, p_group_id: groupId, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 1501,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "get_tournament_communications_inbox"
+      ],
+      "function": "loadTournamentCommunicationsInbox",
+      "expression": "supabase.rpc('get_tournament_communications_inbox', { p_tournament_id: tournamentId, p_filter: filter, p_limit: limit, p_offset: offset, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 1510,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "get_tournament_announcement"
+      ],
+      "function": "loadTournamentAnnouncement",
+      "expression": "supabase.rpc('get_tournament_announcement', { p_announcement_id: announcementId, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 1519,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "mark_tournament_announcement_read"
+      ],
+      "function": "markTournamentAnnouncementRead",
+      "expression": "supabase.rpc('mark_tournament_announcement_read', { p_announcement_id: announcementId, p_confirm: confirm, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 1526,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "get_my_tournament_notification_preferences"
+      ],
+      "function": "loadTournamentNotificationPreferences",
+      "expression": "supabase.rpc('get_my_tournament_notification_preferences', { p_tournament_id: tournamentId, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 1540,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "update_my_tournament_notification_preferences"
+      ],
+      "function": "updateTournamentNotificationPreferences",
+      "expression": "supabase.rpc('update_my_tournament_notification_preferences', { p_tournament_id: tournamentId, p_general: general, p_match_changes: matchChanges, p_callups: callups, p_discipline: discipline, p_documents: documents, p_summaries: summaries, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 1555,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "get_published_tournament_documents"
+      ],
+      "function": "loadPublishedTournamentDocuments",
+      "expression": "supabase.rpc('get_published_tournament_documents', { p_tournament_id: tournamentId, p_category_id: categoryId, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 1565,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "acknowledge_tournament_document"
+      ],
+      "function": "acknowledgeTournamentDocument",
+      "expression": "supabase.rpc('acknowledge_tournament_document', { p_version_id: versionId, p_confirm: confirm, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 1575,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "get_tournament_communications_admin_context"
+      ],
+      "function": "loadTournamentCommunicationsAdminContext",
+      "expression": "supabase.rpc('get_tournament_communications_admin_context', { p_organization_id: organizationId, p_tournament_id: tournamentId, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 1596,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "create_tournament_announcement_draft"
+      ],
+      "function": "createTournamentAnnouncementDraft",
+      "expression": "supabase.rpc('create_tournament_announcement_draft', { p_organization_id: organizationId, p_tournament_id: tournamentId, p_category_id: categoryId, p_announcement_type: type, p_title: title, p_summary: summary, p_body: body, p_priority: priority, p_acknowledgement_mode: acknowledgementMode, p_scheduled_for: scheduledFor, p_supersedes_id: supersedesId, p_correction_reason: correctionReason, p_idempotency_key: idempotencyKey, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 1621,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "set_tournament_announcement_audience"
+      ],
+      "function": "setTournamentAnnouncementAudience",
+      "expression": "supabase.rpc('set_tournament_announcement_audience', { p_announcement_id: announcementId, p_audience_type: type, p_category_id: categoryId, p_team_entry_id: teamEntryId, p_match_id: matchId, p_specific_user_id: specificUserId, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 1639,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "replace_tournament_announcement_audience"
+      ],
+      "function": "replaceTournamentAnnouncementAudience",
+      "expression": "supabase.rpc('replace_tournament_announcement_audience', { p_announcement_id: announcementId, p_audience_type: type, p_category_id: categoryId, p_team_entry_id: teamEntryId, p_match_id: matchId, p_specific_user_id: specificUserId, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 1657,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "set_tournament_announcement_link"
+      ],
+      "function": "setTournamentAnnouncementLink",
+      "expression": "supabase.rpc('set_tournament_announcement_link', { p_announcement_id: announcementId, p_link_type: type, p_resource_id: resourceId, p_external_url: externalUrl, p_label: label, p_sort_order: sortOrder, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 1676,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "update_tournament_announcement_draft"
+      ],
+      "function": "updateTournamentAnnouncementDraft",
+      "expression": "supabase.rpc('update_tournament_announcement_draft', { p_announcement_id: announcementId, p_title: title, p_summary: summary, p_body: body, p_priority: priority, p_acknowledgement_mode: acknowledgementMode, p_scheduled_for: scheduledFor, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 1688,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "preview_tournament_announcement_audience"
+      ],
+      "function": "previewTournamentAnnouncementAudience",
+      "expression": "supabase.rpc('preview_tournament_announcement_audience', { p_announcement_id: announcementId, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 1697,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "publish_tournament_announcement"
+      ],
+      "function": "publishTournamentAnnouncement",
+      "expression": "supabase.rpc('publish_tournament_announcement', { p_announcement_id: announcementId, p_expected_recipient_count: expectedRecipientCount, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 1715,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "create_tournament_document"
+      ],
+      "function": "createTournamentDocument",
+      "expression": "supabase.rpc('create_tournament_document', { p_organization_id: organizationId, p_tournament_id: tournamentId, p_category_id: categoryId, p_document_type: type, p_title: title, p_summary: summary, p_body: body, p_acknowledgement_mode: acknowledgementMode, p_effective_at: effectiveAt, p_idempotency_key: idempotencyKey, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 1730,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "publish_tournament_document_version"
+      ],
+      "function": "publishTournamentDocumentVersion",
+      "expression": "supabase.rpc('publish_tournament_document_version', { p_version_id: versionId, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 1743,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "get_tournament_media_admin_context"
+      ],
+      "function": "loadTournamentMediaAdminContext",
+      "expression": "supabase.rpc('get_tournament_media_admin_context', { p_organization_id: organizationId, p_tournament_id: tournamentId, p_status: status, p_limit: limit, p_offset: offset, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 1750,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "get_tournament_media_upload_capability"
+      ],
+      "function": "loadTournamentMediaAdminContext",
+      "expression": "supabase.rpc('get_tournament_media_upload_capability', { p_organization_id: organizationId, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 1753,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "get_tournament_media_asset_processing_tiers"
+      ],
+      "function": "loadTournamentMediaAdminContext",
+      "expression": "supabase.rpc('get_tournament_media_asset_processing_tiers', { p_organization_id: organizationId, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 1763,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "get_effective_tournament_entitlements"
+      ],
+      "function": "loadTournamentMediaAdminContext",
+      "expression": "supabase.rpc('get_effective_tournament_entitlements', { p_organization_id: organizationId, p_tournament_id: entitlementTournamentId, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 1791,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "create_tournament_media_gallery"
+      ],
+      "function": "createTournamentMediaGallery",
+      "expression": "supabase.rpc('create_tournament_media_gallery', { p_organization_id: organizationId, p_tournament_id: tournamentId, p_category_id: categoryId, p_round_id: roundId, p_match_id: matchId, p_title: title, p_description: description, p_visibility: visibility, p_idempotency_key: idempotencyKey, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 1811,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "update_tournament_media_gallery"
+      ],
+      "function": "updateTournamentMediaGallery",
+      "expression": "supabase.rpc('update_tournament_media_gallery', { p_gallery_id: galleryId, p_title: title, p_description: description, p_visibility: visibility, p_submit_for_review: submitForReview, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 1827,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "request_tournament_media_upload_session"
+      ],
+      "function": "requestTournamentMediaUploadSession",
+      "expression": "supabase.rpc('request_tournament_media_upload_session', { p_gallery_id: galleryId, p_file_name: fileName, p_declared_mime: mime, p_byte_size: byteSize, p_idempotency_key: idempotencyKey, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 1837,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "cancel_tournament_media_upload_session"
+      ],
+      "function": "cancelTournamentMediaUploadSession",
+      "expression": "supabase.rpc('cancel_tournament_media_upload_session', { p_session_id: sessionId, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 1847,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "transition_tournament_media_asset"
+      ],
+      "function": "transitionTournamentMediaAsset",
+      "expression": "supabase.rpc('transition_tournament_media_asset', { p_asset_id: assetId, p_action: action, p_reason: reason, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 1855,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "set_tournament_media_cover"
+      ],
+      "function": "setTournamentMediaCover",
+      "expression": "supabase.rpc('set_tournament_media_cover', { p_gallery_id: galleryId, p_asset_id: assetId, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 1866,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "reorder_tournament_media_item"
+      ],
+      "function": "reorderTournamentMediaItem",
+      "expression": "supabase.rpc('reorder_tournament_media_item', { p_gallery_id: galleryId, p_asset_id: assetId, p_target_order: targetOrder, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 1874,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "publish_tournament_media_gallery"
+      ],
+      "function": "publishTournamentMediaGallery",
+      "expression": "supabase.rpc('publish_tournament_media_gallery', { p_gallery_id: galleryId, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 1884,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "change_tournament_media_gallery_state"
+      ],
+      "function": "changeTournamentMediaGalleryState",
+      "expression": "supabase.rpc('change_tournament_media_gallery_state', { p_gallery_id: galleryId, p_action: action, p_reason: reason, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 1898,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "get_published_tournament_media"
+      ],
+      "function": "loadPublishedTournamentMedia",
+      "expression": "supabase.rpc('get_published_tournament_media', { p_tournament_id: tournamentId, p_category_id: categoryId, p_match_id: matchId, p_limit: limit, p_offset: offset, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 1914,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "report_tournament_media_asset"
+      ],
+      "function": "reportTournamentMediaAsset",
+      "expression": "supabase.rpc('report_tournament_media_asset', { p_asset_id: assetId, p_reason: reason, p_detail: detail, p_request_hide: requestHide, p_idempotency_key: idempotencyKey, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 1941,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "get_tournament_social_studio_context"
+      ],
+      "function": "loadTournamentSocialStudioContext",
+      "expression": "supabase.rpc('get_tournament_social_studio_context', { p_organization_id: organizationId, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 1955,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "get_tournament_social_snapshot"
+      ],
+      "function": "loadTournamentSocialSnapshot",
+      "expression": "supabase.rpc('get_tournament_social_snapshot', { p_organization_id: organizationId, p_tournament_id: tournamentId, p_category_id: categoryId, p_phase_id: phaseId, p_piece: piece, p_round_id: roundId, p_group_id: groupId, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 1973,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "authorize_tournament_social_export"
+      ],
+      "function": "authorizeTournamentSocialExport",
+      "expression": "supabase.rpc('authorize_tournament_social_export', { p_organization_id: organizationId, p_tournament_id: tournamentId, p_piece: piece, p_theme: theme, p_include_arma2_branding: Boolean(includeArma2Branding), })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 1987,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "set_tournament_social_permission"
+      ],
+      "function": "setTournamentSocialPermission",
+      "expression": "supabase.rpc('set_tournament_social_permission', { p_organization_id: organizationId, p_user_id: userId, p_can_export: canExport, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 2007,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "handle_tournament_media_report"
+      ],
+      "function": "handleTournamentMediaReport",
+      "expression": "supabase.rpc('handle_tournament_media_report', { p_report_id: reportId, p_status: status, p_resolution: resolution, })"
+    },
+    {
+      "file": "src/features/torneos/components/MobileAppCallout.jsx",
+      "line": 14,
+      "kind": "persistence",
+      "callee": "window.localStorage.getItem",
+      "targets": [],
+      "function": "<callback>",
+      "expression": "window.localStorage.getItem(DISMISS_KEY)"
+    },
+    {
+      "file": "src/features/torneos/components/MobileAppCallout.jsx",
+      "line": 19,
+      "kind": "persistence",
+      "callee": "window.localStorage.setItem",
+      "targets": [],
+      "function": "<callback>",
+      "expression": "window.localStorage.setItem(DISMISS_KEY, '1')"
+    },
+    {
+      "file": "src/features/torneos/context/TorneosWorkspaceContext.jsx",
+      "line": 32,
+      "kind": "persistence",
+      "callee": "window.localStorage.getItem",
+      "targets": [],
+      "function": "persistValidatedHint",
+      "expression": "window.localStorage.getItem(TORNEOS_WORKSPACE_STORAGE_KEY)"
+    },
+    {
+      "file": "src/features/torneos/context/TorneosWorkspaceContext.jsx",
+      "line": 33,
+      "kind": "persistence",
+      "callee": "window.localStorage.setItem",
+      "targets": [],
+      "function": "persistValidatedHint",
+      "expression": "window.localStorage.setItem(TORNEOS_WORKSPACE_STORAGE_KEY, serialized)"
+    },
+    {
+      "file": "src/features/torneos/domain/brandingAssets.js",
+      "line": 94,
+      "kind": "storage",
+      "callee": "client.storage.from.getPublicUrl",
+      "targets": [],
+      "function": "resolveBrandingAssetUrl",
+      "expression": "client.storage.from(bucket).getPublicUrl(path)"
+    },
+    {
+      "file": "src/features/torneos/domain/brandingAssets.js",
+      "line": 94,
+      "kind": "from",
+      "callee": "client.storage.from",
+      "targets": [],
+      "function": "resolveBrandingAssetUrl",
+      "expression": "client.storage.from(bucket)"
+    },
+    {
+      "file": "src/features/torneos/domain/premiumIntent.js",
+      "line": 13,
+      "kind": "persistence",
+      "callee": "window.sessionStorage.setItem",
+      "targets": [],
+      "function": "capturePremiumIntent",
+      "expression": "window.sessionStorage.setItem(PREMIUM_INTENT_STORAGE_KEY, PREMIUM_INTENT_VALUE)"
+    },
+    {
+      "file": "src/features/torneos/domain/premiumIntent.js",
+      "line": 23,
+      "kind": "persistence",
+      "callee": "window.sessionStorage.getItem",
+      "targets": [],
+      "function": "hasPendingPremiumIntent",
+      "expression": "window.sessionStorage.getItem(PREMIUM_INTENT_STORAGE_KEY)"
+    },
+    {
+      "file": "src/features/torneos/domain/premiumIntent.js",
+      "line": 31,
+      "kind": "persistence",
+      "callee": "window.sessionStorage.removeItem",
+      "targets": [],
+      "function": "clearPremiumIntent",
+      "expression": "window.sessionStorage.removeItem(PREMIUM_INTENT_STORAGE_KEY)"
+    },
+    {
+      "file": "src/features/torneos/foundation/torneosClient.js",
+      "line": 30,
+      "kind": "rpc",
+      "callee": "transport.rpc",
+      "targets": [],
+      "function": "createTorneosClient",
+      "expression": "transport.rpc(operation, normalizeRpcParams(params), options)"
+    },
+    {
+      "file": "src/features/torneos/foundation/torneosTransport.js",
+      "line": 89,
+      "kind": "transport",
+      "callee": "window.fetch",
+      "targets": [],
+      "function": "<callback>",
+      "expression": "window.fetch(...args)"
+    },
+    {
+      "file": "src/features/torneos/foundation/torneosTransport.js",
+      "line": 137,
+      "kind": "transport",
+      "callee": "fetchImpl",
+      "targets": [],
+      "function": "exchange",
+      "expression": "fetchImpl(`${base}${EXCHANGE_PATH}`, { method: 'POST', headers: { Authorization: `Bearer ${token}` }, credentials: 'omit', cache: 'no-store', redirect: 'error', signal, })"
+    },
+    {
+      "file": "src/features/torneos/foundation/torneosTransport.js",
+      "line": 193,
+      "kind": "transport",
+      "callee": "fetchImpl",
+      "targets": [],
+      "function": "send",
+      "expression": "fetchImpl(`${base}${path}`, { method, headers: { Authorization: `Bearer ${token}`, Accept: 'application/json', ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}), ...headers, }, body: body !== undefined ? JSON.stringify(body) : undefined, credentials: 'omit', cache: 'no-store', redirect: 'error', signal: timed, })"
+    },
+    {
+      "file": "src/features/torneos/isolated/IsolatedTorneosPage.jsx",
+      "line": 26,
+      "kind": "from",
+      "callee": "clientRef.current.supabaseTorneos.from",
+      "targets": [
+        "sso_probe"
+      ],
+      "function": "load",
+      "expression": "clientRef.current.supabaseTorneos.from('sso_probe')"
+    },
+    {
+      "file": "src/features/torneos/isolated/createTorneosClient.js",
+      "line": 13,
+      "kind": "auth",
+      "callee": "supabaseCore.auth.onAuthStateChange",
+      "targets": [],
+      "function": "createTorneosClient",
+      "expression": "supabaseCore.auth.onAuthStateChange((event) => { // Synchronous callback: never call another Auth method under GoTrue's lock. if (['SIGNED_OUT', 'SIGNED_IN', 'TOKEN_REFRESHED', 'USER_UPDATED'].includes(event)) clear(); })"
+    },
+    {
+      "file": "src/features/torneos/isolated/createTorneosClient.js",
+      "line": 19,
+      "kind": "auth",
+      "callee": "supabaseCore.auth.getSession",
+      "targets": [],
+      "function": "accessToken",
+      "expression": "supabaseCore.auth.getSession()"
+    },
+    {
+      "file": "src/features/torneos/isolated/createTorneosClient.js",
+      "line": 31,
+      "kind": "transport",
+      "callee": "fetchImpl",
+      "targets": [],
+      "function": "<callback>",
+      "expression": "fetchImpl(`${origin}/exchange`, { method: 'POST', headers: { Authorization: `Bearer ${coreToken}` }, credentials: 'omit', cache: 'no-store', redirect: 'error', signal: AbortSignal.timeout(5000), })"
+    },
+    {
+      "file": "src/features/torneos/isolated/createTorneosClient.js",
+      "line": 50,
+      "kind": "transport",
+      "callee": "fetchImpl",
+      "targets": [],
+      "function": "<callback>",
+      "expression": "fetchImpl(input, init)"
+    },
+    {
+      "file": "src/features/torneos/isolated/createTorneosClient.js",
+      "line": 58,
+      "kind": "transport",
+      "callee": "createClient",
+      "targets": [],
+      "function": "createTorneosClient",
+      "expression": "createClient(`${origin}/torneos`, anonKey, { accessToken, global: { fetch: guardedFetch }, auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false }, })"
+    },
+    {
+      "file": "src/features/torneos/social/socialStudio.js",
+      "line": 69,
+      "kind": "transport",
+      "callee": "fetch",
+      "targets": [],
+      "function": "loadBitmap",
+      "expression": "fetch(url, { signal, credentials: 'omit' })"
+    },
+    {
+      "file": "src/features/torneos/stagingV1/coreSessionBridge.js",
+      "line": 10,
+      "kind": "auth",
+      "callee": "client.auth.getSession",
+      "targets": [],
+      "function": "createCoreSessionBridge",
+      "expression": "client.auth.getSession()"
+    },
+    {
+      "file": "src/features/torneos/stagingV1/coreSessionBridge.js",
+      "line": 17,
+      "kind": "auth",
+      "callee": "client.auth.onAuthStateChange",
+      "targets": [],
+      "function": "createCoreSessionBridge",
+      "expression": "client.auth.onAuthStateChange((event) => { // Synchronous: the transport only drops its cache here. if (CORE_AUTH_EVENTS_THAT_CLEAR.includes(event)) listener(event); })"
+    }
+  ]
+}

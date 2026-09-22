@@ -1,0 +1,19 @@
+✔ a valid bridge token carries the certified claim contract and verifies with the active key (91.043292ms)
+✔ every negative variant differs from the contract in exactly the intended way (55.020041ms)
+✔ secret registry: redaction and evidence refusal (0.247792ms)
+✔ guarded fetch refuses any origin outside the run and Production before any network use (0.28325ms)
+✔ delete plan: run-scoped predicates only; no predicate → null; empty lists never produce IN () (0.170375ms)
+✔ run registry: records immediately after each creation, scopes cleanup without the fixture aggregate, refuses empty ids (0.91225ms)
+✔ buildFixtures journals every organization the moment its call returns, even when a later call fails (R4.2 20260918T224221Z) (0.38925ms)
+✔ Core keys: only staging public anon/publishable enters the gateway; only staging service key creates QA (0.401583ms)
+✔ authorization document satisfies the sealed R4.1 validator for the three commands and only them; expires; refuses admin keys (0.218333ms)
+✔ assembled matrix passes the sealed validateMatrix only with every required block PASS, exact 43/33 coverage and full cleanup (0.553458ms)
+✔ guarded fetch preserves no-response transport failures instead of manufacturing HTTP 503 (0.346459ms)
+ℹ tests 11
+ℹ suites 0
+ℹ pass 11
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 234.011375

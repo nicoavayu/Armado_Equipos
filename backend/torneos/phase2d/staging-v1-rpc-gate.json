@@ -1,0 +1,384 @@
+{
+  "phase": "2D",
+  "purpose": "staging v1 RPC exposure gate: client roles lose EXECUTE on RPCs whose feature is OFF and that were never functionally certified",
+  "source_ledger": "backend/torneos/phase3a/inconclusive-ledger.json (33 INCONCLUSIVE / NOT_EXERCISED)",
+  "certified_in_phase2d_and_kept_executable": [
+    "review_tournament_team_entry"
+  ],
+  "gated_count": 33,
+  "off_functions": 32,
+  "parent_paths": 1,
+  "revoked_from": [
+    "anon",
+    "authenticated"
+  ],
+  "kept_for": [
+    "service_role"
+  ],
+  "re_enable_rule": "A gated function returns to clients only through a later GRANT migration, after its own fixture/test certification (residual ledger).",
+  "functions": [
+    {
+      "function": "authorize_tournament_social_export(uuid,uuid,text,text,boolean)",
+      "name": "authorize_tournament_social_export",
+      "identity_arguments": "p_organization_id uuid, p_tournament_id uuid, p_piece text, p_theme text, p_include_arma2_branding boolean",
+      "area": "commercial/entitlements",
+      "reason": "INCONCLUSIVE in Phase 2B / NOT_EXERCISED in Phase 3A; its feature is OFF in staging v1",
+      "baseline_grantees": [
+        "authenticated",
+        "service_role"
+      ]
+    },
+    {
+      "function": "cancel_tournament_purchase(uuid)",
+      "name": "cancel_tournament_purchase",
+      "identity_arguments": "p_purchase_id uuid",
+      "area": "commercial/entitlements",
+      "reason": "INCONCLUSIVE in Phase 2B / NOT_EXERCISED in Phase 3A; its feature is OFF in staging v1",
+      "baseline_grantees": [
+        "authenticated",
+        "service_role"
+      ]
+    },
+    {
+      "function": "change_tournament_media_gallery_state(uuid,text,text)",
+      "name": "change_tournament_media_gallery_state",
+      "identity_arguments": "p_gallery_id uuid, p_action text, p_reason text",
+      "area": "media/assets pipeline",
+      "reason": "INCONCLUSIVE in Phase 2B / NOT_EXERCISED in Phase 3A; its feature is OFF in staging v1",
+      "baseline_grantees": [
+        "authenticated",
+        "service_role"
+      ]
+    },
+    {
+      "function": "create_tournament_disciplinary_override(uuid,text,integer,text,uuid)",
+      "name": "create_tournament_disciplinary_override",
+      "identity_arguments": "p_suspension_id uuid, p_action text, p_matches integer, p_reason text, p_idempotency_key uuid",
+      "area": "other",
+      "reason": "INCONCLUSIVE in Phase 2B / NOT_EXERCISED in Phase 3A; its feature is OFF in staging v1",
+      "baseline_grantees": [
+        "authenticated",
+        "service_role"
+      ]
+    },
+    {
+      "function": "create_tournament_match_correction(uuid,uuid)",
+      "name": "create_tournament_match_correction",
+      "identity_arguments": "p_organization_id uuid, p_match_operation_id uuid",
+      "area": "advanced competition states",
+      "reason": "INCONCLUSIVE in Phase 2B / NOT_EXERCISED in Phase 3A; its feature is OFF in staging v1",
+      "baseline_grantees": [
+        "authenticated",
+        "service_role"
+      ]
+    },
+    {
+      "function": "create_tournament_points_adjustment(uuid,uuid,uuid,uuid,uuid,integer,text,uuid)",
+      "name": "create_tournament_points_adjustment",
+      "identity_arguments": "p_organization_id uuid, p_fixture_version_id uuid, p_phase_id uuid, p_group_id uuid, p_participant_id uuid, p_points integer, p_reason text, p_idempotency_key uuid",
+      "area": "other",
+      "reason": "INCONCLUSIVE in Phase 2B / NOT_EXERCISED in Phase 3A; its feature is OFF in staging v1",
+      "baseline_grantees": [
+        "authenticated",
+        "service_role"
+      ]
+    },
+    {
+      "function": "get_tournament_player_portrait_ref(uuid,uuid,text)",
+      "name": "get_tournament_player_portrait_ref",
+      "identity_arguments": "p_organization_id uuid, p_roster_player_id uuid, p_variant text",
+      "area": "media/assets pipeline",
+      "reason": "INCONCLUSIVE in Phase 2B / NOT_EXERCISED in Phase 3A; its feature is OFF in staging v1",
+      "baseline_grantees": [
+        "authenticated",
+        "service_role"
+      ]
+    },
+    {
+      "function": "get_tournament_purchase(uuid)",
+      "name": "get_tournament_purchase",
+      "identity_arguments": "p_purchase_id uuid",
+      "area": "commercial/entitlements",
+      "reason": "INCONCLUSIVE in Phase 2B / NOT_EXERCISED in Phase 3A; its feature is OFF in staging v1",
+      "baseline_grantees": [
+        "authenticated",
+        "service_role"
+      ]
+    },
+    {
+      "function": "has_tournament_entitlement(uuid,uuid,text)",
+      "name": "has_tournament_entitlement",
+      "identity_arguments": "p_organization_id uuid, p_tournament_id uuid, p_capability text",
+      "area": "commercial/entitlements",
+      "reason": "INCONCLUSIVE in Phase 2B / NOT_EXERCISED in Phase 3A; its feature is OFF in staging v1",
+      "baseline_grantees": [
+        "authenticated",
+        "service_role"
+      ]
+    },
+    {
+      "function": "lock_tournament_roster(uuid,uuid,uuid)",
+      "name": "lock_tournament_roster",
+      "identity_arguments": "p_organization_id uuid, p_team_entry_id uuid, p_roster_id uuid",
+      "area": "other",
+      "reason": "INCONCLUSIVE in Phase 2B / NOT_EXERCISED in Phase 3A; its feature is OFF in staging v1",
+      "baseline_grantees": [
+        "authenticated",
+        "service_role"
+      ]
+    },
+    {
+      "function": "make_tournament_match_official(uuid,uuid)",
+      "name": "make_tournament_match_official",
+      "identity_arguments": "p_organization_id uuid, p_match_operation_id uuid",
+      "area": "advanced competition states",
+      "reason": "INCONCLUSIVE in Phase 2B / NOT_EXERCISED in Phase 3A; its feature is OFF in staging v1",
+      "baseline_grantees": [
+        "authenticated",
+        "service_role"
+      ]
+    },
+    {
+      "function": "mark_tournament_suspension_served(uuid,uuid,text)",
+      "name": "mark_tournament_suspension_served",
+      "identity_arguments": "p_suspension_id uuid, p_match_id uuid, p_note text",
+      "area": "other",
+      "reason": "INCONCLUSIVE in Phase 2B / NOT_EXERCISED in Phase 3A; its feature is OFF in staging v1",
+      "baseline_grantees": [
+        "authenticated",
+        "service_role"
+      ]
+    },
+    {
+      "function": "publish_tournament_fixture(uuid,uuid)",
+      "name": "publish_tournament_fixture",
+      "identity_arguments": "p_organization_id uuid, p_fixture_version_id uuid",
+      "area": "advanced competition states",
+      "reason": "INCONCLUSIVE in Phase 2B / NOT_EXERCISED in Phase 3A; its feature is OFF in staging v1",
+      "baseline_grantees": [
+        "authenticated",
+        "service_role"
+      ]
+    },
+    {
+      "function": "record_manual_match_availability(uuid,uuid,uuid,text,text,text)",
+      "name": "record_manual_match_availability",
+      "identity_arguments": "p_organization_id uuid, p_match_id uuid, p_roster_player_id uuid, p_response text, p_reason text, p_comment text",
+      "area": "advanced competition states",
+      "reason": "INCONCLUSIVE in Phase 2B / NOT_EXERCISED in Phase 3A; its feature is OFF in staging v1",
+      "baseline_grantees": [
+        "authenticated",
+        "service_role"
+      ]
+    },
+    {
+      "function": "reopen_tournament_participants(uuid,uuid,uuid,text)",
+      "name": "reopen_tournament_participants",
+      "identity_arguments": "p_organization_id uuid, p_tournament_id uuid, p_category_id uuid, p_reason text",
+      "area": "other",
+      "reason": "INCONCLUSIVE in Phase 2B / NOT_EXERCISED in Phase 3A; its feature is OFF in staging v1",
+      "baseline_grantees": [
+        "authenticated",
+        "service_role"
+      ]
+    },
+    {
+      "function": "report_tournament_media_asset(uuid,text,text,boolean,uuid)",
+      "name": "report_tournament_media_asset",
+      "identity_arguments": "p_asset_id uuid, p_reason text, p_detail text, p_request_hide boolean, p_idempotency_key uuid",
+      "area": "media/assets pipeline",
+      "reason": "INCONCLUSIVE in Phase 2B / NOT_EXERCISED in Phase 3A; its feature is OFF in staging v1",
+      "baseline_grantees": [
+        "authenticated",
+        "service_role"
+      ]
+    },
+    {
+      "function": "request_tournament_match_correction(uuid,uuid,text)",
+      "name": "request_tournament_match_correction",
+      "identity_arguments": "p_organization_id uuid, p_match_operation_id uuid, p_reason text",
+      "area": "advanced competition states",
+      "reason": "INCONCLUSIVE in Phase 2B / NOT_EXERCISED in Phase 3A; its feature is OFF in staging v1",
+      "baseline_grantees": [
+        "authenticated",
+        "service_role"
+      ]
+    },
+    {
+      "function": "resolve_tournament_qualification(uuid,text)",
+      "name": "resolve_tournament_qualification",
+      "identity_arguments": "p_revision_id uuid, p_reason text",
+      "area": "other",
+      "reason": "INCONCLUSIVE in Phase 2B / NOT_EXERCISED in Phase 3A; its feature is OFF in staging v1",
+      "baseline_grantees": [
+        "authenticated",
+        "service_role"
+      ]
+    },
+    {
+      "function": "review_tournament_match_operation(uuid,uuid,text,text)",
+      "name": "review_tournament_match_operation",
+      "identity_arguments": "p_organization_id uuid, p_match_operation_id uuid, p_decision text, p_reason text",
+      "area": "advanced competition states",
+      "reason": "INCONCLUSIVE in Phase 2B / NOT_EXERCISED in Phase 3A; its feature is OFF in staging v1",
+      "baseline_grantees": [
+        "authenticated",
+        "service_role"
+      ]
+    },
+    {
+      "function": "revoke_tournament_player_portrait_publication(uuid,uuid)",
+      "name": "revoke_tournament_player_portrait_publication",
+      "identity_arguments": "p_organization_id uuid, p_portrait_id uuid",
+      "area": "media/assets pipeline",
+      "reason": "INCONCLUSIVE in Phase 2B / NOT_EXERCISED in Phase 3A; its feature is OFF in staging v1",
+      "baseline_grantees": [
+        "authenticated",
+        "service_role"
+      ]
+    },
+    {
+      "function": "revoke_tournament_points_adjustment(uuid,text)",
+      "name": "revoke_tournament_points_adjustment",
+      "identity_arguments": "p_adjustment_id uuid, p_reason text",
+      "area": "other",
+      "reason": "INCONCLUSIVE in Phase 2B / NOT_EXERCISED in Phase 3A; its feature is OFF in staging v1",
+      "baseline_grantees": [
+        "authenticated",
+        "service_role"
+      ]
+    },
+    {
+      "function": "revoke_tournament_team_photo(uuid,uuid)",
+      "name": "revoke_tournament_team_photo",
+      "identity_arguments": "p_organization_id uuid, p_team_photo_id uuid",
+      "area": "media/assets pipeline",
+      "reason": "INCONCLUSIVE in Phase 2B / NOT_EXERCISED in Phase 3A; its feature is OFF in staging v1",
+      "baseline_grantees": [
+        "authenticated",
+        "service_role"
+      ]
+    },
+    {
+      "function": "save_tournament_draw_pots(uuid,uuid,uuid,jsonb)",
+      "name": "save_tournament_draw_pots",
+      "identity_arguments": "p_organization_id uuid, p_tournament_id uuid, p_category_id uuid, p_pots jsonb",
+      "area": "other",
+      "reason": "INCONCLUSIVE in Phase 2B / NOT_EXERCISED in Phase 3A; its feature is OFF in staging v1",
+      "baseline_grantees": [
+        "authenticated",
+        "service_role"
+      ]
+    },
+    {
+      "function": "schedule_tournament_match(uuid,uuid,timestamp with time zone,uuid,uuid,integer,boolean,text)",
+      "name": "schedule_tournament_match",
+      "identity_arguments": "p_organization_id uuid, p_match_id uuid, p_scheduled_at timestamp with time zone, p_venue_id uuid, p_court_id uuid, p_duration_minutes integer, p_override_warnings boolean, p_override_reason text",
+      "area": "advanced competition states",
+      "reason": "INCONCLUSIVE in Phase 2B / NOT_EXERCISED in Phase 3A; its feature is OFF in staging v1",
+      "baseline_grantees": [
+        "authenticated",
+        "service_role"
+      ]
+    },
+    {
+      "function": "set_tournament_player_portrait_crop(uuid,uuid,numeric,numeric,numeric)",
+      "name": "set_tournament_player_portrait_crop",
+      "identity_arguments": "p_organization_id uuid, p_portrait_id uuid, p_focal_x numeric, p_focal_y numeric, p_zoom numeric",
+      "area": "media/assets pipeline",
+      "reason": "INCONCLUSIVE in Phase 2B / NOT_EXERCISED in Phase 3A; its feature is OFF in staging v1",
+      "baseline_grantees": [
+        "authenticated",
+        "service_role"
+      ]
+    },
+    {
+      "function": "set_tournament_player_portrait_editorial_status(uuid,uuid,text)",
+      "name": "set_tournament_player_portrait_editorial_status",
+      "identity_arguments": "p_organization_id uuid, p_portrait_id uuid, p_editorial_status text",
+      "area": "media/assets pipeline",
+      "reason": "INCONCLUSIVE in Phase 2B / NOT_EXERCISED in Phase 3A; its feature is OFF in staging v1",
+      "baseline_grantees": [
+        "authenticated",
+        "service_role"
+      ]
+    },
+    {
+      "function": "submit_match_squad(uuid,uuid,uuid)",
+      "name": "submit_match_squad",
+      "identity_arguments": "p_organization_id uuid, p_match_id uuid, p_team_entry_id uuid",
+      "area": "advanced competition states",
+      "reason": "INCONCLUSIVE in Phase 2B / NOT_EXERCISED in Phase 3A; its feature is OFF in staging v1",
+      "baseline_grantees": [
+        "authenticated",
+        "service_role"
+      ]
+    },
+    {
+      "function": "supersede_tournament_fixture(uuid,uuid,uuid)",
+      "name": "supersede_tournament_fixture",
+      "identity_arguments": "p_organization_id uuid, p_fixture_version_id uuid, p_idempotency_key uuid",
+      "area": "advanced competition states",
+      "reason": "INCONCLUSIVE in Phase 2B / NOT_EXERCISED in Phase 3A; its feature is OFF in staging v1",
+      "baseline_grantees": [
+        "authenticated",
+        "service_role"
+      ]
+    },
+    {
+      "function": "transition_tournament_media_asset(uuid,text,text)",
+      "name": "transition_tournament_media_asset",
+      "identity_arguments": "p_asset_id uuid, p_action text, p_reason text",
+      "area": "media/assets pipeline",
+      "reason": "INCONCLUSIVE in Phase 2B / NOT_EXERCISED in Phase 3A; its feature is OFF in staging v1",
+      "baseline_grantees": [
+        "authenticated",
+        "service_role"
+      ]
+    },
+    {
+      "function": "update_draft_fixture(uuid,uuid,text,jsonb)",
+      "name": "update_draft_fixture",
+      "identity_arguments": "p_organization_id uuid, p_fixture_version_id uuid, p_action text, p_payload jsonb",
+      "area": "advanced competition states",
+      "reason": "INCONCLUSIVE in Phase 2B / NOT_EXERCISED in Phase 3A; its feature is OFF in staging v1",
+      "baseline_grantees": [
+        "authenticated",
+        "service_role"
+      ]
+    },
+    {
+      "function": "validate_tournament_match_operation(uuid,uuid)",
+      "name": "validate_tournament_match_operation",
+      "identity_arguments": "p_organization_id uuid, p_match_operation_id uuid",
+      "area": "advanced competition states",
+      "reason": "INCONCLUSIVE in Phase 2B / NOT_EXERCISED in Phase 3A; its feature is OFF in staging v1",
+      "baseline_grantees": [
+        "authenticated",
+        "service_role"
+      ]
+    },
+    {
+      "function": "void_tournament_match_event(uuid,uuid,text)",
+      "name": "void_tournament_match_event",
+      "identity_arguments": "p_organization_id uuid, p_event_id uuid, p_reason text",
+      "area": "advanced competition states",
+      "reason": "INCONCLUSIVE in Phase 2B / NOT_EXERCISED in Phase 3A; its feature is OFF in staging v1",
+      "baseline_grantees": [
+        "authenticated",
+        "service_role"
+      ]
+    },
+    {
+      "function": "auto_schedule_tournament_matches(uuid,uuid)",
+      "name": "auto_schedule_tournament_matches",
+      "identity_arguments": "p_organization_id uuid, p_fixture_version_id uuid",
+      "area": "parent path",
+      "reason": "client-executable RPC that reaches a gated function internally: auto_schedule_tournament_matches -> schedule_tournament_match",
+      "baseline_grantees": [
+        "authenticated",
+        "service_role"
+      ]
+    }
+  ]
+}

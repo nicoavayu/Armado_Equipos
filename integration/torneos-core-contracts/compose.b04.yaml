@@ -1,0 +1,9 @@
+# B04 frontend QA overlay (compose -f compose.yaml -f compose.b04.yaml).
+# Publishes the lab's Kong substitute on loopback so a real browser can reach
+# Core (GoTrue login, PostgREST, the contract function) through the dev bridge
+# (scripts/torneos-frontend/lab-bridge.mjs). Nothing else changes: the gateway
+# keeps refusing every origin but its own; the bridge is the "app origin".
+services:
+  core-api:
+    ports: ["127.0.0.1:58424:8000"]
+    networks: [isolated, loopback-ingress]

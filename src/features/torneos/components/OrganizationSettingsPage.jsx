@@ -10,6 +10,7 @@ import {
   validateOrganizationInput,
 } from '../domain/organizationValidation';
 import { useTorneosWorkspace } from '../context/TorneosWorkspaceContext';
+import { useTorneosFeature } from '../context/TorneosFeaturesContext';
 import OrganizationSettingsNav from './OrganizationSettingsNav';
 import BrandingAssetField from './BrandingAssetField';
 import styles from './TorneosShell.module.css';
@@ -18,6 +19,7 @@ export default function OrganizationSettingsPage() {
   const navigate = useNavigate();
   const { organization } = useOutletContext();
   const { updateOrganization, refresh } = useTorneosWorkspace();
+  const brandingEnabled = useTorneosFeature('branding_assets');
   const canUpdate = hasCapability(
     organization,
     TOURNAMENT_CAPABILITIES.ORGANIZATION_UPDATE,
@@ -97,15 +99,17 @@ export default function OrganizationSettingsPage() {
             Modo lectura · Tu rol no permite editar la organización.
           </div>
         )}
-        <BrandingAssetField
-          organizationId={organization.id}
-          kind="organization"
-          entityId={organization.id}
-          path={organization.logoPath}
-          name={organization.name}
-          canEdit={canUpdate}
-          onChanged={() => refresh({ preserveNotice: true })}
-        />
+        {brandingEnabled && (
+          <BrandingAssetField
+            organizationId={organization.id}
+            kind="organization"
+            entityId={organization.id}
+            path={organization.logoPath}
+            name={organization.name}
+            canEdit={canUpdate}
+            onChanged={() => refresh({ preserveNotice: true })}
+          />
+        )}
         <div className={styles.field}>
           <label htmlFor="settings-name">Nombre</label>
           <input

@@ -1,0 +1,50 @@
+[r42 03:56:19] step handoff_check: PASS
+[r42 03:56:19] step core_project_guard: PASS
+[r42 03:56:20] step core_contract_function_guard: PASS
+[r42 03:56:21] step core_keys: PASS
+[r42 03:56:21] step authorization: PASS
+[r42 03:56:21] runner preflight: PASS 
+[r42 03:56:21] step runner_preflight: PASS
+[r42 03:56:25] audit start-gateway: STARTED_PENDING_SMOKE 
+[r42 03:56:25] step start_gateway: PASS
+[r42 03:56:26] runner smoke: PASS 
+[r42 03:56:26] step smoke: PASS
+[r42 03:56:26] block qa_users
+[r42 03:56:30] block exchange_valid
+[r42 03:56:39] block token_valid
+[r42 03:56:41] block wrong_issuer
+[r42 03:56:41] block wrong_audience
+[r42 03:56:41] block wrong_kid
+[r42 03:56:41] block expired
+[r42 03:56:41] block wrong_ttl
+[r42 03:56:41] block claim_validation
+[r42 03:56:41] block session_identity_binding
+[r42 03:56:45] block fixtures
+[r42 03:58:21] block live_contracts
+[r42 03:58:21] block request_binding
+[r42 03:58:37] block replay
+[r42 03:58:40] block logout_revocation
+[r42 03:58:44] block core_session_inactive
+[r42 03:58:52] block core_auth_unavailable
+[r42 03:58:54] block core_contract_unavailable
+[r42 03:58:56] outage harness bundled offline sha256=be45c9fbd7e5f3a9aad76e411825a689a3c21a7e99268f28c069afc3501e3eee
+[r42 03:59:54] block core_response_stale
+[r42 03:59:54] block torneos_rest_unavailable
+[r42 04:00:09] block allowlist
+[r42 04:00:42] block gated
+[r42 04:00:43] block p0_review_tournament_team_entry
+[r42 04:01:05] block cross_user
+[r42 04:01:07] block cross_workspace
+[r42 04:01:11] block cross_season
+[r42 04:01:17] block no_cache
+[r42 04:01:17] block secret_boundary
+[r42 04:01:18] block isolation
+[r42 04:01:24] block cleanup
+[r42 04:01:36] step matrix: PASS
+[r42 04:01:36] step core_sessions_zero: PASS
+[r42 04:01:36] runner certify: PASS 
+[r42 04:01:36] step certify: PASS
+[r42 04:01:38] runner cleanup: PASS 
+[r42 04:01:39] summary /Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/evidence/r4-summary-20260921T035504Z.json
+[r42 04:01:39] VERDICT R4_HYBRID_GATEWAY_CERTIFIED
+{"verdict":"R4_HYBRID_GATEWAY_CERTIFIED","blockers":[],"summary":"r4-summary-20260921T035504Z.json","evidence":{"gatewayStart":{"path":"r4-gateway-start-20260921T035621Z.json","sha256":"1ab712d4a3046c2f4d9c44b81d185d17328c7fd85c6a5b134740c009041c8a0c"},"smoke":{"path":"r4-smoke-20260921T035626Z.json","sha256":"a5d9153ccc2fd2a6fcc31b54f24f126d65bbaa0b6da05322fe5ec82de1172784"},"matrix":{"path":"r4-matrix-20260921T035504Z.json","sha256":"7c425c24f3ad8a3930cb05fd6698d236172d4e9114d6d957073d9669b54505e8"},"outage":{"path":"r4-outage-20260921T035504Z.json","sha256":"ec9cf5a5c76386908f20109041fe7616e7acf5a13541e686c12348d05fb9da8c"},"isolation":{"path":"r4-isolation-20260921T035504Z.json","sha256":"8b753250d0f0d34d7044fa0b7e6ba91145a51ce2882d5f362c6b10bca9014408"},"detail":{"path":"r4-matrix-detail-20260921T035504Z.json","sha256":"6028c09558b269d64b69a0733987ff03f5ec0e3a74f1943f0f57ba14df17acc4"},"certify":{"path":"r4-certify-20260921T040136Z.json","sha256":"88d74a87d0a10244860b785a5432929f44f7ff6b2be09d1390c31a72bbb75799"},"cleanup":{"path":"r4-cleanup-20260921T035504Z.json","sha256":"0a2df84345552cc9e5f42c9d86eac1b643ab77505319311cbde6d3462c1a76ba"}}}

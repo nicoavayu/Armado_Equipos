@@ -1,0 +1,14 @@
+{
+  "utc": "20260920T163432Z",
+  "status": "R4_1A_PASS",
+  "r41bExecuted": false,
+  "reason": "R4.1B may now be implemented",
+  "r2Unchanged": true,
+  "gatewayStarted": false,
+  "matrixExecuted": false,
+  "cleanup": {
+    "ephemeralCertificateFilesRemoved": true,
+    "containersRemoved": true,
+    "networksRemoved": true
+  }
+}

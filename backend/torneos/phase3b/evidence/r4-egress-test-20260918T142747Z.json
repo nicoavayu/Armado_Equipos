@@ -1,0 +1,11 @@
+{
+  "utc": "20260918T142747Z",
+  "status": "BLOCKED",
+  "productionRequests": 0,
+  "deniedDNSNames": "Pinned to TEST-NET-1; no Production lookup or request",
+  "cleanup": {
+    "containersRemoved": true,
+    "networksRemoved": true
+  },
+  "blocker": "HARNESS_NO_RESULT"
+}

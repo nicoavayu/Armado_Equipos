@@ -1,0 +1,127 @@
+{
+  "schema": "R4.2.isolation.v1",
+  "run": "arma2-r42-20260920t165210z",
+  "stamp": "20260920T165201Z",
+  "checks": [
+    {
+      "name": "gateway container: no published ports, internal networks only, ALL caps dropped, read-only rootfs, no docker socket, tmpfs custody; proxy publishes 127.0.0.1:58431 only, ip_forward=0",
+      "pass": true,
+      "detail": {
+        "gatewayNetworks": [
+          "arma2-r42-20260920t165210z-internal",
+          "arma2-torneos-isolated-local_isolated"
+        ],
+        "proxyPorts": {
+          "9000/tcp": [
+            {
+              "HostIp": "127.0.0.1",
+              "HostPort": "58431"
+            }
+          ]
+        },
+        "dockerPorts": "127.0.0.1:58431->9000/tcp",
+        "gatewayTmpfs": {
+          "/custody": "rw,noexec,nosuid,nodev,mode=0700,size=1m",
+          "/tmp": "rw,noexec,nosuid,nodev,size=32m"
+        }
+      }
+    },
+    {
+      "name": "gateway routes: exactly DB /32, REST /32, proxy /32 and unreachable IPv4/IPv6 defaults",
+      "pass": true,
+      "detail": {
+        "v4": [
+          "unreachable default ",
+          "172.27.0.2 dev eth1 scope link ",
+          "172.27.0.3 dev eth1 scope link ",
+          "172.29.0.2 dev eth0 scope link"
+        ],
+        "v6": [
+          "unreachable default dev lo  metric 1024"
+        ]
+      }
+    },
+    {
+      "name": "from inside the gateway namespace: Production / other ref / google / github / npm / esm / deno.land pinned to TEST-NET-1 and unreachable; public IPs and host bridges unreachable; DNS answers nothing; only proxy, REST and DB connect",
+      "pass": true,
+      "detail": {
+        "pinned_rcyuuoaqfwcembdajcss.supabase.co": {
+          "resolved": "192.0.2.1",
+          "tcp443": "EHOSTUNREACH"
+        },
+        "pinned_abcdefghijklmnopqrst.supabase.co": {
+          "resolved": "192.0.2.1",
+          "tcp443": "EHOSTUNREACH"
+        },
+        "pinned_google.com": {
+          "resolved": "192.0.2.1",
+          "tcp443": "EHOSTUNREACH"
+        },
+        "pinned_github.com": {
+          "resolved": "192.0.2.1",
+          "tcp443": "EHOSTUNREACH"
+        },
+        "pinned_registry.npmjs.org": {
+          "resolved": "192.0.2.1",
+          "tcp443": "EHOSTUNREACH"
+        },
+        "pinned_esm.sh": {
+          "resolved": "192.0.2.1",
+          "tcp443": "EHOSTUNREACH"
+        },
+        "pinned_deno.land": {
+          "resolved": "192.0.2.1",
+          "tcp443": "EHOSTUNREACH"
+        },
+        "deny_1.1.1.1:443": "EHOSTUNREACH",
+        "deny_8.8.8.8:53": "EHOSTUNREACH",
+        "deny_192.0.2.1:443": "EHOSTUNREACH",
+        "deny_172.27.0.1:443": "EHOSTUNREACH",
+        "deny_172.29.0.1:80": "EHOSTUNREACH",
+        "dns_127_0_0_11": "ESERVFAIL",
+        "allow_proxy": "CONNECTED",
+        "allow_rest": "CONNECTED",
+        "allow_db": "CONNECTED",
+        "proxy_host_production": "HTTP/1.1 403 Forbidden",
+        "proxy_sni_google": "TLS_REJECTED"
+      }
+    },
+    {
+      "name": "Core is reached only through the proxy with the exact staging origin; gateway config names no Production, no Core database, no service role; Torneos data plane is local",
+      "pass": true,
+      "detail": {
+        "config": {
+          "coreUrl": "https://hhyvmhgpapyuzjgxfnqv.supabase.co",
+          "torneosUrl": "http://127.0.0.1:58431/torneos-gateway/torneos",
+          "anonKey": ""
+        },
+        "foreignServers": 0,
+        "fdwExtensions": 0,
+        "coreKeyKind": "legacy-anon"
+      }
+    },
+    {
+      "name": "no second login: Core user credentials exist only in this producer; the gateway container env/args carry none; Core sessions were created by GoTrue password grant here, never by the gateway",
+      "pass": true,
+      "detail": {
+        "qaUsers": 5
+      }
+    },
+    {
+      "name": "dependencies: the gateway bundle is the prepared eszip (sha256 pinned by run.json); the gateway has no route to any registry; cache mounted read-only",
+      "pass": true,
+      "detail": {
+        "bundle": "cc5b1d451fc9ef4498ad927caee37a65aab90ff44ad6ef1cf77e176f989d7e17",
+        "cacheRW": false,
+        "args": "-c i=0; while [ ! -f /custody/input ]; do i=$((i+1)); if [ \"$i\" -ge 150 ]; then echo R4_FAIL_CLOSED_MISSING_SECRET; exit 78; fi; sleep 0.1; done; exec edge-runtime start --main-service /r4/.runtime/ga"
+      }
+    },
+    {
+      "name": "Production is impossible from the gateway: DNS pinned to TEST-NET-1, no route, proxy Host allowlist, config validators refuse the ref",
+      "pass": true,
+      "detail": {
+        "productionPinned": true
+      }
+    }
+  ]
+}

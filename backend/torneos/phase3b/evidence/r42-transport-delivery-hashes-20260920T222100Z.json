@@ -1,0 +1,37 @@
+{
+  "scope": "FINAL targeted only; supersedes earlier delivery hashes",
+  "files": [
+    {
+      "path": "/Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/r42/outage.mjs",
+      "sha256": "87c9e06838b4e8dc15bf8c89b30b2b0d0377a996adf36fc6c638074ddb73869e"
+    },
+    {
+      "path": "/Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/r42/outage-worker.mjs",
+      "sha256": "ac9ace484fb9b6ee6b44348cb7c535c4fa8f4d5da93616b8a715848493108507"
+    },
+    {
+      "path": "/Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/r42/matrix.mjs",
+      "sha256": "950270e30fcd72d917cb5d8d2dd0bb43b4b78df5a5db9380a1e8b69e00a5dafb"
+    },
+    {
+      "path": "/Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/r42/operator.mjs",
+      "sha256": "a2fa79bb89f040db123db7b6dbf62808827080c0b90747f47ffa16b89922a556"
+    },
+    {
+      "path": "/Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/r42/transport-probe.mjs",
+      "sha256": "4f2d6b3e176a5fd999545865ead8e32e29bad80f7a63f12f1cd6cfd36621a560"
+    },
+    {
+      "path": "/Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/r42/run-transport.mjs",
+      "sha256": "86e77fdd0020e61f57c554d90ffdb44e4d4996e07f39f94485b4e0571b41bd8d"
+    },
+    {
+      "path": "/Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/r42/verify-transport.mjs",
+      "sha256": "48b9c03b5efc2f79b900ff5e289cc1f1fdc5d45f7cf627bf50eb06ff0e6e0bc4"
+    },
+    {
+      "path": "/Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/R4.2-TARGETED-TRANSPORT-DIAGNOSIS.md",
+      "sha256": "07f058b5d2503a0c0e884829a263da18ec58caf223243a9760ac2ac53ae34842"
+    }
+  ]
+}

@@ -53,6 +53,15 @@ function formatDate(value) {
   }).format(new Date(value));
 }
 
+// The seat limit comes from the season entitlements. A service without that
+// method (staging v1: the RPC is not served) yields no limit — the count still
+// shows and the assignment RPCs still work — instead of a rejected Promise.all.
+const loadSeasonEntitlementsIfServed = (service, input) => (
+  typeof service?.loadSeasonEntitlements === 'function'
+    ? service.loadSeasonEntitlements(input)
+    : Promise.resolve(null)
+);
+
 export default function OrganizationMembersPage() {
   const { organization } = useOutletContext();
   const { service } = useTorneosWorkspace();
@@ -133,7 +142,7 @@ export default function OrganizationMembersPage() {
         organizationId: organization.id,
         seasonId: selectedSeasonId,
       }),
-      service.loadSeasonEntitlements({
+      loadSeasonEntitlementsIfServed(service, {
         organizationId: organization.id,
         seasonId: selectedSeasonId,
       }),
@@ -184,7 +193,7 @@ export default function OrganizationMembersPage() {
           organizationId: organization.id,
           seasonId: selectedSeasonId,
         }),
-        service.loadSeasonEntitlements({
+        loadSeasonEntitlementsIfServed(service, {
           organizationId: organization.id,
           seasonId: selectedSeasonId,
         }),

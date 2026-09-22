@@ -1,0 +1,705 @@
+{
+  "summary": {
+    "service_only": {
+      "OTHER_ERROR": 22,
+      "BODY_GUARD": 41,
+      "EXECUTED_AS_ANON": 43
+    },
+    "internal": {
+      "OTHER_ERROR": 4,
+      "EXECUTED_AS_ANON": 5
+    }
+  },
+  "rows": [
+    {
+      "category": "service_only",
+      "function": "activate_verified_fake_tournament_purchase(uuid,text,text)",
+      "verdict": "OTHER_ERROR",
+      "error": "ERROR:  TORNEOS_PURCHASE_INVALID"
+    },
+    {
+      "category": "service_only",
+      "function": "activate_verified_tournament_purchase(uuid,text,text,text,text,text,text)",
+      "verdict": "OTHER_ERROR",
+      "error": "ERROR:  TORNEOS_PURCHASE_INVALID"
+    },
+    {
+      "category": "service_only",
+      "function": "append_tournament_audit(uuid,text,text,uuid,uuid,uuid,jsonb)",
+      "verdict": "BODY_GUARD",
+      "error": "ERROR:  TORNEOS_AUTH_REQUIRED"
+    },
+    {
+      "category": "service_only",
+      "function": "apply_fake_tournament_payment_status(uuid,text,text,text,text)",
+      "verdict": "OTHER_ERROR",
+      "error": "ERROR:  TORNEOS_PURCHASE_TRANSITION_INVALID"
+    },
+    {
+      "category": "service_only",
+      "function": "apply_tournament_purchase_reversal(uuid,text,text)",
+      "verdict": "OTHER_ERROR",
+      "error": "ERROR:  TORNEOS_REVERSAL_INVALID"
+    },
+    {
+      "category": "service_only",
+      "function": "approve_tournament_team_entry(uuid,uuid,text)",
+      "verdict": "BODY_GUARD",
+      "error": "ERROR:  TORNEOS_AUTH_REQUIRED"
+    },
+    {
+      "category": "service_only",
+      "function": "archive_tournament_announcement(uuid)",
+      "verdict": "BODY_GUARD",
+      "error": "ERROR:  TORNEOS_AUTH_REQUIRED"
+    },
+    {
+      "category": "service_only",
+      "function": "archive_tournament_document(uuid)",
+      "verdict": "BODY_GUARD",
+      "error": "ERROR:  TORNEOS_AUTH_REQUIRED"
+    },
+    {
+      "category": "service_only",
+      "function": "archive_tournament_fixture(uuid,uuid,text)",
+      "verdict": "BODY_GUARD",
+      "error": "ERROR:  TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "category": "service_only",
+      "function": "assert_tournament_fixture_scope(uuid,uuid,uuid,text,text[])",
+      "verdict": "BODY_GUARD",
+      "error": "ERROR:  TORNEOS_AUTH_REQUIRED"
+    },
+    {
+      "category": "service_only",
+      "function": "assign_tournament_media_photographer(uuid,uuid,boolean)",
+      "verdict": "BODY_GUARD",
+      "error": "ERROR:  TORNEOS_MEDIA_FORBIDDEN"
+    },
+    {
+      "category": "service_only",
+      "function": "attest_tournament_media_service(text,text,jsonb,integer)",
+      "verdict": "OTHER_ERROR",
+      "error": "ERROR:  TORNEOS_MEDIA_ATTESTATION_INVALID"
+    },
+    {
+      "category": "service_only",
+      "function": "authorize_tournament_media_read(uuid,uuid,text)",
+      "verdict": "BODY_GUARD",
+      "error": "ERROR:  TORNEOS_MEDIA_FORBIDDEN"
+    },
+    {
+      "category": "service_only",
+      "function": "authorize_tournament_media_upload_target(uuid,text,uuid)",
+      "verdict": "OTHER_ERROR",
+      "error": "ERROR:  TORNEOS_MEDIA_UPLOAD_SESSION_INVALID"
+    },
+    {
+      "category": "service_only",
+      "function": "authorize_tournament_player_portrait_read(uuid,uuid,text,text)",
+      "verdict": "BODY_GUARD",
+      "error": "ERROR:  TORNEOS_PORTRAIT_FORBIDDEN"
+    },
+    {
+      "category": "service_only",
+      "function": "authorize_tournament_team_photo_read(uuid,uuid,text,text)",
+      "verdict": "BODY_GUARD",
+      "error": "ERROR:  TORNEOS_TEAM_PHOTO_FORBIDDEN"
+    },
+    {
+      "category": "service_only",
+      "function": "begin_tournament_media_asset_delete(uuid,uuid)",
+      "verdict": "BODY_GUARD",
+      "error": "ERROR:  TORNEOS_MEDIA_FORBIDDEN"
+    },
+    {
+      "category": "service_only",
+      "function": "begin_tournament_player_portrait_delete(uuid,uuid)",
+      "verdict": "BODY_GUARD",
+      "error": "ERROR:  TORNEOS_PORTRAIT_FORBIDDEN"
+    },
+    {
+      "category": "service_only",
+      "function": "begin_tournament_team_photo_delete(uuid,uuid)",
+      "verdict": "BODY_GUARD",
+      "error": "ERROR:  TORNEOS_TEAM_PHOTO_FORBIDDEN"
+    },
+    {
+      "category": "service_only",
+      "function": "bulk_schedule_tournament_matches(uuid,jsonb)",
+      "verdict": "OTHER_ERROR",
+      "error": "ERROR:  TORNEOS_INVALID_SCHEDULE_BATCH"
+    },
+    {
+      "category": "service_only",
+      "function": "can_access_tournament_communications(uuid)",
+      "verdict": "EXECUTED_AS_ANON",
+      "error": null
+    },
+    {
+      "category": "service_only",
+      "function": "can_current_user_access_tournament_announcement(uuid)",
+      "verdict": "EXECUTED_AS_ANON",
+      "error": null
+    },
+    {
+      "category": "service_only",
+      "function": "can_current_user_read_media_gallery(uuid)",
+      "verdict": "EXECUTED_AS_ANON",
+      "error": null
+    },
+    {
+      "category": "service_only",
+      "function": "can_edit_tournament_team_entry(uuid,uuid)",
+      "verdict": "EXECUTED_AS_ANON",
+      "error": null
+    },
+    {
+      "category": "service_only",
+      "function": "can_manage_tournament_match_squad(uuid,uuid,uuid)",
+      "verdict": "EXECUTED_AS_ANON",
+      "error": null
+    },
+    {
+      "category": "service_only",
+      "function": "can_manage_tournament_player_portrait_as(uuid,uuid,uuid)",
+      "verdict": "EXECUTED_AS_ANON",
+      "error": null
+    },
+    {
+      "category": "service_only",
+      "function": "can_manage_tournament_team_visual_assets_as(uuid,uuid,uuid,text)",
+      "verdict": "EXECUTED_AS_ANON",
+      "error": null
+    },
+    {
+      "category": "service_only",
+      "function": "can_moderate_tournament_team_visual_assets_as(uuid,uuid,uuid,text)",
+      "verdict": "EXECUTED_AS_ANON",
+      "error": null
+    },
+    {
+      "category": "service_only",
+      "function": "can_read_tournament_match_operation(uuid,uuid)",
+      "verdict": "EXECUTED_AS_ANON",
+      "error": null
+    },
+    {
+      "category": "service_only",
+      "function": "can_read_tournament_participant_hub(uuid,uuid)",
+      "verdict": "EXECUTED_AS_ANON",
+      "error": null
+    },
+    {
+      "category": "service_only",
+      "function": "can_read_tournament_player_portrait_as(uuid,uuid,uuid)",
+      "verdict": "EXECUTED_AS_ANON",
+      "error": null
+    },
+    {
+      "category": "service_only",
+      "function": "can_read_tournament_team_photo_as(uuid,uuid,uuid)",
+      "verdict": "EXECUTED_AS_ANON",
+      "error": null
+    },
+    {
+      "category": "service_only",
+      "function": "cancel_tournament_match(uuid,uuid,text)",
+      "verdict": "BODY_GUARD",
+      "error": "ERROR:  TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "category": "service_only",
+      "function": "cleanup_tournament_media_processing_jobs(integer)",
+      "verdict": "OTHER_ERROR",
+      "error": "ERROR:  TORNEOS_MEDIA_FILTER_INVALID"
+    },
+    {
+      "category": "service_only",
+      "function": "cleanup_tournament_media_upload_sessions(integer)",
+      "verdict": "OTHER_ERROR",
+      "error": "ERROR:  TORNEOS_MEDIA_FILTER_INVALID"
+    },
+    {
+      "category": "service_only",
+      "function": "clear_tournament_entitlement_override(uuid,uuid,text)",
+      "verdict": "EXECUTED_AS_ANON",
+      "error": null
+    },
+    {
+      "category": "service_only",
+      "function": "complete_tournament_media_asset_delete(uuid,uuid)",
+      "verdict": "BODY_GUARD",
+      "error": "ERROR:  TORNEOS_MEDIA_FORBIDDEN"
+    },
+    {
+      "category": "service_only",
+      "function": "complete_tournament_media_processing_job(uuid,text,uuid)",
+      "verdict": "OTHER_ERROR",
+      "error": "ERROR:  TORNEOS_MEDIA_PIPELINE_NOT_READY"
+    },
+    {
+      "category": "service_only",
+      "function": "complete_tournament_media_simple_upload(uuid,uuid,text,text,bigint,integer,integer,text,boolean)",
+      "verdict": "OTHER_ERROR",
+      "error": "ERROR:  TORNEOS_MEDIA_UPLOAD_SESSION_INVALID"
+    },
+    {
+      "category": "service_only",
+      "function": "complete_tournament_media_upload(uuid,text,text,bigint,integer,integer,text)",
+      "verdict": "BODY_GUARD",
+      "error": "ERROR:  TORNEOS_AUTH_REQUIRED"
+    },
+    {
+      "category": "service_only",
+      "function": "complete_tournament_media_upload_for_actor(uuid,uuid,text,text,bigint,integer,integer,text)",
+      "verdict": "BODY_GUARD",
+      "error": "ERROR:  TORNEOS_AUTH_REQUIRED"
+    },
+    {
+      "category": "service_only",
+      "function": "complete_tournament_media_upload_for_job(uuid,text,text,bigint,integer,integer,text)",
+      "verdict": "OTHER_ERROR",
+      "error": "ERROR:  TORNEOS_MEDIA_PIPELINE_NOT_READY"
+    },
+    {
+      "category": "service_only",
+      "function": "complete_tournament_player_portrait_delete(uuid,uuid)",
+      "verdict": "BODY_GUARD",
+      "error": "ERROR:  TORNEOS_PORTRAIT_FORBIDDEN"
+    },
+    {
+      "category": "service_only",
+      "function": "complete_tournament_team_photo_delete(uuid,uuid)",
+      "verdict": "BODY_GUARD",
+      "error": "ERROR:  TORNEOS_TEAM_PHOTO_FORBIDDEN"
+    },
+    {
+      "category": "service_only",
+      "function": "create_fake_tournament_purchase(uuid,uuid,text,uuid,text)",
+      "verdict": "BODY_GUARD",
+      "error": "ERROR:  TORNEOS_AUTH_REQUIRED"
+    },
+    {
+      "category": "service_only",
+      "function": "create_tournament_document_version(uuid,text,text,timestamp with time zone,text)",
+      "verdict": "BODY_GUARD",
+      "error": "ERROR:  TORNEOS_AUTH_REQUIRED"
+    },
+    {
+      "category": "service_only",
+      "function": "current_user_has_media_team_relation(uuid)",
+      "verdict": "EXECUTED_AS_ANON",
+      "error": null
+    },
+    {
+      "category": "service_only",
+      "function": "current_user_tournament_social_capabilities(uuid)",
+      "verdict": "EXECUTED_AS_ANON",
+      "error": null
+    },
+    {
+      "category": "service_only",
+      "function": "enqueue_tournament_media_processing_job(uuid,text,uuid)",
+      "verdict": "OTHER_ERROR",
+      "error": "ERROR:  TORNEOS_MEDIA_UPLOAD_SESSION_INVALID"
+    },
+    {
+      "category": "service_only",
+      "function": "fail_tournament_media_processing_job(uuid,text,text)",
+      "verdict": "OTHER_ERROR",
+      "error": "ERROR:  TORNEOS_MEDIA_FAILURE_CODE_INVALID"
+    },
+    {
+      "category": "service_only",
+      "function": "fail_tournament_media_upload_session(uuid,text)",
+      "verdict": "OTHER_ERROR",
+      "error": "ERROR:  TORNEOS_MEDIA_FAILURE_CODE_INVALID"
+    },
+    {
+      "category": "service_only",
+      "function": "fail_tournament_player_portrait_upload(uuid,uuid)",
+      "verdict": "EXECUTED_AS_ANON",
+      "error": null
+    },
+    {
+      "category": "service_only",
+      "function": "fail_tournament_team_photo_upload(uuid,uuid)",
+      "verdict": "EXECUTED_AS_ANON",
+      "error": null
+    },
+    {
+      "category": "service_only",
+      "function": "finalize_tournament_media_variants(uuid,jsonb)",
+      "verdict": "OTHER_ERROR",
+      "error": "ERROR:  TORNEOS_MEDIA_PIPELINE_NOT_READY"
+    },
+    {
+      "category": "service_only",
+      "function": "finalize_tournament_player_portrait_upload(uuid,uuid)",
+      "verdict": "BODY_GUARD",
+      "error": "ERROR:  TORNEOS_PORTRAIT_FORBIDDEN"
+    },
+    {
+      "category": "service_only",
+      "function": "finalize_tournament_team_photo_upload(uuid,uuid,text)",
+      "verdict": "OTHER_ERROR",
+      "error": "ERROR:  TORNEOS_TEAM_PHOTO_CHECKSUM_INVALID"
+    },
+    {
+      "category": "service_only",
+      "function": "get_my_current_tournament_roster_players()",
+      "verdict": "EXECUTED_AS_ANON",
+      "error": null
+    },
+    {
+      "category": "service_only",
+      "function": "get_tournament_competition_context_organization_legacy(uuid)",
+      "verdict": "BODY_GUARD",
+      "error": "ERROR:  TORNEOS_AUTH_REQUIRED"
+    },
+    {
+      "category": "service_only",
+      "function": "get_tournament_social_snapshot_plan_legacy(uuid,uuid,uuid,uuid,text,uuid,uuid)",
+      "verdict": "BODY_GUARD",
+      "error": "ERROR:  TORNEOS_SOCIAL_FORBIDDEN"
+    },
+    {
+      "category": "service_only",
+      "function": "get_tournament_social_studio_context_organization_legacy(uuid)",
+      "verdict": "BODY_GUARD",
+      "error": "ERROR:  TORNEOS_SOCIAL_FORBIDDEN"
+    },
+    {
+      "category": "service_only",
+      "function": "grant_tournament_season_premium(uuid,uuid,uuid,text)",
+      "verdict": "OTHER_ERROR",
+      "error": "ERROR:  TORNEOS_SEASON_PLAN_GRANT_INVALID"
+    },
+    {
+      "category": "service_only",
+      "function": "has_tournament_communications_capability(uuid,text)",
+      "verdict": "EXECUTED_AS_ANON",
+      "error": null
+    },
+    {
+      "category": "service_only",
+      "function": "has_tournament_media_assignment(uuid,text)",
+      "verdict": "EXECUTED_AS_ANON",
+      "error": null
+    },
+    {
+      "category": "service_only",
+      "function": "has_tournament_media_capability(uuid,text)",
+      "verdict": "EXECUTED_AS_ANON",
+      "error": null
+    },
+    {
+      "category": "service_only",
+      "function": "has_tournament_social_capability(uuid,text)",
+      "verdict": "EXECUTED_AS_ANON",
+      "error": null
+    },
+    {
+      "category": "service_only",
+      "function": "is_tournament_plan_grant_effective(uuid)",
+      "verdict": "EXECUTED_AS_ANON",
+      "error": null
+    },
+    {
+      "category": "service_only",
+      "function": "is_tournament_season_plan_grant_effective(uuid)",
+      "verdict": "EXECUTED_AS_ANON",
+      "error": null
+    },
+    {
+      "category": "service_only",
+      "function": "is_tournament_team_roster_member_as(uuid,uuid)",
+      "verdict": "EXECUTED_AS_ANON",
+      "error": null
+    },
+    {
+      "category": "service_only",
+      "function": "lease_tournament_media_processing_jobs(text,integer,integer)",
+      "verdict": "OTHER_ERROR",
+      "error": "ERROR:  TORNEOS_MEDIA_FILTER_INVALID"
+    },
+    {
+      "category": "service_only",
+      "function": "list_tournament_media_retention_candidates(uuid,uuid,timestamp with time zone)",
+      "verdict": "OTHER_ERROR",
+      "error": "ERROR:  TORNEOS_ENTITLEMENT_SCOPE_INVALID"
+    },
+    {
+      "category": "service_only",
+      "function": "manage_tournament_media_consent(uuid,uuid,uuid,text,text,text)",
+      "verdict": "BODY_GUARD",
+      "error": "ERROR:  TORNEOS_MEDIA_FORBIDDEN"
+    },
+    {
+      "category": "service_only",
+      "function": "postpone_tournament_match(uuid,uuid,text)",
+      "verdict": "BODY_GUARD",
+      "error": "ERROR:  TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "category": "service_only",
+      "function": "ready_tournament_match(uuid,uuid)",
+      "verdict": "BODY_GUARD",
+      "error": "ERROR:  TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "category": "service_only",
+      "function": "rebuild_tournament_discipline(uuid,uuid,uuid,uuid,uuid,text,uuid)",
+      "verdict": "BODY_GUARD",
+      "error": "ERROR:  TORNEOS_AUTH_REQUIRED"
+    },
+    {
+      "category": "service_only",
+      "function": "record_tournament_purchase_preference(uuid,text,text,text,timestamp with time zone)",
+      "verdict": "OTHER_ERROR",
+      "error": "ERROR:  TORNEOS_PREFERENCE_INVALID"
+    },
+    {
+      "category": "service_only",
+      "function": "reject_tournament_team_entry(uuid,uuid,text)",
+      "verdict": "BODY_GUARD",
+      "error": "ERROR:  TORNEOS_AUTH_REQUIRED"
+    },
+    {
+      "category": "service_only",
+      "function": "request_tournament_player_portrait_upload(uuid,uuid,uuid,text,bigint,integer,integer)",
+      "verdict": "BODY_GUARD",
+      "error": "ERROR:  TORNEOS_PORTRAIT_FORBIDDEN"
+    },
+    {
+      "category": "service_only",
+      "function": "request_tournament_team_photo_upload(uuid,uuid,uuid,text,bigint,integer,integer)",
+      "verdict": "BODY_GUARD",
+      "error": "ERROR:  TORNEOS_TEAM_PHOTO_FORBIDDEN"
+    },
+    {
+      "category": "service_only",
+      "function": "resolve_effective_tournament_entitlements_at(uuid,uuid,timestamp with time zone,boolean)",
+      "verdict": "EXECUTED_AS_ANON",
+      "error": null
+    },
+    {
+      "category": "service_only",
+      "function": "resolve_effective_tournament_season_entitlements_at(uuid,uuid,timestamp with time zone,boolean,uuid)",
+      "verdict": "EXECUTED_AS_ANON",
+      "error": null
+    },
+    {
+      "category": "service_only",
+      "function": "resolve_tournament_announcement_recipients(uuid)",
+      "verdict": "EXECUTED_AS_ANON",
+      "error": null
+    },
+    {
+      "category": "service_only",
+      "function": "restore_tournament_match_unscheduled(uuid,uuid,text)",
+      "verdict": "BODY_GUARD",
+      "error": "ERROR:  TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "category": "service_only",
+      "function": "revoke_tournament_announcement(uuid,text)",
+      "verdict": "BODY_GUARD",
+      "error": "ERROR:  TORNEOS_AUTH_REQUIRED"
+    },
+    {
+      "category": "service_only",
+      "function": "revoke_tournament_media_service_attestation(text)",
+      "verdict": "EXECUTED_AS_ANON",
+      "error": null
+    },
+    {
+      "category": "service_only",
+      "function": "revoke_tournament_team_invitation(uuid,uuid)",
+      "verdict": "BODY_GUARD",
+      "error": "ERROR:  TORNEOS_AUTH_REQUIRED"
+    },
+    {
+      "category": "service_only",
+      "function": "schedule_tournament_match_resumption(uuid,uuid,timestamp with time zone,uuid,uuid,text)",
+      "verdict": "BODY_GUARD",
+      "error": "ERROR:  TORNEOS_AUTH_REQUIRED"
+    },
+    {
+      "category": "service_only",
+      "function": "set_tournament_entitlement_override(uuid,uuid,text,boolean,timestamp with time zone,text)",
+      "verdict": "OTHER_ERROR",
+      "error": "ERROR:  TORNEOS_ENTITLEMENT_OVERRIDE_INVALID"
+    },
+    {
+      "category": "service_only",
+      "function": "tag_tournament_media_asset(uuid,text,uuid,uuid,uuid)",
+      "verdict": "BODY_GUARD",
+      "error": "ERROR:  TORNEOS_MEDIA_FORBIDDEN"
+    },
+    {
+      "category": "service_only",
+      "function": "tournament_competition_open_commitments(uuid,uuid)",
+      "verdict": "EXECUTED_AS_ANON",
+      "error": null
+    },
+    {
+      "category": "service_only",
+      "function": "tournament_match_team_entries(uuid)",
+      "verdict": "EXECUTED_AS_ANON",
+      "error": null
+    },
+    {
+      "category": "service_only",
+      "function": "tournament_media_asset_has_internal_consent(uuid)",
+      "verdict": "EXECUTED_AS_ANON",
+      "error": null
+    },
+    {
+      "category": "service_only",
+      "function": "tournament_media_backend_fingerprint()",
+      "verdict": "EXECUTED_AS_ANON",
+      "error": null
+    },
+    {
+      "category": "service_only",
+      "function": "tournament_media_current_pipeline_mode()",
+      "verdict": "EXECUTED_AS_ANON",
+      "error": null
+    },
+    {
+      "category": "service_only",
+      "function": "tournament_media_effective_readiness()",
+      "verdict": "EXECUTED_AS_ANON",
+      "error": null
+    },
+    {
+      "category": "service_only",
+      "function": "tournament_media_known_object_names(uuid)",
+      "verdict": "EXECUTED_AS_ANON",
+      "error": null
+    },
+    {
+      "category": "service_only",
+      "function": "tournament_media_pipeline_readiness()",
+      "verdict": "EXECUTED_AS_ANON",
+      "error": null
+    },
+    {
+      "category": "service_only",
+      "function": "tournament_media_storage_contract_status()",
+      "verdict": "EXECUTED_AS_ANON",
+      "error": null
+    },
+    {
+      "category": "service_only",
+      "function": "tournament_media_user_can_upload(uuid,uuid)",
+      "verdict": "EXECUTED_AS_ANON",
+      "error": null
+    },
+    {
+      "category": "service_only",
+      "function": "tournament_purchase_projection(tournament_purchases)",
+      "verdict": "EXECUTED_AS_ANON",
+      "error": null
+    },
+    {
+      "category": "service_only",
+      "function": "tournament_registration_checklist(uuid,uuid)",
+      "verdict": "BODY_GUARD",
+      "error": "ERROR:  TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "category": "service_only",
+      "function": "tournament_requires_premium(uuid,uuid)",
+      "verdict": "EXECUTED_AS_ANON",
+      "error": null
+    },
+    {
+      "category": "service_only",
+      "function": "tournament_social_match_rows(uuid,uuid,uuid,boolean)",
+      "verdict": "EXECUTED_AS_ANON",
+      "error": null
+    },
+    {
+      "category": "service_only",
+      "function": "tournament_social_published_scope(uuid,uuid,uuid,uuid)",
+      "verdict": "EXECUTED_AS_ANON",
+      "error": null
+    },
+    {
+      "category": "service_only",
+      "function": "update_tournament_document_draft(uuid,text,text,timestamp with time zone)",
+      "verdict": "BODY_GUARD",
+      "error": "ERROR:  TORNEOS_AUTH_REQUIRED"
+    },
+    {
+      "category": "service_only",
+      "function": "validate_tournament_match_operation_payload(uuid)",
+      "verdict": "BODY_GUARD",
+      "error": "ERROR:  TORNEOS_MATCH_FORBIDDEN"
+    },
+    {
+      "category": "service_only",
+      "function": "validate_tournament_roster(uuid,uuid,uuid)",
+      "verdict": "BODY_GUARD",
+      "error": "ERROR:  TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "category": "internal",
+      "function": "grant_tournament_premium(uuid,uuid,text,text)",
+      "verdict": "OTHER_ERROR",
+      "error": "ERROR:  TORNEOS_PLAN_GRANT_INVALID"
+    },
+    {
+      "category": "internal",
+      "function": "set_tournament_organization_subscription(uuid,text,timestamp with time zone,timestamp with time zone,timestamp with time zone,timestamp with time zone,integer)",
+      "verdict": "OTHER_ERROR",
+      "error": "ERROR:  TORNEOS_LEGACY_SUBSCRIPTION_DISABLED"
+    },
+    {
+      "category": "internal",
+      "function": "tournament_media_asset_publication_ready(uuid)",
+      "verdict": "EXECUTED_AS_ANON",
+      "error": null
+    },
+    {
+      "category": "internal",
+      "function": "tournament_media_gallery_sports_round(uuid)",
+      "verdict": "EXECUTED_AS_ANON",
+      "error": null
+    },
+    {
+      "category": "internal",
+      "function": "tournament_media_mvp_user_can_upload(uuid,uuid)",
+      "verdict": "EXECUTED_AS_ANON",
+      "error": null
+    },
+    {
+      "category": "internal",
+      "function": "tournament_media_require_pipeline_ready()",
+      "verdict": "OTHER_ERROR",
+      "error": "ERROR:  TORNEOS_MEDIA_PIPELINE_NOT_READY"
+    },
+    {
+      "category": "internal",
+      "function": "tournament_media_require_upload_tier(text)",
+      "verdict": "OTHER_ERROR",
+      "error": "ERROR:  TORNEOS_MEDIA_PIPELINE_NOT_READY"
+    },
+    {
+      "category": "internal",
+      "function": "tournament_social_next_fixture(uuid,uuid,uuid)",
+      "verdict": "EXECUTED_AS_ANON",
+      "error": null
+    },
+    {
+      "category": "internal",
+      "function": "tournament_social_player_candidates(uuid,jsonb)",
+      "verdict": "EXECUTED_AS_ANON",
+      "error": null
+    }
+  ]
+}

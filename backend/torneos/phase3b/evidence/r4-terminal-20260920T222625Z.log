@@ -1,0 +1,39 @@
+FINAL CERTIFICATION SINGLE RUN 20260920T222625Z
+[r42 22:26:26] step handoff_check: PASS
+[r42 22:26:26] step core_project_guard: PASS
+[r42 22:26:27] step core_contract_function_guard: PASS
+[r42 22:26:28] step core_keys: PASS
+[r42 22:26:28] step authorization: PASS
+[r42 22:26:28] runner preflight: PASS 
+[r42 22:26:28] step runner_preflight: PASS
+[r42 22:26:54] audit start-gateway: STARTED_PENDING_SMOKE 
+[r42 22:26:54] step start_gateway: PASS
+[r42 22:26:55] runner smoke: PASS 
+[r42 22:26:55] step smoke: PASS
+[r42 22:26:57] block qa_users
+[r42 22:27:00] block exchange_valid
+[r42 22:27:10] block token_valid
+[r42 22:27:12] block wrong_issuer
+[r42 22:27:12] block wrong_audience
+[r42 22:27:12] block wrong_kid
+[r42 22:27:12] block expired
+[r42 22:27:12] block wrong_ttl
+[r42 22:27:12] block claim_validation
+[r42 22:27:13] block session_identity_binding
+[r42 22:27:17] block fixtures
+[r42 22:28:55] block live_contracts
+[r42 22:28:55] block request_binding
+[r42 22:29:12] block replay
+[r42 22:29:15] block logout_revocation
+[r42 22:29:19] block core_session_inactive
+[r42 22:29:27] block core_auth_unavailable
+[r42 22:29:32] block core_contract_unavailable
+[r42 22:29:32]   FAIL offline harness: real gateway modules, contract 500/502/timeout → 503 CORE_UNAVAILABLE (see r4-outage artifact): --input-type can only be used with string input via --eval, --print, or STDIN
+[r42 22:29:32] matrix aborted: MATRIX_STOP_ON_FAILURE: offline harness: real gateway modules, contract 500/502/timeout → 503 CORE_UNAVAILABLE (see r4-outage artifact)
+[r42 22:29:32] block cleanup
+[r42 22:29:41] step matrix: FAIL
+[r42 22:29:41] operator aborted: STEP_FAILED: matrix
+[r42 22:29:44] runner cleanup: PASS 
+[r42 22:29:45] summary /Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/plan-r2-local-f7ace5/backend/torneos/phase3b/evidence/r4-summary-20260920T222625Z.json
+[r42 22:29:45] VERDICT R4_FAIL
+{"verdict":"R4_FAIL","blockers":["matrix"],"summary":"r4-summary-20260920T222625Z.json","evidence":{"gatewayStart":{"path":"r4-gateway-start-20260920T222628Z.json","sha256":"4d09ef0bd0b9af070df6b22f3e41a82fadca6cec7fa6f2a1839353896f3f13ab"},"smoke":{"path":"r4-smoke-20260920T222655Z.json","sha256":"40b53478e52cea7b4973c5055add0af614d2ee3f487b5a503568040f46819687"},"matrix":{"path":"r4-matrix-20260920T222625Z.json","sha256":"96c443ef22b913b364d4814b64f0aaaab7121df10698779254891c228cfc36c1"},"outage":{"path":"r4-outage-20260920T222625Z.json","sha256":"d9847835260061a769d2d19c0a0881a9bc02852294dc8eba4e9ad88dda700a9a"},"isolation":{"path":"r4-isolation-20260920T222625Z.json","sha256":"5595187c079f0c231cb8306f53ebfba4d180336ac7855daaba5a95f56384c3c2"},"detail":{"path":"r4-matrix-detail-20260920T222625Z.json","sha256":"0f5d8aa3127115a91c345b95e890a164a4c00f37821303b95d8bcb9db06dc957"},"cleanup":{"path":"r4-cleanup-20260920T222625Z.json","sha256":"44eaf60a15458e97db121ab6d9f364757cdb30a9c48bc6cd69b34b2635248c15"}}}

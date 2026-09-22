@@ -1,0 +1,14 @@
+{
+  "utc": "20260918T213318Z",
+  "status": "BLOCKED",
+  "r41bExecuted": false,
+  "reason": "R4.1B gated on R4.1A PASS",
+  "r2Unchanged": true,
+  "gatewayStarted": false,
+  "matrixExecuted": false,
+  "blocker": "REQUIRED_RUNTIME_TEST_FAILED",
+  "cleanup": {
+    "containersRemoved": true,
+    "networksRemoved": true
+  }
+}

@@ -1,0 +1,170 @@
+{
+  "generated_at": "2026-09-15T06:38:30.729Z",
+  "gateway": "edge",
+  "base": "http://127.0.0.1:58421/torneos-gateway",
+  "auth_base": "http://127.0.0.1:58420",
+  "pass": 40,
+  "fail": 0,
+  "results": [
+    {
+      "name": "lab: only the two gateways are published; databases, Auth, REST and the Edge Functions are internal",
+      "status": "PASS"
+    },
+    {
+      "name": "lab: Core is the real schema at HEAD plus the Phase 3A migration; Torneos is the Phase 2D certified baseline (Phase 2C ACL model + P0 season guard) plus the staging v1 RPC exposure gate",
+      "status": "PASS"
+    },
+    {
+      "name": "lab: contract entry point is service_role-only; helper tables are owner-only",
+      "status": "PASS"
+    },
+    {
+      "name": "verified email: Core outage fails closed (503), invitation stays pending, no attestation",
+      "status": "PASS"
+    },
+    {
+      "name": "verified email: wrong email denied by the real Core verdict (matches=false)",
+      "status": "PASS"
+    },
+    {
+      "name": "verified email: unverified Core account denied (verified=false)",
+      "status": "PASS"
+    },
+    {
+      "name": "verified email: Core email change invalidates the old invitation; a new invite to the new address passes",
+      "status": "PASS"
+    },
+    {
+      "name": "verified email: verified matching email accepted through the whole chain; manager bound to the local identity",
+      "status": "PASS"
+    },
+    {
+      "name": "verified email: second acceptance rejected; Core never learns the address (response carries no email)",
+      "status": "PASS"
+    },
+    {
+      "name": "verified email: disabled (banned) Core user denied at the gateway and by Core itself",
+      "status": "PASS"
+    },
+    {
+      "name": "verified email: real logout revokes the Core session — exchange, RPC and the Core contract all deny",
+      "status": "PASS"
+    },
+    {
+      "name": "directory: authorized owner search returns discoverable Core players with the historical shape and local identities",
+      "status": "PASS"
+    },
+    {
+      "name": "directory: result usable by the historical roster flow; the certified bridge upsert reuses the allocated identity",
+      "status": "PASS"
+    },
+    {
+      "name": "directory: deleted Core account disappears from search",
+      "status": "PASS"
+    },
+    {
+      "name": "directory: unauthorized callers denied BEFORE Core (outsider, other workspace, unassigned season, bad query)",
+      "status": "PASS"
+    },
+    {
+      "name": "directory: assigned admin passes on its season (season scope PASS)",
+      "status": "PASS"
+    },
+    {
+      "name": "directory (Core endpoint): keyset pagination with session-bound, short-lived cursors",
+      "status": "PASS"
+    },
+    {
+      "name": "directory (Core endpoint): accent/case-insensitive match, privacy allowlist, wrong session/user denied",
+      "status": "PASS"
+    },
+    {
+      "name": "directory (Core endpoint): 30 requests per actor per rolling minute, then 429",
+      "status": "PASS"
+    },
+    {
+      "name": "directory: Torneos local rate limit (30/min audit rows) blocks before Core",
+      "status": "PASS"
+    },
+    {
+      "name": "directory: teams search returns only teams the caller may import in Core (owner/admin), historical shape, colors null",
+      "status": "PASS"
+    },
+    {
+      "name": "directory: Core contract outage fails closed for EVERY gateway request (Edge: the session verdict comes from Core over HTTPS); no partial write",
+      "status": "PASS"
+    },
+    {
+      "name": "import: authorized owner imports a frozen snapshot (name from Core, visible candidates only, no roster members)",
+      "status": "PASS"
+    },
+    {
+      "name": "import: unauthorized in Core (not owner/admin of the team) denied by Core; unauthorized in Torneos denied before Core",
+      "status": "PASS"
+    },
+    {
+      "name": "import: idempotent retry re-authorizes with Core and returns the original entry; frozen snapshot ignores later Core edits",
+      "status": "PASS"
+    },
+    {
+      "name": "P3A-R1 disposition (A): the retry attestation left unconsumed confers nothing beyond the same actor, Core session and exact target; duplicates are blocked and it expires",
+      "status": "PASS"
+    },
+    {
+      "name": "import: another competition captures a fresh version (current Core name and roster)",
+      "status": "PASS"
+    },
+    {
+      "name": "import: deleted/inactive Core team denied by Core (retry included); over-limit rosters rejected, never truncated",
+      "status": "PASS"
+    },
+    {
+      "name": "import: Core outage fails closed with no entry created",
+      "status": "PASS"
+    },
+    {
+      "name": "binding: attestation is single-use, bound to identity, Core session, request hash and TTL (SQL boundary with real attestations)",
+      "status": "PASS"
+    },
+    {
+      "name": "binding: snapshot attestation bound to the Core team; response/team mismatch rejected even with a matching hash",
+      "status": "PASS"
+    },
+    {
+      "name": "security: forged attestations impossible for client roles; adapter role is append-only and cannot run domain RPCs",
+      "status": "PASS"
+    },
+    {
+      "name": "security: Torneos bearer binding — wrong session, wrong core_user_id, expired, wrong issuer/audience, untrusted key all denied",
+      "status": "PASS"
+    },
+    {
+      "name": "security: Core service authentication — forged signature, skewed time, replayed nonce, wrong path, wrong method, oversized body",
+      "status": "PASS"
+    },
+    {
+      "name": "security: no secrets in logs, published config or Torneos; service key confined to Core-side containers",
+      "status": "PASS"
+    },
+    {
+      "name": "security: no cross-database access — Core contract SQL touches no Torneos objects; Torneos has no Core tables, FDW or dblink",
+      "status": "PASS"
+    },
+    {
+      "name": "e2e: cross-season DENY for the admin on every Core-dependent RPC; cross-workspace DENY for the owner",
+      "status": "PASS"
+    },
+    {
+      "name": "e2e: season scope PASS — the assigned admin completes a Core-dependent import on its own season",
+      "status": "PASS"
+    },
+    {
+      "name": "P3A-F1 closed: on the real Supabase database the corrected baseline leaves no accidental EXECUTE or sequence privilege; a directly exposed Data API denies SERVICE_ONLY before the body",
+      "status": "PASS"
+    },
+    {
+      "name": "e2e: every consumed attestation belonged to the consuming identity; no live positive verdict is left behind",
+      "status": "PASS"
+    }
+  ]
+}

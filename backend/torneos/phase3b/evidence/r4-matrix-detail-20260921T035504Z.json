@@ -1,0 +1,2852 @@
+{
+  "schema": "R4.2.matrix-detail.v1",
+  "run": "arma2-r42-20260921t035621z",
+  "stamp": "20260921T035504Z",
+  "blocks": [
+    {
+      "name": "qa_users",
+      "status": "PASS",
+      "checks": [
+        {
+          "name": "five dedicated synthetic QA users created on Core staging with purpose phase3b-r42",
+          "pass": true,
+          "detail": [
+            {
+              "role": "owner",
+              "email": "q***@accounts.invalid",
+              "id": "a078423e",
+              "session": "7e0409d5",
+              "aud": "authenticated",
+              "iss": "https://hhyvmhgpapyuzjgxfnqv.supabase.co/auth/v1"
+            },
+            {
+              "role": "admin",
+              "email": "q***@accounts.invalid",
+              "id": "dc8613e3",
+              "session": "653f752c",
+              "aud": "authenticated",
+              "iss": "https://hhyvmhgpapyuzjgxfnqv.supabase.co/auth/v1"
+            },
+            {
+              "role": "member",
+              "email": "q***@accounts.invalid",
+              "id": "ce56523b",
+              "session": "548855b1",
+              "aud": "authenticated",
+              "iss": "https://hhyvmhgpapyuzjgxfnqv.supabase.co/auth/v1"
+            },
+            {
+              "role": "outsider",
+              "email": "q***@accounts.invalid",
+              "id": "dd4ac568",
+              "session": "9e909a6a",
+              "aud": "authenticated",
+              "iss": "https://hhyvmhgpapyuzjgxfnqv.supabase.co/auth/v1"
+            },
+            {
+              "role": "captain",
+              "email": "q***@accounts.invalid",
+              "id": "eda780d4",
+              "session": "b7f9d34d",
+              "aud": "authenticated",
+              "iss": "https://hhyvmhgpapyuzjgxfnqv.supabase.co/auth/v1"
+            }
+          ]
+        }
+      ],
+      "informative": true
+    },
+    {
+      "name": "exchange_valid",
+      "status": "PASS",
+      "checks": [
+        {
+          "name": "POST /exchange with a live Core bearer → 200, RS256 p3b-k1, certified claim contract, identity allocated",
+          "pass": true,
+          "detail": {
+            "sub": "7e7d5aee",
+            "kid": "p3b-k1",
+            "ttl": 120
+          }
+        },
+        {
+          "name": "exchange without / with garbage / with unsigned Core-shaped bearer → 401; identity or role input → 400",
+          "pass": true,
+          "detail": {
+            "none": {
+              "error": "access denied"
+            },
+            "forged": {
+              "error": "access denied"
+            },
+            "roleBody": {
+              "error": "exchange accepts no identity or role input"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "token_valid",
+      "status": "PASS",
+      "checks": [
+        {
+          "name": "valid bridge bearer → allowlisted RPC 200 and table read through the proxy (own identity row only)",
+          "pass": true,
+          "detail": {
+            "rpc": 200,
+            "identityRows": 1
+          }
+        }
+      ]
+    },
+    {
+      "name": "wrong_issuer",
+      "status": "PASS",
+      "checks": [
+        {
+          "name": "wrong_issuer: gateway RPC → 401 and direct PostgREST → 401/403",
+          "pass": true,
+          "detail": {
+            "gateway": 401,
+            "direct": 401,
+            "directCode": "PT401",
+            "dbCovered": true
+          }
+        }
+      ]
+    },
+    {
+      "name": "wrong_audience",
+      "status": "PASS",
+      "checks": [
+        {
+          "name": "wrong_audience: gateway RPC → 401 and direct PostgREST → 401/403",
+          "pass": true,
+          "detail": {
+            "gateway": 401,
+            "direct": 401,
+            "directCode": "PGRST303",
+            "dbCovered": true
+          }
+        }
+      ]
+    },
+    {
+      "name": "wrong_kid",
+      "status": "PASS",
+      "checks": [
+        {
+          "name": "unknown_kid: gateway RPC → 401 and direct PostgREST → 401/403",
+          "pass": true,
+          "detail": {
+            "gateway": 401,
+            "direct": 401,
+            "directCode": "PGRST301",
+            "dbCovered": true
+          }
+        },
+        {
+          "name": "standby_kid_p3b_k2: gateway RPC → 401 and direct PostgREST → 401/403",
+          "pass": true,
+          "detail": {
+            "gateway": 401,
+            "direct": 401,
+            "directCode": "PGRST301",
+            "dbCovered": true
+          }
+        }
+      ]
+    },
+    {
+      "name": "expired",
+      "status": "PASS",
+      "checks": [
+        {
+          "name": "expired: gateway RPC → 401 and direct PostgREST → 401/403",
+          "pass": true,
+          "detail": {
+            "gateway": 401,
+            "direct": 401,
+            "directCode": "PGRST303",
+            "dbCovered": true
+          }
+        }
+      ]
+    },
+    {
+      "name": "wrong_ttl",
+      "status": "PASS",
+      "checks": [
+        {
+          "name": "ttl_121: gateway RPC → 401 and direct PostgREST → 401/403",
+          "pass": true,
+          "detail": {
+            "gateway": 401,
+            "direct": 401,
+            "directCode": "PT401",
+            "dbCovered": true
+          }
+        },
+        {
+          "name": "ttl_60: gateway RPC → 401 and direct PostgREST → 401/403",
+          "pass": true,
+          "detail": {
+            "gateway": 401,
+            "direct": 401,
+            "directCode": "PT401",
+            "dbCovered": true
+          }
+        },
+        {
+          "name": "nbf_not_iat: gateway RPC → 401 and direct PostgREST → 401/403",
+          "pass": true,
+          "detail": {
+            "gateway": 401,
+            "direct": 401,
+            "directCode": "PT401",
+            "dbCovered": true
+          }
+        },
+        {
+          "name": "iat_future: gateway RPC → 401 and direct PostgREST → 401/403",
+          "pass": true,
+          "detail": {
+            "gateway": 401,
+            "direct": 401,
+            "directCode": "PGRST303",
+            "dbCovered": true
+          }
+        }
+      ]
+    },
+    {
+      "name": "claim_validation",
+      "status": "PASS",
+      "checks": [
+        {
+          "name": "role_service_role: gateway RPC → 401 and direct PostgREST → 401/403",
+          "pass": true,
+          "detail": {
+            "gateway": 401,
+            "direct": 401,
+            "directCode": "PT401",
+            "dbCovered": true
+          }
+        },
+        {
+          "name": "role_anon: gateway RPC → 401 and direct PostgREST → 401/403",
+          "pass": true,
+          "detail": {
+            "gateway": 401,
+            "direct": 401,
+            "directCode": "42501",
+            "dbCovered": true
+          }
+        },
+        {
+          "name": "alg_none: gateway RPC → 401 and direct PostgREST → 401/403",
+          "pass": true,
+          "detail": {
+            "gateway": 401,
+            "direct": 401,
+            "directCode": "PGRST301",
+            "dbCovered": true
+          }
+        },
+        {
+          "name": "typ_not_jwt: gateway RPC → 401 (gateway-only strictness; direct recorded)",
+          "pass": true,
+          "detail": {
+            "gateway": 401,
+            "direct": 200,
+            "directCode": null,
+            "dbCovered": false
+          }
+        },
+        {
+          "name": "sub_not_uuid: gateway RPC → 401 and direct PostgREST → 401/403",
+          "pass": true,
+          "detail": {
+            "gateway": 401,
+            "direct": 401,
+            "directCode": "PT401",
+            "dbCovered": true
+          }
+        },
+        {
+          "name": "core_user_id_not_uuid: gateway RPC → 401 and direct PostgREST → 401/403",
+          "pass": true,
+          "detail": {
+            "gateway": 401,
+            "direct": 401,
+            "directCode": "PT401",
+            "dbCovered": true
+          }
+        },
+        {
+          "name": "session_id_not_uuid: gateway RPC → 401 (gateway-only strictness; direct recorded)",
+          "pass": true,
+          "detail": {
+            "gateway": 401,
+            "direct": 200,
+            "directCode": null,
+            "dbCovered": false
+          }
+        },
+        {
+          "name": "jti_missing: gateway RPC → 401 and direct PostgREST → 401/403",
+          "pass": true,
+          "detail": {
+            "gateway": 401,
+            "direct": 401,
+            "directCode": "PT401",
+            "dbCovered": true
+          }
+        },
+        {
+          "name": "session_id_missing: gateway RPC → 401 and direct PostgREST → 401/403",
+          "pass": true,
+          "detail": {
+            "gateway": 401,
+            "direct": 401,
+            "directCode": "PT401",
+            "dbCovered": true
+          }
+        },
+        {
+          "name": "core_user_id_missing: gateway RPC → 401 and direct PostgREST → 401/403",
+          "pass": true,
+          "detail": {
+            "gateway": 401,
+            "direct": 401,
+            "directCode": "PT401",
+            "dbCovered": true
+          }
+        },
+        {
+          "name": "garbage: gateway RPC → 401 and direct PostgREST → 401/403",
+          "pass": true,
+          "detail": {
+            "gateway": 401,
+            "direct": 401,
+            "directCode": "PGRST301",
+            "dbCovered": true
+          }
+        },
+        {
+          "name": "empty: gateway RPC → 401 (gateway-only strictness; direct recorded)",
+          "pass": true,
+          "detail": {
+            "gateway": 401,
+            "direct": 401,
+            "directCode": "42501",
+            "dbCovered": false
+          }
+        }
+      ]
+    },
+    {
+      "name": "session_identity_binding",
+      "status": "PASS",
+      "checks": [
+        {
+          "name": "valid signature, real identity, unknown Core session → 401 (Core session authority)",
+          "pass": true,
+          "detail": {
+            "error": "access denied"
+          }
+        },
+        {
+          "name": "owner identity bound to the outsider Core user/session → 401 (identity ≠ core_user_id)",
+          "pass": true,
+          "detail": {
+            "error": "access denied"
+          }
+        },
+        {
+          "name": "owner Core user with the admin live session id → 401 (session belongs to another user)",
+          "pass": true,
+          "detail": {
+            "error": "access denied"
+          }
+        },
+        {
+          "name": "unknown local identity with the owner Core user/session → 401",
+          "pass": true,
+          "detail": {
+            "error": "access denied"
+          }
+        }
+      ]
+    },
+    {
+      "name": "fixtures",
+      "status": "PASS",
+      "checks": [
+        {
+          "name": "P0 fixture through the allowlisted RPCs with real Core sessions: org, 2 seasons, 2 tournaments in registration, seats, 7 submitted entries",
+          "pass": true,
+          "detail": {
+            "org": "bab328da",
+            "org2": "b133281c",
+            "entries": 7,
+            "acceptance": [
+              {
+                "entry": "Matrix FC",
+                "status": 200,
+                "live": true,
+                "code": null,
+                "seeded": false
+              },
+              {
+                "entry": "Approve FC",
+                "status": 200,
+                "live": true,
+                "code": null,
+                "seeded": false
+              },
+              {
+                "entry": "Changes FC",
+                "status": 200,
+                "live": true,
+                "code": null,
+                "seeded": false
+              },
+              {
+                "entry": "Reject FC",
+                "status": 200,
+                "live": true,
+                "code": null,
+                "seeded": false
+              },
+              {
+                "entry": "Invalid FC",
+                "status": 200,
+                "live": true,
+                "code": null,
+                "seeded": false
+              },
+              {
+                "entry": "Admin Seat FC",
+                "status": 200,
+                "live": true,
+                "code": null,
+                "seeded": false
+              },
+              {
+                "entry": "Bravo FC",
+                "status": 200,
+                "live": true,
+                "code": null,
+                "seeded": false
+              }
+            ]
+          }
+        }
+      ],
+      "informative": true
+    },
+    {
+      "name": "live_contracts",
+      "status": "PASS",
+      "checks": [
+        {
+          "name": "verified_email: every manager acceptance was attested live by Core staging (no seeding)",
+          "pass": true,
+          "detail": {
+            "accepted": 7
+          }
+        }
+      ],
+      "informative": true
+    },
+    {
+      "name": "request_binding",
+      "status": "PASS",
+      "checks": [
+        {
+          "name": "directory_players through the gateway: Core attested → RPC consumed the attestation (live contract, 200)",
+          "pass": true,
+          "detail": {
+            "status": 200,
+            "items": 5
+          }
+        },
+        {
+          "name": "attestation is bound to the request hash: same actor/session, different query → TORNEOS_CORE_ATTESTATION_REQUIRED",
+          "pass": true,
+          "detail": {
+            "code": "42501",
+            "details": null,
+            "hint": null,
+            "message": "TORNEOS_CORE_ATTESTATION_REQUIRED"
+          }
+        },
+        {
+          "name": "attestation is bound to the Core session: same identity+hash, another session id → REQUIRED",
+          "pass": true,
+          "detail": {
+            "code": "42501",
+            "details": null,
+            "hint": null,
+            "message": "TORNEOS_CORE_ATTESTATION_REQUIRED"
+          }
+        },
+        {
+          "name": "attestation is bound to the contract: same params on directory_teams → REQUIRED",
+          "pass": true,
+          "detail": {
+            "code": "42501",
+            "details": null,
+            "hint": null,
+            "message": "TORNEOS_CORE_ATTESTATION_REQUIRED"
+          }
+        },
+        {
+          "name": "exact identity+session+hash within TTL consumes the pending attestation → 200; a second use → REQUIRED (single use)",
+          "pass": true,
+          "detail": {
+            "first": 200,
+            "replay": "TORNEOS_CORE_ATTESTATION_REQUIRED"
+          }
+        },
+        {
+          "name": "time binding: pending attestation older than 10 s → REQUIRED",
+          "pass": true,
+          "detail": {
+            "code": "42501",
+            "details": null,
+            "hint": null,
+            "message": "TORNEOS_CORE_ATTESTATION_REQUIRED"
+          }
+        }
+      ]
+    },
+    {
+      "name": "replay",
+      "status": "PASS",
+      "checks": [
+        {
+          "name": "attestation replay (consumed) → REQUIRED; no gateway path re-uses an attestation",
+          "pass": true,
+          "detail": {
+            "code": "42501",
+            "details": null,
+            "hint": null,
+            "message": "TORNEOS_CORE_ATTESTATION_REQUIRED"
+          }
+        },
+        {
+          "name": "Core nonce replay: the same signed /v1/session request twice → 200 then 401 REPLAY (operator-held HMAC, direct Core probe)",
+          "pass": true,
+          "detail": {
+            "first": 200,
+            "second": {
+              "error": "REPLAY"
+            }
+          }
+        },
+        {
+          "name": "a bridge bearer is a bearer within its 120 s TTL (two uses → 200, 200); revocation is session-bound (next block)",
+          "pass": true,
+          "detail": {
+            "uses": 2
+          }
+        }
+      ]
+    },
+    {
+      "name": "logout_revocation",
+      "status": "PASS",
+      "checks": [
+        {
+          "name": "member: bearer 200 → GoTrue logout(local) → same bearer 401 ×3 immediately → old Core token cannot exchange",
+          "pass": true,
+          "detail": {
+            "afterLogout": [
+              {
+                "status": 401,
+                "ms": 636
+              },
+              {
+                "status": 401,
+                "ms": 624
+              },
+              {
+                "status": 401,
+                "ms": 585
+              }
+            ],
+            "exchangeWithLoggedOutCoreToken": 401
+          }
+        }
+      ]
+    },
+    {
+      "name": "core_session_inactive",
+      "status": "PASS",
+      "checks": [
+        {
+          "name": "nonexistent Core session (valid signature) → 401",
+          "pass": true,
+          "detail": {
+            "error": "access denied"
+          }
+        },
+        {
+          "name": "revoked session: member logs in twice; logout(others) from s2 → bearer bound to s1 401, bearer bound to s2 200",
+          "pass": true,
+          "detail": {
+            "s1": 401,
+            "s2": 200
+          }
+        },
+        {
+          "name": "logged-out session id inside an otherwise valid bearer → 401 (no stale verdict)",
+          "pass": true,
+          "detail": {
+            "error": "access denied"
+          }
+        }
+      ]
+    },
+    {
+      "name": "core_auth_unavailable",
+      "status": "PASS",
+      "checks": [
+        {
+          "name": "Core Auth transport reset at run-owned proxy; ingress preserved: /health, exchange, RPC return gateway JSON 503; first recovery → 200",
+          "pass": true,
+          "detail": {
+            "health": 503,
+            "exchange": 503,
+            "rpc": 503,
+            "rpcBody": {
+              "error": "access denied"
+            },
+            "fault": "auth transport reset",
+            "ingressPreserved": true,
+            "recovery": {
+              "status": 200,
+              "attempt": 1,
+              "attempts": [
+                200
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "core_contract_unavailable",
+      "status": "PASS",
+      "checks": [
+        {
+          "name": "offline harness: real gateway modules, contract 500/502/timeout → 503 CORE_UNAVAILABLE (see r4-outage artifact)",
+          "pass": true,
+          "detail": {
+            "tests": 29,
+            "pass": true,
+            "bundleSHA256": "be45c9fbd7e5f3a9aad76e411825a689a3c21a7e99268f28c069afc3501e3eee"
+          }
+        },
+        {
+          "name": "live: with Core unreachable a verified bearer never reaches Torneos (503, no fallback)",
+          "pass": true,
+          "detail": {
+            "status": 503,
+            "body": {
+              "error": "CORE_UNAVAILABLE"
+            },
+            "cacheControl": "no-store",
+            "fault": "contract transport reset",
+            "ingressPreserved": true,
+            "recovery": {
+              "status": 200,
+              "attempt": 1,
+              "attempts": [
+                200
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "core_response_stale",
+      "status": "PASS",
+      "checks": [
+        {
+          "name": "offline harness: stale / future / malformed / schema-violating / active:false contract responses → 503 CORE_UNAVAILABLE",
+          "pass": true,
+          "detail": {
+            "covered": 5
+          }
+        },
+        {
+          "name": "offline harness: Core auth health 503 / user 500 → fail closed (503 / 401); Torneos DB unreachable → 503",
+          "pass": true,
+          "detail": {
+            "covered": 6
+          }
+        }
+      ]
+    },
+    {
+      "name": "torneos_rest_unavailable",
+      "status": "PASS",
+      "checks": [
+        {
+          "name": "Torneos REST unreachable from the gateway namespace (REST /32 removed): verified bearer + live Core → 503 access denied no-store; restored → 200",
+          "pass": true,
+          "detail": {
+            "rpc": 503,
+            "rpcBody": {
+              "error": "access denied"
+            },
+            "rpcCacheControl": "no-store",
+            "table": 503,
+            "routesDuring": "unreachable default \n172.27.0.2 dev eth0 scope link \n172.29.0.2 dev eth1 scope link \n---\nunreachable default dev lo  metric 1024",
+            "recovery": {
+              "status": 200,
+              "attempt": 1,
+              "attempts": [
+                200
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "allowlist",
+      "status": "PASS",
+      "checks": [
+        {
+          "name": "all 43 allowlisted RPCs dispatch through the gateway (none refused by the gateway; each reaches PostgREST or the Core-contract adapter)",
+          "pass": true,
+          "detail": {
+            "dispatched": 43,
+            "executed200": 17,
+            "byLayer": {
+              "postgrest": 41,
+              "adapter": 2
+            },
+            "exercisedWithRealParams": [
+              "accept_tournament_team_invitation",
+              "add_tournament_roster_player",
+              "assign_tournament_season_member",
+              "can_read_tournament_team_entry",
+              "change_tournament_status",
+              "create_tournament_organization",
+              "create_tournament_provisional_player",
+              "create_tournament_season",
+              "create_tournament_team_entry",
+              "create_tournament_with_defaults",
+              "get_my_tournament_memberships",
+              "get_team_registration_context",
+              "get_tournament_competition_context",
+              "get_tournament_creation_eligibility",
+              "get_tournament_teams_context",
+              "get_tournament_workspace_context",
+              "has_organization_consumed_free_tournament",
+              "has_tournament_capability",
+              "has_tournament_organization_capability",
+              "has_tournament_season_access",
+              "has_tournament_season_capability",
+              "invite_tournament_team_manager",
+              "is_tournament_organization_member",
+              "is_tournament_organization_slug_available",
+              "is_tournament_team_manager",
+              "list_tournament_season_member_assignments",
+              "save_tournament_category",
+              "search_tournament_arma2_teams",
+              "search_tournament_players",
+              "submit_tournament_team_entry",
+              "tournament_role_capabilities",
+              "update_tournament_team_entry"
+            ]
+          }
+        },
+        {
+          "name": "directory_teams through the gateway → live Core contract attested and consumed (200)",
+          "pass": true,
+          "detail": {
+            "status": 200,
+            "code": null,
+            "message": "",
+            "layer": "postgrest",
+            "args": 4,
+            "real": true
+          }
+        }
+      ]
+    },
+    {
+      "name": "gated",
+      "status": "PASS",
+      "checks": [
+        {
+          "name": "33 gated RPCs: gateway POST → 403 rpc not enabled, gateway GET → 403; direct PostgREST anon → 42501 before body; direct authenticated → 42501 before body",
+          "pass": true,
+          "detail": {
+            "gated": 33
+          }
+        },
+        {
+          "name": "catalog: no gated function is executable by anon or authenticated; service_role keeps it; allowlist ∩ gate = ∅",
+          "pass": true,
+          "detail": {
+            "functions": 33,
+            "serviceRoleKept": 0
+          }
+        }
+      ]
+    },
+    {
+      "name": "p0_review_tournament_team_entry",
+      "status": "PASS",
+      "checks": [
+        {
+          "name": "DENY (403 TORNEOS_RESOURCE_FORBIDDEN, zero writes): admin without seat; seated admin cross-season (approve/changes/reject); other-workspace owner with entry org / own org; owner with foreign org; anon → 401",
+          "pass": true,
+          "detail": [
+            {
+              "label": "admin unassigned (member, no season seat)",
+              "status": 403,
+              "message": "TORNEOS_RESOURCE_FORBIDDEN"
+            },
+            {
+              "label": "admin seated on season A reviews a season B entry: approve",
+              "status": 403,
+              "message": "TORNEOS_RESOURCE_FORBIDDEN"
+            },
+            {
+              "label": "admin seated on season A, changes_requested on season B entry",
+              "status": 403,
+              "message": "TORNEOS_RESOURCE_FORBIDDEN"
+            },
+            {
+              "label": "admin seated on season A, rejected on season B entry",
+              "status": 403,
+              "message": "TORNEOS_RESOURCE_FORBIDDEN"
+            },
+            {
+              "label": "other workspace owner with the entry org id",
+              "status": 403,
+              "message": "TORNEOS_RESOURCE_FORBIDDEN"
+            },
+            {
+              "label": "other workspace owner with their own org id",
+              "status": 403,
+              "message": "TORNEOS_RESOURCE_FORBIDDEN"
+            },
+            {
+              "label": "owner with a foreign org id",
+              "status": 403,
+              "message": "TORNEOS_RESOURCE_FORBIDDEN"
+            }
+          ]
+        },
+        {
+          "name": "invalid payload (22023 TORNEOS_INVALID_REVIEW, zero writes): unknown decision, short/long reason, non-array issues; missing entry → forbidden",
+          "pass": true,
+          "detail": [
+            {
+              "label": "decision maybe",
+              "status": 400
+            },
+            {
+              "label": "reason too short",
+              "status": 400
+            },
+            {
+              "label": "reason too long",
+              "status": 400
+            },
+            {
+              "label": "issues object",
+              "status": 400
+            }
+          ]
+        },
+        {
+          "name": "invalid roster (goalkeeper removed after submission): approve → 23514 TORNEOS_ROSTER_INCOMPLETE with detail, zero writes; changes_requested → 200",
+          "pass": true,
+          "detail": {
+            "approve": 400,
+            "errors": [
+              "minimum_players",
+              "minimum_goalkeepers"
+            ],
+            "changesRequested": 200
+          }
+        },
+        {
+          "name": "approve (owner): 200, entry+roster approved, pending players → eligible, review + audit rows correct; second review refused",
+          "pass": true,
+          "detail": {
+            "status": 200,
+            "audit": "team_entry.approved"
+          }
+        },
+        {
+          "name": "changes_requested (owner): 200, entry and roster changes_requested, no approval timestamps, issues persisted and counted; roster editable again",
+          "pass": true,
+          "detail": {
+            "status": 200,
+            "rosterEditable": 200
+          }
+        },
+        {
+          "name": "reject (owner): 200, rejected_at set, roster stays submitted, review + audit rows correct",
+          "pass": true,
+          "detail": {
+            "status": 200
+          }
+        },
+        {
+          "name": "approve (admin seated on the entry season, real Core session): 200; audit actor is the admin identity",
+          "pass": true,
+          "detail": {
+            "status": 200,
+            "actor": "admin"
+          }
+        }
+      ]
+    },
+    {
+      "name": "cross_user",
+      "status": "PASS",
+      "checks": [
+        {
+          "name": "outsider reads the org members table through the proxy → [] ; owner → rows; identities: each actor sees only its own row",
+          "pass": true,
+          "detail": {
+            "outsiderRows": 0,
+            "ownerRows": 3
+          }
+        }
+      ]
+    },
+    {
+      "name": "cross_workspace",
+      "status": "PASS",
+      "checks": [
+        {
+          "name": "outsider: tournaments/entries of the other workspace filtered ([]); workspace/teams context refused; owner sees them",
+          "pass": true,
+          "detail": {
+            "outsiderTournaments": 0,
+            "outsiderEntries": 0,
+            "ownerTournaments": 2,
+            "outsiderTeamsContext": 403
+          }
+        }
+      ]
+    },
+    {
+      "name": "cross_season",
+      "status": "PASS",
+      "checks": [
+        {
+          "name": "season scope: seated admin has season A access, not season B; member without seat has neither; owner both; teams context follows the seat",
+          "pass": true,
+          "detail": {
+            "adminA": true,
+            "adminB": false,
+            "memberA": false,
+            "memberB": false,
+            "ownerA": true,
+            "ownerB": true,
+            "adminTeamsContextA": 200,
+            "adminTeamsContextB": 403
+          }
+        }
+      ]
+    },
+    {
+      "name": "no_cache",
+      "status": "PASS",
+      "checks": [
+        {
+          "name": "every gateway response carried cache-control: no-store; revocations and outages took effect on the very next request (no cached verdict, no stale failure)",
+          "pass": true,
+          "detail": {
+            "responses": 335,
+            "violations": 0,
+            "coverage": {
+              "health": true,
+              "exchange": true,
+              "restSuccess": true,
+              "rest401": true,
+              "rest403": true,
+              "rest503": true,
+              "CORE_UNAVAILABLE": true,
+              "TORNEOS_UNAVAILABLE": true
+            },
+            "classes": {
+              "/exchange | 200 | ": {
+                "count": 16,
+                "cacheControl": "no-store"
+              },
+              "/exchange | 401 | access denied": {
+                "count": 4,
+                "cacheControl": "no-store"
+              },
+              "/exchange | 400 | exchange accepts no identity or role input": {
+                "count": 1,
+                "cacheControl": "no-store"
+              },
+              "/torneos/rest/v1/rpc/get_my_tournament_memberships | 200 | ": {
+                "count": 9,
+                "cacheControl": "no-store"
+              },
+              "/torneos/rest/v1/torneos_identity | 200 | ": {
+                "count": 2,
+                "cacheControl": "no-store"
+              },
+              "/torneos/rest/v1/rpc/get_my_tournament_memberships | 401 | access denied": {
+                "count": 32,
+                "cacheControl": "no-store"
+              },
+              "/torneos/rest/v1/rpc/create_tournament_organization | 200 | ": {
+                "count": 2,
+                "cacheControl": "no-store"
+              },
+              "/torneos/rest/v1/rpc/create_tournament_season | 200 | ": {
+                "count": 2,
+                "cacheControl": "no-store"
+              },
+              "/torneos/rest/v1/rpc/create_tournament_with_defaults | 200 | ": {
+                "count": 2,
+                "cacheControl": "no-store"
+              },
+              "/torneos/rest/v1/rpc/save_tournament_category | 200 | ": {
+                "count": 2,
+                "cacheControl": "no-store"
+              },
+              "/torneos/rest/v1/rpc/change_tournament_status | 200 | ": {
+                "count": 2,
+                "cacheControl": "no-store"
+              },
+              "/torneos/rest/v1/rpc/assign_tournament_season_member | 200 | ": {
+                "count": 1,
+                "cacheControl": "no-store"
+              },
+              "/torneos/rest/v1/rpc/list_tournament_season_member_assignments | 200 | ": {
+                "count": 1,
+                "cacheControl": "no-store"
+              },
+              "/torneos/rest/v1/rpc/create_tournament_team_entry | 200 | ": {
+                "count": 7,
+                "cacheControl": "no-store"
+              },
+              "/torneos/rest/v1/rpc/update_tournament_team_entry | 200 | ": {
+                "count": 7,
+                "cacheControl": "no-store"
+              },
+              "/torneos/rest/v1/rpc/create_tournament_provisional_player | 200 | ": {
+                "count": 35,
+                "cacheControl": "no-store"
+              },
+              "/torneos/rest/v1/rpc/add_tournament_roster_player | 200 | ": {
+                "count": 35,
+                "cacheControl": "no-store"
+              },
+              "/torneos/rest/v1/rpc/invite_tournament_team_manager | 200 | ": {
+                "count": 7,
+                "cacheControl": "no-store"
+              },
+              "/torneos/rest/v1/rpc/accept_tournament_team_invitation | 200 | ": {
+                "count": 7,
+                "cacheControl": "no-store"
+              },
+              "/torneos/rest/v1/rpc/submit_tournament_team_entry | 200 | ": {
+                "count": 7,
+                "cacheControl": "no-store"
+              },
+              "/torneos/rest/v1/rpc/search_tournament_players | 200 | ": {
+                "count": 1,
+                "cacheControl": "no-store"
+              },
+              "/torneos/rest/v1/rpc/search_tournament_players | 404 | ": {
+                "count": 2,
+                "cacheControl": "no-store"
+              },
+              "/health | 503 | access denied": {
+                "count": 1,
+                "cacheControl": "no-store"
+              },
+              "/exchange | 503 | access denied": {
+                "count": 1,
+                "cacheControl": "no-store"
+              },
+              "/torneos/rest/v1/rpc/get_my_tournament_memberships | 503 | access denied": {
+                "count": 2,
+                "cacheControl": "no-store"
+              },
+              "/health | 200 | ": {
+                "count": 2,
+                "cacheControl": "no-store"
+              },
+              "/torneos/rest/v1/rpc/get_my_tournament_memberships | 503 | CORE_UNAVAILABLE": {
+                "count": 1,
+                "cacheControl": "no-store"
+              },
+              "/torneos/rest/v1/torneos_identity | 503 | access denied": {
+                "count": 1,
+                "cacheControl": "no-store"
+              },
+              "/torneos/rest/v1/rpc/create_tournament_organization | 400 | ": {
+                "count": 1,
+                "cacheControl": "no-store"
+              },
+              "/torneos/rest/v1/rpc/update_tournament_organization | 403 | ": {
+                "count": 1,
+                "cacheControl": "no-store"
+              },
+              "/torneos/rest/v1/rpc/is_tournament_organization_slug_available | 200 | ": {
+                "count": 1,
+                "cacheControl": "no-store"
+              },
+              "/torneos/rest/v1/rpc/is_tournament_organization_member | 200 | ": {
+                "count": 1,
+                "cacheControl": "no-store"
+              },
+              "/torneos/rest/v1/rpc/has_tournament_organization_capability | 200 | ": {
+                "count": 1,
+                "cacheControl": "no-store"
+              },
+              "/torneos/rest/v1/rpc/has_tournament_capability | 200 | ": {
+                "count": 1,
+                "cacheControl": "no-store"
+              },
+              "/torneos/rest/v1/rpc/tournament_role_capabilities | 200 | ": {
+                "count": 1,
+                "cacheControl": "no-store"
+              },
+              "/torneos/rest/v1/rpc/get_tournament_workspace_context | 200 | ": {
+                "count": 1,
+                "cacheControl": "no-store"
+              },
+              "/torneos/rest/v1/rpc/set_tournament_workspace_preference | 400 | ": {
+                "count": 1,
+                "cacheControl": "no-store"
+              },
+              "/torneos/rest/v1/rpc/set_active_tournament_context | 403 | ": {
+                "count": 1,
+                "cacheControl": "no-store"
+              },
+              "/torneos/rest/v1/rpc/assign_tournament_season_member | 403 | ": {
+                "count": 1,
+                "cacheControl": "no-store"
+              },
+              "/torneos/rest/v1/rpc/remove_tournament_season_member_assignment | 403 | ": {
+                "count": 1,
+                "cacheControl": "no-store"
+              },
+              "/torneos/rest/v1/rpc/list_tournament_season_member_assignments | 403 | ": {
+                "count": 1,
+                "cacheControl": "no-store"
+              },
+              "/torneos/rest/v1/rpc/has_tournament_season_access | 200 | ": {
+                "count": 7,
+                "cacheControl": "no-store"
+              },
+              "/torneos/rest/v1/rpc/has_tournament_season_capability | 200 | ": {
+                "count": 1,
+                "cacheControl": "no-store"
+              },
+              "/torneos/rest/v1/rpc/create_tournament_season | 403 | ": {
+                "count": 1,
+                "cacheControl": "no-store"
+              },
+              "/torneos/rest/v1/rpc/update_tournament_season | 403 | ": {
+                "count": 1,
+                "cacheControl": "no-store"
+              },
+              "/torneos/rest/v1/rpc/create_tournament_with_defaults | 403 | ": {
+                "count": 1,
+                "cacheControl": "no-store"
+              },
+              "/torneos/rest/v1/rpc/update_tournament_configuration | 403 | ": {
+                "count": 1,
+                "cacheControl": "no-store"
+              },
+              "/torneos/rest/v1/rpc/change_tournament_status | 403 | ": {
+                "count": 1,
+                "cacheControl": "no-store"
+              },
+              "/torneos/rest/v1/rpc/save_tournament_category | 403 | ": {
+                "count": 1,
+                "cacheControl": "no-store"
+              },
+              "/torneos/rest/v1/rpc/get_tournament_competition_context | 200 | ": {
+                "count": 1,
+                "cacheControl": "no-store"
+              },
+              "/torneos/rest/v1/rpc/get_tournament_creation_eligibility | 200 | ": {
+                "count": 1,
+                "cacheControl": "no-store"
+              },
+              "/torneos/rest/v1/rpc/has_organization_consumed_free_tournament | 200 | ": {
+                "count": 1,
+                "cacheControl": "no-store"
+              },
+              "/torneos/rest/v1/rpc/create_tournament_team_entry | 403 | ": {
+                "count": 1,
+                "cacheControl": "no-store"
+              },
+              "/torneos/rest/v1/rpc/update_tournament_team_entry | 403 | ": {
+                "count": 1,
+                "cacheControl": "no-store"
+              },
+              "/torneos/rest/v1/rpc/submit_tournament_team_entry | 403 | ": {
+                "count": 1,
+                "cacheControl": "no-store"
+              },
+              "/torneos/rest/v1/rpc/withdraw_tournament_team_entry | 403 | ": {
+                "count": 1,
+                "cacheControl": "no-store"
+              },
+              "/torneos/rest/v1/rpc/archive_tournament_team_entry | 403 | ": {
+                "count": 1,
+                "cacheControl": "no-store"
+              },
+              "/torneos/rest/v1/rpc/get_team_registration_context | 200 | ": {
+                "count": 1,
+                "cacheControl": "no-store"
+              },
+              "/torneos/rest/v1/rpc/get_tournament_teams_context | 200 | ": {
+                "count": 3,
+                "cacheControl": "no-store"
+              },
+              "/torneos/rest/v1/rpc/can_read_tournament_team_entry | 200 | ": {
+                "count": 1,
+                "cacheControl": "no-store"
+              },
+              "/torneos/rest/v1/rpc/is_tournament_team_manager | 200 | ": {
+                "count": 1,
+                "cacheControl": "no-store"
+              },
+              "/torneos/rest/v1/rpc/add_tournament_roster_player | 403 | ": {
+                "count": 1,
+                "cacheControl": "no-store"
+              },
+              "/torneos/rest/v1/rpc/update_tournament_roster_player | 403 | ": {
+                "count": 1,
+                "cacheControl": "no-store"
+              },
+              "/torneos/rest/v1/rpc/remove_tournament_roster_player | 403 | ": {
+                "count": 1,
+                "cacheControl": "no-store"
+              },
+              "/torneos/rest/v1/rpc/create_tournament_provisional_player | 403 | ": {
+                "count": 1,
+                "cacheControl": "no-store"
+              },
+              "/torneos/rest/v1/rpc/search_tournament_players | 403 | TORNEOS_RESOURCE_FORBIDDEN": {
+                "count": 1,
+                "cacheControl": "no-store"
+              },
+              "/torneos/rest/v1/rpc/invite_tournament_team_manager | 403 | ": {
+                "count": 1,
+                "cacheControl": "no-store"
+              },
+              "/torneos/rest/v1/rpc/accept_tournament_team_invitation | 403 | TORNEOS_INVITATION_INVALID": {
+                "count": 1,
+                "cacheControl": "no-store"
+              },
+              "/torneos/rest/v1/rpc/search_tournament_arma2_teams | 200 | ": {
+                "count": 1,
+                "cacheControl": "no-store"
+              },
+              "/torneos/rest/v1/rpc/review_tournament_team_entry | 403 | ": {
+                "count": 10,
+                "cacheControl": "no-store"
+              },
+              "/torneos/rest/v1/rpc/authorize_tournament_social_export | 403 | rpc not enabled": {
+                "count": 2,
+                "cacheControl": "no-store"
+              },
+              "/torneos/rest/v1/rpc/cancel_tournament_purchase | 403 | rpc not enabled": {
+                "count": 2,
+                "cacheControl": "no-store"
+              },
+              "/torneos/rest/v1/rpc/change_tournament_media_gallery_state | 403 | rpc not enabled": {
+                "count": 2,
+                "cacheControl": "no-store"
+              },
+              "/torneos/rest/v1/rpc/create_tournament_disciplinary_override | 403 | rpc not enabled": {
+                "count": 2,
+                "cacheControl": "no-store"
+              },
+              "/torneos/rest/v1/rpc/create_tournament_match_correction | 403 | rpc not enabled": {
+                "count": 2,
+                "cacheControl": "no-store"
+              },
+              "/torneos/rest/v1/rpc/create_tournament_points_adjustment | 403 | rpc not enabled": {
+                "count": 2,
+                "cacheControl": "no-store"
+              },
+              "/torneos/rest/v1/rpc/get_tournament_player_portrait_ref | 403 | rpc not enabled": {
+                "count": 2,
+                "cacheControl": "no-store"
+              },
+              "/torneos/rest/v1/rpc/get_tournament_purchase | 403 | rpc not enabled": {
+                "count": 2,
+                "cacheControl": "no-store"
+              },
+              "/torneos/rest/v1/rpc/has_tournament_entitlement | 403 | rpc not enabled": {
+                "count": 2,
+                "cacheControl": "no-store"
+              },
+              "/torneos/rest/v1/rpc/lock_tournament_roster | 403 | rpc not enabled": {
+                "count": 2,
+                "cacheControl": "no-store"
+              },
+              "/torneos/rest/v1/rpc/make_tournament_match_official | 403 | rpc not enabled": {
+                "count": 2,
+                "cacheControl": "no-store"
+              },
+              "/torneos/rest/v1/rpc/mark_tournament_suspension_served | 403 | rpc not enabled": {
+                "count": 2,
+                "cacheControl": "no-store"
+              },
+              "/torneos/rest/v1/rpc/publish_tournament_fixture | 403 | rpc not enabled": {
+                "count": 2,
+                "cacheControl": "no-store"
+              },
+              "/torneos/rest/v1/rpc/record_manual_match_availability | 403 | rpc not enabled": {
+                "count": 2,
+                "cacheControl": "no-store"
+              },
+              "/torneos/rest/v1/rpc/reopen_tournament_participants | 403 | rpc not enabled": {
+                "count": 2,
+                "cacheControl": "no-store"
+              },
+              "/torneos/rest/v1/rpc/report_tournament_media_asset | 403 | rpc not enabled": {
+                "count": 2,
+                "cacheControl": "no-store"
+              },
+              "/torneos/rest/v1/rpc/request_tournament_match_correction | 403 | rpc not enabled": {
+                "count": 2,
+                "cacheControl": "no-store"
+              },
+              "/torneos/rest/v1/rpc/resolve_tournament_qualification | 403 | rpc not enabled": {
+                "count": 2,
+                "cacheControl": "no-store"
+              },
+              "/torneos/rest/v1/rpc/review_tournament_match_operation | 403 | rpc not enabled": {
+                "count": 2,
+                "cacheControl": "no-store"
+              },
+              "/torneos/rest/v1/rpc/revoke_tournament_player_portrait_publication | 403 | rpc not enabled": {
+                "count": 2,
+                "cacheControl": "no-store"
+              },
+              "/torneos/rest/v1/rpc/revoke_tournament_points_adjustment | 403 | rpc not enabled": {
+                "count": 2,
+                "cacheControl": "no-store"
+              },
+              "/torneos/rest/v1/rpc/revoke_tournament_team_photo | 403 | rpc not enabled": {
+                "count": 2,
+                "cacheControl": "no-store"
+              },
+              "/torneos/rest/v1/rpc/save_tournament_draw_pots | 403 | rpc not enabled": {
+                "count": 2,
+                "cacheControl": "no-store"
+              },
+              "/torneos/rest/v1/rpc/schedule_tournament_match | 403 | rpc not enabled": {
+                "count": 2,
+                "cacheControl": "no-store"
+              },
+              "/torneos/rest/v1/rpc/set_tournament_player_portrait_crop | 403 | rpc not enabled": {
+                "count": 2,
+                "cacheControl": "no-store"
+              },
+              "/torneos/rest/v1/rpc/set_tournament_player_portrait_editorial_status | 403 | rpc not enabled": {
+                "count": 2,
+                "cacheControl": "no-store"
+              },
+              "/torneos/rest/v1/rpc/submit_match_squad | 403 | rpc not enabled": {
+                "count": 2,
+                "cacheControl": "no-store"
+              },
+              "/torneos/rest/v1/rpc/supersede_tournament_fixture | 403 | rpc not enabled": {
+                "count": 2,
+                "cacheControl": "no-store"
+              },
+              "/torneos/rest/v1/rpc/transition_tournament_media_asset | 403 | rpc not enabled": {
+                "count": 2,
+                "cacheControl": "no-store"
+              },
+              "/torneos/rest/v1/rpc/update_draft_fixture | 403 | rpc not enabled": {
+                "count": 2,
+                "cacheControl": "no-store"
+              },
+              "/torneos/rest/v1/rpc/validate_tournament_match_operation | 403 | rpc not enabled": {
+                "count": 2,
+                "cacheControl": "no-store"
+              },
+              "/torneos/rest/v1/rpc/void_tournament_match_event | 403 | rpc not enabled": {
+                "count": 2,
+                "cacheControl": "no-store"
+              },
+              "/torneos/rest/v1/rpc/auto_schedule_tournament_matches | 403 | rpc not enabled": {
+                "count": 2,
+                "cacheControl": "no-store"
+              },
+              "/torneos/rest/v1/rpc/review_tournament_team_entry | 401 | access denied": {
+                "count": 1,
+                "cacheControl": "no-store"
+              },
+              "/torneos/rest/v1/rpc/review_tournament_team_entry | 400 | ": {
+                "count": 5,
+                "cacheControl": "no-store"
+              },
+              "/torneos/rest/v1/rpc/review_tournament_team_entry | 200 | ": {
+                "count": 5,
+                "cacheControl": "no-store"
+              },
+              "/torneos/rest/v1/rpc/update_tournament_roster_player | 200 | ": {
+                "count": 1,
+                "cacheControl": "no-store"
+              },
+              "/torneos/rest/v1/tournament_organization_members | 200 | ": {
+                "count": 2,
+                "cacheControl": "no-store"
+              },
+              "/torneos/rest/v1/tournaments | 200 | ": {
+                "count": 2,
+                "cacheControl": "no-store"
+              },
+              "/torneos/rest/v1/tournament_team_entries | 200 | ": {
+                "count": 1,
+                "cacheControl": "no-store"
+              },
+              "/torneos/rest/v1/rpc/get_tournament_teams_context | 403 | ": {
+                "count": 2,
+                "cacheControl": "no-store"
+              },
+              "/config | 200 | ": {
+                "count": 1,
+                "cacheControl": "no-store"
+              }
+            },
+            "torneosUnavailableWireCode": "access denied"
+          }
+        }
+      ]
+    },
+    {
+      "name": "secret_boundary",
+      "status": "PASS",
+      "checks": [
+        {
+          "name": "no known secret (HMAC, Core keys, QA passwords, Core tokens, bridge bearers, ring keys, DB logins) in docker inspect / process args / logs / evidence / r42 runtime",
+          "pass": true,
+          "detail": {
+            "envNames": [
+              "DENO_DIR",
+              "PATH"
+            ],
+            "scannedFiles": 271,
+            "knownSecrets": 79
+          }
+        }
+      ]
+    },
+    {
+      "name": "isolation",
+      "status": "PASS",
+      "checks": [
+        {
+          "name": "gateway container: no published ports, internal networks only, ALL caps dropped, read-only rootfs, no docker socket, tmpfs custody; proxy publishes 127.0.0.1:58431 only, ip_forward=0",
+          "pass": true,
+          "detail": {
+            "gatewayNetworks": [
+              "arma2-r42-20260921t035621z-internal",
+              "arma2-torneos-isolated-local_isolated"
+            ],
+            "proxyPorts": {
+              "9000/tcp": [
+                {
+                  "HostIp": "127.0.0.1",
+                  "HostPort": "58431"
+                }
+              ]
+            },
+            "dockerPorts": "127.0.0.1:58431->9000/tcp",
+            "gatewayTmpfs": {
+              "/custody": "rw,noexec,nosuid,nodev,mode=0700,size=1m",
+              "/tmp": "rw,noexec,nosuid,nodev,size=32m"
+            }
+          }
+        },
+        {
+          "name": "gateway routes: exactly DB /32, REST /32, proxy /32 and unreachable IPv4/IPv6 defaults",
+          "pass": true,
+          "detail": {
+            "v4": [
+              "unreachable default ",
+              "172.27.0.2 dev eth0 scope link ",
+              "172.27.0.3 dev eth0 scope link ",
+              "172.29.0.2 dev eth1 scope link"
+            ],
+            "v6": [
+              "unreachable default dev lo  metric 1024"
+            ]
+          }
+        },
+        {
+          "name": "from inside the gateway namespace: Production / other ref / google / github / npm / esm / deno.land pinned to TEST-NET-1 and unreachable; public IPs and host bridges unreachable; DNS answers nothing; only proxy, REST and DB connect",
+          "pass": true,
+          "detail": {
+            "pinned_rcyuuoaqfwcembdajcss.supabase.co": {
+              "resolved": "192.0.2.1",
+              "tcp443": "EHOSTUNREACH"
+            },
+            "pinned_abcdefghijklmnopqrst.supabase.co": {
+              "resolved": "192.0.2.1",
+              "tcp443": "EHOSTUNREACH"
+            },
+            "pinned_google.com": {
+              "resolved": "192.0.2.1",
+              "tcp443": "EHOSTUNREACH"
+            },
+            "pinned_github.com": {
+              "resolved": "192.0.2.1",
+              "tcp443": "EHOSTUNREACH"
+            },
+            "pinned_registry.npmjs.org": {
+              "resolved": "192.0.2.1",
+              "tcp443": "EHOSTUNREACH"
+            },
+            "pinned_esm.sh": {
+              "resolved": "192.0.2.1",
+              "tcp443": "EHOSTUNREACH"
+            },
+            "pinned_deno.land": {
+              "resolved": "192.0.2.1",
+              "tcp443": "EHOSTUNREACH"
+            },
+            "deny_1.1.1.1:443": "EHOSTUNREACH",
+            "deny_8.8.8.8:53": "EHOSTUNREACH",
+            "deny_192.0.2.1:443": "EHOSTUNREACH",
+            "deny_172.27.0.1:443": "EHOSTUNREACH",
+            "deny_172.29.0.1:80": "EHOSTUNREACH",
+            "dns_127_0_0_11": "ESERVFAIL",
+            "allow_proxy": "CONNECTED",
+            "allow_rest": "CONNECTED",
+            "allow_db": "CONNECTED",
+            "proxy_host_production": "HTTP/1.1 403 Forbidden",
+            "proxy_sni_google": "TLS_REJECTED"
+          }
+        },
+        {
+          "name": "Core is reached only through the proxy with the exact staging origin; gateway config names no Production, no Core database, no service role; Torneos data plane is local",
+          "pass": true,
+          "detail": {
+            "config": {
+              "coreUrl": "https://hhyvmhgpapyuzjgxfnqv.supabase.co",
+              "torneosUrl": "http://127.0.0.1:58431/torneos-gateway/torneos",
+              "anonKey": ""
+            },
+            "foreignServers": 0,
+            "fdwExtensions": 0,
+            "coreKeyKind": "legacy-anon"
+          }
+        },
+        {
+          "name": "no second login: Core user credentials exist only in this producer; the gateway container env/args carry none; Core sessions were created by GoTrue password grant here, never by the gateway",
+          "pass": true,
+          "detail": {
+            "qaUsers": 5
+          }
+        },
+        {
+          "name": "dependencies: the gateway bundle is the prepared eszip (sha256 pinned by run.json); the gateway has no route to any registry; cache mounted read-only",
+          "pass": true,
+          "detail": {
+            "bundle": "cc5b1d451fc9ef4498ad927caee37a65aab90ff44ad6ef1cf77e176f989d7e17",
+            "cacheRW": false,
+            "args": "-c i=0; while [ ! -f /custody/input ]; do i=$((i+1)); if [ \"$i\" -ge 150 ]; then echo R4_FAIL_CLOSED_MISSING_SECRET; exit 78; fi; sleep 0.1; done; exec edge-runtime start --main-service /r4/.runtime/ga"
+          }
+        },
+        {
+          "name": "Production is impossible from the gateway: DNS pinned to TEST-NET-1, no route, proxy Host allowlist, config validators refuse the ref",
+          "pass": true,
+          "detail": {
+            "productionPinned": true
+          }
+        }
+      ]
+    },
+    {
+      "name": "cleanup",
+      "status": "PASS",
+      "checks": [
+        {
+          "name": "a bridge bearer issued before deletion is refused after the QA users are gone (no stale session)",
+          "pass": true,
+          "detail": "issued"
+        },
+        {
+          "name": "Core: every QA session logged out (scope=global)",
+          "pass": true,
+          "detail": {
+            "owner": 204,
+            "admin": 204,
+            "member": 204,
+            "outsider": 204,
+            "captain": 204
+          }
+        },
+        {
+          "name": "Core: every QA user hard-deleted after an identity/purpose guard (only users this run created)",
+          "pass": true,
+          "detail": {
+            "owner": {
+              "deleted": true,
+              "deleteStatus": 200,
+              "afterStatus": 404
+            },
+            "admin": {
+              "deleted": true,
+              "deleteStatus": 200,
+              "afterStatus": 404
+            },
+            "member": {
+              "deleted": true,
+              "deleteStatus": 200,
+              "afterStatus": 404
+            },
+            "outsider": {
+              "deleted": true,
+              "deleteStatus": 200,
+              "afterStatus": 404
+            },
+            "captain": {
+              "deleted": true,
+              "deleteStatus": 200,
+              "afterStatus": 404
+            }
+          }
+        },
+        {
+          "name": "pre-deletion bearer → 401 through the gateway",
+          "pass": true,
+          "detail": 401
+        },
+        {
+          "name": "Torneos: every row this run created removed (count-verified against the pre-run baseline, one transaction); catalog SHA unchanged",
+          "pass": true,
+          "detail": {
+            "tables": 22
+          }
+        }
+      ],
+      "informative": true
+    }
+  ],
+  "liveContracts": {
+    "verified_email": 7,
+    "seededAcceptances": 0
+  },
+  "dispatch": {
+    "create_tournament_organization": {
+      "status": 400,
+      "code": "22023",
+      "message": "TORNEOS_IDEMPOTENCY_REQUIRED",
+      "layer": "postgrest",
+      "args": 3,
+      "real": true
+    },
+    "update_tournament_organization": {
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_ORGANIZATION_FORBIDDEN",
+      "layer": "postgrest",
+      "args": 4,
+      "real": false
+    },
+    "is_tournament_organization_slug_available": {
+      "status": 200,
+      "code": null,
+      "message": "",
+      "layer": "postgrest",
+      "args": 1,
+      "real": true
+    },
+    "is_tournament_organization_member": {
+      "status": 200,
+      "code": null,
+      "message": "",
+      "layer": "postgrest",
+      "args": 1,
+      "real": true
+    },
+    "has_tournament_organization_capability": {
+      "status": 200,
+      "code": null,
+      "message": "",
+      "layer": "postgrest",
+      "args": 2,
+      "real": true
+    },
+    "has_tournament_capability": {
+      "status": 200,
+      "code": null,
+      "message": "",
+      "layer": "postgrest",
+      "args": 3,
+      "real": true
+    },
+    "tournament_role_capabilities": {
+      "status": 200,
+      "code": null,
+      "message": "",
+      "layer": "postgrest",
+      "args": 1,
+      "real": true
+    },
+    "get_my_tournament_memberships": {
+      "status": 200,
+      "code": null,
+      "message": "",
+      "layer": "postgrest",
+      "args": 2,
+      "real": true
+    },
+    "get_tournament_workspace_context": {
+      "status": 200,
+      "code": null,
+      "message": "",
+      "layer": "postgrest",
+      "args": 0,
+      "real": false
+    },
+    "set_tournament_workspace_preference": {
+      "status": 400,
+      "code": "22023",
+      "message": "TORNEOS_INVALID_WORKSPACE",
+      "layer": "postgrest",
+      "args": 2,
+      "real": false
+    },
+    "set_active_tournament_context": {
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_CONTEXT_FORBIDDEN",
+      "layer": "postgrest",
+      "args": 3,
+      "real": false
+    },
+    "assign_tournament_season_member": {
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_SEASON_ASSIGNMENT_FORBIDDEN",
+      "layer": "postgrest",
+      "args": 3,
+      "real": true
+    },
+    "remove_tournament_season_member_assignment": {
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_SEASON_ASSIGNMENT_FORBIDDEN",
+      "layer": "postgrest",
+      "args": 3,
+      "real": false
+    },
+    "list_tournament_season_member_assignments": {
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_SEASON_ASSIGNMENT_FORBIDDEN",
+      "layer": "postgrest",
+      "args": 2,
+      "real": true
+    },
+    "has_tournament_season_access": {
+      "status": 200,
+      "code": null,
+      "message": "",
+      "layer": "postgrest",
+      "args": 2,
+      "real": true
+    },
+    "has_tournament_season_capability": {
+      "status": 200,
+      "code": null,
+      "message": "",
+      "layer": "postgrest",
+      "args": 3,
+      "real": true
+    },
+    "create_tournament_season": {
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN",
+      "layer": "postgrest",
+      "args": 6,
+      "real": true
+    },
+    "update_tournament_season": {
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN",
+      "layer": "postgrest",
+      "args": 9,
+      "real": false
+    },
+    "create_tournament_with_defaults": {
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN",
+      "layer": "postgrest",
+      "args": 11,
+      "real": true
+    },
+    "update_tournament_configuration": {
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN",
+      "layer": "postgrest",
+      "args": 3,
+      "real": false
+    },
+    "change_tournament_status": {
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN",
+      "layer": "postgrest",
+      "args": 3,
+      "real": true
+    },
+    "save_tournament_category": {
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN",
+      "layer": "postgrest",
+      "args": 13,
+      "real": true
+    },
+    "get_tournament_competition_context": {
+      "status": 200,
+      "code": null,
+      "message": "",
+      "layer": "postgrest",
+      "args": 1,
+      "real": true
+    },
+    "get_tournament_creation_eligibility": {
+      "status": 200,
+      "code": null,
+      "message": "",
+      "layer": "postgrest",
+      "args": 1,
+      "real": true
+    },
+    "has_organization_consumed_free_tournament": {
+      "status": 200,
+      "code": null,
+      "message": "",
+      "layer": "postgrest",
+      "args": 1,
+      "real": true
+    },
+    "create_tournament_team_entry": {
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN",
+      "layer": "postgrest",
+      "args": 13,
+      "real": true
+    },
+    "update_tournament_team_entry": {
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN",
+      "layer": "postgrest",
+      "args": 3,
+      "real": true
+    },
+    "submit_tournament_team_entry": {
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN",
+      "layer": "postgrest",
+      "args": 2,
+      "real": true
+    },
+    "withdraw_tournament_team_entry": {
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN",
+      "layer": "postgrest",
+      "args": 3,
+      "real": false
+    },
+    "archive_tournament_team_entry": {
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN",
+      "layer": "postgrest",
+      "args": 3,
+      "real": false
+    },
+    "get_team_registration_context": {
+      "status": 200,
+      "code": null,
+      "message": "",
+      "layer": "postgrest",
+      "args": 2,
+      "real": true
+    },
+    "get_tournament_teams_context": {
+      "status": 200,
+      "code": null,
+      "message": "",
+      "layer": "postgrest",
+      "args": 2,
+      "real": true
+    },
+    "can_read_tournament_team_entry": {
+      "status": 200,
+      "code": null,
+      "message": "",
+      "layer": "postgrest",
+      "args": 2,
+      "real": true
+    },
+    "is_tournament_team_manager": {
+      "status": 200,
+      "code": null,
+      "message": "",
+      "layer": "postgrest",
+      "args": 2,
+      "real": true
+    },
+    "add_tournament_roster_player": {
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN",
+      "layer": "postgrest",
+      "args": 11,
+      "real": true
+    },
+    "update_tournament_roster_player": {
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN",
+      "layer": "postgrest",
+      "args": 7,
+      "real": false
+    },
+    "remove_tournament_roster_player": {
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN",
+      "layer": "postgrest",
+      "args": 3,
+      "real": false
+    },
+    "create_tournament_provisional_player": {
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN",
+      "layer": "postgrest",
+      "args": 3,
+      "real": true
+    },
+    "search_tournament_players": {
+      "status": 403,
+      "code": null,
+      "message": "TORNEOS_RESOURCE_FORBIDDEN",
+      "layer": "adapter",
+      "args": 5,
+      "real": true
+    },
+    "invite_tournament_team_manager": {
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN",
+      "layer": "postgrest",
+      "args": 5,
+      "real": true
+    },
+    "accept_tournament_team_invitation": {
+      "status": 403,
+      "code": null,
+      "message": "TORNEOS_INVITATION_INVALID",
+      "layer": "adapter",
+      "args": 1,
+      "real": true
+    },
+    "search_tournament_arma2_teams": {
+      "status": 200,
+      "code": null,
+      "message": "",
+      "layer": "postgrest",
+      "args": 4,
+      "real": true
+    },
+    "review_tournament_team_entry": {
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN",
+      "layer": "postgrest",
+      "args": 5,
+      "real": false
+    }
+  },
+  "gate": {
+    "authorize_tournament_social_export": {
+      "gatewayPost": 403,
+      "gatewayGet": 403,
+      "anon": 401,
+      "anonCode": "42501",
+      "auth": 403,
+      "authCode": "42501"
+    },
+    "cancel_tournament_purchase": {
+      "gatewayPost": 403,
+      "gatewayGet": 403,
+      "anon": 401,
+      "anonCode": "42501",
+      "auth": 403,
+      "authCode": "42501"
+    },
+    "change_tournament_media_gallery_state": {
+      "gatewayPost": 403,
+      "gatewayGet": 403,
+      "anon": 401,
+      "anonCode": "42501",
+      "auth": 403,
+      "authCode": "42501"
+    },
+    "create_tournament_disciplinary_override": {
+      "gatewayPost": 403,
+      "gatewayGet": 403,
+      "anon": 401,
+      "anonCode": "42501",
+      "auth": 403,
+      "authCode": "42501"
+    },
+    "create_tournament_match_correction": {
+      "gatewayPost": 403,
+      "gatewayGet": 403,
+      "anon": 401,
+      "anonCode": "42501",
+      "auth": 403,
+      "authCode": "42501"
+    },
+    "create_tournament_points_adjustment": {
+      "gatewayPost": 403,
+      "gatewayGet": 403,
+      "anon": 401,
+      "anonCode": "42501",
+      "auth": 403,
+      "authCode": "42501"
+    },
+    "get_tournament_player_portrait_ref": {
+      "gatewayPost": 403,
+      "gatewayGet": 403,
+      "anon": 401,
+      "anonCode": "42501",
+      "auth": 403,
+      "authCode": "42501"
+    },
+    "get_tournament_purchase": {
+      "gatewayPost": 403,
+      "gatewayGet": 403,
+      "anon": 401,
+      "anonCode": "42501",
+      "auth": 403,
+      "authCode": "42501"
+    },
+    "has_tournament_entitlement": {
+      "gatewayPost": 403,
+      "gatewayGet": 403,
+      "anon": 401,
+      "anonCode": "42501",
+      "auth": 403,
+      "authCode": "42501"
+    },
+    "lock_tournament_roster": {
+      "gatewayPost": 403,
+      "gatewayGet": 403,
+      "anon": 401,
+      "anonCode": "42501",
+      "auth": 403,
+      "authCode": "42501"
+    },
+    "make_tournament_match_official": {
+      "gatewayPost": 403,
+      "gatewayGet": 403,
+      "anon": 401,
+      "anonCode": "42501",
+      "auth": 403,
+      "authCode": "42501"
+    },
+    "mark_tournament_suspension_served": {
+      "gatewayPost": 403,
+      "gatewayGet": 403,
+      "anon": 401,
+      "anonCode": "42501",
+      "auth": 403,
+      "authCode": "42501"
+    },
+    "publish_tournament_fixture": {
+      "gatewayPost": 403,
+      "gatewayGet": 403,
+      "anon": 401,
+      "anonCode": "42501",
+      "auth": 403,
+      "authCode": "42501"
+    },
+    "record_manual_match_availability": {
+      "gatewayPost": 403,
+      "gatewayGet": 403,
+      "anon": 401,
+      "anonCode": "42501",
+      "auth": 403,
+      "authCode": "42501"
+    },
+    "reopen_tournament_participants": {
+      "gatewayPost": 403,
+      "gatewayGet": 403,
+      "anon": 401,
+      "anonCode": "42501",
+      "auth": 403,
+      "authCode": "42501"
+    },
+    "report_tournament_media_asset": {
+      "gatewayPost": 403,
+      "gatewayGet": 403,
+      "anon": 401,
+      "anonCode": "42501",
+      "auth": 403,
+      "authCode": "42501"
+    },
+    "request_tournament_match_correction": {
+      "gatewayPost": 403,
+      "gatewayGet": 403,
+      "anon": 401,
+      "anonCode": "42501",
+      "auth": 403,
+      "authCode": "42501"
+    },
+    "resolve_tournament_qualification": {
+      "gatewayPost": 403,
+      "gatewayGet": 403,
+      "anon": 401,
+      "anonCode": "42501",
+      "auth": 403,
+      "authCode": "42501"
+    },
+    "review_tournament_match_operation": {
+      "gatewayPost": 403,
+      "gatewayGet": 403,
+      "anon": 401,
+      "anonCode": "42501",
+      "auth": 403,
+      "authCode": "42501"
+    },
+    "revoke_tournament_player_portrait_publication": {
+      "gatewayPost": 403,
+      "gatewayGet": 403,
+      "anon": 401,
+      "anonCode": "42501",
+      "auth": 403,
+      "authCode": "42501"
+    },
+    "revoke_tournament_points_adjustment": {
+      "gatewayPost": 403,
+      "gatewayGet": 403,
+      "anon": 401,
+      "anonCode": "42501",
+      "auth": 403,
+      "authCode": "42501"
+    },
+    "revoke_tournament_team_photo": {
+      "gatewayPost": 403,
+      "gatewayGet": 403,
+      "anon": 401,
+      "anonCode": "42501",
+      "auth": 403,
+      "authCode": "42501"
+    },
+    "save_tournament_draw_pots": {
+      "gatewayPost": 403,
+      "gatewayGet": 403,
+      "anon": 401,
+      "anonCode": "42501",
+      "auth": 403,
+      "authCode": "42501"
+    },
+    "schedule_tournament_match": {
+      "gatewayPost": 403,
+      "gatewayGet": 403,
+      "anon": 401,
+      "anonCode": "42501",
+      "auth": 403,
+      "authCode": "42501"
+    },
+    "set_tournament_player_portrait_crop": {
+      "gatewayPost": 403,
+      "gatewayGet": 403,
+      "anon": 401,
+      "anonCode": "42501",
+      "auth": 403,
+      "authCode": "42501"
+    },
+    "set_tournament_player_portrait_editorial_status": {
+      "gatewayPost": 403,
+      "gatewayGet": 403,
+      "anon": 401,
+      "anonCode": "42501",
+      "auth": 403,
+      "authCode": "42501"
+    },
+    "submit_match_squad": {
+      "gatewayPost": 403,
+      "gatewayGet": 403,
+      "anon": 401,
+      "anonCode": "42501",
+      "auth": 403,
+      "authCode": "42501"
+    },
+    "supersede_tournament_fixture": {
+      "gatewayPost": 403,
+      "gatewayGet": 403,
+      "anon": 401,
+      "anonCode": "42501",
+      "auth": 403,
+      "authCode": "42501"
+    },
+    "transition_tournament_media_asset": {
+      "gatewayPost": 403,
+      "gatewayGet": 403,
+      "anon": 401,
+      "anonCode": "42501",
+      "auth": 403,
+      "authCode": "42501"
+    },
+    "update_draft_fixture": {
+      "gatewayPost": 403,
+      "gatewayGet": 403,
+      "anon": 401,
+      "anonCode": "42501",
+      "auth": 403,
+      "authCode": "42501"
+    },
+    "validate_tournament_match_operation": {
+      "gatewayPost": 403,
+      "gatewayGet": 403,
+      "anon": 401,
+      "anonCode": "42501",
+      "auth": 403,
+      "authCode": "42501"
+    },
+    "void_tournament_match_event": {
+      "gatewayPost": 403,
+      "gatewayGet": 403,
+      "anon": 401,
+      "anonCode": "42501",
+      "auth": 403,
+      "authCode": "42501"
+    },
+    "auto_schedule_tournament_matches": {
+      "gatewayPost": 403,
+      "gatewayGet": 403,
+      "anon": 401,
+      "anonCode": "42501",
+      "auth": 403,
+      "authCode": "42501"
+    }
+  },
+  "cleanup": {
+    "qa": true,
+    "fixtures": true,
+    "sessions": false,
+    "sessionsLoggedOut": true,
+    "usersDeleted": true,
+    "detail": {
+      "users": [
+        {
+          "role": "owner",
+          "email": "q***@accounts.invalid",
+          "id": "a078423e-6493-4d24-9ca6-d4d5d0cdfe2b",
+          "lastSession": "7e0409d5-51d5-4483-94a1-f496c19e689a",
+          "deleted": true,
+          "deleteStatus": 200,
+          "afterStatus": 404
+        },
+        {
+          "role": "admin",
+          "email": "q***@accounts.invalid",
+          "id": "dc8613e3-dc8c-4ce8-a684-d36db9c35c41",
+          "lastSession": "653f752c-2470-4511-9722-7059bac5b28b",
+          "deleted": true,
+          "deleteStatus": 200,
+          "afterStatus": 404
+        },
+        {
+          "role": "member",
+          "email": "q***@accounts.invalid",
+          "id": "ce56523b-6f10-4d33-959c-3f6916477913",
+          "lastSession": "4e8486f3-f172-457c-a3c4-cdd82440031c",
+          "deleted": true,
+          "deleteStatus": 200,
+          "afterStatus": 404
+        },
+        {
+          "role": "outsider",
+          "email": "q***@accounts.invalid",
+          "id": "dd4ac568-61c5-47ca-a534-c122646e6ec7",
+          "lastSession": "9e909a6a-069a-45bf-a753-cf00f7035c66",
+          "deleted": true,
+          "deleteStatus": 200,
+          "afterStatus": 404
+        },
+        {
+          "role": "captain",
+          "email": "q***@accounts.invalid",
+          "id": "eda780d4-9673-4210-9ca0-daac9a529a70",
+          "lastSession": "b7f9d34d-be78-4bec-8ee3-76fefcd40fad",
+          "deleted": true,
+          "deleteStatus": 200,
+          "afterStatus": 404
+        }
+      ],
+      "fixtures": {
+        "ok": true,
+        "executed": true,
+        "planned": [
+          "private.core_contract_attestations",
+          "public.torneos_identity",
+          "public.tournament_audit_log",
+          "public.tournament_categories",
+          "public.tournament_discipline_rules",
+          "public.tournament_organization_members",
+          "public.tournament_organizations",
+          "public.tournament_provisional_players",
+          "public.tournament_roster_players",
+          "public.tournament_roster_settings",
+          "public.tournament_rosters",
+          "public.tournament_scoring_rules",
+          "public.tournament_season_member_assignments",
+          "public.tournament_seasons",
+          "public.tournament_team_entries",
+          "public.tournament_team_invitations",
+          "public.tournament_team_managers",
+          "public.tournament_team_reviews",
+          "public.tournament_tiebreak_rules",
+          "public.tournaments",
+          "public.user_tournament_context_preferences",
+          "public.user_workspace_preferences"
+        ],
+        "mismatches": [],
+        "error": null,
+        "scope": {
+          "orgs": [
+            "bab328da-8a4b-430c-93bd-6a283d1ab514",
+            "b133281c-2aa7-46bb-afae-d13bd547d5c2"
+          ],
+          "discoveredOrgs": [
+            "bab328da-8a4b-430c-93bd-6a283d1ab514",
+            "b133281c-2aa7-46bb-afae-d13bd547d5c2"
+          ],
+          "identities": 5,
+          "coreUserIds": 5
+        }
+      },
+      "registry": {
+        "fixturesCompleted": true,
+        "counts": {
+          "organization": 2,
+          "season": 2,
+          "tournament": 2,
+          "category": 2,
+          "membership_seed": 2,
+          "season_assignment": 1,
+          "team_entry": 7,
+          "roster": 7,
+          "provisional_player": 35,
+          "roster_player": 35,
+          "manager_invitation": 7,
+          "acceptance_attestation": 7
+        },
+        "orgs": [
+          "bab328da-8a4b-430c-93bd-6a283d1ab514",
+          "b133281c-2aa7-46bb-afae-d13bd547d5c2"
+        ]
+      },
+      "routesRestored": null
+    }
+  },
+  "noStore": {
+    "responses": 337,
+    "violations": [],
+    "classes": {
+      "/exchange | 200 | ": {
+        "count": 16,
+        "cacheControl": "no-store"
+      },
+      "/exchange | 401 | access denied": {
+        "count": 4,
+        "cacheControl": "no-store"
+      },
+      "/exchange | 400 | exchange accepts no identity or role input": {
+        "count": 1,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/get_my_tournament_memberships | 200 | ": {
+        "count": 9,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/torneos_identity | 200 | ": {
+        "count": 2,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/get_my_tournament_memberships | 401 | access denied": {
+        "count": 32,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/create_tournament_organization | 200 | ": {
+        "count": 2,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/create_tournament_season | 200 | ": {
+        "count": 2,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/create_tournament_with_defaults | 200 | ": {
+        "count": 2,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/save_tournament_category | 200 | ": {
+        "count": 2,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/change_tournament_status | 200 | ": {
+        "count": 2,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/assign_tournament_season_member | 200 | ": {
+        "count": 1,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/list_tournament_season_member_assignments | 200 | ": {
+        "count": 1,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/create_tournament_team_entry | 200 | ": {
+        "count": 7,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/update_tournament_team_entry | 200 | ": {
+        "count": 7,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/create_tournament_provisional_player | 200 | ": {
+        "count": 35,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/add_tournament_roster_player | 200 | ": {
+        "count": 35,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/invite_tournament_team_manager | 200 | ": {
+        "count": 7,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/accept_tournament_team_invitation | 200 | ": {
+        "count": 7,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/submit_tournament_team_entry | 200 | ": {
+        "count": 7,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/search_tournament_players | 200 | ": {
+        "count": 1,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/search_tournament_players | 404 | ": {
+        "count": 2,
+        "cacheControl": "no-store"
+      },
+      "/health | 503 | access denied": {
+        "count": 1,
+        "cacheControl": "no-store"
+      },
+      "/exchange | 503 | access denied": {
+        "count": 1,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/get_my_tournament_memberships | 503 | access denied": {
+        "count": 2,
+        "cacheControl": "no-store"
+      },
+      "/health | 200 | ": {
+        "count": 2,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/get_my_tournament_memberships | 503 | CORE_UNAVAILABLE": {
+        "count": 1,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/torneos_identity | 503 | access denied": {
+        "count": 1,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/create_tournament_organization | 400 | ": {
+        "count": 1,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/update_tournament_organization | 403 | ": {
+        "count": 1,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/is_tournament_organization_slug_available | 200 | ": {
+        "count": 1,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/is_tournament_organization_member | 200 | ": {
+        "count": 1,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/has_tournament_organization_capability | 200 | ": {
+        "count": 1,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/has_tournament_capability | 200 | ": {
+        "count": 1,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/tournament_role_capabilities | 200 | ": {
+        "count": 1,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/get_tournament_workspace_context | 200 | ": {
+        "count": 1,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/set_tournament_workspace_preference | 400 | ": {
+        "count": 1,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/set_active_tournament_context | 403 | ": {
+        "count": 1,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/assign_tournament_season_member | 403 | ": {
+        "count": 1,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/remove_tournament_season_member_assignment | 403 | ": {
+        "count": 1,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/list_tournament_season_member_assignments | 403 | ": {
+        "count": 1,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/has_tournament_season_access | 200 | ": {
+        "count": 7,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/has_tournament_season_capability | 200 | ": {
+        "count": 1,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/create_tournament_season | 403 | ": {
+        "count": 1,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/update_tournament_season | 403 | ": {
+        "count": 1,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/create_tournament_with_defaults | 403 | ": {
+        "count": 1,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/update_tournament_configuration | 403 | ": {
+        "count": 1,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/change_tournament_status | 403 | ": {
+        "count": 1,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/save_tournament_category | 403 | ": {
+        "count": 1,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/get_tournament_competition_context | 200 | ": {
+        "count": 1,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/get_tournament_creation_eligibility | 200 | ": {
+        "count": 1,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/has_organization_consumed_free_tournament | 200 | ": {
+        "count": 1,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/create_tournament_team_entry | 403 | ": {
+        "count": 1,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/update_tournament_team_entry | 403 | ": {
+        "count": 1,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/submit_tournament_team_entry | 403 | ": {
+        "count": 1,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/withdraw_tournament_team_entry | 403 | ": {
+        "count": 1,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/archive_tournament_team_entry | 403 | ": {
+        "count": 1,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/get_team_registration_context | 200 | ": {
+        "count": 1,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/get_tournament_teams_context | 200 | ": {
+        "count": 3,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/can_read_tournament_team_entry | 200 | ": {
+        "count": 1,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/is_tournament_team_manager | 200 | ": {
+        "count": 1,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/add_tournament_roster_player | 403 | ": {
+        "count": 1,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/update_tournament_roster_player | 403 | ": {
+        "count": 1,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/remove_tournament_roster_player | 403 | ": {
+        "count": 1,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/create_tournament_provisional_player | 403 | ": {
+        "count": 1,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/search_tournament_players | 403 | TORNEOS_RESOURCE_FORBIDDEN": {
+        "count": 1,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/invite_tournament_team_manager | 403 | ": {
+        "count": 1,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/accept_tournament_team_invitation | 403 | TORNEOS_INVITATION_INVALID": {
+        "count": 1,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/search_tournament_arma2_teams | 200 | ": {
+        "count": 1,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/review_tournament_team_entry | 403 | ": {
+        "count": 10,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/authorize_tournament_social_export | 403 | rpc not enabled": {
+        "count": 2,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/cancel_tournament_purchase | 403 | rpc not enabled": {
+        "count": 2,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/change_tournament_media_gallery_state | 403 | rpc not enabled": {
+        "count": 2,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/create_tournament_disciplinary_override | 403 | rpc not enabled": {
+        "count": 2,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/create_tournament_match_correction | 403 | rpc not enabled": {
+        "count": 2,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/create_tournament_points_adjustment | 403 | rpc not enabled": {
+        "count": 2,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/get_tournament_player_portrait_ref | 403 | rpc not enabled": {
+        "count": 2,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/get_tournament_purchase | 403 | rpc not enabled": {
+        "count": 2,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/has_tournament_entitlement | 403 | rpc not enabled": {
+        "count": 2,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/lock_tournament_roster | 403 | rpc not enabled": {
+        "count": 2,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/make_tournament_match_official | 403 | rpc not enabled": {
+        "count": 2,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/mark_tournament_suspension_served | 403 | rpc not enabled": {
+        "count": 2,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/publish_tournament_fixture | 403 | rpc not enabled": {
+        "count": 2,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/record_manual_match_availability | 403 | rpc not enabled": {
+        "count": 2,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/reopen_tournament_participants | 403 | rpc not enabled": {
+        "count": 2,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/report_tournament_media_asset | 403 | rpc not enabled": {
+        "count": 2,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/request_tournament_match_correction | 403 | rpc not enabled": {
+        "count": 2,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/resolve_tournament_qualification | 403 | rpc not enabled": {
+        "count": 2,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/review_tournament_match_operation | 403 | rpc not enabled": {
+        "count": 2,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/revoke_tournament_player_portrait_publication | 403 | rpc not enabled": {
+        "count": 2,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/revoke_tournament_points_adjustment | 403 | rpc not enabled": {
+        "count": 2,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/revoke_tournament_team_photo | 403 | rpc not enabled": {
+        "count": 2,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/save_tournament_draw_pots | 403 | rpc not enabled": {
+        "count": 2,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/schedule_tournament_match | 403 | rpc not enabled": {
+        "count": 2,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/set_tournament_player_portrait_crop | 403 | rpc not enabled": {
+        "count": 2,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/set_tournament_player_portrait_editorial_status | 403 | rpc not enabled": {
+        "count": 2,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/submit_match_squad | 403 | rpc not enabled": {
+        "count": 2,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/supersede_tournament_fixture | 403 | rpc not enabled": {
+        "count": 2,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/transition_tournament_media_asset | 403 | rpc not enabled": {
+        "count": 2,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/update_draft_fixture | 403 | rpc not enabled": {
+        "count": 2,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/validate_tournament_match_operation | 403 | rpc not enabled": {
+        "count": 2,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/void_tournament_match_event | 403 | rpc not enabled": {
+        "count": 2,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/auto_schedule_tournament_matches | 403 | rpc not enabled": {
+        "count": 2,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/review_tournament_team_entry | 401 | access denied": {
+        "count": 1,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/review_tournament_team_entry | 400 | ": {
+        "count": 5,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/review_tournament_team_entry | 200 | ": {
+        "count": 5,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/update_tournament_roster_player | 200 | ": {
+        "count": 1,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/tournament_organization_members | 200 | ": {
+        "count": 2,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/tournaments | 200 | ": {
+        "count": 2,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/tournament_team_entries | 200 | ": {
+        "count": 1,
+        "cacheControl": "no-store"
+      },
+      "/torneos/rest/v1/rpc/get_tournament_teams_context | 403 | ": {
+        "count": 2,
+        "cacheControl": "no-store"
+      },
+      "/config | 200 | ": {
+        "count": 1,
+        "cacheControl": "no-store"
+      }
+    }
+  },
+  "baseline": {
+    "catalogSHA256": "a45abe402d83c01102d5c007ea02c7095a3e9e49ec7377c407f57acad66ac54e",
+    "r2": {
+      "db": "11174d24af7577e19745e3309859bb8547ec63a146803fd4fed21b43fe3907e8",
+      "rest": "6c19b824a63351ab22d3bdcb2d2b3b514809f48826e18b3f1b6453463a9ce3f3"
+    }
+  }
+}

@@ -1,0 +1,1291 @@
+{
+  "image": "public.ecr.aws/supabase/postgres:17.6.1.143",
+  "before_commit": "992dd282",
+  "runs": {
+    "before-real": {
+      "label": "before-real",
+      "database": "postgres",
+      "image": "public.ecr.aws/supabase/postgres:17.6.1.143",
+      "installer": "supabase_admin",
+      "sources": [
+        "00000000000000_torneos_baseline_v1.sql@992dd282"
+      ],
+      "functions_total": 366,
+      "public_functions": 359,
+      "security_definer": 305,
+      "execute": {
+        "anon": {
+          "public_functions": 12,
+          "private_functions": 2,
+          "security_definer": 12
+        },
+        "authenticated": {
+          "public_functions": 180,
+          "private_functions": 2,
+          "security_definer": 179
+        },
+        "service_role": {
+          "public_functions": 328,
+          "private_functions": 2,
+          "security_definer": 284
+        },
+        "postgres": {
+          "public_functions": 359,
+          "private_functions": 2,
+          "security_definer": 304
+        }
+      },
+      "public_execute_functions": 0,
+      "sequence_privilege": {
+        "anon": 0,
+        "authenticated": 4,
+        "service_role": 4,
+        "postgres": 7
+      },
+      "relation_privilege": {
+        "anon": 78,
+        "authenticated": 80,
+        "service_role": 100,
+        "postgres": 106
+      },
+      "anon_write_privilege_relations": 0
+    },
+    "after-real": {
+      "label": "after-real",
+      "database": "postgres",
+      "image": "public.ecr.aws/supabase/postgres:17.6.1.143",
+      "installer": "supabase_admin",
+      "sources": [
+        "00000000000000_torneos_baseline_v1.sql",
+        "00000000000001_staging_v1_rpc_exposure.sql"
+      ],
+      "functions_total": 366,
+      "public_functions": 359,
+      "security_definer": 305,
+      "execute": {
+        "anon": {
+          "public_functions": 12,
+          "private_functions": 2,
+          "security_definer": 12
+        },
+        "authenticated": {
+          "public_functions": 147,
+          "private_functions": 2,
+          "security_definer": 146
+        },
+        "service_role": {
+          "public_functions": 328,
+          "private_functions": 2,
+          "security_definer": 284
+        },
+        "postgres": {
+          "public_functions": 359,
+          "private_functions": 2,
+          "security_definer": 304
+        }
+      },
+      "public_execute_functions": 0,
+      "sequence_privilege": {
+        "anon": 0,
+        "authenticated": 4,
+        "service_role": 4,
+        "postgres": 7
+      },
+      "relation_privilege": {
+        "anon": 78,
+        "authenticated": 80,
+        "service_role": 100,
+        "postgres": 106
+      },
+      "anon_write_privilege_relations": 0
+    },
+    "after-template0": {
+      "label": "after-template0",
+      "database": "t0",
+      "image": "public.ecr.aws/supabase/postgres:17.6.1.143",
+      "installer": "supabase_admin",
+      "sources": [
+        "00000000000000_torneos_baseline_v1.sql",
+        "00000000000001_staging_v1_rpc_exposure.sql"
+      ],
+      "functions_total": 366,
+      "public_functions": 359,
+      "security_definer": 305,
+      "execute": {
+        "anon": {
+          "public_functions": 12,
+          "private_functions": 2,
+          "security_definer": 12
+        },
+        "authenticated": {
+          "public_functions": 147,
+          "private_functions": 2,
+          "security_definer": 146
+        },
+        "service_role": {
+          "public_functions": 328,
+          "private_functions": 2,
+          "security_definer": 284
+        },
+        "postgres": {
+          "public_functions": 330,
+          "private_functions": 2,
+          "security_definer": 286
+        }
+      },
+      "public_execute_functions": 0,
+      "sequence_privilege": {
+        "anon": 0,
+        "authenticated": 4,
+        "service_role": 4,
+        "postgres": 7
+      },
+      "relation_privilege": {
+        "anon": 78,
+        "authenticated": 80,
+        "service_role": 100,
+        "postgres": 106
+      },
+      "anon_write_privilege_relations": 0
+    }
+  },
+  "focus_functions": [
+    {
+      "function": "authorize_tournament_social_export(uuid,uuid,text,text,boolean)",
+      "security_definer": true,
+      "owner": "supabase_admin",
+      "before": {
+        "anon": false,
+        "authenticated": true,
+        "service_role": true,
+        "torneos_core_adapter": false,
+        "torneos_identity_writer": false,
+        "postgrest_exposed_to": [
+          "authenticated",
+          "service_role"
+        ]
+      },
+      "after": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": true,
+        "torneos_core_adapter": false,
+        "torneos_identity_writer": false,
+        "postgrest_exposed_to": [
+          "service_role"
+        ]
+      },
+      "gated": true
+    },
+    {
+      "function": "cancel_tournament_purchase(uuid)",
+      "security_definer": true,
+      "owner": "supabase_admin",
+      "before": {
+        "anon": false,
+        "authenticated": true,
+        "service_role": true,
+        "torneos_core_adapter": false,
+        "torneos_identity_writer": false,
+        "postgrest_exposed_to": [
+          "authenticated",
+          "service_role"
+        ]
+      },
+      "after": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": true,
+        "torneos_core_adapter": false,
+        "torneos_identity_writer": false,
+        "postgrest_exposed_to": [
+          "service_role"
+        ]
+      },
+      "gated": true
+    },
+    {
+      "function": "change_tournament_media_gallery_state(uuid,text,text)",
+      "security_definer": true,
+      "owner": "supabase_admin",
+      "before": {
+        "anon": false,
+        "authenticated": true,
+        "service_role": true,
+        "torneos_core_adapter": false,
+        "torneos_identity_writer": false,
+        "postgrest_exposed_to": [
+          "authenticated",
+          "service_role"
+        ]
+      },
+      "after": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": true,
+        "torneos_core_adapter": false,
+        "torneos_identity_writer": false,
+        "postgrest_exposed_to": [
+          "service_role"
+        ]
+      },
+      "gated": true
+    },
+    {
+      "function": "create_tournament_disciplinary_override(uuid,text,integer,text,uuid)",
+      "security_definer": true,
+      "owner": "supabase_admin",
+      "before": {
+        "anon": false,
+        "authenticated": true,
+        "service_role": true,
+        "torneos_core_adapter": false,
+        "torneos_identity_writer": false,
+        "postgrest_exposed_to": [
+          "authenticated",
+          "service_role"
+        ]
+      },
+      "after": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": true,
+        "torneos_core_adapter": false,
+        "torneos_identity_writer": false,
+        "postgrest_exposed_to": [
+          "service_role"
+        ]
+      },
+      "gated": true
+    },
+    {
+      "function": "create_tournament_match_correction(uuid,uuid)",
+      "security_definer": true,
+      "owner": "supabase_admin",
+      "before": {
+        "anon": false,
+        "authenticated": true,
+        "service_role": true,
+        "torneos_core_adapter": false,
+        "torneos_identity_writer": false,
+        "postgrest_exposed_to": [
+          "authenticated",
+          "service_role"
+        ]
+      },
+      "after": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": true,
+        "torneos_core_adapter": false,
+        "torneos_identity_writer": false,
+        "postgrest_exposed_to": [
+          "service_role"
+        ]
+      },
+      "gated": true
+    },
+    {
+      "function": "create_tournament_points_adjustment(uuid,uuid,uuid,uuid,uuid,integer,text,uuid)",
+      "security_definer": true,
+      "owner": "supabase_admin",
+      "before": {
+        "anon": false,
+        "authenticated": true,
+        "service_role": true,
+        "torneos_core_adapter": false,
+        "torneos_identity_writer": false,
+        "postgrest_exposed_to": [
+          "authenticated",
+          "service_role"
+        ]
+      },
+      "after": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": true,
+        "torneos_core_adapter": false,
+        "torneos_identity_writer": false,
+        "postgrest_exposed_to": [
+          "service_role"
+        ]
+      },
+      "gated": true
+    },
+    {
+      "function": "get_tournament_player_portrait_ref(uuid,uuid,text)",
+      "security_definer": true,
+      "owner": "supabase_admin",
+      "before": {
+        "anon": false,
+        "authenticated": true,
+        "service_role": true,
+        "torneos_core_adapter": false,
+        "torneos_identity_writer": false,
+        "postgrest_exposed_to": [
+          "authenticated",
+          "service_role"
+        ]
+      },
+      "after": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": true,
+        "torneos_core_adapter": false,
+        "torneos_identity_writer": false,
+        "postgrest_exposed_to": [
+          "service_role"
+        ]
+      },
+      "gated": true
+    },
+    {
+      "function": "get_tournament_purchase(uuid)",
+      "security_definer": true,
+      "owner": "supabase_admin",
+      "before": {
+        "anon": false,
+        "authenticated": true,
+        "service_role": true,
+        "torneos_core_adapter": false,
+        "torneos_identity_writer": false,
+        "postgrest_exposed_to": [
+          "authenticated",
+          "service_role"
+        ]
+      },
+      "after": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": true,
+        "torneos_core_adapter": false,
+        "torneos_identity_writer": false,
+        "postgrest_exposed_to": [
+          "service_role"
+        ]
+      },
+      "gated": true
+    },
+    {
+      "function": "has_tournament_entitlement(uuid,uuid,text)",
+      "security_definer": true,
+      "owner": "supabase_admin",
+      "before": {
+        "anon": false,
+        "authenticated": true,
+        "service_role": true,
+        "torneos_core_adapter": false,
+        "torneos_identity_writer": false,
+        "postgrest_exposed_to": [
+          "authenticated",
+          "service_role"
+        ]
+      },
+      "after": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": true,
+        "torneos_core_adapter": false,
+        "torneos_identity_writer": false,
+        "postgrest_exposed_to": [
+          "service_role"
+        ]
+      },
+      "gated": true
+    },
+    {
+      "function": "lock_tournament_roster(uuid,uuid,uuid)",
+      "security_definer": true,
+      "owner": "supabase_admin",
+      "before": {
+        "anon": false,
+        "authenticated": true,
+        "service_role": true,
+        "torneos_core_adapter": false,
+        "torneos_identity_writer": false,
+        "postgrest_exposed_to": [
+          "authenticated",
+          "service_role"
+        ]
+      },
+      "after": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": true,
+        "torneos_core_adapter": false,
+        "torneos_identity_writer": false,
+        "postgrest_exposed_to": [
+          "service_role"
+        ]
+      },
+      "gated": true
+    },
+    {
+      "function": "make_tournament_match_official(uuid,uuid)",
+      "security_definer": true,
+      "owner": "supabase_admin",
+      "before": {
+        "anon": false,
+        "authenticated": true,
+        "service_role": true,
+        "torneos_core_adapter": false,
+        "torneos_identity_writer": false,
+        "postgrest_exposed_to": [
+          "authenticated",
+          "service_role"
+        ]
+      },
+      "after": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": true,
+        "torneos_core_adapter": false,
+        "torneos_identity_writer": false,
+        "postgrest_exposed_to": [
+          "service_role"
+        ]
+      },
+      "gated": true
+    },
+    {
+      "function": "mark_tournament_suspension_served(uuid,uuid,text)",
+      "security_definer": true,
+      "owner": "supabase_admin",
+      "before": {
+        "anon": false,
+        "authenticated": true,
+        "service_role": true,
+        "torneos_core_adapter": false,
+        "torneos_identity_writer": false,
+        "postgrest_exposed_to": [
+          "authenticated",
+          "service_role"
+        ]
+      },
+      "after": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": true,
+        "torneos_core_adapter": false,
+        "torneos_identity_writer": false,
+        "postgrest_exposed_to": [
+          "service_role"
+        ]
+      },
+      "gated": true
+    },
+    {
+      "function": "publish_tournament_fixture(uuid,uuid)",
+      "security_definer": true,
+      "owner": "supabase_admin",
+      "before": {
+        "anon": false,
+        "authenticated": true,
+        "service_role": true,
+        "torneos_core_adapter": false,
+        "torneos_identity_writer": false,
+        "postgrest_exposed_to": [
+          "authenticated",
+          "service_role"
+        ]
+      },
+      "after": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": true,
+        "torneos_core_adapter": false,
+        "torneos_identity_writer": false,
+        "postgrest_exposed_to": [
+          "service_role"
+        ]
+      },
+      "gated": true
+    },
+    {
+      "function": "record_manual_match_availability(uuid,uuid,uuid,text,text,text)",
+      "security_definer": true,
+      "owner": "supabase_admin",
+      "before": {
+        "anon": false,
+        "authenticated": true,
+        "service_role": true,
+        "torneos_core_adapter": false,
+        "torneos_identity_writer": false,
+        "postgrest_exposed_to": [
+          "authenticated",
+          "service_role"
+        ]
+      },
+      "after": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": true,
+        "torneos_core_adapter": false,
+        "torneos_identity_writer": false,
+        "postgrest_exposed_to": [
+          "service_role"
+        ]
+      },
+      "gated": true
+    },
+    {
+      "function": "reopen_tournament_participants(uuid,uuid,uuid,text)",
+      "security_definer": true,
+      "owner": "supabase_admin",
+      "before": {
+        "anon": false,
+        "authenticated": true,
+        "service_role": true,
+        "torneos_core_adapter": false,
+        "torneos_identity_writer": false,
+        "postgrest_exposed_to": [
+          "authenticated",
+          "service_role"
+        ]
+      },
+      "after": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": true,
+        "torneos_core_adapter": false,
+        "torneos_identity_writer": false,
+        "postgrest_exposed_to": [
+          "service_role"
+        ]
+      },
+      "gated": true
+    },
+    {
+      "function": "report_tournament_media_asset(uuid,text,text,boolean,uuid)",
+      "security_definer": true,
+      "owner": "supabase_admin",
+      "before": {
+        "anon": false,
+        "authenticated": true,
+        "service_role": true,
+        "torneos_core_adapter": false,
+        "torneos_identity_writer": false,
+        "postgrest_exposed_to": [
+          "authenticated",
+          "service_role"
+        ]
+      },
+      "after": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": true,
+        "torneos_core_adapter": false,
+        "torneos_identity_writer": false,
+        "postgrest_exposed_to": [
+          "service_role"
+        ]
+      },
+      "gated": true
+    },
+    {
+      "function": "request_tournament_match_correction(uuid,uuid,text)",
+      "security_definer": true,
+      "owner": "supabase_admin",
+      "before": {
+        "anon": false,
+        "authenticated": true,
+        "service_role": true,
+        "torneos_core_adapter": false,
+        "torneos_identity_writer": false,
+        "postgrest_exposed_to": [
+          "authenticated",
+          "service_role"
+        ]
+      },
+      "after": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": true,
+        "torneos_core_adapter": false,
+        "torneos_identity_writer": false,
+        "postgrest_exposed_to": [
+          "service_role"
+        ]
+      },
+      "gated": true
+    },
+    {
+      "function": "resolve_tournament_qualification(uuid,text)",
+      "security_definer": true,
+      "owner": "supabase_admin",
+      "before": {
+        "anon": false,
+        "authenticated": true,
+        "service_role": true,
+        "torneos_core_adapter": false,
+        "torneos_identity_writer": false,
+        "postgrest_exposed_to": [
+          "authenticated",
+          "service_role"
+        ]
+      },
+      "after": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": true,
+        "torneos_core_adapter": false,
+        "torneos_identity_writer": false,
+        "postgrest_exposed_to": [
+          "service_role"
+        ]
+      },
+      "gated": true
+    },
+    {
+      "function": "review_tournament_match_operation(uuid,uuid,text,text)",
+      "security_definer": true,
+      "owner": "supabase_admin",
+      "before": {
+        "anon": false,
+        "authenticated": true,
+        "service_role": true,
+        "torneos_core_adapter": false,
+        "torneos_identity_writer": false,
+        "postgrest_exposed_to": [
+          "authenticated",
+          "service_role"
+        ]
+      },
+      "after": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": true,
+        "torneos_core_adapter": false,
+        "torneos_identity_writer": false,
+        "postgrest_exposed_to": [
+          "service_role"
+        ]
+      },
+      "gated": true
+    },
+    {
+      "function": "review_tournament_team_entry(uuid,uuid,text,text,jsonb)",
+      "security_definer": true,
+      "owner": "supabase_admin",
+      "before": {
+        "anon": false,
+        "authenticated": true,
+        "service_role": true,
+        "torneos_core_adapter": false,
+        "torneos_identity_writer": false,
+        "postgrest_exposed_to": [
+          "authenticated",
+          "service_role"
+        ]
+      },
+      "after": {
+        "anon": false,
+        "authenticated": true,
+        "service_role": true,
+        "torneos_core_adapter": false,
+        "torneos_identity_writer": false,
+        "postgrest_exposed_to": [
+          "authenticated",
+          "service_role"
+        ]
+      },
+      "gated": false
+    },
+    {
+      "function": "revoke_tournament_player_portrait_publication(uuid,uuid)",
+      "security_definer": true,
+      "owner": "supabase_admin",
+      "before": {
+        "anon": false,
+        "authenticated": true,
+        "service_role": true,
+        "torneos_core_adapter": false,
+        "torneos_identity_writer": false,
+        "postgrest_exposed_to": [
+          "authenticated",
+          "service_role"
+        ]
+      },
+      "after": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": true,
+        "torneos_core_adapter": false,
+        "torneos_identity_writer": false,
+        "postgrest_exposed_to": [
+          "service_role"
+        ]
+      },
+      "gated": true
+    },
+    {
+      "function": "revoke_tournament_points_adjustment(uuid,text)",
+      "security_definer": true,
+      "owner": "supabase_admin",
+      "before": {
+        "anon": false,
+        "authenticated": true,
+        "service_role": true,
+        "torneos_core_adapter": false,
+        "torneos_identity_writer": false,
+        "postgrest_exposed_to": [
+          "authenticated",
+          "service_role"
+        ]
+      },
+      "after": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": true,
+        "torneos_core_adapter": false,
+        "torneos_identity_writer": false,
+        "postgrest_exposed_to": [
+          "service_role"
+        ]
+      },
+      "gated": true
+    },
+    {
+      "function": "revoke_tournament_team_photo(uuid,uuid)",
+      "security_definer": true,
+      "owner": "supabase_admin",
+      "before": {
+        "anon": false,
+        "authenticated": true,
+        "service_role": true,
+        "torneos_core_adapter": false,
+        "torneos_identity_writer": false,
+        "postgrest_exposed_to": [
+          "authenticated",
+          "service_role"
+        ]
+      },
+      "after": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": true,
+        "torneos_core_adapter": false,
+        "torneos_identity_writer": false,
+        "postgrest_exposed_to": [
+          "service_role"
+        ]
+      },
+      "gated": true
+    },
+    {
+      "function": "save_tournament_draw_pots(uuid,uuid,uuid,jsonb)",
+      "security_definer": true,
+      "owner": "supabase_admin",
+      "before": {
+        "anon": false,
+        "authenticated": true,
+        "service_role": true,
+        "torneos_core_adapter": false,
+        "torneos_identity_writer": false,
+        "postgrest_exposed_to": [
+          "authenticated",
+          "service_role"
+        ]
+      },
+      "after": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": true,
+        "torneos_core_adapter": false,
+        "torneos_identity_writer": false,
+        "postgrest_exposed_to": [
+          "service_role"
+        ]
+      },
+      "gated": true
+    },
+    {
+      "function": "schedule_tournament_match(uuid,uuid,timestamp with time zone,uuid,uuid,integer,boolean,text)",
+      "security_definer": true,
+      "owner": "supabase_admin",
+      "before": {
+        "anon": false,
+        "authenticated": true,
+        "service_role": true,
+        "torneos_core_adapter": false,
+        "torneos_identity_writer": false,
+        "postgrest_exposed_to": [
+          "authenticated",
+          "service_role"
+        ]
+      },
+      "after": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": true,
+        "torneos_core_adapter": false,
+        "torneos_identity_writer": false,
+        "postgrest_exposed_to": [
+          "service_role"
+        ]
+      },
+      "gated": true
+    },
+    {
+      "function": "set_tournament_player_portrait_crop(uuid,uuid,numeric,numeric,numeric)",
+      "security_definer": true,
+      "owner": "supabase_admin",
+      "before": {
+        "anon": false,
+        "authenticated": true,
+        "service_role": true,
+        "torneos_core_adapter": false,
+        "torneos_identity_writer": false,
+        "postgrest_exposed_to": [
+          "authenticated",
+          "service_role"
+        ]
+      },
+      "after": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": true,
+        "torneos_core_adapter": false,
+        "torneos_identity_writer": false,
+        "postgrest_exposed_to": [
+          "service_role"
+        ]
+      },
+      "gated": true
+    },
+    {
+      "function": "set_tournament_player_portrait_editorial_status(uuid,uuid,text)",
+      "security_definer": true,
+      "owner": "supabase_admin",
+      "before": {
+        "anon": false,
+        "authenticated": true,
+        "service_role": true,
+        "torneos_core_adapter": false,
+        "torneos_identity_writer": false,
+        "postgrest_exposed_to": [
+          "authenticated",
+          "service_role"
+        ]
+      },
+      "after": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": true,
+        "torneos_core_adapter": false,
+        "torneos_identity_writer": false,
+        "postgrest_exposed_to": [
+          "service_role"
+        ]
+      },
+      "gated": true
+    },
+    {
+      "function": "submit_match_squad(uuid,uuid,uuid)",
+      "security_definer": true,
+      "owner": "supabase_admin",
+      "before": {
+        "anon": false,
+        "authenticated": true,
+        "service_role": true,
+        "torneos_core_adapter": false,
+        "torneos_identity_writer": false,
+        "postgrest_exposed_to": [
+          "authenticated",
+          "service_role"
+        ]
+      },
+      "after": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": true,
+        "torneos_core_adapter": false,
+        "torneos_identity_writer": false,
+        "postgrest_exposed_to": [
+          "service_role"
+        ]
+      },
+      "gated": true
+    },
+    {
+      "function": "supersede_tournament_fixture(uuid,uuid,uuid)",
+      "security_definer": true,
+      "owner": "supabase_admin",
+      "before": {
+        "anon": false,
+        "authenticated": true,
+        "service_role": true,
+        "torneos_core_adapter": false,
+        "torneos_identity_writer": false,
+        "postgrest_exposed_to": [
+          "authenticated",
+          "service_role"
+        ]
+      },
+      "after": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": true,
+        "torneos_core_adapter": false,
+        "torneos_identity_writer": false,
+        "postgrest_exposed_to": [
+          "service_role"
+        ]
+      },
+      "gated": true
+    },
+    {
+      "function": "transition_tournament_media_asset(uuid,text,text)",
+      "security_definer": true,
+      "owner": "supabase_admin",
+      "before": {
+        "anon": false,
+        "authenticated": true,
+        "service_role": true,
+        "torneos_core_adapter": false,
+        "torneos_identity_writer": false,
+        "postgrest_exposed_to": [
+          "authenticated",
+          "service_role"
+        ]
+      },
+      "after": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": true,
+        "torneos_core_adapter": false,
+        "torneos_identity_writer": false,
+        "postgrest_exposed_to": [
+          "service_role"
+        ]
+      },
+      "gated": true
+    },
+    {
+      "function": "update_draft_fixture(uuid,uuid,text,jsonb)",
+      "security_definer": true,
+      "owner": "supabase_admin",
+      "before": {
+        "anon": false,
+        "authenticated": true,
+        "service_role": true,
+        "torneos_core_adapter": false,
+        "torneos_identity_writer": false,
+        "postgrest_exposed_to": [
+          "authenticated",
+          "service_role"
+        ]
+      },
+      "after": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": true,
+        "torneos_core_adapter": false,
+        "torneos_identity_writer": false,
+        "postgrest_exposed_to": [
+          "service_role"
+        ]
+      },
+      "gated": true
+    },
+    {
+      "function": "validate_tournament_match_operation(uuid,uuid)",
+      "security_definer": true,
+      "owner": "supabase_admin",
+      "before": {
+        "anon": false,
+        "authenticated": true,
+        "service_role": true,
+        "torneos_core_adapter": false,
+        "torneos_identity_writer": false,
+        "postgrest_exposed_to": [
+          "authenticated",
+          "service_role"
+        ]
+      },
+      "after": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": true,
+        "torneos_core_adapter": false,
+        "torneos_identity_writer": false,
+        "postgrest_exposed_to": [
+          "service_role"
+        ]
+      },
+      "gated": true
+    },
+    {
+      "function": "void_tournament_match_event(uuid,uuid,text)",
+      "security_definer": true,
+      "owner": "supabase_admin",
+      "before": {
+        "anon": false,
+        "authenticated": true,
+        "service_role": true,
+        "torneos_core_adapter": false,
+        "torneos_identity_writer": false,
+        "postgrest_exposed_to": [
+          "authenticated",
+          "service_role"
+        ]
+      },
+      "after": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": true,
+        "torneos_core_adapter": false,
+        "torneos_identity_writer": false,
+        "postgrest_exposed_to": [
+          "service_role"
+        ]
+      },
+      "gated": true
+    },
+    {
+      "function": "auto_schedule_tournament_matches(uuid,uuid)",
+      "security_definer": true,
+      "owner": "supabase_admin",
+      "before": {
+        "anon": false,
+        "authenticated": true,
+        "service_role": true,
+        "torneos_core_adapter": false,
+        "torneos_identity_writer": false,
+        "postgrest_exposed_to": [
+          "authenticated",
+          "service_role"
+        ]
+      },
+      "after": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": true,
+        "torneos_core_adapter": false,
+        "torneos_identity_writer": false,
+        "postgrest_exposed_to": [
+          "service_role"
+        ]
+      },
+      "gated": true
+    }
+  ],
+  "real_vs_template0_objects_compared": 479,
+  "real_vs_template0_api_privilege_mismatches": [],
+  "before_to_after_changes": {
+    "functions": 33
+  },
+  "before_to_after_changes_detail": {
+    "functions": [
+      {
+        "function": "authorize_tournament_social_export(uuid,uuid,text,text,boolean)",
+        "role": "authenticated",
+        "before": true,
+        "after": false
+      },
+      {
+        "function": "auto_schedule_tournament_matches(uuid,uuid)",
+        "role": "authenticated",
+        "before": true,
+        "after": false
+      },
+      {
+        "function": "cancel_tournament_purchase(uuid)",
+        "role": "authenticated",
+        "before": true,
+        "after": false
+      },
+      {
+        "function": "change_tournament_media_gallery_state(uuid,text,text)",
+        "role": "authenticated",
+        "before": true,
+        "after": false
+      },
+      {
+        "function": "create_tournament_disciplinary_override(uuid,text,integer,text,uuid)",
+        "role": "authenticated",
+        "before": true,
+        "after": false
+      },
+      {
+        "function": "create_tournament_match_correction(uuid,uuid)",
+        "role": "authenticated",
+        "before": true,
+        "after": false
+      },
+      {
+        "function": "create_tournament_points_adjustment(uuid,uuid,uuid,uuid,uuid,integer,text,uuid)",
+        "role": "authenticated",
+        "before": true,
+        "after": false
+      },
+      {
+        "function": "get_tournament_player_portrait_ref(uuid,uuid,text)",
+        "role": "authenticated",
+        "before": true,
+        "after": false
+      },
+      {
+        "function": "get_tournament_purchase(uuid)",
+        "role": "authenticated",
+        "before": true,
+        "after": false
+      },
+      {
+        "function": "has_tournament_entitlement(uuid,uuid,text)",
+        "role": "authenticated",
+        "before": true,
+        "after": false
+      },
+      {
+        "function": "lock_tournament_roster(uuid,uuid,uuid)",
+        "role": "authenticated",
+        "before": true,
+        "after": false
+      },
+      {
+        "function": "make_tournament_match_official(uuid,uuid)",
+        "role": "authenticated",
+        "before": true,
+        "after": false
+      },
+      {
+        "function": "mark_tournament_suspension_served(uuid,uuid,text)",
+        "role": "authenticated",
+        "before": true,
+        "after": false
+      },
+      {
+        "function": "publish_tournament_fixture(uuid,uuid)",
+        "role": "authenticated",
+        "before": true,
+        "after": false
+      },
+      {
+        "function": "record_manual_match_availability(uuid,uuid,uuid,text,text,text)",
+        "role": "authenticated",
+        "before": true,
+        "after": false
+      },
+      {
+        "function": "reopen_tournament_participants(uuid,uuid,uuid,text)",
+        "role": "authenticated",
+        "before": true,
+        "after": false
+      },
+      {
+        "function": "report_tournament_media_asset(uuid,text,text,boolean,uuid)",
+        "role": "authenticated",
+        "before": true,
+        "after": false
+      },
+      {
+        "function": "request_tournament_match_correction(uuid,uuid,text)",
+        "role": "authenticated",
+        "before": true,
+        "after": false
+      },
+      {
+        "function": "resolve_tournament_qualification(uuid,text)",
+        "role": "authenticated",
+        "before": true,
+        "after": false
+      },
+      {
+        "function": "review_tournament_match_operation(uuid,uuid,text,text)",
+        "role": "authenticated",
+        "before": true,
+        "after": false
+      },
+      {
+        "function": "revoke_tournament_player_portrait_publication(uuid,uuid)",
+        "role": "authenticated",
+        "before": true,
+        "after": false
+      },
+      {
+        "function": "revoke_tournament_points_adjustment(uuid,text)",
+        "role": "authenticated",
+        "before": true,
+        "after": false
+      },
+      {
+        "function": "revoke_tournament_team_photo(uuid,uuid)",
+        "role": "authenticated",
+        "before": true,
+        "after": false
+      },
+      {
+        "function": "save_tournament_draw_pots(uuid,uuid,uuid,jsonb)",
+        "role": "authenticated",
+        "before": true,
+        "after": false
+      },
+      {
+        "function": "schedule_tournament_match(uuid,uuid,timestamp with time zone,uuid,uuid,integer,boolean,text)",
+        "role": "authenticated",
+        "before": true,
+        "after": false
+      },
+      {
+        "function": "set_tournament_player_portrait_crop(uuid,uuid,numeric,numeric,numeric)",
+        "role": "authenticated",
+        "before": true,
+        "after": false
+      },
+      {
+        "function": "set_tournament_player_portrait_editorial_status(uuid,uuid,text)",
+        "role": "authenticated",
+        "before": true,
+        "after": false
+      },
+      {
+        "function": "submit_match_squad(uuid,uuid,uuid)",
+        "role": "authenticated",
+        "before": true,
+        "after": false
+      },
+      {
+        "function": "supersede_tournament_fixture(uuid,uuid,uuid)",
+        "role": "authenticated",
+        "before": true,
+        "after": false
+      },
+      {
+        "function": "transition_tournament_media_asset(uuid,text,text)",
+        "role": "authenticated",
+        "before": true,
+        "after": false
+      },
+      {
+        "function": "update_draft_fixture(uuid,uuid,text,jsonb)",
+        "role": "authenticated",
+        "before": true,
+        "after": false
+      },
+      {
+        "function": "validate_tournament_match_operation(uuid,uuid)",
+        "role": "authenticated",
+        "before": true,
+        "after": false
+      },
+      {
+        "function": "void_tournament_match_event(uuid,uuid,text)",
+        "role": "authenticated",
+        "before": true,
+        "after": false
+      }
+    ]
+  },
+  "privilege_gained_by_api_role": [],
+  "checks": {
+    "before_authenticated_execute_on_all_33": true,
+    "after_authenticated_execute_only_on_review": true,
+    "after_anon_execute_none": true,
+    "after_service_role_execute_kept_on_all": true,
+    "gate_changes_are_exactly_the_manifest": true,
+    "no_privilege_gained_by_any_api_role": true,
+    "no_sequence_or_relation_change": true,
+    "real_equals_template0": true
+  }
+}

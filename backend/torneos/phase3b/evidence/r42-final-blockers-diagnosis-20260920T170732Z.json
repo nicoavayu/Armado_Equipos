@@ -1,0 +1,77 @@
+{
+  "schema": "R4.2.final-blockers-diagnosis.v1",
+  "previousRun": "20260920T165201Z",
+  "singleCertificationRun": "20260920T170732Z",
+  "blocker1": {
+    "cause": "Removing the gateway route to the shared Core/ingress proxy also removes the return route for host\u2192proxy\u2192gateway HTTP.",
+    "layer": "Host Node fetch in r42/lib.mjs guardedFetch; matrix.check previously retained only error.message.",
+    "historicalHttpResponse": false,
+    "historicalGatewayHandlerExecution": "Not recoverable from retained evidence; do not infer that the handler never ran.",
+    "historicalErrno": "Not recorded; ECONNRESET/EHOSTUNREACH/UND_ERR_SOCKET cannot be distinguished retrospectively.",
+    "classification": "Harness fault topology and insufficient transport diagnostics; not evidence of a gateway upstream-to-503 conversion defect.",
+    "additionalAssertionDefect": "Old live test expected 503 access denied after removing all Core connectivity, so it did not exercise the contract-specific CORE_UNAVAILABLE branch.",
+    "fix": "Path-scoped Core Auth/contract connection resets at the run-owned proxy, preserve ingress/routes; assert gateway JSON 503 CORE_UNAVAILABLE for the contract, Auth /health 200 during this fault, and first recovery 200; record safe transport cause without synthesizing HTTP status."
+  },
+  "blocker2": {
+    "cause": "Proxy-owned ingress errors used res.writeHead(503); res.end(UNAVAILABLE) without Cache-Control.",
+    "historicalMissing": [
+      "/health",
+      "/exchange",
+      "/torneos/rest/v1/rpc/get_my_tournament_memberships"
+    ],
+    "historicalLayer": "Ingress proxy own errors during the Core route-removal fault. Gateway json/proxy response builders already set NO_STORE.",
+    "fix": "Set Cache-Control:no-store on ingress response entry; enforce when copying upstream headers.",
+    "gatewaySourcesChanged": false,
+    "torneosUnavailableWireCode": "503 access denied (existing behavior retained)"
+  },
+  "preserved": [
+    "future skew 5s / past age 3s",
+    "mutable dep_analysis_cache_v2 metadata exclusions",
+    "IP\u2192IP/32 route normalization",
+    "session semantics",
+    "TTL",
+    "no application retries"
+  ],
+  "evidence": [
+    {
+      "path": "r4-matrix-20260920T165201Z.json",
+      "sha256": "536f1b157f08f5c4c5350bd8582ed7d1d17fe7ffafa2eb54b88fc4a306eb3b29"
+    },
+    {
+      "path": "r4-outage-20260920T165201Z.json",
+      "sha256": "e340fa3f57d65585200471483a3766b4b2cc01297b1239f5f9d11167c0f50765"
+    },
+    {
+      "path": "r4-isolation-20260920T165201Z.json",
+      "sha256": "84565b69ecaed8bcfb789d8898d56e7143d608e482ee253b0be63204cb90578c"
+    },
+    {
+      "path": "r4-matrix-detail-20260920T165201Z.json",
+      "sha256": "a1d2316d11e94f28cb0724ed26ac3f2fcfcba67f683554c452af6071b3b13f86"
+    },
+    {
+      "path": "r4-cleanup-20260920T165201Z.json",
+      "sha256": "cb1d92fefb832072edc93905ec4ac3033eef4d662071b174175a68a45f0db859"
+    },
+    {
+      "path": "r4-summary-20260920T165201Z.json",
+      "sha256": "fdf11cd4e64c87fb2d3bd40336ab83b871a2e08312e6c6ae0bddfa330f568468"
+    },
+    {
+      "path": "r4-terminal-20260920T165201Z.log",
+      "sha256": "a9f7357f35b1ff67057df0c76e33c160df31f732b505e476abbdf76b3a44dd82"
+    },
+    {
+      "path": "r42-blocker-transport-diagnostic-20260920T170412Z.json",
+      "sha256": "abbb3d293421ac0a06a4e8b380ba4298e9b02b1c727b53c3c595271acb294163"
+    },
+    {
+      "path": "r42-final-blockers-offline-tests.txt",
+      "sha256": "dbc0105244d3fbfd8bd2404afd8e0681acbd56a67787372e1c3b31949847c657"
+    },
+    {
+      "path": "r42-final-blockers-offline-outage.txt",
+      "sha256": "8bb42e3c5f5260f65e3ecb4616956fabca309503224a17810fc9ae00bff78427"
+    }
+  ]
+}

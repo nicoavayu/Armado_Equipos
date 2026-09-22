@@ -1,0 +1,323 @@
+{
+  "schema": "R4.2.matrix.v1",
+  "run": "arma2-r42-20260920t222628z",
+  "stamp": "20260920T222625Z",
+  "gatewayBundleSHA256": "cc5b1d451fc9ef4498ad927caee37a65aab90ff44ad6ef1cf77e176f989d7e17",
+  "status": "FAIL",
+  "cleanup": {
+    "qa": true,
+    "fixtures": true,
+    "sessions": true
+  },
+  "cases": [
+    {
+      "name": "exchange_valid",
+      "status": "PASS",
+      "checks": 2,
+      "artifacts": [
+        {
+          "path": "r4-matrix-detail-20260920T222625Z.json",
+          "sha256": "0f5d8aa3127115a91c345b95e890a164a4c00f37821303b95d8bcb9db06dc957"
+        }
+      ]
+    },
+    {
+      "name": "token_valid",
+      "status": "PASS",
+      "checks": 1,
+      "artifacts": [
+        {
+          "path": "r4-matrix-detail-20260920T222625Z.json",
+          "sha256": "0f5d8aa3127115a91c345b95e890a164a4c00f37821303b95d8bcb9db06dc957"
+        }
+      ]
+    },
+    {
+      "name": "wrong_issuer",
+      "status": "PASS",
+      "checks": 1,
+      "artifacts": [
+        {
+          "path": "r4-matrix-detail-20260920T222625Z.json",
+          "sha256": "0f5d8aa3127115a91c345b95e890a164a4c00f37821303b95d8bcb9db06dc957"
+        }
+      ]
+    },
+    {
+      "name": "wrong_audience",
+      "status": "PASS",
+      "checks": 1,
+      "artifacts": [
+        {
+          "path": "r4-matrix-detail-20260920T222625Z.json",
+          "sha256": "0f5d8aa3127115a91c345b95e890a164a4c00f37821303b95d8bcb9db06dc957"
+        }
+      ]
+    },
+    {
+      "name": "wrong_kid",
+      "status": "PASS",
+      "checks": 2,
+      "artifacts": [
+        {
+          "path": "r4-matrix-detail-20260920T222625Z.json",
+          "sha256": "0f5d8aa3127115a91c345b95e890a164a4c00f37821303b95d8bcb9db06dc957"
+        }
+      ]
+    },
+    {
+      "name": "expired",
+      "status": "PASS",
+      "checks": 1,
+      "artifacts": [
+        {
+          "path": "r4-matrix-detail-20260920T222625Z.json",
+          "sha256": "0f5d8aa3127115a91c345b95e890a164a4c00f37821303b95d8bcb9db06dc957"
+        }
+      ]
+    },
+    {
+      "name": "wrong_ttl",
+      "status": "PASS",
+      "checks": 4,
+      "artifacts": [
+        {
+          "path": "r4-matrix-detail-20260920T222625Z.json",
+          "sha256": "0f5d8aa3127115a91c345b95e890a164a4c00f37821303b95d8bcb9db06dc957"
+        }
+      ]
+    },
+    {
+      "name": "claim_validation",
+      "status": "PASS",
+      "checks": 12,
+      "artifacts": [
+        {
+          "path": "r4-matrix-detail-20260920T222625Z.json",
+          "sha256": "0f5d8aa3127115a91c345b95e890a164a4c00f37821303b95d8bcb9db06dc957"
+        }
+      ]
+    },
+    {
+      "name": "session_identity_binding",
+      "status": "PASS",
+      "checks": 4,
+      "artifacts": [
+        {
+          "path": "r4-matrix-detail-20260920T222625Z.json",
+          "sha256": "0f5d8aa3127115a91c345b95e890a164a4c00f37821303b95d8bcb9db06dc957"
+        }
+      ]
+    },
+    {
+      "name": "request_binding",
+      "status": "PASS",
+      "checks": 6,
+      "artifacts": [
+        {
+          "path": "r4-matrix-detail-20260920T222625Z.json",
+          "sha256": "0f5d8aa3127115a91c345b95e890a164a4c00f37821303b95d8bcb9db06dc957"
+        }
+      ]
+    },
+    {
+      "name": "replay",
+      "status": "PASS",
+      "checks": 3,
+      "artifacts": [
+        {
+          "path": "r4-matrix-detail-20260920T222625Z.json",
+          "sha256": "0f5d8aa3127115a91c345b95e890a164a4c00f37821303b95d8bcb9db06dc957"
+        }
+      ]
+    },
+    {
+      "name": "logout_revocation",
+      "status": "PASS",
+      "checks": 1,
+      "artifacts": [
+        {
+          "path": "r4-matrix-detail-20260920T222625Z.json",
+          "sha256": "0f5d8aa3127115a91c345b95e890a164a4c00f37821303b95d8bcb9db06dc957"
+        }
+      ]
+    },
+    {
+      "name": "core_session_inactive",
+      "status": "PASS",
+      "checks": 3,
+      "artifacts": [
+        {
+          "path": "r4-matrix-detail-20260920T222625Z.json",
+          "sha256": "0f5d8aa3127115a91c345b95e890a164a4c00f37821303b95d8bcb9db06dc957"
+        }
+      ]
+    },
+    {
+      "name": "core_auth_unavailable",
+      "status": "PASS",
+      "checks": 1,
+      "artifacts": [
+        {
+          "path": "r4-matrix-detail-20260920T222625Z.json",
+          "sha256": "0f5d8aa3127115a91c345b95e890a164a4c00f37821303b95d8bcb9db06dc957"
+        },
+        {
+          "path": "r4-outage-20260920T222625Z.json",
+          "sha256": "d9847835260061a769d2d19c0a0881a9bc02852294dc8eba4e9ad88dda700a9a"
+        }
+      ]
+    },
+    {
+      "name": "core_contract_unavailable",
+      "status": "FAIL",
+      "checks": 1,
+      "artifacts": [
+        {
+          "path": "r4-matrix-detail-20260920T222625Z.json",
+          "sha256": "0f5d8aa3127115a91c345b95e890a164a4c00f37821303b95d8bcb9db06dc957"
+        },
+        {
+          "path": "r4-outage-20260920T222625Z.json",
+          "sha256": "d9847835260061a769d2d19c0a0881a9bc02852294dc8eba4e9ad88dda700a9a"
+        }
+      ]
+    }
+  ],
+  "missingRequired": [
+    "core_response_stale",
+    "torneos_rest_unavailable",
+    "allowlist",
+    "gated",
+    "p0_review_tournament_team_entry",
+    "cross_user",
+    "cross_workspace",
+    "cross_season",
+    "no_cache",
+    "secret_boundary",
+    "isolation"
+  ],
+  "allowlistCovered": [],
+  "gatedCovered": [],
+  "informative": [
+    {
+      "name": "qa_users",
+      "status": "PASS",
+      "checks": 1
+    },
+    {
+      "name": "fixtures",
+      "status": "PASS",
+      "checks": 1
+    },
+    {
+      "name": "live_contracts",
+      "status": "PASS",
+      "checks": 1
+    },
+    {
+      "name": "cleanup",
+      "status": "PASS",
+      "checks": 5
+    }
+  ],
+  "totals": {
+    "blocks": 19,
+    "checks": 51,
+    "failedChecks": 1,
+    "gatewayResponses": 179,
+    "outageTests": 0
+  },
+  "liveContracts": {
+    "verified_email": 7,
+    "seededAcceptances": 0
+  },
+  "qaUsers": [
+    {
+      "role": "owner",
+      "email": "q***@accounts.invalid",
+      "id": "dc689015-5839-4307-b02f-ca24165c6aae",
+      "lastSession": "c7c28fbb-94c9-4259-bfd3-20f0bc1e7c30",
+      "deleted": true,
+      "deleteStatus": 200,
+      "afterStatus": 404
+    },
+    {
+      "role": "admin",
+      "email": "q***@accounts.invalid",
+      "id": "275a4fa3-a38d-4ced-9dd8-96fa9f18a878",
+      "lastSession": "75070d4b-0045-4748-8918-78998f42a9ce",
+      "deleted": true,
+      "deleteStatus": 200,
+      "afterStatus": 404
+    },
+    {
+      "role": "member",
+      "email": "q***@accounts.invalid",
+      "id": "00324898-8fb5-43f8-8ceb-c5c5ec416233",
+      "lastSession": "cf17897b-8a10-44ad-a4b6-0e140e273b4e",
+      "deleted": true,
+      "deleteStatus": 200,
+      "afterStatus": 404
+    },
+    {
+      "role": "outsider",
+      "email": "q***@accounts.invalid",
+      "id": "775fd155-73dc-4534-bd47-164fa9cf241f",
+      "lastSession": "b8b59b7a-c1a3-44af-90ab-5a4bf9ede88b",
+      "deleted": true,
+      "deleteStatus": 200,
+      "afterStatus": 404
+    },
+    {
+      "role": "captain",
+      "email": "q***@accounts.invalid",
+      "id": "c12e43bb-4437-4e21-a56c-1ade8b88686f",
+      "lastSession": "e9a1af25-2220-443c-84dd-0ea2022d976a",
+      "deleted": true,
+      "deleteStatus": 200,
+      "afterStatus": 404
+    }
+  ],
+  "coreSessionVerification": {
+    "sessions": [
+      {
+        "role": "owner",
+        "id": "dc689015",
+        "sessionPresent": false,
+        "userSessions": 0,
+        "deleted": true
+      },
+      {
+        "role": "admin",
+        "id": "275a4fa3",
+        "sessionPresent": false,
+        "userSessions": 0,
+        "deleted": true
+      },
+      {
+        "role": "member",
+        "id": "00324898",
+        "sessionPresent": false,
+        "userSessions": 0,
+        "deleted": true
+      },
+      {
+        "role": "outsider",
+        "id": "775fd155",
+        "sessionPresent": false,
+        "userSessions": 0,
+        "deleted": true
+      },
+      {
+        "role": "captain",
+        "id": "c12e43bb",
+        "sessionPresent": false,
+        "userSessions": 0,
+        "deleted": true
+      }
+    ],
+    "leftovers": 0,
+    "source": "Management API read-only SQL (core-session-exists, core-qa-users)"
+  }
+}

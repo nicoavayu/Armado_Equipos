@@ -1,0 +1,16 @@
+# node --test --test-concurrency=1 backend/torneos/phase3b/local/local.test.mjs  (2026-09-15T20:30:35Z, contract v2)
+✔ compose: project name, certified images, internal network, loopback-only ports, no Core service, gateway behind a profile, no Core migrations mount (1.576083ms)
+✔ runner sources carry no remote literal, import no remote helper, use the fixed Docker socket and only 127.0.0.1 (0.912958ms)
+✔ shared bootstrap contract V2: rendered verification SQL pinned (v2 = v1 with lazy cron_jobs/storage_buckets), expect document pinned and identical to v1, 16 ordered expectations (3.66025ms)
+✔ remote bootstrap runner: reads the shared contract, pins both hashes at runtime, keeps no inline copy, bash renders exactly the pinned bytes (bash 3.2) (130.6055ms)
+✔ identity bearer (node:crypto RS256): header kid, claim contract of private.current_identity_id, signature verifies against the JWK (14.530583ms)
+✔ evidence rules: local-torneos- prefix only, never overwrite, never a known secret, never a Production target; prefixes stay out of the remote globs (2.4335ms)
+✔ summarize.py: tri-state blocks, remote-to-remote deferred and non-blocking, local R2 conditions derived from the local evidence (0.557791ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 7
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 227.921834

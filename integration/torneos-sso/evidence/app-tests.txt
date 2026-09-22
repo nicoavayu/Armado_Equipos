@@ -1,0 +1,22 @@
+▶ Phase 1.5 real application integration
+  ✔ existing real Core callback/session -> /torneos silently obtains own RLS row (539.054666ms)
+  ✔ second login = 0; no Torneos Auth endpoint; normal navigation retains Core (503.738834ms)
+  ✔ browser cross-user SELECT empty and INSERT/PATCH ownership denied by real RLS (50.365334ms)
+  ✔ silent Torneos renewal after TTL threshold uses existing Core session (181.261667ms)
+  ✔ Torneos REST unavailable -> real app Core session and profile API unaffected (3106.051208ms)
+  ✔ exchange transport unavailable -> Torneos fail-closed, no Core logout (435.395291ms)
+  ✔ Core banned user -> existing app authorization denied; unban recovers (670.946209ms)
+  ✔ Core session not_after expired -> live Torneos JWT denied (662.729584ms)
+  ✔ real Core SDK refresh on session hydration renews Torneos silently (951.791833ms)
+  ✔ Torneos tokens absent from browser storage; Core session persistence unchanged (5.403167ms)
+  ✔ real Core logout service -> login route; live Torneos bearer replay and exchange denied (294.344334ms)
+  ✔ real app build/logs contain no server secrets or full JWTs; no production API traffic (176.391875ms)
+✔ Phase 1.5 real application integration (10218.094333ms)
+ℹ tests 13
+ℹ suites 0
+ℹ pass 13
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 10457.936375

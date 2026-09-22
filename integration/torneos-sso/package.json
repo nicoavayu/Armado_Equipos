@@ -1,0 +1,23 @@
+{
+  "name": "arma2-real-core-isolated-sso-phase15",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "prepare:local": "node lab.mjs prepare",
+    "up": "node lab.mjs up",
+    "test": "npm run test:backend && npm run test:app",
+    "down": "node lab.mjs down",
+    "build:app": "node build-app.mjs",
+    "test:backend": "node --test --test-concurrency=1 test.mjs",
+    "test:app": "node --test --test-concurrency=1 app.test.mjs"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "2.116.0",
+    "jose": "6.2.12",
+    "pg": "8.23.0"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2",
+    "playwright": "1.63.0"
+  }
+}
