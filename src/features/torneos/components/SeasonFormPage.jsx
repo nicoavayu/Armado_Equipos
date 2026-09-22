@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { Link, Navigate, useLocation, useNavigate, useOutletContext, useParams } from 'react-router-dom';
 import { useTorneosCompetition } from '../context/TorneosCompetitionContext';
+import { useTorneosFeature } from '../context/TorneosFeaturesContext';
 import {
   normalizeCompetitionSlug,
   SEASON_STATUS_LABELS,
@@ -36,6 +37,7 @@ export default function SeasonFormPage() {
     updateSeason,
     refresh,
   } = useTorneosCompetition();
+  const planEnabled = useTorneosFeature('plan');
   const season = useMemo(
     () => seasons.find((candidate) => candidate.id === seasonId) || null,
     [seasonId, seasons],
@@ -112,7 +114,7 @@ export default function SeasonFormPage() {
           idempotencyKey: creationKeyRef.current,
         });
         creationKeyRef.current = null;
-        const target = hasPendingPremiumIntent()
+        const target = hasPendingPremiumIntent() && planEnabled
           ? withPremiumIntent(canonicalRoutes.seasonPlan(organization.id, created.id))
           : canonicalRoutes.organizationSeason(organization.id, created.id);
         navigate(target, { replace: true });

@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useTorneosWorkspace } from '../context/TorneosWorkspaceContext';
+import { useTorneosFeature } from '../context/TorneosFeaturesContext';
 import { getRoleLabel } from '../domain/rolePresentation';
 import styles from './ParticipantHub.module.css';
 
@@ -39,7 +40,7 @@ function TournamentMonogram({ item }) {
   );
 }
 
-function MyTournamentCard({ item }) {
+function MyTournamentCard({ item, hubEnabled = true }) {
   const stateLabel = item.hasPublishedFixture
     ? STATUS_LABELS[item.tournamentStatus] || 'Torneo'
     : item.tournamentStatus === 'registration'
@@ -86,13 +87,19 @@ function MyTournamentCard({ item }) {
           </span>
         </div>
       )}
-      <Link
-        className={styles.cardCta}
-        to={`/torneos/torneo/${item.tournamentId}?categoria=${item.categoryId}`}
-      >
-        Abrir torneo
-        <ArrowRight size={17} />
-      </Link>
+      {hubEnabled ? (
+        <Link
+          className={styles.cardCta}
+          to={`/torneos/torneo/${item.tournamentId}?categoria=${item.categoryId}`}
+        >
+          Abrir torneo
+          <ArrowRight size={17} />
+        </Link>
+      ) : (
+        <span className={styles.cardCta} aria-disabled="true">
+          Portal del participante no disponible en esta versión
+        </span>
+      )}
     </article>
   );
 }
@@ -111,6 +118,7 @@ function TournamentSkeleton() {
 
 export default function MyTournamentsPage() {
   const { service } = useTorneosWorkspace();
+  const hubEnabled = useTorneosFeature('participant_hub');
   const requestRef = useRef(0);
   const [state, setState] = useState({
     status: 'loading',
@@ -212,6 +220,7 @@ export default function MyTournamentsPage() {
           <div className={styles.tournamentGrid}>
             {state.items.map((item) => (
               <MyTournamentCard
+                hubEnabled={hubEnabled}
                 key={`${item.tournamentId}:${item.categoryId}`}
                 item={item}
               />

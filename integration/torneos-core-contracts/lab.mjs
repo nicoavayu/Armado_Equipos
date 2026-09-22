@@ -11,7 +11,9 @@ import { generateKeyPair, exportJWK, exportPKCS8, SignJWT } from 'jose';
 
 export const root = fileURLToPath(new URL('.', import.meta.url));
 export const repo = fileURLToPath(new URL('../../', import.meta.url));
-export const PROJECT = 'arma2-core-contracts-phase3a';
+// B04: an alternate project name isolates a frontend QA lab (its own volumes and
+// .runtime) from the certification lab; nothing else changes.
+export const PROJECT = process.env.PHASE3A_LAB_PROJECT || 'arma2-core-contracts-phase3a';
 export const BASE = 'http://127.0.0.1:58420';
 // Phase 3B: the Edge Function port of the same gateway (torneos-functions service).
 export const EDGE_BASE = 'http://127.0.0.1:58421/torneos-gateway';

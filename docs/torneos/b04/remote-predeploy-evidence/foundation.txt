@@ -1,0 +1,50 @@
+
+> team-balancer@0.1.0 test:torneos:frontend-foundation
+> node --test scripts/torneos-frontend/foundation.test.mjs scripts/torneos-frontend/transport.test.mjs scripts/torneos-frontend/adapter.test.mjs
+
+✔ the adapter exposes exactly the legacy aliases of the scope and nothing of the blocked surfaces (172.217542ms)
+✔ every alias sends the same RPC name and p_* payload as the legacy service; together they cover the 34 migrable RPCs and no other (160.227458ms)
+✔ loadExperienceRelations paginates get_my_tournament_memberships like the legacy service (page 50, max 500) (31.197167ms)
+✔ listMembers reads the certified table route with the exact columns; a non-uuid id never reaches the network (27.637083ms)
+✔ T3 — statuses served by other RPCs (active/completed/scheduled) are refused before the network; only draft/registration/archived leave the client (78.649791ms)
+✔ boundary errors become TournamentWorkspaceError with the codes and copy the pages already understand (45.41025ms)
+✔ T2 — with the transport failing, the Core singleton receives zero calls and the adapter holds no legacy function (164.323209ms)
+✔ the adapter refuses to be built without a connected transport (26.489041ms)
+✔ explicit Core export shares the exact legacy singleton and Auth options; the singleton is the audited one (96.857125ms)
+✔ scope equals the existing Phase 2D allowlist exactly, including review (21.378291ms)
+✔ without a transport every permitted service method is disconnected, even with enable/core arguments (14.4795ms)
+✔ all legacy out-of-scope RPCs and arbitrary names fail closed before the transport; tables outside the contract too (11.3155ms)
+✔ configuration: one gateway target, https (loopback http only for labs), never inherited from Core (4.516708ms)
+✔ configuration rejects partial/conflicting Core aliases, Core/Torneos collisions, non-https remote targets and the Production ref (3.922333ms)
+✔ backend access reachable from Torneos matches the audited fixture exactly; the legacy RPC inventory did not grow or move (1289.244583ms)
+✔ the only backend access B04 adds is the gateway transport (fetch) and the read-only Core session bridge (0.634ms)
+✔ guard catches direct, aliased and transitive Core imports plus second login and RPC bypasses (10466.796416ms)
+✔ T1 — no second login anywhere in the frontend: createClient/signIn/setSession/persistSession only in the Core singleton and the Phase 1.5 lab (152.204625ms)
+✔ guard detects secrets, privileged JWTs, hardcoded endpoints and production ref (0.4535ms)
+✔ new/changed frontend and config lines contain no secrets or hardcoded targets (113.211083ms)
+✔ foundation is consumed only by the staging-v1 composition and the feature gate; never by the legacy service, providers or pages (22.199708ms)
+✔ audit resolves every legacy RPC dispatch; the single unresolved dispatch is the foundation gateway boundary (409.201292ms)
+✔ the audited fixture is exactly the audit of the working tree (regenerate with report.mjs on purpose) (405.041458ms)
+✔ T13 — the feature map is data: its ON keys are the Phase 2D scope keys, every shell route and nav entry is classified (2.364042ms)
+✔ the prebuild validation applies the same gateway-target rule as the runtime config (6.313958ms)
+✔ exchange happens once per Core token, is reused under the TTL and never leaves the gateway origin (127.1985ms)
+✔ bearer renews silently through a new exchange before its TTL and after a Core token refresh (18.924042ms)
+✔ T8 — 401 on an RPC: one silent re-exchange and retry; a second 401 surfaces TORNEOS_SESSION_INVALID without more network (21.248ms)
+✔ T8 — logged-out Core session: the retry exchange is refused (401) and surfaces as TORNEOS_EXCHANGE_DENIED (11.821ms)
+✔ T9 — 403 rpc not enabled → TORNEOS_FORBIDDEN with no retry and no new exchange; adapter TORNEOS_* refusals keep their code (9.641708ms)
+✔ T14 — PostgREST passthrough keeps { message, code, details, hint } intact for the legacy code lookup (11.212875ms)
+✔ T10 — CORE_UNAVAILABLE on exchange and on RPC surfaces as CORE_UNAVAILABLE, no loop, no fallback (16.956667ms)
+✔ T11 — generic 503 access denied, adapter TORNEOS_UNAVAILABLE, network failure and timeout all surface as TORNEOS_UNAVAILABLE and drop the bearer (71.08825ms)
+✔ T12 — logout / user change: no Core session → CORE_AUTH_REQUIRED without network; late exchange responses of a previous generation are discarded (29.376083ms)
+✔ dispose unsubscribes from Core auth and closes the transport; the bearer is never persisted or decoded (11.820167ms)
+✔ exchange contract: malformed 200, 400 and 403 answers fail closed; the caller signal aborts without touching the cache semantics (26.661709ms)
+✔ table route: GET with the bridge bearer, query allowlisted by key, rows returned as an array (11.090084ms)
+✔ transport refuses to exist without a gateway URL or a Core session reader (11.64175ms)
+ℹ tests 38
+ℹ suites 0
+ℹ pass 38
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 13269.564708

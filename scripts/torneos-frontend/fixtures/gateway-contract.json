@@ -1,0 +1,38 @@
+{
+  "source": "backend/torneos/supabase/functions/torneos-gateway/index.ts (R4_HYBRID_GATEWAY_CERTIFIED 20260921T035504Z) + phase3b/r5 journey 20260921T144426Z",
+  "note": "Response SHAPES of the certified gateway. Tokens are placeholders; nothing here is a credential.",
+  "headers": { "cache-control": "no-store", "content-type": "application/json" },
+  "exchange": {
+    "ok": { "status": 200, "body": { "access_token": "bridge-bearer-placeholder-1", "token_type": "Bearer", "expires_in": 120 } },
+    "okRenewed": { "status": 200, "body": { "access_token": "bridge-bearer-placeholder-2", "token_type": "Bearer", "expires_in": 120 } },
+    "badBody": { "status": 400, "body": { "error": "exchange accepts no identity or role input" } },
+    "denied": { "status": 401, "body": { "error": "access denied" } },
+    "originRejected": { "status": 403, "body": { "error": "origin rejected" } },
+    "coreDown": { "status": 503, "body": { "error": "access denied" } },
+    "coreContractDown": { "status": 503, "body": { "error": "CORE_UNAVAILABLE" } },
+    "malformed": { "status": 200, "body": { "access_token": 123 } }
+  },
+  "rpc": {
+    "ok": { "status": 200, "body": { "organizations": [], "preference": { "workspaceType": "personal", "activeOrganizationId": null } } },
+    "okScalar": { "status": 200, "body": true },
+    "okNull": { "status": 200, "body": null },
+    "bearerInvalid": { "status": 401, "body": { "error": "access denied" } },
+    "notEnabled": { "status": 403, "body": { "error": "rpc not enabled" } },
+    "adapterForbidden": { "status": 403, "body": { "error": "TORNEOS_RESOURCE_FORBIDDEN" } },
+    "adapterInvalidJson": { "status": 400, "body": { "error": "invalid json" } },
+    "adapterInvalidRequest": { "status": 400, "body": { "error": "INVALID_REQUEST" } },
+    "coreDenied": { "status": 404, "body": { "error": "CORE_DENIED" } },
+    "searchRateLimited": { "status": 429, "body": { "error": "TORNEOS_SEARCH_RATE_LIMITED" } },
+    "postgrestRaise": { "status": 400, "body": { "code": "P0001", "details": null, "hint": null, "message": "TORNEOS_SLUG_TAKEN" } },
+    "postgrestRaiseWithDetails": { "status": 400, "body": { "code": "P0001", "details": "{\"pendingCount\":2}", "hint": null, "message": "TORNEOS_COMPETITION_HAS_PENDING_COMMITMENTS" } },
+    "postgrestPermission": { "status": 403, "body": { "code": "42501", "details": null, "hint": null, "message": "permission denied for function create_tournament_venue" } },
+    "postgrestMissingFunction": { "status": 404, "body": { "code": "PGRST202", "details": "Searched for the function public.r5_no_such_function", "hint": null, "message": "Could not find the function" } },
+    "torneosDown": { "status": 503, "body": { "error": "access denied" } },
+    "coreContractDown": { "status": 503, "body": { "error": "CORE_UNAVAILABLE" } },
+    "adapterUnavailable": { "status": 503, "body": { "error": "TORNEOS_UNAVAILABLE" } }
+  },
+  "table": {
+    "members": { "status": 200, "headers": { "content-range": "0-1/*" }, "body": [ { "id": "11111111-1111-4111-8111-111111111111", "user_id": "22222222-2222-4222-8222-222222222222", "role": "owner", "status": "active", "joined_at": "2026-09-21T14:44:26Z", "created_at": "2026-09-21T14:44:26Z" } ] },
+    "outsider": { "status": 200, "headers": { "content-range": "*/0" }, "body": [] }
+  }
+}

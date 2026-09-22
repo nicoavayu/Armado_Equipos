@@ -20,6 +20,7 @@ import {
 import { Link, useOutletContext } from 'react-router-dom';
 import { useTorneosCompetition } from '../context/TorneosCompetitionContext';
 import { useTorneosWorkspace } from '../context/TorneosWorkspaceContext';
+import { useTorneosFeatures } from '../context/TorneosFeaturesContext';
 import { hasCapability, TOURNAMENT_CAPABILITIES } from '../domain/capabilities';
 import { TEAM_ENTRY_STATUS_LABELS } from '../domain/teamRegistration';
 import { getTeamRegistrationAvailability } from '../domain/competitionLifecycle';
@@ -69,6 +70,7 @@ export default function TeamsPage() {
   const [query, setQuery] = useState('');
   const [withdrawing, setWithdrawing] = useState(null);
   const { service: workspaceService } = useTorneosWorkspace();
+  const features = useTorneosFeatures();
 
   const loadTeams = useCallback(() => {
     if (!activeTournament?.id || typeof workspaceService.loadTeamsContext !== 'function') {
@@ -121,7 +123,7 @@ export default function TeamsPage() {
     organization,
     TOURNAMENT_CAPABILITIES.TOURNAMENTS_UPDATE,
   );
-  const canWithdrawParticipants = hasCapability(
+  const canWithdrawParticipants = features.participant_withdrawal !== false && hasCapability(
     organization,
     TOURNAMENT_CAPABILITIES.PARTICIPANTS_WITHDRAW,
   ) && WITHDRAWABLE_TOURNAMENT_STATUSES.includes(activeTournament?.status);
@@ -300,10 +302,12 @@ export default function TeamsPage() {
                           Retirar equipo
                         </button>
                       )}
-                      <Link to={visualIdentityLink(entry.id)}>
-                        <SwatchBook size={17} aria-hidden="true" />
-                        Identidad visual
-                      </Link>
+                      {features.team_photos !== false && (
+                        <Link to={visualIdentityLink(entry.id)}>
+                          <SwatchBook size={17} aria-hidden="true" />
+                          Identidad visual
+                        </Link>
+                      )}
                       <Link to={entryLink(entry.id)}>
                         <ArrowRight size={17} />
                         Abrir equipo

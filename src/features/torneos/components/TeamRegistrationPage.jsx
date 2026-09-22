@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { Link, useOutletContext, useParams } from 'react-router-dom';
 import { useTorneosWorkspace } from '../context/TorneosWorkspaceContext';
+import { useTorneosFeatures } from '../context/TorneosFeaturesContext';
 import { hasCapability, TOURNAMENT_CAPABILITIES } from '../domain/capabilities';
 import { getRoleLabel } from '../domain/rolePresentation';
 import {
@@ -52,6 +53,7 @@ const MANAGER_STATUS_LABELS = Object.freeze({
 
 function PlayerRow({
   player, editable, portrait, onUpdate, onRemove, organizationId, onPortraitChanged,
+  portraitsEnabled = true,
 }) {
   return (
     <article className={styles.playerCard}>
@@ -59,14 +61,16 @@ function PlayerRow({
       <div className={styles.playerIdentity}>
         <strong>{player.displayName}</strong>
         <small>{player.arma2UserId ? 'Cuenta Arma2 vinculada' : 'Jugador sin cuenta'}</small>
-        <PlayerPortraitActions
-          organizationId={organizationId}
-          rosterPlayerId={player.id}
-          playerName={player.displayName}
-          portrait={portrait?.portrait || null}
-          canManage={portrait?.canManage === true}
-          onChanged={onPortraitChanged}
-        />
+        {portraitsEnabled && (
+          <PlayerPortraitActions
+            organizationId={organizationId}
+            rosterPlayerId={player.id}
+            playerName={player.displayName}
+            portrait={portrait?.portrait || null}
+            canManage={portrait?.canManage === true}
+            onChanged={onPortraitChanged}
+          />
+        )}
       </div>
       <label>
         <span>Dorsal</span>
@@ -114,16 +118,23 @@ export default function TeamRegistrationPage({ initialTab = 'inscripcion' }) {
   const { organization } = useOutletContext();
   const { teamEntryId } = useParams();
   const { service } = useTorneosWorkspace();
+  // Portraits, team photo and shield are served by other RPCs, storage and Edge
+  // Functions. When the composition does not serve them they neither mount nor
+  // load: the registration stays a pure roster screen.
+  const features = useTorneosFeatures();
+  const portraitsEnabled = features.player_portraits !== false;
+  const teamPhotosEnabled = features.team_photos !== false;
+  const brandingEnabled = features.branding_assets !== false;
   const requestRef = useRef(0);
   const [state, setState] = useState({ status: 'loading', data: null, error: '', notice: '' });
   const [teamForm, setTeamForm] = useState({ name: '', shortName: '', primaryColor: '', secondaryColor: '', shieldPath: null });
   const [review, setReview] = useState({ decision: 'changes_requested', reason: '' });
   const [busy, setBusy] = useState('');
   const [portraits, setPortraits] = useState(
-    () => ({ status: 'loading', byRosterPlayerId: new Map() }),
+    () => ({ status: portraitsEnabled ? 'loading' : 'ready', byRosterPlayerId: new Map() }),
   );
   const portraitsRequestRef = useRef(0);
-  const [teamPhoto, setTeamPhoto] = useState(() => ({ status: 'loading', state: null }));
+  const [teamPhoto, setTeamPhoto] = useState(() => ({ status: teamPhotosEnabled ? 'loading' : 'ready', state: null }));
   const teamPhotoRequestRef = useRef(0);
   const entryTab = {
     inscripcion: canonicalRoutes.organizationTeamEntryRegistration(organization.id, teamEntryId),
@@ -169,6 +180,7 @@ export default function TeamRegistrationPage({ initialTab = 'inscripcion' }) {
   // afirmación falsa y silenciosa. La colección declara su estado —loading,
   // ready, error— y ante el error conserva lo último que sí se leyó.
   const loadPortraits = useCallback(async () => {
+    if (!portraitsEnabled) return;
     const requestId = portraitsRequestRef.current + 1;
     portraitsRequestRef.current = requestId;
     setPortraits((current) => ({ ...current, status: 'loading' }));
@@ -184,7 +196,7 @@ export default function TeamRegistrationPage({ initialTab = 'inscripcion' }) {
       if (portraitsRequestRef.current !== requestId) return;
       setPortraits((current) => ({ ...current, status: 'error' }));
     }
-  }, [organization.id, teamEntryId]);
+  }, [organization.id, portraitsEnabled, teamEntryId]);
 
   useEffect(() => {
     loadPortraits();
@@ -195,6 +207,7 @@ export default function TeamRegistrationPage({ initialTab = 'inscripcion' }) {
   // fallar no es lo mismo que no tener foto. Ante el error conserva lo último
   // que sí se leyó y ofrece reintentar.
   const loadTeamPhoto = useCallback(async () => {
+    if (!teamPhotosEnabled) return;
     const requestId = teamPhotoRequestRef.current + 1;
     teamPhotoRequestRef.current = requestId;
     setTeamPhoto((current) => ({ ...current, status: 'loading' }));
@@ -208,7 +221,7 @@ export default function TeamRegistrationPage({ initialTab = 'inscripcion' }) {
       if (teamPhotoRequestRef.current !== requestId) return;
       setTeamPhoto((current) => ({ ...current, status: 'error' }));
     }
-  }, [organization.id, teamEntryId]);
+  }, [organization.id, teamEntryId, teamPhotosEnabled]);
 
   useEffect(() => {
     loadTeamPhoto();
@@ -235,7 +248,7 @@ export default function TeamRegistrationPage({ initialTab = 'inscripcion' }) {
   // El permiso visual no se recalcula acá. Viene del mismo predicado que
   // después autoriza la escritura, así que la política de autogestión del
   // torneo no puede desincronizarse de lo que muestran los controles.
-  const canEditBranding = data?.visualAssets?.canManageShield === true;
+  const canEditBranding = brandingEnabled && data?.visualAssets?.canManageShield === true;
   const canReview = hasCapability(organization, TOURNAMENT_CAPABILITIES.TEAM_ENTRIES_REVIEW);
   // El alcance también lo decide el servidor. Con `visual` la inscripción llega
   // sin responsables, sin revisiones y sin auditoría: no son datos del jugador.
@@ -335,12 +348,14 @@ export default function TeamRegistrationPage({ initialTab = 'inscripcion' }) {
 
       <nav className={styles.detailTabs} aria-label="Secciones de la inscripción">
         <Link aria-current={initialTab === 'inscripcion' ? 'page' : undefined} to={entryTab.inscripcion}>Información</Link>
-        <Link
-          aria-current={initialTab === 'identidad-visual' ? 'page' : undefined}
-          to={entryTab.visualIdentity}
-        >
-          Identidad visual
-        </Link>
+        {teamPhotosEnabled && (
+          <Link
+            aria-current={initialTab === 'identidad-visual' ? 'page' : undefined}
+            to={entryTab.visualIdentity}
+          >
+            Identidad visual
+          </Link>
+        )}
         <Link aria-current={initialTab === 'plantel' ? 'page' : undefined} to={entryTab.plantel}>Plantel <span>{players.length}</span></Link>
         {canReview && <Link aria-current={initialTab === 'revision' ? 'page' : undefined} to={entryTab.revision}>Revisión</Link>}
       </nav>
@@ -352,18 +367,20 @@ export default function TeamRegistrationPage({ initialTab = 'inscripcion' }) {
         <div className={`${styles.detailGrid}${visualOnlyViewer ? ` ${styles.detailGridSolo}` : ''}`}>
           <section className={styles.formSection}>
             <div className={styles.sectionHeading}><span>01</span><div><h2>Datos del equipo</h2><p>Snapshot de esta competencia.</p></div></div>
-            <BrandingAssetField
-              organizationId={organization.id}
-              kind="team"
-              entityId={teamEntryId}
-              path={teamForm.shieldPath}
-              name={teamForm.name || data.entry.name}
-              canEdit={canEditBranding}
-              onChanged={(result) => {
-                setTeamForm((current) => ({ ...current, shieldPath: result.path || null }));
-                return load('Escudo actualizado.');
-              }}
-            />
+            {brandingEnabled && (
+              <BrandingAssetField
+                organizationId={organization.id}
+                kind="team"
+                entityId={teamEntryId}
+                path={teamForm.shieldPath}
+                name={teamForm.name || data.entry.name}
+                canEdit={canEditBranding}
+                onChanged={(result) => {
+                  setTeamForm((current) => ({ ...current, shieldPath: result.path || null }));
+                  return load('Escudo actualizado.');
+                }}
+              />
+            )}
             {canEditBranding && !editable && (
               <p className={styles.brandingEditNotice}>
                 La inscripción deportiva está aprobada. Sólo estás editando la identidad visual.
@@ -375,16 +392,18 @@ export default function TeamRegistrationPage({ initialTab = 'inscripcion' }) {
               * —pública, chiquita, sin moderación—; la foto es una fotografía
               * del plantel —privada, grande, y la publica la organización—.
               */}
-            <TeamPhotoPanel
-              organizationId={organization.id}
-              teamEntryId={teamEntryId}
-              state={teamPhoto.state}
-              status={teamPhoto.status}
-              teamName={teamForm.name || data.entry.name}
-              shieldPath={teamForm.shieldPath}
-              onChanged={loadTeamPhoto}
-              onRetry={loadTeamPhoto}
-            />
+            {teamPhotosEnabled && (
+              <TeamPhotoPanel
+                organizationId={organization.id}
+                teamEntryId={teamEntryId}
+                state={teamPhoto.state}
+                status={teamPhoto.status}
+                teamName={teamForm.name || data.entry.name}
+                shieldPath={teamForm.shieldPath}
+                onChanged={loadTeamPhoto}
+                onRetry={loadTeamPhoto}
+              />
+            )}
             <div className={styles.twoColumns}>
               <label>Nombre<input value={teamForm.name} disabled={!editable} onChange={(event) => setTeamForm({ ...teamForm, name: event.target.value })} /></label>
               <label>Nombre corto<input value={teamForm.shortName} disabled={!editable} onChange={(event) => setTeamForm({ ...teamForm, shortName: event.target.value })} /></label>
@@ -427,7 +446,7 @@ export default function TeamRegistrationPage({ initialTab = 'inscripcion' }) {
         </div>
       )}
 
-      {initialTab === 'identidad-visual' && (
+      {initialTab === 'identidad-visual' && teamPhotosEnabled && (
         <section className={styles.formSection} aria-labelledby="team-visual-identity-title">
           <div className={styles.sectionHeading}>
             <span>02</span>
@@ -471,10 +490,12 @@ export default function TeamRegistrationPage({ initialTab = 'inscripcion' }) {
           <section>
             {/* Consumo puro: si el equipo tiene foto aprobada, encabeza a su
                 plantel. Sin foto no deja hueco ni pide nada. */}
-            <TeamPhotoBanner
-              state={teamPhoto.state}
-              teamName={teamForm.name || data.entry.name}
-            />
+            {teamPhotosEnabled && (
+              <TeamPhotoBanner
+                state={teamPhoto.state}
+                teamName={teamForm.name || data.entry.name}
+              />
+            )}
             <div className={styles.progressPanel} data-complete={progress.complete}>
               <div>
                 {progress.complete ? <CheckCircle2 size={24} /> : <ClipboardCheck size={24} />}
@@ -522,6 +543,7 @@ export default function TeamRegistrationPage({ initialTab = 'inscripcion' }) {
                   editable={editable}
                   organizationId={organization.id}
                   portrait={portraits.byRosterPlayerId.get(player.id)}
+                  portraitsEnabled={portraitsEnabled}
                   onPortraitChanged={async (notice) => {
                     await loadPortraits();
                     setState((current) => ({ ...current, notice, error: '' }));

@@ -1,0 +1,26 @@
+{
+  "date": "2026-09-21",
+  "source": "Supabase MCP read-only; get_organization/list_projects/list_edge_functions",
+  "organization": {
+    "id": "gwqrborhnqjdzzmpxulh",
+    "plan": "free"
+  },
+  "activeProjectsInOrganization": 2,
+  "core": {
+    "ref": "hhyvmhgpapyuzjgxfnqv",
+    "status": "ACTIVE_HEALTHY",
+    "region": "us-east-1",
+    "contract": {
+      "slug": "torneos-core-contract",
+      "status": "ACTIVE",
+      "version": 1,
+      "verify_jwt": false,
+      "ezbr_sha256": "1072419517953eee8e8021f9691d1a5b1efb1f871c4d13290f644d119caded2c"
+    }
+  },
+  "torneosRemoteProject": null,
+  "inactiveOtherProject": "giaeztyghmhzcngskjmw",
+  "remoteMutations": 0,
+  "productionTargetRequests": 0,
+  "billingDecision": "pending user choice; no quote for a selected paid organization yet"
+}

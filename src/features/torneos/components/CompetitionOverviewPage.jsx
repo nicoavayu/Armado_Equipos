@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { Link, useLocation, useNavigate, useOutletContext } from 'react-router-dom';
 import { useTorneosCompetition } from '../context/TorneosCompetitionContext';
+import { useTorneosFeature } from '../context/TorneosFeaturesContext';
 import {
   getOptionName,
   SEASON_STATUS_LABELS,
@@ -58,7 +59,11 @@ export default function CompetitionOverviewPage() {
     organization,
     TOURNAMENT_CAPABILITIES.TOURNAMENTS_CREATE,
   );
-  const premiumIntent = hasPendingPremiumIntent() || location.search.includes('intent=premium');
+  // Without the plan surface a premium intent has nowhere to go: the overview
+  // behaves as a plain catalogue and never redirects to the plan page.
+  const planEnabled = useTorneosFeature('plan');
+  const premiumIntent = planEnabled
+    && (hasPendingPremiumIntent() || location.search.includes('intent=premium'));
 
   useEffect(() => {
     capturePremiumIntent(location.search);
