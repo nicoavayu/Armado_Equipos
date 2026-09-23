@@ -1,0 +1,117 @@
+
+> team-balancer@0.1.0 test
+> react-scripts test --watchAll=false --runInBand src/__tests__/torneosMpA52PlanRefresh.test.jsx
+
+  console.error
+    Warning: `ReactDOMTestUtils.act` is deprecated in favor of `React.act`. Import `act` from `react` instead of `react-dom/test-utils`. See https://react.dev/warnings/react-dom-test-utils for more info.
+
+      27 |     createCheckout: jest.fn(),
+      28 |   };
+    > 29 |   const rendered = render(<MemoryRouter initialEntries={[base]}>
+         |                          ^
+      30 |     <TorneosWorkspaceProvider service={service} autoLoad={false}>
+      31 |       <TorneosCompetitionProvider organizationId={organization.id} routeSeasonId={seasonId} service={service}>
+      32 |         <TorneosCommerceProvider commerce={commerce}>
+
+      at printWarning (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom-test-utils.development.js:71:30)
+      at error (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom-test-utils.development.js:45:7)
+      at actWithWarning (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom-test-utils.development.js:1736:7)
+      at ../arma2-torneos-real-core-sso-phase15/node_modules/@testing-library/react/dist/act-compat.js:63:25
+      at renderRoot (../arma2-torneos-real-core-sso-phase15/node_modules/@testing-library/react/dist/pure.js:159:26)
+      at render (../arma2-torneos-real-core-sso-phase15/node_modules/@testing-library/react/dist/pure.js:246:10)
+      at setup (src/__tests__/torneosMpA52PlanRefresh.test.jsx:29:26)
+      at src/__tests__/torneosMpA52PlanRefresh.test.jsx:57:15
+      at TestScheduler.scheduleTests (../arma2-torneos-real-core-sso-phase15/node_modules/@jest/core/build/TestScheduler.js:333:13)
+      at runJest (../arma2-torneos-real-core-sso-phase15/node_modules/@jest/core/build/runJest.js:404:19)
+      at _run10000 (../arma2-torneos-real-core-sso-phase15/node_modules/@jest/core/build/cli/index.js:320:7)
+      at runCLI (../arma2-torneos-real-core-sso-phase15/node_modules/@jest/core/build/cli/index.js:173:3)
+
+  console.warn
+    ⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.
+
+      27 |     createCheckout: jest.fn(),
+      28 |   };
+    > 29 |   const rendered = render(<MemoryRouter initialEntries={[base]}>
+         |                          ^
+      30 |     <TorneosWorkspaceProvider service={service} autoLoad={false}>
+      31 |       <TorneosCompetitionProvider organizationId={organization.id} routeSeasonId={seasonId} service={service}>
+      32 |         <TorneosCommerceProvider commerce={commerce}>
+
+      at warnOnce (../arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/deprecations.ts:9:13)
+      at logDeprecation (../arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/deprecations.ts:14:3)
+      at logV6DeprecationWarnings (../arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/deprecations.ts:26:5)
+      at ../arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/components.tsx:257:25
+      at commitHookEffectListMount (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:23189:26)
+      at commitPassiveMountOnFiber (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:24970:11)
+      at commitPassiveMountEffects_complete (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:24930:9)
+      at commitPassiveMountEffects_begin (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:24917:7)
+      at commitPassiveMountEffects (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:24905:3)
+      at flushPassiveEffectsImpl (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:27078:3)
+      at flushPassiveEffects (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:27023:14)
+      at ../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:26808:9
+      at flushActQueue (../arma2-torneos-real-core-sso-phase15/node_modules/react/cjs/react.development.js:2667:24)
+      at act (../arma2-torneos-real-core-sso-phase15/node_modules/react/cjs/react.development.js:2582:11)
+      at actWithWarning (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom-test-utils.development.js:1740:10)
+      at ../arma2-torneos-real-core-sso-phase15/node_modules/@testing-library/react/dist/act-compat.js:63:25
+      at renderRoot (../arma2-torneos-real-core-sso-phase15/node_modules/@testing-library/react/dist/pure.js:159:26)
+      at render (../arma2-torneos-real-core-sso-phase15/node_modules/@testing-library/react/dist/pure.js:246:10)
+      at setup (src/__tests__/torneosMpA52PlanRefresh.test.jsx:29:26)
+      at src/__tests__/torneosMpA52PlanRefresh.test.jsx:57:15
+      at TestScheduler.scheduleTests (../arma2-torneos-real-core-sso-phase15/node_modules/@jest/core/build/TestScheduler.js:333:13)
+      at runJest (../arma2-torneos-real-core-sso-phase15/node_modules/@jest/core/build/runJest.js:404:19)
+      at _run10000 (../arma2-torneos-real-core-sso-phase15/node_modules/@jest/core/build/cli/index.js:320:7)
+      at runCLI (../arma2-torneos-real-core-sso-phase15/node_modules/@jest/core/build/cli/index.js:173:3)
+
+  console.warn
+    ⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.
+
+      27 |     createCheckout: jest.fn(),
+      28 |   };
+    > 29 |   const rendered = render(<MemoryRouter initialEntries={[base]}>
+         |                          ^
+      30 |     <TorneosWorkspaceProvider service={service} autoLoad={false}>
+      31 |       <TorneosCompetitionProvider organizationId={organization.id} routeSeasonId={seasonId} service={service}>
+      32 |         <TorneosCommerceProvider commerce={commerce}>
+
+      at warnOnce (../arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/deprecations.ts:9:13)
+      at logDeprecation (../arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/deprecations.ts:14:3)
+      at logV6DeprecationWarnings (../arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/deprecations.ts:37:5)
+      at ../arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/components.tsx:257:25
+      at commitHookEffectListMount (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:23189:26)
+      at commitPassiveMountOnFiber (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:24970:11)
+      at commitPassiveMountEffects_complete (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:24930:9)
+      at commitPassiveMountEffects_begin (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:24917:7)
+      at commitPassiveMountEffects (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:24905:3)
+      at flushPassiveEffectsImpl (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:27078:3)
+      at flushPassiveEffects (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:27023:14)
+      at ../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:26808:9
+      at flushActQueue (../arma2-torneos-real-core-sso-phase15/node_modules/react/cjs/react.development.js:2667:24)
+      at act (../arma2-torneos-real-core-sso-phase15/node_modules/react/cjs/react.development.js:2582:11)
+      at actWithWarning (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom-test-utils.development.js:1740:10)
+      at ../arma2-torneos-real-core-sso-phase15/node_modules/@testing-library/react/dist/act-compat.js:63:25
+      at renderRoot (../arma2-torneos-real-core-sso-phase15/node_modules/@testing-library/react/dist/pure.js:159:26)
+      at render (../arma2-torneos-real-core-sso-phase15/node_modules/@testing-library/react/dist/pure.js:246:10)
+      at setup (src/__tests__/torneosMpA52PlanRefresh.test.jsx:29:26)
+      at src/__tests__/torneosMpA52PlanRefresh.test.jsx:57:15
+      at TestScheduler.scheduleTests (../arma2-torneos-real-core-sso-phase15/node_modules/@jest/core/build/TestScheduler.js:333:13)
+      at runJest (../arma2-torneos-real-core-sso-phase15/node_modules/@jest/core/build/runJest.js:404:19)
+      at _run10000 (../arma2-torneos-real-core-sso-phase15/node_modules/@jest/core/build/cli/index.js:320:7)
+      at runCLI (../arma2-torneos-real-core-sso-phase15/node_modules/@jest/core/build/cli/index.js:173:3)
+
+PASS src/__tests__/torneosMpA52PlanRefresh.test.jsx
+  ✓ pending → approved updates the actual Plan on client navigation (101 ms)
+  ✓ rejected attempt → approved updates the actual Plan on client navigation (32 ms)
+  ✓ refund updates the actual Plan on client navigation (30 ms)
+  ✓ chargeback updates the actual Plan on client navigation (24 ms)
+  ✓ restored updates the actual Plan on client navigation (26 ms)
+  ✓ unchanged terminal entitlement does not loop or keep polling (35 ms)
+  ✓ polling approval refreshes Plan without a manual status refresh (15 ms)
+  ✓ navigation during an entitlement read keeps Plan closed until the shared read resolves (22 ms)
+  ✓ a superseded purchase response cannot overwrite the newer entitlement (27 ms)
+  ✓ failed entitlement refresh clears the previously effective Premium (20 ms)
+
+Test Suites: 1 passed, 1 total
+Tests:       10 passed, 10 total
+Snapshots:   0 total
+Time:        0.823 s, estimated 1 s
+Ran all test suites matching /src\/__tests__\/torneosMpA52PlanRefresh.test.jsx/i.

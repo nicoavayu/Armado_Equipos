@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertTriangle,
   CheckCircle2,
@@ -9,6 +9,7 @@ import {
 import { Link, Navigate, useParams } from 'react-router-dom';
 import { canonicalRoutes } from '../routing/canonicalRoutes';
 import { useTorneosCommerce } from '../context/TorneosCommerceContext';
+import { useOptionalTorneosCompetition } from '../context/TorneosCompetitionContext';
 import { normalizeTournamentEntitlements, TOURNAMENT_PLANS } from '../domain/entitlements';
 import styles from './PurchaseStatusPage.module.css';
 
@@ -51,12 +52,18 @@ function routeForStatus(organizationId, seasonId, purchaseId, status) {
 export default function PurchaseStatusPage({ view }) {
   const { organizationId, seasonId, tournamentId, purchaseId } = useParams();
   const commerce = useTorneosCommerce();
+  const competition = useOptionalTorneosCompetition();
+  const sharedPlanRef = useRef(null);
+  sharedPlanRef.current = competition?.activeSeason?.id === seasonId
+    ? competition.retryPlan : null;
+  const requestRef = useRef(0);
   const entitlementsAuthority = commerce.entitlementsAuthority === true;
   const [state, setState] = useState({
     status: 'loading', purchase: null, plan: null, error: '',
   });
 
   const refresh = useCallback(async () => {
+    const requestId = ++requestRef.current;
     setState((current) => ({ ...current, status: 'loading', error: '' }));
     try {
       const purchase = await commerce.loadPurchase({
@@ -65,26 +72,30 @@ export default function PurchaseStatusPage({ view }) {
         seasonId,
         tournamentId,
       });
+      if (requestId !== requestRef.current) return;
       let plan = null;
       if (entitlementsAuthority && PLAN_AFFECTING_STATUSES.has(purchase?.status)) {
         try {
-          const payload = await commerce.loadSeasonEntitlements({
-            organizationId,
-            seasonId: purchase.seasonId,
-          });
-          const normalized = normalizeTournamentEntitlements(payload, {
-            organizationId,
-            seasonId: purchase.seasonId,
-          });
+          // Reuse the context's authoritative read so Plan and this page agree.
+          // Standalone/legacy compositions retain their existing adapter path.
+          const refreshSharedPlan = sharedPlanRef.current;
+          const normalized = refreshSharedPlan && purchase.seasonId === seasonId
+            ? await refreshSharedPlan()
+            : normalizeTournamentEntitlements(await commerce.loadSeasonEntitlements({
+              organizationId,
+              seasonId: purchase.seasonId,
+            }), { organizationId, seasonId: purchase.seasonId });
           plan = normalized.isTrusted ? normalized.plan : null;
         } catch {
           plan = null;
         }
       }
+      if (requestId !== requestRef.current) return;
       setState({
         status: 'ready', purchase, plan, error: '',
       });
     } catch (error) {
+      if (requestId !== requestRef.current) return;
       setState({
         status: 'error',
         purchase: null,
@@ -94,7 +105,10 @@ export default function PurchaseStatusPage({ view }) {
     }
   }, [commerce, entitlementsAuthority, organizationId, purchaseId, seasonId, tournamentId]);
 
-  useEffect(() => { refresh(); }, [refresh]);
+  useEffect(() => {
+    refresh();
+    return () => { requestRef.current += 1; };
+  }, [refresh]);
   // Poll only while the purchase is open; every final status stops it.
   useEffect(() => {
     if (state.status !== 'ready' || !OPEN_STATUSES.has(state.purchase?.status)) return undefined;
