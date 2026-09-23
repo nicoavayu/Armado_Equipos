@@ -18,12 +18,17 @@
 // `/auth/v1/*` is not proxied (the browser talks to Core Auth directly); CORS is answered
 // for exactly one allowed origin; the trusted JWKS is published for verifiers. Secrets
 // (service HMAC, RS256 private key, database logins) live only in this function's env.
+//
+// MP-A4: commerce (commerce.ts, shared with the Node lab gateway). TORNEOS_COMMERCE_MODE unset → nothing
+// changes. "test" (lab only) → POST /commerce/v1/season-checkout and the 2 commerce reads on top of the 43;
+// any other value, or a faulty commerce configuration, disables the whole gateway like any config fault.
 import { decodeJwt } from "npm:jose@6.2.12"
 import { issueToken, verifyToken, uuid, jwks, TTL, type TorneosClaims } from "./token.ts"
 import { CoreClient, Denied, ROUTES } from "./core-client.ts"
 import { Adapter, AdapterDenied, CONTRACTS } from "./adapter.ts"
 import { connect, allocateIdentity, identityExists, isUnavailable, type Sql } from "./db.ts"
 import { loadConfig, routePath, ConfigError, type GatewayConfig } from "./config.ts"
+import { COMMERCE_ROUTE, CommerceConfigError, effectiveRpcAllowlist, loadCommerceConfig, seasonCheckout, type CommerceConfig } from "./commerce.ts"
 import allowlistDoc from "./staging-v1-rpc-allowlist.json" with { type: "json" }
 
 // Staging v1 RPC allowlist: fail closed if the document is malformed or empty.
@@ -41,18 +46,23 @@ type Runtime = {
   adapterSql: Sql
   adapter: Adapter
   core: CoreClient
+  commerce: CommerceConfig
+  rpcAllowlist: ReadonlySet<string>
 }
 let runtime: Runtime | null = null
 let bootError: string | null = null
 
 export function boot(env: Record<string, string | undefined>): Runtime {
   const cfg = loadConfig(env)
+  // Commerce is validated before any connection is opened: a faulty commerce config disables the gateway.
+  const commerce = loadCommerceConfig(env, { baseAllowlist: RPC_ALLOWLIST, gatewayPublicUrl: cfg.publicUrl,
+    distinctFrom: [env.TORNEOS_CONTRACT_SERVICE_SECRET, env.TORNEOS_BRIDGE_KEYS, ...cfg.bridge.keys.map((k) => k.privateKey), cfg.coreAnonKey, cfg.torneosAnonKey] })
   const identity = connect(cfg.identityWriterUrl, { sslCa: cfg.dbSslCa })
   const adapterSql = connect(cfg.coreAdapterUrl, { sslCa: cfg.dbSslCa })
   const coreHeaders = cfg.coreAnonKey ? { apikey: cfg.coreAnonKey } : {}
   // The Core service secret lives only in this function's env and in Core's function env.
   const core = new CoreClient(cfg.coreContractUrl, cfg.coreContractSecret, { extraHeaders: coreHeaders })
-  return { cfg, identity, adapterSql, adapter: new Adapter(adapterSql, core), core }
+  return { cfg, identity, adapterSql, adapter: new Adapter(adapterSql, core), core, commerce, rpcAllowlist: effectiveRpcAllowlist(RPC_ALLOWLIST, commerce) }
 }
 
 function getRuntime(): Runtime {
@@ -63,7 +73,7 @@ function getRuntime(): Runtime {
     return runtime
   } catch (error) {
     // Configuration faults disable the gateway; the reason is logged once, without values.
-    bootError = error instanceof ConfigError ? error.message : "boot failed"
+    bootError = error instanceof ConfigError || error instanceof CommerceConfigError ? error.message : "boot failed"
     console.error(`[torneos-gateway] disabled: ${bootError}`)
     throw new Unavailable()
   }
@@ -195,6 +205,18 @@ export async function handle(req: Request): Promise<Response> {
       const token = await issueToken(rt.cfg.bridge, row, c.sessionId)
       return json(200, { access_token: token, token_type: "Bearer", expires_in: TTL }, cors)
     }
+    if (rt.commerce.mode === "test" && req.method === "POST" && path === COMMERCE_ROUTE) {
+      const r = await seasonCheckout({ authorization: req.headers.get("authorization"), search: url.search,
+        contentLength: req.headers.get("content-length"), body: req.body }, rt.commerce, {
+        verifyBridge: (token) => verifyToken(token, rt.cfg.bridge),
+        activeSession: (c) => activeSession(rt, c.core_user_id, c.session_id),
+        identityExists: (c) => identityExists(rt.identity, c.sub, c.core_user_id),
+        isUnavailable: (error) => error instanceof Unavailable || isUnavailable(error),
+        restUrl: rt.cfg.torneosRestUrl, restApiKey: rt.cfg.torneosAnonKey,
+        log: (entry) => console.log(JSON.stringify(entry)),
+      })
+      return json(r.status, r.body, cors)
+    }
     const rest = /^\/torneos\/rest\/v1\/(rpc\/([a-z0-9_]+)|[a-z0-9_]+)$/.exec(path)
     if (rest && ["GET", "HEAD", "POST", "PATCH", "DELETE"].includes(req.method)) {
       const token = bearer(req)
@@ -202,7 +224,7 @@ export async function handle(req: Request): Promise<Response> {
       const rpc = rest[2]
       // Phase 2D: RPC names outside the staging v1 allowlist never reach PostgREST through this
       // gateway (verified bearer or not; the answer is a plain refusal, not a proxied 42501).
-      if (rpc && !RPC_ALLOWLIST.has(rpc)) return json(403, { error: "rpc not enabled" }, cors)
+      if (rpc && !rt.rpcAllowlist.has(rpc)) return json(403, { error: "rpc not enabled" }, cors)
       await activeSession(rt, p.core_user_id, p.session_id)
       if (!await identityExists(rt.identity, p.sub, p.core_user_id)) throw new Error("identity mismatch")
       let raw: Uint8Array | undefined

@@ -4,11 +4,15 @@
 // gateway DB credentials, and no worker receives the container's own variables (PATH, HOME, …).
 // Hosted Supabase shares Edge Function secrets across the whole project: this isolation exists only in the
 // lab and remains a Production blocker for the real deployment.
+// MP-A4: the gateway reads TORNEOS_COMMERCE_MODE; only when it is set does it also receive the link to
+// torneos-payments (internal URL + the shared HMAC key) — never a Mercado Pago value or the payments DB login.
 const GATEWAY_ENV = [
   "TORNEOS_GATEWAY_PUBLIC_URL", "TORNEOS_ALLOWED_ORIGIN", "CORE_AUTH_URL", "CORE_JWT_ISSUER", "CORE_ANON_KEY",
   "CORE_CONTRACT_URL", "TORNEOS_CONTRACT_SERVICE_SECRET", "TORNEOS_REST_URL", "TORNEOS_ANON_KEY",
   "TORNEOS_DB_IDENTITY_WRITER_URL", "TORNEOS_DB_CORE_ADAPTER_URL", "TORNEOS_DB_SSL_CA", "TORNEOS_BRIDGE_KEYS",
+  "TORNEOS_COMMERCE_MODE",
 ] as const
+const GATEWAY_COMMERCE_ENV = ["TORNEOS_PAYMENTS_INTERNAL_URL", "TORNEOS_PAYMENTS_INTERNAL_SECRET"] as const
 const PAYMENTS_ENV = [
   "TORNEOS_PAYMENT_PROVIDER", "MERCADO_PAGO_ENVIRONMENT", "MERCADO_PAGO_TEST_ACCESS_TOKEN", "MERCADO_PAGO_TEST_WEBHOOK_SECRET",
   "MERCADO_PAGO_TEST_SELLER_ID", "APP_PUBLIC_URL", "TORNEOS_PAYMENTS_NOTIFICATION_URL", "TORNEOS_PAYMENTS_INTERNAL_SECRET",
@@ -25,5 +29,6 @@ export const WORKERS: ReadonlySet<string> = new Set(ENV_BY_WORKER.keys())
 export function workerEnv(serviceName: string, env: Record<string, string | undefined>): [string, string][] {
   const names = ENV_BY_WORKER.get(serviceName)
   if (!names) throw new Error("unknown worker")
-  return names.filter((name) => typeof env[name] === "string").map((name) => [name, env[name] as string])
+  const commerce = serviceName === "torneos-gateway" && (env.TORNEOS_COMMERCE_MODE ?? "").trim() !== ""
+  return (commerce ? [...names, ...GATEWAY_COMMERCE_ENV] : names).filter((name) => typeof env[name] === "string").map((name) => [name, env[name] as string])
 }

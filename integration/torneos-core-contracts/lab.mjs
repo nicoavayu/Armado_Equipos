@@ -3,7 +3,7 @@
 // `postgres` (supabase/migrations/*.sql, including the Phase 3A contract migration).
 // Torneos: the UNCHANGED certified baseline (backend/torneos/supabase/migrations) behind
 // PostgREST with the Phase 1.5 JWKS contract. Only the gateway is published (loopback).
-import { mkdir, readFile, writeFile, access, readdir } from 'node:fs/promises';
+import { mkdir, readFile, writeFile, access, readdir, rm } from 'node:fs/promises';
 import { createHash, randomBytes } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
@@ -125,6 +125,18 @@ async function prepare() {
   await writeServerConfig(await config());
   await writeEdgeEnv(await config());
   if (COMMERCE) await writeCommerceEnv();
+  // MP-A4: outside commerce mode no gateway commerce configuration may survive from an earlier run.
+  else await Promise.all(GATEWAY_COMMERCE_FILES.map((f) => rm(`${root}.runtime/${f}`, { force: true })));
+}
+// MP-A4 (commerce mode only): the gateways' commerce configuration — TORNEOS_COMMERCE_MODE=test, the lab payments
+// mount and the internal HMAC key shared with torneos-payments. Node gateway: its private .runtime/server dir;
+// Edge gateway: an env file only compose.mpa.yaml loads (edge-main hands the URL/key to the gateway worker only
+// in commerce mode). Never a Mercado Pago value, the payment-service DB login or a Core/bridge secret.
+export const GATEWAY_COMMERCE_FILES = ['server/commerce.env', 'torneos-gateway-commerce.env'];
+export const PAYMENTS_INTERNAL_URL = 'http://torneos-functions:9000/torneos-payments';
+async function writeGatewayCommerceEnv(c) {
+  const lines = ['TORNEOS_COMMERCE_MODE=test', `TORNEOS_PAYMENTS_INTERNAL_URL=${PAYMENTS_INTERNAL_URL}`, `TORNEOS_PAYMENTS_INTERNAL_SECRET=${c.mpa.internalSecret}`];
+  for (const f of GATEWAY_COMMERCE_FILES) await writeFile(`${root}.runtime/${f}`, lines.join('\n') + '\n', { mode: 0o600 });
 }
 // MP-A3 (commerce mode only): ephemeral lab secrets of the payments service and the mp-stub, kept only in
 // the ignored .runtime (0600). None of them reaches the gateway env/config (writeEdgeEnv/writeServerConfig
@@ -156,6 +168,7 @@ async function writeCommerceEnv() {
   await writeFile(`${root}.runtime/torneos-payments.env`, payments.join('\n') + '\n', { mode: 0o600 });
   await writeFile(`${root}.runtime/mp-stub.env`, [`MP_STUB_ACCESS_TOKEN=${mpa.accessToken}`, `MP_STUB_SELLER_ID=${mpa.sellerId}`,
     `MP_STUB_CONTROL_TOKEN=${mpa.stubControlToken}`].join('\n') + '\n', { mode: 0o600 });
+  await writeGatewayCommerceEnv(c);
 }
 async function waitFor(label, probe, attempts = 90) {
   for (let i = 0; i < attempts; i++) {

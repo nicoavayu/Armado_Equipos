@@ -1,0 +1,9 @@
+{
+  "phase": "MP-A4",
+  "mode": "test",
+  "scope": "Commerce TEST read allowlist of the Torneos gateway. Applied only with TORNEOS_COMMERCE_MODE=test, on top of the 43 staging v1 RPCs (staging-v1-rpc-allowlist.json, unchanged): the generic proxy then allows 43 + 2 = 45. Reads only. The checkout creation RPC (create_tournament_season_checkout_purchase) is never listed here: it is reachable solely through the fixed route POST /commerce/v1/season-checkout. The database ACL (00000000000002) stays the final boundary.",
+  "rpcs": [
+    "get_tournament_purchase",
+    "get_effective_tournament_season_entitlements"
+  ]
+}
