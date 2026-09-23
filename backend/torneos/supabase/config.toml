@@ -9,3 +9,11 @@
 # session verdict, or the certified RS256 key ring) and fails closed.
 [functions.torneos-gateway]
 verify_jwt = false
+
+# MP-A3: Mercado Pago Checkout Pro TEST payments service. Two callers, neither with a Torneos-project
+# Auth JWT: the Torneos gateway (internal HMAC over path/time/nonce/body) and Mercado Pago's webhook
+# (x-signature). verify_jwt = false is NOT open access: the function authenticates each of its two routes
+# itself, answers 404 on every other method/path and reaches the database only as a NOINHERIT member of
+# torneos_payment_service (never service_role).
+[functions.torneos-payments]
+verify_jwt = false
