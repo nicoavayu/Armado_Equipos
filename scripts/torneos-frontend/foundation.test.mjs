@@ -142,9 +142,17 @@ test('the only backend access B04 adds is the gateway transport (fetch) and the 
   ]);
   const legacyEdges = new Set(legacy.coreDependencies.map((c) => `${c.file} -> ${c.source}`));
   const addedEdges = baseline.coreDependencies.map((c) => `${c.file} -> ${c.source}`).filter((edge) => !legacyEdges.has(edge));
+  // MP-A5 adds the commerce context: Plan/PurchaseStatus read commerce from it, its default is the
+  // legacy adapter (the only path from those pages to the legacy service) and the hybrid composition
+  // always overrides it (torneosMpA5HybridCommerce.test.jsx traps both the singleton and the adapter).
   assert.deepEqual(addedEdges, [
     'src/features/torneos/TorneosFeatureGate.jsx -> ./stagingV1/StagingV1TorneosApp',
+    'src/features/torneos/api/legacyCommerceAdapter.js -> ./tournamentWorkspaceService',
+    'src/features/torneos/components/PlanExperiencePage.jsx -> ../context/TorneosCommerceContext',
+    'src/features/torneos/components/PurchaseStatusPage.jsx -> ../context/TorneosCommerceContext',
+    'src/features/torneos/context/TorneosCommerceContext.jsx -> ../api/legacyCommerceAdapter',
     'src/features/torneos/stagingV1/StagingV1TorneosApp.jsx -> ../context/TorneosWorkspaceContext',
+    'src/features/torneos/stagingV1/StagingV1TorneosApp.jsx -> ../context/TorneosCommerceContext',
     'src/features/torneos/stagingV1/StagingV1TorneosApp.jsx -> ../components/TorneosShell',
     'src/features/torneos/stagingV1/StagingV1TorneosApp.jsx -> ./coreSessionBridge',
     'src/features/torneos/stagingV1/coreSessionBridge.js -> ../../../lib/coreSupabaseClient',

@@ -15,9 +15,11 @@ const ON = Object.freeze({
 });
 
 const OFF = Object.freeze({
-  // plan / billing
-  entitlements: false,          // get_effective_tournament_(season_)entitlements → fail-closed FREE without network
-  plan: false,                  // plan pages, checkout & purchases (Edge Functions + get_tournament_purchase)
+  // plan / billing — three separate concepts; only the MP-A5 TEST overlay below turns them on
+  entitlements: false,          // reading the effective season plan (get_effective_tournament_season_entitlements)
+  plan: false,                  // the season Plan page and its purchase status pages
+  billing: false,               // the frontend may start a checkout (Comprar Premium)
+  plan_legacy_routes: false,    // legacy Plan redirects (organization settings, tournament-scoped plan/purchase)
   // competition operation
   fixtures: false,              // fixture, draw, scheduling, venues & courts (26 RPC + 2 tables)
   match_operations: false,      // partidos, actas, convocatorias, mis-partidos (22 RPC)
@@ -40,6 +42,23 @@ const OFF = Object.freeze({
 });
 
 export const stagingV1Features = Object.freeze({ ...ON, ...OFF });
+
+// MP-A5: Mercado Pago Checkout Pro TEST in the local lab. The overlay is applied only for a
+// billing mode resolved to `test` (foundation/config.js resolveTorneosBillingMode: hybrid +
+// loopback gateway/Core/app + development build); anything else keeps the static map above.
+// The legacy Plan redirects are not part of it: they stay off in hybrid.
+export const stagingV1BillingTestOverlay = Object.freeze({
+  entitlements: true,
+  plan: true,
+  billing: true,
+});
+
+const billingTestFeatures = Object.freeze({ ...stagingV1Features, ...stagingV1BillingTestOverlay });
+
+export function stagingV1FeaturesFor(billingMode) {
+  const mode = typeof billingMode === 'string' ? billingMode : billingMode?.mode;
+  return mode === 'test' ? billingTestFeatures : stagingV1Features;
+}
 
 // The legacy composition (single-project LOCAL QA) keeps every surface on.
 export const legacyFeatures = Object.freeze(Object.fromEntries(

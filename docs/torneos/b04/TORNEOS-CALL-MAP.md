@@ -1,6 +1,6 @@
 # TORNEOS-CALL-MAP — auditoría B04
 
-Inventario legacy congelado en `2058da039a2a5eaaed22d87d01946bc596ae5f50` (Phase 2D); árbol integrado auditado en `2058da039a2a5eaaed22d87d01946bc596ae5f50`. Reconstruido del código. No representa resultados de R2/R3/R4/R5.
+Inventario legacy congelado en `2058da039a2a5eaaed22d87d01946bc596ae5f50` (Phase 2D); árbol integrado auditado en `02779321ec93f04950fa88eb670a19e33a57f530`. Reconstruido del código. No representa resultados de R2/R3/R4/R5.
 
 161 sitios RPC legacy; 160 nombres distintos; 34 nombres dentro de scope; 126 fuera. La selección dinámica de `changeTournamentMatchPlan` se resuelve a sus tres nombres literales. No quedan RPC dinámicas sin resolver.
 
@@ -198,10 +198,10 @@ Los únicos sitios fuera del inventario legacy. El transporte habla sólo con el
 
 | Tipo | Llamada | Sitio |
 | --- | --- | --- |
-| rpc | `transport.rpc` | [src/features/torneos/foundation/torneosClient.js:30](../../../src/features/torneos/foundation/torneosClient.js#L30) |
-| transport | `window.fetch` | [src/features/torneos/foundation/torneosTransport.js:89](../../../src/features/torneos/foundation/torneosTransport.js#L89) |
-| transport | `fetchImpl` | [src/features/torneos/foundation/torneosTransport.js:137](../../../src/features/torneos/foundation/torneosTransport.js#L137) |
-| transport | `fetchImpl` | [src/features/torneos/foundation/torneosTransport.js:193](../../../src/features/torneos/foundation/torneosTransport.js#L193) |
+| rpc | `transport.rpc` | [src/features/torneos/foundation/torneosClient.js:38](../../../src/features/torneos/foundation/torneosClient.js#L38) |
+| transport | `window.fetch` | [src/features/torneos/foundation/torneosTransport.js:98](../../../src/features/torneos/foundation/torneosTransport.js#L98) |
+| transport | `fetchImpl` | [src/features/torneos/foundation/torneosTransport.js:146](../../../src/features/torneos/foundation/torneosTransport.js#L146) |
+| transport | `fetchImpl` | [src/features/torneos/foundation/torneosTransport.js:204](../../../src/features/torneos/foundation/torneosTransport.js#L204) |
 | auth | `client.auth.getSession` | [src/features/torneos/stagingV1/coreSessionBridge.js:10](../../../src/features/torneos/stagingV1/coreSessionBridge.js#L10) |
 | auth | `client.auth.onAuthStateChange` | [src/features/torneos/stagingV1/coreSessionBridge.js:17](../../../src/features/torneos/stagingV1/coreSessionBridge.js#L17) |
 
@@ -282,7 +282,7 @@ Ninguna de estas superficies se habilita en la composición híbrida. `from` pue
 | [src/supabase.js:16](../../../src/supabase.js#L16) | `./lib/supabaseClient` |
 | [src/utils/checkView.js:2](../../../src/utils/checkView.js#L2) | `../lib/supabaseClient` |
 
-## Dependencias Core transitivas dentro de Torneos (116 aristas)
+## Dependencias Core transitivas dentro de Torneos (119 aristas)
 
 Cada fila es un import que alcanza el singleton por el grafo estático, no una consulta de datos ni una llamada en tiempo de ejecución. La única arista nueva de B04 es `stagingV1/coreSessionBridge.js → lib/coreSupabaseClient.js` (lectura de sesión y eventos de auth; nunca `rpc`/`from`/`storage`).
 
@@ -293,6 +293,7 @@ Cada fila es un import que alcanza el singleton por el grafo estático, no una c
 | [src/features/torneos/TorneosApp.jsx:4](../../../src/features/torneos/TorneosApp.jsx#L4) | `./api/localReviewWorkspaceService` |
 | [src/features/torneos/TorneosFeatureGate.jsx:8](../../../src/features/torneos/TorneosFeatureGate.jsx#L8) | `./TorneosApp` |
 | [src/features/torneos/TorneosFeatureGate.jsx:9](../../../src/features/torneos/TorneosFeatureGate.jsx#L9) | `./stagingV1/StagingV1TorneosApp` |
+| [src/features/torneos/api/legacyCommerceAdapter.js:1](../../../src/features/torneos/api/legacyCommerceAdapter.js#L1) | `./tournamentWorkspaceService` |
 | [src/features/torneos/api/localReviewWorkspaceService.js:1](../../../src/features/torneos/api/localReviewWorkspaceService.js#L1) | `./tournamentWorkspaceService` |
 | [src/features/torneos/api/publicTournamentService.js:1](../../../src/features/torneos/api/publicTournamentService.js#L1) | `../../../services/api/supabase` |
 | [src/features/torneos/api/publicTournamentService.js:2](../../../src/features/torneos/api/publicTournamentService.js#L2) | `../domain/brandingAssets` |
@@ -328,14 +329,14 @@ Cada fila es un import que alcanza el singleton por el grafo estático, no una c
 | [src/features/torneos/components/OrganizationSettingsPage.jsx:15](../../../src/features/torneos/components/OrganizationSettingsPage.jsx#L15) | `./BrandingAssetField` |
 | [src/features/torneos/components/OrganizationVenuesPage.jsx:4](../../../src/features/torneos/components/OrganizationVenuesPage.jsx#L4) | `../context/TorneosWorkspaceContext` |
 | [src/features/torneos/components/PersonalWorkspaceSwitcher.jsx:12](../../../src/features/torneos/components/PersonalWorkspaceSwitcher.jsx#L12) | `../context/TorneosWorkspaceContext` |
-| [src/features/torneos/components/PlanExperiencePage.jsx:12](../../../src/features/torneos/components/PlanExperiencePage.jsx#L12) | `../api/tournamentWorkspaceService` |
+| [src/features/torneos/components/PlanExperiencePage.jsx:14](../../../src/features/torneos/components/PlanExperiencePage.jsx#L14) | `../context/TorneosCommerceContext` |
 | [src/features/torneos/components/PlayerPortraitActions.jsx:4](../../../src/features/torneos/components/PlayerPortraitActions.jsx#L4) | `../api/tournamentPlayerPortraitService` |
 | [src/features/torneos/components/PlayerPortraitActions.jsx:9](../../../src/features/torneos/components/PlayerPortraitActions.jsx#L9) | `./usePlayerPortraitUrl` |
 | [src/features/torneos/components/PlayerPortraitActions.jsx:10](../../../src/features/torneos/components/PlayerPortraitActions.jsx#L10) | `./PlayerPortraitDialog` |
 | [src/features/torneos/components/PlayerPortraitDialog.jsx:10](../../../src/features/torneos/components/PlayerPortraitDialog.jsx#L10) | `./usePlayerPortraitUrl` |
 | [src/features/torneos/components/PublicTournamentPage.jsx:12](../../../src/features/torneos/components/PublicTournamentPage.jsx#L12) | `../api/publicTournamentService` |
 | [src/features/torneos/components/PublicTournamentPage.jsx:19](../../../src/features/torneos/components/PublicTournamentPage.jsx#L19) | `./BrandingImage` |
-| [src/features/torneos/components/PurchaseStatusPage.jsx:10](../../../src/features/torneos/components/PurchaseStatusPage.jsx#L10) | `../api/tournamentWorkspaceService` |
+| [src/features/torneos/components/PurchaseStatusPage.jsx:11](../../../src/features/torneos/components/PurchaseStatusPage.jsx#L11) | `../context/TorneosCommerceContext` |
 | [src/features/torneos/components/RosterPlayerPortrait.jsx:7](../../../src/features/torneos/components/RosterPlayerPortrait.jsx#L7) | `./usePlayerPortraitUrl` |
 | [src/features/torneos/components/SocialStudioPage.jsx:27](../../../src/features/torneos/components/SocialStudioPage.jsx#L27) | `../context/TorneosWorkspaceContext` |
 | [src/features/torneos/components/TeamInvitationPage.jsx:4](../../../src/features/torneos/components/TeamInvitationPage.jsx#L4) | `../context/TorneosWorkspaceContext` |
@@ -395,14 +396,16 @@ Cada fila es un import que alcanza el singleton por el grafo estático, no una c
 | [src/features/torneos/components/WorkspaceSwitcher.jsx:15](../../../src/features/torneos/components/WorkspaceSwitcher.jsx#L15) | `./BrandingImage` |
 | [src/features/torneos/components/usePlayerPortraitUrl.js:11](../../../src/features/torneos/components/usePlayerPortraitUrl.js#L11) | `../api/tournamentPlayerPortraitService` |
 | [src/features/torneos/components/useTeamPhotoUrl.js:8](../../../src/features/torneos/components/useTeamPhotoUrl.js#L8) | `../api/tournamentTeamPhotoService` |
+| [src/features/torneos/context/TorneosCommerceContext.jsx:2](../../../src/features/torneos/context/TorneosCommerceContext.jsx#L2) | `../api/legacyCommerceAdapter` |
 | [src/features/torneos/context/TorneosWorkspaceContext.jsx:10](../../../src/features/torneos/context/TorneosWorkspaceContext.jsx#L10) | `../api/tournamentWorkspaceService` |
 | [src/features/torneos/domain/brandingAssets.js:2](../../../src/features/torneos/domain/brandingAssets.js#L2) | `../../../services/api/supabase` |
 | [src/features/torneos/isolated/IsolatedTorneosPage.jsx:3](../../../src/features/torneos/isolated/IsolatedTorneosPage.jsx#L3) | `../../../components/AuthProvider` |
 | [src/features/torneos/isolated/IsolatedTorneosPage.jsx:4](../../../src/features/torneos/isolated/IsolatedTorneosPage.jsx#L4) | `../../../lib/supabaseClient` |
 | [src/features/torneos/isolated/IsolatedTorneosPage.jsx:5](../../../src/features/torneos/isolated/IsolatedTorneosPage.jsx#L5) | `../../../services/authLogoutService` |
 | [src/features/torneos/stagingV1/StagingV1TorneosApp.jsx:3](../../../src/features/torneos/stagingV1/StagingV1TorneosApp.jsx#L3) | `../context/TorneosWorkspaceContext` |
-| [src/features/torneos/stagingV1/StagingV1TorneosApp.jsx:5](../../../src/features/torneos/stagingV1/StagingV1TorneosApp.jsx#L5) | `../components/TorneosShell` |
-| [src/features/torneos/stagingV1/StagingV1TorneosApp.jsx:7](../../../src/features/torneos/stagingV1/StagingV1TorneosApp.jsx#L7) | `./coreSessionBridge` |
+| [src/features/torneos/stagingV1/StagingV1TorneosApp.jsx:5](../../../src/features/torneos/stagingV1/StagingV1TorneosApp.jsx#L5) | `../context/TorneosCommerceContext` |
+| [src/features/torneos/stagingV1/StagingV1TorneosApp.jsx:6](../../../src/features/torneos/stagingV1/StagingV1TorneosApp.jsx#L6) | `../components/TorneosShell` |
+| [src/features/torneos/stagingV1/StagingV1TorneosApp.jsx:8](../../../src/features/torneos/stagingV1/StagingV1TorneosApp.jsx#L8) | `./coreSessionBridge` |
 | [src/features/torneos/stagingV1/coreSessionBridge.js:4](../../../src/features/torneos/stagingV1/coreSessionBridge.js#L4) | `../../../lib/coreSupabaseClient` |
 
 ## Límites

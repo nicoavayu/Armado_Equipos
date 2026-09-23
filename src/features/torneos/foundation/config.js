@@ -82,3 +82,45 @@ export function resolveTorneosBackendMode(env = process.env) {
   }
   return { mode: 'disabled', reason: 'TORNEOS_GATEWAY_NOT_CONFIGURED', gatewayUrl: '' };
 }
+
+// MP-A5: whether the hybrid composition may offer the Premium purchase (Mercado Pago Checkout Pro
+// TEST, local lab only). ONE variable never decides it: `REACT_APP_TORNEOS_BILLING_MODE=test` counts
+// only together with the hybrid composition, a gateway AND a Core on loopback, the app itself served
+// from loopback, a development build and no Production reference anywhere. There is no live or
+// production mode: every other value, and every missing condition, is `off`.
+const BILLING_DEPLOY_ENVIRONMENTS = new Set(['development', 'local']);
+
+function isLoopbackTarget(value) {
+  try {
+    const url = new URL(value);
+    return (url.protocol === 'http:' || url.protocol === 'https:') && LOOPBACK_HOSTS.has(url.hostname)
+      && !url.username && !url.password;
+  } catch {
+    return false;
+  }
+}
+
+export function resolveTorneosBillingMode(env = process.env, {
+  backendMode = resolveTorneosBackendMode(env),
+  appHostname = null,
+} = {}) {
+  const off = (reason) => Object.freeze({ mode: 'off', reason });
+  const requested = String(env.REACT_APP_TORNEOS_BILLING_MODE ?? '').trim();
+  if (!requested) return off('TORNEOS_BILLING_NOT_CONFIGURED');
+  if (requested !== 'test') return off('TORNEOS_BILLING_MODE_INVALID');
+  if (backendMode?.mode !== 'hybrid' || !backendMode.gatewayUrl) return off('TORNEOS_BILLING_REQUIRES_HYBRID');
+  const coreUrl = env.REACT_APP_CORE_SUPABASE_URL || env.REACT_APP_SUPABASE_URL || '';
+  if (!isLoopbackTarget(backendMode.gatewayUrl)) return off('TORNEOS_BILLING_REQUIRES_LOCAL_GATEWAY');
+  if (!isLoopbackTarget(coreUrl)) return off('TORNEOS_BILLING_REQUIRES_LOCAL_CORE');
+  const productionRef = String(env.REACT_APP_PRODUCTION_PROJECT_REF || '').trim().toLowerCase();
+  if (productionRef && [backendMode.gatewayUrl, coreUrl].some((target) => target.toLowerCase().includes(productionRef))) {
+    return off('TORNEOS_BILLING_PRODUCTION_TARGET');
+  }
+  if (env.NODE_ENV === 'production'
+    || !BILLING_DEPLOY_ENVIRONMENTS.has(String(env.REACT_APP_DEPLOY_ENV || '').trim().toLowerCase())
+    || String(env.REACT_APP_TORNEOS_PRODUCTION_ENABLED || '').trim().toLowerCase() === 'true') {
+    return off('TORNEOS_BILLING_ENVIRONMENT_NOT_ALLOWED');
+  }
+  if (!LOOPBACK_HOSTS.has(String(appHostname || ''))) return off('TORNEOS_BILLING_REQUIRES_LOCAL_APP');
+  return Object.freeze({ mode: 'test', reason: null });
+}

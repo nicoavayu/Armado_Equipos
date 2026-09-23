@@ -1,0 +1,205 @@
+{
+  "suite": "MP-A5 browser journey — billing",
+  "run": "mpa59642",
+  "app": "http://localhost:3000",
+  "steps": [],
+  "network": {
+    "hosts": [
+      "127.0.0.1:58422",
+      "127.0.0.1:58423",
+      "fonts.googleapis.com",
+      "localhost:3000",
+      "www.mercadopago.com.ar"
+    ],
+    "corePaths": [
+      "GET /auth/v1/user",
+      "GET /rest/v1/jugadores",
+      "GET /rest/v1/notifications_ext",
+      "GET /rest/v1/player_awards",
+      "GET /rest/v1/teams",
+      "GET /rest/v1/usuarios",
+      "HEAD /rest/v1/partidos_manuales"
+    ],
+    "blockedNonLoopback": [
+      {
+        "host": "fonts.googleapis.com",
+        "aborted": 11
+      }
+    ],
+    "checkoutProMockPages": 3,
+    "rpcNames": [
+      "get_effective_tournament_season_entitlements",
+      "get_tournament_competition_context",
+      "get_tournament_purchase",
+      "get_tournament_workspace_context",
+      "set_tournament_workspace_preference"
+    ],
+    "commerceCheckoutRequests": 4,
+    "commerceCheckoutBodies": [
+      {
+        "phase": "A",
+        "keys": [
+          "organizationId",
+          "seasonId",
+          "idempotencyKey"
+        ]
+      },
+      {
+        "phase": "A",
+        "keys": [
+          "organizationId",
+          "seasonId",
+          "idempotencyKey"
+        ]
+      },
+      {
+        "phase": "B",
+        "keys": [
+          "organizationId",
+          "seasonId",
+          "idempotencyKey"
+        ]
+      },
+      {
+        "phase": "C",
+        "keys": [
+          "organizationId",
+          "seasonId",
+          "idempotencyKey"
+        ]
+      }
+    ],
+    "requests": 415
+  },
+  "db": {
+    "purchases": [
+      {
+        "season": "Apertura mpa59642",
+        "status": "refunded",
+        "amount": 39900,
+        "provider": "MERCADO_PAGO",
+        "environment": "test"
+      },
+      {
+        "season": "Clausura mpa59642",
+        "status": "approved",
+        "amount": 39900,
+        "provider": "MERCADO_PAGO",
+        "environment": "test"
+      },
+      {
+        "season": "Invierno mpa59642",
+        "status": "preference_created",
+        "amount": 39900,
+        "provider": "MERCADO_PAGO",
+        "environment": "test"
+      }
+    ]
+  },
+  "fixture": {
+    "organizationId": "cb59832f-ea55-45e3-b4cc-04ad61445554",
+    "seasons": {
+      "approved": "6fb623a6-f909-4066-ba70-8b69fd426f20",
+      "pending": "78df69d6-101d-4886-9f2a-aa1e524aa7d3",
+      "rejected": "81f03227-fcd2-4f7b-bbf0-1d7be14c4f8e",
+      "collab": "f82e146e-5ea5-4607-b138-e74db7a18605"
+    }
+  },
+  "results": [
+    {
+      "name": "A1 — Torneos → temporada → Plan: FREE with the server-side list/launch price and one-time payment",
+      "status": "PASS",
+      "ms": 920
+    },
+    {
+      "name": "A2 — payments unavailable: a double click sends ONE checkout; the page shows the 503 copy and no redirect",
+      "status": "PASS",
+      "ms": 463,
+      "detail": {
+        "checkoutRequests": 1
+      }
+    },
+    {
+      "name": "A3 — retry reuses the same idempotency key; stale `created` purchase + valid Preference → validated Checkout Pro redirect",
+      "status": "PASS",
+      "ms": 390,
+      "detail": {
+        "idempotencyKeyReused": true,
+        "purchaseCount": 1
+      }
+    },
+    {
+      "name": "A4 — checkout mock → mp-stub approved → signed webhook → back URL /exito (with MP query params) → PurchaseStatus → Premium visible",
+      "status": "PASS",
+      "ms": 587,
+      "detail": {
+        "webhookOutcome": "approved"
+      }
+    },
+    {
+      "name": "A5 — Plan shows Premium as the current plan (server entitlement) and no purchase button",
+      "status": "PASS",
+      "ms": 395
+    },
+    {
+      "name": "A6 — refund mock → signed webhook → refresh: PurchaseStatus «reembolsado», Plan back to Free",
+      "status": "PASS",
+      "ms": 865,
+      "detail": {
+        "refundOutcome": "reversal_applied"
+      }
+    },
+    {
+      "name": "B1 — checkout → mock in_process → back URL /pendiente → «esperando confirmación», polling every ~4 s, no Premium",
+      "status": "PASS",
+      "ms": 10333,
+      "detail": {
+        "pollsIn9s": 2
+      }
+    },
+    {
+      "name": "B2 — approval arrives while the page is open: polling shows Premium, then stops",
+      "status": "PASS",
+      "ms": 11993
+    },
+    {
+      "name": "C1 — checkout → mock rejected → back URL /fallo: the purchase stays open (MP-A2.1) → pending route with the rejection notice, no Premium, Plan Free",
+      "status": "PASS",
+      "ms": 1556,
+      "detail": {
+        "purchaseStatus": "preference_created",
+        "providerStatus": "rejected"
+      }
+    },
+    {
+      "name": "D1 — collaborator without billing.manage: sees the plan, cannot buy (UI), server refuses the checkout (403)",
+      "status": "PASS",
+      "ms": 1471,
+      "detail": {
+        "serverCheckout": [
+          403,
+          "TORNEOS_BILLING_FORBIDDEN"
+        ]
+      }
+    },
+    {
+      "name": "N — network: loopback only; Checkout Pro only as the local mock; no Torneos or commerce traffic to Core; commerce only through the gateway",
+      "status": "PASS",
+      "ms": 0,
+      "detail": {
+        "hosts": [
+          "127.0.0.1:58422",
+          "127.0.0.1:58423",
+          "fonts.googleapis.com",
+          "localhost:3000",
+          "www.mercadopago.com.ar"
+        ],
+        "blocked": 11,
+        "rpcNames": 5,
+        "commerceCheckoutRequests": 4
+      }
+    }
+  ],
+  "passed": 11,
+  "total": 11
+}

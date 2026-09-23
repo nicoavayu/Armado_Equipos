@@ -60,7 +60,7 @@
     "sentry:web:sourcemaps:upload": "node scripts/upload_sentry_sourcemaps.mjs",
     "release:web:sentry": "npm run build:web:release && npm run sentry:web:sourcemaps:upload",
     "test": "react-scripts test",
-    "test:torneos:frontend-foundation": "node --test scripts/torneos-frontend/foundation.test.mjs scripts/torneos-frontend/transport.test.mjs scripts/torneos-frontend/adapter.test.mjs",
+    "test:torneos:frontend-foundation": "node --test scripts/torneos-frontend/foundation.test.mjs scripts/torneos-frontend/transport.test.mjs scripts/torneos-frontend/adapter.test.mjs scripts/torneos-frontend/commerce.test.mjs",
     "test:ci": "npm run test:torneos:frontend-foundation && npm run test:staging:guard && npm run test:worker:signer-renewer && npm run test:media-runtime && npm run test:worker:media:ci && CI=true react-scripts test --watchAll=false --runInBand",
     "test:edge-functions": "node --test scripts/edge-functions/*.test.mjs",
     "test:torneos:mercadopago": "node --test scripts/edge-functions/mercadopago-provider.test.mjs",

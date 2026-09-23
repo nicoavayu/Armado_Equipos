@@ -16,11 +16,20 @@
 // Rules this module enforces: the bearer lives in memory only, is never decoded and
 // never persisted; a change of Core session discards it; every failure closes
 // (no request goes anywhere but the gateway); one silent re-exchange on 401, never more.
+//
+// MP-A5 adds ONE commerce route (MP-A4 gateway, commerce TEST only): POST
+// /commerce/v1/season-checkout with the same bearer, headers and failure mapping as the
+// RPC route. It is never retried beyond that single 401 renewal: the caller repeats a
+// checkout on purpose, with the same idempotency key.
 import { TorneosBoundaryError } from './errors';
+import { SEASON_CHECKOUT_PATH } from './stagingV1CommerceScope';
 
 export const EXCHANGE_PATH = '/exchange';
 export const REST_PATH = '/torneos/rest/v1';
 export const DEFAULT_REQUEST_TIMEOUT_MS = 10_000;
+// The gateway gives the checkout up to 4 s (DB) + 8 s (payments) after its own checks.
+export const COMMERCE_REQUEST_TIMEOUT_MS = 20_000;
+const MAX_REQUEST_TIMEOUT_MS = 120_000;
 // Renew before the gateway's own tolerance window would refuse the bearer.
 export const BEARER_RENEWAL_MARGIN_MS = 20_000;
 export const CORE_AUTH_EVENTS_THAT_CLEAR = Object.freeze([
@@ -185,9 +194,11 @@ export function createTorneosTransport({
     return pending.request;
   }
 
-  async function send(method, path, { body = undefined, headers = {}, signal = undefined, attempt = 0 } = {}) {
+  async function send(method, path, {
+    body = undefined, headers = {}, signal = undefined, attempt = 0, timeoutMs = requestTimeoutMs,
+  } = {}) {
     const token = await bearer({ force: attempt > 0 });
-    const { signal: timed, release } = withTimeout(requestTimeoutMs, signal);
+    const { signal: timed, release } = withTimeout(timeoutMs, signal);
     let response;
     try {
       response = await fetchImpl(`${base}${path}`, {
@@ -221,7 +232,7 @@ export function createTorneosTransport({
     if (status === 401) {
       clear();
       // One silent renewal: the bearer may simply have aged past the gateway's TTL.
-      if (attempt === 0) return send(method, path, { body, headers, signal, attempt: 1 });
+      if (attempt === 0) return send(method, path, { body, headers, signal, timeoutMs, attempt: 1 });
       throw new TorneosBoundaryError('TORNEOS_SESSION_INVALID', { status, gatewayError });
     }
     if (status === 503) {
@@ -268,6 +279,17 @@ export function createTorneosTransport({
       const suffix = search.toString() ? `?${search.toString()}` : '';
       const { json } = await send('GET', `${REST_PATH}/${table}${suffix}`, { signal });
       return Array.isArray(json) ? json : [];
+    },
+    async commerce(path, body, { signal, timeoutMs = COMMERCE_REQUEST_TIMEOUT_MS } = {}) {
+      if (path !== SEASON_CHECKOUT_PATH) throw new TorneosBoundaryError('TORNEOS_INVALID_REQUEST');
+      if (body === null || typeof body !== 'object' || Array.isArray(body)) {
+        throw new TorneosBoundaryError('TORNEOS_INVALID_REQUEST');
+      }
+      if (!Number.isInteger(timeoutMs) || timeoutMs <= 0 || timeoutMs > MAX_REQUEST_TIMEOUT_MS) {
+        throw new TorneosBoundaryError('TORNEOS_INVALID_REQUEST');
+      }
+      const { json } = await send('POST', path, { body, signal, timeoutMs });
+      return json;
     },
     clear,
     dispose() {

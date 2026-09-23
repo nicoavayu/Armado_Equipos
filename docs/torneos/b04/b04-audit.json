@@ -1,5 +1,5 @@
 {
-  "generatedFrom": "2058da039a2a5eaaed22d87d01946bc596ae5f50",
+  "generatedFrom": "02779321ec93f04950fa88eb670a19e33a57f530",
   "legacyBase": "2058da039a2a5eaaed22d87d01946bc596ae5f50",
   "coreSingletonSha256": "f39572e4cab0fd287bd1dea2ca87c97bd5500d0eff57cb8de6160f1e3271600c",
   "reachableCallSignatures": {
@@ -313,6 +313,11 @@
       "source": "./stagingV1/StagingV1TorneosApp"
     },
     {
+      "file": "src/features/torneos/api/legacyCommerceAdapter.js",
+      "line": 1,
+      "source": "./tournamentWorkspaceService"
+    },
+    {
       "file": "src/features/torneos/api/localReviewWorkspaceService.js",
       "line": 1,
       "source": "./tournamentWorkspaceService"
@@ -489,8 +494,8 @@
     },
     {
       "file": "src/features/torneos/components/PlanExperiencePage.jsx",
-      "line": 12,
-      "source": "../api/tournamentWorkspaceService"
+      "line": 14,
+      "source": "../context/TorneosCommerceContext"
     },
     {
       "file": "src/features/torneos/components/PlayerPortraitActions.jsx",
@@ -524,8 +529,8 @@
     },
     {
       "file": "src/features/torneos/components/PurchaseStatusPage.jsx",
-      "line": 10,
-      "source": "../api/tournamentWorkspaceService"
+      "line": 11,
+      "source": "../context/TorneosCommerceContext"
     },
     {
       "file": "src/features/torneos/components/RosterPlayerPortrait.jsx",
@@ -823,6 +828,11 @@
       "source": "../api/tournamentTeamPhotoService"
     },
     {
+      "file": "src/features/torneos/context/TorneosCommerceContext.jsx",
+      "line": 2,
+      "source": "../api/legacyCommerceAdapter"
+    },
+    {
       "file": "src/features/torneos/context/TorneosWorkspaceContext.jsx",
       "line": 10,
       "source": "../api/tournamentWorkspaceService"
@@ -855,11 +865,16 @@
     {
       "file": "src/features/torneos/stagingV1/StagingV1TorneosApp.jsx",
       "line": 5,
+      "source": "../context/TorneosCommerceContext"
+    },
+    {
+      "file": "src/features/torneos/stagingV1/StagingV1TorneosApp.jsx",
+      "line": 6,
       "source": "../components/TorneosShell"
     },
     {
       "file": "src/features/torneos/stagingV1/StagingV1TorneosApp.jsx",
-      "line": 7,
+      "line": 8,
       "source": "./coreSessionBridge"
     },
     {
@@ -2868,7 +2883,7 @@
     },
     {
       "file": "src/features/torneos/foundation/torneosClient.js",
-      "line": 30,
+      "line": 38,
       "kind": "rpc",
       "callee": "transport.rpc",
       "targets": [],
@@ -2877,7 +2892,7 @@
     },
     {
       "file": "src/features/torneos/foundation/torneosTransport.js",
-      "line": 89,
+      "line": 98,
       "kind": "transport",
       "callee": "window.fetch",
       "targets": [],
@@ -2886,7 +2901,7 @@
     },
     {
       "file": "src/features/torneos/foundation/torneosTransport.js",
-      "line": 137,
+      "line": 146,
       "kind": "transport",
       "callee": "fetchImpl",
       "targets": [],
@@ -2895,7 +2910,7 @@
     },
     {
       "file": "src/features/torneos/foundation/torneosTransport.js",
-      "line": 193,
+      "line": 204,
       "kind": "transport",
       "callee": "fetchImpl",
       "targets": [],

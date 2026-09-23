@@ -6,10 +6,15 @@
 // missing alias is how a blocked surface stays off without a request. Everything
 // here goes through `client.execute` / `client.select`; nothing imports the Core
 // singleton, the legacy service or storage.
+//
+// MP-A5: with `commerce: true` (billing TEST overlay only) it also serves the commerce
+// scope — loadSeasonEntitlements, loadPurchase, createCheckout — through the same client.
+// Without it those aliases do not exist, so nothing ever asks for them.
 import { v4 as uuidv4 } from 'uuid';
 import { createTorneosClient } from '../foundation/torneosClient';
 import { isTorneosBoundaryError } from '../foundation/errors';
 import { stagingV1Tables } from '../foundation/stagingV1Tables';
+import { COMMERCE_REQUEST_TIMEOUT_MS } from '../foundation/torneosTransport';
 import {
   ERROR_MESSAGES,
   TournamentWorkspaceError,
@@ -66,8 +71,88 @@ export function translateBoundaryError(error, fallbackMessage) {
 
 const orNull = (value) => (value === undefined || value === '' ? null : value);
 
-export function createStagingV1WorkspaceService({ transport }) {
-  const client = createTorneosClient({ transport });
+// ── MP-A5 commerce ──────────────────────────────────────────────────────────
+export const CHECKOUT_TIMEOUT_MS = COMMERCE_REQUEST_TIMEOUT_MS;
+// Every alias a commerce surface may duck-type. The composition strips them from any
+// service while billing is off, so an OFF overlay can never send a commerce request.
+export const COMMERCE_METHODS = Object.freeze([
+  'loadSeasonEntitlements', 'loadEntitlements', 'loadPurchase', 'createCheckout', 'simulateFakePayment', 'cancelPurchase',
+]);
+
+// User copy for the gateway's commerce answers (MP-A4 RISKS.md error mapping). The code
+// stays on the error so the page can react (e.g. no new purchase while suspended).
+export const COMMERCE_MESSAGES = Object.freeze({
+  TORNEOS_CHECKOUT_INVALID: 'No pudimos iniciar la compra con esos datos. Recargá la página y volvé a intentar.',
+  TORNEOS_BILLING_FORBIDDEN: ERROR_MESSAGES.TORNEOS_BILLING_FORBIDDEN,
+  TORNEOS_PURCHASE_FORBIDDEN: ERROR_MESSAGES.TORNEOS_PURCHASE_FORBIDDEN,
+  TORNEOS_SEASON_ALREADY_PREMIUM: ERROR_MESSAGES.TORNEOS_SEASON_ALREADY_PREMIUM,
+  TORNEOS_SEASON_PREMIUM_SUSPENDED: 'El Premium de esta temporada está suspendido por un contracargo en disputa. No se puede iniciar otra compra mientras se resuelve.',
+  TORNEOS_IDEMPOTENCY_CONFLICT: 'Ese intento de compra ya se usó con otros datos. Recargá la página para empezar de nuevo.',
+  TORNEOS_OPEN_PURCHASE_PROVIDER_CONFLICT: 'Ya hay una compra abierta para esta temporada con otro medio de pago. Esperá a que venza o se resuelva.',
+  TORNEOS_PREFERENCE_CONFLICT: 'La compra cambió mientras la preparábamos. Actualizá el plan y volvé a intentar.',
+  TORNEOS_CHECKOUT_EXPIRED: 'La solicitud de pago venció. Actualizá el plan y volvé a intentar.',
+  TORNEOS_PURCHASE_NOT_PAYABLE: 'Esta compra ya no admite pagos. Revisá su estado en el plan.',
+  TORNEOS_PRODUCT_UNAVAILABLE: 'Premium no está disponible para comprar en este momento.',
+  TORNEOS_OFFER_UNAVAILABLE: 'La oferta de Premium no está disponible en este momento.',
+  TORNEOS_CHECKOUT_FAILED: 'No pudimos preparar el pago y no se realizó ningún cobro. Volvé a intentar en unos minutos.',
+  TORNEOS_PAYMENTS_UNAVAILABLE: 'El servicio de pagos no está disponible en este momento y no se realizó ningún cobro. Volvé a intentar en unos minutos.',
+});
+
+function commerceCodeOf(error) {
+  if (!isTorneosBoundaryError(error)) return null;
+  const { gatewayError, status } = error;
+  if (error.code === 'TORNEOS_RPC_ERROR') {
+    if (gatewayError === 'TORNEOS_CHECKOUT_INVALID' || gatewayError === 'TORNEOS_CHECKOUT_TOO_LARGE') return 'TORNEOS_CHECKOUT_INVALID';
+    if (gatewayError && Object.prototype.hasOwnProperty.call(COMMERCE_MESSAGES, gatewayError)) return gatewayError;
+  }
+  if (error.code === 'TORNEOS_UNAVAILABLE') {
+    if (gatewayError === 'TORNEOS_PAYMENTS_UNAVAILABLE') return 'TORNEOS_PAYMENTS_UNAVAILABLE';
+    if (status === 502 || gatewayError === 'TORNEOS_CHECKOUT_FAILED') return 'TORNEOS_CHECKOUT_FAILED';
+  }
+  return null;
+}
+
+export function translateCommerceError(error, fallbackMessage) {
+  const code = commerceCodeOf(error);
+  if (code) return new TournamentWorkspaceError(code, COMMERCE_MESSAGES[code], error);
+  return translateBoundaryError(error, fallbackMessage);
+}
+
+const isPlainObject = (value) => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+const sameId = (a, b) => typeof a === 'string' && typeof b === 'string' && a.toLowerCase() === b.toLowerCase();
+const invalidRequest = () => new TournamentWorkspaceError(
+  'TORNEOS_INVALID_REQUEST',
+  BOUNDARY_MESSAGES.TORNEOS_INVALID_REQUEST,
+);
+const purchaseForbidden = () => new TournamentWorkspaceError(
+  'TORNEOS_PURCHASE_FORBIDDEN',
+  ERROR_MESSAGES.TORNEOS_PURCHASE_FORBIDDEN,
+);
+const checkoutFailed = () => new TournamentWorkspaceError(
+  'TORNEOS_CHECKOUT_FAILED',
+  COMMERCE_MESSAGES.TORNEOS_CHECKOUT_FAILED,
+);
+
+// The gateway answers {purchase, preference}. `purchase` is the DB snapshot at creation
+// (MP-A4 G1: a fresh checkout still says `created`); only `preference` matters for the
+// redirect and only the purchase/entitlement reads decide the state afterwards.
+function validCheckoutAnswer(answer, { organizationId, seasonId }) {
+  if (!isPlainObject(answer) || !isPlainObject(answer.purchase)) return false;
+  const { purchase, preference } = answer;
+  if (!UUID.test(String(purchase.id)) || typeof purchase.status !== 'string'
+    || !sameId(purchase.organizationId, organizationId) || !sameId(purchase.seasonId, seasonId)) return false;
+  if (preference === null) return true;
+  return isPlainObject(preference) && preference.provider === 'MERCADO_PAGO'
+    && typeof preference.checkoutUrl === 'string' && typeof preference.preferenceId === 'string';
+}
+
+export function createStagingV1WorkspaceService({
+  transport,
+  commerce = false,
+  checkoutTimeoutMs = CHECKOUT_TIMEOUT_MS,
+}) {
+  const commerceEnabled = commerce === true;
+  const client = createTorneosClient({ transport, commerce: commerceEnabled });
   if (client.status !== 'connected') {
     throw new TournamentWorkspaceError(
       'TORNEOS_TRANSPORT_NOT_CONNECTED',
@@ -89,7 +174,51 @@ export function createStagingV1WorkspaceService({ transport }) {
     }, 'No pudimos cargar tus torneos.');
   }
 
+  const commerceAliases = commerceEnabled ? {
+    // ── commerce (MP-A5, billing TEST overlay only) ────────────────────────
+    loadSeasonEntitlements: async ({ organizationId, seasonId } = {}) => {
+      if (!UUID.test(String(organizationId)) || !UUID.test(String(seasonId))) throw invalidRequest();
+      return call(
+        'get_effective_tournament_season_entitlements',
+        { p_organization_id: organizationId, p_season_id: seasonId },
+        'No pudimos cargar las funcionalidades disponibles para esta temporada.',
+      );
+    },
+    // The purchase must belong to the organization and season of the route: anything
+    // else fails closed, whatever the server returned.
+    loadPurchase: async ({ purchaseId, organizationId, seasonId } = {}) => {
+      if (![purchaseId, organizationId, seasonId].every((id) => UUID.test(String(id)))) throw invalidRequest();
+      const purchase = await call(
+        'get_tournament_purchase',
+        { p_purchase_id: purchaseId },
+        'No pudimos consultar el estado de la compra.',
+      );
+      if (!isPlainObject(purchase) || !sameId(purchase.id, purchaseId)
+        || !sameId(purchase.organizationId, organizationId) || !sameId(purchase.seasonId, seasonId)) {
+        throw purchaseForbidden();
+      }
+      return purchase;
+    },
+    // Exactly the gateway contract body. Price, provider, currency and environment are
+    // the server's; the idempotency key is the caller's (one per purchase attempt).
+    createCheckout: async ({ organizationId, seasonId, idempotencyKey } = {}) => {
+      if (![organizationId, seasonId, idempotencyKey].every((id) => UUID.test(String(id)))) throw invalidRequest();
+      let answer;
+      try {
+        answer = await client.checkout(
+          { organizationId, seasonId, idempotencyKey },
+          { timeoutMs: checkoutTimeoutMs },
+        );
+      } catch (error) {
+        throw translateCommerceError(error, 'No pudimos iniciar la compra.');
+      }
+      if (!validCheckoutAnswer(answer, { organizationId, seasonId })) throw checkoutFailed();
+      return answer;
+    },
+  } : {};
+
   return Object.freeze({
+    ...commerceAliases,
     // ── organizations / workspaces ─────────────────────────────────────────
     loadContext: () => call(
       'get_tournament_workspace_context',
@@ -475,4 +604,30 @@ export function createStagingV1WorkspaceService({ transport }) {
     // ── pure helpers ───────────────────────────────────────────────────────
     createIdempotencyKey: () => uuidv4(),
   });
+}
+
+// The value of TorneosCommerceContext for the hybrid composition: the commerce aliases
+// of a staging-v1 service (never the legacy service). `null` when the service has none.
+export function createStagingV1Commerce(service, { redirect = null } = {}) {
+  const required = ['loadSeasonEntitlements', 'loadPurchase', 'createCheckout', 'createIdempotencyKey'];
+  if (!service || required.some((name) => typeof service[name] !== 'function')) return null;
+  return Object.freeze({
+    source: 'hybrid',
+    // Premium is shown only from the server's effective season entitlement.
+    entitlementsAuthority: true,
+    loadSeasonEntitlements: (input) => service.loadSeasonEntitlements(input),
+    loadPurchase: (input) => service.loadPurchase(input),
+    createCheckout: (input) => service.createCheckout(input),
+    createIdempotencyKey: () => service.createIdempotencyKey(),
+    redirect: typeof redirect === 'function' ? redirect : null,
+  });
+}
+
+// A service with every commerce alias removed: what the workspace providers receive while
+// billing is off, so no screen can duck-type its way into a commerce request.
+export function withoutCommerce(service) {
+  if (!service) return service;
+  return Object.freeze(Object.fromEntries(
+    Object.entries(service).filter(([name]) => !COMMERCE_METHODS.includes(name)),
+  ));
 }
