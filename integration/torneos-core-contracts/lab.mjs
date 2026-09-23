@@ -109,6 +109,12 @@ async function prepare() {
       `CORE_ANON_KEY=${cfg.anonKey}\nTORNEOS_CONTRACT_SERVICE_SECRET=${cfg.coreContractSecret}\n`, { mode: 0o600 });
     await writeFile(`${root}.runtime/public/jwks.json`, JSON.stringify({ keys: [keys[0].publicKey] }));
   }
+  // MP-A2: password of the local payment-service login (a kept .runtime gets one on its next prepare).
+  // Never handed to the gateways: only the future payments service and the commerce DB suite use it.
+  const current = await config();
+  if (!current.paymentServicePassword) {
+    await writeFile(`${root}.runtime/config.json`, JSON.stringify({ ...current, paymentServicePassword: randomBytes(32).toString('hex') }), { mode: 0o600 });
+  }
   await writeServerConfig(await config());
   await writeEdgeEnv(await config());
 }
@@ -186,6 +192,16 @@ export async function installTorneos(c) {
     GRANT torneos_identity_writer TO lab_identity_writer;
     GRANT torneos_core_adapter TO lab_core_adapter;
     ALTER ROLE authenticator PASSWORD '${c.dbPassword}';`);
+  // MP-A2: local login of the payment service, a NOINHERIT member of the NOLOGIN role that
+  // 00000000000002 creates (the migration never creates logins). Absent role → no login.
+  sql('torneos-db', `
+    DO $$ BEGIN
+      IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname='torneos_payment_service') THEN
+        IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='lab_payment_service') THEN CREATE ROLE lab_payment_service LOGIN NOINHERIT; END IF;
+        EXECUTE format('ALTER ROLE lab_payment_service PASSWORD %L', '${c.paymentServicePassword}');
+        GRANT torneos_payment_service TO lab_payment_service;
+      END IF;
+    END $$;`);
   return { file: file.slice(repo.length), sha256, installed, certified_sha256: certified, migrations_after_baseline: followUps };
 }
 async function main() {

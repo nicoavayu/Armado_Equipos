@@ -1,0 +1,72 @@
+{
+  "generated_at": "2026-09-23T01:11:33.824Z",
+  "base": "http://127.0.0.1:58420",
+  "pass": 16,
+  "fail": 0,
+  "results": [
+    {
+      "name": "install: corrected baseline installed from an empty real Supabase database (image default ACLs present, installer supabase_admin)",
+      "status": "PASS"
+    },
+    {
+      "name": "grants: effective privilege inventory per function, sequence and relation (written to evidence)",
+      "status": "PASS"
+    },
+    {
+      "name": "anon: all 106 SERVICE_ONLY functions DENY (catalog EXECUTE false; Data API 42501 before the body)",
+      "status": "PASS"
+    },
+    {
+      "name": "anon: all 9 INTERNAL functions DENY (catalog EXECUTE false; Data API 42501 before the body)",
+      "status": "PASS"
+    },
+    {
+      "name": "authenticated: all 106 SERVICE_ONLY functions DENY with a valid bearer",
+      "status": "PASS"
+    },
+    {
+      "name": "authenticated: all 9 INTERNAL functions DENY with a valid bearer (no certified exception exists)",
+      "status": "PASS"
+    },
+    {
+      "name": "bearers: TRIGGER and ADAPTER_ONLY DEFINER functions are unreachable by anon/authenticated bearers and keep their certified grantees",
+      "status": "PASS"
+    },
+    {
+      "name": "public RPCs: exactly the 12 explicitly granted anon functions execute for anon (3 PUBLIC_READ + 9 IDENTITY_GATED_READ)",
+      "status": "PASS"
+    },
+    {
+      "name": "authenticated RPCs: the explicitly granted functions (180 in the baseline minus the 33 gated) execute with a valid bearer (guarded DEFINER write + predicate)",
+      "status": "PASS"
+    },
+    {
+      "name": "305/305 SECURITY DEFINER functions keep their Phase 2B grantees (modulo the Phase 2D staging v1 gate), owner and fixed search_path on the real stack",
+      "status": "PASS"
+    },
+    {
+      "name": "no privilege escalation: role graph, PostgREST role switch, sequences, private schema",
+      "status": "PASS"
+    },
+    {
+      "name": "no cross-workspace: another identity cannot read or mutate the organization through the Data API",
+      "status": "PASS"
+    },
+    {
+      "name": "no cross-season: an organization admin without a season assignment has no access to that season",
+      "status": "PASS"
+    },
+    {
+      "name": "no physical Core dependency: no FK outside public/private, no auth schema, no FDW/dblink",
+      "status": "PASS"
+    },
+    {
+      "name": "Data API: anon OpenAPI exposes only the anon-executable RPCs; SERVICE_ONLY/INTERNAL absent for anon and for a bearer",
+      "status": "PASS"
+    },
+    {
+      "name": "no secrets: lab secrets and JWTs absent from the baseline and from this suite's evidence",
+      "status": "PASS"
+    }
+  ]
+}

@@ -1,0 +1,533 @@
+{
+  "position": "direct PostgREST inside the private network",
+  "rows": [
+    {
+      "function": "authorize_tournament_social_export",
+      "role": "anon",
+      "status": 401,
+      "code": "42501",
+      "message": "permission denied for function authorize_tournament_social_export",
+      "verdict": "DENIED_BEFORE_BODY"
+    },
+    {
+      "function": "cancel_tournament_purchase",
+      "role": "anon",
+      "status": 401,
+      "code": "42501",
+      "message": "permission denied for function cancel_tournament_purchase",
+      "verdict": "DENIED_BEFORE_BODY"
+    },
+    {
+      "function": "change_tournament_media_gallery_state",
+      "role": "anon",
+      "status": 401,
+      "code": "42501",
+      "message": "permission denied for function change_tournament_media_gallery_state",
+      "verdict": "DENIED_BEFORE_BODY"
+    },
+    {
+      "function": "create_tournament_disciplinary_override",
+      "role": "anon",
+      "status": 401,
+      "code": "42501",
+      "message": "permission denied for function create_tournament_disciplinary_override",
+      "verdict": "DENIED_BEFORE_BODY"
+    },
+    {
+      "function": "create_tournament_match_correction",
+      "role": "anon",
+      "status": 401,
+      "code": "42501",
+      "message": "permission denied for function create_tournament_match_correction",
+      "verdict": "DENIED_BEFORE_BODY"
+    },
+    {
+      "function": "create_tournament_points_adjustment",
+      "role": "anon",
+      "status": 401,
+      "code": "42501",
+      "message": "permission denied for function create_tournament_points_adjustment",
+      "verdict": "DENIED_BEFORE_BODY"
+    },
+    {
+      "function": "get_tournament_player_portrait_ref",
+      "role": "anon",
+      "status": 401,
+      "code": "42501",
+      "message": "permission denied for function get_tournament_player_portrait_ref",
+      "verdict": "DENIED_BEFORE_BODY"
+    },
+    {
+      "function": "get_tournament_purchase",
+      "role": "anon",
+      "status": 401,
+      "code": "42501",
+      "message": "permission denied for function get_tournament_purchase",
+      "verdict": "DENIED_BEFORE_BODY"
+    },
+    {
+      "function": "has_tournament_entitlement",
+      "role": "anon",
+      "status": 401,
+      "code": "42501",
+      "message": "permission denied for function has_tournament_entitlement",
+      "verdict": "DENIED_BEFORE_BODY"
+    },
+    {
+      "function": "lock_tournament_roster",
+      "role": "anon",
+      "status": 401,
+      "code": "42501",
+      "message": "permission denied for function lock_tournament_roster",
+      "verdict": "DENIED_BEFORE_BODY"
+    },
+    {
+      "function": "make_tournament_match_official",
+      "role": "anon",
+      "status": 401,
+      "code": "42501",
+      "message": "permission denied for function make_tournament_match_official",
+      "verdict": "DENIED_BEFORE_BODY"
+    },
+    {
+      "function": "mark_tournament_suspension_served",
+      "role": "anon",
+      "status": 401,
+      "code": "42501",
+      "message": "permission denied for function mark_tournament_suspension_served",
+      "verdict": "DENIED_BEFORE_BODY"
+    },
+    {
+      "function": "publish_tournament_fixture",
+      "role": "anon",
+      "status": 401,
+      "code": "42501",
+      "message": "permission denied for function publish_tournament_fixture",
+      "verdict": "DENIED_BEFORE_BODY"
+    },
+    {
+      "function": "record_manual_match_availability",
+      "role": "anon",
+      "status": 401,
+      "code": "42501",
+      "message": "permission denied for function record_manual_match_availability",
+      "verdict": "DENIED_BEFORE_BODY"
+    },
+    {
+      "function": "reopen_tournament_participants",
+      "role": "anon",
+      "status": 401,
+      "code": "42501",
+      "message": "permission denied for function reopen_tournament_participants",
+      "verdict": "DENIED_BEFORE_BODY"
+    },
+    {
+      "function": "report_tournament_media_asset",
+      "role": "anon",
+      "status": 401,
+      "code": "42501",
+      "message": "permission denied for function report_tournament_media_asset",
+      "verdict": "DENIED_BEFORE_BODY"
+    },
+    {
+      "function": "request_tournament_match_correction",
+      "role": "anon",
+      "status": 401,
+      "code": "42501",
+      "message": "permission denied for function request_tournament_match_correction",
+      "verdict": "DENIED_BEFORE_BODY"
+    },
+    {
+      "function": "resolve_tournament_qualification",
+      "role": "anon",
+      "status": 401,
+      "code": "42501",
+      "message": "permission denied for function resolve_tournament_qualification",
+      "verdict": "DENIED_BEFORE_BODY"
+    },
+    {
+      "function": "review_tournament_match_operation",
+      "role": "anon",
+      "status": 401,
+      "code": "42501",
+      "message": "permission denied for function review_tournament_match_operation",
+      "verdict": "DENIED_BEFORE_BODY"
+    },
+    {
+      "function": "revoke_tournament_player_portrait_publication",
+      "role": "anon",
+      "status": 401,
+      "code": "42501",
+      "message": "permission denied for function revoke_tournament_player_portrait_publication",
+      "verdict": "DENIED_BEFORE_BODY"
+    },
+    {
+      "function": "revoke_tournament_points_adjustment",
+      "role": "anon",
+      "status": 401,
+      "code": "42501",
+      "message": "permission denied for function revoke_tournament_points_adjustment",
+      "verdict": "DENIED_BEFORE_BODY"
+    },
+    {
+      "function": "revoke_tournament_team_photo",
+      "role": "anon",
+      "status": 401,
+      "code": "42501",
+      "message": "permission denied for function revoke_tournament_team_photo",
+      "verdict": "DENIED_BEFORE_BODY"
+    },
+    {
+      "function": "save_tournament_draw_pots",
+      "role": "anon",
+      "status": 401,
+      "code": "42501",
+      "message": "permission denied for function save_tournament_draw_pots",
+      "verdict": "DENIED_BEFORE_BODY"
+    },
+    {
+      "function": "schedule_tournament_match",
+      "role": "anon",
+      "status": 401,
+      "code": "42501",
+      "message": "permission denied for function schedule_tournament_match",
+      "verdict": "DENIED_BEFORE_BODY"
+    },
+    {
+      "function": "set_tournament_player_portrait_crop",
+      "role": "anon",
+      "status": 401,
+      "code": "42501",
+      "message": "permission denied for function set_tournament_player_portrait_crop",
+      "verdict": "DENIED_BEFORE_BODY"
+    },
+    {
+      "function": "set_tournament_player_portrait_editorial_status",
+      "role": "anon",
+      "status": 401,
+      "code": "42501",
+      "message": "permission denied for function set_tournament_player_portrait_editorial_status",
+      "verdict": "DENIED_BEFORE_BODY"
+    },
+    {
+      "function": "submit_match_squad",
+      "role": "anon",
+      "status": 401,
+      "code": "42501",
+      "message": "permission denied for function submit_match_squad",
+      "verdict": "DENIED_BEFORE_BODY"
+    },
+    {
+      "function": "supersede_tournament_fixture",
+      "role": "anon",
+      "status": 401,
+      "code": "42501",
+      "message": "permission denied for function supersede_tournament_fixture",
+      "verdict": "DENIED_BEFORE_BODY"
+    },
+    {
+      "function": "transition_tournament_media_asset",
+      "role": "anon",
+      "status": 401,
+      "code": "42501",
+      "message": "permission denied for function transition_tournament_media_asset",
+      "verdict": "DENIED_BEFORE_BODY"
+    },
+    {
+      "function": "update_draft_fixture",
+      "role": "anon",
+      "status": 401,
+      "code": "42501",
+      "message": "permission denied for function update_draft_fixture",
+      "verdict": "DENIED_BEFORE_BODY"
+    },
+    {
+      "function": "validate_tournament_match_operation",
+      "role": "anon",
+      "status": 401,
+      "code": "42501",
+      "message": "permission denied for function validate_tournament_match_operation",
+      "verdict": "DENIED_BEFORE_BODY"
+    },
+    {
+      "function": "void_tournament_match_event",
+      "role": "anon",
+      "status": 401,
+      "code": "42501",
+      "message": "permission denied for function void_tournament_match_event",
+      "verdict": "DENIED_BEFORE_BODY"
+    },
+    {
+      "function": "auto_schedule_tournament_matches",
+      "role": "anon",
+      "status": 401,
+      "code": "42501",
+      "message": "permission denied for function auto_schedule_tournament_matches",
+      "verdict": "DENIED_BEFORE_BODY"
+    },
+    {
+      "function": "authorize_tournament_social_export",
+      "role": "authenticated",
+      "status": 403,
+      "code": "42501",
+      "message": "permission denied for function authorize_tournament_social_export",
+      "verdict": "DENIED_BEFORE_BODY"
+    },
+    {
+      "function": "cancel_tournament_purchase",
+      "role": "authenticated",
+      "status": 403,
+      "code": "42501",
+      "message": "permission denied for function cancel_tournament_purchase",
+      "verdict": "DENIED_BEFORE_BODY"
+    },
+    {
+      "function": "change_tournament_media_gallery_state",
+      "role": "authenticated",
+      "status": 403,
+      "code": "42501",
+      "message": "permission denied for function change_tournament_media_gallery_state",
+      "verdict": "DENIED_BEFORE_BODY"
+    },
+    {
+      "function": "create_tournament_disciplinary_override",
+      "role": "authenticated",
+      "status": 403,
+      "code": "42501",
+      "message": "permission denied for function create_tournament_disciplinary_override",
+      "verdict": "DENIED_BEFORE_BODY"
+    },
+    {
+      "function": "create_tournament_match_correction",
+      "role": "authenticated",
+      "status": 403,
+      "code": "42501",
+      "message": "permission denied for function create_tournament_match_correction",
+      "verdict": "DENIED_BEFORE_BODY"
+    },
+    {
+      "function": "create_tournament_points_adjustment",
+      "role": "authenticated",
+      "status": 403,
+      "code": "42501",
+      "message": "permission denied for function create_tournament_points_adjustment",
+      "verdict": "DENIED_BEFORE_BODY"
+    },
+    {
+      "function": "get_tournament_player_portrait_ref",
+      "role": "authenticated",
+      "status": 403,
+      "code": "42501",
+      "message": "permission denied for function get_tournament_player_portrait_ref",
+      "verdict": "DENIED_BEFORE_BODY"
+    },
+    {
+      "function": "get_tournament_purchase",
+      "role": "authenticated",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_PURCHASE_FORBIDDEN",
+      "verdict": "OTHER"
+    },
+    {
+      "function": "has_tournament_entitlement",
+      "role": "authenticated",
+      "status": 403,
+      "code": "42501",
+      "message": "permission denied for function has_tournament_entitlement",
+      "verdict": "DENIED_BEFORE_BODY"
+    },
+    {
+      "function": "lock_tournament_roster",
+      "role": "authenticated",
+      "status": 403,
+      "code": "42501",
+      "message": "permission denied for function lock_tournament_roster",
+      "verdict": "DENIED_BEFORE_BODY"
+    },
+    {
+      "function": "make_tournament_match_official",
+      "role": "authenticated",
+      "status": 403,
+      "code": "42501",
+      "message": "permission denied for function make_tournament_match_official",
+      "verdict": "DENIED_BEFORE_BODY"
+    },
+    {
+      "function": "mark_tournament_suspension_served",
+      "role": "authenticated",
+      "status": 403,
+      "code": "42501",
+      "message": "permission denied for function mark_tournament_suspension_served",
+      "verdict": "DENIED_BEFORE_BODY"
+    },
+    {
+      "function": "publish_tournament_fixture",
+      "role": "authenticated",
+      "status": 403,
+      "code": "42501",
+      "message": "permission denied for function publish_tournament_fixture",
+      "verdict": "DENIED_BEFORE_BODY"
+    },
+    {
+      "function": "record_manual_match_availability",
+      "role": "authenticated",
+      "status": 403,
+      "code": "42501",
+      "message": "permission denied for function record_manual_match_availability",
+      "verdict": "DENIED_BEFORE_BODY"
+    },
+    {
+      "function": "reopen_tournament_participants",
+      "role": "authenticated",
+      "status": 403,
+      "code": "42501",
+      "message": "permission denied for function reopen_tournament_participants",
+      "verdict": "DENIED_BEFORE_BODY"
+    },
+    {
+      "function": "report_tournament_media_asset",
+      "role": "authenticated",
+      "status": 403,
+      "code": "42501",
+      "message": "permission denied for function report_tournament_media_asset",
+      "verdict": "DENIED_BEFORE_BODY"
+    },
+    {
+      "function": "request_tournament_match_correction",
+      "role": "authenticated",
+      "status": 403,
+      "code": "42501",
+      "message": "permission denied for function request_tournament_match_correction",
+      "verdict": "DENIED_BEFORE_BODY"
+    },
+    {
+      "function": "resolve_tournament_qualification",
+      "role": "authenticated",
+      "status": 403,
+      "code": "42501",
+      "message": "permission denied for function resolve_tournament_qualification",
+      "verdict": "DENIED_BEFORE_BODY"
+    },
+    {
+      "function": "review_tournament_match_operation",
+      "role": "authenticated",
+      "status": 403,
+      "code": "42501",
+      "message": "permission denied for function review_tournament_match_operation",
+      "verdict": "DENIED_BEFORE_BODY"
+    },
+    {
+      "function": "revoke_tournament_player_portrait_publication",
+      "role": "authenticated",
+      "status": 403,
+      "code": "42501",
+      "message": "permission denied for function revoke_tournament_player_portrait_publication",
+      "verdict": "DENIED_BEFORE_BODY"
+    },
+    {
+      "function": "revoke_tournament_points_adjustment",
+      "role": "authenticated",
+      "status": 403,
+      "code": "42501",
+      "message": "permission denied for function revoke_tournament_points_adjustment",
+      "verdict": "DENIED_BEFORE_BODY"
+    },
+    {
+      "function": "revoke_tournament_team_photo",
+      "role": "authenticated",
+      "status": 403,
+      "code": "42501",
+      "message": "permission denied for function revoke_tournament_team_photo",
+      "verdict": "DENIED_BEFORE_BODY"
+    },
+    {
+      "function": "save_tournament_draw_pots",
+      "role": "authenticated",
+      "status": 403,
+      "code": "42501",
+      "message": "permission denied for function save_tournament_draw_pots",
+      "verdict": "DENIED_BEFORE_BODY"
+    },
+    {
+      "function": "schedule_tournament_match",
+      "role": "authenticated",
+      "status": 403,
+      "code": "42501",
+      "message": "permission denied for function schedule_tournament_match",
+      "verdict": "DENIED_BEFORE_BODY"
+    },
+    {
+      "function": "set_tournament_player_portrait_crop",
+      "role": "authenticated",
+      "status": 403,
+      "code": "42501",
+      "message": "permission denied for function set_tournament_player_portrait_crop",
+      "verdict": "DENIED_BEFORE_BODY"
+    },
+    {
+      "function": "set_tournament_player_portrait_editorial_status",
+      "role": "authenticated",
+      "status": 403,
+      "code": "42501",
+      "message": "permission denied for function set_tournament_player_portrait_editorial_status",
+      "verdict": "DENIED_BEFORE_BODY"
+    },
+    {
+      "function": "submit_match_squad",
+      "role": "authenticated",
+      "status": 403,
+      "code": "42501",
+      "message": "permission denied for function submit_match_squad",
+      "verdict": "DENIED_BEFORE_BODY"
+    },
+    {
+      "function": "supersede_tournament_fixture",
+      "role": "authenticated",
+      "status": 403,
+      "code": "42501",
+      "message": "permission denied for function supersede_tournament_fixture",
+      "verdict": "DENIED_BEFORE_BODY"
+    },
+    {
+      "function": "transition_tournament_media_asset",
+      "role": "authenticated",
+      "status": 403,
+      "code": "42501",
+      "message": "permission denied for function transition_tournament_media_asset",
+      "verdict": "DENIED_BEFORE_BODY"
+    },
+    {
+      "function": "update_draft_fixture",
+      "role": "authenticated",
+      "status": 403,
+      "code": "42501",
+      "message": "permission denied for function update_draft_fixture",
+      "verdict": "DENIED_BEFORE_BODY"
+    },
+    {
+      "function": "validate_tournament_match_operation",
+      "role": "authenticated",
+      "status": 403,
+      "code": "42501",
+      "message": "permission denied for function validate_tournament_match_operation",
+      "verdict": "DENIED_BEFORE_BODY"
+    },
+    {
+      "function": "void_tournament_match_event",
+      "role": "authenticated",
+      "status": 403,
+      "code": "42501",
+      "message": "permission denied for function void_tournament_match_event",
+      "verdict": "DENIED_BEFORE_BODY"
+    },
+    {
+      "function": "auto_schedule_tournament_matches",
+      "role": "authenticated",
+      "status": 403,
+      "code": "42501",
+      "message": "permission denied for function auto_schedule_tournament_matches",
+      "verdict": "DENIED_BEFORE_BODY"
+    }
+  ]
+}

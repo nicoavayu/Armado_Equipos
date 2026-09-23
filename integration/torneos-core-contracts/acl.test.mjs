@@ -27,6 +27,15 @@ const baselineSql = await readFile(`${repo}backend/torneos/supabase/migrations/0
 // Phase 2D staging v1 gate: these functions lose client EXECUTE after the baseline installs.
 const gate = JSON.parse(await readFile(`${repo}backend/torneos/phase2d/staging-v1-rpc-gate.json`, 'utf8'));
 const GATED = new Set(gate.functions.map(g => g.function));
+// MP-A2 (00000000000002): the only authorized ACL delta after the gate (new SECURITY DEFINER commerce RPCs,
+// get_tournament_purchase re-granted, the two direct purchase creators revoked from authenticated).
+const MPA2 = JSON.parse(await readFile(`${repo}backend/torneos/mp-a/mp-a2-acl-delta.json`, 'utf8'));
+const MPA2_GRANTED = new Set(MPA2.authenticated_execute_granted);
+const MPA2_REVOKED = new Set(MPA2.authenticated_execute_revoked);
+const MPA2_NEW_AUTH = MPA2.new_security_definer_functions.filter(f => f.api_grantees.includes('authenticated')).map(f => f.function);
+const MPA2_AUTH_NET = MPA2_NEW_AUTH.length + MPA2_GRANTED.size - MPA2_REVOKED.size;
+/** A certified per-function expectation shifted by exactly the MP-A2 delta. */
+function withMpA2(fn, authenticated) { return MPA2_GRANTED.has(fn) ? true : (MPA2_REVOKED.has(fn) ? false : authenticated); }
 
 /** Direct PostgREST calls from inside the private network, batched in one container exec. */
 function restBatch(calls) {
@@ -114,7 +123,7 @@ test('Phase 2C — real Supabase stack ACL certification', async (t) => {
       assert.deepEqual(summary.execute.anon, { public_functions: 12, private_functions: 2, security_definer: 12 });
       // Phase 2C measured 180 / 179 on the baseline alone; the Phase 2D gate removes exactly its manifest (33 SECURITY DEFINER RPCs).
       assert.equal(GATED.size, 33);
-      assert.deepEqual(summary.execute.authenticated, { public_functions: 180 - GATED.size, private_functions: 2, security_definer: 179 - GATED.size });
+      assert.deepEqual(summary.execute.authenticated, { public_functions: 180 - GATED.size + MPA2_AUTH_NET, private_functions: 2, security_definer: 179 - GATED.size + MPA2_AUTH_NET });
       assert.deepEqual(summary.execute.service_role, { public_functions: 328, private_functions: 2, security_definer: 284 });
       assert.equal(summary.public_execute_functions, 0, 'no function is executable by PUBLIC');
       assert.deepEqual(summary.sequence_privilege, { anon: 0, authenticated: 4, service_role: 4, postgres: 7 });
@@ -128,6 +137,13 @@ test('Phase 2C — real Supabase stack ACL certification', async (t) => {
         return v;
       };
       const a = view(inventory), b = view(template0);
+      // MP-A2 shift of the certified template0 view: authenticated flips on the re-granted/revoked RPCs; the new
+      // RPCs exist with their manifest grantees (never anon/PUBLIC, no service_role, no adapter/writer).
+      for (const f of [...MPA2_GRANTED, ...MPA2_REVOKED]) b['function:' + f] = { ...b['function:' + f], authenticated: withMpA2(f, b['function:' + f].authenticated) };
+      for (const f of MPA2.new_security_definer_functions) {
+        assert.ok(!b['function:' + f.function], `${f.function} is new in MP-A2`);
+        b['function:' + f.function] = { anon: false, authenticated: f.api_grantees.includes('authenticated'), service_role: f.api_grantees.includes('service_role'), public: false, adapter: false, writer: false, security_definer: true, settings: ['search_path=""'] };
+      }
       const mismatches = Object.keys({ ...a, ...b }).filter(k => JSON.stringify(a[k]) !== JSON.stringify(b[k]));
       assert.deepEqual(mismatches, [], 'real stack == template0 for API-role privileges');
       assert.ok(Object.keys(a).length >= 470, `objects compared: ${Object.keys(a).length}`);
@@ -184,9 +200,9 @@ test('Phase 2C — real Supabase stack ACL certification', async (t) => {
     let org;
     await check('authenticated RPCs: the explicitly granted functions (180 in the baseline minus the 33 gated) execute with a valid bearer (guarded DEFINER write + predicate)', async () => {
       const authFns = publicFns.filter(f => f.authenticated).map(f => f.function).sort();
-      const t0Fns = template0.functions.filter(f => f.schema === 'public' && f.authenticated).map(f => f.function).sort();
-      assert.deepEqual(authFns, t0Fns); assert.equal(authFns.length, 180 - GATED.size);
-      assert.deepEqual(authFns.filter(f => GATED.has(f)), [], 'no gated function is executable by authenticated');
+      const t0Fns = [...template0.functions.filter(f => f.schema === 'public' && withMpA2(f.function, f.authenticated)).map(f => f.function), ...MPA2_NEW_AUTH].sort();
+      assert.deepEqual(authFns, t0Fns); assert.equal(authFns.length, 180 - GATED.size + MPA2_AUTH_NET);
+      assert.deepEqual(authFns.filter(f => GATED.has(f)), [...MPA2_GRANTED].filter(f => GATED.has(f)).sort(), 'no gated function is executable by authenticated except the MP-A2 re-grant');
       const slug = `phase2c-${randomUUID().slice(0, 8)}`;
       const r = restBatch([{ id: 'org', path: '/rpc/create_tournament_organization', token: actorToken, body: { p_name: 'Phase 2C League', p_slug: slug, p_idempotency_key: randomUUID() } }])[0];
       assert.equal(r.status, 200, JSON.stringify(r.body));
@@ -203,7 +219,9 @@ test('Phase 2C — real Supabase stack ACL certification', async (t) => {
         assert.ok(row, `missing ${f.function}`);
         const grantees = ['anon', 'authenticated', 'service_role'].filter(r => row[r]).concat(row.torneos_core_adapter ? ['adapter'] : []);
         // A gated function keeps its ledger category; the gate only removes the client roles.
-        const expected = GATED.has(f.function) ? f.grantees.filter(g => !['anon', 'authenticated'].includes(g)) : f.grantees;
+        const gatedExpected = GATED.has(f.function) ? f.grantees.filter(g => !['anon', 'authenticated'].includes(g)) : f.grantees;
+        // MP-A2 then re-grants / revokes authenticated on its listed RPCs only.
+        const expected = ['anon', 'authenticated', 'service_role', 'adapter'].filter(g => g === 'authenticated' ? withMpA2(f.function, gatedExpected.includes(g)) : gatedExpected.includes(g));
         const ok = JSON.stringify(grantees) === JSON.stringify(expected) && row.security_definer && row.owner === 'supabase_admin' && (row.settings ?? []).includes('search_path=""')
           && (['PUBLIC_READ', 'IDENTITY_GATED_READ'].includes(f.category) ? row.anon : !row.anon)
           && (['SERVICE_ONLY', 'INTERNAL', 'TRIGGER', 'ADAPTER_ONLY'].includes(f.category) ? (!row.anon && !row.authenticated) : true);
@@ -212,7 +230,7 @@ test('Phase 2C — real Supabase stack ACL certification', async (t) => {
       await writeFile('evidence/acl-security-definer-recert.json', JSON.stringify({ total: rows.length, maintained: rows.filter(r => r.disposition_maintained).length, staging_v1_gated: rows.filter(r => r.staging_v1_gated).length, categories: Object.fromEntries([...new Set(rows.map(r => r.category))].sort().map(c => [c, rows.filter(r => r.category === c).length])), functions: rows }, null, 2) + '\n');
       assert.equal(rows.filter(r => !r.disposition_maintained).length, 0);
       assert.equal(rows.length, 305);
-      assert.equal(torneosSql("select count(*) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname in ('public','private') and p.prosecdef").trim(), '305');
+      assert.equal(torneosSql("select count(*) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname in ('public','private') and p.prosecdef").trim(), String(305 + MPA2.new_security_definer_functions.length), 'the 305 certified + the MP-A2 commerce RPCs');
     });
     await check('no privilege escalation: role graph, PostgREST role switch, sequences, private schema', async () => {
       const roles = Object.fromEntries(inventory.roles.map(r => [r.role, r]));

@@ -1,0 +1,28 @@
+{
+  "phase": "MP-A2",
+  "migration": "backend/torneos/supabase/migrations/00000000000002_mercadopago_checkout_pro_test.sql",
+  "scope": "The only authorized privilege/catalog delta of the Mercado Pago TEST commercial DB migration over the certified baseline 00000000000000 + staging v1 gate 00000000000001. Consumed by commerce-db.test.mjs (live ACL must equal it exactly) and by the historical tripwires acl.test.mjs / exposure.test.mjs (their certified expectations are shifted by exactly this delta and nothing else). The staging v1 gateway allowlist is NOT changed: the gateway keeps refusing every commercial RPC.",
+  "new_security_definer_functions": [
+    { "function": "create_tournament_season_checkout_purchase(uuid,uuid,uuid)", "identity_arguments": "p_organization_id uuid, p_season_id uuid, p_idempotency_key uuid", "api_grantees": ["authenticated"], "payment_service": false },
+    { "function": "get_provider_tournament_purchase(text,text,text)", "identity_arguments": "p_external_reference text, p_provider text, p_provider_environment text", "api_grantees": [], "payment_service": true },
+    { "function": "apply_verified_tournament_payment_status(uuid,text,text,text,text,text,text)", "identity_arguments": "p_purchase_id uuid, p_provider text, p_provider_environment text, p_status text, p_provider_status text, p_provider_status_detail text, p_provider_payment_id text", "api_grantees": [], "payment_service": true },
+    { "function": "apply_verified_tournament_payment_reversal(uuid,text,text,text,text,text,text)", "identity_arguments": "p_purchase_id uuid, p_provider text, p_provider_environment text, p_action text, p_provider_status text, p_provider_status_detail text, p_provider_payment_id text", "api_grantees": [], "payment_service": true }
+  ],
+  "authenticated_execute_granted": ["get_tournament_purchase(uuid)"],
+  "authenticated_execute_revoked": [
+    "create_tournament_season_purchase(uuid,uuid,text,uuid,text,text)",
+    "create_fake_tournament_season_purchase(uuid,uuid,text,uuid,text)"
+  ],
+  "authenticated_execute_kept": ["get_effective_tournament_season_entitlements(uuid,uuid)"],
+  "authenticated_execute_kept_revoked": ["cancel_tournament_purchase(uuid)"],
+  "payment_service_role": "torneos_payment_service",
+  "payment_service_execute": [
+    "get_provider_tournament_purchase(text,text,text)",
+    "apply_verified_tournament_payment_status(uuid,text,text,text,text,text,text)",
+    "apply_verified_tournament_payment_reversal(uuid,text,text,text,text,text,text)",
+    "record_tournament_purchase_preference(uuid,text,text,text,timestamp with time zone)"
+  ],
+  "replaced_functions": ["enforce_tournament_purchase_transition()"],
+  "added_triggers": ["tournament_season_plan_grant_events_append_only"],
+  "changed_constraints": ["tournament_purchases_provider_check", "tournament_purchases_environment_check"]
+}

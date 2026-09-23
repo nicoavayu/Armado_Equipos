@@ -1,0 +1,1028 @@
+{
+  "before_source": "phase2d/evidence/real-image-acl-before-real.json (992dd282 baseline on the real image)",
+  "after_source": "live lab stack (baseline f857bd09… + 00000000000001 gate)",
+  "functions": [
+    {
+      "function": "authorize_tournament_social_export(uuid,uuid,text,text,boolean)",
+      "name": "authorize_tournament_social_export",
+      "security_definer": true,
+      "owner": "supabase_admin",
+      "before_992dd282": {
+        "anon": false,
+        "authenticated": true,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "authenticated",
+          "service_role"
+        ]
+      },
+      "after_live": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "service_role"
+        ],
+        "anon_openapi": false
+      },
+      "gated": true,
+      "staging_v1": "SERVER-SIDE DISABLED (DB REVOKE + gateway allowlist)"
+    },
+    {
+      "function": "cancel_tournament_purchase(uuid)",
+      "name": "cancel_tournament_purchase",
+      "security_definer": true,
+      "owner": "supabase_admin",
+      "before_992dd282": {
+        "anon": false,
+        "authenticated": true,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "authenticated",
+          "service_role"
+        ]
+      },
+      "after_live": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "service_role"
+        ],
+        "anon_openapi": false
+      },
+      "gated": true,
+      "staging_v1": "SERVER-SIDE DISABLED (DB REVOKE + gateway allowlist)"
+    },
+    {
+      "function": "change_tournament_media_gallery_state(uuid,text,text)",
+      "name": "change_tournament_media_gallery_state",
+      "security_definer": true,
+      "owner": "supabase_admin",
+      "before_992dd282": {
+        "anon": false,
+        "authenticated": true,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "authenticated",
+          "service_role"
+        ]
+      },
+      "after_live": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "service_role"
+        ],
+        "anon_openapi": false
+      },
+      "gated": true,
+      "staging_v1": "SERVER-SIDE DISABLED (DB REVOKE + gateway allowlist)"
+    },
+    {
+      "function": "create_tournament_disciplinary_override(uuid,text,integer,text,uuid)",
+      "name": "create_tournament_disciplinary_override",
+      "security_definer": true,
+      "owner": "supabase_admin",
+      "before_992dd282": {
+        "anon": false,
+        "authenticated": true,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "authenticated",
+          "service_role"
+        ]
+      },
+      "after_live": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "service_role"
+        ],
+        "anon_openapi": false
+      },
+      "gated": true,
+      "staging_v1": "SERVER-SIDE DISABLED (DB REVOKE + gateway allowlist)"
+    },
+    {
+      "function": "create_tournament_match_correction(uuid,uuid)",
+      "name": "create_tournament_match_correction",
+      "security_definer": true,
+      "owner": "supabase_admin",
+      "before_992dd282": {
+        "anon": false,
+        "authenticated": true,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "authenticated",
+          "service_role"
+        ]
+      },
+      "after_live": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "service_role"
+        ],
+        "anon_openapi": false
+      },
+      "gated": true,
+      "staging_v1": "SERVER-SIDE DISABLED (DB REVOKE + gateway allowlist)"
+    },
+    {
+      "function": "create_tournament_points_adjustment(uuid,uuid,uuid,uuid,uuid,integer,text,uuid)",
+      "name": "create_tournament_points_adjustment",
+      "security_definer": true,
+      "owner": "supabase_admin",
+      "before_992dd282": {
+        "anon": false,
+        "authenticated": true,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "authenticated",
+          "service_role"
+        ]
+      },
+      "after_live": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "service_role"
+        ],
+        "anon_openapi": false
+      },
+      "gated": true,
+      "staging_v1": "SERVER-SIDE DISABLED (DB REVOKE + gateway allowlist)"
+    },
+    {
+      "function": "get_tournament_player_portrait_ref(uuid,uuid,text)",
+      "name": "get_tournament_player_portrait_ref",
+      "security_definer": true,
+      "owner": "supabase_admin",
+      "before_992dd282": {
+        "anon": false,
+        "authenticated": true,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "authenticated",
+          "service_role"
+        ]
+      },
+      "after_live": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "service_role"
+        ],
+        "anon_openapi": false
+      },
+      "gated": true,
+      "staging_v1": "SERVER-SIDE DISABLED (DB REVOKE + gateway allowlist)"
+    },
+    {
+      "function": "get_tournament_purchase(uuid)",
+      "name": "get_tournament_purchase",
+      "security_definer": true,
+      "owner": "supabase_admin",
+      "before_992dd282": {
+        "anon": false,
+        "authenticated": true,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "authenticated",
+          "service_role"
+        ]
+      },
+      "after_live": {
+        "anon": false,
+        "authenticated": true,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "authenticated",
+          "service_role"
+        ],
+        "anon_openapi": false
+      },
+      "gated": true,
+      "staging_v1": "SERVER-SIDE DISABLED (DB REVOKE + gateway allowlist)"
+    },
+    {
+      "function": "has_tournament_entitlement(uuid,uuid,text)",
+      "name": "has_tournament_entitlement",
+      "security_definer": true,
+      "owner": "supabase_admin",
+      "before_992dd282": {
+        "anon": false,
+        "authenticated": true,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "authenticated",
+          "service_role"
+        ]
+      },
+      "after_live": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "service_role"
+        ],
+        "anon_openapi": false
+      },
+      "gated": true,
+      "staging_v1": "SERVER-SIDE DISABLED (DB REVOKE + gateway allowlist)"
+    },
+    {
+      "function": "lock_tournament_roster(uuid,uuid,uuid)",
+      "name": "lock_tournament_roster",
+      "security_definer": true,
+      "owner": "supabase_admin",
+      "before_992dd282": {
+        "anon": false,
+        "authenticated": true,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "authenticated",
+          "service_role"
+        ]
+      },
+      "after_live": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "service_role"
+        ],
+        "anon_openapi": false
+      },
+      "gated": true,
+      "staging_v1": "SERVER-SIDE DISABLED (DB REVOKE + gateway allowlist)"
+    },
+    {
+      "function": "make_tournament_match_official(uuid,uuid)",
+      "name": "make_tournament_match_official",
+      "security_definer": true,
+      "owner": "supabase_admin",
+      "before_992dd282": {
+        "anon": false,
+        "authenticated": true,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "authenticated",
+          "service_role"
+        ]
+      },
+      "after_live": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "service_role"
+        ],
+        "anon_openapi": false
+      },
+      "gated": true,
+      "staging_v1": "SERVER-SIDE DISABLED (DB REVOKE + gateway allowlist)"
+    },
+    {
+      "function": "mark_tournament_suspension_served(uuid,uuid,text)",
+      "name": "mark_tournament_suspension_served",
+      "security_definer": true,
+      "owner": "supabase_admin",
+      "before_992dd282": {
+        "anon": false,
+        "authenticated": true,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "authenticated",
+          "service_role"
+        ]
+      },
+      "after_live": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "service_role"
+        ],
+        "anon_openapi": false
+      },
+      "gated": true,
+      "staging_v1": "SERVER-SIDE DISABLED (DB REVOKE + gateway allowlist)"
+    },
+    {
+      "function": "publish_tournament_fixture(uuid,uuid)",
+      "name": "publish_tournament_fixture",
+      "security_definer": true,
+      "owner": "supabase_admin",
+      "before_992dd282": {
+        "anon": false,
+        "authenticated": true,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "authenticated",
+          "service_role"
+        ]
+      },
+      "after_live": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "service_role"
+        ],
+        "anon_openapi": false
+      },
+      "gated": true,
+      "staging_v1": "SERVER-SIDE DISABLED (DB REVOKE + gateway allowlist)"
+    },
+    {
+      "function": "record_manual_match_availability(uuid,uuid,uuid,text,text,text)",
+      "name": "record_manual_match_availability",
+      "security_definer": true,
+      "owner": "supabase_admin",
+      "before_992dd282": {
+        "anon": false,
+        "authenticated": true,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "authenticated",
+          "service_role"
+        ]
+      },
+      "after_live": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "service_role"
+        ],
+        "anon_openapi": false
+      },
+      "gated": true,
+      "staging_v1": "SERVER-SIDE DISABLED (DB REVOKE + gateway allowlist)"
+    },
+    {
+      "function": "reopen_tournament_participants(uuid,uuid,uuid,text)",
+      "name": "reopen_tournament_participants",
+      "security_definer": true,
+      "owner": "supabase_admin",
+      "before_992dd282": {
+        "anon": false,
+        "authenticated": true,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "authenticated",
+          "service_role"
+        ]
+      },
+      "after_live": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "service_role"
+        ],
+        "anon_openapi": false
+      },
+      "gated": true,
+      "staging_v1": "SERVER-SIDE DISABLED (DB REVOKE + gateway allowlist)"
+    },
+    {
+      "function": "report_tournament_media_asset(uuid,text,text,boolean,uuid)",
+      "name": "report_tournament_media_asset",
+      "security_definer": true,
+      "owner": "supabase_admin",
+      "before_992dd282": {
+        "anon": false,
+        "authenticated": true,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "authenticated",
+          "service_role"
+        ]
+      },
+      "after_live": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "service_role"
+        ],
+        "anon_openapi": false
+      },
+      "gated": true,
+      "staging_v1": "SERVER-SIDE DISABLED (DB REVOKE + gateway allowlist)"
+    },
+    {
+      "function": "request_tournament_match_correction(uuid,uuid,text)",
+      "name": "request_tournament_match_correction",
+      "security_definer": true,
+      "owner": "supabase_admin",
+      "before_992dd282": {
+        "anon": false,
+        "authenticated": true,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "authenticated",
+          "service_role"
+        ]
+      },
+      "after_live": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "service_role"
+        ],
+        "anon_openapi": false
+      },
+      "gated": true,
+      "staging_v1": "SERVER-SIDE DISABLED (DB REVOKE + gateway allowlist)"
+    },
+    {
+      "function": "resolve_tournament_qualification(uuid,text)",
+      "name": "resolve_tournament_qualification",
+      "security_definer": true,
+      "owner": "supabase_admin",
+      "before_992dd282": {
+        "anon": false,
+        "authenticated": true,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "authenticated",
+          "service_role"
+        ]
+      },
+      "after_live": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "service_role"
+        ],
+        "anon_openapi": false
+      },
+      "gated": true,
+      "staging_v1": "SERVER-SIDE DISABLED (DB REVOKE + gateway allowlist)"
+    },
+    {
+      "function": "review_tournament_match_operation(uuid,uuid,text,text)",
+      "name": "review_tournament_match_operation",
+      "security_definer": true,
+      "owner": "supabase_admin",
+      "before_992dd282": {
+        "anon": false,
+        "authenticated": true,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "authenticated",
+          "service_role"
+        ]
+      },
+      "after_live": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "service_role"
+        ],
+        "anon_openapi": false
+      },
+      "gated": true,
+      "staging_v1": "SERVER-SIDE DISABLED (DB REVOKE + gateway allowlist)"
+    },
+    {
+      "function": "review_tournament_team_entry(uuid,uuid,text,text,jsonb)",
+      "name": "review_tournament_team_entry",
+      "security_definer": true,
+      "owner": "supabase_admin",
+      "before_992dd282": {
+        "anon": false,
+        "authenticated": true,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "authenticated",
+          "service_role"
+        ]
+      },
+      "after_live": {
+        "anon": false,
+        "authenticated": true,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "authenticated",
+          "service_role"
+        ],
+        "anon_openapi": false
+      },
+      "gated": false,
+      "staging_v1": "CERTIFIED (allowlisted)"
+    },
+    {
+      "function": "revoke_tournament_player_portrait_publication(uuid,uuid)",
+      "name": "revoke_tournament_player_portrait_publication",
+      "security_definer": true,
+      "owner": "supabase_admin",
+      "before_992dd282": {
+        "anon": false,
+        "authenticated": true,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "authenticated",
+          "service_role"
+        ]
+      },
+      "after_live": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "service_role"
+        ],
+        "anon_openapi": false
+      },
+      "gated": true,
+      "staging_v1": "SERVER-SIDE DISABLED (DB REVOKE + gateway allowlist)"
+    },
+    {
+      "function": "revoke_tournament_points_adjustment(uuid,text)",
+      "name": "revoke_tournament_points_adjustment",
+      "security_definer": true,
+      "owner": "supabase_admin",
+      "before_992dd282": {
+        "anon": false,
+        "authenticated": true,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "authenticated",
+          "service_role"
+        ]
+      },
+      "after_live": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "service_role"
+        ],
+        "anon_openapi": false
+      },
+      "gated": true,
+      "staging_v1": "SERVER-SIDE DISABLED (DB REVOKE + gateway allowlist)"
+    },
+    {
+      "function": "revoke_tournament_team_photo(uuid,uuid)",
+      "name": "revoke_tournament_team_photo",
+      "security_definer": true,
+      "owner": "supabase_admin",
+      "before_992dd282": {
+        "anon": false,
+        "authenticated": true,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "authenticated",
+          "service_role"
+        ]
+      },
+      "after_live": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "service_role"
+        ],
+        "anon_openapi": false
+      },
+      "gated": true,
+      "staging_v1": "SERVER-SIDE DISABLED (DB REVOKE + gateway allowlist)"
+    },
+    {
+      "function": "save_tournament_draw_pots(uuid,uuid,uuid,jsonb)",
+      "name": "save_tournament_draw_pots",
+      "security_definer": true,
+      "owner": "supabase_admin",
+      "before_992dd282": {
+        "anon": false,
+        "authenticated": true,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "authenticated",
+          "service_role"
+        ]
+      },
+      "after_live": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "service_role"
+        ],
+        "anon_openapi": false
+      },
+      "gated": true,
+      "staging_v1": "SERVER-SIDE DISABLED (DB REVOKE + gateway allowlist)"
+    },
+    {
+      "function": "schedule_tournament_match(uuid,uuid,timestamp with time zone,uuid,uuid,integer,boolean,text)",
+      "name": "schedule_tournament_match",
+      "security_definer": true,
+      "owner": "supabase_admin",
+      "before_992dd282": {
+        "anon": false,
+        "authenticated": true,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "authenticated",
+          "service_role"
+        ]
+      },
+      "after_live": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "service_role"
+        ],
+        "anon_openapi": false
+      },
+      "gated": true,
+      "staging_v1": "SERVER-SIDE DISABLED (DB REVOKE + gateway allowlist)"
+    },
+    {
+      "function": "set_tournament_player_portrait_crop(uuid,uuid,numeric,numeric,numeric)",
+      "name": "set_tournament_player_portrait_crop",
+      "security_definer": true,
+      "owner": "supabase_admin",
+      "before_992dd282": {
+        "anon": false,
+        "authenticated": true,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "authenticated",
+          "service_role"
+        ]
+      },
+      "after_live": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "service_role"
+        ],
+        "anon_openapi": false
+      },
+      "gated": true,
+      "staging_v1": "SERVER-SIDE DISABLED (DB REVOKE + gateway allowlist)"
+    },
+    {
+      "function": "set_tournament_player_portrait_editorial_status(uuid,uuid,text)",
+      "name": "set_tournament_player_portrait_editorial_status",
+      "security_definer": true,
+      "owner": "supabase_admin",
+      "before_992dd282": {
+        "anon": false,
+        "authenticated": true,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "authenticated",
+          "service_role"
+        ]
+      },
+      "after_live": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "service_role"
+        ],
+        "anon_openapi": false
+      },
+      "gated": true,
+      "staging_v1": "SERVER-SIDE DISABLED (DB REVOKE + gateway allowlist)"
+    },
+    {
+      "function": "submit_match_squad(uuid,uuid,uuid)",
+      "name": "submit_match_squad",
+      "security_definer": true,
+      "owner": "supabase_admin",
+      "before_992dd282": {
+        "anon": false,
+        "authenticated": true,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "authenticated",
+          "service_role"
+        ]
+      },
+      "after_live": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "service_role"
+        ],
+        "anon_openapi": false
+      },
+      "gated": true,
+      "staging_v1": "SERVER-SIDE DISABLED (DB REVOKE + gateway allowlist)"
+    },
+    {
+      "function": "supersede_tournament_fixture(uuid,uuid,uuid)",
+      "name": "supersede_tournament_fixture",
+      "security_definer": true,
+      "owner": "supabase_admin",
+      "before_992dd282": {
+        "anon": false,
+        "authenticated": true,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "authenticated",
+          "service_role"
+        ]
+      },
+      "after_live": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "service_role"
+        ],
+        "anon_openapi": false
+      },
+      "gated": true,
+      "staging_v1": "SERVER-SIDE DISABLED (DB REVOKE + gateway allowlist)"
+    },
+    {
+      "function": "transition_tournament_media_asset(uuid,text,text)",
+      "name": "transition_tournament_media_asset",
+      "security_definer": true,
+      "owner": "supabase_admin",
+      "before_992dd282": {
+        "anon": false,
+        "authenticated": true,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "authenticated",
+          "service_role"
+        ]
+      },
+      "after_live": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "service_role"
+        ],
+        "anon_openapi": false
+      },
+      "gated": true,
+      "staging_v1": "SERVER-SIDE DISABLED (DB REVOKE + gateway allowlist)"
+    },
+    {
+      "function": "update_draft_fixture(uuid,uuid,text,jsonb)",
+      "name": "update_draft_fixture",
+      "security_definer": true,
+      "owner": "supabase_admin",
+      "before_992dd282": {
+        "anon": false,
+        "authenticated": true,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "authenticated",
+          "service_role"
+        ]
+      },
+      "after_live": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "service_role"
+        ],
+        "anon_openapi": false
+      },
+      "gated": true,
+      "staging_v1": "SERVER-SIDE DISABLED (DB REVOKE + gateway allowlist)"
+    },
+    {
+      "function": "validate_tournament_match_operation(uuid,uuid)",
+      "name": "validate_tournament_match_operation",
+      "security_definer": true,
+      "owner": "supabase_admin",
+      "before_992dd282": {
+        "anon": false,
+        "authenticated": true,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "authenticated",
+          "service_role"
+        ]
+      },
+      "after_live": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "service_role"
+        ],
+        "anon_openapi": false
+      },
+      "gated": true,
+      "staging_v1": "SERVER-SIDE DISABLED (DB REVOKE + gateway allowlist)"
+    },
+    {
+      "function": "void_tournament_match_event(uuid,uuid,text)",
+      "name": "void_tournament_match_event",
+      "security_definer": true,
+      "owner": "supabase_admin",
+      "before_992dd282": {
+        "anon": false,
+        "authenticated": true,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "authenticated",
+          "service_role"
+        ]
+      },
+      "after_live": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "service_role"
+        ],
+        "anon_openapi": false
+      },
+      "gated": true,
+      "staging_v1": "SERVER-SIDE DISABLED (DB REVOKE + gateway allowlist)"
+    },
+    {
+      "function": "auto_schedule_tournament_matches(uuid,uuid)",
+      "name": "auto_schedule_tournament_matches",
+      "security_definer": true,
+      "owner": "supabase_admin",
+      "before_992dd282": {
+        "anon": false,
+        "authenticated": true,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "authenticated",
+          "service_role"
+        ]
+      },
+      "after_live": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": true,
+        "adapter": false,
+        "writer": false,
+        "postgrest_exposed_to": [
+          "service_role"
+        ],
+        "anon_openapi": false
+      },
+      "gated": true,
+      "staging_v1": "SERVER-SIDE DISABLED (DB REVOKE + gateway allowlist)"
+    }
+  ]
+}
