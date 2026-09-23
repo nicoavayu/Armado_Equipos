@@ -25,7 +25,7 @@ const M2 = '00000000000002_mercadopago_checkout_pro_test.sql';
 const SHA = {
   [M0]: 'f857bd0939054bc1a32a3855894b7b20e14a0c7456c9d5c8c5e8432e5b8ed19f',
   [M1]: '3df4b96eecc7321eaeda84a480f089fe4bff2b28c20aa4479db92caf33457e62',
-  [M2]: '4805ed5f386749124344bc1486ceebadb0fbf656dfd5c6917315184ba98bae36',
+  [M2]: '06378f12b57620e8ae550a0d881ad66464ffdc0a734ad621cba8a6ba3e6d6078',
 };
 const DELTA = JSON.parse(await readFile(`${repo}backend/torneos/mp-a/mp-a2-acl-delta.json`, 'utf8'));
 const EVIDENCE = `${repo}backend/torneos/mp-a/evidence/`;
@@ -130,6 +130,20 @@ const seasonGrants = (season) => Number(admin(`select count(*) from public.tourn
 const plan = (season, actor = owner) => j(asUser(actor, `select public.get_effective_tournament_season_entitlements(${lit(org)}, ${lit(season)})`)).plan;
 const openCount = (season) => Number(admin(`select count(*) from public.tournament_purchases where season_id = ${lit(season)} and status in ('created','preference_created','pending')`).trim());
 const pay = (label) => `${RUN}-${label}-${randomBytes(3).toString('hex')}`;
+/** Effective season grants (any source), the quantity that must never exceed 1. */
+const effectiveGrants = (season) => Number(admin(`select count(*) from public.tournament_season_plan_grants g where g.season_id = ${lit(season)} and public.is_tournament_season_plan_grant_effective(g.id)`).trim());
+const purchaseCount = (season) => Number(admin(`select count(*) from public.tournament_purchases where season_id = ${lit(season)}`).trim());
+const observed = { maxEffectiveGrantsPerSeason: 0, multiPendingSequences: 0 };
+function observeEffective(season) {
+  const n = effectiveGrants(season);
+  observed.maxEffectiveGrantsPerSeason = Math.max(observed.maxEffectiveGrantsPerSeason, n);
+  assert.ok(n <= 1, `season ${season} has ${n} effective grants`);
+  return n;
+}
+function permutations(items) {
+  if (items.length <= 1) return [items];
+  return items.flatMap((x, i) => permutations([...items.slice(0, i), ...items.slice(i + 1)]).map(rest => [x, ...rest]));
+}
 /** A fresh season with an MP TEST purchase whose preference is recorded (status preference_created). */
 function openPurchase(label, expires) {
   const season = newSeason(label);
@@ -459,6 +473,105 @@ test('MP-A2 — Mercado Pago TEST commercial DB delta (T10)', async (t) => {
       assert.equal(plan(o.season), 'PREMIUM');
       assert.deepEqual(eventTypes(o.id).filter(e => e.startsWith('payment.')), ['payment.pending', 'payment.attempt_rejected', 'payment.attempt_cancelled', 'payment.attempt_expired', 'payment.stale_status_ignored', 'payment.approved']);
     });
+    await check('payment: multi-pending (A) — pending(A), pending(B), rejected(B) keeps the purchase pending while A is open; long past its preference expiry the stale sweep does not expire it and checkout returns it', async () => {
+      const o = openPurchase('multipend', "now() - interval '3 days'");
+      const a = pay('a'), b = pay('b');
+      assert.deepEqual([status(o.id, 'pending', a, 'pending_waiting_payment', 'in_process').status, status(o.id, 'pending', b, 'pending_waiting_transfer', 'in_process').status], ['pending', 'pending']);
+      const rb = status(o.id, 'rejected', b, 'cc_rejected_other_reason');
+      assert.deepEqual([rb.outcome, rb.status, rb.stateChanged, rb.requiresManualRefund], ['attempt_rejected', 'pending', false, false]);
+      assert.equal(purchase(o.id).status, 'pending', 'A still pending: the purchase stays pending');
+      const again = checkout(owner, o.season);
+      assert.deepEqual([again.id, again.existingOpenPurchase, again.status, again.expiredStalePurchases], [o.id, true, 'pending', 0]);
+      assert.equal(openCount(o.season), 1); assert.equal(purchaseCount(o.season), 1, 'no second purchase while a payment is pending');
+      const lateB = status(o.id, 'pending', b, 'pending_waiting_transfer', 'in_process');
+      assert.deepEqual([lateB.outcome, lateB.status], ['stale_ignored', 'pending'], 'an ended payment never reopens');
+
+      // (B) rejected(A): now nothing is open → pending → preference_created
+      const ra = status(o.id, 'rejected', a, 'cc_rejected_other_reason');
+      assert.deepEqual([ra.outcome, ra.status, ra.stateChanged, ra.requiresManualRefund], ['attempt_rejected', 'preference_created', true, false]);
+      assert.deepEqual(events(o.id).filter(e => e.type === 'payment.attempt_rejected').map(e => [e.meta.providerPaymentId, e.from, e.to]), [[b, 'pending', 'pending'], [a, 'pending', 'preference_created']]);
+
+      // (C) replayed pending(A) after its terminal: stale, recorded once, never reopens
+      const replayA = status(o.id, 'pending', a, 'pending_waiting_payment', 'in_process');
+      assert.deepEqual([replayA.outcome, replayA.status, replayA.stateChanged, replayA.idempotentReplay], ['stale_ignored', 'preference_created', false, false]);
+      const replayA2 = status(o.id, 'pending', a, 'pending_waiting_payment', 'in_process');
+      assert.deepEqual([replayA2.outcome, replayA2.status, replayA2.idempotentReplay], ['stale_ignored', 'preference_created', true]);
+      assert.equal(purchase(o.id).status, 'preference_created');
+      assert.deepEqual(grantState(o.id), { grants: 0, events: [] }); assert.equal(plan(o.season), 'FREE');
+      // Only now, with no open payment, may the stale sweep expire it.
+      const next = checkout(owner, o.season);
+      assert.notEqual(next.id, o.id); assert.equal(next.expiredStalePurchases, 1); assert.equal(purchase(o.id).status, 'expired');
+    });
+    await check('payment: multi-pending (B/C/E) — every order of pending(A), pending(B), cancelled(A), rejected(B) matches the open-payment model at every step (pending ⇔ some pending payment without its terminal; a terminal before its pending makes that pending stale) and converges to preference_created; while pending the stale sweep never expires it', async () => {
+      const orders = permutations(['pA', 'pB', 'tA', 'tB']);
+      assert.equal(orders.length, 24);
+      for (const order of orders) {
+        const o = openPurchase('mp' + order.join('').toLowerCase(), "now() - interval '3 days'");
+        const ids = { A: pay('a'), B: pay('b') };
+        const open = new Set(), ended = new Set();
+        for (const step of order) {
+          const who = step[1]; const id = ids[who];
+          let r, outcome;
+          if (step[0] === 'p') {
+            r = status(o.id, 'pending', id, 'pending_waiting_payment', 'in_process');
+            if (ended.has(who)) outcome = 'stale_ignored'; else { open.add(who); outcome = 'pending'; }
+          } else {
+            const st = who === 'A' ? 'cancelled' : 'rejected';
+            r = status(o.id, st, id, 'by_payer');
+            ended.add(who); open.delete(who); outcome = 'attempt_' + st;
+          }
+          const expected = open.size > 0 ? 'pending' : 'preference_created';
+          assert.deepEqual([r.outcome, r.status, r.requiresManualRefund], [outcome, expected, false], `${order.join(',')} at ${step}`);
+          assert.equal(purchase(o.id).status, expected, `${order.join(',')} at ${step}`);
+          if (expected === 'pending') {
+            const c = checkout(owner, o.season);
+            assert.deepEqual([c.id, c.status, c.expiredStalePurchases], [o.id, 'pending', 0], `${order.join(',')} at ${step}: never expired nor replaced while money is pending`);
+          }
+        }
+        assert.equal(purchase(o.id).status, 'preference_created', order.join(','));
+        assert.equal(purchaseCount(o.season), 1); assert.equal(seasonGrants(o.season), 0);
+        observed.multiPendingSequences += 1;
+      }
+    });
+    await check('payment: multi-pending (D/E) — pending(A), pending(B), rejected(B), approved(A) in every order ends approved on A with exactly one grant and requiresManualRefund = false at every step', async () => {
+      const orders = permutations(['pA', 'pB', 'rB', 'okA']);
+      for (const order of orders) {
+        const o = openPurchase('mq' + order.join('').toLowerCase(), "now() - interval '3 days'");
+        const a = pay('a'), b = pay('b');
+        const open = new Set(), ended = new Set(); let approved = false;
+        for (const step of order) {
+          let r, outcome, expected;
+          if (step === 'okA') {
+            r = status(o.id, 'approved', a, 'accredited');
+            approved = true; ended.add('A'); open.delete('A'); outcome = 'approved';
+          } else if (step[0] === 'p') {
+            const who = step[1];
+            r = status(o.id, 'pending', who === 'A' ? a : b, 'pending_waiting_payment', 'in_process');
+            if (approved || ended.has(who)) outcome = 'stale_ignored'; else { open.add(who); outcome = 'pending'; }
+          } else {
+            r = status(o.id, 'rejected', b, 'cc_rejected_other_reason');
+            ended.add('B'); open.delete('B'); outcome = approved ? 'stale_ignored' : 'attempt_rejected';
+          }
+          expected = approved ? 'approved' : (open.size > 0 ? 'pending' : 'preference_created');
+          assert.deepEqual([r.outcome, r.status, r.requiresManualRefund], [outcome, expected, false], `${order.join(',')} at ${step}`);
+          observeEffective(o.season);
+        }
+        const row = purchase(o.id);
+        assert.deepEqual([row.status, row.approved_provider_payment_id], ['approved', a], order.join(','));
+        assert.deepEqual(grantState(o.id), { grants: 1, events: ['granted'] }, order.join(','));
+        assert.equal(seasonGrants(o.season), 1); assert.equal(effectiveGrants(o.season), 1); assert.equal(purchaseCount(o.season), 1);
+        assert.deepEqual(eventTypes(o.id).filter(e => /approved_(after_close|duplicate_payment)/.test(e)), [], 'no manual-refund anomaly');
+        observed.multiPendingSequences += 1;
+      }
+    });
+    await check('payment: defense in depth — even a preference_created purchase that still has an open pending payment (forced with triggers off) is never expired by the stale sweep', async () => {
+      const o = openPurchase('forcedopen', "now() - interval '3 days'");
+      status(o.id, 'pending', pay('open'), 'pending_waiting_transfer', 'in_process');
+      admin(`BEGIN; SET LOCAL session_replication_role = replica; update public.tournament_purchases set status = 'preference_created' where id = ${lit(o.id)}; COMMIT;`);
+      const c = checkout(owner, o.season);
+      assert.deepEqual([c.id, c.existingOpenPurchase, c.expiredStalePurchases], [o.id, true, 0]);
+      assert.equal(purchase(o.id).status, 'preference_created'); assert.equal(purchaseCount(o.season), 1);
+    });
     await check('payment: duplicate approved of the same payment — no error, no second grant, one payment.approved_duplicate event (deduplicated), logical success', async () => {
       const o = openPurchase('dupsame');
       const pid = pay('a');
@@ -642,6 +755,76 @@ test('MP-A2 — Mercado Pago TEST commercial DB delta (T10)', async (t) => {
       assert.equal(events(o.id).length, before);
     });
 
+    // ============================================================ F2. a reversible grant blocks a second purchase
+    await check('second purchase: Premium active → 55000 TORNEOS_SEASON_ALREADY_PREMIUM; suspended (chargeback in dispute) → 55000 TORNEOS_SEASON_PREMIUM_SUSPENDED (also while a refund conflicts); restored → still exactly one grant; no purchase is written', async () => {
+      const o = openPurchase('suspended');
+      const pid = pay('s');
+      status(o.id, 'approved', pid);
+      expectErr(() => checkout(owner, o.season), '55000', 'TORNEOS_SEASON_ALREADY_PREMIUM');
+      reversal(o.id, 'chargeback_disputed', pid, 'charged_back', 'in_process');
+      assert.equal(plan(o.season), 'FREE'); assert.equal(observeEffective(o.season), 0);
+      expectErr(() => checkout(owner, o.season), '55000', 'TORNEOS_SEASON_PREMIUM_SUSPENDED');
+      admin(`insert into public.tournament_season_member_assignments(organization_id, season_id, membership_id, assigned_by) select ${lit(org)}, ${lit(o.season)}, id, ${lit(owner.id)} from public.tournament_organization_members where organization_id = ${lit(org)} and user_id = ${lit(admSeated.id)}`);
+      expectErr(() => checkout(admSeated, o.season), '55000', 'TORNEOS_SEASON_PREMIUM_SUSPENDED');
+      // The same refusal through the Data API (the path MP-A3 will use behind the gateway).
+      const viaRest = rest([{ id: 'r', path: '/rpc/create_tournament_season_checkout_purchase', token: await bearer(owner), body: { p_organization_id: org, p_season_id: o.season, p_idempotency_key: newKey() } }])[0];
+      assert.deepEqual([viaRest.status >= 400, viaRest.body?.code, viaRest.body?.message], [true, '55000', 'TORNEOS_SEASON_PREMIUM_SUSPENDED']);
+      assert.equal(reversal(o.id, 'refund', pid, 'refunded', 'refunded').outcome, 'reversal_conflict');
+      expectErr(() => checkout(owner, o.season), '55000', 'TORNEOS_SEASON_PREMIUM_SUSPENDED');
+      assert.equal(purchaseCount(o.season), 1, 'no second purchase while the grant is suspended');
+      const restored = reversal(o.id, 'chargeback_restored', pid, 'charged_back', 'reimbursed');
+      assert.deepEqual([restored.outcome, restored.status], ['reversal_applied', 'approved']);
+      assert.equal(plan(o.season), 'PREMIUM');
+      assert.equal(seasonGrants(o.season), 1); assert.equal(observeEffective(o.season), 1);
+      assert.deepEqual(grantState(o.id), { grants: 1, events: ['granted', 'suspended', 'restored'] });
+      expectErr(() => checkout(owner, o.season), '55000', 'TORNEOS_SEASON_ALREADY_PREMIUM');
+      assert.equal(purchaseCount(o.season), 1);
+    });
+    await check('second purchase: only a definitive revocation (chargeback lost / refund) re-enables buying; the new purchase activates exactly one effective grant; late reversals of the first payment never un-revoke it', async () => {
+      // chargeback lost
+      const o = openPurchase('buyerwon2');
+      const pid = pay('bw');
+      status(o.id, 'approved', pid);
+      reversal(o.id, 'chargeback_disputed', pid, 'charged_back', 'in_process');
+      expectErr(() => checkout(owner, o.season), '55000', 'TORNEOS_SEASON_PREMIUM_SUSPENDED');
+      reversal(o.id, 'chargeback_buyer_won', pid, 'charged_back', 'settled');
+      assert.equal(observeEffective(o.season), 0);
+      const second = checkout(owner, o.season);
+      assert.notEqual(second.id, o.id); assert.deepEqual([second.status, second.existingOpenPurchase], ['created', false]);
+      pref(second.id);
+      const pid2 = pay('bw2');
+      assert.equal(status(second.id, 'approved', pid2, 'accredited').outcome, 'approved');
+      assert.deepEqual([seasonGrants(o.season), observeEffective(o.season), plan(o.season)], [2, 1, 'PREMIUM']);
+      for (const action of ['chargeback_restored', 'chargeback_disputed', 'chargeback_buyer_won', 'refund']) {
+        const late = reversal(o.id, action, pid, 'charged_back', 'late');
+        assert.ok(['reversal_ignored_after_revocation', 'reversal_applied'].includes(late.outcome), `${action}: ${late.outcome}`);
+        if (late.outcome === 'reversal_applied') assert.equal(late.idempotentReplay, true, `${action} is a replay of the revocation`);
+        assert.equal(observeEffective(o.season), 1, `${action} on the revoked first purchase`);
+      }
+      assert.deepEqual(grantState(o.id), { grants: 1, events: ['granted', 'suspended', 'revoked'] });
+      expectErr(() => checkout(owner, o.season), '55000', 'TORNEOS_SEASON_ALREADY_PREMIUM');
+      // refund
+      const r = openPurchase('refund2');
+      const rp = pay('rf');
+      status(r.id, 'approved', rp);
+      reversal(r.id, 'refund', rp, 'refunded', 'refunded');
+      assert.equal(observeEffective(r.season), 0);
+      const again = checkout(owner, r.season);
+      assert.notEqual(again.id, r.id);
+      pref(again.id);
+      assert.equal(status(again.id, 'approved', pay('rf2')).outcome, 'approved');
+      assert.deepEqual([seasonGrants(r.season), observeEffective(r.season)], [2, 1]);
+      assert.equal(reversal(r.id, 'refund', rp, 'refunded', 'refunded').idempotentReplay, true);
+      assert.equal(observeEffective(r.season), 1);
+      // the second purchase's own lifecycle: suspended blocks again, lost re-enables
+      const pid3 = purchase(again.id).approved_provider_payment_id;
+      reversal(again.id, 'chargeback_disputed', pid3, 'charged_back', 'in_process');
+      expectErr(() => checkout(owner, r.season), '55000', 'TORNEOS_SEASON_PREMIUM_SUSPENDED');
+      assert.equal(observeEffective(r.season), 0);
+      reversal(again.id, 'chargeback_restored', pid3, 'charged_back', 'reimbursed');
+      assert.equal(observeEffective(r.season), 1);
+    });
+
     // ============================================================ G. Premium invariants
     await check('premium: never before approved; exactly one grant per purchase and per season; visible to every seated billing admin; activation goes through activate_verified_tournament_purchase (audit billing.season_purchase_activated)', async () => {
       const o = openPurchase('premiumviz');
@@ -657,6 +840,16 @@ test('MP-A2 — Mercado Pago TEST commercial DB delta (T10)', async (t) => {
       assert.deepEqual([ent.assignmentSource, ent.limits.galleryAssetLimit, ent.branding.canRemoveArma2], ['purchase', 1000, true]);
       assert.equal(Number(admin(`select count(*) from public.tournament_audit_log where resource_id = ${lit(o.id)} and action = 'billing.season_purchase_activated'`).trim()), 1);
       expectErr(() => asUser(outsider, `select public.get_effective_tournament_season_entitlements(${lit(org)}, ${lit(o.season)})`), '42501', 'TORNEOS_ENTITLEMENTS_FORBIDDEN');
+    });
+    await check('premium: across every season this suite touched, no season holds two effective grants, two approved purchases with live grants, or two open purchases', async () => {
+      const worst = j(admin(`select json_build_object(
+          'effective', (select coalesce(max(n), 0) from (select count(*) n from public.tournament_season_plan_grants g where g.organization_id = ${lit(org)} and public.is_tournament_season_plan_grant_effective(g.id) group by g.season_id) s),
+          'live', (select coalesce(max(n), 0) from (select count(*) n from public.tournament_season_plan_grants g where g.organization_id = ${lit(org)}
+            and coalesce((select e.event_type from public.tournament_season_plan_grant_events e where e.season_grant_id = g.id order by e.id desc limit 1), 'granted') <> 'revoked' group by g.season_id) s),
+          'open', (select coalesce(max(n), 0) from (select count(*) n from public.tournament_purchases p where p.organization_id = ${lit(org)} and p.status in ('created','preference_created','pending') group by p.season_id) s))`));
+      observed.maxEffectiveGrantsPerSeason = Math.max(observed.maxEffectiveGrantsPerSeason, worst.effective);
+      observed.maxLiveGrantsPerSeason = worst.live;
+      assert.deepEqual(worst, { effective: 1, live: 1, open: 1 });
     });
 
     // ============================================================ H. ACL matrix
@@ -816,7 +1009,7 @@ test('MP-A2 — Mercado Pago TEST commercial DB delta (T10)', async (t) => {
   } finally {
     await mkdir(EVIDENCE, { recursive: true });
     await writeFile(`${EVIDENCE}commerce-db-acl-matrix${TAG}.json`, JSON.stringify({ source: 'live lab stack (0000 + 0001 + 0002)', delta_manifest: 'backend/torneos/mp-a/mp-a2-acl-delta.json', ...matrix }, null, 2) + '\n');
-    await writeFile(`${EVIDENCE}commerce-db-results${TAG}.json`, JSON.stringify({ generated_at: new Date().toISOString(), run: RUN, migration_sha256: SHA,
+    await writeFile(`${EVIDENCE}commerce-db-results${TAG}.json`, JSON.stringify({ generated_at: new Date().toISOString(), run: RUN, migration_sha256: SHA, observed,
       pass: results.filter(r => r.status === 'PASS').length, fail: results.filter(r => r.status === 'FAIL').length, results }, null, 2) + '\n');
   }
 });

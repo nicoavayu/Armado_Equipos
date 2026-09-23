@@ -42,7 +42,7 @@ const GATED = gate.functions.map(g => g.name);
 // MP-A2 (00000000000002): the only authorized ACL delta after the gate. Of the gated functions it re-grants
 // get_tournament_purchase to authenticated at the DB; the gateway allowlist is unchanged (still 403).
 const MPA2 = JSON.parse(await readFile(`${repo}backend/torneos/mp-a/mp-a2-acl-delta.json`, 'utf8'));
-const MPA2_SHA256 = '4805ed5f386749124344bc1486ceebadb0fbf656dfd5c6917315184ba98bae36';
+const MPA2_SHA256 = '06378f12b57620e8ae550a0d881ad66464ffdc0a734ad621cba8a6ba3e6d6078';
 const MPA2_REGRANTED = new Set(MPA2.authenticated_execute_granted);
 const MPA2_REGRANTED_NAMES = new Set(MPA2.authenticated_execute_granted.map(f => f.split('(')[0]));
 const MPA2_AUTH_NET = MPA2.new_security_definer_functions.filter(f => f.api_grantees.includes('authenticated')).length

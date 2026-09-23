@@ -1,18 +1,18 @@
 {
-  "generated_at": "2026-09-23T01:39:18.773Z",
-  "run": "mpa2e028",
+  "generated_at": "2026-09-23T01:34:45.651Z",
+  "run": "mpa264ea",
   "migration_sha256": {
     "00000000000000_torneos_baseline_v1.sql": "f857bd0939054bc1a32a3855894b7b20e14a0c7456c9d5c8c5e8432e5b8ed19f",
     "00000000000001_staging_v1_rpc_exposure.sql": "3df4b96eecc7321eaeda84a480f089fe4bff2b28c20aa4479db92caf33457e62",
-    "00000000000002_mercadopago_checkout_pro_test.sql": "06378f12b57620e8ae550a0d881ad66464ffdc0a734ad621cba8a6ba3e6d6078"
+    "00000000000002_mercadopago_checkout_pro_test.sql": "4805ed5f386749124344bc1486ceebadb0fbf656dfd5c6917315184ba98bae36"
   },
   "observed": {
     "maxEffectiveGrantsPerSeason": 1,
-    "multiPendingSequences": 48,
+    "multiPendingSequences": 1,
     "maxLiveGrantsPerSeason": 1
   },
-  "pass": 49,
-  "fail": 0,
+  "pass": 43,
+  "fail": 6,
   "results": [
     {
       "name": "schema: migrations are exactly 0000 → 0001 → 0002 in order; 0000/0001 byte-identical to the certified stack; 0002 pinned; the lab applied all three from empty volumes",
@@ -100,19 +100,23 @@
     },
     {
       "name": "payment: multi-pending (A) — pending(A), pending(B), rejected(B) keeps the purchase pending while A is open; long past its preference expiry the stale sweep does not expire it and checkout returns it",
-      "status": "PASS"
+      "status": "FAIL",
+      "error": "Expected values to be strictly deep-equal:\n+ actual - expected\n\n  [\n    'attempt_rejected',\n+   'preference_created',\n+   true,\n-   'pending',\n    false,\n-   false\n  ]\n"
     },
     {
       "name": "payment: multi-pending (B/C/E) — every order of pending(A), pending(B), cancelled(A), rejected(B) matches the open-payment model at every step (pending ⇔ some pending payment without its terminal; a terminal before its pending makes that pending stale) and converges to preference_created; while pending the stale sweep never expires it",
-      "status": "PASS"
+      "status": "FAIL",
+      "error": "pA,pB,tB,tA at tB\n+ actual - expected\n\n  [\n    'attempt_rejected',\n+   'preference_created',\n-   'pending',\n    false\n  ]\n"
     },
     {
       "name": "payment: multi-pending (D/E) — pending(A), pending(B), rejected(B), approved(A) in every order ends approved on A with exactly one grant and requiresManualRefund = false at every step",
-      "status": "PASS"
+      "status": "FAIL",
+      "error": "pA,pB,rB,okA at rB\n+ actual - expected\n\n  [\n    'attempt_rejected',\n+   'preference_created',\n-   'pending',\n    false\n  ]\n"
     },
     {
       "name": "payment: defense in depth — even a preference_created purchase that still has an open pending payment (forced with triggers off) is never expired by the stale sweep",
-      "status": "PASS"
+      "status": "FAIL",
+      "error": "Expected values to be strictly deep-equal:\n+ actual - expected\n\n  [\n+   '65f5c06e-a014-4eaa-bf8a-0e04f832c1f9',\n+   false,\n+   1\n-   'bfad24d8-6659-4612-b64b-c33b7a620a32',\n-   true,\n-   0\n  ]\n"
     },
     {
       "name": "payment: duplicate approved of the same payment — no error, no second grant, one payment.approved_duplicate event (deduplicated), logical success",
@@ -168,11 +172,13 @@
     },
     {
       "name": "second purchase: Premium active → 55000 TORNEOS_SEASON_ALREADY_PREMIUM; suspended (chargeback in dispute) → 55000 TORNEOS_SEASON_PREMIUM_SUSPENDED (also while a refund conflicts); restored → still exactly one grant; no purchase is written",
-      "status": "PASS"
+      "status": "FAIL",
+      "error": "expected 55000 TORNEOS_SEASON_PREMIUM_SUSPENDED"
     },
     {
       "name": "second purchase: only a definitive revocation (chargeback lost / refund) re-enables buying; the new purchase activates exactly one effective grant; late reversals of the first payment never un-revoke it",
-      "status": "PASS"
+      "status": "FAIL",
+      "error": "expected 55000 TORNEOS_SEASON_PREMIUM_SUSPENDED"
     },
     {
       "name": "premium: never before approved; exactly one grant per purchase and per season; visible to every seated billing admin; activation goes through activate_verified_tournament_purchase (audit billing.season_purchase_activated)",

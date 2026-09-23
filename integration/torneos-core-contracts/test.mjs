@@ -243,7 +243,7 @@ test('Phase 3A — real Core contracts → Torneos end-to-end', async (t) => {
       assert.equal(install.torneos.sha256, 'f857bd0939054bc1a32a3855894b7b20e14a0c7456c9d5c8c5e8432e5b8ed19f');
       assert.equal(install.torneos.sha256, install.torneos.certified_sha256);
       assert.deepEqual(install.torneos.migrations_after_baseline.map(m => [m.file.split('/').pop(), m.applied]), [['00000000000001_staging_v1_rpc_exposure.sql', true], ['00000000000002_mercadopago_checkout_pro_test.sql', true]], 'Phase 2D gate, then the MP-A2 commercial DB delta, applied after the baseline');
-      assert.equal(install.torneos.migrations_after_baseline[1].sha256, '4805ed5f386749124344bc1486ceebadb0fbf656dfd5c6917315184ba98bae36', 'MP-A2 migration pinned');
+      assert.equal(install.torneos.migrations_after_baseline[1].sha256, '06378f12b57620e8ae550a0d881ad66464ffdc0a734ad621cba8a6ba3e6d6078', 'MP-A2 migration pinned');
       assert.equal(coreSql("select count(*) from pg_tables where schemaname='public'").trim(), '153', 'all 42 Core migrations applied');
       assert.equal(coreSql("select count(*) from pg_proc where proname like 'torneos_contract_%'").trim(), '5');
       assert.equal(torneosSql("select count(*) from pg_tables where schemaname='public'").trim(), '104');

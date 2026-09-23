@@ -6,16 +6,20 @@
 --     MERCADO_PAGO+test only. There is no production/live environment for Mercado Pago.
 --   * create_tournament_season_checkout_purchase: the only client entry point. Product, provider,
 --     environment and price are fixed server-side (torneos_premium / MERCADO_PAGO / test / current offer);
---     it requires identity, season access and billing.manage, expires stale open purchases
---     (preference_created → expired, created → cancelled once preference_expires_at + 15 min has passed;
---     pending never expires) and delegates to the baseline create_tournament_season_purchase (advisory
---     lock, (buyer, idempotency_key) idempotency and open-purchase uniqueness unchanged).
+--     it requires identity, season access and billing.manage, refuses the season while a purchased grant is
+--     not definitively revoked (effective → TORNEOS_SEASON_ALREADY_PREMIUM; suspended by a chargeback in
+--     dispute, which can still be restored → TORNEOS_SEASON_PREMIUM_SUSPENDED), expires stale open
+--     purchases (preference_created → expired, created → cancelled once preference_expires_at + 15 min has
+--     passed; pending, or any purchase with a still-open payment, never expires) and delegates to the
+--     baseline create_tournament_season_purchase (advisory lock, (buyer, idempotency_key) idempotency and
+--     open-purchase uniqueness unchanged).
 --   * Service RPCs for the payments service, ported from the legacy Core migration 20260827001443 with the
 --     MP-A1 corrections: get_provider_tournament_purchase, apply_verified_tournament_payment_status,
 --     apply_verified_tournament_payment_reversal.
 --       - rejected / cancelled / expired are payment ATTEMPT outcomes (payment.attempt_*): the purchase stays
---         open on its preference (an ended pending attempt returns it to preference_created) and a later
---         approved payment on the same preference activates Premium;
+--         open on its preference and a later approved payment on the same preference activates Premium. A
+--         pending purchase returns to preference_created only when no known payment is still open (every
+--         payment.pending has its own attempt_* or payment.approved); an ended payment never reopens;
 --       - a duplicate approved never errors: same payment → payment.approved_duplicate; another payment on an
 --         activated purchase → payment.approved_duplicate_payment with requiresManualRefund;
 --       - approved on a closed purchase (expired / cancelled / rejected) → payment.approved_after_close with
@@ -27,7 +31,7 @@
 --     Every anomaly event is recorded once per (event, payment, status): provider retries add nothing.
 --     22023 errors are permanent input errors; 55000 TORNEOS_PURCHASE_NOT_READY (no preference recorded yet)
 --     is the only retryable outcome.
---   * State machine: the single new edge pending → preference_created (an ended pending attempt).
+--   * State machine: the single new edge pending → preference_created (the last open payment attempt ended).
 --   * tournament_season_plan_grant_events becomes append-only like the other commercial event tables.
 --   * Role torneos_payment_service: NOLOGIN NOINHERIT, no table privilege, EXECUTE on exactly the three
 --     service RPCs plus the baseline record_tournament_purchase_preference. Its members (logins) are created
@@ -202,6 +206,7 @@ CREATE OR REPLACE FUNCTION public.create_tournament_season_checkout_purchase(p_o
     AS $$
 declare
   v_expired integer := 0;
+  v_blocked text;
   v_result jsonb;
 begin
   if private.current_identity_id() is null then
@@ -224,6 +229,23 @@ begin
   perform pg_catalog.pg_advisory_xact_lock(
     pg_catalog.hashtextextended(p_organization_id::text || ':' || p_season_id::text || ':' || 'torneos_premium',79)
   );
+  -- A purchased season grant blocks a new purchase until it is definitively revoked (refund / chargeback
+  -- lost). The baseline creator only refuses effective grants; a suspended one (chargeback in dispute) can
+  -- still be restored, and a second purchase would then leave two effective grants for the season.
+  select case when bool_or(public.is_tournament_season_plan_grant_effective(grant_row.id))
+    then 'TORNEOS_SEASON_ALREADY_PREMIUM' else 'TORNEOS_SEASON_PREMIUM_SUSPENDED' end
+  into v_blocked
+  from public.tournament_season_plan_grants grant_row
+  where grant_row.organization_id = p_organization_id and grant_row.season_id = p_season_id
+    and grant_row.origin_purchase_id is not null
+    and coalesce((
+      select event.event_type from public.tournament_season_plan_grant_events event
+      where event.season_grant_id = grant_row.id order by event.id desc limit 1
+    ),'granted') <> 'revoked'
+  having count(*) > 0;
+  if v_blocked is not null then
+    raise exception using errcode = '55000', message = v_blocked;
+  end if;
   with stale as (
     update public.tournament_purchases purchase set
       status = case purchase.status when 'preference_created' then 'expired' else 'cancelled' end,
@@ -233,6 +255,17 @@ begin
       and purchase.product_code = 'torneos_premium'
       and purchase.status in ('created','preference_created')
       and purchase.preference_expires_at + interval '15 minutes' < now()
+      -- Never while a known payment is still open (the purchase would then be pending anyway).
+      and not exists (
+        select 1 from public.tournament_purchase_events opened
+        where opened.purchase_id = purchase.id and opened.event_type = 'payment.pending'
+          and not exists (
+            select 1 from public.tournament_purchase_events closed
+            where closed.purchase_id = purchase.id
+              and closed.event_type in ('payment.attempt_rejected','payment.attempt_cancelled','payment.attempt_expired','payment.approved')
+              and closed.metadata->>'providerPaymentId' = opened.metadata->>'providerPaymentId'
+          )
+      )
     returning purchase.id,purchase.organization_id,purchase.season_id,purchase.status
   ), logged as (
     insert into public.tournament_purchase_events (
@@ -287,7 +320,6 @@ declare
   v_outcome text;
   v_manual_refund boolean := false;
   v_touch boolean := false;
-  v_pending text;
   v_result jsonb;
 begin
   if p_provider is distinct from 'MERCADO_PAGO' or p_provider_environment is distinct from 'test' then
@@ -347,10 +379,11 @@ begin
     -- Never degrade an activated purchase nor reopen a closed one.
     v_outcome := 'stale_ignored'; v_event := 'payment.stale_status_ignored';
   elsif p_status = 'pending' then
+    -- A payment that already ended never reopens (late or replayed pending).
     if exists (
       select 1 from public.tournament_purchase_events e
       where e.purchase_id = v_purchase.id
-        and e.event_type in ('payment.attempt_rejected','payment.attempt_cancelled','payment.attempt_expired')
+        and e.event_type in ('payment.attempt_rejected','payment.attempt_cancelled','payment.attempt_expired','payment.approved')
         and e.metadata->>'providerPaymentId' = v_payment
     ) then
       v_outcome := 'stale_ignored'; v_event := 'payment.stale_status_ignored';
@@ -359,10 +392,21 @@ begin
     end if;
   else
     v_outcome := 'attempt_' || p_status; v_event := 'payment.attempt_' || p_status;
-    select e.metadata->>'providerPaymentId' into v_pending from public.tournament_purchase_events e
-    where e.purchase_id = v_purchase.id and e.event_type = 'payment.pending'
-    order by e.id desc limit 1;
-    if v_purchase.status = 'pending' and v_pending is not distinct from v_payment then
+    -- pending → preference_created only once no known payment is still open. The open set is derived from
+    -- every payment.pending of the purchase: a payment is open until it has its own terminal event (an
+    -- ended attempt or payment.approved); this notification ends v_payment. Money still pending on another
+    -- payment keeps the purchase pending, so the stale sweep can never expire it.
+    if v_purchase.status = 'pending' and not exists (
+      select 1 from public.tournament_purchase_events opened
+      where opened.purchase_id = v_purchase.id and opened.event_type = 'payment.pending'
+        and opened.metadata->>'providerPaymentId' is distinct from v_payment
+        and not exists (
+          select 1 from public.tournament_purchase_events closed
+          where closed.purchase_id = v_purchase.id
+            and closed.event_type in ('payment.attempt_rejected','payment.attempt_cancelled','payment.attempt_expired','payment.approved')
+            and closed.metadata->>'providerPaymentId' = opened.metadata->>'providerPaymentId'
+        )
+    ) then
       v_target := 'preference_created';
     end if;
     v_touch := v_purchase.status = 'preference_created' or v_target <> v_purchase.status;
