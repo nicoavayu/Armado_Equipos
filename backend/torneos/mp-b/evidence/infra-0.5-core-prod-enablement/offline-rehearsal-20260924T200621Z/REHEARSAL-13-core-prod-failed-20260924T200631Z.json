@@ -1,0 +1,238 @@
+{
+ "annotation": "OFFLINE REHEARSAL 20260924T200621Z — local public.ecr.aws/supabase/postgres:17.4.1.048 container, --network none, emulated Management API, in-memory Keychain; NOT a Production run",
+ "generated_at": "2026-09-24T20:06:31.992Z",
+ "tool": "backend/torneos/infra/core-prod-contract/core-prod-deploy.mjs",
+ "mode": "--apply",
+ "read_only": false,
+ "stop": "SIGNED_HARNESS_SECRET_MISMATCH",
+ "stage": "harness",
+ "detail": {
+  "probe": {
+   "endpoint": "https://rcyuuoaqfwcembdajcss.supabase.co/functions/v1/torneos-core-contract",
+   "verdict": "SECRET_MISMATCH",
+   "attempts": [
+    {
+     "attempt": 1,
+     "at": "2026-09-24T20:06:31.992Z",
+     "verdict": "SECRET_MISMATCH",
+     "failed": [
+      "signed POST /v1/session, unknown session → Core verdict",
+      "replay of the previous request (same nonce) → consumed",
+      "signed POST /v1/verified-email, unknown session → Core verdict (v1 route)",
+      "signed POST /v1/session, malformed schema → rejected after auth"
+     ]
+    }
+   ],
+   "checks": [
+    {
+     "name": "unsigned POST /v1/session",
+     "expected": {
+      "status": 401,
+      "body": {
+       "error": "SERVICE_AUTH_REQUIRED"
+      }
+     },
+     "observed": {
+      "status": 401,
+      "body": {
+       "error": "SERVICE_AUTH_REQUIRED"
+      },
+      "headers": {
+       "content-type": "application/json",
+       "cache-control": "no-store",
+       "x-content-type-options": "nosniff"
+      }
+     },
+     "ok": true
+    },
+    {
+     "name": "signed with a random key → rejected",
+     "expected": {
+      "status": 401,
+      "body": {
+       "error": "SERVICE_AUTH_REQUIRED"
+      }
+     },
+     "observed": {
+      "status": 401,
+      "body": {
+       "error": "SERVICE_AUTH_REQUIRED"
+      },
+      "headers": {
+       "content-type": "application/json",
+       "cache-control": "no-store",
+       "x-content-type-options": "nosniff"
+      }
+     },
+     "ok": true
+    },
+    {
+     "name": "signed, X-Time 120 s old → rejected",
+     "expected": {
+      "status": 401,
+      "body": {
+       "error": "SERVICE_AUTH_REQUIRED"
+      }
+     },
+     "observed": {
+      "status": 401,
+      "body": {
+       "error": "SERVICE_AUTH_REQUIRED"
+      },
+      "headers": {
+       "content-type": "application/json",
+       "cache-control": "no-store",
+       "x-content-type-options": "nosniff"
+      }
+     },
+     "ok": true
+    },
+    {
+     "name": "signed POST /v1/session, unknown session → Core verdict",
+     "expected": {
+      "status": 403,
+      "body": {
+       "error": "FORBIDDEN"
+      }
+     },
+     "observed": {
+      "status": 401,
+      "body": {
+       "error": "SERVICE_AUTH_REQUIRED"
+      },
+      "headers": {
+       "content-type": "application/json",
+       "cache-control": "no-store",
+       "x-content-type-options": "nosniff"
+      }
+     },
+     "ok": false
+    },
+    {
+     "name": "replay of the previous request (same nonce) → consumed",
+     "expected": {
+      "status": 401,
+      "body": {
+       "error": "REPLAY"
+      }
+     },
+     "observed": {
+      "status": 401,
+      "body": {
+       "error": "SERVICE_AUTH_REQUIRED"
+      },
+      "headers": {
+       "content-type": "application/json",
+       "cache-control": "no-store",
+       "x-content-type-options": "nosniff"
+      }
+     },
+     "ok": false
+    },
+    {
+     "name": "signed POST /v1/verified-email, unknown session → Core verdict (v1 route)",
+     "expected": {
+      "status": 403,
+      "body": {
+       "error": "FORBIDDEN"
+      }
+     },
+     "observed": {
+      "status": 401,
+      "body": {
+       "error": "SERVICE_AUTH_REQUIRED"
+      },
+      "headers": {
+       "content-type": "application/json",
+       "cache-control": "no-store",
+       "x-content-type-options": "nosniff"
+      }
+     },
+     "ok": false
+    },
+    {
+     "name": "signed POST /v1/session, malformed schema → rejected after auth",
+     "expected": {
+      "status": 400,
+      "body": {
+       "error": "INVALID_REQUEST"
+      }
+     },
+     "observed": {
+      "status": 401,
+      "body": {
+       "error": "SERVICE_AUTH_REQUIRED"
+      },
+      "headers": {
+       "content-type": "application/json",
+       "cache-control": "no-store",
+       "x-content-type-options": "nosniff"
+      }
+     },
+     "ok": false
+    },
+    {
+     "name": "signed POST /v1/nope → unknown route",
+     "expected": {
+      "status": 404,
+      "body": {
+       "error": "NOT_FOUND"
+      }
+     },
+     "observed": {
+      "status": 404,
+      "body": {
+       "error": "NOT_FOUND"
+      },
+      "headers": {
+       "content-type": "application/json",
+       "cache-control": "no-store",
+       "x-content-type-options": "nosniff"
+      }
+     },
+     "ok": true
+    },
+    {
+     "name": "GET /v1/session → method refused",
+     "expected": {
+      "status": 404,
+      "body": {
+       "error": "NOT_FOUND"
+      }
+     },
+     "observed": {
+      "status": 404,
+      "body": {
+       "error": "NOT_FOUND"
+      },
+      "headers": {
+       "content-type": "application/json",
+       "cache-control": "no-store",
+       "x-content-type-options": "nosniff"
+      }
+     },
+     "ok": true
+    }
+   ],
+   "sensitive_findings": []
+  },
+  "note": "Production never reconciles: Core holds another value than the Keychain"
+ },
+ "writes": [
+  {
+   "kind": "write-context",
+   "method": "POST",
+   "path": "/v1/projects/rcyuuoaqfwcembdajcss/database/query",
+   "bytes": 194,
+   "body_sha256": "bc6a2ff7686fac3679621e4b97f5c1e6cf52c41d4d46db34c1439de0ef3777de"
+  },
+  {
+   "kind": "write-deploy",
+   "method": "POST",
+   "path": "/v1/projects/rcyuuoaqfwcembdajcss/functions/deploy?slug=torneos-core-contract",
+   "bytes": 24199,
+   "body_sha256": "7bf5c35a99e025d554ac5a55aad523b9ee8d7ea9e66cab0826d18273cb67beb5"
+  }
+ ],
+ "server_state": "writes may have happened: re-observe with --preflight-only before anything else"
+}

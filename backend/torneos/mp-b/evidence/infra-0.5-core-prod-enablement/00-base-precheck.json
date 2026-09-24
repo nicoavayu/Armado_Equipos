@@ -1,0 +1,26 @@
+{
+ "phase": "ARMA2_TORNEOS_INFRA_0_5_CORE_PROD_ENABLEMENT",
+ "generated_at": "2026-09-24T20:07:44.595Z",
+ "worktree": "/Users/nicoavayu/Downloads/arma2/arma2-core-prod-contract-enablement",
+ "branch": "claude/torneos-core-prod-contract-enablement",
+ "base": "d62039c72128e7f24b3595414e755b513f4efbac",
+ "base_subject": "fix(torneos): harden isolated remote commerce runtime",
+ "original_worktree": {
+  "path": "/Users/nicoavayu/Downloads/arma2/arma2",
+  "head": "0a25998f921eb553efe4874bbab0635faa5dd836",
+  "porcelain_sha256_before": "bc9365ae02bbddb92b7238afc64dd926fd391cf98f80162c680821726e5c2d5b",
+  "porcelain_sha256_after": "bc9365ae02bbddb92b7238afc64dd926fd391cf98f80162c680821726e5c2d5b",
+  "entries": 4,
+  "touched": false
+ },
+ "remote_state_assumed_from_infra_1_blocked": {
+  "core_production": "rcyuuoaqfwcembdajcss — no torneos-core-contract",
+  "core_staging": "hhyvmhgpapyuzjgxfnqv ACTIVE, torneos-core-contract ACTIVE v1",
+  "arma2_torneos": "not created"
+ },
+ "remote_calls_this_phase": 0,
+ "remote_writes_this_phase": 0,
+ "supabase_cli_used": false,
+ "keychain_touched": false,
+ "owner_decision": "Core Production may receive EXCLUSIVELY 20260914120000 + 20260915120000 in a later phase; NOT applied in INFRA-0.5"
+}

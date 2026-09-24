@@ -1,0 +1,110 @@
+{
+ "certified_staging_tooling": {
+  "backend/torneos/phase3b/remote/core-contract.mjs": {
+   "sha256_d62039c7": "c4a2594e609dfbe505ac82515f0aa0241cf9b280da50645f78a2ea4e26acb0c2",
+   "sha256_now": "c4a2594e609dfbe505ac82515f0aa0241cf9b280da50645f78a2ea4e26acb0c2",
+   "unchanged": true
+  },
+  "backend/torneos/phase3b/remote/mgmt.mjs": {
+   "sha256_d62039c7": "d84456650a9cd8b333b86f0d69363812c07224ee15e4523af51b6c864683f18f",
+   "sha256_now": "d84456650a9cd8b333b86f0d69363812c07224ee15e4523af51b6c864683f18f",
+   "unchanged": true
+  },
+  "backend/torneos/phase3b/remote/mgmt-write.mjs": {
+   "sha256_d62039c7": "74aae5bc9bb74a4b20164203e910def96d8ef11948b10973d32217eeec5d46d0",
+   "sha256_now": "74aae5bc9bb74a4b20164203e910def96d8ef11948b10973d32217eeec5d46d0",
+   "unchanged": true
+  },
+  "backend/torneos/phase3b/remote/probe-core-contract.mjs": {
+   "sha256_d62039c7": "6aa7216ba49bb59d02110a6df1098a909eb143204c7a00f5737161d1fa297015",
+   "sha256_now": "6aa7216ba49bb59d02110a6df1098a909eb143204c7a00f5737161d1fa297015",
+   "unchanged": true
+  },
+  "backend/torneos/phase3b/remote/deploy-core-contract.sh": {
+   "sha256_d62039c7": "49bc34975796ccfb52edc9c430d774f181a13e9e7cbd4d00d33f1722f148e610",
+   "sha256_now": "49bc34975796ccfb52edc9c430d774f181a13e9e7cbd4d00d33f1722f148e610",
+   "unchanged": true
+  },
+  "backend/torneos/phase3b/remote/lib.sh": {
+   "sha256_d62039c7": "c3f5411cf1a78e321ae33b6ef8356a9c3eafdcc239e1fa65f2e8b5d63f1df68c",
+   "sha256_now": "c3f5411cf1a78e321ae33b6ef8356a9c3eafdcc239e1fa65f2e8b5d63f1df68c",
+   "unchanged": true
+  },
+  "backend/torneos/phase3b/remote/keychain.py": {
+   "sha256_d62039c7": "ee8f63f19b1e4672703f43365cf17ea490b8263e9e322844dbbbbf3ba9504f1b",
+   "sha256_now": "ee8f63f19b1e4672703f43365cf17ea490b8263e9e322844dbbbbf3ba9504f1b",
+   "unchanged": true
+  },
+  "backend/torneos/phase3b/remote/cli_parser.mjs": {
+   "sha256_d62039c7": "1ab11b26450ac384a56bd0e50532bdbfe73ae0fa28905629980e8e7a113e65dd",
+   "sha256_now": "1ab11b26450ac384a56bd0e50532bdbfe73ae0fa28905629980e8e7a113e65dd",
+   "unchanged": true
+  },
+  "backend/torneos/phase3b/remote/mgmt-rollback.mjs": {
+   "sha256_d62039c7": "0032813455c156cabd20bce7127891532895db7881ae9241e62b35100475a557",
+   "sha256_now": "0032813455c156cabd20bce7127891532895db7881ae9241e62b35100475a557",
+   "unchanged": true
+  },
+  "backend/torneos/phase3b/remote/rollback-core-contract.sh": {
+   "sha256_d62039c7": "3f704df2c0180186f16d2e565c981645ca6addb0867a8ce0078b9eb99fd0f5ce",
+   "sha256_now": "3f704df2c0180186f16d2e565c981645ca6addb0867a8ce0078b9eb99fd0f5ce",
+   "unchanged": true
+  },
+  "backend/torneos/phase3b/remote/core-contract.test.mjs": {
+   "sha256_d62039c7": "c035c7d018784faa72602f20c08b23b2464d520798c7bf71f7ca87f3d7dcf0ac",
+   "sha256_now": "c035c7d018784faa72602f20c08b23b2464d520798c7bf71f7ca87f3d7dcf0ac",
+   "unchanged": true
+  },
+  "backend/torneos/phase3b/contracts/core-contract-rollback.sql": {
+   "sha256_d62039c7": "08edcd0e5eb8b614cbc79a1af770f914e26abb523bc90e849f2ceed2a72d6853",
+   "sha256_now": "08edcd0e5eb8b614cbc79a1af770f914e26abb523bc90e849f2ceed2a72d6853",
+   "unchanged": true
+  }
+ },
+ "reused_by_import_only": {
+  "core-contract.mjs": [
+   "MIGRATIONS (probes)",
+   "renderAll",
+   "ledgerShapeDiff",
+   "LEDGER_SHAPE_SQL",
+   "WRITER_PRIVILEGES_SQL",
+   "writerPrivilegeFailures",
+   "CONTRACT_ACL_SQL",
+   "aclFailures",
+   "ROLES",
+   "PROBE_EXPECT",
+   "PROBE_HEADERS_EXPECTED",
+   "KEYCHAIN (nonprod, read only for distinctness)"
+  ],
+  "mgmt.mjs": [
+   "assertReadOnlySql",
+   "API_HOST",
+   "PAT_PATTERN",
+   "projectFunction"
+  ],
+  "mgmt-write.mjs": [
+   "resolveFiles",
+   "buildDeployBody",
+   "WRITER_CONTEXT_SQL"
+  ],
+  "probe-core-contract.mjs": [
+   "sign",
+   "classify"
+  ],
+  "cli_parser.mjs": [
+   "via renderAll"
+  ]
+ },
+ "not_reusable_for_production_and_why": {
+  "deploy-core-contract.sh / lib.sh": "assert_ref refuses rcyuuoaqfwcembdajcss; Keychain bound to arma2-torneos-nonprod-core; staging 9-row ledger pins; reconcile-ledger allowed",
+  "mgmt.mjs / mgmt-write.mjs transports": "assertNoProduction on path/body/token",
+  "probe-core-contract.mjs probeOnce": "endpointFor refuses Production",
+  "keychain.py": "label says non-production; generic add of an external value"
+ },
+ "staging_certified_deploy": {
+  "file": "backend/torneos/phase3b/evidence/core-contract-20260917T214621Z.json",
+  "sha256": "5255249af48a6a8714c018f9fc53f601e949210323666ff8eb82fdaa6a9e4c88",
+  "ezbr_sha256": "1072419517953eee8e8021f9691d1a5b1efb1f871c4d13290f644d119caded2c",
+  "version": 1
+ }
+}

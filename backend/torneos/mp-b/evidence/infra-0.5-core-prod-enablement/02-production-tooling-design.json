@@ -1,0 +1,54 @@
+{
+ "directory": "backend/torneos/infra/core-prod-contract/",
+ "files": {
+  "README.md": "1eda54a937b24af9a95b56a0758bc5b762299c68141dbf266af7fcdae7bdf2a4",
+  "core-prod-deploy.mjs": "152e7fddefb3caa79279ecb02c0c6e918f9d12fa90e405f284f93111db87e51f",
+  "core-prod.test.mjs": "ccc464d592db058e03a98eabd7b4f1f0075232db820a7b3ffc5ebbbe2e9aac19",
+  "deploy-core-contract-prod.sh": "ef46b698ba3b0852b4a0afd3bc990e1b80a36af9b24407778b3a7a7200b40a6b",
+  "derive-ledger-baseline.mjs": "33e64df62850016c0761bef16577a8a0c8ecf17149b74b8fbfc13c08e75e87bd",
+  "keychain-prod.mjs": "03379f395515c8dea7be4de301a680b42fa6278406b2047227f79bb72c3086d6",
+  "keychain-prod.py": "4bf52830be7c0e1f7865bb149eb4a6b8ff3b7d54f0d0a8951dfe46f31246435e",
+  "mgmt-prod.mjs": "9e9c58ce96e2495cab744b834810b9c6815130ca01fc8807e9eda9b3c9b92ccb",
+  "offline-rehearsal-prod.mjs": "27a9671f34e244e146d8e8791ac69d17b865dd48d2049454ec5e85407b206465",
+  "pins/production-ledger-baseline.json": "2093dcb3c26d531e7d0722791c1a37a2df5b800b8d47d331af461a56edeb45c8",
+  "probe-prod.mjs": "251be94c944d338a4603b01d0a219afb8fe8935a504b50627d0b54d377cad51e",
+  "prod-contract.mjs": "19181a59ed6d6f557f294454ef20aa67a5fb329b43ca241a9220f10d0ecb37ae"
+ },
+ "flow": [
+  "pins (before any credential): Keychain namespace, certified Staging tooling hashes, migrations+apply SQL, artifact, ledger baseline",
+  "request: stdin exactly {pat}",
+  "custody (local, read-only)",
+  "read-only observation: project, ledger shape+rows+writer, installed, prerequisites, app_private, ACL, catalog digest, secret names, function",
+  "gates → plan → preflight evidence → plan id",
+  "--preflight-only / --dry-run STOP here (0 writes)",
+  "--apply: CI refused → phrase from /dev/tty → re-observation identical → Keychain generate(once)/read/≠Staging → arm → writer context → v1 → v1.1 → set-secrets → deploy+readback → harness 9/9 → ACL → app_private → catalog unchanged → ledger baseline+2 → evidence",
+  "--acl-only: read-only postflight"
+ ],
+ "target_guard": {
+  "pinned": {
+   "ref": "rcyuuoaqfwcembdajcss",
+   "name": "nicoavayu's Project",
+   "organization_slug": "gwqrborhnqjdzzmpxulh",
+   "region": "sa-east-1",
+   "created_at": "2025-06-30T20:57:55.045023Z"
+  },
+  "source": {
+   "file": "backend/torneos/phase3b/evidence/remote-inventory-20260915T154002Z.json",
+   "sha256": "502c2c69f5d5e45649b92ffdea3b78618f6b21472ef0f8a53c30292cc5d62286"
+  },
+  "required_status": "ACTIVE_HEALTHY",
+  "refused": [
+   "hhyvmhgpapyuzjgxfnqv (Staging)",
+   "any other ref",
+   "empty/null/malformed ref",
+   "any ref key in the input (the tooling takes no ref)",
+   "Staging ref in path, body or PAT"
+  ]
+ },
+ "write_surface": [
+  "POST /v1/projects/rcyuuoaqfwcembdajcss/database/query read_only:false — WRITER_CONTEXT_SQL or one of the 2 pinned apply documents (sha256 allowlist)",
+  "POST /v1/projects/rcyuuoaqfwcembdajcss/secrets — exactly [{TORNEOS_CONTRACT_SERVICE_SECRET, 64 hex}]",
+  "POST /v1/projects/rcyuuoaqfwcembdajcss/functions/deploy?slug=torneos-core-contract — pinned multipart"
+ ],
+ "writes_require": "client armed only after the typed phrase"
+}

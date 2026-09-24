@@ -1,0 +1,277 @@
+{
+ "kind": "INFRA_0_5_OFFLINE_REHEARSAL",
+ "generated_at": "2026-09-24T20:06:21.797Z",
+ "image": "public.ecr.aws/supabase/postgres:17.4.1.048",
+ "network": "none",
+ "container": "arma2-infra05-rehearsal-3e85e589",
+ "capture": {
+  "sha256": "d00faa708ab6e6659882d897511bc60930b1872e230112b07ba8bd9aadd5162d",
+  "captured_utc": "2026-09-11T20:40:55.663Z",
+  "ledger_rows": 236
+ },
+ "production_contact": "none (no socket to Supabase; emulated transport; in-memory Keychain)",
+ "engine": {
+  "server_version": "17.4",
+  "writer": "postgres",
+  "writer_superuser": false,
+  "app_private_present": false
+ },
+ "apply": {
+  "plan_id": "fd29223d448d",
+  "probe": {
+   "verdict": "SIGNED_HARNESS_PASS",
+   "checks": [
+    {
+     "name": "unsigned POST /v1/session",
+     "ok": true
+    },
+    {
+     "name": "signed with a random key → rejected",
+     "ok": true
+    },
+    {
+     "name": "signed, X-Time 120 s old → rejected",
+     "ok": true
+    },
+    {
+     "name": "signed POST /v1/session, unknown session → Core verdict",
+     "ok": true
+    },
+    {
+     "name": "replay of the previous request (same nonce) → consumed",
+     "ok": true
+    },
+    {
+     "name": "signed POST /v1/verified-email, unknown session → Core verdict (v1 route)",
+     "ok": true
+    },
+    {
+     "name": "signed POST /v1/session, malformed schema → rejected after auth",
+     "ok": true
+    },
+    {
+     "name": "signed POST /v1/nope → unknown route",
+     "ok": true
+    },
+    {
+     "name": "GET /v1/session → method refused",
+     "ok": true
+    }
+   ]
+  },
+  "acl_failures": [],
+  "catalog_changed": []
+ },
+ "after": {
+  "ledger_rows": 238,
+  "app_private": {
+   "present": true,
+   "owner": "postgres",
+   "acl": null,
+   "relations": [
+    "torneos_contract_nonces_expiry|i",
+    "torneos_contract_nonces_pkey|i",
+    "torneos_contract_nonces|r",
+    "torneos_contract_rate_events_actor|i",
+    "torneos_contract_rate_events_id_seq|S",
+    "torneos_contract_rate_events_pkey|i",
+    "torneos_contract_rate_events|r"
+   ],
+   "functions": [
+    "torneos_contract_email(p_value text)",
+    "torneos_contract_importable_team(p_user_id uuid, p_team_id uuid)",
+    "torneos_contract_url(p_value text)",
+    "torneos_contract_visible_player(p_user_id uuid)"
+   ],
+   "policies": 0,
+   "types": []
+  },
+  "nonces_written_by_harness": 2
+ },
+ "keychain": {
+  "generated": 1,
+  "prod_equals_nonprod": false
+ },
+ "phases": [
+  {
+   "label": "P01 preflight-only on the Production-shaped seed",
+   "mode": "--preflight-only",
+   "expect": "CORE_PROD_PREFLIGHT_ONLY_STOP",
+   "verdict": "CORE_PROD_PREFLIGHT_ONLY_STOP",
+   "ok": true,
+   "requests": 12,
+   "write_requests": 0,
+   "write_paths": [],
+   "plan_id": "4ffbb6b7d0a3"
+  },
+  {
+   "label": "P02 dry-run",
+   "mode": "--dry-run",
+   "expect": "CORE_PROD_DRYRUN_STOP",
+   "verdict": "CORE_PROD_DRYRUN_STOP",
+   "ok": true,
+   "requests": 12,
+   "write_requests": 0,
+   "write_paths": [],
+   "plan_id": "b02b84770b37"
+  },
+  {
+   "label": "N01 ledger drift (extra row) → STOP",
+   "mode": "--preflight-only",
+   "expect": "STOP:LEDGER_UNEXPECTED",
+   "verdict": "STOP:LEDGER_UNEXPECTED",
+   "ok": true,
+   "requests": 12,
+   "write_requests": 0,
+   "write_paths": [],
+   "plan_id": null
+  },
+  {
+   "label": "N02 changed ledger row → STOP",
+   "mode": "--preflight-only",
+   "expect": "STOP:LEDGER_UNEXPECTED",
+   "verdict": "STOP:LEDGER_UNEXPECTED",
+   "ok": true,
+   "requests": 12,
+   "write_requests": 0,
+   "write_paths": [],
+   "plan_id": null
+  },
+  {
+   "label": "N03 pre-existing app_private → STOP",
+   "mode": "--preflight-only",
+   "expect": "STOP:APP_PRIVATE_UNEXPECTED",
+   "verdict": "STOP:APP_PRIVATE_UNEXPECTED",
+   "ok": true,
+   "requests": 12,
+   "write_requests": 0,
+   "write_paths": [],
+   "plan_id": null
+  },
+  {
+   "label": "N04 missing prerequisite column → STOP",
+   "mode": "--preflight-only",
+   "expect": "STOP:PREREQUISITES_UNMET",
+   "verdict": "STOP:PREREQUISITES_UNMET",
+   "ok": true,
+   "requests": 12,
+   "write_requests": 0,
+   "write_paths": [],
+   "plan_id": null
+  },
+  {
+   "label": "N05 project not ACTIVE_HEALTHY → STOP",
+   "mode": "--preflight-only",
+   "expect": "STOP:PROJECT_NOT_ACTIVE_HEALTHY",
+   "verdict": "STOP:PROJECT_NOT_ACTIVE_HEALTHY",
+   "ok": true,
+   "requests": 12,
+   "write_requests": 0,
+   "write_paths": [],
+   "plan_id": null
+  },
+  {
+   "label": "N06 wrong phrase → STOP, 0 writes",
+   "mode": "--apply",
+   "expect": "STOP:CONFIRMATION_REFUSED",
+   "verdict": "STOP:CONFIRMATION_REFUSED",
+   "ok": true,
+   "requests": 12,
+   "write_requests": 0,
+   "write_paths": [],
+   "plan_id": null
+  },
+  {
+   "label": "P03 APPLY: v1 + v1.1 + secret + deploy + 9/9 + ACL + catalog + ledger",
+   "mode": "--apply",
+   "expect": "CORE_PROD_CONTRACT_DEPLOYED",
+   "verdict": "CORE_PROD_CONTRACT_DEPLOYED",
+   "ok": true,
+   "requests": 49,
+   "write_requests": 5,
+   "write_paths": [
+    "POST /v1/projects/rcyuuoaqfwcembdajcss/database/query (read_only:false)",
+    "POST /v1/projects/rcyuuoaqfwcembdajcss/database/query (read_only:false)",
+    "POST /v1/projects/rcyuuoaqfwcembdajcss/database/query (read_only:false)",
+    "POST /v1/projects/rcyuuoaqfwcembdajcss/secrets",
+    "POST /v1/projects/rcyuuoaqfwcembdajcss/functions/deploy?slug=torneos-core-contract"
+   ],
+   "plan_id": "fd29223d448d"
+  },
+  {
+   "label": "P04 acl-only (read-only postflight)",
+   "mode": "--acl-only",
+   "expect": "CORE_PROD_ACL_PASS",
+   "verdict": "CORE_PROD_ACL_PASS",
+   "ok": true,
+   "requests": 12,
+   "write_requests": 0,
+   "write_paths": [],
+   "plan_id": null
+  },
+  {
+   "label": "P05 re-run apply: skip/skip, Keychain reused, deploy + 9/9",
+   "mode": "--apply",
+   "expect": "CORE_PROD_CONTRACT_DEPLOYED",
+   "verdict": "CORE_PROD_CONTRACT_DEPLOYED",
+   "ok": true,
+   "requests": 35,
+   "write_requests": 2,
+   "write_paths": [
+    "POST /v1/projects/rcyuuoaqfwcembdajcss/database/query (read_only:false)",
+    "POST /v1/projects/rcyuuoaqfwcembdajcss/functions/deploy?slug=torneos-core-contract"
+   ],
+   "plan_id": "5b74a7eecf1f"
+  },
+  {
+   "label": "N07 API role gets USAGE on app_private → acl-only STOP",
+   "mode": "--acl-only",
+   "expect": "STOP:ACL_EXPECTATIONS_UNMET",
+   "verdict": "STOP:ACL_EXPECTATIONS_UNMET",
+   "ok": true,
+   "requests": 12,
+   "write_requests": 0,
+   "write_paths": [],
+   "plan_id": null
+  },
+  {
+   "label": "N08 Core secret differs from Keychain → STOP (no reconcile)",
+   "mode": "--apply",
+   "expect": "STOP:SIGNED_HARNESS_SECRET_MISMATCH",
+   "verdict": "STOP:SIGNED_HARNESS_SECRET_MISMATCH",
+   "ok": true,
+   "requests": 27,
+   "write_requests": 2,
+   "write_paths": [
+    "POST /v1/projects/rcyuuoaqfwcembdajcss/database/query (read_only:false)",
+    "POST /v1/projects/rcyuuoaqfwcembdajcss/functions/deploy?slug=torneos-core-contract"
+   ],
+   "plan_id": null
+  },
+  {
+   "label": "N09 ledger row of v1.1 removed (objects without row) → STOP, no mark-as-applied",
+   "mode": "--preflight-only",
+   "expect": "STOP:MIGRATION_STATE_STOP",
+   "verdict": "STOP:MIGRATION_STATE_STOP",
+   "ok": true,
+   "requests": 12,
+   "write_requests": 0,
+   "write_paths": [],
+   "plan_id": null
+  },
+  {
+   "label": "P06 final acl-only after every negative was undone",
+   "mode": "--acl-only",
+   "expect": "CORE_PROD_ACL_PASS",
+   "verdict": "CORE_PROD_ACL_PASS",
+   "ok": true,
+   "requests": 12,
+   "write_requests": 0,
+   "write_paths": [],
+   "plan_id": null
+  }
+ ],
+ "all_pass": true,
+ "writes_outside_apply": 0,
+ "container_removed": true
+}

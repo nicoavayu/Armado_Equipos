@@ -1,0 +1,37 @@
+{
+ "annotation": "OFFLINE REHEARSAL 20260924T200621Z — local public.ecr.aws/supabase/postgres:17.4.1.048 container, --network none, emulated Management API, in-memory Keychain; NOT a Production run",
+ "generated_at": "2026-09-24T20:06:25.869Z",
+ "tool": "backend/torneos/infra/core-prod-contract/core-prod-deploy.mjs",
+ "mode": "--preflight-only",
+ "read_only": true,
+ "stop": "LEDGER_UNEXPECTED",
+ "stage": "observe",
+ "detail": {
+  "ok": false,
+  "shape_diff": [],
+  "baseline": {
+   "rows": 236,
+   "missing": [],
+   "added": [],
+   "changed": [
+    {
+     "version": "20260903213456",
+     "fields": [
+      "name"
+     ]
+    }
+   ]
+  },
+  "bad_versions": [],
+  "duplicates": [],
+  "newer_versions": [],
+  "contract": {
+   "20260914120000": "absent",
+   "20260915120000": "absent"
+  },
+  "observed_rows": 236,
+  "observed_max_version": "20260903213456"
+ },
+ "writes": [],
+ "server_state": "0 writes"
+}

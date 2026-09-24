@@ -1,0 +1,131 @@
+{
+ "sql": "certified CONTRACT_ACL_SQL + APP_PRIVATE_SQL + CATALOG_DIGEST_SQL (read-only)",
+ "expectations": {
+  "functions": [
+   {
+    "signature": "public.torneos_contract_execute(text,text,jsonb)",
+    "security_definer": true,
+    "search_path_empty": true,
+    "execute": {
+     "anon": false,
+     "authenticated": false,
+     "service_role": true
+    }
+   },
+   {
+    "signature": "app_private.torneos_contract_email(text)",
+    "security_definer": false,
+    "search_path_empty": true,
+    "execute": {
+     "anon": false,
+     "authenticated": false,
+     "service_role": false
+    }
+   },
+   {
+    "signature": "app_private.torneos_contract_url(text)",
+    "security_definer": false,
+    "search_path_empty": true,
+    "execute": {
+     "anon": false,
+     "authenticated": false,
+     "service_role": false
+    }
+   },
+   {
+    "signature": "app_private.torneos_contract_visible_player(uuid)",
+    "security_definer": false,
+    "search_path_empty": true,
+    "execute": {
+     "anon": false,
+     "authenticated": false,
+     "service_role": false
+    }
+   },
+   {
+    "signature": "app_private.torneos_contract_importable_team(uuid,uuid)",
+    "security_definer": false,
+    "search_path_empty": true,
+    "execute": {
+     "anon": false,
+     "authenticated": false,
+     "service_role": false
+    }
+   }
+  ],
+  "tables": [
+   {
+    "name": "app_private.torneos_contract_nonces",
+    "rls": true,
+    "privileges": {
+     "anon": false,
+     "authenticated": false,
+     "service_role": false
+    },
+    "indexes": [
+     "torneos_contract_nonces_expiry",
+     "torneos_contract_nonces_pkey"
+    ]
+   },
+   {
+    "name": "app_private.torneos_contract_rate_events",
+    "rls": true,
+    "privileges": {
+     "anon": false,
+     "authenticated": false,
+     "service_role": false
+    },
+    "indexes": [
+     "torneos_contract_rate_events_actor",
+     "torneos_contract_rate_events_pkey"
+    ]
+   }
+  ],
+  "app_private_schema_usage": {
+   "anon": false,
+   "authenticated": false,
+   "service_role": false
+  },
+  "app_private_after": {
+   "present": true,
+   "owner": "postgres",
+   "acl": null,
+   "relations": [
+    "torneos_contract_nonces_expiry|i",
+    "torneos_contract_nonces_pkey|i",
+    "torneos_contract_nonces|r",
+    "torneos_contract_rate_events_actor|i",
+    "torneos_contract_rate_events_id_seq|S",
+    "torneos_contract_rate_events_pkey|i",
+    "torneos_contract_rate_events|r"
+   ],
+   "functions": [
+    "torneos_contract_email(p_value text)",
+    "torneos_contract_importable_team(p_user_id uuid, p_team_id uuid)",
+    "torneos_contract_url(p_value text)",
+    "torneos_contract_visible_player(p_user_id uuid)"
+   ],
+   "policies": 0,
+   "types": []
+  },
+  "strays": 0,
+  "session_branch": true
+ },
+ "difference_vs_staging": "Staging app_private pre-existed with USAGE for anon/authenticated/service_role; in Production the migration creates it (owner postgres, no grants) → stricter expectation; explicit {postgres=UC/postgres} treated as equal to NULL",
+ "no_other_object_changes": {
+  "categories": [
+   "public_functions",
+   "public_relations",
+   "public_columns",
+   "public_policies",
+   "public_triggers",
+   "namespaces",
+   "default_acl",
+   "roles",
+   "memberships",
+   "ledger_other"
+  ],
+  "rule": "digest before == after (contract objects and app_private excluded; app_private checked exactly)"
+ },
+ "mode": "--acl-only (read-only) + inside --apply"
+}

@@ -1,0 +1,392 @@
+{
+ "annotation": "OFFLINE REHEARSAL 20260924T200621Z — local public.ecr.aws/supabase/postgres:17.4.1.048 container, --network none, emulated Management API, in-memory Keychain; NOT a Production run",
+ "generated_at": "2026-09-24T20:06:24.686Z",
+ "tool": "backend/torneos/infra/core-prod-contract/core-prod-deploy.mjs",
+ "mode": "--preflight-only",
+ "read_only": true,
+ "target": {
+  "ref": "rcyuuoaqfwcembdajcss",
+  "name": "nicoavayu's Project",
+  "organization_slug": "gwqrborhnqjdzzmpxulh",
+  "region": "sa-east-1",
+  "created_at": "2025-06-30T20:57:55.045023Z"
+ },
+ "target_source": {
+  "file": "backend/torneos/phase3b/evidence/remote-inventory-20260915T154002Z.json",
+  "sha256": "502c2c69f5d5e45649b92ffdea3b78618f6b21472ef0f8a53c30292cc5d62286"
+ },
+ "pins": {
+  "migrations": [
+   {
+    "version": "20260914120000",
+    "name": "torneos_core_contract_v1",
+    "sha256": "2967ae6f67e36877c4931cb7821535eab10c5b7312026846f619b14fb045672c",
+    "apply_sql_sha256": "3d3e2845987ccdfd74b77ace51195865234066bb5828280fb0c8114969b84485",
+    "apply_sql_bytes": 33935,
+    "ledger": {
+     "statements_count": 22,
+     "statements_digest": "09ad7d261523fa1c2bb6e203a1624467",
+     "statements_bytes": 16688
+    }
+   },
+   {
+    "version": "20260915120000",
+    "name": "torneos_core_contract_v1_1_session",
+    "sha256": "5256413839ad0abe9c9533a675461cc6589fd720e6b2bede3bc8d201a75ce422",
+    "apply_sql_sha256": "859fa7a30dee4a03376a662ab74427927c6a8b8a404556abdd3bfa59e5e5b78c",
+    "apply_sql_bytes": 24408,
+    "ledger": {
+     "statements_count": 3,
+     "statements_digest": "b424cc66022e7ab721e8070d0b05cdc7",
+     "statements_bytes": 12088
+    }
+   }
+  ],
+  "artifact": {
+   "slug": "torneos-core-contract",
+   "verify_jwt": false,
+   "files": [
+    {
+     "path": "functions/_shared/supabaseApiKeys.ts",
+     "bytes": 3622,
+     "sha256": "5d6cc3aec5fbcd2a3b5d46b254957d2275c811b4660ff2e8afdcfa30fc94170a"
+    },
+    {
+     "path": "functions/_shared/torneosCoreContract.ts",
+     "bytes": 16849,
+     "sha256": "83d129020be52dbc0e28ca4aa97d27a28fe9b2eded700f9ca6af0e69507812d7"
+    },
+    {
+     "path": "functions/torneos-core-contract/index.ts",
+     "bytes": 2828,
+     "sha256": "41e012f03b72d24e1f386ce3902bbab6aff2b2bdcf7ec96a325f588a77b0d269"
+    }
+   ],
+   "certified_staging_evidence": {
+    "file": "backend/torneos/phase3b/evidence/core-contract-20260917T214621Z.json",
+    "sha256": "5255249af48a6a8714c018f9fc53f601e949210323666ff8eb82fdaa6a9e4c88",
+    "ezbr_sha256": "1072419517953eee8e8021f9691d1a5b1efb1f871c4d13290f644d119caded2c",
+    "version": 1
+   }
+  },
+  "ledger_baseline": {
+   "sha256": "2093dcb3c26d531e7d0722791c1a37a2df5b800b8d47d331af461a56edeb45c8",
+   "rows": 236,
+   "max_version": "20260903213456",
+   "source": {
+    "file": "step37-final-window-r5-20260911-B71wJo/inventory/INVENTORY-EVIDENCE.json",
+    "sha256": "d00faa708ab6e6659882d897511bc60930b1872e230112b07ba8bd9aadd5162d",
+    "captured_utc": "2026-09-11T20:40:55.663Z",
+    "capture_kind": "PRODUCTION_BEFORE_V3",
+    "read_only": true,
+    "catalog_sha256": "e09c17230f5bbfe4fb775da6847bbffe03e40b4d041f0846a9734bbcb51ee3ed"
+   }
+  },
+  "tooling": {
+   "prod-contract.mjs": "19181a59ed6d6f557f294454ef20aa67a5fb329b43ca241a9220f10d0ecb37ae",
+   "mgmt-prod.mjs": "9e9c58ce96e2495cab744b834810b9c6815130ca01fc8807e9eda9b3c9b92ccb",
+   "probe-prod.mjs": "251be94c944d338a4603b01d0a219afb8fe8935a504b50627d0b54d377cad51e",
+   "keychain-prod.mjs": "03379f395515c8dea7be4de301a680b42fa6278406b2047227f79bb72c3086d6",
+   "keychain-prod.py": "4bf52830be7c0e1f7865bb149eb4a6b8ff3b7d54f0d0a8951dfe46f31246435e",
+   "core-prod-deploy.mjs": "152e7fddefb3caa79279ecb02c0c6e918f9d12fa90e405f284f93111db87e51f",
+   "deploy-core-contract-prod.sh": "ef46b698ba3b0852b4a0afd3bc990e1b80a36af9b24407778b3a7a7200b40a6b",
+   "pins/production-ledger-baseline.json": "2093dcb3c26d531e7d0722791c1a37a2df5b800b8d47d331af461a56edeb45c8"
+  }
+ },
+ "custody": {
+  "namespace": {
+   "service": "arma2-torneos-prod-core-contract",
+   "account": "contract-secret"
+  },
+  "keychain": "ABSENT",
+  "value_checked": false,
+  "distinct_from_nonprod": null
+ },
+ "observation": {
+  "project": {
+   "ref": "rcyuuoaqfwcembdajcss",
+   "name": "nicoavayu's Project",
+   "organization_slug": "gwqrborhnqjdzzmpxulh",
+   "region": "sa-east-1",
+   "status": "ACTIVE_HEALTHY",
+   "created_at": "2025-06-30T20:57:55.045023Z",
+   "database_version": "17.4.1.048 (local rehearsal image)"
+  },
+  "ledger": {
+   "rows": 236,
+   "max_version": "20260903213456",
+   "baseline_rows": 236,
+   "missing": [],
+   "added": [],
+   "changed": [],
+   "contract": {
+    "20260914120000": "absent",
+    "20260915120000": "absent"
+   },
+   "shape_ok": true,
+   "writer": {
+    "writer": "postgres",
+    "database": "postgres",
+    "database_owner": "postgres",
+    "database_create": true,
+    "app_private_present": false,
+    "app_private_owner": null,
+    "app_private_create": null,
+    "public_create": true,
+    "ledger_insert": true,
+    "ledger_delete": true,
+    "ledger_owner": "postgres"
+   },
+   "standard_conforming_strings": "on"
+  },
+  "installed": {
+   "20260914120000": false,
+   "20260915120000": false
+  },
+  "prerequisites": {
+   "relations": {
+    "auth.sessions": {
+     "id": "uuid",
+     "not_after": "timestamp with time zone",
+     "user_id": "uuid"
+    },
+    "auth.users": {
+     "banned_until": "timestamp with time zone",
+     "deleted_at": "timestamp with time zone",
+     "email": "character varying(255)",
+     "email_confirmed_at": "timestamp with time zone",
+     "id": "uuid",
+     "is_anonymous": "boolean"
+    },
+    "public.jugadores": {
+     "id": "bigint",
+     "usuario_id": "uuid"
+    },
+    "public.team_members": {
+     "jugador_id": "bigint",
+     "team_id": "uuid",
+     "user_id": "uuid"
+    },
+    "public.teams": {
+     "crest_url": "text",
+     "id": "uuid",
+     "is_active": "boolean",
+     "name": "text",
+     "updated_at": "timestamp with time zone"
+    },
+    "public.usuarios": {
+     "acepta_invitaciones": "boolean",
+     "avatar_url": "text",
+     "id": "uuid",
+     "nombre": "text",
+     "posiciones": "text[]"
+    }
+   },
+   "functions": {
+    "public.normalize_tournament_person_name(text)": "text",
+    "public.team_user_is_admin_or_owner(uuid,uuid)": "boolean",
+    "public.team_user_is_owner(uuid,uuid)": "boolean"
+   }
+  },
+  "app_private": {
+   "present": false,
+   "owner": null,
+   "acl": null,
+   "relations": [],
+   "functions": [],
+   "policies": 0,
+   "types": []
+  },
+  "acl": {
+   "functions": [
+    {
+     "signature": "public.torneos_contract_execute(text,text,jsonb)",
+     "present": false,
+     "security_definer": null,
+     "search_path_empty": null,
+     "owner": null,
+     "execute": {
+      "anon": null,
+      "authenticated": null,
+      "service_role": null
+     }
+    },
+    {
+     "signature": "app_private.torneos_contract_email(text)",
+     "present": false,
+     "security_definer": null,
+     "search_path_empty": null,
+     "owner": null,
+     "execute": {
+      "anon": null,
+      "authenticated": null,
+      "service_role": null
+     }
+    },
+    {
+     "signature": "app_private.torneos_contract_url(text)",
+     "present": false,
+     "security_definer": null,
+     "search_path_empty": null,
+     "owner": null,
+     "execute": {
+      "anon": null,
+      "authenticated": null,
+      "service_role": null
+     }
+    },
+    {
+     "signature": "app_private.torneos_contract_visible_player(uuid)",
+     "present": false,
+     "security_definer": null,
+     "search_path_empty": null,
+     "owner": null,
+     "execute": {
+      "anon": null,
+      "authenticated": null,
+      "service_role": null
+     }
+    },
+    {
+     "signature": "app_private.torneos_contract_importable_team(uuid,uuid)",
+     "present": false,
+     "security_definer": null,
+     "search_path_empty": null,
+     "owner": null,
+     "execute": {
+      "anon": null,
+      "authenticated": null,
+      "service_role": null
+     }
+    }
+   ],
+   "tables": [
+    {
+     "name": "app_private.torneos_contract_nonces",
+     "present": false,
+     "rls": null,
+     "owner": null,
+     "privileges": {
+      "anon": null,
+      "authenticated": null,
+      "service_role": null
+     },
+     "indexes": []
+    },
+    {
+     "name": "app_private.torneos_contract_rate_events",
+     "present": false,
+     "rls": null,
+     "owner": null,
+     "privileges": {
+      "anon": null,
+      "authenticated": null,
+      "service_role": null
+     },
+     "indexes": []
+    }
+   ],
+   "schema": {
+    "app_private_present": false,
+    "usage": {
+     "anon": null,
+     "authenticated": null,
+     "service_role": null
+    }
+   },
+   "session_branch": false,
+   "stray_objects": 0,
+   "stray_relations": 0
+  },
+  "catalog": {
+   "public_functions": {
+    "count": 3,
+    "digest": "a2dee8f0a8b767376b0337ae9f1d0f54"
+   },
+   "public_relations": {
+    "count": 8,
+    "digest": "17d9737a47523e044d2d5b155946920c"
+   },
+   "public_columns": {
+    "count": 23,
+    "digest": "abe344f3fd7aaad5d7b7a7aa01799fff"
+   },
+   "public_policies": {
+    "count": 0,
+    "digest": "d41d8cd98f00b204e9800998ecf8427e"
+   },
+   "public_triggers": {
+    "count": 0,
+    "digest": "d41d8cd98f00b204e9800998ecf8427e"
+   },
+   "namespaces": {
+    "count": 12,
+    "digest": "6609e47e393d53d9d8af1ceb443b9724"
+   },
+   "default_acl": {
+    "count": 24,
+    "digest": "e62730c6623eb8769e45d49737d78d9a"
+   },
+   "roles": {
+    "count": 12,
+    "digest": "0c83cabb547bfcc0b0e6f9ebf30157d6"
+   },
+   "memberships": {
+    "count": 16,
+    "digest": "65281209d0d5d0cbc9d378e02f88b6b2"
+   },
+   "ledger_other": {
+    "count": 236,
+    "digest": "9be165bec5c611596092302fa5b0228a"
+   }
+  },
+  "secret": {
+   "name": "TORNEOS_CONTRACT_SERVICE_SECRET",
+   "remote": "absent",
+   "project_secret_count": 1
+  },
+  "function": null,
+  "fingerprint": "3aefd24af08bac45d4a848a3b0b024eb923a6bb42f343a180811259f1d463f4a"
+ },
+ "plan": {
+  "target": {
+   "ref": "rcyuuoaqfwcembdajcss",
+   "name": "nicoavayu's Project",
+   "organization_slug": "gwqrborhnqjdzzmpxulh",
+   "region": "sa-east-1",
+   "created_at": "2025-06-30T20:57:55.045023Z",
+   "status": "ACTIVE_HEALTHY"
+  },
+  "migrations": [
+   {
+    "version": "20260914120000",
+    "installed": false,
+    "ledger": "absent",
+    "decision": "apply"
+   },
+   {
+    "version": "20260915120000",
+    "installed": false,
+    "ledger": "absent",
+    "decision": "apply"
+   }
+  ],
+  "ledger_strategy": "A (certified): file bytes + CLI-shaped ledger INSERT in ONE transaction per version; never ON CONFLICT; no ledger-only INSERT in Production",
+  "secret": "generate-store-set",
+  "keychain": "ABSENT",
+  "remote_secret": "absent",
+  "function": {
+   "slug": "torneos-core-contract",
+   "present_before": false,
+   "action": "deploy (verify_jwt=false, 3 pinned files)"
+  },
+  "verification": [
+   "signed harness 9/9 (certified PROBE_EXPECT)",
+   "ACL (certified aclFailures + app_private owner-only)",
+   "app_private == exact contract set",
+   "catalog digests outside the contract unchanged",
+   "ledger == baseline + 2 own rows"
+  ],
+  "rollback": "NOT part of this tooling: a Production rollback needs its own authorization"
+ }
+}

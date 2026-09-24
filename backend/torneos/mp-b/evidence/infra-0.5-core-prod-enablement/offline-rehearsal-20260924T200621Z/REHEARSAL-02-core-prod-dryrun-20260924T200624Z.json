@@ -1,0 +1,67 @@
+{
+ "annotation": "OFFLINE REHEARSAL 20260924T200621Z — local public.ecr.aws/supabase/postgres:17.4.1.048 container, --network none, emulated Management API, in-memory Keychain; NOT a Production run",
+ "generated_at": "2026-09-24T20:06:25.041Z",
+ "tool": "backend/torneos/infra/core-prod-contract/core-prod-deploy.mjs",
+ "mode": "--dry-run",
+ "read_only": true,
+ "preflight": "REHEARSAL-02-core-prod-preflight-20260924T200624Z.json",
+ "plan_id": "b02b84770b37",
+ "dry_run": {
+  "requests": [
+   {
+    "what": "writer-context",
+    "method": "POST",
+    "path": "/v1/projects/rcyuuoaqfwcembdajcss/database/query",
+    "read_only": false,
+    "sql": "WRITER_CONTEXT_SQL (a SELECT)"
+   },
+   {
+    "what": "apply 20260914120000",
+    "method": "POST",
+    "path": "/v1/projects/rcyuuoaqfwcembdajcss/database/query",
+    "read_only": false,
+    "sql_sha256": "3d3e2845987ccdfd74b77ace51195865234066bb5828280fb0c8114969b84485",
+    "sql_bytes": 33935
+   },
+   {
+    "what": "apply 20260915120000",
+    "method": "POST",
+    "path": "/v1/projects/rcyuuoaqfwcembdajcss/database/query",
+    "read_only": false,
+    "sql_sha256": "859fa7a30dee4a03376a662ab74427927c6a8b8a404556abdd3bfa59e5e5b78c",
+    "sql_bytes": 24408
+   },
+   {
+    "what": "set-secrets TORNEOS_CONTRACT_SERVICE_SECRET",
+    "method": "POST",
+    "path": "/v1/projects/rcyuuoaqfwcembdajcss/secrets",
+    "body": "[{\"name\":\"TORNEOS_CONTRACT_SERVICE_SECRET\",\"value\":\"<Keychain arma2-torneos-prod-core-contract, withheld>\"}]",
+    "keychain_generation": true
+   },
+   {
+    "what": "deploy torneos-core-contract",
+    "method": "POST",
+    "path": "/v1/projects/rcyuuoaqfwcembdajcss/functions/deploy?slug=torneos-core-contract",
+    "body_bytes": 24199,
+    "files": [
+     {
+      "path": "functions/_shared/supabaseApiKeys.ts",
+      "bytes": 3622,
+      "sha256": "5d6cc3aec5fbcd2a3b5d46b254957d2275c811b4660ff2e8afdcfa30fc94170a"
+     },
+     {
+      "path": "functions/_shared/torneosCoreContract.ts",
+      "bytes": 16849,
+      "sha256": "83d129020be52dbc0e28ca4aa97d27a28fe9b2eded700f9ca6af0e69507812d7"
+     },
+     {
+      "path": "functions/torneos-core-contract/index.ts",
+      "bytes": 2828,
+      "sha256": "41e012f03b72d24e1f386ce3902bbab6aff2b2bdcf7ec96a325f588a77b0d269"
+     }
+    ]
+   }
+  ],
+  "writes_performed": 0
+ }
+}

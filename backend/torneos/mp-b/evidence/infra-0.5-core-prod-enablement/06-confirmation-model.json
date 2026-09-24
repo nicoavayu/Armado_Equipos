@@ -1,0 +1,22 @@
+{
+ "phrase": "DEPLOY TORNEOS CORE CONTRACT TO PRODUCTION rcyuuoaqfwcembdajcss <plan id>",
+ "plan_id": "first 12 hex of the sha256 of this run’s preflight evidence (changes every run)",
+ "read_from": "/dev/tty by node itself (not stdin, not argv, not env)",
+ "match": "exact; only a trailing newline tolerated",
+ "refused": [
+  "y",
+  "yes",
+  "--force",
+  "-y",
+  "--yes",
+  "env/CI",
+  "no tty (ENXIO)",
+  "lowercase",
+  "partial phrase",
+  "Staging ref",
+  "stale plan id",
+  "leading space"
+ ],
+ "wrapper": "exactly one explicit mode; no default; CI env refused; /dev/tty + stdin/stdout terminals required",
+ "after_phrase": "full re-observation must be byte-identical (fingerprint) or STOP PREFLIGHT_STATE_CHANGED"
+}

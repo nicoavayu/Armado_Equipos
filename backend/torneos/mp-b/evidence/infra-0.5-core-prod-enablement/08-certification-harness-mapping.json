@@ -1,0 +1,137 @@
+{
+ "harness": "probe-prod.mjs = request-for-request the certified probe-core-contract.mjs (test-proven), endpoint https://rcyuuoaqfwcembdajcss.supabase.co/functions/v1/torneos-core-contract",
+ "fixtures": "random UUIDs + probe@example.invalid; no real user; only side effect = the function’s own nonce rows (61 s)",
+ "checks": [
+  {
+   "n": 1,
+   "name": "unsigned POST /v1/session",
+   "expect": {
+    "status": 401,
+    "body": {
+     "error": "SERVICE_AUTH_REQUIRED"
+    }
+   },
+   "covers": [
+    "auth required",
+    "fail closed"
+   ]
+  },
+  {
+   "n": 2,
+   "name": "signed with a random key → rejected",
+   "expect": {
+    "status": 401,
+    "body": {
+     "error": "SERVICE_AUTH_REQUIRED"
+    }
+   },
+   "covers": [
+    "wrong HMAC",
+    "fail closed"
+   ]
+  },
+  {
+   "n": 3,
+   "name": "signed, X-Time 120 s old → rejected",
+   "expect": {
+    "status": 401,
+    "body": {
+     "error": "SERVICE_AUTH_REQUIRED"
+    }
+   },
+   "covers": [
+    "stale signature",
+    "fail closed"
+   ]
+  },
+  {
+   "n": 4,
+   "name": "signed POST /v1/session, unknown session → Core verdict",
+   "expect": {
+    "status": 403,
+    "body": {
+     "error": "FORBIDDEN"
+    }
+   },
+   "covers": [
+    "correct HMAC → Core authority (happy path of the signed channel)",
+    "authority mismatch: unknown session → FORBIDDEN"
+   ]
+  },
+  {
+   "n": 5,
+   "name": "replay of the previous request (same nonce) → consumed",
+   "expect": {
+    "status": 401,
+    "body": {
+     "error": "REPLAY"
+    }
+   },
+   "covers": [
+    "replay"
+   ]
+  },
+  {
+   "n": 6,
+   "name": "signed POST /v1/verified-email, unknown session → Core verdict (v1 route)",
+   "expect": {
+    "status": 403,
+    "body": {
+     "error": "FORBIDDEN"
+    }
+   },
+   "covers": [
+    "v1 route Core authority"
+   ]
+  },
+  {
+   "n": 7,
+   "name": "signed POST /v1/session, malformed schema → rejected after auth",
+   "expect": {
+    "status": 400,
+    "body": {
+     "error": "INVALID_REQUEST"
+    }
+   },
+   "covers": [
+    "malformed request after auth"
+   ]
+  },
+  {
+   "n": 8,
+   "name": "signed POST /v1/nope → unknown route",
+   "expect": {
+    "status": 404,
+    "body": {
+     "error": "NOT_FOUND"
+    }
+   },
+   "covers": [
+    "unknown route"
+   ]
+  },
+  {
+   "n": 9,
+   "name": "GET /v1/session → method refused",
+   "expect": {
+    "status": 404,
+    "body": {
+     "error": "NOT_FOUND"
+    }
+   },
+   "covers": [
+    "wrong method"
+   ]
+  }
+ ],
+ "plus": [
+  "headers content-type/cache-control no-store/nosniff on every answer",
+  "no answer echoes the secret or request material; body is exactly {error}",
+  "classification SECRET_NOT_CONFIGURED / FUNCTION_NOT_FOUND / SECRET_MISMATCH / CORE_UNAVAILABLE"
+ ],
+ "happy_path_200_note": "a 200 needs a live Core session of a real user; not produced in Production by design (no real users). Covered by Staging D1 positive + local E2E.",
+ "verified_offline": [
+  "unit tests against the REAL certified handler (torneosCoreContract.ts via Node type stripping)",
+  "rehearsal: real handler + real torneos_contract_execute on PG 17.4.1.048 as service_role → 9/9"
+ ]
+}
