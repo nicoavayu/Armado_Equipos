@@ -1,0 +1,1500 @@
+{
+  "suite": "MP-B1.1 R2 offline",
+  "results": [
+    {
+      "name": "A default OFF: no mode → OFF whatever else is set (a deployment, remote hosts or URLs alone never enable commerce)",
+      "status": "PASS"
+    },
+    {
+      "name": "A local-lab: the certified lab configuration (no deployment variable) is unchanged — loopback gateway, lab payments mount; explicit local-lab is identical",
+      "status": "FAIL",
+      "error": "Expected values to be strictly deep-equal:\n+ actual - expected\n\n  [\n    'test',\n+   null,\n-   'local-lab',\n    'http://torneos-functions:9000/torneos-payments'\n  ]\n"
+    },
+    {
+      "name": "A local-lab stays lab-only: an https / hosted gateway, an https payments URL or declared remote hosts in local-lab → fail closed",
+      "status": "FAIL",
+      "error": "local-lab with a declared remote gateway host: must fail closed (got {\"ok\":true,\"mode\":\"test\",\"deployment\":null,\"paymentsUrl\":\"http://torneos-functions:9000/torneos-payments\"})\n\ntrue !== false\n"
+    },
+    {
+      "name": "A remote-test: exact HTTPS configuration → commerce TEST, deployment remote-test, payments URL canonical",
+      "status": "FAIL",
+      "error": "remote-test exact: expected a configuration, got commerce test is lab-only\n\nfalse !== true\n"
+    },
+    {
+      "name": "A deployment accepts exactly local-lab | remote-test (live / prod / production / variants → fail closed)",
+      "status": "FAIL",
+      "error": "deployment with surrounding blanks is trimmed like every commerce variable: expected a configuration, got commerce test is lab-only\n\nfalse !== true\n"
+    },
+    {
+      "name": "A one variable never suffices: dropping any single remote requirement (deployment, either declared host, URL, secret, dependency URLs) → fail closed or lab-only",
+      "status": "PASS"
+    },
+    {
+      "name": "B declared hosts: bare lowercase DNS names only — scheme, path, port, userinfo, wildcard, uppercase, trailing dot, IP literal, single label, non-routable TLD → fail closed",
+      "status": "PASS"
+    },
+    {
+      "name": "B payments URL (remote-test): exactly https://<declared payments host>/functions/v1/torneos-payments — wrong host, suffix/prefix spoof, userinfo, http, ports, path, query, fragment, encoding tricks → fail closed",
+      "status": "PASS"
+    },
+    {
+      "name": "B gateway public URL (remote-test): https on exactly the declared gateway host at /functions/v1/torneos-gateway — spoof, userinfo, http, ports, other path → fail closed (string and URL alike)",
+      "status": "PASS"
+    },
+    {
+      "name": "B dependency URLs (remote-test): every Core / Torneos / browser endpoint must be https, credential-free and default-port; lab hosts and http → fail closed",
+      "status": "PASS"
+    },
+    {
+      "name": "C remote-test declared hosts / URLs naming Production (Supabase Production ref, Core Production, Production web hostnames, live / prod / production labels) → fail closed",
+      "status": "FAIL",
+      "error": "not Production: product.torneos-test.example.com: expected a configuration, got commerce test is lab-only\n\nfalse !== true\n"
+    },
+    {
+      "name": "C payments service: public URLs on Production (ref anywhere in the host, Production web hostnames, live / prod labels) → fail closed; TEST-only Mercado Pago contract intact",
+      "status": "FAIL",
+      "error": "APP_PUBLIC_URL xrcyuuoaqfwcembdajcss.example.com"
+    },
+    {
+      "name": "D static contract: gateway sources read only gateway/Core/bridge/REST/commerce-link variables — never a Mercado Pago token, webhook secret or the payment DB login",
+      "status": "FAIL",
+      "error": "gateway reads TORNEOS_COMMERCE_DEPLOYMENT"
+    },
+    {
+      "name": "D static contract: payments sources (+ the shared provider copy) read only Mercado Pago TEST, seller, public URLs, payment DB login and the internal HMAC key — never Core, bridge, gateway DB or commerce-mode values",
+      "status": "PASS"
+    },
+    {
+      "name": "D runtime: in remote-test the gateway refuses to boot with any Mercado Pago value, the payments DB login or payments-only configuration in its environment (shared secret scope → gateway down)",
+      "status": "FAIL",
+      "error": "Expected values to be strictly deep-equal:\n+ actual - expected\n\n  [\n-   'TORNEOS_COMMERCE_DEPLOYMENT',\n    'TORNEOS_COMMERCE_MODE',\n-   'TORNEOS_COMMERCE_REMOTE_GATEWAY_HOST',\n-   'TORNEOS_COMMERCE_REMOTE_PAYMENTS_HOST',\n    'TORNEOS_PAYMENTS_INTERNAL_SECRET',\n    'TORNEOS_PAYMENTS_INTERNAL_URL'\n  ]\n"
+    },
+    {
+      "name": "D runtime: the internal HMAC key must be distinct from the Core contract secret, bridge key material and public keys in remote-test too",
+      "status": "PASS"
+    },
+    {
+      "name": "D lab router: the gateway worker never receives the remote-test variables (the lab can never become remote-test); payments worker unchanged",
+      "status": "PASS"
+    },
+    {
+      "name": "D frontend: 0 secrets — src/ never names a Mercado Pago token / webhook secret, the internal HMAC key, bridge / contract secrets or DB logins, and exposes no REACT_APP_* secret",
+      "status": "PASS"
+    },
+    {
+      "name": "E wiring: Edge index.ts and Node gateway.mjs run the SAME loader; Edge hands it its validated dependency URLs (Core Auth, issuer, contract, REST, allowed origin); both disable the whole gateway on CommerceConfigError",
+      "status": "FAIL",
+      "error": "Edge passes its dependency URLs"
+    },
+    {
+      "name": "E verdict parity: every config-matrix case gives the same verdict whether the gateway URL arrives as a URL object (Edge) or a string (Node)",
+      "status": "PASS"
+    },
+    {
+      "name": "F module: the ts parser mirrors the certified verifier (split on \",\", first \"=\", trim, last duplicate wins, exactly 10 digits); future skew is small and documented",
+      "status": "FAIL",
+      "error": "Cannot find module '/Users/nicoavayu/Downloads/arma2/arma2-mp-b1-1-remote-enablement-r2/backend/torneos/supabase/functions/torneos-payments/webhook-freshness.ts' imported from /Users/nicoavayu/Downloads/arma2/arma2-mp-b1-1-remote-enablement-r2/integration/torneos-core-contracts/remote-test-enablement.test.mjs"
+    },
+    {
+      "name": "F module: verdicts — within +300 s → ok; beyond → future; any past value (1 s … 10 years) → ok (Mercado Pago documents no maximum age; retries continue after the third attempt)",
+      "status": "FAIL",
+      "error": "v is not a function"
+    },
+    {
+      "name": "F handler: absurd future ts (+301 s, +1 h, +1 year) with a VALID signature → 401 invalid_signature before any provider call or DB call",
+      "status": "FAIL",
+      "error": "+301\n+ actual - expected\n\n  [\n+   200,\n+   undefined,\n+   2,\n+   2\n-   401,\n-   'invalid_signature',\n-   0,\n-   0\n  ]\n"
+    },
+    {
+      "name": "F handler: small future skew (+60 s, +300 s) and OLD signed notifications (−1 h, −30 d, −2 y) are accepted and ALWAYS re-fetched from the provider (body status/date ignored)",
+      "status": "PASS"
+    },
+    {
+      "name": "F handler: bad signature, wrong secret, malformed ts (9 / 13 digits, non-numeric, missing) → 401 with 0 provider calls; a future ts with a BAD signature is also 401",
+      "status": "PASS"
+    },
+    {
+      "name": "F handler: duplicate-ts differential parsing is impossible — \"ts=<future>,ts=<now>\" is judged on the same ts the verifier signs (accepted); \"ts=<now>,ts=<future>\" signed on the future ts → rejected",
+      "status": "FAIL",
+      "error": "Expected values to be strictly deep-equal:\n+ actual - expected\n\n  [\n+   200,\n+   2\n-   401,\n-   0\n  ]\n"
+    },
+    {
+      "name": "F source: webhook ts and payment.date_last_updated stay separate — the freshness module never reads date_last_updated; the handler passes only the re-fetched provider date to the ordering RPCs",
+      "status": "FAIL",
+      "error": "ENOENT: no such file or directory, open '/Users/nicoavayu/Downloads/arma2/arma2-mp-b1-1-remote-enablement-r2/backend/torneos/supabase/functions/torneos-payments/webhook-freshness.ts'"
+    },
+    {
+      "name": "F provider copy untouched: _shared provider files remain byte-identical to the certified legacy (no fork of the signature verifier)",
+      "status": "PASS"
+    }
+  ],
+  "passed": 14,
+  "total": 28,
+  "configMatrix": [
+    {
+      "case": "OFF: empty",
+      "verdict": "off"
+    },
+    {
+      "case": "OFF: blank mode",
+      "verdict": "off"
+    },
+    {
+      "case": "OFF: remote vars without mode",
+      "verdict": "off"
+    },
+    {
+      "case": "OFF: deployment only",
+      "verdict": "off"
+    },
+    {
+      "case": "OFF: hosts only",
+      "verdict": "off"
+    },
+    {
+      "case": "local-lab implicit",
+      "verdict": "ACCEPTED",
+      "mode": "test",
+      "deployment": null,
+      "reason": null
+    },
+    {
+      "case": "local-lab explicit",
+      "verdict": "ACCEPTED",
+      "mode": "test",
+      "deployment": null,
+      "reason": null
+    },
+    {
+      "case": "local-lab with a hosted gateway",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "local-lab with a remote payments URL",
+      "verdict": "REJECTED",
+      "reason": "TORNEOS_PAYMENTS_INTERNAL_URL must be the lab payments host"
+    },
+    {
+      "case": "local-lab with a declared remote gateway host",
+      "verdict": "ACCEPTED",
+      "reason": null
+    },
+    {
+      "case": "remote-test exact",
+      "verdict": "REJECTED",
+      "mode": null,
+      "deployment": null,
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "deployment \"remote\"",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "deployment \"Remote-Test\"",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "deployment \"REMOTE-TEST\"",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "deployment \"remote_test\"",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "deployment with surrounding blanks is trimmed like every commerce variable",
+      "verdict": "REJECTED",
+      "mode": null,
+      "deployment": null,
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "remote-test missing TORNEOS_COMMERCE_REMOTE_GATEWAY_HOST=undefined",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "remote-test missing TORNEOS_COMMERCE_REMOTE_GATEWAY_HOST=\"\"",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "remote-test missing TORNEOS_COMMERCE_REMOTE_GATEWAY_HOST=\"   \"",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "remote-test missing TORNEOS_COMMERCE_REMOTE_PAYMENTS_HOST=undefined",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "remote-test missing TORNEOS_COMMERCE_REMOTE_PAYMENTS_HOST=\"\"",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "remote-test missing TORNEOS_COMMERCE_REMOTE_PAYMENTS_HOST=\"   \"",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "remote-test missing TORNEOS_PAYMENTS_INTERNAL_URL=undefined",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "remote-test missing TORNEOS_PAYMENTS_INTERNAL_URL=\"\"",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "remote-test missing TORNEOS_PAYMENTS_INTERNAL_URL=\"   \"",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "remote-test missing TORNEOS_PAYMENTS_INTERNAL_SECRET=undefined",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "remote-test missing TORNEOS_PAYMENTS_INTERNAL_SECRET=\"\"",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "remote-test missing TORNEOS_PAYMENTS_INTERNAL_SECRET=\"   \"",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "remote variables without TORNEOS_COMMERCE_DEPLOYMENT",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "remote-test dependency URLs undefined",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "remote-test dependency URLs []",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "remote-test dependency URLs [null]",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "remote-test dependency URLs [\"\"]",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "remote-test on a loopback (lab) gateway",
+      "verdict": "REJECTED",
+      "reason": "TORNEOS_PAYMENTS_INTERNAL_URL must be the lab payments host"
+    },
+    {
+      "case": "remote-test gateway env carries MERCADO_PAGO_TEST_ACCESS_TOKEN",
+      "verdict": "REJECTED",
+      "reason": "refusing MERCADO_PAGO_TEST_ACCESS_TOKEN in the gateway"
+    },
+    {
+      "case": "remote-test gateway env carries MERCADO_PAGO_TEST_WEBHOOK_SECRET",
+      "verdict": "REJECTED",
+      "reason": "refusing MERCADO_PAGO_TEST_WEBHOOK_SECRET in the gateway"
+    },
+    {
+      "case": "remote-test gateway env carries MERCADO_PAGO_TEST_SELLER_ID",
+      "verdict": "REJECTED",
+      "reason": "refusing MERCADO_PAGO_TEST_SELLER_ID in the gateway"
+    },
+    {
+      "case": "remote-test gateway env carries MERCADO_PAGO_ACCESS_TOKEN",
+      "verdict": "REJECTED",
+      "reason": "refusing MERCADO_PAGO_ACCESS_TOKEN in the gateway"
+    },
+    {
+      "case": "remote-test gateway env carries MERCADO_PAGO_ENVIRONMENT",
+      "verdict": "REJECTED",
+      "reason": "refusing MERCADO_PAGO_ENVIRONMENT in the gateway"
+    },
+    {
+      "case": "remote-test gateway env carries MERCADO_PAGO_WEBHOOK_SECRET",
+      "verdict": "REJECTED",
+      "reason": "refusing MERCADO_PAGO_WEBHOOK_SECRET in the gateway"
+    },
+    {
+      "case": "remote-test gateway env carries TORNEOS_PAYMENTS_DB_URL",
+      "verdict": "REJECTED",
+      "reason": "refusing TORNEOS_PAYMENTS_DB_URL in the gateway"
+    },
+    {
+      "case": "remote-test gateway env carries TORNEOS_PAYMENTS_DB_SSL_CA",
+      "verdict": "REJECTED",
+      "reason": "refusing TORNEOS_PAYMENTS_DB_SSL_CA in the gateway"
+    },
+    {
+      "case": "remote-test gateway env carries TORNEOS_PAYMENT_PROVIDER",
+      "verdict": "REJECTED",
+      "reason": "refusing TORNEOS_PAYMENT_PROVIDER in the gateway"
+    },
+    {
+      "case": "remote-test gateway env carries TORNEOS_PAYMENTS_NOTIFICATION_URL",
+      "verdict": "REJECTED",
+      "reason": "refusing TORNEOS_PAYMENTS_NOTIFICATION_URL in the gateway"
+    },
+    {
+      "case": "remote-test gateway env carries TORNEOS_PAYMENTS_LAB_MP_API_ORIGIN",
+      "verdict": "REJECTED",
+      "reason": "refusing TORNEOS_PAYMENTS_LAB_MP_API_ORIGIN in the gateway"
+    },
+    {
+      "case": "remote-test HMAC = Core contract secret",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "remote-test HMAC inside bridge key document",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    }
+  ],
+  "hostValidation": [
+    {
+      "case": "gateway host \"https://gw.torneos-test.example.com\"",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "payments host \"https://gw.torneos-test.example.com\"",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "gateway host \"gw.torneos-test.example.com/\"",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "payments host \"gw.torneos-test.example.com/\"",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "gateway host \"gw.torneos-test.example.com/functions\"",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "payments host \"gw.torneos-test.example.com/functions\"",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "gateway host \"gw.torneos-test.example.com:443\"",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "payments host \"gw.torneos-test.example.com:443\"",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "gateway host \"gw.torneos-test.example.com:8443\"",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "payments host \"gw.torneos-test.example.com:8443\"",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "gateway host \"user@gw.torneos-test.example.com\"",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "payments host \"user@gw.torneos-test.example.com\"",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "gateway host \"*.torneos-test.example.com\"",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "payments host \"*.torneos-test.example.com\"",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "gateway host \".torneos-test.example.com\"",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "payments host \".torneos-test.example.com\"",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "gateway host \"GW.torneos-test.example.com\"",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "payments host \"GW.torneos-test.example.com\"",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "gateway host \"gw.torneos-test.example.com.\"",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "payments host \"gw.torneos-test.example.com.\"",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "gateway host \"gw..example.com\"",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "payments host \"gw..example.com\"",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "gateway host \"-gw.example.com\"",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "payments host \"-gw.example.com\"",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "gateway host \"gw-.example.com\"",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "payments host \"gw-.example.com\"",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "gateway host \"gw_x.example.com\"",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "payments host \"gw_x.example.com\"",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "gateway host \"10.0.0.1\"",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "payments host \"10.0.0.1\"",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "gateway host \"192.168.1.10\"",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "payments host \"192.168.1.10\"",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "gateway host \"[::1]\"",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "payments host \"[::1]\"",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "gateway host \"::1\"",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "payments host \"::1\"",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "gateway host \"localhost\"",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "payments host \"localhost\"",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "gateway host \"gw.localhost\"",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "payments host \"gw.localhost\"",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "gateway host \"torneos-functions\"",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "payments host \"torneos-functions\"",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "gateway host \"gw.test.invalid\"",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "payments host \"gw.test.invalid\"",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "gateway host \"gw.local\"",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "payments host \"gw.local\"",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "gateway host \"gw.internal\"",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "payments host \"gw.internal\"",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "gateway host \"gw.example.123\"",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "payments host \"gw.example.123\"",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "gateway host \"g w.example.com\"",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "payments host \"g w.example.com\"",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "gateway host \"gw.example.com,evil.com\"",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "payments host \"gw.example.com,evil.com\"",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "gateway host \"gw.example.com\\\\@evil.com\"",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "payments host \"gw.example.com\\\\@evil.com\"",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "gateway host \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.example.com\"",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "payments host \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.example.com\"",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "payments URL https://other.torneos-test.example.com/functions/v1/torneos-payments",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "payments URL https://pay.torneos-test.example.com.evil.com/functions/v1/torneos-payments",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "payments URL https://evil.pay.torneos-test.example.com/functions/v1/torneos-payments",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "payments URL https://xpay.torneos-test.example.com/functions/v1/torneos-payments",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "payments URL https://pay.torneos-test.example.com@evil.com/functions/v1/torneos-payments",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "payments URL https://evil.com@pay.torneos-test.example.com/functions/v1/torneos-payments",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "payments URL https://user:pw@pay.torneos-test.example.com/functions/v1/torneos-payments",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "payments URL http://pay.torneos-test.example.com/functions/v1/torneos-payments",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "payments URL https://pay.torneos-test.example.com:8443/functions/v1/torneos-payments",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "payments URL https://pay.torneos-test.example.com:443/functions/v1/torneos-payments",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "payments URL https://PAY.TORNEOS-TEST.EXAMPLE.COM/functions/v1/torneos-payments",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "payments URL https://pay.torneos-test.example.com./functions/v1/torneos-payments",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "payments URL https://pay.torneos-test.example.com/torneos-payments",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "payments URL https://pay.torneos-test.example.com/functions/v1/torneos-gateway",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "payments URL https://pay.torneos-test.example.com/functions/v1/torneos-payments/internal/v1/season-checkout-preference",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "payments URL https://pay.torneos-test.example.com/functions/v1/torneos-payments?x=1",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "payments URL https://pay.torneos-test.example.com/functions/v1/torneos-payments#x",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "payments URL https://pay.torneos-test.example.com/functions/v1/../v1/torneos-payments",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "payments URL https://pay.torneos-test.example.com/functions/v1/torneos%2Dpayments",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "payments URL https://pay.torneos-test.example.com\\@evil.com/functions/v1/torneos-payments",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "payments URL  https://pay.torneos-test.example.com/functions/v1/torneos-payments/x",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "payments URL https:pay.torneos-test.example.com/functions/v1/torneos-payments",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "payments URL //pay.torneos-test.example.com/functions/v1/torneos-payments",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "payments URL http://torneos-functions:9000/torneos-payments",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "payments URL not a url",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "gateway URL https://gw.torneos-test.example.com.evil.com/functions/v1/torneos-gateway",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "gateway URL object https://gw.torneos-test.example.com.evil.com/functions/v1/torneos-gateway",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "gateway URL https://evil.gw.torneos-test.example.com/functions/v1/torneos-gateway",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "gateway URL object https://evil.gw.torneos-test.example.com/functions/v1/torneos-gateway",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "gateway URL https://other.torneos-test.example.com/functions/v1/torneos-gateway",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "gateway URL object https://other.torneos-test.example.com/functions/v1/torneos-gateway",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "gateway URL https://gw.torneos-test.example.com@evil.com/functions/v1/torneos-gateway",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "gateway URL object https://gw.torneos-test.example.com@evil.com/functions/v1/torneos-gateway",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "gateway URL https://evil.com@gw.torneos-test.example.com/functions/v1/torneos-gateway",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "gateway URL object https://evil.com@gw.torneos-test.example.com/functions/v1/torneos-gateway",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "gateway URL http://gw.torneos-test.example.com/functions/v1/torneos-gateway",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "gateway URL object http://gw.torneos-test.example.com/functions/v1/torneos-gateway",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "gateway URL https://gw.torneos-test.example.com:8443/functions/v1/torneos-gateway",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "gateway URL object https://gw.torneos-test.example.com:8443/functions/v1/torneos-gateway",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "gateway URL https://gw.torneos-test.example.com./functions/v1/torneos-gateway",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "gateway URL object https://gw.torneos-test.example.com./functions/v1/torneos-gateway",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "gateway URL https://gw.torneos-test.example.com/torneos-gateway",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "gateway URL object https://gw.torneos-test.example.com/torneos-gateway",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "gateway URL https://gw.torneos-test.example.com/functions/v1/torneos-payments",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "gateway URL object https://gw.torneos-test.example.com/functions/v1/torneos-payments",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "gateway URL https://gw.torneos-test.example.com/functions/v1/torneos-gateway?x=1",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "gateway URL object https://gw.torneos-test.example.com/functions/v1/torneos-gateway?x=1",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "gateway URL https://gw.torneos-test.example.com/",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "gateway URL object https://gw.torneos-test.example.com/",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "gateway URL http://127.0.0.1:58421/torneos-gateway",
+      "verdict": "REJECTED",
+      "reason": "TORNEOS_PAYMENTS_INTERNAL_URL must be the lab payments host"
+    },
+    {
+      "case": "gateway URL object http://127.0.0.1:58421/torneos-gateway",
+      "verdict": "REJECTED",
+      "reason": "TORNEOS_PAYMENTS_INTERNAL_URL must be the lab payments host"
+    },
+    {
+      "case": "dependency http://core.torneos-test.example.com/auth/v1",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "dependency http://core-auth:9999",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "dependency http://torneos-rest:3000",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "dependency https://user:pw@core.torneos-test.example.com/auth/v1",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "dependency https://core.torneos-test.example.com:8443/auth/v1",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "dependency https://localhost/auth/v1",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "dependency https://127.0.0.1/rest/v1",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "dependency not a url",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    }
+  ],
+  "productionRejection": [
+    {
+      "case": "gateway host rcyuuoaqfwcembdajcss.supabase.co",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "payments host rcyuuoaqfwcembdajcss.supabase.co",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "dependency on rcyuuoaqfwcembdajcss.supabase.co",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "gateway host rcyuuoaqfwcembdajcss.functions.supabase.co",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "payments host rcyuuoaqfwcembdajcss.functions.supabase.co",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "dependency on rcyuuoaqfwcembdajcss.functions.supabase.co",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "gateway host xrcyuuoaqfwcembdajcss.example.com",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "payments host xrcyuuoaqfwcembdajcss.example.com",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "dependency on xrcyuuoaqfwcembdajcss.example.com",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "gateway host gw.rcyuuoaqfwcembdajcss.example.com",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "payments host gw.rcyuuoaqfwcembdajcss.example.com",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "dependency on gw.rcyuuoaqfwcembdajcss.example.com",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "gateway host app.arma2.com.ar",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "payments host app.arma2.com.ar",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "dependency on app.arma2.com.ar",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "gateway host arma2.com.ar",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "payments host arma2.com.ar",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "dependency on arma2.com.ar",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "gateway host www.arma2.com.ar",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "payments host www.arma2.com.ar",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "dependency on www.arma2.com.ar",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "gateway host arma2.vercel.app",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "payments host arma2.vercel.app",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "dependency on arma2.vercel.app",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "gateway host arma2-nicoavayus-projects.vercel.app",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "payments host arma2-nicoavayus-projects.vercel.app",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "dependency on arma2-nicoavayus-projects.vercel.app",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "gateway host arma2-git-main-nicoavayus-projects.vercel.app",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "payments host arma2-git-main-nicoavayus-projects.vercel.app",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "dependency on arma2-git-main-nicoavayus-projects.vercel.app",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "gateway host prod.torneos.example.com",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "payments host prod.torneos.example.com",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "dependency on prod.torneos.example.com",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "gateway host gw-prod.example.com",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "payments host gw-prod.example.com",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "dependency on gw-prod.example.com",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "gateway host live.torneos.example.com",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "payments host live.torneos.example.com",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "dependency on live.torneos.example.com",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "gateway host payments-live.example.com",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "payments host payments-live.example.com",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "dependency on payments-live.example.com",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "gateway host production.example.com",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "payments host production.example.com",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "dependency on production.example.com",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "gateway host torneos.production.example.com",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "payments host torneos.production.example.com",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "dependency on torneos.production.example.com",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "gateway host api-production-1.example.com",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "payments host api-production-1.example.com",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "dependency on api-production-1.example.com",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "Core/web Production https://rcyuuoaqfwcembdajcss.supabase.co/auth/v1",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "Core/web Production https://rcyuuoaqfwcembdajcss.supabase.co/functions/v1/torneos-core-contract",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "Core/web Production https://app.arma2.com.ar",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "Core/web Production https://arma2.vercel.app",
+      "verdict": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "not Production: product.torneos-test.example.com",
+      "verdict": "REJECTED",
+      "mode": null,
+      "deployment": null,
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "payments APP_PUBLIC_URL on rcyuuoaqfwcembdajcss.supabase.co",
+      "verdict": "REJECTED",
+      "reason": "public URL names Production"
+    },
+    {
+      "case": "payments TORNEOS_PAYMENTS_NOTIFICATION_URL on rcyuuoaqfwcembdajcss.supabase.co",
+      "verdict": "REJECTED",
+      "reason": "public URL names Production"
+    },
+    {
+      "case": "payments APP_PUBLIC_URL on rcyuuoaqfwcembdajcss.functions.supabase.co",
+      "verdict": "REJECTED",
+      "reason": "public URL names Production"
+    },
+    {
+      "case": "payments TORNEOS_PAYMENTS_NOTIFICATION_URL on rcyuuoaqfwcembdajcss.functions.supabase.co",
+      "verdict": "REJECTED",
+      "reason": "public URL names Production"
+    },
+    {
+      "case": "payments APP_PUBLIC_URL on xrcyuuoaqfwcembdajcss.example.com",
+      "verdict": "ACCEPTED",
+      "reason": null
+    }
+  ],
+  "parity": [
+    {
+      "case": "off",
+      "node": "off/null",
+      "edge": "off/null",
+      "reason": null
+    },
+    {
+      "case": "local-lab",
+      "node": "test/null",
+      "edge": "test/null",
+      "reason": null
+    },
+    {
+      "case": "local-lab node origin",
+      "node": "test/null",
+      "edge": "test/null",
+      "reason": null
+    },
+    {
+      "case": "remote-test",
+      "node": "REJECTED",
+      "edge": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "remote-test trailing",
+      "node": "REJECTED",
+      "edge": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "remote-test on lab gateway",
+      "node": "REJECTED",
+      "edge": "REJECTED",
+      "reason": "TORNEOS_PAYMENTS_INTERNAL_URL must be the lab payments host"
+    },
+    {
+      "case": "remote-test spoof",
+      "node": "REJECTED",
+      "edge": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "remote-test userinfo",
+      "node": "REJECTED",
+      "edge": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "remote-test http",
+      "node": "REJECTED",
+      "edge": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "remote-test port",
+      "node": "REJECTED",
+      "edge": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "remote-test Production",
+      "node": "REJECTED",
+      "edge": "REJECTED",
+      "reason": "commerce test is lab-only"
+    },
+    {
+      "case": "mode live",
+      "node": "REJECTED",
+      "edge": "REJECTED",
+      "reason": "TORNEOS_COMMERCE_MODE accepts only test"
+    },
+    {
+      "case": "deployment prod",
+      "node": "REJECTED",
+      "edge": "REJECTED",
+      "reason": "commerce test is lab-only"
+    }
+  ],
+  "webhook": [
+    {
+      "case": "future ts +301s (signed)",
+      "http": 200,
+      "error": null,
+      "providerFetches": 2,
+      "dbCalls": 2
+    },
+    {
+      "case": "ts +60s (signed)",
+      "http": 200,
+      "outcome": "replayed",
+      "providerFetches": 2,
+      "dbCalls": [
+        "get_provider_tournament_purchase",
+        "apply_verified_tournament_payment_status"
+      ]
+    },
+    {
+      "case": "ts +300s (signed)",
+      "http": 200,
+      "outcome": "replayed",
+      "providerFetches": 2,
+      "dbCalls": [
+        "get_provider_tournament_purchase",
+        "apply_verified_tournament_payment_status"
+      ]
+    },
+    {
+      "case": "ts -3600s (signed)",
+      "http": 200,
+      "outcome": "replayed",
+      "providerFetches": 2,
+      "dbCalls": [
+        "get_provider_tournament_purchase",
+        "apply_verified_tournament_payment_status"
+      ]
+    },
+    {
+      "case": "ts -2592000s (signed)",
+      "http": 200,
+      "outcome": "replayed",
+      "providerFetches": 2,
+      "dbCalls": [
+        "get_provider_tournament_purchase",
+        "apply_verified_tournament_payment_status"
+      ]
+    },
+    {
+      "case": "ts -63072000s (signed)",
+      "http": 200,
+      "outcome": "replayed",
+      "providerFetches": 2,
+      "dbCalls": [
+        "get_provider_tournament_purchase",
+        "apply_verified_tournament_payment_status"
+      ]
+    },
+    {
+      "case": "bad v1",
+      "http": 401,
+      "error": "invalid_signature",
+      "providerFetches": 0,
+      "dbCalls": 0
+    },
+    {
+      "case": "wrong secret",
+      "http": 401,
+      "error": "invalid_signature",
+      "providerFetches": 0,
+      "dbCalls": 0
+    },
+    {
+      "case": "ts 9 digits",
+      "http": 401,
+      "error": "invalid_signature",
+      "providerFetches": 0,
+      "dbCalls": 0
+    },
+    {
+      "case": "ts 13 digits (ms)",
+      "http": 401,
+      "error": "invalid_signature",
+      "providerFetches": 0,
+      "dbCalls": 0
+    },
+    {
+      "case": "ts non-numeric",
+      "http": 401,
+      "error": "invalid_signature",
+      "providerFetches": 0,
+      "dbCalls": 0
+    },
+    {
+      "case": "ts missing",
+      "http": 401,
+      "error": "invalid_signature",
+      "providerFetches": 0,
+      "dbCalls": 0
+    },
+    {
+      "case": "future + bad signature",
+      "http": 401,
+      "error": "invalid_signature",
+      "providerFetches": 0,
+      "dbCalls": 0
+    },
+    {
+      "case": "duplicate ts: future then now (signed now)",
+      "http": 200
+    },
+    {
+      "case": "duplicate ts: now then future (signed future)",
+      "http": 200
+    }
+  ],
+  "secretIsolation": {
+    "gatewayReads": [
+      "CORE_ANON_KEY",
+      "CORE_AUTH_URL",
+      "CORE_CONTRACT_URL",
+      "CORE_JWT_ISSUER",
+      "TORNEOS_ALLOWED_ORIGIN",
+      "TORNEOS_ANON_KEY",
+      "TORNEOS_BRIDGE_KEYS",
+      "TORNEOS_COMMERCE_MODE",
+      "TORNEOS_CONTRACT_SERVICE_SECRET",
+      "TORNEOS_DB_CORE_ADAPTER_URL",
+      "TORNEOS_DB_IDENTITY_WRITER_URL",
+      "TORNEOS_DB_SSL_CA",
+      "TORNEOS_GATEWAY_PUBLIC_URL",
+      "TORNEOS_PAYMENTS_INTERNAL_SECRET",
+      "TORNEOS_PAYMENTS_INTERNAL_URL",
+      "TORNEOS_REST_URL"
+    ],
+    "paymentsReads": [
+      "APP_PUBLIC_URL",
+      "MERCADO_PAGO_ENVIRONMENT",
+      "MERCADO_PAGO_TEST_ACCESS_TOKEN",
+      "MERCADO_PAGO_TEST_SELLER_ID",
+      "MERCADO_PAGO_TEST_WEBHOOK_SECRET",
+      "TORNEOS_PAYMENTS_DB_SSL_CA",
+      "TORNEOS_PAYMENTS_DB_URL",
+      "TORNEOS_PAYMENTS_INTERNAL_SECRET",
+      "TORNEOS_PAYMENTS_LAB_MP_API_ORIGIN",
+      "TORNEOS_PAYMENTS_NOTIFICATION_URL",
+      "TORNEOS_PAYMENT_PROVIDER"
+    ],
+    "frontendFilesScanned": 912,
+    "frontendSecrets": 0
+  }
+}

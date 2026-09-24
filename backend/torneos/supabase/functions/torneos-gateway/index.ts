@@ -20,7 +20,8 @@
 // (service HMAC, RS256 private key, database logins) live only in this function's env.
 //
 // MP-A4: commerce (commerce.ts, shared with the Node lab gateway). TORNEOS_COMMERCE_MODE unset → nothing
-// changes. "test" (lab only) → POST /commerce/v1/season-checkout and the 2 commerce reads on top of the 43;
+// changes. "test" → POST /commerce/v1/season-checkout and the 2 commerce reads on top of the 43, in the local lab
+// or (MP-B1.1 R2, TORNEOS_COMMERCE_DEPLOYMENT=remote-test) on exactly declared https hosts, never Production;
 // any other value, or a faulty commerce configuration, disables the whole gateway like any config fault.
 import { decodeJwt } from "npm:jose@6.2.12"
 import { issueToken, verifyToken, uuid, jwks, TTL, type TorneosClaims } from "./token.ts"
@@ -56,7 +57,8 @@ export function boot(env: Record<string, string | undefined>): Runtime {
   const cfg = loadConfig(env)
   // Commerce is validated before any connection is opened: a faulty commerce config disables the gateway.
   const commerce = loadCommerceConfig(env, { baseAllowlist: RPC_ALLOWLIST, gatewayPublicUrl: cfg.publicUrl,
-    distinctFrom: [env.TORNEOS_CONTRACT_SERVICE_SECRET, env.TORNEOS_BRIDGE_KEYS, ...cfg.bridge.keys.map((k) => k.privateKey), cfg.coreAnonKey, cfg.torneosAnonKey] })
+    distinctFrom: [env.TORNEOS_CONTRACT_SERVICE_SECRET, env.TORNEOS_BRIDGE_KEYS, ...cfg.bridge.keys.map((k) => k.privateKey), cfg.coreAnonKey, cfg.torneosAnonKey],
+    dependencyUrls: [cfg.coreAuthUrl, cfg.coreJwtIssuer, cfg.coreContractUrl, cfg.torneosRestUrl, cfg.allowedOrigin] })
   const identity = connect(cfg.identityWriterUrl, { sslCa: cfg.dbSslCa })
   const adapterSql = connect(cfg.coreAdapterUrl, { sslCa: cfg.dbSslCa })
   const coreHeaders = cfg.coreAnonKey ? { apikey: cfg.coreAnonKey } : {}

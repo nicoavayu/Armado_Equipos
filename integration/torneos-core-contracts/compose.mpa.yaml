@@ -9,7 +9,8 @@
 #     control port for the test suites; no masquerade, so it cannot reach the outside.
 #   * MP-A4 gateway commerce: the Edge gateway worker gets TORNEOS_COMMERCE_MODE=test plus the internal URL/key
 #     (.runtime/torneos-gateway-commerce.env, filtered per worker by torneos-edge-main); the Node gateway reads
-#     .runtime/server/commerce.env and runs the same commerce module, mounted read-only below.
+#     .runtime/server/commerce.env and runs the same commerce module, mounted read-only below with every file it
+#     imports (MP-B1.1 R2: remote-hosts.ts, the shared host policy).
 services:
   torneos-functions:
     depends_on: [core-auth, core-api, torneos-rest, mp-stub]
@@ -25,6 +26,7 @@ services:
       - ../../backend/torneos/supabase/functions/torneos-gateway/commerce.ts:/lab/functions/torneos-gateway/commerce.ts:ro
       - ../../backend/torneos/supabase/functions/torneos-gateway/commerce-test-rpc-allowlist.json:/lab/functions/torneos-gateway/commerce-test-rpc-allowlist.json:ro
       - ../../backend/torneos/supabase/functions/torneos-payments/hmac.ts:/lab/functions/torneos-payments/hmac.ts:ro
+      - ../../backend/torneos/supabase/functions/torneos-payments/remote-hosts.ts:/lab/functions/torneos-payments/remote-hosts.ts:ro
   mp-stub:
     image: node:22.22.0-bookworm-slim
     working_dir: /lab

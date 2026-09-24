@@ -8,7 +8,7 @@
 //        Mercado Pago, bound server-side to the purchase, and the verified status is delegated to the MP-A2
 //        RPCs (the database is the domain authority; no state machine here).
 // Provider logic is the byte-identical legacy adapter; MP-B1.2 reads its documented ordering field. Responses are whitelists;
-// logs carry route, status and a short code only.
+// logs carry route, status and a short code only. MP-B1.1 R2: absurd future signing times are refused (webhook-freshness.ts).
 import {
   createMercadoPagoPaymentProvider,
   fetchMercadoPagoChargeback,
@@ -24,6 +24,7 @@ import {
 import type { CheckoutPreference, PurchaseProjection } from "../_shared/paymentProvider.ts"
 import { FUNCTION_NAME, INTERNAL_PATH, loadPaymentsConfig, type PaymentsConfig, routePath, WEBHOOK_PATH } from "./config.ts"
 import { NonceCache, verifyInternalRequest } from "./hmac.ts"
+import { webhookTimeVerdict } from "./webhook-freshness.ts"
 import { createProviderFetch } from "./lab-fetch.ts"
 import { DbError, type PaymentsDb } from "./rpc.ts"
 
@@ -231,6 +232,9 @@ export function createPaymentsService(deps: ServiceDeps): (req: Request) => Prom
       xSignature: req.headers.get("x-signature"), xRequestId: req.headers.get("x-request-id"), dataId, secret: cfg.mp.webhookSecret,
     }).catch(() => false)
     if (!signatureValid) return fail(401, "invalid_signature")
+    // MP-B1.1 R2: an authentic ts absurdly in the future is refused before any provider call. There is no maximum
+    // age (webhook-freshness.ts); ts never orders state — only the re-fetched provider time below does.
+    if (webhookTimeVerdict(req.headers.get("x-signature"), now()) !== "ok") return result(401, { error: "invalid_signature" }, "invalid_signature_future_ts")
 
     const data = isPlainObject(payload.data) ? payload.data : {}
     const isPayment = payload.type === "payment"

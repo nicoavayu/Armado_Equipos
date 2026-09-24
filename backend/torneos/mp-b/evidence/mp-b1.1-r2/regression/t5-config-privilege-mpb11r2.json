@@ -1,0 +1,87 @@
+{
+  "suite": "MP-A3 T5 config / privilege / isolation",
+  "results": [
+    {
+      "name": "config: the TEST configuration loads (provider MERCADO_PAGO, environment test, public https URLs, ≥32-byte internal secret, dedicated DB login)",
+      "status": "PASS"
+    },
+    {
+      "name": "config: every critical variable missing or blank → fail closed",
+      "status": "PASS"
+    },
+    {
+      "name": "config: live / production / any non-test environment or provider → fail closed; live-looking MP credentials present → fail closed",
+      "status": "PASS"
+    },
+    {
+      "name": "config: public URLs must be public https (no http, localhost, loopback, credentials, query); the notification URL must be the payments webhook route",
+      "status": "PASS"
+    },
+    {
+      "name": "config: internal HMAC secret < 32 effective bytes, non-hex or degenerate, or reused as the webhook secret / token → fail closed",
+      "status": "PASS"
+    },
+    {
+      "name": "config: DB login must be a dedicated payments login — service_role, postgres, supabase_admin, authenticator, anon, authenticated, the gateway logins or a Production ref → fail closed",
+      "status": "PASS"
+    },
+    {
+      "name": "config: the lab Mercado Pago origin is accepted only as http://mp-stub:<port> together with a .invalid public URL and the lab DB host",
+      "status": "PASS"
+    },
+    {
+      "name": "config: a rejected configuration serves 503 on both routes and 404 elsewhere (never partially)",
+      "status": "PASS"
+    },
+    {
+      "name": "static: torneos-payments never uses service_role, a Supabase client, Core auth/contract, bridge keys or the baseline apply_tournament_purchase_reversal",
+      "status": "PASS"
+    },
+    {
+      "name": "static + unit: the RPC allowlist is exactly the 4 MP-A2 payment_service functions; anything else (incl. apply_tournament_purchase_reversal) is refused before SQL",
+      "status": "PASS"
+    },
+    {
+      "name": "env isolation (edge-main): gateway worker gets no MERCADO_PAGO_* / payments secrets; payments worker gets no Core, bridge, gateway DB or service keys; unknown workers get nothing",
+      "status": "PASS"
+    },
+    {
+      "name": "lab: payments DB URL uses the dedicated login lab_payment_service (not service_role / postgres / supabase_admin / gateway logins)",
+      "status": "PASS"
+    },
+    {
+      "name": "lab: role shape — lab_payment_service LOGIN NOINHERIT member only of torneos_payment_service; torneos_payment_service NOLOGIN NOINHERIT with that single member; no superuser/bypassrls",
+      "status": "PASS"
+    },
+    {
+      "name": "lab: exactly 4 EXECUTE after SET ROLE torneos_payment_service (public + private, incl. PUBLIC grants), equal to the MP-A2 delta; the bare NOINHERIT login executes none of them",
+      "status": "PASS"
+    },
+    {
+      "name": "lab: 0 direct DML / SELECT on commercial tables, no access to other commercial functions, and apply_tournament_purchase_reversal (baseline, service_role-only) is NOT executable — real attempts refused 42501",
+      "status": "PASS"
+    },
+    {
+      "name": "lab: the login cannot become service_role, postgres, supabase_admin, authenticator, anon, authenticated or the gateway roles",
+      "status": "PASS"
+    },
+    {
+      "name": "lab: the running function connects only as lab_payment_service (pg_stat_activity, application_name torneos-payments) — no Core auth needed: a Torneos/Core bearer alone is refused",
+      "status": "PASS"
+    },
+    {
+      "name": "lab: runtime secret isolation — payments/stub secrets only in their 0600 .runtime files; gateway env/config and Core containers never carry them; stub has no DB/Core secrets",
+      "status": "PASS"
+    }
+  ],
+  "db": {
+    "payment_service_execute": [
+      "apply_verified_tournament_payment_reversal(uuid,text,text,text,text,text,text,timestamp with time zone)",
+      "apply_verified_tournament_payment_status(uuid,text,text,text,text,text,text,timestamp with time zone)",
+      "get_provider_tournament_purchase(text,text,text)",
+      "record_tournament_purchase_preference(uuid,text,text,text,timestamp with time zone)"
+    ]
+  },
+  "passed": 18,
+  "total": 18
+}

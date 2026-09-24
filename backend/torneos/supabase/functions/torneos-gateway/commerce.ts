@@ -1,4 +1,4 @@
-// torneos-gateway/commerce.ts — MP-A4 gateway commerce (Mercado Pago Checkout Pro TEST, local lab only).
+// torneos-gateway/commerce.ts — MP-A4 gateway commerce (Mercado Pago Checkout Pro TEST); MP-B1.1 R2 remote TEST.
 //
 // ONE implementation, run by both gateways: the Edge Function (index.ts) imports it statically, the Node lab
 // gateway (integration/torneos-core-contracts/gateway.mjs) imports it only when its commerce configuration
@@ -17,9 +17,22 @@
 //       Core down → no DB, no payments. DB refusal → no payments. No automatic retry: the client repeats with
 //       the same idempotencyKey.
 //     • the commerce TEST read allowlist (commerce-test-rpc-allowlist.json): 2 reads on top of the 43.
-//   Lab-only: the internal payments URL must be the lab edge-runtime mount and the gateway itself must be
-//   published on loopback. The gateway holds TORNEOS_PAYMENTS_INTERNAL_SECRET and nothing of Mercado Pago.
+//   TORNEOS_COMMERCE_DEPLOYMENT (read only in TEST) — where TEST runs:
+//     unset / blank / "local-lab" → the certified MP-A4 lab, unchanged: the internal payments URL must be the lab
+//       edge-runtime mount and the gateway itself must be published on loopback; no remote host may be declared.
+//     "remote-test" → a hosted TEST deployment, prepared but not provisioned. It additionally requires, explicitly:
+//       TORNEOS_COMMERCE_REMOTE_GATEWAY_HOST   the one public hostname of this gateway (its public URL must be
+//                                              https://<it>/functions/v1/torneos-gateway, default port, no userinfo);
+//       TORNEOS_COMMERCE_REMOTE_PAYMENTS_HOST  the one hostname of torneos-payments; the internal URL must be exactly
+//                                              https://<it>/functions/v1/torneos-payments (compared byte for byte);
+//       and every Core / Torneos / browser endpoint the gateway uses (context.dependencyUrls) must be https.
+//       No host, URL or endpoint may be Production (remote-hosts.ts: Production ref, Production web hostnames,
+//       live / prod / production labels). Hosts are exact names: no wildcard, no suffix match, no IP, no port.
+//     anything else → configuration error. There is no live / production deployment.
+//   The gateway holds TORNEOS_PAYMENTS_INTERNAL_SECRET and nothing of Mercado Pago or the payments DB, in both
+//   deployments (a secret scope shared with torneos-payments makes the gateway refuse to boot).
 import { signInternal } from "../torneos-payments/hmac.ts"
+import { canonicalRemoteHost, productionHostProblem } from "../torneos-payments/remote-hosts.ts"
 import commerceAllowlistDoc from "./commerce-test-rpc-allowlist.json" with { type: "json" }
 
 export const COMMERCE_ROUTE = "/commerce/v1/season-checkout"
@@ -28,12 +41,16 @@ export const PAYMENTS_INTERNAL_PATH = "/internal/v1/season-checkout-preference"
 export const COMMERCE_TIMEOUTS = Object.freeze({ restMs: 4000, paymentsMs: 8000 })
 export const MAX_CHECKOUT_BODY = 1024
 export const EXPECTED_COMMERCE_RPCS: readonly string[] = Object.freeze(["get_effective_tournament_season_entitlements", "get_tournament_purchase"])
-export const GATEWAY_COMMERCE_ENV: readonly string[] = Object.freeze(["TORNEOS_COMMERCE_MODE", "TORNEOS_PAYMENTS_INTERNAL_URL", "TORNEOS_PAYMENTS_INTERNAL_SECRET"])
+export const GATEWAY_COMMERCE_ENV: readonly string[] = Object.freeze(["TORNEOS_COMMERCE_MODE", "TORNEOS_COMMERCE_DEPLOYMENT", "TORNEOS_COMMERCE_REMOTE_GATEWAY_HOST",
+  "TORNEOS_COMMERCE_REMOTE_PAYMENTS_HOST", "TORNEOS_PAYMENTS_INTERNAL_URL", "TORNEOS_PAYMENTS_INTERNAL_SECRET"])
+export const COMMERCE_DEPLOYMENTS: readonly string[] = Object.freeze(["local-lab", "remote-test"])
 
 const PRODUCTION_REF = "rcyuuoaqfwcembdajcss"
 const LAB_GATEWAY_HOSTS = new Set(["127.0.0.1", "localhost"])
 const LAB_PAYMENTS_HOSTS = new Set(["torneos-functions", "127.0.0.1", "localhost"])
 const PAYMENTS_MOUNTS = new Set(["/torneos-payments", "/functions/v1/torneos-payments"])
+const REMOTE_GATEWAY_PATHS = new Set(["/functions/v1/torneos-gateway", "/functions/v1/torneos-gateway/"])
+const REMOTE_PAYMENTS_MOUNT = "/functions/v1/torneos-payments"
 // Payments-side material the gateway must never hold (refused at boot in TEST).
 const FORBIDDEN_GATEWAY_ENV = [/^MERCADO_PAGO_/, /^TORNEOS_PAYMENT_PROVIDER$/, /^TORNEOS_PAYMENTS_DB_/, /^TORNEOS_PAYMENTS_NOTIFICATION_URL$/, /^TORNEOS_PAYMENTS_LAB_/]
 const WRITE_RPC_RE = /^(create|update|delete|insert|upsert|set|record|apply|activate|cancel|grant|revoke|submit|approve|reject|register|remove|add|publish|archive|restore|invite|accept|assign|change|save|withdraw|review|import|mark|close|open|start|finish|confirm|reset|refresh|sync|process|transition|move|upload|attach|detach|link|unlink|enable|disable)_/
@@ -65,12 +82,14 @@ const PAYMENTS_REFUSALS: Record<string, [number, string]> = {
 export class CommerceConfigError extends Error {}
 
 export type CommerceOff = { mode: "off" }
-export type CommerceTest = { mode: "test"; paymentsUrl: string; secret: Uint8Array; readRpcs: ReadonlySet<string> }
+export type CommerceDeployment = "local-lab" | "remote-test"
+export type CommerceTest = { mode: "test"; deployment: CommerceDeployment; paymentsUrl: string; secret: Uint8Array; readRpcs: ReadonlySet<string> }
 export type CommerceConfig = CommerceOff | CommerceTest
 export type CommerceContext = {
   baseAllowlist: ReadonlySet<string>        // the 43 staging v1 RPCs the gateway already loaded
   gatewayPublicUrl: string | URL            // where this gateway is published (lab = loopback)
   distinctFrom: (string | null | undefined)[] // Core contract secret, bridge key material, public keys
+  dependencyUrls?: (string | URL | null | undefined)[] // Core Auth, issuer, contract, Torneos REST, browser origin (remote-test)
 }
 type Env = Record<string, string | undefined>
 
@@ -118,6 +137,56 @@ function secretOf(hex: string, distinctFrom: CommerceContext["distinctFrom"]): U
   return bytes
 }
 
+// ---------------------------------------------------------------------------- remote-test (MP-B1.1 R2)
+function declaredHost(env: Env, name: string): string {
+  const value = (env[name] ?? "").trim()
+  if (!value) throw new CommerceConfigError(`remote TEST requires ${name}`)
+  const host = canonicalRemoteHost(value)
+  if (!host) throw new CommerceConfigError(`${name} must be one exact lowercase public DNS hostname`)
+  const production = productionHostProblem(host)
+  if (production) throw new CommerceConfigError(`${name} ${production}`)
+  return host
+}
+
+/** A parsed https URL on the default port without userinfo, query or fragment, not naming Production. */
+function remoteUrl(label: string, raw: string | URL): URL {
+  let url: URL
+  try { url = new URL(String(raw)) } catch { throw new CommerceConfigError(`${label} is not a URL`) }
+  const production = productionHostProblem(url.hostname)
+  if (production || String(raw).includes(PRODUCTION_REF)) throw new CommerceConfigError(`${label} ${production ?? "names the Production project"}`)
+  if (url.protocol !== "https:") throw new CommerceConfigError(`${label} must be https for remote TEST`)
+  if (url.username || url.password) throw new CommerceConfigError(`${label} carries userinfo`)
+  if (url.port) throw new CommerceConfigError(`${label} names a port`)
+  if (url.search || url.hash) throw new CommerceConfigError(`${label} carries a query or fragment`)
+  if (LAB_GATEWAY_HOSTS.has(url.hostname) || LAB_PAYMENTS_HOSTS.has(url.hostname) || !canonicalRemoteHost(url.hostname)) {
+    throw new CommerceConfigError(`${label} is not a public hostname`)
+  }
+  return url
+}
+
+function remoteTestLinks(env: Env, ctx: CommerceContext, paymentsRaw: string): string {
+  const gatewayHost = declaredHost(env, "TORNEOS_COMMERCE_REMOTE_GATEWAY_HOST")
+  const paymentsHost = declaredHost(env, "TORNEOS_COMMERCE_REMOTE_PAYMENTS_HOST")
+  // This gateway (already parsed by its own config on Edge, a string on Node: judged on the parsed form, identically):
+  // exactly the declared host, the platform mount.
+  const gateway = remoteUrl("gateway public URL", ctx.gatewayPublicUrl)
+  if (gateway.hostname !== gatewayHost) throw new CommerceConfigError("gateway public URL is not the declared remote TEST gateway host")
+  if (!REMOTE_GATEWAY_PATHS.has(gateway.pathname)) throw new CommerceConfigError("gateway public URL is not the torneos-gateway mount")
+  // torneos-payments: compared byte for byte with the only accepted form (no normalisation can smuggle a host).
+  const canonical = `https://${paymentsHost}${REMOTE_PAYMENTS_MOUNT}`
+  if (paymentsRaw !== canonical && paymentsRaw !== `${canonical}/`) throw new CommerceConfigError("TORNEOS_PAYMENTS_INTERNAL_URL is not the declared remote TEST payments URL")
+  const payments = remoteUrl("TORNEOS_PAYMENTS_INTERNAL_URL", paymentsRaw)
+  if (payments.hostname !== paymentsHost) throw new CommerceConfigError("TORNEOS_PAYMENTS_INTERNAL_URL is not the declared remote TEST payments host")
+  // Everything else this gateway talks to (or accepts browsers from) must be https and not Production.
+  const dependencies = ctx.dependencyUrls ?? []
+  if (dependencies.length === 0) throw new CommerceConfigError("remote TEST requires the gateway dependency URLs")
+  for (const dependency of dependencies) {
+    if (dependency === null || dependency === undefined || String(dependency).trim() === "") throw new CommerceConfigError("remote TEST dependency URL missing")
+    remoteUrl("gateway dependency URL", dependency)
+  }
+  return canonical
+}
+
 /** Fail-closed commerce configuration. OFF reads nothing but the mode; any fault throws CommerceConfigError. */
 export function loadCommerceConfig(env: Env, ctx: CommerceContext, allowlistDoc: unknown = commerceAllowlistDoc): CommerceConfig {
   const mode = (env.TORNEOS_COMMERCE_MODE ?? "").trim()
@@ -126,16 +195,30 @@ export function loadCommerceConfig(env: Env, ctx: CommerceContext, allowlistDoc:
   for (const [name, value] of Object.entries(env)) {
     if ((value ?? "").trim() && FORBIDDEN_GATEWAY_ENV.some((re) => re.test(name))) throw new CommerceConfigError(`refusing ${name} in the gateway`)
   }
-  let gateway: URL
-  try { gateway = new URL(String(ctx.gatewayPublicUrl)) } catch { throw new CommerceConfigError("gateway public URL") }
-  if (!LAB_GATEWAY_HOSTS.has(gateway.hostname)) throw new CommerceConfigError("commerce test is lab-only")
+  const deployment = (env.TORNEOS_COMMERCE_DEPLOYMENT ?? "").trim() || "local-lab"
+  if (!COMMERCE_DEPLOYMENTS.includes(deployment)) throw new CommerceConfigError("TORNEOS_COMMERCE_DEPLOYMENT accepts only the lab or remote TEST deployment")
   const url = (env.TORNEOS_PAYMENTS_INTERNAL_URL ?? "").trim()
-  if (!url) throw new CommerceConfigError("missing TORNEOS_PAYMENTS_INTERNAL_URL")
   const secret = (env.TORNEOS_PAYMENTS_INTERNAL_SECRET ?? "").trim()
-  if (!secret) throw new CommerceConfigError("missing TORNEOS_PAYMENTS_INTERNAL_SECRET")
+  let paymentsUrl: string
+  if (deployment === "local-lab") {
+    for (const name of ["TORNEOS_COMMERCE_REMOTE_GATEWAY_HOST", "TORNEOS_COMMERCE_REMOTE_PAYMENTS_HOST"]) {
+      if ((env[name] ?? "").trim()) throw new CommerceConfigError(`${name} is for remote TEST only`)
+    }
+    let gateway: URL
+    try { gateway = new URL(String(ctx.gatewayPublicUrl)) } catch { throw new CommerceConfigError("gateway public URL") }
+    if (!LAB_GATEWAY_HOSTS.has(gateway.hostname)) throw new CommerceConfigError("commerce test is lab-only")
+    if (!url) throw new CommerceConfigError("missing TORNEOS_PAYMENTS_INTERNAL_URL")
+    if (!secret) throw new CommerceConfigError("missing TORNEOS_PAYMENTS_INTERNAL_SECRET")
+    paymentsUrl = paymentsUrlOf(url)
+  } else {
+    if (!url) throw new CommerceConfigError("missing TORNEOS_PAYMENTS_INTERNAL_URL")
+    if (!secret) throw new CommerceConfigError("missing TORNEOS_PAYMENTS_INTERNAL_SECRET")
+    paymentsUrl = remoteTestLinks(env, ctx, url)
+  }
   return {
     mode: "test",
-    paymentsUrl: paymentsUrlOf(url),
+    deployment: deployment as CommerceDeployment,
+    paymentsUrl,
     secret: secretOf(secret, ctx.distinctFrom),
     readRpcs: validateCommerceAllowlist(allowlistDoc, ctx.baseAllowlist),
   }

@@ -1,0 +1,20 @@
+▶ MP-A3 — T2 provider copy
+  ✔ legacy provider files are byte-identical to the certified legacy (untouched by MP-A3) (2.546ms)
+  ✔ Torneos _shared holds exactly paymentProvider.ts and mercadoPagoPaymentProvider.ts, each sha256 == legacy (1.642083ms)
+  ✔ copy import graph: paymentProvider.ts imports nothing; mercadoPagoPaymentProvider.ts imports only ./paymentProvider.ts (0.845416ms)
+  ✔ no Core dependency: neither copy nor torneos-payments references Core contract, Core auth, supabase-js, service keys or the gateway (2.867667ms)
+(node:2316) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/nicoavayu/Downloads/arma2/arma2-mp-b1-1-remote-enablement-r2/backend/torneos/supabase/functions/_shared/mercadoPagoPaymentProvider.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/nicoavayu/Downloads/arma2/arma2-mp-b1-1-remote-enablement-r2/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✔ torneos-payments imports the provider from the shared copy (not a fork): the only Mercado Pago API origin literal lives in the copy (0.674ms)
+  ✔ the copy is loadable as-is (Node type stripping): provider exports present, no network at import (46.398834ms)
+✔ MP-A3 — T2 provider copy (56.968542ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 7
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 122.344333

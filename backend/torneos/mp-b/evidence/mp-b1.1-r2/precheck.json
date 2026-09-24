@@ -1,0 +1,40 @@
+{
+  "phase": "MP-B1.1 R2 precheck",
+  "worktree": "/Users/nicoavayu/Downloads/arma2/arma2-mp-b1-1-remote-enablement-r2",
+  "branch": "claude/torneos-mp-b1-1-remote-enablement-r2",
+  "createdFrom": "1f8e560ff0fa1a064aed5621247550c0325b8cda",
+  "headAtCreation": "1f8e560ff0fa1a064aed5621247550c0325b8cda",
+  "treeCleanAtCreation": true,
+  "linearAncestry": {
+    "chain": [
+      "95521a5d",
+      "439a4cbb",
+      "88cb6ab9",
+      "02779321",
+      "c9334690",
+      "6e70cabf",
+      "38c9669d",
+      "1f8e560f"
+    ],
+    "everyLinkSingleParent": true,
+    "mergesSinceMain": 0
+  },
+  "originMain": "c2dfc3ed",
+  "remoteBranchesContainingMpCommits": [],
+  "migrationsPresent": [
+    "00000000000000_torneos_baseline_v1.sql",
+    "00000000000001_staging_v1_rpc_exposure.sql",
+    "00000000000002_mercadopago_checkout_pro_test.sql",
+    "00000000000003_mercadopago_provider_ordering.sql"
+  ],
+  "mpB12EvidencePresent": true,
+  "mpB12Commit": "1f8e560ff0fa1a064aed5621247550c0325b8cda fix(torneos): enforce monotonic provider payment state",
+  "notUsedAsBase": [
+    "codex/torneos-mp-b1-remote-test (e38e6094)",
+    "codex/torneos-mp-b1-1-remote-enablement (38c9669d)",
+    "38c9669d directly"
+  ],
+  "originalWorktreeUntouched": "/Users/nicoavayu/Downloads/arma2/arma2 (not modified by this phase)",
+  "productionTorneos": "OFF — not re-queried (no remote calls in this phase); last evidence: Vercel production env audit 2026-09-22 (0 TORNEOS vars in Production), Core Production without torneos-core-contract",
+  "providerOrderingBlocker": "closed by MP-B1.2 (1f8e560f); not re-opened"
+}

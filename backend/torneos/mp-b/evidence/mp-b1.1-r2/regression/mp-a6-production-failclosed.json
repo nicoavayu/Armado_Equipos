@@ -1,0 +1,124 @@
+{
+  "suite": "MP-A6 §11 Production fail-closed",
+  "generated_at": "2026-09-24T16:03:10.170Z",
+  "head": "1f8e560ff0fa1a064aed5621247550c0325b8cda",
+  "deployed": false,
+  "facts": {
+    "envFiles": {
+      "tracked": [
+        ".env.example"
+      ],
+      "presentInWorktree": [
+        ".env.example"
+      ]
+    },
+    "publicFlagIdentifierPresent": true,
+    "build": {
+      "files": 124,
+      "bytes": 7581634,
+      "forbiddenHits": {
+        "mpTestToken": 0,
+        "mpLiveToken": 0,
+        "mpEnvNames": 0,
+        "internalSecretName": 0,
+        "labStubHost": 0,
+        "dbUrl": 0,
+        "jwt": 0,
+        "productionRef": 0
+      },
+      "outside": "scratch dir (not committed, deleted after the scan)"
+    }
+  },
+  "results": [
+    {
+      "name": "frontend: billing is OFF unless exactly \"test\" + hybrid + loopback gateway/Core/app + dev build; production build, live/production values, Production deploy env / ref / hosted targets → off",
+      "status": "PASS",
+      "detail": {
+        "unset": "off",
+        "live": "off",
+        "production": "off",
+        "nodeEnvProduction": "off",
+        "deployEnvProduction": "off",
+        "deployEnvPreview": "off",
+        "torneosProductionEnabled": "off",
+        "productionRefCore": "off",
+        "hostedCore": "off",
+        "hostedGateway": "off",
+        "notHybrid": "off",
+        "publicAppHost": "off"
+      }
+    },
+    {
+      "name": "build gate: validateTorneosBillingMode refuses ANY billing value (test / live / production) before the bundle exists",
+      "status": "PASS",
+      "detail": {
+        "prebuildWithBillingExit": 1
+      }
+    },
+    {
+      "name": "gateway: commerce accepts only TORNEOS_COMMERCE_MODE=test; live / production / prod → fail closed; unset → OFF; Production payments URL and non-loopback gateway refused",
+      "status": "PASS",
+      "detail": {
+        "unset": "off",
+        "live": "refused",
+        "production": "refused",
+        "prod": "refused",
+        "productionPaymentsUrl": "refused",
+        "hostedGateway": "refused"
+      }
+    },
+    {
+      "name": "payments service: exactly MERCADO_PAGO_ENVIRONMENT=test, TEST credentials only, Production ref refused, no live mode; DB accepts MERCADO_PAGO only with provider_environment = test",
+      "status": "PASS",
+      "detail": {
+        "liveModeWebhook": "refused (T4: payload live_mode=true → 400; chargeback live_mode=true → 422)",
+        "config": "T5 18/18",
+        "t6LiveBoot": "T6 TEST: mode \"live\" disables both gateways (503)"
+      }
+    },
+    {
+      "name": "deploy config: vercel.json and every tracked .env* carry no billing / Mercado Pago / commerce variable; no .env.production* tracked or present in the worktree",
+      "status": "PASS",
+      "detail": {
+        "tracked": [
+          ".env.example"
+        ],
+        "presentInWorktree": [
+          ".env.example"
+        ]
+      }
+    },
+    {
+      "name": "frontend source: no Mercado Pago credential, webhook secret or payments internal secret name in src/ (the app only receives a validated Checkout Pro URL)",
+      "status": "PASS"
+    },
+    {
+      "name": "local production build (react-scripts build, NODE_ENV=production, no billing variable, placeholder .invalid targets) succeeds; bundle has no MP token, secret, lab host or billing TEST value",
+      "status": "PASS",
+      "detail": {
+        "files": 124,
+        "bytes": 7581634,
+        "forbiddenHits": {
+          "mpTestToken": 0,
+          "mpLiveToken": 0,
+          "mpEnvNames": 0,
+          "internalSecretName": 0,
+          "labStubHost": 0,
+          "dbUrl": 0,
+          "jwt": 0,
+          "productionRef": 0
+        },
+        "outside": "scratch dir (not committed, deleted after the scan)"
+      }
+    },
+    {
+      "name": "local production build WITH REACT_APP_TORNEOS_BILLING_MODE=test is refused by the prebuild gate (npm run build path)",
+      "status": "PASS",
+      "detail": {
+        "exit": 1
+      }
+    }
+  ],
+  "passed": 8,
+  "total": 8
+}

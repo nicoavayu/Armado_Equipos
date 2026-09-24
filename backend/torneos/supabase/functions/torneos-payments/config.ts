@@ -14,6 +14,7 @@ import {
   type MercadoPagoTestConfig,
   requirePublicHttpsUrl,
 } from "../_shared/mercadoPagoPaymentProvider.ts"
+import { productionHostProblem } from "./remote-hosts.ts"
 
 export const FUNCTION_NAME = "torneos-payments"
 export const INTERNAL_PATH = "/internal/v1/season-checkout-preference"
@@ -108,6 +109,8 @@ export function loadPaymentsConfig(env: Env): PaymentsConfig {
   const app = new URL(appBaseUrl)
   const notification = new URL(notificationUrl)
   if (namesProduction(app) || namesProduction(notification)) throw new ConfigError("public URL names Production")
+  // MP-B1.1 R2: TEST never sends buyers back to, nor receives notifications on, a Production host (web or Supabase).
+  if (productionHostProblem(app.hostname) || productionHostProblem(notification.hostname)) throw new ConfigError("public URL names Production")
   if (app.search || notification.search) throw new ConfigError("public URLs carry a query")
   if (!notification.pathname.endsWith(`/${FUNCTION_NAME}${WEBHOOK_PATH}`)) throw new ConfigError("notification URL is not the payments webhook")
 
