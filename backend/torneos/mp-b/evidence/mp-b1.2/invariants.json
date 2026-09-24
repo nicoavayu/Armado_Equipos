@@ -1,0 +1,14 @@
+{
+  "base": "38c9669d60ee96020c64e5c0c83bb0fd636b100a",
+  "migrations": {
+    "00000000000000_torneos_baseline_v1.sql": "f857bd0939054bc1a32a3855894b7b20e14a0c7456c9d5c8c5e8432e5b8ed19f",
+    "00000000000001_staging_v1_rpc_exposure.sql": "3df4b96eecc7321eaeda84a480f089fe4bff2b28c20aa4479db92caf33457e62",
+    "00000000000002_mercadopago_checkout_pro_test.sql": "06378f12b57620e8ae550a0d881ad66464ffdc0a734ad621cba8a6ba3e6d6078"
+  },
+  "frontendCoreGatewayUnchanged": true,
+  "certifiedHarnessUnchanged": true,
+  "secrets": 0,
+  "fixtureDBUrls": 3,
+  "scannedFiles": 32,
+  "scannedBytes": 374688
+}

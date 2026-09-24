@@ -19,6 +19,7 @@ const RUN = 'mpa2' + randomBytes(2).toString('hex');
 const MIGRATIONS = `${repo}backend/torneos/supabase/migrations/`;
 const M0 = '00000000000000_torneos_baseline_v1.sql';
 const M1 = '00000000000001_staging_v1_rpc_exposure.sql';
+const M3 = '00000000000003_mercadopago_provider_ordering.sql';
 const M2 = '00000000000002_mercadopago_checkout_pro_test.sql';
 // Certified (Phase 2D / stack 38f33b9a / main c2dfc3ed) hashes of the two earlier migrations, and the
 // pinned hash of the MP-A2 migration under certification.
@@ -28,6 +29,17 @@ const SHA = {
   [M2]: '06378f12b57620e8ae550a0d881ad66464ffdc0a734ad621cba8a6ba3e6d6078',
 };
 const DELTA = JSON.parse(await readFile(`${repo}backend/torneos/mp-a/mp-a2-acl-delta.json`, 'utf8'));
+// MP-B1.2 replaces the two payment signatures; the allowed EXECUTE count stays four.
+for (const f of DELTA.new_security_definer_functions) {
+  if (f.function.startsWith('apply_verified_tournament_payment_')) {
+    f.function = f.function.replace(/\)$/, ',timestamp with time zone)');
+    f.identity_arguments += ', p_date_last_updated timestamp with time zone';
+  }
+}
+DELTA.payment_service_execute = DELTA.payment_service_execute.map(f => f.startsWith('apply_verified_tournament_payment_') ? f.replace(/\)$/, ',timestamp with time zone)') : f);
+// Synthetic provider clock for this DB-only policy regression, not a runtime authority.
+let providerClock = 0;
+const providerTime = () => lit(new Date(Date.UTC(2026, 0, 1) + ++providerClock * 1000).toISOString());
 const EVIDENCE = `${repo}backend/torneos/mp-a/evidence/`;
 const TAG = process.env.MP_A2_EVIDENCE_TAG ? `-${process.env.MP_A2_EVIDENCE_TAG}` : '';
 const PAY = 'torneos_payment_service';
@@ -118,9 +130,9 @@ const prefId = (p) => `mp-pref-${p}`;
 const pref = (p, expires = "now() + interval '30 minutes'") =>
   j(asPay(`select public.record_tournament_purchase_preference(${lit(p)}, 'MERCADO_PAGO', 'test', ${lit(prefId(p))}, ${expires})`));
 const status = (p, st, pay, detail = null, providerStatus = st) =>
-  j(asPay(`select public.apply_verified_tournament_payment_status(${lit(p)}, 'MERCADO_PAGO', 'test', ${lit(st)}, ${lit(providerStatus)}, ${lit(detail)}, ${lit(pay)})`));
+  j(asPay(`select public.apply_verified_tournament_payment_status(${lit(p)}, 'MERCADO_PAGO', 'test', ${lit(st)}, ${lit(providerStatus)}, ${lit(detail)}, ${lit(pay)}, ${providerTime()})`));
 const reversal = (p, action, pay, providerStatus = 'refunded', detail = null) =>
-  j(asPay(`select public.apply_verified_tournament_payment_reversal(${lit(p)}, 'MERCADO_PAGO', 'test', ${lit(action)}, ${lit(providerStatus)}, ${lit(detail)}, ${lit(pay)})`));
+  j(asPay(`select public.apply_verified_tournament_payment_reversal(${lit(p)}, 'MERCADO_PAGO', 'test', ${lit(action)}, ${lit(providerStatus)}, ${lit(detail)}, ${lit(pay)}, ${providerTime()})`));
 const purchase = (p) => j(admin(`select to_jsonb(x) from public.tournament_purchases x where id = ${lit(p)}`));
 const events = (p) => j(admin(`select coalesce(json_agg(json_build_object('type', event_type, 'from', from_status, 'to', to_status, 'actor', actor_type, 'meta', metadata) order by id), '[]') from public.tournament_purchase_events where purchase_id = ${lit(p)}`));
 const eventTypes = (p) => events(p).map(e => e.type);
@@ -161,13 +173,13 @@ test('MP-A2 — Mercado Pago TEST commercial DB delta (T10)', async (t) => {
   }
   try {
     // ============================================================ A. schema / migration chain
-    await check('schema: migrations are exactly 0000 → 0001 → 0002 in order; 0000/0001 byte-identical to the certified stack; 0002 pinned; the lab applied all three from empty volumes', async () => {
+    await check('schema: migrations are exactly 0000 → 0001 → 0002 → 0003 in order; 0000/0001 byte-identical to the certified stack; 0002 pinned; the lab applied all four from empty volumes', async () => {
       const files = (await readdir(MIGRATIONS)).filter(f => f.endsWith('.sql')).sort();
-      assert.deepEqual(files, [M0, M1, M2]);
-      for (const f of files) assert.equal(createHash('sha256').update(await readFile(MIGRATIONS + f)).digest('hex'), SHA[f], f);
+      assert.deepEqual(files, [M0, M1, M2, M3]);
+      for (const f of [M0, M1, M2]) assert.equal(createHash('sha256').update(await readFile(MIGRATIONS + f)).digest('hex'), SHA[f], f);
       const install = JSON.parse(await readFile(new URL('.runtime/install.json', import.meta.url), 'utf8'));
       assert.equal(install.torneos.sha256, SHA[M0]); assert.equal(install.torneos.installed, true, 'baseline installed from an empty volume');
-      assert.deepEqual(install.torneos.migrations_after_baseline.map(m => [m.file.split('/').pop(), m.sha256, m.applied]), [[M1, SHA[M1], true], [M2, SHA[M2], true]]);
+      assert.deepEqual(install.torneos.migrations_after_baseline.map(m => [m.file.split('/').pop(), m.sha256, m.applied]), [[M1, SHA[M1], true], [M2, SHA[M2], true], [M3, createHash('sha256').update(await readFile(MIGRATIONS + M3)).digest('hex'), true]]);
       const text = await readFile(MIGRATIONS + M2, 'utf8');
       assert.match(text.trim(), /^--[\s\S]*^BEGIN;$[\s\S]*^COMMIT;$/m, 'BEGIN … COMMIT');
       assert.equal((text.match(/^BEGIN;$/gm) ?? []).length, 1); assert.equal((text.match(/^COMMIT;$/gm) ?? []).length, 1);
@@ -224,7 +236,14 @@ test('MP-A2 — Mercado Pago TEST commercial DB delta (T10)', async (t) => {
       }
       assert.deepEqual(outcome, Object.fromEntries(Object.keys(drifts).map(k => [k, 'aborted'])));
       assert.equal(snapshot(), before, 'aborted probes changed nothing');
-      const again = rawTx(text);
+      // Restore only the historical signatures inside a rolled-back fixture to check 0002's
+      // certified post-state. Never reapply/commit an older migration over 0003.
+      const historical = ['status', 'reversal'].map(kind => `
+        DROP FUNCTION public.apply_verified_tournament_payment_${kind}(uuid,text,text,text,text,text,text,timestamptz);
+        ALTER FUNCTION public.unordered_tournament_payment_${kind}(uuid,text,text,text,text,text,text) RENAME TO apply_verified_tournament_payment_${kind};
+        GRANT EXECUTE ON FUNCTION public.apply_verified_tournament_payment_${kind}(uuid,text,text,text,text,text,text) TO torneos_payment_service;
+      `).join('\n');
+      const again = rawTx(text.replace(/^BEGIN;$/m, `BEGIN;\n${historical}`).replace(/^COMMIT;$/m, 'ROLLBACK;'));
       assert.equal(again.ok, true, `re-apply on the post-state: ${again.error}`);
       assert.equal(snapshot(), before, 're-apply is a no-op on the certified post-state');
     });
@@ -412,7 +431,7 @@ test('MP-A2 — Mercado Pago TEST commercial DB delta (T10)', async (t) => {
     await check('payment: input validation — FAKE/production provider, unknown status, missing payment id, FAKE purchase, purchase without preference; all non-transient except the not-ready purchase; zero writes', async () => {
       const o = openPurchase('validate');
       const before = events(o.id).length;
-      const call = (provider, env, st, payId, id = o.id) => asPay(`select public.apply_verified_tournament_payment_status(${lit(id)}, ${lit(provider)}, ${lit(env)}, ${lit(st)}, ${lit(st)}, null, ${lit(payId)})`);
+      const call = (provider, env, st, payId, id = o.id) => asPay(`select public.apply_verified_tournament_payment_status(${lit(id)}, ${lit(provider)}, ${lit(env)}, ${lit(st)}, ${lit(st)}, null, ${lit(payId)}, ${providerTime()})`);
       expectErr(() => call('FAKE', 'local', 'approved', pay('v')), '22023', 'TORNEOS_PROVIDER_INVALID');
       expectErr(() => call('MERCADO_PAGO', 'production', 'approved', pay('v')), '22023', 'TORNEOS_PROVIDER_INVALID');
       for (const st of ['authorized', 'in_process', 'refunded', 'charged_back', 'in_mediation', 'APPROVED', '', 'created']) expectErr(() => call('MERCADO_PAGO', 'test', st, pay('v')), '22023', 'TORNEOS_PROVIDER_STATUS_INVALID');
@@ -626,11 +645,11 @@ test('MP-A2 — Mercado Pago TEST commercial DB delta (T10)', async (t) => {
     await check('payment: concurrency — 6 parallel approved notifications of the same payment through the payment login produce exactly one grant and one payment.approved', async () => {
       const o = openPurchase('concapprove');
       const pid = pay('c');
-      const q = { id: 'a', sql: `select public.apply_verified_tournament_payment_status($1, 'MERCADO_PAGO', 'test', 'approved', 'approved', 'accredited', $2) r`, params: [o.id, pid] };
+      const q = { id: 'a', sql: `select public.apply_verified_tournament_payment_status($1, 'MERCADO_PAGO', 'test', 'approved', 'approved', 'accredited', $2, '2026-01-02T00:00:00Z'::timestamptz) r`, params: [o.id, pid] };
       const out = paymentLogin(Array.from({ length: 6 }, () => [{ id: 'role', sql: `set role ${PAY}` }, q]));
       assert.ok(out.every(s => s.every(x => x.ok)), JSON.stringify(out));
       const outcomes = out.map(s => s[1].rows[0].r.outcome).sort();
-      assert.deepEqual(outcomes, ['approved', 'duplicate_approved', 'duplicate_approved', 'duplicate_approved', 'duplicate_approved', 'duplicate_approved']);
+      assert.deepEqual(outcomes, ['approved', 'provider_snapshot_duplicate', 'provider_snapshot_duplicate', 'provider_snapshot_duplicate', 'provider_snapshot_duplicate', 'provider_snapshot_duplicate']);
       assert.deepEqual(grantState(o.id), { grants: 1, events: ['granted'] });
       assert.equal(eventTypes(o.id).filter(e => e === 'payment.approved').length, 1);
     });
@@ -646,7 +665,7 @@ test('MP-A2 — Mercado Pago TEST commercial DB delta (T10)', async (t) => {
           // Stagger the start (either side first) so both interleavings are exercised; the invariant is the same.
           const wait = (ms) => new Promise(r => setTimeout(r, ms));
           const [approve, buy] = await Promise.all([
-            wait(${i % 2 ? 250 : 0}).then(() => client.query("select public.apply_verified_tournament_payment_status($1, 'MERCADO_PAGO', 'test', 'approved', 'approved', 'accredited', $2) r", [${JSON.stringify(stale.id)}, ${JSON.stringify(pid)}])
+            wait(${i % 2 ? 250 : 0}).then(() => client.query("select public.apply_verified_tournament_payment_status($1, 'MERCADO_PAGO', 'test', 'approved', 'approved', 'accredited', $2, '2026-01-02T00:00:00Z'::timestamptz) r", [${JSON.stringify(stale.id)}, ${JSON.stringify(pid)}])
               .then(r => ({ ok: true, rows: r.rows }), e => ({ ok: false, code: e.code, message: String(e.message) }))),
             wait(${i % 2 ? 0 : 250}).then(() => fetch('http://torneos-rest:3000/rpc/create_tournament_season_checkout_purchase', { method: 'POST', headers: { 'content-type': 'application/json', authorization: 'Bearer ' + ${JSON.stringify(token)} },
               body: JSON.stringify({ p_organization_id: ${JSON.stringify(org)}, p_season_id: ${JSON.stringify(stale.season)}, p_idempotency_key: ${JSON.stringify(newKey())} }) })
@@ -747,7 +766,7 @@ test('MP-A2 — Mercado Pago TEST commercial DB delta (T10)', async (t) => {
     await check('reversal: input validation — unknown action, FAKE/production provider, missing payment id → 22023; zero writes', async () => {
       const o = openPurchase('revval');
       const before = events(o.id).length;
-      const call = (provider, env, action, payId) => asPay(`select public.apply_verified_tournament_payment_reversal(${lit(o.id)}, ${lit(provider)}, ${lit(env)}, ${lit(action)}, 'refunded', null, ${lit(payId)})`);
+      const call = (provider, env, action, payId) => asPay(`select public.apply_verified_tournament_payment_reversal(${lit(o.id)}, ${lit(provider)}, ${lit(env)}, ${lit(action)}, 'refunded', null, ${lit(payId)}, ${providerTime()})`);
       expectErr(() => call('MERCADO_PAGO', 'test', 'partial_refund', pay('x')), '22023', 'TORNEOS_REVERSAL_INVALID');
       expectErr(() => call('FAKE', 'local', 'refund', pay('x')), '22023', 'TORNEOS_PROVIDER_INVALID');
       expectErr(() => call('MERCADO_PAGO', 'live', 'refund', pay('x')), '22023', 'TORNEOS_PROVIDER_INVALID');
@@ -940,7 +959,7 @@ test('MP-A2 — Mercado Pago TEST commercial DB delta (T10)', async (t) => {
         { id: 'no-role-read', sql: 'select count(*) from public.tournament_purchases' },
         { id: 'set-role', sql: `set role ${PAY}` },
         { id: 'lookup', sql: `select public.get_provider_tournament_purchase($1, 'MERCADO_PAGO', 'test') r`, params: [o.externalReference] },
-        { id: 'status', sql: `select public.apply_verified_tournament_payment_status($1, 'MERCADO_PAGO', 'test', 'pending', 'in_process', null, $2) r`, params: [o.id, pay('login')] },
+        { id: 'status', sql: `select public.apply_verified_tournament_payment_status($1, 'MERCADO_PAGO', 'test', 'pending', 'in_process', null, $2, '2026-01-02T00:00:00Z'::timestamptz) r`, params: [o.id, pay('login')] },
         { id: 'read', sql: 'select count(*) from public.tournament_purchases' },
         { id: 'events', sql: 'select count(*) from public.tournament_purchase_events' },
         { id: 'activate', sql: `select public.activate_verified_tournament_purchase($1, 'MERCADO_PAGO', 'test', 'approved', null, 'x', null)`, params: [o.id] },

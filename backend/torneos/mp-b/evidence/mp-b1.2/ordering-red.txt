@@ -1,0 +1,248 @@
+✖ restored-old-dispute (924.174416ms)
+✖ approved-old-pending (820.162958ms)
+✖ approved-old-rejected (816.094125ms)
+✖ refund-old-approved (885.248416ms)
+✖ duplicate-approved (816.444542ms)
+✖ duplicate-dispute (898.426542ms)
+✖ duplicate-restored (972.486166ms)
+✖ duplicate-refund (908.4ms)
+✖ equal version incompatible state fails closed (554.273958ms)
+✖ concurrent fetched-old snapshot waits for newer transaction and cannot undo restoration (642.364084ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 0
+ℹ fail 10
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 8317.205875
+
+✖ failing tests:
+
+test at integration/torneos-core-contracts/provider-ordering.test.mjs:29:4
+✖ restored-old-dispute (924.174416ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+
+  + 'charged_back'
+  - 'approved'
+
+      at TestContext.<anonymous> (file:///Users/nicoavayu/Downloads/arma2/arma2-mp-b1-2-provider-ordering/integration/torneos-core-contracts/provider-ordering.test.mjs:36:10)
+      at Test.runInAsyncScope (node:async_hooks:213:14)
+      at Test.run (node:internal/test_runner/test:1106:25)
+      at Test.start (node:internal/test_runner/test:1003:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:358:17) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'charged_back',
+    expected: 'approved',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at integration/torneos-core-contracts/provider-ordering.test.mjs:29:4
+✖ approved-old-pending (820.162958ms)
+  AssertionError [ERR_ASSERTION]: stale/equal must be an exact commercial no-op
+  + actual - expected
+
+  + '[{"id":"d8e95171-2c73-4207-a8da-8f46cb493c09","status":"approved","currency":"ARS","metadata":{},"provider":"MERCADO_PAGO","season_id":"83ce25c9-01d8-44ee-b52f-8624d41ac16c","created_at":"2026-09-24T14:13:41.499372+00:00","offer_code":"launch","updated_at":"2026-09-24T14:13:41.638945+00:00","approved_at":"2026-09-24T14:13:41.638945+00:00","refunded_at":null,"cancelled_at":null,"product_code":"torneos_premium","buyer_user_id":"afdc70d4-3e2a-431c-ab73-c9df3d2403e0","offer_version":1,"tournament_id":null,"amount_snapshot":39900,"charged_back_at":null,"idempotency_key":"8cbfb2ed-6d87-495c-9036-dee75b101924","organization_id":"799f5ea8-6e44-4274-adbc-bc9c2dfffe80","provider_status":"approved","last_verified_at":"2026-09-24T14:13:41.638945+00:00","external_reference":"arma2:season:purchase:d8e95171-2c73-4207-a8da-8f46cb493c09","activation_attempts":1,"list_amount_snapshot":49900,"provider_environment":"test","activation_error_code":null,"preference_expires_at":"2026-09-24T14:43:41.570117+00:00","provider_preference_id":"pref-d8e95171-2c73-4207-a8da-8f46cb493c09","provider_status_detail":null,"entitlement_activated_at":"2026-09-24T14:13:41.638945+00:00","approved_provider_payment_id":"d8e951712c734207a8da8f46cb493c09"},["purchase.created","preference.created","payment.approved","payment.stale_status_ignored"],["granted"]]'
+  - '[{"id":"d8e95171-2c73-4207-a8da-8f46cb493c09","status":"approved","currency":"ARS","metadata":{},"provider":"MERCADO_PAGO","season_id":"83ce25c9-01d8-44ee-b52f-8624d41ac16c","created_at":"2026-09-24T14:13:41.499372+00:00","offer_code":"launch","updated_at":"2026-09-24T14:13:41.638945+00:00","approved_at":"2026-09-24T14:13:41.638945+00:00","refunded_at":null,"cancelled_at":null,"product_code":"torneos_premium","buyer_user_id":"afdc70d4-3e2a-431c-ab73-c9df3d2403e0","offer_version":1,"tournament_id":null,"amount_snapshot":39900,"charged_back_at":null,"idempotency_key":"8cbfb2ed-6d87-495c-9036-dee75b101924","organization_id":"799f5ea8-6e44-4274-adbc-bc9c2dfffe80","provider_status":"approved","last_verified_at":"2026-09-24T14:13:41.638945+00:00","external_reference":"arma2:season:purchase:d8e95171-2c73-4207-a8da-8f46cb493c09","activation_attempts":1,"list_amount_snapshot":49900,"provider_environment":"test","activation_error_code":null,"preference_expires_at":"2026-09-24T14:43:41.570117+00:00","provider_preference_id":"pref-d8e95171-2c73-4207-a8da-8f46cb493c09","provider_status_detail":null,"entitlement_activated_at":"2026-09-24T14:13:41.638945+00:00","approved_provider_payment_id":"d8e951712c734207a8da8f46cb493c09"},["purchase.created","preference.created","payment.approved"],["granted"]]'
+
+      at TestContext.<anonymous> (file:///Users/nicoavayu/Downloads/arma2/arma2-mp-b1-2-provider-ordering/integration/torneos-core-contracts/provider-ordering.test.mjs:37:10)
+      at Test.runInAsyncScope (node:async_hooks:213:14)
+      at Test.run (node:internal/test_runner/test:1106:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:788:18)
+      at Test.postRun (node:internal/test_runner/test:1235:19)
+      at Test.run (node:internal/test_runner/test:1163:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: '[{"id":"d8e95171-2c73-4207-a8da-8f46cb493c09","status":"approved","currency":"ARS","metadata":{},"provider":"MERCADO_PAGO","season_id":"83ce25c9-01d8-44ee-b52f-8624d41ac16c","created_at":"2026-09-24T14:13:41.499372+00:00","offer_code":"launch","updated_at":"2026-09-24T14:13:41.638945+00:00","approved_at":"2026-09-24T14:13:41.638945+00:00","refunded_at":null,"cancelled_at":null,"product_code":"torneos_premium","buyer_user_id":"afdc70d4-3e2a-431c-ab73-c9df3d2403e0","offer_version":1,"tournament_id":null,"amount_snapshot":39900,"charged_back_at":null,"idempotency_key":"8cbfb2ed-6d87-495c-9036-dee75b101924","organization_id":"799f5ea8-6e44-4274-adbc-bc9c2dfffe80","provider_status":"approved","last_verified_at":"2026-09-24T14:13:41.638945+00:00","external_reference":"arma2:season:purchase:d8e95171-2c73-4207-a8da-8f46cb493c09","activation_attempts":1,"list_amount_snapshot":49900,"provider_environment":"test","activation_error_code":null,"preference_expires_at":"2026-09-24T14:43:41.570117+00:00","provider_preference_id":"pref-d8e95171-2c73-4207-a8da-8f46cb493c09","provider_status_detail":null,"entitlement_activated_at":"2026-09-24T14:13:41.638945+00:00","approved_provider_payment_id":"d8e951712c734207a8da8f46cb493c09"},["purchase.created","preference.created","payment.approved","payment.stale_status_ignored"],["granted"]]',
+    expected: '[{"id":"d8e95171-2c73-4207-a8da-8f46cb493c09","status":"approved","currency":"ARS","metadata":{},"provider":"MERCADO_PAGO","season_id":"83ce25c9-01d8-44ee-b52f-8624d41ac16c","created_at":"2026-09-24T14:13:41.499372+00:00","offer_code":"launch","updated_at":"2026-09-24T14:13:41.638945+00:00","approved_at":"2026-09-24T14:13:41.638945+00:00","refunded_at":null,"cancelled_at":null,"product_code":"torneos_premium","buyer_user_id":"afdc70d4-3e2a-431c-ab73-c9df3d2403e0","offer_version":1,"tournament_id":null,"amount_snapshot":39900,"charged_back_at":null,"idempotency_key":"8cbfb2ed-6d87-495c-9036-dee75b101924","organization_id":"799f5ea8-6e44-4274-adbc-bc9c2dfffe80","provider_status":"approved","last_verified_at":"2026-09-24T14:13:41.638945+00:00","external_reference":"arma2:season:purchase:d8e95171-2c73-4207-a8da-8f46cb493c09","activation_attempts":1,"list_amount_snapshot":49900,"provider_environment":"test","activation_error_code":null,"preference_expires_at":"2026-09-24T14:43:41.570117+00:00","provider_preference_id":"pref-d8e95171-2c73-4207-a8da-8f46cb493c09","provider_status_detail":null,"entitlement_activated_at":"2026-09-24T14:13:41.638945+00:00","approved_provider_payment_id":"d8e951712c734207a8da8f46cb493c09"},["purchase.created","preference.created","payment.approved"],["granted"]]',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at integration/torneos-core-contracts/provider-ordering.test.mjs:29:4
+✖ approved-old-rejected (816.094125ms)
+  AssertionError [ERR_ASSERTION]: stale/equal must be an exact commercial no-op
+  + actual - expected
+
+  + '[{"id":"16371223-9dee-4ceb-bd52-ef049a9b370f","status":"approved","currency":"ARS","metadata":{},"provider":"MERCADO_PAGO","season_id":"d0167e74-367f-4623-a169-8a0df33a4f91","created_at":"2026-09-24T14:13:42.317267+00:00","offer_code":"launch","updated_at":"2026-09-24T14:13:42.462206+00:00","approved_at":"2026-09-24T14:13:42.462206+00:00","refunded_at":null,"cancelled_at":null,"product_code":"torneos_premium","buyer_user_id":"afdc70d4-3e2a-431c-ab73-c9df3d2403e0","offer_version":1,"tournament_id":null,"amount_snapshot":39900,"charged_back_at":null,"idempotency_key":"9168b394-3d8d-40f4-a001-9c7aa979cb84","organization_id":"799f5ea8-6e44-4274-adbc-bc9c2dfffe80","provider_status":"approved","last_verified_at":"2026-09-24T14:13:42.462206+00:00","external_reference":"arma2:season:purchase:16371223-9dee-4ceb-bd52-ef049a9b370f","activation_attempts":1,"list_amount_snapshot":49900,"provider_environment":"test","activation_error_code":null,"preference_expires_at":"2026-09-24T14:43:42.392922+00:00","provider_preference_id":"pref-16371223-9dee-4ceb-bd52-ef049a9b370f","provider_status_detail":null,"entitlement_activated_at":"2026-09-24T14:13:42.462206+00:00","approved_provider_payment_id":"163712239dee4cebbd52ef049a9b370f"},["purchase.created","preference.created","payment.approved","payment.stale_status_ignored"],["granted"]]'
+  - '[{"id":"16371223-9dee-4ceb-bd52-ef049a9b370f","status":"approved","currency":"ARS","metadata":{},"provider":"MERCADO_PAGO","season_id":"d0167e74-367f-4623-a169-8a0df33a4f91","created_at":"2026-09-24T14:13:42.317267+00:00","offer_code":"launch","updated_at":"2026-09-24T14:13:42.462206+00:00","approved_at":"2026-09-24T14:13:42.462206+00:00","refunded_at":null,"cancelled_at":null,"product_code":"torneos_premium","buyer_user_id":"afdc70d4-3e2a-431c-ab73-c9df3d2403e0","offer_version":1,"tournament_id":null,"amount_snapshot":39900,"charged_back_at":null,"idempotency_key":"9168b394-3d8d-40f4-a001-9c7aa979cb84","organization_id":"799f5ea8-6e44-4274-adbc-bc9c2dfffe80","provider_status":"approved","last_verified_at":"2026-09-24T14:13:42.462206+00:00","external_reference":"arma2:season:purchase:16371223-9dee-4ceb-bd52-ef049a9b370f","activation_attempts":1,"list_amount_snapshot":49900,"provider_environment":"test","activation_error_code":null,"preference_expires_at":"2026-09-24T14:43:42.392922+00:00","provider_preference_id":"pref-16371223-9dee-4ceb-bd52-ef049a9b370f","provider_status_detail":null,"entitlement_activated_at":"2026-09-24T14:13:42.462206+00:00","approved_provider_payment_id":"163712239dee4cebbd52ef049a9b370f"},["purchase.created","preference.created","payment.approved"],["granted"]]'
+
+      at TestContext.<anonymous> (file:///Users/nicoavayu/Downloads/arma2/arma2-mp-b1-2-provider-ordering/integration/torneos-core-contracts/provider-ordering.test.mjs:37:10)
+      at Test.runInAsyncScope (node:async_hooks:213:14)
+      at Test.run (node:internal/test_runner/test:1106:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:788:18)
+      at Test.postRun (node:internal/test_runner/test:1235:19)
+      at Test.run (node:internal/test_runner/test:1163:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:788:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: '[{"id":"16371223-9dee-4ceb-bd52-ef049a9b370f","status":"approved","currency":"ARS","metadata":{},"provider":"MERCADO_PAGO","season_id":"d0167e74-367f-4623-a169-8a0df33a4f91","created_at":"2026-09-24T14:13:42.317267+00:00","offer_code":"launch","updated_at":"2026-09-24T14:13:42.462206+00:00","approved_at":"2026-09-24T14:13:42.462206+00:00","refunded_at":null,"cancelled_at":null,"product_code":"torneos_premium","buyer_user_id":"afdc70d4-3e2a-431c-ab73-c9df3d2403e0","offer_version":1,"tournament_id":null,"amount_snapshot":39900,"charged_back_at":null,"idempotency_key":"9168b394-3d8d-40f4-a001-9c7aa979cb84","organization_id":"799f5ea8-6e44-4274-adbc-bc9c2dfffe80","provider_status":"approved","last_verified_at":"2026-09-24T14:13:42.462206+00:00","external_reference":"arma2:season:purchase:16371223-9dee-4ceb-bd52-ef049a9b370f","activation_attempts":1,"list_amount_snapshot":49900,"provider_environment":"test","activation_error_code":null,"preference_expires_at":"2026-09-24T14:43:42.392922+00:00","provider_preference_id":"pref-16371223-9dee-4ceb-bd52-ef049a9b370f","provider_status_detail":null,"entitlement_activated_at":"2026-09-24T14:13:42.462206+00:00","approved_provider_payment_id":"163712239dee4cebbd52ef049a9b370f"},["purchase.created","preference.created","payment.approved","payment.stale_status_ignored"],["granted"]]',
+    expected: '[{"id":"16371223-9dee-4ceb-bd52-ef049a9b370f","status":"approved","currency":"ARS","metadata":{},"provider":"MERCADO_PAGO","season_id":"d0167e74-367f-4623-a169-8a0df33a4f91","created_at":"2026-09-24T14:13:42.317267+00:00","offer_code":"launch","updated_at":"2026-09-24T14:13:42.462206+00:00","approved_at":"2026-09-24T14:13:42.462206+00:00","refunded_at":null,"cancelled_at":null,"product_code":"torneos_premium","buyer_user_id":"afdc70d4-3e2a-431c-ab73-c9df3d2403e0","offer_version":1,"tournament_id":null,"amount_snapshot":39900,"charged_back_at":null,"idempotency_key":"9168b394-3d8d-40f4-a001-9c7aa979cb84","organization_id":"799f5ea8-6e44-4274-adbc-bc9c2dfffe80","provider_status":"approved","last_verified_at":"2026-09-24T14:13:42.462206+00:00","external_reference":"arma2:season:purchase:16371223-9dee-4ceb-bd52-ef049a9b370f","activation_attempts":1,"list_amount_snapshot":49900,"provider_environment":"test","activation_error_code":null,"preference_expires_at":"2026-09-24T14:43:42.392922+00:00","provider_preference_id":"pref-16371223-9dee-4ceb-bd52-ef049a9b370f","provider_status_detail":null,"entitlement_activated_at":"2026-09-24T14:13:42.462206+00:00","approved_provider_payment_id":"163712239dee4cebbd52ef049a9b370f"},["purchase.created","preference.created","payment.approved"],["granted"]]',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at integration/torneos-core-contracts/provider-ordering.test.mjs:29:4
+✖ refund-old-approved (885.248416ms)
+  AssertionError [ERR_ASSERTION]: stale/equal must be an exact commercial no-op
+  + actual - expected
+
+  + '[{"id":"27cc64fa-c1a2-49fe-82dd-0dc606e121ba","status":"refunded","currency":"ARS","metadata":{},"provider":"MERCADO_PAGO","season_id":"7aa89b40-252b-4636-bea5-99e672b3a557","created_at":"2026-09-24T14:13:43.132245+00:00","offer_code":"launch","updated_at":"2026-09-24T14:13:43.351027+00:00","approved_at":"2026-09-24T14:13:43.274135+00:00","refunded_at":"2026-09-24T14:13:43.351027+00:00","cancelled_at":null,"product_code":"torneos_premium","buyer_user_id":"afdc70d4-3e2a-431c-ab73-c9df3d2403e0","offer_version":1,"tournament_id":null,"amount_snapshot":39900,"charged_back_at":null,"idempotency_key":"28fbb4e1-f5b9-461c-af20-1b2899ba2245","organization_id":"799f5ea8-6e44-4274-adbc-bc9c2dfffe80","provider_status":"refunded","last_verified_at":"2026-09-24T14:13:43.351027+00:00","external_reference":"arma2:season:purchase:27cc64fa-c1a2-49fe-82dd-0dc606e121ba","activation_attempts":1,"list_amount_snapshot":49900,"provider_environment":"test","activation_error_code":null,"preference_expires_at":"2026-09-24T14:43:43.204084+00:00","provider_preference_id":"pref-27cc64fa-c1a2-49fe-82dd-0dc606e121ba","provider_status_detail":null,"entitlement_activated_at":"2026-09-24T14:13:43.274135+00:00","approved_provider_payment_id":"27cc64fac1a249fe82dd0dc606e121ba"},["purchase.created","preference.created","payment.approved","payment.refund","payment.stale_status_ignored"],["granted","revoked"]]'
+  - '[{"id":"27cc64fa-c1a2-49fe-82dd-0dc606e121ba","status":"refunded","currency":"ARS","metadata":{},"provider":"MERCADO_PAGO","season_id":"7aa89b40-252b-4636-bea5-99e672b3a557","created_at":"2026-09-24T14:13:43.132245+00:00","offer_code":"launch","updated_at":"2026-09-24T14:13:43.351027+00:00","approved_at":"2026-09-24T14:13:43.274135+00:00","refunded_at":"2026-09-24T14:13:43.351027+00:00","cancelled_at":null,"product_code":"torneos_premium","buyer_user_id":"afdc70d4-3e2a-431c-ab73-c9df3d2403e0","offer_version":1,"tournament_id":null,"amount_snapshot":39900,"charged_back_at":null,"idempotency_key":"28fbb4e1-f5b9-461c-af20-1b2899ba2245","organization_id":"799f5ea8-6e44-4274-adbc-bc9c2dfffe80","provider_status":"refunded","last_verified_at":"2026-09-24T14:13:43.351027+00:00","external_reference":"arma2:season:purchase:27cc64fa-c1a2-49fe-82dd-0dc606e121ba","activation_attempts":1,"list_amount_snapshot":49900,"provider_environment":"test","activation_error_code":null,"preference_expires_at":"2026-09-24T14:43:43.204084+00:00","provider_preference_id":"pref-27cc64fa-c1a2-49fe-82dd-0dc606e121ba","provider_status_detail":null,"entitlement_activated_at":"2026-09-24T14:13:43.274135+00:00","approved_provider_payment_id":"27cc64fac1a249fe82dd0dc606e121ba"},["purchase.created","preference.created","payment.approved","payment.refund"],["granted","revoked"]]'
+
+      at TestContext.<anonymous> (file:///Users/nicoavayu/Downloads/arma2/arma2-mp-b1-2-provider-ordering/integration/torneos-core-contracts/provider-ordering.test.mjs:37:10)
+      at Test.runInAsyncScope (node:async_hooks:213:14)
+      at Test.run (node:internal/test_runner/test:1106:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:788:18)
+      at Test.postRun (node:internal/test_runner/test:1235:19)
+      at Test.run (node:internal/test_runner/test:1163:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:788:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: '[{"id":"27cc64fa-c1a2-49fe-82dd-0dc606e121ba","status":"refunded","currency":"ARS","metadata":{},"provider":"MERCADO_PAGO","season_id":"7aa89b40-252b-4636-bea5-99e672b3a557","created_at":"2026-09-24T14:13:43.132245+00:00","offer_code":"launch","updated_at":"2026-09-24T14:13:43.351027+00:00","approved_at":"2026-09-24T14:13:43.274135+00:00","refunded_at":"2026-09-24T14:13:43.351027+00:00","cancelled_at":null,"product_code":"torneos_premium","buyer_user_id":"afdc70d4-3e2a-431c-ab73-c9df3d2403e0","offer_version":1,"tournament_id":null,"amount_snapshot":39900,"charged_back_at":null,"idempotency_key":"28fbb4e1-f5b9-461c-af20-1b2899ba2245","organization_id":"799f5ea8-6e44-4274-adbc-bc9c2dfffe80","provider_status":"refunded","last_verified_at":"2026-09-24T14:13:43.351027+00:00","external_reference":"arma2:season:purchase:27cc64fa-c1a2-49fe-82dd-0dc606e121ba","activation_attempts":1,"list_amount_snapshot":49900,"provider_environment":"test","activation_error_code":null,"preference_expires_at":"2026-09-24T14:43:43.204084+00:00","provider_preference_id":"pref-27cc64fa-c1a2-49fe-82dd-0dc606e121ba","provider_status_detail":null,"entitlement_activated_at":"2026-09-24T14:13:43.274135+00:00","approved_provider_payment_id":"27cc64fac1a249fe82dd0dc606e121ba"},["purchase.created","preference.created","payment.approved","payment.refund","payment.stale_status_ignored"],["granted","revoked"]]',
+    expected: '[{"id":"27cc64fa-c1a2-49fe-82dd-0dc606e121ba","status":"refunded","currency":"ARS","metadata":{},"provider":"MERCADO_PAGO","season_id":"7aa89b40-252b-4636-bea5-99e672b3a557","created_at":"2026-09-24T14:13:43.132245+00:00","offer_code":"launch","updated_at":"2026-09-24T14:13:43.351027+00:00","approved_at":"2026-09-24T14:13:43.274135+00:00","refunded_at":"2026-09-24T14:13:43.351027+00:00","cancelled_at":null,"product_code":"torneos_premium","buyer_user_id":"afdc70d4-3e2a-431c-ab73-c9df3d2403e0","offer_version":1,"tournament_id":null,"amount_snapshot":39900,"charged_back_at":null,"idempotency_key":"28fbb4e1-f5b9-461c-af20-1b2899ba2245","organization_id":"799f5ea8-6e44-4274-adbc-bc9c2dfffe80","provider_status":"refunded","last_verified_at":"2026-09-24T14:13:43.351027+00:00","external_reference":"arma2:season:purchase:27cc64fa-c1a2-49fe-82dd-0dc606e121ba","activation_attempts":1,"list_amount_snapshot":49900,"provider_environment":"test","activation_error_code":null,"preference_expires_at":"2026-09-24T14:43:43.204084+00:00","provider_preference_id":"pref-27cc64fa-c1a2-49fe-82dd-0dc606e121ba","provider_status_detail":null,"entitlement_activated_at":"2026-09-24T14:13:43.274135+00:00","approved_provider_payment_id":"27cc64fac1a249fe82dd0dc606e121ba"},["purchase.created","preference.created","payment.approved","payment.refund"],["granted","revoked"]]',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at integration/torneos-core-contracts/provider-ordering.test.mjs:29:4
+✖ duplicate-approved (816.444542ms)
+  AssertionError [ERR_ASSERTION]: stale/equal must be an exact commercial no-op
+  + actual - expected
+
+  + '[{"id":"b5f18264-e148-49e5-b2e6-531482bd6c04","status":"approved","currency":"ARS","metadata":{},"provider":"MERCADO_PAGO","season_id":"ac49ca6a-f2eb-468f-94a5-fe637afb00b8","created_at":"2026-09-24T14:13:44.014949+00:00","offer_code":"launch","updated_at":"2026-09-24T14:13:44.152133+00:00","approved_at":"2026-09-24T14:13:44.152133+00:00","refunded_at":null,"cancelled_at":null,"product_code":"torneos_premium","buyer_user_id":"afdc70d4-3e2a-431c-ab73-c9df3d2403e0","offer_version":1,"tournament_id":null,"amount_snapshot":39900,"charged_back_at":null,"idempotency_key":"805bca6d-a5f7-446a-b136-5ca87b467981","organization_id":"799f5ea8-6e44-4274-adbc-bc9c2dfffe80","provider_status":"approved","last_verified_at":"2026-09-24T14:13:44.152133+00:00","external_reference":"arma2:season:purchase:b5f18264-e148-49e5-b2e6-531482bd6c04","activation_attempts":1,"list_amount_snapshot":49900,"provider_environment":"test","activation_error_code":null,"preference_expires_at":"2026-09-24T14:43:44.082825+00:00","provider_preference_id":"pref-b5f18264-e148-49e5-b2e6-531482bd6c04","provider_status_detail":null,"entitlement_activated_at":"2026-09-24T14:13:44.152133+00:00","approved_provider_payment_id":"b5f18264e14849e5b2e6531482bd6c04"},["purchase.created","preference.created","payment.approved","payment.approved_duplicate"],["granted"]]'
+  - '[{"id":"b5f18264-e148-49e5-b2e6-531482bd6c04","status":"approved","currency":"ARS","metadata":{},"provider":"MERCADO_PAGO","season_id":"ac49ca6a-f2eb-468f-94a5-fe637afb00b8","created_at":"2026-09-24T14:13:44.014949+00:00","offer_code":"launch","updated_at":"2026-09-24T14:13:44.152133+00:00","approved_at":"2026-09-24T14:13:44.152133+00:00","refunded_at":null,"cancelled_at":null,"product_code":"torneos_premium","buyer_user_id":"afdc70d4-3e2a-431c-ab73-c9df3d2403e0","offer_version":1,"tournament_id":null,"amount_snapshot":39900,"charged_back_at":null,"idempotency_key":"805bca6d-a5f7-446a-b136-5ca87b467981","organization_id":"799f5ea8-6e44-4274-adbc-bc9c2dfffe80","provider_status":"approved","last_verified_at":"2026-09-24T14:13:44.152133+00:00","external_reference":"arma2:season:purchase:b5f18264-e148-49e5-b2e6-531482bd6c04","activation_attempts":1,"list_amount_snapshot":49900,"provider_environment":"test","activation_error_code":null,"preference_expires_at":"2026-09-24T14:43:44.082825+00:00","provider_preference_id":"pref-b5f18264-e148-49e5-b2e6-531482bd6c04","provider_status_detail":null,"entitlement_activated_at":"2026-09-24T14:13:44.152133+00:00","approved_provider_payment_id":"b5f18264e14849e5b2e6531482bd6c04"},["purchase.created","preference.created","payment.approved"],["granted"]]'
+
+      at TestContext.<anonymous> (file:///Users/nicoavayu/Downloads/arma2/arma2-mp-b1-2-provider-ordering/integration/torneos-core-contracts/provider-ordering.test.mjs:37:10)
+      at Test.runInAsyncScope (node:async_hooks:213:14)
+      at Test.run (node:internal/test_runner/test:1106:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:788:18)
+      at Test.postRun (node:internal/test_runner/test:1235:19)
+      at Test.run (node:internal/test_runner/test:1163:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:788:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: '[{"id":"b5f18264-e148-49e5-b2e6-531482bd6c04","status":"approved","currency":"ARS","metadata":{},"provider":"MERCADO_PAGO","season_id":"ac49ca6a-f2eb-468f-94a5-fe637afb00b8","created_at":"2026-09-24T14:13:44.014949+00:00","offer_code":"launch","updated_at":"2026-09-24T14:13:44.152133+00:00","approved_at":"2026-09-24T14:13:44.152133+00:00","refunded_at":null,"cancelled_at":null,"product_code":"torneos_premium","buyer_user_id":"afdc70d4-3e2a-431c-ab73-c9df3d2403e0","offer_version":1,"tournament_id":null,"amount_snapshot":39900,"charged_back_at":null,"idempotency_key":"805bca6d-a5f7-446a-b136-5ca87b467981","organization_id":"799f5ea8-6e44-4274-adbc-bc9c2dfffe80","provider_status":"approved","last_verified_at":"2026-09-24T14:13:44.152133+00:00","external_reference":"arma2:season:purchase:b5f18264-e148-49e5-b2e6-531482bd6c04","activation_attempts":1,"list_amount_snapshot":49900,"provider_environment":"test","activation_error_code":null,"preference_expires_at":"2026-09-24T14:43:44.082825+00:00","provider_preference_id":"pref-b5f18264-e148-49e5-b2e6-531482bd6c04","provider_status_detail":null,"entitlement_activated_at":"2026-09-24T14:13:44.152133+00:00","approved_provider_payment_id":"b5f18264e14849e5b2e6531482bd6c04"},["purchase.created","preference.created","payment.approved","payment.approved_duplicate"],["granted"]]',
+    expected: '[{"id":"b5f18264-e148-49e5-b2e6-531482bd6c04","status":"approved","currency":"ARS","metadata":{},"provider":"MERCADO_PAGO","season_id":"ac49ca6a-f2eb-468f-94a5-fe637afb00b8","created_at":"2026-09-24T14:13:44.014949+00:00","offer_code":"launch","updated_at":"2026-09-24T14:13:44.152133+00:00","approved_at":"2026-09-24T14:13:44.152133+00:00","refunded_at":null,"cancelled_at":null,"product_code":"torneos_premium","buyer_user_id":"afdc70d4-3e2a-431c-ab73-c9df3d2403e0","offer_version":1,"tournament_id":null,"amount_snapshot":39900,"charged_back_at":null,"idempotency_key":"805bca6d-a5f7-446a-b136-5ca87b467981","organization_id":"799f5ea8-6e44-4274-adbc-bc9c2dfffe80","provider_status":"approved","last_verified_at":"2026-09-24T14:13:44.152133+00:00","external_reference":"arma2:season:purchase:b5f18264-e148-49e5-b2e6-531482bd6c04","activation_attempts":1,"list_amount_snapshot":49900,"provider_environment":"test","activation_error_code":null,"preference_expires_at":"2026-09-24T14:43:44.082825+00:00","provider_preference_id":"pref-b5f18264-e148-49e5-b2e6-531482bd6c04","provider_status_detail":null,"entitlement_activated_at":"2026-09-24T14:13:44.152133+00:00","approved_provider_payment_id":"b5f18264e14849e5b2e6531482bd6c04"},["purchase.created","preference.created","payment.approved"],["granted"]]',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at integration/torneos-core-contracts/provider-ordering.test.mjs:29:4
+✖ duplicate-dispute (898.426542ms)
+  AssertionError [ERR_ASSERTION]: stale/equal must be an exact commercial no-op
+  + actual - expected
+
+  + '[{"id":"3c8d2d05-d7d4-4812-af63-a909a8700253","status":"charged_back","currency":"ARS","metadata":{},"provider":"MERCADO_PAGO","season_id":"54591c64-9a4b-43f8-a05e-79db845d0b11","created_at":"2026-09-24T14:13:44.835198+00:00","offer_code":"launch","updated_at":"2026-09-24T14:13:45.32802+00:00","approved_at":"2026-09-24T14:13:44.979525+00:00","refunded_at":null,"cancelled_at":null,"product_code":"torneos_premium","buyer_user_id":"afdc70d4-3e2a-431c-ab73-c9df3d2403e0","offer_version":1,"tournament_id":null,"amount_snapshot":39900,"charged_back_at":"2026-09-24T14:13:45.048737+00:00","idempotency_key":"b14f459f-4394-40fe-abea-ceddb150ccf2","organization_id":"799f5ea8-6e44-4274-adbc-bc9c2dfffe80","provider_status":"charged_back","last_verified_at":"2026-09-24T14:13:45.32802+00:00","external_reference":"arma2:season:purchase:3c8d2d05-d7d4-4812-af63-a909a8700253","activation_attempts":1,"list_amount_snapshot":49900,"provider_environment":"test","activation_error_code":null,"preference_expires_at":"2026-09-24T14:43:44.908292+00:00","provider_preference_id":"pref-3c8d2d05-d7d4-4812-af63-a909a8700253","provider_status_detail":null,"entitlement_activated_at":"2026-09-24T14:13:44.979525+00:00","approved_provider_payment_id":"3c8d2d05d7d44812af63a909a8700253"},["purchase.created","preference.created","payment.approved","payment.chargeback_disputed"],["granted","suspended"]]'
+  - '[{"id":"3c8d2d05-d7d4-4812-af63-a909a8700253","status":"charged_back","currency":"ARS","metadata":{},"provider":"MERCADO_PAGO","season_id":"54591c64-9a4b-43f8-a05e-79db845d0b11","created_at":"2026-09-24T14:13:44.835198+00:00","offer_code":"launch","updated_at":"2026-09-24T14:13:45.048737+00:00","approved_at":"2026-09-24T14:13:44.979525+00:00","refunded_at":null,"cancelled_at":null,"product_code":"torneos_premium","buyer_user_id":"afdc70d4-3e2a-431c-ab73-c9df3d2403e0","offer_version":1,"tournament_id":null,"amount_snapshot":39900,"charged_back_at":"2026-09-24T14:13:45.048737+00:00","idempotency_key":"b14f459f-4394-40fe-abea-ceddb150ccf2","organization_id":"799f5ea8-6e44-4274-adbc-bc9c2dfffe80","provider_status":"charged_back","last_verified_at":"2026-09-24T14:13:45.048737+00:00","external_reference":"arma2:season:purchase:3c8d2d05-d7d4-4812-af63-a909a8700253","activation_attempts":1,"list_amount_snapshot":49900,"provider_environment":"test","activation_error_code":null,"preference_expires_at":"2026-09-24T14:43:44.908292+00:00","provider_preference_id":"pref-3c8d2d05-d7d4-4812-af63-a909a8700253","provider_status_detail":null,"entitlement_activated_at":"2026-09-24T14:13:44.979525+00:00","approved_provider_payment_id":"3c8d2d05d7d44812af63a909a8700253"},["purchase.created","preference.created","payment.approved","payment.chargeback_disputed"],["granted","suspended"]]'
+
+      at TestContext.<anonymous> (file:///Users/nicoavayu/Downloads/arma2/arma2-mp-b1-2-provider-ordering/integration/torneos-core-contracts/provider-ordering.test.mjs:37:10)
+      at Test.runInAsyncScope (node:async_hooks:213:14)
+      at Test.run (node:internal/test_runner/test:1106:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:788:18)
+      at Test.postRun (node:internal/test_runner/test:1235:19)
+      at Test.run (node:internal/test_runner/test:1163:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:788:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: '[{"id":"3c8d2d05-d7d4-4812-af63-a909a8700253","status":"charged_back","currency":"ARS","metadata":{},"provider":"MERCADO_PAGO","season_id":"54591c64-9a4b-43f8-a05e-79db845d0b11","created_at":"2026-09-24T14:13:44.835198+00:00","offer_code":"launch","updated_at":"2026-09-24T14:13:45.32802+00:00","approved_at":"2026-09-24T14:13:44.979525+00:00","refunded_at":null,"cancelled_at":null,"product_code":"torneos_premium","buyer_user_id":"afdc70d4-3e2a-431c-ab73-c9df3d2403e0","offer_version":1,"tournament_id":null,"amount_snapshot":39900,"charged_back_at":"2026-09-24T14:13:45.048737+00:00","idempotency_key":"b14f459f-4394-40fe-abea-ceddb150ccf2","organization_id":"799f5ea8-6e44-4274-adbc-bc9c2dfffe80","provider_status":"charged_back","last_verified_at":"2026-09-24T14:13:45.32802+00:00","external_reference":"arma2:season:purchase:3c8d2d05-d7d4-4812-af63-a909a8700253","activation_attempts":1,"list_amount_snapshot":49900,"provider_environment":"test","activation_error_code":null,"preference_expires_at":"2026-09-24T14:43:44.908292+00:00","provider_preference_id":"pref-3c8d2d05-d7d4-4812-af63-a909a8700253","provider_status_detail":null,"entitlement_activated_at":"2026-09-24T14:13:44.979525+00:00","approved_provider_payment_id":"3c8d2d05d7d44812af63a909a8700253"},["purchase.created","preference.created","payment.approved","payment.chargeback_disputed"],["granted","suspended"]]',
+    expected: '[{"id":"3c8d2d05-d7d4-4812-af63-a909a8700253","status":"charged_back","currency":"ARS","metadata":{},"provider":"MERCADO_PAGO","season_id":"54591c64-9a4b-43f8-a05e-79db845d0b11","created_at":"2026-09-24T14:13:44.835198+00:00","offer_code":"launch","updated_at":"2026-09-24T14:13:45.048737+00:00","approved_at":"2026-09-24T14:13:44.979525+00:00","refunded_at":null,"cancelled_at":null,"product_code":"torneos_premium","buyer_user_id":"afdc70d4-3e2a-431c-ab73-c9df3d2403e0","offer_version":1,"tournament_id":null,"amount_snapshot":39900,"charged_back_at":"2026-09-24T14:13:45.048737+00:00","idempotency_key":"b14f459f-4394-40fe-abea-ceddb150ccf2","organization_id":"799f5ea8-6e44-4274-adbc-bc9c2dfffe80","provider_status":"charged_back","last_verified_at":"2026-09-24T14:13:45.048737+00:00","external_reference":"arma2:season:purchase:3c8d2d05-d7d4-4812-af63-a909a8700253","activation_attempts":1,"list_amount_snapshot":49900,"provider_environment":"test","activation_error_code":null,"preference_expires_at":"2026-09-24T14:43:44.908292+00:00","provider_preference_id":"pref-3c8d2d05-d7d4-4812-af63-a909a8700253","provider_status_detail":null,"entitlement_activated_at":"2026-09-24T14:13:44.979525+00:00","approved_provider_payment_id":"3c8d2d05d7d44812af63a909a8700253"},["purchase.created","preference.created","payment.approved","payment.chargeback_disputed"],["granted","suspended"]]',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at integration/torneos-core-contracts/provider-ordering.test.mjs:29:4
+✖ duplicate-restored (972.486166ms)
+  AssertionError [ERR_ASSERTION]: stale/equal must be an exact commercial no-op
+  + actual - expected
+
+  + '[{"id":"6723f875-3c61-49df-8b14-0356ba43cfb9","status":"approved","currency":"ARS","metadata":{},"provider":"MERCADO_PAGO","season_id":"d83b718f-6359-4585-88d0-b1aa29663218","created_at":"2026-09-24T14:13:45.735092+00:00","offer_code":"launch","updated_at":"2026-09-24T14:13:46.296421+00:00","approved_at":"2026-09-24T14:13:45.892882+00:00","refunded_at":null,"cancelled_at":null,"product_code":"torneos_premium","buyer_user_id":"afdc70d4-3e2a-431c-ab73-c9df3d2403e0","offer_version":1,"tournament_id":null,"amount_snapshot":39900,"charged_back_at":"2026-09-24T14:13:45.963166+00:00","idempotency_key":"a41fc5cd-4b18-4d4e-8e09-b202f9712557","organization_id":"799f5ea8-6e44-4274-adbc-bc9c2dfffe80","provider_status":"charged_back","last_verified_at":"2026-09-24T14:13:46.296421+00:00","external_reference":"arma2:season:purchase:6723f875-3c61-49df-8b14-0356ba43cfb9","activation_attempts":1,"list_amount_snapshot":49900,"provider_environment":"test","activation_error_code":null,"preference_expires_at":"2026-09-24T14:43:45.809294+00:00","provider_preference_id":"pref-6723f875-3c61-49df-8b14-0356ba43cfb9","provider_status_detail":"reimbursed","entitlement_activated_at":"2026-09-24T14:13:45.892882+00:00","approved_provider_payment_id":"6723f8753c6149df8b140356ba43cfb9"},["purchase.created","preference.created","payment.approved","payment.chargeback_disputed","payment.chargeback_restored"],["granted","suspended","restored"]]'
+  - '[{"id":"6723f875-3c61-49df-8b14-0356ba43cfb9","status":"approved","currency":"ARS","metadata":{},"provider":"MERCADO_PAGO","season_id":"d83b718f-6359-4585-88d0-b1aa29663218","created_at":"2026-09-24T14:13:45.735092+00:00","offer_code":"launch","updated_at":"2026-09-24T14:13:46.032312+00:00","approved_at":"2026-09-24T14:13:45.892882+00:00","refunded_at":null,"cancelled_at":null,"product_code":"torneos_premium","buyer_user_id":"afdc70d4-3e2a-431c-ab73-c9df3d2403e0","offer_version":1,"tournament_id":null,"amount_snapshot":39900,"charged_back_at":"2026-09-24T14:13:45.963166+00:00","idempotency_key":"a41fc5cd-4b18-4d4e-8e09-b202f9712557","organization_id":"799f5ea8-6e44-4274-adbc-bc9c2dfffe80","provider_status":"charged_back","last_verified_at":"2026-09-24T14:13:46.032312+00:00","external_reference":"arma2:season:purchase:6723f875-3c61-49df-8b14-0356ba43cfb9","activation_attempts":1,"list_amount_snapshot":49900,"provider_environment":"test","activation_error_code":null,"preference_expires_at":"2026-09-24T14:43:45.809294+00:00","provider_preference_id":"pref-6723f875-3c61-49df-8b14-0356ba43cfb9","provider_status_detail":"reimbursed","entitlement_activated_at":"2026-09-24T14:13:45.892882+00:00","approved_provider_payment_id":"6723f8753c6149df8b140356ba43cfb9"},["purchase.created","preference.created","payment.approved","payment.chargeback_disputed","payment.chargeback_restored"],["granted","suspended","restored"]]'
+
+      at TestContext.<anonymous> (file:///Users/nicoavayu/Downloads/arma2/arma2-mp-b1-2-provider-ordering/integration/torneos-core-contracts/provider-ordering.test.mjs:37:10)
+      at Test.runInAsyncScope (node:async_hooks:213:14)
+      at Test.run (node:internal/test_runner/test:1106:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:788:18)
+      at Test.postRun (node:internal/test_runner/test:1235:19)
+      at Test.run (node:internal/test_runner/test:1163:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:788:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: '[{"id":"6723f875-3c61-49df-8b14-0356ba43cfb9","status":"approved","currency":"ARS","metadata":{},"provider":"MERCADO_PAGO","season_id":"d83b718f-6359-4585-88d0-b1aa29663218","created_at":"2026-09-24T14:13:45.735092+00:00","offer_code":"launch","updated_at":"2026-09-24T14:13:46.296421+00:00","approved_at":"2026-09-24T14:13:45.892882+00:00","refunded_at":null,"cancelled_at":null,"product_code":"torneos_premium","buyer_user_id":"afdc70d4-3e2a-431c-ab73-c9df3d2403e0","offer_version":1,"tournament_id":null,"amount_snapshot":39900,"charged_back_at":"2026-09-24T14:13:45.963166+00:00","idempotency_key":"a41fc5cd-4b18-4d4e-8e09-b202f9712557","organization_id":"799f5ea8-6e44-4274-adbc-bc9c2dfffe80","provider_status":"charged_back","last_verified_at":"2026-09-24T14:13:46.296421+00:00","external_reference":"arma2:season:purchase:6723f875-3c61-49df-8b14-0356ba43cfb9","activation_attempts":1,"list_amount_snapshot":49900,"provider_environment":"test","activation_error_code":null,"preference_expires_at":"2026-09-24T14:43:45.809294+00:00","provider_preference_id":"pref-6723f875-3c61-49df-8b14-0356ba43cfb9","provider_status_detail":"reimbursed","entitlement_activated_at":"2026-09-24T14:13:45.892882+00:00","approved_provider_payment_id":"6723f8753c6149df8b140356ba43cfb9"},["purchase.created","preference.created","payment.approved","payment.chargeback_disputed","payment.chargeback_restored"],["granted","suspended","restored"]]',
+    expected: '[{"id":"6723f875-3c61-49df-8b14-0356ba43cfb9","status":"approved","currency":"ARS","metadata":{},"provider":"MERCADO_PAGO","season_id":"d83b718f-6359-4585-88d0-b1aa29663218","created_at":"2026-09-24T14:13:45.735092+00:00","offer_code":"launch","updated_at":"2026-09-24T14:13:46.032312+00:00","approved_at":"2026-09-24T14:13:45.892882+00:00","refunded_at":null,"cancelled_at":null,"product_code":"torneos_premium","buyer_user_id":"afdc70d4-3e2a-431c-ab73-c9df3d2403e0","offer_version":1,"tournament_id":null,"amount_snapshot":39900,"charged_back_at":"2026-09-24T14:13:45.963166+00:00","idempotency_key":"a41fc5cd-4b18-4d4e-8e09-b202f9712557","organization_id":"799f5ea8-6e44-4274-adbc-bc9c2dfffe80","provider_status":"charged_back","last_verified_at":"2026-09-24T14:13:46.032312+00:00","external_reference":"arma2:season:purchase:6723f875-3c61-49df-8b14-0356ba43cfb9","activation_attempts":1,"list_amount_snapshot":49900,"provider_environment":"test","activation_error_code":null,"preference_expires_at":"2026-09-24T14:43:45.809294+00:00","provider_preference_id":"pref-6723f875-3c61-49df-8b14-0356ba43cfb9","provider_status_detail":"reimbursed","entitlement_activated_at":"2026-09-24T14:13:45.892882+00:00","approved_provider_payment_id":"6723f8753c6149df8b140356ba43cfb9"},["purchase.created","preference.created","payment.approved","payment.chargeback_disputed","payment.chargeback_restored"],["granted","suspended","restored"]]',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at integration/torneos-core-contracts/provider-ordering.test.mjs:29:4
+✖ duplicate-refund (908.4ms)
+  AssertionError [ERR_ASSERTION]: stale/equal must be an exact commercial no-op
+  + actual - expected
+
+  + '[{"id":"e1a63084-e89c-46ef-a5d4-f9184cb224c3","status":"refunded","currency":"ARS","metadata":{},"provider":"MERCADO_PAGO","season_id":"95560f64-bb44-4dec-b78a-513b01ca3901","created_at":"2026-09-24T14:13:46.706425+00:00","offer_code":"launch","updated_at":"2026-09-24T14:13:47.196136+00:00","approved_at":"2026-09-24T14:13:46.849033+00:00","refunded_at":"2026-09-24T14:13:46.920242+00:00","cancelled_at":null,"product_code":"torneos_premium","buyer_user_id":"afdc70d4-3e2a-431c-ab73-c9df3d2403e0","offer_version":1,"tournament_id":null,"amount_snapshot":39900,"charged_back_at":null,"idempotency_key":"bfe3e7e5-1f53-4f8c-973d-680ff8e12f31","organization_id":"799f5ea8-6e44-4274-adbc-bc9c2dfffe80","provider_status":"refunded","last_verified_at":"2026-09-24T14:13:47.196136+00:00","external_reference":"arma2:season:purchase:e1a63084-e89c-46ef-a5d4-f9184cb224c3","activation_attempts":1,"list_amount_snapshot":49900,"provider_environment":"test","activation_error_code":null,"preference_expires_at":"2026-09-24T14:43:46.777009+00:00","provider_preference_id":"pref-e1a63084-e89c-46ef-a5d4-f9184cb224c3","provider_status_detail":null,"entitlement_activated_at":"2026-09-24T14:13:46.849033+00:00","approved_provider_payment_id":"e1a63084e89c46efa5d4f9184cb224c3"},["purchase.created","preference.created","payment.approved","payment.refund"],["granted","revoked"]]'
+  - '[{"id":"e1a63084-e89c-46ef-a5d4-f9184cb224c3","status":"refunded","currency":"ARS","metadata":{},"provider":"MERCADO_PAGO","season_id":"95560f64-bb44-4dec-b78a-513b01ca3901","created_at":"2026-09-24T14:13:46.706425+00:00","offer_code":"launch","updated_at":"2026-09-24T14:13:46.920242+00:00","approved_at":"2026-09-24T14:13:46.849033+00:00","refunded_at":"2026-09-24T14:13:46.920242+00:00","cancelled_at":null,"product_code":"torneos_premium","buyer_user_id":"afdc70d4-3e2a-431c-ab73-c9df3d2403e0","offer_version":1,"tournament_id":null,"amount_snapshot":39900,"charged_back_at":null,"idempotency_key":"bfe3e7e5-1f53-4f8c-973d-680ff8e12f31","organization_id":"799f5ea8-6e44-4274-adbc-bc9c2dfffe80","provider_status":"refunded","last_verified_at":"2026-09-24T14:13:46.920242+00:00","external_reference":"arma2:season:purchase:e1a63084-e89c-46ef-a5d4-f9184cb224c3","activation_attempts":1,"list_amount_snapshot":49900,"provider_environment":"test","activation_error_code":null,"preference_expires_at":"2026-09-24T14:43:46.777009+00:00","provider_preference_id":"pref-e1a63084-e89c-46ef-a5d4-f9184cb224c3","provider_status_detail":null,"entitlement_activated_at":"2026-09-24T14:13:46.849033+00:00","approved_provider_payment_id":"e1a63084e89c46efa5d4f9184cb224c3"},["purchase.created","preference.created","payment.approved","payment.refund"],["granted","revoked"]]'
+
+      at TestContext.<anonymous> (file:///Users/nicoavayu/Downloads/arma2/arma2-mp-b1-2-provider-ordering/integration/torneos-core-contracts/provider-ordering.test.mjs:37:10)
+      at Test.runInAsyncScope (node:async_hooks:213:14)
+      at Test.run (node:internal/test_runner/test:1106:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:788:18)
+      at Test.postRun (node:internal/test_runner/test:1235:19)
+      at Test.run (node:internal/test_runner/test:1163:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:788:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: '[{"id":"e1a63084-e89c-46ef-a5d4-f9184cb224c3","status":"refunded","currency":"ARS","metadata":{},"provider":"MERCADO_PAGO","season_id":"95560f64-bb44-4dec-b78a-513b01ca3901","created_at":"2026-09-24T14:13:46.706425+00:00","offer_code":"launch","updated_at":"2026-09-24T14:13:47.196136+00:00","approved_at":"2026-09-24T14:13:46.849033+00:00","refunded_at":"2026-09-24T14:13:46.920242+00:00","cancelled_at":null,"product_code":"torneos_premium","buyer_user_id":"afdc70d4-3e2a-431c-ab73-c9df3d2403e0","offer_version":1,"tournament_id":null,"amount_snapshot":39900,"charged_back_at":null,"idempotency_key":"bfe3e7e5-1f53-4f8c-973d-680ff8e12f31","organization_id":"799f5ea8-6e44-4274-adbc-bc9c2dfffe80","provider_status":"refunded","last_verified_at":"2026-09-24T14:13:47.196136+00:00","external_reference":"arma2:season:purchase:e1a63084-e89c-46ef-a5d4-f9184cb224c3","activation_attempts":1,"list_amount_snapshot":49900,"provider_environment":"test","activation_error_code":null,"preference_expires_at":"2026-09-24T14:43:46.777009+00:00","provider_preference_id":"pref-e1a63084-e89c-46ef-a5d4-f9184cb224c3","provider_status_detail":null,"entitlement_activated_at":"2026-09-24T14:13:46.849033+00:00","approved_provider_payment_id":"e1a63084e89c46efa5d4f9184cb224c3"},["purchase.created","preference.created","payment.approved","payment.refund"],["granted","revoked"]]',
+    expected: '[{"id":"e1a63084-e89c-46ef-a5d4-f9184cb224c3","status":"refunded","currency":"ARS","metadata":{},"provider":"MERCADO_PAGO","season_id":"95560f64-bb44-4dec-b78a-513b01ca3901","created_at":"2026-09-24T14:13:46.706425+00:00","offer_code":"launch","updated_at":"2026-09-24T14:13:46.920242+00:00","approved_at":"2026-09-24T14:13:46.849033+00:00","refunded_at":"2026-09-24T14:13:46.920242+00:00","cancelled_at":null,"product_code":"torneos_premium","buyer_user_id":"afdc70d4-3e2a-431c-ab73-c9df3d2403e0","offer_version":1,"tournament_id":null,"amount_snapshot":39900,"charged_back_at":null,"idempotency_key":"bfe3e7e5-1f53-4f8c-973d-680ff8e12f31","organization_id":"799f5ea8-6e44-4274-adbc-bc9c2dfffe80","provider_status":"refunded","last_verified_at":"2026-09-24T14:13:46.920242+00:00","external_reference":"arma2:season:purchase:e1a63084-e89c-46ef-a5d4-f9184cb224c3","activation_attempts":1,"list_amount_snapshot":49900,"provider_environment":"test","activation_error_code":null,"preference_expires_at":"2026-09-24T14:43:46.777009+00:00","provider_preference_id":"pref-e1a63084-e89c-46ef-a5d4-f9184cb224c3","provider_status_detail":null,"entitlement_activated_at":"2026-09-24T14:13:46.849033+00:00","approved_provider_payment_id":"e1a63084e89c46efa5d4f9184cb224c3"},["purchase.created","preference.created","payment.approved","payment.refund"],["granted","revoked"]]',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at integration/torneos-core-contracts/provider-ordering.test.mjs:40:1
+✖ equal version incompatible state fails closed (554.273958ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+
+  + 'reversal_applied'
+  - 'provider_ordering_anomaly'
+
+      at TestContext.<anonymous> (file:///Users/nicoavayu/Downloads/arma2/arma2-mp-b1-2-provider-ordering/integration/torneos-core-contracts/provider-ordering.test.mjs:44:10)
+      at Test.runInAsyncScope (node:async_hooks:213:14)
+      at Test.run (node:internal/test_runner/test:1106:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:788:18)
+      at Test.postRun (node:internal/test_runner/test:1235:19)
+      at Test.run (node:internal/test_runner/test:1163:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:788:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'reversal_applied',
+    expected: 'provider_ordering_anomaly',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at integration/torneos-core-contracts/provider-ordering.test.mjs:48:1
+✖ concurrent fetched-old snapshot waits for newer transaction and cannot undo restoration (642.364084ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+
+  + 'charged_back'
+  - 'approved'
+
+      at TestContext.<anonymous> (file:///Users/nicoavayu/Downloads/arma2/arma2-mp-b1-2-provider-ordering/integration/torneos-core-contracts/provider-ordering.test.mjs:65:10)
+      at Test.runInAsyncScope (node:async_hooks:213:14)
+      at Test.run (node:internal/test_runner/test:1106:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:788:18)
+      at Test.postRun (node:internal/test_runner/test:1235:19)
+      at Test.run (node:internal/test_runner/test:1163:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:788:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'charged_back',
+    expected: 'approved',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

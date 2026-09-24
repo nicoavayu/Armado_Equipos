@@ -1,0 +1,214 @@
+{
+  "generated_at": "2026-09-24T15:23:31.939Z",
+  "run": "mpa2cdc7",
+  "migration_sha256": {
+    "00000000000000_torneos_baseline_v1.sql": "f857bd0939054bc1a32a3855894b7b20e14a0c7456c9d5c8c5e8432e5b8ed19f",
+    "00000000000001_staging_v1_rpc_exposure.sql": "3df4b96eecc7321eaeda84a480f089fe4bff2b28c20aa4479db92caf33457e62",
+    "00000000000002_mercadopago_checkout_pro_test.sql": "06378f12b57620e8ae550a0d881ad66464ffdc0a734ad621cba8a6ba3e6d6078"
+  },
+  "observed": {
+    "maxEffectiveGrantsPerSeason": 1,
+    "multiPendingSequences": 48,
+    "maxLiveGrantsPerSeason": 1
+  },
+  "pass": 49,
+  "fail": 0,
+  "results": [
+    {
+      "name": "schema: migrations are exactly 0000 → 0001 → 0002 → 0003 in order; 0000/0001 byte-identical to the certified stack; 0002 pinned; the lab applied all four from empty volumes",
+      "status": "PASS"
+    },
+    {
+      "name": "schema: CHECK provider = FAKE | MERCADO_PAGO; CHECK environment = FAKE+local | FAKE+qa | MERCADO_PAGO+test only (production/live/any other pair rejected, 23514)",
+      "status": "PASS"
+    },
+    {
+      "name": "schema: 0002 is fail-closed (a drifted prior schema aborts it with TORNEOS_MP_A2_PRECONDITION_FAILED and nothing changes) and idempotent on the certified post-state",
+      "status": "PASS"
+    },
+    {
+      "name": "fixture: organization (owner), seasons, a seated admin (billing.manage), an unseated admin, a seated collaborator (no billing.manage), an outsider, and another workspace with its own season",
+      "status": "PASS"
+    },
+    {
+      "name": "identity: missing/invalid identity → 42501 TORNEOS_AUTH_REQUIRED; no purchase written",
+      "status": "PASS"
+    },
+    {
+      "name": "authorization: outsider, unseated admin, collaborator without billing.manage, other workspace owner, crossed organization/season → 42501 TORNEOS_BILLING_FORBIDDEN; nothing written",
+      "status": "PASS"
+    },
+    {
+      "name": "authorization: the seated admin with billing.manage is a valid buyer (buyer = caller identity)",
+      "status": "PASS"
+    },
+    {
+      "name": "creation: provider/environment/product forced to MERCADO_PAGO/test/torneos_premium; price from the server-side offer (ARS 39,900 / list 49,900); status created; external reference and event recorded",
+      "status": "PASS"
+    },
+    {
+      "name": "creation: idempotency — the same (buyer, key) returns the same purchase; the same key for another season → 22023 TORNEOS_IDEMPOTENCY_CONFLICT; another buyer may reuse the key value",
+      "status": "PASS"
+    },
+    {
+      "name": "creation: one open purchase per season — another key returns the existing created/preference_created purchase (existingOpenPurchase)",
+      "status": "PASS"
+    },
+    {
+      "name": "creation: an open FAKE purchase in the season is not taken over (55000 TORNEOS_OPEN_PURCHASE_PROVIDER_CONFLICT)",
+      "status": "PASS"
+    },
+    {
+      "name": "creation: concurrency — 8 parallel checkouts with distinct keys (PostgREST) create exactly one purchase; 6 parallel with the same key return one purchase",
+      "status": "PASS"
+    },
+    {
+      "name": "creation: stale open purchases — preference_created past preference_expires_at + 15 min → expired, created past it → cancelled (event, service actor); then a new purchase is created; within the grace nothing expires",
+      "status": "PASS"
+    },
+    {
+      "name": "creation: pending never expires automatically — a pending purchase long past its preference expiry stays open and is returned",
+      "status": "PASS"
+    },
+    {
+      "name": "creation: concurrency — 6 parallel checkouts on a season with a stale purchase expire it exactly once and create exactly one new purchase",
+      "status": "PASS"
+    },
+    {
+      "name": "creation: already Premium → 55000 TORNEOS_SEASON_ALREADY_PREMIUM (no new purchase)",
+      "status": "PASS"
+    },
+    {
+      "name": "service lookup: get_provider_tournament_purchase finds MP TEST purchases by external reference only; FAKE/production → 22023; unknown/FAKE purchase → P0002",
+      "status": "PASS"
+    },
+    {
+      "name": "payment: input validation — FAKE/production provider, unknown status, missing payment id, FAKE purchase, purchase without preference; all non-transient except the not-ready purchase; zero writes",
+      "status": "PASS"
+    },
+    {
+      "name": "payment: pending → status pending, no Premium; later approved → approved, Premium granted exactly once",
+      "status": "PASS"
+    },
+    {
+      "name": "payment: rejected is an attempt, not a closure — preference_created stays open (payment.attempt_rejected), a replay adds nothing, and a later approved on the same preference activates Premium",
+      "status": "PASS"
+    },
+    {
+      "name": "payment: pending(X) then cancelled(X) → back to preference_created (payment.attempt_cancelled); a rejected of another payment leaves a pending purchase pending; later approved(Y) activates",
+      "status": "PASS"
+    },
+    {
+      "name": "payment: multi-pending (A) — pending(A), pending(B), rejected(B) keeps the purchase pending while A is open; long past its preference expiry the stale sweep does not expire it and checkout returns it",
+      "status": "PASS"
+    },
+    {
+      "name": "payment: multi-pending (B/C/E) — every order of pending(A), pending(B), cancelled(A), rejected(B) matches the open-payment model at every step (pending ⇔ some pending payment without its terminal; a terminal before its pending makes that pending stale) and converges to preference_created; while pending the stale sweep never expires it",
+      "status": "PASS"
+    },
+    {
+      "name": "payment: multi-pending (D/E) — pending(A), pending(B), rejected(B), approved(A) in every order ends approved on A with exactly one grant and requiresManualRefund = false at every step",
+      "status": "PASS"
+    },
+    {
+      "name": "payment: defense in depth — even a preference_created purchase that still has an open pending payment (forced with triggers off) is never expired by the stale sweep",
+      "status": "PASS"
+    },
+    {
+      "name": "payment: duplicate approved of the same payment — no error, no second grant, one payment.approved_duplicate event (deduplicated), logical success",
+      "status": "PASS"
+    },
+    {
+      "name": "payment: approved with a DIFFERENT payment on an approved purchase — no error, no second grant, approved payment unchanged, requiresManualRefund = true (payment.approved_duplicate_payment, deduplicated)",
+      "status": "PASS"
+    },
+    {
+      "name": "payment: approved after the purchase was closed (expired by the stale sweep; cancelled while created) — no Premium, payment.approved_after_close, requiresManualRefund = true, replay deduplicated, no retry loop",
+      "status": "PASS"
+    },
+    {
+      "name": "payment: stale / out-of-order — pending, rejected, cancelled or expired after approved never degrade it (payment.stale_status_ignored); Premium stays",
+      "status": "PASS"
+    },
+    {
+      "name": "payment: concurrency — 6 parallel approved notifications of the same payment through the payment login produce exactly one grant and one payment.approved",
+      "status": "PASS"
+    },
+    {
+      "name": "payment: concurrency — approved (payment login) racing a checkout that expires the stale purchase always ends consistent: (Premium, checkout refused) or (expired + approved_after_close + new open purchase, no Premium)",
+      "status": "PASS"
+    },
+    {
+      "name": "reversal: refund after approved → refunded, grant revoked, entitlement FREE; a duplicate refund is an idempotent replay (no new grant event)",
+      "status": "PASS"
+    },
+    {
+      "name": "reversal: chargeback disputed → charged_back + suspended (FREE); restored → approved + restored (PREMIUM); duplicate dispute replay adds nothing",
+      "status": "PASS"
+    },
+    {
+      "name": "reversal: chargeback buyer_won → revoked (FREE); a later restored is ignored after revocation (no un-revoke)",
+      "status": "PASS"
+    },
+    {
+      "name": "reversal: refund while a chargeback is disputed → reversal_conflict (requiresManualReview), grant stays suspended, no partial write",
+      "status": "PASS"
+    },
+    {
+      "name": "reversal: without any activation (open purchase; approved-after-close payment refunded) → payment.reversal_without_activation, no error, no grant/revoke, replay deduplicated",
+      "status": "PASS"
+    },
+    {
+      "name": "reversal: a reversal of another payment on an activated purchase (e.g. the manually refunded duplicate) never touches the grant",
+      "status": "PASS"
+    },
+    {
+      "name": "reversal: input validation — unknown action, FAKE/production provider, missing payment id → 22023; zero writes",
+      "status": "PASS"
+    },
+    {
+      "name": "second purchase: Premium active → 55000 TORNEOS_SEASON_ALREADY_PREMIUM; suspended (chargeback in dispute) → 55000 TORNEOS_SEASON_PREMIUM_SUSPENDED (also while a refund conflicts); restored → still exactly one grant; no purchase is written",
+      "status": "PASS"
+    },
+    {
+      "name": "second purchase: only a definitive revocation (chargeback lost / refund) re-enables buying; the new purchase activates exactly one effective grant; late reversals of the first payment never un-revoke it",
+      "status": "PASS"
+    },
+    {
+      "name": "premium: never before approved; exactly one grant per purchase and per season; visible to every seated billing admin; activation goes through activate_verified_tournament_purchase (audit billing.season_purchase_activated)",
+      "status": "PASS"
+    },
+    {
+      "name": "premium: across every season this suite touched, no season holds two effective grants, two approved purchases with live grants, or two open purchases",
+      "status": "PASS"
+    },
+    {
+      "name": "acl: live matrix == authorized MP-A2 delta — anon none; authenticated only wrapper + get_tournament_purchase + entitlements (create/fake/cancel revoked); payment_service only its 4; service_role preserved (no new grants); runtime logins nothing; owner supabase_admin",
+      "status": "PASS"
+    },
+    {
+      "name": "acl: direct DML — no API role, payment_service or its login holds INSERT/UPDATE/DELETE/TRUNCATE on commercial tables; payment_service has no SELECT; service_role keeps exactly its baseline SELECT; real attempts are refused",
+      "status": "PASS"
+    },
+    {
+      "name": "acl: Data API — anon is denied every commercial RPC before the body; authenticated is denied the revoked creators and all service RPCs; the wrapper and reads execute",
+      "status": "PASS"
+    },
+    {
+      "name": "acl: the payment-service login is NOINHERIT — without SET ROLE it executes nothing; with SET ROLE it executes its four functions and nothing else (no table read, no activation, no checkout, no reversal chain)",
+      "status": "PASS"
+    },
+    {
+      "name": "persistence: purchase events and season grant events are append-only even for the owner; purchase snapshots are immutable; the state machine refuses approved → pending",
+      "status": "PASS"
+    },
+    {
+      "name": "persistence: the only new transition is pending → preference_created (an ended payment attempt); every other baseline transition rule is unchanged",
+      "status": "PASS"
+    },
+    {
+      "name": "no secrets: lab secrets, the payment login password and bearers are absent from the migration, the delta manifest and this suite's evidence",
+      "status": "PASS"
+    }
+  ]
+}

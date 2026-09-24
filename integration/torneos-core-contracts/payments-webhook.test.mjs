@@ -146,9 +146,20 @@ test('MP-A3 — T4 Mercado Pago webhook', async (t) => {
       assert.equal(row.status, 'approved'); assert.equal(row.approved_provider_payment_id, life.pendingPayment); assert.ok(row.entitlement_activated_at);
       assert.deepEqual(grantEvents(life.id), ['granted']); assert.equal(grantEffective(life.id), true);
     });
-    await check('approved duplicated → 200 duplicate_approved; no second grant', async () => {
+    await check('ordering: missing/malformed provider time cannot be supplied by webhook body', async () => {
+      const p = await preparedPurchase('ordering-missing');
+      for (const value of [null, '', 'not-a-date', '2026-01-01', 'infinity']) {
+        const pay = await stub('/__lab/payments', { preferenceId: p.preferenceId, status: 'approved', overrides: { payment: { date_last_updated: value } } });
+        const before = snapshot(p.id);
+        const r = await webhook({ dataId: pay.paymentId, payload: { type: 'payment', data: { id: pay.paymentId }, live_mode: false,
+          user_id: Number(cfg.mpa.sellerId), date_last_updated: '2026-09-24T00:00:00Z' } });
+        assert.equal(r.status, 422);
+        same(p, before);
+      }
+    });
+    await check('approved duplicated → 200 provider_snapshot_duplicate; no second grant', async () => {
       const r = note('approved duplicate', await webhook({ dataId: life.pendingPayment }));
-      assert.deepEqual([r.status, r.body?.outcome], [200, 'duplicate_approved']);
+      assert.deepEqual([r.status, r.body?.outcome], [200, 'provider_snapshot_duplicate']);
       assert.deepEqual(grantEvents(life.id), ['granted']);
     });
     await check('out-of-order: a late pending / rejected for the approved payment → 200 stale_ignored; purchase stays approved', async () => {

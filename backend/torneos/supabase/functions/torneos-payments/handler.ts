@@ -7,7 +7,7 @@
 //        The payload only names a resource; payment / merchant order / chargeback are re-read from
 //        Mercado Pago, bound server-side to the purchase, and the verified status is delegated to the MP-A2
 //        RPCs (the database is the domain authority; no state machine here).
-// Provider logic is the reused legacy provider (../_shared, byte-identical). Responses are whitelists;
+// Provider logic is the byte-identical legacy adapter; MP-B1.2 reads its documented ordering field. Responses are whitelists;
 // logs carry route, status and a short code only.
 import {
   createMercadoPagoPaymentProvider,
@@ -243,7 +243,7 @@ export function createPaymentsService(deps: ServiceDeps): (req: Request) => Prom
     // Re-query Mercado Pago: the notification is not authority.
     const mismatch = fail(422, "payment_verification_failed")
     let paymentId: string
-    let payment: MercadoPagoPayment
+    let payment: MercadoPagoPayment & { date_last_updated?: unknown }
     try {
       paymentId = isChargeback
         ? paymentIdFromMercadoPagoChargeback(await fetchMercadoPagoChargeback(dataId, cfg.mp, fetcher!), dataId)
@@ -278,17 +278,24 @@ export function createPaymentsService(deps: ServiceDeps): (req: Request) => Prom
       return mismatch
     }
 
+    // Only the independently re-fetched payment can supply the provider ordering timestamp.
+    // Preserve fractional precision and offset for PostgreSQL; never round through JS Date.
+    const providerUpdatedAt = payment.date_last_updated
+    if (typeof providerUpdatedAt !== "string"
+      || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?(?:Z|[+-]\d{2}:\d{2})$/.test(providerUpdatedAt)
+      || !Number.isFinite(Date.parse(providerUpdatedAt))) return mismatch
+
     const normalized = normalizeMercadoPagoPaymentStatus(payment)
     if (!normalized) return result(202, { received: true, outcome: "unknown_status" })
     let applied: Record<string, unknown>
     try {
       applied = normalized.kind === "reversal"
         ? await database.call("apply_verified_tournament_payment_reversal", [purchase.id, PROVIDER, ENVIRONMENT, normalized.action,
-          normalized.providerStatus, normalized.providerStatusDetail, paymentId])
+          normalized.providerStatus, normalized.providerStatusDetail, paymentId, providerUpdatedAt])
         : await database.call("apply_verified_tournament_payment_status", [purchase.id, PROVIDER, ENVIRONMENT, normalized.status,
-          normalized.providerStatus, normalized.providerStatusDetail, paymentId])
+          normalized.providerStatus, normalized.providerStatusDetail, paymentId, providerUpdatedAt])
     } catch (error) {
-      // Only "no preference recorded yet" is retryable; every other refusal is permanent.
+      // Not-ready is retryable; unknown DB failures (including obsolete RPC signatures) also return 503.
       return dbFailure(error, { TORNEOS_PURCHASE_NOT_READY: fail(503, "purchase_not_ready") })
     }
     // Applied, replayed, ignored or anomaly recorded (incl. requiresManualRefund): all final → 200.

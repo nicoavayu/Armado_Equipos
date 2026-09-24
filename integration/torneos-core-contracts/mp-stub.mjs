@@ -155,6 +155,7 @@ function labPayment(spec) {
     order: { id: Number(orderId), type: 'mercadopago' }, live_mode: false,
     payer: { email: `lab-payer-${paymentId}@payer.invalid`, identification: { type: 'DNI', number: `9${String(paymentId).slice(-7)}` } },
     date_created: new Date().toISOString(),
+    date_last_updated: new Date().toISOString(),
   };
   merge(payment, spec.overrides?.payment);
   state.payments.set(String(paymentId), payment);
@@ -165,6 +166,7 @@ function labPayment(spec) {
 function labSetPayment(spec) {
   const payment = state.payments.get(String(spec.paymentId));
   if (!payment) return { status: 404, body: { error: 'unknown payment' } };
+  payment.date_last_updated = new Date(Math.max(Date.now(), Date.parse(payment.date_last_updated) + 1)).toISOString();
   if (spec.status !== undefined) payment.status = spec.status;
   if (spec.statusDetail !== undefined) payment.status_detail = spec.statusDetail;
   merge(payment, spec.overrides?.payment);

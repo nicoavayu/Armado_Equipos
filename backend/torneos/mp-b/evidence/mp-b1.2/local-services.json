@@ -1,0 +1,87 @@
+[
+  {
+    "service": "core-api",
+    "state": "running",
+    "ports": []
+  },
+  {
+    "service": "core-auth",
+    "state": "running",
+    "ports": []
+  },
+  {
+    "service": "core-db",
+    "state": "running",
+    "ports": [
+      {
+        "url": "",
+        "published": 0
+      }
+    ]
+  },
+  {
+    "service": "core-functions",
+    "state": "running",
+    "ports": []
+  },
+  {
+    "service": "core-rest",
+    "state": "running",
+    "ports": [
+      {
+        "url": "",
+        "published": 0
+      }
+    ]
+  },
+  {
+    "service": "gateway",
+    "state": "running",
+    "ports": [
+      {
+        "url": "127.0.0.1",
+        "published": 58420
+      }
+    ]
+  },
+  {
+    "service": "mp-stub",
+    "state": "running",
+    "ports": [
+      {
+        "url": "127.0.0.1",
+        "published": 58426
+      }
+    ]
+  },
+  {
+    "service": "torneos-db",
+    "state": "running",
+    "ports": [
+      {
+        "url": "",
+        "published": 0
+      }
+    ]
+  },
+  {
+    "service": "torneos-functions",
+    "state": "running",
+    "ports": [
+      {
+        "url": "127.0.0.1",
+        "published": 58421
+      }
+    ]
+  },
+  {
+    "service": "torneos-rest",
+    "state": "running",
+    "ports": [
+      {
+        "url": "",
+        "published": 0
+      }
+    ]
+  }
+]

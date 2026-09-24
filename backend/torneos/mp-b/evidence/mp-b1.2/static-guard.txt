@@ -1,0 +1,5 @@
+
+> team-balancer@0.1.0 staging:static-guard
+> node scripts/torneos-staging/static-guard.mjs
+
+STAGING_STATIC_GUARD_OK secrets=0 unknownProjectHosts=0

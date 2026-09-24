@@ -1,0 +1,18 @@
+✔ restored-old-dispute (1189.204834ms)
+✔ approved-old-pending (901.279167ms)
+✔ approved-old-rejected (903.426959ms)
+✔ refund-old-approved (973.767333ms)
+✔ duplicate-approved (896.557541ms)
+✔ duplicate-dispute (960.765584ms)
+✔ duplicate-restored (1043.785958ms)
+✔ duplicate-refund (970.411584ms)
+✔ equal version incompatible state fails closed (758.44125ms)
+✔ concurrent fetched-old snapshot waits for newer transaction and cannot undo restoration (733.382541ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 10
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 9416.975208

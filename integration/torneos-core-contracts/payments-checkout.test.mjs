@@ -217,9 +217,9 @@ test('MP-A3 — T3 checkout internal endpoint', async (t) => {
     });
     await check('status not payable (pending / approved / cancelled / expired preference) → 409; Mercado Pago not called', async () => {
       const pend = await preparedPurchase('pending');
-      asPay(`select public.apply_verified_tournament_payment_status(${lit(pend.id)}, 'MERCADO_PAGO', 'test', 'pending', 'pending', null, '9${Date.now() % 1e8}')`);
+      asPay(`select public.apply_verified_tournament_payment_status(${lit(pend.id)}, 'MERCADO_PAGO', 'test', 'pending', 'pending', null, '9${Date.now() % 1e8}', '2026-09-20T00:00:01Z'::timestamptz)`);
       const appr = await preparedPurchase('approved');
-      asPay(`select public.apply_verified_tournament_payment_status(${lit(appr.id)}, 'MERCADO_PAGO', 'test', 'approved', 'approved', 'accredited', '8${Date.now() % 1e8}')`);
+      asPay(`select public.apply_verified_tournament_payment_status(${lit(appr.id)}, 'MERCADO_PAGO', 'test', 'approved', 'approved', 'accredited', '8${Date.now() % 1e8}', '2026-09-20T00:00:01Z'::timestamptz)`);
       const canc = newPurchase('cancelled');
       admin(`update public.tournament_purchases set status = 'cancelled', cancelled_at = now() where id = ${lit(canc.id)}`);
       const exp = await preparedPurchase('expiredpref');

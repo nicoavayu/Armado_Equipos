@@ -13,9 +13,9 @@ export const PAYMENT_RPCS: Readonly<Record<string, string>> = Object.freeze({
   record_tournament_purchase_preference:
     "public.record_tournament_purchase_preference($1::uuid, $2::text, $3::text, $4::text, $5::timestamptz)",
   apply_verified_tournament_payment_status:
-    "public.apply_verified_tournament_payment_status($1::uuid, $2::text, $3::text, $4::text, $5::text, $6::text, $7::text)",
+    "public.apply_verified_tournament_payment_status($1::uuid, $2::text, $3::text, $4::text, $5::text, $6::text, $7::text, $8::timestamptz)",
   apply_verified_tournament_payment_reversal:
-    "public.apply_verified_tournament_payment_reversal($1::uuid, $2::text, $3::text, $4::text, $5::text, $6::text, $7::text)",
+    "public.apply_verified_tournament_payment_reversal($1::uuid, $2::text, $3::text, $4::text, $5::text, $6::text, $7::text, $8::timestamptz)",
 })
 
 export type PaymentRpc =

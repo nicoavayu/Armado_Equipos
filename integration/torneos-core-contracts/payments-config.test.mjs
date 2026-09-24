@@ -14,6 +14,7 @@ const here = fileURLToPath(new URL('.', import.meta.url));
 const FN = `${repo}backend/torneos/supabase/functions/torneos-payments/`;
 const EDGE_MAIN = `${here}torneos-edge-main/`;
 const DELTA = JSON.parse(await readFile(`${repo}backend/torneos/mp-a/mp-a2-acl-delta.json`, 'utf8'));
+DELTA.payment_service_execute = DELTA.payment_service_execute.map(f => f.startsWith('apply_verified_tournament_payment_') ? f.replace(/\)$/, ',timestamp with time zone)') : f);
 const results = [];
 const LAB = process.env.MP_A3_SKIP_LAB !== '1';
 

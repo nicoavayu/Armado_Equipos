@@ -1,0 +1,18 @@
+(node:87666) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/nicoavayu/Downloads/arma2/arma2-mp-b1-2-provider-ordering/backend/torneos/supabase/functions/torneos-payments/handler.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/nicoavayu/Downloads/arma2/arma2-mp-b1-2-provider-ordering/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ equal pending/approved timestamp: durable review, sanitized audit, sticky replays (5000.740417ms)
+✔ stale audit is preserved once without marking legitimate retries for review (4981.519792ms)
+✔ business NOT_READY rolls back watermark; recording preference then retrying same T works (2028.977584ms)
+✔ settled revocation stays final for stale dispute/restore/approve and NEW restoration (4579.310709ms)
+✔ HTTP provider timestamp formats and unsupported precision/timezone fail closed; old DB caller stays retryable (989.424667ms)
+✔ equal timestamp with same normalized state is idempotent despite equivalent provider status labels (2449.454917ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 6
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 20111.072167
