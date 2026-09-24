@@ -31,7 +31,7 @@ The owner authorized this as an explicit, limited exception to "NO modificar DB 
 - `mgmt-prod.mjs` is the only transport. It only accepts Production paths:
   - reads are a closed allowlist;
   - writes must be armed after the phrase and must match the pinned SQL, the single secret or the pinned deploy.
-- `core-prod-deploy.mjs` is the runner. Modes: `--preflight-only`, `--dry-run`, `--apply` and `--acl-only`.
+- `core-prod-deploy.mjs` is the runner. Modes: `--preflight-only`, `--dry-run`, `--apply`, `--acl-only` and `--harness-only`.
 - `deploy-core-contract-prod.sh` is the operator wrapper. It needs a real terminal. It reads the PAT from `/dev/tty` and has no default mode.
 - `keychain-prod.py` / `keychain-prod.mjs` handle Production Keychain custody:
   - `check` and `generate` only;
@@ -69,6 +69,30 @@ tty or a mistyped phrase all mean 0 writes.
 
 Runtime evidence goes to `backend/torneos/mp-b/evidence/infra-1-core-prod/` (0600, never overwritten).
 Every file passes a secret gate before it is written.
+
+## Certification only: `--harness-only` (API-key recertification, 2026-09-24)
+
+Re-certifies an installed contract without any Management API write, with a read-only PAT:
+
+```bash
+bash backend/torneos/infra/core-prod-contract/deploy-core-contract-prod.sh --harness-only
+```
+
+1. Local pins (Staging tooling, migrations, artifact bytes, ledger baseline), as in every mode.
+2. Keychain: the Production entry must be PRESENT (never generated here), well-formed, and differ from the
+   non-production entry, which must be present so the difference is provable.
+3. Pre-harness: the `--acl-only` certification (same gates), ledger = 236 + 2 own rows, and the deployed
+   `ezbr_sha256` equal to the certified Staging bundle. Any divergence STOPs before the first function call.
+4. The certified signed harness, 9 requests, one attempt, no retry.
+5. Post-harness: the `--acl-only` certification again, and every persistent observation (project, ledger,
+   installed, prerequisites, app_private, ACL, catalog, secret names, function) identical to step 3. The
+   function `version` counter is the only field allowed to move.
+6. RPC reach is corroborated read-only: `pg_stat_statements` counts exactly 3 new `service_role` PostgREST
+   calls to `torneos_contract_execute` (the signed session, its replay and the verified-email request).
+
+The transport and the client view are read-only by construction. There is no confirmation phrase, because
+there is nothing to authorize on the Management API. The remote side effects are the contract's own nonce
+rows (61 s TTL). Evidence goes to `backend/torneos/mp-b/evidence/infra-1-core-prod-apikey-recert/`.
 
 ## Fail-closed conditions (all STOP before any write)
 

@@ -9,6 +9,12 @@
 //                      v1 → v1.1 → set-secrets → deploy → signed harness 9/9 → ACL → app_private →
 //                      catalog unchanged outside the contract → ledger = baseline + our 2 rows → evidence
 //   --acl-only         READ-ONLY post-deploy certification (ACL, app_private, ledger) of an installed contract
+//   --harness-only     certification only, for an installed contract: pins → Keychain custody (present, ≠ Staging)
+//                      → the --acl-only certification + certified ezbr → signed harness 9/9 (one attempt) →
+//                      the --acl-only certification again + state identical + RPC reach corroborated. The
+//                      Management API is read-only by construction (read-only transport and view); no
+//                      migration, writer context, secret write or deploy is reachable. Evidence goes to
+//                      infra-1-core-prod-apikey-recert/.
 //
 // stdin: exactly {"pat": "sbp_…"} (piped by the wrapper from the printf builtin). Any other key — a ref,
 // a confirmation, a force flag, a secret — is refused: the target is a constant and the confirmation
@@ -21,14 +27,16 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import * as P from './prod-contract.mjs';
 import * as C from '../../phase3b/remote/core-contract.mjs';
 import { resolveFiles, buildDeployBody } from '../../phase3b/remote/mgmt-write.mjs';
-import { prodClient, httpsTransport } from './mgmt-prod.mjs';
-import { probeProd, responseSensitiveFindings } from './probe-prod.mjs';
+import { prodClient, httpsTransport, assertProdRequest } from './mgmt-prod.mjs';
+import { probeProd, responseSensitiveFindings, PROD_ENDPOINT } from './probe-prod.mjs';
 import { systemKeychain } from './keychain-prod.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const TOOLING_REPO = path.resolve(HERE, '../../../..');
 export const RUNTIME_EVIDENCE_DIR = path.join(TOOLING_REPO, 'backend/torneos/mp-b/evidence/infra-1-core-prod');
-export const MODES = ['--preflight-only', '--dry-run', '--apply', '--acl-only'];
+export const HARNESS_ONLY_EVIDENCE_DIR = path.join(TOOLING_REPO, 'backend/torneos/mp-b/evidence/infra-1-core-prod-apikey-recert');
+export const MODES = ['--preflight-only', '--dry-run', '--apply', '--acl-only', '--harness-only'];
+export const evidenceDirFor = (mode) => (mode === '--harness-only' ? HARNESS_ONLY_EVIDENCE_DIR : RUNTIME_EVIDENCE_DIR);
 export const REQUEST_KEYS = ['pat'];
 export const TOOLING_FILES = ['prod-contract.mjs', 'mgmt-prod.mjs', 'probe-prod.mjs', 'keychain-prod.mjs', 'keychain-prod.py', 'core-prod-deploy.mjs', 'deploy-core-contract-prod.sh', 'pins/production-ledger-baseline.json'];
 
@@ -59,6 +67,24 @@ function readValidatedSecret(kc) {
   const v = kc.read();
   if (typeof v !== 'string' || !P.SECRET_PATTERN.test(v)) throw new Error('keychain_value_malformed');
   return v;
+}
+
+// ── --harness-only: the Management API surface is read-only by construction ──
+/** Wraps a transport so that only requests classified `read` (unarmed) ever reach it. */
+export function readOnlyTransport(transport) {
+  return async (req) => {
+    let kind;
+    try { kind = assertProdRequest({ method: req.method, path: req.path, body: req.body, armed: false }); } catch (e) { stop('HARNESS_ONLY_WRITE_REFUSED', { error: e.message }); }
+    if (kind !== 'read' || req.armed !== false) stop('HARNESS_ONLY_WRITE_REFUSED', { kind, armed: req.armed ?? null });
+    return transport(req);
+  };
+}
+export const READ_ONLY_VIEW_METHODS = Object.freeze(['project', 'ledger', 'installed', 'prerequisites', 'appPrivate', 'acl', 'catalog', 'secretNames', 'fn', 'rpcStats']);
+/** The only handle harness-only code receives: the client's read operations, nothing that arms or writes. */
+export function readOnlyView(client) {
+  const view = Object.fromEntries(READ_ONLY_VIEW_METHODS.map((k) => [k, (...a) => client[k](...a)]));
+  Object.defineProperty(view, 'writes', { get: () => client.writes, enumerable: true });
+  return Object.freeze(view);
 }
 
 /** Everything the plan depends on, read-only. Any unreadable/ambiguous answer is a STOP. */
@@ -95,7 +121,7 @@ function evaluate(obs, { mode, custody }) {
   if (migrations.stop) stop('MIGRATION_STATE_STOP', migrations);
   const installed_v1 = obs.installed[P.AUTHORIZED_VERSIONS[0]] === true;
   const fully_installed = migrations.decisions.every((d) => d.decision === 'skip');
-  if (mode === '--acl-only') return { ledger, migrations, fully_installed, writer_failures };
+  if (mode === '--acl-only' || mode === '--harness-only') return { ledger, migrations, fully_installed, writer_failures };
   if (writer_failures.length) stop('WRITER_PRIVILEGES_INSUFFICIENT', { failures: writer_failures });
   const prereq = P.prerequisiteFailures(obs.prerequisites);
   if (prereq.length) stop('PREREQUISITES_UNMET', { failures: prereq });
@@ -116,6 +142,105 @@ function evaluate(obs, { mode, custody }) {
   const secret = P.secretDecision(custody.keychain, remote, { contractInstalled: installed_v1 });
   if (secret.startsWith('STOP:')) stop('SECRET_STATE_STOP', { decision: secret, keychain: custody.keychain, remote });
   return { ledger, migrations, fully_installed, writer_failures, remote_secret: remote, secret };
+}
+
+/** The --acl-only certification of an installed contract (also the pre/post gate of --harness-only). */
+function aclOnlyFailures(obs) {
+  const failures = [...P.prodAclFailures(obs.acl), ...P.appPrivateFailures(obs.app_private, { installed: true }).map((f) => `app_private ${f}`)];
+  if (!obs.fn || obs.fn.verify_jwt !== false || obs.fn.status !== 'ACTIVE') failures.push(`function: ${JSON.stringify(obs.fn && { status: obs.fn.status, verify_jwt: obs.fn.verify_jwt })}`);
+  if (!obs.secret_names.includes(P.SECRET_NAME)) failures.push(`${P.SECRET_NAME}: not set on Core`);
+  return failures;
+}
+const observationOf = (obs, ev) => ({
+  project: obs.project,
+  ledger: { rows: ev.ledger.observed_rows, max_version: ev.ledger.observed_max_version, baseline_rows: ev.ledger.baseline.rows, missing: ev.ledger.baseline.missing, added: ev.ledger.baseline.added, changed: ev.ledger.baseline.changed, contract: ev.ledger.contract, shape_ok: ev.ledger.shape_diff.length === 0, writer: obs.ledger.writer, standard_conforming_strings: obs.ledger.shape?.standard_conforming_strings ?? null },
+  installed: obs.installed, prerequisites: obs.prerequisites, app_private: obs.app_private, acl: obs.acl, catalog: obs.catalog,
+  secret: { name: P.SECRET_NAME, remote: obs.secret_names.includes(P.SECRET_NAME) ? 'PRESENT' : 'absent', project_secret_count: obs.secret_names.length },
+  function: obs.fn,
+  fingerprint: fingerprint(obs),
+});
+/** Persistent-contract differences between two observations. Only the function `version` counter may move. */
+function stateDiff(a, b) {
+  const fnSansVersion = (f) => (f ? { ...f, version: undefined } : f);
+  const parts = {
+    project: [a.project, b.project], ledger_rows: [a.ledger.rows, b.ledger.rows], ledger_shape: [a.ledger.shape, b.ledger.shape], ledger_writer: [a.ledger.writer, b.ledger.writer],
+    installed: [a.installed, b.installed], prerequisites: [a.prerequisites, b.prerequisites], app_private: [a.app_private, b.app_private], acl: [a.acl, b.acl],
+    catalog: [a.catalog, b.catalog], secret_names: [a.secret_names, b.secret_names], function: [fnSansVersion(a.fn), fnSansVersion(b.fn)],
+  };
+  return Object.entries(parts).filter(([, [x, y]]) => JSON.stringify(x) !== JSON.stringify(y)).map(([k]) => k);
+}
+function rpcStatsOf(r) {
+  const calls = Number(r?.calls);
+  if (!r || typeof r !== 'object' || !Number.isSafeInteger(calls) || calls < 0 || typeof r.stats_reset !== 'string') throw new Error('rpc_stats_ambiguous');
+  return { calls, stats_reset: r.stats_reset, dealloc: r.dealloc ?? null };
+}
+
+/**
+ * --harness-only after the shared pins/custody/observation stages. Receives the read-only view only; the
+ * remote side effects are those of the certified harness itself (nonce rows of the contract, 61 s TTL).
+ */
+export async function harnessOnly(ctx, { view, obs, ev, observation, pins, custody, secret, deps, now }) {
+  const certified = P.FUNCTION_ARTIFACT.certified_staging_evidence.ezbr_sha256;
+  const tool = 'backend/torneos/infra/core-prod-contract/core-prod-deploy.mjs';
+  ctx.stage = 'harness-only-pre-acl';
+  if (PROD_ENDPOINT !== `https://${P.PROD_REF}.supabase.co/functions/v1/${P.FUNCTION_ARTIFACT.slug}`) stop('TARGET_MISMATCH', { endpoint: PROD_ENDPOINT });
+  if (!ev.fully_installed) stop('CONTRACT_NOT_INSTALLED', { migrations: ev.migrations.decisions });
+  const expected_rows = pins.ledger_baseline.rows + P.AUTHORIZED_VERSIONS.length;
+  if (ev.ledger.observed_rows !== expected_rows) stop('LEDGER_UNEXPECTED', { observed_rows: ev.ledger.observed_rows, expected_rows });
+  const pre_failures = aclOnlyFailures(obs);
+  if (pre_failures.length) stop('ACL_EXPECTATIONS_UNMET', { phase: 'pre', failures: pre_failures });
+  if (obs.fn.ezbr_sha256 !== certified) stop('FUNCTION_ARTIFACT_MISMATCH', { phase: 'pre', observed: obs.fn.ezbr_sha256 ?? null, certified });
+  let rpc_before;
+  try { rpc_before = rpcStatsOf(await view.rpcStats()); } catch (e) { stop('PREFLIGHT_AMBIGUOUS', { error: e?.message ?? 'rpc_stats' }); }
+  writeEvidence(ctx, `core-prod-harness-only-pre-acl-${ctx.stamp}.json`, { generated_at: now().toISOString(), tool, mode: '--harness-only', phase: 'pre-harness', read_only: true, target: P.PRODUCTION_PROJECT, pins, custody, observation, rpc_stats: rpc_before, function_artifact: { ezbr_sha256: obs.fn.ezbr_sha256, certified_ezbr_sha256: certified, equal: true }, management_writes: view.writes.length, verdict: 'CORE_PROD_ACL_PASS' });
+  ctx.say(`[ok] pre-harness ACL: CORE_PROD_ACL_PASS · ledger ${ev.ledger.observed_rows} · fn ${obs.fn.status} v${obs.fn.version} ezbr ${obs.fn.ezbr_sha256.slice(0, 12)}… == certified · RPC calls ${rpc_before.calls}`);
+
+  ctx.stage = 'harness';
+  const probe = await probeProd({ secret, retries: 0, fetchImpl: deps.fetchImpl });
+  const sensitive = responseSensitiveFindings(probe.checks, { secret });
+  const probeEvidence = { endpoint: probe.endpoint, verdict: probe.verdict, attempts: probe.attempts, checks: probe.checks.map((c) => ({ name: c.name, expected: c.expected, observed: { status: c.observed.status, body: c.observed.body, headers: c.observed.headers }, ok: c.ok })), sensitive_findings: sensitive };
+  if (!probe.pass) stop(`SIGNED_HARNESS_${probe.verdict}`, { probe: probeEvidence });
+  if (sensitive.length) stop('SIGNED_HARNESS_SENSITIVE_MATERIAL', { probe: probeEvidence });
+  const previously_failing = P.HARNESS_RPC_CASES.map((i) => probeEvidence.checks[i]);
+  ctx.say(`[ok] signed harness 9/9 exact answers (${previously_failing.map((c) => `${c.observed.status} ${c.observed.body?.error}`).join(', ')} from the RPC)`);
+
+  ctx.stage = 'harness-only-post-acl';
+  const obs2 = await observe(view);
+  const ev2 = evaluate(obs2, { mode: '--harness-only' });
+  if (!ev2.fully_installed) stop('CONTRACT_NOT_INSTALLED', { phase: 'post', migrations: ev2.migrations.decisions });
+  const post_failures = aclOnlyFailures(obs2);
+  if (post_failures.length) stop('ACL_EXPECTATIONS_UNMET', { phase: 'post', failures: post_failures });
+  if (obs2.fn.ezbr_sha256 !== certified) stop('FUNCTION_ARTIFACT_MISMATCH', { phase: 'post', observed: obs2.fn.ezbr_sha256 ?? null, certified });
+  const state_diff = stateDiff(obs, obs2);
+  if (state_diff.length) stop('POST_STATE_CHANGED', { changed: state_diff });
+  let rpc_after;
+  try { rpc_after = rpcStatsOf(await view.rpcStats()); } catch (e) { stop('POSTFLIGHT_UNREADABLE', { error: e?.message ?? 'rpc_stats' }); }
+  const rpc = { before: rpc_before.calls, after: rpc_after.calls, delta: rpc_after.calls - rpc_before.calls, expected_delta: P.HARNESS_RPC_CALLS, stats_reset_unchanged: rpc_after.stats_reset === rpc_before.stats_reset };
+  if (!rpc.stats_reset_unchanged || rpc.delta !== P.HARNESS_RPC_CALLS) stop('RPC_REACH_NOT_CORROBORATED', { rpc, before: rpc_before, after: rpc_after });
+  if (view.writes.length !== 0) stop('HARNESS_ONLY_WRITE_REFUSED', { writes: view.writes });
+  const observation_after = observationOf(obs2, ev2);
+  writeEvidence(ctx, `core-prod-harness-only-post-acl-${ctx.stamp}.json`, { generated_at: now().toISOString(), tool, mode: '--harness-only', phase: 'post-harness', read_only: true, target: P.PRODUCTION_PROJECT, observation: observation_after, rpc_stats: rpc_after, management_writes: 0, verdict: 'CORE_PROD_ACL_PASS' });
+  ctx.say(`[ok] post-harness ACL: CORE_PROD_ACL_PASS · state identical (function version ${obs.fn.version} → ${obs2.fn.version}) · RPC calls +${rpc.delta}`);
+
+  ctx.stage = 'evidence';
+  const fnKeys = ['slug', 'status', 'version', 'verify_jwt', 'updated_at', 'ezbr_sha256', 'entrypoint_path'];
+  const func = {
+    before: obs.fn, after: obs2.fn, certified_ezbr_sha256: certified, ezbr_equals_certified: obs2.fn.ezbr_sha256 === certified && obs.fn.ezbr_sha256 === certified,
+    unchanged: fnKeys.filter((k) => k !== 'version' && obs.fn[k] === obs2.fn[k]), version: { before: obs.fn.version, after: obs2.fn.version },
+  };
+  const result = {
+    generated_at: now().toISOString(), tool, mode: '--harness-only', target: P.PRODUCTION_PROJECT, endpoint: PROD_ENDPOINT,
+    pre_acl: `${deps.evidencePrefix ?? ''}core-prod-harness-only-pre-acl-${ctx.stamp}.json`, post_acl: `${deps.evidencePrefix ?? ''}core-prod-harness-only-post-acl-${ctx.stamp}.json`,
+    management_api: { writes: 0, requests: 'GET + database/query read_only:true only (read-only transport)', migrations: 0, deploys: 0, secret_writes: 0 },
+    custody, probe: probeEvidence, previously_failing, rpc, state_diff, function: func,
+    catalog: { before: obs.catalog, after: obs2.catalog, identical: JSON.stringify(obs.catalog) === JSON.stringify(obs2.catalog) },
+    ledger: { before: ev.ledger.observed_rows, after: ev2.ledger.observed_rows, contract: ev2.ledger.contract },
+    remote_side_effects: 'nonce rows of the contract only (61 s TTL); fixtures are random UUIDs and example.invalid',
+    verdict: 'CORE_PROD_TORNEOS_CONTRACT_PASS',
+  };
+  writeEvidence(ctx, `core-prod-harness-only-result-${ctx.stamp}.json`, result);
+  ctx.say('CORE_PROD_TORNEOS_CONTRACT_PASS');
+  return { verdict: 'CORE_PROD_TORNEOS_CONTRACT_PASS', writes: view.writes.length, probe: { verdict: probe.verdict, checks: probe.checks.map((c) => ({ name: c.name, ok: c.ok })) }, previously_failing, rpc, state_diff, function: func, evidence: ctx.evidence };
 }
 
 export async function runProd({ mode, request, deps }) {
@@ -154,12 +279,26 @@ export async function runProd({ mode, request, deps }) {
     const extra = Object.keys(request).filter((k) => !REQUEST_KEYS.includes(k));
     if (extra.length) stop('REQUEST_KEY_NOT_ACCEPTED', { keys: extra });
     if (typeof request.pat === 'string') ctx.known.push(request.pat);
-    try { client = prodClient({ pat: request.pat, transport: deps.transport }); } catch (e) { stop('PAT_REFUSED', { error: e.message }); }
+    const harnessMode = mode === '--harness-only';
+    try { client = prodClient({ pat: request.pat, transport: harnessMode ? readOnlyTransport(deps.transport) : deps.transport }); } catch (e) { stop('PAT_REFUSED', { error: e.message }); }
 
     // ── custody (local, read-only): presence; a present value must be readable, well-formed and ≠ Staging ──
     ctx.stage = 'custody';
     const custody = { namespace: P.KEYCHAIN_PROD, keychain: null, value_checked: false, distinct_from_nonprod: null };
-    if (mode !== '--acl-only') {
+    let harnessSecret = null;
+    if (harnessMode) {
+      // Certification only: the value must already exist (never generated here) and provably differ from Staging.
+      try { custody.keychain = deps.keychain.check(); } catch { stop('HARNESS_ONLY_SECRET_CUSTODY', { reason: 'keychain_check_ambiguous' }); }
+      if (custody.keychain !== 'PRESENT') stop('HARNESS_ONLY_SECRET_CUSTODY', { reason: 'production_keychain_not_present', keychain: custody.keychain ?? null });
+      try { harnessSecret = readValidatedSecret(deps.keychain); } catch { stop('HARNESS_ONLY_SECRET_CUSTODY', { reason: 'keychain_value_unreadable_or_malformed' }); }
+      ctx.known.push(harnessSecret);
+      let n; try { n = deps.keychain.readNonprod(); } catch { stop('HARNESS_ONLY_SECRET_CUSTODY', { reason: 'nonprod_entry_unreadable' }); }
+      if (typeof n !== 'string') stop('HARNESS_ONLY_SECRET_CUSTODY', { reason: 'nonprod_entry_absent_distinctness_unprovable' });
+      ctx.known.push(n);
+      if (P.secretEqualsNonprod(harnessSecret, n)) stop('SECRET_EQUALS_NONPROD');
+      custody.value_checked = true; custody.distinct_from_nonprod = true;
+      n = null;
+    } else if (mode !== '--acl-only') {
       try { custody.keychain = deps.keychain.check(); } catch (e) { stop('SECRET_CUSTODY_FAILED', { reason: 'keychain_check_ambiguous' }); }
       if (!['ABSENT', 'PRESENT'].includes(custody.keychain)) stop('SECRET_CUSTODY_FAILED', { reason: 'keychain_state_unknown' });
       if (custody.keychain === 'PRESENT') {
@@ -176,24 +315,22 @@ export async function runProd({ mode, request, deps }) {
 
     // ── observation (read-only) + gates ──
     ctx.stage = 'observe';
-    const obs = await observe(client);
+    const view = harnessMode ? readOnlyView(client) : null;
+    const obs = await observe(view ?? client);
     ctx.say(`[ok] project ${obs.project.ref} ${obs.project.name} ${obs.project.status} ${obs.project.region} (Postgres ${obs.project.database_version})`);
     const ev = evaluate(obs, { mode, custody });
-    const observation = {
-      project: obs.project,
-      ledger: { rows: ev.ledger.observed_rows, max_version: ev.ledger.observed_max_version, baseline_rows: ev.ledger.baseline.rows, missing: ev.ledger.baseline.missing, added: ev.ledger.baseline.added, changed: ev.ledger.baseline.changed, contract: ev.ledger.contract, shape_ok: ev.ledger.shape_diff.length === 0, writer: obs.ledger.writer, standard_conforming_strings: obs.ledger.shape?.standard_conforming_strings ?? null },
-      installed: obs.installed, prerequisites: obs.prerequisites, app_private: obs.app_private, acl: obs.acl, catalog: obs.catalog,
-      secret: { name: P.SECRET_NAME, remote: obs.secret_names.includes(P.SECRET_NAME) ? 'PRESENT' : 'absent', project_secret_count: obs.secret_names.length },
-      function: obs.fn,
-      fingerprint: fingerprint(obs),
-    };
+    const observation = observationOf(obs, ev);
+
+    if (harnessMode) {
+      const res = await harnessOnly(ctx, { view, obs, ev, observation, pins, custody, secret: harnessSecret, deps, now });
+      harnessSecret = null;
+      return res;
+    }
 
     if (mode === '--acl-only') {
       ctx.stage = 'acl-only';
       if (!ev.fully_installed) stop('CONTRACT_NOT_INSTALLED', { migrations: ev.migrations.decisions });
-      const failures = [...P.prodAclFailures(obs.acl), ...P.appPrivateFailures(obs.app_private, { installed: true }).map((f) => `app_private ${f}`)];
-      if (!obs.fn || obs.fn.verify_jwt !== false || obs.fn.status !== 'ACTIVE') failures.push(`function: ${JSON.stringify(obs.fn && { status: obs.fn.status, verify_jwt: obs.fn.verify_jwt })}`);
-      if (!obs.secret_names.includes(P.SECRET_NAME)) failures.push(`${P.SECRET_NAME}: not set on Core`);
+      const failures = aclOnlyFailures(obs);
       if (failures.length) stop('ACL_EXPECTATIONS_UNMET', { failures });
       writeEvidence(ctx, `core-prod-acl-${ctx.stamp}.json`, { generated_at: now().toISOString(), tool: 'backend/torneos/infra/core-prod-contract/core-prod-deploy.mjs', mode, read_only: true, target: P.PRODUCTION_PROJECT, pins, observation, verdict: 'CORE_PROD_ACL_PASS' });
       return { verdict: 'CORE_PROD_ACL_PASS', writes: 0, evidence: ctx.evidence };
@@ -338,11 +475,11 @@ export async function runProd({ mode, request, deps }) {
     return { verdict: 'CORE_PROD_CONTRACT_DEPLOYED', writes: client.writes.length, plan, plan_id: planId, probe: { verdict: probe.verdict, checks: probe.checks.map((c) => ({ name: c.name, ok: c.ok })) }, acl_failures, catalog_changed, evidence: ctx.evidence };
   } catch (e) {
     const err = e instanceof StopError ? e : new StopError('INTERNAL_ERROR', { error: e?.message ?? String(e) });
-    const family = ctx.authorized ? 'core-prod-failed' : 'core-prod-preflight-failed';
+    const family = mode === '--harness-only' ? 'core-prod-harness-only-failed' : (ctx.authorized ? 'core-prod-failed' : 'core-prod-preflight-failed');
     const pre = !['mode'].includes(ctx.stage) && err.code !== 'EVIDENCE_REJECTED_SECRET_LEAK' && deps.evidenceDir;
     if (pre) {
       try {
-        writeEvidence(ctx, `${family}-${ctx.stamp}.json`, { generated_at: now().toISOString(), tool: 'backend/torneos/infra/core-prod-contract/core-prod-deploy.mjs', mode, read_only: !ctx.armed, stop: err.code, stage: ctx.stage, detail: err.detail, writes: client ? client.writes : [], server_state: ctx.armed ? 'writes may have happened: re-observe with --preflight-only before anything else' : '0 writes' });
+        writeEvidence(ctx, `${family}-${ctx.stamp}.json`, { generated_at: now().toISOString(), tool: 'backend/torneos/infra/core-prod-contract/core-prod-deploy.mjs', mode, read_only: !ctx.armed, stop: err.code, stage: ctx.stage, detail: err.detail, writes: client ? client.writes : [], server_state: ctx.armed ? 'writes may have happened: re-observe with --preflight-only before anything else' : (mode === '--harness-only' ? '0 Management API writes' : '0 writes') });
       } catch { /* the STOP itself is what matters; a leak refusal already prevented the file */ }
     }
     ctx.say(`!! STOP ${err.code} (stage ${ctx.stage}; ${ctx.armed ? `${client?.writes.length ?? 0} write request(s) sent` : '0 writes'})`);
@@ -371,7 +508,7 @@ async function main() {
   let request = null;
   try { request = JSON.parse(stdin); } catch { request = null; }
   const deps = {
-    repo: TOOLING_REPO, transport: httpsTransport, keychain: systemKeychain(), fetchImpl: fetch, evidenceDir: RUNTIME_EVIDENCE_DIR,
+    repo: TOOLING_REPO, transport: httpsTransport, keychain: systemKeychain(), fetchImpl: fetch, evidenceDir: evidenceDirFor(mode),
     out: (l) => process.stdout.write(`${l}\n`), probe: { retries: 8, interval_ms: 10000 }, env: process.env,
     readConfirmation: (prompt) => readTtyLine(prompt),
   };

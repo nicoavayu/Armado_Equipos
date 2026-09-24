@@ -168,6 +168,7 @@ export function prodClient({ pat, transport = httpsTransport }) {
     appPrivate: () => one(P.APP_PRIVATE_SQL, 'app_private'),
     catalog: () => one(P.CATALOG_DIGEST_SQL, 'catalog'),
     acl: () => one(CONTRACT_ACL_SQL, 'acl'),
+    rpcStats: () => one(P.RPC_STATS_SQL, 'rpc_stats'),
     async secretNames() {
       const res = await send({ method: 'GET', path: PATHS.secrets });
       if (res.status !== 200 || !Array.isArray(res.body)) fail(`secrets_status_${res.status}`);

@@ -13,9 +13,9 @@ import crypto from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import * as P from './prod-contract.mjs';
-import { prodClient, assertProdRequest, ProdRequestError } from './mgmt-prod.mjs';
+import { prodClient, assertProdRequest, ProdRequestError, PATHS } from './mgmt-prod.mjs';
 import { probeProd, probeOnceProd, PROD_ENDPOINT, responseSensitiveFindings } from './probe-prod.mjs';
-import { runProd, StopError, REQUEST_KEYS } from './core-prod-deploy.mjs';
+import { runProd, StopError, REQUEST_KEYS, MODES, readOnlyTransport, readOnlyView, harnessOnly, evidenceDirFor, RUNTIME_EVIDENCE_DIR, HARNESS_ONLY_EVIDENCE_DIR, READ_ONLY_VIEW_METHODS } from './core-prod-deploy.mjs';
 import { systemKeychain } from './keychain-prod.mjs';
 import * as C from '../../phase3b/remote/core-contract.mjs';
 import { assertReadOnlySql } from '../../phase3b/remote/mgmt.mjs';
@@ -62,6 +62,7 @@ function fakeProd(over = {}) {
     prereq: PREREQ_OK(), secretNames: ['OTHER_FUNCTION_SECRET'], secretValue: null, fn: null, catalog: JSON.parse(JSON.stringify(CATALOG)),
     writerContext: { api_role: 'postgres', session_role: 'postgres', transaction_read_only: 'off', in_recovery: false },
     failApply: false, catalogDriftAfterApply: false, ambiguous: null, appPrivateOverride: null, aclOverride: null,
+    rpcStats: { calls: 0, stats_reset: '2026-01-09 20:38:09.451744+00', dealloc: 22 }, coreDown: false, rpcNotCounted: false,
     ...over,
   };
   const log = [];
@@ -91,6 +92,7 @@ function fakeProd(over = {}) {
         if (query === P.APP_PRIVATE_SQL) return { status: 200, body: [{ app_private: s.appPrivateOverride ?? (s.installed.v1 ? P.APP_PRIVATE_AFTER : P.APP_PRIVATE_BEFORE) }] };
         if (query === P.CATALOG_DIGEST_SQL) return { status: 200, body: [{ catalog: JSON.parse(JSON.stringify(s.catalog)) }] };
         if (query === C.CONTRACT_ACL_SQL) return { status: 200, body: [{ acl: s.aclOverride ?? aclOf(s.installed) }] };
+        if (query === P.RPC_STATS_SQL) return { status: 200, body: [{ rpc_stats: { ...s.rpcStats } }] };
         return { status: 400, body: { message: 'unknown probe' } };
       }
       assert.equal(req.body.read_only, false);
@@ -143,6 +145,9 @@ function fakeEdge(prod) {
       functionName: 'torneos-core-contract',
       secret: parseServiceSecret(prod.s.secretValue ?? undefined),
       async execute(operation, nonce) {
+        // The Production failure mode before the API-key fix: service() threw before PostgREST.
+        if (prod.s.coreDown) throw new Error('torneos_contract_execute_failed');
+        if (!prod.s.rpcNotCounted) prod.s.rpcStats.calls += 1;
         if (nonces.has(nonce)) return { status: 401, body: { error: 'REPLAY' } };
         nonces.add(nonce);
         assert.ok(['session', 'verified_email'].includes(operation));
@@ -497,7 +502,7 @@ test('non-interactive: the shell wrapper refuses flags, needs an explicit mode a
     assert.match(r.stderr, /CORE_PROD_(USAGE|REFUSED)/, args.join(' '));
   }
   // No controlling terminal here (the agent shell): every valid mode stops at the tty check, before the PAT prompt.
-  for (const mode of ['--preflight-only', '--dry-run', '--apply', '--acl-only']) {
+  for (const mode of ['--preflight-only', '--dry-run', '--apply', '--acl-only', '--harness-only']) {
     const r = spawnSync('bash', [sh, mode], { encoding: 'utf8', env, input: `${PAT}\n`, timeout: 20000, detached: true });
     assert.equal(r.status, 1, mode);
     assert.match(r.stderr, /CORE_PROD_BLOCKED_NO_TTY|CORE_PROD_REFUSED_NON_INTERACTIVE/, mode);
@@ -660,4 +665,196 @@ test('ACL: --acl-only is read-only and certifies an installed contract (and refu
 test('invariant: the certified Staging tooling is byte-identical to d62039c7 (behaviour unchanged)', () => {
   for (const [rel, want] of Object.entries(P.CERTIFIED_STAGING_TOOLING_SHA256)) assert.equal(sha(fs.readFileSync(path.join(REPO, rel))), want, rel);
   assert.ok(Object.keys(P.CERTIFIED_STAGING_TOOLING_SHA256).length >= 8);
+});
+
+// ─────────────────────────── --harness-only (certification-only recertification) ───────────────────────────
+const CERTIFIED_EZBR = P.FUNCTION_ARTIFACT.certified_staging_evidence.ezbr_sha256;
+const DEPLOYED_FN = Object.freeze({ slug: 'torneos-core-contract', name: 'torneos-core-contract', status: 'ACTIVE', version: 3, verify_jwt: false, ezbr_sha256: CERTIFIED_EZBR, entrypoint_path: 'file:///tmp/user_fn_rcyuuoaqfwcembdajcss_1/source/functions/torneos-core-contract/index.ts', updated_at: 1790281420187 });
+const INSTALLED_PROD = () => ({ installed: { v1: true, v11: true }, contract: { [V1]: 'ours', [V11]: 'ours' }, fn: { ...DEPLOYED_FN }, secretNames: ['OTHER_FUNCTION_SECRET', 'TORNEOS_CONTRACT_SERVICE_SECRET'], secretValue: PROD_SECRET });
+const KC_PRESENT = () => ({ state: 'PRESENT', value: PROD_SECRET });
+/** fetch spy in front of the fake edge: counts every Production function call. */
+function spyEdge(h) {
+  const edge = fakeEdge(h.prod);
+  const calls = [];
+  h.deps.fetchImpl = async (url, init) => { calls.push({ url, method: init.method }); return edge(url, init); };
+  return calls;
+}
+const onlyReads = (h) => h.prod.log.every((r) => r.method === 'GET' || (r.method === 'POST' && r.read_only === true));
+
+test('harness-only: a distinct mode; evidence goes to the API-key recert directory, never to the INFRA-1 apply directory', () => {
+  assert.ok(MODES.includes('--harness-only'));
+  assert.equal(evidenceDirFor('--harness-only'), HARNESS_ONLY_EVIDENCE_DIR);
+  assert.match(HARNESS_ONLY_EVIDENCE_DIR, /backend\/torneos\/mp-b\/evidence\/infra-1-core-prod-apikey-recert$/);
+  for (const m of ['--preflight-only', '--dry-run', '--apply', '--acl-only']) assert.equal(evidenceDirFor(m), RUNTIME_EVIDENCE_DIR);
+});
+
+test('harness-only: pre ACL PASS → signed harness 9/9 → post ACL PASS, state identical → CORE_PROD_TORNEOS_CONTRACT_PASS with 0 Management writes', async () => {
+  const h = harness(INSTALLED_PROD(), KC_PRESENT());
+  const edgeCalls = spyEdge(h);
+  const res = await run('--harness-only', h);
+  assert.equal(res.verdict, 'CORE_PROD_TORNEOS_CONTRACT_PASS');
+  assert.equal(res.writes, 0);
+  assert.equal(h.prod.writes.length, 0);
+  assert.ok(onlyReads(h), 'only GET and read_only:true queries');
+  assert.ok(!h.prod.log.some((r) => r.path.includes('/secrets') && r.method !== 'GET'));
+  assert.ok(!h.prod.log.some((r) => r.path.includes('/functions/deploy')));
+  assert.ok(!h.k.calls.includes('generate'), 'Keychain never written');
+  assert.equal(h.prompts.length, 0, 'no confirmation phrase: nothing to authorize on the Management API');
+  assert.equal(edgeCalls.length, 9, 'exactly the 9 certified requests, one attempt, no retry');
+  assert.ok(edgeCalls.every((c) => c.url.startsWith(`https://${PROD}.supabase.co/functions/v1/torneos-core-contract/`)));
+  assert.equal(res.probe.verdict, 'SIGNED_HARNESS_PASS');
+  assert.deepEqual(res.probe.checks.map((c) => c.name), C.PROBE_EXPECT.map((e) => e.name));
+  assert.ok(res.probe.checks.every((c) => c.ok));
+  // The three signed cases that answered 503 CORE_UNAVAILABLE before the API-key fix, now Core verdicts from the RPC.
+  assert.deepEqual(res.previously_failing.map((c) => [c.observed.status, c.observed.body.error, c.ok]), [[403, 'FORBIDDEN', true], [401, 'REPLAY', true], [403, 'FORBIDDEN', true]]);
+  assert.deepEqual(res.rpc, { before: 0, after: 3, delta: 3, expected_delta: 3, stats_reset_unchanged: true });
+  assert.deepEqual(res.state_diff, []);
+  assert.equal(res.function.ezbr_equals_certified, true);
+  const files = fs.readdirSync(h.evDir).sort();
+  assert.equal(files.length, 3);
+  assert.ok(files.some((f) => f.startsWith('core-prod-harness-only-pre-acl-')));
+  assert.ok(files.some((f) => f.startsWith('core-prod-harness-only-post-acl-')));
+  assert.ok(files.some((f) => f.startsWith('core-prod-harness-only-result-')));
+  const ev = evidenceText(h.evDir);
+  for (const s of [PROD_SECRET, NONPROD_SECRET, PAT]) assert.ok(!ev.includes(s), 'no secret in evidence');
+  assert.match(ev, /CORE_PROD_ACL_PASS/);
+  assert.match(ev, /CORE_PROD_TORNEOS_CONTRACT_PASS/);
+});
+
+test('harness-only: the pre-harness ACL is the --acl-only certification (same gates, same verdict on the same state)', async () => {
+  const a = harness(INSTALLED_PROD(), KC_PRESENT());
+  const b = harness(INSTALLED_PROD(), KC_PRESENT());
+  spyEdge(b);
+  assert.equal((await run('--acl-only', a)).verdict, 'CORE_PROD_ACL_PASS');
+  await run('--harness-only', b);
+  const pre = JSON.parse(fs.readFileSync(path.join(b.evDir, fs.readdirSync(b.evDir).find((f) => f.includes('pre-acl'))), 'utf8'));
+  const acl = JSON.parse(fs.readFileSync(path.join(a.evDir, fs.readdirSync(a.evDir)[0]), 'utf8'));
+  assert.equal(pre.verdict, 'CORE_PROD_ACL_PASS');
+  const strip = (o) => { const x = JSON.parse(JSON.stringify(o.observation)); return x; };
+  assert.deepEqual(strip(pre), strip(acl));
+});
+
+test('harness-only: the previously failing signed cases (503 CORE_UNAVAILABLE) STOP the run — one attempt, 0 writes, evidence persisted', async () => {
+  const h = harness({ ...INSTALLED_PROD(), coreDown: true }, KC_PRESENT());
+  const edgeCalls = spyEdge(h);
+  assert.equal(await stopCode(run('--harness-only', h)), 'SIGNED_HARNESS_CORE_UNAVAILABLE_ON_SIGNED_REQUEST');
+  assert.equal(edgeCalls.length, 9, 'no retry loop in harness-only');
+  assert.equal(h.prod.writes.length, 0);
+  assert.ok(onlyReads(h));
+  const failed = fs.readdirSync(h.evDir).find((f) => f.startsWith('core-prod-harness-only-failed-'));
+  assert.ok(failed);
+  const body = JSON.parse(fs.readFileSync(path.join(h.evDir, failed), 'utf8'));
+  assert.equal(body.read_only, true);
+  assert.equal(body.server_state, '0 Management API writes');
+  assert.ok(!evidenceText(h.evDir).includes(PROD_SECRET));
+});
+
+test('harness-only: every divergence STOPs before the first Production function call (fail closed)', async () => {
+  const cases = [
+    ['contract not installed', {}, KC_PRESENT(), 'CONTRACT_NOT_INSTALLED'],
+    ['ACL divergence', { ...INSTALLED_PROD(), aclOverride: { ...aclOf({ v1: true, v11: true }), schema: { app_private_present: true, usage: { anon: true, authenticated: false, service_role: false } } } }, KC_PRESENT(), 'ACL_EXPECTATIONS_UNMET'],
+    ['app_private divergence', { ...INSTALLED_PROD(), appPrivateOverride: { ...P.APP_PRIVATE_AFTER, relations: [...P.APP_PRIVATE_AFTER.relations, 'extra|r'] } }, KC_PRESENT(), 'ACL_EXPECTATIONS_UNMET'],
+    ['function not ACTIVE', { ...INSTALLED_PROD(), fn: { ...DEPLOYED_FN, status: 'THROTTLED' } }, KC_PRESENT(), 'ACL_EXPECTATIONS_UNMET'],
+    ['function verify_jwt on', { ...INSTALLED_PROD(), fn: { ...DEPLOYED_FN, verify_jwt: true } }, KC_PRESENT(), 'ACL_EXPECTATIONS_UNMET'],
+    ['function absent', { ...INSTALLED_PROD(), fn: null }, KC_PRESENT(), 'ACL_EXPECTATIONS_UNMET'],
+    ['deployed bundle ≠ certified ezbr', { ...INSTALLED_PROD(), fn: { ...DEPLOYED_FN, ezbr_sha256: 'e'.repeat(64) } }, KC_PRESENT(), 'FUNCTION_ARTIFACT_MISMATCH'],
+    ['Core secret name absent', { ...INSTALLED_PROD(), secretNames: ['OTHER_FUNCTION_SECRET'] }, KC_PRESENT(), 'ACL_EXPECTATIONS_UNMET'],
+    ['Production Keychain absent (never generated here)', INSTALLED_PROD(), { state: 'ABSENT' }, 'HARNESS_ONLY_SECRET_CUSTODY'],
+    ['Production Keychain ambiguous', INSTALLED_PROD(), { checkThrows: true }, 'HARNESS_ONLY_SECRET_CUSTODY'],
+    ['Production Keychain malformed', INSTALLED_PROD(), { state: 'PRESENT', value: 'zz' }, 'HARNESS_ONLY_SECRET_CUSTODY'],
+    ['Staging Keychain absent (distinctness unprovable)', INSTALLED_PROD(), { ...KC_PRESENT(), nonprod: null }, 'HARNESS_ONLY_SECRET_CUSTODY'],
+    ['Production secret == Staging secret', INSTALLED_PROD(), { ...KC_PRESENT(), nonprod: PROD_SECRET }, 'SECRET_EQUALS_NONPROD'],
+    ['wrong project identity', { ...INSTALLED_PROD(), project: { ...P.PRODUCTION_PROJECT, name: 'other', status: 'ACTIVE_HEALTHY' } }, KC_PRESENT(), 'PROJECT_IDENTITY_MISMATCH'],
+    ['project not healthy', { ...INSTALLED_PROD(), project: { ...P.PRODUCTION_PROJECT, status: 'INACTIVE' } }, KC_PRESENT(), 'PROJECT_NOT_ACTIVE_HEALTHY'],
+    ['ledger ≠ 236 + 2', { ...INSTALLED_PROD(), rows: [...BASELINE.rows, { ...BASELINE.rows[0], version: '20260920000000', name: 'x' }] }, KC_PRESENT(), 'LEDGER_UNEXPECTED'],
+    ['ambiguous read', { ...INSTALLED_PROD(), ambiguous: C.CONTRACT_ACL_SQL }, KC_PRESENT(), 'PREFLIGHT_AMBIGUOUS'],
+    ['RPC statistics unreadable', { ...INSTALLED_PROD(), ambiguous: P.RPC_STATS_SQL }, KC_PRESENT(), 'PREFLIGHT_AMBIGUOUS'],
+  ];
+  for (const [label, over, kc, code] of cases) {
+    const h = harness(over, kc);
+    const edgeCalls = spyEdge(h);
+    assert.equal(await stopCode(run('--harness-only', h)), code, label);
+    assert.equal(edgeCalls.length, 0, `${label}: no Production function call`);
+    assert.equal(h.prod.writes.length, 0, label);
+    assert.ok(onlyReads(h), label);
+    assert.ok(!h.k.calls.includes('generate'), label);
+  }
+  // Local pins fail before the PAT is used at all.
+  const drift = tempRepo((d) => fs.appendFileSync(path.join(d, P.FUNCTION_ARTIFACT.root, 'functions/_shared/torneosCoreContract.ts'), '\n// drift\n'));
+  const h = harness(INSTALLED_PROD(), KC_PRESENT(), { repo: drift });
+  const edgeCalls = spyEdge(h);
+  assert.equal(await stopCode(run('--harness-only', h)), 'ARTIFACT_MISMATCH');
+  assert.equal(h.prod.log.length, 0);
+  assert.equal(edgeCalls.length, 0);
+});
+
+test('harness-only: no Management write is reachable — read-only transport, read-only view, no write op in the code path', async () => {
+  const seen = [];
+  const t = readOnlyTransport(async (req) => { seen.push(req); return { status: 200, body: [] }; });
+  const Q = PATHS.query;
+  const rendered = P.renderAuthorized(REPO);
+  const writes = [
+    { method: 'POST', path: Q, body: { query: WRITER_CONTEXT_SQL, read_only: false }, armed: true },
+    { method: 'POST', path: Q, body: { query: rendered[0].apply_sql, read_only: false }, armed: true },
+    { method: 'POST', path: Q, body: { query: rendered[1].apply_sql, read_only: false }, armed: true },
+    { method: 'POST', path: PATHS.secrets, body: [{ name: 'TORNEOS_CONTRACT_SERVICE_SECRET', value: PROD_SECRET }], armed: true },
+    { method: 'POST', path: PATHS.deploy, body: Buffer.from('x'), armed: true },
+    { method: 'POST', path: Q, body: { query: 'select 1', read_only: false }, armed: false },
+    { method: 'POST', path: Q, body: { query: 'notify x', read_only: true }, armed: false },
+    { method: 'DELETE', path: PATHS.fn, armed: false },
+    { method: 'GET', path: `/v1/projects/${STAGING}`, armed: false },
+  ];
+  for (const w of writes) await assert.rejects(t({ pat: PAT, ...w }), (e) => e instanceof StopError && e.code === 'HARNESS_ONLY_WRITE_REFUSED', JSON.stringify({ m: w.method, p: w.path }));
+  assert.equal(seen.length, 0, 'nothing reached the network');
+  await t({ pat: PAT, method: 'GET', path: PATHS.fn, armed: false });
+  assert.equal(seen.length, 1);
+  // The view the harness-only path receives exposes reads and nothing else.
+  const client = prodClient({ pat: PAT, transport: t });
+  const view = readOnlyView(client);
+  assert.deepEqual(Object.keys(view).sort(), [...READ_ONLY_VIEW_METHODS, 'writes'].sort());
+  for (const k of ['arm', 'writerContext', 'applyMigration', 'setSecret', 'deploy', 'registerSecret']) assert.equal(view[k], undefined, k);
+  assert.ok(Object.isFrozen(view));
+  // Source-level: the harness-only step references no write operation, no confirmation and no Keychain generation.
+  const src = harnessOnly.toString();
+  for (const forbidden of ['arm(', 'writerContext', 'applyMigration', 'setSecret', '.deploy(', 'readConfirmation', 'generate(', 'buildDeployBody', 'resolveFiles', 'apply_sql']) assert.ok(!src.includes(forbidden), forbidden);
+});
+
+test('harness-only: any post-harness change of the persistent contract STOPs; only the function version counter is tolerated', async () => {
+  // version bump alone (platform env republish) → still PASS, recorded.
+  const v = harness(INSTALLED_PROD(), KC_PRESENT());
+  const edgeV = fakeEdge(v.prod);
+  v.deps.fetchImpl = async (url, init) => { v.prod.s.fn = { ...v.prod.s.fn, version: 4 }; return edgeV(url, init); };
+  const rv = await run('--harness-only', v);
+  assert.equal(rv.verdict, 'CORE_PROD_TORNEOS_CONTRACT_PASS');
+  assert.deepEqual(rv.function.version, { before: 3, after: 4 });
+  const mutations = [
+    ['catalog', (s) => { s.catalog.public_policies.digest = '0'.repeat(32); }],
+    ['ezbr', (s) => { s.fn = { ...s.fn, ezbr_sha256: 'f'.repeat(64) }; }],
+    ['updated_at', (s) => { s.fn = { ...s.fn, updated_at: s.fn.updated_at + 1 }; }],
+    ['secret names', (s) => { s.secretNames = [...s.secretNames, 'NEW_SECRET']; }],
+    ['ledger', (s) => { s.rows = [...s.rows, { ...BASELINE.rows[0], version: '20260925000000', name: 'y' }]; }],
+    ['acl', (s) => { s.aclOverride = { ...aclOf({ v1: true, v11: true }), stray_objects: 1 }; }],
+  ];
+  for (const [label, mutate] of mutations) {
+    const h = harness(INSTALLED_PROD(), KC_PRESENT());
+    const edge = fakeEdge(h.prod);
+    let done = false;
+    h.deps.fetchImpl = async (url, init) => { if (!done) { mutate(h.prod.s); done = true; } return edge(url, init); };
+    const code = await stopCode(run('--harness-only', h));
+    assert.ok(['POST_STATE_CHANGED', 'ACL_EXPECTATIONS_UNMET', 'LEDGER_UNEXPECTED', 'FUNCTION_ARTIFACT_MISMATCH'].includes(code), `${label}: ${code}`);
+    assert.equal(h.prod.writes.length, 0);
+  }
+});
+
+test('harness-only: the RPC reach is corroborated read-only — pg_stat_statements must count exactly the 3 signed Core calls', async () => {
+  const none = harness({ ...INSTALLED_PROD(), rpcNotCounted: true }, KC_PRESENT());
+  spyEdge(none);
+  assert.equal(await stopCode(run('--harness-only', none)), 'RPC_REACH_NOT_CORROBORATED');
+  const reset = harness(INSTALLED_PROD(), KC_PRESENT());
+  const edge = fakeEdge(reset.prod);
+  reset.deps.fetchImpl = async (url, init) => { reset.prod.s.rpcStats.stats_reset = '2026-09-25 00:00:00+00'; return edge(url, init); };
+  assert.equal(await stopCode(run('--harness-only', reset)), 'RPC_REACH_NOT_CORROBORATED');
+  assert.doesNotThrow(() => assertReadOnlySql(P.RPC_STATS_SQL));
+  assert.match(P.RPC_STATS_SQL, /service_role/);
+  assert.match(P.RPC_STATS_SQL, /pg_stat_statements_info/);
 });

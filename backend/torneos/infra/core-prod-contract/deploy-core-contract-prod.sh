@@ -7,6 +7,8 @@
 #   deploy-core-contract-prod.sh --apply            + phrase on /dev/tty → the 2 authorized migrations, the
 #                                                   Production secret, torneos-core-contract, full certification
 #   deploy-core-contract-prod.sh --acl-only         read-only post-deploy ACL certification
+#   deploy-core-contract-prod.sh --harness-only     certification only: read-only ACL → signed harness 9/9 → read-only
+#                                                   ACL + state comparison (0 Management API writes; no phrase)
 #
 # There is no default mode and no flag that replaces the phrase (--force, -y, --yes, env vars: refused).
 # The target is a constant of prod-contract.mjs; this script takes no ref. The PAT is read from /dev/tty
@@ -17,11 +19,11 @@
 set -euo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 abort() { printf '\n!! %s\n' "$*" >&2; exit 1; }
-USAGE="usage: deploy-core-contract-prod.sh --preflight-only | --dry-run | --apply | --acl-only"
+USAGE="usage: deploy-core-contract-prod.sh --preflight-only | --dry-run | --apply | --acl-only | --harness-only"
 
 [[ $# -eq 1 ]] || abort "CORE_PROD_USAGE — exactly one mode and nothing else ($USAGE)"
 case "$1" in
-  --preflight-only|--dry-run|--apply|--acl-only) MODE="$1" ;;
+  --preflight-only|--dry-run|--apply|--acl-only|--harness-only) MODE="$1" ;;
   --force|-f|--yes|-y|--non-interactive|--no-confirm|--assume-yes|yes|y) abort "CORE_PROD_REFUSED: '$1' is not accepted — a Production write needs the typed phrase on /dev/tty" ;;
   *) abort "CORE_PROD_USAGE ($USAGE)" ;;
 esac

@@ -346,6 +346,16 @@ export function assertNoSecrets(text, known) {
   return true;
 }
 
+// ─────────────────────────── harness-only: read-only corroboration that the RPC is reached ───────────────────────────
+// PostgREST executes torneos_contract_execute as service_role inside a `pgrst_source` statement (Staging capture
+// 2026-09-24: 1703 calls; Production before the API-key fix: 0). The Management API reader runs as another role,
+// so its own statement (which names the function inside a literal) is never counted. Of the 9 certified requests,
+// exactly 3 reach the RPC: signed session, its replay, signed verified-email.
+export const RPC_STATS_SQL = "select json_build_object('calls', coalesce((select sum(s.calls) from extensions.pg_stat_statements s where pg_get_userbyid(s.userid) = 'service_role' and s.query ilike '%pgrst%' and s.query ilike '%torneos_contract_execute%'), 0)::bigint, 'stats_reset', (select i.stats_reset::text from extensions.pg_stat_statements_info i), 'dealloc', (select i.dealloc from extensions.pg_stat_statements_info i)) as rpc_stats";
+export const HARNESS_RPC_CALLS = 3;
+// PROBE_EXPECT indices of the signed requests answered by the RPC (503 CORE_UNAVAILABLE before the API-key fix).
+export const HARNESS_RPC_CASES = Object.freeze([3, 4, 5]);
+
 // ─────────────────────────── invariant: the certified Staging tooling is untouched ───────────────────────────
 // sha256 of each file at d62039c7; the Production tooling only IMPORTS from these, never modifies them.
 export const CERTIFIED_STAGING_TOOLING_SHA256 = Object.freeze({
