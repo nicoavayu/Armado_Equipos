@@ -102,8 +102,8 @@ test('MP-A3 — T5 config / privilege / isolation', async (t) => {
     await check('static: torneos-payments never uses service_role, a Supabase client, Core auth/contract, bridge keys or the baseline apply_tournament_purchase_reversal', async () => {
       assert.ok(Object.keys(sources).length >= 5, 'sources present');
       for (const [file, text] of Object.entries(sources)) {
-        // config.ts's login deny-list names the forbidden roles on purpose; it is the guard, not a use.
-        const code = text.replace(/const FORBIDDEN_DB_LOGINS = new Set\(\[[\s\S]*?\]\)/, '').split('\n').filter(l => !/^\s*(\/\/|\*|\/\*)/.test(l)).join('\n');
+        // config.ts's login and (MP-B1.1 R3) variable deny-lists name the forbidden roles / variables on purpose; they are the guard, not a use.
+        const code = text.replace(/const FORBIDDEN_DB_LOGINS = new Set\(\[[\s\S]*?\]\)/, '').replace(/const FORBIDDEN_PAYMENTS_ENV = new Set\(\[[\s\S]*?\]\)/, '').split('\n').filter(l => !/^\s*(\/\/|\*|\/\*)/.test(l)).join('\n');
         assert.ok(!/service_role|(?<!PAYMENT_)SERVICE_ROLE|SUPABASE_SECRET|sb_secret_|createClient|supabase-js/.test(code), `${file}: service role / supabase client`);
         assert.ok(!/CORE_[A-Z_]+|TORNEOS_BRIDGE_KEYS|TORNEOS_CONTRACT_SERVICE_SECRET|TORNEOS_DB_(IDENTITY_WRITER|CORE_ADAPTER)|\/auth\/v1|torneos-core-contract/.test(code), `${file}: Core / bridge`);
         assert.ok(!/(?<!verified_)tournament_purchase_reversal\b/.test(code.replace(/apply_verified_tournament_payment_reversal/g, '')), `${file}: baseline reversal`);

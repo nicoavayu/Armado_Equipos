@@ -31,10 +31,10 @@ export class NonceCache {
   }
 }
 
-function hex(bytes: ArrayBuffer): string {
+export function hex(bytes: ArrayBuffer): string {
   return Array.from(new Uint8Array(bytes)).map((b) => b.toString(16).padStart(2, "0")).join("")
 }
-function constantTimeEqual(left: string, right: string): boolean {
+export function constantTimeEqual(left: string, right: string): boolean {
   if (left.length !== right.length) return false
   let difference = 0
   for (let i = 0; i < left.length; i += 1) difference |= left.charCodeAt(i) ^ right.charCodeAt(i)

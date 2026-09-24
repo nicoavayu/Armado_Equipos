@@ -1,0 +1,11 @@
+{
+  "project": "arma2-mpb11r3",
+  "containers": 0,
+  "volumes": 0,
+  "networks": 0,
+  "provider_ordering_migration_containers": 0,
+  "compose_yaml_restored": true,
+  "runtime_dir_removed": true,
+  "node_modules_copy_removed": true,
+  "scratch_deno_cache_copy_removed": true
+}

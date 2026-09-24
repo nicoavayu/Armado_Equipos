@@ -55,9 +55,10 @@ test('MP-A3 — T2 provider copy', async (t) => {
         ...(await readdir(repo + PAYMENTS)).filter(f => f.endsWith('.ts')).map(f => PAYMENTS + f)];
       assert.ok(files.length >= 4, 'torneos-payments sources present');
       for (const file of files) {
-        // config.ts's login deny-list names the forbidden roles on purpose; it is the guard, not a use.
-        // Comments may name what is forbidden; only code counts.
+        // config.ts's login and (MP-B1.1 R3) variable deny-lists name the forbidden roles / Core-bridge-admin variables on
+        // purpose; they are the guard, not a use. Comments may name what is forbidden; only code counts.
         const text = (await readFile(repo + file, 'utf8')).replace(/const FORBIDDEN_DB_LOGINS = new Set\(\[[\s\S]*?\]\)/, '')
+          .replace(/const FORBIDDEN_PAYMENTS_ENV = new Set\(\[[\s\S]*?\]\)/, '')
           .split('\n').filter(l => !/^\s*(\/\/|\*|\/\*)/.test(l)).join('\n');
         assert.ok(!/torneosCoreContract|torneos-core-contract|core-client|CORE_[A-Z_]+|\/auth\/v1|supabase-js|createClient|supabaseApiKeys|commercialHttp|SUPABASE_SERVICE_ROLE_KEY|SUPABASE_SECRET|service_role|torneos-gateway\//.test(text), `${file} has a Core / service-role / gateway dependency`);
         for (const spec of importsOf(text)) {

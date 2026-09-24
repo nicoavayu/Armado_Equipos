@@ -1,0 +1,25 @@
+▶ MP-B1.1 R2 — webhook replay / freshness (lab)
+  ✔ lab: commerce lab reachable, provider stub reset (38.488042ms)
+  ✔ auth: bad signature, wrong manifest, malformed ts (9 / 13 digits, letters, missing) → 401, 0 provider reads, domain untouched (2556.693417ms)
+  ✔ freshness: authentic notification with an absurd FUTURE ts (+301 s, +1 h, +1 day, +10 years) → 401 before any provider read; domain untouched (1383.476333ms)
+  ✔ freshness: authentic OLD notification (ts −30 days) → accepted, provider re-fetched, approved; exactly 1 grant (1232.06025ms)
+  ✔ freshness: small forward skew (+60 s) is accepted (and still re-fetched) (352.800083ms)
+  ✔ exact replay (same request id, signature, bytes) ×3 → 200 provider_snapshot_duplicate, re-fetched every time, no new event, 1 grant (1028.687292ms)
+  ✔ same payment repeated (new request ids) and duplicate approved → idempotent: no new event, 1 grant (1185.510542ms)
+  ✔ refund → refunded, grant revoked; duplicate refund (repeat + exact replay) → no new event (1393.33675ms)
+  ✔ old approved notification AFTER refunded (exact replay of the −30 d approved) → re-fetch sees refunded → stays refunded; no second grant (1812.614041ms)
+  ✔ stale provider read: re-fetch returns an OLDER approved snapshot after refunded → MP-B1.2 stale_ignored; refunded preserved; no second grant (1602.842708ms)
+  ✔ dispute → charged_back, grant suspended; duplicate dispute (repeat + exact replay) → no new event (2101.973375ms)
+  ✔ restored → approved, grant restored; OLD disputed notification replayed after restore → re-fetch sees restored → stays approved, grant effective (2319.572167ms)
+  ✔ stale provider read: re-fetch returns an OLDER disputed snapshot after restored → stale_ignored; restored preserved; 1 grant (1583.876292ms)
+  ✔ revoked stays revoked: buyer won (settled) → revoked; old approved / old dispute replays and a stale restored snapshot never revive it (2837.975542ms)
+  ✔ no secret / PII in responses or in torneos-functions / mp-stub logs (156.64425ms)
+✔ MP-B1.1 R2 — webhook replay / freshness (lab) (21591.394667ms)
+ℹ tests 16
+ℹ suites 0
+ℹ pass 16
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 21670.293333

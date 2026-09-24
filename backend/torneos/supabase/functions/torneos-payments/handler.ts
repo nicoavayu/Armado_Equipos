@@ -9,6 +9,7 @@
 //        RPCs (the database is the domain authority; no state machine here).
 // Provider logic is the byte-identical legacy adapter; MP-B1.2 reads its documented ordering field. Responses are whitelists;
 // logs carry route, status and a short code only. MP-B1.1 R2: absurd future signing times are refused (webhook-freshness.ts).
+// MP-B1.1 R3: the webhook signature (10- or 13-digit ts, raw-byte manifest) is verified by webhook-signature.ts.
 import {
   createMercadoPagoPaymentProvider,
   fetchMercadoPagoChargeback,
@@ -19,12 +20,12 @@ import {
   normalizeMercadoPagoPaymentStatus,
   paymentIdFromMercadoPagoChargeback,
   verifyMercadoPagoPaymentBinding,
-  verifyMercadoPagoWebhookSignature,
 } from "../_shared/mercadoPagoPaymentProvider.ts"
 import type { CheckoutPreference, PurchaseProjection } from "../_shared/paymentProvider.ts"
 import { FUNCTION_NAME, INTERNAL_PATH, loadPaymentsConfig, type PaymentsConfig, routePath, WEBHOOK_PATH } from "./config.ts"
 import { NonceCache, verifyInternalRequest } from "./hmac.ts"
 import { webhookTimeVerdict } from "./webhook-freshness.ts"
+import { parseMercadoPagoSignature, verifyMercadoPagoSignature } from "./webhook-signature.ts"
 import { createProviderFetch } from "./lab-fetch.ts"
 import { DbError, type PaymentsDb } from "./rpc.ts"
 
@@ -228,13 +229,15 @@ export function createPaymentsService(deps: ServiceDeps): (req: Request) => Prom
     const dataId = url.searchParams.get("data.id")
     if (!dataId || !/^\d{1,32}$/.test(dataId) || url.searchParams.getAll("data.id").length !== 1) return fail(400, "invalid_request")
 
-    const signatureValid = await verifyMercadoPagoWebhookSignature({
-      xSignature: req.headers.get("x-signature"), xRequestId: req.headers.get("x-request-id"), dataId, secret: cfg.mp.webhookSecret,
+    // MP-B1.1 R3: one parse of x-signature; its RAW ts is what the HMAC covers and what the freshness check judges.
+    const signature = parseMercadoPagoSignature(req.headers.get("x-signature"))
+    const signatureValid = signature !== null && await verifyMercadoPagoSignature({
+      signature, xRequestId: req.headers.get("x-request-id"), dataId, secret: cfg.mp.webhookSecret,
     }).catch(() => false)
-    if (!signatureValid) return fail(401, "invalid_signature")
+    if (!signature || !signatureValid) return fail(401, "invalid_signature")
     // MP-B1.1 R2: an authentic ts absurdly in the future is refused before any provider call. There is no maximum
     // age (webhook-freshness.ts); ts never orders state — only the re-fetched provider time below does.
-    if (webhookTimeVerdict(req.headers.get("x-signature"), now()) !== "ok") return result(401, { error: "invalid_signature" }, "invalid_signature_future_ts")
+    if (webhookTimeVerdict(signature.ts, now()) !== "ok") return result(401, { error: "invalid_signature" }, "invalid_signature_future_ts")
 
     const data = isPlainObject(payload.data) ? payload.data : {}
     const isPayment = payload.type === "payment"

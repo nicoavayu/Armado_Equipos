@@ -1,0 +1,241 @@
+{
+  "suite": "MP-B1.1 R3 Deno 2.x runtime (offline)",
+  "results": [
+    {
+      "name": "runtime: DENO_BIN is a standard Deno 2.x binary",
+      "status": "PASS"
+    },
+    {
+      "name": "resolution: inside the repo the root package.json switches Deno 2 to node_modules resolution → npm: imports fail closed; rooted at the functions tree they resolve",
+      "status": "PASS"
+    },
+    {
+      "name": "type check: payments entrypoint graph type-checks clean on Deno 2.x; gateway type-check reports only the 3 known pre-existing strict-type diagnostics (runtime is unaffected: Deno does not type-check at run time)",
+      "status": "PASS"
+    },
+    {
+      "name": "payments boots on Deno 2.x with the TEST fixture (Deno.serve + Deno.env.toObject + npm:postgres loaded) and serves only its two routes under /functions/v1/torneos-payments",
+      "status": "PASS"
+    },
+    {
+      "name": "payments on Deno 2.x refuses to boot (503 on both routes, \"config_rejected\") with bridge keys, a Core/Supabase admin secret, a PG* variable or a gateway DB login",
+      "status": "PASS"
+    },
+    {
+      "name": "gateway boots on Deno 2.x in remote-test commerce (https + declared hosts): JWKS, /config, /exchange and the commerce route answer under /functions/v1/torneos-gateway; wrong Host → 403; Core unreachable → 503",
+      "status": "PASS"
+    },
+    {
+      "name": "gateway on Deno 2.x refuses to boot (503 everywhere, value-free reason) with a Mercado Pago secret or the payments DB login in its environment",
+      "status": "PASS"
+    }
+  ],
+  "passed": 7,
+  "total": 7,
+  "deno": [
+    "deno 2.1.4 (stable, release, aarch64-apple-darwin)",
+    "v8 13.0.245.12-rusty",
+    "typescript 5.6.2"
+  ],
+  "appRoot": "temporary copy of backend/torneos/supabase/functions",
+  "check": {
+    "payments": {
+      "exit": 0
+    },
+    "gateway": {
+      "exit": 1,
+      "diagnostics": [
+        "TS18046 torneos-gateway/adapter.ts:82:14",
+        "TS2322 torneos-gateway/db.ts:42:5",
+        "TS2322 torneos-gateway/index.ts:66:78"
+      ]
+    }
+  },
+  "payments": [
+    {
+      "case": "GET webhook path",
+      "http": 404,
+      "code": "not_found"
+    },
+    {
+      "case": "gateway path on payments",
+      "http": 404,
+      "code": "not_found"
+    },
+    {
+      "case": "root",
+      "http": 404,
+      "code": "not_found"
+    },
+    {
+      "case": "signed 10-digit seconds",
+      "http": 503,
+      "code": "provider_unavailable"
+    },
+    {
+      "case": "signed 13-digit milliseconds",
+      "http": 503,
+      "code": "provider_unavailable"
+    },
+    {
+      "case": "signed old seconds (−30 d)",
+      "http": 503,
+      "code": "provider_unavailable"
+    },
+    {
+      "case": "signed old milliseconds (−30 d)",
+      "http": 503,
+      "code": "provider_unavailable"
+    },
+    {
+      "case": "signed future +1 d seconds",
+      "http": 401,
+      "code": "invalid_signature"
+    },
+    {
+      "case": "signed future +1 d milliseconds",
+      "http": 401,
+      "code": "invalid_signature"
+    },
+    {
+      "case": "signed leading zero",
+      "http": 401,
+      "code": "invalid_signature"
+    },
+    {
+      "case": "signed 12 digits",
+      "http": 401,
+      "code": "invalid_signature"
+    },
+    {
+      "case": "13-digit header signed as seconds",
+      "http": 401,
+      "code": "invalid_signature"
+    },
+    {
+      "case": "bad signature",
+      "http": 401,
+      "code": "invalid_signature"
+    },
+    {
+      "case": "internal bad HMAC",
+      "http": 401,
+      "code": "unauthorized"
+    },
+    {
+      "case": "internal valid HMAC (DB unreachable offline)",
+      "http": 503,
+      "code": "service_unavailable"
+    },
+    {
+      "log": [
+        "R3_LISTENING",
+        "{\"fn\":\"torneos-payments\",\"route\":\"webhook\",\"status\":503,\"code\":\"provider_unavailable\",\"ms\":4}",
+        "{\"fn\":\"torneos-payments\",\"route\":\"webhook\",\"status\":503,\"code\":\"provider_unavailable\",\"ms\":1}",
+        "{\"fn\":\"torneos-payments\",\"route\":\"webhook\",\"status\":503,\"code\":\"provider_unavailable\",\"ms\":0}",
+        "{\"fn\":\"torneos-payments\",\"route\":\"webhook\",\"status\":503,\"code\":\"provider_unavailable\",\"ms\":0}",
+        "{\"fn\":\"torneos-payments\",\"route\":\"webhook\",\"status\":401,\"code\":\"invalid_signature_future_ts\",\"ms\":1}",
+        "{\"fn\":\"torneos-payments\",\"route\":\"webhook\",\"status\":401,\"code\":\"invalid_signature_future_ts\",\"ms\":0}",
+        "{\"fn\":\"torneos-payments\",\"route\":\"webhook\",\"status\":401,\"code\":\"invalid_signature\",\"ms\":0}",
+        "{\"fn\":\"torneos-payments\",\"route\":\"webhook\",\"status\":401,\"code\":\"invalid_signature\",\"ms\":0}",
+        "{\"fn\":\"torneos-payments\",\"route\":\"webhook\",\"status\":401,\"code\":\"invalid_signature\",\"ms\":0}",
+        "{\"fn\":\"torneos-payments\",\"route\":\"webhook\",\"status\":401,\"code\":\"invalid_signature\",\"ms\":0}",
+        "{\"fn\":\"torneos-payments\",\"route\":\"internal\",\"status\":401,\"code\":\"unauthorized_bad_signature\",\"ms\":0}",
+        "{\"fn\":\"torneos-payments\",\"route\":\"internal\",\"status\":503,\"code\":\"service_unavailable\",\"ms\":4}"
+      ]
+    },
+    {
+      "case": "refused boot: TORNEOS_BRIDGE_KEYS",
+      "http": 503,
+      "code": "service_unavailable",
+      "internal": 503
+    },
+    {
+      "case": "refused boot: TORNEOS_CONTRACT_SERVICE_SECRET",
+      "http": 503,
+      "code": "service_unavailable",
+      "internal": 503
+    },
+    {
+      "case": "refused boot: SUPABASE_SERVICE_ROLE_KEY",
+      "http": 503,
+      "code": "service_unavailable",
+      "internal": 503
+    },
+    {
+      "case": "refused boot: DATABASE_URL",
+      "http": 503,
+      "code": "service_unavailable",
+      "internal": 503
+    },
+    {
+      "case": "refused boot: PGPASSWORD",
+      "http": 503,
+      "code": "service_unavailable",
+      "internal": 503
+    },
+    {
+      "case": "refused boot: gateway DB login",
+      "http": 503,
+      "code": "service_unavailable",
+      "internal": 503
+    }
+  ],
+  "gateway": [
+    {
+      "case": "GET /.well-known/jwks.json",
+      "http": 200,
+      "error": null
+    },
+    {
+      "case": "GET /config",
+      "http": 200,
+      "error": null
+    },
+    {
+      "case": "wrong Host",
+      "http": 403,
+      "error": "origin rejected"
+    },
+    {
+      "case": "POST /exchange without bearer",
+      "http": 401,
+      "error": "access denied"
+    },
+    {
+      "case": "POST /commerce/v1/season-checkout without bearer",
+      "http": 401,
+      "error": "access denied"
+    },
+    {
+      "case": "GET /health (Core unreachable offline)",
+      "http": 503,
+      "error": "access denied"
+    },
+    {
+      "case": "payments path on gateway",
+      "http": 404,
+      "error": "not found"
+    },
+    {
+      "log": [
+        "R3_LISTENING",
+        "{\"fn\":\"torneos-gateway\",\"route\":\"commerce.season_checkout\",\"rid\":\"d216c563-e3cd-44c5-b9a0-c62ca3d8a08d\",\"purchaseId\":null,\"status\":401,\"code\":\"access denied\",\"ms\":0}"
+      ]
+    },
+    {
+      "case": "refused boot: MERCADO_PAGO_TEST_ACCESS_TOKEN",
+      "http": 503,
+      "error": "access denied"
+    },
+    {
+      "case": "refused boot: TORNEOS_PAYMENTS_DB_URL",
+      "http": 503,
+      "error": "access denied"
+    }
+  ],
+  "repoRootPackageJson": {
+    "exit": 1,
+    "error": "error: Could not find a matching package for 'npm:postgres@3.4.7' in the node_modules directory. Ensure you have all your JSR and npm dependencies listed in your deno.json or package.json, then run `d"
+  }
+}

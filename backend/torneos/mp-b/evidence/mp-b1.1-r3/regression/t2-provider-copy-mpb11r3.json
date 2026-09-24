@@ -1,0 +1,43 @@
+{
+  "suite": "MP-A3 T2 provider copy",
+  "parity": {
+    "mercadoPagoPaymentProvider.ts": {
+      "legacy": "1136217d93c55c5f981d45dfa9abfd62f14b26a218df120f5f801d547e547961",
+      "copy": "1136217d93c55c5f981d45dfa9abfd62f14b26a218df120f5f801d547e547961",
+      "identical": true
+    },
+    "paymentProvider.ts": {
+      "legacy": "da5e43266c5107cd1f6183c83046ba49e71343e9102370adb08be8abb4640a40",
+      "copy": "da5e43266c5107cd1f6183c83046ba49e71343e9102370adb08be8abb4640a40",
+      "identical": true
+    }
+  },
+  "results": [
+    {
+      "name": "legacy provider files are byte-identical to the certified legacy (untouched by MP-A3)",
+      "status": "PASS"
+    },
+    {
+      "name": "Torneos _shared holds exactly paymentProvider.ts and mercadoPagoPaymentProvider.ts, each sha256 == legacy",
+      "status": "PASS"
+    },
+    {
+      "name": "copy import graph: paymentProvider.ts imports nothing; mercadoPagoPaymentProvider.ts imports only ./paymentProvider.ts",
+      "status": "PASS"
+    },
+    {
+      "name": "no Core dependency: neither copy nor torneos-payments references Core contract, Core auth, supabase-js, service keys or the gateway",
+      "status": "PASS"
+    },
+    {
+      "name": "torneos-payments imports the provider from the shared copy (not a fork): the only Mercado Pago API origin literal lives in the copy",
+      "status": "PASS"
+    },
+    {
+      "name": "the copy is loadable as-is (Node type stripping): provider exports present, no network at import",
+      "status": "PASS"
+    }
+  ],
+  "passed": 6,
+  "total": 6
+}

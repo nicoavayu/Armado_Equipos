@@ -1,0 +1,417 @@
+{
+  "suite": "MP-A3 T4 webhook",
+  "results": [
+    {
+      "name": "lab: commerce lab reachable (mp-stub up, torneos-payments answers)",
+      "status": "PASS"
+    },
+    {
+      "name": "request rejection: GET/PUT/OPTIONS → 404 without CORS; Origin → 400; body > 32 KiB → 413; invalid JSON → 400; missing/invalid data.id → 400",
+      "status": "PASS"
+    },
+    {
+      "name": "signature: invalid v1 → 401; wrong secret → 401; x-request-id missing → 401; x-signature missing / malformed → 401; signed for another id → 401",
+      "status": "PASS"
+    },
+    {
+      "name": "payload consistency after a valid signature: query/body id mismatch, unknown type, payload live_mode=true, foreign user_id → 400; domain untouched",
+      "status": "PASS"
+    },
+    {
+      "name": "binding: seller mismatch (payment.collector_id) → 422; domain untouched",
+      "status": "PASS"
+    },
+    {
+      "name": "binding: seller mismatch (order.collector) → 422; domain untouched",
+      "status": "PASS"
+    },
+    {
+      "name": "binding: metadata.purchase_id mismatch → 422; domain untouched",
+      "status": "PASS"
+    },
+    {
+      "name": "binding: amount mismatch → 422; domain untouched",
+      "status": "PASS"
+    },
+    {
+      "name": "binding: currency mismatch → 422; domain untouched",
+      "status": "PASS"
+    },
+    {
+      "name": "binding: preference mismatch (order.preference_id) → 422; domain untouched",
+      "status": "PASS"
+    },
+    {
+      "name": "binding: payment live_mode=true → 422; domain untouched",
+      "status": "PASS"
+    },
+    {
+      "name": "binding: payment order type ≠ mercadopago → 422; domain untouched",
+      "status": "PASS"
+    },
+    {
+      "name": "binding: order does not list the payment → 422; domain untouched",
+      "status": "PASS"
+    },
+    {
+      "name": "binding: external_reference of ANOTHER existing purchase (metadata still ours) → 422; both purchases untouched",
+      "status": "PASS"
+    },
+    {
+      "name": "binding: external_reference of no purchase → 404 purchase_not_found; malformed external_reference → 422",
+      "status": "PASS"
+    },
+    {
+      "name": "chargeback binding: chargeback with two payments / live_mode=true / unknown payment → 422; domain untouched",
+      "status": "PASS"
+    },
+    {
+      "name": "pending → 200 pending; purchase pending; no grant",
+      "status": "PASS"
+    },
+    {
+      "name": "duplicate delivery of the same notification → 200, idempotent (one event)",
+      "status": "PASS"
+    },
+    {
+      "name": "approved (same payment, now accredited) → 200 approved; purchase approved; Premium grant granted and effective",
+      "status": "PASS"
+    },
+    {
+      "name": "ordering: missing/malformed provider time cannot be supplied by webhook body",
+      "status": "PASS"
+    },
+    {
+      "name": "approved duplicated → 200 provider_snapshot_duplicate; no second grant",
+      "status": "PASS"
+    },
+    {
+      "name": "out-of-order: a late pending / rejected for the approved payment → 200 stale_ignored; purchase stays approved",
+      "status": "PASS"
+    },
+    {
+      "name": "requiresManualRefund: a second approved payment on the activated purchase → 200 (never 503) duplicate_payment, requiresManualRefund=true; one grant",
+      "status": "PASS"
+    },
+    {
+      "name": "chargeback (topic_chargebacks_wh, payment charged_back/in_process) → 200 reversal_applied; purchase charged_back; grant suspended",
+      "status": "PASS"
+    },
+    {
+      "name": "restored (charged_back/reimbursed) → 200 reversal_applied; purchase approved; grant restored and effective",
+      "status": "PASS"
+    },
+    {
+      "name": "refund (refunded) → 200 reversal_applied; purchase refunded; grant revoked; a later restore is ignored after revocation (200)",
+      "status": "PASS"
+    },
+    {
+      "name": "buyer_won (charged_back/settled after dispute) → 200; purchase charged_back; grant revoked",
+      "status": "PASS"
+    },
+    {
+      "name": "rejected / cancelled / expired are attempts: 200 attempt_*; purchase stays preference_created; a later approved on the same preference activates",
+      "status": "PASS"
+    },
+    {
+      "name": "payment id conflict: a payment already approved for another purchase, re-bound to this one → 422 (22023 TORNEOS_PAYMENT_CONFLICT); no second grant",
+      "status": "PASS"
+    },
+    {
+      "name": "unknown provider status → 202 accepted, domain untouched",
+      "status": "PASS"
+    },
+    {
+      "name": "provider 5xx (payment / merchant order / chargeback read) → 503, domain untouched; the retry then applies",
+      "status": "PASS"
+    },
+    {
+      "name": "no secret / PII in responses nor in torneos-functions / mp-stub logs (tokens, secrets, seller, DB URL, payer e-mail/document)",
+      "status": "PASS"
+    }
+  ],
+  "matrix": [
+    {
+      "scenario": "method GET",
+      "http": 404,
+      "outcome": "not_found"
+    },
+    {
+      "scenario": "method PUT",
+      "http": 404,
+      "outcome": "not_found"
+    },
+    {
+      "scenario": "method OPTIONS",
+      "http": 404,
+      "outcome": "not_found"
+    },
+    {
+      "scenario": "method DELETE",
+      "http": 404,
+      "outcome": "not_found"
+    },
+    {
+      "scenario": "origin",
+      "http": 400,
+      "outcome": "invalid_request"
+    },
+    {
+      "scenario": "oversize",
+      "http": 413,
+      "outcome": "payload_too_large"
+    },
+    {
+      "scenario": "invalid json",
+      "http": 400,
+      "outcome": "invalid_request"
+    },
+    {
+      "scenario": "no data.id",
+      "http": 400,
+      "outcome": "invalid_request"
+    },
+    {
+      "scenario": "non-numeric data.id",
+      "http": 400,
+      "outcome": "invalid_request"
+    },
+    {
+      "scenario": "bad v1",
+      "http": 401,
+      "outcome": "invalid_signature"
+    },
+    {
+      "scenario": "wrong secret",
+      "http": 401,
+      "outcome": "invalid_signature"
+    },
+    {
+      "scenario": "request-id missing",
+      "http": 401,
+      "outcome": "invalid_signature"
+    },
+    {
+      "scenario": "x-signature missing",
+      "http": 401,
+      "outcome": "invalid_signature"
+    },
+    {
+      "scenario": "x-signature malformed",
+      "http": 401,
+      "outcome": "invalid_signature"
+    },
+    {
+      "scenario": "signed other id",
+      "http": 401,
+      "outcome": "invalid_signature"
+    },
+    {
+      "scenario": "query/body mismatch",
+      "http": 400,
+      "outcome": "invalid_notification"
+    },
+    {
+      "scenario": "unknown type",
+      "http": 400,
+      "outcome": "invalid_notification"
+    },
+    {
+      "scenario": "payload live_mode",
+      "http": 400,
+      "outcome": "invalid_notification"
+    },
+    {
+      "scenario": "payload user_id",
+      "http": 400,
+      "outcome": "invalid_notification"
+    },
+    {
+      "scenario": "seller mismatch (payment.collector_id)",
+      "http": 422,
+      "outcome": "payment_verification_failed"
+    },
+    {
+      "scenario": "seller mismatch (order.collector)",
+      "http": 422,
+      "outcome": "payment_verification_failed"
+    },
+    {
+      "scenario": "metadata.purchase_id mismatch",
+      "http": 422,
+      "outcome": "payment_verification_failed"
+    },
+    {
+      "scenario": "amount mismatch",
+      "http": 422,
+      "outcome": "payment_verification_failed"
+    },
+    {
+      "scenario": "currency mismatch",
+      "http": 422,
+      "outcome": "payment_verification_failed"
+    },
+    {
+      "scenario": "preference mismatch (order.preference_id)",
+      "http": 422,
+      "outcome": "payment_verification_failed"
+    },
+    {
+      "scenario": "payment live_mode=true",
+      "http": 422,
+      "outcome": "payment_verification_failed"
+    },
+    {
+      "scenario": "payment order type ≠ mercadopago",
+      "http": 422,
+      "outcome": "payment_verification_failed"
+    },
+    {
+      "scenario": "order does not list the payment",
+      "http": 422,
+      "outcome": "payment_verification_failed"
+    },
+    {
+      "scenario": "external_reference mismatch",
+      "http": 422,
+      "outcome": "payment_verification_failed"
+    },
+    {
+      "scenario": "purchase inexistent",
+      "http": 404,
+      "outcome": "purchase_not_found"
+    },
+    {
+      "scenario": "malformed external_reference",
+      "http": 422,
+      "outcome": "payment_verification_failed"
+    },
+    {
+      "scenario": "chargeback two payments",
+      "http": 422,
+      "outcome": "payment_verification_failed"
+    },
+    {
+      "scenario": "chargeback live_mode",
+      "http": 422,
+      "outcome": "payment_verification_failed"
+    },
+    {
+      "scenario": "chargeback no payments",
+      "http": 422,
+      "outcome": "payment_verification_failed"
+    },
+    {
+      "scenario": "pending",
+      "http": 200,
+      "outcome": "pending"
+    },
+    {
+      "scenario": "duplicate pending",
+      "http": 200,
+      "outcome": "provider_snapshot_duplicate"
+    },
+    {
+      "scenario": "approved",
+      "http": 200,
+      "outcome": "approved"
+    },
+    {
+      "scenario": "approved duplicate",
+      "http": 200,
+      "outcome": "provider_snapshot_duplicate"
+    },
+    {
+      "scenario": "late pending",
+      "http": 200,
+      "outcome": "stale_ignored"
+    },
+    {
+      "scenario": "late rejected",
+      "http": 200,
+      "outcome": "stale_ignored"
+    },
+    {
+      "scenario": "second approved payment",
+      "http": 200,
+      "outcome": "duplicate_payment"
+    },
+    {
+      "scenario": "chargeback disputed",
+      "http": 200,
+      "outcome": "reversal_applied"
+    },
+    {
+      "scenario": "chargeback restored",
+      "http": 200,
+      "outcome": "reversal_applied"
+    },
+    {
+      "scenario": "refund",
+      "http": 200,
+      "outcome": "reversal_applied"
+    },
+    {
+      "scenario": "restore after revocation",
+      "http": 200,
+      "outcome": "reversal_ignored_after_revocation"
+    },
+    {
+      "scenario": "dispute",
+      "http": 200,
+      "outcome": "reversal_applied"
+    },
+    {
+      "scenario": "buyer won",
+      "http": 200,
+      "outcome": "reversal_applied"
+    },
+    {
+      "scenario": "rejected/cc_rejected_insufficient_amount",
+      "http": 200,
+      "outcome": "attempt_rejected"
+    },
+    {
+      "scenario": "cancelled/by_collector",
+      "http": 200,
+      "outcome": "attempt_cancelled"
+    },
+    {
+      "scenario": "cancelled/expired",
+      "http": 200,
+      "outcome": "attempt_expired"
+    },
+    {
+      "scenario": "payment id conflict",
+      "http": 422,
+      "outcome": "purchase_invalid"
+    },
+    {
+      "scenario": "unknown status",
+      "http": 202,
+      "outcome": "unknown_status"
+    },
+    {
+      "scenario": "5xx /v1/payments/:id",
+      "http": 503,
+      "outcome": "provider_unavailable"
+    },
+    {
+      "scenario": "5xx /merchant_orders/:id",
+      "http": 503,
+      "outcome": "provider_unavailable"
+    },
+    {
+      "scenario": "5xx chargeback",
+      "http": 503,
+      "outcome": "provider_unavailable"
+    },
+    {
+      "scenario": "retry after 5xx",
+      "http": 200,
+      "outcome": "approved"
+    }
+  ],
+  "passed": 32,
+  "total": 32
+}

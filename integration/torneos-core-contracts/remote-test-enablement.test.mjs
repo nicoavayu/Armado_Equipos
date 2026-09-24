@@ -264,7 +264,8 @@ test('MP-B1.1 R2 — remote TEST enablement (offline)', async (t) => {
       const files = [...(await readdir(PAY_DIR)).filter(f => f.endsWith('.ts')).map(f => PAY_DIR + f), `${repo}backend/torneos/supabase/functions/_shared/mercadoPagoPaymentProvider.ts`];
       const reads = new Set();
       for (const f of files) {
-        const code = codeOf(await readFile(f, 'utf8'));
+        // MP-B1.1 R3: config.ts's variable deny-list names Core / bridge / gateway-DB variables on purpose (the guard, not a read).
+        const code = codeOf(await readFile(f, 'utf8')).replace(/const FORBIDDEN_PAYMENTS_ENV = new Set\(\[[\s\S]*?\]\)/, '');
         for (const name of envReads(code)) reads.add(name);
         assert.ok(!/TORNEOS_BRIDGE_KEYS|TORNEOS_CONTRACT_SERVICE_SECRET|TORNEOS_DB_(IDENTITY_WRITER|CORE_ADAPTER)|PRIVATE KEY|signing/i.test(code.replace(/-----BEGIN/g, '')), `${f} references Core / bridge signing material`);
       }
@@ -351,27 +352,34 @@ test('MP-B1.1 R2 — remote TEST enablement (offline)', async (t) => {
 
     // ================================================================ F. webhook freshness
     const W = evidence.webhook;
-    await check('F module: the ts parser mirrors the certified verifier (split on ",", first "=", trim, last duplicate wins, exactly 10 digits); future skew is small and documented', async () => {
+    // MP-B1.1 R3 supersedes the R2 parsing contract (10 digits only, value trimmed, last duplicate wins): one Torneos-local
+    // parser (webhook-signature.ts) feeds both the HMAC and this check — raw ts, 10-digit seconds or 13-digit milliseconds,
+    // no whitespace, duplicates refused. The full R3 matrix lives in deno-runtime-hardening.test.mjs.
+    await check('F module: the ts the HMAC covers is the ts the freshness check judges (one parser, raw 10- or 13-digit ts, duplicates refused); future skew is small and documented', async () => {
       assert.ok(!freshness.__missing, freshness.__missing);
-      const { webhookSignatureTimestamp: ts, WEBHOOK_FUTURE_SKEW_S } = freshness;
+      const { parseMercadoPagoSignature: parse } = await import(`${PAY_DIR}webhook-signature.ts`);
+      const { webhookTimestampMs: ms, WEBHOOK_FUTURE_SKEW_S } = freshness;
+      const ts = (header) => { const p = parse(header); return p === null ? null : ms(p.ts); };
+      const V1 = 'a'.repeat(64);
       assert.equal(WEBHOOK_FUTURE_SKEW_S, 300);
-      assert.equal(ts('ts=1790000000,v1=' + 'a'.repeat(64)), 1790000000);
-      assert.equal(ts(' ts = 1790000000 , v1=x'), 1790000000);
-      assert.equal(ts('ts=9999999999,ts=1790000000,v1=x'), 1790000000, 'last duplicate wins, as Object.fromEntries in the verifier');
-      assert.equal(ts('v1=x,ts=1790000000'), 1790000000);
-      for (const bad of [null, '', 'v1=x', 'ts=,v1=x', 'ts=179000000,v1=x', 'ts=1790000000000,v1=x', 'ts=17900000x0,v1=x', 'ts=-179000000,v1=x', 'ts=1790000000.5,v1=x', 'ts=1790000000,ts=abc']) {
+      assert.equal(ts(`ts=1790000000,v1=${V1}`), 1790000000000);
+      assert.equal(ts(`ts=1790000000123,v1=${V1}`), 1790000000123);
+      assert.equal(ts(`v1=${V1},ts=1790000000`), 1790000000000);
+      assert.equal(ts(`ts=1790000000, v1=${V1}`), 1790000000000, 'keys are trimmed');
+      for (const bad of [null, '', `v1=${V1}`, `ts=,v1=${V1}`, `ts=179000000,v1=${V1}`, `ts=17900000x0,v1=${V1}`, `ts=-179000000,v1=${V1}`, `ts=1790000000.5,v1=${V1}`,
+        `ts=1790000000,ts=abc,v1=${V1}`, `ts=9999999999,ts=1790000000,v1=${V1}`, ` ts = 1790000000 , v1=${V1}`, `ts=0790000000,v1=${V1}`, `ts=17900000000,v1=${V1}`]) {
         assert.equal(ts(bad), null, JSON.stringify(bad));
       }
     });
     await check('F module: verdicts — within +300 s → ok; beyond → future; any past value (1 s … 10 years) → ok (Mercado Pago documents no maximum age; retries continue after the third attempt)', async () => {
       const { webhookTimeVerdict: v } = freshness;
       const now = 1_790_000_000_000;
-      const sig = (s) => `ts=${s},v1=${'a'.repeat(64)}`;
       for (const [delta, expected] of [[0, 'ok'], [60, 'ok'], [300, 'ok'], [301, 'future'], [3600, 'future'], [86400 * 365, 'future'], [-1, 'ok'], [-900, 'ok'], [-86400 * 30, 'ok'], [-86400 * 3650, 'ok']]) {
-        assert.equal(v(sig(1_790_000_000 + delta), now), expected, `delta ${delta}`);
+        assert.equal(v(String(1_790_000_000 + delta), now), expected, `delta ${delta}`);
       }
-      assert.equal(v('ts=1790000000123,v1=x', now), 'malformed');
-      assert.equal(v(null, now), 'malformed');
+      assert.equal(v('1790000000123', now), 'ok', 'R3: 13-digit milliseconds are a valid ts');
+      assert.equal(v('1790000301000', now), 'future');
+      assert.equal(v('179000000', now), 'malformed');
     });
 
     // Handler level with an offline fake provider + DB (same shape as the MP-B1.2 handler tests).
@@ -430,23 +438,23 @@ test('MP-B1.1 R2 — remote TEST enablement (offline)', async (t) => {
         assert.deepEqual([r.status, r.body.error, r.fetches, r.db.length], [401, 'invalid_signature', 0, 0], label);
       }
     });
-    await check('F handler: duplicate-ts differential parsing is impossible — "ts=<future>,ts=<now>" is judged on the same ts the verifier signs (accepted); "ts=<now>,ts=<future>" signed on the future ts → rejected', async () => {
+    await check('F handler: duplicate-ts differential parsing is impossible — R3: a repeated ts is ambiguous and refused before any provider call, whichever occurrence is signed', async () => {
       const nowS = Math.floor(Date.parse('2026-09-24T12:00:00Z') / 1000);
       const sign = (ts) => createHmac('sha256', PAY_ENV.MERCADO_PAGO_TEST_WEBHOOK_SECRET).update(`id:1790000000123;request-id:r2-freshness;ts:${ts};`).digest('hex');
       const a = await deliver({ signatureHeader: `ts=${nowS + 86400},ts=${nowS},v1=${sign(nowS)}` });
       const b = await deliver({ signatureHeader: `ts=${nowS},ts=${nowS + 86400},v1=${sign(nowS + 86400)}` });
       W.push({ case: 'duplicate ts: future then now (signed now)', http: a.status }, { case: 'duplicate ts: now then future (signed future)', http: b.status });
-      assert.equal(a.status, 200); assert.deepEqual([b.status, b.fetches], [401, 0]);
+      assert.deepEqual([a.status, a.fetches], [401, 0]); assert.deepEqual([b.status, b.fetches], [401, 0]);
     });
     await check('F source: webhook ts and payment.date_last_updated stay separate — the freshness module never reads date_last_updated; the handler passes only the re-fetched provider date to the ordering RPCs', async () => {
-      const src = await readFile(`${PAY_DIR}webhook-freshness.ts`, 'utf8');
+      const src = await readFile(`${PAY_DIR}webhook-freshness.ts`, 'utf8') + await readFile(`${PAY_DIR}webhook-signature.ts`, 'utf8');
       assert.ok(!/date_last_updated|providerUpdatedAt/.test(codeOf(src)));
       const h = await readFile(`${PAY_DIR}handler.ts`, 'utf8');
       assert.match(h, /const providerUpdatedAt = payment\.date_last_updated/);
       assert.ok(!/webhookTime[\s\S]{0,200}providerUpdatedAt|providerUpdatedAt[^\n]*webhookTime/.test(h), 'no mixing of the two clocks');
       const futureCheck = h.indexOf('webhookTimeVerdict('), fetchCall = h.indexOf('fetchMercadoPagoPayment(paymentId');
       assert.ok(futureCheck > 0 && futureCheck < fetchCall, 'future check precedes the provider re-fetch');
-      assert.ok(h.indexOf('verifyMercadoPagoWebhookSignature(') < futureCheck, 'the signature is verified first (only an authenticated ts is judged)');
+      assert.ok(h.indexOf('verifyMercadoPagoSignature(') > 0 && h.indexOf('verifyMercadoPagoSignature(') < futureCheck, 'the signature is verified first (only an authenticated ts is judged)');
     });
     await check('F provider copy untouched: _shared provider files remain byte-identical to the certified legacy (no fork of the signature verifier)', async () => {
       for (const [file, expected] of Object.entries({ 'paymentProvider.ts': 'da5e43266c5107cd1f6183c83046ba49e71343e9102370adb08be8abb4640a40',

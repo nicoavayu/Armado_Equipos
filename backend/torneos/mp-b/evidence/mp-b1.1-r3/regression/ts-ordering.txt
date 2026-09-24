@@ -1,0 +1,19 @@
+▶ MP-B1.1 R3 — webhook ts 10 / 13 digits vs ordering (lab)
+  ✔ lab: commerce lab reachable, provider stub reset (27.651541ms)
+  ✔ 13-digit ts: authentic (now) → approved, re-fetched, 1 grant; malformed / absurd future 13-digit → 401 with 0 provider reads (2841.417875ms)
+  ✔ exact replay (13-digit) ×2 and duplicate approved (10-digit and 13-digit, new ids) → provider_snapshot_duplicate, re-fetched, no new event, 1 grant (1164.229292ms)
+  ✔ refund (10-digit) → refunded; duplicate refund (13-digit) → no new event; old approved (13-digit, exact replay) after refunded → stays refunded (3078.190875ms)
+  ✔ stale provider snapshot with a NEWER 13-digit ts (+299 s, within skew) → stale_ignored: the ts never outranks date_last_updated (1391.435041ms)
+  ✔ dispute (13-digit) → charged_back; duplicate dispute (10-digit + exact replay) → no new event; restored (10-digit); old disputed (13-digit replay) after restored → stays approved (3775.611625ms)
+  ✔ stale disputed snapshot after restored, notified with a newer 13-digit ts → stale_ignored; restored preserved (1178.126583ms)
+  ✔ revoked (13-digit) never revives: old approved (10-digit replay), old dispute (13-digit replay) and a stale restored snapshot with a newer 13-digit ts; max 1 grant (3088.144708ms)
+  ✔ no secret / PII in responses or in torneos-functions / mp-stub logs (132.486709ms)
+✔ MP-B1.1 R3 — webhook ts 10 / 13 digits vs ordering (lab) (16681.114709ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 10
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 16758.705417

@@ -1,0 +1,718 @@
+{
+  "suite": "MP-B1.1 R3 offline",
+  "results": [
+    {
+      "name": "H1 baseline: the fixture TEST configuration boots",
+      "status": "PASS"
+    },
+    {
+      "name": "H1 payments refuses to boot with gateway / bridge private material (TORNEOS_BRIDGE_KEYS, TORNEOS_CONTRACT_SERVICE_SECRET, gateway DB URLs)",
+      "status": "FAIL",
+      "error": "payments env carries TORNEOS_BRIDGE_KEYS: payments must refuse to boot\n\ntrue !== false\n"
+    },
+    {
+      "name": "H1 payments refuses to boot with Core private material (CORE_SERVICE_ROLE_KEY, CORE_JWT_SECRET)",
+      "status": "FAIL",
+      "error": "payments env carries CORE_SERVICE_ROLE_KEY: payments must refuse to boot\n\ntrue !== false\n"
+    },
+    {
+      "name": "H1 payments refuses to boot with Supabase service-role / admin credentials (SUPABASE_SERVICE_ROLE_KEY, SUPABASE_SECRET_KEYS, SUPABASE_DB_URL)",
+      "status": "FAIL",
+      "error": "payments env carries SUPABASE_SERVICE_ROLE_KEY: payments must refuse to boot\n\ntrue !== false\n"
+    },
+    {
+      "name": "H1 payments refuses to boot with an automatic database binding (DATABASE_URL or any libpq PG* variable postgres.js would silently use)",
+      "status": "FAIL",
+      "error": "payments env carries DATABASE_URL: payments must refuse to boot\n\ntrue !== false\n"
+    },
+    {
+      "name": "H1 not over-broad: Deno Deploy platform variables, shell variables and PUBLIC gateway/Core configuration do not refuse the boot; blank foreign values are ignored",
+      "status": "PASS"
+    },
+    {
+      "name": "H1 runtime: a refused payments configuration serves 503 on both routes, opens no DB connection and logs no value",
+      "status": "FAIL",
+      "error": "TORNEOS_BRIDGE_KEYS /internal/v1/season-checkout-preference\n\n401 !== 503\n"
+    },
+    {
+      "name": "H2 payments refuses a DB URL whose LOGIN is a gateway login (plain, pooler <login>.<ref>, upper case, %-encoded)",
+      "status": "FAIL",
+      "error": "payments DB login torneos_edge_identity_writer: payments must refuse to boot\n\ntrue !== false\n"
+    },
+    {
+      "name": "H2 the rule is the login, not the variable name: the gateway login in TORNEOS_PAYMENTS_DB_URL is refused even when no gateway variable is present",
+      "status": "FAIL",
+      "error": "gateway adapter login through the pooler, no gateway variable present: payments must refuse to boot\n\ntrue !== false\n"
+    },
+    {
+      "name": "H2 the dedicated payments login stays allowed (plain and pooler forms); platform roles stay refused",
+      "status": "PASS"
+    },
+    {
+      "name": "TS module: parse/verify/freshness API present; future skew stays +300 s",
+      "status": "FAIL",
+      "error": "webhook-signature.ts: Cannot find module '/private/tmp/claude-501/-Users-nicoavayu-Downloads-arma2-arma2--claude-worktrees-deno-deploy-runtime-prep-e2a77d/b3cdeb2c-c949-42b2-90ab-a5db7b8fb751/scratchpad/base/backend/torneos/supabase/functions/torneos-payments/webhook-signature.ts' imported from /private/tmp/claude-501/-Users-nicoavayu-Downloads-arma2-arma2--claude-worktrees-deno-deploy-runtime-pre"
+    },
+    {
+      "name": "TS valid signed 10-digit seconds and 13-digit milliseconds (now) → accepted, provider re-fetched",
+      "status": "FAIL",
+      "error": "13-digit milliseconds now"
+    },
+    {
+      "name": "TS OLD authentic notifications (seconds and milliseconds, −1 h / −30 d / −2 y) → accepted (no maximum age) and always re-fetched",
+      "status": "FAIL",
+      "error": "ms −3600"
+    },
+    {
+      "name": "TS future within skew (seconds +1/+60/+300; milliseconds +1 ms/+60 s/+300 000 ms) → accepted",
+      "status": "FAIL",
+      "error": "+1ms"
+    },
+    {
+      "name": "TS absurd future (seconds +301 s/+1 d/+10 y; milliseconds +300 001 ms/+1 d/+10 y) → 401 before any provider or DB call",
+      "status": "PASS"
+    },
+    {
+      "name": "TS malformed ts (lengths 9/11/12/14/19, leading zero, float, exponent, sign, whitespace, garbage, non-ASCII digits) → 401 before any provider call even when HMAC-signed over itself",
+      "status": "FAIL",
+      "error": "leading zero, 10 digits"
+    },
+    {
+      "name": "TS duplicate ts / v1 keys are ambiguous → 401 (whichever occurrence is signed); unknown extra keys are ignored; key spacing is tolerated",
+      "status": "FAIL",
+      "error": "ts future then now (signed now)"
+    },
+    {
+      "name": "TS bad signature / wrong secret / wrong request id → 401 before any provider call (10 and 13 digits)",
+      "status": "PASS"
+    },
+    {
+      "name": "RAW HMAC: the manifest carries the ts bytes exactly as received — a 13-digit ts signed as its seconds, or a 10-digit ts signed as milliseconds, is refused",
+      "status": "FAIL",
+      "error": "13-digit header, v1 over the raw 13 digits"
+    },
+    {
+      "name": "RAW HMAC: normalisation exists only in the freshness module (seconds → ×1000, milliseconds as is) and never feeds the manifest",
+      "status": "FAIL",
+      "error": "freshness.webhookTimestampMs is not a function"
+    },
+    {
+      "name": "RAW HMAC: the byte-pinned shared provider copy is untouched (no fork of the legacy file)",
+      "status": "PASS"
+    },
+    {
+      "name": "ORD the ordering RPC receives the re-fetched provider date_last_updated verbatim — never the webhook ts (10 or 13 digits) nor the body date",
+      "status": "FAIL",
+      "error": "1790251200999"
+    },
+    {
+      "name": "DD module graph: both entrypoints import only relative files inside backend/torneos/supabase/functions, pinned npm:jose@6.2.12 / npm:postgres@3.4.7, and JSON with `with { type: \"json\" }`",
+      "status": "PASS"
+    },
+    {
+      "name": "DD runtime APIs: only Deno.serve and Deno.env (plus Web platform APIs) — no EdgeRuntime, filesystem, subprocess, KV, cron, FFI, process.env or edge-runtime paths",
+      "status": "PASS"
+    },
+    {
+      "name": "DD routing: /functions/v1/<app>/… is served as-is (no hostname, no platform prefix required); webhook path and notification URL contract unchanged",
+      "status": "PASS"
+    },
+    {
+      "name": "DD remote-test still demands HTTPS and the exact declared hosts (http payments URL / wrong host → CommerceConfigError)",
+      "status": "PASS"
+    },
+    {
+      "name": "ISO contract: two separate apps, APP-level variables only, no organization variables, no database integration, no frontend secrets; certification = CODE_READY (not REMOTE_PLATFORM_CERTIFIED)",
+      "status": "PASS"
+    },
+    {
+      "name": "ISO contract ↔ code: every variable each runtime reads is declared for that app; payments boot-refuses every variable its contract forbids; the gateway boot-refuses (remote-test) every payments secret",
+      "status": "FAIL",
+      "error": "payments boots with forbidden TORNEOS_BRIDGE_KEYS\n\ntrue !== false\n"
+    },
+    {
+      "name": "ISO frontend: 0 secrets — src/ names no gateway, payments, Core-private, Supabase-admin or Deno Deploy secret and exposes no REACT_APP_* secret",
+      "status": "PASS"
+    }
+  ],
+  "passed": 12,
+  "total": 29,
+  "h1": [
+    {
+      "case": "fixture TEST configuration",
+      "verdict": "ACCEPTED",
+      "reason": null
+    },
+    {
+      "case": "payments env carries TORNEOS_BRIDGE_KEYS",
+      "verdict": "ACCEPTED",
+      "reason": null
+    },
+    {
+      "case": "payments env carries CORE_SERVICE_ROLE_KEY",
+      "verdict": "ACCEPTED",
+      "reason": null
+    },
+    {
+      "case": "payments env carries SUPABASE_SERVICE_ROLE_KEY",
+      "verdict": "ACCEPTED",
+      "reason": null
+    },
+    {
+      "case": "payments env carries DATABASE_URL",
+      "verdict": "ACCEPTED",
+      "reason": null
+    },
+    {
+      "case": "platform / shell / public configuration",
+      "verdict": "ACCEPTED",
+      "reason": null
+    },
+    {
+      "case": "blank TORNEOS_BRIDGE_KEYS",
+      "verdict": "ACCEPTED",
+      "reason": null
+    },
+    {
+      "case": "blank TORNEOS_CONTRACT_SERVICE_SECRET",
+      "verdict": "ACCEPTED",
+      "reason": null
+    },
+    {
+      "case": "blank TORNEOS_DB_IDENTITY_WRITER_URL",
+      "verdict": "ACCEPTED",
+      "reason": null
+    },
+    {
+      "case": "blank TORNEOS_DB_CORE_ADAPTER_URL",
+      "verdict": "ACCEPTED",
+      "reason": null
+    },
+    {
+      "case": "blank CORE_SERVICE_ROLE_KEY",
+      "verdict": "ACCEPTED",
+      "reason": null
+    },
+    {
+      "case": "blank CORE_JWT_SECRET",
+      "verdict": "ACCEPTED",
+      "reason": null
+    },
+    {
+      "case": "blank SUPABASE_SERVICE_ROLE_KEY",
+      "verdict": "ACCEPTED",
+      "reason": null
+    },
+    {
+      "case": "blank SUPABASE_SECRET_KEYS",
+      "verdict": "ACCEPTED",
+      "reason": null
+    },
+    {
+      "case": "blank SUPABASE_DB_URL",
+      "verdict": "ACCEPTED",
+      "reason": null
+    },
+    {
+      "case": "blank DATABASE_URL",
+      "verdict": "ACCEPTED",
+      "reason": null
+    },
+    {
+      "case": "blank PGHOST",
+      "verdict": "ACCEPTED",
+      "reason": null
+    },
+    {
+      "case": "blank PGPORT",
+      "verdict": "ACCEPTED",
+      "reason": null
+    },
+    {
+      "case": "blank PGUSER",
+      "verdict": "ACCEPTED",
+      "reason": null
+    },
+    {
+      "case": "blank PGUSERNAME",
+      "verdict": "ACCEPTED",
+      "reason": null
+    },
+    {
+      "case": "blank PGPASSWORD",
+      "verdict": "ACCEPTED",
+      "reason": null
+    },
+    {
+      "case": "blank PGDATABASE",
+      "verdict": "ACCEPTED",
+      "reason": null
+    },
+    {
+      "case": "blank PGAPPNAME",
+      "verdict": "ACCEPTED",
+      "reason": null
+    },
+    {
+      "case": "blank PGTARGETSESSIONATTRS",
+      "verdict": "ACCEPTED",
+      "reason": null
+    },
+    {
+      "case": "blank PGSSL",
+      "verdict": "ACCEPTED",
+      "reason": null
+    },
+    {
+      "case": "blank PGIDLE_TIMEOUT",
+      "verdict": "ACCEPTED",
+      "reason": null
+    },
+    {
+      "case": "blank PGCONNECT_TIMEOUT",
+      "verdict": "ACCEPTED",
+      "reason": null
+    },
+    {
+      "case": "blank PGMAX_LIFETIME",
+      "verdict": "ACCEPTED",
+      "reason": null
+    },
+    {
+      "case": "blank PGDEBUG",
+      "verdict": "ACCEPTED",
+      "reason": null
+    },
+    {
+      "case": "blank PGFETCH_TYPES",
+      "verdict": "ACCEPTED",
+      "reason": null
+    },
+    {
+      "case": "blank PGSSLMODE",
+      "verdict": "ACCEPTED",
+      "reason": null
+    },
+    {
+      "case": "blank PGPASSFILE",
+      "verdict": "ACCEPTED",
+      "reason": null
+    },
+    {
+      "case": "blank PGSERVICE",
+      "verdict": "ACCEPTED",
+      "reason": null
+    },
+    {
+      "case": "blank PGOPTIONS",
+      "verdict": "ACCEPTED",
+      "reason": null
+    },
+    {
+      "case": "blank PGRST_JWT_SECRET",
+      "verdict": "ACCEPTED",
+      "reason": null
+    },
+    {
+      "case": "blank PGRST_DB_URI",
+      "verdict": "ACCEPTED",
+      "reason": null
+    }
+  ],
+  "h2": [
+    {
+      "case": "payments DB login torneos_edge_identity_writer",
+      "verdict": "ACCEPTED",
+      "reason": null
+    },
+    {
+      "case": "gateway adapter login through the pooler, no gateway variable present",
+      "verdict": "ACCEPTED",
+      "reason": null
+    },
+    {
+      "case": "payments DB login payments_login",
+      "verdict": "ACCEPTED",
+      "reason": null
+    },
+    {
+      "case": "payments DB login torneos_payments_login",
+      "verdict": "ACCEPTED",
+      "reason": null
+    },
+    {
+      "case": "payments DB login torneos_payments_login.abcdefghijklmnopqrst",
+      "verdict": "ACCEPTED",
+      "reason": null
+    },
+    {
+      "case": "payments DB login lab_payment_service",
+      "verdict": "ACCEPTED",
+      "reason": null
+    },
+    {
+      "case": "payments DB login postgres",
+      "verdict": "REJECTED",
+      "reason": "TORNEOS_PAYMENTS_DB_URL must be the dedicated payments login"
+    },
+    {
+      "case": "payments DB login service_role",
+      "verdict": "REJECTED",
+      "reason": "TORNEOS_PAYMENTS_DB_URL must be the dedicated payments login"
+    },
+    {
+      "case": "payments DB login supabase_admin",
+      "verdict": "REJECTED",
+      "reason": "TORNEOS_PAYMENTS_DB_URL must be the dedicated payments login"
+    },
+    {
+      "case": "payments DB login authenticator",
+      "verdict": "REJECTED",
+      "reason": "TORNEOS_PAYMENTS_DB_URL must be the dedicated payments login"
+    },
+    {
+      "case": "payments DB login anon",
+      "verdict": "REJECTED",
+      "reason": "TORNEOS_PAYMENTS_DB_URL must be the dedicated payments login"
+    },
+    {
+      "case": "payments DB login authenticated",
+      "verdict": "REJECTED",
+      "reason": "TORNEOS_PAYMENTS_DB_URL must be the dedicated payments login"
+    },
+    {
+      "case": "payments DB login torneos_payment_service",
+      "verdict": "REJECTED",
+      "reason": "TORNEOS_PAYMENTS_DB_URL must be the dedicated payments login"
+    }
+  ],
+  "ts": [
+    {
+      "case": "10-digit seconds now",
+      "expected": "accepted",
+      "http": 200,
+      "outcome": "replayed",
+      "providerFetches": 2,
+      "dbCalls": 2
+    },
+    {
+      "case": "13-digit milliseconds now",
+      "expected": "accepted",
+      "http": 401,
+      "outcome": "invalid_signature",
+      "providerFetches": 0,
+      "dbCalls": 0
+    },
+    {
+      "case": "old seconds −3600s",
+      "expected": "accepted",
+      "http": 200,
+      "outcome": "replayed",
+      "providerFetches": 2,
+      "dbCalls": 2
+    },
+    {
+      "case": "old milliseconds −3600s",
+      "expected": "accepted",
+      "http": 401,
+      "outcome": "invalid_signature",
+      "providerFetches": 0,
+      "dbCalls": 0
+    },
+    {
+      "case": "future seconds +1s",
+      "expected": "accepted",
+      "http": 200,
+      "outcome": "replayed",
+      "providerFetches": 2,
+      "dbCalls": 2
+    },
+    {
+      "case": "future seconds +60s",
+      "expected": "accepted",
+      "http": 200,
+      "outcome": "replayed",
+      "providerFetches": 2,
+      "dbCalls": 2
+    },
+    {
+      "case": "future seconds +300s",
+      "expected": "accepted",
+      "http": 200,
+      "outcome": "replayed",
+      "providerFetches": 2,
+      "dbCalls": 2
+    },
+    {
+      "case": "future milliseconds +1ms",
+      "expected": "accepted",
+      "http": 401,
+      "outcome": "invalid_signature",
+      "providerFetches": 0,
+      "dbCalls": 0
+    },
+    {
+      "case": "future seconds +301s",
+      "expected": 401,
+      "http": 401,
+      "outcome": "invalid_signature",
+      "providerFetches": 0,
+      "dbCalls": 0
+    },
+    {
+      "case": "future seconds +86400s",
+      "expected": 401,
+      "http": 401,
+      "outcome": "invalid_signature",
+      "providerFetches": 0,
+      "dbCalls": 0
+    },
+    {
+      "case": "future seconds +315360000s",
+      "expected": 401,
+      "http": 401,
+      "outcome": "invalid_signature",
+      "providerFetches": 0,
+      "dbCalls": 0
+    },
+    {
+      "case": "future milliseconds +300001ms",
+      "expected": 401,
+      "http": 401,
+      "outcome": "invalid_signature",
+      "providerFetches": 0,
+      "dbCalls": 0
+    },
+    {
+      "case": "future milliseconds +86400000ms",
+      "expected": 401,
+      "http": 401,
+      "outcome": "invalid_signature",
+      "providerFetches": 0,
+      "dbCalls": 0
+    },
+    {
+      "case": "future milliseconds +315360000000ms",
+      "expected": 401,
+      "http": 401,
+      "outcome": "invalid_signature",
+      "providerFetches": 0,
+      "dbCalls": 0
+    },
+    {
+      "case": "malformed: empty",
+      "expected": 401,
+      "http": 401,
+      "outcome": "invalid_signature",
+      "providerFetches": 0,
+      "dbCalls": 0
+    },
+    {
+      "case": "malformed: 9 digits",
+      "expected": 401,
+      "http": 401,
+      "outcome": "invalid_signature",
+      "providerFetches": 0,
+      "dbCalls": 0
+    },
+    {
+      "case": "malformed: 11 digits",
+      "expected": 401,
+      "http": 401,
+      "outcome": "invalid_signature",
+      "providerFetches": 0,
+      "dbCalls": 0
+    },
+    {
+      "case": "malformed: 12 digits",
+      "expected": 401,
+      "http": 401,
+      "outcome": "invalid_signature",
+      "providerFetches": 0,
+      "dbCalls": 0
+    },
+    {
+      "case": "malformed: 14 digits",
+      "expected": 401,
+      "http": 401,
+      "outcome": "invalid_signature",
+      "providerFetches": 0,
+      "dbCalls": 0
+    },
+    {
+      "case": "malformed: 19 digits (overflow)",
+      "expected": 401,
+      "http": 401,
+      "outcome": "invalid_signature",
+      "providerFetches": 0,
+      "dbCalls": 0
+    },
+    {
+      "case": "malformed: unsafe integer (16 digits)",
+      "expected": 401,
+      "http": 401,
+      "outcome": "invalid_signature",
+      "providerFetches": 0,
+      "dbCalls": 0
+    },
+    {
+      "case": "malformed: leading zero, 10 digits",
+      "expected": 401,
+      "http": 200,
+      "outcome": "replayed",
+      "providerFetches": 2,
+      "dbCalls": 2
+    },
+    {
+      "case": "duplicate: ts future then now (signed now)",
+      "expected": 401,
+      "http": 200,
+      "outcome": "replayed",
+      "providerFetches": 2,
+      "dbCalls": 2
+    },
+    {
+      "case": "bad v1 (10)",
+      "expected": 401,
+      "http": 401,
+      "outcome": "invalid_signature",
+      "providerFetches": 0,
+      "dbCalls": 0
+    },
+    {
+      "case": "wrong secret (10)",
+      "expected": 401,
+      "http": 401,
+      "outcome": "invalid_signature",
+      "providerFetches": 0,
+      "dbCalls": 0
+    },
+    {
+      "case": "other request id (10)",
+      "expected": 401,
+      "http": 401,
+      "outcome": "invalid_signature",
+      "providerFetches": 0,
+      "dbCalls": 0
+    },
+    {
+      "case": "bad v1 (13)",
+      "expected": 401,
+      "http": 401,
+      "outcome": "invalid_signature",
+      "providerFetches": 0,
+      "dbCalls": 0
+    },
+    {
+      "case": "wrong secret (13)",
+      "expected": 401,
+      "http": 401,
+      "outcome": "invalid_signature",
+      "providerFetches": 0,
+      "dbCalls": 0
+    },
+    {
+      "case": "other request id (13)",
+      "expected": 401,
+      "http": 401,
+      "outcome": "invalid_signature",
+      "providerFetches": 0,
+      "dbCalls": 0
+    }
+  ],
+  "rawHmac": [
+    {
+      "case": "13-digit header, v1 over the raw 13 digits",
+      "expected": "accepted",
+      "http": 401,
+      "providerFetches": 0
+    }
+  ],
+  "ordering": [
+    {
+      "ts": "1790251200",
+      "http": 200,
+      "orderingArg": "2026-09-24T11:00:00.123-03:00"
+    },
+    {
+      "ts": "1790251200999",
+      "http": 401,
+      "orderingArg": null
+    }
+  ],
+  "deno": {
+    "moduleGraph": {
+      "gateway": {
+        "files": [
+          "torneos-gateway/adapter.ts",
+          "torneos-gateway/commerce-test-rpc-allowlist.json",
+          "torneos-gateway/commerce.ts",
+          "torneos-gateway/config.ts",
+          "torneos-gateway/core-client.ts",
+          "torneos-gateway/db.ts",
+          "torneos-gateway/index.ts",
+          "torneos-gateway/schemas.json",
+          "torneos-gateway/session.schema.json",
+          "torneos-gateway/staging-v1-rpc-allowlist.json",
+          "torneos-gateway/token.ts",
+          "torneos-payments/hmac.ts",
+          "torneos-payments/remote-hosts.ts"
+        ],
+        "imports": [
+          "./torneos-gateway/adapter.ts",
+          "./torneos-gateway/commerce-test-rpc-allowlist.json",
+          "./torneos-gateway/commerce.ts",
+          "./torneos-gateway/config.ts",
+          "./torneos-gateway/core-client.ts",
+          "./torneos-gateway/db.ts",
+          "./torneos-gateway/schemas.json",
+          "./torneos-gateway/session.schema.json",
+          "./torneos-gateway/staging-v1-rpc-allowlist.json",
+          "./torneos-gateway/token.ts",
+          "./torneos-payments/hmac.ts",
+          "./torneos-payments/remote-hosts.ts",
+          "npm:jose@6.2.12",
+          "npm:postgres@3.4.7"
+        ]
+      },
+      "payments": {
+        "files": [
+          "_shared/mercadoPagoPaymentProvider.ts",
+          "_shared/paymentProvider.ts",
+          "torneos-payments/config.ts",
+          "torneos-payments/db.ts",
+          "torneos-payments/handler.ts",
+          "torneos-payments/hmac.ts",
+          "torneos-payments/index.ts",
+          "torneos-payments/lab-fetch.ts",
+          "torneos-payments/remote-hosts.ts",
+          "torneos-payments/rpc.ts",
+          "torneos-payments/webhook-freshness.ts"
+        ],
+        "imports": [
+          "./_shared/mercadoPagoPaymentProvider.ts",
+          "./_shared/paymentProvider.ts",
+          "./torneos-payments/config.ts",
+          "./torneos-payments/db.ts",
+          "./torneos-payments/handler.ts",
+          "./torneos-payments/hmac.ts",
+          "./torneos-payments/lab-fetch.ts",
+          "./torneos-payments/remote-hosts.ts",
+          "./torneos-payments/rpc.ts",
+          "./torneos-payments/webhook-freshness.ts",
+          "npm:postgres@3.4.7"
+        ]
+      }
+    },
+    "denoApis": [
+      "Deno.env",
+      "Deno.env.toObject",
+      "Deno.serve"
+    ]
+  },
+  "isolation": {
+    "contractSha256": "5246c9d89f875217cad8c17af88ded5ee73b5923cfc24574f6402a79a5f2ad0b",
+    "frontendFilesScanned": 912,
+    "frontendSecrets": 0
+  }
+}

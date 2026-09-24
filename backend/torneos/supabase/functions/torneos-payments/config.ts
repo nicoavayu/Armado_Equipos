@@ -21,13 +21,24 @@ export const INTERNAL_PATH = "/internal/v1/season-checkout-preference"
 export const WEBHOOK_PATH = "/webhooks/mercadopago/v1"
 const PRODUCTION_REF = "rcyuuoaqfwcembdajcss"
 const LAB_DB_HOSTS = new Set(["torneos-db"])
-// Logins that are never the payments identity: platform/API roles, owners, and the gateway's own logins.
+// Logins that are never the payments identity: platform/API roles, owners, and the gateway's own logins
+// (MP-B1.1 R3: including the hosted torneos_edge_* logins the gateway connects with).
 const FORBIDDEN_DB_LOGINS = new Set([
   "postgres", "supabase_admin", "supabase_auth_admin", "supabase_storage_admin", "supabase_replication_admin",
   "supabase_read_only_user", "supabase_realtime_admin", "dashboard_user", "pgbouncer", "service_role", "authenticator",
   "anon", "authenticated", "torneos_payment_service", "torneos_identity_writer", "torneos_core_adapter",
-  "lab_identity_writer", "lab_core_adapter",
+  "torneos_edge_identity_writer", "torneos_edge_core_adapter", "lab_identity_writer", "lab_core_adapter",
 ])
+// MP-B1.1 R3: material that belongs to the gateway, Core, the Supabase admin plane or a platform database binding.
+// Its presence means the secret scope is not the dedicated payments app's own: the boot is refused. Exact names of
+// private values only (public configuration stays tolerated); PG* variables are refused as a family because
+// postgres.js 3.4.7 silently reads PGHOST/PGUSER/PGPASSWORD/PGDATABASE/… and PG<OPTION> (PGSSL, PGIDLE_TIMEOUT, …)
+// for anything the URL and the options leave unset.
+const FORBIDDEN_PAYMENTS_ENV = new Set([
+  "TORNEOS_BRIDGE_KEYS", "TORNEOS_CONTRACT_SERVICE_SECRET", "TORNEOS_DB_IDENTITY_WRITER_URL", "TORNEOS_DB_CORE_ADAPTER_URL",
+  "CORE_SERVICE_ROLE_KEY", "CORE_JWT_SECRET", "SUPABASE_SERVICE_ROLE_KEY", "SUPABASE_SECRET_KEYS", "SUPABASE_DB_URL", "DATABASE_URL",
+])
+const FORBIDDEN_PAYMENTS_ENV_RE = /^PG[A-Z_]+$/
 // Every Mercado Pago variable the service may see; anything else (MERCADO_PAGO_ACCESS_TOKEN, *_LIVE_*,
 // *_PRODUCTION_* …) is a live-looking credential and refuses the boot.
 const ALLOWED_MERCADO_PAGO_VARS = new Set([
@@ -87,6 +98,9 @@ export function loadPaymentsConfig(env: Env): PaymentsConfig {
   if (required(env, "TORNEOS_PAYMENT_PROVIDER") !== "MERCADO_PAGO") throw new ConfigError("provider must be MERCADO_PAGO")
   for (const name of Object.keys(env)) {
     if (name.startsWith("MERCADO_PAGO_") && !ALLOWED_MERCADO_PAGO_VARS.has(name)) throw new ConfigError(`refusing ${name}`)
+    if ((env[name] ?? "").trim() && (FORBIDDEN_PAYMENTS_ENV.has(name) || FORBIDDEN_PAYMENTS_ENV_RE.test(name))) {
+      throw new ConfigError(`refusing ${name} in the payments service`)
+    }
   }
   let mp: MercadoPagoTestConfig
   try {
