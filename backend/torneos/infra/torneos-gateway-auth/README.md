@@ -88,9 +88,11 @@ A second run of a write mode is `…_ALREADY_APPLIED` and writes nothing.
 
 ### Remote delta, exactly
 
-**W1 — Auth lockdown.** The body is exactly `{disable_signup: true, external_email_enabled: false, external_phone_enabled: false, external_anonymous_users_enabled: false, site_url: "https://app.arma2.com.ar"}`.
-- Google, Apple, GitHub, Azure, SAML and the access-token hook must already be off. If any is on, STOP.
-- The post-check proves that every other Auth setting is unchanged.
+**W1 — Auth lockdown.** The body is exactly six keys: `{disable_signup: true, external_email_enabled: false, external_phone_enabled: false, external_anonymous_users_enabled: false, site_url: "https://app.arma2.com.ar", mfa_totp_enroll_enabled: false}`.
+- `mfa_totp_enroll_enabled` joined the body on 2026-09-25: the hosted default is `true`, and the first W1 pre-check stopped on it (`ga-02-auth-lockdown-supplement-pre-20260925T204557Z.json`, 0 writes).
+- Every other sign-in / enrollment path is a check only, never written: `AUTH_MUST_BE_OFF` (custom OAuth, OAuth server, passkeys, SAML, manual linking, phone / WebAuthn MFA enroll, Web3, Google, Apple, GitHub, Azure, the access-token hook) plus every other `external_*_enabled` and `hook_*_enabled` the API returns (37 flags on the hosted project). Any that is not `false`, or a named one missing from the answer: STOP.
+- Pre-check also requires 0 `auth.users` and 0 third-party auth integrations.
+- The post-check compares a per-key sha256 of the WHOLE Auth answer before and after (kept in memory; only key names reach evidence): any key outside the body that moved fails it. Then GoTrue on the Torneos host (`auth-probe.mjs`) must answer `/settings` locked and refuse email signup, anonymous signup, email OTP and phone OTP (`.invalid` address, the first 2xx stops); after the probes: still 0 users, 0 third-party auth, nothing moved.
 
 **W2 + W3 — one psql transaction.** It runs over the Session Pooler as `postgres.<torneos>`, `verify-full`, with the SQL on stdin:
 ```
@@ -130,7 +132,7 @@ Resource access is always Organization `gwqrborhnqjdzzmpxulh`, with a 24 h expir
 | Mode | Permissions |
 |---|---|
 | `--preflight` | Read: API Keys, Auth Config, Connection Pooling, Data API Config, Database, Edge Function Secrets, Edge Functions, Migrations, Organization Settings, Project Settings, Projects (account-wide) |
-| `--auth-lockdown` | **Auth Config: Read-write**, **Project Settings: Read-write**, Database: Read, Edge Functions: Read, Organization Settings: Read, Projects (account-wide): Read |
+| `--auth-lockdown` | **Auth Config: Read-write**, **Project Settings: Read-write**, API Keys: Read (publishable key for the GoTrue refusal probes), Database: Read, Edge Functions: Read, Organization Settings: Read, Projects (account-wide): Read |
 | `--db-bootstrap` | Read: Auth Config, Connection Pooling, Database, Edge Functions, Organization Settings, Project Settings, Projects. The DB write uses the Keychain installer password (`arma2-torneos-dataplane-db/postgres`), not the PAT. |
 | `--keyring-generate` | Read: Auth Config, Database, Edge Functions, Organization Settings, Project Settings, Projects |
 | `--b03` | **Auth Config: Read-write**, API Keys: Read, Database: Read, Edge Functions: Read, Organization Settings: Read, Project Settings: Read, Projects (account-wide): Read |

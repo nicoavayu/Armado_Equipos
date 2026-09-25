@@ -1,0 +1,208 @@
+{
+ "annotation": "OFFLINE REHEARSAL 20260925T210323Z — local public.ecr.aws/supabase/postgres:17.6.1.147 (internal network) + public.ecr.aws/supabase/postgrest:v14.15, emulated Management API / Keychain / tty; NOT a remote run",
+ "tool": "backend/torneos/infra/torneos-gateway-auth",
+ "generated_at": "2026-09-25T21:03:36.005Z",
+ "mode": "--deploy-preflight",
+ "core": {
+  "prod": "ACTIVE_HEALTHY",
+  "prod_contract": {
+   "status": "ACTIVE",
+   "ezbr": "1072419517953eee8e8021f9691d1a5b1efb1f871c4d13290f644d119caded2c",
+   "verify_jwt": false
+  },
+  "staging": "INACTIVE",
+  "old": "INACTIVE",
+  "torneos": "ACTIVE_HEALTHY"
+ },
+ "state": {
+  "W1": "applied",
+  "W2_W3": "applied",
+  "KR": "present",
+  "W5": "applied",
+  "edge_functions": 0,
+  "custody": {
+   "dataplane_installer": "PRESENT",
+   "gateway_logins": "PRESENT",
+   "ring": "PRESENT",
+   "jwks_pin": {
+    "file": "ga-rehearsal-jwks-70830.json",
+    "kids": [
+     "arma2-torneos-prod-k1-RcF43ss5Dt0wSViO",
+     "arma2-torneos-prod-k2-1BUtcqDt4ps_IR4k"
+    ],
+    "digest": "a4730dac38afaa493bdd69f52dac10d041c1fee71a830580acd8169899c33bc6"
+   }
+  }
+ },
+ "failures": [],
+ "read_only": true,
+ "verdict": "GATEWAY_DEPLOY_PREFLIGHT_PASS",
+ "pending_decisions": [],
+ "gateway_env": {
+  "secrets": [
+   "TORNEOS_CONTRACT_SERVICE_SECRET",
+   "TORNEOS_BRIDGE_KEYS",
+   "TORNEOS_DB_IDENTITY_WRITER_URL",
+   "TORNEOS_DB_CORE_ADAPTER_URL"
+  ],
+  "config": [
+   "TORNEOS_GATEWAY_PUBLIC_URL",
+   "TORNEOS_ALLOWED_ORIGIN",
+   "CORE_AUTH_URL",
+   "CORE_JWT_ISSUER",
+   "CORE_ANON_KEY",
+   "CORE_CONTRACT_URL",
+   "TORNEOS_REST_URL",
+   "TORNEOS_ANON_KEY",
+   "TORNEOS_DB_SSL_CA"
+  ],
+  "deploy_time_public_inputs": [
+   "CORE_ANON_KEY (Core Production publishable key, public by design)"
+  ],
+  "organization_variables": [],
+  "supabase_edge_functions": 0
+ },
+ "validation": {
+  "topology": {
+   "kind": "production",
+   "coreRef": "rcyuuoaqfwcembdajcss",
+   "dataRef": "onzpwnqxnvlgsevivngf"
+  },
+  "commerce": "off",
+  "activeKid": "arma2-torneos-prod-k1-RcF43ss5Dt0wSViO",
+  "trustedKids": [
+   "arma2-torneos-prod-k1-RcF43ss5Dt0wSViO",
+   "arma2-torneos-prod-k2-1BUtcqDt4ps_IR4k"
+  ],
+  "allowedOrigin": "https://app.arma2.com.ar"
+ },
+ "management_api_writes": 0,
+ "requests": [
+  {
+   "id": "prod-project",
+   "kind": "read",
+   "method": "GET",
+   "ref": "rcyuuoaqfwcembdajcss",
+   "status": 200
+  },
+  {
+   "id": "prod-contract-fn",
+   "kind": "read",
+   "method": "GET",
+   "ref": "rcyuuoaqfwcembdajcss",
+   "status": 200
+  },
+  {
+   "id": "project",
+   "kind": "read",
+   "method": "GET",
+   "ref": "hhyvmhgpapyuzjgxfnqv",
+   "status": 200
+  },
+  {
+   "id": "project",
+   "kind": "read",
+   "method": "GET",
+   "ref": "giaeztyghmhzcngskjmw",
+   "status": 200
+  },
+  {
+   "id": "project",
+   "kind": "read",
+   "method": "GET",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 200
+  },
+  {
+   "id": "org",
+   "kind": "read",
+   "method": "GET",
+   "ref": null,
+   "status": 200
+  },
+  {
+   "id": "projects",
+   "kind": "read",
+   "method": "GET",
+   "ref": null,
+   "status": 200
+  },
+  {
+   "id": "functions",
+   "kind": "read",
+   "method": "GET",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 200
+  },
+  {
+   "id": "auth-config",
+   "kind": "read",
+   "method": "GET",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 200
+  },
+  {
+   "id": "third-party-auth",
+   "kind": "read",
+   "method": "GET",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 200
+  },
+  {
+   "id": "query",
+   "kind": "read-sql",
+   "method": "POST",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 201
+  },
+  {
+   "id": "query",
+   "kind": "read-sql",
+   "method": "POST",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 201
+  },
+  {
+   "id": "health",
+   "kind": "read",
+   "method": "GET",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 200
+  },
+  {
+   "id": "secrets",
+   "kind": "read",
+   "method": "GET",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 200
+  },
+  {
+   "id": "postgrest",
+   "kind": "read",
+   "method": "GET",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 200
+  },
+  {
+   "id": "db-migrations",
+   "kind": "read",
+   "method": "GET",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 200
+  },
+  {
+   "id": "api-keys",
+   "kind": "read",
+   "method": "GET",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 200
+  },
+  {
+   "id": "pooler",
+   "kind": "read",
+   "method": "GET",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 200
+  }
+ ]
+}

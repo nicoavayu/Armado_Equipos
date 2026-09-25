@@ -1,0 +1,244 @@
+{
+ "annotation": "OFFLINE REHEARSAL 20260925T210323Z — local public.ecr.aws/supabase/postgres:17.6.1.147 (internal network) + public.ecr.aws/supabase/postgrest:v14.15, emulated Management API / Keychain / tty; NOT a remote run",
+ "tool": "backend/torneos/infra/torneos-gateway-auth",
+ "generated_at": "2026-09-25T21:03:35.480Z",
+ "mode": "--b03",
+ "core": {
+  "prod": "ACTIVE_HEALTHY",
+  "prod_contract": {
+   "status": "ACTIVE",
+   "ezbr": "1072419517953eee8e8021f9691d1a5b1efb1f871c4d13290f644d119caded2c",
+   "verify_jwt": false
+  },
+  "staging": "INACTIVE",
+  "old": "INACTIVE",
+  "torneos": "ACTIVE_HEALTHY"
+ },
+ "state": {
+  "W1": "applied",
+  "W2_W3": "applied",
+  "KR": "present",
+  "W5": "applied",
+  "edge_functions": 0,
+  "custody": {
+   "dataplane_installer": "PRESENT",
+   "gateway_logins": "PRESENT",
+   "ring": "PRESENT",
+   "jwks_pin": {
+    "file": "ga-rehearsal-jwks-70830.json",
+    "kids": [
+     "arma2-torneos-prod-k1-RcF43ss5Dt0wSViO",
+     "arma2-torneos-prod-k2-1BUtcqDt4ps_IR4k"
+    ],
+    "digest": "a4730dac38afaa493bdd69f52dac10d041c1fee71a830580acd8169899c33bc6"
+   }
+  }
+ },
+ "failures": [],
+ "verdict": "B03_ALREADY_APPLIED",
+ "third_party_auth": [
+  {
+   "id": "b914df67-58b2-4b14-9f0b-8cc7cec2aa9a",
+   "type": "custom_jwks",
+   "oidc_issuer_url": null,
+   "jwks_url": null,
+   "custom_jwks_kids": [
+    "arma2-torneos-prod-k1-RcF43ss5Dt0wSViO",
+    "arma2-torneos-prod-k2-1BUtcqDt4ps_IR4k"
+   ],
+   "custom_jwks_digest": "a4730dac38afaa493bdd69f52dac10d041c1fee71a830580acd8169899c33bc6",
+   "custom_jwks_private_material": false,
+   "resolved_at": "2026-09-25T21:03:30.818Z"
+  }
+ ],
+ "bridge_probe": {
+  "label": "already applied",
+  "checks": [
+   {
+    "name": "k1 (active) bridge token, unknown identity → PT401 identity gate (host accepted signature, iss, aud)",
+    "pass": true,
+    "status": 401,
+    "code": "PT401",
+    "message": "invalid identity token",
+    "rows": null
+   },
+   {
+    "name": "k2 (standby) bridge token, unknown identity → PT401 identity gate",
+    "pass": true,
+    "status": 401,
+    "code": "PT401",
+    "message": "invalid identity token",
+    "rows": null
+   },
+   {
+    "name": "k1-signed role=service_role → PT401 (pre_request refuses non-bridge roles)",
+    "pass": true,
+    "status": 401,
+    "code": "PT401",
+    "message": "invalid identity token",
+    "rows": null
+   },
+   {
+    "name": "k1-signed expired token → 401",
+    "pass": true,
+    "status": 401,
+    "code": "PGRST303",
+    "message": "JWT expired",
+    "rows": null
+   },
+   {
+    "name": "unknown RS256 key → 401, refused before the database",
+    "pass": true,
+    "status": 401,
+    "code": "PGRST301",
+    "message": "No suitable key or wrong key type",
+    "rows": null
+   },
+   {
+    "name": "HS256 GoTrue-shaped token (foreign secret) → 401, refused before the database",
+    "pass": true,
+    "status": 401,
+    "code": "PGRST301",
+    "message": "No suitable key or wrong key type",
+    "rows": null
+   },
+   {
+    "name": "alg=none service_role → 401",
+    "pass": true,
+    "status": 401,
+    "code": "PGRST301",
+    "message": "Wrong or unsupported encoding algorithm",
+    "rows": null
+   },
+   {
+    "name": "anon (apikey only) → tournament_competition_formats 200 (pre_request lets anon through)",
+    "pass": true,
+    "status": 200,
+    "code": null,
+    "message": null,
+    "rows": 0
+   }
+  ],
+  "measured": [
+   {
+    "name": "k1-signed, aud=authenticated",
+    "status": 401,
+    "code": "PT401",
+    "message": "invalid identity token",
+    "rows": null
+   },
+   {
+    "name": "k1-signed, iss=<Core Production GoTrue>",
+    "status": 401,
+    "code": "PT401",
+    "message": "invalid identity token",
+    "rows": null
+   },
+   {
+    "name": "k1-signed, no aud",
+    "status": 401,
+    "code": "PT401",
+    "message": "invalid identity token",
+    "rows": null
+   }
+  ],
+  "passed": 8,
+  "total": 8,
+  "pass": true,
+  "hostAcceptsBridge": true
+ },
+ "management_api_writes": 0,
+ "requests": [
+  {
+   "id": "prod-project",
+   "kind": "read",
+   "method": "GET",
+   "ref": "rcyuuoaqfwcembdajcss",
+   "status": 200
+  },
+  {
+   "id": "prod-contract-fn",
+   "kind": "read",
+   "method": "GET",
+   "ref": "rcyuuoaqfwcembdajcss",
+   "status": 200
+  },
+  {
+   "id": "project",
+   "kind": "read",
+   "method": "GET",
+   "ref": "hhyvmhgpapyuzjgxfnqv",
+   "status": 200
+  },
+  {
+   "id": "project",
+   "kind": "read",
+   "method": "GET",
+   "ref": "giaeztyghmhzcngskjmw",
+   "status": 200
+  },
+  {
+   "id": "project",
+   "kind": "read",
+   "method": "GET",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 200
+  },
+  {
+   "id": "org",
+   "kind": "read",
+   "method": "GET",
+   "ref": null,
+   "status": 200
+  },
+  {
+   "id": "projects",
+   "kind": "read",
+   "method": "GET",
+   "ref": null,
+   "status": 200
+  },
+  {
+   "id": "functions",
+   "kind": "read",
+   "method": "GET",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 200
+  },
+  {
+   "id": "auth-config",
+   "kind": "read",
+   "method": "GET",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 200
+  },
+  {
+   "id": "third-party-auth",
+   "kind": "read",
+   "method": "GET",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 200
+  },
+  {
+   "id": "query",
+   "kind": "read-sql",
+   "method": "POST",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 201
+  },
+  {
+   "id": "query",
+   "kind": "read-sql",
+   "method": "POST",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 201
+  },
+  {
+   "id": "api-keys",
+   "kind": "read",
+   "method": "GET",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 200
+  }
+ ]
+}

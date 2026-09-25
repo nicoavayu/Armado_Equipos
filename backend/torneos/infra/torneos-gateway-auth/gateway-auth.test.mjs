@@ -4,6 +4,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
@@ -22,6 +23,25 @@ const ring = K.generateRing();
 const pin = K.jwksPinDocument(ring.jwks, { generatedAt: '2026-09-25T00:00:00Z' });
 const tree = await loadGatewayTree();
 test.after(() => tree.cleanup());
+
+// The must-off flags exactly as measured on Torneos Auth, 2026-09-25 (ga-02-auth-lockdown-supplement-pre-20260925T204557Z.json,
+// sha256 2e112b74…): 38 flags, mfa_totp_enroll_enabled the only one on.
+const W1_MEASURED_MUST_OFF = Object.freeze({
+  custom_oauth_enabled: false, external_apple_enabled: false, external_azure_enabled: false, external_bitbucket_enabled: false,
+  external_discord_enabled: false, external_facebook_enabled: false, external_figma_enabled: false, external_github_enabled: false,
+  external_gitlab_enabled: false, external_google_enabled: false, external_kakao_enabled: false, external_keycloak_enabled: false,
+  external_linkedin_oidc_enabled: false, external_notion_enabled: false, external_slack_enabled: false, external_slack_oidc_enabled: false,
+  external_spotify_enabled: false, external_twitch_enabled: false, external_twitter_enabled: false, external_web3_ethereum_enabled: false,
+  external_web3_solana_enabled: false, external_workos_enabled: false, external_x_enabled: false, external_zoom_enabled: false,
+  hook_after_user_created_enabled: false, hook_before_user_created_enabled: false, hook_custom_access_token_enabled: false,
+  hook_mfa_verification_attempt_enabled: false, hook_password_verification_attempt_enabled: false, hook_send_email_enabled: false,
+  hook_send_sms_enabled: false, mfa_phone_enroll_enabled: false, mfa_totp_enroll_enabled: true, mfa_web_authn_enroll_enabled: false,
+  oauth_server_enabled: false, passkey_enabled: false, saml_enabled: false, security_manual_linking_enabled: false,
+});
+/** A hosted-shaped Auth answer as of that pre-check: prior lockdown keys, the measured flags, and fields W1 never touches. */
+const hostedAuthConfig = () => ({ ...W1_MEASURED_MUST_OFF, site_url: 'http://localhost:3000', disable_signup: false, external_email_enabled: true, external_phone_enabled: false,
+  external_anonymous_users_enabled: false, uri_allow_list: '', jwt_exp: 3600, mailer_autoconfirm: false, sms_autoconfirm: false, mfa_totp_verify_enabled: true, mfa_max_enrolled_factors: 10,
+  rate_limit_email_sent: 2, smtp_pass: null, external_google_secret: 'fixture-secret-never-projected', hook_send_email_secrets: null });
 
 test('pins: refs, topology and bridge constants equal the gateway sources (topology.ts, token.ts)', async () => {
   const topo = await tree.import('torneos-gateway/topology.ts');
@@ -52,7 +72,9 @@ test('allowlist: Core Production = two GETs; only Torneos is written; no DELETE/
   assert.equal(c('PATCH', `/v1/projects/${T}/config/auth`, { ...G.AUTH_LOCKDOWN_BODY }, { mode: '--auth-lockdown', armedFor: 'auth-lockdown' }).kind, 'write:auth-lockdown');
   assert.throws(() => c('PATCH', `/v1/projects/${T}/config/auth`, { ...G.AUTH_LOCKDOWN_BODY }, { mode: '--auth-lockdown' }), /not_armed/);
   assert.throws(() => c('PATCH', `/v1/projects/${T}/config/auth`, { ...G.AUTH_LOCKDOWN_BODY }, { mode: '--b03', armedFor: 'auth-lockdown' }), /not_in_mode/);
-  for (const bad of [{ ...G.AUTH_LOCKDOWN_BODY, disable_signup: false }, { ...G.AUTH_LOCKDOWN_BODY, external_google_enabled: true }, { ...G.AUTH_LOCKDOWN_BODY, site_url: 'https://localhost' }, { disable_signup: true }]) {
+  const { mfa_totp_enroll_enabled: _mfa, ...fiveKeys } = G.AUTH_LOCKDOWN_BODY;
+  for (const bad of [{ ...G.AUTH_LOCKDOWN_BODY, disable_signup: false }, { ...G.AUTH_LOCKDOWN_BODY, external_google_enabled: true }, { ...G.AUTH_LOCKDOWN_BODY, site_url: 'https://localhost' }, { disable_signup: true },
+    { ...G.AUTH_LOCKDOWN_BODY, mfa_totp_enroll_enabled: true }, fiveKeys, { ...G.AUTH_LOCKDOWN_BODY, passkey_enabled: false }]) {
     assert.throws(() => c('PATCH', `/v1/projects/${T}/config/auth`, bad, { mode: '--auth-lockdown', armedFor: 'auth-lockdown' }), /auth_body/);
   }
   assert.equal(c('POST', `/v1/projects/${T}/config/auth/third-party-auth`, G.customJwksBody(pin), { mode: '--b03', armedFor: 'b03', jwksPin: pin }).kind, 'write:b03');
@@ -75,11 +97,22 @@ test('scoped PAT per mode: read-only modes carry no Read-write; W1 = Auth Config
   assert.match(G.patRequirementText('--certify'), /resource access: Organization gwqrborhnqjdzzmpxulh/);
 });
 
-test('W1: the lockdown body is exactly the five keys; state classification; other sign-in paths must already be off', () => {
-  assert.deepEqual(G.AUTH_LOCKDOWN_BODY, { disable_signup: true, external_email_enabled: false, external_phone_enabled: false, external_anonymous_users_enabled: false, site_url: 'https://app.arma2.com.ar' });
-  assert.equal(G.authState({ site_url: 'http://localhost:3000', disable_signup: false, external_email_enabled: true }).state, 'pending');
-  assert.equal(G.authState({ ...G.AUTH_LOCKDOWN_BODY }).state, 'applied');
-  assert.deepEqual(G.authState({ ...G.AUTH_LOCKDOWN_BODY, external_google_enabled: true, saml_enabled: true }).problems, ['AUTH_EXTERNAL_GOOGLE_ENABLED_ON', 'AUTH_SAML_ENABLED_ON']);
+test('W1: the lockdown body is exactly the six keys (mfa_totp_enroll_enabled included); state classification; every other sign-in path is a check only', () => {
+  assert.deepEqual(G.AUTH_LOCKDOWN_BODY, { disable_signup: true, external_email_enabled: false, external_phone_enabled: false, external_anonymous_users_enabled: false, site_url: 'https://app.arma2.com.ar', mfa_totp_enroll_enabled: false });
+  assert.equal(Object.keys(G.AUTH_LOCKDOWN_BODY).length, 6);
+  const cfg = hostedAuthConfig();
+  assert.deepEqual(G.authState(cfg), { state: 'pending', problems: [], differs: ['disable_signup', 'external_email_enabled', 'site_url', 'mfa_totp_enroll_enabled'] });
+  assert.equal(G.authState({ ...cfg, ...G.AUTH_LOCKDOWN_BODY }).state, 'applied');
+  assert.equal(G.authState({ ...cfg, ...G.AUTH_LOCKDOWN_BODY, mfa_totp_enroll_enabled: true }).state, 'pending');
+  // The 37 must-off flags the 2026-09-25 pre-check measured (38 minus mfa_totp_enroll_enabled, now in the body): checks only.
+  const mustOff = G.authMustOffKeys(cfg);
+  assert.equal(mustOff.length, 37);
+  assert.deepEqual(mustOff, Object.keys(W1_MEASURED_MUST_OFF).filter((k) => k !== 'mfa_totp_enroll_enabled').sort());
+  for (const k of mustOff) assert.ok(!(k in G.AUTH_LOCKDOWN_BODY), k);
+  assert.deepEqual(G.authState({ ...cfg, external_google_enabled: true, saml_enabled: true }).problems, ['AUTH_EXTERNAL_GOOGLE_ENABLED_ON', 'AUTH_SAML_ENABLED_ON']);
+  assert.deepEqual(G.authState({ ...cfg, passkey_enabled: true, hook_send_sms_enabled: true, external_zoom_enabled: true }).problems, ['AUTH_EXTERNAL_ZOOM_ENABLED_ON', 'AUTH_HOOK_SEND_SMS_ENABLED_ON', 'AUTH_PASSKEY_ENABLED_ON']);
+  const { oauth_server_enabled: _gone, ...withoutOne } = cfg;
+  assert.deepEqual(G.authState(withoutOne).problems, ['AUTH_OAUTH_SERVER_ENABLED_NOT_FALSE'], 'a named must-off flag missing from the answer is not off');
 });
 
 test('W2+W3: one transaction, guard first, exactly 2 NOINHERIT logins + 2 GRANTs + pre_request; SCRAM only (RFC 7677 vector)', () => {
@@ -228,4 +261,111 @@ test('wrapper: refuses force flags, extra args and a non-terminal', () => {
   }
   const r = spawnSync('bash', [sh, '--preflight'], { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'], input: '' });
   assert.notEqual(r.status, 0); assert.match(r.stderr, /GATEWAY_AUTH_(BLOCKED_NO_TTY|REFUSED_NON_INTERACTIVE)/);
+});
+
+// ─────────────── W1 runner, end to end against an emulated Management API + GoTrue (no network) ───────────────
+const FOUNDATION_PIN = JSON.parse(fs.readFileSync(G.FOUNDATION_PIN_FILE, 'utf8'));
+function w1World({ auth = hostedAuthConfig(), onPatch = null, gotrue = null } = {}) {
+  const w = { auth, tpa: [], functions: [], users: 0, patches: [], gotrueCalls: [] };
+  const PAT = `sbp_${'c'.repeat(40)}`;
+  const PUB = `sb_publishable_${'p'.repeat(24)}`;
+  const proj = (ref, name, status, region) => ({ ref, id: ref, name, organization_slug: G.ORG_SLUG, region, status });
+  const projects = [proj(G.CORE_PROD_REF, 'core', 'ACTIVE_HEALTHY', 'sa-east-1'), proj(G.STAGING_REF, 'staging', 'INACTIVE', 'us-east-1'), proj(G.OLD_REF, 'old', 'INACTIVE', 'us-west-2'), proj(T, G.PROJECT_NAME, 'ACTIVE_HEALTHY', 'sa-east-1')];
+  const roles = { logins: [], memberships: [], payment_logins: 0, login_member_of_api_role: 0, authenticator_config: [], installer: {}, edge_login_can_set_role: {} };
+  const transport = async ({ pat, method, path: p, body }) => {
+    assert.equal(pat, PAT);
+    const cls = G.classifyRequest({ method, path: p, body }, { mode: '--auth-lockdown', armedFor: method === 'PATCH' ? 'auth-lockdown' : null });
+    const r = (status, b) => ({ status, body: b });
+    switch (cls.id) {
+      case 'org': return r(200, { slug: G.ORG_SLUG, plan: 'free' });
+      case 'projects': return r(200, projects);
+      case 'prod-project': return r(200, projects[0]);
+      case 'prod-contract-fn': return r(200, { slug: G.CORE_CONTRACT_SLUG, status: 'ACTIVE', verify_jwt: false, ezbr_sha256: G.CORE_CONTRACT_EZBR });
+      case 'project': return r(200, projects.find((x) => x.ref === cls.ref));
+      case 'functions': return r(200, w.functions);
+      case 'auth-config': return r(200, { ...w.auth });
+      case 'third-party-auth': return r(200, w.tpa);
+      case 'api-keys': return r(200, [{ name: 'default', type: 'publishable', api_key: PUB }]);
+      case 'query': return r(201, [{ json_build_object: body.query === G.CATALOG_SQL ? FOUNDATION_PIN.catalog : { ...roles, auth_users: w.users } }]);
+      case 'auth-lockdown': w.patches.push(body); Object.assign(w.auth, body); if (onPatch) onPatch(w); return r(200, { ...w.auth });
+      default: throw new Error(`unexpected ${cls.id}`);
+    }
+  };
+  const authProbeTransport = async ({ ref, method, path: p, headers, body }) => {
+    assert.equal(ref, T); assert.equal(headers.apikey, PUB);
+    w.gotrueCalls.push(`${method} ${p}`);
+    if (gotrue) return gotrue({ method, path: p, body, w });
+    if (p === '/auth/v1/settings') return { status: 200, body: { disable_signup: w.auth.disable_signup, external: { email: w.auth.external_email_enabled, phone: w.auth.external_phone_enabled, anonymous_users: w.auth.external_anonymous_users_enabled } } };
+    return { status: 422, body: { error_code: p.endsWith('/otp') ? 'otp_disabled' : 'signup_disabled' } };
+  };
+  const said = [];
+  const evidenceDir = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'ga-w1-'));
+  const keychain = { dbLogin: () => ({ check: () => 'ABSENT' }), dataplane: { check: () => 'PRESENT' }, ring: { check: () => 'ABSENT' } };
+  const deps = { transport, authProbeTransport, keychain, now: () => Date.parse('2026-09-25T21:00:00Z'), say: (x) => said.push(x), evidenceDir,
+    jwksPinFile: path.join(evidenceDir, 'no-jwks-pin.json'),
+    tty: { readLine: () => { const m = /To proceed type exactly:\n {2}(.+)\n/.exec(said.join('\n')); return m ? m[1] : ''; } } };
+  const run = () => runGatewayAuth({ mode: '--auth-lockdown', request: { pat: PAT }, deps });
+  const evidence = () => fs.readdirSync(evidenceDir).filter((f) => f.startsWith('ga-02')).map((f) => { const text = fs.readFileSync(path.join(evidenceDir, f), 'utf8'); return { f, text, j: JSON.parse(text) }; });
+  return { w, run, said, evidence, PAT, PUB };
+}
+
+test('W1 runner: mfa_totp_enroll_enabled=true PRE-W1 → ONE PATCH of exactly the six keys turns it off; no other Auth field moves; GoTrue signup/OTP refused', async () => {
+  const x = w1World();
+  const before = { ...x.w.auth };
+  assert.equal(before.mfa_totp_enroll_enabled, true);
+  const r = await x.run();
+  assert.equal(r.verdict, 'TORNEOS_AUTH_LOCKED');
+  assert.equal(x.w.patches.length, 1, 'exactly one remote write');
+  assert.deepEqual(x.w.patches[0], { disable_signup: true, external_email_enabled: false, external_phone_enabled: false, external_anonymous_users_enabled: false, site_url: 'https://app.arma2.com.ar', mfa_totp_enroll_enabled: false });
+  assert.equal(x.w.auth.mfa_totp_enroll_enabled, false);
+  const moved = Object.keys(before).filter((k) => JSON.stringify(before[k]) !== JSON.stringify(x.w.auth[k])).sort();
+  assert.deepEqual(moved, ['disable_signup', 'external_email_enabled', 'mfa_totp_enroll_enabled', 'site_url'], 'only body keys that differed moved');
+  assert.deepEqual(x.w.gotrueCalls, ['GET /auth/v1/settings', 'POST /auth/v1/signup', 'POST /auth/v1/signup', 'POST /auth/v1/otp', 'POST /auth/v1/otp']);
+  const plan = x.said.join('\n');
+  assert.match(plan, /mfa_totp_enroll_enabled=true/); assert.match(plan, /checked off \(not written\): 37 flags, all false/);
+  const [ev] = x.evidence();
+  assert.equal(ev.j.verdict, 'TORNEOS_AUTH_LOCKED');
+  assert.equal(ev.j.management_api_writes, 1);
+  assert.deepEqual(ev.j.changed_outside_body, []);
+  assert.equal(ev.j.must_off_checked.length, 37);
+  assert.ok(ev.j.must_off_checked.every((k) => ev.j.auth_after[k] === false));
+  assert.deepEqual([ev.j.auth_users_after, ev.j.third_party_auth_after, ev.j.edge_functions_after], [0, 0, 0]);
+  assert.equal(ev.j.auth_probe.pass, true); assert.equal(ev.j.auth_probe.probes.length, 4);
+  assert.ok(ev.j.auth_probe.probes.every((p) => p.refused && p.refusal_code_known));
+  assert.doesNotMatch(ev.text, /fixture-secret-never-projected|sb_publishable_|sbp_/);
+  assert.ok(!('external_google_secret' in ev.j.auth_after) && !('smtp_pass' in ev.j.auth_after), 'secrets are never projected');
+});
+
+test('W1 runner: any other MUST_OFF flag on → AUTH_LOCKDOWN_BLOCKED, 0 writes, 0 GoTrue calls', async () => {
+  for (const k of ['passkey_enabled', 'mfa_phone_enroll_enabled', 'external_zoom_enabled', 'hook_send_sms_enabled', 'oauth_server_enabled']) {
+    const x = w1World({ auth: { ...hostedAuthConfig(), [k]: true } });
+    await assert.rejects(x.run(), (e) => e.code === 'AUTH_LOCKDOWN_BLOCKED' && e.detail.failures.includes(`AUTH_${k.toUpperCase()}_ON`), k);
+    assert.equal(x.w.patches.length, 0, k); assert.equal(x.w.gotrueCalls.length, 0, k);
+  }
+  const u = w1World(); u.w.users = 1;
+  await assert.rejects(u.run(), (e) => e.code === 'AUTH_LOCKDOWN_BLOCKED' && e.detail.failures.includes('TORNEOS_AUTH_HAS_USERS'));
+  const t = w1World(); t.w.tpa = [{ id: 'x', type: 'oidc' }];
+  await assert.rejects(t.run(), (e) => e.code === 'AUTH_LOCKDOWN_BLOCKED');
+  assert.equal(u.w.patches.length + t.w.patches.length, 0);
+});
+
+test('W1 runner: a field outside the body moving (even an unprojected one) fails the post-check; so does an accepted signup', async () => {
+  const moved = w1World({ onPatch: (w) => { w.auth.external_google_secret = 'rotated-by-someone'; } });
+  await assert.rejects(moved.run(), (e) => e.code === 'AUTH_LOCKDOWN_POSTCHECK_FAILED' && e.detail.failures.includes('AUTH_SETTINGS_OUTSIDE_THE_BODY_CHANGED'));
+  const [ev] = moved.evidence();
+  assert.deepEqual(ev.j.changed_outside_body, ['external_google_secret']);
+  assert.doesNotMatch(ev.text, /rotated-by-someone|fixture-secret-never-projected/);
+  assert.equal(moved.w.gotrueCalls.length, 0, 'no probe on a post-check already failed');
+  const accepted = w1World({ gotrue: ({ path: p, w }) => (p === '/auth/v1/settings' ? { status: 200, body: { disable_signup: true, external: { email: false, phone: false, anonymous_users: false } } } : (w.users += 1, { status: 200, body: { id: 'u' } })) });
+  await assert.rejects(accepted.run(), (e) => e.code === 'AUTH_LOCKDOWN_POSTCHECK_FAILED' && e.detail.failures.includes('GOTRUE_ACCEPTED_signup_email_password') && e.detail.failures.includes('TORNEOS_AUTH_HAS_USERS'));
+  assert.equal(accepted.w.gotrueCalls.length, 2, 'the first acceptance stops the probes');
+});
+
+test('W1 auth probe transport: only Torneos /auth/v1/{settings,signup,otp}', async () => {
+  const { assertAuthProbeTarget } = await import('./auth-probe.mjs');
+  assert.doesNotThrow(() => assertAuthProbeTarget(T, 'GET', '/auth/v1/settings'));
+  assert.doesNotThrow(() => assertAuthProbeTarget(T, 'POST', '/auth/v1/otp'));
+  for (const [ref, m, p] of [[P, 'GET', '/auth/v1/settings'], [G.STAGING_REF, 'POST', '/auth/v1/signup'], [T, 'POST', '/auth/v1/admin/users'], [T, 'GET', '/auth/v1/signup'], [T, 'DELETE', '/auth/v1/user'], [T, 'POST', '/rest/v1/rpc/x']]) {
+    assert.throws(() => assertAuthProbeTarget(ref, m, p), undefined, `${ref} ${m} ${p}`);
+  }
 });

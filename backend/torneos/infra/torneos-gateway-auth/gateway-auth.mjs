@@ -8,7 +8,8 @@
 //   --preflight         READ-ONLY  Core Prod + contract certified, Staging/old INACTIVE, Torneos healthy, foundation
 //                                  intact, 0 Edge Functions, SUPABASE_* secrets only; classifies W1 / W2+W3 / KR / W5
 //                                  and measures the installer's privileges for W2/W3 → STOP
-//   --auth-lockdown     W1         PATCH config/auth with exactly AUTH_LOCKDOWN_BODY
+//   --auth-lockdown     W1         PATCH config/auth with exactly AUTH_LOCKDOWN_BODY (6 keys); post-check: nothing else in
+//                                  Auth moved, GoTrue signup/OTP refused, 0 users, 0 third-party auth
 //   --db-bootstrap      W2 + W3    ONE psql transaction: 2 LOGIN NOINHERIT roles (SCRAM verifiers; passwords generated
 //                                  into the Keychain), 2 GRANTs, pgrst.db_pre_request = private.check_token
 //   --keyring-generate  LOCAL      a new Production ring (k1 active, k2 standby) into the Keychain + the public JWKS pin
@@ -30,6 +31,7 @@ import { systemKeychain } from './keychain-gateway-auth.mjs';
 import { applySql, psqlEnv, assertPsqlPrerequisites, POOLER_HOST_PATTERN, CA_CERT } from './psql-gateway-auth.mjs';
 import { generateRing, jwksPinDocument, assertJwksPin, publicFromPkcs8, gatewayRingDocument, jwksDigest, rotationPlan } from './keyring.mjs';
 import { probeBridge } from './bridge-probe.mjs';
+import { probeAuthRefusals, httpsAuthProbeTransport } from './auth-probe.mjs';
 import { probePostgrest, httpsProbeTransport } from '../torneos-foundation/postgrest-probe.mjs';
 
 export const EVIDENCE_DIR = path.join(G.REPO_ROOT, 'backend/torneos/mp-b/evidence/gateway-auth');
@@ -108,7 +110,7 @@ async function observe(ctx, client, pins, { deep = false } = {}) {
   const core = { prod: await client.prodProject(), prodFn: await client.prodContractFn(), staging: await client.project(G.STAGING_REF), old: await client.project(G.OLD_REF),
     torneos: await client.project(G.TORNEOS_REF), org: await client.org(), projects: await client.projects() };
   const functions = await client.functions();
-  const auth = await client.authConfig();
+  const { config: auth, fingerprint: authFingerprint } = await client.authConfig();
   const tpa = await client.thirdPartyAuth();
   const catalog = (await client.sql(G.CATALOG_SQL))[0]?.json_build_object ?? null;
   const roles = (await client.sql(G.GATEWAY_ROLES_SQL))[0]?.json_build_object ?? null;
@@ -155,7 +157,8 @@ async function observe(ctx, client, pins, { deep = false } = {}) {
   }
   const invariants = catalog ? (steps.DB.state === 'applied' ? G.gatewayInvariantFailures(catalog, roles) : FC.catalogInvariantFailures(catalog)) : ['catalog_unreadable'];
   if (invariants.length) failures.push(...invariants.map((x) => `INVARIANT_${x}`));
-  return { core, torneos: t, custody, steps, failures, foundation_diff: fdiff, invariants };
+  // authFingerprint: in memory only, never serialized (see fingerprintAuthConfig).
+  return { core, torneos: t, custody, steps, failures, foundation_diff: fdiff, invariants, authFingerprint };
 }
 const stateSummary = (o) => ({ W1: o.steps.W1.state, W2_W3: o.steps.DB.state, KR: o.steps.KR, W5: o.steps.W5.state, edge_functions: o.torneos.functions.length, custody: o.custody });
 const coreSummary = (o) => ({ prod: o.core.prod?.status, prod_contract: { status: o.core.prodFn?.status, ezbr: o.core.prodFn?.ezbr_sha256, verify_jwt: o.core.prodFn?.verify_jwt }, staging: o.core.staging?.status, old: o.core.old?.status, torneos: o.core.torneos?.status });
@@ -187,32 +190,62 @@ async function runPreflight(ctx, client, pins) {
   return { verdict, next };
 }
 
+// Keys of the WHOLE Auth answer whose value moved between two observations (by default the body's own keys excepted).
+const authKeysChanged = (a, b, { body = false } = {}) => [...new Set([...Object.keys(a ?? {}), ...Object.keys(b ?? {})])].filter((k) => (body || !(k in G.AUTH_LOCKDOWN_BODY)) && a?.[k] !== b?.[k]).sort();
+const tpaFailures = (o) => (Array.isArray(o.torneos.tpa) && o.torneos.tpa.length === 0 ? [] : ['THIRD_PARTY_AUTH_NOT_ZERO']);
+
 async function runAuthLockdown(ctx, client, pins) {
   const mode = '--auth-lockdown';
   const o = await observe(ctx, client, pins);
-  if (o.failures.length) blocked(ctx, mode, o, 'AUTH_LOCKDOWN_BLOCKED');
+  o.failures.push(...tpaFailures(o));
+  if (o.failures.length) blocked(ctx, mode, o, 'AUTH_LOCKDOWN_BLOCKED', { auth: o.torneos.auth, must_off_checked: G.authMustOffKeys(o.torneos.auth) });
   if (o.steps.W1.state === 'applied') {
     writeEvidence(ctx, `ga-02-auth-lockdown-${ctx.stamp}.json`, { ...base(ctx, mode, o), verdict: 'AUTH_LOCKDOWN_ALREADY_APPLIED', auth: o.torneos.auth, management_api_writes: 0, requests: client.requests });
     return { verdict: 'AUTH_LOCKDOWN_ALREADY_APPLIED' };
   }
-  const plan = { mode, write: `PATCH /v1/projects/${G.TORNEOS_REF}/config/auth`, body: G.AUTH_LOCKDOWN_BODY, before: o.torneos.auth, state: stateSummary(o), core: coreSummary(o) };
+  const mustOff = G.authMustOffKeys(o.torneos.auth);
+  const plan = { mode, write: `PATCH /v1/projects/${G.TORNEOS_REF}/config/auth`, body: G.AUTH_LOCKDOWN_BODY, before: o.torneos.auth, must_off_checked: mustOff, state: stateSummary(o), core: coreSummary(o) };
   const planId = planIdOf(plan);
-  ctx.say(`\nPLAN ${planId}: lock Arma2 Torneos Auth (${G.TORNEOS_REF}) — Torneos has no login of its own\n  write: PATCH config/auth with EXACTLY ${JSON.stringify(G.AUTH_LOCKDOWN_BODY)}\n  differs now: ${o.steps.W1.differs.join(', ')}\n  untouched: every other Auth setting · Core Production ${o.core.prod.status} (read only)`);
+  const beforeBody = Object.keys(G.AUTH_LOCKDOWN_BODY).map((k) => `${k}=${JSON.stringify(o.torneos.auth?.[k])}`).join(' ');
+  ctx.say(`\nPLAN ${planId}: lock Arma2 Torneos Auth (${G.TORNEOS_REF}) — Torneos has no login of its own\n  write: PATCH config/auth with EXACTLY ${JSON.stringify(G.AUTH_LOCKDOWN_BODY)}\n  now:   ${beforeBody}\n  differs now: ${o.steps.W1.differs.join(', ')}\n  checked off (not written): ${mustOff.length} flags, all false · auth.users ${o.torneos.roles?.auth_users} · third-party auth ${o.torneos.tpa.length} · Edge Functions ${o.torneos.functions.length}\n  untouched: every other Auth setting · Core Production ${o.core.prod.status} (read only) · Staging ${o.core.staging?.status}`);
   const authorization = requirePhrase(ctx, MODES[mode].phrase(planId));
   const again = await observe(ctx, client, pins);
-  const planAgain = { mode, write: plan.write, body: G.AUTH_LOCKDOWN_BODY, before: again.torneos.auth, state: stateSummary(again), core: coreSummary(again) };
-  if (planIdOf(planAgain) !== planId || again.failures.length) stop('STATE_CHANGED_SINCE_PLAN', { before: planId, after: planIdOf(planAgain), failures: again.failures });
+  again.failures.push(...tpaFailures(again));
+  const planAgain = { mode, write: plan.write, body: G.AUTH_LOCKDOWN_BODY, before: again.torneos.auth, must_off_checked: G.authMustOffKeys(again.torneos.auth), state: stateSummary(again), core: coreSummary(again) };
+  const movedSincePlan = authKeysChanged(o.authFingerprint, again.authFingerprint, { body: true });
+  if (planIdOf(planAgain) !== planId || again.failures.length || movedSincePlan.length) stop('STATE_CHANGED_SINCE_PLAN', { before: planId, after: planIdOf(planAgain), failures: again.failures, auth_keys_moved: movedSincePlan });
   ctx.arm('auth-lockdown');
   const response = await client.authLockdown();
   ctx.arm(null);
   const after = await observe(ctx, client, pins);
-  const failures = [...after.failures];
+  const failures = [...after.failures, ...tpaFailures(after)];
   if (after.steps.W1.state !== 'applied') failures.push('AUTH_LOCKDOWN_NOT_EFFECTIVE');
-  const untouched = G.AUTH_CONFIG_KEYS.filter((k) => !(k in G.AUTH_LOCKDOWN_BODY) && canon(o.torneos.auth?.[k]) !== canon(after.torneos.auth?.[k]));
-  if (untouched.length) failures.push('AUTH_SETTINGS_OUTSIDE_THE_BODY_CHANGED');
+  const changedOutsideBody = authKeysChanged(again.authFingerprint, after.authFingerprint);
+  if (changedOutsideBody.length) failures.push('AUTH_SETTINGS_OUTSIDE_THE_BODY_CHANGED');
+  // GoTrue refusal probes: only on a lockdown the Management API shows applied, with nothing else wrong.
+  let authProbe = null; let final = null;
+  if (!failures.length) {
+    const keys = await client.apiKeys();
+    if (!keys.probeKey) failures.push('AUTH_PROBE_KEY_UNAVAILABLE');
+    else if (typeof ctx.deps.authProbeTransport !== 'function') failures.push('AUTH_PROBE_TRANSPORT_MISSING');
+    else {
+      ctx.known.push(keys.probeKey);
+      try {
+        authProbe = await probeAuthRefusals({ ref: G.TORNEOS_REF, apikey: keys.probeKey, transport: ctx.deps.authProbeTransport, stamp: ctx.stamp, known: ctx.known });
+      } catch (e) { authProbe = { error: String(e.message).slice(0, 160) }; failures.push('AUTH_PROBE_ERROR'); }
+      if (authProbe?.failures) failures.push(...authProbe.failures);
+    }
+    // After the probes: still 0 users, 0 third-party auth, and no Auth key moved since the post-PATCH read.
+    final = await observe(ctx, client, pins);
+    failures.push(...final.failures.filter((f) => !failures.includes(f)), ...tpaFailures(final).filter((f) => !failures.includes(f)));
+    if (final.steps.W1.state !== 'applied') failures.push('AUTH_LOCKDOWN_NOT_EFFECTIVE_AFTER_PROBES');
+    if (authKeysChanged(after.authFingerprint, final.authFingerprint).length) failures.push('AUTH_SETTINGS_CHANGED_DURING_PROBES');
+  }
+  const last = final ?? after;
   const verdict = failures.length ? 'AUTH_LOCKDOWN_POSTCHECK_FAILED' : 'TORNEOS_AUTH_LOCKED';
-  writeEvidence(ctx, `ga-02-auth-lockdown-${ctx.stamp}.json`, { ...base(ctx, mode, after), verdict, plan, plan_id: planId, authorization, response, auth_before: o.torneos.auth, auth_after: after.torneos.auth,
-    changed_outside_body: untouched, failures, management_api_writes: client.writes, requests: client.requests });
+  writeEvidence(ctx, `ga-02-auth-lockdown-${ctx.stamp}.json`, { ...base(ctx, mode, last), verdict, plan, plan_id: planId, authorization, response, auth_before: again.torneos.auth, auth_after: last.torneos.auth,
+    must_off_checked: G.authMustOffKeys(last.torneos.auth), changed_outside_body: changedOutsideBody, auth_users_after: Number(last.torneos.roles?.auth_users), third_party_auth_after: last.torneos.tpa?.length ?? null,
+    edge_functions_after: last.torneos.functions.length, auth_probe: authProbe, failures, management_api_writes: client.writes, requests: client.requests });
   if (failures.length) stop(verdict, { failures });
   return { verdict };
 }
@@ -507,7 +540,7 @@ async function main() {
   let request; try { request = JSON.parse(stdin); } catch { process.stderr.write('GATEWAY_AUTH_STDIN_NOT_JSON\n'); process.exit(2); }
   const say = (s) => process.stdout.write(`${s}\n`);
   const deps = {
-    transport: httpsTransport, probeTransport: httpsProbeTransport, keychain: systemKeychain(), tty: systemTty(), applySql, psqlPrerequisites: () => assertPsqlPrerequisites(),
+    transport: httpsTransport, probeTransport: httpsProbeTransport, authProbeTransport: httpsAuthProbeTransport, keychain: systemKeychain(), tty: systemTty(), applySql, psqlPrerequisites: () => assertPsqlPrerequisites(),
     validateGatewayEnv: validateGatewayEnvWithRealConfig, now: () => Date.now(), sleep: (ms) => new Promise((r) => setTimeout(r, ms)), evidenceDir: EVIDENCE_DIR, say,
   };
   try {

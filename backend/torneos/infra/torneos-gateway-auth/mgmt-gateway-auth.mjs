@@ -33,7 +33,9 @@ export function httpsTransport({ pat, method, path, body }) {
 
 export const projectProject = (p) => (p && typeof p === 'object' ? { ref: p.ref ?? p.id ?? null, name: p.name ?? null, organization_slug: p.organization_slug ?? p.organization_id ?? null, region: p.region ?? null, status: p.status ?? null } : null);
 export const projectFunction = (f) => (f && typeof f === 'object' ? { slug: f.slug ?? null, status: f.status ?? null, version: f.version ?? null, verify_jwt: f.verify_jwt ?? null, ezbr_sha256: f.ezbr_sha256 ?? null } : null);
-export const projectAuthConfig = (c) => (c && typeof c === 'object' ? Object.fromEntries(G.AUTH_CONFIG_KEYS.filter((k) => k in c).map((k) => [k, c[k]])) : null);
+export const projectAuthConfig = (c) => (c && typeof c === 'object' ? Object.fromEntries([...new Set([...G.AUTH_CONFIG_KEYS, ...G.authMustOffKeys(c)])].filter((k) => k in c).map((k) => [k, c[k]])) : null);
+/** sha256 per key of the WHOLE Auth answer. Kept in memory only (values include secrets): it proves which keys moved. */
+export const fingerprintAuthConfig = (c) => (c && typeof c === 'object' ? Object.fromEntries(Object.keys(c).sort().map((k) => [k, G.sha256(`${JSON.stringify(c[k]) ?? 'undefined'}`)])) : null);
 export const projectPostgrest = (c) => (c && typeof c === 'object' ? { db_schema: c.db_schema ?? null, db_extra_search_path: c.db_extra_search_path ?? null, max_rows: c.max_rows ?? null } : null);
 export const projectThirdPartyAuth = (rows) => (Array.isArray(rows) ? rows.map((r) => ({
   id: r.id ?? null, type: r.type ?? null, oidc_issuer_url: r.oidc_issuer_url ?? null, jwks_url: r.jwks_url ?? null,
@@ -82,7 +84,7 @@ export function makeClient({ transport, pat, mode, armedFor = () => null, jwksPi
     async health() { const b = ok(await call('GET', `/v1/projects/${T}/health?services=auth,db,pooler,rest,db_postgres_user`)); return (Array.isArray(b) ? b : []).map((s) => ({ name: s.name ?? null, status: s.status ?? null })); },
     async functions() { const b = ok(await call('GET', `/v1/projects/${T}/functions`)); return (Array.isArray(b) ? b : []).map(projectFunction); },
     async secretNames() { const b = ok(await call('GET', `/v1/projects/${T}/secrets`)); return (Array.isArray(b) ? b : []).map((s) => s?.name ?? null).filter(Boolean).sort(); },
-    async authConfig() { return projectAuthConfig(ok(await call('GET', `/v1/projects/${T}/config/auth`))); },
+    async authConfig() { const b = ok(await call('GET', `/v1/projects/${T}/config/auth`)); return { config: projectAuthConfig(b), fingerprint: fingerprintAuthConfig(b) }; },
     async thirdPartyAuth() { return projectThirdPartyAuth(ok(await call('GET', `/v1/projects/${T}/config/auth/third-party-auth`))); },
     async postgrest() { return projectPostgrest(ok(await call('GET', `/v1/projects/${T}/postgrest`))); },
     async dbMigrations() { const b = ok(await call('GET', `/v1/projects/${T}/database/migrations`)); return (Array.isArray(b) ? b : []).map((m) => ({ version: m?.version ?? null })); },

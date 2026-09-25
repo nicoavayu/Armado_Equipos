@@ -133,7 +133,15 @@ async function main() {
     // ── emulated control plane ──
     const w = { auth: { site_url: 'http://localhost:3000', uri_allow_list: '', disable_signup: false, jwt_exp: 3600, external_anonymous_users_enabled: false, external_email_enabled: true, external_phone_enabled: false,
       mailer_autoconfirm: false, sms_autoconfirm: false, external_google_enabled: false, external_apple_enabled: false, external_github_enabled: false, external_azure_enabled: false, saml_enabled: false,
-      hook_custom_access_token_enabled: false, security_manual_linking_enabled: false }, tpa: [], functions: [], writes: [], extraProject: null, pgrstWindow: null };
+      hook_custom_access_token_enabled: false, security_manual_linking_enabled: false, mfa_totp_enroll_enabled: true, ...Object.fromEntries(G.AUTH_MUST_BE_OFF.map((k) => [k, false])) },
+      tpa: [], functions: [], writes: [], extraProject: null, pgrstWindow: null };
+    // Emulated GoTrue of the Torneos project: answers from the emulated Auth config (the W1 refusal probes).
+    const authProbeTransport = async ({ ref, method, path: p }) => {
+      if (ref !== G.TORNEOS_REF) throw new Error('auth probe outside Torneos');
+      if (method === 'GET' && p === '/auth/v1/settings') return { status: 200, body: { disable_signup: w.auth.disable_signup, external: { email: w.auth.external_email_enabled, phone: w.auth.external_phone_enabled, anonymous_users: w.auth.external_anonymous_users_enabled } } };
+      if (w.auth.disable_signup) return { status: 422, body: { error_code: p.endsWith('/otp') ? 'otp_disabled' : 'signup_disabled' } };
+      return { status: 200, body: {} };
+    };
     const proj = (ref, name, status, region) => ({ ref, id: ref, name, organization_slug: G.ORG_SLUG, region, status });
     const projects = () => [proj(G.CORE_PROD_REF, "nicoavayu's Project", 'ACTIVE_HEALTHY', 'sa-east-1'), proj(G.STAGING_REF, 'arma2-torneos-staging', 'INACTIVE', 'us-east-1'), proj(G.OLD_REF, 'Arma2', 'INACTIVE', 'us-west-2'), proj(G.TORNEOS_REF, G.PROJECT_NAME, 'ACTIVE_HEALTHY', 'sa-east-1'), ...(w.extraProject ? [w.extraProject] : [])];
     let jwksPinForEmu = null;
@@ -226,7 +234,7 @@ async function main() {
     const phase = async (label, mode, expect, { phrase = 'plan', onPhrase = null, decisions } = {}) => {
       const said = [];
       const deps = {
-        transport, probeTransport, keychain, applySql, psqlPrerequisites: () => [], validateGatewayEnv: validateGatewayEnvWithRealConfig, caCert: caFixture,
+        transport, probeTransport, authProbeTransport, keychain, applySql, psqlPrerequisites: () => [], validateGatewayEnv: validateGatewayEnvWithRealConfig, caCert: caFixture,
         tty: { readLine: () => { if (onPhrase) onPhrase(); if (phrase !== 'plan') return phrase; const m = /To proceed type exactly:\n {2}(.+)\n/.exec(said.join('\n')); return m ? m[1] : ''; } },
         now: () => Date.now(), sleep, b03ProbeIntervalMs: 750, say: (s) => said.push(s), jwksPinFile, deltaPinFile,
         evidenceDir: evDir, evidencePrefix: `REHEARSAL-${String(++seq).padStart(2, '0')}-`, deployDecisions: decisions,

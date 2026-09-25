@@ -13,7 +13,7 @@
 //                    only proves its configuration against the real gateway config.ts, offline.
 //
 // The remote delta this tooling models (and applies only in its own mode, after the typed phrase):
-//   W1  --auth-lockdown   PATCH /v1/projects/<torneos>/config/auth with AUTH_LOCKDOWN_BODY, exactly.
+//   W1  --auth-lockdown   PATCH /v1/projects/<torneos>/config/auth with AUTH_LOCKDOWN_BODY, exactly (6 keys).
 //   W2  --db-bootstrap    ALTER ROLE authenticator SET pgrst.db_pre_request = 'private.check_token'
 //   W3  --db-bootstrap    CREATE ROLE torneos_edge_identity_writer / torneos_edge_core_adapter LOGIN NOINHERIT
 //                         + GRANT torneos_identity_writer / torneos_core_adapter (W2 + W3: ONE psql transaction)
@@ -78,28 +78,34 @@ export const DELTA_PIN_FILE = path.join(HERE, 'pins/gateway-auth-delta.json');
 export const JWKS_PIN_FILE = path.join(HERE, 'pins/production-bridge-jwks.json');
 
 // ─────────────────────────── W1 — Auth lockdown ───────────────────────────
-// Torneos has NO login of its own: users log in to Core only. The body is exactly these five keys.
+// Torneos has NO login of its own: users log in to Core only. The body is exactly these six keys.
 export const AUTH_LOCKDOWN_BODY = Object.freeze({
   disable_signup: true,
   external_email_enabled: false,
   external_phone_enabled: false,
   external_anonymous_users_enabled: false,
   site_url: WEB_ORIGIN,
+  mfa_totp_enroll_enabled: false,
 });
-// Every other sign-in path must ALREADY be off (the lockdown never has to touch them; if one is on: STOP, a human looks).
-export const AUTH_MUST_BE_OFF = Object.freeze(['external_google_enabled', 'external_apple_enabled', 'external_github_enabled', 'external_azure_enabled', 'saml_enabled', 'hook_custom_access_token_enabled']);
+// Every other sign-in / enrollment path must ALREADY be off: checks only, never in the body (if one is not false: STOP,
+// a human looks). The named keys must be present and false; every other external_*_enabled / hook_*_enabled the API
+// returns is checked too.
+export const AUTH_MUST_BE_OFF = Object.freeze(['custom_oauth_enabled', 'external_apple_enabled', 'external_azure_enabled', 'external_github_enabled', 'external_google_enabled',
+  'external_web3_ethereum_enabled', 'external_web3_solana_enabled', 'hook_custom_access_token_enabled', 'mfa_phone_enroll_enabled', 'mfa_web_authn_enroll_enabled',
+  'oauth_server_enabled', 'passkey_enabled', 'saml_enabled', 'security_manual_linking_enabled']);
+export const AUTH_MUST_BE_OFF_PATTERN = /^(external|hook)_[a-z0-9_]+_enabled$/;
+export const authMustOffKeys = (cfg) => [...new Set([...AUTH_MUST_BE_OFF, ...Object.keys(cfg ?? {}).filter((k) => AUTH_MUST_BE_OFF_PATTERN.test(k) && !(k in AUTH_LOCKDOWN_BODY))])].sort();
 export const AUTH_CONFIG_KEYS = Object.freeze(['site_url', 'uri_allow_list', 'disable_signup', 'jwt_exp', 'external_anonymous_users_enabled', 'external_email_enabled', 'external_phone_enabled',
-  'mailer_autoconfirm', 'sms_autoconfirm', 'external_google_enabled', 'external_apple_enabled', 'external_github_enabled', 'external_azure_enabled', 'saml_enabled',
-  'hook_custom_access_token_enabled', 'security_manual_linking_enabled']);
+  'mailer_autoconfirm', 'sms_autoconfirm', 'mfa_totp_enroll_enabled', ...AUTH_MUST_BE_OFF]);
 export function assertAuthLockdownBody(body) {
   if (!body || typeof body !== 'object' || Array.isArray(body)) throw new Error('auth_body_missing');
   if (Object.keys(body).sort().join(',') !== Object.keys(AUTH_LOCKDOWN_BODY).sort().join(',')) throw new Error('auth_body_keys');
   for (const [k, v] of Object.entries(AUTH_LOCKDOWN_BODY)) if (body[k] !== v) throw new Error(`auth_body_value_${k}`);
 }
-/** 'applied' | 'pending' ; problems[] = sign-in paths that are on and must not be. */
+/** 'applied' | 'pending' ; problems[] = sign-in / enrollment paths outside the body that are not false. */
 export function authState(cfg) {
   if (!cfg || typeof cfg !== 'object') return { state: 'unreadable', problems: ['AUTH_CONFIG_UNREADABLE'] };
-  const problems = AUTH_MUST_BE_OFF.filter((k) => cfg[k] === true).map((k) => `AUTH_${k.toUpperCase()}_ON`);
+  const problems = authMustOffKeys(cfg).filter((k) => cfg[k] !== false).map((k) => `AUTH_${k.toUpperCase()}_${cfg[k] === true ? 'ON' : 'NOT_FALSE'}`);
   const applied = Object.entries(AUTH_LOCKDOWN_BODY).every(([k, v]) => cfg[k] === v);
   return { state: applied ? 'applied' : 'pending', problems, differs: Object.entries(AUTH_LOCKDOWN_BODY).filter(([k, v]) => cfg[k] !== v).map(([k]) => k) };
 }
@@ -275,7 +281,7 @@ const CORE_READS = ['org', 'projects', 'prod-project', 'prod-contract-fn', 'proj
 const TORNEOS_READS = ['health', 'functions', 'secrets', 'auth-config', 'third-party-auth', 'postgrest', 'api-keys', 'db-migrations', 'query'];
 export const MODE_ENDPOINTS = Object.freeze({
   '--preflight': Object.freeze([...CORE_READS, ...TORNEOS_READS, 'pooler']),
-  '--auth-lockdown': Object.freeze([...CORE_READS, 'functions', 'auth-config', 'third-party-auth', 'query', 'auth-lockdown']),
+  '--auth-lockdown': Object.freeze([...CORE_READS, 'functions', 'auth-config', 'third-party-auth', 'query', 'api-keys', 'auth-lockdown']),
   '--db-bootstrap': Object.freeze([...CORE_READS, 'functions', 'auth-config', 'third-party-auth', 'query', 'pooler']),
   '--keyring-generate': Object.freeze([...CORE_READS, 'functions', 'auth-config', 'third-party-auth', 'query']),
   '--b03': Object.freeze([...CORE_READS, 'functions', 'auth-config', 'third-party-auth', 'query', 'api-keys', 'tpa-create']),

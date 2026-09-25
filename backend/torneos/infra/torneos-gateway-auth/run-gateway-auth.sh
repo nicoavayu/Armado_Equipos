@@ -2,7 +2,7 @@
 # GATEWAY/AUTH (G2) — Production gateway/auth tooling for Arma2 Torneos. Operator-run in a real terminal.
 #
 #   run-gateway-auth.sh --preflight          READ-ONLY PAT   state of W1 / W2+W3 / KR / W5, installer privileges → STOP
-#   run-gateway-auth.sh --auth-lockdown      WRITE PAT       + phrase → PATCH config/auth (W1)
+#   run-gateway-auth.sh --auth-lockdown      WRITE PAT       + phrase → PATCH config/auth (W1, 6 keys) → GoTrue refusal probes
 #                                                            (Auth Config: Read-write + Project Settings: Read-write)
 #   run-gateway-auth.sh --db-bootstrap       READ-ONLY PAT   + phrase → ONE psql transaction (W2 + W3); installer password
 #                                                            from the Keychain, login passwords generated into the Keychain
@@ -33,7 +33,7 @@ esac
 { : < /dev/tty; } 2>/dev/null || abort "GATEWAY_AUTH_BLOCKED_NO_TTY (run it in a terminal)"
 [[ -t 0 && -t 1 ]] || abort "GATEWAY_AUTH_REFUSED_NON_INTERACTIVE (stdin/stdout are not a terminal)"
 command -v node >/dev/null || abort "node missing"
-for f in gateway-auth.mjs gateway-auth-contract.mjs mgmt-gateway-auth.mjs keychain-gateway-auth.mjs keychain-gateway-auth.py keyring.mjs psql-gateway-auth.mjs bridge-probe.mjs gateway-loader.mjs; do
+for f in gateway-auth.mjs gateway-auth-contract.mjs mgmt-gateway-auth.mjs keychain-gateway-auth.mjs keychain-gateway-auth.py keyring.mjs psql-gateway-auth.mjs bridge-probe.mjs auth-probe.mjs gateway-loader.mjs; do
   [[ -f "$HERE/$f" ]] || abort "tooling file missing: $f"
 done
 
