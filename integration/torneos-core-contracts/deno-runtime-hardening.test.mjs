@@ -349,7 +349,13 @@ test('MP-B1.1 R3 — isolated remote commerce runtime hardening (offline)', asyn
         assert.ok(!/EdgeRuntime|Supabase\.ai|supabase\/functions-js|jsr:@supabase|https:\/\/esm\.sh|https:\/\/deno\.land/.test(code), `${file}: edge-runtime-only API or remote import`);
         assert.ok(!/Deno\.(readFile|readTextFile|writeFile|writeTextFile|open|mkdir|remove|stat|lstat|readDir|Command|run|openKv|cron|dlopen|listen|connect|cwd|chdir|execPath|exit)\b/.test(code), `${file}: filesystem / process / KV / socket API`);
         assert.ok(!/process\.env|require\(|__dirname|import\.meta\.(dirname|filename|resolve)|\/home\/deno|\/tmp\//.test(code), `${file}: Node global or container path`);
-        assert.ok(!/\.supabase\.co\b|deno\.dev\b|deno\.net\b/.test(code), `${file}: hard-coded platform hostname`);
+        // GATEWAY/AUTH G1: topology.ts pins the Production topology (Core Production authority, Torneos data plane) as
+        // VALUES TO COMPARE configuration against; nothing is fetched from them. Its *.supabase.co names may appear
+        // only inside the frozen PRODUCTION pin and the Edge-Function-host refusal; every other file stays host-free.
+        const hostCode = file.endsWith('/torneos-gateway/topology.ts')
+          ? code.replace(/export const PRODUCTION = Object\.freeze\(\{[\s\S]*?\n\}\)/, '').replace(/\/\(\^\|\\\.\)supabase\\\.\(co\|in\|com\|net\)\$\//, '')
+          : code;
+        assert.ok(!/\.supabase\.co\b|deno\.dev\b|deno\.net\b/.test(hostCode), `${file}: hard-coded platform hostname`);
       }
       evidence.deno.denoApis = [...denoApis].sort();
       assert.deepEqual(evidence.deno.denoApis, ['Deno.env', 'Deno.env.toObject', 'Deno.serve'], 'Deno.serve + Deno.env only (Deno.env is the shared provider default parameter)');

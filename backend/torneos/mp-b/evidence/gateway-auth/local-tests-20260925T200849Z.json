@@ -1,0 +1,159 @@
+{
+ "generated_at": "2026-09-25T20:08:49.282Z",
+ "node": "v25.2.1",
+ "deno": "2.1.4 (local cache, --cached-only)",
+ "head": "5cf93a2e40c15a9ff557151dae2bdc5d5b7e7043",
+ "local_only": true,
+ "results": [
+  {
+   "file": "backend/torneos/infra/torneos-gateway-auth/gateway-topology.test.mjs",
+   "what": "G1 PASS/FAIL matrix (new)",
+   "tests": 5,
+   "pass": 5,
+   "fail": 0,
+   "failing": [],
+   "note": null
+  },
+  {
+   "file": "backend/torneos/infra/torneos-gateway-auth/gateway-auth.test.mjs",
+   "what": "G2 tooling (new)",
+   "tests": 14,
+   "pass": 14,
+   "fail": 0,
+   "failing": [],
+   "note": null
+  },
+  {
+   "file": "backend/torneos/phase3b/gateway-port.test.mjs",
+   "what": "gateway unit (updated)",
+   "tests": 6,
+   "pass": 6,
+   "fail": 0,
+   "failing": [],
+   "note": "baseline 5/6: stale console.log assertion vs MP-A4 audit hook"
+  },
+  {
+   "file": "backend/torneos/infra/torneos-foundation/foundation.test.mjs",
+   "what": "foundation tooling (unchanged)",
+   "tests": 53,
+   "pass": 53,
+   "fail": 0,
+   "failing": [],
+   "note": null
+  },
+  {
+   "file": "backend/torneos/infra/core-prod-contract/core-prod.test.mjs",
+   "what": "Core Prod contract tooling (unchanged)",
+   "tests": 41,
+   "pass": 41,
+   "fail": 0,
+   "failing": [],
+   "note": null
+  },
+  {
+   "file": "integration/torneos-core-contracts/deno-runtime-hardening.test.mjs",
+   "what": "Deno hardening (guard narrowed for topology.ts pins)",
+   "tests": 30,
+   "pass": 30,
+   "fail": 0,
+   "failing": [],
+   "note": null
+  },
+  {
+   "file": "integration/torneos-core-contracts/deno-runtime-compat.test.mjs",
+   "what": "unmodified entrypoints on Deno 2.1.4",
+   "tests": 8,
+   "pass": 8,
+   "fail": 0,
+   "failing": [],
+   "note": null
+  },
+  {
+   "file": "integration/torneos-core-contracts/remote-test-enablement.test.mjs",
+   "what": "remote-test commerce (unchanged)",
+   "tests": 30,
+   "pass": 30,
+   "fail": 0,
+   "failing": [],
+   "note": null
+  },
+  {
+   "file": "integration/torneos-core-contracts/commerce-gateway.test.mjs",
+   "what": "MP-A4 commerce gateway",
+   "tests": 33,
+   "pass": 31,
+   "fail": 2,
+   "failing": [
+    "✖ U scope: MP-A3 payments service + provider copies and 0000/0001/0002 byte-identical to the base; config.toml, Core contract and frontend untouched; only MP-A4 paths changed",
+    "✖ MP-A4 — T6 gateway commerce (unit)"
+   ],
+   "note": "baseline identical: U scope compares against the MP-A4 base (pre-existing)"
+  },
+  {
+   "file": "integration/torneos-core-contracts/payments-config.test.mjs",
+   "what": "MP-A3 payments config",
+   "tests": 19,
+   "pass": 11,
+   "fail": 8,
+   "failing": [
+    "✖ lab: payments DB URL uses the dedicated login lab_payment_service (not service_role / postgres / supabase_admin / gateway logins)",
+    "✖ lab: role shape — lab_payment_service LOGIN NOINHERIT member only of torneos_payment_service; torneos_payment_service NOLOGIN NOINHERIT with that single member; no superuser/bypassrls",
+    "✖ lab: exactly 4 EXECUTE after SET ROLE torneos_payment_service (public + private, incl. PUBLIC grants), equal to the MP-A2 delta; the bare NOINHERIT login executes none of them",
+    "✖ lab: 0 direct DML / SELECT on commercial tables, no access to other commercial functions, and apply_tournament_purchase_reversal (baseline, service_role-only) is NOT executable — real attempts refused 42501",
+    "✖ lab: the login cannot become service_role, postgres, supabase_admin, authenticator, anon, authenticated or the gateway roles",
+    "✖ lab: the running function connects only as lab_payment_service (pg_stat_activity, application_name torneos-payments) — no Core auth needed: a Torneos/Core bearer alone is refused",
+    "✖ lab: runtime secret isolation — payments/stub secrets only in their 0600 .runtime files; gateway env/config and Core containers never carry them; stub has no DB/Core secrets",
+    "✖ MP-A3 — T5 config / privilege / isolation"
+   ],
+   "note": "baseline identical: 8 \"lab:\" checks need the running Docker lab"
+  },
+  {
+   "file": "backend/torneos/phase3b/r42/r42.test.mjs",
+   "what": "R4.2 harness",
+   "tests": 11,
+   "pass": 11,
+   "fail": 0,
+   "failing": [],
+   "note": null
+  },
+  {
+   "file": "backend/torneos/phase3b/r42/route-fault.test.mjs",
+   "what": "R4.2 route fault",
+   "tests": 3,
+   "pass": 3,
+   "fail": 0,
+   "failing": [],
+   "note": null
+  },
+  {
+   "file": "backend/torneos/phase3b/remote/core-contract.test.mjs",
+   "what": "phase3b core contract (historical)",
+   "tests": 32,
+   "pass": 32,
+   "fail": 0,
+   "failing": [],
+   "note": null
+  },
+  {
+   "file": "backend/torneos/phase3b/remote/d1-managed.test.mjs",
+   "what": "phase3b D1 (historical)",
+   "tests": 4,
+   "pass": 4,
+   "fail": 0,
+   "failing": [],
+   "note": null
+  },
+  {
+   "file": "backend/torneos/phase3b/remote/inventory.test.mjs",
+   "what": "phase3b inventory (historical)",
+   "tests": 20,
+   "pass": 20,
+   "fail": 0,
+   "failing": [],
+   "note": null
+  }
+ ],
+ "known_environment_failures": [
+  "phase3b/r42/worker-invocation.test.mjs: bundles npm:jose from registry.npmjs.org (no network in this session)"
+ ]
+}

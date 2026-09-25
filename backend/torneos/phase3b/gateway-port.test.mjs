@@ -7,7 +7,8 @@
 //     contract violations are rejected, constants are identical;
 //   • core-client.ts validate() ≡ core-client.mjs validate() on the Phase 2A schemas;
 //   • adapter.ts CONTRACTS/mapSqlError ≡ adapter.mjs; the adapter never runs as the user;
-//   • config.ts fails closed on every missing/malformed value and refuses Production;
+//   • config.ts fails closed on every missing/malformed value; Core Production is accepted only as the
+//     HTTPS authority (topology.ts), never as a data plane;
 //   • the JSON documents bundled in the function are byte-identical to their canonical sources;
 //   • the function tree contains no secret material.
 // Run: node --test backend/torneos/phase3b/gateway-port.test.mjs
@@ -38,7 +39,7 @@ await fs.copyFile(path.join(ROOT, 'backend/torneos/phase2a/schemas.json'), path.
 const nodeCoreClient = await import(pathToFileURL(path.join(NODE_STAGE, 'core-client.mjs')).href);
 const nodeAdapter = await import(pathToFileURL(path.join(NODE_STAGE, 'adapter.mjs')).href);
 
-const FILES = ['token.ts', 'core-client.ts', 'db.ts', 'adapter.ts', 'config.ts', 'index.ts'];
+const FILES = ['topology.ts', 'token.ts', 'core-client.ts', 'db.ts', 'adapter.ts', 'config.ts', 'index.ts'];
 const JOSE_URL = pathToFileURL(labRequire.resolve('jose')).href;
 
 async function loadPort() {
@@ -54,7 +55,7 @@ export default function postgres(url, options) {
     let source = await fs.readFile(path.join(FN, file), 'utf8');
     source = source.replace(/"npm:jose@6\.2\.12"/g, JSON.stringify(JOSE_URL))
       .replace(/"npm:postgres@3\.4\.7"/g, '"./postgres-stub.mjs"')
-      .replace(/from "\.\/(token|core-client|db|adapter|config)\.ts"/g, 'from "./$1.mjs"')
+      .replace(/from "\.\/(topology|token|core-client|db|adapter|config)\.ts"/g, 'from "./$1.mjs"')
       // typescript 4.9 (the repo's harness version) cannot emit import attributes: load the JSON
       // documents through createRequire instead (same bytes, same objects).
       .replace(/import (\w+) from "\.\/([\w.-]+\.json)" with \{ type: "json" \}/g,
@@ -64,7 +65,7 @@ export default function postgres(url, options) {
   }
   for (const json of ['schemas.json', 'session.schema.json', 'staging-v1-rpc-allowlist.json']) await fs.copyFile(path.join(FN, json), path.join(outDir, json));
   const mod = async (name) => import(pathToFileURL(path.join(outDir, `${name}.mjs`)).href);
-  return { token: await mod('token'), coreClient: await mod('core-client'), db: await mod('db'), adapter: await mod('adapter'), config: await mod('config'),
+  return { topology: await mod('topology'), token: await mod('token'), coreClient: await mod('core-client'), db: await mod('db'), adapter: await mod('adapter'), config: await mod('config'),
     stub: await mod('postgres-stub'), cleanup: () => fs.rm(outDir, { recursive: true, force: true }) };
 }
 
@@ -152,11 +153,13 @@ test('core-client.ts validate() ≡ core-client.mjs validate() on the Phase 2A s
     assert.doesNotThrow(() => V({ active: true, checked_at: 5 }, 'sessionResponse'));
     for (const bad of [{ active: false, checked_at: 5 }, { active: true }, { active: true, checked_at: 5, x: 1 }, { active: 'true', checked_at: 5 }]) assert.throws(() => V(bad, 'sessionResponse'));
     assert.deepEqual(port.coreClient.ROUTES, { ...nodeCoreClient.ROUTES, session: '/v1/session' });
-    // Transport policy: lab internal http or https; never Production; never credentials/query.
+    // Transport policy: lab internal http or https; Core Production only at its certified contract URL; never the
+    // Torneos data project; never credentials/query.
     const A = port.coreClient.assertCoreContractUrl;
     assert.equal(A('http://core-api:8000/functions/v1/torneos-core-contract'), 'http://core-api:8000/functions/v1/torneos-core-contract');
     assert.equal(A('https://hhyvmhgpapyuzjgxfnqv.supabase.co/functions/v1/torneos-core-contract/'), 'https://hhyvmhgpapyuzjgxfnqv.supabase.co/functions/v1/torneos-core-contract');
-    for (const bad of ['http://evil:8000/x', 'https://rcyuuoaqfwcembdajcss.supabase.co/functions/v1/torneos-core-contract', 'https://u:p@host/x', 'https://host/x?y=1', 'ftp://core-api/x']) assert.throws(() => A(bad), undefined, bad);
+    assert.equal(A('https://rcyuuoaqfwcembdajcss.supabase.co/functions/v1/torneos-core-contract'), 'https://rcyuuoaqfwcembdajcss.supabase.co/functions/v1/torneos-core-contract');
+    for (const bad of ['http://evil:8000/x', 'https://rcyuuoaqfwcembdajcss.supabase.co/functions/v1/other', 'https://onzpwnqxnvlgsevivngf.supabase.co/functions/v1/torneos-core-contract', 'https://u:p@host/x', 'https://host/x?y=1', 'ftp://core-api/x']) assert.throws(() => A(bad), undefined, bad);
     // Same HMAC as the Node client for the same inputs.
     const key = Buffer.from('ab'.repeat(32), 'hex');
     const client = new port.coreClient.CoreClient('http://core-api:8000/functions/v1/torneos-core-contract', new Uint8Array(key));
@@ -282,7 +285,7 @@ test('adapter.ts ≡ adapter.mjs: contracts, request mappers, SQL error mapping,
   } finally { await port.cleanup(); }
 });
 
-test('config.ts fails closed: every missing/malformed value disables the gateway; Production refused; routePath', async () => {
+test('config.ts fails closed: every missing/malformed value disables the gateway; Core Production never a data plane; routePath', async () => {
   const port = await loadPort();
   try {
     const { loadConfig, routePath, ConfigError } = port.config;
@@ -313,8 +316,9 @@ test('config.ts fails closed: every missing/malformed value disables the gateway
     }
     const PROD = 'rcyuuoaqfwcembdajcss';
     const bad = {
-      'Production Core auth': { CORE_AUTH_URL: `https://${PROD}.supabase.co/auth/v1` },
-      'Production contract': { CORE_CONTRACT_URL: `https://${PROD}.supabase.co/functions/v1/torneos-core-contract` },
+      // One authority URL on Core Production while the others stay on another Core: mixed authority plane.
+      'Production Core auth (mixed)': { CORE_AUTH_URL: `https://${PROD}.supabase.co/auth/v1` },
+      'Production contract (mixed)': { CORE_CONTRACT_URL: `https://${PROD}.supabase.co/functions/v1/torneos-core-contract` },
       'Production Torneos rest': { TORNEOS_REST_URL: `https://${PROD}.supabase.co/rest/v1` },
       'Production DB': { TORNEOS_DB_CORE_ADAPTER_URL: `postgres://x.${PROD}:pw@aws-0-us-east-1.pooler.supabase.com:6543/postgres` },
       'Production public url': { TORNEOS_GATEWAY_PUBLIC_URL: `https://${PROD}.supabase.co/functions/v1/torneos-gateway` },
@@ -359,7 +363,9 @@ test('bundled documents are byte-identical to their canonical sources; function 
   }
   const index = await fs.readFile(path.join(FN, 'index.ts'), 'utf8');
   assert.doesNotMatch(index, /SUPABASE_SERVICE_ROLE_KEY|service_role/i, 'the gateway never uses a service role');
-  assert.doesNotMatch(index, /console\.(log|info|debug)\(/, 'no request logging');
+  // No request logging. The one console.log is the MP-A4 commerce audit hook (a whitelisted entry, commerce TEST only,
+  // refused at boot against Core Production); it predates this test's last green run and is pinned here exactly.
+  assert.deepEqual(index.match(/console\.(log|info|debug)\([^\n]*/g), ['console.log(JSON.stringify(entry)),'], 'no request logging');
   assert.match(index, /Core is reached ONLY over HTTPS|Core only over HTTPS/);
   const dbSrc = await fs.readFile(path.join(FN, 'db.ts'), 'utf8');
   assert.doesNotMatch(dbSrc, /auth\.sessions|auth\.users|core-db|poc_session_reader/, 'no Core database access');

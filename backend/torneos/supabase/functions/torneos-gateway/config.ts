@@ -2,13 +2,15 @@
 //
 // Everything the Node gateway hard-coded for the loopback lab (its own origin, the Core
 // Auth origin, the Core JWT issuer, the Core contract URL, the Torneos PostgREST origin,
-// the two Torneos database logins, the RS256 key ring) is read once from the function's
-// environment (Supabase Edge Function secrets) and validated before the first request is
-// served. Any missing or malformed value disables the whole gateway: there is no default,
-// no fallback and no "lab mode" switch. The Production project ref is refused wherever a
-// URL appears. Issuer/audience/TTL of the Torneos token are NOT configurable: they are
-// constants of the certified baseline (token.ts).
-import { PRODUCTION_REF, assertCoreContractUrl, fromHex } from "./core-client.ts"
+// the two Torneos database logins, the RS256 key ring) is read once from the gateway's
+// environment and validated before the first request is served. Any missing or malformed
+// value disables the whole gateway: there is no default, no fallback and no "lab mode"
+// switch. Which project may appear where is topology.ts: Core Production is accepted only
+// as the HTTPS authority (CORE_*), never in a data-plane URL (REST / postgres), and naming
+// it selects the pinned Production topology. Issuer/audience/TTL of the Torneos token are
+// NOT configurable: they are constants of the certified baseline (token.ts).
+import { assertCoreContractUrl, fromHex } from "./core-client.ts"
+import { assertTopology, assertPublicKey, assertNoCoreAdminMaterial, TopologyError, type Topology } from "./topology.ts"
 import type { BridgeConfig } from "./token.ts"
 
 export const FUNCTION_NAME = "torneos-gateway"
@@ -29,6 +31,7 @@ export type GatewayConfig = {
   coreAdapterUrl: string         // postgres:// login, NOINHERIT member of torneos_core_adapter
   dbSslCa: string | undefined
   bridge: BridgeConfig
+  topology: Topology             // production (Core Production + Torneos data, pinned) or nonproduction
 }
 
 export class ConfigError extends Error {}
@@ -47,7 +50,6 @@ export function assertHttpOrigin(name: string, value: string): URL {
   let url: URL
   try { url = new URL(value) } catch { throw new ConfigError(`${name} is not a URL`) }
   if (url.search || url.hash || url.username || url.password) throw new ConfigError(`${name} carries credentials or query`)
-  if (url.hostname.split(".").includes(PRODUCTION_REF)) throw new ConfigError(`${name} names Production`)
   if (url.protocol !== "https:" && !(url.protocol === "http:" && LAB_HOSTS.has(url.hostname))) throw new ConfigError(`${name} must be https`)
   return url
 }
@@ -56,7 +58,6 @@ export function assertPostgresUrl(name: string, value: string): string {
   let url: URL
   try { url = new URL(value) } catch { throw new ConfigError(`${name} is not a URL`) }
   if (url.protocol !== "postgres:" && url.protocol !== "postgresql:") throw new ConfigError(`${name} is not postgres://`)
-  if (url.hostname.split(".").includes(PRODUCTION_REF) || decodeURIComponent(url.username).includes(PRODUCTION_REF)) throw new ConfigError(`${name} names Production`)
   if (!url.username) throw new ConfigError(`${name} has no login`)
   return value
 }
@@ -85,32 +86,53 @@ export function parseBridgeKeys(raw: string): BridgeConfig {
 }
 
 export function loadConfig(env: Record<string, string | undefined>): GatewayConfig {
+  try { assertNoCoreAdminMaterial(env) } catch (error) { throw asConfigError(error) }
   const publicUrl = assertHttpOrigin("TORNEOS_GATEWAY_PUBLIC_URL", required(env, "TORNEOS_GATEWAY_PUBLIC_URL"))
   const allowed = assertHttpOrigin("TORNEOS_ALLOWED_ORIGIN", required(env, "TORNEOS_ALLOWED_ORIGIN"))
   if (allowed.pathname !== "/" || allowed.href !== `${allowed.origin}/`) throw new ConfigError("TORNEOS_ALLOWED_ORIGIN must be a bare origin")
   const coreAuth = assertHttpOrigin("CORE_AUTH_URL", required(env, "CORE_AUTH_URL"))
   const issuer = assertHttpOrigin("CORE_JWT_ISSUER", required(env, "CORE_JWT_ISSUER"))
-  const contractUrl = assertCoreContractUrl(assertHttpOrigin("CORE_CONTRACT_URL", required(env, "CORE_CONTRACT_URL")).href)
+  const contract = assertHttpOrigin("CORE_CONTRACT_URL", required(env, "CORE_CONTRACT_URL"))
   const secretHex = required(env, "TORNEOS_CONTRACT_SERVICE_SECRET")
   if (!/^[0-9a-f]{64,}$/.test(secretHex) || secretHex.length % 2 !== 0) throw new ConfigError("TORNEOS_CONTRACT_SERVICE_SECRET must be hex of at least 32 bytes")
   const rest = assertHttpOrigin("TORNEOS_REST_URL", required(env, "TORNEOS_REST_URL"))
-  // The Torneos data plane must not be the Core one: a shared origin would be a shared project.
+  const identityWriterUrl = assertPostgresUrl("TORNEOS_DB_IDENTITY_WRITER_URL", required(env, "TORNEOS_DB_IDENTITY_WRITER_URL"))
+  const coreAdapterUrl = assertPostgresUrl("TORNEOS_DB_CORE_ADAPTER_URL", required(env, "TORNEOS_DB_CORE_ADAPTER_URL"))
+  const dbSslCa = optional(env, "TORNEOS_DB_SSL_CA") ? decodeEnvDocument(optional(env, "TORNEOS_DB_SSL_CA")!) : undefined
+  const coreAnonKey = optional(env, "CORE_ANON_KEY")
+  const torneosAnonKey = optional(env, "TORNEOS_ANON_KEY")
+  let topology: Topology
+  try {
+    assertPublicKey("CORE_ANON_KEY", coreAnonKey)
+    assertPublicKey("TORNEOS_ANON_KEY", torneosAnonKey)
+    topology = assertTopology({ publicUrl, allowedOrigin: allowed, coreAuth, coreIssuer: issuer, coreContract: contract, rest,
+      identityWriter: new URL(identityWriterUrl), coreAdapter: new URL(coreAdapterUrl) },
+      { dbSslCa: dbSslCa !== undefined, commerceMode: (env.TORNEOS_COMMERCE_MODE ?? "").trim() })
+  } catch (error) { throw asConfigError(error) }
+  let contractUrl: string
+  try { contractUrl = assertCoreContractUrl(contract.href) } catch (error) { throw new ConfigError(`CORE_CONTRACT_URL rejected (${(error as Error).message})`) }
+  // The Torneos data plane must not be the Core one: a shared origin would be a shared project (also for non-hosted hosts).
   if (rest.origin === coreAuth.origin && !LAB_HOSTS.has(rest.hostname)) throw new ConfigError("TORNEOS_REST_URL must not be the Core project")
   return {
     publicUrl,
     allowedOrigin: allowed.origin,
     coreAuthUrl: coreAuth.href.replace(/\/$/, ""),
     coreJwtIssuer: issuer.href.replace(/\/$/, ""),
-    coreAnonKey: optional(env, "CORE_ANON_KEY"),
+    coreAnonKey,
     coreContractUrl: contractUrl,
     coreContractSecret: fromHex(secretHex),
     torneosRestUrl: rest.href.replace(/\/$/, ""),
-    torneosAnonKey: optional(env, "TORNEOS_ANON_KEY"),
-    identityWriterUrl: assertPostgresUrl("TORNEOS_DB_IDENTITY_WRITER_URL", required(env, "TORNEOS_DB_IDENTITY_WRITER_URL")),
-    coreAdapterUrl: assertPostgresUrl("TORNEOS_DB_CORE_ADAPTER_URL", required(env, "TORNEOS_DB_CORE_ADAPTER_URL")),
-    dbSslCa: optional(env, "TORNEOS_DB_SSL_CA") ? decodeEnvDocument(optional(env, "TORNEOS_DB_SSL_CA")!) : undefined,
+    torneosAnonKey,
+    identityWriterUrl,
+    coreAdapterUrl,
+    dbSslCa,
     bridge: parseBridgeKeys(required(env, "TORNEOS_BRIDGE_KEYS")),
+    topology,
   }
+}
+
+function asConfigError(error: unknown): ConfigError {
+  return error instanceof TopologyError ? new ConfigError(error.message) : error instanceof ConfigError ? error : new ConfigError("configuration rejected")
 }
 
 /** Strips the platform mount (`/functions/v1`) and the function name; null when not ours. */

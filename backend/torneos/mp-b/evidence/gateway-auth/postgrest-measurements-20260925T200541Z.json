@@ -1,0 +1,100 @@
+{
+ "generated_at": "2026-09-25T20:05:41.102Z",
+ "tool": "backend/torneos/infra/torneos-gateway-auth/measure-postgrest.mjs",
+ "local_only": true,
+ "images": [
+  "public.ecr.aws/supabase/postgres:17.6.1.147",
+  "public.ecr.aws/supabase/postgrest:v14.15"
+ ],
+ "window": [
+  {
+   "db_reachable_after_ms": 0,
+   "transitions": [
+    [
+     6,
+     "503/PGRST002"
+    ],
+    [
+     98,
+     "200"
+    ],
+    [
+     1123,
+     "401/PT401"
+    ]
+   ],
+   "served_without_pre_request_ms": 1025
+  },
+  {
+   "db_reachable_after_ms": 300,
+   "transitions": [
+    [
+     3,
+     "503/PGRST002"
+    ],
+    [
+     803,
+     "401/PT401"
+    ]
+   ],
+   "served_without_pre_request_ms": 0
+  },
+  {
+   "db_reachable_after_ms": 1500,
+   "transitions": [
+    [
+     3,
+     "503/PGRST002"
+    ],
+    [
+     1552,
+     "401/PT401"
+    ]
+   ],
+   "served_without_pre_request_ms": 0
+  },
+  {
+   "db_reachable_after_ms": 3000,
+   "transitions": [
+    [
+     2,
+     "503/PGRST002"
+    ],
+    [
+     92,
+     "401/PT401"
+    ]
+   ],
+   "served_without_pre_request_ms": 0
+  }
+ ],
+ "aud": [
+  {
+   "jwt_aud": "(unset)",
+   "token_aud": "arma2-torneos-local",
+   "final": "401/PT401"
+  },
+  {
+   "jwt_aud": "authenticated",
+   "token_aud": "arma2-torneos-local",
+   "final": "401/PGRST303"
+  },
+  {
+   "jwt_aud": "arma2-torneos-local",
+   "token_aud": "arma2-torneos-local",
+   "final": "401/PT401"
+  }
+ ],
+ "summary": {
+  "starts_with_window": 1,
+  "starts": 4,
+  "max_window_ms": 1025,
+  "aud_accepts_bridge": [
+   "(unset)",
+   "arma2-torneos-local"
+  ],
+  "aud_rejects_bridge": [
+   "authenticated → 401/PGRST303"
+  ]
+ }
+}
