@@ -55,23 +55,33 @@ export class ApiError extends Error {
 }
 
 /**
- * The only handle the runner uses. `armedFor` ∈ {null, 'pause', 'create'} (or a getter of it, read at each
+ * The only handle the runner uses. `mode` pins the endpoints it may call (F.MODE_ENDPOINTS). `armedFor` ∈ {null, 'pause', 'create'} (or a getter of it, read at each
  * request); `createdRef` is the Arma2
  * Torneos ref once it is known (from the projects list by exact name, or from the create response).
  * Every value that looks like a key is dropped by the projections before it can be returned.
  */
-export function makeClient({ transport, pat, armedFor = null, known = [] }) {
+export function makeClient({ transport, pat, mode, armedFor = null, known = [] }) {
+  if (!F.MODE_ENDPOINTS[mode]) throw new ApiError('CLIENT_MODE_REQUIRED', { mode: mode ?? null });
   let createdRef = null;
   const log = [];
   const call = async (method, path, body) => {
-    const cls = F.classifyRequest({ method, path, body }, { armedFor: typeof armedFor === 'function' ? armedFor() : armedFor, createdRef });
+    const cls = F.classifyRequest({ method, path, body }, { armedFor: typeof armedFor === 'function' ? armedFor() : armedFor, createdRef, mode });
     let res;
     try { res = await transport({ pat, method, path, body }); } catch (e) { throw new ApiError('TRANSPORT_FAILED', { id: cls.id, error: String(e.message).slice(0, 120) }); }
     log.push({ id: cls.id, kind: cls.kind, method, ref: cls.ref, status: res.status });
     return { ...res, cls };
   };
+  const message = (res, n) => (typeof res.body?.message === 'string' ? res.body.message.slice(0, n) : null);
+  /** 401/403: the PAT is not accepted, or lacks the permission (or the project) this endpoint needs. Named, not generic. */
+  const denied = (res) => {
+    if (res.status !== 401 && res.status !== 403) return;
+    throw new ApiError(res.status === 401 ? 'PAT_REJECTED' : 'PAT_PERMISSION_DENIED', {
+      id: res.cls.id, ref: res.cls.ref, status: res.status, required_permission: res.cls.fga ? F.FGA_LABELS[res.cls.fga] : 'none published for this endpoint',
+      required_resource_access: `Organization ${F.ORG_SLUG}`, message: message(res, 160),
+    });
+  };
   const ok = (res, codes = [200]) => {
-    if (!codes.includes(res.status)) throw new ApiError('API_STATUS_UNEXPECTED', { id: res.cls.id, status: res.status, message: typeof res.body?.message === 'string' ? res.body.message.slice(0, 160) : null });
+    if (!codes.includes(res.status)) { denied(res); throw new ApiError('API_STATUS_UNEXPECTED', { id: res.cls.id, ref: res.cls.ref, status: res.status, message: message(res, 160) }); }
     return res.body;
   };
   const sqlRows = (body) => (Array.isArray(body) ? body : (Array.isArray(body?.result) ? body.result : []));
@@ -86,7 +96,15 @@ export function makeClient({ transport, pat, armedFor = null, known = [] }) {
     get createdRef() { return createdRef; },
     async org() { const b = ok(await call('GET', `/v1/organizations/${F.ORG_SLUG}`)); return { slug: b?.slug ?? b?.id ?? null, name: b?.name ?? null, plan: b?.plan ?? null }; },
     async projects() { const b = ok(await call('GET', '/v1/projects')); return (Array.isArray(b) ? b : []).map(projectProject); },
-    async regions() { return ok(await call('GET', `/v1/projects/available-regions?organization_slug=${F.ORG_SLUG}&continent=SA`)); },
+    /**
+     * available-regions publishes no scoped-PAT permission, so a scoped PAT gets 403 there. That 403 is returned
+     * as `{ denied: 403 }` for the runner to classify; 401 and every other status still stop the run.
+     */
+    async regions() {
+      const res = await call('GET', `/v1/projects/available-regions?organization_slug=${F.ORG_SLUG}&continent=SA`);
+      if (res.status === 403) return { denied: 403 };
+      return ok(res);
+    },
     async prodProject() { return projectProject(ok(await call('GET', `/v1/projects/${F.PROD_REF}`))); },
     async prodContractFn() { return projectFunction(ok(await call('GET', `/v1/projects/${F.PROD_REF}/functions/${F.CORE_CONTRACT_SLUG}`))); },
     async project(ref) { return projectProject(ok(await call('GET', `/v1/projects/${ref}`))); },
@@ -130,7 +148,7 @@ export function makeClient({ transport, pat, armedFor = null, known = [] }) {
     async pauseStaging() { const res = await call('POST', `/v1/projects/${F.STAGING_REF}/pause`); ok(res, [200, 201]); return { status: res.status }; },
     async createProject(dbPass) {
       const res = await call('POST', '/v1/projects', F.createProjectBody(dbPass));
-      if (res.status !== 201 && res.status !== 200) throw new ApiError('CREATE_STATUS_UNEXPECTED', { status: res.status, message: typeof res.body?.message === 'string' ? res.body.message.slice(0, 200) : null });
+      if (res.status !== 201 && res.status !== 200) { denied(res); throw new ApiError('CREATE_STATUS_UNEXPECTED', { status: res.status, message: message(res, 200) }); }
       return projectProject(res.body);
     },
   };

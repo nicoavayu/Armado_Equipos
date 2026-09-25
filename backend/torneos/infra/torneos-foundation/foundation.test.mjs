@@ -10,6 +10,7 @@ import { fileURLToPath } from 'node:url';
 import * as F from './foundation-contract.mjs';
 import { runFoundation, StopError, MODES, orgSlots, stagingFailures } from './foundation.mjs';
 import { psqlEnv } from './psql-foundation.mjs';
+import { makeClient } from './mgmt-foundation.mjs';
 import { assertProbeTarget, probePostgrest, forgeTokens } from './postgrest-probe.mjs';
 import { assertNamespace } from './keychain-foundation.mjs';
 
@@ -248,6 +249,71 @@ for (const [name, over, code] of [
     assert.equal(d.management_api_writes, 0);
   });
 }
+// ───────────────────────── scoped PAT contract ─────────────────────────
+const READ_ONLY_MODES = ['--staging-prepause', '--create-preflight', '--migrate', '--certify'];
+test('PAT: --staging-prepause needs exactly six Read permissions, organization-wide; only pause/create hold a Read-write', () => {
+  const r = F.patRequirement('--staging-prepause');
+  assert.deepEqual(r.permissions, ['Database: Read', 'Development Branches: Read', 'Edge Functions: Read', 'Organization Settings: Read', 'Project Settings: Read', 'Projects (account-wide): Read']);
+  assert.deepEqual(r.fga, ['branching_development_read', 'database_read', 'edge_functions_read', 'organization_admin_read', 'project_admin_read', 'projects_read']);
+  assert.deepEqual(r.resource_access, { type: 'Organization', organization_slug: F.ORG_SLUG });
+  assert.deepEqual(r.writes, []); assert.deepEqual(r.unmapped, []);
+  for (const m of READ_ONLY_MODES) {
+    const q = F.patRequirement(m);
+    assert.deepEqual(q.writes, [], m);
+    assert.ok(q.permissions.every((p) => p.endsWith(': Read')), `${m} ${q.permissions}`);
+    assert.ok(!q.fga.some((f) => /_(write|create|delete)$/.test(f)), m);
+  }
+  const pause = F.patRequirement('--pause-staging');
+  assert.deepEqual(pause.writes, ['pause']);
+  assert.deepEqual(pause.permissions.filter((p) => p.endsWith('Read-write')), ['Project Settings: Read-write']);
+  assert.ok(!pause.permissions.includes('Project Settings: Read'));
+  const create = F.patRequirement('--create-project');
+  assert.deepEqual(create.writes, ['create']);
+  assert.deepEqual(create.permissions.filter((p) => p.endsWith('Read-write')), ['Organization Projects: Read-write']);
+  assert.throws(() => F.patRequirement('--force'), /mode_unknown/);
+});
+test('PAT: every endpoint carries its spec permission (x-fga-permissions); no OAuth scope names anywhere', () => {
+  const expected = { org: 'organization_admin_read', projects: 'projects_read', 'prod-project': 'project_admin_read', 'prod-contract-fn': 'edge_functions_read', project: 'project_admin_read', functions: 'edge_functions_read', branches: 'branching_development_read', query: 'database_read', pause: 'project_admin_write', create: 'organization_projects_create', regions: null };
+  for (const [id, fga] of Object.entries(expected)) assert.equal(F.ENDPOINTS.find((e) => e.id === id).fga, fga, id);
+  for (const e of F.ENDPOINTS) { assert.ok('fga' in e, e.id); if (e.fga) assert.ok(F.FGA_LABELS[e.fga], e.fga); }
+  for (const m of Object.keys(MODES)) {
+    assert.ok(F.MODE_ENDPOINTS[m].every((id) => F.ENDPOINTS.some((e) => e.id === id)), m);
+    const text = F.patRequirementText(m);
+    assert.match(text, new RegExp(`resource access: Organization ${F.ORG_SLUG}`));
+    assert.doesNotMatch(text, /\b(projects|database|organizations|secrets|edge_functions):(read|write)\b/);
+  }
+  const wrapper = fs.readFileSync(path.join(HERE, 'run-foundation.sh'), 'utf8');
+  assert.doesNotMatch(wrapper, /projects:write/); assert.match(wrapper, /patRequirementText/);
+  assert.doesNotMatch(fs.readFileSync(path.join(HERE, 'README.md'), 'utf8'), /\(projects:write\)/);
+});
+test('per mode: a read-only mode cannot reach a write endpoint, even armed; unlisted reads refused before the socket', async () => {
+  for (const m of READ_ONLY_MODES) {
+    assert.ok(!F.MODE_ENDPOINTS[m].some((id) => F.ENDPOINTS.find((e) => e.id === id).kind.startsWith('write:')), m);
+    assert.throws(() => F.classifyRequest({ method: 'POST', path: `/v1/projects/${F.STAGING_REF}/pause` }, { armedFor: 'pause', mode: m }), /endpoint_not_in_mode/);
+    assert.throws(() => F.classifyRequest({ method: 'POST', path: '/v1/projects', body: F.createProjectBody(DB_PASS) }, { armedFor: 'create', mode: m }), /endpoint_not_in_mode/);
+  }
+  assert.throws(() => F.classifyRequest({ method: 'GET', path: `/v1/projects/${F.STAGING_REF}/secrets` }, { mode: '--staging-prepause' }), /endpoint_not_in_mode/);
+  assert.throws(() => makeClient({ transport: async () => assert.fail('socket'), pat: PAT }), (e) => e.code === 'CLIENT_MODE_REQUIRED');
+  let sent = 0;
+  const c = makeClient({ transport: async () => { sent++; return { status: 200, body: {} }; }, pat: PAT, mode: '--staging-prepause', armedFor: 'pause' });
+  await assert.rejects(c.pauseStaging(), /endpoint_not_in_mode/);
+  await assert.rejects(c.secretNames(F.STAGING_REF), /endpoint_not_in_mode/);
+  assert.equal(sent, 0);
+});
+test('--staging-prepause: a token scoped to Production only → PAT_PERMISSION_DENIED naming the endpoint, ref and permission; 401 → PAT_REJECTED', async () => {
+  for (const [status, code] of [[403, 'PAT_PERMISSION_DENIED'], [401, 'PAT_REJECTED']]) {
+    const s = setup();
+    const inner = s.w.transport;
+    s.deps.transport = async (req) => (req.path.startsWith('/v1/projects/') && !req.path.includes(F.PROD_REF)
+      ? (s.w.requests.push(`${req.method} ${req.path}`), { status, body: { message: 'Your account does not have the necessary privileges to access this endpoint.' } })
+      : inner(req));
+    const e = await run('--staging-prepause', s).then(() => assert.fail('expected STOP'), (x) => x);
+    assert.equal(e.code, code);
+    assert.deepEqual({ id: e.detail.id, ref: e.detail.ref, status: e.detail.status, perm: e.detail.required_permission, access: e.detail.required_resource_access }, { id: 'project', ref: F.STAGING_REF, status, perm: 'Project Settings: Read', access: `Organization ${F.ORG_SLUG}` });
+    assert.deepEqual(s.w.requests, [`GET /v1/projects/${F.PROD_REF}`, `GET /v1/projects/${F.PROD_REF}/functions/${F.CORE_CONTRACT_SLUG}`, `GET /v1/projects/${F.STAGING_REF}`]);
+    assert.equal(evidence(s).length, 0);
+  }
+});
 test('--pause-staging: a wrong phrase writes nothing', async () => {
   const s = setup({}, { phrase: 'PAUSE CORE STAGING hhyvmhgpapyuzjgxfnqv' });
   assert.equal(await stopCode(run('--pause-staging', s)), 'NOT_AUTHORIZED');
@@ -291,6 +357,45 @@ for (const [name, over, kc, code] of [
     assert.ok(JSON.parse(evidence(s)[0].text).failures.includes(code));
   });
 }
+// A scoped PAT is refused on available-regions (no x-fga-permissions): only that endpoint answers `status`.
+const regionsDenied = (s, status) => {
+  const inner = s.w.transport;
+  s.deps.transport = async (req) => (req.path.startsWith('/v1/projects/available-regions')
+    ? (s.w.requests.push(`${req.method} ${req.path}`), { status, body: { message: 'Your account does not have the necessary privileges to access this endpoint.' } })
+    : inner(req));
+  return s;
+};
+test('--create-preflight: available-regions 403 (scoped PAT) → PASS by the fallback, recorded as such, 0 writes', async () => {
+  const s = regionsDenied(setup({ staging: 'INACTIVE' }), 403);
+  assert.equal((await run('--create-preflight', s)).verdict, 'CREATE_PREFLIGHT_PASS');
+  const d = JSON.parse(evidence(s)[0].text);
+  assert.equal(d.verdict, 'CREATE_PREFLIGHT_PASS'); assert.deepEqual(d.failures, []);
+  assert.match(d.region.source, /^fallback/); assert.equal(d.region.available, null);
+  assert.deepEqual(d.region.fallback, { create_body_accepts_code: true, core_prod_active_in_region: true });
+  assert.equal(d.management_api_writes, 0);
+  assert.deepEqual(d.requests.find((r) => r.id === 'regions'), { id: 'regions', kind: 'read', method: 'GET', ref: null, status: 403 });
+  assert.equal(d.slots.active, 1); assert.equal(d.plan.body.name, 'Arma2 Torneos'); assert.equal(d.plan.body.region_selection.code, 'sa-east-1');
+  assert.ok(!s.w.requests.some((x) => x.startsWith('POST')));
+});
+test('--create-preflight: available-regions 403 + Core Prod not healthy in sa-east-1 → BLOCKED, region unverifiable', async () => {
+  const s = regionsDenied(setup({ staging: 'INACTIVE', prod: 'ACTIVE_UNHEALTHY' }), 403);
+  assert.equal(await stopCode(run('--create-preflight', s)), 'CREATE_BLOCKED');
+  assert.ok(JSON.parse(evidence(s)[0].text).failures.includes('REGION_SA_EAST_1_UNVERIFIABLE'));
+});
+for (const [status, code] of [[401, 'PAT_REJECTED'], [500, 'API_STATUS_UNEXPECTED']]) {
+  test(`--create-preflight: available-regions ${status} still stops (${code}), no evidence`, async () => {
+    const s = regionsDenied(setup({ staging: 'INACTIVE' }), status);
+    assert.equal(await stopCode(run('--create-preflight', s)), code);
+    assert.equal(evidence(s).length, 0);
+  });
+}
+test('--create-project: available-regions 403 → same plan id before and after the phrase → one POST, sa-east-1', async () => {
+  const s = regionsDenied(setup({ staging: 'INACTIVE' }, { phrase: planPhrase }), 403);
+  const r = await run('--create-project', s);
+  assert.equal(r.verdict, 'ARMA2_TORNEOS_ACTIVE_HEALTHY');
+  assert.equal(s.w.requests.filter((x) => x === 'POST /v1/projects').length, 1);
+  assert.equal(s.w.createBody.region_selection.code, 'sa-east-1');
+});
 test('--create-project: exact phrase → Keychain generate → one POST with the pinned body → ACTIVE_HEALTHY, 0 functions', async () => {
   const kc = fakeKeychain();
   const s = setup({ staging: 'INACTIVE' }, { keychain: kc, phrase: planPhrase });

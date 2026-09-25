@@ -23,6 +23,10 @@ export const OLD_REF = 'giaeztyghmhzcngskjmw';
 export const ORG_SLUG = 'gwqrborhnqjdzzmpxulh';
 export const PROJECT_NAME = 'Arma2 Torneos';
 export const REGION = 'sa-east-1';
+// `region_selection.code` enum of V1CreateProjectBody (type `specific`), copied from the live spec
+// (https://api.supabase.com/api/v1-json, read 2026-09-25). Used only when available-regions is refused to a
+// scoped PAT (the endpoint has no x-fga-permissions): then REGION must at least be a code the create accepts.
+export const CREATE_REGION_CODES = Object.freeze(['us-east-1', 'us-east-2', 'us-west-1', 'us-west-2', 'ap-east-1', 'ap-southeast-1', 'ap-northeast-1', 'ap-northeast-2', 'ap-southeast-2', 'eu-west-1', 'eu-west-2', 'eu-west-3', 'eu-north-1', 'eu-central-1', 'eu-central-2', 'ca-central-1', 'ap-south-1', 'sa-east-1']);
 export const KNOWN_REFS = Object.freeze([PROD_REF, STAGING_REF, OLD_REF]);
 export const REF_PATTERN = /^[a-z]{20}$/;
 export const PAT_PATTERN = /^sbp_[A-Za-z0-9_]{20,160}$/;
@@ -70,31 +74,99 @@ export function loadMigrations(repoRoot = REPO_ROOT) {
 }
 
 // ─────────────────────────── endpoint allowlist ───────────────────────────
-// Each entry: method, a path regex, and the class of the request. `write:*` classes are only sent by
-// an ARMED client in the mode that owns them. Production appears in exactly two GET paths.
+// Each entry: method, a path regex, the class of the request and `fga`, the scoped-PAT permission the
+// Management API enforces for it. `write:*` classes are only sent by an ARMED client in the mode that
+// owns them. Production appears in exactly two GET paths.
+//
+// `fga` is copied from `x-fga-permissions` of the live OpenAPI spec (https://api.supabase.com/api/v1-json,
+// read 2026-09-25); where the spec lists alternatives, the narrowest one that serves the call is pinned.
+// These are scoped personal access token permissions, NOT OAuth scopes: `projects:read`, `projects:write`,
+// `database:read`… are OAuth-app scopes and do not name what a scoped PAT must hold.
 const REF = '([a-z]{20})';
 export const ENDPOINTS = Object.freeze([
-  { id: 'orgs', method: 'GET', re: /^\/v1\/organizations$/, kind: 'read' },
-  { id: 'org', method: 'GET', re: new RegExp(`^/v1/organizations/${ORG_SLUG}$`), kind: 'read' },
-  { id: 'projects', method: 'GET', re: /^\/v1\/projects$/, kind: 'read' },
-  { id: 'regions', method: 'GET', re: new RegExp(`^/v1/projects/available-regions\\?organization_slug=${ORG_SLUG}&continent=SA$`), kind: 'read' },
-  { id: 'prod-project', method: 'GET', re: new RegExp(`^/v1/projects/${PROD_REF}$`), kind: 'read' },
-  { id: 'prod-contract-fn', method: 'GET', re: new RegExp(`^/v1/projects/${PROD_REF}/functions/${CORE_CONTRACT_SLUG}$`), kind: 'read' },
-  { id: 'project', method: 'GET', re: new RegExp(`^/v1/projects/${REF}$`), kind: 'read' },
-  { id: 'functions', method: 'GET', re: new RegExp(`^/v1/projects/${REF}/functions$`), kind: 'read' },
-  { id: 'branches', method: 'GET', re: new RegExp(`^/v1/projects/${REF}/branches$`), kind: 'read' },
-  { id: 'health', method: 'GET', re: new RegExp(`^/v1/projects/${REF}/health\\?services=auth,db,pooler,rest,db_postgres_user$`), kind: 'read' },
-  { id: 'pooler', method: 'GET', re: new RegExp(`^/v1/projects/${REF}/config/database/pooler$`), kind: 'read' },
-  { id: 'third-party-auth', method: 'GET', re: new RegExp(`^/v1/projects/${REF}/config/auth/third-party-auth$`), kind: 'read' },
-  { id: 'auth-config', method: 'GET', re: new RegExp(`^/v1/projects/${REF}/config/auth$`), kind: 'read' },
-  { id: 'postgrest', method: 'GET', re: new RegExp(`^/v1/projects/${REF}/postgrest$`), kind: 'read' },
-  { id: 'api-keys', method: 'GET', re: new RegExp(`^/v1/projects/${REF}/api-keys\\?reveal=false$`), kind: 'read' },
-  { id: 'secrets', method: 'GET', re: new RegExp(`^/v1/projects/${REF}/secrets$`), kind: 'read' },
-  { id: 'db-migrations', method: 'GET', re: new RegExp(`^/v1/projects/${REF}/database/migrations$`), kind: 'read' },
-  { id: 'query', method: 'POST', re: new RegExp(`^/v1/projects/${REF}/database/query$`), kind: 'read-sql' },
-  { id: 'pause', method: 'POST', re: new RegExp(`^/v1/projects/${STAGING_REF}/pause$`), kind: 'write:pause' },
-  { id: 'create', method: 'POST', re: /^\/v1\/projects$/, kind: 'write:create' },
+  { id: 'orgs', method: 'GET', re: /^\/v1\/organizations$/, kind: 'read', fga: 'organizations_read' },
+  { id: 'org', method: 'GET', re: new RegExp(`^/v1/organizations/${ORG_SLUG}$`), kind: 'read', fga: 'organization_admin_read' },
+  { id: 'projects', method: 'GET', re: /^\/v1\/projects$/, kind: 'read', fga: 'projects_read' },
+  { id: 'regions', method: 'GET', re: new RegExp(`^/v1/projects/available-regions\\?organization_slug=${ORG_SLUG}&continent=SA$`), kind: 'read', fga: null },
+  { id: 'prod-project', method: 'GET', re: new RegExp(`^/v1/projects/${PROD_REF}$`), kind: 'read', fga: 'project_admin_read' },
+  { id: 'prod-contract-fn', method: 'GET', re: new RegExp(`^/v1/projects/${PROD_REF}/functions/${CORE_CONTRACT_SLUG}$`), kind: 'read', fga: 'edge_functions_read' },
+  { id: 'project', method: 'GET', re: new RegExp(`^/v1/projects/${REF}$`), kind: 'read', fga: 'project_admin_read' },
+  { id: 'functions', method: 'GET', re: new RegExp(`^/v1/projects/${REF}/functions$`), kind: 'read', fga: 'edge_functions_read' },
+  { id: 'branches', method: 'GET', re: new RegExp(`^/v1/projects/${REF}/branches$`), kind: 'read', fga: 'branching_development_read' },
+  { id: 'health', method: 'GET', re: new RegExp(`^/v1/projects/${REF}/health\\?services=auth,db,pooler,rest,db_postgres_user$`), kind: 'read', fga: 'project_admin_read' },
+  { id: 'pooler', method: 'GET', re: new RegExp(`^/v1/projects/${REF}/config/database/pooler$`), kind: 'read', fga: 'database_pooling_config_read' },
+  { id: 'third-party-auth', method: 'GET', re: new RegExp(`^/v1/projects/${REF}/config/auth/third-party-auth$`), kind: 'read', fga: 'auth_config_read' },
+  { id: 'auth-config', method: 'GET', re: new RegExp(`^/v1/projects/${REF}/config/auth$`), kind: 'read', fga: 'auth_config_read' },
+  { id: 'postgrest', method: 'GET', re: new RegExp(`^/v1/projects/${REF}/postgrest$`), kind: 'read', fga: 'data_api_config_read' },
+  { id: 'api-keys', method: 'GET', re: new RegExp(`^/v1/projects/${REF}/api-keys\\?reveal=false$`), kind: 'read', fga: 'api_gateway_keys_read' },
+  { id: 'secrets', method: 'GET', re: new RegExp(`^/v1/projects/${REF}/secrets$`), kind: 'read', fga: 'edge_functions_secrets_read' },
+  { id: 'db-migrations', method: 'GET', re: new RegExp(`^/v1/projects/${REF}/database/migrations$`), kind: 'read', fga: 'database_migrations_read' },
+  { id: 'query', method: 'POST', re: new RegExp(`^/v1/projects/${REF}/database/query$`), kind: 'read-sql', fga: 'database_read' },
+  { id: 'pause', method: 'POST', re: new RegExp(`^/v1/projects/${STAGING_REF}/pause$`), kind: 'write:pause', fga: 'project_admin_write' },
+  { id: 'create', method: 'POST', re: /^\/v1\/projects$/, kind: 'write:create', fga: 'organization_projects_create' },
 ]);
+
+// The scoped-PAT permissions, by their dashboard label (Account → Access Tokens → Generate new token).
+// `null` (available-regions): the spec publishes no permission for it, so no scoped PAT is known to reach it.
+export const FGA_LABELS = Object.freeze({
+  organizations_read: 'Organizations: Read',
+  organization_admin_read: 'Organization Settings: Read',
+  projects_read: 'Projects (account-wide): Read',
+  project_admin_read: 'Project Settings: Read',
+  project_admin_write: 'Project Settings: Read-write',
+  edge_functions_read: 'Edge Functions: Read',
+  edge_functions_secrets_read: 'Edge Function Secrets: Read',
+  branching_development_read: 'Development Branches: Read',
+  database_read: 'Database: Read',
+  database_pooling_config_read: 'Connection Pooling: Read',
+  database_migrations_read: 'Migrations: Read',
+  auth_config_read: 'Auth Config: Read',
+  data_api_config_read: 'Data API Config: Read',
+  api_gateway_keys_read: 'API Keys: Read',
+  organization_projects_create: 'Organization Projects: Read-write',
+});
+
+// What each mode may call. The client refuses every other endpoint before the socket, so a read-only
+// mode cannot reach a write even through a bug in the runner, and the PAT a mode needs is derived from
+// this list (patRequirement) instead of being written by hand.
+const CORE_READS = ['prod-project', 'prod-contract-fn', 'project', 'org', 'projects'];
+export const MODE_ENDPOINTS = Object.freeze({
+  '--staging-prepause': Object.freeze([...CORE_READS, 'functions', 'branches', 'query']),
+  '--pause-staging': Object.freeze([...CORE_READS, 'functions', 'branches', 'query', 'pause']),
+  '--create-preflight': Object.freeze([...CORE_READS, 'regions']),
+  '--create-project': Object.freeze([...CORE_READS, 'regions', 'health', 'functions', 'create']),
+  '--migrate': Object.freeze([...CORE_READS, 'functions', 'query', 'pooler']),
+  '--certify': Object.freeze([...CORE_READS, 'functions', 'branches', 'query', 'secrets', 'db-migrations', 'third-party-auth', 'auth-config', 'postgrest', 'api-keys']),
+});
+export const PAT_RESOURCE_ACCESS = Object.freeze({ type: 'Organization', organization_slug: ORG_SLUG });
+/**
+ * The scoped PAT a mode needs: resource access = the whole organization (the projects list and the org
+ * GET must see every project of the org, or a stray project would go unnoticed), and exactly the
+ * permissions of the endpoints the mode may call. Read-only modes never contain a Read-write permission.
+ */
+export function patRequirement(mode) {
+  const ids = MODE_ENDPOINTS[mode];
+  if (!ids) throw new Error(`mode_unknown ${mode}`);
+  const hits = ids.map((id) => ENDPOINTS.find((e) => e.id === id));
+  const fga = [...new Set(hits.map((e) => e.fga).filter(Boolean))].sort();
+  const labels = fga.map((f) => FGA_LABELS[f]);
+  // One dashboard row per resource: Read-write already includes Read.
+  const permissions = labels.filter((l) => !(l.endsWith(': Read') && labels.includes(`${l}-write`))).sort();
+  return {
+    mode, resource_access: PAT_RESOURCE_ACCESS, fga, permissions,
+    writes: hits.filter((e) => e.kind.startsWith('write:')).map((e) => e.id),
+    unmapped: hits.filter((e) => !e.fga).map((e) => e.id),
+  };
+}
+export function patRequirementText(mode) {
+  const r = patRequirement(mode);
+  return [
+    `Scoped token (Account → Access Tokens), resource access: Organization ${ORG_SLUG}, expiry 24 hours.`,
+    ...r.permissions.map((p) => `  ${p}`),
+    '  everything else: None',
+    ...(r.unmapped.length ? [`  (no scoped permission is published for: ${r.unmapped.join(', ')}; its 403 is expected and classified, see README)`] : []),
+  ].join('\n');
+}
 
 // Read-only SQL guard (same contract as the certified phase3b/mgmt.mjs guard, own copy: this file must
 // not import non-production tooling that hard-refuses Production).
@@ -112,15 +184,17 @@ export function assertReadOnlySql(sql) {
 }
 
 /**
- * Classifies one Management API request against the allowlist. Returns { id, kind, ref }.
+ * Classifies one Management API request against the allowlist (and, given `mode`, against that mode's
+ * endpoints). Returns { id, kind, ref, fga }.
  * Throws on anything else: unknown path, another method, Production outside its two GETs, a write
  * without the arming for exactly that write, a POST body that is not what the class allows.
  */
-export function classifyRequest({ method, path: reqPath, body }, { armedFor = null, createdRef = null } = {}) {
+export function classifyRequest({ method, path: reqPath, body }, { armedFor = null, createdRef = null, mode = null } = {}) {
   if (method !== 'GET' && method !== 'POST') throw new Error(`method_refused_${method}`);
   if (typeof reqPath !== 'string') throw new Error('path_invalid');
   const hit = ENDPOINTS.find((e) => e.method === method && e.re.test(reqPath));
   if (!hit) throw new Error(`endpoint_not_allowlisted ${method} ${reqPath}`);
+  if (mode !== null && !MODE_ENDPOINTS[mode]?.includes(hit.id)) throw new Error(`endpoint_not_in_mode ${mode} ${hit.id}`);
   const m = hit.re.exec(reqPath);
   const ref = m && m[1] && REF_PATTERN.test(m[1]) ? m[1] : null;
   const isProdPath = reqPath.includes(PROD_REF);
@@ -144,7 +218,7 @@ export function classifyRequest({ method, path: reqPath, body }, { armedFor = nu
     if (armedFor !== 'create') throw new Error('create_not_armed');
     assertCreateBody(body);
   }
-  return { id: hit.id, kind: hit.kind, ref };
+  return { id: hit.id, kind: hit.kind, ref, fga: hit.fga };
 }
 
 export function createProjectBody(dbPass) {

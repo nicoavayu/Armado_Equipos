@@ -10,13 +10,63 @@ This is operator-run tooling for one sequence:
 It never touches Core Production (`rcyuuoaqfwcembdajcss`) beyond two GETs. It never deploys a function, never writes a secret, and never connects Mercado Pago.
 
 ```
-run-foundation.sh --staging-prepause    READ-ONLY PAT
-run-foundation.sh --pause-staging       temporary WRITE PAT (projects:write) + phrase
-run-foundation.sh --create-preflight    READ-ONLY PAT
-run-foundation.sh --create-project      temporary WRITE PAT (projects:write) + phrase
-run-foundation.sh --migrate             READ-ONLY PAT + phrase (the DB write is psql with the Keychain password)
-run-foundation.sh --certify             READ-ONLY PAT
+run-foundation.sh --staging-prepause    READ-ONLY scoped PAT
+run-foundation.sh --pause-staging       temporary WRITE scoped PAT (Project Settings: Read-write) + phrase
+run-foundation.sh --create-preflight    READ-ONLY scoped PAT
+run-foundation.sh --create-project      temporary WRITE scoped PAT (Organization Projects: Read-write) + phrase
+run-foundation.sh --migrate             READ-ONLY scoped PAT + phrase (the DB write is psql with the Keychain password)
+run-foundation.sh --certify             READ-ONLY scoped PAT
 ```
+
+## Personal access token per mode
+
+Each mode uses a **scoped** personal access token (Account → Access Tokens → Generate new token), not a classic one. The wrapper prints the token its mode needs before asking for it. The list is derived from the mode's endpoints (`MODE_ENDPOINTS` + `patRequirement` in `foundation-contract.mjs`). Each endpoint's permission is copied from `x-fga-permissions` of the live Management API spec (`https://api.supabase.com/api/v1-json`, read 2026-09-25).
+
+These are scoped-PAT permissions. `projects:read`, `projects:write`, `database:read` and similar names are **OAuth-app scopes**: they do not say what a scoped PAT must hold. Earlier versions of this README asked for `projects:write`. That name does not exist on a scoped PAT.
+
+**Resource access** is always **Organization `gwqrborhnqjdzzmpxulh`** (all projects in it):
+
+- `GET /v1/projects` and the org GET must see every project in the organization, otherwise a stray project would go unnoticed.
+- A token scoped to single projects answers `403` on the others. That is how INFRA-1 R3's first `--staging-prepause` stopped: a token scoped to Production passed both Production GETs and was denied `GET /v1/projects/<staging>`.
+
+The table lists every permission the tooling calls; each row says which endpoint needs it.
+
+| Permission | Endpoints | Modes |
+|---|---|---|
+| Project Settings: Read | `GET /v1/projects/{ref}` (Prod, Staging, old, Torneos) · `GET …/health` | all |
+| Edge Functions: Read | `GET …/functions` · `GET <prod>/functions/torneos-core-contract` | all |
+| Organization Settings: Read | `GET /v1/organizations/gwqrborhnqjdzzmpxulh` | all |
+| Projects (account-wide): Read | `GET /v1/projects` | all |
+| Database: Read | `POST …/database/query` with `read_only:true`, one SELECT | prepause, pause, migrate, certify |
+| Development Branches: Read | `GET …/branches` | prepause, pause, certify |
+| Connection Pooling: Read | `GET …/config/database/pooler` | migrate |
+| Edge Function Secrets: Read | `GET …/secrets` (names only) | certify |
+| Migrations: Read | `GET …/database/migrations` | certify |
+| Auth Config: Read | `GET …/config/auth` · `GET …/config/auth/third-party-auth` | certify |
+| Data API Config: Read | `GET …/postgrest` | certify |
+| API Keys: Read | `GET …/api-keys?reveal=false` (**not** API Key Secrets) | certify |
+| Project Settings: **Read-write** | `POST /v1/projects/hhyvmhgpapyuzjgxfnqv/pause` | pause only |
+| Organization Projects: **Read-write** | `POST /v1/projects` | create-project only |
+
+`--staging-prepause` needs exactly these six, all Read:
+
+- Project Settings
+- Edge Functions
+- Organization Settings
+- Projects (account-wide)
+- Database
+- Development Branches
+
+Everything else is None, and the expiry is 24 hours.
+
+`GET /v1/projects/available-regions` (create-preflight/create-project) has no `x-fga-permissions` in the spec, so no scoped PAT can hold a permission for it and it answers `403`. That `403` does not stop the run. The org GET and the project GETs before it have already passed, so the denial is the unmapped endpoint and not the organization. The region is then checked by a fallback, recorded as `region.source = fallback` in the evidence:
+
+- `sa-east-1` must be in the `region_selection.code` enum of the create body (`CREATE_REGION_CODES`, copied from the spec);
+- Core Production must be `ACTIVE_HEALTHY` in `sa-east-1`.
+
+If either fails, the run is `REGION_SA_EAST_1_UNVERIFIABLE`. The create stays fail-closed on region: `region_selection` is `specific` (never substituted), and both the create response and the post-check require `sa-east-1`. What the fallback cannot see is a capacity constraint; that would surface as a refused `POST /v1/projects`, with nothing created. A `401` or any other status from available-regions still stops the run.
+
+A 401 stops the run as `PAT_REJECTED` and a 403 as `PAT_PERMISSION_DENIED`, with the endpoint id, the ref and the permission that endpoint needs. Neither is retried, and neither is written as evidence.
 
 ## What is pinned (`foundation-contract.mjs`), never an argument
 
@@ -39,6 +89,7 @@ run-foundation.sh --certify             READ-ONLY PAT
 - **Write 1:** `POST /v1/projects/hhyvmhgpapyuzjgxfnqv/pause`, with no body, only on a client armed for `pause` (`--pause-staging`).
 - **Write 2:** `POST /v1/projects` with the exact pinned body, only on a client armed for `create` (`--create-project`).
 - Everything else is refused before the socket: DELETE, PATCH, PUT, restore, secrets writes, function deploy, `reveal=true`, and unknown refs.
+- **Per mode (`MODE_ENDPOINTS`):** the client of a mode refuses every endpoint outside that mode's list before the socket (`endpoint_not_in_mode`). The read-only modes (`--staging-prepause`, `--create-preflight`, `--migrate`, `--certify`) contain no `write:*` endpoint at all.
 
 ## Confirmations
 

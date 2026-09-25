@@ -200,14 +200,24 @@ async function observeCreate(ctx, client) {
   const core = await observeCore(client);
   const slots = orgSlots(core.projects);
   const regions = await client.regions();
-  const specific = [...(regions?.all?.specific ?? []), ...(regions?.recommendations?.specific ?? [])].filter((r) => r?.code === F.REGION);
-  const region = { available: specific.length > 0, entries: specific.map((r) => ({ code: r.code, provider: r.provider ?? null, status: r.status ?? null, type: r.type ?? null })) };
   const keychain = ctx.deps.keychain.check();
   const failures = coreFailures(core);
   if (core.staging?.status !== 'INACTIVE') failures.push('STAGING_NOT_PAUSED');
   if (core.prod?.region !== F.REGION) failures.push('CORE_PROD_REGION_NOT_SA_EAST_1');
-  if (!region.available) failures.push('REGION_SA_EAST_1_NOT_AVAILABLE');
-  if (region.entries.some((e) => e.status === 'capacity')) failures.push('REGION_SA_EAST_1_CAPACITY_CONSTRAINED');
+  let region;
+  if (regions?.denied === 403) {
+    // Scoped PAT: the org and project GETs above passed, so the 403 is the unmapped endpoint, not the org.
+    // The create stays fail-closed on region: `specific` is never substituted, and the create response and
+    // the post-check both require region = sa-east-1.
+    const fallback = { create_body_accepts_code: F.CREATE_REGION_CODES.includes(F.REGION), core_prod_active_in_region: core.prod?.region === F.REGION && core.prod?.status === 'ACTIVE_HEALTHY' };
+    region = { source: 'fallback (available-regions 403: no scoped-PAT permission exists for it)', available: null, entries: [], fallback };
+    if (!fallback.create_body_accepts_code || !fallback.core_prod_active_in_region) failures.push('REGION_SA_EAST_1_UNVERIFIABLE');
+  } else {
+    const specific = [...(regions?.all?.specific ?? []), ...(regions?.recommendations?.specific ?? [])].filter((r) => r?.code === F.REGION);
+    region = { source: 'available-regions', available: specific.length > 0, entries: specific.map((r) => ({ code: r.code, provider: r.provider ?? null, status: r.status ?? null, type: r.type ?? null })) };
+    if (!region.available) failures.push('REGION_SA_EAST_1_NOT_AVAILABLE');
+    if (region.entries.some((e) => e.status === 'capacity')) failures.push('REGION_SA_EAST_1_CAPACITY_CONSTRAINED');
+  }
   if (slots.unknown.length) failures.push('UNEXPECTED_PROJECT_IN_ORG');
   let state = 'create';
   if (slots.torneos.length > 1) failures.push('TORNEOS_PROJECT_AMBIGUOUS');
@@ -402,8 +412,9 @@ export async function runFoundation({ mode, request, deps }) {
   if (!F.PAT_PATTERN.test(request.pat)) throw new StopError('PAT_MALFORMED');
   let armed = null;
   const ctx = { deps, known: [request.pat], evidence: [], say: deps.say, stamp: stampOf(new Date(deps.now())) };
-  // One client for the whole run; its arming is read at each request and can only be the mode's own write.
-  const client = makeClient({ transport: deps.transport, pat: request.pat, armedFor: () => armed, known: ctx.known });
+  // One client for the whole run, limited to the mode's endpoints; its arming is read at each request and can
+  // only be the mode's own write.
+  const client = makeClient({ transport: deps.transport, pat: request.pat, mode, armedFor: () => armed, known: ctx.known });
   ctx.armedFor = (w) => { if (MODES[mode].writes !== w) throw new StopError('ARMING_REFUSED', { mode, w }); armed = w; };
   try {
     if (mode === '--staging-prepause') return await runPrepause(ctx, client);
