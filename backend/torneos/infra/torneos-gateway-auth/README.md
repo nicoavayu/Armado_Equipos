@@ -51,6 +51,8 @@ The following are untouched:
 run-gateway-auth.sh --preflight          READ-ONLY        state of W1 / W2+W3 / KR / W5 + measured installer privileges → STOP
 run-gateway-auth.sh --auth-lockdown      W1 (API write)   PATCH /v1/projects/<torneos>/config/auth
 run-gateway-auth.sh --db-bootstrap       W2+W3 (psql)     ONE transaction on Arma2 Torneos
+run-gateway-auth.sh --db-certify         READ-ONLY        after W2+W3: foundation + delta, both edge logins over the pooler (5432/6543)
+run-gateway-auth.sh --db-phase           SEQUENCE         --preflight → --db-bootstrap (plan + phrase) → --db-certify, one PAT
 run-gateway-auth.sh --keyring-generate   LOCAL write      new Production ring → Keychain + pins/production-bridge-jwks.json
 run-gateway-auth.sh --b03                W5 (API write)   POST /v1/projects/<torneos>/config/auth/third-party-auth
 run-gateway-auth.sh --deploy-preflight   READ-ONLY        gateway Production env vs the real config.ts; lists pending decisions
@@ -111,6 +113,28 @@ COMMIT;
 - No payments login is created.
 - If the transaction fails it rolls back whole. A later run reuses the custody and does not regenerate it.
 
+**The installer, measured as `postgres` (fix of 2026-09-25).** A hosted `database/query` with `read_only: true` runs as `supabase_read_only_user`, so `GATEWAY_ROLES_SQL.installer` (the query's own session) cannot say what `postgres` may do. It stays byte-identical (the delta pin records its sha256) but no longer decides anything. `INSTALLER_PRIVILEGES_SQL` names `postgres` literally (`pg_has_role('postgres', …)`, `pg_roles`, the `supautils.*` settings) and `installerCapability()` requires each W2/W3 statement to be provable:
+
+| Statement | Needs (measured on supabase/postgres 17.6.1.147) |
+|---|---|
+| `CREATE ROLE` | CREATEROLE |
+| `GRANT torneos_<x> TO <login>` | ADMIN OPTION on `torneos_<x>` |
+| `ALTER ROLE authenticator SET pgrst.db_pre_request` | supautils: `authenticator*` in `reserved_roles`, `postgres` a member of `privileged_role`, `pgrst.*` in `privileged_role_allowed_configs` (each removed alone makes it fail; ADMIN on authenticator is not what allows it). Without supautils: CREATEROLE + ADMIN on authenticator. |
+
+An unreadable or missing term is "cannot" (fail closed). `--preflight` records the measurement and capability; `--db-bootstrap` refuses (`DB_BOOTSTRAP_BLOCKED`, 0 psql, no custody) unless it is sufficient, and the plan names the model.
+
+**`--db-certify` (read-only, after W2+W3, before KR).**
+- Foundation strict paths equal to the foundation pin, and the 4 delta paths plus logins and memberships equal to the delta pin. Also the invariants, W1 intact, 0 users, 0 third-party auth, 0 Edge Functions.
+- TLS `verify-full` on 5432 and 6543 (`tls-probe.mjs`, openssl, no credentials).
+- Both `torneos_edge_*` logins log in through Supavisor on both ports with their Keychain password (SCRAM). `login-probe.mjs` sends one psql script per session. Every block ends in `ROLLBACK`, and a fresh transaction re-reads that nothing survived. It proves:
+  - NOINHERIT: no privilege before `SET LOCAL ROLE`;
+  - `SET ROLE` is refused into the other baseline role, `postgres`, `service_role`, `authenticated`, `anon`, `authenticator`, `supabase_admin` and the payments role;
+  - identity writer: the gateway upsert and read-back work, the mapping is immutable (23514), DELETE, `id` UPDATE, other tables and `private` are refused;
+  - core adapter: `authorize_core_contract` without claims and with forged bridge claims for an unknown identity → `TORNEOS_AUTH_REQUIRED`; attestation INSERT reaches the constraints (23503) but it cannot read, delete, or touch identities;
+  - no CREATE TABLE and no CREATE ROLE.
+- The PostgREST probe set. Then the whole observation again: nothing moved.
+- The verdict comes from the server's SQLSTATEs.
+
 **KR — local only.** k1 (active) and k2 (standby) are generated in memory: RSA 2048, RS256.
 - Kids are `arma2-torneos-prod-k<n>-<thumbprint16>`.
 - There is no import path.
@@ -136,6 +160,7 @@ Resource access is always Organization `gwqrborhnqjdzzmpxulh`, with a 24 h expir
 | `--db-bootstrap` | Read: Auth Config, Connection Pooling, Database, Edge Functions, Organization Settings, Project Settings, Projects. The DB write uses the Keychain installer password (`arma2-torneos-dataplane-db/postgres`), not the PAT. |
 | `--keyring-generate` | Read: Auth Config, Database, Edge Functions, Organization Settings, Project Settings, Projects |
 | `--b03` | **Auth Config: Read-write**, API Keys: Read, Database: Read, Edge Functions: Read, Organization Settings: Read, Project Settings: Read, Projects (account-wide): Read |
+| `--db-certify` / `--db-phase` | Same as `--preflight` (read-only). The `--db-phase` DB write uses the Keychain installer password, not the PAT. |
 | `--deploy-preflight` / `--certify` | Same as `--preflight` (read-only). `--certify` does not need Connection Pooling. |
 
 ## Certification (`--certify`)
@@ -200,6 +225,9 @@ The rehearsal runs entirely offline.
   - Torneos email re-enabled;
   - a stray project.
 - The pre_request reload via NOTIFY.
+- Management API reads emulated as hosted: `supabase_read_only_user` in a READ ONLY transaction.
+- Installer negative controls: `postgres` without ADMIN on `torneos_identity_writer`, or outside `supautils.privileged_role` → `DB_BOOTSTRAP_BLOCKED` before any write.
+- `--db-certify` and `--db-phase`, with the real login probe against the lab DB (password → SCRAM), plus an edge login granted `anon`.
 - SCRAM logins.
 - A real-gateway end-to-end run in the Production topology:
   - Core Production served as in-process fixtures;

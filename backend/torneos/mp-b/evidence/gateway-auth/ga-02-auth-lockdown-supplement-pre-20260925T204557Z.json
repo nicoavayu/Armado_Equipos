@@ -1,0 +1,83 @@
+{
+ "tool": "scratchpad w1-supplement.mjs (read-only) + gateway-auth.mjs --auth-lockdown @ dcc36e42",
+ "generated_at": "2026-09-25T20:54:28.095Z",
+ "mode": "--pre",
+ "run_stamp": "20260925T204557Z",
+ "target": "onzpwnqxnvlgsevivngf",
+ "read_only": true,
+ "management_api_writes": 0,
+ "must_off_flags": {
+  "custom_oauth_enabled": false,
+  "external_apple_enabled": false,
+  "external_azure_enabled": false,
+  "external_bitbucket_enabled": false,
+  "external_discord_enabled": false,
+  "external_facebook_enabled": false,
+  "external_figma_enabled": false,
+  "external_github_enabled": false,
+  "external_gitlab_enabled": false,
+  "external_google_enabled": false,
+  "external_kakao_enabled": false,
+  "external_keycloak_enabled": false,
+  "external_linkedin_oidc_enabled": false,
+  "external_notion_enabled": false,
+  "external_slack_enabled": false,
+  "external_slack_oidc_enabled": false,
+  "external_spotify_enabled": false,
+  "external_twitch_enabled": false,
+  "external_twitter_enabled": false,
+  "external_web3_ethereum_enabled": false,
+  "external_web3_solana_enabled": false,
+  "external_workos_enabled": false,
+  "external_x_enabled": false,
+  "external_zoom_enabled": false,
+  "hook_after_user_created_enabled": false,
+  "hook_before_user_created_enabled": false,
+  "hook_custom_access_token_enabled": false,
+  "hook_mfa_verification_attempt_enabled": false,
+  "hook_password_verification_attempt_enabled": false,
+  "hook_send_email_enabled": false,
+  "hook_send_sms_enabled": false,
+  "mfa_phone_enroll_enabled": false,
+  "mfa_totp_enroll_enabled": true,
+  "mfa_web_authn_enroll_enabled": false,
+  "oauth_server_enabled": false,
+  "passkey_enabled": false,
+  "saml_enabled": false,
+  "security_manual_linking_enabled": false
+ },
+ "third_party_auth_count": 0,
+ "lockdown_keys_before": {
+  "site_url": "http://localhost:3000",
+  "disable_signup": false,
+  "external_email_enabled": true,
+  "external_phone_enabled": false,
+  "external_anonymous_users_enabled": false
+ },
+ "auth_users": 0,
+ "auth_identities": 0,
+ "verdict": "W1_SUPPLEMENT_PRE_BLOCKED",
+ "failures": [
+  "MUST_OFF_FLAG_ON_mfa_totp_enroll_enabled"
+ ],
+ "requests": [
+  {
+   "plane": "management",
+   "method": "GET",
+   "path": "/v1/projects/onzpwnqxnvlgsevivngf/config/auth",
+   "status": 200
+  },
+  {
+   "plane": "management",
+   "method": "GET",
+   "path": "/v1/projects/onzpwnqxnvlgsevivngf/config/auth/third-party-auth",
+   "status": 200
+  },
+  {
+   "plane": "management",
+   "method": "POST",
+   "path": "/v1/projects/onzpwnqxnvlgsevivngf/database/query",
+   "status": 201
+  }
+ ]
+}

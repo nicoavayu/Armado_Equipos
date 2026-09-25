@@ -8,7 +8,9 @@
 //     custom_jwks, is restarted with exactly that JWKS. The pre-request comes from the DATABASE (ALTER ROLE authenticator),
 //     reloaded by the NOTIFY inside the bootstrap transaction.
 //   • Management API: emulated in memory for the pinned refs (Core Production, Staging, old, Torneos); every read-only
-//     SQL the runner sends runs in the container with default_transaction_read_only=on. Keychain and tty: fakes.
+//     SQL the runner sends runs in the container in a READ ONLY transaction AS supabase_read_only_user — exactly the
+//     hosted `database/query read_only:true` session (the 2026-09-25 installer-measurement defect: the rehearsal used to
+//     run it as postgres and could not see it). Keychain and tty: fakes.
 //   • The REAL runner drives every mode (--preflight → --auth-lockdown → --db-bootstrap → --keyring-generate → --b03 →
 //     --deploy-preflight → --certify) plus negative controls. The gateway-auth delta pin is derived here, from a
 //     ROLLED-BACK run of the exact bootstrap SQL, before the runner commits it.
@@ -31,6 +33,7 @@ import { runGatewayAuth, StopError, EVIDENCE_DIR, validateGatewayEnvWithRealConf
 import { splitParts, joinParts, parseMeta } from './keyring.mjs';
 import { mintBridgeToken } from './bridge-probe.mjs';
 import { loadGatewayTree } from './gateway-loader.mjs';
+import { probeEdgeLogins } from './login-probe.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const DOCKER = ['/Applications/Docker.app/Contents/Resources/bin/docker', '/usr/local/bin/docker', '/opt/homebrew/bin/docker'].find((p) => { try { fs.accessSync(p, fs.constants.X_OK); return true; } catch { return false; } });
@@ -55,6 +58,11 @@ const lines = [];
 const log = (s) => { lines.push(s); process.stdout.write(`${s}\n`); };
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+// The hosted Management API read: supabase_read_only_user inside a READ ONLY transaction (entered from supabase_admin,
+// since the image's read-only user has no password here); only the SELECT's rows reach stdout (-q -A -t).
+function psqlAsApiReadOnly(select) {
+  return psql(`BEGIN READ ONLY;\nSET LOCAL ROLE supabase_read_only_user;\n${select};\nCOMMIT;\n`, { user: 'supabase_admin', readOnly: true });
+}
 function psql(sql, { user = 'postgres', readOnly = false, file = null } = {}) {
   const env = ['-e', `PGPASSWORD=${LOCAL_PW}`]; if (readOnly) env.push('-e', 'PGOPTIONS=-c default_transaction_read_only=on');
   const r = spawnSync(DOCKER, ['exec', '-i', ...env, DB, 'psql', '-U', user, '-h', 'localhost', '-d', 'postgres', '-X', '-q', '-A', '-t', '-v', 'ON_ERROR_STOP=1', '-f', '-'], { input: file ? fs.readFileSync(file) : sql, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
@@ -165,7 +173,7 @@ async function main() {
         case 'db-migrations': return r(200, []);
         case 'pooler': return r(200, [{ db_host: 'aws-0-sa-east-1.pooler.supabase.com', db_port: 5432, pool_mode: 'session', db_user: `postgres.${G.TORNEOS_REF}` }, { db_host: 'aws-0-sa-east-1.pooler.supabase.com', db_port: 6543, pool_mode: 'transaction' }]);
         case 'query': {
-          const q = psql(`select row_to_json(t) from (${body.query}) t`, { readOnly: true });
+          const q = psqlAsApiReadOnly(`select row_to_json(t) from (${body.query}) t`);
           if (!q.ok) return r(400, { message: q.err.slice(0, 300) });
           return r(201, q.out ? q.out.split('\n').map((l) => JSON.parse(l)) : []);
         }
@@ -229,12 +237,26 @@ async function main() {
       record('R02 existing delta pin reproduced by this rehearsal', same, same ? 'DELTA_PIN_UNCHANGED' : 'DELTA_PIN_DRIFT');
     } else { fs.mkdirSync(path.dirname(deltaPinFile), { recursive: true }); fs.writeFileSync(deltaPinFile, pinText); log(`delta pin written ${path.basename(deltaPinFile)} sha256 ${G.sha256(pinText)}`); }
 
+    // ── the --db-certify login leg: the REAL probe script, sent as the edge login itself (password auth → the SCRAM
+    // verifier the bootstrap stored). Both "ports" reach the same container (no Supavisor here; annotated in evidence).
+    const loginRuns = [];
+    const loginRun = async ({ script, env }) => {
+      const login = env.PGUSER.split('.')[0];
+      if (env.PGSSLMODE !== 'verify-full' || !/^aws-\d+-sa-east-1\.pooler\.supabase\.com$/.test(env.PGHOST) || env.PGUSER !== `${login}.${G.TORNEOS_REF}`) return { code: 97, stdout: '', stderr_tail: 'env contract violated' };
+      const t0 = Date.now();
+      const r = spawnSync(DOCKER, ['exec', '-i', '-e', `PGPASSWORD=${env.PGPASSWORD}`, DB, 'psql', '-U', login, '-h', 'localhost', '-d', 'postgres', '-X', '--no-psqlrc', '-q', '-A', '-t', '-f', '-'], { input: script, encoding: 'utf8' });
+      loginRuns.push({ login, port: env.PGPORT, code: r.status });
+      return { code: r.status ?? -1, elapsed_ms: Date.now() - t0, stdout: r.stdout ?? '', stderr_tail: (r.stderr ?? '').split('\n').filter((l) => /FATAL|password/.test(l)).slice(-2).join('\n') };
+    };
+
     // ── the runner ──
     let seq = 0;
     const phase = async (label, mode, expect, { phrase = 'plan', onPhrase = null, decisions } = {}) => {
       const said = [];
       const deps = {
         transport, probeTransport, authProbeTransport, keychain, applySql, psqlPrerequisites: () => [], validateGatewayEnv: validateGatewayEnvWithRealConfig, caCert: caFixture,
+        tlsProbe: ({ host, port }) => ({ host, port, pass: true, verification: 'REHEARSAL (no TLS on the internal network; the real probe is openssl -verify_return_error)' }),
+        loginProbe: (args) => probeEdgeLogins({ ...args, run: loginRun }),
         tty: { readLine: () => { if (onPhrase) onPhrase(); if (phrase !== 'plan') return phrase; const m = /To proceed type exactly:\n {2}(.+)\n/.exec(said.join('\n')); return m ? m[1] : ''; } },
         now: () => Date.now(), sleep, b03ProbeIntervalMs: 750, say: (s) => said.push(s), jwksPinFile, deltaPinFile,
         evidenceDir: evDir, evidencePrefix: `REHEARSAL-${String(++seq).padStart(2, '0')}-`, deployDecisions: decisions,
@@ -265,6 +287,20 @@ async function main() {
     n = writesNow();
     await phase('P09 W1 again → already applied, no write', '--auth-lockdown', 'AUTH_LOCKDOWN_ALREADY_APPLIED');
     record('P10 idempotent W1: no second PATCH', writesNow() === n, `writes=${writesNow() - n}`);
+    // Installer measured as postgres (never the read-only session): take ONE required privilege away → blocked BEFORE
+    // any write (0 psql, no custody); restore it → the measurement passes again. Each is a real supautils/PG rule.
+    psql('revoke admin option for torneos_identity_writer from postgres', { user: 'supabase_admin' });
+    const psqlBefore = psqlRuns.length;
+    await phase('P10a preflight: postgres lacks ADMIN on torneos_identity_writer → risk recorded (PASS with risk)', '--preflight', 'GATEWAY_AUTH_PREFLIGHT_PASS');
+    await phase('P10b NEGATIVE: db-bootstrap with postgres measurably unable to GRANT → DB_BOOTSTRAP_BLOCKED before any write', '--db-bootstrap', 'STOP:DB_BOOTSTRAP_BLOCKED');
+    psql('grant torneos_identity_writer to postgres with admin option, inherit false, set false granted by supabase_admin', { user: 'supabase_admin' });
+    psql('revoke supabase_privileged_role from postgres', { user: 'supabase_admin' });
+    await phase('P10c NEGATIVE: postgres outside supautils.privileged_role (cannot ALTER the reserved authenticator) → blocked', '--db-bootstrap', 'STOP:DB_BOOTSTRAP_BLOCKED');
+    psql('grant supabase_privileged_role to postgres granted by supabase_admin', { user: 'supabase_admin' });
+    record('P10d no psql transaction and no custody generated by P10b/P10c', psqlRuns.length === psqlBefore && keychain.dbLogin('torneos_edge_identity_writer').check() === 'ABSENT', `psql=${psqlRuns.length - psqlBefore}`);
+    const readOnlySession = JSON.parse(psqlAsApiReadOnly(`select row_to_json(t) from (${G.INSTALLER_PRIVILEGES_SQL}) t`).out).json_build_object;
+    const cap = G.installerCapability(readOnlySession);
+    record('P10e restored: read by supabase_read_only_user, postgres measured sufficient (no false blocker from the read-only session)', readOnlySession.measured_by === 'supabase_read_only_user' && cap.sufficient, `${readOnlySession.measured_by} ${cap.model} ${cap.missing.join(',')}`, readOnlySession);
     psqlMode = 'unprivileged';
     await phase('P11 NEGATIVE: bootstrap transaction fails (installer without privilege) → rolled back, nothing half-done', '--db-bootstrap', 'STOP:DB_BOOTSTRAP_ROLLED_BACK');
     const halfDone = psql("select (select count(*) from pg_roles where rolname like 'torneos_edge%') || '/' || (select count(*) from pg_roles, unnest(coalesce(rolconfig, array[]::text[])) c where rolname = 'authenticator' and c like 'pgrst.%')", { readOnly: true }).out;
@@ -273,6 +309,14 @@ async function main() {
     await phase('P13 W2+W3 db bootstrap (reuses the custody of the failed attempt)', '--db-bootstrap', 'TORNEOS_GATEWAY_DB_BOOTSTRAPPED');
     await phase('P14 W2+W3 again → already applied, nothing sent', '--db-bootstrap', 'DB_BOOTSTRAP_ALREADY_APPLIED');
     record('P15 exactly one successful psql transaction', psqlRuns.filter((x) => x.ok).length === 1, JSON.stringify(psqlRuns));
+    await phase('P15a db-certify: foundation + delta, both edge logins log in (SCRAM) and do exactly the gateway statements, all rolled back', '--db-certify', 'GATEWAY_DB_CERTIFIED');
+    const leftovers = psql("select count(*) from public.torneos_identity", { user: 'supabase_admin', readOnly: true }).out;
+    record('P15b login probes left nothing behind (0 identities) and ran 4 sessions (2 logins × 5432/6543)', leftovers === '0' && loginRuns.length === 4 && loginRuns.every((x) => x.code === 0), `identities=${leftovers} runs=${JSON.stringify(loginRuns)}`);
+    await phase('P15c db-phase after the bootstrap: preflight (next=--keyring-generate) → db-certify, no second transaction', '--db-phase', 'GATEWAY_AUTH_DB_BOOTSTRAP_PASS');
+    record('P15d still exactly one successful psql transaction', psqlRuns.filter((x) => x.ok).length === 1, JSON.stringify(psqlRuns));
+    psql('grant anon to torneos_edge_core_adapter');
+    await phase('P15e NEGATIVE: an edge login gains anon → db-certify fails', '--db-certify', 'STOP:GATEWAY_DB_CERTIFICATION_FAILED');
+    psql('revoke anon from torneos_edge_core_adapter');
     // pre_request reloaded by the NOTIFY in the transaction (no PostgREST restart): the project's own GoTrue token is now refused.
     const afterGate = await platform({ method: 'GET', path: '/rest/v1/tournament_competition_formats?select=*&limit=1', headers: { apikey: PUBLISHABLE, Authorization: `Bearer ${gotrueToken}` } });
     const anonAfter = await platform({ method: 'GET', path: '/rest/v1/tournament_competition_formats?select=*&limit=1', headers: { apikey: PUBLISHABLE } });

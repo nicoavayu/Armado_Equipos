@@ -6,6 +6,10 @@
 #                                                            (Auth Config: Read-write + Project Settings: Read-write)
 #   run-gateway-auth.sh --db-bootstrap       READ-ONLY PAT   + phrase → ONE psql transaction (W2 + W3); installer password
 #                                                            from the Keychain, login passwords generated into the Keychain
+#   run-gateway-auth.sh --db-certify         READ-ONLY PAT   after W2+W3: foundation + delta + both edge logins over the pooler
+#                                                            (5432 + 6543, verify-full, SCRAM; every probe rolled back)
+#   run-gateway-auth.sh --db-phase           READ-ONLY PAT   --preflight → --db-bootstrap (plan + phrase) → --db-certify,
+#                                                            one PAT typed once; any STOP ends the sequence
 #   run-gateway-auth.sh --keyring-generate   READ-ONLY PAT   + phrase → LOCAL ring k1/k2 → Keychain + public JWKS pin
 #   run-gateway-auth.sh --b03                WRITE PAT       + phrase → POST third-party-auth custom_jwks (W5)
 #                                                            (Auth Config: Read-write)
@@ -19,12 +23,12 @@
 set -euo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 abort() { printf '\n!! %s\n' "$*" >&2; exit 1; }
-USAGE="usage: run-gateway-auth.sh --preflight | --auth-lockdown | --db-bootstrap | --keyring-generate | --b03 | --deploy-preflight | --certify"
+USAGE="usage: run-gateway-auth.sh --preflight | --auth-lockdown | --db-bootstrap | --db-certify | --db-phase | --keyring-generate | --b03 | --deploy-preflight | --certify"
 
 [[ $# -eq 1 ]] || abort "GATEWAY_AUTH_USAGE — exactly one mode and nothing else ($USAGE)"
 case "$1" in
-  --preflight|--deploy-preflight|--certify) MODE="$1"; KIND="READ-ONLY" ;;
-  --db-bootstrap|--keyring-generate) MODE="$1"; KIND="READ-ONLY (the write is local: psql / Keychain, after the phrase)" ;;
+  --preflight|--deploy-preflight|--certify|--db-certify) MODE="$1"; KIND="READ-ONLY" ;;
+  --db-bootstrap|--db-phase|--keyring-generate) MODE="$1"; KIND="READ-ONLY (the write is local: psql / Keychain, after the phrase)" ;;
   --auth-lockdown|--b03) MODE="$1"; KIND="TEMPORARY WRITE" ;;
   --force|-f|--yes|-y|--non-interactive|--no-confirm|--assume-yes|yes|y) abort "GATEWAY_AUTH_REFUSED: '$1' is not accepted — every write needs the typed phrase on /dev/tty" ;;
   *) abort "GATEWAY_AUTH_USAGE ($USAGE)" ;;
@@ -33,7 +37,7 @@ esac
 { : < /dev/tty; } 2>/dev/null || abort "GATEWAY_AUTH_BLOCKED_NO_TTY (run it in a terminal)"
 [[ -t 0 && -t 1 ]] || abort "GATEWAY_AUTH_REFUSED_NON_INTERACTIVE (stdin/stdout are not a terminal)"
 command -v node >/dev/null || abort "node missing"
-for f in gateway-auth.mjs gateway-auth-contract.mjs mgmt-gateway-auth.mjs keychain-gateway-auth.mjs keychain-gateway-auth.py keyring.mjs psql-gateway-auth.mjs bridge-probe.mjs auth-probe.mjs gateway-loader.mjs; do
+for f in gateway-auth.mjs gateway-auth-contract.mjs mgmt-gateway-auth.mjs keychain-gateway-auth.mjs keychain-gateway-auth.py keyring.mjs psql-gateway-auth.mjs bridge-probe.mjs auth-probe.mjs gateway-loader.mjs login-probe.mjs tls-probe.mjs; do
   [[ -f "$HERE/$f" ]] || abort "tooling file missing: $f"
 done
 

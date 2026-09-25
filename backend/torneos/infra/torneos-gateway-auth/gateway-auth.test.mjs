@@ -369,3 +369,217 @@ test('W1 auth probe transport: only Torneos /auth/v1/{settings,signup,otp}', asy
     assert.throws(() => assertAuthProbeTarget(ref, m, p), undefined, `${ref} ${m} ${p}`);
   }
 });
+
+// ─────────────── W2/W3 installer measured as `postgres` (not the read-only session) + --db-certify / --db-phase ───────────────
+import * as LP from './login-probe.mjs';
+const DELTA_PIN = JSON.parse(fs.readFileSync(G.DELTA_PIN_FILE, 'utf8'));
+// What the hosted API returned on 2026-09-25 for the session block (read_only:true runs as supabase_read_only_user).
+const READ_ONLY_SESSION = { user: 'supabase_read_only_user', super: false, createrole: false, admin_on_authenticator: false, admin_on_identity_writer: false, admin_on_core_adapter: false };
+// `postgres` as measured on supabase/postgres 17.6.1.147 (local lab 2026-09-25), read by supabase_read_only_user.
+const hostedInstaller = (over = {}) => ({ measured_role: 'postgres', measured_by: 'supabase_read_only_user', exists: true, super: false, createrole: true,
+  admin_on_authenticator: true, admin_on_identity_writer: true, admin_on_core_adapter: true, supautils_privileged_role: 'supabase_privileged_role', member_of_privileged_role: true,
+  supautils_reserved_roles: 'supabase_admin, supabase_auth_admin, supabase_storage_admin, supabase_read_only_user, supabase_realtime_admin, supabase_replication_admin, supabase_etl_admin, dashboard_user, pgbouncer, service_role*, authenticator*, authenticated*, anon*, supabase_privileged_role',
+  supautils_allowed_configs: 'auto_explain.*, deadlock_timeout, pg_stat_statements.*, pgrst.*, plan_filter.*, safeupdate.enabled, session_replication_role', ...over });
+
+test('installer capability: postgres measured explicitly; the read-only session is never the answer; fail closed per statement', () => {
+  const ok = G.installerCapability(hostedInstaller());
+  assert.equal(ok.sufficient, true); assert.equal(ok.model, 'supautils_reserved_authenticator'); assert.deepEqual(ok.missing, []);
+  // 1. the hosted read-only session (all false) says nothing: it is not a measurement of postgres → fail closed, never "can"
+  assert.deepEqual(G.installerCapability(READ_ONLY_SESSION).missing, ['INSTALLER_MEASUREMENT_UNREADABLE']);
+  assert.equal(G.installerCapability(null).sufficient, false);
+  // …whereas the same session reading postgres' real privileges is a PASS (no false blocker)
+  assert.equal(G.installerCapability(hostedInstaller({ measured_by: 'supabase_read_only_user' })).sufficient, true);
+  // 2. postgres really insufficient → BLOCK, naming the statement (each term measured in the lab to be required)
+  const cases = [
+    [{ createrole: false }, 'INSTALLER_CANNOT_CREATE_ROLE'],
+    [{ admin_on_identity_writer: false }, 'INSTALLER_CANNOT_GRANT_IDENTITY_WRITER'],
+    [{ admin_on_core_adapter: null }, 'INSTALLER_CANNOT_GRANT_CORE_ADAPTER'],
+    [{ member_of_privileged_role: false }, 'INSTALLER_CANNOT_ALTER_AUTHENTICATOR_PRE_REQUEST'],
+    [{ supautils_reserved_roles: 'supabase_admin, authenticator' }, 'INSTALLER_CANNOT_ALTER_AUTHENTICATOR_PRE_REQUEST'],
+    [{ supautils_allowed_configs: 'deadlock_timeout' }, 'INSTALLER_CANNOT_ALTER_AUTHENTICATOR_PRE_REQUEST'],
+    [{ exists: false }, 'INSTALLER_CANNOT_CREATE_ROLE'],
+  ];
+  for (const [over, want] of cases) { const c = G.installerCapability(hostedInstaller(over)); assert.equal(c.sufficient, false, JSON.stringify(over)); assert.ok(c.missing.includes(want), `${JSON.stringify(over)} → ${c.missing}`); }
+  // ADMIN on authenticator is NOT what grants the supautils ALTER (measured): its absence alone is not a blocker there
+  assert.equal(G.installerCapability(hostedInstaller({ admin_on_authenticator: false })).sufficient, true);
+  // 3. without supautils: the plain PostgreSQL rule; superuser: everything
+  const plain = hostedInstaller({ supautils_privileged_role: null, supautils_reserved_roles: null, supautils_allowed_configs: null, member_of_privileged_role: null });
+  assert.equal(G.installerCapability(plain).sufficient, true);
+  assert.ok(G.installerCapability({ ...plain, admin_on_authenticator: false }).missing.includes('INSTALLER_CANNOT_ALTER_AUTHENTICATOR_PRE_REQUEST'));
+  assert.equal(G.installerCapability(hostedInstaller({ super: true, createrole: false, admin_on_identity_writer: false, member_of_privileged_role: false })).sufficient, true);
+});
+
+test('installer SQL: read-only, names postgres literally (never current_user as the subject); the roles SQL is byte-identical to the delta pin', () => {
+  G.assertReadOnlySql(G.INSTALLER_PRIVILEGES_SQL);
+  const terms = G.INSTALLER_PRIVILEGES_SQL.replace("'measured_by', current_user", '');
+  assert.doesNotMatch(terms, /current_user|session_user|current_role/);
+  assert.equal((G.INSTALLER_PRIVILEGES_SQL.match(/pg_has_role\('postgres'/g) ?? []).length, 4);
+  assert.match(G.INSTALLER_PRIVILEGES_SQL, /supautils\.reserved_roles/); assert.match(G.INSTALLER_PRIVILEGES_SQL, /supautils\.privileged_role_allowed_configs/);
+  assert.equal(DELTA_PIN.gateway_roles_sql_sha256, G.sha256(G.GATEWAY_ROLES_SQL), 'GATEWAY_ROLES_SQL unchanged: the certified delta pin still applies');
+});
+
+function dbWorld({ installer = hostedInstaller(), loginProbe = null, onBootstrap = null } = {}) {
+  const PAT = `sbp_${'d'.repeat(40)}`;
+  const PUB = `sb_publishable_${'q'.repeat(24)}`;
+  const lockedAuth = { ...hostedAuthConfig(), ...G.AUTH_LOCKDOWN_BODY };
+  const w = { applied: false, psql: [], generated: [], installer, catalogOverride: null, rolesOverride: null, loginProbes: 0, tls: [] };
+  const catalog = () => w.catalogOverride ?? (w.applied ? { ...FOUNDATION_PIN.catalog, ...DELTA_PIN.catalog } : FOUNDATION_PIN.catalog);
+  const roles = () => w.rolesOverride ?? (w.applied
+    ? { ...DELTA_PIN.roles, payment_logins: 0, login_member_of_api_role: 0, authenticator_config: [...G.PRE_REQUEST_ROLECONFIG], auth_users: 0, installer: READ_ONLY_SESSION, edge_login_can_set_role: {} }
+    : { logins: [], memberships: [], payment_logins: 0, login_member_of_api_role: 0, authenticator_config: [], auth_users: 0, installer: READ_ONLY_SESSION, edge_login_can_set_role: {} });
+  const proj = (ref, name, status, region) => ({ ref, id: ref, name, organization_slug: G.ORG_SLUG, region, status });
+  const projects = [proj(G.CORE_PROD_REF, 'core', 'ACTIVE_HEALTHY', 'sa-east-1'), proj(G.STAGING_REF, 'staging', 'INACTIVE', 'us-east-1'), proj(G.OLD_REF, 'old', 'INACTIVE', 'us-west-2'), proj(T, G.PROJECT_NAME, 'ACTIVE_HEALTHY', 'sa-east-1')];
+  const modes = [];
+  const transport = async ({ pat, method, path: p, body }) => {
+    assert.equal(pat, PAT);
+    const cls = G.classifyRequest({ method, path: p, body }, { mode: '--db-phase' });
+    const r = (status, b) => ({ status, body: b });
+    switch (cls.id) {
+      case 'org': return r(200, { slug: G.ORG_SLUG, plan: 'free' });
+      case 'projects': return r(200, projects);
+      case 'prod-project': return r(200, projects[0]);
+      case 'prod-contract-fn': return r(200, { slug: G.CORE_CONTRACT_SLUG, status: 'ACTIVE', verify_jwt: false, ezbr_sha256: G.CORE_CONTRACT_EZBR });
+      case 'project': return r(200, projects.find((x) => x.ref === cls.ref));
+      case 'health': return r(200, ['auth', 'db', 'pooler', 'rest', 'db_postgres_user'].map((name) => ({ name, status: 'ACTIVE_HEALTHY' })));
+      case 'functions': return r(200, []);
+      case 'secrets': return r(200, [{ name: 'SUPABASE_URL' }]);
+      case 'auth-config': return r(200, { ...lockedAuth });
+      case 'third-party-auth': return r(200, []);
+      case 'postgrest': return r(200, { db_schema: 'public,graphql_public', max_rows: 1000 });
+      case 'api-keys': return r(200, [{ name: 'default', type: 'publishable', api_key: PUB }]);
+      case 'db-migrations': return r(200, []);
+      case 'pooler': return r(200, [{ db_host: 'aws-0-sa-east-1.pooler.supabase.com', pool_mode: 'session' }, { db_host: 'aws-0-sa-east-1.pooler.supabase.com', pool_mode: 'transaction' }]);
+      case 'query': return r(201, [{ json_build_object: body.query === G.CATALOG_SQL ? catalog() : body.query === G.INSTALLER_PRIVILEGES_SQL ? w.installer : roles() }]);
+      default: throw new Error(`unexpected ${cls.id}`);
+    }
+  };
+  // PostgREST as hosted after W2: anon reads the public page, everything else refused.
+  const probeTransport = async ({ path: p, method, headers }) => {
+    if (!headers.apikey) return { status: 401, body: { message: 'No API key found in request' } };
+    if (headers.Authorization) return { status: 401, body: { code: 'PGRST301' } };
+    if (headers['Accept-Profile']) return { status: 406, body: { code: 'PGRST106' } };
+    if (p === '/rest/v1/') return { status: 404, body: null };
+    if (method === 'POST') return { status: 401, body: { code: '42501' } };
+    return p.includes('tournament_competition_formats') ? { status: 200, body: [] } : { status: 401, body: { code: '42501' } };
+  };
+  const kc = new Map();
+  const keychain = {
+    dbLogin: (login) => ({ check: () => (kc.has(login) ? 'PRESENT' : 'ABSENT'), generate: () => { w.generated.push(login); kc.set(login, crypto.randomBytes(30).toString('base64url')); return true; }, read: () => kc.get(login) }),
+    dataplane: { check: () => 'PRESENT', read: () => crypto.randomBytes(30).toString('base64url') },
+    ring: { check: () => 'ABSENT' },
+  };
+  const said = [];
+  const evidenceDir = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'ga-db-'));
+  let clock = Date.parse('2026-09-25T22:00:00Z');
+  const deps = { transport, probeTransport, keychain, now: () => (clock += 1000), say: (x) => said.push(x), evidenceDir, jwksPinFile: path.join(evidenceDir, 'no-jwks-pin.json'),
+    psqlPrerequisites: () => [], tlsProbe: ({ host, port }) => { w.tls.push(port); return { host, port, pass: true, verification: 'OK' }; },
+    applySql: async ({ sql, env }) => { w.psql.push({ user: env.PGUSER, sslmode: env.PGSSLMODE }); assert.equal(sql, G.renderBootstrapSql(Object.fromEntries(G.EDGE_LOGINS.map((l) => [l.login, /PASSWORD '([^']+)'/.exec(sql.split('\n').find((x) => x.includes(`CREATE ROLE ${l.login} `)))[1]])))); if (onBootstrap) return onBootstrap(w); w.applied = true; return { code: 0, elapsed_ms: 1 }; },
+    loginProbe: async (args) => { w.loginProbes += 1; for (const l of G.EDGE_LOGINS) assert.match(args.password(l.login), G.DB_PASSWORD_PATTERN); return loginProbe ? loginProbe(args) : { pass: true, runs: [] }; },
+    tty: { readLine: () => { const m = /To proceed type exactly:\n {2}(.+)\n/.exec(said.join('\n')); return m ? m[1] : ''; } } };
+  const run = (mode) => { modes.push(mode); return runGatewayAuth({ mode, request: { pat: PAT }, deps }); };
+  const evidence = (prefix) => fs.readdirSync(evidenceDir).filter((f) => f.startsWith(prefix)).map((f) => { const text = fs.readFileSync(path.join(evidenceDir, f), 'utf8'); return { f, text, j: JSON.parse(text) }; });
+  return { w, run, said, evidence, PAT, PUB };
+}
+
+test('preflight: the read-only session (all false) is NOT a blocker when postgres is measured sufficient', async () => {
+  const x = dbWorld();
+  const r = await x.run('--preflight');
+  assert.equal(r.verdict, 'GATEWAY_AUTH_PREFLIGHT_PASS'); assert.equal(r.next, '--db-bootstrap');
+  const [ev] = x.evidence('ga-01');
+  assert.deepEqual(ev.j.risks, []);
+  assert.equal(ev.j.measured.query_session.user, 'supabase_read_only_user');
+  assert.equal(ev.j.measured.installer.measured_role, 'postgres'); assert.equal(ev.j.measured.installer_capability.sufficient, true);
+  assert.deepEqual(ev.j.measured.pooler_tls.map((t) => t.port), [5432, 6543]);
+  assert.equal(ev.j.management_api_writes, 0);
+});
+
+test('W2+W3: postgres really insufficient → preflight risk + DB_BOOTSTRAP_BLOCKED, 0 psql, no custody generated', async () => {
+  for (const over of [{ admin_on_identity_writer: false }, { member_of_privileged_role: false }, { createrole: false }]) {
+    const x = dbWorld({ installer: hostedInstaller(over) });
+    await x.run('--preflight');
+    const [pre] = x.evidence('ga-01');
+    assert.ok(pre.j.risks.includes('DB_INSTALLER_LACKS_PRIVILEGE_FOR_W2_W3'), JSON.stringify(over));
+    await assert.rejects(x.run('--db-bootstrap'), (e) => e.code === 'DB_BOOTSTRAP_BLOCKED' && e.detail.failures.includes('DB_INSTALLER_LACKS_PRIVILEGE_FOR_W2_W3'));
+    assert.equal(x.w.psql.length, 0); assert.deepEqual(x.w.generated, []);
+    const [blk] = x.evidence('ga-03-db-bootstrap-blocked');
+    assert.equal(blk.j.installer_capability.sufficient, false);
+  }
+});
+
+test('W2+W3: postgres sufficient → the plan names the installer model, ONE psql transaction, applied', async () => {
+  const x = dbWorld();
+  const r = await x.run('--db-bootstrap');
+  assert.equal(r.verdict, 'TORNEOS_GATEWAY_DB_BOOTSTRAPPED');
+  assert.equal(x.w.psql.length, 1); assert.deepEqual(x.w.psql[0], { user: `postgres.${T}`, sslmode: 'verify-full' });
+  assert.deepEqual(x.w.generated, G.EDGE_LOGINS.map((l) => l.login));
+  assert.match(x.said.join('\n'), /installer: postgres \(supautils_reserved_authenticator\) can create_role, grant_identity_writer, grant_core_adapter, alter_authenticator_pre_request/);
+  const [ev] = x.evidence('ga-03-db-bootstrap-');
+  assert.equal(ev.j.plan.installer.model, 'supautils_reserved_authenticator');
+  assert.doesNotMatch(ev.text, /SCRAM-SHA-256\$4096:[A-Za-z0-9+/]{22}==\$(?!A{43})/);
+});
+
+test('--db-phase: preflight → bootstrap (own plan + phrase) → db-certify in one process; each step its own evidence; nothing after a STOP', async () => {
+  const x = dbWorld();
+  const r = await x.run('--db-phase');
+  assert.equal(r.verdict, 'GATEWAY_AUTH_DB_BOOTSTRAP_PASS');
+  assert.deepEqual(r.steps.map((s) => `${s.mode}=${s.verdict}`), ['--preflight=GATEWAY_AUTH_PREFLIGHT_PASS', '--db-bootstrap=TORNEOS_GATEWAY_DB_BOOTSTRAPPED', '--db-certify=GATEWAY_DB_CERTIFIED']);
+  assert.equal(x.w.psql.length, 1); assert.equal(x.w.loginProbes, 1);
+  const [cert] = x.evidence('ga-03-db-certify');
+  assert.equal(cert.j.verdict, 'GATEWAY_DB_CERTIFIED'); assert.deepEqual(cert.j.delta.diff, []); assert.deepEqual(cert.j.foundation.diff, []); assert.deepEqual(cert.j.invariants, []);
+  assert.deepEqual(cert.j.pre_request, ['pgrst.db_pre_request=private.check_token']); assert.equal(cert.j.login_roles_torneos, 2);
+  assert.equal(cert.j.postgrest_probe.pass, true); assert.equal(cert.j.management_api_writes, 0); assert.equal(cert.j.psql_writes, 0);
+  for (const e of [...x.evidence('ga-01'), ...x.evidence('ga-03')]) assert.deepEqual(G.secretFindings(e.text, [x.PAT, x.PUB]), [], e.f);
+  // re-run: bootstrap is already applied → preflight says next=--keyring-generate → only the certification runs again
+  const again = await x.run('--db-phase');
+  assert.deepEqual(again.steps.map((s) => s.mode), ['--preflight', '--db-certify']); assert.equal(x.w.psql.length, 1);
+  // a STOP in the bootstrap ends the sequence: no certification
+  const y = dbWorld({ installer: hostedInstaller({ admin_on_core_adapter: false }) });
+  await assert.rejects(y.run('--db-phase'), (e) => e.code === 'DB_BOOTSTRAP_BLOCKED');
+  assert.equal(y.w.loginProbes, 0); assert.equal(y.evidence('ga-03-db-certify').length, 0);
+});
+
+test('--db-certify: fails on a failed login probe, roles off the delta pin, or before W2/W3', async () => {
+  const x = dbWorld({ loginProbe: async () => ({ pass: false, runs: [{ login: 'torneos_edge_core_adapter', port: 6543, pass: false, failures: ['psql_exit_2'] }] }) });
+  await x.run('--db-bootstrap');
+  await assert.rejects(x.run('--db-certify'), (e) => e.code === 'GATEWAY_DB_CERTIFICATION_FAILED' && e.detail.failures.includes('EDGE_LOGIN_PROBE_FAILED'));
+  const y = dbWorld(); await y.run('--db-bootstrap');
+  y.w.rolesOverride = { ...DELTA_PIN.roles, memberships: [...DELTA_PIN.roles.memberships, { role: 'torneos_payment_service', member: 'torneos_edge_core_adapter', admin: false, inherit: false, set: true }], payment_logins: 1, login_member_of_api_role: 1, authenticator_config: [...G.PRE_REQUEST_ROLECONFIG], auth_users: 0, installer: READ_ONLY_SESSION };
+  await assert.rejects(y.run('--db-certify'), (e) => e.code === 'GATEWAY_DB_CERTIFICATION_FAILED' && e.detail.failures.includes('ROLES_DIFFER_FROM_DELTA_PIN'));
+  assert.equal(y.w.loginProbes, 0, 'no login probe on a database already failing');
+  const z = dbWorld();
+  await assert.rejects(z.run('--db-certify'), (e) => e.code === 'GATEWAY_DB_CERTIFICATION_FAILED' && e.detail.failures.includes('W2_W3_NOT_APPLIED'));
+});
+
+test('login probe: pinned host/port/login only; every block ends in ROLLBACK (never COMMIT); verdict from the server SQLSTATEs', () => {
+  const host = 'aws-0-sa-east-1.pooler.supabase.com';
+  assert.throws(() => LP.loginEnv({ host: 'db.onzpwnqxnvlgsevivngf.supabase.co', port: 5432, login: 'torneos_edge_core_adapter', password: 'x' }), /pooler_host/);
+  assert.throws(() => LP.loginEnv({ host, port: 5433, login: 'torneos_edge_core_adapter', password: 'x' }), /port/);
+  assert.throws(() => LP.loginEnv({ host, port: 6543, login: 'postgres', password: 'x' }), /login_not_pinned/);
+  const env = LP.loginEnv({ host, port: 6543, login: 'torneos_edge_identity_writer', password: 'pw' });
+  assert.equal(env.PGUSER, `torneos_edge_identity_writer.${T}`); assert.equal(env.PGSSLMODE, 'verify-full'); assert.ok(!('PGPASSFILE' in env));
+  for (const { login } of G.EDGE_LOGINS) {
+    const c = LP.loginChecks(login);
+    const script = LP.loginProbeScript(c);
+    assert.doesNotMatch(script, /\bCOMMIT\b|^END;|pg_terminate|DROP |ALTER |GRANT /im, login);
+    assert.equal((script.match(/^RELEASE SAVEPOINT/gm) ?? []).length, c.own === 'torneos_identity_writer' ? 2 : 2, 'only the kept statements release');
+    assert.equal((script.match(/^BEGIN;$/gm) ?? []).length, 2); assert.equal((script.match(/^ROLLBACK;$/gm) ?? []).length, 2);
+    // a server that answers every check as expected → pass; one wrong SQLSTATE → fail naming the check
+    const want = [...c.before, ...c.common, ...c.specific, ...(c.own === 'torneos_identity_writer' ? c.after : [])];
+    const good = [`W|${login}|${login}|1`, ...want.map((k) => `R|${k.name}| ${k.expect} | ${k.message ?? (k.expect === '00000' ? '' : 'permission denied')}`), 'E|done'].join('\n');
+    assert.equal(LP.evaluateLoginProbe(login, c, good).pass, true, login);
+    const bad = good.replace(`R|set_role_refused_service_role| 42501`, 'R|set_role_refused_service_role| 00000');
+    assert.ok(LP.evaluateLoginProbe(login, c, bad).failures.includes('set_role_refused_service_role_sqlstate_00000_want_42501'));
+    assert.ok(LP.evaluateLoginProbe(login, c, good.replace('E|done', '')).failures.includes('probe_incomplete'));
+    assert.ok(LP.evaluateLoginProbe(login, c, good.replace(`W|${login}|${login}|1`, `W|${login}|${login}|0`)).failures.includes('session_identity_not_the_login'));
+  }
+});
+
+test('wrapper: --db-certify and --db-phase are modes (reach the tty gate, not USAGE)', () => {
+  const sh = path.join(HERE, 'run-gateway-auth.sh');
+  for (const m of ['--db-certify', '--db-phase']) {
+    const r = spawnSync('bash', [sh, m], { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'], input: '' });
+    assert.notEqual(r.status, 0); assert.doesNotMatch(r.stderr, /GATEWAY_AUTH_USAGE/); assert.match(r.stderr, /GATEWAY_AUTH_(BLOCKED_NO_TTY|REFUSED_NON_INTERACTIVE)/);
+  }
+  assert.deepEqual(G.patRequirement('--db-phase').permissions, G.patRequirement('--preflight').permissions, '--db-phase needs exactly the read-only preflight PAT');
+  assert.equal(G.patRequirement('--db-phase').permissions.some((p) => p.endsWith('Read-write')), false);
+});

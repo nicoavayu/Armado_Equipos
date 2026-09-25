@@ -174,7 +174,68 @@ export const GATEWAY_ROLES_SQL = `select json_build_object(
    'admin_on_core_adapter', pg_has_role(current_user, 'torneos_core_adapter', 'MEMBER WITH ADMIN OPTION')),
  'edge_login_can_set_role', (select coalesce(json_object_agg(r.rolname, pg_has_role(r.oid, (select oid from pg_roles where rolname = case r.rolname when 'torneos_edge_identity_writer' then 'torneos_identity_writer' else 'torneos_core_adapter' end), 'SET')), '{}'::json) from pg_roles r where r.rolname in ('torneos_edge_identity_writer','torneos_edge_core_adapter'))
 )`;
-for (const sql of [GATEWAY_ROLES_SQL]) assertReadOnlySql(sql);
+// GATEWAY_ROLES_SQL.installer describes the SESSION that ran the query. On the hosted Management API a read_only:true
+// query runs as supabase_read_only_user, never as postgres, so that block says nothing about W2/W3 (defect found by the
+// 2026-09-25 remote preflight). It stays byte-identical because the delta pin records its sha256; W2/W3 decisions use
+// INSTALLER_PRIVILEGES_SQL below.
+
+// ─────────────────────────── the W2/W3 installer, measured explicitly ───────────────────────────
+// The bootstrap transaction runs as `postgres` (Supavisor user postgres.<torneos>): hosted Supabase, PG 17, a
+// NON-superuser with CREATEROLE, governed by supautils. Measured on supabase/postgres 17.6.1.147 (2026-09-25, local lab):
+//   CREATE ROLE                            needs CREATEROLE;
+//   GRANT torneos_<x> TO <login>           needs ADMIN OPTION on torneos_<x> (PG 16+), without it: permission denied;
+//   ALTER ROLE authenticator SET pgrst.*   authenticator is a supautils RESERVED role: allowed to a non-superuser only if
+//                                          it is listed with `*` (settings modifiable), the installer is a member of
+//                                          supautils.privileged_role and pgrst.* is in privileged_role_allowed_configs —
+//                                          each of the three removed alone makes the ALTER fail; ADMIN on authenticator
+//                                          is NOT what grants it. Without supautils: CREATEROLE + ADMIN on authenticator.
+// Every term names `postgres` literally (pg_has_role(<name>, …) and pg_roles), never current_user/session_user, so the
+// answer is the same whoever runs the read (supabase_read_only_user on the hosted API, anyone in the rehearsal).
+export const INSTALLER_ROLE = 'postgres';
+export const INSTALLER_PRIVILEGES_SQL = `select json_build_object(
+ 'measured_role', 'postgres',
+ 'measured_by', current_user,
+ 'exists', exists (select 1 from pg_roles where rolname = 'postgres'),
+ 'super', (select rolsuper from pg_roles where rolname = 'postgres'),
+ 'createrole', (select rolcreaterole from pg_roles where rolname = 'postgres'),
+ 'admin_on_authenticator', (select pg_has_role('postgres', 'authenticator', 'MEMBER WITH ADMIN OPTION') where exists (select 1 from pg_roles where rolname = 'authenticator')),
+ 'admin_on_identity_writer', (select pg_has_role('postgres', 'torneos_identity_writer', 'MEMBER WITH ADMIN OPTION') where exists (select 1 from pg_roles where rolname = 'torneos_identity_writer')),
+ 'admin_on_core_adapter', (select pg_has_role('postgres', 'torneos_core_adapter', 'MEMBER WITH ADMIN OPTION') where exists (select 1 from pg_roles where rolname = 'torneos_core_adapter')),
+ 'supautils_privileged_role', current_setting('supautils.privileged_role', true),
+ 'member_of_privileged_role', (select pg_has_role('postgres', r.oid, 'MEMBER') from pg_roles r where r.rolname = current_setting('supautils.privileged_role', true)),
+ 'supautils_reserved_roles', current_setting('supautils.reserved_roles', true),
+ 'supautils_allowed_configs', current_setting('supautils.privileged_role_allowed_configs', true)
+)`;
+for (const sql of [GATEWAY_ROLES_SQL, INSTALLER_PRIVILEGES_SQL]) assertReadOnlySql(sql);
+
+const csv = (s) => (typeof s === 'string' ? s.split(',').map((x) => x.trim()).filter(Boolean) : []);
+/**
+ * What the measured `postgres` can do for EXACTLY the W2/W3 statements. `sufficient` only when every statement is
+ * provable from the measurement; an unreadable or missing term counts as "cannot" (fail closed), never as "can".
+ */
+export function installerCapability(m) {
+  if (!m || typeof m !== 'object' || m.measured_role !== INSTALLER_ROLE) return { sufficient: false, missing: ['INSTALLER_MEASUREMENT_UNREADABLE'], can: {} };
+  const t = (x) => x === true;
+  const supautils = typeof m.supautils_privileged_role === 'string' && m.supautils_privileged_role.length > 0;
+  const reserved = csv(m.supautils_reserved_roles);
+  const authReserved = reserved.some((r) => r.replace(/\*$/, '') === 'authenticator');
+  const authConfigurable = reserved.includes('authenticator*');
+  const allowed = csv(m.supautils_allowed_configs);
+  const preRequestAllowed = allowed.includes('pgrst.*') || allowed.includes('pgrst.db_pre_request');
+  let alter;
+  if (t(m.super)) alter = true;
+  else if (supautils && authReserved) alter = authConfigurable && t(m.member_of_privileged_role) && preRequestAllowed;
+  else if (supautils) alter = t(m.createrole) && t(m.admin_on_authenticator) && preRequestAllowed;
+  else alter = t(m.createrole) && t(m.admin_on_authenticator);
+  const can = {
+    create_role: t(m.exists) && (t(m.super) || t(m.createrole)),
+    grant_identity_writer: t(m.exists) && (t(m.super) || t(m.admin_on_identity_writer)),
+    grant_core_adapter: t(m.exists) && (t(m.super) || t(m.admin_on_core_adapter)),
+    alter_authenticator_pre_request: t(m.exists) && alter,
+  };
+  const missing = Object.entries(can).filter(([, v]) => !v).map(([k]) => `INSTALLER_CANNOT_${k.toUpperCase()}`);
+  return { sufficient: missing.length === 0, missing, can, model: t(m.super) ? 'superuser' : supautils ? (authReserved ? 'supautils_reserved_authenticator' : 'supautils') : 'plain_postgres' };
+}
 
 /** W2/W3 state from the catalog + the role shape. 'applied' | 'pending' | 'foreign' (anything else: STOP). */
 export function dbState(catalog, roles, foundationPin, deltaPin) {
@@ -283,13 +344,17 @@ export const MODE_ENDPOINTS = Object.freeze({
   '--preflight': Object.freeze([...CORE_READS, ...TORNEOS_READS, 'pooler']),
   '--auth-lockdown': Object.freeze([...CORE_READS, 'functions', 'auth-config', 'third-party-auth', 'query', 'api-keys', 'auth-lockdown']),
   '--db-bootstrap': Object.freeze([...CORE_READS, 'functions', 'auth-config', 'third-party-auth', 'query', 'pooler']),
+  '--db-certify': Object.freeze([...CORE_READS, ...TORNEOS_READS, 'pooler']),
+  // --db-phase = --preflight → --db-bootstrap → --db-certify in one process (one PAT, one phrase); every step keeps its
+  // own endpoint list (the client of each step is built for that step's mode). The PAT: the union, i.e. --preflight's.
+  '--db-phase': Object.freeze([...CORE_READS, ...TORNEOS_READS, 'pooler']),
   '--keyring-generate': Object.freeze([...CORE_READS, 'functions', 'auth-config', 'third-party-auth', 'query']),
   '--b03': Object.freeze([...CORE_READS, 'functions', 'auth-config', 'third-party-auth', 'query', 'api-keys', 'tpa-create']),
   '--deploy-preflight': Object.freeze([...CORE_READS, ...TORNEOS_READS, 'pooler']),
   '--certify': Object.freeze([...CORE_READS, ...TORNEOS_READS]),
 });
 export const MODE_WRITES = Object.freeze({
-  '--preflight': null, '--auth-lockdown': 'auth-lockdown', '--db-bootstrap': 'psql', '--keyring-generate': 'keychain', '--b03': 'b03', '--deploy-preflight': null, '--certify': null,
+  '--preflight': null, '--auth-lockdown': 'auth-lockdown', '--db-bootstrap': 'psql', '--db-certify': null, '--db-phase': 'psql', '--keyring-generate': 'keychain', '--b03': 'b03', '--deploy-preflight': null, '--certify': null,
 });
 export const PAT_RESOURCE_ACCESS = Object.freeze({ type: 'Organization', organization_slug: ORG_SLUG });
 export function patRequirement(mode) {

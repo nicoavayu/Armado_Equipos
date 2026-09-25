@@ -12,6 +12,11 @@
 //                                  Auth moved, GoTrue signup/OTP refused, 0 users, 0 third-party auth
 //   --db-bootstrap      W2 + W3    ONE psql transaction: 2 LOGIN NOINHERIT roles (SCRAM verifiers; passwords generated
 //                                  into the Keychain), 2 GRANTs, pgrst.db_pre_request = private.check_token
+//   --db-certify        READ-ONLY  after W2+W3, before KR: foundation + delta pin + invariants, W1 intact, TLS verify-full
+//                                  on 5432/6543, both edge logins really log in (SCRAM) on both ports and can do exactly
+//                                  the gateway's statements (always rolled back), PostgREST probes → STOP
+//   --db-phase          SEQUENCE   --preflight → --db-bootstrap (its own plan + phrase) → --db-certify, one PAT, each step
+//                                  its own client/allowlist and evidence; any STOP ends the sequence
 //   --keyring-generate  LOCAL      a new Production ring (k1 active, k2 standby) into the Keychain + the public JWKS pin
 //   --b03               W5         POST third-party-auth {custom_jwks: pinned public k1+k2} → measured bridge probes
 //   --deploy-preflight  READ-ONLY  the gateway's Production env, built from pins + custody presence, validated by the REAL
@@ -33,12 +38,16 @@ import { generateRing, jwksPinDocument, assertJwksPin, publicFromPkcs8, gatewayR
 import { probeBridge } from './bridge-probe.mjs';
 import { probeAuthRefusals, httpsAuthProbeTransport } from './auth-probe.mjs';
 import { probePostgrest, httpsProbeTransport } from '../torneos-foundation/postgrest-probe.mjs';
+import { probeEdgeLogins, PROBE_PORTS } from './login-probe.mjs';
+import { probeTls } from './tls-probe.mjs';
 
 export const EVIDENCE_DIR = path.join(G.REPO_ROOT, 'backend/torneos/mp-b/evidence/gateway-auth');
 export const MODES = Object.freeze({
   '--preflight': { seq: '01', phrase: null },
   '--auth-lockdown': { seq: '02', phrase: (id) => `LOCK TORNEOS AUTH ${G.TORNEOS_REF} ${id}` },
   '--db-bootstrap': { seq: '03', phrase: (id) => `BOOTSTRAP TORNEOS GATEWAY DB ${G.TORNEOS_REF} ${id}` },
+  '--db-certify': { seq: '03', phrase: null },
+  '--db-phase': { seq: '03', phrase: null },
   '--keyring-generate': { seq: '04', phrase: (id) => `GENERATE TORNEOS PRODUCTION BRIDGE RING ${id}` },
   '--b03': { seq: '05', phrase: (id) => `PUBLISH TORNEOS B03 CUSTOM JWKS ${G.TORNEOS_REF} ${id}` },
   '--deploy-preflight': { seq: '06', phrase: null },
@@ -160,6 +169,11 @@ async function observe(ctx, client, pins, { deep = false } = {}) {
   // authFingerprint: in memory only, never serialized (see fingerprintAuthConfig).
   return { core, torneos: t, custody, steps, failures, foundation_diff: fdiff, invariants, authFingerprint };
 }
+/** `postgres` (the W2/W3 installer) measured explicitly: never the session that runs the read-only query. */
+async function measureInstaller(client) {
+  const measurement = (await client.sql(G.INSTALLER_PRIVILEGES_SQL))[0]?.json_build_object ?? null;
+  return { measurement, capability: G.installerCapability(measurement) };
+}
 const stateSummary = (o) => ({ W1: o.steps.W1.state, W2_W3: o.steps.DB.state, KR: o.steps.KR, W5: o.steps.W5.state, edge_functions: o.torneos.functions.length, custody: o.custody });
 const coreSummary = (o) => ({ prod: o.core.prod?.status, prod_contract: { status: o.core.prodFn?.status, ezbr: o.core.prodFn?.ezbr_sha256, verify_jwt: o.core.prodFn?.verify_jwt }, staging: o.core.staging?.status, old: o.core.old?.status, torneos: o.core.torneos?.status });
 
@@ -175,12 +189,15 @@ function blocked(ctx, mode, o, code, extra = {}) {
 async function runPreflight(ctx, client, pins) {
   const o = await observe(ctx, client, pins, { deep: true });
   const pooler = await client.pooler();
-  const installer = o.torneos.roles?.installer ?? null;
-  const measured = { installer, pooler_hosts: pooler.hosts, pooler_sa_east_1: pooler.hosts.some((h) => POOLER_HOST_PATTERN.test(h)), psql_prerequisites: ctx.deps.psqlPrerequisites() };
+  const installer = await measureInstaller(client);
+  const host = pooler.hosts.find((h) => POOLER_HOST_PATTERN.test(h)) ?? null;
+  const measured = { query_session: o.torneos.roles?.installer ?? null, installer: installer.measurement, installer_capability: installer.capability, pooler_hosts: pooler.hosts, pooler_sa_east_1: !!host,
+    pooler_tls: host ? PROBE_PORTS.map((port) => ctx.deps.tlsProbe({ host, port })) : [], psql_prerequisites: ctx.deps.psqlPrerequisites() };
   const next = o.steps.W1.state !== 'applied' ? '--auth-lockdown' : o.steps.DB.state !== 'applied' ? '--db-bootstrap' : o.steps.KR === 'absent' ? '--keyring-generate' : o.steps.W5.state !== 'applied' ? '--b03' : '--deploy-preflight';
   const risks = [];
-  if (installer && !(installer.super || (installer.createrole && installer.admin_on_authenticator && installer.admin_on_identity_writer && installer.admin_on_core_adapter))) risks.push('DB_INSTALLER_LACKS_PRIVILEGE_FOR_W2_W3');
+  if (o.steps.DB.state !== 'applied' && !installer.capability.sufficient) risks.push('DB_INSTALLER_LACKS_PRIVILEGE_FOR_W2_W3', ...installer.capability.missing);
   if (!measured.pooler_sa_east_1) risks.push('POOLER_HOST_NOT_SA_EAST_1');
+  if (measured.pooler_tls.some((t) => !t.pass)) risks.push('POOLER_TLS_NOT_VERIFIED');
   const verdict = o.failures.length ? 'GATEWAY_AUTH_PREFLIGHT_BLOCKED' : 'GATEWAY_AUTH_PREFLIGHT_PASS';
   writeEvidence(ctx, `ga-01-preflight-${ctx.stamp}.json`, { ...base(ctx, '--preflight', o), read_only: true, verdict, next_mode: o.failures.length ? null : next, measured, risks,
     foundation_diff: o.foundation_diff, invariants: o.invariants, auth: o.torneos.auth, third_party_auth: o.torneos.tpa, secret_names: o.torneos.secrets, postgrest_config: o.torneos.postgrest,
@@ -261,20 +278,22 @@ async function runDbBootstrap(ctx, client, pins) {
   if (!host) failures.push('POOLER_HOST_NOT_SA_EAST_1');
   failures.push(...ctx.deps.psqlPrerequisites());
   if (o.custody.dataplane_installer !== 'PRESENT') failures.push('KEYCHAIN_DATAPLANE_INSTALLER_ABSENT');
-  const inst = o.torneos.roles?.installer;
-  if (o.steps.DB.state === 'pending' && !(inst?.super || (inst?.createrole && inst?.admin_on_authenticator && inst?.admin_on_identity_writer && inst?.admin_on_core_adapter))) failures.push('DB_INSTALLER_LACKS_PRIVILEGE_FOR_W2_W3');
-  if (failures.length) blocked(ctx, mode, { ...o, failures }, 'DB_BOOTSTRAP_BLOCKED');
+  const installer = await measureInstaller(client);
+  if (o.steps.DB.state === 'pending' && !installer.capability.sufficient) failures.push('DB_INSTALLER_LACKS_PRIVILEGE_FOR_W2_W3', ...installer.capability.missing);
+  if (failures.length) blocked(ctx, mode, { ...o, failures }, 'DB_BOOTSTRAP_BLOCKED', { installer: installer.measurement, installer_capability: installer.capability });
   if (o.steps.DB.state === 'applied') {
     writeEvidence(ctx, `ga-03-db-bootstrap-${ctx.stamp}.json`, { ...base(ctx, mode, o), verdict: 'DB_BOOTSTRAP_ALREADY_APPLIED', roles: o.torneos.roles, management_api_writes: 0, psql_writes: 0, requests: client.requests });
     return { verdict: 'DB_BOOTSTRAP_ALREADY_APPLIED' };
   }
   const custodyPlan = o.custody.gateway_logins === 'ABSENT' ? 'generate (keychain-gateway-auth.py, secrets.token_urlsafe(30), pty)' : 'reuse (PRESENT from an attempt that did not commit; no regeneration)';
-  const plan = { mode, transport: `psql ${host}:5432 postgres.${G.TORNEOS_REF} sslmode=verify-full (SQL on stdin)`, sql_template_sha256: G.sha256(G.BOOTSTRAP_SQL_TEMPLATE), custody: custodyPlan, state: stateSummary(o), core: coreSummary(o) };
+  const plan = { mode, transport: `psql ${host}:5432 postgres.${G.TORNEOS_REF} sslmode=verify-full (SQL on stdin)`, sql_template_sha256: G.sha256(G.BOOTSTRAP_SQL_TEMPLATE), custody: custodyPlan,
+    installer: { role: G.INSTALLER_ROLE, model: installer.capability.model, can: installer.capability.can }, state: stateSummary(o), core: coreSummary(o) };
   const planId = planIdOf(plan);
-  ctx.say(`\nPLAN ${planId}: gateway DB bootstrap on Arma2 Torneos ${G.TORNEOS_REF} — ONE transaction (W2 + W3):\n${G.BOOTSTRAP_SQL_TEMPLATE.split('\n').filter(Boolean).map((l) => `  ${l}`).join('\n')}\n  login passwords: ${custodyPlan} → Keychain ${G.KEYCHAIN_GATEWAY_DB_SERVICE}/<login>; the server receives SCRAM verifiers only\n  NOT created: any payments login · NOT touched: Core Production, Edge Functions, secrets`);
+  ctx.say(`\nPLAN ${planId}: gateway DB bootstrap on Arma2 Torneos ${G.TORNEOS_REF} — ONE transaction (W2 + W3):\n${G.BOOTSTRAP_SQL_TEMPLATE.split('\n').filter(Boolean).map((l) => `  ${l}`).join('\n')}\n  installer: ${G.INSTALLER_ROLE} (${installer.capability.model}) can ${Object.entries(installer.capability.can).filter(([, v]) => v).map(([k]) => k).join(', ')}\n  login passwords: ${custodyPlan} → Keychain ${G.KEYCHAIN_GATEWAY_DB_SERVICE}/<login>; the server receives SCRAM verifiers only\n  NOT created: any payments login · NOT touched: Core Production, Edge Functions, secrets`);
   const authorization = requirePhrase(ctx, MODES[mode].phrase(planId));
   const again = await observe(ctx, client, pins);
-  const planAgain = { ...plan, state: stateSummary(again), core: coreSummary(again) };
+  const installerAgain = await measureInstaller(client);
+  const planAgain = { ...plan, installer: { role: G.INSTALLER_ROLE, model: installerAgain.capability.model, can: installerAgain.capability.can }, state: stateSummary(again), core: coreSummary(again) };
   if (planIdOf(planAgain) !== planId || again.failures.length) stop('STATE_CHANGED_SINCE_PLAN', { before: planId, after: planIdOf(planAgain), failures: again.failures });
   const kc = ctx.deps.keychain;
   if (o.custody.gateway_logins === 'ABSENT') for (const l of G.EDGE_LOGINS) kc.dbLogin(l.login).generate();
@@ -292,9 +311,60 @@ async function runDbBootstrap(ctx, client, pins) {
   writeEvidence(ctx, `ga-03-db-bootstrap-${ctx.stamp}.json`, { ...base(ctx, mode, after), verdict, plan, plan_id: planId, authorization,
     psql: { exit_code: r.code, signal: r.signal ?? null, elapsed_ms: r.elapsed_ms, stderr_tail: r.code === 0 ? null : r.stderr_tail },
     custody: { service: G.KEYCHAIN_GATEWAY_DB_SERVICE, accounts: G.EDGE_LOGINS.map((l) => l.login), mode: custodyPlan, values_printed: false },
-    roles_after: after.torneos.roles, pre_request_after: after.torneos.catalog?.authenticator_pre_request ?? null, failures: post,
+    installer: installer.measurement, installer_capability: installer.capability, roles_after: after.torneos.roles, pre_request_after: after.torneos.catalog?.authenticator_pre_request ?? null, failures: post,
     management_api_writes: client.writes, psql_writes: 1, requests: client.requests });
   if (post.length) stop(verdict, { failures: post });
+  return { verdict };
+}
+
+async function runDbCertify(ctx, client, pins) {
+  const mode = '--db-certify';
+  if (!pins.delta) stop('DELTA_PIN_MISSING');
+  const o = await observe(ctx, client, pins, { deep: true });
+  const pooler = await client.pooler();
+  const host = pooler.hosts.find((h) => POOLER_HOST_PATTERN.test(h)) ?? null;
+  const failures = [...o.failures];
+  if (o.steps.W1.state !== 'applied') failures.push('W1_NOT_APPLIED');
+  if (o.steps.DB.state !== 'applied') failures.push('W2_W3_NOT_APPLIED');
+  if (o.steps.KR !== 'absent' || o.steps.W5.state !== 'pending') failures.push('DB_CERTIFY_IS_FOR_THE_PRE_KEYRING_STAGE');
+  failures.push(...tpaFailures(o));
+  if (!host) failures.push('POOLER_HOST_NOT_SA_EAST_1');
+  failures.push(...ctx.deps.psqlPrerequisites());
+  const deltaDiff = G.DELTA_PATHS.filter((p) => canon(G.getPath(o.torneos.catalog, p)) !== canon(G.getPath(pins.delta.catalog, p))).map((p) => ({ path: p }));
+  if (deltaDiff.length) failures.push('CATALOG_DIFFERS_FROM_DELTA_PIN');
+  const rolesDiff = ['logins', 'memberships'].filter((k) => canon(o.torneos.roles?.[k]) !== canon(pins.delta.roles[k]));
+  if (rolesDiff.length) failures.push('ROLES_DIFFER_FROM_DELTA_PIN');
+  const tls = host ? PROBE_PORTS.map((port) => ctx.deps.tlsProbe({ host, port })) : [];
+  if (tls.some((t) => !t.pass)) failures.push('POOLER_TLS_NOT_VERIFIED');
+  let logins = null; let postgrestProbe = null;
+  if (!failures.length) {
+    const redact = (t) => { let s = String(t); for (const k of ctx.known) if (k && k.length >= 8) s = s.split(k).join('«REDACTED»'); return s; };
+    const kc = ctx.deps.keychain;
+    logins = await ctx.deps.loginProbe({ host, redact, password: (login) => { const pw = kc.dbLogin(login).read(); ctx.known.push(pw); return pw; } });
+    if (!logins.pass) failures.push('EDGE_LOGIN_PROBE_FAILED');
+    const keys = await client.apiKeys();
+    if (!keys.probeKey) failures.push('POSTGREST_PROBE_KEY_UNAVAILABLE');
+    else {
+      ctx.known.push(keys.probeKey);
+      postgrestProbe = await probePostgrest({ ref: G.TORNEOS_REF, apikey: keys.probeKey, transport: ctx.deps.probeTransport });
+      if (!postgrestProbe.pass) failures.push('POSTGREST_PROBE_FAILED');
+    }
+  }
+  // Nothing moved during the probes: the whole observation again, same catalog/roles/auth as before them.
+  const final = await observe(ctx, client, pins, { deep: true });
+  failures.push(...final.failures.filter((f) => !failures.includes(f)));
+  if (canon(final.torneos.catalog) !== canon(o.torneos.catalog) || canon(final.torneos.roles) !== canon(o.torneos.roles)) failures.push('CATALOG_MOVED_DURING_PROBES');
+  if (Object.keys(o.authFingerprint ?? {}).some((k) => o.authFingerprint[k] !== final.authFingerprint?.[k])) failures.push('AUTH_MOVED_DURING_PROBES');
+  const verdict = failures.length ? 'GATEWAY_DB_CERTIFICATION_FAILED' : 'GATEWAY_DB_CERTIFIED';
+  writeEvidence(ctx, `ga-03-db-certify-${ctx.stamp}.json`, { ...base(ctx, mode, final), read_only: true, verdict,
+    foundation: { pin_sha256: G.FOUNDATION_FILES['backend/torneos/infra/torneos-foundation/pins/expected-catalog.json'], non_delta_strict_paths: NON_DELTA_STRICT.length, diff: final.foundation_diff },
+    delta: { pin_sha256: G.sha256(fs.readFileSync(ctx.deps.deltaPinFile ?? G.DELTA_PIN_FILE)), paths: G.DELTA_PATHS, diff: deltaDiff, roles_diff: rolesDiff },
+    invariants: final.invariants, roles: final.torneos.roles, pre_request: final.torneos.catalog?.authenticator_pre_request ?? null, login_roles_torneos: final.torneos.catalog?.login_roles_torneos ?? null,
+    auth: final.torneos.auth, third_party_auth: final.torneos.tpa, edge_functions: { count: final.torneos.functions.length }, secret_names: final.torneos.secrets, postgrest_config: final.torneos.postgrest,
+    migrations_ledger_api: final.torneos.ledger, health: final.torneos.health, pooler: { hosts: pooler.hosts, modes: pooler.pool_modes, tls }, edge_logins: logins, postgrest_probe: postgrestProbe,
+    custody: { service: G.KEYCHAIN_GATEWAY_DB_SERVICE, accounts: G.EDGE_LOGINS.map((l) => l.login), state: final.custody.gateway_logins, values_printed: false },
+    failures, management_api_writes: client.writes, psql_writes: 0, requests: client.requests });
+  if (failures.length) stop(verdict, { failures });
   return { verdict };
 }
 
@@ -486,18 +556,27 @@ export async function runGatewayAuth({ mode, request, deps }) {
   let armed = null;
   const ctx = { deps, known: [request.pat], evidence: [], say: deps.say, stamp: stampOf(new Date(deps.now())) };
   let pins = null;
-  const client = makeClient({ transport: deps.transport, pat: request.pat, mode, armedFor: () => armed, jwksPin: () => pins?.jwks ?? null, known: ctx.known });
-  ctx.client = client;
-  ctx.arm = (w) => { if (w !== null && G.MODE_WRITES[mode] !== w) throw new StopError('ARMING_REFUSED', { mode, w }); armed = w; };
+  const clientFor = (m) => {
+    const client = makeClient({ transport: deps.transport, pat: request.pat, mode: m, armedFor: () => armed, jwksPin: () => pins?.jwks ?? null, known: ctx.known });
+    ctx.client = client;
+    ctx.arm = (w) => { if (w !== null && G.MODE_WRITES[m] !== w) throw new StopError('ARMING_REFUSED', { mode: m, w }); armed = w; };
+    return client;
+  };
+  const RUN = { '--preflight': runPreflight, '--auth-lockdown': runAuthLockdown, '--db-bootstrap': runDbBootstrap, '--db-certify': runDbCertify, '--keyring-generate': runKeyringGenerate,
+    '--b03': runB03, '--deploy-preflight': runDeployPreflight, '--certify': runCertify };
   try {
     pins = loadPins(ctx);
-    if (mode === '--preflight') return await runPreflight(ctx, client, pins);
-    if (mode === '--auth-lockdown') return await runAuthLockdown(ctx, client, pins);
-    if (mode === '--db-bootstrap') return await runDbBootstrap(ctx, client, pins);
-    if (mode === '--keyring-generate') return await runKeyringGenerate(ctx, client, pins);
-    if (mode === '--b03') return await runB03(ctx, client, pins);
-    if (mode === '--deploy-preflight') return await runDeployPreflight(ctx, client, pins);
-    return await runCertify(ctx, client, pins);
+    if (mode !== '--db-phase') return await RUN[mode](ctx, clientFor(mode), pins);
+    const steps = [];
+    const pre = await runPreflight(ctx, clientFor('--preflight'), pins);
+    steps.push({ mode: '--preflight', verdict: pre.verdict });
+    if (pre.next === '--db-bootstrap') {
+      const boot = await runDbBootstrap(ctx, clientFor('--db-bootstrap'), pins);
+      steps.push({ mode: '--db-bootstrap', verdict: boot.verdict });
+    } else if (pre.next !== '--keyring-generate') stop('DB_PHASE_OUT_OF_ORDER', { next: pre.next });
+    const cert = await runDbCertify(ctx, clientFor('--db-certify'), pins);
+    steps.push({ mode: '--db-certify', verdict: cert.verdict });
+    return { verdict: 'GATEWAY_AUTH_DB_BOOTSTRAP_PASS', steps, evidence: ctx.evidence.slice() };
   } catch (e) {
     if (e instanceof StopError) throw e;
     if (e instanceof ApiError) throw new StopError(e.code, e.detail);
@@ -541,11 +620,13 @@ async function main() {
   const say = (s) => process.stdout.write(`${s}\n`);
   const deps = {
     transport: httpsTransport, probeTransport: httpsProbeTransport, authProbeTransport: httpsAuthProbeTransport, keychain: systemKeychain(), tty: systemTty(), applySql, psqlPrerequisites: () => assertPsqlPrerequisites(),
+    tlsProbe: probeTls, loginProbe: probeEdgeLogins,
     validateGatewayEnv: validateGatewayEnvWithRealConfig, now: () => Date.now(), sleep: (ms) => new Promise((r) => setTimeout(r, ms)), evidenceDir: EVIDENCE_DIR, say,
   };
   try {
     const r = await runGatewayAuth({ mode, request, deps });
     request.pat = '';
+    for (const st of r.steps ?? []) say(`STEP ${st.mode} ${st.verdict}`);
     say(`\nRESULT ${r.verdict}${r.next ? ` next=${r.next}` : ''}`);
     process.exit(0);
   } catch (e) {

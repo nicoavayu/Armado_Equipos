@@ -1,0 +1,475 @@
+{
+ "annotation": "OFFLINE REHEARSAL 20260925T234429Z — local public.ecr.aws/supabase/postgres:17.6.1.147 (internal network) + public.ecr.aws/supabase/postgrest:v14.15, emulated Management API / Keychain / tty; NOT a remote run",
+ "tool": "backend/torneos/infra/torneos-gateway-auth",
+ "generated_at": "2026-09-25T23:44:37.009Z",
+ "mode": "--db-bootstrap",
+ "core": {
+  "prod": "ACTIVE_HEALTHY",
+  "prod_contract": {
+   "status": "ACTIVE",
+   "ezbr": "1072419517953eee8e8021f9691d1a5b1efb1f871c4d13290f644d119caded2c",
+   "verify_jwt": false
+  },
+  "staging": "INACTIVE",
+  "old": "INACTIVE",
+  "torneos": "ACTIVE_HEALTHY"
+ },
+ "state": {
+  "W1": "applied",
+  "W2_W3": "applied",
+  "KR": "absent",
+  "W5": "pending",
+  "edge_functions": 0,
+  "custody": {
+   "dataplane_installer": "PRESENT",
+   "gateway_logins": "PRESENT",
+   "ring": "ABSENT",
+   "jwks_pin": null
+  }
+ },
+ "failures": [],
+ "verdict": "TORNEOS_GATEWAY_DB_BOOTSTRAPPED",
+ "plan": {
+  "mode": "--db-bootstrap",
+  "transport": "psql aws-0-sa-east-1.pooler.supabase.com:5432 postgres.onzpwnqxnvlgsevivngf sslmode=verify-full (SQL on stdin)",
+  "sql_template_sha256": "7c53006ea412db29598c17ea6de8f1f42cffeb41747e37ff4e7374986e88fc0e",
+  "custody": "reuse (PRESENT from an attempt that did not commit; no regeneration)",
+  "installer": {
+   "role": "postgres",
+   "model": "supautils_reserved_authenticator",
+   "can": {
+    "create_role": true,
+    "grant_identity_writer": true,
+    "grant_core_adapter": true,
+    "alter_authenticator_pre_request": true
+   }
+  },
+  "state": {
+   "W1": "applied",
+   "W2_W3": "pending",
+   "KR": "absent",
+   "W5": "pending",
+   "edge_functions": 0,
+   "custody": {
+    "dataplane_installer": "PRESENT",
+    "gateway_logins": "PRESENT",
+    "ring": "ABSENT",
+    "jwks_pin": null
+   }
+  },
+  "core": {
+   "prod": "ACTIVE_HEALTHY",
+   "prod_contract": {
+    "status": "ACTIVE",
+    "ezbr": "1072419517953eee8e8021f9691d1a5b1efb1f871c4d13290f644d119caded2c",
+    "verify_jwt": false
+   },
+   "staging": "INACTIVE",
+   "old": "INACTIVE",
+   "torneos": "ACTIVE_HEALTHY"
+  }
+ },
+ "plan_id": "c161b5dd1a31",
+ "authorization": {
+  "phrase": "BOOTSTRAP TORNEOS GATEWAY DB onzpwnqxnvlgsevivngf c161b5dd1a31",
+  "typed_on": "/dev/tty"
+ },
+ "psql": {
+  "exit_code": 0,
+  "signal": null,
+  "elapsed_ms": 42,
+  "stderr_tail": null
+ },
+ "custody": {
+  "service": "arma2-torneos-gateway-db",
+  "accounts": [
+   "torneos_edge_identity_writer",
+   "torneos_edge_core_adapter"
+  ],
+  "mode": "reuse (PRESENT from an attempt that did not commit; no regeneration)",
+  "values_printed": false
+ },
+ "installer": {
+  "measured_role": "postgres",
+  "measured_by": "supabase_read_only_user",
+  "exists": true,
+  "super": false,
+  "createrole": true,
+  "admin_on_authenticator": true,
+  "admin_on_identity_writer": true,
+  "admin_on_core_adapter": true,
+  "supautils_privileged_role": "supabase_privileged_role",
+  "member_of_privileged_role": true,
+  "supautils_reserved_roles": "supabase_admin, supabase_auth_admin, supabase_storage_admin, supabase_read_only_user, supabase_realtime_admin, supabase_replication_admin, supabase_etl_admin, dashboard_user, pgbouncer, service_role*, authenticator*, authenticated*, anon*, supabase_privileged_role",
+  "supautils_allowed_configs": "auto_explain.*, deadlock_timeout, log_duration, log_lock_waits, log_min_duration_statement, log_min_error_statement, log_min_messages, log_parameter_max_length, log_replication_commands, log_statement, log_temp_files, pg_net.batch_size, pg_net.ttl, pg_stat_statements.*, pgaudit.log, pgaudit.log_catalog, pgaudit.log_client, pgaudit.log_level, pgaudit.log_relation, pgaudit.log_rows, pgaudit.log_statement, pgaudit.log_statement_once, pgaudit.role, pgrst.*, plan_filter.*, safeupdate.enabled, session_replication_role, track_functions, track_io_timing, wal_compression"
+ },
+ "installer_capability": {
+  "sufficient": true,
+  "missing": [],
+  "can": {
+   "create_role": true,
+   "grant_identity_writer": true,
+   "grant_core_adapter": true,
+   "alter_authenticator_pre_request": true
+  },
+  "model": "supautils_reserved_authenticator"
+ },
+ "roles_after": {
+  "logins": [
+   {
+    "name": "torneos_edge_core_adapter",
+    "login": true,
+    "inherit": false,
+    "super": false,
+    "createrole": false,
+    "createdb": false,
+    "replication": false,
+    "bypassrls": false,
+    "connlimit": -1,
+    "valid_until": null,
+    "config": null
+   },
+   {
+    "name": "torneos_edge_identity_writer",
+    "login": true,
+    "inherit": false,
+    "super": false,
+    "createrole": false,
+    "createdb": false,
+    "replication": false,
+    "bypassrls": false,
+    "connlimit": -1,
+    "valid_until": null,
+    "config": null
+   }
+  ],
+  "memberships": [
+   {
+    "role": "torneos_core_adapter",
+    "member": "torneos_edge_core_adapter",
+    "admin": false,
+    "inherit": false,
+    "set": true
+   },
+   {
+    "role": "torneos_edge_core_adapter",
+    "member": "postgres",
+    "admin": true,
+    "inherit": false,
+    "set": false
+   },
+   {
+    "role": "torneos_edge_identity_writer",
+    "member": "postgres",
+    "admin": true,
+    "inherit": false,
+    "set": false
+   },
+   {
+    "role": "torneos_identity_writer",
+    "member": "torneos_edge_identity_writer",
+    "admin": false,
+    "inherit": false,
+    "set": true
+   }
+  ],
+  "payment_logins": 0,
+  "login_member_of_api_role": 0,
+  "authenticator_config": [
+   "pgrst.db_pre_request=private.check_token"
+  ],
+  "auth_users": 0,
+  "installer": {
+   "user": "supabase_read_only_user",
+   "super": false,
+   "createrole": false,
+   "admin_on_authenticator": false,
+   "admin_on_identity_writer": false,
+   "admin_on_core_adapter": false
+  },
+  "edge_login_can_set_role": {
+   "torneos_edge_identity_writer": true,
+   "torneos_edge_core_adapter": true
+  }
+ },
+ "pre_request_after": [
+  "pgrst.db_pre_request=private.check_token"
+ ],
+ "management_api_writes": 0,
+ "psql_writes": 1,
+ "requests": [
+  {
+   "id": "prod-project",
+   "kind": "read",
+   "method": "GET",
+   "ref": "rcyuuoaqfwcembdajcss",
+   "status": 200
+  },
+  {
+   "id": "prod-contract-fn",
+   "kind": "read",
+   "method": "GET",
+   "ref": "rcyuuoaqfwcembdajcss",
+   "status": 200
+  },
+  {
+   "id": "project",
+   "kind": "read",
+   "method": "GET",
+   "ref": "hhyvmhgpapyuzjgxfnqv",
+   "status": 200
+  },
+  {
+   "id": "project",
+   "kind": "read",
+   "method": "GET",
+   "ref": "giaeztyghmhzcngskjmw",
+   "status": 200
+  },
+  {
+   "id": "project",
+   "kind": "read",
+   "method": "GET",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 200
+  },
+  {
+   "id": "org",
+   "kind": "read",
+   "method": "GET",
+   "ref": null,
+   "status": 200
+  },
+  {
+   "id": "projects",
+   "kind": "read",
+   "method": "GET",
+   "ref": null,
+   "status": 200
+  },
+  {
+   "id": "functions",
+   "kind": "read",
+   "method": "GET",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 200
+  },
+  {
+   "id": "auth-config",
+   "kind": "read",
+   "method": "GET",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 200
+  },
+  {
+   "id": "third-party-auth",
+   "kind": "read",
+   "method": "GET",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 200
+  },
+  {
+   "id": "query",
+   "kind": "read-sql",
+   "method": "POST",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 201
+  },
+  {
+   "id": "query",
+   "kind": "read-sql",
+   "method": "POST",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 201
+  },
+  {
+   "id": "pooler",
+   "kind": "read",
+   "method": "GET",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 200
+  },
+  {
+   "id": "query",
+   "kind": "read-sql",
+   "method": "POST",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 201
+  },
+  {
+   "id": "prod-project",
+   "kind": "read",
+   "method": "GET",
+   "ref": "rcyuuoaqfwcembdajcss",
+   "status": 200
+  },
+  {
+   "id": "prod-contract-fn",
+   "kind": "read",
+   "method": "GET",
+   "ref": "rcyuuoaqfwcembdajcss",
+   "status": 200
+  },
+  {
+   "id": "project",
+   "kind": "read",
+   "method": "GET",
+   "ref": "hhyvmhgpapyuzjgxfnqv",
+   "status": 200
+  },
+  {
+   "id": "project",
+   "kind": "read",
+   "method": "GET",
+   "ref": "giaeztyghmhzcngskjmw",
+   "status": 200
+  },
+  {
+   "id": "project",
+   "kind": "read",
+   "method": "GET",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 200
+  },
+  {
+   "id": "org",
+   "kind": "read",
+   "method": "GET",
+   "ref": null,
+   "status": 200
+  },
+  {
+   "id": "projects",
+   "kind": "read",
+   "method": "GET",
+   "ref": null,
+   "status": 200
+  },
+  {
+   "id": "functions",
+   "kind": "read",
+   "method": "GET",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 200
+  },
+  {
+   "id": "auth-config",
+   "kind": "read",
+   "method": "GET",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 200
+  },
+  {
+   "id": "third-party-auth",
+   "kind": "read",
+   "method": "GET",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 200
+  },
+  {
+   "id": "query",
+   "kind": "read-sql",
+   "method": "POST",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 201
+  },
+  {
+   "id": "query",
+   "kind": "read-sql",
+   "method": "POST",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 201
+  },
+  {
+   "id": "query",
+   "kind": "read-sql",
+   "method": "POST",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 201
+  },
+  {
+   "id": "prod-project",
+   "kind": "read",
+   "method": "GET",
+   "ref": "rcyuuoaqfwcembdajcss",
+   "status": 200
+  },
+  {
+   "id": "prod-contract-fn",
+   "kind": "read",
+   "method": "GET",
+   "ref": "rcyuuoaqfwcembdajcss",
+   "status": 200
+  },
+  {
+   "id": "project",
+   "kind": "read",
+   "method": "GET",
+   "ref": "hhyvmhgpapyuzjgxfnqv",
+   "status": 200
+  },
+  {
+   "id": "project",
+   "kind": "read",
+   "method": "GET",
+   "ref": "giaeztyghmhzcngskjmw",
+   "status": 200
+  },
+  {
+   "id": "project",
+   "kind": "read",
+   "method": "GET",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 200
+  },
+  {
+   "id": "org",
+   "kind": "read",
+   "method": "GET",
+   "ref": null,
+   "status": 200
+  },
+  {
+   "id": "projects",
+   "kind": "read",
+   "method": "GET",
+   "ref": null,
+   "status": 200
+  },
+  {
+   "id": "functions",
+   "kind": "read",
+   "method": "GET",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 200
+  },
+  {
+   "id": "auth-config",
+   "kind": "read",
+   "method": "GET",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 200
+  },
+  {
+   "id": "third-party-auth",
+   "kind": "read",
+   "method": "GET",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 200
+  },
+  {
+   "id": "query",
+   "kind": "read-sql",
+   "method": "POST",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 201
+  },
+  {
+   "id": "query",
+   "kind": "read-sql",
+   "method": "POST",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 201
+  }
+ ]
+}

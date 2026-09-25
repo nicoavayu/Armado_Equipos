@@ -1,0 +1,274 @@
+{
+ "annotation": "OFFLINE REHEARSAL 20260925T234429Z — local public.ecr.aws/supabase/postgres:17.6.1.147 (internal network) + public.ecr.aws/supabase/postgrest:v14.15, emulated Management API / Keychain / tty; NOT a remote run",
+ "tool": "backend/torneos/infra/torneos-gateway-auth",
+ "generated_at": "2026-09-25T23:44:34.518Z",
+ "mode": "--preflight",
+ "core": {
+  "prod": "ACTIVE_HEALTHY",
+  "prod_contract": {
+   "status": "ACTIVE",
+   "ezbr": "1072419517953eee8e8021f9691d1a5b1efb1f871c4d13290f644d119caded2c",
+   "verify_jwt": false
+  },
+  "staging": "INACTIVE",
+  "old": "INACTIVE",
+  "torneos": "ACTIVE_HEALTHY"
+ },
+ "state": {
+  "W1": "pending",
+  "W2_W3": "pending",
+  "KR": "absent",
+  "W5": "pending",
+  "edge_functions": 1,
+  "custody": {
+   "dataplane_installer": "PRESENT",
+   "gateway_logins": "ABSENT",
+   "ring": "ABSENT",
+   "jwks_pin": null
+  }
+ },
+ "failures": [
+  "EDGE_FUNCTIONS_NOT_ZERO"
+ ],
+ "read_only": true,
+ "verdict": "GATEWAY_AUTH_PREFLIGHT_BLOCKED",
+ "next_mode": null,
+ "measured": {
+  "query_session": {
+   "user": "supabase_read_only_user",
+   "super": false,
+   "createrole": false,
+   "admin_on_authenticator": false,
+   "admin_on_identity_writer": false,
+   "admin_on_core_adapter": false
+  },
+  "installer": {
+   "measured_role": "postgres",
+   "measured_by": "supabase_read_only_user",
+   "exists": true,
+   "super": false,
+   "createrole": true,
+   "admin_on_authenticator": true,
+   "admin_on_identity_writer": true,
+   "admin_on_core_adapter": true,
+   "supautils_privileged_role": "supabase_privileged_role",
+   "member_of_privileged_role": true,
+   "supautils_reserved_roles": "supabase_admin, supabase_auth_admin, supabase_storage_admin, supabase_read_only_user, supabase_realtime_admin, supabase_replication_admin, supabase_etl_admin, dashboard_user, pgbouncer, service_role*, authenticator*, authenticated*, anon*, supabase_privileged_role",
+   "supautils_allowed_configs": "auto_explain.*, deadlock_timeout, log_duration, log_lock_waits, log_min_duration_statement, log_min_error_statement, log_min_messages, log_parameter_max_length, log_replication_commands, log_statement, log_temp_files, pg_net.batch_size, pg_net.ttl, pg_stat_statements.*, pgaudit.log, pgaudit.log_catalog, pgaudit.log_client, pgaudit.log_level, pgaudit.log_relation, pgaudit.log_rows, pgaudit.log_statement, pgaudit.log_statement_once, pgaudit.role, pgrst.*, plan_filter.*, safeupdate.enabled, session_replication_role, track_functions, track_io_timing, wal_compression"
+  },
+  "installer_capability": {
+   "sufficient": true,
+   "missing": [],
+   "can": {
+    "create_role": true,
+    "grant_identity_writer": true,
+    "grant_core_adapter": true,
+    "alter_authenticator_pre_request": true
+   },
+   "model": "supautils_reserved_authenticator"
+  },
+  "pooler_hosts": [
+   "aws-0-sa-east-1.pooler.supabase.com"
+  ],
+  "pooler_sa_east_1": true,
+  "pooler_tls": [
+   {
+    "host": "aws-0-sa-east-1.pooler.supabase.com",
+    "port": 5432,
+    "pass": true,
+    "verification": "REHEARSAL (no TLS on the internal network; the real probe is openssl -verify_return_error)"
+   },
+   {
+    "host": "aws-0-sa-east-1.pooler.supabase.com",
+    "port": 6543,
+    "pass": true,
+    "verification": "REHEARSAL (no TLS on the internal network; the real probe is openssl -verify_return_error)"
+   }
+  ],
+  "psql_prerequisites": []
+ },
+ "risks": [],
+ "foundation_diff": [],
+ "invariants": [],
+ "auth": {
+  "site_url": "http://localhost:3000",
+  "uri_allow_list": "",
+  "disable_signup": false,
+  "jwt_exp": 3600,
+  "external_anonymous_users_enabled": false,
+  "external_email_enabled": true,
+  "external_phone_enabled": false,
+  "mailer_autoconfirm": false,
+  "sms_autoconfirm": false,
+  "mfa_totp_enroll_enabled": true,
+  "custom_oauth_enabled": false,
+  "external_apple_enabled": false,
+  "external_azure_enabled": false,
+  "external_github_enabled": false,
+  "external_google_enabled": false,
+  "external_web3_ethereum_enabled": false,
+  "external_web3_solana_enabled": false,
+  "hook_custom_access_token_enabled": false,
+  "mfa_phone_enroll_enabled": false,
+  "mfa_web_authn_enroll_enabled": false,
+  "oauth_server_enabled": false,
+  "passkey_enabled": false,
+  "saml_enabled": false,
+  "security_manual_linking_enabled": false
+ },
+ "third_party_auth": [],
+ "secret_names": [
+  "SUPABASE_ANON_KEY",
+  "SUPABASE_DB_URL",
+  "SUPABASE_PUBLISHABLE_KEYS",
+  "SUPABASE_SECRET_KEYS",
+  "SUPABASE_SERVICE_ROLE_KEY",
+  "SUPABASE_URL"
+ ],
+ "postgrest_config": {
+  "db_schema": "public,graphql_public",
+  "db_extra_search_path": null,
+  "max_rows": 1000
+ },
+ "remote_delta": {
+  "W1": {
+   "disable_signup": true,
+   "external_email_enabled": false,
+   "external_phone_enabled": false,
+   "external_anonymous_users_enabled": false,
+   "site_url": "https://app.arma2.com.ar",
+   "mfa_totp_enroll_enabled": false
+  },
+  "W2_W3_sql_template": "BEGIN;\nSET LOCAL statement_timeout = '30s';\nDO $guard$ BEGIN IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname IN ('torneos_edge_identity_writer', 'torneos_edge_core_adapter')) THEN RAISE EXCEPTION 'GATEWAY_LOGINS_ALREADY_PRESENT'; END IF; END $guard$;\nCREATE ROLE torneos_edge_identity_writer LOGIN NOINHERIT PASSWORD '<SCRAM-SHA-256 verifier>';\nCREATE ROLE torneos_edge_core_adapter LOGIN NOINHERIT PASSWORD '<SCRAM-SHA-256 verifier>';\nGRANT torneos_identity_writer TO torneos_edge_identity_writer;\nGRANT torneos_core_adapter TO torneos_edge_core_adapter;\nALTER ROLE authenticator SET pgrst.db_pre_request = 'private.check_token';\nNOTIFY pgrst, 'reload config';\nNOTIFY pgrst, 'reload schema';\nCOMMIT;\n",
+  "W5": "custom_jwks = public k1 + k2 of pins/production-bridge-jwks.json"
+ },
+ "management_api_writes": 0,
+ "requests": [
+  {
+   "id": "prod-project",
+   "kind": "read",
+   "method": "GET",
+   "ref": "rcyuuoaqfwcembdajcss",
+   "status": 200
+  },
+  {
+   "id": "prod-contract-fn",
+   "kind": "read",
+   "method": "GET",
+   "ref": "rcyuuoaqfwcembdajcss",
+   "status": 200
+  },
+  {
+   "id": "project",
+   "kind": "read",
+   "method": "GET",
+   "ref": "hhyvmhgpapyuzjgxfnqv",
+   "status": 200
+  },
+  {
+   "id": "project",
+   "kind": "read",
+   "method": "GET",
+   "ref": "giaeztyghmhzcngskjmw",
+   "status": 200
+  },
+  {
+   "id": "project",
+   "kind": "read",
+   "method": "GET",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 200
+  },
+  {
+   "id": "org",
+   "kind": "read",
+   "method": "GET",
+   "ref": null,
+   "status": 200
+  },
+  {
+   "id": "projects",
+   "kind": "read",
+   "method": "GET",
+   "ref": null,
+   "status": 200
+  },
+  {
+   "id": "functions",
+   "kind": "read",
+   "method": "GET",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 200
+  },
+  {
+   "id": "auth-config",
+   "kind": "read",
+   "method": "GET",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 200
+  },
+  {
+   "id": "third-party-auth",
+   "kind": "read",
+   "method": "GET",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 200
+  },
+  {
+   "id": "query",
+   "kind": "read-sql",
+   "method": "POST",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 201
+  },
+  {
+   "id": "query",
+   "kind": "read-sql",
+   "method": "POST",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 201
+  },
+  {
+   "id": "health",
+   "kind": "read",
+   "method": "GET",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 200
+  },
+  {
+   "id": "secrets",
+   "kind": "read",
+   "method": "GET",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 200
+  },
+  {
+   "id": "postgrest",
+   "kind": "read",
+   "method": "GET",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 200
+  },
+  {
+   "id": "db-migrations",
+   "kind": "read",
+   "method": "GET",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 200
+  },
+  {
+   "id": "pooler",
+   "kind": "read",
+   "method": "GET",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 200
+  },
+  {
+   "id": "query",
+   "kind": "read-sql",
+   "method": "POST",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 201
+  }
+ ]
+}
