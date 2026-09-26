@@ -6,6 +6,7 @@
 # Shows the LAST pending PLAN block of the session transcript (redacted, no secrets) and the exact phrase it requires,
 # asks y/N on the tty, and only on "y" sends that phrase to the session FIFO. Anything else sends nothing.
 set -euo pipefail
+trap 'rc=$?; [[ $rc -eq 0 ]] || printf "\n!! approve-plan failed (exit %s): nothing was sent\n" "$rc" >&2' EXIT
 abort() { printf '\n!! %s\n' "$*" >&2; exit 1; }
 [[ -n "${ARMA2_SESSION_DIR:-}" ]] || abort "ARMA2_SESSION_DIR is required"
 T="$ARMA2_SESSION_DIR/transcript.log"; F="$ARMA2_SESSION_DIR/ctl"
@@ -15,7 +16,8 @@ START="$(grep -n '^PLAN [0-9a-f]\{12\}:' "$T" | tail -1 | cut -d: -f1 || true)"
 [[ -n "$START" ]] || abort "no pending PLAN in the transcript"
 BLOCK="$(tail -n +"$START" "$T")"
 grep -q '^phrase accepted$\|^STOP \|^OK ' <<<"$BLOCK" && abort "the last PLAN is no longer pending"
-PHRASE="$(grep -A1 'must send exactly:$' <<<"$BLOCK" | tail -1 | sed 's/^  //')"
+# Session writes say "must send exactly:"; the certified gateway-auth modes say "To proceed type exactly:".
+PHRASE="$(grep -A1 -E '(must send|type) exactly:$' <<<"$BLOCK" | tail -1 | sed 's/^  //' || true)"
 [[ "$PHRASE" =~ ^[A-Z0-9\ ]+[a-z0-9-]*\ ?[a-z0-9-]*\ [0-9a-f]{12}$ ]] || abort "phrase not recognised"
 printf '%s\n\nSend this phrase to the session? [y/N] ' "$BLOCK" > /dev/tty
 printf '\033[?2004l' > /dev/tty
