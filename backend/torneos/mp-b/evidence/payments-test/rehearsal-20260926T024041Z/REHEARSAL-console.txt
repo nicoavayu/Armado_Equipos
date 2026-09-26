@@ -1,0 +1,14 @@
+[PASS] R00 0000–0003 installed as postgres = certified foundation pin: FOUNDATION_PIN_MATCH
+[PASS] R01 certified gateway W2+W3 → dbState applied, 0 gateway invariant failures, payments login absent: db=applied login=absent
+[PASS] R02 installer postgres measured by name: CREATEROLE + ADMIN on torneos_payment_service: {"createrole":true,"super":false,"admin_on_payment_role":true}
+[PASS] R03 PB transaction as postgres (SCRAM verifier only): APPLIED
+[PASS] R04 PB replay refused by its own guard (no blind re-apply): PAYMENTS_LOGIN_ALREADY_PRESENT
+derived payments-test-delta.json 9bd878dbea709b6a71edc10235a3dc1e6787129ec387171ed7bb9cb9b74f8f59
+[PASS] R05 after PB: foundation strict paths unchanged, gateway invariants hold, payments delta exact, = delta pin: foundation_diff=0 delta_failures=0 pin=true
+[PASS] R06 payments login probe (39 checks): LOGIN_EXACT
+[PASS] R07 QA org / S1 / S2 / purchases via the real client RPCs (amount 39900 ARS, MERCADO_PAGO test): {"P1":{"amount":39900,"currency":"ARS","status":"created"}}
+[PASS] R08 census: every commercial row is QA / MP TEST; a real (non-QA) tenant exists and is untouched: {"auth_users":0,"identities":2,"organizations":2,"organizations_qa":1,"organization_members":2,"seasons":3,"seasons_outside_qa":1,"tournaments":0,"purchases":2,"purchases_outside_qa":0,"purchases_not_mp_test":0,"purchase_events":2,"purchase_events_outside_qa":0,"season_grants":0,"season_grants_outside_qa":0,"grant_events":0,"watermarks":0,"watermarks_outside_qa":0}
+[PASS] R09 ordering / watermark on the functions as the payments login (19 cases, every transaction rolled back): ORDERING_PASS
+[PASS] R09b the ordering run left no trace (P2 still created, 1 event, 0 grants, 0 watermarks): {"status":"created","events":1,"grants":0,"watermarks":0}
+[PASS] R10 real payments sources in remote-test vs Mercado Pago emulator (55 checks): 55/55
+[PASS] R11 census after everything: commercial rows only in QA, only MP TEST; control tenant has none: {"auth_users":0,"identities":2,"organizations":2,"organizations_qa":1,"organization_members":2,"seasons":3,"seasons_outside_qa":1,"tournaments":0,"purchases":2,"purchases_outside_qa":0,"purchases_not_mp_test":0,"purchase_events":11,"purchase_events_outside_qa":0,"season_grants":1,"season_grants_outside_qa":0,"grant_events":4,"watermarks":2,"watermarks_outside_qa":0}
