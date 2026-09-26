@@ -599,7 +599,7 @@ export function makeSession({ pat, deno, mpToken, mpSecret, deps }) {
     const webhookLog = Array.isArray(logs) ? logs.filter((l) => /torneos-payments/.test(l.message) && /"route":"webhook"/.test(l.message)).map((l) => {
       let j = null; try { j = JSON.parse(l.message); } catch { j = null; } return { at: l.timestamp, revision: l.revision_id, status: j?.status ?? null, code: j?.code ?? null }; }) : null;
     writeEvidence(`pt-08-sandbox-checkout-${stamp()}.json`, { verdict: pass ? 'SANDBOX_CHECKOUT_APPLIED' : 'SANDBOX_CHECKOUT_INCOMPLETE', read_only: true, purchase: fx.P1, preference: state.preference?.id ?? t?.preference_id ?? null,
-      provider_payments: payments, sandbox_relations: relations, db: t, webhook_deliveries: webhookLog, app_logs: Array.isArray(logs) ? logs.filter((l) => /torneos-payments/.test(l.message)).slice(-60) : logs, checks, mp_requests: mp.requests });
+      provider_payments: payments, sandbox_relations: relations, db: t, webhook_deliveries: webhookLog, logs_api: Array.isArray(logs) ? logs.shape ?? null : logs, app_logs: Array.isArray(logs) ? logs.filter((l) => /torneos-payments/.test(l.message)).slice(-60) : logs, checks, mp_requests: mp.requests });
     say(`observe: ${checks.filter((c) => c.pass).length}/${checks.length} payments=${JSON.stringify(payments.map((p) => [p.id, p.status, p.status_detail]))} db=${t?.status}${checks.filter((c) => !c.pass).map((c) => `\n  FAIL ${c.name}`).join('')}`);
     return { verdict: pass ? 'SANDBOX_CHECKOUT_APPLIED' : 'SANDBOX_CHECKOUT_INCOMPLETE' };
   }

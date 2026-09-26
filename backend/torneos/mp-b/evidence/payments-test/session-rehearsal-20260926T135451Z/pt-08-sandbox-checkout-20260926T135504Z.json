@@ -1,0 +1,323 @@
+{
+ "tool": "backend/torneos/infra/torneos-payments-test/payments-session.mjs",
+ "generated_at": "2026-09-26T13:55:04.087Z",
+ "verdict": "SANDBOX_CHECKOUT_APPLIED",
+ "read_only": true,
+ "purchase": "00342062-a52a-4d9a-8e0b-0ec8687aeef0",
+ "preference": "2718281828-a3ca117a-f67d-4d24-85d7-d86508640a21",
+ "provider_payments": [
+  {
+   "id": "90000000001",
+   "status": "rejected",
+   "status_detail": "cc_rejected_other_reason",
+   "date_last_updated": "2026-09-26T13:54:04.853-00:00",
+   "date_created": null,
+   "transaction_amount": 39900,
+   "currency_id": "ARS",
+   "live_mode": true,
+   "collector_matches": true,
+   "external_reference": "arma2:season:purchase:00342062-a52a-4d9a-8e0b-0ec8687aeef0",
+   "metadata_purchase_id": "00342062-a52a-4d9a-8e0b-0ec8687aeef0",
+   "order": {
+    "id": "90000000002",
+    "type": "mercadopago"
+   },
+   "payment_type_id": null,
+   "refunds": null
+  },
+  {
+   "id": "90000000003",
+   "status": "approved",
+   "status_detail": "accredited",
+   "date_last_updated": "2026-09-26T13:54:08.859-00:00",
+   "date_created": null,
+   "transaction_amount": 39900,
+   "currency_id": "ARS",
+   "live_mode": true,
+   "collector_matches": true,
+   "external_reference": "arma2:season:purchase:00342062-a52a-4d9a-8e0b-0ec8687aeef0",
+   "metadata_purchase_id": "00342062-a52a-4d9a-8e0b-0ec8687aeef0",
+   "order": {
+    "id": "90000000002",
+    "type": "mercadopago"
+   },
+   "payment_type_id": null,
+   "refunds": null
+  }
+ ],
+ "sandbox_relations": [
+  {
+   "payment": "90000000001",
+   "live_mode": true,
+   "collector_matches": true,
+   "order": {
+    "id": "90000000002",
+    "preference_id": "2718281828-a3ca117a-f67d-4d24-85d7-d86508640a21",
+    "external_reference": "arma2:season:purchase:00342062-a52a-4d9a-8e0b-0ec8687aeef0",
+    "collector_matches": true,
+    "payments": [
+     "90000000001",
+     "90000000003"
+    ],
+    "status": null
+   },
+   "preference_collector_matches": true,
+   "order_preference_matches": true,
+   "application": {
+    "preference_client_id_present": true,
+    "payment_application_id": null,
+    "payment_client_id": null,
+    "order_application_id": true
+   },
+   "metadata_keys": [
+    "purchase_id"
+   ]
+  },
+  {
+   "payment": "90000000003",
+   "live_mode": true,
+   "collector_matches": true,
+   "order": {
+    "id": "90000000002",
+    "preference_id": "2718281828-a3ca117a-f67d-4d24-85d7-d86508640a21",
+    "external_reference": "arma2:season:purchase:00342062-a52a-4d9a-8e0b-0ec8687aeef0",
+    "collector_matches": true,
+    "payments": [
+     "90000000001",
+     "90000000003"
+    ],
+    "status": null
+   },
+   "preference_collector_matches": true,
+   "order_preference_matches": true,
+   "application": {
+    "preference_client_id_present": true,
+    "payment_application_id": null,
+    "payment_client_id": null,
+    "order_application_id": true
+   },
+   "metadata_keys": [
+    "purchase_id"
+   ]
+  }
+ ],
+ "db": {
+  "purchase": "00342062-a52a-4d9a-8e0b-0ec8687aeef0",
+  "season": "66fe1b45-6b86-475a-8b4d-a41914f909de",
+  "season_slug": "qa-pt-s1-02bb2c",
+  "status": "approved",
+  "provider": "MERCADO_PAGO",
+  "environment": "test",
+  "product": "torneos_premium",
+  "offer": "launch",
+  "amount": 39900,
+  "list_amount": 49900,
+  "currency": "ARS",
+  "external_reference": "arma2:season:purchase:00342062-a52a-4d9a-8e0b-0ec8687aeef0",
+  "preference_id": "2718281828-a3ca117a-f67d-4d24-85d7-d86508640a21",
+  "approved_payment": "90000000003",
+  "provider_status": "approved",
+  "provider_status_detail": "accredited",
+  "created_at": "2026-09-26T13:55:00.42798+00:00",
+  "approved_at": "2026-09-26T13:55:03.862215+00:00",
+  "refunded_at": null,
+  "charged_back_at": null,
+  "entitlement_activated_at": "2026-09-26T13:55:03.862215+00:00",
+  "events": [
+   {
+    "id": 1,
+    "type": "purchase.created",
+    "from": null,
+    "to": "created",
+    "actor": "user",
+    "provider_status": null,
+    "payment": null,
+    "provider_time": null
+   },
+   {
+    "id": 57,
+    "type": "preference.created",
+    "from": "created",
+    "to": "preference_created",
+    "actor": "service",
+    "provider_status": "created",
+    "payment": null,
+    "provider_time": null
+   },
+   {
+    "id": 58,
+    "type": "payment.attempt_rejected",
+    "from": "preference_created",
+    "to": "preference_created",
+    "actor": "provider",
+    "provider_status": "rejected",
+    "payment": "90000000001",
+    "provider_time": null
+   },
+   {
+    "id": 59,
+    "type": "payment.approved",
+    "from": "preference_created",
+    "to": "approved",
+    "actor": "provider",
+    "provider_status": "approved",
+    "payment": "90000000003",
+    "provider_time": null
+   }
+  ],
+  "grants": [
+   {
+    "grant": "349b4a7b-f42c-4dab-9893-1533cace41ec",
+    "plan": "PREMIUM",
+    "source": "purchase",
+    "events": [
+     {
+      "type": "granted",
+      "reason_code": "payment_approved",
+      "actor": "provider"
+     }
+    ],
+    "effective": true
+   }
+  ],
+  "watermarks": [
+   {
+    "payment": "90000000001",
+    "date_last_updated": "2026-09-26T13:54:04.853+00:00",
+    "state": [
+     "status",
+     "rejected"
+    ],
+    "manual_refund": false,
+    "manual_review": false
+   },
+   {
+    "payment": "90000000003",
+    "date_last_updated": "2026-09-26T13:54:08.859+00:00",
+    "state": [
+     "status",
+     "approved"
+    ],
+    "manual_refund": false,
+    "manual_review": false
+   }
+  ]
+ },
+ "webhook_deliveries": [],
+ "logs_api": {
+  "status": 200,
+  "body": "array",
+  "rows": 0
+ },
+ "app_logs": [],
+ "checks": [
+  {
+   "name": "Mercado Pago TEST: ≥ 1 rejected attempt on the preference",
+   "pass": true
+  },
+  {
+   "name": "Mercado Pago TEST: one approved payment, ARS 39900, our attested TEST seller, external_reference = P1 (live_mode reported, not trusted)",
+   "pass": true
+  },
+  {
+   "name": "DB: purchase approved with that payment id",
+   "pass": true
+  },
+  {
+   "name": "DB: a payment.attempt_rejected event (purchase stayed payable)",
+   "pass": true
+  },
+  {
+   "name": "DB: exactly one Premium season grant from P1, effective, events [granted]",
+   "pass": true
+  },
+  {
+   "name": "DB: one watermark per provider payment (rejected + approved), no manual flags",
+   "pass": true
+  },
+  {
+   "name": "the signed Mercado Pago webhook reached the TEST app: provider-actor payment.approved event",
+   "pass": true
+  }
+ ],
+ "mp_requests": [
+  {
+   "id": "users-me",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "users-me",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "users-me",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "users-me",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "users-me",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "preference",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "payments-search",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "payment",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "merchant-order",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "preference",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "payment",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "merchant-order",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "preference",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  }
+ ]
+}

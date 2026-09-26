@@ -1,0 +1,158 @@
+{
+ "tool": "backend/torneos/infra/torneos-payments-test/payments-session.mjs",
+ "generated_at": "2026-09-26T13:55:04.565Z",
+ "verdict": "REAL_PAYMENT_REPLAYS_PASS",
+ "payment": "90000000003",
+ "purchase": "00342062-a52a-4d9a-8e0b-0ec8687aeef0",
+ "checks": [
+  {
+   "name": "duplicate of the real approved payment (13-digit ts) → 200 provider_snapshot_duplicate",
+   "pass": true,
+   "status": 200,
+   "outcome": "provider_snapshot_duplicate",
+   "error": null
+  },
+  {
+   "name": "replay with a 10-digit ts → 200 provider_snapshot_duplicate",
+   "pass": true,
+   "status": 200,
+   "outcome": "provider_snapshot_duplicate",
+   "error": null
+  },
+  {
+   "name": "old authentic notification (ts −3 days) → re-fetched, duplicate (ts never orders)",
+   "pass": true,
+   "status": 200,
+   "outcome": "provider_snapshot_duplicate",
+   "error": null
+  },
+  {
+   "name": "same request id + signature replayed → still a duplicate, nothing new",
+   "pass": true,
+   "status": 200,
+   "outcome": "provider_snapshot_duplicate",
+   "error": null
+  },
+  {
+   "name": "real payment id, wrong secret → 401",
+   "pass": true,
+   "status": 401,
+   "outcome": null,
+   "error": "invalid_signature"
+  },
+  {
+   "name": "real payment id, notification of another seller → 400",
+   "pass": true,
+   "status": 400,
+   "outcome": null,
+   "error": "invalid_notification"
+  },
+  {
+   "name": "real payment id, live_mode not a boolean (\"true\") → 400",
+   "pass": true,
+   "status": 400,
+   "outcome": null,
+   "error": "invalid_notification"
+  },
+  {
+   "name": "real payment id, body live_mode true (as sandbox sends) → re-fetched, duplicate",
+   "pass": true,
+   "status": 200,
+   "outcome": "provider_snapshot_duplicate",
+   "error": null
+  },
+  {
+   "name": "real payment id, body live_mode false (a lie) → re-fetched, duplicate: the body is never authority",
+   "pass": true,
+   "status": 200,
+   "outcome": "provider_snapshot_duplicate",
+   "error": null
+  },
+  {
+   "name": "no replay changed the purchase, its events, grants or watermarks",
+   "pass": true
+  }
+ ],
+ "requests": [
+  {
+   "label": "webhook:payment",
+   "method": "POST",
+   "path": "/functions/v1/torneos-payments/webhooks/mercadopago/v1?data.id=…&type=payment",
+   "status": 200,
+   "error": null,
+   "outcome": "provider_snapshot_duplicate"
+  },
+  {
+   "label": "webhook:payment",
+   "method": "POST",
+   "path": "/functions/v1/torneos-payments/webhooks/mercadopago/v1?data.id=…&type=payment",
+   "status": 200,
+   "error": null,
+   "outcome": "provider_snapshot_duplicate"
+  },
+  {
+   "label": "webhook:payment",
+   "method": "POST",
+   "path": "/functions/v1/torneos-payments/webhooks/mercadopago/v1?data.id=…&type=payment",
+   "status": 200,
+   "error": null,
+   "outcome": "provider_snapshot_duplicate"
+  },
+  {
+   "label": "webhook:payment",
+   "method": "POST",
+   "path": "/functions/v1/torneos-payments/webhooks/mercadopago/v1?data.id=…&type=payment",
+   "status": 200,
+   "error": null,
+   "outcome": "provider_snapshot_duplicate"
+  },
+  {
+   "label": "webhook:payment",
+   "method": "POST",
+   "path": "/functions/v1/torneos-payments/webhooks/mercadopago/v1?data.id=…&type=payment",
+   "status": 200,
+   "error": null,
+   "outcome": "provider_snapshot_duplicate"
+  },
+  {
+   "label": "webhook:payment",
+   "method": "POST",
+   "path": "/functions/v1/torneos-payments/webhooks/mercadopago/v1?data.id=…&type=payment",
+   "status": 401,
+   "error": "invalid_signature",
+   "outcome": null
+  },
+  {
+   "label": "webhook:payment",
+   "method": "POST",
+   "path": "/functions/v1/torneos-payments/webhooks/mercadopago/v1?data.id=…&type=payment",
+   "status": 400,
+   "error": "invalid_notification",
+   "outcome": null
+  },
+  {
+   "label": "webhook:payment",
+   "method": "POST",
+   "path": "/functions/v1/torneos-payments/webhooks/mercadopago/v1?data.id=…&type=payment",
+   "status": 400,
+   "error": "invalid_notification",
+   "outcome": null
+  },
+  {
+   "label": "webhook:payment",
+   "method": "POST",
+   "path": "/functions/v1/torneos-payments/webhooks/mercadopago/v1?data.id=…&type=payment",
+   "status": 200,
+   "error": null,
+   "outcome": "provider_snapshot_duplicate"
+  },
+  {
+   "label": "webhook:payment",
+   "method": "POST",
+   "path": "/functions/v1/torneos-payments/webhooks/mercadopago/v1?data.id=…&type=payment",
+   "status": 200,
+   "error": null,
+   "outcome": "provider_snapshot_duplicate"
+  }
+ ]
+}

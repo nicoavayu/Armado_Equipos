@@ -78,8 +78,14 @@ export function makeDenoClient({ transport = denoHttpsTransport, token, armedFor
     async revision(id) { return projectRevision(ok(await call('GET', `/v2/revisions/${id}`))); },
     async timelines(id) { return list(ok(await call('GET', `/v2/revisions/${id}/timelines`))).map((t) => ({ slug: t?.slug ?? null, partition: t?.partition ?? null, domains: Array.isArray(t?.domains) ? t.domains.map((d) => d?.domain ?? null) : [] })); },
     async logs(startIso, endIso) {
-      const b = ok(await call('GET', `/v2/apps/${C.APP_SLUG}/logs?start=${encodeURIComponent(startIso)}&end=${encodeURIComponent(endIso)}&limit=200`));
-      return list(b).map((l) => ({ level: l?.level ?? null, message: redact(String(l?.message ?? '')), revision_id: l?.revision_id ?? null, timestamp: l?.timestamp ?? l?.time ?? null }));
+      const res = await call('GET', `/v2/apps/${C.APP_SLUG}/logs?start=${encodeURIComponent(startIso)}&end=${encodeURIComponent(endIso)}&limit=1000`);
+      const b = ok(res);
+      // JSON array / {items|data|logs} / NDJSON (the body then does not parse as one JSON value)
+      let rows = Array.isArray(b?.logs) ? b.logs : list(b);
+      if (!rows.length && b === null && typeof res.raw === 'string') rows = res.raw.split('\n').map((l) => { try { return JSON.parse(l); } catch { return null; } }).filter((x) => x && typeof x === 'object');
+      const out = rows.map((l) => ({ level: l?.level ?? null, message: redact(String(l?.message ?? l?.msg ?? '')), revision_id: l?.revision_id ?? l?.revision ?? null, timestamp: l?.timestamp ?? l?.time ?? null }));
+      out.shape = { status: res.status, body: b === null ? (res.raw ? 'ndjson_or_text' : 'empty') : Array.isArray(b) ? 'array' : Object.keys(b ?? {}).sort().join(','), rows: rows.length };
+      return out;
     },
     async createApp(body) { return projectApp(ok(await call('POST', '/v2/apps', body), [200, 201])); },
     async deploy(body) { return projectRevision(ok(await call('POST', `/v2/apps/${C.APP_SLUG}/deploy`, body), [200, 201, 202])); },
