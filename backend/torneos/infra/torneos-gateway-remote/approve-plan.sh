@@ -18,7 +18,9 @@ grep -q '^phrase accepted$\|^STOP \|^OK ' <<<"$BLOCK" && abort "the last PLAN is
 PHRASE="$(grep -A1 'must send exactly:$' <<<"$BLOCK" | tail -1 | sed 's/^  //')"
 [[ "$PHRASE" =~ ^[A-Z0-9\ ]+[a-z0-9-]*\ ?[a-z0-9-]*\ [0-9a-f]{12}$ ]] || abort "phrase not recognised"
 printf '%s\n\nSend this phrase to the session? [y/N] ' "$BLOCK" > /dev/tty
+printf '\033[?2004l' > /dev/tty
 IFS= read -r ANSWER < /dev/tty
-[[ "$ANSWER" == "y" ]] || abort "not sent"
+ANSWER="${ANSWER//[^a-zA-Z]/}"; ANSWER="${ANSWER#200}"; ANSWER="${ANSWER%201}"
+[[ "$ANSWER" == "y" || "$ANSWER" == "Y" ]] || abort "not sent"
 printf '%s\n' "$PHRASE" > "$F"
 printf 'sent.\n' > /dev/tty
