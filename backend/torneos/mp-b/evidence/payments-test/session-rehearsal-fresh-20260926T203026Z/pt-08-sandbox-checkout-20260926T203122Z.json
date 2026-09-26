@@ -1,0 +1,504 @@
+{
+ "tool": "backend/torneos/infra/torneos-payments-test/payments-session.mjs",
+ "generated_at": "2026-09-26T20:31:22.189Z",
+ "verdict": "SANDBOX_CHECKOUT_APPLIED",
+ "read_only": true,
+ "purchase": "c30f9e3a-759d-4bea-af9a-61586560a22c",
+ "preference": "2718281828-187503a4-6033-4fc1-ac2b-141902ef44e6",
+ "fresh_operation": {
+  "superseded": [
+   "c305dc98-5dae-49e7-bbde-15e3993b7574"
+  ],
+  "rejected_attempt": "not_exercised"
+ },
+ "provider_payments": [
+  {
+   "id": "90000000004",
+   "status": "approved",
+   "status_detail": "accredited",
+   "date_last_updated": "2026-09-26T20:30:29.404-00:00",
+   "date_created": null,
+   "transaction_amount": 39900,
+   "currency_id": "ARS",
+   "live_mode": true,
+   "collector_matches": true,
+   "external_reference": "arma2:season:purchase:c30f9e3a-759d-4bea-af9a-61586560a22c",
+   "metadata_purchase_id": "c30f9e3a-759d-4bea-af9a-61586560a22c",
+   "order": {
+    "id": "90000000005",
+    "type": "mercadopago"
+   },
+   "payment_type_id": null,
+   "refunds": null
+  }
+ ],
+ "sandbox_relations": [
+  {
+   "payment": "90000000004",
+   "live_mode": true,
+   "collector_matches": true,
+   "order": {
+    "id": "90000000005",
+    "preference_id": "2718281828-187503a4-6033-4fc1-ac2b-141902ef44e6",
+    "external_reference": "arma2:season:purchase:c30f9e3a-759d-4bea-af9a-61586560a22c",
+    "collector_matches": true,
+    "payments": [
+     "90000000004"
+    ],
+    "status": null
+   },
+   "preference_collector_matches": true,
+   "order_preference_matches": true,
+   "application": {
+    "preference_client_id_present": true,
+    "payment_application_id": null,
+    "payment_client_id": null,
+    "order_application_id": true
+   },
+   "metadata_keys": [
+    "purchase_id"
+   ]
+  }
+ ],
+ "db": {
+  "purchase": "c30f9e3a-759d-4bea-af9a-61586560a22c",
+  "season": "2721f506-128f-4c1a-a11e-392f664bb68f",
+  "season_slug": "qa-pt-s1-dc09ed",
+  "status": "approved",
+  "provider": "MERCADO_PAGO",
+  "environment": "test",
+  "product": "torneos_premium",
+  "offer": "launch",
+  "amount": 39900,
+  "list_amount": 49900,
+  "currency": "ARS",
+  "external_reference": "arma2:season:purchase:c30f9e3a-759d-4bea-af9a-61586560a22c",
+  "preference_id": "2718281828-187503a4-6033-4fc1-ac2b-141902ef44e6",
+  "approved_payment": "90000000004",
+  "provider_status": "approved",
+  "provider_status_detail": "accredited",
+  "created_at": "2026-09-26T20:31:15.226504+00:00",
+  "approved_at": "2026-09-26T20:31:21.402821+00:00",
+  "refunded_at": null,
+  "charged_back_at": null,
+  "entitlement_activated_at": "2026-09-26T20:31:21.402821+00:00",
+  "events": [
+   {
+    "id": 59,
+    "type": "purchase.created",
+    "from": null,
+    "to": "created",
+    "actor": "user",
+    "provider_status": null,
+    "payment": null,
+    "provider_time": null
+   },
+   {
+    "id": 60,
+    "type": "preference.created",
+    "from": "created",
+    "to": "preference_created",
+    "actor": "service",
+    "provider_status": "created",
+    "payment": null,
+    "provider_time": null
+   },
+   {
+    "id": 61,
+    "type": "payment.approved",
+    "from": "preference_created",
+    "to": "approved",
+    "actor": "provider",
+    "provider_status": "approved",
+    "payment": "90000000004",
+    "provider_time": null
+   }
+  ],
+  "grants": [
+   {
+    "grant": "8b6e3df5-394a-4117-9ae5-62de5e886aa9",
+    "plan": "PREMIUM",
+    "source": "purchase",
+    "events": [
+     {
+      "type": "granted",
+      "reason_code": "payment_approved",
+      "actor": "provider"
+     }
+    ],
+    "effective": true
+   }
+  ],
+  "watermarks": [
+   {
+    "payment": "90000000004",
+    "date_last_updated": "2026-09-26T20:30:29.404+00:00",
+    "state": [
+     "status",
+     "approved"
+    ],
+    "manual_refund": false,
+    "manual_review": false
+   }
+  ]
+ },
+ "webhook_deliveries": [
+  {
+   "at": "2026-09-26T20:31:02.349Z",
+   "revision": "rev1x",
+   "status": 401,
+   "code": "invalid_signature"
+  },
+  {
+   "at": "2026-09-26T20:31:02.350Z",
+   "revision": "rev1x",
+   "status": 401,
+   "code": "invalid_signature"
+  },
+  {
+   "at": "2026-09-26T20:31:02.350Z",
+   "revision": "rev1x",
+   "status": 401,
+   "code": "invalid_signature_future_ts"
+  },
+  {
+   "at": "2026-09-26T20:31:02.350Z",
+   "revision": "rev1x",
+   "status": 401,
+   "code": "invalid_signature"
+  },
+  {
+   "at": "2026-09-26T20:31:02.350Z",
+   "revision": "rev1x",
+   "status": 400,
+   "code": "invalid_request"
+  },
+  {
+   "at": "2026-09-26T20:31:02.351Z",
+   "revision": "rev1x",
+   "status": 413,
+   "code": "payload_too_large"
+  },
+  {
+   "at": "2026-09-26T20:31:02.351Z",
+   "revision": "rev1x",
+   "status": 400,
+   "code": "invalid_notification"
+  },
+  {
+   "at": "2026-09-26T20:31:02.351Z",
+   "revision": "rev1x",
+   "status": 422,
+   "code": "payment_verification_failed"
+  },
+  {
+   "at": "2026-09-26T20:31:02.351Z",
+   "revision": "rev1x",
+   "status": 400,
+   "code": "invalid_notification"
+  },
+  {
+   "at": "2026-09-26T20:31:02.351Z",
+   "revision": "rev1x",
+   "status": 400,
+   "code": "invalid_notification"
+  },
+  {
+   "at": "2026-09-26T20:31:02.352Z",
+   "revision": "rev1x",
+   "status": 400,
+   "code": "invalid_notification"
+  },
+  {
+   "at": "2026-09-26T20:31:02.352Z",
+   "revision": "rev1x",
+   "status": 400,
+   "code": "invalid_notification"
+  },
+  {
+   "at": "2026-09-26T20:31:02.352Z",
+   "revision": "rev1x",
+   "status": 422,
+   "code": "payment_verification_failed"
+  },
+  {
+   "at": "2026-09-26T20:31:21.433Z",
+   "revision": "rev3x",
+   "status": 200,
+   "code": "approved"
+  }
+ ],
+ "logs_api": {
+  "status": 200,
+  "body": "array",
+  "rows": 27
+ },
+ "app_logs": [
+  {
+   "level": "info",
+   "message": "{\"fn\":\"torneos-payments\",\"route\":\"internal\",\"status\":404,\"code\":\"purchase_not_found\",\"ms\":38}",
+   "revision_id": "rev1x",
+   "timestamp": "2026-09-26T20:31:02.324Z"
+  },
+  {
+   "level": "info",
+   "message": "{\"fn\":\"torneos-payments\",\"route\":\"internal\",\"status\":404,\"code\":\"purchase_not_found\",\"ms\":22}",
+   "revision_id": "rev1x",
+   "timestamp": "2026-09-26T20:31:02.347Z"
+  },
+  {
+   "level": "info",
+   "message": "{\"fn\":\"torneos-payments\",\"route\":\"internal\",\"status\":401,\"code\":\"unauthorized_replay\",\"ms\":0}",
+   "revision_id": "rev1x",
+   "timestamp": "2026-09-26T20:31:02.347Z"
+  },
+  {
+   "level": "info",
+   "message": "{\"fn\":\"torneos-payments\",\"route\":\"internal\",\"status\":401,\"code\":\"unauthorized_missing_headers\",\"ms\":0}",
+   "revision_id": "rev1x",
+   "timestamp": "2026-09-26T20:31:02.347Z"
+  },
+  {
+   "level": "info",
+   "message": "{\"fn\":\"torneos-payments\",\"route\":\"internal\",\"status\":401,\"code\":\"unauthorized_bad_signature\",\"ms\":0}",
+   "revision_id": "rev1x",
+   "timestamp": "2026-09-26T20:31:02.348Z"
+  },
+  {
+   "level": "info",
+   "message": "{\"fn\":\"torneos-payments\",\"route\":\"internal\",\"status\":401,\"code\":\"unauthorized_stale\",\"ms\":0}",
+   "revision_id": "rev1x",
+   "timestamp": "2026-09-26T20:31:02.348Z"
+  },
+  {
+   "level": "info",
+   "message": "{\"fn\":\"torneos-payments\",\"route\":\"internal\",\"status\":403,\"code\":\"forbidden\",\"ms\":0}",
+   "revision_id": "rev1x",
+   "timestamp": "2026-09-26T20:31:02.348Z"
+  },
+  {
+   "level": "info",
+   "message": "{\"fn\":\"torneos-payments\",\"route\":\"internal\",\"status\":400,\"code\":\"invalid_request\",\"ms\":0}",
+   "revision_id": "rev1x",
+   "timestamp": "2026-09-26T20:31:02.348Z"
+  },
+  {
+   "level": "info",
+   "message": "{\"fn\":\"torneos-payments\",\"route\":\"webhook\",\"status\":401,\"code\":\"invalid_signature\",\"ms\":0}",
+   "revision_id": "rev1x",
+   "timestamp": "2026-09-26T20:31:02.349Z"
+  },
+  {
+   "level": "info",
+   "message": "{\"fn\":\"torneos-payments\",\"route\":\"webhook\",\"status\":401,\"code\":\"invalid_signature\",\"ms\":1}",
+   "revision_id": "rev1x",
+   "timestamp": "2026-09-26T20:31:02.350Z"
+  },
+  {
+   "level": "info",
+   "message": "{\"fn\":\"torneos-payments\",\"route\":\"webhook\",\"status\":401,\"code\":\"invalid_signature_future_ts\",\"ms\":0}",
+   "revision_id": "rev1x",
+   "timestamp": "2026-09-26T20:31:02.350Z"
+  },
+  {
+   "level": "info",
+   "message": "{\"fn\":\"torneos-payments\",\"route\":\"webhook\",\"status\":401,\"code\":\"invalid_signature\",\"ms\":0}",
+   "revision_id": "rev1x",
+   "timestamp": "2026-09-26T20:31:02.350Z"
+  },
+  {
+   "level": "info",
+   "message": "{\"fn\":\"torneos-payments\",\"route\":\"webhook\",\"status\":400,\"code\":\"invalid_request\",\"ms\":0}",
+   "revision_id": "rev1x",
+   "timestamp": "2026-09-26T20:31:02.350Z"
+  },
+  {
+   "level": "info",
+   "message": "{\"fn\":\"torneos-payments\",\"route\":\"webhook\",\"status\":413,\"code\":\"payload_too_large\",\"ms\":0}",
+   "revision_id": "rev1x",
+   "timestamp": "2026-09-26T20:31:02.351Z"
+  },
+  {
+   "level": "info",
+   "message": "{\"fn\":\"torneos-payments\",\"route\":\"webhook\",\"status\":400,\"code\":\"invalid_notification\",\"ms\":0}",
+   "revision_id": "rev1x",
+   "timestamp": "2026-09-26T20:31:02.351Z"
+  },
+  {
+   "level": "info",
+   "message": "{\"fn\":\"torneos-payments\",\"route\":\"webhook\",\"status\":422,\"code\":\"payment_verification_failed\",\"ms\":0}",
+   "revision_id": "rev1x",
+   "timestamp": "2026-09-26T20:31:02.351Z"
+  },
+  {
+   "level": "info",
+   "message": "{\"fn\":\"torneos-payments\",\"route\":\"webhook\",\"status\":400,\"code\":\"invalid_notification\",\"ms\":0}",
+   "revision_id": "rev1x",
+   "timestamp": "2026-09-26T20:31:02.351Z"
+  },
+  {
+   "level": "info",
+   "message": "{\"fn\":\"torneos-payments\",\"route\":\"webhook\",\"status\":400,\"code\":\"invalid_notification\",\"ms\":0}",
+   "revision_id": "rev1x",
+   "timestamp": "2026-09-26T20:31:02.351Z"
+  },
+  {
+   "level": "info",
+   "message": "{\"fn\":\"torneos-payments\",\"route\":\"webhook\",\"status\":400,\"code\":\"invalid_notification\",\"ms\":0}",
+   "revision_id": "rev1x",
+   "timestamp": "2026-09-26T20:31:02.352Z"
+  },
+  {
+   "level": "info",
+   "message": "{\"fn\":\"torneos-payments\",\"route\":\"webhook\",\"status\":400,\"code\":\"invalid_notification\",\"ms\":0}",
+   "revision_id": "rev1x",
+   "timestamp": "2026-09-26T20:31:02.352Z"
+  },
+  {
+   "level": "info",
+   "message": "{\"fn\":\"torneos-payments\",\"route\":\"webhook\",\"status\":422,\"code\":\"payment_verification_failed\",\"ms\":0}",
+   "revision_id": "rev1x",
+   "timestamp": "2026-09-26T20:31:02.352Z"
+  },
+  {
+   "level": "info",
+   "message": "{\"fn\":\"torneos-payments\",\"route\":\"internal\",\"status\":403,\"code\":\"forbidden_host\",\"ms\":0}",
+   "revision_id": "rev1x",
+   "timestamp": "2026-09-26T20:31:02.352Z"
+  },
+  {
+   "level": "info",
+   "message": "{\"fn\":\"torneos-payments\",\"route\":\"internal\",\"status\":200,\"code\":\"preference_created\",\"ms\":73}",
+   "revision_id": "rev3x",
+   "timestamp": "2026-09-26T20:31:13.331Z"
+  },
+  {
+   "level": "info",
+   "message": "{\"fn\":\"torneos-payments\",\"route\":\"internal\",\"status\":200,\"code\":\"preference_reused\",\"ms\":7}",
+   "revision_id": "rev3x",
+   "timestamp": "2026-09-26T20:31:13.339Z"
+  },
+  {
+   "level": "info",
+   "message": "{\"fn\":\"torneos-payments\",\"route\":\"internal\",\"status\":200,\"code\":\"preference_created\",\"ms\":19}",
+   "revision_id": "rev3x",
+   "timestamp": "2026-09-26T20:31:20.170Z"
+  },
+  {
+   "level": "info",
+   "message": "{\"fn\":\"torneos-payments\",\"route\":\"internal\",\"status\":200,\"code\":\"preference_reused\",\"ms\":8}",
+   "revision_id": "rev3x",
+   "timestamp": "2026-09-26T20:31:20.179Z"
+  },
+  {
+   "level": "info",
+   "message": "{\"fn\":\"torneos-payments\",\"route\":\"webhook\",\"status\":200,\"code\":\"approved\",\"ms\":28}",
+   "revision_id": "rev3x",
+   "timestamp": "2026-09-26T20:31:21.433Z"
+  }
+ ],
+ "checks": [
+  {
+   "name": "Mercado Pago TEST: rejected attempts on the preference (fresh operation: optional, one approved payment)",
+   "pass": true
+  },
+  {
+   "name": "Mercado Pago TEST: one approved payment, ARS 39900, our attested TEST seller, external_reference = P1 (live_mode reported, not trusted)",
+   "pass": true
+  },
+  {
+   "name": "DB: purchase approved with that payment id",
+   "pass": true
+  },
+  {
+   "name": "DB: a payment.attempt_rejected event (purchase stayed payable)",
+   "pass": true
+  },
+  {
+   "name": "DB: exactly one Premium season grant from P1, effective, events [granted]",
+   "pass": true
+  },
+  {
+   "name": "DB: one watermark per provider payment (rejected + approved), no manual flags",
+   "pass": true
+  },
+  {
+   "name": "the signed Mercado Pago webhook reached the TEST app: provider-actor payment.approved event",
+   "pass": true
+  }
+ ],
+ "mp_requests": [
+  {
+   "id": "users-me",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "users-me",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "users-me",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "users-me",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "users-me",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "preference",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "users-me",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "preference",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "payments-search",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "payment",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "merchant-order",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "preference",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  }
+ ]
+}

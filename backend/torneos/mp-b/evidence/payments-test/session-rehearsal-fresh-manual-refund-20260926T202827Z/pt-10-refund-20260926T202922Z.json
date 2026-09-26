@@ -1,0 +1,439 @@
+{
+ "tool": "backend/torneos/infra/torneos-payments-test/payments-session.mjs",
+ "generated_at": "2026-09-26T20:29:22.141Z",
+ "verdict": "REFUND_LIFECYCLE_FAILED",
+ "initiation": "manual — full refund from the Seller Test Mercado Pago panel (operator), after the API refund was refused",
+ "refund_api_initiation": "NOT CERTIFIED — \"refund API initiation\" could not be certified: limitation of the Mercado Pago Seller Test sandbox (payments report live_mode:true; the API refund with the Seller Test token answers 401 \"Unauthorized use of live credentials\")",
+ "refund_lifecycle": "CERTIFIED — the lifecycle refund → signed webhook → revoke was certified on a real total refund initiated manually from the Seller Test Mercado Pago panel",
+ "refund_api_attempt": {
+  "at": "2026-09-26T19:50:23Z",
+  "plan_id": "e88bdbc9b5b2",
+  "payment": "181036143126",
+  "request": "POST /v1/payments/{id}/refunds (full, armed, phrase accepted)",
+  "response": {
+   "status": 401,
+   "message": "Unauthorized use of live credentials"
+  },
+  "writes_applied": 0
+ },
+ "payment": "90000000004",
+ "purchase": "6c885ae2-3e6f-48e3-9723-c18ea1787e8a",
+ "provider_after": {
+  "id": "90000000004",
+  "status": "approved",
+  "status_detail": "accredited",
+  "date_last_updated": "2026-09-26T20:28:22.216-00:00",
+  "date_created": null,
+  "transaction_amount": 39900,
+  "currency_id": "ARS",
+  "live_mode": true,
+  "collector_matches": true,
+  "external_reference": "arma2:season:purchase:6c885ae2-3e6f-48e3-9723-c18ea1787e8a",
+  "metadata_purchase_id": "6c885ae2-3e6f-48e3-9723-c18ea1787e8a",
+  "order": {
+   "id": "90000000005",
+   "type": "mercadopago"
+  },
+  "payment_type_id": null,
+  "refunds": null
+ },
+ "provider_refunds": [],
+ "db": {
+  "purchase": "6c885ae2-3e6f-48e3-9723-c18ea1787e8a",
+  "season": "2b48eb6b-937f-4c05-b725-920e0cf9c647",
+  "season_slug": "qa-pt-s1-2068cc",
+  "status": "approved",
+  "provider": "MERCADO_PAGO",
+  "environment": "test",
+  "product": "torneos_premium",
+  "offer": "launch",
+  "amount": 39900,
+  "list_amount": 49900,
+  "currency": "ARS",
+  "external_reference": "arma2:season:purchase:6c885ae2-3e6f-48e3-9723-c18ea1787e8a",
+  "preference_id": "2718281828-a995df35-4b34-4b6b-b0da-c22cde0fdcdd",
+  "approved_payment": "90000000004",
+  "provider_status": "approved",
+  "provider_status_detail": "accredited",
+  "created_at": "2026-09-26T20:29:08.350339+00:00",
+  "approved_at": "2026-09-26T20:29:14.226346+00:00",
+  "refunded_at": null,
+  "charged_back_at": null,
+  "entitlement_activated_at": "2026-09-26T20:29:14.226346+00:00",
+  "events": [
+   {
+    "id": 59,
+    "type": "purchase.created",
+    "from": null,
+    "to": "created",
+    "actor": "user",
+    "provider_status": null,
+    "payment": null,
+    "provider_time": null
+   },
+   {
+    "id": 60,
+    "type": "preference.created",
+    "from": "created",
+    "to": "preference_created",
+    "actor": "service",
+    "provider_status": "created",
+    "payment": null,
+    "provider_time": null
+   },
+   {
+    "id": 61,
+    "type": "payment.approved",
+    "from": "preference_created",
+    "to": "approved",
+    "actor": "provider",
+    "provider_status": "approved",
+    "payment": "90000000004",
+    "provider_time": null
+   }
+  ],
+  "grants": [
+   {
+    "grant": "e2864c97-4232-4cb5-a4b6-14f30f186cba",
+    "plan": "PREMIUM",
+    "source": "purchase",
+    "events": [
+     {
+      "type": "granted",
+      "reason_code": "payment_approved",
+      "actor": "provider"
+     }
+    ],
+    "effective": true
+   }
+  ],
+  "watermarks": [
+   {
+    "payment": "90000000004",
+    "date_last_updated": "2026-09-26T20:28:22.216+00:00",
+    "state": [
+     "status",
+     "approved"
+    ],
+    "manual_refund": false,
+    "manual_review": false
+   }
+  ]
+ },
+ "db_after_late_replay": {
+  "purchase": "6c885ae2-3e6f-48e3-9723-c18ea1787e8a",
+  "season": "2b48eb6b-937f-4c05-b725-920e0cf9c647",
+  "season_slug": "qa-pt-s1-2068cc",
+  "status": "approved",
+  "provider": "MERCADO_PAGO",
+  "environment": "test",
+  "product": "torneos_premium",
+  "offer": "launch",
+  "amount": 39900,
+  "list_amount": 49900,
+  "currency": "ARS",
+  "external_reference": "arma2:season:purchase:6c885ae2-3e6f-48e3-9723-c18ea1787e8a",
+  "preference_id": "2718281828-a995df35-4b34-4b6b-b0da-c22cde0fdcdd",
+  "approved_payment": "90000000004",
+  "provider_status": "approved",
+  "provider_status_detail": "accredited",
+  "created_at": "2026-09-26T20:29:08.350339+00:00",
+  "approved_at": "2026-09-26T20:29:14.226346+00:00",
+  "refunded_at": null,
+  "charged_back_at": null,
+  "entitlement_activated_at": "2026-09-26T20:29:14.226346+00:00",
+  "events": [
+   {
+    "id": 59,
+    "type": "purchase.created",
+    "from": null,
+    "to": "created",
+    "actor": "user",
+    "provider_status": null,
+    "payment": null,
+    "provider_time": null
+   },
+   {
+    "id": 60,
+    "type": "preference.created",
+    "from": "created",
+    "to": "preference_created",
+    "actor": "service",
+    "provider_status": "created",
+    "payment": null,
+    "provider_time": null
+   },
+   {
+    "id": 61,
+    "type": "payment.approved",
+    "from": "preference_created",
+    "to": "approved",
+    "actor": "provider",
+    "provider_status": "approved",
+    "payment": "90000000004",
+    "provider_time": null
+   }
+  ],
+  "grants": [
+   {
+    "grant": "e2864c97-4232-4cb5-a4b6-14f30f186cba",
+    "plan": "PREMIUM",
+    "source": "purchase",
+    "events": [
+     {
+      "type": "granted",
+      "reason_code": "payment_approved",
+      "actor": "provider"
+     }
+    ],
+    "effective": true
+   }
+  ],
+  "watermarks": [
+   {
+    "payment": "90000000004",
+    "date_last_updated": "2026-09-26T20:28:22.216+00:00",
+    "state": [
+     "status",
+     "approved"
+    ],
+    "manual_refund": false,
+    "manual_review": false
+   }
+  ]
+ },
+ "real_webhook": {
+  "reversal_applied": [],
+  "deliveries_after_approval": [
+   {
+    "at": "2026-09-26T20:29:14.275Z",
+    "revision": "rev3x",
+    "status": 200,
+    "code": "approved"
+   },
+   {
+    "at": "2026-09-26T20:29:16.130Z",
+    "revision": "rev3x",
+    "status": 200,
+    "code": "provider_snapshot_duplicate"
+   },
+   {
+    "at": "2026-09-26T20:29:16.145Z",
+    "revision": "rev3x",
+    "status": 200,
+    "code": "provider_snapshot_duplicate"
+   },
+   {
+    "at": "2026-09-26T20:29:16.159Z",
+    "revision": "rev3x",
+    "status": 200,
+    "code": "provider_snapshot_duplicate"
+   },
+   {
+    "at": "2026-09-26T20:29:16.175Z",
+    "revision": "rev3x",
+    "status": 200,
+    "code": "provider_snapshot_duplicate"
+   },
+   {
+    "at": "2026-09-26T20:29:16.194Z",
+    "revision": "rev3x",
+    "status": 200,
+    "code": "provider_snapshot_duplicate"
+   },
+   {
+    "at": "2026-09-26T20:29:16.195Z",
+    "revision": "rev3x",
+    "status": 401,
+    "code": "invalid_signature"
+   },
+   {
+    "at": "2026-09-26T20:29:16.200Z",
+    "revision": "rev3x",
+    "status": 400,
+    "code": "invalid_notification"
+   },
+   {
+    "at": "2026-09-26T20:29:16.201Z",
+    "revision": "rev3x",
+    "status": 400,
+    "code": "invalid_notification"
+   },
+   {
+    "at": "2026-09-26T20:29:16.224Z",
+    "revision": "rev3x",
+    "status": 200,
+    "code": "provider_snapshot_duplicate"
+   },
+   {
+    "at": "2026-09-26T20:29:16.244Z",
+    "revision": "rev3x",
+    "status": 200,
+    "code": "provider_snapshot_duplicate"
+   }
+  ]
+ },
+ "logs_api": {
+  "status": 200,
+  "body": "array",
+  "rows": 37
+ },
+ "late_notification": {
+  "status": 200,
+  "outcome": "provider_snapshot_duplicate"
+ },
+ "post_refund_observations": [],
+ "checks": [
+  {
+   "name": "refund initiated manually in the Seller Test Mercado Pago panel: this step made no Mercado Pago write",
+   "pass": true
+  },
+  {
+   "name": "Mercado Pago: the payment of P1 (attested seller, ARS 39900, external_reference P1) is refunded / refunded",
+   "pass": false
+  },
+  {
+   "name": "Mercado Pago: total refund — approved refunds sum to ARS 39900",
+   "pass": false
+  },
+  {
+   "name": "real signed Mercado Pago webhook: 200 reversal_applied on the TEST app after the approval, before this step sent anything, and the DB refund lands with it",
+   "pass": false
+  },
+  {
+   "name": "DB: purchase refunded by the provider (payment.refund, actor provider, approved → refunded)",
+   "pass": false
+  },
+  {
+   "name": "DB: the one Premium grant revoked by the provider (total_refund), not effective",
+   "pass": false
+  },
+  {
+   "name": "DB: watermark at the refunded snapshot (reversal / refund), no manual flags",
+   "pass": false
+  },
+  {
+   "name": "late old notification after the refund → duplicate of the refunded snapshot; revoked never revives",
+   "pass": true
+  },
+  {
+   "name": "the late replay changed nothing: purchase, events, grants and watermarks identical",
+   "pass": true
+  }
+ ],
+ "mp_requests": [
+  {
+   "id": "users-me",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "users-me",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "users-me",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "users-me",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "users-me",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "preference",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "users-me",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "preference",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "payments-search",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "payment",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "merchant-order",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "preference",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "payment",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "payment",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "refund",
+   "kind": "write:refund",
+   "method": "POST",
+   "status": 401
+  },
+  {
+   "id": "payment",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "payment-refunds",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  }
+ ],
+ "mp_writes": 0,
+ "app_requests": [
+  {
+   "label": "webhook:payment",
+   "method": "POST",
+   "path": "/functions/v1/torneos-payments/webhooks/mercadopago/v1?data.id=…&type=payment",
+   "status": 200,
+   "error": null,
+   "outcome": "provider_snapshot_duplicate"
+  }
+ ]
+}

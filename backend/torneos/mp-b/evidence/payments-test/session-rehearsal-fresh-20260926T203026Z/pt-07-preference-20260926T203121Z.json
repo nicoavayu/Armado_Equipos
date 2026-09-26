@@ -1,0 +1,218 @@
+{
+ "tool": "backend/torneos/infra/torneos-payments-test/payments-session.mjs",
+ "generated_at": "2026-09-26T20:31:21.403Z",
+ "verdict": "MP_TEST_PREFERENCE_PASS",
+ "plan": {
+  "step": "preference",
+  "purchase": "c30f9e3a-759d-4bea-af9a-61586560a22c",
+  "season": "2721f506-128f-4c1a-a11e-392f664bb68f",
+  "org": "629ea666-191e-4124-abed-1fd25f3a80a4",
+  "product": {
+   "code": "torneos_premium",
+   "title": "Arma2 Torneos Premium",
+   "currency": "ARS",
+   "listAmount": 49900,
+   "amount": 39900,
+   "quantity": 1
+  },
+  "provider": "MERCADO_PAGO",
+  "environment": "test",
+  "seller": "2718281828",
+  "notification_url": "https://torneos-payments-test.nicoavayu.deno.net/functions/v1/torneos-payments/webhooks/mercadopago/v1",
+  "via": "https://torneos-payments-test.nicoavayu.deno.net/functions/v1/torneos-payments/internal/v1/season-checkout-preference"
+ },
+ "plan_id": "a625d7ebbfe7",
+ "authorization": {
+  "phrase": "CREATE MERCADO PAGO TEST PREFERENCE a625d7ebbfe7",
+  "channel": "session FIFO (operator)"
+ },
+ "app_first": {
+  "status": 200,
+  "outcome": "preference_created",
+  "preferenceId": "2718281828-187503a4-6033-4fc1-ac2b-141902ef44e6",
+  "expiresAt": "2026-09-26T21:01:20.161Z",
+  "checkout_host": "www.mercadopago.com.ar"
+ },
+ "app_reuse": {
+  "status": 200,
+  "preferenceId": "2718281828-187503a4-6033-4fc1-ac2b-141902ef44e6"
+ },
+ "provider_preference": {
+  "id": "2718281828-187503a4-6033-4fc1-ac2b-141902ef44e6",
+  "collector_matches": true,
+  "items": [
+   {
+    "id": "torneos_premium",
+    "title": "Arma2 Torneos Premium",
+    "quantity": 1,
+    "currency_id": "ARS",
+    "unit_price": 39900
+   }
+  ],
+  "external_reference": "arma2:season:purchase:c30f9e3a-759d-4bea-af9a-61586560a22c",
+  "metadata_keys": [
+   "purchase_id"
+  ],
+  "metadata_purchase_id": "c30f9e3a-759d-4bea-af9a-61586560a22c",
+  "notification_url": "https://torneos-payments-test.nicoavayu.deno.net/functions/v1/torneos-payments/webhooks/mercadopago/v1",
+  "back_urls": {
+   "success": "https://torneos-payments-test.nicoavayu.deno.net/torneos/organizacion/629ea666-191e-4124-abed-1fd25f3a80a4/temporada/2721f506-128f-4c1a-a11e-392f664bb68f/plan/compra/c30f9e3a-759d-4bea-af9a-61586560a22c/exito",
+   "pending": "https://torneos-payments-test.nicoavayu.deno.net/torneos/organizacion/629ea666-191e-4124-abed-1fd25f3a80a4/temporada/2721f506-128f-4c1a-a11e-392f664bb68f/plan/compra/c30f9e3a-759d-4bea-af9a-61586560a22c/pendiente",
+   "failure": "https://torneos-payments-test.nicoavayu.deno.net/torneos/organizacion/629ea666-191e-4124-abed-1fd25f3a80a4/temporada/2721f506-128f-4c1a-a11e-392f664bb68f/plan/compra/c30f9e3a-759d-4bea-af9a-61586560a22c/fallo"
+  },
+  "auto_return": "approved",
+  "expires": true,
+  "expiration_date_from": "2026-09-26T20:31:15.226Z",
+  "expiration_date_to": "2026-09-26T21:01:20.161Z",
+  "payer_fields_set": [],
+  "init_point_host": "www.mercadopago.com.ar",
+  "sandbox_init_point_host": "sandbox.mercadopago.com.ar",
+  "operation_type": null,
+  "purpose": null,
+  "client_id_present": true
+ },
+ "db": {
+  "purchase": "c30f9e3a-759d-4bea-af9a-61586560a22c",
+  "season": "2721f506-128f-4c1a-a11e-392f664bb68f",
+  "season_slug": "qa-pt-s1-dc09ed",
+  "status": "preference_created",
+  "provider": "MERCADO_PAGO",
+  "environment": "test",
+  "product": "torneos_premium",
+  "offer": "launch",
+  "amount": 39900,
+  "list_amount": 49900,
+  "currency": "ARS",
+  "external_reference": "arma2:season:purchase:c30f9e3a-759d-4bea-af9a-61586560a22c",
+  "preference_id": "2718281828-187503a4-6033-4fc1-ac2b-141902ef44e6",
+  "approved_payment": null,
+  "provider_status": "created",
+  "provider_status_detail": null,
+  "created_at": "2026-09-26T20:31:15.226504+00:00",
+  "approved_at": null,
+  "refunded_at": null,
+  "charged_back_at": null,
+  "entitlement_activated_at": null,
+  "events": [
+   {
+    "id": 59,
+    "type": "purchase.created",
+    "from": null,
+    "to": "created",
+    "actor": "user",
+    "provider_status": null,
+    "payment": null,
+    "provider_time": null
+   },
+   {
+    "id": 60,
+    "type": "preference.created",
+    "from": "created",
+    "to": "preference_created",
+    "actor": "service",
+    "provider_status": "created",
+    "payment": null,
+    "provider_time": null
+   }
+  ],
+  "grants": [],
+  "watermarks": []
+ },
+ "checks": [
+  {
+   "name": "app → 200 preference_created, checkout on a mercadopago.com.ar host",
+   "pass": true
+  },
+  {
+   "name": "provider: collector = the attested TEST seller",
+   "pass": true
+  },
+  {
+   "name": "provider: one item torneos_premium \"Arma2 Torneos Premium\" × 1, ARS, unit_price 39900",
+   "pass": true
+  },
+  {
+   "name": "provider: external_reference = arma2:season:purchase:<P1>",
+   "pass": true
+  },
+  {
+   "name": "provider: metadata = {purchase_id: P1} only",
+   "pass": true
+  },
+  {
+   "name": "provider: notification_url = the TEST webhook",
+   "pass": true
+  },
+  {
+   "name": "provider: back_urls on the TEST host, QA org/season/purchase path, auto_return approved",
+   "pass": true
+  },
+  {
+   "name": "provider: expires (30 min window), one-time (no subscription / no preapproval)",
+   "pass": true
+  },
+  {
+   "name": "provider: no payer / PII set",
+   "pass": true
+  },
+  {
+   "name": "reuse → 200 preference_reused, same preference id",
+   "pass": true
+  },
+  {
+   "name": "DB: preference_created with that id, still unpaid",
+   "pass": true
+  }
+ ],
+ "mp_requests": [
+  {
+   "id": "users-me",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "users-me",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "users-me",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "users-me",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "users-me",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "preference",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "users-me",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "preference",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  }
+ ],
+ "mp_writes": 0
+}

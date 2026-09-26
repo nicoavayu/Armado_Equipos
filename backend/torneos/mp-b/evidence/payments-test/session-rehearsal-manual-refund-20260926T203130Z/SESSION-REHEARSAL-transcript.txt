@@ -1,0 +1,105 @@
+EVIDENCE pt-01-preflight-20260926T203149Z.json d2f243357c49d31f9f5ae05c20a34486ff1f8593b3d876c398fc52344663bc8d
+preflight: login=absent app=absent attestation=true census={"auth_users":0,"identities":0,"organizations":0,"organizations_qa":0,"organization_members":0,"seasons":0,"seasons_outside_qa":0,"tournaments":0,"purchases":0,"purchases_outside_qa":0,"purchases_not_mp_test":0,"purchase_events":0,"purchase_events_outside_qa":0,"season_grants":0,"season_grants_outside_qa":0,"grant_events":0,"watermarks":0,"watermarks_outside_qa":0}
+
+PLAN 3ddcc0e24f7a: create the payments TEST login torneos_payments_test on Arma2 Torneos (onzpwnqxnvlgsevivngf)
+  LOGIN NOINHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS
+  GRANT torneos_payment_service (INHERIT FALSE, SET TRUE) — nothing else; the server receives a SCRAM-SHA-256 verifier only
+  one psql transaction as postgres@aws-0-sa-east-1.pooler.supabase.com:5432 (verify-full), guards first; password: Keychain arma2-torneos-payments-test/torneos_payments_test (generated now)
+
+To proceed the operator must send exactly:
+  CREATE TORNEOS PAYMENTS TEST LOGIN torneos_payments_test 3ddcc0e24f7a
+
+PLAN 3ddcc0e24f7a: create the payments TEST login torneos_payments_test on Arma2 Torneos (onzpwnqxnvlgsevivngf)
+  LOGIN NOINHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS
+  GRANT torneos_payment_service (INHERIT FALSE, SET TRUE) — nothing else; the server receives a SCRAM-SHA-256 verifier only
+  one psql transaction as postgres@aws-0-sa-east-1.pooler.supabase.com:5432 (verify-full), guards first; password: Keychain arma2-torneos-payments-test/torneos_payments_test (generated now)
+
+To proceed the operator must send exactly:
+  CREATE TORNEOS PAYMENTS TEST LOGIN torneos_payments_test 3ddcc0e24f7a
+phrase accepted
+EVIDENCE pt-02-payments-login-20260926T203156Z.json e498bf14514ca62d8a47cd9cfd0f34df3644d760f1f4d48a880d9a3986366198
+
+PLAN 5e6672407475: create Deno Deploy app torneos-payments-test (Free, default alias, no custom domain, 0 layers, no build) and deploy revision 1
+  env (11, app-level only): APP_PUBLIC_URL MERCADO_PAGO_ENVIRONMENT MERCADO_PAGO_TEST_ACCESS_TOKEN(secret) MERCADO_PAGO_TEST_SELLER_ID MERCADO_PAGO_TEST_WEBHOOK_SECRET(secret) TORNEOS_PAYMENTS_DB_SSL_CA TORNEOS_PAYMENTS_DB_URL(secret) TORNEOS_PAYMENTS_DEPLOYMENT TORNEOS_PAYMENTS_INTERNAL_SECRET(secret) TORNEOS_PAYMENTS_NOTIFICATION_URL TORNEOS_PAYMENT_PROVIDER
+  TORNEOS_PAYMENTS_DEPLOYMENT=remote-test, MERCADO_PAGO_ENVIRONMENT=test, seller 2718281828 (attested test_user MLA)
+  DB torneos_payments_test.onzpwnqxnvlgsevivngf@aws-0-sa-east-1.pooler.supabase.com:6543 verify-full; internal HMAC key: Keychain (generated now)
+  source: 13 files of the torneos-payments graph, HEAD b3b055b29d902f85e5c2170366ba2d106b15518c, digest 71b474443d35b5df…
+  apps in the Deno org now: [torneos-gateway]; torneos-gateway untouched
+
+To proceed the operator must send exactly:
+  CREATE TORNEOS PAYMENTS TEST DENO APP torneos-payments-test 5e6672407475
+phrase accepted
+EVIDENCE pt-03-deno-app-20260926T203158Z.json d949a2b6d6b94f5f933f1e5ef461563fb81f5c5e14d71b5415bf26291a1cd84b
+EVIDENCE pt-04-app-probe-20260926T203201Z.json 054270c1f310b3a59455ef1725c541d2bf894d7a67af5b04b5fd0c4ac539bfed
+app-probe: 27/27
+EVIDENCE pt-05-qa-fixtures-20260926T203203Z.json 683059843b9110340437094e3626c147d4ce5a80e8418f89048f5ee2b8339fb9
+fixtures: QA_FIXTURES_ISOLATED {"org":"eed65bcc-b3ff-42ad-b816-1450d9fbe9bf","slug":"qa-payments-test-6e8e8d5f","S1":"16a095e9-c1fd-41d0-a653-eb24ff463af4","S2":"6414a7c5-86fb-462f-98bc-395718f0621a","P1":"45abde1c-46eb-4d86-86cc-1e28d608b88d","P2":"41cb80bf-1e83-4871-9ee2-16eaf21ef2e8","superseded":[]}
+
+PLAN d7d3f5dee9ee: redeploy the Deno Deploy app torneos-payments-test (TEST only; torneos-gateway untouched)
+  PATCH app env: + TORNEOS_PAYMENTS_TEST_QA_ORGANIZATION_ID=eed65bcc-b3ff-42ad-b816-1450d9fbe9bf (public, the QA org qa-payments-test-6e8e8d5f); nothing else changes
+  then deploy the current source: 13 files, HEAD b3b055b29d902f85e5c2170366ba2d106b15518c, digest 71b474443d35b5df… (previous revision rev1x)
+  seller 2718281828 attested test_user MLA
+
+To proceed the operator must send exactly:
+  REDEPLOY TORNEOS PAYMENTS TEST DENO APP torneos-payments-test d7d3f5dee9ee
+phrase accepted
+EVIDENCE pt-03b-redeploy-20260926T203204Z.json b2e20ae8d7841950066c761bfc4be03f86eb11f023e6f87dfe8079e1fa9e9122
+redeploy: PAYMENTS_TEST_APP_REDEPLOYED revision=rev2x env=scoped
+
+PLAN 0102e04ffd6f: redeploy the Deno Deploy app torneos-payments-test (TEST only; torneos-gateway untouched)
+  QA pin already present (eed65bcc-b3ff-42ad-b816-1450d9fbe9bf); no env change
+  then deploy the current source: 13 files, HEAD b3b055b29d902f85e5c2170366ba2d106b15518c, digest 71b474443d35b5df… (previous revision rev2x)
+  seller 2718281828 attested test_user MLA
+
+To proceed the operator must send exactly:
+  REDEPLOY TORNEOS PAYMENTS TEST DENO APP torneos-payments-test 0102e04ffd6f
+phrase accepted
+EVIDENCE pt-03b-redeploy-20260926T203206Z.json ef69bcfbeae8c80f701fc6825263ce5c4b527a55e887d650bb7ec7c627639baa
+redeploy: PAYMENTS_TEST_APP_REDEPLOYED revision=rev3x env=scoped
+EVIDENCE pt-06-ordering-rollback-20260926T203208Z.json 1619286f0500755f86a0c24be7115eea4b3c665ff05961f8a8e35d2aa46deec8
+ordering: 19/19 traceless=true
+
+PLAN 7a1c8d0d0eff: Mercado Pago TEST Preference for the QA purchase 45abde1c-46eb-4d86-86cc-1e28d608b88d (season S1 16a095e9-c1fd-41d0-a653-eb24ff463af4)
+  Arma2 Torneos Premium: 1 × ARS 39900 (list 49900), one-time, seller 2718281828 (test_user), expires in 30 min
+  through the TEST app's internal HMAC route; no payer data, no frontend, no public checkout
+
+To proceed the operator must send exactly:
+  CREATE MERCADO PAGO TEST PREFERENCE 7a1c8d0d0eff
+phrase accepted
+EVIDENCE pt-07-preference-20260926T203211Z.json 5a328c7da3fc22ea3ca4b7838073d7e3b221bdd3b0b17507d5d430f82c3e6192
+preference: 11/11
+  CHECKOUT_URL https://www.mercadopago.com.ar/checkout/v1/redirect?pref_id=2718281828-c781b517-0c0a-48c2-9b45-e38da1877cb3
+  expires 2026-09-26T21:02:10.339Z
+EVIDENCE pt-08-sandbox-checkout-20260926T203212Z.json 6109fb4f0e4bece85e540a2a2a9f9a32c40743a693788c70bbd5542bf9784b94
+observe: 7/7 payments=[["90000000001","rejected","cc_rejected_other_reason"],["90000000003","approved","accredited"]] db=approved
+EVIDENCE pt-09-replays-20260926T203214Z.json dc1fd2ba78cc6fa851d95833cd07f8be29e9d9626786fd5f0df1e22b54888d7a
+replays: 10/10
+
+PLAN f0bb221202bd: full refund of the Mercado Pago TEST payment 90000000003 (ARS 39900, sandbox live_mode=true, seller 2718281828 attested test_user)
+  then wait for the signed webhook: purchase → refunded, Premium grant → revoked
+
+To proceed the operator must send exactly:
+  REFUND MERCADO PAGO TEST PAYMENT f0bb221202bd
+phrase accepted
+EVIDENCE pt-10-refund-20260926T203219Z.json 60398cdcd172b5ace7027a9a36593216dd1c8c7763fe7281eb7553ad91de69d6
+refund-verify: 3/9 payment=90000000003 provider=approved/accredited refunds=0 db=approved
+  FAIL Mercado Pago: the payment of P1 (attested seller, ARS 39900, external_reference P1) is refunded / refunded
+  FAIL Mercado Pago: total refund — approved refunds sum to ARS 39900
+  FAIL real signed Mercado Pago webhook: 200 reversal_applied on the TEST app after the approval, before this step sent anything, and the DB refund lands with it
+  FAIL DB: purchase refunded by the provider (payment.refund, actor provider, approved → refunded)
+  FAIL DB: the one Premium grant revoked by the provider (total_refund), not effective
+  FAIL DB: watermark at the refunded snapshot (reversal / refund), no manual flags
+  NOT CERTIFIED — "refund API initiation" could not be certified: limitation of the Mercado Pago Seller Test sandbox (payments report live_mode:true; the API refund with the Seller Test token answers 401 "Unauthorized use of live credentials")
+  CERTIFIED — the lifecycle refund → signed webhook → revoke was certified on a real total refund initiated manually from the Seller Test Mercado Pago panel
+EVIDENCE pt-08-sandbox-checkout-20260926T203221Z.json b3dac7412a825b7909772f39e29265c498c959d3083e28db674c256ba75f957e
+observe: 5/7 payments=[["90000000001","rejected","cc_rejected_other_reason"],["90000000003","refunded","refunded"]] db=refunded
+  FAIL DB: purchase approved with that payment id
+  FAIL DB: exactly one Premium season grant from P1, effective, events [granted]
+EVIDENCE pt-10-refund-20260926T203224Z.json 3c89935ad352724d581aec0bfd9488a3ad97f5803df1105d2f0d3f7194600ef9
+refund-verify: 9/9 payment=90000000003 provider=refunded/refunded refunds=1 db=refunded
+  NOT CERTIFIED — "refund API initiation" could not be certified: limitation of the Mercado Pago Seller Test sandbox (payments report live_mode:true; the API refund with the Seller Test token answers 401 "Unauthorized use of live credentials")
+  CERTIFIED — the lifecycle refund → signed webhook → revoke was certified on a real total refund initiated manually from the Seller Test Mercado Pago panel
+EVIDENCE pt-11-certify-20260926T203224Z.json 106cac3c69da3c3b6601d95ca0338cc30da292d65fd0498c47bf8779d39c90a2
+certify: PAYMENTS_REMOTE_TEST_CERTIFIED
+  NOT CERTIFIED — "refund API initiation" could not be certified: limitation of the Mercado Pago Seller Test sandbox (payments report live_mode:true; the API refund with the Seller Test token answers 401 "Unauthorized use of live credentials")
+  CERTIFIED — the lifecycle refund → signed webhook → revoke was certified on a real total refund initiated manually from the Seller Test Mercado Pago panel
