@@ -51,6 +51,13 @@ export const SECRET_NAMES = Object.freeze(['MERCADO_PAGO_TEST_ACCESS_TOKEN', 'ME
 export const CONFIG_NAMES = Object.freeze(['TORNEOS_PAYMENT_PROVIDER', 'MERCADO_PAGO_ENVIRONMENT', 'MERCADO_PAGO_TEST_SELLER_ID', 'APP_PUBLIC_URL',
   'TORNEOS_PAYMENTS_NOTIFICATION_URL', 'TORNEOS_PAYMENTS_DB_SSL_CA', 'TORNEOS_PAYMENTS_DEPLOYMENT']);
 export const ENV_NAMES = Object.freeze([...SECRET_NAMES, ...CONFIG_NAMES].sort());
+// SANDBOX decision (2026-09-26): the QA organization pin the remote-test sandbox policy requires. It is added after the QA
+// fixtures exist (redeploy: one PATCH of exactly this public variable, merged into the app env, then a new revision).
+export const QA_ORG_ENV = 'TORNEOS_PAYMENTS_TEST_QA_ORGANIZATION_ID';
+export const ENV_NAMES_SCOPED = Object.freeze([...ENV_NAMES, QA_ORG_ENV].sort());
+/** 'created' = the 11 names of `create`; 'scoped' = + the QA pin (after `redeploy`); anything else is a failure. */
+export const envShapeOf = (names) => { const n = [...names].sort().join(','); return n === ENV_NAMES.join(',') ? 'created' : n === ENV_NAMES_SCOPED.join(',') ? 'scoped' : 'other'; };
+export const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 /** Never in the TEST app, by name or by pattern. */
 export const FORBIDDEN_ENV = Object.freeze([/^CORE_/, /^SUPABASE_/, /^DATABASE_/, /^PG[A-Z_]*$/, /^TORNEOS_COMMERCE_/, /^TORNEOS_GATEWAY_/, /^TORNEOS_BRIDGE_/,
   /^TORNEOS_CONTRACT_/, /^TORNEOS_DB_/, /^TORNEOS_REST_/, /^TORNEOS_ANON_/, /^TORNEOS_ALLOWED_/, /^TORNEOS_PAYMENTS_LAB_/, /^MERCADO_PAGO_(?!ENVIRONMENT$|TEST_)/]);
@@ -267,6 +274,7 @@ export const DENO_ENDPOINTS = Object.freeze([
   { id: 'logs', method: 'GET', re: new RegExp(`^/v2/apps/${A}/logs\\?start=[0-9A-Z:.%-]+&end=[0-9A-Z:.%-]+(&limit=\\d{1,4})?$`), kind: 'read' },
   { id: 'app-create', method: 'POST', re: /^\/v2\/apps$/, kind: 'write:app-create' },
   { id: 'deploy', method: 'POST', re: new RegExp(`^/v2/apps/${A}/deploy$`), kind: 'write:deploy' },
+  { id: 'app-env', method: 'PATCH', re: new RegExp(`^/v2/apps/${A}$`), kind: 'write:app-env' },
 ]);
 export function classifyDenoRequest({ method, path: p, body }, { armedFor = null } = {}) {
   const hit = DENO_ENDPOINTS.find((e) => e.method === method && e.re.test(p));
@@ -302,6 +310,11 @@ export function assertDenoWriteBody(w, body) {
     if (!INTERNAL_SECRET_PATTERN.test(v.TORNEOS_PAYMENTS_INTERNAL_SECRET)) throw new Error('deno_env_internal_shape');
     const db = new URL(v.TORNEOS_PAYMENTS_DB_URL);
     if (decodeURIComponent(db.username) !== `${PAYMENT_LOGIN}.${TORNEOS_REF}` || !/^aws-\d{1,2}-sa-east-1\.pooler\.supabase\.com$/.test(db.hostname) || db.port !== '6543' || db.pathname !== '/postgres' || db.search) throw new Error('deno_env_db_url');
+  } else if (w === 'app-env') {
+    // exactly the one public QA pin; Deno merges a PATCH env_vars list into the app env (certified by the gateway R2 run)
+    if (Object.keys(body).join(',') !== 'env_vars' || !Array.isArray(body.env_vars) || body.env_vars.length !== 1) throw new Error('deno_env_update_only_qa_pin');
+    const [e] = body.env_vars;
+    if (Object.keys(e).sort().join(',') !== 'contexts,key,secret,value' || e.key !== QA_ORG_ENV || e.secret !== false || e.contexts !== 'all' || !UUID_PATTERN.test(e.value)) throw new Error('deno_env_update_only_qa_pin');
   } else if (w === 'deploy') {
     if (Object.keys(body).sort().join(',') !== 'assets,labels,preview,production') throw new Error('deno_deploy_shape');
     if (body.production !== true || body.preview !== false) throw new Error('deno_deploy_timelines');
@@ -327,6 +340,7 @@ export function assertAssets(assets) {
 export const PHRASES = Object.freeze({
   bootstrap: (id) => `CREATE TORNEOS PAYMENTS TEST LOGIN ${PAYMENT_LOGIN} ${id}`,
   create: (id) => `CREATE TORNEOS PAYMENTS TEST DENO APP ${APP_SLUG} ${id}`,
+  redeploy: (id) => `REDEPLOY TORNEOS PAYMENTS TEST DENO APP ${APP_SLUG} ${id}`,
   preference: (id) => `CREATE MERCADO PAGO TEST PREFERENCE ${id}`,
   refund: (id) => `REFUND MERCADO PAGO TEST PAYMENT ${id}`,
 });

@@ -6,7 +6,10 @@
 // racing newer provider states. Nothing leaves the process.
 import crypto from 'node:crypto';
 
-export function makeMercadoPago({ sellerId, accessToken, me = null }) {
+// Sandbox realism (2026-09-26): Mercado Pago Checkout Pro sandbox answers live_mode=true for TEST-seller payments, so the
+// emulator defaults to it (`liveMode`); every Preference carries the creating application's client_id and every merchant
+// order its application_id (`applicationId`), which the remote-test sandbox policy binds.
+export function makeMercadoPago({ sellerId, accessToken, me = null, liveMode: defaultLiveMode = true, applicationId = '4412345678901234' }) {
   const state = { preferences: new Map(), payments: new Map(), orders: new Map(), chargebacks: new Map(), calls: [], served: new Map(), down: null, meOverride: me };
   let seq = 90_000_000_000;
   const nextId = () => String(++seq);
@@ -24,15 +27,15 @@ export function makeMercadoPago({ sellerId, accessToken, me = null }) {
     setMe(value) { state.meOverride = value; },
     preference(id) { return state.preferences.get(id) ?? null; },
     /** A checkout payment on a preference (what a test buyer's card attempt produces). */
-    pay(preferenceId, { status, statusDetail = null, at, amount = null, currency = 'ARS', externalReference = null, collector = sellerId, liveMode = false, metadataPurchase = null, inOrder = true, orderPreference = null }) {
+    pay(preferenceId, { status, statusDetail = null, at, amount = null, currency = 'ARS', externalReference = null, collector = sellerId, liveMode = defaultLiveMode, metadataPurchase = null, inOrder = true, orderPreference = null, orderApplication = applicationId, paymentApplication = undefined }) {
       const pref = state.preferences.get(preferenceId);
       if (!pref) throw new Error('emulator_unknown_preference');
       const id = nextId();
       let orderId = pref.orderId;
-      if (!orderId) { orderId = nextId(); pref.orderId = orderId; state.orders.set(orderId, { id: Number(orderId), preference_id: orderPreference ?? preferenceId, external_reference: pref.body.external_reference, collector: { id: Number(sellerId) }, payments: [] }); }
+      if (!orderId) { orderId = nextId(); pref.orderId = orderId; state.orders.set(orderId, { id: Number(orderId), preference_id: orderPreference ?? preferenceId, external_reference: pref.body.external_reference, collector: { id: Number(sellerId) }, payments: [], application_id: orderApplication }); }
       if (inOrder) state.orders.get(orderId).payments.push({ id: Number(id) });
       state.payments.set(id, { base: { id: Number(id), external_reference: externalReference ?? pref.body.external_reference, currency_id: currency, transaction_amount: amount ?? pref.body.items[0].unit_price,
-        collector_id: Number(collector), metadata: { purchase_id: metadataPurchase ?? pref.body.metadata.purchase_id }, order: { id: Number(orderId), type: 'mercadopago' }, live_mode: liveMode },
+        collector_id: Number(collector), metadata: { purchase_id: metadataPurchase ?? pref.body.metadata.purchase_id }, order: { id: Number(orderId), type: 'mercadopago' }, live_mode: liveMode, ...(paymentApplication === undefined ? {} : { application_id: paymentApplication }) },
       snapshots: [{ status, status_detail: statusDetail, date_last_updated: at }] });
       return id;
     },
@@ -40,7 +43,7 @@ export function makeMercadoPago({ sellerId, accessToken, me = null }) {
     update(id, { status, statusDetail = null, at }) { state.payments.get(id).snapshots.push({ status, status_detail: statusDetail, date_last_updated: at }); state.served.delete(id); },
     /** Serve an older snapshot (index) — a stale re-fetch; `null` = latest. */
     serve(id, index) { if (index === null) state.served.delete(id); else state.served.set(id, index); },
-    chargeback(paymentId) { const id = nextId(); state.chargebacks.set(id, { id: Number(id), payments: [Number(paymentId)], currency: 'ARS', amount: 39900, coverage_applied: false, live_mode: false }); return id; },
+    chargeback(paymentId, { liveMode = defaultLiveMode } = {}) { const id = nextId(); state.chargebacks.set(id, { id: Number(id), payments: [Number(paymentId)], currency: 'ARS', amount: 39900, coverage_applied: false, live_mode: liveMode }); return id; },
     async fetch(input, init = {}) {
       const url = new URL(String(input));
       const method = (init.method ?? 'GET').toUpperCase();
@@ -57,7 +60,7 @@ export function makeMercadoPago({ sellerId, accessToken, me = null }) {
         const key = new Headers(init.headers).get('x-idempotency-key');
         for (const [pid, p] of state.preferences) if (p.idempotencyKey === key) return json(201, p.answer);
         const id = `${sellerId}-${crypto.randomUUID()}`;
-        const answer = { id, collector_id: Number(sellerId), init_point: `https://www.mercadopago.com.ar/checkout/v1/redirect?pref_id=${id}`, sandbox_init_point: `https://sandbox.mercadopago.com.ar/checkout/v1/redirect?pref_id=${id}`,
+        const answer = { id, collector_id: Number(sellerId), client_id: applicationId, init_point: `https://www.mercadopago.com.ar/checkout/v1/redirect?pref_id=${id}`, sandbox_init_point: `https://sandbox.mercadopago.com.ar/checkout/v1/redirect?pref_id=${id}`,
           items: body.items, external_reference: body.external_reference, metadata: body.metadata, notification_url: body.notification_url, back_urls: body.back_urls, auto_return: body.auto_return,
           expires: body.expires, expiration_date_from: body.expiration_date_from, expiration_date_to: body.expiration_date_to, payer: { email: '', name: '' } };
         state.preferences.set(id, { body, idempotencyKey: key, answer, orderId: null });
@@ -84,9 +87,9 @@ export function makeMercadoPago({ sellerId, accessToken, me = null }) {
 }
 
 /** A Mercado Pago-shaped signed notification (x-signature over the raw ts bytes). */
-export function signedNotification({ base, secret, dataId, sellerId, type = 'payment', body = null, ts = String(Date.now()), requestId = crypto.randomUUID(), host = null }) {
+export function signedNotification({ base, secret, dataId, sellerId, type = 'payment', body = null, ts = String(Date.now()), requestId = crypto.randomUUID(), host = null, liveMode = true }) {
   const data = type === 'topic_chargebacks_wh' ? { id: String(dataId), checkout: 'PRO' } : { id: String(dataId) };
-  const payload = body ?? { id: Number(dataId) + 1, live_mode: false, type, date_created: new Date().toISOString(), user_id: Number(sellerId), api_version: 'v1', action: `${type}.updated`, data };
+  const payload = body ?? { id: Number(dataId) + 1, live_mode: liveMode, type, date_created: new Date().toISOString(), user_id: Number(sellerId), api_version: 'v1', action: `${type}.updated`, data };
   const v1 = crypto.createHmac('sha256', secret).update(`id:${dataId};request-id:${requestId};ts:${ts};`).digest('hex');
   const url = `${base}/webhooks/mercadopago/v1?data.id=${encodeURIComponent(dataId)}&type=${encodeURIComponent(type)}`;
   return { url, init: { method: 'POST', headers: { 'content-type': 'application/json', 'x-request-id': requestId, 'x-signature': `ts=${ts},v1=${v1}`, ...(host ? { host } : {}) }, body: JSON.stringify(payload) } };

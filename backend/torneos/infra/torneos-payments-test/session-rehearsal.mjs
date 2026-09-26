@@ -106,6 +106,12 @@ function fakeDeno({ onDeploy }) {
     if (method === 'GET' && (m = /^\/v2\/revisions\/([\w-]+)$/.exec(p))) return { status: 200, body: revisions.get(m[1]) };
     if (method === 'GET' && /\/logs\?/.test(p)) return { status: 200, body: [] };
     if (method === 'POST' && p === '/v2/apps') { writes.push('app-create'); const a = { id: 'app-pt', slug: body.slug, layers: [], labels: body.labels, config: body.config, env_vars: body.env_vars.map((e) => ({ key: e.key, secret: e.secret, contexts: e.contexts, ...(e.secret ? {} : { value: e.value }) })) }; apps.set(body.slug, a); onDeploy.env = Object.fromEntries(body.env_vars.map((e) => [e.key, e.value])); return { status: 200, body: a }; }
+    if (method === 'PATCH' && (m = /^\/v2\/apps\/([a-z-]+)$/.exec(p)) && apps.has(m[1])) {
+      // Deno merges the PATCH env_vars list into the app env (what the gateway R2 run measured)
+      writes.push('app-env'); const a = apps.get(m[1]);
+      for (const e of body.env_vars) { a.env_vars = a.env_vars.filter((x) => x.key !== e.key).concat([{ key: e.key, secret: e.secret, contexts: e.contexts, ...(e.secret ? {} : { value: e.value }) }]); onDeploy.env = { ...onDeploy.env, [e.key]: e.value }; }
+      return { status: 200, body: a };
+    }
     if (method === 'POST' && (m = /^\/v2\/apps\/([a-z-]+)\/deploy$/.exec(p))) { writes.push('deploy'); const id = `rev${++seq}x`; const r = { id, app: m[1], status: 'succeeded', timelines: [{ name: 'production', context: 'production', hostnames: [C.PAYMENTS_HOST] }] }; revisions.set(id, r); await onDeploy.boot(); return { status: 202, body: { ...r, status: 'queued' } }; }
     return { status: 404, body: { code: 'fake_unknown' } };
   };
@@ -218,6 +224,16 @@ async function main() {
     }
     r = await run('fixtures');
     record('S09 fixtures: one private QA org, S1 + S2, two MP TEST purchases of ARS 39.900; a real tenant exists and has no commercial row', r.ok && r.verdict === 'QA_FIXTURES_ISOLATED', r);
+    const writesBefore = deno.writes.length;
+    const bootedBefore = deployed.service;
+    r = await run('redeploy');
+    const fxOrg = session.state.fixtures?.org;
+    record('S09b redeploy: PLAN → phrase → PATCH exactly the QA organization pin → deploy the current source; the real config.ts accepts it', r.ok && r.verdict === 'PAYMENTS_TEST_APP_REDEPLOYED'
+      && deno.writes.slice(writesBefore).join() === 'app-env,deploy' && deployed.service !== bootedBefore
+      && Object.keys(deployed.env).sort().join(',') === C.ENV_NAMES_SCOPED.join(',') && deployed.env[C.QA_ORG_ENV] === fxOrg, { r, writes: deno.writes, names: Object.keys(deployed.env ?? {}) });
+    await sleep(1100); // evidence names carry a one-second stamp and are never overwritten
+    r = await run('redeploy');
+    record('S09c redeploy again: the pin is already there → no env write, one more deploy only', r.ok && deno.writes.slice(writesBefore).join() === 'app-env,deploy,deploy', { r, writes: deno.writes });
     r = await run('ordering');
     record('S10 ordering on the functions as the payments login, every transaction ROLLBACK, traceless', r.ok && session.state.results.ordering?.historical?.pass === true, r);
     r = await run('preference');
@@ -229,7 +245,8 @@ async function main() {
     const d1 = await deliver(rej);
     const pay = mp.pay(prefId, { status: 'approved', statusDetail: 'accredited', at: at(5) });
     const d2 = await deliver(pay);
-    record('S12 simulated sandbox: rejected + approved deliveries → 200', d1.status === 200 && d2.status === 200, { d1, d2 });
+    record('S12 simulated sandbox: rejected + approved deliveries (live_mode=true, as Mercado Pago sandbox sends) → 200 through the sandbox policy', d1.status === 200 && d2.status === 200
+      && mp.state.payments.get(pay).base.live_mode === true, { d1, d2 });
     r = await run('observe');
     record('S13 observe: rejected attempt, approved ARS 39900 TEST, grant effective, watermarks', r.ok && r.verdict === 'SANDBOX_CHECKOUT_APPLIED', r);
     r = await run('replays');

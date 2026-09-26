@@ -11,7 +11,9 @@
 // logs carry route, status and a short code only. MP-B1.1 R2: absurd future signing times are refused (webhook-freshness.ts).
 // MP-B1.1 R3: the webhook signature (10- or 13-digit ts, raw-byte manifest) is verified by webhook-signature.ts.
 // PAYMENTS TEST: in remote-test (remote-test.ts) every request must name the declared host and nothing is served until
-// Mercado Pago attests that the token belongs to the configured TEST seller.
+// Mercado Pago attests that the token belongs to the configured TEST seller. Mercado Pago sandbox reports live_mode=true,
+// so remote-test accepts a payment only through the explicit sandbox policy (remoteTestSandboxProblem: attested seller,
+// exact provider resources incl. our own Preference, pinned QA scope, ARS 39.900); lab/unit keep live_mode=false + binding.
 import {
   createMercadoPagoPaymentProvider,
   fetchMercadoPagoChargeback,
@@ -30,7 +32,17 @@ import { webhookTimeVerdict } from "./webhook-freshness.ts"
 import { parseMercadoPagoSignature, verifyMercadoPagoSignature } from "./webhook-signature.ts"
 import { createProviderFetch } from "./lab-fetch.ts"
 import { DbError, type PaymentsDb } from "./rpc.ts"
-import { ATTESTATION_RETRY_MS, type AttestationVerdict, attestTestSeller, MERCADO_PAGO_API_ORIGIN } from "./remote-test.ts"
+import {
+  ATTESTATION_RETRY_MS,
+  type AttestationVerdict,
+  attestTestSeller,
+  fetchRemoteTestPreference,
+  MERCADO_PAGO_API_ORIGIN,
+  remoteTestChargebackPaymentId,
+  remoteTestPurchaseProblem,
+  remoteTestSandboxProblem,
+  type RemoteTestPreference,
+} from "./remote-test.ts"
 
 export const PREFERENCE_TTL_MS = 30 * 60 * 1000
 const MAX_INTERNAL_BODY = 1024
@@ -145,6 +157,7 @@ export function createPaymentsService(deps: ServiceDeps): (req: Request) => Prom
   // PAYMENTS TEST: one provider attestation per isolate (started at boot); "not_test" is final, "unavailable" is retried
   // at most every ATTESTATION_RETRY_MS so unauthenticated traffic cannot turn into a stream of provider calls.
   let attested: AttestationVerdict | null = null
+  let attestedSellerId: string | null = null // the seller /users/me attested (remote-test); the sandbox policy requires it
   let attesting: Promise<AttestationVerdict> | null = null
   let retryAt = 0
   function attestation(cfg: PaymentsConfig): Promise<AttestationVerdict> {
@@ -156,6 +169,7 @@ export function createPaymentsService(deps: ServiceDeps): (req: Request) => Prom
       attesting = null
       if (verdict === "unavailable") retryAt = now() + ATTESTATION_RETRY_MS
       else attested = verdict
+      if (verdict === "ok") attestedSellerId = cfg.mp.sellerId
       if (verdict === "not_test") log({ fn: FUNCTION_NAME, event: "provider_not_test" })
       return verdict
     })
@@ -190,6 +204,7 @@ export function createPaymentsService(deps: ServiceDeps): (req: Request) => Prom
       return dbFailure(error)
     }
     const problem = purchaseProblem(purchase, purchaseId)
+      ?? (cfg.deployment !== null && purchase ? remoteTestPurchaseProblem(purchase, cfg.qaOrganizationId) : null)
     if (problem || !purchase) return result(422, { error: "purchase_invalid" }, `purchase_invalid_${problem}`)
     const context = { appBaseUrl: cfg.appBaseUrl, notificationUrl: cfg.notificationUrl }
     const invalidAnswer = fail(502, "provider_response_invalid")
@@ -266,7 +281,9 @@ export function createPaymentsService(deps: ServiceDeps): (req: Request) => Prom
     const data = isPlainObject(payload.data) ? payload.data : {}
     const isPayment = payload.type === "payment"
     const isChargeback = payload.type === "topic_chargebacks_wh" && data.checkout === "PRO"
-    if ((!isPayment && !isChargeback) || String(data.id ?? "") !== dataId || payload.live_mode !== false
+    // live_mode: false outside remote-test (certified); in remote-test only a boolean — sandbox says true (remote-test.ts).
+    const liveModeRefused = cfg.deployment === null ? payload.live_mode !== false : typeof payload.live_mode !== "boolean"
+    if ((!isPayment && !isChargeback) || String(data.id ?? "") !== dataId || liveModeRefused
       || String(payload.user_id ?? "") !== cfg.mp.sellerId) {
       return fail(400, "invalid_notification")
     }
@@ -276,9 +293,13 @@ export function createPaymentsService(deps: ServiceDeps): (req: Request) => Prom
     let paymentId: string
     let payment: MercadoPagoPayment & { date_last_updated?: unknown }
     try {
-      paymentId = isChargeback
-        ? paymentIdFromMercadoPagoChargeback(await fetchMercadoPagoChargeback(dataId, cfg.mp, fetcher!), dataId)
-        : dataId
+      if (!isChargeback) paymentId = dataId
+      else if (cfg.deployment === null) paymentId = paymentIdFromMercadoPagoChargeback(await fetchMercadoPagoChargeback(dataId, cfg.mp, fetcher!), dataId)
+      else {
+        const bound = remoteTestChargebackPaymentId(await fetchMercadoPagoChargeback(dataId, cfg.mp, fetcher!), dataId)
+        if (bound === null) return mismatch
+        paymentId = bound
+      }
       payment = await fetchMercadoPagoPayment(paymentId, cfg.mp, fetcher!)
     } catch (error) {
       return providerFailure(error, mismatch)
@@ -301,12 +322,26 @@ export function createPaymentsService(deps: ServiceDeps): (req: Request) => Prom
       return dbFailure(error)
     }
     if (purchaseProblem(purchase, null) || !purchase) return mismatch
-    try {
-      // seller (payment + order), external_reference, metadata.purchase_id, amount, currency,
-      // preference_id, payment ∈ order, live_mode=false.
-      verifyMercadoPagoPaymentBinding(payment, order, purchase, cfg.mp)
-    } catch {
-      return mismatch
+    if (cfg.deployment === null) {
+      try {
+        // seller (payment + order), external_reference, metadata.purchase_id, amount, currency,
+        // preference_id, payment ∈ order, live_mode=false.
+        verifyMercadoPagoPaymentBinding(payment, order, purchase, cfg.mp)
+      } catch {
+        return mismatch
+      }
+    } else {
+      // remote-test: the sandbox policy replaces live_mode=false; our own Preference is re-read from Mercado Pago too.
+      if (!purchase.providerPreferenceId) return mismatch
+      let preference: RemoteTestPreference
+      try {
+        preference = await fetchRemoteTestPreference(fetcher!, cfg.mp.accessToken, purchase.providerPreferenceId)
+      } catch (error) {
+        return providerFailure(error, mismatch)
+      }
+      const sandbox = remoteTestSandboxProblem({ payment, order, preference, purchase, attestedSellerId, sellerId: cfg.mp.sellerId,
+        qaOrganizationId: cfg.qaOrganizationId })
+      if (sandbox !== null) return result(422, { error: "payment_verification_failed" }, `payment_verification_failed_${sandbox}`)
     }
 
     // Only the independently re-fetched payment can supply the provider ordering timestamp.

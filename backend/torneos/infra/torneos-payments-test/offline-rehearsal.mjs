@@ -14,7 +14,9 @@
 //   • RT: the REAL payments sources (config.ts / handler.ts / db.ts, postgres.js 3.4.7 from the local Deno cache) in the
 //     hosted remote-test configuration, against the in-process Mercado Pago emulator: Preference (39.900 ARS), rejected
 //     attempt, approved + Premium grant, duplicates / replays (10- and 13-digit ts), stale snapshots, dispute →
-//     restore → old dispute, refund → revoke, every security negative, the LIVE guard and provider outages.
+//     restore → old dispute, refund → revoke, every security negative, the LIVE guard and provider outages. Like the real
+//     Mercado Pago sandbox, the emulator answers live_mode=true: the lifecycle runs through the remote-test sandbox policy
+//     (attested seller, exact resources, pinned QA organization); outside remote-test live_mode=true stays refused.
 // Evidence: backend/torneos/mp-b/evidence/payments-test/rehearsal-<stamp>/ (secret-scanned).
 import fs from 'node:fs';
 import path from 'node:path';
@@ -180,7 +182,8 @@ async function main() {
     const { createPaymentsDb } = await tree.import('torneos-payments/db.ts');
     const REMOTE_ENV = { TORNEOS_PAYMENT_PROVIDER: 'MERCADO_PAGO', MERCADO_PAGO_ENVIRONMENT: 'test', MERCADO_PAGO_TEST_ACCESS_TOKEN: MP_TOKEN, MERCADO_PAGO_TEST_WEBHOOK_SECRET: MP_SECRET,
       MERCADO_PAGO_TEST_SELLER_ID: SELLER, APP_PUBLIC_URL: C.APP_PUBLIC_URL, TORNEOS_PAYMENTS_NOTIFICATION_URL: C.WEBHOOK_URL, TORNEOS_PAYMENTS_INTERNAL_SECRET: INTERNAL_HEX,
-      TORNEOS_PAYMENTS_DB_URL: `postgres://${C.PAYMENT_LOGIN}.${C.TORNEOS_REF}:${PAY_PW}@${POOLER}:6543/postgres`, TORNEOS_PAYMENTS_DB_SSL_CA: CA_FIXTURE, TORNEOS_PAYMENTS_DEPLOYMENT: 'remote-test' };
+      TORNEOS_PAYMENTS_DB_URL: `postgres://${C.PAYMENT_LOGIN}.${C.TORNEOS_REF}:${PAY_PW}@${POOLER}:6543/postgres`, TORNEOS_PAYMENTS_DB_SSL_CA: CA_FIXTURE, TORNEOS_PAYMENTS_DEPLOYMENT: 'remote-test',
+      TORNEOS_PAYMENTS_TEST_QA_ORGANIZATION_ID: fx.org };
     const mp = makeMercadoPago({ sellerId: SELLER, accessToken: MP_TOKEN });
     const logs = [];
     const dbs = [];
@@ -224,7 +227,8 @@ async function main() {
     await neg('NEG03 future ts (+10 min)', notify('1', { ts: String(Date.now() + 600_000) }), 401, 'invalid_signature');
     await neg('NEG04 malformed ts (float)', notify('1', { ts: '1790000000.5' }), 401, 'invalid_signature');
     await neg('NEG05 malformed JSON body', call({ url: `${C.WEBHOOK_URL}?data.id=1&type=payment`, init: { method: 'POST', body: '{nope', headers: { 'content-type': 'application/json' } } }), 400, 'invalid_request');
-    await neg('NEG06 live_mode true', notify('1', { body: { type: 'payment', data: { id: '1' }, live_mode: true, user_id: Number(SELLER) } }), 400, 'invalid_notification');
+    await neg('NEG06 live_mode not a boolean ("true")', notify('1', { body: { type: 'payment', data: { id: '1' }, live_mode: 'true', user_id: Number(SELLER) } }), 400, 'invalid_notification');
+    await neg('NEG06b live_mode true on an unknown payment: the body is not authority, the provider lookup decides', notify('1', { body: { type: 'payment', data: { id: '1' }, live_mode: true, user_id: Number(SELLER) } }), 422, 'payment_verification_failed');
     await neg('NEG07 another seller (user_id)', notify('1', { body: { type: 'payment', data: { id: '1' }, live_mode: false, user_id: 1234 } }), 400, 'invalid_notification');
     await neg('NEG08 unknown topic', notify('1', { type: 'merchant_order' }), 400, 'invalid_notification');
     await neg('NEG09 body data.id ≠ signed query data.id', notify('1', { body: { type: 'payment', data: { id: '2' }, live_mode: false, user_id: Number(SELLER) } }), 400, 'invalid_notification');
@@ -234,7 +238,8 @@ async function main() {
     // binding mismatches: real emulator payments on the P1 preference that lie about one field each
     for (const [label, opts] of [['wrong amount (100)', { amount: 100 }], ['wrong currency (USD)', { currency: 'USD' }], ['external_reference of another purchase (P2 / S2)', { externalReference: `arma2:season:purchase:${fx.P2}`, metadataPurchase: fx.P2 }],
       ['malformed external_reference', { externalReference: 'arma2:season:purchase:not-a-uuid' }], ['metadata of another purchase', { metadataPurchase: fx.P2 }], ['another collector', { collector: '999999' }],
-      ['live payment', { liveMode: true }], ['payment not in its merchant order', { inOrder: false }]]) {
+      ['another application (payment application_id)', { paymentApplication: '999999' }], ['live_mode not a boolean', { liveMode: 'true' }],
+      ['payment not in its merchant order', { inOrder: false }]]) {
       const id = mp.pay(prefId, { status: 'approved', statusDetail: 'accredited', at: at(1), ...opts });
       await neg(`NEG binding: ${label}`, notify(id), 422, 'payment_verification_failed');
     }
@@ -259,6 +264,7 @@ async function main() {
     check('LC01 rejected attempt → 200; purchase stays payable (preference_created), payment.attempt_rejected', r.status === 200 && t.status === 'preference_created' && t.events.some((e) => e.type === 'payment.attempt_rejected'), { r, status: t.status });
     const pay = mp.pay(prefId, { status: 'approved', statusDetail: 'accredited', at: at(20) });
     r = await notify(pay); t = trailOf(fx.P1);
+    check('LC02a the approved sandbox payment reports live_mode=true (as Mercado Pago sandbox does)', mp.state.payments.get(pay).base.live_mode === true);
     check('LC02 approved → 200; purchase approved, one Premium grant, effective', r.status === 200 && t.status === 'approved' && t.approved_payment === pay && t.grants.length === 1 && t.grants[0].effective === true
       && JSON.stringify(t.grants[0].events.map((e) => e.type)) === '["granted"]', { r, t: { status: t.status, grants: t.grants } });
     r = await notify(pay);
@@ -295,6 +301,24 @@ async function main() {
     mp.serve(pay, null);
     check('LC13 exactly one grant for the season, one watermark per provider payment', t.grants.length === 1 && t.watermarks.length === 2 && new Set(t.watermarks.map((w) => w.payment)).size === 2, t.watermarks);
     check('LC14 P2 (ordering purchase) untouched by the whole lifecycle', trailOf(fx.P2).status === 'created' && trailOf(fx.P2).events.length === 1);
+
+    // live_mode=true outside remote-test: the same sources, deployment unset (offline DB host) → the certified guard refuses
+    const labEnv = { ...REMOTE_ENV, TORNEOS_PAYMENTS_DB_URL: `postgres://${C.PAYMENT_LOGIN}:${encodeURIComponent(PAY_PW)}@127.0.0.1:${port}/postgres` };
+    delete labEnv.TORNEOS_PAYMENTS_DEPLOYMENT; delete labEnv.TORNEOS_PAYMENTS_TEST_QA_ORGANIZATION_ID; delete labEnv.TORNEOS_PAYMENTS_DB_SSL_CA;
+    const labService = createPaymentsService({ env: labEnv, log: () => {}, fetcher: (u, i) => mp.fetch(u, i), connectDb: (url) => { const db = createPaymentsDb(url, undefined); dbs.push(db); return db; } });
+    const labCall = async ({ url, init }) => { const res = await labService(new Request(url, init)); return { status: res.status, body: await res.json() }; };
+    const before = snap();
+    let lr0 = await labCall(signedNotification({ base: C.PAYMENTS_BASE, secret: MP_SECRET, dataId: pay, sellerId: SELLER }));
+    check('LIVE-OUT live_mode=true outside remote-test → 400 invalid_notification (certified guard)', lr0.status === 400 && lr0.body.error === 'invalid_notification', lr0);
+    lr0 = await labCall(signedNotification({ base: C.PAYMENTS_BASE, secret: MP_SECRET, dataId: pay, sellerId: SELLER, liveMode: false }));
+    check('LIVE-OUT provider payment live_mode=true outside remote-test → 422 (byte-pinned provider binding)', lr0.status === 422 && lr0.body.error === 'payment_verification_failed', lr0);
+    // the QA pin: the same app pinned to another organization serves neither route for P1
+    const otherQa = createPaymentsService({ env: { ...REMOTE_ENV, TORNEOS_PAYMENTS_TEST_QA_ORGANIZATION_ID: crypto.randomUUID() }, log: () => {}, fetcher: (u, i) => mp.fetch(u, i), connectDb: () => {
+      const db = createPaymentsDb(`postgres://${C.PAYMENT_LOGIN}:${encodeURIComponent(PAY_PW)}@127.0.0.1:${port}/postgres`, undefined); dbs.push(db); return db; } });
+    const oq = async ({ url, init }) => { const res = await otherQa(new Request(url, init)); return { status: res.status, body: await res.json() }; };
+    const q1 = await oq(signedNotification({ base: C.PAYMENTS_BASE, secret: MP_SECRET, dataId: pay, sellerId: SELLER }));
+    const q2 = await oq(signedInternal({ url: C.INTERNAL_URL, secretHex: INTERNAL_HEX, body: JSON.stringify({ purchase_id: fx.P1 }) }));
+    check('QA-PIN an app pinned to another organization: webhook 422, preference 422; nothing changed', q1.status === 422 && q2.status === 422 && q2.body.error === 'purchase_invalid' && snap() === before, { q1, q2 });
 
     // LIVE guard with the real sources: a production (non-test) seller token
     const live = makeMercadoPago({ sellerId: SELLER, accessToken: MP_TOKEN, me: { id: Number(SELLER), site_id: 'MLA', tags: ['normal'] } });

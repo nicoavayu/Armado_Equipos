@@ -83,6 +83,7 @@ export function makeDenoClient({ transport = denoHttpsTransport, token, armedFor
     },
     async createApp(body) { return projectApp(ok(await call('POST', '/v2/apps', body), [200, 201])); },
     async deploy(body) { return projectRevision(ok(await call('POST', `/v2/apps/${C.APP_SLUG}/deploy`, body), [200, 201, 202])); },
+    async setQaPin(body) { return projectApp(ok(await call('PATCH', `/v2/apps/${C.APP_SLUG}`, body))); },
   };
 }
 
@@ -96,7 +97,15 @@ export const projectPreference = (p, sellerId) => (p && typeof p === 'object' ? 
   expiration_date_from: p.expiration_date_from ?? null, expiration_date_to: p.expiration_date_to ?? null,
   payer_fields_set: p.payer && typeof p.payer === 'object' ? Object.entries(p.payer).filter(([, v]) => v !== null && v !== '' && !(typeof v === 'object' && Object.values(v ?? {}).every((x) => x === null || x === ''))).map(([k]) => k) : [],
   init_point_host: host(p.init_point), sandbox_init_point_host: host(p.sandbox_init_point), operation_type: p.operation_type ?? null, purpose: p.purpose ?? null,
+  client_id_present: /^\d{1,32}$/.test(String(p.client_id ?? '')),
 } : null);
+/** The application relation the remote-test sandbox policy binds, as booleans (ids are not copied into evidence). */
+const exposed = (v) => v !== undefined && v !== null && v !== '';
+export const applicationRelation = (payment, order, preference) => {
+  const app = String(preference?.client_id ?? '');
+  const rel = (v) => (exposed(v) ? String(v) === app && /^\d{1,32}$/.test(app) : null);
+  return { preference_client_id_present: /^\d{1,32}$/.test(app), payment_application_id: rel(payment?.application_id), payment_client_id: rel(payment?.client_id), order_application_id: rel(order?.application_id) };
+};
 export const projectPayment = (p, sellerId) => (p && typeof p === 'object' ? {
   id: p.id !== undefined ? String(p.id) : null, status: p.status ?? null, status_detail: p.status_detail ?? null, date_last_updated: p.date_last_updated ?? null, date_created: p.date_created ?? null,
   transaction_amount: p.transaction_amount ?? null, currency_id: p.currency_id ?? null, live_mode: p.live_mode ?? null, collector_matches: String(p.collector_id ?? '') === sellerId,
@@ -124,6 +133,15 @@ export function makeMercadoPagoClient({ transport = mpHttpsTransport, token, sel
     get writes() { return log.filter((r) => r.kind.startsWith('write:')).length; },
     async attest() { return C.attestationOf(ok(await call('GET', '/users/me')), sellerId); },
     async preference(id) { return projectPreference(ok(await call('GET', `/checkout/preferences/${id}`)), sellerId); },
+    /** payment + its merchant order + our Preference, reduced to the sandbox-policy relations (read-only). */
+    async sandboxRelation(paymentId, preferenceId) {
+      const pay = ok(await call('GET', `/v1/payments/${paymentId}`));
+      const order = pay?.order?.id !== undefined ? ok(await call('GET', `/merchant_orders/${pay.order.id}`)) : null;
+      const pref = ok(await call('GET', `/checkout/preferences/${preferenceId}`));
+      return { payment: String(pay?.id ?? ''), live_mode: pay?.live_mode ?? null, collector_matches: String(pay?.collector_id ?? '') === sellerId, order: projectOrder(order, sellerId),
+        preference_collector_matches: String(pref?.collector_id ?? '') === sellerId, order_preference_matches: order?.preference_id === preferenceId, application: applicationRelation(pay, order, pref),
+        metadata_keys: pay?.metadata && typeof pay.metadata === 'object' ? Object.keys(pay.metadata).sort() : null };
+    },
     async payment(id) { const res = await call('GET', `/v1/payments/${id}`); return res.status === 404 ? null : projectPayment(ok(res), sellerId); },
     async paymentsFor(purchaseId) {
       const b = ok(await call('GET', `/v1/payments/search?external_reference=${encodeURIComponent(`arma2:season:purchase:${purchaseId}`)}&sort=date_created&criteria=asc&limit=20`));

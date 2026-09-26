@@ -92,3 +92,28 @@ test('P8 the payments psql runner keeps the whole output (> 64 KB head intact) a
   const big = await D.runPsqlProbe({ script: '', env: {}, redact: (s) => s, spawn: fake(D.MAX_PROBE_STDOUT + 8192) });
   assert.equal(big.code, -2); assert.equal(big.stderr_tail, 'stdout_overflow');
 });
+
+test('P9 SANDBOX redeploy: one PATCH of exactly the public QA organization pin, armed, on the TEST app only; env shapes', () => {
+  const org = '2489cc1f-0000-4000-8000-000000000001';
+  const good = { env_vars: [{ key: C.QA_ORG_ENV, value: org, secret: false, contexts: 'all' }] };
+  assert.throws(() => C.classifyDenoRequest({ method: 'PATCH', path: `/v2/apps/${C.APP_SLUG}`, body: good }), /not_armed/);
+  assert.equal(C.classifyDenoRequest({ method: 'PATCH', path: `/v2/apps/${C.APP_SLUG}`, body: good }, { armedFor: 'app-env' }).kind, 'write:app-env');
+  assert.throws(() => C.classifyDenoRequest({ method: 'PATCH', path: '/v2/apps/torneos-gateway', body: good }, { armedFor: 'app-env' }), /not_allowlisted/);
+  for (const bad of [
+    { env_vars: [{ ...good.env_vars[0], key: 'MERCADO_PAGO_ACCESS_TOKEN' }] }, { env_vars: [{ ...good.env_vars[0], secret: true }] }, { env_vars: [{ ...good.env_vars[0], value: 'qa-payments-test-x' }] },
+    { env_vars: [{ ...good.env_vars[0], contexts: 'production' }] }, { env_vars: [...good.env_vars, { ...good.env_vars[0], key: 'TORNEOS_PAYMENTS_DEPLOYMENT', value: 'x' }] },
+    { ...good, config: C.APP_CONFIG }, { env_vars: [] },
+  ]) assert.throws(() => C.assertDenoWriteBody('app-env', bad), /deno_env_update_only_qa_pin/, JSON.stringify(bad));
+  assert.equal(C.envShapeOf(C.ENV_NAMES), 'created'); assert.equal(C.envShapeOf(C.ENV_NAMES_SCOPED), 'scoped');
+  assert.equal(C.envShapeOf([...C.ENV_NAMES, 'MERCADO_PAGO_ACCESS_TOKEN']), 'other');
+  assert.deepEqual(C.forbiddenEnvNames(C.ENV_NAMES_SCOPED), []);
+  assert.equal(C.PHRASES.redeploy('abc'), `REDEPLOY TORNEOS PAYMENTS TEST DENO APP ${C.APP_SLUG} abc`);
+});
+
+test('P10 SANDBOX relation projection: booleans only, application ids never copied', async () => {
+  const { applicationRelation } = await import('./payments-clients.mjs');
+  const rel = applicationRelation({ application_id: 4412 }, { application_id: '4412' }, { client_id: '4412' });
+  assert.deepEqual(rel, { preference_client_id_present: true, payment_application_id: true, payment_client_id: null, order_application_id: true });
+  assert.equal(applicationRelation({}, { application_id: '1' }, { client_id: '4412' }).order_application_id, false);
+  assert.ok(!JSON.stringify(rel).includes('4412'));
+});

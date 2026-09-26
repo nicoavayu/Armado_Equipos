@@ -18,6 +18,8 @@ import { canonicalRemoteHost, productionHostProblem } from "./remote-hosts.ts"
 import {
   DEPLOYMENT_REMOTE_TEST,
   isOfflineDbHost,
+  isQaOrganizationId,
+  QA_ORGANIZATION_ENV,
   REMOTE_TEST_FORBIDDEN_ENV_RE,
   remoteTestDbProblem,
   remoteTestHost,
@@ -65,6 +67,7 @@ export type PaymentsConfig = {
   // PAYMENTS TEST: "remote-test" = the hosted TEST app (remote-test.ts); null = lab / loopback / offline fixture.
   deployment: typeof DEPLOYMENT_REMOTE_TEST | null
   remoteHost: string | null      // remote-test only: the only Host the app answers on
+  qaOrganizationId: string | null // remote-test only: the one QA organization it may serve (null = serves no purchase)
 }
 
 type Env = Record<string, string | undefined>
@@ -165,6 +168,10 @@ export function loadPaymentsConfig(env: Env): PaymentsConfig {
     throw new ConfigError("a hosted payments database requires TORNEOS_PAYMENTS_DEPLOYMENT=remote-test")
   }
   let remoteHost: string | null = null
+  const qaOrganizationId = optional(env, QA_ORGANIZATION_ENV)
+  if (qaOrganizationId !== null && (deployment === null || !isQaOrganizationId(qaOrganizationId))) {
+    throw new ConfigError(`${QA_ORGANIZATION_ENV} must be a lowercase uuid, remote-test only`)
+  }
   if (deployment !== null) {
     for (const name of Object.keys(env)) {
       if ((env[name] ?? "").trim() && REMOTE_TEST_FORBIDDEN_ENV_RE.test(name)) throw new ConfigError(`refusing ${name} in remote-test`)
@@ -181,6 +188,7 @@ export function loadPaymentsConfig(env: Env): PaymentsConfig {
   return {
     deployment,
     remoteHost,
+    qaOrganizationId,
     mp,
     appBaseUrl,
     notificationUrl,

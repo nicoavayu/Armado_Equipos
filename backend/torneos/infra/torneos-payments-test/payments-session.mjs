@@ -15,6 +15,7 @@
 //   preflight        read   Supabase (--db-certify reads), Deno (apps, gateway app env names), gateway live, MP attestation, Keychain
 //   pb               write  PLAN → phrase → Keychain password → SCRAM verifier → the ONE psql transaction as postgres → delta + login probe
 //   create           write  PLAN → phrase → Keychain HMAC key → POST /v2/apps torneos-payments-test (app-level env) → deploy r1
+//   redeploy         write  PLAN → phrase → (PATCH the QA organization pin, once) → deploy the current source (sandbox policy)
 //   app-probe        read   the live TEST app: routing, Host, HMAC, signature and binding negatives (nothing is written)
 //   fixtures         read   the QA org / S1 / S2 / purchases created in the browser (qa-fixtures.js), census + isolation
 //   ordering         read*  the MP-B1.2 permutations on the hosted functions as the payments login, every transaction ROLLBACK
@@ -78,7 +79,7 @@ export async function validatePaymentsEnvWithRealConfig(env) {
   try {
     const { loadPaymentsConfig } = await tree.import('torneos-payments/config.ts');
     const cfg = loadPaymentsConfig(env);
-    return { deployment: cfg.deployment, remoteHost: cfg.remoteHost, sellerId: cfg.mp.sellerId, notificationUrl: cfg.notificationUrl, appBaseUrl: cfg.appBaseUrl, ca: !!cfg.dbSslCa };
+    return { deployment: cfg.deployment, remoteHost: cfg.remoteHost, sellerId: cfg.mp.sellerId, notificationUrl: cfg.notificationUrl, appBaseUrl: cfg.appBaseUrl, ca: !!cfg.dbSslCa, qaOrganizationId: cfg.qaOrganizationId };
   } finally { await tree.cleanup(); }
 }
 
@@ -185,12 +186,15 @@ export function makeSession({ pat, deno, mpToken, mpSecret, deps }) {
       const names = (app.env_vars ?? []).map((e) => e.key);
       const bad = C.forbiddenEnvNames(names);
       if (bad.length) failures.push(`PAYMENTS_APP_FORBIDDEN_ENV:${bad.join(',')}`);
-      if ([...names].sort().join(',') !== C.ENV_NAMES.join(',')) failures.push('PAYMENTS_APP_ENV_NOT_EXACT');
+      if (C.envShapeOf(names) === 'other') failures.push('PAYMENTS_APP_ENV_NOT_EXACT');
+      const pin = (app.env_vars ?? []).find((e) => e.key === C.QA_ORG_ENV);
+      if (pin && pin.secret !== false) failures.push('PAYMENTS_APP_QA_PIN_NOT_PUBLIC');
       if ((app.env_vars ?? []).some((e) => e.secret !== C.SECRET_NAMES.includes(e.key))) failures.push('PAYMENTS_APP_SECRET_FLAGS');
       if ((app.env_vars ?? []).some((e) => e.secret && e.value_returned)) failures.push('PAYMENTS_APP_SECRET_VALUE_RETURNED');
       if ((app.layers ?? []).length) failures.push('PAYMENTS_APP_LAYERS_PRESENT');
     }
-    return { apps, layers, gateway: gateway ? { slug: gateway.slug, env_names: gwNames.sort(), layers: gateway.layers } : null, app, revisions: revisions.slice(0, 5), failures };
+    return { apps, layers, gateway: gateway ? { slug: gateway.slug, env_names: gwNames.sort(), layers: gateway.layers } : null, app, revisions: revisions.slice(0, 5), failures,
+      env_shape: app ? C.envShapeOf((app.env_vars ?? []).map((e) => e.key)) : null };
   }
   /** The Production gateway, live: healthy, commerce route absent, commerce RPC refused before any Core call. */
   async function gatewayLive() {
@@ -293,12 +297,13 @@ export function makeSession({ pat, deno, mpToken, mpSecret, deps }) {
   }
   const dbPassword = () => remember(deps.keychain().dbPassword.read());
 
-  function paymentsEnv({ host, password, internal }) {
+  function paymentsEnv({ host, password, internal, qaOrg = null }) {
     const env = {
       TORNEOS_PAYMENT_PROVIDER: 'MERCADO_PAGO', MERCADO_PAGO_ENVIRONMENT: 'test', MERCADO_PAGO_TEST_ACCESS_TOKEN: mpToken, MERCADO_PAGO_TEST_WEBHOOK_SECRET: mpSecret, MERCADO_PAGO_TEST_SELLER_ID: sellerId,
       APP_PUBLIC_URL: C.APP_PUBLIC_URL, TORNEOS_PAYMENTS_NOTIFICATION_URL: C.WEBHOOK_URL, TORNEOS_PAYMENTS_INTERNAL_SECRET: internal,
       TORNEOS_PAYMENTS_DB_URL: `postgres://${C.PAYMENT_LOGIN}.${C.TORNEOS_REF}:${password}@${host}:6543/postgres`, TORNEOS_PAYMENTS_DB_SSL_CA: Buffer.from(deps.readCaPem()).toString('base64'),
       TORNEOS_PAYMENTS_DEPLOYMENT: 'remote-test',
+      ...(qaOrg ? { [C.QA_ORG_ENV]: qaOrg } : {}),
     };
     remember(env.TORNEOS_PAYMENTS_DB_URL);
     return env;
@@ -363,6 +368,58 @@ export function makeSession({ pat, deno, mpToken, mpSecret, deps }) {
     return { verdict };
   }
 
+  /** SANDBOX decision: the current source (remote-test sandbox policy) + the QA organization pin, on the existing TEST app. */
+  async function redeploy() {
+    const fx = needFixtures();
+    const sb = await supabase();
+    if (C.paymentLoginState(sb.paymentRoles) !== 'present') stop('PAYMENT_LOGIN_NOT_PRESENT');
+    const sf = supabaseFailures(sb, { expectLogin: true });
+    if (sf.length) stop('REDEPLOY_PRECONDITIONS_FAILED', { failures: sf });
+    const obs = await denoObserve();
+    if (obs.failures.length || !obs.app) stop('DENO_OBSERVE_FAILED', { failures: obs.failures, app: !!obs.app });
+    if (obs.gateway?.env_names?.some((n) => C.GATEWAY_MUST_NOT_HOLD.some((re) => re.test(n)))) stop('GATEWAY_HOLDS_PAYMENTS_ENV');
+    const attestation = await mp.attest();
+    if (!attestation.pass) stop('MP_TEST_SELLER_ATTESTATION_FAILED', { attestation });
+    const host = sb.pooler.hosts.find((h) => D.POOLER_HOST_PATTERN.test(h)) ?? stop('POOLER_HOST_NOT_SA_EAST_1');
+    const pinNeeded = obs.env_shape === 'created';
+    const b = bundle();
+    const envBody = { env_vars: [{ key: C.QA_ORG_ENV, value: fx.org, secret: false, contexts: 'all' }] };
+    const deployBody = { assets: b.assets, labels: { 'custom.git_head': b.summary.head }, production: true, preview: false };
+    if (pinNeeded) C.assertDenoWriteBody('app-env', envBody);
+    C.assertDenoWriteBody('deploy', deployBody);
+    const plan = { step: 'redeploy', app: C.APP_SLUG, app_id: obs.app.id, env_shape_before: obs.env_shape, qa_pin: { name: C.QA_ORG_ENV, organization: fx.org, slug: fx.slug, patch: pinNeeded },
+      previous_revision: obs.revisions[0]?.id ?? null, bundle: { head: b.summary.head, digest: b.summary.digest, files: b.summary.files.length }, seller_id: sellerId, gateway_app: 'untouched',
+      policy: 'remote-test sandbox: live_mode is reported, not trusted; attested seller + exact provider resources + QA pin + ARS 39.900' };
+    const planId = planIdOf(plan);
+    say(`\nPLAN ${planId}: redeploy the Deno Deploy app ${C.APP_SLUG} (TEST only; torneos-gateway untouched)\n  ${pinNeeded ? `PATCH app env: + ${C.QA_ORG_ENV}=${fx.org} (public, the QA org ${fx.slug}); nothing else changes` : `QA pin already present (${fx.org}); no env change`}\n  then deploy the current source: ${plan.bundle.files} files, HEAD ${b.summary.head}, digest ${b.summary.digest.slice(0, 16)}… (previous revision ${plan.previous_revision})\n  seller ${sellerId} attested test_user MLA`);
+    const authorization = requirePhrase(C.PHRASES.redeploy(planId));
+    const again = await denoObserve();
+    if (again.failures.length || again.env_shape !== obs.env_shape || (again.revisions[0]?.id ?? null) !== plan.previous_revision) stop('DENO_STATE_CHANGED_SINCE_PLAN');
+    // the real config.ts judges the exact env the new revision will run with (values from custody, nothing sent)
+    const validation = await deps.validatePaymentsEnv(paymentsEnv({ host, password: dbPassword(), internal: loadInternal(), qaOrg: fx.org }));
+    if (validation.deployment !== 'remote-test' || validation.remoteHost !== C.PAYMENTS_HOST || validation.sellerId !== sellerId || !validation.ca || validation.qaOrganizationId !== fx.org) stop('PAYMENTS_ENV_REJECTED_BY_REAL_CONFIG', { validation });
+    let patched = null;
+    if (pinNeeded) { denoArmed = 'app-env'; try { patched = await denoClient.setQaPin(envBody); } finally { denoArmed = null; } }
+    denoArmed = 'deploy'; let rev; try { rev = await denoClient.deploy(deployBody); } finally { denoArmed = null; }
+    const done = await waitRevision(rev.id);
+    const hosts = done?.status === 'succeeded' ? await hostsOf(rev.id, done) : [];
+    const after = await denoObserve();
+    const gwAfter = await gatewayLive();
+    const ok = done?.status === 'succeeded' && hosts.includes(C.PAYMENTS_HOST) && !after.failures.length && after.env_shape === 'scoped' && gwAfter.pass;
+    const previousPin = (() => { try { return JSON.parse(fs.readFileSync(deps.deployPinFile, 'utf8')); } catch { return null; } })();
+    const pinDoc = { purpose: 'Arma2 Torneos payments TEST app on Deno Deploy — public facts only', app: C.APP_SLUG, app_id: after.app?.id ?? null, host: C.PAYMENTS_HOST, public_url: C.PAYMENTS_BASE, webhook_url: C.WEBHOOK_URL,
+      revision: rev.id, previous_revision: plan.previous_revision, first_revision: previousPin?.first_revision ?? previousPin?.revision ?? null, hosts, seller_id: sellerId, qa_organization: fx.org,
+      source: { head: b.summary.head, digest: b.summary.digest, files: b.summary.files }, env: describe(paymentsEnv({ host, password: dbPassword(), internal: loadInternal(), qaOrg: fx.org })), deployed_at: new Date(deps.now()).toISOString() };
+    if (ok) fs.writeFileSync(deps.deployPinFile, `${JSON.stringify(pinDoc, null, 1)}\n`);
+    const verdict = ok ? 'PAYMENTS_TEST_APP_REDEPLOYED' : 'PAYMENTS_TEST_APP_REDEPLOY_POSTCHECK_FAILED';
+    writeEvidence(`pt-03b-redeploy-${stamp()}.json`, { verdict, plan, plan_id: planId, authorization, env_validated_by_real_config: validation, env_patch: pinNeeded ? { names: [C.QA_ORG_ENV], app_after_patch: patched } : null,
+      revision: done, hosts, after: { app: after.app, env_shape: after.env_shape, apps: after.apps, gateway: after.gateway, failures: after.failures }, gateway_live: gwAfter, deploy_pin: ok ? pinDoc : null,
+      deno_requests: denoClient.requests, deno_writes: denoClient.writes });
+    say(`redeploy: ${verdict} revision=${rev.id} env=${after.env_shape}`);
+    if (!ok) stop(verdict, { status: done?.status, failure: done?.failure_detail, hosts, env_shape: after.env_shape, failures: after.failures });
+    return { verdict };
+  }
+
   const loadInternal = () => { if (!internalHex) internalHex = remember(deps.keychain().internalSecret.read()); return internalHex; };
   async function trailNow() { const o = await supabase(); return { census: o.census, trail: o.trail }; }
 
@@ -395,7 +452,8 @@ export function makeSession({ pat, deno, mpToken, mpSecret, deps }) {
     add('webhook with a malformed ts → 401', await app.notify('1', { ts: '17900000.5' }), 401, 'invalid_signature');
     add('webhook with a malformed JSON body → 400', await app.raw('webhook', 'POST', hook('1'), { body: '{nope', headers: { 'content-type': 'application/json' } }), 400, 'invalid_request');
     add('webhook oversized body → 413', await app.raw('webhook', 'POST', hook('1'), { body: 'x'.repeat(40 * 1024), headers: { 'content-type': 'application/json' } }), 413, 'payload_too_large');
-    add('webhook live_mode true → 400', await app.notify('1', { body: app.notification('1', 'payment', { live_mode: true }) }), 400, 'invalid_notification');
+    add('webhook live_mode not a boolean ("true") → 400', await app.notify('1', { body: app.notification('1', 'payment', { live_mode: 'true' }) }), 400, 'invalid_notification');
+    add('webhook live_mode true, unknown payment → 422 (the body is not authority; the provider lookup decides)', await app.notify('1', { body: app.notification('1', 'payment', { live_mode: true }) }), 422, 'payment_verification_failed');
     add('webhook of another seller → 400', await app.notify('1', { body: app.notification('1', 'payment', { user_id: 1234567 }) }), 400, 'invalid_notification');
     add('webhook unknown topic (merchant_order) → 400', await app.notify('1', { type: 'merchant_order' }), 400, 'invalid_notification');
     add('webhook body data.id ≠ signed data.id → 400', await app.notify('1', { body: app.notification('2') }), 400, 'invalid_notification');
@@ -520,12 +578,12 @@ export function makeSession({ pat, deno, mpToken, mpSecret, deps }) {
     const payments = await mp.paymentsFor(fx.P1);
     const t = (await trailNow()).trail.find((p) => p.purchase === fx.P1);
     let logs = null;
-    try { logs = await denoClient.logs(new Date(deps.now() - 3 * 3600000).toISOString(), new Date(deps.now()).toISOString()); } catch (e) { logs = { unavailable: e.code ?? String(e.message).slice(0, 80) }; }
+    try { logs = await denoClient.logs(new Date(deps.now() - 6 * 3600000).toISOString(), new Date(deps.now()).toISOString()); } catch (e) { logs = { unavailable: e.code ?? String(e.message).slice(0, 80) }; }
     const approved = payments.find((p) => p.status === 'approved' || p.status === 'refunded') ?? null;
     const rejected = payments.filter((p) => p.status === 'rejected');
     const checks = [
       ['Mercado Pago TEST: ≥ 1 rejected attempt on the preference', rejected.length >= 1],
-      ['Mercado Pago TEST: one approved payment, ARS 39900, TEST (live_mode false), our seller, external_reference = P1', !!approved && approved.transaction_amount === C.PRODUCT.amount && approved.currency_id === 'ARS' && approved.live_mode === false && approved.collector_matches && approved.external_reference === `arma2:season:purchase:${fx.P1}` && approved.metadata_purchase_id === fx.P1],
+      ['Mercado Pago TEST: one approved payment, ARS 39900, our attested TEST seller, external_reference = P1 (live_mode reported, not trusted)', !!approved && approved.transaction_amount === C.PRODUCT.amount && approved.currency_id === 'ARS' && typeof approved.live_mode === 'boolean' && approved.collector_matches && approved.external_reference === `arma2:season:purchase:${fx.P1}` && approved.metadata_purchase_id === fx.P1],
       ['DB: purchase approved with that payment id', t?.status === 'approved' && t?.approved_payment === approved?.id],
       ['DB: a payment.attempt_rejected event (purchase stayed payable)', !!t?.events?.some((e) => e.type === 'payment.attempt_rejected')],
       ['DB: exactly one Premium season grant from P1, effective, events [granted]', t?.grants?.length === 1 && t.grants[0].effective === true && canon(t.grants[0].events.map((e) => e.type)) === canon(['granted'])],
@@ -534,8 +592,14 @@ export function makeSession({ pat, deno, mpToken, mpSecret, deps }) {
     ].map(([name, pass]) => ({ name, pass: !!pass }));
     const pass = checks.every((c) => c.pass);
     state.approved = approved ? { id: approved.id, date_last_updated: approved.date_last_updated } : null;
+    // the relations the sandbox policy binds (booleans only), for every provider payment of P1
+    const prefId = state.preference?.id ?? t?.preference_id ?? null;
+    const relations = [];
+    for (const p of prefId ? payments : []) { try { relations.push(await mp.sandboxRelation(p.id, prefId)); } catch (e) { relations.push({ payment: p.id, error: e.code ?? 'READ_FAILED' }); } }
+    const webhookLog = Array.isArray(logs) ? logs.filter((l) => /torneos-payments/.test(l.message) && /"route":"webhook"/.test(l.message)).map((l) => {
+      let j = null; try { j = JSON.parse(l.message); } catch { j = null; } return { at: l.timestamp, revision: l.revision_id, status: j?.status ?? null, code: j?.code ?? null }; }) : null;
     writeEvidence(`pt-08-sandbox-checkout-${stamp()}.json`, { verdict: pass ? 'SANDBOX_CHECKOUT_APPLIED' : 'SANDBOX_CHECKOUT_INCOMPLETE', read_only: true, purchase: fx.P1, preference: state.preference?.id ?? t?.preference_id ?? null,
-      provider_payments: payments, db: t, app_logs: Array.isArray(logs) ? logs.filter((l) => /torneos-payments/.test(l.message)).slice(-60) : logs, checks, mp_requests: mp.requests });
+      provider_payments: payments, sandbox_relations: relations, db: t, webhook_deliveries: webhookLog, app_logs: Array.isArray(logs) ? logs.filter((l) => /torneos-payments/.test(l.message)).slice(-60) : logs, checks, mp_requests: mp.requests });
     say(`observe: ${checks.filter((c) => c.pass).length}/${checks.length} payments=${JSON.stringify(payments.map((p) => [p.id, p.status, p.status_detail]))} db=${t?.status}${checks.filter((c) => !c.pass).map((c) => `\n  FAIL ${c.name}`).join('')}`);
     return { verdict: pass ? 'SANDBOX_CHECKOUT_APPLIED' : 'SANDBOX_CHECKOUT_INCOMPLETE' };
   }
@@ -554,7 +618,9 @@ export function makeSession({ pat, deno, mpToken, mpSecret, deps }) {
     add('same request id + signature replayed → still a duplicate, nothing new', await (async () => { const rid = crypto.randomUUID(); const ts = String(deps.now()); await app.notify(pay, { ts, requestId: rid }); return app.notify(pay, { ts, requestId: rid }); })(), 200, 'provider_snapshot_duplicate');
     add('real payment id, wrong secret → 401', await app.notify(pay, { secret: crypto.randomBytes(32).toString('hex') }), 401, undefined, 'invalid_signature');
     add('real payment id, notification of another seller → 400', await app.notify(pay, { body: app.notification(pay, 'payment', { user_id: 1234567 }) }), 400, undefined, 'invalid_notification');
-    add('real payment id, live_mode true → 400', await app.notify(pay, { body: app.notification(pay, 'payment', { live_mode: true }) }), 400, undefined, 'invalid_notification');
+    add('real payment id, live_mode not a boolean ("true") → 400', await app.notify(pay, { body: app.notification(pay, 'payment', { live_mode: 'true' }) }), 400, undefined, 'invalid_notification');
+    add('real payment id, body live_mode true (as sandbox sends) → re-fetched, duplicate', await app.notify(pay, { body: app.notification(pay, 'payment', { live_mode: true }) }), 200, 'provider_snapshot_duplicate');
+    add('real payment id, body live_mode false (a lie) → re-fetched, duplicate: the body is never authority', await app.notify(pay, { body: app.notification(pay, 'payment', { live_mode: false }) }), 200, 'provider_snapshot_duplicate');
     const after = await trailNow();
     const t0 = before.trail.find((p) => p.purchase === fx.P1); const t1 = after.trail.find((p) => p.purchase === fx.P1);
     checks.push({ name: 'no replay changed the purchase, its events, grants or watermarks', pass: canon(t0) === canon(t1) });
@@ -570,12 +636,12 @@ export function makeSession({ pat, deno, mpToken, mpSecret, deps }) {
     const fx = needFixtures();
     const pay = state.approved?.id ?? stop('RUN_OBSERVE_FIRST');
     const p = await mp.payment(pay);
-    if (!p || p.status !== 'approved' || p.live_mode !== false || !p.collector_matches || p.transaction_amount !== C.PRODUCT.amount || p.external_reference !== `arma2:season:purchase:${fx.P1}`) stop('PAYMENT_NOT_REFUNDABLE_TEST', { payment: p });
+    if (!p || p.status !== 'approved' || typeof p.live_mode !== 'boolean' || !p.collector_matches || p.transaction_amount !== C.PRODUCT.amount || p.external_reference !== `arma2:season:purchase:${fx.P1}`) stop('PAYMENT_NOT_REFUNDABLE_TEST', { payment: p });
     const t0 = (await trailNow()).trail.find((x) => x.purchase === fx.P1);
     if (t0?.status !== 'approved') stop('PURCHASE_NOT_APPROVED');
     const plan = { step: 'refund', payment: pay, amount: p.transaction_amount, currency: p.currency_id, live_mode: p.live_mode, seller: sellerId, purchase: fx.P1, kind: 'full refund, Mercado Pago TEST sandbox' };
     const planId = planIdOf(plan);
-    say(`\nPLAN ${planId}: full refund of the Mercado Pago TEST payment ${pay} (ARS ${p.transaction_amount}, live_mode false, seller ${sellerId} test_user)\n  then wait for the signed webhook: purchase → refunded, Premium grant → revoked`);
+    say(`\nPLAN ${planId}: full refund of the Mercado Pago TEST payment ${pay} (ARS ${p.transaction_amount}, sandbox live_mode=${p.live_mode}, seller ${sellerId} attested test_user)\n  then wait for the signed webhook: purchase → refunded, Premium grant → revoked`);
     const authorization = requirePhrase(C.PHRASES.refund(planId));
     const again = await mp.payment(pay);
     if (again?.status !== 'approved') stop('PAYMENT_CHANGED_SINCE_PLAN');
@@ -619,6 +685,7 @@ export function makeSession({ pat, deno, mpToken, mpSecret, deps }) {
     const dn = await denoObserve();
     f.push(...dn.failures);
     if (!dn.app) f.push('PAYMENTS_APP_ABSENT');
+    if (dn.env_shape !== 'scoped') f.push('PAYMENTS_APP_QA_PIN_ABSENT');
     const gw = await gatewayLive();
     if (!gw.pass) f.push('GATEWAY_LIVE_CHECK_FAILED');
     const attestation = await mp.attest();
@@ -627,7 +694,7 @@ export function makeSession({ pat, deno, mpToken, mpSecret, deps }) {
     if (t?.status !== 'refunded' || t.grants?.length !== 1 || t.grants[0].effective !== false) f.push('P1_LIFECYCLE_NOT_COMPLETE');
     if (t2?.status !== 'created' || t2.events.length !== 1 || t2.grants.length || t2.watermarks.length) f.push('P2_NOT_TRACELESS');
     if (Number(sb.census.organizations_qa) !== 1 || Number(sb.census.season_grants) !== 1 || Number(sb.census.purchases) !== 2) f.push('CENSUS_NOT_EXACTLY_THE_QA_SET');
-    const required = ['pt-01-preflight', 'pt-02-payments-login', 'pt-03-deno-app', 'pt-04-app-probe', 'pt-05-qa-fixtures', 'pt-06-ordering-rollback', 'pt-07-preference', 'pt-08-sandbox-checkout', 'pt-09-replays', 'pt-10-refund'];
+    const required = ['pt-01-preflight', 'pt-02-payments-login', 'pt-03-deno-app', 'pt-03b-redeploy', 'pt-04-app-probe', 'pt-05-qa-fixtures', 'pt-06-ordering-rollback', 'pt-07-preference', 'pt-08-sandbox-checkout', 'pt-09-replays', 'pt-10-refund'];
     const files = fs.readdirSync(deps.evidenceDir).filter((n) => n.startsWith('pt-') && n.endsWith('.json')).sort();
     const bound = required.map((prefix) => {
       const name = files.filter((n) => n.startsWith(`${prefix}-`)).at(-1) ?? null;
@@ -635,7 +702,7 @@ export function makeSession({ pat, deno, mpToken, mpSecret, deps }) {
       const text = fs.readFileSync(path.join(deps.evidenceDir, name), 'utf8');
       return { step: prefix, file: name, sha256: C.sha256(text), verdict: JSON.parse(text).verdict ?? null, secret_findings: C.secretFindings(text, known).length };
     });
-    const passVerdicts = { 'pt-01-preflight': 'PAYMENTS_PREFLIGHT_PASS', 'pt-02-payments-login': 'PAYMENTS_LOGIN_CREATED', 'pt-03-deno-app': 'PAYMENTS_TEST_APP_DEPLOYED', 'pt-04-app-probe': 'PAYMENTS_APP_PROBE_PASS',
+    const passVerdicts = { 'pt-01-preflight': 'PAYMENTS_PREFLIGHT_PASS', 'pt-02-payments-login': 'PAYMENTS_LOGIN_CREATED', 'pt-03-deno-app': 'PAYMENTS_TEST_APP_DEPLOYED', 'pt-03b-redeploy': 'PAYMENTS_TEST_APP_REDEPLOYED', 'pt-04-app-probe': 'PAYMENTS_APP_PROBE_PASS',
       'pt-05-qa-fixtures': 'QA_FIXTURES_ISOLATED', 'pt-06-ordering-rollback': 'REMOTE_ORDERING_PASS', 'pt-07-preference': 'MP_TEST_PREFERENCE_PASS', 'pt-08-sandbox-checkout': 'SANDBOX_CHECKOUT_APPLIED',
       'pt-09-replays': 'REAL_PAYMENT_REPLAYS_PASS', 'pt-10-refund': 'REFUND_LIFECYCLE_PASS' };
     for (const b of bound) if (b.verdict !== passVerdicts[b.step] || b.secret_findings) f.push(`EVIDENCE_${b.step}_${b.verdict ?? 'MISSING'}`);
@@ -656,7 +723,7 @@ export function makeSession({ pat, deno, mpToken, mpSecret, deps }) {
     async run(line) {
       const [cmd, ...rest] = line.trim().split(/\s+/);
       if (rest.length) stop('COMMAND_REFUSED');
-      const table = { preflight, pb, create, 'app-probe': appProbe, fixtures, ordering, preference, observe, replays, refund, certify,
+      const table = { preflight, pb, create, redeploy, 'app-probe': appProbe, fixtures, ordering, preference, observe, replays, refund, certify,
         status: async () => { say(JSON.stringify({ fixtures: state.fixtures, preference: state.preference, approved: state.approved, refunded: state.refunded, evidence: state.evidence })); return { verdict: 'STATUS' }; } };
       if (!table[cmd]) stop('COMMAND_UNKNOWN', { cmd });
       return table[cmd]();
