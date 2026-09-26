@@ -1,0 +1,101 @@
+EVIDENCE pt-01-preflight-20260926T182815Z.json f83c27ce712729de243d2f08d32a787ab4118f93563a7061e4b59328cd5c29c4
+preflight: login=absent app=absent attestation=true census={"auth_users":0,"identities":0,"organizations":0,"organizations_qa":0,"organization_members":0,"seasons":0,"seasons_outside_qa":0,"tournaments":0,"purchases":0,"purchases_outside_qa":0,"purchases_not_mp_test":0,"purchase_events":0,"purchase_events_outside_qa":0,"season_grants":0,"season_grants_outside_qa":0,"grant_events":0,"watermarks":0,"watermarks_outside_qa":0}
+
+PLAN 3ddcc0e24f7a: create the payments TEST login torneos_payments_test on Arma2 Torneos (onzpwnqxnvlgsevivngf)
+  LOGIN NOINHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS
+  GRANT torneos_payment_service (INHERIT FALSE, SET TRUE) — nothing else; the server receives a SCRAM-SHA-256 verifier only
+  one psql transaction as postgres@aws-0-sa-east-1.pooler.supabase.com:5432 (verify-full), guards first; password: Keychain arma2-torneos-payments-test/torneos_payments_test (generated now)
+
+To proceed the operator must send exactly:
+  CREATE TORNEOS PAYMENTS TEST LOGIN torneos_payments_test 3ddcc0e24f7a
+
+PLAN 3ddcc0e24f7a: create the payments TEST login torneos_payments_test on Arma2 Torneos (onzpwnqxnvlgsevivngf)
+  LOGIN NOINHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS
+  GRANT torneos_payment_service (INHERIT FALSE, SET TRUE) — nothing else; the server receives a SCRAM-SHA-256 verifier only
+  one psql transaction as postgres@aws-0-sa-east-1.pooler.supabase.com:5432 (verify-full), guards first; password: Keychain arma2-torneos-payments-test/torneos_payments_test (generated now)
+
+To proceed the operator must send exactly:
+  CREATE TORNEOS PAYMENTS TEST LOGIN torneos_payments_test 3ddcc0e24f7a
+phrase accepted
+EVIDENCE pt-02-payments-login-20260926T182816Z.json fc43a7d80c4e329a0ad22c55c22448691c6883ef601562ad0c52f5ac12a95e15
+
+PLAN e293569d8ba9: create Deno Deploy app torneos-payments-test (Free, default alias, no custom domain, 0 layers, no build) and deploy revision 1
+  env (11, app-level only): APP_PUBLIC_URL MERCADO_PAGO_ENVIRONMENT MERCADO_PAGO_TEST_ACCESS_TOKEN(secret) MERCADO_PAGO_TEST_SELLER_ID MERCADO_PAGO_TEST_WEBHOOK_SECRET(secret) TORNEOS_PAYMENTS_DB_SSL_CA TORNEOS_PAYMENTS_DB_URL(secret) TORNEOS_PAYMENTS_DEPLOYMENT TORNEOS_PAYMENTS_INTERNAL_SECRET(secret) TORNEOS_PAYMENTS_NOTIFICATION_URL TORNEOS_PAYMENT_PROVIDER
+  TORNEOS_PAYMENTS_DEPLOYMENT=remote-test, MERCADO_PAGO_ENVIRONMENT=test, seller 2718281828 (attested test_user MLA)
+  DB torneos_payments_test.onzpwnqxnvlgsevivngf@aws-0-sa-east-1.pooler.supabase.com:6543 verify-full; internal HMAC key: Keychain (generated now)
+  source: 13 files of the torneos-payments graph, HEAD c1a718432840e09e635075100a2beee48d9ac0c4, digest 71b474443d35b5df…
+  apps in the Deno org now: [torneos-gateway]; torneos-gateway untouched
+
+To proceed the operator must send exactly:
+  CREATE TORNEOS PAYMENTS TEST DENO APP torneos-payments-test e293569d8ba9
+phrase accepted
+EVIDENCE pt-03-deno-app-20260926T182817Z.json 98d7f487f433e1d1ce5168dc9d273b1979d2c23daa9c22db4325e304f33d14d2
+EVIDENCE pt-04-app-probe-20260926T182818Z.json ba5144dca8325d6faeb658d2f24884b85ba5d34d549cc2b866f6ff0ccb5a13f8
+app-probe: 27/27
+EVIDENCE pt-05-qa-fixtures-20260926T182818Z.json ca6ab8472ce4a6ce0eaea738d7575d8a6617d40411470ef2c143f207c2057d1c
+fixtures: QA_FIXTURES_ISOLATED {"org":"7c5c2efb-8368-42b6-a379-3433173656b5","slug":"qa-payments-test-40e23c0c","S1":"d7a7cdc7-3903-4ace-8b68-db08fc3d74a9","S2":"4f94f574-9863-41b0-ad3e-512866b09943","P1":"3fe2d04f-0514-4b02-8c10-b6713127513e","P2":"21a4be1d-060d-4db1-9a31-940737eccab9","superseded":[]}
+
+PLAN 54b96ca0dab9: redeploy the Deno Deploy app torneos-payments-test (TEST only; torneos-gateway untouched)
+  PATCH app env: + TORNEOS_PAYMENTS_TEST_QA_ORGANIZATION_ID=7c5c2efb-8368-42b6-a379-3433173656b5 (public, the QA org qa-payments-test-40e23c0c); nothing else changes
+  then deploy the current source: 13 files, HEAD c1a718432840e09e635075100a2beee48d9ac0c4, digest 71b474443d35b5df… (previous revision rev1x)
+  seller 2718281828 attested test_user MLA
+
+To proceed the operator must send exactly:
+  REDEPLOY TORNEOS PAYMENTS TEST DENO APP torneos-payments-test 54b96ca0dab9
+phrase accepted
+EVIDENCE pt-03b-redeploy-20260926T182819Z.json c66e23fd8467a7904a17a064ef3010e781a6be6d4a0e65fddcca6c0c2faf9159
+redeploy: PAYMENTS_TEST_APP_REDEPLOYED revision=rev2x env=scoped
+
+PLAN 77ef653409ba: redeploy the Deno Deploy app torneos-payments-test (TEST only; torneos-gateway untouched)
+  QA pin already present (7c5c2efb-8368-42b6-a379-3433173656b5); no env change
+  then deploy the current source: 13 files, HEAD c1a718432840e09e635075100a2beee48d9ac0c4, digest 71b474443d35b5df… (previous revision rev2x)
+  seller 2718281828 attested test_user MLA
+
+To proceed the operator must send exactly:
+  REDEPLOY TORNEOS PAYMENTS TEST DENO APP torneos-payments-test 77ef653409ba
+phrase accepted
+EVIDENCE pt-03b-redeploy-20260926T182820Z.json a2a3d60996d11856b7aa42e55ec6d281171c00a2018270ea536925c078658326
+redeploy: PAYMENTS_TEST_APP_REDEPLOYED revision=rev3x env=scoped
+EVIDENCE pt-06-ordering-rollback-20260926T182821Z.json 7c7adb79d290fca9428498b18dee27c5bb385182f67da1984d08f3050fae8d1f
+ordering: 19/19 traceless=true
+
+PLAN e1832d86db1b: Mercado Pago TEST Preference for the QA purchase 3fe2d04f-0514-4b02-8c10-b6713127513e (season S1 d7a7cdc7-3903-4ace-8b68-db08fc3d74a9)
+  Arma2 Torneos Premium: 1 × ARS 39900 (list 49900), one-time, seller 2718281828 (test_user), expires in 30 min
+  through the TEST app's internal HMAC route; no payer data, no frontend, no public checkout
+
+To proceed the operator must send exactly:
+  CREATE MERCADO PAGO TEST PREFERENCE e1832d86db1b
+phrase accepted
+EVIDENCE pt-07-preference-20260926T182821Z.json 47fdfd48a1b3a2bc369b52f66c5fa206c4d83ade4c89329fe5ed37c6b44c7d82
+preference: 11/11
+  CHECKOUT_URL https://www.mercadopago.com.ar/checkout/v1/redirect?pref_id=2718281828-49891d8e-3234-4866-a8f9-be5388d518f1
+  expires 2026-09-26T18:58:21.491Z
+EVIDENCE pt-05-qa-fixtures-20260926T182823Z.json b5313703564024aaf38f61b2a93405b5a2791e4585aa8c5619461448481e78ee
+fixtures: QA_FIXTURES_ISOLATED {"org":"7c5c2efb-8368-42b6-a379-3433173656b5","slug":"qa-payments-test-40e23c0c","S1":"d7a7cdc7-3903-4ace-8b68-db08fc3d74a9","S2":"4f94f574-9863-41b0-ad3e-512866b09943","P1":"6549f9bb-c428-4a80-a5a0-3675dc10d544","P2":"21a4be1d-060d-4db1-9a31-940737eccab9","superseded":["3fe2d04f-0514-4b02-8c10-b6713127513e"]}
+
+PLAN 1d42dde4f2e2: Mercado Pago TEST Preference for the QA purchase 6549f9bb-c428-4a80-a5a0-3675dc10d544 (season S1 d7a7cdc7-3903-4ace-8b68-db08fc3d74a9)
+  Arma2 Torneos Premium: 1 × ARS 39900 (list 49900), one-time, seller 2718281828 (test_user), expires in 30 min
+  through the TEST app's internal HMAC route; no payer data, no frontend, no public checkout
+
+To proceed the operator must send exactly:
+  CREATE MERCADO PAGO TEST PREFERENCE 1d42dde4f2e2
+phrase accepted
+EVIDENCE pt-07-preference-20260926T182825Z.json fc389035dd82b883f352a9f2ae8356b9db470e90d3249e3f2bdb0795f590dbf1
+preference: 11/11
+  CHECKOUT_URL https://www.mercadopago.com.ar/checkout/v1/redirect?pref_id=2718281828-f45bb096-0f58-49bd-8b8d-af36d48d979f
+  expires 2026-09-26T18:58:24.982Z
+EVIDENCE pt-08-sandbox-checkout-20260926T182825Z.json 2b737774f9b980cb07014594b8e823d685ea58a9e282294b496c4d79d3cc9443
+observe: 7/7 payments=[["90000000004","approved","accredited"]] db=approved
+EVIDENCE pt-09-replays-20260926T182825Z.json a251821c9d3158e4023bcaa8453cd96a698a342efa46b87b3a797ed488a9bcbb
+replays: 10/10
+
+PLAN c59123811a75: full refund of the Mercado Pago TEST payment 90000000004 (ARS 39900, sandbox live_mode=true, seller 2718281828 attested test_user)
+  then wait for the signed webhook: purchase → refunded, Premium grant → revoked
+
+To proceed the operator must send exactly:
+  REFUND MERCADO PAGO TEST PAYMENT c59123811a75
+phrase accepted
+EVIDENCE pt-10-refund-20260926T182826Z.json fa832b3c4ef5192a698742aa7556e95a33866dbc708728d5d38c9b616ee82dcc
+refund: 7/7
+EVIDENCE pt-11-certify-20260926T182827Z.json 73bd17aef450b1cb8bb8f8bf6fc115db2f1b35318416ede2b256b6151975ad2a
+certify: PAYMENTS_REMOTE_TEST_CERTIFIED

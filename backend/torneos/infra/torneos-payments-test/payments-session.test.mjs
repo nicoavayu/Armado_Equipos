@@ -117,3 +117,28 @@ test('P10 SANDBOX relation projection: booleans only, application ids never copi
   assert.equal(applicationRelation({}, { application_id: '1' }, { client_id: '4412' }).order_application_id, false);
   assert.ok(!JSON.stringify(rel).includes('4412'));
 });
+
+test('P11 FRESH OPERATION: the fresh-purchase browser script touches only the certified hosts, S1 purchase RPC, one swept purchase', () => {
+  const src = fs.readFileSync(path.join(HERE, 'qa-fresh-purchase.js'), 'utf8');
+  new vm.Script(src);
+  const hosts = [...new Set([...src.matchAll(/https:\/\/([a-z0-9.-]+)/g)].map((m) => m[1]))].sort();
+  assert.deepEqual(hosts, ['app.arma2.com.ar', 'onzpwnqxnvlgsevivngf.supabase.co', 'torneos-gateway.nicoavayu.deno.net']);
+  const rpcs = [...new Set([...src.matchAll(/(?:gw|rest)\('([a-z_]+)'/g)].map((m) => m[1]))].sort();
+  assert.deepEqual(rpcs, ['create_tournament_season_checkout_purchase', 'get_my_tournament_memberships']);
+  assert.ok(src.includes(C.QA.orgSlugPrefix) && /expiredStalePurchases === 1/.test(src) && /QA_ORG_NOT_THE_PINNED_ONE/.test(src));
+  assert.ok(!/create_tournament_organization|create_tournament_season'|create_tournament_with_defaults|auth\/v1\/signup|service_role/.test(src));
+});
+
+test('P12 FRESH OPERATION: a superseded S1 purchase is expired by the service sweep and nothing the provider reached', () => {
+  const base = { status: 'expired', preference_id: '3712890098-abc', approved_payment: null, grants: [], watermarks: [], events: [
+    { type: 'purchase.created', from: null, to: 'created', actor: 'user' },
+    { type: 'preference.created', from: 'created', to: 'preference_created', actor: 'service' },
+    { type: 'purchase.expired', from: 'preference_created', to: 'expired', actor: 'service' }] };
+  assert.ok(C.isSupersededQaPurchase(base));
+  for (const bad of [
+    { ...base, status: 'preference_created' }, { ...base, status: 'cancelled' }, { ...base, preference_id: null }, { ...base, approved_payment: '180983221818' },
+    { ...base, grants: [{}] }, { ...base, watermarks: [{}] }, { ...base, events: base.events.slice(0, 2) },
+    { ...base, events: [...base.events.slice(0, 2), { type: 'payment.approved', from: 'preference_created', to: 'approved', actor: 'provider' }, base.events[2]] },
+    { ...base, events: [...base.events.slice(0, 2), { ...base.events[2], actor: 'user' }] }, null,
+  ]) assert.equal(C.isSupersededQaPurchase(bad), false, JSON.stringify(bad));
+});

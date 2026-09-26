@@ -252,6 +252,20 @@ export function paymentLoginState(paymentRoles) {
   if (JSON.stringify(names) === JSON.stringify([PAYMENT_LOGIN]) && paymentRoles.login) return 'present';
   return 'foreign';
 }
+/**
+ * FRESH OPERATION (2026-09-26): an S1 purchase the certified stale sweep of create_tournament_season_checkout_purchase
+ * retired (qa-fresh-purchase.js) — `expired` from preference_created by a service purchase.expired event, and nothing
+ * the provider ever reached: no provider-actor event, no approved payment, no grant, no watermark.
+ */
+export function isSupersededQaPurchase(p) {
+  const ev = p?.events ?? [];
+  const last = ev.at(-1);
+  return p?.status === 'expired' && typeof p.preference_id === 'string' && p.approved_payment === null
+    && Array.isArray(p.grants) && p.grants.length === 0 && Array.isArray(p.watermarks) && p.watermarks.length === 0
+    && !!last && last.type === 'purchase.expired' && last.actor === 'service' && last.from === 'preference_created' && last.to === 'expired'
+    && ev.every((e) => e.actor !== 'provider');
+}
+
 /** Data-plane isolation verdict of a census: everything commercial is QA-scoped and MP TEST. */
 export function censusFailures(c, { allowQa = true } = {}) {
   const f = [];

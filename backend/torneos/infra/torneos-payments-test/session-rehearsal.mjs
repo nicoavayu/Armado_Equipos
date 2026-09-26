@@ -38,7 +38,10 @@ const MP_SECRET = crypto.randomBytes(32).toString('hex');
 const PAT = `sbp_${crypto.randomBytes(20).toString('hex')}`;
 const DENO = `ddo_${crypto.randomBytes(20).toString('hex')}`;
 const POOLER = 'aws-0-sa-east-1.pooler.supabase.com';
-const EV_DIR = path.join(C.EVIDENCE_DIR, `session-rehearsal-${stamp}`);
+// FRESH OPERATION mode (PT_REHEARSAL_FRESH=1): the 2026-09-26 incident — the first checkout's webhooks never land, its
+// Preference expires — then qa-fresh-purchase.js (certified stale sweep + new S1 purchase) and ONE approved payment.
+const FRESH = process.env.PT_REHEARSAL_FRESH === '1';
+const EV_DIR = path.join(C.EVIDENCE_DIR, `session-rehearsal${FRESH ? '-fresh' : ''}-${stamp}`);
 const lines = [];
 const log = (s) => { lines.push(s); process.stdout.write(`${s}\n`); };
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -238,15 +241,38 @@ async function main() {
     record('S10 ordering on the functions as the payments login, every transaction ROLLBACK, traceless', r.ok && session.state.results.ordering?.historical?.pass === true, r);
     r = await run('preference');
     record('S11 preference: PLAN → phrase → internal HMAC → provider body exact, reuse, DB preference_created', r.ok && r.verdict === 'MP_TEST_PREFERENCE_PASS', r);
-    // the test buyer: a rejected attempt then an approved one; Mercado Pago delivers a signed webhook for each
-    const prefId = session.state.preference.id;
     const at = (s) => new Date(Date.now() - 60000 + s * 1000).toISOString().replace('Z', '-00:00');
-    const rej = mp.pay(prefId, { status: 'rejected', statusDetail: 'cc_rejected_other_reason', at: at(1) });
-    const d1 = await deliver(rej);
-    const pay = mp.pay(prefId, { status: 'approved', statusDetail: 'accredited', at: at(5) });
-    const d2 = await deliver(pay);
-    record('S12 simulated sandbox: rejected + approved deliveries (live_mode=true, as Mercado Pago sandbox sends) → 200 through the sandbox policy', d1.status === 200 && d2.status === 200
-      && mp.state.payments.get(pay).base.live_mode === true, { d1, d2 });
+    let prefId = session.state.preference.id;
+    if (FRESH) {
+      const p1Old = session.state.fixtures.P1;
+      // the incident: the buyer pays (rejected, then approved) but no webhook reaches the app; the Preference expires
+      mp.pay(prefId, { status: 'rejected', statusDetail: 'cc_rejected_other_reason', at: at(1) });
+      const lost = mp.pay(prefId, { status: 'approved', statusDetail: 'accredited', at: at(3) });
+      psql(`update public.tournament_purchases set preference_expires_at = now() - interval '4 hours' where id = '${p1Old}'`, { user: 'supabase_admin' });
+      r = await run('preference');
+      record('F01 no second Preference on the stale purchase (the session refuses: P1 is not `created`)', !r.ok && r.code === 'P1_NOT_CREATED', r);
+      // qa-fresh-purchase.js: the operator's identity, the certified S1 purchase RPC (its stale sweep retires P1)
+      const fresh = asUser(operator, `SELECT public.create_tournament_season_checkout_purchase('${orgId}', '${session.state.fixtures.S1}', '${crypto.randomUUID()}')`);
+      record('F02 qa-fresh-purchase RPC: exactly one stale purchase swept, a new created MP TEST ARS 39.900 purchase on S1', fresh.expiredStalePurchases === 1 && fresh.status === 'created' && fresh.amount === 39900 && fresh.providerEnvironment === 'test', fresh);
+      await sleep(1100);
+      r = await run('fixtures');
+      record('F03 fixtures: the swept purchase is superseded (expired, nothing the provider reached), the new one is P1', r.ok && session.state.fixtures?.superseded?.join() === p1Old && session.state.fixtures.P1 !== p1Old, { r, fx: session.state.fixtures });
+      await sleep(1100);
+      r = await run('preference');
+      record('F04 preference for the fresh purchase: PLAN → phrase → provider body exact, reuse, DB preference_created', r.ok && r.verdict === 'MP_TEST_PREFERENCE_PASS', r);
+      prefId = session.state.preference.id;
+      const pay = mp.pay(prefId, { status: 'approved', statusDetail: 'accredited', at: at(8) });
+      const d = await deliver(pay);
+      record('F05 ONE approved payment on the fresh Preference → signed delivery 200 through the sandbox policy; the lost payment stays unreconciled', d.status === 200 && mp.state.payments.get(pay).base.live_mode === true && lost !== pay, { d });
+    } else {
+      // the test buyer: a rejected attempt then an approved one; Mercado Pago delivers a signed webhook for each
+      const rej = mp.pay(prefId, { status: 'rejected', statusDetail: 'cc_rejected_other_reason', at: at(1) });
+      const d1 = await deliver(rej);
+      const pay = mp.pay(prefId, { status: 'approved', statusDetail: 'accredited', at: at(5) });
+      const d2 = await deliver(pay);
+      record('S12 simulated sandbox: rejected + approved deliveries (live_mode=true, as Mercado Pago sandbox sends) → 200 through the sandbox policy', d1.status === 200 && d2.status === 200
+        && mp.state.payments.get(pay).base.live_mode === true, { d1, d2 });
+    }
     r = await run('observe');
     record('S13 observe: rejected attempt, approved ARS 39900 TEST, grant effective, watermarks', r.ok && r.verdict === 'SANDBOX_CHECKOUT_APPLIED', r);
     r = await run('replays');
@@ -256,7 +282,7 @@ async function main() {
     r = await run('certify');
     record('S16 certify: every step bound by sha256, delta = pin, QA-only census, no secret anywhere', r.ok && r.verdict === 'PAYMENTS_REMOTE_TEST_CERTIFIED', r);
     const c = census();
-    record('S17 final census: 2 QA purchases (P1 refunded, P2 untouched), 1 revoked grant, control tenant without commercial rows', C.censusFailures(c).length === 0 && c.purchases === 2 && c.organizations === 2, c);
+    record(`S17 final census: ${FRESH ? '3 QA purchases (superseded expired, P1 refunded' : '2 QA purchases (P1 refunded'}, P2 untouched), 1 revoked grant, control tenant without commercial rows`, C.censusFailures(c).length === 0 && c.purchases === (FRESH ? 3 : 2) && c.organizations === 2, c);
     const leaks = C.secretFindings(transcript.join('\n'), session.known);
     record('S18 the whole transcript carries no secret', leaks.length === 0, leaks);
     session.wipe();

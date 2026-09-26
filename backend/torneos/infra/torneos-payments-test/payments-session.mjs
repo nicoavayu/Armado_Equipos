@@ -492,15 +492,18 @@ export function makeSession({ pat, deno, mpToken, mpSecret, deps }) {
     const S1 = seasonOf('S1'); const S2 = seasonOf('S2');
     if (!S1 || !S2 || org.seasons.length !== 2) f.push('QA_SEASONS_NOT_S1_S2');
     const purchaseOf = (s) => o.trail.filter((p) => p.season === s?.id);
-    const p1 = purchaseOf(S1); const p2 = purchaseOf(S2);
+    // S1 may also hold purchases the certified stale sweep retired (a fresh operation after an expired Preference);
+    // exactly one live purchase per season remains the lifecycle subject.
+    const p1All = purchaseOf(S1); const superseded = p1All.filter(C.isSupersededQaPurchase);
+    const p1 = p1All.filter((p) => !superseded.includes(p)); const p2 = purchaseOf(S2);
     if (p1.length !== 1 || p2.length !== 1) f.push('QA_PURCHASES_NOT_ONE_PER_SEASON');
-    for (const p of [...p1, ...p2]) {
+    for (const p of [...p1All, ...p2]) {
       if (p.provider !== 'MERCADO_PAGO' || p.environment !== 'test' || p.amount !== C.PRODUCT.amount || p.list_amount !== C.PRODUCT.listAmount || p.currency !== 'ARS' || p.product !== C.PRODUCT.code
         || p.external_reference !== `arma2:season:purchase:${p.purchase}`) f.push(`QA_PURCHASE_SHAPE_${p.purchase.slice(0, 8)}`);
     }
     f.push(...C.censusFailures(o.census).map((x) => x.toUpperCase()));
     if (Number(o.census.organizations_qa) !== 1) f.push('CENSUS_QA_ORGS_NOT_1');
-    state.fixtures = f.length ? null : { org: org.id, slug: org.slug, S1: S1.id, S2: S2.id, P1: p1[0].purchase, P2: p2[0].purchase };
+    state.fixtures = f.length ? null : { org: org.id, slug: org.slug, S1: S1.id, S2: S2.id, P1: p1[0].purchase, P2: p2[0].purchase, superseded: superseded.map((p) => p.purchase) };
     const verdict = f.length ? 'QA_FIXTURES_INVALID' : 'QA_FIXTURES_ISOLATED';
     writeEvidence(`pt-05-qa-fixtures-${stamp()}.json`, { verdict, read_only: true, qa: orgs, purchases: o.trail, census: o.census, fixtures: state.fixtures, failures: f,
       isolation: { census_failures: C.censusFailures(o.census), organizations_total: o.census.organizations, organizations_qa: o.census.organizations_qa, seasons_outside_qa: o.census.seasons_outside_qa, tournaments_in_qa: org?.tournaments ?? null } });
@@ -581,11 +584,15 @@ export function makeSession({ pat, deno, mpToken, mpSecret, deps }) {
     try { logs = await denoClient.logs(new Date(deps.now() - 6 * 3600000).toISOString(), new Date(deps.now()).toISOString()); } catch (e) { logs = { unavailable: e.code ?? String(e.message).slice(0, 80) }; }
     const approved = payments.find((p) => p.status === 'approved' || p.status === 'refunded') ?? null;
     const rejected = payments.filter((p) => p.status === 'rejected');
+    // FRESH OPERATION (after a superseded S1 purchase): one approved payment is the whole checkout; a rejected attempt,
+    // if the buyer made one, must still be recorded. Evidence says which.
+    const fresh = (fx.superseded?.length ?? 0) > 0;
+    const rejectedOptional = fresh && rejected.length === 0;
     const checks = [
-      ['Mercado Pago TEST: ≥ 1 rejected attempt on the preference', rejected.length >= 1],
+      [fresh ? 'Mercado Pago TEST: rejected attempts on the preference (fresh operation: optional, one approved payment)' : 'Mercado Pago TEST: ≥ 1 rejected attempt on the preference', rejected.length >= 1 || rejectedOptional],
       ['Mercado Pago TEST: one approved payment, ARS 39900, our attested TEST seller, external_reference = P1 (live_mode reported, not trusted)', !!approved && approved.transaction_amount === C.PRODUCT.amount && approved.currency_id === 'ARS' && typeof approved.live_mode === 'boolean' && approved.collector_matches && approved.external_reference === `arma2:season:purchase:${fx.P1}` && approved.metadata_purchase_id === fx.P1],
       ['DB: purchase approved with that payment id', t?.status === 'approved' && t?.approved_payment === approved?.id],
-      ['DB: a payment.attempt_rejected event (purchase stayed payable)', !!t?.events?.some((e) => e.type === 'payment.attempt_rejected')],
+      ['DB: a payment.attempt_rejected event (purchase stayed payable)', rejectedOptional || !!t?.events?.some((e) => e.type === 'payment.attempt_rejected')],
       ['DB: exactly one Premium season grant from P1, effective, events [granted]', t?.grants?.length === 1 && t.grants[0].effective === true && canon(t.grants[0].events.map((e) => e.type)) === canon(['granted'])],
       ['DB: one watermark per provider payment (rejected + approved), no manual flags', (t?.watermarks?.length ?? 0) === payments.length && t.watermarks.every((w) => !w.manual_refund && !w.manual_review)],
       ['the signed Mercado Pago webhook reached the TEST app: provider-actor payment.approved event', (t?.events ?? []).filter((e) => e.actor === 'provider').map((e) => e.type).includes('payment.approved')],
@@ -599,6 +606,7 @@ export function makeSession({ pat, deno, mpToken, mpSecret, deps }) {
     const webhookLog = Array.isArray(logs) ? logs.filter((l) => /torneos-payments/.test(l.message) && /"route":"webhook"/.test(l.message)).map((l) => {
       let j = null; try { j = JSON.parse(l.message); } catch { j = null; } return { at: l.timestamp, revision: l.revision_id, status: j?.status ?? null, code: j?.code ?? null }; }) : null;
     writeEvidence(`pt-08-sandbox-checkout-${stamp()}.json`, { verdict: pass ? 'SANDBOX_CHECKOUT_APPLIED' : 'SANDBOX_CHECKOUT_INCOMPLETE', read_only: true, purchase: fx.P1, preference: state.preference?.id ?? t?.preference_id ?? null,
+      fresh_operation: fresh ? { superseded: fx.superseded, rejected_attempt: rejected.length ? 'exercised' : 'not_exercised' } : null,
       provider_payments: payments, sandbox_relations: relations, db: t, webhook_deliveries: webhookLog, logs_api: Array.isArray(logs) ? logs.shape ?? null : logs, app_logs: Array.isArray(logs) ? logs.filter((l) => /torneos-payments/.test(l.message)).slice(-60) : logs, checks, mp_requests: mp.requests });
     say(`observe: ${checks.filter((c) => c.pass).length}/${checks.length} payments=${JSON.stringify(payments.map((p) => [p.id, p.status, p.status_detail]))} db=${t?.status}${checks.filter((c) => !c.pass).map((c) => `\n  FAIL ${c.name}`).join('')}`);
     return { verdict: pass ? 'SANDBOX_CHECKOUT_APPLIED' : 'SANDBOX_CHECKOUT_INCOMPLETE' };
@@ -693,7 +701,9 @@ export function makeSession({ pat, deno, mpToken, mpSecret, deps }) {
     const t = sb.trail.find((p) => p.purchase === fx.P1); const t2 = sb.trail.find((p) => p.purchase === fx.P2);
     if (t?.status !== 'refunded' || t.grants?.length !== 1 || t.grants[0].effective !== false) f.push('P1_LIFECYCLE_NOT_COMPLETE');
     if (t2?.status !== 'created' || t2.events.length !== 1 || t2.grants.length || t2.watermarks.length) f.push('P2_NOT_TRACELESS');
-    if (Number(sb.census.organizations_qa) !== 1 || Number(sb.census.season_grants) !== 1 || Number(sb.census.purchases) !== 2) f.push('CENSUS_NOT_EXACTLY_THE_QA_SET');
+    const superseded = (fx.superseded ?? []).map((id) => sb.trail.find((p) => p.purchase === id));
+    if (!superseded.every(C.isSupersededQaPurchase)) f.push('SUPERSEDED_PURCHASE_CHANGED');
+    if (Number(sb.census.organizations_qa) !== 1 || Number(sb.census.season_grants) !== 1 || Number(sb.census.purchases) !== 2 + superseded.length) f.push('CENSUS_NOT_EXACTLY_THE_QA_SET');
     const required = ['pt-01-preflight', 'pt-02-payments-login', 'pt-03-deno-app', 'pt-03b-redeploy', 'pt-04-app-probe', 'pt-05-qa-fixtures', 'pt-06-ordering-rollback', 'pt-07-preference', 'pt-08-sandbox-checkout', 'pt-09-replays', 'pt-10-refund'];
     const files = fs.readdirSync(deps.evidenceDir).filter((n) => n.startsWith('pt-') && n.endsWith('.json')).sort();
     const bound = required.map((prefix) => {
@@ -712,7 +722,7 @@ export function makeSession({ pat, deno, mpToken, mpSecret, deps }) {
     writeEvidence(`pt-11-certify-${stamp()}.json`, { verdict, read_only: true, failures: f, core: sb.core, torneos: { functions: sb.functions, health: sb.health, secret_names: sb.secrets, auth: sb.auth, b03: G.b03State(sb.tpa, pins().jwks),
       foundation_diff: foundationDiff(sb.catalog, pins().foundation), payments_delta_pin_sha256: C.sha256(fs.readFileSync(deps.deltaPinFile ?? C.DELTA_PIN_FILE)), payment_roles: sb.paymentRoles, gateway_roles: sb.gatewayRoles, census: sb.census },
     payments_login_probe: probe, deno: { apps: dn.apps, gateway_app: dn.gateway, payments_app: dn.app, revisions: dn.revisions }, gateway_live: gw, mercado_pago: { seller_id: sellerId, attestation },
-    qa: { fixtures: fx, P1: t, P2: t2 }, evidence: bound, repo_secret_scan: scan, management_api_writes: sb.writes });
+    qa: { fixtures: fx, P1: t, P2: t2, superseded }, evidence: bound, repo_secret_scan: scan, management_api_writes: sb.writes });
     say(`certify: ${verdict}${f.length ? `\n  FAIL ${f.join(' ')}` : ''}`);
     if (f.length) stop(verdict, { failures: f });
     return { verdict };
