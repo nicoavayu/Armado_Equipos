@@ -1,0 +1,29 @@
+{
+ "tool": "backend/torneos/infra/torneos-gateway-remote",
+ "read_only": true,
+ "apps": [],
+ "layers": [],
+ "app": null,
+ "revisions": [],
+ "failures": [],
+ "deno_requests": [
+  {
+   "id": "apps",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "layers",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "app",
+   "kind": "read",
+   "method": "GET",
+   "status": 404
+  }
+ ]
+}
