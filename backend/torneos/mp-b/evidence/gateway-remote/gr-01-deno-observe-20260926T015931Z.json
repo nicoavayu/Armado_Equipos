@@ -1,0 +1,197 @@
+{
+ "tool": "backend/torneos/infra/torneos-gateway-remote",
+ "read_only": true,
+ "apps": [
+  {
+   "id": "5d4f18e9-1614-4e24-b8e0-fd7cff8e4c3d",
+   "slug": "torneos-gateway"
+  }
+ ],
+ "layers": [],
+ "app": {
+  "id": "5d4f18e9-1614-4e24-b8e0-fd7cff8e4c3d",
+  "slug": "torneos-gateway",
+  "layers": [],
+  "env_vars": [
+   {
+    "key": "CORE_ANON_KEY",
+    "secret": false,
+    "contexts": "all",
+    "value_returned": true
+   },
+   {
+    "key": "CORE_AUTH_URL",
+    "secret": false,
+    "contexts": "all",
+    "value_returned": true
+   },
+   {
+    "key": "CORE_CONTRACT_URL",
+    "secret": false,
+    "contexts": "all",
+    "value_returned": true
+   },
+   {
+    "key": "CORE_JWT_ISSUER",
+    "secret": false,
+    "contexts": "all",
+    "value_returned": true
+   },
+   {
+    "key": "TORNEOS_ALLOWED_ORIGIN",
+    "secret": false,
+    "contexts": "all",
+    "value_returned": true
+   },
+   {
+    "key": "TORNEOS_ANON_KEY",
+    "secret": false,
+    "contexts": "all",
+    "value_returned": true
+   },
+   {
+    "key": "TORNEOS_BRIDGE_KEYS",
+    "secret": true,
+    "contexts": "all",
+    "value_returned": false
+   },
+   {
+    "key": "TORNEOS_CONTRACT_SERVICE_SECRET",
+    "secret": true,
+    "contexts": "all",
+    "value_returned": false
+   },
+   {
+    "key": "TORNEOS_DB_CORE_ADAPTER_URL",
+    "secret": true,
+    "contexts": "all",
+    "value_returned": false
+   },
+   {
+    "key": "TORNEOS_DB_IDENTITY_WRITER_URL",
+    "secret": true,
+    "contexts": "all",
+    "value_returned": false
+   },
+   {
+    "key": "TORNEOS_DB_SSL_CA",
+    "secret": false,
+    "contexts": "all",
+    "value_returned": true
+   },
+   {
+    "key": "TORNEOS_GATEWAY_PUBLIC_URL",
+    "secret": false,
+    "contexts": "all",
+    "value_returned": true
+   },
+   {
+    "key": "TORNEOS_REST_URL",
+    "secret": false,
+    "contexts": "all",
+    "value_returned": true
+   }
+  ],
+  "config": {
+   "runtime": {
+    "type": "dynamic",
+    "entrypoint": "torneos-gateway/index.ts"
+   },
+   "crons": false
+  },
+  "labels": {
+   "custom.component": "arma2-torneos-gateway"
+  },
+  "created_at": "2026-09-26T01:08:16.167Z",
+  "updated_at": "2026-09-26T01:12:00.894Z"
+ },
+ "revisions": [
+  {
+   "id": "3rvq2wx9tyyg",
+   "status": "succeeded",
+   "failure_reason": null,
+   "failure_detail": null,
+   "env_vars": null,
+   "layers": null,
+   "config": null,
+   "labels": {
+    "custom.git_head": "bea307a3a82fd8e610f99210c2f8b40f9ceb0697"
+   },
+   "created_at": "2026-09-26T01:12:01.540Z",
+   "build_finished_at": "2026-09-26T01:12:04.154Z",
+   "timelines": null
+  },
+  {
+   "id": "ec6zv20gx8hn",
+   "status": "succeeded",
+   "failure_reason": null,
+   "failure_detail": null,
+   "env_vars": null,
+   "layers": null,
+   "config": null,
+   "labels": {
+    "custom.git_head": "bea307a3a82fd8e610f99210c2f8b40f9ceb0697"
+   },
+   "created_at": "2026-09-26T01:08:17.167Z",
+   "build_finished_at": "2026-09-26T01:08:21.469Z",
+   "timelines": null
+  }
+ ],
+ "failures": [],
+ "deno_requests": [
+  {
+   "id": "apps",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "layers",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "app",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "revisions",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "revision-timelines",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "apps",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "layers",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "app",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "revisions",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  }
+ ]
+}

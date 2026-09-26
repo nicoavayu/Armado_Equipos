@@ -1,0 +1,809 @@
+{
+ "tool": "backend/torneos/infra/torneos-gateway-auth",
+ "generated_at": "2026-09-26T01:58:22.168Z",
+ "mode": "--b03",
+ "core": {
+  "prod": "ACTIVE_HEALTHY",
+  "prod_contract": {
+   "status": "ACTIVE",
+   "ezbr": "1072419517953eee8e8021f9691d1a5b1efb1f871c4d13290f644d119caded2c",
+   "verify_jwt": false
+  },
+  "staging": "INACTIVE",
+  "old": "INACTIVE",
+  "torneos": "ACTIVE_HEALTHY"
+ },
+ "state": {
+  "W1": "applied",
+  "W2_W3": "applied",
+  "KR": "present",
+  "W5": "applied",
+  "edge_functions": 0,
+  "custody": {
+   "dataplane_installer": "PRESENT",
+   "gateway_logins": "PRESENT",
+   "ring": "PRESENT",
+   "jwks_pin": {
+    "file": "production-bridge-jwks.json",
+    "kids": [
+     "arma2-torneos-prod-k1-svt92JOHlnVoXI35",
+     "arma2-torneos-prod-k2-9EgKZ6KojpyuHmBx"
+    ],
+    "digest": "e455acb253fdf50cdd7cfe3f920eed5559e89b1c5ab1d133f1c33dc01164b8df"
+   }
+  }
+ },
+ "failures": [],
+ "verdict": "B03_APPLIED_BRIDGE_ACCEPTED",
+ "start_state": "superseded-inline",
+ "plan": {
+  "mode": "--b03",
+  "writes": [
+   "DELETE /v1/projects/onzpwnqxnvlgsevivngf/config/auth/third-party-auth/f0a6c05e-82df-4f4b-a444-198ab78fdf45",
+   "POST /v1/projects/onzpwnqxnvlgsevivngf/config/auth/third-party-auth"
+  ],
+  "body": {
+   "jwks_url": "https://torneos-gateway.nicoavayu.deno.net/functions/v1/torneos-gateway/.well-known/jwks.json"
+  },
+  "jwks_url_sha256": "e455acb253fdf50cdd7cfe3f920eed5559e89b1c5ab1d133f1c33dc01164b8df",
+  "kids": [
+   "arma2-torneos-prod-k1-svt92JOHlnVoXI35",
+   "arma2-torneos-prod-k2-9EgKZ6KojpyuHmBx"
+  ],
+  "superseded": {
+   "id": "f0a6c05e-82df-4f4b-a444-198ab78fdf45",
+   "type": "custom",
+   "oidc_issuer_url": null,
+   "jwks_url": null,
+   "custom_jwks_kids": [
+    "arma2-torneos-prod-k1-svt92JOHlnVoXI35",
+    "arma2-torneos-prod-k2-9EgKZ6KojpyuHmBx"
+   ],
+   "custom_jwks_digest": "e455acb253fdf50cdd7cfe3f920eed5559e89b1c5ab1d133f1c33dc01164b8df",
+   "custom_jwks_private_material": false,
+   "resolved_jwks_kids": null,
+   "resolved_jwks_digest": null,
+   "resolved_private_material": false,
+   "resolved_at": null,
+   "inserted_at": "2026-09-26T01:00:11.48582+00:00",
+   "updated_at": "2026-09-26T01:00:11.48582+00:00"
+  },
+  "state": {
+   "W1": "applied",
+   "W2_W3": "applied",
+   "KR": "present",
+   "W5": "superseded-inline",
+   "edge_functions": 0,
+   "custody": {
+    "dataplane_installer": "PRESENT",
+    "gateway_logins": "PRESENT",
+    "ring": "PRESENT",
+    "jwks_pin": {
+     "file": "production-bridge-jwks.json",
+     "kids": [
+      "arma2-torneos-prod-k1-svt92JOHlnVoXI35",
+      "arma2-torneos-prod-k2-9EgKZ6KojpyuHmBx"
+     ],
+     "digest": "e455acb253fdf50cdd7cfe3f920eed5559e89b1c5ab1d133f1c33dc01164b8df"
+    }
+   }
+  },
+  "core": {
+   "prod": "ACTIVE_HEALTHY",
+   "prod_contract": {
+    "status": "ACTIVE",
+    "ezbr": "1072419517953eee8e8021f9691d1a5b1efb1f871c4d13290f644d119caded2c",
+    "verify_jwt": false
+   },
+   "staging": "INACTIVE",
+   "old": "INACTIVE",
+   "torneos": "ACTIVE_HEALTHY"
+  }
+ },
+ "plan_id": "06ffda6d7a38",
+ "authorization": {
+  "phrase": "PUBLISH TORNEOS B03 JWKS URL onzpwnqxnvlgsevivngf 06ffda6d7a38",
+  "typed_on": "/dev/tty"
+ },
+ "jwks_url_probe": {
+  "url": "https://torneos-gateway.nicoavayu.deno.net/functions/v1/torneos-gateway/.well-known/jwks.json",
+  "checks": [
+   {
+    "name": "jwks_url is https on the exact pinned gateway host, default port, no credentials/query/fragment",
+    "pass": true,
+    "url": "https://torneos-gateway.nicoavayu.deno.net/functions/v1/torneos-gateway/.well-known/jwks.json"
+   },
+   {
+    "name": "GET → 200, no redirect",
+    "pass": true,
+    "status": 200,
+    "location": null
+   },
+   {
+    "name": "Content-Type application/json",
+    "pass": true,
+    "content_type": "application/json"
+   },
+   {
+    "name": "no Set-Cookie",
+    "pass": true
+   },
+   {
+    "name": "body byte-equal to the pinned public k1+k2",
+    "pass": true,
+    "bytes": 904,
+    "sha256": "e455acb253fdf50cdd7cfe3f920eed5559e89b1c5ab1d133f1c33dc01164b8df",
+    "pin_sha256": "e455acb253fdf50cdd7cfe3f920eed5559e89b1c5ab1d133f1c33dc01164b8df"
+   },
+   {
+    "name": "kids exactly the pin, in order",
+    "pass": true,
+    "kids": [
+     "arma2-torneos-prod-k1-svt92JOHlnVoXI35",
+     "arma2-torneos-prod-k2-9EgKZ6KojpyuHmBx"
+    ]
+   },
+   {
+    "name": "only public RSA members (kty n e kid alg use), no private member",
+    "pass": true
+   },
+   {
+    "name": "no secret-shaped or known secret value in the response",
+    "pass": true
+   },
+   {
+    "name": "query string → same bytes (ignored)",
+    "pass": true,
+    "status": 200
+   },
+   {
+    "name": "foreign X-Forwarded-Host → same bytes or refused, never another key set",
+    "pass": true,
+    "status": 200
+   },
+   {
+    "name": "foreign Origin → 403 (browser clients); the resolver sends none",
+    "pass": true,
+    "status": 403
+   },
+   {
+    "name": "POST → not 200 (no write path)",
+    "pass": true,
+    "status": 404
+   }
+  ],
+  "passed": 12,
+  "total": 12,
+  "pass": true,
+  "sha256": "e455acb253fdf50cdd7cfe3f920eed5559e89b1c5ab1d133f1c33dc01164b8df"
+ },
+ "deleted": {
+  "id": "f0a6c05e-82df-4f4b-a444-198ab78fdf45",
+  "type": "custom",
+  "oidc_issuer_url": null,
+  "jwks_url": null,
+  "custom_jwks_kids": [
+   "arma2-torneos-prod-k1-svt92JOHlnVoXI35",
+   "arma2-torneos-prod-k2-9EgKZ6KojpyuHmBx"
+  ],
+  "custom_jwks_digest": "e455acb253fdf50cdd7cfe3f920eed5559e89b1c5ab1d133f1c33dc01164b8df",
+  "custom_jwks_private_material": false,
+  "resolved_jwks_kids": null,
+  "resolved_jwks_digest": null,
+  "resolved_private_material": false,
+  "resolved_at": null,
+  "inserted_at": "2026-09-26T01:00:11.48582+00:00",
+  "updated_at": "2026-09-26T01:00:11.48582+00:00"
+ },
+ "created": {
+  "id": "94fe4602-23f6-4b5f-b606-36797d804bec",
+  "type": "custom",
+  "oidc_issuer_url": null,
+  "jwks_url": "https://torneos-gateway.nicoavayu.deno.net/functions/v1/torneos-gateway/.well-known/jwks.json",
+  "custom_jwks_kids": null,
+  "custom_jwks_digest": null,
+  "custom_jwks_private_material": false,
+  "resolved_jwks_kids": [
+   "arma2-torneos-prod-k1-svt92JOHlnVoXI35",
+   "arma2-torneos-prod-k2-9EgKZ6KojpyuHmBx"
+  ],
+  "resolved_jwks_digest": "e455acb253fdf50cdd7cfe3f920eed5559e89b1c5ab1d133f1c33dc01164b8df",
+  "resolved_private_material": false,
+  "resolved_at": "2026-09-26T01:58:09.892+00:00",
+  "inserted_at": "2026-09-26T01:58:10.010864+00:00",
+  "updated_at": "2026-09-26T01:58:10.010864+00:00"
+ },
+ "third_party_auth_after": [
+  {
+   "id": "94fe4602-23f6-4b5f-b606-36797d804bec",
+   "type": "custom",
+   "oidc_issuer_url": null,
+   "jwks_url": "https://torneos-gateway.nicoavayu.deno.net/functions/v1/torneos-gateway/.well-known/jwks.json",
+   "custom_jwks_kids": null,
+   "custom_jwks_digest": null,
+   "custom_jwks_private_material": false,
+   "resolved_jwks_kids": [
+    "arma2-torneos-prod-k1-svt92JOHlnVoXI35",
+    "arma2-torneos-prod-k2-9EgKZ6KojpyuHmBx"
+   ],
+   "resolved_jwks_digest": "e455acb253fdf50cdd7cfe3f920eed5559e89b1c5ab1d133f1c33dc01164b8df",
+   "resolved_private_material": false,
+   "resolved_at": "2026-09-26T01:58:09.892+00:00",
+   "inserted_at": "2026-09-26T01:58:10.010864+00:00",
+   "updated_at": "2026-09-26T01:58:10.010864+00:00"
+  }
+ ],
+ "resolution": {
+  "state": "applied",
+  "id": "94fe4602-23f6-4b5f-b606-36797d804bec",
+  "resolved_at": "2026-09-26T01:58:09.892+00:00"
+ },
+ "trail": [
+  {
+   "at": "2026-09-26T01:58:09.317Z",
+   "step": "after DELETE",
+   "tpa": []
+  },
+  {
+   "at": "2026-09-26T01:58:13.862Z",
+   "step": "created",
+   "tpa": [
+    {
+     "id": "94fe4602-23f6-4b5f-b606-36797d804bec",
+     "jwks_url": "https://torneos-gateway.nicoavayu.deno.net/functions/v1/torneos-gateway/.well-known/jwks.json",
+     "resolved_at": "2026-09-26T01:58:09.892+00:00",
+     "resolved_jwks_kids": [
+      "arma2-torneos-prod-k1-svt92JOHlnVoXI35",
+      "arma2-torneos-prod-k2-9EgKZ6KojpyuHmBx"
+     ],
+     "resolved_jwks_digest": "e455acb253fdf50cdd7cfe3f920eed5559e89b1c5ab1d133f1c33dc01164b8df"
+    }
+   ]
+  }
+ ],
+ "identity": {
+  "rows": 1,
+  "id": "67671b64",
+  "core_user_id": "44106956"
+ },
+ "bridge_probe_before": {
+  "label": "before (bridge tokens must be refused)",
+  "checks": [
+   {
+    "name": "k1 (active) bridge token, unknown identity → PT401 identity gate (host accepted signature, iss, aud)",
+    "pass": false,
+    "status": 401,
+    "code": "PGRST301",
+    "message": "No suitable key or wrong key type",
+    "rows": null
+   },
+   {
+    "name": "k2 (standby) bridge token, unknown identity → PT401 identity gate",
+    "pass": false,
+    "status": 401,
+    "code": "PGRST301",
+    "message": "No suitable key or wrong key type",
+    "rows": null
+   },
+   {
+    "name": "k1-signed role=service_role → PT401 (pre_request refuses non-bridge roles)",
+    "pass": false,
+    "status": 401,
+    "code": "PGRST301",
+    "message": "No suitable key or wrong key type",
+    "rows": null
+   },
+   {
+    "name": "k1-signed expired token → 401",
+    "pass": true,
+    "status": 401,
+    "code": "PGRST301",
+    "message": "No suitable key or wrong key type",
+    "rows": null
+   },
+   {
+    "name": "A k1 (active) bridge token for the existing identity → 200, exactly its own row",
+    "pass": false,
+    "status": 401,
+    "code": "PGRST301",
+    "message": "No suitable key or wrong key type",
+    "rows": null
+   },
+   {
+    "name": "E k2 (standby) bridge token for the existing identity → 200, exactly its own row (rotation needs no B03 write)",
+    "pass": false,
+    "status": 401,
+    "code": "PGRST301",
+    "message": "No suitable key or wrong key type",
+    "rows": null
+   },
+   {
+    "name": "D tampered (sub rewritten, original k1 signature) → 401 refused by the JWT check, not PT401",
+    "pass": true,
+    "status": 401,
+    "code": "PGRST301",
+    "message": "No suitable key or wrong key type",
+    "rows": null
+   },
+   {
+    "name": "unknown RS256 key → 401, refused before the database",
+    "pass": true,
+    "status": 401,
+    "code": "PGRST301",
+    "message": "No suitable key or wrong key type",
+    "rows": null
+   },
+   {
+    "name": "HS256 GoTrue-shaped token (foreign secret) → 401, refused before the database",
+    "pass": true,
+    "status": 401,
+    "code": "PGRST301",
+    "message": "No suitable key or wrong key type",
+    "rows": null
+   },
+   {
+    "name": "alg=none service_role → 401",
+    "pass": true,
+    "status": 401,
+    "code": "PGRST301",
+    "message": "Wrong or unsupported encoding algorithm",
+    "rows": null
+   },
+   {
+    "name": "anon (apikey only) → tournament_competition_formats 200 (pre_request lets anon through)",
+    "pass": true,
+    "status": 200,
+    "code": null,
+    "message": null,
+    "rows": 0
+   }
+  ],
+  "measured": [
+   {
+    "name": "k1-signed, aud=authenticated",
+    "status": 401,
+    "code": "PGRST301",
+    "message": "No suitable key or wrong key type",
+    "rows": null
+   },
+   {
+    "name": "k1-signed, iss=<Core Production GoTrue>",
+    "status": 401,
+    "code": "PGRST301",
+    "message": "No suitable key or wrong key type",
+    "rows": null
+   },
+   {
+    "name": "k1-signed, no aud",
+    "status": 401,
+    "code": "PGRST301",
+    "message": "No suitable key or wrong key type",
+    "rows": null
+   }
+  ],
+  "identity_probed": {
+   "id": "67671b64",
+   "core_user_id": "44106956",
+   "own_row": false
+  },
+  "passed": 6,
+  "total": 11,
+  "pass": false,
+  "hostAcceptsBridge": false
+ },
+ "bridge_probe_after": {
+  "label": "after resolution #1",
+  "checks": [
+   {
+    "name": "k1 (active) bridge token, unknown identity → PT401 identity gate (host accepted signature, iss, aud)",
+    "pass": true,
+    "status": 401,
+    "code": "PT401",
+    "message": "invalid identity token",
+    "rows": null
+   },
+   {
+    "name": "k2 (standby) bridge token, unknown identity → PT401 identity gate",
+    "pass": true,
+    "status": 401,
+    "code": "PT401",
+    "message": "invalid identity token",
+    "rows": null
+   },
+   {
+    "name": "k1-signed role=service_role → PT401 (pre_request refuses non-bridge roles)",
+    "pass": true,
+    "status": 401,
+    "code": "PT401",
+    "message": "invalid identity token",
+    "rows": null
+   },
+   {
+    "name": "k1-signed expired token → 401",
+    "pass": true,
+    "status": 401,
+    "code": "PGRST303",
+    "message": "JWT expired",
+    "rows": null
+   },
+   {
+    "name": "A k1 (active) bridge token for the existing identity → 200, exactly its own row",
+    "pass": true,
+    "status": 200,
+    "code": null,
+    "message": null,
+    "rows": 1
+   },
+   {
+    "name": "E k2 (standby) bridge token for the existing identity → 200, exactly its own row (rotation needs no B03 write)",
+    "pass": true,
+    "status": 200,
+    "code": null,
+    "message": null,
+    "rows": 1
+   },
+   {
+    "name": "D tampered (sub rewritten, original k1 signature) → 401 refused by the JWT check, not PT401",
+    "pass": true,
+    "status": 401,
+    "code": "PGRST301",
+    "message": "No suitable key or wrong key type",
+    "rows": null
+   },
+   {
+    "name": "unknown RS256 key → 401, refused before the database",
+    "pass": true,
+    "status": 401,
+    "code": "PGRST301",
+    "message": "No suitable key or wrong key type",
+    "rows": null
+   },
+   {
+    "name": "HS256 GoTrue-shaped token (foreign secret) → 401, refused before the database",
+    "pass": true,
+    "status": 401,
+    "code": "PGRST301",
+    "message": "No suitable key or wrong key type",
+    "rows": null
+   },
+   {
+    "name": "alg=none service_role → 401",
+    "pass": true,
+    "status": 401,
+    "code": "PGRST301",
+    "message": "Wrong or unsupported encoding algorithm",
+    "rows": null
+   },
+   {
+    "name": "anon (apikey only) → tournament_competition_formats 200 (pre_request lets anon through)",
+    "pass": true,
+    "status": 200,
+    "code": null,
+    "message": null,
+    "rows": 0
+   }
+  ],
+  "measured": [
+   {
+    "name": "k1-signed, aud=authenticated",
+    "status": 401,
+    "code": "PT401",
+    "message": "invalid identity token",
+    "rows": null
+   },
+   {
+    "name": "k1-signed, iss=<Core Production GoTrue>",
+    "status": 401,
+    "code": "PT401",
+    "message": "invalid identity token",
+    "rows": null
+   },
+   {
+    "name": "k1-signed, no aud",
+    "status": 401,
+    "code": "PT401",
+    "message": "invalid identity token",
+    "rows": null
+   }
+  ],
+  "identity_probed": {
+   "id": "67671b64",
+   "core_user_id": "44106956",
+   "own_row": true
+  },
+  "passed": 11,
+  "total": 11,
+  "pass": true,
+  "hostAcceptsBridge": true
+ },
+ "management_api_writes": 2,
+ "requests": [
+  {
+   "id": "prod-project",
+   "kind": "read",
+   "method": "GET",
+   "ref": "rcyuuoaqfwcembdajcss",
+   "status": 200
+  },
+  {
+   "id": "prod-contract-fn",
+   "kind": "read",
+   "method": "GET",
+   "ref": "rcyuuoaqfwcembdajcss",
+   "status": 200
+  },
+  {
+   "id": "project",
+   "kind": "read",
+   "method": "GET",
+   "ref": "hhyvmhgpapyuzjgxfnqv",
+   "status": 200
+  },
+  {
+   "id": "project",
+   "kind": "read",
+   "method": "GET",
+   "ref": "giaeztyghmhzcngskjmw",
+   "status": 200
+  },
+  {
+   "id": "project",
+   "kind": "read",
+   "method": "GET",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 200
+  },
+  {
+   "id": "org",
+   "kind": "read",
+   "method": "GET",
+   "ref": null,
+   "status": 200
+  },
+  {
+   "id": "projects",
+   "kind": "read",
+   "method": "GET",
+   "ref": null,
+   "status": 200
+  },
+  {
+   "id": "functions",
+   "kind": "read",
+   "method": "GET",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 200
+  },
+  {
+   "id": "auth-config",
+   "kind": "read",
+   "method": "GET",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 200
+  },
+  {
+   "id": "third-party-auth",
+   "kind": "read",
+   "method": "GET",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 200
+  },
+  {
+   "id": "query",
+   "kind": "read-sql",
+   "method": "POST",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 201
+  },
+  {
+   "id": "query",
+   "kind": "read-sql",
+   "method": "POST",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 201
+  },
+  {
+   "id": "api-keys",
+   "kind": "read",
+   "method": "GET",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 200
+  },
+  {
+   "id": "query",
+   "kind": "read-sql",
+   "method": "POST",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 201
+  },
+  {
+   "id": "prod-project",
+   "kind": "read",
+   "method": "GET",
+   "ref": "rcyuuoaqfwcembdajcss",
+   "status": 200
+  },
+  {
+   "id": "prod-contract-fn",
+   "kind": "read",
+   "method": "GET",
+   "ref": "rcyuuoaqfwcembdajcss",
+   "status": 200
+  },
+  {
+   "id": "project",
+   "kind": "read",
+   "method": "GET",
+   "ref": "hhyvmhgpapyuzjgxfnqv",
+   "status": 200
+  },
+  {
+   "id": "project",
+   "kind": "read",
+   "method": "GET",
+   "ref": "giaeztyghmhzcngskjmw",
+   "status": 200
+  },
+  {
+   "id": "project",
+   "kind": "read",
+   "method": "GET",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 200
+  },
+  {
+   "id": "org",
+   "kind": "read",
+   "method": "GET",
+   "ref": null,
+   "status": 200
+  },
+  {
+   "id": "projects",
+   "kind": "read",
+   "method": "GET",
+   "ref": null,
+   "status": 200
+  },
+  {
+   "id": "functions",
+   "kind": "read",
+   "method": "GET",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 200
+  },
+  {
+   "id": "auth-config",
+   "kind": "read",
+   "method": "GET",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 200
+  },
+  {
+   "id": "third-party-auth",
+   "kind": "read",
+   "method": "GET",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 200
+  },
+  {
+   "id": "query",
+   "kind": "read-sql",
+   "method": "POST",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 201
+  },
+  {
+   "id": "query",
+   "kind": "read-sql",
+   "method": "POST",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 201
+  },
+  {
+   "id": "tpa-delete",
+   "kind": "write:b03-delete",
+   "method": "DELETE",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 200
+  },
+  {
+   "id": "third-party-auth",
+   "kind": "read",
+   "method": "GET",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 200
+  },
+  {
+   "id": "tpa-create",
+   "kind": "write:b03",
+   "method": "POST",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 201
+  },
+  {
+   "id": "prod-project",
+   "kind": "read",
+   "method": "GET",
+   "ref": "rcyuuoaqfwcembdajcss",
+   "status": 200
+  },
+  {
+   "id": "prod-contract-fn",
+   "kind": "read",
+   "method": "GET",
+   "ref": "rcyuuoaqfwcembdajcss",
+   "status": 200
+  },
+  {
+   "id": "project",
+   "kind": "read",
+   "method": "GET",
+   "ref": "hhyvmhgpapyuzjgxfnqv",
+   "status": 200
+  },
+  {
+   "id": "project",
+   "kind": "read",
+   "method": "GET",
+   "ref": "giaeztyghmhzcngskjmw",
+   "status": 200
+  },
+  {
+   "id": "project",
+   "kind": "read",
+   "method": "GET",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 200
+  },
+  {
+   "id": "org",
+   "kind": "read",
+   "method": "GET",
+   "ref": null,
+   "status": 200
+  },
+  {
+   "id": "projects",
+   "kind": "read",
+   "method": "GET",
+   "ref": null,
+   "status": 200
+  },
+  {
+   "id": "functions",
+   "kind": "read",
+   "method": "GET",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 200
+  },
+  {
+   "id": "auth-config",
+   "kind": "read",
+   "method": "GET",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 200
+  },
+  {
+   "id": "third-party-auth",
+   "kind": "read",
+   "method": "GET",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 200
+  },
+  {
+   "id": "query",
+   "kind": "read-sql",
+   "method": "POST",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 201
+  },
+  {
+   "id": "query",
+   "kind": "read-sql",
+   "method": "POST",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 201
+  }
+ ]
+}

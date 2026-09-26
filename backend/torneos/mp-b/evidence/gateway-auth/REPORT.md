@@ -82,3 +82,31 @@ Only one payments-related check is made: 0 payments logins. Nothing is deployed,
 3. Capacitor. The single certified origin `https://app.arma2.com.ar` is kept, and `capacitor://localhost` and `https://localhost` are refused (proven in E2E). Supporting them needs a multi-origin policy decision, reported separately. Nothing was widened.
 4. If `--b03` measures `B03_HOST_REJECTS_BRIDGE_TOKEN`: the iss/aud decision and a possible migration 0004.
 5. The go for each remote mode, in order W1 → W2+W3 → KR → W5 → deploy phase → `--certify`.
+
+## 2026-09-26 — B03 replaced by `jwks_url` → GATEWAY_AUTH_CERTIFIED
+
+Owner decision (option A): the inline `custom_jwks` integration was replaced with a `jwks_url` integration. iss, aud, RS256, TTL 120 s, tolerance 5 s and the ring are unchanged. There is no migration 0004.
+
+Tooling: commit `408da930`.
+- Tests: b03-jwks-url 12/12, gateway-auth 27/27, topology 5/5, remote 7/7, foundation 53/53.
+- Offline rehearsal: 46/46 (`rehearsal-20260926T015331Z`).
+
+**Remote**, one session, one plan `06ffda6d7a38`, phrase approved by the operator:
+1. **Preflight** (`ga-01-preflight-20260926T015558Z.json`, `7fe8a7b9…`): 0 writes. Core Prod ACTIVE_HEALTHY, W1/W2/W3 applied, 0 Edge Functions. B03 was exactly `f0a6c05e…` inline with `resolved_at` still null.
+2. **B03** (`ga-05-b03-jwks-url-20260926T015653Z.json`, `a8c56fc5…`): 2 writes.
+   - DELETE `f0a6c05e-82df-4f4b-a444-198ab78fdf45`, then confirmed there were 0 integrations.
+   - POST `{jwks_url: https://torneos-gateway.nicoavayu.deno.net/functions/v1/torneos-gateway/.well-known/jwks.json}` created id **`94fe4602-23f6-4b5f-b606-36797d804bec`**.
+   - Resolved immediately: `resolved_at` 2026-09-26T01:58:09.892Z, `resolved_jwks` = the pin (kids k1 `…svt92JOHlnVoXI35`, k2 `…9EgKZ6KojpyuHmBx`, digest `e455acb2…`).
+   - Hosted probes: 11/11. A k1 for the existing identity → 200 own row. B unknown identity → PT401. C unknown key / HS256 / `alg=none` → PGRST301. D tampered → PGRST301. E k2 standby → 200. F anon → 200. PGRST301 no longer occurs for a trusted key.
+   - Measured: tokens signed with a trusted key but another aud/iss reach the DB identity gate and get PT401. So the hosted verifier checks the signature only, and iss/aud are enforced by `private.current_identity_id()`.
+3. **Certify** (`ga-07-certify-20260926T015853Z.json` `01eacdda…`, and again after the E2E `…020511Z.json` `36078775…`): GATEWAY_AUTH_CERTIFIED, 0 writes. Foundation diff [], delta pin `169f2b14…` diff [], 0 Edge Functions, bridge probe 8/8.
+4. **Gateway basic certification**: B7 25/25 (`gr-04-basic-cert-20260926T015928Z.json` / `…020541Z.json`). Deno revision `3rvq2wx9tyyg` is unchanged, with 0 layers (`gr-01-deno-observe-20260926T015931Z.json`).
+5. **Real E2E** (`gateway-remote/gr-06-e2e-c-20260926T020441Z.json`, `2215d835…`): 18/18.
+   - Run from `app.arma2.com.ar` in Chrome with the existing Core session of 44106956…. No Core user was created.
+   - Exchange contract: RS256, kid k1, TTL 120, iss/aud unchanged, no PII.
+   - Allowlisted RPC → 200. Commerce OFF and unknown RPCs → 403.
+   - Tampered token → 401, both through the gateway and directly on PostgREST.
+   - Core token → 401 at the gateway and at PostgREST.
+   - Direct PostgREST within the TTL → 200. After 128 s → 401 at the gateway and PT401 directly.
+   - Re-exchange → same identity with a new jti. `torneos_identity` is still 1.
+6. **Offline legs**: C4 CORE_UNAVAILABLE fault injection PASS; frontend transport harness 13/13.

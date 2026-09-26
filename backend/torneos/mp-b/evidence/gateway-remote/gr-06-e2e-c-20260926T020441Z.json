@@ -1,0 +1,120 @@
+{
+ "tool": "backend/torneos/infra/torneos-gateway-remote/browser-e2e.js (+ C5 tampered/Core-direct checks)",
+ "phase": "C (REAL GATEWAY E2E, after B03 jwks_url)",
+ "at": {
+  "now": "2026-09-26T02:02:28.322Z",
+  "late": "2026-09-26T02:04:41.465Z"
+ },
+ "origin": "https://app.arma2.com.ar/torneos (Chrome, existing Core Production session of core user 44106956…; no new Core user)",
+ "gateway": "https://torneos-gateway.nicoavayu.deno.net/functions/v1/torneos-gateway",
+ "revision": "3rvq2wx9tyyg",
+ "b03": {
+  "integration_id": "94fe4602-23f6-4b5f-b606-36797d804bec",
+  "jwks_url": "https://torneos-gateway.nicoavayu.deno.net/functions/v1/torneos-gateway/.well-known/jwks.json",
+  "resolved_at": "2026-09-26T01:58:09.892+00:00",
+  "evidence": "gateway-auth/ga-05-b03-jwks-url-20260926T015653Z.json"
+ },
+ "results": [
+  {
+   "name": "C2 POST /exchange with the Core session → 200",
+   "pass": true,
+   "status": 200
+  },
+  {
+   "name": "C2 response keys exactly access_token, token_type=Bearer, expires_in=120 (no refresh token)",
+   "pass": true
+  },
+  {
+   "name": "C2 header RS256 / JWT / kid = arma2-torneos-prod-k1-svt92JOHlnVoXI35",
+   "pass": true
+  },
+  {
+   "name": "C2 iss/aud = urn:arma2:local:identity-bridge / arma2-torneos-local (unchanged)",
+   "pass": true
+  },
+  {
+   "name": "C2 TTL exactly 120 s, nbf = iat, role authenticated",
+   "pass": true
+  },
+  {
+   "name": "C2 bindings core_user_id/session_id = this Core session, sub = Torneos identity 67671b64… ≠ Core id 44106956…, jti uuid",
+   "pass": true
+  },
+  {
+   "name": "C2 claims carry no email/phone/profile (aud,core_user_id,exp,iat,iss,jti,nbf,role,session_id,sub)",
+   "pass": true
+  },
+  {
+   "name": "C3 allowlisted RPC get_my_tournament_memberships through the gateway → 200 (body {items,pagination})",
+   "pass": true,
+   "status": 200
+  },
+  {
+   "name": "C3 commerce RPC get_tournament_purchase (OFF) → 403 rpc not enabled",
+   "pass": true,
+   "status": 403
+  },
+  {
+   "name": "C3 unknown RPC → 403 rpc not enabled",
+   "pass": true,
+   "status": 403
+  },
+  {
+   "name": "C3 tampered sub, original signature, through the gateway → 401",
+   "pass": true,
+   "status": 401
+  },
+  {
+   "name": "C5 tampered token directly on PostgREST → 401",
+   "pass": true,
+   "status": 401
+  },
+  {
+   "name": "C3 Core access token as Torneos bearer → 401",
+   "pass": true,
+   "status": 401
+  },
+  {
+   "name": "C5 Core access token directly on Torneos PostgREST → 401 (Core is not a trusted issuer)",
+   "pass": true,
+   "status": 401
+  },
+  {
+   "name": "C5 bridge token directly on Torneos PostgREST within the TTL → 200 (B03 jwks_url trusts k1; identity gate passes)",
+   "pass": true,
+   "status": 200
+  },
+  {
+   "name": "C2 re-exchange → 200, same identity (sub), new jti",
+   "pass": true,
+   "status": 200
+  },
+  {
+   "name": "C3/C5 same bridge token after TTL + tolerance (age 128 s) through the gateway → 401",
+   "pass": true,
+   "status": 401
+  },
+  {
+   "name": "C5 same bridge token directly on PostgREST after TTL + tolerance (age 128 s) → 401",
+   "pass": true,
+   "status": 401,
+   "code": "PT401"
+  }
+ ],
+ "offline_legs": {
+  "C4 CORE_UNAVAILABLE fault injection (real gateway handle(), Core contract 5xx / GoTrue down / Core unreachable → 503)": "PASS (gateway-remote.test.mjs 7/7)",
+  "frontend transport harness": "13/13 (gr-c3-frontend-transport-harness-20260926T0203Z.txt)"
+ },
+ "not_exercised": {
+  "logout/revocation against Core Production": "not run: it would require signing the real user out / revoking a Core session (modifies the user). Covered by the gateway's per-request Core session check (B7: k1 token for a non-existent Core user → 401) and frontend T8/T12 harness."
+ },
+ "db_after": {
+  "torneos_identity_rows": 1,
+  "distinct_core_users": 1,
+  "source": "session db-identities (read-only SQL)"
+ },
+ "verdict": "GATEWAY_E2E_PASS",
+ "token_handling": "Core and bridge tokens never left the page; only statuses/claim shapes returned; page state deleted after the run",
+ "passed": 18,
+ "total": 18
+}
