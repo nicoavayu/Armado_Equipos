@@ -10,6 +10,8 @@
 // Provider logic is the byte-identical legacy adapter; MP-B1.2 reads its documented ordering field. Responses are whitelists;
 // logs carry route, status and a short code only. MP-B1.1 R2: absurd future signing times are refused (webhook-freshness.ts).
 // MP-B1.1 R3: the webhook signature (10- or 13-digit ts, raw-byte manifest) is verified by webhook-signature.ts.
+// PAYMENTS TEST: in remote-test (remote-test.ts) every request must name the declared host and nothing is served until
+// Mercado Pago attests that the token belongs to the configured TEST seller.
 import {
   createMercadoPagoPaymentProvider,
   fetchMercadoPagoChargeback,
@@ -28,6 +30,7 @@ import { webhookTimeVerdict } from "./webhook-freshness.ts"
 import { parseMercadoPagoSignature, verifyMercadoPagoSignature } from "./webhook-signature.ts"
 import { createProviderFetch } from "./lab-fetch.ts"
 import { DbError, type PaymentsDb } from "./rpc.ts"
+import { ATTESTATION_RETRY_MS, type AttestationVerdict, attestTestSeller, MERCADO_PAGO_API_ORIGIN } from "./remote-test.ts"
 
 export const PREFERENCE_TTL_MS = 30 * 60 * 1000
 const MAX_INTERNAL_BODY = 1024
@@ -138,6 +141,27 @@ export function createPaymentsService(deps: ServiceDeps): (req: Request) => Prom
   const fetcher = config ? createProviderFetch(deps.fetcher ?? fetch, config.labMpApiOrigin) : null
   const provider = config && fetcher ? createMercadoPagoPaymentProvider({ config: config.mp, fetcher }) : null
   const nonces = new NonceCache()
+
+  // PAYMENTS TEST: one provider attestation per isolate (started at boot); "not_test" is final, "unavailable" is retried
+  // at most every ATTESTATION_RETRY_MS so unauthenticated traffic cannot turn into a stream of provider calls.
+  let attested: AttestationVerdict | null = null
+  let attesting: Promise<AttestationVerdict> | null = null
+  let retryAt = 0
+  function attestation(cfg: PaymentsConfig): Promise<AttestationVerdict> {
+    if (cfg.deployment === null) return Promise.resolve("ok")
+    if (attested !== null) return Promise.resolve(attested)
+    if (attesting) return attesting
+    if (now() < retryAt) return Promise.resolve("unavailable")
+    attesting = attestTestSeller(fetcher!, MERCADO_PAGO_API_ORIGIN, cfg.mp.accessToken, cfg.mp.sellerId).then((verdict) => {
+      attesting = null
+      if (verdict === "unavailable") retryAt = now() + ATTESTATION_RETRY_MS
+      else attested = verdict
+      if (verdict === "not_test") log({ fn: FUNCTION_NAME, event: "provider_not_test" })
+      return verdict
+    })
+    return attesting
+  }
+  if (config && db) void attestation(config)
 
   // ------------------------------------------------------------------ internal: season checkout preference
   async function checkoutPreference(req: Request, url: URL, cfg: PaymentsConfig, database: PaymentsDb): Promise<Result> {
@@ -323,6 +347,12 @@ export function createPaymentsService(deps: ServiceDeps): (req: Request) => Prom
       outcome = fail(404, "not_found")
     } else if (!config || !db) {
       outcome = fail(503, "service_unavailable")
+    } else if (config.remoteHost !== null && url.hostname !== config.remoteHost) {
+      outcome = result(403, { error: "forbidden" }, "forbidden_host")
+    } else if (config.deployment !== null && (await attestation(config)) !== "ok") {
+      outcome = attested === "not_test"
+        ? result(503, { error: "service_unavailable" }, "provider_not_test")
+        : fail(503, "provider_unavailable")
     } else {
       try {
         outcome = kind === "internal"

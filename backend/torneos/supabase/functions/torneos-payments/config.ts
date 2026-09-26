@@ -14,7 +14,14 @@ import {
   type MercadoPagoTestConfig,
   requirePublicHttpsUrl,
 } from "../_shared/mercadoPagoPaymentProvider.ts"
-import { productionHostProblem } from "./remote-hosts.ts"
+import { canonicalRemoteHost, productionHostProblem } from "./remote-hosts.ts"
+import {
+  DEPLOYMENT_REMOTE_TEST,
+  isOfflineDbHost,
+  REMOTE_TEST_FORBIDDEN_ENV_RE,
+  remoteTestDbProblem,
+  remoteTestHost,
+} from "./remote-test.ts"
 
 export const FUNCTION_NAME = "torneos-payments"
 export const INTERNAL_PATH = "/internal/v1/season-checkout-preference"
@@ -55,6 +62,9 @@ export type PaymentsConfig = {
   dbUrl: string                  // postgres:// dedicated login, NOINHERIT member of torneos_payment_service
   dbSslCa: string | undefined
   labMpApiOrigin: string | null  // lab only: http://mp-stub:<port>
+  // PAYMENTS TEST: "remote-test" = the hosted TEST app (remote-test.ts); null = lab / loopback / offline fixture.
+  deployment: typeof DEPLOYMENT_REMOTE_TEST | null
+  remoteHost: string | null      // remote-test only: the only Host the app answers on
 }
 
 type Env = Record<string, string | undefined>
@@ -147,7 +157,30 @@ export function loadPaymentsConfig(env: Env): PaymentsConfig {
     }
   }
 
+  // PAYMENTS TEST: a database that is not offline is a hosted deployment, and a hosted deployment is remote-test only.
+  const deploymentValue = optional(env, "TORNEOS_PAYMENTS_DEPLOYMENT")
+  if (deploymentValue !== null && deploymentValue !== DEPLOYMENT_REMOTE_TEST) throw new ConfigError("TORNEOS_PAYMENTS_DEPLOYMENT must be remote-test")
+  const deployment = deploymentValue === DEPLOYMENT_REMOTE_TEST ? DEPLOYMENT_REMOTE_TEST : null
+  if (deployment === null && !isOfflineDbHost(db.hostname)) {
+    throw new ConfigError("a hosted payments database requires TORNEOS_PAYMENTS_DEPLOYMENT=remote-test")
+  }
+  let remoteHost: string | null = null
+  if (deployment !== null) {
+    for (const name of Object.keys(env)) {
+      if ((env[name] ?? "").trim() && REMOTE_TEST_FORBIDDEN_ENV_RE.test(name)) throw new ConfigError(`refusing ${name} in remote-test`)
+    }
+    if (labOrigin !== null) throw new ConfigError("remote-test never uses the lab Mercado Pago origin")
+    if (remoteTestDbProblem(db) !== null) throw new ConfigError("remote-test requires the Arma2 Torneos pooler login")
+    if (!sslCa) throw new ConfigError("remote-test requires TORNEOS_PAYMENTS_DB_SSL_CA")
+    remoteHost = remoteTestHost(notification)
+    if (remoteHost === null || app.port || canonicalRemoteHost(app.hostname) === null) {
+      throw new ConfigError("remote-test public URLs must be canonical public hosts")
+    }
+  }
+
   return {
+    deployment,
+    remoteHost,
     mp,
     appBaseUrl,
     notificationUrl,
