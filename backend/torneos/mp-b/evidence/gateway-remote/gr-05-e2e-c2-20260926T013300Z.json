@@ -1,0 +1,97 @@
+{
+ "tool": "backend/torneos/infra/torneos-gateway-remote/browser-e2e.js",
+ "phase": "C2/C3/C5 (partial: B03 unresolved)",
+ "at": "2026-09-26T01:33:00.756Z",
+ "origin": "https://app.arma2.com.ar/torneos (Chrome, existing Core Production session of core user 44106956…)",
+ "gateway": "https://torneos-gateway.nicoavayu.deno.net/functions/v1/torneos-gateway",
+ "revision": "3rvq2wx9tyyg",
+ "results": [
+  {
+   "name": "C2 POST /exchange with the Core session → 200",
+   "pass": true,
+   "status": 200
+  },
+  {
+   "name": "C2 response keys exactly access_token, token_type=Bearer, expires_in=120 (no refresh token)",
+   "pass": true
+  },
+  {
+   "name": "C2 header RS256 / JWT / kid = arma2-torneos-prod-k1-svt92JOHlnVoXI35",
+   "pass": true
+  },
+  {
+   "name": "C2 iss/aud = urn:arma2:local:identity-bridge / arma2-torneos-local",
+   "pass": true
+  },
+  {
+   "name": "C2 TTL 120, nbf = iat, role authenticated",
+   "pass": true
+  },
+  {
+   "name": "C2 bindings core_user_id/session_id = this Core session, sub = Torneos identity 67671b64… ≠ Core id",
+   "pass": true
+  },
+  {
+   "name": "C2 claims carry no email/phone/profile",
+   "pass": true,
+   "claims": [
+    "aud",
+    "core_user_id",
+    "exp",
+    "iat",
+    "iss",
+    "jti",
+    "nbf",
+    "role",
+    "session_id",
+    "sub"
+   ]
+  },
+  {
+   "name": "C3 allowlisted RPC through the gateway → 200",
+   "pass": false,
+   "status": 401,
+   "code": "PGRST301",
+   "message": "No suitable key or wrong key type",
+   "note": "gateway Core authority + identity checks passed; PostgREST does not trust k1 (B03 unresolved)"
+  },
+  {
+   "name": "C3 commerce RPC (OFF) → 403 rpc not enabled",
+   "pass": true,
+   "status": 403
+  },
+  {
+   "name": "C3 unknown RPC → 403",
+   "pass": true,
+   "status": 403
+  },
+  {
+   "name": "C3 tampered sub, original signature → 401",
+   "pass": true,
+   "status": 401
+  },
+  {
+   "name": "C3 Core access token as Torneos bearer → 401",
+   "pass": true,
+   "status": 401
+  },
+  {
+   "name": "C5 bridge token directly on PostgREST within TTL → 200",
+   "pass": false,
+   "status": 401,
+   "code": "PGRST301"
+  },
+  {
+   "name": "C2 re-exchange → same identity, new jti",
+   "pass": true,
+   "status": 200
+  }
+ ],
+ "db_after": {
+  "torneos_identity_rows": 1,
+  "distinct_core_users": 1,
+  "source": "session db-identities (read-only SQL via Management API)"
+ },
+ "verdict": "GATEWAY_E2E_BLOCKED_B03_UNRESOLVED",
+ "token_handling": "Core and bridge tokens never left the page; page state deleted after the run"
+}

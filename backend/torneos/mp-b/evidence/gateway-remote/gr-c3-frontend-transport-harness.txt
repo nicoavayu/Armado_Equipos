@@ -1,0 +1,24 @@
+Browserslist: browsers data (caniuse-lite) is 8 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+✔ exchange happens once per Core token, is reused under the TTL and never leaves the gateway origin (66.220667ms)
+✔ bearer renews silently through a new exchange before its TTL and after a Core token refresh (12.723917ms)
+✔ T8 — 401 on an RPC: one silent re-exchange and retry; a second 401 surfaces TORNEOS_SESSION_INVALID without more network (19.099125ms)
+✔ T8 — logged-out Core session: the retry exchange is refused (401) and surfaces as TORNEOS_EXCHANGE_DENIED (7.246708ms)
+✔ T9 — 403 rpc not enabled → TORNEOS_FORBIDDEN with no retry and no new exchange; adapter TORNEOS_* refusals keep their code (9.3875ms)
+✔ T14 — PostgREST passthrough keeps { message, code, details, hint } intact for the legacy code lookup (6.526041ms)
+✔ T10 — CORE_UNAVAILABLE on exchange and on RPC surfaces as CORE_UNAVAILABLE, no loop, no fallback (14.413042ms)
+✔ T11 — generic 503 access denied, adapter TORNEOS_UNAVAILABLE, network failure and timeout all surface as TORNEOS_UNAVAILABLE and drop the bearer (66.850458ms)
+✔ T12 — logout / user change: no Core session → CORE_AUTH_REQUIRED without network; late exchange responses of a previous generation are discarded (31.692167ms)
+✔ dispose unsubscribes from Core auth and closes the transport; the bearer is never persisted or decoded (8.318ms)
+✔ exchange contract: malformed 200, 400 and 403 answers fail closed; the caller signal aborts without touching the cache semantics (17.342083ms)
+✔ table route: GET with the bridge bearer, query allowlisted by key, rows returned as an array (8.39775ms)
+✔ transport refuses to exist without a gateway URL or a Core session reader (5.755792ms)
+ℹ tests 13
+ℹ suites 0
+ℹ pass 13
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 409.46225
