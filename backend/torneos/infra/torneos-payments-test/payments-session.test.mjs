@@ -124,8 +124,8 @@ test('P11 FRESH OPERATION: the fresh-purchase browser script touches only the ce
   const hosts = [...new Set([...src.matchAll(/https:\/\/([a-z0-9.-]+)/g)].map((m) => m[1]))].sort();
   assert.deepEqual(hosts, ['app.arma2.com.ar', 'onzpwnqxnvlgsevivngf.supabase.co', 'torneos-gateway.nicoavayu.deno.net']);
   const rpcs = [...new Set([...src.matchAll(/(?:gw|rest)\('([a-z_]+)'/g)].map((m) => m[1]))].sort();
-  assert.deepEqual(rpcs, ['create_tournament_season_checkout_purchase', 'get_my_tournament_memberships']);
-  assert.ok(src.includes(C.QA.orgSlugPrefix) && /expiredStalePurchases === 1/.test(src) && /QA_ORG_NOT_THE_PINNED_ONE/.test(src));
+  assert.deepEqual(rpcs, ['create_tournament_season_checkout_purchase']);
+  assert.ok(/expiredStalePurchases === 1/.test(src) && /IDS_MALFORMED/.test(src));
   assert.ok(!/create_tournament_organization|create_tournament_season'|create_tournament_with_defaults|auth\/v1\/signup|service_role/.test(src));
 });
 
