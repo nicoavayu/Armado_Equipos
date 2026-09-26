@@ -154,6 +154,12 @@ export function makeMercadoPagoClient({ transport = mpHttpsTransport, token, sel
       return (Array.isArray(b?.results) ? b.results : []).map((p) => projectPayment(p, sellerId));
     },
     async order(id) { return projectOrder(ok(await call('GET', `/merchant_orders/${id}`)), sellerId); },
+    /** the payment's refunds (read-only); who refunded is kept as the source type only, never a person's id or name. */
+    async refunds(paymentId) {
+      const b = ok(await call('GET', `/v1/payments/${paymentId}/refunds`));
+      return (Array.isArray(b) ? b : []).map((r) => ({ refund_id: r?.id !== undefined ? String(r.id) : null, payment_id: r?.payment_id !== undefined ? String(r.payment_id) : null, amount: r?.amount ?? null,
+        status: r?.status ?? null, date_created: r?.date_created ?? null, source_type: r?.source?.type ?? null, refund_mode: r?.refund_mode ?? null }));
+    },
     async refund(paymentId, idempotencyKey) {
       const b = ok(await call('POST', `/v1/payments/${paymentId}/refunds`, {}, { 'X-Idempotency-Key': idempotencyKey }), [200, 201]);
       return { refund_id: b?.id !== undefined ? String(b.id) : null, payment_id: b?.payment_id !== undefined ? String(b.payment_id) : null, amount: b?.amount ?? null, status: b?.status ?? null };

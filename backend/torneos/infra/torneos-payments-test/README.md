@@ -53,6 +53,7 @@ ARMA2_SESSION_DIR=<abs dir, 0700> bash backend/torneos/infra/torneos-payments-te
 | `observe` | read (after the sandbox checkout) | — |
 | `replays` | read* | — |
 | `refund` | TEST provider write | `REFUND MERCADO PAGO TEST PAYMENT <plan>` |
+| `refund-verify` | read* (refund made in the Seller Test panel) | — |
 | `certify` | read | — |
 | `status`, `quit` | — | — |
 
@@ -69,6 +70,12 @@ ARMA2_SESSION_DIR=<abs dir, 0700> bash backend/torneos/infra/torneos-payments-te
 - the rejected and approved sandbox payments;
 - the signed webhooks;
 - the refund and its webhook.
+
+**Refund initiation (2026-09-26).** The Seller Test sandbox reports its payments `live_mode:true`, and Mercado Pago refuses the API refund of such a payment with the Seller Test token (`401 "Unauthorized use of live credentials"`).
+- The operator then refunds the payment in full from the Seller Test's Mercado Pago panel.
+- `refund-verify` certifies everything that follows: the provider's total refund, the real signed webhook (`200 reversal_applied` in the app logs, before the step sends anything), the refunded purchase, the revoked grant, the watermark and a harmless late replay.
+- The evidence (`pt-10`, verdict `REFUND_LIFECYCLE_PASS_MANUAL_INITIATION`) and `certify` (`pt-11.limitations`) state that the refund API initiation is **not** certified.
+- `observe` runs made after the refund are necessarily INCOMPLETE (the purchase is no longer approved). They are kept in `remote/post-refund-observations/` and hashed into `pt-10`.
 
 **Harness:**
 - **Disputes, restores and "old dispute after restore"** (the 0003 bug). Mercado Pago TEST cannot open a chargeback on demand, so these run as ordering permutations on the hosted functions, in transactions that roll back.

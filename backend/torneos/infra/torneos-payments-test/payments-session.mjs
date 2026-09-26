@@ -23,6 +23,8 @@
 //   observe          read   Mercado Pago payments of P1 + the QA trail + the app's logs (after the sandbox checkout)
 //   replays          read*  signed duplicates / replays / seller & topic negatives with the REAL approved payment id
 //   refund           write  PLAN → phrase → full refund of the approved TEST payment → waits for the webhook → revoked grant
+//   refund-verify    read*  the refund was made in the Seller Test Mercado Pago panel (API refund refused, live_mode:true):
+//                           total provider refund + the real signed webhook + refunded / revoked / watermark + a late replay
 //   certify          read   PAYMENTS_REMOTE_TEST_CERTIFIED: everything above re-read and bound together
 //   status | quit
 import fs from 'node:fs';
@@ -576,6 +578,9 @@ export function makeSession({ pat, deno, mpToken, mpSecret, deps }) {
     return { verdict: 'MP_TEST_PREFERENCE_PASS' };
   }
 
+  const webhookDeliveries = (logs) => (Array.isArray(logs) ? logs.filter((l) => /torneos-payments/.test(l.message) && /"route":"webhook"/.test(l.message)).map((l) => {
+    let j = null; try { j = JSON.parse(l.message); } catch { j = null; } return { at: l.timestamp, revision: l.revision_id, status: j?.status ?? null, code: j?.code ?? null }; }) : null);
+
   async function observe() {
     const fx = needFixtures();
     const payments = await mp.paymentsFor(fx.P1);
@@ -603,8 +608,7 @@ export function makeSession({ pat, deno, mpToken, mpSecret, deps }) {
     const prefId = state.preference?.id ?? t?.preference_id ?? null;
     const relations = [];
     for (const p of prefId ? payments : []) { try { relations.push(await mp.sandboxRelation(p.id, prefId)); } catch (e) { relations.push({ payment: p.id, error: e.code ?? 'READ_FAILED' }); } }
-    const webhookLog = Array.isArray(logs) ? logs.filter((l) => /torneos-payments/.test(l.message) && /"route":"webhook"/.test(l.message)).map((l) => {
-      let j = null; try { j = JSON.parse(l.message); } catch { j = null; } return { at: l.timestamp, revision: l.revision_id, status: j?.status ?? null, code: j?.code ?? null }; }) : null;
+    const webhookLog = webhookDeliveries(logs);
     writeEvidence(`pt-08-sandbox-checkout-${stamp()}.json`, { verdict: pass ? 'SANDBOX_CHECKOUT_APPLIED' : 'SANDBOX_CHECKOUT_INCOMPLETE', read_only: true, purchase: fx.P1, preference: state.preference?.id ?? t?.preference_id ?? null,
       fresh_operation: fresh ? { superseded: fx.superseded, rejected_attempt: rejected.length ? 'exercised' : 'not_exercised' } : null,
       provider_payments: payments, sandbox_relations: relations, db: t, webhook_deliveries: webhookLog, logs_api: Array.isArray(logs) ? logs.shape ?? null : logs, app_logs: Array.isArray(logs) ? logs.filter((l) => /torneos-payments/.test(l.message)).slice(-60) : logs, checks, mp_requests: mp.requests });
@@ -683,6 +687,39 @@ export function makeSession({ pat, deno, mpToken, mpSecret, deps }) {
     return { verdict: 'REFUND_LIFECYCLE_PASS' };
   }
 
+  // REFUND, MANUAL INITIATION: the operator refunded P1's payment in full from the Seller Test Mercado Pago panel (the API
+  // refund is refused for the sandbox's live_mode:true payments). Nothing is written to Mercado Pago; the step reads the
+  // provider refund, finds the real signed delivery in the TEST app's logs, and sends one signed late replay (as `refund`).
+  async function refundVerify() {
+    const fx = needFixtures();
+    const startedAt = deps.now(); const mpWritesAtStart = mp.writes;
+    const before = (await trailNow()).trail.find((x) => x.purchase === fx.P1);
+    const pay = before?.approved_payment ?? stop('PURCHASE_HAS_NO_APPROVED_PAYMENT');
+    const payment = await mp.payment(pay);
+    const refunds = await mp.refunds(pay);
+    let logs = null;
+    try { logs = await denoClient.logs(new Date(deps.now() - 12 * 3600000).toISOString(), new Date(deps.now()).toISOString()); } catch (e) { logs = { unavailable: e.code ?? String(e.message).slice(0, 80) }; }
+    const deliveries = webhookDeliveries(logs) ?? [];
+    loadInternal();
+    const app = appClient();
+    const late = await app.notify(pay, { ts: String(deps.now() - 86400000) });
+    const after = (await trailNow()).trail.find((x) => x.purchase === fx.P1);
+    const { checks, reversal } = C.manualRefundChecks({ purchaseId: fx.P1, payment, refunds, before, after, deliveries, startedAt, mpWrites: mp.writes - mpWritesAtStart, late });
+    const pass = checks.every((c) => c.pass);
+    // observe runs after the refund (read-only, necessarily INCOMPLETE: the purchase is no longer approved) are kept aside, hashed here
+    const asideDir = path.join(deps.evidenceDir, 'post-refund-observations');
+    const aside = fs.existsSync(asideDir) ? fs.readdirSync(asideDir).filter((n) => n.endsWith('.json')).sort().map((n) => { const text = fs.readFileSync(path.join(asideDir, n), 'utf8'); return { file: `post-refund-observations/${n}`, sha256: C.sha256(text), verdict: JSON.parse(text).verdict ?? null }; }) : [];
+    state.refunded = pass ? { refund_id: refunds[0]?.refund_id ?? null, initiation: 'manual' } : null;
+    const verdict = pass ? 'REFUND_LIFECYCLE_PASS_MANUAL_INITIATION' : 'REFUND_LIFECYCLE_FAILED';
+    writeEvidence(`pt-10-refund-${stamp()}.json`, { verdict, initiation: 'manual — full refund from the Seller Test Mercado Pago panel (operator), after the API refund was refused', ...C.REFUND_LIMITATION,
+      refund_api_attempt: C.REFUND_API_ATTEMPT, payment: pay, purchase: fx.P1, provider_after: payment, provider_refunds: refunds, db: before, db_after_late_replay: after,
+      real_webhook: { reversal_applied: reversal, deliveries_after_approval: deliveries.filter((d) => Date.parse(d.at) > Date.parse(before?.approved_at ?? '')) }, logs_api: Array.isArray(logs) ? logs.shape ?? null : logs,
+      late_notification: { status: late.status, outcome: late.body?.outcome ?? null }, post_refund_observations: aside, checks, mp_requests: mp.requests, mp_writes: mp.writes - mpWritesAtStart, app_requests: app.requests });
+    say(`refund-verify: ${checks.filter((c) => c.pass).length}/${checks.length} payment=${pay} provider=${payment?.status}/${payment?.status_detail} refunds=${refunds.length} db=${before?.status}${checks.filter((c) => !c.pass).map((c) => `\n  FAIL ${c.name}`).join('')}\n  ${C.REFUND_LIMITATION.refund_api_initiation}\n  ${C.REFUND_LIMITATION.refund_lifecycle}`);
+    if (!pass) stop('REFUND_LIFECYCLE_FAILED');
+    return { verdict };
+  }
+
   async function certify() {
     const fx = needFixtures();
     const sb = await supabase({ deep: true });
@@ -715,15 +752,17 @@ export function makeSession({ pat, deno, mpToken, mpSecret, deps }) {
     const passVerdicts = { 'pt-01-preflight': 'PAYMENTS_PREFLIGHT_PASS', 'pt-02-payments-login': 'PAYMENTS_LOGIN_CREATED', 'pt-03-deno-app': 'PAYMENTS_TEST_APP_DEPLOYED', 'pt-03b-redeploy': 'PAYMENTS_TEST_APP_REDEPLOYED', 'pt-04-app-probe': 'PAYMENTS_APP_PROBE_PASS',
       'pt-05-qa-fixtures': 'QA_FIXTURES_ISOLATED', 'pt-06-ordering-rollback': 'REMOTE_ORDERING_PASS', 'pt-07-preference': 'MP_TEST_PREFERENCE_PASS', 'pt-08-sandbox-checkout': 'SANDBOX_CHECKOUT_APPLIED',
       'pt-09-replays': 'REAL_PAYMENT_REPLAYS_PASS', 'pt-10-refund': 'REFUND_LIFECYCLE_PASS' };
-    for (const b of bound) if (b.verdict !== passVerdicts[b.step] || b.secret_findings) f.push(`EVIDENCE_${b.step}_${b.verdict ?? 'MISSING'}`);
+    for (const b of bound) if (!(b.step === 'pt-10-refund' ? C.REFUND_PASS_VERDICTS.includes(b.verdict) : b.verdict === passVerdicts[b.step]) || b.secret_findings) f.push(`EVIDENCE_${b.step}_${b.verdict ?? 'MISSING'}`);
+    const refundBound = bound.find((b) => b.step === 'pt-10-refund');
+    const limitations = refundBound?.verdict === 'REFUND_LIFECYCLE_PASS_MANUAL_INITIATION' ? { ...C.REFUND_LIMITATION, refund_api_attempt: C.REFUND_API_ATTEMPT, evidence: refundBound.file } : null;
     const scan = deps.secretScan ? deps.secretScan(known) : { findings: 0 };
     if (scan.findings) f.push('REPO_SECRET_SCAN_FINDINGS');
     const verdict = f.length ? 'PAYMENTS_REMOTE_TEST_NOT_CERTIFIED' : 'PAYMENTS_REMOTE_TEST_CERTIFIED';
     writeEvidence(`pt-11-certify-${stamp()}.json`, { verdict, read_only: true, failures: f, core: sb.core, torneos: { functions: sb.functions, health: sb.health, secret_names: sb.secrets, auth: sb.auth, b03: G.b03State(sb.tpa, pins().jwks),
       foundation_diff: foundationDiff(sb.catalog, pins().foundation), payments_delta_pin_sha256: C.sha256(fs.readFileSync(deps.deltaPinFile ?? C.DELTA_PIN_FILE)), payment_roles: sb.paymentRoles, gateway_roles: sb.gatewayRoles, census: sb.census },
     payments_login_probe: probe, deno: { apps: dn.apps, gateway_app: dn.gateway, payments_app: dn.app, revisions: dn.revisions }, gateway_live: gw, mercado_pago: { seller_id: sellerId, attestation },
-    qa: { fixtures: fx, P1: t, P2: t2, superseded }, evidence: bound, repo_secret_scan: scan, management_api_writes: sb.writes });
-    say(`certify: ${verdict}${f.length ? `\n  FAIL ${f.join(' ')}` : ''}`);
+    qa: { fixtures: fx, P1: t, P2: t2, superseded }, evidence: bound, limitations, repo_secret_scan: scan, management_api_writes: sb.writes });
+    say(`certify: ${verdict}${f.length ? `\n  FAIL ${f.join(' ')}` : ''}${limitations ? `\n  ${limitations.refund_api_initiation}\n  ${limitations.refund_lifecycle}` : ''}`);
     if (f.length) stop(verdict, { failures: f });
     return { verdict };
   }
@@ -733,7 +772,7 @@ export function makeSession({ pat, deno, mpToken, mpSecret, deps }) {
     async run(line) {
       const [cmd, ...rest] = line.trim().split(/\s+/);
       if (rest.length) stop('COMMAND_REFUSED');
-      const table = { preflight, pb, create, redeploy, 'app-probe': appProbe, fixtures, ordering, preference, observe, replays, refund, certify,
+      const table = { preflight, pb, create, redeploy, 'app-probe': appProbe, fixtures, ordering, preference, observe, replays, refund, 'refund-verify': refundVerify, certify,
         status: async () => { say(JSON.stringify({ fixtures: state.fixtures, preference: state.preference, approved: state.approved, refunded: state.refunded, evidence: state.evidence })); return { verdict: 'STATUS' }; } };
       if (!table[cmd]) stop('COMMAND_UNKNOWN', { cmd });
       return table[cmd]();

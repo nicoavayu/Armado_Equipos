@@ -79,6 +79,7 @@ export const MP_ENDPOINTS = Object.freeze([
   { id: 'payments-search', method: 'GET', re: /^\/v1\/payments\/search\?external_reference=arma2%3Aseason%3Apurchase%3A[0-9a-f-]{36}&sort=date_created&criteria=asc&limit=20$/, kind: 'read' },
   { id: 'merchant-order', method: 'GET', re: new RegExp(`^/merchant_orders/${ID}$`), kind: 'read' },
   { id: 'refund', method: 'POST', re: new RegExp(`^/v1/payments/${ID}/refunds$`), kind: 'write:refund' },
+  { id: 'payment-refunds', method: 'GET', re: new RegExp(`^/v1/payments/${ID}/refunds$`), kind: 'read' },
 ]);
 export function classifyMpRequest({ method, path: p, body }, { armedFor = null } = {}) {
   const hit = MP_ENDPOINTS.find((e) => e.method === method && e.re.test(p));
@@ -95,6 +96,51 @@ export function attestationOf(me, sellerId) {
   const tags = Array.isArray(me?.tags) ? me.tags.map(String) : [];
   return { seller_matches: String(me?.id ?? '') === sellerId, test_user: tags.includes('test_user'), site: typeof me?.site_id === 'string' ? me.site_id : null,
     pass: String(me?.id ?? '') === sellerId && tags.includes('test_user') && me?.site_id === 'MLA' };
+}
+
+// ─────────────────────────── REFUND, MANUAL INITIATION (2026-09-26) ───────────────────────────
+/**
+ * The Seller Test sandbox reports its payments live_mode:true, and Mercado Pago refuses the API refund of such a payment
+ * with the Seller Test token (401 "Unauthorized use of live credentials"). The operator then refunds it in full from the
+ * Seller Test's own Mercado Pago panel, and `refund-verify` certifies everything after the initiation: the provider's
+ * total refund, the real signed webhook, the refunded purchase, the revoked grant, the watermark and a harmless late
+ * replay. The API initiation itself stays uncertified, and the evidence says so.
+ */
+export const REFUND_API_ATTEMPT = Object.freeze({ at: '2026-09-26T19:50:23Z', plan_id: 'e88bdbc9b5b2', payment: '181036143126', request: 'POST /v1/payments/{id}/refunds (full, armed, phrase accepted)',
+  response: Object.freeze({ status: 401, message: 'Unauthorized use of live credentials' }), writes_applied: 0 });
+export const REFUND_LIMITATION = Object.freeze({
+  refund_api_initiation: 'NOT CERTIFIED — "refund API initiation" could not be certified: limitation of the Mercado Pago Seller Test sandbox (payments report live_mode:true; the API refund with the Seller Test token answers 401 "Unauthorized use of live credentials")',
+  refund_lifecycle: 'CERTIFIED — the lifecycle refund → signed webhook → revoke was certified on a real total refund initiated manually from the Seller Test Mercado Pago panel',
+});
+export const REFUND_PASS_VERDICTS = Object.freeze(['REFUND_LIFECYCLE_PASS', 'REFUND_LIFECYCLE_PASS_MANUAL_INITIATION']);
+const sumAmounts = (xs) => Math.round(xs.reduce((a, x) => a + Number(x.amount ?? NaN), 0) * 100) / 100;
+/**
+ * The checks of `refund-verify` (pure). `deliveries` are the TEST app's webhook log rows ({at, revision, status, code});
+ * `startedAt` is when the step began, before it sent anything to the app.
+ */
+export function manualRefundChecks({ purchaseId, payment, refunds, before, after, deliveries, startedAt, mpWrites, late }) {
+  const approvedAt = Date.parse(before?.approved_at ?? '');
+  const refundedAt = Date.parse(before?.refunded_at ?? '');
+  const reversal = (deliveries ?? []).filter((d) => d.status === 200 && d.code === 'reversal_applied' && Date.parse(d.at) > approvedAt && Date.parse(d.at) < startedAt);
+  const lastEvent = before?.events?.at(-1);
+  const g = before?.grants?.[0];
+  const checks = [
+    ['refund initiated manually in the Seller Test Mercado Pago panel: this step made no Mercado Pago write', mpWrites === 0],
+    ['Mercado Pago: the payment of P1 (attested seller, ARS 39900, external_reference P1) is refunded / refunded', !!payment && payment.id === before?.approved_payment && payment.status === 'refunded' && payment.status_detail === 'refunded'
+      && payment.collector_matches === true && payment.transaction_amount === PRODUCT.amount && payment.currency_id === 'ARS' && payment.external_reference === `arma2:season:purchase:${purchaseId}`],
+    ['Mercado Pago: total refund — approved refunds sum to ARS 39900', Array.isArray(refunds) && refunds.length >= 1 && refunds.every((r) => r.status === 'approved') && sumAmounts(refunds) === PRODUCT.amount],
+    ['real signed Mercado Pago webhook: 200 reversal_applied on the TEST app after the approval, before this step sent anything, and the DB refund lands with it', reversal.length >= 1
+      && Number.isFinite(refundedAt) && reversal.some((d) => Math.abs(Date.parse(d.at) - refundedAt) <= 30_000)],
+    ['DB: purchase refunded by the provider (payment.refund, actor provider, approved → refunded)', before?.status === 'refunded' && Number.isFinite(refundedAt)
+      && lastEvent?.type === 'payment.refund' && lastEvent.actor === 'provider' && lastEvent.from === 'approved' && lastEvent.to === 'refunded'],
+    ['DB: the one Premium grant revoked by the provider (total_refund), not effective', before?.grants?.length === 1 && g.effective === false
+      && JSON.stringify(g.events.map((e) => e.type)) === JSON.stringify(['granted', 'revoked']) && g.events[1].reason_code === 'total_refund' && g.events[1].actor === 'provider'],
+    ['DB: watermark at the refunded snapshot (reversal / refund), no manual flags', (before?.watermarks ?? []).some((w) => w.payment === payment?.id && JSON.stringify(w.state) === JSON.stringify(['reversal', 'refund']))
+      && (before?.watermarks ?? []).every((w) => !w.manual_refund && !w.manual_review)],
+    ['late old notification after the refund → duplicate of the refunded snapshot; revoked never revives', late?.status === 200 && ['provider_snapshot_duplicate', 'stale_ignored'].includes(late.body?.outcome)],
+    ['the late replay changed nothing: purchase, events, grants and watermarks identical', !!before && JSON.stringify(before) === JSON.stringify(after)],
+  ];
+  return { checks: checks.map(([name, pass]) => ({ name, pass: !!pass })), reversal };
 }
 
 // ─────────────────────────── QA fixtures ───────────────────────────

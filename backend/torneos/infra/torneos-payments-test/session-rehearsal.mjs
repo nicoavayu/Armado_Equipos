@@ -41,7 +41,11 @@ const POOLER = 'aws-0-sa-east-1.pooler.supabase.com';
 // FRESH OPERATION mode (PT_REHEARSAL_FRESH=1): the 2026-09-26 incident — the first checkout's webhooks never land, its
 // Preference expires — then qa-fresh-purchase.js (certified stale sweep + new S1 purchase) and ONE approved payment.
 const FRESH = process.env.PT_REHEARSAL_FRESH === '1';
-const EV_DIR = path.join(C.EVIDENCE_DIR, `session-rehearsal${FRESH ? '-fresh' : ''}-${stamp}`);
+// MANUAL REFUND mode (PT_REHEARSAL_MANUAL_REFUND=1): the 2026-09-26 Seller Test limitation — the API refund of the
+// sandbox's live_mode:true payment answers 401 "Unauthorized use of live credentials"; the operator refunds from the
+// Mercado Pago panel, Mercado Pago delivers the signed webhook, and `refund-verify` certifies the lifecycle.
+const MANUAL_REFUND = process.env.PT_REHEARSAL_MANUAL_REFUND === '1';
+const EV_DIR = path.join(C.EVIDENCE_DIR, `session-rehearsal${FRESH ? '-fresh' : ''}${MANUAL_REFUND ? '-manual-refund' : ''}-${stamp}`);
 const lines = [];
 const log = (s) => { lines.push(s); process.stdout.write(`${s}\n`); };
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -93,7 +97,7 @@ function fakeManagement(jwksPin) {
   };
 }
 
-function fakeDeno({ onDeploy }) {
+function fakeDeno({ onDeploy, appLogs = [] }) {
   const gatewayEnv = ['CORE_ANON_KEY', 'CORE_AUTH_URL', 'CORE_CONTRACT_URL', 'CORE_JWT_ISSUER', 'TORNEOS_ALLOWED_ORIGIN', 'TORNEOS_ANON_KEY', 'TORNEOS_BRIDGE_KEYS', 'TORNEOS_CONTRACT_SERVICE_SECRET',
     'TORNEOS_DB_CORE_ADAPTER_URL', 'TORNEOS_DB_IDENTITY_WRITER_URL', 'TORNEOS_DB_SSL_CA', 'TORNEOS_GATEWAY_PUBLIC_URL', 'TORNEOS_REST_URL'];
   const apps = new Map([['torneos-gateway', { id: 'app-gw', slug: 'torneos-gateway', layers: [], env_vars: gatewayEnv.map((key) => ({ key, secret: /SECRET|KEYS|_URL$/.test(key) && key.startsWith('TORNEOS_DB') || ['TORNEOS_CONTRACT_SERVICE_SECRET', 'TORNEOS_BRIDGE_KEYS'].includes(key), contexts: 'all' })) }]]);
@@ -107,7 +111,7 @@ function fakeDeno({ onDeploy }) {
     if (method === 'GET' && (m = /^\/v2\/apps\/([a-z-]+)\/revisions/.exec(p))) return { status: 200, body: [...revisions.values()].filter((r) => r.app === m[1]).reverse() };
     if (method === 'GET' && (m = /^\/v2\/revisions\/([\w-]+)\/timelines$/.exec(p))) return { status: 200, body: [{ slug: 'production', partition: {}, domains: [{ domain: C.PAYMENTS_HOST }, { domain: `${C.APP_SLUG}-${m[1]}.${C.DENO_ORG}.deno.net` }] }] };
     if (method === 'GET' && (m = /^\/v2\/revisions\/([\w-]+)$/.exec(p))) return { status: 200, body: revisions.get(m[1]) };
-    if (method === 'GET' && /\/logs\?/.test(p)) return { status: 200, body: [] };
+    if (method === 'GET' && /\/logs\?/.test(p)) return { status: 200, body: appLogs.slice() };
     if (method === 'POST' && p === '/v2/apps') { writes.push('app-create'); const a = { id: 'app-pt', slug: body.slug, layers: [], labels: body.labels, config: body.config, env_vars: body.env_vars.map((e) => ({ key: e.key, secret: e.secret, contexts: e.contexts, ...(e.secret ? {} : { value: e.value }) })) }; apps.set(body.slug, a); onDeploy.env = Object.fromEntries(body.env_vars.map((e) => [e.key, e.value])); return { status: 200, body: a }; }
     if (method === 'PATCH' && (m = /^\/v2\/apps\/([a-z-]+)$/.exec(p)) && apps.has(m[1])) {
       // Deno merges the PATCH env_vars list into the app env (what the gateway R2 run measured)
@@ -115,7 +119,7 @@ function fakeDeno({ onDeploy }) {
       for (const e of body.env_vars) { a.env_vars = a.env_vars.filter((x) => x.key !== e.key).concat([{ key: e.key, secret: e.secret, contexts: e.contexts, ...(e.secret ? {} : { value: e.value }) }]); onDeploy.env = { ...onDeploy.env, [e.key]: e.value }; }
       return { status: 200, body: a };
     }
-    if (method === 'POST' && (m = /^\/v2\/apps\/([a-z-]+)\/deploy$/.exec(p))) { writes.push('deploy'); const id = `rev${++seq}x`; const r = { id, app: m[1], status: 'succeeded', timelines: [{ name: 'production', context: 'production', hostnames: [C.PAYMENTS_HOST] }] }; revisions.set(id, r); await onDeploy.boot(); return { status: 202, body: { ...r, status: 'queued' } }; }
+    if (method === 'POST' && (m = /^\/v2\/apps\/([a-z-]+)\/deploy$/.exec(p))) { writes.push('deploy'); const id = `rev${++seq}x`; const r = { id, app: m[1], status: 'succeeded', timelines: [{ name: 'production', context: 'production', hostnames: [C.PAYMENTS_HOST] }] }; revisions.set(id, r); onDeploy.revision = id; await onDeploy.boot(); return { status: 202, body: { ...r, status: 'queued' } }; }
     return { status: 404, body: { code: 'fake_unknown' } };
   };
   return { transport, writes };
@@ -147,9 +151,11 @@ async function main() {
       return { dbPassword: own('db', () => crypto.randomBytes(30).toString('base64url')), internalSecret: own('hmac', () => crypto.randomBytes(32).toString('hex')), installer: own('installer') };
     };
     const mp = makeMercadoPago({ sellerId: SELLER, accessToken: MP_TOKEN });
-    const deployed = { env: null, service: null, async boot() {
+    // the TEST app's own log lines (route/status/code), served by the fake Deno logs API like the real one
+    const appLogs = [];
+    const deployed = { env: null, service: null, revision: null, async boot() {
       const env = deployed.env;
-      deployed.service = createPaymentsService({ env, log: () => {}, fetcher: (u, i) => mp.fetch(u, i), connectDb: (url, ca) => {
+      deployed.service = createPaymentsService({ env, log: (e) => appLogs.push({ level: 'info', message: JSON.stringify(e), revision_id: deployed.revision, timestamp: new Date().toISOString() }), fetcher: (u, i) => mp.fetch(u, i), connectDb: (url, ca) => {
         const u = new URL(url);
         if (u.hostname !== POOLER || u.port !== '6543' || !ca || decodeURIComponent(u.username) !== `${C.PAYMENT_LOGIN}.${C.TORNEOS_REF}`) throw new Error('rehearsal: the app must connect with the pinned pooler URL and a CA');
         const db = createPaymentsDb(`postgres://${C.PAYMENT_LOGIN}:${u.password}@127.0.0.1:${port}/postgres`, undefined); dbs.push(db); return db;
@@ -170,7 +176,7 @@ async function main() {
       if (m && method === 'POST' && res.status === 201) setTimeout(() => { deliver(m[1]); }, 200);
       return out;
     };
-    const deno = fakeDeno({ onDeploy: deployed });
+    const deno = fakeDeno({ onDeploy: deployed, appLogs });
     const https = async ({ url, method = 'GET', headers = {}, body }) => {
       const u = new URL(url);
       if (u.hostname === G.GATEWAY_HOST) {
@@ -277,10 +283,44 @@ async function main() {
     record('S13 observe: rejected attempt, approved ARS 39900 TEST, grant effective, watermarks', r.ok && r.verdict === 'SANDBOX_CHECKOUT_APPLIED', r);
     r = await run('replays');
     record('S14 replays with the approved payment: duplicates (10/13-digit, old ts), seller/live negatives, nothing moved', r.ok, r);
-    r = await run('refund');
-    record('S15 refund: PLAN → phrase → armed refund → signed webhook → refunded, grant revoked, stale notification harmless', r.ok && r.verdict === 'REFUND_LIFECYCLE_PASS', r);
+    if (MANUAL_REFUND) {
+      const pay = session.state.approved.id;
+      mp.refuseLiveRefunds();
+      await sleep(1100);
+      r = await run('refund');
+      record('M01 refund through the API on the live_mode:true sandbox payment → 401 "Unauthorized use of live credentials" (MP_TOKEN_REFUSED), nothing moved', !r.ok && r.code === 'MP_TOKEN_REFUSED'
+        && readOnlyRow(C.QA_TRAIL_SQL).trail.find((p) => p.purchase === session.state.fixtures.P1).status === 'approved' && mp.state.payments.get(pay).snapshots.at(-1).status === 'approved', r);
+      await sleep(1100);
+      r = await run('refund-verify');
+      record('M02 refund-verify before any refund → REFUND_LIFECYCLE_FAILED, no Mercado Pago write', !r.ok && r.code === 'REFUND_LIFECYCLE_FAILED', r);
+      // an observe after the refund is necessarily INCOMPLETE; the operator keeps it aside (post-refund-observations/)
+      mp.panelRefund(pay);
+      const d = await deliver(pay);
+      record('M03 the operator refunds in the Mercado Pago panel; Mercado Pago delivers the signed webhook → 200 reversal_applied', d.status === 200 && d.body?.outcome === 'reversal_applied', d);
+      await sleep(1100);
+      r = await run('observe');
+      const obs = fs.readdirSync(EV_DIR).filter((n) => n.startsWith('pt-08-')).sort().at(-1);
+      fs.mkdirSync(path.join(EV_DIR, 'post-refund-observations'), { recursive: true });
+      fs.renameSync(path.join(EV_DIR, obs), path.join(EV_DIR, 'post-refund-observations', obs));
+      record('M04 observe after the refund → SANDBOX_CHECKOUT_INCOMPLETE (purchase no longer approved), moved to post-refund-observations/', r.ok && r.verdict === 'SANDBOX_CHECKOUT_INCOMPLETE', r);
+      await sleep(1100);
+      const mpWritesBefore = mp.calls.filter((x) => x.startsWith('POST')).length;
+      r = await run('refund-verify');
+      const pt10 = JSON.parse(fs.readFileSync(path.join(EV_DIR, fs.readdirSync(EV_DIR).filter((n) => n.startsWith('pt-10-')).sort().at(-1)), 'utf8'));
+      record('S15 refund-verify: total provider refund, real signed webhook, refunded, grant revoked, watermark, harmless late replay; API initiation declared NOT certified', r.ok && r.verdict === 'REFUND_LIFECYCLE_PASS_MANUAL_INITIATION'
+        && pt10.checks.length === 9 && pt10.checks.every((c) => c.pass) && pt10.mp_writes === 0 && mp.calls.filter((x) => x.startsWith('POST')).length === mpWritesBefore
+        && /^NOT CERTIFIED/.test(pt10.refund_api_initiation) && /^CERTIFIED/.test(pt10.refund_lifecycle) && pt10.post_refund_observations.length === 1 && pt10.post_refund_observations[0].verdict === 'SANDBOX_CHECKOUT_INCOMPLETE', { r, checks: pt10?.checks });
+    } else {
+      r = await run('refund');
+      record('S15 refund: PLAN → phrase → armed refund → signed webhook → refunded, grant revoked, stale notification harmless', r.ok && r.verdict === 'REFUND_LIFECYCLE_PASS', r);
+    }
     r = await run('certify');
     record('S16 certify: every step bound by sha256, delta = pin, QA-only census, no secret anywhere', r.ok && r.verdict === 'PAYMENTS_REMOTE_TEST_CERTIFIED', r);
+    if (MANUAL_REFUND) {
+      const pt11 = JSON.parse(fs.readFileSync(path.join(EV_DIR, fs.readdirSync(EV_DIR).filter((n) => n.startsWith('pt-11-')).sort().at(-1)), 'utf8'));
+      record('M05 certify carries the limitation: refund API initiation NOT certified, refund → signed webhook → revoke certified', /^NOT CERTIFIED/.test(pt11.limitations?.refund_api_initiation ?? '') && /^CERTIFIED/.test(pt11.limitations?.refund_lifecycle ?? '')
+        && pt11.evidence.find((b) => b.step === 'pt-10-refund')?.verdict === 'REFUND_LIFECYCLE_PASS_MANUAL_INITIATION', pt11.limitations);
+    }
     const c = census();
     record(`S17 final census: ${FRESH ? '3 QA purchases (superseded expired, P1 refunded' : '2 QA purchases (P1 refunded'}, P2 untouched), 1 revoked grant, control tenant without commercial rows`, C.censusFailures(c).length === 0 && c.purchases === (FRESH ? 3 : 2) && c.organizations === 2, c);
     const leaks = C.secretFindings(transcript.join('\n'), session.known);

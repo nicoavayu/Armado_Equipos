@@ -30,7 +30,7 @@ test('P1 the seller id is the last token segment; malformed inputs never build a
 
 test('P2 unknown or argument-carrying commands are refused before any I/O', async () => {
   const s = makeSession({ ...GOOD, deps });
-  for (const [line, code] of [['drop-everything', 'COMMAND_UNKNOWN'], ['pb now', 'COMMAND_REFUSED'], ['preference 1', 'COMMAND_REFUSED'], ['ordering', 'RUN_FIXTURES_FIRST'], ['refund', 'RUN_FIXTURES_FIRST']]) {
+  for (const [line, code] of [['drop-everything', 'COMMAND_UNKNOWN'], ['pb now', 'COMMAND_REFUSED'], ['preference 1', 'COMMAND_REFUSED'], ['ordering', 'RUN_FIXTURES_FIRST'], ['refund', 'RUN_FIXTURES_FIRST'], ['refund-verify', 'RUN_FIXTURES_FIRST'], ['refund-verify now', 'COMMAND_REFUSED']]) {
     await assert.rejects(s.run(line), (e) => e.code === code, line);
   }
 });
@@ -42,6 +42,9 @@ test('P3 Mercado Pago allowlist: reads only, one armed full refund, nothing else
   assert.throws(() => C.classifyMpRequest({ method: 'POST', path: '/v1/payments/123/refunds', body: { amount: 1 } }, { armedFor: 'refund:123' }), /full_refund/);
   assert.equal(C.classifyMpRequest({ method: 'POST', path: '/v1/payments/123/refunds', body: {} }, { armedFor: 'refund:123' }).kind, 'write:refund');
   assert.throws(() => C.classifyMpRequest({ method: 'POST', path: '/v1/payments/124/refunds', body: {} }, { armedFor: 'refund:123' }), /not_armed/);
+  assert.deepEqual(C.classifyMpRequest({ method: 'GET', path: '/v1/payments/123/refunds' }), { id: 'payment-refunds', kind: 'read' });
+  assert.throws(() => C.classifyMpRequest({ method: 'GET', path: '/v1/payments/123/refunds', body: {} }), /get_with_body/);
+  assert.throws(() => C.classifyMpRequest({ method: 'GET', path: '/v1/payments/123/refunds/9' }), /not_allowlisted/);
 });
 
 test('P4 Deno allowlist: the gateway app is read-only, writes only to torneos-payments-test and only armed', () => {
@@ -141,4 +144,51 @@ test('P12 FRESH OPERATION: a superseded S1 purchase is expired by the service sw
     { ...base, events: [...base.events.slice(0, 2), { type: 'payment.approved', from: 'preference_created', to: 'approved', actor: 'provider' }, base.events[2]] },
     { ...base, events: [...base.events.slice(0, 2), { ...base.events[2], actor: 'user' }] }, null,
   ]) assert.equal(C.isSupersededQaPurchase(bad), false, JSON.stringify(bad));
+});
+
+test('P13 REFUND, MANUAL INITIATION: every lifecycle check is real; the API initiation is declared not certified', async () => {
+  const P1 = 'd4a72039-3b35-489c-8a75-7a6e37d85cd1'; const pay = '181036143126';
+  const trail = { purchase: P1, status: 'refunded', approved_payment: pay, approved_at: '2026-09-26T19:46:30.201658+00:00', refunded_at: '2026-09-26T20:20:17.738951+00:00',
+    events: [{ type: 'purchase.created', from: null, to: 'created', actor: 'user' }, { type: 'preference.created', from: 'created', to: 'preference_created', actor: 'service' },
+      { type: 'payment.approved', from: 'preference_created', to: 'approved', actor: 'provider' }, { type: 'payment.refund', from: 'approved', to: 'refunded', actor: 'provider' }],
+    grants: [{ grant: 'g', plan: 'PREMIUM', effective: false, events: [{ type: 'granted', reason_code: 'payment_approved', actor: 'provider' }, { type: 'revoked', reason_code: 'total_refund', actor: 'provider' }] }],
+    watermarks: [{ payment: pay, state: ['reversal', 'refund'], manual_refund: false, manual_review: false }] };
+  const payment = { id: pay, status: 'refunded', status_detail: 'refunded', collector_matches: true, transaction_amount: 39900, currency_id: 'ARS', external_reference: `arma2:season:purchase:${P1}` };
+  const refunds = [{ refund_id: '1', amount: 39900, status: 'approved', source_type: 'collector' }];
+  const deliveries = [{ at: '2026-09-26T19:46:31.008Z', status: 200, code: 'approved' }, { at: '2026-09-26T20:20:17.823Z', status: 400, code: 'invalid_request' }, { at: '2026-09-26T20:20:18.659Z', status: 200, code: 'reversal_applied' }];
+  const base = { purchaseId: P1, payment, refunds, before: trail, after: structuredClone(trail), deliveries, startedAt: Date.parse('2026-09-26T21:00:00Z'), mpWrites: 0, late: { status: 200, body: { outcome: 'provider_snapshot_duplicate' } } };
+  const r = C.manualRefundChecks(base);
+  assert.equal(r.checks.length, 9); assert.ok(r.checks.every((c) => c.pass), JSON.stringify(r.checks.filter((c) => !c.pass)));
+  assert.equal(r.reversal.length, 1);
+  const fail = (over, why) => assert.ok(C.manualRefundChecks({ ...base, ...over }).checks.some((c) => !c.pass), why);
+  fail({ mpWrites: 1 }, 'a Mercado Pago write by the session');
+  fail({ payment: { ...payment, status: 'approved', status_detail: 'accredited' } }, 'provider not refunded');
+  fail({ payment: { ...payment, id: '1' } }, 'another payment');
+  fail({ payment: { ...payment, collector_matches: false } }, 'another seller');
+  fail({ payment: null }, 'no payment');
+  fail({ refunds: [] }, 'no refund at the provider');
+  fail({ refunds: [{ ...refunds[0], amount: 19950 }] }, 'partial refund');
+  fail({ refunds: [{ ...refunds[0], status: 'rejected' }] }, 'refund not approved');
+  fail({ deliveries: deliveries.filter((d) => d.code !== 'reversal_applied') }, 'no real signed delivery');
+  fail({ startedAt: Date.parse('2026-09-26T20:20:00Z') }, 'the delivery came after the step started (could be the harness)');
+  fail({ deliveries: [...deliveries.slice(0, 2), { ...deliveries[2], at: '2026-09-26T20:25:00Z' }] }, 'the delivery is not the one that refunded the purchase');
+  fail({ before: { ...trail, status: 'approved' }, after: { ...trail, status: 'approved' } }, 'purchase not refunded');
+  fail({ before: { ...trail, events: [...trail.events.slice(0, 3), { ...trail.events[3], actor: 'service' }] } }, 'refund not applied by the provider path');
+  const g = (ev, eff = false) => ({ ...trail, grants: [{ ...trail.grants[0], effective: eff, events: ev }] });
+  fail({ before: g(trail.grants[0].events, true) }, 'grant still effective');
+  fail({ before: g([trail.grants[0].events[0], { ...trail.grants[0].events[1], reason_code: 'manual' }]) }, 'revoked for another reason');
+  fail({ before: { ...trail, grants: [...trail.grants, trail.grants[0]] } }, 'two grants');
+  fail({ before: { ...trail, watermarks: [{ ...trail.watermarks[0], state: ['status', 'approved'] }] } }, 'watermark not advanced');
+  fail({ before: { ...trail, watermarks: [{ ...trail.watermarks[0], manual_refund: true }] } }, 'manual refund flag');
+  fail({ late: { status: 200, body: { outcome: 'applied' } } }, 'late replay applied something');
+  fail({ after: { ...trail, status: 'approved' } }, 'late replay revived the purchase');
+  assert.match(C.REFUND_LIMITATION.refund_api_initiation, /^NOT CERTIFIED .*"refund API initiation" could not be certified.*Seller Test.*live_mode:true/);
+  assert.match(C.REFUND_LIMITATION.refund_lifecycle, /^CERTIFIED .*refund → signed webhook → revoke/);
+  assert.deepEqual(C.REFUND_PASS_VERDICTS, ['REFUND_LIFECYCLE_PASS', 'REFUND_LIFECYCLE_PASS_MANUAL_INITIATION']);
+  const { makeMercadoPagoClient } = await import('./payments-clients.mjs');
+  const seen = [];
+  const mp = makeMercadoPagoClient({ token: TOKEN, sellerId: SELLER, transport: async (req) => { seen.push(req); return { status: 200, body: [{ id: 77, payment_id: 181036143126, amount: 39900, status: 'approved', date_created: 'x', source: { id: '999', name: 'Someone', type: 'collector' }, refund_mode: 'standard' }] }; } });
+  const rf = await mp.refunds(pay);
+  assert.deepEqual(rf, [{ refund_id: '77', payment_id: '181036143126', amount: 39900, status: 'approved', date_created: 'x', source_type: 'collector', refund_mode: 'standard' }]);
+  assert.equal(seen[0].method, 'GET'); assert.equal(mp.writes, 0); assert.ok(!JSON.stringify(rf).includes('Someone') && !JSON.stringify(rf).includes('999'));
 });

@@ -1,7 +1,7 @@
 // PAYMENTS TEST — in-process Mercado Pago emulator for the offline rehearsal and the unit tests. It speaks the exact
 // shapes the byte-pinned provider (_shared/mercadoPagoPaymentProvider.ts) reads: /users/me, POST/GET
 // /checkout/preferences, /v1/payments/{id}, /v1/payments/search, /merchant_orders/{id}, /v1/chargebacks/{id},
-// POST /v1/payments/{id}/refunds. Every payment is a list of provider SNAPSHOTS (date_last_updated ascending); the
+// POST/GET /v1/payments/{id}/refunds. Every payment is a list of provider SNAPSHOTS (date_last_updated ascending); the
 // emulator serves the snapshot selected by `serve(id, index)`, which is how the rehearsal reproduces old notifications
 // racing newer provider states. Nothing leaves the process.
 import crypto from 'node:crypto';
@@ -10,7 +10,7 @@ import crypto from 'node:crypto';
 // emulator defaults to it (`liveMode`); every Preference carries the creating application's client_id and every merchant
 // order its application_id (`applicationId`), which the remote-test sandbox policy binds.
 export function makeMercadoPago({ sellerId, accessToken, me = null, liveMode: defaultLiveMode = true, applicationId = '4412345678901234' }) {
-  const state = { preferences: new Map(), payments: new Map(), orders: new Map(), chargebacks: new Map(), calls: [], served: new Map(), down: null, meOverride: me };
+  const state = { preferences: new Map(), payments: new Map(), orders: new Map(), chargebacks: new Map(), refunds: new Map(), calls: [], served: new Map(), down: null, meOverride: me, refuseLiveRefunds: false };
   let seq = 90_000_000_000;
   const nextId = () => String(++seq);
   const json = (status, body) => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
@@ -41,6 +41,16 @@ export function makeMercadoPago({ sellerId, accessToken, me = null, liveMode: de
     },
     /** A newer provider state of the same payment (refund, mediation, reimbursement…). */
     update(id, { status, statusDetail = null, at }) { state.payments.get(id).snapshots.push({ status, status_detail: statusDetail, date_last_updated: at }); state.served.delete(id); },
+    /** The Seller Test sandbox (2026-09-26): the API refund of a live_mode:true payment answers 401 "Unauthorized use of live credentials". */
+    refuseLiveRefunds(on = true) { state.refuseLiveRefunds = on; },
+    /** A full refund made by the seller in the Mercado Pago panel (no API call): the refund record + the refunded snapshot. */
+    panelRefund(id, { at } = {}) {
+      const p = state.payments.get(id); const last = p.snapshots.at(-1);
+      const r = { id: Number(nextId()), payment_id: Number(id), amount: p.base.transaction_amount, status: 'approved', date_created: at ?? new Date().toISOString(), source: { id: String(sellerId), name: 'TESTUSER_EMULATED', type: 'collector' }, refund_mode: 'standard' };
+      state.refunds.set(id, [...(state.refunds.get(id) ?? []), r]);
+      api.update(id, { status: 'refunded', statusDetail: 'refunded', at: at ?? new Date(Date.parse(last.date_last_updated) + 60_000).toISOString() });
+      return r;
+    },
     /** Serve an older snapshot (index) — a stale re-fetch; `null` = latest. */
     serve(id, index) { if (index === null) state.served.delete(id); else state.served.set(id, index); },
     chargeback(paymentId, { liveMode = defaultLiveMode } = {}) { const id = nextId(); state.chargebacks.set(id, { id: Number(id), payments: [Number(paymentId)], currency: 'ARS', amount: 39900, coverage_applied: false, live_mode: liveMode }); return id; },
@@ -73,10 +83,14 @@ export function makeMercadoPago({ sellerId, accessToken, me = null, liveMode: de
       }
       if ((m = /^\/v1\/payments\/(\d+)\/refunds$/.exec(url.pathname)) && method === 'POST') {
         const p = state.payments.get(m[1]); if (!p) return json(404, { message: 'not found' });
+        if (state.refuseLiveRefunds && p.base.live_mode === true) return json(401, { message: 'Unauthorized use of live credentials', error: 'unauthorized', status: 401 });
         const last = p.snapshots.at(-1);
         api.update(m[1], { status: 'refunded', statusDetail: 'refunded', at: new Date(Date.parse(last.date_last_updated) + 60_000).toISOString() });
-        return json(201, { id: Number(nextId()), payment_id: Number(m[1]), amount: p.base.transaction_amount, status: 'approved' });
+        const r = { id: Number(nextId()), payment_id: Number(m[1]), amount: p.base.transaction_amount, status: 'approved' };
+        state.refunds.set(m[1], [...(state.refunds.get(m[1]) ?? []), r]);
+        return json(201, r);
       }
+      if ((m = /^\/v1\/payments\/(\d+)\/refunds$/.exec(url.pathname)) && method === 'GET') return state.payments.has(m[1]) ? json(200, state.refunds.get(m[1]) ?? []) : json(404, { message: 'not found' });
       if ((m = /^\/v1\/payments\/(\d+)$/.exec(url.pathname))) { const p = snapshotOf(m[1]); return p ? json(200, p) : json(404, { message: 'Payment not found' }); }
       if ((m = /^\/merchant_orders\/(\d+)$/.exec(url.pathname))) { const o = state.orders.get(m[1]); return o ? json(200, o) : json(404, { message: 'not found' }); }
       if ((m = /^\/v1\/chargebacks\/(\d+)$/.exec(url.pathname))) { const c = state.chargebacks.get(m[1]); return c ? json(200, c) : json(404, { message: 'not found' }); }
