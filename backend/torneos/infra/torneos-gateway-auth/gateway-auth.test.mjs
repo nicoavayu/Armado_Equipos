@@ -55,7 +55,7 @@ test('pins: refs, topology and bridge constants equal the gateway sources (topol
   assert.deepEqual(G.foundationDrift(), [], 'the certified foundation tooling + pin are byte-identical');
 });
 
-test('allowlist: Core Production = two GETs; only Torneos is written; no DELETE/PUT; writes armed, in their mode, with the exact body', () => {
+test('allowlist: Core Production = two GETs; only Torneos is written; no PUT, no DELETE but the pinned superseded B03; writes armed, in their mode, with the exact body', () => {
   const c = (method, p, body, opts) => G.classifyRequest({ method, path: p, body }, opts);
   assert.equal(c('GET', `/v1/projects/${P}`, undefined, { mode: '--certify' }).id, 'prod-project');
   assert.equal(c('GET', `/v1/projects/${P}/functions/torneos-core-contract`, undefined, { mode: '--certify' }).id, 'prod-contract-fn');
@@ -77,12 +77,12 @@ test('allowlist: Core Production = two GETs; only Torneos is written; no DELETE/
     { ...G.AUTH_LOCKDOWN_BODY, mfa_totp_enroll_enabled: true }, fiveKeys, { ...G.AUTH_LOCKDOWN_BODY, passkey_enabled: false }]) {
     assert.throws(() => c('PATCH', `/v1/projects/${T}/config/auth`, bad, { mode: '--auth-lockdown', armedFor: 'auth-lockdown' }), /auth_body/);
   }
-  assert.equal(c('POST', `/v1/projects/${T}/config/auth/third-party-auth`, G.customJwksBody(pin), { mode: '--b03', armedFor: 'b03', jwksPin: pin }).kind, 'write:b03');
-  const withD = G.customJwksBody(pin); withD.custom_jwks.keys[0].d = 'x';
-  for (const bad of [withD, { custom_jwks: { keys: [pin.keys[0]] } }, { ...G.customJwksBody(pin), oidc_issuer_url: 'https://x' }, { custom_jwks: { keys: [...pin.keys].reverse() } }]) {
+  // B03 = jwks_url (2026-09-26): the body is exactly {jwks_url}; inline custom_jwks is never published again (b03-jwks-url.test.mjs).
+  assert.equal(c('POST', `/v1/projects/${T}/config/auth/third-party-auth`, G.jwksUrlBody(), { mode: '--b03', armedFor: 'b03', jwksPin: pin }).kind, 'write:b03');
+  for (const bad of [G.customJwksBody(pin), { ...G.jwksUrlBody(), oidc_issuer_url: 'https://x' }, { jwks_url: 'https://attacker.invalid/jwks.json' }]) {
     assert.throws(() => c('POST', `/v1/projects/${T}/config/auth/third-party-auth`, bad, { mode: '--b03', armedFor: 'b03', jwksPin: pin }));
   }
-  assert.throws(() => c('POST', `/v1/projects/${T}/config/auth/third-party-auth`, G.customJwksBody(pin), { mode: '--b03', armedFor: 'b03', jwksPin: null }), 'no pin → no B03');
+  assert.throws(() => c('POST', `/v1/projects/${T}/config/auth/third-party-auth`, G.jwksUrlBody(), { mode: '--b03', armedFor: 'b03', jwksPin: null }), 'no pin → no B03');
 });
 
 test('scoped PAT per mode: read-only modes carry no Read-write; W1 = Auth Config RW + Project Settings RW; W5 = Auth Config RW', () => {
@@ -91,7 +91,7 @@ test('scoped PAT per mode: read-only modes carry no Read-write; W1 = Auth Config
   assert.deepEqual(rw('--auth-lockdown'), ['Auth Config: Read-write', 'Project Settings: Read-write']);
   assert.deepEqual(rw('--b03'), ['Auth Config: Read-write']);
   assert.deepEqual(G.patRequirement('--auth-lockdown').api_writes, ['auth-lockdown']);
-  assert.deepEqual(G.patRequirement('--b03').api_writes, ['tpa-create']);
+  assert.deepEqual(G.patRequirement('--b03').api_writes, ['tpa-delete', 'tpa-create']);
   assert.deepEqual(G.patRequirement('--db-bootstrap').api_writes, []);
   assert.equal(G.patRequirement('--db-bootstrap').other_writes, 'psql');
   assert.match(G.patRequirementText('--certify'), /resource access: Organization gwqrborhnqjdzzmpxulh/);
@@ -245,12 +245,19 @@ test('runner entry: only {"pat"}; unknown mode refused; a mode can arm only its 
   await assert.rejects(lock.authLockdown(), /not_armed/);
 });
 
-test('G2 isolation: the new tooling never uses phase3b/remote, never deploys a function, never writes secrets, no DELETE', () => {
+test('G2 isolation: the new tooling never uses phase3b/remote, never deploys a function, never writes secrets; the only DELETE is the pinned superseded B03', () => {
+  const DELETE_SITES = { 'gateway-auth-contract.mjs': 2, 'mgmt-gateway-auth.mjs': 1 };
   for (const f of fs.readdirSync(HERE).filter((x) => /\.(mjs|sh|py)$/.test(x) && !x.endsWith('.test.mjs') && x !== 'offline-rehearsal.mjs')) {
     const src = fs.readFileSync(path.join(HERE, f), 'utf8').split('\n').filter((l) => !/^\s*(\/\/|#|\*)/.test(l)).join('\n');
-    assert.doesNotMatch(src, /phase3b\/remote|functions\/deploy|\/secrets['"`]?\s*,\s*\{|method:\s*'DELETE'|'DELETE'|hhyvmhgpapyuzjgxfnqv\/(pause|database|functions|secrets|config)/, f);
+    assert.doesNotMatch(src, /phase3b\/remote|functions\/deploy|\/secrets['"`]?\s*,\s*\{|hhyvmhgpapyuzjgxfnqv\/(pause|database|functions|secrets|config)/, f);
+    assert.equal((src.match(/'DELETE'/g) ?? []).length, DELETE_SITES[f] ?? 0, `${f}: DELETE sites`);
     assert.doesNotMatch(src, /["'`]arma2-torneos-(nonprod|staging)|phase3b\/remote\/keychain\.py/, f); // used as a value (docstrings may name what is excluded)
   }
+  const del = G.ENDPOINTS.filter((e) => e.method === 'DELETE');
+  assert.deepEqual(del.map((e) => e.id), ['tpa-delete']);
+  assert.ok(del[0].re.test(`/v1/projects/${T}/config/auth/third-party-auth/${G.B03_SUPERSEDED_INLINE_ID}`));
+  for (const p of [`/v1/projects/${T}/config/auth/third-party-auth/${crypto.randomUUID()}`, `/v1/projects/${T}/config/auth/third-party-auth/${G.B03_SUPERSEDED_INLINE_ID}x`, `/v1/projects/${T}/config/auth/third-party-auth`]) assert.ok(!del[0].re.test(p), p);
+  assert.match(fs.readFileSync(path.join(HERE, 'mgmt-gateway-auth.mjs'), 'utf8'), /call\('DELETE', `\/v1\/projects\/\$\{T\}\/config\/auth\/third-party-auth\/\$\{G\.B03_SUPERSEDED_INLINE_ID\}`\)/);
 });
 
 test('wrapper: refuses force flags, extra args and a non-terminal', () => {

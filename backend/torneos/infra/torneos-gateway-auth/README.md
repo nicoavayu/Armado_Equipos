@@ -13,7 +13,7 @@ The certified flow is unchanged:
 
 ```
 Core session → POST <Torneos gateway>/exchange → gateway checks Core over HTTPS → RS256 bridge token (TTL 120 s, tolerance 5 s)
-→ Torneos REST through the gateway (Core session re-checked) → PostgREST: custom_jwks + pgrst.db_pre_request → Torneos DB
+→ Torneos REST through the gateway (Core session re-checked) → PostgREST: B03 jwks_url + pgrst.db_pre_request → Torneos DB
 ```
 
 ## G1 — the gateway accepts Core Production as the authority, never as data
@@ -54,7 +54,7 @@ run-gateway-auth.sh --db-bootstrap       W2+W3 (psql)     ONE transaction on Arm
 run-gateway-auth.sh --db-certify         READ-ONLY        after W2+W3: foundation + delta, both edge logins over the pooler (5432/6543)
 run-gateway-auth.sh --db-phase           SEQUENCE         --preflight → --db-bootstrap (plan + phrase) → --db-certify, one PAT
 run-gateway-auth.sh --keyring-generate   LOCAL write      new Production ring → Keychain + pins/production-bridge-jwks.json
-run-gateway-auth.sh --b03                W5 (API write)   POST /v1/projects/<torneos>/config/auth/third-party-auth
+run-gateway-auth.sh --b03                W5 (API writes)  [DELETE superseded inline] + POST third-party-auth {jwks_url}
 run-gateway-auth.sh --deploy-preflight   READ-ONLY        gateway Production env vs the real config.ts; lists pending decisions
 run-gateway-auth.sh --certify            READ-ONLY        post-gateway/auth certification
 ```
@@ -86,7 +86,7 @@ A second run of a write mode is `…_ALREADY_APPLIED` and writes nothing.
 | `--auth-lockdown` | `LOCK TORNEOS AUTH onzpwnqxnvlgsevivngf <plan>` |
 | `--db-bootstrap` | `BOOTSTRAP TORNEOS GATEWAY DB onzpwnqxnvlgsevivngf <plan>` |
 | `--keyring-generate` | `GENERATE TORNEOS PRODUCTION BRIDGE RING <plan>` |
-| `--b03` | `PUBLISH TORNEOS B03 CUSTOM JWKS onzpwnqxnvlgsevivngf <plan>` |
+| `--b03` | `PUBLISH TORNEOS B03 JWKS URL onzpwnqxnvlgsevivngf <plan>` |
 
 ### Remote delta, exactly
 
@@ -141,13 +141,39 @@ An unreadable or missing term is "cannot" (fail closed). `--preflight` records t
 - Private halves go to Keychain `arma2-torneos-prod-bridge` as `k<n>.meta` plus `k<n>.part0..19`. Each line is under 100 characters (the macOS getpass limit is 128), is read back and compared, and is re-derived against the pin.
 - Public halves go to `pins/production-bridge-jwks.json`.
 
-**W5 — B03.** The body is exactly `{"custom_jwks": {"keys": [<k1 public>, <k2 public>]}}`. It carries no issuer, no `jwks_url` and no private member.
-- Before the write, bridge tokens must be refused by the host.
-- After the write, `bridge-probe.mjs` measures, without assuming. At most 6 read-only re-probes run, 10 s apart:
-  - k1 and k2 tokens for a non-existent identity must reach the identity gate (`401 PT401 invalid identity token`);
-  - an unknown key, a foreign HS256 token and `alg=none` must be refused before the DB;
-  - anon still reads the public-page table.
-- If the host refuses a k1 token itself, for example because it pins another `aud`, the run STOPs with `B03_HOST_REJECTS_BRIDGE_TOKEN`. That is a human decision about iss/aud and a possible migration 0004. It is never silent.
+**W5 — B03 = `jwks_url`** (owner decision 2026-09-26, option A). The first B03 published the public k1+k2 inline as `custom_jwks` (integration `f0a6c05e-82df-4f4b-a444-198ab78fdf45`). The API accepted it, but the hosted resolver never resolved it: `resolved_at` stayed null for more than 30 minutes, and PostgREST answered `PGRST301 No suitable key`. B03 is now the gateway's public JWKS by URL:
+
+```
+{"jwks_url": "https://torneos-gateway.nicoavayu.deno.net/functions/v1/torneos-gateway/.well-known/jwks.json"}
+```
+
+iss, aud, RS256, TTL 120 s, tolerance 5 s, the ring and migration count are all unchanged.
+
+- **Before any write**, `jwks-url-probe.mjs` certifies the URL as the resolver sees it:
+  - HTTPS on the exact pinned host;
+  - 200 with no redirect, `application/json`, no Set-Cookie;
+  - the body byte-equal to the pinned public k1+k2, with only public members;
+  - no value the session holds;
+  - a query string, a foreign X-Forwarded-Host or a POST cannot change the key set.
+
+  The JWKS is `token.ts jwks()` of `TORNEOS_BRIDGE_KEYS`, so no request input reaches it.
+- **States:** `pending` (0 integrations), `superseded-inline` (exactly the unresolved inline one: pinned id, pin kids and digest, `resolved_at` null), `resolving`, `applied` (the pinned URL with `resolved_jwks` = pin), `foreign` (anything else → STOP, nothing deleted).
+- **One plan, one phrase** (`PUBLISH TORNEOS B03 JWKS URL onzpwnqxnvlgsevivngf <plan>`):
+  1. `DELETE third-party-auth/f0a6c05e-…` (the allowlist has no other DELETE);
+  2. confirm there are 0 integrations;
+  3. `POST {jwks_url}`, once.
+- **If the DELETE passes and the POST fails:** `B03_CREATE_FAILED` with evidence. The next `--b03` starts from `pending` and only POSTs, under a new plan and phrase.
+- **Resolution** is read-only polling (30 s, 20 min). If it is not resolved yet, the verdict is `B03_RESOLVING`; a later `--b03` resumes from `resolving` with zero writes.
+- **Probes** (`bridge-probe.mjs`, up to 20 × 15 s):
+  - A: k1 for the existing shadow identity → 200 with its own row;
+  - B: k1/k2 for an unknown identity → `PT401`;
+  - C: unknown key, HS256, `alg=none` → 401 before the DB;
+  - D: tampered payload → 401, not `PT401`;
+  - E: k2 standby for the existing identity → 200;
+  - F: anon still reads the public-page table.
+
+  The identity comes from a read-only SQL query; evidence keeps 8-character prefixes only.
+- If the host refuses a trusted k1 token itself, the run STOPs with `B03_HOST_REJECTS_BRIDGE_TOKEN`. That is a human decision; it is never silent.
 
 ### Scoped PAT per mode
 
@@ -178,7 +204,7 @@ Resource access is always Organization `gwqrborhnqjdzzmpxulh`, with a 24 h expir
   - no edge login reaches a privileged role;
   - the authenticator's `pgrst.*` settings are exactly the pre_request.
 - Auth locked (W1), with 0 `auth.users`.
-- `custom_jwks`: exactly one integration, with kids and digest equal to the pin and no private member.
+- B03: exactly one integration, the pinned `jwks_url`, resolved to the pin's kids and digest, with no private member.
 - Platform:
   - 0 Edge Functions and `SUPABASE_*` secrets only;
   - empty migrations ledger;

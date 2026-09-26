@@ -18,11 +18,12 @@
 //   --db-phase          SEQUENCE   --preflight → --db-bootstrap (its own plan + phrase) → --db-certify, one PAT, each step
 //                                  its own client/allowlist and evidence; any STOP ends the sequence
 //   --keyring-generate  LOCAL      a new Production ring (k1 active, k2 standby) into the Keychain + the public JWKS pin
-//   --b03               W5         POST third-party-auth {custom_jwks: pinned public k1+k2} → measured bridge probes
+//   --b03               W5         [DELETE the superseded inline integration] → POST third-party-auth {jwks_url: pinned
+//                                  gateway JWKS} → wait for resolution (resolved_jwks = pin) → measured bridge probes A–F
 //   --deploy-preflight  READ-ONLY  the gateway's Production env, built from pins + custody presence, validated by the REAL
 //                                  gateway config.ts (topology = production) → pending human decisions listed → STOP
 //   --certify           READ-ONLY  the post-gateway/auth state: foundation intact + delta pin + invariants + Auth locked +
-//                                  custom_jwks + 0 Edge Functions + probes + Core Prod unchanged + Staging INACTIVE
+//                                  B03 jwks_url resolved to the pin + 0 Edge Functions + probes + Core Prod unchanged + Staging INACTIVE
 //
 // stdin: exactly {"pat":"sbp_…"}. No ref, no key, no URL, no --force: all of them are pins.
 import fs from 'node:fs';
@@ -36,6 +37,7 @@ import { systemKeychain } from './keychain-gateway-auth.mjs';
 import { applySql, psqlEnv, assertPsqlPrerequisites, POOLER_HOST_PATTERN, CA_CERT } from './psql-gateway-auth.mjs';
 import { generateRing, jwksPinDocument, assertJwksPin, publicFromPkcs8, gatewayRingDocument, jwksDigest, rotationPlan } from './keyring.mjs';
 import { probeBridge } from './bridge-probe.mjs';
+import { probeJwksUrl, jwksHttpsTransport } from './jwks-url-probe.mjs';
 import { probeAuthRefusals, httpsAuthProbeTransport } from './auth-probe.mjs';
 import { probePostgrest, httpsProbeTransport } from '../torneos-foundation/postgrest-probe.mjs';
 import { probeEdgeLogins, PROBE_PORTS } from './login-probe.mjs';
@@ -49,7 +51,7 @@ export const MODES = Object.freeze({
   '--db-certify': { seq: '03', phrase: null },
   '--db-phase': { seq: '03', phrase: null },
   '--keyring-generate': { seq: '04', phrase: (id) => `GENERATE TORNEOS PRODUCTION BRIDGE RING ${id}` },
-  '--b03': { seq: '05', phrase: (id) => `PUBLISH TORNEOS B03 CUSTOM JWKS ${G.TORNEOS_REF} ${id}` },
+  '--b03': { seq: '05', phrase: (id) => `PUBLISH TORNEOS B03 JWKS URL ${G.TORNEOS_REF} ${id}` },
   '--deploy-preflight': { seq: '06', phrase: null },
   '--certify': { seq: '07', phrase: null },
 });
@@ -201,7 +203,7 @@ async function runPreflight(ctx, client, pins) {
   const verdict = o.failures.length ? 'GATEWAY_AUTH_PREFLIGHT_BLOCKED' : 'GATEWAY_AUTH_PREFLIGHT_PASS';
   writeEvidence(ctx, `ga-01-preflight-${ctx.stamp}.json`, { ...base(ctx, '--preflight', o), read_only: true, verdict, next_mode: o.failures.length ? null : next, measured, risks,
     foundation_diff: o.foundation_diff, invariants: o.invariants, auth: o.torneos.auth, third_party_auth: o.torneos.tpa, secret_names: o.torneos.secrets, postgrest_config: o.torneos.postgrest,
-    remote_delta: { W1: G.AUTH_LOCKDOWN_BODY, W2_W3_sql_template: G.BOOTSTRAP_SQL_TEMPLATE, W5: 'custom_jwks = public k1 + k2 of pins/production-bridge-jwks.json' },
+    remote_delta: { W1: G.AUTH_LOCKDOWN_BODY, W2_W3_sql_template: G.BOOTSTRAP_SQL_TEMPLATE, W5: `jwks_url = ${G.B03_JWKS_URL} (serves the public k1 + k2 of pins/production-bridge-jwks.json)` },
     management_api_writes: client.writes, requests: client.requests });
   if (o.failures.length) stop(verdict, { failures: o.failures });
   return { verdict, next };
@@ -412,6 +414,13 @@ function readRing(ctx, jwksPin) {
   return out;
 }
 
+/** The one existing shadow identity (read-only SQL) for probes A/E; null when there is none. Never persisted whole. */
+async function probeIdentity(client) {
+  const rows = await client.sql(G.IDENTITY_PROBE_SQL);
+  return { count: rows.length, identity: rows.length ? { id: rows[0].id, core_user_id: rows[0].core_user_id } : null };
+}
+const resolutionOf = (tpa) => (Array.isArray(tpa) ? tpa.map((r) => ({ id: r.id, jwks_url: r.jwks_url, resolved_at: r.resolved_at, resolved_jwks_kids: r.resolved_jwks_kids, resolved_jwks_digest: r.resolved_jwks_digest })) : null);
+
 async function runB03(ctx, client, pins) {
   const mode = '--b03';
   const o = await observe(ctx, client, pins);
@@ -420,40 +429,71 @@ async function runB03(ctx, client, pins) {
   if (o.steps.DB.state !== 'applied') failures.push('ORDER_DB_BOOTSTRAP_FIRST');
   if (o.steps.KR !== 'present') failures.push('ORDER_KEYRING_FIRST');
   if (failures.length) blocked(ctx, mode, { ...o, failures }, 'B03_BLOCKED');
+  const jwksUrl = await probeJwksUrl({ jwksPin: pins.jwks, transport: ctx.deps.jwksTransport, known: ctx.known });
+  if (!jwksUrl.pass) blocked(ctx, mode, o, 'B03_JWKS_URL_NOT_CERTIFIED', { jwks_url_probe: jwksUrl });
   const ring = readRing(ctx, pins.jwks);
   const keys = await client.apiKeys();
   if (!keys.probeKey) stop('POSTGREST_PROBE_KEY_UNAVAILABLE');
   ctx.known.push(keys.probeKey);
-  const probe = (label) => probeBridge({ ref: G.TORNEOS_REF, apikey: keys.probeKey, ring, transport: ctx.deps.probeTransport }).then((r) => ({ label, ...r }));
-  if (o.steps.W5.state === 'applied') {
-    const p = await probe('already applied');
-    writeEvidence(ctx, `ga-05-b03-${ctx.stamp}.json`, { ...base(ctx, mode, o), verdict: 'B03_ALREADY_APPLIED', third_party_auth: o.torneos.tpa, bridge_probe: p, management_api_writes: 0, requests: client.requests });
-    return { verdict: 'B03_ALREADY_APPLIED' };
+  const who = await probeIdentity(client);
+  const probe = (label) => probeBridge({ ref: G.TORNEOS_REF, apikey: keys.probeKey, ring, transport: ctx.deps.probeTransport, identity: who.identity }).then((r) => ({ label, ...r }));
+  const identityNote = { rows: who.count, id: who.identity?.id.slice(0, 8) ?? null, core_user_id: who.identity?.core_user_id.slice(0, 8) ?? null };
+  const start = o.steps.W5.state;
+  let plan = null; let planId = null; let authorization = null; let deleted = null; let created = null; let before = null;
+  const trail = [];
+  if (start === 'superseded-inline' || start === 'pending') {
+    const body = G.jwksUrlBody();
+    plan = { mode, writes: [...(start === 'superseded-inline' ? [`DELETE /v1/projects/${G.TORNEOS_REF}/config/auth/third-party-auth/${G.B03_SUPERSEDED_INLINE_ID}`] : []), `POST /v1/projects/${G.TORNEOS_REF}/config/auth/third-party-auth`],
+      body, jwks_url_sha256: jwksUrl.sha256, kids: pins.jwks.keys.map((k) => k.kid), superseded: start === 'superseded-inline' ? o.torneos.tpa[0] : null, state: stateSummary(o), core: coreSummary(o) };
+    planId = planIdOf(plan);
+    before = await probe('before (bridge tokens must be refused)');
+    if (before.hostAcceptsBridge) stop('BRIDGE_TOKEN_ACCEPTED_BEFORE_B03', { checks: before.checks });
+    ctx.say(`\nPLAN ${planId}: B03 = jwks_url on Arma2 Torneos ${G.TORNEOS_REF} (iss/aud unchanged)\n${start === 'superseded-inline' ? `  1. DELETE the superseded inline custom_jwks integration ${G.B03_SUPERSEDED_INLINE_ID} (unresolved since it was created, resolved_at null)\n  2.` : '  1.'} POST third-party-auth {"jwks_url": "${G.B03_JWKS_URL}"}\n  the URL serves exactly the pinned public [${plan.kids.join(', ')}] (sha256 ${jwksUrl.sha256.slice(0, 16)}…, ${jwksUrl.passed}/${jwksUrl.total} checks)\n  then: wait for resolved_at / resolved_jwks = pin, then probes A–F`);
+    authorization = requirePhrase(ctx, MODES[mode].phrase(planId));
+    const again = await observe(ctx, client, pins);
+    if (planIdOf({ ...plan, superseded: start === 'superseded-inline' ? again.torneos.tpa?.[0] ?? null : null, state: stateSummary(again), core: coreSummary(again) }) !== planId || again.failures.length) stop('STATE_CHANGED_SINCE_PLAN', { failures: again.failures });
+    const record = (verdict, extra = {}) => writeEvidence(ctx, `ga-05-b03-jwks-url-${ctx.stamp}.json`, { ...base(ctx, mode, o), verdict, plan, plan_id: planId, authorization, jwks_url_probe: jwksUrl,
+      deleted, created, trail, identity: identityNote, bridge_probe_before: before, ...extra, management_api_writes: client.writes, requests: client.requests });
+    if (start === 'superseded-inline') {
+      ctx.arm('b03-delete');
+      try { deleted = await client.deleteSupersededThirdPartyAuth(); } finally { ctx.arm(null); }
+      const gone = await client.thirdPartyAuth();
+      trail.push({ at: new Date(ctx.deps.now()).toISOString(), step: 'after DELETE', tpa: resolutionOf(gone) });
+      if (!Array.isArray(gone) || gone.length !== 0) { record('B03_DELETE_NOT_EFFECTIVE', { third_party_auth_after: gone }); stop('B03_DELETE_NOT_EFFECTIVE', { tpa: resolutionOf(gone) }); }
+    }
+    ctx.arm('b03');
+    try { created = await client.createThirdPartyAuth(body); } catch (e) {
+      ctx.arm(null);
+      const now = await client.thirdPartyAuth().catch(() => null);
+      record('B03_CREATE_FAILED', { create_error: { code: e.code ?? null, detail: e.detail ?? String(e.message).slice(0, 200) }, third_party_auth_after: now });
+      stop('B03_CREATE_FAILED', { error: e.code ?? String(e.message).slice(0, 120), tpa: resolutionOf(now) });
+    }
+    ctx.arm(null);
+    trail.push({ at: new Date(ctx.deps.now()).toISOString(), step: 'created', tpa: resolutionOf([created]) });
+  } else if (start !== 'resolving' && start !== 'applied') stop('B03_STATE_NOT_HANDLED', { state: start });
+
+  // Resolution: read-only polling (no write, no retry of the POST). Bounded; a later --b03 run resumes from 'resolving'.
+  const started = ctx.deps.now();
+  let last = await observe(ctx, client, pins);
+  while (last.steps.W5.state === 'resolving' && ctx.deps.now() - started < (ctx.deps.b03ResolveTimeoutMs ?? 20 * 60000)) {
+    await ctx.deps.sleep(ctx.deps.b03ResolveIntervalMs ?? 30000);
+    last = await observe(ctx, client, pins);
+    trail.push({ at: new Date(ctx.deps.now()).toISOString(), step: 'poll', state: last.steps.W5.state, tpa: resolutionOf(last.torneos.tpa) });
   }
-  const body = G.customJwksBody(pins.jwks);
-  const plan = { mode, write: `POST /v1/projects/${G.TORNEOS_REF}/config/auth/third-party-auth`, body_digest: G.sha256(JSON.stringify(body)), kids: body.custom_jwks.keys.map((k) => k.kid), state: stateSummary(o), core: coreSummary(o) };
-  const planId = planIdOf(plan);
-  const before = await probe('before B03 (bridge tokens must be refused)');
-  if (before.hostAcceptsBridge) stop('BRIDGE_TOKEN_ACCEPTED_BEFORE_B03', { checks: before.checks });
-  ctx.say(`\nPLAN ${planId}: B03 on Arma2 Torneos ${G.TORNEOS_REF}\n  write: POST third-party-auth {custom_jwks: {keys: [${plan.kids.join(', ')}]}} — public halves only, digest ${plan.body_digest.slice(0, 16)}…\n  then: measured probes (k1/k2 → PT401 identity gate; unknown key → 401 before the DB)`);
-  const authorization = requirePhrase(ctx, MODES[mode].phrase(planId));
-  const again = await observe(ctx, client, pins);
-  if (planIdOf({ ...plan, state: stateSummary(again), core: coreSummary(again) }) !== planId || again.failures.length) stop('STATE_CHANGED_SINCE_PLAN', { failures: again.failures });
-  ctx.arm('b03');
-  const created = await client.createThirdPartyAuth(body);
-  ctx.arm(null);
-  const after = await observe(ctx, client, pins);
-  const post = [...after.failures];
-  if (after.steps.W5.state !== 'applied') post.push('B03_NOT_EFFECTIVE');
-  // The host may need a moment to resolve the integration: bounded re-probes, same tokens class, no write.
+  const post = [...last.failures];
   let probeAfter = null;
-  for (let i = 0; i < (ctx.deps.b03ProbeAttempts ?? 6); i += 1) { probeAfter = await probe(`after B03 #${i + 1}`); if (probeAfter.pass) break; await ctx.deps.sleep(ctx.deps.b03ProbeIntervalMs ?? 10000); }
-  if (!probeAfter.hostAcceptsBridge) post.push('B03_HOST_REJECTS_BRIDGE_TOKEN');
-  else if (!probeAfter.pass) post.push('B03_BRIDGE_PROBE_FAILED');
-  const verdict = post.includes('B03_HOST_REJECTS_BRIDGE_TOKEN') ? 'B03_HOST_REJECTS_BRIDGE_TOKEN' : post.length ? 'B03_POSTCHECK_FAILED' : 'B03_APPLIED_BRIDGE_ACCEPTED';
-  writeEvidence(ctx, `ga-05-b03-${ctx.stamp}.json`, { ...base(ctx, mode, after), verdict, plan, plan_id: planId, authorization, created, third_party_auth_after: after.torneos.tpa,
-    bridge_probe_before: before, bridge_probe_after: probeAfter, failures: post, management_api_writes: client.writes, requests: client.requests });
-  if (post.length) stop(verdict, { failures: post });
+  if (last.steps.W5.state === 'applied') {
+    // PostgREST picks the resolved JWKS up after resolution: bounded re-probes, no write.
+    for (let i = 0; i < (ctx.deps.b03ProbeAttempts ?? 20); i += 1) { probeAfter = await probe(`after resolution #${i + 1}`); if (probeAfter.pass) break; await ctx.deps.sleep(ctx.deps.b03ProbeIntervalMs ?? 15000); }
+    if (!who.identity) post.push('B03_NO_IDENTITY_FOR_PROBE_A');
+    if (!probeAfter.hostAcceptsBridge) post.push('B03_HOST_REJECTS_BRIDGE_TOKEN');
+    else if (!probeAfter.pass) post.push('B03_BRIDGE_PROBE_FAILED');
+  } else post.push(last.steps.W5.state === 'resolving' ? 'B03_NOT_RESOLVED_YET' : `B03_STATE_${String(last.steps.W5.state).toUpperCase()}`);
+  const verdict = post.length === 1 && post[0] === 'B03_NOT_RESOLVED_YET' ? 'B03_RESOLVING' : post.includes('B03_HOST_REJECTS_BRIDGE_TOKEN') ? 'B03_HOST_REJECTS_BRIDGE_TOKEN' : post.length ? 'B03_POSTCHECK_FAILED' : 'B03_APPLIED_BRIDGE_ACCEPTED';
+  writeEvidence(ctx, `ga-05-b03-jwks-url-${ctx.stamp}.json`, { ...base(ctx, mode, last), verdict, start_state: start, plan, plan_id: planId, authorization, jwks_url_probe: jwksUrl,
+    deleted, created, third_party_auth_after: last.torneos.tpa, resolution: last.steps.W5, trail, identity: identityNote, bridge_probe_before: before, bridge_probe_after: probeAfter, failures: post,
+    management_api_writes: client.writes, requests: client.requests });
+  if (post.length) stop(verdict, { failures: post, tpa: resolutionOf(last.torneos.tpa) });
   return { verdict };
 }
 
@@ -559,7 +599,7 @@ export async function runGatewayAuth({ mode, request, deps }) {
   const clientFor = (m) => {
     const client = makeClient({ transport: deps.transport, pat: request.pat, mode: m, armedFor: () => armed, jwksPin: () => pins?.jwks ?? null, known: ctx.known });
     ctx.client = client;
-    ctx.arm = (w) => { if (w !== null && G.MODE_WRITES[m] !== w) throw new StopError('ARMING_REFUSED', { mode: m, w }); armed = w; };
+    ctx.arm = (w) => { if (w !== null && !G.modeWrites(m).includes(w)) throw new StopError('ARMING_REFUSED', { mode: m, w }); armed = w; };
     return client;
   };
   const RUN = { '--preflight': runPreflight, '--auth-lockdown': runAuthLockdown, '--db-bootstrap': runDbBootstrap, '--db-certify': runDbCertify, '--keyring-generate': runKeyringGenerate,
@@ -620,7 +660,7 @@ async function main() {
   const say = (s) => process.stdout.write(`${s}\n`);
   const deps = {
     transport: httpsTransport, probeTransport: httpsProbeTransport, authProbeTransport: httpsAuthProbeTransport, keychain: systemKeychain(), tty: systemTty(), applySql, psqlPrerequisites: () => assertPsqlPrerequisites(),
-    tlsProbe: probeTls, loginProbe: probeEdgeLogins,
+    tlsProbe: probeTls, loginProbe: probeEdgeLogins, jwksTransport: jwksHttpsTransport,
     validateGatewayEnv: validateGatewayEnvWithRealConfig, now: () => Date.now(), sleep: (ms) => new Promise((r) => setTimeout(r, ms)), evidenceDir: EVIDENCE_DIR, say,
   };
   try {

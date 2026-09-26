@@ -30,6 +30,7 @@ import { applySql, assertPsqlPrerequisites, POOLER_HOST_PATTERN } from '../torne
 import { httpsProbeTransport } from '../torneos-foundation/postgrest-probe.mjs';
 import { httpsAuthProbeTransport } from '../torneos-gateway-auth/auth-probe.mjs';
 import { probeTls } from '../torneos-gateway-auth/tls-probe.mjs';
+import { jwksHttpsTransport } from '../torneos-gateway-auth/jwks-url-probe.mjs';
 import { probeEdgeLogins } from '../torneos-gateway-auth/login-probe.mjs';
 import { assertJwksPin } from '../torneos-gateway-auth/keyring.mjs';
 import * as R from './remote-contract.mjs';
@@ -302,7 +303,7 @@ async function main() {
   const say = (s) => { process.stdout.write(`${s}\n`); fs.appendFileSync(transcript, `${s}\n`, { mode: 0o600 }); };
   const gaDeps = {
     transport: httpsTransport, probeTransport: httpsProbeTransport, authProbeTransport: httpsAuthProbeTransport, keychain: systemKeychain(), applySql, psqlPrerequisites: () => assertPsqlPrerequisites(),
-    tlsProbe: probeTls, loginProbe: probeEdgeLogins, validateGatewayEnv: validateGatewayEnvWithRealConfig, now: () => Date.now(), sleep: (ms) => new Promise((r) => setTimeout(r, ms)), evidenceDir: GA_EVIDENCE_DIR,
+    tlsProbe: probeTls, loginProbe: probeEdgeLogins, jwksTransport: jwksHttpsTransport, validateGatewayEnv: validateGatewayEnvWithRealConfig, now: () => Date.now(), sleep: (ms) => new Promise((r) => setTimeout(r, ms)), evidenceDir: GA_EVIDENCE_DIR,
   };
   const session = makeSession({ pat: request.pat, deno: request.deno, deps: {
     say, readLine, transport: httpsTransport, denoTransport: denoHttpsTransport, keychain: systemKeychain, contractKeychain, fetchCoreAnonKey, readCaPem, validateGatewayEnv: validateGatewayEnvWithRealConfig,

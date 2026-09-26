@@ -37,12 +37,15 @@ export const projectAuthConfig = (c) => (c && typeof c === 'object' ? Object.fro
 /** sha256 per key of the WHOLE Auth answer. Kept in memory only (values include secrets): it proves which keys moved. */
 export const fingerprintAuthConfig = (c) => (c && typeof c === 'object' ? Object.fromEntries(Object.keys(c).sort().map((k) => [k, G.sha256(`${JSON.stringify(c[k]) ?? 'undefined'}`)])) : null);
 export const projectPostgrest = (c) => (c && typeof c === 'object' ? { db_schema: c.db_schema ?? null, db_extra_search_path: c.db_extra_search_path ?? null, max_rows: c.max_rows ?? null } : null);
+const jwkSet = (j) => (Array.isArray(j?.keys) ? j.keys : null);
+const kidsOf = (j) => (jwkSet(j) ? jwkSet(j).map((k) => k.kid ?? null) : (j ? 'present' : null));
+const rsaDigest = (j) => (jwkSet(j) && jwkSet(j).every((k) => k.kty === 'RSA' && k.n && k.e) ? jwksDigest(j) : null);
+const privateMaterial = (j) => !!jwkSet(j) && jwkSet(j).some((k) => G.PRIVATE_JWK_MEMBERS.some((x) => x in k));
 export const projectThirdPartyAuth = (rows) => (Array.isArray(rows) ? rows.map((r) => ({
   id: r.id ?? null, type: r.type ?? null, oidc_issuer_url: r.oidc_issuer_url ?? null, jwks_url: r.jwks_url ?? null,
-  custom_jwks_kids: Array.isArray(r.custom_jwks?.keys) ? r.custom_jwks.keys.map((k) => k.kid ?? null) : (r.custom_jwks ? 'present' : null),
-  custom_jwks_digest: Array.isArray(r.custom_jwks?.keys) && r.custom_jwks.keys.every((k) => k.kty === 'RSA' && k.n && k.e) ? jwksDigest(r.custom_jwks) : null,
-  custom_jwks_private_material: Array.isArray(r.custom_jwks?.keys) && r.custom_jwks.keys.some((k) => ['d', 'p', 'q'].some((x) => x in k)),
-  resolved_at: r.resolved_at ?? null,
+  custom_jwks_kids: kidsOf(r.custom_jwks), custom_jwks_digest: rsaDigest(r.custom_jwks), custom_jwks_private_material: privateMaterial(r.custom_jwks),
+  resolved_jwks_kids: kidsOf(r.resolved_jwks), resolved_jwks_digest: rsaDigest(r.resolved_jwks), resolved_private_material: privateMaterial(r.resolved_jwks),
+  resolved_at: r.resolved_at ?? null, inserted_at: r.inserted_at ?? null, updated_at: r.updated_at ?? null,
 })) : null);
 
 export class ApiError extends Error { constructor(code, detail) { super(code); this.code = code; this.detail = detail ?? null; } }
@@ -107,8 +110,10 @@ export function makeClient({ transport, pat, mode, armedFor = () => null, jwksPi
       return { keys: list.map((k) => ({ name: k?.name ?? null, type: k?.type ?? null })), probeKey };
     },
     async sql(query) { return sqlRows(ok(await call('POST', `/v1/projects/${T}/database/query`, { query, read_only: true }), [200, 201])); },
-    // ── the two API writes ──
+    // ── the API writes ──
     async authLockdown() { return projectAuthConfig(ok(await call('PATCH', `/v1/projects/${T}/config/auth`, { ...G.AUTH_LOCKDOWN_BODY }))); },
     async createThirdPartyAuth(body) { const b = ok(await call('POST', `/v1/projects/${T}/config/auth/third-party-auth`, body), [200, 201]); return projectThirdPartyAuth([b])[0]; },
+    /** Only the pinned superseded inline integration (the allowlist refuses any other id). */
+    async deleteSupersededThirdPartyAuth() { const b = ok(await call('DELETE', `/v1/projects/${T}/config/auth/third-party-auth/${G.B03_SUPERSEDED_INLINE_ID}`), [200, 204]); return b && typeof b === 'object' ? projectThirdPartyAuth([b])[0] : null; },
   };
 }

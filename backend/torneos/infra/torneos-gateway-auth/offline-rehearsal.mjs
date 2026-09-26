@@ -155,7 +155,7 @@ async function main() {
     let jwksPinForEmu = null;
     const transport = async ({ pat, method, path: p, body }) => {
       if (pat !== PAT) throw new Error('pat mismatch');
-      const cls = G.classifyRequest({ method, path: p, body }, { mode: Object.keys(G.MODE_ENDPOINTS).find((m) => G.MODE_ENDPOINTS[m].includes(G.ENDPOINTS.find((e) => e.method === method && e.re.test(p))?.id)), armedFor: method === 'PATCH' ? 'auth-lockdown' : (method === 'POST' && p.endsWith('/third-party-auth') ? 'b03' : null), jwksPin: jwksPinForEmu });
+      const cls = G.classifyRequest({ method, path: p, body }, { mode: Object.keys(G.MODE_ENDPOINTS).find((m) => G.MODE_ENDPOINTS[m].includes(G.ENDPOINTS.find((e) => e.method === method && e.re.test(p))?.id)), armedFor: method === 'PATCH' ? 'auth-lockdown' : method === 'DELETE' ? 'b03-delete' : (method === 'POST' && p.endsWith('/third-party-auth') ? 'b03' : null), jwksPin: jwksPinForEmu });
       const r = (status, b) => ({ status, body: b, raw: JSON.stringify(b) });
       switch (cls.id) {
         case 'org': return r(200, { slug: G.ORG_SLUG, name: "nicoavayu's Org", plan: 'free' });
@@ -178,12 +178,15 @@ async function main() {
           return r(201, q.out ? q.out.split('\n').map((l) => JSON.parse(l)) : []);
         }
         case 'auth-lockdown': w.writes.push('auth-lockdown'); Object.assign(w.auth, body); return r(200, { ...w.auth });
+        case 'tpa-delete': w.writes.push('tpa-delete'); w.tpa = w.tpa.filter((x) => x.id !== G.B03_SUPERSEDED_INLINE_ID); return r(200, {});
         case 'tpa-create': {
+          // Hosted B03 = jwks_url: the resolver fetches the gateway JWKS (emulated below by jwksTransport = the pin).
           w.writes.push('tpa-create');
-          const row = { id: crypto.randomUUID(), type: 'custom_jwks', oidc_issuer_url: null, jwks_url: null, custom_jwks: body.custom_jwks, resolved_at: new Date().toISOString() };
+          const resolved = G.customJwksBody(jwksPinForEmu).custom_jwks;
+          const row = { id: crypto.randomUUID(), type: 'custom', oidc_issuer_url: null, jwks_url: body.jwks_url, custom_jwks: null, resolved_jwks: resolved, resolved_at: new Date().toISOString() };
           w.tpa.push(row);
           const k1 = jwksPinForEmu.keys[0].kid;
-          w.pgrstWindow = await startPgrst(JSON.stringify(body.custom_jwks), null, () => mintBridgeToken({ pkcs8: keychain.ring.read('k1', k1), kid: k1 })); // hosted: the Data API now trusts exactly this JWKS
+          w.pgrstWindow = await startPgrst(JSON.stringify(resolved), null, () => mintBridgeToken({ pkcs8: keychain.ring.read('k1', k1), kid: k1 })); // hosted: the Data API now trusts exactly the resolved JWKS
           return r(201, row);
         }
         default: throw new Error(`unhandled ${cls.id}`);
@@ -258,7 +261,11 @@ async function main() {
         tlsProbe: ({ host, port }) => ({ host, port, pass: true, verification: 'REHEARSAL (no TLS on the internal network; the real probe is openssl -verify_return_error)' }),
         loginProbe: (args) => probeEdgeLogins({ ...args, run: loginRun }),
         tty: { readLine: () => { if (onPhrase) onPhrase(); if (phrase !== 'plan') return phrase; const m = /To proceed type exactly:\n {2}(.+)\n/.exec(said.join('\n')); return m ? m[1] : ''; } },
-        now: () => Date.now(), sleep, b03ProbeIntervalMs: 750, say: (s) => said.push(s), jwksPinFile, deltaPinFile,
+        // The gateway JWKS as served (the hosted resolver's source): the pin's public k1+k2, JSON, Origin-gated like the gateway.
+        jwksTransport: async ({ method = 'GET', headers: h = {} }) => (h.Origin ? { status: 403, headers: { 'content-type': 'application/json' }, raw: '{"error":"origin rejected"}' }
+          : method !== 'GET' ? { status: 404, headers: { 'content-type': 'application/json' }, raw: '{"error":"not found"}' }
+            : { status: 200, headers: { 'content-type': 'application/json', 'cache-control': 'no-store' }, raw: JSON.stringify(G.customJwksBody(jwksPinForEmu).custom_jwks) }),
+        now: () => Date.now(), sleep, b03ProbeIntervalMs: 750, b03ResolveIntervalMs: 250, say: (s) => said.push(s), jwksPinFile, deltaPinFile,
         evidenceDir: evDir, evidencePrefix: `REHEARSAL-${String(++seq).padStart(2, '0')}-`, deployDecisions: decisions,
         annotation: `OFFLINE REHEARSAL ${stamp} — local ${DB_IMAGE} (internal network) + ${PGRST_IMAGE}, emulated Management API / Keychain / tty; NOT a remote run`,
       };
@@ -329,11 +336,14 @@ async function main() {
     await phase('P18 NEGATIVE: b03 before the ring exists → blocked', '--b03', 'STOP:B03_BLOCKED');
     await phase('P19 KR generate the ring (fake Keychain, rehearsal pin path)', '--keyring-generate', 'PRODUCTION_BRIDGE_RING_GENERATED');
     await phase('P20 KR again → refused (never regenerate over a ring)', '--keyring-generate', 'STOP:KEYRING_BLOCKED');
-    await phase('P21 W5 B03 custom_jwks (PostgREST restarted with exactly the published JWKS) + measured probes', '--b03', 'B03_APPLIED_BRIDGE_ACCEPTED');
+    // Probes A/E need an existing shadow identity (hosted: the one the C2 exchange created). Removed again after P22.
+    psql('insert into public.torneos_identity (core_user_id) values (gen_random_uuid())', { user: 'supabase_admin' });
+    await phase('P21 W5 B03 jwks_url (resolved to the gateway JWKS; PostgREST restarted with exactly it) + measured probes A–F', '--b03', 'B03_APPLIED_BRIDGE_ACCEPTED');
     n = writesNow();
     record(`M01 measured: PostgREST served ${w.pgrstWindow?.served_without_pre_request_ms ?? '?'} ms without the in-DB pre_request after the B03 restart (connection-recovery start); the runner's bounded re-probes absorb it`, !!w.pgrstWindow, w.pgrstWindow?.served_without_pre_request_ms ? 'PRE_REQUEST_STARTUP_WINDOW_OBSERVED' : 'NO_WINDOW_THIS_RUN', w.pgrstWindow);
-    await phase('P22 W5 again → already applied, no write', '--b03', 'B03_ALREADY_APPLIED');
+    await phase('P22 W5 again → applied: probes only, no write', '--b03', 'B03_APPLIED_BRIDGE_ACCEPTED');
     record('P23 idempotent W5: no second POST', writesNow() === n, `writes=${writesNow() - n}`);
+    psql('delete from public.torneos_identity', { user: 'supabase_admin' });
     await phase('P24 deploy-preflight with the human decisions still pending → blocked, decisions listed', '--deploy-preflight', 'STOP:GATEWAY_DEPLOY_PREFLIGHT_BLOCKED');
     await phase('P25 deploy-preflight with rehearsal decisions → the Production env boots the REAL config.ts as topology=production', '--deploy-preflight', 'GATEWAY_DEPLOY_PREFLIGHT_PASS',
       { decisions: { publicUrl: `https://${GATEWAY_HOST}/functions/v1/torneos-gateway`, denoDeployOrg: 'rehearsal-org' } });

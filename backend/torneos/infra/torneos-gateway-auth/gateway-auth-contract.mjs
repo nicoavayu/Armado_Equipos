@@ -19,7 +19,10 @@
 //                         + GRANT torneos_identity_writer / torneos_core_adapter (W2 + W3: ONE psql transaction)
 //   KR  --keyring-generate  LOCAL ONLY: a new Production RS256 ring (k1 active, k2 standby) into the Keychain and the
 //                         public JWKS pin (pins/production-bridge-jwks.json). No remote write.
-//   W5  --b03             POST /v1/projects/<torneos>/config/auth/third-party-auth {custom_jwks: <public k1+k2>}
+//   W5  --b03             POST /v1/projects/<torneos>/config/auth/third-party-auth {jwks_url: B03_JWKS_URL} (the
+//                         gateway's public k1+k2). Replaces, once, the superseded inline custom_jwks integration
+//                         B03_SUPERSEDED_INLINE_ID (hosted never resolved it: resolved_at null, PGRST301) with a DELETE of
+//                         exactly that id, then the POST. Decision of 2026-09-26 (owner, option A): iss/aud unchanged.
 // No payments login, no Edge Function, no secret, no deploy, no Deno Deploy, no Mercado Pago, no migration.
 import crypto from 'node:crypto';
 import fs from 'node:fs';
@@ -285,33 +288,55 @@ export const RING_SLOTS = Object.freeze(['k1', 'k2']);
 export const KID_PATTERN = /^arma2-torneos-prod-(k1|k2)-[A-Za-z0-9_-]{16}$/;
 export const RSA_MODULUS_BITS = 2048;
 
-/** custom_jwks exactly: the PUBLIC halves of k1 (active) and k2 (standby), in that order, nothing else. */
+/** The pinned public JWKS: the PUBLIC halves of k1 (active) and k2 (standby), in that order, nothing else. */
 export function customJwksBody(jwksPin) {
   const keys = (jwksPin?.keys ?? []).map((k) => ({ kty: k.kty, n: k.n, e: k.e, kid: k.kid, alg: 'RS256', use: 'sig' }));
   if (keys.length !== 2 || !keys.every((k, i) => k.kty === 'RSA' && KID_PATTERN.test(k.kid) && k.kid.includes(`-${RING_SLOTS[i]}-`))) throw new Error('jwks_pin_shape');
   return { custom_jwks: { keys } };
 }
-export function assertThirdPartyAuthBody(body, jwksPin) {
-  const want = customJwksBody(jwksPin);
-  if (JSON.stringify(body) !== JSON.stringify(want)) throw new Error('tpa_body_not_the_pinned_custom_jwks');
-  for (const k of body.custom_jwks.keys) for (const p of ['d', 'p', 'q', 'dp', 'dq', 'qi', 'oth', 'k']) if (p in k) throw new Error('tpa_body_private_material');
+// B03 = jwks_url (owner decision 2026-09-26, option A). The hosted resolver fetches the gateway's public JWKS, which is
+// derived from TORNEOS_BRIDGE_KEYS only (token.ts jwks(): trusted kids, public members) — no request input reaches it.
+export const GATEWAY_HOST = 'torneos-gateway.nicoavayu.deno.net';
+export const B03_JWKS_URL = `https://${GATEWAY_HOST}/functions/v1/torneos-gateway/.well-known/jwks.json`;
+// The inline custom_jwks integration of 2026-09-26T00:58Z: accepted by the API, never resolved by the host. The only
+// integration this tooling may ever delete, and only while it is exactly that (pinned kids + digest, unresolved).
+export const B03_SUPERSEDED_INLINE_ID = 'f0a6c05e-82df-4f4b-a444-198ab78fdf45';
+export const PRIVATE_JWK_MEMBERS = Object.freeze(['d', 'p', 'q', 'dp', 'dq', 'qi', 'oth', 'k']);
+export const jwksUrlBody = () => ({ jwks_url: B03_JWKS_URL });
+/** Probes A/E need the existing shadow identity (bridge-probe.mjs); read-only, two columns. */
+export const IDENTITY_PROBE_SQL = 'select id::text as id, core_user_id::text as core_user_id from public.torneos_identity order by created_at, id limit 5';
+export function assertThirdPartyAuthBody(body) {
+  if (JSON.stringify(body) !== JSON.stringify(jwksUrlBody())) throw new Error('tpa_body_not_the_pinned_jwks_url');
 }
-/** 'applied' | 'pending' | 'foreign'. */
+const pinDigest = (jwksPin) => sha256(JSON.stringify(customJwksBody(jwksPin).custom_jwks));
+/** The superseded inline integration, exactly as published on 2026-09-26 (and still unresolved). */
+export function isSupersededInline(row, jwksPin) {
+  const kids = jwksPin ? jwksPin.keys.map((k) => k.kid) : null;
+  return !!row && !!kids && row.id === B03_SUPERSEDED_INLINE_ID && !row.oidc_issuer_url && !row.jwks_url && JSON.stringify(row.custom_jwks_kids) === JSON.stringify(kids)
+    && row.custom_jwks_digest === pinDigest(jwksPin) && !row.custom_jwks_private_material && row.resolved_at === null;
+}
+/**
+ * 'pending' (0 integrations) | 'superseded-inline' (only the unresolved inline one) | 'resolving' (the pinned jwks_url,
+ * not resolved yet) | 'applied' (the pinned jwks_url, resolved to exactly the pinned public k1+k2) | 'foreign'.
+ */
 export function b03State(tpa, jwksPin) {
   if (!Array.isArray(tpa)) return { state: 'unreadable' };
   if (tpa.length === 0) return { state: 'pending' };
-  const kids = jwksPin ? jwksPin.keys.map((k) => k.kid) : null;
-  if (tpa.length === 1 && kids && JSON.stringify(tpa[0].custom_jwks_kids) === JSON.stringify(kids) && !tpa[0].oidc_issuer_url && !tpa[0].jwks_url) {
-    if (tpa[0].custom_jwks_digest && tpa[0].custom_jwks_digest !== sha256(JSON.stringify(customJwksBody(jwksPin).custom_jwks))) return { state: 'foreign', reason: 'custom_jwks_digest' };
-    return { state: 'applied', id: tpa[0].id };
-  }
-  return { state: 'foreign', integrations: tpa.length };
+  if (tpa.length !== 1 || !jwksPin) return { state: 'foreign', integrations: tpa.length };
+  const r = tpa[0];
+  if (isSupersededInline(r, jwksPin)) return { state: 'superseded-inline', id: r.id };
+  if (r.jwks_url !== B03_JWKS_URL || r.oidc_issuer_url || r.custom_jwks_kids !== null) return { state: 'foreign', reason: 'not_the_pinned_jwks_url' };
+  if (r.resolved_private_material) return { state: 'foreign', reason: 'resolved_private_material' };
+  if (!r.resolved_at || r.resolved_jwks_kids === null) return { state: 'resolving', id: r.id };
+  if (JSON.stringify(r.resolved_jwks_kids) !== JSON.stringify(jwksPin.keys.map((k) => k.kid)) || r.resolved_jwks_digest !== pinDigest(jwksPin)) return { state: 'foreign', reason: 'resolved_jwks_not_the_pin', id: r.id };
+  return { state: 'applied', id: r.id, resolved_at: r.resolved_at };
 }
 
 // ─────────────────────────── Management API allowlist ───────────────────────────
 // `fga`: scoped-PAT permissions from `x-fga-permissions` of the live spec (https://api.supabase.com/api/v1-json, read
-// 2026-09-25 by the foundation and the gateway/auth prep). PATCH config/auth needs BOTH auth_config_write and
-// project_admin_write; POST third-party-auth needs auth_config_write. No DELETE exists in this tooling.
+// 2026-09-25 by the foundation and the gateway/auth prep; DELETE third-party-auth/{tpa_id} re-read 2026-09-26). PATCH
+// config/auth needs BOTH auth_config_write and project_admin_write; POST and DELETE third-party-auth need
+// auth_config_write. The only DELETE: the superseded inline B03 integration, by its pinned id.
 const T = TORNEOS_REF;
 export const ENDPOINTS = Object.freeze([
   { id: 'org', method: 'GET', re: new RegExp(`^/v1/organizations/${ORG_SLUG}$`), kind: 'read', fga: ['organization_admin_read'] },
@@ -331,6 +356,7 @@ export const ENDPOINTS = Object.freeze([
   { id: 'query', method: 'POST', re: new RegExp(`^/v1/projects/${T}/database/query$`), kind: 'read-sql', fga: ['database_read'] },
   { id: 'auth-lockdown', method: 'PATCH', re: new RegExp(`^/v1/projects/${T}/config/auth$`), kind: 'write:auth-lockdown', fga: ['auth_config_write', 'project_admin_write'] },
   { id: 'tpa-create', method: 'POST', re: new RegExp(`^/v1/projects/${T}/config/auth/third-party-auth$`), kind: 'write:b03', fga: ['auth_config_write'] },
+  { id: 'tpa-delete', method: 'DELETE', re: new RegExp(`^/v1/projects/${T}/config/auth/third-party-auth/${B03_SUPERSEDED_INLINE_ID}$`), kind: 'write:b03-delete', fga: ['auth_config_write'] },
 ]);
 export const FGA_LABELS = Object.freeze({
   organization_admin_read: 'Organization Settings: Read', projects_read: 'Projects (account-wide): Read', project_admin_read: 'Project Settings: Read',
@@ -349,12 +375,12 @@ export const MODE_ENDPOINTS = Object.freeze({
   // own endpoint list (the client of each step is built for that step's mode). The PAT: the union, i.e. --preflight's.
   '--db-phase': Object.freeze([...CORE_READS, ...TORNEOS_READS, 'pooler']),
   '--keyring-generate': Object.freeze([...CORE_READS, 'functions', 'auth-config', 'third-party-auth', 'query']),
-  '--b03': Object.freeze([...CORE_READS, 'functions', 'auth-config', 'third-party-auth', 'query', 'api-keys', 'tpa-create']),
+  '--b03': Object.freeze([...CORE_READS, 'functions', 'auth-config', 'third-party-auth', 'query', 'api-keys', 'tpa-delete', 'tpa-create']),
   '--deploy-preflight': Object.freeze([...CORE_READS, ...TORNEOS_READS, 'pooler']),
   '--certify': Object.freeze([...CORE_READS, ...TORNEOS_READS]),
 });
 export const MODE_WRITES = Object.freeze({
-  '--preflight': null, '--auth-lockdown': 'auth-lockdown', '--db-bootstrap': 'psql', '--db-certify': null, '--db-phase': 'psql', '--keyring-generate': 'keychain', '--b03': 'b03', '--deploy-preflight': null, '--certify': null,
+  '--preflight': null, '--auth-lockdown': 'auth-lockdown', '--db-bootstrap': 'psql', '--db-certify': null, '--db-phase': 'psql', '--keyring-generate': 'keychain', '--b03': Object.freeze(['b03-delete', 'b03']), '--deploy-preflight': null, '--certify': null,
 });
 export const PAT_RESOURCE_ACCESS = Object.freeze({ type: 'Organization', organization_slug: ORG_SLUG });
 export function patRequirement(mode) {
@@ -366,6 +392,8 @@ export function patRequirement(mode) {
   const permissions = labels.filter((l) => !(l.endsWith(': Read') && labels.includes(`${l}-write`))).sort();
   return { mode, resource_access: PAT_RESOURCE_ACCESS, fga, permissions, api_writes: hits.filter((e) => e.kind.startsWith('write:')).map((e) => e.id), other_writes: MODE_WRITES[mode] && !hits.some((e) => e.kind.startsWith('write:')) ? MODE_WRITES[mode] : null };
 }
+/** The writes a mode may arm (one at a time). */
+export const modeWrites = (mode) => [MODE_WRITES[mode]].flat().filter(Boolean);
 export function patRequirementText(mode) {
   const r = patRequirement(mode);
   return [`Scoped token (Account → Access Tokens), resource access: Organization ${ORG_SLUG}, expiry 24 hours.`, ...r.permissions.map((p) => `  ${p}`), '  everything else: None'].join('\n');
@@ -377,7 +405,7 @@ export function patRequirementText(mode) {
  * not exactly the pinned one.
  */
 export function classifyRequest({ method, path: reqPath, body }, { mode, armedFor = null, jwksPin = null } = {}) {
-  if (!['GET', 'POST', 'PATCH'].includes(method)) throw new Error(`method_refused_${method}`);
+  if (!['GET', 'POST', 'PATCH', 'DELETE'].includes(method)) throw new Error(`method_refused_${method}`);
   if (typeof reqPath !== 'string') throw new Error('path_invalid');
   const hit = ENDPOINTS.find((e) => e.method === method && e.re.test(reqPath));
   if (!hit) throw new Error(`endpoint_not_allowlisted ${method} ${reqPath}`);
@@ -391,7 +419,8 @@ export function classifyRequest({ method, path: reqPath, body }, { mode, armedFo
     assertReadOnlySql(body.query);
   }
   if (hit.kind === 'write:auth-lockdown') { if (armedFor !== 'auth-lockdown') throw new Error('auth_lockdown_not_armed'); assertAuthLockdownBody(body); }
-  if (hit.kind === 'write:b03') { if (armedFor !== 'b03') throw new Error('b03_not_armed'); assertThirdPartyAuthBody(body, jwksPin); }
+  if (hit.kind === 'write:b03') { if (armedFor !== 'b03' || !jwksPin) throw new Error('b03_not_armed'); assertThirdPartyAuthBody(body); }
+  if (hit.kind === 'write:b03-delete') { if (armedFor !== 'b03-delete' || !jwksPin) throw new Error('b03_delete_not_armed'); if (body !== undefined) throw new Error('delete_with_body'); }
   const m = /\/v1\/projects\/([a-z]{20})/.exec(reqPath);
   return { id: hit.id, kind: hit.kind, ref: m ? m[1] : null, fga: hit.fga };
 }

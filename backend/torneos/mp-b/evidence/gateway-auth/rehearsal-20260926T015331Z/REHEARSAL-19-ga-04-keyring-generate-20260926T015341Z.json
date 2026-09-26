@@ -1,0 +1,268 @@
+{
+ "annotation": "OFFLINE REHEARSAL 20260926T015331Z — local public.ecr.aws/supabase/postgres:17.6.1.147 (internal network) + public.ecr.aws/supabase/postgrest:v14.15, emulated Management API / Keychain / tty; NOT a remote run",
+ "tool": "backend/torneos/infra/torneos-gateway-auth",
+ "generated_at": "2026-09-26T01:53:41.426Z",
+ "mode": "--keyring-generate",
+ "core": {
+  "prod": "ACTIVE_HEALTHY",
+  "prod_contract": {
+   "status": "ACTIVE",
+   "ezbr": "1072419517953eee8e8021f9691d1a5b1efb1f871c4d13290f644d119caded2c",
+   "verify_jwt": false
+  },
+  "staging": "INACTIVE",
+  "old": "INACTIVE",
+  "torneos": "ACTIVE_HEALTHY"
+ },
+ "state": {
+  "W1": "applied",
+  "W2_W3": "applied",
+  "KR": "absent",
+  "W5": "pending",
+  "edge_functions": 0,
+  "custody": {
+   "dataplane_installer": "PRESENT",
+   "gateway_logins": "PRESENT",
+   "ring": "ABSENT",
+   "jwks_pin": null
+  }
+ },
+ "failures": [],
+ "verdict": "PRODUCTION_BRIDGE_RING_GENERATED",
+ "plan": {
+  "mode": "--keyring-generate",
+  "local_only": true,
+  "custody": "arma2-torneos-prod-bridge / k1.meta, k1.part*, k2.meta, k2.part*",
+  "pin": "../../../../../../../../var/folders/ql/qk960ddn2vj07w82jz36gb6m0000gn/T/ga-rehearsal-jwks-3740.json",
+  "alg": "RS256",
+  "modulus_bits": 2048,
+  "state": {
+   "W1": "applied",
+   "W2_W3": "applied",
+   "KR": "absent",
+   "W5": "pending",
+   "edge_functions": 0,
+   "custody": {
+    "dataplane_installer": "PRESENT",
+    "gateway_logins": "PRESENT",
+    "ring": "ABSENT",
+    "jwks_pin": null
+   }
+  }
+ },
+ "plan_id": "3529d550cb3b",
+ "authorization": {
+  "phrase": "GENERATE TORNEOS PRODUCTION BRIDGE RING 3529d550cb3b",
+  "typed_on": "/dev/tty"
+ },
+ "ring": {
+  "active": "arma2-torneos-prod-k1-ZqQt_KPSve9iLhr4",
+  "standby": "arma2-torneos-prod-k2-njgWPLWrShjbGLCx",
+  "jwks_digest": "23e07bc5cdbfe2921d73aa9bb8048446bef8b9dcc6c3667ae680222b1656334a",
+  "pin_sha256": "435a80bc0e46d77a3b0db773b926242352d37d208aa2e5d750d3fec553e437d5"
+ },
+ "rotation_plan": [
+  {
+   "step": 1,
+   "where": "gateway env",
+   "action": "TORNEOS_BRIDGE_KEYS: add arma2-torneos-prod-k2-njgWPLWrShjbGLCx private half from custody; activeKid=arma2-torneos-prod-k2-njgWPLWrShjbGLCx; trustedKids=[arma2-torneos-prod-k1-ZqQt_KPSve9iLhr4, arma2-torneos-prod-k2-njgWPLWrShjbGLCx]; redeploy",
+   "custom_jwks": "unchanged [k1, k2] (k2 already trusted: B03 needs no write)"
+  },
+  {
+   "step": 2,
+   "where": "wait",
+   "action": "≥ 125 s after the redeploy is live (TTL 120 s + tolerance 5 s): no k1-signed token can still verify"
+  },
+  {
+   "step": 3,
+   "where": "custody",
+   "action": "generate k3 (new standby) with --keyring-generate semantics into its own slot; new public pin [k2, k3]"
+  },
+  {
+   "step": 4,
+   "where": "Torneos Auth (B03)",
+   "action": "POST third-party-auth {custom_jwks:[arma2-torneos-prod-k2-njgWPLWrShjbGLCx, k3]} FIRST (both integrations trusted), then DELETE the [arma2-torneos-prod-k1-ZqQt_KPSve9iLhr4, arma2-torneos-prod-k2-njgWPLWrShjbGLCx] integration — third-party-auth has no PATCH"
+  },
+  {
+   "step": 5,
+   "where": "gateway env",
+   "action": "trustedKids=[arma2-torneos-prod-k2-njgWPLWrShjbGLCx, k3]; drop arma2-torneos-prod-k1-ZqQt_KPSve9iLhr4; redeploy"
+  },
+  {
+   "step": 6,
+   "where": "custody",
+   "action": "retire arma2-torneos-prod-k1-ZqQt_KPSve9iLhr4 (Keychain entry kept, marked retired; never reused)"
+  }
+ ],
+ "management_api_writes": 0,
+ "requests": [
+  {
+   "id": "prod-project",
+   "kind": "read",
+   "method": "GET",
+   "ref": "rcyuuoaqfwcembdajcss",
+   "status": 200
+  },
+  {
+   "id": "prod-contract-fn",
+   "kind": "read",
+   "method": "GET",
+   "ref": "rcyuuoaqfwcembdajcss",
+   "status": 200
+  },
+  {
+   "id": "project",
+   "kind": "read",
+   "method": "GET",
+   "ref": "hhyvmhgpapyuzjgxfnqv",
+   "status": 200
+  },
+  {
+   "id": "project",
+   "kind": "read",
+   "method": "GET",
+   "ref": "giaeztyghmhzcngskjmw",
+   "status": 200
+  },
+  {
+   "id": "project",
+   "kind": "read",
+   "method": "GET",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 200
+  },
+  {
+   "id": "org",
+   "kind": "read",
+   "method": "GET",
+   "ref": null,
+   "status": 200
+  },
+  {
+   "id": "projects",
+   "kind": "read",
+   "method": "GET",
+   "ref": null,
+   "status": 200
+  },
+  {
+   "id": "functions",
+   "kind": "read",
+   "method": "GET",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 200
+  },
+  {
+   "id": "auth-config",
+   "kind": "read",
+   "method": "GET",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 200
+  },
+  {
+   "id": "third-party-auth",
+   "kind": "read",
+   "method": "GET",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 200
+  },
+  {
+   "id": "query",
+   "kind": "read-sql",
+   "method": "POST",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 201
+  },
+  {
+   "id": "query",
+   "kind": "read-sql",
+   "method": "POST",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 201
+  },
+  {
+   "id": "prod-project",
+   "kind": "read",
+   "method": "GET",
+   "ref": "rcyuuoaqfwcembdajcss",
+   "status": 200
+  },
+  {
+   "id": "prod-contract-fn",
+   "kind": "read",
+   "method": "GET",
+   "ref": "rcyuuoaqfwcembdajcss",
+   "status": 200
+  },
+  {
+   "id": "project",
+   "kind": "read",
+   "method": "GET",
+   "ref": "hhyvmhgpapyuzjgxfnqv",
+   "status": 200
+  },
+  {
+   "id": "project",
+   "kind": "read",
+   "method": "GET",
+   "ref": "giaeztyghmhzcngskjmw",
+   "status": 200
+  },
+  {
+   "id": "project",
+   "kind": "read",
+   "method": "GET",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 200
+  },
+  {
+   "id": "org",
+   "kind": "read",
+   "method": "GET",
+   "ref": null,
+   "status": 200
+  },
+  {
+   "id": "projects",
+   "kind": "read",
+   "method": "GET",
+   "ref": null,
+   "status": 200
+  },
+  {
+   "id": "functions",
+   "kind": "read",
+   "method": "GET",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 200
+  },
+  {
+   "id": "auth-config",
+   "kind": "read",
+   "method": "GET",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 200
+  },
+  {
+   "id": "third-party-auth",
+   "kind": "read",
+   "method": "GET",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 200
+  },
+  {
+   "id": "query",
+   "kind": "read-sql",
+   "method": "POST",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 201
+  },
+  {
+   "id": "query",
+   "kind": "read-sql",
+   "method": "POST",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 201
+  }
+ ]
+}
