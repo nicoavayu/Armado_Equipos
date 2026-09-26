@@ -7,11 +7,36 @@
 //   ORD       ordering probe          as the payments login: the MP-B1.2 permutations on the hosted functions, each in its
 //                                     own transaction that ENDS IN ROLLBACK, then a fresh read proving nothing survived.
 import crypto from 'node:crypto';
+import { spawn as realSpawn } from 'node:child_process';
 import { applySql as realApplySql, PSQL_BIN, CA_CERT, POOLER_HOST_PATTERN } from '../torneos-gateway-auth/psql-gateway-auth.mjs';
-import { runPsqlProbe } from '../torneos-gateway-auth/login-probe.mjs';
 import { TORNEOS_REF, PAYMENT_LOGIN, PAYMENT_ROLE } from './payments-test-contract.mjs';
 
-export { PSQL_BIN, CA_CERT, POOLER_HOST_PATTERN, runPsqlProbe };
+export { PSQL_BIN, CA_CERT, POOLER_HOST_PATTERN };
+const PSQL_TIMEOUT_MS = 5 * 60 * 1000;
+export const MAX_PROBE_STDOUT = 4 * 1024 * 1024;
+/**
+ * The certified login-probe runner keeps only the LAST 64 KB of stdout (enough for its probes). The ordering run prints
+ * far more (a purchase projection per step), and on the hosted pooler that cut its first lines (identity, initial
+ * state): found by the first remote run, 2026-09-26. This runner keeps the whole output up to 4 MB and fails closed
+ * (stdout_overflow) beyond that instead of dropping lines.
+ */
+export function runPsqlProbe({ script, env, redact, spawn = realSpawn }) {
+  const started = Date.now();
+  return new Promise((resolve) => {
+    const child = spawn(PSQL_BIN, ['-X', '--no-psqlrc', '-q', '-A', '-t', '-f', '-'], { env, stdio: ['pipe', 'pipe', 'pipe'] });
+    const chunks = []; let size = 0; let overflow = false; let err = '';
+    child.stdout.on('data', (c) => { size += c.length; if (size > MAX_PROBE_STDOUT) { overflow = true; return; } chunks.push(c); });
+    child.stderr.on('data', (c) => { err = (err + c.toString('utf8')).slice(-8000); });
+    const timer = setTimeout(() => child.kill('SIGTERM'), PSQL_TIMEOUT_MS);
+    child.on('error', (e) => { clearTimeout(timer); resolve({ code: -1, elapsed_ms: Date.now() - started, stdout: '', stderr_tail: redact(`spawn_error ${e.message}`) }); });
+    child.on('close', (code) => {
+      clearTimeout(timer);
+      const tail = redact(err.split('\n').filter((l) => /FATAL|could not|SSL|certificate|password|timeout/i.test(l)).slice(-4).join('\n'));
+      resolve(overflow ? { code: -2, elapsed_ms: Date.now() - started, stdout: '', stderr_tail: 'stdout_overflow' } : { code: code ?? -1, elapsed_ms: Date.now() - started, stdout: Buffer.concat(chunks).toString('utf8'), stderr_tail: tail });
+    });
+    child.stdin.end(script);
+  });
+}
 export const PORTS = Object.freeze([5432, 6543]);
 const OK = '00000'; const DENIED = '42501';
 

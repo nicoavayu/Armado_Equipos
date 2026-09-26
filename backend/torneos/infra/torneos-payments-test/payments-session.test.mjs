@@ -77,3 +77,18 @@ test('P7 secret scan catches the session values and MP token shapes', () => {
   const hex = crypto.randomBytes(32).toString('hex');
   assert.ok(C.secretFindings(`z ${hex}`, [hex]).length > 0);
 });
+
+test('P8 the payments psql runner keeps the whole output (> 64 KB head intact) and fails closed beyond 4 MB', async () => {
+  const { EventEmitter } = await import('node:events');
+  const D = await import('./payments-db.mjs');
+  const fake = (bytes) => () => {
+    const child = new EventEmitter(); child.stdout = new EventEmitter(); child.stderr = new EventEmitter();
+    child.stdin = { end: () => setImmediate(() => { child.stdout.emit('data', Buffer.from('W|torneos_payments_test|torneos_payments_test|1\n')); for (let n = 0; n < bytes; n += 8192) child.stdout.emit('data', Buffer.alloc(8192, 'x')); child.stdout.emit('data', Buffer.from('\nZ|done\n')); child.emit('close', 0); }) };
+    return child;
+  };
+  const ok = await D.runPsqlProbe({ script: '', env: {}, redact: (s) => s, spawn: fake(200 * 1024) });
+  assert.equal(ok.code, 0);
+  assert.ok(ok.stdout.startsWith('W|torneos_payments_test|') && ok.stdout.endsWith('Z|done\n'));
+  const big = await D.runPsqlProbe({ script: '', env: {}, redact: (s) => s, spawn: fake(D.MAX_PROBE_STDOUT + 8192) });
+  assert.equal(big.code, -2); assert.equal(big.stderr_tail, 'stdout_overflow');
+});
