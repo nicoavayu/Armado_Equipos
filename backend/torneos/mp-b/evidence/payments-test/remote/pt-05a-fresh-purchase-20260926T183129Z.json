@@ -1,0 +1,8 @@
+{
+ "verdict": "QA_FRESH_PURCHASE_CREATED",
+ "tool": "backend/torneos/infra/torneos-payments-test/qa-fresh-purchase.js (commit b3b055b2), run in https://app.arma2.com.ar with the operator's Core session",
+ "reason": "S1 Preference of purchase f292c050-835e-4c27-b81d-e8ab3d4c3e7a expired (payments app: 409 preference_expired); its real sandbox deliveries were 401 invalid_signature; a fresh operation under the current configuration is needed",
+ "result": {"at":"2026-09-26T18:31:29.219Z","organization":"abedfe15-c7a2-4e8e-978f-6130eef70b53","season":"3f2f39af-848f-4ebf-ab78-f729d07bd5cb","steps":[{"name":"exchange","http":200},{"name":"create_tournament_season_checkout_purchase S1","http":200,"purchase":"d4a72039-3b35-489c-8a75-7a6e37d85cd1","status":"created","amount":39900,"currency":"ARS","provider":"MERCADO_PAGO","environment":"test","expired_stale":1}],"pass":true},
+ "previous_attempt": {"at":"2026-09-26T18:30:14.912Z","refused":"QA_ORG_NOT_THE_PINNED_ONE (memberships RPC is tournament-scoped), before any write"},
+ "superseded": "f292c050-835e-4c27-b81d-e8ab3d4c3e7a → expired by the RPC's certified stale sweep; its sandbox payments 180983139696 (rejected) and 180983221818 (approved, NOT refunded by decision) remain unreconciled at Mercado Pago"
+}

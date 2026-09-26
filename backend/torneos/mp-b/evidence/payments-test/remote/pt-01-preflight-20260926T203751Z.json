@@ -1,0 +1,892 @@
+{
+ "tool": "backend/torneos/infra/torneos-payments-test/payments-session.mjs",
+ "generated_at": "2026-09-26T20:37:51.492Z",
+ "verdict": "PAYMENTS_PREFLIGHT_PASS",
+ "read_only": true,
+ "failures": [],
+ "core": {
+  "prod": {
+   "ref": "rcyuuoaqfwcembdajcss",
+   "name": "nicoavayu's Project",
+   "organization_slug": "gwqrborhnqjdzzmpxulh",
+   "region": "sa-east-1",
+   "status": "ACTIVE_HEALTHY"
+  },
+  "prodFn": {
+   "slug": "torneos-core-contract",
+   "status": "ACTIVE",
+   "version": 3,
+   "verify_jwt": false,
+   "ezbr_sha256": "1072419517953eee8e8021f9691d1a5b1efb1f871c4d13290f644d119caded2c"
+  },
+  "staging": {
+   "ref": "hhyvmhgpapyuzjgxfnqv",
+   "name": "arma2-torneos-staging",
+   "organization_slug": "gwqrborhnqjdzzmpxulh",
+   "region": "us-east-1",
+   "status": "INACTIVE"
+  },
+  "old": {
+   "ref": "giaeztyghmhzcngskjmw",
+   "name": "Arma2",
+   "organization_slug": "gwqrborhnqjdzzmpxulh",
+   "region": "us-west-2",
+   "status": "INACTIVE"
+  },
+  "torneos": {
+   "ref": "onzpwnqxnvlgsevivngf",
+   "name": "Arma2 Torneos",
+   "organization_slug": "gwqrborhnqjdzzmpxulh",
+   "region": "sa-east-1",
+   "status": "ACTIVE_HEALTHY"
+  },
+  "org": {
+   "slug": "gwqrborhnqjdzzmpxulh",
+   "plan": "free"
+  },
+  "projects": [
+   {
+    "ref": "giaeztyghmhzcngskjmw",
+    "name": "Arma2",
+    "organization_slug": "gwqrborhnqjdzzmpxulh",
+    "region": "us-west-2",
+    "status": "INACTIVE"
+   },
+   {
+    "ref": "hhyvmhgpapyuzjgxfnqv",
+    "name": "arma2-torneos-staging",
+    "organization_slug": "gwqrborhnqjdzzmpxulh",
+    "region": "us-east-1",
+    "status": "INACTIVE"
+   },
+   {
+    "ref": "onzpwnqxnvlgsevivngf",
+    "name": "Arma2 Torneos",
+    "organization_slug": "gwqrborhnqjdzzmpxulh",
+    "region": "sa-east-1",
+    "status": "ACTIVE_HEALTHY"
+   },
+   {
+    "ref": "rcyuuoaqfwcembdajcss",
+    "name": "nicoavayu's Project",
+    "organization_slug": "gwqrborhnqjdzzmpxulh",
+    "region": "sa-east-1",
+    "status": "ACTIVE_HEALTHY"
+   }
+  ]
+ },
+ "torneos": {
+  "functions": [],
+  "health": [
+   {
+    "name": "auth",
+    "status": "ACTIVE_HEALTHY"
+   },
+   {
+    "name": "db",
+    "status": "ACTIVE_HEALTHY"
+   },
+   {
+    "name": "pooler",
+    "status": "ACTIVE_HEALTHY"
+   },
+   {
+    "name": "rest",
+    "status": "ACTIVE_HEALTHY"
+   },
+   {
+    "name": "db_postgres_user",
+    "status": "ACTIVE_HEALTHY"
+   }
+  ],
+  "secret_names": [],
+  "auth": {
+   "state": "applied",
+   "problems": [],
+   "differs": []
+  },
+  "b03": {
+   "state": "applied",
+   "id": "94fe4602-23f6-4b5f-b606-36797d804bec",
+   "resolved_at": "2026-09-26T01:58:09.892+00:00"
+  },
+  "pooler": {
+   "hosts": [
+    "aws-0-sa-east-1.pooler.supabase.com"
+   ],
+   "modes": [
+    "transaction"
+   ],
+   "tls": [
+    {
+     "host": "aws-0-sa-east-1.pooler.supabase.com",
+     "port": 5432,
+     "pass": true,
+     "exit": 0,
+     "verification": "OK",
+     "protocol": "TLSv1.3",
+     "peer_cn": "*.pooler.supabase.com",
+     "hostname_verified": "aws-0-sa-east-1.pooler.supabase.com"
+    },
+    {
+     "host": "aws-0-sa-east-1.pooler.supabase.com",
+     "port": 6543,
+     "pass": true,
+     "exit": 0,
+     "verification": "OK",
+     "protocol": "TLSv1.3",
+     "peer_cn": "*.pooler.supabase.com",
+     "hostname_verified": "aws-0-sa-east-1.pooler.supabase.com"
+    }
+   ]
+  },
+  "installer": {
+   "createrole": true,
+   "super": false,
+   "admin_on_payment_role": true
+  },
+  "payment_login": "present",
+  "payment_roles": {
+   "login": {
+    "name": "torneos_payments_test",
+    "login": true,
+    "inherit": false,
+    "super": false,
+    "createrole": false,
+    "createdb": false,
+    "replication": false,
+    "bypassrls": false,
+    "connlimit": -1,
+    "valid_until": null,
+    "config": null
+   },
+   "login_memberships": [
+    {
+     "role": "torneos_payment_service",
+     "admin": false,
+     "inherit": false,
+     "set": true
+    }
+   ],
+   "login_members": [
+    {
+     "member": "postgres",
+     "admin": true,
+     "inherit": false,
+     "set": false
+    }
+   ],
+   "reachable_roles": [
+    "torneos_payment_service"
+   ],
+   "payment_logins": [
+    "torneos_payments_test"
+   ],
+   "role": {
+    "login": false,
+    "inherit": false,
+    "super": false,
+    "bypassrls": false,
+    "createrole": false
+   },
+   "role_executes": [
+    "apply_verified_tournament_payment_reversal(uuid,text,text,text,text,text,text,timestamp with time zone)",
+    "apply_verified_tournament_payment_status(uuid,text,text,text,text,text,text,timestamp with time zone)",
+    "get_provider_tournament_purchase(text,text,text)",
+    "record_tournament_purchase_preference(uuid,text,text,text,timestamp with time zone)"
+   ],
+   "role_table_privileges": 0,
+   "role_schema_create": []
+  },
+  "gateway_roles": {
+   "logins": [
+    {
+     "name": "torneos_edge_core_adapter",
+     "login": true,
+     "inherit": false,
+     "super": false,
+     "createrole": false,
+     "createdb": false,
+     "replication": false,
+     "bypassrls": false,
+     "connlimit": -1,
+     "valid_until": null,
+     "config": null
+    },
+    {
+     "name": "torneos_edge_identity_writer",
+     "login": true,
+     "inherit": false,
+     "super": false,
+     "createrole": false,
+     "createdb": false,
+     "replication": false,
+     "bypassrls": false,
+     "connlimit": -1,
+     "valid_until": null,
+     "config": null
+    },
+    {
+     "name": "torneos_payments_test",
+     "login": true,
+     "inherit": false,
+     "super": false,
+     "createrole": false,
+     "createdb": false,
+     "replication": false,
+     "bypassrls": false,
+     "connlimit": -1,
+     "valid_until": null,
+     "config": null
+    }
+   ],
+   "memberships": [
+    {
+     "role": "torneos_core_adapter",
+     "member": "torneos_edge_core_adapter",
+     "admin": false,
+     "inherit": false,
+     "set": true
+    },
+    {
+     "role": "torneos_edge_core_adapter",
+     "member": "postgres",
+     "admin": true,
+     "inherit": false,
+     "set": false
+    },
+    {
+     "role": "torneos_edge_identity_writer",
+     "member": "postgres",
+     "admin": true,
+     "inherit": false,
+     "set": false
+    },
+    {
+     "role": "torneos_identity_writer",
+     "member": "torneos_edge_identity_writer",
+     "admin": false,
+     "inherit": false,
+     "set": true
+    }
+   ],
+   "payment_logins": 1,
+   "login_member_of_api_role": 0,
+   "authenticator_config": [
+    "pgrst.db_pre_request=private.check_token"
+   ],
+   "auth_users": 0,
+   "installer": {
+    "user": "supabase_read_only_user",
+    "super": false,
+    "createrole": false,
+    "admin_on_authenticator": false,
+    "admin_on_identity_writer": false,
+    "admin_on_core_adapter": false
+   },
+   "edge_login_can_set_role": {
+    "torneos_edge_identity_writer": true,
+    "torneos_edge_core_adapter": true
+   }
+  },
+  "census": {
+   "auth_users": 0,
+   "identities": 1,
+   "organizations": 1,
+   "organizations_qa": 1,
+   "organization_members": 1,
+   "seasons": 2,
+   "seasons_outside_qa": 0,
+   "tournaments": 0,
+   "purchases": 3,
+   "purchases_outside_qa": 0,
+   "purchases_not_mp_test": 0,
+   "purchase_events": 8,
+   "purchase_events_outside_qa": 0,
+   "season_grants": 1,
+   "season_grants_outside_qa": 0,
+   "grant_events": 2,
+   "watermarks": 1,
+   "watermarks_outside_qa": 0
+  },
+  "qa_trail": [
+   {
+    "purchase": "f292c050-835e-4c27-b81d-e8ab3d4c3e7a",
+    "season": "3f2f39af-848f-4ebf-ab78-f729d07bd5cb",
+    "season_slug": "qa-pt-s1-609378",
+    "status": "expired",
+    "provider": "MERCADO_PAGO",
+    "environment": "test",
+    "product": "torneos_premium",
+    "offer": "launch",
+    "amount": 39900,
+    "list_amount": 49900,
+    "currency": "ARS",
+    "external_reference": "arma2:season:purchase:f292c050-835e-4c27-b81d-e8ab3d4c3e7a",
+    "preference_id": "3712890098-ae2cd93e-59e9-4c8c-80ab-316be463bb51",
+    "approved_payment": null,
+    "provider_status": "created",
+    "provider_status_detail": null,
+    "created_at": "2026-09-26T13:15:20.886889+00:00",
+    "approved_at": null,
+    "refunded_at": null,
+    "charged_back_at": null,
+    "entitlement_activated_at": null,
+    "events": [
+     {
+      "id": 1,
+      "type": "purchase.created",
+      "from": null,
+      "to": "created",
+      "actor": "user",
+      "provider_status": null,
+      "payment": null,
+      "provider_time": null
+     },
+     {
+      "id": 111,
+      "type": "preference.created",
+      "from": "created",
+      "to": "preference_created",
+      "actor": "service",
+      "provider_status": "created",
+      "payment": null,
+      "provider_time": null
+     },
+     {
+      "id": 112,
+      "type": "purchase.expired",
+      "from": "preference_created",
+      "to": "expired",
+      "actor": "service",
+      "provider_status": null,
+      "payment": null,
+      "provider_time": null
+     }
+    ],
+    "grants": [],
+    "watermarks": []
+   },
+   {
+    "purchase": "b13ea112-efc3-436b-b212-062578fc6c13",
+    "season": "ba4bbde3-8761-4031-a321-ee455f0dd749",
+    "season_slug": "qa-pt-s2-21c85b",
+    "status": "created",
+    "provider": "MERCADO_PAGO",
+    "environment": "test",
+    "product": "torneos_premium",
+    "offer": "launch",
+    "amount": 39900,
+    "list_amount": 49900,
+    "currency": "ARS",
+    "external_reference": "arma2:season:purchase:b13ea112-efc3-436b-b212-062578fc6c13",
+    "preference_id": null,
+    "approved_payment": null,
+    "provider_status": null,
+    "provider_status_detail": null,
+    "created_at": "2026-09-26T13:15:21.081048+00:00",
+    "approved_at": null,
+    "refunded_at": null,
+    "charged_back_at": null,
+    "entitlement_activated_at": null,
+    "events": [
+     {
+      "id": 2,
+      "type": "purchase.created",
+      "from": null,
+      "to": "created",
+      "actor": "user",
+      "provider_status": null,
+      "payment": null,
+      "provider_time": null
+     }
+    ],
+    "grants": [],
+    "watermarks": []
+   },
+   {
+    "purchase": "d4a72039-3b35-489c-8a75-7a6e37d85cd1",
+    "season": "3f2f39af-848f-4ebf-ab78-f729d07bd5cb",
+    "season_slug": "qa-pt-s1-609378",
+    "status": "refunded",
+    "provider": "MERCADO_PAGO",
+    "environment": "test",
+    "product": "torneos_premium",
+    "offer": "launch",
+    "amount": 39900,
+    "list_amount": 49900,
+    "currency": "ARS",
+    "external_reference": "arma2:season:purchase:d4a72039-3b35-489c-8a75-7a6e37d85cd1",
+    "preference_id": "3712890098-358b3797-1ebb-4191-b236-7afe98685a7b",
+    "approved_payment": "181036143126",
+    "provider_status": "refunded",
+    "provider_status_detail": "refunded",
+    "created_at": "2026-09-26T18:31:34.284973+00:00",
+    "approved_at": "2026-09-26T19:46:30.201658+00:00",
+    "refunded_at": "2026-09-26T20:20:17.738951+00:00",
+    "charged_back_at": null,
+    "entitlement_activated_at": "2026-09-26T19:46:30.201658+00:00",
+    "events": [
+     {
+      "id": 113,
+      "type": "purchase.created",
+      "from": null,
+      "to": "created",
+      "actor": "user",
+      "provider_status": null,
+      "payment": null,
+      "provider_time": null
+     },
+     {
+      "id": 114,
+      "type": "preference.created",
+      "from": "created",
+      "to": "preference_created",
+      "actor": "service",
+      "provider_status": "created",
+      "payment": null,
+      "provider_time": null
+     },
+     {
+      "id": 115,
+      "type": "payment.approved",
+      "from": "preference_created",
+      "to": "approved",
+      "actor": "provider",
+      "provider_status": "approved",
+      "payment": "181036143126",
+      "provider_time": null
+     },
+     {
+      "id": 170,
+      "type": "payment.refund",
+      "from": "approved",
+      "to": "refunded",
+      "actor": "provider",
+      "provider_status": "refund",
+      "payment": null,
+      "provider_time": null
+     }
+    ],
+    "grants": [
+     {
+      "grant": "ce0040af-1126-4b79-9a98-b1913a3d777d",
+      "plan": "PREMIUM",
+      "source": "purchase",
+      "events": [
+       {
+        "type": "granted",
+        "reason_code": "payment_approved",
+        "actor": "provider"
+       },
+       {
+        "type": "revoked",
+        "reason_code": "total_refund",
+        "actor": "provider"
+       }
+      ],
+      "effective": false
+     }
+    ],
+    "watermarks": [
+     {
+      "payment": "181036143126",
+      "date_last_updated": "2026-09-26T20:22:19+00:00",
+      "state": [
+       "reversal",
+       "refund"
+      ],
+      "manual_refund": false,
+      "manual_review": false
+     }
+    ]
+   }
+  ]
+ },
+ "deno": {
+  "apps": [
+   {
+    "id": "46dc4189-bc99-4c89-88d0-ea596e31d0a1",
+    "slug": "torneos-payments-test"
+   },
+   {
+    "id": "5d4f18e9-1614-4e24-b8e0-fd7cff8e4c3d",
+    "slug": "torneos-gateway"
+   }
+  ],
+  "layers": 0,
+  "gateway_app": {
+   "slug": "torneos-gateway",
+   "env_names": [
+    "CORE_ANON_KEY",
+    "CORE_AUTH_URL",
+    "CORE_CONTRACT_URL",
+    "CORE_JWT_ISSUER",
+    "TORNEOS_ALLOWED_ORIGIN",
+    "TORNEOS_ANON_KEY",
+    "TORNEOS_BRIDGE_KEYS",
+    "TORNEOS_CONTRACT_SERVICE_SECRET",
+    "TORNEOS_DB_CORE_ADAPTER_URL",
+    "TORNEOS_DB_IDENTITY_WRITER_URL",
+    "TORNEOS_DB_SSL_CA",
+    "TORNEOS_GATEWAY_PUBLIC_URL",
+    "TORNEOS_REST_URL"
+   ],
+   "layers": []
+  },
+  "payments_app": {
+   "id": "46dc4189-bc99-4c89-88d0-ea596e31d0a1",
+   "slug": "torneos-payments-test",
+   "layers": [],
+   "env_vars": [
+    {
+     "key": "APP_PUBLIC_URL",
+     "secret": false,
+     "contexts": "all",
+     "value_returned": true
+    },
+    {
+     "key": "MERCADO_PAGO_ENVIRONMENT",
+     "secret": false,
+     "contexts": "all",
+     "value_returned": true
+    },
+    {
+     "key": "MERCADO_PAGO_TEST_ACCESS_TOKEN",
+     "secret": true,
+     "contexts": "all",
+     "value_returned": false
+    },
+    {
+     "key": "MERCADO_PAGO_TEST_SELLER_ID",
+     "secret": false,
+     "contexts": "all",
+     "value_returned": true
+    },
+    {
+     "key": "MERCADO_PAGO_TEST_WEBHOOK_SECRET",
+     "secret": true,
+     "contexts": "all",
+     "value_returned": false
+    },
+    {
+     "key": "TORNEOS_PAYMENT_PROVIDER",
+     "secret": false,
+     "contexts": "all",
+     "value_returned": true
+    },
+    {
+     "key": "TORNEOS_PAYMENTS_DB_SSL_CA",
+     "secret": false,
+     "contexts": "all",
+     "value_returned": true
+    },
+    {
+     "key": "TORNEOS_PAYMENTS_DB_URL",
+     "secret": true,
+     "contexts": "all",
+     "value_returned": false
+    },
+    {
+     "key": "TORNEOS_PAYMENTS_DEPLOYMENT",
+     "secret": false,
+     "contexts": "all",
+     "value_returned": true
+    },
+    {
+     "key": "TORNEOS_PAYMENTS_INTERNAL_SECRET",
+     "secret": true,
+     "contexts": "all",
+     "value_returned": false
+    },
+    {
+     "key": "TORNEOS_PAYMENTS_NOTIFICATION_URL",
+     "secret": false,
+     "contexts": "all",
+     "value_returned": true
+    },
+    {
+     "key": "TORNEOS_PAYMENTS_TEST_QA_ORGANIZATION_ID",
+     "secret": false,
+     "contexts": "all",
+     "value_returned": true
+    }
+   ],
+   "config": {
+    "runtime": {
+     "type": "dynamic",
+     "entrypoint": "torneos-payments/index.ts"
+    },
+    "crons": false
+   },
+   "labels": {
+    "custom.component": "arma2-torneos-payments",
+    "custom.environment": "mercadopago-test"
+   },
+   "created_at": "2026-09-26T13:13:46.715Z",
+   "updated_at": "2026-09-26T14:04:57.359Z"
+  },
+  "revisions": [
+   {
+    "id": "y3c0y413n6zy",
+    "status": "succeeded",
+    "failure_reason": null,
+    "failure_detail": null,
+    "env_vars": null,
+    "layers": null,
+    "config": null,
+    "labels": {
+     "custom.git_head": "b3b055b29d902f85e5c2170366ba2d106b15518c"
+    },
+    "created_at": "2026-09-26T19:15:56.614Z",
+    "build_finished_at": "2026-09-26T19:15:59.911Z",
+    "timelines": null
+   },
+   {
+    "id": "szb0wwg9b90q",
+    "status": "succeeded",
+    "failure_reason": null,
+    "failure_detail": null,
+    "env_vars": null,
+    "layers": null,
+    "config": null,
+    "labels": {
+     "custom.git_head": "c1a718432840e09e635075100a2beee48d9ac0c4"
+    },
+    "created_at": "2026-09-26T15:08:12.774Z",
+    "build_finished_at": "2026-09-26T15:08:15.428Z",
+    "timelines": null
+   },
+   {
+    "id": "xpdg5zct49w3",
+    "status": "succeeded",
+    "failure_reason": null,
+    "failure_detail": null,
+    "env_vars": null,
+    "layers": null,
+    "config": null,
+    "labels": {
+     "custom.git_head": "c1a718432840e09e635075100a2beee48d9ac0c4"
+    },
+    "created_at": "2026-09-26T14:39:01.618Z",
+    "build_finished_at": "2026-09-26T14:39:05.849Z",
+    "timelines": null
+   },
+   {
+    "id": "pvmzmrj10rj7",
+    "status": "succeeded",
+    "failure_reason": null,
+    "failure_detail": null,
+    "env_vars": null,
+    "layers": null,
+    "config": null,
+    "labels": {
+     "custom.git_head": "c1a718432840e09e635075100a2beee48d9ac0c4"
+    },
+    "created_at": "2026-09-26T14:04:57.941Z",
+    "build_finished_at": "2026-09-26T14:05:01.813Z",
+    "timelines": null
+   },
+   {
+    "id": "dzvgze7sr654",
+    "status": "succeeded",
+    "failure_reason": null,
+    "failure_detail": null,
+    "env_vars": null,
+    "layers": null,
+    "config": null,
+    "labels": {
+     "custom.git_head": "4b3f82b4ec920b72c93851341e07d40195773142"
+    },
+    "created_at": "2026-09-26T13:13:47.612Z",
+    "build_finished_at": "2026-09-26T13:13:50.062Z",
+    "timelines": null
+   }
+  ]
+ },
+ "gateway_live": {
+  "checks": [
+   {
+    "name": "gateway /health 200 ready",
+    "pass": true,
+    "status": 200
+   },
+   {
+    "name": "gateway commerce route absent (commerce OFF) → 404",
+    "pass": true,
+    "status": 404
+   },
+   {
+    "name": "gateway /config exposes no payments/commerce key",
+    "pass": true,
+    "status": 200
+   }
+  ],
+  "pass": true
+ },
+ "mercado_pago": {
+  "seller_id": "3712890098",
+  "attestation": {
+   "seller_matches": true,
+   "test_user": true,
+   "site": "MLA",
+   "pass": true
+  },
+  "requests": [
+   {
+    "id": "users-me",
+    "kind": "read",
+    "method": "GET",
+    "status": 200
+   }
+  ]
+ },
+ "custody": {
+  "installer": "PRESENT",
+  "payments_login_password": "PRESENT",
+  "internal_hmac_key": "PRESENT"
+ },
+ "bundle": {
+  "head": "2b2f5422676ea38faca473756288ee0a0c45c938",
+  "digest": "71b474443d35b5dfbd6c5dd07cc2af17e944bf10ac872888130eaafccb682c95",
+  "files": 13
+ },
+ "supabase_requests": [
+  {
+   "id": "prod-project",
+   "kind": "read",
+   "method": "GET",
+   "ref": "rcyuuoaqfwcembdajcss",
+   "status": 200
+  },
+  {
+   "id": "prod-contract-fn",
+   "kind": "read",
+   "method": "GET",
+   "ref": "rcyuuoaqfwcembdajcss",
+   "status": 200
+  },
+  {
+   "id": "project",
+   "kind": "read",
+   "method": "GET",
+   "ref": "hhyvmhgpapyuzjgxfnqv",
+   "status": 200
+  },
+  {
+   "id": "project",
+   "kind": "read",
+   "method": "GET",
+   "ref": "giaeztyghmhzcngskjmw",
+   "status": 200
+  },
+  {
+   "id": "project",
+   "kind": "read",
+   "method": "GET",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 200
+  },
+  {
+   "id": "org",
+   "kind": "read",
+   "method": "GET",
+   "ref": null,
+   "status": 200
+  },
+  {
+   "id": "projects",
+   "kind": "read",
+   "method": "GET",
+   "ref": null,
+   "status": 200
+  },
+  {
+   "id": "functions",
+   "kind": "read",
+   "method": "GET",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 200
+  },
+  {
+   "id": "third-party-auth",
+   "kind": "read",
+   "method": "GET",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 200
+  },
+  {
+   "id": "query",
+   "kind": "read-sql",
+   "method": "POST",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 201
+  },
+  {
+   "id": "query",
+   "kind": "read-sql",
+   "method": "POST",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 201
+  },
+  {
+   "id": "query",
+   "kind": "read-sql",
+   "method": "POST",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 201
+  },
+  {
+   "id": "query",
+   "kind": "read-sql",
+   "method": "POST",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 201
+  },
+  {
+   "id": "query",
+   "kind": "read-sql",
+   "method": "POST",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 201
+  },
+  {
+   "id": "pooler",
+   "kind": "read",
+   "method": "GET",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 200
+  },
+  {
+   "id": "query",
+   "kind": "read-sql",
+   "method": "POST",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 201
+  },
+  {
+   "id": "health",
+   "kind": "read",
+   "method": "GET",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 200
+  },
+  {
+   "id": "secrets",
+   "kind": "read",
+   "method": "GET",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 200
+  },
+  {
+   "id": "auth-config",
+   "kind": "read",
+   "method": "GET",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 200
+  }
+ ],
+ "management_api_writes": 0,
+ "deno_writes": 0,
+ "mp_writes": 0
+}

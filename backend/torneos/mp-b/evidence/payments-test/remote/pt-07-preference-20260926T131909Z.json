@@ -1,0 +1,193 @@
+{
+ "tool": "backend/torneos/infra/torneos-payments-test/payments-session.mjs",
+ "generated_at": "2026-09-26T13:19:09.436Z",
+ "verdict": "MP_TEST_PREFERENCE_PASS",
+ "plan": {
+  "step": "preference",
+  "purchase": "f292c050-835e-4c27-b81d-e8ab3d4c3e7a",
+  "season": "3f2f39af-848f-4ebf-ab78-f729d07bd5cb",
+  "org": "abedfe15-c7a2-4e8e-978f-6130eef70b53",
+  "product": {
+   "code": "torneos_premium",
+   "title": "Arma2 Torneos Premium",
+   "currency": "ARS",
+   "listAmount": 49900,
+   "amount": 39900,
+   "quantity": 1
+  },
+  "provider": "MERCADO_PAGO",
+  "environment": "test",
+  "seller": "3712890098",
+  "notification_url": "https://torneos-payments-test.nicoavayu.deno.net/functions/v1/torneos-payments/webhooks/mercadopago/v1",
+  "via": "https://torneos-payments-test.nicoavayu.deno.net/functions/v1/torneos-payments/internal/v1/season-checkout-preference"
+ },
+ "plan_id": "8a4c67b2739f",
+ "authorization": {
+  "phrase": "CREATE MERCADO PAGO TEST PREFERENCE 8a4c67b2739f",
+  "channel": "session FIFO (operator)"
+ },
+ "app_first": {
+  "status": 200,
+  "outcome": "preference_created",
+  "preferenceId": "3712890098-ae2cd93e-59e9-4c8c-80ab-316be463bb51",
+  "expiresAt": "2026-09-26T13:48:56.291Z",
+  "checkout_host": "www.mercadopago.com.ar"
+ },
+ "app_reuse": {
+  "status": 200,
+  "preferenceId": "3712890098-ae2cd93e-59e9-4c8c-80ab-316be463bb51"
+ },
+ "provider_preference": {
+  "id": "3712890098-ae2cd93e-59e9-4c8c-80ab-316be463bb51",
+  "collector_matches": true,
+  "items": [
+   {
+    "id": "torneos_premium",
+    "title": "Arma2 Torneos Premium",
+    "quantity": 1,
+    "currency_id": "ARS",
+    "unit_price": 39900
+   }
+  ],
+  "external_reference": "arma2:season:purchase:f292c050-835e-4c27-b81d-e8ab3d4c3e7a",
+  "metadata_keys": [
+   "purchase_id"
+  ],
+  "metadata_purchase_id": "f292c050-835e-4c27-b81d-e8ab3d4c3e7a",
+  "notification_url": "https://torneos-payments-test.nicoavayu.deno.net/functions/v1/torneos-payments/webhooks/mercadopago/v1",
+  "back_urls": {
+   "failure": "https://torneos-payments-test.nicoavayu.deno.net/torneos/organizacion/abedfe15-c7a2-4e8e-978f-6130eef70b53/temporada/3f2f39af-848f-4ebf-ab78-f729d07bd5cb/plan/compra/f292c050-835e-4c27-b81d-e8ab3d4c3e7a/fallo",
+   "pending": "https://torneos-payments-test.nicoavayu.deno.net/torneos/organizacion/abedfe15-c7a2-4e8e-978f-6130eef70b53/temporada/3f2f39af-848f-4ebf-ab78-f729d07bd5cb/plan/compra/f292c050-835e-4c27-b81d-e8ab3d4c3e7a/pendiente",
+   "success": "https://torneos-payments-test.nicoavayu.deno.net/torneos/organizacion/abedfe15-c7a2-4e8e-978f-6130eef70b53/temporada/3f2f39af-848f-4ebf-ab78-f729d07bd5cb/plan/compra/f292c050-835e-4c27-b81d-e8ab3d4c3e7a/exito"
+  },
+  "auto_return": "approved",
+  "expires": true,
+  "expiration_date_from": "2026-09-26T13:15:20.886+00:00",
+  "expiration_date_to": "2026-09-26T13:48:56.291+00:00",
+  "payer_fields_set": [],
+  "init_point_host": "www.mercadopago.com.ar",
+  "sandbox_init_point_host": "sandbox.mercadopago.com.ar",
+  "operation_type": "regular_payment",
+  "purpose": null
+ },
+ "db": {
+  "purchase": "f292c050-835e-4c27-b81d-e8ab3d4c3e7a",
+  "season": "3f2f39af-848f-4ebf-ab78-f729d07bd5cb",
+  "season_slug": "qa-pt-s1-609378",
+  "status": "preference_created",
+  "provider": "MERCADO_PAGO",
+  "environment": "test",
+  "product": "torneos_premium",
+  "offer": "launch",
+  "amount": 39900,
+  "list_amount": 49900,
+  "currency": "ARS",
+  "external_reference": "arma2:season:purchase:f292c050-835e-4c27-b81d-e8ab3d4c3e7a",
+  "preference_id": "3712890098-ae2cd93e-59e9-4c8c-80ab-316be463bb51",
+  "approved_payment": null,
+  "provider_status": "created",
+  "provider_status_detail": null,
+  "created_at": "2026-09-26T13:15:20.886889+00:00",
+  "approved_at": null,
+  "refunded_at": null,
+  "charged_back_at": null,
+  "entitlement_activated_at": null,
+  "events": [
+   {
+    "id": 1,
+    "type": "purchase.created",
+    "from": null,
+    "to": "created",
+    "actor": "user",
+    "provider_status": null,
+    "payment": null,
+    "provider_time": null
+   },
+   {
+    "id": 111,
+    "type": "preference.created",
+    "from": "created",
+    "to": "preference_created",
+    "actor": "service",
+    "provider_status": "created",
+    "payment": null,
+    "provider_time": null
+   }
+  ],
+  "grants": [],
+  "watermarks": []
+ },
+ "checks": [
+  {
+   "name": "app → 200 preference_created, checkout on a mercadopago.com.ar host",
+   "pass": true
+  },
+  {
+   "name": "provider: collector = the attested TEST seller",
+   "pass": true
+  },
+  {
+   "name": "provider: one item torneos_premium \"Arma2 Torneos Premium\" × 1, ARS, unit_price 39900",
+   "pass": true
+  },
+  {
+   "name": "provider: external_reference = arma2:season:purchase:<P1>",
+   "pass": true
+  },
+  {
+   "name": "provider: metadata = {purchase_id: P1} only",
+   "pass": true
+  },
+  {
+   "name": "provider: notification_url = the TEST webhook",
+   "pass": true
+  },
+  {
+   "name": "provider: back_urls on the TEST host, QA org/season/purchase path, auto_return approved",
+   "pass": true
+  },
+  {
+   "name": "provider: expires (30 min window), one-time (no subscription / no preapproval)",
+   "pass": true
+  },
+  {
+   "name": "provider: no payer / PII set",
+   "pass": true
+  },
+  {
+   "name": "reuse → 200 preference_reused, same preference id",
+   "pass": true
+  },
+  {
+   "name": "DB: preference_created with that id, still unpaid",
+   "pass": true
+  }
+ ],
+ "mp_requests": [
+  {
+   "id": "users-me",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "users-me",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "users-me",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "preference",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  }
+ ],
+ "mp_writes": 0
+}
