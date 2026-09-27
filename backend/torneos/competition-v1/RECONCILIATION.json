@@ -1,0 +1,3350 @@
+{
+ "generated_by": "backend/torneos/competition-v1/reconcile.mjs",
+ "summary": {
+  "staging_v1": 43,
+  "competition_authenticated": 74,
+  "authenticated_total": 117,
+  "public": 1,
+  "class_A_new_grant": 15,
+  "class_B_already_granted": 59,
+  "class_C_public": 1,
+  "writes": 49,
+  "reads": 26,
+  "by_category": {
+   "ADMIN_OWNER": 53,
+   "PRIVATE_AUTHENTICATED": 21,
+   "PUBLIC_READ_ONLY": 1
+  },
+  "removed_from_allowlist": 0,
+  "failures": []
+ },
+ "rows": [
+  {
+   "rpc": "get_tournament_fixture_context",
+   "class": "B",
+   "feature": "fixtures",
+   "route": "authenticated",
+   "category": "ADMIN_OWNER",
+   "scope": "season",
+   "write": false,
+   "authority": "fixture.read (or the entry's team manager)",
+   "collaborator_writes": false,
+   "team_manager": false,
+   "phase2b": "SCOPED",
+   "execute_before_0004": {
+    "authenticated": true,
+    "anon": false,
+    "gated_by_0001": false
+   },
+   "execute_after_0004": {
+    "authenticated": true,
+    "anon": false
+   },
+   "alias": "loadFixtureContext",
+   "ui": [
+    "TorneosFixtureContext.jsx (provider load of the fixture / programación routes)"
+   ],
+   "routes": [
+    "/torneos/organizacion/:org/torneo/:t/fixture{,/participantes,/bombos,/sorteo,/grupos,/generar,/version/:v,/jornadas,/jornadas/:r,/partidos/:m,/llave}",
+    "/torneos/organizacion/:org/torneo/:t/programacion",
+    "/torneos/organizacion/:org/sedes{,/:venueId}"
+   ],
+   "positive": {
+    "node": true,
+    "edge": true
+   },
+   "negative": [
+    "cross-workspace",
+    "inactive-membership",
+    "cross-season"
+   ],
+   "negative_statuses": [
+    "403 42501"
+   ],
+   "why_blocked_before": "feature \"fixtures\" was OFF in stagingV1Features at main, so the RPC was left out of the 43"
+  },
+  {
+   "rpc": "get_tournament_schedule_context",
+   "class": "B",
+   "feature": "fixtures",
+   "route": "authenticated",
+   "category": "ADMIN_OWNER",
+   "scope": "season",
+   "write": false,
+   "authority": "fixture.read",
+   "collaborator_writes": false,
+   "team_manager": false,
+   "phase2b": "SCOPED",
+   "execute_before_0004": {
+    "authenticated": true,
+    "anon": false,
+    "gated_by_0001": false
+   },
+   "execute_after_0004": {
+    "authenticated": true,
+    "anon": false
+   },
+   "alias": "loadScheduleContext",
+   "ui": [
+    "TorneosFixtureContext.jsx (provider load of the fixture / programación routes)"
+   ],
+   "routes": [
+    "/torneos/organizacion/:org/torneo/:t/fixture{,/participantes,/bombos,/sorteo,/grupos,/generar,/version/:v,/jornadas,/jornadas/:r,/partidos/:m,/llave}",
+    "/torneos/organizacion/:org/torneo/:t/programacion",
+    "/torneos/organizacion/:org/sedes{,/:venueId}"
+   ],
+   "positive": {
+    "node": true,
+    "edge": true
+   },
+   "negative": [
+    "cross-workspace",
+    "inactive-membership",
+    "cross-season"
+   ],
+   "negative_statuses": [
+    "403 42501"
+   ],
+   "why_blocked_before": "feature \"fixtures\" was OFF in stagingV1Features at main, so the RPC was left out of the 43"
+  },
+  {
+   "rpc": "freeze_tournament_participants",
+   "class": "B",
+   "feature": "fixtures",
+   "route": "authenticated",
+   "category": "ADMIN_OWNER",
+   "scope": "season",
+   "write": true,
+   "authority": "participants.freeze",
+   "collaborator_writes": false,
+   "team_manager": false,
+   "phase2b": "SCOPED",
+   "execute_before_0004": {
+    "authenticated": true,
+    "anon": false,
+    "gated_by_0001": false
+   },
+   "execute_after_0004": {
+    "authenticated": true,
+    "anon": false
+   },
+   "alias": "freezeParticipants",
+   "ui": [
+    "FixtureWorkspacePage.jsx (actions.freeze)"
+   ],
+   "routes": [
+    "/torneos/organizacion/:org/torneo/:t/fixture{,/participantes,/bombos,/sorteo,/grupos,/generar,/version/:v,/jornadas,/jornadas/:r,/partidos/:m,/llave}",
+    "/torneos/organizacion/:org/torneo/:t/programacion",
+    "/torneos/organizacion/:org/sedes{,/:venueId}"
+   ],
+   "positive": {
+    "node": true,
+    "edge": true
+   },
+   "negative": [
+    "cross-workspace",
+    "inactive-membership",
+    "cross-season",
+    "collaborator-write",
+    "participant",
+    "captain"
+   ],
+   "negative_statuses": [
+    "403 42501"
+   ],
+   "why_blocked_before": "feature \"fixtures\" was OFF in stagingV1Features at main, so the RPC was left out of the 43"
+  },
+  {
+   "rpc": "reopen_tournament_participants",
+   "class": "A",
+   "feature": "fixtures",
+   "route": "authenticated",
+   "category": "ADMIN_OWNER",
+   "scope": "season",
+   "write": true,
+   "authority": "participants.reopen",
+   "collaborator_writes": false,
+   "team_manager": false,
+   "phase2b": "INCONCLUSIVE",
+   "execute_before_0004": {
+    "authenticated": false,
+    "anon": false,
+    "gated_by_0001": true
+   },
+   "execute_after_0004": {
+    "authenticated": true,
+    "anon": false
+   },
+   "alias": "reopenParticipants",
+   "ui": [
+    "FixtureWorkspacePage.jsx (actions.reopen)"
+   ],
+   "routes": [
+    "/torneos/organizacion/:org/torneo/:t/fixture{,/participantes,/bombos,/sorteo,/grupos,/generar,/version/:v,/jornadas,/jornadas/:r,/partidos/:m,/llave}",
+    "/torneos/organizacion/:org/torneo/:t/programacion",
+    "/torneos/organizacion/:org/sedes{,/:venueId}"
+   ],
+   "positive": {
+    "node": true,
+    "edge": true
+   },
+   "negative": [
+    "cross-workspace",
+    "inactive-membership",
+    "cross-season",
+    "collaborator-write",
+    "participant",
+    "captain"
+   ],
+   "negative_statuses": [
+    "403 42501"
+   ],
+   "why_blocked_before": "feature \"fixtures\" was OFF in stagingV1Features at main, so the RPC was left out of the 43"
+  },
+  {
+   "rpc": "save_tournament_draw_pots",
+   "class": "A",
+   "feature": "fixtures",
+   "route": "authenticated",
+   "category": "ADMIN_OWNER",
+   "scope": "season",
+   "write": true,
+   "authority": "draw.manage",
+   "collaborator_writes": false,
+   "team_manager": false,
+   "phase2b": "INCONCLUSIVE",
+   "execute_before_0004": {
+    "authenticated": false,
+    "anon": false,
+    "gated_by_0001": true
+   },
+   "execute_after_0004": {
+    "authenticated": true,
+    "anon": false
+   },
+   "alias": "saveDrawPots",
+   "ui": [
+    "FixtureWorkspacePage.jsx (actions.savePots)"
+   ],
+   "routes": [
+    "/torneos/organizacion/:org/torneo/:t/fixture{,/participantes,/bombos,/sorteo,/grupos,/generar,/version/:v,/jornadas,/jornadas/:r,/partidos/:m,/llave}",
+    "/torneos/organizacion/:org/torneo/:t/programacion",
+    "/torneos/organizacion/:org/sedes{,/:venueId}"
+   ],
+   "positive": {
+    "node": true,
+    "edge": true
+   },
+   "negative": [
+    "cross-workspace",
+    "inactive-membership",
+    "cross-season",
+    "collaborator-write",
+    "participant",
+    "captain"
+   ],
+   "negative_statuses": [
+    "403 42501"
+   ],
+   "why_blocked_before": "feature \"fixtures\" was OFF in stagingV1Features at main, so the RPC was left out of the 43"
+  },
+  {
+   "rpc": "execute_tournament_group_draw",
+   "class": "B",
+   "feature": "fixtures",
+   "route": "authenticated",
+   "category": "ADMIN_OWNER",
+   "scope": "season",
+   "write": true,
+   "authority": "draw.execute / draw.publish",
+   "collaborator_writes": false,
+   "team_manager": false,
+   "phase2b": "SCOPED",
+   "execute_before_0004": {
+    "authenticated": true,
+    "anon": false,
+    "gated_by_0001": false
+   },
+   "execute_after_0004": {
+    "authenticated": true,
+    "anon": false
+   },
+   "alias": "executeGroupDraw",
+   "ui": [
+    "FixtureWorkspacePage.jsx (actions.draw)"
+   ],
+   "routes": [
+    "/torneos/organizacion/:org/torneo/:t/fixture{,/participantes,/bombos,/sorteo,/grupos,/generar,/version/:v,/jornadas,/jornadas/:r,/partidos/:m,/llave}",
+    "/torneos/organizacion/:org/torneo/:t/programacion",
+    "/torneos/organizacion/:org/sedes{,/:venueId}"
+   ],
+   "positive": {
+    "node": true,
+    "edge": true
+   },
+   "negative": [
+    "cross-workspace",
+    "inactive-membership",
+    "cross-season",
+    "collaborator-write",
+    "participant",
+    "captain"
+   ],
+   "negative_statuses": [
+    "403 42501"
+   ],
+   "why_blocked_before": "feature \"fixtures\" was OFF in stagingV1Features at main, so the RPC was left out of the 43"
+  },
+  {
+   "rpc": "generate_tournament_fixture",
+   "class": "B",
+   "feature": "fixtures",
+   "route": "authenticated",
+   "category": "ADMIN_OWNER",
+   "scope": "season",
+   "write": true,
+   "authority": "fixture.generate",
+   "collaborator_writes": false,
+   "team_manager": false,
+   "phase2b": "SCOPED",
+   "execute_before_0004": {
+    "authenticated": true,
+    "anon": false,
+    "gated_by_0001": false
+   },
+   "execute_after_0004": {
+    "authenticated": true,
+    "anon": false
+   },
+   "alias": "generateFixture",
+   "ui": [
+    "FixtureWorkspacePage.jsx (actions.generate)"
+   ],
+   "routes": [
+    "/torneos/organizacion/:org/torneo/:t/fixture{,/participantes,/bombos,/sorteo,/grupos,/generar,/version/:v,/jornadas,/jornadas/:r,/partidos/:m,/llave}",
+    "/torneos/organizacion/:org/torneo/:t/programacion",
+    "/torneos/organizacion/:org/sedes{,/:venueId}"
+   ],
+   "positive": {
+    "node": true,
+    "edge": true
+   },
+   "negative": [
+    "cross-workspace",
+    "inactive-membership",
+    "cross-season",
+    "collaborator-write",
+    "participant",
+    "captain"
+   ],
+   "negative_statuses": [
+    "403 42501"
+   ],
+   "why_blocked_before": "feature \"fixtures\" was OFF in stagingV1Features at main, so the RPC was left out of the 43"
+  },
+  {
+   "rpc": "create_manual_fixture_version",
+   "class": "B",
+   "feature": "fixtures",
+   "route": "authenticated",
+   "category": "ADMIN_OWNER",
+   "scope": "season",
+   "write": true,
+   "authority": "fixture.create_manual",
+   "collaborator_writes": false,
+   "team_manager": false,
+   "phase2b": "SCOPED",
+   "execute_before_0004": {
+    "authenticated": true,
+    "anon": false,
+    "gated_by_0001": false
+   },
+   "execute_after_0004": {
+    "authenticated": true,
+    "anon": false
+   },
+   "alias": "createManualFixture",
+   "ui": [
+    "FixtureWorkspacePage.jsx (actions.createManual)"
+   ],
+   "routes": [
+    "/torneos/organizacion/:org/torneo/:t/fixture{,/participantes,/bombos,/sorteo,/grupos,/generar,/version/:v,/jornadas,/jornadas/:r,/partidos/:m,/llave}",
+    "/torneos/organizacion/:org/torneo/:t/programacion",
+    "/torneos/organizacion/:org/sedes{,/:venueId}"
+   ],
+   "positive": {
+    "node": true,
+    "edge": true
+   },
+   "negative": [
+    "cross-workspace",
+    "inactive-membership",
+    "cross-season",
+    "collaborator-write",
+    "participant",
+    "captain"
+   ],
+   "negative_statuses": [
+    "403 42501"
+   ],
+   "why_blocked_before": "feature \"fixtures\" was OFF in stagingV1Features at main, so the RPC was left out of the 43"
+  },
+  {
+   "rpc": "update_draft_fixture",
+   "class": "A",
+   "feature": "fixtures",
+   "route": "authenticated",
+   "category": "ADMIN_OWNER",
+   "scope": "season",
+   "write": true,
+   "authority": "fixture.update_draft | rounds.manage | matches.create (+ season access, COMPETITION-V1 fix)",
+   "collaborator_writes": false,
+   "team_manager": false,
+   "phase2b": "INCONCLUSIVE",
+   "execute_before_0004": {
+    "authenticated": false,
+    "anon": false,
+    "gated_by_0001": true
+   },
+   "execute_after_0004": {
+    "authenticated": true,
+    "anon": false
+   },
+   "alias": "updateDraftFixture",
+   "ui": [
+    "FixtureWorkspacePage.jsx (actions.updateDraft)"
+   ],
+   "routes": [
+    "/torneos/organizacion/:org/torneo/:t/fixture{,/participantes,/bombos,/sorteo,/grupos,/generar,/version/:v,/jornadas,/jornadas/:r,/partidos/:m,/llave}",
+    "/torneos/organizacion/:org/torneo/:t/programacion",
+    "/torneos/organizacion/:org/sedes{,/:venueId}"
+   ],
+   "positive": {
+    "node": true,
+    "edge": true
+   },
+   "negative": [
+    "cross-workspace",
+    "inactive-membership",
+    "cross-season",
+    "collaborator-write",
+    "participant",
+    "captain"
+   ],
+   "negative_statuses": [
+    "403 42501"
+   ],
+   "why_blocked_before": "feature \"fixtures\" was OFF in stagingV1Features at main, so the RPC was left out of the 43"
+  },
+  {
+   "rpc": "validate_tournament_fixture",
+   "class": "B",
+   "feature": "fixtures",
+   "route": "authenticated",
+   "category": "ADMIN_OWNER",
+   "scope": "season",
+   "write": false,
+   "authority": "fixture.read",
+   "collaborator_writes": false,
+   "team_manager": false,
+   "phase2b": "SCOPED",
+   "execute_before_0004": {
+    "authenticated": true,
+    "anon": false,
+    "gated_by_0001": false
+   },
+   "execute_after_0004": {
+    "authenticated": true,
+    "anon": false
+   },
+   "alias": "validateFixture",
+   "ui": [
+    "FixtureWorkspacePage.jsx",
+    "FixtureWorkspacePage.jsx (actions.validateFixture)"
+   ],
+   "routes": [
+    "/torneos/organizacion/:org/torneo/:t/fixture{,/participantes,/bombos,/sorteo,/grupos,/generar,/version/:v,/jornadas,/jornadas/:r,/partidos/:m,/llave}",
+    "/torneos/organizacion/:org/torneo/:t/programacion",
+    "/torneos/organizacion/:org/sedes{,/:venueId}"
+   ],
+   "positive": {
+    "node": true,
+    "edge": true
+   },
+   "negative": [
+    "cross-workspace",
+    "inactive-membership",
+    "cross-season"
+   ],
+   "negative_statuses": [
+    "403 42501"
+   ],
+   "why_blocked_before": "feature \"fixtures\" was OFF in stagingV1Features at main, so the RPC was left out of the 43"
+  },
+  {
+   "rpc": "publish_tournament_fixture",
+   "class": "A",
+   "feature": "fixtures",
+   "route": "authenticated",
+   "category": "ADMIN_OWNER",
+   "scope": "season",
+   "write": true,
+   "authority": "fixture.publish (fixture.supersede when replacing)",
+   "collaborator_writes": false,
+   "team_manager": false,
+   "phase2b": "INCONCLUSIVE",
+   "execute_before_0004": {
+    "authenticated": false,
+    "anon": false,
+    "gated_by_0001": true
+   },
+   "execute_after_0004": {
+    "authenticated": true,
+    "anon": false
+   },
+   "alias": "publishFixture",
+   "ui": [
+    "FixtureWorkspacePage.jsx (actions.publish)"
+   ],
+   "routes": [
+    "/torneos/organizacion/:org/torneo/:t/fixture{,/participantes,/bombos,/sorteo,/grupos,/generar,/version/:v,/jornadas,/jornadas/:r,/partidos/:m,/llave}",
+    "/torneos/organizacion/:org/torneo/:t/programacion",
+    "/torneos/organizacion/:org/sedes{,/:venueId}"
+   ],
+   "positive": {
+    "node": true,
+    "edge": true
+   },
+   "negative": [
+    "cross-workspace",
+    "inactive-membership",
+    "cross-season",
+    "collaborator-write",
+    "participant",
+    "captain"
+   ],
+   "negative_statuses": [
+    "403 42501"
+   ],
+   "why_blocked_before": "feature \"fixtures\" was OFF in stagingV1Features at main, so the RPC was left out of the 43"
+  },
+  {
+   "rpc": "append_tournament_playoff_phase",
+   "class": "B",
+   "feature": "fixtures",
+   "route": "authenticated",
+   "category": "ADMIN_OWNER",
+   "scope": "season",
+   "write": true,
+   "authority": "fixture.publish",
+   "collaborator_writes": false,
+   "team_manager": false,
+   "phase2b": "SCOPED",
+   "execute_before_0004": {
+    "authenticated": true,
+    "anon": false,
+    "gated_by_0001": false
+   },
+   "execute_after_0004": {
+    "authenticated": true,
+    "anon": false
+   },
+   "alias": "appendPlayoffPhase",
+   "ui": [
+    "FixtureWorkspacePage.jsx (actions.appendPlayoffs)"
+   ],
+   "routes": [
+    "/torneos/organizacion/:org/torneo/:t/fixture{,/participantes,/bombos,/sorteo,/grupos,/generar,/version/:v,/jornadas,/jornadas/:r,/partidos/:m,/llave}",
+    "/torneos/organizacion/:org/torneo/:t/programacion",
+    "/torneos/organizacion/:org/sedes{,/:venueId}"
+   ],
+   "positive": {
+    "node": true,
+    "edge": true
+   },
+   "negative": [
+    "cross-workspace",
+    "inactive-membership",
+    "cross-season",
+    "collaborator-write",
+    "participant",
+    "captain"
+   ],
+   "negative_statuses": [
+    "403 42501"
+   ],
+   "why_blocked_before": "feature \"fixtures\" was OFF in stagingV1Features at main, so the RPC was left out of the 43"
+  },
+  {
+   "rpc": "supersede_tournament_fixture",
+   "class": "A",
+   "feature": "fixtures",
+   "route": "authenticated",
+   "category": "ADMIN_OWNER",
+   "scope": "season",
+   "write": true,
+   "authority": "fixture.supersede",
+   "collaborator_writes": false,
+   "team_manager": false,
+   "phase2b": "INCONCLUSIVE",
+   "execute_before_0004": {
+    "authenticated": false,
+    "anon": false,
+    "gated_by_0001": true
+   },
+   "execute_after_0004": {
+    "authenticated": true,
+    "anon": false
+   },
+   "alias": "supersedeFixture",
+   "ui": [
+    "FixtureWorkspacePage.jsx (actions.supersede)"
+   ],
+   "routes": [
+    "/torneos/organizacion/:org/torneo/:t/fixture{,/participantes,/bombos,/sorteo,/grupos,/generar,/version/:v,/jornadas,/jornadas/:r,/partidos/:m,/llave}",
+    "/torneos/organizacion/:org/torneo/:t/programacion",
+    "/torneos/organizacion/:org/sedes{,/:venueId}"
+   ],
+   "positive": {
+    "node": true,
+    "edge": true
+   },
+   "negative": [
+    "cross-workspace",
+    "inactive-membership",
+    "cross-season",
+    "collaborator-write",
+    "participant",
+    "captain"
+   ],
+   "negative_statuses": [
+    "403 42501"
+   ],
+   "why_blocked_before": "feature \"fixtures\" was OFF in stagingV1Features at main, so the RPC was left out of the 43"
+  },
+  {
+   "rpc": "create_tournament_venue",
+   "class": "B",
+   "feature": "fixtures",
+   "route": "authenticated",
+   "category": "ADMIN_OWNER",
+   "scope": "organization",
+   "write": true,
+   "authority": "venues.create",
+   "collaborator_writes": false,
+   "team_manager": false,
+   "phase2b": "ORG_SCOPED",
+   "execute_before_0004": {
+    "authenticated": true,
+    "anon": false,
+    "gated_by_0001": false
+   },
+   "execute_after_0004": {
+    "authenticated": true,
+    "anon": false
+   },
+   "alias": "createVenue",
+   "ui": [
+    "OrganizationVenuesPage.jsx"
+   ],
+   "routes": [
+    "/torneos/organizacion/:org/torneo/:t/fixture{,/participantes,/bombos,/sorteo,/grupos,/generar,/version/:v,/jornadas,/jornadas/:r,/partidos/:m,/llave}",
+    "/torneos/organizacion/:org/torneo/:t/programacion",
+    "/torneos/organizacion/:org/sedes{,/:venueId}"
+   ],
+   "positive": {
+    "node": true,
+    "edge": true
+   },
+   "negative": [
+    "cross-workspace",
+    "inactive-membership",
+    "collaborator-write",
+    "participant",
+    "captain"
+   ],
+   "negative_statuses": [
+    "403 42501"
+   ],
+   "why_blocked_before": "feature \"fixtures\" was OFF in stagingV1Features at main, so the RPC was left out of the 43"
+  },
+  {
+   "rpc": "create_tournament_court",
+   "class": "B",
+   "feature": "fixtures",
+   "route": "authenticated",
+   "category": "ADMIN_OWNER",
+   "scope": "organization",
+   "write": true,
+   "authority": "courts.create",
+   "collaborator_writes": false,
+   "team_manager": false,
+   "phase2b": "ORG_SCOPED",
+   "execute_before_0004": {
+    "authenticated": true,
+    "anon": false,
+    "gated_by_0001": false
+   },
+   "execute_after_0004": {
+    "authenticated": true,
+    "anon": false
+   },
+   "alias": "createCourt",
+   "ui": [
+    "OrganizationVenuesPage.jsx"
+   ],
+   "routes": [
+    "/torneos/organizacion/:org/torneo/:t/fixture{,/participantes,/bombos,/sorteo,/grupos,/generar,/version/:v,/jornadas,/jornadas/:r,/partidos/:m,/llave}",
+    "/torneos/organizacion/:org/torneo/:t/programacion",
+    "/torneos/organizacion/:org/sedes{,/:venueId}"
+   ],
+   "positive": {
+    "node": true,
+    "edge": true
+   },
+   "negative": [
+    "cross-workspace",
+    "inactive-membership",
+    "collaborator-write",
+    "participant",
+    "captain"
+   ],
+   "negative_statuses": [
+    "403 42501"
+   ],
+   "why_blocked_before": "feature \"fixtures\" was OFF in stagingV1Features at main, so the RPC was left out of the 43"
+  },
+  {
+   "rpc": "save_tournament_schedule_windows",
+   "class": "B",
+   "feature": "fixtures",
+   "route": "authenticated",
+   "category": "ADMIN_OWNER",
+   "scope": "season",
+   "write": true,
+   "authority": "schedule_windows.manage",
+   "collaborator_writes": false,
+   "team_manager": false,
+   "phase2b": "SCOPED",
+   "execute_before_0004": {
+    "authenticated": true,
+    "anon": false,
+    "gated_by_0001": false
+   },
+   "execute_after_0004": {
+    "authenticated": true,
+    "anon": false
+   },
+   "alias": "saveScheduleWindows",
+   "ui": [
+    "FixtureWorkspacePage.jsx (actions.saveWindows)"
+   ],
+   "routes": [
+    "/torneos/organizacion/:org/torneo/:t/fixture{,/participantes,/bombos,/sorteo,/grupos,/generar,/version/:v,/jornadas,/jornadas/:r,/partidos/:m,/llave}",
+    "/torneos/organizacion/:org/torneo/:t/programacion",
+    "/torneos/organizacion/:org/sedes{,/:venueId}"
+   ],
+   "positive": {
+    "node": true,
+    "edge": true
+   },
+   "negative": [
+    "cross-workspace",
+    "inactive-membership",
+    "cross-season",
+    "collaborator-write",
+    "participant",
+    "captain"
+   ],
+   "negative_statuses": [
+    "403 42501"
+   ],
+   "why_blocked_before": "feature \"fixtures\" was OFF in stagingV1Features at main, so the RPC was left out of the 43"
+  },
+  {
+   "rpc": "validate_tournament_match_schedule",
+   "class": "B",
+   "feature": "fixtures",
+   "route": "authenticated",
+   "category": "ADMIN_OWNER",
+   "scope": "season",
+   "write": false,
+   "authority": "fixture read scope",
+   "collaborator_writes": false,
+   "team_manager": false,
+   "phase2b": "SCOPED",
+   "execute_before_0004": {
+    "authenticated": true,
+    "anon": false,
+    "gated_by_0001": false
+   },
+   "execute_after_0004": {
+    "authenticated": true,
+    "anon": false
+   },
+   "alias": "validateMatchSchedule",
+   "ui": [
+    "FixtureWorkspacePage.jsx (actions.validateSchedule)"
+   ],
+   "routes": [
+    "/torneos/organizacion/:org/torneo/:t/fixture{,/participantes,/bombos,/sorteo,/grupos,/generar,/version/:v,/jornadas,/jornadas/:r,/partidos/:m,/llave}",
+    "/torneos/organizacion/:org/torneo/:t/programacion",
+    "/torneos/organizacion/:org/sedes{,/:venueId}"
+   ],
+   "positive": {
+    "node": true,
+    "edge": true
+   },
+   "negative": [
+    "cross-workspace",
+    "inactive-membership",
+    "cross-season"
+   ],
+   "negative_statuses": [
+    "403 42501"
+   ],
+   "why_blocked_before": "feature \"fixtures\" was OFF in stagingV1Features at main, so the RPC was left out of the 43"
+  },
+  {
+   "rpc": "schedule_tournament_match",
+   "class": "A",
+   "feature": "fixtures",
+   "route": "authenticated",
+   "category": "ADMIN_OWNER",
+   "scope": "season",
+   "write": true,
+   "authority": "matches.schedule (schedule_conflicts.override to force)",
+   "collaborator_writes": false,
+   "team_manager": false,
+   "phase2b": "INCONCLUSIVE",
+   "execute_before_0004": {
+    "authenticated": false,
+    "anon": false,
+    "gated_by_0001": true
+   },
+   "execute_after_0004": {
+    "authenticated": true,
+    "anon": false
+   },
+   "alias": "scheduleMatch",
+   "ui": [
+    "FixtureWorkspacePage.jsx (actions.schedule)"
+   ],
+   "routes": [
+    "/torneos/organizacion/:org/torneo/:t/fixture{,/participantes,/bombos,/sorteo,/grupos,/generar,/version/:v,/jornadas,/jornadas/:r,/partidos/:m,/llave}",
+    "/torneos/organizacion/:org/torneo/:t/programacion",
+    "/torneos/organizacion/:org/sedes{,/:venueId}"
+   ],
+   "positive": {
+    "node": true,
+    "edge": true
+   },
+   "negative": [
+    "cross-workspace",
+    "inactive-membership",
+    "cross-season",
+    "collaborator-write",
+    "participant",
+    "captain"
+   ],
+   "negative_statuses": [
+    "403 42501"
+   ],
+   "why_blocked_before": "feature \"fixtures\" was OFF in stagingV1Features at main, so the RPC was left out of the 43"
+  },
+  {
+   "rpc": "reschedule_tournament_match",
+   "class": "B",
+   "feature": "fixtures",
+   "route": "authenticated",
+   "category": "ADMIN_OWNER",
+   "scope": "season",
+   "write": true,
+   "authority": "matches.reschedule (schedule_conflicts.override to force)",
+   "collaborator_writes": false,
+   "team_manager": false,
+   "phase2b": "SCOPED",
+   "execute_before_0004": {
+    "authenticated": true,
+    "anon": false,
+    "gated_by_0001": false
+   },
+   "execute_after_0004": {
+    "authenticated": true,
+    "anon": false
+   },
+   "alias": "rescheduleMatch",
+   "ui": [
+    "FixtureWorkspacePage.jsx (actions.reschedule)"
+   ],
+   "routes": [
+    "/torneos/organizacion/:org/torneo/:t/fixture{,/participantes,/bombos,/sorteo,/grupos,/generar,/version/:v,/jornadas,/jornadas/:r,/partidos/:m,/llave}",
+    "/torneos/organizacion/:org/torneo/:t/programacion",
+    "/torneos/organizacion/:org/sedes{,/:venueId}"
+   ],
+   "positive": {
+    "node": true,
+    "edge": true
+   },
+   "negative": [
+    "cross-workspace",
+    "inactive-membership",
+    "cross-season",
+    "collaborator-write",
+    "participant",
+    "captain"
+   ],
+   "negative_statuses": [
+    "403 42501"
+   ],
+   "why_blocked_before": "feature \"fixtures\" was OFF in stagingV1Features at main, so the RPC was left out of the 43"
+  },
+  {
+   "rpc": "auto_schedule_tournament_matches",
+   "class": "A",
+   "feature": "fixtures",
+   "route": "authenticated",
+   "category": "ADMIN_OWNER",
+   "scope": "season",
+   "write": true,
+   "authority": "matches.schedule",
+   "collaborator_writes": false,
+   "team_manager": false,
+   "phase2b": "SCOPED",
+   "execute_before_0004": {
+    "authenticated": false,
+    "anon": false,
+    "gated_by_0001": true
+   },
+   "execute_after_0004": {
+    "authenticated": true,
+    "anon": false
+   },
+   "alias": "autoScheduleMatches",
+   "ui": [
+    "FixtureWorkspacePage.jsx (actions.autoSchedule)"
+   ],
+   "routes": [
+    "/torneos/organizacion/:org/torneo/:t/fixture{,/participantes,/bombos,/sorteo,/grupos,/generar,/version/:v,/jornadas,/jornadas/:r,/partidos/:m,/llave}",
+    "/torneos/organizacion/:org/torneo/:t/programacion",
+    "/torneos/organizacion/:org/sedes{,/:venueId}"
+   ],
+   "positive": {
+    "node": true,
+    "edge": true
+   },
+   "negative": [
+    "cross-workspace",
+    "inactive-membership",
+    "cross-season",
+    "collaborator-write",
+    "participant",
+    "captain"
+   ],
+   "negative_statuses": [
+    "403 42501"
+   ],
+   "why_blocked_before": "feature \"fixtures\" was OFF in stagingV1Features at main, so the RPC was left out of the 43"
+  },
+  {
+   "rpc": "get_player_tournament_matches",
+   "class": "B",
+   "feature": "match_operations",
+   "route": "authenticated",
+   "category": "PRIVATE_AUTHENTICATED",
+   "scope": "self",
+   "write": false,
+   "authority": "own active roster rows",
+   "collaborator_writes": false,
+   "team_manager": false,
+   "phase2b": "NOT_SWEPT",
+   "execute_before_0004": {
+    "authenticated": true,
+    "anon": false,
+    "gated_by_0001": false
+   },
+   "execute_after_0004": {
+    "authenticated": true,
+    "anon": false
+   },
+   "alias": "loadPlayerMatches",
+   "ui": [
+    "MyTournamentMatchesPage.jsx"
+   ],
+   "routes": [
+    "/torneos/organizacion/:org/torneo/:t/partidos{,/:m,/:m/convocatorias,/:m/acta,/:m/revision,/:m/historial}",
+    "/torneos/mis-partidos{,/:m,/:m/convocatoria}"
+   ],
+   "positive": {
+    "node": true,
+    "edge": true
+   },
+   "negative": [
+    "self-scope-isolation"
+   ],
+   "negative_statuses": [
+    "200"
+   ],
+   "why_blocked_before": "feature \"match_operations\" was OFF in stagingV1Features at main, so the RPC was left out of the 43"
+  },
+  {
+   "rpc": "get_managed_tournament_matches",
+   "class": "B",
+   "feature": "match_operations",
+   "route": "authenticated",
+   "category": "PRIVATE_AUTHENTICATED",
+   "scope": "self",
+   "write": false,
+   "authority": "own active team-manager rows",
+   "collaborator_writes": false,
+   "team_manager": false,
+   "phase2b": "NOT_SWEPT",
+   "execute_before_0004": {
+    "authenticated": true,
+    "anon": false,
+    "gated_by_0001": false
+   },
+   "execute_after_0004": {
+    "authenticated": true,
+    "anon": false
+   },
+   "alias": "loadPlayerMatches",
+   "ui": [
+    "MyTournamentMatchesPage.jsx"
+   ],
+   "routes": [
+    "/torneos/organizacion/:org/torneo/:t/partidos{,/:m,/:m/convocatorias,/:m/acta,/:m/revision,/:m/historial}",
+    "/torneos/mis-partidos{,/:m,/:m/convocatoria}"
+   ],
+   "positive": {
+    "node": true,
+    "edge": true
+   },
+   "negative": [
+    "self-scope-isolation"
+   ],
+   "negative_statuses": [
+    "200"
+   ],
+   "why_blocked_before": "feature \"match_operations\" was OFF in stagingV1Features at main, so the RPC was left out of the 43"
+  },
+  {
+   "rpc": "respond_match_availability",
+   "class": "B",
+   "feature": "match_operations",
+   "route": "authenticated",
+   "category": "PRIVATE_AUTHENTICATED",
+   "scope": "resource",
+   "write": true,
+   "authority": "the caller's own roster player in the match",
+   "collaborator_writes": false,
+   "team_manager": false,
+   "phase2b": "NOT_SWEPT",
+   "execute_before_0004": {
+    "authenticated": true,
+    "anon": false,
+    "gated_by_0001": false
+   },
+   "execute_after_0004": {
+    "authenticated": true,
+    "anon": false
+   },
+   "alias": "respondMatchAvailability",
+   "ui": [
+    "MyTournamentMatchesPage.jsx",
+    "TournamentHubPage.jsx"
+   ],
+   "routes": [
+    "/torneos/organizacion/:org/torneo/:t/partidos{,/:m,/:m/convocatorias,/:m/acta,/:m/revision,/:m/historial}",
+    "/torneos/mis-partidos{,/:m,/:m/convocatoria}"
+   ],
+   "positive": {
+    "node": true,
+    "edge": true
+   },
+   "negative": [
+    "cross-workspace"
+   ],
+   "negative_statuses": [
+    "403 42501"
+   ],
+   "why_blocked_before": "feature \"match_operations\" was OFF in stagingV1Features at main, so the RPC was left out of the 43"
+  },
+  {
+   "rpc": "get_tournament_match_operations_context",
+   "class": "B",
+   "feature": "match_operations",
+   "route": "authenticated",
+   "category": "ADMIN_OWNER",
+   "scope": "season",
+   "write": false,
+   "authority": "match_operations.read",
+   "collaborator_writes": false,
+   "team_manager": false,
+   "phase2b": "SCOPED",
+   "execute_before_0004": {
+    "authenticated": true,
+    "anon": false,
+    "gated_by_0001": false
+   },
+   "execute_after_0004": {
+    "authenticated": true,
+    "anon": false
+   },
+   "alias": "loadMatchOperations",
+   "ui": [
+    "MatchOperationsPage.jsx"
+   ],
+   "routes": [
+    "/torneos/organizacion/:org/torneo/:t/partidos{,/:m,/:m/convocatorias,/:m/acta,/:m/revision,/:m/historial}",
+    "/torneos/mis-partidos{,/:m,/:m/convocatoria}"
+   ],
+   "positive": {
+    "node": true,
+    "edge": true
+   },
+   "negative": [
+    "cross-workspace",
+    "inactive-membership",
+    "cross-season"
+   ],
+   "negative_statuses": [
+    "403 42501"
+   ],
+   "why_blocked_before": "feature \"match_operations\" was OFF in stagingV1Features at main, so the RPC was left out of the 43"
+  },
+  {
+   "rpc": "get_tournament_match_operation_context",
+   "class": "B",
+   "feature": "match_operations",
+   "route": "authenticated",
+   "category": "ADMIN_OWNER",
+   "scope": "season",
+   "write": false,
+   "authority": "match_operations.read",
+   "collaborator_writes": false,
+   "team_manager": false,
+   "phase2b": "SCOPED",
+   "execute_before_0004": {
+    "authenticated": true,
+    "anon": false,
+    "gated_by_0001": false
+   },
+   "execute_after_0004": {
+    "authenticated": true,
+    "anon": false
+   },
+   "alias": "loadMatchOperation",
+   "ui": [
+    "MatchOperationsPage.jsx"
+   ],
+   "routes": [
+    "/torneos/organizacion/:org/torneo/:t/partidos{,/:m,/:m/convocatorias,/:m/acta,/:m/revision,/:m/historial}",
+    "/torneos/mis-partidos{,/:m,/:m/convocatoria}"
+   ],
+   "positive": {
+    "node": true,
+    "edge": true
+   },
+   "negative": [
+    "cross-workspace",
+    "inactive-membership",
+    "cross-season"
+   ],
+   "negative_statuses": [
+    "403 42501"
+   ],
+   "why_blocked_before": "feature \"match_operations\" was OFF in stagingV1Features at main, so the RPC was left out of the 43"
+  },
+  {
+   "rpc": "get_match_squad_context",
+   "class": "B",
+   "feature": "match_operations",
+   "route": "authenticated",
+   "category": "PRIVATE_AUTHENTICATED",
+   "scope": "resource",
+   "write": false,
+   "authority": "match_squads.read + season, or the team's active manager",
+   "collaborator_writes": false,
+   "team_manager": true,
+   "phase2b": "SCOPED",
+   "execute_before_0004": {
+    "authenticated": true,
+    "anon": false,
+    "gated_by_0001": false
+   },
+   "execute_after_0004": {
+    "authenticated": true,
+    "anon": false
+   },
+   "alias": "loadMatchSquad",
+   "ui": [
+    "MatchOperationsPage.jsx"
+   ],
+   "routes": [
+    "/torneos/organizacion/:org/torneo/:t/partidos{,/:m,/:m/convocatorias,/:m/acta,/:m/revision,/:m/historial}",
+    "/torneos/mis-partidos{,/:m,/:m/convocatoria}"
+   ],
+   "positive": {
+    "node": true,
+    "edge": true
+   },
+   "negative": [
+    "cross-workspace"
+   ],
+   "negative_statuses": [
+    "403 42501"
+   ],
+   "why_blocked_before": "feature \"match_operations\" was OFF in stagingV1Features at main, so the RPC was left out of the 43"
+  },
+  {
+   "rpc": "get_my_managed_match_squad_context",
+   "class": "B",
+   "feature": "match_operations",
+   "route": "authenticated",
+   "category": "PRIVATE_AUTHENTICATED",
+   "scope": "self",
+   "write": false,
+   "authority": "own active team-manager row",
+   "collaborator_writes": false,
+   "team_manager": true,
+   "phase2b": "NOT_SWEPT",
+   "execute_before_0004": {
+    "authenticated": true,
+    "anon": false,
+    "gated_by_0001": false
+   },
+   "execute_after_0004": {
+    "authenticated": true,
+    "anon": false
+   },
+   "alias": "loadMyManagedMatchSquad",
+   "ui": [
+    "CaptainMatchSquadPage.jsx"
+   ],
+   "routes": [
+    "/torneos/organizacion/:org/torneo/:t/partidos{,/:m,/:m/convocatorias,/:m/acta,/:m/revision,/:m/historial}",
+    "/torneos/mis-partidos{,/:m,/:m/convocatoria}"
+   ],
+   "positive": {
+    "node": true,
+    "edge": true
+   },
+   "negative": [
+    "self-scope-isolation"
+   ],
+   "negative_statuses": [
+    "200"
+   ],
+   "why_blocked_before": "feature \"match_operations\" was OFF in stagingV1Features at main, so the RPC was left out of the 43"
+  },
+  {
+   "rpc": "save_match_squad",
+   "class": "B",
+   "feature": "match_operations",
+   "route": "authenticated",
+   "category": "PRIVATE_AUTHENTICATED",
+   "scope": "resource",
+   "write": true,
+   "authority": "match_squads.manage + season, or the team's active manager",
+   "collaborator_writes": false,
+   "team_manager": true,
+   "phase2b": "SCOPED",
+   "execute_before_0004": {
+    "authenticated": true,
+    "anon": false,
+    "gated_by_0001": false
+   },
+   "execute_after_0004": {
+    "authenticated": true,
+    "anon": false
+   },
+   "alias": "saveMatchSquad",
+   "ui": [
+    "CaptainMatchSquadPage.jsx",
+    "MatchOperationsPage.jsx"
+   ],
+   "routes": [
+    "/torneos/organizacion/:org/torneo/:t/partidos{,/:m,/:m/convocatorias,/:m/acta,/:m/revision,/:m/historial}",
+    "/torneos/mis-partidos{,/:m,/:m/convocatoria}"
+   ],
+   "positive": {
+    "node": true,
+    "edge": true
+   },
+   "negative": [
+    "cross-workspace"
+   ],
+   "negative_statuses": [
+    "403 42501"
+   ],
+   "why_blocked_before": "feature \"match_operations\" was OFF in stagingV1Features at main, so the RPC was left out of the 43"
+  },
+  {
+   "rpc": "submit_match_squad",
+   "class": "A",
+   "feature": "match_operations",
+   "route": "authenticated",
+   "category": "PRIVATE_AUTHENTICATED",
+   "scope": "resource",
+   "write": true,
+   "authority": "match_squads.manage + season, or the team's active manager",
+   "collaborator_writes": false,
+   "team_manager": true,
+   "phase2b": "INCONCLUSIVE",
+   "execute_before_0004": {
+    "authenticated": false,
+    "anon": false,
+    "gated_by_0001": true
+   },
+   "execute_after_0004": {
+    "authenticated": true,
+    "anon": false
+   },
+   "alias": "submitMatchSquad",
+   "ui": [
+    "CaptainMatchSquadPage.jsx",
+    "MatchOperationsPage.jsx"
+   ],
+   "routes": [
+    "/torneos/organizacion/:org/torneo/:t/partidos{,/:m,/:m/convocatorias,/:m/acta,/:m/revision,/:m/historial}",
+    "/torneos/mis-partidos{,/:m,/:m/convocatoria}"
+   ],
+   "positive": {
+    "node": true,
+    "edge": true
+   },
+   "negative": [
+    "cross-workspace"
+   ],
+   "negative_statuses": [
+    "403 42501"
+   ],
+   "why_blocked_before": "feature \"match_operations\" was OFF in stagingV1Features at main, so the RPC was left out of the 43"
+  },
+  {
+   "rpc": "open_tournament_match_operation",
+   "class": "B",
+   "feature": "match_operations",
+   "route": "authenticated",
+   "category": "ADMIN_OWNER",
+   "scope": "season",
+   "write": true,
+   "authority": "match_operations.open",
+   "collaborator_writes": false,
+   "team_manager": false,
+   "phase2b": "SCOPED",
+   "execute_before_0004": {
+    "authenticated": true,
+    "anon": false,
+    "gated_by_0001": false
+   },
+   "execute_after_0004": {
+    "authenticated": true,
+    "anon": false
+   },
+   "alias": "openMatchOperation",
+   "ui": [
+    "MatchOperationsPage.jsx"
+   ],
+   "routes": [
+    "/torneos/organizacion/:org/torneo/:t/partidos{,/:m,/:m/convocatorias,/:m/acta,/:m/revision,/:m/historial}",
+    "/torneos/mis-partidos{,/:m,/:m/convocatoria}"
+   ],
+   "positive": {
+    "node": true,
+    "edge": true
+   },
+   "negative": [
+    "cross-workspace",
+    "inactive-membership",
+    "cross-season",
+    "collaborator-write",
+    "participant",
+    "captain"
+   ],
+   "negative_statuses": [
+    "403 42501"
+   ],
+   "why_blocked_before": "feature \"match_operations\" was OFF in stagingV1Features at main, so the RPC was left out of the 43"
+  },
+  {
+   "rpc": "set_tournament_match_outcome",
+   "class": "B",
+   "feature": "match_operations",
+   "route": "authenticated",
+   "category": "ADMIN_OWNER",
+   "scope": "season",
+   "write": true,
+   "authority": "match_outcomes.manage (administrative results: match_administrative_results.manage)",
+   "collaborator_writes": false,
+   "team_manager": false,
+   "phase2b": "SCOPED",
+   "execute_before_0004": {
+    "authenticated": true,
+    "anon": false,
+    "gated_by_0001": false
+   },
+   "execute_after_0004": {
+    "authenticated": true,
+    "anon": false
+   },
+   "alias": "setMatchOutcome",
+   "ui": [
+    "MatchOperationsPage.jsx"
+   ],
+   "routes": [
+    "/torneos/organizacion/:org/torneo/:t/partidos{,/:m,/:m/convocatorias,/:m/acta,/:m/revision,/:m/historial}",
+    "/torneos/mis-partidos{,/:m,/:m/convocatoria}"
+   ],
+   "positive": {
+    "node": true,
+    "edge": true
+   },
+   "negative": [
+    "cross-workspace",
+    "inactive-membership",
+    "cross-season",
+    "collaborator-write",
+    "participant",
+    "captain"
+   ],
+   "negative_statuses": [
+    "403 42501"
+   ],
+   "why_blocked_before": "feature \"match_operations\" was OFF in stagingV1Features at main, so the RPC was left out of the 43"
+  },
+  {
+   "rpc": "set_tournament_match_score",
+   "class": "B",
+   "feature": "match_operations",
+   "route": "authenticated",
+   "category": "ADMIN_OWNER",
+   "scope": "season",
+   "write": true,
+   "authority": "match_scores.manage",
+   "collaborator_writes": false,
+   "team_manager": false,
+   "phase2b": "SCOPED",
+   "execute_before_0004": {
+    "authenticated": true,
+    "anon": false,
+    "gated_by_0001": false
+   },
+   "execute_after_0004": {
+    "authenticated": true,
+    "anon": false
+   },
+   "alias": "setMatchScore",
+   "ui": [
+    "MatchOperationsPage.jsx"
+   ],
+   "routes": [
+    "/torneos/organizacion/:org/torneo/:t/partidos{,/:m,/:m/convocatorias,/:m/acta,/:m/revision,/:m/historial}",
+    "/torneos/mis-partidos{,/:m,/:m/convocatoria}"
+   ],
+   "positive": {
+    "node": true,
+    "edge": true
+   },
+   "negative": [
+    "cross-workspace",
+    "inactive-membership",
+    "cross-season",
+    "collaborator-write",
+    "participant",
+    "captain"
+   ],
+   "negative_statuses": [
+    "403 42501"
+   ],
+   "why_blocked_before": "feature \"match_operations\" was OFF in stagingV1Features at main, so the RPC was left out of the 43"
+  },
+  {
+   "rpc": "add_tournament_match_event",
+   "class": "B",
+   "feature": "match_operations",
+   "route": "authenticated",
+   "category": "ADMIN_OWNER",
+   "scope": "season",
+   "write": true,
+   "authority": "match_events.create",
+   "collaborator_writes": false,
+   "team_manager": false,
+   "phase2b": "SCOPED",
+   "execute_before_0004": {
+    "authenticated": true,
+    "anon": false,
+    "gated_by_0001": false
+   },
+   "execute_after_0004": {
+    "authenticated": true,
+    "anon": false
+   },
+   "alias": "addMatchEvent",
+   "ui": [
+    "MatchOperationsPage.jsx"
+   ],
+   "routes": [
+    "/torneos/organizacion/:org/torneo/:t/partidos{,/:m,/:m/convocatorias,/:m/acta,/:m/revision,/:m/historial}",
+    "/torneos/mis-partidos{,/:m,/:m/convocatoria}"
+   ],
+   "positive": {
+    "node": true,
+    "edge": true
+   },
+   "negative": [
+    "cross-workspace",
+    "inactive-membership",
+    "cross-season",
+    "collaborator-write",
+    "participant",
+    "captain"
+   ],
+   "negative_statuses": [
+    "403 42501"
+   ],
+   "why_blocked_before": "feature \"match_operations\" was OFF in stagingV1Features at main, so the RPC was left out of the 43"
+  },
+  {
+   "rpc": "void_tournament_match_event",
+   "class": "A",
+   "feature": "match_operations",
+   "route": "authenticated",
+   "category": "ADMIN_OWNER",
+   "scope": "season",
+   "write": true,
+   "authority": "match_events.void",
+   "collaborator_writes": false,
+   "team_manager": false,
+   "phase2b": "INCONCLUSIVE",
+   "execute_before_0004": {
+    "authenticated": false,
+    "anon": false,
+    "gated_by_0001": true
+   },
+   "execute_after_0004": {
+    "authenticated": true,
+    "anon": false
+   },
+   "alias": "voidMatchEvent",
+   "ui": [
+    "MatchOperationsPage.jsx"
+   ],
+   "routes": [
+    "/torneos/organizacion/:org/torneo/:t/partidos{,/:m,/:m/convocatorias,/:m/acta,/:m/revision,/:m/historial}",
+    "/torneos/mis-partidos{,/:m,/:m/convocatoria}"
+   ],
+   "positive": {
+    "node": true,
+    "edge": true
+   },
+   "negative": [
+    "cross-workspace",
+    "inactive-membership",
+    "cross-season",
+    "collaborator-write",
+    "participant",
+    "captain"
+   ],
+   "negative_statuses": [
+    "403 42501"
+   ],
+   "why_blocked_before": "feature \"match_operations\" was OFF in stagingV1Features at main, so the RPC was left out of the 43"
+  },
+  {
+   "rpc": "submit_tournament_match_operation",
+   "class": "B",
+   "feature": "match_operations",
+   "route": "authenticated",
+   "category": "ADMIN_OWNER",
+   "scope": "season",
+   "write": true,
+   "authority": "match_operations.submit",
+   "collaborator_writes": false,
+   "team_manager": false,
+   "phase2b": "SCOPED",
+   "execute_before_0004": {
+    "authenticated": true,
+    "anon": false,
+    "gated_by_0001": false
+   },
+   "execute_after_0004": {
+    "authenticated": true,
+    "anon": false
+   },
+   "alias": "submitMatchOperation",
+   "ui": [
+    "MatchOperationsPage.jsx"
+   ],
+   "routes": [
+    "/torneos/organizacion/:org/torneo/:t/partidos{,/:m,/:m/convocatorias,/:m/acta,/:m/revision,/:m/historial}",
+    "/torneos/mis-partidos{,/:m,/:m/convocatoria}"
+   ],
+   "positive": {
+    "node": true,
+    "edge": true
+   },
+   "negative": [
+    "cross-workspace",
+    "inactive-membership",
+    "cross-season",
+    "collaborator-write",
+    "participant",
+    "captain"
+   ],
+   "negative_statuses": [
+    "403 42501"
+   ],
+   "why_blocked_before": "feature \"match_operations\" was OFF in stagingV1Features at main, so the RPC was left out of the 43"
+  },
+  {
+   "rpc": "review_tournament_match_operation",
+   "class": "A",
+   "feature": "match_operations",
+   "route": "authenticated",
+   "category": "ADMIN_OWNER",
+   "scope": "season",
+   "write": true,
+   "authority": "match_operations.review",
+   "collaborator_writes": false,
+   "team_manager": false,
+   "phase2b": "INCONCLUSIVE",
+   "execute_before_0004": {
+    "authenticated": false,
+    "anon": false,
+    "gated_by_0001": true
+   },
+   "execute_after_0004": {
+    "authenticated": true,
+    "anon": false
+   },
+   "alias": "reviewMatchOperation",
+   "ui": [
+    "MatchOperationsPage.jsx"
+   ],
+   "routes": [
+    "/torneos/organizacion/:org/torneo/:t/partidos{,/:m,/:m/convocatorias,/:m/acta,/:m/revision,/:m/historial}",
+    "/torneos/mis-partidos{,/:m,/:m/convocatoria}"
+   ],
+   "positive": {
+    "node": true,
+    "edge": true
+   },
+   "negative": [
+    "cross-workspace",
+    "inactive-membership",
+    "cross-season",
+    "collaborator-write",
+    "participant",
+    "captain"
+   ],
+   "negative_statuses": [
+    "403 42501"
+   ],
+   "why_blocked_before": "feature \"match_operations\" was OFF in stagingV1Features at main, so the RPC was left out of the 43"
+  },
+  {
+   "rpc": "validate_tournament_match_operation",
+   "class": "A",
+   "feature": "match_operations",
+   "route": "authenticated",
+   "category": "ADMIN_OWNER",
+   "scope": "season",
+   "write": true,
+   "authority": "match_operations.validate (dual control: never the submitter)",
+   "collaborator_writes": false,
+   "team_manager": false,
+   "phase2b": "INCONCLUSIVE",
+   "execute_before_0004": {
+    "authenticated": false,
+    "anon": false,
+    "gated_by_0001": true
+   },
+   "execute_after_0004": {
+    "authenticated": true,
+    "anon": false
+   },
+   "alias": "validateMatchOperation",
+   "ui": [
+    "MatchOperationsPage.jsx"
+   ],
+   "routes": [
+    "/torneos/organizacion/:org/torneo/:t/partidos{,/:m,/:m/convocatorias,/:m/acta,/:m/revision,/:m/historial}",
+    "/torneos/mis-partidos{,/:m,/:m/convocatoria}"
+   ],
+   "positive": {
+    "node": true,
+    "edge": true
+   },
+   "negative": [
+    "cross-workspace",
+    "inactive-membership",
+    "cross-season",
+    "collaborator-write",
+    "participant",
+    "captain"
+   ],
+   "negative_statuses": [
+    "403 42501"
+   ],
+   "why_blocked_before": "feature \"match_operations\" was OFF in stagingV1Features at main, so the RPC was left out of the 43"
+  },
+  {
+   "rpc": "make_tournament_match_official",
+   "class": "A",
+   "feature": "match_operations",
+   "route": "authenticated",
+   "category": "ADMIN_OWNER",
+   "scope": "season",
+   "write": true,
+   "authority": "match_operations.make_official",
+   "collaborator_writes": false,
+   "team_manager": false,
+   "phase2b": "INCONCLUSIVE",
+   "execute_before_0004": {
+    "authenticated": false,
+    "anon": false,
+    "gated_by_0001": true
+   },
+   "execute_after_0004": {
+    "authenticated": true,
+    "anon": false
+   },
+   "alias": "makeMatchOfficial",
+   "ui": [
+    "MatchOperationsPage.jsx"
+   ],
+   "routes": [
+    "/torneos/organizacion/:org/torneo/:t/partidos{,/:m,/:m/convocatorias,/:m/acta,/:m/revision,/:m/historial}",
+    "/torneos/mis-partidos{,/:m,/:m/convocatoria}"
+   ],
+   "positive": {
+    "node": true,
+    "edge": true
+   },
+   "negative": [
+    "cross-workspace",
+    "inactive-membership",
+    "cross-season",
+    "collaborator-write",
+    "participant",
+    "captain"
+   ],
+   "negative_statuses": [
+    "403 42501"
+   ],
+   "why_blocked_before": "feature \"match_operations\" was OFF in stagingV1Features at main, so the RPC was left out of the 43"
+  },
+  {
+   "rpc": "request_tournament_match_correction",
+   "class": "A",
+   "feature": "match_operations",
+   "route": "authenticated",
+   "category": "ADMIN_OWNER",
+   "scope": "season",
+   "write": true,
+   "authority": "match_operations.request_correction",
+   "collaborator_writes": false,
+   "team_manager": false,
+   "phase2b": "INCONCLUSIVE",
+   "execute_before_0004": {
+    "authenticated": false,
+    "anon": false,
+    "gated_by_0001": true
+   },
+   "execute_after_0004": {
+    "authenticated": true,
+    "anon": false
+   },
+   "alias": "requestMatchCorrection",
+   "ui": [
+    "MatchOperationsPage.jsx"
+   ],
+   "routes": [
+    "/torneos/organizacion/:org/torneo/:t/partidos{,/:m,/:m/convocatorias,/:m/acta,/:m/revision,/:m/historial}",
+    "/torneos/mis-partidos{,/:m,/:m/convocatoria}"
+   ],
+   "positive": {
+    "node": true,
+    "edge": true
+   },
+   "negative": [
+    "cross-workspace",
+    "inactive-membership",
+    "cross-season",
+    "collaborator-write",
+    "participant",
+    "captain"
+   ],
+   "negative_statuses": [
+    "403 42501"
+   ],
+   "why_blocked_before": "feature \"match_operations\" was OFF in stagingV1Features at main, so the RPC was left out of the 43"
+  },
+  {
+   "rpc": "create_tournament_match_correction",
+   "class": "A",
+   "feature": "match_operations",
+   "route": "authenticated",
+   "category": "ADMIN_OWNER",
+   "scope": "season",
+   "write": true,
+   "authority": "match_operations.correct",
+   "collaborator_writes": false,
+   "team_manager": false,
+   "phase2b": "INCONCLUSIVE",
+   "execute_before_0004": {
+    "authenticated": false,
+    "anon": false,
+    "gated_by_0001": true
+   },
+   "execute_after_0004": {
+    "authenticated": true,
+    "anon": false
+   },
+   "alias": "createMatchCorrection",
+   "ui": [
+    "MatchOperationsPage.jsx"
+   ],
+   "routes": [
+    "/torneos/organizacion/:org/torneo/:t/partidos{,/:m,/:m/convocatorias,/:m/acta,/:m/revision,/:m/historial}",
+    "/torneos/mis-partidos{,/:m,/:m/convocatoria}"
+   ],
+   "positive": {
+    "node": true,
+    "edge": true
+   },
+   "negative": [
+    "cross-workspace",
+    "inactive-membership",
+    "cross-season",
+    "collaborator-write",
+    "participant",
+    "captain"
+   ],
+   "negative_statuses": [
+    "403 42501"
+   ],
+   "why_blocked_before": "feature \"match_operations\" was OFF in stagingV1Features at main, so the RPC was left out of the 43"
+  },
+  {
+   "rpc": "get_tournament_standings_context",
+   "class": "B",
+   "feature": "standings",
+   "route": "authenticated",
+   "category": "ADMIN_OWNER",
+   "scope": "season",
+   "write": false,
+   "authority": "standings.read + season (or a manager/player of the tournament)",
+   "collaborator_writes": false,
+   "team_manager": false,
+   "phase2b": "SCOPED",
+   "execute_before_0004": {
+    "authenticated": true,
+    "anon": false,
+    "gated_by_0001": false
+   },
+   "execute_after_0004": {
+    "authenticated": true,
+    "anon": false
+   },
+   "alias": "loadStandings",
+   "ui": [
+    "CompetitionCenterPage.jsx"
+   ],
+   "routes": [
+    "/torneos/organizacion/:org/torneo/:t/competencia{,/tabla,/estadisticas,/clasificacion,/disciplina}"
+   ],
+   "positive": {
+    "node": true,
+    "edge": true
+   },
+   "negative": [
+    "cross-workspace",
+    "inactive-membership",
+    "cross-season"
+   ],
+   "negative_statuses": [
+    "403 42501"
+   ],
+   "why_blocked_before": "feature \"standings\" was OFF in stagingV1Features at main, so the RPC was left out of the 43"
+  },
+  {
+   "rpc": "get_tournament_statistics_context",
+   "class": "B",
+   "feature": "standings",
+   "route": "authenticated",
+   "category": "ADMIN_OWNER",
+   "scope": "season",
+   "write": false,
+   "authority": "statistics.read + season (or a manager/player of the tournament)",
+   "collaborator_writes": false,
+   "team_manager": false,
+   "phase2b": "SCOPED",
+   "execute_before_0004": {
+    "authenticated": true,
+    "anon": false,
+    "gated_by_0001": false
+   },
+   "execute_after_0004": {
+    "authenticated": true,
+    "anon": false
+   },
+   "alias": "loadStatistics",
+   "ui": [
+    "CompetitionCenterPage.jsx"
+   ],
+   "routes": [
+    "/torneos/organizacion/:org/torneo/:t/competencia{,/tabla,/estadisticas,/clasificacion,/disciplina}"
+   ],
+   "positive": {
+    "node": true,
+    "edge": true
+   },
+   "negative": [
+    "cross-workspace",
+    "inactive-membership",
+    "cross-season"
+   ],
+   "negative_statuses": [
+    "403 42501"
+   ],
+   "why_blocked_before": "feature \"standings\" was OFF in stagingV1Features at main, so the RPC was left out of the 43"
+  },
+  {
+   "rpc": "rebuild_tournament_standings",
+   "class": "B",
+   "feature": "standings",
+   "route": "authenticated",
+   "category": "ADMIN_OWNER",
+   "scope": "season",
+   "write": true,
+   "authority": "standings.rebuild",
+   "collaborator_writes": false,
+   "team_manager": false,
+   "phase2b": "SCOPED",
+   "execute_before_0004": {
+    "authenticated": true,
+    "anon": false,
+    "gated_by_0001": false
+   },
+   "execute_after_0004": {
+    "authenticated": true,
+    "anon": false
+   },
+   "alias": "rebuildStandings",
+   "ui": [
+    "CompetitionCenterPage.jsx"
+   ],
+   "routes": [
+    "/torneos/organizacion/:org/torneo/:t/competencia{,/tabla,/estadisticas,/clasificacion,/disciplina}"
+   ],
+   "positive": {
+    "node": true,
+    "edge": true
+   },
+   "negative": [
+    "cross-workspace",
+    "inactive-membership",
+    "cross-season",
+    "collaborator-write",
+    "participant",
+    "captain"
+   ],
+   "negative_statuses": [
+    "403 42501"
+   ],
+   "why_blocked_before": "feature \"standings\" was OFF in stagingV1Features at main, so the RPC was left out of the 43"
+  },
+  {
+   "rpc": "publish_tournament_standings_revision",
+   "class": "B",
+   "feature": "standings",
+   "route": "authenticated",
+   "category": "ADMIN_OWNER",
+   "scope": "season",
+   "write": true,
+   "authority": "standings.publish",
+   "collaborator_writes": false,
+   "team_manager": false,
+   "phase2b": "SCOPED",
+   "execute_before_0004": {
+    "authenticated": true,
+    "anon": false,
+    "gated_by_0001": false
+   },
+   "execute_after_0004": {
+    "authenticated": true,
+    "anon": false
+   },
+   "alias": "publishStandings",
+   "ui": [
+    "CompetitionCenterPage.jsx"
+   ],
+   "routes": [
+    "/torneos/organizacion/:org/torneo/:t/competencia{,/tabla,/estadisticas,/clasificacion,/disciplina}"
+   ],
+   "positive": {
+    "node": true,
+    "edge": true
+   },
+   "negative": [
+    "cross-workspace",
+    "inactive-membership",
+    "cross-season",
+    "collaborator-write",
+    "participant",
+    "captain"
+   ],
+   "negative_statuses": [
+    "403 42501"
+   ],
+   "why_blocked_before": "feature \"standings\" was OFF in stagingV1Features at main, so the RPC was left out of the 43"
+  },
+  {
+   "rpc": "resolve_tournament_qualification",
+   "class": "A",
+   "feature": "standings",
+   "route": "authenticated",
+   "category": "ADMIN_OWNER",
+   "scope": "season",
+   "write": true,
+   "authority": "qualification.resolve",
+   "collaborator_writes": false,
+   "team_manager": false,
+   "phase2b": "INCONCLUSIVE",
+   "execute_before_0004": {
+    "authenticated": false,
+    "anon": false,
+    "gated_by_0001": true
+   },
+   "execute_after_0004": {
+    "authenticated": true,
+    "anon": false
+   },
+   "alias": "resolveQualification",
+   "ui": [
+    "CompetitionCenterPage.jsx"
+   ],
+   "routes": [
+    "/torneos/organizacion/:org/torneo/:t/competencia{,/tabla,/estadisticas,/clasificacion,/disciplina}"
+   ],
+   "positive": {
+    "node": true,
+    "edge": true
+   },
+   "negative": [
+    "cross-workspace",
+    "inactive-membership",
+    "cross-season",
+    "collaborator-write",
+    "participant",
+    "captain"
+   ],
+   "negative_statuses": [
+    "403 42501"
+   ],
+   "why_blocked_before": "feature \"standings\" was OFF in stagingV1Features at main, so the RPC was left out of the 43"
+  },
+  {
+   "rpc": "start_tournament_competition",
+   "class": "B",
+   "feature": "lifecycle_actions",
+   "route": "authenticated",
+   "category": "ADMIN_OWNER",
+   "scope": "season",
+   "write": true,
+   "authority": "tournaments.start",
+   "collaborator_writes": false,
+   "team_manager": false,
+   "phase2b": "SCOPED",
+   "execute_before_0004": {
+    "authenticated": true,
+    "anon": false,
+    "gated_by_0001": false
+   },
+   "execute_after_0004": {
+    "authenticated": true,
+    "anon": false
+   },
+   "alias": "startCompetition",
+   "ui": [
+    "CompetitionLifecycleActions.jsx"
+   ],
+   "routes": [
+    "/torneos/organizacion/:org/inicio (CompetitionLifecycleActions)"
+   ],
+   "positive": {
+    "node": true,
+    "edge": true
+   },
+   "negative": [
+    "cross-workspace",
+    "inactive-membership",
+    "cross-season",
+    "collaborator-write",
+    "participant",
+    "captain"
+   ],
+   "negative_statuses": [
+    "403 42501"
+   ],
+   "why_blocked_before": "feature \"lifecycle_actions\" was OFF in stagingV1Features at main, so the RPC was left out of the 43"
+  },
+  {
+   "rpc": "finish_tournament_competition",
+   "class": "B",
+   "feature": "lifecycle_actions",
+   "route": "authenticated",
+   "category": "ADMIN_OWNER",
+   "scope": "season",
+   "write": true,
+   "authority": "tournaments.finish",
+   "collaborator_writes": false,
+   "team_manager": false,
+   "phase2b": "SCOPED",
+   "execute_before_0004": {
+    "authenticated": true,
+    "anon": false,
+    "gated_by_0001": false
+   },
+   "execute_after_0004": {
+    "authenticated": true,
+    "anon": false
+   },
+   "alias": "finishCompetition",
+   "ui": [
+    "CompetitionLifecycleActions.jsx"
+   ],
+   "routes": [
+    "/torneos/organizacion/:org/inicio (CompetitionLifecycleActions)"
+   ],
+   "positive": {
+    "node": true,
+    "edge": true
+   },
+   "negative": [
+    "cross-workspace",
+    "inactive-membership",
+    "cross-season",
+    "collaborator-write",
+    "participant",
+    "captain"
+   ],
+   "negative_statuses": [
+    "403 42501"
+   ],
+   "why_blocked_before": "feature \"lifecycle_actions\" was OFF in stagingV1Features at main, so the RPC was left out of the 43"
+  },
+  {
+   "rpc": "reopen_tournament_competition",
+   "class": "B",
+   "feature": "lifecycle_actions",
+   "route": "authenticated",
+   "category": "ADMIN_OWNER",
+   "scope": "season",
+   "write": true,
+   "authority": "tournaments.reopen (owner only)",
+   "collaborator_writes": false,
+   "team_manager": false,
+   "phase2b": "CAPABILITY_DENIED",
+   "execute_before_0004": {
+    "authenticated": true,
+    "anon": false,
+    "gated_by_0001": false
+   },
+   "execute_after_0004": {
+    "authenticated": true,
+    "anon": false
+   },
+   "alias": "reopenCompetition",
+   "ui": [
+    "CompetitionLifecycleActions.jsx"
+   ],
+   "routes": [
+    "/torneos/organizacion/:org/inicio (CompetitionLifecycleActions)"
+   ],
+   "positive": {
+    "node": true,
+    "edge": true
+   },
+   "negative": [
+    "cross-workspace",
+    "inactive-membership",
+    "cross-season",
+    "collaborator-write",
+    "participant",
+    "captain"
+   ],
+   "negative_statuses": [
+    "403 42501"
+   ],
+   "why_blocked_before": "feature \"lifecycle_actions\" was OFF in stagingV1Features at main, so the RPC was left out of the 43"
+  },
+  {
+   "rpc": "withdraw_tournament_competition_participant",
+   "class": "B",
+   "feature": "participant_withdrawal",
+   "route": "authenticated",
+   "category": "ADMIN_OWNER",
+   "scope": "season",
+   "write": true,
+   "authority": "participants.withdraw",
+   "collaborator_writes": false,
+   "team_manager": false,
+   "phase2b": "SCOPED",
+   "execute_before_0004": {
+    "authenticated": true,
+    "anon": false,
+    "gated_by_0001": false
+   },
+   "execute_after_0004": {
+    "authenticated": true,
+    "anon": false
+   },
+   "alias": "withdrawCompetitionParticipant",
+   "ui": [
+    "TeamWithdrawalDialog.jsx"
+   ],
+   "routes": [
+    "/torneos/organizacion/:org/torneo/:t/equipos (TeamWithdrawalDialog)"
+   ],
+   "positive": {
+    "node": true,
+    "edge": true
+   },
+   "negative": [
+    "cross-workspace",
+    "inactive-membership",
+    "cross-season",
+    "collaborator-write",
+    "participant",
+    "captain"
+   ],
+   "negative_statuses": [
+    "403 42501"
+   ],
+   "why_blocked_before": "feature \"participant_withdrawal\" was OFF in stagingV1Features at main, so the RPC was left out of the 43"
+  },
+  {
+   "rpc": "get_tournament_participant_hub",
+   "class": "B",
+   "feature": "participant_hub",
+   "route": "authenticated",
+   "category": "PRIVATE_AUTHENTICATED",
+   "scope": "resource",
+   "write": false,
+   "authority": "season staff, or an active captain/delegate/player of an approved entry",
+   "collaborator_writes": false,
+   "team_manager": false,
+   "phase2b": "SCOPED",
+   "execute_before_0004": {
+    "authenticated": true,
+    "anon": true,
+    "gated_by_0001": false
+   },
+   "execute_after_0004": {
+    "authenticated": true,
+    "anon": true
+   },
+   "alias": "loadParticipantHub",
+   "ui": [
+    "TournamentHubPage.jsx"
+   ],
+   "routes": [
+    "/torneos/torneo/:t{,/partidos,/partidos/:m,/tabla,/estadisticas,/equipos,/disciplina}",
+    "/torneos/mis-torneos (hub links)"
+   ],
+   "positive": {
+    "node": true,
+    "edge": true
+   },
+   "negative": [
+    "cross-workspace"
+   ],
+   "negative_statuses": [
+    "403 42501"
+   ],
+   "why_blocked_before": "feature \"participant_hub\" was OFF in stagingV1Features at main, so the RPC was left out of the 43"
+  },
+  {
+   "rpc": "set_my_tournament_hub_category",
+   "class": "B",
+   "feature": "participant_hub",
+   "route": "authenticated",
+   "category": "PRIVATE_AUTHENTICATED",
+   "scope": "resource",
+   "write": true,
+   "authority": "own preference, hub access required",
+   "collaborator_writes": false,
+   "team_manager": false,
+   "phase2b": "SCOPED",
+   "execute_before_0004": {
+    "authenticated": true,
+    "anon": false,
+    "gated_by_0001": false
+   },
+   "execute_after_0004": {
+    "authenticated": true,
+    "anon": false
+   },
+   "alias": "setHubCategory",
+   "ui": [
+    "TournamentHubPage.jsx"
+   ],
+   "routes": [
+    "/torneos/torneo/:t{,/partidos,/partidos/:m,/tabla,/estadisticas,/equipos,/disciplina}",
+    "/torneos/mis-torneos (hub links)"
+   ],
+   "positive": {
+    "node": true,
+    "edge": true
+   },
+   "negative": [
+    "cross-workspace"
+   ],
+   "negative_statuses": [
+    "403 42501"
+   ],
+   "why_blocked_before": "feature \"participant_hub\" was OFF in stagingV1Features at main, so the RPC was left out of the 43"
+  },
+  {
+   "rpc": "get_published_tournament_matches",
+   "class": "B",
+   "feature": "participant_hub",
+   "route": "authenticated",
+   "category": "PRIVATE_AUTHENTICATED",
+   "scope": "resource",
+   "write": false,
+   "authority": "hub access; published data only",
+   "collaborator_writes": false,
+   "team_manager": false,
+   "phase2b": "SCOPED",
+   "execute_before_0004": {
+    "authenticated": true,
+    "anon": true,
+    "gated_by_0001": false
+   },
+   "execute_after_0004": {
+    "authenticated": true,
+    "anon": true
+   },
+   "alias": "loadPublishedMatches",
+   "ui": [
+    "TournamentHubPage.jsx"
+   ],
+   "routes": [
+    "/torneos/torneo/:t{,/partidos,/partidos/:m,/tabla,/estadisticas,/equipos,/disciplina}",
+    "/torneos/mis-torneos (hub links)"
+   ],
+   "positive": {
+    "node": true,
+    "edge": true
+   },
+   "negative": [
+    "cross-workspace"
+   ],
+   "negative_statuses": [
+    "403 42501"
+   ],
+   "why_blocked_before": "feature \"participant_hub\" was OFF in stagingV1Features at main, so the RPC was left out of the 43"
+  },
+  {
+   "rpc": "get_tournament_participant_match",
+   "class": "B",
+   "feature": "participant_hub",
+   "route": "authenticated",
+   "category": "PRIVATE_AUTHENTICATED",
+   "scope": "resource",
+   "write": false,
+   "authority": "hub access; published data only",
+   "collaborator_writes": false,
+   "team_manager": false,
+   "phase2b": "SCOPED",
+   "execute_before_0004": {
+    "authenticated": true,
+    "anon": true,
+    "gated_by_0001": false
+   },
+   "execute_after_0004": {
+    "authenticated": true,
+    "anon": true
+   },
+   "alias": "loadParticipantMatch",
+   "ui": [
+    "TournamentHubPage.jsx"
+   ],
+   "routes": [
+    "/torneos/torneo/:t{,/partidos,/partidos/:m,/tabla,/estadisticas,/equipos,/disciplina}",
+    "/torneos/mis-torneos (hub links)"
+   ],
+   "positive": {
+    "node": true,
+    "edge": true
+   },
+   "negative": [
+    "cross-workspace"
+   ],
+   "negative_statuses": [
+    "403 42501"
+   ],
+   "why_blocked_before": "feature \"participant_hub\" was OFF in stagingV1Features at main, so the RPC was left out of the 43"
+  },
+  {
+   "rpc": "get_published_tournament_teams",
+   "class": "B",
+   "feature": "participant_hub",
+   "route": "authenticated",
+   "category": "PRIVATE_AUTHENTICATED",
+   "scope": "resource",
+   "write": false,
+   "authority": "hub access; published data only",
+   "collaborator_writes": false,
+   "team_manager": false,
+   "phase2b": "SCOPED",
+   "execute_before_0004": {
+    "authenticated": true,
+    "anon": true,
+    "gated_by_0001": false
+   },
+   "execute_after_0004": {
+    "authenticated": true,
+    "anon": true
+   },
+   "alias": "loadPublishedTeams",
+   "ui": [
+    "TournamentHubPage.jsx"
+   ],
+   "routes": [
+    "/torneos/torneo/:t{,/partidos,/partidos/:m,/tabla,/estadisticas,/equipos,/disciplina}",
+    "/torneos/mis-torneos (hub links)"
+   ],
+   "positive": {
+    "node": true,
+    "edge": true
+   },
+   "negative": [
+    "cross-workspace"
+   ],
+   "negative_statuses": [
+    "403 42501"
+   ],
+   "why_blocked_before": "feature \"participant_hub\" was OFF in stagingV1Features at main, so the RPC was left out of the 43"
+  },
+  {
+   "rpc": "get_published_tournament_standings",
+   "class": "B",
+   "feature": "participant_hub",
+   "route": "authenticated",
+   "category": "PRIVATE_AUTHENTICATED",
+   "scope": "resource",
+   "write": false,
+   "authority": "hub access; published revision only",
+   "collaborator_writes": false,
+   "team_manager": false,
+   "phase2b": "SCOPED",
+   "execute_before_0004": {
+    "authenticated": true,
+    "anon": true,
+    "gated_by_0001": false
+   },
+   "execute_after_0004": {
+    "authenticated": true,
+    "anon": true
+   },
+   "alias": "loadPublishedStandings",
+   "ui": [
+    "TournamentHubPage.jsx"
+   ],
+   "routes": [
+    "/torneos/torneo/:t{,/partidos,/partidos/:m,/tabla,/estadisticas,/equipos,/disciplina}",
+    "/torneos/mis-torneos (hub links)"
+   ],
+   "positive": {
+    "node": true,
+    "edge": true
+   },
+   "negative": [
+    "cross-workspace"
+   ],
+   "negative_statuses": [
+    "403 42501"
+   ],
+   "why_blocked_before": "feature \"participant_hub\" was OFF in stagingV1Features at main, so the RPC was left out of the 43"
+  },
+  {
+   "rpc": "get_published_tournament_statistics",
+   "class": "B",
+   "feature": "participant_hub",
+   "route": "authenticated",
+   "category": "PRIVATE_AUTHENTICATED",
+   "scope": "resource",
+   "write": false,
+   "authority": "hub access; published revision only",
+   "collaborator_writes": false,
+   "team_manager": false,
+   "phase2b": "SCOPED",
+   "execute_before_0004": {
+    "authenticated": true,
+    "anon": true,
+    "gated_by_0001": false
+   },
+   "execute_after_0004": {
+    "authenticated": true,
+    "anon": true
+   },
+   "alias": "loadPublishedStatistics",
+   "ui": [
+    "TournamentHubPage.jsx"
+   ],
+   "routes": [
+    "/torneos/torneo/:t{,/partidos,/partidos/:m,/tabla,/estadisticas,/equipos,/disciplina}",
+    "/torneos/mis-torneos (hub links)"
+   ],
+   "positive": {
+    "node": true,
+    "edge": true
+   },
+   "negative": [
+    "cross-workspace"
+   ],
+   "negative_statuses": [
+    "403 42501"
+   ],
+   "why_blocked_before": "feature \"participant_hub\" was OFF in stagingV1Features at main, so the RPC was left out of the 43"
+  },
+  {
+   "rpc": "get_tournament_communications_inbox",
+   "class": "B",
+   "feature": "communications",
+   "route": "authenticated",
+   "category": "PRIVATE_AUTHENTICATED",
+   "scope": "self",
+   "write": false,
+   "authority": "own recipient rows",
+   "collaborator_writes": false,
+   "team_manager": false,
+   "phase2b": "NOT_SWEPT",
+   "execute_before_0004": {
+    "authenticated": true,
+    "anon": false,
+    "gated_by_0001": false
+   },
+   "execute_after_0004": {
+    "authenticated": true,
+    "anon": false
+   },
+   "alias": "loadCommunicationsInbox",
+   "ui": [
+    "MyCommunicationsPage.jsx",
+    "TournamentCommunicationsPanel.jsx"
+   ],
+   "routes": [
+    "/torneos/organizacion/:org/comunicaciones",
+    "/torneos/comunicados",
+    "/torneos/torneo/:t/novedades"
+   ],
+   "positive": {
+    "node": true,
+    "edge": true
+   },
+   "negative": [
+    "self-scope-isolation"
+   ],
+   "negative_statuses": [
+    "200"
+   ],
+   "why_blocked_before": "feature \"communications\" was OFF in stagingV1Features at main, so the RPC was left out of the 43"
+  },
+  {
+   "rpc": "get_tournament_announcement",
+   "class": "B",
+   "feature": "communications",
+   "route": "authenticated",
+   "category": "PRIVATE_AUTHENTICATED",
+   "scope": "resource",
+   "write": false,
+   "authority": "recipient of the announcement, or announcements.read staff",
+   "collaborator_writes": false,
+   "team_manager": false,
+   "phase2b": "SCOPED",
+   "execute_before_0004": {
+    "authenticated": true,
+    "anon": true,
+    "gated_by_0001": false
+   },
+   "execute_after_0004": {
+    "authenticated": true,
+    "anon": true
+   },
+   "alias": "loadAnnouncement",
+   "ui": [
+    "MyCommunicationsPage.jsx",
+    "TournamentCommunicationsPanel.jsx"
+   ],
+   "routes": [
+    "/torneos/organizacion/:org/comunicaciones",
+    "/torneos/comunicados",
+    "/torneos/torneo/:t/novedades"
+   ],
+   "positive": {
+    "node": true,
+    "edge": true
+   },
+   "negative": [
+    "cross-workspace"
+   ],
+   "negative_statuses": [
+    "403 42501"
+   ],
+   "why_blocked_before": "feature \"communications\" was OFF in stagingV1Features at main, so the RPC was left out of the 43"
+  },
+  {
+   "rpc": "mark_tournament_announcement_read",
+   "class": "B",
+   "feature": "communications",
+   "route": "authenticated",
+   "category": "PRIVATE_AUTHENTICATED",
+   "scope": "resource",
+   "write": true,
+   "authority": "recipient of the announcement",
+   "collaborator_writes": false,
+   "team_manager": false,
+   "phase2b": "NOT_SWEPT",
+   "execute_before_0004": {
+    "authenticated": true,
+    "anon": false,
+    "gated_by_0001": false
+   },
+   "execute_after_0004": {
+    "authenticated": true,
+    "anon": false
+   },
+   "alias": "markAnnouncementRead",
+   "ui": [
+    "MyCommunicationsPage.jsx",
+    "TournamentCommunicationsPanel.jsx"
+   ],
+   "routes": [
+    "/torneos/organizacion/:org/comunicaciones",
+    "/torneos/comunicados",
+    "/torneos/torneo/:t/novedades"
+   ],
+   "positive": {
+    "node": true,
+    "edge": true
+   },
+   "negative": [
+    "cross-workspace"
+   ],
+   "negative_statuses": [
+    "403 42501"
+   ],
+   "why_blocked_before": "feature \"communications\" was OFF in stagingV1Features at main, so the RPC was left out of the 43"
+  },
+  {
+   "rpc": "get_published_tournament_documents",
+   "class": "B",
+   "feature": "communications",
+   "route": "authenticated",
+   "category": "PRIVATE_AUTHENTICATED",
+   "scope": "resource",
+   "write": false,
+   "authority": "tournament communications access",
+   "collaborator_writes": false,
+   "team_manager": false,
+   "phase2b": "SCOPED",
+   "execute_before_0004": {
+    "authenticated": true,
+    "anon": true,
+    "gated_by_0001": false
+   },
+   "execute_after_0004": {
+    "authenticated": true,
+    "anon": true
+   },
+   "alias": "loadPublishedDocuments",
+   "ui": [
+    "TournamentCommunicationsPanel.jsx"
+   ],
+   "routes": [
+    "/torneos/organizacion/:org/comunicaciones",
+    "/torneos/comunicados",
+    "/torneos/torneo/:t/novedades"
+   ],
+   "positive": {
+    "node": true,
+    "edge": true
+   },
+   "negative": [
+    "cross-workspace"
+   ],
+   "negative_statuses": [
+    "403 42501"
+   ],
+   "why_blocked_before": "feature \"communications\" was OFF in stagingV1Features at main, so the RPC was left out of the 43"
+  },
+  {
+   "rpc": "acknowledge_tournament_document",
+   "class": "B",
+   "feature": "communications",
+   "route": "authenticated",
+   "category": "PRIVATE_AUTHENTICATED",
+   "scope": "resource",
+   "write": true,
+   "authority": "tournament communications access",
+   "collaborator_writes": false,
+   "team_manager": false,
+   "phase2b": "NOT_SWEPT",
+   "execute_before_0004": {
+    "authenticated": true,
+    "anon": false,
+    "gated_by_0001": false
+   },
+   "execute_after_0004": {
+    "authenticated": true,
+    "anon": false
+   },
+   "alias": "acknowledgeDocument",
+   "ui": [
+    "TournamentCommunicationsPanel.jsx"
+   ],
+   "routes": [
+    "/torneos/organizacion/:org/comunicaciones",
+    "/torneos/comunicados",
+    "/torneos/torneo/:t/novedades"
+   ],
+   "positive": {
+    "node": true,
+    "edge": true
+   },
+   "negative": [
+    "cross-workspace"
+   ],
+   "negative_statuses": [
+    "403 42501"
+   ],
+   "why_blocked_before": "feature \"communications\" was OFF in stagingV1Features at main, so the RPC was left out of the 43"
+  },
+  {
+   "rpc": "get_tournament_communications_admin_context",
+   "class": "B",
+   "feature": "communications",
+   "route": "authenticated",
+   "category": "ADMIN_OWNER",
+   "scope": "season",
+   "write": false,
+   "authority": "announcements.read",
+   "collaborator_writes": true,
+   "team_manager": false,
+   "phase2b": "SCOPED",
+   "execute_before_0004": {
+    "authenticated": true,
+    "anon": false,
+    "gated_by_0001": false
+   },
+   "execute_after_0004": {
+    "authenticated": true,
+    "anon": false
+   },
+   "alias": "loadCommunicationsAdminContext",
+   "ui": [
+    "CommunicationsAdminPage.jsx"
+   ],
+   "routes": [
+    "/torneos/organizacion/:org/comunicaciones",
+    "/torneos/comunicados",
+    "/torneos/torneo/:t/novedades"
+   ],
+   "positive": {
+    "node": true,
+    "edge": true
+   },
+   "negative": [
+    "cross-workspace",
+    "inactive-membership",
+    "cross-season"
+   ],
+   "negative_statuses": [
+    "403 42501"
+   ],
+   "why_blocked_before": "feature \"communications\" was OFF in stagingV1Features at main, so the RPC was left out of the 43"
+  },
+  {
+   "rpc": "create_tournament_announcement_draft",
+   "class": "B",
+   "feature": "communications",
+   "route": "authenticated",
+   "category": "ADMIN_OWNER",
+   "scope": "season",
+   "write": true,
+   "authority": "announcements.create",
+   "collaborator_writes": true,
+   "team_manager": false,
+   "phase2b": "SCOPED",
+   "execute_before_0004": {
+    "authenticated": true,
+    "anon": false,
+    "gated_by_0001": false
+   },
+   "execute_after_0004": {
+    "authenticated": true,
+    "anon": false
+   },
+   "alias": "createAnnouncementDraft",
+   "ui": [
+    "CommunicationsAdminPage.jsx"
+   ],
+   "routes": [
+    "/torneos/organizacion/:org/comunicaciones",
+    "/torneos/comunicados",
+    "/torneos/torneo/:t/novedades"
+   ],
+   "positive": {
+    "node": true,
+    "edge": true
+   },
+   "negative": [
+    "cross-workspace",
+    "inactive-membership",
+    "cross-season",
+    "participant",
+    "captain"
+   ],
+   "negative_statuses": [
+    "403 42501"
+   ],
+   "why_blocked_before": "feature \"communications\" was OFF in stagingV1Features at main, so the RPC was left out of the 43"
+  },
+  {
+   "rpc": "update_tournament_announcement_draft",
+   "class": "B",
+   "feature": "communications",
+   "route": "authenticated",
+   "category": "ADMIN_OWNER",
+   "scope": "season",
+   "write": true,
+   "authority": "announcements.update_draft",
+   "collaborator_writes": true,
+   "team_manager": false,
+   "phase2b": "SCOPED",
+   "execute_before_0004": {
+    "authenticated": true,
+    "anon": false,
+    "gated_by_0001": false
+   },
+   "execute_after_0004": {
+    "authenticated": true,
+    "anon": false
+   },
+   "alias": "updateAnnouncementDraft",
+   "ui": [
+    "CommunicationsAdminPage.jsx"
+   ],
+   "routes": [
+    "/torneos/organizacion/:org/comunicaciones",
+    "/torneos/comunicados",
+    "/torneos/torneo/:t/novedades"
+   ],
+   "positive": {
+    "node": true,
+    "edge": true
+   },
+   "negative": [
+    "cross-workspace",
+    "inactive-membership",
+    "cross-season",
+    "participant",
+    "captain"
+   ],
+   "negative_statuses": [
+    "403 42501"
+   ],
+   "why_blocked_before": "feature \"communications\" was OFF in stagingV1Features at main, so the RPC was left out of the 43"
+  },
+  {
+   "rpc": "replace_tournament_announcement_audience",
+   "class": "B",
+   "feature": "communications",
+   "route": "authenticated",
+   "category": "ADMIN_OWNER",
+   "scope": "season",
+   "write": true,
+   "authority": "announcements.update_draft (via set_tournament_announcement_audience)",
+   "collaborator_writes": true,
+   "team_manager": false,
+   "phase2b": "SCOPED",
+   "execute_before_0004": {
+    "authenticated": true,
+    "anon": false,
+    "gated_by_0001": false
+   },
+   "execute_after_0004": {
+    "authenticated": true,
+    "anon": false
+   },
+   "alias": "replaceAnnouncementAudience",
+   "ui": [
+    "CommunicationsAdminPage.jsx"
+   ],
+   "routes": [
+    "/torneos/organizacion/:org/comunicaciones",
+    "/torneos/comunicados",
+    "/torneos/torneo/:t/novedades"
+   ],
+   "positive": {
+    "node": true,
+    "edge": true
+   },
+   "negative": [
+    "cross-workspace",
+    "inactive-membership",
+    "cross-season",
+    "participant",
+    "captain"
+   ],
+   "negative_statuses": [
+    "403 42501"
+   ],
+   "why_blocked_before": "feature \"communications\" was OFF in stagingV1Features at main, so the RPC was left out of the 43"
+  },
+  {
+   "rpc": "set_tournament_announcement_link",
+   "class": "B",
+   "feature": "communications",
+   "route": "authenticated",
+   "category": "ADMIN_OWNER",
+   "scope": "season",
+   "write": true,
+   "authority": "announcements.update_draft",
+   "collaborator_writes": true,
+   "team_manager": false,
+   "phase2b": "SCOPED",
+   "execute_before_0004": {
+    "authenticated": true,
+    "anon": false,
+    "gated_by_0001": false
+   },
+   "execute_after_0004": {
+    "authenticated": true,
+    "anon": false
+   },
+   "alias": "setAnnouncementLink",
+   "ui": [
+    "CommunicationsAdminPage.jsx"
+   ],
+   "routes": [
+    "/torneos/organizacion/:org/comunicaciones",
+    "/torneos/comunicados",
+    "/torneos/torneo/:t/novedades"
+   ],
+   "positive": {
+    "node": true,
+    "edge": true
+   },
+   "negative": [
+    "cross-workspace",
+    "inactive-membership",
+    "cross-season",
+    "participant",
+    "captain"
+   ],
+   "negative_statuses": [
+    "403 42501"
+   ],
+   "why_blocked_before": "feature \"communications\" was OFF in stagingV1Features at main, so the RPC was left out of the 43"
+  },
+  {
+   "rpc": "preview_tournament_announcement_audience",
+   "class": "B",
+   "feature": "communications",
+   "route": "authenticated",
+   "category": "ADMIN_OWNER",
+   "scope": "season",
+   "write": false,
+   "authority": "audiences.preview",
+   "collaborator_writes": true,
+   "team_manager": false,
+   "phase2b": "SCOPED",
+   "execute_before_0004": {
+    "authenticated": true,
+    "anon": false,
+    "gated_by_0001": false
+   },
+   "execute_after_0004": {
+    "authenticated": true,
+    "anon": false
+   },
+   "alias": "previewAnnouncementAudience",
+   "ui": [
+    "CommunicationsAdminPage.jsx"
+   ],
+   "routes": [
+    "/torneos/organizacion/:org/comunicaciones",
+    "/torneos/comunicados",
+    "/torneos/torneo/:t/novedades"
+   ],
+   "positive": {
+    "node": true,
+    "edge": true
+   },
+   "negative": [
+    "cross-workspace",
+    "inactive-membership",
+    "cross-season"
+   ],
+   "negative_statuses": [
+    "403 42501"
+   ],
+   "why_blocked_before": "feature \"communications\" was OFF in stagingV1Features at main, so the RPC was left out of the 43"
+  },
+  {
+   "rpc": "publish_tournament_announcement",
+   "class": "B",
+   "feature": "communications",
+   "route": "authenticated",
+   "category": "ADMIN_OWNER",
+   "scope": "season",
+   "write": true,
+   "authority": "announcements.publish",
+   "collaborator_writes": false,
+   "team_manager": false,
+   "phase2b": "SCOPED",
+   "execute_before_0004": {
+    "authenticated": true,
+    "anon": false,
+    "gated_by_0001": false
+   },
+   "execute_after_0004": {
+    "authenticated": true,
+    "anon": false
+   },
+   "alias": "publishAnnouncement",
+   "ui": [
+    "CommunicationsAdminPage.jsx"
+   ],
+   "routes": [
+    "/torneos/organizacion/:org/comunicaciones",
+    "/torneos/comunicados",
+    "/torneos/torneo/:t/novedades"
+   ],
+   "positive": {
+    "node": true,
+    "edge": true
+   },
+   "negative": [
+    "cross-workspace",
+    "inactive-membership",
+    "cross-season",
+    "collaborator-write",
+    "participant",
+    "captain"
+   ],
+   "negative_statuses": [
+    "403 42501"
+   ],
+   "why_blocked_before": "feature \"communications\" was OFF in stagingV1Features at main, so the RPC was left out of the 43"
+  },
+  {
+   "rpc": "create_tournament_document",
+   "class": "B",
+   "feature": "communications",
+   "route": "authenticated",
+   "category": "ADMIN_OWNER",
+   "scope": "season",
+   "write": true,
+   "authority": "documents.create",
+   "collaborator_writes": true,
+   "team_manager": false,
+   "phase2b": "SCOPED",
+   "execute_before_0004": {
+    "authenticated": true,
+    "anon": false,
+    "gated_by_0001": false
+   },
+   "execute_after_0004": {
+    "authenticated": true,
+    "anon": false
+   },
+   "alias": "createDocument",
+   "ui": [
+    "CommunicationsAdminPage.jsx"
+   ],
+   "routes": [
+    "/torneos/organizacion/:org/comunicaciones",
+    "/torneos/comunicados",
+    "/torneos/torneo/:t/novedades"
+   ],
+   "positive": {
+    "node": true,
+    "edge": true
+   },
+   "negative": [
+    "cross-workspace",
+    "inactive-membership",
+    "cross-season",
+    "participant",
+    "captain"
+   ],
+   "negative_statuses": [
+    "403 42501"
+   ],
+   "why_blocked_before": "feature \"communications\" was OFF in stagingV1Features at main, so the RPC was left out of the 43"
+  },
+  {
+   "rpc": "publish_tournament_document_version",
+   "class": "B",
+   "feature": "communications",
+   "route": "authenticated",
+   "category": "ADMIN_OWNER",
+   "scope": "season",
+   "write": true,
+   "authority": "documents.publish",
+   "collaborator_writes": false,
+   "team_manager": false,
+   "phase2b": "SCOPED",
+   "execute_before_0004": {
+    "authenticated": true,
+    "anon": false,
+    "gated_by_0001": false
+   },
+   "execute_after_0004": {
+    "authenticated": true,
+    "anon": false
+   },
+   "alias": "publishDocumentVersion",
+   "ui": [
+    "CommunicationsAdminPage.jsx"
+   ],
+   "routes": [
+    "/torneos/organizacion/:org/comunicaciones",
+    "/torneos/comunicados",
+    "/torneos/torneo/:t/novedades"
+   ],
+   "positive": {
+    "node": true,
+    "edge": true
+   },
+   "negative": [
+    "cross-workspace",
+    "inactive-membership",
+    "cross-season",
+    "collaborator-write",
+    "participant",
+    "captain"
+   ],
+   "negative_statuses": [
+    "403 42501"
+   ],
+   "why_blocked_before": "feature \"communications\" was OFF in stagingV1Features at main, so the RPC was left out of the 43"
+  },
+  {
+   "rpc": "get_my_tournament_notification_preferences",
+   "class": "B",
+   "feature": "notifications",
+   "route": "authenticated",
+   "category": "PRIVATE_AUTHENTICATED",
+   "scope": "resource",
+   "write": false,
+   "authority": "own preferences, tournament communications access",
+   "collaborator_writes": false,
+   "team_manager": false,
+   "phase2b": "SCOPED",
+   "execute_before_0004": {
+    "authenticated": true,
+    "anon": false,
+    "gated_by_0001": false
+   },
+   "execute_after_0004": {
+    "authenticated": true,
+    "anon": false
+   },
+   "alias": "loadNotificationPreferences",
+   "ui": [
+    "TournamentCommunicationsPanel.jsx"
+   ],
+   "routes": [
+    "/torneos/torneo/:t/novedades (preferences panel)"
+   ],
+   "positive": {
+    "node": true,
+    "edge": true
+   },
+   "negative": [
+    "cross-workspace"
+   ],
+   "negative_statuses": [
+    "403 42501"
+   ],
+   "why_blocked_before": "feature \"notifications\" was OFF in stagingV1Features at main, so the RPC was left out of the 43"
+  },
+  {
+   "rpc": "update_my_tournament_notification_preferences",
+   "class": "B",
+   "feature": "notifications",
+   "route": "authenticated",
+   "category": "PRIVATE_AUTHENTICATED",
+   "scope": "resource",
+   "write": true,
+   "authority": "own preferences, tournament communications access",
+   "collaborator_writes": false,
+   "team_manager": false,
+   "phase2b": "SCOPED",
+   "execute_before_0004": {
+    "authenticated": true,
+    "anon": false,
+    "gated_by_0001": false
+   },
+   "execute_after_0004": {
+    "authenticated": true,
+    "anon": false
+   },
+   "alias": "updateNotificationPreferences",
+   "ui": [
+    "TournamentCommunicationsPanel.jsx"
+   ],
+   "routes": [
+    "/torneos/torneo/:t/novedades (preferences panel)"
+   ],
+   "positive": {
+    "node": true,
+    "edge": true
+   },
+   "negative": [
+    "cross-workspace"
+   ],
+   "negative_statuses": [
+    "403 42501"
+   ],
+   "why_blocked_before": "feature \"notifications\" was OFF in stagingV1Features at main, so the RPC was left out of the 43"
+  },
+  {
+   "rpc": "get_tournament_public_page_settings",
+   "class": "B",
+   "feature": "public_pages",
+   "route": "authenticated",
+   "category": "ADMIN_OWNER",
+   "scope": "season",
+   "write": false,
+   "authority": "tournaments.read",
+   "collaborator_writes": false,
+   "team_manager": false,
+   "phase2b": "SCOPED",
+   "execute_before_0004": {
+    "authenticated": true,
+    "anon": false,
+    "gated_by_0001": false
+   },
+   "execute_after_0004": {
+    "authenticated": true,
+    "anon": false
+   },
+   "alias": "loadPublicPageSettings",
+   "ui": [
+    "TournamentPublicPageSettings.jsx",
+    "TournamentWizardPage.jsx"
+   ],
+   "routes": [
+    "/torneos/publico/:publicSlug (anonymous)",
+    "/torneos/organizacion/:org/torneo/:t/configuracion (TournamentPublicPageSettings)"
+   ],
+   "positive": {
+    "node": true,
+    "edge": true
+   },
+   "negative": [
+    "cross-workspace",
+    "inactive-membership",
+    "cross-season"
+   ],
+   "negative_statuses": [
+    "403 42501"
+   ],
+   "why_blocked_before": "feature \"public_pages\" was OFF in stagingV1Features at main, so the RPC was left out of the 43"
+  },
+  {
+   "rpc": "set_tournament_public_page_published",
+   "class": "B",
+   "feature": "public_pages",
+   "route": "authenticated",
+   "category": "ADMIN_OWNER",
+   "scope": "season",
+   "write": true,
+   "authority": "tournaments.update",
+   "collaborator_writes": false,
+   "team_manager": false,
+   "phase2b": "SCOPED",
+   "execute_before_0004": {
+    "authenticated": true,
+    "anon": false,
+    "gated_by_0001": false
+   },
+   "execute_after_0004": {
+    "authenticated": true,
+    "anon": false
+   },
+   "alias": "setPublicPagePublished",
+   "ui": [
+    "TournamentPublicPageSettings.jsx"
+   ],
+   "routes": [
+    "/torneos/publico/:publicSlug (anonymous)",
+    "/torneos/organizacion/:org/torneo/:t/configuracion (TournamentPublicPageSettings)"
+   ],
+   "positive": {
+    "node": true,
+    "edge": true
+   },
+   "negative": [
+    "cross-workspace",
+    "inactive-membership",
+    "cross-season",
+    "collaborator-write",
+    "participant",
+    "captain"
+   ],
+   "negative_statuses": [
+    "403 42501"
+   ],
+   "why_blocked_before": "feature \"public_pages\" was OFF in stagingV1Features at main, so the RPC was left out of the 43"
+  },
+  {
+   "rpc": "get_public_tournament_page",
+   "class": "C",
+   "feature": "public_pages",
+   "route": "public",
+   "category": "PUBLIC_READ_ONLY",
+   "scope": "public",
+   "write": false,
+   "authority": "anon: published page, active tournament only (visibility predicates in the function)",
+   "collaborator_writes": false,
+   "team_manager": false,
+   "phase2b": "NOT_SWEPT",
+   "execute_before_0004": {
+    "authenticated": true,
+    "anon": true,
+    "gated_by_0001": false
+   },
+   "execute_after_0004": {
+    "authenticated": true,
+    "anon": true
+   },
+   "alias": "loadPage",
+   "ui": [
+    "PublicTournamentPage.jsx (via publicTournamentComposition.js)"
+   ],
+   "routes": [
+    "/torneos/publico/:publicSlug (anonymous)",
+    "/torneos/organizacion/:org/torneo/:t/configuracion (TournamentPublicPageSettings)"
+   ],
+   "positive": {
+    "node": true,
+    "edge": true
+   },
+   "negative": [],
+   "negative_statuses": [],
+   "why_blocked_before": "no public route existed (the gateway served only bearer-authenticated RPCs)"
+  }
+ ]
+}
