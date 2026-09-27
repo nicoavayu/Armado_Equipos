@@ -23,7 +23,9 @@ const fixture = {
   ...snapshot,
 };
 const scope = JSON.parse(read('backend/torneos/phase2d/staging-v1-rpc-allowlist.json')).features;
-const allowed = new Set(Object.values(scope).flat());
+// COMPETITION-V1: the hybrid adapter also routes the full-competition contract.
+const competition = JSON.parse(read('backend/torneos/supabase/functions/torneos-gateway/competition-v1-rpc-allowlist.json'));
+const allowed = new Set([...Object.values(scope).flat(), ...Object.values(competition.features).flat()]);
 const rpcs = snapshot.calls.filter(c => c.kind === 'rpc');
 const names = [...new Set(rpcs.flatMap(c => c.targets))].sort();
 const link = (file, line) => `[${file}:${line}](../../../${file}#L${line})`;
@@ -41,19 +43,19 @@ Inventario legacy congelado en \`${legacy.base}\` (Phase 2D); árbol integrado a
 
 ${rpcs.length} sitios RPC legacy; ${names.length} nombres distintos; ${migratable.length} nombres dentro de scope; ${blocked.length} fuera. La selección dinámica de \`changeTournamentMatchPlan\` se resuelve a sus tres nombres literales. No quedan RPC dinámicas sin resolver.
 
-## Encaminadas por el adapter staging-v1 (${migratable.length})
+## Encaminadas por el adapter híbrido — staging v1 + COMPETITION-V1 (${migratable.length})
 
-\`src/features/torneos/stagingV1/stagingV1WorkspaceService.js\` expone la misma interfaz de aliases que \`tournamentWorkspaceService\` para estas ${migratable.length} RPC (mismo nombre, mismo payload \`p_*\`, verificado alias por alias contra el servicio legacy en \`scripts/torneos-frontend/adapter.test.mjs\`) sobre \`foundation/torneosClient.execute\` → \`foundation/torneosTransport\` → \`POST {gateway}/torneos/rest/v1/rpc/<name>\`. Los sitios legacy siguen existiendo para la composición single-project LOCAL; la composición híbrida nunca los alcanza.
+\`src/features/torneos/stagingV1/stagingV1WorkspaceService.js\` expone la misma interfaz de aliases que \`tournamentWorkspaceService\` para estas ${migratable.length} RPC (mismo nombre, mismo payload \`p_*\`, verificado alias por alias contra el servicio legacy en \`scripts/torneos-frontend/adapter.test.mjs\` y \`competition-adapter.test.mjs\`) sobre \`foundation/torneosClient.execute\` → \`foundation/torneosTransport\` → \`POST {gateway}/torneos/rest/v1/rpc/<name>\`. Los sitios legacy siguen existiendo para la composición single-project LOCAL; la composición híbrida nunca los alcanza.
 
 | RPC | Función frontend legacy | Sitio legacy |
 | --- | --- | --- |
 ${rows(migratable)}
 
-## Permitidas por Phase 2D, sin llamada frontend (${allowed.size - migratable.length})
+## Permitidas por los contratos, sin llamada frontend (${allowed.size - migratable.length})
 
 ${[...allowed].filter(n=>!names.includes(n)).sort().map(n=>`- \`${n}\``).join('\n')}
 
-La foundation copia las ${allowed.size} operaciones del contrato aprobado exactamente; no amplía la allowlist del backend. Además lee una tabla del contrato certificado (\`tournament_organization_members\`, \`foundation/stagingV1Tables.js\`).
+La foundation copia las ${allowed.size} operaciones de los contratos aprobados (Phase 2D + COMPETITION-V1) exactamente; no amplía la allowlist del backend. Además lee tres tablas del contrato certificado (\`tournament_organization_members\`, \`tournament_venues\`, \`tournament_courts\`, \`foundation/stagingV1Tables.js\`) y la página pública usa la ruta anónima de sólo lectura del gateway (\`${Object.values(competition.public).flat().join(', ')}\`).
 
 ## Bloqueadas por scope (${blocked.length})
 

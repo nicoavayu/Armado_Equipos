@@ -32,6 +32,7 @@ import {
 } from 'react-router-dom';
 import { useTorneosCompetition } from '../context/TorneosCompetitionContext';
 import { useTorneosFeatures } from '../context/TorneosFeaturesContext';
+import { useOptionalTorneosWorkspace } from '../context/TorneosWorkspaceContext';
 import {
   buildTournamentDraft,
   CHECKLIST_ITEMS,
@@ -241,6 +242,12 @@ export default function TournamentWizardPage() {
   // Sub-features served by other RPCs or by storage: they mount only when the
   // composition serves them, so a closed surface never issues a request.
   const features = useTorneosFeatures();
+  // The settings panels must talk to the MOUNTED composition's service: their own default is the
+  // legacy (Core) service, which the hybrid composition never reaches.
+  const workspaceService = useOptionalTorneosWorkspace()?.service;
+  const settingsService = workspaceService ? { service: workspaceService } : {};
+  // Duck-typed like every provider: a service without the alias keeps the panel off (no request).
+  const offers = (alias) => !workspaceService || typeof workspaceService[alias] === 'function';
   const tournament = useMemo(
     () => tournaments.find((candidate) => candidate.id === tournamentId) || null,
     [tournamentId, tournaments],
@@ -657,18 +664,20 @@ export default function TournamentWizardPage() {
         </div>
       )}
 
-      {!isNew && features.public_pages !== false && (
+      {!isNew && features.public_pages !== false && offers('loadPublicPageSettings') && (
         <TournamentPublicPageSettings
           organizationId={organization.id}
           tournamentId={tournament.id}
           canPublish={canUpdate}
+          {...settingsService}
         />
       )}
 
-      {!isNew && features.team_visual_policy !== false && (
+      {!isNew && features.team_visual_policy !== false && offers('loadTeamVisualPolicy') && (
         <TeamVisualPolicySettings
           organizationId={organization.id}
           tournamentId={tournament.id}
+          {...settingsService}
         />
       )}
 

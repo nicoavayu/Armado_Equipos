@@ -1,5 +1,5 @@
 {
-  "generatedFrom": "02779321ec93f04950fa88eb670a19e33a57f530",
+  "generatedFrom": "ff9f9a77e4b7dfe99765f5b94055f94dedb2384b",
   "legacyBase": "2058da039a2a5eaaed22d87d01946bc596ae5f50",
   "coreSingletonSha256": "f39572e4cab0fd287bd1dea2ca87c97bd5500d0eff57cb8de6160f1e3271600c",
   "reachableCallSignatures": {
@@ -42,7 +42,7 @@
     "src/features/torneos/domain/brandingAssets.js": "d61310a6c564670f4ddac9d8d2991c314da3c5a501621f0d8bbbc6f9806cd575",
     "src/features/torneos/domain/premiumIntent.js": "d017a4b9ad7a5564ff958aaccd571629064db25311d547f34ecaeaca168e1d4c",
     "src/features/torneos/foundation/torneosClient.js": "9e1a1f8d3802935594dda8cacd5b959895e6f7f2df9cd6db08e688fb2b3ec25d",
-    "src/features/torneos/foundation/torneosTransport.js": "72ffd6b87db63a2fe1acc7a2a2d906f916adeb69089cdaaa3bd21156406a9ae9",
+    "src/features/torneos/foundation/torneosTransport.js": "4a395cb19cb28f650c8d257cb8176c07c86ca166b8cf03dbb89cad9f2b1da75e",
     "src/features/torneos/isolated/IsolatedTorneosPage.jsx": "648a0c66c255ab6753874e48a8a35467f9a198fd1d9587e47dfaadd2b900ef76",
     "src/features/torneos/isolated/createTorneosClient.js": "7fa1212c6f9d1f5fb57dd5a594e029986a49b7f531d46f4c9eaf27a25acda3cf",
     "src/features/torneos/social/socialStudio.js": "9618e2978bb5f45ca23566098bd7b01a3ea9816cae8532cc26ba20ee6d871128",
@@ -528,6 +528,16 @@
       "source": "./BrandingImage"
     },
     {
+      "file": "src/features/torneos/components/PublicTournamentRoute.jsx",
+      "line": 2,
+      "source": "./PublicTournamentPage"
+    },
+    {
+      "file": "src/features/torneos/components/PublicTournamentRoute.jsx",
+      "line": 3,
+      "source": "../api/publicTournamentService"
+    },
+    {
       "file": "src/features/torneos/components/PurchaseStatusPage.jsx",
       "line": 11,
       "source": "../context/TorneosCommerceContext"
@@ -784,7 +794,7 @@
     },
     {
       "file": "src/features/torneos/components/TournamentHubPage.jsx",
-      "line": 41,
+      "line": 42,
       "source": "./BrandingImage"
     },
     {
@@ -794,17 +804,22 @@
     },
     {
       "file": "src/features/torneos/components/TournamentWizardPage.jsx",
-      "line": 60,
-      "source": "./TournamentPublicPageSettings"
+      "line": 35,
+      "source": "../context/TorneosWorkspaceContext"
     },
     {
       "file": "src/features/torneos/components/TournamentWizardPage.jsx",
       "line": 61,
-      "source": "./TeamVisualPolicySettings"
+      "source": "./TournamentPublicPageSettings"
     },
     {
       "file": "src/features/torneos/components/TournamentWizardPage.jsx",
       "line": 62,
+      "source": "./TeamVisualPolicySettings"
+    },
+    {
+      "file": "src/features/torneos/components/TournamentWizardPage.jsx",
+      "line": 63,
       "source": "./BrandingAssetField"
     },
     {
@@ -2883,7 +2898,7 @@
     },
     {
       "file": "src/features/torneos/foundation/torneosClient.js",
-      "line": 38,
+      "line": 40,
       "kind": "rpc",
       "callee": "transport.rpc",
       "targets": [],
@@ -2892,7 +2907,7 @@
     },
     {
       "file": "src/features/torneos/foundation/torneosTransport.js",
-      "line": 98,
+      "line": 103,
       "kind": "transport",
       "callee": "window.fetch",
       "targets": [],
@@ -2901,7 +2916,7 @@
     },
     {
       "file": "src/features/torneos/foundation/torneosTransport.js",
-      "line": 146,
+      "line": 151,
       "kind": "transport",
       "callee": "fetchImpl",
       "targets": [],
@@ -2910,12 +2925,30 @@
     },
     {
       "file": "src/features/torneos/foundation/torneosTransport.js",
-      "line": 204,
+      "line": 209,
       "kind": "transport",
       "callee": "fetchImpl",
       "targets": [],
       "function": "send",
       "expression": "fetchImpl(`${base}${path}`, { method, headers: { Authorization: `Bearer ${token}`, Accept: 'application/json', ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}), ...headers, }, body: body !== undefined ? JSON.stringify(body) : undefined, credentials: 'omit', cache: 'no-store', redirect: 'error', signal: timed, })"
+    },
+    {
+      "file": "src/features/torneos/foundation/torneosTransport.js",
+      "line": 312,
+      "kind": "transport",
+      "callee": "window.fetch",
+      "targets": [],
+      "function": "<callback>",
+      "expression": "window.fetch(...args)"
+    },
+    {
+      "file": "src/features/torneos/foundation/torneosTransport.js",
+      "line": 328,
+      "kind": "transport",
+      "callee": "fetchImpl",
+      "targets": [],
+      "function": "createTorneosPublicTransport",
+      "expression": "fetchImpl(`${base}${PUBLIC_RPC_PATH}/${name}`, { method: 'POST', headers: { Accept: 'application/json', 'Content-Type': 'application/json' }, body: JSON.stringify(params), credentials: 'omit', cache: 'no-store', redirect: 'error', signal: timed, })"
     },
     {
       "file": "src/features/torneos/isolated/IsolatedTorneosPage.jsx",

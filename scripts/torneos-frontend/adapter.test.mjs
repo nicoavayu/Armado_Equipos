@@ -9,6 +9,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { runtime } from './sandbox.mjs';
 import { read } from './audit.mjs';
+import { COMPETITION_SAMPLE, COMPETITION_COMPOSITE, COMPETITION_EXCLUDED } from './competition-samples.mjs';
 
 const SCOPE = JSON.parse(read('backend/torneos/phase2d/staging-v1-rpc-allowlist.json')).features;
 const ALLOWLIST = new Set(Object.values(SCOPE).flat());
@@ -108,16 +109,14 @@ const PREDICATES_WITHOUT_CALLER = ['is_tournament_organization_member', 'has_tou
   'can_read_tournament_team_entry', 'is_tournament_team_manager'];
 const MIGRABLE = [...ALLOWLIST].filter((name) => !PREDICATES_WITHOUT_CALLER.includes(name));
 
-test('the adapter exposes exactly the legacy aliases of the scope and nothing of the blocked surfaces', () => {
+test('the adapter exposes exactly the legacy aliases of the staging-v1 + COMPETITION-V1 scope and nothing of the blocked surfaces', () => {
   const { service } = loadAdapter(recordingTransport().transport);
   const aliases = Object.keys(service).sort();
-  const expected = [...Object.keys(SAMPLE), 'listMembers', 'loadCompetitionContext', 'loadExperienceRelations', 'createIdempotencyKey'].sort();
+  const expected = [...Object.keys(SAMPLE), 'listMembers', 'loadCompetitionContext', 'loadExperienceRelations', 'createIdempotencyKey',
+    ...Object.keys(COMPETITION_SAMPLE), ...COMPETITION_COMPOSITE].sort();
   assert.deepEqual(aliases, expected);
   assert.ok(Object.isFrozen(service));
-  for (const blocked of ['loadFixtureContext', 'loadScheduleContext', 'loadEntitlements', 'loadSeasonEntitlements', 'startCompetition',
-    'finishCompetition', 'reopenCompetition', 'withdrawCompetitionParticipant', 'lockRoster', 'loadPublicPageSettings', 'setPublicPagePublished',
-    'loadTeamVisualPolicy', 'setTeamVisualPolicy', 'createCheckout', 'loadPurchase', 'loadMatchOperations', 'loadStandings',
-    'loadCommunicationsInbox', 'loadParticipantHub', 'loadMediaAdminContext', 'loadSocialStudioContext', 'resolveTeamShieldUrl', 'resolveTournamentLogoUrl']) {
+  for (const blocked of ['loadEntitlements', 'loadSeasonEntitlements', 'createCheckout', 'loadPurchase', ...COMPETITION_EXCLUDED]) {
     assert.equal(service[blocked], undefined, blocked);
   }
 });
