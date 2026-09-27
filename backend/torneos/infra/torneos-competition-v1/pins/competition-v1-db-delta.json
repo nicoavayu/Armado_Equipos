@@ -1,0 +1,115 @@
+{
+ "purpose": "COMPETITION-V1 — the catalog paths W1 moves, per state (foundation CATALOG_SQL), derived by offline-rehearsal.mjs",
+ "derived_at": "2026-09-27T16:03:56.363Z",
+ "image": "public.ecr.aws/supabase/postgres:17.6.1.147",
+ "installer": "postgres (non-superuser)",
+ "catalog_sql_sha256": "32f882b22c7022272aed65d2c296e86f3776c055dee3d2500ed1aebf1d59d6d3",
+ "migration_sha256": "36e45eddf57690470d80a0284f454a74ebfe4135cf89cbc0f4274ffdf41e3729",
+ "rollback_sha256": "29d84770d6f886f3bec19e2f6a87d1185a7fa7968755a9c94e53653103885c82",
+ "paths": [
+  "execute",
+  "functions.bodies_md5",
+  "acl_md5"
+ ],
+ "states": {
+  "pre": {
+   "execute": {
+    "anon": {
+     "count": 14,
+     "md5": "c6322d66b69edc67b2e20096bbe383a4"
+    },
+    "authenticated": {
+     "count": 149,
+     "md5": "f0cc8bf40345f9f034408e98bade4950"
+    },
+    "service_role": {
+     "count": 330,
+     "md5": "2658c67a4372c5658776c93deb4710f1"
+    },
+    "torneos_core_adapter": {
+     "count": 1,
+     "md5": "898581bb1006a5c6fcea48183314c786"
+    },
+    "torneos_identity_writer": {
+     "count": 0,
+     "md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "torneos_payment_service": {
+     "count": 4,
+     "md5": "e96fdc0b656fd0539f9429e6291c7c19"
+    }
+   },
+   "functions.bodies_md5": "3ab18560697f4aaf67b4bae451839502",
+   "acl_md5": {
+    "relations": "825cdd62498cacbf104a1df6a16e69a5",
+    "functions": "efdab716da39bfebc55ba30bbb682e3f"
+   }
+  },
+  "post": {
+   "execute": {
+    "anon": {
+     "count": 14,
+     "md5": "c6322d66b69edc67b2e20096bbe383a4"
+    },
+    "authenticated": {
+     "count": 164,
+     "md5": "fbd63016af183834bef76bf6c70715c7"
+    },
+    "service_role": {
+     "count": 330,
+     "md5": "2658c67a4372c5658776c93deb4710f1"
+    },
+    "torneos_core_adapter": {
+     "count": 1,
+     "md5": "898581bb1006a5c6fcea48183314c786"
+    },
+    "torneos_identity_writer": {
+     "count": 0,
+     "md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "torneos_payment_service": {
+     "count": 4,
+     "md5": "e96fdc0b656fd0539f9429e6291c7c19"
+    }
+   },
+   "functions.bodies_md5": "8fd38d6412afd6c19fdaf141fe16ba6a",
+   "acl_md5": {
+    "relations": "825cdd62498cacbf104a1df6a16e69a5",
+    "functions": "a7bd722abc8f7e938a68c9bc51bdedcf"
+   }
+  },
+  "rolled_back": {
+   "execute": {
+    "anon": {
+     "count": 14,
+     "md5": "c6322d66b69edc67b2e20096bbe383a4"
+    },
+    "authenticated": {
+     "count": 149,
+     "md5": "f0cc8bf40345f9f034408e98bade4950"
+    },
+    "service_role": {
+     "count": 330,
+     "md5": "2658c67a4372c5658776c93deb4710f1"
+    },
+    "torneos_core_adapter": {
+     "count": 1,
+     "md5": "898581bb1006a5c6fcea48183314c786"
+    },
+    "torneos_identity_writer": {
+     "count": 0,
+     "md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "torneos_payment_service": {
+     "count": 4,
+     "md5": "e96fdc0b656fd0539f9429e6291c7c19"
+    }
+   },
+   "functions.bodies_md5": "8fd38d6412afd6c19fdaf141fe16ba6a",
+   "acl_md5": {
+    "relations": "825cdd62498cacbf104a1df6a16e69a5",
+    "functions": "efdab716da39bfebc55ba30bbb682e3f"
+   }
+  }
+ }
+}

@@ -1,0 +1,110 @@
+{
+ "verdict": "REHEARSAL_PASS",
+ "passed": 24,
+ "total": 24,
+ "image": "public.ecr.aws/supabase/postgres:17.6.1.147",
+ "annotation": "OFFLINE REHEARSAL 20260927T160352Z — local public.ecr.aws/supabase/postgres:17.6.1.147 on an internal network, installer postgres; real gateway handle() of both sources; fake Deno API and Keychain; NOT a remote run",
+ "delta_pin_sha256": "898fbe20e3eae84fd2cfec70c2f37d89a6a45337bda9acc19a0565e67a33d9fd",
+ "results": [
+  {
+   "name": "after 0000–0003 the catalog equals the INFRA-1 foundation pin on every strict path (same image family, installer postgres)",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "name": "the moved paths before 0004 equal the foundation pin (incl. acl_md5)",
+   "pass": true
+  },
+  {
+   "name": "state before 0004 = PRE_0004 (15 closed, fixes absent, 147 / 12, owner postgres)",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "name": "0004 applies as postgres (non-superuser installer) in ONE transaction → POST_0004",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "name": "0004 re-applied → no-op (still POST_0004, catalog unchanged)",
+   "pass": true
+  },
+  {
+   "name": "rollback as postgres → ROLLED_BACK (15 revoked, fixes kept, 147 / 12)",
+   "pass": true
+  },
+  {
+   "name": "after rollback: execute = before 0004; bodies = after 0004",
+   "pass": true
+  },
+  {
+   "name": "rollback twice → idempotent no-op (still ROLLED_BACK, catalog unchanged)",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "name": "0004 re-applied after rollback → POST_0004 with the same catalog as the first apply",
+   "pass": true
+  },
+  {
+   "name": "database restored to PRE_0004 with the catalog of 0000–0003 exactly",
+   "pass": true
+  },
+  {
+   "name": "G1 on the real database (+ fake Deno, real gateway previous source) → G1_PASS",
+   "pass": true
+  },
+  {
+   "name": "drift (anon EXECUTE on a granted function) → G1_FAILED",
+   "pass": true
+  },
+  {
+   "name": "drift → W1 refused before any phrase, nothing sent",
+   "pass": true
+  },
+  {
+   "name": "drift removed → state PRE_0004 again",
+   "pass": true
+  },
+  {
+   "name": "W1 with a wrong phrase → NOT_AUTHORIZED, database untouched",
+   "pass": true
+  },
+  {
+   "name": "W2 before W1 → refused (DB not POST_0004), no Deno write",
+   "pass": true
+  },
+  {
+   "name": "W1 → W1_APPLIED (real psql as postgres, one transaction; postcheck catalog = pin)",
+   "pass": true
+  },
+  {
+   "name": "W2 → W2_DEPLOYED (assets only; env unchanged; candidate probes pass)",
+   "pass": true
+  },
+  {
+   "name": "W1 rollback while the candidate serves → refused",
+   "pass": true
+  },
+  {
+   "name": "W2 rollback → W2_ROLLED_BACK (previous source rebuilt from git = 723c5d39…; previous probes pass)",
+   "pass": true
+  },
+  {
+   "name": "W1 rollback → W1_ROLLED_BACK (real rollback script; fixes kept)",
+   "pass": true
+  },
+  {
+   "name": "W1 re-apply from ROLLED_BACK → W1_APPLIED",
+   "pass": true
+  },
+  {
+   "name": "Deno writes = exactly the 2 deploys; no other write kind",
+   "pass": true
+  },
+  {
+   "name": "evidence carries no secret of the run",
+   "pass": true
+  }
+ ]
+}

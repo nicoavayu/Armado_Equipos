@@ -33,13 +33,13 @@ async function walk(dir, rel = '') {
 
 /**
  * Transpiles the function tree into a temporary directory. `postgresModule`: source text of the module that replaces
- * npm:postgres. Returns { dir, import(relPath), cleanup }.
+ * npm:postgres; `functionsDir`: another function tree (e.g. a git-archived older revision). Returns { dir, import(relPath), cleanup }.
  */
-export async function loadGatewayTree({ postgresModule = RECORDING_POSTGRES_STUB } = {}) {
+export async function loadGatewayTree({ postgresModule = RECORDING_POSTGRES_STUB, functionsDir = FUNCTIONS_DIR } = {}) {
   const out = await fs.mkdtemp(path.join(os.tmpdir(), 'arma2-gateway-auth-tree-'));
   await fs.writeFile(path.join(out, 'postgres-driver.mjs'), postgresModule);
-  for (const rel of await walk(FUNCTIONS_DIR)) {
-    const src = path.join(FUNCTIONS_DIR, rel);
+  for (const rel of await walk(functionsDir)) {
+    const src = path.join(functionsDir, rel);
     const dst = path.join(out, rel);
     await fs.mkdir(path.dirname(dst), { recursive: true });
     if (!rel.endsWith('.ts')) { await fs.copyFile(src, dst); continue; }
