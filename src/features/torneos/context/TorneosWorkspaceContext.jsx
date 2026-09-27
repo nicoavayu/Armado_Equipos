@@ -279,6 +279,11 @@ export function TorneosWorkspaceProvider({
   );
 }
 
+// For components that may also render outside a provider (isolated tests): null there.
+export function useOptionalTorneosWorkspace() {
+  return useContext(TorneosWorkspaceContext);
+}
+
 export function useTorneosWorkspace() {
   const context = useContext(TorneosWorkspaceContext);
   if (!context) {

@@ -1,0 +1,1192 @@
+{
+ "tool": "backend/torneos/infra/torneos-competition-v1",
+ "target": "onzpwnqxnvlgsevivngf",
+ "verdict": "W2_ROLLED_BACK",
+ "plan": {
+  "step": "W2-rollback",
+  "app": "torneos-gateway",
+  "previous_revision": "rev86c07435",
+  "source": {
+   "head": "bea307a3a82fd8e610f99210c2f8b40f9ceb0697",
+   "digest": "723c5d3928741af906771923fab8ac9c54dd9eee58d266cec3a7fa4cd3fa5514",
+   "files": [
+    "torneos-gateway/adapter.ts",
+    "torneos-gateway/commerce-test-rpc-allowlist.json",
+    "torneos-gateway/commerce.ts",
+    "torneos-gateway/config.ts",
+    "torneos-gateway/core-client.ts",
+    "torneos-gateway/db.ts",
+    "torneos-gateway/index.ts",
+    "torneos-gateway/schemas.json",
+    "torneos-gateway/session.schema.json",
+    "torneos-gateway/staging-v1-rpc-allowlist.json",
+    "torneos-gateway/token.ts",
+    "torneos-gateway/topology.ts",
+    "torneos-payments/hmac.ts",
+    "torneos-payments/remote-hosts.ts"
+   ]
+  },
+  "env": "unchanged (not in the request)",
+  "env_now": [
+   "CORE_ANON_KEY",
+   "CORE_AUTH_URL",
+   "CORE_CONTRACT_URL",
+   "CORE_JWT_ISSUER",
+   "TORNEOS_ALLOWED_ORIGIN",
+   "TORNEOS_ANON_KEY",
+   "TORNEOS_BRIDGE_KEYS(secret)",
+   "TORNEOS_CONTRACT_SERVICE_SECRET(secret)",
+   "TORNEOS_DB_CORE_ADAPTER_URL(secret)",
+   "TORNEOS_DB_IDENTITY_WRITER_URL(secret)",
+   "TORNEOS_DB_SSL_CA",
+   "TORNEOS_GATEWAY_PUBLIC_URL",
+   "TORNEOS_REST_URL"
+  ],
+  "timelines": {
+   "production": true,
+   "preview": false
+  }
+ },
+ "plan_id": "ab74473cf7c9",
+ "authorization": {
+  "phrase": "ROLLBACK TORNEOS GATEWAY torneos-gateway TO bea307a3 ab74473cf7c9",
+  "channel": "offline rehearsal (phrase taken from the printed plan)"
+ },
+ "revision": {
+  "id": "rev3bc76988",
+  "status": "succeeded",
+  "labels": {
+   "custom.git_head": "bea307a3a82fd8e610f99210c2f8b40f9ceb0697",
+   "custom.bundle_digest": "723c5d3928741af906771923fab8ac9c54dd9eee58d266cec3a7fa4cd3fa5514"
+  },
+  "created_at": null,
+  "env": [
+   {
+    "key": "CORE_ANON_KEY",
+    "secret": false
+   },
+   {
+    "key": "CORE_AUTH_URL",
+    "secret": false
+   },
+   {
+    "key": "CORE_CONTRACT_URL",
+    "secret": false
+   },
+   {
+    "key": "CORE_JWT_ISSUER",
+    "secret": false
+   },
+   {
+    "key": "TORNEOS_ALLOWED_ORIGIN",
+    "secret": false
+   },
+   {
+    "key": "TORNEOS_ANON_KEY",
+    "secret": false
+   },
+   {
+    "key": "TORNEOS_BRIDGE_KEYS",
+    "secret": true
+   },
+   {
+    "key": "TORNEOS_CONTRACT_SERVICE_SECRET",
+    "secret": true
+   },
+   {
+    "key": "TORNEOS_DB_CORE_ADAPTER_URL",
+    "secret": true
+   },
+   {
+    "key": "TORNEOS_DB_IDENTITY_WRITER_URL",
+    "secret": true
+   },
+   {
+    "key": "TORNEOS_DB_SSL_CA",
+    "secret": false
+   },
+   {
+    "key": "TORNEOS_GATEWAY_PUBLIC_URL",
+    "secret": false
+   },
+   {
+    "key": "TORNEOS_REST_URL",
+    "secret": false
+   }
+  ],
+  "failure": null
+ },
+ "before": {
+  "app": {
+   "id": "5d4f18e9-1614-4e24-b8e0-fd7cff8e4c3d",
+   "slug": "torneos-gateway",
+   "layers": [],
+   "config": {}
+  },
+  "env": [
+   {
+    "key": "CORE_ANON_KEY",
+    "secret": false,
+    "contexts": "all",
+    "sha256_16": "2d0b5344e42d883b",
+    "matches_pin": true
+   },
+   {
+    "key": "CORE_AUTH_URL",
+    "secret": false,
+    "contexts": "all",
+    "sha256_16": "9364396cacff0ab1",
+    "matches_pin": true
+   },
+   {
+    "key": "CORE_CONTRACT_URL",
+    "secret": false,
+    "contexts": "all",
+    "sha256_16": "b6f432a614e2c029",
+    "matches_pin": true
+   },
+   {
+    "key": "CORE_JWT_ISSUER",
+    "secret": false,
+    "contexts": "all",
+    "sha256_16": "9364396cacff0ab1",
+    "matches_pin": true
+   },
+   {
+    "key": "TORNEOS_ALLOWED_ORIGIN",
+    "secret": false,
+    "contexts": "all",
+    "sha256_16": "a0e9fbdecb35de79",
+    "matches_pin": true
+   },
+   {
+    "key": "TORNEOS_ANON_KEY",
+    "secret": false,
+    "contexts": "all",
+    "sha256_16": "72087b1ba2b64cde",
+    "matches_pin": true
+   },
+   {
+    "key": "TORNEOS_BRIDGE_KEYS",
+    "secret": true,
+    "contexts": "all",
+    "value_returned": false
+   },
+   {
+    "key": "TORNEOS_CONTRACT_SERVICE_SECRET",
+    "secret": true,
+    "contexts": "all",
+    "value_returned": false
+   },
+   {
+    "key": "TORNEOS_DB_CORE_ADAPTER_URL",
+    "secret": true,
+    "contexts": "all",
+    "value_returned": false
+   },
+   {
+    "key": "TORNEOS_DB_IDENTITY_WRITER_URL",
+    "secret": true,
+    "contexts": "all",
+    "value_returned": false
+   },
+   {
+    "key": "TORNEOS_DB_SSL_CA",
+    "secret": false,
+    "contexts": "all",
+    "sha256_16": "e18e0434fdff1506",
+    "matches_pin": true
+   },
+   {
+    "key": "TORNEOS_GATEWAY_PUBLIC_URL",
+    "secret": false,
+    "contexts": "all",
+    "sha256_16": "a504cee093a43533",
+    "matches_pin": true
+   },
+   {
+    "key": "TORNEOS_REST_URL",
+    "secret": false,
+    "contexts": "all",
+    "sha256_16": "3b340551a4d2028f",
+    "matches_pin": true
+   }
+  ],
+  "current": {
+   "id": "rev86c07435",
+   "status": "succeeded",
+   "labels": {
+    "custom.git_head": "dc2c96bea98aaafbe9d8c224f14b70b8cdf00a64",
+    "custom.bundle_digest": "75e3535acc3fba99c871ee820d1927e1c695eba4c10044ec4e6ffda38b59afc7"
+   },
+   "created_at": null,
+   "env": [
+    {
+     "key": "CORE_ANON_KEY",
+     "secret": false
+    },
+    {
+     "key": "CORE_AUTH_URL",
+     "secret": false
+    },
+    {
+     "key": "CORE_CONTRACT_URL",
+     "secret": false
+    },
+    {
+     "key": "CORE_JWT_ISSUER",
+     "secret": false
+    },
+    {
+     "key": "TORNEOS_ALLOWED_ORIGIN",
+     "secret": false
+    },
+    {
+     "key": "TORNEOS_ANON_KEY",
+     "secret": false
+    },
+    {
+     "key": "TORNEOS_BRIDGE_KEYS",
+     "secret": true
+    },
+    {
+     "key": "TORNEOS_CONTRACT_SERVICE_SECRET",
+     "secret": true
+    },
+    {
+     "key": "TORNEOS_DB_CORE_ADAPTER_URL",
+     "secret": true
+    },
+    {
+     "key": "TORNEOS_DB_IDENTITY_WRITER_URL",
+     "secret": true
+    },
+    {
+     "key": "TORNEOS_DB_SSL_CA",
+     "secret": false
+    },
+    {
+     "key": "TORNEOS_GATEWAY_PUBLIC_URL",
+     "secret": false
+    },
+    {
+     "key": "TORNEOS_REST_URL",
+     "secret": false
+    }
+   ],
+   "failure": null
+  },
+  "revisions": [
+   {
+    "id": "rev86c07435",
+    "status": "succeeded",
+    "labels": {
+     "custom.git_head": "dc2c96bea98aaafbe9d8c224f14b70b8cdf00a64",
+     "custom.bundle_digest": "75e3535acc3fba99c871ee820d1927e1c695eba4c10044ec4e6ffda38b59afc7"
+    },
+    "created_at": null,
+    "env": [
+     {
+      "key": "CORE_ANON_KEY",
+      "secret": false
+     },
+     {
+      "key": "CORE_AUTH_URL",
+      "secret": false
+     },
+     {
+      "key": "CORE_CONTRACT_URL",
+      "secret": false
+     },
+     {
+      "key": "CORE_JWT_ISSUER",
+      "secret": false
+     },
+     {
+      "key": "TORNEOS_ALLOWED_ORIGIN",
+      "secret": false
+     },
+     {
+      "key": "TORNEOS_ANON_KEY",
+      "secret": false
+     },
+     {
+      "key": "TORNEOS_BRIDGE_KEYS",
+      "secret": true
+     },
+     {
+      "key": "TORNEOS_CONTRACT_SERVICE_SECRET",
+      "secret": true
+     },
+     {
+      "key": "TORNEOS_DB_CORE_ADAPTER_URL",
+      "secret": true
+     },
+     {
+      "key": "TORNEOS_DB_IDENTITY_WRITER_URL",
+      "secret": true
+     },
+     {
+      "key": "TORNEOS_DB_SSL_CA",
+      "secret": false
+     },
+     {
+      "key": "TORNEOS_GATEWAY_PUBLIC_URL",
+      "secret": false
+     },
+     {
+      "key": "TORNEOS_REST_URL",
+      "secret": false
+     }
+    ],
+    "failure": null
+   },
+   {
+    "id": "3rvq2wx9tyyg",
+    "status": "succeeded",
+    "labels": {
+     "custom.git_head": "bea307a3a82fd8e610f99210c2f8b40f9ceb0697"
+    },
+    "created_at": null,
+    "env": [
+     {
+      "key": "CORE_ANON_KEY",
+      "secret": false
+     },
+     {
+      "key": "CORE_AUTH_URL",
+      "secret": false
+     },
+     {
+      "key": "CORE_CONTRACT_URL",
+      "secret": false
+     },
+     {
+      "key": "CORE_JWT_ISSUER",
+      "secret": false
+     },
+     {
+      "key": "TORNEOS_ALLOWED_ORIGIN",
+      "secret": false
+     },
+     {
+      "key": "TORNEOS_ANON_KEY",
+      "secret": false
+     },
+     {
+      "key": "TORNEOS_BRIDGE_KEYS",
+      "secret": true
+     },
+     {
+      "key": "TORNEOS_CONTRACT_SERVICE_SECRET",
+      "secret": true
+     },
+     {
+      "key": "TORNEOS_DB_CORE_ADAPTER_URL",
+      "secret": true
+     },
+     {
+      "key": "TORNEOS_DB_IDENTITY_WRITER_URL",
+      "secret": true
+     },
+     {
+      "key": "TORNEOS_DB_SSL_CA",
+      "secret": false
+     },
+     {
+      "key": "TORNEOS_GATEWAY_PUBLIC_URL",
+      "secret": false
+     },
+     {
+      "key": "TORNEOS_REST_URL",
+      "secret": false
+     }
+    ],
+    "failure": null
+   }
+  ],
+  "failures": []
+ },
+ "after": {
+  "app": {
+   "id": "5d4f18e9-1614-4e24-b8e0-fd7cff8e4c3d",
+   "slug": "torneos-gateway",
+   "layers": [],
+   "config": {}
+  },
+  "env": [
+   {
+    "key": "CORE_ANON_KEY",
+    "secret": false,
+    "contexts": "all",
+    "sha256_16": "2d0b5344e42d883b",
+    "matches_pin": true
+   },
+   {
+    "key": "CORE_AUTH_URL",
+    "secret": false,
+    "contexts": "all",
+    "sha256_16": "9364396cacff0ab1",
+    "matches_pin": true
+   },
+   {
+    "key": "CORE_CONTRACT_URL",
+    "secret": false,
+    "contexts": "all",
+    "sha256_16": "b6f432a614e2c029",
+    "matches_pin": true
+   },
+   {
+    "key": "CORE_JWT_ISSUER",
+    "secret": false,
+    "contexts": "all",
+    "sha256_16": "9364396cacff0ab1",
+    "matches_pin": true
+   },
+   {
+    "key": "TORNEOS_ALLOWED_ORIGIN",
+    "secret": false,
+    "contexts": "all",
+    "sha256_16": "a0e9fbdecb35de79",
+    "matches_pin": true
+   },
+   {
+    "key": "TORNEOS_ANON_KEY",
+    "secret": false,
+    "contexts": "all",
+    "sha256_16": "72087b1ba2b64cde",
+    "matches_pin": true
+   },
+   {
+    "key": "TORNEOS_BRIDGE_KEYS",
+    "secret": true,
+    "contexts": "all",
+    "value_returned": false
+   },
+   {
+    "key": "TORNEOS_CONTRACT_SERVICE_SECRET",
+    "secret": true,
+    "contexts": "all",
+    "value_returned": false
+   },
+   {
+    "key": "TORNEOS_DB_CORE_ADAPTER_URL",
+    "secret": true,
+    "contexts": "all",
+    "value_returned": false
+   },
+   {
+    "key": "TORNEOS_DB_IDENTITY_WRITER_URL",
+    "secret": true,
+    "contexts": "all",
+    "value_returned": false
+   },
+   {
+    "key": "TORNEOS_DB_SSL_CA",
+    "secret": false,
+    "contexts": "all",
+    "sha256_16": "e18e0434fdff1506",
+    "matches_pin": true
+   },
+   {
+    "key": "TORNEOS_GATEWAY_PUBLIC_URL",
+    "secret": false,
+    "contexts": "all",
+    "sha256_16": "a504cee093a43533",
+    "matches_pin": true
+   },
+   {
+    "key": "TORNEOS_REST_URL",
+    "secret": false,
+    "contexts": "all",
+    "sha256_16": "3b340551a4d2028f",
+    "matches_pin": true
+   }
+  ],
+  "current": {
+   "id": "rev3bc76988",
+   "status": "succeeded",
+   "labels": {
+    "custom.git_head": "bea307a3a82fd8e610f99210c2f8b40f9ceb0697",
+    "custom.bundle_digest": "723c5d3928741af906771923fab8ac9c54dd9eee58d266cec3a7fa4cd3fa5514"
+   },
+   "created_at": null,
+   "env": [
+    {
+     "key": "CORE_ANON_KEY",
+     "secret": false
+    },
+    {
+     "key": "CORE_AUTH_URL",
+     "secret": false
+    },
+    {
+     "key": "CORE_CONTRACT_URL",
+     "secret": false
+    },
+    {
+     "key": "CORE_JWT_ISSUER",
+     "secret": false
+    },
+    {
+     "key": "TORNEOS_ALLOWED_ORIGIN",
+     "secret": false
+    },
+    {
+     "key": "TORNEOS_ANON_KEY",
+     "secret": false
+    },
+    {
+     "key": "TORNEOS_BRIDGE_KEYS",
+     "secret": true
+    },
+    {
+     "key": "TORNEOS_CONTRACT_SERVICE_SECRET",
+     "secret": true
+    },
+    {
+     "key": "TORNEOS_DB_CORE_ADAPTER_URL",
+     "secret": true
+    },
+    {
+     "key": "TORNEOS_DB_IDENTITY_WRITER_URL",
+     "secret": true
+    },
+    {
+     "key": "TORNEOS_DB_SSL_CA",
+     "secret": false
+    },
+    {
+     "key": "TORNEOS_GATEWAY_PUBLIC_URL",
+     "secret": false
+    },
+    {
+     "key": "TORNEOS_REST_URL",
+     "secret": false
+    }
+   ],
+   "failure": null
+  },
+  "revisions": [
+   {
+    "id": "rev3bc76988",
+    "status": "succeeded",
+    "labels": {
+     "custom.git_head": "bea307a3a82fd8e610f99210c2f8b40f9ceb0697",
+     "custom.bundle_digest": "723c5d3928741af906771923fab8ac9c54dd9eee58d266cec3a7fa4cd3fa5514"
+    },
+    "created_at": null,
+    "env": [
+     {
+      "key": "CORE_ANON_KEY",
+      "secret": false
+     },
+     {
+      "key": "CORE_AUTH_URL",
+      "secret": false
+     },
+     {
+      "key": "CORE_CONTRACT_URL",
+      "secret": false
+     },
+     {
+      "key": "CORE_JWT_ISSUER",
+      "secret": false
+     },
+     {
+      "key": "TORNEOS_ALLOWED_ORIGIN",
+      "secret": false
+     },
+     {
+      "key": "TORNEOS_ANON_KEY",
+      "secret": false
+     },
+     {
+      "key": "TORNEOS_BRIDGE_KEYS",
+      "secret": true
+     },
+     {
+      "key": "TORNEOS_CONTRACT_SERVICE_SECRET",
+      "secret": true
+     },
+     {
+      "key": "TORNEOS_DB_CORE_ADAPTER_URL",
+      "secret": true
+     },
+     {
+      "key": "TORNEOS_DB_IDENTITY_WRITER_URL",
+      "secret": true
+     },
+     {
+      "key": "TORNEOS_DB_SSL_CA",
+      "secret": false
+     },
+     {
+      "key": "TORNEOS_GATEWAY_PUBLIC_URL",
+      "secret": false
+     },
+     {
+      "key": "TORNEOS_REST_URL",
+      "secret": false
+     }
+    ],
+    "failure": null
+   },
+   {
+    "id": "rev86c07435",
+    "status": "succeeded",
+    "labels": {
+     "custom.git_head": "dc2c96bea98aaafbe9d8c224f14b70b8cdf00a64",
+     "custom.bundle_digest": "75e3535acc3fba99c871ee820d1927e1c695eba4c10044ec4e6ffda38b59afc7"
+    },
+    "created_at": null,
+    "env": [
+     {
+      "key": "CORE_ANON_KEY",
+      "secret": false
+     },
+     {
+      "key": "CORE_AUTH_URL",
+      "secret": false
+     },
+     {
+      "key": "CORE_CONTRACT_URL",
+      "secret": false
+     },
+     {
+      "key": "CORE_JWT_ISSUER",
+      "secret": false
+     },
+     {
+      "key": "TORNEOS_ALLOWED_ORIGIN",
+      "secret": false
+     },
+     {
+      "key": "TORNEOS_ANON_KEY",
+      "secret": false
+     },
+     {
+      "key": "TORNEOS_BRIDGE_KEYS",
+      "secret": true
+     },
+     {
+      "key": "TORNEOS_CONTRACT_SERVICE_SECRET",
+      "secret": true
+     },
+     {
+      "key": "TORNEOS_DB_CORE_ADAPTER_URL",
+      "secret": true
+     },
+     {
+      "key": "TORNEOS_DB_IDENTITY_WRITER_URL",
+      "secret": true
+     },
+     {
+      "key": "TORNEOS_DB_SSL_CA",
+      "secret": false
+     },
+     {
+      "key": "TORNEOS_GATEWAY_PUBLIC_URL",
+      "secret": false
+     },
+     {
+      "key": "TORNEOS_REST_URL",
+      "secret": false
+     }
+    ],
+    "failure": null
+   },
+   {
+    "id": "3rvq2wx9tyyg",
+    "status": "succeeded",
+    "labels": {
+     "custom.git_head": "bea307a3a82fd8e610f99210c2f8b40f9ceb0697"
+    },
+    "created_at": null,
+    "env": [
+     {
+      "key": "CORE_ANON_KEY",
+      "secret": false
+     },
+     {
+      "key": "CORE_AUTH_URL",
+      "secret": false
+     },
+     {
+      "key": "CORE_CONTRACT_URL",
+      "secret": false
+     },
+     {
+      "key": "CORE_JWT_ISSUER",
+      "secret": false
+     },
+     {
+      "key": "TORNEOS_ALLOWED_ORIGIN",
+      "secret": false
+     },
+     {
+      "key": "TORNEOS_ANON_KEY",
+      "secret": false
+     },
+     {
+      "key": "TORNEOS_BRIDGE_KEYS",
+      "secret": true
+     },
+     {
+      "key": "TORNEOS_CONTRACT_SERVICE_SECRET",
+      "secret": true
+     },
+     {
+      "key": "TORNEOS_DB_CORE_ADAPTER_URL",
+      "secret": true
+     },
+     {
+      "key": "TORNEOS_DB_IDENTITY_WRITER_URL",
+      "secret": true
+     },
+     {
+      "key": "TORNEOS_DB_SSL_CA",
+      "secret": false
+     },
+     {
+      "key": "TORNEOS_GATEWAY_PUBLIC_URL",
+      "secret": false
+     },
+     {
+      "key": "TORNEOS_REST_URL",
+      "secret": false
+     }
+    ],
+    "failure": null
+   }
+  ],
+  "failures": []
+ },
+ "env_unchanged": true,
+ "live": true,
+ "probes": {
+  "phase": "previous",
+  "checks": [
+   {
+    "name": "GET /config → the Torneos publishable key is the pinned one (digest)",
+    "pass": true,
+    "status": 200,
+    "error": null,
+    "cache": "no-store"
+   },
+   {
+    "name": "B7 GET /health (allowed origin) → 200 ready + exact CORS origin + no-store",
+    "pass": true,
+    "status": 200,
+    "error": null,
+    "acao": "https://app.arma2.com.ar",
+    "cache": "no-store"
+   },
+   {
+    "name": "B7 GET /.well-known/jwks.json → exactly the pinned public k1 (active) + k2 (standby), no private member",
+    "pass": true,
+    "status": 200,
+    "error": null,
+    "acao": "https://app.arma2.com.ar",
+    "cache": "no-store",
+    "kids": [
+     "arma2-torneos-prod-k1-695gDQ8SOKpA8aQF",
+     "arma2-torneos-prod-k2-E-H5kylD8TwdXGWz"
+    ]
+   },
+   {
+    "name": "B7 GET /config → {coreUrl, torneosUrl, anonKey}: Core Production URL, gateway /torneos, Torneos publishable key; nothing secret",
+    "pass": true,
+    "status": 200,
+    "error": null,
+    "acao": "https://app.arma2.com.ar",
+    "cache": "no-store",
+    "secret_findings": []
+   },
+   {
+    "name": "B7 GET /health, foreign Origin → 403 origin rejected, no CORS grant",
+    "pass": true,
+    "status": 403,
+    "error": "origin rejected",
+    "acao": null,
+    "cache": "no-store"
+   },
+   {
+    "name": "B7 GET /health, Origin null → 403",
+    "pass": true,
+    "status": 403,
+    "error": "origin rejected",
+    "acao": null,
+    "cache": "no-store"
+   },
+   {
+    "name": "B7 GET /health, look-alike Origin → 403",
+    "pass": true,
+    "status": 403,
+    "error": "origin rejected",
+    "acao": null,
+    "cache": "no-store"
+   },
+   {
+    "name": "B7 OPTIONS /exchange (allowed origin) → 204 with exact CORS grant",
+    "pass": true,
+    "status": 204,
+    "error": null,
+    "acao": "https://app.arma2.com.ar",
+    "cache": "no-store"
+   },
+   {
+    "name": "B7 OPTIONS /exchange (foreign origin) → 403, no CORS grant",
+    "pass": true,
+    "status": 403,
+    "error": "origin rejected",
+    "acao": null,
+    "cache": "no-store"
+   },
+   {
+    "name": "B7 POST /exchange without bearer → 401",
+    "pass": true,
+    "status": 401,
+    "error": "access denied",
+    "acao": "https://app.arma2.com.ar",
+    "cache": "no-store"
+   },
+   {
+    "name": "B7 POST /exchange with a non-Core bearer → 401 (GoTrue refuses it)",
+    "pass": true,
+    "status": 401,
+    "error": "access denied",
+    "acao": "https://app.arma2.com.ar",
+    "cache": "no-store"
+   },
+   {
+    "name": "B7 POST /exchange with identity/role input → 400 (refused before any Core call)",
+    "pass": true,
+    "status": 400,
+    "error": "exchange accepts no identity or role input",
+    "acao": "https://app.arma2.com.ar",
+    "cache": "no-store"
+   },
+   {
+    "name": "B7 POST /exchange with a 20 KB body → refused (4xx, never 2xx)",
+    "pass": true,
+    "status": 401,
+    "error": "access denied",
+    "acao": "https://app.arma2.com.ar",
+    "cache": "no-store"
+   },
+   {
+    "name": "B7 POST allowlisted RPC without bearer → 401",
+    "pass": true,
+    "status": 401,
+    "error": "access denied",
+    "acao": "https://app.arma2.com.ar",
+    "cache": "no-store"
+   },
+   {
+    "name": "B7 POST commerce RPC (commerce OFF), valid k1 bridge token → 403 rpc not enabled (before any Core call)",
+    "pass": true,
+    "status": 403,
+    "error": "rpc not enabled",
+    "acao": "https://app.arma2.com.ar",
+    "cache": "no-store"
+   },
+   {
+    "name": "B7 POST checkout-creation RPC, valid k1 bridge token → 403 rpc not enabled",
+    "pass": true,
+    "status": 403,
+    "error": "rpc not enabled",
+    "acao": "https://app.arma2.com.ar",
+    "cache": "no-store"
+   },
+   {
+    "name": "B7 POST /commerce/v1/season-checkout (commerce OFF) → 404, route absent",
+    "pass": true,
+    "status": 404,
+    "error": "not found",
+    "acao": "https://app.arma2.com.ar",
+    "cache": "no-store"
+   },
+   {
+    "name": "B7 POST allowlisted RPC, valid k1 token for a Core user that does not exist → 401 (live Core authority: session inactive)",
+    "pass": true,
+    "status": 401,
+    "error": "access denied",
+    "acao": "https://app.arma2.com.ar",
+    "cache": "no-store"
+   },
+   {
+    "name": "B7 POST allowlisted RPC, expired k1 token → 401",
+    "pass": true,
+    "status": 401,
+    "error": "access denied",
+    "acao": "https://app.arma2.com.ar",
+    "cache": "no-store"
+   },
+   {
+    "name": "B7 POST allowlisted RPC, k1 token with exp−iat ≠ 120 → 401 (token contract)",
+    "pass": true,
+    "status": 401,
+    "error": "access denied",
+    "acao": "https://app.arma2.com.ar",
+    "cache": "no-store"
+   },
+   {
+    "name": "B7 POST allowlisted RPC, token signed by a foreign key under the k1 kid → 401",
+    "pass": true,
+    "status": 401,
+    "error": "access denied",
+    "acao": "https://app.arma2.com.ar",
+    "cache": "no-store"
+   },
+   {
+    "name": "B7 POST allowlisted RPC, k1 token with aud=authenticated → 401",
+    "pass": true,
+    "status": 401,
+    "error": "access denied",
+    "acao": "https://app.arma2.com.ar",
+    "cache": "no-store"
+   },
+   {
+    "name": "B7 GET unknown path under the mount → 404",
+    "pass": true,
+    "status": 404,
+    "error": "not found",
+    "acao": "https://app.arma2.com.ar",
+    "cache": "no-store"
+   },
+   {
+    "name": "B7 GET / (outside the mount) → 404",
+    "pass": true,
+    "status": 404,
+    "error": "not found",
+    "acao": "https://app.arma2.com.ar",
+    "cache": "no-store"
+   },
+   {
+    "name": "B7 no response body carries a secret the session holds (contract secret, DB passwords, private keys, tokens)",
+    "pass": true,
+    "error": null,
+    "acao": null,
+    "cache": null,
+    "findings": []
+   },
+   {
+    "name": "competition read RPC get_tournament_fixture_context, valid k1 token → 403 rpc not enabled (not in the deployed allowlist)",
+    "pass": true,
+    "status": 403,
+    "error": "rpc not enabled",
+    "cache": "no-store"
+   },
+   {
+    "name": "granted by 0004 RPC publish_tournament_fixture, valid k1 token → 403 rpc not enabled (not in the deployed allowlist)",
+    "pass": true,
+    "status": 403,
+    "error": "rpc not enabled",
+    "cache": "no-store"
+   },
+   {
+    "name": "archive_tournament_fixture on the authenticated route, valid k1 token → 403 rpc not enabled (both sources)",
+    "pass": true,
+    "status": 403,
+    "error": "rpc not enabled",
+    "cache": "no-store"
+   },
+   {
+    "name": "lock_tournament_roster on the authenticated route, valid k1 token → 403 rpc not enabled (both sources)",
+    "pass": true,
+    "status": 403,
+    "error": "rpc not enabled",
+    "cache": "no-store"
+   },
+   {
+    "name": "get_tournament_purchase on the authenticated route, valid k1 token → 403 rpc not enabled (both sources)",
+    "pass": true,
+    "status": 403,
+    "error": "rpc not enabled",
+    "cache": "no-store"
+   },
+   {
+    "name": "get_public_tournament_page on the authenticated route, valid k1 token → 403 rpc not enabled (both sources)",
+    "pass": true,
+    "status": 403,
+    "error": "rpc not enabled",
+    "cache": "no-store"
+   },
+   {
+    "name": "get_tournament_fixture_context without bearer → 401",
+    "pass": true,
+    "status": 401,
+    "error": "access denied",
+    "cache": "no-store"
+   },
+   {
+    "name": "publish_tournament_fixture without bearer → 401",
+    "pass": true,
+    "status": 401,
+    "error": "access denied",
+    "cache": "no-store"
+   },
+   {
+    "name": "public route absent in the deployed source → 404",
+    "pass": true,
+    "status": 404,
+    "error": "not found",
+    "cache": "no-store"
+   },
+   {
+    "name": "no probe result carries a secret this process holds",
+    "pass": true
+   }
+  ],
+  "passed": 35,
+  "total": 35,
+  "pass": true
+ },
+ "deno_requests": [
+  {
+   "id": "app",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "revisions",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "app",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "revisions",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "app",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "revisions",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "app",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "revisions",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "deploy",
+   "kind": "write:deploy",
+   "method": "POST",
+   "status": 202
+  },
+  {
+   "id": "revision",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "revision",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "app",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "revisions",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "app",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "revisions",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "app",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "revisions",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "app",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "revisions",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "deploy",
+   "kind": "write:deploy",
+   "method": "POST",
+   "status": 202
+  },
+  {
+   "id": "revision",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "revision",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "app",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "revisions",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  }
+ ]
+}

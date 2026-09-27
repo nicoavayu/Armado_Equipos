@@ -75,9 +75,11 @@ test('Deno API allowlist: reads only on the one app, writes only armed, bodies p
   assert.throws(() => R.assertDenoWriteBody('deploy', { assets: { ...assets, 'torneos-gateway/leak.ts': { kind: 'file', encoding: 'utf-8', content: `const k = "${passwords.torneos_edge_core_adapter}"; const u = "postgres://a:${passwords.torneos_edge_core_adapter}@h/p"` } }, labels: {}, production: true, preview: false }), /secret_shaped/);
 });
 
-test('deployed source = the gateway module graph (14 files, jose/postgres pins), never payments config or the MP provider', () => {
+test('deployed source = the gateway module graph (16 files, jose/postgres pins), never payments config or the MP provider', () => {
   const g = moduleGraph();
-  assert.equal(g.files.length, 14);
+  // COMPETITION-V1: 14 + competition.ts and its allowlist (competition-v1-rpc-allowlist.json).
+  assert.equal(g.files.length, 16);
+  assert.ok(['torneos-gateway/competition.ts', 'torneos-gateway/competition-v1-rpc-allowlist.json'].every((f) => g.files.includes(f)));
   assert.deepEqual(g.bare, ['npm:jose@6.2.12', 'npm:postgres@3.4.7']);
   assert.ok(g.files.every((f) => f.startsWith('torneos-gateway/') || ['torneos-payments/hmac.ts', 'torneos-payments/remote-hosts.ts'].includes(f)));
   assert.ok(!g.files.some((f) => /_shared|torneos-payments\/(config|handler|index|db)\.ts/.test(f)));

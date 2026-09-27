@@ -188,7 +188,9 @@ test('pins: migration hashes are the certified four; drift is detected', () => {
   fs.appendFileSync(path.join(fake, F.MIGRATIONS_DIR, F.MIGRATIONS[2].file), '\n-- drift\n');
   assert.throws(() => F.loadMigrations(fake), /MIGRATION_HASH_MISMATCH 00000000000002/);
   const dirFiles = fs.readdirSync(path.join(F.REPO_ROOT, F.MIGRATIONS_DIR)).filter((f) => f.endsWith('.sql')).sort();
-  assert.deepEqual(dirFiles, F.MIGRATIONS.map((m) => m.file), 'the migrations directory holds exactly the four certified files');
+  assert.deepEqual(dirFiles.slice(0, 4), F.MIGRATIONS.map((m) => m.file), 'the migrations directory starts with exactly the four certified files');
+  // Later migrations (00000000000004 COMPETITION-V1 onwards) belong to later phases: INFRA-1 never loads or applies them.
+  assert.deepEqual(dirFiles.slice(4).filter((f) => F.MIGRATIONS.some((m) => m.file === f) || !/^0000000000000[4-9]_[a-z0-9_]+\.sql$/.test(f)), []);
 });
 test('custody: Keychain namespace is exclusive; psql env is minimal and sa-east-1 only', () => {
   assert.doesNotThrow(() => assertNamespace(F.KEYCHAIN_DB));

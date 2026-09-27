@@ -23,6 +23,10 @@
 // changes. "test" → POST /commerce/v1/season-checkout and the 2 commerce reads on top of the 43, in the local lab
 // or (MP-B1.1 R2, TORNEOS_COMMERCE_DEPLOYMENT=remote-test) on exactly declared https hosts, never Production;
 // any other value, or a faulty commerce configuration, disables the whole gateway like any config fault.
+//
+// COMPETITION-V1 (competition.ts): the generic route serves the full-competition RPCs on top of the 43
+// (same bearer / Core session / identity checks), and POST /torneos/public/v1/rpc/<name> serves the public
+// read-only RPCs as anon, refusing any credential. A malformed competition allowlist disables the gateway.
 import { decodeJwt } from "npm:jose@6.2.12"
 import { issueToken, verifyToken, uuid, jwks, TTL, type TorneosClaims } from "./token.ts"
 import { CoreClient, Denied, ROUTES } from "./core-client.ts"
@@ -30,6 +34,7 @@ import { Adapter, AdapterDenied, CONTRACTS } from "./adapter.ts"
 import { connect, allocateIdentity, identityExists, isUnavailable, type Sql } from "./db.ts"
 import { loadConfig, routePath, ConfigError, type GatewayConfig } from "./config.ts"
 import { COMMERCE_ROUTE, CommerceConfigError, effectiveRpcAllowlist, loadCommerceConfig, seasonCheckout, type CommerceConfig } from "./commerce.ts"
+import { CompetitionConfigError, loadCompetitionContract, preparePublicRpc, PublicGate, PUBLIC_RPC_ROUTE, withCompetition, type CompetitionContract } from "./competition.ts"
 import allowlistDoc from "./staging-v1-rpc-allowlist.json" with { type: "json" }
 
 // Staging v1 RPC allowlist: fail closed if the document is malformed or empty.
@@ -48,6 +53,8 @@ type Runtime = {
   adapter: Adapter
   core: CoreClient
   commerce: CommerceConfig
+  competition: CompetitionContract
+  publicGate: PublicGate
   rpcAllowlist: ReadonlySet<string>
 }
 let runtime: Runtime | null = null
@@ -55,8 +62,10 @@ let bootError: string | null = null
 
 export function boot(env: Record<string, string | undefined>): Runtime {
   const cfg = loadConfig(env)
-  // Commerce is validated before any connection is opened: a faulty commerce config disables the gateway.
-  const commerce = loadCommerceConfig(env, { baseAllowlist: RPC_ALLOWLIST, gatewayPublicUrl: cfg.publicUrl,
+  // COMPETITION-V1 and commerce are validated before any connection is opened: a fault disables the gateway.
+  const competition = loadCompetitionContract(RPC_ALLOWLIST)
+  const baseAllowlist = withCompetition(RPC_ALLOWLIST, competition)
+  const commerce = loadCommerceConfig(env, { baseAllowlist, gatewayPublicUrl: cfg.publicUrl,
     distinctFrom: [env.TORNEOS_CONTRACT_SERVICE_SECRET, env.TORNEOS_BRIDGE_KEYS, ...cfg.bridge.keys.map((k) => k.privateKey), cfg.coreAnonKey, cfg.torneosAnonKey],
     dependencyUrls: [cfg.coreAuthUrl, cfg.coreJwtIssuer, cfg.coreContractUrl, cfg.torneosRestUrl, cfg.allowedOrigin] })
   const identity = connect(cfg.identityWriterUrl, { sslCa: cfg.dbSslCa })
@@ -64,7 +73,7 @@ export function boot(env: Record<string, string | undefined>): Runtime {
   const coreHeaders = cfg.coreAnonKey ? { apikey: cfg.coreAnonKey } : {}
   // The Core service secret lives only in this function's env and in Core's function env.
   const core = new CoreClient(cfg.coreContractUrl, cfg.coreContractSecret, { extraHeaders: coreHeaders })
-  return { cfg, identity, adapterSql, adapter: new Adapter(adapterSql, core), core, commerce, rpcAllowlist: effectiveRpcAllowlist(RPC_ALLOWLIST, commerce) }
+  return { cfg, identity, adapterSql, adapter: new Adapter(adapterSql, core), core, commerce, competition, publicGate: new PublicGate(), rpcAllowlist: effectiveRpcAllowlist(baseAllowlist, commerce) }
 }
 
 function getRuntime(): Runtime {
@@ -75,7 +84,7 @@ function getRuntime(): Runtime {
     return runtime
   } catch (error) {
     // Configuration faults disable the gateway; the reason is logged once, without values.
-    bootError = error instanceof ConfigError || error instanceof CommerceConfigError ? error.message : "boot failed"
+    bootError = error instanceof ConfigError || error instanceof CommerceConfigError || error instanceof CompetitionConfigError ? error.message : "boot failed"
     console.error(`[torneos-gateway] disabled: ${bootError}`)
     throw new Unavailable()
   }
@@ -218,6 +227,24 @@ export async function handle(req: Request): Promise<Response> {
         log: (entry) => console.log(JSON.stringify(entry)),
       })
       return json(r.status, r.body, cors)
+    }
+    // COMPETITION-V1: the public read-only route. No bearer, no Core session, no identity: anon only.
+    const publicRpc = PUBLIC_RPC_ROUTE.exec(path)
+    if (publicRpc) {
+      if (req.method !== "POST") return json(405, { error: "method not allowed" }, cors)
+      const decision = await preparePublicRpc({ name: publicRpc[1], authorization: req.headers.get("authorization"),
+        apikey: req.headers.get("apikey"), contentType: req.headers.get("content-type"),
+        contentLength: req.headers.get("content-length"), body: req.body }, rt.competition)
+      if (!decision.ok) return json(decision.status, { error: decision.error }, cors)
+      if (!rt.publicGate.tryEnter()) return json(503, { error: "public route busy" }, { ...cors, "retry-after": "1" })
+      try {
+        const r = await dependencyFetch(`${rt.cfg.torneosRestUrl}${decision.path}`, { method: "POST",
+          headers: { "content-type": "application/json", accept: "application/json", ...(rt.cfg.torneosAnonKey ? { apikey: rt.cfg.torneosAnonKey } : {}) },
+          body: decision.body, redirect: "error", signal: AbortSignal.timeout(5000) })
+        return new Response(await r.arrayBuffer(), { status: r.status, headers: { "content-type": r.headers.get("content-type") ?? "application/json", ...NO_STORE, ...cors } })
+      } finally {
+        rt.publicGate.leave()
+      }
     }
     const rest = /^\/torneos\/rest\/v1\/(rpc\/([a-z0-9_]+)|[a-z0-9_]+)$/.exec(path)
     if (rest && ["GET", "HEAD", "POST", "PATCH", "DELETE"].includes(req.method)) {

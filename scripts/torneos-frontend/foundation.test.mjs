@@ -13,6 +13,8 @@ import { runtime } from './sandbox.mjs';
 const legacy = JSON.parse(read('docs/torneos/b04/legacy-audit.json'));
 const baseline = JSON.parse(read('docs/torneos/b04/b04-audit.json'));
 const scopeSource = JSON.parse(read('backend/torneos/phase2d/staging-v1-rpc-allowlist.json')).features;
+// COMPETITION-V1: the full-competition contract of the gateway (authenticated `features` + anonymous `public`).
+const competitionSource = JSON.parse(read('backend/torneos/supabase/functions/torneos-gateway/competition-v1-rpc-allowlist.json'));
 const prefix = 'src/features/torneos/foundation/';
 const uuidStub = { v4: () => 'placeholder' };
 // Objects built inside the sandbox realm have another Object.prototype: compare by value.
@@ -40,7 +42,24 @@ test('scope equals the existing Phase 2D allowlist exactly, including review', (
   assert(Object.isFrozen(stagingV1Scope));
   Object.values(stagingV1Scope).forEach((operations) => assert(Object.isFrozen(operations)));
   const { stagingV1Tables } = runtime().load(prefix + 'stagingV1Tables.js');
-  same(Object.keys(stagingV1Tables), ['tournament_organization_members']);
+  same(Object.keys(stagingV1Tables), ['tournament_organization_members', 'tournament_venues', 'tournament_courts']);
+});
+
+test('COMPETITION-V1 scope equals the gateway competition allowlist exactly (authenticated features and the public route); disjoint from staging v1', () => {
+  const { competitionV1Scope, competitionV1PublicScope } = runtime().load(prefix + 'competitionV1Scope.js');
+  assert.deepEqual(JSON.parse(JSON.stringify(competitionV1Scope)), competitionSource.features);
+  assert.deepEqual(JSON.parse(JSON.stringify(competitionV1PublicScope)), competitionSource.public);
+  for (const map of [competitionV1Scope, competitionV1PublicScope]) {
+    assert(Object.isFrozen(map));
+    Object.values(map).forEach((operations) => assert(Object.isFrozen(operations)));
+  }
+  const staging = new Set(Object.values(scopeSource).flat());
+  assert.deepEqual(Object.values(competitionSource.features).flat().filter((n) => staging.has(n)), []);
+  assert.equal(Object.values(competitionSource.features).flat().length, 74);
+  assert.deepEqual(Object.values(competitionSource.public).flat(), ['get_public_tournament_page']);
+  const contract = JSON.parse(read('backend/torneos/competition-v1/contract.json'));
+  const fromContract = Object.values(contract.features).flatMap((f) => Object.keys(f.rpcs).filter((n) => f.rpcs[n].route === 'authenticated'));
+  assert.deepEqual(fromContract.sort(), Object.values(competitionSource.features).flat().sort());
 });
 
 test('without a transport every permitted service method is disconnected, even with enable/core arguments', async () => {
@@ -67,20 +86,33 @@ test('all legacy out-of-scope RPCs and arbitrary names fail closed before the tr
   const calls = [];
   const transport = { rpc: async (name) => { calls.push(name); return null; }, select: async (table) => { calls.push(table); return []; } };
   const client = rt.load(prefix + 'torneosClient.js').createTorneosClient({ transport });
-  const allowed = new Set(Object.values(scopeSource).flat());
+  const allowed = new Set([...Object.values(scopeSource).flat(), ...Object.values(competitionSource.features).flat()]);
   const blocked = new Set(legacy.calls.filter(c => c.kind === 'rpc').flatMap(c => c.targets).filter(n => !allowed.has(n)));
-  assert.equal(blocked.size, 126);
+  // 126 outside staging v1; COMPETITION-V1 routes 74 of them — 52 legacy names stay out, including the public-page
+  // RPC on the authenticated client (it has its own anonymous client) and the service-only fixture/match actions.
+  assert.equal(blocked.size, 52);
+  for (const name of ['get_public_tournament_page', 'archive_tournament_fixture', 'postpone_tournament_match', 'lock_tournament_roster', 'create_tournament_points_adjustment']) assert.ok(blocked.has(name), name);
   for (const name of [...blocked, 'get_core_profile', '__proto__', 'constructor', '../rpc/foo', '', null, {}]) {
     await assert.rejects(client.execute(name), {code:'TORNEOS_OUTSIDE_STAGING_V1'});
   }
-  for (const table of ['tournament_venues', 'tournament_courts', 'sso_probe', 'usuarios', '__proto__']) {
+  for (const table of ['tournament_matches', 'tournament_match_scores', 'sso_probe', 'usuarios', '__proto__']) {
     await assert.rejects(client.select(table), {code:'TORNEOS_OUTSIDE_STAGING_V1'});
   }
   assert.deepEqual(calls, []);
   for (const key of ['auth', 'storage', 'from', 'rpc', 'channel', 'functions']) assert.equal(client[key], undefined);
   await client.execute('get_tournament_workspace_context', {});
+  await client.execute('make_tournament_match_official', {});
   await client.select('tournament_organization_members', {});
-  assert.deepEqual(calls, ['get_tournament_workspace_context', 'tournament_organization_members']);
+  await client.select('tournament_venues', {});
+  assert.deepEqual(calls, ['get_tournament_workspace_context', 'make_tournament_match_official', 'tournament_organization_members', 'tournament_venues']);
+  // The anonymous public client permits exactly the public scope.
+  const publicCalls = [];
+  const publicClient = rt.load(prefix + 'torneosClient.js').createTorneosPublicClient({ transport: { publicRpc: async (name) => { publicCalls.push(name); return null; } } });
+  for (const name of ['get_tournament_workspace_context', 'get_published_tournament_matches', 'make_tournament_match_official', '', null]) {
+    await assert.rejects(publicClient.execute(name), {code:'TORNEOS_OUTSIDE_STAGING_V1'});
+  }
+  await publicClient.execute('get_public_tournament_page', { p_public_slug: 'x' });
+  assert.deepEqual(publicCalls, ['get_public_tournament_page']);
   assert.equal(rt.networkCalls(), 0);
 });
 
@@ -137,6 +169,9 @@ test('the only backend access B04 adds is the gateway transport (fetch) and the 
     { file: 'src/features/torneos/foundation/torneosTransport.js', kind: 'transport', callee: 'window.fetch' },
     { file: 'src/features/torneos/foundation/torneosTransport.js', kind: 'transport', callee: 'fetchImpl' },
     { file: 'src/features/torneos/foundation/torneosTransport.js', kind: 'transport', callee: 'fetchImpl' },
+    // COMPETITION-V1: the anonymous public read-only route of the gateway (no credential).
+    { file: 'src/features/torneos/foundation/torneosTransport.js', kind: 'transport', callee: 'window.fetch' },
+    { file: 'src/features/torneos/foundation/torneosTransport.js', kind: 'transport', callee: 'fetchImpl' },
     { file: 'src/features/torneos/stagingV1/coreSessionBridge.js', kind: 'auth', callee: 'client.auth.getSession' },
     { file: 'src/features/torneos/stagingV1/coreSessionBridge.js', kind: 'auth', callee: 'client.auth.onAuthStateChange' },
   ]);
@@ -149,7 +184,14 @@ test('the only backend access B04 adds is the gateway transport (fetch) and the 
     'src/features/torneos/TorneosFeatureGate.jsx -> ./stagingV1/StagingV1TorneosApp',
     'src/features/torneos/api/legacyCommerceAdapter.js -> ./tournamentWorkspaceService',
     'src/features/torneos/components/PlanExperiencePage.jsx -> ../context/TorneosCommerceContext',
+    // COMPETITION-V1: the public-page route composes the page; the legacy public service (the page's old
+    // default) is handed only to the LOCAL single-project composition — hybrid/closed never call it.
+    'src/features/torneos/components/PublicTournamentRoute.jsx -> ./PublicTournamentPage',
+    'src/features/torneos/components/PublicTournamentRoute.jsx -> ../api/publicTournamentService',
     'src/features/torneos/components/PurchaseStatusPage.jsx -> ../context/TorneosCommerceContext',
+    // COMPETITION-V1: the wizard hands its settings panels the MOUNTED composition's service (their own
+    // default is the legacy Core service, which a hybrid wizard must never reach).
+    'src/features/torneos/components/TournamentWizardPage.jsx -> ../context/TorneosWorkspaceContext',
     'src/features/torneos/context/TorneosCommerceContext.jsx -> ../api/legacyCommerceAdapter',
     'src/features/torneos/stagingV1/StagingV1TorneosApp.jsx -> ../context/TorneosWorkspaceContext',
     'src/features/torneos/stagingV1/StagingV1TorneosApp.jsx -> ../context/TorneosCommerceContext',
@@ -242,6 +284,7 @@ test('foundation is consumed only by the staging-v1 composition and the feature 
     'src/features/torneos/TorneosFeatureGate.jsx',
     'src/features/torneos/stagingV1/StagingV1TorneosApp.jsx',
     'src/features/torneos/stagingV1/coreSessionBridge.js',
+    'src/features/torneos/stagingV1/publicTournamentComposition.js',
     'src/features/torneos/stagingV1/stagingV1WorkspaceService.js',
   ]);
   const rt = runtime({ modules: { uuid: uuidStub } });
@@ -263,12 +306,18 @@ test('the audited fixture is exactly the audit of the working tree (regenerate w
   assert.deepEqual(audit(currentSources()), snapshot);
 });
 
-test('T13 — the feature map is data: its ON keys are the Phase 2D scope keys, every shell route and nav entry is classified', () => {
+test('T13 — the feature map is data: its ON keys are the Phase 2D + COMPETITION-V1 scope keys, every shell route and nav entry is classified', () => {
   const rt = runtime();
-  const { stagingV1Features, legacyFeatures, stagingV1OnFeatures } = rt.load('src/features/torneos/stagingV1/stagingV1Features.js');
+  const { stagingV1Features, legacyFeatures, stagingV1OnFeatures, competitionV1OnFeatures } = rt.load('src/features/torneos/stagingV1/stagingV1Features.js');
   same(stagingV1OnFeatures, Object.keys(scopeSource));
-  for (const key of stagingV1OnFeatures) assert.equal(stagingV1Features[key], true, key);
-  for (const [key, value] of Object.entries(stagingV1Features)) if (!stagingV1OnFeatures.includes(key)) assert.equal(value, false, key);
+  same(competitionV1OnFeatures, Object.keys(competitionSource.features));
+  const on = [...stagingV1OnFeatures, ...competitionV1OnFeatures];
+  for (const key of on) assert.equal(stagingV1Features[key], true, key);
+  for (const [key, value] of Object.entries(stagingV1Features)) if (!on.includes(key)) assert.equal(value, false, key);
+  // Never on in hybrid without its own certification: media, social studio, billing, branding uploads.
+  for (const key of ['media', 'social_studio', 'billing', 'plan', 'entitlements', 'branding_assets', 'player_portraits', 'team_photos', 'team_visual_policy', 'roster_lock']) {
+    assert.equal(stagingV1Features[key], false, key);
+  }
   assert.ok(Object.values(legacyFeatures).every((v) => v === true));
   same(Object.keys(legacyFeatures), Object.keys(stagingV1Features));
   const shell = read('src/features/torneos/components/TorneosShell.jsx');
@@ -288,7 +337,8 @@ test('T13 — the feature map is data: its ON keys are the Phase 2D scope keys, 
     assert.ok(onPages.has(component), `route element <${component}> is neither an ON surface nor gated`);
   }
   for (const match of shell.matchAll(/element=\{gate\('([a-z_]+)',\s*<([A-Za-z]+)/g)) {
-    assert.equal(stagingV1Features[match[1]], false, `gate('${match[1]}') on <${match[2]}> must gate an OFF surface`);
+    assert.ok(stagingV1Features[match[1]] === false || competitionV1OnFeatures.includes(match[1]),
+      `gate('${match[1]}') on <${match[2]}> must gate an OFF surface or a COMPETITION-V1 surface`);
   }
 });
 

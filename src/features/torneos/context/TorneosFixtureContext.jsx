@@ -260,9 +260,16 @@ export function TorneosFixtureProvider({
     ),
   }), [mutate, refreshCompetition, scoped, service]);
 
+  // Actions the mounted service may not offer (the hybrid adapter has no archiveFixture:
+  // archive_tournament_fixture is service-only), so the page can hide them.
+  const supports = useMemo(() => ({
+    archiveDraft: typeof service?.archiveFixture === 'function',
+  }), [service]);
+
   const value = useMemo(() => ({
     ...state,
     ...state.data,
+    supports,
     categories,
     categoryId,
     queryCategoryId,
@@ -270,7 +277,7 @@ export function TorneosFixtureProvider({
     setCategoryId: selectCategory,
     refresh,
     actions,
-  }), [actions, categories, categoryId, queryCategoryId, refresh, selectCategory, state]);
+  }), [actions, categories, categoryId, queryCategoryId, refresh, selectCategory, state, supports]);
 
   return (
     <TorneosFixtureContext.Provider value={value}>

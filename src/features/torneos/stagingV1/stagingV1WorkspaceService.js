@@ -7,6 +7,14 @@
 // here goes through `client.execute` / `client.select`; nothing imports the Core
 // singleton, the legacy service or storage.
 //
+// COMPETITION-V1: the competition aliases (fixture, scheduling, venues, squads, match reports,
+// standings, lifecycle, withdrawal, participant hub, communications, notification preferences,
+// public page settings) — the same RPC name and p_* payload as the legacy service, alias by alias
+// (scripts/torneos-frontend/competition-adapter.test.mjs). Deliberately absent, so the pages hide
+// them: archiveFixture and changeMatchPlan (service-only RPCs since the baseline), lockRoster,
+// manual availability, points adjustments, disciplinary overrides and every media / branding /
+// social / portrait / team-photo / visual-policy alias.
+//
 // MP-A5: with `commerce: true` (billing TEST overlay only) it also serves the commerce
 // scope — loadSeasonEntitlements, loadPurchase, createCheckout — through the same client.
 // Without it those aliases do not exist, so nothing ever asks for them.
@@ -21,6 +29,7 @@ import {
   toWorkspaceError,
 } from '../api/tournamentWorkspaceErrors';
 import { TOURNAMENT_STATUS_TRANSITIONS } from '../domain/competitionLifecycle';
+import { normalizeMatchOutcome } from '../domain/matchOutcome';
 
 // Copy for failures that happen before or around the RPC (transport, session,
 // gateway). The RPC's own functional codes keep the legacy ERROR_MESSAGES copy.
@@ -601,9 +610,508 @@ export function createStagingV1WorkspaceService({
       'No pudimos completar la revisión.',
     ),
 
+    ...competitionAliases(call, client),
+
     // ── pure helpers ───────────────────────────────────────────────────────
     createIdempotencyKey: () => uuidv4(),
   });
+}
+
+// ── COMPETITION-V1 ───────────────────────────────────────────────────────────
+const projectionScope = (input) => ({
+  p_organization_id: input.organizationId,
+  p_tournament_id: input.tournamentId,
+  p_category_id: input.categoryId,
+  p_phase_id: input.phaseId,
+  p_group_id: input.groupId || null,
+});
+
+function competitionAliases(call, client) {
+  const selectTable = async (table, query, fallbackMessage) => {
+    try {
+      return await client.select(table, query);
+    } catch (error) {
+      throw translateBoundaryError(error, fallbackMessage);
+    }
+  };
+  return {
+    // ── fixture / draw / versions ──────────────────────────────────────────
+    loadFixtureContext: (organizationId, tournamentId, categoryId) => call('get_tournament_fixture_context', {
+      p_organization_id: organizationId, p_tournament_id: tournamentId, p_category_id: categoryId,
+    }, 'No pudimos cargar el fixture.'),
+    loadScheduleContext: (organizationId, tournamentId, categoryId) => call('get_tournament_schedule_context', {
+      p_organization_id: organizationId, p_tournament_id: tournamentId, p_category_id: categoryId,
+    }, 'No pudimos cargar la programación.'),
+    freezeParticipants: (input) => call('freeze_tournament_participants', {
+      p_organization_id: input.organizationId,
+      p_tournament_id: input.tournamentId,
+      p_category_id: input.categoryId,
+      p_idempotency_key: input.idempotencyKey,
+    }, 'No pudimos cerrar los participantes.'),
+    reopenParticipants: (input) => call('reopen_tournament_participants', {
+      p_organization_id: input.organizationId,
+      p_tournament_id: input.tournamentId,
+      p_category_id: input.categoryId,
+      p_reason: input.reason,
+    }, 'No pudimos reabrir los participantes.'),
+    saveDrawPots: (input) => call('save_tournament_draw_pots', {
+      p_organization_id: input.organizationId,
+      p_tournament_id: input.tournamentId,
+      p_category_id: input.categoryId,
+      p_pots: input.pots,
+    }, 'No pudimos guardar los bombos.'),
+    executeGroupDraw: (input) => call('execute_tournament_group_draw', {
+      p_organization_id: input.organizationId,
+      p_tournament_id: input.tournamentId,
+      p_category_id: input.categoryId,
+      p_group_count: input.groupCount,
+      p_seed: input.seed,
+      p_publish: Boolean(input.publish),
+    }, 'No pudimos ejecutar el sorteo.'),
+    generateFixture: (input) => call('generate_tournament_fixture', {
+      p_organization_id: input.organizationId,
+      p_tournament_id: input.tournamentId,
+      p_category_id: input.categoryId,
+      p_seed: input.seed || null,
+      p_configuration: input.configuration || {},
+      p_idempotency_key: input.idempotencyKey,
+    }, 'No pudimos generar el fixture.'),
+    createManualFixture: (input) => call('create_manual_fixture_version', {
+      p_organization_id: input.organizationId,
+      p_tournament_id: input.tournamentId,
+      p_category_id: input.categoryId,
+      p_source_fixture_version_id: input.sourceFixtureVersionId || null,
+      p_idempotency_key: input.idempotencyKey,
+    }, 'No pudimos crear la versión manual.'),
+    updateDraftFixture: (input) => call('update_draft_fixture', {
+      p_organization_id: input.organizationId,
+      p_fixture_version_id: input.fixtureVersionId,
+      p_action: input.action,
+      p_payload: input.payload || {},
+    }, 'No pudimos editar el fixture.'),
+    validateFixture: (input) => call('validate_tournament_fixture', {
+      p_organization_id: input.organizationId,
+      p_fixture_version_id: input.fixtureVersionId,
+    }, 'No pudimos validar el fixture.'),
+    publishFixture: (input) => call('publish_tournament_fixture', {
+      p_organization_id: input.organizationId,
+      p_fixture_version_id: input.fixtureVersionId,
+    }, 'No pudimos publicar el fixture.'),
+    appendPlayoffPhase: (input) => call('append_tournament_playoff_phase', {
+      p_organization_id: input.organizationId,
+      p_tournament_id: input.tournamentId,
+      p_category_id: input.categoryId,
+      p_source_phase_id: input.sourcePhaseId,
+      p_qualifier_count: input.qualifierCount,
+      p_double_leg: Boolean(input.doubleLeg),
+      p_idempotency_key: input.idempotencyKey,
+    }, 'No pudimos agregar los Playoffs.'),
+    supersedeFixture: (input) => call('supersede_tournament_fixture', {
+      p_organization_id: input.organizationId,
+      p_fixture_version_id: input.fixtureVersionId,
+      p_idempotency_key: input.idempotencyKey,
+    }, 'No pudimos preparar una nueva versión.'),
+
+    // ── venues / courts / scheduling ───────────────────────────────────────
+    // Organization resources without a read RPC: the two certified table routes (RLS
+    // venues.read / courts.read), mapped exactly like the legacy service.
+    loadOrganizationVenues: async (organizationId) => {
+      if (!UUID.test(String(organizationId))) throw invalidRequest();
+      const [venues, courts] = await Promise.all([
+        selectTable('tournament_venues', {
+          select: stagingV1Tables.tournament_venues.columns.join(','),
+          organization_id: `eq.${organizationId}`,
+          order: 'status.asc,name.asc',
+        }, 'No pudimos cargar las sedes.'),
+        selectTable('tournament_courts', {
+          select: stagingV1Tables.tournament_courts.columns.join(','),
+          organization_id: `eq.${organizationId}`,
+          order: 'status.asc,name.asc',
+        }, 'No pudimos cargar las canchas.'),
+      ]);
+      return {
+        venues: venues.map((venue) => ({
+          id: venue.id,
+          name: venue.name,
+          address: venue.address,
+          placeId: venue.place_id,
+          latitude: venue.latitude,
+          longitude: venue.longitude,
+          locality: venue.locality,
+          timezone: venue.timezone,
+          status: venue.status,
+          notes: venue.notes,
+        })),
+        courts: courts.map((court) => ({
+          id: court.id,
+          venueId: court.venue_id,
+          name: court.name,
+          sportModality: court.sport_modality,
+          status: court.status,
+          notes: court.notes,
+        })),
+      };
+    },
+    createVenue: (input) => call('create_tournament_venue', {
+      p_organization_id: input.organizationId,
+      p_name: input.name,
+      p_address: input.address,
+      p_place_id: input.placeId || null,
+      p_latitude: input.latitude ?? null,
+      p_longitude: input.longitude ?? null,
+      p_locality: input.locality || null,
+      p_timezone: input.timezone || 'America/Argentina/Buenos_Aires',
+      p_notes: input.notes || null,
+    }, 'No pudimos crear la sede.'),
+    createCourt: (input) => call('create_tournament_court', {
+      p_organization_id: input.organizationId,
+      p_venue_id: input.venueId,
+      p_name: input.name,
+      p_sport_modality: input.sportModality,
+      p_notes: input.notes || null,
+    }, 'No pudimos crear la cancha.'),
+    saveScheduleWindows: (input) => call('save_tournament_schedule_windows', {
+      p_organization_id: input.organizationId,
+      p_tournament_id: input.tournamentId,
+      p_windows: input.windows,
+    }, 'No pudimos guardar las ventanas.'),
+    validateMatchSchedule: (input) => call('validate_tournament_match_schedule', {
+      p_organization_id: input.organizationId,
+      p_match_id: input.matchId,
+      p_scheduled_at: input.scheduledAt,
+      p_venue_id: input.venueId,
+      p_court_id: input.courtId,
+      p_duration_minutes: input.durationMinutes,
+    }, 'No pudimos validar la programación.'),
+    scheduleMatch: (input) => call('schedule_tournament_match', {
+      p_organization_id: input.organizationId,
+      p_match_id: input.matchId,
+      p_scheduled_at: input.scheduledAt,
+      p_venue_id: input.venueId,
+      p_court_id: input.courtId,
+      p_duration_minutes: input.durationMinutes,
+      p_override_warnings: Boolean(input.overrideWarnings),
+      p_override_reason: input.overrideReason || null,
+    }, 'No pudimos programar el partido.'),
+    rescheduleMatch: (input) => call('reschedule_tournament_match', {
+      p_organization_id: input.organizationId,
+      p_match_id: input.matchId,
+      p_scheduled_at: input.scheduledAt,
+      p_venue_id: input.venueId,
+      p_court_id: input.courtId,
+      p_duration_minutes: input.durationMinutes,
+      p_reason: input.reason,
+      p_override_warnings: Boolean(input.overrideWarnings),
+    }, 'No pudimos reprogramar el partido.'),
+    autoScheduleMatches: (input) => call('auto_schedule_tournament_matches', {
+      p_organization_id: input.organizationId,
+      p_fixture_version_id: input.fixtureVersionId,
+    }, 'No pudimos completar la programación automática.'),
+
+    // ── my matches / availability / squads ─────────────────────────────────
+    // Same merge as the legacy service: each row keeps which relation it comes from.
+    loadPlayerMatches: async () => {
+      const [playerRows, managedRows] = await Promise.all([
+        call('get_player_tournament_matches', {}, 'No pudimos cargar tus partidos del torneo.'),
+        call('get_managed_tournament_matches', {}, 'No pudimos cargar tus partidos del torneo.'),
+      ]);
+      const byScope = new Map();
+      const merge = (rows, relation) => (rows || []).forEach((match) => {
+        const key = `${match.matchId}:${match.teamEntryId}`;
+        byScope.set(key, { ...(byScope.get(key) || {}), ...match, ...relation });
+      });
+      merge(playerRows, { isRosteredPlayer: true });
+      merge(managedRows, { isTeamManager: true });
+      return [...byScope.values()].map((match) => ({
+        isRosteredPlayer: false,
+        isTeamManager: false,
+        ...match,
+      }));
+    },
+    respondMatchAvailability: (input) => call('respond_match_availability', {
+      p_match_id: input.matchId,
+      p_response: input.response,
+      p_comment: input.comment || null,
+    }, 'No pudimos guardar tu disponibilidad.'),
+    loadMatchSquad: (input) => call('get_match_squad_context', {
+      p_organization_id: input.organizationId,
+      p_match_id: input.matchId,
+      p_team_entry_id: input.teamEntryId,
+    }, 'No pudimos cargar la convocatoria.'),
+    loadMyManagedMatchSquad: (matchId) => call('get_my_managed_match_squad_context', {
+      p_match_id: matchId,
+    }, 'No pudimos cargar tu convocatoria.'),
+    saveMatchSquad: (input) => call('save_match_squad', {
+      p_organization_id: input.organizationId,
+      p_match_id: input.matchId,
+      p_team_entry_id: input.teamEntryId,
+      p_players: input.players,
+    }, 'No pudimos guardar la convocatoria.'),
+    submitMatchSquad: (input) => call('submit_match_squad', {
+      p_organization_id: input.organizationId,
+      p_match_id: input.matchId,
+      p_team_entry_id: input.teamEntryId,
+    }, 'No pudimos presentar la convocatoria.'),
+
+    // ── match reports (actas) ──────────────────────────────────────────────
+    loadMatchOperations: (input) => call('get_tournament_match_operations_context', {
+      p_organization_id: input.organizationId,
+      p_tournament_id: input.tournamentId,
+      p_category_id: input.categoryId || null,
+    }, 'No pudimos cargar los partidos operativos.'),
+    loadMatchOperation: (input) => call('get_tournament_match_operation_context', {
+      p_organization_id: input.organizationId,
+      p_match_operation_id: input.operationId,
+    }, 'No pudimos cargar el acta.'),
+    openMatchOperation: (input) => call('open_tournament_match_operation', {
+      p_organization_id: input.organizationId,
+      p_match_id: input.matchId,
+      p_override_reason: input.overrideReason || null,
+    }, 'No pudimos abrir el acta.'),
+    setMatchOutcome: (input) => call('set_tournament_match_outcome', {
+      p_organization_id: input.organizationId,
+      p_match_operation_id: input.operationId,
+      p_outcome: normalizeMatchOutcome(input.outcome),
+    }, 'No pudimos guardar la resolución deportiva.'),
+    setMatchScore: (input) => call('set_tournament_match_score', {
+      p_organization_id: input.organizationId,
+      p_match_operation_id: input.operationId,
+      p_score: input.score,
+    }, 'No pudimos guardar el resultado.'),
+    addMatchEvent: (input) => call('add_tournament_match_event', {
+      p_organization_id: input.organizationId,
+      p_match_operation_id: input.operationId,
+      p_event: input.event,
+    }, 'No pudimos agregar el evento.'),
+    voidMatchEvent: (input) => call('void_tournament_match_event', {
+      p_organization_id: input.organizationId,
+      p_event_id: input.eventId,
+      p_reason: input.reason,
+    }, 'No pudimos anular el evento.'),
+    submitMatchOperation: (input) => call('submit_tournament_match_operation', {
+      p_organization_id: input.organizationId,
+      p_match_operation_id: input.operationId,
+    }, 'No pudimos presentar el acta.'),
+    reviewMatchOperation: (input) => call('review_tournament_match_operation', {
+      p_organization_id: input.organizationId,
+      p_match_operation_id: input.operationId,
+      p_decision: input.decision,
+      p_reason: input.reason,
+    }, 'No pudimos revisar el acta.'),
+    validateMatchOperation: (input) => call('validate_tournament_match_operation', {
+      p_organization_id: input.organizationId,
+      p_match_operation_id: input.operationId,
+    }, 'No pudimos validar el acta.'),
+    makeMatchOfficial: (input) => call('make_tournament_match_official', {
+      p_organization_id: input.organizationId,
+      p_match_operation_id: input.operationId,
+    }, 'No pudimos oficializar el acta.'),
+    requestMatchCorrection: (input) => call('request_tournament_match_correction', {
+      p_organization_id: input.organizationId,
+      p_match_operation_id: input.operationId,
+      p_reason: input.reason,
+    }, 'No pudimos solicitar la corrección.'),
+    createMatchCorrection: (input) => call('create_tournament_match_correction', {
+      p_organization_id: input.organizationId,
+      p_match_operation_id: input.operationId,
+    }, 'No pudimos crear la nueva versión del acta.'),
+
+    // ── standings / statistics / qualification ─────────────────────────────
+    loadStandings: (input) => call('get_tournament_standings_context', projectionScope(input), 'No pudimos cargar la tabla.'),
+    loadStatistics: (input) => call('get_tournament_statistics_context', projectionScope(input), 'No pudimos cargar las estadísticas.'),
+    rebuildStandings: (input) => call('rebuild_tournament_standings', {
+      ...projectionScope(input),
+      p_reason: input.reason,
+      p_idempotency_key: input.idempotencyKey || uuidv4(),
+    }, 'No pudimos recalcular la competencia.'),
+    publishStandings: (input) => call('publish_tournament_standings_revision', {
+      p_revision_id: input.revisionId,
+      p_reason: input.reason,
+    }, 'No pudimos publicar la tabla.'),
+    resolveQualification: (input) => call('resolve_tournament_qualification', {
+      p_revision_id: input.revisionId,
+      p_reason: input.reason,
+    }, 'No pudimos resolver los clasificados.'),
+
+    // ── lifecycle / withdrawal ─────────────────────────────────────────────
+    startCompetition: ({ organizationId, tournamentId }) => call('start_tournament_competition', {
+      p_organization_id: organizationId, p_tournament_id: tournamentId,
+    }, 'No pudimos iniciar la competencia.'),
+    finishCompetition: ({ organizationId, tournamentId }) => call('finish_tournament_competition', {
+      p_organization_id: organizationId, p_tournament_id: tournamentId,
+    }, 'No pudimos finalizar la competencia.'),
+    reopenCompetition: ({ organizationId, tournamentId, reason }) => call('reopen_tournament_competition', {
+      p_organization_id: organizationId, p_tournament_id: tournamentId, p_reason: reason,
+    }, 'No pudimos reabrir la competencia.'),
+    withdrawCompetitionParticipant: ({
+      organizationId, tournamentId, teamEntryId, reasonCode, reasonText = null,
+    }) => call('withdraw_tournament_competition_participant', {
+      p_organization_id: organizationId,
+      p_tournament_id: tournamentId,
+      p_team_entry_id: teamEntryId,
+      p_reason_code: reasonCode,
+      p_reason_text: reasonText,
+    }, 'No pudimos retirar el equipo.'),
+
+    // ── participant hub ────────────────────────────────────────────────────
+    // The hub payload without the branding composition of the legacy service
+    // (get_tournament_branding_context is outside the contract: branding is OFF).
+    loadParticipantHub: async ({ tournamentId, categoryId = null }) => {
+      const hub = await call('get_tournament_participant_hub', {
+        p_tournament_id: tournamentId, p_category_id: categoryId,
+      }, 'No pudimos cargar el centro del torneo.');
+      return { ...hub, tournament: { ...(hub?.tournament || {}), logoPath: null, organizationLogoPath: null } };
+    },
+    setHubCategory: ({ tournamentId, categoryId }) => call('set_my_tournament_hub_category', {
+      p_tournament_id: tournamentId, p_category_id: categoryId,
+    }, 'No pudimos cambiar de categoría.'),
+    loadPublishedMatches: ({
+      tournamentId, categoryId, view = 'all', teamEntryId = null, limit = 20, offset = 0,
+    }) => call('get_published_tournament_matches', {
+      p_tournament_id: tournamentId,
+      p_category_id: categoryId,
+      p_view: view,
+      p_team_entry_id: teamEntryId,
+      p_limit: limit,
+      p_offset: offset,
+    }, 'No pudimos cargar los partidos publicados.'),
+    loadParticipantMatch: (matchId) => call('get_tournament_participant_match', {
+      p_match_id: matchId,
+    }, 'No pudimos cargar el partido.'),
+    loadPublishedTeams: ({
+      tournamentId, categoryId, limit = 16, offset = 0,
+    }) => call('get_published_tournament_teams', {
+      p_tournament_id: tournamentId, p_category_id: categoryId, p_limit: limit, p_offset: offset,
+    }, 'No pudimos cargar los equipos publicados.'),
+    loadPublishedStandings: ({
+      tournamentId, categoryId, phaseId, groupId = null,
+    }) => call('get_published_tournament_standings', {
+      p_tournament_id: tournamentId, p_category_id: categoryId, p_phase_id: phaseId, p_group_id: groupId,
+    }, 'No pudimos cargar la tabla publicada.'),
+    loadPublishedStatistics: ({
+      tournamentId, categoryId, phaseId, groupId = null,
+    }) => call('get_published_tournament_statistics', {
+      p_tournament_id: tournamentId, p_category_id: categoryId, p_phase_id: phaseId, p_group_id: groupId,
+    }, 'No pudimos cargar las estadísticas publicadas.'),
+
+    // ── communications / notification preferences ──────────────────────────
+    loadCommunicationsInbox: ({
+      tournamentId = null, filter = 'all', limit = 20, offset = 0,
+    } = {}) => call('get_tournament_communications_inbox', {
+      p_tournament_id: tournamentId, p_filter: filter, p_limit: limit, p_offset: offset,
+    }, 'No pudimos cargar las novedades.'),
+    loadAnnouncement: (announcementId) => call('get_tournament_announcement', {
+      p_announcement_id: announcementId,
+    }, 'No pudimos abrir el comunicado.'),
+    markAnnouncementRead: ({ announcementId, confirm = false }) => call('mark_tournament_announcement_read', {
+      p_announcement_id: announcementId, p_confirm: confirm,
+    }, 'No pudimos registrar la lectura.'),
+    loadNotificationPreferences: (tournamentId) => call('get_my_tournament_notification_preferences', {
+      p_tournament_id: tournamentId,
+    }, 'No pudimos cargar tus preferencias.'),
+    updateNotificationPreferences: ({
+      tournamentId, general, matchChanges, callups, discipline, documents, summaries,
+    }) => call('update_my_tournament_notification_preferences', {
+      p_tournament_id: tournamentId,
+      p_general: general,
+      p_match_changes: matchChanges,
+      p_callups: callups,
+      p_discipline: discipline,
+      p_documents: documents,
+      p_summaries: summaries,
+    }, 'No pudimos actualizar tus preferencias.'),
+    loadPublishedDocuments: ({ tournamentId, categoryId = null }) => call('get_published_tournament_documents', {
+      p_tournament_id: tournamentId, p_category_id: categoryId,
+    }, 'No pudimos cargar los documentos oficiales.'),
+    acknowledgeDocument: ({ versionId, confirm = false }) => call('acknowledge_tournament_document', {
+      p_version_id: versionId, p_confirm: confirm,
+    }, 'No pudimos registrar la lectura del documento.'),
+    loadCommunicationsAdminContext: ({ organizationId, tournamentId = null }) => call('get_tournament_communications_admin_context', {
+      p_organization_id: organizationId, p_tournament_id: tournamentId,
+    }, 'No pudimos cargar el centro de comunicaciones.'),
+    createAnnouncementDraft: ({
+      organizationId, tournamentId, categoryId = null, type, title, summary, body,
+      priority = 'normal', acknowledgementMode = 'none', scheduledFor = null,
+      supersedesId = null, correctionReason = null, idempotencyKey,
+    }) => call('create_tournament_announcement_draft', {
+      p_organization_id: organizationId,
+      p_tournament_id: tournamentId,
+      p_category_id: categoryId,
+      p_announcement_type: type,
+      p_title: title,
+      p_summary: summary,
+      p_body: body,
+      p_priority: priority,
+      p_acknowledgement_mode: acknowledgementMode,
+      p_scheduled_for: scheduledFor,
+      p_supersedes_id: supersedesId,
+      p_correction_reason: correctionReason,
+      p_idempotency_key: idempotencyKey,
+    }, 'No pudimos crear el borrador.'),
+    replaceAnnouncementAudience: ({
+      announcementId, type, categoryId = null, teamEntryId = null, matchId = null, specificUserId = null,
+    }) => call('replace_tournament_announcement_audience', {
+      p_announcement_id: announcementId,
+      p_audience_type: type,
+      p_category_id: categoryId,
+      p_team_entry_id: teamEntryId,
+      p_match_id: matchId,
+      p_specific_user_id: specificUserId,
+    }, 'No pudimos reemplazar la audiencia.'),
+    setAnnouncementLink: ({
+      announcementId, type, resourceId = null, externalUrl = null, label, sortOrder = 0,
+    }) => call('set_tournament_announcement_link', {
+      p_announcement_id: announcementId,
+      p_link_type: type,
+      p_resource_id: resourceId,
+      p_external_url: externalUrl,
+      p_label: label,
+      p_sort_order: sortOrder,
+    }, 'No pudimos definir el enlace principal.'),
+    updateAnnouncementDraft: ({
+      announcementId, title, summary, body, priority = 'normal', acknowledgementMode = 'none', scheduledFor = null,
+    }) => call('update_tournament_announcement_draft', {
+      p_announcement_id: announcementId,
+      p_title: title,
+      p_summary: summary,
+      p_body: body,
+      p_priority: priority,
+      p_acknowledgement_mode: acknowledgementMode,
+      p_scheduled_for: scheduledFor,
+    }, 'No pudimos actualizar el borrador.'),
+    previewAnnouncementAudience: (announcementId) => call('preview_tournament_announcement_audience', {
+      p_announcement_id: announcementId,
+    }, 'No pudimos previsualizar la audiencia.'),
+    publishAnnouncement: ({ announcementId, expectedRecipientCount = null }) => call('publish_tournament_announcement', {
+      p_announcement_id: announcementId, p_expected_recipient_count: expectedRecipientCount,
+    }, 'No pudimos publicar el comunicado.'),
+    createDocument: ({
+      organizationId, tournamentId, categoryId = null, type, title, summary, body,
+      acknowledgementMode = 'none', effectiveAt = null, idempotencyKey,
+    }) => call('create_tournament_document', {
+      p_organization_id: organizationId,
+      p_tournament_id: tournamentId,
+      p_category_id: categoryId,
+      p_document_type: type,
+      p_title: title,
+      p_summary: summary,
+      p_body: body,
+      p_acknowledgement_mode: acknowledgementMode,
+      p_effective_at: effectiveAt,
+      p_idempotency_key: idempotencyKey,
+    }, 'No pudimos crear el documento.'),
+    publishDocumentVersion: (versionId) => call('publish_tournament_document_version', {
+      p_version_id: versionId,
+    }, 'No pudimos publicar el documento.'),
+
+    // ── public page settings ───────────────────────────────────────────────
+    loadPublicPageSettings: ({ organizationId, tournamentId }) => call('get_tournament_public_page_settings', {
+      p_organization_id: organizationId, p_tournament_id: tournamentId,
+    }, 'No pudimos cargar el estado de la página pública.'),
+    setPublicPagePublished: ({ organizationId, tournamentId, published }) => call('set_tournament_public_page_published', {
+      p_organization_id: organizationId, p_tournament_id: tournamentId, p_published: Boolean(published),
+    }, 'No pudimos actualizar la página pública.'),
+  };
 }
 
 // The value of TorneosCommerceContext for the hybrid composition: the commerce aliases

@@ -78,7 +78,7 @@ const TemplateHistoryPage = lazy(() => import('./pages/TemplateHistoryPage'));
 const AdminPanelPage = lazy(() => import('./pages/AdminPanelPage'));
 const PartidoInvitacion = lazy(() => import('./pages/PartidoInvitacion'));
 const IsolatedTorneosPage = lazy(() => import('./features/torneos/isolated/IsolatedTorneosPage'));
-const PublicTournamentPage = lazy(() => import('./features/torneos/components/PublicTournamentPage'));
+const PublicTournamentPage = lazy(() => import('./features/torneos/components/PublicTournamentRoute'));
 const QaRoleSwitcherPage = lazy(() => import('./features/qa/QaRoleSwitcherPage'));
 const QaTournamentReviewMapPage = lazy(() => import('./features/qa/QaTournamentReviewMapPage'));
 const SocialStudioBaseGalleryPage = lazy(

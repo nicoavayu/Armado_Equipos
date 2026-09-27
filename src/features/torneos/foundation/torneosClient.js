@@ -1,4 +1,5 @@
 import { isStagingV1Operation } from './stagingV1Scope';
+import { isCompetitionV1Operation, isCompetitionV1PublicOperation } from './competitionV1Scope';
 import { isStagingV1Table } from './stagingV1Tables';
 import { isStagingV1CommerceRead, SEASON_CHECKOUT_PATH } from './stagingV1CommerceScope';
 import { TorneosBoundaryError } from './errors';
@@ -13,8 +14,8 @@ export function normalizeRpcParams(params) {
   return Object.fromEntries(Object.entries(params).map(([key, value]) => [key, value === undefined ? null : value]));
 }
 
-// The client is the scope boundary: an operation outside staging v1 never reaches
-// the transport, and without a transport nothing reaches the network at all. No
+// The client is the scope boundary: an operation outside staging v1 + COMPETITION-V1 never
+// reaches the transport, and without a transport nothing reaches the network at all. No
 // auth object, token, storage, realtime or Core client lives here.
 //
 // `commerce: true` (MP-A5, billing TEST overlay only) widens it by exactly the commerce
@@ -24,6 +25,7 @@ export function createTorneosClient({ transport = null, commerce = false } = {})
   const connected = Boolean(transport) && typeof transport.rpc === 'function';
   const commerceEnabled = commerce === true;
   const permitted = (operation) => isStagingV1Operation(operation)
+    || isCompetitionV1Operation(operation)
     || (commerceEnabled && isStagingV1CommerceRead(operation));
   return Object.freeze({
     status: connected ? 'connected' : 'foundation-disabled',
@@ -55,5 +57,22 @@ export function createTorneosClient({ transport = null, commerce = false } = {})
     },
     clear() { transport?.clear?.(); },
     dispose() { transport?.dispose?.(); },
+  });
+}
+
+// COMPETITION-V1: the anonymous public read-only client (the public tournament page). It carries no
+// session at all and permits exactly the public scope; everything else fails closed before the network.
+export function createTorneosPublicClient({ transport = null } = {}) {
+  const connected = Boolean(transport) && typeof transport.publicRpc === 'function';
+  return Object.freeze({
+    status: connected ? 'connected' : 'foundation-disabled',
+    async execute(operation, params = {}, options = {}) {
+      if (!isCompetitionV1PublicOperation(operation)) throw new TorneosBoundaryError('TORNEOS_OUTSIDE_STAGING_V1');
+      if (!connected) throw new TorneosBoundaryError('TORNEOS_TRANSPORT_NOT_CONNECTED');
+      if (params === null || typeof params !== 'object' || Array.isArray(params)) {
+        throw new TorneosBoundaryError('TORNEOS_INVALID_REQUEST');
+      }
+      return transport.publicRpc(operation, normalizeRpcParams(params), options);
+    },
   });
 }

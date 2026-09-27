@@ -137,7 +137,9 @@ test('MP-B1.1 R3 — unmodified entrypoints on standard Deno 2.x (offline)', asy
       const diags = [...gwc.stderr.matchAll(/(TS\d+) \[ERROR\][\s\S]*?at file:\/\/\/[^\n]*\/functions\/([^\n]+)/g)].map(m => `${m[1]} ${m[2]}`);
       evidence.check = { payments: { exit: pay.status }, gateway: { exit: gwc.status, diagnostics: diags } };
       assert.equal(pay.status, 0, pay.stderr.slice(0, 800));
-      assert.deepEqual(diags, ['TS18046 torneos-gateway/adapter.ts:82:14', 'TS2322 torneos-gateway/db.ts:42:5', 'TS2322 torneos-gateway/index.ts:66:78'], gwc.stderr.slice(0, 1500));
+      // COMPETITION-V1 added 8 lines above the pre-existing index.ts diagnostic (66:78 → 74:78) and its public-route
+      // bound 1 more (the Runtime.publicGate field: 74:78 → 75:78); competition.ts adds none.
+      assert.deepEqual(diags, ['TS18046 torneos-gateway/adapter.ts:82:14', 'TS2322 torneos-gateway/db.ts:42:5', 'TS2322 torneos-gateway/index.ts:75:78'], gwc.stderr.slice(0, 1500));
     });
 
     // ================================================================ torneos-payments

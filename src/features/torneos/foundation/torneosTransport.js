@@ -17,6 +17,10 @@
 // never persisted; a change of Core session discards it; every failure closes
 // (no request goes anywhere but the gateway); one silent re-exchange on 401, never more.
 //
+// COMPETITION-V1 adds the anonymous public read-only route: createTorneosPublicTransport →
+// POST /torneos/public/v1/rpc/<name>, with NO credential of any kind (the gateway refuses one)
+// and no Core session involved. It serves the public tournament page and nothing else.
+//
 // MP-A5 adds ONE commerce route (MP-A4 gateway, commerce TEST only): POST
 // /commerce/v1/season-checkout with the same bearer, headers and failure mapping as the
 // RPC route. It is never retried beyond that single 401 renewal: the caller repeats a
@@ -26,6 +30,7 @@ import { SEASON_CHECKOUT_PATH } from './stagingV1CommerceScope';
 
 export const EXCHANGE_PATH = '/exchange';
 export const REST_PATH = '/torneos/rest/v1';
+export const PUBLIC_RPC_PATH = '/torneos/public/v1/rpc';
 export const DEFAULT_REQUEST_TIMEOUT_MS = 10_000;
 // The gateway gives the checkout up to 4 s (DB) + 8 s (payments) after its own checks.
 export const COMMERCE_REQUEST_TIMEOUT_MS = 20_000;
@@ -296,6 +301,53 @@ export function createTorneosTransport({
       disposed = true;
       clear();
       if (typeof unsubscribe === 'function') unsubscribe();
+    },
+  });
+}
+
+// COMPETITION-V1: the anonymous transport of the public tournament page. No bearer, no Core
+// session, no retries: a refusal or an outage is reported as such and the page shows it.
+export function createTorneosPublicTransport({
+  gatewayUrl,
+  fetchImpl = (...args) => window.fetch(...args),
+  requestTimeoutMs = DEFAULT_REQUEST_TIMEOUT_MS,
+} = {}) {
+  if (typeof gatewayUrl !== 'string' || !/^https?:\/\//.test(gatewayUrl)) {
+    throw new TorneosBoundaryError('TORNEOS_TRANSPORT_NOT_CONNECTED');
+  }
+  const base = gatewayUrl.replace(/\/$/, '');
+  return Object.freeze({
+    async publicRpc(name, params = {}, { signal } = {}) {
+      if (!RPC_NAME.test(String(name))) throw new TorneosBoundaryError('TORNEOS_INVALID_REQUEST');
+      if (params === null || typeof params !== 'object' || Array.isArray(params)) {
+        throw new TorneosBoundaryError('TORNEOS_INVALID_REQUEST');
+      }
+      const { signal: timed, release } = withTimeout(requestTimeoutMs, signal);
+      let response;
+      try {
+        response = await fetchImpl(`${base}${PUBLIC_RPC_PATH}/${name}`, {
+          method: 'POST',
+          headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+          body: JSON.stringify(params),
+          credentials: 'omit',
+          cache: 'no-store',
+          redirect: 'error',
+          signal: timed,
+        });
+      } catch (cause) {
+        if (signal?.aborted) throw cause;
+        throw new TorneosBoundaryError('TORNEOS_UNAVAILABLE', { cause });
+      } finally {
+        release();
+      }
+      const { json } = await readBody(response);
+      const { status } = response;
+      if (status >= 200 && status < 300) return json;
+      const gatewayError = gatewayErrorOf(json);
+      if (status === 403) throw new TorneosBoundaryError('TORNEOS_FORBIDDEN', { status, gatewayError });
+      if (status === 400 || status === 413 || status === 415) throw new TorneosBoundaryError('TORNEOS_INVALID_REQUEST', { status, gatewayError });
+      if (status === 429) throw new TorneosBoundaryError('TORNEOS_RATE_LIMITED', { status, gatewayError });
+      throw new TorneosBoundaryError('TORNEOS_UNAVAILABLE', { status, gatewayError });
     },
   });
 }

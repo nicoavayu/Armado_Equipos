@@ -1,0 +1,59 @@
+{
+  "generated_at": "2026-09-27",
+  "lab": {
+    "project": "arma2-competition-cert",
+    "fresh_volumes": true,
+    "images": "supabase/postgres 17.6.1.143, gotrue v2.194.0, postgrest v14.15, edge-runtime v1.74.2, node 22.22.0",
+    "torneos_migrations_applied": {
+      "0001": "3df4b96eecc7",
+      "0002": "06378f12b576",
+      "0003": "d54b3293da53",
+      "0004": "36e45eddf576"
+    }
+  },
+  "competition_v1": {
+    "node": "37/37 checks (38 incl. parent)",
+    "edge": "37/37 checks (38 incl. parent)",
+    "rpcs_exercised": 88,
+    "negative_matrix_rows": 295,
+    "responses_no_store": "793/793"
+  },
+  "historical_lab_suites": {
+    "branch": {
+      "phase3a_e2e_node": "41/41",
+      "phase3a_e2e_edge": "41/41",
+      "equivalence_node_edge": "8/8",
+      "d1_session_authority": "6/6",
+      "exposure_node": "19/19",
+      "exposure_edge": "19/19",
+      "acl": "14/17 (2 checks fail: 0003 payment objects only — identical to main)"
+    },
+    "main_ff9f9a77_baseline": {
+      "phase3a_e2e_node": "38/41",
+      "equivalence_node_edge": "8/8",
+      "d1_session_authority": "6/6",
+      "exposure_node": "17/19",
+      "acl": "14/17"
+    },
+    "note": "The main baseline was measured on a separate fresh lab built from a detached worktree of ff9f9a77 (destroyed afterwards). Pre-existing failures on main come from 0003 (MP-B1.2) not being reflected in the Phase 2C/2D/3A pins; this branch fixes those pins in test.mjs/exposure.test.mjs and leaves acl.test.mjs's two 0003 checks as they were."
+  },
+  "offline_suites": {
+    "frontend_foundation_transport_adapter_competition_commerce": "64/64",
+    "jest_full": "334 suites / 3234 tests passed (1 intermittent MP-A5.1 failure found and fixed: wizard panels duck-typed)",
+    "jest_torneos_x3": "1205/1205 three consecutive runs",
+    "static_guard_ci": "257/257",
+    "gateway_remote": "8/8",
+    "gateway_port": "6/6",
+    "foundation_infra1": "53/53",
+    "core_prod_contract": "41/41",
+    "gateway_auth": "27/27 + b03 12/12 + topology 5/5",
+    "payments_session": "13/13",
+    "deno_2_1_4_runtime_compat": "8/8",
+    "deno_runtime_hardening": "30/30"
+  },
+  "commits": [
+    "344f3353 backend contract",
+    "61b177a7 frontend hybrid",
+    "f1c883f7 historical tripwires"
+  ]
+}

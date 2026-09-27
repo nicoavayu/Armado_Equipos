@@ -34,6 +34,7 @@ import {
   useSearchParams,
 } from 'react-router-dom';
 import { useTorneosWorkspace } from '../context/TorneosWorkspaceContext';
+import { useTorneosFeatures } from '../context/TorneosFeaturesContext';
 import { canonicalRoutes } from '../routing/canonicalRoutes';
 import styles from './ParticipantHub.module.css';
 import TournamentCommunicationsPanel from './TournamentCommunicationsPanel';
@@ -51,6 +52,9 @@ const SECTIONS = [
   ['disciplina', 'Disciplina', ShieldAlert],
 ];
 const VALID_SECTIONS = new Set(SECTIONS.map(([key]) => key));
+// Sections that belong to another surface of the composition: with that surface off (the
+// hybrid composition has no media) the section disappears and nothing of it is requested.
+const SECTION_FEATURES = { novedades: 'communications', fotos: 'media' };
 const STATUS_LABELS = {
   draft: 'Preparación',
   registration: 'Inscripción',
@@ -559,7 +563,7 @@ function DisciplineSection({ data, myPlayerId }) {
 }
 
 function MatchDetail({
-  match, tournamentId, categoryId, service,
+  match, tournamentId, categoryId, service, mediaEnabled = true,
 }) {
   if (!match) return null;
   const goals = (match.officialEvents || []).filter((event) => (
@@ -615,14 +619,16 @@ function MatchDetail({
           )) : <p className={styles.panelEmpty}>Sin tarjetas oficiales.</p>}
         </section>
       </div>
-      <ParticipantMediaGallery
-        tournamentId={tournamentId}
-        categoryId={categoryId}
-        matchId={match.matchId || match.id}
-        service={service}
-        hideWhenEmpty
-        compact
-      />
+      {mediaEnabled && (
+        <ParticipantMediaGallery
+          tournamentId={tournamentId}
+          categoryId={categoryId}
+          matchId={match.matchId || match.id}
+          service={service}
+          hideWhenEmpty
+          compact
+        />
+      )}
     </div>
   );
 }
@@ -632,6 +638,11 @@ export default function TournamentHubPage({ defaultSection = 'resumen', matchMod
   const [searchParams, setSearchParams] = useSearchParams();
   const requestedCategory = searchParams.get('categoria');
   const { service } = useTorneosWorkspace();
+  const features = useTorneosFeatures();
+  const mediaEnabled = features.media !== false;
+  const sections = SECTIONS.filter(([key]) => !SECTION_FEATURES[key] || features[SECTION_FEATURES[key]] !== false);
+  const hiddenSection = !matchMode && VALID_SECTIONS.has(defaultSection)
+    && !sections.some(([key]) => key === defaultSection);
   const hubRequestRef = useRef(0);
   const resourceRequestRef = useRef(0);
   const categoryRequestRef = useRef(0);
@@ -796,7 +807,7 @@ export default function TournamentHubPage({ defaultSection = 'resumen', matchMod
     }
   };
 
-  if (!matchMode && !VALID_SECTIONS.has(section)) {
+  if (hiddenSection || (!matchMode && !VALID_SECTIONS.has(section))) {
     return <Navigate to={`/torneos/torneo/${tournamentId}?categoria=${requestedCategory || ''}`} replace />;
   }
   if (hubState.status === 'loading') return <HubSkeleton />;
@@ -865,7 +876,7 @@ export default function TournamentHubPage({ defaultSection = 'resumen', matchMod
 
       {!matchMode && (
         <nav className={styles.hubNav} aria-label="Secciones del torneo">
-          {SECTIONS.map(([key, label, Icon]) => (
+          {sections.map(([key, label, Icon]) => (
             <Link
               key={key}
               to={`${key === 'resumen'
@@ -916,13 +927,15 @@ export default function TournamentHubPage({ defaultSection = 'resumen', matchMod
             busyMatchId={busyMatchId}
             onRespond={respond}
           />
-          <ParticipantMediaGallery
-            tournamentId={tournamentId}
-            categoryId={categoryId}
-            service={service}
-            hideWhenEmpty
-            compact
-          />
+          {mediaEnabled && (
+            <ParticipantMediaGallery
+              tournamentId={tournamentId}
+              categoryId={categoryId}
+              service={service}
+              hideWhenEmpty
+              compact
+            />
+          )}
         </>
       )}
       {!matchMode && section === 'novedades' && (
@@ -959,7 +972,7 @@ export default function TournamentHubPage({ defaultSection = 'resumen', matchMod
       {!matchMode && section === 'equipos' && resourceState.status === 'ready' && (
         <TeamsSection payload={resourceState.data} />
       )}
-      {!matchMode && section === 'fotos' && (
+      {!matchMode && section === 'fotos' && mediaEnabled && (
         <ParticipantMediaGallery
           tournamentId={tournamentId}
           categoryId={categoryId}
@@ -975,6 +988,7 @@ export default function TournamentHubPage({ defaultSection = 'resumen', matchMod
           tournamentId={tournamentId}
           categoryId={categoryId}
           service={service}
+          mediaEnabled={mediaEnabled}
         />
       )}
     </div>

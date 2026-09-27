@@ -96,7 +96,8 @@ async function waitServing(user) {
 }
 const RPC = { path: '/torneos/rest/v1/rpc/get_my_tournament_memberships', method: 'POST', body: {} };
 const READ = { path: '/torneos/rest/v1/tournament_organizations?select=slug' };
-const OFF = { path: '/torneos/rest/v1/rpc/publish_tournament_fixture', method: 'POST', body: {} };
+// An RPC still OFF after COMPETITION-V1 (publish_tournament_fixture is re-enabled there).
+const OFF = { path: '/torneos/rest/v1/rpc/lock_tournament_roster', method: 'POST', body: {} };
 const coreDependentDeniedLocally = () => ({ path: '/torneos/rest/v1/rpc/search_tournament_players', method: 'POST', body: { p_organization_id: randomUUID(), p_tournament_id: randomUUID(), p_query: 'an', p_limit: 8 } });
 const refused = (r) => r.status !== 200;
 

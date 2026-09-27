@@ -1,0 +1,1037 @@
+{
+  "phase": "COMPETITION-V1",
+  "purpose": "Full-competition contract of the hybrid composition (Core session → exchange → Torneos gateway → Torneos PostgREST). Single source of truth for the gateway allowlist (torneos-gateway/competition-v1-rpc-allowlist.json), the database delta (migrations/00000000000004_competition_v1_rpc_exposure.sql) and the frontend scope (src/features/torneos/foundation/competitionV1Scope.js); guard tests keep them equal.",
+  "categories": {
+    "ADMIN_OWNER": "Organization staff: the RPC checks a capability of the caller's ACTIVE organization membership (owner/admin; collaborator only for *.read) and, when scope=season, the caller's access to the resource's season (owners always, admins/collaborators only on seasons they are seated on). Communications are the one place where the collaborator role writes: it may draft announcements/documents and preview audiences (announcements.create/update_draft, documents.create/update_draft, audiences.preview), never publish (tournament_communications_role_capabilities).",
+    "PRIVATE_AUTHENTICATED": "Any authenticated identity, authorized by its relation to the resource (rostered player, team manager, announcement recipient, hub participant) or only over its own rows (scope=self).",
+    "PUBLIC_READ_ONLY": "Anonymous, read-only, served ONLY by the gateway public route as the database role anon, no credential accepted.",
+    "SYSTEM_ONLY": "service_role only; never reachable from a client, not in any allowlist."
+  },
+  "transport": {
+    "authenticated": "POST /torneos/rest/v1/rpc/<name>: bridge bearer (RS256, TTL 120 s) verified, live Core session (Core contract), local identity bound; Cache-Control: no-store",
+    "public": "POST /torneos/public/v1/rpc/<name>: no Authorization/apikey accepted, JSON body with exactly the declared arguments (≤ 2 KiB), forwarded as anon; Cache-Control: no-store"
+  },
+  "features": {
+    "fixtures": {
+      "frontend_routes": [
+        "/torneos/organizacion/:org/torneo/:t/fixture{,/participantes,/bombos,/sorteo,/grupos,/generar,/version/:v,/jornadas,/jornadas/:r,/partidos/:m,/llave}",
+        "/torneos/organizacion/:org/torneo/:t/programacion",
+        "/torneos/organizacion/:org/sedes{,/:venueId}"
+      ],
+      "frontend_components": [
+        "FixtureWorkspacePage",
+        "OrganizationVenuesPage",
+        "TorneosFixtureContext"
+      ],
+      "tables": [
+        "tournament_venues (GET, RLS venues.read)",
+        "tournament_courts (GET, RLS courts.read)"
+      ],
+      "rpcs": {
+        "get_tournament_fixture_context": {
+          "route": "authenticated",
+          "category": "ADMIN_OWNER",
+          "scope": "season",
+          "write": false,
+          "authority": "fixture.read (or the entry's team manager)",
+          "db_acl": "authenticated (baseline)",
+          "phase2b": "SCOPED",
+          "frontend_alias": "loadFixtureContext"
+        },
+        "get_tournament_schedule_context": {
+          "route": "authenticated",
+          "category": "ADMIN_OWNER",
+          "scope": "season",
+          "write": false,
+          "authority": "fixture.read",
+          "db_acl": "authenticated (baseline)",
+          "phase2b": "SCOPED",
+          "frontend_alias": "loadScheduleContext"
+        },
+        "freeze_tournament_participants": {
+          "route": "authenticated",
+          "category": "ADMIN_OWNER",
+          "scope": "season",
+          "write": true,
+          "authority": "participants.freeze",
+          "db_acl": "authenticated (baseline)",
+          "phase2b": "SCOPED",
+          "frontend_alias": "freezeParticipants"
+        },
+        "reopen_tournament_participants": {
+          "route": "authenticated",
+          "category": "ADMIN_OWNER",
+          "scope": "season",
+          "write": true,
+          "authority": "participants.reopen",
+          "db_acl": "granted by 0004",
+          "phase2b": "INCONCLUSIVE",
+          "frontend_alias": "reopenParticipants"
+        },
+        "save_tournament_draw_pots": {
+          "route": "authenticated",
+          "category": "ADMIN_OWNER",
+          "scope": "season",
+          "write": true,
+          "authority": "draw.manage",
+          "db_acl": "granted by 0004",
+          "phase2b": "INCONCLUSIVE",
+          "frontend_alias": "saveDrawPots"
+        },
+        "execute_tournament_group_draw": {
+          "route": "authenticated",
+          "category": "ADMIN_OWNER",
+          "scope": "season",
+          "write": true,
+          "authority": "draw.execute / draw.publish",
+          "db_acl": "authenticated (baseline)",
+          "phase2b": "SCOPED",
+          "frontend_alias": "executeGroupDraw"
+        },
+        "generate_tournament_fixture": {
+          "route": "authenticated",
+          "category": "ADMIN_OWNER",
+          "scope": "season",
+          "write": true,
+          "authority": "fixture.generate",
+          "db_acl": "authenticated (baseline)",
+          "phase2b": "SCOPED",
+          "frontend_alias": "generateFixture"
+        },
+        "create_manual_fixture_version": {
+          "route": "authenticated",
+          "category": "ADMIN_OWNER",
+          "scope": "season",
+          "write": true,
+          "authority": "fixture.create_manual",
+          "db_acl": "authenticated (baseline)",
+          "phase2b": "SCOPED",
+          "frontend_alias": "createManualFixture"
+        },
+        "update_draft_fixture": {
+          "route": "authenticated",
+          "category": "ADMIN_OWNER",
+          "scope": "season",
+          "write": true,
+          "authority": "fixture.update_draft | rounds.manage | matches.create (+ season access, COMPETITION-V1 fix)",
+          "db_acl": "granted by 0004",
+          "phase2b": "INCONCLUSIVE",
+          "frontend_alias": "updateDraftFixture"
+        },
+        "validate_tournament_fixture": {
+          "route": "authenticated",
+          "category": "ADMIN_OWNER",
+          "scope": "season",
+          "write": false,
+          "authority": "fixture.read",
+          "db_acl": "authenticated (baseline)",
+          "phase2b": "SCOPED",
+          "frontend_alias": "validateFixture"
+        },
+        "publish_tournament_fixture": {
+          "route": "authenticated",
+          "category": "ADMIN_OWNER",
+          "scope": "season",
+          "write": true,
+          "authority": "fixture.publish (fixture.supersede when replacing)",
+          "db_acl": "granted by 0004",
+          "phase2b": "INCONCLUSIVE",
+          "frontend_alias": "publishFixture"
+        },
+        "append_tournament_playoff_phase": {
+          "route": "authenticated",
+          "category": "ADMIN_OWNER",
+          "scope": "season",
+          "write": true,
+          "authority": "fixture.publish",
+          "db_acl": "authenticated (baseline)",
+          "phase2b": "SCOPED",
+          "frontend_alias": "appendPlayoffPhase"
+        },
+        "supersede_tournament_fixture": {
+          "route": "authenticated",
+          "category": "ADMIN_OWNER",
+          "scope": "season",
+          "write": true,
+          "authority": "fixture.supersede",
+          "db_acl": "granted by 0004",
+          "phase2b": "INCONCLUSIVE",
+          "frontend_alias": "supersedeFixture"
+        },
+        "create_tournament_venue": {
+          "route": "authenticated",
+          "category": "ADMIN_OWNER",
+          "scope": "organization",
+          "write": true,
+          "authority": "venues.create",
+          "db_acl": "authenticated (baseline)",
+          "phase2b": "ORG_SCOPED",
+          "frontend_alias": "createVenue"
+        },
+        "create_tournament_court": {
+          "route": "authenticated",
+          "category": "ADMIN_OWNER",
+          "scope": "organization",
+          "write": true,
+          "authority": "courts.create",
+          "db_acl": "authenticated (baseline)",
+          "phase2b": "ORG_SCOPED",
+          "frontend_alias": "createCourt"
+        },
+        "save_tournament_schedule_windows": {
+          "route": "authenticated",
+          "category": "ADMIN_OWNER",
+          "scope": "season",
+          "write": true,
+          "authority": "schedule_windows.manage",
+          "db_acl": "authenticated (baseline)",
+          "phase2b": "SCOPED",
+          "frontend_alias": "saveScheduleWindows"
+        },
+        "validate_tournament_match_schedule": {
+          "route": "authenticated",
+          "category": "ADMIN_OWNER",
+          "scope": "season",
+          "write": false,
+          "authority": "fixture read scope",
+          "db_acl": "authenticated (baseline)",
+          "phase2b": "SCOPED",
+          "frontend_alias": "validateMatchSchedule"
+        },
+        "schedule_tournament_match": {
+          "route": "authenticated",
+          "category": "ADMIN_OWNER",
+          "scope": "season",
+          "write": true,
+          "authority": "matches.schedule (schedule_conflicts.override to force)",
+          "db_acl": "granted by 0004",
+          "phase2b": "INCONCLUSIVE",
+          "frontend_alias": "scheduleMatch"
+        },
+        "reschedule_tournament_match": {
+          "route": "authenticated",
+          "category": "ADMIN_OWNER",
+          "scope": "season",
+          "write": true,
+          "authority": "matches.reschedule (schedule_conflicts.override to force)",
+          "db_acl": "authenticated (baseline)",
+          "phase2b": "SCOPED",
+          "frontend_alias": "rescheduleMatch"
+        },
+        "auto_schedule_tournament_matches": {
+          "route": "authenticated",
+          "category": "ADMIN_OWNER",
+          "scope": "season",
+          "write": true,
+          "authority": "matches.schedule",
+          "db_acl": "granted by 0004",
+          "phase2b": "SCOPED",
+          "frontend_alias": "autoScheduleMatches"
+        }
+      }
+    },
+    "match_operations": {
+      "frontend_routes": [
+        "/torneos/organizacion/:org/torneo/:t/partidos{,/:m,/:m/convocatorias,/:m/acta,/:m/revision,/:m/historial}",
+        "/torneos/mis-partidos{,/:m,/:m/convocatoria}"
+      ],
+      "frontend_components": [
+        "MatchOperationsPage",
+        "MyTournamentMatchesPage",
+        "CaptainMatchSquadPage"
+      ],
+      "tables": [],
+      "rpcs": {
+        "get_player_tournament_matches": {
+          "route": "authenticated",
+          "category": "PRIVATE_AUTHENTICATED",
+          "scope": "self",
+          "write": false,
+          "authority": "own active roster rows",
+          "db_acl": "authenticated (baseline)",
+          "phase2b": "NOT_SWEPT",
+          "frontend_alias": "loadPlayerMatches"
+        },
+        "get_managed_tournament_matches": {
+          "route": "authenticated",
+          "category": "PRIVATE_AUTHENTICATED",
+          "scope": "self",
+          "write": false,
+          "authority": "own active team-manager rows",
+          "db_acl": "authenticated (baseline)",
+          "phase2b": "NOT_SWEPT",
+          "frontend_alias": "loadPlayerMatches"
+        },
+        "respond_match_availability": {
+          "route": "authenticated",
+          "category": "PRIVATE_AUTHENTICATED",
+          "scope": "resource",
+          "write": true,
+          "authority": "the caller's own roster player in the match",
+          "db_acl": "authenticated (baseline)",
+          "phase2b": "NOT_SWEPT",
+          "frontend_alias": "respondMatchAvailability"
+        },
+        "get_tournament_match_operations_context": {
+          "route": "authenticated",
+          "category": "ADMIN_OWNER",
+          "scope": "season",
+          "write": false,
+          "authority": "match_operations.read",
+          "db_acl": "authenticated (baseline)",
+          "phase2b": "SCOPED",
+          "frontend_alias": "loadMatchOperations"
+        },
+        "get_tournament_match_operation_context": {
+          "route": "authenticated",
+          "category": "ADMIN_OWNER",
+          "scope": "season",
+          "write": false,
+          "authority": "match_operations.read",
+          "db_acl": "authenticated (baseline)",
+          "phase2b": "SCOPED",
+          "frontend_alias": "loadMatchOperation"
+        },
+        "get_match_squad_context": {
+          "route": "authenticated",
+          "category": "PRIVATE_AUTHENTICATED",
+          "scope": "resource",
+          "write": false,
+          "authority": "match_squads.read + season, or the team's active manager",
+          "db_acl": "authenticated (baseline)",
+          "phase2b": "SCOPED",
+          "frontend_alias": "loadMatchSquad",
+          "team_manager": true
+        },
+        "get_my_managed_match_squad_context": {
+          "route": "authenticated",
+          "category": "PRIVATE_AUTHENTICATED",
+          "scope": "self",
+          "write": false,
+          "authority": "own active team-manager row",
+          "db_acl": "authenticated (baseline)",
+          "phase2b": "NOT_SWEPT",
+          "frontend_alias": "loadMyManagedMatchSquad",
+          "team_manager": true
+        },
+        "save_match_squad": {
+          "route": "authenticated",
+          "category": "PRIVATE_AUTHENTICATED",
+          "scope": "resource",
+          "write": true,
+          "authority": "match_squads.manage + season, or the team's active manager",
+          "db_acl": "authenticated (baseline)",
+          "phase2b": "SCOPED",
+          "frontend_alias": "saveMatchSquad",
+          "team_manager": true
+        },
+        "submit_match_squad": {
+          "route": "authenticated",
+          "category": "PRIVATE_AUTHENTICATED",
+          "scope": "resource",
+          "write": true,
+          "authority": "match_squads.manage + season, or the team's active manager",
+          "db_acl": "granted by 0004",
+          "phase2b": "INCONCLUSIVE",
+          "frontend_alias": "submitMatchSquad",
+          "team_manager": true
+        },
+        "open_tournament_match_operation": {
+          "route": "authenticated",
+          "category": "ADMIN_OWNER",
+          "scope": "season",
+          "write": true,
+          "authority": "match_operations.open",
+          "db_acl": "authenticated (baseline)",
+          "phase2b": "SCOPED",
+          "frontend_alias": "openMatchOperation"
+        },
+        "set_tournament_match_outcome": {
+          "route": "authenticated",
+          "category": "ADMIN_OWNER",
+          "scope": "season",
+          "write": true,
+          "authority": "match_outcomes.manage (administrative results: match_administrative_results.manage)",
+          "db_acl": "authenticated (baseline)",
+          "phase2b": "SCOPED",
+          "frontend_alias": "setMatchOutcome"
+        },
+        "set_tournament_match_score": {
+          "route": "authenticated",
+          "category": "ADMIN_OWNER",
+          "scope": "season",
+          "write": true,
+          "authority": "match_scores.manage",
+          "db_acl": "authenticated (baseline)",
+          "phase2b": "SCOPED",
+          "frontend_alias": "setMatchScore"
+        },
+        "add_tournament_match_event": {
+          "route": "authenticated",
+          "category": "ADMIN_OWNER",
+          "scope": "season",
+          "write": true,
+          "authority": "match_events.create",
+          "db_acl": "authenticated (baseline)",
+          "phase2b": "SCOPED",
+          "frontend_alias": "addMatchEvent"
+        },
+        "void_tournament_match_event": {
+          "route": "authenticated",
+          "category": "ADMIN_OWNER",
+          "scope": "season",
+          "write": true,
+          "authority": "match_events.void",
+          "db_acl": "granted by 0004",
+          "phase2b": "INCONCLUSIVE",
+          "frontend_alias": "voidMatchEvent"
+        },
+        "submit_tournament_match_operation": {
+          "route": "authenticated",
+          "category": "ADMIN_OWNER",
+          "scope": "season",
+          "write": true,
+          "authority": "match_operations.submit",
+          "db_acl": "authenticated (baseline)",
+          "phase2b": "SCOPED",
+          "frontend_alias": "submitMatchOperation"
+        },
+        "review_tournament_match_operation": {
+          "route": "authenticated",
+          "category": "ADMIN_OWNER",
+          "scope": "season",
+          "write": true,
+          "authority": "match_operations.review",
+          "db_acl": "granted by 0004",
+          "phase2b": "INCONCLUSIVE",
+          "frontend_alias": "reviewMatchOperation"
+        },
+        "validate_tournament_match_operation": {
+          "route": "authenticated",
+          "category": "ADMIN_OWNER",
+          "scope": "season",
+          "write": true,
+          "authority": "match_operations.validate (dual control: never the submitter)",
+          "db_acl": "granted by 0004",
+          "phase2b": "INCONCLUSIVE",
+          "frontend_alias": "validateMatchOperation"
+        },
+        "make_tournament_match_official": {
+          "route": "authenticated",
+          "category": "ADMIN_OWNER",
+          "scope": "season",
+          "write": true,
+          "authority": "match_operations.make_official",
+          "db_acl": "granted by 0004",
+          "phase2b": "INCONCLUSIVE",
+          "frontend_alias": "makeMatchOfficial"
+        },
+        "request_tournament_match_correction": {
+          "route": "authenticated",
+          "category": "ADMIN_OWNER",
+          "scope": "season",
+          "write": true,
+          "authority": "match_operations.request_correction",
+          "db_acl": "granted by 0004",
+          "phase2b": "INCONCLUSIVE",
+          "frontend_alias": "requestMatchCorrection"
+        },
+        "create_tournament_match_correction": {
+          "route": "authenticated",
+          "category": "ADMIN_OWNER",
+          "scope": "season",
+          "write": true,
+          "authority": "match_operations.correct",
+          "db_acl": "granted by 0004",
+          "phase2b": "INCONCLUSIVE",
+          "frontend_alias": "createMatchCorrection"
+        }
+      }
+    },
+    "standings": {
+      "frontend_routes": [
+        "/torneos/organizacion/:org/torneo/:t/competencia{,/tabla,/estadisticas,/clasificacion,/disciplina}"
+      ],
+      "frontend_components": [
+        "CompetitionCenterPage"
+      ],
+      "tables": [],
+      "rpcs": {
+        "get_tournament_standings_context": {
+          "route": "authenticated",
+          "category": "ADMIN_OWNER",
+          "scope": "season",
+          "write": false,
+          "authority": "standings.read + season (or a manager/player of the tournament)",
+          "db_acl": "authenticated (baseline)",
+          "phase2b": "SCOPED",
+          "frontend_alias": "loadStandings"
+        },
+        "get_tournament_statistics_context": {
+          "route": "authenticated",
+          "category": "ADMIN_OWNER",
+          "scope": "season",
+          "write": false,
+          "authority": "statistics.read + season (or a manager/player of the tournament)",
+          "db_acl": "authenticated (baseline)",
+          "phase2b": "SCOPED",
+          "frontend_alias": "loadStatistics"
+        },
+        "rebuild_tournament_standings": {
+          "route": "authenticated",
+          "category": "ADMIN_OWNER",
+          "scope": "season",
+          "write": true,
+          "authority": "standings.rebuild",
+          "db_acl": "authenticated (baseline)",
+          "phase2b": "SCOPED",
+          "frontend_alias": "rebuildStandings"
+        },
+        "publish_tournament_standings_revision": {
+          "route": "authenticated",
+          "category": "ADMIN_OWNER",
+          "scope": "season",
+          "write": true,
+          "authority": "standings.publish",
+          "db_acl": "authenticated (baseline)",
+          "phase2b": "SCOPED",
+          "frontend_alias": "publishStandings"
+        },
+        "resolve_tournament_qualification": {
+          "route": "authenticated",
+          "category": "ADMIN_OWNER",
+          "scope": "season",
+          "write": true,
+          "authority": "qualification.resolve",
+          "db_acl": "granted by 0004",
+          "phase2b": "INCONCLUSIVE",
+          "frontend_alias": "resolveQualification"
+        }
+      }
+    },
+    "lifecycle_actions": {
+      "frontend_routes": [
+        "/torneos/organizacion/:org/inicio (CompetitionLifecycleActions)"
+      ],
+      "frontend_components": [
+        "CompetitionLifecycleActions",
+        "TorneosCompetitionContext"
+      ],
+      "tables": [],
+      "rpcs": {
+        "start_tournament_competition": {
+          "route": "authenticated",
+          "category": "ADMIN_OWNER",
+          "scope": "season",
+          "write": true,
+          "authority": "tournaments.start",
+          "db_acl": "authenticated (baseline)",
+          "phase2b": "SCOPED",
+          "frontend_alias": "startCompetition"
+        },
+        "finish_tournament_competition": {
+          "route": "authenticated",
+          "category": "ADMIN_OWNER",
+          "scope": "season",
+          "write": true,
+          "authority": "tournaments.finish",
+          "db_acl": "authenticated (baseline)",
+          "phase2b": "SCOPED",
+          "frontend_alias": "finishCompetition"
+        },
+        "reopen_tournament_competition": {
+          "route": "authenticated",
+          "category": "ADMIN_OWNER",
+          "scope": "season",
+          "write": true,
+          "authority": "tournaments.reopen (owner only)",
+          "db_acl": "authenticated (baseline)",
+          "phase2b": "CAPABILITY_DENIED",
+          "frontend_alias": "reopenCompetition"
+        }
+      }
+    },
+    "participant_withdrawal": {
+      "frontend_routes": [
+        "/torneos/organizacion/:org/torneo/:t/equipos (TeamWithdrawalDialog)"
+      ],
+      "frontend_components": [
+        "TeamsPage",
+        "TeamWithdrawalDialog"
+      ],
+      "tables": [],
+      "rpcs": {
+        "withdraw_tournament_competition_participant": {
+          "route": "authenticated",
+          "category": "ADMIN_OWNER",
+          "scope": "season",
+          "write": true,
+          "authority": "participants.withdraw",
+          "db_acl": "authenticated (baseline)",
+          "phase2b": "SCOPED",
+          "frontend_alias": "withdrawCompetitionParticipant"
+        }
+      }
+    },
+    "participant_hub": {
+      "frontend_routes": [
+        "/torneos/torneo/:t{,/partidos,/partidos/:m,/tabla,/estadisticas,/equipos,/disciplina}",
+        "/torneos/mis-torneos (hub links)"
+      ],
+      "frontend_components": [
+        "TournamentHubPage",
+        "MyTournamentsPage"
+      ],
+      "tables": [],
+      "rpcs": {
+        "get_tournament_participant_hub": {
+          "route": "authenticated",
+          "category": "PRIVATE_AUTHENTICATED",
+          "scope": "resource",
+          "write": false,
+          "authority": "season staff, or an active captain/delegate/player of an approved entry",
+          "db_acl": "anon + authenticated (baseline)",
+          "phase2b": "SCOPED",
+          "frontend_alias": "loadParticipantHub"
+        },
+        "set_my_tournament_hub_category": {
+          "route": "authenticated",
+          "category": "PRIVATE_AUTHENTICATED",
+          "scope": "resource",
+          "write": true,
+          "authority": "own preference, hub access required",
+          "db_acl": "authenticated (baseline)",
+          "phase2b": "SCOPED",
+          "frontend_alias": "setHubCategory"
+        },
+        "get_published_tournament_matches": {
+          "route": "authenticated",
+          "category": "PRIVATE_AUTHENTICATED",
+          "scope": "resource",
+          "write": false,
+          "authority": "hub access; published data only",
+          "db_acl": "anon + authenticated (baseline)",
+          "phase2b": "SCOPED",
+          "frontend_alias": "loadPublishedMatches"
+        },
+        "get_tournament_participant_match": {
+          "route": "authenticated",
+          "category": "PRIVATE_AUTHENTICATED",
+          "scope": "resource",
+          "write": false,
+          "authority": "hub access; published data only",
+          "db_acl": "anon + authenticated (baseline)",
+          "phase2b": "SCOPED",
+          "frontend_alias": "loadParticipantMatch"
+        },
+        "get_published_tournament_teams": {
+          "route": "authenticated",
+          "category": "PRIVATE_AUTHENTICATED",
+          "scope": "resource",
+          "write": false,
+          "authority": "hub access; published data only",
+          "db_acl": "anon + authenticated (baseline)",
+          "phase2b": "SCOPED",
+          "frontend_alias": "loadPublishedTeams"
+        },
+        "get_published_tournament_standings": {
+          "route": "authenticated",
+          "category": "PRIVATE_AUTHENTICATED",
+          "scope": "resource",
+          "write": false,
+          "authority": "hub access; published revision only",
+          "db_acl": "anon + authenticated (baseline)",
+          "phase2b": "SCOPED",
+          "frontend_alias": "loadPublishedStandings"
+        },
+        "get_published_tournament_statistics": {
+          "route": "authenticated",
+          "category": "PRIVATE_AUTHENTICATED",
+          "scope": "resource",
+          "write": false,
+          "authority": "hub access; published revision only",
+          "db_acl": "anon + authenticated (baseline)",
+          "phase2b": "SCOPED",
+          "frontend_alias": "loadPublishedStatistics"
+        }
+      }
+    },
+    "communications": {
+      "frontend_routes": [
+        "/torneos/organizacion/:org/comunicaciones",
+        "/torneos/comunicados",
+        "/torneos/torneo/:t/novedades"
+      ],
+      "frontend_components": [
+        "CommunicationsAdminPage",
+        "MyCommunicationsPage",
+        "TournamentCommunicationsPanel"
+      ],
+      "tables": [],
+      "rpcs": {
+        "get_tournament_communications_inbox": {
+          "route": "authenticated",
+          "category": "PRIVATE_AUTHENTICATED",
+          "scope": "self",
+          "write": false,
+          "authority": "own recipient rows",
+          "db_acl": "authenticated (baseline)",
+          "phase2b": "NOT_SWEPT",
+          "frontend_alias": "loadCommunicationsInbox"
+        },
+        "get_tournament_announcement": {
+          "route": "authenticated",
+          "category": "PRIVATE_AUTHENTICATED",
+          "scope": "resource",
+          "write": false,
+          "authority": "recipient of the announcement, or announcements.read staff",
+          "db_acl": "anon + authenticated (baseline)",
+          "phase2b": "SCOPED",
+          "frontend_alias": "loadAnnouncement"
+        },
+        "mark_tournament_announcement_read": {
+          "route": "authenticated",
+          "category": "PRIVATE_AUTHENTICATED",
+          "scope": "resource",
+          "write": true,
+          "authority": "recipient of the announcement",
+          "db_acl": "authenticated (baseline)",
+          "phase2b": "NOT_SWEPT",
+          "frontend_alias": "markAnnouncementRead"
+        },
+        "get_published_tournament_documents": {
+          "route": "authenticated",
+          "category": "PRIVATE_AUTHENTICATED",
+          "scope": "resource",
+          "write": false,
+          "authority": "tournament communications access",
+          "db_acl": "anon + authenticated (baseline)",
+          "phase2b": "SCOPED",
+          "frontend_alias": "loadPublishedDocuments"
+        },
+        "acknowledge_tournament_document": {
+          "route": "authenticated",
+          "category": "PRIVATE_AUTHENTICATED",
+          "scope": "resource",
+          "write": true,
+          "authority": "tournament communications access",
+          "db_acl": "authenticated (baseline)",
+          "phase2b": "NOT_SWEPT",
+          "frontend_alias": "acknowledgeDocument"
+        },
+        "get_tournament_communications_admin_context": {
+          "route": "authenticated",
+          "category": "ADMIN_OWNER",
+          "scope": "season",
+          "write": false,
+          "authority": "announcements.read",
+          "db_acl": "authenticated (baseline)",
+          "phase2b": "SCOPED",
+          "frontend_alias": "loadCommunicationsAdminContext",
+          "collaborator_allowed": true
+        },
+        "create_tournament_announcement_draft": {
+          "route": "authenticated",
+          "category": "ADMIN_OWNER",
+          "scope": "season",
+          "write": true,
+          "authority": "announcements.create",
+          "db_acl": "authenticated (baseline)",
+          "phase2b": "SCOPED",
+          "frontend_alias": "createAnnouncementDraft",
+          "collaborator_allowed": true
+        },
+        "update_tournament_announcement_draft": {
+          "route": "authenticated",
+          "category": "ADMIN_OWNER",
+          "scope": "season",
+          "write": true,
+          "authority": "announcements.update_draft",
+          "db_acl": "authenticated (baseline)",
+          "phase2b": "SCOPED",
+          "frontend_alias": "updateAnnouncementDraft",
+          "collaborator_allowed": true
+        },
+        "replace_tournament_announcement_audience": {
+          "route": "authenticated",
+          "category": "ADMIN_OWNER",
+          "scope": "season",
+          "write": true,
+          "authority": "announcements.update_draft (via set_tournament_announcement_audience)",
+          "db_acl": "authenticated (baseline)",
+          "phase2b": "SCOPED",
+          "frontend_alias": "replaceAnnouncementAudience",
+          "collaborator_allowed": true
+        },
+        "set_tournament_announcement_link": {
+          "route": "authenticated",
+          "category": "ADMIN_OWNER",
+          "scope": "season",
+          "write": true,
+          "authority": "announcements.update_draft",
+          "db_acl": "authenticated (baseline)",
+          "phase2b": "SCOPED",
+          "frontend_alias": "setAnnouncementLink",
+          "collaborator_allowed": true
+        },
+        "preview_tournament_announcement_audience": {
+          "route": "authenticated",
+          "category": "ADMIN_OWNER",
+          "scope": "season",
+          "write": false,
+          "authority": "audiences.preview",
+          "db_acl": "authenticated (baseline)",
+          "phase2b": "SCOPED",
+          "frontend_alias": "previewAnnouncementAudience",
+          "collaborator_allowed": true
+        },
+        "publish_tournament_announcement": {
+          "route": "authenticated",
+          "category": "ADMIN_OWNER",
+          "scope": "season",
+          "write": true,
+          "authority": "announcements.publish",
+          "db_acl": "authenticated (baseline)",
+          "phase2b": "SCOPED",
+          "frontend_alias": "publishAnnouncement"
+        },
+        "create_tournament_document": {
+          "route": "authenticated",
+          "category": "ADMIN_OWNER",
+          "scope": "season",
+          "write": true,
+          "authority": "documents.create",
+          "db_acl": "authenticated (baseline)",
+          "phase2b": "SCOPED",
+          "frontend_alias": "createDocument",
+          "collaborator_allowed": true
+        },
+        "publish_tournament_document_version": {
+          "route": "authenticated",
+          "category": "ADMIN_OWNER",
+          "scope": "season",
+          "write": true,
+          "authority": "documents.publish",
+          "db_acl": "authenticated (baseline)",
+          "phase2b": "SCOPED",
+          "frontend_alias": "publishDocumentVersion"
+        }
+      }
+    },
+    "notifications": {
+      "frontend_routes": [
+        "/torneos/torneo/:t/novedades (preferences panel)"
+      ],
+      "frontend_components": [
+        "TournamentCommunicationsPanel"
+      ],
+      "tables": [],
+      "rpcs": {
+        "get_my_tournament_notification_preferences": {
+          "route": "authenticated",
+          "category": "PRIVATE_AUTHENTICATED",
+          "scope": "resource",
+          "write": false,
+          "authority": "own preferences, tournament communications access",
+          "db_acl": "authenticated (baseline)",
+          "phase2b": "SCOPED",
+          "frontend_alias": "loadNotificationPreferences"
+        },
+        "update_my_tournament_notification_preferences": {
+          "route": "authenticated",
+          "category": "PRIVATE_AUTHENTICATED",
+          "scope": "resource",
+          "write": true,
+          "authority": "own preferences, tournament communications access",
+          "db_acl": "authenticated (baseline)",
+          "phase2b": "SCOPED",
+          "frontend_alias": "updateNotificationPreferences"
+        }
+      }
+    },
+    "public_pages": {
+      "frontend_routes": [
+        "/torneos/publico/:publicSlug (anonymous)",
+        "/torneos/organizacion/:org/torneo/:t/configuracion (TournamentPublicPageSettings)"
+      ],
+      "frontend_components": [
+        "PublicTournamentPage",
+        "TournamentPublicPageSettings"
+      ],
+      "tables": [],
+      "rpcs": {
+        "get_tournament_public_page_settings": {
+          "route": "authenticated",
+          "category": "ADMIN_OWNER",
+          "scope": "season",
+          "write": false,
+          "authority": "tournaments.read",
+          "db_acl": "authenticated (baseline)",
+          "phase2b": "SCOPED",
+          "frontend_alias": "loadPublicPageSettings"
+        },
+        "set_tournament_public_page_published": {
+          "route": "authenticated",
+          "category": "ADMIN_OWNER",
+          "scope": "season",
+          "write": true,
+          "authority": "tournaments.update",
+          "db_acl": "authenticated (baseline)",
+          "phase2b": "SCOPED",
+          "frontend_alias": "setPublicPagePublished"
+        },
+        "get_public_tournament_page": {
+          "route": "public",
+          "category": "PUBLIC_READ_ONLY",
+          "scope": "public",
+          "write": false,
+          "authority": "anon: published page, active tournament only (visibility predicates in the function)",
+          "db_acl": "anon + authenticated (baseline)",
+          "phase2b": "NOT_SWEPT",
+          "frontend_alias": "loadPage (public service)"
+        }
+      }
+    }
+  },
+  "excluded": {
+    "service_only_baseline": {
+      "archive_tournament_fixture": "legacy alias archiveFixture (draft discard after start): SERVICE_ONLY since the baseline, never reachable by a client; the hybrid adapter omits the alias and the UI hides the action",
+      "postpone_tournament_match": "legacy changeMatchPlan: SERVICE_ONLY, no page calls it",
+      "cancel_tournament_match": "legacy changeMatchPlan: SERVICE_ONLY, no page calls it",
+      "restore_tournament_match_unscheduled": "legacy changeMatchPlan: SERVICE_ONLY, no page calls it",
+      "ready_tournament_match": "server-side state transition",
+      "schedule_tournament_match_resumption": "server-side, suspended matches"
+    },
+    "feature_off_kept_revoked": {
+      "lock_tournament_roster": "roster_lock: no page calls lockRoster",
+      "record_manual_match_availability": "no page calls recordManualMatchAvailability",
+      "create_tournament_points_adjustment": "no page calls it",
+      "revoke_tournament_points_adjustment": "no page calls it",
+      "create_tournament_disciplinary_override": "no page calls it",
+      "mark_tournament_suspension_served": "no page calls it",
+      "authorize_tournament_social_export": "social_studio OFF",
+      "cancel_tournament_purchase": "billing OFF",
+      "has_tournament_entitlement": "billing OFF",
+      "get_tournament_player_portrait_ref": "player_portraits OFF",
+      "revoke_tournament_player_portrait_publication": "player_portraits OFF",
+      "set_tournament_player_portrait_crop": "player_portraits OFF",
+      "set_tournament_player_portrait_editorial_status": "player_portraits OFF",
+      "revoke_tournament_team_photo": "team_photos OFF",
+      "change_tournament_media_gallery_state": "media OFF",
+      "report_tournament_media_asset": "media OFF",
+      "transition_tournament_media_asset": "media OFF"
+    },
+    "not_called_by_any_page": [
+      "update_tournament_venue",
+      "update_tournament_court",
+      "set_tournament_announcement_audience",
+      "save_tournament_match_operation_draft",
+      "void_tournament_match_operation",
+      "get_player_tournament_statistics",
+      "get_player_tournament_suspensions",
+      "get_public_tournament_branding (branding OFF: the hybrid public page renders without logos)",
+      "get_tournament_branding_context"
+    ]
+  },
+  "acl": {
+    "granted_by_0004": [
+      "reopen_tournament_participants(uuid,uuid,uuid,text)",
+      "save_tournament_draw_pots(uuid,uuid,uuid,jsonb)",
+      "update_draft_fixture(uuid,uuid,text,jsonb)",
+      "publish_tournament_fixture(uuid,uuid)",
+      "supersede_tournament_fixture(uuid,uuid,uuid)",
+      "schedule_tournament_match(uuid,uuid,timestamp with time zone,uuid,uuid,integer,boolean,text)",
+      "auto_schedule_tournament_matches(uuid,uuid)",
+      "submit_match_squad(uuid,uuid,uuid)",
+      "void_tournament_match_event(uuid,uuid,text)",
+      "review_tournament_match_operation(uuid,uuid,text,text)",
+      "validate_tournament_match_operation(uuid,uuid)",
+      "make_tournament_match_official(uuid,uuid)",
+      "request_tournament_match_correction(uuid,uuid,text)",
+      "create_tournament_match_correction(uuid,uuid)",
+      "resolve_tournament_qualification(uuid,text)"
+    ],
+    "kept_revoked": [
+      "authorize_tournament_social_export(uuid,uuid,text,text,boolean)",
+      "cancel_tournament_purchase(uuid)",
+      "change_tournament_media_gallery_state(uuid,text,text)",
+      "create_tournament_disciplinary_override(uuid,text,integer,text,uuid)",
+      "create_tournament_points_adjustment(uuid,uuid,uuid,uuid,uuid,integer,text,uuid)",
+      "get_tournament_player_portrait_ref(uuid,uuid,text)",
+      "has_tournament_entitlement(uuid,uuid,text)",
+      "lock_tournament_roster(uuid,uuid,uuid)",
+      "mark_tournament_suspension_served(uuid,uuid,text)",
+      "record_manual_match_availability(uuid,uuid,uuid,text,text,text)",
+      "report_tournament_media_asset(uuid,text,text,boolean,uuid)",
+      "revoke_tournament_player_portrait_publication(uuid,uuid)",
+      "revoke_tournament_points_adjustment(uuid,text)",
+      "revoke_tournament_team_photo(uuid,uuid)",
+      "set_tournament_player_portrait_crop(uuid,uuid,numeric,numeric,numeric)",
+      "set_tournament_player_portrait_editorial_status(uuid,uuid,text)",
+      "transition_tournament_media_asset(uuid,text,text)"
+    ],
+    "service_only": [
+      "archive_tournament_fixture(uuid,uuid,text)",
+      "postpone_tournament_match(uuid,uuid,text)",
+      "cancel_tournament_match(uuid,uuid,text)",
+      "restore_tournament_match_unscheduled(uuid,uuid,text)",
+      "ready_tournament_match(uuid,uuid)",
+      "schedule_tournament_match_resumption(uuid,uuid,timestamp with time zone,uuid,uuid,text)"
+    ],
+    "authenticated_public_before": 147,
+    "authenticated_public_after": 162,
+    "anon_public": 12,
+    "function_fixes": [
+      {
+        "function": "update_draft_fixture(uuid,uuid,text,jsonb)",
+        "body_md5_before": "390a1e4cae6af1973ead63563a71b08f",
+        "body_md5_after": "53fd2b4bc95a86434c7e5b8e1e938275",
+        "added": "has_tournament_season_access(p_organization_id, v_version.season_id)",
+        "kind": "season scope",
+        "finding": "CASE-expression capability not matched by the Phase 2B generator: an admin seated on another season of the organization could edit this season's draft fixture"
+      },
+      {
+        "function": "publish_tournament_document_version(uuid)",
+        "kind": "guard order",
+        "body_md5_before": "1000277b885896c3311b04ad960cf4b9",
+        "body_md5_after": "6830b726fc3aa23342ab7fed2b1d5348",
+        "added": "authorization (documents.publish + season) before the idempotent already-published answer; no row lock for unauthorized callers",
+        "finding": "any bearer received {documentId, versionId, status} for an already published version of another workspace (found by the negative matrix)"
+      }
+    ]
+  },
+  "frontend_features": {
+    "on": [
+      "organizations_workspaces",
+      "collaborators",
+      "seasons",
+      "tournaments",
+      "team_registration_basic_roster",
+      "invitations",
+      "core_team_import",
+      "team_entry_review",
+      "fixtures",
+      "match_operations",
+      "standings",
+      "lifecycle_actions",
+      "participant_withdrawal",
+      "communications",
+      "notifications",
+      "participant_hub",
+      "public_pages"
+    ],
+    "off": [
+      "entitlements",
+      "plan",
+      "billing",
+      "plan_legacy_routes",
+      "roster_lock",
+      "branding_assets",
+      "player_portraits",
+      "team_photos",
+      "team_visual_policy",
+      "media",
+      "social_studio"
+    ]
+  }
+}

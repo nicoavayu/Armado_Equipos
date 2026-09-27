@@ -13,6 +13,9 @@
 // from its private .runtime/server directory (commerce.env: the mode, the internal payments URL and its HMAC
 // key, validated by commerce.ts). No file or a blank mode → commerce OFF and the module is never loaded; a
 // faulty commerce configuration disables the gateway (503 on every request), as a boot fault does on Edge.
+// COMPETITION-V1: the SAME competition.ts as the Edge gateway (mounted read-only with its allowlist): the
+// full-competition RPCs on top of the 43 on the authenticated route, and the anonymous public read-only route
+// POST /torneos/public/v1/rpc/<name>. A malformed competition allowlist disables the gateway.
 import http from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { decodeJwt } from 'jose';
@@ -28,6 +31,10 @@ const initial = await readConfig();
 const allowlistDoc = JSON.parse(await readFile('staging-v1-rpc-allowlist.json', 'utf8'));
 const RPC_ALLOWLIST = new Set(Object.values(allowlistDoc.features ?? {}).flat().filter(n => /^[a-z0-9_]+$/.test(n)));
 if (RPC_ALLOWLIST.size === 0) throw new Error('staging v1 RPC allowlist is empty');
+const competitionModule = await import('./functions/torneos-gateway/competition.ts');
+const competition = competitionModule.loadCompetitionContract(RPC_ALLOWLIST);
+const BASE_ALLOWLIST = competitionModule.withCompetition(RPC_ALLOWLIST, competition);
+const publicGate = new competitionModule.PublicGate();
 const pool = (host, user, password) => new pg.Pool({ host, database: 'postgres', user, password,
   connectionTimeoutMillis: 2000, statement_timeout: 2000 });
 const core = pool('core-db', 'poc_session_reader', initial.readerPassword);
@@ -46,14 +53,14 @@ if (commerceEnv === null || (commerceEnv.TORNEOS_COMMERCE_MODE ?? '').trim()) {
   try {
     if (commerceEnv === null) throw new Error('commerce configuration unreadable');
     commerceModule = await import('./functions/torneos-gateway/commerce.ts');
-    commerce = commerceModule.loadCommerceConfig(commerceEnv, { baseAllowlist: RPC_ALLOWLIST, gatewayPublicUrl: origin,
+    commerce = commerceModule.loadCommerceConfig(commerceEnv, { baseAllowlist: BASE_ALLOWLIST, gatewayPublicUrl: origin,
       distinctFrom: [initial.coreContractSecret, initial.anonKey, ...initial.keys.map(k => k.privateKey)] });
   } catch (error) {
     disabled = true;
     console.error(`[gateway] disabled: ${error?.constructor?.name === 'CommerceConfigError' ? error.message : 'boot failed'}`);
   }
 }
-const rpcAllowlist = commerceModule && !disabled ? commerceModule.effectiveRpcAllowlist(RPC_ALLOWLIST, commerce) : RPC_ALLOWLIST;
+const rpcAllowlist = commerceModule && !disabled ? commerceModule.effectiveRpcAllowlist(BASE_ALLOWLIST, commerce) : BASE_ALLOWLIST;
 
 function json(res, status, body) {
   res.writeHead(status, { 'content-type': 'application/json', 'cache-control': 'no-store' });
@@ -189,6 +196,24 @@ const server = http.createServer(async (req, res) => {
         log: (entry) => console.log(JSON.stringify(entry)),
       });
       return json(res, r.status, r.body);
+    }
+    const publicRpc = competitionModule.PUBLIC_RPC_ROUTE.exec(url.pathname);
+    if (publicRpc) {
+      if (req.method !== 'POST') return json(res, 405, { error: 'method not allowed' });
+      const decision = await competitionModule.preparePublicRpc({ name: publicRpc[1], authorization: req.headers.authorization ?? null,
+        apikey: req.headers.apikey ?? null, contentType: req.headers['content-type'] ?? null,
+        contentLength: req.headers['content-length'] ?? null, body: req }, competition);
+      if (!decision.ok) return json(res, decision.status, { error: decision.error });
+      if (!publicGate.tryEnter()) { res.setHeader('retry-after', '1'); return json(res, 503, { error: 'public route busy' }); }
+      try {
+        const r = await dependencyFetch(`http://torneos-rest:3000${decision.path}`, { method: 'POST',
+          headers: { 'content-type': 'application/json', accept: 'application/json' }, body: decision.body,
+          redirect: 'error', signal: AbortSignal.timeout(5000) });
+        res.writeHead(r.status, { 'content-type': r.headers.get('content-type') ?? 'application/json', 'cache-control': 'no-store' });
+        return res.end(Buffer.from(await r.arrayBuffer()));
+      } finally {
+        publicGate.leave();
+      }
     }
     const rest = /^\/torneos\/rest\/v1\/(rpc\/([a-z0-9_]+)|[a-z0-9_]+)$/.exec(url.pathname);
     if (rest && ['GET', 'HEAD', 'POST', 'PATCH', 'DELETE'].includes(req.method)) {

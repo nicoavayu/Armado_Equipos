@@ -1,0 +1,8 @@
+{
+ "purpose": "COMPETITION-V1 gateway candidate for W2 — the static graph of torneos-gateway/index.ts; identity = manifest digest",
+ "source_commit": "4cf698e62415dcd4ee1c9cd76e7ec8c2a5d4ab40",
+ "head": "4cf698e62415dcd4ee1c9cd76e7ec8c2a5d4ab40",
+ "digest": "75e3535acc3fba99c871ee820d1927e1c695eba4c10044ec4e6ffda38b59afc7",
+ "files": 16,
+ "previous": { "revision": "3rvq2wx9tyyg", "head": "bea307a3a82fd8e610f99210c2f8b40f9ceb0697", "digest": "723c5d3928741af906771923fab8ac9c54dd9eee58d266cec3a7fa4cd3fa5514", "files": 14 }
+}

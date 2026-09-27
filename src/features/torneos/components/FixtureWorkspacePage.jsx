@@ -373,7 +373,7 @@ function VersionPanel({ canManage, canAppend }) {
   const tournamentId = useTournamentAnchor();
   const navigate = useNavigate();
   const {
-    versions, phases, rounds, matches, participants, actions, categoryId,
+    versions, phases, rounds, matches, participants, actions, categoryId, supports,
   } = useTorneosFixture();
   const versionLink = (versionId) => tournamentResourceSurface(
     'tournamentFixtureVersion',
@@ -466,6 +466,7 @@ function VersionPanel({ canManage, canAppend }) {
               {canManage
                 && version.status === 'draft'
                 && !DRAFTABLE_TOURNAMENT_STATUSES.has(activeTournament?.status)
+                && supports?.archiveDraft !== false
                 && <button type="button" disabled={busy} onClick={() => setPendingArchive(version.id)}>Descartar borrador</button>}
               {canManage
                 && version.status === 'published'

@@ -86,8 +86,10 @@ test('Phase 3B — Node gateway ≡ Edge gateway (same requests, same verdicts)'
   const OFF = JSON.parse(await readFile(`${repo}backend/torneos/phase2d/staging-v1-rpc-gate.json`, 'utf8'));
   const allow = JSON.parse(await readFile(`${repo}backend/torneos/phase2d/staging-v1-rpc-allowlist.json`, 'utf8'));
   const ALLOWED = Object.values(allow.features).flat();
-  const offNames = [...new Set(OFF.functions.map(f => f.name))];
-  assert.ok(offNames.length >= 33, `gate manifest lists the 32 OFF + parent (${offNames.length})`);
+  // COMPETITION-V1 (0004 + competition allowlist) re-enabled 15 of the 33 gated RPCs: they are no longer OFF.
+  const competitionGrants = JSON.parse(await readFile(`${repo}backend/torneos/competition-v1/contract.json`, 'utf8')).acl.granted_by_0004.map((f) => f.split('(')[0]);
+  const offNames = [...new Set(OFF.functions.map(f => f.name))].filter((name) => !competitionGrants.includes(name));
+  assert.equal(offNames.length, 33 - competitionGrants.length, `gate manifest minus the COMPETITION-V1 grants (${offNames.length})`);
 
   let tokens = {};
   try {
@@ -152,11 +154,14 @@ test('Phase 3B — Node gateway ≡ Edge gateway (same requests, same verdicts)'
         offChecked += 1;
       }
       assert.equal(offChecked, offNames.length);
-      for (const name of ['auto_schedule_tournament_matches', 'update_draft_fixture', 'schedule_tournament_match', 'publish_tournament_fixture', 'review_tournament_match_operation']) {
+      for (const name of ['lock_tournament_roster', 'create_tournament_points_adjustment', 'record_manual_match_availability', 'mark_tournament_suspension_served', 'transition_tournament_media_asset']) {
         assert.ok(offNames.includes(name), `${name} is gated`);
       }
+      for (const name of ['auto_schedule_tournament_matches', 'update_draft_fixture', 'schedule_tournament_match', 'publish_tournament_fixture', 'review_tournament_match_operation']) {
+        assert.ok(!offNames.includes(name), `${name} is re-enabled by COMPETITION-V1`);
+      }
       assert.ok(ALLOWED.includes('review_tournament_team_entry') && !offNames.includes('review_tournament_team_entry'));
-      await same('OFF without bearer → 401 before the allowlist', { path: '/torneos/rest/v1/rpc/publish_tournament_fixture', method: 'POST', body: {} }, { expect: [401, { error: 'access denied' }] });
+      await same('OFF without bearer → 401 before the allowlist', { path: '/torneos/rest/v1/rpc/lock_tournament_roster', method: 'POST', body: {} }, { expect: [401, { error: 'access denied' }] });
     });
 
     await check('bearer contract: forged/expired/wrong issuer/audience/kid/role/session/core_user_id denied identically', async () => {
@@ -184,7 +189,7 @@ test('Phase 3B — Node gateway ≡ Edge gateway (same requests, same verdicts)'
       assert.equal((await send(BASE, { path: '/auth/v1/logout', method: 'POST', token: victim.coreToken })).status, 204);
       await same('after logout: exchange', { path: '/exchange', method: 'POST', token: victim.coreToken }, { expect: [401, { error: 'access denied' }] });
       await same('after logout: RPC with still-unexpired Torneos bearer', { path: '/torneos/rest/v1/rpc/get_my_tournament_memberships', method: 'POST', token: victimTok, body: {} }, { expect: [401, { error: 'access denied' }] });
-      await same('after logout: OFF still 403 (allowlist before session)', { path: '/torneos/rest/v1/rpc/publish_tournament_fixture', method: 'POST', token: victimTok, body: {} }, { expect: [403, { error: 'rpc not enabled' }] });
+      await same('after logout: OFF still 403 (allowlist before session)', { path: '/torneos/rest/v1/rpc/lock_tournament_roster', method: 'POST', token: victimTok, body: {} }, { expect: [403, { error: 'rpc not enabled' }] });
       // SQL revocation of a live session (other): the Node gateway reads auth.sessions, the Edge gateway asks Core's contract.
       const o = await same('exchange: other (pre-revocation)', { path: '/exchange', method: 'POST', token: other.coreToken });
       coreSql(`delete from auth.sessions where id='${other.sessionId}'`);
@@ -248,7 +253,7 @@ test('Phase 3B — Node gateway ≡ Edge gateway (same requests, same verdicts)'
         assert.deepEqual([xe.status, xe.body], [503, { error: 'CORE_UNAVAILABLE' }], 'Edge: exchange fails closed without the session verdict');
         rows.push({ name: 'D1: Core contract outage, exchange', equivalent: false, ...D1, node: { status: xn.status, body: normalize(xn.body) }, edge: { status: xe.status, body: xe.body } });
         // Pre-session refusals are untouched by the outage on both gateways.
-        await same('Core contract down: OFF rpc (allowlist before the session verdict)', { path: '/torneos/rest/v1/rpc/publish_tournament_fixture', method: 'POST', token: tokens.ownerEdge, body: {} }, { expect: [403, { error: 'rpc not enabled' }] });
+        await same('Core contract down: OFF rpc (allowlist before the session verdict)', { path: '/torneos/rest/v1/rpc/lock_tournament_roster', method: 'POST', token: tokens.ownerEdge, body: {} }, { expect: [403, { error: 'rpc not enabled' }] });
         await same('Core contract down: garbage bearer', { path: '/torneos/rest/v1/rpc/get_my_tournament_memberships', method: 'POST', token: 'not-a-jwt', body: {} }, { expect: [401, { error: 'access denied' }] });
       } finally { setService('core-functions', 'start'); await waitCoreFunctions(); }
     });
