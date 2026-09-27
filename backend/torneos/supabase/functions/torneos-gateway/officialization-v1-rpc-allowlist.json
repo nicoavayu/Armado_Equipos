@@ -1,0 +1,19 @@
+{
+  "phase": "OFFICIALIZATION-V1",
+  "scope": "Torneos gateway allowlist of the result-officialization contract, on top of staging v1 (43) and COMPETITION-V1 (74), both unchanged. Served only by the generic authenticated route POST /torneos/rest/v1/rpc/<name> (verified bridge bearer + live Core session + local identity), never by the public route. accept_tournament_organization_invitation additionally goes through the Core-contract adapter (verified_email attestation for the invited email). The database ACL (00000000000005_officialization_v1.sql: EXECUTE to authenticated only) and each function's own guards remain the final boundary. Source of truth: backend/torneos/officialization-v1/contract.json.",
+  "features": {
+    "organization_members": [
+      "list_tournament_organization_members",
+      "list_tournament_organization_invitations",
+      "invite_tournament_organization_member",
+      "revoke_tournament_organization_invitation",
+      "accept_tournament_organization_invitation",
+      "update_tournament_organization_member_role",
+      "remove_tournament_organization_member"
+    ],
+    "match_dual_control": [
+      "get_tournament_match_dual_control",
+      "set_tournament_match_dual_control"
+    ]
+  }
+}

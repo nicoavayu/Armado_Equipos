@@ -12,7 +12,11 @@
 //
 // Fail closed: a malformed document, an empty section, an invalid name, or a name listed twice (inside the
 // document or against the staging v1 set) makes the loader throw, and the gateway refuses to boot.
+//
+// OFFICIALIZATION-V1 (officialization-v1-rpc-allowlist.json): organization membership and the per-tournament
+// dual-control policy, on the authenticated route only, validated the same way and disjoint from both sets above.
 import allowlistDoc from "./competition-v1-rpc-allowlist.json" with { type: "json" }
+import officializationDoc from "./officialization-v1-rpc-allowlist.json" with { type: "json" }
 
 export const PUBLIC_RPC_ROUTE = /^\/torneos\/public\/v1\/rpc\/([a-z0-9_]+)$/
 const NAME = /^[a-z0-9_]+$/
@@ -96,6 +100,34 @@ export function loadCompetitionContract(stagingV1: ReadonlySet<string>, doc: unk
 /** Generic authenticated route: staging v1 ∪ COMPETITION-V1 (commerce, when on, adds its reads on top). */
 export function withCompetition(stagingV1: ReadonlySet<string>, contract: CompetitionContract): ReadonlySet<string> {
   return new Set([...stagingV1, ...contract.rpcs])
+}
+
+export type OfficializationContract = {
+  /** RPCs of the generic authenticated route that OFFICIALIZATION-V1 adds (disjoint from everything else). */
+  rpcs: ReadonlySet<string>
+  features: Readonly<Record<string, readonly string[]>>
+}
+
+/** Validates the OFFICIALIZATION-V1 document against the authenticated set already loaded and the public RPCs. */
+export function loadOfficializationContract(authenticated: ReadonlySet<string>, competition: CompetitionContract,
+  doc: unknown = officializationDoc): OfficializationContract {
+  if (!doc || typeof doc !== "object" || (doc as { phase?: unknown }).phase !== "OFFICIALIZATION-V1") {
+    throw new CompetitionConfigError("officialization allowlist document")
+  }
+  if (Object.hasOwn(doc as object, "public")) throw new CompetitionConfigError("officialization has no public RPC")
+  const features = names((doc as { features?: unknown }).features, "officialization")
+  const all = Object.values(features).flat()
+  const rpcs = new Set(all)
+  if (rpcs.size !== all.length) throw new CompetitionConfigError("duplicate names")
+  if ([...rpcs].some((n) => authenticated.has(n) || competition.publicRpcs.has(n))) {
+    throw new CompetitionConfigError("officialization overlaps an earlier contract")
+  }
+  return { rpcs, features: Object.freeze(Object.fromEntries(Object.entries(features).map(([k, v]) => [k, Object.freeze(v)]))) }
+}
+
+/** Generic authenticated route: staging v1 ∪ COMPETITION-V1 ∪ OFFICIALIZATION-V1. */
+export function withOfficialization(authenticated: ReadonlySet<string>, contract: OfficializationContract): ReadonlySet<string> {
+  return new Set([...authenticated, ...contract.rpcs])
 }
 
 export type PublicRequest = {

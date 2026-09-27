@@ -39,6 +39,11 @@ function withMpA2(fn, authenticated) { return MPA2_GRANTED.has(fn) ? true : (MPA
 // COMPETITION-V1 (00000000000004): authenticated regains EXECUTE on exactly the 15 gated RPCs of its manifest (all
 // SECURITY DEFINER); nothing else changes ACL. MP-B1.2 (00000000000003) adds payment-service functions only.
 const CV1 = new Set(JSON.parse(await readFile(`${repo}backend/torneos/competition-v1/contract.json`, 'utf8')).acl.granted_by_0004);
+// OFFICIALIZATION-V1 (00000000000005): new SECURITY DEFINER RPCs with EXECUTE to authenticated + service_role only,
+// and the invitations table (RLS on, no API-role privilege). Nothing else in the ACL changes.
+const OV1_CONTRACT = JSON.parse(await readFile(`${repo}backend/torneos/officialization-v1/contract.json`, 'utf8'));
+const OV1 = new Set(OV1_CONTRACT.acl.new_functions);
+const OV1_RELATIONS = Object.keys(OV1_CONTRACT.acl.tables).map((t) => `public.${t}`);
 /** A certified per-function expectation shifted by exactly the MP-A2 and COMPETITION-V1 deltas. */
 function withDeltas(fn, authenticated) { return CV1.has(fn) ? true : withMpA2(fn, authenticated); }
 // MP-B1.2 (00000000000003, provider ordering): renames the two MP-A2 appliers without a provider timestamp to
@@ -145,8 +150,8 @@ test('Phase 2C — real Supabase stack ACL certification', async (t) => {
       assert.deepEqual(summary.execute.anon, { public_functions: 12, private_functions: 2, security_definer: 12 });
       // Phase 2C measured 180 / 179 on the baseline alone; the Phase 2D gate removes exactly its manifest (33 SECURITY DEFINER RPCs).
       assert.equal(GATED.size, 33);
-      assert.deepEqual(summary.execute.authenticated, { public_functions: 180 - GATED.size + MPA2_AUTH_NET + CV1.size, private_functions: 2, security_definer: 179 - GATED.size + MPA2_AUTH_NET + CV1.size });
-      assert.deepEqual(summary.execute.service_role, { public_functions: 328, private_functions: 2, security_definer: 284 });
+      assert.deepEqual(summary.execute.authenticated, { public_functions: 180 - GATED.size + MPA2_AUTH_NET + CV1.size + OV1.size, private_functions: 2, security_definer: 179 - GATED.size + MPA2_AUTH_NET + CV1.size + OV1.size });
+      assert.deepEqual(summary.execute.service_role, { public_functions: 328 + OV1.size, private_functions: 2, security_definer: 284 + OV1.size });
       assert.equal(summary.public_execute_functions, 0, 'no function is executable by PUBLIC');
       assert.deepEqual(summary.sequence_privilege, { anon: 0, authenticated: 4, service_role: 4, postgres: 7 });
       assert.equal(summary.anon_write_privilege_relations, 0);
@@ -173,6 +178,12 @@ test('Phase 2C — real Supabase stack ACL certification', async (t) => {
       }
       for (const f of MPB12.new_security_definer) { assert.ok(!b['function:' + f], `${f} is new in MP-B1.2`); b['function:' + f] = { ...NO_API_FUNCTION }; }
       for (const r of MPB12.new_relations) { assert.ok(!b['relation:' + r], `${r} is new in MP-B1.2`); b['relation:' + r] = { anon: [], authenticated: [], service_role: [], rls: true }; }
+      // OFFICIALIZATION-V1 shift: its RPCs exist with authenticated + service_role, its table with no API-role privilege.
+      for (const f of OV1) {
+        assert.ok(!b['function:' + f], `${f} is new in OFFICIALIZATION-V1`);
+        b['function:' + f] = { ...NO_API_FUNCTION, authenticated: true, service_role: true };
+      }
+      for (const r of OV1_RELATIONS) { assert.ok(!b['relation:' + r], `${r} is new in OFFICIALIZATION-V1`); b['relation:' + r] = { anon: [], authenticated: [], service_role: [], rls: true }; }
       const mismatches = Object.keys({ ...a, ...b }).filter(k => JSON.stringify(a[k]) !== JSON.stringify(b[k]));
       assert.deepEqual(mismatches, [], 'real stack == template0 for API-role privileges');
       assert.ok(Object.keys(a).length >= 470, `objects compared: ${Object.keys(a).length}`);
@@ -229,8 +240,8 @@ test('Phase 2C — real Supabase stack ACL certification', async (t) => {
     let org;
     await check('authenticated RPCs: the explicitly granted functions (180 in the baseline minus the 33 gated) execute with a valid bearer (guarded DEFINER write + predicate)', async () => {
       const authFns = publicFns.filter(f => f.authenticated).map(f => f.function).sort();
-      const t0Fns = [...template0.functions.filter(f => f.schema === 'public' && withDeltas(f.function, f.authenticated)).map(f => f.function), ...MPA2_NEW_AUTH].sort();
-      assert.deepEqual(authFns, t0Fns); assert.equal(authFns.length, 180 - GATED.size + MPA2_AUTH_NET + CV1.size);
+      const t0Fns = [...template0.functions.filter(f => f.schema === 'public' && withDeltas(f.function, f.authenticated)).map(f => f.function), ...MPA2_NEW_AUTH, ...OV1].sort();
+      assert.deepEqual(authFns, t0Fns); assert.equal(authFns.length, 180 - GATED.size + MPA2_AUTH_NET + CV1.size + OV1.size);
       assert.deepEqual(authFns.filter(f => GATED.has(f)), [...MPA2_GRANTED, ...CV1].filter(f => GATED.has(f)).sort(), 'no gated function is executable by authenticated except the MP-A2 re-grant and the COMPETITION-V1 manifest');
       const slug = `phase2c-${randomUUID().slice(0, 8)}`;
       const r = restBatch([{ id: 'org', path: '/rpc/create_tournament_organization', token: actorToken, body: { p_name: 'Phase 2C League', p_slug: slug, p_idempotency_key: randomUUID() } }])[0];
@@ -259,7 +270,7 @@ test('Phase 2C — real Supabase stack ACL certification', async (t) => {
       await writeFile('evidence/acl-security-definer-recert.json', JSON.stringify({ total: rows.length, maintained: rows.filter(r => r.disposition_maintained).length, staging_v1_gated: rows.filter(r => r.staging_v1_gated).length, categories: Object.fromEntries([...new Set(rows.map(r => r.category))].sort().map(c => [c, rows.filter(r => r.category === c).length])), functions: rows }, null, 2) + '\n');
       assert.equal(rows.filter(r => !r.disposition_maintained).length, 0);
       assert.equal(rows.length, 305);
-      assert.equal(torneosSql("select count(*) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname in ('public','private') and p.prosecdef").trim(), String(305 + MPA2.new_security_definer_functions.length + MPB12.new_security_definer.length), 'the 305 certified + the MP-A2 commerce RPCs + the 3 MP-B1.2 ordering functions');
+      assert.equal(torneosSql("select count(*) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname in ('public','private') and p.prosecdef").trim(), String(305 + MPA2.new_security_definer_functions.length + MPB12.new_security_definer.length + OV1.size), 'the 305 certified + the MP-A2 commerce RPCs + the 3 MP-B1.2 ordering functions + the OFFICIALIZATION-V1 RPCs');
     });
     await check('no privilege escalation: role graph, PostgREST role switch, sequences, private schema', async () => {
       const roles = Object.fromEntries(inventory.roles.map(r => [r.role, r]));

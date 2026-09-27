@@ -27,6 +27,10 @@
 // COMPETITION-V1 (competition.ts): the generic route serves the full-competition RPCs on top of the 43
 // (same bearer / Core session / identity checks), and POST /torneos/public/v1/rpc/<name> serves the public
 // read-only RPCs as anon, refusing any credential. A malformed competition allowlist disables the gateway.
+//
+// OFFICIALIZATION-V1 (competition.ts, officialization-v1-rpc-allowlist.json): organization membership and the
+// per-tournament dual-control policy on the generic route; accepting an organization invitation goes through the
+// Core-contract adapter (verified_email), like a team invitation.
 import { decodeJwt } from "npm:jose@6.2.12"
 import { issueToken, verifyToken, uuid, jwks, TTL, type TorneosClaims } from "./token.ts"
 import { CoreClient, Denied, ROUTES } from "./core-client.ts"
@@ -34,7 +38,7 @@ import { Adapter, AdapterDenied, CONTRACTS } from "./adapter.ts"
 import { connect, allocateIdentity, identityExists, isUnavailable, type Sql } from "./db.ts"
 import { loadConfig, routePath, ConfigError, type GatewayConfig } from "./config.ts"
 import { COMMERCE_ROUTE, CommerceConfigError, effectiveRpcAllowlist, loadCommerceConfig, seasonCheckout, type CommerceConfig } from "./commerce.ts"
-import { CompetitionConfigError, loadCompetitionContract, preparePublicRpc, PublicGate, PUBLIC_RPC_ROUTE, withCompetition, type CompetitionContract } from "./competition.ts"
+import { CompetitionConfigError, loadCompetitionContract, loadOfficializationContract, preparePublicRpc, PublicGate, PUBLIC_RPC_ROUTE, withCompetition, withOfficialization, type CompetitionContract } from "./competition.ts"
 import allowlistDoc from "./staging-v1-rpc-allowlist.json" with { type: "json" }
 
 // Staging v1 RPC allowlist: fail closed if the document is malformed or empty.
@@ -64,7 +68,9 @@ export function boot(env: Record<string, string | undefined>): Runtime {
   const cfg = loadConfig(env)
   // COMPETITION-V1 and commerce are validated before any connection is opened: a fault disables the gateway.
   const competition = loadCompetitionContract(RPC_ALLOWLIST)
-  const baseAllowlist = withCompetition(RPC_ALLOWLIST, competition)
+  const competitionAllowlist = withCompetition(RPC_ALLOWLIST, competition)
+  // OFFICIALIZATION-V1: membership + dual-control policy on the authenticated route (a faulty document disables the gateway).
+  const baseAllowlist = withOfficialization(competitionAllowlist, loadOfficializationContract(competitionAllowlist, competition))
   const commerce = loadCommerceConfig(env, { baseAllowlist, gatewayPublicUrl: cfg.publicUrl,
     distinctFrom: [env.TORNEOS_CONTRACT_SERVICE_SECRET, env.TORNEOS_BRIDGE_KEYS, ...cfg.bridge.keys.map((k) => k.privateKey), cfg.coreAnonKey, cfg.torneosAnonKey],
     dependencyUrls: [cfg.coreAuthUrl, cfg.coreJwtIssuer, cfg.coreContractUrl, cfg.torneosRestUrl, cfg.allowedOrigin] })

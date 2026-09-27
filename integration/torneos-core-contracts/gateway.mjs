@@ -16,6 +16,8 @@
 // COMPETITION-V1: the SAME competition.ts as the Edge gateway (mounted read-only with its allowlist): the
 // full-competition RPCs on top of the 43 on the authenticated route, and the anonymous public read-only route
 // POST /torneos/public/v1/rpc/<name>. A malformed competition allowlist disables the gateway.
+// OFFICIALIZATION-V1: the same competition.ts loads officialization-v1-rpc-allowlist.json (membership + dual-control
+// policy) onto the authenticated route; accept_tournament_organization_invitation goes through the adapter.
 import http from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { decodeJwt } from 'jose';
@@ -33,7 +35,9 @@ const RPC_ALLOWLIST = new Set(Object.values(allowlistDoc.features ?? {}).flat().
 if (RPC_ALLOWLIST.size === 0) throw new Error('staging v1 RPC allowlist is empty');
 const competitionModule = await import('./functions/torneos-gateway/competition.ts');
 const competition = competitionModule.loadCompetitionContract(RPC_ALLOWLIST);
-const BASE_ALLOWLIST = competitionModule.withCompetition(RPC_ALLOWLIST, competition);
+const COMPETITION_ALLOWLIST = competitionModule.withCompetition(RPC_ALLOWLIST, competition);
+const BASE_ALLOWLIST = competitionModule.withOfficialization(COMPETITION_ALLOWLIST,
+  competitionModule.loadOfficializationContract(COMPETITION_ALLOWLIST, competition));
 const publicGate = new competitionModule.PublicGate();
 const pool = (host, user, password) => new pg.Pool({ host, database: 'postgres', user, password,
   connectionTimeoutMillis: 2000, statement_timeout: 2000 });

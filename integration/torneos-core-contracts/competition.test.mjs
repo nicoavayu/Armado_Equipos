@@ -34,6 +34,9 @@ const MIGRATION = '00000000000004_competition_v1_rpc_exposure.sql';
 const migrationSql = await readFile(`${migrationsDir}${MIGRATION}`, 'utf8');
 const rollbackSql = await readFile(`${repo}backend/torneos/competition-v1/rollback/00000000000004_competition_v1_rpc_exposure.rollback.sql`, 'utf8');
 const contract = JSON.parse(await readFile(`${repo}backend/torneos/competition-v1/contract.json`, 'utf8'));
+// OFFICIALIZATION-V1 (00000000000005) runs after 0004 in this lab: it adds exactly its own RPCs to the authenticated
+// catalog and makes dual control an opt-in tournament policy (default OFF). Only those two facts displace this suite.
+const officialization = JSON.parse(await readFile(`${repo}backend/torneos/officialization-v1/contract.json`, 'utf8'));
 const allowDoc = JSON.parse(await readFile(`${repo}backend/torneos/supabase/functions/torneos-gateway/competition-v1-rpc-allowlist.json`, 'utf8'));
 const stagingDoc = JSON.parse(await readFile(`${repo}backend/torneos/supabase/functions/torneos-gateway/staging-v1-rpc-allowlist.json`, 'utf8'));
 const ALLOW = Object.values(allowDoc.features).flat();
@@ -176,7 +179,8 @@ test(`COMPETITION-V1 — full-competition contract on the real stack (${GATEWAY_
         assert.deepEqual([r.anon, r.auth], [false, false], `${f} stays closed`);
       }
       assert.equal(rows.filter((r) => r.anon).length, 12, 'anon catalog unchanged');
-      assert.equal(rows.filter((r) => r.auth).length, contract.acl.authenticated_public_after, 'authenticated catalog = certified count');
+      assert.equal(contract.acl.authenticated_public_after, officialization.acl.authenticated_public_before, 'OFFICIALIZATION-V1 starts from the COMPETITION-V1 count');
+      assert.equal(rows.filter((r) => r.auth).length, officialization.acl.authenticated_public_after, 'authenticated catalog = certified count (0004 + the 0005 delta)');
       // Every allowlisted RPC is executable by authenticated at the DB; the public one by anon.
       for (const n of ALLOW) assert.ok(rows.some((r) => r.n === n && r.auth), `${n} executable by authenticated`);
       for (const n of PUBLIC) assert.ok(rows.some((r) => r.n === n && r.anon), `${n} executable by anon`);
@@ -419,9 +423,12 @@ test(`COMPETITION-V1 — full-competition contract on the real stack (${GATEWAY_
       assert.equal(torneosSql(`select status from public.tournament_match_operations where id=${lit(S.op)}`).trim(), 'submitted', JSON.stringify(submitted).slice(0, 200));
     });
 
-    await check('B8 review (owner) → dual control (submitter cannot validate) → validate (owner) → official twice concurrently (idempotent, one official)', async () => {
+    await check('B8 review (owner) → dual control ON for this tournament (submitter cannot validate) → validate (owner) → official twice concurrently (idempotent, one official)', async () => {
       const base = { p_organization_id: S.org, p_match_operation_id: S.op };
       await ok('review_tournament_match_operation', owner, { ...base, p_decision: 'approved', p_reason: 'Acta verificada' });
+      // Since OFFICIALIZATION-V1 dual control is the tournament's policy (default OFF); this journey certifies it ON.
+      const policy = await gw('set_tournament_match_dual_control', await tok(owner), { p_organization_id: S.org, p_tournament_id: S.A.id, p_enabled: true });
+      assert.equal(policy.body?.enabled, true, show(policy));
       const dual = await denied('validate_tournament_match_operation', adminA, base);
       assert.equal(errMsg(dual), 'TORNEOS_MATCH_DUAL_CONTROL_REQUIRED');
       await ok('validate_tournament_match_operation', owner, base);

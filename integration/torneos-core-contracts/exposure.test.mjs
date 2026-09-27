@@ -53,7 +53,9 @@ const PARENTS = gate.functions.filter(g => g.area === 'parent path').map(g => g.
 const CV1_MANIFEST = JSON.parse(await readFile(`${repo}backend/torneos/competition-v1/contract.json`, 'utf8')).acl.granted_by_0004;
 const CV1 = new Set(CV1_MANIFEST);
 const CV1_NAMES = new Set(CV1_MANIFEST.map(f => f.split('(')[0]));
-const LATER_MIGRATIONS = ['00000000000003_mercadopago_provider_ordering.sql', '00000000000004_competition_v1_rpc_exposure.sql'];
+const LATER_MIGRATIONS = ['00000000000003_mercadopago_provider_ordering.sql', '00000000000004_competition_v1_rpc_exposure.sql', '00000000000005_officialization_v1.sql'];
+// OFFICIALIZATION-V1 (0005) creates its own authenticated RPCs; it touches none of the 33 gated functions.
+const OV1_NEW = JSON.parse(await readFile(`${repo}backend/torneos/officialization-v1/contract.json`, 'utf8')).acl.new_functions.length;
 
 // ---------------------------------------------------------------- transport helpers
 /** Through the published gateway (host loopback), like a staging client. */
@@ -218,7 +220,7 @@ test('Phase 2D — staging RPC exposure gate on the real Supabase stack', async 
       evidence.acl33 = rows;
       // Whole-catalog counts: exactly the 33 gated functions moved, nothing else (measured on the real image by exposure_acl.py).
       assert.equal(realImage.runs['after-real'].execute.authenticated.public_functions, realImage.runs['before-real'].execute.authenticated.public_functions - GATED.length);
-      assert.equal(inventory.functions.filter(f => f.schema === 'public' && f.authenticated).length, realImage.runs['after-real'].execute.authenticated.public_functions + MPA2_AUTH_NET + CV1.size);
+      assert.equal(inventory.functions.filter(f => f.schema === 'public' && f.authenticated).length, realImage.runs['after-real'].execute.authenticated.public_functions + MPA2_AUTH_NET + CV1.size + OV1_NEW);
       assert.equal(CV1.size, 15); assert.ok([...CV1].every(f => rows.some(r => r.function === f)), 'COMPETITION-V1 re-grants only functions of the gate');
       assert.equal(inventory.functions.filter(f => f.schema === 'public' && f.anon).length, 12);
     });
