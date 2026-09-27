@@ -79,7 +79,7 @@ export function fakeDeno({ env, deployPin, gateway, candidateHead }) {
     { id: 'ec6zv20gx8hn', status: 'succeeded', labels: { 'custom.git_head': C.CURRENT.head }, env_vars: [] }];
   const s = { writes: [], deployBodies: [], polls: 0, failDeploy: false };
   const transport = async ({ method, path: p, body }) => {
-    if (method === 'GET' && p === '/v2/apps?limit=100') return { status: 200, body: [{ id: app.id, slug: app.slug }] };
+    if (method === 'GET' && p === '/v2/apps?limit=100') return { status: 200, body: cert.org_apps.map((a) => ({ ...a })) };
     if (method === 'GET' && p === '/v2/layers') return { status: 200, body: [] };
     const tl = /^\/v2\/revisions\/([A-Za-z0-9_-]+)\/timelines$/.exec(p);
     if (method === 'GET' && tl) return { status: 200, body: [{ slug: 'production', domains: [{ domain: cert.production_domain }] }, { slug: 'preview', domains: [{ domain: `torneos-gateway-${tl[1]}.nicoavayu.deno.net` }] }] };

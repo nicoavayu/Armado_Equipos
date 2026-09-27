@@ -163,7 +163,7 @@ export function makeRemote(deps) {
    */
   async function denoAudit(observed) {
     const cert = deps.denoCertified ?? C.DENO_CERTIFIED;
-    const apps = list(await deno('GET', '/v2/apps?limit=100')).map((a) => a?.slug ?? null).sort();
+    const apps = list(await deno('GET', '/v2/apps?limit=100')).map((a) => ({ slug: a?.slug ?? null, id: a?.id ?? null })).sort((a, b) => String(a.slug).localeCompare(String(b.slug)));
     const layers = list(await deno('GET', '/v2/layers')).length;
     const app = await deno('GET', `/v2/apps/${C.APP_SLUG}`);
     const revs = list(await deno('GET', `/v2/apps/${C.APP_SLUG}/revisions?limit=20`));
@@ -173,7 +173,7 @@ export function makeRemote(deps) {
     const production = timelines.find((t) => t.slug === 'production') ?? null;
     const runtimeFields = Object.fromEntries(Object.entries({ ...(cur ?? {}) }).filter(([k, v]) => /runtime|version|deno/i.test(k) && (v === null || typeof v !== 'object')));
     const checks = [
-      ['organization: apps visible to the token = pin', canon(apps) === canon([...cert.org_apps].sort()), apps],
+      ['organization: apps visible to the token = pin (slug + id)', canon(apps) === canon([...cert.org_apps].sort((a, b) => a.slug.localeCompare(b.slug))), apps],
       ['organization: no shared layers', layers === cert.org_layers, layers],
       ['organization: live revision served on the pinned production domain', !!production && production.domains.includes(cert.production_domain), production],
       ['app id = pin', app?.id === cert.app.id, app?.id ?? null],

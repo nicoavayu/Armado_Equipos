@@ -170,7 +170,8 @@ export const CURRENT = Object.freeze({ revision: '3rvq2wx9tyyg', head: 'bea307a3
  */
 export const DENO_CERTIFIED = Object.freeze({
   evidence: 'backend/torneos/mp-b/evidence/gateway-remote/gr-01-deno-observe-20260926T015931Z.json',
-  org_apps: Object.freeze(['torneos-gateway']),
+  // + the payments TEST app certified afterwards (PAYMENTS_REMOTE_TEST_CERTIFIED, pins/payments-test-deploy.json).
+  org_apps: Object.freeze([Object.freeze({ slug: 'torneos-gateway', id: '5d4f18e9-1614-4e24-b8e0-fd7cff8e4c3d' }), Object.freeze({ slug: 'torneos-payments-test', id: '46dc4189-bc99-4c89-88d0-ea596e31d0a1' })]),
   org_layers: 0,
   app: Object.freeze({ id: '5d4f18e9-1614-4e24-b8e0-fd7cff8e4c3d', created_at: '2026-09-26T01:08:16.167Z', updated_at: '2026-09-26T01:12:00.894Z',
     config: Object.freeze({ runtime: Object.freeze({ type: 'dynamic', entrypoint: 'torneos-gateway/index.ts' }), crons: false }),
