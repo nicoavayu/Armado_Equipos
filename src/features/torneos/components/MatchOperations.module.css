@@ -1433,3 +1433,27 @@
 .eventComposer textarea {
   border-radius: var(--torneos-control-radius);
 }
+
+/* OFFICIALIZATION-V1: política de doble control visible en el cierre y la revisión. */
+.closureActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.dualControlNote {
+  margin: 0 0 12px;
+  padding: 9px 12px;
+  color: #d8cff1;
+  font-size: 12px;
+  line-height: 1.45;
+  background: rgba(136, 92, 255, 0.08);
+  border: 1px solid rgba(136, 92, 255, 0.24);
+  border-radius: 8px;
+}
+
+.dualControlNote[data-dual-control='off'] {
+  color: #bff5de;
+  background: rgba(50, 200, 140, 0.07);
+  border-color: rgba(50, 200, 140, 0.22);
+}

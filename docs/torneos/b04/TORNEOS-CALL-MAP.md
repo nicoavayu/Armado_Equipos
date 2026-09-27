@@ -1,6 +1,6 @@
 # TORNEOS-CALL-MAP — auditoría B04
 
-Inventario legacy congelado en `2058da039a2a5eaaed22d87d01946bc596ae5f50` (Phase 2D); árbol integrado auditado en `ff9f9a77e4b7dfe99765f5b94055f94dedb2384b`. Reconstruido del código. No representa resultados de R2/R3/R4/R5.
+Inventario legacy congelado en `2058da039a2a5eaaed22d87d01946bc596ae5f50` (Phase 2D); árbol integrado auditado en `5b786051cfb714f2bc048f9b2f6be99fd54abcd0`. Reconstruido del código. No representa resultados de R2/R3/R4/R5.
 
 161 sitios RPC legacy; 160 nombres distintos; 108 nombres dentro de scope; 52 fuera. La selección dinámica de `changeTournamentMatchPlan` se resuelve a sus tres nombres literales. No quedan RPC dinámicas sin resolver.
 
@@ -119,19 +119,28 @@ Inventario legacy congelado en `2058da039a2a5eaaed22d87d01946bc596ae5f50` (Phase
 | `withdraw_tournament_competition_participant` | `withdrawTournamentCompetitionParticipant` | [src/features/torneos/api/tournamentWorkspaceService.js:556](../../../src/features/torneos/api/tournamentWorkspaceService.js#L556) |
 | `withdraw_tournament_team_entry` | `withdrawTournamentTeamEntry` | [src/features/torneos/api/tournamentWorkspaceService.js:705](../../../src/features/torneos/api/tournamentWorkspaceService.js#L705) |
 
-## Permitidas por los contratos, sin llamada frontend (9)
+## Permitidas por los contratos, sin llamada frontend (18)
 
+- `accept_tournament_organization_invitation`
 - `can_read_tournament_team_entry`
+- `get_tournament_match_dual_control`
 - `has_organization_consumed_free_tournament`
 - `has_tournament_capability`
 - `has_tournament_organization_capability`
 - `has_tournament_season_access`
 - `has_tournament_season_capability`
+- `invite_tournament_organization_member`
 - `is_tournament_organization_member`
 - `is_tournament_team_manager`
+- `list_tournament_organization_invitations`
+- `list_tournament_organization_members`
+- `remove_tournament_organization_member`
+- `revoke_tournament_organization_invitation`
+- `set_tournament_match_dual_control`
 - `tournament_role_capabilities`
+- `update_tournament_organization_member_role`
 
-La foundation copia las 117 operaciones de los contratos aprobados (Phase 2D + COMPETITION-V1) exactamente; no amplía la allowlist del backend. Además lee tres tablas del contrato certificado (`tournament_organization_members`, `tournament_venues`, `tournament_courts`, `foundation/stagingV1Tables.js`) y la página pública usa la ruta anónima de sólo lectura del gateway (`get_public_tournament_page`).
+La foundation copia las 126 operaciones de los contratos aprobados (Phase 2D + COMPETITION-V1 + OFFICIALIZATION-V1) exactamente; no amplía la allowlist del backend. Además lee tres tablas del contrato certificado (`tournament_organization_members`, `tournament_venues`, `tournament_courts`, `foundation/stagingV1Tables.js`) y la página pública usa la ruta anónima de sólo lectura del gateway (`get_public_tournament_page`).
 
 ## Bloqueadas por scope (52)
 
@@ -198,7 +207,7 @@ Los únicos sitios fuera del inventario legacy. El transporte habla sólo con el
 
 | Tipo | Llamada | Sitio |
 | --- | --- | --- |
-| rpc | `transport.rpc` | [src/features/torneos/foundation/torneosClient.js:40](../../../src/features/torneos/foundation/torneosClient.js#L40) |
+| rpc | `transport.rpc` | [src/features/torneos/foundation/torneosClient.js:42](../../../src/features/torneos/foundation/torneosClient.js#L42) |
 | transport | `window.fetch` | [src/features/torneos/foundation/torneosTransport.js:103](../../../src/features/torneos/foundation/torneosTransport.js#L103) |
 | transport | `fetchImpl` | [src/features/torneos/foundation/torneosTransport.js:151](../../../src/features/torneos/foundation/torneosTransport.js#L151) |
 | transport | `fetchImpl` | [src/features/torneos/foundation/torneosTransport.js:209](../../../src/features/torneos/foundation/torneosTransport.js#L209) |
@@ -284,7 +293,7 @@ Ninguna de estas superficies se habilita en la composición híbrida. `from` pue
 | [src/supabase.js:16](../../../src/supabase.js#L16) | `./lib/supabaseClient` |
 | [src/utils/checkView.js:2](../../../src/utils/checkView.js#L2) | `../lib/supabaseClient` |
 
-## Dependencias Core transitivas dentro de Torneos (122 aristas)
+## Dependencias Core transitivas dentro de Torneos (124 aristas)
 
 Cada fila es un import que alcanza el singleton por el grafo estático, no una consulta de datos ni una llamada en tiempo de ejecución. La única arista nueva de B04 es `stagingV1/coreSessionBridge.js → lib/coreSupabaseClient.js` (lectura de sesión y eventos de auth; nunca `rpc`/`from`/`storage`).
 
@@ -325,7 +334,8 @@ Cada fila es un import que alcanza el singleton por el grafo estático, no una c
 | [src/features/torneos/components/MyTournamentMatchesPage.jsx:19](../../../src/features/torneos/components/MyTournamentMatchesPage.jsx#L19) | `../context/TorneosWorkspaceContext` |
 | [src/features/torneos/components/MyTournamentsPage.jsx:16](../../../src/features/torneos/components/MyTournamentsPage.jsx#L16) | `../context/TorneosWorkspaceContext` |
 | [src/features/torneos/components/NewTeamEntryPage.jsx:14](../../../src/features/torneos/components/NewTeamEntryPage.jsx#L14) | `../context/TorneosWorkspaceContext` |
-| [src/features/torneos/components/OrganizationMembersPage.jsx:18](../../../src/features/torneos/components/OrganizationMembersPage.jsx#L18) | `../context/TorneosWorkspaceContext` |
+| [src/features/torneos/components/OrganizationInvitationPage.jsx:4](../../../src/features/torneos/components/OrganizationInvitationPage.jsx#L4) | `../context/TorneosWorkspaceContext` |
+| [src/features/torneos/components/OrganizationMembersPage.jsx:22](../../../src/features/torneos/components/OrganizationMembersPage.jsx#L22) | `../context/TorneosWorkspaceContext` |
 | [src/features/torneos/components/OrganizationRouteGuard.jsx:6](../../../src/features/torneos/components/OrganizationRouteGuard.jsx#L6) | `../context/TorneosWorkspaceContext` |
 | [src/features/torneos/components/OrganizationSettingsPage.jsx:12](../../../src/features/torneos/components/OrganizationSettingsPage.jsx#L12) | `../context/TorneosWorkspaceContext` |
 | [src/features/torneos/components/OrganizationSettingsPage.jsx:15](../../../src/features/torneos/components/OrganizationSettingsPage.jsx#L15) | `./BrandingAssetField` |
@@ -337,7 +347,7 @@ Cada fila es un import que alcanza el singleton por el grafo estático, no una c
 | [src/features/torneos/components/PlayerPortraitActions.jsx:10](../../../src/features/torneos/components/PlayerPortraitActions.jsx#L10) | `./PlayerPortraitDialog` |
 | [src/features/torneos/components/PlayerPortraitDialog.jsx:10](../../../src/features/torneos/components/PlayerPortraitDialog.jsx#L10) | `./usePlayerPortraitUrl` |
 | [src/features/torneos/components/PublicTournamentPage.jsx:12](../../../src/features/torneos/components/PublicTournamentPage.jsx#L12) | `../api/publicTournamentService` |
-| [src/features/torneos/components/PublicTournamentPage.jsx:19](../../../src/features/torneos/components/PublicTournamentPage.jsx#L19) | `./BrandingImage` |
+| [src/features/torneos/components/PublicTournamentPage.jsx:20](../../../src/features/torneos/components/PublicTournamentPage.jsx#L20) | `./BrandingImage` |
 | [src/features/torneos/components/PublicTournamentRoute.jsx:2](../../../src/features/torneos/components/PublicTournamentRoute.jsx#L2) | `./PublicTournamentPage` |
 | [src/features/torneos/components/PublicTournamentRoute.jsx:3](../../../src/features/torneos/components/PublicTournamentRoute.jsx#L3) | `../api/publicTournamentService` |
 | [src/features/torneos/components/PurchaseStatusPage.jsx:11](../../../src/features/torneos/components/PurchaseStatusPage.jsx#L11) | `../context/TorneosCommerceContext` |
@@ -378,25 +388,26 @@ Cada fila es un import que alcanza el singleton por el grafo estático, no una c
 | [src/features/torneos/components/TorneosShell.jsx:55](../../../src/features/torneos/components/TorneosShell.jsx#L55) | `./NewTeamEntryPage` |
 | [src/features/torneos/components/TorneosShell.jsx:56](../../../src/features/torneos/components/TorneosShell.jsx#L56) | `./TeamRegistrationPage` |
 | [src/features/torneos/components/TorneosShell.jsx:57](../../../src/features/torneos/components/TorneosShell.jsx#L57) | `./TeamInvitationPage` |
-| [src/features/torneos/components/TorneosShell.jsx:58](../../../src/features/torneos/components/TorneosShell.jsx#L58) | `./WorkspaceSwitcher` |
-| [src/features/torneos/components/TorneosShell.jsx:59](../../../src/features/torneos/components/TorneosShell.jsx#L59) | `./FixtureWorkspacePage` |
-| [src/features/torneos/components/TorneosShell.jsx:60](../../../src/features/torneos/components/TorneosShell.jsx#L60) | `./MatchOperationsPage` |
-| [src/features/torneos/components/TorneosShell.jsx:61](../../../src/features/torneos/components/TorneosShell.jsx#L61) | `./MyTournamentMatchesPage` |
-| [src/features/torneos/components/TorneosShell.jsx:62](../../../src/features/torneos/components/TorneosShell.jsx#L62) | `./CaptainMatchSquadPage` |
-| [src/features/torneos/components/TorneosShell.jsx:63](../../../src/features/torneos/components/TorneosShell.jsx#L63) | `./CompetitionCenterPage` |
-| [src/features/torneos/components/TorneosShell.jsx:64](../../../src/features/torneos/components/TorneosShell.jsx#L64) | `./MyTournamentsPage` |
-| [src/features/torneos/components/TorneosShell.jsx:65](../../../src/features/torneos/components/TorneosShell.jsx#L65) | `./TournamentHubPage` |
-| [src/features/torneos/components/TorneosShell.jsx:66](../../../src/features/torneos/components/TorneosShell.jsx#L66) | `./MyCommunicationsPage` |
-| [src/features/torneos/components/TorneosShell.jsx:67](../../../src/features/torneos/components/TorneosShell.jsx#L67) | `./CommunicationsAdminPage` |
-| [src/features/torneos/components/TorneosShell.jsx:68](../../../src/features/torneos/components/TorneosShell.jsx#L68) | `./MediaAdminPage` |
-| [src/features/torneos/components/TorneosShell.jsx:69](../../../src/features/torneos/components/TorneosShell.jsx#L69) | `./SocialStudioPage` |
+| [src/features/torneos/components/TorneosShell.jsx:58](../../../src/features/torneos/components/TorneosShell.jsx#L58) | `./OrganizationInvitationPage` |
+| [src/features/torneos/components/TorneosShell.jsx:59](../../../src/features/torneos/components/TorneosShell.jsx#L59) | `./WorkspaceSwitcher` |
+| [src/features/torneos/components/TorneosShell.jsx:60](../../../src/features/torneos/components/TorneosShell.jsx#L60) | `./FixtureWorkspacePage` |
+| [src/features/torneos/components/TorneosShell.jsx:61](../../../src/features/torneos/components/TorneosShell.jsx#L61) | `./MatchOperationsPage` |
+| [src/features/torneos/components/TorneosShell.jsx:62](../../../src/features/torneos/components/TorneosShell.jsx#L62) | `./MyTournamentMatchesPage` |
+| [src/features/torneos/components/TorneosShell.jsx:63](../../../src/features/torneos/components/TorneosShell.jsx#L63) | `./CaptainMatchSquadPage` |
+| [src/features/torneos/components/TorneosShell.jsx:64](../../../src/features/torneos/components/TorneosShell.jsx#L64) | `./CompetitionCenterPage` |
+| [src/features/torneos/components/TorneosShell.jsx:65](../../../src/features/torneos/components/TorneosShell.jsx#L65) | `./MyTournamentsPage` |
+| [src/features/torneos/components/TorneosShell.jsx:66](../../../src/features/torneos/components/TorneosShell.jsx#L66) | `./TournamentHubPage` |
+| [src/features/torneos/components/TorneosShell.jsx:67](../../../src/features/torneos/components/TorneosShell.jsx#L67) | `./MyCommunicationsPage` |
+| [src/features/torneos/components/TorneosShell.jsx:68](../../../src/features/torneos/components/TorneosShell.jsx#L68) | `./CommunicationsAdminPage` |
+| [src/features/torneos/components/TorneosShell.jsx:69](../../../src/features/torneos/components/TorneosShell.jsx#L69) | `./MediaAdminPage` |
+| [src/features/torneos/components/TorneosShell.jsx:70](../../../src/features/torneos/components/TorneosShell.jsx#L70) | `./SocialStudioPage` |
 | [src/features/torneos/components/TournamentHubPage.jsx:36](../../../src/features/torneos/components/TournamentHubPage.jsx#L36) | `../context/TorneosWorkspaceContext` |
 | [src/features/torneos/components/TournamentHubPage.jsx:42](../../../src/features/torneos/components/TournamentHubPage.jsx#L42) | `./BrandingImage` |
 | [src/features/torneos/components/TournamentPublicPageSettings.jsx:11](../../../src/features/torneos/components/TournamentPublicPageSettings.jsx#L11) | `../api/tournamentWorkspaceService` |
 | [src/features/torneos/components/TournamentWizardPage.jsx:35](../../../src/features/torneos/components/TournamentWizardPage.jsx#L35) | `../context/TorneosWorkspaceContext` |
 | [src/features/torneos/components/TournamentWizardPage.jsx:61](../../../src/features/torneos/components/TournamentWizardPage.jsx#L61) | `./TournamentPublicPageSettings` |
-| [src/features/torneos/components/TournamentWizardPage.jsx:62](../../../src/features/torneos/components/TournamentWizardPage.jsx#L62) | `./TeamVisualPolicySettings` |
-| [src/features/torneos/components/TournamentWizardPage.jsx:63](../../../src/features/torneos/components/TournamentWizardPage.jsx#L63) | `./BrandingAssetField` |
+| [src/features/torneos/components/TournamentWizardPage.jsx:63](../../../src/features/torneos/components/TournamentWizardPage.jsx#L63) | `./TeamVisualPolicySettings` |
+| [src/features/torneos/components/TournamentWizardPage.jsx:64](../../../src/features/torneos/components/TournamentWizardPage.jsx#L64) | `./BrandingAssetField` |
 | [src/features/torneos/components/WorkspaceSwitcher.jsx:12](../../../src/features/torneos/components/WorkspaceSwitcher.jsx#L12) | `../context/TorneosWorkspaceContext` |
 | [src/features/torneos/components/WorkspaceSwitcher.jsx:15](../../../src/features/torneos/components/WorkspaceSwitcher.jsx#L15) | `./BrandingImage` |
 | [src/features/torneos/components/usePlayerPortraitUrl.js:11](../../../src/features/torneos/components/usePlayerPortraitUrl.js#L11) | `../api/tournamentPlayerPortraitService` |

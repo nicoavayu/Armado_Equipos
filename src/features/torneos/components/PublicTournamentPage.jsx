@@ -15,6 +15,7 @@ import {
   getPublicMatchLabel,
   PUBLIC_MATCH_KIND,
 } from '../domain/matchSchedule';
+import { getCompetitionFormatName, getSportModalityName } from '../domain/competitionCatalog';
 import styles from './PublicTournamentPage.module.css';
 import BrandingImage from './BrandingImage';
 
@@ -321,8 +322,8 @@ export default function PublicTournamentPage({ service = publicTournamentService
             <p>{page.tournament.description || 'Información oficial de la competencia.'}</p>
             <div className={styles.heroTags}>
               <span data-status={page.tournament.status}>{STATUS_LABELS[page.tournament.status] || page.tournament.status}</span>
-              <span>{page.tournament.sportModality}</span>
-              <span>{page.tournament.competitionFormat}</span>
+              <span>{getSportModalityName(page.tournament.sportModality)}</span>
+              <span>{getCompetitionFormatName(page.tournament.competitionFormat)}</span>
             </div>
           </div>
         </div>

@@ -10,6 +10,9 @@ import { test } from 'node:test';
 import { runtime } from './sandbox.mjs';
 import { read } from './audit.mjs';
 import { COMPETITION_SAMPLE, COMPETITION_COMPOSITE, COMPETITION_EXCLUDED } from './competition-samples.mjs';
+// OFFICIALIZATION-V1: membership + dual-control aliases (their payloads are guarded in officialization-adapter.test.mjs).
+const OFFICIALIZATION_ALIASES = ['listMemberInvitations', 'inviteMember', 'revokeMemberInvitation', 'acceptOrganizationInvitation',
+  'updateMemberRole', 'removeMember', 'loadMatchDualControl', 'setMatchDualControl'];
 
 const SCOPE = JSON.parse(read('backend/torneos/phase2d/staging-v1-rpc-allowlist.json')).features;
 const ALLOWLIST = new Set(Object.values(SCOPE).flat());
@@ -109,11 +112,11 @@ const PREDICATES_WITHOUT_CALLER = ['is_tournament_organization_member', 'has_tou
   'can_read_tournament_team_entry', 'is_tournament_team_manager'];
 const MIGRABLE = [...ALLOWLIST].filter((name) => !PREDICATES_WITHOUT_CALLER.includes(name));
 
-test('the adapter exposes exactly the legacy aliases of the staging-v1 + COMPETITION-V1 scope and nothing of the blocked surfaces', () => {
+test('the adapter exposes exactly the legacy aliases of the staging-v1 + COMPETITION-V1 scope, the OFFICIALIZATION-V1 aliases and nothing of the blocked surfaces', () => {
   const { service } = loadAdapter(recordingTransport().transport);
   const aliases = Object.keys(service).sort();
   const expected = [...Object.keys(SAMPLE), 'listMembers', 'loadCompetitionContext', 'loadExperienceRelations', 'createIdempotencyKey',
-    ...Object.keys(COMPETITION_SAMPLE), ...COMPETITION_COMPOSITE].sort();
+    ...Object.keys(COMPETITION_SAMPLE), ...COMPETITION_COMPOSITE, ...OFFICIALIZATION_ALIASES].sort();
   assert.deepEqual(aliases, expected);
   assert.ok(Object.isFrozen(service));
   for (const blocked of ['loadEntitlements', 'loadSeasonEntitlements', 'createCheckout', 'loadPurchase', ...COMPETITION_EXCLUDED]) {
@@ -166,11 +169,11 @@ test('loadExperienceRelations paginates get_my_tournament_memberships like the l
   assert.deepEqual(recorder.calls.map((c) => [c.name, c.params.p_limit, c.params.p_offset]), [['get_my_tournament_memberships', 50, 0], ['get_my_tournament_memberships', 50, 50]]);
 });
 
-test('listMembers reads the certified table route with the exact columns; a non-uuid id never reaches the network', async () => {
-  const recorder = recordingTransport(() => [{ id: 'm1' }]);
+test('listMembers reads the OFFICIALIZATION-V1 membership RPC (it replaced the Phase 2D table read); a non-uuid id never reaches the network', async () => {
+  const recorder = recordingTransport(() => [{ id: 'm1', userId: 'u1', role: 'owner', status: 'active' }]);
   const { service } = loadAdapter(recorder.transport);
-  same(await service.listMembers(ORG), [{ id: 'm1' }]);
-  same(recorder.calls[0], { kind: 'select', table: 'tournament_organization_members', query: { select: 'id,user_id,role,status,joined_at,created_at', organization_id: `eq.${ORG}`, order: 'joined_at.asc' } });
+  same(await service.listMembers(ORG), [{ id: 'm1', user_id: 'u1', role: 'owner', status: 'active', email: null, is_viewer: false }]);
+  same(recorder.calls[0], { kind: 'rpc', name: 'list_tournament_organization_members', params: { p_organization_id: ORG } });
   await assert.rejects(service.listMembers("x' or 1=1"), { code: 'TORNEOS_INVALID_REQUEST' });
   assert.equal(recorder.calls.length, 1);
 });

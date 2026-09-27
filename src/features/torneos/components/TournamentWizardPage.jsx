@@ -59,6 +59,7 @@ import {
 import { canonicalRoutes } from '../routing/canonicalRoutes';
 import { WorkspaceError, WorkspaceLoading } from './WorkspaceState';
 import TournamentPublicPageSettings from './TournamentPublicPageSettings';
+import MatchDualControlSettings from './MatchDualControlSettings';
 import TeamVisualPolicySettings from './TeamVisualPolicySettings';
 import BrandingAssetField from './BrandingAssetField';
 import styles from './CompetitionCore.module.css';
@@ -673,6 +674,15 @@ export default function TournamentWizardPage() {
         />
       )}
 
+      {!isNew && features.match_dual_control !== false
+        && typeof workspaceService?.loadMatchDualControl === 'function' && (
+        <MatchDualControlSettings
+          organizationId={organization.id}
+          tournamentId={tournament.id}
+          service={workspaceService}
+        />
+      )}
+
       {!isNew && features.team_visual_policy !== false && offers('loadTeamVisualPolicy') && (
         <TeamVisualPolicySettings
           organizationId={organization.id}
@@ -904,7 +914,7 @@ export default function TournamentWizardPage() {
                 <span>01</span>
                 <div>
                   <h3>Puntuación</h3>
-                  <p>Se guardan las reglas; la tabla se implementará en una fase futura.</p>
+                  <p>Estas reglas se aplican al calcular la tabla con los resultados oficiales.</p>
                 </div>
               </div>
               <div className={styles.pointsGrid}>

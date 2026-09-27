@@ -25,7 +25,9 @@ const fixture = {
 const scope = JSON.parse(read('backend/torneos/phase2d/staging-v1-rpc-allowlist.json')).features;
 // COMPETITION-V1: the hybrid adapter also routes the full-competition contract.
 const competition = JSON.parse(read('backend/torneos/supabase/functions/torneos-gateway/competition-v1-rpc-allowlist.json'));
-const allowed = new Set([...Object.values(scope).flat(), ...Object.values(competition.features).flat()]);
+// OFFICIALIZATION-V1: organization membership + the dual-control policy.
+const officialization = JSON.parse(read('backend/torneos/supabase/functions/torneos-gateway/officialization-v1-rpc-allowlist.json'));
+const allowed = new Set([...Object.values(scope).flat(), ...Object.values(competition.features).flat(), ...Object.values(officialization.features).flat()]);
 const rpcs = snapshot.calls.filter(c => c.kind === 'rpc');
 const names = [...new Set(rpcs.flatMap(c => c.targets))].sort();
 const link = (file, line) => `[${file}:${line}](../../../${file}#L${line})`;
@@ -55,7 +57,7 @@ ${rows(migratable)}
 
 ${[...allowed].filter(n=>!names.includes(n)).sort().map(n=>`- \`${n}\``).join('\n')}
 
-La foundation copia las ${allowed.size} operaciones de los contratos aprobados (Phase 2D + COMPETITION-V1) exactamente; no amplía la allowlist del backend. Además lee tres tablas del contrato certificado (\`tournament_organization_members\`, \`tournament_venues\`, \`tournament_courts\`, \`foundation/stagingV1Tables.js\`) y la página pública usa la ruta anónima de sólo lectura del gateway (\`${Object.values(competition.public).flat().join(', ')}\`).
+La foundation copia las ${allowed.size} operaciones de los contratos aprobados (Phase 2D + COMPETITION-V1 + OFFICIALIZATION-V1) exactamente; no amplía la allowlist del backend. Además lee tres tablas del contrato certificado (\`tournament_organization_members\`, \`tournament_venues\`, \`tournament_courts\`, \`foundation/stagingV1Tables.js\`) y la página pública usa la ruta anónima de sólo lectura del gateway (\`${Object.values(competition.public).flat().join(', ')}\`).
 
 ## Bloqueadas por scope (${blocked.length})
 

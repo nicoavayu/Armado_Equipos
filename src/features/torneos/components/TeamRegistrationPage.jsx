@@ -250,6 +250,12 @@ export default function TeamRegistrationPage({ initialTab = 'inscripcion' }) {
   // torneo no puede desincronizarse de lo que muestran los controles.
   const canEditBranding = brandingEnabled && data?.visualAssets?.canManageShield === true;
   const canReview = hasCapability(organization, TOURNAMENT_CAPABILITIES.TEAM_ENTRIES_REVIEW);
+  // submit_tournament_team_entry sólo acepta una inscripción en curso (o con cambios pedidos) que
+  // ya tiene un responsable activo: antes de eso el botón llevaría siempre a un rechazo.
+  const hasActiveManager = Boolean(data?.managers?.some((manager) => manager.status === 'active'));
+  const submittable = editable
+    && ['in_progress', 'changes_requested'].includes(data?.entry?.status)
+    && hasActiveManager;
   // El alcance también lo decide el servidor. Con `visual` la inscripción llega
   // sin responsables, sin revisiones y sin auditoría: no son datos del jugador.
   // La pantalla tiene que dejar de mostrar esos bloques, no pintarlos vacíos —
@@ -560,7 +566,7 @@ export default function TeamRegistrationPage({ initialTab = 'inscripcion' }) {
                   )}
                 />
               ))}
-              {!players.length && <div className={styles.inlineEmpty}><UserPlus size={24} /><span><strong>Plantel vacío</strong><small>Buscá un jugador o crealo sin cuenta.</small></span></div>}
+              {!players.length && <div className={styles.inlineEmpty}><UserPlus size={24} /><span><strong>Plantel vacío</strong>{' '}<small>Buscá un jugador o crealo sin cuenta.</small></span></div>}
             </div>
           </section>
           <aside className={styles.requirementsPanel}>
@@ -583,7 +589,8 @@ export default function TeamRegistrationPage({ initialTab = 'inscripcion' }) {
               <button
                 className={styles.primaryButton}
                 type="button"
-                disabled={!progress.complete || Boolean(busy)}
+                disabled={!submittable || !progress.complete || Boolean(busy)}
+                title={submittable ? undefined : 'El responsable del equipo tiene que aceptar la invitación antes de presentar el plantel.'}
                 onClick={() => run(
                   'submit',
                   () => service.submitTeamEntry({ organizationId: organization.id, teamEntryId }),
@@ -593,6 +600,13 @@ export default function TeamRegistrationPage({ initialTab = 'inscripcion' }) {
                 {busy === 'submit' ? <Loader2 className={styles.spin} size={18} /> : <Send size={18} />}
                 Presentar plantel
               </button>
+            )}
+            {editable && !submittable && (
+              <p className={styles.submitHint}>
+                {hasActiveManager
+                  ? 'La inscripción todavía no está en curso.'
+                  : 'Esperando que el responsable acepte la invitación para poder presentar el plantel.'}
+              </p>
             )}
           </aside>
         </div>
