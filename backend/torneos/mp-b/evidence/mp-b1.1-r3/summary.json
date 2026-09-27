@@ -1,0 +1,31 @@
+{
+  "phase": "MP-B1.1 R3 — Deno Deploy runtime preparation + final hardening",
+  "verdict": "MP_B1_1_CODE_READY",
+  "certification": "CODE_READY",
+  "remotePlatformCertified": false,
+  "parent": "bdc605fdccec3fe3fa4082be0fac67e5ba496f79",
+  "branch": "claude/torneos-mp-b1-1-remote-enablement-r2",
+  "topology": { "gateway": "Deno Deploy app torneos-gateway", "payments": "Deno Deploy app torneos-payments", "supabaseTorneos": "DB + PostgREST + migrations + RLS/grants + custom_jwks; no Edge Functions", "variableScope": "app", "organizationVariables": 0, "databaseIntegration": "none" },
+  "h1": "payments refuses gateway/bridge/Core-private/Supabase-admin/DATABASE_URL/PG* at boot (exact names + ^PG[A-Z_]+$)",
+  "h2": "payments refuses torneos_edge_identity_writer / torneos_edge_core_adapter by login (pooler, case, %-encoding)",
+  "webhookTs": { "accepted": ["^[1-9]\\d{9}$ seconds", "^[1-9]\\d{12}$ milliseconds"], "rawHmac": true, "normalisation": "freshness only", "futureSkewS": 300, "maxAge": "none", "duplicates": "refused", "ordering": "provider date_last_updated only" },
+  "sharedProviderCopy": "byte-identical (1136217d…)",
+  "results": {
+    "r3OfflineRed": "17 fail / 12 pass of 29 on the untouched candidate",
+    "r3Offline": "29/29",
+    "r3DenoRuntime": "7/7 (deno 2.1.4, offline)",
+    "r3LabTsOrdering": "9/9",
+    "r2Offline": "29/29",
+    "r2WebhookReplay": "15/15",
+    "combinedT10T3T4T5Ordering": "149/149",
+    "t2": "6/6",
+    "migrations": "2/2",
+    "t6Unit": "31/32 (accepted historical U scope)",
+    "t6Test": "49/50 (accepted historical U scope)",
+    "staticGuard": "OK secrets=0 unknownProjectHosts=0",
+    "migrationsGuard": "8/8",
+    "invariants": "PASS"
+  },
+  "invariants": { "migrations": 4, "paymentExecute": 4, "frontendChanged": false, "coreChanged": false, "gatewayChanged": false, "secrets": 0, "operationalRemoteCalls": 0 },
+  "remainingBlockers": "REMOTE_PLATFORM checks only (deno-deploy-isolation-contract.json → pendingRemotePlatformChecks)"
+}

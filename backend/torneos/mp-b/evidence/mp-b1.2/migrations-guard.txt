@@ -1,0 +1,21 @@
+
+> team-balancer@0.1.0 migrations:guard
+> node scripts/guard_migration_source.mjs && node --test scripts/guard_migration_source.test.mjs scripts/resolve_migration_path.test.cjs
+
+[migrations:guard] OK. Exactly the approved canonical migrations are present.
+✔ accepts the closed set including Auto-Match, contract repair and global availability (54.506583ms)
+✔ rejects a migration outside the closed approved set (51.5155ms)
+✔ does not accept an approved migration from history as active (51.416542ms)
+✔ resolves an active migration from supabase/migrations (1.762208ms)
+✔ resolves an archived migration from supabase/migrations_history (0.972875ms)
+✔ fails explicitly when a migration does not exist (1.036833ms)
+✔ rejects an ambiguous migration present in active and history (1.035083ms)
+✔ rejects paths instead of traversing arbitrary directories (0.7015ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 8
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 218.485334

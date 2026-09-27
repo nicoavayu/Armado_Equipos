@@ -1,0 +1,427 @@
+{
+ "tool": "backend/torneos/infra/torneos-gateway-remote",
+ "verdict": "GATEWAY_REMOTE_DEPLOY_PASS",
+ "public_url": "https://torneos-gateway.nicoavayu.deno.net/functions/v1/torneos-gateway",
+ "revision": {
+  "id": "3rvq2wx9tyyg",
+  "status": "succeeded",
+  "failure_reason": null,
+  "failure_detail": null,
+  "env_vars": null,
+  "layers": null,
+  "config": null,
+  "labels": {
+   "custom.git_head": "bea307a3a82fd8e610f99210c2f8b40f9ceb0697"
+  },
+  "created_at": "2026-09-26T01:12:01.540Z",
+  "build_finished_at": "2026-09-26T01:12:04.154Z",
+  "timelines": null
+ },
+ "deno": {
+  "app": {
+   "id": "5d4f18e9-1614-4e24-b8e0-fd7cff8e4c3d",
+   "slug": "torneos-gateway",
+   "layers": [],
+   "env_vars": [
+    {
+     "key": "CORE_ANON_KEY",
+     "secret": false,
+     "contexts": "all",
+     "value_returned": true
+    },
+    {
+     "key": "CORE_AUTH_URL",
+     "secret": false,
+     "contexts": "all",
+     "value_returned": true
+    },
+    {
+     "key": "CORE_CONTRACT_URL",
+     "secret": false,
+     "contexts": "all",
+     "value_returned": true
+    },
+    {
+     "key": "CORE_JWT_ISSUER",
+     "secret": false,
+     "contexts": "all",
+     "value_returned": true
+    },
+    {
+     "key": "TORNEOS_ALLOWED_ORIGIN",
+     "secret": false,
+     "contexts": "all",
+     "value_returned": true
+    },
+    {
+     "key": "TORNEOS_ANON_KEY",
+     "secret": false,
+     "contexts": "all",
+     "value_returned": true
+    },
+    {
+     "key": "TORNEOS_BRIDGE_KEYS",
+     "secret": true,
+     "contexts": "all",
+     "value_returned": false
+    },
+    {
+     "key": "TORNEOS_CONTRACT_SERVICE_SECRET",
+     "secret": true,
+     "contexts": "all",
+     "value_returned": false
+    },
+    {
+     "key": "TORNEOS_DB_CORE_ADAPTER_URL",
+     "secret": true,
+     "contexts": "all",
+     "value_returned": false
+    },
+    {
+     "key": "TORNEOS_DB_IDENTITY_WRITER_URL",
+     "secret": true,
+     "contexts": "all",
+     "value_returned": false
+    },
+    {
+     "key": "TORNEOS_DB_SSL_CA",
+     "secret": false,
+     "contexts": "all",
+     "value_returned": true
+    },
+    {
+     "key": "TORNEOS_GATEWAY_PUBLIC_URL",
+     "secret": false,
+     "contexts": "all",
+     "value_returned": true
+    },
+    {
+     "key": "TORNEOS_REST_URL",
+     "secret": false,
+     "contexts": "all",
+     "value_returned": true
+    }
+   ],
+   "config": {
+    "runtime": {
+     "type": "dynamic",
+     "entrypoint": "torneos-gateway/index.ts"
+    },
+    "crons": false
+   },
+   "labels": {
+    "custom.component": "arma2-torneos-gateway"
+   },
+   "created_at": "2026-09-26T01:08:16.167Z",
+   "updated_at": "2026-09-26T01:12:00.894Z"
+  },
+  "layers": [],
+  "apps": [
+   {
+    "id": "5d4f18e9-1614-4e24-b8e0-fd7cff8e4c3d",
+    "slug": "torneos-gateway"
+   }
+  ],
+  "failures": []
+ },
+ "probe": {
+  "checks": [
+   {
+    "name": "GET /health (allowed origin) → 200 ready + exact CORS origin + no-store",
+    "pass": true,
+    "status": 200,
+    "error": null,
+    "acao": "https://app.arma2.com.ar",
+    "cache": "no-store"
+   },
+   {
+    "name": "GET /.well-known/jwks.json → exactly the pinned public k1 (active) + k2 (standby), no private member",
+    "pass": true,
+    "status": 200,
+    "error": null,
+    "acao": "https://app.arma2.com.ar",
+    "cache": "no-store",
+    "kids": [
+     "arma2-torneos-prod-k1-svt92JOHlnVoXI35",
+     "arma2-torneos-prod-k2-9EgKZ6KojpyuHmBx"
+    ]
+   },
+   {
+    "name": "GET /config → {coreUrl, torneosUrl, anonKey}: Core Production URL, gateway /torneos, Torneos publishable key; nothing secret",
+    "pass": true,
+    "status": 200,
+    "error": null,
+    "acao": "https://app.arma2.com.ar",
+    "cache": "no-store",
+    "secret_findings": []
+   },
+   {
+    "name": "GET /health, foreign Origin → 403 origin rejected, no CORS grant",
+    "pass": true,
+    "status": 403,
+    "error": "origin rejected",
+    "acao": null,
+    "cache": "no-store"
+   },
+   {
+    "name": "GET /health, Origin null → 403",
+    "pass": true,
+    "status": 403,
+    "error": "origin rejected",
+    "acao": null,
+    "cache": "no-store"
+   },
+   {
+    "name": "GET /health, look-alike Origin → 403",
+    "pass": true,
+    "status": 403,
+    "error": "origin rejected",
+    "acao": null,
+    "cache": "no-store"
+   },
+   {
+    "name": "OPTIONS /exchange (allowed origin) → 204 with exact CORS grant",
+    "pass": true,
+    "status": 204,
+    "error": null,
+    "acao": "https://app.arma2.com.ar",
+    "cache": "no-store"
+   },
+   {
+    "name": "OPTIONS /exchange (foreign origin) → 403, no CORS grant",
+    "pass": true,
+    "status": 403,
+    "error": "origin rejected",
+    "acao": null,
+    "cache": "no-store"
+   },
+   {
+    "name": "GET /health on another hostname of the app (torneos-gateway-3rvq2wx9tyyg.nicoavayu.deno.net) → 403 (Host check)",
+    "pass": true,
+    "status": 403,
+    "error": "origin rejected",
+    "acao": null,
+    "cache": "no-store"
+   },
+   {
+    "name": "POST /exchange without bearer → 401",
+    "pass": true,
+    "status": 401,
+    "error": "access denied",
+    "acao": "https://app.arma2.com.ar",
+    "cache": "no-store"
+   },
+   {
+    "name": "POST /exchange with a non-Core bearer → 401 (GoTrue refuses it)",
+    "pass": true,
+    "status": 401,
+    "error": "access denied",
+    "acao": "https://app.arma2.com.ar",
+    "cache": "no-store"
+   },
+   {
+    "name": "POST /exchange with identity/role input → 400 (refused before any Core call)",
+    "pass": true,
+    "status": 400,
+    "error": "exchange accepts no identity or role input",
+    "acao": "https://app.arma2.com.ar",
+    "cache": "no-store"
+   },
+   {
+    "name": "POST /exchange with a 20 KB body → refused (4xx, never 2xx)",
+    "pass": true,
+    "status": 401,
+    "error": "access denied",
+    "acao": "https://app.arma2.com.ar",
+    "cache": "no-store"
+   },
+   {
+    "name": "POST allowlisted RPC without bearer → 401",
+    "pass": true,
+    "status": 401,
+    "error": "access denied",
+    "acao": "https://app.arma2.com.ar",
+    "cache": "no-store"
+   },
+   {
+    "name": "POST commerce RPC (commerce OFF), valid k1 bridge token → 403 rpc not enabled (before any Core call)",
+    "pass": true,
+    "status": 403,
+    "error": "rpc not enabled",
+    "acao": "https://app.arma2.com.ar",
+    "cache": "no-store"
+   },
+   {
+    "name": "POST checkout-creation RPC, valid k1 bridge token → 403 rpc not enabled",
+    "pass": true,
+    "status": 403,
+    "error": "rpc not enabled",
+    "acao": "https://app.arma2.com.ar",
+    "cache": "no-store"
+   },
+   {
+    "name": "POST /commerce/v1/season-checkout (commerce OFF) → 404, route absent",
+    "pass": true,
+    "status": 404,
+    "error": "not found",
+    "acao": "https://app.arma2.com.ar",
+    "cache": "no-store"
+   },
+   {
+    "name": "POST allowlisted RPC, valid k1 token for a Core user that does not exist → 401 (live Core authority: session inactive)",
+    "pass": true,
+    "status": 401,
+    "error": "access denied",
+    "acao": "https://app.arma2.com.ar",
+    "cache": "no-store"
+   },
+   {
+    "name": "POST allowlisted RPC, expired k1 token → 401",
+    "pass": true,
+    "status": 401,
+    "error": "access denied",
+    "acao": "https://app.arma2.com.ar",
+    "cache": "no-store"
+   },
+   {
+    "name": "POST allowlisted RPC, k1 token with exp−iat ≠ 120 → 401 (token contract)",
+    "pass": true,
+    "status": 401,
+    "error": "access denied",
+    "acao": "https://app.arma2.com.ar",
+    "cache": "no-store"
+   },
+   {
+    "name": "POST allowlisted RPC, token signed by a foreign key under the k1 kid → 401",
+    "pass": true,
+    "status": 401,
+    "error": "access denied",
+    "acao": "https://app.arma2.com.ar",
+    "cache": "no-store"
+   },
+   {
+    "name": "POST allowlisted RPC, k1 token with aud=authenticated → 401",
+    "pass": true,
+    "status": 401,
+    "error": "access denied",
+    "acao": "https://app.arma2.com.ar",
+    "cache": "no-store"
+   },
+   {
+    "name": "GET unknown path under the mount → 404",
+    "pass": true,
+    "status": 404,
+    "error": "not found",
+    "acao": "https://app.arma2.com.ar",
+    "cache": "no-store"
+   },
+   {
+    "name": "GET / (outside the mount) → 404",
+    "pass": true,
+    "status": 404,
+    "error": "not found",
+    "acao": "https://app.arma2.com.ar",
+    "cache": "no-store"
+   },
+   {
+    "name": "no response body carries a secret the session holds (contract secret, DB passwords, private keys, tokens)",
+    "pass": true,
+    "error": null,
+    "acao": null,
+    "cache": null,
+    "findings": []
+   }
+  ],
+  "passed": 25,
+  "total": 25,
+  "pass": true
+ },
+ "supabase_edge_functions": 0,
+ "deno_requests": [
+  {
+   "id": "apps",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "layers",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "app",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "revisions",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "revision-timelines",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "apps",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "layers",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "app",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "revisions",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "apps",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "layers",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "app",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "revisions",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "revision-timelines",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  }
+ ],
+ "deno_writes": 0
+}

@@ -1,0 +1,41 @@
+{
+ "before_any_write": {
+  "PINS_MISMATCH": "migration bytes/apply SQL/ledger rows/cli_parser/baseline/certified Staging tooling differ",
+  "ARTIFACT_MISMATCH": "function files or metadata differ from the certified Staging deploy",
+  "KEYCHAIN_NAMESPACE_REFUSED": "not the Production namespace",
+  "REQUEST_KEY_NOT_ACCEPTED": "ref/confirm/force/secret/... in input",
+  "PAT_REFUSED": "missing/malformed PAT or PAT carrying a ref",
+  "SECRET_CUSTODY_FAILED": "Keychain ambiguous/unreadable/malformed/generate failed",
+  "SECRET_EQUALS_NONPROD": "Production value == Staging value",
+  "PREFLIGHT_AMBIGUOUS": "any unreadable or unexpected API answer",
+  "PROJECT_IDENTITY_MISMATCH": "ref/name/org/region/created_at",
+  "PROJECT_NOT_ACTIVE_HEALTHY": "status",
+  "LEDGER_UNEXPECTED": "ledger ≠ baseline (+ own rows)",
+  "MIGRATION_STATE_STOP": "decision table STOP or order violation",
+  "WRITER_PRIVILEGES_INSUFFICIENT": "postgres cannot apply",
+  "PREREQUISITES_UNMET": "Core columns/functions/types",
+  "APP_PRIVATE_UNEXPECTED": "app_private pre-existing or not the exact contract set",
+  "ACL_BEFORE_UNEXPECTED": "contract objects/strays present before",
+  "FUNCTION_STATE_UNEXPECTED": "function exists without the contract",
+  "SECRET_STATE_STOP": "secret state machine STOP",
+  "NON_INTERACTIVE_WRITE_REFUSED": "no tty / CI",
+  "CONFIRMATION_REFUSED": "phrase mismatch",
+  "PREFLIGHT_STATE_CHANGED": "state moved between preflight and phrase",
+  "WRITER_CONTEXT_UNAVAILABLE": "PAT cannot write as postgres (first request after arming, a SELECT)"
+ },
+ "after_writes_began": {
+  "APPLY_FAILED": "server rolled back that transaction; re-observe",
+  "APPLY_NOT_EFFECTIVE": "objects/ledger not ours after apply",
+  "SET_SECRET_FAILED": "",
+  "SET_SECRET_NOT_EFFECTIVE": "",
+  "DEPLOY_FAILED": "",
+  "DEPLOY_READBACK_FAILED": "not ACTIVE / verify_jwt≠false / no ezbr",
+  "SIGNED_HARNESS_*": "not 9/9 (SECRET_MISMATCH never reconciled)",
+  "SIGNED_HARNESS_SENSITIVE_MATERIAL": "",
+  "ACL_EXPECTATIONS_UNMET": "",
+  "APP_PRIVATE_AFTER_UNEXPECTED": "",
+  "CATALOG_CHANGED_OUTSIDE_CONTRACT": "another Core object changed",
+  "LEDGER_AFTER_UNEXPECTED": ""
+ },
+ "every_stop": "persisted (core-prod-preflight-failed-* / core-prod-failed-*), secret-gated, no automatic rollback; next step is --preflight-only"
+}

@@ -1,0 +1,85 @@
+{
+ "tool": "backend/torneos/infra/torneos-gateway-auth",
+ "kind": "LOCAL — installer privilege probe fix (no remote call)",
+ "generated_at": "2026-09-25T23:45:57.189Z",
+ "base_commit": "06e9b08b",
+ "defect": "hosted database/query read_only:true runs as supabase_read_only_user; GATEWAY_ROLES_SQL.installer measured that session (all false) → false DB_INSTALLER_LACKS_PRIVILEGE_FOR_W2_W3 (ga-01-preflight-20260925T203815Z)",
+ "fix": {
+  "measurement": "INSTALLER_PRIVILEGES_SQL — postgres named literally (pg_has_role/pg_roles) + supautils.privileged_role/reserved_roles/privileged_role_allowed_configs",
+  "decision": "installerCapability(): per-statement, fail closed",
+  "installer_sql_sha256": "c86a1f5957d0842ccb93a41dbd0b7a89b44c5c58f83426610af15b7c86f29cf5",
+  "gateway_roles_sql_sha256_unchanged": "473e484e3f3419bd7e999fbf37b4c57d4bc990fc1f1c4c0af617fdac04354687",
+  "delta_pin_sha256_unchanged": "169f2b1458843d404a0318271bf170a6bac3afad1244671f2097dee337d52c20"
+ },
+ "lab_measurements_supabase_postgres_17_6_1_147": [
+  {
+   "case": "postgres as installed (CREATEROLE, ADMIN on authenticator/torneos_*, member of supabase_privileged_role)",
+   "alter_pre_request": "ok",
+   "note": "ALTER ROLE authenticator NOLOGIN refused: reserved role (only config may change)"
+  },
+  {
+   "case": "ADMIN OPTION on authenticator revoked",
+   "alter_pre_request": "ok (supautils decides, not ADMIN)"
+  },
+  {
+   "case": "membership in supabase_privileged_role revoked",
+   "alter_pre_request": "ERROR reserved role, only superusers can modify it"
+  },
+  {
+   "case": "pgrst.* removed from privileged_role_allowed_configs",
+   "alter_pre_request": "ERROR permission denied to set parameter \"pgrst.db_pre_request\""
+  },
+  {
+   "case": "authenticator reserved without *",
+   "alter_pre_request": "ERROR reserved role, only superusers can modify it"
+  },
+  {
+   "case": "ADMIN OPTION on torneos_identity_writer revoked",
+   "grant": "ERROR permission denied to grant role \"torneos_identity_writer\""
+  },
+  {
+   "case": "INSTALLER_PRIVILEGES_SQL run by supabase_read_only_user in a READ ONLY transaction",
+   "result": "measured_by=supabase_read_only_user, postgres sufficient (supautils_reserved_authenticator)"
+  }
+ ],
+ "added": {
+  "--db-certify": "read-only post-W2/W3 certification with real edge-login probes (5432/6543, verify-full, SCRAM, all rolled back)",
+  "--db-phase": "preflight → db-bootstrap → db-certify, one PAT (tty), each step its own allowlist/evidence",
+  "tls-probe.mjs": "credential-free STARTTLS verify"
+ },
+ "found_while_testing": [
+  "probe savepoint rollback undid SET LOCAL ROLE / set_config / upsert → kept statements now RELEASE on success",
+  "CASE … ELSE 1/0 is constant-folded by the planner and raises always → runtime cast assertion"
+ ],
+ "tests": {
+  "gateway-auth.test.mjs": {
+   "pass": 27,
+   "fail": 0
+  },
+  "gateway-topology.test.mjs": {
+   "pass": 5,
+   "fail": 0
+  },
+  "foundation.test.mjs": {
+   "pass": 53,
+   "fail": 0
+  }
+ },
+ "rehearsal": {
+  "dir": "backend/torneos/mp-b/evidence/gateway-auth/rehearsal-20260925T234429Z",
+  "verdict": "REHEARSAL PASS 46/46",
+  "deno_leg": "skipped (no deno binary on this host)"
+ },
+ "files": {
+  "backend/torneos/infra/torneos-gateway-auth/gateway-auth-contract.mjs": "f46c448ba0f12723e9b0d8c19db81b9a92831e2a125e1f4a254559399c637128",
+  "backend/torneos/infra/torneos-gateway-auth/gateway-auth.mjs": "1a68a9d853dfb45a0de6b6c12339c6a274e21f75963b0b7efdc15d5fbe073f67",
+  "backend/torneos/infra/torneos-gateway-auth/login-probe.mjs": "cc856438b40bee8436b16908ac9c5a1d9c81bef969bd4b226d000353caee96e0",
+  "backend/torneos/infra/torneos-gateway-auth/tls-probe.mjs": "a392384d4e6f20b6751993cec3bbec217758de183835cf76456510847dc0ff00",
+  "backend/torneos/infra/torneos-gateway-auth/run-gateway-auth.sh": "bc6661a034f2c9e7efa04ef26759494d093b9c55192bdcbddabea4b7426de921",
+  "backend/torneos/infra/torneos-gateway-auth/gateway-auth.test.mjs": "c51f0c7396dc9d655eb7bd01cfd6a05366da4011a83fac43897a3718e42feb5a",
+  "backend/torneos/infra/torneos-gateway-auth/offline-rehearsal.mjs": "06b88a1c45c65bdc1922c9a6ca953b7655d9452ebe16ed134f09cc166fad9b3a",
+  "backend/torneos/infra/torneos-gateway-auth/README.md": "574354498125d497cb7ecba533e5919be57599f1134d26806083ef622dbcf0f0",
+  "backend/torneos/infra/torneos-gateway-auth/pins/gateway-auth-delta.json": "169f2b1458843d404a0318271bf170a6bac3afad1244671f2097dee337d52c20"
+ },
+ "remote_calls": "one credential-free openssl STARTTLS verify to aws-0-sa-east-1.pooler.supabase.com:5432/6543 (pass, TLSv1.3, *.pooler.supabase.com); no Management API, no DB login"
+}

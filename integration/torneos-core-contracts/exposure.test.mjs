@@ -39,6 +39,14 @@ const realImage = JSON.parse(await readFile(`${repo}backend/torneos/phase2d/evid
 const P0 = 'review_tournament_team_entry';
 const OFF = ledger.functions.map(f => f.function.split('(')[0]).filter(n => n !== P0);
 const GATED = gate.functions.map(g => g.name);
+// MP-A2 (00000000000002): the only authorized ACL delta after the gate. Of the gated functions it re-grants
+// get_tournament_purchase to authenticated at the DB; the gateway allowlist is unchanged (still 403).
+const MPA2 = JSON.parse(await readFile(`${repo}backend/torneos/mp-a/mp-a2-acl-delta.json`, 'utf8'));
+const MPA2_SHA256 = '06378f12b57620e8ae550a0d881ad66464ffdc0a734ad621cba8a6ba3e6d6078';
+const MPA2_REGRANTED = new Set(MPA2.authenticated_execute_granted);
+const MPA2_REGRANTED_NAMES = new Set(MPA2.authenticated_execute_granted.map(f => f.split('(')[0]));
+const MPA2_AUTH_NET = MPA2.new_security_definer_functions.filter(f => f.api_grantees.includes('authenticated')).length
+  + MPA2.authenticated_execute_granted.length - MPA2.authenticated_execute_revoked.length;
 const PARENTS = gate.functions.filter(g => g.area === 'parent path').map(g => g.name);
 
 // ---------------------------------------------------------------- transport helpers
@@ -157,8 +165,9 @@ test('Phase 2D — staging RPC exposure gate on the real Supabase stack', async 
       assert.equal(install.torneos.installed, true, 'baseline installed by this lab from an empty volume');
       assert.match(sha, /^f857bd09/, 'Phase 2D baseline (P0 season guard)');
       assert.deepEqual(install.torneos.migrations_after_baseline.map(m => [m.file, m.sha256, m.applied]),
-        [['backend/torneos/supabase/migrations/00000000000001_staging_v1_rpc_exposure.sql', createHash('sha256').update(gateSql).digest('hex'), true]]);
-      assert.deepEqual((await readdir(migrationsDir)).filter(f => f.endsWith('.sql')).sort(), ['00000000000000_torneos_baseline_v1.sql', '00000000000001_staging_v1_rpc_exposure.sql']);
+        [['backend/torneos/supabase/migrations/00000000000001_staging_v1_rpc_exposure.sql', createHash('sha256').update(gateSql).digest('hex'), true],
+          ['backend/torneos/supabase/migrations/00000000000002_mercadopago_checkout_pro_test.sql', MPA2_SHA256, true]]);
+      assert.deepEqual((await readdir(migrationsDir)).filter(f => f.endsWith('.sql')).sort(), ['00000000000000_torneos_baseline_v1.sql', '00000000000001_staging_v1_rpc_exposure.sql', '00000000000002_mercadopago_checkout_pro_test.sql']);
       // The P0 body installed in the database carries the Phase 2D season guard.
       const def = torneosSql(`select pg_get_functiondef('public.${P0}(uuid,uuid,text,text,jsonb)'::regprocedure)`);
       assert.match(def, /has_tournament_season_access\(p_organization_id, \(select e\.season_id from public\.tournament_team_entries e where e\.id = p_team_entry_id/);
@@ -191,7 +200,7 @@ test('Phase 2D — staging RPC exposure gate on the real Supabase stack', async 
       for (const r of rows) {
         assert.equal(r.before_992dd282.authenticated, true, `${r.function}: authenticated could execute it at 992dd282`);
         assert.equal(r.before_992dd282.anon, false, `${r.function}: anon never had it`);
-        assert.equal(r.after_live.authenticated, r.name === P0, `${r.function}: authenticated EXECUTE after the gate`);
+        assert.equal(r.after_live.authenticated, r.name === P0 || MPA2_REGRANTED.has(r.function), `${r.function}: authenticated EXECUTE after the gate (and the MP-A2 delta)`);
         assert.equal(r.after_live.anon, false); assert.equal(r.after_live.anon_openapi, false);
         assert.equal(r.after_live.service_role, true, `${r.function}: service_role keeps EXECUTE`);
         assert.deepEqual([r.after_live.adapter, r.after_live.writer], [false, false]);
@@ -202,7 +211,7 @@ test('Phase 2D — staging RPC exposure gate on the real Supabase stack', async 
       evidence.acl33 = rows;
       // Whole-catalog counts: exactly the 33 gated functions moved, nothing else (measured on the real image by exposure_acl.py).
       assert.equal(realImage.runs['after-real'].execute.authenticated.public_functions, realImage.runs['before-real'].execute.authenticated.public_functions - GATED.length);
-      assert.equal(inventory.functions.filter(f => f.schema === 'public' && f.authenticated).length, realImage.runs['after-real'].execute.authenticated.public_functions);
+      assert.equal(inventory.functions.filter(f => f.schema === 'public' && f.authenticated).length, realImage.runs['after-real'].execute.authenticated.public_functions + MPA2_AUTH_NET);
       assert.equal(inventory.functions.filter(f => f.schema === 'public' && f.anon).length, 12);
     });
     // ================================================================ C. allowlist ↔ gate ↔ ACL consistency
@@ -474,11 +483,14 @@ test('Phase 2D — staging RPC exposure gate on the real Supabase stack', async 
           rows.push({ function: r.id, role, status: r.status, code: r.body?.code, message: String(r.body?.message ?? '').slice(0, 80), verdict: deniedBeforeBody(r) ? 'DENIED_BEFORE_BODY' : 'OTHER' });
         }
         const getOut = restBatch(targets.map(x => ({ id: x.name, path: `/rpc/${x.name}?` + new URLSearchParams(Object.fromEntries(Object.keys(x.args).map(k => [k, '']))).toString(), method: 'GET', token })));
-        for (const r of getOut) assert.ok(deniedBeforeBody(r) || [400, 404, 405].includes(r.status), `${r.id} GET as ${role}: ${r.status} ${JSON.stringify(r.body).slice(0, 120)}`);
+        for (const r of getOut) assert.ok(deniedBeforeBody(r) || [400, 404, 405].includes(r.status) || (role === 'authenticated' && MPA2_REGRANTED_NAMES.has(r.id) && /TORNEOS_/.test(JSON.stringify(r.body))), `${r.id} GET as ${role}: ${r.status} ${JSON.stringify(r.body).slice(0, 120)}`);
       }
-      assert.deepEqual(rows.filter(r => r.verdict !== 'DENIED_BEFORE_BODY'), []);
+      // MP-A2: the re-granted read executes for authenticated and its body refuses a caller without access.
+      const regranted = rows.filter(r => r.role === 'authenticated' && MPA2_REGRANTED_NAMES.has(r.function));
+      assert.deepEqual(regranted.map(r => [r.function, r.status, r.message]), [...MPA2_REGRANTED_NAMES].map(n => [n, 403, 'TORNEOS_PURCHASE_FORBIDDEN']));
+      assert.deepEqual(rows.filter(r => r.verdict !== 'DENIED_BEFORE_BODY' && !regranted.includes(r)), []);
       assert.equal(rows.length, 66);
-      for (const n of GATED) { const f = inventory.functions.filter(x => x.schema === 'public' && x.name === n); assert.ok(f.length && f.every(x => !x.anon && !x.authenticated), n); }
+      for (const n of GATED) { const f = inventory.functions.filter(x => x.schema === 'public' && x.name === n); assert.ok(f.length && f.every(x => !x.anon && x.authenticated === MPA2_REGRANTED_NAMES.has(n)), n); }
       evidence.directSweep = rows;
     });
     // ================================================================ G. the 32 + parent: gateway DENY with a valid Core session

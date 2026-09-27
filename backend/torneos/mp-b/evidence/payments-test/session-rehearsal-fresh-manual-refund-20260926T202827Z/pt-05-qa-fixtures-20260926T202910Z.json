@@ -1,0 +1,199 @@
+{
+ "tool": "backend/torneos/infra/torneos-payments-test/payments-session.mjs",
+ "generated_at": "2026-09-26T20:29:10.573Z",
+ "verdict": "QA_FIXTURES_ISOLATED",
+ "read_only": true,
+ "qa": [
+  {
+   "id": "87b828c1-c9aa-426f-8a0e-83422c3f4c64",
+   "slug": "qa-payments-test-a49db1b3",
+   "name": "QA PAYMENTS TEST (Mercado Pago sandbox)",
+   "members": 1,
+   "seasons": [
+    {
+     "id": "2b48eb6b-937f-4c05-b725-920e0cf9c647",
+     "slug": "qa-pt-s1-2068cc",
+     "name": "QA PAYMENTS TEST S1 checkout sandbox"
+    },
+    {
+     "id": "6c7a1a97-804b-4929-8ec4-1a96444a0a37",
+     "slug": "qa-pt-s2-4a031b",
+     "name": "QA PAYMENTS TEST S2 ordering rollback"
+    }
+   ],
+   "tournaments": 0
+  }
+ ],
+ "purchases": [
+  {
+   "purchase": "852f7ed7-d4fc-4b6e-8bc3-bb5e85238258",
+   "season": "2b48eb6b-937f-4c05-b725-920e0cf9c647",
+   "season_slug": "qa-pt-s1-2068cc",
+   "status": "expired",
+   "provider": "MERCADO_PAGO",
+   "environment": "test",
+   "product": "torneos_premium",
+   "offer": "launch",
+   "amount": 39900,
+   "list_amount": 49900,
+   "currency": "ARS",
+   "external_reference": "arma2:season:purchase:852f7ed7-d4fc-4b6e-8bc3-bb5e85238258",
+   "preference_id": "2718281828-b970b272-93a4-4351-aedd-8ad68787fe8e",
+   "approved_payment": null,
+   "provider_status": "created",
+   "provider_status_detail": null,
+   "created_at": "2026-09-26T20:28:57.429255+00:00",
+   "approved_at": null,
+   "refunded_at": null,
+   "charged_back_at": null,
+   "entitlement_activated_at": null,
+   "events": [
+    {
+     "id": 1,
+     "type": "purchase.created",
+     "from": null,
+     "to": "created",
+     "actor": "user",
+     "provider_status": null,
+     "payment": null,
+     "provider_time": null
+    },
+    {
+     "id": 57,
+     "type": "preference.created",
+     "from": "created",
+     "to": "preference_created",
+     "actor": "service",
+     "provider_status": "created",
+     "payment": null,
+     "provider_time": null
+    },
+    {
+     "id": 58,
+     "type": "purchase.expired",
+     "from": "preference_created",
+     "to": "expired",
+     "actor": "service",
+     "provider_status": null,
+     "payment": null,
+     "provider_time": null
+    }
+   ],
+   "grants": [],
+   "watermarks": []
+  },
+  {
+   "purchase": "4fd99bd6-6570-42a7-893e-b471c393d0f5",
+   "season": "6c7a1a97-804b-4929-8ec4-1a96444a0a37",
+   "season_slug": "qa-pt-s2-4a031b",
+   "status": "created",
+   "provider": "MERCADO_PAGO",
+   "environment": "test",
+   "product": "torneos_premium",
+   "offer": "launch",
+   "amount": 39900,
+   "list_amount": 49900,
+   "currency": "ARS",
+   "external_reference": "arma2:season:purchase:4fd99bd6-6570-42a7-893e-b471c393d0f5",
+   "preference_id": null,
+   "approved_payment": null,
+   "provider_status": null,
+   "provider_status_detail": null,
+   "created_at": "2026-09-26T20:28:57.785003+00:00",
+   "approved_at": null,
+   "refunded_at": null,
+   "charged_back_at": null,
+   "entitlement_activated_at": null,
+   "events": [
+    {
+     "id": 2,
+     "type": "purchase.created",
+     "from": null,
+     "to": "created",
+     "actor": "user",
+     "provider_status": null,
+     "payment": null,
+     "provider_time": null
+    }
+   ],
+   "grants": [],
+   "watermarks": []
+  },
+  {
+   "purchase": "6c885ae2-3e6f-48e3-9723-c18ea1787e8a",
+   "season": "2b48eb6b-937f-4c05-b725-920e0cf9c647",
+   "season_slug": "qa-pt-s1-2068cc",
+   "status": "created",
+   "provider": "MERCADO_PAGO",
+   "environment": "test",
+   "product": "torneos_premium",
+   "offer": "launch",
+   "amount": 39900,
+   "list_amount": 49900,
+   "currency": "ARS",
+   "external_reference": "arma2:season:purchase:6c885ae2-3e6f-48e3-9723-c18ea1787e8a",
+   "preference_id": null,
+   "approved_payment": null,
+   "provider_status": null,
+   "provider_status_detail": null,
+   "created_at": "2026-09-26T20:29:08.350339+00:00",
+   "approved_at": null,
+   "refunded_at": null,
+   "charged_back_at": null,
+   "entitlement_activated_at": null,
+   "events": [
+    {
+     "id": 59,
+     "type": "purchase.created",
+     "from": null,
+     "to": "created",
+     "actor": "user",
+     "provider_status": null,
+     "payment": null,
+     "provider_time": null
+    }
+   ],
+   "grants": [],
+   "watermarks": []
+  }
+ ],
+ "census": {
+  "auth_users": 0,
+  "identities": 2,
+  "organizations": 2,
+  "organizations_qa": 1,
+  "organization_members": 2,
+  "seasons": 3,
+  "seasons_outside_qa": 1,
+  "tournaments": 0,
+  "purchases": 3,
+  "purchases_outside_qa": 0,
+  "purchases_not_mp_test": 0,
+  "purchase_events": 5,
+  "purchase_events_outside_qa": 0,
+  "season_grants": 0,
+  "season_grants_outside_qa": 0,
+  "grant_events": 0,
+  "watermarks": 0,
+  "watermarks_outside_qa": 0
+ },
+ "fixtures": {
+  "org": "87b828c1-c9aa-426f-8a0e-83422c3f4c64",
+  "slug": "qa-payments-test-a49db1b3",
+  "S1": "2b48eb6b-937f-4c05-b725-920e0cf9c647",
+  "S2": "6c7a1a97-804b-4929-8ec4-1a96444a0a37",
+  "P1": "6c885ae2-3e6f-48e3-9723-c18ea1787e8a",
+  "P2": "4fd99bd6-6570-42a7-893e-b471c393d0f5",
+  "superseded": [
+   "852f7ed7-d4fc-4b6e-8bc3-bb5e85238258"
+  ]
+ },
+ "failures": [],
+ "isolation": {
+  "census_failures": [],
+  "organizations_total": 2,
+  "organizations_qa": 1,
+  "seasons_outside_qa": 1,
+  "tournaments_in_qa": 0
+ }
+}

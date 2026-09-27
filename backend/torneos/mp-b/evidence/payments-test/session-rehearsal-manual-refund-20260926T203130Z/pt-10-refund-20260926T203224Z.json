@@ -1,0 +1,604 @@
+{
+ "tool": "backend/torneos/infra/torneos-payments-test/payments-session.mjs",
+ "generated_at": "2026-09-26T20:32:24.385Z",
+ "verdict": "REFUND_LIFECYCLE_PASS_MANUAL_INITIATION",
+ "initiation": "manual — full refund from the Seller Test Mercado Pago panel (operator), after the API refund was refused",
+ "refund_api_initiation": "NOT CERTIFIED — \"refund API initiation\" could not be certified: limitation of the Mercado Pago Seller Test sandbox (payments report live_mode:true; the API refund with the Seller Test token answers 401 \"Unauthorized use of live credentials\")",
+ "refund_lifecycle": "CERTIFIED — the lifecycle refund → signed webhook → revoke was certified on a real total refund initiated manually from the Seller Test Mercado Pago panel",
+ "refund_api_attempt": {
+  "at": "2026-09-26T19:50:23Z",
+  "plan_id": "e88bdbc9b5b2",
+  "payment": "181036143126",
+  "request": "POST /v1/payments/{id}/refunds (full, armed, phrase accepted)",
+  "response": {
+   "status": 401,
+   "message": "Unauthorized use of live credentials"
+  },
+  "writes_applied": 0
+ },
+ "payment": "90000000003",
+ "purchase": "45abde1c-46eb-4d86-86cc-1e28d608b88d",
+ "provider_after": {
+  "id": "90000000003",
+  "status": "refunded",
+  "status_detail": "refunded",
+  "date_last_updated": "2026-09-26T20:32:16.212Z",
+  "date_created": null,
+  "transaction_amount": 39900,
+  "currency_id": "ARS",
+  "live_mode": true,
+  "collector_matches": true,
+  "external_reference": "arma2:season:purchase:45abde1c-46eb-4d86-86cc-1e28d608b88d",
+  "metadata_purchase_id": "45abde1c-46eb-4d86-86cc-1e28d608b88d",
+  "order": {
+   "id": "90000000002",
+   "type": "mercadopago"
+  },
+  "payment_type_id": null,
+  "refunds": null
+ },
+ "provider_refunds": [
+  {
+   "refund_id": "90000000004",
+   "payment_id": "90000000003",
+   "amount": 39900,
+   "status": "approved",
+   "date_created": "2026-09-26T20:32:19.144Z",
+   "source_type": "collector",
+   "refund_mode": "standard"
+  }
+ ],
+ "db": {
+  "purchase": "45abde1c-46eb-4d86-86cc-1e28d608b88d",
+  "season": "16a095e9-c1fd-41d0-a653-eb24ff463af4",
+  "season_slug": "qa-pt-s1-0e524e",
+  "status": "refunded",
+  "provider": "MERCADO_PAGO",
+  "environment": "test",
+  "product": "torneos_premium",
+  "offer": "launch",
+  "amount": 39900,
+  "list_amount": 49900,
+  "currency": "ARS",
+  "external_reference": "arma2:season:purchase:45abde1c-46eb-4d86-86cc-1e28d608b88d",
+  "preference_id": "2718281828-c781b517-0c0a-48c2-9b45-e38da1877cb3",
+  "approved_payment": "90000000003",
+  "provider_status": "refunded",
+  "provider_status_detail": "refunded",
+  "created_at": "2026-09-26T20:32:01.918072+00:00",
+  "approved_at": "2026-09-26T20:32:11.228047+00:00",
+  "refunded_at": "2026-09-26T20:32:19.149965+00:00",
+  "charged_back_at": null,
+  "entitlement_activated_at": "2026-09-26T20:32:11.228047+00:00",
+  "events": [
+   {
+    "id": 1,
+    "type": "purchase.created",
+    "from": null,
+    "to": "created",
+    "actor": "user",
+    "provider_status": null,
+    "payment": null,
+    "provider_time": null
+   },
+   {
+    "id": 57,
+    "type": "preference.created",
+    "from": "created",
+    "to": "preference_created",
+    "actor": "service",
+    "provider_status": "created",
+    "payment": null,
+    "provider_time": null
+   },
+   {
+    "id": 58,
+    "type": "payment.attempt_rejected",
+    "from": "preference_created",
+    "to": "preference_created",
+    "actor": "provider",
+    "provider_status": "rejected",
+    "payment": "90000000001",
+    "provider_time": null
+   },
+   {
+    "id": 59,
+    "type": "payment.approved",
+    "from": "preference_created",
+    "to": "approved",
+    "actor": "provider",
+    "provider_status": "approved",
+    "payment": "90000000003",
+    "provider_time": null
+   },
+   {
+    "id": 60,
+    "type": "payment.refund",
+    "from": "approved",
+    "to": "refunded",
+    "actor": "provider",
+    "provider_status": "refund",
+    "payment": null,
+    "provider_time": null
+   }
+  ],
+  "grants": [
+   {
+    "grant": "2742e38e-1772-4584-a2b4-daf9473936f9",
+    "plan": "PREMIUM",
+    "source": "purchase",
+    "events": [
+     {
+      "type": "granted",
+      "reason_code": "payment_approved",
+      "actor": "provider"
+     },
+     {
+      "type": "revoked",
+      "reason_code": "total_refund",
+      "actor": "provider"
+     }
+    ],
+    "effective": false
+   }
+  ],
+  "watermarks": [
+   {
+    "payment": "90000000001",
+    "date_last_updated": "2026-09-26T20:31:12.167+00:00",
+    "state": [
+     "status",
+     "rejected"
+    ],
+    "manual_refund": false,
+    "manual_review": false
+   },
+   {
+    "payment": "90000000003",
+    "date_last_updated": "2026-09-26T20:32:16.212+00:00",
+    "state": [
+     "reversal",
+     "refund"
+    ],
+    "manual_refund": false,
+    "manual_review": false
+   }
+  ]
+ },
+ "db_after_late_replay": {
+  "purchase": "45abde1c-46eb-4d86-86cc-1e28d608b88d",
+  "season": "16a095e9-c1fd-41d0-a653-eb24ff463af4",
+  "season_slug": "qa-pt-s1-0e524e",
+  "status": "refunded",
+  "provider": "MERCADO_PAGO",
+  "environment": "test",
+  "product": "torneos_premium",
+  "offer": "launch",
+  "amount": 39900,
+  "list_amount": 49900,
+  "currency": "ARS",
+  "external_reference": "arma2:season:purchase:45abde1c-46eb-4d86-86cc-1e28d608b88d",
+  "preference_id": "2718281828-c781b517-0c0a-48c2-9b45-e38da1877cb3",
+  "approved_payment": "90000000003",
+  "provider_status": "refunded",
+  "provider_status_detail": "refunded",
+  "created_at": "2026-09-26T20:32:01.918072+00:00",
+  "approved_at": "2026-09-26T20:32:11.228047+00:00",
+  "refunded_at": "2026-09-26T20:32:19.149965+00:00",
+  "charged_back_at": null,
+  "entitlement_activated_at": "2026-09-26T20:32:11.228047+00:00",
+  "events": [
+   {
+    "id": 1,
+    "type": "purchase.created",
+    "from": null,
+    "to": "created",
+    "actor": "user",
+    "provider_status": null,
+    "payment": null,
+    "provider_time": null
+   },
+   {
+    "id": 57,
+    "type": "preference.created",
+    "from": "created",
+    "to": "preference_created",
+    "actor": "service",
+    "provider_status": "created",
+    "payment": null,
+    "provider_time": null
+   },
+   {
+    "id": 58,
+    "type": "payment.attempt_rejected",
+    "from": "preference_created",
+    "to": "preference_created",
+    "actor": "provider",
+    "provider_status": "rejected",
+    "payment": "90000000001",
+    "provider_time": null
+   },
+   {
+    "id": 59,
+    "type": "payment.approved",
+    "from": "preference_created",
+    "to": "approved",
+    "actor": "provider",
+    "provider_status": "approved",
+    "payment": "90000000003",
+    "provider_time": null
+   },
+   {
+    "id": 60,
+    "type": "payment.refund",
+    "from": "approved",
+    "to": "refunded",
+    "actor": "provider",
+    "provider_status": "refund",
+    "payment": null,
+    "provider_time": null
+   }
+  ],
+  "grants": [
+   {
+    "grant": "2742e38e-1772-4584-a2b4-daf9473936f9",
+    "plan": "PREMIUM",
+    "source": "purchase",
+    "events": [
+     {
+      "type": "granted",
+      "reason_code": "payment_approved",
+      "actor": "provider"
+     },
+     {
+      "type": "revoked",
+      "reason_code": "total_refund",
+      "actor": "provider"
+     }
+    ],
+    "effective": false
+   }
+  ],
+  "watermarks": [
+   {
+    "payment": "90000000001",
+    "date_last_updated": "2026-09-26T20:31:12.167+00:00",
+    "state": [
+     "status",
+     "rejected"
+    ],
+    "manual_refund": false,
+    "manual_review": false
+   },
+   {
+    "payment": "90000000003",
+    "date_last_updated": "2026-09-26T20:32:16.212+00:00",
+    "state": [
+     "reversal",
+     "refund"
+    ],
+    "manual_refund": false,
+    "manual_review": false
+   }
+  ]
+ },
+ "real_webhook": {
+  "reversal_applied": [
+   {
+    "at": "2026-09-26T20:32:19.165Z",
+    "revision": "rev3x",
+    "status": 200,
+    "code": "reversal_applied"
+   }
+  ],
+  "deliveries_after_approval": [
+   {
+    "at": "2026-09-26T20:32:11.251Z",
+    "revision": "rev3x",
+    "status": 200,
+    "code": "approved"
+   },
+   {
+    "at": "2026-09-26T20:32:13.222Z",
+    "revision": "rev3x",
+    "status": 200,
+    "code": "provider_snapshot_duplicate"
+   },
+   {
+    "at": "2026-09-26T20:32:13.236Z",
+    "revision": "rev3x",
+    "status": 200,
+    "code": "provider_snapshot_duplicate"
+   },
+   {
+    "at": "2026-09-26T20:32:13.247Z",
+    "revision": "rev3x",
+    "status": 200,
+    "code": "provider_snapshot_duplicate"
+   },
+   {
+    "at": "2026-09-26T20:32:13.259Z",
+    "revision": "rev3x",
+    "status": 200,
+    "code": "provider_snapshot_duplicate"
+   },
+   {
+    "at": "2026-09-26T20:32:13.274Z",
+    "revision": "rev3x",
+    "status": 200,
+    "code": "provider_snapshot_duplicate"
+   },
+   {
+    "at": "2026-09-26T20:32:13.275Z",
+    "revision": "rev3x",
+    "status": 401,
+    "code": "invalid_signature"
+   },
+   {
+    "at": "2026-09-26T20:32:13.276Z",
+    "revision": "rev3x",
+    "status": 400,
+    "code": "invalid_notification"
+   },
+   {
+    "at": "2026-09-26T20:32:13.276Z",
+    "revision": "rev3x",
+    "status": 400,
+    "code": "invalid_notification"
+   },
+   {
+    "at": "2026-09-26T20:32:13.288Z",
+    "revision": "rev3x",
+    "status": 200,
+    "code": "provider_snapshot_duplicate"
+   },
+   {
+    "at": "2026-09-26T20:32:13.304Z",
+    "revision": "rev3x",
+    "status": 200,
+    "code": "provider_snapshot_duplicate"
+   },
+   {
+    "at": "2026-09-26T20:32:18.350Z",
+    "revision": "rev3x",
+    "status": 200,
+    "code": "provider_snapshot_duplicate"
+   },
+   {
+    "at": "2026-09-26T20:32:19.165Z",
+    "revision": "rev3x",
+    "status": 200,
+    "code": "reversal_applied"
+   }
+  ]
+ },
+ "logs_api": {
+  "status": 200,
+  "body": "array",
+  "rows": 38
+ },
+ "late_notification": {
+  "status": 200,
+  "outcome": "provider_snapshot_duplicate"
+ },
+ "post_refund_observations": [
+  {
+   "file": "post-refund-observations/pt-08-sandbox-checkout-20260926T203221Z.json",
+   "sha256": "b3dac7412a825b7909772f39e29265c498c959d3083e28db674c256ba75f957e",
+   "verdict": "SANDBOX_CHECKOUT_INCOMPLETE"
+  }
+ ],
+ "checks": [
+  {
+   "name": "refund initiated manually in the Seller Test Mercado Pago panel: this step made no Mercado Pago write",
+   "pass": true
+  },
+  {
+   "name": "Mercado Pago: the payment of P1 (attested seller, ARS 39900, external_reference P1) is refunded / refunded",
+   "pass": true
+  },
+  {
+   "name": "Mercado Pago: total refund — approved refunds sum to ARS 39900",
+   "pass": true
+  },
+  {
+   "name": "real signed Mercado Pago webhook: 200 reversal_applied on the TEST app after the approval, before this step sent anything, and the DB refund lands with it",
+   "pass": true
+  },
+  {
+   "name": "DB: purchase refunded by the provider (payment.refund, actor provider, approved → refunded)",
+   "pass": true
+  },
+  {
+   "name": "DB: the one Premium grant revoked by the provider (total_refund), not effective",
+   "pass": true
+  },
+  {
+   "name": "DB: watermark at the refunded snapshot (reversal / refund), no manual flags",
+   "pass": true
+  },
+  {
+   "name": "late old notification after the refund → duplicate of the refunded snapshot; revoked never revives",
+   "pass": true
+  },
+  {
+   "name": "the late replay changed nothing: purchase, events, grants and watermarks identical",
+   "pass": true
+  }
+ ],
+ "mp_requests": [
+  {
+   "id": "users-me",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "users-me",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "users-me",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "users-me",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "users-me",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "preference",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "payments-search",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "payment",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "merchant-order",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "preference",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "payment",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "merchant-order",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "preference",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "payment",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "payment",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "refund",
+   "kind": "write:refund",
+   "method": "POST",
+   "status": 401
+  },
+  {
+   "id": "payment",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "payment-refunds",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "payments-search",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "payment",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "merchant-order",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "preference",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "payment",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "merchant-order",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "preference",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "payment",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "payment-refunds",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  }
+ ],
+ "mp_writes": 0,
+ "app_requests": [
+  {
+   "label": "webhook:payment",
+   "method": "POST",
+   "path": "/functions/v1/torneos-payments/webhooks/mercadopago/v1?data.id=…&type=payment",
+   "status": 200,
+   "error": null,
+   "outcome": "provider_snapshot_duplicate"
+  }
+ ]
+}

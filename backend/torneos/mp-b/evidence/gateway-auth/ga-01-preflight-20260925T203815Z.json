@@ -1,0 +1,211 @@
+{
+ "tool": "backend/torneos/infra/torneos-gateway-auth",
+ "generated_at": "2026-09-25T20:38:28.202Z",
+ "mode": "--preflight",
+ "core": {
+  "prod": "ACTIVE_HEALTHY",
+  "prod_contract": {
+   "status": "ACTIVE",
+   "ezbr": "1072419517953eee8e8021f9691d1a5b1efb1f871c4d13290f644d119caded2c",
+   "verify_jwt": false
+  },
+  "staging": "INACTIVE",
+  "old": "INACTIVE",
+  "torneos": "ACTIVE_HEALTHY"
+ },
+ "state": {
+  "W1": "pending",
+  "W2_W3": "pending",
+  "KR": "absent",
+  "W5": "pending",
+  "edge_functions": 0,
+  "custody": {
+   "dataplane_installer": "PRESENT",
+   "gateway_logins": "ABSENT",
+   "ring": "ABSENT",
+   "jwks_pin": null
+  }
+ },
+ "failures": [],
+ "read_only": true,
+ "verdict": "GATEWAY_AUTH_PREFLIGHT_PASS",
+ "next_mode": "--auth-lockdown",
+ "measured": {
+  "installer": {
+   "user": "supabase_read_only_user",
+   "super": false,
+   "createrole": false,
+   "admin_on_authenticator": false,
+   "admin_on_identity_writer": false,
+   "admin_on_core_adapter": false
+  },
+  "pooler_hosts": [
+   "aws-0-sa-east-1.pooler.supabase.com"
+  ],
+  "pooler_sa_east_1": true,
+  "psql_prerequisites": []
+ },
+ "risks": [
+  "DB_INSTALLER_LACKS_PRIVILEGE_FOR_W2_W3"
+ ],
+ "foundation_diff": [],
+ "invariants": [],
+ "auth": {
+  "site_url": "http://localhost:3000",
+  "uri_allow_list": "",
+  "disable_signup": false,
+  "jwt_exp": 3600,
+  "external_anonymous_users_enabled": false,
+  "external_email_enabled": true,
+  "external_phone_enabled": false,
+  "mailer_autoconfirm": false,
+  "sms_autoconfirm": false,
+  "external_google_enabled": false,
+  "external_apple_enabled": false,
+  "external_github_enabled": false,
+  "external_azure_enabled": false,
+  "saml_enabled": false,
+  "hook_custom_access_token_enabled": false,
+  "security_manual_linking_enabled": false
+ },
+ "third_party_auth": [],
+ "secret_names": [],
+ "postgrest_config": {
+  "db_schema": "public,graphql_public",
+  "db_extra_search_path": "public, extensions",
+  "max_rows": 1000
+ },
+ "remote_delta": {
+  "W1": {
+   "disable_signup": true,
+   "external_email_enabled": false,
+   "external_phone_enabled": false,
+   "external_anonymous_users_enabled": false,
+   "site_url": "https://app.arma2.com.ar"
+  },
+  "W2_W3_sql_template": "BEGIN;\nSET LOCAL statement_timeout = '30s';\nDO $guard$ BEGIN IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname IN ('torneos_edge_identity_writer', 'torneos_edge_core_adapter')) THEN RAISE EXCEPTION 'GATEWAY_LOGINS_ALREADY_PRESENT'; END IF; END $guard$;\nCREATE ROLE torneos_edge_identity_writer LOGIN NOINHERIT PASSWORD '<SCRAM-SHA-256 verifier>';\nCREATE ROLE torneos_edge_core_adapter LOGIN NOINHERIT PASSWORD '<SCRAM-SHA-256 verifier>';\nGRANT torneos_identity_writer TO torneos_edge_identity_writer;\nGRANT torneos_core_adapter TO torneos_edge_core_adapter;\nALTER ROLE authenticator SET pgrst.db_pre_request = 'private.check_token';\nNOTIFY pgrst, 'reload config';\nNOTIFY pgrst, 'reload schema';\nCOMMIT;\n",
+  "W5": "custom_jwks = public k1 + k2 of pins/production-bridge-jwks.json"
+ },
+ "management_api_writes": 0,
+ "requests": [
+  {
+   "id": "prod-project",
+   "kind": "read",
+   "method": "GET",
+   "ref": "rcyuuoaqfwcembdajcss",
+   "status": 200
+  },
+  {
+   "id": "prod-contract-fn",
+   "kind": "read",
+   "method": "GET",
+   "ref": "rcyuuoaqfwcembdajcss",
+   "status": 200
+  },
+  {
+   "id": "project",
+   "kind": "read",
+   "method": "GET",
+   "ref": "hhyvmhgpapyuzjgxfnqv",
+   "status": 200
+  },
+  {
+   "id": "project",
+   "kind": "read",
+   "method": "GET",
+   "ref": "giaeztyghmhzcngskjmw",
+   "status": 200
+  },
+  {
+   "id": "project",
+   "kind": "read",
+   "method": "GET",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 200
+  },
+  {
+   "id": "org",
+   "kind": "read",
+   "method": "GET",
+   "ref": null,
+   "status": 200
+  },
+  {
+   "id": "projects",
+   "kind": "read",
+   "method": "GET",
+   "ref": null,
+   "status": 200
+  },
+  {
+   "id": "functions",
+   "kind": "read",
+   "method": "GET",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 200
+  },
+  {
+   "id": "auth-config",
+   "kind": "read",
+   "method": "GET",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 200
+  },
+  {
+   "id": "third-party-auth",
+   "kind": "read",
+   "method": "GET",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 200
+  },
+  {
+   "id": "query",
+   "kind": "read-sql",
+   "method": "POST",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 201
+  },
+  {
+   "id": "query",
+   "kind": "read-sql",
+   "method": "POST",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 201
+  },
+  {
+   "id": "health",
+   "kind": "read",
+   "method": "GET",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 200
+  },
+  {
+   "id": "secrets",
+   "kind": "read",
+   "method": "GET",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 200
+  },
+  {
+   "id": "postgrest",
+   "kind": "read",
+   "method": "GET",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 200
+  },
+  {
+   "id": "db-migrations",
+   "kind": "read",
+   "method": "GET",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 200
+  },
+  {
+   "id": "pooler",
+   "kind": "read",
+   "method": "GET",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 200
+  }
+ ]
+}

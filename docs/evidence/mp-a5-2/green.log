@@ -1,0 +1,1203 @@
+
+> team-balancer@0.1.0 test
+> react-scripts test --watchAll=false --runInBand src/__tests__/torneosMpA52PlanRefresh.test.jsx src/__tests__/torneosPurchaseStatus.test.jsx src/__tests__/torneosPlanExperience.test.jsx src/__tests__/torneosMpA5HybridCommerce.test.jsx src/__tests__/torneosMpA51PremiumIntentRoute.test.jsx src/__tests__/torneosCompetitionContext.test.jsx src/features/torneos/context/__tests__/canonicalTournamentContext.test.jsx
+
+PASS src/__tests__/torneosMpA5HybridCommerce.test.jsx
+  ● Console
+
+    console.error
+      Warning: `ReactDOMTestUtils.act` is deprecated in favor of `React.act`. Import `act` from `react` instead of `react-dom/test-utils`. See https://react.dev/warnings/react-dom-test-utils for more info.
+
+      134 | } = {}) {
+      135 |   currentPath = path;
+    > 136 |   const utils = render(
+          |                       ^
+      137 |     <MemoryRouter initialEntries={[path]}>
+      138 |       <LocationProbe />
+      139 |       <Routes>
+
+      at printWarning (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom-test-utils.development.js:71:30)
+      at error (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom-test-utils.development.js:45:7)
+      at actWithWarning (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom-test-utils.development.js:1736:7)
+      at ../arma2-torneos-real-core-sso-phase15/node_modules/@testing-library/react/dist/act-compat.js:63:25
+      at renderRoot (../arma2-torneos-real-core-sso-phase15/node_modules/@testing-library/react/dist/pure.js:159:26)
+      at render (../arma2-torneos-real-core-sso-phase15/node_modules/@testing-library/react/dist/pure.js:246:10)
+      at renderHybrid (src/__tests__/torneosMpA5HybridCommerce.test.jsx:136:23)
+      at Object.<anonymous> (src/__tests__/torneosMpA5HybridCommerce.test.jsx:173:5)
+
+    console.warn
+      ⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.
+
+      134 | } = {}) {
+      135 |   currentPath = path;
+    > 136 |   const utils = render(
+          |                       ^
+      137 |     <MemoryRouter initialEntries={[path]}>
+      138 |       <LocationProbe />
+      139 |       <Routes>
+
+      at warnOnce (../arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/deprecations.ts:9:13)
+      at logDeprecation (../arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/deprecations.ts:14:3)
+      at logV6DeprecationWarnings (../arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/deprecations.ts:26:5)
+      at ../arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/components.tsx:257:25
+      at commitHookEffectListMount (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:23189:26)
+      at commitPassiveMountOnFiber (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:24970:11)
+      at commitPassiveMountEffects_complete (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:24930:9)
+      at commitPassiveMountEffects_begin (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:24917:7)
+      at commitPassiveMountEffects (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:24905:3)
+      at flushPassiveEffectsImpl (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:27078:3)
+      at flushPassiveEffects (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:27023:14)
+      at ../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:26808:9
+      at flushActQueue (../arma2-torneos-real-core-sso-phase15/node_modules/react/cjs/react.development.js:2667:24)
+      at act (../arma2-torneos-real-core-sso-phase15/node_modules/react/cjs/react.development.js:2582:11)
+      at actWithWarning (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom-test-utils.development.js:1740:10)
+      at ../arma2-torneos-real-core-sso-phase15/node_modules/@testing-library/react/dist/act-compat.js:63:25
+      at renderRoot (../arma2-torneos-real-core-sso-phase15/node_modules/@testing-library/react/dist/pure.js:159:26)
+      at render (../arma2-torneos-real-core-sso-phase15/node_modules/@testing-library/react/dist/pure.js:246:10)
+      at renderHybrid (src/__tests__/torneosMpA5HybridCommerce.test.jsx:136:23)
+      at Object.<anonymous> (src/__tests__/torneosMpA5HybridCommerce.test.jsx:173:5)
+
+    console.warn
+      ⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.
+
+      134 | } = {}) {
+      135 |   currentPath = path;
+    > 136 |   const utils = render(
+          |                       ^
+      137 |     <MemoryRouter initialEntries={[path]}>
+      138 |       <LocationProbe />
+      139 |       <Routes>
+
+      at warnOnce (../arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/deprecations.ts:9:13)
+      at logDeprecation (../arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/deprecations.ts:14:3)
+      at logV6DeprecationWarnings (../arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/deprecations.ts:37:5)
+      at ../arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/components.tsx:257:25
+      at commitHookEffectListMount (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:23189:26)
+      at commitPassiveMountOnFiber (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:24970:11)
+      at commitPassiveMountEffects_complete (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:24930:9)
+      at commitPassiveMountEffects_begin (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:24917:7)
+      at commitPassiveMountEffects (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:24905:3)
+      at flushPassiveEffectsImpl (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:27078:3)
+      at flushPassiveEffects (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:27023:14)
+      at ../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:26808:9
+      at flushActQueue (../arma2-torneos-real-core-sso-phase15/node_modules/react/cjs/react.development.js:2667:24)
+      at act (../arma2-torneos-real-core-sso-phase15/node_modules/react/cjs/react.development.js:2582:11)
+      at actWithWarning (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom-test-utils.development.js:1740:10)
+      at ../arma2-torneos-real-core-sso-phase15/node_modules/@testing-library/react/dist/act-compat.js:63:25
+      at renderRoot (../arma2-torneos-real-core-sso-phase15/node_modules/@testing-library/react/dist/pure.js:159:26)
+      at render (../arma2-torneos-real-core-sso-phase15/node_modules/@testing-library/react/dist/pure.js:246:10)
+      at renderHybrid (src/__tests__/torneosMpA5HybridCommerce.test.jsx:136:23)
+      at Object.<anonymous> (src/__tests__/torneosMpA5HybridCommerce.test.jsx:173:5)
+
+    console.error
+      Warning: An update to TorneosCompetitionProvider inside a test was not wrapped in act(...).
+
+      When testing, code that causes React state updates should be wrapped into act(...):
+
+      act(() => {
+        /* fire events that update state */
+      });
+      /* assert on the output */
+
+      This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+          at TorneosCompetitionProvider (/Users/nicoavayu/Downloads/arma2/arma2-mp-a5-2-plan-refresh/src/features/torneos/context/TorneosCompetitionContext.jsx:63:3)
+          at OrganizationRouteGuard (/Users/nicoavayu/Downloads/arma2/arma2-mp-a5-2-plan-refresh/src/features/torneos/components/OrganizationRouteGuard.jsx:10:39)
+          at RenderedRoute (/Users/nicoavayu/Downloads/arma2/arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/hooks.tsx:658:26)
+          at Routes (/Users/nicoavayu/Downloads/arma2/arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/components.tsx:512:3)
+          at main
+          at section
+          at div
+          at TorneosShell (/Users/nicoavayu/Downloads/arma2/arma2-mp-a5-2-plan-refresh/src/features/torneos/components/TorneosShell.jsx:313:31)
+          at TorneosWorkspaceProvider (/Users/nicoavayu/Downloads/arma2/arma2-mp-a5-2-plan-refresh/src/features/torneos/context/TorneosWorkspaceContext.jsx:64:3)
+          at TorneosCommerceProvider (/Users/nicoavayu/Downloads/arma2/arma2-mp-a5-2-plan-refresh/src/features/torneos/context/TorneosCommerceContext.jsx:28:43)
+          at TorneosFeaturesProvider (/Users/nicoavayu/Downloads/arma2/arma2-mp-a5-2-plan-refresh/src/features/torneos/context/TorneosFeaturesContext.jsx:10:43)
+          at StagingV1TorneosApp (/Users/nicoavayu/Downloads/arma2/arma2-mp-a5-2-plan-refresh/src/features/torneos/stagingV1/StagingV1TorneosApp.jsx:30:3)
+          at RenderedRoute (/Users/nicoavayu/Downloads/arma2/arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/hooks.tsx:658:26)
+          at Routes (/Users/nicoavayu/Downloads/arma2/arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/components.tsx:512:3)
+          at Router (/Users/nicoavayu/Downloads/arma2/arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/components.tsx:421:13)
+          at MemoryRouter (/Users/nicoavayu/Downloads/arma2/arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/components.tsx:225:3)
+
+      131 |       );
+      132 |       if (!mountedRef.current || requestRef.current !== requestId) return normalized;
+    > 133 |       setState((current) => ({
+          |       ^
+      134 |         ...current,
+      135 |         ...normalized,
+      136 |         status: 'ready',
+
+      at printWarning (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:86:30)
+      at error (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:60:7)
+      at warnIfUpdatesNotWrappedWithActDEV (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:27628:9)
+      at scheduleUpdateOnFiber (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:25547:5)
+      at setState (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:16708:7)
+      at src/features/torneos/context/TorneosCompetitionContext.jsx:133:7
+
+    console.error
+      Warning: An update to TorneosCompetitionProvider inside a test was not wrapped in act(...).
+
+      When testing, code that causes React state updates should be wrapped into act(...):
+
+      act(() => {
+        /* fire events that update state */
+      });
+      /* assert on the output */
+
+      This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+          at TorneosCompetitionProvider (/Users/nicoavayu/Downloads/arma2/arma2-mp-a5-2-plan-refresh/src/features/torneos/context/TorneosCompetitionContext.jsx:63:3)
+          at OrganizationRouteGuard (/Users/nicoavayu/Downloads/arma2/arma2-mp-a5-2-plan-refresh/src/features/torneos/components/OrganizationRouteGuard.jsx:10:39)
+          at RenderedRoute (/Users/nicoavayu/Downloads/arma2/arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/hooks.tsx:658:26)
+          at Routes (/Users/nicoavayu/Downloads/arma2/arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/components.tsx:512:3)
+          at main
+          at section
+          at div
+          at TorneosShell (/Users/nicoavayu/Downloads/arma2/arma2-mp-a5-2-plan-refresh/src/features/torneos/components/TorneosShell.jsx:313:31)
+          at TorneosWorkspaceProvider (/Users/nicoavayu/Downloads/arma2/arma2-mp-a5-2-plan-refresh/src/features/torneos/context/TorneosWorkspaceContext.jsx:64:3)
+          at TorneosCommerceProvider (/Users/nicoavayu/Downloads/arma2/arma2-mp-a5-2-plan-refresh/src/features/torneos/context/TorneosCommerceContext.jsx:28:43)
+          at TorneosFeaturesProvider (/Users/nicoavayu/Downloads/arma2/arma2-mp-a5-2-plan-refresh/src/features/torneos/context/TorneosFeaturesContext.jsx:10:43)
+          at StagingV1TorneosApp (/Users/nicoavayu/Downloads/arma2/arma2-mp-a5-2-plan-refresh/src/features/torneos/stagingV1/StagingV1TorneosApp.jsx:30:3)
+          at RenderedRoute (/Users/nicoavayu/Downloads/arma2/arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/hooks.tsx:658:26)
+          at Routes (/Users/nicoavayu/Downloads/arma2/arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/components.tsx:512:3)
+          at Router (/Users/nicoavayu/Downloads/arma2/arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/components.tsx:421:13)
+          at MemoryRouter (/Users/nicoavayu/Downloads/arma2/arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/components.tsx:225:3)
+
+      341 |         return normalized;
+      342 |       }
+    > 343 |       setPlanState({ status: 'ready', data: normalized, error: '' });
+          |       ^
+      344 |       return normalized;
+      345 |     } catch (error) {
+      346 |       if (!mountedRef.current || planRequestRef.current !== requestId) {
+
+      at printWarning (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:86:30)
+      at error (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:60:7)
+      at warnIfUpdatesNotWrappedWithActDEV (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:27628:9)
+      at scheduleUpdateOnFiber (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:25547:5)
+      at setPlanState (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:16708:7)
+      at src/features/torneos/context/TorneosCompetitionContext.jsx:343:7
+
+    console.error
+      Warning: An update to TorneosCompetitionProvider inside a test was not wrapped in act(...).
+
+      When testing, code that causes React state updates should be wrapped into act(...):
+
+      act(() => {
+        /* fire events that update state */
+      });
+      /* assert on the output */
+
+      This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+          at TorneosCompetitionProvider (/Users/nicoavayu/Downloads/arma2/arma2-mp-a5-2-plan-refresh/src/features/torneos/context/TorneosCompetitionContext.jsx:63:3)
+          at OrganizationRouteGuard (/Users/nicoavayu/Downloads/arma2/arma2-mp-a5-2-plan-refresh/src/features/torneos/components/OrganizationRouteGuard.jsx:10:39)
+          at RenderedRoute (/Users/nicoavayu/Downloads/arma2/arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/hooks.tsx:658:26)
+          at Routes (/Users/nicoavayu/Downloads/arma2/arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/components.tsx:512:3)
+          at main
+          at section
+          at div
+          at TorneosShell (/Users/nicoavayu/Downloads/arma2/arma2-mp-a5-2-plan-refresh/src/features/torneos/components/TorneosShell.jsx:313:31)
+          at TorneosWorkspaceProvider (/Users/nicoavayu/Downloads/arma2/arma2-mp-a5-2-plan-refresh/src/features/torneos/context/TorneosWorkspaceContext.jsx:64:3)
+          at TorneosCommerceProvider (/Users/nicoavayu/Downloads/arma2/arma2-mp-a5-2-plan-refresh/src/features/torneos/context/TorneosCommerceContext.jsx:28:43)
+          at TorneosFeaturesProvider (/Users/nicoavayu/Downloads/arma2/arma2-mp-a5-2-plan-refresh/src/features/torneos/context/TorneosFeaturesContext.jsx:10:43)
+          at StagingV1TorneosApp (/Users/nicoavayu/Downloads/arma2/arma2-mp-a5-2-plan-refresh/src/features/torneos/stagingV1/StagingV1TorneosApp.jsx:30:3)
+          at RenderedRoute (/Users/nicoavayu/Downloads/arma2/arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/hooks.tsx:658:26)
+          at Routes (/Users/nicoavayu/Downloads/arma2/arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/components.tsx:512:3)
+          at Router (/Users/nicoavayu/Downloads/arma2/arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/components.tsx:421:13)
+          at MemoryRouter (/Users/nicoavayu/Downloads/arma2/arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/components.tsx:225:3)
+
+      341 |         return normalized;
+      342 |       }
+    > 343 |       setPlanState({ status: 'ready', data: normalized, error: '' });
+          |       ^
+      344 |       return normalized;
+      345 |     } catch (error) {
+      346 |       if (!mountedRef.current || planRequestRef.current !== requestId) {
+
+      at printWarning (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:86:30)
+      at error (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:60:7)
+      at warnIfUpdatesNotWrappedWithActDEV (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:27628:9)
+      at scheduleUpdateOnFiber (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:25547:5)
+      at setPlanState (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:16708:7)
+      at src/features/torneos/context/TorneosCompetitionContext.jsx:343:7
+
+    console.error
+      Warning: An update to TorneosCompetitionProvider inside a test was not wrapped in act(...).
+
+      When testing, code that causes React state updates should be wrapped into act(...):
+
+      act(() => {
+        /* fire events that update state */
+      });
+      /* assert on the output */
+
+      This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+          at TorneosCompetitionProvider (/Users/nicoavayu/Downloads/arma2/arma2-mp-a5-2-plan-refresh/src/features/torneos/context/TorneosCompetitionContext.jsx:63:3)
+          at OrganizationRouteGuard (/Users/nicoavayu/Downloads/arma2/arma2-mp-a5-2-plan-refresh/src/features/torneos/components/OrganizationRouteGuard.jsx:10:39)
+          at RenderedRoute (/Users/nicoavayu/Downloads/arma2/arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/hooks.tsx:658:26)
+          at Routes (/Users/nicoavayu/Downloads/arma2/arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/components.tsx:512:3)
+          at main
+          at section
+          at div
+          at TorneosShell (/Users/nicoavayu/Downloads/arma2/arma2-mp-a5-2-plan-refresh/src/features/torneos/components/TorneosShell.jsx:313:31)
+          at TorneosWorkspaceProvider (/Users/nicoavayu/Downloads/arma2/arma2-mp-a5-2-plan-refresh/src/features/torneos/context/TorneosWorkspaceContext.jsx:64:3)
+          at TorneosCommerceProvider (/Users/nicoavayu/Downloads/arma2/arma2-mp-a5-2-plan-refresh/src/features/torneos/context/TorneosCommerceContext.jsx:28:43)
+          at TorneosFeaturesProvider (/Users/nicoavayu/Downloads/arma2/arma2-mp-a5-2-plan-refresh/src/features/torneos/context/TorneosFeaturesContext.jsx:10:43)
+          at StagingV1TorneosApp (/Users/nicoavayu/Downloads/arma2/arma2-mp-a5-2-plan-refresh/src/features/torneos/stagingV1/StagingV1TorneosApp.jsx:30:3)
+          at RenderedRoute (/Users/nicoavayu/Downloads/arma2/arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/hooks.tsx:658:26)
+          at Routes (/Users/nicoavayu/Downloads/arma2/arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/components.tsx:512:3)
+          at Router (/Users/nicoavayu/Downloads/arma2/arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/components.tsx:421:13)
+          at MemoryRouter (/Users/nicoavayu/Downloads/arma2/arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/components.tsx:225:3)
+
+      341 |         return normalized;
+      342 |       }
+    > 343 |       setPlanState({ status: 'ready', data: normalized, error: '' });
+          |       ^
+      344 |       return normalized;
+      345 |     } catch (error) {
+      346 |       if (!mountedRef.current || planRequestRef.current !== requestId) {
+
+      at printWarning (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:86:30)
+      at error (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:60:7)
+      at warnIfUpdatesNotWrappedWithActDEV (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:27628:9)
+      at scheduleUpdateOnFiber (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:25547:5)
+      at setPlanState (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:16708:7)
+      at src/features/torneos/context/TorneosCompetitionContext.jsx:343:7
+
+    console.error
+      Warning: An update to TorneosCompetitionProvider inside a test was not wrapped in act(...).
+
+      When testing, code that causes React state updates should be wrapped into act(...):
+
+      act(() => {
+        /* fire events that update state */
+      });
+      /* assert on the output */
+
+      This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+          at TorneosCompetitionProvider (/Users/nicoavayu/Downloads/arma2/arma2-mp-a5-2-plan-refresh/src/features/torneos/context/TorneosCompetitionContext.jsx:63:3)
+          at OrganizationRouteGuard (/Users/nicoavayu/Downloads/arma2/arma2-mp-a5-2-plan-refresh/src/features/torneos/components/OrganizationRouteGuard.jsx:10:39)
+          at RenderedRoute (/Users/nicoavayu/Downloads/arma2/arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/hooks.tsx:658:26)
+          at Routes (/Users/nicoavayu/Downloads/arma2/arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/components.tsx:512:3)
+          at main
+          at section
+          at div
+          at TorneosShell (/Users/nicoavayu/Downloads/arma2/arma2-mp-a5-2-plan-refresh/src/features/torneos/components/TorneosShell.jsx:313:31)
+          at TorneosWorkspaceProvider (/Users/nicoavayu/Downloads/arma2/arma2-mp-a5-2-plan-refresh/src/features/torneos/context/TorneosWorkspaceContext.jsx:64:3)
+          at TorneosCommerceProvider (/Users/nicoavayu/Downloads/arma2/arma2-mp-a5-2-plan-refresh/src/features/torneos/context/TorneosCommerceContext.jsx:28:43)
+          at TorneosFeaturesProvider (/Users/nicoavayu/Downloads/arma2/arma2-mp-a5-2-plan-refresh/src/features/torneos/context/TorneosFeaturesContext.jsx:10:43)
+          at StagingV1TorneosApp (/Users/nicoavayu/Downloads/arma2/arma2-mp-a5-2-plan-refresh/src/features/torneos/stagingV1/StagingV1TorneosApp.jsx:30:3)
+          at RenderedRoute (/Users/nicoavayu/Downloads/arma2/arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/hooks.tsx:658:26)
+          at Routes (/Users/nicoavayu/Downloads/arma2/arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/components.tsx:512:3)
+          at Router (/Users/nicoavayu/Downloads/arma2/arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/components.tsx:421:13)
+          at MemoryRouter (/Users/nicoavayu/Downloads/arma2/arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/components.tsx:225:3)
+
+      341 |         return normalized;
+      342 |       }
+    > 343 |       setPlanState({ status: 'ready', data: normalized, error: '' });
+          |       ^
+      344 |       return normalized;
+      345 |     } catch (error) {
+      346 |       if (!mountedRef.current || planRequestRef.current !== requestId) {
+
+      at printWarning (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:86:30)
+      at error (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:60:7)
+      at warnIfUpdatesNotWrappedWithActDEV (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:27628:9)
+      at scheduleUpdateOnFiber (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:25547:5)
+      at setPlanState (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:16708:7)
+      at src/features/torneos/context/TorneosCompetitionContext.jsx:343:7
+
+    console.error
+      Warning: An update to TorneosCompetitionProvider inside a test was not wrapped in act(...).
+
+      When testing, code that causes React state updates should be wrapped into act(...):
+
+      act(() => {
+        /* fire events that update state */
+      });
+      /* assert on the output */
+
+      This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+          at TorneosCompetitionProvider (/Users/nicoavayu/Downloads/arma2/arma2-mp-a5-2-plan-refresh/src/features/torneos/context/TorneosCompetitionContext.jsx:63:3)
+          at OrganizationRouteGuard (/Users/nicoavayu/Downloads/arma2/arma2-mp-a5-2-plan-refresh/src/features/torneos/components/OrganizationRouteGuard.jsx:10:39)
+          at RenderedRoute (/Users/nicoavayu/Downloads/arma2/arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/hooks.tsx:658:26)
+          at Routes (/Users/nicoavayu/Downloads/arma2/arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/components.tsx:512:3)
+          at main
+          at section
+          at div
+          at TorneosShell (/Users/nicoavayu/Downloads/arma2/arma2-mp-a5-2-plan-refresh/src/features/torneos/components/TorneosShell.jsx:313:31)
+          at TorneosWorkspaceProvider (/Users/nicoavayu/Downloads/arma2/arma2-mp-a5-2-plan-refresh/src/features/torneos/context/TorneosWorkspaceContext.jsx:64:3)
+          at TorneosCommerceProvider (/Users/nicoavayu/Downloads/arma2/arma2-mp-a5-2-plan-refresh/src/features/torneos/context/TorneosCommerceContext.jsx:28:43)
+          at TorneosFeaturesProvider (/Users/nicoavayu/Downloads/arma2/arma2-mp-a5-2-plan-refresh/src/features/torneos/context/TorneosFeaturesContext.jsx:10:43)
+          at StagingV1TorneosApp (/Users/nicoavayu/Downloads/arma2/arma2-mp-a5-2-plan-refresh/src/features/torneos/stagingV1/StagingV1TorneosApp.jsx:30:3)
+          at RenderedRoute (/Users/nicoavayu/Downloads/arma2/arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/hooks.tsx:658:26)
+          at Routes (/Users/nicoavayu/Downloads/arma2/arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/components.tsx:512:3)
+          at Router (/Users/nicoavayu/Downloads/arma2/arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/components.tsx:421:13)
+          at MemoryRouter (/Users/nicoavayu/Downloads/arma2/arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/components.tsx:225:3)
+
+      341 |         return normalized;
+      342 |       }
+    > 343 |       setPlanState({ status: 'ready', data: normalized, error: '' });
+          |       ^
+      344 |       return normalized;
+      345 |     } catch (error) {
+      346 |       if (!mountedRef.current || planRequestRef.current !== requestId) {
+
+      at printWarning (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:86:30)
+      at error (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:60:7)
+      at warnIfUpdatesNotWrappedWithActDEV (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:27628:9)
+      at scheduleUpdateOnFiber (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:25547:5)
+      at setPlanState (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:16708:7)
+      at src/features/torneos/context/TorneosCompetitionContext.jsx:343:7
+
+    console.error
+      Warning: An update to TorneosCompetitionProvider inside a test was not wrapped in act(...).
+
+      When testing, code that causes React state updates should be wrapped into act(...):
+
+      act(() => {
+        /* fire events that update state */
+      });
+      /* assert on the output */
+
+      This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+          at TorneosCompetitionProvider (/Users/nicoavayu/Downloads/arma2/arma2-mp-a5-2-plan-refresh/src/features/torneos/context/TorneosCompetitionContext.jsx:63:3)
+          at OrganizationRouteGuard (/Users/nicoavayu/Downloads/arma2/arma2-mp-a5-2-plan-refresh/src/features/torneos/components/OrganizationRouteGuard.jsx:10:39)
+          at RenderedRoute (/Users/nicoavayu/Downloads/arma2/arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/hooks.tsx:658:26)
+          at Routes (/Users/nicoavayu/Downloads/arma2/arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/components.tsx:512:3)
+          at main
+          at section
+          at div
+          at TorneosShell (/Users/nicoavayu/Downloads/arma2/arma2-mp-a5-2-plan-refresh/src/features/torneos/components/TorneosShell.jsx:313:31)
+          at TorneosWorkspaceProvider (/Users/nicoavayu/Downloads/arma2/arma2-mp-a5-2-plan-refresh/src/features/torneos/context/TorneosWorkspaceContext.jsx:64:3)
+          at TorneosCommerceProvider (/Users/nicoavayu/Downloads/arma2/arma2-mp-a5-2-plan-refresh/src/features/torneos/context/TorneosCommerceContext.jsx:28:43)
+          at TorneosFeaturesProvider (/Users/nicoavayu/Downloads/arma2/arma2-mp-a5-2-plan-refresh/src/features/torneos/context/TorneosFeaturesContext.jsx:10:43)
+          at StagingV1TorneosApp (/Users/nicoavayu/Downloads/arma2/arma2-mp-a5-2-plan-refresh/src/features/torneos/stagingV1/StagingV1TorneosApp.jsx:30:3)
+          at RenderedRoute (/Users/nicoavayu/Downloads/arma2/arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/hooks.tsx:658:26)
+          at Routes (/Users/nicoavayu/Downloads/arma2/arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/components.tsx:512:3)
+          at Router (/Users/nicoavayu/Downloads/arma2/arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/components.tsx:421:13)
+          at MemoryRouter (/Users/nicoavayu/Downloads/arma2/arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/components.tsx:225:3)
+
+      341 |         return normalized;
+      342 |       }
+    > 343 |       setPlanState({ status: 'ready', data: normalized, error: '' });
+          |       ^
+      344 |       return normalized;
+      345 |     } catch (error) {
+      346 |       if (!mountedRef.current || planRequestRef.current !== requestId) {
+
+      at printWarning (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:86:30)
+      at error (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:60:7)
+      at warnIfUpdatesNotWrappedWithActDEV (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:27628:9)
+      at scheduleUpdateOnFiber (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:25547:5)
+      at setPlanState (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:16708:7)
+      at src/features/torneos/context/TorneosCompetitionContext.jsx:343:7
+
+    console.error
+      Warning: An update to TorneosCompetitionProvider inside a test was not wrapped in act(...).
+
+      When testing, code that causes React state updates should be wrapped into act(...):
+
+      act(() => {
+        /* fire events that update state */
+      });
+      /* assert on the output */
+
+      This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+          at TorneosCompetitionProvider (/Users/nicoavayu/Downloads/arma2/arma2-mp-a5-2-plan-refresh/src/features/torneos/context/TorneosCompetitionContext.jsx:63:3)
+          at OrganizationRouteGuard (/Users/nicoavayu/Downloads/arma2/arma2-mp-a5-2-plan-refresh/src/features/torneos/components/OrganizationRouteGuard.jsx:10:39)
+          at RenderedRoute (/Users/nicoavayu/Downloads/arma2/arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/hooks.tsx:658:26)
+          at Routes (/Users/nicoavayu/Downloads/arma2/arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/components.tsx:512:3)
+          at main
+          at section
+          at div
+          at TorneosShell (/Users/nicoavayu/Downloads/arma2/arma2-mp-a5-2-plan-refresh/src/features/torneos/components/TorneosShell.jsx:313:31)
+          at TorneosWorkspaceProvider (/Users/nicoavayu/Downloads/arma2/arma2-mp-a5-2-plan-refresh/src/features/torneos/context/TorneosWorkspaceContext.jsx:64:3)
+          at TorneosCommerceProvider (/Users/nicoavayu/Downloads/arma2/arma2-mp-a5-2-plan-refresh/src/features/torneos/context/TorneosCommerceContext.jsx:28:43)
+          at TorneosFeaturesProvider (/Users/nicoavayu/Downloads/arma2/arma2-mp-a5-2-plan-refresh/src/features/torneos/context/TorneosFeaturesContext.jsx:10:43)
+          at StagingV1TorneosApp (/Users/nicoavayu/Downloads/arma2/arma2-mp-a5-2-plan-refresh/src/features/torneos/stagingV1/StagingV1TorneosApp.jsx:30:3)
+          at RenderedRoute (/Users/nicoavayu/Downloads/arma2/arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/hooks.tsx:658:26)
+          at Routes (/Users/nicoavayu/Downloads/arma2/arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/components.tsx:512:3)
+          at Router (/Users/nicoavayu/Downloads/arma2/arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/components.tsx:421:13)
+          at MemoryRouter (/Users/nicoavayu/Downloads/arma2/arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/components.tsx:225:3)
+
+      341 |         return normalized;
+      342 |       }
+    > 343 |       setPlanState({ status: 'ready', data: normalized, error: '' });
+          |       ^
+      344 |       return normalized;
+      345 |     } catch (error) {
+      346 |       if (!mountedRef.current || planRequestRef.current !== requestId) {
+
+      at printWarning (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:86:30)
+      at error (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:60:7)
+      at warnIfUpdatesNotWrappedWithActDEV (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:27628:9)
+      at scheduleUpdateOnFiber (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:25547:5)
+      at setPlanState (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:16708:7)
+      at src/features/torneos/context/TorneosCompetitionContext.jsx:343:7
+
+    console.error
+      Warning: An update to TorneosCompetitionProvider inside a test was not wrapped in act(...).
+
+      When testing, code that causes React state updates should be wrapped into act(...):
+
+      act(() => {
+        /* fire events that update state */
+      });
+      /* assert on the output */
+
+      This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+          at TorneosCompetitionProvider (/Users/nicoavayu/Downloads/arma2/arma2-mp-a5-2-plan-refresh/src/features/torneos/context/TorneosCompetitionContext.jsx:63:3)
+          at OrganizationRouteGuard (/Users/nicoavayu/Downloads/arma2/arma2-mp-a5-2-plan-refresh/src/features/torneos/components/OrganizationRouteGuard.jsx:10:39)
+          at RenderedRoute (/Users/nicoavayu/Downloads/arma2/arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/hooks.tsx:658:26)
+          at Routes (/Users/nicoavayu/Downloads/arma2/arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/components.tsx:512:3)
+          at main
+          at section
+          at div
+          at TorneosShell (/Users/nicoavayu/Downloads/arma2/arma2-mp-a5-2-plan-refresh/src/features/torneos/components/TorneosShell.jsx:313:31)
+          at TorneosWorkspaceProvider (/Users/nicoavayu/Downloads/arma2/arma2-mp-a5-2-plan-refresh/src/features/torneos/context/TorneosWorkspaceContext.jsx:64:3)
+          at TorneosCommerceProvider (/Users/nicoavayu/Downloads/arma2/arma2-mp-a5-2-plan-refresh/src/features/torneos/context/TorneosCommerceContext.jsx:28:43)
+          at TorneosFeaturesProvider (/Users/nicoavayu/Downloads/arma2/arma2-mp-a5-2-plan-refresh/src/features/torneos/context/TorneosFeaturesContext.jsx:10:43)
+          at StagingV1TorneosApp (/Users/nicoavayu/Downloads/arma2/arma2-mp-a5-2-plan-refresh/src/features/torneos/stagingV1/StagingV1TorneosApp.jsx:30:3)
+          at RenderedRoute (/Users/nicoavayu/Downloads/arma2/arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/hooks.tsx:658:26)
+          at Routes (/Users/nicoavayu/Downloads/arma2/arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/components.tsx:512:3)
+          at Router (/Users/nicoavayu/Downloads/arma2/arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/components.tsx:421:13)
+          at MemoryRouter (/Users/nicoavayu/Downloads/arma2/arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/components.tsx:225:3)
+
+      341 |         return normalized;
+      342 |       }
+    > 343 |       setPlanState({ status: 'ready', data: normalized, error: '' });
+          |       ^
+      344 |       return normalized;
+      345 |     } catch (error) {
+      346 |       if (!mountedRef.current || planRequestRef.current !== requestId) {
+
+      at printWarning (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:86:30)
+      at error (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:60:7)
+      at warnIfUpdatesNotWrappedWithActDEV (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:27628:9)
+      at scheduleUpdateOnFiber (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:25547:5)
+      at setPlanState (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:16708:7)
+      at src/features/torneos/context/TorneosCompetitionContext.jsx:343:7
+
+PASS src/__tests__/torneosMpA52PlanRefresh.test.jsx
+  ● Console
+
+    console.error
+      Warning: `ReactDOMTestUtils.act` is deprecated in favor of `React.act`. Import `act` from `react` instead of `react-dom/test-utils`. See https://react.dev/warnings/react-dom-test-utils for more info.
+
+      27 |     createCheckout: jest.fn(),
+      28 |   };
+    > 29 |   const rendered = render(<MemoryRouter initialEntries={[base]}>
+         |                          ^
+      30 |     <TorneosWorkspaceProvider service={service} autoLoad={false}>
+      31 |       <TorneosCompetitionProvider organizationId={organization.id} routeSeasonId={seasonId} service={service}>
+      32 |         <TorneosCommerceProvider commerce={commerce}>
+
+      at printWarning (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom-test-utils.development.js:71:30)
+      at error (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom-test-utils.development.js:45:7)
+      at actWithWarning (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom-test-utils.development.js:1736:7)
+      at ../arma2-torneos-real-core-sso-phase15/node_modules/@testing-library/react/dist/act-compat.js:63:25
+      at renderRoot (../arma2-torneos-real-core-sso-phase15/node_modules/@testing-library/react/dist/pure.js:159:26)
+      at render (../arma2-torneos-real-core-sso-phase15/node_modules/@testing-library/react/dist/pure.js:246:10)
+      at setup (src/__tests__/torneosMpA52PlanRefresh.test.jsx:29:26)
+      at src/__tests__/torneosMpA52PlanRefresh.test.jsx:57:15
+
+    console.warn
+      ⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.
+
+      27 |     createCheckout: jest.fn(),
+      28 |   };
+    > 29 |   const rendered = render(<MemoryRouter initialEntries={[base]}>
+         |                          ^
+      30 |     <TorneosWorkspaceProvider service={service} autoLoad={false}>
+      31 |       <TorneosCompetitionProvider organizationId={organization.id} routeSeasonId={seasonId} service={service}>
+      32 |         <TorneosCommerceProvider commerce={commerce}>
+
+      at warnOnce (../arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/deprecations.ts:9:13)
+      at logDeprecation (../arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/deprecations.ts:14:3)
+      at logV6DeprecationWarnings (../arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/deprecations.ts:26:5)
+      at ../arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/components.tsx:257:25
+      at commitHookEffectListMount (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:23189:26)
+      at commitPassiveMountOnFiber (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:24970:11)
+      at commitPassiveMountEffects_complete (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:24930:9)
+      at commitPassiveMountEffects_begin (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:24917:7)
+      at commitPassiveMountEffects (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:24905:3)
+      at flushPassiveEffectsImpl (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:27078:3)
+      at flushPassiveEffects (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:27023:14)
+      at ../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:26808:9
+      at flushActQueue (../arma2-torneos-real-core-sso-phase15/node_modules/react/cjs/react.development.js:2667:24)
+      at act (../arma2-torneos-real-core-sso-phase15/node_modules/react/cjs/react.development.js:2582:11)
+      at actWithWarning (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom-test-utils.development.js:1740:10)
+      at ../arma2-torneos-real-core-sso-phase15/node_modules/@testing-library/react/dist/act-compat.js:63:25
+      at renderRoot (../arma2-torneos-real-core-sso-phase15/node_modules/@testing-library/react/dist/pure.js:159:26)
+      at render (../arma2-torneos-real-core-sso-phase15/node_modules/@testing-library/react/dist/pure.js:246:10)
+      at setup (src/__tests__/torneosMpA52PlanRefresh.test.jsx:29:26)
+      at src/__tests__/torneosMpA52PlanRefresh.test.jsx:57:15
+
+    console.warn
+      ⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.
+
+      27 |     createCheckout: jest.fn(),
+      28 |   };
+    > 29 |   const rendered = render(<MemoryRouter initialEntries={[base]}>
+         |                          ^
+      30 |     <TorneosWorkspaceProvider service={service} autoLoad={false}>
+      31 |       <TorneosCompetitionProvider organizationId={organization.id} routeSeasonId={seasonId} service={service}>
+      32 |         <TorneosCommerceProvider commerce={commerce}>
+
+      at warnOnce (../arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/deprecations.ts:9:13)
+      at logDeprecation (../arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/deprecations.ts:14:3)
+      at logV6DeprecationWarnings (../arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/deprecations.ts:37:5)
+      at ../arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/components.tsx:257:25
+      at commitHookEffectListMount (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:23189:26)
+      at commitPassiveMountOnFiber (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:24970:11)
+      at commitPassiveMountEffects_complete (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:24930:9)
+      at commitPassiveMountEffects_begin (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:24917:7)
+      at commitPassiveMountEffects (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:24905:3)
+      at flushPassiveEffectsImpl (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:27078:3)
+      at flushPassiveEffects (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:27023:14)
+      at ../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:26808:9
+      at flushActQueue (../arma2-torneos-real-core-sso-phase15/node_modules/react/cjs/react.development.js:2667:24)
+      at act (../arma2-torneos-real-core-sso-phase15/node_modules/react/cjs/react.development.js:2582:11)
+      at actWithWarning (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom-test-utils.development.js:1740:10)
+      at ../arma2-torneos-real-core-sso-phase15/node_modules/@testing-library/react/dist/act-compat.js:63:25
+      at renderRoot (../arma2-torneos-real-core-sso-phase15/node_modules/@testing-library/react/dist/pure.js:159:26)
+      at render (../arma2-torneos-real-core-sso-phase15/node_modules/@testing-library/react/dist/pure.js:246:10)
+      at setup (src/__tests__/torneosMpA52PlanRefresh.test.jsx:29:26)
+      at src/__tests__/torneosMpA52PlanRefresh.test.jsx:57:15
+
+PASS src/features/torneos/context/__tests__/canonicalTournamentContext.test.jsx
+  ● Console
+
+    console.error
+      Warning: `ReactDOMTestUtils.act` is deprecated in favor of `React.act`. Import `act` from `react` instead of `react-dom/test-utils`. See https://react.dev/warnings/react-dom-test-utils for more info.
+
+      41 |
+      42 | function renderProvider({ routeTournamentId = null, service }) {
+    > 43 |   return render(
+         |                ^
+      44 |     <MemoryRouter>
+      45 |       <TorneosCompetitionProvider
+      46 |         organizationId={ORG}
+
+      at printWarning (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom-test-utils.development.js:71:30)
+      at error (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom-test-utils.development.js:45:7)
+      at actWithWarning (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom-test-utils.development.js:1736:7)
+      at ../arma2-torneos-real-core-sso-phase15/node_modules/@testing-library/react/dist/act-compat.js:63:25
+      at renderRoot (../arma2-torneos-real-core-sso-phase15/node_modules/@testing-library/react/dist/pure.js:159:26)
+      at render (../arma2-torneos-real-core-sso-phase15/node_modules/@testing-library/react/dist/pure.js:246:10)
+      at renderProvider (src/features/torneos/context/__tests__/canonicalTournamentContext.test.jsx:43:16)
+      at Object.<anonymous> (src/features/torneos/context/__tests__/canonicalTournamentContext.test.jsx:69:5)
+
+    console.warn
+      ⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.
+
+      41 |
+      42 | function renderProvider({ routeTournamentId = null, service }) {
+    > 43 |   return render(
+         |                ^
+      44 |     <MemoryRouter>
+      45 |       <TorneosCompetitionProvider
+      46 |         organizationId={ORG}
+
+      at warnOnce (../arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/deprecations.ts:9:13)
+      at logDeprecation (../arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/deprecations.ts:14:3)
+      at logV6DeprecationWarnings (../arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/deprecations.ts:26:5)
+      at ../arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/components.tsx:257:25
+      at commitHookEffectListMount (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:23189:26)
+      at commitPassiveMountOnFiber (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:24970:11)
+      at commitPassiveMountEffects_complete (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:24930:9)
+      at commitPassiveMountEffects_begin (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:24917:7)
+      at commitPassiveMountEffects (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:24905:3)
+      at flushPassiveEffectsImpl (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:27078:3)
+      at flushPassiveEffects (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:27023:14)
+      at ../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:26808:9
+      at flushActQueue (../arma2-torneos-real-core-sso-phase15/node_modules/react/cjs/react.development.js:2667:24)
+      at act (../arma2-torneos-real-core-sso-phase15/node_modules/react/cjs/react.development.js:2582:11)
+      at actWithWarning (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom-test-utils.development.js:1740:10)
+      at ../arma2-torneos-real-core-sso-phase15/node_modules/@testing-library/react/dist/act-compat.js:63:25
+      at renderRoot (../arma2-torneos-real-core-sso-phase15/node_modules/@testing-library/react/dist/pure.js:159:26)
+      at render (../arma2-torneos-real-core-sso-phase15/node_modules/@testing-library/react/dist/pure.js:246:10)
+      at renderProvider (src/features/torneos/context/__tests__/canonicalTournamentContext.test.jsx:43:16)
+      at Object.<anonymous> (src/features/torneos/context/__tests__/canonicalTournamentContext.test.jsx:69:5)
+
+    console.warn
+      ⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.
+
+      41 |
+      42 | function renderProvider({ routeTournamentId = null, service }) {
+    > 43 |   return render(
+         |                ^
+      44 |     <MemoryRouter>
+      45 |       <TorneosCompetitionProvider
+      46 |         organizationId={ORG}
+
+      at warnOnce (../arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/deprecations.ts:9:13)
+      at logDeprecation (../arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/deprecations.ts:14:3)
+      at logV6DeprecationWarnings (../arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/deprecations.ts:37:5)
+      at ../arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/components.tsx:257:25
+      at commitHookEffectListMount (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:23189:26)
+      at commitPassiveMountOnFiber (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:24970:11)
+      at commitPassiveMountEffects_complete (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:24930:9)
+      at commitPassiveMountEffects_begin (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:24917:7)
+      at commitPassiveMountEffects (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:24905:3)
+      at flushPassiveEffectsImpl (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:27078:3)
+      at flushPassiveEffects (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:27023:14)
+      at ../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:26808:9
+      at flushActQueue (../arma2-torneos-real-core-sso-phase15/node_modules/react/cjs/react.development.js:2667:24)
+      at act (../arma2-torneos-real-core-sso-phase15/node_modules/react/cjs/react.development.js:2582:11)
+      at actWithWarning (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom-test-utils.development.js:1740:10)
+      at ../arma2-torneos-real-core-sso-phase15/node_modules/@testing-library/react/dist/act-compat.js:63:25
+      at renderRoot (../arma2-torneos-real-core-sso-phase15/node_modules/@testing-library/react/dist/pure.js:159:26)
+      at render (../arma2-torneos-real-core-sso-phase15/node_modules/@testing-library/react/dist/pure.js:246:10)
+      at renderProvider (src/features/torneos/context/__tests__/canonicalTournamentContext.test.jsx:43:16)
+      at Object.<anonymous> (src/features/torneos/context/__tests__/canonicalTournamentContext.test.jsx:69:5)
+
+PASS src/__tests__/torneosMpA51PremiumIntentRoute.test.jsx
+  ● Console
+
+    console.error
+      Warning: `ReactDOMTestUtils.act` is deprecated in favor of `React.act`. Import `act` from `react` instead of `react-dom/test-utils`. See https://react.dev/warnings/react-dom-test-utils for more info.
+
+      116 |
+      117 | function renderHybrid(path, { service, billingMode = 'test' }) {
+    > 118 |   return render(
+          |                ^
+      119 |     <MemoryRouter initialEntries={[path]}>
+      120 |       <LocationProbe />
+      121 |       <Routes>
+
+      at printWarning (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom-test-utils.development.js:71:30)
+      at error (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom-test-utils.development.js:45:7)
+      at actWithWarning (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom-test-utils.development.js:1736:7)
+      at ../arma2-torneos-real-core-sso-phase15/node_modules/@testing-library/react/dist/act-compat.js:63:25
+      at renderRoot (../arma2-torneos-real-core-sso-phase15/node_modules/@testing-library/react/dist/pure.js:159:26)
+      at render (../arma2-torneos-real-core-sso-phase15/node_modules/@testing-library/react/dist/pure.js:246:10)
+      at renderHybrid (src/__tests__/torneosMpA51PremiumIntentRoute.test.jsx:118:16)
+      at Object.<anonymous> (src/__tests__/torneosMpA51PremiumIntentRoute.test.jsx:165:5)
+
+    console.warn
+      ⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.
+
+      116 |
+      117 | function renderHybrid(path, { service, billingMode = 'test' }) {
+    > 118 |   return render(
+          |                ^
+      119 |     <MemoryRouter initialEntries={[path]}>
+      120 |       <LocationProbe />
+      121 |       <Routes>
+
+      at warnOnce (../arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/deprecations.ts:9:13)
+      at logDeprecation (../arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/deprecations.ts:14:3)
+      at logV6DeprecationWarnings (../arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/deprecations.ts:26:5)
+      at ../arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/components.tsx:257:25
+      at commitHookEffectListMount (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:23189:26)
+      at commitPassiveMountOnFiber (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:24970:11)
+      at commitPassiveMountEffects_complete (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:24930:9)
+      at commitPassiveMountEffects_begin (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:24917:7)
+      at commitPassiveMountEffects (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:24905:3)
+      at flushPassiveEffectsImpl (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:27078:3)
+      at flushPassiveEffects (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:27023:14)
+      at ../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:26808:9
+      at flushActQueue (../arma2-torneos-real-core-sso-phase15/node_modules/react/cjs/react.development.js:2667:24)
+      at act (../arma2-torneos-real-core-sso-phase15/node_modules/react/cjs/react.development.js:2582:11)
+      at actWithWarning (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom-test-utils.development.js:1740:10)
+      at ../arma2-torneos-real-core-sso-phase15/node_modules/@testing-library/react/dist/act-compat.js:63:25
+      at renderRoot (../arma2-torneos-real-core-sso-phase15/node_modules/@testing-library/react/dist/pure.js:159:26)
+      at render (../arma2-torneos-real-core-sso-phase15/node_modules/@testing-library/react/dist/pure.js:246:10)
+      at renderHybrid (src/__tests__/torneosMpA51PremiumIntentRoute.test.jsx:118:16)
+      at Object.<anonymous> (src/__tests__/torneosMpA51PremiumIntentRoute.test.jsx:165:5)
+
+    console.warn
+      ⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.
+
+      116 |
+      117 | function renderHybrid(path, { service, billingMode = 'test' }) {
+    > 118 |   return render(
+          |                ^
+      119 |     <MemoryRouter initialEntries={[path]}>
+      120 |       <LocationProbe />
+      121 |       <Routes>
+
+      at warnOnce (../arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/deprecations.ts:9:13)
+      at logDeprecation (../arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/deprecations.ts:14:3)
+      at logV6DeprecationWarnings (../arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/deprecations.ts:37:5)
+      at ../arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/components.tsx:257:25
+      at commitHookEffectListMount (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:23189:26)
+      at commitPassiveMountOnFiber (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:24970:11)
+      at commitPassiveMountEffects_complete (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:24930:9)
+      at commitPassiveMountEffects_begin (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:24917:7)
+      at commitPassiveMountEffects (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:24905:3)
+      at flushPassiveEffectsImpl (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:27078:3)
+      at flushPassiveEffects (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:27023:14)
+      at ../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:26808:9
+      at flushActQueue (../arma2-torneos-real-core-sso-phase15/node_modules/react/cjs/react.development.js:2667:24)
+      at act (../arma2-torneos-real-core-sso-phase15/node_modules/react/cjs/react.development.js:2582:11)
+      at actWithWarning (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom-test-utils.development.js:1740:10)
+      at ../arma2-torneos-real-core-sso-phase15/node_modules/@testing-library/react/dist/act-compat.js:63:25
+      at renderRoot (../arma2-torneos-real-core-sso-phase15/node_modules/@testing-library/react/dist/pure.js:159:26)
+      at render (../arma2-torneos-real-core-sso-phase15/node_modules/@testing-library/react/dist/pure.js:246:10)
+      at renderHybrid (src/__tests__/torneosMpA51PremiumIntentRoute.test.jsx:118:16)
+      at Object.<anonymous> (src/__tests__/torneosMpA51PremiumIntentRoute.test.jsx:165:5)
+
+    console.error
+      Warning: An update to TorneosCompetitionProvider inside a test was not wrapped in act(...).
+
+      When testing, code that causes React state updates should be wrapped into act(...):
+
+      act(() => {
+        /* fire events that update state */
+      });
+      /* assert on the output */
+
+      This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+          at TorneosCompetitionProvider (/Users/nicoavayu/Downloads/arma2/arma2-mp-a5-2-plan-refresh/src/features/torneos/context/TorneosCompetitionContext.jsx:63:3)
+          at OrganizationRouteGuard (/Users/nicoavayu/Downloads/arma2/arma2-mp-a5-2-plan-refresh/src/features/torneos/components/OrganizationRouteGuard.jsx:10:39)
+          at RenderedRoute (/Users/nicoavayu/Downloads/arma2/arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/hooks.tsx:658:26)
+          at Routes (/Users/nicoavayu/Downloads/arma2/arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/components.tsx:512:3)
+          at main
+          at section
+          at div
+          at TorneosShell (/Users/nicoavayu/Downloads/arma2/arma2-mp-a5-2-plan-refresh/src/features/torneos/components/TorneosShell.jsx:313:31)
+          at TorneosWorkspaceProvider (/Users/nicoavayu/Downloads/arma2/arma2-mp-a5-2-plan-refresh/src/features/torneos/context/TorneosWorkspaceContext.jsx:64:3)
+          at TorneosCommerceProvider (/Users/nicoavayu/Downloads/arma2/arma2-mp-a5-2-plan-refresh/src/features/torneos/context/TorneosCommerceContext.jsx:28:43)
+          at TorneosFeaturesProvider (/Users/nicoavayu/Downloads/arma2/arma2-mp-a5-2-plan-refresh/src/features/torneos/context/TorneosFeaturesContext.jsx:10:43)
+          at StagingV1TorneosApp (/Users/nicoavayu/Downloads/arma2/arma2-mp-a5-2-plan-refresh/src/features/torneos/stagingV1/StagingV1TorneosApp.jsx:30:3)
+          at RenderedRoute (/Users/nicoavayu/Downloads/arma2/arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/hooks.tsx:658:26)
+          at Routes (/Users/nicoavayu/Downloads/arma2/arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/components.tsx:512:3)
+          at Router (/Users/nicoavayu/Downloads/arma2/arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/components.tsx:421:13)
+          at MemoryRouter (/Users/nicoavayu/Downloads/arma2/arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/components.tsx:225:3)
+
+      341 |         return normalized;
+      342 |       }
+    > 343 |       setPlanState({ status: 'ready', data: normalized, error: '' });
+          |       ^
+      344 |       return normalized;
+      345 |     } catch (error) {
+      346 |       if (!mountedRef.current || planRequestRef.current !== requestId) {
+
+      at printWarning (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:86:30)
+      at error (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:60:7)
+      at warnIfUpdatesNotWrappedWithActDEV (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:27628:9)
+      at scheduleUpdateOnFiber (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:25547:5)
+      at setPlanState (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:16708:7)
+      at src/features/torneos/context/TorneosCompetitionContext.jsx:343:7
+
+    console.error
+      Warning: An update to TorneosCompetitionProvider inside a test was not wrapped in act(...).
+
+      When testing, code that causes React state updates should be wrapped into act(...):
+
+      act(() => {
+        /* fire events that update state */
+      });
+      /* assert on the output */
+
+      This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+          at TorneosCompetitionProvider (/Users/nicoavayu/Downloads/arma2/arma2-mp-a5-2-plan-refresh/src/features/torneos/context/TorneosCompetitionContext.jsx:63:3)
+          at OrganizationRouteGuard (/Users/nicoavayu/Downloads/arma2/arma2-mp-a5-2-plan-refresh/src/features/torneos/components/OrganizationRouteGuard.jsx:10:39)
+          at RenderedRoute (/Users/nicoavayu/Downloads/arma2/arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/hooks.tsx:658:26)
+          at Routes (/Users/nicoavayu/Downloads/arma2/arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/components.tsx:512:3)
+          at main
+          at section
+          at div
+          at TorneosShell (/Users/nicoavayu/Downloads/arma2/arma2-mp-a5-2-plan-refresh/src/features/torneos/components/TorneosShell.jsx:313:31)
+          at TorneosWorkspaceProvider (/Users/nicoavayu/Downloads/arma2/arma2-mp-a5-2-plan-refresh/src/features/torneos/context/TorneosWorkspaceContext.jsx:64:3)
+          at TorneosCommerceProvider (/Users/nicoavayu/Downloads/arma2/arma2-mp-a5-2-plan-refresh/src/features/torneos/context/TorneosCommerceContext.jsx:28:43)
+          at TorneosFeaturesProvider (/Users/nicoavayu/Downloads/arma2/arma2-mp-a5-2-plan-refresh/src/features/torneos/context/TorneosFeaturesContext.jsx:10:43)
+          at StagingV1TorneosApp (/Users/nicoavayu/Downloads/arma2/arma2-mp-a5-2-plan-refresh/src/features/torneos/stagingV1/StagingV1TorneosApp.jsx:30:3)
+          at RenderedRoute (/Users/nicoavayu/Downloads/arma2/arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/hooks.tsx:658:26)
+          at Routes (/Users/nicoavayu/Downloads/arma2/arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/components.tsx:512:3)
+          at Router (/Users/nicoavayu/Downloads/arma2/arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/components.tsx:421:13)
+          at MemoryRouter (/Users/nicoavayu/Downloads/arma2/arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/components.tsx:225:3)
+
+      341 |         return normalized;
+      342 |       }
+    > 343 |       setPlanState({ status: 'ready', data: normalized, error: '' });
+          |       ^
+      344 |       return normalized;
+      345 |     } catch (error) {
+      346 |       if (!mountedRef.current || planRequestRef.current !== requestId) {
+
+      at printWarning (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:86:30)
+      at error (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:60:7)
+      at warnIfUpdatesNotWrappedWithActDEV (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:27628:9)
+      at scheduleUpdateOnFiber (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:25547:5)
+      at setPlanState (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:16708:7)
+      at src/features/torneos/context/TorneosCompetitionContext.jsx:343:7
+
+    console.error
+      Warning: An update to TorneosCompetitionProvider inside a test was not wrapped in act(...).
+
+      When testing, code that causes React state updates should be wrapped into act(...):
+
+      act(() => {
+        /* fire events that update state */
+      });
+      /* assert on the output */
+
+      This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+          at TorneosCompetitionProvider (/Users/nicoavayu/Downloads/arma2/arma2-mp-a5-2-plan-refresh/src/features/torneos/context/TorneosCompetitionContext.jsx:63:3)
+          at OrganizationRouteGuard (/Users/nicoavayu/Downloads/arma2/arma2-mp-a5-2-plan-refresh/src/features/torneos/components/OrganizationRouteGuard.jsx:10:39)
+          at RenderedRoute (/Users/nicoavayu/Downloads/arma2/arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/hooks.tsx:658:26)
+          at Routes (/Users/nicoavayu/Downloads/arma2/arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/components.tsx:512:3)
+          at main
+          at section
+          at div
+          at TorneosShell (/Users/nicoavayu/Downloads/arma2/arma2-mp-a5-2-plan-refresh/src/features/torneos/components/TorneosShell.jsx:313:31)
+          at TorneosWorkspaceProvider (/Users/nicoavayu/Downloads/arma2/arma2-mp-a5-2-plan-refresh/src/features/torneos/context/TorneosWorkspaceContext.jsx:64:3)
+          at TorneosCommerceProvider (/Users/nicoavayu/Downloads/arma2/arma2-mp-a5-2-plan-refresh/src/features/torneos/context/TorneosCommerceContext.jsx:28:43)
+          at TorneosFeaturesProvider (/Users/nicoavayu/Downloads/arma2/arma2-mp-a5-2-plan-refresh/src/features/torneos/context/TorneosFeaturesContext.jsx:10:43)
+          at StagingV1TorneosApp (/Users/nicoavayu/Downloads/arma2/arma2-mp-a5-2-plan-refresh/src/features/torneos/stagingV1/StagingV1TorneosApp.jsx:30:3)
+          at RenderedRoute (/Users/nicoavayu/Downloads/arma2/arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/hooks.tsx:658:26)
+          at Routes (/Users/nicoavayu/Downloads/arma2/arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/components.tsx:512:3)
+          at Router (/Users/nicoavayu/Downloads/arma2/arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/components.tsx:421:13)
+          at MemoryRouter (/Users/nicoavayu/Downloads/arma2/arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/components.tsx:225:3)
+
+      341 |         return normalized;
+      342 |       }
+    > 343 |       setPlanState({ status: 'ready', data: normalized, error: '' });
+          |       ^
+      344 |       return normalized;
+      345 |     } catch (error) {
+      346 |       if (!mountedRef.current || planRequestRef.current !== requestId) {
+
+      at printWarning (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:86:30)
+      at error (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:60:7)
+      at warnIfUpdatesNotWrappedWithActDEV (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:27628:9)
+      at scheduleUpdateOnFiber (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:25547:5)
+      at setPlanState (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:16708:7)
+      at src/features/torneos/context/TorneosCompetitionContext.jsx:343:7
+
+    console.error
+      Warning: An update to TorneosCompetitionProvider inside a test was not wrapped in act(...).
+
+      When testing, code that causes React state updates should be wrapped into act(...):
+
+      act(() => {
+        /* fire events that update state */
+      });
+      /* assert on the output */
+
+      This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+          at TorneosCompetitionProvider (/Users/nicoavayu/Downloads/arma2/arma2-mp-a5-2-plan-refresh/src/features/torneos/context/TorneosCompetitionContext.jsx:63:3)
+          at OrganizationRouteGuard (/Users/nicoavayu/Downloads/arma2/arma2-mp-a5-2-plan-refresh/src/features/torneos/components/OrganizationRouteGuard.jsx:10:39)
+          at RenderedRoute (/Users/nicoavayu/Downloads/arma2/arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/hooks.tsx:658:26)
+          at Routes (/Users/nicoavayu/Downloads/arma2/arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/components.tsx:512:3)
+          at main
+          at section
+          at div
+          at TorneosShell (/Users/nicoavayu/Downloads/arma2/arma2-mp-a5-2-plan-refresh/src/features/torneos/components/TorneosShell.jsx:313:31)
+          at TorneosWorkspaceProvider (/Users/nicoavayu/Downloads/arma2/arma2-mp-a5-2-plan-refresh/src/features/torneos/context/TorneosWorkspaceContext.jsx:64:3)
+          at TorneosCommerceProvider (/Users/nicoavayu/Downloads/arma2/arma2-mp-a5-2-plan-refresh/src/features/torneos/context/TorneosCommerceContext.jsx:28:43)
+          at TorneosFeaturesProvider (/Users/nicoavayu/Downloads/arma2/arma2-mp-a5-2-plan-refresh/src/features/torneos/context/TorneosFeaturesContext.jsx:10:43)
+          at StagingV1TorneosApp (/Users/nicoavayu/Downloads/arma2/arma2-mp-a5-2-plan-refresh/src/features/torneos/stagingV1/StagingV1TorneosApp.jsx:30:3)
+          at RenderedRoute (/Users/nicoavayu/Downloads/arma2/arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/hooks.tsx:658:26)
+          at Routes (/Users/nicoavayu/Downloads/arma2/arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/components.tsx:512:3)
+          at Router (/Users/nicoavayu/Downloads/arma2/arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/components.tsx:421:13)
+          at MemoryRouter (/Users/nicoavayu/Downloads/arma2/arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/components.tsx:225:3)
+
+      341 |         return normalized;
+      342 |       }
+    > 343 |       setPlanState({ status: 'ready', data: normalized, error: '' });
+          |       ^
+      344 |       return normalized;
+      345 |     } catch (error) {
+      346 |       if (!mountedRef.current || planRequestRef.current !== requestId) {
+
+      at printWarning (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:86:30)
+      at error (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:60:7)
+      at warnIfUpdatesNotWrappedWithActDEV (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:27628:9)
+      at scheduleUpdateOnFiber (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:25547:5)
+      at setPlanState (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:16708:7)
+      at src/features/torneos/context/TorneosCompetitionContext.jsx:343:7
+
+    console.error
+      Warning: An update to TorneosCompetitionProvider inside a test was not wrapped in act(...).
+
+      When testing, code that causes React state updates should be wrapped into act(...):
+
+      act(() => {
+        /* fire events that update state */
+      });
+      /* assert on the output */
+
+      This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+          at TorneosCompetitionProvider (/Users/nicoavayu/Downloads/arma2/arma2-mp-a5-2-plan-refresh/src/features/torneos/context/TorneosCompetitionContext.jsx:63:3)
+          at OrganizationRouteGuard (/Users/nicoavayu/Downloads/arma2/arma2-mp-a5-2-plan-refresh/src/features/torneos/components/OrganizationRouteGuard.jsx:10:39)
+          at RenderedRoute (/Users/nicoavayu/Downloads/arma2/arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/hooks.tsx:658:26)
+          at Routes (/Users/nicoavayu/Downloads/arma2/arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/components.tsx:512:3)
+          at main
+          at section
+          at div
+          at TorneosShell (/Users/nicoavayu/Downloads/arma2/arma2-mp-a5-2-plan-refresh/src/features/torneos/components/TorneosShell.jsx:313:31)
+          at TorneosWorkspaceProvider (/Users/nicoavayu/Downloads/arma2/arma2-mp-a5-2-plan-refresh/src/features/torneos/context/TorneosWorkspaceContext.jsx:64:3)
+          at TorneosCommerceProvider (/Users/nicoavayu/Downloads/arma2/arma2-mp-a5-2-plan-refresh/src/features/torneos/context/TorneosCommerceContext.jsx:28:43)
+          at TorneosFeaturesProvider (/Users/nicoavayu/Downloads/arma2/arma2-mp-a5-2-plan-refresh/src/features/torneos/context/TorneosFeaturesContext.jsx:10:43)
+          at StagingV1TorneosApp (/Users/nicoavayu/Downloads/arma2/arma2-mp-a5-2-plan-refresh/src/features/torneos/stagingV1/StagingV1TorneosApp.jsx:30:3)
+          at RenderedRoute (/Users/nicoavayu/Downloads/arma2/arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/hooks.tsx:658:26)
+          at Routes (/Users/nicoavayu/Downloads/arma2/arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/components.tsx:512:3)
+          at Router (/Users/nicoavayu/Downloads/arma2/arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/components.tsx:421:13)
+          at MemoryRouter (/Users/nicoavayu/Downloads/arma2/arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/components.tsx:225:3)
+
+      341 |         return normalized;
+      342 |       }
+    > 343 |       setPlanState({ status: 'ready', data: normalized, error: '' });
+          |       ^
+      344 |       return normalized;
+      345 |     } catch (error) {
+      346 |       if (!mountedRef.current || planRequestRef.current !== requestId) {
+
+      at printWarning (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:86:30)
+      at error (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:60:7)
+      at warnIfUpdatesNotWrappedWithActDEV (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:27628:9)
+      at scheduleUpdateOnFiber (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:25547:5)
+      at setPlanState (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:16708:7)
+      at src/features/torneos/context/TorneosCompetitionContext.jsx:343:7
+
+    console.error
+      Warning: An update to TorneosCompetitionProvider inside a test was not wrapped in act(...).
+
+      When testing, code that causes React state updates should be wrapped into act(...):
+
+      act(() => {
+        /* fire events that update state */
+      });
+      /* assert on the output */
+
+      This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+          at TorneosCompetitionProvider (/Users/nicoavayu/Downloads/arma2/arma2-mp-a5-2-plan-refresh/src/features/torneos/context/TorneosCompetitionContext.jsx:63:3)
+          at OrganizationRouteGuard (/Users/nicoavayu/Downloads/arma2/arma2-mp-a5-2-plan-refresh/src/features/torneos/components/OrganizationRouteGuard.jsx:10:39)
+          at RenderedRoute (/Users/nicoavayu/Downloads/arma2/arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/hooks.tsx:658:26)
+          at Routes (/Users/nicoavayu/Downloads/arma2/arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/components.tsx:512:3)
+          at main
+          at section
+          at div
+          at TorneosShell (/Users/nicoavayu/Downloads/arma2/arma2-mp-a5-2-plan-refresh/src/features/torneos/components/TorneosShell.jsx:313:31)
+          at TorneosWorkspaceProvider (/Users/nicoavayu/Downloads/arma2/arma2-mp-a5-2-plan-refresh/src/features/torneos/context/TorneosWorkspaceContext.jsx:64:3)
+          at TorneosCommerceProvider (/Users/nicoavayu/Downloads/arma2/arma2-mp-a5-2-plan-refresh/src/features/torneos/context/TorneosCommerceContext.jsx:28:43)
+          at TorneosFeaturesProvider (/Users/nicoavayu/Downloads/arma2/arma2-mp-a5-2-plan-refresh/src/features/torneos/context/TorneosFeaturesContext.jsx:10:43)
+          at StagingV1TorneosApp (/Users/nicoavayu/Downloads/arma2/arma2-mp-a5-2-plan-refresh/src/features/torneos/stagingV1/StagingV1TorneosApp.jsx:30:3)
+          at RenderedRoute (/Users/nicoavayu/Downloads/arma2/arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/hooks.tsx:658:26)
+          at Routes (/Users/nicoavayu/Downloads/arma2/arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/components.tsx:512:3)
+          at Router (/Users/nicoavayu/Downloads/arma2/arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/components.tsx:421:13)
+          at MemoryRouter (/Users/nicoavayu/Downloads/arma2/arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/components.tsx:225:3)
+
+      341 |         return normalized;
+      342 |       }
+    > 343 |       setPlanState({ status: 'ready', data: normalized, error: '' });
+          |       ^
+      344 |       return normalized;
+      345 |     } catch (error) {
+      346 |       if (!mountedRef.current || planRequestRef.current !== requestId) {
+
+      at printWarning (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:86:30)
+      at error (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:60:7)
+      at warnIfUpdatesNotWrappedWithActDEV (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:27628:9)
+      at scheduleUpdateOnFiber (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:25547:5)
+      at setPlanState (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:16708:7)
+      at src/features/torneos/context/TorneosCompetitionContext.jsx:343:7
+
+PASS src/__tests__/torneosPlanExperience.test.jsx
+  ● Console
+
+    console.error
+      Warning: `ReactDOMTestUtils.act` is deprecated in favor of `React.act`. Import `act` from `react` instead of `react-dom/test-utils`. See https://react.dev/warnings/react-dom-test-utils for more info.
+
+      68 |
+      69 | function renderPlan({ service = createService(), child = null } = {}) {
+    > 70 |   render(
+         |         ^
+      71 |     <MemoryRouter initialEntries={[
+      72 |       `/torneos/organizacion/${ORGANIZATION.id}/temporada/${SEASON.id}/plan`,
+      73 |     ]}>
+
+      at printWarning (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom-test-utils.development.js:71:30)
+      at error (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom-test-utils.development.js:45:7)
+      at actWithWarning (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom-test-utils.development.js:1736:7)
+      at ../arma2-torneos-real-core-sso-phase15/node_modules/@testing-library/react/dist/act-compat.js:63:25
+      at renderRoot (../arma2-torneos-real-core-sso-phase15/node_modules/@testing-library/react/dist/pure.js:159:26)
+      at render (../arma2-torneos-real-core-sso-phase15/node_modules/@testing-library/react/dist/pure.js:246:10)
+      at renderPlan (src/__tests__/torneosPlanExperience.test.jsx:70:9)
+      at Object.<anonymous> (src/__tests__/torneosPlanExperience.test.jsx:109:21)
+
+    console.warn
+      ⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.
+
+      68 |
+      69 | function renderPlan({ service = createService(), child = null } = {}) {
+    > 70 |   render(
+         |         ^
+      71 |     <MemoryRouter initialEntries={[
+      72 |       `/torneos/organizacion/${ORGANIZATION.id}/temporada/${SEASON.id}/plan`,
+      73 |     ]}>
+
+      at warnOnce (../arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/deprecations.ts:9:13)
+      at logDeprecation (../arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/deprecations.ts:14:3)
+      at logV6DeprecationWarnings (../arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/deprecations.ts:26:5)
+      at ../arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/components.tsx:257:25
+      at commitHookEffectListMount (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:23189:26)
+      at commitPassiveMountOnFiber (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:24970:11)
+      at commitPassiveMountEffects_complete (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:24930:9)
+      at commitPassiveMountEffects_begin (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:24917:7)
+      at commitPassiveMountEffects (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:24905:3)
+      at flushPassiveEffectsImpl (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:27078:3)
+      at flushPassiveEffects (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:27023:14)
+      at ../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:26808:9
+      at flushActQueue (../arma2-torneos-real-core-sso-phase15/node_modules/react/cjs/react.development.js:2667:24)
+      at act (../arma2-torneos-real-core-sso-phase15/node_modules/react/cjs/react.development.js:2582:11)
+      at actWithWarning (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom-test-utils.development.js:1740:10)
+      at ../arma2-torneos-real-core-sso-phase15/node_modules/@testing-library/react/dist/act-compat.js:63:25
+      at renderRoot (../arma2-torneos-real-core-sso-phase15/node_modules/@testing-library/react/dist/pure.js:159:26)
+      at render (../arma2-torneos-real-core-sso-phase15/node_modules/@testing-library/react/dist/pure.js:246:10)
+      at renderPlan (src/__tests__/torneosPlanExperience.test.jsx:70:9)
+      at Object.<anonymous> (src/__tests__/torneosPlanExperience.test.jsx:109:21)
+
+    console.warn
+      ⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.
+
+      68 |
+      69 | function renderPlan({ service = createService(), child = null } = {}) {
+    > 70 |   render(
+         |         ^
+      71 |     <MemoryRouter initialEntries={[
+      72 |       `/torneos/organizacion/${ORGANIZATION.id}/temporada/${SEASON.id}/plan`,
+      73 |     ]}>
+
+      at warnOnce (../arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/deprecations.ts:9:13)
+      at logDeprecation (../arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/deprecations.ts:14:3)
+      at logV6DeprecationWarnings (../arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/deprecations.ts:37:5)
+      at ../arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/components.tsx:257:25
+      at commitHookEffectListMount (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:23189:26)
+      at commitPassiveMountOnFiber (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:24970:11)
+      at commitPassiveMountEffects_complete (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:24930:9)
+      at commitPassiveMountEffects_begin (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:24917:7)
+      at commitPassiveMountEffects (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:24905:3)
+      at flushPassiveEffectsImpl (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:27078:3)
+      at flushPassiveEffects (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:27023:14)
+      at ../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:26808:9
+      at flushActQueue (../arma2-torneos-real-core-sso-phase15/node_modules/react/cjs/react.development.js:2667:24)
+      at act (../arma2-torneos-real-core-sso-phase15/node_modules/react/cjs/react.development.js:2582:11)
+      at actWithWarning (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom-test-utils.development.js:1740:10)
+      at ../arma2-torneos-real-core-sso-phase15/node_modules/@testing-library/react/dist/act-compat.js:63:25
+      at renderRoot (../arma2-torneos-real-core-sso-phase15/node_modules/@testing-library/react/dist/pure.js:159:26)
+      at render (../arma2-torneos-real-core-sso-phase15/node_modules/@testing-library/react/dist/pure.js:246:10)
+      at renderPlan (src/__tests__/torneosPlanExperience.test.jsx:70:9)
+      at Object.<anonymous> (src/__tests__/torneosPlanExperience.test.jsx:109:21)
+
+PASS src/__tests__/torneosPurchaseStatus.test.jsx
+  ● Console
+
+    console.error
+      Warning: `ReactDOMTestUtils.act` is deprecated in favor of `React.act`. Import `act` from `react` instead of `react-dom/test-utils`. See https://react.dev/warnings/react-dom-test-utils for more info.
+
+      39 |     view === 'success' ? 'exito' : view === 'failure' ? 'fallo' : 'pendiente'
+      40 |   }`;
+    > 41 |   render(
+         |         ^
+      42 |     <MemoryRouter initialEntries={[path]}>
+      43 |       <Routes>
+      44 |         <Route
+
+      at printWarning (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom-test-utils.development.js:71:30)
+      at error (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom-test-utils.development.js:45:7)
+      at actWithWarning (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom-test-utils.development.js:1736:7)
+      at ../arma2-torneos-real-core-sso-phase15/node_modules/@testing-library/react/dist/act-compat.js:63:25
+      at renderRoot (../arma2-torneos-real-core-sso-phase15/node_modules/@testing-library/react/dist/pure.js:159:26)
+      at render (../arma2-torneos-real-core-sso-phase15/node_modules/@testing-library/react/dist/pure.js:246:10)
+      at renderStatus (src/__tests__/torneosPurchaseStatus.test.jsx:41:9)
+      at Object.<anonymous> (src/__tests__/torneosPurchaseStatus.test.jsx:69:5)
+
+    console.warn
+      ⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.
+
+      39 |     view === 'success' ? 'exito' : view === 'failure' ? 'fallo' : 'pendiente'
+      40 |   }`;
+    > 41 |   render(
+         |         ^
+      42 |     <MemoryRouter initialEntries={[path]}>
+      43 |       <Routes>
+      44 |         <Route
+
+      at warnOnce (../arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/deprecations.ts:9:13)
+      at logDeprecation (../arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/deprecations.ts:14:3)
+      at logV6DeprecationWarnings (../arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/deprecations.ts:26:5)
+      at ../arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/components.tsx:257:25
+      at commitHookEffectListMount (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:23189:26)
+      at commitPassiveMountOnFiber (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:24970:11)
+      at commitPassiveMountEffects_complete (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:24930:9)
+      at commitPassiveMountEffects_begin (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:24917:7)
+      at commitPassiveMountEffects (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:24905:3)
+      at flushPassiveEffectsImpl (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:27078:3)
+      at flushPassiveEffects (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:27023:14)
+      at ../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:26808:9
+      at flushActQueue (../arma2-torneos-real-core-sso-phase15/node_modules/react/cjs/react.development.js:2667:24)
+      at act (../arma2-torneos-real-core-sso-phase15/node_modules/react/cjs/react.development.js:2582:11)
+      at actWithWarning (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom-test-utils.development.js:1740:10)
+      at ../arma2-torneos-real-core-sso-phase15/node_modules/@testing-library/react/dist/act-compat.js:63:25
+      at renderRoot (../arma2-torneos-real-core-sso-phase15/node_modules/@testing-library/react/dist/pure.js:159:26)
+      at render (../arma2-torneos-real-core-sso-phase15/node_modules/@testing-library/react/dist/pure.js:246:10)
+      at renderStatus (src/__tests__/torneosPurchaseStatus.test.jsx:41:9)
+      at Object.<anonymous> (src/__tests__/torneosPurchaseStatus.test.jsx:69:5)
+
+    console.warn
+      ⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.
+
+      39 |     view === 'success' ? 'exito' : view === 'failure' ? 'fallo' : 'pendiente'
+      40 |   }`;
+    > 41 |   render(
+         |         ^
+      42 |     <MemoryRouter initialEntries={[path]}>
+      43 |       <Routes>
+      44 |         <Route
+
+      at warnOnce (../arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/deprecations.ts:9:13)
+      at logDeprecation (../arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/deprecations.ts:14:3)
+      at logV6DeprecationWarnings (../arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/deprecations.ts:37:5)
+      at ../arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/components.tsx:257:25
+      at commitHookEffectListMount (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:23189:26)
+      at commitPassiveMountOnFiber (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:24970:11)
+      at commitPassiveMountEffects_complete (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:24930:9)
+      at commitPassiveMountEffects_begin (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:24917:7)
+      at commitPassiveMountEffects (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:24905:3)
+      at flushPassiveEffectsImpl (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:27078:3)
+      at flushPassiveEffects (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:27023:14)
+      at ../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:26808:9
+      at flushActQueue (../arma2-torneos-real-core-sso-phase15/node_modules/react/cjs/react.development.js:2667:24)
+      at act (../arma2-torneos-real-core-sso-phase15/node_modules/react/cjs/react.development.js:2582:11)
+      at actWithWarning (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom-test-utils.development.js:1740:10)
+      at ../arma2-torneos-real-core-sso-phase15/node_modules/@testing-library/react/dist/act-compat.js:63:25
+      at renderRoot (../arma2-torneos-real-core-sso-phase15/node_modules/@testing-library/react/dist/pure.js:159:26)
+      at render (../arma2-torneos-real-core-sso-phase15/node_modules/@testing-library/react/dist/pure.js:246:10)
+      at renderStatus (src/__tests__/torneosPurchaseStatus.test.jsx:41:9)
+      at Object.<anonymous> (src/__tests__/torneosPurchaseStatus.test.jsx:69:5)
+
+PASS src/__tests__/torneosCompetitionContext.test.jsx
+  ● Console
+
+    console.error
+      Warning: `ReactDOMTestUtils.act` is deprecated in favor of `React.act`. Import `act` from `react` instead of `react-dom/test-utils`. See https://react.dev/warnings/react-dom-test-utils for more info.
+
+      84 |   test('uses only a season/tournament pair present in the server snapshot', async () => {
+      85 |     const api = service();
+    > 86 |     render(
+         |           ^
+      87 |       <TorneosCompetitionProvider organizationId="org-a" service={api}>
+      88 |         <Probe />
+      89 |       </TorneosCompetitionProvider>,
+
+      at printWarning (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom-test-utils.development.js:71:30)
+      at error (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom-test-utils.development.js:45:7)
+      at actWithWarning (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom-test-utils.development.js:1736:7)
+      at ../arma2-torneos-real-core-sso-phase15/node_modules/@testing-library/react/dist/act-compat.js:63:25
+      at renderRoot (../arma2-torneos-real-core-sso-phase15/node_modules/@testing-library/react/dist/pure.js:159:26)
+      at render (../arma2-torneos-real-core-sso-phase15/node_modules/@testing-library/react/dist/pure.js:246:10)
+      at Object.<anonymous> (src/__tests__/torneosCompetitionContext.test.jsx:86:11)
+      at TestScheduler.scheduleTests (../arma2-torneos-real-core-sso-phase15/node_modules/@jest/core/build/TestScheduler.js:333:13)
+      at runJest (../arma2-torneos-real-core-sso-phase15/node_modules/@jest/core/build/runJest.js:404:19)
+      at _run10000 (../arma2-torneos-real-core-sso-phase15/node_modules/@jest/core/build/cli/index.js:320:7)
+      at runCLI (../arma2-torneos-real-core-sso-phase15/node_modules/@jest/core/build/cli/index.js:173:3)
+
+
+Test Suites: 7 passed, 7 total
+Tests:       87 passed, 87 total
+Snapshots:   0 total
+Time:        2.385 s, estimated 3 s
+Ran all test suites matching /src\/__tests__\/torneosMpA52PlanRefresh.test.jsx|src\/__tests__\/torneosPurchaseStatus.test.jsx|src\/__tests__\/torneosPlanExperience.test.jsx|src\/__tests__\/torneosMpA5HybridCommerce.test.jsx|src\/__tests__\/torneosMpA51PremiumIntentRoute.test.jsx|src\/__tests__\/torneosCompetitionContext.test.jsx|src\/features\/torneos\/context\/__tests__\/canonicalTournamentContext.test.jsx/i.

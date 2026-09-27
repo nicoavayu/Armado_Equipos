@@ -1,0 +1,163 @@
+{
+  "suite": "MP-A5 src/__tests__/torneosMpA5HybridCommerce.test.jsx — GREEN (39 cases: +1 rejected-attempt case added with the C1 fix)",
+  "total": 39,
+  "passed": 39,
+  "results": [
+    {
+      "status": "PASS",
+      "name": "default hybrid (billing off): Plan and purchase routes are unavailable and no commerce method is ever called"
+    },
+    {
+      "status": "PASS",
+      "name": "the TEST overlay keeps the legacy Plan redirects off"
+    },
+    {
+      "status": "PASS",
+      "name": "organization settings link Plan to the season plan route, not to the legacy redirect"
+    },
+    {
+      "status": "PASS",
+      "name": "plan without billing shows the plan but offers no purchase"
+    },
+    {
+      "status": "PASS",
+      "name": "FREE shows the server-side list and launch prices, one-time payment and the current plan"
+    },
+    {
+      "status": "PASS",
+      "name": "PREMIUM (server entitlement) shows Premium as the current plan and no purchase button"
+    },
+    {
+      "status": "PASS",
+      "name": "a collaborator without billing.manage sees the plan but cannot buy"
+    },
+    {
+      "status": "PASS",
+      "name": "loading, then an entitlement error fails closed with a retry and without Premium"
+    },
+    {
+      "status": "PASS",
+      "name": "G1 stale purchase: status `created` + a valid preference redirects to Checkout Pro and grants nothing"
+    },
+    {
+      "status": "PASS",
+      "name": "a double click creates one checkout request"
+    },
+    {
+      "status": "PASS",
+      "name": "a retry after an error reuses the same idempotency key (no new key per attempt)"
+    },
+    {
+      "status": "PASS",
+      "name": "TORNEOS_SEASON_PREMIUM_SUSPENDED explains the suspension and offers no new purchase"
+    },
+    {
+      "status": "PASS",
+      "name": "TORNEOS_SEASON_ALREADY_PREMIUM re-reads the server plan instead of claiming Premium locally"
+    },
+    {
+      "status": "PASS",
+      "name": "a purchase that is no longer open (preference null) opens its status page; the server decides"
+    },
+    {
+      "status": "PASS",
+      "name": "redirect security — plain http is refused before any navigation"
+    },
+    {
+      "status": "PASS",
+      "name": "redirect security — lookalike host is refused before any navigation"
+    },
+    {
+      "status": "PASS",
+      "name": "redirect security — suffix host is refused before any navigation"
+    },
+    {
+      "status": "PASS",
+      "name": "redirect security — subdomain spoof is refused before any navigation"
+    },
+    {
+      "status": "PASS",
+      "name": "redirect security — userinfo is refused before any navigation"
+    },
+    {
+      "status": "PASS",
+      "name": "redirect security — userinfo on the real host is refused before any navigation"
+    },
+    {
+      "status": "PASS",
+      "name": "redirect security — explicit port is refused before any navigation"
+    },
+    {
+      "status": "PASS",
+      "name": "redirect security — javascript scheme is refused before any navigation"
+    },
+    {
+      "status": "PASS",
+      "name": "redirect security — data scheme is refused before any navigation"
+    },
+    {
+      "status": "PASS",
+      "name": "redirect security — relative path is refused before any navigation"
+    },
+    {
+      "status": "PASS",
+      "name": "redirect security — malformed is refused before any navigation"
+    },
+    {
+      "status": "PASS",
+      "name": "redirect security — not a string is refused before any navigation"
+    },
+    {
+      "status": "PASS",
+      "name": "redirect security — the Checkout Pro HTTPS hosts are accepted"
+    },
+    {
+      "status": "PASS",
+      "name": "pending: reads the purchase, polls every ~4 s while open and never shows Premium"
+    },
+    {
+      "status": "PASS",
+      "name": "approved + server entitlement PREMIUM → Premium visible, then polling stops"
+    },
+    {
+      "status": "PASS",
+      "name": "approved but the server entitlement is not Premium → no Premium claim"
+    },
+    {
+      "status": "PASS",
+      "name": "the /exito redirect URL and MP query params grant nothing: a pending purchase is shown as pending"
+    },
+    {
+      "status": "PASS",
+      "name": "refunded → failure view and the plan is back to Free"
+    },
+    {
+      "status": "PASS",
+      "name": "charged_back → contracargo, Premium is not effective"
+    },
+    {
+      "status": "PASS",
+      "name": "expired is final: failure view, no Premium, no polling"
+    },
+    {
+      "status": "PASS",
+      "name": "cancelled is final: failure view, no Premium, no polling"
+    },
+    {
+      "status": "PASS",
+      "name": "rejected is final: failure view, no Premium, no polling"
+    },
+    {
+      "status": "PASS",
+      "name": "a rejected attempt on a still-open purchase (MP-A2.1) opens the pending route with a rejection notice, never Premium"
+    },
+    {
+      "status": "PASS",
+      "name": "a purchase of another season fails closed"
+    },
+    {
+      "status": "PASS",
+      "name": "Plan + Comprar Premium run through the real staging-v1 service and the transport commerce channel only"
+    }
+  ]
+}

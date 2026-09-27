@@ -1,0 +1,78 @@
+{
+  "suite": "MP-A5 browser journey — off",
+  "run": "mpa56a01",
+  "app": "http://localhost:3000",
+  "steps": [],
+  "network": {
+    "hosts": [
+      "127.0.0.1:58422",
+      "127.0.0.1:58423",
+      "fonts.googleapis.com",
+      "localhost:3000"
+    ],
+    "corePaths": [
+      "GET /auth/v1/user",
+      "GET /rest/v1/jugadores",
+      "GET /rest/v1/notifications_ext",
+      "GET /rest/v1/player_awards",
+      "GET /rest/v1/teams",
+      "GET /rest/v1/usuarios",
+      "HEAD /rest/v1/partidos_manuales"
+    ],
+    "blockedNonLoopback": [
+      {
+        "host": "fonts.googleapis.com",
+        "aborted": 5
+      }
+    ],
+    "checkoutProMockPages": 0,
+    "rpcNames": [
+      "get_tournament_competition_context",
+      "get_tournament_workspace_context"
+    ],
+    "commerceCheckoutRequests": 0,
+    "commerceCheckoutBodies": [],
+    "requests": 171
+  },
+  "db": {},
+  "fixture": {
+    "organizationId": "13800526-e5d4-4fb1-b433-b669a4279901",
+    "seasons": {
+      "off": "0309d96b-65be-44cc-b58d-36a3715ec791",
+      "off2": "e88adf06-f4d2-45b7-b327-e708fd550729"
+    }
+  },
+  "results": [
+    {
+      "name": "OFF — login Core → Torneos → organization: exchange + staging-v1 RPCs work (B04 smoke)",
+      "status": "PASS",
+      "ms": 1925,
+      "detail": {
+        "exchanges": 1
+      }
+    },
+    {
+      "name": "OFF — season plan and purchase routes render «no disponible»; settings offer no Plan link",
+      "status": "PASS",
+      "ms": 835
+    },
+    {
+      "name": "OFF — network: loopback only; Checkout Pro only as the local mock; no Torneos or commerce traffic to Core; commerce only through the gateway",
+      "status": "PASS",
+      "ms": 1,
+      "detail": {
+        "hosts": [
+          "127.0.0.1:58422",
+          "127.0.0.1:58423",
+          "fonts.googleapis.com",
+          "localhost:3000"
+        ],
+        "blocked": 5,
+        "rpcNames": 2,
+        "commerceCheckoutRequests": 0
+      }
+    }
+  ],
+  "passed": 3,
+  "total": 3
+}

@@ -1,0 +1,32 @@
+{
+  "candidate": "bdc605fdccec3fe3fa4082be0fac67e5ba496f79",
+  "parentOfCommit": "bdc605fdccec3fe3fa4082be0fac67e5ba496f79",
+  "mpb12": "1f8e560ff0fa1a064aed5621247550c0325b8cda",
+  "head": "bdc605fdccec3fe3fa4082be0fac67e5ba496f79",
+  "changedFiles": 40,
+  "scope": "R3 surface only",
+  "frozenPathsChanged": 0,
+  "gatewayRuntimeChanged": false,
+  "frontendChanged": false,
+  "coreChanged": false,
+  "sharedProviderCopy": {
+    "paymentProvider.ts": "da5e43266c5107cd1f6183c83046ba49e71343e9102370adb08be8abb4640a40",
+    "mercadoPagoPaymentProvider.ts": "1136217d93c55c5f981d45dfa9abfd62f14b26a218df120f5f801d547e547961"
+  },
+  "migrations": {
+    "00000000000000_torneos_baseline_v1.sql": "f857bd0939054bc1a32a3855894b7b20e14a0c7456c9d5c8c5e8432e5b8ed19f",
+    "00000000000001_staging_v1_rpc_exposure.sql": "3df4b96eecc7321eaeda84a480f089fe4bff2b28c20aa4479db92caf33457e62",
+    "00000000000002_mercadopago_checkout_pro_test.sql": "06378f12b57620e8ae550a0d881ad66464ffdc0a734ad621cba8a6ba3e6d6078",
+    "00000000000003_mercadopago_provider_ordering.sql": "d54b3293da53aea1202d3daed9a70e45d86e306a56a1fdd58107fc5719e36714"
+  },
+  "migrationCount": 4,
+  "paymentServiceExecute": 4,
+  "watermarkApiPrivileges": 0,
+  "secrets": 0,
+  "scannedFiles": 39,
+  "scannedBytes": 743907,
+  "labIsolation": {
+    "egressMasquerade": false,
+    "mercadoPagoHostsBlackholed": true
+  }
+}

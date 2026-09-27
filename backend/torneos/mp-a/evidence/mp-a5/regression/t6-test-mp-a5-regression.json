@@ -1,0 +1,1053 @@
+{
+  "suite": "MP-A4 T6 gateway commerce — test",
+  "base": "88cb6ab95e7b1a9bd5cd13e26904c5922395ad50",
+  "results": [
+    {
+      "name": "U T6-B config: unset / blank TORNEOS_COMMERCE_MODE → commerce OFF, and OFF reads nothing else (stray payments variables are ignored, as today)",
+      "status": "PASS"
+    },
+    {
+      "name": "U T6-B config: TORNEOS_COMMERCE_MODE=test with a lab internal URL and a strong distinct secret → commerce TEST (URL = the payments mount, 32-byte key, the 2 read RPCs)",
+      "status": "PASS"
+    },
+    {
+      "name": "U T6-B config: live / production / prod / any value other than exactly \"test\" → fail closed",
+      "status": "PASS"
+    },
+    {
+      "name": "U T6-B config: missing / blank URL or secret → fail closed",
+      "status": "PASS"
+    },
+    {
+      "name": "U T6-B config: weak secret (short, non-hex, uppercase, odd length, degenerate, low entropy) → fail closed",
+      "status": "PASS"
+    },
+    {
+      "name": "U T6-B config: the internal secret must differ from the Core contract secret, the bridge signing keys and the public keys",
+      "status": "PASS"
+    },
+    {
+      "name": "U T6-B config: internal URL outside the lab (Production ref, Staging, any https or public host), wrong mount, query, credentials → fail closed",
+      "status": "PASS"
+    },
+    {
+      "name": "U T6-B config: commerce TEST is lab-only — a gateway published outside loopback (hosted Staging / Production) refuses it",
+      "status": "PASS"
+    },
+    {
+      "name": "U T6-B config: in TEST the gateway refuses to boot with Mercado Pago credentials or the payment-service DB login in its environment",
+      "status": "PASS"
+    },
+    {
+      "name": "U T6-C allowlist: staging-v1 copies byte-identical (sha 149c7659), 43 names; commerce file exactly the 2 reads; intersection 0; the creation RPC in neither",
+      "status": "PASS"
+    },
+    {
+      "name": "U T6-C allowlist: OFF → exactly the 43 (the same set); TEST → 43 + 2 = 45; the creation RPC never in the generic proxy set",
+      "status": "PASS"
+    },
+    {
+      "name": "U T6-C allowlist: boot refuses a commerce list with an extra name, a duplicate of the 43, a write, a missing read, a repeated entry, a non-test mode or a bad shape",
+      "status": "PASS"
+    },
+    {
+      "name": "U T6-D order: no bearer / non-Bearer → 401 before anything (0 calls, body unread)",
+      "status": "PASS"
+    },
+    {
+      "name": "U T6-D order: invalid bridge → 401 after verifyBridge only; revoked Core session → 401 after core; Core down → 503 CORE_UNAVAILABLE; 0 DB, 0 payments, body unread",
+      "status": "PASS"
+    },
+    {
+      "name": "U T6-D order: unknown identity → 401 (identity checked after Core, before the body); Torneos identity store down → 503 TORNEOS_UNAVAILABLE",
+      "status": "PASS"
+    },
+    {
+      "name": "U T6-D order: invalid body with a bad bearer / revoked session is still 401 (auth first); invalid body with valid auth → 400 after identity, 0 DB",
+      "status": "PASS"
+    },
+    {
+      "name": "U T6-D order: DB authorization refusal (no billing.manage) → 403, payments never called; happy path order = bridge → core → identity → DB → payments",
+      "status": "PASS"
+    },
+    {
+      "name": "U T6-E DB call: POST <rest>/rpc/create_tournament_season_checkout_purchase with the USER bearer and exactly {p_organization_id, p_season_id, p_idempotency_key}; no service credential; redirects refused",
+      "status": "PASS"
+    },
+    {
+      "name": "U T6-E response: exactly {purchase, preference}; purchase = the whitelisted projection (+ idempotentReplay/existingOpenPurchase); preference = exactly provider/preferenceId/checkoutUrl/expiresAt; provider extras never pass",
+      "status": "PASS"
+    },
+    {
+      "name": "U T6-E status routing: created / preference_created → payments; pending / approved / cancelled / refunded / charged_back → preference null (0 payments); expired → 409 TORNEOS_CHECKOUT_EXPIRED (0 payments)",
+      "status": "PASS"
+    },
+    {
+      "name": "U T6-G mapping: DB business refusals keep their code (403 / 409), whatever PostgREST status they arrive with — never 503",
+      "status": "PASS"
+    },
+    {
+      "name": "U T6-G mapping: DB auth / input refusals — TORNEOS_AUTH_REQUIRED or a PostgREST JWT refusal → 401 (one re-exchange); TORNEOS_PURCHASE_INVALID → 400; unknown 4xx / malformed 200 → 502 TORNEOS_CHECKOUT_FAILED",
+      "status": "PASS"
+    },
+    {
+      "name": "U T6-H mapping: Torneos REST down / 5xx without a business code / timeout (4 s) → 503 TORNEOS_UNAVAILABLE; no retry (one DB call), no payments",
+      "status": "PASS"
+    },
+    {
+      "name": "U T6-H mapping: payments 503 / down / timeout (8 s) → 503 TORNEOS_PAYMENTS_UNAVAILABLE; 409 preference_expired → 409 TORNEOS_CHECKOUT_EXPIRED; not payable / conflict → 409; contract faults → 502; exactly one payments call (no retry)",
+      "status": "PASS"
+    },
+    {
+      "name": "U T6-H timeouts: defaults are Torneos REST 4000 ms and payments 8000 ms, applied as abort signals on exactly those calls",
+      "status": "PASS"
+    },
+    {
+      "name": "U T6-I body: exactly {organizationId, seasonId, idempotencyKey} as UUID strings; extras (price, amount, provider, environment, product, URLs), missing, non-UUID, non-object, non-JSON, invalid UTF-8, query → 400; > 1 KiB → 413; 1 KiB exactly accepted",
+      "status": "PASS"
+    },
+    {
+      "name": "U T6-I HMAC: one POST to <internal url>/internal/v1/season-checkout-preference, body exactly {\"purchase_id\"}, X-Time/X-Nonce/X-Signature over path\\ntime\\nnonce\\nbody accepted by the MP-A3 verifier; no Authorization/Origin; fresh nonce per call; redirects refused",
+      "status": "PASS"
+    },
+    {
+      "name": "U T6-I logs: one line per request with only request id, purchase id, result code, status and timing — never bearer, body, HMAC, secret or checkout URL",
+      "status": "PASS"
+    },
+    {
+      "name": "U parity wiring: Edge index.ts and Node gateway.mjs both run the SAME commerce module (loadCommerceConfig, effectiveRpcAllowlist, seasonCheckout); only it knows the payments route and the HMAC",
+      "status": "PASS"
+    },
+    {
+      "name": "U separation: gateway sources never read Mercado Pago credentials or the payment-service DB login (only commerce.ts names them, in its refusal list)",
+      "status": "PASS"
+    },
+    {
+      "name": "U separation (edge-main env): OFF → the gateway worker gets no payments variable (MP-A3 isolation intact); TEST → exactly TORNEOS_PAYMENTS_INTERNAL_URL + _SECRET more; payments worker never gets Core/bridge/gateway-DB/commerce-mode values",
+      "status": "PASS"
+    },
+    {
+      "name": "U scope: MP-A3 payments service + provider copies and 0000/0001/0002 byte-identical to the base; config.toml, Core contract and frontend untouched; only MP-A4 paths changed",
+      "status": "FAIL",
+      "error": "no file outside the MP-A4 scope changed\n+ actual - expected\n\n+ [\n+   'docs/torneos/b04/TORNEOS-CALL-MAP.md',\n+   'docs/torneos/b04/b04-audit.json',\n+   'package.json',\n+   'scripts/torneos-frontend/foundation.test.mjs',\n+   'scripts/validate-build-env.mjs',\n+   'src/features/torneos/TorneosFeatureGate.jsx',\n+   'src/features/torneos/components/OrganizationSettingsNav.jsx',\n+   'src/features/torneo"
+    },
+    {
+      "name": "TEST fixtures: Core users (GoTrue), exchange on both gateways, organization through the gateway",
+      "status": "PASS"
+    },
+    {
+      "name": "TEST lab: commerce lab up — mp-stub, both gateways healthy; gateway commerce config = exactly TORNEOS_COMMERCE_MODE / _INTERNAL_URL / _INTERNAL_SECRET (shared key), never Mercado Pago or payment-DB values",
+      "status": "PASS"
+    },
+    {
+      "name": "TEST T6-B live: mode \"live\", a short secret or a Production internal URL disables BOTH gateways at boot (503 on health, RPC and checkout); the valid config restores them",
+      "status": "PASS"
+    },
+    {
+      "name": "TEST T6-E happy path (both gateways): Core → exchange → checkout → DB wrapper → purchase MP/test → HMAC → payments → mp-stub Preference → DB preference recorded → whitelisted response; price 39900 from the DB offer; X-Idempotency-Key = purchase.id",
+      "status": "PASS"
+    },
+    {
+      "name": "TEST T6-F idempotency: the same key repeated (either gateway) → same purchase, same Preference, no new Preference at Mercado Pago, no second grant; a new key while open → the same open purchase (no artificial conflict)",
+      "status": "PASS"
+    },
+    {
+      "name": "TEST T6-F concurrency: 3 parallel checkouts with the same fresh key (each gateway) → the same purchase and the same Preference; 1 purchase, 1 preference.created, 1 Preference at Mercado Pago",
+      "status": "PASS"
+    },
+    {
+      "name": "TEST T6-C live: commerce TEST proxy = 43 + 2 — the two reads reach the DB; the creation RPC and every other commercial RPC stay 403 \"rpc not enabled\"; the 43 still pass",
+      "status": "PASS"
+    },
+    {
+      "name": "TEST T6-D auth order (both gateways): no bearer / garbage / untrusted kid / Core token as bearer → 401; revoked Core session → 401; unknown identity → 401; outsider without billing.manage → 403; bad bodies never beat auth — 0 purchases, 0 payments, 0 Mercado Pago calls",
+      "status": "PASS"
+    },
+    {
+      "name": "TEST T6-D/H Core unavailable (GoTrue stopped) → 503 CORE_UNAVAILABLE on both, 0 purchases, 0 payments; after recovery the same key completes",
+      "status": "PASS"
+    },
+    {
+      "name": "TEST T6-G business errors (both gateways): already premium, premium suspended, idempotency conflict, open purchase of another provider, checkout expired (in grace and swept), no access — each a 403/409 with its code, never 503, no purchase written",
+      "status": "PASS"
+    },
+    {
+      "name": "TEST T6-H Mercado Pago 5xx → payments 503 → gateway 503 TORNEOS_PAYMENTS_UNAVAILABLE (one call, no retry); the same key then completes with one Preference",
+      "status": "PASS"
+    },
+    {
+      "name": "TEST T6-H Mercado Pago slow → the gateway gives up at 8 s → 503 TORNEOS_PAYMENTS_UNAVAILABLE; the same key then completes",
+      "status": "PASS"
+    },
+    {
+      "name": "TEST T6-H payments unavailable (its DB login refused) → 503 TORNEOS_PAYMENTS_UNAVAILABLE on both; payments unreachable (stopped) → 503 on Node; the same key then completes",
+      "status": "PASS"
+    },
+    {
+      "name": "TEST T6-H Torneos REST down → 503 TORNEOS_UNAVAILABLE on both, 0 purchases, 0 payments; after recovery the same key completes",
+      "status": "PASS"
+    },
+    {
+      "name": "TEST T6-I security (both gateways): extra / missing / non-UUID fields → 400; > 1 KiB → 413 (1 KiB exactly passes validation); query → 400; other methods and a trailing slash → 404; 0 purchases",
+      "status": "PASS"
+    },
+    {
+      "name": "TEST T6-I CORS unchanged: foreign Origin → 403 on both; Edge preflight on the commerce route = preflight on an RPC route; the allowed origin gets the same CORS headers",
+      "status": "PASS"
+    },
+    {
+      "name": "TEST §17 journey (both gateways): Core session → /exchange → org + season → checkout → payments → mp-stub Preference → webhook approved → purchase approved + Premium (read through the 2 commerce reads) → refund → Premium revoked",
+      "status": "PASS"
+    },
+    {
+      "name": "TEST secrets: no response, gateway log or payments log carries a lab secret, bearer, HMAC value or payer data; commerce log lines carry only rid / purchase id / code / status / timing",
+      "status": "PASS"
+    }
+  ],
+  "passed": 49,
+  "total": 50,
+  "phase": "test",
+  "parity": [
+    {
+      "name": "fail-closed live /health",
+      "node": [
+        503,
+        "access denied"
+      ],
+      "edge": [
+        503,
+        "access denied"
+      ]
+    },
+    {
+      "name": "fail-closed live checkout",
+      "node": [
+        503,
+        "access denied"
+      ],
+      "edge": [
+        503,
+        "access denied"
+      ]
+    },
+    {
+      "name": "fail-closed live rpc",
+      "node": [
+        503,
+        "access denied"
+      ],
+      "edge": [
+        503,
+        "access denied"
+      ]
+    },
+    {
+      "name": "fail-closed short_secret /health",
+      "node": [
+        503,
+        "access denied"
+      ],
+      "edge": [
+        503,
+        "access denied"
+      ]
+    },
+    {
+      "name": "fail-closed short_secret checkout",
+      "node": [
+        503,
+        "access denied"
+      ],
+      "edge": [
+        503,
+        "access denied"
+      ]
+    },
+    {
+      "name": "fail-closed short_secret rpc",
+      "node": [
+        503,
+        "access denied"
+      ],
+      "edge": [
+        503,
+        "access denied"
+      ]
+    },
+    {
+      "name": "fail-closed production_url /health",
+      "node": [
+        503,
+        "access denied"
+      ],
+      "edge": [
+        503,
+        "access denied"
+      ]
+    },
+    {
+      "name": "fail-closed production_url checkout",
+      "node": [
+        503,
+        "access denied"
+      ],
+      "edge": [
+        503,
+        "access denied"
+      ]
+    },
+    {
+      "name": "fail-closed production_url rpc",
+      "node": [
+        503,
+        "access denied"
+      ],
+      "edge": [
+        503,
+        "access denied"
+      ]
+    },
+    {
+      "name": "happy path",
+      "gateway": "node",
+      "status": 200,
+      "amount": 39900,
+      "checkoutHost": "www.mercadopago.com.ar"
+    },
+    {
+      "name": "happy path",
+      "gateway": "edge",
+      "status": 200,
+      "amount": 39900,
+      "checkoutHost": "www.mercadopago.com.ar"
+    },
+    {
+      "name": "proxy get_tournament_purchase",
+      "node": [
+        200,
+        "ok"
+      ],
+      "edge": [
+        200,
+        "ok"
+      ]
+    },
+    {
+      "name": "proxy entitlements",
+      "node": [
+        200,
+        "ok"
+      ],
+      "edge": [
+        200,
+        "ok"
+      ]
+    },
+    {
+      "name": "proxy refuses create_tournament_season_checkout_purchase",
+      "node": [
+        403,
+        "rpc not enabled"
+      ],
+      "edge": [
+        403,
+        "rpc not enabled"
+      ]
+    },
+    {
+      "name": "proxy refuses create_tournament_season_purchase",
+      "node": [
+        403,
+        "rpc not enabled"
+      ],
+      "edge": [
+        403,
+        "rpc not enabled"
+      ]
+    },
+    {
+      "name": "proxy refuses create_fake_tournament_season_purchase",
+      "node": [
+        403,
+        "rpc not enabled"
+      ],
+      "edge": [
+        403,
+        "rpc not enabled"
+      ]
+    },
+    {
+      "name": "proxy refuses cancel_tournament_purchase",
+      "node": [
+        403,
+        "rpc not enabled"
+      ],
+      "edge": [
+        403,
+        "rpc not enabled"
+      ]
+    },
+    {
+      "name": "proxy refuses get_provider_tournament_purchase",
+      "node": [
+        403,
+        "rpc not enabled"
+      ],
+      "edge": [
+        403,
+        "rpc not enabled"
+      ]
+    },
+    {
+      "name": "proxy refuses record_tournament_purchase_preference",
+      "node": [
+        403,
+        "rpc not enabled"
+      ],
+      "edge": [
+        403,
+        "rpc not enabled"
+      ]
+    },
+    {
+      "name": "proxy refuses apply_verified_tournament_payment_status",
+      "node": [
+        403,
+        "rpc not enabled"
+      ],
+      "edge": [
+        403,
+        "rpc not enabled"
+      ]
+    },
+    {
+      "name": "proxy refuses apply_verified_tournament_payment_reversal",
+      "node": [
+        403,
+        "rpc not enabled"
+      ],
+      "edge": [
+        403,
+        "rpc not enabled"
+      ]
+    },
+    {
+      "name": "proxy refuses activate_verified_tournament_purchase",
+      "node": [
+        403,
+        "rpc not enabled"
+      ],
+      "edge": [
+        403,
+        "rpc not enabled"
+      ]
+    },
+    {
+      "name": "no bearer",
+      "node": [
+        401,
+        "access denied"
+      ],
+      "edge": [
+        401,
+        "access denied"
+      ]
+    },
+    {
+      "name": "garbage bearer",
+      "node": [
+        401,
+        "access denied"
+      ],
+      "edge": [
+        401,
+        "access denied"
+      ]
+    },
+    {
+      "name": "untrusted kid",
+      "node": [
+        401,
+        "access denied"
+      ],
+      "edge": [
+        401,
+        "access denied"
+      ]
+    },
+    {
+      "name": "Core token as bearer",
+      "node": [
+        401,
+        "access denied"
+      ],
+      "edge": [
+        401,
+        "access denied"
+      ]
+    },
+    {
+      "name": "unknown identity (valid kid, live Core session)",
+      "node": [
+        401,
+        "access denied"
+      ],
+      "edge": [
+        401,
+        "access denied"
+      ]
+    },
+    {
+      "name": "no bearer + oversized body",
+      "node": [
+        401,
+        "access denied"
+      ],
+      "edge": [
+        401,
+        "access denied"
+      ]
+    },
+    {
+      "name": "garbage bearer + extra fields",
+      "node": [
+        401,
+        "access denied"
+      ],
+      "edge": [
+        401,
+        "access denied"
+      ]
+    },
+    {
+      "name": "revoked Core session",
+      "node": [
+        401,
+        "access denied"
+      ],
+      "edge": [
+        401,
+        "access denied"
+      ]
+    },
+    {
+      "name": "revoked Core session + invalid body",
+      "node": [
+        401,
+        "access denied"
+      ],
+      "edge": [
+        401,
+        "access denied"
+      ]
+    },
+    {
+      "name": "outsider without billing.manage",
+      "node": [
+        403,
+        "TORNEOS_BILLING_FORBIDDEN"
+      ],
+      "edge": [
+        403,
+        "TORNEOS_BILLING_FORBIDDEN"
+      ]
+    },
+    {
+      "name": "valid auth + invalid body",
+      "node": [
+        400,
+        "TORNEOS_CHECKOUT_INVALID"
+      ],
+      "edge": [
+        400,
+        "TORNEOS_CHECKOUT_INVALID"
+      ]
+    },
+    {
+      "name": "Core down",
+      "node": [
+        503,
+        "CORE_UNAVAILABLE"
+      ],
+      "edge": [
+        503,
+        "CORE_UNAVAILABLE"
+      ]
+    },
+    {
+      "name": "business already premium",
+      "gateway": "node",
+      "verdict": [
+        409,
+        "TORNEOS_SEASON_ALREADY_PREMIUM"
+      ]
+    },
+    {
+      "name": "business already premium (same key)",
+      "gateway": "node",
+      "verdict": [
+        409,
+        "TORNEOS_SEASON_ALREADY_PREMIUM"
+      ]
+    },
+    {
+      "name": "business premium suspended",
+      "gateway": "node",
+      "verdict": [
+        409,
+        "TORNEOS_SEASON_PREMIUM_SUSPENDED"
+      ]
+    },
+    {
+      "name": "business idempotency conflict",
+      "gateway": "node",
+      "verdict": [
+        409,
+        "TORNEOS_IDEMPOTENCY_CONFLICT"
+      ]
+    },
+    {
+      "name": "business open purchase of another provider",
+      "gateway": "node",
+      "verdict": [
+        409,
+        "TORNEOS_OPEN_PURCHASE_PROVIDER_CONFLICT"
+      ]
+    },
+    {
+      "name": "business checkout expired (swept)",
+      "gateway": "node",
+      "verdict": [
+        409,
+        "TORNEOS_CHECKOUT_EXPIRED"
+      ]
+    },
+    {
+      "name": "business no access (outsider)",
+      "gateway": "node",
+      "verdict": [
+        403,
+        "TORNEOS_BILLING_FORBIDDEN"
+      ]
+    },
+    {
+      "name": "business already premium",
+      "gateway": "edge",
+      "verdict": [
+        409,
+        "TORNEOS_SEASON_ALREADY_PREMIUM"
+      ]
+    },
+    {
+      "name": "business already premium (same key)",
+      "gateway": "edge",
+      "verdict": [
+        409,
+        "TORNEOS_SEASON_ALREADY_PREMIUM"
+      ]
+    },
+    {
+      "name": "business premium suspended",
+      "gateway": "edge",
+      "verdict": [
+        409,
+        "TORNEOS_SEASON_PREMIUM_SUSPENDED"
+      ]
+    },
+    {
+      "name": "business idempotency conflict",
+      "gateway": "edge",
+      "verdict": [
+        409,
+        "TORNEOS_IDEMPOTENCY_CONFLICT"
+      ]
+    },
+    {
+      "name": "business open purchase of another provider",
+      "gateway": "edge",
+      "verdict": [
+        409,
+        "TORNEOS_OPEN_PURCHASE_PROVIDER_CONFLICT"
+      ]
+    },
+    {
+      "name": "business checkout expired (swept)",
+      "gateway": "edge",
+      "verdict": [
+        409,
+        "TORNEOS_CHECKOUT_EXPIRED"
+      ]
+    },
+    {
+      "name": "business no access (outsider)",
+      "gateway": "edge",
+      "verdict": [
+        403,
+        "TORNEOS_BILLING_FORBIDDEN"
+      ]
+    },
+    {
+      "name": "payments DB down",
+      "node": [
+        503,
+        "TORNEOS_PAYMENTS_UNAVAILABLE"
+      ],
+      "edge": [
+        503,
+        "TORNEOS_PAYMENTS_UNAVAILABLE"
+      ]
+    },
+    {
+      "name": "REST down",
+      "node": [
+        503,
+        "TORNEOS_UNAVAILABLE"
+      ],
+      "edge": [
+        503,
+        "TORNEOS_UNAVAILABLE"
+      ]
+    },
+    {
+      "name": "extra amount",
+      "node": [
+        400,
+        "TORNEOS_CHECKOUT_INVALID"
+      ],
+      "edge": [
+        400,
+        "TORNEOS_CHECKOUT_INVALID"
+      ]
+    },
+    {
+      "name": "extra price",
+      "node": [
+        400,
+        "TORNEOS_CHECKOUT_INVALID"
+      ],
+      "edge": [
+        400,
+        "TORNEOS_CHECKOUT_INVALID"
+      ]
+    },
+    {
+      "name": "extra currency",
+      "node": [
+        400,
+        "TORNEOS_CHECKOUT_INVALID"
+      ],
+      "edge": [
+        400,
+        "TORNEOS_CHECKOUT_INVALID"
+      ]
+    },
+    {
+      "name": "extra provider",
+      "node": [
+        400,
+        "TORNEOS_CHECKOUT_INVALID"
+      ],
+      "edge": [
+        400,
+        "TORNEOS_CHECKOUT_INVALID"
+      ]
+    },
+    {
+      "name": "extra environment",
+      "node": [
+        400,
+        "TORNEOS_CHECKOUT_INVALID"
+      ],
+      "edge": [
+        400,
+        "TORNEOS_CHECKOUT_INVALID"
+      ]
+    },
+    {
+      "name": "extra product",
+      "node": [
+        400,
+        "TORNEOS_CHECKOUT_INVALID"
+      ],
+      "edge": [
+        400,
+        "TORNEOS_CHECKOUT_INVALID"
+      ]
+    },
+    {
+      "name": "extra returnUrl",
+      "node": [
+        400,
+        "TORNEOS_CHECKOUT_INVALID"
+      ],
+      "edge": [
+        400,
+        "TORNEOS_CHECKOUT_INVALID"
+      ]
+    },
+    {
+      "name": "extra webhookUrl",
+      "node": [
+        400,
+        "TORNEOS_CHECKOUT_INVALID"
+      ],
+      "edge": [
+        400,
+        "TORNEOS_CHECKOUT_INVALID"
+      ]
+    },
+    {
+      "name": "extra paymentsUrl",
+      "node": [
+        400,
+        "TORNEOS_CHECKOUT_INVALID"
+      ],
+      "edge": [
+        400,
+        "TORNEOS_CHECKOUT_INVALID"
+      ]
+    },
+    {
+      "name": "extra purchase_id",
+      "node": [
+        400,
+        "TORNEOS_CHECKOUT_INVALID"
+      ],
+      "edge": [
+        400,
+        "TORNEOS_CHECKOUT_INVALID"
+      ]
+    },
+    {
+      "name": "invalid missing",
+      "node": [
+        400,
+        "TORNEOS_CHECKOUT_INVALID"
+      ],
+      "edge": [
+        400,
+        "TORNEOS_CHECKOUT_INVALID"
+      ]
+    },
+    {
+      "name": "invalid non-uuid",
+      "node": [
+        400,
+        "TORNEOS_CHECKOUT_INVALID"
+      ],
+      "edge": [
+        400,
+        "TORNEOS_CHECKOUT_INVALID"
+      ]
+    },
+    {
+      "name": "invalid array",
+      "node": [
+        400,
+        "TORNEOS_CHECKOUT_INVALID"
+      ],
+      "edge": [
+        400,
+        "TORNEOS_CHECKOUT_INVALID"
+      ]
+    },
+    {
+      "name": "invalid non-json",
+      "node": [
+        400,
+        "TORNEOS_CHECKOUT_INVALID"
+      ],
+      "edge": [
+        400,
+        "TORNEOS_CHECKOUT_INVALID"
+      ]
+    },
+    {
+      "name": "invalid empty",
+      "node": [
+        400,
+        "TORNEOS_CHECKOUT_INVALID"
+      ],
+      "edge": [
+        400,
+        "TORNEOS_CHECKOUT_INVALID"
+      ]
+    },
+    {
+      "name": "invalid utf8",
+      "node": [
+        400,
+        "TORNEOS_CHECKOUT_INVALID"
+      ],
+      "edge": [
+        400,
+        "TORNEOS_CHECKOUT_INVALID"
+      ]
+    },
+    {
+      "name": "1 KiB exactly (outsider → validated, then DB refuses)",
+      "node": [
+        403,
+        "TORNEOS_BILLING_FORBIDDEN"
+      ],
+      "edge": [
+        403,
+        "TORNEOS_BILLING_FORBIDDEN"
+      ]
+    },
+    {
+      "name": "1 KiB + 1",
+      "node": [
+        413,
+        "TORNEOS_CHECKOUT_TOO_LARGE"
+      ],
+      "edge": [
+        413,
+        "TORNEOS_CHECKOUT_TOO_LARGE"
+      ]
+    },
+    {
+      "name": "query string",
+      "node": [
+        400,
+        "TORNEOS_CHECKOUT_INVALID"
+      ],
+      "edge": [
+        400,
+        "TORNEOS_CHECKOUT_INVALID"
+      ]
+    },
+    {
+      "name": "method GET",
+      "node": [
+        404,
+        "not found"
+      ],
+      "edge": [
+        404,
+        "not found"
+      ]
+    },
+    {
+      "name": "method PUT",
+      "node": [
+        404,
+        "not found"
+      ],
+      "edge": [
+        404,
+        "not found"
+      ]
+    },
+    {
+      "name": "method PATCH",
+      "node": [
+        404,
+        "not found"
+      ],
+      "edge": [
+        404,
+        "not found"
+      ]
+    },
+    {
+      "name": "method DELETE",
+      "node": [
+        404,
+        "not found"
+      ],
+      "edge": [
+        404,
+        "not found"
+      ]
+    },
+    {
+      "name": "trailing slash",
+      "node": [
+        404,
+        "not found"
+      ],
+      "edge": [
+        404,
+        "not found"
+      ]
+    },
+    {
+      "name": "foreign origin",
+      "node": [
+        403,
+        "origin rejected"
+      ],
+      "edge": [
+        403,
+        "origin rejected"
+      ]
+    }
+  ],
+  "journey": [
+    {
+      "gateway": "node",
+      "step": "checkout",
+      "status": 200,
+      "purchaseStatus": "created",
+      "amount": 39900,
+      "checkoutHost": "www.mercadopago.com.ar"
+    },
+    {
+      "gateway": "node",
+      "step": "webhook approved",
+      "webhookStatus": 200,
+      "outcome": "approved"
+    },
+    {
+      "gateway": "node",
+      "step": "read after approval",
+      "purchaseStatus": "approved",
+      "plan": "PREMIUM"
+    },
+    {
+      "gateway": "node",
+      "step": "webhook refund",
+      "webhookStatus": 200,
+      "outcome": "reversal_applied"
+    },
+    {
+      "gateway": "node",
+      "step": "read after refund",
+      "purchaseStatus": "refunded",
+      "plan": "FREE"
+    },
+    {
+      "gateway": "edge",
+      "step": "checkout",
+      "status": 200,
+      "purchaseStatus": "created",
+      "amount": 39900,
+      "checkoutHost": "www.mercadopago.com.ar"
+    },
+    {
+      "gateway": "edge",
+      "step": "webhook approved",
+      "webhookStatus": 200,
+      "outcome": "approved"
+    },
+    {
+      "gateway": "edge",
+      "step": "read after approval",
+      "purchaseStatus": "approved",
+      "plan": "PREMIUM"
+    },
+    {
+      "gateway": "edge",
+      "step": "webhook refund",
+      "webhookStatus": 200,
+      "outcome": "reversal_applied"
+    },
+    {
+      "gateway": "edge",
+      "step": "read after refund",
+      "purchaseStatus": "refunded",
+      "plan": "FREE"
+    }
+  ]
+}

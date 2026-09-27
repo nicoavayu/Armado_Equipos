@@ -1,0 +1,37 @@
+{
+  "finding": "P3A-F1",
+  "status": "CLOSED in Phase 2C (baseline prologue fix, recertified on this real Supabase stack and on template0)",
+  "observed_on": "supabase/postgres:17.6.1.143 `postgres` database, baseline installed as supabase_admin",
+  "cause": "Schema-scoped default ACLs of the Supabase image (installing role, schema public: functions/sequences/tables -> anon, authenticated, service_role) are added on top of global default ACLs; the certified prologue revoked function defaults globally and table defaults per schema only, so functions and sequences kept the image grants and the per-object REVOKE ... FROM PUBLIC could not remove an explicit anon grant.",
+  "fix": "backend/torneos/tools/build.py prologue: ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE ALL ON SEQUENCES FROM PUBLIC,anon,authenticated,service_role; ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC,anon,authenticated,service_role;",
+  "phase3a_observed": {
+    "anon_execute_public_functions": "358/359",
+    "anon_execute_security_definer": "304/304",
+    "anon_sequence_privilege": "7/7",
+    "direct_postgrest_service_only_as_anon": 200
+  },
+  "phase2c_observed": {
+    "anon_execute_public_functions": "12/363",
+    "authenticated_execute_public_functions": "147/363",
+    "service_role_execute_public_functions": "328/363",
+    "anon_execute_security_definer": "12/308",
+    "anon_execute_private_beyond_token_helpers": "0",
+    "public_execute_functions": "0",
+    "anon_sequence_privilege": "0/7",
+    "anon_non_select_table_grants": "0",
+    "direct_postgrest_service_only_as_anon": 401,
+    "direct_postgrest_service_only_as_authenticated": 403
+  },
+  "installer_default_acl_after_install": {
+    "r": "{postgres=arwdDxtm/supabase_admin}",
+    "S": "{postgres=rwU/supabase_admin}",
+    "f": "{postgres=X/supabase_admin}"
+  },
+  "reachable_through_certified_gateway": false,
+  "reachable_through_direct_postgrest": false,
+  "baseline_changed": true,
+  "evidence": [
+    "integration/torneos-core-contracts/evidence/acl-results.json",
+    "backend/torneos/phase2c/evidence/real-image-acl-diff.json"
+  ]
+}

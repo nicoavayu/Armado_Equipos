@@ -1,0 +1,23 @@
+{
+  "base": "1f8e560ff0fa1a064aed5621247550c0325b8cda",
+  "head": "1f8e560ff0fa1a064aed5621247550c0325b8cda",
+  "changedFiles": 31,
+  "scope": "R2 surface only",
+  "frozenPathsChanged": 0,
+  "indexTsCodeDiff": "dependencyUrls wiring only",
+  "migrations": {
+    "00000000000000_torneos_baseline_v1.sql": "f857bd0939054bc1a32a3855894b7b20e14a0c7456c9d5c8c5e8432e5b8ed19f",
+    "00000000000001_staging_v1_rpc_exposure.sql": "3df4b96eecc7321eaeda84a480f089fe4bff2b28c20aa4479db92caf33457e62",
+    "00000000000002_mercadopago_checkout_pro_test.sql": "06378f12b57620e8ae550a0d881ad66464ffdc0a734ad621cba8a6ba3e6d6078",
+    "00000000000003_mercadopago_provider_ordering.sql": "d54b3293da53aea1202d3daed9a70e45d86e306a56a1fdd58107fc5719e36714"
+  },
+  "paymentServiceExecute": 4,
+  "watermarkApiPrivileges": 0,
+  "secrets": 0,
+  "scannedFiles": 31,
+  "scannedBytes": 634190,
+  "labIsolation": {
+    "egressMasquerade": false,
+    "mercadoPagoHostsBlackholed": true
+  }
+}

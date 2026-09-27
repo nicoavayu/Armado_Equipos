@@ -1,0 +1,32 @@
+{
+  "phase": "MP-A3",
+  "base": "439a4cbb58bf34ac543db2dedbe52cc6f9f034bb",
+  "test_first": {
+    "note": "T2-T5 were written and run red BEFORE torneos-payments existed (files *-red.json). T3/T5 red were re-run once after two test-only fixes that were still pre-implementation: T5 config checks passed vacuously on a missing loader, and T3's CHECK probe hit the snapshot trigger instead of the CHECK.",
+    "red": { "T2": "1/6", "T3": "2/23", "T4": "0/31", "T5": "6/18" },
+    "red_passes_are_preexisting_invariants": ["legacy provider untouched", "MP-A2 DB role/ACL", "router 404 for the unknown function", "evidence secret scan"]
+  },
+  "green_fresh_commerce_lab": {
+    "lab": "TORNEOS_LAB_MODE=commerce, rebuilt from empty volumes: 0000 installed, then 0001 3df4b96e and 0002 06378f12",
+    "T10_mp_a2_commerce_db": "49/49 (evidence ../commerce-db-results-mp-a3-regression.json); ACL matrix byte-identical to the certified commerce-db-acl-matrix.json",
+    "T2_provider_copy": "6/6",
+    "T3_checkout_internal": "23/23",
+    "T4_webhook": "31/31",
+    "T5_config_privilege": "18/18"
+  },
+  "guards": { "staging_static_guard": "STAGING_STATIC_GUARD_OK secrets=0 unknownProjectHosts=0", "migrations_guard": "OK, 8/8" },
+  "structural_suites_default_lab": {
+    "note": "Suites touched by the torneos-edge-main / lab.mjs changes, run on a default-mode lab (no commerce overlay) from a scratch cwd, so the certified tracked evidence was not overwritten.",
+    "exposure_edge": "18/18",
+    "e2e_node": "37/40 (failures only in Core-contract calls: SERVICE_AUTH_REQUIRED)",
+    "e2e_edge": "run 1: 27/40, run 2: 20/40 (failures only in Core-contract / session paths: SERVICE_AUTH_REQUIRED, access denied)",
+    "a_b_on_base_439a4cbb": {
+      "how": "a throwaway detached worktree of 439a4cbb (no MP-A3 code), fresh lab, same machine, same suites",
+      "e2e_node": "38/41 with 3 failing, same failure class",
+      "e2e_edge": "28/41 with 13 failing, same class, plus PGRST303 'JWT not yet valid'"
+    },
+    "attribution": "NOT an MP-A3 regression. The same failure class reproduces on the base without MP-A3. The Node gateway fails too, and it does not use torneos-edge-main. PGRST303 'JWT not yet valid' on the base shows intermittent container-vs-host clock lag in the Docker VM, and the Core contract's time-bound service auth and nonce windows are sensitive to that lag. Measured skew at rest was about 0.05 s: the lag is intermittent. Recommended: re-certify E2E on a lab host with a stable clock (e.g. Docker Desktop restarted) before MP-A4."
+  },
+  "not_run_by_scope": ["R4", "R4.2", "R5", "B04 browser", "gateway commerce", "frontend", "ACL suite"],
+  "cleanup": "commerce lab, default lab and A/B lab destroyed (0 containers, 0 volumes); .runtime removed; the throwaway base worktree removed"
+}

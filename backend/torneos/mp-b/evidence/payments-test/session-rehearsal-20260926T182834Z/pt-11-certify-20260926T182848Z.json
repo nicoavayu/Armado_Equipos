@@ -1,0 +1,1253 @@
+{
+ "tool": "backend/torneos/infra/torneos-payments-test/payments-session.mjs",
+ "generated_at": "2026-09-26T18:28:48.285Z",
+ "verdict": "PAYMENTS_REMOTE_TEST_CERTIFIED",
+ "read_only": true,
+ "failures": [],
+ "core": {
+  "prod": {
+   "ref": "rcyuuoaqfwcembdajcss",
+   "name": "nicoavayu's Project",
+   "organization_slug": "gwqrborhnqjdzzmpxulh",
+   "region": "sa-east-1",
+   "status": "ACTIVE_HEALTHY"
+  },
+  "prodFn": {
+   "slug": "torneos-core-contract",
+   "status": "ACTIVE",
+   "version": 3,
+   "verify_jwt": false,
+   "ezbr_sha256": "1072419517953eee8e8021f9691d1a5b1efb1f871c4d13290f644d119caded2c"
+  },
+  "staging": {
+   "ref": "hhyvmhgpapyuzjgxfnqv",
+   "name": "staging",
+   "organization_slug": "gwqrborhnqjdzzmpxulh",
+   "region": "sa-east-1",
+   "status": "INACTIVE"
+  },
+  "old": {
+   "ref": "giaeztyghmhzcngskjmw",
+   "name": "Arma2",
+   "organization_slug": "gwqrborhnqjdzzmpxulh",
+   "region": "sa-east-1",
+   "status": "INACTIVE"
+  },
+  "torneos": {
+   "ref": "onzpwnqxnvlgsevivngf",
+   "name": "Arma2 Torneos",
+   "organization_slug": "gwqrborhnqjdzzmpxulh",
+   "region": "sa-east-1",
+   "status": "ACTIVE_HEALTHY"
+  },
+  "org": {
+   "slug": "gwqrborhnqjdzzmpxulh",
+   "plan": "free"
+  },
+  "projects": [
+   {
+    "ref": "rcyuuoaqfwcembdajcss",
+    "name": "nicoavayu's Project",
+    "organization_slug": "gwqrborhnqjdzzmpxulh",
+    "region": "sa-east-1",
+    "status": "ACTIVE_HEALTHY"
+   },
+   {
+    "ref": "hhyvmhgpapyuzjgxfnqv",
+    "name": "staging",
+    "organization_slug": "gwqrborhnqjdzzmpxulh",
+    "region": "sa-east-1",
+    "status": "INACTIVE"
+   },
+   {
+    "ref": "giaeztyghmhzcngskjmw",
+    "name": "Arma2",
+    "organization_slug": "gwqrborhnqjdzzmpxulh",
+    "region": "sa-east-1",
+    "status": "INACTIVE"
+   },
+   {
+    "ref": "onzpwnqxnvlgsevivngf",
+    "name": "Arma2 Torneos",
+    "organization_slug": "gwqrborhnqjdzzmpxulh",
+    "region": "sa-east-1",
+    "status": "ACTIVE_HEALTHY"
+   }
+  ]
+ },
+ "torneos": {
+  "functions": [],
+  "health": [
+   {
+    "name": "auth",
+    "status": "ACTIVE_HEALTHY"
+   },
+   {
+    "name": "db",
+    "status": "ACTIVE_HEALTHY"
+   },
+   {
+    "name": "pooler",
+    "status": "ACTIVE_HEALTHY"
+   },
+   {
+    "name": "rest",
+    "status": "ACTIVE_HEALTHY"
+   },
+   {
+    "name": "db_postgres_user",
+    "status": "ACTIVE_HEALTHY"
+   }
+  ],
+  "secret_names": [
+   "SUPABASE_ANON_KEY",
+   "SUPABASE_URL"
+  ],
+  "auth": {
+   "state": "applied",
+   "problems": [],
+   "differs": []
+  },
+  "b03": {
+   "state": "applied",
+   "id": "94fe4602-23f6-4b5f-b606-36797d804bec",
+   "resolved_at": "2026-09-26T01:58:09Z"
+  },
+  "foundation_diff": [],
+  "payments_delta_pin_sha256": "9bd878dbea709b6a71edc10235a3dc1e6787129ec387171ed7bb9cb9b74f8f59",
+  "payment_roles": {
+   "login": {
+    "name": "torneos_payments_test",
+    "login": true,
+    "inherit": false,
+    "super": false,
+    "createrole": false,
+    "createdb": false,
+    "replication": false,
+    "bypassrls": false,
+    "connlimit": -1,
+    "valid_until": null,
+    "config": null
+   },
+   "login_memberships": [
+    {
+     "role": "torneos_payment_service",
+     "admin": false,
+     "inherit": false,
+     "set": true
+    }
+   ],
+   "login_members": [
+    {
+     "member": "postgres",
+     "admin": true,
+     "inherit": false,
+     "set": false
+    }
+   ],
+   "reachable_roles": [
+    "torneos_payment_service"
+   ],
+   "payment_logins": [
+    "torneos_payments_test"
+   ],
+   "role": {
+    "login": false,
+    "inherit": false,
+    "super": false,
+    "bypassrls": false,
+    "createrole": false
+   },
+   "role_executes": [
+    "apply_verified_tournament_payment_reversal(uuid,text,text,text,text,text,text,timestamp with time zone)",
+    "apply_verified_tournament_payment_status(uuid,text,text,text,text,text,text,timestamp with time zone)",
+    "get_provider_tournament_purchase(text,text,text)",
+    "record_tournament_purchase_preference(uuid,text,text,text,timestamp with time zone)"
+   ],
+   "role_table_privileges": 0,
+   "role_schema_create": []
+  },
+  "gateway_roles": {
+   "logins": [
+    {
+     "name": "torneos_edge_core_adapter",
+     "login": true,
+     "inherit": false,
+     "super": false,
+     "createrole": false,
+     "createdb": false,
+     "replication": false,
+     "bypassrls": false,
+     "connlimit": -1,
+     "valid_until": null,
+     "config": null
+    },
+    {
+     "name": "torneos_edge_identity_writer",
+     "login": true,
+     "inherit": false,
+     "super": false,
+     "createrole": false,
+     "createdb": false,
+     "replication": false,
+     "bypassrls": false,
+     "connlimit": -1,
+     "valid_until": null,
+     "config": null
+    },
+    {
+     "name": "torneos_payments_test",
+     "login": true,
+     "inherit": false,
+     "super": false,
+     "createrole": false,
+     "createdb": false,
+     "replication": false,
+     "bypassrls": false,
+     "connlimit": -1,
+     "valid_until": null,
+     "config": null
+    }
+   ],
+   "memberships": [
+    {
+     "role": "torneos_core_adapter",
+     "member": "torneos_edge_core_adapter",
+     "admin": false,
+     "inherit": false,
+     "set": true
+    },
+    {
+     "role": "torneos_edge_core_adapter",
+     "member": "postgres",
+     "admin": true,
+     "inherit": false,
+     "set": false
+    },
+    {
+     "role": "torneos_edge_identity_writer",
+     "member": "postgres",
+     "admin": true,
+     "inherit": false,
+     "set": false
+    },
+    {
+     "role": "torneos_identity_writer",
+     "member": "torneos_edge_identity_writer",
+     "admin": false,
+     "inherit": false,
+     "set": true
+    }
+   ],
+   "payment_logins": 1,
+   "login_member_of_api_role": 0,
+   "authenticator_config": [
+    "pgrst.db_pre_request=private.check_token"
+   ],
+   "auth_users": 0,
+   "installer": {
+    "user": "supabase_read_only_user",
+    "super": false,
+    "createrole": false,
+    "admin_on_authenticator": false,
+    "admin_on_identity_writer": false,
+    "admin_on_core_adapter": false
+   },
+   "edge_login_can_set_role": {
+    "torneos_edge_identity_writer": true,
+    "torneos_edge_core_adapter": true
+   }
+  },
+  "census": {
+   "auth_users": 0,
+   "identities": 2,
+   "organizations": 2,
+   "organizations_qa": 1,
+   "organization_members": 2,
+   "seasons": 3,
+   "seasons_outside_qa": 1,
+   "tournaments": 0,
+   "purchases": 2,
+   "purchases_outside_qa": 0,
+   "purchases_not_mp_test": 0,
+   "purchase_events": 6,
+   "purchase_events_outside_qa": 0,
+   "season_grants": 1,
+   "season_grants_outside_qa": 0,
+   "grant_events": 2,
+   "watermarks": 2,
+   "watermarks_outside_qa": 0
+  }
+ },
+ "payments_login_probe": [
+  {
+   "port": 5432,
+   "pass": true,
+   "exit_code": 0,
+   "whoami": {
+    "session_user": "torneos_payments_test",
+    "current_user": "torneos_payments_test",
+    "login_noinherit": true
+   },
+   "checks": 39,
+   "failures": [],
+   "stderr_tail": null,
+   "results": [
+    {
+     "name": "noinherit_no_rpc_before_set_role",
+     "sqlstate": "42501",
+     "message": "permission denied for function get_provider_tournament_purchase",
+     "expect": "42501"
+    },
+    {
+     "name": "noinherit_no_table_before_set_role",
+     "sqlstate": "42501",
+     "message": "permission denied for table tournament_purchases",
+     "expect": "42501"
+    },
+    {
+     "name": "set_role_refused_postgres",
+     "sqlstate": "42501",
+     "message": "permission denied to set role \"postgres\"",
+     "expect": "42501"
+    },
+    {
+     "name": "set_role_refused_service_role",
+     "sqlstate": "42501",
+     "message": "permission denied to set role \"service_role\"",
+     "expect": "42501"
+    },
+    {
+     "name": "set_role_refused_authenticated",
+     "sqlstate": "42501",
+     "message": "permission denied to set role \"authenticated\"",
+     "expect": "42501"
+    },
+    {
+     "name": "set_role_refused_anon",
+     "sqlstate": "42501",
+     "message": "permission denied to set role \"anon\"",
+     "expect": "42501"
+    },
+    {
+     "name": "set_role_refused_authenticator",
+     "sqlstate": "42501",
+     "message": "permission denied to set role \"authenticator\"",
+     "expect": "42501"
+    },
+    {
+     "name": "set_role_refused_supabase_admin",
+     "sqlstate": "42501",
+     "message": "permission denied to set role \"supabase_admin\"",
+     "expect": "42501"
+    },
+    {
+     "name": "set_role_refused_torneos_identity_writer",
+     "sqlstate": "42501",
+     "message": "permission denied to set role \"torneos_identity_writer\"",
+     "expect": "42501"
+    },
+    {
+     "name": "set_role_refused_torneos_core_adapter",
+     "sqlstate": "42501",
+     "message": "permission denied to set role \"torneos_core_adapter\"",
+     "expect": "42501"
+    },
+    {
+     "name": "set_role_refused_torneos_edge_identity_writer",
+     "sqlstate": "42501",
+     "message": "permission denied to set role \"torneos_edge_identity_writer\"",
+     "expect": "42501"
+    },
+    {
+     "name": "set_role_refused_torneos_edge_core_adapter",
+     "sqlstate": "42501",
+     "message": "permission denied to set role \"torneos_edge_core_adapter\"",
+     "expect": "42501"
+    },
+    {
+     "name": "create_table_refused",
+     "sqlstate": "42501",
+     "message": "permission denied for schema public",
+     "expect": "42501"
+    },
+    {
+     "name": "create_role_refused",
+     "sqlstate": "42501",
+     "message": "permission denied to create role",
+     "expect": "42501"
+    },
+    {
+     "name": "set_role_payment_service",
+     "sqlstate": "00000",
+     "message": null,
+     "expect": "00000"
+    },
+    {
+     "name": "current_user_is_payment_service",
+     "sqlstate": "00000",
+     "message": null,
+     "expect": "00000"
+    },
+    {
+     "name": "set_role_other_refused_after_own",
+     "sqlstate": "42501",
+     "message": "permission denied to set role \"torneos_identity_writer\"",
+     "expect": "42501"
+    },
+    {
+     "name": "rpc_lookup_executes_not_found",
+     "sqlstate": "P0002",
+     "message": "TORNEOS_PURCHASE_NOT_FOUND",
+     "expect": "P0002"
+    },
+    {
+     "name": "rpc_lookup_refuses_other_provider_env",
+     "sqlstate": "22023",
+     "message": "TORNEOS_PROVIDER_INVALID",
+     "expect": "22023"
+    },
+    {
+     "name": "rpc_status_executes_unknown_purchase",
+     "sqlstate": "22023",
+     "message": "TORNEOS_PURCHASE_INVALID",
+     "expect": "22023"
+    },
+    {
+     "name": "rpc_reversal_executes_unknown_purchase",
+     "sqlstate": "22023",
+     "message": "TORNEOS_PURCHASE_INVALID",
+     "expect": "22023"
+    },
+    {
+     "name": "rpc_status_refuses_missing_ordering",
+     "sqlstate": "22023",
+     "message": "TORNEOS_PROVIDER_ORDERING_REQUIRED",
+     "expect": "22023"
+    },
+    {
+     "name": "rpc_record_preference_executes",
+     "sqlstate": "22023",
+     "message": "TORNEOS_PURCHASE_INVALID",
+     "expect": "NOT_42501"
+    },
+    {
+     "name": "table_refused_tournament_purchases",
+     "sqlstate": "42501",
+     "message": "permission denied for table tournament_purchases",
+     "expect": "42501"
+    },
+    {
+     "name": "table_refused_tournament_purchase_events",
+     "sqlstate": "42501",
+     "message": "permission denied for table tournament_purchase_events",
+     "expect": "42501"
+    },
+    {
+     "name": "table_refused_tournament_season_plan_grants",
+     "sqlstate": "42501",
+     "message": "permission denied for table tournament_season_plan_grants",
+     "expect": "42501"
+    },
+    {
+     "name": "table_refused_tournament_season_plan_grant_events",
+     "sqlstate": "42501",
+     "message": "permission denied for table tournament_season_plan_grant_events",
+     "expect": "42501"
+    },
+    {
+     "name": "table_refused_tournament_payment_provider_watermarks",
+     "sqlstate": "42501",
+     "message": "permission denied for table tournament_payment_provider_watermarks",
+     "expect": "42501"
+    },
+    {
+     "name": "table_refused_torneos_identity",
+     "sqlstate": "42501",
+     "message": "permission denied for table torneos_identity",
+     "expect": "42501"
+    },
+    {
+     "name": "table_refused_tournament_organizations",
+     "sqlstate": "42501",
+     "message": "permission denied for table tournament_organizations",
+     "expect": "42501"
+    },
+    {
+     "name": "unordered_status_refused",
+     "sqlstate": "42501",
+     "message": "permission denied for function unordered_tournament_payment_status",
+     "expect": "42501"
+    },
+    {
+     "name": "unordered_reversal_refused",
+     "sqlstate": "42501",
+     "message": "permission denied for function unordered_tournament_payment_reversal",
+     "expect": "42501"
+    },
+    {
+     "name": "order_function_refused",
+     "sqlstate": "42501",
+     "message": "permission denied for function order_verified_tournament_payment",
+     "expect": "42501"
+    },
+    {
+     "name": "activation_refused",
+     "sqlstate": "42501",
+     "message": "permission denied for function activate_verified_tournament_purchase",
+     "expect": "42501"
+    },
+    {
+     "name": "baseline_reversal_refused",
+     "sqlstate": "42501",
+     "message": "permission denied for function apply_tournament_purchase_reversal",
+     "expect": "42501"
+    },
+    {
+     "name": "client_checkout_refused",
+     "sqlstate": "42501",
+     "message": "permission denied for function create_tournament_season_checkout_purchase",
+     "expect": "42501"
+    },
+    {
+     "name": "private_schema_refused",
+     "sqlstate": "42501",
+     "message": "permission denied for schema private",
+     "expect": "42501"
+    },
+    {
+     "name": "seven_arg_signature_gone",
+     "sqlstate": "42883",
+     "message": "function public.apply_verified_tournament_payment_status(uuid, unknown, unknown, unknown, unknown, unknown, unknown) does not exist",
+     "expect": "42883"
+    },
+    {
+     "name": "create_function_refused",
+     "sqlstate": "42501",
+     "message": "permission denied for schema public",
+     "expect": "42501"
+    }
+   ]
+  },
+  {
+   "port": 6543,
+   "pass": true,
+   "exit_code": 0,
+   "whoami": {
+    "session_user": "torneos_payments_test",
+    "current_user": "torneos_payments_test",
+    "login_noinherit": true
+   },
+   "checks": 39,
+   "failures": [],
+   "stderr_tail": null,
+   "results": [
+    {
+     "name": "noinherit_no_rpc_before_set_role",
+     "sqlstate": "42501",
+     "message": "permission denied for function get_provider_tournament_purchase",
+     "expect": "42501"
+    },
+    {
+     "name": "noinherit_no_table_before_set_role",
+     "sqlstate": "42501",
+     "message": "permission denied for table tournament_purchases",
+     "expect": "42501"
+    },
+    {
+     "name": "set_role_refused_postgres",
+     "sqlstate": "42501",
+     "message": "permission denied to set role \"postgres\"",
+     "expect": "42501"
+    },
+    {
+     "name": "set_role_refused_service_role",
+     "sqlstate": "42501",
+     "message": "permission denied to set role \"service_role\"",
+     "expect": "42501"
+    },
+    {
+     "name": "set_role_refused_authenticated",
+     "sqlstate": "42501",
+     "message": "permission denied to set role \"authenticated\"",
+     "expect": "42501"
+    },
+    {
+     "name": "set_role_refused_anon",
+     "sqlstate": "42501",
+     "message": "permission denied to set role \"anon\"",
+     "expect": "42501"
+    },
+    {
+     "name": "set_role_refused_authenticator",
+     "sqlstate": "42501",
+     "message": "permission denied to set role \"authenticator\"",
+     "expect": "42501"
+    },
+    {
+     "name": "set_role_refused_supabase_admin",
+     "sqlstate": "42501",
+     "message": "permission denied to set role \"supabase_admin\"",
+     "expect": "42501"
+    },
+    {
+     "name": "set_role_refused_torneos_identity_writer",
+     "sqlstate": "42501",
+     "message": "permission denied to set role \"torneos_identity_writer\"",
+     "expect": "42501"
+    },
+    {
+     "name": "set_role_refused_torneos_core_adapter",
+     "sqlstate": "42501",
+     "message": "permission denied to set role \"torneos_core_adapter\"",
+     "expect": "42501"
+    },
+    {
+     "name": "set_role_refused_torneos_edge_identity_writer",
+     "sqlstate": "42501",
+     "message": "permission denied to set role \"torneos_edge_identity_writer\"",
+     "expect": "42501"
+    },
+    {
+     "name": "set_role_refused_torneos_edge_core_adapter",
+     "sqlstate": "42501",
+     "message": "permission denied to set role \"torneos_edge_core_adapter\"",
+     "expect": "42501"
+    },
+    {
+     "name": "create_table_refused",
+     "sqlstate": "42501",
+     "message": "permission denied for schema public",
+     "expect": "42501"
+    },
+    {
+     "name": "create_role_refused",
+     "sqlstate": "42501",
+     "message": "permission denied to create role",
+     "expect": "42501"
+    },
+    {
+     "name": "set_role_payment_service",
+     "sqlstate": "00000",
+     "message": null,
+     "expect": "00000"
+    },
+    {
+     "name": "current_user_is_payment_service",
+     "sqlstate": "00000",
+     "message": null,
+     "expect": "00000"
+    },
+    {
+     "name": "set_role_other_refused_after_own",
+     "sqlstate": "42501",
+     "message": "permission denied to set role \"torneos_identity_writer\"",
+     "expect": "42501"
+    },
+    {
+     "name": "rpc_lookup_executes_not_found",
+     "sqlstate": "P0002",
+     "message": "TORNEOS_PURCHASE_NOT_FOUND",
+     "expect": "P0002"
+    },
+    {
+     "name": "rpc_lookup_refuses_other_provider_env",
+     "sqlstate": "22023",
+     "message": "TORNEOS_PROVIDER_INVALID",
+     "expect": "22023"
+    },
+    {
+     "name": "rpc_status_executes_unknown_purchase",
+     "sqlstate": "22023",
+     "message": "TORNEOS_PURCHASE_INVALID",
+     "expect": "22023"
+    },
+    {
+     "name": "rpc_reversal_executes_unknown_purchase",
+     "sqlstate": "22023",
+     "message": "TORNEOS_PURCHASE_INVALID",
+     "expect": "22023"
+    },
+    {
+     "name": "rpc_status_refuses_missing_ordering",
+     "sqlstate": "22023",
+     "message": "TORNEOS_PROVIDER_ORDERING_REQUIRED",
+     "expect": "22023"
+    },
+    {
+     "name": "rpc_record_preference_executes",
+     "sqlstate": "22023",
+     "message": "TORNEOS_PURCHASE_INVALID",
+     "expect": "NOT_42501"
+    },
+    {
+     "name": "table_refused_tournament_purchases",
+     "sqlstate": "42501",
+     "message": "permission denied for table tournament_purchases",
+     "expect": "42501"
+    },
+    {
+     "name": "table_refused_tournament_purchase_events",
+     "sqlstate": "42501",
+     "message": "permission denied for table tournament_purchase_events",
+     "expect": "42501"
+    },
+    {
+     "name": "table_refused_tournament_season_plan_grants",
+     "sqlstate": "42501",
+     "message": "permission denied for table tournament_season_plan_grants",
+     "expect": "42501"
+    },
+    {
+     "name": "table_refused_tournament_season_plan_grant_events",
+     "sqlstate": "42501",
+     "message": "permission denied for table tournament_season_plan_grant_events",
+     "expect": "42501"
+    },
+    {
+     "name": "table_refused_tournament_payment_provider_watermarks",
+     "sqlstate": "42501",
+     "message": "permission denied for table tournament_payment_provider_watermarks",
+     "expect": "42501"
+    },
+    {
+     "name": "table_refused_torneos_identity",
+     "sqlstate": "42501",
+     "message": "permission denied for table torneos_identity",
+     "expect": "42501"
+    },
+    {
+     "name": "table_refused_tournament_organizations",
+     "sqlstate": "42501",
+     "message": "permission denied for table tournament_organizations",
+     "expect": "42501"
+    },
+    {
+     "name": "unordered_status_refused",
+     "sqlstate": "42501",
+     "message": "permission denied for function unordered_tournament_payment_status",
+     "expect": "42501"
+    },
+    {
+     "name": "unordered_reversal_refused",
+     "sqlstate": "42501",
+     "message": "permission denied for function unordered_tournament_payment_reversal",
+     "expect": "42501"
+    },
+    {
+     "name": "order_function_refused",
+     "sqlstate": "42501",
+     "message": "permission denied for function order_verified_tournament_payment",
+     "expect": "42501"
+    },
+    {
+     "name": "activation_refused",
+     "sqlstate": "42501",
+     "message": "permission denied for function activate_verified_tournament_purchase",
+     "expect": "42501"
+    },
+    {
+     "name": "baseline_reversal_refused",
+     "sqlstate": "42501",
+     "message": "permission denied for function apply_tournament_purchase_reversal",
+     "expect": "42501"
+    },
+    {
+     "name": "client_checkout_refused",
+     "sqlstate": "42501",
+     "message": "permission denied for function create_tournament_season_checkout_purchase",
+     "expect": "42501"
+    },
+    {
+     "name": "private_schema_refused",
+     "sqlstate": "42501",
+     "message": "permission denied for schema private",
+     "expect": "42501"
+    },
+    {
+     "name": "seven_arg_signature_gone",
+     "sqlstate": "42883",
+     "message": "function public.apply_verified_tournament_payment_status(uuid, unknown, unknown, unknown, unknown, unknown, unknown) does not exist",
+     "expect": "42883"
+    },
+    {
+     "name": "create_function_refused",
+     "sqlstate": "42501",
+     "message": "permission denied for schema public",
+     "expect": "42501"
+    }
+   ]
+  }
+ ],
+ "deno": {
+  "apps": [
+   {
+    "id": "app-gw",
+    "slug": "torneos-gateway"
+   },
+   {
+    "id": "app-pt",
+    "slug": "torneos-payments-test"
+   }
+  ],
+  "gateway_app": {
+   "slug": "torneos-gateway",
+   "env_names": [
+    "CORE_ANON_KEY",
+    "CORE_AUTH_URL",
+    "CORE_CONTRACT_URL",
+    "CORE_JWT_ISSUER",
+    "TORNEOS_ALLOWED_ORIGIN",
+    "TORNEOS_ANON_KEY",
+    "TORNEOS_BRIDGE_KEYS",
+    "TORNEOS_CONTRACT_SERVICE_SECRET",
+    "TORNEOS_DB_CORE_ADAPTER_URL",
+    "TORNEOS_DB_IDENTITY_WRITER_URL",
+    "TORNEOS_DB_SSL_CA",
+    "TORNEOS_GATEWAY_PUBLIC_URL",
+    "TORNEOS_REST_URL"
+   ],
+   "layers": []
+  },
+  "payments_app": {
+   "id": "app-pt",
+   "slug": "torneos-payments-test",
+   "layers": [],
+   "env_vars": [
+    {
+     "key": "APP_PUBLIC_URL",
+     "secret": false,
+     "contexts": "all",
+     "value_returned": true
+    },
+    {
+     "key": "MERCADO_PAGO_ENVIRONMENT",
+     "secret": false,
+     "contexts": "all",
+     "value_returned": true
+    },
+    {
+     "key": "MERCADO_PAGO_TEST_ACCESS_TOKEN",
+     "secret": true,
+     "contexts": "all",
+     "value_returned": false
+    },
+    {
+     "key": "MERCADO_PAGO_TEST_SELLER_ID",
+     "secret": false,
+     "contexts": "all",
+     "value_returned": true
+    },
+    {
+     "key": "MERCADO_PAGO_TEST_WEBHOOK_SECRET",
+     "secret": true,
+     "contexts": "all",
+     "value_returned": false
+    },
+    {
+     "key": "TORNEOS_PAYMENTS_DB_SSL_CA",
+     "secret": false,
+     "contexts": "all",
+     "value_returned": true
+    },
+    {
+     "key": "TORNEOS_PAYMENTS_DB_URL",
+     "secret": true,
+     "contexts": "all",
+     "value_returned": false
+    },
+    {
+     "key": "TORNEOS_PAYMENTS_DEPLOYMENT",
+     "secret": false,
+     "contexts": "all",
+     "value_returned": true
+    },
+    {
+     "key": "TORNEOS_PAYMENTS_INTERNAL_SECRET",
+     "secret": true,
+     "contexts": "all",
+     "value_returned": false
+    },
+    {
+     "key": "TORNEOS_PAYMENTS_NOTIFICATION_URL",
+     "secret": false,
+     "contexts": "all",
+     "value_returned": true
+    },
+    {
+     "key": "TORNEOS_PAYMENT_PROVIDER",
+     "secret": false,
+     "contexts": "all",
+     "value_returned": true
+    },
+    {
+     "key": "TORNEOS_PAYMENTS_TEST_QA_ORGANIZATION_ID",
+     "secret": false,
+     "contexts": "all",
+     "value_returned": true
+    }
+   ],
+   "config": {
+    "install": null,
+    "build": null,
+    "predeploy": null,
+    "runtime": {
+     "type": "dynamic",
+     "entrypoint": "torneos-payments/index.ts"
+    },
+    "crons": false
+   },
+   "labels": {
+    "custom.component": "arma2-torneos-payments",
+    "custom.environment": "mercadopago-test"
+   },
+   "created_at": null,
+   "updated_at": null
+  },
+  "revisions": [
+   {
+    "id": "rev3x",
+    "status": "succeeded",
+    "failure_reason": null,
+    "failure_detail": null,
+    "env_vars": null,
+    "layers": null,
+    "config": null,
+    "labels": null,
+    "created_at": null,
+    "build_finished_at": null,
+    "timelines": [
+     {
+      "name": "production",
+      "context": "production",
+      "hostnames": [
+       "torneos-payments-test.nicoavayu.deno.net"
+      ]
+     }
+    ]
+   },
+   {
+    "id": "rev2x",
+    "status": "succeeded",
+    "failure_reason": null,
+    "failure_detail": null,
+    "env_vars": null,
+    "layers": null,
+    "config": null,
+    "labels": null,
+    "created_at": null,
+    "build_finished_at": null,
+    "timelines": [
+     {
+      "name": "production",
+      "context": "production",
+      "hostnames": [
+       "torneos-payments-test.nicoavayu.deno.net"
+      ]
+     }
+    ]
+   },
+   {
+    "id": "rev1x",
+    "status": "succeeded",
+    "failure_reason": null,
+    "failure_detail": null,
+    "env_vars": null,
+    "layers": null,
+    "config": null,
+    "labels": null,
+    "created_at": null,
+    "build_finished_at": null,
+    "timelines": [
+     {
+      "name": "production",
+      "context": "production",
+      "hostnames": [
+       "torneos-payments-test.nicoavayu.deno.net"
+      ]
+     }
+    ]
+   }
+  ]
+ },
+ "gateway_live": {
+  "checks": [
+   {
+    "name": "gateway /health 200 ready",
+    "pass": true,
+    "status": 200
+   },
+   {
+    "name": "gateway commerce route absent (commerce OFF) → 404",
+    "pass": true,
+    "status": 404
+   },
+   {
+    "name": "gateway /config exposes no payments/commerce key",
+    "pass": true,
+    "status": 200
+   }
+  ],
+  "pass": true
+ },
+ "mercado_pago": {
+  "seller_id": "2718281828",
+  "attestation": {
+   "seller_matches": true,
+   "test_user": true,
+   "site": "MLA",
+   "pass": true
+  }
+ },
+ "qa": {
+  "fixtures": {
+   "org": "f02901f5-9586-4e1c-a620-dbb038fc8792",
+   "slug": "qa-payments-test-0a41a318",
+   "S1": "3c80c6f1-efb3-4c05-b975-ab5082210883",
+   "S2": "30a09341-96cf-430f-9d90-2a9c012e78ea",
+   "P1": "e9377f74-d6e1-4930-965b-a779a6fd086b",
+   "P2": "7392b950-d3a0-44bc-a622-c4cfcd39043e",
+   "superseded": []
+  },
+  "P1": {
+   "purchase": "e9377f74-d6e1-4930-965b-a779a6fd086b",
+   "season": "3c80c6f1-efb3-4c05-b975-ab5082210883",
+   "season_slug": "qa-pt-s1-41dc85",
+   "status": "refunded",
+   "provider": "MERCADO_PAGO",
+   "environment": "test",
+   "product": "torneos_premium",
+   "offer": "launch",
+   "amount": 39900,
+   "list_amount": 49900,
+   "currency": "ARS",
+   "external_reference": "arma2:season:purchase:e9377f74-d6e1-4930-965b-a779a6fd086b",
+   "preference_id": "2718281828-8a147048-4afd-4c22-a5e6-3c829250e268",
+   "approved_payment": "90000000003",
+   "provider_status": "refunded",
+   "provider_status_detail": "refunded",
+   "created_at": "2026-09-26T18:28:42.585669+00:00",
+   "approved_at": "2026-09-26T18:28:46.002746+00:00",
+   "refunded_at": "2026-09-26T18:28:47.15329+00:00",
+   "charged_back_at": null,
+   "entitlement_activated_at": "2026-09-26T18:28:46.002746+00:00",
+   "events": [
+    {
+     "id": 1,
+     "type": "purchase.created",
+     "from": null,
+     "to": "created",
+     "actor": "user",
+     "provider_status": null,
+     "payment": null,
+     "provider_time": null
+    },
+    {
+     "id": 57,
+     "type": "preference.created",
+     "from": "created",
+     "to": "preference_created",
+     "actor": "service",
+     "provider_status": "created",
+     "payment": null,
+     "provider_time": null
+    },
+    {
+     "id": 58,
+     "type": "payment.attempt_rejected",
+     "from": "preference_created",
+     "to": "preference_created",
+     "actor": "provider",
+     "provider_status": "rejected",
+     "payment": "90000000001",
+     "provider_time": null
+    },
+    {
+     "id": 59,
+     "type": "payment.approved",
+     "from": "preference_created",
+     "to": "approved",
+     "actor": "provider",
+     "provider_status": "approved",
+     "payment": "90000000003",
+     "provider_time": null
+    },
+    {
+     "id": 60,
+     "type": "payment.refund",
+     "from": "approved",
+     "to": "refunded",
+     "actor": "provider",
+     "provider_status": "refund",
+     "payment": null,
+     "provider_time": null
+    }
+   ],
+   "grants": [
+    {
+     "grant": "fc791792-70c2-4094-aec7-7b76772e14a2",
+     "plan": "PREMIUM",
+     "source": "purchase",
+     "events": [
+      {
+       "type": "granted",
+       "reason_code": "payment_approved",
+       "actor": "provider"
+      },
+      {
+       "type": "revoked",
+       "reason_code": "total_refund",
+       "actor": "provider"
+      }
+     ],
+     "effective": false
+    }
+   ],
+   "watermarks": [
+    {
+     "payment": "90000000001",
+     "date_last_updated": "2026-09-26T18:27:46.992+00:00",
+     "state": [
+      "status",
+      "rejected"
+     ],
+     "manual_refund": false,
+     "manual_review": false
+    },
+    {
+     "payment": "90000000003",
+     "date_last_updated": "2026-09-26T18:28:51+00:00",
+     "state": [
+      "reversal",
+      "refund"
+     ],
+     "manual_refund": false,
+     "manual_review": false
+    }
+   ]
+  },
+  "P2": {
+   "purchase": "7392b950-d3a0-44bc-a622-c4cfcd39043e",
+   "season": "30a09341-96cf-430f-9d90-2a9c012e78ea",
+   "season_slug": "qa-pt-s2-4ada16",
+   "status": "created",
+   "provider": "MERCADO_PAGO",
+   "environment": "test",
+   "product": "torneos_premium",
+   "offer": "launch",
+   "amount": 39900,
+   "list_amount": 49900,
+   "currency": "ARS",
+   "external_reference": "arma2:season:purchase:7392b950-d3a0-44bc-a622-c4cfcd39043e",
+   "preference_id": null,
+   "approved_payment": null,
+   "provider_status": null,
+   "provider_status_detail": null,
+   "created_at": "2026-09-26T18:28:42.669545+00:00",
+   "approved_at": null,
+   "refunded_at": null,
+   "charged_back_at": null,
+   "entitlement_activated_at": null,
+   "events": [
+    {
+     "id": 2,
+     "type": "purchase.created",
+     "from": null,
+     "to": "created",
+     "actor": "user",
+     "provider_status": null,
+     "payment": null,
+     "provider_time": null
+    }
+   ],
+   "grants": [],
+   "watermarks": []
+  },
+  "superseded": []
+ },
+ "evidence": [
+  {
+   "step": "pt-01-preflight",
+   "file": "pt-01-preflight-20260926T182839Z.json",
+   "sha256": "d67a3d881dab441a19be853bfd45fd82d9fc455a43e7e62a0e6113307ba012d6",
+   "verdict": "PAYMENTS_PREFLIGHT_PASS",
+   "secret_findings": 0
+  },
+  {
+   "step": "pt-02-payments-login",
+   "file": "pt-02-payments-login-20260926T182841Z.json",
+   "sha256": "4d6ffe5e1b124b33e7651efdfb9900aa7a71903f898689595d621d9467612117",
+   "verdict": "PAYMENTS_LOGIN_CREATED",
+   "secret_findings": 0
+  },
+  {
+   "step": "pt-03-deno-app",
+   "file": "pt-03-deno-app-20260926T182841Z.json",
+   "sha256": "ecf8b3feefd91a1c19dda76ebf536d3d862dea167a1a64e336104968d21502ba",
+   "verdict": "PAYMENTS_TEST_APP_DEPLOYED",
+   "secret_findings": 0
+  },
+  {
+   "step": "pt-03b-redeploy",
+   "file": "pt-03b-redeploy-20260926T182844Z.json",
+   "sha256": "aba784ae73cc26bedd845a1ab8391941ae58187762bd8a00ebde22f63e693fc6",
+   "verdict": "PAYMENTS_TEST_APP_REDEPLOYED",
+   "secret_findings": 0
+  },
+  {
+   "step": "pt-04-app-probe",
+   "file": "pt-04-app-probe-20260926T182842Z.json",
+   "sha256": "07d3620e50ed67ceb9c51e0ad35f4f2305feb7e652384ac5c1b4002aa9be74ea",
+   "verdict": "PAYMENTS_APP_PROBE_PASS",
+   "secret_findings": 0
+  },
+  {
+   "step": "pt-05-qa-fixtures",
+   "file": "pt-05-qa-fixtures-20260926T182842Z.json",
+   "sha256": "65ff40f64fc1c9651e4589ced9471bbfd152a97d6216cc79c6801036fe7f9248",
+   "verdict": "QA_FIXTURES_ISOLATED",
+   "secret_findings": 0
+  },
+  {
+   "step": "pt-06-ordering-rollback",
+   "file": "pt-06-ordering-rollback-20260926T182845Z.json",
+   "sha256": "f4755fd7ae0d675122f31a179c72999140cd1dfc95ccd62529d31bde1f55642d",
+   "verdict": "REMOTE_ORDERING_PASS",
+   "secret_findings": 0
+  },
+  {
+   "step": "pt-07-preference",
+   "file": "pt-07-preference-20260926T182845Z.json",
+   "sha256": "3128827a9129ba6b66c43d423b9c5f0deb2f6cac3d0ac6a0ff3d1a2d50829596",
+   "verdict": "MP_TEST_PREFERENCE_PASS",
+   "secret_findings": 0
+  },
+  {
+   "step": "pt-08-sandbox-checkout",
+   "file": "pt-08-sandbox-checkout-20260926T182846Z.json",
+   "sha256": "89cb435638f61c961d2802430feb577de34a68ff29cb6126c249cc0f306bb688",
+   "verdict": "SANDBOX_CHECKOUT_APPLIED",
+   "secret_findings": 0
+  },
+  {
+   "step": "pt-09-replays",
+   "file": "pt-09-replays-20260926T182846Z.json",
+   "sha256": "e2fdde8bb31ef29a0d6d749a90b8f2ca551f04da2144d31a701396b941269f55",
+   "verdict": "REAL_PAYMENT_REPLAYS_PASS",
+   "secret_findings": 0
+  },
+  {
+   "step": "pt-10-refund",
+   "file": "pt-10-refund-20260926T182847Z.json",
+   "sha256": "49ed04f4b61b85b6a64c8fbbd74c1954d109fada57522d0b53727b3740b18fd7",
+   "verdict": "REFUND_LIFECYCLE_PASS",
+   "secret_findings": 0
+  }
+ ],
+ "repo_secret_scan": {
+  "files_scanned": 1233,
+  "findings": 0,
+  "where": []
+ },
+ "management_api_writes": 0
+}

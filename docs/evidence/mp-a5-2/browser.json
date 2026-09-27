@@ -1,0 +1,40 @@
+{
+  "suite": "MP-A5.2 focal browser repro",
+  "run": "mpa5de84",
+  "app": "http://localhost:3000",
+  "steps": [],
+  "network": {
+    "checkoutMockPages": 1,
+    "blockedHosts": [
+      "fonts.googleapis.com"
+    ],
+    "allowedHosts": [
+      "localhost",
+      "127.0.0.1"
+    ],
+    "externalCheckoutFulfilledLocally": true
+  },
+  "db": {
+    "purchases": 1,
+    "purchaseId": "25ac77f1-7108-4e71-997b-03ec7764ee72",
+    "preferenceId": "lab-pref-881c3f0139f64c53",
+    "status": "refunded"
+  },
+  "results": [
+    {
+      "name": "pending → approved while open → Plan Premium without reload",
+      "status": "PASS",
+      "ms": 4553
+    },
+    {
+      "name": "refund while open → refetch → Plan Free without reload",
+      "status": "PASS",
+      "ms": 708
+    },
+    {
+      "name": "one purchase, one Preference, no effective grant after refund",
+      "status": "PASS",
+      "ms": 284
+    }
+  ]
+}

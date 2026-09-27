@@ -1,0 +1,232 @@
+{
+ "purpose": "PAYMENTS TEST — GATEWAY_AUTH + PB catalog delta paths, gateway role view and payments role view (derived from a rehearsal run of the exact PB SQL)",
+ "foundation_pin_sha256": "5d66d4f418d387ac584283b7ed6d8e53ae39e88cfc0748dda51423a7458ec62b",
+ "gateway_delta_pin_sha256": "169f2b1458843d404a0318271bf170a6bac3afad1244671f2097dee337d52c20",
+ "bootstrap_sql_template_sha256": "7d3e72f82d1bb1030910bfe17621b00b570db91785d2ac2a70c0b16c62c363ee",
+ "catalog": {
+  "roles": [
+   {
+    "name": "torneos_core_adapter",
+    "login": false,
+    "inherit": false,
+    "super": false,
+    "bypassrls": false,
+    "createrole": false,
+    "createdb": false
+   },
+   {
+    "name": "torneos_edge_core_adapter",
+    "login": true,
+    "inherit": false,
+    "super": false,
+    "bypassrls": false,
+    "createrole": false,
+    "createdb": false
+   },
+   {
+    "name": "torneos_edge_identity_writer",
+    "login": true,
+    "inherit": false,
+    "super": false,
+    "bypassrls": false,
+    "createrole": false,
+    "createdb": false
+   },
+   {
+    "name": "torneos_identity_writer",
+    "login": false,
+    "inherit": false,
+    "super": false,
+    "bypassrls": false,
+    "createrole": false,
+    "createdb": false
+   },
+   {
+    "name": "torneos_payment_service",
+    "login": false,
+    "inherit": false,
+    "super": false,
+    "bypassrls": false,
+    "createrole": false,
+    "createdb": false
+   },
+   {
+    "name": "torneos_payments_test",
+    "login": true,
+    "inherit": false,
+    "super": false,
+    "bypassrls": false,
+    "createrole": false,
+    "createdb": false
+   }
+  ],
+  "role_members": [
+   {
+    "role": "torneos_core_adapter",
+    "member": "postgres"
+   },
+   {
+    "role": "torneos_core_adapter",
+    "member": "torneos_edge_core_adapter"
+   },
+   {
+    "role": "torneos_edge_core_adapter",
+    "member": "postgres"
+   },
+   {
+    "role": "torneos_edge_identity_writer",
+    "member": "postgres"
+   },
+   {
+    "role": "torneos_identity_writer",
+    "member": "postgres"
+   },
+   {
+    "role": "torneos_identity_writer",
+    "member": "torneos_edge_identity_writer"
+   },
+   {
+    "role": "torneos_payment_service",
+    "member": "postgres"
+   },
+   {
+    "role": "torneos_payment_service",
+    "member": "torneos_payments_test"
+   },
+   {
+    "role": "torneos_payments_test",
+    "member": "postgres"
+   }
+  ],
+  "login_roles_torneos": 3,
+  "authenticator_pre_request": [
+   "pgrst.db_pre_request=private.check_token"
+  ]
+ },
+ "gateway_roles": {
+  "logins": [
+   {
+    "name": "torneos_edge_core_adapter",
+    "login": true,
+    "inherit": false,
+    "super": false,
+    "createrole": false,
+    "createdb": false,
+    "replication": false,
+    "bypassrls": false,
+    "connlimit": -1,
+    "valid_until": null,
+    "config": null
+   },
+   {
+    "name": "torneos_edge_identity_writer",
+    "login": true,
+    "inherit": false,
+    "super": false,
+    "createrole": false,
+    "createdb": false,
+    "replication": false,
+    "bypassrls": false,
+    "connlimit": -1,
+    "valid_until": null,
+    "config": null
+   },
+   {
+    "name": "torneos_payments_test",
+    "login": true,
+    "inherit": false,
+    "super": false,
+    "createrole": false,
+    "createdb": false,
+    "replication": false,
+    "bypassrls": false,
+    "connlimit": -1,
+    "valid_until": null,
+    "config": null
+   }
+  ],
+  "memberships": [
+   {
+    "role": "torneos_core_adapter",
+    "member": "torneos_edge_core_adapter",
+    "admin": false,
+    "inherit": false,
+    "set": true
+   },
+   {
+    "role": "torneos_edge_core_adapter",
+    "member": "postgres",
+    "admin": true,
+    "inherit": false,
+    "set": false
+   },
+   {
+    "role": "torneos_edge_identity_writer",
+    "member": "postgres",
+    "admin": true,
+    "inherit": false,
+    "set": false
+   },
+   {
+    "role": "torneos_identity_writer",
+    "member": "torneos_edge_identity_writer",
+    "admin": false,
+    "inherit": false,
+    "set": true
+   }
+  ],
+  "payment_logins": 1
+ },
+ "payment_roles": {
+  "login": {
+   "name": "torneos_payments_test",
+   "login": true,
+   "inherit": false,
+   "super": false,
+   "createrole": false,
+   "createdb": false,
+   "replication": false,
+   "bypassrls": false,
+   "connlimit": -1,
+   "valid_until": null,
+   "config": null
+  },
+  "login_memberships": [
+   {
+    "role": "torneos_payment_service",
+    "admin": false,
+    "inherit": false,
+    "set": true
+   }
+  ],
+  "login_members": [
+   {
+    "member": "postgres",
+    "admin": true,
+    "inherit": false,
+    "set": false
+   }
+  ],
+  "reachable_roles": [
+   "torneos_payment_service"
+  ],
+  "payment_logins": [
+   "torneos_payments_test"
+  ],
+  "role": {
+   "login": false,
+   "inherit": false,
+   "super": false,
+   "bypassrls": false,
+   "createrole": false
+  },
+  "role_executes": [
+   "apply_verified_tournament_payment_reversal(uuid,text,text,text,text,text,text,timestamp with time zone)",
+   "apply_verified_tournament_payment_status(uuid,text,text,text,text,text,text,timestamp with time zone)",
+   "get_provider_tournament_purchase(text,text,text)",
+   "record_tournament_purchase_preference(uuid,text,text,text,timestamp with time zone)"
+  ],
+  "role_table_privileges": 0,
+  "role_schema_create": []
+ }
+}

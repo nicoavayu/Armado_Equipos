@@ -26,6 +26,14 @@ export function validateTorneosGatewayTarget(env = process.env) {
   return null;
 }
 
+// MP-A5: the Premium purchase (Mercado Pago Checkout Pro TEST) exists only in the local lab dev
+// server. A build never carries REACT_APP_TORNEOS_BILLING_MODE, whatever its value: the runtime
+// already refuses billing in a production build, this refuses the bundle before it exists.
+export function validateTorneosBillingMode(env = process.env) {
+  if (!String(env.REACT_APP_TORNEOS_BILLING_MODE ?? '').trim()) return null;
+  return 'REACT_APP_TORNEOS_BILLING_MODE is lab-only (local dev server); builds must not set it';
+}
+
 const isMain = process.argv[1] && new URL(`file://${process.argv[1]}`).href === import.meta.url;
 if (isMain) {
   const loadedFiles = loadBuildEnvironment();
@@ -44,6 +52,12 @@ if (isMain) {
   const gatewayProblem = validateTorneosGatewayTarget();
   if (gatewayProblem) {
     console.error(`Build aborted: ${gatewayProblem}`);
+    process.exit(1);
+  }
+
+  const billingProblem = validateTorneosBillingMode();
+  if (billingProblem) {
+    console.error(`Build aborted: ${billingProblem}`);
     process.exit(1);
   }
 

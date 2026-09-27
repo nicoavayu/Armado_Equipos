@@ -1,0 +1,121 @@
+{
+ "tool": "backend/torneos/infra/torneos-payments-test/session-rehearsal.mjs",
+ "generated_at": "2026-09-26T13:50:49.351Z",
+ "verdict": "PAYMENTS_SESSION_REHEARSAL_PASS",
+ "image": "public.ecr.aws/supabase/postgres:17.6.1.147",
+ "remote_calls": 0,
+ "passed": 22,
+ "total": 22,
+ "phases": [
+  {
+   "label": "S00 GATEWAY_AUTH_CERTIFIED database (0000–0003 + certified W2/W3)",
+   "pass": true,
+   "detail": null
+  },
+  {
+   "label": "S01 preflight (read-only): login absent, app absent, MP TEST seller attested",
+   "pass": true,
+   "detail": null
+  },
+  {
+   "label": "S02 PB with a wrong phrase → NOT_AUTHORIZED, nothing written (login still absent, Keychain untouched)",
+   "pass": true,
+   "detail": null
+  },
+  {
+   "label": "S03 PB: PLAN → phrase → one transaction as postgres → delta = pin, login probe 5432 + 6543",
+   "pass": true,
+   "detail": null
+  },
+  {
+   "label": "S04 PB again → refused before any write (PAYMENT_LOGIN_NOT_ABSENT)",
+   "pass": true,
+   "detail": null
+  },
+  {
+   "label": "S05 create: PLAN → phrase → app-level env validated by the real config.ts → POST /v2/apps + deploy r1",
+   "pass": true,
+   "detail": null
+  },
+  {
+   "label": "S06 the deployed env: exactly the 11 pinned names, no Core / Supabase / gateway / commerce variable, remote-test, MP test",
+   "pass": true,
+   "detail": null
+  },
+  {
+   "label": "S07 create again → refused (PAYMENTS_APP_ALREADY_EXISTS), no third write",
+   "pass": true,
+   "detail": null
+  },
+  {
+   "label": "S08 app-probe on the deployed runtime: routing, Host, HMAC, signature negatives; nothing written",
+   "pass": true,
+   "detail": null
+  },
+  {
+   "label": "S09 fixtures: one private QA org, S1 + S2, two MP TEST purchases of ARS 39.900; a real tenant exists and has no commercial row",
+   "pass": true,
+   "detail": null
+  },
+  {
+   "label": "S09b redeploy: PLAN → phrase → PATCH exactly the QA organization pin → deploy the current source; the real config.ts accepts it",
+   "pass": true,
+   "detail": null
+  },
+  {
+   "label": "S09c redeploy again: the pin is already there → no env write, one more deploy only",
+   "pass": true,
+   "detail": null
+  },
+  {
+   "label": "S10 ordering on the functions as the payments login, every transaction ROLLBACK, traceless",
+   "pass": true,
+   "detail": null
+  },
+  {
+   "label": "S11 preference: PLAN → phrase → internal HMAC → provider body exact, reuse, DB preference_created",
+   "pass": true,
+   "detail": null
+  },
+  {
+   "label": "S12 simulated sandbox: rejected + approved deliveries (live_mode=true, as Mercado Pago sandbox sends) → 200 through the sandbox policy",
+   "pass": true,
+   "detail": null
+  },
+  {
+   "label": "S13 observe: rejected attempt, approved ARS 39900 TEST, grant effective, watermarks",
+   "pass": true,
+   "detail": null
+  },
+  {
+   "label": "S14 replays with the approved payment: duplicates (10/13-digit, old ts), seller/live negatives, nothing moved",
+   "pass": true,
+   "detail": null
+  },
+  {
+   "label": "S15 refund: PLAN → phrase → armed refund → signed webhook → refunded, grant revoked, stale notification harmless",
+   "pass": true,
+   "detail": null
+  },
+  {
+   "label": "S16 certify: every step bound by sha256, delta = pin, QA-only census, no secret anywhere",
+   "pass": true,
+   "detail": null
+  },
+  {
+   "label": "S17 final census: 2 QA purchases (P1 refunded, P2 untouched), 1 revoked grant, control tenant without commercial rows",
+   "pass": true,
+   "detail": null
+  },
+  {
+   "label": "S18 the whole transcript carries no secret",
+   "pass": true,
+   "detail": null
+  },
+  {
+   "label": "S19 wipe empties the session memory of secrets",
+   "pass": true,
+   "detail": null
+  }
+ ]
+}

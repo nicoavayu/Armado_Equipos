@@ -1,0 +1,351 @@
+{
+ "derived_by": "offline-rehearsal.mjs",
+ "derived_at": "2026-09-24T22:58:04.188Z",
+ "image": "public.ecr.aws/supabase/postgres:17.6.1.147",
+ "server_version": "17.6",
+ "installer": "postgres (non-superuser)",
+ "migrations": [
+  {
+   "seq": "0000",
+   "file": "00000000000000_torneos_baseline_v1.sql",
+   "sha256": "f857bd0939054bc1a32a3855894b7b20e14a0c7456c9d5c8c5e8432e5b8ed19f"
+  },
+  {
+   "seq": "0001",
+   "file": "00000000000001_staging_v1_rpc_exposure.sql",
+   "sha256": "3df4b96eecc7321eaeda84a480f089fe4bff2b28c20aa4479db92caf33457e62"
+  },
+  {
+   "seq": "0002",
+   "file": "00000000000002_mercadopago_checkout_pro_test.sql",
+   "sha256": "06378f12b57620e8ae550a0d881ad66464ffdc0a734ad621cba8a6ba3e6d6078"
+  },
+  {
+   "seq": "0003",
+   "file": "00000000000003_mercadopago_provider_ordering.sql",
+   "sha256": "d54b3293da53aea1202d3daed9a70e45d86e306a56a1fdd58107fc5719e36714"
+  }
+ ],
+ "catalog_sql_sha256": "32f882b22c7022272aed65d2c296e86f3776c055dee3d2500ed1aebf1d59d6d3",
+ "strict_paths": [
+  "roles",
+  "role_members",
+  "login_roles_torneos",
+  "tables.public_tables",
+  "tables.public_views",
+  "tables.private_tables",
+  "tables.sequences",
+  "tables.public_tables_without_rls",
+  "tables.public_tables_forced_rls",
+  "tables.names_md5",
+  "policies.count",
+  "policies.md5",
+  "functions.public",
+  "functions.private",
+  "functions.procedures",
+  "functions.aggregates",
+  "functions.definer",
+  "functions.signatures_md5",
+  "functions.bodies_md5",
+  "functions.public_acl_default",
+  "functions.public_execute_by_public_role",
+  "execute",
+  "execute_payment_service",
+  "execute_anon",
+  "table_privileges",
+  "anon_table_privileges",
+  "watermark",
+  "provider_ordering",
+  "audit",
+  "identity",
+  "authenticator_pre_request",
+  "foreign_servers",
+  "user_mappings"
+ ],
+ "catalog": {
+  "server_version": "17.6",
+  "schemas": [
+   {
+    "name": "extensions",
+    "owner": "postgres",
+    "acl": "{postgres=UC/postgres,anon=U/postgres,authenticated=U/postgres,service_role=U/postgres,dashboard_user=UC/postgres}"
+   },
+   {
+    "name": "private",
+    "owner": "postgres",
+    "acl": "{postgres=UC/postgres,anon=U/postgres,authenticated=U/postgres,service_role=U/postgres,torneos_core_adapter=U/postgres}"
+   },
+   {
+    "name": "public",
+    "owner": "pg_database_owner",
+    "acl": "{pg_database_owner=UC/pg_database_owner,=U/pg_database_owner,postgres=U/pg_database_owner,anon=U/pg_database_owner,authenticated=U/pg_database_owner,service_role=U/pg_database_owner,torneos_identity_writer=U/pg_database_owner,torneos_payment_service=U/pg_database_owner}"
+   }
+  ],
+  "roles": [
+   {
+    "name": "torneos_core_adapter",
+    "login": false,
+    "inherit": false,
+    "super": false,
+    "bypassrls": false,
+    "createrole": false,
+    "createdb": false
+   },
+   {
+    "name": "torneos_identity_writer",
+    "login": false,
+    "inherit": false,
+    "super": false,
+    "bypassrls": false,
+    "createrole": false,
+    "createdb": false
+   },
+   {
+    "name": "torneos_payment_service",
+    "login": false,
+    "inherit": false,
+    "super": false,
+    "bypassrls": false,
+    "createrole": false,
+    "createdb": false
+   }
+  ],
+  "role_members": [
+   {
+    "role": "torneos_core_adapter",
+    "member": "postgres"
+   },
+   {
+    "role": "torneos_identity_writer",
+    "member": "postgres"
+   },
+   {
+    "role": "torneos_payment_service",
+    "member": "postgres"
+   }
+  ],
+  "login_roles_torneos": 0,
+  "tables": {
+   "public_tables": 105,
+   "public_views": 0,
+   "private_tables": 2,
+   "sequences": 7,
+   "public_tables_without_rls": [],
+   "public_tables_forced_rls": 1,
+   "names_md5": "aa821b6eecda4df386b08c00fda94b13",
+   "owners": {
+    "postgres": 114
+   }
+  },
+  "policies": {
+   "count": 64,
+   "md5": "ee64d2e26ab00f1f11f4e5ef238a2253"
+  },
+  "functions": {
+   "public": 366,
+   "private": 7,
+   "procedures": 0,
+   "aggregates": 0,
+   "definer": 312,
+   "signatures_md5": "88b6e21834d4e6cf66c7a16b6926434f",
+   "bodies_md5": "3ab18560697f4aaf67b4bae451839502",
+   "owners": {
+    "postgres": 373
+   },
+   "public_acl_default": 0,
+   "public_execute_by_public_role": 0
+  },
+  "execute": {
+   "anon": {
+    "count": 14,
+    "md5": "c6322d66b69edc67b2e20096bbe383a4"
+   },
+   "authenticated": {
+    "count": 149,
+    "md5": "f0cc8bf40345f9f034408e98bade4950"
+   },
+   "service_role": {
+    "count": 330,
+    "md5": "2658c67a4372c5658776c93deb4710f1"
+   },
+   "torneos_core_adapter": {
+    "count": 1,
+    "md5": "898581bb1006a5c6fcea48183314c786"
+   },
+   "torneos_identity_writer": {
+    "count": 0,
+    "md5": "d41d8cd98f00b204e9800998ecf8427e"
+   },
+   "torneos_payment_service": {
+    "count": 4,
+    "md5": "e96fdc0b656fd0539f9429e6291c7c19"
+   }
+  },
+  "execute_payment_service": [
+   "apply_verified_tournament_payment_reversal(uuid,text,text,text,text,text,text,timestamp with time zone)",
+   "apply_verified_tournament_payment_status(uuid,text,text,text,text,text,text,timestamp with time zone)",
+   "get_provider_tournament_purchase(text,text,text)",
+   "record_tournament_purchase_preference(uuid,text,text,text,timestamp with time zone)"
+  ],
+  "execute_anon": [
+   "get_public_tournament_branding(text)",
+   "get_public_tournament_commercial_catalog(integer)",
+   "get_public_tournament_page(text,text)",
+   "get_published_tournament_documents(uuid,uuid)",
+   "get_published_tournament_matches(uuid,uuid,text,uuid,integer,integer)",
+   "get_published_tournament_media(uuid,uuid,uuid,integer,integer)",
+   "get_published_tournament_standings(uuid,uuid,uuid,uuid)",
+   "get_published_tournament_statistics(uuid,uuid,uuid,uuid)",
+   "get_published_tournament_teams(uuid,uuid,integer,integer)",
+   "get_tournament_announcement(uuid)",
+   "get_tournament_participant_hub(uuid,uuid)",
+   "get_tournament_participant_match(uuid)",
+   "private.check_token()",
+   "private.current_identity_id()"
+  ],
+  "table_privileges": {
+   "anon": {
+    "count": 78,
+    "md5": "dbc108e5be8a692582d5ad1b4697b872"
+   },
+   "authenticated": {
+    "count": 314,
+    "md5": "0215f5a92f5056eaaaf388175a254ba7"
+   },
+   "service_role": {
+    "count": 354,
+    "md5": "8adb678840931ecb67e23c80415ae799"
+   },
+   "torneos_core_adapter": {
+    "count": 1,
+    "md5": "4c5b69022bf0695b4563108ad435bdf9"
+   },
+   "torneos_identity_writer": {
+    "count": 2,
+    "md5": "870a1f45c373b31913de15c7d959fa81"
+   },
+   "torneos_payment_service": {
+    "count": 0,
+    "md5": "d41d8cd98f00b204e9800998ecf8427e"
+   }
+  },
+  "anon_table_privileges": [
+   "tournament_announcement_audiences:SELECT",
+   "tournament_announcement_deliveries:SELECT",
+   "tournament_announcement_links:SELECT",
+   "tournament_announcements:SELECT",
+   "tournament_audit_log:SELECT",
+   "tournament_categories:SELECT",
+   "tournament_competition_formats:SELECT",
+   "tournament_competition_participants:SELECT",
+   "tournament_courts:SELECT",
+   "tournament_disciplinary_overrides:SELECT",
+   "tournament_discipline_ledgers:SELECT",
+   "tournament_discipline_rules:SELECT",
+   "tournament_document_acknowledgements:SELECT",
+   "tournament_document_versions:SELECT",
+   "tournament_documents:SELECT",
+   "tournament_draw_pot_members:SELECT",
+   "tournament_draw_pots:SELECT",
+   "tournament_fixture_versions:SELECT",
+   "tournament_group_members:SELECT",
+   "tournament_groups:SELECT",
+   "tournament_match_availability_responses:SELECT",
+   "tournament_match_events:SELECT",
+   "tournament_match_operation_players:SELECT",
+   "tournament_match_operations:SELECT",
+   "tournament_match_outcomes:SELECT",
+   "tournament_match_reschedules:SELECT",
+   "tournament_match_resumptions:SELECT",
+   "tournament_match_reviews:SELECT",
+   "tournament_match_scores:SELECT",
+   "tournament_match_sources:SELECT",
+   "tournament_match_squad_players:SELECT",
+   "tournament_match_squads:SELECT",
+   "tournament_matches:SELECT",
+   "tournament_media_assets:SELECT",
+   "tournament_media_assignments:SELECT",
+   "tournament_media_consent_events:SELECT",
+   "tournament_media_consents:SELECT",
+   "tournament_media_galleries:SELECT",
+   "tournament_media_gallery_items:SELECT",
+   "tournament_media_moderation_actions:SELECT",
+   "tournament_media_relations:SELECT",
+   "tournament_media_reports:SELECT",
+   "tournament_media_upload_sessions:SELECT",
+   "tournament_media_variants:SELECT",
+   "tournament_notification_preferences:SELECT",
+   "tournament_organization_members:SELECT",
+   "tournament_organizations:SELECT",
+   "tournament_participant_hub_preferences:SELECT",
+   "tournament_participant_sets:SELECT",
+   "tournament_phases:SELECT",
+   "tournament_player_statistics:SELECT",
+   "tournament_player_suspensions:SELECT",
+   "tournament_points_adjustments:SELECT",
+   "tournament_projection_sources:SELECT",
+   "tournament_provisional_players:SELECT",
+   "tournament_qualification_resolutions:SELECT",
+   "tournament_qualification_slots:SELECT",
+   "tournament_roster_players:SELECT",
+   "tournament_roster_settings:SELECT",
+   "tournament_rosters:SELECT",
+   "tournament_rounds:SELECT",
+   "tournament_schedule_windows:SELECT",
+   "tournament_scoring_rules:SELECT",
+   "tournament_seasons:SELECT",
+   "tournament_sport_modalities:SELECT",
+   "tournament_standings_revisions:SELECT",
+   "tournament_suspension_served_matches:SELECT",
+   "tournament_team_entries:SELECT",
+   "tournament_team_invitations:SELECT",
+   "tournament_team_managers:SELECT",
+   "tournament_team_reviews:SELECT",
+   "tournament_team_standings:SELECT",
+   "tournament_team_statistics:SELECT",
+   "tournament_tiebreak_rules:SELECT",
+   "tournament_venues:SELECT",
+   "tournaments:SELECT",
+   "user_tournament_context_preferences:SELECT",
+   "user_workspace_preferences:SELECT"
+  ],
+  "acl_md5": {
+   "relations": "825cdd62498cacbf104a1df6a16e69a5",
+   "functions": "efdab716da39bfebc55ba30bbb682e3f"
+  },
+  "watermark": {
+   "exists": true,
+   "rls": true,
+   "api_privileges": 0,
+   "requires_manual_review": 1,
+   "date_last_updated": 1
+  },
+  "provider_ordering": {
+   "order_verified": true,
+   "apply_status_ordered": true,
+   "apply_reversal_ordered": true,
+   "apply_status_unordered_absent": true,
+   "apply_reversal_unordered_absent": true,
+   "unordered_wrapped": true
+  },
+  "audit": {
+   "purchase_events_append_only": 1,
+   "grant_events_append_only": 1
+  },
+  "identity": {
+   "current_identity_id": true,
+   "check_token": true,
+   "bridge_issuer_pinned": 1
+  },
+  "authenticator_pre_request": [],
+  "extensions": [
+   {
+    "name": "pgcrypto",
+    "schema": "extensions"
+   }
+  ],
+  "foreign_servers": 0,
+  "user_mappings": 0,
+  "migrations_ledger": false
+ }
+}

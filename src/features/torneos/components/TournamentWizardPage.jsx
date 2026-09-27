@@ -63,6 +63,15 @@ import BrandingAssetField from './BrandingAssetField';
 import styles from './CompetitionCore.module.css';
 import { capturePremiumIntent, clearPremiumIntent, hasPendingPremiumIntent } from '../domain/premiumIntent';
 
+// Where a pending Premium intent lands after creating a tournament. The legacy, tournament-scoped
+// Plan redirect exists only where `plan_legacy_routes` is on; otherwise the Plan is the canonical
+// season Plan of the season the server returned for the new tournament, and without one the
+// wizard keeps its normal flow instead of guessing a season.
+function premiumPlanTarget({ organizationId, created, legacyRoutes }) {
+  if (legacyRoutes) return canonicalRoutes.tournamentPlan(organizationId, created.id);
+  return created?.seasonId ? canonicalRoutes.seasonPlan(organizationId, created.seasonId) : null;
+}
+
 const STEPS = [
   'Información',
   'Modalidad',
@@ -435,9 +444,16 @@ export default function TournamentWizardPage() {
           idempotencyKey: creationKeyRef.current,
         });
         creationKeyRef.current = null;
-        if (hasPendingPremiumIntent() && features.plan !== false) {
+        const planTarget = hasPendingPremiumIntent() && features.plan !== false
+          ? premiumPlanTarget({
+            organizationId: organization.id,
+            created,
+            legacyRoutes: features.plan_legacy_routes !== false,
+          })
+          : null;
+        if (planTarget) {
           clearPremiumIntent();
-          navigate(canonicalRoutes.tournamentPlan(organization.id, created.id), { replace: true });
+          navigate(planTarget, { replace: true });
         } else {
           navigate(
             canonicalRoutes.tournamentConfiguration(organization.id, created.id, {

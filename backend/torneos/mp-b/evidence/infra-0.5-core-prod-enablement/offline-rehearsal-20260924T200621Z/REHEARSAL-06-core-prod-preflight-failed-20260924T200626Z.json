@@ -1,0 +1,16 @@
+{
+ "annotation": "OFFLINE REHEARSAL 20260924T200621Z — local public.ecr.aws/supabase/postgres:17.4.1.048 container, --network none, emulated Management API, in-memory Keychain; NOT a Production run",
+ "generated_at": "2026-09-24T20:06:26.739Z",
+ "tool": "backend/torneos/infra/core-prod-contract/core-prod-deploy.mjs",
+ "mode": "--preflight-only",
+ "read_only": true,
+ "stop": "PREREQUISITES_UNMET",
+ "stage": "observe",
+ "detail": {
+  "failures": [
+   "public.usuarios.acepta_invitaciones: null (expected boolean)"
+  ]
+ },
+ "writes": [],
+ "server_state": "0 writes"
+}

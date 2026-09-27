@@ -1,0 +1,163 @@
+{
+  "suite": "MP-A3 T4 webhook",
+  "results": [
+    {
+      "name": "lab: commerce lab reachable (mp-stub up, torneos-payments answers)",
+      "status": "FAIL",
+      "error": "Expected values to be strictly equal:\n\n404 !== 401\n"
+    },
+    {
+      "name": "request rejection: GET/PUT/OPTIONS → 404 without CORS; Origin → 400; body > 32 KiB → 413; invalid JSON → 400; missing/invalid data.id → 400",
+      "status": "FAIL",
+      "error": "preference for reject: {\"error\":\"not found\"}\n\n404 !== 200\n"
+    },
+    {
+      "name": "signature: invalid v1 → 401; wrong secret → 401; x-request-id missing → 401; x-signature missing / malformed → 401; signed for another id → 401",
+      "status": "FAIL",
+      "error": "Cannot read properties of undefined (reading 'preferenceId')"
+    },
+    {
+      "name": "payload consistency after a valid signature: query/body id mismatch, unknown type, payload live_mode=true, foreign user_id → 400; domain untouched",
+      "status": "FAIL",
+      "error": "Cannot read properties of undefined (reading 'preferenceId')"
+    },
+    {
+      "name": "binding: seller mismatch (payment.collector_id) → 422; domain untouched",
+      "status": "FAIL",
+      "error": "preference for bind: {\"error\":\"not found\"}\n\n404 !== 200\n"
+    },
+    {
+      "name": "binding: seller mismatch (order.collector) → 422; domain untouched",
+      "status": "FAIL",
+      "error": "preference for bind: {\"error\":\"not found\"}\n\n404 !== 200\n"
+    },
+    {
+      "name": "binding: metadata.purchase_id mismatch → 422; domain untouched",
+      "status": "FAIL",
+      "error": "preference for bind: {\"error\":\"not found\"}\n\n404 !== 200\n"
+    },
+    {
+      "name": "binding: amount mismatch → 422; domain untouched",
+      "status": "FAIL",
+      "error": "preference for bind: {\"error\":\"not found\"}\n\n404 !== 200\n"
+    },
+    {
+      "name": "binding: currency mismatch → 422; domain untouched",
+      "status": "FAIL",
+      "error": "preference for bind: {\"error\":\"not found\"}\n\n404 !== 200\n"
+    },
+    {
+      "name": "binding: preference mismatch (order.preference_id) → 422; domain untouched",
+      "status": "FAIL",
+      "error": "preference for bind: {\"error\":\"not found\"}\n\n404 !== 200\n"
+    },
+    {
+      "name": "binding: payment live_mode=true → 422; domain untouched",
+      "status": "FAIL",
+      "error": "preference for bind: {\"error\":\"not found\"}\n\n404 !== 200\n"
+    },
+    {
+      "name": "binding: payment order type ≠ mercadopago → 422; domain untouched",
+      "status": "FAIL",
+      "error": "preference for bind: {\"error\":\"not found\"}\n\n404 !== 200\n"
+    },
+    {
+      "name": "binding: order does not list the payment → 422; domain untouched",
+      "status": "FAIL",
+      "error": "preference for bind: {\"error\":\"not found\"}\n\n404 !== 200\n"
+    },
+    {
+      "name": "binding: external_reference of ANOTHER existing purchase (metadata still ours) → 422; both purchases untouched",
+      "status": "FAIL",
+      "error": "preference for extref: {\"error\":\"not found\"}\n\n404 !== 200\n"
+    },
+    {
+      "name": "binding: external_reference of no purchase → 404 purchase_not_found; malformed external_reference → 422",
+      "status": "FAIL",
+      "error": "preference for noref: {\"error\":\"not found\"}\n\n404 !== 200\n"
+    },
+    {
+      "name": "chargeback binding: chargeback with two payments / live_mode=true / unknown payment → 422; domain untouched",
+      "status": "FAIL",
+      "error": "preference for cbbind: {\"error\":\"not found\"}\n\n404 !== 200\n"
+    },
+    {
+      "name": "pending → 200 pending; purchase pending; no grant",
+      "status": "FAIL",
+      "error": "preference for life: {\"error\":\"not found\"}\n\n404 !== 200\n"
+    },
+    {
+      "name": "duplicate delivery of the same notification → 200, idempotent (one event)",
+      "status": "FAIL",
+      "error": "Cannot read properties of undefined (reading 'id')"
+    },
+    {
+      "name": "approved (same payment, now accredited) → 200 approved; purchase approved; Premium grant granted and effective",
+      "status": "FAIL",
+      "error": "Cannot read properties of undefined (reading 'pendingPayment')"
+    },
+    {
+      "name": "approved duplicated → 200 duplicate_approved; no second grant",
+      "status": "FAIL",
+      "error": "Cannot read properties of undefined (reading 'pendingPayment')"
+    },
+    {
+      "name": "out-of-order: a late pending / rejected for the approved payment → 200 stale_ignored; purchase stays approved",
+      "status": "FAIL",
+      "error": "Cannot read properties of undefined (reading 'pendingPayment')"
+    },
+    {
+      "name": "requiresManualRefund: a second approved payment on the activated purchase → 200 (never 503) duplicate_payment, requiresManualRefund=true; one grant",
+      "status": "FAIL",
+      "error": "Cannot read properties of undefined (reading 'preferenceId')"
+    },
+    {
+      "name": "chargeback (topic_chargebacks_wh, payment charged_back/in_process) → 200 reversal_applied; purchase charged_back; grant suspended",
+      "status": "FAIL",
+      "error": "Cannot read properties of undefined (reading 'pendingPayment')"
+    },
+    {
+      "name": "restored (charged_back/reimbursed) → 200 reversal_applied; purchase approved; grant restored and effective",
+      "status": "FAIL",
+      "error": "Cannot read properties of undefined (reading 'pendingPayment')"
+    },
+    {
+      "name": "refund (refunded) → 200 reversal_applied; purchase refunded; grant revoked; a later restore is ignored after revocation (200)",
+      "status": "FAIL",
+      "error": "Cannot read properties of undefined (reading 'pendingPayment')"
+    },
+    {
+      "name": "buyer_won (charged_back/settled after dispute) → 200; purchase charged_back; grant revoked",
+      "status": "FAIL",
+      "error": "preference for buyerwon: {\"error\":\"not found\"}\n\n404 !== 200\n"
+    },
+    {
+      "name": "rejected / cancelled / expired are attempts: 200 attempt_*; purchase stays preference_created; a later approved on the same preference activates",
+      "status": "FAIL",
+      "error": "preference for attempts: {\"error\":\"not found\"}\n\n404 !== 200\n"
+    },
+    {
+      "name": "payment id conflict: a payment already approved for another purchase, re-bound to this one → 422 (22023 TORNEOS_PAYMENT_CONFLICT); no second grant",
+      "status": "FAIL",
+      "error": "preference for conflict-a: {\"error\":\"not found\"}\n\n404 !== 200\n"
+    },
+    {
+      "name": "unknown provider status → 202 accepted, domain untouched",
+      "status": "FAIL",
+      "error": "preference for unknown: {\"error\":\"not found\"}\n\n404 !== 200\n"
+    },
+    {
+      "name": "provider 5xx (payment / merchant order / chargeback read) → 503, domain untouched; the retry then applies",
+      "status": "FAIL",
+      "error": "preference for mp5xx: {\"error\":\"not found\"}\n\n404 !== 200\n"
+    },
+    {
+      "name": "no secret / PII in responses nor in torneos-functions / mp-stub logs (tokens, secrets, seller, DB URL, payer e-mail/document)",
+      "status": "FAIL",
+      "error": "the payments worker did log (whitelisted fields)"
+    }
+  ],
+  "matrix": [],
+  "passed": 0,
+  "total": 31
+}

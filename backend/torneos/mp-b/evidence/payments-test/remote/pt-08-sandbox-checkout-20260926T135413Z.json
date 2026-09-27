@@ -1,0 +1,164 @@
+{
+ "tool": "backend/torneos/infra/torneos-payments-test/payments-session.mjs",
+ "generated_at": "2026-09-26T13:54:13.974Z",
+ "verdict": "SANDBOX_CHECKOUT_INCOMPLETE",
+ "read_only": true,
+ "purchase": "f292c050-835e-4c27-b81d-e8ab3d4c3e7a",
+ "preference": "3712890098-ae2cd93e-59e9-4c8c-80ab-316be463bb51",
+ "provider_payments": [
+  {
+   "id": "180983139696",
+   "status": "rejected",
+   "status_detail": "cc_rejected_other_reason",
+   "date_last_updated": "2026-09-26T09:30:10.000-04:00",
+   "date_created": "2026-09-26T09:30:07.000-04:00",
+   "transaction_amount": 39900,
+   "currency_id": "ARS",
+   "live_mode": true,
+   "collector_matches": true,
+   "external_reference": "arma2:season:purchase:f292c050-835e-4c27-b81d-e8ab3d4c3e7a",
+   "metadata_purchase_id": "f292c050-835e-4c27-b81d-e8ab3d4c3e7a",
+   "order": {
+    "id": "44753974345",
+    "type": "mercadopago"
+   },
+   "payment_type_id": "credit_card",
+   "refunds": 0
+  },
+  {
+   "id": "180983221818",
+   "status": "approved",
+   "status_detail": "accredited",
+   "date_last_updated": "2026-09-26T09:31:17.000-04:00",
+   "date_created": "2026-09-26T09:31:10.000-04:00",
+   "transaction_amount": 39900,
+   "currency_id": "ARS",
+   "live_mode": true,
+   "collector_matches": true,
+   "external_reference": "arma2:season:purchase:f292c050-835e-4c27-b81d-e8ab3d4c3e7a",
+   "metadata_purchase_id": "f292c050-835e-4c27-b81d-e8ab3d4c3e7a",
+   "order": {
+    "id": "44753974345",
+    "type": "mercadopago"
+   },
+   "payment_type_id": "credit_card",
+   "refunds": 0
+  }
+ ],
+ "db": {
+  "purchase": "f292c050-835e-4c27-b81d-e8ab3d4c3e7a",
+  "season": "3f2f39af-848f-4ebf-ab78-f729d07bd5cb",
+  "season_slug": "qa-pt-s1-609378",
+  "status": "preference_created",
+  "provider": "MERCADO_PAGO",
+  "environment": "test",
+  "product": "torneos_premium",
+  "offer": "launch",
+  "amount": 39900,
+  "list_amount": 49900,
+  "currency": "ARS",
+  "external_reference": "arma2:season:purchase:f292c050-835e-4c27-b81d-e8ab3d4c3e7a",
+  "preference_id": "3712890098-ae2cd93e-59e9-4c8c-80ab-316be463bb51",
+  "approved_payment": null,
+  "provider_status": "created",
+  "provider_status_detail": null,
+  "created_at": "2026-09-26T13:15:20.886889+00:00",
+  "approved_at": null,
+  "refunded_at": null,
+  "charged_back_at": null,
+  "entitlement_activated_at": null,
+  "events": [
+   {
+    "id": 1,
+    "type": "purchase.created",
+    "from": null,
+    "to": "created",
+    "actor": "user",
+    "provider_status": null,
+    "payment": null,
+    "provider_time": null
+   },
+   {
+    "id": 111,
+    "type": "preference.created",
+    "from": "created",
+    "to": "preference_created",
+    "actor": "service",
+    "provider_status": "created",
+    "payment": null,
+    "provider_time": null
+   }
+  ],
+  "grants": [],
+  "watermarks": []
+ },
+ "app_logs": [],
+ "checks": [
+  {
+   "name": "Mercado Pago TEST: ≥ 1 rejected attempt on the preference",
+   "pass": true
+  },
+  {
+   "name": "Mercado Pago TEST: one approved payment, ARS 39900, TEST (live_mode false), our seller, external_reference = P1",
+   "pass": false
+  },
+  {
+   "name": "DB: purchase approved with that payment id",
+   "pass": false
+  },
+  {
+   "name": "DB: a payment.attempt_rejected event (purchase stayed payable)",
+   "pass": false
+  },
+  {
+   "name": "DB: exactly one Premium season grant from P1, effective, events [granted]",
+   "pass": false
+  },
+  {
+   "name": "DB: one watermark per provider payment (rejected + approved), no manual flags",
+   "pass": false
+  },
+  {
+   "name": "the signed Mercado Pago webhook reached the TEST app: provider-actor payment.approved event",
+   "pass": false
+  }
+ ],
+ "mp_requests": [
+  {
+   "id": "users-me",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "users-me",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "users-me",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "preference",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "payments-search",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "payments-search",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  }
+ ]
+}

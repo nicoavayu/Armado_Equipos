@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertTriangle,
   CheckCircle2,
@@ -7,15 +7,18 @@ import {
   ShieldCheck,
 } from 'lucide-react';
 import { Link, Navigate, useParams } from 'react-router-dom';
-import {
-  loadTournamentPurchase,
-} from '../api/tournamentWorkspaceService';
 import { canonicalRoutes } from '../routing/canonicalRoutes';
+import { useTorneosCommerce } from '../context/TorneosCommerceContext';
+import { useOptionalTorneosCompetition } from '../context/TorneosCompetitionContext';
+import { normalizeTournamentEntitlements, TOURNAMENT_PLANS } from '../domain/entitlements';
 import styles from './PurchaseStatusPage.module.css';
 
 const SUCCESS = new Set(['approved']);
 const FAILURE = new Set(['rejected', 'cancelled', 'expired', 'refunded', 'charged_back']);
 const OPEN_STATUSES = new Set(['created', 'preference_created', 'pending']);
+// After these the season plan may have changed: read the effective entitlement again.
+const PLAN_AFFECTING_STATUSES = new Set(['approved', 'refunded', 'charged_back']);
+const POLL_INTERVAL_MS = 4000;
 
 const STATUS_LABELS = Object.freeze({
   created: 'Compra iniciada',
@@ -43,33 +46,73 @@ function routeForStatus(organizationId, seasonId, purchaseId, status) {
   return canonicalRoutes.seasonPurchasePending(organizationId, seasonId, purchaseId);
 }
 
+// The redirect route (exito / pendiente / fallo) and any Mercado Pago query parameter only say
+// which screen to open: the purchase read decides the view and, where the composition has the
+// authority (hybrid), only the server's effective season entitlement can show Premium.
 export default function PurchaseStatusPage({ view }) {
   const { organizationId, seasonId, tournamentId, purchaseId } = useParams();
-  const [state, setState] = useState({ status: 'loading', purchase: null, error: '' });
+  const commerce = useTorneosCommerce();
+  const competition = useOptionalTorneosCompetition();
+  const sharedPlanRef = useRef(null);
+  sharedPlanRef.current = competition?.activeSeason?.id === seasonId
+    ? competition.retryPlan : null;
+  const requestRef = useRef(0);
+  const entitlementsAuthority = commerce.entitlementsAuthority === true;
+  const [state, setState] = useState({
+    status: 'loading', purchase: null, plan: null, error: '',
+  });
 
   const refresh = useCallback(async () => {
+    const requestId = ++requestRef.current;
     setState((current) => ({ ...current, status: 'loading', error: '' }));
     try {
-      const purchase = await loadTournamentPurchase({
+      const purchase = await commerce.loadPurchase({
         purchaseId,
         organizationId,
         seasonId,
         tournamentId,
       });
-      setState({ status: 'ready', purchase, error: '' });
+      if (requestId !== requestRef.current) return;
+      let plan = null;
+      if (entitlementsAuthority && PLAN_AFFECTING_STATUSES.has(purchase?.status)) {
+        try {
+          // Reuse the context's authoritative read so Plan and this page agree.
+          // Standalone/legacy compositions retain their existing adapter path.
+          const refreshSharedPlan = sharedPlanRef.current;
+          const normalized = refreshSharedPlan && purchase.seasonId === seasonId
+            ? await refreshSharedPlan()
+            : normalizeTournamentEntitlements(await commerce.loadSeasonEntitlements({
+              organizationId,
+              seasonId: purchase.seasonId,
+            }), { organizationId, seasonId: purchase.seasonId });
+          plan = normalized.isTrusted ? normalized.plan : null;
+        } catch {
+          plan = null;
+        }
+      }
+      if (requestId !== requestRef.current) return;
+      setState({
+        status: 'ready', purchase, plan, error: '',
+      });
     } catch (error) {
+      if (requestId !== requestRef.current) return;
       setState({
         status: 'error',
         purchase: null,
+        plan: null,
         error: error?.message || 'No pudimos consultar esta compra.',
       });
     }
-  }, [organizationId, purchaseId, seasonId, tournamentId]);
+  }, [commerce, entitlementsAuthority, organizationId, purchaseId, seasonId, tournamentId]);
 
-  useEffect(() => { refresh(); }, [refresh]);
+  useEffect(() => {
+    refresh();
+    return () => { requestRef.current += 1; };
+  }, [refresh]);
+  // Poll only while the purchase is open; every final status stops it.
   useEffect(() => {
     if (state.status !== 'ready' || !OPEN_STATUSES.has(state.purchase?.status)) return undefined;
-    const timer = window.setInterval(refresh, 4000);
+    const timer = window.setInterval(refresh, POLL_INTERVAL_MS);
     return () => window.clearInterval(timer);
   }, [refresh, state.purchase?.status, state.status]);
 
@@ -102,12 +145,19 @@ export default function PurchaseStatusPage({ view }) {
     )} replace />;
   }
 
-  const presentation = canonicalView === 'success' ? {
+  const premiumVerified = !entitlementsAuthority || state.plan === TOURNAMENT_PLANS.PREMIUM;
+  const presentation = canonicalView === 'success' && premiumVerified ? {
     icon: CheckCircle2,
     eyebrow: 'PAGO VERIFICADO',
     title: 'Premium ya está activo',
     description: 'El pago se confirmó y Premium quedó activo para esta temporada.',
     tone: 'success',
+  } : canonicalView === 'success' ? {
+    icon: Clock3,
+    eyebrow: 'PAGO APROBADO',
+    title: 'Pago aprobado · verificando Premium',
+    description: 'Todavía no vemos Premium activo en esta temporada. No lo consideres activo hasta que figure en el Plan; podés actualizar en unos minutos.',
+    tone: 'pending',
   } : canonicalView === 'failure' ? {
     icon: AlertTriangle,
     eyebrow: 'COMPRA NO COMPLETADA',
@@ -119,6 +169,13 @@ export default function PurchaseStatusPage({ view }) {
       ? 'Premium no está activo porque se confirmó una reversión del pago.'
       : 'No se activó Premium. Podés volver al Plan e iniciar una compra nueva.',
     tone: 'failure',
+  } : entitlementsAuthority && state.purchase.providerStatus === 'rejected' ? {
+    // MP-A2.1: a rejected attempt leaves the purchase open (another card may still pay it).
+    icon: AlertTriangle,
+    eyebrow: 'INTENTO RECHAZADO',
+    title: 'El último intento de pago no fue aprobado',
+    description: 'La compra sigue abierta y Premium no se activó. Podés volver al Plan e intentar de nuevo con otro medio de pago.',
+    tone: 'pending',
   } : {
     icon: Clock3,
     eyebrow: 'PAGO EN PROCESO',
@@ -128,6 +185,10 @@ export default function PurchaseStatusPage({ view }) {
   };
   const Icon = presentation.icon;
   const isTestPurchase = state.purchase.provider === 'FAKE';
+  const planLabel = state.plan === TOURNAMENT_PLANS.PREMIUM ? 'Premium'
+    : state.plan === TOURNAMENT_PLANS.FREE ? 'Free'
+      : state.plan === TOURNAMENT_PLANS.PREMIUM_REQUIRED ? 'Premium requerido' : 'No verificado';
+  const showPlan = entitlementsAuthority && PLAN_AFFECTING_STATUSES.has(state.purchase.status);
 
   return (
     <main className={styles.page}>
@@ -143,6 +204,9 @@ export default function PurchaseStatusPage({ view }) {
             <dt>{isTestPurchase ? 'Entorno' : 'Medio de pago'}</dt>
             <dd>{isTestPurchase ? 'Prueba · sin cobro real' : 'Mercado Pago'}</dd>
           </div>
+          {showPlan && (
+            <div><dt>Plan de la temporada</dt><dd>{planLabel}</dd></div>
+          )}
         </dl>
         <div className={styles.actions}>
           <Link to={canonicalRoutes.seasonPlan(organizationId, state.purchase.seasonId)}>Volver al Plan</Link>

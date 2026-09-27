@@ -1,5 +1,6 @@
 import { isStagingV1Operation } from './stagingV1Scope';
 import { isStagingV1Table } from './stagingV1Tables';
+import { isStagingV1CommerceRead, SEASON_CHECKOUT_PATH } from './stagingV1CommerceScope';
 import { TorneosBoundaryError } from './errors';
 
 export { TorneosBoundaryError };
@@ -15,12 +16,19 @@ export function normalizeRpcParams(params) {
 // The client is the scope boundary: an operation outside staging v1 never reaches
 // the transport, and without a transport nothing reaches the network at all. No
 // auth object, token, storage, realtime or Core client lives here.
-export function createTorneosClient({ transport = null } = {}) {
+//
+// `commerce: true` (MP-A5, billing TEST overlay only) widens it by exactly the commerce
+// scope: the two commerce reads and the fixed checkout route. Without it both fail
+// closed before the transport, like any other operation outside the scope.
+export function createTorneosClient({ transport = null, commerce = false } = {}) {
   const connected = Boolean(transport) && typeof transport.rpc === 'function';
+  const commerceEnabled = commerce === true;
+  const permitted = (operation) => isStagingV1Operation(operation)
+    || (commerceEnabled && isStagingV1CommerceRead(operation));
   return Object.freeze({
     status: connected ? 'connected' : 'foundation-disabled',
     async execute(operation, params = {}, options = {}) {
-      if (!isStagingV1Operation(operation)) {
+      if (!permitted(operation)) {
         throw new TorneosBoundaryError('TORNEOS_OUTSIDE_STAGING_V1');
       }
       if (!connected) throw new TorneosBoundaryError('TORNEOS_TRANSPORT_NOT_CONNECTED');
@@ -37,6 +45,13 @@ export function createTorneosClient({ transport = null } = {}) {
         throw new TorneosBoundaryError('TORNEOS_TRANSPORT_NOT_CONNECTED');
       }
       return transport.select(table, query, options);
+    },
+    async checkout(body, options = {}) {
+      if (!commerceEnabled) throw new TorneosBoundaryError('TORNEOS_OUTSIDE_STAGING_V1');
+      if (!connected || typeof transport.commerce !== 'function') {
+        throw new TorneosBoundaryError('TORNEOS_TRANSPORT_NOT_CONNECTED');
+      }
+      return transport.commerce(SEASON_CHECKOUT_PATH, body, options);
     },
     clear() { transport?.clear?.(); },
     dispose() { transport?.dispose?.(); },

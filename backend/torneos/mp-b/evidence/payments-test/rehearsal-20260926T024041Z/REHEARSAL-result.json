@@ -1,0 +1,1846 @@
+{
+ "tool": "backend/torneos/infra/torneos-payments-test/offline-rehearsal.mjs",
+ "generated_at": "2026-09-26T02:40:48.741Z",
+ "verdict": "PAYMENTS_TEST_REHEARSAL_PASS",
+ "image": "public.ecr.aws/supabase/postgres:17.6.1.147",
+ "remote_calls": 0,
+ "passed": 13,
+ "total": 13,
+ "phases": [
+  {
+   "label": "R00 0000–0003 installed as postgres = certified foundation pin",
+   "pass": true,
+   "verdict": "FOUNDATION_PIN_MATCH",
+   "detail": []
+  },
+  {
+   "label": "R01 certified gateway W2+W3 → dbState applied, 0 gateway invariant failures, payments login absent",
+   "pass": true,
+   "verdict": "db=applied login=absent",
+   "detail": {
+    "gw": "",
+    "state": {
+     "state": "applied",
+     "w2": "applied",
+     "w3": "applied"
+    },
+    "pre": []
+   }
+  },
+  {
+   "label": "R02 installer postgres measured by name: CREATEROLE + ADMIN on torneos_payment_service",
+   "pass": true,
+   "verdict": "{\"createrole\":true,\"super\":false,\"admin_on_payment_role\":true}",
+   "detail": {
+    "createrole": true,
+    "super": false,
+    "admin_on_payment_role": true
+   }
+  },
+  {
+   "label": "R03 PB transaction as postgres (SCRAM verifier only)",
+   "pass": true,
+   "verdict": "APPLIED",
+   "detail": ""
+  },
+  {
+   "label": "R04 PB replay refused by its own guard (no blind re-apply)",
+   "pass": true,
+   "verdict": "PAYMENTS_LOGIN_ALREADY_PRESENT",
+   "detail": "psql:<stdin>:3: ERROR:  PAYMENTS_LOGIN_ALREADY_PRESENT\nCONTEXT:  PL/pgSQL function inline_code_block line 1 at RAISE"
+  },
+  {
+   "label": "R05 after PB: foundation strict paths unchanged, gateway invariants hold, payments delta exact, = delta pin",
+   "pass": true,
+   "verdict": "foundation_diff=0 delta_failures=0 pin=true",
+   "detail": {
+    "fd": [],
+    "delta": [],
+    "payRoles": {
+     "login": {
+      "name": "torneos_payments_test",
+      "login": true,
+      "inherit": false,
+      "super": false,
+      "createrole": false,
+      "createdb": false,
+      "replication": false,
+      "bypassrls": false,
+      "connlimit": -1,
+      "valid_until": null,
+      "config": null
+     },
+     "login_memberships": [
+      {
+       "role": "torneos_payment_service",
+       "admin": false,
+       "inherit": false,
+       "set": true
+      }
+     ],
+     "login_members": [
+      {
+       "member": "postgres",
+       "admin": true,
+       "inherit": false,
+       "set": false
+      }
+     ],
+     "reachable_roles": [
+      "torneos_payment_service"
+     ],
+     "payment_logins": [
+      "torneos_payments_test"
+     ],
+     "role": {
+      "login": false,
+      "inherit": false,
+      "super": false,
+      "bypassrls": false,
+      "createrole": false
+     },
+     "role_executes": [
+      "apply_verified_tournament_payment_reversal(uuid,text,text,text,text,text,text,timestamp with time zone)",
+      "apply_verified_tournament_payment_status(uuid,text,text,text,text,text,text,timestamp with time zone)",
+      "get_provider_tournament_purchase(text,text,text)",
+      "record_tournament_purchase_preference(uuid,text,text,text,timestamp with time zone)"
+     ],
+     "role_table_privileges": 0,
+     "role_schema_create": []
+    }
+   }
+  },
+  {
+   "label": "R06 payments login probe (39 checks)",
+   "pass": true,
+   "verdict": "LOGIN_EXACT",
+   "detail": []
+  },
+  {
+   "label": "R07 QA org / S1 / S2 / purchases via the real client RPCs (amount 39900 ARS, MERCADO_PAGO test)",
+   "pass": true,
+   "verdict": "{\"P1\":{\"amount\":39900,\"currency\":\"ARS\",\"status\":\"created\"}}",
+   "detail": {
+    "org": {
+     "membership": {
+      "role": "owner",
+      "status": "active",
+      "joinedAt": "2026-09-26T02:40:47.062204+00:00",
+      "capabilities": [
+       "billing.manage",
+       "categories.archive",
+       "categories.create",
+       "categories.read",
+       "categories.update",
+       "competition_rules.read",
+       "competition_rules.update",
+       "courts.archive",
+       "courts.create",
+       "courts.read",
+       "courts.update",
+       "discipline.manage",
+       "discipline.override",
+       "discipline.read",
+       "discipline.resolve",
+       "draw.execute",
+       "draw.manage",
+       "draw.publish",
+       "draw.read",
+       "fixture.archive",
+       "fixture.create_manual",
+       "fixture.generate",
+       "fixture.publish",
+       "fixture.read",
+       "fixture.supersede",
+       "fixture.update_draft",
+       "groups.manage",
+       "groups.read",
+       "match_administrative_results.manage",
+       "match_availability.read",
+       "match_availability.record_manual",
+       "match_events.create",
+       "match_events.read",
+       "match_events.update_draft",
+       "match_events.void",
+       "match_operations.correct",
+       "match_operations.make_official",
+       "match_operations.open",
+       "match_operations.read",
+       "match_operations.request_correction",
+       "match_operations.review",
+       "match_operations.submit",
+       "match_operations.update_draft",
+       "match_operations.validate",
+       "match_operations.void",
+       "match_outcomes.manage",
+       "match_scores.manage",
+       "match_squads.lock",
+       "match_squads.manage",
+       "match_squads.read",
+       "match_squads.submit",
+       "matches.cancel",
+       "matches.create",
+       "matches.postpone",
+       "matches.read",
+       "matches.reschedule",
+       "matches.schedule",
+       "members.invite",
+       "members.read",
+       "members.remove",
+       "members.update_role",
+       "organization.archive",
+       "organization.read",
+       "organization.update",
+       "participants.freeze",
+       "participants.read",
+       "participants.reopen",
+       "participants.withdraw",
+       "player_duplicates.override",
+       "provisional_players.create",
+       "provisional_players.update",
+       "qualification.override",
+       "qualification.read",
+       "qualification.resolve",
+       "roster_players.add",
+       "roster_players.read",
+       "roster_players.remove",
+       "roster_players.update",
+       "rosters.approve",
+       "rosters.lock",
+       "rosters.read",
+       "rosters.review",
+       "rosters.submit",
+       "rosters.update",
+       "rounds.lock",
+       "rounds.manage",
+       "rounds.read",
+       "schedule_conflicts.override",
+       "schedule_windows.manage",
+       "schedule_windows.read",
+       "seasons.archive",
+       "seasons.create",
+       "seasons.read",
+       "seasons.update",
+       "standings.override",
+       "standings.publish",
+       "standings.read",
+       "standings.rebuild",
+       "statistics.read",
+       "statistics.rebuild",
+       "suspensions.manage",
+       "suspensions.mark_served",
+       "suspensions.read",
+       "team_entries.approve",
+       "team_entries.archive",
+       "team_entries.create",
+       "team_entries.read",
+       "team_entries.reject",
+       "team_entries.review",
+       "team_entries.submit",
+       "team_entries.update",
+       "team_entries.withdraw",
+       "team_managers.invite",
+       "team_managers.read",
+       "team_managers.revoke",
+       "tournaments.archive",
+       "tournaments.change_status",
+       "tournaments.create",
+       "tournaments.finish",
+       "tournaments.read",
+       "tournaments.reopen",
+       "tournaments.start",
+       "tournaments.update",
+       "venues.archive",
+       "venues.create",
+       "venues.read",
+       "venues.update",
+       "workspace.access",
+       "workspace.manage"
+      ]
+     },
+     "preference": {
+      "workspaceType": "tournament_organization",
+      "activeOrganizationId": "da861c7f-e607-4dac-9c94-ad332c30c147"
+     },
+     "organization": {
+      "id": "da861c7f-e607-4dac-9c94-ad332c30c147",
+      "name": "QA PAYMENTS TEST (Mercado Pago sandbox)",
+      "slug": "qa-payments-test-012af9b7",
+      "status": "active",
+      "logoPath": null,
+      "createdAt": "2026-09-26T02:40:47.062204+00:00"
+     }
+    },
+    "S1": {
+     "id": "056e26df-1279-4549-8862-d00110ec16f0",
+     "name": "QA PAYMENTS TEST S1 checkout sandbox",
+     "slug": "qa-pt-s1-dd80a6",
+     "status": "draft",
+     "endDate": null,
+     "createdAt": "2026-09-26T02:40:47.101686+00:00",
+     "startDate": null,
+     "updatedAt": "2026-09-26T02:40:47.101686+00:00",
+     "organizationId": "da861c7f-e607-4dac-9c94-ad332c30c147"
+    },
+    "P1": {
+     "id": "cbfda8ff-651d-435c-b3d7-d3f646a41aa3",
+     "amount": 39900,
+     "status": "created",
+     "currency": "ARS",
+     "provider": "MERCADO_PAGO",
+     "seasonId": "056e26df-1279-4549-8862-d00110ec16f0",
+     "createdAt": "2026-09-26T02:40:47.190546+00:00",
+     "offerCode": "launch",
+     "updatedAt": "2026-09-26T02:40:47.190546+00:00",
+     "approvedAt": null,
+     "listAmount": 49900,
+     "productCode": "torneos_premium",
+     "offerVersion": 1,
+     "tournamentId": null,
+     "schemaVersion": 3,
+     "organizationId": "da861c7f-e607-4dac-9c94-ad332c30c147",
+     "providerStatus": null,
+     "idempotentReplay": false,
+     "externalReference": "arma2:season:purchase:cbfda8ff-651d-435c-b3d7-d3f646a41aa3",
+     "activationErrorCode": null,
+     "preferenceExpiresAt": "2026-09-26T03:10:47.190546+00:00",
+     "providerEnvironment": "test",
+     "existingOpenPurchase": false,
+     "providerPreferenceId": null,
+     "providerStatusDetail": null,
+     "expiredStalePurchases": 0,
+     "entitlementActivatedAt": null
+    }
+   }
+  },
+  {
+   "label": "R08 census: every commercial row is QA / MP TEST; a real (non-QA) tenant exists and is untouched",
+   "pass": true,
+   "verdict": "{\"auth_users\":0,\"identities\":2,\"organizations\":2,\"organizations_qa\":1,\"organization_members\":2,\"seasons\":3,\"seasons_outside_qa\":1,\"tournaments\":0,\"purchases\":2,\"purchases_outside_qa\":0,\"purchases_not_mp_test\":0,\"purchase_events\":2,\"purchase_events_outside_qa\":0,\"season_grants\":0,\"season_grants_outside_qa\":0,\"grant_events\":0,\"watermarks\":0,\"watermarks_outside_qa\":0}",
+   "detail": []
+  },
+  {
+   "label": "R09 ordering / watermark on the functions as the payments login (19 cases, every transaction rolled back)",
+   "pass": true,
+   "verdict": "ORDERING_PASS",
+   "detail": []
+  },
+  {
+   "label": "R09b the ordering run left no trace (P2 still created, 1 event, 0 grants, 0 watermarks)",
+   "pass": true,
+   "verdict": "{\"status\":\"created\",\"events\":1,\"grants\":0,\"watermarks\":0}",
+   "detail": null
+  },
+  {
+   "label": "R10 real payments sources in remote-test vs Mercado Pago emulator (55 checks)",
+   "pass": true,
+   "verdict": "55/55",
+   "detail": []
+  },
+  {
+   "label": "R11 census after everything: commercial rows only in QA, only MP TEST; control tenant has none",
+   "pass": true,
+   "verdict": "{\"auth_users\":0,\"identities\":2,\"organizations\":2,\"organizations_qa\":1,\"organization_members\":2,\"seasons\":3,\"seasons_outside_qa\":1,\"tournaments\":0,\"purchases\":2,\"purchases_outside_qa\":0,\"purchases_not_mp_test\":0,\"purchase_events\":11,\"purchase_events_outside_qa\":0,\"season_grants\":1,\"season_grants_outside_qa\":0,\"grant_events\":4,\"watermarks\":2,\"watermarks_outside_qa\":0}",
+   "detail": []
+  }
+ ],
+ "results": {
+  "before": {
+   "role_executes": [
+    "apply_verified_tournament_payment_reversal(uuid,text,text,text,text,text,text,timestamp with time zone)",
+    "apply_verified_tournament_payment_status(uuid,text,text,text,text,text,text,timestamp with time zone)",
+    "get_provider_tournament_purchase(text,text,text)",
+    "record_tournament_purchase_preference(uuid,text,text,text,timestamp with time zone)"
+   ],
+   "payment_logins": []
+  },
+  "after": {
+   "role_executes": [
+    "apply_verified_tournament_payment_reversal(uuid,text,text,text,text,text,text,timestamp with time zone)",
+    "apply_verified_tournament_payment_status(uuid,text,text,text,text,text,text,timestamp with time zone)",
+    "get_provider_tournament_purchase(text,text,text)",
+    "record_tournament_purchase_preference(uuid,text,text,text,timestamp with time zone)"
+   ],
+   "login": {
+    "name": "torneos_payments_test",
+    "login": true,
+    "inherit": false,
+    "super": false,
+    "createrole": false,
+    "createdb": false,
+    "replication": false,
+    "bypassrls": false,
+    "connlimit": -1,
+    "valid_until": null,
+    "config": null
+   },
+   "memberships": [
+    {
+     "role": "torneos_payment_service",
+     "admin": false,
+     "inherit": false,
+     "set": true
+    }
+   ],
+   "reachable": [
+    "torneos_payment_service"
+   ]
+  },
+  "login_probe": {
+   "pass": true,
+   "whoami": {
+    "session_user": "torneos_payments_test",
+    "current_user": "torneos_payments_test",
+    "login_noinherit": true
+   },
+   "results": [
+    {
+     "name": "noinherit_no_rpc_before_set_role",
+     "sqlstate": "42501",
+     "message": "permission denied for function get_provider_tournament_purchase",
+     "expect": "42501"
+    },
+    {
+     "name": "noinherit_no_table_before_set_role",
+     "sqlstate": "42501",
+     "message": "permission denied for table tournament_purchases",
+     "expect": "42501"
+    },
+    {
+     "name": "set_role_refused_postgres",
+     "sqlstate": "42501",
+     "message": "permission denied to set role \"postgres\"",
+     "expect": "42501"
+    },
+    {
+     "name": "set_role_refused_service_role",
+     "sqlstate": "42501",
+     "message": "permission denied to set role \"service_role\"",
+     "expect": "42501"
+    },
+    {
+     "name": "set_role_refused_authenticated",
+     "sqlstate": "42501",
+     "message": "permission denied to set role \"authenticated\"",
+     "expect": "42501"
+    },
+    {
+     "name": "set_role_refused_anon",
+     "sqlstate": "42501",
+     "message": "permission denied to set role \"anon\"",
+     "expect": "42501"
+    },
+    {
+     "name": "set_role_refused_authenticator",
+     "sqlstate": "42501",
+     "message": "permission denied to set role \"authenticator\"",
+     "expect": "42501"
+    },
+    {
+     "name": "set_role_refused_supabase_admin",
+     "sqlstate": "42501",
+     "message": "permission denied to set role \"supabase_admin\"",
+     "expect": "42501"
+    },
+    {
+     "name": "set_role_refused_torneos_identity_writer",
+     "sqlstate": "42501",
+     "message": "permission denied to set role \"torneos_identity_writer\"",
+     "expect": "42501"
+    },
+    {
+     "name": "set_role_refused_torneos_core_adapter",
+     "sqlstate": "42501",
+     "message": "permission denied to set role \"torneos_core_adapter\"",
+     "expect": "42501"
+    },
+    {
+     "name": "set_role_refused_torneos_edge_identity_writer",
+     "sqlstate": "42501",
+     "message": "permission denied to set role \"torneos_edge_identity_writer\"",
+     "expect": "42501"
+    },
+    {
+     "name": "set_role_refused_torneos_edge_core_adapter",
+     "sqlstate": "42501",
+     "message": "permission denied to set role \"torneos_edge_core_adapter\"",
+     "expect": "42501"
+    },
+    {
+     "name": "create_table_refused",
+     "sqlstate": "42501",
+     "message": "permission denied for schema public",
+     "expect": "42501"
+    },
+    {
+     "name": "create_role_refused",
+     "sqlstate": "42501",
+     "message": "permission denied to create role",
+     "expect": "42501"
+    },
+    {
+     "name": "set_role_payment_service",
+     "sqlstate": "00000",
+     "message": null,
+     "expect": "00000"
+    },
+    {
+     "name": "current_user_is_payment_service",
+     "sqlstate": "00000",
+     "message": null,
+     "expect": "00000"
+    },
+    {
+     "name": "set_role_other_refused_after_own",
+     "sqlstate": "42501",
+     "message": "permission denied to set role \"torneos_identity_writer\"",
+     "expect": "42501"
+    },
+    {
+     "name": "rpc_lookup_executes_not_found",
+     "sqlstate": "P0002",
+     "message": "TORNEOS_PURCHASE_NOT_FOUND",
+     "expect": "P0002"
+    },
+    {
+     "name": "rpc_lookup_refuses_other_provider_env",
+     "sqlstate": "22023",
+     "message": "TORNEOS_PROVIDER_INVALID",
+     "expect": "22023"
+    },
+    {
+     "name": "rpc_status_executes_unknown_purchase",
+     "sqlstate": "22023",
+     "message": "TORNEOS_PURCHASE_INVALID",
+     "expect": "22023"
+    },
+    {
+     "name": "rpc_reversal_executes_unknown_purchase",
+     "sqlstate": "22023",
+     "message": "TORNEOS_PURCHASE_INVALID",
+     "expect": "22023"
+    },
+    {
+     "name": "rpc_status_refuses_missing_ordering",
+     "sqlstate": "22023",
+     "message": "TORNEOS_PROVIDER_ORDERING_REQUIRED",
+     "expect": "22023"
+    },
+    {
+     "name": "rpc_record_preference_executes",
+     "sqlstate": "22023",
+     "message": "TORNEOS_PURCHASE_INVALID",
+     "expect": "NOT_42501"
+    },
+    {
+     "name": "table_refused_tournament_purchases",
+     "sqlstate": "42501",
+     "message": "permission denied for table tournament_purchases",
+     "expect": "42501"
+    },
+    {
+     "name": "table_refused_tournament_purchase_events",
+     "sqlstate": "42501",
+     "message": "permission denied for table tournament_purchase_events",
+     "expect": "42501"
+    },
+    {
+     "name": "table_refused_tournament_season_plan_grants",
+     "sqlstate": "42501",
+     "message": "permission denied for table tournament_season_plan_grants",
+     "expect": "42501"
+    },
+    {
+     "name": "table_refused_tournament_season_plan_grant_events",
+     "sqlstate": "42501",
+     "message": "permission denied for table tournament_season_plan_grant_events",
+     "expect": "42501"
+    },
+    {
+     "name": "table_refused_tournament_payment_provider_watermarks",
+     "sqlstate": "42501",
+     "message": "permission denied for table tournament_payment_provider_watermarks",
+     "expect": "42501"
+    },
+    {
+     "name": "table_refused_torneos_identity",
+     "sqlstate": "42501",
+     "message": "permission denied for table torneos_identity",
+     "expect": "42501"
+    },
+    {
+     "name": "table_refused_tournament_organizations",
+     "sqlstate": "42501",
+     "message": "permission denied for table tournament_organizations",
+     "expect": "42501"
+    },
+    {
+     "name": "unordered_status_refused",
+     "sqlstate": "42501",
+     "message": "permission denied for function unordered_tournament_payment_status",
+     "expect": "42501"
+    },
+    {
+     "name": "unordered_reversal_refused",
+     "sqlstate": "42501",
+     "message": "permission denied for function unordered_tournament_payment_reversal",
+     "expect": "42501"
+    },
+    {
+     "name": "order_function_refused",
+     "sqlstate": "42501",
+     "message": "permission denied for function order_verified_tournament_payment",
+     "expect": "42501"
+    },
+    {
+     "name": "activation_refused",
+     "sqlstate": "42501",
+     "message": "permission denied for function activate_verified_tournament_purchase",
+     "expect": "42501"
+    },
+    {
+     "name": "baseline_reversal_refused",
+     "sqlstate": "42501",
+     "message": "permission denied for function apply_tournament_purchase_reversal",
+     "expect": "42501"
+    },
+    {
+     "name": "client_checkout_refused",
+     "sqlstate": "42501",
+     "message": "permission denied for function create_tournament_season_checkout_purchase",
+     "expect": "42501"
+    },
+    {
+     "name": "private_schema_refused",
+     "sqlstate": "42501",
+     "message": "permission denied for schema private",
+     "expect": "42501"
+    },
+    {
+     "name": "seven_arg_signature_gone",
+     "sqlstate": "42883",
+     "message": "function public.apply_verified_tournament_payment_status(uuid, unknown, unknown, unknown, unknown, unknown, unknown) does not exist",
+     "expect": "42883"
+    },
+    {
+     "name": "create_function_refused",
+     "sqlstate": "42501",
+     "message": "permission denied for schema public",
+     "expect": "42501"
+    }
+   ],
+   "failures": []
+  },
+  "fixtures": {
+   "slug": "qa-payments-test-012af9b7",
+   "keys": [
+    "org",
+    "S1",
+    "S2",
+    "P1",
+    "P2"
+   ]
+  },
+  "ordering": {
+   "pass": true,
+   "whoami": {
+    "session_user": "torneos_payments_test",
+    "current_user": "torneos_payments_test",
+    "login_noinherit": true
+   },
+   "initial": {
+    "status": "created",
+    "amount": 39900,
+    "currency": "ARS",
+    "provider": "MERCADO_PAGO",
+    "environment": "test"
+   },
+   "after_identical_to_initial": true,
+   "cases": [
+    {
+     "label": "restored-then-old-dispute",
+     "expected_final": "approved",
+     "final": "approved",
+     "expected_last_outcome": "stale_ignored",
+     "steps": [
+      {
+       "step": "approved@1",
+       "sqlstate": "00000",
+       "before": "preference_created",
+       "result": {
+        "status": "approved",
+        "outcome": "approved",
+        "stateChanged": true,
+        "idempotentReplay": false,
+        "requiresManualRefund": false,
+        "requiresManualReview": false
+       }
+      },
+      {
+       "step": "disputed@2",
+       "sqlstate": "00000",
+       "before": "approved",
+       "result": {
+        "status": "charged_back",
+        "outcome": "reversal_applied",
+        "stateChanged": true,
+        "idempotentReplay": false,
+        "requiresManualRefund": false,
+        "requiresManualReview": false
+       }
+      },
+      {
+       "step": "restored@3",
+       "sqlstate": "00000",
+       "before": "charged_back",
+       "result": {
+        "status": "approved",
+        "outcome": "reversal_applied",
+        "stateChanged": true,
+        "idempotentReplay": false,
+        "requiresManualRefund": false,
+        "requiresManualReview": false
+       }
+      },
+      {
+       "step": "disputed@2",
+       "sqlstate": "00000",
+       "before": "approved",
+       "result": {
+        "status": "approved",
+        "outcome": "stale_ignored",
+        "stateChanged": false,
+        "idempotentReplay": false,
+        "requiresManualRefund": false,
+        "requiresManualReview": false
+       }
+      }
+     ],
+     "pass": true,
+     "failures": []
+    },
+    {
+     "label": "restored-then-old-approved",
+     "expected_final": "approved",
+     "final": "approved",
+     "expected_last_outcome": "stale_ignored",
+     "steps": [
+      {
+       "step": "approved@1",
+       "sqlstate": "00000",
+       "before": "preference_created",
+       "result": {
+        "status": "approved",
+        "outcome": "approved",
+        "stateChanged": true,
+        "idempotentReplay": false,
+        "requiresManualRefund": false,
+        "requiresManualReview": false
+       }
+      },
+      {
+       "step": "disputed@2",
+       "sqlstate": "00000",
+       "before": "approved",
+       "result": {
+        "status": "charged_back",
+        "outcome": "reversal_applied",
+        "stateChanged": true,
+        "idempotentReplay": false,
+        "requiresManualRefund": false,
+        "requiresManualReview": false
+       }
+      },
+      {
+       "step": "restored@3",
+       "sqlstate": "00000",
+       "before": "charged_back",
+       "result": {
+        "status": "approved",
+        "outcome": "reversal_applied",
+        "stateChanged": true,
+        "idempotentReplay": false,
+        "requiresManualRefund": false,
+        "requiresManualReview": false
+       }
+      },
+      {
+       "step": "approved@1",
+       "sqlstate": "00000",
+       "before": "approved",
+       "result": {
+        "status": "approved",
+        "outcome": "stale_ignored",
+        "stateChanged": false,
+        "idempotentReplay": false,
+        "requiresManualRefund": false,
+        "requiresManualReview": false
+       }
+      }
+     ],
+     "pass": true,
+     "failures": []
+    },
+    {
+     "label": "disputed-then-old-approved",
+     "expected_final": "charged_back",
+     "final": "charged_back",
+     "expected_last_outcome": "stale_ignored",
+     "steps": [
+      {
+       "step": "approved@1",
+       "sqlstate": "00000",
+       "before": "preference_created",
+       "result": {
+        "status": "approved",
+        "outcome": "approved",
+        "stateChanged": true,
+        "idempotentReplay": false,
+        "requiresManualRefund": false,
+        "requiresManualReview": false
+       }
+      },
+      {
+       "step": "disputed@2",
+       "sqlstate": "00000",
+       "before": "approved",
+       "result": {
+        "status": "charged_back",
+        "outcome": "reversal_applied",
+        "stateChanged": true,
+        "idempotentReplay": false,
+        "requiresManualRefund": false,
+        "requiresManualReview": false
+       }
+      },
+      {
+       "step": "approved@1",
+       "sqlstate": "00000",
+       "before": "charged_back",
+       "result": {
+        "status": "charged_back",
+        "outcome": "stale_ignored",
+        "stateChanged": false,
+        "idempotentReplay": false,
+        "requiresManualRefund": false,
+        "requiresManualReview": false
+       }
+      }
+     ],
+     "pass": true,
+     "failures": []
+    },
+    {
+     "label": "approved-then-old-pending",
+     "expected_final": "approved",
+     "final": "approved",
+     "expected_last_outcome": "stale_ignored",
+     "steps": [
+      {
+       "step": "approved@3",
+       "sqlstate": "00000",
+       "before": "preference_created",
+       "result": {
+        "status": "approved",
+        "outcome": "approved",
+        "stateChanged": true,
+        "idempotentReplay": false,
+        "requiresManualRefund": false,
+        "requiresManualReview": false
+       }
+      },
+      {
+       "step": "pending@1",
+       "sqlstate": "00000",
+       "before": "approved",
+       "result": {
+        "status": "approved",
+        "outcome": "stale_ignored",
+        "stateChanged": false,
+        "idempotentReplay": false,
+        "requiresManualRefund": false,
+        "requiresManualReview": false
+       }
+      }
+     ],
+     "pass": true,
+     "failures": []
+    },
+    {
+     "label": "approved-then-old-rejected",
+     "expected_final": "approved",
+     "final": "approved",
+     "expected_last_outcome": "stale_ignored",
+     "steps": [
+      {
+       "step": "approved@3",
+       "sqlstate": "00000",
+       "before": "preference_created",
+       "result": {
+        "status": "approved",
+        "outcome": "approved",
+        "stateChanged": true,
+        "idempotentReplay": false,
+        "requiresManualRefund": false,
+        "requiresManualReview": false
+       }
+      },
+      {
+       "step": "rejected@1",
+       "sqlstate": "00000",
+       "before": "approved",
+       "result": {
+        "status": "approved",
+        "outcome": "stale_ignored",
+        "stateChanged": false,
+        "idempotentReplay": false,
+        "requiresManualRefund": false,
+        "requiresManualReview": false
+       }
+      }
+     ],
+     "pass": true,
+     "failures": []
+    },
+    {
+     "label": "refunded-then-old-approved",
+     "expected_final": "refunded",
+     "final": "refunded",
+     "expected_last_outcome": "stale_ignored",
+     "steps": [
+      {
+       "step": "approved@1",
+       "sqlstate": "00000",
+       "before": "preference_created",
+       "result": {
+        "status": "approved",
+        "outcome": "approved",
+        "stateChanged": true,
+        "idempotentReplay": false,
+        "requiresManualRefund": false,
+        "requiresManualReview": false
+       }
+      },
+      {
+       "step": "refunded@3",
+       "sqlstate": "00000",
+       "before": "approved",
+       "result": {
+        "status": "refunded",
+        "outcome": "reversal_applied",
+        "stateChanged": true,
+        "idempotentReplay": false,
+        "requiresManualRefund": false,
+        "requiresManualReview": false
+       }
+      },
+      {
+       "step": "approved@1",
+       "sqlstate": "00000",
+       "before": "refunded",
+       "result": {
+        "status": "refunded",
+        "outcome": "stale_ignored",
+        "stateChanged": false,
+        "idempotentReplay": false,
+        "requiresManualRefund": false,
+        "requiresManualReview": false
+       }
+      }
+     ],
+     "pass": true,
+     "failures": []
+    },
+    {
+     "label": "refunded-then-old-dispute",
+     "expected_final": "refunded",
+     "final": "refunded",
+     "expected_last_outcome": "stale_ignored",
+     "steps": [
+      {
+       "step": "approved@1",
+       "sqlstate": "00000",
+       "before": "preference_created",
+       "result": {
+        "status": "approved",
+        "outcome": "approved",
+        "stateChanged": true,
+        "idempotentReplay": false,
+        "requiresManualRefund": false,
+        "requiresManualReview": false
+       }
+      },
+      {
+       "step": "refunded@3",
+       "sqlstate": "00000",
+       "before": "approved",
+       "result": {
+        "status": "refunded",
+        "outcome": "reversal_applied",
+        "stateChanged": true,
+        "idempotentReplay": false,
+        "requiresManualRefund": false,
+        "requiresManualReview": false
+       }
+      },
+      {
+       "step": "disputed@2",
+       "sqlstate": "00000",
+       "before": "refunded",
+       "result": {
+        "status": "refunded",
+        "outcome": "stale_ignored",
+        "stateChanged": false,
+        "idempotentReplay": false,
+        "requiresManualRefund": false,
+        "requiresManualReview": false
+       }
+      }
+     ],
+     "pass": true,
+     "failures": []
+    },
+    {
+     "label": "settled-then-old-restore",
+     "expected_final": "charged_back",
+     "final": "charged_back",
+     "expected_last_outcome": "stale_ignored",
+     "steps": [
+      {
+       "step": "approved@1",
+       "sqlstate": "00000",
+       "before": "preference_created",
+       "result": {
+        "status": "approved",
+        "outcome": "approved",
+        "stateChanged": true,
+        "idempotentReplay": false,
+        "requiresManualRefund": false,
+        "requiresManualReview": false
+       }
+      },
+      {
+       "step": "disputed@2",
+       "sqlstate": "00000",
+       "before": "approved",
+       "result": {
+        "status": "charged_back",
+        "outcome": "reversal_applied",
+        "stateChanged": true,
+        "idempotentReplay": false,
+        "requiresManualRefund": false,
+        "requiresManualReview": false
+       }
+      },
+      {
+       "step": "settled@4",
+       "sqlstate": "00000",
+       "before": "charged_back",
+       "result": {
+        "status": "charged_back",
+        "outcome": "reversal_applied",
+        "stateChanged": true,
+        "idempotentReplay": false,
+        "requiresManualRefund": false,
+        "requiresManualReview": false
+       }
+      },
+      {
+       "step": "restored@3",
+       "sqlstate": "00000",
+       "before": "charged_back",
+       "result": {
+        "status": "charged_back",
+        "outcome": "stale_ignored",
+        "stateChanged": false,
+        "idempotentReplay": false,
+        "requiresManualRefund": false,
+        "requiresManualReview": false
+       }
+      }
+     ],
+     "pass": true,
+     "failures": []
+    },
+    {
+     "label": "duplicate-approved",
+     "expected_final": "approved",
+     "final": "approved",
+     "expected_last_outcome": "provider_snapshot_duplicate",
+     "steps": [
+      {
+       "step": "approved@1",
+       "sqlstate": "00000",
+       "before": "preference_created",
+       "result": {
+        "status": "approved",
+        "outcome": "approved",
+        "stateChanged": true,
+        "idempotentReplay": false,
+        "requiresManualRefund": false,
+        "requiresManualReview": false
+       }
+      },
+      {
+       "step": "approved@1",
+       "sqlstate": "00000",
+       "before": "approved",
+       "result": {
+        "status": "approved",
+        "outcome": "provider_snapshot_duplicate",
+        "stateChanged": false,
+        "idempotentReplay": true,
+        "requiresManualRefund": false,
+        "requiresManualReview": false
+       }
+      }
+     ],
+     "pass": true,
+     "failures": []
+    },
+    {
+     "label": "duplicate-dispute",
+     "expected_final": "charged_back",
+     "final": "charged_back",
+     "expected_last_outcome": "provider_snapshot_duplicate",
+     "steps": [
+      {
+       "step": "approved@1",
+       "sqlstate": "00000",
+       "before": "preference_created",
+       "result": {
+        "status": "approved",
+        "outcome": "approved",
+        "stateChanged": true,
+        "idempotentReplay": false,
+        "requiresManualRefund": false,
+        "requiresManualReview": false
+       }
+      },
+      {
+       "step": "disputed@2",
+       "sqlstate": "00000",
+       "before": "approved",
+       "result": {
+        "status": "charged_back",
+        "outcome": "reversal_applied",
+        "stateChanged": true,
+        "idempotentReplay": false,
+        "requiresManualRefund": false,
+        "requiresManualReview": false
+       }
+      },
+      {
+       "step": "disputed@2",
+       "sqlstate": "00000",
+       "before": "charged_back",
+       "result": {
+        "status": "charged_back",
+        "outcome": "provider_snapshot_duplicate",
+        "stateChanged": false,
+        "idempotentReplay": true,
+        "requiresManualRefund": false,
+        "requiresManualReview": false
+       }
+      }
+     ],
+     "pass": true,
+     "failures": []
+    },
+    {
+     "label": "duplicate-restored",
+     "expected_final": "approved",
+     "final": "approved",
+     "expected_last_outcome": "provider_snapshot_duplicate",
+     "steps": [
+      {
+       "step": "approved@1",
+       "sqlstate": "00000",
+       "before": "preference_created",
+       "result": {
+        "status": "approved",
+        "outcome": "approved",
+        "stateChanged": true,
+        "idempotentReplay": false,
+        "requiresManualRefund": false,
+        "requiresManualReview": false
+       }
+      },
+      {
+       "step": "disputed@2",
+       "sqlstate": "00000",
+       "before": "approved",
+       "result": {
+        "status": "charged_back",
+        "outcome": "reversal_applied",
+        "stateChanged": true,
+        "idempotentReplay": false,
+        "requiresManualRefund": false,
+        "requiresManualReview": false
+       }
+      },
+      {
+       "step": "restored@3",
+       "sqlstate": "00000",
+       "before": "charged_back",
+       "result": {
+        "status": "approved",
+        "outcome": "reversal_applied",
+        "stateChanged": true,
+        "idempotentReplay": false,
+        "requiresManualRefund": false,
+        "requiresManualReview": false
+       }
+      },
+      {
+       "step": "restored@3",
+       "sqlstate": "00000",
+       "before": "approved",
+       "result": {
+        "status": "approved",
+        "outcome": "provider_snapshot_duplicate",
+        "stateChanged": false,
+        "idempotentReplay": true,
+        "requiresManualRefund": false,
+        "requiresManualReview": false
+       }
+      }
+     ],
+     "pass": true,
+     "failures": []
+    },
+    {
+     "label": "duplicate-refund",
+     "expected_final": "refunded",
+     "final": "refunded",
+     "expected_last_outcome": "provider_snapshot_duplicate",
+     "steps": [
+      {
+       "step": "approved@1",
+       "sqlstate": "00000",
+       "before": "preference_created",
+       "result": {
+        "status": "approved",
+        "outcome": "approved",
+        "stateChanged": true,
+        "idempotentReplay": false,
+        "requiresManualRefund": false,
+        "requiresManualReview": false
+       }
+      },
+      {
+       "step": "refunded@3",
+       "sqlstate": "00000",
+       "before": "approved",
+       "result": {
+        "status": "refunded",
+        "outcome": "reversal_applied",
+        "stateChanged": true,
+        "idempotentReplay": false,
+        "requiresManualRefund": false,
+        "requiresManualReview": false
+       }
+      },
+      {
+       "step": "refunded@3",
+       "sqlstate": "00000",
+       "before": "refunded",
+       "result": {
+        "status": "refunded",
+        "outcome": "provider_snapshot_duplicate",
+        "stateChanged": false,
+        "idempotentReplay": true,
+        "requiresManualRefund": false,
+        "requiresManualReview": false
+       }
+      }
+     ],
+     "pass": true,
+     "failures": []
+    },
+    {
+     "label": "equal-time-conflict",
+     "expected_final": "approved",
+     "final": "approved",
+     "expected_last_outcome": "provider_ordering_anomaly",
+     "steps": [
+      {
+       "step": "approved@1",
+       "sqlstate": "00000",
+       "before": "preference_created",
+       "result": {
+        "status": "approved",
+        "outcome": "approved",
+        "stateChanged": true,
+        "idempotentReplay": false,
+        "requiresManualRefund": false,
+        "requiresManualReview": false
+       }
+      },
+      {
+       "step": "disputed@1",
+       "sqlstate": "00000",
+       "before": "approved",
+       "result": {
+        "status": "approved",
+        "outcome": "provider_ordering_anomaly",
+        "stateChanged": false,
+        "idempotentReplay": false,
+        "requiresManualRefund": false,
+        "requiresManualReview": true
+       }
+      }
+     ],
+     "pass": true,
+     "failures": []
+    },
+    {
+     "label": "independent-attempts",
+     "expected_final": "approved",
+     "final": "approved",
+     "expected_last_outcome": null,
+     "steps": [
+      {
+       "step": "rejected@9/A",
+       "sqlstate": "00000",
+       "before": "preference_created",
+       "result": {
+        "status": "preference_created",
+        "outcome": "attempt_rejected",
+        "stateChanged": false,
+        "idempotentReplay": false,
+        "requiresManualRefund": false,
+        "requiresManualReview": false
+       }
+      },
+      {
+       "step": "approved@1/B",
+       "sqlstate": "00000",
+       "before": "preference_created",
+       "result": {
+        "status": "approved",
+        "outcome": "approved",
+        "stateChanged": true,
+        "idempotentReplay": false,
+        "requiresManualRefund": false,
+        "requiresManualReview": false
+       }
+      }
+     ],
+     "pass": true,
+     "failures": []
+    },
+    {
+     "label": "not-ready-without-preference",
+     "expected": "55000 TORNEOS_PURCHASE_NOT_READY",
+     "got": "55000 TORNEOS_PURCHASE_NOT_READY",
+     "pass": true
+    },
+    {
+     "label": "null-provider-time",
+     "expected": "22023 TORNEOS_PROVIDER_ORDERING_REQUIRED",
+     "got": "22023 TORNEOS_PROVIDER_ORDERING_REQUIRED",
+     "pass": true
+    },
+    {
+     "label": "infinite-provider-time",
+     "expected": "22023 TORNEOS_PROVIDER_ORDERING_REQUIRED",
+     "got": "22023 TORNEOS_PROVIDER_ORDERING_REQUIRED",
+     "pass": true
+    },
+    {
+     "label": "live-environment",
+     "expected": "22023 TORNEOS_PROVIDER_INVALID",
+     "got": "22023 TORNEOS_PROVIDER_INVALID",
+     "pass": true
+    },
+    {
+     "label": "unknown-purchase",
+     "expected": "22023 TORNEOS_PURCHASE_INVALID",
+     "got": "22023 TORNEOS_PURCHASE_INVALID",
+     "pass": true
+    }
+   ],
+   "failures": []
+  },
+  "runtime": [
+   {
+    "name": "RT01 internal preference → 200 preference_created",
+    "pass": true,
+    "detail": null
+   },
+   {
+    "name": "RT02 provider body: one item torneos_premium \"Arma2 Torneos Premium\" qty 1 ARS unit_price 39900",
+    "pass": true,
+    "detail": null
+   },
+   {
+    "name": "RT03 external_reference, metadata {purchase_id} only, notification_url = the TEST webhook, back_urls on the TEST host, auto_return, expiry, no payer / PII",
+    "pass": true,
+    "detail": null
+   },
+   {
+    "name": "RT04 idempotency: X-Idempotency-Key = purchase id",
+    "pass": true,
+    "detail": null
+   },
+   {
+    "name": "RT05 second call → 200 preference_reused, same preference, no new POST",
+    "pass": true,
+    "detail": null
+   },
+   {
+    "name": "RT06 attestation: exactly one GET /users/me",
+    "pass": true,
+    "detail": null
+   },
+   {
+    "name": "RT07 DB: preference_created with the preference id",
+    "pass": true,
+    "detail": null
+   },
+   {
+    "name": "NEG01 webhook without x-signature → 401 invalid_signature",
+    "pass": true,
+    "detail": null
+   },
+   {
+    "name": "NEG02 webhook with a bad signature → 401 invalid_signature",
+    "pass": true,
+    "detail": null
+   },
+   {
+    "name": "NEG03 future ts (+10 min) → 401 invalid_signature",
+    "pass": true,
+    "detail": null
+   },
+   {
+    "name": "NEG04 malformed ts (float) → 401 invalid_signature",
+    "pass": true,
+    "detail": null
+   },
+   {
+    "name": "NEG05 malformed JSON body → 400 invalid_request",
+    "pass": true,
+    "detail": null
+   },
+   {
+    "name": "NEG06 live_mode true → 400 invalid_notification",
+    "pass": true,
+    "detail": null
+   },
+   {
+    "name": "NEG07 another seller (user_id) → 400 invalid_notification",
+    "pass": true,
+    "detail": null
+   },
+   {
+    "name": "NEG08 unknown topic → 400 invalid_notification",
+    "pass": true,
+    "detail": null
+   },
+   {
+    "name": "NEG09 body data.id ≠ signed query data.id → 400 invalid_notification",
+    "pass": true,
+    "detail": null
+   },
+   {
+    "name": "NEG10 unknown payment (provider 404) → 422 payment_verification_failed",
+    "pass": true,
+    "detail": null
+   },
+   {
+    "name": "NEG11 chargeback not of Checkout Pro → 400 invalid_notification",
+    "pass": true,
+    "detail": null
+   },
+   {
+    "name": "NEG12 oversized webhook body → 413 payload_too_large",
+    "pass": true,
+    "detail": null
+   },
+   {
+    "name": "NEG binding: wrong amount (100) → 422 payment_verification_failed",
+    "pass": true,
+    "detail": null
+   },
+   {
+    "name": "NEG binding: wrong currency (USD) → 422 payment_verification_failed",
+    "pass": true,
+    "detail": null
+   },
+   {
+    "name": "NEG binding: external_reference of another purchase (P2 / S2) → 422 payment_verification_failed",
+    "pass": true,
+    "detail": null
+   },
+   {
+    "name": "NEG binding: malformed external_reference → 422 payment_verification_failed",
+    "pass": true,
+    "detail": null
+   },
+   {
+    "name": "NEG binding: metadata of another purchase → 422 payment_verification_failed",
+    "pass": true,
+    "detail": null
+   },
+   {
+    "name": "NEG binding: another collector → 422 payment_verification_failed",
+    "pass": true,
+    "detail": null
+   },
+   {
+    "name": "NEG binding: live payment → 422 payment_verification_failed",
+    "pass": true,
+    "detail": null
+   },
+   {
+    "name": "NEG binding: payment not in its merchant order → 422 payment_verification_failed",
+    "pass": true,
+    "detail": null
+   },
+   {
+    "name": "NEG provider 5xx → 503 provider_unavailable",
+    "pass": true,
+    "detail": null
+   },
+   {
+    "name": "NEG provider 429 → 503 provider_unavailable",
+    "pass": true,
+    "detail": null
+   },
+   {
+    "name": "NEG provider unreachable → 503 provider_unavailable",
+    "pass": true,
+    "detail": null
+   },
+   {
+    "name": "NEG internal without HMAC headers → 401 unauthorized",
+    "pass": true,
+    "detail": null
+   },
+   {
+    "name": "NEG internal bad signature → 401 unauthorized",
+    "pass": true,
+    "detail": null
+   },
+   {
+    "name": "NEG internal stale time → 401 unauthorized",
+    "pass": true,
+    "detail": null
+   },
+   {
+    "name": "NEG internal replayed nonce → 401 unauthorized",
+    "pass": true,
+    "detail": null
+   },
+   {
+    "name": "NEG internal with a browser Origin → 403 forbidden",
+    "pass": true,
+    "detail": null
+   },
+   {
+    "name": "NEG internal wrong host → 403 forbidden",
+    "pass": true,
+    "detail": null
+   },
+   {
+    "name": "NEG internal unknown purchase → 404 purchase_not_found",
+    "pass": true,
+    "detail": null
+   },
+   {
+    "name": "NEG GET / unknown paths → 404 → 404 not_found",
+    "pass": true,
+    "detail": null
+   },
+   {
+    "name": "NEG no negative changed the purchase, its events, grants or watermarks",
+    "pass": true,
+    "detail": null
+   },
+   {
+    "name": "LC01 rejected attempt → 200; purchase stays payable (preference_created), payment.attempt_rejected",
+    "pass": true,
+    "detail": null
+   },
+   {
+    "name": "LC02 approved → 200; purchase approved, one Premium grant, effective",
+    "pass": true,
+    "detail": null
+   },
+   {
+    "name": "LC03 duplicate approved (13-digit ts) → provider_snapshot_duplicate, nothing new",
+    "pass": true,
+    "detail": null
+   },
+   {
+    "name": "LC04 replay with a 10-digit ts → accepted, still a duplicate",
+    "pass": true,
+    "detail": null
+   },
+   {
+    "name": "LC05 old authentic notification (3 days) → re-fetched, duplicate (no max age, ts never orders)",
+    "pass": true,
+    "detail": null
+   },
+   {
+    "name": "LC06 older provider snapshot (pending @15 < approved @20) → stale_ignored, still approved + effective",
+    "pass": true,
+    "detail": null
+   },
+   {
+    "name": "LC07 dispute (chargeback notification → payment charged_back @30) → grant suspended, not effective",
+    "pass": true,
+    "detail": null
+   },
+   {
+    "name": "LC08 restored (reimbursed @40) → approved, grant restored, effective",
+    "pass": true,
+    "detail": null
+   },
+   {
+    "name": "LC09 HISTORICAL BUG (0003): old dispute after restore → stale_ignored; still approved, grant effective, no new grant event",
+    "pass": true,
+    "detail": null
+   },
+   {
+    "name": "LC10 same old dispute via the payment topic → stale_ignored",
+    "pass": true,
+    "detail": null
+   },
+   {
+    "name": "LC11 refund (provider refunded, newer) → refunded, grant revoked, not effective",
+    "pass": true,
+    "detail": null
+   },
+   {
+    "name": "LC12 old approved after refund → stale_ignored; revoked never revives",
+    "pass": true,
+    "detail": null
+   },
+   {
+    "name": "LC13 exactly one grant for the season, one watermark per provider payment",
+    "pass": true,
+    "detail": null
+   },
+   {
+    "name": "LC14 P2 (ordering purchase) untouched by the whole lifecycle",
+    "pass": true,
+    "detail": null
+   },
+   {
+    "name": "LIVE a non-test seller token → 503, only /users/me reached the provider, 0 DB calls",
+    "pass": true,
+    "detail": null
+   },
+   {
+    "name": "LOG service logs: route/status/code only, no secret",
+    "pass": true,
+    "detail": null
+   }
+  ],
+  "trail": {
+   "purchase": "cbfda8ff-651d-435c-b3d7-d3f646a41aa3",
+   "season": "056e26df-1279-4549-8862-d00110ec16f0",
+   "season_slug": "qa-pt-s1-dd80a6",
+   "status": "refunded",
+   "provider": "MERCADO_PAGO",
+   "environment": "test",
+   "product": "torneos_premium",
+   "offer": "launch",
+   "amount": 39900,
+   "list_amount": 49900,
+   "currency": "ARS",
+   "external_reference": "arma2:season:purchase:cbfda8ff-651d-435c-b3d7-d3f646a41aa3",
+   "preference_id": "3141592653-f31b1fb6-d6bb-4832-9317-427c4d3d53e4",
+   "approved_payment": "90000000011",
+   "provider_status": "refunded",
+   "provider_status_detail": "refunded",
+   "created_at": "2026-09-26T02:40:47.190546+00:00",
+   "approved_at": "2026-09-26T02:40:47.968361+00:00",
+   "refunded_at": "2026-09-26T02:40:48.246878+00:00",
+   "charged_back_at": "2026-09-26T02:40:48.103775+00:00",
+   "entitlement_activated_at": "2026-09-26T02:40:47.968361+00:00",
+   "events": [
+    {
+     "id": 1,
+     "type": "purchase.created",
+     "from": null,
+     "to": "created",
+     "actor": "user",
+     "provider_status": null,
+     "payment": null,
+     "provider_time": null
+    },
+    {
+     "id": 57,
+     "type": "preference.created",
+     "from": "created",
+     "to": "preference_created",
+     "actor": "service",
+     "provider_status": "created",
+     "payment": null,
+     "provider_time": null
+    },
+    {
+     "id": 58,
+     "type": "payment.attempt_rejected",
+     "from": "preference_created",
+     "to": "preference_created",
+     "actor": "provider",
+     "provider_status": "rejected",
+     "payment": "90000000010",
+     "provider_time": null
+    },
+    {
+     "id": 59,
+     "type": "payment.approved",
+     "from": "preference_created",
+     "to": "approved",
+     "actor": "provider",
+     "provider_status": "approved",
+     "payment": "90000000011",
+     "provider_time": null
+    },
+    {
+     "id": 60,
+     "type": "payment.stale_status_ignored",
+     "from": "approved",
+     "to": "approved",
+     "actor": "provider",
+     "provider_status": null,
+     "payment": "90000000011",
+     "provider_time": "2026-09-26T15:00:15+00:00"
+    },
+    {
+     "id": 61,
+     "type": "payment.chargeback_disputed",
+     "from": "approved",
+     "to": "charged_back",
+     "actor": "provider",
+     "provider_status": "chargeback_disputed",
+     "payment": null,
+     "provider_time": null
+    },
+    {
+     "id": 62,
+     "type": "payment.chargeback_restored",
+     "from": "charged_back",
+     "to": "approved",
+     "actor": "provider",
+     "provider_status": "chargeback_restored",
+     "payment": null,
+     "provider_time": null
+    },
+    {
+     "id": 63,
+     "type": "payment.stale_status_ignored",
+     "from": "approved",
+     "to": "approved",
+     "actor": "provider",
+     "provider_status": null,
+     "payment": "90000000011",
+     "provider_time": "2026-09-26T15:00:30+00:00"
+    },
+    {
+     "id": 64,
+     "type": "payment.refund",
+     "from": "approved",
+     "to": "refunded",
+     "actor": "provider",
+     "provider_status": "refund",
+     "payment": null,
+     "provider_time": null
+    },
+    {
+     "id": 65,
+     "type": "payment.stale_status_ignored",
+     "from": "refunded",
+     "to": "refunded",
+     "actor": "provider",
+     "provider_status": null,
+     "payment": "90000000011",
+     "provider_time": "2026-09-26T15:00:20+00:00"
+    }
+   ],
+   "grants": [
+    {
+     "grant": "4d65db5f-6640-4c8f-8261-8fea201b2b3e",
+     "plan": "PREMIUM",
+     "source": "purchase",
+     "events": [
+      {
+       "type": "granted",
+       "reason_code": "payment_approved",
+       "actor": "provider"
+      },
+      {
+       "type": "suspended",
+       "reason_code": "chargeback_disputed",
+       "actor": "provider"
+      },
+      {
+       "type": "restored",
+       "reason_code": "chargeback_restored",
+       "actor": "provider"
+      },
+      {
+       "type": "revoked",
+       "reason_code": "total_refund",
+       "actor": "provider"
+      }
+     ],
+     "effective": false
+    }
+   ],
+   "watermarks": [
+    {
+     "payment": "90000000010",
+     "date_last_updated": "2026-09-26T15:00:10+00:00",
+     "state": [
+      "status",
+      "rejected"
+     ],
+     "manual_refund": false,
+     "manual_review": false
+    },
+    {
+     "payment": "90000000011",
+     "date_last_updated": "2026-09-26T15:01:40+00:00",
+     "state": [
+      "reversal",
+      "refund"
+     ],
+     "manual_refund": false,
+     "manual_review": false
+    }
+   ]
+  },
+  "census": {
+   "auth_users": 0,
+   "identities": 2,
+   "organizations": 2,
+   "organizations_qa": 1,
+   "organization_members": 2,
+   "seasons": 3,
+   "seasons_outside_qa": 1,
+   "tournaments": 0,
+   "purchases": 2,
+   "purchases_outside_qa": 0,
+   "purchases_not_mp_test": 0,
+   "purchase_events": 11,
+   "purchase_events_outside_qa": 0,
+   "season_grants": 1,
+   "season_grants_outside_qa": 0,
+   "grant_events": 4,
+   "watermarks": 2,
+   "watermarks_outside_qa": 0
+  }
+ },
+ "cleanup": {
+  "container": "pt-db-18421",
+  "network": "pt-net-18421",
+  "removed": true
+ }
+}

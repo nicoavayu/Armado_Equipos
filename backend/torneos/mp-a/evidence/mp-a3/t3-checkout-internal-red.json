@@ -1,0 +1,120 @@
+{
+  "suite": "MP-A3 T3 checkout internal",
+  "results": [
+    {
+      "name": "unit: a projection with provider ≠ MERCADO_PAGO → 422 purchase_invalid; Mercado Pago never called; nothing recorded",
+      "status": "FAIL",
+      "error": "Cannot find module '/Users/nicoavayu/Downloads/arma2/arma2-mp-a3-payments/backend/torneos/supabase/functions/torneos-payments/handler.ts' imported from /Users/nicoavayu/Downloads/arma2/arma2-mp-a3-payments/integration/torneos-core-contracts/payments-checkout.test.mjs"
+    },
+    {
+      "name": "unit: environment ≠ test (production / live / qa) → 422 purchase_invalid",
+      "status": "FAIL",
+      "error": "Cannot find module '/Users/nicoavayu/Downloads/arma2/arma2-mp-a3-payments/backend/torneos/supabase/functions/torneos-payments/handler.ts' imported from /Users/nicoavayu/Downloads/arma2/arma2-mp-a3-payments/integration/torneos-core-contracts/payments-checkout.test.mjs"
+    },
+    {
+      "name": "unit: currency ≠ ARS, amount 0 / negative / fractional / string → 422 purchase_invalid",
+      "status": "FAIL",
+      "error": "Cannot find module '/Users/nicoavayu/Downloads/arma2/arma2-mp-a3-payments/backend/torneos/supabase/functions/torneos-payments/handler.ts' imported from /Users/nicoavayu/Downloads/arma2/arma2-mp-a3-payments/integration/torneos-core-contracts/payments-checkout.test.mjs"
+    },
+    {
+      "name": "unit: a DB projection of another purchase id / external reference → refused; the price is the DB snapshot (39900) and the MP call goes only to the Mercado Pago API origin",
+      "status": "FAIL",
+      "error": "Cannot find module '/Users/nicoavayu/Downloads/arma2/arma2-mp-a3-payments/backend/torneos/supabase/functions/torneos-payments/handler.ts' imported from /Users/nicoavayu/Downloads/arma2/arma2-mp-a3-payments/integration/torneos-core-contracts/payments-checkout.test.mjs"
+    },
+    {
+      "name": "lab: commerce lab reachable (mp-stub up, torneos-payments answers)",
+      "status": "FAIL",
+      "error": "unsigned request → 401 (function booted with a valid config)\n\n404 !== 401\n"
+    },
+    {
+      "name": "HMAC valid + created purchase → 200; Preference created at the stub and recorded in the DB (preference_created, same id, same expiry now+30min)",
+      "status": "FAIL",
+      "error": "{\"error\":\"not found\"}\n\n404 !== 200\n"
+    },
+    {
+      "name": "price comes from the DB: unit_price == amount_snapshot, ARS, quantity 1; X-Idempotency-Key == purchase.id; bearer is the TEST token; metadata/external_reference bound",
+      "status": "FAIL",
+      "error": "Cannot read properties of undefined (reading 'idempotencyKey')"
+    },
+    {
+      "name": "checkout URL host valid: https + mercadopago.com(.ar) exactly as the provider guard",
+      "status": "FAIL",
+      "error": "Invalid URL"
+    },
+    {
+      "name": "preference_created → the existing Preference is reused (GET, no new POST), same id and DB expiry; DB untouched",
+      "status": "FAIL",
+      "error": "Expected values to be strictly equal:\n\n404 !== 200\n"
+    },
+    {
+      "name": "bad signature / wrong secret → 401; nothing created",
+      "status": "FAIL",
+      "error": "Expected values to be strictly equal:\n\n404 !== 401\n"
+    },
+    {
+      "name": "timestamp outside ±30 s (old / future / non-numeric) → 401; inside the window → accepted",
+      "status": "FAIL",
+      "error": "time 1790132290\n\n404 !== 401\n"
+    },
+    {
+      "name": "nonce missing / empty → 401; a replayed nonce → 401",
+      "status": "FAIL",
+      "error": "Expected values to be strictly equal:\n\n404 !== 401\n"
+    },
+    {
+      "name": "body altered after signing / path altered (signed for another path) → 401",
+      "status": "FAIL",
+      "error": "Expected values to be strictly equal:\n\n404 !== 401\n"
+    },
+    {
+      "name": "request with Origin → 403; with Authorization bearer (even with a valid HMAC) → 403; nothing created",
+      "status": "FAIL",
+      "error": "Expected values to be strictly equal:\n\n404 !== 403\n"
+    },
+    {
+      "name": "input is exactly { purchase_id: <uuid> }: invalid UUID, extra fields (price/org/season/user/provider/environment/urls), arrays, non-JSON → 400",
+      "status": "FAIL",
+      "error": "{\"purchase_id\":\"not-a-uuid\"}\n\n404 !== 400\n"
+    },
+    {
+      "name": "purchase inexistent → 404",
+      "status": "FAIL",
+      "error": "Expected values to be strictly deep-equal:\n+ actual - expected\n\n  [\n    404,\n+   'not found'\n-   'purchase_not_found'\n  ]\n"
+    },
+    {
+      "name": "provider / environment incorrect in the DB (FAKE local / FAKE qa purchase) → 404: the payment service lookup never returns it; amount/currency invalid cannot exist (CHECK 23514)",
+      "status": "PASS"
+    },
+    {
+      "name": "status not payable (pending / approved / cancelled / expired preference) → 409; Mercado Pago not called",
+      "status": "FAIL",
+      "error": "preference for pending: {\"error\":\"not found\"}\n\n404 !== 200\n"
+    },
+    {
+      "name": "Preference conflict: another preference recorded while Mercado Pago answered → 409 preference_conflict, DB keeps the first; existing preference whose MP id differs → 502, DB untouched",
+      "status": "FAIL",
+      "error": "ERROR:  23505: duplicate key value violates unique constraint \"tournament_purchases_provider_preference_unique\""
+    },
+    {
+      "name": "malicious / look-alike checkout host, http scheme, missing init_point, foreign collector → 502 provider_response_invalid; nothing recorded (purchase stays created)",
+      "status": "FAIL",
+      "error": "Expected values to be strictly deep-equal:\n+ actual - expected\n\n  [\n    'lookalike_host',\n+   404,\n+   'not found'\n-   502,\n-   'provider_response_invalid'\n  ]\n"
+    },
+    {
+      "name": "Mercado Pago 5xx on create → 503 provider_unavailable; purchase stays created; a retry succeeds with the same idempotency key",
+      "status": "FAIL",
+      "error": "Expected values to be strictly deep-equal:\n+ actual - expected\n\n  [\n+   404,\n+   'not found'\n-   503,\n-   'provider_unavailable'\n  ]\n"
+    },
+    {
+      "name": "other methods / paths → 404 (no generic proxy, no CORS preflight)",
+      "status": "FAIL",
+      "error": "Expected values to be strictly equal:\n\n404 !== 400\n"
+    },
+    {
+      "name": "responses carry no secrets: no token, webhook secret, internal secret, seller, DB URL, internal headers, raw provider response or payer data",
+      "status": "PASS"
+    }
+  ],
+  "passed": 2,
+  "total": 23
+}

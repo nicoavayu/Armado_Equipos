@@ -1,0 +1,607 @@
+{
+ "annotation": "OFFLINE REHEARSAL 20260925T234429Z — local public.ecr.aws/supabase/postgres:17.6.1.147 (internal network) + public.ecr.aws/supabase/postgrest:v14.15, emulated Management API / Keychain / tty; NOT a remote run",
+ "tool": "backend/torneos/infra/torneos-gateway-auth",
+ "generated_at": "2026-09-25T23:44:35.485Z",
+ "mode": "--auth-lockdown",
+ "core": {
+  "prod": "ACTIVE_HEALTHY",
+  "prod_contract": {
+   "status": "ACTIVE",
+   "ezbr": "1072419517953eee8e8021f9691d1a5b1efb1f871c4d13290f644d119caded2c",
+   "verify_jwt": false
+  },
+  "staging": "INACTIVE",
+  "old": "INACTIVE",
+  "torneos": "ACTIVE_HEALTHY"
+ },
+ "state": {
+  "W1": "applied",
+  "W2_W3": "pending",
+  "KR": "absent",
+  "W5": "pending",
+  "edge_functions": 0,
+  "custody": {
+   "dataplane_installer": "PRESENT",
+   "gateway_logins": "ABSENT",
+   "ring": "ABSENT",
+   "jwks_pin": null
+  }
+ },
+ "failures": [],
+ "verdict": "TORNEOS_AUTH_LOCKED",
+ "plan": {
+  "mode": "--auth-lockdown",
+  "write": "PATCH /v1/projects/onzpwnqxnvlgsevivngf/config/auth",
+  "body": {
+   "disable_signup": true,
+   "external_email_enabled": false,
+   "external_phone_enabled": false,
+   "external_anonymous_users_enabled": false,
+   "site_url": "https://app.arma2.com.ar",
+   "mfa_totp_enroll_enabled": false
+  },
+  "before": {
+   "site_url": "http://localhost:3000",
+   "uri_allow_list": "",
+   "disable_signup": false,
+   "jwt_exp": 3600,
+   "external_anonymous_users_enabled": false,
+   "external_email_enabled": true,
+   "external_phone_enabled": false,
+   "mailer_autoconfirm": false,
+   "sms_autoconfirm": false,
+   "mfa_totp_enroll_enabled": true,
+   "custom_oauth_enabled": false,
+   "external_apple_enabled": false,
+   "external_azure_enabled": false,
+   "external_github_enabled": false,
+   "external_google_enabled": false,
+   "external_web3_ethereum_enabled": false,
+   "external_web3_solana_enabled": false,
+   "hook_custom_access_token_enabled": false,
+   "mfa_phone_enroll_enabled": false,
+   "mfa_web_authn_enroll_enabled": false,
+   "oauth_server_enabled": false,
+   "passkey_enabled": false,
+   "saml_enabled": false,
+   "security_manual_linking_enabled": false
+  },
+  "must_off_checked": [
+   "custom_oauth_enabled",
+   "external_apple_enabled",
+   "external_azure_enabled",
+   "external_github_enabled",
+   "external_google_enabled",
+   "external_web3_ethereum_enabled",
+   "external_web3_solana_enabled",
+   "hook_custom_access_token_enabled",
+   "mfa_phone_enroll_enabled",
+   "mfa_web_authn_enroll_enabled",
+   "oauth_server_enabled",
+   "passkey_enabled",
+   "saml_enabled",
+   "security_manual_linking_enabled"
+  ],
+  "state": {
+   "W1": "pending",
+   "W2_W3": "pending",
+   "KR": "absent",
+   "W5": "pending",
+   "edge_functions": 0,
+   "custody": {
+    "dataplane_installer": "PRESENT",
+    "gateway_logins": "ABSENT",
+    "ring": "ABSENT",
+    "jwks_pin": null
+   }
+  },
+  "core": {
+   "prod": "ACTIVE_HEALTHY",
+   "prod_contract": {
+    "status": "ACTIVE",
+    "ezbr": "1072419517953eee8e8021f9691d1a5b1efb1f871c4d13290f644d119caded2c",
+    "verify_jwt": false
+   },
+   "staging": "INACTIVE",
+   "old": "INACTIVE",
+   "torneos": "ACTIVE_HEALTHY"
+  }
+ },
+ "plan_id": "40dd043dd9a2",
+ "authorization": {
+  "phrase": "LOCK TORNEOS AUTH onzpwnqxnvlgsevivngf 40dd043dd9a2",
+  "typed_on": "/dev/tty"
+ },
+ "response": {
+  "site_url": "https://app.arma2.com.ar",
+  "uri_allow_list": "",
+  "disable_signup": true,
+  "jwt_exp": 3600,
+  "external_anonymous_users_enabled": false,
+  "external_email_enabled": false,
+  "external_phone_enabled": false,
+  "mailer_autoconfirm": false,
+  "sms_autoconfirm": false,
+  "mfa_totp_enroll_enabled": false,
+  "custom_oauth_enabled": false,
+  "external_apple_enabled": false,
+  "external_azure_enabled": false,
+  "external_github_enabled": false,
+  "external_google_enabled": false,
+  "external_web3_ethereum_enabled": false,
+  "external_web3_solana_enabled": false,
+  "hook_custom_access_token_enabled": false,
+  "mfa_phone_enroll_enabled": false,
+  "mfa_web_authn_enroll_enabled": false,
+  "oauth_server_enabled": false,
+  "passkey_enabled": false,
+  "saml_enabled": false,
+  "security_manual_linking_enabled": false
+ },
+ "auth_before": {
+  "site_url": "http://localhost:3000",
+  "uri_allow_list": "",
+  "disable_signup": false,
+  "jwt_exp": 3600,
+  "external_anonymous_users_enabled": false,
+  "external_email_enabled": true,
+  "external_phone_enabled": false,
+  "mailer_autoconfirm": false,
+  "sms_autoconfirm": false,
+  "mfa_totp_enroll_enabled": true,
+  "custom_oauth_enabled": false,
+  "external_apple_enabled": false,
+  "external_azure_enabled": false,
+  "external_github_enabled": false,
+  "external_google_enabled": false,
+  "external_web3_ethereum_enabled": false,
+  "external_web3_solana_enabled": false,
+  "hook_custom_access_token_enabled": false,
+  "mfa_phone_enroll_enabled": false,
+  "mfa_web_authn_enroll_enabled": false,
+  "oauth_server_enabled": false,
+  "passkey_enabled": false,
+  "saml_enabled": false,
+  "security_manual_linking_enabled": false
+ },
+ "auth_after": {
+  "site_url": "https://app.arma2.com.ar",
+  "uri_allow_list": "",
+  "disable_signup": true,
+  "jwt_exp": 3600,
+  "external_anonymous_users_enabled": false,
+  "external_email_enabled": false,
+  "external_phone_enabled": false,
+  "mailer_autoconfirm": false,
+  "sms_autoconfirm": false,
+  "mfa_totp_enroll_enabled": false,
+  "custom_oauth_enabled": false,
+  "external_apple_enabled": false,
+  "external_azure_enabled": false,
+  "external_github_enabled": false,
+  "external_google_enabled": false,
+  "external_web3_ethereum_enabled": false,
+  "external_web3_solana_enabled": false,
+  "hook_custom_access_token_enabled": false,
+  "mfa_phone_enroll_enabled": false,
+  "mfa_web_authn_enroll_enabled": false,
+  "oauth_server_enabled": false,
+  "passkey_enabled": false,
+  "saml_enabled": false,
+  "security_manual_linking_enabled": false
+ },
+ "must_off_checked": [
+  "custom_oauth_enabled",
+  "external_apple_enabled",
+  "external_azure_enabled",
+  "external_github_enabled",
+  "external_google_enabled",
+  "external_web3_ethereum_enabled",
+  "external_web3_solana_enabled",
+  "hook_custom_access_token_enabled",
+  "mfa_phone_enroll_enabled",
+  "mfa_web_authn_enroll_enabled",
+  "oauth_server_enabled",
+  "passkey_enabled",
+  "saml_enabled",
+  "security_manual_linking_enabled"
+ ],
+ "changed_outside_body": [],
+ "auth_users_after": 0,
+ "third_party_auth_after": 0,
+ "edge_functions_after": 0,
+ "auth_probe": {
+  "settings": {
+   "status": 200,
+   "disable_signup": true,
+   "email": false,
+   "phone": false,
+   "anonymous_users": false
+  },
+  "probes": [
+   {
+    "id": "signup_email_password",
+    "status": 422,
+    "error_code": "signup_disabled",
+    "refused": true,
+    "refusal_code_known": true
+   },
+   {
+    "id": "signup_anonymous",
+    "status": 422,
+    "error_code": "signup_disabled",
+    "refused": true,
+    "refusal_code_known": true
+   },
+   {
+    "id": "otp_email_create_user",
+    "status": 422,
+    "error_code": "otp_disabled",
+    "refused": true,
+    "refusal_code_known": true
+   },
+   {
+    "id": "otp_phone_create_user",
+    "status": 422,
+    "error_code": "otp_disabled",
+    "refused": true,
+    "refusal_code_known": true
+   }
+  ],
+  "failures": [],
+  "pass": true
+ },
+ "management_api_writes": 1,
+ "requests": [
+  {
+   "id": "prod-project",
+   "kind": "read",
+   "method": "GET",
+   "ref": "rcyuuoaqfwcembdajcss",
+   "status": 200
+  },
+  {
+   "id": "prod-contract-fn",
+   "kind": "read",
+   "method": "GET",
+   "ref": "rcyuuoaqfwcembdajcss",
+   "status": 200
+  },
+  {
+   "id": "project",
+   "kind": "read",
+   "method": "GET",
+   "ref": "hhyvmhgpapyuzjgxfnqv",
+   "status": 200
+  },
+  {
+   "id": "project",
+   "kind": "read",
+   "method": "GET",
+   "ref": "giaeztyghmhzcngskjmw",
+   "status": 200
+  },
+  {
+   "id": "project",
+   "kind": "read",
+   "method": "GET",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 200
+  },
+  {
+   "id": "org",
+   "kind": "read",
+   "method": "GET",
+   "ref": null,
+   "status": 200
+  },
+  {
+   "id": "projects",
+   "kind": "read",
+   "method": "GET",
+   "ref": null,
+   "status": 200
+  },
+  {
+   "id": "functions",
+   "kind": "read",
+   "method": "GET",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 200
+  },
+  {
+   "id": "auth-config",
+   "kind": "read",
+   "method": "GET",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 200
+  },
+  {
+   "id": "third-party-auth",
+   "kind": "read",
+   "method": "GET",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 200
+  },
+  {
+   "id": "query",
+   "kind": "read-sql",
+   "method": "POST",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 201
+  },
+  {
+   "id": "query",
+   "kind": "read-sql",
+   "method": "POST",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 201
+  },
+  {
+   "id": "prod-project",
+   "kind": "read",
+   "method": "GET",
+   "ref": "rcyuuoaqfwcembdajcss",
+   "status": 200
+  },
+  {
+   "id": "prod-contract-fn",
+   "kind": "read",
+   "method": "GET",
+   "ref": "rcyuuoaqfwcembdajcss",
+   "status": 200
+  },
+  {
+   "id": "project",
+   "kind": "read",
+   "method": "GET",
+   "ref": "hhyvmhgpapyuzjgxfnqv",
+   "status": 200
+  },
+  {
+   "id": "project",
+   "kind": "read",
+   "method": "GET",
+   "ref": "giaeztyghmhzcngskjmw",
+   "status": 200
+  },
+  {
+   "id": "project",
+   "kind": "read",
+   "method": "GET",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 200
+  },
+  {
+   "id": "org",
+   "kind": "read",
+   "method": "GET",
+   "ref": null,
+   "status": 200
+  },
+  {
+   "id": "projects",
+   "kind": "read",
+   "method": "GET",
+   "ref": null,
+   "status": 200
+  },
+  {
+   "id": "functions",
+   "kind": "read",
+   "method": "GET",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 200
+  },
+  {
+   "id": "auth-config",
+   "kind": "read",
+   "method": "GET",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 200
+  },
+  {
+   "id": "third-party-auth",
+   "kind": "read",
+   "method": "GET",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 200
+  },
+  {
+   "id": "query",
+   "kind": "read-sql",
+   "method": "POST",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 201
+  },
+  {
+   "id": "query",
+   "kind": "read-sql",
+   "method": "POST",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 201
+  },
+  {
+   "id": "auth-lockdown",
+   "kind": "write:auth-lockdown",
+   "method": "PATCH",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 200
+  },
+  {
+   "id": "prod-project",
+   "kind": "read",
+   "method": "GET",
+   "ref": "rcyuuoaqfwcembdajcss",
+   "status": 200
+  },
+  {
+   "id": "prod-contract-fn",
+   "kind": "read",
+   "method": "GET",
+   "ref": "rcyuuoaqfwcembdajcss",
+   "status": 200
+  },
+  {
+   "id": "project",
+   "kind": "read",
+   "method": "GET",
+   "ref": "hhyvmhgpapyuzjgxfnqv",
+   "status": 200
+  },
+  {
+   "id": "project",
+   "kind": "read",
+   "method": "GET",
+   "ref": "giaeztyghmhzcngskjmw",
+   "status": 200
+  },
+  {
+   "id": "project",
+   "kind": "read",
+   "method": "GET",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 200
+  },
+  {
+   "id": "org",
+   "kind": "read",
+   "method": "GET",
+   "ref": null,
+   "status": 200
+  },
+  {
+   "id": "projects",
+   "kind": "read",
+   "method": "GET",
+   "ref": null,
+   "status": 200
+  },
+  {
+   "id": "functions",
+   "kind": "read",
+   "method": "GET",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 200
+  },
+  {
+   "id": "auth-config",
+   "kind": "read",
+   "method": "GET",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 200
+  },
+  {
+   "id": "third-party-auth",
+   "kind": "read",
+   "method": "GET",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 200
+  },
+  {
+   "id": "query",
+   "kind": "read-sql",
+   "method": "POST",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 201
+  },
+  {
+   "id": "query",
+   "kind": "read-sql",
+   "method": "POST",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 201
+  },
+  {
+   "id": "api-keys",
+   "kind": "read",
+   "method": "GET",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 200
+  },
+  {
+   "id": "prod-project",
+   "kind": "read",
+   "method": "GET",
+   "ref": "rcyuuoaqfwcembdajcss",
+   "status": 200
+  },
+  {
+   "id": "prod-contract-fn",
+   "kind": "read",
+   "method": "GET",
+   "ref": "rcyuuoaqfwcembdajcss",
+   "status": 200
+  },
+  {
+   "id": "project",
+   "kind": "read",
+   "method": "GET",
+   "ref": "hhyvmhgpapyuzjgxfnqv",
+   "status": 200
+  },
+  {
+   "id": "project",
+   "kind": "read",
+   "method": "GET",
+   "ref": "giaeztyghmhzcngskjmw",
+   "status": 200
+  },
+  {
+   "id": "project",
+   "kind": "read",
+   "method": "GET",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 200
+  },
+  {
+   "id": "org",
+   "kind": "read",
+   "method": "GET",
+   "ref": null,
+   "status": 200
+  },
+  {
+   "id": "projects",
+   "kind": "read",
+   "method": "GET",
+   "ref": null,
+   "status": 200
+  },
+  {
+   "id": "functions",
+   "kind": "read",
+   "method": "GET",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 200
+  },
+  {
+   "id": "auth-config",
+   "kind": "read",
+   "method": "GET",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 200
+  },
+  {
+   "id": "third-party-auth",
+   "kind": "read",
+   "method": "GET",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 200
+  },
+  {
+   "id": "query",
+   "kind": "read-sql",
+   "method": "POST",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 201
+  },
+  {
+   "id": "query",
+   "kind": "read-sql",
+   "method": "POST",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 201
+  }
+ ]
+}

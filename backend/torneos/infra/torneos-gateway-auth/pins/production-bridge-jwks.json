@@ -1,0 +1,35 @@
+{
+ "purpose": "Arma2 Torneos PRODUCTION bridge ring — PUBLIC halves only (custom_jwks B03 + gateway trust)",
+ "generated_at": "2026-09-26T00:38:04.182Z",
+ "alg": "RS256",
+ "modulus_bits": 2048,
+ "active": "arma2-torneos-prod-k1-svt92JOHlnVoXI35",
+ "standby": "arma2-torneos-prod-k2-9EgKZ6KojpyuHmBx",
+ "keys": [
+  {
+   "kty": "RSA",
+   "n": "xWnJhLBwSwy-asO3bxGOxP3aW1DgKq2k3FMuMFagHnbp0n6cOrzOQETc0ScR1mgNq3QGfnsASAt4sJ43OQn7VLpoXuSpBYsWe_RFoBhIZuqYW2feg5z-Uvk6Hm-TIE4zxSH4ROfG9kFTsAjE4_lnjlfLJB1RHLafUaYe9-BmWVd-r-QTUmz8LSYs34Gvu1-Nf01ku2_I4WUfbnWloQlmr2dqkOChaQA3Q2SFbYJZsdfTOxidxr1vw1di5AQ66N9CvC9LHinKWYLxWFpmWPNBJoP5ekhQF5ZVzswbLIY9jzjKrIbvvd7VjGe2pFCOOuGty3pL5h79GllaB4EmMOSFLw",
+   "e": "AQAB",
+   "kid": "arma2-torneos-prod-k1-svt92JOHlnVoXI35",
+   "alg": "RS256",
+   "use": "sig"
+  },
+  {
+   "kty": "RSA",
+   "n": "wy4h_N_n9abwl0uw0y7mx_u4rosSzQLQD4art_2D_Me3mDJLilqQkaA4YfGddeIOWKHcHAkuPQHLltzPEHMiEQPt1w0BR9LbY7QnTyuE-PGStH_Vxk7ZKXIMZElJyZz7exVeEfNXlXxcVA1yBeRkdWWjLZGOlkNpvwLszHFEH2rWDzwgikWp-awTk8yoDpCV2-m0m2hcz6q_3LuKWW-sajdbRi6-riNKUPc02VAYzzzfHonrnryDqyf43FPqDwagHpALJki-lIQzjehD3-eyuEnJ-YokjHMVFVR1WqQtS8pMupLFNeBjmH5rUQdxjEHeCz9OiWnvmROc2Zyy4Ld3ow",
+   "e": "AQAB",
+   "kid": "arma2-torneos-prod-k2-9EgKZ6KojpyuHmBx",
+   "alg": "RS256",
+   "use": "sig"
+  }
+ ],
+ "custody": {
+  "service": "arma2-torneos-prod-bridge",
+  "accounts": [
+   "k1.meta",
+   "k1.part*",
+   "k2.meta",
+   "k2.part*"
+  ]
+ }
+}

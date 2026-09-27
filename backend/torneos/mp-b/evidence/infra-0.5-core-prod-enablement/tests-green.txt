@@ -1,0 +1,45 @@
+(node:22500) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/nicoavayu/Downloads/arma2/arma2-core-prod-contract-enablement/supabase/functions/_shared/torneosCoreContract.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/nicoavayu/Downloads/arma2/arma2-core-prod-contract-enablement/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ target: the Production ref is pinned in the contract and is the only accepted target (1.181875ms)
+✔ target: the Staging ref is refused everywhere (guard, request path, body, token, request key) (15.496625ms)
+✔ target: an arbitrary, empty, malformed or unvalidated ref is refused; the tooling takes no ref input at all (34.834125ms)
+✔ target: Production must be ACTIVE_HEALTHY (22.393792ms)
+✔ migrations: exactly the two authorized versions, hashes frozen and equal to the certified Staging pins (2.613667ms)
+✔ migrations: a modified or missing migration file is refused before the PAT is used (0 requests) (7.678875ms)
+✔ migrations: an extra, missing or reordered migration in the plan is refused; the transport refuses any non-pinned write SQL (3.450958ms)
+✔ ledger: the pinned Production baseline (236 rows, read-only capture 2026-09-11) is frozen by hash (0.56125ms)
+✔ ledger: evaluateLedger accepts the baseline (+ our own contract rows) and rejects every deviation (7.276333ms)
+✔ ledger: Production decision table — apply | skip | STOP (no reconcile, no mark-as-applied, no repair), in order (0.203417ms)
+✔ ledger: an unexpected Production ledger STOPs the preflight with evidence and 0 writes (24.537334ms)
+✔ prerequisites: the Core objects the contract compiles against must exist with the Production types (4.049833ms)
+✔ preflight: any ambiguous answer (wrong shape, error, non-JSON) is a STOP, never a guess (32.042708ms)
+✔ preflight SQL: every Production probe passes the certified read-only guard (single SELECT, no write verb, no `;`) (0.0915ms)
+✔ custody: the Production Keychain namespace is its own, distinct from every non-production entry (0.135917ms)
+✔ custody: the non-production namespace (and any other) is refused by the guard and by the Keychain helper (396.402208ms)
+✔ custody: secret state machine — generate only when both absent; never regenerate, never reconcile, never copy Staging (0.108458ms)
+✔ custody: a generated value equal to the Staging secret, an unreadable or malformed Keychain value STOPs before any remote write (19.0815ms)
+✔ secret: never in output, evidence, errors or any request other than the single set-secrets body (37.719333ms)
+✔ confirmation: the exact phrase with the plan id is mandatory; y / yes / --force / partial / stale plan id write nothing (54.813333ms)
+✔ non-interactive: no tty, CI, or any flag substitute refuses the write before anything is written (9.328333ms)
+✔ non-interactive: the shell wrapper refuses flags, needs an explicit mode and stops without a tty before reading anything (48.86775ms)
+✔ preflight-only and dry-run: 0 writes — only GET and read_only:true queries, Keychain never written, client never armed (24.060667ms)
+✔ artifact: torneos-core-contract is byte-identical to the certified Staging deploy; any difference STOPs before the PAT (4.406833ms)
+✔ apply (offline): writer-context → v1 → v1.1 → set-secrets → deploy, then 9/9 harness, ACL, app_private, catalog and ledger all certified (20.513625ms)
+✔ apply (offline): a Core secret that differs from the Keychain is a STOP (no reconcile in Production) (5.814583ms)
+✔ apply (offline): state that changes between the preflight and the phrase is a STOP with 0 writes (4.810458ms)
+✔ apply (offline): a catalog change outside the contract after the apply is detected (no other Core object may change) (7.5105ms)
+✔ harness: the 9 certified answers against the REAL handler — PASS, and the same request sequence as the certified Staging probe (1.6435ms)
+✔ harness: classification — no secret, not deployed, wrong secret, Core down, and a response echoing material is flagged (1.520667ms)
+✔ ACL: Production expectations — service_role-only RPC, owner-only app_private (no API-role USAGE), exact object set, no strays (0.264209ms)
+✔ ACL: --acl-only is read-only and certifies an installed contract (and refuses to certify an absent one) (12.2895ms)
+✔ invariant: the certified Staging tooling is byte-identical to d62039c7 (behaviour unchanged) (0.30275ms)
+ℹ tests 33
+ℹ suites 0
+ℹ pass 33
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 930.5225

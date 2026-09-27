@@ -1,0 +1,388 @@
+▶ MP-B1.1 R3 — isolated remote commerce runtime hardening (offline)
+  ✔ H1 baseline: the fixture TEST configuration boots (0.832584ms)
+  ✖ H1 payments refuses to boot with gateway / bridge private material (TORNEOS_BRIDGE_KEYS, TORNEOS_CONTRACT_SERVICE_SECRET, gateway DB URLs) (0.628791ms)
+  ✖ H1 payments refuses to boot with Core private material (CORE_SERVICE_ROLE_KEY, CORE_JWT_SECRET) (0.132459ms)
+  ✖ H1 payments refuses to boot with Supabase service-role / admin credentials (SUPABASE_SERVICE_ROLE_KEY, SUPABASE_SECRET_KEYS, SUPABASE_DB_URL) (0.114041ms)
+  ✖ H1 payments refuses to boot with an automatic database binding (DATABASE_URL or any libpq PG* variable postgres.js would silently use) (0.120417ms)
+  ✔ H1 not over-broad: Deno Deploy platform variables, shell variables and PUBLIC gateway/Core configuration do not refuse the boot; blank foreign values are ignored (0.542125ms)
+  ✖ H1 runtime: a refused payments configuration serves 503 on both routes, opens no DB connection and logs no value (18.446458ms)
+  ✖ H2 payments refuses a DB URL whose LOGIN is a gateway login (plain, pooler <login>.<ref>, upper case, %-encoded) (0.159084ms)
+  ✖ H2 the rule is the login, not the variable name: the gateway login in TORNEOS_PAYMENTS_DB_URL is refused even when no gateway variable is present (0.150167ms)
+  ✔ H2 the dedicated payments login stays allowed (plain and pooler forms); platform roles stay refused (0.304458ms)
+  ✖ TS module: parse/verify/freshness API present; future skew stays +300 s (0.141291ms)
+  ✖ TS valid signed 10-digit seconds and 13-digit milliseconds (now) → accepted, provider re-fetched (7.667584ms)
+  ✖ TS OLD authentic notifications (seconds and milliseconds, −1 h / −30 d / −2 y) → accepted (no maximum age) and always re-fetched (1.127834ms)
+  ✖ TS future within skew (seconds +1/+60/+300; milliseconds +1 ms/+60 s/+300 000 ms) → accepted (1.648625ms)
+  ✔ TS absurd future (seconds +301 s/+1 d/+10 y; milliseconds +300 001 ms/+1 d/+10 y) → 401 before any provider or DB call (1.176334ms)
+  ✖ TS malformed ts (lengths 9/11/12/14/19, leading zero, float, exponent, sign, whitespace, garbage, non-ASCII digits) → 401 before any provider call even when HMAC-signed over itself (1.047583ms)
+  ✖ TS duplicate ts / v1 keys are ambiguous → 401 (whichever occurrence is signed); unknown extra keys are ignored; key spacing is tolerated (0.569166ms)
+  ✔ TS bad signature / wrong secret / wrong request id → 401 before any provider call (10 and 13 digits) (0.917458ms)
+  ✖ RAW HMAC: the manifest carries the ts bytes exactly as received — a 13-digit ts signed as its seconds, or a 10-digit ts signed as milliseconds, is refused (0.811333ms)
+  ✖ RAW HMAC: normalisation exists only in the freshness module (seconds → ×1000, milliseconds as is) and never feeds the manifest (0.170167ms)
+  ✔ RAW HMAC: the byte-pinned shared provider copy is untouched (no fork of the legacy file) (1.64625ms)
+  ✖ ORD the ordering RPC receives the re-fetched provider date_last_updated verbatim — never the webhook ts (10 or 13 digits) nor the body date (0.595708ms)
+  ✔ DD module graph: both entrypoints import only relative files inside backend/torneos/supabase/functions, pinned npm:jose@6.2.12 / npm:postgres@3.4.7, and JSON with `with { type: "json" }` (3.749959ms)
+  ✔ DD runtime APIs: only Deno.serve and Deno.env (plus Web platform APIs) — no EdgeRuntime, filesystem, subprocess, KV, cron, FFI, process.env or edge-runtime paths (3.176166ms)
+  ✔ DD routing: /functions/v1/<app>/… is served as-is (no hostname, no platform prefix required); webhook path and notification URL contract unchanged (2.895667ms)
+  ✔ DD remote-test still demands HTTPS and the exact declared hosts (http payments URL / wrong host → CommerceConfigError) (0.93125ms)
+  ✔ ISO contract: two separate apps, APP-level variables only, no organization variables, no database integration, no frontend secrets; certification = CODE_READY (not REMOTE_PLATFORM_CERTIFIED) (1.252375ms)
+  ✖ ISO contract ↔ code: every variable each runtime reads is declared for that app; payments boot-refuses every variable its contract forbids; the gateway boot-refuses (remote-test) every payments secret (3.222875ms)
+  ✔ ISO frontend: 0 secrets — src/ names no gateway, payments, Core-private, Supabase-admin or Deno Deploy secret and exposes no REACT_APP_* secret (74.594917ms)
+✖ MP-B1.1 R3 — isolated remote commerce runtime hardening (offline) (131.511542ms)
+ℹ tests 30
+ℹ suites 0
+ℹ pass 12
+ℹ fail 18
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 260.736042
+
+✖ failing tests:
+
+test at integration/torneos-core-contracts/deno-runtime-hardening.test.mjs:114:13
+✖ H1 payments refuses to boot with gateway / bridge private material (TORNEOS_BRIDGE_KEYS, TORNEOS_CONTRACT_SERVICE_SECRET, gateway DB URLs) (0.628791ms)
+  AssertionError [ERR_ASSERTION]: payments env carries TORNEOS_BRIDGE_KEYS: payments must refuse to boot
+  
+  true !== false
+  
+      at payReject (file:///private/tmp/claude-501/-Users-nicoavayu-Downloads-arma2-arma2--claude-worktrees-deno-deploy-runtime-prep-e2a77d/b3cdeb2c-c949-42b2-90ab-a5db7b8fb751/scratchpad/base/integration/torneos-core-contracts/deno-runtime-hardening.test.mjs:53:10)
+      at file:///private/tmp/claude-501/-Users-nicoavayu-Downloads-arma2-arma2--claude-worktrees-deno-deploy-runtime-prep-e2a77d/b3cdeb2c-c949-42b2-90ab-a5db7b8fb751/scratchpad/base/integration/torneos-core-contracts/deno-runtime-hardening.test.mjs:125:43
+      at TestContext.<anonymous> (file:///private/tmp/claude-501/-Users-nicoavayu-Downloads-arma2-arma2--claude-worktrees-deno-deploy-runtime-prep-e2a77d/b3cdeb2c-c949-42b2-90ab-a5db7b8fb751/scratchpad/base/integration/torneos-core-contracts/deno-runtime-hardening.test.mjs:115:19)
+      at Test.runInAsyncScope (node:async_hooks:213:14)
+      at Test.run (node:internal/test_runner/test:1106:25)
+      at Test.start (node:internal/test_runner/test:1003:17)
+      at TestContext.test (node:internal/test_runner/test:378:20)
+      at check (file:///private/tmp/claude-501/-Users-nicoavayu-Downloads-arma2-arma2--claude-worktrees-deno-deploy-runtime-prep-e2a77d/b3cdeb2c-c949-42b2-90ab-a5db7b8fb751/scratchpad/base/integration/torneos-core-contracts/deno-runtime-hardening.test.mjs:114:13)
+      at TestContext.<anonymous> (file:///private/tmp/claude-501/-Users-nicoavayu-Downloads-arma2-arma2--claude-worktrees-deno-deploy-runtime-prep-e2a77d/b3cdeb2c-c949-42b2-90ab-a5db7b8fb751/scratchpad/base/integration/torneos-core-contracts/deno-runtime-hardening.test.mjs:124:11)
+      at async Test.run (node:internal/test_runner/test:1113:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at integration/torneos-core-contracts/deno-runtime-hardening.test.mjs:114:13
+✖ H1 payments refuses to boot with Core private material (CORE_SERVICE_ROLE_KEY, CORE_JWT_SECRET) (0.132459ms)
+  AssertionError [ERR_ASSERTION]: payments env carries CORE_SERVICE_ROLE_KEY: payments must refuse to boot
+  
+  true !== false
+  
+      at payReject (file:///private/tmp/claude-501/-Users-nicoavayu-Downloads-arma2-arma2--claude-worktrees-deno-deploy-runtime-prep-e2a77d/b3cdeb2c-c949-42b2-90ab-a5db7b8fb751/scratchpad/base/integration/torneos-core-contracts/deno-runtime-hardening.test.mjs:53:10)
+      at file:///private/tmp/claude-501/-Users-nicoavayu-Downloads-arma2-arma2--claude-worktrees-deno-deploy-runtime-prep-e2a77d/b3cdeb2c-c949-42b2-90ab-a5db7b8fb751/scratchpad/base/integration/torneos-core-contracts/deno-runtime-hardening.test.mjs:128:40
+      at TestContext.<anonymous> (file:///private/tmp/claude-501/-Users-nicoavayu-Downloads-arma2-arma2--claude-worktrees-deno-deploy-runtime-prep-e2a77d/b3cdeb2c-c949-42b2-90ab-a5db7b8fb751/scratchpad/base/integration/torneos-core-contracts/deno-runtime-hardening.test.mjs:115:19)
+      at Test.runInAsyncScope (node:async_hooks:213:14)
+      at Test.run (node:internal/test_runner/test:1106:25)
+      at Test.start (node:internal/test_runner/test:1003:17)
+      at TestContext.test (node:internal/test_runner/test:378:20)
+      at check (file:///private/tmp/claude-501/-Users-nicoavayu-Downloads-arma2-arma2--claude-worktrees-deno-deploy-runtime-prep-e2a77d/b3cdeb2c-c949-42b2-90ab-a5db7b8fb751/scratchpad/base/integration/torneos-core-contracts/deno-runtime-hardening.test.mjs:114:13)
+      at TestContext.<anonymous> (file:///private/tmp/claude-501/-Users-nicoavayu-Downloads-arma2-arma2--claude-worktrees-deno-deploy-runtime-prep-e2a77d/b3cdeb2c-c949-42b2-90ab-a5db7b8fb751/scratchpad/base/integration/torneos-core-contracts/deno-runtime-hardening.test.mjs:127:11)
+      at async Test.run (node:internal/test_runner/test:1113:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at integration/torneos-core-contracts/deno-runtime-hardening.test.mjs:114:13
+✖ H1 payments refuses to boot with Supabase service-role / admin credentials (SUPABASE_SERVICE_ROLE_KEY, SUPABASE_SECRET_KEYS, SUPABASE_DB_URL) (0.114041ms)
+  AssertionError [ERR_ASSERTION]: payments env carries SUPABASE_SERVICE_ROLE_KEY: payments must refuse to boot
+  
+  true !== false
+  
+      at payReject (file:///private/tmp/claude-501/-Users-nicoavayu-Downloads-arma2-arma2--claude-worktrees-deno-deploy-runtime-prep-e2a77d/b3cdeb2c-c949-42b2-90ab-a5db7b8fb751/scratchpad/base/integration/torneos-core-contracts/deno-runtime-hardening.test.mjs:53:10)
+      at file:///private/tmp/claude-501/-Users-nicoavayu-Downloads-arma2-arma2--claude-worktrees-deno-deploy-runtime-prep-e2a77d/b3cdeb2c-c949-42b2-90ab-a5db7b8fb751/scratchpad/base/integration/torneos-core-contracts/deno-runtime-hardening.test.mjs:131:42
+      at TestContext.<anonymous> (file:///private/tmp/claude-501/-Users-nicoavayu-Downloads-arma2-arma2--claude-worktrees-deno-deploy-runtime-prep-e2a77d/b3cdeb2c-c949-42b2-90ab-a5db7b8fb751/scratchpad/base/integration/torneos-core-contracts/deno-runtime-hardening.test.mjs:115:19)
+      at Test.runInAsyncScope (node:async_hooks:213:14)
+      at Test.run (node:internal/test_runner/test:1106:25)
+      at Test.start (node:internal/test_runner/test:1003:17)
+      at TestContext.test (node:internal/test_runner/test:378:20)
+      at check (file:///private/tmp/claude-501/-Users-nicoavayu-Downloads-arma2-arma2--claude-worktrees-deno-deploy-runtime-prep-e2a77d/b3cdeb2c-c949-42b2-90ab-a5db7b8fb751/scratchpad/base/integration/torneos-core-contracts/deno-runtime-hardening.test.mjs:114:13)
+      at TestContext.<anonymous> (file:///private/tmp/claude-501/-Users-nicoavayu-Downloads-arma2-arma2--claude-worktrees-deno-deploy-runtime-prep-e2a77d/b3cdeb2c-c949-42b2-90ab-a5db7b8fb751/scratchpad/base/integration/torneos-core-contracts/deno-runtime-hardening.test.mjs:130:11)
+      at async Test.run (node:internal/test_runner/test:1113:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at integration/torneos-core-contracts/deno-runtime-hardening.test.mjs:114:13
+✖ H1 payments refuses to boot with an automatic database binding (DATABASE_URL or any libpq PG* variable postgres.js would silently use) (0.120417ms)
+  AssertionError [ERR_ASSERTION]: payments env carries DATABASE_URL: payments must refuse to boot
+  
+  true !== false
+  
+      at payReject (file:///private/tmp/claude-501/-Users-nicoavayu-Downloads-arma2-arma2--claude-worktrees-deno-deploy-runtime-prep-e2a77d/b3cdeb2c-c949-42b2-90ab-a5db7b8fb751/scratchpad/base/integration/torneos-core-contracts/deno-runtime-hardening.test.mjs:53:10)
+      at file:///private/tmp/claude-501/-Users-nicoavayu-Downloads-arma2-arma2--claude-worktrees-deno-deploy-runtime-prep-e2a77d/b3cdeb2c-c949-42b2-90ab-a5db7b8fb751/scratchpad/base/integration/torneos-core-contracts/deno-runtime-hardening.test.mjs:134:47
+      at TestContext.<anonymous> (file:///private/tmp/claude-501/-Users-nicoavayu-Downloads-arma2-arma2--claude-worktrees-deno-deploy-runtime-prep-e2a77d/b3cdeb2c-c949-42b2-90ab-a5db7b8fb751/scratchpad/base/integration/torneos-core-contracts/deno-runtime-hardening.test.mjs:115:19)
+      at Test.runInAsyncScope (node:async_hooks:213:14)
+      at Test.run (node:internal/test_runner/test:1106:25)
+      at Test.start (node:internal/test_runner/test:1003:17)
+      at TestContext.test (node:internal/test_runner/test:378:20)
+      at check (file:///private/tmp/claude-501/-Users-nicoavayu-Downloads-arma2-arma2--claude-worktrees-deno-deploy-runtime-prep-e2a77d/b3cdeb2c-c949-42b2-90ab-a5db7b8fb751/scratchpad/base/integration/torneos-core-contracts/deno-runtime-hardening.test.mjs:114:13)
+      at TestContext.<anonymous> (file:///private/tmp/claude-501/-Users-nicoavayu-Downloads-arma2-arma2--claude-worktrees-deno-deploy-runtime-prep-e2a77d/b3cdeb2c-c949-42b2-90ab-a5db7b8fb751/scratchpad/base/integration/torneos-core-contracts/deno-runtime-hardening.test.mjs:133:11)
+      at async Test.run (node:internal/test_runner/test:1113:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at integration/torneos-core-contracts/deno-runtime-hardening.test.mjs:114:13
+✖ H1 runtime: a refused payments configuration serves 503 on both routes, opens no DB connection and logs no value (18.446458ms)
+  AssertionError [ERR_ASSERTION]: TORNEOS_BRIDGE_KEYS /internal/v1/season-checkout-preference
+  
+  401 !== 503
+  
+      at file:///private/tmp/claude-501/-Users-nicoavayu-Downloads-arma2-arma2--claude-worktrees-deno-deploy-runtime-prep-e2a77d/b3cdeb2c-c949-42b2-90ab-a5db7b8fb751/scratchpad/base/integration/torneos-core-contracts/deno-runtime-hardening.test.mjs:146:18
+      at async TestContext.<anonymous> (file:///private/tmp/claude-501/-Users-nicoavayu-Downloads-arma2-arma2--claude-worktrees-deno-deploy-runtime-prep-e2a77d/b3cdeb2c-c949-42b2-90ab-a5db7b8fb751/scratchpad/base/integration/torneos-core-contracts/deno-runtime-hardening.test.mjs:115:13)
+      at async Test.run (node:internal/test_runner/test:1113:7)
+      at async check (file:///private/tmp/claude-501/-Users-nicoavayu-Downloads-arma2-arma2--claude-worktrees-deno-deploy-runtime-prep-e2a77d/b3cdeb2c-c949-42b2-90ab-a5db7b8fb751/scratchpad/base/integration/torneos-core-contracts/deno-runtime-hardening.test.mjs:114:5)
+      at async TestContext.<anonymous> (file:///private/tmp/claude-501/-Users-nicoavayu-Downloads-arma2-arma2--claude-worktrees-deno-deploy-runtime-prep-e2a77d/b3cdeb2c-c949-42b2-90ab-a5db7b8fb751/scratchpad/base/integration/torneos-core-contracts/deno-runtime-hardening.test.mjs:140:5)
+      at async Test.run (node:internal/test_runner/test:1113:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 401,
+    expected: 503,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at integration/torneos-core-contracts/deno-runtime-hardening.test.mjs:114:13
+✖ H2 payments refuses a DB URL whose LOGIN is a gateway login (plain, pooler <login>.<ref>, upper case, %-encoded) (0.159084ms)
+  AssertionError [ERR_ASSERTION]: payments DB login torneos_edge_identity_writer: payments must refuse to boot
+  
+  true !== false
+  
+      at payReject (file:///private/tmp/claude-501/-Users-nicoavayu-Downloads-arma2-arma2--claude-worktrees-deno-deploy-runtime-prep-e2a77d/b3cdeb2c-c949-42b2-90ab-a5db7b8fb751/scratchpad/base/integration/torneos-core-contracts/deno-runtime-hardening.test.mjs:53:10)
+      at file:///private/tmp/claude-501/-Users-nicoavayu-Downloads-arma2-arma2--claude-worktrees-deno-deploy-runtime-prep-e2a77d/b3cdeb2c-c949-42b2-90ab-a5db7b8fb751/scratchpad/base/integration/torneos-core-contracts/deno-runtime-hardening.test.mjs:159:9
+      at TestContext.<anonymous> (file:///private/tmp/claude-501/-Users-nicoavayu-Downloads-arma2-arma2--claude-worktrees-deno-deploy-runtime-prep-e2a77d/b3cdeb2c-c949-42b2-90ab-a5db7b8fb751/scratchpad/base/integration/torneos-core-contracts/deno-runtime-hardening.test.mjs:115:19)
+      at Test.runInAsyncScope (node:async_hooks:213:14)
+      at Test.run (node:internal/test_runner/test:1106:25)
+      at Test.start (node:internal/test_runner/test:1003:17)
+      at TestContext.test (node:internal/test_runner/test:378:20)
+      at check (file:///private/tmp/claude-501/-Users-nicoavayu-Downloads-arma2-arma2--claude-worktrees-deno-deploy-runtime-prep-e2a77d/b3cdeb2c-c949-42b2-90ab-a5db7b8fb751/scratchpad/base/integration/torneos-core-contracts/deno-runtime-hardening.test.mjs:114:13)
+      at TestContext.<anonymous> (file:///private/tmp/claude-501/-Users-nicoavayu-Downloads-arma2-arma2--claude-worktrees-deno-deploy-runtime-prep-e2a77d/b3cdeb2c-c949-42b2-90ab-a5db7b8fb751/scratchpad/base/integration/torneos-core-contracts/deno-runtime-hardening.test.mjs:155:11)
+      at async Test.run (node:internal/test_runner/test:1113:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at integration/torneos-core-contracts/deno-runtime-hardening.test.mjs:114:13
+✖ H2 the rule is the login, not the variable name: the gateway login in TORNEOS_PAYMENTS_DB_URL is refused even when no gateway variable is present (0.150167ms)
+  AssertionError [ERR_ASSERTION]: gateway adapter login through the pooler, no gateway variable present: payments must refuse to boot
+  
+  true !== false
+  
+      at payReject (file:///private/tmp/claude-501/-Users-nicoavayu-Downloads-arma2-arma2--claude-worktrees-deno-deploy-runtime-prep-e2a77d/b3cdeb2c-c949-42b2-90ab-a5db7b8fb751/scratchpad/base/integration/torneos-core-contracts/deno-runtime-hardening.test.mjs:53:10)
+      at file:///private/tmp/claude-501/-Users-nicoavayu-Downloads-arma2-arma2--claude-worktrees-deno-deploy-runtime-prep-e2a77d/b3cdeb2c-c949-42b2-90ab-a5db7b8fb751/scratchpad/base/integration/torneos-core-contracts/deno-runtime-hardening.test.mjs:165:7
+      at TestContext.<anonymous> (file:///private/tmp/claude-501/-Users-nicoavayu-Downloads-arma2-arma2--claude-worktrees-deno-deploy-runtime-prep-e2a77d/b3cdeb2c-c949-42b2-90ab-a5db7b8fb751/scratchpad/base/integration/torneos-core-contracts/deno-runtime-hardening.test.mjs:115:19)
+      at Test.runInAsyncScope (node:async_hooks:213:14)
+      at Test.run (node:internal/test_runner/test:1106:25)
+      at Test.start (node:internal/test_runner/test:1003:17)
+      at TestContext.test (node:internal/test_runner/test:378:20)
+      at check (file:///private/tmp/claude-501/-Users-nicoavayu-Downloads-arma2-arma2--claude-worktrees-deno-deploy-runtime-prep-e2a77d/b3cdeb2c-c949-42b2-90ab-a5db7b8fb751/scratchpad/base/integration/torneos-core-contracts/deno-runtime-hardening.test.mjs:114:13)
+      at TestContext.<anonymous> (file:///private/tmp/claude-501/-Users-nicoavayu-Downloads-arma2-arma2--claude-worktrees-deno-deploy-runtime-prep-e2a77d/b3cdeb2c-c949-42b2-90ab-a5db7b8fb751/scratchpad/base/integration/torneos-core-contracts/deno-runtime-hardening.test.mjs:162:11)
+      at async Test.run (node:internal/test_runner/test:1113:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at integration/torneos-core-contracts/deno-runtime-hardening.test.mjs:114:13
+✖ TS module: parse/verify/freshness API present; future skew stays +300 s (0.141291ms)
+  AssertionError [ERR_ASSERTION]: webhook-signature.ts: Cannot find module '/private/tmp/claude-501/-Users-nicoavayu-Downloads-arma2-arma2--claude-worktrees-deno-deploy-runtime-prep-e2a77d/b3cdeb2c-c949-42b2-90ab-a5db7b8fb751/scratchpad/base/backend/torneos/supabase/functions/torneos-payments/webhook-signature.ts' imported from /private/tmp/claude-501/-Users-nicoavayu-Downloads-arma2-arma2--claude-worktrees-deno-deploy-runtime-prep-e2a77d/b3cdeb2c-c949-42b2-90ab-a5db7b8fb751/scratchpad/base/integration/torneos-core-contracts/deno-runtime-hardening.test.mjs
+      at file:///private/tmp/claude-501/-Users-nicoavayu-Downloads-arma2-arma2--claude-worktrees-deno-deploy-runtime-prep-e2a77d/b3cdeb2c-c949-42b2-90ab-a5db7b8fb751/scratchpad/base/integration/torneos-core-contracts/deno-runtime-hardening.test.mjs:180:14
+      at TestContext.<anonymous> (file:///private/tmp/claude-501/-Users-nicoavayu-Downloads-arma2-arma2--claude-worktrees-deno-deploy-runtime-prep-e2a77d/b3cdeb2c-c949-42b2-90ab-a5db7b8fb751/scratchpad/base/integration/torneos-core-contracts/deno-runtime-hardening.test.mjs:115:19)
+      at Test.runInAsyncScope (node:async_hooks:213:14)
+      at Test.run (node:internal/test_runner/test:1106:25)
+      at Test.start (node:internal/test_runner/test:1003:17)
+      at TestContext.test (node:internal/test_runner/test:378:20)
+      at check (file:///private/tmp/claude-501/-Users-nicoavayu-Downloads-arma2-arma2--claude-worktrees-deno-deploy-runtime-prep-e2a77d/b3cdeb2c-c949-42b2-90ab-a5db7b8fb751/scratchpad/base/integration/torneos-core-contracts/deno-runtime-hardening.test.mjs:114:13)
+      at TestContext.<anonymous> (file:///private/tmp/claude-501/-Users-nicoavayu-Downloads-arma2-arma2--claude-worktrees-deno-deploy-runtime-prep-e2a77d/b3cdeb2c-c949-42b2-90ab-a5db7b8fb751/scratchpad/base/integration/torneos-core-contracts/deno-runtime-hardening.test.mjs:179:11)
+      at async Test.run (node:internal/test_runner/test:1113:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at integration/torneos-core-contracts/deno-runtime-hardening.test.mjs:114:13
+✖ TS valid signed 10-digit seconds and 13-digit milliseconds (now) → accepted, provider re-fetched (7.667584ms)
+  AssertionError [ERR_ASSERTION]: 13-digit milliseconds now
+      at file:///private/tmp/claude-501/-Users-nicoavayu-Downloads-arma2-arma2--claude-worktrees-deno-deploy-runtime-prep-e2a77d/b3cdeb2c-c949-42b2-90ab-a5db7b8fb751/scratchpad/base/integration/torneos-core-contracts/deno-runtime-hardening.test.mjs:188:16
+      at async TestContext.<anonymous> (file:///private/tmp/claude-501/-Users-nicoavayu-Downloads-arma2-arma2--claude-worktrees-deno-deploy-runtime-prep-e2a77d/b3cdeb2c-c949-42b2-90ab-a5db7b8fb751/scratchpad/base/integration/torneos-core-contracts/deno-runtime-hardening.test.mjs:115:13)
+      at async Test.run (node:internal/test_runner/test:1113:7)
+      at async check (file:///private/tmp/claude-501/-Users-nicoavayu-Downloads-arma2-arma2--claude-worktrees-deno-deploy-runtime-prep-e2a77d/b3cdeb2c-c949-42b2-90ab-a5db7b8fb751/scratchpad/base/integration/torneos-core-contracts/deno-runtime-hardening.test.mjs:114:5)
+      at async TestContext.<anonymous> (file:///private/tmp/claude-501/-Users-nicoavayu-Downloads-arma2-arma2--claude-worktrees-deno-deploy-runtime-prep-e2a77d/b3cdeb2c-c949-42b2-90ab-a5db7b8fb751/scratchpad/base/integration/torneos-core-contracts/deno-runtime-hardening.test.mjs:186:5)
+      at async Test.run (node:internal/test_runner/test:1113:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at integration/torneos-core-contracts/deno-runtime-hardening.test.mjs:114:13
+✖ TS OLD authentic notifications (seconds and milliseconds, −1 h / −30 d / −2 y) → accepted (no maximum age) and always re-fetched (1.127834ms)
+  AssertionError [ERR_ASSERTION]: ms −3600
+      at file:///private/tmp/claude-501/-Users-nicoavayu-Downloads-arma2-arma2--claude-worktrees-deno-deploy-runtime-prep-e2a77d/b3cdeb2c-c949-42b2-90ab-a5db7b8fb751/scratchpad/base/integration/torneos-core-contracts/deno-runtime-hardening.test.mjs:194:16
+      at async TestContext.<anonymous> (file:///private/tmp/claude-501/-Users-nicoavayu-Downloads-arma2-arma2--claude-worktrees-deno-deploy-runtime-prep-e2a77d/b3cdeb2c-c949-42b2-90ab-a5db7b8fb751/scratchpad/base/integration/torneos-core-contracts/deno-runtime-hardening.test.mjs:115:13)
+      at async Test.run (node:internal/test_runner/test:1113:7)
+      at async check (file:///private/tmp/claude-501/-Users-nicoavayu-Downloads-arma2-arma2--claude-worktrees-deno-deploy-runtime-prep-e2a77d/b3cdeb2c-c949-42b2-90ab-a5db7b8fb751/scratchpad/base/integration/torneos-core-contracts/deno-runtime-hardening.test.mjs:114:5)
+      at async TestContext.<anonymous> (file:///private/tmp/claude-501/-Users-nicoavayu-Downloads-arma2-arma2--claude-worktrees-deno-deploy-runtime-prep-e2a77d/b3cdeb2c-c949-42b2-90ab-a5db7b8fb751/scratchpad/base/integration/torneos-core-contracts/deno-runtime-hardening.test.mjs:191:5)
+      at async Test.run (node:internal/test_runner/test:1113:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at integration/torneos-core-contracts/deno-runtime-hardening.test.mjs:114:13
+✖ TS future within skew (seconds +1/+60/+300; milliseconds +1 ms/+60 s/+300 000 ms) → accepted (1.648625ms)
+  AssertionError [ERR_ASSERTION]: +1ms
+      at file:///private/tmp/claude-501/-Users-nicoavayu-Downloads-arma2-arma2--claude-worktrees-deno-deploy-runtime-prep-e2a77d/b3cdeb2c-c949-42b2-90ab-a5db7b8fb751/scratchpad/base/integration/torneos-core-contracts/deno-runtime-hardening.test.mjs:199:53
+      at async TestContext.<anonymous> (file:///private/tmp/claude-501/-Users-nicoavayu-Downloads-arma2-arma2--claude-worktrees-deno-deploy-runtime-prep-e2a77d/b3cdeb2c-c949-42b2-90ab-a5db7b8fb751/scratchpad/base/integration/torneos-core-contracts/deno-runtime-hardening.test.mjs:115:13)
+      at async Test.run (node:internal/test_runner/test:1113:7)
+      at async check (file:///private/tmp/claude-501/-Users-nicoavayu-Downloads-arma2-arma2--claude-worktrees-deno-deploy-runtime-prep-e2a77d/b3cdeb2c-c949-42b2-90ab-a5db7b8fb751/scratchpad/base/integration/torneos-core-contracts/deno-runtime-hardening.test.mjs:114:5)
+      at async TestContext.<anonymous> (file:///private/tmp/claude-501/-Users-nicoavayu-Downloads-arma2-arma2--claude-worktrees-deno-deploy-runtime-prep-e2a77d/b3cdeb2c-c949-42b2-90ab-a5db7b8fb751/scratchpad/base/integration/torneos-core-contracts/deno-runtime-hardening.test.mjs:197:5)
+      at async Test.run (node:internal/test_runner/test:1113:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at integration/torneos-core-contracts/deno-runtime-hardening.test.mjs:114:13
+✖ TS malformed ts (lengths 9/11/12/14/19, leading zero, float, exponent, sign, whitespace, garbage, non-ASCII digits) → 401 before any provider call even when HMAC-signed over itself (1.047583ms)
+  AssertionError [ERR_ASSERTION]: leading zero, 10 digits
+      at file:///private/tmp/claude-501/-Users-nicoavayu-Downloads-arma2-arma2--claude-worktrees-deno-deploy-runtime-prep-e2a77d/b3cdeb2c-c949-42b2-90ab-a5db7b8fb751/scratchpad/base/integration/torneos-core-contracts/deno-runtime-hardening.test.mjs:218:51
+      at async TestContext.<anonymous> (file:///private/tmp/claude-501/-Users-nicoavayu-Downloads-arma2-arma2--claude-worktrees-deno-deploy-runtime-prep-e2a77d/b3cdeb2c-c949-42b2-90ab-a5db7b8fb751/scratchpad/base/integration/torneos-core-contracts/deno-runtime-hardening.test.mjs:115:13)
+      at async Test.run (node:internal/test_runner/test:1113:7)
+      at async check (file:///private/tmp/claude-501/-Users-nicoavayu-Downloads-arma2-arma2--claude-worktrees-deno-deploy-runtime-prep-e2a77d/b3cdeb2c-c949-42b2-90ab-a5db7b8fb751/scratchpad/base/integration/torneos-core-contracts/deno-runtime-hardening.test.mjs:114:5)
+      at async TestContext.<anonymous> (file:///private/tmp/claude-501/-Users-nicoavayu-Downloads-arma2-arma2--claude-worktrees-deno-deploy-runtime-prep-e2a77d/b3cdeb2c-c949-42b2-90ab-a5db7b8fb751/scratchpad/base/integration/torneos-core-contracts/deno-runtime-hardening.test.mjs:217:5)
+      at async Test.run (node:internal/test_runner/test:1113:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at integration/torneos-core-contracts/deno-runtime-hardening.test.mjs:114:13
+✖ TS duplicate ts / v1 keys are ambiguous → 401 (whichever occurrence is signed); unknown extra keys are ignored; key spacing is tolerated (0.569166ms)
+  AssertionError [ERR_ASSERTION]: ts future then now (signed now)
+      at file:///private/tmp/claude-501/-Users-nicoavayu-Downloads-arma2-arma2--claude-worktrees-deno-deploy-runtime-prep-e2a77d/b3cdeb2c-c949-42b2-90ab-a5db7b8fb751/scratchpad/base/integration/torneos-core-contracts/deno-runtime-hardening.test.mjs:233:16
+      at async TestContext.<anonymous> (file:///private/tmp/claude-501/-Users-nicoavayu-Downloads-arma2-arma2--claude-worktrees-deno-deploy-runtime-prep-e2a77d/b3cdeb2c-c949-42b2-90ab-a5db7b8fb751/scratchpad/base/integration/torneos-core-contracts/deno-runtime-hardening.test.mjs:115:13)
+      at async Test.run (node:internal/test_runner/test:1113:7)
+      at async check (file:///private/tmp/claude-501/-Users-nicoavayu-Downloads-arma2-arma2--claude-worktrees-deno-deploy-runtime-prep-e2a77d/b3cdeb2c-c949-42b2-90ab-a5db7b8fb751/scratchpad/base/integration/torneos-core-contracts/deno-runtime-hardening.test.mjs:114:5)
+      at async TestContext.<anonymous> (file:///private/tmp/claude-501/-Users-nicoavayu-Downloads-arma2-arma2--claude-worktrees-deno-deploy-runtime-prep-e2a77d/b3cdeb2c-c949-42b2-90ab-a5db7b8fb751/scratchpad/base/integration/torneos-core-contracts/deno-runtime-hardening.test.mjs:229:5)
+      at async Test.run (node:internal/test_runner/test:1113:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at integration/torneos-core-contracts/deno-runtime-hardening.test.mjs:114:13
+✖ RAW HMAC: the manifest carries the ts bytes exactly as received — a 13-digit ts signed as its seconds, or a 10-digit ts signed as milliseconds, is refused (0.811333ms)
+  AssertionError [ERR_ASSERTION]: 13-digit header, v1 over the raw 13 digits
+      at file:///private/tmp/claude-501/-Users-nicoavayu-Downloads-arma2-arma2--claude-worktrees-deno-deploy-runtime-prep-e2a77d/b3cdeb2c-c949-42b2-90ab-a5db7b8fb751/scratchpad/base/integration/torneos-core-contracts/deno-runtime-hardening.test.mjs:262:16
+      at async TestContext.<anonymous> (file:///private/tmp/claude-501/-Users-nicoavayu-Downloads-arma2-arma2--claude-worktrees-deno-deploy-runtime-prep-e2a77d/b3cdeb2c-c949-42b2-90ab-a5db7b8fb751/scratchpad/base/integration/torneos-core-contracts/deno-runtime-hardening.test.mjs:115:13)
+      at async Test.run (node:internal/test_runner/test:1113:7)
+      at async check (file:///private/tmp/claude-501/-Users-nicoavayu-Downloads-arma2-arma2--claude-worktrees-deno-deploy-runtime-prep-e2a77d/b3cdeb2c-c949-42b2-90ab-a5db7b8fb751/scratchpad/base/integration/torneos-core-contracts/deno-runtime-hardening.test.mjs:114:5)
+      at async TestContext.<anonymous> (file:///private/tmp/claude-501/-Users-nicoavayu-Downloads-arma2-arma2--claude-worktrees-deno-deploy-runtime-prep-e2a77d/b3cdeb2c-c949-42b2-90ab-a5db7b8fb751/scratchpad/base/integration/torneos-core-contracts/deno-runtime-hardening.test.mjs:249:5)
+      at async Test.run (node:internal/test_runner/test:1113:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at integration/torneos-core-contracts/deno-runtime-hardening.test.mjs:114:13
+✖ RAW HMAC: normalisation exists only in the freshness module (seconds → ×1000, milliseconds as is) and never feeds the manifest (0.170167ms)
+  TypeError: freshness.webhookTimestampMs is not a function
+      at file:///private/tmp/claude-501/-Users-nicoavayu-Downloads-arma2-arma2--claude-worktrees-deno-deploy-runtime-prep-e2a77d/b3cdeb2c-c949-42b2-90ab-a5db7b8fb751/scratchpad/base/integration/torneos-core-contracts/deno-runtime-hardening.test.mjs:270:30
+      at TestContext.<anonymous> (file:///private/tmp/claude-501/-Users-nicoavayu-Downloads-arma2-arma2--claude-worktrees-deno-deploy-runtime-prep-e2a77d/b3cdeb2c-c949-42b2-90ab-a5db7b8fb751/scratchpad/base/integration/torneos-core-contracts/deno-runtime-hardening.test.mjs:115:19)
+      at Test.runInAsyncScope (node:async_hooks:213:14)
+      at Test.run (node:internal/test_runner/test:1106:25)
+      at Test.start (node:internal/test_runner/test:1003:17)
+      at TestContext.test (node:internal/test_runner/test:378:20)
+      at check (file:///private/tmp/claude-501/-Users-nicoavayu-Downloads-arma2-arma2--claude-worktrees-deno-deploy-runtime-prep-e2a77d/b3cdeb2c-c949-42b2-90ab-a5db7b8fb751/scratchpad/base/integration/torneos-core-contracts/deno-runtime-hardening.test.mjs:114:13)
+      at TestContext.<anonymous> (file:///private/tmp/claude-501/-Users-nicoavayu-Downloads-arma2-arma2--claude-worktrees-deno-deploy-runtime-prep-e2a77d/b3cdeb2c-c949-42b2-90ab-a5db7b8fb751/scratchpad/base/integration/torneos-core-contracts/deno-runtime-hardening.test.mjs:269:11)
+      at async Test.run (node:internal/test_runner/test:1113:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3)
+
+test at integration/torneos-core-contracts/deno-runtime-hardening.test.mjs:114:13
+✖ ORD the ordering RPC receives the re-fetched provider date_last_updated verbatim — never the webhook ts (10 or 13 digits) nor the body date (0.595708ms)
+  AssertionError [ERR_ASSERTION]: 1790251200999
+      at file:///private/tmp/claude-501/-Users-nicoavayu-Downloads-arma2-arma2--claude-worktrees-deno-deploy-runtime-prep-e2a77d/b3cdeb2c-c949-42b2-90ab-a5db7b8fb751/scratchpad/base/integration/torneos-core-contracts/deno-runtime-hardening.test.mjs:303:16
+      at async TestContext.<anonymous> (file:///private/tmp/claude-501/-Users-nicoavayu-Downloads-arma2-arma2--claude-worktrees-deno-deploy-runtime-prep-e2a77d/b3cdeb2c-c949-42b2-90ab-a5db7b8fb751/scratchpad/base/integration/torneos-core-contracts/deno-runtime-hardening.test.mjs:115:13)
+      at async Test.run (node:internal/test_runner/test:1113:7)
+      at async check (file:///private/tmp/claude-501/-Users-nicoavayu-Downloads-arma2-arma2--claude-worktrees-deno-deploy-runtime-prep-e2a77d/b3cdeb2c-c949-42b2-90ab-a5db7b8fb751/scratchpad/base/integration/torneos-core-contracts/deno-runtime-hardening.test.mjs:114:5)
+      at async TestContext.<anonymous> (file:///private/tmp/claude-501/-Users-nicoavayu-Downloads-arma2-arma2--claude-worktrees-deno-deploy-runtime-prep-e2a77d/b3cdeb2c-c949-42b2-90ab-a5db7b8fb751/scratchpad/base/integration/torneos-core-contracts/deno-runtime-hardening.test.mjs:298:5)
+      at async Test.run (node:internal/test_runner/test:1113:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at integration/torneos-core-contracts/deno-runtime-hardening.test.mjs:114:13
+✖ ISO contract ↔ code: every variable each runtime reads is declared for that app; payments boot-refuses every variable its contract forbids; the gateway boot-refuses (remote-test) every payments secret (3.222875ms)
+  AssertionError [ERR_ASSERTION]: payments boots with forbidden TORNEOS_BRIDGE_KEYS
+  
+  true !== false
+  
+      at file:///private/tmp/claude-501/-Users-nicoavayu-Downloads-arma2-arma2--claude-worktrees-deno-deploy-runtime-prep-e2a77d/b3cdeb2c-c949-42b2-90ab-a5db7b8fb751/scratchpad/base/integration/torneos-core-contracts/deno-runtime-hardening.test.mjs:432:16
+      at async TestContext.<anonymous> (file:///private/tmp/claude-501/-Users-nicoavayu-Downloads-arma2-arma2--claude-worktrees-deno-deploy-runtime-prep-e2a77d/b3cdeb2c-c949-42b2-90ab-a5db7b8fb751/scratchpad/base/integration/torneos-core-contracts/deno-runtime-hardening.test.mjs:115:13)
+      at async Test.run (node:internal/test_runner/test:1113:7)
+      at async check (file:///private/tmp/claude-501/-Users-nicoavayu-Downloads-arma2-arma2--claude-worktrees-deno-deploy-runtime-prep-e2a77d/b3cdeb2c-c949-42b2-90ab-a5db7b8fb751/scratchpad/base/integration/torneos-core-contracts/deno-runtime-hardening.test.mjs:114:5)
+      at async TestContext.<anonymous> (file:///private/tmp/claude-501/-Users-nicoavayu-Downloads-arma2-arma2--claude-worktrees-deno-deploy-runtime-prep-e2a77d/b3cdeb2c-c949-42b2-90ab-a5db7b8fb751/scratchpad/base/integration/torneos-core-contracts/deno-runtime-hardening.test.mjs:417:5)
+      at async Test.run (node:internal/test_runner/test:1113:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

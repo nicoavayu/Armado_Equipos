@@ -1,0 +1,38 @@
+# MP-A3 commerce overlay (compose -f compose.yaml -f compose.mpa.yaml), selected by
+# TORNEOS_LAB_MODE=commerce in lab.mjs. Local only; nothing here talks to Mercado Pago.
+#   * torneos-functions additionally receives .runtime/torneos-payments.env (ephemeral lab
+#     secrets). torneos-edge-main hands each worker only the variables it needs, so the
+#     gateway worker never sees MERCADO_PAGO_* and torneos-payments never sees Core or
+#     bridge keys. The real Mercado Pago hosts resolve to a black hole in this container:
+#     only the payments service's lab fetch wrapper (→ mp-stub) can serve the provider.
+#   * mp-stub: the lab Mercado Pago API (mp-stub.mjs). Internal network plus a loopback-only
+#     control port for the test suites; no masquerade, so it cannot reach the outside.
+#   * MP-A4 gateway commerce: the Edge gateway worker gets TORNEOS_COMMERCE_MODE=test plus the internal URL/key
+#     (.runtime/torneos-gateway-commerce.env, filtered per worker by torneos-edge-main); the Node gateway reads
+#     .runtime/server/commerce.env and runs the same commerce module, mounted read-only below with every file it
+#     imports (MP-B1.1 R2: remote-hosts.ts, the shared host policy).
+services:
+  torneos-functions:
+    depends_on: [core-auth, core-api, torneos-rest, mp-stub]
+    env_file: [.runtime/torneos-gateway.env, .runtime/torneos-payments.env, .runtime/torneos-gateway-commerce.env]
+    extra_hosts:
+      - "api.mercadopago.com:127.0.0.9"
+      - "www.mercadopago.com:127.0.0.9"
+      - "www.mercadopago.com.ar:127.0.0.9"
+      - "mercadopago.com.ar:127.0.0.9"
+      - "sandbox.mercadopago.com.ar:127.0.0.9"
+  gateway:
+    volumes:
+      - ../../backend/torneos/supabase/functions/torneos-gateway/commerce.ts:/lab/functions/torneos-gateway/commerce.ts:ro
+      - ../../backend/torneos/supabase/functions/torneos-gateway/commerce-test-rpc-allowlist.json:/lab/functions/torneos-gateway/commerce-test-rpc-allowlist.json:ro
+      - ../../backend/torneos/supabase/functions/torneos-payments/hmac.ts:/lab/functions/torneos-payments/hmac.ts:ro
+      - ../../backend/torneos/supabase/functions/torneos-payments/remote-hosts.ts:/lab/functions/torneos-payments/remote-hosts.ts:ro
+  mp-stub:
+    image: node:22.22.0-bookworm-slim
+    working_dir: /lab
+    command: [node, mp-stub.mjs]
+    env_file: [.runtime/mp-stub.env]
+    volumes:
+      - ./mp-stub.mjs:/lab/mp-stub.mjs:ro
+    ports: ["127.0.0.1:58426:8080"]
+    networks: [isolated, loopback-ingress]

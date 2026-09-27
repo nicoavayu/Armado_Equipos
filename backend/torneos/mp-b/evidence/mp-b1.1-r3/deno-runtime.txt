@@ -1,0 +1,17 @@
+▶ MP-B1.1 R3 — unmodified entrypoints on standard Deno 2.x (offline)
+  ✔ runtime: DENO_BIN is a standard Deno 2.x binary (41.179834ms)
+  ✔ resolution: inside the repo the root package.json switches Deno 2 to node_modules resolution → npm: imports fail closed; rooted at the functions tree they resolve (29.759208ms)
+  ✔ type check: payments entrypoint graph type-checks clean on Deno 2.x; gateway type-check reports only the 3 known pre-existing strict-type diagnostics (runtime is unaffected: Deno does not type-check at run time) (373.475792ms)
+  ✔ payments boots on Deno 2.x with the TEST fixture (Deno.serve + Deno.env.toObject + npm:postgres loaded) and serves only its two routes under /functions/v1/torneos-payments (70.52075ms)
+  ✔ payments on Deno 2.x refuses to boot (503 on both routes, "config_rejected") with bridge keys, a Core/Supabase admin secret, a PG* variable or a gateway DB login (131.117667ms)
+  ✔ gateway boots on Deno 2.x in remote-test commerce (https + declared hosts): JWKS, /config, /exchange and the commerce route answer under /functions/v1/torneos-gateway; wrong Host → 403; Core unreachable → 503 (43.0935ms)
+  ✔ gateway on Deno 2.x refuses to boot (503 everywhere, value-free reason) with a Mercado Pago secret or the payments DB login in its environment (55.927416ms)
+✔ MP-B1.1 R3 — unmodified entrypoints on standard Deno 2.x (offline) (748.592833ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 8
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 879.235916

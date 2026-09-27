@@ -1,0 +1,570 @@
+{
+ "tool": "backend/torneos/infra/torneos-payments-test/payments-session.mjs",
+ "generated_at": "2026-09-26T20:38:35.075Z",
+ "verdict": "REFUND_LIFECYCLE_PASS_MANUAL_INITIATION",
+ "initiation": "manual — full refund from the Seller Test Mercado Pago panel (operator), after the API refund was refused",
+ "refund_api_initiation": "NOT CERTIFIED — \"refund API initiation\" could not be certified: limitation of the Mercado Pago Seller Test sandbox (payments report live_mode:true; the API refund with the Seller Test token answers 401 \"Unauthorized use of live credentials\")",
+ "refund_lifecycle": "CERTIFIED — the lifecycle refund → signed webhook → revoke was certified on a real total refund initiated manually from the Seller Test Mercado Pago panel",
+ "refund_api_attempt": {
+  "at": "2026-09-26T19:50:23Z",
+  "plan_id": "e88bdbc9b5b2",
+  "payment": "181036143126",
+  "request": "POST /v1/payments/{id}/refunds (full, armed, phrase accepted)",
+  "response": {
+   "status": 401,
+   "message": "Unauthorized use of live credentials"
+  },
+  "writes_applied": 0
+ },
+ "payment": "181036143126",
+ "purchase": "d4a72039-3b35-489c-8a75-7a6e37d85cd1",
+ "provider_after": {
+  "id": "181036143126",
+  "status": "refunded",
+  "status_detail": "refunded",
+  "date_last_updated": "2026-09-26T16:22:19.000-04:00",
+  "date_created": "2026-09-26T14:53:56.000-04:00",
+  "transaction_amount": 39900,
+  "currency_id": "ARS",
+  "live_mode": true,
+  "collector_matches": true,
+  "external_reference": "arma2:season:purchase:d4a72039-3b35-489c-8a75-7a6e37d85cd1",
+  "metadata_purchase_id": "d4a72039-3b35-489c-8a75-7a6e37d85cd1",
+  "order": {
+   "id": "44794225708",
+   "type": "mercadopago"
+  },
+  "payment_type_id": "credit_card",
+  "refunds": 1
+ },
+ "provider_refunds": [
+  {
+   "refund_id": "3298184573",
+   "payment_id": "181036143126",
+   "amount": 39900,
+   "status": "approved",
+   "date_created": "2026-09-26T16:20:14.000-04:00",
+   "source_type": "collector",
+   "refund_mode": "standard"
+  }
+ ],
+ "db": {
+  "purchase": "d4a72039-3b35-489c-8a75-7a6e37d85cd1",
+  "season": "3f2f39af-848f-4ebf-ab78-f729d07bd5cb",
+  "season_slug": "qa-pt-s1-609378",
+  "status": "refunded",
+  "provider": "MERCADO_PAGO",
+  "environment": "test",
+  "product": "torneos_premium",
+  "offer": "launch",
+  "amount": 39900,
+  "list_amount": 49900,
+  "currency": "ARS",
+  "external_reference": "arma2:season:purchase:d4a72039-3b35-489c-8a75-7a6e37d85cd1",
+  "preference_id": "3712890098-358b3797-1ebb-4191-b236-7afe98685a7b",
+  "approved_payment": "181036143126",
+  "provider_status": "refunded",
+  "provider_status_detail": "refunded",
+  "created_at": "2026-09-26T18:31:34.284973+00:00",
+  "approved_at": "2026-09-26T19:46:30.201658+00:00",
+  "refunded_at": "2026-09-26T20:20:17.738951+00:00",
+  "charged_back_at": null,
+  "entitlement_activated_at": "2026-09-26T19:46:30.201658+00:00",
+  "events": [
+   {
+    "id": 113,
+    "type": "purchase.created",
+    "from": null,
+    "to": "created",
+    "actor": "user",
+    "provider_status": null,
+    "payment": null,
+    "provider_time": null
+   },
+   {
+    "id": 114,
+    "type": "preference.created",
+    "from": "created",
+    "to": "preference_created",
+    "actor": "service",
+    "provider_status": "created",
+    "payment": null,
+    "provider_time": null
+   },
+   {
+    "id": 115,
+    "type": "payment.approved",
+    "from": "preference_created",
+    "to": "approved",
+    "actor": "provider",
+    "provider_status": "approved",
+    "payment": "181036143126",
+    "provider_time": null
+   },
+   {
+    "id": 170,
+    "type": "payment.refund",
+    "from": "approved",
+    "to": "refunded",
+    "actor": "provider",
+    "provider_status": "refund",
+    "payment": null,
+    "provider_time": null
+   }
+  ],
+  "grants": [
+   {
+    "grant": "ce0040af-1126-4b79-9a98-b1913a3d777d",
+    "plan": "PREMIUM",
+    "source": "purchase",
+    "events": [
+     {
+      "type": "granted",
+      "reason_code": "payment_approved",
+      "actor": "provider"
+     },
+     {
+      "type": "revoked",
+      "reason_code": "total_refund",
+      "actor": "provider"
+     }
+    ],
+    "effective": false
+   }
+  ],
+  "watermarks": [
+   {
+    "payment": "181036143126",
+    "date_last_updated": "2026-09-26T20:22:19+00:00",
+    "state": [
+     "reversal",
+     "refund"
+    ],
+    "manual_refund": false,
+    "manual_review": false
+   }
+  ]
+ },
+ "db_after_late_replay": {
+  "purchase": "d4a72039-3b35-489c-8a75-7a6e37d85cd1",
+  "season": "3f2f39af-848f-4ebf-ab78-f729d07bd5cb",
+  "season_slug": "qa-pt-s1-609378",
+  "status": "refunded",
+  "provider": "MERCADO_PAGO",
+  "environment": "test",
+  "product": "torneos_premium",
+  "offer": "launch",
+  "amount": 39900,
+  "list_amount": 49900,
+  "currency": "ARS",
+  "external_reference": "arma2:season:purchase:d4a72039-3b35-489c-8a75-7a6e37d85cd1",
+  "preference_id": "3712890098-358b3797-1ebb-4191-b236-7afe98685a7b",
+  "approved_payment": "181036143126",
+  "provider_status": "refunded",
+  "provider_status_detail": "refunded",
+  "created_at": "2026-09-26T18:31:34.284973+00:00",
+  "approved_at": "2026-09-26T19:46:30.201658+00:00",
+  "refunded_at": "2026-09-26T20:20:17.738951+00:00",
+  "charged_back_at": null,
+  "entitlement_activated_at": "2026-09-26T19:46:30.201658+00:00",
+  "events": [
+   {
+    "id": 113,
+    "type": "purchase.created",
+    "from": null,
+    "to": "created",
+    "actor": "user",
+    "provider_status": null,
+    "payment": null,
+    "provider_time": null
+   },
+   {
+    "id": 114,
+    "type": "preference.created",
+    "from": "created",
+    "to": "preference_created",
+    "actor": "service",
+    "provider_status": "created",
+    "payment": null,
+    "provider_time": null
+   },
+   {
+    "id": 115,
+    "type": "payment.approved",
+    "from": "preference_created",
+    "to": "approved",
+    "actor": "provider",
+    "provider_status": "approved",
+    "payment": "181036143126",
+    "provider_time": null
+   },
+   {
+    "id": 170,
+    "type": "payment.refund",
+    "from": "approved",
+    "to": "refunded",
+    "actor": "provider",
+    "provider_status": "refund",
+    "payment": null,
+    "provider_time": null
+   }
+  ],
+  "grants": [
+   {
+    "grant": "ce0040af-1126-4b79-9a98-b1913a3d777d",
+    "plan": "PREMIUM",
+    "source": "purchase",
+    "events": [
+     {
+      "type": "granted",
+      "reason_code": "payment_approved",
+      "actor": "provider"
+     },
+     {
+      "type": "revoked",
+      "reason_code": "total_refund",
+      "actor": "provider"
+     }
+    ],
+    "effective": false
+   }
+  ],
+  "watermarks": [
+   {
+    "payment": "181036143126",
+    "date_last_updated": "2026-09-26T20:22:19+00:00",
+    "state": [
+     "reversal",
+     "refund"
+    ],
+    "manual_refund": false,
+    "manual_review": false
+   }
+  ]
+ },
+ "real_webhook": {
+  "reversal_applied": [
+   {
+    "at": "2026-09-26T20:20:18.659196944Z",
+    "revision": "y3c0y413n6zy",
+    "status": 200,
+    "code": "reversal_applied"
+   },
+   {
+    "at": "2026-09-26T20:20:23.406760045Z",
+    "revision": "y3c0y413n6zy",
+    "status": 200,
+    "code": "reversal_applied"
+   },
+   {
+    "at": "2026-09-26T20:22:24.192596217Z",
+    "revision": "y3c0y413n6zy",
+    "status": 200,
+    "code": "reversal_applied"
+   }
+  ],
+  "deliveries_after_approval": [
+   {
+    "at": "2026-09-26T19:46:31.008208757Z",
+    "revision": "y3c0y413n6zy",
+    "status": 200,
+    "code": "approved"
+   },
+   {
+    "at": "2026-09-26T19:46:55.040122646Z",
+    "revision": "y3c0y413n6zy",
+    "status": 400,
+    "code": "invalid_request"
+   },
+   {
+    "at": "2026-09-26T19:48:33.892082954Z",
+    "revision": "y3c0y413n6zy",
+    "status": 200,
+    "code": "provider_snapshot_duplicate"
+   },
+   {
+    "at": "2026-09-26T19:48:35.925593716Z",
+    "revision": "y3c0y413n6zy",
+    "status": 200,
+    "code": "provider_snapshot_duplicate"
+   },
+   {
+    "at": "2026-09-26T19:48:37.983344874Z",
+    "revision": "y3c0y413n6zy",
+    "status": 200,
+    "code": "provider_snapshot_duplicate"
+   },
+   {
+    "at": "2026-09-26T19:48:40.015535116Z",
+    "revision": "y3c0y413n6zy",
+    "status": 200,
+    "code": "provider_snapshot_duplicate"
+   },
+   {
+    "at": "2026-09-26T19:48:41.992805224Z",
+    "revision": "y3c0y413n6zy",
+    "status": 200,
+    "code": "provider_snapshot_duplicate"
+   },
+   {
+    "at": "2026-09-26T19:48:42.188815777Z",
+    "revision": "y3c0y413n6zy",
+    "status": 401,
+    "code": "invalid_signature"
+   },
+   {
+    "at": "2026-09-26T19:48:42.384801481Z",
+    "revision": "y3c0y413n6zy",
+    "status": 400,
+    "code": "invalid_notification"
+   },
+   {
+    "at": "2026-09-26T19:48:42.600788412Z",
+    "revision": "y3c0y413n6zy",
+    "status": 400,
+    "code": "invalid_notification"
+   },
+   {
+    "at": "2026-09-26T19:48:44.577160855Z",
+    "revision": "y3c0y413n6zy",
+    "status": 200,
+    "code": "provider_snapshot_duplicate"
+   },
+   {
+    "at": "2026-09-26T19:48:46.562067074Z",
+    "revision": "y3c0y413n6zy",
+    "status": 200,
+    "code": "provider_snapshot_duplicate"
+   },
+   {
+    "at": "2026-09-26T20:20:15.373836924Z",
+    "revision": "y3c0y413n6zy",
+    "status": 400,
+    "code": "invalid_request"
+   },
+   {
+    "at": "2026-09-26T20:20:15.622711870Z",
+    "revision": "y3c0y413n6zy",
+    "status": 400,
+    "code": "invalid_request"
+   },
+   {
+    "at": "2026-09-26T20:20:17.143601089Z",
+    "revision": "y3c0y413n6zy",
+    "status": 400,
+    "code": "invalid_request"
+   },
+   {
+    "at": "2026-09-26T20:20:17.307488656Z",
+    "revision": "y3c0y413n6zy",
+    "status": 400,
+    "code": "invalid_request"
+   },
+   {
+    "at": "2026-09-26T20:20:17.661352766Z",
+    "revision": "y3c0y413n6zy",
+    "status": 400,
+    "code": "invalid_request"
+   },
+   {
+    "at": "2026-09-26T20:20:17.823531219Z",
+    "revision": "y3c0y413n6zy",
+    "status": 400,
+    "code": "invalid_request"
+   },
+   {
+    "at": "2026-09-26T20:20:18.177325300Z",
+    "revision": "y3c0y413n6zy",
+    "status": 400,
+    "code": "invalid_request"
+   },
+   {
+    "at": "2026-09-26T20:20:18.354865494Z",
+    "revision": "y3c0y413n6zy",
+    "status": 400,
+    "code": "invalid_request"
+   },
+   {
+    "at": "2026-09-26T20:20:18.659196944Z",
+    "revision": "y3c0y413n6zy",
+    "status": 200,
+    "code": "reversal_applied"
+   },
+   {
+    "at": "2026-09-26T20:20:21.665131114Z",
+    "revision": "y3c0y413n6zy",
+    "status": 400,
+    "code": "invalid_request"
+   },
+   {
+    "at": "2026-09-26T20:20:21.919612350Z",
+    "revision": "y3c0y413n6zy",
+    "status": 400,
+    "code": "invalid_request"
+   },
+   {
+    "at": "2026-09-26T20:20:22.233056653Z",
+    "revision": "y3c0y413n6zy",
+    "status": 400,
+    "code": "invalid_request"
+   },
+   {
+    "at": "2026-09-26T20:20:22.551576546Z",
+    "revision": "y3c0y413n6zy",
+    "status": 400,
+    "code": "invalid_request"
+   },
+   {
+    "at": "2026-09-26T20:20:23.406760045Z",
+    "revision": "y3c0y413n6zy",
+    "status": 200,
+    "code": "reversal_applied"
+   },
+   {
+    "at": "2026-09-26T20:22:21.242848214Z",
+    "revision": "y3c0y413n6zy",
+    "status": 400,
+    "code": "invalid_request"
+   },
+   {
+    "at": "2026-09-26T20:22:21.466671371Z",
+    "revision": "y3c0y413n6zy",
+    "status": 400,
+    "code": "invalid_request"
+   },
+   {
+    "at": "2026-09-26T20:22:24.192596217Z",
+    "revision": "y3c0y413n6zy",
+    "status": 200,
+    "code": "reversal_applied"
+   },
+   {
+    "at": "2026-09-26T20:25:26.358815349Z",
+    "revision": "y3c0y413n6zy",
+    "status": 400,
+    "code": "invalid_request"
+   },
+   {
+    "at": "2026-09-26T20:25:26.526351649Z",
+    "revision": "y3c0y413n6zy",
+    "status": 400,
+    "code": "invalid_request"
+   },
+   {
+    "at": "2026-09-26T20:31:47.559004078Z",
+    "revision": "y3c0y413n6zy",
+    "status": 400,
+    "code": "invalid_request"
+   },
+   {
+    "at": "2026-09-26T20:31:47.559400678Z",
+    "revision": "y3c0y413n6zy",
+    "status": 400,
+    "code": "invalid_request"
+   },
+   {
+    "at": "2026-09-26T20:31:50.694579435Z",
+    "revision": "y3c0y413n6zy",
+    "status": 422,
+    "code": "payment_verification_failed_purchase_state"
+   },
+   {
+    "at": "2026-09-26T20:31:50.902327562Z",
+    "revision": "y3c0y413n6zy",
+    "status": 400,
+    "code": "invalid_request"
+   },
+   {
+    "at": "2026-09-26T20:31:51.778209843Z",
+    "revision": "y3c0y413n6zy",
+    "status": 422,
+    "code": "payment_verification_failed_purchase_state"
+   }
+  ]
+ },
+ "logs_api": {
+  "status": 200,
+  "body": "logs,next_cursor",
+  "rows": 298
+ },
+ "late_notification": {
+  "status": 200,
+  "outcome": "provider_snapshot_duplicate"
+ },
+ "post_refund_observations": [
+  {
+   "file": "post-refund-observations/pt-08-sandbox-checkout-20260926T202156Z.json",
+   "sha256": "a27a1d080733b1d120f52eab36ed98659e2cb12a5c508ef2e62c098391bb755c",
+   "verdict": "SANDBOX_CHECKOUT_INCOMPLETE"
+  }
+ ],
+ "checks": [
+  {
+   "name": "refund initiated manually in the Seller Test Mercado Pago panel: this step made no Mercado Pago write",
+   "pass": true
+  },
+  {
+   "name": "Mercado Pago: the payment of P1 (attested seller, ARS 39900, external_reference P1) is refunded / refunded",
+   "pass": true
+  },
+  {
+   "name": "Mercado Pago: total refund — approved refunds sum to ARS 39900",
+   "pass": true
+  },
+  {
+   "name": "real signed Mercado Pago webhook: 200 reversal_applied on the TEST app after the approval, before this step sent anything, and the DB refund lands with it",
+   "pass": true
+  },
+  {
+   "name": "DB: purchase refunded by the provider (payment.refund, actor provider, approved → refunded)",
+   "pass": true
+  },
+  {
+   "name": "DB: the one Premium grant revoked by the provider (total_refund), not effective",
+   "pass": true
+  },
+  {
+   "name": "DB: watermark at the refunded snapshot (reversal / refund), no manual flags",
+   "pass": true
+  },
+  {
+   "name": "late old notification after the refund → duplicate of the refunded snapshot; revoked never revives",
+   "pass": true
+  },
+  {
+   "name": "the late replay changed nothing: purchase, events, grants and watermarks identical",
+   "pass": true
+  }
+ ],
+ "mp_requests": [
+  {
+   "id": "users-me",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "payment",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "payment-refunds",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  }
+ ],
+ "mp_writes": 0,
+ "app_requests": [
+  {
+   "label": "webhook:payment",
+   "method": "POST",
+   "path": "/functions/v1/torneos-payments/webhooks/mercadopago/v1?data.id=…&type=payment",
+   "status": 200,
+   "error": null,
+   "outcome": "provider_snapshot_duplicate"
+  }
+ ]
+}

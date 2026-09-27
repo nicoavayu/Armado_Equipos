@@ -1,0 +1,598 @@
+{
+ "tool": "backend/torneos/infra/torneos-payments-test/payments-session.mjs",
+ "generated_at": "2026-09-26T13:13:56.700Z",
+ "verdict": "PAYMENTS_TEST_APP_DEPLOYED",
+ "plan": {
+  "step": "create",
+  "app": "torneos-payments-test",
+  "config": {
+   "install": null,
+   "build": null,
+   "predeploy": null,
+   "runtime": {
+    "type": "dynamic",
+    "entrypoint": "torneos-payments/index.ts"
+   },
+   "crons": false
+  },
+  "labels": {
+   "custom.component": "arma2-torneos-payments",
+   "custom.environment": "mercadopago-test"
+  },
+  "env_names": [
+   "APP_PUBLIC_URL",
+   "MERCADO_PAGO_ENVIRONMENT",
+   "MERCADO_PAGO_TEST_ACCESS_TOKEN",
+   "MERCADO_PAGO_TEST_SELLER_ID",
+   "MERCADO_PAGO_TEST_WEBHOOK_SECRET",
+   "TORNEOS_PAYMENTS_DB_SSL_CA",
+   "TORNEOS_PAYMENTS_DB_URL",
+   "TORNEOS_PAYMENTS_DEPLOYMENT",
+   "TORNEOS_PAYMENTS_INTERNAL_SECRET",
+   "TORNEOS_PAYMENTS_NOTIFICATION_URL",
+   "TORNEOS_PAYMENT_PROVIDER"
+  ],
+  "secret_names": [
+   "MERCADO_PAGO_TEST_ACCESS_TOKEN",
+   "MERCADO_PAGO_TEST_WEBHOOK_SECRET",
+   "TORNEOS_PAYMENTS_DB_URL",
+   "TORNEOS_PAYMENTS_INTERNAL_SECRET"
+  ],
+  "public_url": "https://torneos-payments-test.nicoavayu.deno.net/functions/v1/torneos-payments",
+  "webhook_url": "https://torneos-payments-test.nicoavayu.deno.net/functions/v1/torneos-payments/webhooks/mercadopago/v1",
+  "seller_id": "3712890098",
+  "db": {
+   "login": "torneos_payments_test.onzpwnqxnvlgsevivngf",
+   "host": "aws-0-sa-east-1.pooler.supabase.com",
+   "port": 6543
+  },
+  "internal_hmac_custody": {
+   "service": "arma2-torneos-payments-test",
+   "account": "internal-hmac-key",
+   "before": "ABSENT"
+  },
+  "org_apps_before": [
+   "torneos-gateway"
+  ],
+  "bundle": {
+   "head": "4b3f82b4ec920b72c93851341e07d40195773142",
+   "digest": "d3fcd8c0e55cc2ab4c242b0725fca118e2ce52b21b99c2e1013de2341f54fa35",
+   "files": 13
+  },
+  "timelines": {
+   "production": true,
+   "preview": false
+  }
+ },
+ "plan_id": "4bbbe35801b8",
+ "authorization": {
+  "phrase": "CREATE TORNEOS PAYMENTS TEST DENO APP torneos-payments-test 4bbbe35801b8",
+  "channel": "session FIFO (operator)"
+ },
+ "env_validated_by_real_config": {
+  "deployment": "remote-test",
+  "remoteHost": "torneos-payments-test.nicoavayu.deno.net",
+  "sellerId": "3712890098",
+  "notificationUrl": "https://torneos-payments-test.nicoavayu.deno.net/functions/v1/torneos-payments/webhooks/mercadopago/v1",
+  "appBaseUrl": "https://torneos-payments-test.nicoavayu.deno.net",
+  "ca": true
+ },
+ "app": {
+  "id": "46dc4189-bc99-4c89-88d0-ea596e31d0a1",
+  "slug": "torneos-payments-test",
+  "layers": [],
+  "env_vars": [
+   {
+    "key": "APP_PUBLIC_URL",
+    "secret": false,
+    "contexts": "all",
+    "value_returned": true
+   },
+   {
+    "key": "MERCADO_PAGO_ENVIRONMENT",
+    "secret": false,
+    "contexts": "all",
+    "value_returned": true
+   },
+   {
+    "key": "MERCADO_PAGO_TEST_ACCESS_TOKEN",
+    "secret": true,
+    "contexts": "all",
+    "value_returned": false
+   },
+   {
+    "key": "MERCADO_PAGO_TEST_SELLER_ID",
+    "secret": false,
+    "contexts": "all",
+    "value_returned": true
+   },
+   {
+    "key": "MERCADO_PAGO_TEST_WEBHOOK_SECRET",
+    "secret": true,
+    "contexts": "all",
+    "value_returned": false
+   },
+   {
+    "key": "TORNEOS_PAYMENT_PROVIDER",
+    "secret": false,
+    "contexts": "all",
+    "value_returned": true
+   },
+   {
+    "key": "TORNEOS_PAYMENTS_DB_SSL_CA",
+    "secret": false,
+    "contexts": "all",
+    "value_returned": true
+   },
+   {
+    "key": "TORNEOS_PAYMENTS_DB_URL",
+    "secret": true,
+    "contexts": "all",
+    "value_returned": false
+   },
+   {
+    "key": "TORNEOS_PAYMENTS_DEPLOYMENT",
+    "secret": false,
+    "contexts": "all",
+    "value_returned": true
+   },
+   {
+    "key": "TORNEOS_PAYMENTS_INTERNAL_SECRET",
+    "secret": true,
+    "contexts": "all",
+    "value_returned": false
+   },
+   {
+    "key": "TORNEOS_PAYMENTS_NOTIFICATION_URL",
+    "secret": false,
+    "contexts": "all",
+    "value_returned": true
+   }
+  ],
+  "config": {
+   "runtime": {
+    "type": "dynamic",
+    "entrypoint": "torneos-payments/index.ts"
+   },
+   "crons": false
+  },
+  "labels": {
+   "custom.component": "arma2-torneos-payments",
+   "custom.environment": "mercadopago-test"
+  },
+  "created_at": "2026-09-26T13:13:46.715Z",
+  "updated_at": "2026-09-26T13:13:46.715Z"
+ },
+ "revision": {
+  "id": "dzvgze7sr654",
+  "status": "succeeded",
+  "failure_reason": null,
+  "failure_detail": null,
+  "env_vars": [],
+  "layers": 0,
+  "config": {
+   "runtime": {
+    "type": "dynamic",
+    "entrypoint": "torneos-payments/index.ts"
+   },
+   "crons": false
+  },
+  "labels": {
+   "custom.git_head": "4b3f82b4ec920b72c93851341e07d40195773142"
+  },
+  "created_at": "2026-09-26T13:13:47.612Z",
+  "build_finished_at": "2026-09-26T13:13:50.062Z",
+  "timelines": [
+   {
+    "name": "Production",
+    "context": "Production",
+    "hostnames": [
+     "torneos-payments-test.nicoavayu.deno.net"
+    ]
+   },
+   {
+    "name": "Preview",
+    "context": "Preview",
+    "hostnames": [
+     "torneos-payments-test-dzvgze7sr654.nicoavayu.deno.net"
+    ]
+   }
+  ]
+ },
+ "hosts": [
+  "torneos-payments-test.nicoavayu.deno.net",
+  "torneos-payments-test-dzvgze7sr654.nicoavayu.deno.net"
+ ],
+ "after": {
+  "app": {
+   "id": "46dc4189-bc99-4c89-88d0-ea596e31d0a1",
+   "slug": "torneos-payments-test",
+   "layers": [],
+   "env_vars": [
+    {
+     "key": "APP_PUBLIC_URL",
+     "secret": false,
+     "contexts": "all",
+     "value_returned": true
+    },
+    {
+     "key": "MERCADO_PAGO_ENVIRONMENT",
+     "secret": false,
+     "contexts": "all",
+     "value_returned": true
+    },
+    {
+     "key": "MERCADO_PAGO_TEST_ACCESS_TOKEN",
+     "secret": true,
+     "contexts": "all",
+     "value_returned": false
+    },
+    {
+     "key": "MERCADO_PAGO_TEST_SELLER_ID",
+     "secret": false,
+     "contexts": "all",
+     "value_returned": true
+    },
+    {
+     "key": "MERCADO_PAGO_TEST_WEBHOOK_SECRET",
+     "secret": true,
+     "contexts": "all",
+     "value_returned": false
+    },
+    {
+     "key": "TORNEOS_PAYMENT_PROVIDER",
+     "secret": false,
+     "contexts": "all",
+     "value_returned": true
+    },
+    {
+     "key": "TORNEOS_PAYMENTS_DB_SSL_CA",
+     "secret": false,
+     "contexts": "all",
+     "value_returned": true
+    },
+    {
+     "key": "TORNEOS_PAYMENTS_DB_URL",
+     "secret": true,
+     "contexts": "all",
+     "value_returned": false
+    },
+    {
+     "key": "TORNEOS_PAYMENTS_DEPLOYMENT",
+     "secret": false,
+     "contexts": "all",
+     "value_returned": true
+    },
+    {
+     "key": "TORNEOS_PAYMENTS_INTERNAL_SECRET",
+     "secret": true,
+     "contexts": "all",
+     "value_returned": false
+    },
+    {
+     "key": "TORNEOS_PAYMENTS_NOTIFICATION_URL",
+     "secret": false,
+     "contexts": "all",
+     "value_returned": true
+    }
+   ],
+   "config": {
+    "runtime": {
+     "type": "dynamic",
+     "entrypoint": "torneos-payments/index.ts"
+    },
+    "crons": false
+   },
+   "labels": {
+    "custom.component": "arma2-torneos-payments",
+    "custom.environment": "mercadopago-test"
+   },
+   "created_at": "2026-09-26T13:13:46.715Z",
+   "updated_at": "2026-09-26T13:13:46.715Z"
+  },
+  "apps": [
+   {
+    "id": "46dc4189-bc99-4c89-88d0-ea596e31d0a1",
+    "slug": "torneos-payments-test"
+   },
+   {
+    "id": "5d4f18e9-1614-4e24-b8e0-fd7cff8e4c3d",
+    "slug": "torneos-gateway"
+   }
+  ],
+  "gateway": {
+   "slug": "torneos-gateway",
+   "env_names": [
+    "CORE_ANON_KEY",
+    "CORE_AUTH_URL",
+    "CORE_CONTRACT_URL",
+    "CORE_JWT_ISSUER",
+    "TORNEOS_ALLOWED_ORIGIN",
+    "TORNEOS_ANON_KEY",
+    "TORNEOS_BRIDGE_KEYS",
+    "TORNEOS_CONTRACT_SERVICE_SECRET",
+    "TORNEOS_DB_CORE_ADAPTER_URL",
+    "TORNEOS_DB_IDENTITY_WRITER_URL",
+    "TORNEOS_DB_SSL_CA",
+    "TORNEOS_GATEWAY_PUBLIC_URL",
+    "TORNEOS_REST_URL"
+   ],
+   "layers": []
+  },
+  "failures": []
+ },
+ "deploy_pin": {
+  "purpose": "Arma2 Torneos payments TEST app on Deno Deploy — public facts only",
+  "app": "torneos-payments-test",
+  "app_id": "46dc4189-bc99-4c89-88d0-ea596e31d0a1",
+  "host": "torneos-payments-test.nicoavayu.deno.net",
+  "public_url": "https://torneos-payments-test.nicoavayu.deno.net/functions/v1/torneos-payments",
+  "webhook_url": "https://torneos-payments-test.nicoavayu.deno.net/functions/v1/torneos-payments/webhooks/mercadopago/v1",
+  "revision": "dzvgze7sr654",
+  "hosts": [
+   "torneos-payments-test.nicoavayu.deno.net",
+   "torneos-payments-test-dzvgze7sr654.nicoavayu.deno.net"
+  ],
+  "seller_id": "3712890098",
+  "source": {
+   "head": "4b3f82b4ec920b72c93851341e07d40195773142",
+   "digest": "d3fcd8c0e55cc2ab4c242b0725fca118e2ce52b21b99c2e1013de2341f54fa35",
+   "files": [
+    {
+     "path": "_shared/mercadoPagoPaymentProvider.ts",
+     "sha256": "1136217d93c55c5f981d45dfa9abfd62f14b26a218df120f5f801d547e547961",
+     "bytes": 12822
+    },
+    {
+     "path": "_shared/paymentProvider.ts",
+     "sha256": "da5e43266c5107cd1f6183c83046ba49e71343e9102370adb08be8abb4640a40",
+     "bytes": 910
+    },
+    {
+     "path": "torneos-payments/config.ts",
+     "sha256": "7f257beb83277cd3e7a8bb9449398714f24ac03397bf68372e39ca527d23f3dc",
+     "bytes": 11447
+    },
+    {
+     "path": "torneos-payments/db.ts",
+     "sha256": "f8e2f9e773d1cecbe1735c0bf32f969d047a83eb71595030666ddf81cd219125",
+     "bytes": 2575
+    },
+    {
+     "path": "torneos-payments/handler.ts",
+     "sha256": "cf46eb39889a8c311c17c18313275438e63d84976db4c174aba31571160250fd",
+     "bytes": 20067
+    },
+    {
+     "path": "torneos-payments/hmac.ts",
+     "sha256": "aa2ba972022e487605a0efecbfdd0bbcf2cd62e916298cd16299eb29f78b0ed3",
+     "bytes": 3360
+    },
+    {
+     "path": "torneos-payments/index.ts",
+     "sha256": "e49ba4da4f5939a3c33b06b89bf9ac786281ee0dfbc41f19e0eb60c29fe2dea2",
+     "bytes": 486
+    },
+    {
+     "path": "torneos-payments/lab-fetch.ts",
+     "sha256": "825bd6171e6e567264bc4bbfa72cc511599d72f7788c11b366030ffc6d93e206",
+     "bytes": 1480
+    },
+    {
+     "path": "torneos-payments/remote-hosts.ts",
+     "sha256": "004c1c6e1305a17d6fd3b99cfca79c2997198516152e84dba22cec1843e2f47a",
+     "bytes": 2296
+    },
+    {
+     "path": "torneos-payments/remote-test.ts",
+     "sha256": "917ab69e1e381130c52970b6e3abbea499f6c9ef7903a04433ef7de8d699ca6e",
+     "bytes": 5615
+    },
+    {
+     "path": "torneos-payments/rpc.ts",
+     "sha256": "42d2cf171d71dd15956f0a2a3bdbf1c6775d69abb122e67d7637b9436ecef86c",
+     "bytes": 2544
+    },
+    {
+     "path": "torneos-payments/webhook-freshness.ts",
+     "sha256": "79456622659054d3eb3aaab3fd1dd396d6de6c4d068fe8f36f95d85a858ea9e7",
+     "bytes": 2278
+    },
+    {
+     "path": "torneos-payments/webhook-signature.ts",
+     "sha256": "7b8fe21a1ba1696a0f90e2fcda142ffdb5fb97dc9959dc443064eafaeafd3d58",
+     "bytes": 3027
+    }
+   ]
+  },
+  "env": [
+   {
+    "key": "APP_PUBLIC_URL",
+    "secret": false,
+    "value": "https://torneos-payments-test.nicoavayu.deno.net"
+   },
+   {
+    "key": "MERCADO_PAGO_ENVIRONMENT",
+    "secret": false,
+    "value": "test"
+   },
+   {
+    "key": "MERCADO_PAGO_TEST_ACCESS_TOKEN",
+    "secret": true
+   },
+   {
+    "key": "MERCADO_PAGO_TEST_SELLER_ID",
+    "secret": false,
+    "value": "3712890098"
+   },
+   {
+    "key": "MERCADO_PAGO_TEST_WEBHOOK_SECRET",
+    "secret": true
+   },
+   {
+    "key": "TORNEOS_PAYMENTS_DB_SSL_CA",
+    "secret": false,
+    "value": "sha256:e18e0434fdff1506"
+   },
+   {
+    "key": "TORNEOS_PAYMENTS_DB_URL",
+    "secret": true
+   },
+   {
+    "key": "TORNEOS_PAYMENTS_DEPLOYMENT",
+    "secret": false,
+    "value": "remote-test"
+   },
+   {
+    "key": "TORNEOS_PAYMENTS_INTERNAL_SECRET",
+    "secret": true
+   },
+   {
+    "key": "TORNEOS_PAYMENTS_NOTIFICATION_URL",
+    "secret": false,
+    "value": "https://torneos-payments-test.nicoavayu.deno.net/functions/v1/torneos-payments/webhooks/mercadopago/v1"
+   },
+   {
+    "key": "TORNEOS_PAYMENT_PROVIDER",
+    "secret": false,
+    "value": "MERCADO_PAGO"
+   }
+  ],
+  "deployed_at": "2026-09-26T13:13:56.700Z"
+ },
+ "deno_requests": [
+  {
+   "id": "apps",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "layers",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "app",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "app",
+   "kind": "read",
+   "method": "GET",
+   "status": 404
+  },
+  {
+   "id": "apps",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "layers",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "app",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "app",
+   "kind": "read",
+   "method": "GET",
+   "status": 404
+  },
+  {
+   "id": "apps",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "layers",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "app",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "app",
+   "kind": "read",
+   "method": "GET",
+   "status": 404
+  },
+  {
+   "id": "app-create",
+   "kind": "write:app-create",
+   "method": "POST",
+   "status": 200
+  },
+  {
+   "id": "deploy",
+   "kind": "write:deploy",
+   "method": "POST",
+   "status": 202
+  },
+  {
+   "id": "revision",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "revision",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "revision-timelines",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "apps",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "layers",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "app",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "app",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "revisions",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  }
+ ],
+ "deno_writes": 2
+}

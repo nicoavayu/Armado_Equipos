@@ -1,0 +1,685 @@
+{
+ "tool": "backend/torneos/infra/torneos-payments-test/payments-session.mjs",
+ "generated_at": "2026-09-26T13:16:21.582Z",
+ "verdict": "REMOTE_ORDERING_FAILED",
+ "purchase": "b13ea112-efc3-436b-b212-062578fc6c13",
+ "season": "ba4bbde3-8761-4031-a321-ee455f0dd749",
+ "port": 6543,
+ "psql_exit": 0,
+ "stderr_tail": null,
+ "whoami": null,
+ "initial": null,
+ "after_identical_to_initial": false,
+ "trail_and_census_unchanged": true,
+ "cases": [
+  {
+   "label": "restored-then-old-dispute",
+   "expected_final": "approved",
+   "final": null,
+   "expected_last_outcome": "stale_ignored",
+   "steps": [
+    {
+     "step": "approved@1",
+     "sqlstate": null,
+     "before": null,
+     "result": null
+    },
+    {
+     "step": "disputed@2",
+     "sqlstate": null,
+     "before": null,
+     "result": null
+    },
+    {
+     "step": "restored@3",
+     "sqlstate": null,
+     "before": null,
+     "result": null
+    },
+    {
+     "step": "disputed@2",
+     "sqlstate": null,
+     "before": null,
+     "result": null
+    }
+   ],
+   "pass": false,
+   "failures": [
+    "preference_missing",
+    "step_approved@1_null",
+    "step_disputed@2_null",
+    "step_restored@3_null",
+    "step_disputed@2_null",
+    "final_null_want_approved",
+    "last_outcome_undefined_want_stale_ignored",
+    "last_step_changed_state"
+   ]
+  },
+  {
+   "label": "restored-then-old-approved",
+   "expected_final": "approved",
+   "final": null,
+   "expected_last_outcome": "stale_ignored",
+   "steps": [
+    {
+     "step": "approved@1",
+     "sqlstate": null,
+     "before": null,
+     "result": null
+    },
+    {
+     "step": "disputed@2",
+     "sqlstate": null,
+     "before": null,
+     "result": null
+    },
+    {
+     "step": "restored@3",
+     "sqlstate": null,
+     "before": null,
+     "result": null
+    },
+    {
+     "step": "approved@1",
+     "sqlstate": null,
+     "before": null,
+     "result": null
+    }
+   ],
+   "pass": false,
+   "failures": [
+    "preference_missing",
+    "step_approved@1_null",
+    "step_disputed@2_null",
+    "step_restored@3_null",
+    "step_approved@1_null",
+    "final_null_want_approved",
+    "last_outcome_undefined_want_stale_ignored",
+    "last_step_changed_state"
+   ]
+  },
+  {
+   "label": "disputed-then-old-approved",
+   "expected_final": "charged_back",
+   "final": null,
+   "expected_last_outcome": "stale_ignored",
+   "steps": [
+    {
+     "step": "approved@1",
+     "sqlstate": null,
+     "before": null,
+     "result": null
+    },
+    {
+     "step": "disputed@2",
+     "sqlstate": null,
+     "before": null,
+     "result": null
+    },
+    {
+     "step": "approved@1",
+     "sqlstate": null,
+     "before": null,
+     "result": null
+    }
+   ],
+   "pass": false,
+   "failures": [
+    "preference_missing",
+    "step_approved@1_null",
+    "step_disputed@2_null",
+    "step_approved@1_null",
+    "final_null_want_charged_back",
+    "last_outcome_undefined_want_stale_ignored",
+    "last_step_changed_state"
+   ]
+  },
+  {
+   "label": "approved-then-old-pending",
+   "expected_final": "approved",
+   "final": null,
+   "expected_last_outcome": "stale_ignored",
+   "steps": [
+    {
+     "step": "approved@3",
+     "sqlstate": null,
+     "before": null,
+     "result": null
+    },
+    {
+     "step": "pending@1",
+     "sqlstate": null,
+     "before": null,
+     "result": null
+    }
+   ],
+   "pass": false,
+   "failures": [
+    "preference_missing",
+    "step_approved@3_null",
+    "step_pending@1_null",
+    "final_null_want_approved",
+    "last_outcome_undefined_want_stale_ignored",
+    "last_step_changed_state"
+   ]
+  },
+  {
+   "label": "approved-then-old-rejected",
+   "expected_final": "approved",
+   "final": null,
+   "expected_last_outcome": "stale_ignored",
+   "steps": [
+    {
+     "step": "approved@3",
+     "sqlstate": null,
+     "before": null,
+     "result": null
+    },
+    {
+     "step": "rejected@1",
+     "sqlstate": null,
+     "before": null,
+     "result": null
+    }
+   ],
+   "pass": false,
+   "failures": [
+    "preference_missing",
+    "step_approved@3_null",
+    "step_rejected@1_null",
+    "final_null_want_approved",
+    "last_outcome_undefined_want_stale_ignored",
+    "last_step_changed_state"
+   ]
+  },
+  {
+   "label": "refunded-then-old-approved",
+   "expected_final": "refunded",
+   "final": null,
+   "expected_last_outcome": "stale_ignored",
+   "steps": [
+    {
+     "step": "approved@1",
+     "sqlstate": null,
+     "before": null,
+     "result": null
+    },
+    {
+     "step": "refunded@3",
+     "sqlstate": null,
+     "before": null,
+     "result": null
+    },
+    {
+     "step": "approved@1",
+     "sqlstate": null,
+     "before": null,
+     "result": null
+    }
+   ],
+   "pass": false,
+   "failures": [
+    "preference_missing",
+    "step_approved@1_null",
+    "step_refunded@3_null",
+    "step_approved@1_null",
+    "final_null_want_refunded",
+    "last_outcome_undefined_want_stale_ignored",
+    "last_step_changed_state"
+   ]
+  },
+  {
+   "label": "refunded-then-old-dispute",
+   "expected_final": "refunded",
+   "final": "refunded",
+   "expected_last_outcome": "stale_ignored",
+   "steps": [
+    {
+     "step": "approved@1",
+     "sqlstate": "00000",
+     "before": null,
+     "result": null
+    },
+    {
+     "step": "refunded@3",
+     "sqlstate": "00000",
+     "before": "approved",
+     "result": {
+      "status": "refunded",
+      "outcome": "reversal_applied",
+      "stateChanged": true,
+      "idempotentReplay": false,
+      "requiresManualRefund": false,
+      "requiresManualReview": false
+     }
+    },
+    {
+     "step": "disputed@2",
+     "sqlstate": "00000",
+     "before": "refunded",
+     "result": {
+      "status": "refunded",
+      "outcome": "stale_ignored",
+      "stateChanged": false,
+      "idempotentReplay": false,
+      "requiresManualRefund": false,
+      "requiresManualReview": false
+     }
+    }
+   ],
+   "pass": false,
+   "failures": [
+    "preference_missing"
+   ]
+  },
+  {
+   "label": "settled-then-old-restore",
+   "expected_final": "charged_back",
+   "final": "charged_back",
+   "expected_last_outcome": "stale_ignored",
+   "steps": [
+    {
+     "step": "approved@1",
+     "sqlstate": "00000",
+     "before": "preference_created",
+     "result": {
+      "status": "approved",
+      "outcome": "approved",
+      "stateChanged": true,
+      "idempotentReplay": false,
+      "requiresManualRefund": false,
+      "requiresManualReview": false
+     }
+    },
+    {
+     "step": "disputed@2",
+     "sqlstate": "00000",
+     "before": "approved",
+     "result": {
+      "status": "charged_back",
+      "outcome": "reversal_applied",
+      "stateChanged": true,
+      "idempotentReplay": false,
+      "requiresManualRefund": false,
+      "requiresManualReview": false
+     }
+    },
+    {
+     "step": "settled@4",
+     "sqlstate": "00000",
+     "before": "charged_back",
+     "result": {
+      "status": "charged_back",
+      "outcome": "reversal_applied",
+      "stateChanged": true,
+      "idempotentReplay": false,
+      "requiresManualRefund": false,
+      "requiresManualReview": false
+     }
+    },
+    {
+     "step": "restored@3",
+     "sqlstate": "00000",
+     "before": "charged_back",
+     "result": {
+      "status": "charged_back",
+      "outcome": "stale_ignored",
+      "stateChanged": false,
+      "idempotentReplay": false,
+      "requiresManualRefund": false,
+      "requiresManualReview": false
+     }
+    }
+   ],
+   "pass": true,
+   "failures": []
+  },
+  {
+   "label": "duplicate-approved",
+   "expected_final": "approved",
+   "final": "approved",
+   "expected_last_outcome": "provider_snapshot_duplicate",
+   "steps": [
+    {
+     "step": "approved@1",
+     "sqlstate": "00000",
+     "before": "preference_created",
+     "result": {
+      "status": "approved",
+      "outcome": "approved",
+      "stateChanged": true,
+      "idempotentReplay": false,
+      "requiresManualRefund": false,
+      "requiresManualReview": false
+     }
+    },
+    {
+     "step": "approved@1",
+     "sqlstate": "00000",
+     "before": "approved",
+     "result": {
+      "status": "approved",
+      "outcome": "provider_snapshot_duplicate",
+      "stateChanged": false,
+      "idempotentReplay": true,
+      "requiresManualRefund": false,
+      "requiresManualReview": false
+     }
+    }
+   ],
+   "pass": true,
+   "failures": []
+  },
+  {
+   "label": "duplicate-dispute",
+   "expected_final": "charged_back",
+   "final": "charged_back",
+   "expected_last_outcome": "provider_snapshot_duplicate",
+   "steps": [
+    {
+     "step": "approved@1",
+     "sqlstate": "00000",
+     "before": "preference_created",
+     "result": {
+      "status": "approved",
+      "outcome": "approved",
+      "stateChanged": true,
+      "idempotentReplay": false,
+      "requiresManualRefund": false,
+      "requiresManualReview": false
+     }
+    },
+    {
+     "step": "disputed@2",
+     "sqlstate": "00000",
+     "before": "approved",
+     "result": {
+      "status": "charged_back",
+      "outcome": "reversal_applied",
+      "stateChanged": true,
+      "idempotentReplay": false,
+      "requiresManualRefund": false,
+      "requiresManualReview": false
+     }
+    },
+    {
+     "step": "disputed@2",
+     "sqlstate": "00000",
+     "before": "charged_back",
+     "result": {
+      "status": "charged_back",
+      "outcome": "provider_snapshot_duplicate",
+      "stateChanged": false,
+      "idempotentReplay": true,
+      "requiresManualRefund": false,
+      "requiresManualReview": false
+     }
+    }
+   ],
+   "pass": true,
+   "failures": []
+  },
+  {
+   "label": "duplicate-restored",
+   "expected_final": "approved",
+   "final": "approved",
+   "expected_last_outcome": "provider_snapshot_duplicate",
+   "steps": [
+    {
+     "step": "approved@1",
+     "sqlstate": "00000",
+     "before": "preference_created",
+     "result": {
+      "status": "approved",
+      "outcome": "approved",
+      "stateChanged": true,
+      "idempotentReplay": false,
+      "requiresManualRefund": false,
+      "requiresManualReview": false
+     }
+    },
+    {
+     "step": "disputed@2",
+     "sqlstate": "00000",
+     "before": "approved",
+     "result": {
+      "status": "charged_back",
+      "outcome": "reversal_applied",
+      "stateChanged": true,
+      "idempotentReplay": false,
+      "requiresManualRefund": false,
+      "requiresManualReview": false
+     }
+    },
+    {
+     "step": "restored@3",
+     "sqlstate": "00000",
+     "before": "charged_back",
+     "result": {
+      "status": "approved",
+      "outcome": "reversal_applied",
+      "stateChanged": true,
+      "idempotentReplay": false,
+      "requiresManualRefund": false,
+      "requiresManualReview": false
+     }
+    },
+    {
+     "step": "restored@3",
+     "sqlstate": "00000",
+     "before": "approved",
+     "result": {
+      "status": "approved",
+      "outcome": "provider_snapshot_duplicate",
+      "stateChanged": false,
+      "idempotentReplay": true,
+      "requiresManualRefund": false,
+      "requiresManualReview": false
+     }
+    }
+   ],
+   "pass": true,
+   "failures": []
+  },
+  {
+   "label": "duplicate-refund",
+   "expected_final": "refunded",
+   "final": "refunded",
+   "expected_last_outcome": "provider_snapshot_duplicate",
+   "steps": [
+    {
+     "step": "approved@1",
+     "sqlstate": "00000",
+     "before": "preference_created",
+     "result": {
+      "status": "approved",
+      "outcome": "approved",
+      "stateChanged": true,
+      "idempotentReplay": false,
+      "requiresManualRefund": false,
+      "requiresManualReview": false
+     }
+    },
+    {
+     "step": "refunded@3",
+     "sqlstate": "00000",
+     "before": "approved",
+     "result": {
+      "status": "refunded",
+      "outcome": "reversal_applied",
+      "stateChanged": true,
+      "idempotentReplay": false,
+      "requiresManualRefund": false,
+      "requiresManualReview": false
+     }
+    },
+    {
+     "step": "refunded@3",
+     "sqlstate": "00000",
+     "before": "refunded",
+     "result": {
+      "status": "refunded",
+      "outcome": "provider_snapshot_duplicate",
+      "stateChanged": false,
+      "idempotentReplay": true,
+      "requiresManualRefund": false,
+      "requiresManualReview": false
+     }
+    }
+   ],
+   "pass": true,
+   "failures": []
+  },
+  {
+   "label": "equal-time-conflict",
+   "expected_final": "approved",
+   "final": "approved",
+   "expected_last_outcome": "provider_ordering_anomaly",
+   "steps": [
+    {
+     "step": "approved@1",
+     "sqlstate": "00000",
+     "before": "preference_created",
+     "result": {
+      "status": "approved",
+      "outcome": "approved",
+      "stateChanged": true,
+      "idempotentReplay": false,
+      "requiresManualRefund": false,
+      "requiresManualReview": false
+     }
+    },
+    {
+     "step": "disputed@1",
+     "sqlstate": "00000",
+     "before": "approved",
+     "result": {
+      "status": "approved",
+      "outcome": "provider_ordering_anomaly",
+      "stateChanged": false,
+      "idempotentReplay": false,
+      "requiresManualRefund": false,
+      "requiresManualReview": true
+     }
+    }
+   ],
+   "pass": true,
+   "failures": []
+  },
+  {
+   "label": "independent-attempts",
+   "expected_final": "approved",
+   "final": "approved",
+   "expected_last_outcome": null,
+   "steps": [
+    {
+     "step": "rejected@9/A",
+     "sqlstate": "00000",
+     "before": "preference_created",
+     "result": {
+      "status": "preference_created",
+      "outcome": "attempt_rejected",
+      "stateChanged": false,
+      "idempotentReplay": false,
+      "requiresManualRefund": false,
+      "requiresManualReview": false
+     }
+    },
+    {
+     "step": "approved@1/B",
+     "sqlstate": "00000",
+     "before": "preference_created",
+     "result": {
+      "status": "approved",
+      "outcome": "approved",
+      "stateChanged": true,
+      "idempotentReplay": false,
+      "requiresManualRefund": false,
+      "requiresManualReview": false
+     }
+    }
+   ],
+   "pass": true,
+   "failures": []
+  },
+  {
+   "label": "not-ready-without-preference",
+   "expected": "55000 TORNEOS_PURCHASE_NOT_READY",
+   "got": "55000 TORNEOS_PURCHASE_NOT_READY",
+   "pass": true
+  },
+  {
+   "label": "null-provider-time",
+   "expected": "22023 TORNEOS_PROVIDER_ORDERING_REQUIRED",
+   "got": "22023 TORNEOS_PROVIDER_ORDERING_REQUIRED",
+   "pass": true
+  },
+  {
+   "label": "infinite-provider-time",
+   "expected": "22023 TORNEOS_PROVIDER_ORDERING_REQUIRED",
+   "got": "22023 TORNEOS_PROVIDER_ORDERING_REQUIRED",
+   "pass": true
+  },
+  {
+   "label": "live-environment",
+   "expected": "22023 TORNEOS_PROVIDER_INVALID",
+   "got": "22023 TORNEOS_PROVIDER_INVALID",
+   "pass": true
+  },
+  {
+   "label": "unknown-purchase",
+   "expected": "22023 TORNEOS_PURCHASE_INVALID",
+   "got": "22023 TORNEOS_PURCHASE_INVALID",
+   "pass": true
+  }
+ ],
+ "failures": [
+  "session_identity_not_the_payments_login",
+  "qa_purchase_not_created_without_preference",
+  "restored-then-old-dispute:preference_missing",
+  "restored-then-old-dispute:step_approved@1_null",
+  "restored-then-old-dispute:step_disputed@2_null",
+  "restored-then-old-dispute:step_restored@3_null",
+  "restored-then-old-dispute:step_disputed@2_null",
+  "restored-then-old-dispute:final_null_want_approved",
+  "restored-then-old-dispute:last_outcome_undefined_want_stale_ignored",
+  "restored-then-old-dispute:last_step_changed_state",
+  "restored-then-old-approved:preference_missing",
+  "restored-then-old-approved:step_approved@1_null",
+  "restored-then-old-approved:step_disputed@2_null",
+  "restored-then-old-approved:step_restored@3_null",
+  "restored-then-old-approved:step_approved@1_null",
+  "restored-then-old-approved:final_null_want_approved",
+  "restored-then-old-approved:last_outcome_undefined_want_stale_ignored",
+  "restored-then-old-approved:last_step_changed_state",
+  "disputed-then-old-approved:preference_missing",
+  "disputed-then-old-approved:step_approved@1_null",
+  "disputed-then-old-approved:step_disputed@2_null",
+  "disputed-then-old-approved:step_approved@1_null",
+  "disputed-then-old-approved:final_null_want_charged_back",
+  "disputed-then-old-approved:last_outcome_undefined_want_stale_ignored",
+  "disputed-then-old-approved:last_step_changed_state",
+  "approved-then-old-pending:preference_missing",
+  "approved-then-old-pending:step_approved@3_null",
+  "approved-then-old-pending:step_pending@1_null",
+  "approved-then-old-pending:final_null_want_approved",
+  "approved-then-old-pending:last_outcome_undefined_want_stale_ignored",
+  "approved-then-old-pending:last_step_changed_state",
+  "approved-then-old-rejected:preference_missing",
+  "approved-then-old-rejected:step_approved@3_null",
+  "approved-then-old-rejected:step_rejected@1_null",
+  "approved-then-old-rejected:final_null_want_approved",
+  "approved-then-old-rejected:last_outcome_undefined_want_stale_ignored",
+  "approved-then-old-rejected:last_step_changed_state",
+  "refunded-then-old-approved:preference_missing",
+  "refunded-then-old-approved:step_approved@1_null",
+  "refunded-then-old-approved:step_refunded@3_null",
+  "refunded-then-old-approved:step_approved@1_null",
+  "refunded-then-old-approved:final_null_want_refunded",
+  "refunded-then-old-approved:last_outcome_undefined_want_stale_ignored",
+  "refunded-then-old-approved:last_step_changed_state",
+  "refunded-then-old-dispute:preference_missing",
+  "rollback_left_a_trace"
+ ],
+ "note": "every permutation ran in its own transaction ending in ROLLBACK; synthetic provider payment ids are 99-prefixed 20-digit values that never reached Mercado Pago"
+}

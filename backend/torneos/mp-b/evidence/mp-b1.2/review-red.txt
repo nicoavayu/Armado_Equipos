@@ -1,0 +1,52 @@
+✖ equal pending/approved timestamp: durable review, sanitized audit, sticky replays (2484.405208ms)
+✖ stale audit is preserved once without marking legitimate retries for review (1875.974959ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 0
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4442.897083
+
+✖ failing tests:
+
+test at integration/torneos-core-contracts/provider-ordering.test.mjs:172:1
+✖ equal pending/approved timestamp: durable review, sanitized audit, sticky replays (2484.405208ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+  false !== true
+
+      at TestContext.<anonymous> (file:///Users/nicoavayu/Downloads/arma2/arma2-mp-b1-2-provider-ordering/integration/torneos-core-contracts/provider-ordering.test.mjs:179:10)
+      at Test.runInAsyncScope (node:async_hooks:213:14)
+      at Test.run (node:internal/test_runner/test:1106:25)
+      at Test.start (node:internal/test_runner/test:1003:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:358:17) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at integration/torneos-core-contracts/provider-ordering.test.mjs:192:1
+✖ stale audit is preserved once without marking legitimate retries for review (1875.974959ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+  0 !== 1
+
+      at TestContext.<anonymous> (file:///Users/nicoavayu/Downloads/arma2/arma2-mp-b1-2-provider-ordering/integration/torneos-core-contracts/provider-ordering.test.mjs:198:10)
+      at Test.runInAsyncScope (node:async_hooks:213:14)
+      at Test.run (node:internal/test_runner/test:1106:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:788:18)
+      at Test.postRun (node:internal/test_runner/test:1235:19)
+      at Test.run (node:internal/test_runner/test:1163:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

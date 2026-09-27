@@ -1,0 +1,28 @@
+{
+  "phase": "PAYMENTS TEST (2026-09-26)",
+  "extends": {
+    "file": "backend/torneos/mp-b/evidence/mp-b1.1-r3/deno-deploy-isolation-contract.json",
+    "sha256": "5246c9d89f875217cad8c17af88ded5ee73b5923cfc24574f6402a79a5f2ad0b"
+  },
+  "decision": "Production gateway torneos-gateway stays commerce OFF (never receives MERCADO_PAGO_* / TORNEOS_PAYMENT* / TORNEOS_COMMERCE_*). The certified payments runtime runs as a SEPARATE Deno Deploy app torneos-payments-test, TEST only, reached internally by the operator session (HMAC) instead of the gateway. No third Supabase project: the data plane is the existing Arma2 Torneos project, with a dedicated payments login and QA-only fixtures.",
+  "apps": {
+    "torneos-payments": {
+      "deployedAs": "torneos-payments-test",
+      "configAdded": ["TORNEOS_PAYMENTS_DEPLOYMENT"],
+      "configAddedValues": { "TORNEOS_PAYMENTS_DEPLOYMENT": ["remote-test"] },
+      "remoteTest": {
+        "trigger": "any TORNEOS_PAYMENTS_DB_URL host that is not offline (lab container, loopback, .invalid) requires TORNEOS_PAYMENTS_DEPLOYMENT=remote-test",
+        "database": "Supavisor pooler aws-<n>-sa-east-1.pooler.supabase.com, login <login>.onzpwnqxnvlgsevivngf, port 5432|6543, database postgres, no query, TORNEOS_PAYMENTS_DB_SSL_CA required",
+        "forbiddenEnvPattern": "^(CORE_|SUPABASE_|TORNEOS_COMMERCE_|TORNEOS_GATEWAY_|TORNEOS_BRIDGE_|TORNEOS_CONTRACT_|TORNEOS_DB_|TORNEOS_REST_|TORNEOS_ANON_|TORNEOS_ALLOWED_|DATABASE_)",
+        "host": "requests are served only on the canonical host of TORNEOS_PAYMENTS_NOTIFICATION_URL (403 otherwise)",
+        "liveGuard": "GET https://api.mercadopago.com/users/me must answer id = MERCADO_PAGO_TEST_SELLER_ID, tags ∋ test_user, site_id MLA before any provider or DB call; not_test is final per isolate"
+      }
+    }
+  },
+  "paymentLogin": {
+    "login": "torneos_payments_test",
+    "attributes": "LOGIN NOINHERIT, no SUPERUSER / CREATEDB / CREATEROLE / REPLICATION / BYPASSRLS, no connection limit override, no valid-until, no role config",
+    "membership": "torneos_payment_service only (admin false, inherit false, set true)",
+    "custody": "macOS Keychain arma2-torneos-payments-test / torneos_payments_test (40-char password); the server receives a SCRAM-SHA-256 verifier only"
+  }
+}

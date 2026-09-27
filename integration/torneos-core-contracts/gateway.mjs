@@ -8,6 +8,11 @@
 // Phase 2D: an explicit staging v1 RPC allowlist (backend/torneos/phase2d/staging-v1-rpc-allowlist.json,
 // mounted read-only) gates POST /torneos/rest/v1/rpc/<name>; any other RPC is refused after the
 // bearer is verified, even for a valid Core session. The database ACL stays the final boundary.
+// MP-A4: commerce runs the SAME module as the Edge gateway (functions/torneos-gateway/commerce.ts, mounted
+// read-only by the commerce overlay). Its configuration comes, like everything else this lab gateway knows,
+// from its private .runtime/server directory (commerce.env: the mode, the internal payments URL and its HMAC
+// key, validated by commerce.ts). No file or a blank mode → commerce OFF and the module is never loaded; a
+// faulty commerce configuration disables the gateway (503 on every request), as a boot fault does on Edge.
 import http from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { decodeJwt } from 'jose';
@@ -31,6 +36,24 @@ const adapterPool = pool('torneos-db', 'lab_core_adapter', initial.adapterPasswo
 for (const p of [core, identity, adapterPool]) p.on('error', () => console.error('local database unavailable'));
 // The Core service secret lives only in this server process and in Core's function env.
 const adapter = new Adapter(adapterPool, new CoreClient(initial.coreContractUrl, Buffer.from(initial.coreContractSecret, 'hex')));
+let commerce = { mode: 'off' };
+let commerceModule = null;
+let disabled = false;
+const commerceEnv = await readFile('.runtime/server/commerce.env', 'utf8').then(
+  (text) => Object.fromEntries(text.split('\n').filter(l => l.includes('=')).map(l => [l.slice(0, l.indexOf('=')).trim(), l.slice(l.indexOf('=') + 1)])),
+  (error) => (error?.code === 'ENOENT' ? {} : null));
+if (commerceEnv === null || (commerceEnv.TORNEOS_COMMERCE_MODE ?? '').trim()) {
+  try {
+    if (commerceEnv === null) throw new Error('commerce configuration unreadable');
+    commerceModule = await import('./functions/torneos-gateway/commerce.ts');
+    commerce = commerceModule.loadCommerceConfig(commerceEnv, { baseAllowlist: RPC_ALLOWLIST, gatewayPublicUrl: origin,
+      distinctFrom: [initial.coreContractSecret, initial.anonKey, ...initial.keys.map(k => k.privateKey)] });
+  } catch (error) {
+    disabled = true;
+    console.error(`[gateway] disabled: ${error?.constructor?.name === 'CommerceConfigError' ? error.message : 'boot failed'}`);
+  }
+}
+const rpcAllowlist = commerceModule && !disabled ? commerceModule.effectiveRpcAllowlist(RPC_ALLOWLIST, commerce) : RPC_ALLOWLIST;
 
 function json(res, status, body) {
   res.writeHead(status, { 'content-type': 'application/json', 'cache-control': 'no-store' });
@@ -129,6 +152,7 @@ const server = http.createServer(async (req, res) => {
   res.setHeader('referrer-policy', 'no-referrer');
   res.setHeader('content-security-policy', "default-src 'self'; script-src 'self'; connect-src 'self'; object-src 'none'; frame-ancestors 'none'");
   try {
+    if (disabled) return json(res, 503, { error: 'access denied' });
     if (req.headers.host !== '127.0.0.1:58420' ||
         (req.headers.origin && req.headers.origin !== origin)) return json(res, 403, { error: 'origin rejected' });
     const url = new URL(req.url, origin);
@@ -154,6 +178,18 @@ const server = http.createServer(async (req, res) => {
       const token = await issueToken(await readConfig(), row, c.sessionId);
       return json(res, 200, { access_token: token, token_type: 'Bearer', expires_in: TTL });
     }
+    if (commerce.mode === 'test' && req.method === 'POST' && url.pathname === commerceModule.COMMERCE_ROUTE) {
+      const r = await commerceModule.seasonCheckout({ authorization: req.headers.authorization ?? null, search: url.search,
+        contentLength: req.headers['content-length'] ?? null, body: req }, commerce, {
+        verifyBridge: async (token) => verifyToken(token, await readConfig()),
+        activeSession: (c) => activeSession(c.core_user_id, c.session_id),
+        identityExists: (c) => identityExists(c.sub, c.core_user_id),
+        isUnavailable: (error) => error instanceof Unavailable || ['ECONNREFUSED', '57P01', 'ETIMEDOUT'].includes(error?.code),
+        restUrl: 'http://torneos-rest:3000', restApiKey: null,
+        log: (entry) => console.log(JSON.stringify(entry)),
+      });
+      return json(res, r.status, r.body);
+    }
     const rest = /^\/torneos\/rest\/v1\/(rpc\/([a-z0-9_]+)|[a-z0-9_]+)$/.exec(url.pathname);
     if (rest && ['GET', 'HEAD', 'POST', 'PATCH', 'DELETE'].includes(req.method)) {
       const token = bearer(req);
@@ -161,7 +197,7 @@ const server = http.createServer(async (req, res) => {
       const rpc = rest[2];
       // Phase 2D: RPC names outside the staging v1 allowlist never reach PostgREST through this
       // gateway (verified bearer or not; the answer is a plain refusal, not a proxied 42501).
-      if (rpc && !RPC_ALLOWLIST.has(rpc)) return json(res, 403, { error: 'rpc not enabled' });
+      if (rpc && !rpcAllowlist.has(rpc)) return json(res, 403, { error: 'rpc not enabled' });
       await activeSession(p.core_user_id, p.session_id);
       if (!await identityExists(p.sub, p.core_user_id)) throw new Error('identity mismatch');
       let raw;

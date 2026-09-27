@@ -1,0 +1,301 @@
+{
+ "tool": "backend/torneos/infra/torneos-payments-test/payments-session.mjs",
+ "generated_at": "2026-09-26T13:50:48.566Z",
+ "verdict": "REFUND_LIFECYCLE_PASS",
+ "plan": {
+  "step": "refund",
+  "payment": "90000000003",
+  "amount": 39900,
+  "currency": "ARS",
+  "live_mode": true,
+  "seller": "2718281828",
+  "purchase": "7d60eee2-8a75-4adb-84d2-43ad0c027840",
+  "kind": "full refund, Mercado Pago TEST sandbox"
+ },
+ "plan_id": "e57915824aa8",
+ "authorization": {
+  "phrase": "REFUND MERCADO PAGO TEST PAYMENT e57915824aa8",
+  "channel": "session FIFO (operator)"
+ },
+ "refund": {
+  "refund_id": "90000000004",
+  "payment_id": "90000000003",
+  "amount": 39900,
+  "status": "approved"
+ },
+ "provider_after": {
+  "id": "90000000003",
+  "status": "refunded",
+  "status_detail": "refunded",
+  "date_last_updated": "2026-09-26T13:50:51.854Z",
+  "date_created": null,
+  "transaction_amount": 39900,
+  "currency_id": "ARS",
+  "live_mode": true,
+  "collector_matches": true,
+  "external_reference": "arma2:season:purchase:7d60eee2-8a75-4adb-84d2-43ad0c027840",
+  "metadata_purchase_id": "7d60eee2-8a75-4adb-84d2-43ad0c027840",
+  "order": {
+   "id": "90000000002",
+   "type": "mercadopago"
+  },
+  "payment_type_id": null,
+  "refunds": null
+ },
+ "db": {
+  "purchase": "7d60eee2-8a75-4adb-84d2-43ad0c027840",
+  "season": "a02c43d4-cab8-4570-83c5-d445f2fd6d87",
+  "season_slug": "qa-pt-s1-b795aa",
+  "status": "refunded",
+  "provider": "MERCADO_PAGO",
+  "environment": "test",
+  "product": "torneos_premium",
+  "offer": "launch",
+  "amount": 39900,
+  "list_amount": 49900,
+  "currency": "ARS",
+  "external_reference": "arma2:season:purchase:7d60eee2-8a75-4adb-84d2-43ad0c027840",
+  "preference_id": "2718281828-31797a42-024e-48d5-9a9b-f6e715ce1837",
+  "approved_payment": "90000000003",
+  "provider_status": "refunded",
+  "provider_status_detail": "refunded",
+  "created_at": "2026-09-26T13:50:43.420098+00:00",
+  "approved_at": "2026-09-26T13:50:46.856851+00:00",
+  "refunded_at": "2026-09-26T13:50:48.009899+00:00",
+  "charged_back_at": null,
+  "entitlement_activated_at": "2026-09-26T13:50:46.856851+00:00",
+  "events": [
+   {
+    "id": 1,
+    "type": "purchase.created",
+    "from": null,
+    "to": "created",
+    "actor": "user",
+    "provider_status": null,
+    "payment": null,
+    "provider_time": null
+   },
+   {
+    "id": 57,
+    "type": "preference.created",
+    "from": "created",
+    "to": "preference_created",
+    "actor": "service",
+    "provider_status": "created",
+    "payment": null,
+    "provider_time": null
+   },
+   {
+    "id": 58,
+    "type": "payment.attempt_rejected",
+    "from": "preference_created",
+    "to": "preference_created",
+    "actor": "provider",
+    "provider_status": "rejected",
+    "payment": "90000000001",
+    "provider_time": null
+   },
+   {
+    "id": 59,
+    "type": "payment.approved",
+    "from": "preference_created",
+    "to": "approved",
+    "actor": "provider",
+    "provider_status": "approved",
+    "payment": "90000000003",
+    "provider_time": null
+   },
+   {
+    "id": 60,
+    "type": "payment.refund",
+    "from": "approved",
+    "to": "refunded",
+    "actor": "provider",
+    "provider_status": "refund",
+    "payment": null,
+    "provider_time": null
+   }
+  ],
+  "grants": [
+   {
+    "grant": "ae1cb5cb-49bb-4f0a-b028-e2fa67e2d4b1",
+    "plan": "PREMIUM",
+    "source": "purchase",
+    "events": [
+     {
+      "type": "granted",
+      "reason_code": "payment_approved",
+      "actor": "provider"
+     },
+     {
+      "type": "revoked",
+      "reason_code": "total_refund",
+      "actor": "provider"
+     }
+    ],
+    "effective": false
+   }
+  ],
+  "watermarks": [
+   {
+    "payment": "90000000001",
+    "date_last_updated": "2026-09-26T13:49:47.847+00:00",
+    "state": [
+     "status",
+     "rejected"
+    ],
+    "manual_refund": false,
+    "manual_review": false
+   },
+   {
+    "payment": "90000000003",
+    "date_last_updated": "2026-09-26T13:50:51.854+00:00",
+    "state": [
+     "reversal",
+     "refund"
+    ],
+    "manual_refund": false,
+    "manual_review": false
+   }
+  ]
+ },
+ "late_notification": {
+  "status": 200,
+  "outcome": "provider_snapshot_duplicate"
+ },
+ "checks": [
+  {
+   "name": "Mercado Pago TEST refund created (full amount)",
+   "pass": true
+  },
+  {
+   "name": "provider payment now refunded",
+   "pass": true
+  },
+  {
+   "name": "signed webhook applied: purchase refunded",
+   "pass": true
+  },
+  {
+   "name": "Premium grant revoked, not effective",
+   "pass": true
+  },
+  {
+   "name": "watermark advanced (refunded snapshot), no manual refund flag",
+   "pass": true
+  },
+  {
+   "name": "late old notification after the refund → duplicate of the refunded snapshot; revoked never revives",
+   "pass": true
+  },
+  {
+   "name": "purchase still refunded, grant still revoked",
+   "pass": true
+  }
+ ],
+ "mp_requests": [
+  {
+   "id": "users-me",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "users-me",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "users-me",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "users-me",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "users-me",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "preference",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "payments-search",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "payment",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "merchant-order",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "preference",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "payment",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "merchant-order",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "preference",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "payment",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "payment",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "refund",
+   "kind": "write:refund",
+   "method": "POST",
+   "status": 201
+  },
+  {
+   "id": "payment",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  }
+ ],
+ "mp_writes": 1
+}

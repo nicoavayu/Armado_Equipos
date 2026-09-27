@@ -1,0 +1,1 @@
+STAGING_STATIC_GUARD_OK secrets=0 unknownProjectHosts=0

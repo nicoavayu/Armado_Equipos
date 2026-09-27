@@ -1,0 +1,26 @@
+{
+  "status": "MP_B1_2_PASS",
+  "base": "38c9669d60ee96020c64e5c0c83bb0fd636b100a",
+  "regression": {
+    "passed": 149,
+    "failed": 0,
+    "ordering": 23,
+    "T10": 49,
+    "T2": 6,
+    "T3": 23,
+    "T4": 32,
+    "T5": 18
+  },
+  "observed": {
+    "maxEffectiveGrantsPerSeason": 1,
+    "multiPendingSequences": 48,
+    "maxLiveGrantsPerSeason": 1
+  },
+  "migrations": {
+    "fresh": true,
+    "upgrade": true,
+    "preconditionsFailClosed": true
+  },
+  "paymentExecute": 4,
+  "operationalRemoteCalls": 0
+}

@@ -8,15 +8,16 @@
 // downstream body never surfaces, only CORE_DENIED (4xx) or CORE_UNAVAILABLE.
 //
 // Transport policy (fail closed): the base URL is fixed at construction; it must be the
-// lab's internal Core origin (http://core-api…) or an https:// origin, and may never
-// name the Production project.
+// lab's internal Core origin (http://core-api…) or an https:// origin. Core Production is
+// accepted only at its certified contract URL, and the Torneos data project never
+// (topology.ts: Core Production is an HTTPS authority, never a data backend).
+import { CORE_PRODUCTION_REF, PRODUCTION, TORNEOS_DATA_REF, refsOf } from "./topology.ts"
 import schemasDoc from "./schemas.json" with { type: "json" }
 import sessionDoc from "./session.schema.json" with { type: "json" }
 
 type Schema = Record<string, any>
 const SCHEMAS: Record<string, Schema> = { ...(schemasDoc as any).$defs, ...(sessionDoc as any).$defs }
 
-export const PRODUCTION_REF = "rcyuuoaqfwcembdajcss"
 export class Denied extends Error {
   status: number
   code: string
@@ -98,15 +99,18 @@ export function fromHex(value: string): Uint8Array {
   return out
 }
 
-/** Accepts the lab's internal Core origin or an https origin; never Production. */
+/** Accepts the lab's internal Core origin or an https origin; Core Production only at its certified URL; never Torneos. */
 export function assertCoreContractUrl(baseUrl: string): string {
   const parsed = new URL(baseUrl)
   const labInternal = parsed.protocol === "http:" && parsed.hostname === "core-api"
   if ((!labInternal && parsed.protocol !== "https:") || parsed.search || parsed.hash || parsed.username || parsed.password) {
     throw new Error("CORE_CONTRACT_URL_REJECTED")
   }
-  if (parsed.hostname.split(".").includes(PRODUCTION_REF)) throw new Error("CORE_CONTRACT_URL_PRODUCTION_REJECTED")
-  return baseUrl.replace(/\/$/, "")
+  const refs = refsOf(parsed)
+  if (refs.includes(TORNEOS_DATA_REF)) throw new Error("CORE_CONTRACT_URL_TORNEOS_DATA_REJECTED")
+  const url = baseUrl.replace(/\/$/, "")
+  if (refs.includes(CORE_PRODUCTION_REF) && url !== PRODUCTION.coreContractUrl) throw new Error("CORE_CONTRACT_URL_PRODUCTION_NOT_CERTIFIED")
+  return url
 }
 
 export class CoreClient {

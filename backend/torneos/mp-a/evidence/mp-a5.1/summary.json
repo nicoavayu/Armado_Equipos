@@ -1,0 +1,121 @@
+{
+  "phase": "MP-A5.1 premium intent canonical route fix (frontend only)",
+  "base": "c9334690bd2420e5a6e73b0cc5d367e0a30d1987",
+  "branch": "codex/torneos-mp-a5-frontend",
+  "closes": "MP-A5 RISKS F4",
+  "change": {
+    "file": "src/features/torneos/components/TournamentWizardPage.jsx",
+    "before": "intent + plan on -> /torneos/organizacion/:org/torneo/:createdTournamentId/plan (all compositions)",
+    "after": {
+      "hybrid": "intent + plan on + plan_legacy_routes off -> /torneos/organizacion/:org/temporada/:created.seasonId/plan; no seasonId returned -> tournament configuration (no guess)",
+      "legacyLocal": "unchanged: /torneos/organizacion/:org/torneo/:createdTournamentId/plan (legacy redirect then resolves the season plan)",
+      "planOff": "unchanged: tournament configuration"
+    },
+    "seasonIdSource": "create_tournament_with_defaults answer .seasonId (v_tournament.season_id)"
+  },
+  "red": {
+    "jest": "3/6"
+  },
+  "green": {
+    "jest": "6/6"
+  },
+  "regression": {
+    "jestFocal": {
+      "suites": "15/15",
+      "tests": "185/185",
+      "list": [
+        {
+          "file": "src/__tests__/globalHeaderPathname.test.jsx",
+          "status": "PASS",
+          "tests": 20
+        },
+        {
+          "file": "src/__tests__/premiumIntent.test.js",
+          "status": "PASS",
+          "tests": 1
+        },
+        {
+          "file": "src/__tests__/torneosCanonicalAdoption.test.jsx",
+          "status": "PASS",
+          "tests": 23
+        },
+        {
+          "file": "src/__tests__/torneosCanonicalRouting.test.jsx",
+          "status": "PASS",
+          "tests": 14
+        },
+        {
+          "file": "src/__tests__/torneosCompetitionFlow.test.jsx",
+          "status": "PASS",
+          "tests": 8
+        },
+        {
+          "file": "src/__tests__/torneosDesktopSchedulingLayout.test.jsx",
+          "status": "PASS",
+          "tests": 12
+        },
+        {
+          "file": "src/__tests__/torneosMpA51PremiumIntentRoute.test.jsx",
+          "status": "PASS",
+          "tests": 6
+        },
+        {
+          "file": "src/__tests__/torneosMpA5HybridCommerce.test.jsx",
+          "status": "PASS",
+          "tests": 39
+        },
+        {
+          "file": "src/__tests__/torneosPlanAwareness.test.jsx",
+          "status": "PASS",
+          "tests": 5
+        },
+        {
+          "file": "src/__tests__/torneosPlanExperience.test.jsx",
+          "status": "PASS",
+          "tests": 12
+        },
+        {
+          "file": "src/__tests__/torneosPlanExperienceResponsiveCss.test.js",
+          "status": "PASS",
+          "tests": 6
+        },
+        {
+          "file": "src/__tests__/torneosPurchaseStatus.test.jsx",
+          "status": "PASS",
+          "tests": 8
+        },
+        {
+          "file": "src/__tests__/torneosRouteIsolation.test.jsx",
+          "status": "PASS",
+          "tests": 6
+        },
+        {
+          "file": "src/__tests__/torneosStagingV1Composition.test.jsx",
+          "status": "PASS",
+          "tests": 21
+        },
+        {
+          "file": "src/__tests__/torneosStagingV1Gate.test.jsx",
+          "status": "PASS",
+          "tests": 4
+        }
+      ]
+    },
+    "nodeFrontendFoundation": "58/58 (npm run test:torneos:frontend-foundation)",
+    "staticGuard": "6/6 (scripts/torneos-staging/static-guard.test.mjs)",
+    "eslint": "OK on the 2 changed files",
+    "notRun": "R4, R5, MP-A2, MP-A3, T6 full, browser journey (by brief; no regression shown)"
+  },
+  "invariants": {
+    "planLegacyRoutes": {
+      "hybridOff": false,
+      "hybridTest": false,
+      "legacy": true
+    },
+    "backendDiff": "0 files under backend/, supabase/, scripts/, foundation/, stagingV1/, api/, context/, routing/, TorneosShell, TorneosFeatureGate, package.json",
+    "b04AuditFixture": "unchanged (import lines of TournamentWizardPage did not move)",
+    "production": "OFF (no deploy; validate-build-env still refuses REACT_APP_TORNEOS_BILLING_MODE)",
+    "secrets": "none",
+    "pushed": false
+  }
+}

@@ -3,7 +3,7 @@
 // `postgres` (supabase/migrations/*.sql, including the Phase 3A contract migration).
 // Torneos: the UNCHANGED certified baseline (backend/torneos/supabase/migrations) behind
 // PostgREST with the Phase 1.5 JWKS contract. Only the gateway is published (loopback).
-import { mkdir, readFile, writeFile, access, readdir } from 'node:fs/promises';
+import { mkdir, readFile, writeFile, access, readdir, rm } from 'node:fs/promises';
 import { createHash, randomBytes } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
@@ -24,11 +24,18 @@ export const GATEWAY_BASE = process.env.GATEWAY === 'edge' ? EDGE_BASE : BASE;
 export const GATEWAY_NAME = process.env.GATEWAY === 'edge' ? 'edge' : 'node';
 const docker = process.platform === 'darwin'
   ? '/Applications/Docker.app/Contents/Resources/bin/docker' : 'docker';
+// MP-A3: TORNEOS_LAB_MODE=commerce adds the local Mercado Pago overlay (compose.mpa.yaml: the
+// torneos-payments secrets for torneos-functions and the mp-stub). Any other value is refused.
+export const COMMERCE = process.env.TORNEOS_LAB_MODE === 'commerce';
+if (process.env.TORNEOS_LAB_MODE && !COMMERCE) throw new Error('TORNEOS_LAB_MODE accepts only "commerce"');
+export const PAYMENTS_BASE = 'http://127.0.0.1:58421/torneos-payments';
+export const MP_STUB_BASE = 'http://127.0.0.1:58426';
+const COMPOSE_FILES = ['-f', 'compose.yaml', ...(COMMERCE ? ['-f', 'compose.mpa.yaml'] : [])];
 
 // Force the local Unix socket, ignoring DOCKER_HOST/context inherited by the shell.
 export function dc(args, input, capture = false) {
   const r = spawnSync(docker, ['--host', 'unix:///var/run/docker.sock', 'compose',
-    '--project-name', PROJECT, '--env-file', '.runtime/compose.env', '-f', 'compose.yaml', ...args], {
+    '--project-name', PROJECT, '--env-file', '.runtime/compose.env', ...COMPOSE_FILES, ...args], {
     cwd: root, input, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024,
     env: { ...process.env, PATH: process.platform === 'darwin'
       ? `/Applications/Docker.app/Contents/Resources/bin:${process.env.PATH}` : process.env.PATH },
@@ -42,7 +49,7 @@ export function sqlTry(service, query, user = 'supabase_admin') {
   if (!['core-db', 'torneos-db'].includes(service)) throw new Error('unknown local DB');
   if (!['supabase_admin', 'postgres'].includes(user)) throw new Error('unknown DB user');
   const r = spawnSync(docker, ['--host', 'unix:///var/run/docker.sock', 'compose',
-    '--project-name', PROJECT, '--env-file', '.runtime/compose.env', '-f', 'compose.yaml',
+    '--project-name', PROJECT, '--env-file', '.runtime/compose.env', ...COMPOSE_FILES,
     'exec', '-T', service, 'psql', '-U', user, '-d', 'postgres', '-X', '-A', '-t', '-q', '-v', 'ON_ERROR_STOP=1'], {
     cwd: root, input: query, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024,
     env: { ...process.env, PATH: process.platform === 'darwin'
@@ -109,8 +116,59 @@ async function prepare() {
       `CORE_ANON_KEY=${cfg.anonKey}\nTORNEOS_CONTRACT_SERVICE_SECRET=${cfg.coreContractSecret}\n`, { mode: 0o600 });
     await writeFile(`${root}.runtime/public/jwks.json`, JSON.stringify({ keys: [keys[0].publicKey] }));
   }
+  // MP-A2: password of the local payment-service login (a kept .runtime gets one on its next prepare).
+  // Never handed to the gateways: only the future payments service and the commerce DB suite use it.
+  const current = await config();
+  if (!current.paymentServicePassword) {
+    await writeFile(`${root}.runtime/config.json`, JSON.stringify({ ...current, paymentServicePassword: randomBytes(32).toString('hex') }), { mode: 0o600 });
+  }
   await writeServerConfig(await config());
   await writeEdgeEnv(await config());
+  if (COMMERCE) await writeCommerceEnv();
+  // MP-A4: outside commerce mode no gateway commerce configuration may survive from an earlier run.
+  else await Promise.all(GATEWAY_COMMERCE_FILES.map((f) => rm(`${root}.runtime/${f}`, { force: true })));
+}
+// MP-A4 (commerce mode only): the gateways' commerce configuration — TORNEOS_COMMERCE_MODE=test, the lab payments
+// mount and the internal HMAC key shared with torneos-payments. Node gateway: its private .runtime/server dir;
+// Edge gateway: an env file only compose.mpa.yaml loads (edge-main hands the URL/key to the gateway worker only
+// in commerce mode). Never a Mercado Pago value, the payment-service DB login or a Core/bridge secret.
+export const GATEWAY_COMMERCE_FILES = ['server/commerce.env', 'torneos-gateway-commerce.env'];
+export const PAYMENTS_INTERNAL_URL = 'http://torneos-functions:9000/torneos-payments';
+async function writeGatewayCommerceEnv(c) {
+  const lines = ['TORNEOS_COMMERCE_MODE=test', `TORNEOS_PAYMENTS_INTERNAL_URL=${PAYMENTS_INTERNAL_URL}`, `TORNEOS_PAYMENTS_INTERNAL_SECRET=${c.mpa.internalSecret}`];
+  for (const f of GATEWAY_COMMERCE_FILES) await writeFile(`${root}.runtime/${f}`, lines.join('\n') + '\n', { mode: 0o600 });
+}
+// MP-A3 (commerce mode only): ephemeral lab secrets of the payments service and the mp-stub, kept only in
+// the ignored .runtime (0600). None of them reaches the gateway env/config (writeEdgeEnv/writeServerConfig
+// pick their own fields), and the Core containers never read these files.
+export const LAB_APP_PUBLIC_URL = 'https://torneos-mp-a3.lab.invalid';
+async function writeCommerceEnv() {
+  let c = await config();
+  if (!c.mpa) {
+    const hex = (n) => randomBytes(n).toString('hex');
+    c = { ...c, mpa: {
+      internalSecret: hex(32), webhookSecret: hex(32), accessToken: `TEST-${hex(24)}`,
+      sellerId: String(1_000_000_000 + (randomBytes(4).readUInt32BE() % 8_999_999_999)), stubControlToken: hex(24),
+    } };
+    await writeFile(`${root}.runtime/config.json`, JSON.stringify(c), { mode: 0o600 });
+  }
+  const { mpa } = c;
+  const payments = [
+    'TORNEOS_PAYMENT_PROVIDER=MERCADO_PAGO',
+    'MERCADO_PAGO_ENVIRONMENT=test',
+    `MERCADO_PAGO_TEST_ACCESS_TOKEN=${mpa.accessToken}`,
+    `MERCADO_PAGO_TEST_WEBHOOK_SECRET=${mpa.webhookSecret}`,
+    `MERCADO_PAGO_TEST_SELLER_ID=${mpa.sellerId}`,
+    `APP_PUBLIC_URL=${LAB_APP_PUBLIC_URL}`,
+    `TORNEOS_PAYMENTS_NOTIFICATION_URL=${LAB_APP_PUBLIC_URL}/functions/v1/torneos-payments/webhooks/mercadopago/v1`,
+    `TORNEOS_PAYMENTS_INTERNAL_SECRET=${mpa.internalSecret}`,
+    `TORNEOS_PAYMENTS_DB_URL=postgres://lab_payment_service:${c.paymentServicePassword}@torneos-db:5432/postgres`,
+    'TORNEOS_PAYMENTS_LAB_MP_API_ORIGIN=http://mp-stub:8080',
+  ];
+  await writeFile(`${root}.runtime/torneos-payments.env`, payments.join('\n') + '\n', { mode: 0o600 });
+  await writeFile(`${root}.runtime/mp-stub.env`, [`MP_STUB_ACCESS_TOKEN=${mpa.accessToken}`, `MP_STUB_SELLER_ID=${mpa.sellerId}`,
+    `MP_STUB_CONTROL_TOKEN=${mpa.stubControlToken}`].join('\n') + '\n', { mode: 0o600 });
+  await writeGatewayCommerceEnv(c);
 }
 async function waitFor(label, probe, attempts = 90) {
   for (let i = 0; i < attempts; i++) {
@@ -186,6 +244,16 @@ export async function installTorneos(c) {
     GRANT torneos_identity_writer TO lab_identity_writer;
     GRANT torneos_core_adapter TO lab_core_adapter;
     ALTER ROLE authenticator PASSWORD '${c.dbPassword}';`);
+  // MP-A2: local login of the payment service, a NOINHERIT member of the NOLOGIN role that
+  // 00000000000002 creates (the migration never creates logins). Absent role → no login.
+  sql('torneos-db', `
+    DO $$ BEGIN
+      IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname='torneos_payment_service') THEN
+        IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='lab_payment_service') THEN CREATE ROLE lab_payment_service LOGIN NOINHERIT; END IF;
+        EXECUTE format('ALTER ROLE lab_payment_service PASSWORD %L', '${c.paymentServicePassword}');
+        GRANT torneos_payment_service TO lab_payment_service;
+      END IF;
+    END $$;`);
   return { file: file.slice(repo.length), sha256, installed, certified_sha256: certified, migrations_after_baseline: followUps };
 }
 async function main() {
@@ -225,12 +293,22 @@ async function main() {
         console.log(r.status);`);
       return out.trim() === '401';
     }, 6);
+    if (COMMERCE) {
+      // MP-A3: mp-stub readiness, then one unsigned request boots the payments worker (module cache).
+      // Its verdict is left to the suites: before torneos-payments exists the router answers 404.
+      await waitFor('mp-stub', async () => (await fetch(`${MP_STUB_BASE}/__lab/health`, { headers: { 'x-mp-stub-control': c.mpa.stubControlToken } })).ok);
+      await waitFor('torneos-payments', async () => {
+        const r = await fetch(`${PAYMENTS_BASE}/internal/v1/season-checkout-preference`, { method: 'POST', body: '{}', signal: AbortSignal.timeout(90000) });
+        return r.status !== 503 || (await r.text()).includes('service_unavailable');
+      }, 6);
+    }
     await writeFile(`${root}.runtime/install.json`, JSON.stringify({ core_migrations_applied: core, torneos }, null, 2) + '\n');
     console.log(`Local-only Phase 3A lab ready at ${BASE}`);
     return;
   }
-  if (process.argv[2] === 'down') return dc(['down']);
-  if (process.argv[2] === 'destroy') return dc(['down', '-v']);
+  // --remove-orphans: an mp-stub left by a commerce-mode run goes down with the lab in either mode.
+  if (process.argv[2] === 'down') return dc(['down', '--remove-orphans']);
+  if (process.argv[2] === 'destroy') return dc(['down', '-v', '--remove-orphans']);
   throw new Error('Use prepare | up | down | destroy. No remote operations supported.');
 }
 if (process.argv[1] === fileURLToPath(import.meta.url)) {

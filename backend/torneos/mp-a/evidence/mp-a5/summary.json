@@ -1,0 +1,110 @@
+{
+  "phase": "MP-A5 frontend hybrid commerce (local mock only)",
+  "base": "02779321ec93f04950fa88eb670a19e33a57f530",
+  "branch": "codex/torneos-mp-a5-frontend",
+  "red": {
+    "node": "2/20",
+    "jest": "1/38"
+  },
+  "green": {
+    "node": "20/20",
+    "jest": "39/39"
+  },
+  "browserJourney": {
+    "billing": "11/11",
+    "off": "3/3",
+    "billingNetwork": {
+      "hosts": [
+        "127.0.0.1:58422",
+        "127.0.0.1:58423",
+        "fonts.googleapis.com",
+        "localhost:3000",
+        "www.mercadopago.com.ar"
+      ],
+      "blockedNonLoopback": [
+        {
+          "host": "fonts.googleapis.com",
+          "aborted": 11
+        }
+      ],
+      "checkoutProMockPages": 3,
+      "rpcNames": [
+        "get_effective_tournament_season_entitlements",
+        "get_tournament_competition_context",
+        "get_tournament_purchase",
+        "get_tournament_workspace_context",
+        "set_tournament_workspace_preference"
+      ],
+      "commerceCheckoutRequests": 4
+    },
+    "offNetwork": {
+      "rpcNames": [
+        "get_tournament_competition_context",
+        "get_tournament_workspace_context"
+      ],
+      "commerceCheckoutRequests": 0
+    },
+    "purchases": [
+      {
+        "season": "Apertura mpa59642",
+        "status": "refunded",
+        "amount": 39900,
+        "provider": "MERCADO_PAGO",
+        "environment": "test"
+      },
+      {
+        "season": "Clausura mpa59642",
+        "status": "approved",
+        "amount": 39900,
+        "provider": "MERCADO_PAGO",
+        "environment": "test"
+      },
+      {
+        "season": "Invierno mpa59642",
+        "status": "preference_created",
+        "amount": 39900,
+        "provider": "MERCADO_PAGO",
+        "environment": "test"
+      }
+    ]
+  },
+  "regression": {
+    "frontendFoundationNode": "58/58 (B04 38 + MP-A5 20)",
+    "jestFull": "331 suites / 3207 tests",
+    "staticGuard": "STAGING_STATIC_GUARD_OK secrets=0 unknownProjectHosts=0",
+    "migrationsGuard": "8/8",
+    "workers": "signer-renewer, media-runtime, media:ci green",
+    "stagingGuard": "251/257 — the 6 failures are psql-connection-live (embedded-postgres libicudata.77.dylib missing); identical 0/6 on base 02779321 (A/B)",
+    "t6": {
+      "unit": "31/32",
+      "test": "49/50",
+      "off": "36/37",
+      "note": "the only failure in each phase is MP-A4 «U scope» (phase diff frozen vs 88cb6ab9, flags the MP-A5 files by design); its other invariants verified separately"
+    },
+    "productionBundle": "react-scripts build without the billing variable: 0 MP tokens / secrets / lab hosts; NODE_ENV production inlined → billing off; prebuild refuses REACT_APP_TORNEOS_BILLING_MODE"
+  },
+  "invariants": {
+    "migrations": {
+      "00000000000000": "f857bd0939054bc1",
+      "00000000000001": "3df4b96eecc7321e",
+      "00000000000002": "06378f12b57620e8"
+    },
+    "unchangedVs02779321": [
+      "backend/torneos/supabase/**",
+      "integration/**",
+      "supabase/**",
+      "backend/torneos/phase2d/**",
+      "src/lib/**",
+      "coreSessionBridge.js",
+      "tournamentWorkspaceService.js",
+      "tournamentWorkspaceErrors.js",
+      "vercel.json",
+      ".env*",
+      "transport exchange()"
+    ],
+    "allowlists": {
+      "stagingV1": 43,
+      "commerce": 2
+    }
+  }
+}

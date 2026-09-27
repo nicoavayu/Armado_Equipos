@@ -1,0 +1,24 @@
+{
+  "phase": "ARMA2_TORNEOS_MP_B1_1_REMOTE_ENABLEMENT_R2",
+  "verdict": "MP_B1_1_PASS",
+  "parent": "1f8e560ff0fa1a064aed5621247550c0325b8cda",
+  "branch": "claude/torneos-mp-b1-1-remote-enablement-r2",
+  "configModel": { "mode": "TORNEOS_COMMERCE_MODE (unset=OFF | test)", "deployment": "TORNEOS_COMMERCE_DEPLOYMENT (unset|local-lab = certified lab | remote-test)", "remoteTestRequires": ["TORNEOS_COMMERCE_REMOTE_GATEWAY_HOST", "TORNEOS_COMMERCE_REMOTE_PAYMENTS_HOST", "TORNEOS_PAYMENTS_INTERNAL_URL=https://<payments host>/functions/v1/torneos-payments", "TORNEOS_PAYMENTS_INTERNAL_SECRET", "gateway public URL https://<gateway host>/functions/v1/torneos-gateway", "https non-Production dependency URLs"] },
+  "webhookFreshness": { "maxAge": "none (not documented by Mercado Pago)", "futureSkewSeconds": 300, "futureRejection": "401 invalid_signature before any provider call", "orderingClock": "re-fetched payment date_last_updated only (MP-B1.2)" },
+  "results": {
+    "offline": "29/29 (RED 14/28)",
+    "webhookReplayLab": "15/15 (RED 13/15)",
+    "t10_t3_t4_t5_ordering": "149/149",
+    "t2": "6/6",
+    "migrationsFreshUpgrade": "2/2",
+    "t6Unit": "31/32 (accepted historical U scope)",
+    "t6TestBothGateways": "49/50 (accepted historical U scope)",
+    "mpA6ProductionFailClosed": "8/8",
+    "staticGuard": "PASS secrets=0 unknownProjectHosts=0",
+    "migrationsGuard": "8/8",
+    "invariants": "PASS"
+  },
+  "invariants": { "paymentServiceExecute": 4, "migrations0000to0003Identical": true, "newMigration": false, "frontendChanged": false, "coreChanged": false, "exchangeChanged": false, "remoteOperationalCalls": 0, "secretLeaks": 0, "productionTorneos": "OFF", "mercadoPagoLive": false, "provisioned": false },
+  "provisioningPrecondition": "gateway and payments need disjoint secret scopes (hosted Supabase shares function secrets project-wide; a shared scope makes the gateway refuse to boot)",
+  "pushed": false, "pr": false, "merged": false, "deployed": false
+}

@@ -1,0 +1,49 @@
+{
+  "phase": "MP-A4",
+  "base": "88cb6ab95e7b1a9bd5cd13e26904c5922395ad50",
+  "branch": "codex/torneos-mp-a4-gateway",
+  "scope": "gateway commerce: POST /commerce/v1/season-checkout + commerce TEST read allowlist (43 + 2), Node/Edge through one shared module (torneos-gateway/commerce.ts); local lab only, Mercado Pago = mp-stub",
+  "test_first": {
+    "note": "T6 was written and run before commerce.ts existed. The OFF lab checks pass on the base by design, because they freeze the current gateway behaviour. The TEST red was re-run once after a test-only change that moved fixture setup into its own check, so each case shows its own red reason.",
+    "red": { "unit": "1/32 (only the scope guard, a pre-existing invariant)", "off": "5/36 (the 4 OFF lab checks + the scope guard)", "test": "2/50 (scope guard + fixtures; the route answered 404, the gateway commerce config did not exist)" },
+    "files": ["t6-unit-red.json", "t6-off-red.json", "t6-test-red.json"]
+  },
+  "green": {
+    "T6_unit": "32/32 (t6-unit.json)",
+    "T6_off_fresh_default_lab": "37/37 (t6-off.json)",
+    "T6_test_fresh_commerce_lab": "50/50 (t6-test.json); 59 Node/Edge verdict rows, all identical",
+    "journey_s17": "both gateways: Core session → /exchange → org + season (gateway RPCs) → checkout 200 (39900 ARS, www.mercadopago.com.ar) → webhook approved → get_tournament_purchase approved + entitlements PREMIUM → refund → refunded + FREE; grant events granted, revoked"
+  },
+  "regression": {
+    "default_lab_fresh": {
+      "how": "fresh volumes (0000 f857bd09 → 0001 3df4b96e → 0002 06378f12); structural suites from a scratch cwd (.runtime + compose.yaml symlinked) so certified tracked evidence was not overwritten",
+      "e2e_node_test_mjs": "41/41 (40/40 checks)",
+      "e2e_edge_test_mjs": "41/41 (40/40 checks)",
+      "exposure_node": "19/19 (18/18 checks)",
+      "exposure_edge": "19/19 (18/18 checks)",
+      "equivalence_node_vs_edge": "8/8; 123 compared, 120 equivalent, differences = documented D1 only (identical to the certified evidence/equivalence-results.json)",
+      "T6_off": "37/37"
+    },
+    "commerce_lab_fresh": {
+      "T10_commerce_db": "49/49 checks (50/50 node tests); ACL matrix identical to the certified commerce-db-acl-matrix.json (regression/commerce-db-*-mp-a4-regression.json)",
+      "T2_provider_copy": "6/6",
+      "T3_checkout_internal": "23/23",
+      "T4_webhook": "31/31",
+      "T5_config_privilege": "18/18 (unchanged test; passes with gateway commerce ON)",
+      "T6_test": "50/50"
+    },
+    "guards": { "staging_static_guard": "STAGING_STATIC_GUARD_OK secrets=0 unknownProjectHosts=0", "migrations_guard": "OK, 8/8" },
+    "not_run_by_scope": ["R4", "R4.2", "R5", "B04 browser", "frontend tests", "ACL suite (acl.test.mjs)", "d1.test.mjs"]
+  },
+  "invariants": {
+    "migrations": "0000 f857bd09…, 0001 3df4b96e…, 0002 06378f12… byte-identical (T6 scope guard + lab install hashes)",
+    "payments_service_and_provider": "torneos-payments/*, _shared/* unchanged vs base (git diff empty; T2 sha pins)",
+    "staging_v1_allowlist": "both copies sha 149c7659…, 43 names",
+    "frontend_core_contract_token_exchange_adapter": "unchanged (git diff empty on src, public, supabase, scripts, integration/torneos-sso, core-client.*, adapter.*, token.ts)",
+    "commerce_off": "route 404 byte-identical to an unknown route; the 2 reads + creation RPC 403 'rpc not enabled'; the 43 pass; E2E/exposure/equivalence as certified",
+    "production": "commerce TEST refused outside loopback-published gateways and lab payments hosts; Production ref refused; no live/production mode exists",
+    "mercado_pago": "no real traffic: mp-stub only; torneos-functions resolves MP hosts to 127.0.0.9 (MP-A3 overlay)",
+    "secrets": "0 hits of 15 lab secrets / JWTs / payer data in mp-a4 evidence; T6 scans responses and gateway/payments logs",
+    "cleanup": "lab destroyed (0 containers, 0 volumes, 0 networks), .runtime removed, ports 58420/58421/58426 free"
+  }
+}

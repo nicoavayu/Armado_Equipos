@@ -1,0 +1,28 @@
+{
+  "worktree": "/Users/nicoavayu/Downloads/arma2/arma2-mp-b1-1-remote-enablement-r2",
+  "branch": "claude/torneos-mp-b1-1-remote-enablement-r2",
+  "head": "bdc605fdccec3fe3fa4082be0fac67e5ba496f79",
+  "expectedCandidate": "bdc605fdccec3fe3fa4082be0fac67e5ba496f79",
+  "parentOfCandidate": "1f8e560ff0fa1a064aed5621247550c0325b8cda",
+  "expectedParent": "1f8e560ff0fa1a064aed5621247550c0325b8cda",
+  "candidateParents": 1,
+  "merges": 0,
+  "originMain": "c2dfc3ed3d164a0ead4f179290ffc4bf9ce527ed",
+  "remoteBranchesContainingCandidate": [],
+  "trackedChangesAtStart": 0,
+  "preExistingUntracked": [
+    "backend/torneos/mp-b/evidence/mp-b1.1-r2-final-review/ (earlier read-only review session; not part of R3, not committed)"
+  ],
+  "originalWorktreeTouched": false,
+  "migrations": [
+    "backend/torneos/supabase/migrations/00000000000000_torneos_baseline_v1.sql",
+    "backend/torneos/supabase/migrations/00000000000001_staging_v1_rpc_exposure.sql",
+    "backend/torneos/supabase/migrations/00000000000002_mercadopago_checkout_pro_test.sql",
+    "backend/torneos/supabase/migrations/00000000000003_mercadopago_provider_ordering.sql"
+  ],
+  "toolchain": {
+    "node": "v25.2.1",
+    "deno": "deno 2.1.4 (local npx cache, offline)",
+    "docker": "29.7.2"
+  }
+}

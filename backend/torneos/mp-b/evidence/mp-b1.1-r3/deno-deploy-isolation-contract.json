@@ -1,0 +1,181 @@
+{
+  "phase": "MP-B1.1 R3",
+  "decision": "approved architecture 2026-09-24: two dedicated Deno Deploy apps + one separate Supabase project (Arma2 Torneos) for data only",
+  "certification": "CODE_READY",
+  "remotePlatformCertified": false,
+  "platform": "Deno Deploy (Deno 2.x runtime; npm: specifiers; outbound TCP/HTTPS)",
+  "vercelForGatewayOrPayments": "forbidden",
+  "supabaseEdgeFunctions": "none",
+  "torneosSupabaseProject": {
+    "hosts": [
+      "database",
+      "PostgREST",
+      "migrations 0000-0003",
+      "RLS / grants",
+      "custom_jwks (inline JWKS data)"
+    ],
+    "edgeFunctions": "none"
+  },
+  "variableScope": "app",
+  "organizationVariables": [],
+  "databaseIntegration": "none",
+  "frontendSecrets": [],
+  "apps": {
+    "torneos-gateway": {
+      "app": "torneos-gateway",
+      "appRoot": "backend/torneos/supabase/functions",
+      "entrypoint": "backend/torneos/supabase/functions/torneos-gateway/index.ts",
+      "routes": [
+        "ANY /functions/v1/torneos-gateway/*"
+      ],
+      "secrets": [
+        "TORNEOS_CONTRACT_SERVICE_SECRET",
+        "TORNEOS_BRIDGE_KEYS",
+        "TORNEOS_DB_IDENTITY_WRITER_URL",
+        "TORNEOS_DB_CORE_ADAPTER_URL",
+        "TORNEOS_PAYMENTS_INTERNAL_SECRET"
+      ],
+      "config": [
+        "TORNEOS_GATEWAY_PUBLIC_URL",
+        "TORNEOS_ALLOWED_ORIGIN",
+        "CORE_AUTH_URL",
+        "CORE_JWT_ISSUER",
+        "CORE_ANON_KEY",
+        "CORE_CONTRACT_URL",
+        "TORNEOS_REST_URL",
+        "TORNEOS_ANON_KEY",
+        "TORNEOS_DB_SSL_CA",
+        "TORNEOS_COMMERCE_MODE",
+        "TORNEOS_COMMERCE_DEPLOYMENT",
+        "TORNEOS_COMMERCE_REMOTE_GATEWAY_HOST",
+        "TORNEOS_COMMERCE_REMOTE_PAYMENTS_HOST",
+        "TORNEOS_PAYMENTS_INTERNAL_URL"
+      ],
+      "dbLogins": [
+        "torneos_edge_identity_writer",
+        "torneos_edge_core_adapter"
+      ],
+      "forbidden": [
+        "MERCADO_PAGO_ENVIRONMENT",
+        "MERCADO_PAGO_TEST_ACCESS_TOKEN",
+        "MERCADO_PAGO_TEST_WEBHOOK_SECRET",
+        "MERCADO_PAGO_TEST_SELLER_ID",
+        "TORNEOS_PAYMENT_PROVIDER",
+        "TORNEOS_PAYMENTS_DB_URL",
+        "TORNEOS_PAYMENTS_DB_SSL_CA",
+        "TORNEOS_PAYMENTS_NOTIFICATION_URL",
+        "TORNEOS_PAYMENTS_LAB_MP_API_ORIGIN"
+      ],
+      "forbiddenEnforcement": "runtime: commerce TEST refuses to boot on any MERCADO_PAGO_* / payments DB / provider / notification / lab variable (commerce.ts FORBIDDEN_GATEWAY_ENV)",
+      "forbiddenPlatformOnly": [
+        "SUPABASE_SERVICE_ROLE_KEY",
+        "SUPABASE_SECRET_KEYS",
+        "SUPABASE_DB_URL",
+        "DATABASE_URL",
+        "PG* (postgres.js / libpq variables)"
+      ],
+      "forbiddenPlatformOnlyNote": "never read by gateway code (static guard); not boot-refused by the gateway runtime in R3 — guaranteed by app-level variables + no database integration (pending platform check)"
+    },
+    "torneos-payments": {
+      "app": "torneos-payments",
+      "appRoot": "backend/torneos/supabase/functions",
+      "entrypoint": "backend/torneos/supabase/functions/torneos-payments/index.ts",
+      "routes": [
+        "POST /functions/v1/torneos-payments/internal/v1/season-checkout-preference",
+        "POST /functions/v1/torneos-payments/webhooks/mercadopago/v1"
+      ],
+      "secrets": [
+        "MERCADO_PAGO_TEST_ACCESS_TOKEN",
+        "MERCADO_PAGO_TEST_WEBHOOK_SECRET",
+        "TORNEOS_PAYMENTS_DB_URL",
+        "TORNEOS_PAYMENTS_INTERNAL_SECRET"
+      ],
+      "config": [
+        "TORNEOS_PAYMENT_PROVIDER",
+        "MERCADO_PAGO_ENVIRONMENT",
+        "MERCADO_PAGO_TEST_SELLER_ID",
+        "APP_PUBLIC_URL",
+        "TORNEOS_PAYMENTS_NOTIFICATION_URL",
+        "TORNEOS_PAYMENTS_DB_SSL_CA"
+      ],
+      "labOnly": [
+        "TORNEOS_PAYMENTS_LAB_MP_API_ORIGIN"
+      ],
+      "dbLogins": [
+        "<dedicated payments login>, NOINHERIT member of torneos_payment_service"
+      ],
+      "forbidden": [
+        "TORNEOS_BRIDGE_KEYS",
+        "TORNEOS_CONTRACT_SERVICE_SECRET",
+        "TORNEOS_DB_IDENTITY_WRITER_URL",
+        "TORNEOS_DB_CORE_ADAPTER_URL",
+        "CORE_SERVICE_ROLE_KEY",
+        "CORE_JWT_SECRET",
+        "SUPABASE_SERVICE_ROLE_KEY",
+        "SUPABASE_SECRET_KEYS",
+        "SUPABASE_DB_URL",
+        "DATABASE_URL",
+        "PGHOST",
+        "PGPORT",
+        "PGUSER",
+        "PGUSERNAME",
+        "PGPASSWORD",
+        "PGDATABASE",
+        "PGAPPNAME",
+        "PGTARGETSESSIONATTRS",
+        "PGSSL",
+        "PGIDLE_TIMEOUT",
+        "PGCONNECT_TIMEOUT",
+        "PGMAX_LIFETIME",
+        "PGDEBUG",
+        "PGFETCH_TYPES",
+        "PGSSLMODE",
+        "PGPASSFILE",
+        "PGSERVICE",
+        "PGOPTIONS",
+        "PGRST_JWT_SECRET",
+        "PGRST_DB_URI"
+      ],
+      "forbiddenPattern": "^PG[A-Z_]+$ (every PG* variable: postgres.js 3.4.7 reads PGHOST/PGUSER/PGPASSWORD/PGDATABASE/… and PG<OPTION>; PostgREST PGRST_* secrets)",
+      "forbiddenEnforcement": "runtime: config.ts FORBIDDEN_PAYMENTS_ENV + FORBIDDEN_PAYMENTS_ENV_RE — any non-blank value refuses the boot (503 on both routes, no DB connection)",
+      "forbiddenDbLogins": [
+        "postgres",
+        "supabase_admin",
+        "service_role",
+        "authenticator",
+        "anon",
+        "authenticated",
+        "torneos_payment_service",
+        "torneos_identity_writer",
+        "torneos_core_adapter",
+        "torneos_edge_identity_writer",
+        "torneos_edge_core_adapter",
+        "lab_identity_writer",
+        "lab_core_adapter"
+      ],
+      "forbiddenDbLoginsEnforcement": "runtime: the login part of TORNEOS_PAYMENTS_DB_URL (pooler `<login>.<ref>`, %-decoded, case-insensitive) — independent of variable names"
+    }
+  },
+  "sharedBetweenApps": [
+    "TORNEOS_PAYMENTS_INTERNAL_SECRET (gateway→payments HMAC; distinct from every other secret)"
+  ],
+  "invariants": [
+    "gateway and payments are two different Deno Deploy apps with disjoint secret sets (only the internal HMAC key is shared)",
+    "every sensitive variable is set at APP level; organization-level environment variables are forbidden (they are inherited by every app of the organization)",
+    "no Deno Deploy database integration / linked database on either app (it would inject DATABASE_URL / PG* into a runtime); connections keep the dedicated least-privilege logins",
+    "the Torneos Supabase project hosts no Edge Function (every function there would receive SUPABASE_DB_URL and the service role)",
+    "browser / frontend receives 0 secrets",
+    "remote-test requires https and the exact declared hosts; hosts are never hard-coded",
+    "webhook ts authenticates only; ordering uses only the re-fetched provider date_last_updated"
+  ],
+  "pendingRemotePlatformChecks": [
+    "create exactly two Deno Deploy apps (torneos-gateway, torneos-payments) and confirm each has its own variable set",
+    "list organization-level environment variables and confirm there are none",
+    "confirm no database / Postgres integration is linked to either app and that neither runtime receives DATABASE_URL or PG* (payments would refuse to boot; the gateway relies on this check)",
+    "confirm sensitive variables are marked secret and are not exposed to build steps or to preview / branch deployments beyond intent",
+    "configure each app with root backend/torneos/supabase/functions so the repo-root package.json is outside Deno's resolution scope (otherwise npm: imports fail closed at boot); verify both entrypoints boot on the platform's current Deno 2.x",
+    "bind the declared TORNEOS_COMMERCE_REMOTE_GATEWAY_HOST / _PAYMENTS_HOST to the real app domains over HTTPS and confirm the gateway Host check and the exact payments URL match",
+    "review organization membership (every member is an owner) and restrict it to the operators of this deployment",
+    "observe a real Mercado Pago TEST notification end to end (ts length 10 or 13, signature accepted, provider re-fetch, ordering by date_last_updated)"
+  ]
+}

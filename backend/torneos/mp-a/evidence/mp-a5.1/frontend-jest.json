@@ -1,0 +1,31 @@
+{
+  "suite": "MP-A5.1 src/__tests__/torneosMpA51PremiumIntentRoute.test.jsx — GREEN after the fix",
+  "total": 6,
+  "passed": 6,
+  "results": [
+    {
+      "status": "PASS",
+      "name": "the hybrid TEST overlay keeps the legacy Plan routes off (precondition)"
+    },
+    {
+      "status": "PASS",
+      "name": "hybrid + premium intent: after creating the tournament it opens the canonical Plan of the returned season"
+    },
+    {
+      "status": "PASS",
+      "name": "hybrid + premium intent without a returned seasonId: no Plan guess, the tournament configuration opens"
+    },
+    {
+      "status": "PASS",
+      "name": "hybrid without premium intent: the current flow (tournament configuration) is kept"
+    },
+    {
+      "status": "PASS",
+      "name": "hybrid with plan OFF (billing off) + premium intent: no commercial navigation is invented"
+    },
+    {
+      "status": "PASS",
+      "name": "legacy-local + premium intent: the previous tournament-scoped Plan target is kept"
+    }
+  ]
+}

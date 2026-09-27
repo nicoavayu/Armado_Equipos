@@ -1,0 +1,42 @@
+{
+ "baseline_file": "backend/torneos/infra/core-prod-contract/pins/production-ledger-baseline.json",
+ "baseline_sha256": "2093dcb3c26d531e7d0722791c1a37a2df5b800b8d47d331af461a56edeb45c8",
+ "source": {
+  "file": "step37-final-window-r5-20260911-B71wJo/inventory/INVENTORY-EVIDENCE.json",
+  "sha256": "d00faa708ab6e6659882d897511bc60930b1872e230112b07ba8bd9aadd5162d",
+  "captured_utc": "2026-09-11T20:40:55.663Z",
+  "capture_kind": "PRODUCTION_BEFORE_V3",
+  "read_only": true,
+  "catalog_sha256": "e09c17230f5bbfe4fb775da6847bbffe03e40b4d041f0846a9734bbcb51ee3ed"
+ },
+ "totals": {
+  "rows": 236,
+  "min_version": "20260114",
+  "max_version": "20260903213456",
+  "created_by_set": 1,
+  "idempotency_key_set": 0,
+  "rollback_set": 0,
+  "statements_null": 0
+ },
+ "digest_expression": "md5(array_to_string(statements, chr(30))) · octet_length · cardinality · IS NULL flags, ordered by version COLLATE \"C\"",
+ "preflight_sql_sha256": "b289493e4ff4c9c0489847d2cc7c6ac89c543544a00c7300fd49d010c8f6ab52",
+ "shape": "hosted 6-column shape (C.LEDGER_SHAPE_EXPECTED, observed on Production 2026-08-07)",
+ "decision_table": {
+  "absent objects / absent row": "apply",
+  "installed / our row": "skip",
+  "installed / no row": "STOP (no mark-as-applied)",
+  "installed / foreign row": "STOP",
+  "absent objects / any row": "STOP",
+  "v1.1 in place while v1 must apply": "STOP (order)"
+ },
+ "stops": [
+  "row missing",
+  "row added",
+  "row changed (name, count, md5, bytes, null flags; non-boolean flag never matches)",
+  "version ≥ 20260914120000 other than ours",
+  "duplicate/malformed version",
+  "shape differs"
+ ],
+ "caveat": "The baseline is the 2026-09-11 capture. If Production ledger moved since (e.g. promotion steps 37–48), INFRA-1 STOPs at LEDGER_UNEXPECTED by design; a re-pin needs a reviewed code change from a fresh read-only capture.",
+ "validated_on_real_postgres": "offline rehearsal: the 236 captured rows seeded verbatim into PG 17.4.1.048 reproduce every pinned digest with Postgres md5 (P01 PASS)"
+}

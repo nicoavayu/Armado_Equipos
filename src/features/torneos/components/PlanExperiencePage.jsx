@@ -9,13 +9,11 @@ import {
   Zap,
 } from 'lucide-react';
 import { useNavigate, useOutletContext, useParams } from 'react-router-dom';
-import {
-  createIdempotencyKey,
-  createTournamentCheckout,
-  isMercadoPagoCheckoutUrl,
-} from '../api/tournamentWorkspaceService';
 import { canonicalRoutes } from '../routing/canonicalRoutes';
 import { useOptionalTorneosCompetition } from '../context/TorneosCompetitionContext';
+import { useTorneosCommerce } from '../context/TorneosCommerceContext';
+import { useTorneosFeatures } from '../context/TorneosFeaturesContext';
+import { isCheckoutProUrl } from '../domain/checkoutRedirect';
 import {
   normalizeTournamentEntitlements,
   TOURNAMENT_PLANS,
@@ -29,6 +27,10 @@ import styles from './PlanExperiencePage.module.css';
 import { clearPremiumIntent } from '../domain/premiumIntent';
 
 const FAIL_CLOSED_ENTITLEMENTS = normalizeTournamentEntitlements(null);
+const INVALID_CHECKOUT_URL = 'El proveedor devolvió una dirección de pago inválida.';
+const SUSPENDED = 'TORNEOS_SEASON_PREMIUM_SUSPENDED';
+
+const defaultCheckoutRedirect = (url) => window.location.assign(url);
 
 const AVAILABLE_PREMIUM_BENEFITS = Object.freeze([
   {
@@ -56,10 +58,15 @@ const AVAILABLE_PREMIUM_BENEFITS = Object.freeze([
 export default function PlanExperiencePage({
   organization: organizationProp = null,
   season: seasonProp = null,
-  checkoutRedirect = (url) => window.location.assign(url),
+  checkoutRedirect: checkoutRedirectProp = null,
 }) {
   const outletContext = useOutletContext() || {};
   const competition = useOptionalTorneosCompetition();
+  // Commerce is the composition's: the legacy adapter by default, the hybrid service → transport
+  // when the staging-v1 composition provides it. `billing` alone decides whether a purchase may start.
+  const commerce = useTorneosCommerce();
+  const billingEnabled = useTorneosFeatures().billing === true;
+  const checkoutRedirect = checkoutRedirectProp || commerce.redirect || defaultCheckoutRedirect;
   const organization = organizationProp || outletContext.organization || null;
   const season = seasonProp || competition?.activeSeason || null;
   const planState = competition?.planState || {
@@ -74,42 +81,62 @@ export default function PlanExperiencePage({
   const canManageBilling = ['owner', 'admin'].includes(organization?.role);
   const navigate = useNavigate();
   const { organizationId: routeOrganizationId, seasonId: routeSeasonId } = useParams();
+  // One idempotency key per purchase attempt of this organization + season: it survives
+  // re-renders, errors and retries, so repeating the checkout can never open a second purchase.
   const idempotencyKeyRef = useRef(null);
-  const [checkoutState, setCheckoutState] = useState({ status: 'idle', error: '' });
+  // Synchronous in-flight lock: two clicks in the same tick still make one request.
+  const inFlightRef = useRef(false);
+  const [checkoutState, setCheckoutState] = useState({ status: 'idle', error: '', code: '' });
+  const purchaseBlocked = checkoutState.code === SUSPENDED;
 
   useEffect(() => { clearPremiumIntent(); }, []);
 
   const beginCheckout = async () => {
-    if (!organization?.id || !season?.id || checkoutState.status === 'loading') return;
-    if (!idempotencyKeyRef.current) idempotencyKeyRef.current = createIdempotencyKey();
-    setCheckoutState({ status: 'loading', error: '' });
+    if (!billingEnabled || !canManageBilling || purchaseBlocked || !organization?.id || !season?.id) return;
+    if (inFlightRef.current) return;
+    inFlightRef.current = true;
+    const scope = `${organization.id}:${season.id}`;
+    if (idempotencyKeyRef.current?.scope !== scope) {
+      idempotencyKeyRef.current = { scope, key: commerce.createIdempotencyKey() };
+    }
+    setCheckoutState({ status: 'loading', error: '', code: '' });
     try {
-      const result = await createTournamentCheckout({
+      const result = await commerce.createCheckout({
         organizationId: organization.id,
         seasonId: season.id,
-        idempotencyKey: idempotencyKeyRef.current,
+        idempotencyKey: idempotencyKeyRef.current.key,
       });
-      if (result.preference?.provider === 'MERCADO_PAGO') {
-        if (!isMercadoPagoCheckoutUrl(result.preference.checkoutUrl)) {
-          throw new Error('El proveedor devolvió una dirección de pago inválida.');
-        }
-        setCheckoutState({ status: 'redirecting', error: '' });
-        checkoutRedirect(result.preference.checkoutUrl);
+      const preference = result?.preference || null;
+      if (preference?.provider === 'MERCADO_PAGO') {
+        // The purchase snapshot of this answer may still say `created` (MP-A4 G1): it is not
+        // read here. Only the validated Checkout Pro URL is used; the state comes later from
+        // the purchase and entitlement reads.
+        if (!isCheckoutProUrl(preference.checkoutUrl)) throw new Error(INVALID_CHECKOUT_URL);
+        setCheckoutState({ status: 'redirecting', error: '', code: '' });
+        checkoutRedirect(preference.checkoutUrl);
         return;
       }
-      if (result.preference?.provider !== 'FAKE') {
+      const openStatusPage = preference?.provider === 'FAKE'
+        || (preference === null && commerce.source === 'hybrid');
+      if (!openStatusPage || !result?.purchase?.id) {
         throw new Error('El proveedor de pago no está disponible.');
       }
+      // FAKE (legacy QA) or a purchase that is no longer open: its status page asks the server.
+      inFlightRef.current = false;
       navigate(canonicalRoutes.seasonPurchasePending(
         routeOrganizationId || organization.id,
         routeSeasonId || season.id,
         result.purchase.id,
       ));
     } catch (error) {
+      inFlightRef.current = false;
+      const code = typeof error?.code === 'string' ? error.code : '';
       setCheckoutState({
         status: 'error',
         error: error?.message || 'No pudimos iniciar la compra.',
+        code,
       });
+      if (code === 'TORNEOS_SEASON_ALREADY_PREMIUM') competition?.retryPlan?.();
     }
   };
 
@@ -265,18 +292,23 @@ export default function PlanExperiencePage({
               <p>Pago único para esta temporada · Sin suscripción</p>
               <small className={styles.permanentAccess}>Acceso Premium permanente para todos sus torneos.</small>
             </div>
-            {!isPremium && (
+            {!isPremium && billingEnabled && (
               <button
                 type="button"
                 onClick={beginCheckout}
-                disabled={!canManageBilling || ['loading', 'redirecting'].includes(checkoutState.status)}
+                disabled={!canManageBilling || purchaseBlocked
+                  || ['loading', 'redirecting'].includes(checkoutState.status)}
               >
                 <Zap size={17} aria-hidden="true" />
-                {checkoutState.status === 'loading' ? 'Preparando compra…'
-                  : checkoutState.status === 'redirecting' ? 'Redirigiendo…' : 'Comprar Premium'}
+                {purchaseBlocked ? 'Compra no disponible'
+                  : checkoutState.status === 'loading' ? 'Preparando compra…'
+                    : checkoutState.status === 'redirecting' ? 'Redirigiendo…' : 'Comprar Premium'}
               </button>
             )}
-            {!isPremium && !canManageBilling && (
+            {!isPremium && !billingEnabled && (
+              <small>La compra no está habilitada en este entorno.</small>
+            )}
+            {!isPremium && billingEnabled && !canManageBilling && (
               <small>Sólo el Propietario o un Administrador pueden comprar.</small>
             )}
             {checkoutState.error && (

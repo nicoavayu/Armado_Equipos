@@ -1,0 +1,742 @@
+{
+ "tool": "backend/torneos/infra/torneos-payments-test/payments-session.mjs",
+ "generated_at": "2026-09-26T20:30:12.624Z",
+ "verdict": "PAYMENTS_TEST_APP_REDEPLOYED",
+ "plan": {
+  "step": "redeploy",
+  "app": "torneos-payments-test",
+  "app_id": "app-pt",
+  "env_shape_before": "scoped",
+  "qa_pin": {
+   "name": "TORNEOS_PAYMENTS_TEST_QA_ORGANIZATION_ID",
+   "organization": "589e3263-bc6c-45f0-a921-413d60dd9e37",
+   "slug": "qa-payments-test-6b8c08d3",
+   "patch": false
+  },
+  "previous_revision": "rev2x",
+  "bundle": {
+   "head": "b3b055b29d902f85e5c2170366ba2d106b15518c",
+   "digest": "71b474443d35b5dfbd6c5dd07cc2af17e944bf10ac872888130eaafccb682c95",
+   "files": 13
+  },
+  "seller_id": "2718281828",
+  "gateway_app": "untouched",
+  "policy": "remote-test sandbox: live_mode is reported, not trusted; attested seller + exact provider resources + QA pin + ARS 39.900"
+ },
+ "plan_id": "2bd1d6ba91d7",
+ "authorization": {
+  "phrase": "REDEPLOY TORNEOS PAYMENTS TEST DENO APP torneos-payments-test 2bd1d6ba91d7",
+  "channel": "session FIFO (operator)"
+ },
+ "env_validated_by_real_config": {
+  "deployment": "remote-test",
+  "remoteHost": "torneos-payments-test.nicoavayu.deno.net",
+  "sellerId": "2718281828",
+  "notificationUrl": "https://torneos-payments-test.nicoavayu.deno.net/functions/v1/torneos-payments/webhooks/mercadopago/v1",
+  "appBaseUrl": "https://torneos-payments-test.nicoavayu.deno.net",
+  "ca": true,
+  "qaOrganizationId": "589e3263-bc6c-45f0-a921-413d60dd9e37"
+ },
+ "env_patch": null,
+ "revision": {
+  "id": "rev3x",
+  "status": "succeeded",
+  "failure_reason": null,
+  "failure_detail": null,
+  "env_vars": null,
+  "layers": null,
+  "config": null,
+  "labels": null,
+  "created_at": null,
+  "build_finished_at": null,
+  "timelines": [
+   {
+    "name": "production",
+    "context": "production",
+    "hostnames": [
+     "torneos-payments-test.nicoavayu.deno.net"
+    ]
+   }
+  ]
+ },
+ "hosts": [
+  "torneos-payments-test.nicoavayu.deno.net",
+  "torneos-payments-test-rev3x.nicoavayu.deno.net"
+ ],
+ "after": {
+  "app": {
+   "id": "app-pt",
+   "slug": "torneos-payments-test",
+   "layers": [],
+   "env_vars": [
+    {
+     "key": "APP_PUBLIC_URL",
+     "secret": false,
+     "contexts": "all",
+     "value_returned": true
+    },
+    {
+     "key": "MERCADO_PAGO_ENVIRONMENT",
+     "secret": false,
+     "contexts": "all",
+     "value_returned": true
+    },
+    {
+     "key": "MERCADO_PAGO_TEST_ACCESS_TOKEN",
+     "secret": true,
+     "contexts": "all",
+     "value_returned": false
+    },
+    {
+     "key": "MERCADO_PAGO_TEST_SELLER_ID",
+     "secret": false,
+     "contexts": "all",
+     "value_returned": true
+    },
+    {
+     "key": "MERCADO_PAGO_TEST_WEBHOOK_SECRET",
+     "secret": true,
+     "contexts": "all",
+     "value_returned": false
+    },
+    {
+     "key": "TORNEOS_PAYMENTS_DB_SSL_CA",
+     "secret": false,
+     "contexts": "all",
+     "value_returned": true
+    },
+    {
+     "key": "TORNEOS_PAYMENTS_DB_URL",
+     "secret": true,
+     "contexts": "all",
+     "value_returned": false
+    },
+    {
+     "key": "TORNEOS_PAYMENTS_DEPLOYMENT",
+     "secret": false,
+     "contexts": "all",
+     "value_returned": true
+    },
+    {
+     "key": "TORNEOS_PAYMENTS_INTERNAL_SECRET",
+     "secret": true,
+     "contexts": "all",
+     "value_returned": false
+    },
+    {
+     "key": "TORNEOS_PAYMENTS_NOTIFICATION_URL",
+     "secret": false,
+     "contexts": "all",
+     "value_returned": true
+    },
+    {
+     "key": "TORNEOS_PAYMENT_PROVIDER",
+     "secret": false,
+     "contexts": "all",
+     "value_returned": true
+    },
+    {
+     "key": "TORNEOS_PAYMENTS_TEST_QA_ORGANIZATION_ID",
+     "secret": false,
+     "contexts": "all",
+     "value_returned": true
+    }
+   ],
+   "config": {
+    "install": null,
+    "build": null,
+    "predeploy": null,
+    "runtime": {
+     "type": "dynamic",
+     "entrypoint": "torneos-payments/index.ts"
+    },
+    "crons": false
+   },
+   "labels": {
+    "custom.component": "arma2-torneos-payments",
+    "custom.environment": "mercadopago-test"
+   },
+   "created_at": null,
+   "updated_at": null
+  },
+  "env_shape": "scoped",
+  "apps": [
+   {
+    "id": "app-gw",
+    "slug": "torneos-gateway"
+   },
+   {
+    "id": "app-pt",
+    "slug": "torneos-payments-test"
+   }
+  ],
+  "gateway": {
+   "slug": "torneos-gateway",
+   "env_names": [
+    "CORE_ANON_KEY",
+    "CORE_AUTH_URL",
+    "CORE_CONTRACT_URL",
+    "CORE_JWT_ISSUER",
+    "TORNEOS_ALLOWED_ORIGIN",
+    "TORNEOS_ANON_KEY",
+    "TORNEOS_BRIDGE_KEYS",
+    "TORNEOS_CONTRACT_SERVICE_SECRET",
+    "TORNEOS_DB_CORE_ADAPTER_URL",
+    "TORNEOS_DB_IDENTITY_WRITER_URL",
+    "TORNEOS_DB_SSL_CA",
+    "TORNEOS_GATEWAY_PUBLIC_URL",
+    "TORNEOS_REST_URL"
+   ],
+   "layers": []
+  },
+  "failures": []
+ },
+ "gateway_live": {
+  "checks": [
+   {
+    "name": "gateway /health 200 ready",
+    "pass": true,
+    "status": 200
+   },
+   {
+    "name": "gateway commerce route absent (commerce OFF) → 404",
+    "pass": true,
+    "status": 404
+   },
+   {
+    "name": "gateway /config exposes no payments/commerce key",
+    "pass": true,
+    "status": 200
+   }
+  ],
+  "pass": true
+ },
+ "deploy_pin": {
+  "purpose": "Arma2 Torneos payments TEST app on Deno Deploy — public facts only",
+  "app": "torneos-payments-test",
+  "app_id": "app-pt",
+  "host": "torneos-payments-test.nicoavayu.deno.net",
+  "public_url": "https://torneos-payments-test.nicoavayu.deno.net/functions/v1/torneos-payments",
+  "webhook_url": "https://torneos-payments-test.nicoavayu.deno.net/functions/v1/torneos-payments/webhooks/mercadopago/v1",
+  "revision": "rev3x",
+  "previous_revision": "rev2x",
+  "first_revision": "rev1x",
+  "hosts": [
+   "torneos-payments-test.nicoavayu.deno.net",
+   "torneos-payments-test-rev3x.nicoavayu.deno.net"
+  ],
+  "seller_id": "2718281828",
+  "qa_organization": "589e3263-bc6c-45f0-a921-413d60dd9e37",
+  "source": {
+   "head": "b3b055b29d902f85e5c2170366ba2d106b15518c",
+   "digest": "71b474443d35b5dfbd6c5dd07cc2af17e944bf10ac872888130eaafccb682c95",
+   "files": [
+    {
+     "path": "_shared/mercadoPagoPaymentProvider.ts",
+     "sha256": "1136217d93c55c5f981d45dfa9abfd62f14b26a218df120f5f801d547e547961",
+     "bytes": 12822
+    },
+    {
+     "path": "_shared/paymentProvider.ts",
+     "sha256": "da5e43266c5107cd1f6183c83046ba49e71343e9102370adb08be8abb4640a40",
+     "bytes": 910
+    },
+    {
+     "path": "torneos-payments/config.ts",
+     "sha256": "46ff5a7811b2c9fef024420c5a6e7bd9c0080dc8e2731c1b1e847bf9d1cf1040",
+     "bytes": 11896
+    },
+    {
+     "path": "torneos-payments/db.ts",
+     "sha256": "f8e2f9e773d1cecbe1735c0bf32f969d047a83eb71595030666ddf81cd219125",
+     "bytes": 2575
+    },
+    {
+     "path": "torneos-payments/handler.ts",
+     "sha256": "3ec56c8fa17a33c12d7277d67d9306b75ba62ee97f5067852d508548d302f10a",
+     "bytes": 22111
+    },
+    {
+     "path": "torneos-payments/hmac.ts",
+     "sha256": "aa2ba972022e487605a0efecbfdd0bbcf2cd62e916298cd16299eb29f78b0ed3",
+     "bytes": 3360
+    },
+    {
+     "path": "torneos-payments/index.ts",
+     "sha256": "e49ba4da4f5939a3c33b06b89bf9ac786281ee0dfbc41f19e0eb60c29fe2dea2",
+     "bytes": 486
+    },
+    {
+     "path": "torneos-payments/lab-fetch.ts",
+     "sha256": "825bd6171e6e567264bc4bbfa72cc511599d72f7788c11b366030ffc6d93e206",
+     "bytes": 1480
+    },
+    {
+     "path": "torneos-payments/remote-hosts.ts",
+     "sha256": "004c1c6e1305a17d6fd3b99cfca79c2997198516152e84dba22cec1843e2f47a",
+     "bytes": 2296
+    },
+    {
+     "path": "torneos-payments/remote-test.ts",
+     "sha256": "a8e80c7fbe02ca31b4f3c53290aa3645d1ac171d56adbf05c12a6e30d5d33378",
+     "bytes": 14479
+    },
+    {
+     "path": "torneos-payments/rpc.ts",
+     "sha256": "42d2cf171d71dd15956f0a2a3bdbf1c6775d69abb122e67d7637b9436ecef86c",
+     "bytes": 2544
+    },
+    {
+     "path": "torneos-payments/webhook-freshness.ts",
+     "sha256": "79456622659054d3eb3aaab3fd1dd396d6de6c4d068fe8f36f95d85a858ea9e7",
+     "bytes": 2278
+    },
+    {
+     "path": "torneos-payments/webhook-signature.ts",
+     "sha256": "7b8fe21a1ba1696a0f90e2fcda142ffdb5fb97dc9959dc443064eafaeafd3d58",
+     "bytes": 3027
+    }
+   ]
+  },
+  "env": [
+   {
+    "key": "APP_PUBLIC_URL",
+    "secret": false,
+    "value": "https://torneos-payments-test.nicoavayu.deno.net"
+   },
+   {
+    "key": "MERCADO_PAGO_ENVIRONMENT",
+    "secret": false,
+    "value": "test"
+   },
+   {
+    "key": "MERCADO_PAGO_TEST_ACCESS_TOKEN",
+    "secret": true
+   },
+   {
+    "key": "MERCADO_PAGO_TEST_SELLER_ID",
+    "secret": false,
+    "value": "2718281828"
+   },
+   {
+    "key": "MERCADO_PAGO_TEST_WEBHOOK_SECRET",
+    "secret": true
+   },
+   {
+    "key": "TORNEOS_PAYMENTS_DB_SSL_CA",
+    "secret": false,
+    "value": "sha256:e18e0434fdff1506"
+   },
+   {
+    "key": "TORNEOS_PAYMENTS_DB_URL",
+    "secret": true
+   },
+   {
+    "key": "TORNEOS_PAYMENTS_DEPLOYMENT",
+    "secret": false,
+    "value": "remote-test"
+   },
+   {
+    "key": "TORNEOS_PAYMENTS_INTERNAL_SECRET",
+    "secret": true
+   },
+   {
+    "key": "TORNEOS_PAYMENTS_NOTIFICATION_URL",
+    "secret": false,
+    "value": "https://torneos-payments-test.nicoavayu.deno.net/functions/v1/torneos-payments/webhooks/mercadopago/v1"
+   },
+   {
+    "key": "TORNEOS_PAYMENTS_TEST_QA_ORGANIZATION_ID",
+    "secret": false,
+    "value": "589e3263-bc6c-45f0-a921-413d60dd9e37"
+   },
+   {
+    "key": "TORNEOS_PAYMENT_PROVIDER",
+    "secret": false,
+    "value": "MERCADO_PAGO"
+   }
+  ],
+  "deployed_at": "2026-09-26T20:30:12.623Z"
+ },
+ "deno_requests": [
+  {
+   "id": "apps",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "layers",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "app",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "app",
+   "kind": "read",
+   "method": "GET",
+   "status": 404
+  },
+  {
+   "id": "apps",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "layers",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "app",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "app",
+   "kind": "read",
+   "method": "GET",
+   "status": 404
+  },
+  {
+   "id": "apps",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "layers",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "app",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "app",
+   "kind": "read",
+   "method": "GET",
+   "status": 404
+  },
+  {
+   "id": "app-create",
+   "kind": "write:app-create",
+   "method": "POST",
+   "status": 200
+  },
+  {
+   "id": "deploy",
+   "kind": "write:deploy",
+   "method": "POST",
+   "status": 202
+  },
+  {
+   "id": "revision",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "revision-timelines",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "apps",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "layers",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "app",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "app",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "revisions",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "apps",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "layers",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "app",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "app",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "revisions",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "apps",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "layers",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "app",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "app",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "revisions",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "apps",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "layers",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "app",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "app",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "revisions",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "app-env",
+   "kind": "write:app-env",
+   "method": "PATCH",
+   "status": 200
+  },
+  {
+   "id": "deploy",
+   "kind": "write:deploy",
+   "method": "POST",
+   "status": 202
+  },
+  {
+   "id": "revision",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "revision-timelines",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "apps",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "layers",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "app",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "app",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "revisions",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "apps",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "layers",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "app",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "app",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "revisions",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "apps",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "layers",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "app",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "app",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "revisions",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "deploy",
+   "kind": "write:deploy",
+   "method": "POST",
+   "status": 202
+  },
+  {
+   "id": "revision",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "revision-timelines",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "apps",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "layers",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "app",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "app",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "revisions",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  }
+ ],
+ "deno_writes": 5
+}

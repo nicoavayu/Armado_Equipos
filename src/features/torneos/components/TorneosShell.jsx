@@ -466,18 +466,22 @@ export default function TorneosShell() {
               <Route path="torneo/:tournamentId" element={<TournamentRouteGuard />}>
                 <Route index element={<CanonicalIndexRedirect to={tournamentIndex} />} />
                 <Route path="configuracion" element={<TournamentWizardPage />} />
-                <Route path="plan" element={gate('plan', <LegacyTournamentPlanRedirect />)} />
+                {/*
+                  * Legacy, tournament-scoped Plan routes: `plan_legacy_routes`, never
+                  * part of the hybrid billing overlay (MP-A5 buys per season only).
+                  */}
+                <Route path="plan" element={gate('plan_legacy_routes', <LegacyTournamentPlanRedirect />)} />
                 <Route
                   path="plan/compra/:purchaseId/exito"
-                  element={gate('plan', <PurchaseStatusPage view="success" />)}
+                  element={gate('plan_legacy_routes', <PurchaseStatusPage view="success" />)}
                 />
                 <Route
                   path="plan/compra/:purchaseId/pendiente"
-                  element={gate('plan', <PurchaseStatusPage view="pending" />)}
+                  element={gate('plan_legacy_routes', <PurchaseStatusPage view="pending" />)}
                 />
                 <Route
                   path="plan/compra/:purchaseId/fallo"
-                  element={gate('plan', <PurchaseStatusPage view="failure" />)}
+                  element={gate('plan_legacy_routes', <PurchaseStatusPage view="failure" />)}
                 />
                 {/*
                   * El listado de equipos es del torneo: `loadTeamsContext` pide
@@ -571,7 +575,7 @@ export default function TorneosShell() {
                 />
               )}
               <Route path="configuracion" element={<OrganizationSettingsPage />} />
-              <Route path="configuracion/plan" element={gate('plan', <LegacyPlanRedirect />)} />
+              <Route path="configuracion/plan" element={gate('plan_legacy_routes', <LegacyPlanRedirect />)} />
               <Route path="miembros" element={<OrganizationMembersPage />} />
             </Route>
             <Route path="mis-partidos" element={gate('match_operations', <MyTournamentMatchesPage />)} />

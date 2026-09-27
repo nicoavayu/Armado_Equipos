@@ -1,0 +1,592 @@
+{
+ "annotation": "OFFLINE REHEARSAL 20260925T234429Z — local public.ecr.aws/supabase/postgres:17.6.1.147 (internal network) + public.ecr.aws/supabase/postgrest:v14.15, emulated Management API / Keychain / tty; NOT a remote run",
+ "tool": "backend/torneos/infra/torneos-gateway-auth",
+ "generated_at": "2026-09-25T23:44:45.144Z",
+ "mode": "--certify",
+ "core": {
+  "prod": "ACTIVE_HEALTHY",
+  "prod_contract": {
+   "status": "ACTIVE",
+   "ezbr": "1072419517953eee8e8021f9691d1a5b1efb1f871c4d13290f644d119caded2c",
+   "verify_jwt": false
+  },
+  "staging": "INACTIVE",
+  "old": "INACTIVE",
+  "torneos": "ACTIVE_HEALTHY"
+ },
+ "state": {
+  "W1": "applied",
+  "W2_W3": "foreign",
+  "KR": "present",
+  "W5": "applied",
+  "edge_functions": 0,
+  "custody": {
+   "dataplane_installer": "PRESENT",
+   "gateway_logins": "PRESENT",
+   "ring": "PRESENT",
+   "jwks_pin": {
+    "file": "ga-rehearsal-jwks-75948.json",
+    "kids": [
+     "arma2-torneos-prod-k1-ms1MnJGO41Dk-PnF",
+     "arma2-torneos-prod-k2-CeYlvMXHhchI1Nsq"
+    ],
+    "digest": "82309e17a7a3a42c77df6b3aec2c53658819e99a21fa04d7e3c82f1dd036105f"
+   }
+  }
+ },
+ "failures": [
+  "DB_STATE_FOREIGN",
+  "INVARIANT_torneos_login_role_present",
+  "W2_W3_NOT_APPLIED",
+  "CATALOG_DIFFERS_FROM_DELTA_PIN"
+ ],
+ "read_only": true,
+ "verdict": "GATEWAY_AUTH_CERTIFICATION_FAILED",
+ "foundation": {
+  "pin_sha256": "5d66d4f418d387ac584283b7ed6d8e53ae39e88cfc0748dda51423a7458ec62b",
+  "non_delta_strict_paths": 29,
+  "diff": []
+ },
+ "delta": {
+  "pin_sha256": "169f2b1458843d404a0318271bf170a6bac3afad1244671f2097dee337d52c20",
+  "paths": [
+   "roles",
+   "role_members",
+   "login_roles_torneos",
+   "authenticator_pre_request"
+  ],
+  "diff": [
+   {
+    "path": "role_members"
+   }
+  ]
+ },
+ "invariants": [
+  "torneos_login_role_present"
+ ],
+ "roles": {
+  "logins": [
+   {
+    "name": "torneos_edge_core_adapter",
+    "login": true,
+    "inherit": false,
+    "super": false,
+    "createrole": false,
+    "createdb": false,
+    "replication": false,
+    "bypassrls": false,
+    "connlimit": -1,
+    "valid_until": null,
+    "config": null
+   },
+   {
+    "name": "torneos_edge_identity_writer",
+    "login": true,
+    "inherit": false,
+    "super": false,
+    "createrole": false,
+    "createdb": false,
+    "replication": false,
+    "bypassrls": false,
+    "connlimit": -1,
+    "valid_until": null,
+    "config": null
+   }
+  ],
+  "memberships": [
+   {
+    "role": "torneos_core_adapter",
+    "member": "torneos_edge_core_adapter",
+    "admin": false,
+    "inherit": false,
+    "set": true
+   },
+   {
+    "role": "torneos_edge_core_adapter",
+    "member": "postgres",
+    "admin": true,
+    "inherit": false,
+    "set": false
+   },
+   {
+    "role": "torneos_edge_identity_writer",
+    "member": "postgres",
+    "admin": true,
+    "inherit": false,
+    "set": false
+   },
+   {
+    "role": "torneos_identity_writer",
+    "member": "torneos_edge_identity_writer",
+    "admin": false,
+    "inherit": false,
+    "set": true
+   },
+   {
+    "role": "torneos_payment_service",
+    "member": "torneos_edge_core_adapter",
+    "admin": false,
+    "inherit": false,
+    "set": true
+   }
+  ],
+  "payment_logins": 1,
+  "login_member_of_api_role": 1,
+  "authenticator_config": [
+   "pgrst.db_pre_request=private.check_token"
+  ],
+  "auth_users": 0,
+  "installer": {
+   "user": "supabase_read_only_user",
+   "super": false,
+   "createrole": false,
+   "admin_on_authenticator": false,
+   "admin_on_identity_writer": false,
+   "admin_on_core_adapter": false
+  },
+  "edge_login_can_set_role": {
+   "torneos_edge_identity_writer": true,
+   "torneos_edge_core_adapter": true
+  }
+ },
+ "auth": {
+  "site_url": "https://app.arma2.com.ar",
+  "uri_allow_list": "",
+  "disable_signup": true,
+  "jwt_exp": 3600,
+  "external_anonymous_users_enabled": false,
+  "external_email_enabled": false,
+  "external_phone_enabled": false,
+  "mailer_autoconfirm": false,
+  "sms_autoconfirm": false,
+  "mfa_totp_enroll_enabled": false,
+  "custom_oauth_enabled": false,
+  "external_apple_enabled": false,
+  "external_azure_enabled": false,
+  "external_github_enabled": false,
+  "external_google_enabled": false,
+  "external_web3_ethereum_enabled": false,
+  "external_web3_solana_enabled": false,
+  "hook_custom_access_token_enabled": false,
+  "mfa_phone_enroll_enabled": false,
+  "mfa_web_authn_enroll_enabled": false,
+  "oauth_server_enabled": false,
+  "passkey_enabled": false,
+  "saml_enabled": false,
+  "security_manual_linking_enabled": false
+ },
+ "third_party_auth": [
+  {
+   "id": "71511885-28da-415b-8988-275451f3527c",
+   "type": "custom_jwks",
+   "oidc_issuer_url": null,
+   "jwks_url": null,
+   "custom_jwks_kids": [
+    "arma2-torneos-prod-k1-ms1MnJGO41Dk-PnF",
+    "arma2-torneos-prod-k2-CeYlvMXHhchI1Nsq"
+   ],
+   "custom_jwks_digest": "82309e17a7a3a42c77df6b3aec2c53658819e99a21fa04d7e3c82f1dd036105f",
+   "custom_jwks_private_material": false,
+   "resolved_at": "2026-09-25T23:44:39.403Z"
+  }
+ ],
+ "jwks_pin": {
+  "file": "ga-rehearsal-jwks-75948.json",
+  "kids": [
+   "arma2-torneos-prod-k1-ms1MnJGO41Dk-PnF",
+   "arma2-torneos-prod-k2-CeYlvMXHhchI1Nsq"
+  ],
+  "digest": "82309e17a7a3a42c77df6b3aec2c53658819e99a21fa04d7e3c82f1dd036105f"
+ },
+ "edge_functions": {
+  "count": 0
+ },
+ "secret_names": [
+  "SUPABASE_ANON_KEY",
+  "SUPABASE_DB_URL",
+  "SUPABASE_PUBLISHABLE_KEYS",
+  "SUPABASE_SECRET_KEYS",
+  "SUPABASE_SERVICE_ROLE_KEY",
+  "SUPABASE_URL"
+ ],
+ "postgrest_config": {
+  "db_schema": "public,graphql_public",
+  "db_extra_search_path": null,
+  "max_rows": 1000
+ },
+ "migrations_ledger_api": [],
+ "postgrest_probe": {
+  "checks": [
+   {
+    "name": "unauthenticated: no apikey is refused",
+    "method": "GET",
+    "path": "/rest/v1/torneos_identity?select=id&limit=1",
+    "pass": true,
+    "status": 401,
+    "code": null,
+    "message": "No API key found in request",
+    "rows": null
+   },
+   {
+    "name": "anon: internal table torneos_identity is refused",
+    "method": "GET",
+    "path": "/rest/v1/torneos_identity?select=*&limit=1",
+    "pass": true,
+    "status": 401,
+    "code": "42501",
+    "message": "permission denied for table torneos_identity",
+    "rows": null
+   },
+   {
+    "name": "anon: internal table tournament_payment_provider_watermarks is refused",
+    "method": "GET",
+    "path": "/rest/v1/tournament_payment_provider_watermarks?select=*&limit=1",
+    "pass": true,
+    "status": 401,
+    "code": "42501",
+    "message": "permission denied for table tournament_payment_provider_watermarks",
+    "rows": null
+   },
+   {
+    "name": "anon: internal table tournament_purchases is refused",
+    "method": "GET",
+    "path": "/rest/v1/tournament_purchases?select=*&limit=1",
+    "pass": true,
+    "status": 401,
+    "code": "42501",
+    "message": "permission denied for table tournament_purchases",
+    "rows": null
+   },
+   {
+    "name": "anon: internal table tournament_purchase_events is refused",
+    "method": "GET",
+    "path": "/rest/v1/tournament_purchase_events?select=*&limit=1",
+    "pass": true,
+    "status": 401,
+    "code": "42501",
+    "message": "permission denied for table tournament_purchase_events",
+    "rows": null
+   },
+   {
+    "name": "anon: public-page table tournament_competition_formats is readable (RLS-filtered)",
+    "method": "GET",
+    "path": "/rest/v1/tournament_competition_formats?select=*&limit=1",
+    "pass": true,
+    "status": 200,
+    "code": null,
+    "message": null,
+    "rows": 0
+   },
+   {
+    "name": "anon: private schema is not exposed (Accept-Profile private)",
+    "method": "GET",
+    "path": "/rest/v1/core_contract_attestations?select=*&limit=1",
+    "pass": true,
+    "status": 406,
+    "code": "PGRST106",
+    "message": "Invalid schema: private",
+    "rows": null
+   },
+   {
+    "name": "anon: RPC get_my_tournament_memberships is refused",
+    "method": "POST",
+    "path": "/rest/v1/rpc/get_my_tournament_memberships",
+    "pass": true,
+    "status": 401,
+    "code": "42501",
+    "message": "permission denied for function get_my_tournament_memberships",
+    "rows": null
+   },
+   {
+    "name": "anon: RPC create_tournament_season_checkout_purchase is refused",
+    "method": "POST",
+    "path": "/rest/v1/rpc/create_tournament_season_checkout_purchase",
+    "pass": true,
+    "status": 404,
+    "code": "PGRST202",
+    "message": "Could not find the function public.create_tournament_season_checkout_purchase without parameters in the schema cache",
+    "rows": null
+   },
+   {
+    "name": "anon: RPC apply_verified_tournament_payment_status is refused",
+    "method": "POST",
+    "path": "/rest/v1/rpc/apply_verified_tournament_payment_status",
+    "pass": true,
+    "status": 404,
+    "code": "PGRST202",
+    "message": "Could not find the function public.apply_verified_tournament_payment_status without parameters in the schema cache",
+    "rows": null
+   },
+   {
+    "name": "anon: RPC record_tournament_purchase_preference is refused",
+    "method": "POST",
+    "path": "/rest/v1/rpc/record_tournament_purchase_preference",
+    "pass": true,
+    "status": 404,
+    "code": "PGRST202",
+    "message": "Could not find the function public.record_tournament_purchase_preference without parameters in the schema cache",
+    "rows": null
+   },
+   {
+    "name": "wrong role: forged HS256 service_role token → 401",
+    "method": "GET",
+    "path": "/rest/v1/tournament_payment_provider_watermarks?select=*&limit=1",
+    "pass": true,
+    "status": 401,
+    "code": "PGRST301",
+    "message": "No suitable key or wrong key type",
+    "rows": null
+   },
+   {
+    "name": "wrong role: alg=none token → 401",
+    "method": "GET",
+    "path": "/rest/v1/tournament_payment_provider_watermarks?select=*&limit=1",
+    "pass": true,
+    "status": 401,
+    "code": "PGRST301",
+    "message": "Wrong or unsupported encoding algorithm",
+    "rows": null
+   },
+   {
+    "name": "untrusted RS256 bridge-shaped token → 401 (no custom_jwks trust)",
+    "method": "POST",
+    "path": "/rest/v1/rpc/get_my_tournament_memberships",
+    "pass": true,
+    "status": 401,
+    "code": "PGRST301",
+    "message": "No suitable key or wrong key type",
+    "rows": null
+   },
+   {
+    "name": "anon: OpenAPI root does not describe internal tables/RPCs",
+    "method": "GET",
+    "path": "/rest/v1/",
+    "status": 200,
+    "pass": true,
+    "described_paths": 91,
+    "leaked": []
+   }
+  ],
+  "passed": 15,
+  "total": 15,
+  "pass": true
+ },
+ "bridge_probe": {
+  "checks": [
+   {
+    "name": "k1 (active) bridge token, unknown identity → PT401 identity gate (host accepted signature, iss, aud)",
+    "pass": true,
+    "status": 401,
+    "code": "PT401",
+    "message": "invalid identity token",
+    "rows": null
+   },
+   {
+    "name": "k2 (standby) bridge token, unknown identity → PT401 identity gate",
+    "pass": true,
+    "status": 401,
+    "code": "PT401",
+    "message": "invalid identity token",
+    "rows": null
+   },
+   {
+    "name": "k1-signed role=service_role → PT401 (pre_request refuses non-bridge roles)",
+    "pass": true,
+    "status": 401,
+    "code": "PT401",
+    "message": "invalid identity token",
+    "rows": null
+   },
+   {
+    "name": "k1-signed expired token → 401",
+    "pass": true,
+    "status": 401,
+    "code": "PGRST303",
+    "message": "JWT expired",
+    "rows": null
+   },
+   {
+    "name": "unknown RS256 key → 401, refused before the database",
+    "pass": true,
+    "status": 401,
+    "code": "PGRST301",
+    "message": "No suitable key or wrong key type",
+    "rows": null
+   },
+   {
+    "name": "HS256 GoTrue-shaped token (foreign secret) → 401, refused before the database",
+    "pass": true,
+    "status": 401,
+    "code": "PGRST301",
+    "message": "No suitable key or wrong key type",
+    "rows": null
+   },
+   {
+    "name": "alg=none service_role → 401",
+    "pass": true,
+    "status": 401,
+    "code": "PGRST301",
+    "message": "Wrong or unsupported encoding algorithm",
+    "rows": null
+   },
+   {
+    "name": "anon (apikey only) → tournament_competition_formats 200 (pre_request lets anon through)",
+    "pass": true,
+    "status": 200,
+    "code": null,
+    "message": null,
+    "rows": 0
+   }
+  ],
+  "measured": [
+   {
+    "name": "k1-signed, aud=authenticated",
+    "status": 401,
+    "code": "PT401",
+    "message": "invalid identity token",
+    "rows": null
+   },
+   {
+    "name": "k1-signed, iss=<Core Production GoTrue>",
+    "status": 401,
+    "code": "PT401",
+    "message": "invalid identity token",
+    "rows": null
+   },
+   {
+    "name": "k1-signed, no aud",
+    "status": 401,
+    "code": "PT401",
+    "message": "invalid identity token",
+    "rows": null
+   }
+  ],
+  "passed": 8,
+  "total": 8,
+  "pass": true,
+  "hostAcceptsBridge": true
+ },
+ "gateway": "NOT_DEPLOYED (external gateway: later remote phase)",
+ "management_api_writes": 0,
+ "requests": [
+  {
+   "id": "prod-project",
+   "kind": "read",
+   "method": "GET",
+   "ref": "rcyuuoaqfwcembdajcss",
+   "status": 200
+  },
+  {
+   "id": "prod-contract-fn",
+   "kind": "read",
+   "method": "GET",
+   "ref": "rcyuuoaqfwcembdajcss",
+   "status": 200
+  },
+  {
+   "id": "project",
+   "kind": "read",
+   "method": "GET",
+   "ref": "hhyvmhgpapyuzjgxfnqv",
+   "status": 200
+  },
+  {
+   "id": "project",
+   "kind": "read",
+   "method": "GET",
+   "ref": "giaeztyghmhzcngskjmw",
+   "status": 200
+  },
+  {
+   "id": "project",
+   "kind": "read",
+   "method": "GET",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 200
+  },
+  {
+   "id": "org",
+   "kind": "read",
+   "method": "GET",
+   "ref": null,
+   "status": 200
+  },
+  {
+   "id": "projects",
+   "kind": "read",
+   "method": "GET",
+   "ref": null,
+   "status": 200
+  },
+  {
+   "id": "functions",
+   "kind": "read",
+   "method": "GET",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 200
+  },
+  {
+   "id": "auth-config",
+   "kind": "read",
+   "method": "GET",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 200
+  },
+  {
+   "id": "third-party-auth",
+   "kind": "read",
+   "method": "GET",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 200
+  },
+  {
+   "id": "query",
+   "kind": "read-sql",
+   "method": "POST",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 201
+  },
+  {
+   "id": "query",
+   "kind": "read-sql",
+   "method": "POST",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 201
+  },
+  {
+   "id": "health",
+   "kind": "read",
+   "method": "GET",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 200
+  },
+  {
+   "id": "secrets",
+   "kind": "read",
+   "method": "GET",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 200
+  },
+  {
+   "id": "postgrest",
+   "kind": "read",
+   "method": "GET",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 200
+  },
+  {
+   "id": "db-migrations",
+   "kind": "read",
+   "method": "GET",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 200
+  },
+  {
+   "id": "api-keys",
+   "kind": "read",
+   "method": "GET",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 200
+  }
+ ]
+}

@@ -242,7 +242,8 @@ test('Phase 3A — real Core contracts → Torneos end-to-end', async (t) => {
       const install = JSON.parse(await readFile('.runtime/install.json', 'utf8'));
       assert.equal(install.torneos.sha256, 'f857bd0939054bc1a32a3855894b7b20e14a0c7456c9d5c8c5e8432e5b8ed19f');
       assert.equal(install.torneos.sha256, install.torneos.certified_sha256);
-      assert.deepEqual(install.torneos.migrations_after_baseline.map(m => [m.file.split('/').pop(), m.applied]), [['00000000000001_staging_v1_rpc_exposure.sql', true]], 'Phase 2D gate applied after the baseline');
+      assert.deepEqual(install.torneos.migrations_after_baseline.map(m => [m.file.split('/').pop(), m.applied]), [['00000000000001_staging_v1_rpc_exposure.sql', true], ['00000000000002_mercadopago_checkout_pro_test.sql', true]], 'Phase 2D gate, then the MP-A2 commercial DB delta, applied after the baseline');
+      assert.equal(install.torneos.migrations_after_baseline[1].sha256, '06378f12b57620e8ae550a0d881ad66464ffdc0a734ad621cba8a6ba3e6d6078', 'MP-A2 migration pinned');
       assert.equal(coreSql("select count(*) from pg_tables where schemaname='public'").trim(), '153', 'all 42 Core migrations applied');
       assert.equal(coreSql("select count(*) from pg_proc where proname like 'torneos_contract_%'").trim(), '5');
       assert.equal(torneosSql("select count(*) from pg_tables where schemaname='public'").trim(), '104');
@@ -793,7 +794,11 @@ test('Phase 3A — real Core contracts → Torneos end-to-end', async (t) => {
       };
       // Phase 2C measured 180/359 for authenticated on the baseline alone; Phase 2D's staging v1 gate removes exactly its manifest.
       const gate = JSON.parse(await readFile(`${repo}backend/torneos/phase2d/staging-v1-rpc-gate.json`, 'utf8'));
-      assert.deepEqual(after, { anon_execute_public_functions: '12/359', authenticated_execute_public_functions: `${180 - gate.functions.length}/359`, service_role_execute_public_functions: '328/359', anon_execute_security_definer: '12/304', anon_execute_private_beyond_token_helpers: '0', public_execute_functions: '0', anon_sequence_privilege: '0/7', anon_non_select_table_grants: '0' });
+      // MP-A2 (00000000000002) adds its SECURITY DEFINER commerce RPCs (never anon, no service_role) and shifts authenticated by its manifest only.
+      const mpA2 = JSON.parse(await readFile(`${repo}backend/torneos/mp-a/mp-a2-acl-delta.json`, 'utf8'));
+      const mpA2New = mpA2.new_security_definer_functions.length;
+      const mpA2AuthNet = mpA2.new_security_definer_functions.filter(f => f.api_grantees.includes('authenticated')).length + mpA2.authenticated_execute_granted.length - mpA2.authenticated_execute_revoked.length;
+      assert.deepEqual(after, { anon_execute_public_functions: `12/${359 + mpA2New}`, authenticated_execute_public_functions: `${180 - gate.functions.length + mpA2AuthNet}/${359 + mpA2New}`, service_role_execute_public_functions: `328/${359 + mpA2New}`, anon_execute_security_definer: `12/${304 + mpA2New}`, anon_execute_private_beyond_token_helpers: '0', public_execute_functions: '0', anon_sequence_privilege: '0/7', anon_non_select_table_grants: '0' });
       // Reachability: the certified gateway refuses anon; a directly exposed Data API now denies by ACL, before the body.
       assert.equal((await request('/torneos/rest/v1/rpc/tournament_media_pipeline_readiness', null, 'POST', {})).status, 401);
       const direct = directTorneosRpc(null, 'tournament_media_pipeline_readiness', {});

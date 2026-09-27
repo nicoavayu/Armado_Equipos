@@ -1,0 +1,3 @@
+PASS pending → approved while open → Plan Premium without reload
+PASS refund while open → refetch → Plan Free without reload
+PASS one purchase, one Preference, no effective grant after refund

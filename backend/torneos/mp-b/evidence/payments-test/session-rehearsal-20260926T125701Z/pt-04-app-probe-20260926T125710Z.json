@@ -1,0 +1,367 @@
+{
+ "tool": "backend/torneos/infra/torneos-payments-test/payments-session.mjs",
+ "generated_at": "2026-09-26T12:57:10.032Z",
+ "verdict": "PAYMENTS_APP_PROBE_PASS",
+ "read_only": true,
+ "public_url": "https://torneos-payments-test.nicoavayu.deno.net/functions/v1/torneos-payments",
+ "checks": [
+  {
+   "name": "internal HMAC call for an unknown purchase → 404 purchase_not_found (attestation ok, DB login ok, nothing written)",
+   "pass": true,
+   "status": 404,
+   "error": "purchase_not_found"
+  },
+  {
+   "name": "internal, fresh signed request → 404 (reaches the DB)",
+   "pass": true,
+   "status": 404,
+   "error": "purchase_not_found"
+  },
+  {
+   "name": "internal, the same nonce replayed → 401",
+   "pass": true,
+   "status": 401,
+   "error": "unauthorized"
+  },
+  {
+   "name": "internal without HMAC headers → 401",
+   "pass": true,
+   "status": 401,
+   "error": "unauthorized"
+  },
+  {
+   "name": "internal signed with another key → 401",
+   "pass": true,
+   "status": 401,
+   "error": "unauthorized"
+  },
+  {
+   "name": "internal with a stale time (−120 s) → 401",
+   "pass": true,
+   "status": 401,
+   "error": "unauthorized"
+  },
+  {
+   "name": "internal with a browser Origin → 403",
+   "pass": true,
+   "status": 403,
+   "error": "forbidden"
+  },
+  {
+   "name": "internal with a query → 400",
+   "pass": true,
+   "status": 400,
+   "error": "invalid_request"
+  },
+  {
+   "name": "GET / → 404",
+   "pass": true,
+   "status": 404,
+   "error": "not_found"
+  },
+  {
+   "name": "GET the webhook route → 404",
+   "pass": true,
+   "status": 404,
+   "error": "not_found"
+  },
+  {
+   "name": "POST unknown path → 404",
+   "pass": true,
+   "status": 404,
+   "error": "not_found"
+  },
+  {
+   "name": "webhook without x-signature → 401",
+   "pass": true,
+   "status": 401,
+   "error": "invalid_signature"
+  },
+  {
+   "name": "webhook signed with a wrong secret → 401",
+   "pass": true,
+   "status": 401,
+   "error": "invalid_signature"
+  },
+  {
+   "name": "webhook with a future ts (+10 min) → 401",
+   "pass": true,
+   "status": 401,
+   "error": "invalid_signature"
+  },
+  {
+   "name": "webhook with a malformed ts → 401",
+   "pass": true,
+   "status": 401,
+   "error": "invalid_signature"
+  },
+  {
+   "name": "webhook with a malformed JSON body → 400",
+   "pass": true,
+   "status": 400,
+   "error": "invalid_request"
+  },
+  {
+   "name": "webhook oversized body → 413",
+   "pass": true,
+   "status": 413,
+   "error": "payload_too_large"
+  },
+  {
+   "name": "webhook live_mode true → 400",
+   "pass": true,
+   "status": 400,
+   "error": "invalid_notification"
+  },
+  {
+   "name": "webhook of another seller → 400",
+   "pass": true,
+   "status": 400,
+   "error": "invalid_notification"
+  },
+  {
+   "name": "webhook unknown topic (merchant_order) → 400",
+   "pass": true,
+   "status": 400,
+   "error": "invalid_notification"
+  },
+  {
+   "name": "webhook body data.id ≠ signed data.id → 400",
+   "pass": true,
+   "status": 400,
+   "error": "invalid_notification"
+  },
+  {
+   "name": "webhook chargeback not of Checkout Pro → 400",
+   "pass": true,
+   "status": 400,
+   "error": "invalid_notification"
+  },
+  {
+   "name": "webhook, valid signature, unknown payment (provider 404) → 422",
+   "pass": true,
+   "status": 422,
+   "error": "payment_verification_failed"
+  },
+  {
+   "name": "another hostname of the app (torneos-payments-test-rev1x.nicoavayu.deno.net) → 403 forbidden",
+   "pass": true,
+   "status": 403,
+   "error": "forbidden"
+  },
+  {
+   "name": "no probe changed the QA trail or the census",
+   "pass": true
+  },
+  {
+   "name": "no response or request log carries a secret",
+   "pass": true
+  }
+ ],
+ "requests": [
+  {
+   "label": "internal",
+   "method": "POST",
+   "path": "/functions/v1/torneos-payments/internal/v1/season-checkout-preference",
+   "status": 404,
+   "error": "purchase_not_found",
+   "outcome": null
+  },
+  {
+   "label": "internal",
+   "method": "POST",
+   "path": "/functions/v1/torneos-payments/internal/v1/season-checkout-preference",
+   "status": 404,
+   "error": "purchase_not_found",
+   "outcome": null
+  },
+  {
+   "label": "internal",
+   "method": "POST",
+   "path": "/functions/v1/torneos-payments/internal/v1/season-checkout-preference",
+   "status": 401,
+   "error": "unauthorized",
+   "outcome": null
+  },
+  {
+   "label": "internal",
+   "method": "POST",
+   "path": "/functions/v1/torneos-payments/internal/v1/season-checkout-preference",
+   "status": 401,
+   "error": "unauthorized",
+   "outcome": null
+  },
+  {
+   "label": "internal",
+   "method": "POST",
+   "path": "/functions/v1/torneos-payments/internal/v1/season-checkout-preference",
+   "status": 401,
+   "error": "unauthorized",
+   "outcome": null
+  },
+  {
+   "label": "internal",
+   "method": "POST",
+   "path": "/functions/v1/torneos-payments/internal/v1/season-checkout-preference",
+   "status": 401,
+   "error": "unauthorized",
+   "outcome": null
+  },
+  {
+   "label": "internal",
+   "method": "POST",
+   "path": "/functions/v1/torneos-payments/internal/v1/season-checkout-preference",
+   "status": 403,
+   "error": "forbidden",
+   "outcome": null
+  },
+  {
+   "label": "internal",
+   "method": "POST",
+   "path": "/functions/v1/torneos-payments/internal/v1/season-checkout-preference?x=1",
+   "status": 400,
+   "error": "invalid_request",
+   "outcome": null
+  },
+  {
+   "label": "root",
+   "method": "GET",
+   "path": "/",
+   "status": 404,
+   "error": "not_found",
+   "outcome": null
+  },
+  {
+   "label": "webhook-get",
+   "method": "GET",
+   "path": "/functions/v1/torneos-payments/webhooks/mercadopago/v1",
+   "status": 404,
+   "error": "not_found",
+   "outcome": null
+  },
+  {
+   "label": "unknown",
+   "method": "POST",
+   "path": "/functions/v1/torneos-payments/internal/v1/other",
+   "status": 404,
+   "error": "not_found",
+   "outcome": null
+  },
+  {
+   "label": "webhook:payment",
+   "method": "POST",
+   "path": "/functions/v1/torneos-payments/webhooks/mercadopago/v1?data.id=…&type=payment",
+   "status": 401,
+   "error": "invalid_signature",
+   "outcome": null
+  },
+  {
+   "label": "webhook:payment",
+   "method": "POST",
+   "path": "/functions/v1/torneos-payments/webhooks/mercadopago/v1?data.id=…&type=payment",
+   "status": 401,
+   "error": "invalid_signature",
+   "outcome": null
+  },
+  {
+   "label": "webhook:payment",
+   "method": "POST",
+   "path": "/functions/v1/torneos-payments/webhooks/mercadopago/v1?data.id=…&type=payment",
+   "status": 401,
+   "error": "invalid_signature",
+   "outcome": null
+  },
+  {
+   "label": "webhook:payment",
+   "method": "POST",
+   "path": "/functions/v1/torneos-payments/webhooks/mercadopago/v1?data.id=…&type=payment",
+   "status": 401,
+   "error": "invalid_signature",
+   "outcome": null
+  },
+  {
+   "label": "webhook",
+   "method": "POST",
+   "path": "/functions/v1/torneos-payments/webhooks/mercadopago/v1?data.id=…&type=payment",
+   "status": 400,
+   "error": "invalid_request",
+   "outcome": null
+  },
+  {
+   "label": "webhook",
+   "method": "POST",
+   "path": "/functions/v1/torneos-payments/webhooks/mercadopago/v1?data.id=…&type=payment",
+   "status": 413,
+   "error": "payload_too_large",
+   "outcome": null
+  },
+  {
+   "label": "webhook:payment",
+   "method": "POST",
+   "path": "/functions/v1/torneos-payments/webhooks/mercadopago/v1?data.id=…&type=payment",
+   "status": 400,
+   "error": "invalid_notification",
+   "outcome": null
+  },
+  {
+   "label": "webhook:payment",
+   "method": "POST",
+   "path": "/functions/v1/torneos-payments/webhooks/mercadopago/v1?data.id=…&type=payment",
+   "status": 400,
+   "error": "invalid_notification",
+   "outcome": null
+  },
+  {
+   "label": "webhook:merchant_order",
+   "method": "POST",
+   "path": "/functions/v1/torneos-payments/webhooks/mercadopago/v1?data.id=…&type=merchant_order",
+   "status": 400,
+   "error": "invalid_notification",
+   "outcome": null
+  },
+  {
+   "label": "webhook:payment",
+   "method": "POST",
+   "path": "/functions/v1/torneos-payments/webhooks/mercadopago/v1?data.id=…&type=payment",
+   "status": 400,
+   "error": "invalid_notification",
+   "outcome": null
+  },
+  {
+   "label": "webhook:topic_chargebacks_wh",
+   "method": "POST",
+   "path": "/functions/v1/torneos-payments/webhooks/mercadopago/v1?data.id=…&type=topic_chargebacks_wh",
+   "status": 400,
+   "error": "invalid_notification",
+   "outcome": null
+  },
+  {
+   "label": "webhook:payment",
+   "method": "POST",
+   "path": "/functions/v1/torneos-payments/webhooks/mercadopago/v1?data.id=…&type=payment",
+   "status": 422,
+   "error": "payment_verification_failed",
+   "outcome": null
+  }
+ ],
+ "census": {
+  "auth_users": 0,
+  "identities": 0,
+  "organizations": 0,
+  "organizations_qa": 0,
+  "organization_members": 0,
+  "seasons": 0,
+  "seasons_outside_qa": 0,
+  "tournaments": 0,
+  "purchases": 0,
+  "purchases_outside_qa": 0,
+  "purchases_not_mp_test": 0,
+  "purchase_events": 0,
+  "purchase_events_outside_qa": 0,
+  "season_grants": 0,
+  "season_grants_outside_qa": 0,
+  "grant_events": 0,
+  "watermarks": 0,
+  "watermarks_outside_qa": 0
+ }
+}

@@ -31,6 +31,10 @@ npm --prefix integration/torneos-core-contracts test
 npm --prefix integration/torneos-core-contracts run test:acl        # Phase 2C ACL certification
 npm --prefix integration/torneos-core-contracts run test:exposure   # Phase 2D staging RPC exposure gate
 node --test scripts/edge-functions/torneos-core-contract.test.mjs
+# MP-A4 T6 gateway commerce: offline part always; `off` on the default lab, `test` on the commerce lab
+MP_A4_PHASE=unit node --test integration/torneos-core-contracts/commerce-gateway.test.mjs
+MP_A4_PHASE=off node --test integration/torneos-core-contracts/commerce-gateway.test.mjs
+TORNEOS_LAB_MODE=commerce MP_A4_PHASE=test node --test integration/torneos-core-contracts/commerce-gateway.test.mjs
 npm --prefix integration/torneos-core-contracts run down      # keeps volumes
 npm --prefix integration/torneos-core-contracts run destroy   # drops volumes
 ```

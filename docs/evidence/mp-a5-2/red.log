@@ -1,0 +1,1106 @@
+
+> team-balancer@0.1.0 test
+> react-scripts test --watchAll=false --runInBand src/__tests__/torneosMpA52PlanRefresh.test.jsx
+
+  console.error
+    Warning: `ReactDOMTestUtils.act` is deprecated in favor of `React.act`. Import `act` from `react` instead of `react-dom/test-utils`. See https://react.dev/warnings/react-dom-test-utils for more info.
+
+      27 |     createCheckout: jest.fn(),
+      28 |   };
+    > 29 |   const rendered = render(<MemoryRouter initialEntries={[base]}>
+         |                          ^
+      30 |     <TorneosWorkspaceProvider service={service} autoLoad={false}>
+      31 |       <TorneosCompetitionProvider organizationId={organization.id} routeSeasonId={seasonId} service={service}>
+      32 |         <TorneosCommerceProvider commerce={commerce}>
+
+      at printWarning (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom-test-utils.development.js:71:30)
+      at error (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom-test-utils.development.js:45:7)
+      at actWithWarning (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom-test-utils.development.js:1736:7)
+      at ../arma2-torneos-real-core-sso-phase15/node_modules/@testing-library/react/dist/act-compat.js:63:25
+      at renderRoot (../arma2-torneos-real-core-sso-phase15/node_modules/@testing-library/react/dist/pure.js:159:26)
+      at render (../arma2-torneos-real-core-sso-phase15/node_modules/@testing-library/react/dist/pure.js:246:10)
+      at setup (src/__tests__/torneosMpA52PlanRefresh.test.jsx:29:26)
+      at src/__tests__/torneosMpA52PlanRefresh.test.jsx:57:15
+      at TestScheduler.scheduleTests (../arma2-torneos-real-core-sso-phase15/node_modules/@jest/core/build/TestScheduler.js:333:13)
+      at runJest (../arma2-torneos-real-core-sso-phase15/node_modules/@jest/core/build/runJest.js:404:19)
+      at _run10000 (../arma2-torneos-real-core-sso-phase15/node_modules/@jest/core/build/cli/index.js:320:7)
+      at runCLI (../arma2-torneos-real-core-sso-phase15/node_modules/@jest/core/build/cli/index.js:173:3)
+
+  console.warn
+    ⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.
+
+      27 |     createCheckout: jest.fn(),
+      28 |   };
+    > 29 |   const rendered = render(<MemoryRouter initialEntries={[base]}>
+         |                          ^
+      30 |     <TorneosWorkspaceProvider service={service} autoLoad={false}>
+      31 |       <TorneosCompetitionProvider organizationId={organization.id} routeSeasonId={seasonId} service={service}>
+      32 |         <TorneosCommerceProvider commerce={commerce}>
+
+      at warnOnce (../arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/deprecations.ts:9:13)
+      at logDeprecation (../arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/deprecations.ts:14:3)
+      at logV6DeprecationWarnings (../arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/deprecations.ts:26:5)
+      at ../arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/components.tsx:257:25
+      at commitHookEffectListMount (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:23189:26)
+      at commitPassiveMountOnFiber (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:24970:11)
+      at commitPassiveMountEffects_complete (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:24930:9)
+      at commitPassiveMountEffects_begin (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:24917:7)
+      at commitPassiveMountEffects (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:24905:3)
+      at flushPassiveEffectsImpl (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:27078:3)
+      at flushPassiveEffects (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:27023:14)
+      at ../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:26808:9
+      at flushActQueue (../arma2-torneos-real-core-sso-phase15/node_modules/react/cjs/react.development.js:2667:24)
+      at act (../arma2-torneos-real-core-sso-phase15/node_modules/react/cjs/react.development.js:2582:11)
+      at actWithWarning (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom-test-utils.development.js:1740:10)
+      at ../arma2-torneos-real-core-sso-phase15/node_modules/@testing-library/react/dist/act-compat.js:63:25
+      at renderRoot (../arma2-torneos-real-core-sso-phase15/node_modules/@testing-library/react/dist/pure.js:159:26)
+      at render (../arma2-torneos-real-core-sso-phase15/node_modules/@testing-library/react/dist/pure.js:246:10)
+      at setup (src/__tests__/torneosMpA52PlanRefresh.test.jsx:29:26)
+      at src/__tests__/torneosMpA52PlanRefresh.test.jsx:57:15
+      at TestScheduler.scheduleTests (../arma2-torneos-real-core-sso-phase15/node_modules/@jest/core/build/TestScheduler.js:333:13)
+      at runJest (../arma2-torneos-real-core-sso-phase15/node_modules/@jest/core/build/runJest.js:404:19)
+      at _run10000 (../arma2-torneos-real-core-sso-phase15/node_modules/@jest/core/build/cli/index.js:320:7)
+      at runCLI (../arma2-torneos-real-core-sso-phase15/node_modules/@jest/core/build/cli/index.js:173:3)
+
+  console.warn
+    ⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.
+
+      27 |     createCheckout: jest.fn(),
+      28 |   };
+    > 29 |   const rendered = render(<MemoryRouter initialEntries={[base]}>
+         |                          ^
+      30 |     <TorneosWorkspaceProvider service={service} autoLoad={false}>
+      31 |       <TorneosCompetitionProvider organizationId={organization.id} routeSeasonId={seasonId} service={service}>
+      32 |         <TorneosCommerceProvider commerce={commerce}>
+
+      at warnOnce (../arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/deprecations.ts:9:13)
+      at logDeprecation (../arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/deprecations.ts:14:3)
+      at logV6DeprecationWarnings (../arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/deprecations.ts:37:5)
+      at ../arma2-torneos-real-core-sso-phase15/node_modules/react-router/lib/components.tsx:257:25
+      at commitHookEffectListMount (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:23189:26)
+      at commitPassiveMountOnFiber (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:24970:11)
+      at commitPassiveMountEffects_complete (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:24930:9)
+      at commitPassiveMountEffects_begin (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:24917:7)
+      at commitPassiveMountEffects (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:24905:3)
+      at flushPassiveEffectsImpl (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:27078:3)
+      at flushPassiveEffects (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:27023:14)
+      at ../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom.development.js:26808:9
+      at flushActQueue (../arma2-torneos-real-core-sso-phase15/node_modules/react/cjs/react.development.js:2667:24)
+      at act (../arma2-torneos-real-core-sso-phase15/node_modules/react/cjs/react.development.js:2582:11)
+      at actWithWarning (../arma2-torneos-real-core-sso-phase15/node_modules/react-dom/cjs/react-dom-test-utils.development.js:1740:10)
+      at ../arma2-torneos-real-core-sso-phase15/node_modules/@testing-library/react/dist/act-compat.js:63:25
+      at renderRoot (../arma2-torneos-real-core-sso-phase15/node_modules/@testing-library/react/dist/pure.js:159:26)
+      at render (../arma2-torneos-real-core-sso-phase15/node_modules/@testing-library/react/dist/pure.js:246:10)
+      at setup (src/__tests__/torneosMpA52PlanRefresh.test.jsx:29:26)
+      at src/__tests__/torneosMpA52PlanRefresh.test.jsx:57:15
+      at TestScheduler.scheduleTests (../arma2-torneos-real-core-sso-phase15/node_modules/@jest/core/build/TestScheduler.js:333:13)
+      at runJest (../arma2-torneos-real-core-sso-phase15/node_modules/@jest/core/build/runJest.js:404:19)
+      at _run10000 (../arma2-torneos-real-core-sso-phase15/node_modules/@jest/core/build/cli/index.js:320:7)
+      at runCLI (../arma2-torneos-real-core-sso-phase15/node_modules/@jest/core/build/cli/index.js:173:3)
+
+FAIL src/__tests__/torneosMpA52PlanRefresh.test.jsx (5.969 s)
+  ✕ pending → approved updates the actual Plan on client navigation (1116 ms)
+  ✕ rejected attempt → approved updates the actual Plan on client navigation (1042 ms)
+  ✕ refund updates the actual Plan on client navigation (1043 ms)
+  ✕ chargeback updates the actual Plan on client navigation (1040 ms)
+  ✕ restored updates the actual Plan on client navigation (1045 ms)
+  ✓ unchanged terminal entitlement does not loop or keep polling (22 ms)
+
+  ● pending → approved updates the actual Plan on client navigation
+
+    Unable to find role="heading" and name "Arma2 Torneos Premium"
+
+    Ignored nodes: comments, script, style
+    [36m<body>[39m
+      [36m<div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"page"[39m
+          [33mdata-fail-closed[39m=[32m"false"[39m
+        [36m>[39m
+          [36m<header[39m
+            [33mclass[39m=[32m"pageHeader"[39m
+          [36m>[39m
+            [36m<span>[39m
+              [0mTemporada · Plan comercial[0m
+            [36m</span>[39m
+            [36m<h1>[39m
+              [0mPlan[0m
+            [36m</h1>[39m
+            [36m<p>[39m
+              [0mTemporada · Liga[0m
+            [36m</p>[39m
+          [36m</header>[39m
+          [36m<nav[39m
+            [33maria-label[39m=[32m"Secciones de configuración"[39m
+            [33mclass[39m=[32m"nav"[39m
+          [36m>[39m
+            [36m<a[39m
+              [33mclass[39m=[32m""[39m
+              [33mhref[39m=[32m"/torneos/organizacion/10000000-0000-4000-8000-000000000001/configuracion"[39m
+            [36m>[39m
+              [36m<svg[39m
+                [33maria-hidden[39m=[32m"true"[39m
+                [33mclass[39m=[32m"lucide lucide-settings2"[39m
+                [33mfill[39m=[32m"none"[39m
+                [33mheight[39m=[32m"17"[39m
+                [33mstroke[39m=[32m"currentColor"[39m
+                [33mstroke-linecap[39m=[32m"round"[39m
+                [33mstroke-linejoin[39m=[32m"round"[39m
+                [33mstroke-width[39m=[32m"2"[39m
+                [33mviewBox[39m=[32m"0 0 24 24"[39m
+                [33mwidth[39m=[32m"17"[39m
+                [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+              [36m>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"M20 7h-9"[39m
+                [36m/>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"M14 17H5"[39m
+                [36m/>[39m
+                [36m<circle[39m
+                  [33mcx[39m=[32m"17"[39m
+                  [33mcy[39m=[32m"17"[39m
+                  [33mr[39m=[32m"3"[39m
+                [36m/>[39m
+                [36m<circle[39m
+                  [33mcx[39m=[32m"7"[39m
+                  [33mcy[39m=[32m"7"[39m
+                  [33mr[39m=[32m"3"[39m
+                [36m/>[39m
+              [36m</svg>[39m
+              [0mGeneral[0m
+            [36m</a>[39m
+            [36m<a[39m
+              [33mclass[39m=[32m""[39m
+              [33mhref[39m=[32m"/torneos/organizacion/10000000-0000-4000-8000-000000000001/configuracion/plan"[39m
+            [36m>[39m
+              [36m<svg[39m
+                [33maria-hidden[39m=[32m"true"[39m
+                [33mclass[39m=[32m"lucide lucide-badge-check"[39m
+                [33mfill[39m=[32m"none"[39m
+                [33mheight[39m=[32m"17"[39m
+                [33mstroke[39m=[32m"currentColor"[39m
+                [33mstroke-linecap[39m=[32m"round"[39m
+                [33mstroke-linejoin[39m=[32m"round"[39m
+                [33mstroke-width[39m=[32m"2"[39m
+                [33mviewBox[39m=[32m"0 0 24 24"[39m
+                [33mwidth[39m=[32m"17"[39m
+                [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+              [36m>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"M3.85 8.62a4 4 0 0 1 4.78-4.77 4 4 0 0 1 6.74 0 4 4 0 0 1 4.78 4.78 4 4 0 0 1 0 6.74 4 4 0 0 1-4.77 4.78 4 4 0 0 1-6.75 0 4 4 0 0 1-4.78-4.77 4 4 0 0 1 0-6.76Z"[39m
+                [36m/>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"m9 12 2 2 4-4"[39m
+                [36m/>[39m
+              [36m</svg>[39m
+              [0mPlan[0m
+            [36m</a>[39m
+            [36m<a[39m
+              [33mclass[39m=[32m""[39m
+              [33mhref[39m=[32m"/torneos/organizacion/10000000-0000-4000-8000-000000000001/miembros"[39m
+            [36m>[39m
+              [36m<svg[39m
+                [33maria-hidden[39m=[32m"true"[39m
+                [33mclass[39m=[32m"lucide lucide-users"[39m
+                [33mfill[39m=[32m"none"[39m
+                [33mheight[39m=[32m"17"[39m
+                [33mstroke[39m=[32m"currentColor"[39m
+                [33mstroke-linecap[39m=[32m"round"[39m
+                [33mstroke-linejoin[39m=[32m"round"[39m
+                [33mstroke-width[39m=[32m"2"[39m
+                [33mviewBox[39m=[32m"0 0 24 24"[39m
+                [33mwidth[39m=[32m"17"[39m
+                [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+              [36m>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"[39m
+                [36m/>[39m
+                [36m<circle[39m
+                  [33mcx[39m=[32m"9"[39m
+                  [33mcy[39m=[32m"7"[39m
+                  [33mr[39m=[32m"4"[39m
+                [36m/>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"M22 21v-2a4 4 0 0 0-3-3.87"[39m
+                [36m/>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"M16 3.13a4 4 0 0 1 0 7.75"[39m
+                [36m/>[39m
+              [36m</svg>[39m
+              [0mMiembros[0m
+            [36m</a>[39m
+          [36m</nav>[39m
+          [36m<section[39m
+            [33mclass[39m=[32m"currentPlan"[39m
+            [33mdata-plan[39m=[32m"free"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33maria-hidden[39m=[32m"true"[39m
+              [33mclass[39m=[32m"planSignal"[39m
+            [36m>[39m
+              [36m<i />[39m
+              [36m<span>[39m
+                [0mFREE[0m
+              [36m</span>[39m
+            [36m</div>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"currentCopy"[39m
+            [36m>[39m
+              [36m<p>[39m
+                [0mPLAN ACTUAL · [0m
+                [0mTemporada[0m
+              [36m</p>[39m
+              [36m<h2>[39m
+                [0mArma2 Torneos Free[0m
+              [36m</h2>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"lifecycle"[39m
+                [33mdata-tone[39m=[32m"neutral"[39m
+              [36m>[39m
+                [36m<span[39m
+                  [33maria-hidden[39m=[32m"true"[39m
+                [36m/>[39m
+                [0mFREE para siempre[0m
+              [36m</div>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"planDetails"[39m
+              [36m>[39m
+                [36m<strong>[39m
+                  [0mTodo lo necesario para organizar esta temporada y sus torneos.[0m
+                [36m</strong>[39m
+                [36m<small>[39m
+                  [0mFREE es permanente para esta temporada y no limita crear otras temporadas.[0m
+                [36m</small>[39m
+              [36m</div>[39m
+            [36m</div>[39m
+          [36m</section>[39m
+          [36m<section[39m
+            [33maria-labelledby[39m=[32m"plan-comparison-title"[39m
+            [33mclass[39m=[32m"comparison"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"sectionHeading"[39m
+            [36m>[39m
+              [36m<span>[39m
+                [0mFREE VS PREMIUM[0m
+              [36m</span>[39m
+              [36m<h2[39m
+                [33mid[39m=[32m"plan-comparison-title"[39m
+              [36m>[39m
+                [0mOrganizar es Free. Profesionalizar es Premium.[0m
+              [36m</h2>[39m
+              [36m<p>[39m
+                [0mCada temporada nace FREE para siempre. Premium se paga una sola vez por la temporada, in...
+
+      61 |   await screen.findByText(nextStatus === 'approved' ? 'Premium ya está activo' : nextStatus === 'refunded' ? 'El pago fue reembolsado' : 'El pago está en contracargo');
+      62 |   fireEvent.click(screen.getByText('Volver al Plan'));
+    > 63 |   await screen.findByRole('heading', { name: `Arma2 Torneos ${nextPlan === 'PREMIUM' ? 'Premium' : 'Free'}` });
+         |                ^
+      64 |   expect(app.commerce.createCheckout).not.toHaveBeenCalled();
+      65 | });
+      66 |
+
+      at waitForWrapper (../arma2-torneos-real-core-sso-phase15/node_modules/@testing-library/react/node_modules/@testing-library/dom/dist/wait-for.js:166:27)
+      at findByRole (../arma2-torneos-real-core-sso-phase15/node_modules/@testing-library/react/node_modules/@testing-library/dom/dist/query-helpers.js:86:33)
+      at src/__tests__/torneosMpA52PlanRefresh.test.jsx:63:16
+
+  ● rejected attempt → approved updates the actual Plan on client navigation
+
+    Unable to find role="heading" and name "Arma2 Torneos Premium"
+
+    Ignored nodes: comments, script, style
+    [36m<body>[39m
+      [36m<div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"page"[39m
+          [33mdata-fail-closed[39m=[32m"false"[39m
+        [36m>[39m
+          [36m<header[39m
+            [33mclass[39m=[32m"pageHeader"[39m
+          [36m>[39m
+            [36m<span>[39m
+              [0mTemporada · Plan comercial[0m
+            [36m</span>[39m
+            [36m<h1>[39m
+              [0mPlan[0m
+            [36m</h1>[39m
+            [36m<p>[39m
+              [0mTemporada · Liga[0m
+            [36m</p>[39m
+          [36m</header>[39m
+          [36m<nav[39m
+            [33maria-label[39m=[32m"Secciones de configuración"[39m
+            [33mclass[39m=[32m"nav"[39m
+          [36m>[39m
+            [36m<a[39m
+              [33mclass[39m=[32m""[39m
+              [33mhref[39m=[32m"/torneos/organizacion/10000000-0000-4000-8000-000000000001/configuracion"[39m
+            [36m>[39m
+              [36m<svg[39m
+                [33maria-hidden[39m=[32m"true"[39m
+                [33mclass[39m=[32m"lucide lucide-settings2"[39m
+                [33mfill[39m=[32m"none"[39m
+                [33mheight[39m=[32m"17"[39m
+                [33mstroke[39m=[32m"currentColor"[39m
+                [33mstroke-linecap[39m=[32m"round"[39m
+                [33mstroke-linejoin[39m=[32m"round"[39m
+                [33mstroke-width[39m=[32m"2"[39m
+                [33mviewBox[39m=[32m"0 0 24 24"[39m
+                [33mwidth[39m=[32m"17"[39m
+                [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+              [36m>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"M20 7h-9"[39m
+                [36m/>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"M14 17H5"[39m
+                [36m/>[39m
+                [36m<circle[39m
+                  [33mcx[39m=[32m"17"[39m
+                  [33mcy[39m=[32m"17"[39m
+                  [33mr[39m=[32m"3"[39m
+                [36m/>[39m
+                [36m<circle[39m
+                  [33mcx[39m=[32m"7"[39m
+                  [33mcy[39m=[32m"7"[39m
+                  [33mr[39m=[32m"3"[39m
+                [36m/>[39m
+              [36m</svg>[39m
+              [0mGeneral[0m
+            [36m</a>[39m
+            [36m<a[39m
+              [33mclass[39m=[32m""[39m
+              [33mhref[39m=[32m"/torneos/organizacion/10000000-0000-4000-8000-000000000001/configuracion/plan"[39m
+            [36m>[39m
+              [36m<svg[39m
+                [33maria-hidden[39m=[32m"true"[39m
+                [33mclass[39m=[32m"lucide lucide-badge-check"[39m
+                [33mfill[39m=[32m"none"[39m
+                [33mheight[39m=[32m"17"[39m
+                [33mstroke[39m=[32m"currentColor"[39m
+                [33mstroke-linecap[39m=[32m"round"[39m
+                [33mstroke-linejoin[39m=[32m"round"[39m
+                [33mstroke-width[39m=[32m"2"[39m
+                [33mviewBox[39m=[32m"0 0 24 24"[39m
+                [33mwidth[39m=[32m"17"[39m
+                [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+              [36m>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"M3.85 8.62a4 4 0 0 1 4.78-4.77 4 4 0 0 1 6.74 0 4 4 0 0 1 4.78 4.78 4 4 0 0 1 0 6.74 4 4 0 0 1-4.77 4.78 4 4 0 0 1-6.75 0 4 4 0 0 1-4.78-4.77 4 4 0 0 1 0-6.76Z"[39m
+                [36m/>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"m9 12 2 2 4-4"[39m
+                [36m/>[39m
+              [36m</svg>[39m
+              [0mPlan[0m
+            [36m</a>[39m
+            [36m<a[39m
+              [33mclass[39m=[32m""[39m
+              [33mhref[39m=[32m"/torneos/organizacion/10000000-0000-4000-8000-000000000001/miembros"[39m
+            [36m>[39m
+              [36m<svg[39m
+                [33maria-hidden[39m=[32m"true"[39m
+                [33mclass[39m=[32m"lucide lucide-users"[39m
+                [33mfill[39m=[32m"none"[39m
+                [33mheight[39m=[32m"17"[39m
+                [33mstroke[39m=[32m"currentColor"[39m
+                [33mstroke-linecap[39m=[32m"round"[39m
+                [33mstroke-linejoin[39m=[32m"round"[39m
+                [33mstroke-width[39m=[32m"2"[39m
+                [33mviewBox[39m=[32m"0 0 24 24"[39m
+                [33mwidth[39m=[32m"17"[39m
+                [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+              [36m>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"[39m
+                [36m/>[39m
+                [36m<circle[39m
+                  [33mcx[39m=[32m"9"[39m
+                  [33mcy[39m=[32m"7"[39m
+                  [33mr[39m=[32m"4"[39m
+                [36m/>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"M22 21v-2a4 4 0 0 0-3-3.87"[39m
+                [36m/>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"M16 3.13a4 4 0 0 1 0 7.75"[39m
+                [36m/>[39m
+              [36m</svg>[39m
+              [0mMiembros[0m
+            [36m</a>[39m
+          [36m</nav>[39m
+          [36m<section[39m
+            [33mclass[39m=[32m"currentPlan"[39m
+            [33mdata-plan[39m=[32m"free"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33maria-hidden[39m=[32m"true"[39m
+              [33mclass[39m=[32m"planSignal"[39m
+            [36m>[39m
+              [36m<i />[39m
+              [36m<span>[39m
+                [0mFREE[0m
+              [36m</span>[39m
+            [36m</div>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"currentCopy"[39m
+            [36m>[39m
+              [36m<p>[39m
+                [0mPLAN ACTUAL · [0m
+                [0mTemporada[0m
+              [36m</p>[39m
+              [36m<h2>[39m
+                [0mArma2 Torneos Free[0m
+              [36m</h2>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"lifecycle"[39m
+                [33mdata-tone[39m=[32m"neutral"[39m
+              [36m>[39m
+                [36m<span[39m
+                  [33maria-hidden[39m=[32m"true"[39m
+                [36m/>[39m
+                [0mFREE para siempre[0m
+              [36m</div>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"planDetails"[39m
+              [36m>[39m
+                [36m<strong>[39m
+                  [0mTodo lo necesario para organizar esta temporada y sus torneos.[0m
+                [36m</strong>[39m
+                [36m<small>[39m
+                  [0mFREE es permanente para esta temporada y no limita crear otras temporadas.[0m
+                [36m</small>[39m
+              [36m</div>[39m
+            [36m</div>[39m
+          [36m</section>[39m
+          [36m<section[39m
+            [33maria-labelledby[39m=[32m"plan-comparison-title"[39m
+            [33mclass[39m=[32m"comparison"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"sectionHeading"[39m
+            [36m>[39m
+              [36m<span>[39m
+                [0mFREE VS PREMIUM[0m
+              [36m</span>[39m
+              [36m<h2[39m
+                [33mid[39m=[32m"plan-comparison-title"[39m
+              [36m>[39m
+                [0mOrganizar es Free. Profesionalizar es Premium.[0m
+              [36m</h2>[39m
+              [36m<p>[39m
+                [0mCada temporada nace FREE para siempre. Premium se paga una sola vez por la temporada, in...
+
+      61 |   await screen.findByText(nextStatus === 'approved' ? 'Premium ya está activo' : nextStatus === 'refunded' ? 'El pago fue reembolsado' : 'El pago está en contracargo');
+      62 |   fireEvent.click(screen.getByText('Volver al Plan'));
+    > 63 |   await screen.findByRole('heading', { name: `Arma2 Torneos ${nextPlan === 'PREMIUM' ? 'Premium' : 'Free'}` });
+         |                ^
+      64 |   expect(app.commerce.createCheckout).not.toHaveBeenCalled();
+      65 | });
+      66 |
+
+      at waitForWrapper (../arma2-torneos-real-core-sso-phase15/node_modules/@testing-library/react/node_modules/@testing-library/dom/dist/wait-for.js:166:27)
+      at findByRole (../arma2-torneos-real-core-sso-phase15/node_modules/@testing-library/react/node_modules/@testing-library/dom/dist/query-helpers.js:86:33)
+      at src/__tests__/torneosMpA52PlanRefresh.test.jsx:63:16
+
+  ● refund updates the actual Plan on client navigation
+
+    Unable to find role="heading" and name "Arma2 Torneos Free"
+
+    Ignored nodes: comments, script, style
+    [36m<body>[39m
+      [36m<div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"page"[39m
+          [33mdata-fail-closed[39m=[32m"false"[39m
+        [36m>[39m
+          [36m<header[39m
+            [33mclass[39m=[32m"pageHeader"[39m
+          [36m>[39m
+            [36m<span>[39m
+              [0mTemporada · Plan comercial[0m
+            [36m</span>[39m
+            [36m<h1>[39m
+              [0mPlan[0m
+            [36m</h1>[39m
+            [36m<p>[39m
+              [0mTemporada · Liga[0m
+            [36m</p>[39m
+          [36m</header>[39m
+          [36m<nav[39m
+            [33maria-label[39m=[32m"Secciones de configuración"[39m
+            [33mclass[39m=[32m"nav"[39m
+          [36m>[39m
+            [36m<a[39m
+              [33mclass[39m=[32m""[39m
+              [33mhref[39m=[32m"/torneos/organizacion/10000000-0000-4000-8000-000000000001/configuracion"[39m
+            [36m>[39m
+              [36m<svg[39m
+                [33maria-hidden[39m=[32m"true"[39m
+                [33mclass[39m=[32m"lucide lucide-settings2"[39m
+                [33mfill[39m=[32m"none"[39m
+                [33mheight[39m=[32m"17"[39m
+                [33mstroke[39m=[32m"currentColor"[39m
+                [33mstroke-linecap[39m=[32m"round"[39m
+                [33mstroke-linejoin[39m=[32m"round"[39m
+                [33mstroke-width[39m=[32m"2"[39m
+                [33mviewBox[39m=[32m"0 0 24 24"[39m
+                [33mwidth[39m=[32m"17"[39m
+                [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+              [36m>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"M20 7h-9"[39m
+                [36m/>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"M14 17H5"[39m
+                [36m/>[39m
+                [36m<circle[39m
+                  [33mcx[39m=[32m"17"[39m
+                  [33mcy[39m=[32m"17"[39m
+                  [33mr[39m=[32m"3"[39m
+                [36m/>[39m
+                [36m<circle[39m
+                  [33mcx[39m=[32m"7"[39m
+                  [33mcy[39m=[32m"7"[39m
+                  [33mr[39m=[32m"3"[39m
+                [36m/>[39m
+              [36m</svg>[39m
+              [0mGeneral[0m
+            [36m</a>[39m
+            [36m<a[39m
+              [33mclass[39m=[32m""[39m
+              [33mhref[39m=[32m"/torneos/organizacion/10000000-0000-4000-8000-000000000001/configuracion/plan"[39m
+            [36m>[39m
+              [36m<svg[39m
+                [33maria-hidden[39m=[32m"true"[39m
+                [33mclass[39m=[32m"lucide lucide-badge-check"[39m
+                [33mfill[39m=[32m"none"[39m
+                [33mheight[39m=[32m"17"[39m
+                [33mstroke[39m=[32m"currentColor"[39m
+                [33mstroke-linecap[39m=[32m"round"[39m
+                [33mstroke-linejoin[39m=[32m"round"[39m
+                [33mstroke-width[39m=[32m"2"[39m
+                [33mviewBox[39m=[32m"0 0 24 24"[39m
+                [33mwidth[39m=[32m"17"[39m
+                [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+              [36m>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"M3.85 8.62a4 4 0 0 1 4.78-4.77 4 4 0 0 1 6.74 0 4 4 0 0 1 4.78 4.78 4 4 0 0 1 0 6.74 4 4 0 0 1-4.77 4.78 4 4 0 0 1-6.75 0 4 4 0 0 1-4.78-4.77 4 4 0 0 1 0-6.76Z"[39m
+                [36m/>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"m9 12 2 2 4-4"[39m
+                [36m/>[39m
+              [36m</svg>[39m
+              [0mPlan[0m
+            [36m</a>[39m
+            [36m<a[39m
+              [33mclass[39m=[32m""[39m
+              [33mhref[39m=[32m"/torneos/organizacion/10000000-0000-4000-8000-000000000001/miembros"[39m
+            [36m>[39m
+              [36m<svg[39m
+                [33maria-hidden[39m=[32m"true"[39m
+                [33mclass[39m=[32m"lucide lucide-users"[39m
+                [33mfill[39m=[32m"none"[39m
+                [33mheight[39m=[32m"17"[39m
+                [33mstroke[39m=[32m"currentColor"[39m
+                [33mstroke-linecap[39m=[32m"round"[39m
+                [33mstroke-linejoin[39m=[32m"round"[39m
+                [33mstroke-width[39m=[32m"2"[39m
+                [33mviewBox[39m=[32m"0 0 24 24"[39m
+                [33mwidth[39m=[32m"17"[39m
+                [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+              [36m>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"[39m
+                [36m/>[39m
+                [36m<circle[39m
+                  [33mcx[39m=[32m"9"[39m
+                  [33mcy[39m=[32m"7"[39m
+                  [33mr[39m=[32m"4"[39m
+                [36m/>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"M22 21v-2a4 4 0 0 0-3-3.87"[39m
+                [36m/>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"M16 3.13a4 4 0 0 1 0 7.75"[39m
+                [36m/>[39m
+              [36m</svg>[39m
+              [0mMiembros[0m
+            [36m</a>[39m
+          [36m</nav>[39m
+          [36m<section[39m
+            [33mclass[39m=[32m"currentPlan"[39m
+            [33mdata-plan[39m=[32m"premium"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33maria-hidden[39m=[32m"true"[39m
+              [33mclass[39m=[32m"planSignal"[39m
+            [36m>[39m
+              [36m<i />[39m
+              [36m<span>[39m
+                [0mPREMIUM[0m
+              [36m</span>[39m
+            [36m</div>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"currentCopy"[39m
+            [36m>[39m
+              [36m<p>[39m
+                [0mPLAN ACTUAL · [0m
+                [0mTemporada[0m
+              [36m</p>[39m
+              [36m<h2>[39m
+                [0mArma2 Torneos Premium[0m
+              [36m</h2>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"lifecycle"[39m
+                [33mdata-tone[39m=[32m"positive"[39m
+              [36m>[39m
+                [36m<span[39m
+                  [33maria-hidden[39m=[32m"true"[39m
+                [36m/>[39m
+                [0mPremium para esta temporada[0m
+              [36m</div>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"planDetails"[39m
+              [36m>[39m
+                [36m<strong>[39m
+                  [0mPago único · sin suscripción · acceso Premium permanente para todos los torneos de esta temporada.[0m
+                [36m</strong>[39m
+              [36m</div>[39m
+            [36m</div>[39m
+          [36m</section>[39m
+          [36m<section[39m
+            [33maria-labelledby[39m=[32m"plan-comparison-title"[39m
+            [33mclass[39m=[32m"comparison"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"sectionHeading"[39m
+            [36m>[39m
+              [36m<span>[39m
+                [0mFREE VS PREMIUM[0m
+              [36m</span>[39m
+              [36m<h2[39m
+                [33mid[39m=[32m"plan-comparison-title"[39m
+              [36m>[39m
+                [0mOrganizar es Free. Profesionalizar es Premium.[0m
+              [36m</h2>[39m
+              [36m<p>[39m
+                [0mCada temporada nace FREE para siempre. Premium se paga una sola vez por la temporada, incluye todos sus torneos y no se hereda a otras temporadas.[0m
+              [36m</p>[39m
+            [36m<...
+
+      61 |   await screen.findByText(nextStatus === 'approved' ? 'Premium ya está activo' : nextStatus === 'refunded' ? 'El pago fue reembolsado' : 'El pago está en contracargo');
+      62 |   fireEvent.click(screen.getByText('Volver al Plan'));
+    > 63 |   await screen.findByRole('heading', { name: `Arma2 Torneos ${nextPlan === 'PREMIUM' ? 'Premium' : 'Free'}` });
+         |                ^
+      64 |   expect(app.commerce.createCheckout).not.toHaveBeenCalled();
+      65 | });
+      66 |
+
+      at waitForWrapper (../arma2-torneos-real-core-sso-phase15/node_modules/@testing-library/react/node_modules/@testing-library/dom/dist/wait-for.js:166:27)
+      at findByRole (../arma2-torneos-real-core-sso-phase15/node_modules/@testing-library/react/node_modules/@testing-library/dom/dist/query-helpers.js:86:33)
+      at src/__tests__/torneosMpA52PlanRefresh.test.jsx:63:16
+
+  ● chargeback updates the actual Plan on client navigation
+
+    Unable to find role="heading" and name "Arma2 Torneos Free"
+
+    Ignored nodes: comments, script, style
+    [36m<body>[39m
+      [36m<div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"page"[39m
+          [33mdata-fail-closed[39m=[32m"false"[39m
+        [36m>[39m
+          [36m<header[39m
+            [33mclass[39m=[32m"pageHeader"[39m
+          [36m>[39m
+            [36m<span>[39m
+              [0mTemporada · Plan comercial[0m
+            [36m</span>[39m
+            [36m<h1>[39m
+              [0mPlan[0m
+            [36m</h1>[39m
+            [36m<p>[39m
+              [0mTemporada · Liga[0m
+            [36m</p>[39m
+          [36m</header>[39m
+          [36m<nav[39m
+            [33maria-label[39m=[32m"Secciones de configuración"[39m
+            [33mclass[39m=[32m"nav"[39m
+          [36m>[39m
+            [36m<a[39m
+              [33mclass[39m=[32m""[39m
+              [33mhref[39m=[32m"/torneos/organizacion/10000000-0000-4000-8000-000000000001/configuracion"[39m
+            [36m>[39m
+              [36m<svg[39m
+                [33maria-hidden[39m=[32m"true"[39m
+                [33mclass[39m=[32m"lucide lucide-settings2"[39m
+                [33mfill[39m=[32m"none"[39m
+                [33mheight[39m=[32m"17"[39m
+                [33mstroke[39m=[32m"currentColor"[39m
+                [33mstroke-linecap[39m=[32m"round"[39m
+                [33mstroke-linejoin[39m=[32m"round"[39m
+                [33mstroke-width[39m=[32m"2"[39m
+                [33mviewBox[39m=[32m"0 0 24 24"[39m
+                [33mwidth[39m=[32m"17"[39m
+                [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+              [36m>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"M20 7h-9"[39m
+                [36m/>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"M14 17H5"[39m
+                [36m/>[39m
+                [36m<circle[39m
+                  [33mcx[39m=[32m"17"[39m
+                  [33mcy[39m=[32m"17"[39m
+                  [33mr[39m=[32m"3"[39m
+                [36m/>[39m
+                [36m<circle[39m
+                  [33mcx[39m=[32m"7"[39m
+                  [33mcy[39m=[32m"7"[39m
+                  [33mr[39m=[32m"3"[39m
+                [36m/>[39m
+              [36m</svg>[39m
+              [0mGeneral[0m
+            [36m</a>[39m
+            [36m<a[39m
+              [33mclass[39m=[32m""[39m
+              [33mhref[39m=[32m"/torneos/organizacion/10000000-0000-4000-8000-000000000001/configuracion/plan"[39m
+            [36m>[39m
+              [36m<svg[39m
+                [33maria-hidden[39m=[32m"true"[39m
+                [33mclass[39m=[32m"lucide lucide-badge-check"[39m
+                [33mfill[39m=[32m"none"[39m
+                [33mheight[39m=[32m"17"[39m
+                [33mstroke[39m=[32m"currentColor"[39m
+                [33mstroke-linecap[39m=[32m"round"[39m
+                [33mstroke-linejoin[39m=[32m"round"[39m
+                [33mstroke-width[39m=[32m"2"[39m
+                [33mviewBox[39m=[32m"0 0 24 24"[39m
+                [33mwidth[39m=[32m"17"[39m
+                [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+              [36m>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"M3.85 8.62a4 4 0 0 1 4.78-4.77 4 4 0 0 1 6.74 0 4 4 0 0 1 4.78 4.78 4 4 0 0 1 0 6.74 4 4 0 0 1-4.77 4.78 4 4 0 0 1-6.75 0 4 4 0 0 1-4.78-4.77 4 4 0 0 1 0-6.76Z"[39m
+                [36m/>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"m9 12 2 2 4-4"[39m
+                [36m/>[39m
+              [36m</svg>[39m
+              [0mPlan[0m
+            [36m</a>[39m
+            [36m<a[39m
+              [33mclass[39m=[32m""[39m
+              [33mhref[39m=[32m"/torneos/organizacion/10000000-0000-4000-8000-000000000001/miembros"[39m
+            [36m>[39m
+              [36m<svg[39m
+                [33maria-hidden[39m=[32m"true"[39m
+                [33mclass[39m=[32m"lucide lucide-users"[39m
+                [33mfill[39m=[32m"none"[39m
+                [33mheight[39m=[32m"17"[39m
+                [33mstroke[39m=[32m"currentColor"[39m
+                [33mstroke-linecap[39m=[32m"round"[39m
+                [33mstroke-linejoin[39m=[32m"round"[39m
+                [33mstroke-width[39m=[32m"2"[39m
+                [33mviewBox[39m=[32m"0 0 24 24"[39m
+                [33mwidth[39m=[32m"17"[39m
+                [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+              [36m>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"[39m
+                [36m/>[39m
+                [36m<circle[39m
+                  [33mcx[39m=[32m"9"[39m
+                  [33mcy[39m=[32m"7"[39m
+                  [33mr[39m=[32m"4"[39m
+                [36m/>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"M22 21v-2a4 4 0 0 0-3-3.87"[39m
+                [36m/>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"M16 3.13a4 4 0 0 1 0 7.75"[39m
+                [36m/>[39m
+              [36m</svg>[39m
+              [0mMiembros[0m
+            [36m</a>[39m
+          [36m</nav>[39m
+          [36m<section[39m
+            [33mclass[39m=[32m"currentPlan"[39m
+            [33mdata-plan[39m=[32m"premium"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33maria-hidden[39m=[32m"true"[39m
+              [33mclass[39m=[32m"planSignal"[39m
+            [36m>[39m
+              [36m<i />[39m
+              [36m<span>[39m
+                [0mPREMIUM[0m
+              [36m</span>[39m
+            [36m</div>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"currentCopy"[39m
+            [36m>[39m
+              [36m<p>[39m
+                [0mPLAN ACTUAL · [0m
+                [0mTemporada[0m
+              [36m</p>[39m
+              [36m<h2>[39m
+                [0mArma2 Torneos Premium[0m
+              [36m</h2>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"lifecycle"[39m
+                [33mdata-tone[39m=[32m"positive"[39m
+              [36m>[39m
+                [36m<span[39m
+                  [33maria-hidden[39m=[32m"true"[39m
+                [36m/>[39m
+                [0mPremium para esta temporada[0m
+              [36m</div>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"planDetails"[39m
+              [36m>[39m
+                [36m<strong>[39m
+                  [0mPago único · sin suscripción · acceso Premium permanente para todos los torneos de esta temporada.[0m
+                [36m</strong>[39m
+              [36m</div>[39m
+            [36m</div>[39m
+          [36m</section>[39m
+          [36m<section[39m
+            [33maria-labelledby[39m=[32m"plan-comparison-title"[39m
+            [33mclass[39m=[32m"comparison"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"sectionHeading"[39m
+            [36m>[39m
+              [36m<span>[39m
+                [0mFREE VS PREMIUM[0m
+              [36m</span>[39m
+              [36m<h2[39m
+                [33mid[39m=[32m"plan-comparison-title"[39m
+              [36m>[39m
+                [0mOrganizar es Free. Profesionalizar es Premium.[0m
+              [36m</h2>[39m
+              [36m<p>[39m
+                [0mCada temporada nace FREE para siempre. Premium se paga una sola vez por la temporada, incluye todos sus torneos y no se hereda a otras temporadas.[0m
+              [36m</p>[39m
+            [36m<...
+
+      61 |   await screen.findByText(nextStatus === 'approved' ? 'Premium ya está activo' : nextStatus === 'refunded' ? 'El pago fue reembolsado' : 'El pago está en contracargo');
+      62 |   fireEvent.click(screen.getByText('Volver al Plan'));
+    > 63 |   await screen.findByRole('heading', { name: `Arma2 Torneos ${nextPlan === 'PREMIUM' ? 'Premium' : 'Free'}` });
+         |                ^
+      64 |   expect(app.commerce.createCheckout).not.toHaveBeenCalled();
+      65 | });
+      66 |
+
+      at waitForWrapper (../arma2-torneos-real-core-sso-phase15/node_modules/@testing-library/react/node_modules/@testing-library/dom/dist/wait-for.js:166:27)
+      at findByRole (../arma2-torneos-real-core-sso-phase15/node_modules/@testing-library/react/node_modules/@testing-library/dom/dist/query-helpers.js:86:33)
+      at src/__tests__/torneosMpA52PlanRefresh.test.jsx:63:16
+
+  ● restored updates the actual Plan on client navigation
+
+    Unable to find role="heading" and name "Arma2 Torneos Premium"
+
+    Ignored nodes: comments, script, style
+    [36m<body>[39m
+      [36m<div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"page"[39m
+          [33mdata-fail-closed[39m=[32m"false"[39m
+        [36m>[39m
+          [36m<header[39m
+            [33mclass[39m=[32m"pageHeader"[39m
+          [36m>[39m
+            [36m<span>[39m
+              [0mTemporada · Plan comercial[0m
+            [36m</span>[39m
+            [36m<h1>[39m
+              [0mPlan[0m
+            [36m</h1>[39m
+            [36m<p>[39m
+              [0mTemporada · Liga[0m
+            [36m</p>[39m
+          [36m</header>[39m
+          [36m<nav[39m
+            [33maria-label[39m=[32m"Secciones de configuración"[39m
+            [33mclass[39m=[32m"nav"[39m
+          [36m>[39m
+            [36m<a[39m
+              [33mclass[39m=[32m""[39m
+              [33mhref[39m=[32m"/torneos/organizacion/10000000-0000-4000-8000-000000000001/configuracion"[39m
+            [36m>[39m
+              [36m<svg[39m
+                [33maria-hidden[39m=[32m"true"[39m
+                [33mclass[39m=[32m"lucide lucide-settings2"[39m
+                [33mfill[39m=[32m"none"[39m
+                [33mheight[39m=[32m"17"[39m
+                [33mstroke[39m=[32m"currentColor"[39m
+                [33mstroke-linecap[39m=[32m"round"[39m
+                [33mstroke-linejoin[39m=[32m"round"[39m
+                [33mstroke-width[39m=[32m"2"[39m
+                [33mviewBox[39m=[32m"0 0 24 24"[39m
+                [33mwidth[39m=[32m"17"[39m
+                [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+              [36m>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"M20 7h-9"[39m
+                [36m/>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"M14 17H5"[39m
+                [36m/>[39m
+                [36m<circle[39m
+                  [33mcx[39m=[32m"17"[39m
+                  [33mcy[39m=[32m"17"[39m
+                  [33mr[39m=[32m"3"[39m
+                [36m/>[39m
+                [36m<circle[39m
+                  [33mcx[39m=[32m"7"[39m
+                  [33mcy[39m=[32m"7"[39m
+                  [33mr[39m=[32m"3"[39m
+                [36m/>[39m
+              [36m</svg>[39m
+              [0mGeneral[0m
+            [36m</a>[39m
+            [36m<a[39m
+              [33mclass[39m=[32m""[39m
+              [33mhref[39m=[32m"/torneos/organizacion/10000000-0000-4000-8000-000000000001/configuracion/plan"[39m
+            [36m>[39m
+              [36m<svg[39m
+                [33maria-hidden[39m=[32m"true"[39m
+                [33mclass[39m=[32m"lucide lucide-badge-check"[39m
+                [33mfill[39m=[32m"none"[39m
+                [33mheight[39m=[32m"17"[39m
+                [33mstroke[39m=[32m"currentColor"[39m
+                [33mstroke-linecap[39m=[32m"round"[39m
+                [33mstroke-linejoin[39m=[32m"round"[39m
+                [33mstroke-width[39m=[32m"2"[39m
+                [33mviewBox[39m=[32m"0 0 24 24"[39m
+                [33mwidth[39m=[32m"17"[39m
+                [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+              [36m>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"M3.85 8.62a4 4 0 0 1 4.78-4.77 4 4 0 0 1 6.74 0 4 4 0 0 1 4.78 4.78 4 4 0 0 1 0 6.74 4 4 0 0 1-4.77 4.78 4 4 0 0 1-6.75 0 4 4 0 0 1-4.78-4.77 4 4 0 0 1 0-6.76Z"[39m
+                [36m/>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"m9 12 2 2 4-4"[39m
+                [36m/>[39m
+              [36m</svg>[39m
+              [0mPlan[0m
+            [36m</a>[39m
+            [36m<a[39m
+              [33mclass[39m=[32m""[39m
+              [33mhref[39m=[32m"/torneos/organizacion/10000000-0000-4000-8000-000000000001/miembros"[39m
+            [36m>[39m
+              [36m<svg[39m
+                [33maria-hidden[39m=[32m"true"[39m
+                [33mclass[39m=[32m"lucide lucide-users"[39m
+                [33mfill[39m=[32m"none"[39m
+                [33mheight[39m=[32m"17"[39m
+                [33mstroke[39m=[32m"currentColor"[39m
+                [33mstroke-linecap[39m=[32m"round"[39m
+                [33mstroke-linejoin[39m=[32m"round"[39m
+                [33mstroke-width[39m=[32m"2"[39m
+                [33mviewBox[39m=[32m"0 0 24 24"[39m
+                [33mwidth[39m=[32m"17"[39m
+                [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+              [36m>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"[39m
+                [36m/>[39m
+                [36m<circle[39m
+                  [33mcx[39m=[32m"9"[39m
+                  [33mcy[39m=[32m"7"[39m
+                  [33mr[39m=[32m"4"[39m
+                [36m/>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"M22 21v-2a4 4 0 0 0-3-3.87"[39m
+                [36m/>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"M16 3.13a4 4 0 0 1 0 7.75"[39m
+                [36m/>[39m
+              [36m</svg>[39m
+              [0mMiembros[0m
+            [36m</a>[39m
+          [36m</nav>[39m
+          [36m<section[39m
+            [33mclass[39m=[32m"currentPlan"[39m
+            [33mdata-plan[39m=[32m"free"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33maria-hidden[39m=[32m"true"[39m
+              [33mclass[39m=[32m"planSignal"[39m
+            [36m>[39m
+              [36m<i />[39m
+              [36m<span>[39m
+                [0mFREE[0m
+              [36m</span>[39m
+            [36m</div>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"currentCopy"[39m
+            [36m>[39m
+              [36m<p>[39m
+                [0mPLAN ACTUAL · [0m
+                [0mTemporada[0m
+              [36m</p>[39m
+              [36m<h2>[39m
+                [0mArma2 Torneos Free[0m
+              [36m</h2>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"lifecycle"[39m
+                [33mdata-tone[39m=[32m"neutral"[39m
+              [36m>[39m
+                [36m<span[39m
+                  [33maria-hidden[39m=[32m"true"[39m
+                [36m/>[39m
+                [0mFREE para siempre[0m
+              [36m</div>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"planDetails"[39m
+              [36m>[39m
+                [36m<strong>[39m
+                  [0mTodo lo necesario para organizar esta temporada y sus torneos.[0m
+                [36m</strong>[39m
+                [36m<small>[39m
+                  [0mFREE es permanente para esta temporada y no limita crear otras temporadas.[0m
+                [36m</small>[39m
+              [36m</div>[39m
+            [36m</div>[39m
+          [36m</section>[39m
+          [36m<section[39m
+            [33maria-labelledby[39m=[32m"plan-comparison-title"[39m
+            [33mclass[39m=[32m"comparison"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"sectionHeading"[39m
+            [36m>[39m
+              [36m<span>[39m
+                [0mFREE VS PREMIUM[0m
+              [36m</span>[39m
+              [36m<h2[39m
+                [33mid[39m=[32m"plan-comparison-title"[39m
+              [36m>[39m
+                [0mOrganizar es Free. Profesionalizar es Premium.[0m
+              [36m</h2>[39m
+              [36m<p>[39m
+                [0mCada temporada nace FREE para siempre. Premium se paga una sola vez por la temporada, in...
+
+      61 |   await screen.findByText(nextStatus === 'approved' ? 'Premium ya está activo' : nextStatus === 'refunded' ? 'El pago fue reembolsado' : 'El pago está en contracargo');
+      62 |   fireEvent.click(screen.getByText('Volver al Plan'));
+    > 63 |   await screen.findByRole('heading', { name: `Arma2 Torneos ${nextPlan === 'PREMIUM' ? 'Premium' : 'Free'}` });
+         |                ^
+      64 |   expect(app.commerce.createCheckout).not.toHaveBeenCalled();
+      65 | });
+      66 |
+
+      at waitForWrapper (../arma2-torneos-real-core-sso-phase15/node_modules/@testing-library/react/node_modules/@testing-library/dom/dist/wait-for.js:166:27)
+      at findByRole (../arma2-torneos-real-core-sso-phase15/node_modules/@testing-library/react/node_modules/@testing-library/dom/dist/query-helpers.js:86:33)
+      at src/__tests__/torneosMpA52PlanRefresh.test.jsx:63:16
+
+Test Suites: 1 failed, 1 total
+Tests:       5 failed, 1 passed, 6 total
+Snapshots:   0 total
+Time:        6.329 s
+Ran all test suites matching /src\/__tests__\/torneosMpA52PlanRefresh.test.jsx/i.

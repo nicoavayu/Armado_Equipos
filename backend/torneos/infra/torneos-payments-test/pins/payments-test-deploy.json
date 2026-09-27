@@ -1,0 +1,147 @@
+{
+ "purpose": "Arma2 Torneos payments TEST app on Deno Deploy — public facts only",
+ "app": "torneos-payments-test",
+ "app_id": "46dc4189-bc99-4c89-88d0-ea596e31d0a1",
+ "host": "torneos-payments-test.nicoavayu.deno.net",
+ "public_url": "https://torneos-payments-test.nicoavayu.deno.net/functions/v1/torneos-payments",
+ "webhook_url": "https://torneos-payments-test.nicoavayu.deno.net/functions/v1/torneos-payments/webhooks/mercadopago/v1",
+ "revision": "y3c0y413n6zy",
+ "previous_revision": "szb0wwg9b90q",
+ "first_revision": "dzvgze7sr654",
+ "hosts": [
+  "torneos-payments-test.nicoavayu.deno.net",
+  "torneos-payments-test-y3c0y413n6zy.nicoavayu.deno.net"
+ ],
+ "seller_id": "3712890098",
+ "qa_organization": "abedfe15-c7a2-4e8e-978f-6130eef70b53",
+ "source": {
+  "head": "b3b055b29d902f85e5c2170366ba2d106b15518c",
+  "digest": "71b474443d35b5dfbd6c5dd07cc2af17e944bf10ac872888130eaafccb682c95",
+  "files": [
+   {
+    "path": "_shared/mercadoPagoPaymentProvider.ts",
+    "sha256": "1136217d93c55c5f981d45dfa9abfd62f14b26a218df120f5f801d547e547961",
+    "bytes": 12822
+   },
+   {
+    "path": "_shared/paymentProvider.ts",
+    "sha256": "da5e43266c5107cd1f6183c83046ba49e71343e9102370adb08be8abb4640a40",
+    "bytes": 910
+   },
+   {
+    "path": "torneos-payments/config.ts",
+    "sha256": "46ff5a7811b2c9fef024420c5a6e7bd9c0080dc8e2731c1b1e847bf9d1cf1040",
+    "bytes": 11896
+   },
+   {
+    "path": "torneos-payments/db.ts",
+    "sha256": "f8e2f9e773d1cecbe1735c0bf32f969d047a83eb71595030666ddf81cd219125",
+    "bytes": 2575
+   },
+   {
+    "path": "torneos-payments/handler.ts",
+    "sha256": "3ec56c8fa17a33c12d7277d67d9306b75ba62ee97f5067852d508548d302f10a",
+    "bytes": 22111
+   },
+   {
+    "path": "torneos-payments/hmac.ts",
+    "sha256": "aa2ba972022e487605a0efecbfdd0bbcf2cd62e916298cd16299eb29f78b0ed3",
+    "bytes": 3360
+   },
+   {
+    "path": "torneos-payments/index.ts",
+    "sha256": "e49ba4da4f5939a3c33b06b89bf9ac786281ee0dfbc41f19e0eb60c29fe2dea2",
+    "bytes": 486
+   },
+   {
+    "path": "torneos-payments/lab-fetch.ts",
+    "sha256": "825bd6171e6e567264bc4bbfa72cc511599d72f7788c11b366030ffc6d93e206",
+    "bytes": 1480
+   },
+   {
+    "path": "torneos-payments/remote-hosts.ts",
+    "sha256": "004c1c6e1305a17d6fd3b99cfca79c2997198516152e84dba22cec1843e2f47a",
+    "bytes": 2296
+   },
+   {
+    "path": "torneos-payments/remote-test.ts",
+    "sha256": "a8e80c7fbe02ca31b4f3c53290aa3645d1ac171d56adbf05c12a6e30d5d33378",
+    "bytes": 14479
+   },
+   {
+    "path": "torneos-payments/rpc.ts",
+    "sha256": "42d2cf171d71dd15956f0a2a3bdbf1c6775d69abb122e67d7637b9436ecef86c",
+    "bytes": 2544
+   },
+   {
+    "path": "torneos-payments/webhook-freshness.ts",
+    "sha256": "79456622659054d3eb3aaab3fd1dd396d6de6c4d068fe8f36f95d85a858ea9e7",
+    "bytes": 2278
+   },
+   {
+    "path": "torneos-payments/webhook-signature.ts",
+    "sha256": "7b8fe21a1ba1696a0f90e2fcda142ffdb5fb97dc9959dc443064eafaeafd3d58",
+    "bytes": 3027
+   }
+  ]
+ },
+ "env": [
+  {
+   "key": "APP_PUBLIC_URL",
+   "secret": false,
+   "value": "https://torneos-payments-test.nicoavayu.deno.net"
+  },
+  {
+   "key": "MERCADO_PAGO_ENVIRONMENT",
+   "secret": false,
+   "value": "test"
+  },
+  {
+   "key": "MERCADO_PAGO_TEST_ACCESS_TOKEN",
+   "secret": true
+  },
+  {
+   "key": "MERCADO_PAGO_TEST_SELLER_ID",
+   "secret": false,
+   "value": "3712890098"
+  },
+  {
+   "key": "MERCADO_PAGO_TEST_WEBHOOK_SECRET",
+   "secret": true
+  },
+  {
+   "key": "TORNEOS_PAYMENTS_DB_SSL_CA",
+   "secret": false,
+   "value": "sha256:e18e0434fdff1506"
+  },
+  {
+   "key": "TORNEOS_PAYMENTS_DB_URL",
+   "secret": true
+  },
+  {
+   "key": "TORNEOS_PAYMENTS_DEPLOYMENT",
+   "secret": false,
+   "value": "remote-test"
+  },
+  {
+   "key": "TORNEOS_PAYMENTS_INTERNAL_SECRET",
+   "secret": true
+  },
+  {
+   "key": "TORNEOS_PAYMENTS_NOTIFICATION_URL",
+   "secret": false,
+   "value": "https://torneos-payments-test.nicoavayu.deno.net/functions/v1/torneos-payments/webhooks/mercadopago/v1"
+  },
+  {
+   "key": "TORNEOS_PAYMENTS_TEST_QA_ORGANIZATION_ID",
+   "secret": false,
+   "value": "abedfe15-c7a2-4e8e-978f-6130eef70b53"
+  },
+  {
+   "key": "TORNEOS_PAYMENT_PROVIDER",
+   "secret": false,
+   "value": "MERCADO_PAGO"
+  }
+ ],
+ "deployed_at": "2026-09-26T19:16:16.294Z"
+}

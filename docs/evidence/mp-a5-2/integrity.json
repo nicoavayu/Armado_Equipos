@@ -1,0 +1,28 @@
+{
+  "base": "6e70cabfe990e2285928dfa3736a700d3d889716",
+  "chain": [
+    "6e70cabfe990e2285928dfa3736a700d3d889716 c9334690bd2420e5a6e73b0cc5d367e0a30d1987",
+    "c9334690bd2420e5a6e73b0cc5d367e0a30d1987 02779321ec93f04950fa88eb670a19e33a57f530",
+    "02779321ec93f04950fa88eb670a19e33a57f530 88cb6ab95e7b1a9bd5cd13e26904c5922395ad50",
+    "88cb6ab95e7b1a9bd5cd13e26904c5922395ad50 439a4cbb58bf34ac543db2dedbe52cc6f9f034bb",
+    "439a4cbb58bf34ac543db2dedbe52cc6f9f034bb 95521a5df312388a44bc5c2db933f5feb83ccaf7",
+    "95521a5df312388a44bc5c2db933f5feb83ccaf7 c2dfc3ed3d164a0ead4f179290ffc4bf9ce527ed",
+    "c2dfc3ed3d164a0ead4f179290ffc4bf9ce527ed e61f089d873d00e8a2a62b9d41ecf26b6c820c53 e3bef7822b643ef41782d1c739943d1cc92c9d90"
+  ],
+  "tracked_runtime_changes": [
+    "src/features/torneos/components/PurchaseStatusPage.jsx"
+  ],
+  "all_other_tracked_files_byte_identical_to_base": true,
+  "migration_0002_sha256": "06378f12b57620e8ae550a0d881ad66464ffdc0a734ad621cba8a6ba3e6d6078",
+  "backend_gateway_payments_core_exchange_migrations_unchanged": true,
+  "production_flags_unchanged": true,
+  "original_worktree": [
+    " M .gitignore",
+    " M ios/App/App.xcodeproj/project.pbxproj",
+    "?? .claude/",
+    "?? ios/App/build-device/"
+  ],
+  "staging_allowlist_count": 43,
+  "commerce_allowlist_count": 2,
+  "secret_scan": "PASS: runtime, tests and all MP-A5.2 evidence checked against generated lab secrets"
+}

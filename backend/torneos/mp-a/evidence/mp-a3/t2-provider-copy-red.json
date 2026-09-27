@@ -1,0 +1,37 @@
+{
+  "suite": "MP-A3 T2 provider copy",
+  "parity": {},
+  "results": [
+    {
+      "name": "legacy provider files are byte-identical to the certified legacy (untouched by MP-A3)",
+      "status": "PASS"
+    },
+    {
+      "name": "Torneos _shared holds exactly paymentProvider.ts and mercadoPagoPaymentProvider.ts, each sha256 == legacy",
+      "status": "FAIL",
+      "error": "ENOENT: no such file or directory, scandir '/Users/nicoavayu/Downloads/arma2/arma2-mp-a3-payments/backend/torneos/supabase/functions/_shared/'"
+    },
+    {
+      "name": "copy import graph: paymentProvider.ts imports nothing; mercadoPagoPaymentProvider.ts imports only ./paymentProvider.ts",
+      "status": "FAIL",
+      "error": "ENOENT: no such file or directory, open '/Users/nicoavayu/Downloads/arma2/arma2-mp-a3-payments/backend/torneos/supabase/functions/_shared/paymentProvider.ts'"
+    },
+    {
+      "name": "no Core dependency: neither copy nor torneos-payments references Core contract, Core auth, supabase-js, service keys or the gateway",
+      "status": "FAIL",
+      "error": "ENOENT: no such file or directory, scandir '/Users/nicoavayu/Downloads/arma2/arma2-mp-a3-payments/backend/torneos/supabase/functions/torneos-payments/'"
+    },
+    {
+      "name": "torneos-payments imports the provider from the shared copy (not a fork): the only Mercado Pago API origin literal lives in the copy",
+      "status": "FAIL",
+      "error": "ENOENT: no such file or directory, scandir '/Users/nicoavayu/Downloads/arma2/arma2-mp-a3-payments/backend/torneos/supabase/functions/torneos-payments/'"
+    },
+    {
+      "name": "the copy is loadable as-is (Node type stripping): provider exports present, no network at import",
+      "status": "FAIL",
+      "error": "Cannot find module '/Users/nicoavayu/Downloads/arma2/arma2-mp-a3-payments/backend/torneos/supabase/functions/_shared/mercadoPagoPaymentProvider.ts' imported from /Users/nicoavayu/Downloads/arma2/arma2-mp-a3-payments/integration/torneos-core-contracts/payments-provider-copy.test.mjs"
+    }
+  ],
+  "passed": 1,
+  "total": 6
+}

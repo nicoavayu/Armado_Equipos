@@ -1,0 +1,234 @@
+{
+  "suite": "MP-B1.1 R3 webhook ts 10/13 vs ordering (lab)",
+  "results": [
+    {
+      "name": "lab: commerce lab reachable, provider stub reset",
+      "status": "PASS"
+    },
+    {
+      "name": "13-digit ts: authentic (now) → approved, re-fetched, 1 grant; malformed / absurd future 13-digit → 401 with 0 provider reads",
+      "status": "PASS"
+    },
+    {
+      "name": "exact replay (13-digit) ×2 and duplicate approved (10-digit and 13-digit, new ids) → provider_snapshot_duplicate, re-fetched, no new event, 1 grant",
+      "status": "PASS"
+    },
+    {
+      "name": "refund (10-digit) → refunded; duplicate refund (13-digit) → no new event; old approved (13-digit, exact replay) after refunded → stays refunded",
+      "status": "PASS"
+    },
+    {
+      "name": "stale provider snapshot with a NEWER 13-digit ts (+299 s, within skew) → stale_ignored: the ts never outranks date_last_updated",
+      "status": "PASS"
+    },
+    {
+      "name": "dispute (13-digit) → charged_back; duplicate dispute (10-digit + exact replay) → no new event; restored (10-digit); old disputed (13-digit replay) after restored → stays approved",
+      "status": "PASS"
+    },
+    {
+      "name": "stale disputed snapshot after restored, notified with a newer 13-digit ts → stale_ignored; restored preserved",
+      "status": "PASS"
+    },
+    {
+      "name": "revoked (13-digit) never revives: old approved (10-digit replay), old dispute (13-digit replay) and a stale restored snapshot with a newer 13-digit ts; max 1 grant",
+      "status": "PASS"
+    },
+    {
+      "name": "no secret / PII in responses or in torneos-functions / mp-stub logs",
+      "status": "PASS"
+    }
+  ],
+  "matrix": [
+    {
+      "scenario": "13-digit future +1 d (signed)",
+      "tsDigits": 13,
+      "http": 401,
+      "outcome": "invalid_signature",
+      "providerReads": 0
+    },
+    {
+      "scenario": "12 digits (signed)",
+      "tsDigits": 12,
+      "http": 401,
+      "outcome": "invalid_signature",
+      "providerReads": 0
+    },
+    {
+      "scenario": "14 digits (signed)",
+      "tsDigits": 14,
+      "http": 401,
+      "outcome": "invalid_signature",
+      "providerReads": 0
+    },
+    {
+      "scenario": "leading-zero 13 digits (signed)",
+      "tsDigits": 13,
+      "http": 401,
+      "outcome": "invalid_signature",
+      "providerReads": 0
+    },
+    {
+      "scenario": "13-digit header signed as seconds",
+      "tsDigits": 13,
+      "http": 401,
+      "outcome": "invalid_signature",
+      "providerReads": 0
+    },
+    {
+      "scenario": "old approved −30 d (13-digit)",
+      "tsDigits": 13,
+      "http": 200,
+      "outcome": "approved",
+      "providerReads": 2
+    },
+    {
+      "scenario": "exact replay 13-digit #1",
+      "tsDigits": 13,
+      "http": 200,
+      "outcome": "provider_snapshot_duplicate",
+      "providerReads": 2
+    },
+    {
+      "scenario": "exact replay 13-digit #2",
+      "tsDigits": 13,
+      "http": 200,
+      "outcome": "provider_snapshot_duplicate",
+      "providerReads": 2
+    },
+    {
+      "scenario": "duplicate approved 10-digit",
+      "tsDigits": 10,
+      "http": 200,
+      "outcome": "provider_snapshot_duplicate",
+      "providerReads": 2
+    },
+    {
+      "scenario": "duplicate approved 13-digit",
+      "tsDigits": 13,
+      "http": 200,
+      "outcome": "provider_snapshot_duplicate",
+      "providerReads": 2
+    },
+    {
+      "scenario": "refund 10-digit",
+      "tsDigits": 10,
+      "http": 200,
+      "outcome": "reversal_applied",
+      "providerReads": 2
+    },
+    {
+      "scenario": "duplicate refund 13-digit",
+      "tsDigits": 13,
+      "http": 200,
+      "outcome": "provider_snapshot_duplicate",
+      "providerReads": 2
+    },
+    {
+      "scenario": "old approved after refunded (13-digit replay)",
+      "tsDigits": 13,
+      "http": 200,
+      "outcome": "provider_snapshot_duplicate",
+      "providerReads": 2
+    },
+    {
+      "scenario": "stale approved snapshot, ts +299 s (13-digit)",
+      "tsDigits": 13,
+      "http": 200,
+      "outcome": "stale_ignored",
+      "providerReads": 2
+    },
+    {
+      "scenario": "approve p2 (10-digit)",
+      "tsDigits": 10,
+      "http": 200,
+      "outcome": "approved",
+      "providerReads": 2
+    },
+    {
+      "scenario": "dispute 13-digit",
+      "tsDigits": 13,
+      "http": 200,
+      "outcome": "reversal_applied",
+      "providerReads": 2
+    },
+    {
+      "scenario": "duplicate dispute 10-digit",
+      "tsDigits": 10,
+      "http": 200,
+      "outcome": "provider_snapshot_duplicate",
+      "providerReads": 2
+    },
+    {
+      "scenario": "duplicate dispute exact replay 13-digit",
+      "tsDigits": 13,
+      "http": 200,
+      "outcome": "provider_snapshot_duplicate",
+      "providerReads": 2
+    },
+    {
+      "scenario": "restored 10-digit",
+      "tsDigits": 10,
+      "http": 200,
+      "outcome": "reversal_applied",
+      "providerReads": 2
+    },
+    {
+      "scenario": "old disputed after restored (13-digit replay)",
+      "tsDigits": 13,
+      "http": 200,
+      "outcome": "provider_snapshot_duplicate",
+      "providerReads": 2
+    },
+    {
+      "scenario": "stale disputed, ts +120 s (13-digit)",
+      "tsDigits": 13,
+      "http": 200,
+      "outcome": "stale_ignored",
+      "providerReads": 2
+    },
+    {
+      "scenario": "approve p3 (10-digit)",
+      "tsDigits": 10,
+      "http": 200,
+      "outcome": "approved",
+      "providerReads": 2
+    },
+    {
+      "scenario": "dispute p3 (13-digit)",
+      "tsDigits": 13,
+      "http": 200,
+      "outcome": "reversal_applied",
+      "providerReads": 2
+    },
+    {
+      "scenario": "buyer won p3 (13-digit)",
+      "tsDigits": 13,
+      "http": 200,
+      "outcome": "reversal_applied",
+      "providerReads": 2
+    },
+    {
+      "scenario": "old approved after revoked (10-digit replay)",
+      "tsDigits": 10,
+      "http": 200,
+      "outcome": "provider_snapshot_duplicate",
+      "providerReads": 2
+    },
+    {
+      "scenario": "old dispute after revoked (13-digit replay)",
+      "tsDigits": 13,
+      "http": 200,
+      "outcome": "provider_snapshot_duplicate",
+      "providerReads": 2
+    },
+    {
+      "scenario": "stale restored after revoked, ts +200 s (13-digit)",
+      "tsDigits": 13,
+      "http": 200,
+      "outcome": "stale_ignored",
+      "providerReads": 2
+    }
+  ],
+  "passed": 9,
+  "total": 9
+}

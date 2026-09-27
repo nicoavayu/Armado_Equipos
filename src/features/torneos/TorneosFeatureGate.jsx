@@ -2,7 +2,7 @@ import React, { lazy, Suspense } from 'react';
 import { Navigate } from 'react-router-dom';
 import AppLoadingScreen from '../../components/AppLoadingScreen';
 import { torneosFeatureFlags } from './config/featureFlags';
-import { resolveTorneosBackendMode } from './foundation/config';
+import { resolveTorneosBackendMode, resolveTorneosBillingMode } from './foundation/config';
 import { isArma2NativeRuntime } from '../../utils/runtimePlatform';
 
 const TorneosApp = lazy(() => import('./TorneosApp'));
@@ -13,6 +13,12 @@ const StagingV1TorneosApp = lazy(() => import('./stagingV1/StagingV1TorneosApp')
 // single-project LOCAL QA stack; anything else stays closed — a staging or
 // preview build without a gateway never serves Torneos from the Core project.
 export const torneosBackendMode = resolveTorneosBackendMode(process.env);
+// MP-A5: the Premium purchase (Checkout Pro TEST) only for the hybrid composition in the local
+// lab — see resolveTorneosBillingMode; `off` everywhere else, whatever a single variable says.
+export const torneosBillingMode = resolveTorneosBillingMode(process.env, {
+  backendMode: torneosBackendMode,
+  appHostname: typeof window === 'undefined' ? null : window.location.hostname,
+});
 
 function Closed({ native, backendMode }) {
   if (native) return <Navigate to="/" replace />;
@@ -45,6 +51,7 @@ export default function TorneosFeatureGate({
     && torneosFeatureFlags.workspacesEnabled
   ),
   backendMode = torneosBackendMode,
+  billingMode = torneosBillingMode,
   service,
   native = isArma2NativeRuntime(),
 }) {
@@ -55,7 +62,7 @@ export default function TorneosFeatureGate({
   if (!service && backendMode.mode === 'hybrid') {
     return (
       <Suspense fallback={<AppLoadingScreen />}>
-        <StagingV1TorneosApp gatewayUrl={backendMode.gatewayUrl} />
+        <StagingV1TorneosApp gatewayUrl={backendMode.gatewayUrl} billingMode={billingMode} />
       </Suspense>
     );
   }

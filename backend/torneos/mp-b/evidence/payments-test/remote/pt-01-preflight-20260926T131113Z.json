@@ -1,0 +1,486 @@
+{
+ "tool": "backend/torneos/infra/torneos-payments-test/payments-session.mjs",
+ "generated_at": "2026-09-26T13:11:13.757Z",
+ "verdict": "PAYMENTS_PREFLIGHT_PASS",
+ "read_only": true,
+ "failures": [],
+ "core": {
+  "prod": {
+   "ref": "rcyuuoaqfwcembdajcss",
+   "name": "nicoavayu's Project",
+   "organization_slug": "gwqrborhnqjdzzmpxulh",
+   "region": "sa-east-1",
+   "status": "ACTIVE_HEALTHY"
+  },
+  "prodFn": {
+   "slug": "torneos-core-contract",
+   "status": "ACTIVE",
+   "version": 3,
+   "verify_jwt": false,
+   "ezbr_sha256": "1072419517953eee8e8021f9691d1a5b1efb1f871c4d13290f644d119caded2c"
+  },
+  "staging": {
+   "ref": "hhyvmhgpapyuzjgxfnqv",
+   "name": "arma2-torneos-staging",
+   "organization_slug": "gwqrborhnqjdzzmpxulh",
+   "region": "us-east-1",
+   "status": "INACTIVE"
+  },
+  "old": {
+   "ref": "giaeztyghmhzcngskjmw",
+   "name": "Arma2",
+   "organization_slug": "gwqrborhnqjdzzmpxulh",
+   "region": "us-west-2",
+   "status": "INACTIVE"
+  },
+  "torneos": {
+   "ref": "onzpwnqxnvlgsevivngf",
+   "name": "Arma2 Torneos",
+   "organization_slug": "gwqrborhnqjdzzmpxulh",
+   "region": "sa-east-1",
+   "status": "ACTIVE_HEALTHY"
+  },
+  "org": {
+   "slug": "gwqrborhnqjdzzmpxulh",
+   "plan": "free"
+  },
+  "projects": [
+   {
+    "ref": "giaeztyghmhzcngskjmw",
+    "name": "Arma2",
+    "organization_slug": "gwqrborhnqjdzzmpxulh",
+    "region": "us-west-2",
+    "status": "INACTIVE"
+   },
+   {
+    "ref": "hhyvmhgpapyuzjgxfnqv",
+    "name": "arma2-torneos-staging",
+    "organization_slug": "gwqrborhnqjdzzmpxulh",
+    "region": "us-east-1",
+    "status": "INACTIVE"
+   },
+   {
+    "ref": "onzpwnqxnvlgsevivngf",
+    "name": "Arma2 Torneos",
+    "organization_slug": "gwqrborhnqjdzzmpxulh",
+    "region": "sa-east-1",
+    "status": "ACTIVE_HEALTHY"
+   },
+   {
+    "ref": "rcyuuoaqfwcembdajcss",
+    "name": "nicoavayu's Project",
+    "organization_slug": "gwqrborhnqjdzzmpxulh",
+    "region": "sa-east-1",
+    "status": "ACTIVE_HEALTHY"
+   }
+  ]
+ },
+ "torneos": {
+  "functions": [],
+  "health": [
+   {
+    "name": "auth",
+    "status": "ACTIVE_HEALTHY"
+   },
+   {
+    "name": "db",
+    "status": "ACTIVE_HEALTHY"
+   },
+   {
+    "name": "pooler",
+    "status": "ACTIVE_HEALTHY"
+   },
+   {
+    "name": "rest",
+    "status": "ACTIVE_HEALTHY"
+   },
+   {
+    "name": "db_postgres_user",
+    "status": "ACTIVE_HEALTHY"
+   }
+  ],
+  "secret_names": [],
+  "auth": {
+   "state": "applied",
+   "problems": [],
+   "differs": []
+  },
+  "b03": {
+   "state": "applied",
+   "id": "94fe4602-23f6-4b5f-b606-36797d804bec",
+   "resolved_at": "2026-09-26T01:58:09.892+00:00"
+  },
+  "pooler": {
+   "hosts": [
+    "aws-0-sa-east-1.pooler.supabase.com"
+   ],
+   "modes": [
+    "transaction"
+   ],
+   "tls": [
+    {
+     "host": "aws-0-sa-east-1.pooler.supabase.com",
+     "port": 5432,
+     "pass": true,
+     "exit": 0,
+     "verification": "OK",
+     "protocol": "TLSv1.3",
+     "peer_cn": "*.pooler.supabase.com",
+     "hostname_verified": "aws-0-sa-east-1.pooler.supabase.com"
+    },
+    {
+     "host": "aws-0-sa-east-1.pooler.supabase.com",
+     "port": 6543,
+     "pass": true,
+     "exit": 0,
+     "verification": "OK",
+     "protocol": "TLSv1.3",
+     "peer_cn": "*.pooler.supabase.com",
+     "hostname_verified": "aws-0-sa-east-1.pooler.supabase.com"
+    }
+   ]
+  },
+  "installer": {
+   "createrole": true,
+   "super": false,
+   "admin_on_payment_role": true
+  },
+  "payment_login": "absent",
+  "payment_roles": {
+   "login": null,
+   "login_memberships": [],
+   "login_members": [],
+   "reachable_roles": [],
+   "payment_logins": [],
+   "role": {
+    "login": false,
+    "inherit": false,
+    "super": false,
+    "bypassrls": false,
+    "createrole": false
+   },
+   "role_executes": [
+    "apply_verified_tournament_payment_reversal(uuid,text,text,text,text,text,text,timestamp with time zone)",
+    "apply_verified_tournament_payment_status(uuid,text,text,text,text,text,text,timestamp with time zone)",
+    "get_provider_tournament_purchase(text,text,text)",
+    "record_tournament_purchase_preference(uuid,text,text,text,timestamp with time zone)"
+   ],
+   "role_table_privileges": 0,
+   "role_schema_create": []
+  },
+  "gateway_roles": {
+   "logins": [
+    {
+     "name": "torneos_edge_core_adapter",
+     "login": true,
+     "inherit": false,
+     "super": false,
+     "createrole": false,
+     "createdb": false,
+     "replication": false,
+     "bypassrls": false,
+     "connlimit": -1,
+     "valid_until": null,
+     "config": null
+    },
+    {
+     "name": "torneos_edge_identity_writer",
+     "login": true,
+     "inherit": false,
+     "super": false,
+     "createrole": false,
+     "createdb": false,
+     "replication": false,
+     "bypassrls": false,
+     "connlimit": -1,
+     "valid_until": null,
+     "config": null
+    }
+   ],
+   "memberships": [
+    {
+     "role": "torneos_core_adapter",
+     "member": "torneos_edge_core_adapter",
+     "admin": false,
+     "inherit": false,
+     "set": true
+    },
+    {
+     "role": "torneos_edge_core_adapter",
+     "member": "postgres",
+     "admin": true,
+     "inherit": false,
+     "set": false
+    },
+    {
+     "role": "torneos_edge_identity_writer",
+     "member": "postgres",
+     "admin": true,
+     "inherit": false,
+     "set": false
+    },
+    {
+     "role": "torneos_identity_writer",
+     "member": "torneos_edge_identity_writer",
+     "admin": false,
+     "inherit": false,
+     "set": true
+    }
+   ],
+   "payment_logins": 0,
+   "login_member_of_api_role": 0,
+   "authenticator_config": [
+    "pgrst.db_pre_request=private.check_token"
+   ],
+   "auth_users": 0,
+   "installer": {
+    "user": "supabase_read_only_user",
+    "super": false,
+    "createrole": false,
+    "admin_on_authenticator": false,
+    "admin_on_identity_writer": false,
+    "admin_on_core_adapter": false
+   },
+   "edge_login_can_set_role": {
+    "torneos_edge_identity_writer": true,
+    "torneos_edge_core_adapter": true
+   }
+  },
+  "census": {
+   "auth_users": 0,
+   "identities": 1,
+   "organizations": 0,
+   "organizations_qa": 0,
+   "organization_members": 0,
+   "seasons": 0,
+   "seasons_outside_qa": 0,
+   "tournaments": 0,
+   "purchases": 0,
+   "purchases_outside_qa": 0,
+   "purchases_not_mp_test": 0,
+   "purchase_events": 0,
+   "purchase_events_outside_qa": 0,
+   "season_grants": 0,
+   "season_grants_outside_qa": 0,
+   "grant_events": 0,
+   "watermarks": 0,
+   "watermarks_outside_qa": 0
+  },
+  "qa_trail": []
+ },
+ "deno": {
+  "apps": [
+   {
+    "id": "5d4f18e9-1614-4e24-b8e0-fd7cff8e4c3d",
+    "slug": "torneos-gateway"
+   }
+  ],
+  "layers": 0,
+  "gateway_app": {
+   "slug": "torneos-gateway",
+   "env_names": [
+    "CORE_ANON_KEY",
+    "CORE_AUTH_URL",
+    "CORE_CONTRACT_URL",
+    "CORE_JWT_ISSUER",
+    "TORNEOS_ALLOWED_ORIGIN",
+    "TORNEOS_ANON_KEY",
+    "TORNEOS_BRIDGE_KEYS",
+    "TORNEOS_CONTRACT_SERVICE_SECRET",
+    "TORNEOS_DB_CORE_ADAPTER_URL",
+    "TORNEOS_DB_IDENTITY_WRITER_URL",
+    "TORNEOS_DB_SSL_CA",
+    "TORNEOS_GATEWAY_PUBLIC_URL",
+    "TORNEOS_REST_URL"
+   ],
+   "layers": []
+  },
+  "payments_app": null,
+  "revisions": []
+ },
+ "gateway_live": {
+  "checks": [
+   {
+    "name": "gateway /health 200 ready",
+    "pass": true,
+    "status": 200
+   },
+   {
+    "name": "gateway commerce route absent (commerce OFF) → 404",
+    "pass": true,
+    "status": 404
+   },
+   {
+    "name": "gateway /config exposes no payments/commerce key",
+    "pass": true,
+    "status": 200
+   }
+  ],
+  "pass": true
+ },
+ "mercado_pago": {
+  "seller_id": "3712890098",
+  "attestation": {
+   "seller_matches": true,
+   "test_user": true,
+   "site": "MLA",
+   "pass": true
+  },
+  "requests": [
+   {
+    "id": "users-me",
+    "kind": "read",
+    "method": "GET",
+    "status": 200
+   }
+  ]
+ },
+ "custody": {
+  "installer": "PRESENT",
+  "payments_login_password": "ABSENT",
+  "internal_hmac_key": "ABSENT"
+ },
+ "bundle": {
+  "head": "4b3f82b4ec920b72c93851341e07d40195773142",
+  "digest": "d3fcd8c0e55cc2ab4c242b0725fca118e2ce52b21b99c2e1013de2341f54fa35",
+  "files": 13
+ },
+ "supabase_requests": [
+  {
+   "id": "prod-project",
+   "kind": "read",
+   "method": "GET",
+   "ref": "rcyuuoaqfwcembdajcss",
+   "status": 200
+  },
+  {
+   "id": "prod-contract-fn",
+   "kind": "read",
+   "method": "GET",
+   "ref": "rcyuuoaqfwcembdajcss",
+   "status": 200
+  },
+  {
+   "id": "project",
+   "kind": "read",
+   "method": "GET",
+   "ref": "hhyvmhgpapyuzjgxfnqv",
+   "status": 200
+  },
+  {
+   "id": "project",
+   "kind": "read",
+   "method": "GET",
+   "ref": "giaeztyghmhzcngskjmw",
+   "status": 200
+  },
+  {
+   "id": "project",
+   "kind": "read",
+   "method": "GET",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 200
+  },
+  {
+   "id": "org",
+   "kind": "read",
+   "method": "GET",
+   "ref": null,
+   "status": 200
+  },
+  {
+   "id": "projects",
+   "kind": "read",
+   "method": "GET",
+   "ref": null,
+   "status": 200
+  },
+  {
+   "id": "functions",
+   "kind": "read",
+   "method": "GET",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 200
+  },
+  {
+   "id": "third-party-auth",
+   "kind": "read",
+   "method": "GET",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 200
+  },
+  {
+   "id": "query",
+   "kind": "read-sql",
+   "method": "POST",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 201
+  },
+  {
+   "id": "query",
+   "kind": "read-sql",
+   "method": "POST",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 201
+  },
+  {
+   "id": "query",
+   "kind": "read-sql",
+   "method": "POST",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 201
+  },
+  {
+   "id": "query",
+   "kind": "read-sql",
+   "method": "POST",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 201
+  },
+  {
+   "id": "query",
+   "kind": "read-sql",
+   "method": "POST",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 201
+  },
+  {
+   "id": "pooler",
+   "kind": "read",
+   "method": "GET",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 200
+  },
+  {
+   "id": "query",
+   "kind": "read-sql",
+   "method": "POST",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 201
+  },
+  {
+   "id": "health",
+   "kind": "read",
+   "method": "GET",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 200
+  },
+  {
+   "id": "secrets",
+   "kind": "read",
+   "method": "GET",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 200
+  },
+  {
+   "id": "auth-config",
+   "kind": "read",
+   "method": "GET",
+   "ref": "onzpwnqxnvlgsevivngf",
+   "status": 200
+  }
+ ],
+ "management_api_writes": 0,
+ "deno_writes": 0,
+ "mp_writes": 0
+}

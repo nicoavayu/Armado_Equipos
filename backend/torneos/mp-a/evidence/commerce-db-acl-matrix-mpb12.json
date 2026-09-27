@@ -1,0 +1,584 @@
+{
+  "source": "live lab stack (0000 + 0001 + 0002)",
+  "delta_manifest": "backend/torneos/mp-a/mp-a2-acl-delta.json",
+  "functions": [
+    {
+      "function": "activate_verified_fake_tournament_purchase(uuid,text,text)",
+      "owner": "supabase_admin",
+      "secdef": true,
+      "settings": [
+        "search_path=\"\""
+      ],
+      "public": false,
+      "anon": false,
+      "authenticated": false,
+      "service_role": true,
+      "torneos_payment_service": false,
+      "torneos_core_adapter": false,
+      "torneos_identity_writer": false,
+      "authenticator": false,
+      "lab_payment_service": false,
+      "lab_identity_writer": false,
+      "lab_core_adapter": false,
+      "expected": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": true,
+        "torneos_payment_service": false,
+        "torneos_core_adapter": false,
+        "torneos_identity_writer": false,
+        "authenticator": false,
+        "lab_payment_service": false,
+        "lab_identity_writer": false,
+        "lab_core_adapter": false
+      }
+    },
+    {
+      "function": "activate_verified_tournament_purchase(uuid,text,text,text,text,text,text)",
+      "owner": "supabase_admin",
+      "secdef": true,
+      "settings": [
+        "search_path=\"\""
+      ],
+      "public": false,
+      "anon": false,
+      "authenticated": false,
+      "service_role": true,
+      "torneos_payment_service": false,
+      "torneos_core_adapter": false,
+      "torneos_identity_writer": false,
+      "authenticator": false,
+      "lab_payment_service": false,
+      "lab_identity_writer": false,
+      "lab_core_adapter": false,
+      "expected": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": true,
+        "torneos_payment_service": false,
+        "torneos_core_adapter": false,
+        "torneos_identity_writer": false,
+        "authenticator": false,
+        "lab_payment_service": false,
+        "lab_identity_writer": false,
+        "lab_core_adapter": false
+      }
+    },
+    {
+      "function": "apply_fake_tournament_payment_status(uuid,text,text,text,text)",
+      "owner": "supabase_admin",
+      "secdef": true,
+      "settings": [
+        "search_path=\"\""
+      ],
+      "public": false,
+      "anon": false,
+      "authenticated": false,
+      "service_role": true,
+      "torneos_payment_service": false,
+      "torneos_core_adapter": false,
+      "torneos_identity_writer": false,
+      "authenticator": false,
+      "lab_payment_service": false,
+      "lab_identity_writer": false,
+      "lab_core_adapter": false,
+      "expected": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": true,
+        "torneos_payment_service": false,
+        "torneos_core_adapter": false,
+        "torneos_identity_writer": false,
+        "authenticator": false,
+        "lab_payment_service": false,
+        "lab_identity_writer": false,
+        "lab_core_adapter": false
+      }
+    },
+    {
+      "function": "apply_tournament_purchase_reversal(uuid,text,text)",
+      "owner": "supabase_admin",
+      "secdef": true,
+      "settings": [
+        "search_path=\"\""
+      ],
+      "public": false,
+      "anon": false,
+      "authenticated": false,
+      "service_role": true,
+      "torneos_payment_service": false,
+      "torneos_core_adapter": false,
+      "torneos_identity_writer": false,
+      "authenticator": false,
+      "lab_payment_service": false,
+      "lab_identity_writer": false,
+      "lab_core_adapter": false,
+      "expected": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": true,
+        "torneos_payment_service": false,
+        "torneos_core_adapter": false,
+        "torneos_identity_writer": false,
+        "authenticator": false,
+        "lab_payment_service": false,
+        "lab_identity_writer": false,
+        "lab_core_adapter": false
+      }
+    },
+    {
+      "function": "apply_verified_tournament_payment_reversal(uuid,text,text,text,text,text,text,timestamp with time zone)",
+      "owner": "supabase_admin",
+      "secdef": true,
+      "settings": [
+        "search_path=\"\""
+      ],
+      "public": false,
+      "anon": false,
+      "authenticated": false,
+      "service_role": false,
+      "torneos_payment_service": true,
+      "torneos_core_adapter": false,
+      "torneos_identity_writer": false,
+      "authenticator": false,
+      "lab_payment_service": false,
+      "lab_identity_writer": false,
+      "lab_core_adapter": false,
+      "expected": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": false,
+        "torneos_payment_service": true,
+        "torneos_core_adapter": false,
+        "torneos_identity_writer": false,
+        "authenticator": false,
+        "lab_payment_service": false,
+        "lab_identity_writer": false,
+        "lab_core_adapter": false
+      }
+    },
+    {
+      "function": "apply_verified_tournament_payment_status(uuid,text,text,text,text,text,text,timestamp with time zone)",
+      "owner": "supabase_admin",
+      "secdef": true,
+      "settings": [
+        "search_path=\"\""
+      ],
+      "public": false,
+      "anon": false,
+      "authenticated": false,
+      "service_role": false,
+      "torneos_payment_service": true,
+      "torneos_core_adapter": false,
+      "torneos_identity_writer": false,
+      "authenticator": false,
+      "lab_payment_service": false,
+      "lab_identity_writer": false,
+      "lab_core_adapter": false,
+      "expected": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": false,
+        "torneos_payment_service": true,
+        "torneos_core_adapter": false,
+        "torneos_identity_writer": false,
+        "authenticator": false,
+        "lab_payment_service": false,
+        "lab_identity_writer": false,
+        "lab_core_adapter": false
+      }
+    },
+    {
+      "function": "cancel_tournament_purchase(uuid)",
+      "owner": "supabase_admin",
+      "secdef": true,
+      "settings": [
+        "search_path=\"\""
+      ],
+      "public": false,
+      "anon": false,
+      "authenticated": false,
+      "service_role": true,
+      "torneos_payment_service": false,
+      "torneos_core_adapter": false,
+      "torneos_identity_writer": false,
+      "authenticator": false,
+      "lab_payment_service": false,
+      "lab_identity_writer": false,
+      "lab_core_adapter": false,
+      "expected": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": true,
+        "torneos_payment_service": false,
+        "torneos_core_adapter": false,
+        "torneos_identity_writer": false,
+        "authenticator": false,
+        "lab_payment_service": false,
+        "lab_identity_writer": false,
+        "lab_core_adapter": false
+      }
+    },
+    {
+      "function": "create_fake_tournament_season_purchase(uuid,uuid,text,uuid,text)",
+      "owner": "supabase_admin",
+      "secdef": true,
+      "settings": [
+        "search_path=\"\""
+      ],
+      "public": false,
+      "anon": false,
+      "authenticated": false,
+      "service_role": true,
+      "torneos_payment_service": false,
+      "torneos_core_adapter": false,
+      "torneos_identity_writer": false,
+      "authenticator": false,
+      "lab_payment_service": false,
+      "lab_identity_writer": false,
+      "lab_core_adapter": false,
+      "expected": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": true,
+        "torneos_payment_service": false,
+        "torneos_core_adapter": false,
+        "torneos_identity_writer": false,
+        "authenticator": false,
+        "lab_payment_service": false,
+        "lab_identity_writer": false,
+        "lab_core_adapter": false
+      }
+    },
+    {
+      "function": "create_tournament_season_checkout_purchase(uuid,uuid,uuid)",
+      "owner": "supabase_admin",
+      "secdef": true,
+      "settings": [
+        "search_path=\"\""
+      ],
+      "public": false,
+      "anon": false,
+      "authenticated": true,
+      "service_role": false,
+      "torneos_payment_service": false,
+      "torneos_core_adapter": false,
+      "torneos_identity_writer": false,
+      "authenticator": false,
+      "lab_payment_service": false,
+      "lab_identity_writer": false,
+      "lab_core_adapter": false,
+      "expected": {
+        "anon": false,
+        "authenticated": true,
+        "service_role": false,
+        "torneos_payment_service": false,
+        "torneos_core_adapter": false,
+        "torneos_identity_writer": false,
+        "authenticator": false,
+        "lab_payment_service": false,
+        "lab_identity_writer": false,
+        "lab_core_adapter": false
+      }
+    },
+    {
+      "function": "create_tournament_season_purchase(uuid,uuid,text,uuid,text,text)",
+      "owner": "supabase_admin",
+      "secdef": true,
+      "settings": [
+        "search_path=\"\""
+      ],
+      "public": false,
+      "anon": false,
+      "authenticated": false,
+      "service_role": true,
+      "torneos_payment_service": false,
+      "torneos_core_adapter": false,
+      "torneos_identity_writer": false,
+      "authenticator": false,
+      "lab_payment_service": false,
+      "lab_identity_writer": false,
+      "lab_core_adapter": false,
+      "expected": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": true,
+        "torneos_payment_service": false,
+        "torneos_core_adapter": false,
+        "torneos_identity_writer": false,
+        "authenticator": false,
+        "lab_payment_service": false,
+        "lab_identity_writer": false,
+        "lab_core_adapter": false
+      }
+    },
+    {
+      "function": "get_effective_tournament_season_entitlements(uuid,uuid)",
+      "owner": "supabase_admin",
+      "secdef": true,
+      "settings": [
+        "search_path=\"\""
+      ],
+      "public": false,
+      "anon": false,
+      "authenticated": true,
+      "service_role": true,
+      "torneos_payment_service": false,
+      "torneos_core_adapter": false,
+      "torneos_identity_writer": false,
+      "authenticator": false,
+      "lab_payment_service": false,
+      "lab_identity_writer": false,
+      "lab_core_adapter": false,
+      "expected": {
+        "anon": false,
+        "authenticated": true,
+        "service_role": true,
+        "torneos_payment_service": false,
+        "torneos_core_adapter": false,
+        "torneos_identity_writer": false,
+        "authenticator": false,
+        "lab_payment_service": false,
+        "lab_identity_writer": false,
+        "lab_core_adapter": false
+      }
+    },
+    {
+      "function": "get_provider_tournament_purchase(text,text,text)",
+      "owner": "supabase_admin",
+      "secdef": true,
+      "settings": [
+        "search_path=\"\""
+      ],
+      "public": false,
+      "anon": false,
+      "authenticated": false,
+      "service_role": false,
+      "torneos_payment_service": true,
+      "torneos_core_adapter": false,
+      "torneos_identity_writer": false,
+      "authenticator": false,
+      "lab_payment_service": false,
+      "lab_identity_writer": false,
+      "lab_core_adapter": false,
+      "expected": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": false,
+        "torneos_payment_service": true,
+        "torneos_core_adapter": false,
+        "torneos_identity_writer": false,
+        "authenticator": false,
+        "lab_payment_service": false,
+        "lab_identity_writer": false,
+        "lab_core_adapter": false
+      }
+    },
+    {
+      "function": "get_tournament_purchase(uuid)",
+      "owner": "supabase_admin",
+      "secdef": true,
+      "settings": [
+        "search_path=\"\""
+      ],
+      "public": false,
+      "anon": false,
+      "authenticated": true,
+      "service_role": true,
+      "torneos_payment_service": false,
+      "torneos_core_adapter": false,
+      "torneos_identity_writer": false,
+      "authenticator": false,
+      "lab_payment_service": false,
+      "lab_identity_writer": false,
+      "lab_core_adapter": false,
+      "expected": {
+        "anon": false,
+        "authenticated": true,
+        "service_role": true,
+        "torneos_payment_service": false,
+        "torneos_core_adapter": false,
+        "torneos_identity_writer": false,
+        "authenticator": false,
+        "lab_payment_service": false,
+        "lab_identity_writer": false,
+        "lab_core_adapter": false
+      }
+    },
+    {
+      "function": "grant_tournament_season_premium(uuid,uuid,uuid,text)",
+      "owner": "supabase_admin",
+      "secdef": true,
+      "settings": [
+        "search_path=\"\""
+      ],
+      "public": false,
+      "anon": false,
+      "authenticated": false,
+      "service_role": true,
+      "torneos_payment_service": false,
+      "torneos_core_adapter": false,
+      "torneos_identity_writer": false,
+      "authenticator": false,
+      "lab_payment_service": false,
+      "lab_identity_writer": false,
+      "lab_core_adapter": false,
+      "expected": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": true,
+        "torneos_payment_service": false,
+        "torneos_core_adapter": false,
+        "torneos_identity_writer": false,
+        "authenticator": false,
+        "lab_payment_service": false,
+        "lab_identity_writer": false,
+        "lab_core_adapter": false
+      }
+    },
+    {
+      "function": "record_tournament_purchase_preference(uuid,text,text,text,timestamp with time zone)",
+      "owner": "supabase_admin",
+      "secdef": true,
+      "settings": [
+        "search_path=\"\""
+      ],
+      "public": false,
+      "anon": false,
+      "authenticated": false,
+      "service_role": true,
+      "torneos_payment_service": true,
+      "torneos_core_adapter": false,
+      "torneos_identity_writer": false,
+      "authenticator": false,
+      "lab_payment_service": false,
+      "lab_identity_writer": false,
+      "lab_core_adapter": false,
+      "expected": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": true,
+        "torneos_payment_service": true,
+        "torneos_core_adapter": false,
+        "torneos_identity_writer": false,
+        "authenticator": false,
+        "lab_payment_service": false,
+        "lab_identity_writer": false,
+        "lab_core_adapter": false
+      }
+    },
+    {
+      "function": "tournament_purchase_projection(tournament_purchases)",
+      "owner": "supabase_admin",
+      "secdef": true,
+      "settings": [
+        "search_path=\"\""
+      ],
+      "public": false,
+      "anon": false,
+      "authenticated": false,
+      "service_role": true,
+      "torneos_payment_service": false,
+      "torneos_core_adapter": false,
+      "torneos_identity_writer": false,
+      "authenticator": false,
+      "lab_payment_service": false,
+      "lab_identity_writer": false,
+      "lab_core_adapter": false,
+      "expected": {
+        "anon": false,
+        "authenticated": false,
+        "service_role": true,
+        "torneos_payment_service": false,
+        "torneos_core_adapter": false,
+        "torneos_identity_writer": false,
+        "authenticator": false,
+        "lab_payment_service": false,
+        "lab_identity_writer": false,
+        "lab_core_adapter": false
+      }
+    }
+  ],
+  "relations": [
+    {
+      "table": "tournament_commercial_offers",
+      "anon": [],
+      "authenticated": [],
+      "service_role": [
+        "SELECT"
+      ],
+      "torneos_payment_service": [],
+      "lab_payment_service": []
+    },
+    {
+      "table": "tournament_commercial_products",
+      "anon": [],
+      "authenticated": [],
+      "service_role": [
+        "SELECT"
+      ],
+      "torneos_payment_service": [],
+      "lab_payment_service": []
+    },
+    {
+      "table": "tournament_plan_grant_events",
+      "anon": [],
+      "authenticated": [],
+      "service_role": [
+        "SELECT"
+      ],
+      "torneos_payment_service": [],
+      "lab_payment_service": []
+    },
+    {
+      "table": "tournament_plan_grants",
+      "anon": [],
+      "authenticated": [],
+      "service_role": [
+        "SELECT"
+      ],
+      "torneos_payment_service": [],
+      "lab_payment_service": []
+    },
+    {
+      "table": "tournament_purchase_events",
+      "anon": [],
+      "authenticated": [],
+      "service_role": [
+        "SELECT"
+      ],
+      "torneos_payment_service": [],
+      "lab_payment_service": []
+    },
+    {
+      "table": "tournament_purchases",
+      "anon": [],
+      "authenticated": [],
+      "service_role": [
+        "SELECT"
+      ],
+      "torneos_payment_service": [],
+      "lab_payment_service": []
+    },
+    {
+      "table": "tournament_season_plan_grant_events",
+      "anon": [],
+      "authenticated": [],
+      "service_role": [
+        "SELECT"
+      ],
+      "torneos_payment_service": [],
+      "lab_payment_service": []
+    },
+    {
+      "table": "tournament_season_plan_grants",
+      "anon": [],
+      "authenticated": [],
+      "service_role": [
+        "SELECT"
+      ],
+      "torneos_payment_service": [],
+      "lab_payment_service": []
+    }
+  ]
+}

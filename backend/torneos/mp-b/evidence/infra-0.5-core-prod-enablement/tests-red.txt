@@ -1,0 +1,673 @@
+(node:18451) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/nicoavayu/Downloads/arma2/arma2-core-prod-contract-enablement/supabase/functions/_shared/torneosCoreContract.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/nicoavayu/Downloads/arma2/arma2-core-prod-contract-enablement/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✖ target: the Production ref is pinned in the contract and is the only accepted target (1.109917ms)
+✖ target: the Staging ref is refused everywhere (guard, request path, body, token, request key) (0.54625ms)
+✖ target: an arbitrary, empty, malformed or unvalidated ref is refused; the tooling takes no ref input at all (0.116792ms)
+✖ target: Production must be ACTIVE_HEALTHY (0.462625ms)
+✖ migrations: exactly the two authorized versions, hashes frozen and equal to the certified Staging pins (0.865916ms)
+✖ migrations: a modified or missing migration file is refused before the PAT is used (0 requests) (0.205917ms)
+✖ migrations: an extra, missing or reordered migration in the plan is refused; the transport refuses any non-pinned write SQL (0.095125ms)
+✖ ledger: the pinned Production baseline (236 rows, read-only capture 2026-09-11) is frozen by hash (0.078959ms)
+✖ ledger: evaluateLedger accepts the baseline (+ our own contract rows) and rejects every deviation (0.134ms)
+✖ ledger: Production decision table — apply | skip | STOP (no reconcile, no mark-as-applied, no repair), in order (0.110875ms)
+✖ ledger: an unexpected Production ledger STOPs the preflight with evidence and 0 writes (0.243083ms)
+✖ prerequisites: the Core objects the contract compiles against must exist with the Production types (0.082541ms)
+✖ preflight: any ambiguous answer (wrong shape, error, non-JSON) is a STOP, never a guess (0.222291ms)
+✖ preflight SQL: every Production probe passes the certified read-only guard (single SELECT, no write verb, no `;`) (0.144167ms)
+✖ custody: the Production Keychain namespace is its own, distinct from every non-production entry (0.2005ms)
+✖ custody: the non-production namespace (and any other) is refused by the guard and by the Keychain helper (0.103958ms)
+✖ custody: secret state machine — generate only when both absent; never regenerate, never reconcile, never copy Staging (0.050875ms)
+✖ custody: a generated value equal to the Staging secret, an unreadable or malformed Keychain value STOPs before any remote write (0.139542ms)
+✖ secret: never in output, evidence, errors or any request other than the single set-secrets body (0.157625ms)
+✖ confirmation: the exact phrase with the plan id is mandatory; y / yes / --force / partial / stale plan id write nothing (0.117792ms)
+✖ non-interactive: no tty, CI, or any flag substitute refuses the write before anything is written (0.14075ms)
+✖ non-interactive: the shell wrapper refuses flags, needs an explicit mode and stops without a tty before reading anything (0.10025ms)
+✖ preflight-only and dry-run: 0 writes — only GET and read_only:true queries, Keychain never written, client never armed (0.13575ms)
+✖ artifact: torneos-core-contract is byte-identical to the certified Staging deploy; any difference STOPs before the PAT (0.171208ms)
+✖ apply (offline): writer-context → v1 → v1.1 → set-secrets → deploy, then 9/9 harness, ACL, app_private, catalog and ledger all certified (0.133541ms)
+✖ apply (offline): a Core secret that differs from the Keychain is a STOP (no reconcile in Production) (0.1175ms)
+✖ apply (offline): state that changes between the preflight and the phrase is a STOP with 0 writes (0.106166ms)
+✖ apply (offline): a catalog change outside the contract after the apply is detected (no other Core object may change) (0.091583ms)
+✖ harness: the 9 certified answers against the REAL handler — PASS, and the same request sequence as the certified Staging probe (0.066334ms)
+✖ harness: classification — no secret, not deployed, wrong secret, Core down, and a response echoing material is flagged (0.058709ms)
+✖ ACL: Production expectations — service_role-only RPC, owner-only app_private (no API-role USAGE), exact object set, no strays (0.105875ms)
+✖ ACL: --acl-only is read-only and certifies an installed contract (and refuses to certify an absent one) (0.108333ms)
+✖ invariant: the certified Staging tooling is byte-identical to d62039c7 (behaviour unchanged) (4.758458ms)
+ℹ tests 33
+ℹ suites 0
+ℹ pass 0
+ℹ fail 33
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 142.436917
+
+✖ failing tests:
+
+test at backend/torneos/infra/core-prod-contract/core-prod.test.mjs:173:1
+✖ target: the Production ref is pinned in the contract and is the only accepted target (1.109917ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + undefined
+  - 'rcyuuoaqfwcembdajcss'
+  
+      at TestContext.<anonymous> (file:///Users/nicoavayu/Downloads/arma2/arma2-core-prod-contract-enablement/backend/torneos/infra/core-prod-contract/core-prod.test.mjs:174:10)
+      at Test.runInAsyncScope (node:async_hooks:213:14)
+      at Test.run (node:internal/test_runner/test:1106:25)
+      at Test.start (node:internal/test_runner/test:1003:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:358:17)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 'rcyuuoaqfwcembdajcss',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at backend/torneos/infra/core-prod-contract/core-prod.test.mjs:182:1
+✖ target: the Staging ref is refused everywhere (guard, request path, body, token, request key) (0.54625ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /ref_is_staging/. Input:
+  
+  'Error: NOT_IMPLEMENTED'
+  
+      at TestContext.<anonymous> (file:///Users/nicoavayu/Downloads/arma2/arma2-core-prod-contract-enablement/backend/torneos/infra/core-prod-contract/core-prod.test.mjs:183:10)
+      at Test.runInAsyncScope (node:async_hooks:213:14)
+      at Test.run (node:internal/test_runner/test:1106:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:788:18)
+      at Test.postRun (node:internal/test_runner/test:1235:19)
+      at Test.run (node:internal/test_runner/test:1163:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: Error: NOT_IMPLEMENTED
+        at Module.ni (file:///Users/nicoavayu/Downloads/arma2/arma2-core-prod-contract-enablement/backend/torneos/infra/core-prod-contract/prod-contract.mjs:3:26)
+        at file:///Users/nicoavayu/Downloads/arma2/arma2-core-prod-contract-enablement/backend/torneos/infra/core-prod-contract/core-prod.test.mjs:183:25
+        at getActual (node:assert:586:5)
+        at strict.throws (node:assert:734:24)
+        at TestContext.<anonymous> (file:///Users/nicoavayu/Downloads/arma2/arma2-core-prod-contract-enablement/backend/torneos/infra/core-prod-contract/core-prod.test.mjs:183:10)
+        at Test.runInAsyncScope (node:async_hooks:213:14)
+        at Test.run (node:internal/test_runner/test:1106:25)
+        at Test.processPendingSubtests (node:internal/test_runner/test:788:18)
+        at Test.postRun (node:internal/test_runner/test:1235:19)
+        at Test.run (node:internal/test_runner/test:1163:12),
+    expected: /ref_is_staging/,
+    operator: 'throws',
+    diff: 'simple'
+  }
+
+test at backend/torneos/infra/core-prod-contract/core-prod.test.mjs:192:1
+✖ target: an arbitrary, empty, malformed or unvalidated ref is refused; the tooling takes no ref input at all (0.116792ms)
+  AssertionError [ERR_ASSERTION]: The error is expected to be an instance of "ProdContractError". Received "Error"
+  
+  Error message:
+  
+  NOT_IMPLEMENTED
+      at TestContext.<anonymous> (file:///Users/nicoavayu/Downloads/arma2/arma2-core-prod-contract-enablement/backend/torneos/infra/core-prod-contract/core-prod.test.mjs:194:12)
+      at Test.runInAsyncScope (node:async_hooks:213:14)
+      at Test.run (node:internal/test_runner/test:1106:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:788:18)
+      at Test.postRun (node:internal/test_runner/test:1235:19)
+      at Test.run (node:internal/test_runner/test:1163:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:788:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: Error: NOT_IMPLEMENTED
+        at Module.ni (file:///Users/nicoavayu/Downloads/arma2/arma2-core-prod-contract-enablement/backend/torneos/infra/core-prod-contract/prod-contract.mjs:3:26)
+        at file:///Users/nicoavayu/Downloads/arma2/arma2-core-prod-contract-enablement/backend/torneos/infra/core-prod-contract/core-prod.test.mjs:194:27
+        at getActual (node:assert:586:5)
+        at strict.throws (node:assert:734:24)
+        at TestContext.<anonymous> (file:///Users/nicoavayu/Downloads/arma2/arma2-core-prod-contract-enablement/backend/torneos/infra/core-prod-contract/core-prod.test.mjs:194:12)
+        at Test.runInAsyncScope (node:async_hooks:213:14)
+        at Test.run (node:internal/test_runner/test:1106:25)
+        at Test.processPendingSubtests (node:internal/test_runner/test:788:18)
+        at Test.postRun (node:internal/test_runner/test:1235:19)
+        at Test.run (node:internal/test_runner/test:1163:12),
+    operator: 'throws',
+    diff: 'simple'
+  }
+
+test at backend/torneos/infra/core-prod-contract/core-prod.test.mjs:209:1
+✖ target: Production must be ACTIVE_HEALTHY (0.462625ms)
+  Error: NOT_IMPLEMENTED
+      at runProd (file:///Users/nicoavayu/Downloads/arma2/arma2-core-prod-contract-enablement/backend/torneos/infra/core-prod-contract/core-prod-deploy.mjs:4:41)
+      at run (file:///Users/nicoavayu/Downloads/arma2/arma2-core-prod-contract-enablement/backend/torneos/infra/core-prod-contract/core-prod.test.mjs:169:50)
+      at TestContext.<anonymous> (file:///Users/nicoavayu/Downloads/arma2/arma2-core-prod-contract-enablement/backend/torneos/infra/core-prod-contract/core-prod.test.mjs:212:33)
+      at Test.runInAsyncScope (node:async_hooks:213:14)
+      at Test.run (node:internal/test_runner/test:1106:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:788:18)
+      at Test.postRun (node:internal/test_runner/test:1235:19)
+      at Test.run (node:internal/test_runner/test:1163:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:788:7)
+
+test at backend/torneos/infra/core-prod-contract/core-prod.test.mjs:218:1
+✖ migrations: exactly the two authorized versions, hashes frozen and equal to the certified Staging pins (0.865916ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+  + []
+  - [
+  -   '20260914120000_torneos_core_contract_v1',
+  -   '20260915120000_torneos_core_contract_v1_1_session'
+  - ]
+  
+      at TestContext.<anonymous> (file:///Users/nicoavayu/Downloads/arma2/arma2-core-prod-contract-enablement/backend/torneos/infra/core-prod-contract/core-prod.test.mjs:219:10)
+      at Test.runInAsyncScope (node:async_hooks:213:14)
+      at Test.run (node:internal/test_runner/test:1106:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:788:18)
+      at Test.postRun (node:internal/test_runner/test:1235:19)
+      at Test.run (node:internal/test_runner/test:1163:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:788:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [],
+    expected: [ '20260914120000_torneos_core_contract_v1', '20260915120000_torneos_core_contract_v1_1_session' ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at backend/torneos/infra/core-prod-contract/core-prod.test.mjs:245:1
+✖ migrations: a modified or missing migration file is refused before the PAT is used (0 requests) (0.205917ms)
+  TypeError: Cannot read properties of undefined (reading 'file')
+      at file:///Users/nicoavayu/Downloads/arma2/arma2-core-prod-contract-enablement/backend/torneos/infra/core-prod-contract/core-prod.test.mjs:246:94
+      at tempRepo (file:///Users/nicoavayu/Downloads/arma2/arma2-core-prod-contract-enablement/backend/torneos/infra/core-prod-contract/core-prod.test.mjs:241:3)
+      at TestContext.<anonymous> (file:///Users/nicoavayu/Downloads/arma2/arma2-core-prod-contract-enablement/backend/torneos/infra/core-prod-contract/core-prod.test.mjs:246:20)
+      at Test.runInAsyncScope (node:async_hooks:213:14)
+      at Test.run (node:internal/test_runner/test:1106:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:788:18)
+      at Test.postRun (node:internal/test_runner/test:1235:19)
+      at Test.run (node:internal/test_runner/test:1163:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:788:7)
+
+test at backend/torneos/infra/core-prod-contract/core-prod.test.mjs:258:1
+✖ migrations: an extra, missing or reordered migration in the plan is refused; the transport refuses any non-pinned write SQL (0.095125ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /migration_not_authorized/. Input:
+  
+  'Error: NOT_IMPLEMENTED'
+  
+      at TestContext.<anonymous> (file:///Users/nicoavayu/Downloads/arma2/arma2-core-prod-contract-enablement/backend/torneos/infra/core-prod-contract/core-prod.test.mjs:259:10)
+      at Test.runInAsyncScope (node:async_hooks:213:14)
+      at Test.run (node:internal/test_runner/test:1106:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:788:18)
+      at Test.postRun (node:internal/test_runner/test:1235:19)
+      at Test.run (node:internal/test_runner/test:1163:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:788:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: Error: NOT_IMPLEMENTED
+        at Module.ni (file:///Users/nicoavayu/Downloads/arma2/arma2-core-prod-contract-enablement/backend/torneos/infra/core-prod-contract/prod-contract.mjs:3:26)
+        at file:///Users/nicoavayu/Downloads/arma2/arma2-core-prod-contract-enablement/backend/torneos/infra/core-prod-contract/core-prod.test.mjs:259:25
+        at getActual (node:assert:586:5)
+        at strict.throws (node:assert:734:24)
+        at TestContext.<anonymous> (file:///Users/nicoavayu/Downloads/arma2/arma2-core-prod-contract-enablement/backend/torneos/infra/core-prod-contract/core-prod.test.mjs:259:10)
+        at Test.runInAsyncScope (node:async_hooks:213:14)
+        at Test.run (node:internal/test_runner/test:1106:25)
+        at Test.processPendingSubtests (node:internal/test_runner/test:788:18)
+        at Test.postRun (node:internal/test_runner/test:1235:19)
+        at Test.run (node:internal/test_runner/test:1163:12),
+    expected: /migration_not_authorized/,
+    operator: 'throws',
+    diff: 'simple'
+  }
+
+test at backend/torneos/infra/core-prod-contract/core-prod.test.mjs:274:1
+✖ ledger: the pinned Production baseline (236 rows, read-only capture 2026-09-11) is frozen by hash (0.078959ms)
+  Error: ENOENT: no such file or directory, open 'pins/production-ledger-baseline.json'
+      at Object.openSync (node:fs:555:18)
+      at Object.readFileSync (node:fs:439:35)
+      at TestContext.<anonymous> (file:///Users/nicoavayu/Downloads/arma2/arma2-core-prod-contract-enablement/backend/torneos/infra/core-prod-contract/core-prod.test.mjs:275:19)
+      at Test.runInAsyncScope (node:async_hooks:213:14)
+      at Test.run (node:internal/test_runner/test:1106:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:788:18)
+      at Test.postRun (node:internal/test_runner/test:1235:19)
+      at Test.run (node:internal/test_runner/test:1163:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:788:7) {
+    errno: -2,
+    code: 'ENOENT',
+    syscall: 'open',
+    path: 'pins/production-ledger-baseline.json'
+  }
+
+test at backend/torneos/infra/core-prod-contract/core-prod.test.mjs:286:1
+✖ ledger: evaluateLedger accepts the baseline (+ our own contract rows) and rejects every deviation (0.134ms)
+  Error: NOT_IMPLEMENTED
+      at Module.ni (file:///Users/nicoavayu/Downloads/arma2/arma2-core-prod-contract-enablement/backend/torneos/infra/core-prod-contract/prod-contract.mjs:3:26)
+      at TestContext.<anonymous> (file:///Users/nicoavayu/Downloads/arma2/arma2-core-prod-contract-enablement/backend/torneos/infra/core-prod-contract/core-prod.test.mjs:288:18)
+      at Test.runInAsyncScope (node:async_hooks:213:14)
+      at Test.run (node:internal/test_runner/test:1106:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:788:18)
+      at Test.postRun (node:internal/test_runner/test:1235:19)
+      at Test.run (node:internal/test_runner/test:1163:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:788:7)
+
+test at backend/torneos/infra/core-prod-contract/core-prod.test.mjs:309:1
+✖ ledger: Production decision table — apply | skip | STOP (no reconcile, no mark-as-applied, no repair), in order (0.110875ms)
+  Error: NOT_IMPLEMENTED
+      at Module.ni (file:///Users/nicoavayu/Downloads/arma2/arma2-core-prod-contract-enablement/backend/torneos/infra/core-prod-contract/prod-contract.mjs:3:26)
+      at TestContext.<anonymous> (file:///Users/nicoavayu/Downloads/arma2/arma2-core-prod-contract-enablement/backend/torneos/infra/core-prod-contract/core-prod.test.mjs:310:18)
+      at Test.runInAsyncScope (node:async_hooks:213:14)
+      at Test.run (node:internal/test_runner/test:1106:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:788:18)
+      at Test.postRun (node:internal/test_runner/test:1235:19)
+      at Test.run (node:internal/test_runner/test:1163:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:788:7)
+
+test at backend/torneos/infra/core-prod-contract/core-prod.test.mjs:322:1
+✖ ledger: an unexpected Production ledger STOPs the preflight with evidence and 0 writes (0.243083ms)
+  Error: NOT_IMPLEMENTED
+      at runProd (file:///Users/nicoavayu/Downloads/arma2/arma2-core-prod-contract-enablement/backend/torneos/infra/core-prod-contract/core-prod-deploy.mjs:4:41)
+      at run (file:///Users/nicoavayu/Downloads/arma2/arma2-core-prod-contract-enablement/backend/torneos/infra/core-prod-contract/core-prod.test.mjs:169:50)
+      at TestContext.<anonymous> (file:///Users/nicoavayu/Downloads/arma2/arma2-core-prod-contract-enablement/backend/torneos/infra/core-prod-contract/core-prod.test.mjs:333:33)
+      at Test.runInAsyncScope (node:async_hooks:213:14)
+      at Test.run (node:internal/test_runner/test:1106:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:788:18)
+      at Test.postRun (node:internal/test_runner/test:1235:19)
+      at Test.run (node:internal/test_runner/test:1163:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:788:7)
+
+test at backend/torneos/infra/core-prod-contract/core-prod.test.mjs:342:1
+✖ prerequisites: the Core objects the contract compiles against must exist with the Production types (0.082541ms)
+  Error: NOT_IMPLEMENTED
+      at Module.ni (file:///Users/nicoavayu/Downloads/arma2/arma2-core-prod-contract-enablement/backend/torneos/infra/core-prod-contract/prod-contract.mjs:3:26)
+      at TestContext.<anonymous> (file:///Users/nicoavayu/Downloads/arma2/arma2-core-prod-contract-enablement/backend/torneos/infra/core-prod-contract/core-prod.test.mjs:343:22)
+      at Test.runInAsyncScope (node:async_hooks:213:14)
+      at Test.run (node:internal/test_runner/test:1106:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:788:18)
+      at Test.postRun (node:internal/test_runner/test:1235:19)
+      at Test.run (node:internal/test_runner/test:1163:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:788:7)
+
+test at backend/torneos/infra/core-prod-contract/core-prod.test.mjs:353:1
+✖ preflight: any ambiguous answer (wrong shape, error, non-JSON) is a STOP, never a guess (0.222291ms)
+  Error: NOT_IMPLEMENTED
+      at runProd (file:///Users/nicoavayu/Downloads/arma2/arma2-core-prod-contract-enablement/backend/torneos/infra/core-prod-contract/core-prod-deploy.mjs:4:41)
+      at run (file:///Users/nicoavayu/Downloads/arma2/arma2-core-prod-contract-enablement/backend/torneos/infra/core-prod-contract/core-prod.test.mjs:169:50)
+      at TestContext.<anonymous> (file:///Users/nicoavayu/Downloads/arma2/arma2-core-prod-contract-enablement/backend/torneos/infra/core-prod-contract/core-prod.test.mjs:356:33)
+      at Test.runInAsyncScope (node:async_hooks:213:14)
+      at Test.run (node:internal/test_runner/test:1106:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:788:18)
+      at Test.postRun (node:internal/test_runner/test:1235:19)
+      at Test.run (node:internal/test_runner/test:1163:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:788:7)
+
+test at backend/torneos/infra/core-prod-contract/core-prod.test.mjs:364:1
+✖ preflight SQL: every Production probe passes the certified read-only guard (single SELECT, no write verb, no `;`) (0.144167ms)
+  AssertionError [ERR_ASSERTION]: Got unwanted exception.
+  Actual message: "sql_empty__ABORT"
+      at TestContext.<anonymous> (file:///Users/nicoavayu/Downloads/arma2/arma2-core-prod-contract-enablement/backend/torneos/infra/core-prod-contract/core-prod.test.mjs:365:115)
+      at Test.runInAsyncScope (node:async_hooks:213:14)
+      at Test.run (node:internal/test_runner/test:1106:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:788:18)
+      at Test.postRun (node:internal/test_runner/test:1235:19)
+      at Test.run (node:internal/test_runner/test:1163:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:788:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: Error: sql_empty__ABORT
+        at fail (file:///Users/nicoavayu/Downloads/arma2/arma2-core-prod-contract-enablement/backend/torneos/phase3b/remote/mgmt.mjs:51:30)
+        at assertReadOnlySql (file:///Users/nicoavayu/Downloads/arma2/arma2-core-prod-contract-enablement/backend/torneos/phase3b/remote/mgmt.mjs:69:47)
+        at file:///Users/nicoavayu/Downloads/arma2/arma2-core-prod-contract-enablement/backend/torneos/infra/core-prod-contract/core-prod.test.mjs:365:134
+        at getActual (node:assert:586:5)
+        at strict.doesNotThrow (node:assert:754:32)
+        at TestContext.<anonymous> (file:///Users/nicoavayu/Downloads/arma2/arma2-core-prod-contract-enablement/backend/torneos/infra/core-prod-contract/core-prod.test.mjs:365:115)
+        at Test.runInAsyncScope (node:async_hooks:213:14)
+        at Test.run (node:internal/test_runner/test:1106:25)
+        at Test.processPendingSubtests (node:internal/test_runner/test:788:18)
+        at Test.postRun (node:internal/test_runner/test:1235:19),
+    expected: undefined,
+    operator: 'doesNotThrow',
+    diff: 'simple'
+  }
+
+test at backend/torneos/infra/core-prod-contract/core-prod.test.mjs:370:1
+✖ custody: the Production Keychain namespace is its own, distinct from every non-production entry (0.2005ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+  + {}
+  - {
+  -   account: 'contract-secret',
+  -   service: 'arma2-torneos-prod-core-contract'
+  - }
+  
+      at TestContext.<anonymous> (file:///Users/nicoavayu/Downloads/arma2/arma2-core-prod-contract-enablement/backend/torneos/infra/core-prod-contract/core-prod.test.mjs:371:10)
+      at Test.runInAsyncScope (node:async_hooks:213:14)
+      at Test.run (node:internal/test_runner/test:1106:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:788:18)
+      at Test.postRun (node:internal/test_runner/test:1235:19)
+      at Test.run (node:internal/test_runner/test:1163:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:788:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: {},
+    expected: { service: 'arma2-torneos-prod-core-contract', account: 'contract-secret' },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at backend/torneos/infra/core-prod-contract/core-prod.test.mjs:383:1
+✖ custody: the non-production namespace (and any other) is refused by the guard and by the Keychain helper (0.103958ms)
+  AssertionError [ERR_ASSERTION]: {"service":"arma2-torneos-nonprod-core","account":"contract-secret"}
+      at TestContext.<anonymous> (file:///Users/nicoavayu/Downloads/arma2/arma2-core-prod-contract-enablement/backend/torneos/infra/core-prod-contract/core-prod.test.mjs:385:12)
+      at Test.runInAsyncScope (node:async_hooks:213:14)
+      at Test.run (node:internal/test_runner/test:1106:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:788:18)
+      at Test.postRun (node:internal/test_runner/test:1235:19)
+      at Test.run (node:internal/test_runner/test:1163:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:788:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: Error: NOT_IMPLEMENTED
+        at Module.ni (file:///Users/nicoavayu/Downloads/arma2/arma2-core-prod-contract-enablement/backend/torneos/infra/core-prod-contract/prod-contract.mjs:3:26)
+        at file:///Users/nicoavayu/Downloads/arma2/arma2-core-prod-contract-enablement/backend/torneos/infra/core-prod-contract/core-prod.test.mjs:385:27
+        at getActual (node:assert:586:5)
+        at strict.throws (node:assert:734:24)
+        at TestContext.<anonymous> (file:///Users/nicoavayu/Downloads/arma2/arma2-core-prod-contract-enablement/backend/torneos/infra/core-prod-contract/core-prod.test.mjs:385:12)
+        at Test.runInAsyncScope (node:async_hooks:213:14)
+        at Test.run (node:internal/test_runner/test:1106:25)
+        at Test.processPendingSubtests (node:internal/test_runner/test:788:18)
+        at Test.postRun (node:internal/test_runner/test:1235:19)
+        at Test.run (node:internal/test_runner/test:1163:12),
+    operator: 'throws',
+    diff: 'simple'
+  }
+
+test at backend/torneos/infra/core-prod-contract/core-prod.test.mjs:400:1
+✖ custody: secret state machine — generate only when both absent; never regenerate, never reconcile, never copy Staging (0.050875ms)
+  Error: NOT_IMPLEMENTED
+      at Module.ni (file:///Users/nicoavayu/Downloads/arma2/arma2-core-prod-contract-enablement/backend/torneos/infra/core-prod-contract/prod-contract.mjs:3:26)
+      at TestContext.<anonymous> (file:///Users/nicoavayu/Downloads/arma2/arma2-core-prod-contract-enablement/backend/torneos/infra/core-prod-contract/core-prod.test.mjs:401:18)
+      at Test.runInAsyncScope (node:async_hooks:213:14)
+      at Test.run (node:internal/test_runner/test:1106:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:788:18)
+      at Test.postRun (node:internal/test_runner/test:1235:19)
+      at Test.run (node:internal/test_runner/test:1163:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:788:7)
+
+test at backend/torneos/infra/core-prod-contract/core-prod.test.mjs:412:1
+✖ custody: a generated value equal to the Staging secret, an unreadable or malformed Keychain value STOPs before any remote write (0.139542ms)
+  Error: NOT_IMPLEMENTED
+      at runProd (file:///Users/nicoavayu/Downloads/arma2/arma2-core-prod-contract-enablement/backend/torneos/infra/core-prod-contract/core-prod-deploy.mjs:4:41)
+      at run (file:///Users/nicoavayu/Downloads/arma2/arma2-core-prod-contract-enablement/backend/torneos/infra/core-prod-contract/core-prod.test.mjs:169:50)
+      at TestContext.<anonymous> (file:///Users/nicoavayu/Downloads/arma2/arma2-core-prod-contract-enablement/backend/torneos/infra/core-prod-contract/core-prod.test.mjs:414:31)
+      at Test.runInAsyncScope (node:async_hooks:213:14)
+      at Test.run (node:internal/test_runner/test:1106:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:788:18)
+      at Test.postRun (node:internal/test_runner/test:1235:19)
+      at Test.run (node:internal/test_runner/test:1163:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:788:7)
+
+test at backend/torneos/infra/core-prod-contract/core-prod.test.mjs:428:1
+✖ secret: never in output, evidence, errors or any request other than the single set-secrets body (0.157625ms)
+  Error: NOT_IMPLEMENTED
+      at runProd (file:///Users/nicoavayu/Downloads/arma2/arma2-core-prod-contract-enablement/backend/torneos/infra/core-prod-contract/core-prod-deploy.mjs:4:41)
+      at run (file:///Users/nicoavayu/Downloads/arma2/arma2-core-prod-contract-enablement/backend/torneos/infra/core-prod-contract/core-prod.test.mjs:169:50)
+      at TestContext.<anonymous> (file:///Users/nicoavayu/Downloads/arma2/arma2-core-prod-contract-enablement/backend/torneos/infra/core-prod-contract/core-prod.test.mjs:430:21)
+      at Test.runInAsyncScope (node:async_hooks:213:14)
+      at Test.run (node:internal/test_runner/test:1106:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:788:18)
+      at Test.postRun (node:internal/test_runner/test:1235:19)
+      at Test.run (node:internal/test_runner/test:1163:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:788:7)
+
+test at backend/torneos/infra/core-prod-contract/core-prod.test.mjs:449:1
+✖ confirmation: the exact phrase with the plan id is mandatory; y / yes / --force / partial / stale plan id write nothing (0.117792ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + undefined
+  - 'DEPLOY TORNEOS CORE CONTRACT TO PRODUCTION'
+  
+      at TestContext.<anonymous> (file:///Users/nicoavayu/Downloads/arma2/arma2-core-prod-contract-enablement/backend/torneos/infra/core-prod-contract/core-prod.test.mjs:450:10)
+      at Test.runInAsyncScope (node:async_hooks:213:14)
+      at Test.run (node:internal/test_runner/test:1106:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:788:18)
+      at Test.postRun (node:internal/test_runner/test:1235:19)
+      at Test.run (node:internal/test_runner/test:1163:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:788:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 'DEPLOY TORNEOS CORE CONTRACT TO PRODUCTION',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at backend/torneos/infra/core-prod-contract/core-prod.test.mjs:469:1
+✖ non-interactive: no tty, CI, or any flag substitute refuses the write before anything is written (0.14075ms)
+  Error: NOT_IMPLEMENTED
+      at runProd (file:///Users/nicoavayu/Downloads/arma2/arma2-core-prod-contract-enablement/backend/torneos/infra/core-prod-contract/core-prod-deploy.mjs:4:41)
+      at run (file:///Users/nicoavayu/Downloads/arma2/arma2-core-prod-contract-enablement/backend/torneos/infra/core-prod-contract/core-prod.test.mjs:169:50)
+      at TestContext.<anonymous> (file:///Users/nicoavayu/Downloads/arma2/arma2-core-prod-contract-enablement/backend/torneos/infra/core-prod-contract/core-prod.test.mjs:471:31)
+      at Test.runInAsyncScope (node:async_hooks:213:14)
+      at Test.run (node:internal/test_runner/test:1106:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:788:18)
+      at Test.postRun (node:internal/test_runner/test:1235:19)
+      at Test.run (node:internal/test_runner/test:1163:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:788:7)
+
+test at backend/torneos/infra/core-prod-contract/core-prod.test.mjs:483:1
+✖ non-interactive: the shell wrapper refuses flags, needs an explicit mode and stops without a tty before reading anything (0.10025ms)
+  Error: ENOENT: no such file or directory, open '/Users/nicoavayu/Downloads/arma2/arma2-core-prod-contract-enablement/backend/torneos/infra/core-prod-contract/deploy-core-contract-prod.sh'
+      at Object.readFileSync (node:fs:435:20)
+      at TestContext.<anonymous> (file:///Users/nicoavayu/Downloads/arma2/arma2-core-prod-contract-enablement/backend/torneos/infra/core-prod-contract/core-prod.test.mjs:485:19)
+      at Test.runInAsyncScope (node:async_hooks:213:14)
+      at Test.run (node:internal/test_runner/test:1106:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:788:18)
+      at Test.postRun (node:internal/test_runner/test:1235:19)
+      at Test.run (node:internal/test_runner/test:1163:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:788:7) {
+    errno: -2,
+    code: 'ENOENT',
+    syscall: 'open',
+    path: '/Users/nicoavayu/Downloads/arma2/arma2-core-prod-contract-enablement/backend/torneos/infra/core-prod-contract/deploy-core-contract-prod.sh'
+  }
+
+test at backend/torneos/infra/core-prod-contract/core-prod.test.mjs:507:1
+✖ preflight-only and dry-run: 0 writes — only GET and read_only:true queries, Keychain never written, client never armed (0.13575ms)
+  Error: NOT_IMPLEMENTED
+      at runProd (file:///Users/nicoavayu/Downloads/arma2/arma2-core-prod-contract-enablement/backend/torneos/infra/core-prod-contract/core-prod-deploy.mjs:4:41)
+      at run (file:///Users/nicoavayu/Downloads/arma2/arma2-core-prod-contract-enablement/backend/torneos/infra/core-prod-contract/core-prod.test.mjs:169:50)
+      at TestContext.<anonymous> (file:///Users/nicoavayu/Downloads/arma2/arma2-core-prod-contract-enablement/backend/torneos/infra/core-prod-contract/core-prod.test.mjs:511:25)
+      at Test.runInAsyncScope (node:async_hooks:213:14)
+      at Test.run (node:internal/test_runner/test:1106:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:788:18)
+      at Test.postRun (node:internal/test_runner/test:1235:19)
+      at Test.run (node:internal/test_runner/test:1163:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:788:7)
+
+test at backend/torneos/infra/core-prod-contract/core-prod.test.mjs:531:1
+✖ artifact: torneos-core-contract is byte-identical to the certified Staging deploy; any difference STOPs before the PAT (0.171208ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+  + []
+  - [
+  -   {
+  -     bytes: 3622,
+  -     path: 'functions/_shared/supabaseApiKeys.ts',
+  -     sha256: '5d6cc3aec5fbcd2a3b5d46b254957d2275c811b4660ff2e8afdcfa30fc94170a'
+  -   },
+  -   {
+  -     bytes: 16849,
+  -     path: 'functions/_shared/torneosCoreContract.ts',
+  -     sha256: '83d129020be52dbc0e28ca4aa97d27a28fe9b2eded700f9ca6af0e69507812d7'
+  -   },
+  -   {
+  -     bytes: 2828,
+  -     path: 'functions/torneos-core-contract/index.ts',
+  -     sha256: '41e012f03b72d24e1f386ce3902bbab6aff2b2bdcf7ec96a325f588a77b0d269'
+  -   }
+  - ]
+  
+      at TestContext.<anonymous> (file:///Users/nicoavayu/Downloads/arma2/arma2-core-prod-contract-enablement/backend/torneos/infra/core-prod-contract/core-prod.test.mjs:532:10)
+      at Test.runInAsyncScope (node:async_hooks:213:14)
+      at Test.run (node:internal/test_runner/test:1106:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:788:18)
+      at Test.postRun (node:internal/test_runner/test:1235:19)
+      at Test.run (node:internal/test_runner/test:1163:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:788:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [],
+    expected: [ { path: 'functions/_shared/supabaseApiKeys.ts', bytes: 3622, sha256: '5d6cc3aec5fbcd2a3b5d46b254957d2275c811b4660ff2e8afdcfa30fc94170a' }, { path: 'functions/_shared/torneosCoreContract.ts', bytes: 16849, sha256: '83d129020be52dbc0e28ca4aa97d27a28fe9b2eded700f9ca6af0e69507812d7' }, { path: 'functions/torneos-core-contract/index.ts', bytes: 2828, sha256: '41e012f03b72d24e1f386ce3902bbab6aff2b2bdcf7ec96a325f588a77b0d269' } ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at backend/torneos/infra/core-prod-contract/core-prod.test.mjs:550:1
+✖ apply (offline): writer-context → v1 → v1.1 → set-secrets → deploy, then 9/9 harness, ACL, app_private, catalog and ledger all certified (0.133541ms)
+  Error: NOT_IMPLEMENTED
+      at runProd (file:///Users/nicoavayu/Downloads/arma2/arma2-core-prod-contract-enablement/backend/torneos/infra/core-prod-contract/core-prod-deploy.mjs:4:41)
+      at run (file:///Users/nicoavayu/Downloads/arma2/arma2-core-prod-contract-enablement/backend/torneos/infra/core-prod-contract/core-prod.test.mjs:169:50)
+      at TestContext.<anonymous> (file:///Users/nicoavayu/Downloads/arma2/arma2-core-prod-contract-enablement/backend/torneos/infra/core-prod-contract/core-prod.test.mjs:552:21)
+      at Test.runInAsyncScope (node:async_hooks:213:14)
+      at Test.run (node:internal/test_runner/test:1106:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:788:18)
+      at Test.postRun (node:internal/test_runner/test:1235:19)
+      at Test.run (node:internal/test_runner/test:1163:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:788:7)
+
+test at backend/torneos/infra/core-prod-contract/core-prod.test.mjs:568:1
+✖ apply (offline): a Core secret that differs from the Keychain is a STOP (no reconcile in Production) (0.1175ms)
+  Error: NOT_IMPLEMENTED
+      at runProd (file:///Users/nicoavayu/Downloads/arma2/arma2-core-prod-contract-enablement/backend/torneos/infra/core-prod-contract/core-prod-deploy.mjs:4:41)
+      at run (file:///Users/nicoavayu/Downloads/arma2/arma2-core-prod-contract-enablement/backend/torneos/infra/core-prod-contract/core-prod.test.mjs:169:50)
+      at TestContext.<anonymous> (file:///Users/nicoavayu/Downloads/arma2/arma2-core-prod-contract-enablement/backend/torneos/infra/core-prod-contract/core-prod.test.mjs:570:31)
+      at Test.runInAsyncScope (node:async_hooks:213:14)
+      at Test.run (node:internal/test_runner/test:1106:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:788:18)
+      at Test.postRun (node:internal/test_runner/test:1235:19)
+      at Test.run (node:internal/test_runner/test:1163:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:788:7)
+
+test at backend/torneos/infra/core-prod-contract/core-prod.test.mjs:574:1
+✖ apply (offline): state that changes between the preflight and the phrase is a STOP with 0 writes (0.106166ms)
+  Error: NOT_IMPLEMENTED
+      at runProd (file:///Users/nicoavayu/Downloads/arma2/arma2-core-prod-contract-enablement/backend/torneos/infra/core-prod-contract/core-prod-deploy.mjs:4:41)
+      at run (file:///Users/nicoavayu/Downloads/arma2/arma2-core-prod-contract-enablement/backend/torneos/infra/core-prod-contract/core-prod.test.mjs:169:50)
+      at TestContext.<anonymous> (file:///Users/nicoavayu/Downloads/arma2/arma2-core-prod-contract-enablement/backend/torneos/infra/core-prod-contract/core-prod.test.mjs:577:31)
+      at Test.runInAsyncScope (node:async_hooks:213:14)
+      at Test.run (node:internal/test_runner/test:1106:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:788:18)
+      at Test.postRun (node:internal/test_runner/test:1235:19)
+      at Test.run (node:internal/test_runner/test:1163:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:788:7)
+
+test at backend/torneos/infra/core-prod-contract/core-prod.test.mjs:581:1
+✖ apply (offline): a catalog change outside the contract after the apply is detected (no other Core object may change) (0.091583ms)
+  Error: NOT_IMPLEMENTED
+      at runProd (file:///Users/nicoavayu/Downloads/arma2/arma2-core-prod-contract-enablement/backend/torneos/infra/core-prod-contract/core-prod-deploy.mjs:4:41)
+      at run (file:///Users/nicoavayu/Downloads/arma2/arma2-core-prod-contract-enablement/backend/torneos/infra/core-prod-contract/core-prod.test.mjs:169:50)
+      at TestContext.<anonymous> (file:///Users/nicoavayu/Downloads/arma2/arma2-core-prod-contract-enablement/backend/torneos/infra/core-prod-contract/core-prod.test.mjs:583:31)
+      at Test.runInAsyncScope (node:async_hooks:213:14)
+      at Test.run (node:internal/test_runner/test:1106:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:788:18)
+      at Test.postRun (node:internal/test_runner/test:1235:19)
+      at Test.run (node:internal/test_runner/test:1163:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:788:7)
+
+test at backend/torneos/infra/core-prod-contract/core-prod.test.mjs:588:1
+✖ harness: the 9 certified answers against the REAL handler — PASS, and the same request sequence as the certified Staging probe (0.066334ms)
+  Error: NOT_IMPLEMENTED
+      at ni (file:///Users/nicoavayu/Downloads/arma2/arma2-core-prod-contract-enablement/backend/torneos/infra/core-prod-contract/probe-prod.mjs:2:26)
+      at TestContext.<anonymous> (file:///Users/nicoavayu/Downloads/arma2/arma2-core-prod-contract-enablement/backend/torneos/infra/core-prod-contract/core-prod.test.mjs:590:19)
+      at Test.runInAsyncScope (node:async_hooks:213:14)
+      at Test.run (node:internal/test_runner/test:1106:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:788:18)
+      at Test.postRun (node:internal/test_runner/test:1235:19)
+      at Test.run (node:internal/test_runner/test:1163:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:788:7)
+
+test at backend/torneos/infra/core-prod-contract/core-prod.test.mjs:603:1
+✖ harness: classification — no secret, not deployed, wrong secret, Core down, and a response echoing material is flagged (0.058709ms)
+  Error: NOT_IMPLEMENTED
+      at ni (file:///Users/nicoavayu/Downloads/arma2/arma2-core-prod-contract-enablement/backend/torneos/infra/core-prod-contract/probe-prod.mjs:2:26)
+      at TestContext.<anonymous> (file:///Users/nicoavayu/Downloads/arma2/arma2-core-prod-contract-enablement/backend/torneos/infra/core-prod-contract/core-prod.test.mjs:605:23)
+      at Test.runInAsyncScope (node:async_hooks:213:14)
+      at Test.run (node:internal/test_runner/test:1106:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:788:18)
+      at Test.postRun (node:internal/test_runner/test:1235:19)
+      at Test.run (node:internal/test_runner/test:1163:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:788:7)
+
+test at backend/torneos/infra/core-prod-contract/core-prod.test.mjs:616:1
+✖ ACL: Production expectations — service_role-only RPC, owner-only app_private (no API-role USAGE), exact object set, no strays (0.105875ms)
+  Error: NOT_IMPLEMENTED
+      at Module.ni (file:///Users/nicoavayu/Downloads/arma2/arma2-core-prod-contract-enablement/backend/torneos/infra/core-prod-contract/prod-contract.mjs:3:26)
+      at TestContext.<anonymous> (file:///Users/nicoavayu/Downloads/arma2/arma2-core-prod-contract-enablement/backend/torneos/infra/core-prod-contract/core-prod.test.mjs:618:22)
+      at Test.runInAsyncScope (node:async_hooks:213:14)
+      at Test.run (node:internal/test_runner/test:1106:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:788:18)
+      at Test.postRun (node:internal/test_runner/test:1235:19)
+      at Test.run (node:internal/test_runner/test:1163:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:788:7)
+
+test at backend/torneos/infra/core-prod-contract/core-prod.test.mjs:639:1
+✖ ACL: --acl-only is read-only and certifies an installed contract (and refuses to certify an absent one) (0.108333ms)
+  Error: NOT_IMPLEMENTED
+      at runProd (file:///Users/nicoavayu/Downloads/arma2/arma2-core-prod-contract-enablement/backend/torneos/infra/core-prod-contract/core-prod-deploy.mjs:4:41)
+      at run (file:///Users/nicoavayu/Downloads/arma2/arma2-core-prod-contract-enablement/backend/torneos/infra/core-prod-contract/core-prod.test.mjs:169:50)
+      at TestContext.<anonymous> (file:///Users/nicoavayu/Downloads/arma2/arma2-core-prod-contract-enablement/backend/torneos/infra/core-prod-contract/core-prod.test.mjs:642:21)
+      at Test.runInAsyncScope (node:async_hooks:213:14)
+      at Test.run (node:internal/test_runner/test:1106:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:788:18)
+      at Test.postRun (node:internal/test_runner/test:1235:19)
+      at Test.run (node:internal/test_runner/test:1163:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:788:7)
+
+test at backend/torneos/infra/core-prod-contract/core-prod.test.mjs:652:1
+✖ invariant: the certified Staging tooling is byte-identical to d62039c7 (behaviour unchanged) (4.758458ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+  
+    assert.ok(Object.keys(P.CERTIFIED_STAGING_TOOLING_SHA256).length >= 8)
+  
+      at TestContext.<anonymous> (file:///Users/nicoavayu/Downloads/arma2/arma2-core-prod-contract-enablement/backend/torneos/infra/core-prod-contract/core-prod.test.mjs:654:10)
+      at Test.runInAsyncScope (node:async_hooks:213:14)
+      at Test.run (node:internal/test_runner/test:1106:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:788:18)
+      at Test.postRun (node:internal/test_runner/test:1235:19)
+      at Test.run (node:internal/test_runner/test:1163:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:788:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }

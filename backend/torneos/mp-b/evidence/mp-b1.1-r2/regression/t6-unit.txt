@@ -1,0 +1,226 @@
+(node:2319) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/nicoavayu/Downloads/arma2/arma2-mp-b1-1-remote-enablement-r2/backend/torneos/supabase/functions/torneos-gateway/commerce.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/nicoavayu/Downloads/arma2/arma2-mp-b1-1-remote-enablement-r2/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+▶ MP-A4 — T6 gateway commerce (unit)
+  ✔ U T6-B config: unset / blank TORNEOS_COMMERCE_MODE → commerce OFF, and OFF reads nothing else (stray payments variables are ignored, as today) (0.856916ms)
+  ✔ U T6-B config: TORNEOS_COMMERCE_MODE=test with a lab internal URL and a strong distinct secret → commerce TEST (URL = the payments mount, 32-byte key, the 2 read RPCs) (0.608583ms)
+  ✔ U T6-B config: live / production / prod / any value other than exactly "test" → fail closed (0.125542ms)
+  ✔ U T6-B config: missing / blank URL or secret → fail closed (0.108958ms)
+  ✔ U T6-B config: weak secret (short, non-hex, uppercase, odd length, degenerate, low entropy) → fail closed (0.174084ms)
+  ✔ U T6-B config: the internal secret must differ from the Core contract secret, the bridge signing keys and the public keys (0.101584ms)
+  ✔ U T6-B config: internal URL outside the lab (Production ref, Staging, any https or public host), wrong mount, query, credentials → fail closed (0.17525ms)
+  ✔ U T6-B config: commerce TEST is lab-only — a gateway published outside loopback (hosted Staging / Production) refuses it (0.080541ms)
+  ✔ U T6-B config: in TEST the gateway refuses to boot with Mercado Pago credentials or the payment-service DB login in its environment (0.154959ms)
+  ✔ U T6-C allowlist: staging-v1 copies byte-identical (sha 149c7659), 43 names; commerce file exactly the 2 reads; intersection 0; the creation RPC in neither (3.238625ms)
+  ✔ U T6-C allowlist: OFF → exactly the 43 (the same set); TEST → 43 + 2 = 45; the creation RPC never in the generic proxy set (0.108375ms)
+  ✔ U T6-C allowlist: boot refuses a commerce list with an extra name, a duplicate of the 43, a write, a missing read, a repeated entry, a non-test mode or a bad shape (0.2625ms)
+  ✔ U T6-D order: no bearer / non-Bearer → 401 before anything (0 calls, body unread) (0.440834ms)
+  ✔ U T6-D order: invalid bridge → 401 after verifyBridge only; revoked Core session → 401 after core; Core down → 503 CORE_UNAVAILABLE; 0 DB, 0 payments, body unread (0.171084ms)
+  ✔ U T6-D order: unknown identity → 401 (identity checked after Core, before the body); Torneos identity store down → 503 TORNEOS_UNAVAILABLE (0.106667ms)
+  ✔ U T6-D order: invalid body with a bad bearer / revoked session is still 401 (auth first); invalid body with valid auth → 400 after identity, 0 DB (0.199167ms)
+  ✔ U T6-D order: DB authorization refusal (no billing.manage) → 403, payments never called; happy path order = bridge → core → identity → DB → payments (19.293667ms)
+  ✔ U T6-E DB call: POST <rest>/rpc/create_tournament_season_checkout_purchase with the USER bearer and exactly {p_organization_id, p_season_id, p_idempotency_key}; no service credential; redirects refused (0.676417ms)
+  ✔ U T6-E response: exactly {purchase, preference}; purchase = the whitelisted projection (+ idempotentReplay/existingOpenPurchase); preference = exactly provider/preferenceId/checkoutUrl/expiresAt; provider extras never pass (0.494375ms)
+  ✔ U T6-E status routing: created / preference_created → payments; pending / approved / cancelled / refunded / charged_back → preference null (0 payments); expired → 409 TORNEOS_CHECKOUT_EXPIRED (0 payments) (1.510959ms)
+  ✔ U T6-G mapping: DB business refusals keep their code (403 / 409), whatever PostgREST status they arrive with — never 503 (0.628083ms)
+  ✔ U T6-G mapping: DB auth / input refusals — TORNEOS_AUTH_REQUIRED or a PostgREST JWT refusal → 401 (one re-exchange); TORNEOS_PURCHASE_INVALID → 400; unknown 4xx / malformed 200 → 502 TORNEOS_CHECKOUT_FAILED (0.540416ms)
+  ✔ U T6-H mapping: Torneos REST down / 5xx without a business code / timeout (4 s) → 503 TORNEOS_UNAVAILABLE; no retry (one DB call), no payments (42.476917ms)
+  ✔ U T6-H mapping: payments 503 / down / timeout (8 s) → 503 TORNEOS_PAYMENTS_UNAVAILABLE; 409 preference_expired → 409 TORNEOS_CHECKOUT_EXPIRED; not payable / conflict → 409; contract faults → 502; exactly one payments call (no retry) (45.961125ms)
+  ✔ U T6-H timeouts: defaults are Torneos REST 4000 ms and payments 8000 ms, applied as abort signals on exactly those calls (0.488833ms)
+  ✔ U T6-I body: exactly {organizationId, seasonId, idempotencyKey} as UUID strings; extras (price, amount, provider, environment, product, URLs), missing, non-UUID, non-object, non-JSON, invalid UTF-8, query → 400; > 1 KiB → 413; 1 KiB exactly accepted (1.371458ms)
+  ✔ U T6-I HMAC: one POST to <internal url>/internal/v1/season-checkout-preference, body exactly {"purchase_id"}, X-Time/X-Nonce/X-Signature over path\ntime\nnonce\nbody accepted by the MP-A3 verifier; no Authorization/Origin; fresh nonce per call; redirects refused (7.8245ms)
+  ✔ U T6-I logs: one line per request with only request id, purchase id, result code, status and timing — never bearer, body, HMAC, secret or checkout URL (0.568667ms)
+  ✔ U parity wiring: Edge index.ts and Node gateway.mjs both run the SAME commerce module (loadCommerceConfig, effectiveRpcAllowlist, seasonCheckout); only it knows the payments route and the HMAC (0.440083ms)
+  ✔ U separation: gateway sources never read Mercado Pago credentials or the payment-service DB login (only commerce.ts names them, in its refusal list) (0.393666ms)
+  ✔ U separation (edge-main env): OFF → the gateway worker gets no payments variable (MP-A3 isolation intact); TEST → exactly TORNEOS_PAYMENTS_INTERNAL_URL + _SECRET more; payments worker never gets Core/bridge/gateway-DB/commerce-mode values (0.519875ms)
+  ✖ U scope: MP-A3 payments service + provider copies and 0000/0001/0002 byte-identical to the base; config.toml, Core contract and frontend untouched; only MP-A4 paths changed (27.884666ms)
+✖ MP-A4 — T6 gateway commerce (unit) (162.041833ms)
+ℹ tests 33
+ℹ suites 0
+ℹ pass 31
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 276.798208
+
+✖ failing tests:
+
+test at integration/torneos-core-contracts/commerce-gateway.test.mjs:125:13
+✖ U scope: MP-A3 payments service + provider copies and 0000/0001/0002 byte-identical to the base; config.toml, Core contract and frontend untouched; only MP-A4 paths changed (27.884666ms)
+  AssertionError [ERR_ASSERTION]: no file outside the MP-A4 scope changed
+  + actual - expected
+  
+  + [
+  +   'backend/torneos/mp-a/evidence/commerce-db-acl-matrix-mpb12.json',
+  +   'backend/torneos/mp-a/evidence/commerce-db-results-mpb12.json',
+  +   'backend/torneos/mp-a/evidence/mp-a3/t2-provider-copy-mpb12.json',
+  +   'backend/torneos/mp-a/evidence/mp-a3/t3-checkout-internal-mpb12.json',
+  +   'backend/torneos/mp-a/evidence/mp-a3/t4-webhook-mpb12.json',
+  +   'backend/torneos/mp-a/evidence/mp-a3/t5-config-privilege-mpb12.json',
+  +   'backend/torneos/mp-a/evidence/mp-a5.1/frontend-jest-red.json',
+  +   'backend/torneos/mp-a/evidence/mp-a5.1/frontend-jest.json',
+  +   'backend/torneos/mp-a/evidence/mp-a5.1/summary.json',
+  +   'backend/torneos/mp-a/evidence/mp-a5/RISKS.md',
+  +   'backend/torneos/mp-a/evidence/mp-a5/browser-journey-billing.json',
+  +   'backend/torneos/mp-a/evidence/mp-a5/browser-journey-off.json',
+  +   'backend/torneos/mp-a/evidence/mp-a5/frontend-jest-red.json',
+  +   'backend/torneos/mp-a/evidence/mp-a5/frontend-jest.json',
+  +   'backend/torneos/mp-a/evidence/mp-a5/frontend-node-red.json',
+  +   'backend/torneos/mp-a/evidence/mp-a5/frontend-node.json',
+  +   'backend/torneos/mp-a/evidence/mp-a5/regression/t6-off-mp-a5-regression.json',
+  +   'backend/torneos/mp-a/evidence/mp-a5/regression/t6-test-mp-a5-regression.json',
+  +   'backend/torneos/mp-a/evidence/mp-a5/regression/t6-unit-mp-a5-regression.json',
+  +   'backend/torneos/mp-a/evidence/mp-a5/summary.json',
+  +   'backend/torneos/mp-b/evidence/mp-b1.2/REPORT.md',
+  +   'backend/torneos/mp-b/evidence/mp-b1.2/cleanup.json',
+  +   'backend/torneos/mp-b/evidence/mp-b1.2/fresh-install.json',
+  +   'backend/torneos/mp-b/evidence/mp-b1.2/invariants.json',
+  +   'backend/torneos/mp-b/evidence/mp-b1.2/local-services.json',
+  +   'backend/torneos/mp-b/evidence/mp-b1.2/migration-install.txt',
+  +   'backend/torneos/mp-b/evidence/mp-b1.2/migrations-guard.txt',
+  +   'backend/torneos/mp-b/evidence/mp-b1.2/ordering-initial-green.txt',
+  +   'backend/torneos/mp-b/evidence/mp-b1.2/ordering-red.txt',
+  +   'backend/torneos/mp-b/evidence/mp-b1.2/provider-copy.txt',
+  +   'backend/torneos/mp-b/evidence/mp-b1.2/regression.txt',
+  +   'backend/torneos/mp-b/evidence/mp-b1.2/review-green.txt',
+  +   'backend/torneos/mp-b/evidence/mp-b1.2/review-red.txt',
+  +   'backend/torneos/mp-b/evidence/mp-b1.2/secret-scan-live.json',
+  +   'backend/torneos/mp-b/evidence/mp-b1.2/static-guard.txt',
+  +   'backend/torneos/mp-b/evidence/mp-b1.2/summary.json',
+  +   'backend/torneos/supabase/functions/torneos-payments/config.ts',
+  +   'backend/torneos/supabase/functions/torneos-payments/handler.ts',
+  +   'backend/torneos/supabase/functions/torneos-payments/rpc.ts',
+  +   'backend/torneos/supabase/migrations/00000000000003_mercadopago_provider_ordering.sql',
+  +   'docs/evidence/mp-a5-2/REPORT.md',
+  +   'docs/evidence/mp-a5-2/browser.json',
+  +   'docs/evidence/mp-a5-2/browser.log',
+  +   'docs/evidence/mp-a5-2/browser.mjs',
+  +   'docs/evidence/mp-a5-2/concurrency.log',
+  +   'docs/evidence/mp-a5-2/eslint.log',
+  +   'docs/evidence/mp-a5-2/green.log',
+  +   'docs/evidence/mp-a5-2/integrity.json',
+  +   'docs/evidence/mp-a5-2/node.log',
+  +   'docs/evidence/mp-a5-2/red.log',
+  +   'docs/evidence/mp-a5-2/static.log',
+  +   'docs/torneos/b04/TORNEOS-CALL-MAP.md',
+  +   'docs/torneos/b04/b04-audit.json',
+  +   'integration/torneos-core-contracts/commerce-db.test.mjs',
+  +   'integration/torneos-core-contracts/compose.yaml',
+  +   'integration/torneos-core-contracts/mp-stub.mjs',
+  +   'integration/torneos-core-contracts/payments-checkout.test.mjs',
+  +   'integration/torneos-core-contracts/payments-config.test.mjs',
+  +   'integration/torneos-core-contracts/payments-webhook.test.mjs',
+  +   'integration/torneos-core-contracts/provider-ordering-invariants.mjs',
+  +   'integration/torneos-core-contracts/provider-ordering-migrations.test.mjs',
+  +   'integration/torneos-core-contracts/provider-ordering.test.mjs',
+  +   'package.json',
+  +   'scripts/torneos-frontend/commerce.test.mjs',
+  +   'scripts/torneos-frontend/foundation.test.mjs',
+  +   'scripts/torneos-frontend/mp-a5-browser-journey.mjs',
+  +   'scripts/validate-build-env.mjs',
+  +   'src/__tests__/torneosMpA51PremiumIntentRoute.test.jsx',
+  +   'src/__tests__/torneosMpA52PlanRefresh.test.jsx',
+  +   'src/__tests__/torneosMpA5HybridCommerce.test.jsx',
+  +   'src/features/torneos/TorneosFeatureGate.jsx',
+  +   'src/features/torneos/api/legacyCommerceAdapter.js',
+  +   'src/features/torneos/components/OrganizationSettingsNav.jsx',
+  +   'src/features/torneos/components/PlanExperiencePage.jsx',
+  +   'src/features/torneos/components/PurchaseStatusPage.jsx',
+  +   'src/features/torneos/components/TorneosShell.jsx',
+  +   'src/features/torneos/components/TournamentWizardPage.jsx',
+  +   'src/features/torneos/context/TorneosCommerceContext.jsx',
+  +   'src/features/torneos/domain/checkoutRedirect.js',
+  +   'src/features/torneos/foundation/config.js',
+  +   'src/features/torneos/foundation/stagingV1CommerceScope.js',
+  +   'src/features/torneos/foundation/torneosClient.js',
+  +   'src/features/torneos/foundation/torneosTransport.js',
+  +   'src/features/torneos/stagingV1/StagingV1TorneosApp.jsx',
+  +   'src/features/torneos/stagingV1/stagingV1Features.js',
+  +   'src/features/torneos/stagingV1/stagingV1WorkspaceService.js',
+  +   'backend/torneos/mp-a/evidence/commerce-db-acl-matrix-mpb11r2.json',
+  +   'backend/torneos/mp-a/evidence/commerce-db-results-mpb11r2.json',
+  +   'backend/torneos/mp-a/evidence/mp-a3/t2-provider-copy-mpb11r2.json',
+  +   'backend/torneos/mp-a/evidence/mp-a3/t3-checkout-internal-mpb11r2.json',
+  +   'backend/torneos/mp-a/evidence/mp-a3/t4-webhook-mpb11r2.json',
+  +   'backend/torneos/mp-a/evidence/mp-a3/t5-config-privilege-mpb11r2.json',
+  +   'backend/torneos/mp-b/evidence/mp-b1.1-r2/offline-red.json',
+  +   'backend/torneos/mp-b/evidence/mp-b1.1-r2/offline.json',
+  +   'backend/torneos/mp-b/evidence/mp-b1.1-r2/webhook-replay-red.json',
+  +   'backend/torneos/mp-b/evidence/mp-b1.1-r2/webhook-replay.json',
+  +   'backend/torneos/supabase/functions/torneos-payments/remote-hosts.ts',
+  +   'backend/torneos/supabase/functions/torneos-payments/webhook-freshness.ts',
+  +   'integration/torneos-core-contracts/remote-test-enablement.test.mjs',
+  +   'integration/torneos-core-contracts/webhook-replay.test.mjs'
+  + ]
+  - []
+  
+      at file:///Users/nicoavayu/Downloads/arma2/arma2-mp-b1-1-remote-enablement-r2/integration/torneos-core-contracts/commerce-gateway.test.mjs:502:14
+      at TestContext.<anonymous> (file:///Users/nicoavayu/Downloads/arma2/arma2-mp-b1-1-remote-enablement-r2/integration/torneos-core-contracts/commerce-gateway.test.mjs:126:19)
+      at Test.runInAsyncScope (node:async_hooks:213:14)
+      at Test.run (node:internal/test_runner/test:1106:25)
+      at Test.start (node:internal/test_runner/test:1003:17)
+      at TestContext.test (node:internal/test_runner/test:378:20)
+      at check (file:///Users/nicoavayu/Downloads/arma2/arma2-mp-b1-1-remote-enablement-r2/integration/torneos-core-contracts/commerce-gateway.test.mjs:125:13)
+      at TestContext.<anonymous> (file:///Users/nicoavayu/Downloads/arma2/arma2-mp-b1-1-remote-enablement-r2/integration/torneos-core-contracts/commerce-gateway.test.mjs:497:11)
+      at async Test.run (node:internal/test_runner/test:1113:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: [
+      'backend/torneos/mp-a/evidence/commerce-db-acl-matrix-mpb12.json',              'backend/torneos/mp-a/evidence/commerce-db-results-mpb12.json',
+      'backend/torneos/mp-a/evidence/mp-a3/t2-provider-copy-mpb12.json',              'backend/torneos/mp-a/evidence/mp-a3/t3-checkout-internal-mpb12.json',
+      'backend/torneos/mp-a/evidence/mp-a3/t4-webhook-mpb12.json',                    'backend/torneos/mp-a/evidence/mp-a3/t5-config-privilege-mpb12.json',
+      'backend/torneos/mp-a/evidence/mp-a5.1/frontend-jest-red.json',                 'backend/torneos/mp-a/evidence/mp-a5.1/frontend-jest.json',
+      'backend/torneos/mp-a/evidence/mp-a5.1/summary.json',                           'backend/torneos/mp-a/evidence/mp-a5/RISKS.md',
+      'backend/torneos/mp-a/evidence/mp-a5/browser-journey-billing.json',             'backend/torneos/mp-a/evidence/mp-a5/browser-journey-off.json',
+      'backend/torneos/mp-a/evidence/mp-a5/frontend-jest-red.json',                   'backend/torneos/mp-a/evidence/mp-a5/frontend-jest.json',
+      'backend/torneos/mp-a/evidence/mp-a5/frontend-node-red.json',                   'backend/torneos/mp-a/evidence/mp-a5/frontend-node.json',
+      'backend/torneos/mp-a/evidence/mp-a5/regression/t6-off-mp-a5-regression.json',  'backend/torneos/mp-a/evidence/mp-a5/regression/t6-test-mp-a5-regression.json',
+      'backend/torneos/mp-a/evidence/mp-a5/regression/t6-unit-mp-a5-regression.json', 'backend/torneos/mp-a/evidence/mp-a5/summary.json',
+      'backend/torneos/mp-b/evidence/mp-b1.2/REPORT.md',                              'backend/torneos/mp-b/evidence/mp-b1.2/cleanup.json',
+      'backend/torneos/mp-b/evidence/mp-b1.2/fresh-install.json',                     'backend/torneos/mp-b/evidence/mp-b1.2/invariants.json',
+      'backend/torneos/mp-b/evidence/mp-b1.2/local-services.json',                    'backend/torneos/mp-b/evidence/mp-b1.2/migration-install.txt',
+      'backend/torneos/mp-b/evidence/mp-b1.2/migrations-guard.txt',                   'backend/torneos/mp-b/evidence/mp-b1.2/ordering-initial-green.txt',
+      'backend/torneos/mp-b/evidence/mp-b1.2/ordering-red.txt',                       'backend/torneos/mp-b/evidence/mp-b1.2/provider-copy.txt',
+      'backend/torneos/mp-b/evidence/mp-b1.2/regression.txt',                         'backend/torneos/mp-b/evidence/mp-b1.2/review-green.txt',
+      'backend/torneos/mp-b/evidence/mp-b1.2/review-red.txt',                         'backend/torneos/mp-b/evidence/mp-b1.2/secret-scan-live.json',
+      'backend/torneos/mp-b/evidence/mp-b1.2/static-guard.txt',                       'backend/torneos/mp-b/evidence/mp-b1.2/summary.json',
+      'backend/torneos/supabase/functions/torneos-payments/config.ts',                'backend/torneos/supabase/functions/torneos-payments/handler.ts',
+      'backend/torneos/supabase/functions/torneos-payments/rpc.ts',                   'backend/torneos/supabase/migrations/00000000000003_mercadopago_provider_ordering.sql',
+      'docs/evidence/mp-a5-2/REPORT.md',                                              'docs/evidence/mp-a5-2/browser.json',
+      'docs/evidence/mp-a5-2/browser.log',                                            'docs/evidence/mp-a5-2/browser.mjs',
+      'docs/evidence/mp-a5-2/concurrency.log',                                        'docs/evidence/mp-a5-2/eslint.log',
+      'docs/evidence/mp-a5-2/green.log',                                              'docs/evidence/mp-a5-2/integrity.json',
+      'docs/evidence/mp-a5-2/node.log',                                               'docs/evidence/mp-a5-2/red.log',
+      'docs/evidence/mp-a5-2/static.log',                                             'docs/torneos/b04/TORNEOS-CALL-MAP.md',
+      'docs/torneos/b04/b04-audit.json',                                              'integration/torneos-core-contracts/commerce-db.test.mjs',
+      'integration/torneos-core-contracts/compose.yaml',                              'integration/torneos-core-contracts/mp-stub.mjs',
+      'integration/torneos-core-contracts/payments-checkout.test.mjs',                'integration/torneos-core-contracts/payments-config.test.mjs',
+      'integration/torneos-core-contracts/payments-webhook.test.mjs',                 'integration/torneos-core-contracts/provider-ordering-invariants.mjs',
+      'integration/torneos-core-contracts/provider-ordering-migrations.test.mjs',     'integration/torneos-core-contracts/provider-ordering.test.mjs',
+      'package.json',                                                                 'scripts/torneos-frontend/commerce.test.mjs',
+      'scripts/torneos-frontend/foundation.test.mjs',                                 'scripts/torneos-frontend/mp-a5-browser-journey.mjs',
+      'scripts/validate-build-env.mjs',                                               'src/__tests__/torneosMpA51PremiumIntentRoute.test.jsx',
+      'src/__tests__/torneosMpA52PlanRefresh.test.jsx',                               'src/__tests__/torneosMpA5HybridCommerce.test.jsx',
+      'src/features/torneos/TorneosFeatureGate.jsx',                                  'src/features/torneos/api/legacyCommerceAdapter.js',
+      'src/features/torneos/components/OrganizationSettingsNav.jsx',                  'src/features/torneos/components/PlanExperiencePage.jsx',
+      'src/features/torneos/components/PurchaseStatusPage.jsx',                       'src/features/torneos/components/TorneosShell.jsx',
+      'src/features/torneos/components/TournamentWizardPage.jsx',                     'src/features/torneos/context/TorneosCommerceContext.jsx',
+      'src/features/torneos/domain/checkoutRedirect.js',                              'src/features/torneos/foundation/config.js',
+      'src/features/torneos/foundation/stagingV1CommerceScope.js',                    'src/features/torneos/foundation/torneosClient.js',
+      'src/features/torneos/foundation/torneosTransport.js',                          'src/features/torneos/stagingV1/StagingV1TorneosApp.jsx',
+      'src/features/torneos/stagingV1/stagingV1Features.js',                          'src/features/torneos/stagingV1/stagingV1WorkspaceService.js',
+      'backend/torneos/mp-a/evidence/commerce-db-acl-matrix-mpb11r2.json',            'backend/torneos/mp-a/evidence/commerce-db-results-mpb11r2.json',
+      'backend/torneos/mp-a/evidence/mp-a3/t2-provider-copy-mpb11r2.json',            'backend/torneos/mp-a/evidence/mp-a3/t3-checkout-internal-mpb11r2.json',
+      'backend/torneos/mp-a/evidence/mp-a3/t4-webhook-mpb11r2.json',                  'backend/torneos/mp-a/evidence/mp-a3/t5-config-privilege-mpb11r2.json',
+      'backend/torneos/mp-b/evidence/mp-b1.1-r2/offline-red.json',                    'backend/torneos/mp-b/evidence/mp-b1.1-r2/offline.json',
+      'backend/torneos/mp-b/evidence/mp-b1.1-r2/webhook-replay-red.json',             'backend/torneos/mp-b/evidence/mp-b1.1-r2/webhook-replay.json',
+      'backend/torneos/supabase/functions/torneos-payments/remote-hosts.ts',          'backend/torneos/supabase/functions/torneos-payments/webhook-freshness.ts',
+      'integration/torneos-core-contracts/remote-test-enablement.test.mjs',           'integration/torneos-core-contracts/webhook-replay.test.mjs'
+    ],
+    expected: [],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

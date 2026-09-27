@@ -1,0 +1,547 @@
+{
+ "annotation": "OFFLINE REHEARSAL 20260924T200621Z — local public.ecr.aws/supabase/postgres:17.4.1.048 container, --network none, emulated Management API, in-memory Keychain; NOT a Production run",
+ "generated_at": "2026-09-24T20:06:29.197Z",
+ "tool": "backend/torneos/infra/core-prod-contract/core-prod-deploy.mjs",
+ "mode": "--apply",
+ "target": {
+  "ref": "rcyuuoaqfwcembdajcss",
+  "name": "nicoavayu's Project",
+  "organization_slug": "gwqrborhnqjdzzmpxulh",
+  "region": "sa-east-1",
+  "created_at": "2025-06-30T20:57:55.045023Z"
+ },
+ "authorized_by": "operator typed the confirmation phrase on /dev/tty",
+ "preflight": "REHEARSAL-09-core-prod-preflight-20260924T200627Z.json",
+ "plan_id": "fd29223d448d",
+ "writer_context": {
+  "api_role": "postgres",
+  "session_role": "postgres",
+  "transaction_read_only": "off",
+  "in_recovery": false
+ },
+ "migrations": [
+  {
+   "version": "20260914120000",
+   "decision": "apply",
+   "applied": true,
+   "status": 201,
+   "elapsed_ms": null,
+   "installed_after": true,
+   "ledger_after": "ours"
+  },
+  {
+   "version": "20260915120000",
+   "decision": "apply",
+   "applied": true,
+   "status": 201,
+   "elapsed_ms": null,
+   "installed_after": true,
+   "ledger_after": "ours"
+  }
+ ],
+ "secret": {
+  "name": "TORNEOS_CONTRACT_SERVICE_SECRET",
+  "custody": "keychain:arma2-torneos-prod-core-contract/contract-secret",
+  "action": "generated in Keychain + set on Core",
+  "distinct_from_nonprod": true
+ },
+ "deploy": {
+  "files": [
+   {
+    "path": "functions/_shared/supabaseApiKeys.ts",
+    "bytes": 3622,
+    "sha256": "5d6cc3aec5fbcd2a3b5d46b254957d2275c811b4660ff2e8afdcfa30fc94170a"
+   },
+   {
+    "path": "functions/_shared/torneosCoreContract.ts",
+    "bytes": 16849,
+    "sha256": "83d129020be52dbc0e28ca4aa97d27a28fe9b2eded700f9ca6af0e69507812d7"
+   },
+   {
+    "path": "functions/torneos-core-contract/index.ts",
+    "bytes": 2828,
+    "sha256": "41e012f03b72d24e1f386ce3902bbab6aff2b2bdcf7ec96a325f588a77b0d269"
+   }
+  ],
+  "body_bytes": 24199,
+  "fn": {
+   "slug": "torneos-core-contract",
+   "name": "torneos-core-contract",
+   "status": "ACTIVE",
+   "version": 1,
+   "verify_jwt": false,
+   "updated_at": 1790280388738,
+   "ezbr_sha256": "e756e7b552d33d51d261b41f8819497b61e95361ce926016e3d50e64c5c39812",
+   "entrypoint_path": "file:///rehearsal/source/functions/torneos-core-contract/index.ts"
+  },
+  "staging_certified_ezbr": "1072419517953eee8e8021f9691d1a5b1efb1f871c4d13290f644d119caded2c",
+  "ezbr_equals_staging": false
+ },
+ "probe": {
+  "endpoint": "https://rcyuuoaqfwcembdajcss.supabase.co/functions/v1/torneos-core-contract",
+  "verdict": "SIGNED_HARNESS_PASS",
+  "attempts": [
+   {
+    "attempt": 1,
+    "at": "2026-09-24T20:06:28.873Z",
+    "verdict": "SIGNED_HARNESS_PASS",
+    "failed": []
+   }
+  ],
+  "checks": [
+   {
+    "name": "unsigned POST /v1/session",
+    "expected": {
+     "status": 401,
+     "body": {
+      "error": "SERVICE_AUTH_REQUIRED"
+     }
+    },
+    "observed": {
+     "status": 401,
+     "body": {
+      "error": "SERVICE_AUTH_REQUIRED"
+     },
+     "headers": {
+      "content-type": "application/json",
+      "cache-control": "no-store",
+      "x-content-type-options": "nosniff"
+     }
+    },
+    "ok": true
+   },
+   {
+    "name": "signed with a random key → rejected",
+    "expected": {
+     "status": 401,
+     "body": {
+      "error": "SERVICE_AUTH_REQUIRED"
+     }
+    },
+    "observed": {
+     "status": 401,
+     "body": {
+      "error": "SERVICE_AUTH_REQUIRED"
+     },
+     "headers": {
+      "content-type": "application/json",
+      "cache-control": "no-store",
+      "x-content-type-options": "nosniff"
+     }
+    },
+    "ok": true
+   },
+   {
+    "name": "signed, X-Time 120 s old → rejected",
+    "expected": {
+     "status": 401,
+     "body": {
+      "error": "SERVICE_AUTH_REQUIRED"
+     }
+    },
+    "observed": {
+     "status": 401,
+     "body": {
+      "error": "SERVICE_AUTH_REQUIRED"
+     },
+     "headers": {
+      "content-type": "application/json",
+      "cache-control": "no-store",
+      "x-content-type-options": "nosniff"
+     }
+    },
+    "ok": true
+   },
+   {
+    "name": "signed POST /v1/session, unknown session → Core verdict",
+    "expected": {
+     "status": 403,
+     "body": {
+      "error": "FORBIDDEN"
+     }
+    },
+    "observed": {
+     "status": 403,
+     "body": {
+      "error": "FORBIDDEN"
+     },
+     "headers": {
+      "content-type": "application/json",
+      "cache-control": "no-store",
+      "x-content-type-options": "nosniff"
+     }
+    },
+    "ok": true
+   },
+   {
+    "name": "replay of the previous request (same nonce) → consumed",
+    "expected": {
+     "status": 401,
+     "body": {
+      "error": "REPLAY"
+     }
+    },
+    "observed": {
+     "status": 401,
+     "body": {
+      "error": "REPLAY"
+     },
+     "headers": {
+      "content-type": "application/json",
+      "cache-control": "no-store",
+      "x-content-type-options": "nosniff"
+     }
+    },
+    "ok": true
+   },
+   {
+    "name": "signed POST /v1/verified-email, unknown session → Core verdict (v1 route)",
+    "expected": {
+     "status": 403,
+     "body": {
+      "error": "FORBIDDEN"
+     }
+    },
+    "observed": {
+     "status": 403,
+     "body": {
+      "error": "FORBIDDEN"
+     },
+     "headers": {
+      "content-type": "application/json",
+      "cache-control": "no-store",
+      "x-content-type-options": "nosniff"
+     }
+    },
+    "ok": true
+   },
+   {
+    "name": "signed POST /v1/session, malformed schema → rejected after auth",
+    "expected": {
+     "status": 400,
+     "body": {
+      "error": "INVALID_REQUEST"
+     }
+    },
+    "observed": {
+     "status": 400,
+     "body": {
+      "error": "INVALID_REQUEST"
+     },
+     "headers": {
+      "content-type": "application/json",
+      "cache-control": "no-store",
+      "x-content-type-options": "nosniff"
+     }
+    },
+    "ok": true
+   },
+   {
+    "name": "signed POST /v1/nope → unknown route",
+    "expected": {
+     "status": 404,
+     "body": {
+      "error": "NOT_FOUND"
+     }
+    },
+    "observed": {
+     "status": 404,
+     "body": {
+      "error": "NOT_FOUND"
+     },
+     "headers": {
+      "content-type": "application/json",
+      "cache-control": "no-store",
+      "x-content-type-options": "nosniff"
+     }
+    },
+    "ok": true
+   },
+   {
+    "name": "GET /v1/session → method refused",
+    "expected": {
+     "status": 404,
+     "body": {
+      "error": "NOT_FOUND"
+     }
+    },
+    "observed": {
+     "status": 404,
+     "body": {
+      "error": "NOT_FOUND"
+     },
+     "headers": {
+      "content-type": "application/json",
+      "cache-control": "no-store",
+      "x-content-type-options": "nosniff"
+     }
+    },
+    "ok": true
+   }
+  ],
+  "sensitive_findings": []
+ },
+ "acl": {
+  "failures": [],
+  "acl": {
+   "functions": [
+    {
+     "signature": "public.torneos_contract_execute(text,text,jsonb)",
+     "present": true,
+     "security_definer": true,
+     "search_path_empty": true,
+     "owner": "postgres",
+     "execute": {
+      "anon": false,
+      "authenticated": false,
+      "service_role": true
+     }
+    },
+    {
+     "signature": "app_private.torneos_contract_email(text)",
+     "present": true,
+     "security_definer": false,
+     "search_path_empty": true,
+     "owner": "postgres",
+     "execute": {
+      "anon": false,
+      "authenticated": false,
+      "service_role": false
+     }
+    },
+    {
+     "signature": "app_private.torneos_contract_url(text)",
+     "present": true,
+     "security_definer": false,
+     "search_path_empty": true,
+     "owner": "postgres",
+     "execute": {
+      "anon": false,
+      "authenticated": false,
+      "service_role": false
+     }
+    },
+    {
+     "signature": "app_private.torneos_contract_visible_player(uuid)",
+     "present": true,
+     "security_definer": false,
+     "search_path_empty": true,
+     "owner": "postgres",
+     "execute": {
+      "anon": false,
+      "authenticated": false,
+      "service_role": false
+     }
+    },
+    {
+     "signature": "app_private.torneos_contract_importable_team(uuid,uuid)",
+     "present": true,
+     "security_definer": false,
+     "search_path_empty": true,
+     "owner": "postgres",
+     "execute": {
+      "anon": false,
+      "authenticated": false,
+      "service_role": false
+     }
+    }
+   ],
+   "tables": [
+    {
+     "name": "app_private.torneos_contract_nonces",
+     "present": true,
+     "rls": true,
+     "owner": "postgres",
+     "privileges": {
+      "anon": false,
+      "authenticated": false,
+      "service_role": false
+     },
+     "indexes": [
+      "torneos_contract_nonces_expiry",
+      "torneos_contract_nonces_pkey"
+     ]
+    },
+    {
+     "name": "app_private.torneos_contract_rate_events",
+     "present": true,
+     "rls": true,
+     "owner": "postgres",
+     "privileges": {
+      "anon": false,
+      "authenticated": false,
+      "service_role": false
+     },
+     "indexes": [
+      "torneos_contract_rate_events_actor",
+      "torneos_contract_rate_events_pkey"
+     ]
+    }
+   ],
+   "schema": {
+    "app_private_present": true,
+    "usage": {
+     "anon": false,
+     "authenticated": false,
+     "service_role": false
+    }
+   },
+   "session_branch": true,
+   "stray_objects": 0,
+   "stray_relations": 0
+  }
+ },
+ "app_private": {
+  "present": true,
+  "owner": "postgres",
+  "acl": null,
+  "relations": [
+   "torneos_contract_nonces_expiry|i",
+   "torneos_contract_nonces_pkey|i",
+   "torneos_contract_nonces|r",
+   "torneos_contract_rate_events_actor|i",
+   "torneos_contract_rate_events_id_seq|S",
+   "torneos_contract_rate_events_pkey|i",
+   "torneos_contract_rate_events|r"
+  ],
+  "functions": [
+   "torneos_contract_email(p_value text)",
+   "torneos_contract_importable_team(p_user_id uuid, p_team_id uuid)",
+   "torneos_contract_url(p_value text)",
+   "torneos_contract_visible_player(p_user_id uuid)"
+  ],
+  "policies": 0,
+  "types": []
+ },
+ "catalog": {
+  "before": {
+   "public_functions": {
+    "count": 3,
+    "digest": "a2dee8f0a8b767376b0337ae9f1d0f54"
+   },
+   "public_relations": {
+    "count": 8,
+    "digest": "17d9737a47523e044d2d5b155946920c"
+   },
+   "public_columns": {
+    "count": 23,
+    "digest": "abe344f3fd7aaad5d7b7a7aa01799fff"
+   },
+   "public_policies": {
+    "count": 0,
+    "digest": "d41d8cd98f00b204e9800998ecf8427e"
+   },
+   "public_triggers": {
+    "count": 0,
+    "digest": "d41d8cd98f00b204e9800998ecf8427e"
+   },
+   "namespaces": {
+    "count": 12,
+    "digest": "6609e47e393d53d9d8af1ceb443b9724"
+   },
+   "default_acl": {
+    "count": 24,
+    "digest": "e62730c6623eb8769e45d49737d78d9a"
+   },
+   "roles": {
+    "count": 12,
+    "digest": "0c83cabb547bfcc0b0e6f9ebf30157d6"
+   },
+   "memberships": {
+    "count": 16,
+    "digest": "65281209d0d5d0cbc9d378e02f88b6b2"
+   },
+   "ledger_other": {
+    "count": 236,
+    "digest": "9be165bec5c611596092302fa5b0228a"
+   }
+  },
+  "after": {
+   "public_functions": {
+    "count": 3,
+    "digest": "a2dee8f0a8b767376b0337ae9f1d0f54"
+   },
+   "public_relations": {
+    "count": 8,
+    "digest": "17d9737a47523e044d2d5b155946920c"
+   },
+   "public_columns": {
+    "count": 23,
+    "digest": "abe344f3fd7aaad5d7b7a7aa01799fff"
+   },
+   "public_policies": {
+    "count": 0,
+    "digest": "d41d8cd98f00b204e9800998ecf8427e"
+   },
+   "public_triggers": {
+    "count": 0,
+    "digest": "d41d8cd98f00b204e9800998ecf8427e"
+   },
+   "namespaces": {
+    "count": 12,
+    "digest": "6609e47e393d53d9d8af1ceb443b9724"
+   },
+   "default_acl": {
+    "count": 24,
+    "digest": "e62730c6623eb8769e45d49737d78d9a"
+   },
+   "roles": {
+    "count": 12,
+    "digest": "0c83cabb547bfcc0b0e6f9ebf30157d6"
+   },
+   "memberships": {
+    "count": 16,
+    "digest": "65281209d0d5d0cbc9d378e02f88b6b2"
+   },
+   "ledger_other": {
+    "count": 236,
+    "digest": "9be165bec5c611596092302fa5b0228a"
+   }
+  },
+  "changed": []
+ },
+ "ledger_after": {
+  "rows": 238,
+  "contract": {
+   "20260914120000": "ours",
+   "20260915120000": "ours"
+  }
+ },
+ "writes": [
+  {
+   "kind": "write-context",
+   "method": "POST",
+   "path": "/v1/projects/rcyuuoaqfwcembdajcss/database/query",
+   "bytes": 194,
+   "body_sha256": "bc6a2ff7686fac3679621e4b97f5c1e6cf52c41d4d46db34c1439de0ef3777de"
+  },
+  {
+   "kind": "write-sql",
+   "method": "POST",
+   "path": "/v1/projects/rcyuuoaqfwcembdajcss/database/query",
+   "bytes": 34691,
+   "body_sha256": "c56faf510e5635f8da69f0130c9dab640e661587de43b5a969c9c01a5f4cf151"
+  },
+  {
+   "kind": "write-sql",
+   "method": "POST",
+   "path": "/v1/projects/rcyuuoaqfwcembdajcss/database/query",
+   "bytes": 24946,
+   "body_sha256": "5f8fe1e47e2b6f4d07c434ebc62d0a66469b4e6235d9b5055cc7c8f5e3059fe5"
+  },
+  {
+   "kind": "write-secret",
+   "method": "POST",
+   "path": "/v1/projects/rcyuuoaqfwcembdajcss/secrets",
+   "bytes": 119,
+   "body_sha256": "withheld (secret)"
+  },
+  {
+   "kind": "write-deploy",
+   "method": "POST",
+   "path": "/v1/projects/rcyuuoaqfwcembdajcss/functions/deploy?slug=torneos-core-contract",
+   "bytes": 24199,
+   "body_sha256": "e756e7b552d33d51d261b41f8819497b61e95361ce926016e3d50e64c5c39812"
+  }
+ ]
+}

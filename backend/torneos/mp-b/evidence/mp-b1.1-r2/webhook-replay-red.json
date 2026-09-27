@@ -1,0 +1,281 @@
+{
+  "suite": "MP-B1.1 R2 webhook replay / freshness (lab)",
+  "results": [
+    {
+      "name": "lab: commerce lab reachable, provider stub reset",
+      "status": "PASS"
+    },
+    {
+      "name": "auth: bad signature, wrong manifest, malformed ts (9 / 13 digits, letters, missing) → 401, 0 provider reads, domain untouched",
+      "status": "PASS"
+    },
+    {
+      "name": "freshness: authentic notification with an absurd FUTURE ts (+301 s, +1 h, +1 day, +10 years) → 401 before any provider read; domain untouched",
+      "status": "FAIL",
+      "error": "Expected values to be strictly deep-equal:\n+ actual - expected\n\n  [\n    301,\n+   200,\n+   undefined,\n+   2\n-   401,\n-   'invalid_signature',\n-   0\n  ]\n"
+    },
+    {
+      "name": "freshness: authentic OLD notification (ts −30 days) → accepted, provider re-fetched, approved; exactly 1 grant",
+      "status": "FAIL",
+      "error": "Expected values to be strictly deep-equal:\n+ actual - expected\n\n  [\n    200,\n+   'provider_snapshot_duplicate'\n-   'approved'\n  ]\n"
+    },
+    {
+      "name": "freshness: small forward skew (+60 s) is accepted (and still re-fetched)",
+      "status": "PASS"
+    },
+    {
+      "name": "exact replay (same request id, signature, bytes) ×3 → 200 provider_snapshot_duplicate, re-fetched every time, no new event, 1 grant",
+      "status": "PASS"
+    },
+    {
+      "name": "same payment repeated (new request ids) and duplicate approved → idempotent: no new event, 1 grant",
+      "status": "PASS"
+    },
+    {
+      "name": "refund → refunded, grant revoked; duplicate refund (repeat + exact replay) → no new event",
+      "status": "PASS"
+    },
+    {
+      "name": "old approved notification AFTER refunded (exact replay of the −30 d approved) → re-fetch sees refunded → stays refunded; no second grant",
+      "status": "PASS"
+    },
+    {
+      "name": "stale provider read: re-fetch returns an OLDER approved snapshot after refunded → MP-B1.2 stale_ignored; refunded preserved; no second grant",
+      "status": "PASS"
+    },
+    {
+      "name": "dispute → charged_back, grant suspended; duplicate dispute (repeat + exact replay) → no new event",
+      "status": "PASS"
+    },
+    {
+      "name": "restored → approved, grant restored; OLD disputed notification replayed after restore → re-fetch sees restored → stays approved, grant effective",
+      "status": "PASS"
+    },
+    {
+      "name": "stale provider read: re-fetch returns an OLDER disputed snapshot after restored → stale_ignored; restored preserved; 1 grant",
+      "status": "PASS"
+    },
+    {
+      "name": "revoked stays revoked: buyer won (settled) → revoked; old approved / old dispute replays and a stale restored snapshot never revive it",
+      "status": "PASS"
+    },
+    {
+      "name": "no secret / PII in responses or in torneos-functions / mp-stub logs",
+      "status": "PASS"
+    }
+  ],
+  "matrix": [
+    {
+      "scenario": "bad v1",
+      "http": 401,
+      "outcome": "invalid_signature",
+      "providerReads": 0,
+      "expected": 401
+    },
+    {
+      "scenario": "v1 of another request",
+      "http": 401,
+      "outcome": "invalid_signature",
+      "providerReads": 0,
+      "expected": 401
+    },
+    {
+      "scenario": "ts 9 digits",
+      "http": 401,
+      "outcome": "invalid_signature",
+      "providerReads": 0,
+      "expected": 401
+    },
+    {
+      "scenario": "ts 13 digits (ms)",
+      "http": 401,
+      "outcome": "invalid_signature",
+      "providerReads": 0,
+      "expected": 401
+    },
+    {
+      "scenario": "ts letters",
+      "http": 401,
+      "outcome": "invalid_signature",
+      "providerReads": 0,
+      "expected": 401
+    },
+    {
+      "scenario": "ts missing",
+      "http": 401,
+      "outcome": "invalid_signature",
+      "providerReads": 0,
+      "expected": 401
+    },
+    {
+      "scenario": "future ts +301s (authentic)",
+      "http": 200,
+      "outcome": "approved",
+      "providerReads": 2,
+      "expected": 401
+    },
+    {
+      "scenario": "old signed approved (−30 d)",
+      "http": 200,
+      "outcome": "provider_snapshot_duplicate",
+      "providerReads": 2,
+      "expected": 200
+    },
+    {
+      "scenario": "skew +60 s",
+      "http": 200,
+      "outcome": "provider_snapshot_duplicate",
+      "providerReads": 2,
+      "expected": 200
+    },
+    {
+      "scenario": "exact replay #1",
+      "http": 200,
+      "outcome": "provider_snapshot_duplicate",
+      "providerReads": 2,
+      "expected": 200
+    },
+    {
+      "scenario": "exact replay #2",
+      "http": 200,
+      "outcome": "provider_snapshot_duplicate",
+      "providerReads": 2,
+      "expected": 200
+    },
+    {
+      "scenario": "exact replay #3",
+      "http": 200,
+      "outcome": "provider_snapshot_duplicate",
+      "providerReads": 2,
+      "expected": 200
+    },
+    {
+      "scenario": "repeat approved #1",
+      "http": 200,
+      "outcome": "provider_snapshot_duplicate",
+      "providerReads": 2
+    },
+    {
+      "scenario": "repeat approved #2",
+      "http": 200,
+      "outcome": "provider_snapshot_duplicate",
+      "providerReads": 2
+    },
+    {
+      "scenario": "repeat approved #3",
+      "http": 200,
+      "outcome": "provider_snapshot_duplicate",
+      "providerReads": 2
+    },
+    {
+      "scenario": "refund",
+      "http": 200,
+      "outcome": "reversal_applied",
+      "providerReads": 2
+    },
+    {
+      "scenario": "duplicate refund (new id)",
+      "http": 200,
+      "outcome": "provider_snapshot_duplicate",
+      "providerReads": 4
+    },
+    {
+      "scenario": "duplicate refund (exact replay)",
+      "http": 200,
+      "outcome": "provider_snapshot_duplicate",
+      "providerReads": 0
+    },
+    {
+      "scenario": "old approved after refunded",
+      "http": 200,
+      "outcome": "provider_snapshot_duplicate",
+      "providerReads": 2
+    },
+    {
+      "scenario": "stale approved snapshot after refunded",
+      "http": 200,
+      "outcome": "stale_ignored",
+      "providerReads": 2
+    },
+    {
+      "scenario": "approve p2",
+      "http": 200,
+      "outcome": "approved",
+      "providerReads": 2
+    },
+    {
+      "scenario": "dispute",
+      "http": 200,
+      "outcome": "reversal_applied",
+      "providerReads": 2
+    },
+    {
+      "scenario": "duplicate dispute (new id)",
+      "http": 200,
+      "outcome": "provider_snapshot_duplicate",
+      "providerReads": 4
+    },
+    {
+      "scenario": "duplicate dispute (exact replay)",
+      "http": 200,
+      "outcome": "provider_snapshot_duplicate",
+      "providerReads": 0
+    },
+    {
+      "scenario": "restored",
+      "http": 200,
+      "outcome": "reversal_applied",
+      "providerReads": 2
+    },
+    {
+      "scenario": "old disputed after restored (exact replay)",
+      "http": 200,
+      "outcome": "provider_snapshot_duplicate",
+      "providerReads": 2
+    },
+    {
+      "scenario": "stale disputed snapshot after restored",
+      "http": 200,
+      "outcome": "stale_ignored",
+      "providerReads": 2
+    },
+    {
+      "scenario": "approve p3",
+      "http": 200,
+      "outcome": "approved",
+      "providerReads": 2
+    },
+    {
+      "scenario": "dispute p3",
+      "http": 200,
+      "outcome": "reversal_applied",
+      "providerReads": 2
+    },
+    {
+      "scenario": "buyer won p3",
+      "http": 200,
+      "outcome": "reversal_applied",
+      "providerReads": 2
+    },
+    {
+      "scenario": "old approved after revoked",
+      "http": 200,
+      "outcome": "provider_snapshot_duplicate",
+      "providerReads": 2
+    },
+    {
+      "scenario": "old dispute after revoked",
+      "http": 200,
+      "outcome": "provider_snapshot_duplicate",
+      "providerReads": 2
+    },
+    {
+      "scenario": "stale restored snapshot after revoked",
+      "http": 200,
+      "outcome": "stale_ignored",
+      "providerReads": 2
+    }
+  ],
+  "passed": 13,
+  "total": 15
+}
