@@ -1,0 +1,52 @@
+{
+  "generated_at": "2026-09-27",
+  "setup": "fresh lab + B04 overlay (core-api on loopback) + lab-bridge + CRA dev app (hybrid composition: REACT_APP_TORNEOS_GATEWAY_URL = bridge → Node gateway; PUBLIC_PAGES flag on; MEDIA/SOCIAL/BILLING off). Seed through the gateway as lab users (owner creates org/season/tournament/2 teams, captains accept via the Core verified-email contract, admin validates → one official 1-0, published table, public page published). Login via a loopback redirect helper (magic-link token never printed).",
+  "checks": [
+    {
+      "as": "anonymous",
+      "page": "/torneos/publico/:slug",
+      "result": "PASS",
+      "detail": "official result 1-0, table (3/0 pts), agenda; network: only POST {gateway}/torneos/public/v1/rpc/get_public_tournament_page (no credential); no Core data call"
+    },
+    {
+      "as": "owner",
+      "page": "torneo/:t/fixture",
+      "result": "PASS",
+      "detail": "v1 publicada, 2 participantes cerrado, 1 partido; sidebar: Inicio, Torneos, Equipos, Fixture, Partidos, Competencia, Comunicaciones, Configuración"
+    },
+    {
+      "as": "owner",
+      "page": "torneo/:t/partidos",
+      "result": "PASS",
+      "detail": "1 partido, Oficial"
+    },
+    {
+      "as": "owner",
+      "page": "torneo/:t/competencia/tabla",
+      "result": "PASS",
+      "detail": "Publicada · v1; UI write 'Recalcular' → rebuild_tournament_standings → Borrador · v2; UI write 'Publicar' → Publicada · v2"
+    },
+    {
+      "as": "owner",
+      "page": "organizacion/:org/comunicaciones",
+      "result": "PASS",
+      "detail": "admin wizard renders (types, audience, preview)"
+    },
+    {
+      "as": "owner",
+      "page": "torneo/:t/configuracion",
+      "result": "PASS",
+      "detail": "Página pública panel loads through the gateway (get_tournament_public_page_settings) — the Core-default leak is closed"
+    },
+    {
+      "as": "captain",
+      "page": "/torneos/torneo/:t (hub)",
+      "result": "PASS",
+      "detail": "sections Resumen, Novedades, Partidos, Tabla, Estadísticas, Equipos, Disciplina (no Fotos); published table and result"
+    }
+  ],
+  "core_traffic": "Only the global Arma2 shell (auth/user, usuarios, jugadores, teams, notifications, amigos…); zero Core rpc/* or tournament_* requests during the Torneos pages",
+  "observations": [
+    "The hub lists an already-official match as 'Próxima cita' when its scheduled time is still in the future (time-based selection; same behaviour as the legacy composition; not a hybrid regression)"
+  ]
+}

@@ -1,0 +1,2617 @@
+{
+  "summary": {
+    "run": "cv1fb2115",
+    "gateway": "node",
+    "at": "2026-09-27T02:25:24.730Z",
+    "total": 37,
+    "passed": 37,
+    "failed": 0,
+    "exercised": [
+      "accept_tournament_team_invitation",
+      "acknowledge_tournament_document",
+      "add_tournament_match_event",
+      "add_tournament_roster_player",
+      "append_tournament_playoff_phase",
+      "assign_tournament_season_member",
+      "auto_schedule_tournament_matches",
+      "change_tournament_status",
+      "create_manual_fixture_version",
+      "create_tournament_announcement_draft",
+      "create_tournament_court",
+      "create_tournament_document",
+      "create_tournament_match_correction",
+      "create_tournament_organization",
+      "create_tournament_provisional_player",
+      "create_tournament_season",
+      "create_tournament_team_entry",
+      "create_tournament_venue",
+      "create_tournament_with_defaults",
+      "execute_tournament_group_draw",
+      "finish_tournament_competition",
+      "freeze_tournament_participants",
+      "generate_tournament_fixture",
+      "get_managed_tournament_matches",
+      "get_match_squad_context",
+      "get_my_managed_match_squad_context",
+      "get_my_tournament_notification_preferences",
+      "get_player_tournament_matches",
+      "get_published_tournament_documents",
+      "get_published_tournament_matches",
+      "get_published_tournament_standings",
+      "get_published_tournament_statistics",
+      "get_published_tournament_teams",
+      "get_tournament_announcement",
+      "get_tournament_communications_admin_context",
+      "get_tournament_communications_inbox",
+      "get_tournament_fixture_context",
+      "get_tournament_match_operation_context",
+      "get_tournament_match_operations_context",
+      "get_tournament_participant_hub",
+      "get_tournament_participant_match",
+      "get_tournament_public_page_settings",
+      "get_tournament_schedule_context",
+      "get_tournament_standings_context",
+      "get_tournament_statistics_context",
+      "invite_tournament_team_manager",
+      "make_tournament_match_official",
+      "mark_tournament_announcement_read",
+      "open_tournament_match_operation",
+      "preview_tournament_announcement_audience",
+      "publish_tournament_announcement",
+      "publish_tournament_document_version",
+      "publish_tournament_fixture",
+      "publish_tournament_standings_revision",
+      "rebuild_tournament_standings",
+      "reopen_tournament_competition",
+      "reopen_tournament_participants",
+      "replace_tournament_announcement_audience",
+      "request_tournament_match_correction",
+      "reschedule_tournament_match",
+      "resolve_tournament_qualification",
+      "respond_match_availability",
+      "review_tournament_match_operation",
+      "review_tournament_team_entry",
+      "save_match_squad",
+      "save_tournament_category",
+      "save_tournament_draw_pots",
+      "save_tournament_schedule_windows",
+      "schedule_tournament_match",
+      "set_my_tournament_hub_category",
+      "set_tournament_announcement_link",
+      "set_tournament_match_outcome",
+      "set_tournament_match_score",
+      "set_tournament_public_page_published",
+      "start_tournament_competition",
+      "submit_match_squad",
+      "submit_tournament_match_operation",
+      "submit_tournament_team_entry",
+      "supersede_tournament_fixture",
+      "update_draft_fixture",
+      "update_my_tournament_notification_preferences",
+      "update_tournament_announcement_draft",
+      "update_tournament_team_entry",
+      "validate_tournament_fixture",
+      "validate_tournament_match_operation",
+      "validate_tournament_match_schedule",
+      "void_tournament_match_event",
+      "withdraw_tournament_competition_participant"
+    ],
+    "matrix_rows": 295
+  },
+  "results": [
+    {
+      "name": "A1 install: 0004 applied in order from the migrations directory; 0001 untouched (sha pinned in phase2d)",
+      "status": "PASS"
+    },
+    {
+      "name": "A2 ACL: exactly the 15 of 0004 gained authenticated; anon/PUBLIC/server roles none; 23 closed functions still closed; anon catalog = 12",
+      "status": "PASS"
+    },
+    {
+      "name": "A3 season fix: update_draft_fixture body = COMPETITION-V1 (baseline + season access), definer + pinned search_path",
+      "status": "PASS"
+    },
+    {
+      "name": "A3b guard-order fix: publish_tournament_document_version authorizes before its idempotent answer (body = COMPETITION-V1)",
+      "status": "PASS"
+    },
+    {
+      "name": "A4 migration: re-apply is a no-op (idempotent); a state without 0001 is refused before any change",
+      "status": "PASS"
+    },
+    {
+      "name": "A5 rollback: the documented rollback returns exactly the 0001 ACL of the 15 (in a rolled-back transaction), then 0004 is intact",
+      "status": "PASS"
+    },
+    {
+      "name": "A6 gateway: allowlists loaded — staging v1 unchanged (43), competition (74) disjoint, public (1) disjoint; contract.json = allowlist",
+      "status": "PASS"
+    },
+    {
+      "name": "B1 organization / seasons / tournaments / categories + collaborators and season seats (gateway, real Core sessions)",
+      "status": "PASS"
+    },
+    {
+      "name": "B2 league tournament A (season A) and B (season B): 4 approved teams in A (captains accepted through the Core contract, one Arma2 player), 1 team in B",
+      "status": "PASS"
+    },
+    {
+      "name": "B3 fixture: freeze participants (idempotent replay) → generate league (idempotent replay) → validate → publish; tournament scheduled",
+      "status": "PASS"
+    },
+    {
+      "name": "B4 lifecycle start (admin, idempotent); reopen needs the owner capability (admin denied)",
+      "status": "PASS"
+    },
+    {
+      "name": "B5 venues, courts, schedule windows, schedule validation, schedule + auto-schedule + reschedule",
+      "status": "PASS"
+    },
+    {
+      "name": "B6 availability (rostered player) + squads saved and submitted by each captain; a captain cannot touch the rival squad",
+      "status": "PASS"
+    },
+    {
+      "name": "B7 match report (acta): open → outcome → score 2-1 → goal events → incident voided → submitted by the admin",
+      "status": "PASS"
+    },
+    {
+      "name": "B8 review (owner) → dual control (submitter cannot validate) → validate (owner) → official twice concurrently (idempotent, one official)",
+      "status": "PASS"
+    },
+    {
+      "name": "B9 standings: rebuild (idempotent key) → context shows 3/0 → publish revision → the participant reads the published table",
+      "status": "PASS"
+    },
+    {
+      "name": "B10 correction: request (admin) → concurrent create (one version) → score 1-1 (goal voided) → submit/review/validate/official → rebuild → table updated 1/1",
+      "status": "PASS"
+    },
+    {
+      "name": "B11 statistics / scorers: official statistics after the correction (1 goal each side, voided goal gone); published statistics for participants",
+      "status": "PASS"
+    },
+    {
+      "name": "B12 participant hub: hub, category preference, published matches / match / teams (player and captain)",
+      "status": "PASS"
+    },
+    {
+      "name": "B13 communications + notifications: draft → audience → link → preview → publish; inbox, read, document publish + acknowledge; preferences",
+      "status": "PASS"
+    },
+    {
+      "name": "B14 public page: unpublished → null on the public route; admin publishes → anon reads the page with the official table; no private data",
+      "status": "PASS"
+    },
+    {
+      "name": "B15 lifecycle on a 2-team tournament: play the single match officially → finish (admin) → reopen denied to admin → reopen by owner",
+      "status": "PASS"
+    },
+    {
+      "name": "B16 withdrawal: collaborator / captain denied; admin withdraws a team from tournament A; participant marked withdrawn",
+      "status": "PASS"
+    },
+    {
+      "name": "B17 groups: freeze → reopen participants → freeze again → save pots → group draw published → group fixture generated/published",
+      "status": "PASS"
+    },
+    {
+      "name": "B18 qualification: group matches official → group tables resolved; league C table → playoffs appended → qualification fills the final (cross-season admin refused)",
+      "status": "PASS"
+    },
+    {
+      "name": "C1 every allowlisted RPC was exercised by the journey (or is certified at the guard level with the reason recorded)",
+      "status": "PASS"
+    },
+    {
+      "name": "C2 negative matrix: outsider (other workspace), unassigned-season admin, removed membership, captain/player on staff RPCs, collaborator on staff writes → 403 42501, no state change",
+      "status": "PASS"
+    },
+    {
+      "name": "C3 no bearer → 401 at the gateway for every allowlisted RPC (before PostgREST)",
+      "status": "PASS"
+    },
+    {
+      "name": "C4 anon straight at PostgREST: every newly granted function is refused by the DB ACL; closed functions refused for authenticated too",
+      "status": "PASS"
+    },
+    {
+      "name": "D1 RPCs outside the contract are refused by the gateway even with a valid session (service-only, OFF features)",
+      "status": "PASS"
+    },
+    {
+      "name": "D2 public route: credentials refused, only the listed RPC, POST + JSON only, exact arguments, size limit",
+      "status": "PASS"
+    },
+    {
+      "name": "D3 invalid IDs: unknown organization / match / operation → 403 42501; malformed UUID → 400; wrong-organization pairing → 403",
+      "status": "PASS"
+    },
+    {
+      "name": "D4 bearer lifecycle: expired bridge → 401; re-exchange → 200; forged session id → 401; Core logout → exchange and RPC 401",
+      "status": "PASS"
+    },
+    {
+      "name": "D5 Core unavailable → 503 fail closed (no stale success); Torneos REST unavailable → 503; both recover",
+      "status": "PASS"
+    },
+    {
+      "name": "D6 persistence: after new exchanges and a gateway restart the table, report and public page read back identically",
+      "status": "PASS"
+    },
+    {
+      "name": "D7 table routes: a bearer cannot write competition tables directly (RLS: no client write policy); reads stay RLS-scoped",
+      "status": "PASS"
+    },
+    {
+      "name": "D8 no-store: every gateway response of this run (RPC, public, errors) carried Cache-Control: no-store",
+      "status": "PASS"
+    }
+  ],
+  "matrix": [
+    {
+      "rpc": "freeze_tournament_participants",
+      "actor": "outsider",
+      "why": "cross-workspace",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "freeze_tournament_participants",
+      "actor": "removed",
+      "why": "inactive-membership",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "freeze_tournament_participants",
+      "actor": "admin-b",
+      "why": "cross-season",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "freeze_tournament_participants",
+      "actor": "collab",
+      "why": "collaborator-write",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "freeze_tournament_participants",
+      "actor": "player",
+      "why": "participant",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "freeze_tournament_participants",
+      "actor": "captain-1",
+      "why": "captain",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "generate_tournament_fixture",
+      "actor": "outsider",
+      "why": "cross-workspace",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "generate_tournament_fixture",
+      "actor": "removed",
+      "why": "inactive-membership",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "generate_tournament_fixture",
+      "actor": "admin-b",
+      "why": "cross-season",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "generate_tournament_fixture",
+      "actor": "collab",
+      "why": "collaborator-write",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "generate_tournament_fixture",
+      "actor": "player",
+      "why": "participant",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "generate_tournament_fixture",
+      "actor": "captain-1",
+      "why": "captain",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "validate_tournament_fixture",
+      "actor": "outsider",
+      "why": "cross-workspace",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "validate_tournament_fixture",
+      "actor": "removed",
+      "why": "inactive-membership",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "validate_tournament_fixture",
+      "actor": "admin-b",
+      "why": "cross-season",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "publish_tournament_fixture",
+      "actor": "outsider",
+      "why": "cross-workspace",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "publish_tournament_fixture",
+      "actor": "removed",
+      "why": "inactive-membership",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "publish_tournament_fixture",
+      "actor": "admin-b",
+      "why": "cross-season",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "publish_tournament_fixture",
+      "actor": "collab",
+      "why": "collaborator-write",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "publish_tournament_fixture",
+      "actor": "player",
+      "why": "participant",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "publish_tournament_fixture",
+      "actor": "captain-1",
+      "why": "captain",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "get_tournament_fixture_context",
+      "actor": "outsider",
+      "why": "cross-workspace",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "get_tournament_fixture_context",
+      "actor": "removed",
+      "why": "inactive-membership",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "get_tournament_fixture_context",
+      "actor": "admin-b",
+      "why": "cross-season",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "get_tournament_schedule_context",
+      "actor": "outsider",
+      "why": "cross-workspace",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "get_tournament_schedule_context",
+      "actor": "removed",
+      "why": "inactive-membership",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "get_tournament_schedule_context",
+      "actor": "admin-b",
+      "why": "cross-season",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "supersede_tournament_fixture",
+      "actor": "outsider",
+      "why": "cross-workspace",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "supersede_tournament_fixture",
+      "actor": "removed",
+      "why": "inactive-membership",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "supersede_tournament_fixture",
+      "actor": "admin-b",
+      "why": "cross-season",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "supersede_tournament_fixture",
+      "actor": "collab",
+      "why": "collaborator-write",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "supersede_tournament_fixture",
+      "actor": "player",
+      "why": "participant",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "supersede_tournament_fixture",
+      "actor": "captain-1",
+      "why": "captain",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "update_draft_fixture",
+      "actor": "outsider",
+      "why": "cross-workspace",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "update_draft_fixture",
+      "actor": "removed",
+      "why": "inactive-membership",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "update_draft_fixture",
+      "actor": "admin-b",
+      "why": "cross-season",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "update_draft_fixture",
+      "actor": "collab",
+      "why": "collaborator-write",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "update_draft_fixture",
+      "actor": "player",
+      "why": "participant",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "update_draft_fixture",
+      "actor": "captain-1",
+      "why": "captain",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "start_tournament_competition",
+      "actor": "outsider",
+      "why": "cross-workspace",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "start_tournament_competition",
+      "actor": "removed",
+      "why": "inactive-membership",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "start_tournament_competition",
+      "actor": "admin-b",
+      "why": "cross-season",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "start_tournament_competition",
+      "actor": "collab",
+      "why": "collaborator-write",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "start_tournament_competition",
+      "actor": "player",
+      "why": "participant",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "start_tournament_competition",
+      "actor": "captain-1",
+      "why": "captain",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "create_tournament_venue",
+      "actor": "outsider",
+      "why": "cross-workspace",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "create_tournament_venue",
+      "actor": "removed",
+      "why": "inactive-membership",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "create_tournament_venue",
+      "actor": "collab",
+      "why": "collaborator-write",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "create_tournament_venue",
+      "actor": "player",
+      "why": "participant",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "create_tournament_venue",
+      "actor": "captain-1",
+      "why": "captain",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "create_tournament_court",
+      "actor": "outsider",
+      "why": "cross-workspace",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "create_tournament_court",
+      "actor": "removed",
+      "why": "inactive-membership",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "create_tournament_court",
+      "actor": "collab",
+      "why": "collaborator-write",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "create_tournament_court",
+      "actor": "player",
+      "why": "participant",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "create_tournament_court",
+      "actor": "captain-1",
+      "why": "captain",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "save_tournament_schedule_windows",
+      "actor": "outsider",
+      "why": "cross-workspace",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "save_tournament_schedule_windows",
+      "actor": "removed",
+      "why": "inactive-membership",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "save_tournament_schedule_windows",
+      "actor": "admin-b",
+      "why": "cross-season",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "save_tournament_schedule_windows",
+      "actor": "collab",
+      "why": "collaborator-write",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "save_tournament_schedule_windows",
+      "actor": "player",
+      "why": "participant",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "save_tournament_schedule_windows",
+      "actor": "captain-1",
+      "why": "captain",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "validate_tournament_match_schedule",
+      "actor": "outsider",
+      "why": "cross-workspace",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "validate_tournament_match_schedule",
+      "actor": "removed",
+      "why": "inactive-membership",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "validate_tournament_match_schedule",
+      "actor": "admin-b",
+      "why": "cross-season",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "schedule_tournament_match",
+      "actor": "outsider",
+      "why": "cross-workspace",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "schedule_tournament_match",
+      "actor": "removed",
+      "why": "inactive-membership",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "schedule_tournament_match",
+      "actor": "admin-b",
+      "why": "cross-season",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "schedule_tournament_match",
+      "actor": "collab",
+      "why": "collaborator-write",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "schedule_tournament_match",
+      "actor": "player",
+      "why": "participant",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "schedule_tournament_match",
+      "actor": "captain-1",
+      "why": "captain",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "auto_schedule_tournament_matches",
+      "actor": "outsider",
+      "why": "cross-workspace",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "auto_schedule_tournament_matches",
+      "actor": "removed",
+      "why": "inactive-membership",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "auto_schedule_tournament_matches",
+      "actor": "admin-b",
+      "why": "cross-season",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "auto_schedule_tournament_matches",
+      "actor": "collab",
+      "why": "collaborator-write",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "auto_schedule_tournament_matches",
+      "actor": "player",
+      "why": "participant",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "auto_schedule_tournament_matches",
+      "actor": "captain-1",
+      "why": "captain",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "reschedule_tournament_match",
+      "actor": "outsider",
+      "why": "cross-workspace",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "reschedule_tournament_match",
+      "actor": "removed",
+      "why": "inactive-membership",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "reschedule_tournament_match",
+      "actor": "admin-b",
+      "why": "cross-season",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "reschedule_tournament_match",
+      "actor": "collab",
+      "why": "collaborator-write",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "reschedule_tournament_match",
+      "actor": "player",
+      "why": "participant",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "reschedule_tournament_match",
+      "actor": "captain-1",
+      "why": "captain",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "respond_match_availability",
+      "actor": "outsider",
+      "why": "cross-workspace",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_MATCH_FORBIDDEN"
+    },
+    {
+      "rpc": "get_match_squad_context",
+      "actor": "outsider",
+      "why": "cross-workspace",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_MATCH_FORBIDDEN"
+    },
+    {
+      "rpc": "save_match_squad",
+      "actor": "outsider",
+      "why": "cross-workspace",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_MATCH_FORBIDDEN"
+    },
+    {
+      "rpc": "submit_match_squad",
+      "actor": "outsider",
+      "why": "cross-workspace",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_MATCH_FORBIDDEN"
+    },
+    {
+      "rpc": "open_tournament_match_operation",
+      "actor": "outsider",
+      "why": "cross-workspace",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_MATCH_FORBIDDEN"
+    },
+    {
+      "rpc": "open_tournament_match_operation",
+      "actor": "removed",
+      "why": "inactive-membership",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_MATCH_FORBIDDEN"
+    },
+    {
+      "rpc": "open_tournament_match_operation",
+      "actor": "admin-b",
+      "why": "cross-season",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_MATCH_FORBIDDEN"
+    },
+    {
+      "rpc": "open_tournament_match_operation",
+      "actor": "collab",
+      "why": "collaborator-write",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_MATCH_FORBIDDEN"
+    },
+    {
+      "rpc": "open_tournament_match_operation",
+      "actor": "player",
+      "why": "participant",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_MATCH_FORBIDDEN"
+    },
+    {
+      "rpc": "open_tournament_match_operation",
+      "actor": "captain-1",
+      "why": "captain",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_MATCH_FORBIDDEN"
+    },
+    {
+      "rpc": "get_tournament_match_operation_context",
+      "actor": "outsider",
+      "why": "cross-workspace",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_MATCH_FORBIDDEN"
+    },
+    {
+      "rpc": "get_tournament_match_operation_context",
+      "actor": "removed",
+      "why": "inactive-membership",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_MATCH_FORBIDDEN"
+    },
+    {
+      "rpc": "get_tournament_match_operation_context",
+      "actor": "admin-b",
+      "why": "cross-season",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_MATCH_FORBIDDEN"
+    },
+    {
+      "rpc": "get_tournament_match_operations_context",
+      "actor": "outsider",
+      "why": "cross-workspace",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_MATCH_FORBIDDEN"
+    },
+    {
+      "rpc": "get_tournament_match_operations_context",
+      "actor": "removed",
+      "why": "inactive-membership",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_MATCH_FORBIDDEN"
+    },
+    {
+      "rpc": "get_tournament_match_operations_context",
+      "actor": "admin-b",
+      "why": "cross-season",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_MATCH_FORBIDDEN"
+    },
+    {
+      "rpc": "set_tournament_match_outcome",
+      "actor": "outsider",
+      "why": "cross-workspace",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_MATCH_FORBIDDEN"
+    },
+    {
+      "rpc": "set_tournament_match_outcome",
+      "actor": "removed",
+      "why": "inactive-membership",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_MATCH_FORBIDDEN"
+    },
+    {
+      "rpc": "set_tournament_match_outcome",
+      "actor": "admin-b",
+      "why": "cross-season",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_MATCH_FORBIDDEN"
+    },
+    {
+      "rpc": "set_tournament_match_outcome",
+      "actor": "collab",
+      "why": "collaborator-write",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_MATCH_FORBIDDEN"
+    },
+    {
+      "rpc": "set_tournament_match_outcome",
+      "actor": "player",
+      "why": "participant",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_MATCH_FORBIDDEN"
+    },
+    {
+      "rpc": "set_tournament_match_outcome",
+      "actor": "captain-1",
+      "why": "captain",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_MATCH_FORBIDDEN"
+    },
+    {
+      "rpc": "set_tournament_match_score",
+      "actor": "outsider",
+      "why": "cross-workspace",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_MATCH_FORBIDDEN"
+    },
+    {
+      "rpc": "set_tournament_match_score",
+      "actor": "removed",
+      "why": "inactive-membership",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_MATCH_FORBIDDEN"
+    },
+    {
+      "rpc": "set_tournament_match_score",
+      "actor": "admin-b",
+      "why": "cross-season",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_MATCH_FORBIDDEN"
+    },
+    {
+      "rpc": "set_tournament_match_score",
+      "actor": "collab",
+      "why": "collaborator-write",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_MATCH_FORBIDDEN"
+    },
+    {
+      "rpc": "set_tournament_match_score",
+      "actor": "player",
+      "why": "participant",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_MATCH_FORBIDDEN"
+    },
+    {
+      "rpc": "set_tournament_match_score",
+      "actor": "captain-1",
+      "why": "captain",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_MATCH_FORBIDDEN"
+    },
+    {
+      "rpc": "add_tournament_match_event",
+      "actor": "outsider",
+      "why": "cross-workspace",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_MATCH_FORBIDDEN"
+    },
+    {
+      "rpc": "add_tournament_match_event",
+      "actor": "removed",
+      "why": "inactive-membership",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_MATCH_FORBIDDEN"
+    },
+    {
+      "rpc": "add_tournament_match_event",
+      "actor": "admin-b",
+      "why": "cross-season",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_MATCH_FORBIDDEN"
+    },
+    {
+      "rpc": "add_tournament_match_event",
+      "actor": "collab",
+      "why": "collaborator-write",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_MATCH_FORBIDDEN"
+    },
+    {
+      "rpc": "add_tournament_match_event",
+      "actor": "player",
+      "why": "participant",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_MATCH_FORBIDDEN"
+    },
+    {
+      "rpc": "add_tournament_match_event",
+      "actor": "captain-1",
+      "why": "captain",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_MATCH_FORBIDDEN"
+    },
+    {
+      "rpc": "void_tournament_match_event",
+      "actor": "outsider",
+      "why": "cross-workspace",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_MATCH_FORBIDDEN"
+    },
+    {
+      "rpc": "void_tournament_match_event",
+      "actor": "removed",
+      "why": "inactive-membership",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_MATCH_FORBIDDEN"
+    },
+    {
+      "rpc": "void_tournament_match_event",
+      "actor": "admin-b",
+      "why": "cross-season",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_MATCH_FORBIDDEN"
+    },
+    {
+      "rpc": "void_tournament_match_event",
+      "actor": "collab",
+      "why": "collaborator-write",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_MATCH_FORBIDDEN"
+    },
+    {
+      "rpc": "void_tournament_match_event",
+      "actor": "player",
+      "why": "participant",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_MATCH_FORBIDDEN"
+    },
+    {
+      "rpc": "void_tournament_match_event",
+      "actor": "captain-1",
+      "why": "captain",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_MATCH_FORBIDDEN"
+    },
+    {
+      "rpc": "submit_tournament_match_operation",
+      "actor": "outsider",
+      "why": "cross-workspace",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_MATCH_FORBIDDEN"
+    },
+    {
+      "rpc": "submit_tournament_match_operation",
+      "actor": "removed",
+      "why": "inactive-membership",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_MATCH_FORBIDDEN"
+    },
+    {
+      "rpc": "submit_tournament_match_operation",
+      "actor": "admin-b",
+      "why": "cross-season",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_MATCH_FORBIDDEN"
+    },
+    {
+      "rpc": "submit_tournament_match_operation",
+      "actor": "collab",
+      "why": "collaborator-write",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_MATCH_FORBIDDEN"
+    },
+    {
+      "rpc": "submit_tournament_match_operation",
+      "actor": "player",
+      "why": "participant",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_MATCH_FORBIDDEN"
+    },
+    {
+      "rpc": "submit_tournament_match_operation",
+      "actor": "captain-1",
+      "why": "captain",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_MATCH_FORBIDDEN"
+    },
+    {
+      "rpc": "review_tournament_match_operation",
+      "actor": "outsider",
+      "why": "cross-workspace",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_MATCH_FORBIDDEN"
+    },
+    {
+      "rpc": "review_tournament_match_operation",
+      "actor": "removed",
+      "why": "inactive-membership",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_MATCH_FORBIDDEN"
+    },
+    {
+      "rpc": "review_tournament_match_operation",
+      "actor": "admin-b",
+      "why": "cross-season",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_MATCH_FORBIDDEN"
+    },
+    {
+      "rpc": "review_tournament_match_operation",
+      "actor": "collab",
+      "why": "collaborator-write",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_MATCH_FORBIDDEN"
+    },
+    {
+      "rpc": "review_tournament_match_operation",
+      "actor": "player",
+      "why": "participant",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_MATCH_FORBIDDEN"
+    },
+    {
+      "rpc": "review_tournament_match_operation",
+      "actor": "captain-1",
+      "why": "captain",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_MATCH_FORBIDDEN"
+    },
+    {
+      "rpc": "validate_tournament_match_operation",
+      "actor": "outsider",
+      "why": "cross-workspace",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_MATCH_FORBIDDEN"
+    },
+    {
+      "rpc": "validate_tournament_match_operation",
+      "actor": "removed",
+      "why": "inactive-membership",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_MATCH_FORBIDDEN"
+    },
+    {
+      "rpc": "validate_tournament_match_operation",
+      "actor": "admin-b",
+      "why": "cross-season",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_MATCH_FORBIDDEN"
+    },
+    {
+      "rpc": "validate_tournament_match_operation",
+      "actor": "collab",
+      "why": "collaborator-write",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_MATCH_FORBIDDEN"
+    },
+    {
+      "rpc": "validate_tournament_match_operation",
+      "actor": "player",
+      "why": "participant",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_MATCH_FORBIDDEN"
+    },
+    {
+      "rpc": "validate_tournament_match_operation",
+      "actor": "captain-1",
+      "why": "captain",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_MATCH_FORBIDDEN"
+    },
+    {
+      "rpc": "make_tournament_match_official",
+      "actor": "outsider",
+      "why": "cross-workspace",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_MATCH_FORBIDDEN"
+    },
+    {
+      "rpc": "make_tournament_match_official",
+      "actor": "removed",
+      "why": "inactive-membership",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_MATCH_FORBIDDEN"
+    },
+    {
+      "rpc": "make_tournament_match_official",
+      "actor": "admin-b",
+      "why": "cross-season",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_MATCH_FORBIDDEN"
+    },
+    {
+      "rpc": "make_tournament_match_official",
+      "actor": "collab",
+      "why": "collaborator-write",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_MATCH_FORBIDDEN"
+    },
+    {
+      "rpc": "make_tournament_match_official",
+      "actor": "player",
+      "why": "participant",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_MATCH_FORBIDDEN"
+    },
+    {
+      "rpc": "make_tournament_match_official",
+      "actor": "captain-1",
+      "why": "captain",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_MATCH_FORBIDDEN"
+    },
+    {
+      "rpc": "rebuild_tournament_standings",
+      "actor": "outsider",
+      "why": "cross-workspace",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_STANDINGS_FORBIDDEN"
+    },
+    {
+      "rpc": "rebuild_tournament_standings",
+      "actor": "removed",
+      "why": "inactive-membership",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_STANDINGS_FORBIDDEN"
+    },
+    {
+      "rpc": "rebuild_tournament_standings",
+      "actor": "admin-b",
+      "why": "cross-season",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_STANDINGS_FORBIDDEN"
+    },
+    {
+      "rpc": "rebuild_tournament_standings",
+      "actor": "collab",
+      "why": "collaborator-write",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_STANDINGS_FORBIDDEN"
+    },
+    {
+      "rpc": "rebuild_tournament_standings",
+      "actor": "player",
+      "why": "participant",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_STANDINGS_FORBIDDEN"
+    },
+    {
+      "rpc": "rebuild_tournament_standings",
+      "actor": "captain-1",
+      "why": "captain",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_STANDINGS_FORBIDDEN"
+    },
+    {
+      "rpc": "get_tournament_standings_context",
+      "actor": "outsider",
+      "why": "cross-workspace",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_STANDINGS_FORBIDDEN"
+    },
+    {
+      "rpc": "get_tournament_standings_context",
+      "actor": "removed",
+      "why": "inactive-membership",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_STANDINGS_FORBIDDEN"
+    },
+    {
+      "rpc": "get_tournament_standings_context",
+      "actor": "admin-b",
+      "why": "cross-season",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_STANDINGS_FORBIDDEN"
+    },
+    {
+      "rpc": "publish_tournament_standings_revision",
+      "actor": "outsider",
+      "why": "cross-workspace",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_STANDINGS_FORBIDDEN"
+    },
+    {
+      "rpc": "publish_tournament_standings_revision",
+      "actor": "removed",
+      "why": "inactive-membership",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_STANDINGS_FORBIDDEN"
+    },
+    {
+      "rpc": "publish_tournament_standings_revision",
+      "actor": "admin-b",
+      "why": "cross-season",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_STANDINGS_FORBIDDEN"
+    },
+    {
+      "rpc": "publish_tournament_standings_revision",
+      "actor": "collab",
+      "why": "collaborator-write",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_STANDINGS_FORBIDDEN"
+    },
+    {
+      "rpc": "publish_tournament_standings_revision",
+      "actor": "player",
+      "why": "participant",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_STANDINGS_FORBIDDEN"
+    },
+    {
+      "rpc": "publish_tournament_standings_revision",
+      "actor": "captain-1",
+      "why": "captain",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_STANDINGS_FORBIDDEN"
+    },
+    {
+      "rpc": "get_published_tournament_standings",
+      "actor": "outsider",
+      "why": "cross-workspace",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_HUB_FORBIDDEN"
+    },
+    {
+      "rpc": "request_tournament_match_correction",
+      "actor": "outsider",
+      "why": "cross-workspace",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_MATCH_FORBIDDEN"
+    },
+    {
+      "rpc": "request_tournament_match_correction",
+      "actor": "removed",
+      "why": "inactive-membership",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_MATCH_FORBIDDEN"
+    },
+    {
+      "rpc": "request_tournament_match_correction",
+      "actor": "admin-b",
+      "why": "cross-season",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_MATCH_FORBIDDEN"
+    },
+    {
+      "rpc": "request_tournament_match_correction",
+      "actor": "collab",
+      "why": "collaborator-write",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_MATCH_FORBIDDEN"
+    },
+    {
+      "rpc": "request_tournament_match_correction",
+      "actor": "player",
+      "why": "participant",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_MATCH_FORBIDDEN"
+    },
+    {
+      "rpc": "request_tournament_match_correction",
+      "actor": "captain-1",
+      "why": "captain",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_MATCH_FORBIDDEN"
+    },
+    {
+      "rpc": "create_tournament_match_correction",
+      "actor": "outsider",
+      "why": "cross-workspace",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_MATCH_FORBIDDEN"
+    },
+    {
+      "rpc": "create_tournament_match_correction",
+      "actor": "removed",
+      "why": "inactive-membership",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_MATCH_FORBIDDEN"
+    },
+    {
+      "rpc": "create_tournament_match_correction",
+      "actor": "admin-b",
+      "why": "cross-season",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_MATCH_FORBIDDEN"
+    },
+    {
+      "rpc": "create_tournament_match_correction",
+      "actor": "collab",
+      "why": "collaborator-write",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_MATCH_FORBIDDEN"
+    },
+    {
+      "rpc": "create_tournament_match_correction",
+      "actor": "player",
+      "why": "participant",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_MATCH_FORBIDDEN"
+    },
+    {
+      "rpc": "create_tournament_match_correction",
+      "actor": "captain-1",
+      "why": "captain",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_MATCH_FORBIDDEN"
+    },
+    {
+      "rpc": "get_tournament_statistics_context",
+      "actor": "outsider",
+      "why": "cross-workspace",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_STATISTICS_FORBIDDEN"
+    },
+    {
+      "rpc": "get_tournament_statistics_context",
+      "actor": "removed",
+      "why": "inactive-membership",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_STATISTICS_FORBIDDEN"
+    },
+    {
+      "rpc": "get_tournament_statistics_context",
+      "actor": "admin-b",
+      "why": "cross-season",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_STATISTICS_FORBIDDEN"
+    },
+    {
+      "rpc": "get_published_tournament_statistics",
+      "actor": "outsider",
+      "why": "cross-workspace",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_HUB_FORBIDDEN"
+    },
+    {
+      "rpc": "get_tournament_participant_hub",
+      "actor": "outsider",
+      "why": "cross-workspace",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_HUB_FORBIDDEN"
+    },
+    {
+      "rpc": "set_my_tournament_hub_category",
+      "actor": "outsider",
+      "why": "cross-workspace",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_HUB_FORBIDDEN"
+    },
+    {
+      "rpc": "get_published_tournament_matches",
+      "actor": "outsider",
+      "why": "cross-workspace",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_HUB_FORBIDDEN"
+    },
+    {
+      "rpc": "get_tournament_participant_match",
+      "actor": "outsider",
+      "why": "cross-workspace",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_HUB_FORBIDDEN"
+    },
+    {
+      "rpc": "get_published_tournament_teams",
+      "actor": "outsider",
+      "why": "cross-workspace",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_HUB_FORBIDDEN"
+    },
+    {
+      "rpc": "get_tournament_communications_admin_context",
+      "actor": "outsider",
+      "why": "cross-workspace",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_COMMUNICATION_FORBIDDEN"
+    },
+    {
+      "rpc": "get_tournament_communications_admin_context",
+      "actor": "removed",
+      "why": "inactive-membership",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_COMMUNICATION_FORBIDDEN"
+    },
+    {
+      "rpc": "get_tournament_communications_admin_context",
+      "actor": "admin-b",
+      "why": "cross-season",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_COMMUNICATION_FORBIDDEN"
+    },
+    {
+      "rpc": "create_tournament_announcement_draft",
+      "actor": "outsider",
+      "why": "cross-workspace",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_COMMUNICATION_FORBIDDEN"
+    },
+    {
+      "rpc": "create_tournament_announcement_draft",
+      "actor": "removed",
+      "why": "inactive-membership",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_COMMUNICATION_FORBIDDEN"
+    },
+    {
+      "rpc": "create_tournament_announcement_draft",
+      "actor": "admin-b",
+      "why": "cross-season",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_COMMUNICATION_FORBIDDEN"
+    },
+    {
+      "rpc": "create_tournament_announcement_draft",
+      "actor": "player",
+      "why": "participant",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_COMMUNICATION_FORBIDDEN"
+    },
+    {
+      "rpc": "create_tournament_announcement_draft",
+      "actor": "captain-1",
+      "why": "captain",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_COMMUNICATION_FORBIDDEN"
+    },
+    {
+      "rpc": "update_tournament_announcement_draft",
+      "actor": "outsider",
+      "why": "cross-workspace",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_COMMUNICATION_FORBIDDEN"
+    },
+    {
+      "rpc": "update_tournament_announcement_draft",
+      "actor": "removed",
+      "why": "inactive-membership",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_COMMUNICATION_FORBIDDEN"
+    },
+    {
+      "rpc": "update_tournament_announcement_draft",
+      "actor": "admin-b",
+      "why": "cross-season",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_COMMUNICATION_FORBIDDEN"
+    },
+    {
+      "rpc": "update_tournament_announcement_draft",
+      "actor": "player",
+      "why": "participant",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_COMMUNICATION_FORBIDDEN"
+    },
+    {
+      "rpc": "update_tournament_announcement_draft",
+      "actor": "captain-1",
+      "why": "captain",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_COMMUNICATION_FORBIDDEN"
+    },
+    {
+      "rpc": "replace_tournament_announcement_audience",
+      "actor": "outsider",
+      "why": "cross-workspace",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_COMMUNICATION_FORBIDDEN"
+    },
+    {
+      "rpc": "replace_tournament_announcement_audience",
+      "actor": "removed",
+      "why": "inactive-membership",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_COMMUNICATION_FORBIDDEN"
+    },
+    {
+      "rpc": "replace_tournament_announcement_audience",
+      "actor": "admin-b",
+      "why": "cross-season",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_COMMUNICATION_FORBIDDEN"
+    },
+    {
+      "rpc": "replace_tournament_announcement_audience",
+      "actor": "player",
+      "why": "participant",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_COMMUNICATION_FORBIDDEN"
+    },
+    {
+      "rpc": "replace_tournament_announcement_audience",
+      "actor": "captain-1",
+      "why": "captain",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_COMMUNICATION_FORBIDDEN"
+    },
+    {
+      "rpc": "set_tournament_announcement_link",
+      "actor": "outsider",
+      "why": "cross-workspace",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_COMMUNICATION_FORBIDDEN"
+    },
+    {
+      "rpc": "set_tournament_announcement_link",
+      "actor": "removed",
+      "why": "inactive-membership",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_COMMUNICATION_FORBIDDEN"
+    },
+    {
+      "rpc": "set_tournament_announcement_link",
+      "actor": "admin-b",
+      "why": "cross-season",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_COMMUNICATION_FORBIDDEN"
+    },
+    {
+      "rpc": "set_tournament_announcement_link",
+      "actor": "player",
+      "why": "participant",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_COMMUNICATION_FORBIDDEN"
+    },
+    {
+      "rpc": "set_tournament_announcement_link",
+      "actor": "captain-1",
+      "why": "captain",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_COMMUNICATION_FORBIDDEN"
+    },
+    {
+      "rpc": "preview_tournament_announcement_audience",
+      "actor": "outsider",
+      "why": "cross-workspace",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_COMMUNICATION_FORBIDDEN"
+    },
+    {
+      "rpc": "preview_tournament_announcement_audience",
+      "actor": "removed",
+      "why": "inactive-membership",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_COMMUNICATION_FORBIDDEN"
+    },
+    {
+      "rpc": "preview_tournament_announcement_audience",
+      "actor": "admin-b",
+      "why": "cross-season",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_COMMUNICATION_FORBIDDEN"
+    },
+    {
+      "rpc": "publish_tournament_announcement",
+      "actor": "outsider",
+      "why": "cross-workspace",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_COMMUNICATION_FORBIDDEN"
+    },
+    {
+      "rpc": "publish_tournament_announcement",
+      "actor": "removed",
+      "why": "inactive-membership",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_COMMUNICATION_FORBIDDEN"
+    },
+    {
+      "rpc": "publish_tournament_announcement",
+      "actor": "admin-b",
+      "why": "cross-season",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_COMMUNICATION_FORBIDDEN"
+    },
+    {
+      "rpc": "publish_tournament_announcement",
+      "actor": "collab",
+      "why": "collaborator-write",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_COMMUNICATION_FORBIDDEN"
+    },
+    {
+      "rpc": "publish_tournament_announcement",
+      "actor": "player",
+      "why": "participant",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_COMMUNICATION_FORBIDDEN"
+    },
+    {
+      "rpc": "publish_tournament_announcement",
+      "actor": "captain-1",
+      "why": "captain",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_COMMUNICATION_FORBIDDEN"
+    },
+    {
+      "rpc": "get_tournament_announcement",
+      "actor": "outsider",
+      "why": "cross-workspace",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_COMMUNICATION_FORBIDDEN"
+    },
+    {
+      "rpc": "mark_tournament_announcement_read",
+      "actor": "outsider",
+      "why": "cross-workspace",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_COMMUNICATION_FORBIDDEN"
+    },
+    {
+      "rpc": "create_tournament_document",
+      "actor": "outsider",
+      "why": "cross-workspace",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_DOCUMENT_FORBIDDEN"
+    },
+    {
+      "rpc": "create_tournament_document",
+      "actor": "removed",
+      "why": "inactive-membership",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_DOCUMENT_FORBIDDEN"
+    },
+    {
+      "rpc": "create_tournament_document",
+      "actor": "admin-b",
+      "why": "cross-season",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_DOCUMENT_FORBIDDEN"
+    },
+    {
+      "rpc": "create_tournament_document",
+      "actor": "player",
+      "why": "participant",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_DOCUMENT_FORBIDDEN"
+    },
+    {
+      "rpc": "create_tournament_document",
+      "actor": "captain-1",
+      "why": "captain",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_DOCUMENT_FORBIDDEN"
+    },
+    {
+      "rpc": "publish_tournament_document_version",
+      "actor": "outsider",
+      "why": "cross-workspace",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_DOCUMENT_FORBIDDEN"
+    },
+    {
+      "rpc": "publish_tournament_document_version",
+      "actor": "removed",
+      "why": "inactive-membership",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_DOCUMENT_FORBIDDEN"
+    },
+    {
+      "rpc": "publish_tournament_document_version",
+      "actor": "admin-b",
+      "why": "cross-season",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_DOCUMENT_FORBIDDEN"
+    },
+    {
+      "rpc": "publish_tournament_document_version",
+      "actor": "collab",
+      "why": "collaborator-write",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_DOCUMENT_FORBIDDEN"
+    },
+    {
+      "rpc": "publish_tournament_document_version",
+      "actor": "player",
+      "why": "participant",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_DOCUMENT_FORBIDDEN"
+    },
+    {
+      "rpc": "publish_tournament_document_version",
+      "actor": "captain-1",
+      "why": "captain",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_DOCUMENT_FORBIDDEN"
+    },
+    {
+      "rpc": "get_published_tournament_documents",
+      "actor": "outsider",
+      "why": "cross-workspace",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_DOCUMENT_FORBIDDEN"
+    },
+    {
+      "rpc": "acknowledge_tournament_document",
+      "actor": "outsider",
+      "why": "cross-workspace",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_DOCUMENT_FORBIDDEN"
+    },
+    {
+      "rpc": "get_my_tournament_notification_preferences",
+      "actor": "outsider",
+      "why": "cross-workspace",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_COMMUNICATION_FORBIDDEN"
+    },
+    {
+      "rpc": "update_my_tournament_notification_preferences",
+      "actor": "outsider",
+      "why": "cross-workspace",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_COMMUNICATION_FORBIDDEN"
+    },
+    {
+      "rpc": "get_tournament_public_page_settings",
+      "actor": "outsider",
+      "why": "cross-workspace",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "get_tournament_public_page_settings",
+      "actor": "removed",
+      "why": "inactive-membership",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "get_tournament_public_page_settings",
+      "actor": "admin-b",
+      "why": "cross-season",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "set_tournament_public_page_published",
+      "actor": "outsider",
+      "why": "cross-workspace",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_PUBLIC_PAGE_FORBIDDEN"
+    },
+    {
+      "rpc": "set_tournament_public_page_published",
+      "actor": "removed",
+      "why": "inactive-membership",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_PUBLIC_PAGE_FORBIDDEN"
+    },
+    {
+      "rpc": "set_tournament_public_page_published",
+      "actor": "admin-b",
+      "why": "cross-season",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_PUBLIC_PAGE_FORBIDDEN"
+    },
+    {
+      "rpc": "set_tournament_public_page_published",
+      "actor": "collab",
+      "why": "collaborator-write",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_PUBLIC_PAGE_FORBIDDEN"
+    },
+    {
+      "rpc": "set_tournament_public_page_published",
+      "actor": "player",
+      "why": "participant",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_PUBLIC_PAGE_FORBIDDEN"
+    },
+    {
+      "rpc": "set_tournament_public_page_published",
+      "actor": "captain-1",
+      "why": "captain",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_PUBLIC_PAGE_FORBIDDEN"
+    },
+    {
+      "rpc": "finish_tournament_competition",
+      "actor": "outsider",
+      "why": "cross-workspace",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "finish_tournament_competition",
+      "actor": "removed",
+      "why": "inactive-membership",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "finish_tournament_competition",
+      "actor": "admin-b",
+      "why": "cross-season",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "finish_tournament_competition",
+      "actor": "collab",
+      "why": "collaborator-write",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "finish_tournament_competition",
+      "actor": "player",
+      "why": "participant",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "finish_tournament_competition",
+      "actor": "captain-1",
+      "why": "captain",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "reopen_tournament_competition",
+      "actor": "outsider",
+      "why": "cross-workspace",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "reopen_tournament_competition",
+      "actor": "removed",
+      "why": "inactive-membership",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "reopen_tournament_competition",
+      "actor": "admin-b",
+      "why": "cross-season",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "reopen_tournament_competition",
+      "actor": "collab",
+      "why": "collaborator-write",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "reopen_tournament_competition",
+      "actor": "player",
+      "why": "participant",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "reopen_tournament_competition",
+      "actor": "captain-1",
+      "why": "captain",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "withdraw_tournament_competition_participant",
+      "actor": "outsider",
+      "why": "cross-workspace",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "withdraw_tournament_competition_participant",
+      "actor": "removed",
+      "why": "inactive-membership",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "withdraw_tournament_competition_participant",
+      "actor": "admin-b",
+      "why": "cross-season",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "withdraw_tournament_competition_participant",
+      "actor": "collab",
+      "why": "collaborator-write",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "withdraw_tournament_competition_participant",
+      "actor": "player",
+      "why": "participant",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "withdraw_tournament_competition_participant",
+      "actor": "captain-1",
+      "why": "captain",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "reopen_tournament_participants",
+      "actor": "outsider",
+      "why": "cross-workspace",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "reopen_tournament_participants",
+      "actor": "removed",
+      "why": "inactive-membership",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "reopen_tournament_participants",
+      "actor": "admin-b",
+      "why": "cross-season",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "reopen_tournament_participants",
+      "actor": "collab",
+      "why": "collaborator-write",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "reopen_tournament_participants",
+      "actor": "player",
+      "why": "participant",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "reopen_tournament_participants",
+      "actor": "captain-1",
+      "why": "captain",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "save_tournament_draw_pots",
+      "actor": "outsider",
+      "why": "cross-workspace",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "save_tournament_draw_pots",
+      "actor": "removed",
+      "why": "inactive-membership",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "save_tournament_draw_pots",
+      "actor": "admin-b",
+      "why": "cross-season",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "save_tournament_draw_pots",
+      "actor": "collab",
+      "why": "collaborator-write",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "save_tournament_draw_pots",
+      "actor": "player",
+      "why": "participant",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "save_tournament_draw_pots",
+      "actor": "captain-1",
+      "why": "captain",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "execute_tournament_group_draw",
+      "actor": "outsider",
+      "why": "cross-workspace",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "execute_tournament_group_draw",
+      "actor": "removed",
+      "why": "inactive-membership",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "execute_tournament_group_draw",
+      "actor": "admin-b",
+      "why": "cross-season",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "execute_tournament_group_draw",
+      "actor": "collab",
+      "why": "collaborator-write",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "execute_tournament_group_draw",
+      "actor": "player",
+      "why": "participant",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "execute_tournament_group_draw",
+      "actor": "captain-1",
+      "why": "captain",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "create_manual_fixture_version",
+      "actor": "outsider",
+      "why": "cross-workspace",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "create_manual_fixture_version",
+      "actor": "removed",
+      "why": "inactive-membership",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "create_manual_fixture_version",
+      "actor": "admin-b",
+      "why": "cross-season",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "create_manual_fixture_version",
+      "actor": "collab",
+      "why": "collaborator-write",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "create_manual_fixture_version",
+      "actor": "player",
+      "why": "participant",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "create_manual_fixture_version",
+      "actor": "captain-1",
+      "why": "captain",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "resolve_tournament_qualification",
+      "actor": "outsider",
+      "why": "cross-workspace",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_QUALIFICATION_FORBIDDEN"
+    },
+    {
+      "rpc": "resolve_tournament_qualification",
+      "actor": "removed",
+      "why": "inactive-membership",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_QUALIFICATION_FORBIDDEN"
+    },
+    {
+      "rpc": "resolve_tournament_qualification",
+      "actor": "admin-b",
+      "why": "cross-season",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_QUALIFICATION_FORBIDDEN"
+    },
+    {
+      "rpc": "resolve_tournament_qualification",
+      "actor": "collab",
+      "why": "collaborator-write",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_QUALIFICATION_FORBIDDEN"
+    },
+    {
+      "rpc": "resolve_tournament_qualification",
+      "actor": "player",
+      "why": "participant",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_QUALIFICATION_FORBIDDEN"
+    },
+    {
+      "rpc": "resolve_tournament_qualification",
+      "actor": "captain-1",
+      "why": "captain",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_QUALIFICATION_FORBIDDEN"
+    },
+    {
+      "rpc": "append_tournament_playoff_phase",
+      "actor": "outsider",
+      "why": "cross-workspace",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "append_tournament_playoff_phase",
+      "actor": "removed",
+      "why": "inactive-membership",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "append_tournament_playoff_phase",
+      "actor": "admin-b",
+      "why": "cross-season",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "append_tournament_playoff_phase",
+      "actor": "collab",
+      "why": "collaborator-write",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "append_tournament_playoff_phase",
+      "actor": "player",
+      "why": "participant",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "append_tournament_playoff_phase",
+      "actor": "captain-1",
+      "why": "captain",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    }
+  ],
+  "no_store": {
+    "responses": 793,
+    "without_no_store": 0
+  }
+}
