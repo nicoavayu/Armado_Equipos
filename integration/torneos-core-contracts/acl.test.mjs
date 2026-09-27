@@ -36,6 +36,11 @@ const MPA2_NEW_AUTH = MPA2.new_security_definer_functions.filter(f => f.api_gran
 const MPA2_AUTH_NET = MPA2_NEW_AUTH.length + MPA2_GRANTED.size - MPA2_REVOKED.size;
 /** A certified per-function expectation shifted by exactly the MP-A2 delta. */
 function withMpA2(fn, authenticated) { return MPA2_GRANTED.has(fn) ? true : (MPA2_REVOKED.has(fn) ? false : authenticated); }
+// COMPETITION-V1 (00000000000004): authenticated regains EXECUTE on exactly the 15 gated RPCs of its manifest (all
+// SECURITY DEFINER); nothing else changes ACL. MP-B1.2 (00000000000003) adds payment-service functions only.
+const CV1 = new Set(JSON.parse(await readFile(`${repo}backend/torneos/competition-v1/contract.json`, 'utf8')).acl.granted_by_0004);
+/** A certified per-function expectation shifted by exactly the MP-A2 and COMPETITION-V1 deltas. */
+function withDeltas(fn, authenticated) { return CV1.has(fn) ? true : withMpA2(fn, authenticated); }
 
 /** Direct PostgREST calls from inside the private network, batched in one container exec. */
 function restBatch(calls) {
@@ -123,7 +128,7 @@ test('Phase 2C — real Supabase stack ACL certification', async (t) => {
       assert.deepEqual(summary.execute.anon, { public_functions: 12, private_functions: 2, security_definer: 12 });
       // Phase 2C measured 180 / 179 on the baseline alone; the Phase 2D gate removes exactly its manifest (33 SECURITY DEFINER RPCs).
       assert.equal(GATED.size, 33);
-      assert.deepEqual(summary.execute.authenticated, { public_functions: 180 - GATED.size + MPA2_AUTH_NET, private_functions: 2, security_definer: 179 - GATED.size + MPA2_AUTH_NET });
+      assert.deepEqual(summary.execute.authenticated, { public_functions: 180 - GATED.size + MPA2_AUTH_NET + CV1.size, private_functions: 2, security_definer: 179 - GATED.size + MPA2_AUTH_NET + CV1.size });
       assert.deepEqual(summary.execute.service_role, { public_functions: 328, private_functions: 2, security_definer: 284 });
       assert.equal(summary.public_execute_functions, 0, 'no function is executable by PUBLIC');
       assert.deepEqual(summary.sequence_privilege, { anon: 0, authenticated: 4, service_role: 4, postgres: 7 });
@@ -139,7 +144,7 @@ test('Phase 2C — real Supabase stack ACL certification', async (t) => {
       const a = view(inventory), b = view(template0);
       // MP-A2 shift of the certified template0 view: authenticated flips on the re-granted/revoked RPCs; the new
       // RPCs exist with their manifest grantees (never anon/PUBLIC, no service_role, no adapter/writer).
-      for (const f of [...MPA2_GRANTED, ...MPA2_REVOKED]) b['function:' + f] = { ...b['function:' + f], authenticated: withMpA2(f, b['function:' + f].authenticated) };
+      for (const f of [...MPA2_GRANTED, ...MPA2_REVOKED, ...CV1]) b['function:' + f] = { ...b['function:' + f], authenticated: withDeltas(f, b['function:' + f].authenticated) };
       for (const f of MPA2.new_security_definer_functions) {
         assert.ok(!b['function:' + f.function], `${f.function} is new in MP-A2`);
         b['function:' + f.function] = { anon: false, authenticated: f.api_grantees.includes('authenticated'), service_role: f.api_grantees.includes('service_role'), public: false, adapter: false, writer: false, security_definer: true, settings: ['search_path=""'] };
@@ -200,9 +205,9 @@ test('Phase 2C — real Supabase stack ACL certification', async (t) => {
     let org;
     await check('authenticated RPCs: the explicitly granted functions (180 in the baseline minus the 33 gated) execute with a valid bearer (guarded DEFINER write + predicate)', async () => {
       const authFns = publicFns.filter(f => f.authenticated).map(f => f.function).sort();
-      const t0Fns = [...template0.functions.filter(f => f.schema === 'public' && withMpA2(f.function, f.authenticated)).map(f => f.function), ...MPA2_NEW_AUTH].sort();
-      assert.deepEqual(authFns, t0Fns); assert.equal(authFns.length, 180 - GATED.size + MPA2_AUTH_NET);
-      assert.deepEqual(authFns.filter(f => GATED.has(f)), [...MPA2_GRANTED].filter(f => GATED.has(f)).sort(), 'no gated function is executable by authenticated except the MP-A2 re-grant');
+      const t0Fns = [...template0.functions.filter(f => f.schema === 'public' && withDeltas(f.function, f.authenticated)).map(f => f.function), ...MPA2_NEW_AUTH].sort();
+      assert.deepEqual(authFns, t0Fns); assert.equal(authFns.length, 180 - GATED.size + MPA2_AUTH_NET + CV1.size);
+      assert.deepEqual(authFns.filter(f => GATED.has(f)), [...MPA2_GRANTED, ...CV1].filter(f => GATED.has(f)).sort(), 'no gated function is executable by authenticated except the MP-A2 re-grant and the COMPETITION-V1 manifest');
       const slug = `phase2c-${randomUUID().slice(0, 8)}`;
       const r = restBatch([{ id: 'org', path: '/rpc/create_tournament_organization', token: actorToken, body: { p_name: 'Phase 2C League', p_slug: slug, p_idempotency_key: randomUUID() } }])[0];
       assert.equal(r.status, 200, JSON.stringify(r.body));
@@ -221,7 +226,7 @@ test('Phase 2C — real Supabase stack ACL certification', async (t) => {
         // A gated function keeps its ledger category; the gate only removes the client roles.
         const gatedExpected = GATED.has(f.function) ? f.grantees.filter(g => !['anon', 'authenticated'].includes(g)) : f.grantees;
         // MP-A2 then re-grants / revokes authenticated on its listed RPCs only.
-        const expected = ['anon', 'authenticated', 'service_role', 'adapter'].filter(g => g === 'authenticated' ? withMpA2(f.function, gatedExpected.includes(g)) : gatedExpected.includes(g));
+        const expected = ['anon', 'authenticated', 'service_role', 'adapter'].filter(g => g === 'authenticated' ? withDeltas(f.function, gatedExpected.includes(g)) : gatedExpected.includes(g));
         const ok = JSON.stringify(grantees) === JSON.stringify(expected) && row.security_definer && row.owner === 'supabase_admin' && (row.settings ?? []).includes('search_path=""')
           && (['PUBLIC_READ', 'IDENTITY_GATED_READ'].includes(f.category) ? row.anon : !row.anon)
           && (['SERVICE_ONLY', 'INTERNAL', 'TRIGGER', 'ADAPTER_ONLY'].includes(f.category) ? (!row.anon && !row.authenticated) : true);
