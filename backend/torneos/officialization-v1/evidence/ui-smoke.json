@@ -1,0 +1,20 @@
+{
+  "generated_at": "2026-09-27",
+  "setup": "fresh lab (0000→0005 from empty volumes) + B04 overlay (core-api on loopback) + lab-bridge + CRA dev app, hybrid composition (REACT_APP_TORNEOS_GATEWAY_URL = bridge → Node gateway, DATA_ENV=local). Seed through the gateway as lab users: owner creates org / season / league with 3 teams (captains accept through the Core verified-email contract), fixture published, competition started, 3 matches scheduled, match 1 left as a DRAFT report 2-1. Logins through a loopback magic-link redirect helper (tokens never printed). Browser: the app's built-in browser pane; window.confirm auto-accepted inside the page for the three confirmation dialogs.",
+  "checks": [
+    { "as": "owner", "page": "organizacion/:org/miembros", "result": "PASS", "detail": "active 'Invitar miembro' (no 'Próximamente'); form offers Administrador + Colaborador; 'Generar enlace' → one-time link /torneos/invitacion/organizacion/<64 hex> + expiry; pending list shows the email as Administrador with 'Revocar'; shell notice reads 'Entorno local · Datos de prueba, sin conexión a producción'" },
+    { "as": "beto (other email)", "page": "/torneos/invitacion/organizacion/:token", "result": "PASS", "detail": "'Aceptar invitación' → 'La invitación no existe, ya fue usada o no corresponde a esta cuenta.' (Core verified email ≠ invited email); invitation stays pending" },
+    { "as": "ana (invited email)", "page": "/torneos/invitacion/organizacion/:token", "result": "PASS", "detail": "'Ya sos Administrador de Liga Smoke …' + 'Abrir organización'" },
+    { "as": "owner", "page": "organizacion/:org/miembros", "result": "PASS", "detail": "Ana listed with her email and a role selector + 'Quitar'; season seat 'Asignar' → 'Asignado'" },
+    { "as": "owner", "page": "torneo/:t/partidos/:m1/acta (dual control OFF)", "result": "PASS", "detail": "closure card 'Confirmar resultado' with 'Presentar y oficializar' + 'Sólo presentar'; one click → submit → review → validate → official; status Oficial, notice 'El resultado ya es oficial. Recalculá la tabla para reflejarlo.'" },
+    { "as": "owner", "page": "torneo/:t/configuracion", "result": "PASS", "detail": "panel 'Doble control de actas': Desactivado → 'Activar doble control' → 'Activado · Se necesitan dos personas distintas para oficializar.'" },
+    { "as": "owner (submitter of match 2)", "page": "torneo/:t/partidos/:m2/revision (dual control ON)", "result": "PASS", "detail": "'Doble control activo: quien presenta el acta no puede validarla. Presentada por vos. Otro Administrador debe validarla.'; no 'Validar acta' and no 'Confirmar y oficializar'; 'Aprobar revisión' works (status En revisión)" },
+    { "as": "ana (admin)", "page": "torneo/:t/partidos/:m2/revision (dual control ON)", "result": "PASS", "detail": "'… Presentada por otro miembro de la organización.'; 'Validar acta' → 'Hacer oficial' → Oficial" },
+    { "as": "ana (admin)", "page": "torneo/:t/configuracion", "result": "PASS", "detail": "dual-control panel read-only: 'Sólo el Propietario puede cambiar esta política.'" },
+    { "as": "ana (admin)", "page": "torneo/:t/equipos", "result": "PASS", "detail": "numbered teams render distinct initials Q1 / Q2 / Q3 (were all 'QE')" }
+  ],
+  "not_covered_in_browser": [
+    "standings / statistics after the UI officializations (covered by the lab suite C4/C6/C12 on both gateways)",
+    "the public page enum labels (covered by Jest; the public page needs PUBLIC_PAGES on)"
+  ]
+}

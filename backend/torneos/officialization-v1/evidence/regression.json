@@ -1,0 +1,77 @@
+{
+  "generated_at": "2026-09-27",
+  "lab": "fresh volumes, migrations 0000→0005 of this tree (0005 sha256 51fe200f2124e786345a85e5dbadfc844765db550a7f8cc837adefbddf0aeb78), Core real (GoTrue + contract function), Node + Edge gateways; suites run strictly sequentially",
+  "officialization": {
+    "node": "39/39",
+    "edge": "39/39",
+    "negative_matrix_rows": {
+      "node": 95,
+      "edge": 95
+    },
+    "no_store": {
+      "node": {
+        "responses": 455,
+        "without_no_store": 0
+      },
+      "edge": {
+        "responses": 455,
+        "without_no_store": 0
+      }
+    }
+  },
+  "lab_regression": {
+    "competition.test.mjs (COMPETITION-V1)": {
+      "node": "37/37 checks (40 tests)",
+      "edge": "37/37 checks (40 tests)",
+      "displaced_by_0005": [
+        "A2 authenticated count 162 → 171 (read from officialization contract)",
+        "B8 enables dual control on the tournament before asserting that the submitter cannot validate"
+      ]
+    },
+    "test.mjs (Phase 3A E2E)": {
+      "node": "41/41",
+      "edge": "41/41",
+      "displaced_by_0005": [
+        "migration list + 0005",
+        "catalog counts +9 SECURITY DEFINER functions / +1 table"
+      ]
+    },
+    "acl.test.mjs (Phase 2C ACL)": {
+      "node": "17/17",
+      "displaced_by_0005": [
+        "+9 authenticated/service_role functions, +1 relation without API privileges"
+      ],
+      "note": "one intermediate run hit a transient PT401 (bearer expiry during a slow check); the final and two other runs 17/17"
+    },
+    "exposure.test.mjs (Phase 2D)": {
+      "node": "19/19",
+      "edge": "19/19",
+      "displaced_by_0005": [
+        "migration list + 0005",
+        "authenticated count + 9"
+      ]
+    },
+    "equivalence.test.mjs (Node≡Edge)": {
+      "node": "8/8"
+    },
+    "d1.test.mjs (session authority)": {
+      "node": "6/6"
+    }
+  },
+  "offline": {
+    "frontend foundation/transport/adapter/competition/officialization/commerce": "69/69",
+    "static guard + quality gate": "257/257",
+    "competition-remote": "7/7",
+    "gateway-remote": "8/8 (bundle 16 → 17 files)",
+    "torneos-foundation": "53/53",
+    "gateway-auth (auth + b03 + topology)": "44/44",
+    "core-prod": "41/41",
+    "competition-v1 reconcile": "2/2",
+    "deno-runtime-compat (Deno 2.1.4)": "8/8 (same 3 pre-existing strict-type diagnostics, line numbers moved)",
+    "deno-runtime-hardening": "30/30",
+    "jest (full)": "335 suites / 3254 tests",
+    "react-scripts build": "OK (3 pre-existing third-party source-map warnings)"
+  },
+  "skips": 0,
+  "note": "The historical lab suites rewrite their own tracked evidence files on every run; those files were restored byte-identical (they certify earlier phases). This file records the results of this phase."
+}
