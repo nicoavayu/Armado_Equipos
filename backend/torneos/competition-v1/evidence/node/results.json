@@ -1,10 +1,10 @@
 {
   "summary": {
-    "run": "cv1fb2115",
+    "run": "cv18d9920",
     "gateway": "node",
-    "at": "2026-09-27T02:25:24.730Z",
-    "total": 37,
-    "passed": 37,
+    "at": "2026-09-27T16:00:41.362Z",
+    "total": 39,
+    "passed": 39,
     "failed": 0,
     "exercised": [
       "accept_tournament_team_invitation",
@@ -96,7 +96,7 @@
       "void_tournament_match_event",
       "withdraw_tournament_competition_participant"
     ],
-    "matrix_rows": 295
+    "matrix_rows": 299
   },
   "results": [
     {
@@ -208,6 +208,10 @@
       "status": "PASS"
     },
     {
+      "name": "C2b self-scoped RPCs (no resource argument, or only the caller's own rows): an outsider sees none of this workspace's matches, squads or announcements",
+      "status": "PASS"
+    },
+    {
       "name": "C3 no bearer → 401 at the gateway for every allowlisted RPC (before PostgREST)",
       "status": "PASS"
     },
@@ -233,6 +237,10 @@
     },
     {
       "name": "D5 Core unavailable → 503 fail closed (no stale success); Torneos REST unavailable → 503; both recover",
+      "status": "PASS"
+    },
+    {
+      "name": "D5b public route bounds: shape-invalid slugs refused before Torneos REST; at most 16 anonymous calls in flight per gateway instance (the rest 503 busy at once); slots released",
       "status": "PASS"
     },
     {
@@ -2608,10 +2616,42 @@
       "status": 403,
       "code": "42501",
       "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "get_player_tournament_matches",
+      "actor": "outsider",
+      "why": "self-scope-isolation",
+      "status": 200,
+      "code": null,
+      "message": "no foreign rows"
+    },
+    {
+      "rpc": "get_managed_tournament_matches",
+      "actor": "outsider",
+      "why": "self-scope-isolation",
+      "status": 200,
+      "code": null,
+      "message": "no foreign rows"
+    },
+    {
+      "rpc": "get_my_managed_match_squad_context",
+      "actor": "outsider",
+      "why": "self-scope-isolation",
+      "status": 200,
+      "code": null,
+      "message": "null"
+    },
+    {
+      "rpc": "get_tournament_communications_inbox",
+      "actor": "outsider",
+      "why": "self-scope-isolation",
+      "status": 200,
+      "code": null,
+      "message": "no foreign rows"
     }
   ],
   "no_store": {
-    "responses": 793,
+    "responses": 859,
     "without_no_store": 0
   }
 }

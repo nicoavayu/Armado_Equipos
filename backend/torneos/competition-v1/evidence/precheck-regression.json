@@ -1,0 +1,34 @@
+{
+  "generated_at": "2026-09-27",
+  "phase": "COMPETITION-V1 remote precheck (G0) — local only, 0 remote writes",
+  "lab": {
+    "project": "arma2-competition-precheck",
+    "fresh_volumes": true,
+    "images": "supabase/postgres 17.6.1.143, gotrue v2.194.0, postgrest v14.15, edge-runtime v1.74.2",
+    "torneos_migrations_applied": { "0001": "3df4b96eecc7", "0002": "06378f12b576", "0003": "d54b3293da53", "0004": "36e45eddf576" },
+    "gateway_source": "4cf698e6 (public route bounds) — candidate bundle 16 files, digest 75e3535acc3fba99c871ee820d1927e1c695eba4c10044ec4e6ffda38b59afc7"
+  },
+  "acl_reconciliation": {
+    "before": "14/17 = 16 subtests (14 PASS, 2 FAIL) + the parent test (FAIL because a subtest failed); 0 skipped. The 2 failures were identical on main ff9f9a77: 'grants' (8 objects of 0003 absent from the template0 view: 5 new/renamed payment functions, the watermark table, and the 2 MP-A2 appliers 0003 renamed) and '305/305' (SECURITY DEFINER count 312 vs expected 309 = 3 new 0003 functions). Pins not shifted for MP-B1.2; no grant problem.",
+    "fix": "acl.test.mjs shifts the template0 view by the exact MP-B1.2 delta (2 renames, 3 new SECURITY DEFINER functions, 1 relation) and asserts each of those objects has NO anon / authenticated / service_role / PUBLIC privilege",
+    "after": "17/17 (16 subtests + parent), 0 skipped"
+  },
+  "competition_v1": {
+    "node": "39/39 checks (40 incl. parent) — adds C2b self-scope isolation and D5b public route bounds",
+    "edge": "39/39 checks (40 incl. parent)",
+    "negative_matrix_rows": 299
+  },
+  "historical_lab_suites": {
+    "phase3a_e2e_node": "41/41", "phase3a_e2e_edge": "41/41", "equivalence_node_edge": "8/8", "d1_session_authority": "6/6",
+    "exposure_node": "19/19", "exposure_edge": "19/19", "acl": "17/17"
+  },
+  "offline_suites": {
+    "competition_v1_remote_tooling": "7/7",
+    "competition_v1_offline_rehearsal": "24/24 (supabase/postgres 17.6.1.147, installer postgres)",
+    "competition_v1_reconciliation": "2/2 (A 15 + B 59 + C 1)",
+    "gateway_remote": "8/8", "gateway_auth": "27/27", "b03_jwks_url": "12/12", "gateway_topology": "5/5",
+    "foundation_infra1": "53/53", "core_prod_contract": "41/41", "payments_session": "13/13", "gateway_port_phase3b": "6/6",
+    "frontend_foundation_transport_adapter_competition_commerce": "64/64", "static_guard_ci": "257/257",
+    "deno_2_1_4_runtime_compat": "8/8", "deno_runtime_hardening": "30/30"
+  }
+}

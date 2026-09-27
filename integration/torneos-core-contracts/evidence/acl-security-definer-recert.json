@@ -535,9 +535,11 @@
       ],
       "staging_v1_gated": true,
       "expected_grantees": [
+        "authenticated",
         "service_role"
       ],
       "real_stack_grantees": [
+        "authenticated",
         "service_role"
       ],
       "owner": "supabase_admin",
@@ -1366,11 +1368,9 @@
       ],
       "staging_v1_gated": false,
       "expected_grantees": [
-        "authenticated",
         "service_role"
       ],
       "real_stack_grantees": [
-        "authenticated",
         "service_role"
       ],
       "owner": "supabase_admin",
@@ -1515,9 +1515,11 @@
       ],
       "staging_v1_gated": true,
       "expected_grantees": [
+        "authenticated",
         "service_role"
       ],
       "real_stack_grantees": [
+        "authenticated",
         "service_role"
       ],
       "owner": "supabase_admin",
@@ -1643,11 +1645,9 @@
       ],
       "staging_v1_gated": false,
       "expected_grantees": [
-        "authenticated",
         "service_role"
       ],
       "real_stack_grantees": [
-        "authenticated",
         "service_role"
       ],
       "owner": "supabase_admin",
@@ -2945,9 +2945,11 @@
       ],
       "staging_v1_gated": true,
       "expected_grantees": [
+        "authenticated",
         "service_role"
       ],
       "real_stack_grantees": [
+        "authenticated",
         "service_role"
       ],
       "owner": "supabase_admin",
@@ -3730,9 +3732,11 @@
       ],
       "staging_v1_gated": true,
       "expected_grantees": [
+        "authenticated",
         "service_role"
       ],
       "real_stack_grantees": [
+        "authenticated",
         "service_role"
       ],
       "owner": "supabase_admin",
@@ -3950,9 +3954,11 @@
       ],
       "staging_v1_gated": true,
       "expected_grantees": [
+        "authenticated",
         "service_role"
       ],
       "real_stack_grantees": [
+        "authenticated",
         "service_role"
       ],
       "owner": "supabase_admin",
@@ -4198,9 +4204,11 @@
       ],
       "staging_v1_gated": true,
       "expected_grantees": [
+        "authenticated",
         "service_role"
       ],
       "real_stack_grantees": [
+        "authenticated",
         "service_role"
       ],
       "owner": "supabase_admin",
@@ -4282,9 +4290,11 @@
       ],
       "staging_v1_gated": true,
       "expected_grantees": [
+        "authenticated",
         "service_role"
       ],
       "real_stack_grantees": [
+        "authenticated",
         "service_role"
       ],
       "owner": "supabase_admin",
@@ -4441,9 +4451,11 @@
       ],
       "staging_v1_gated": true,
       "expected_grantees": [
+        "authenticated",
         "service_role"
       ],
       "real_stack_grantees": [
+        "authenticated",
         "service_role"
       ],
       "owner": "supabase_admin",
@@ -4502,9 +4514,11 @@
       ],
       "staging_v1_gated": true,
       "expected_grantees": [
+        "authenticated",
         "service_role"
       ],
       "real_stack_grantees": [
+        "authenticated",
         "service_role"
       ],
       "owner": "supabase_admin",
@@ -4705,9 +4719,11 @@
       ],
       "staging_v1_gated": true,
       "expected_grantees": [
+        "authenticated",
         "service_role"
       ],
       "real_stack_grantees": [
+        "authenticated",
         "service_role"
       ],
       "owner": "supabase_admin",
@@ -4769,9 +4785,11 @@
       ],
       "staging_v1_gated": true,
       "expected_grantees": [
+        "authenticated",
         "service_role"
       ],
       "real_stack_grantees": [
+        "authenticated",
         "service_role"
       ],
       "owner": "supabase_admin",
@@ -5232,9 +5250,11 @@
       ],
       "staging_v1_gated": true,
       "expected_grantees": [
+        "authenticated",
         "service_role"
       ],
       "real_stack_grantees": [
+        "authenticated",
         "service_role"
       ],
       "owner": "supabase_admin",
@@ -5296,9 +5316,11 @@
       ],
       "staging_v1_gated": true,
       "expected_grantees": [
+        "authenticated",
         "service_role"
       ],
       "real_stack_grantees": [
+        "authenticated",
         "service_role"
       ],
       "owner": "supabase_admin",
@@ -5766,9 +5788,11 @@
       ],
       "staging_v1_gated": true,
       "expected_grantees": [
+        "authenticated",
         "service_role"
       ],
       "real_stack_grantees": [
+        "authenticated",
         "service_role"
       ],
       "owner": "supabase_admin",
@@ -6047,9 +6071,11 @@
       ],
       "staging_v1_gated": true,
       "expected_grantees": [
+        "authenticated",
         "service_role"
       ],
       "real_stack_grantees": [
+        "authenticated",
         "service_role"
       ],
       "owner": "supabase_admin",
@@ -6127,9 +6153,11 @@
       ],
       "staging_v1_gated": true,
       "expected_grantees": [
+        "authenticated",
         "service_role"
       ],
       "real_stack_grantees": [
+        "authenticated",
         "service_role"
       ],
       "owner": "supabase_admin",

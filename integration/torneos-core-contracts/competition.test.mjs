@@ -703,6 +703,26 @@ test(`COMPETITION-V1 — full-competition contract on the real stack (${GATEWAY_
       }
       assert.ok(matrix.length > 150, `matrix size ${matrix.length}`);
     });
+    await check('C2b self-scoped RPCs (no resource argument, or only the caller\'s own rows): an outsider sees none of this workspace\'s matches, squads or announcements', async () => {
+      await tok(outsider);
+      const leak = (r, needle) => r.status === 200 && JSON.stringify(r.body ?? null).includes(needle);
+      const mine = await gw('get_player_tournament_matches', outsider.token, {});
+      assert.equal(mine.status, 200, show(mine)); assert.ok(!leak(mine, S.m.id), 'outsider player matches: no foreign match');
+      const managed = await gw('get_managed_tournament_matches', outsider.token, {});
+      assert.equal(managed.status, 200, show(managed)); assert.ok(!leak(managed, S.m.id), 'outsider managed matches: no foreign match');
+      const squad = await gw('get_my_managed_match_squad_context', outsider.token, { p_match_id: S.m.id });
+      // A SQL function joined on the caller's active captain/delegate row: for anyone else the join is empty → null.
+      assert.deepEqual([squad.status, squad.body], [200, null], `outsider squad context: ${show(squad)}`);
+      const inbox = await gw('get_tournament_communications_inbox', outsider.token, { p_tournament_id: S.A.id, p_filter: 'all', p_limit: 20, p_offset: 0 });
+      assert.ok(!leak(inbox, S.announcement), `outsider inbox: ${show(inbox)}`);
+      assert.ok([200, 403].includes(inbox.status), show(inbox));
+      // The rival captain manages the other side only: the home squad context is not theirs.
+      const rival = await gw('get_my_managed_match_squad_context', await tok(S.away.captain), { p_match_id: S.m.id });
+      assert.equal(rival.status, 200, show(rival));
+      assert.ok(S.home.players.every((id) => !leak(rival, id)), `rival captain sees no home roster: ${show(rival)}`);
+      matrix.push(...[['get_player_tournament_matches', mine], ['get_managed_tournament_matches', managed], ['get_my_managed_match_squad_context', squad], ['get_tournament_communications_inbox', inbox]]
+        .map(([rpc, r]) => ({ rpc, actor: 'outsider', why: 'self-scope-isolation', status: r.status, code: r.body?.code ?? null, message: r.status === 200 ? (r.body === null ? 'null' : 'no foreign rows') : (r.body?.message ?? null) })));
+    });
     await check('C3 no bearer → 401 at the gateway for every allowlisted RPC (before PostgREST)', async () => {
       for (const n of ALLOW) {
         const r = await gw(n, null, {});
@@ -791,6 +811,27 @@ test(`COMPETITION-V1 — full-competition contract on the real stack (${GATEWAY_
         assert.equal(p.status, 503, show(p));
       } finally { setService('torneos-rest', 'start'); }
       await waitFor('Torneos REST', async () => (await gw('get_tournament_fixture_context', owner.token, scope)).status === 200);
+    });
+    await check('D5b public route bounds: shape-invalid slugs refused before Torneos REST; at most 16 anonymous calls in flight per gateway instance (the rest 503 busy at once); slots released', async () => {
+      setService('torneos-rest', 'pause');
+      let burst;
+      try {
+        // REST frozen: a refusal that needed it would hang ~5 s and end 503. These answer 400 at once.
+        for (const bad of [{ p_public_slug: 'Bad_Slug' }, { p_public_slug: 'ab' }, { p_public_slug: '-abc' }, { p_public_slug: S.slug, p_category_slug: 'x' }]) {
+          const t0 = Date.now(); const r = await pub('get_public_tournament_page', bad);
+          assert.deepEqual([r.status, r.body], [400, { error: 'invalid arguments' }], JSON.stringify(bad));
+          assert.ok(Date.now() - t0 < 2000, 'refused without an upstream request');
+        }
+        burst = await Promise.all(Array.from({ length: 40 }, () => pub('get_public_tournament_page', { p_public_slug: S.slug, p_category_slug: null })));
+      } finally { setService('torneos-rest', 'unpause'); }
+      const busy = burst.filter((r) => r.status === 503 && r.body?.error === 'public route busy');
+      const waited = burst.filter((r) => !(r.status === 503 && r.body?.error === 'public route busy'));
+      assert.ok(burst.every((r) => r.status === 503), `every call fails closed while REST is frozen: ${[...new Set(burst.map((r) => r.status))]}`);
+      assert.equal(waited.length, 16, `exactly the bound reached Torneos REST (busy ${busy.length})`);
+      assert.equal(busy.length, 24);
+      await waitFor('Torneos REST', async () => (await pub('get_public_tournament_page', { p_public_slug: S.slug, p_category_slug: null })).status === 200);
+      const again = await Promise.all(Array.from({ length: 16 }, () => pub('get_public_tournament_page', { p_public_slug: S.slug, p_category_slug: null })));
+      assert.deepEqual([...new Set(again.map((r) => r.status))], [200], 'all 16 slots were released');
     });
     await check('D6 persistence: after new exchanges and a gateway restart the table, report and public page read back identically', async () => {
       const scope = { p_organization_id: S.org, p_tournament_id: S.A.id, p_category_id: S.A.category, p_phase_id: S.A.phase, p_group_id: null };

@@ -41,6 +41,23 @@ function withMpA2(fn, authenticated) { return MPA2_GRANTED.has(fn) ? true : (MPA
 const CV1 = new Set(JSON.parse(await readFile(`${repo}backend/torneos/competition-v1/contract.json`, 'utf8')).acl.granted_by_0004);
 /** A certified per-function expectation shifted by exactly the MP-A2 and COMPETITION-V1 deltas. */
 function withDeltas(fn, authenticated) { return CV1.has(fn) ? true : withMpA2(fn, authenticated); }
+// MP-B1.2 (00000000000003, provider ordering): renames the two MP-A2 appliers without a provider timestamp to
+// unordered_* and revokes them from every role; adds order_verified_tournament_payment and the two ordered appliers
+// (EXECUTE for torneos_payment_service only, which is not an API role) and the watermark table (RLS, REVOKE ALL).
+// None of these objects is reachable by anon, authenticated, service_role or PUBLIC — asserted object by object.
+const MPB12 = Object.freeze({
+  renamed: [
+    ['apply_verified_tournament_payment_status(uuid,text,text,text,text,text,text)', 'unordered_tournament_payment_status(uuid,text,text,text,text,text,text)'],
+    ['apply_verified_tournament_payment_reversal(uuid,text,text,text,text,text,text)', 'unordered_tournament_payment_reversal(uuid,text,text,text,text,text,text)'],
+  ],
+  new_security_definer: [
+    'order_verified_tournament_payment(uuid,text,text,text,text,text,text,text,timestamp with time zone)',
+    'apply_verified_tournament_payment_status(uuid,text,text,text,text,text,text,timestamp with time zone)',
+    'apply_verified_tournament_payment_reversal(uuid,text,text,text,text,text,text,timestamp with time zone)',
+  ],
+  new_relations: ['public.tournament_payment_provider_watermarks'],
+});
+const NO_API_FUNCTION = Object.freeze({ anon: false, authenticated: false, service_role: false, public: false, adapter: false, writer: false, security_definer: true, settings: ['search_path=""'] });
 
 /** Direct PostgREST calls from inside the private network, batched in one container exec. */
 function restBatch(calls) {
@@ -149,6 +166,13 @@ test('Phase 2C — real Supabase stack ACL certification', async (t) => {
         assert.ok(!b['function:' + f.function], `${f.function} is new in MP-A2`);
         b['function:' + f.function] = { anon: false, authenticated: f.api_grantees.includes('authenticated'), service_role: f.api_grantees.includes('service_role'), public: false, adapter: false, writer: false, security_definer: true, settings: ['search_path=""'] };
       }
+      // MP-B1.2 shift: the renamed appliers and the new ordering objects exist with NO API-role privilege at all.
+      for (const [from, to] of MPB12.renamed) {
+        assert.ok(b['function:' + from], `${from} is an MP-A2 applier`); assert.ok(!a['function:' + from], `${from} no longer exists after 0003`);
+        delete b['function:' + from]; b['function:' + to] = { ...NO_API_FUNCTION };
+      }
+      for (const f of MPB12.new_security_definer) { assert.ok(!b['function:' + f], `${f} is new in MP-B1.2`); b['function:' + f] = { ...NO_API_FUNCTION }; }
+      for (const r of MPB12.new_relations) { assert.ok(!b['relation:' + r], `${r} is new in MP-B1.2`); b['relation:' + r] = { anon: [], authenticated: [], service_role: [], rls: true }; }
       const mismatches = Object.keys({ ...a, ...b }).filter(k => JSON.stringify(a[k]) !== JSON.stringify(b[k]));
       assert.deepEqual(mismatches, [], 'real stack == template0 for API-role privileges');
       assert.ok(Object.keys(a).length >= 470, `objects compared: ${Object.keys(a).length}`);
@@ -235,7 +259,7 @@ test('Phase 2C — real Supabase stack ACL certification', async (t) => {
       await writeFile('evidence/acl-security-definer-recert.json', JSON.stringify({ total: rows.length, maintained: rows.filter(r => r.disposition_maintained).length, staging_v1_gated: rows.filter(r => r.staging_v1_gated).length, categories: Object.fromEntries([...new Set(rows.map(r => r.category))].sort().map(c => [c, rows.filter(r => r.category === c).length])), functions: rows }, null, 2) + '\n');
       assert.equal(rows.filter(r => !r.disposition_maintained).length, 0);
       assert.equal(rows.length, 305);
-      assert.equal(torneosSql("select count(*) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname in ('public','private') and p.prosecdef").trim(), String(305 + MPA2.new_security_definer_functions.length), 'the 305 certified + the MP-A2 commerce RPCs');
+      assert.equal(torneosSql("select count(*) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname in ('public','private') and p.prosecdef").trim(), String(305 + MPA2.new_security_definer_functions.length + MPB12.new_security_definer.length), 'the 305 certified + the MP-A2 commerce RPCs + the 3 MP-B1.2 ordering functions');
     });
     await check('no privilege escalation: role graph, PostgREST role switch, sequences, private schema', async () => {
       const roles = Object.fromEntries(inventory.roles.map(r => [r.role, r]));
