@@ -8,7 +8,8 @@
 //   phase 'late'  (≥ 126 s after 'now') the same bridge token → gateway 401 and direct PostgREST 401 (TTL + tolerance).
 async function torneosGatewayE2E(phase) {
   const GW = 'https://torneos-gateway.nicoavayu.deno.net/functions/v1/torneos-gateway';
-  const REST = 'https://onzpwnqxnvlgsevivngf.supabase.co/rest/v1';
+  const TORNEOS_REF = 'onzpwnqxnvlgsevivngf'; // = TORNEOS_REF of torneos-gateway-auth/gateway-auth-contract.mjs (pinned by test)
+  const REST = `https://${TORNEOS_REF}.supabase.co/rest/v1`;
   const b64 = (s) => JSON.parse(decodeURIComponent(escape(atob(s.replace(/-/g, '+').replace(/_/g, '/')))));
   const parts = (t) => ({ h: b64(t.split('.')[0]), c: b64(t.split('.')[1]) });
   const pre = (v) => (typeof v === 'string' ? v.slice(0, 8) : null);

@@ -18,6 +18,18 @@ import { buildGatewayEnv, denoEnvVars, describeEnv, fetchCoreAnonKey, publicUrlF
 import { probeGateway } from './gateway-probe.mjs';
 import { makeSession } from './remote-session.mjs';
 
+test('browser E2E script parses and targets only the app origin, the gateway and Torneos PostgREST (ref = contract)', async () => {
+  const vm = await import('node:vm');
+  const src = fs.readFileSync(new URL('./browser-e2e.js', import.meta.url), 'utf8');
+  new vm.Script(src);
+  const refs = [...src.matchAll(/const TORNEOS_REF = '([a-z0-9]+)';/g)].map((m) => m[1]);
+  assert.deepEqual(refs, [G.TORNEOS_REF]);
+  assert.ok(src.includes('const REST = `https://${TORNEOS_REF}.supabase.co/rest/v1`;'));
+  const resolved = src.replaceAll('${TORNEOS_REF}', G.TORNEOS_REF);
+  const hosts = [...new Set([...resolved.matchAll(/https:\/\/([a-z0-9.-]+)/g)].map((m) => m[1]))].sort();
+  assert.deepEqual(hosts, ['app.arma2.com.ar', `${G.TORNEOS_REF}.supabase.co`, 'torneos-gateway.nicoavayu.deno.net']);
+});
+
 const b64u = (o) => Buffer.from(JSON.stringify(o)).toString('base64url');
 const fakeJwt = (claims) => `${b64u({ alg: 'HS256', typ: 'JWT' })}.${b64u(claims)}.${crypto.randomBytes(32).toString('base64url')}`;
 const CORE_ANON = fakeJwt({ iss: 'supabase', ref: G.CORE_PROD_REF, role: 'anon', iat: 1, exp: 2 });

@@ -65,10 +65,20 @@ test('P5 the tty wrapper and the contract agree on every input shape', () => {
   execFileSync('bash', ['-n', path.join(HERE, 'run-payments-session.sh')]);
 });
 
+// The browser scripts cannot import the contract: their Torneos host is `https://${TORNEOS_REF}.supabase.co`, with the
+// one TORNEOS_REF they declare pinned here to the certified contract, then resolved for the host allowlist below.
+const browserScriptHosts = (src) => {
+  const refs = [...src.matchAll(/const TORNEOS_REF = '([a-z0-9]+)';/g)].map((m) => m[1]);
+  assert.deepEqual(refs, [C.TORNEOS_REF]);
+  assert.ok(src.includes('const REST = `https://${TORNEOS_REF}.supabase.co/rest/v1`;'));
+  const resolved = src.replaceAll('${TORNEOS_REF}', C.TORNEOS_REF);
+  return [...new Set([...resolved.matchAll(/https:\/\/([a-z0-9.-]+)/g)].map((m) => m[1]))].sort();
+};
+
 test('P6 the QA browser script parses, targets only the certified gateway / Torneos PostgREST and refuses duplicates', () => {
   const src = fs.readFileSync(path.join(HERE, 'qa-fixtures.js'), 'utf8');
   new vm.Script(src);
-  const hosts = [...new Set([...src.matchAll(/https:\/\/([a-z0-9.-]+)/g)].map((m) => m[1]))].sort();
+  const hosts = browserScriptHosts(src);
   assert.deepEqual(hosts, ['app.arma2.com.ar', 'onzpwnqxnvlgsevivngf.supabase.co', 'torneos-gateway.nicoavayu.deno.net']);
   assert.match(src, /QA_ORG_ALREADY_PRESENT_REFUSE_DUPLICATE/);
   assert.ok(src.includes(C.QA.orgName) && C.QA.seasons.every((s) => src.includes(s.name) && src.includes(s.slugPrefix)));
@@ -124,7 +134,7 @@ test('P10 SANDBOX relation projection: booleans only, application ids never copi
 test('P11 FRESH OPERATION: the fresh-purchase browser script touches only the certified hosts, S1 purchase RPC, one swept purchase', () => {
   const src = fs.readFileSync(path.join(HERE, 'qa-fresh-purchase.js'), 'utf8');
   new vm.Script(src);
-  const hosts = [...new Set([...src.matchAll(/https:\/\/([a-z0-9.-]+)/g)].map((m) => m[1]))].sort();
+  const hosts = browserScriptHosts(src);
   assert.deepEqual(hosts, ['app.arma2.com.ar', 'onzpwnqxnvlgsevivngf.supabase.co', 'torneos-gateway.nicoavayu.deno.net']);
   const rpcs = [...new Set([...src.matchAll(/(?:gw|rest)\('([a-z_]+)'/g)].map((m) => m[1]))].sort();
   assert.deepEqual(rpcs, ['create_tournament_season_checkout_purchase']);

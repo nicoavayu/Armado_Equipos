@@ -14,7 +14,8 @@
 // The Core access token and the bridge token never leave the page; the result carries ids, statuses and amounts only.
 async function torneosPaymentsQaFreshPurchase({ organizationId, seasonId }) {
   const GW = 'https://torneos-gateway.nicoavayu.deno.net/functions/v1/torneos-gateway';
-  const REST = 'https://onzpwnqxnvlgsevivngf.supabase.co/rest/v1';
+  const TORNEOS_REF = 'onzpwnqxnvlgsevivngf'; // = TORNEOS_REF of torneos-gateway-auth/gateway-auth-contract.mjs (pinned by test)
+  const REST = `https://${TORNEOS_REF}.supabase.co/rest/v1`;
   const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
   const out = { at: new Date().toISOString(), organization: organizationId, season: seasonId, steps: [] };
   const step = (name, status, extra = {}) => { out.steps.push({ name, status, ...extra }); };

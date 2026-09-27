@@ -11,7 +11,8 @@
 // The Core access token and the bridge token never leave the page; the result carries ids, statuses and amounts only.
 async function torneosPaymentsQaFixtures() {
   const GW = 'https://torneos-gateway.nicoavayu.deno.net/functions/v1/torneos-gateway';
-  const REST = 'https://onzpwnqxnvlgsevivngf.supabase.co/rest/v1';
+  const TORNEOS_REF = 'onzpwnqxnvlgsevivngf'; // = TORNEOS_REF of torneos-gateway-auth/gateway-auth-contract.mjs (pinned by test)
+  const REST = `https://${TORNEOS_REF}.supabase.co/rest/v1`;
   const QA = { orgName: 'QA PAYMENTS TEST (Mercado Pago sandbox)', orgSlugPrefix: 'qa-payments-test-',
     seasons: [{ key: 'S1', name: 'QA PAYMENTS TEST S1 checkout sandbox', slugPrefix: 'qa-pt-s1-' }, { key: 'S2', name: 'QA PAYMENTS TEST S2 ordering rollback', slugPrefix: 'qa-pt-s2-' }] };
   const hex = (n) => [...crypto.getRandomValues(new Uint8Array(n))].map((b) => b.toString(16).padStart(2, '0')).join('');
