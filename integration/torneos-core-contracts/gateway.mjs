@@ -34,6 +34,7 @@ if (RPC_ALLOWLIST.size === 0) throw new Error('staging v1 RPC allowlist is empty
 const competitionModule = await import('./functions/torneos-gateway/competition.ts');
 const competition = competitionModule.loadCompetitionContract(RPC_ALLOWLIST);
 const BASE_ALLOWLIST = competitionModule.withCompetition(RPC_ALLOWLIST, competition);
+const publicGate = new competitionModule.PublicGate();
 const pool = (host, user, password) => new pg.Pool({ host, database: 'postgres', user, password,
   connectionTimeoutMillis: 2000, statement_timeout: 2000 });
 const core = pool('core-db', 'poc_session_reader', initial.readerPassword);
@@ -203,11 +204,16 @@ const server = http.createServer(async (req, res) => {
         apikey: req.headers.apikey ?? null, contentType: req.headers['content-type'] ?? null,
         contentLength: req.headers['content-length'] ?? null, body: req }, competition);
       if (!decision.ok) return json(res, decision.status, { error: decision.error });
-      const r = await dependencyFetch(`http://torneos-rest:3000${decision.path}`, { method: 'POST',
-        headers: { 'content-type': 'application/json', accept: 'application/json' }, body: decision.body,
-        redirect: 'error', signal: AbortSignal.timeout(5000) });
-      res.writeHead(r.status, { 'content-type': r.headers.get('content-type') ?? 'application/json', 'cache-control': 'no-store' });
-      return res.end(Buffer.from(await r.arrayBuffer()));
+      if (!publicGate.tryEnter()) { res.setHeader('retry-after', '1'); return json(res, 503, { error: 'public route busy' }); }
+      try {
+        const r = await dependencyFetch(`http://torneos-rest:3000${decision.path}`, { method: 'POST',
+          headers: { 'content-type': 'application/json', accept: 'application/json' }, body: decision.body,
+          redirect: 'error', signal: AbortSignal.timeout(5000) });
+        res.writeHead(r.status, { 'content-type': r.headers.get('content-type') ?? 'application/json', 'cache-control': 'no-store' });
+        return res.end(Buffer.from(await r.arrayBuffer()));
+      } finally {
+        publicGate.leave();
+      }
     }
     const rest = /^\/torneos\/rest\/v1\/(rpc\/([a-z0-9_]+)|[a-z0-9_]+)$/.exec(url.pathname);
     if (rest && ['GET', 'HEAD', 'POST', 'PATCH', 'DELETE'].includes(req.method)) {

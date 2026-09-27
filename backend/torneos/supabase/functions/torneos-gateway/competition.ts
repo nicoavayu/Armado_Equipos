@@ -18,13 +18,38 @@ export const PUBLIC_RPC_ROUTE = /^\/torneos\/public\/v1\/rpc\/([a-z0-9_]+)$/
 const NAME = /^[a-z0-9_]+$/
 const PUBLIC_BODY_LIMIT = 2048
 
-// The exact body of every public RPC: each named argument, a string of bounded length or null. PostgREST
-// resolves the function by the full set of named arguments, so both always travel (absent → null).
-const PUBLIC_PARAMS: Record<string, Record<string, { max: number; required: boolean }>> = {
+// The exact body of every public RPC: each named argument, a string of the exact shape the function itself accepts
+// (the same patterns as get_public_tournament_page and the frontend), or null. A value the function would answer
+// with `null` without a lookup is refused here, before any upstream request. PostgREST resolves the function by
+// the full set of named arguments, so both always travel (absent → null).
+const PUBLIC_PARAMS: Record<string, Record<string, { max: number; pattern: RegExp; required: boolean }>> = {
   get_public_tournament_page: {
-    p_public_slug: { max: 96, required: true },
-    p_category_slug: { max: 48, required: false },
+    p_public_slug: { max: 96, pattern: /^[a-z0-9](?:[a-z0-9-]{1,94}[a-z0-9])$/, required: true },
+    p_category_slug: { max: 48, pattern: /^[a-z0-9](?:[a-z0-9-]{0,46}[a-z0-9])$/, required: false },
   },
+}
+
+// Anonymous calls are bounded per isolate: at most PUBLIC_MAX_IN_FLIGHT public RPCs wait on Torneos REST at once;
+// the next one is answered 503 immediately (no queue, no upstream request). Stateless across requests and isolates
+// (no KV, no shared store): it caps the database work one gateway instance performs for anonymous traffic and keeps
+// that traffic from holding the instance's sockets; it is not a per-client rate limit.
+export const PUBLIC_MAX_IN_FLIGHT = 16
+
+export class PublicGate {
+  #inFlight = 0
+  readonly max: number
+  constructor(max: number = PUBLIC_MAX_IN_FLIGHT) {
+    if (!Number.isInteger(max) || max < 1) throw new CompetitionConfigError("public in-flight bound")
+    this.max = max
+  }
+  get inFlight(): number { return this.#inFlight }
+  /** Takes a slot, or refuses (false) when the bound is reached. Every accepted call must `leave()` exactly once. */
+  tryEnter(): boolean {
+    if (this.#inFlight >= this.max) return false
+    this.#inFlight += 1
+    return true
+  }
+  leave(): void { if (this.#inFlight > 0) this.#inFlight -= 1 }
 }
 
 export class CompetitionConfigError extends Error {}
@@ -126,7 +151,7 @@ export async function preparePublicRpc(req: PublicRequest, contract: Competition
   const body: Record<string, string | null> = {}
   for (const [key, rule] of Object.entries(spec)) {
     const value = input[key] ?? null
-    if (value === null ? rule.required : (typeof value !== "string" || value.length === 0 || value.length > rule.max)) {
+    if (value === null ? rule.required : (typeof value !== "string" || value.length === 0 || value.length > rule.max || !rule.pattern.test(value))) {
       return { ok: false, status: 400, error: "invalid arguments" }
     }
     body[key] = value as string | null

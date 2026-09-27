@@ -34,7 +34,7 @@ import { Adapter, AdapterDenied, CONTRACTS } from "./adapter.ts"
 import { connect, allocateIdentity, identityExists, isUnavailable, type Sql } from "./db.ts"
 import { loadConfig, routePath, ConfigError, type GatewayConfig } from "./config.ts"
 import { COMMERCE_ROUTE, CommerceConfigError, effectiveRpcAllowlist, loadCommerceConfig, seasonCheckout, type CommerceConfig } from "./commerce.ts"
-import { CompetitionConfigError, loadCompetitionContract, preparePublicRpc, PUBLIC_RPC_ROUTE, withCompetition, type CompetitionContract } from "./competition.ts"
+import { CompetitionConfigError, loadCompetitionContract, preparePublicRpc, PublicGate, PUBLIC_RPC_ROUTE, withCompetition, type CompetitionContract } from "./competition.ts"
 import allowlistDoc from "./staging-v1-rpc-allowlist.json" with { type: "json" }
 
 // Staging v1 RPC allowlist: fail closed if the document is malformed or empty.
@@ -54,6 +54,7 @@ type Runtime = {
   core: CoreClient
   commerce: CommerceConfig
   competition: CompetitionContract
+  publicGate: PublicGate
   rpcAllowlist: ReadonlySet<string>
 }
 let runtime: Runtime | null = null
@@ -72,7 +73,7 @@ export function boot(env: Record<string, string | undefined>): Runtime {
   const coreHeaders = cfg.coreAnonKey ? { apikey: cfg.coreAnonKey } : {}
   // The Core service secret lives only in this function's env and in Core's function env.
   const core = new CoreClient(cfg.coreContractUrl, cfg.coreContractSecret, { extraHeaders: coreHeaders })
-  return { cfg, identity, adapterSql, adapter: new Adapter(adapterSql, core), core, commerce, competition, rpcAllowlist: effectiveRpcAllowlist(baseAllowlist, commerce) }
+  return { cfg, identity, adapterSql, adapter: new Adapter(adapterSql, core), core, commerce, competition, publicGate: new PublicGate(), rpcAllowlist: effectiveRpcAllowlist(baseAllowlist, commerce) }
 }
 
 function getRuntime(): Runtime {
@@ -235,10 +236,15 @@ export async function handle(req: Request): Promise<Response> {
         apikey: req.headers.get("apikey"), contentType: req.headers.get("content-type"),
         contentLength: req.headers.get("content-length"), body: req.body }, rt.competition)
       if (!decision.ok) return json(decision.status, { error: decision.error }, cors)
-      const r = await dependencyFetch(`${rt.cfg.torneosRestUrl}${decision.path}`, { method: "POST",
-        headers: { "content-type": "application/json", accept: "application/json", ...(rt.cfg.torneosAnonKey ? { apikey: rt.cfg.torneosAnonKey } : {}) },
-        body: decision.body, redirect: "error", signal: AbortSignal.timeout(5000) })
-      return new Response(await r.arrayBuffer(), { status: r.status, headers: { "content-type": r.headers.get("content-type") ?? "application/json", ...NO_STORE, ...cors } })
+      if (!rt.publicGate.tryEnter()) return json(503, { error: "public route busy" }, { ...cors, "retry-after": "1" })
+      try {
+        const r = await dependencyFetch(`${rt.cfg.torneosRestUrl}${decision.path}`, { method: "POST",
+          headers: { "content-type": "application/json", accept: "application/json", ...(rt.cfg.torneosAnonKey ? { apikey: rt.cfg.torneosAnonKey } : {}) },
+          body: decision.body, redirect: "error", signal: AbortSignal.timeout(5000) })
+        return new Response(await r.arrayBuffer(), { status: r.status, headers: { "content-type": r.headers.get("content-type") ?? "application/json", ...NO_STORE, ...cors } })
+      } finally {
+        rt.publicGate.leave()
+      }
     }
     const rest = /^\/torneos\/rest\/v1\/(rpc\/([a-z0-9_]+)|[a-z0-9_]+)$/.exec(path)
     if (rest && ["GET", "HEAD", "POST", "PATCH", "DELETE"].includes(req.method)) {
