@@ -72,11 +72,17 @@ export async function gatewayPair(env) {
 /** Fake Deno Deploy API v2: the one app with the fixture env; deploy creates a revision labelled by the body. */
 export function fakeDeno({ env, deployPin, gateway, candidateHead }) {
   const secretNames = new Set(deployPin.env.filter((e) => e.secret).map((e) => e.key));
-  const app = { id: deployPin.app_id, slug: C.APP_SLUG, layers: [], config: {},
+  const cert = C.DENO_CERTIFIED;
+  const app = { id: deployPin.app_id, slug: C.APP_SLUG, layers: [], config: JSON.parse(JSON.stringify(cert.app.config)), labels: { ...cert.app.labels }, created_at: cert.app.created_at, updated_at: cert.app.updated_at,
     env_vars: Object.keys(env).sort().map((key) => (secretNames.has(key) ? { key, secret: true, contexts: 'all' } : { key, value: env[key], secret: false, contexts: 'all' })) };
-  const revs = [{ id: C.CURRENT.revision, status: 'succeeded', labels: { 'custom.git_head': C.CURRENT.head }, env_vars: app.env_vars.map(({ key, secret }) => ({ key, secret })) }];
+  const revs = [{ id: C.CURRENT.revision, status: 'succeeded', labels: { 'custom.git_head': C.CURRENT.head }, env_vars: app.env_vars.map(({ key, secret }) => ({ key, secret })), created_at: cert.current.created_at, build_finished_at: cert.current.build_finished_at },
+    { id: 'ec6zv20gx8hn', status: 'succeeded', labels: { 'custom.git_head': C.CURRENT.head }, env_vars: [] }];
   const s = { writes: [], deployBodies: [], polls: 0, failDeploy: false };
   const transport = async ({ method, path: p, body }) => {
+    if (method === 'GET' && p === '/v2/apps?limit=100') return { status: 200, body: [{ id: app.id, slug: app.slug }] };
+    if (method === 'GET' && p === '/v2/layers') return { status: 200, body: [] };
+    const tl = /^\/v2\/revisions\/([A-Za-z0-9_-]+)\/timelines$/.exec(p);
+    if (method === 'GET' && tl) return { status: 200, body: [{ slug: 'production', domains: [{ domain: cert.production_domain }] }, { slug: 'preview', domains: [{ domain: `torneos-gateway-${tl[1]}.nicoavayu.deno.net` }] }] };
     if (method === 'GET' && p === `/v2/apps/${C.APP_SLUG}`) return { status: 200, body: JSON.parse(JSON.stringify(app)) };
     if (method === 'GET' && p.startsWith(`/v2/apps/${C.APP_SLUG}/revisions`)) return { status: 200, body: JSON.parse(JSON.stringify(revs)) };
     const m = /^\/v2\/revisions\/([A-Za-z0-9_-]+)$/.exec(p);

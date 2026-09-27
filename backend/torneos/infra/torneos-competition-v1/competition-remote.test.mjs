@@ -223,6 +223,22 @@ test('fail closed: drift, failed apply, failed revision, foreign revision, candi
       assert.equal(h.deno.state.writes.length, 0);
     } finally { await h.cleanup(); }
   }
+  { // G1 Deno audit: organization + configuration against the certification; any drift fails G1, reads only.
+    const h = await harness();
+    try {
+      const a = await h.remote.denoAudit();
+      assert.deepEqual(a.failures, []);
+      assert.deepEqual(a.runtime.runtime_fields, {});
+      h.deno.app.updated_at = '2026-09-27T00:00:00.000Z';
+      h.deno.app.labels.extra = 'x';
+      h.deno.revs.push({ id: 'late0001', status: 'succeeded', labels: {}, env_vars: [] });
+      const g = await h.remote.g1();
+      assert.equal(g.verdict, 'G1_FAILED');
+      assert.deepEqual(g.failures.filter((f) => f.startsWith('DENO_AUDIT')).sort(), ['DENO_AUDIT app labels = certified', 'DENO_AUDIT app updated_at = certified (no config/env change since)', 'DENO_AUDIT revision set = certified (no new revision)']);
+      assert.equal(h.deno.state.writes.length, 0);
+      assert.ok(h.remote.denoRequests.every((r) => r.kind === 'read'));
+    } finally { await h.cleanup(); }
+  }
   { // No Deno token: G1 runs without the Deno leg; any Deno step stops.
     const h = await harness({ mutate: (d) => { d.denoToken = null; } });
     try {

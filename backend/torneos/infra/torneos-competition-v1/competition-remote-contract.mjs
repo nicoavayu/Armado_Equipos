@@ -163,6 +163,22 @@ export const CURRENT = Object.freeze({ revision: '3rvq2wx9tyyg', head: 'bea307a3
   const p = readCurrentDeployPin();
   if (p.revision !== CURRENT.revision || p.source.head !== CURRENT.head || p.source.digest !== CURRENT.digest || p.source.files.length !== CURRENT.files) throw new Error('current_deploy_pin_mismatch');
 }
+/**
+ * The Deno Deploy organization/app as last certified (gateway-remote evidence gr-01-deno-observe-20260926T015931Z,
+ * public facts only). G1 compares the live app against it: any configuration change since the certification moves
+ * `updated_at`, and any new revision shows up in the revision set.
+ */
+export const DENO_CERTIFIED = Object.freeze({
+  evidence: 'backend/torneos/mp-b/evidence/gateway-remote/gr-01-deno-observe-20260926T015931Z.json',
+  org_apps: Object.freeze(['torneos-gateway']),
+  org_layers: 0,
+  app: Object.freeze({ id: '5d4f18e9-1614-4e24-b8e0-fd7cff8e4c3d', created_at: '2026-09-26T01:08:16.167Z', updated_at: '2026-09-26T01:12:00.894Z',
+    config: Object.freeze({ runtime: Object.freeze({ type: 'dynamic', entrypoint: 'torneos-gateway/index.ts' }), crons: false }),
+    labels: Object.freeze({ 'custom.component': 'arma2-torneos-gateway' }) }),
+  revisions: Object.freeze(['3rvq2wx9tyyg', 'ec6zv20gx8hn']),
+  current: Object.freeze({ id: '3rvq2wx9tyyg', created_at: '2026-09-26T01:12:01.540Z', build_finished_at: '2026-09-26T01:12:04.154Z' }),
+  production_domain: 'torneos-gateway.nicoavayu.deno.net',
+});
 /** Env of the app: names + secret flags (13, exactly the gateway-remote pin). W2 sends no env at all. */
 export const ENV_SHAPE = Object.freeze(readCurrentDeployPin().env.map((e) => Object.freeze({ key: e.key, secret: e.secret })));
 

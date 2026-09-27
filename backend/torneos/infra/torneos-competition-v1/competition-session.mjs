@@ -10,7 +10,7 @@
 //   ARMA2_SESSION_DIR=<abs dir, 0700> bash run-competition-session.sh
 //       operator session: the Deno Deploy organization token is typed on the tty (echo off) and piped here on stdin;
 //       commands and plan phrases arrive one line at a time on the FIFO $ARMA2_SESSION_DIR/ctl:
-//         g1 | db | deno | probes-previous | probes-candidate           read-only
+//         g1 | db | deno | deno-audit | probes-previous | probes-candidate   read-only
 //         w1 | w1-rollback | w2 | w2-rollback                           writes (PLAN id → exact phrase → one request)
 //         quit
 import fs from 'node:fs';
@@ -49,6 +49,7 @@ export async function runCommand(remote, line) {
     case 'g1': return remote.g1();
     case 'db': { const d = await remote.dbObserve(); return { verdict: `DB_${d.state}`, failures: d.failures }; }
     case 'deno': { const d = await remote.denoObserve(); return { verdict: d.failures.length ? 'DENO_OBSERVE_FAILED' : 'DENO_OBSERVE_OK', current: d.current?.id, failures: d.failures }; }
+    case 'deno-audit': { const a = await remote.denoAudit(); return { verdict: a.failures.length ? 'DENO_AUDIT_FAILED' : 'DENO_AUDIT_OK', failures: a.failures, runtime: a.runtime }; }
     case 'probes-previous': case 'probes-candidate': { const p = await remote.probes(cmd.slice(7)); return { verdict: p.pass ? 'PROBES_PASS' : 'PROBES_FAILED', passed: `${p.passed}/${p.total}`, failed: p.checks.filter((c) => !c.pass).map((c) => c.name) }; }
     case 'w1': return remote.w1();
     case 'w1-rollback': return remote.w1Rollback();

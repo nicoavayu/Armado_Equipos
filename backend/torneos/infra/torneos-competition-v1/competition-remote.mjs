@@ -155,6 +155,40 @@ export function makeRemote(deps) {
     if (!current || current.status !== 'succeeded') failures.push('CURRENT_REVISION_NOT_SUCCEEDED');
     return { app: { id: app?.id ?? null, slug: app?.slug ?? null, layers: app?.layers ?? null, config: app?.config ?? null }, env, current, revisions: revs.slice(0, 5), failures };
   }
+  /**
+   * G1 only (read-only): the organization and the app against the last certification (C.DENO_CERTIFIED). Organization =
+   * the token sees exactly the pinned apps and no shared layer, and the live revision is served on the pinned
+   * production domain. Configuration = config, labels, created/updated timestamps and the revision set are unchanged.
+   * Runtime: Deno Deploy exposes no Deno version per revision; the field names are recorded so its absence is evidence.
+   */
+  async function denoAudit(observed) {
+    const cert = deps.denoCertified ?? C.DENO_CERTIFIED;
+    const apps = list(await deno('GET', '/v2/apps?limit=100')).map((a) => a?.slug ?? null).sort();
+    const layers = list(await deno('GET', '/v2/layers')).length;
+    const app = await deno('GET', `/v2/apps/${C.APP_SLUG}`);
+    const revs = list(await deno('GET', `/v2/apps/${C.APP_SLUG}/revisions?limit=20`));
+    const curId = observed.current?.id ?? null;
+    const cur = curId ? await deno('GET', `/v2/revisions/${curId}`) : null;
+    const timelines = curId ? list(await deno('GET', `/v2/revisions/${curId}/timelines`)).map((t) => ({ slug: t?.slug ?? null, domains: Array.isArray(t?.domains) ? t.domains.map((d) => d?.domain ?? null) : [] })) : [];
+    const production = timelines.find((t) => t.slug === 'production') ?? null;
+    const runtimeFields = Object.fromEntries(Object.entries({ ...(cur ?? {}) }).filter(([k, v]) => /runtime|version|deno/i.test(k) && (v === null || typeof v !== 'object')));
+    const checks = [
+      ['organization: apps visible to the token = pin', canon(apps) === canon([...cert.org_apps].sort()), apps],
+      ['organization: no shared layers', layers === cert.org_layers, layers],
+      ['organization: live revision served on the pinned production domain', !!production && production.domains.includes(cert.production_domain), production],
+      ['app id = pin', app?.id === cert.app.id, app?.id ?? null],
+      ['app config = certified (dynamic, entrypoint, no crons, no build/install/predeploy)', canon(app?.config ?? null) === canon(cert.app.config), app?.config ?? null],
+      ['app labels = certified', canon(app?.labels ?? null) === canon(cert.app.labels), app?.labels ?? null],
+      ['app created_at = certified', app?.created_at === cert.app.created_at, app?.created_at ?? null],
+      ['app updated_at = certified (no config/env change since)', app?.updated_at === cert.app.updated_at, app?.updated_at ?? null],
+      ['revision set = certified (no new revision)', canon(revs.map((r) => r?.id).sort()) === canon([...cert.revisions].sort()), revs.map((r) => r?.id)],
+      ['current revision = certified, same build timestamps', cur?.id === cert.current.id && cur?.created_at === cert.current.created_at && cur?.build_finished_at === cert.current.build_finished_at,
+        cur ? { id: cur.id, created_at: cur.created_at ?? null, build_finished_at: cur.build_finished_at ?? null } : null],
+      ['current revision succeeded, source label = deploy pin head', cur?.status === 'succeeded' && cur?.labels?.['custom.git_head'] === C.CURRENT.head, cur ? { status: cur.status, labels: cur.labels ?? null } : null],
+    ].map(([name, pass, observedValue]) => ({ name, pass: !!pass, observed: observedValue }));
+    return { checks, failures: checks.filter((c) => !c.pass).map((c) => c.name), timelines,
+      runtime: { revision_fields: cur ? Object.keys(cur).sort() : [], runtime_fields: runtimeFields, config_runtime: app?.config?.runtime ?? null } };
+  }
   async function waitRevision(id) {
     const started = deps.now();
     let r = null;
@@ -268,6 +302,8 @@ export function makeRemote(deps) {
       failures.push(...dn.failures.map((x) => `DENO_${x}`));
       if (dn.current?.id !== C.CURRENT.revision) failures.push('DENO_CURRENT_REVISION_NOT_THE_PIN');
       if (revisionSource(dn.current, null) !== 'previous') failures.push('DENO_CURRENT_SOURCE_LABEL_NOT_THE_PIN');
+      dn.audit = await denoAudit(dn);
+      failures.push(...dn.audit.failures.map((x) => `DENO_AUDIT ${x}`));
     }
     const pr = await probes('previous', { withRing });
     if (!pr.pass) failures.push(`PROBES_FAILED ${pr.checks.filter((c) => !c.pass).map((c) => c.name).join(' | ').slice(0, 600)}`);
@@ -366,7 +402,7 @@ export function makeRemote(deps) {
   }
 
   return {
-    known, dbObserve, denoObserve, probes, g1, w1, w1Rollback,
+    known, dbObserve, denoObserve, denoAudit: async () => denoAudit(await denoObserve()), probes, g1, w1, w1Rollback,
     w2: () => deploySource({ which: 'candidate' }),
     w2Rollback: () => deploySource({ which: 'previous' }),
     get denoRequests() { return denoLog.slice(); },
