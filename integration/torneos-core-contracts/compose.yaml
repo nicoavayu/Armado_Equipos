@@ -137,6 +137,8 @@ services:
       - ../torneos-sso/token.mjs:/lab/token.mjs:ro
       - ../../backend/torneos/phase2a/schemas.json:/lab/schemas.json:ro
       - ../../backend/torneos/phase2d/staging-v1-rpc-allowlist.json:/lab/staging-v1-rpc-allowlist.json:ro
+      - ../../backend/torneos/supabase/functions/torneos-gateway/competition.ts:/lab/functions/torneos-gateway/competition.ts:ro
+      - ../../backend/torneos/supabase/functions/torneos-gateway/competition-v1-rpc-allowlist.json:/lab/functions/torneos-gateway/competition-v1-rpc-allowlist.json:ro
       - ./node_modules:/lab/node_modules:ro
       - ./.runtime/server:/lab/.runtime/server:ro
     ports: ["127.0.0.1:58420:58420"]

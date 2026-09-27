@@ -1,0 +1,103 @@
+{
+  "phase": "COMPETITION-V1",
+  "scope": "Torneos gateway allowlist of the full-competition contract, on top of the 43 staging v1 RPCs (staging-v1-rpc-allowlist.json, unchanged). `features`: RPCs the generic route POST /torneos/rest/v1/rpc/<name> serves to a verified bridge bearer with a live Core session (bearer mandatory, exactly like staging v1). `public`: RPCs the anonymous read-only route POST /torneos/public/v1/rpc/<name> serves WITHOUT any credential, as the database role anon. Every name is derived from a real product journey of the frontend (backend/torneos/competition-v1/contract.json); nothing is listed because it merely exists. The database ACL (baseline + 00000000000001 + 00000000000004_competition_v1_rpc_exposure.sql) remains the final boundary.",
+  "features": {
+    "fixtures": [
+      "get_tournament_fixture_context",
+      "get_tournament_schedule_context",
+      "freeze_tournament_participants",
+      "reopen_tournament_participants",
+      "save_tournament_draw_pots",
+      "execute_tournament_group_draw",
+      "generate_tournament_fixture",
+      "create_manual_fixture_version",
+      "update_draft_fixture",
+      "validate_tournament_fixture",
+      "publish_tournament_fixture",
+      "append_tournament_playoff_phase",
+      "supersede_tournament_fixture",
+      "create_tournament_venue",
+      "create_tournament_court",
+      "save_tournament_schedule_windows",
+      "validate_tournament_match_schedule",
+      "schedule_tournament_match",
+      "reschedule_tournament_match",
+      "auto_schedule_tournament_matches"
+    ],
+    "match_operations": [
+      "get_player_tournament_matches",
+      "get_managed_tournament_matches",
+      "respond_match_availability",
+      "get_tournament_match_operations_context",
+      "get_tournament_match_operation_context",
+      "get_match_squad_context",
+      "get_my_managed_match_squad_context",
+      "save_match_squad",
+      "submit_match_squad",
+      "open_tournament_match_operation",
+      "set_tournament_match_outcome",
+      "set_tournament_match_score",
+      "add_tournament_match_event",
+      "void_tournament_match_event",
+      "submit_tournament_match_operation",
+      "review_tournament_match_operation",
+      "validate_tournament_match_operation",
+      "make_tournament_match_official",
+      "request_tournament_match_correction",
+      "create_tournament_match_correction"
+    ],
+    "standings": [
+      "get_tournament_standings_context",
+      "get_tournament_statistics_context",
+      "rebuild_tournament_standings",
+      "publish_tournament_standings_revision",
+      "resolve_tournament_qualification"
+    ],
+    "lifecycle_actions": [
+      "start_tournament_competition",
+      "finish_tournament_competition",
+      "reopen_tournament_competition"
+    ],
+    "participant_withdrawal": [
+      "withdraw_tournament_competition_participant"
+    ],
+    "participant_hub": [
+      "get_tournament_participant_hub",
+      "set_my_tournament_hub_category",
+      "get_published_tournament_matches",
+      "get_tournament_participant_match",
+      "get_published_tournament_teams",
+      "get_published_tournament_standings",
+      "get_published_tournament_statistics"
+    ],
+    "communications": [
+      "get_tournament_communications_inbox",
+      "get_tournament_announcement",
+      "mark_tournament_announcement_read",
+      "get_published_tournament_documents",
+      "acknowledge_tournament_document",
+      "get_tournament_communications_admin_context",
+      "create_tournament_announcement_draft",
+      "update_tournament_announcement_draft",
+      "replace_tournament_announcement_audience",
+      "set_tournament_announcement_link",
+      "preview_tournament_announcement_audience",
+      "publish_tournament_announcement",
+      "create_tournament_document",
+      "publish_tournament_document_version"
+    ],
+    "notifications": [
+      "get_my_tournament_notification_preferences",
+      "update_my_tournament_notification_preferences"
+    ],
+    "public_pages": [
+      "get_tournament_public_page_settings",
+      "set_tournament_public_page_published"
+    ]
+  },
+  "public": {
+    "public_pages": [
+      "get_public_tournament_page"
+    ]
+  }
+}
