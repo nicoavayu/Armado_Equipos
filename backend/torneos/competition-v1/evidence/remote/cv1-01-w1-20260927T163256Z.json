@@ -1,0 +1,1680 @@
+{
+ "tool": "backend/torneos/infra/torneos-competition-v1",
+ "target": "onzpwnqxnvlgsevivngf",
+ "verdict": "W1_APPLIED",
+ "plan": {
+  "step": "W1",
+  "target": "onzpwnqxnvlgsevivngf",
+  "file": "backend/torneos/supabase/migrations/00000000000004_competition_v1_rpc_exposure.sql",
+  "sha256": "36e45eddf57690470d80a0284f454a74ebfe4135cf89cbc0f4274ffdf41e3729",
+  "transport": "psql aws-0-sa-east-1.pooler.supabase.com:5432 postgres.onzpwnqxnvlgsevivngf verify-full",
+  "state_before": "PRE_0004",
+  "counts_before": {
+   "authenticated_public": 147,
+   "anon_public": 12
+  },
+  "effect": "2 CREATE OR REPLACE FUNCTION (pinned bodies) + 15 GRANT EXECUTE … TO authenticated, one transaction"
+ },
+ "plan_id": "c3c0977ce529",
+ "authorization": {
+  "phrase": "APPLY TORNEOS MIGRATION 0004 COMPETITION-V1 onzpwnqxnvlgsevivngf c3c0977ce529",
+  "channel": "session FIFO (operator)"
+ },
+ "psql": {
+  "code": 0,
+  "elapsed_ms": 2195,
+  "stderr_tail": ""
+ },
+ "before": {
+  "state": "PRE_0004",
+  "failures": [],
+  "anon_statement_timeout": "statement_timeout=3s",
+  "contract_state": {
+   "server_version": "17.6",
+   "read_only": "on",
+   "current_user": "postgres",
+   "functions": [
+    {
+     "kind": "fixed",
+     "sig": "publish_tournament_document_version(uuid)",
+     "exists": true,
+     "anon": false,
+     "authenticated": true,
+     "service_role": true,
+     "public": false,
+     "server_roles": [],
+     "definer": true,
+     "search_path_pinned": true,
+     "owner": "postgres",
+     "installer_owns": true,
+     "body_md5": "1000277b885896c3311b04ad960cf4b9"
+    },
+    {
+     "kind": "granted",
+     "sig": "auto_schedule_tournament_matches(uuid,uuid)",
+     "exists": true,
+     "anon": false,
+     "authenticated": false,
+     "service_role": true,
+     "public": false,
+     "server_roles": [],
+     "definer": true,
+     "search_path_pinned": true,
+     "owner": "postgres",
+     "installer_owns": true,
+     "body_md5": "d129d62122d65df566900fe9683ea860"
+    },
+    {
+     "kind": "granted",
+     "sig": "create_tournament_match_correction(uuid,uuid)",
+     "exists": true,
+     "anon": false,
+     "authenticated": false,
+     "service_role": true,
+     "public": false,
+     "server_roles": [],
+     "definer": true,
+     "search_path_pinned": true,
+     "owner": "postgres",
+     "installer_owns": true,
+     "body_md5": "e951e5be55e80835906f355360398590"
+    },
+    {
+     "kind": "granted",
+     "sig": "make_tournament_match_official(uuid,uuid)",
+     "exists": true,
+     "anon": false,
+     "authenticated": false,
+     "service_role": true,
+     "public": false,
+     "server_roles": [],
+     "definer": true,
+     "search_path_pinned": true,
+     "owner": "postgres",
+     "installer_owns": true,
+     "body_md5": "a2ea695c792f3a577d40e86b2a98209b"
+    },
+    {
+     "kind": "granted",
+     "sig": "publish_tournament_fixture(uuid,uuid)",
+     "exists": true,
+     "anon": false,
+     "authenticated": false,
+     "service_role": true,
+     "public": false,
+     "server_roles": [],
+     "definer": true,
+     "search_path_pinned": true,
+     "owner": "postgres",
+     "installer_owns": true,
+     "body_md5": "b730e3eda644554c36dca95eafb6bbce"
+    },
+    {
+     "kind": "granted",
+     "sig": "reopen_tournament_participants(uuid,uuid,uuid,text)",
+     "exists": true,
+     "anon": false,
+     "authenticated": false,
+     "service_role": true,
+     "public": false,
+     "server_roles": [],
+     "definer": true,
+     "search_path_pinned": true,
+     "owner": "postgres",
+     "installer_owns": true,
+     "body_md5": "44d111244bd5ffe52c6fab9f41839590"
+    },
+    {
+     "kind": "granted",
+     "sig": "request_tournament_match_correction(uuid,uuid,text)",
+     "exists": true,
+     "anon": false,
+     "authenticated": false,
+     "service_role": true,
+     "public": false,
+     "server_roles": [],
+     "definer": true,
+     "search_path_pinned": true,
+     "owner": "postgres",
+     "installer_owns": true,
+     "body_md5": "6cbfbe91fb54eafca64520456e700a1a"
+    },
+    {
+     "kind": "granted",
+     "sig": "resolve_tournament_qualification(uuid,text)",
+     "exists": true,
+     "anon": false,
+     "authenticated": false,
+     "service_role": true,
+     "public": false,
+     "server_roles": [],
+     "definer": true,
+     "search_path_pinned": true,
+     "owner": "postgres",
+     "installer_owns": true,
+     "body_md5": "3f1af0ba733eacf51bc868542c150c73"
+    },
+    {
+     "kind": "granted",
+     "sig": "review_tournament_match_operation(uuid,uuid,text,text)",
+     "exists": true,
+     "anon": false,
+     "authenticated": false,
+     "service_role": true,
+     "public": false,
+     "server_roles": [],
+     "definer": true,
+     "search_path_pinned": true,
+     "owner": "postgres",
+     "installer_owns": true,
+     "body_md5": "6f5912e4cf6601ad1d8301ed61bf7adc"
+    },
+    {
+     "kind": "granted",
+     "sig": "save_tournament_draw_pots(uuid,uuid,uuid,jsonb)",
+     "exists": true,
+     "anon": false,
+     "authenticated": false,
+     "service_role": true,
+     "public": false,
+     "server_roles": [],
+     "definer": true,
+     "search_path_pinned": true,
+     "owner": "postgres",
+     "installer_owns": true,
+     "body_md5": "3ac2111447877ed80889ec001fc90727"
+    },
+    {
+     "kind": "granted",
+     "sig": "schedule_tournament_match(uuid,uuid,timestamp with time zone,uuid,uuid,integer,boolean,text)",
+     "exists": true,
+     "anon": false,
+     "authenticated": false,
+     "service_role": true,
+     "public": false,
+     "server_roles": [],
+     "definer": true,
+     "search_path_pinned": true,
+     "owner": "postgres",
+     "installer_owns": true,
+     "body_md5": "cbd8aed6f1401dffcf976bc1feae866c"
+    },
+    {
+     "kind": "granted",
+     "sig": "submit_match_squad(uuid,uuid,uuid)",
+     "exists": true,
+     "anon": false,
+     "authenticated": false,
+     "service_role": true,
+     "public": false,
+     "server_roles": [],
+     "definer": true,
+     "search_path_pinned": true,
+     "owner": "postgres",
+     "installer_owns": true,
+     "body_md5": "3b5a7aefeb528d0d7217c21f83a0b3a0"
+    },
+    {
+     "kind": "granted",
+     "sig": "supersede_tournament_fixture(uuid,uuid,uuid)",
+     "exists": true,
+     "anon": false,
+     "authenticated": false,
+     "service_role": true,
+     "public": false,
+     "server_roles": [],
+     "definer": true,
+     "search_path_pinned": true,
+     "owner": "postgres",
+     "installer_owns": true,
+     "body_md5": "7dbd53980c4f55943c1f9535623ec584"
+    },
+    {
+     "kind": "granted",
+     "sig": "update_draft_fixture(uuid,uuid,text,jsonb)",
+     "exists": true,
+     "anon": false,
+     "authenticated": false,
+     "service_role": true,
+     "public": false,
+     "server_roles": [],
+     "definer": true,
+     "search_path_pinned": true,
+     "owner": "postgres",
+     "installer_owns": true,
+     "body_md5": "390a1e4cae6af1973ead63563a71b08f"
+    },
+    {
+     "kind": "granted",
+     "sig": "validate_tournament_match_operation(uuid,uuid)",
+     "exists": true,
+     "anon": false,
+     "authenticated": false,
+     "service_role": true,
+     "public": false,
+     "server_roles": [],
+     "definer": true,
+     "search_path_pinned": true,
+     "owner": "postgres",
+     "installer_owns": true,
+     "body_md5": "4f43a7292753cbd191c9800dac08ed58"
+    },
+    {
+     "kind": "granted",
+     "sig": "void_tournament_match_event(uuid,uuid,text)",
+     "exists": true,
+     "anon": false,
+     "authenticated": false,
+     "service_role": true,
+     "public": false,
+     "server_roles": [],
+     "definer": true,
+     "search_path_pinned": true,
+     "owner": "postgres",
+     "installer_owns": true,
+     "body_md5": "27c260e955b5d538a7ba37bfa65144da"
+    },
+    {
+     "kind": "kept",
+     "sig": "authorize_tournament_social_export(uuid,uuid,text,text,boolean)",
+     "exists": true,
+     "anon": false,
+     "authenticated": false,
+     "service_role": true,
+     "public": false,
+     "server_roles": [],
+     "definer": true,
+     "search_path_pinned": true,
+     "owner": "postgres",
+     "installer_owns": true,
+     "body_md5": "f211d9a26d99448d4069c499c7508c55"
+    },
+    {
+     "kind": "kept",
+     "sig": "cancel_tournament_purchase(uuid)",
+     "exists": true,
+     "anon": false,
+     "authenticated": false,
+     "service_role": true,
+     "public": false,
+     "server_roles": [],
+     "definer": true,
+     "search_path_pinned": true,
+     "owner": "postgres",
+     "installer_owns": true,
+     "body_md5": "778ab46628fbe6407dd12636c2cda614"
+    },
+    {
+     "kind": "kept",
+     "sig": "change_tournament_media_gallery_state(uuid,text,text)",
+     "exists": true,
+     "anon": false,
+     "authenticated": false,
+     "service_role": true,
+     "public": false,
+     "server_roles": [],
+     "definer": true,
+     "search_path_pinned": true,
+     "owner": "postgres",
+     "installer_owns": true,
+     "body_md5": "3f8ada8aaea55d9592004832fe206516"
+    },
+    {
+     "kind": "kept",
+     "sig": "create_tournament_disciplinary_override(uuid,text,integer,text,uuid)",
+     "exists": true,
+     "anon": false,
+     "authenticated": false,
+     "service_role": true,
+     "public": false,
+     "server_roles": [],
+     "definer": true,
+     "search_path_pinned": true,
+     "owner": "postgres",
+     "installer_owns": true,
+     "body_md5": "e883ffa29bdf8bbb7ee349d14a5b0f0b"
+    },
+    {
+     "kind": "kept",
+     "sig": "create_tournament_points_adjustment(uuid,uuid,uuid,uuid,uuid,integer,text,uuid)",
+     "exists": true,
+     "anon": false,
+     "authenticated": false,
+     "service_role": true,
+     "public": false,
+     "server_roles": [],
+     "definer": true,
+     "search_path_pinned": true,
+     "owner": "postgres",
+     "installer_owns": true,
+     "body_md5": "ce81b8fcdcb2e271901cc062ddf4745e"
+    },
+    {
+     "kind": "kept",
+     "sig": "get_tournament_player_portrait_ref(uuid,uuid,text)",
+     "exists": true,
+     "anon": false,
+     "authenticated": false,
+     "service_role": true,
+     "public": false,
+     "server_roles": [],
+     "definer": true,
+     "search_path_pinned": true,
+     "owner": "postgres",
+     "installer_owns": true,
+     "body_md5": "08e85cc719bc127cd1eeaba13862740c"
+    },
+    {
+     "kind": "kept",
+     "sig": "has_tournament_entitlement(uuid,uuid,text)",
+     "exists": true,
+     "anon": false,
+     "authenticated": false,
+     "service_role": true,
+     "public": false,
+     "server_roles": [],
+     "definer": true,
+     "search_path_pinned": true,
+     "owner": "postgres",
+     "installer_owns": true,
+     "body_md5": "f6c383294976ed919d71d31371df8b2b"
+    },
+    {
+     "kind": "kept",
+     "sig": "lock_tournament_roster(uuid,uuid,uuid)",
+     "exists": true,
+     "anon": false,
+     "authenticated": false,
+     "service_role": true,
+     "public": false,
+     "server_roles": [],
+     "definer": true,
+     "search_path_pinned": true,
+     "owner": "postgres",
+     "installer_owns": true,
+     "body_md5": "705435642ae37c4176eb2e3d1fd01741"
+    },
+    {
+     "kind": "kept",
+     "sig": "mark_tournament_suspension_served(uuid,uuid,text)",
+     "exists": true,
+     "anon": false,
+     "authenticated": false,
+     "service_role": true,
+     "public": false,
+     "server_roles": [],
+     "definer": true,
+     "search_path_pinned": true,
+     "owner": "postgres",
+     "installer_owns": true,
+     "body_md5": "179376cfb1cd940d64ffa7dc34c40dc6"
+    },
+    {
+     "kind": "kept",
+     "sig": "record_manual_match_availability(uuid,uuid,uuid,text,text,text)",
+     "exists": true,
+     "anon": false,
+     "authenticated": false,
+     "service_role": true,
+     "public": false,
+     "server_roles": [],
+     "definer": true,
+     "search_path_pinned": true,
+     "owner": "postgres",
+     "installer_owns": true,
+     "body_md5": "63f7fb5c744586172f56043487225ca7"
+    },
+    {
+     "kind": "kept",
+     "sig": "report_tournament_media_asset(uuid,text,text,boolean,uuid)",
+     "exists": true,
+     "anon": false,
+     "authenticated": false,
+     "service_role": true,
+     "public": false,
+     "server_roles": [],
+     "definer": true,
+     "search_path_pinned": true,
+     "owner": "postgres",
+     "installer_owns": true,
+     "body_md5": "717b1a5451f2d00b1a6481ea28e0f1dc"
+    },
+    {
+     "kind": "kept",
+     "sig": "revoke_tournament_player_portrait_publication(uuid,uuid)",
+     "exists": true,
+     "anon": false,
+     "authenticated": false,
+     "service_role": true,
+     "public": false,
+     "server_roles": [],
+     "definer": true,
+     "search_path_pinned": true,
+     "owner": "postgres",
+     "installer_owns": true,
+     "body_md5": "3127354c57f022a3fe747bcfbcdcf9f9"
+    },
+    {
+     "kind": "kept",
+     "sig": "revoke_tournament_points_adjustment(uuid,text)",
+     "exists": true,
+     "anon": false,
+     "authenticated": false,
+     "service_role": true,
+     "public": false,
+     "server_roles": [],
+     "definer": true,
+     "search_path_pinned": true,
+     "owner": "postgres",
+     "installer_owns": true,
+     "body_md5": "3b4c6f08f7e6893b9151008f9a3998a9"
+    },
+    {
+     "kind": "kept",
+     "sig": "revoke_tournament_team_photo(uuid,uuid)",
+     "exists": true,
+     "anon": false,
+     "authenticated": false,
+     "service_role": true,
+     "public": false,
+     "server_roles": [],
+     "definer": true,
+     "search_path_pinned": true,
+     "owner": "postgres",
+     "installer_owns": true,
+     "body_md5": "1943af7d03aae17d467d573551424f1e"
+    },
+    {
+     "kind": "kept",
+     "sig": "set_tournament_player_portrait_crop(uuid,uuid,numeric,numeric,numeric)",
+     "exists": true,
+     "anon": false,
+     "authenticated": false,
+     "service_role": true,
+     "public": false,
+     "server_roles": [],
+     "definer": true,
+     "search_path_pinned": true,
+     "owner": "postgres",
+     "installer_owns": true,
+     "body_md5": "3fad319c0f20e6edcb1d6b1024629fc1"
+    },
+    {
+     "kind": "kept",
+     "sig": "set_tournament_player_portrait_editorial_status(uuid,uuid,text)",
+     "exists": true,
+     "anon": false,
+     "authenticated": false,
+     "service_role": true,
+     "public": false,
+     "server_roles": [],
+     "definer": true,
+     "search_path_pinned": true,
+     "owner": "postgres",
+     "installer_owns": true,
+     "body_md5": "816ceb97a1eab8f2eeaea4cf6faf7e65"
+    },
+    {
+     "kind": "kept",
+     "sig": "transition_tournament_media_asset(uuid,text,text)",
+     "exists": true,
+     "anon": false,
+     "authenticated": false,
+     "service_role": true,
+     "public": false,
+     "server_roles": [],
+     "definer": true,
+     "search_path_pinned": true,
+     "owner": "postgres",
+     "installer_owns": true,
+     "body_md5": "bbf724512ff4e767d51343a2a199ba25"
+    },
+    {
+     "kind": "service_only",
+     "sig": "archive_tournament_fixture(uuid,uuid,text)",
+     "exists": true,
+     "anon": false,
+     "authenticated": false,
+     "service_role": true,
+     "public": false,
+     "server_roles": [],
+     "definer": true,
+     "search_path_pinned": true,
+     "owner": "postgres",
+     "installer_owns": true,
+     "body_md5": "cfc271635dc9b3f1a42e60651ad80106"
+    },
+    {
+     "kind": "service_only",
+     "sig": "cancel_tournament_match(uuid,uuid,text)",
+     "exists": true,
+     "anon": false,
+     "authenticated": false,
+     "service_role": true,
+     "public": false,
+     "server_roles": [],
+     "definer": true,
+     "search_path_pinned": true,
+     "owner": "postgres",
+     "installer_owns": true,
+     "body_md5": "54aa81560d8635936fa136dae99a0382"
+    },
+    {
+     "kind": "service_only",
+     "sig": "postpone_tournament_match(uuid,uuid,text)",
+     "exists": true,
+     "anon": false,
+     "authenticated": false,
+     "service_role": true,
+     "public": false,
+     "server_roles": [],
+     "definer": true,
+     "search_path_pinned": true,
+     "owner": "postgres",
+     "installer_owns": true,
+     "body_md5": "657c8670ec0accf39afa89eb412711e0"
+    },
+    {
+     "kind": "service_only",
+     "sig": "ready_tournament_match(uuid,uuid)",
+     "exists": true,
+     "anon": false,
+     "authenticated": false,
+     "service_role": true,
+     "public": false,
+     "server_roles": [],
+     "definer": true,
+     "search_path_pinned": true,
+     "owner": "postgres",
+     "installer_owns": true,
+     "body_md5": "eb541e40915b74bda238439f2e45945b"
+    },
+    {
+     "kind": "service_only",
+     "sig": "restore_tournament_match_unscheduled(uuid,uuid,text)",
+     "exists": true,
+     "anon": false,
+     "authenticated": false,
+     "service_role": true,
+     "public": false,
+     "server_roles": [],
+     "definer": true,
+     "search_path_pinned": true,
+     "owner": "postgres",
+     "installer_owns": true,
+     "body_md5": "30ccc7ccb12ce24cf8f7e0a4c2e888ce"
+    },
+    {
+     "kind": "service_only",
+     "sig": "schedule_tournament_match_resumption(uuid,uuid,timestamp with time zone,uuid,uuid,text)",
+     "exists": true,
+     "anon": false,
+     "authenticated": false,
+     "service_role": true,
+     "public": false,
+     "server_roles": [],
+     "definer": true,
+     "search_path_pinned": true,
+     "owner": "postgres",
+     "installer_owns": true,
+     "body_md5": "a7f557a0923d878b9b20f2db945362f2"
+    }
+   ],
+   "counts": {
+    "authenticated_public": 147,
+    "anon_public": 12
+   },
+   "ledger": false,
+   "role_settings": {
+    "authenticated": [
+     "statement_timeout=8s"
+    ],
+    "anon": [
+     "statement_timeout=3s"
+    ],
+    "authenticator": [
+     "session_preload_libraries=supautils, safeupdate",
+     "statement_timeout=8s",
+     "lock_timeout=8s",
+     "pgrst.db_pre_request=private.check_token"
+    ]
+   }
+  },
+  "catalog_summary": {
+   "execute": {
+    "anon": {
+     "count": 14,
+     "md5": "c6322d66b69edc67b2e20096bbe383a4"
+    },
+    "authenticated": {
+     "count": 149,
+     "md5": "f0cc8bf40345f9f034408e98bade4950"
+    },
+    "service_role": {
+     "count": 330,
+     "md5": "2658c67a4372c5658776c93deb4710f1"
+    },
+    "torneos_core_adapter": {
+     "count": 1,
+     "md5": "898581bb1006a5c6fcea48183314c786"
+    },
+    "torneos_identity_writer": {
+     "count": 0,
+     "md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "torneos_payment_service": {
+     "count": 4,
+     "md5": "e96fdc0b656fd0539f9429e6291c7c19"
+    }
+   },
+   "functions": {
+    "public": 366,
+    "private": 7,
+    "procedures": 0,
+    "aggregates": 0,
+    "definer": 312,
+    "signatures_md5": "88b6e21834d4e6cf66c7a16b6926434f",
+    "bodies_md5": "3ab18560697f4aaf67b4bae451839502",
+    "owners": {
+     "postgres": 373
+    },
+    "public_acl_default": 0,
+    "public_execute_by_public_role": 0
+   },
+   "acl_md5": {
+    "relations": "825cdd62498cacbf104a1df6a16e69a5",
+    "functions": "efdab716da39bfebc55ba30bbb682e3f"
+   },
+   "tables": {
+    "public_tables": 105,
+    "public_views": 0,
+    "private_tables": 2,
+    "sequences": 7,
+    "public_tables_without_rls": [],
+    "public_tables_forced_rls": 1,
+    "names_md5": "aa821b6eecda4df386b08c00fda94b13",
+    "owners": {
+     "postgres": 114
+    }
+   },
+   "policies": {
+    "count": 64,
+    "md5": "ee64d2e26ab00f1f11f4e5ef238a2253"
+   }
+  },
+  "gateway_roles": {
+   "logins": [
+    {
+     "name": "torneos_edge_core_adapter",
+     "login": true,
+     "inherit": false,
+     "super": false,
+     "createrole": false,
+     "createdb": false,
+     "replication": false,
+     "bypassrls": false,
+     "connlimit": -1,
+     "valid_until": null,
+     "config": null
+    },
+    {
+     "name": "torneos_edge_identity_writer",
+     "login": true,
+     "inherit": false,
+     "super": false,
+     "createrole": false,
+     "createdb": false,
+     "replication": false,
+     "bypassrls": false,
+     "connlimit": -1,
+     "valid_until": null,
+     "config": null
+    },
+    {
+     "name": "torneos_payments_test",
+     "login": true,
+     "inherit": false,
+     "super": false,
+     "createrole": false,
+     "createdb": false,
+     "replication": false,
+     "bypassrls": false,
+     "connlimit": -1,
+     "valid_until": null,
+     "config": null
+    }
+   ],
+   "memberships": [
+    {
+     "role": "torneos_core_adapter",
+     "member": "torneos_edge_core_adapter",
+     "admin": false,
+     "inherit": false,
+     "set": true
+    },
+    {
+     "role": "torneos_edge_core_adapter",
+     "member": "postgres",
+     "admin": true,
+     "inherit": false,
+     "set": false
+    },
+    {
+     "role": "torneos_edge_identity_writer",
+     "member": "postgres",
+     "admin": true,
+     "inherit": false,
+     "set": false
+    },
+    {
+     "role": "torneos_identity_writer",
+     "member": "torneos_edge_identity_writer",
+     "admin": false,
+     "inherit": false,
+     "set": true
+    }
+   ],
+   "payment_logins": 1,
+   "login_member_of_api_role": 0,
+   "authenticator_config": [
+    "pgrst.db_pre_request=private.check_token"
+   ],
+   "auth_users": 0,
+   "installer": {
+    "user": "postgres",
+    "super": false,
+    "createrole": true,
+    "admin_on_authenticator": true,
+    "admin_on_identity_writer": true,
+    "admin_on_core_adapter": true
+   },
+   "edge_login_can_set_role": {
+    "torneos_edge_identity_writer": true,
+    "torneos_edge_core_adapter": true
+   }
+  },
+  "payment_roles": {
+   "login": {
+    "name": "torneos_payments_test",
+    "login": true,
+    "inherit": false,
+    "super": false,
+    "createrole": false,
+    "createdb": false,
+    "replication": false,
+    "bypassrls": false,
+    "connlimit": -1,
+    "valid_until": null,
+    "config": null
+   },
+   "login_memberships": [
+    {
+     "role": "torneos_payment_service",
+     "admin": false,
+     "inherit": false,
+     "set": true
+    }
+   ],
+   "login_members": [
+    {
+     "member": "postgres",
+     "admin": true,
+     "inherit": false,
+     "set": false
+    }
+   ],
+   "reachable_roles": [
+    "torneos_payment_service"
+   ],
+   "payment_logins": [
+    "torneos_payments_test"
+   ],
+   "role": {
+    "login": false,
+    "inherit": false,
+    "super": false,
+    "bypassrls": false,
+    "createrole": false
+   },
+   "role_executes": [
+    "apply_verified_tournament_payment_reversal(uuid,text,text,text,text,text,text,timestamp with time zone)",
+    "apply_verified_tournament_payment_status(uuid,text,text,text,text,text,text,timestamp with time zone)",
+    "get_provider_tournament_purchase(text,text,text)",
+    "record_tournament_purchase_preference(uuid,text,text,text,timestamp with time zone)"
+   ],
+   "role_table_privileges": 0,
+   "role_schema_create": []
+  },
+  "pins": {
+   "foundation_sha256": "73b7207f583e8bd721d48eab3771022706c018ac4ea56e1b710114dcfc99ca60",
+   "payments_sha256": "563f163c6d4c2c024d3358cc7a40688889edc084a74982e0f9b5d89a5ef59dd5",
+   "cv1_sha256": "0c3528eea161f83d165e14228936db2c1a12c6c6a5c2d27611e7b78d5d14df6e"
+  }
+ },
+ "after": {
+  "state": "POST_0004",
+  "failures": [],
+  "anon_statement_timeout": "statement_timeout=3s",
+  "contract_state": {
+   "server_version": "17.6",
+   "read_only": "on",
+   "current_user": "postgres",
+   "functions": [
+    {
+     "kind": "fixed",
+     "sig": "publish_tournament_document_version(uuid)",
+     "exists": true,
+     "anon": false,
+     "authenticated": true,
+     "service_role": true,
+     "public": false,
+     "server_roles": [],
+     "definer": true,
+     "search_path_pinned": true,
+     "owner": "postgres",
+     "installer_owns": true,
+     "body_md5": "6830b726fc3aa23342ab7fed2b1d5348"
+    },
+    {
+     "kind": "granted",
+     "sig": "auto_schedule_tournament_matches(uuid,uuid)",
+     "exists": true,
+     "anon": false,
+     "authenticated": true,
+     "service_role": true,
+     "public": false,
+     "server_roles": [],
+     "definer": true,
+     "search_path_pinned": true,
+     "owner": "postgres",
+     "installer_owns": true,
+     "body_md5": "d129d62122d65df566900fe9683ea860"
+    },
+    {
+     "kind": "granted",
+     "sig": "create_tournament_match_correction(uuid,uuid)",
+     "exists": true,
+     "anon": false,
+     "authenticated": true,
+     "service_role": true,
+     "public": false,
+     "server_roles": [],
+     "definer": true,
+     "search_path_pinned": true,
+     "owner": "postgres",
+     "installer_owns": true,
+     "body_md5": "e951e5be55e80835906f355360398590"
+    },
+    {
+     "kind": "granted",
+     "sig": "make_tournament_match_official(uuid,uuid)",
+     "exists": true,
+     "anon": false,
+     "authenticated": true,
+     "service_role": true,
+     "public": false,
+     "server_roles": [],
+     "definer": true,
+     "search_path_pinned": true,
+     "owner": "postgres",
+     "installer_owns": true,
+     "body_md5": "a2ea695c792f3a577d40e86b2a98209b"
+    },
+    {
+     "kind": "granted",
+     "sig": "publish_tournament_fixture(uuid,uuid)",
+     "exists": true,
+     "anon": false,
+     "authenticated": true,
+     "service_role": true,
+     "public": false,
+     "server_roles": [],
+     "definer": true,
+     "search_path_pinned": true,
+     "owner": "postgres",
+     "installer_owns": true,
+     "body_md5": "b730e3eda644554c36dca95eafb6bbce"
+    },
+    {
+     "kind": "granted",
+     "sig": "reopen_tournament_participants(uuid,uuid,uuid,text)",
+     "exists": true,
+     "anon": false,
+     "authenticated": true,
+     "service_role": true,
+     "public": false,
+     "server_roles": [],
+     "definer": true,
+     "search_path_pinned": true,
+     "owner": "postgres",
+     "installer_owns": true,
+     "body_md5": "44d111244bd5ffe52c6fab9f41839590"
+    },
+    {
+     "kind": "granted",
+     "sig": "request_tournament_match_correction(uuid,uuid,text)",
+     "exists": true,
+     "anon": false,
+     "authenticated": true,
+     "service_role": true,
+     "public": false,
+     "server_roles": [],
+     "definer": true,
+     "search_path_pinned": true,
+     "owner": "postgres",
+     "installer_owns": true,
+     "body_md5": "6cbfbe91fb54eafca64520456e700a1a"
+    },
+    {
+     "kind": "granted",
+     "sig": "resolve_tournament_qualification(uuid,text)",
+     "exists": true,
+     "anon": false,
+     "authenticated": true,
+     "service_role": true,
+     "public": false,
+     "server_roles": [],
+     "definer": true,
+     "search_path_pinned": true,
+     "owner": "postgres",
+     "installer_owns": true,
+     "body_md5": "3f1af0ba733eacf51bc868542c150c73"
+    },
+    {
+     "kind": "granted",
+     "sig": "review_tournament_match_operation(uuid,uuid,text,text)",
+     "exists": true,
+     "anon": false,
+     "authenticated": true,
+     "service_role": true,
+     "public": false,
+     "server_roles": [],
+     "definer": true,
+     "search_path_pinned": true,
+     "owner": "postgres",
+     "installer_owns": true,
+     "body_md5": "6f5912e4cf6601ad1d8301ed61bf7adc"
+    },
+    {
+     "kind": "granted",
+     "sig": "save_tournament_draw_pots(uuid,uuid,uuid,jsonb)",
+     "exists": true,
+     "anon": false,
+     "authenticated": true,
+     "service_role": true,
+     "public": false,
+     "server_roles": [],
+     "definer": true,
+     "search_path_pinned": true,
+     "owner": "postgres",
+     "installer_owns": true,
+     "body_md5": "3ac2111447877ed80889ec001fc90727"
+    },
+    {
+     "kind": "granted",
+     "sig": "schedule_tournament_match(uuid,uuid,timestamp with time zone,uuid,uuid,integer,boolean,text)",
+     "exists": true,
+     "anon": false,
+     "authenticated": true,
+     "service_role": true,
+     "public": false,
+     "server_roles": [],
+     "definer": true,
+     "search_path_pinned": true,
+     "owner": "postgres",
+     "installer_owns": true,
+     "body_md5": "cbd8aed6f1401dffcf976bc1feae866c"
+    },
+    {
+     "kind": "granted",
+     "sig": "submit_match_squad(uuid,uuid,uuid)",
+     "exists": true,
+     "anon": false,
+     "authenticated": true,
+     "service_role": true,
+     "public": false,
+     "server_roles": [],
+     "definer": true,
+     "search_path_pinned": true,
+     "owner": "postgres",
+     "installer_owns": true,
+     "body_md5": "3b5a7aefeb528d0d7217c21f83a0b3a0"
+    },
+    {
+     "kind": "granted",
+     "sig": "supersede_tournament_fixture(uuid,uuid,uuid)",
+     "exists": true,
+     "anon": false,
+     "authenticated": true,
+     "service_role": true,
+     "public": false,
+     "server_roles": [],
+     "definer": true,
+     "search_path_pinned": true,
+     "owner": "postgres",
+     "installer_owns": true,
+     "body_md5": "7dbd53980c4f55943c1f9535623ec584"
+    },
+    {
+     "kind": "granted",
+     "sig": "update_draft_fixture(uuid,uuid,text,jsonb)",
+     "exists": true,
+     "anon": false,
+     "authenticated": true,
+     "service_role": true,
+     "public": false,
+     "server_roles": [],
+     "definer": true,
+     "search_path_pinned": true,
+     "owner": "postgres",
+     "installer_owns": true,
+     "body_md5": "53fd2b4bc95a86434c7e5b8e1e938275"
+    },
+    {
+     "kind": "granted",
+     "sig": "validate_tournament_match_operation(uuid,uuid)",
+     "exists": true,
+     "anon": false,
+     "authenticated": true,
+     "service_role": true,
+     "public": false,
+     "server_roles": [],
+     "definer": true,
+     "search_path_pinned": true,
+     "owner": "postgres",
+     "installer_owns": true,
+     "body_md5": "4f43a7292753cbd191c9800dac08ed58"
+    },
+    {
+     "kind": "granted",
+     "sig": "void_tournament_match_event(uuid,uuid,text)",
+     "exists": true,
+     "anon": false,
+     "authenticated": true,
+     "service_role": true,
+     "public": false,
+     "server_roles": [],
+     "definer": true,
+     "search_path_pinned": true,
+     "owner": "postgres",
+     "installer_owns": true,
+     "body_md5": "27c260e955b5d538a7ba37bfa65144da"
+    },
+    {
+     "kind": "kept",
+     "sig": "authorize_tournament_social_export(uuid,uuid,text,text,boolean)",
+     "exists": true,
+     "anon": false,
+     "authenticated": false,
+     "service_role": true,
+     "public": false,
+     "server_roles": [],
+     "definer": true,
+     "search_path_pinned": true,
+     "owner": "postgres",
+     "installer_owns": true,
+     "body_md5": "f211d9a26d99448d4069c499c7508c55"
+    },
+    {
+     "kind": "kept",
+     "sig": "cancel_tournament_purchase(uuid)",
+     "exists": true,
+     "anon": false,
+     "authenticated": false,
+     "service_role": true,
+     "public": false,
+     "server_roles": [],
+     "definer": true,
+     "search_path_pinned": true,
+     "owner": "postgres",
+     "installer_owns": true,
+     "body_md5": "778ab46628fbe6407dd12636c2cda614"
+    },
+    {
+     "kind": "kept",
+     "sig": "change_tournament_media_gallery_state(uuid,text,text)",
+     "exists": true,
+     "anon": false,
+     "authenticated": false,
+     "service_role": true,
+     "public": false,
+     "server_roles": [],
+     "definer": true,
+     "search_path_pinned": true,
+     "owner": "postgres",
+     "installer_owns": true,
+     "body_md5": "3f8ada8aaea55d9592004832fe206516"
+    },
+    {
+     "kind": "kept",
+     "sig": "create_tournament_disciplinary_override(uuid,text,integer,text,uuid)",
+     "exists": true,
+     "anon": false,
+     "authenticated": false,
+     "service_role": true,
+     "public": false,
+     "server_roles": [],
+     "definer": true,
+     "search_path_pinned": true,
+     "owner": "postgres",
+     "installer_owns": true,
+     "body_md5": "e883ffa29bdf8bbb7ee349d14a5b0f0b"
+    },
+    {
+     "kind": "kept",
+     "sig": "create_tournament_points_adjustment(uuid,uuid,uuid,uuid,uuid,integer,text,uuid)",
+     "exists": true,
+     "anon": false,
+     "authenticated": false,
+     "service_role": true,
+     "public": false,
+     "server_roles": [],
+     "definer": true,
+     "search_path_pinned": true,
+     "owner": "postgres",
+     "installer_owns": true,
+     "body_md5": "ce81b8fcdcb2e271901cc062ddf4745e"
+    },
+    {
+     "kind": "kept",
+     "sig": "get_tournament_player_portrait_ref(uuid,uuid,text)",
+     "exists": true,
+     "anon": false,
+     "authenticated": false,
+     "service_role": true,
+     "public": false,
+     "server_roles": [],
+     "definer": true,
+     "search_path_pinned": true,
+     "owner": "postgres",
+     "installer_owns": true,
+     "body_md5": "08e85cc719bc127cd1eeaba13862740c"
+    },
+    {
+     "kind": "kept",
+     "sig": "has_tournament_entitlement(uuid,uuid,text)",
+     "exists": true,
+     "anon": false,
+     "authenticated": false,
+     "service_role": true,
+     "public": false,
+     "server_roles": [],
+     "definer": true,
+     "search_path_pinned": true,
+     "owner": "postgres",
+     "installer_owns": true,
+     "body_md5": "f6c383294976ed919d71d31371df8b2b"
+    },
+    {
+     "kind": "kept",
+     "sig": "lock_tournament_roster(uuid,uuid,uuid)",
+     "exists": true,
+     "anon": false,
+     "authenticated": false,
+     "service_role": true,
+     "public": false,
+     "server_roles": [],
+     "definer": true,
+     "search_path_pinned": true,
+     "owner": "postgres",
+     "installer_owns": true,
+     "body_md5": "705435642ae37c4176eb2e3d1fd01741"
+    },
+    {
+     "kind": "kept",
+     "sig": "mark_tournament_suspension_served(uuid,uuid,text)",
+     "exists": true,
+     "anon": false,
+     "authenticated": false,
+     "service_role": true,
+     "public": false,
+     "server_roles": [],
+     "definer": true,
+     "search_path_pinned": true,
+     "owner": "postgres",
+     "installer_owns": true,
+     "body_md5": "179376cfb1cd940d64ffa7dc34c40dc6"
+    },
+    {
+     "kind": "kept",
+     "sig": "record_manual_match_availability(uuid,uuid,uuid,text,text,text)",
+     "exists": true,
+     "anon": false,
+     "authenticated": false,
+     "service_role": true,
+     "public": false,
+     "server_roles": [],
+     "definer": true,
+     "search_path_pinned": true,
+     "owner": "postgres",
+     "installer_owns": true,
+     "body_md5": "63f7fb5c744586172f56043487225ca7"
+    },
+    {
+     "kind": "kept",
+     "sig": "report_tournament_media_asset(uuid,text,text,boolean,uuid)",
+     "exists": true,
+     "anon": false,
+     "authenticated": false,
+     "service_role": true,
+     "public": false,
+     "server_roles": [],
+     "definer": true,
+     "search_path_pinned": true,
+     "owner": "postgres",
+     "installer_owns": true,
+     "body_md5": "717b1a5451f2d00b1a6481ea28e0f1dc"
+    },
+    {
+     "kind": "kept",
+     "sig": "revoke_tournament_player_portrait_publication(uuid,uuid)",
+     "exists": true,
+     "anon": false,
+     "authenticated": false,
+     "service_role": true,
+     "public": false,
+     "server_roles": [],
+     "definer": true,
+     "search_path_pinned": true,
+     "owner": "postgres",
+     "installer_owns": true,
+     "body_md5": "3127354c57f022a3fe747bcfbcdcf9f9"
+    },
+    {
+     "kind": "kept",
+     "sig": "revoke_tournament_points_adjustment(uuid,text)",
+     "exists": true,
+     "anon": false,
+     "authenticated": false,
+     "service_role": true,
+     "public": false,
+     "server_roles": [],
+     "definer": true,
+     "search_path_pinned": true,
+     "owner": "postgres",
+     "installer_owns": true,
+     "body_md5": "3b4c6f08f7e6893b9151008f9a3998a9"
+    },
+    {
+     "kind": "kept",
+     "sig": "revoke_tournament_team_photo(uuid,uuid)",
+     "exists": true,
+     "anon": false,
+     "authenticated": false,
+     "service_role": true,
+     "public": false,
+     "server_roles": [],
+     "definer": true,
+     "search_path_pinned": true,
+     "owner": "postgres",
+     "installer_owns": true,
+     "body_md5": "1943af7d03aae17d467d573551424f1e"
+    },
+    {
+     "kind": "kept",
+     "sig": "set_tournament_player_portrait_crop(uuid,uuid,numeric,numeric,numeric)",
+     "exists": true,
+     "anon": false,
+     "authenticated": false,
+     "service_role": true,
+     "public": false,
+     "server_roles": [],
+     "definer": true,
+     "search_path_pinned": true,
+     "owner": "postgres",
+     "installer_owns": true,
+     "body_md5": "3fad319c0f20e6edcb1d6b1024629fc1"
+    },
+    {
+     "kind": "kept",
+     "sig": "set_tournament_player_portrait_editorial_status(uuid,uuid,text)",
+     "exists": true,
+     "anon": false,
+     "authenticated": false,
+     "service_role": true,
+     "public": false,
+     "server_roles": [],
+     "definer": true,
+     "search_path_pinned": true,
+     "owner": "postgres",
+     "installer_owns": true,
+     "body_md5": "816ceb97a1eab8f2eeaea4cf6faf7e65"
+    },
+    {
+     "kind": "kept",
+     "sig": "transition_tournament_media_asset(uuid,text,text)",
+     "exists": true,
+     "anon": false,
+     "authenticated": false,
+     "service_role": true,
+     "public": false,
+     "server_roles": [],
+     "definer": true,
+     "search_path_pinned": true,
+     "owner": "postgres",
+     "installer_owns": true,
+     "body_md5": "bbf724512ff4e767d51343a2a199ba25"
+    },
+    {
+     "kind": "service_only",
+     "sig": "archive_tournament_fixture(uuid,uuid,text)",
+     "exists": true,
+     "anon": false,
+     "authenticated": false,
+     "service_role": true,
+     "public": false,
+     "server_roles": [],
+     "definer": true,
+     "search_path_pinned": true,
+     "owner": "postgres",
+     "installer_owns": true,
+     "body_md5": "cfc271635dc9b3f1a42e60651ad80106"
+    },
+    {
+     "kind": "service_only",
+     "sig": "cancel_tournament_match(uuid,uuid,text)",
+     "exists": true,
+     "anon": false,
+     "authenticated": false,
+     "service_role": true,
+     "public": false,
+     "server_roles": [],
+     "definer": true,
+     "search_path_pinned": true,
+     "owner": "postgres",
+     "installer_owns": true,
+     "body_md5": "54aa81560d8635936fa136dae99a0382"
+    },
+    {
+     "kind": "service_only",
+     "sig": "postpone_tournament_match(uuid,uuid,text)",
+     "exists": true,
+     "anon": false,
+     "authenticated": false,
+     "service_role": true,
+     "public": false,
+     "server_roles": [],
+     "definer": true,
+     "search_path_pinned": true,
+     "owner": "postgres",
+     "installer_owns": true,
+     "body_md5": "657c8670ec0accf39afa89eb412711e0"
+    },
+    {
+     "kind": "service_only",
+     "sig": "ready_tournament_match(uuid,uuid)",
+     "exists": true,
+     "anon": false,
+     "authenticated": false,
+     "service_role": true,
+     "public": false,
+     "server_roles": [],
+     "definer": true,
+     "search_path_pinned": true,
+     "owner": "postgres",
+     "installer_owns": true,
+     "body_md5": "eb541e40915b74bda238439f2e45945b"
+    },
+    {
+     "kind": "service_only",
+     "sig": "restore_tournament_match_unscheduled(uuid,uuid,text)",
+     "exists": true,
+     "anon": false,
+     "authenticated": false,
+     "service_role": true,
+     "public": false,
+     "server_roles": [],
+     "definer": true,
+     "search_path_pinned": true,
+     "owner": "postgres",
+     "installer_owns": true,
+     "body_md5": "30ccc7ccb12ce24cf8f7e0a4c2e888ce"
+    },
+    {
+     "kind": "service_only",
+     "sig": "schedule_tournament_match_resumption(uuid,uuid,timestamp with time zone,uuid,uuid,text)",
+     "exists": true,
+     "anon": false,
+     "authenticated": false,
+     "service_role": true,
+     "public": false,
+     "server_roles": [],
+     "definer": true,
+     "search_path_pinned": true,
+     "owner": "postgres",
+     "installer_owns": true,
+     "body_md5": "a7f557a0923d878b9b20f2db945362f2"
+    }
+   ],
+   "counts": {
+    "authenticated_public": 162,
+    "anon_public": 12
+   },
+   "ledger": false,
+   "role_settings": {
+    "authenticated": [
+     "statement_timeout=8s"
+    ],
+    "anon": [
+     "statement_timeout=3s"
+    ],
+    "authenticator": [
+     "session_preload_libraries=supautils, safeupdate",
+     "statement_timeout=8s",
+     "lock_timeout=8s",
+     "pgrst.db_pre_request=private.check_token"
+    ]
+   }
+  },
+  "catalog_summary": {
+   "execute": {
+    "anon": {
+     "count": 14,
+     "md5": "c6322d66b69edc67b2e20096bbe383a4"
+    },
+    "authenticated": {
+     "count": 164,
+     "md5": "fbd63016af183834bef76bf6c70715c7"
+    },
+    "service_role": {
+     "count": 330,
+     "md5": "2658c67a4372c5658776c93deb4710f1"
+    },
+    "torneos_core_adapter": {
+     "count": 1,
+     "md5": "898581bb1006a5c6fcea48183314c786"
+    },
+    "torneos_identity_writer": {
+     "count": 0,
+     "md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "torneos_payment_service": {
+     "count": 4,
+     "md5": "e96fdc0b656fd0539f9429e6291c7c19"
+    }
+   },
+   "functions": {
+    "public": 366,
+    "private": 7,
+    "procedures": 0,
+    "aggregates": 0,
+    "definer": 312,
+    "signatures_md5": "88b6e21834d4e6cf66c7a16b6926434f",
+    "bodies_md5": "8fd38d6412afd6c19fdaf141fe16ba6a",
+    "owners": {
+     "postgres": 373
+    },
+    "public_acl_default": 0,
+    "public_execute_by_public_role": 0
+   },
+   "acl_md5": {
+    "relations": "825cdd62498cacbf104a1df6a16e69a5",
+    "functions": "a7bd722abc8f7e938a68c9bc51bdedcf"
+   },
+   "tables": {
+    "public_tables": 105,
+    "public_views": 0,
+    "private_tables": 2,
+    "sequences": 7,
+    "public_tables_without_rls": [],
+    "public_tables_forced_rls": 1,
+    "names_md5": "aa821b6eecda4df386b08c00fda94b13",
+    "owners": {
+     "postgres": 114
+    }
+   },
+   "policies": {
+    "count": 64,
+    "md5": "ee64d2e26ab00f1f11f4e5ef238a2253"
+   }
+  },
+  "gateway_roles": {
+   "logins": [
+    {
+     "name": "torneos_edge_core_adapter",
+     "login": true,
+     "inherit": false,
+     "super": false,
+     "createrole": false,
+     "createdb": false,
+     "replication": false,
+     "bypassrls": false,
+     "connlimit": -1,
+     "valid_until": null,
+     "config": null
+    },
+    {
+     "name": "torneos_edge_identity_writer",
+     "login": true,
+     "inherit": false,
+     "super": false,
+     "createrole": false,
+     "createdb": false,
+     "replication": false,
+     "bypassrls": false,
+     "connlimit": -1,
+     "valid_until": null,
+     "config": null
+    },
+    {
+     "name": "torneos_payments_test",
+     "login": true,
+     "inherit": false,
+     "super": false,
+     "createrole": false,
+     "createdb": false,
+     "replication": false,
+     "bypassrls": false,
+     "connlimit": -1,
+     "valid_until": null,
+     "config": null
+    }
+   ],
+   "memberships": [
+    {
+     "role": "torneos_core_adapter",
+     "member": "torneos_edge_core_adapter",
+     "admin": false,
+     "inherit": false,
+     "set": true
+    },
+    {
+     "role": "torneos_edge_core_adapter",
+     "member": "postgres",
+     "admin": true,
+     "inherit": false,
+     "set": false
+    },
+    {
+     "role": "torneos_edge_identity_writer",
+     "member": "postgres",
+     "admin": true,
+     "inherit": false,
+     "set": false
+    },
+    {
+     "role": "torneos_identity_writer",
+     "member": "torneos_edge_identity_writer",
+     "admin": false,
+     "inherit": false,
+     "set": true
+    }
+   ],
+   "payment_logins": 1,
+   "login_member_of_api_role": 0,
+   "authenticator_config": [
+    "pgrst.db_pre_request=private.check_token"
+   ],
+   "auth_users": 0,
+   "installer": {
+    "user": "postgres",
+    "super": false,
+    "createrole": true,
+    "admin_on_authenticator": true,
+    "admin_on_identity_writer": true,
+    "admin_on_core_adapter": true
+   },
+   "edge_login_can_set_role": {
+    "torneos_edge_identity_writer": true,
+    "torneos_edge_core_adapter": true
+   }
+  },
+  "payment_roles": {
+   "login": {
+    "name": "torneos_payments_test",
+    "login": true,
+    "inherit": false,
+    "super": false,
+    "createrole": false,
+    "createdb": false,
+    "replication": false,
+    "bypassrls": false,
+    "connlimit": -1,
+    "valid_until": null,
+    "config": null
+   },
+   "login_memberships": [
+    {
+     "role": "torneos_payment_service",
+     "admin": false,
+     "inherit": false,
+     "set": true
+    }
+   ],
+   "login_members": [
+    {
+     "member": "postgres",
+     "admin": true,
+     "inherit": false,
+     "set": false
+    }
+   ],
+   "reachable_roles": [
+    "torneos_payment_service"
+   ],
+   "payment_logins": [
+    "torneos_payments_test"
+   ],
+   "role": {
+    "login": false,
+    "inherit": false,
+    "super": false,
+    "bypassrls": false,
+    "createrole": false
+   },
+   "role_executes": [
+    "apply_verified_tournament_payment_reversal(uuid,text,text,text,text,text,text,timestamp with time zone)",
+    "apply_verified_tournament_payment_status(uuid,text,text,text,text,text,text,timestamp with time zone)",
+    "get_provider_tournament_purchase(text,text,text)",
+    "record_tournament_purchase_preference(uuid,text,text,text,timestamp with time zone)"
+   ],
+   "role_table_privileges": 0,
+   "role_schema_create": []
+  },
+  "pins": {
+   "foundation_sha256": "73b7207f583e8bd721d48eab3771022706c018ac4ea56e1b710114dcfc99ca60",
+   "payments_sha256": "563f163c6d4c2c024d3358cc7a40688889edc084a74982e0f9b5d89a5ef59dd5",
+   "cv1_sha256": "0c3528eea161f83d165e14228936db2c1a12c6c6a5c2d27611e7b78d5d14df6e"
+  }
+ }
+}
