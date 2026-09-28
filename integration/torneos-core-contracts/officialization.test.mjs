@@ -144,7 +144,8 @@ test(`OFFICIALIZATION-V1 — optional dual control + organization membership on 
       const install = JSON.parse(await readFile(`${repo}integration/torneos-core-contracts/.runtime/install.json`, 'utf8'));
       const applied = install.torneos.migrations_after_baseline.map((m) => m.file.split('/').pop());
       assert.deepEqual(applied, (await readdir(migrationsDir)).filter((f) => f.endsWith('.sql')).sort().slice(1));
-      assert.equal(applied.at(-1), MIGRATION);
+      // ERROR-CONTRACT-V1 (0006) applies after 0005; 0005 is still applied from this tree, in order.
+      assert.ok(applied.includes(MIGRATION)); assert.deepEqual(applied.slice(applied.indexOf(MIGRATION) + 1), applied.filter((f) => f > MIGRATION));
       const entry = install.torneos.migrations_after_baseline.find((m) => m.file.endsWith(MIGRATION));
       assert.equal(entry.sha256, createHash('sha256').update(migrationSql).digest('hex'), 'the lab applied this tree\'s 0005');
       for (const [file, sha] of Object.entries(contract.untouched_migrations)) {
@@ -194,6 +195,12 @@ test(`OFFICIALIZATION-V1 — optional dual control + organization membership on 
       const before = aclCounts();
       const again = sqlTry('torneos-db', migrationSql);
       assert.equal(again.ok, true, again.error);
+      // ERROR-CONTRACT-V1: 0006 replaces a body 0005 also defines (set_tournament_match_dual_control), so re-applying
+      // 0005 alone would roll that edit back: the certified state is 0005 + every later migration, re-applied in order.
+      for (const later of (await readdir(migrationsDir)).filter((f) => f.endsWith('.sql') && f > MIGRATION).sort()) {
+        const tail = sqlTry('torneos-db', await readFile(`${migrationsDir}${later}`, 'utf8'));
+        assert.equal(tail.ok, true, `${later}: ${tail.error}`);
+      }
       assert.equal(aclCounts(), before);
       const strip = migrationSql.replace(/^BEGIN;$/m, '').replace(/^COMMIT;$/m, '');
       const no0004 = sqlTry('torneos-db', `BEGIN; REVOKE EXECUTE ON FUNCTION public.make_tournament_match_official(uuid,uuid) FROM authenticated; ${strip} ROLLBACK;`);
@@ -644,9 +651,9 @@ test(`OFFICIALIZATION-V1 — optional dual control + organization membership on 
       await ok('make_tournament_match_official', owner, base);
       const finished = await ok('finish_tournament_competition', userB, { p_organization_id: S.org, p_tournament_id: S.F.id });
       assert.equal(finished.status, 'completed');
-      await denied('set_tournament_match_dual_control', owner, { p_organization_id: S.org, p_tournament_id: S.F.id, p_enabled: false }, { status: [400], code: '22023', message: 'TORNEOS_COMPETITION_READ_ONLY', why: 'finished' });
+      await denied('set_tournament_match_dual_control', owner, { p_organization_id: S.org, p_tournament_id: S.F.id, p_enabled: false }, { status: [409], code: 'PT409', message: 'TORNEOS_COMPETITION_READ_ONLY', why: 'finished (ERROR-CONTRACT-V1: 409, was 400)' });
       assert.equal((await ok('get_tournament_match_dual_control', owner, { p_organization_id: S.org, p_tournament_id: S.F.id })).readOnly, true);
-      await denied('request_tournament_match_correction', owner, { p_organization_id: S.org, p_match_operation_id: op, p_reason: 'Tarde' }, { status: [400, 403], code: null, why: 'finished-correction' });
+      await denied('request_tournament_match_correction', owner, { p_organization_id: S.org, p_match_operation_id: op, p_reason: 'Tarde' }, { status: [400, 403, 409], code: null, why: 'finished-correction (409 since ERROR-CONTRACT-V1: the completed guard answers PT409)' });
       const reopened = await ok('reopen_tournament_competition', owner, { p_organization_id: S.org, p_tournament_id: S.F.id, p_reason: 'Corrección de cierre' });
       assert.equal(reopened.status, 'active');
       assert.equal((await ok('set_tournament_match_dual_control', owner, { p_organization_id: S.org, p_tournament_id: S.F.id, p_enabled: false })).enabled, false);
