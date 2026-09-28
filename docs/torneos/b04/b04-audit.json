@@ -1,5 +1,5 @@
 {
-  "generatedFrom": "20bd3222b90925ffc2e30f027d7506637870d9f0",
+  "generatedFrom": "abe4f79f9492b9c216cc63779e49c655b67900e1",
   "legacyBase": "2058da039a2a5eaaed22d87d01946bc596ae5f50",
   "coreSingletonSha256": "f39572e4cab0fd287bd1dea2ca87c97bd5500d0eff57cb8de6160f1e3271600c",
   "reachableCallSignatures": {
@@ -46,7 +46,7 @@
     "src/features/torneos/isolated/IsolatedTorneosPage.jsx": "648a0c66c255ab6753874e48a8a35467f9a198fd1d9587e47dfaadd2b900ef76",
     "src/features/torneos/isolated/createTorneosClient.js": "7fa1212c6f9d1f5fb57dd5a594e029986a49b7f531d46f4c9eaf27a25acda3cf",
     "src/features/torneos/social/socialStudio.js": "9618e2978bb5f45ca23566098bd7b01a3ea9816cae8532cc26ba20ee6d871128",
-    "src/features/torneos/stagingV1/coreSessionBridge.js": "f007b99ff18672322a7fa335d80a60c1287f0ba4cb1e1935fa3d2648cc46b620",
+    "src/features/torneos/stagingV1/coreSessionBridge.js": "5b42800e627a243248c539206ca778d5c1f3d59e0a3e69c031b53aaf08b63e51",
     "src/hooks/useAdminPanelState.js": "b265d45ab23aac685b3fd3993b51cee72d17cc2fd59c02bc5b8c28f3c14044ec",
     "src/hooks/useAmigos.js": "17c48e1911d094ee77890e408172a0f98ee153ae9ed19f7d2ecc28f2970ec854",
     "src/hooks/useNativeFeatures.js": "c88b9f464fe7ef7e5aa4e5c8a8ff7b5e0251dbc9b0763de2eda86e47130628fd",
@@ -2917,7 +2917,7 @@
     },
     {
       "file": "src/features/torneos/foundation/torneosTransport.js",
-      "line": 114,
+      "line": 126,
       "kind": "transport",
       "callee": "window.fetch",
       "targets": [],
@@ -2926,7 +2926,7 @@
     },
     {
       "file": "src/features/torneos/foundation/torneosTransport.js",
-      "line": 162,
+      "line": 178,
       "kind": "transport",
       "callee": "fetchImpl",
       "targets": [],
@@ -2935,7 +2935,7 @@
     },
     {
       "file": "src/features/torneos/foundation/torneosTransport.js",
-      "line": 220,
+      "line": 257,
       "kind": "transport",
       "callee": "fetchImpl",
       "targets": [],
@@ -2944,7 +2944,7 @@
     },
     {
       "file": "src/features/torneos/foundation/torneosTransport.js",
-      "line": 325,
+      "line": 362,
       "kind": "transport",
       "callee": "window.fetch",
       "targets": [],
@@ -2953,7 +2953,7 @@
     },
     {
       "file": "src/features/torneos/foundation/torneosTransport.js",
-      "line": 341,
+      "line": 378,
       "kind": "transport",
       "callee": "fetchImpl",
       "targets": [],
@@ -3027,7 +3027,7 @@
     },
     {
       "file": "src/features/torneos/stagingV1/coreSessionBridge.js",
-      "line": 10,
+      "line": 21,
       "kind": "auth",
       "callee": "client.auth.getSession",
       "targets": [],
@@ -3036,12 +3036,12 @@
     },
     {
       "file": "src/features/torneos/stagingV1/coreSessionBridge.js",
-      "line": 17,
+      "line": 32,
       "kind": "auth",
       "callee": "client.auth.onAuthStateChange",
       "targets": [],
       "function": "createCoreSessionBridge",
-      "expression": "client.auth.onAuthStateChange((event) => { // Synchronous: the transport only drops its cache here. if (CORE_AUTH_EVENTS_THAT_CLEAR.includes(event)) listener(event); })"
+      "expression": "client.auth.onAuthStateChange((event, session) => { const userId = userIdOf(session); const sameIdentity = CORE_AUTH_RENEWAL_EVENTS.includes(event) && userId !== null && userId === knownUserId; knownUserId = event === 'SIGNED_OUT' ? null : userId; // Synchronous: the transport only drops its cache here. if (CORE_AUTH_EVENTS_THAT_CLEAR.includes(event)) listener(event, { sameIdentity }); })"
     }
   ]
 }
