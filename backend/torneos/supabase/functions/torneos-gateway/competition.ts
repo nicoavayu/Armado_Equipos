@@ -190,3 +190,46 @@ export async function preparePublicRpc(req: PublicRequest, contract: Competition
   }
   return { ok: true, path: `/rpc/${req.name}`, body: JSON.stringify(body) }
 }
+
+// ERROR-CONTRACT-V1 — expected domain errors are never an outage. Migration 0006 makes the database answer them with
+// the PostgREST custom status PTxyz (409 / 422 / 429). A database where 0006 is not applied yet still raises the
+// legacy SQLSTATE 55000 / 54000, which PostgREST answers 500: for exactly those two SQLSTATEs AND a message that is a
+// contract code, the gateway answers the contract status instead. The body is forwarded byte for byte. Anything else
+// keeps its upstream status — a genuine 500 (any other SQLSTATE, any other message, a non-JSON body) stays 500, and a
+// timeout stays the gateway's own 503. The former domain 40001 cannot be repaired here: PostgREST retries it before
+// answering, so only the database fix removes that retry storm. Source of truth: backend/torneos/error-contract-v1/
+// contract.json (`http`, `postgrest.legacy_5xx_sqlstates`); a lab test keeps them equal.
+export const DOMAIN_ERROR_STATUS: Readonly<Record<string, number>> = Object.freeze({
+  TORNEOS_COMPETITION_READ_ONLY: 409,
+  TORNEOS_CORRECTION_ALREADY_SUPERSEDED: 409,
+  TORNEOS_FIXTURE_DRAFT_READ_ONLY: 409,
+  TORNEOS_MATCH_AVAILABILITY_SELF_AUTHORITATIVE: 409,
+  TORNEOS_MATCH_CORRECTION_EXISTS: 409,
+  TORNEOS_MATCH_REVIEW_NOT_OPEN: 409,
+  TORNEOS_MATCH_SQUAD_LOCKED: 409,
+  TORNEOS_QUALIFICATION_AMBIGUOUS: 409,
+  TORNEOS_QUALIFICATION_INCOMPLETE: 409,
+  TORNEOS_QUALIFICATION_MANUAL_LOCKED: 409,
+  TORNEOS_STALE_FIXTURE_VERSION: 409,
+  TORNEOS_STANDINGS_SOURCES_CHANGED: 409,
+  TORNEOS_SUSPENSION_NOT_ACTIVE: 409,
+  TORNEOS_AUDIENCE_LIMIT_REACHED: 422,
+  TORNEOS_DRAFT_LIMIT_REACHED: 422,
+  TORNEOS_LINK_LIMIT_REACHED: 422,
+  TORNEOS_RECIPIENT_LIMIT_REACHED: 422,
+  TORNEOS_PUBLISH_RATE_LIMITED: 429,
+})
+export const LEGACY_DOMAIN_SQLSTATES: ReadonlySet<string> = new Set(["55000", "54000"])
+const DOMAIN_ERROR_BODY_LIMIT = 4096
+
+/** Status the gateway answers for an upstream PostgREST response (see DOMAIN_ERROR_STATUS). */
+export function domainErrorStatus(status: number, body: ArrayBuffer | Uint8Array): number {
+  if (status !== 500 || body.byteLength === 0 || body.byteLength > DOMAIN_ERROR_BODY_LIMIT) return status
+  let parsed: unknown
+  try { parsed = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(body)) } catch { return status }
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return status
+  const { code, message } = parsed as Record<string, unknown>
+  if (typeof code !== "string" || !LEGACY_DOMAIN_SQLSTATES.has(code)) return status
+  if (typeof message !== "string" || !Object.hasOwn(DOMAIN_ERROR_STATUS, message)) return status
+  return DOMAIN_ERROR_STATUS[message]
+}

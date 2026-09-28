@@ -120,9 +120,11 @@ async function proxy(req, res, url, token, raw) {
   const r = await dependencyFetch(url, { method: req.method, headers,
     body: ['GET', 'HEAD'].includes(req.method) ? undefined : (raw ?? await body(req)),
     redirect: 'error', signal: AbortSignal.timeout(5000) });
-  res.writeHead(r.status, { 'content-type': r.headers.get('content-type') ?? 'application/json',
+  const payload = await r.arrayBuffer();
+  // ERROR-CONTRACT-V1: same competition.ts rule as the Edge gateway (legacy-SQLSTATE domain error → contract status).
+  res.writeHead(competitionModule.domainErrorStatus(r.status, payload), { 'content-type': r.headers.get('content-type') ?? 'application/json',
     'cache-control': 'no-store', ...(r.headers.has('content-range') ? { 'content-range': r.headers.get('content-range') } : {}) });
-  res.end(Buffer.from(await r.arrayBuffer()));
+  res.end(Buffer.from(payload));
 }
 async function allocateIdentity(coreUserId) {
   const c = await identity.connect();

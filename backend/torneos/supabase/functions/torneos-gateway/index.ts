@@ -31,6 +31,10 @@
 // OFFICIALIZATION-V1 (competition.ts, officialization-v1-rpc-allowlist.json): organization membership and the
 // per-tournament dual-control policy on the generic route; accepting an organization invitation goes through the
 // Core-contract adapter (verified_email), like a team invitation.
+//
+// ERROR-CONTRACT-V1 (competition.ts domainErrorStatus): a proxied 500 whose body is a legacy-SQLSTATE (55000 / 54000)
+// Torneos domain error is answered with its contract status (409 / 422 / 429), body unchanged; every other status,
+// including a genuine 500 and the 503 of a timeout, passes through as before.
 import { decodeJwt } from "npm:jose@6.2.12"
 import { issueToken, verifyToken, uuid, jwks, TTL, type TorneosClaims } from "./token.ts"
 import { CoreClient, Denied, ROUTES } from "./core-client.ts"
@@ -38,7 +42,7 @@ import { Adapter, AdapterDenied, CONTRACTS } from "./adapter.ts"
 import { connect, allocateIdentity, identityExists, isUnavailable, type Sql } from "./db.ts"
 import { loadConfig, routePath, ConfigError, type GatewayConfig } from "./config.ts"
 import { COMMERCE_ROUTE, CommerceConfigError, effectiveRpcAllowlist, loadCommerceConfig, seasonCheckout, type CommerceConfig } from "./commerce.ts"
-import { CompetitionConfigError, loadCompetitionContract, loadOfficializationContract, preparePublicRpc, PublicGate, PUBLIC_RPC_ROUTE, withCompetition, withOfficialization, type CompetitionContract } from "./competition.ts"
+import { CompetitionConfigError, domainErrorStatus, loadCompetitionContract, loadOfficializationContract, preparePublicRpc, PublicGate, PUBLIC_RPC_ROUTE, withCompetition, withOfficialization, type CompetitionContract } from "./competition.ts"
 import allowlistDoc from "./staging-v1-rpc-allowlist.json" with { type: "json" }
 
 // Staging v1 RPC allowlist: fail closed if the document is malformed or empty.
@@ -186,7 +190,9 @@ async function proxy(rt: Runtime, req: Request, url: string, token: string | und
     redirect: "error", signal: AbortSignal.timeout(5000) })
   const out: Record<string, string> = { "content-type": r.headers.get("content-type") ?? "application/json", ...NO_STORE, ...cors }
   if (r.headers.has("content-range")) out["content-range"] = r.headers.get("content-range")!
-  return new Response(await r.arrayBuffer(), { status: r.status, headers: out })
+  const payload = await r.arrayBuffer()
+  // ERROR-CONTRACT-V1: a legacy-SQLSTATE domain error (DB without 0006) is answered with its contract status.
+  return new Response(payload, { status: domainErrorStatus(r.status, payload), headers: out })
 }
 
 export async function handle(req: Request): Promise<Response> {
