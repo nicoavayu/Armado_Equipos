@@ -48,6 +48,7 @@ export function TorneosFixtureProvider({
     data: EMPTY_DATA,
     error: '',
     notice: '',
+    actionError: '',
   });
   const categories = useMemo(
     () => (activeTournament?.categories || []).filter((category) => category.status === 'active'),
@@ -88,7 +89,10 @@ export function TorneosFixtureProvider({
     }, { replace: true });
   }, [isTournamentRoute, setSearchParams]);
 
-  const refresh = useCallback(async ({ notice = '' } = {}) => {
+  // `background`: revalidate after an action while the page stays mounted with the data it shows
+  // (no full-page loader after every save). A background load that fails still closes the page:
+  // data that could not be re-read is never presented as current.
+  const refresh = useCallback(async ({ notice = '', actionError = '', background = false } = {}) => {
     const requestedScope = scopeKey;
     const requestId = requestRef.current + 1;
     requestRef.current = requestId;
@@ -96,11 +100,11 @@ export function TorneosFixtureProvider({
       || typeof service?.loadFixtureContext !== 'function') {
       const data = { ...EMPTY_DATA };
       if (scopeRef.current === requestedScope) {
-        setState({ status: 'ready', data, error: '', notice });
+        setState({ status: 'ready', data, error: '', notice, actionError });
       }
       return data;
     }
-    setState({ status: 'loading', data: EMPTY_DATA, error: '', notice });
+    if (!background) setState({ status: 'loading', data: EMPTY_DATA, error: '', notice, actionError: '' });
     try {
       const [fixture, schedule] = await Promise.all([
         service.loadFixtureContext(organizationId, activeTournament.id, categoryId),
@@ -112,7 +116,7 @@ export function TorneosFixtureProvider({
         ...(schedule || {}),
       };
       if (requestRef.current === requestId && scopeRef.current === requestedScope) {
-        setState({ status: 'ready', data, error: '', notice });
+        setState({ status: 'ready', data, error: '', notice, actionError });
       }
       return data;
     } catch (error) {
@@ -122,6 +126,7 @@ export function TorneosFixtureProvider({
           data: EMPTY_DATA,
           error: error?.message || 'No pudimos cargar el fixture.',
           notice: '',
+          actionError: '',
         });
       }
       throw error;
@@ -129,30 +134,33 @@ export function TorneosFixtureProvider({
   }, [activeTournament?.id, categoryId, organizationId, scopeKey, service]);
 
   useEffect(() => {
-    setState({ status: 'idle', data: EMPTY_DATA, error: '', notice: '' });
+    setState({ status: 'idle', data: EMPTY_DATA, error: '', notice: '', actionError: '' });
     refresh().catch(() => {});
     return () => {
       requestRef.current += 1;
     };
   }, [refresh]);
 
+  // A rejected action (e.g. a domain 4xx such as generating a groups fixture before the draw) is
+  // reported next to the form: the page, the session and the data stay. What the page shows is then
+  // re-read in the background, so an action whose outcome is unknown never leaves stale data behind;
+  // only a failure of that re-read replaces the page with the load error.
   const mutate = useCallback(async (operation, notice) => {
     const requestedScope = scopeKey;
+    setState((current) => ({ ...current, notice: '', actionError: '' }));
+    let result;
     try {
-      const result = await operation();
-      if (scopeRef.current === requestedScope) await refresh({ notice });
-      return result;
+      result = await operation();
     } catch (error) {
       if (scopeRef.current === requestedScope) {
-        setState({
-          status: 'error',
-          data: EMPTY_DATA,
-          error: error?.message || 'No pudimos actualizar el fixture.',
-          notice: '',
-        });
+        const actionError = error?.message || 'No pudimos actualizar el fixture.';
+        setState((current) => ({ ...current, notice: '', actionError }));
+        refresh({ actionError, background: true }).catch(() => {});
       }
       throw error;
     }
+    if (scopeRef.current === requestedScope) await refresh({ notice, background: true });
+    return result;
   }, [refresh, scopeKey]);
 
   const scoped = useCallback((input = {}) => ({

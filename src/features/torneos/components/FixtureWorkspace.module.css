@@ -518,6 +518,12 @@
   background: rgba(125, 23, 43, 0.24);
 }
 
+.actionError {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
 .loading {
   min-height: 220px;
   color: #beb8cd;

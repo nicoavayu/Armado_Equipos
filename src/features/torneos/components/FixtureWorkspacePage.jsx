@@ -205,7 +205,7 @@ function ParticipantsPanel({ canManage }) {
   const [reason, setReason] = useState('');
   const run = async (operation) => {
     setBusy(true);
-    try { await operation(); } finally { setBusy(false); }
+    try { await operation(); } catch { /* reported by the fixture context */ } finally { setBusy(false); }
   };
   return (
     <section className={styles.panel}>
@@ -267,7 +267,7 @@ function PotsPanel({ canManage }) {
         })),
     }));
     setBusy(true);
-    try { await actions.savePots(nextPots); } finally { setBusy(false); }
+    try { await actions.savePots(nextPots); } catch { /* reported by the fixture context */ } finally { setBusy(false); }
   };
   return (
     <section className={styles.panel}>
@@ -307,7 +307,7 @@ function DrawPanel({ canManage }) {
   const [busy, setBusy] = useState(false);
   const execute = async (publish) => {
     setBusy(true);
-    try { await actions.draw({ seed, groupCount: Number(groupCount), publish }); } finally { setBusy(false); }
+    try { await actions.draw({ seed, groupCount: Number(groupCount), publish }); } catch { /* reported by the fixture context */ } finally { setBusy(false); }
   };
   const drawGroups = groups.filter((group) => !group.fixtureVersionId);
   return (
@@ -671,7 +671,7 @@ function GeneratePanel({ canManage }) {
         <div className={styles.formActions}>
           <button type="button" disabled={busy || participantSet?.status !== 'frozen'} onClick={async () => {
             setBusy(true);
-            try { await actions.generate({ seed, configuration: {} }); } finally { setBusy(false); }
+            try { await actions.generate({ seed, configuration: {} }); } catch { /* reported by the fixture context */ } finally { setBusy(false); }
           }}><Sparkles size={17} /> Generar borrador</button>
           <button type="button" disabled={busy || participantSet?.status !== 'frozen'} onClick={async () => {
             setBusy(true);
@@ -679,7 +679,7 @@ function GeneratePanel({ canManage }) {
               await actions.createManual(
                 versions.find((version) => version.status === 'published')?.id || null,
               );
-            } finally { setBusy(false); }
+            } catch { /* reported by the fixture context */ } finally { setBusy(false); }
           }}><Plus size={17} /> {versions.some((version) => version.status === 'published') ? 'Crear copia editable' : 'Crear manualmente'}</button>
         </div>
       )}
@@ -1041,6 +1041,7 @@ export default function FixtureWorkspacePage({ mode = 'overview' }) {
       </header>
       {fixture.notice && <div className={styles.notice} role="status"><CheckCircle2 size={17} />{fixture.notice}</div>}
       <Metrics />
+      {fixture.actionError && <div className={`${styles.error} ${styles.actionError}`} role="alert"><AlertTriangle size={17} aria-hidden="true" />{fixture.actionError}</div>}
       {mode === 'overview' && (
         <VersionPanel
           canManage={canManage}
