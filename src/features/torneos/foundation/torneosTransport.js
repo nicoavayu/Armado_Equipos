@@ -12,6 +12,10 @@
 //   • Core contract down → 503 { error:'CORE_UNAVAILABLE' }; adapter SQL fault → 503 TORNEOS_UNAVAILABLE
 //   • adapter refusals → { error:'TORNEOS_*' } with 400/403/429; Core denial → { error:'CORE_DENIED' }
 //   • everything else is a PostgREST passthrough ({ message, code, details, hint } on error)
+//   • ERROR-CONTRACT-V1: expected domain errors answer 409/422/429 (migration 0006, PTxyz). A 500 whose PostgREST
+//     body carries a Torneos functional code as its whole message (a database before 0006, or an invariant) is a
+//     structured answer of a live backend, not an outage: it keeps the bearer and surfaces rpcError. A 503, any
+//     other 5xx and an unstructured 500 stay fail-closed (bearer dropped, TORNEOS_UNAVAILABLE).
 //
 // Rules this module enforces: the bearer lives in memory only, is never decoded and
 // never persisted; a change of Core session discards it; every failure closes
@@ -85,6 +89,13 @@ const gatewayErrorOf = (json) => (
     ? json.error
     : null
 );
+// Functional codes of the Torneos database are whole messages (RAISE ... message = 'TORNEOS_X'). The boundary codes
+// the gateway itself uses for outages never qualify.
+const DOMAIN_ERROR_MESSAGE = /^TORNEOS_[A-Z0-9_]+$/;
+const OUTAGE_CODES = Object.freeze(['TORNEOS_UNAVAILABLE', 'TORNEOS_PAYMENTS_UNAVAILABLE']);
+const isStructuredDomainError = (status, rpcError) => status === 500
+  && Boolean(rpcError) && DOMAIN_ERROR_MESSAGE.test(rpcError.message) && !OUTAGE_CODES.includes(rpcError.message);
+
 const postgrestErrorOf = (json) => (
   json && typeof json === 'object' && !Array.isArray(json) && typeof json.message === 'string'
     ? {
@@ -245,6 +256,8 @@ export function createTorneosTransport({
       const code = gatewayError === 'CORE_UNAVAILABLE' ? 'CORE_UNAVAILABLE' : 'TORNEOS_UNAVAILABLE';
       throw new TorneosBoundaryError(code, { status, gatewayError });
     }
+    // A live backend answering a functional code: no outage, the bearer stays valid, no retry.
+    if (isStructuredDomainError(status, rpcError)) throw new TorneosBoundaryError('TORNEOS_RPC_ERROR', { status, rpcError });
     if (status >= 500) {
       clear();
       throw new TorneosBoundaryError('TORNEOS_UNAVAILABLE', { status, gatewayError });

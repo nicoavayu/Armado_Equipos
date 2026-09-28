@@ -1,6 +1,6 @@
 # TORNEOS-CALL-MAP — auditoría B04
 
-Inventario legacy congelado en `2058da039a2a5eaaed22d87d01946bc596ae5f50` (Phase 2D); árbol integrado auditado en `5b786051cfb714f2bc048f9b2f6be99fd54abcd0`. Reconstruido del código. No representa resultados de R2/R3/R4/R5.
+Inventario legacy congelado en `2058da039a2a5eaaed22d87d01946bc596ae5f50` (Phase 2D); árbol integrado auditado en `20bd3222b90925ffc2e30f027d7506637870d9f0`. Reconstruido del código. No representa resultados de R2/R3/R4/R5.
 
 161 sitios RPC legacy; 160 nombres distintos; 108 nombres dentro de scope; 52 fuera. La selección dinámica de `changeTournamentMatchPlan` se resuelve a sus tres nombres literales. No quedan RPC dinámicas sin resolver.
 
@@ -208,11 +208,11 @@ Los únicos sitios fuera del inventario legacy. El transporte habla sólo con el
 | Tipo | Llamada | Sitio |
 | --- | --- | --- |
 | rpc | `transport.rpc` | [src/features/torneos/foundation/torneosClient.js:42](../../../src/features/torneos/foundation/torneosClient.js#L42) |
-| transport | `window.fetch` | [src/features/torneos/foundation/torneosTransport.js:103](../../../src/features/torneos/foundation/torneosTransport.js#L103) |
-| transport | `fetchImpl` | [src/features/torneos/foundation/torneosTransport.js:151](../../../src/features/torneos/foundation/torneosTransport.js#L151) |
-| transport | `fetchImpl` | [src/features/torneos/foundation/torneosTransport.js:209](../../../src/features/torneos/foundation/torneosTransport.js#L209) |
-| transport | `window.fetch` | [src/features/torneos/foundation/torneosTransport.js:312](../../../src/features/torneos/foundation/torneosTransport.js#L312) |
-| transport | `fetchImpl` | [src/features/torneos/foundation/torneosTransport.js:328](../../../src/features/torneos/foundation/torneosTransport.js#L328) |
+| transport | `window.fetch` | [src/features/torneos/foundation/torneosTransport.js:114](../../../src/features/torneos/foundation/torneosTransport.js#L114) |
+| transport | `fetchImpl` | [src/features/torneos/foundation/torneosTransport.js:162](../../../src/features/torneos/foundation/torneosTransport.js#L162) |
+| transport | `fetchImpl` | [src/features/torneos/foundation/torneosTransport.js:220](../../../src/features/torneos/foundation/torneosTransport.js#L220) |
+| transport | `window.fetch` | [src/features/torneos/foundation/torneosTransport.js:325](../../../src/features/torneos/foundation/torneosTransport.js#L325) |
+| transport | `fetchImpl` | [src/features/torneos/foundation/torneosTransport.js:341](../../../src/features/torneos/foundation/torneosTransport.js#L341) |
 | auth | `client.auth.getSession` | [src/features/torneos/stagingV1/coreSessionBridge.js:10](../../../src/features/torneos/stagingV1/coreSessionBridge.js#L10) |
 | auth | `client.auth.onAuthStateChange` | [src/features/torneos/stagingV1/coreSessionBridge.js:17](../../../src/features/torneos/stagingV1/coreSessionBridge.js#L17) |
 

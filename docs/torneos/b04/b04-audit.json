@@ -1,5 +1,5 @@
 {
-  "generatedFrom": "5b786051cfb714f2bc048f9b2f6be99fd54abcd0",
+  "generatedFrom": "20bd3222b90925ffc2e30f027d7506637870d9f0",
   "legacyBase": "2058da039a2a5eaaed22d87d01946bc596ae5f50",
   "coreSingletonSha256": "f39572e4cab0fd287bd1dea2ca87c97bd5500d0eff57cb8de6160f1e3271600c",
   "reachableCallSignatures": {
@@ -2917,7 +2917,7 @@
     },
     {
       "file": "src/features/torneos/foundation/torneosTransport.js",
-      "line": 103,
+      "line": 114,
       "kind": "transport",
       "callee": "window.fetch",
       "targets": [],
@@ -2926,7 +2926,7 @@
     },
     {
       "file": "src/features/torneos/foundation/torneosTransport.js",
-      "line": 151,
+      "line": 162,
       "kind": "transport",
       "callee": "fetchImpl",
       "targets": [],
@@ -2935,7 +2935,7 @@
     },
     {
       "file": "src/features/torneos/foundation/torneosTransport.js",
-      "line": 209,
+      "line": 220,
       "kind": "transport",
       "callee": "fetchImpl",
       "targets": [],
@@ -2944,7 +2944,7 @@
     },
     {
       "file": "src/features/torneos/foundation/torneosTransport.js",
-      "line": 312,
+      "line": 325,
       "kind": "transport",
       "callee": "window.fetch",
       "targets": [],
@@ -2953,7 +2953,7 @@
     },
     {
       "file": "src/features/torneos/foundation/torneosTransport.js",
-      "line": 328,
+      "line": 341,
       "kind": "transport",
       "callee": "fetchImpl",
       "targets": [],

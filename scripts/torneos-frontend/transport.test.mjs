@@ -261,3 +261,56 @@ test('transport refuses to exist without a gateway URL or a Core session reader'
   assert.throws(() => createTorneosTransport({ gatewayUrl: '', getCoreAccessToken: async () => 'x' }), { code: 'TORNEOS_TRANSPORT_NOT_CONNECTED' });
   assert.throws(() => createTorneosTransport({ gatewayUrl: GATEWAY }), { code: 'TORNEOS_TRANSPORT_NOT_CONNECTED' });
 });
+
+// ERROR-CONTRACT-V1: expected domain errors are not an outage.
+test('T15 — domain 409 / 422 / 429 (PTxyz) surface as TORNEOS_RPC_ERROR with rpcError intact; the bearer is kept; no retry', async () => {
+  const h = harness({ script: { exchange: [FIX.exchange.ok], rest: [FIX.rpc.domainConflict, FIX.rpc.domainLimit, FIX.rpc.domainRateLimited, FIX.rpc.ok] } });
+  await assert.rejects(h.transport.rpc('publish_tournament_fixture', {}), (error) => {
+    assert.equal(error.code, 'TORNEOS_RPC_ERROR'); assert.equal(error.status, 409);
+    same(error.rpcError, FIX.rpc.domainConflict.body);
+    return true;
+  });
+  await assert.rejects(h.transport.rpc('set_tournament_announcement_link', {}), (error) => error.code === 'TORNEOS_RPC_ERROR' && error.status === 422 && error.rpcError.message === 'TORNEOS_LINK_LIMIT_REACHED');
+  await assert.rejects(h.transport.rpc('publish_tournament_announcement', {}), (error) => error.code === 'TORNEOS_RPC_ERROR' && error.status === 429 && error.rpcError.code === 'PT429');
+  await h.transport.rpc('get_tournament_workspace_context', {});
+  assert.equal(h.exchanges().length, 1, 'one exchange: the bearer survived three domain errors');
+  assert.equal(h.rpcs().length, 4, 'each domain error was answered once (no retry)');
+  for (const call of h.rpcs()) assert.equal(call.headers.Authorization, `Bearer ${FIX.exchange.ok.body.access_token}`);
+});
+
+test('T16 — a structured Torneos 500 (legacy SQLSTATE before 0006, or an invariant) keeps the bearer and surfaces rpcError, not TORNEOS_UNAVAILABLE', async () => {
+  const h = harness({ script: { exchange: [FIX.exchange.ok], rest: [FIX.rpc.legacyDomain500, FIX.rpc.invariant500, FIX.rpc.ok] } });
+  await assert.rejects(h.transport.rpc('resolve_tournament_qualification', {}), (error) => {
+    assert.equal(error.code, 'TORNEOS_RPC_ERROR'); assert.equal(error.status, 500);
+    same(error.rpcError, FIX.rpc.legacyDomain500.body);
+    return true;
+  });
+  await assert.rejects(h.transport.rpc('make_tournament_match_official', {}), (error) => error.code === 'TORNEOS_RPC_ERROR' && error.rpcError.message === 'TORNEOS_MATCH_REVIEW_OPEN');
+  await h.transport.rpc('get_tournament_workspace_context', {});
+  assert.equal(h.exchanges().length, 1, 'the bearer was not dropped');
+  assert.equal(h.rpcs().length, 3);
+});
+
+test('T17 — genuine failures stay fail-closed: unstructured 500, prefixed message, gateway 500, 502, 503 with a domain body and a timeout → TORNEOS_UNAVAILABLE and the bearer is dropped', async () => {
+  const failures = [FIX.rpc.unstructured500, FIX.rpc.prefixed500, FIX.rpc.gateway500, FIX.rpc.badGateway, FIX.rpc.domainIn503, { hang: 200, ...FIX.rpc.ok }];
+  const h = harness({ script: { exchange: failures.map(() => FIX.exchange.ok).concat([FIX.exchange.ok]), rest: [...failures, FIX.rpc.ok] }, timeoutMs: 50 });
+  for (const failure of failures) {
+    await assert.rejects(h.transport.rpc('rebuild_tournament_standings', {}), (error) => {
+      assert.equal(error.code, 'TORNEOS_UNAVAILABLE', JSON.stringify(failure.body));
+      assert.equal(error.rpcError, null);
+      return true;
+    });
+  }
+  await h.transport.rpc('get_tournament_workspace_context', {});
+  assert.equal(h.exchanges().length, failures.length + 1, 'every genuine failure discarded the bearer; the next call re-exchanged');
+  assert.equal(h.rpcs().length, failures.length + 1, 'no automatic retry');
+});
+
+test('T18 — 401 and 403 keep their contract next to the domain statuses: one silent re-exchange on 401, none on 403 or 409', async () => {
+  const h = harness({ script: { exchange: [FIX.exchange.ok, FIX.exchange.okRenewed], rest: [FIX.rpc.bearerInvalid, FIX.rpc.domainConflict, FIX.rpc.notEnabled, FIX.rpc.postgrestPermission] } });
+  await assert.rejects(h.transport.rpc('publish_tournament_fixture', {}), (error) => error.code === 'TORNEOS_RPC_ERROR' && error.status === 409);
+  assert.equal(h.exchanges().length, 2, '401 → exactly one re-exchange, then the 409 is final');
+  await assert.rejects(h.transport.rpc('lock_tournament_roster', {}), { code: 'TORNEOS_FORBIDDEN', status: 403 });
+  await assert.rejects(h.transport.rpc('create_tournament_venue', {}), (error) => error.code === 'TORNEOS_RPC_ERROR' && error.status === 403 && error.rpcError.code === '42501');
+  assert.equal(h.exchanges().length, 2); assert.equal(h.rpcs().length, 4);
+});

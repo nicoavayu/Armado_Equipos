@@ -29,7 +29,17 @@
     "postgrestMissingFunction": { "status": 404, "body": { "code": "PGRST202", "details": "Searched for the function public.r5_no_such_function", "hint": null, "message": "Could not find the function" } },
     "torneosDown": { "status": 503, "body": { "error": "access denied" } },
     "coreContractDown": { "status": 503, "body": { "error": "CORE_UNAVAILABLE" } },
-    "adapterUnavailable": { "status": 503, "body": { "error": "TORNEOS_UNAVAILABLE" } }
+    "adapterUnavailable": { "status": 503, "body": { "error": "TORNEOS_UNAVAILABLE" } },
+    "domainConflict": { "status": 409, "body": { "code": "PT409", "details": null, "hint": null, "message": "TORNEOS_STALE_FIXTURE_VERSION" } },
+    "domainLimit": { "status": 422, "body": { "code": "PT422", "details": null, "hint": null, "message": "TORNEOS_LINK_LIMIT_REACHED" } },
+    "domainRateLimited": { "status": 429, "body": { "code": "PT429", "details": null, "hint": null, "message": "TORNEOS_PUBLISH_RATE_LIMITED" } },
+    "legacyDomain500": { "status": 500, "body": { "code": "55000", "details": null, "hint": null, "message": "TORNEOS_QUALIFICATION_INCOMPLETE" } },
+    "invariant500": { "status": 500, "body": { "code": "55000", "details": null, "hint": null, "message": "TORNEOS_MATCH_REVIEW_OPEN" } },
+    "unstructured500": { "status": 500, "body": { "code": "P0002", "details": null, "hint": null, "message": "query returned no rows" } },
+    "prefixed500": { "status": 500, "body": { "code": "XX000", "details": null, "hint": null, "message": "TORNEOS_X: internal failure" } },
+    "gateway500": { "status": 500, "body": { "error": "access denied" } },
+    "domainIn503": { "status": 503, "body": { "code": "PT503", "details": null, "hint": null, "message": "TORNEOS_QUALIFICATION_INCOMPLETE" } },
+    "badGateway": { "status": 502, "body": { "code": "55000", "details": null, "hint": null, "message": "TORNEOS_QUALIFICATION_INCOMPLETE" } }
   },
   "table": {
     "members": { "status": 200, "headers": { "content-range": "0-1/*" }, "body": [ { "id": "11111111-1111-4111-8111-111111111111", "user_id": "22222222-2222-4222-8222-222222222222", "role": "owner", "status": "active", "joined_at": "2026-09-21T14:44:26Z", "created_at": "2026-09-21T14:44:26Z" } ] },

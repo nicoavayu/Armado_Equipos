@@ -209,6 +209,12 @@ test('boundary errors become TournamentWorkspaceError with the codes and copy th
     [new TorneosBoundaryError('TORNEOS_RPC_ERROR', { status: 429, rpcError: { message: 'TORNEOS_SEARCH_RATE_LIMITED', code: 'TORNEOS_SEARCH_RATE_LIMITED', details: null, hint: null } }), 'TORNEOS_SEARCH_RATE_LIMITED', ERROR_MESSAGES.TORNEOS_SEARCH_RATE_LIMITED],
     [new TorneosBoundaryError('TORNEOS_RPC_ERROR', { status: 404, rpcError: { message: 'CORE_DENIED', code: 'CORE_DENIED', details: null, hint: null } }), 'CORE_DENIED', BOUNDARY_MESSAGES.CORE_DENIED],
     [new TorneosBoundaryError('TORNEOS_RPC_ERROR', { status: 403, rpcError: { message: 'permission denied for function x', code: '42501', details: null, hint: null } }), 'TORNEOS_REQUEST_FAILED', 'No pudimos cargar tus espacios. Revisá la conexión y volvé a intentar.'],
+    // ERROR-CONTRACT-V1: domain statuses (PTxyz) and a legacy structured 500 reach the product copy, not the outage copy.
+    [new TorneosBoundaryError('TORNEOS_RPC_ERROR', { status: 409, rpcError: { message: 'TORNEOS_STALE_FIXTURE_VERSION', code: 'PT409', details: null, hint: null } }), 'TORNEOS_STALE_FIXTURE_VERSION', ERROR_MESSAGES.TORNEOS_STALE_FIXTURE_VERSION],
+    [new TorneosBoundaryError('TORNEOS_RPC_ERROR', { status: 409, rpcError: { message: 'TORNEOS_CORRECTION_ALREADY_SUPERSEDED', code: 'PT409', details: null, hint: null } }), 'TORNEOS_CORRECTION_ALREADY_SUPERSEDED', ERROR_MESSAGES.TORNEOS_CORRECTION_ALREADY_SUPERSEDED],
+    [new TorneosBoundaryError('TORNEOS_RPC_ERROR', { status: 422, rpcError: { message: 'TORNEOS_DRAFT_LIMIT_REACHED', code: 'PT422', details: null, hint: null } }), 'TORNEOS_DRAFT_LIMIT_REACHED', ERROR_MESSAGES.TORNEOS_DRAFT_LIMIT_REACHED],
+    [new TorneosBoundaryError('TORNEOS_RPC_ERROR', { status: 429, rpcError: { message: 'TORNEOS_PUBLISH_RATE_LIMITED', code: 'PT429', details: null, hint: null } }), 'TORNEOS_PUBLISH_RATE_LIMITED', ERROR_MESSAGES.TORNEOS_PUBLISH_RATE_LIMITED],
+    [new TorneosBoundaryError('TORNEOS_RPC_ERROR', { status: 500, rpcError: { message: 'TORNEOS_QUALIFICATION_INCOMPLETE', code: '55000', details: null, hint: null } }), 'TORNEOS_QUALIFICATION_INCOMPLETE', ERROR_MESSAGES.TORNEOS_QUALIFICATION_INCOMPLETE],
   ];
   for (const [error, code, message] of cases) {
     await assert.rejects(failWith(error).loadContext(), (thrown) => {
