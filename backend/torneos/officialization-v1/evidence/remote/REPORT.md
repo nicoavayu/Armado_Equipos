@@ -1,4 +1,66 @@
-# OFFICIALIZATION-V1 + ERROR-CONTRACT-V1 (remote prep) — TORNEOS_OFFICIALIZATION_ERROR_CONTRACT_REMOTE_READY (Deno leg pending) — 2026-09-28
+# OFFICIALIZATION-V1 + ERROR-CONTRACT-V1 (remote) — TORNEOS_OFFICIALIZATION_ERROR_CONTRACT_REMOTE_CERTIFIED — 2026-09-28
+
+## Closeout — Production W1 / W2 / W3 (2026-09-28, 14:38Z–14:44Z)
+
+The operator ran one `run-oec-session.sh` session on a tty with a NEW Deno token typed there. The tooling was at `0f049ef5`.
+Every write printed its PLAN id and ran only after the exact phrase came through the session FIFO. The evidence files
+below are the tooling's own output: written `wx`, `0600`, and secret-scanned against every value the process held.
+`seq` restarts at 01 in each session, so the Deno-leg session of 13:05Z also has an `oec-01`.
+
+| step | evidence | sha256 | result |
+|---|---|---|---|
+| G1 (Deno leg, 1st session) | `oec-01-g1-20260928T130558Z.json` | `8a0cf711…` | **G1_PASS**, `POST_0004`, 0 failures, 0 writes |
+| G1 (same session, re-run) | `oec-02-g1-20260928T130621Z.json` | `52536ac8…` | **G1_PASS**; differs only in `deno_requests` (the session log accumulates) |
+| **G1 before W1** | `oec-01-g1-20260928T143833Z.json` | `8a0cf711…` | **G1_PASS**, `POST_0004` 162 / 12, probes `current` 66/66, revision `66we8r12079d`, env 13/13, `expected_plan_ids` = W1 `b87509e6dcec` · W2 `b55062fd2b1a` · W3 `94d4a1527f59` |
+| **W1** 0005 | `oec-02-w1-20260928T144024Z.json` | `9af7bd57…` | **W1_DONE**, plan `b87509e6dcec`, psql exit 0 in 3.45 s → **`POST_0005` 171 / 12**, 0 failures, organization members kept (2), gateway still `66we8r12079d`, probes `current` 66/66 |
+| **W2** 0006 | `oec-03-w2-20260928T144209Z.json` | `f50954ef…` | **W2_DONE**, plan `b55062fd2b1a`, psql exit 0 in 2.22 s → **`POST_0006` 171 / 12**, 0006 bodies 18/18, **0 functions raise `40001`** (was 3), 0 failures, probes `current` 66/66 |
+| **W3** gateway | `oec-04-w3-20260928T144346Z.json` | `d238b9da…` | **W3_DONE**, plan `94d4a1527f59`, revision **`t5vxxvzp1t9f`** (created 14:43:17.283Z, `succeeded`, live), labels `git_head=0f049ef5…` + `bundle_digest=6c252863…`, previous `66we8r12079d`, **env unchanged** (13 keys, same digests), app `updated_at` unchanged, probes `candidate` **66/66** |
+| deploy pin | [`pins/oec-gateway-deploy.json`](../../../infra/torneos-officialization-error-v1/pins/oec-gateway-deploy.json) | `e8dbeb8c…` | public facts only: revision, previous revision, 17-file manifest, env keys with `value_returned: false` for the 4 secrets |
+
+The two G1 files `…130558Z` and `…143833Z` are **byte-identical**, and that is expected. G1 evidence carries no run clock:
+plan ids are pure functions of the pins and the state, and the only timestamps are Deno `created_at` / `updated_at`.
+Both runs observed the same Production state with the same 8 Deno GETs.
+
+Production writes in total: 2 psql transactions (W1, W2) and **1 Deno request that was not a GET** (W3 `deploy` → 202).
+All the other Deno requests in the evidence are GET 200. There were no Supabase Management API calls, no Vercel calls and
+no Core calls.
+
+**Final read-only checks, after W3, same session.** `db` → `POST_0006`, no failures. `deno` → OK on `t5vxxvzp1t9f`.
+`probes-candidate` → 66/66. The tooling prints these commands to the console only and writes no evidence file for them.
+They are recorded here from the operator session. The W2 postcheck and the W3 postcheck are the persisted equivalents.
+
+**Frontend, re-read 2026-09-28 during the closeout, public GET only.**
+- `https://app.arma2.com.ar/torneos` serves `main.d3339e14.js`, the rollback bundle of 2026-09-27.
+- The bundle contains no Deno gateway host and no Torneos project ref.
+- It contains no `REACT_APP_TORNEOS_*` values. Only identifier names appear.
+- Result: **CLOSED**.
+
+**Production state after the phase:**
+
+| item | state |
+|---|---|
+| DB | `POST_0006`, 171 / 12 |
+| Gateway revision | `t5vxxvzp1t9f` |
+| Gateway bundle | `6c252863fd94bcad0f785af9bb3636d09b2bc2265baafb0af2a771efdb6143a4`, 17 files |
+| Frontend | CLOSED |
+| Commerce | OFF |
+| Mercado Pago LIVE | OFF |
+
+No rollback was run. The gateway rollback target is now `ee34b2a7` (`75e3535a…`), with the plan id computed at run time.
+
+**Reproducibility at the closeout commit.**
+- Building the gateway bundle from this branch gives `6c252863…`, 17 files, per-file equal to the deploy pin.
+- `backend/torneos/supabase/functions` is identical to the deployed head `0f049ef5`.
+- 0005 is `51fe200f…` and 0006 is `767d57e8…`, and 0000–0004 are byte-identical to `main`.
+
+**Gaps (known, not executed):**
+- The live retry-storm cases (`STALE_FIXTURE_VERSION` and the other 2 former `40001` raisers) were not triggered in
+  Production. That would need fixture data and writes. The absence of any `40001` raiser in the catalog is measured.
+- There was no real-user probe: the bridge probes use random identities only.
+
+---
+
+The sections below are the remote **preparation** report (G1 without the Deno leg, 12:50Z), kept as written.
 
 **Scope.** This is the preparation of the Production rollout of migrations 0005 and 0006 and of the gateway revision
 that serves them. **Nothing was written to Production.** There was no migration, no Deno deploy, no Vercel change, no
