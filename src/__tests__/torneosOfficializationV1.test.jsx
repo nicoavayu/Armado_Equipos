@@ -132,7 +132,10 @@ describe('OFFICIALIZATION-V1 organization members page', () => {
       listMembers: jest.fn().mockResolvedValue(MEMBERS.map((m) => ({ ...m, email: null, is_viewer: m.role === 'collaborator' }))),
     });
     renderMembers('collaborator', service, stagingV1Features);
-    expect(await screen.findByText(/Miembro · u-collab \(vos\)/)).toBeInTheDocument();
+    expect(await screen.findByText('Vos')).toBeInTheDocument();
+    // POST-SMOKE: the owner row is never "Propietario de <org name>" (it truncated to noise).
+    expect(screen.getByText('Titular de la organización')).toBeInTheDocument();
+    expect(screen.queryByText(/Propietario de /)).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Invitar miembro/ })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Quitar a/ })).not.toBeInTheDocument();
     expect(service.listMemberInvitations).not.toHaveBeenCalled();

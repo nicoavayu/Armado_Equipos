@@ -60,7 +60,7 @@ export const SEASON_STATUS_LABELS = Object.freeze({
 export const TOURNAMENT_STATUS_LABELS = Object.freeze({
   draft: 'Borrador',
   registration: 'Inscripción de equipos',
-  scheduled: 'Lista para comenzar',
+  scheduled: 'Fixture publicado',
   active: 'En juego',
   completed: 'Finalizada',
   archived: 'Archivada',

@@ -10,9 +10,11 @@ export const TOURNAMENT_STAGE_PRESENTATION = Object.freeze({
     label: 'Inscripción de equipos',
     description: 'Podés agregar equipos, completar planteles y aprobarlos antes de preparar el fixture.',
   }),
+  // Results can become official before the competition is started (the lifecycle does not require it),
+  // so this stage is named by what is always true of it rather than "ready to start".
   scheduled: Object.freeze({
-    label: 'Lista para comenzar',
-    description: 'El fixture está publicado. Revisá horarios y canchas antes de iniciar la competencia.',
+    label: 'Fixture publicado',
+    description: 'La competencia todavía no se inició formalmente.',
   }),
   active: Object.freeze({
     label: 'En juego',
@@ -87,7 +89,7 @@ export const TOURNAMENT_TRANSITION_CONSEQUENCES = Object.freeze({
     description: 'Publicar esta versión deja al torneo listo para programar y comenzar.',
     changes: Object.freeze([
       'Esta versión pasa a ser el fixture publicado.',
-      'El torneo queda en la etapa Lista para comenzar.',
+      'El torneo queda en la etapa Fixture publicado.',
       'Se cierra el alta normal de equipos y la edición normal de planteles.',
       'Las inscripciones ya presentadas todavía pueden revisarse.',
       'Una publicación anterior se conserva como versión reemplazada.',
@@ -100,7 +102,7 @@ export const TOURNAMENT_TRANSITION_CONSEQUENCES = Object.freeze({
     description: 'La nueva versión pasará a ser la referencia oficial de la competencia.',
     changes: Object.freeze([
       'La versión publicada actual se conserva como versión reemplazada.',
-      'La competencia permanece en la etapa Lista para comenzar.',
+      'La competencia permanece en la etapa Fixture publicado.',
       'El alta normal de equipos continúa cerrada.',
       'Los cambios de programación deben revisarse sobre la nueva versión.',
     ]),

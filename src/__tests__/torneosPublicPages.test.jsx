@@ -191,3 +191,55 @@ describe('tournament public settings', () => {
     expect(service.setPublicPagePublished).not.toHaveBeenCalled();
   });
 });
+
+// POST-SMOKE (Production UI smoke 2026-09-28): the tournament was never started, so its status stayed
+// `scheduled` while its only match was already official. The hero said "Programado" and the scorers
+// block asked to wait for a table that was published.
+describe('public tournament page — official state (post-smoke)', () => {
+  const scheduledWithResult = {
+    ...PAGE,
+    tournament: { ...PAGE.tournament, status: 'scheduled' },
+    matches: [{ ...PAGE.matches[0], status: 'scheduled' }],
+  };
+
+  test('a scheduled tournament that already has an official result reads «En juego», not «Programado»', async () => {
+    renderPublic(publicService(scheduledWithResult));
+    expect(await screen.findByRole('heading', { name: 'Copa Apertura' })).toBeInTheDocument();
+    const badge = document.querySelector('[data-status]');
+    expect(badge).toHaveTextContent('En juego');
+    expect(badge).toHaveAttribute('data-status', 'active');
+    expect(screen.queryByText('Programado')).not.toBeInTheDocument();
+  });
+
+  test('a scheduled tournament without official results still reads «Programado»; an unknown status is never shown raw', async () => {
+    const { unmount } = renderPublic(publicService({
+      ...PAGE,
+      tournament: { ...PAGE.tournament, status: 'scheduled' },
+      matches: [PAGE.matches[1]],
+    }));
+    expect(await screen.findByRole('heading', { name: 'Copa Apertura' })).toBeInTheDocument();
+    expect(document.querySelector('[data-status]')).toHaveTextContent('Programado');
+    unmount();
+    renderPublic(publicService({ ...PAGE, tournament: { ...PAGE.tournament, status: 'some_new_status' } }));
+    expect(await screen.findByRole('heading', { name: 'Copa Apertura' })).toBeInTheDocument();
+    expect(document.querySelector('[data-status]')).toHaveTextContent('Competencia');
+    expect(screen.queryByText('some_new_status')).not.toBeInTheDocument();
+  });
+
+  test('with the table published and no scorer recorded, Goleadores does not claim the table is missing', async () => {
+    renderPublic(publicService({
+      ...scheduledWithResult,
+      competition: [{ ...PAGE.competition[0], players: [] }],
+    }));
+    expect(await screen.findByText('Sin goleadores registrados')).toBeInTheDocument();
+    expect(screen.queryByText('Estadísticas todavía no publicadas')).not.toBeInTheDocument();
+  });
+
+  test('without a published table the scorers block keeps waiting for it', async () => {
+    renderPublic(publicService({
+      ...PAGE,
+      competition: [{ ...PAGE.competition[0], standings: [], players: [] }],
+    }));
+    expect(await screen.findByText('Estadísticas todavía no publicadas')).toBeInTheDocument();
+  });
+});

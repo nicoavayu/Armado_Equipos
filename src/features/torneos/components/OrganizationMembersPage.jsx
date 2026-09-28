@@ -24,6 +24,7 @@ import { useTorneosFeature } from '../context/TorneosFeaturesContext';
 import OrganizationSettingsNav from './OrganizationSettingsNav';
 import { WorkspaceError, WorkspaceLoading } from './WorkspaceState';
 import styles from './TorneosShell.module.css';
+import { formatCount } from '../domain/countCopy';
 
 const ORGANIZATION_ROLE_GUIDE = ['owner', 'admin', 'collaborator'];
 const RELATIONAL_ROLE_GUIDE = ['delegate', 'player'];
@@ -44,11 +45,12 @@ function RoleGuideGroup({ label, roles }) {
   );
 }
 
-function safeMemberLabel(member, organization) {
-  const base = member.role === 'owner'
-    ? `Propietario de ${organization.name}`
-    : (member.email || `Miembro · ${String(member.user_id).slice(0, 8)}`);
-  return member.is_viewer ? `${base} (vos)` : base;
+// The membership RPC carries no display name, and the owner never has an invitation email.
+// The role chip already says "Propietario"; repeating the organization name only truncated.
+function safeMemberLabel(member) {
+  if (member.is_viewer) return member.email ? `${member.email} (vos)` : 'Vos';
+  if (member.email) return member.email;
+  return member.role === 'owner' ? 'Titular de la organización' : `Miembro · ${String(member.user_id).slice(0, 8)}`;
 }
 
 const INVITABLE_ROLES = {
@@ -178,7 +180,7 @@ export default function OrganizationMembersPage() {
 
   const changeRole = async (member, role) => {
     if (memberAction.pendingId || role === member.role) return;
-    if (!window.confirm(`¿Cambiar el rol de ${safeMemberLabel(member, organization)} a ${getRoleLabel(role)}?`)) return;
+    if (!window.confirm(`¿Cambiar el rol de ${safeMemberLabel(member)} a ${getRoleLabel(role)}?`)) return;
     setMemberAction({ pendingId: member.id, error: '' });
     try {
       await service.updateMemberRole({ organizationId: organization.id, membershipId: member.id, role });
@@ -191,7 +193,7 @@ export default function OrganizationMembersPage() {
 
   const removeMember = async (member) => {
     if (memberAction.pendingId) return;
-    if (!window.confirm(`¿Quitar a ${safeMemberLabel(member, organization)} de la organización? Pierde el acceso y sus cupos de temporada.`)) return;
+    if (!window.confirm(`¿Quitar a ${safeMemberLabel(member)} de la organización? Pierde el acceso y sus cupos de temporada.`)) return;
     setMemberAction({ pendingId: member.id, error: '' });
     try {
       await service.removeMember({ organizationId: organization.id, membershipId: member.id });
@@ -359,7 +361,7 @@ export default function OrganizationMembersPage() {
       </section>
 
       <div className={styles.membersToolbar}>
-        <span><Users size={18} /> {state.members.length} miembros</span>
+        <span><Users size={18} /> {formatCount(state.members.length, 'miembro', 'miembros')}</span>
         {canSendInvitations && (
           <button
             type="button"
@@ -555,7 +557,7 @@ export default function OrganizationMembersPage() {
                   return (
                     <article key={member.id}>
                       <span>
-                        <strong>{safeMemberLabel(member, organization)}</strong>
+                        <strong>{safeMemberLabel(member)}</strong>
                         <small>{getRoleLabel(member.role)}</small>
                       </span>
                       <button
@@ -587,7 +589,7 @@ export default function OrganizationMembersPage() {
           <article key={member.id}>
             <span className={styles.memberAvatar}><UserRound size={20} /></span>
             <span className={styles.memberIdentity}>
-              <strong>{safeMemberLabel(member, organization)}</strong>
+              <strong>{safeMemberLabel(member)}</strong>
               <small>
                 <Clock3 size={13} />
                 Desde {formatDate(member.joined_at || member.created_at)}
@@ -596,7 +598,7 @@ export default function OrganizationMembersPage() {
             <span className={styles.memberRole}>
               {canChangeRoles && member.role !== 'owner' && !member.is_viewer && member.status === 'active' ? (
                 <select
-                  aria-label={`Rol de ${safeMemberLabel(member, organization)}`}
+                  aria-label={`Rol de ${safeMemberLabel(member)}`}
                   value={member.role}
                   disabled={Boolean(memberAction.pendingId)}
                   onChange={(event) => changeRole(member, event.target.value)}
@@ -610,7 +612,7 @@ export default function OrganizationMembersPage() {
               <small>{getRoleDescription(member.role)}</small>
             </span>
             <span className={member.status === 'active' ? styles.activeChip : styles.neutralChip}>
-              {member.status === 'active' ? 'Activo' : member.status}
+              {member.status === 'active' ? 'Activo' : 'Suspendido'}
             </span>
             {canRemoveMember(member) && (
               <button
@@ -618,7 +620,7 @@ export default function OrganizationMembersPage() {
                 className={styles.memberRemove}
                 disabled={Boolean(memberAction.pendingId)}
                 onClick={() => removeMember(member)}
-                aria-label={`Quitar a ${safeMemberLabel(member, organization)}`}
+                aria-label={`Quitar a ${safeMemberLabel(member)}`}
               >
                 {memberAction.pendingId === member.id
                   ? <LoaderCircle className={styles.spinIcon} size={15} />

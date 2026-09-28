@@ -31,6 +31,7 @@ import TeamWithdrawalDialog from './TeamWithdrawalDialog';
 import { WorkspaceError, WorkspaceLoading } from './WorkspaceState';
 import styles from './TeamRegistration.module.css';
 import BrandingImage from './BrandingImage';
+import { formatCount } from '../domain/countCopy';
 
 // El retiro estructural sólo existe una vez que la competencia tiene el fixture
 // publicado y sus participantes congelados.
@@ -283,7 +284,7 @@ export default function TeamsPage() {
                           ? <AlertTriangle size={16} />
                           : <CheckCircle2 size={16} />}
                         {minimum === null
-                          ? `${count} jugadores · mínimo sin definir`
+                          ? `${formatCount(count, 'jugador', 'jugadores')} · mínimo sin definir`
                           : `${count}/${minimum} jugadores`}
                       </span>
                       <span>

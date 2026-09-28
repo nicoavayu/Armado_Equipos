@@ -203,11 +203,11 @@ describe('Agenda real: la fila de partido no se pisa en escritorio', () => {
     renderSchedule();
     expect(screen.getByRole('button', { name: /Programar automáticamente/ }))
       .toBeInTheDocument();
+    // POST-SMOKE: no button breaks into two lines. The heading wraps instead, so the action drops
+    // whole below the title when it does not fit beside it (verified in a browser at 1024/720/375/320).
+    expect(fixtureCss).toMatch(/\.panelHeading\s*\{[^}]*flex-wrap:\s*wrap;/s);
     expect(fixtureCss).toMatch(
-      /\.panelHeading > button\s*\{[^}]*min-width:\s*0;/s,
-    );
-    expect(fixtureCss).toMatch(
-      /\.panelHeading > button\s*\{[^}]*white-space:\s*normal;/s,
+      /\.panelHeading > button\s*\{[^}]*white-space:\s*nowrap;/s,
     );
   });
 

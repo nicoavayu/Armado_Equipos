@@ -27,7 +27,7 @@ describe('owner-facing competition lifecycle', () => {
       .toEqual([
         'Borrador',
         'Inscripción de equipos',
-        'Lista para comenzar',
+        'Fixture publicado',
         'En juego',
         'Finalizada',
         'Archivada',

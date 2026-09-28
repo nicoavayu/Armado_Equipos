@@ -45,6 +45,7 @@ import CompetitionSelector from './CompetitionSelector';
 import BrandingImage from './BrandingImage';
 import { WorkspaceError, WorkspaceLoading } from './WorkspaceState';
 import styles from './FixtureWorkspace.module.css';
+import { formatCount } from '../domain/countCopy';
 
 const MODE_COPY = {
   overview: ['Centro de competencia', 'Fixture', 'Versiones, fases, jornadas y programación real.'],
@@ -456,7 +457,7 @@ function VersionPanel({ canManage, canAppend }) {
         {versions.map((version) => (
           <article key={version.id}>
             <span className={styles.versionNumber}>v{version.versionNumber}</span>
-            <div><small>{GENERATION_METHOD_LABELS[version.generationMethod] || 'Método no informado'}</small><h3>{statusLabel(version.status)}</h3><p>{version.matchCount} partidos · {countScheduledMatches(matches.filter((match) => match.fixtureVersionId === version.id))} programados</p></div>
+            <div><small>{GENERATION_METHOD_LABELS[version.generationMethod] || 'Método no informado'}</small><h3>{statusLabel(version.status)}</h3><p>{formatCount(version.matchCount, 'partido', 'partidos')} · {formatCount(countScheduledMatches(matches.filter((match) => match.fixtureVersionId === version.id)), 'programado', 'programados')}</p></div>
             <div className={styles.versionActions}>
               <Link to={versionLink(version.id)}>Abrir <ArrowRight size={15} /></Link>
               {canManage
@@ -643,7 +644,7 @@ function VersionPanel({ canManage, canAppend }) {
         </section>
       )}
       {!versions.length && <div className={styles.empty}><GitBranch size={24} /><strong>Sin versiones</strong><span>Generá la primera versión desde participantes congelados.</span></div>}
-      {!!versions.length && <div className={styles.structureStrip}><span>{phases.length} fases</span><span>{rounds.length} jornadas</span><span>{matches.length} partidos</span></div>}
+      {!!versions.length && <div className={styles.structureStrip}><span>{formatCount(phases.length, 'fase', 'fases')}</span><span>{formatCount(rounds.length, 'jornada', 'jornadas')}</span><span>{formatCount(matches.length, 'partido', 'partidos')}</span></div>}
     </section>
   );
 }

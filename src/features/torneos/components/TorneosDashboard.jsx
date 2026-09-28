@@ -46,6 +46,7 @@ import {
   getOwnerNextStep,
   getTournamentStage,
 } from '../domain/competitionLifecycle';
+import { formatCount } from '../domain/countCopy';
 
 const operationalModules = [
   {
@@ -269,7 +270,7 @@ export default function TorneosDashboard() {
               {' · '}
               {getOptionName(formats, activeTournament.competitionFormat)}
               {' · '}
-              {activeTournament.categories?.length || 0} categorías
+              {formatCount(activeTournament.categories?.length, 'categoría', 'categorías')}
             </p>
           </div>
         </div>
@@ -331,7 +332,7 @@ export default function TorneosDashboard() {
           ) : (
             <>
               <strong>{publishedFixture ? 'Publicado' : fixture.versions.length ? 'Borrador' : 'Pendiente'}</strong>
-              <small>{fixture.matches.length} partidos · {countScheduledMatches(fixture.matches)} programados</small>
+              <small>{formatCount(fixture.matches.length, 'partido', 'partidos')} · {formatCount(countScheduledMatches(fixture.matches), 'programado', 'programados')}</small>
             </>
           )}
         </article>
@@ -371,7 +372,7 @@ export default function TorneosDashboard() {
           <h2>{teamsSummary.status === 'error'
             ? 'No disponible'
             : teams
-              ? `${teams.total} equipos`
+              ? formatCount(teams.total, 'equipo', 'equipos')
               : 'Cargando inscripciones…'}</h2>
           {teamsSummary.status === 'error' ? (
             <div className={styles.inlineError} role="alert">
@@ -411,7 +412,7 @@ export default function TorneosDashboard() {
             {fixture.status === 'error'
               ? 'No pudimos consultar el fixture. Reintentá antes de continuar.'
               : fixture.participantSet?.status === 'frozen'
-                ? `${fixture.participants.length} equipos confirmados para esta versión.`
+                ? `${formatCount(fixture.participants.length, 'equipo confirmado', 'equipos confirmados')} para esta versión.`
                 : 'Confirmá los equipos aprobados antes de generar cruces.'}
           </p>
           <Link className={styles.dashboardPrimaryLink} to={routes.fixture}>

@@ -120,6 +120,7 @@ export const organizationNavigation = [
   },
   {
     label: 'Competencia',
+    mobileLabel: 'Tabla',
     path: 'competencia',
     icon: Medal,
     builder: 'tournamentTable',
@@ -128,6 +129,7 @@ export const organizationNavigation = [
   },
   {
     label: 'Comunicaciones',
+    mobileLabel: 'Avisos',
     path: 'comunicaciones',
     icon: Megaphone,
     builder: 'organizationCommunications',
@@ -135,6 +137,7 @@ export const organizationNavigation = [
   },
   {
     label: 'Multimedia',
+    mobileLabel: 'Fotos',
     path: 'multimedia',
     icon: Images,
     flag: 'mediaEnabled',
@@ -143,6 +146,7 @@ export const organizationNavigation = [
   },
   {
     label: 'Estudio Social',
+    mobileLabel: 'Estudio',
     path: 'estudio-social',
     icon: Sparkles,
     flag: 'socialContentGenerator',
@@ -151,6 +155,7 @@ export const organizationNavigation = [
   },
   {
     label: 'Configuración',
+    mobileLabel: 'Ajustes',
     path: 'configuracion',
     icon: Settings2,
     builder: 'organizationSettings',
@@ -290,7 +295,9 @@ function OrganizationNavigation({
         .filter(({ feature }) => !feature || features[feature] !== false)
         .filter(({ path }) => path !== 'estudio-social' || socialStudioAvailable)
         .map((item) => {
-          const { label, path, icon: Icon, relatedPaths = [] } = item;
+          const {
+            label, mobileLabel, path, icon: Icon, relatedPaths = [],
+          } = item;
           const active = isCurrent(path, relatedPaths);
           return (
             <NavLink
@@ -303,7 +310,7 @@ function OrganizationNavigation({
               <span className={styles.navigationIcon} aria-hidden="true">
                 <Icon size={mobile ? 20 : 18} strokeWidth={1.9} />
               </span>
-              <span>{label}</span>
+              <span>{mobile && mobileLabel ? mobileLabel : label}</span>
             </NavLink>
           );
         })}

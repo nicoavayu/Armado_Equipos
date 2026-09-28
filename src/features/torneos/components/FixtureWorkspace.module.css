@@ -674,6 +674,7 @@
 
 .panelHeading {
   display: flex;
+  flex-wrap: wrap;
   align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
@@ -1279,9 +1280,10 @@
  * achicarse, su ancho mínimo se convertía en el mínimo del panel entero y le
  * robaba el ancho a la lista. Puede envolver antes que estrangular la agenda.
  */
+/* A heading action never breaks its label: when it does not fit beside the title it wraps whole. */
 .panelHeading > button {
-  min-width: 0;
-  white-space: normal;
+  flex: 0 0 auto;
+  white-space: nowrap;
 }
 
 .scheduleList button[aria-pressed="true"] {

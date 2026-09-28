@@ -189,7 +189,7 @@ describe('FixtureWorkspacePage', () => {
     );
     expect(screen.getByRole('heading', { name: 'Fixture' })).toBeInTheDocument();
     expect(screen.getAllByText('v1')).toHaveLength(2);
-    expect(screen.getByText('1 partidos · 0 programados')).toBeInTheDocument();
+    expect(screen.getByText('1 partido · 0 programados')).toBeInTheDocument();
     expect(screen.getByRole('navigation', { name: 'Flujo de fixture' }))
       .toBeInTheDocument();
     // El flujo de fixture es del torneo: sus links lo nombran y arrastran la
@@ -224,7 +224,7 @@ describe('FixtureWorkspacePage', () => {
         <FixtureWorkspacePage mode="overview" />
       </MemoryRouter>,
     );
-    expect(screen.getByText('1 partidos · 1 programados')).toBeInTheDocument();
+    expect(screen.getByText('1 partido · 1 programado')).toBeInTheDocument();
     expect(screen.getByText('Sin horario').closest('article')).toHaveTextContent(
       'Sin horario1requieren programación',
     );

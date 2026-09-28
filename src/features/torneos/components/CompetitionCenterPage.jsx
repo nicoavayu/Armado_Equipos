@@ -289,7 +289,7 @@ function DisciplinePanel({ rows }) {
           {(row.suspensions || []).length ? row.suspensions.map((suspension) => (
             <div className={styles.suspension} key={suspension.id}>
               <ShieldAlert size={17} />
-              <span><strong>{suspension.reason}</strong><small>{suspension.servedMatches}/{suspension.totalMatches} fechas · {statusLabels[suspension.status] || 'En revisión'}</small></span>
+              <span><strong>{suspension.reason}</strong><small>{suspension.servedMatches}/{suspension.totalMatches} {suspension.totalMatches === 1 ? 'fecha' : 'fechas'} · {statusLabels[suspension.status] || 'En revisión'}</small></span>
             </div>
           )) : <p className={styles.noSuspension}>Sin suspensión activa.</p>}
         </article>
