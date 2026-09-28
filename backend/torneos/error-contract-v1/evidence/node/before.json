@@ -1,0 +1,385 @@
+{
+  "summary": {
+    "run": "ec5ee2eb",
+    "gateway": "node",
+    "phase": "before",
+    "at": "2026-09-28T03:26:16.025Z",
+    "total": 22,
+    "passed": 22,
+    "failed": 0
+  },
+  "results": [
+    {
+      "name": "C0 mechanism: PostgREST re-executes a deterministic 40001 without end — it outlives the client; the same RAISE as PT409 runs once and answers at once",
+      "status": "PASS"
+    },
+    {
+      "name": "B0 fixtures: organization + season; league L with 4 approved teams (captains through the Core contract), league C with 2",
+      "status": "PASS"
+    },
+    {
+      "name": "B1 STALE_FIXTURE_VERSION: \"Generar borrador\" twice, \"Publicar\" on the older draft → 409 at once, one execution; the newest draft then publishes",
+      "status": "PASS"
+    },
+    {
+      "name": "B2 FIXTURE_DRAFT_READ_ONLY: a revision draft left open when the competition starts → editing it answers 409 (trigger)",
+      "status": "PASS"
+    },
+    {
+      "name": "B3 MATCH_SQUAD_LOCKED: the captain saves and submits the squad, then saves again → 409",
+      "status": "PASS"
+    },
+    {
+      "name": "B4 MATCH_REVIEW_NOT_OPEN: a second approval of an acta another tab already approved → 409; the acta then validates and becomes official",
+      "status": "PASS"
+    },
+    {
+      "name": "B5 QUALIFICATION_INCOMPLETE: table published after 1 of 6 matches, \"Resolver clasificados\" → 409 with the bearer preserved",
+      "status": "PASS"
+    },
+    {
+      "name": "B6 STANDINGS_SOURCES_CHANGED: an official score changes while the table is being rebuilt → 409 at once after the lock, one execution (no transparent retry)",
+      "status": "PASS"
+    },
+    {
+      "name": "B7 MATCH_CORRECTION_EXISTS: request a correction twice → 409; create the correction version twice → 409",
+      "status": "PASS"
+    },
+    {
+      "name": "B8 RECIPIENT_LIMIT_REACHED: an organization audience of 5 001 members → 422 (fixture members, removed afterwards)",
+      "status": "PASS"
+    },
+    {
+      "name": "B9 CORRECTION_ALREADY_SUPERSEDED: two corrections of one published announcement; the second publication → 409 at once, one execution",
+      "status": "PASS"
+    },
+    {
+      "name": "B10 LINK_LIMIT_REACHED: a 6th link on an announcement → 422",
+      "status": "PASS"
+    },
+    {
+      "name": "B11 AUDIENCE_LIMIT_REACHED: a 13th audience criterion → 422 (PostgREST: set_tournament_announcement_audience is executable by authenticated, not allowlisted in the gateway)",
+      "status": "PASS"
+    },
+    {
+      "name": "B12 PUBLISH_RATE_LIMITED: the 21st publication of the hour in the organization → 429",
+      "status": "PASS"
+    },
+    {
+      "name": "B13 DRAFT_LIMIT_REACHED: the 101st open draft of the author → 422",
+      "status": "PASS"
+    },
+    {
+      "name": "B14 QUALIFICATION_AMBIGUOUS: a 0-0 league of two leaves the table tied → \"Resolver clasificados\" → 409",
+      "status": "PASS"
+    },
+    {
+      "name": "B15 COMPETITION_READ_ONLY: after \"Finalizar\", appending playoffs → 409 (was 500) and changing the dual-control policy → 409 (was 400)",
+      "status": "PASS"
+    },
+    {
+      "name": "D1 genuine server error: a corrupted tournament (discipline rules row missing) → rebuild answers an unstructured 500 (P0002), passed through unchanged",
+      "status": "PASS"
+    },
+    {
+      "name": "D2 gateway timeout: Torneos REST frozen → 503 {error:\"access denied\"} after the 5 s budget (TORNEOS_UNAVAILABLE in the transport), then recovery",
+      "status": "PASS"
+    },
+    {
+      "name": "D3 401 / 403 unchanged: no bearer and a forged bearer → 401; an RPC outside the allowlist → 403 rpc not enabled; another workspace → 403 42501",
+      "status": "PASS"
+    },
+    {
+      "name": "D4 bearer: every domain error of this run left the same bearer working; none was answered 5xx",
+      "status": "PASS"
+    },
+    {
+      "name": "D5 no-store: every gateway response of this run carried Cache-Control: no-store",
+      "status": "PASS"
+    }
+  ],
+  "mapping": [
+    {
+      "case": "C0 probe 40001",
+      "rpc": "zz_error_contract_probe",
+      "route": "postgrest",
+      "status": "client-timeout",
+      "executions": 13798,
+      "executionsAfter3s": 28963,
+      "stillRunning": true,
+      "ms": 3118
+    },
+    {
+      "case": "C0 probe PT409",
+      "rpc": "zz_error_contract_probe",
+      "route": "postgrest",
+      "status": 409,
+      "executions": 1,
+      "executionsAfter3s": 1,
+      "ms": 30
+    },
+    {
+      "case": "fixture: publish the older draft",
+      "rpc": "publish_tournament_fixture",
+      "route": "gateway",
+      "expected": 409,
+      "status": 503,
+      "code": "access denied",
+      "message": "access denied",
+      "ms": 5008,
+      "executions": 7354,
+      "executionsAfter3s": 13183,
+      "stillRunning": true,
+      "bearerPreserved": true,
+      "loopsStopped": "0",
+      "publishedAfterwards": "OLDER draft (ghost publish by the retry loop)"
+    },
+    {
+      "case": "fixture: edit a draft after the start",
+      "rpc": "update_draft_fixture",
+      "route": "gateway",
+      "expected": 409,
+      "status": 409,
+      "code": "55000",
+      "message": "TORNEOS_FIXTURE_DRAFT_READ_ONLY",
+      "ms": 22,
+      "executions": 1,
+      "executionsAfter3s": 1,
+      "stillRunning": false,
+      "bearerPreserved": true
+    },
+    {
+      "case": "squad: save after submitting",
+      "rpc": "save_match_squad",
+      "route": "gateway",
+      "expected": 409,
+      "status": 409,
+      "code": "55000",
+      "message": "TORNEOS_MATCH_SQUAD_LOCKED",
+      "ms": 15,
+      "executions": 1,
+      "executionsAfter3s": 1,
+      "stillRunning": false,
+      "bearerPreserved": true
+    },
+    {
+      "case": "acta: approve twice",
+      "rpc": "review_tournament_match_operation",
+      "route": "gateway",
+      "expected": 409,
+      "status": 409,
+      "code": "55000",
+      "message": "TORNEOS_MATCH_REVIEW_NOT_OPEN",
+      "ms": 16,
+      "executions": 1,
+      "executionsAfter3s": 1,
+      "stillRunning": false,
+      "bearerPreserved": true
+    },
+    {
+      "case": "qualification: resolve mid-phase",
+      "rpc": "resolve_tournament_qualification",
+      "route": "gateway",
+      "expected": 409,
+      "status": 409,
+      "code": "55000",
+      "message": "TORNEOS_QUALIFICATION_INCOMPLETE",
+      "ms": 19,
+      "executions": 1,
+      "executionsAfter3s": 1,
+      "stillRunning": false,
+      "bearerPreserved": true
+    },
+    {
+      "case": "standings: sources change during the rebuild",
+      "rpc": "rebuild_tournament_standings",
+      "route": "gateway",
+      "expected": 409,
+      "status": 200,
+      "code": null,
+      "message": null,
+      "ms": 1955,
+      "executions": 1,
+      "executionsAfter3s": 1,
+      "stillRunning": false,
+      "bearerPreserved": true
+    },
+    {
+      "case": "correction: request twice",
+      "rpc": "request_tournament_match_correction",
+      "route": "gateway",
+      "expected": 409,
+      "status": 409,
+      "code": "55000",
+      "message": "TORNEOS_MATCH_CORRECTION_EXISTS",
+      "ms": 20,
+      "executions": 1,
+      "executionsAfter3s": 1,
+      "stillRunning": false,
+      "bearerPreserved": true
+    },
+    {
+      "case": "correction: create twice",
+      "rpc": "create_tournament_match_correction",
+      "route": "gateway",
+      "expected": 409,
+      "status": 409,
+      "code": "55000",
+      "message": "TORNEOS_MATCH_CORRECTION_EXISTS",
+      "ms": 22,
+      "executions": 1,
+      "executionsAfter3s": 1,
+      "stillRunning": false,
+      "bearerPreserved": true
+    },
+    {
+      "case": "announcement: 5 001 recipients",
+      "rpc": "publish_tournament_announcement",
+      "route": "gateway",
+      "expected": 422,
+      "status": 422,
+      "code": "54000",
+      "message": "TORNEOS_RECIPIENT_LIMIT_REACHED",
+      "ms": 56,
+      "executions": 1,
+      "executionsAfter3s": 1,
+      "stillRunning": false,
+      "bearerPreserved": true
+    },
+    {
+      "case": "announcement: publish a second correction",
+      "rpc": "publish_tournament_announcement",
+      "route": "gateway",
+      "expected": 409,
+      "status": 503,
+      "code": "access denied",
+      "message": "access denied",
+      "ms": 5014,
+      "executions": 136,
+      "executionsAfter3s": 236,
+      "stillRunning": true,
+      "bearerPreserved": true,
+      "loopsStopped": "1"
+    },
+    {
+      "case": "announcement: 6th link",
+      "rpc": "set_tournament_announcement_link",
+      "route": "gateway",
+      "expected": 422,
+      "status": 422,
+      "code": "54000",
+      "message": "TORNEOS_LINK_LIMIT_REACHED",
+      "ms": 34,
+      "executions": 1,
+      "executionsAfter3s": 1,
+      "stillRunning": false,
+      "bearerPreserved": true
+    },
+    {
+      "case": "announcement: 13th audience",
+      "rpc": "set_tournament_announcement_audience",
+      "route": "postgrest",
+      "expected": 422,
+      "status": 500,
+      "code": "54000",
+      "message": "TORNEOS_AUDIENCE_LIMIT_REACHED",
+      "ms": 138,
+      "executions": 1,
+      "executionsAfter3s": 1,
+      "stillRunning": false
+    },
+    {
+      "case": "announcement: 21st publication in an hour",
+      "rpc": "publish_tournament_announcement",
+      "route": "gateway",
+      "expected": 429,
+      "status": 429,
+      "code": "54000",
+      "message": "TORNEOS_PUBLISH_RATE_LIMITED",
+      "ms": 12,
+      "executions": 1,
+      "executionsAfter3s": 1,
+      "stillRunning": false,
+      "bearerPreserved": true
+    },
+    {
+      "case": "announcement: 101st draft",
+      "rpc": "create_tournament_announcement_draft",
+      "route": "gateway",
+      "expected": 422,
+      "status": 422,
+      "code": "54000",
+      "message": "TORNEOS_DRAFT_LIMIT_REACHED",
+      "ms": 17,
+      "executions": 1,
+      "executionsAfter3s": 1,
+      "stillRunning": false,
+      "bearerPreserved": true
+    },
+    {
+      "case": "qualification: tied table",
+      "rpc": "resolve_tournament_qualification",
+      "route": "gateway",
+      "expected": 409,
+      "status": 409,
+      "code": "55000",
+      "message": "TORNEOS_QUALIFICATION_AMBIGUOUS",
+      "ms": 25,
+      "executions": 1,
+      "executionsAfter3s": 1,
+      "stillRunning": false,
+      "bearerPreserved": true,
+      "fixture": "natural tie"
+    },
+    {
+      "case": "finished: append playoffs",
+      "rpc": "append_tournament_playoff_phase",
+      "route": "gateway",
+      "expected": 409,
+      "status": 409,
+      "code": "55000",
+      "message": "TORNEOS_COMPETITION_READ_ONLY",
+      "ms": 15,
+      "executions": 1,
+      "executionsAfter3s": 1,
+      "stillRunning": false,
+      "bearerPreserved": true
+    },
+    {
+      "case": "finished: dual-control policy",
+      "rpc": "set_tournament_match_dual_control",
+      "route": "gateway",
+      "expected": 409,
+      "status": 400,
+      "code": "22023",
+      "message": "TORNEOS_COMPETITION_READ_ONLY",
+      "ms": 10,
+      "executions": 1,
+      "executionsAfter3s": 1,
+      "stillRunning": false,
+      "bearerPreserved": true
+    },
+    {
+      "case": "genuine: INTO STRICT on corrupted data",
+      "rpc": "rebuild_tournament_standings",
+      "route": "gateway",
+      "expected": 500,
+      "status": 500,
+      "code": "P0002",
+      "message": "query returned no rows"
+    },
+    {
+      "case": "genuine: upstream timeout",
+      "rpc": "get_tournament_workspace_context",
+      "route": "gateway",
+      "expected": 503,
+      "status": 503,
+      "code": "access denied",
+      "ms": 5097
+    }
+  ],
+  "no_store": {
+    "responses": 355,
+    "without_no_store": 0
+  }
+}
