@@ -27,6 +27,8 @@ function Harness() {
     <div>
       <span data-testid="status">{fixture.status}</span>
       <span data-testid="matches">{fixture.matches.map((match) => match.id).join(',')}</span>
+      <span data-testid="action-error">{fixture.actionError}</span>
+      <span data-testid="notice">{fixture.notice}</span>
       <button type="button" onClick={() => fixture.actions.freeze().catch(() => {})}>
         Congelar
       </button>
@@ -162,7 +164,7 @@ describe('TorneosFixtureContext scope isolation', () => {
     expect(screen.getByTestId('matches')).not.toHaveTextContent('match-a');
   });
 
-  test('clears previously loaded data when a mutation fails', async () => {
+  test('a failed mutation keeps the page and its data, reports the error and re-reads the data in the background', async () => {
     const service = {
       loadFixtureContext: jest.fn().mockResolvedValue({
         matches: [{ id: 'persisted-match' }],
@@ -180,7 +182,67 @@ describe('TorneosFixtureContext scope isolation', () => {
     );
     expect(await screen.findByText('persisted-match')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Congelar' }));
+    expect(await screen.findByText('freeze failed')).toBeInTheDocument();
+    await waitFor(() => expect(service.loadFixtureContext).toHaveBeenCalledTimes(2));
+    expect(screen.getByTestId('status')).toHaveTextContent('ready');
+    expect(screen.getByTestId('matches')).toHaveTextContent('persisted-match');
+    expect(screen.getByTestId('action-error')).toHaveTextContent('freeze failed');
+  });
+
+  test('when the background re-read after a failed mutation fails, stale data is not kept', async () => {
+    const service = {
+      loadFixtureContext: jest.fn()
+        .mockResolvedValueOnce({ matches: [{ id: 'persisted-match' }] })
+        .mockRejectedValueOnce(new Error('reload failed')),
+      loadScheduleContext: jest.fn().mockResolvedValue({}),
+      createIdempotencyKey: jest.fn(() => 'request-a'),
+      freezeParticipants: jest.fn().mockRejectedValue(new Error('freeze failed')),
+    };
+    render(
+      <MemoryRouter>
+        <TorneosFixtureProvider organizationId="org-a" service={service}>
+          <Harness />
+        </TorneosFixtureProvider>
+      </MemoryRouter>,
+    );
+    expect(await screen.findByText('persisted-match')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Congelar' }));
     await waitFor(() => expect(screen.getByTestId('status')).toHaveTextContent('error'));
     expect(screen.getByTestId('matches')).toBeEmptyDOMElement();
+  });
+
+  test('a successful mutation re-reads without a full-page loading state', async () => {
+    const reload = deferred();
+    const service = {
+      loadFixtureContext: jest.fn()
+        .mockResolvedValueOnce({ matches: [{ id: 'persisted-match' }] })
+        .mockReturnValueOnce(reload.promise),
+      loadScheduleContext: jest.fn().mockResolvedValue({}),
+      createIdempotencyKey: jest.fn(() => 'request-a'),
+      freezeParticipants: jest.fn().mockResolvedValue({ ok: true }),
+    };
+    const statuses = [];
+    function Recorder() {
+      const { status } = useTorneosFixture();
+      statuses.push(status);
+      return null;
+    }
+    render(
+      <MemoryRouter>
+        <TorneosFixtureProvider organizationId="org-a" service={service}>
+          <Harness />
+          <Recorder />
+        </TorneosFixtureProvider>
+      </MemoryRouter>,
+    );
+    expect(await screen.findByText('persisted-match')).toBeInTheDocument();
+    statuses.length = 0;
+    fireEvent.click(screen.getByRole('button', { name: 'Congelar' }));
+    await waitFor(() => expect(service.loadFixtureContext).toHaveBeenCalledTimes(2));
+    expect(screen.getByTestId('matches')).toHaveTextContent('persisted-match');
+    await act(async () => { reload.resolve({ matches: [{ id: 'fresh-match' }] }); });
+    expect(await screen.findByText('fresh-match')).toBeInTheDocument();
+    expect(statuses).not.toContain('loading');
+    expect(screen.getByTestId('notice')).toHaveTextContent('Lista de participantes confirmada.');
   });
 });

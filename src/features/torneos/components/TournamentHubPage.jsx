@@ -40,6 +40,7 @@ import styles from './ParticipantHub.module.css';
 import TournamentCommunicationsPanel from './TournamentCommunicationsPanel';
 import ParticipantMediaGallery from './ParticipantMediaGallery';
 import BrandingImage from './BrandingImage';
+import { formatCount } from '../domain/countCopy';
 
 const SECTIONS = [
   ['resumen', 'Resumen', Sparkles],
@@ -384,7 +385,7 @@ function OverviewSection({
           <div className={styles.myTeamSummary}>
             <TeamMark team={hub.myTeam} />
             <div>
-              <strong>{hub.myTeam.roster?.length || 0} jugadores publicados</strong>
+              <strong>{formatCount(hub.myTeam.roster?.length, 'jugador publicado', 'jugadores publicados')}</strong>
               <small>{hub.myTeam.activeSuspensions?.length || 0} sanciones activas</small>
             </div>
           </div>
@@ -549,7 +550,7 @@ function DisciplineSection({ data, myPlayerId }) {
               <span>
                 <strong>{SUSPENSION_LABELS[suspension.sourceType] || 'Sanción publicada'}</strong>
                 <small>
-                  {suspension.servedMatches}/{suspension.totalMatches} fechas
+                  {suspension.servedMatches}/{suspension.totalMatches} {suspension.totalMatches === 1 ? 'fecha' : 'fechas'}
                   {' · '}
                   {SUSPENSION_STATUS_LABELS[suspension.status] || 'Publicada'}
                 </small>

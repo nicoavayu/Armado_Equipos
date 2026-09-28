@@ -68,6 +68,9 @@ export const ERROR_MESSAGES = {
   TORNEOS_NOT_ENOUGH_PARTICIPANTS: 'Se necesitan al menos dos equipos aprobados con plantel habilitado.',
   TORNEOS_DRAW_NOT_EDITABLE: 'El sorteo publicado ya no admite cambios.',
   TORNEOS_GROUP_DRAW_REQUIRED: 'Publicá los grupos antes de generar este formato.',
+  // generate_tournament_fixture en formatos con grupos: sin sorteo publicado los grupos no tienen clave.
+  TORNEOS_GROUP_DRAW_SEED_INVALID: 'Primero sorteá y publicá los grupos. Después vas a poder generar el fixture.',
+  TORNEOS_GROUP_DRAW_SEED_MISMATCH: 'La clave no coincide con la del sorteo publicado. Dejala vacía para usar la del sorteo.',
   TORNEOS_INVALID_DRAW: 'Revisá la cantidad de grupos y la semilla del sorteo.',
   TORNEOS_INVALID_DRAW_POTS: 'Revisá la configuración de bombos.',
   TORNEOS_DUPLICATE_DRAW_ASSIGNMENT: 'Un participante o seed está asignado más de una vez.',

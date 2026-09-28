@@ -45,6 +45,7 @@ import CompetitionSelector from './CompetitionSelector';
 import BrandingImage from './BrandingImage';
 import { WorkspaceError, WorkspaceLoading } from './WorkspaceState';
 import styles from './FixtureWorkspace.module.css';
+import { formatCount } from '../domain/countCopy';
 
 const MODE_COPY = {
   overview: ['Centro de competencia', 'Fixture', 'Versiones, fases, jornadas y programación real.'],
@@ -205,7 +206,7 @@ function ParticipantsPanel({ canManage }) {
   const [reason, setReason] = useState('');
   const run = async (operation) => {
     setBusy(true);
-    try { await operation(); } finally { setBusy(false); }
+    try { await operation(); } catch { /* reported by the fixture context */ } finally { setBusy(false); }
   };
   return (
     <section className={styles.panel}>
@@ -267,7 +268,7 @@ function PotsPanel({ canManage }) {
         })),
     }));
     setBusy(true);
-    try { await actions.savePots(nextPots); } finally { setBusy(false); }
+    try { await actions.savePots(nextPots); } catch { /* reported by the fixture context */ } finally { setBusy(false); }
   };
   return (
     <section className={styles.panel}>
@@ -307,7 +308,7 @@ function DrawPanel({ canManage }) {
   const [busy, setBusy] = useState(false);
   const execute = async (publish) => {
     setBusy(true);
-    try { await actions.draw({ seed, groupCount: Number(groupCount), publish }); } finally { setBusy(false); }
+    try { await actions.draw({ seed, groupCount: Number(groupCount), publish }); } catch { /* reported by the fixture context */ } finally { setBusy(false); }
   };
   const drawGroups = groups.filter((group) => !group.fixtureVersionId);
   return (
@@ -456,7 +457,7 @@ function VersionPanel({ canManage, canAppend }) {
         {versions.map((version) => (
           <article key={version.id}>
             <span className={styles.versionNumber}>v{version.versionNumber}</span>
-            <div><small>{GENERATION_METHOD_LABELS[version.generationMethod] || 'Método no informado'}</small><h3>{statusLabel(version.status)}</h3><p>{version.matchCount} partidos · {countScheduledMatches(matches.filter((match) => match.fixtureVersionId === version.id))} programados</p></div>
+            <div><small>{GENERATION_METHOD_LABELS[version.generationMethod] || 'Método no informado'}</small><h3>{statusLabel(version.status)}</h3><p>{formatCount(version.matchCount, 'partido', 'partidos')} · {formatCount(countScheduledMatches(matches.filter((match) => match.fixtureVersionId === version.id)), 'programado', 'programados')}</p></div>
             <div className={styles.versionActions}>
               <Link to={versionLink(version.id)}>Abrir <ArrowRight size={15} /></Link>
               {canManage
@@ -643,7 +644,7 @@ function VersionPanel({ canManage, canAppend }) {
         </section>
       )}
       {!versions.length && <div className={styles.empty}><GitBranch size={24} /><strong>Sin versiones</strong><span>Generá la primera versión desde participantes congelados.</span></div>}
-      {!!versions.length && <div className={styles.structureStrip}><span>{phases.length} fases</span><span>{rounds.length} jornadas</span><span>{matches.length} partidos</span></div>}
+      {!!versions.length && <div className={styles.structureStrip}><span>{formatCount(phases.length, 'fase', 'fases')}</span><span>{formatCount(rounds.length, 'jornada', 'jornadas')}</span><span>{formatCount(matches.length, 'partido', 'partidos')}</span></div>}
     </section>
   );
 }
@@ -671,7 +672,7 @@ function GeneratePanel({ canManage }) {
         <div className={styles.formActions}>
           <button type="button" disabled={busy || participantSet?.status !== 'frozen'} onClick={async () => {
             setBusy(true);
-            try { await actions.generate({ seed, configuration: {} }); } finally { setBusy(false); }
+            try { await actions.generate({ seed, configuration: {} }); } catch { /* reported by the fixture context */ } finally { setBusy(false); }
           }}><Sparkles size={17} /> Generar borrador</button>
           <button type="button" disabled={busy || participantSet?.status !== 'frozen'} onClick={async () => {
             setBusy(true);
@@ -679,7 +680,7 @@ function GeneratePanel({ canManage }) {
               await actions.createManual(
                 versions.find((version) => version.status === 'published')?.id || null,
               );
-            } finally { setBusy(false); }
+            } catch { /* reported by the fixture context */ } finally { setBusy(false); }
           }}><Plus size={17} /> {versions.some((version) => version.status === 'published') ? 'Crear copia editable' : 'Crear manualmente'}</button>
         </div>
       )}
@@ -1041,6 +1042,7 @@ export default function FixtureWorkspacePage({ mode = 'overview' }) {
       </header>
       {fixture.notice && <div className={styles.notice} role="status"><CheckCircle2 size={17} />{fixture.notice}</div>}
       <Metrics />
+      {fixture.actionError && <div className={`${styles.error} ${styles.actionError}`} role="alert"><AlertTriangle size={17} aria-hidden="true" />{fixture.actionError}</div>}
       {mode === 'overview' && (
         <VersionPanel
           canManage={canManage}

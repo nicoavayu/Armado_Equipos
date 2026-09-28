@@ -152,3 +152,25 @@ describe('estado deportivo del acta en la interfaz', () => {
     expect(payload.reasonText).toBe('Tormenta');
   });
 });
+
+// POST-SMOKE: every save of the acta used to replace the whole screen with "Cargando operación de
+// partidos…" while it re-read four contexts. The re-read now happens with the screen mounted.
+describe('re-lectura del acta después de guardar', () => {
+  test('guardar no desmonta la pantalla con el cargador completo y sí vuelve a leer el acta', async () => {
+    const service = createService();
+    renderReport(service);
+    const save = await screen.findByRole('button', { name: /Guardar estado/ });
+    let release;
+    service.loadMatchOperations.mockImplementationOnce(() => new Promise((resolve) => {
+      release = () => resolve({ matches: [] });
+    }));
+    fireEvent.click(save);
+    await waitFor(() => expect(service.setMatchOutcome).toHaveBeenCalled());
+    await waitFor(() => expect(release).toBeDefined());
+    // The re-read is in flight: the editor is still on screen, not the full-page loader.
+    expect(screen.queryByText('Cargando operación de partidos…')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Guardar estado/ })).toBeInTheDocument();
+    release();
+    await waitFor(() => expect(service.loadMatchOperations.mock.calls.length).toBeGreaterThan(1));
+  });
+});

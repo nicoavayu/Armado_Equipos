@@ -802,7 +802,9 @@ export default function MatchOperationsPage({ mode = 'list' }) {
   const [busy, setBusy] = useState(false);
   const [reviewReason, setReviewReason] = useState('');
 
-  const load = useCallback(async ({ notice = '' } = {}) => {
+  // `background`: the re-read after an action keeps the screen (and the selected team) mounted
+  // instead of replacing it with the full-page loader; a failed re-read still closes it.
+  const load = useCallback(async ({ notice = '', background = false } = {}) => {
     const requestId = requestRef.current + 1;
     requestRef.current = requestId;
     if (!activeTournament?.id) {
@@ -810,15 +812,17 @@ export default function MatchOperationsPage({ mode = 'list' }) {
       setState({ status: 'ready', matches: [], operation: null, squads: {}, error: '', notice });
       return;
     }
-    setActiveTeamId(null);
-    setState({
-      status: 'loading',
-      matches: [],
-      operation: null,
-      squads: {},
-      error: '',
-      notice,
-    });
+    if (!background) {
+      setActiveTeamId(null);
+      setState({
+        status: 'loading',
+        matches: [],
+        operation: null,
+        squads: {},
+        error: '',
+        notice,
+      });
+    }
     try {
       const payload = await service.loadMatchOperations({
         organizationId: organization.id,
@@ -864,7 +868,10 @@ export default function MatchOperationsPage({ mode = 'list' }) {
         };
       }
       if (requestRef.current !== requestId) return;
-      setActiveTeamId(match?.homeTeamEntryId || null);
+      const sides = [match?.homeTeamEntryId, match?.awayTeamEntryId];
+      setActiveTeamId((current) => (
+        background && current && sides.includes(current) ? current : match?.homeTeamEntryId || null
+      ));
       setState({
         status: 'ready',
         matches,
@@ -948,7 +955,7 @@ export default function MatchOperationsPage({ mode = 'list' }) {
       }
       if (action === 'requestCorrection') await service.requestMatchCorrection({ ...common, operationId, reason: payload.reason });
       if (action === 'createCorrection') await service.createMatchCorrection({ ...common, operationId });
-      await load({ notice: {
+      await load({ background: true, notice: {
         open: 'Acta abierta con snapshots del partido.',
         saveSquad: 'Convocatoria guardada.',
         submitSquad: 'Convocatoria presentada.',

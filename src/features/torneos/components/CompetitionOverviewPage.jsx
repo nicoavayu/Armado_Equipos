@@ -26,6 +26,7 @@ import { WorkspaceError, WorkspaceLoading } from './WorkspaceState';
 import styles from './CompetitionCore.module.css';
 import BrandingImage from './BrandingImage';
 import { capturePremiumIntent, hasPendingPremiumIntent, withPremiumIntent } from '../domain/premiumIntent';
+import { formatCount } from '../domain/countCopy';
 
 function formatDateRange(startDate, endDate) {
   if (!startDate && !endDate) return 'Fechas a definir';
@@ -92,7 +93,7 @@ export default function CompetitionOverviewPage() {
         </header>
         <section className={styles.sectionBlock} aria-labelledby="premium-season-title">
           <div className={styles.sectionTitle}>
-            <div><span>{seasons.length} temporadas</span><h2 id="premium-season-title">¿Cuál querés profesionalizar?</h2></div>
+            <div><span>{formatCount(seasons.length, 'temporada', 'temporadas')}</span><h2 id="premium-season-title">¿Cuál querés profesionalizar?</h2></div>
           </div>
           <div className={styles.seasonGrid}>
             {seasons.map((season, index) => {

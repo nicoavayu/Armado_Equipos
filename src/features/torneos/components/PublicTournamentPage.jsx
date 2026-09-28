@@ -36,6 +36,15 @@ const STATUS_LABELS = {
   completed: 'Finalizado',
 };
 
+// Match results can become official while the organization has not started the competition yet
+// (the lifecycle does not require it). To a visitor that competition is already being played.
+export function getPublicTournamentStatus(status, matches = []) {
+  if (status === 'scheduled' && matches.some((match) => classifyPublicMatch(match) === PUBLIC_MATCH_KIND.OFFICIAL)) {
+    return 'active';
+  }
+  return status;
+}
+
 const formatDate = (value, options = {}) => {
   if (!value) return 'A confirmar';
   const date = new Date(value);
@@ -136,9 +145,13 @@ function StandingsTable({ rows, service, compact = false }) {
   );
 }
 
-function PlayerList({ players, limit }) {
+function PlayerList({ players, limit, standingsPublished = false }) {
   const rows = limit ? players?.slice(0, limit) : players;
-  if (!rows?.length) return <EmptySection title="Estadísticas todavía no publicadas" detail="Los datos aparecerán después de la publicación de la tabla oficial." />;
+  if (!rows?.length) {
+    return standingsPublished
+      ? <EmptySection title="Sin goleadores registrados" detail="Los resultados oficiales publicados todavía no registran goles con autor." />
+      : <EmptySection title="Estadísticas todavía no publicadas" detail="Los datos aparecerán después de la publicación de la tabla oficial." />;
+  }
   return (
     <ol className={styles.rankingList}>
       {rows.map((player, index) => (
@@ -200,7 +213,7 @@ function PublicTournamentContent({ page, activeTab, scope, service }) {
         </section>
         <section className={`${styles.featurePanel} ${styles.widePanel}`}>
           <div className={styles.sectionHeading}><div><span>Figuras</span><h2>Goleadores</h2></div></div>
-          <PlayerList players={scope?.players} limit={5} />
+          <PlayerList players={scope?.players} limit={5} standingsPublished={Boolean(scope?.standings?.length)} />
         </section>
       </div>
     );
@@ -218,7 +231,7 @@ function PublicTournamentContent({ page, activeTab, scope, service }) {
   }
 
   if (activeTab === 'tabla') return <><ScopeHeading scope={scope} /><StandingsTable rows={scope?.standings} service={service} /></>;
-  if (activeTab === 'goleadores') return <><ScopeHeading scope={scope} /><PlayerList players={scope?.players} /></>;
+  if (activeTab === 'goleadores') return <><ScopeHeading scope={scope} /><PlayerList players={scope?.players} standingsPublished={Boolean(scope?.standings?.length)} /></>;
   if (activeTab === 'equipos') {
     return page.teams.length ? (
       <div className={styles.teamsGrid}>{page.teams.map((team) => <article key={team.name} className={styles.teamCard}><TeamMark team={team} service={service} /><small>{team.status === 'withdrawn' ? 'Retirado' : 'Participante'}</small></article>)}</div>
@@ -298,6 +311,7 @@ export default function PublicTournamentPage({ service = publicTournamentService
   if (state.status === 'error') return <main className={styles.statePage}><img src={Logo} alt="Arma2" /><span>Sin conexión</span><h1>No pudimos cargar el torneo</h1><p>Probá de nuevo en unos minutos.</p><button type="button" onClick={() => window.location.reload()}>Reintentar</button></main>;
 
   const selectedCategory = page.selectedCategory;
+  const publicStatus = getPublicTournamentStatus(page.tournament.status, page.matches);
   return (
     <div className={styles.publicPage}>
       <a className={styles.skipLink} href="#contenido-publico">Saltar al contenido</a>
@@ -321,7 +335,7 @@ export default function PublicTournamentPage({ service = publicTournamentService
             <h1>{page.tournament.name}</h1>
             <p>{page.tournament.description || 'Información oficial de la competencia.'}</p>
             <div className={styles.heroTags}>
-              <span data-status={page.tournament.status}>{STATUS_LABELS[page.tournament.status] || page.tournament.status}</span>
+              <span data-status={publicStatus}>{STATUS_LABELS[publicStatus] || 'Competencia'}</span>
               <span>{getSportModalityName(page.tournament.sportModality)}</span>
               <span>{getCompetitionFormatName(page.tournament.competitionFormat)}</span>
             </div>

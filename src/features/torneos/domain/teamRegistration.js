@@ -1,3 +1,5 @@
+import { formatCount } from './countCopy';
+
 export const TEAM_ENTRY_STATUSES = Object.freeze([
   'draft',
   'invited',
@@ -51,10 +53,10 @@ export function getRosterProgress(players = [], settings = {}) {
   const minimumGoalkeepers = Number(safeSettings.minimumGoalkeepers || 0);
   const errors = [];
   if (!configured) errors.push('Los requisitos del plantel todavía no están configurados.');
-  if (count < minimum) errors.push(`Faltan ${minimum - count} jugadores para el mínimo.`);
+  if (count < minimum) errors.push(`${minimum - count === 1 ? 'Falta' : 'Faltan'} ${formatCount(minimum - count, 'jugador', 'jugadores')} para el mínimo.`);
   if (maximum && count > maximum) errors.push(`El plantel supera el máximo de ${maximum}.`);
   if (goalkeepers < minimumGoalkeepers) {
-    errors.push(`Faltan ${minimumGoalkeepers - goalkeepers} arqueros.`);
+    errors.push(`${minimumGoalkeepers - goalkeepers === 1 ? 'Falta' : 'Faltan'} ${formatCount(minimumGoalkeepers - goalkeepers, 'arquero', 'arqueros')}.`);
   }
   if (safeSettings.shirtNumberRequired && players.some((player) => player.shirtNumber == null)) {
     errors.push('Todos los jugadores necesitan dorsal.');

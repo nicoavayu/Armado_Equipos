@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import {
   MemoryRouter,
   Route,
@@ -120,6 +120,13 @@ describe('Arma2 Torneos route isolation', () => {
       .toBeInTheDocument();
     expect(screen.getByRole('navigation', { name: 'Navegación móvil de la organización' }))
       .toBeInTheDocument();
+    // POST-SMOKE: the bottom bar shows five whole items per width, so its long labels are short;
+    // the sidebar keeps the full names. The visible label is the accessible name (no mismatch).
+    const mobile = within(screen.getByRole('navigation', { name: 'Navegación móvil de la organización' }));
+    const desktop = within(screen.getByRole('navigation', { name: 'Navegación de la organización' }));
+    expect(mobile.getByRole('link', { name: 'Ajustes' })).toBeInTheDocument();
+    expect(mobile.queryByRole('link', { name: 'Configuración' })).not.toBeInTheDocument();
+    expect(desktop.getByRole('link', { name: 'Configuración' })).toBeInTheDocument();
     expect(screen.getByTestId('global-header')).toBeInTheDocument();
     expect(screen.queryByText('Crear partido')).not.toBeInTheDocument();
     expect(screen.queryByText('Amigos')).not.toBeInTheDocument();

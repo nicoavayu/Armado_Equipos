@@ -214,7 +214,7 @@ describe('CompetitionCenterPage', () => {
     unmount();
     renderCenter('discipline');
     expect(await screen.findByText('Roja directa')).toBeInTheDocument();
-    expect(screen.getByText(/0\/1 fechas · Activa/)).toBeInTheDocument();
+    expect(screen.getByText(/0\/1 fecha · Activa/)).toBeInTheDocument();
   });
 
   test('clears the previous category when the next request fails', async () => {
