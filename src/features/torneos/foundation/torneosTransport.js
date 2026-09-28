@@ -21,6 +21,14 @@
 // never persisted; a change of Core session discards it; every failure closes
 // (no request goes anywhere but the gateway); one silent re-exchange on 401, never more.
 //
+// POST-SMOKE: Core re-announces a valid session while actions are in flight (TOKEN_REFRESHED from the
+// refresh ticker, SIGNED_IN with the same session on every hidden→visible tab transition). Such a
+// renewal of the SAME identity (the bridge attributes it: `{ sameIdentity: true }`) still discards the
+// cache and any exchange answer bound to the superseded Core token, but the action then re-derives its
+// bearer ONCE from Core's current session instead of reporting a logout. Anything else — sign-out,
+// another user, USER_UPDATED, an event the bridge cannot attribute — is an identity boundary and an
+// action that straddles one fails closed with CORE_AUTH_REQUIRED.
+//
 // COMPETITION-V1 adds the anonymous public read-only route: createTorneosPublicTransport →
 // POST /torneos/public/v1/rpc/<name>, with NO credential of any kind (the gateway refuses one)
 // and no Core session involved. It serves the public tournament page and nothing else.
@@ -44,6 +52,10 @@ export const BEARER_RENEWAL_MARGIN_MS = 20_000;
 export const CORE_AUTH_EVENTS_THAT_CLEAR = Object.freeze([
   'SIGNED_OUT', 'SIGNED_IN', 'TOKEN_REFRESHED', 'USER_UPDATED',
 ]);
+// The only events that may renew the SAME identity, and only when the bridge says so.
+export const CORE_AUTH_RENEWAL_EVENTS = Object.freeze(['TOKEN_REFRESHED', 'SIGNED_IN']);
+// Internal: an exchange answered for a Core token that a same-identity renewal superseded. Never surfaces.
+const SESSION_RENEWED = 'CORE_SESSION_RENEWED';
 const RPC_NAME = /^[a-z0-9_]{1,63}$/;
 const TABLE_NAME = /^[a-z0-9_]{1,63}$/;
 
@@ -125,6 +137,7 @@ export function createTorneosTransport({
   let cached = null;   // { token, coreToken, until }
   let pending = null;  // { coreToken, request }
   let generation = 0;
+  let identity = 0;    // bumps on every identity boundary; a same-identity renewal leaves it alone
   let disposed = false;
 
   const clear = () => {
@@ -134,8 +147,11 @@ export function createTorneosTransport({
   };
   // Synchronous callback: never call another Auth method under GoTrue's lock.
   const unsubscribe = typeof onCoreAuthChange === 'function'
-    ? onCoreAuthChange((event) => {
-      if (!event || CORE_AUTH_EVENTS_THAT_CLEAR.includes(event)) clear();
+    ? onCoreAuthChange((event, detail) => {
+      if (event && !CORE_AUTH_EVENTS_THAT_CLEAR.includes(event)) return;
+      const renewal = CORE_AUTH_RENEWAL_EVENTS.includes(event) && detail?.sameIdentity === true;
+      if (!renewal) identity += 1;
+      clear();
     })
     : null;
 
@@ -155,7 +171,7 @@ export function createTorneosTransport({
     return token;
   }
 
-  async function exchange(token, started) {
+  async function exchange(token, started, epoch) {
     const { signal, release } = withTimeout(requestTimeoutMs);
     let response;
     try {
@@ -174,7 +190,8 @@ export function createTorneosTransport({
     }
     const { json } = await readBody(response);
     if (started !== generation || disposed) {
-      throw new TorneosBoundaryError('CORE_AUTH_REQUIRED');
+      // The answer is bound to a Core token that is no longer current: never cached, never used.
+      throw new TorneosBoundaryError(!disposed && epoch === identity ? SESSION_RENEWED : 'CORE_AUTH_REQUIRED');
     }
     const gatewayError = gatewayErrorOf(json);
     if (response.status === 200) {
@@ -195,7 +212,7 @@ export function createTorneosTransport({
     throw new TorneosBoundaryError('TORNEOS_UNAVAILABLE', { status: response.status, gatewayError });
   }
 
-  async function bearer({ force = false } = {}) {
+  async function derive(force) {
     const token = await coreToken();
     if (!force && cached?.coreToken === token && cached.until > now() + BEARER_RENEWAL_MARGIN_MS) {
       return cached.token;
@@ -203,17 +220,37 @@ export function createTorneosTransport({
     if (force || pending?.coreToken !== token) {
       clear();
       const started = generation;
-      const request = exchange(token, started);
+      const request = exchange(token, started, identity);
       pending = { coreToken: token, request };
       request.finally(() => { if (pending?.request === request) pending = null; }).catch(() => {});
     }
     return pending.request;
   }
 
+  async function bearer({ force = false, epoch = identity } = {}) {
+    let token;
+    try {
+      token = await derive(force);
+    } catch (error) {
+      if (error?.code !== SESSION_RENEWED) throw error;
+      // Core renewed the same identity mid-exchange: ask Core again, exactly once. Core decides — no
+      // session → CORE_AUTH_REQUIRED; a real refusal of the new token → its own code.
+      try {
+        token = await derive(false);
+      } catch (again) {
+        if (again?.code === SESSION_RENEWED) throw new TorneosBoundaryError('CORE_AUTH_REQUIRED');
+        throw again;
+      }
+    }
+    // An action never continues under an identity other than the one it started with.
+    if (epoch !== identity) throw new TorneosBoundaryError('CORE_AUTH_REQUIRED');
+    return token;
+  }
+
   async function send(method, path, {
-    body = undefined, headers = {}, signal = undefined, attempt = 0, timeoutMs = requestTimeoutMs,
+    body = undefined, headers = {}, signal = undefined, attempt = 0, timeoutMs = requestTimeoutMs, epoch = identity,
   } = {}) {
-    const token = await bearer({ force: attempt > 0 });
+    const token = await bearer({ force: attempt > 0, epoch });
     const { signal: timed, release } = withTimeout(timeoutMs, signal);
     let response;
     try {
@@ -248,7 +285,7 @@ export function createTorneosTransport({
     if (status === 401) {
       clear();
       // One silent renewal: the bearer may simply have aged past the gateway's TTL.
-      if (attempt === 0) return send(method, path, { body, headers, signal, timeoutMs, attempt: 1 });
+      if (attempt === 0) return send(method, path, { body, headers, signal, timeoutMs, attempt: 1, epoch });
       throw new TorneosBoundaryError('TORNEOS_SESSION_INVALID', { status, gatewayError });
     }
     if (status === 503) {
