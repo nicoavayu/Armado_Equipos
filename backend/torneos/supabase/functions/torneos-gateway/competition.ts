@@ -12,7 +12,11 @@
 //
 // Fail closed: a malformed document, an empty section, an invalid name, or a name listed twice (inside the
 // document or against the staging v1 set) makes the loader throw, and the gateway refuses to boot.
+//
+// OFFICIALIZATION-V1 (officialization-v1-rpc-allowlist.json): organization membership and the per-tournament
+// dual-control policy, on the authenticated route only, validated the same way and disjoint from both sets above.
 import allowlistDoc from "./competition-v1-rpc-allowlist.json" with { type: "json" }
+import officializationDoc from "./officialization-v1-rpc-allowlist.json" with { type: "json" }
 
 export const PUBLIC_RPC_ROUTE = /^\/torneos\/public\/v1\/rpc\/([a-z0-9_]+)$/
 const NAME = /^[a-z0-9_]+$/
@@ -98,6 +102,34 @@ export function withCompetition(stagingV1: ReadonlySet<string>, contract: Compet
   return new Set([...stagingV1, ...contract.rpcs])
 }
 
+export type OfficializationContract = {
+  /** RPCs of the generic authenticated route that OFFICIALIZATION-V1 adds (disjoint from everything else). */
+  rpcs: ReadonlySet<string>
+  features: Readonly<Record<string, readonly string[]>>
+}
+
+/** Validates the OFFICIALIZATION-V1 document against the authenticated set already loaded and the public RPCs. */
+export function loadOfficializationContract(authenticated: ReadonlySet<string>, competition: CompetitionContract,
+  doc: unknown = officializationDoc): OfficializationContract {
+  if (!doc || typeof doc !== "object" || (doc as { phase?: unknown }).phase !== "OFFICIALIZATION-V1") {
+    throw new CompetitionConfigError("officialization allowlist document")
+  }
+  if (Object.hasOwn(doc as object, "public")) throw new CompetitionConfigError("officialization has no public RPC")
+  const features = names((doc as { features?: unknown }).features, "officialization")
+  const all = Object.values(features).flat()
+  const rpcs = new Set(all)
+  if (rpcs.size !== all.length) throw new CompetitionConfigError("duplicate names")
+  if ([...rpcs].some((n) => authenticated.has(n) || competition.publicRpcs.has(n))) {
+    throw new CompetitionConfigError("officialization overlaps an earlier contract")
+  }
+  return { rpcs, features: Object.freeze(Object.fromEntries(Object.entries(features).map(([k, v]) => [k, Object.freeze(v)]))) }
+}
+
+/** Generic authenticated route: staging v1 ∪ COMPETITION-V1 ∪ OFFICIALIZATION-V1. */
+export function withOfficialization(authenticated: ReadonlySet<string>, contract: OfficializationContract): ReadonlySet<string> {
+  return new Set([...authenticated, ...contract.rpcs])
+}
+
 export type PublicRequest = {
   name: string
   authorization: string | null
@@ -157,4 +189,47 @@ export async function preparePublicRpc(req: PublicRequest, contract: Competition
     body[key] = value as string | null
   }
   return { ok: true, path: `/rpc/${req.name}`, body: JSON.stringify(body) }
+}
+
+// ERROR-CONTRACT-V1 — expected domain errors are never an outage. Migration 0006 makes the database answer them with
+// the PostgREST custom status PTxyz (409 / 422 / 429). A database where 0006 is not applied yet still raises the
+// legacy SQLSTATE 55000 / 54000, which PostgREST answers 500: for exactly those two SQLSTATEs AND a message that is a
+// contract code, the gateway answers the contract status instead. The body is forwarded byte for byte. Anything else
+// keeps its upstream status — a genuine 500 (any other SQLSTATE, any other message, a non-JSON body) stays 500, and a
+// timeout stays the gateway's own 503. The former domain 40001 cannot be repaired here: PostgREST retries it before
+// answering, so only the database fix removes that retry storm. Source of truth: backend/torneos/error-contract-v1/
+// contract.json (`http`, `postgrest.legacy_5xx_sqlstates`); a lab test keeps them equal.
+export const DOMAIN_ERROR_STATUS: Readonly<Record<string, number>> = Object.freeze({
+  TORNEOS_COMPETITION_READ_ONLY: 409,
+  TORNEOS_CORRECTION_ALREADY_SUPERSEDED: 409,
+  TORNEOS_FIXTURE_DRAFT_READ_ONLY: 409,
+  TORNEOS_MATCH_AVAILABILITY_SELF_AUTHORITATIVE: 409,
+  TORNEOS_MATCH_CORRECTION_EXISTS: 409,
+  TORNEOS_MATCH_REVIEW_NOT_OPEN: 409,
+  TORNEOS_MATCH_SQUAD_LOCKED: 409,
+  TORNEOS_QUALIFICATION_AMBIGUOUS: 409,
+  TORNEOS_QUALIFICATION_INCOMPLETE: 409,
+  TORNEOS_QUALIFICATION_MANUAL_LOCKED: 409,
+  TORNEOS_STALE_FIXTURE_VERSION: 409,
+  TORNEOS_STANDINGS_SOURCES_CHANGED: 409,
+  TORNEOS_SUSPENSION_NOT_ACTIVE: 409,
+  TORNEOS_AUDIENCE_LIMIT_REACHED: 422,
+  TORNEOS_DRAFT_LIMIT_REACHED: 422,
+  TORNEOS_LINK_LIMIT_REACHED: 422,
+  TORNEOS_RECIPIENT_LIMIT_REACHED: 422,
+  TORNEOS_PUBLISH_RATE_LIMITED: 429,
+})
+export const LEGACY_DOMAIN_SQLSTATES: ReadonlySet<string> = new Set(["55000", "54000"])
+const DOMAIN_ERROR_BODY_LIMIT = 4096
+
+/** Status the gateway answers for an upstream PostgREST response (see DOMAIN_ERROR_STATUS). */
+export function domainErrorStatus(status: number, body: ArrayBuffer | Uint8Array): number {
+  if (status !== 500 || body.byteLength === 0 || body.byteLength > DOMAIN_ERROR_BODY_LIMIT) return status
+  let parsed: unknown
+  try { parsed = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(body)) } catch { return status }
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return status
+  const { code, message } = parsed as Record<string, unknown>
+  if (typeof code !== "string" || !LEGACY_DOMAIN_SQLSTATES.has(code)) return status
+  if (typeof message !== "string" || !Object.hasOwn(DOMAIN_ERROR_STATUS, message)) return status
+  return DOMAIN_ERROR_STATUS[message]
 }

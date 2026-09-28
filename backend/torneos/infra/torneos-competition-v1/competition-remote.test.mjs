@@ -69,13 +69,13 @@ test('state classifier: PRE / POST / ROLLED_BACK exactly; every deviation is DRI
   assert.equal(C.classifyState(null).state, 'DRIFT');
 });
 
-test('bundles: previous rebuilt from git = the deploy pin (14 files, 723c5d39…); candidate = 16-file graph with the competition files', () => {
+test('bundles: previous rebuilt from git = the deploy pin (14 files, 723c5d39…); candidate = the working-tree graph with the competition (+2) and OFFICIALIZATION-V1 (+1) files', () => {
   const prev = buildPrevious();
   assert.equal(prev.digest, C.CURRENT.digest); assert.equal(prev.manifest.length, 14); assert.equal(prev.head, C.CURRENT.head);
   assert.deepEqual(prev.manifest, C.readCurrentDeployPin().source.files);
   const cand = buildCandidate({ requireClean: false });
-  assert.equal(cand.manifest.length, 16);
-  assert.ok(['torneos-gateway/competition.ts', 'torneos-gateway/competition-v1-rpc-allowlist.json'].every((f) => cand.manifest.some((m) => m.path === f)));
+  assert.equal(cand.manifest.length, 17);
+  assert.ok(['torneos-gateway/competition.ts', 'torneos-gateway/competition-v1-rpc-allowlist.json', 'torneos-gateway/officialization-v1-rpc-allowlist.json'].every((f) => cand.manifest.some((m) => m.path === f)));
   assert.notEqual(cand.digest, prev.digest);
   // W2 sends assets + labels only: the allowlisted deploy body shape accepts both sources and nothing else.
   for (const b of [prev, cand]) assert.ok(R.assertDenoWriteBody('deploy', { assets: b.assets, labels: { 'custom.git_head': b.head, 'custom.bundle_digest': b.digest }, production: true, preview: false }));

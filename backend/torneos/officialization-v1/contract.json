@@ -1,0 +1,214 @@
+{
+  "phase": "OFFICIALIZATION-V1",
+  "purpose": "Result officialization for real organizers: dual control becomes an optional per-tournament policy (default OFF) and organizations gain real membership (invite / accept / roles / removal). Single source of truth for the gateway allowlist (torneos-gateway/officialization-v1-rpc-allowlist.json), the database delta (migrations/00000000000005_officialization_v1.sql) and the frontend scope (src/features/torneos/foundation/officializationV1Scope.js); guard tests keep them equal.",
+  "root_cause": [
+    "make_tournament_match_official requires a validated operation",
+    "validate_tournament_match_operation refused submitter = validator unconditionally (TORNEOS_MATCH_DUAL_CONTROL_REQUIRED)",
+    "submit / review / validate / make official require an owner/admin (match_operations.* capabilities)",
+    "only create_tournament_organization inserted tournament_organization_members (the owner); members.invite/update_role/remove had no RPC and the UI said 'Invitar miembro: Próximamente'",
+    "=> no organization could make a result official; standings, statistics, qualification, playoffs, corrections and finishing were blocked"
+  ],
+  "dual_control": {
+    "column": "tournaments.match_result_dual_control_enabled boolean NOT NULL DEFAULT false",
+    "off": "an authorized owner/admin (capability match_operations.validate + season access + status under_review + valid payload) may validate the report they submitted; audited as {dualControl:false, selfValidated:true}",
+    "on": "the submitter never validates (TORNEOS_MATCH_DUAL_CONTROL_REQUIRED); any other authorized identity may",
+    "missing_tournament": "reads as ON (fail closed)",
+    "policy_change": "set_tournament_match_dual_control — capability match_operations.configure_dual_control (owner only), season access, refused on completed/archived, ON needs >= 2 eligible validators on the season, audited tournament.match_dual_control_changed",
+    "unchanged": "review_tournament_match_operation, make_tournament_match_official, request/create correction keep their certified bodies"
+  },
+  "roles": {
+    "owner": "exactly one per organization (unique index tournament_organization_one_active_owner_idx + trigger protect_tournament_organization_owner); never removed, demoted or self-changed; the only one who grants/changes the admin role and the dual-control policy",
+    "admin": "any number; invites collaborators, removes collaborators; cannot grant admin, change roles, remove admins or the owner",
+    "collaborator": "any number; read-only on members (no emails), no invitations"
+  },
+  "features": {
+    "organization_members": {
+      "frontend_routes": [
+        "/torneos/organizacion/:org/miembros",
+        "/torneos/invitacion/organizacion/:token"
+      ],
+      "frontend_components": [
+        "OrganizationMembersPage",
+        "OrganizationInvitationPage"
+      ],
+      "rpcs": {
+        "list_tournament_organization_members": {
+          "route": "authenticated",
+          "category": "ADMIN_OWNER",
+          "scope": "organization",
+          "write": false,
+          "authority": "members.read (emails only with members.invite)",
+          "db_acl": "granted by 0005",
+          "frontend_alias": "listMembers"
+        },
+        "list_tournament_organization_invitations": {
+          "route": "authenticated",
+          "category": "ADMIN_OWNER",
+          "scope": "organization",
+          "write": false,
+          "authority": "members.invite",
+          "db_acl": "granted by 0005",
+          "frontend_alias": "listMemberInvitations"
+        },
+        "invite_tournament_organization_member": {
+          "route": "authenticated",
+          "category": "ADMIN_OWNER",
+          "scope": "organization",
+          "write": true,
+          "authority": "members.invite; admin role only by the owner",
+          "db_acl": "granted by 0005",
+          "frontend_alias": "inviteMember"
+        },
+        "revoke_tournament_organization_invitation": {
+          "route": "authenticated",
+          "category": "ADMIN_OWNER",
+          "scope": "organization",
+          "write": true,
+          "authority": "members.invite; admin invitations only by the owner",
+          "db_acl": "granted by 0005",
+          "frontend_alias": "revokeMemberInvitation"
+        },
+        "accept_tournament_organization_invitation": {
+          "route": "authenticated",
+          "category": "PRIVATE_AUTHENTICATED",
+          "scope": "self",
+          "write": true,
+          "authority": "the invited identity: Core verified_email attestation for the invited email (gateway adapter)",
+          "db_acl": "granted by 0005",
+          "frontend_alias": "acceptOrganizationInvitation",
+          "core_contract": "verified_email"
+        },
+        "update_tournament_organization_member_role": {
+          "route": "authenticated",
+          "category": "ADMIN_OWNER",
+          "scope": "organization",
+          "write": true,
+          "authority": "members.update_role + owner; never self, never the owner, never 'owner'",
+          "db_acl": "granted by 0005",
+          "frontend_alias": "updateMemberRole"
+        },
+        "remove_tournament_organization_member": {
+          "route": "authenticated",
+          "category": "ADMIN_OWNER",
+          "scope": "organization",
+          "write": true,
+          "authority": "members.remove; admins only by the owner; never self, never the owner; releases season seats",
+          "db_acl": "granted by 0005",
+          "frontend_alias": "removeMember"
+        }
+      }
+    },
+    "match_dual_control": {
+      "frontend_routes": [
+        "/torneos/organizacion/:org/torneo/:t/partidos/:m/revision",
+        "/torneos/organizacion/:org/torneo/:t/configuracion"
+      ],
+      "frontend_components": [
+        "MatchOperationsPage",
+        "MatchDualControlSettings"
+      ],
+      "rpcs": {
+        "get_tournament_match_dual_control": {
+          "route": "authenticated",
+          "category": "ADMIN_OWNER",
+          "scope": "season",
+          "write": false,
+          "authority": "match_operations.read + season access",
+          "db_acl": "granted by 0005",
+          "frontend_alias": "loadMatchDualControl"
+        },
+        "set_tournament_match_dual_control": {
+          "route": "authenticated",
+          "category": "ADMIN_OWNER",
+          "scope": "season",
+          "write": true,
+          "authority": "match_operations.configure_dual_control (owner) + season access",
+          "db_acl": "granted by 0005",
+          "frontend_alias": "setMatchDualControl"
+        }
+      }
+    }
+  },
+  "acl": {
+    "new_functions": [
+      "invite_tournament_organization_member(uuid,text,text)",
+      "list_tournament_organization_invitations(uuid)",
+      "revoke_tournament_organization_invitation(uuid,uuid)",
+      "accept_tournament_organization_invitation(text)",
+      "list_tournament_organization_members(uuid)",
+      "update_tournament_organization_member_role(uuid,uuid,text)",
+      "remove_tournament_organization_member(uuid,uuid)",
+      "get_tournament_match_dual_control(uuid,uuid)",
+      "set_tournament_match_dual_control(uuid,uuid,boolean)"
+    ],
+    "replaced_bodies": [
+      {
+        "function": "public.validate_tournament_match_operation(uuid,uuid)",
+        "md5_before": "4f43a7292753cbd191c9800dac08ed58",
+        "md5_after": "349c89ce40a0a2ac1223839d20c3437d",
+        "change": "submitter = validator refused only when the tournament policy is ON; audit metadata {dualControl, selfValidated}"
+      },
+      {
+        "function": "public.get_tournament_match_operation_context(uuid,uuid)",
+        "md5_before": "2f43290e706d0471f91a4baf67f400c5",
+        "md5_after": "86186ea09217d70d2cc113c16f9340fa",
+        "change": "adds dualControl {enabled, submittedByViewer, validatedByViewer}"
+      },
+      {
+        "function": "private.authorize_core_contract(text,jsonb)",
+        "md5_before": "488ca6bb0491e7ae9921091a90f30b65",
+        "md5_after": "1ac5d5131cd7c3914ad6bda7df30019b",
+        "change": "verified_email branch for {organization_invitation_token}; team branch unchanged"
+      }
+    ],
+    "still_closed": [
+      "authorize_tournament_social_export(uuid,uuid,text,text,boolean)",
+      "cancel_tournament_purchase(uuid)",
+      "change_tournament_media_gallery_state(uuid,text,text)",
+      "create_tournament_disciplinary_override(uuid,text,integer,text,uuid)",
+      "create_tournament_points_adjustment(uuid,uuid,uuid,uuid,uuid,integer,text,uuid)",
+      "get_tournament_player_portrait_ref(uuid,uuid,text)",
+      "has_tournament_entitlement(uuid,uuid,text)",
+      "lock_tournament_roster(uuid,uuid,uuid)",
+      "mark_tournament_suspension_served(uuid,uuid,text)",
+      "record_manual_match_availability(uuid,uuid,uuid,text,text,text)",
+      "report_tournament_media_asset(uuid,text,text,boolean,uuid)",
+      "revoke_tournament_player_portrait_publication(uuid,uuid)",
+      "revoke_tournament_points_adjustment(uuid,text)",
+      "revoke_tournament_team_photo(uuid,uuid)",
+      "set_tournament_player_portrait_crop(uuid,uuid,numeric,numeric,numeric)",
+      "set_tournament_player_portrait_editorial_status(uuid,uuid,text)",
+      "transition_tournament_media_asset(uuid,text,text)",
+      "archive_tournament_fixture(uuid,uuid,text)",
+      "postpone_tournament_match(uuid,uuid,text)",
+      "cancel_tournament_match(uuid,uuid,text)",
+      "restore_tournament_match_unscheduled(uuid,uuid,text)",
+      "ready_tournament_match(uuid,uuid)",
+      "schedule_tournament_match_resumption(uuid,uuid,timestamp with time zone,uuid,uuid,text)"
+    ],
+    "authenticated_public_before": 162,
+    "authenticated_public_after": 171,
+    "anon_public": 12,
+    "tables": {
+      "tournament_organization_invitations": "RLS on, no policy, no privilege for anon/authenticated/service_role (RPC-only)"
+    },
+    "capabilities_added": {
+      "owner": [
+        "match_operations.configure_dual_control"
+      ]
+    }
+  },
+  "untouched_migrations": {
+    "00000000000000_torneos_baseline_v1.sql": "f857bd0939054bc1a32a3855894b7b20e14a0c7456c9d5c8c5e8432e5b8ed19f",
+    "00000000000001_staging_v1_rpc_exposure.sql": "3df4b96eecc7321eaeda84a480f089fe4bff2b28c20aa4479db92caf33457e62",
+    "00000000000002_mercadopago_checkout_pro_test.sql": "06378f12b57620e8ae550a0d881ad66464ffdc0a734ad621cba8a6ba3e6d6078",
+    "00000000000003_mercadopago_provider_ordering.sql": "d54b3293da53aea1202d3daed9a70e45d86e306a56a1fdd58107fc5719e36714",
+    "00000000000004_competition_v1_rpc_exposure.sql": "36e45eddf57690470d80a0284f454a74ebfe4135cf89cbc0f4274ffdf41e3729"
+  },
+  "frontend_features": {
+    "on": [
+      "organization_members",
+      "match_dual_control"
+    ]
+  }
+}

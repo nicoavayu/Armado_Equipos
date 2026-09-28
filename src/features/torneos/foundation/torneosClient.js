@@ -1,5 +1,6 @@
 import { isStagingV1Operation } from './stagingV1Scope';
 import { isCompetitionV1Operation, isCompetitionV1PublicOperation } from './competitionV1Scope';
+import { isOfficializationV1Operation } from './officializationV1Scope';
 import { isStagingV1Table } from './stagingV1Tables';
 import { isStagingV1CommerceRead, SEASON_CHECKOUT_PATH } from './stagingV1CommerceScope';
 import { TorneosBoundaryError } from './errors';
@@ -14,7 +15,7 @@ export function normalizeRpcParams(params) {
   return Object.fromEntries(Object.entries(params).map(([key, value]) => [key, value === undefined ? null : value]));
 }
 
-// The client is the scope boundary: an operation outside staging v1 + COMPETITION-V1 never
+// The client is the scope boundary: an operation outside staging v1 + COMPETITION-V1 + OFFICIALIZATION-V1 never
 // reaches the transport, and without a transport nothing reaches the network at all. No
 // auth object, token, storage, realtime or Core client lives here.
 //
@@ -26,6 +27,7 @@ export function createTorneosClient({ transport = null, commerce = false } = {})
   const commerceEnabled = commerce === true;
   const permitted = (operation) => isStagingV1Operation(operation)
     || isCompetitionV1Operation(operation)
+    || isOfficializationV1Operation(operation)
     || (commerceEnabled && isStagingV1CommerceRead(operation));
   return Object.freeze({
     status: connected ? 'connected' : 'foundation-disabled',

@@ -289,26 +289,58 @@ export function createStagingV1WorkspaceService({
       };
     },
 
-    // ── collaborators ──────────────────────────────────────────────────────
-    // Phase 2D has no membership RPC: the list is the table route, RLS-scoped by
-    // the bridge bearer, exactly as R5 exercised it.
+    // ── collaborators / organization members ───────────────────────────────
+    // OFFICIALIZATION-V1: the member list is the membership RPC (roles, the viewer's own row
+    // and, for those who manage invitations, the invited email), in the row shape the page
+    // already renders. Invitations, role changes and removals are RPCs of the same contract.
     listMembers: async (organizationId) => {
-      if (!UUID.test(String(organizationId))) {
-        throw new TournamentWorkspaceError(
-          'TORNEOS_INVALID_REQUEST',
-          BOUNDARY_MESSAGES.TORNEOS_INVALID_REQUEST,
-        );
-      }
-      try {
-        return await client.select('tournament_organization_members', {
-          select: stagingV1Tables.tournament_organization_members.columns.join(','),
-          organization_id: `eq.${organizationId}`,
-          order: 'joined_at.asc',
-        });
-      } catch (error) {
-        throw translateBoundaryError(error, 'No pudimos cargar los miembros.');
-      }
+      if (!UUID.test(String(organizationId))) throw invalidRequest();
+      const rows = await call(
+        'list_tournament_organization_members',
+        { p_organization_id: organizationId },
+        'No pudimos cargar los miembros.',
+      );
+      return (Array.isArray(rows) ? rows : []).map((row) => ({
+        id: row.id,
+        user_id: row.userId,
+        role: row.role,
+        status: row.status,
+        joined_at: row.joinedAt,
+        created_at: row.createdAt,
+        email: row.email ?? null,
+        is_viewer: row.isViewer === true,
+      }));
     },
+    listMemberInvitations: ({ organizationId }) => call(
+      'list_tournament_organization_invitations',
+      { p_organization_id: organizationId },
+      'No pudimos cargar las invitaciones.',
+    ),
+    inviteMember: ({ organizationId, email, role }) => call(
+      'invite_tournament_organization_member',
+      { p_organization_id: organizationId, p_email: email, p_role: role },
+      'No pudimos generar la invitación.',
+    ),
+    revokeMemberInvitation: ({ organizationId, invitationId }) => call(
+      'revoke_tournament_organization_invitation',
+      { p_organization_id: organizationId, p_invitation_id: invitationId },
+      'No pudimos revocar la invitación.',
+    ),
+    acceptOrganizationInvitation: (token) => call(
+      'accept_tournament_organization_invitation',
+      { p_token: token },
+      'No pudimos aceptar la invitación.',
+    ),
+    updateMemberRole: ({ organizationId, membershipId, role }) => call(
+      'update_tournament_organization_member_role',
+      { p_organization_id: organizationId, p_membership_id: membershipId, p_role: role },
+      'No pudimos cambiar el rol.',
+    ),
+    removeMember: ({ organizationId, membershipId }) => call(
+      'remove_tournament_organization_member',
+      { p_organization_id: organizationId, p_membership_id: membershipId },
+      'No pudimos quitar al miembro.',
+    ),
     listSeasonMemberAssignments: ({ organizationId, seasonId }) => call(
       'list_tournament_season_member_assignments',
       { p_organization_id: organizationId, p_season_id: seasonId },
@@ -906,6 +938,16 @@ function competitionAliases(call, client) {
       p_organization_id: input.organizationId,
       p_match_operation_id: input.operationId,
     }, 'No pudimos oficializar el acta.'),
+    // OFFICIALIZATION-V1: the tournament's dual-control policy (owner-only change).
+    loadMatchDualControl: (input) => call('get_tournament_match_dual_control', {
+      p_organization_id: input.organizationId,
+      p_tournament_id: input.tournamentId,
+    }, 'No pudimos cargar la política de doble control.'),
+    setMatchDualControl: (input) => call('set_tournament_match_dual_control', {
+      p_organization_id: input.organizationId,
+      p_tournament_id: input.tournamentId,
+      p_enabled: input.enabled === true,
+    }, 'No pudimos cambiar la política de doble control.'),
     requestMatchCorrection: (input) => call('request_tournament_match_correction', {
       p_organization_id: input.organizationId,
       p_match_operation_id: input.operationId,

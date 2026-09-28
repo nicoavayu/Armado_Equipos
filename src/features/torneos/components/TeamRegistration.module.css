@@ -1506,3 +1506,11 @@
   font-size: 0.84rem;
   line-height: 1.45;
 }
+
+/* OFFICIALIZATION-V1 (smoke): por qué todavía no se puede presentar el plantel. */
+.submitHint {
+  margin: 8px 0 0;
+  color: rgba(255, 255, 255, 0.62);
+  font-size: 12px;
+  line-height: 1.45;
+}

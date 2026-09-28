@@ -1,0 +1,38 @@
+{
+  "generated_at": "2026-09-28",
+  "lab": "fresh volumes, migrations 0000→0006 of this tree (0006 sha256 767d57e8fb96ca69cd9d3b9379c0c3135652c8cb7bc07d83d81d1d815e0f3cc3), Core real (GoTrue + contract function), PostgREST v14.15, Node + Edge gateways; suites run strictly sequentially in one final run",
+  "error_contract": {
+    "node": "28/28 checks (29 tests)",
+    "edge": "28/28 checks (29 tests)",
+    "before_0006_node": "evidence/node/before.json — POST_0005 database, recorded (not asserted): 40001 cases 503 after 5 s with thousands of executions still running; ghost publish of the older fixture draft; 55000/54000 cases 409/422/429 through the gateway defense, 500 on direct PostgREST",
+    "no_store": { "node": { "responses": 354, "without_no_store": 0 }, "edge": { "responses": 354, "without_no_store": 0 } }
+  },
+  "lab_regression": {
+    "officialization.test.mjs (OFFICIALIZATION-V1)": { "node": "40/40", "edge": "40/40",
+      "displaced_by_0006": ["A1: 0005 is no longer the last migration", "A5: re-applying 0005 is followed by the later migrations (0006 replaces set_tournament_match_dual_control)", "C13: finished-competition policy change 400/22023 → 409/PT409; finished correction request may answer 409 (completed guard)"] },
+    "competition.test.mjs (COMPETITION-V1)": { "node": "40/40", "edge": "40/40", "displaced_by_0006": [] },
+    "test.mjs (Phase 3A E2E)": { "node": "41/41", "edge": "41/41", "displaced_by_0006": ["migration list + 0006"] },
+    "acl.test.mjs (Phase 2C ACL)": { "node": "17/17", "displaced_by_0006": [] },
+    "exposure.test.mjs (Phase 2D)": { "node": "19/19", "edge": "19/19", "displaced_by_0006": ["migration list + 0006"] },
+    "equivalence.test.mjs (Node≡Edge)": { "node": "8/8" },
+    "d1.test.mjs (session authority)": { "node": "6/6" },
+    "build-migration.mjs --check": "PASS (regenerated from the POST_0006 catalog)",
+    "deno-runtime-compat (Deno 2.1.4)": "8/8 (same 3 pre-existing strict-type diagnostics; index.ts one moved 81:78 → 85:78)"
+  },
+  "offline": {
+    "frontend foundation/transport/adapter/competition/officialization/error-contract/commerce": "76/76",
+    "static guard + quality gate": "257/257",
+    "competition-remote": "7/7",
+    "gateway-remote": "8/8 (bundle still 17 files)",
+    "torneos-foundation": "53/53",
+    "gateway-auth (auth + b03 + topology)": "44/44",
+    "core-prod": "41/41",
+    "competition-v1 reconcile": "2/2",
+    "deno-runtime-hardening": "30/30",
+    "jest (full)": "335 suites / 3254 tests",
+    "react-scripts build": "OK",
+    "secret / Production-host scan of every added line": "0 hits over 7901 lines"
+  },
+  "skips": 0,
+  "note": "The historical lab suites rewrite their own tracked evidence on every run; those files were restored byte-identical (they certify earlier phases). The offline suites, Jest and the build ran on this tree before the last three lab-test expectation edits (migration lists, Deno line pin), which they do not read."
+}

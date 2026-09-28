@@ -8,11 +8,12 @@ import React from 'react';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import StagingV1TorneosApp from '../features/torneos/stagingV1/StagingV1TorneosApp';
-import { stagingV1Features, competitionV1OnFeatures, stagingV1OnFeatures } from '../features/torneos/stagingV1/stagingV1Features';
+import { stagingV1Features, competitionV1OnFeatures, officializationV1OnFeatures, stagingV1OnFeatures } from '../features/torneos/stagingV1/stagingV1Features';
 import { createStagingV1WorkspaceService } from '../features/torneos/stagingV1/stagingV1WorkspaceService';
 import { getCapabilitiesForRole } from '../features/torneos/domain/capabilities';
 import stagingAllowlist from '../../backend/torneos/supabase/functions/torneos-gateway/staging-v1-rpc-allowlist.json';
 import competitionAllowlist from '../../backend/torneos/supabase/functions/torneos-gateway/competition-v1-rpc-allowlist.json';
+import officializationAllowlist from '../../backend/torneos/supabase/functions/torneos-gateway/officialization-v1-rpc-allowlist.json';
 
 const coreAccesses = [];
 jest.mock('../lib/supabaseClient', () => {
@@ -348,10 +349,10 @@ describe('hybrid composition — full competition through the adapter; OFF surfa
     expect(screen.queryByText(/Portal del participante no disponible/)).toBeNull();
   });
 
-  test('the feature map is the static staging-v1 + COMPETITION-V1 map; media, social studio and billing stay off', () => {
+  test('the feature map is the static staging-v1 + COMPETITION-V1 + OFFICIALIZATION-V1 map; media, social studio and billing stay off', () => {
     expect(Object.entries(stagingV1Features).filter(([, on]) => on).map(([key]) => key).sort())
-      .toEqual([...stagingV1OnFeatures, ...competitionV1OnFeatures].sort());
-    expect(Object.values(stagingV1Features).filter(Boolean)).toHaveLength(17);
+      .toEqual([...stagingV1OnFeatures, ...competitionV1OnFeatures, ...officializationV1OnFeatures].sort());
+    expect(Object.values(stagingV1Features).filter(Boolean)).toHaveLength(19);
     for (const key of ['media', 'social_studio', 'billing', 'plan', 'entitlements', 'branding_assets', 'player_portraits', 'team_photos', 'team_visual_policy', 'roster_lock']) {
       expect(stagingV1Features[key]).toBe(false);
     }
@@ -362,7 +363,7 @@ describe('hybrid composition — the REAL adapter only sends allowlisted RPCs', 
   beforeEach(() => { coreAccesses.length = 0; });
   afterEach(() => { expect(coreAccesses).toEqual([]); });
 
-  const allowed = new Set([...Object.values(stagingAllowlist.features).flat(), ...Object.values(competitionAllowlist.features).flat()]);
+  const allowed = new Set([...Object.values(stagingAllowlist.features).flat(), ...Object.values(competitionAllowlist.features).flat(), ...Object.values(officializationAllowlist.features).flat()]);
   const organization = { id: ORG, name: 'Liga Devoto', slug: 'liga-devoto', role: 'owner', status: 'active', capabilities: getCapabilitiesForRole('owner') };
   const replies = {
     get_tournament_workspace_context: { preference: { workspaceType: 'tournament_organization', activeOrganizationId: ORG }, organizations: [organization] },

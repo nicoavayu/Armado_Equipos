@@ -78,6 +78,21 @@ export function getCompetitionFormatName(code, fallback = 'Formato competitivo')
   return COMPETITION_FORMAT_LABELS[code] || fallback;
 }
 
+// Nombres de las modalidades del catálogo (tournament_sport_modalities) para las
+// superficies que no reciben el catálogo, como la página pública.
+export const SPORT_MODALITY_LABELS = Object.freeze({
+  football_5: 'Fútbol 5',
+  football_6: 'Fútbol 6',
+  football_7: 'Fútbol 7',
+  football_8: 'Fútbol 8',
+  football_9: 'Fútbol 9',
+  football_11: 'Fútbol 11',
+});
+
+export function getSportModalityName(code, fallback = 'Fútbol') {
+  return SPORT_MODALITY_LABELS[code] || fallback;
+}
+
 export const CHECKLIST_ITEMS = Object.freeze([
   { key: 'information', label: 'Información general completa' },
   { key: 'season', label: 'Temporada disponible' },

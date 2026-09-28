@@ -1,0 +1,988 @@
+{
+  "summary": {
+    "run": "ov136a44b",
+    "gateway": "edge",
+    "at": "2026-09-27T23:24:57.722Z",
+    "total": 39,
+    "passed": 39,
+    "failed": 0,
+    "exercised": [
+      "accept_tournament_organization_invitation",
+      "accept_tournament_team_invitation",
+      "add_tournament_match_event",
+      "add_tournament_roster_player",
+      "append_tournament_playoff_phase",
+      "assign_tournament_season_member",
+      "change_tournament_status",
+      "create_tournament_court",
+      "create_tournament_match_correction",
+      "create_tournament_organization",
+      "create_tournament_provisional_player",
+      "create_tournament_season",
+      "create_tournament_team_entry",
+      "create_tournament_venue",
+      "create_tournament_with_defaults",
+      "finish_tournament_competition",
+      "freeze_tournament_participants",
+      "generate_tournament_fixture",
+      "get_published_tournament_standings",
+      "get_tournament_match_dual_control",
+      "get_tournament_match_operation_context",
+      "get_tournament_standings_context",
+      "get_tournament_statistics_context",
+      "invite_tournament_organization_member",
+      "invite_tournament_team_manager",
+      "is_tournament_organization_member",
+      "list_tournament_organization_invitations",
+      "list_tournament_organization_members",
+      "make_tournament_match_official",
+      "open_tournament_match_operation",
+      "publish_tournament_fixture",
+      "publish_tournament_standings_revision",
+      "rebuild_tournament_standings",
+      "remove_tournament_organization_member",
+      "reopen_tournament_competition",
+      "request_tournament_match_correction",
+      "resolve_tournament_qualification",
+      "review_tournament_match_operation",
+      "review_tournament_team_entry",
+      "revoke_tournament_organization_invitation",
+      "save_tournament_category",
+      "set_tournament_match_dual_control",
+      "set_tournament_match_outcome",
+      "set_tournament_match_score",
+      "start_tournament_competition",
+      "submit_tournament_match_operation",
+      "submit_tournament_team_entry",
+      "update_tournament_organization_member_role",
+      "validate_tournament_match_operation",
+      "void_tournament_match_event",
+      "withdraw_tournament_competition_participant"
+    ],
+    "matrix_rows": 95
+  },
+  "results": [
+    {
+      "name": "A1 install: 0005 applied in order from the migrations directory; 0000–0004 byte-identical to their certified hashes",
+      "status": "PASS"
+    },
+    {
+      "name": "A2 ACL: exactly the 9 new RPCs gained authenticated (+service_role); anon/PUBLIC/server roles none; totals 162→171 / anon 12; 23 closed stay closed; authorizer stays private",
+      "status": "PASS"
+    },
+    {
+      "name": "A3 schema: invitations table RLS on with no client privilege and no policy; dual-control column boolean NOT NULL DEFAULT false (every existing tournament OFF); configure capability owner-only",
+      "status": "PASS"
+    },
+    {
+      "name": "A4 pins: the three replaced bodies are the OFFICIALIZATION-V1 bodies (definer, search_path pinned); the team branch of the authorizer is unchanged",
+      "status": "PASS"
+    },
+    {
+      "name": "A5 migration: re-apply is a no-op; a state without 0004 in force and a third body state are refused before any change",
+      "status": "PASS"
+    },
+    {
+      "name": "A6 rollback: in a rolled-back transaction it restores the POST_0004 bodies and 162/12, then 0005 is intact",
+      "status": "PASS"
+    },
+    {
+      "name": "A7 gateway: the officialization allowlist = contract.json, disjoint from staging v1 (43), competition (74) and the public route",
+      "status": "PASS"
+    },
+    {
+      "name": "B1 User A creates the organization (sole owner) and two seasons; an outsider owns another organization",
+      "status": "PASS"
+    },
+    {
+      "name": "B2 owner invites User B as ADMIN: one-time token (only its sha256 stored), pending invitation listed with email",
+      "status": "PASS"
+    },
+    {
+      "name": "B3 a different Core identity cannot accept B's invitation (verified email mismatch) — it stays pending",
+      "status": "PASS"
+    },
+    {
+      "name": "B4 User B accepts through the Core verified-email contract → active ADMIN; the token is single use; B sees the organization",
+      "status": "PASS"
+    },
+    {
+      "name": "B5 invitation rules: owner invites admins and collaborators; admin invites collaborators only; collaborator and outsider cannot invite",
+      "status": "PASS"
+    },
+    {
+      "name": "B6 revoke: a revoked link cannot be accepted; revoking again is idempotent; an admin cannot revoke the owner's admin invitation",
+      "status": "PASS"
+    },
+    {
+      "name": "B7 expired: an invitation past its expiry is refused and listed as expired",
+      "status": "PASS"
+    },
+    {
+      "name": "B8 re-inviting an email replaces the previous link (old token invalid, new one works); an admin cannot replace an owner's admin invitation",
+      "status": "PASS"
+    },
+    {
+      "name": "B9 roles: only the owner changes roles; nobody changes their own; the owner is protected; \"owner\" is never assignable; one owner at the database level",
+      "status": "PASS"
+    },
+    {
+      "name": "B10 removal: admin cannot remove an admin or the owner; nobody removes themselves; owner removal refused even by the database; removing is idempotent and releases seats",
+      "status": "PASS"
+    },
+    {
+      "name": "B11 cross-organization: an outsider cannot read or manage this organization's members; the owner cannot read the outsider's",
+      "status": "PASS"
+    },
+    {
+      "name": "C1 season seats: User B through the RPC; FREE limit reached for the next one; the other season-A seats seeded as fixtures; season B admin seated on B only",
+      "status": "PASS"
+    },
+    {
+      "name": "C2 tournament A (season A): 4 approved teams (one with an Arma2 player), fixture published, competition started, 6 matches scheduled; dual control OFF by default",
+      "status": "PASS"
+    },
+    {
+      "name": "C3 dual control OFF, single owner: owner loads the result 2-1 → reviews → validates their OWN report → makes it official (audited as self-validated)",
+      "status": "PASS"
+    },
+    {
+      "name": "C4 standings and statistics update from the official result (owner alone)",
+      "status": "PASS"
+    },
+    {
+      "name": "C5 dual control OFF — negative matrix on a pending report (submitted by admin B): collaborator, captain, player, other organization, other season, removed-later admin not yet, no bearer → refused; then B self-validates",
+      "status": "PASS"
+    },
+    {
+      "name": "C6 correction with a single owner: request → new version → 1-1 → submit/review/self-validate/official → superseded,official → standings recalculated",
+      "status": "PASS"
+    },
+    {
+      "name": "C7 policy: only the owner turns dual control ON (admin, collaborator, other season, other org refused); idempotent; audited; ON needs two eligible validators",
+      "status": "PASS"
+    },
+    {
+      "name": "C8 dual control ON: owner submits → the owner cannot validate (403 DUAL_CONTROL_REQUIRED, context says so) → admin B validates → official",
+      "status": "PASS"
+    },
+    {
+      "name": "C9 dual control ON: admin B submits → B cannot validate → the owner validates → official",
+      "status": "PASS"
+    },
+    {
+      "name": "C10 dual control ON — negative matrix on a pending report (admin B submitted): other org, other season, collaborator, captain, player, no bearer, and the removed admin after removal; then admin C validates (admin A → admin B)",
+      "status": "PASS"
+    },
+    {
+      "name": "C11 stale states: validate a draft / submitted report, make official before validation, review after official → refused; the last match through the product path",
+      "status": "PASS"
+    },
+    {
+      "name": "C12 standings / statistics correct after mixed OFF and ON officializations; qualification + playoffs reachable (final filled from the league table)",
+      "status": "PASS"
+    },
+    {
+      "name": "C13 lifecycle with dual control ON: 2-team tournament — result by owner, validated by admin B, official → finish (admin) → policy read-only while finished → reopen (owner) → policy OFF again",
+      "status": "PASS"
+    },
+    {
+      "name": "C14 withdrawn team (dual control OFF): 3-team tournament, one team withdrawn → its matches cannot be reported; the remaining match is officialized by the owner alone",
+      "status": "PASS"
+    },
+    {
+      "name": "D1 random / foreign IDs: unknown operation, tournament, invitation, membership → 403 without an oracle; malformed invitation tokens refused",
+      "status": "PASS"
+    },
+    {
+      "name": "D2 no bearer → 401 at the gateway for every OFFICIALIZATION-V1 RPC; the public route serves none of them",
+      "status": "PASS"
+    },
+    {
+      "name": "D3 straight at PostgREST: anon refused by the DB ACL for all 9; a valid bearer WITHOUT the gateway's Core attestation cannot accept an invitation; the invitations table is unreachable",
+      "status": "PASS"
+    },
+    {
+      "name": "D4 Core unavailable while accepting → 503 fail closed, invitation still pending; after recovery the same link works",
+      "status": "PASS"
+    },
+    {
+      "name": "D5 session authority: after User C logs out of Core, the bridge refuses them (exchange and validate 401)",
+      "status": "PASS"
+    },
+    {
+      "name": "D6 no-store: every gateway response of this run carried Cache-Control: no-store",
+      "status": "PASS"
+    },
+    {
+      "name": "D7 every OFFICIALIZATION-V1 RPC was exercised positively through the gateway",
+      "status": "PASS"
+    }
+  ],
+  "matrix": [
+    {
+      "rpc": "accept_tournament_organization_invitation",
+      "actor": "wrong-email",
+      "why": "email-mismatch",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_INVITATION_INVALID"
+    },
+    {
+      "rpc": "accept_tournament_organization_invitation",
+      "actor": "admin-b",
+      "why": "accept-twice",
+      "status": 403,
+      "code": "TORNEOS_INVITATION_INVALID",
+      "message": "TORNEOS_INVITATION_INVALID"
+    },
+    {
+      "rpc": "invite_tournament_organization_member",
+      "actor": "admin-b",
+      "why": "admin-grants-admin",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_MEMBER_ROLE_FORBIDDEN"
+    },
+    {
+      "rpc": "invite_tournament_organization_member",
+      "actor": "collab",
+      "why": "collaborator-invites",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_MEMBER_FORBIDDEN"
+    },
+    {
+      "rpc": "invite_tournament_organization_member",
+      "actor": "outsider",
+      "why": "cross-org",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_MEMBER_FORBIDDEN"
+    },
+    {
+      "rpc": "invite_tournament_organization_member",
+      "actor": "owner",
+      "why": "second-owner",
+      "status": 400,
+      "code": "22023",
+      "message": "TORNEOS_INVALID_MEMBER_ROLE"
+    },
+    {
+      "rpc": "list_tournament_organization_invitations",
+      "actor": "collab",
+      "why": "collaborator-reads-invitations",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_MEMBER_FORBIDDEN"
+    },
+    {
+      "rpc": "revoke_tournament_organization_invitation",
+      "actor": "admin-b",
+      "why": "admin-revokes-admin-invite",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_MEMBER_ROLE_FORBIDDEN"
+    },
+    {
+      "rpc": "accept_tournament_organization_invitation",
+      "actor": "late",
+      "why": "revoked",
+      "status": 403,
+      "code": "TORNEOS_INVITATION_INVALID",
+      "message": "TORNEOS_INVITATION_INVALID"
+    },
+    {
+      "rpc": "revoke_tournament_organization_invitation",
+      "actor": "outsider",
+      "why": "cross-org",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_INVITATION_INVALID"
+    },
+    {
+      "rpc": "revoke_tournament_organization_invitation",
+      "actor": "owner",
+      "why": "accepted-invite",
+      "status": 400,
+      "code": "P0001",
+      "message": "TORNEOS_INVITATION_NOT_PENDING"
+    },
+    {
+      "rpc": "accept_tournament_organization_invitation",
+      "actor": "late",
+      "why": "expired",
+      "status": 403,
+      "code": "TORNEOS_INVITATION_EXPIRED",
+      "message": "TORNEOS_INVITATION_EXPIRED"
+    },
+    {
+      "rpc": "accept_tournament_organization_invitation",
+      "actor": "late",
+      "why": "replaced",
+      "status": 403,
+      "code": "TORNEOS_INVITATION_INVALID",
+      "message": "TORNEOS_INVITATION_INVALID"
+    },
+    {
+      "rpc": "invite_tournament_organization_member",
+      "actor": "admin-b",
+      "why": "admin-replaces-owner-invite",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_MEMBER_ROLE_FORBIDDEN"
+    },
+    {
+      "rpc": "update_tournament_organization_member_role",
+      "actor": "admin-b",
+      "why": "admin-promotes",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_MEMBER_ROLE_FORBIDDEN"
+    },
+    {
+      "rpc": "update_tournament_organization_member_role",
+      "actor": "collab",
+      "why": "collaborator-self-escalation",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_MEMBER_FORBIDDEN"
+    },
+    {
+      "rpc": "update_tournament_organization_member_role",
+      "actor": "admin-b",
+      "why": "self-change",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_MEMBER_SELF_CHANGE_FORBIDDEN"
+    },
+    {
+      "rpc": "update_tournament_organization_member_role",
+      "actor": "admin-b",
+      "why": "admin-demotes-owner",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_OWNER_PROTECTED"
+    },
+    {
+      "rpc": "update_tournament_organization_member_role",
+      "actor": "owner",
+      "why": "owner-self-demotion",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_MEMBER_SELF_CHANGE_FORBIDDEN"
+    },
+    {
+      "rpc": "update_tournament_organization_member_role",
+      "actor": "owner",
+      "why": "second-owner",
+      "status": 400,
+      "code": "22023",
+      "message": "TORNEOS_INVALID_MEMBER_ROLE"
+    },
+    {
+      "rpc": "update_tournament_organization_member_role",
+      "actor": "outsider",
+      "why": "cross-org",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_MEMBER_FORBIDDEN"
+    },
+    {
+      "rpc": "remove_tournament_organization_member",
+      "actor": "admin-b",
+      "why": "admin-removes-admin",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_MEMBER_ROLE_FORBIDDEN"
+    },
+    {
+      "rpc": "remove_tournament_organization_member",
+      "actor": "admin-b",
+      "why": "admin-removes-owner",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_OWNER_PROTECTED"
+    },
+    {
+      "rpc": "remove_tournament_organization_member",
+      "actor": "owner",
+      "why": "owner-leaves",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_MEMBER_SELF_CHANGE_FORBIDDEN"
+    },
+    {
+      "rpc": "remove_tournament_organization_member",
+      "actor": "collab",
+      "why": "collaborator-removes",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_MEMBER_FORBIDDEN"
+    },
+    {
+      "rpc": "remove_tournament_organization_member",
+      "actor": "outsider",
+      "why": "cross-org",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_MEMBER_FORBIDDEN"
+    },
+    {
+      "rpc": "get_tournament_competition_context",
+      "actor": "late",
+      "why": "removed-member",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "list_tournament_organization_members",
+      "actor": "late",
+      "why": "removed-member",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_MEMBER_FORBIDDEN"
+    },
+    {
+      "rpc": "list_tournament_organization_members",
+      "actor": "outsider",
+      "why": "cross-org",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_MEMBER_FORBIDDEN"
+    },
+    {
+      "rpc": "list_tournament_organization_members",
+      "actor": "owner",
+      "why": "cross-org",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_MEMBER_FORBIDDEN"
+    },
+    {
+      "rpc": "list_tournament_organization_invitations",
+      "actor": "outsider",
+      "why": "cross-org",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_MEMBER_FORBIDDEN"
+    },
+    {
+      "rpc": "get_tournament_match_dual_control",
+      "actor": "season2-admin",
+      "why": "cross-season",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "get_tournament_match_dual_control",
+      "actor": "outsider",
+      "why": "cross-org",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "validate_tournament_match_operation",
+      "actor": "collab",
+      "why": "off:collaborator",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_MATCH_FORBIDDEN"
+    },
+    {
+      "rpc": "validate_tournament_match_operation",
+      "actor": "captain-0",
+      "why": "off:captain",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_MATCH_FORBIDDEN"
+    },
+    {
+      "rpc": "validate_tournament_match_operation",
+      "actor": "player",
+      "why": "off:player",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_MATCH_FORBIDDEN"
+    },
+    {
+      "rpc": "validate_tournament_match_operation",
+      "actor": "outsider",
+      "why": "off:other-organization",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_MATCH_FORBIDDEN"
+    },
+    {
+      "rpc": "validate_tournament_match_operation",
+      "actor": "season2-admin",
+      "why": "off:other-season",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_MATCH_FORBIDDEN"
+    },
+    {
+      "rpc": "validate_tournament_match_operation",
+      "actor": "outsider",
+      "why": "off:other-organization-scope",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_MATCH_FORBIDDEN"
+    },
+    {
+      "rpc": "validate_tournament_match_operation",
+      "actor": "no-bearer",
+      "why": "off:anon",
+      "status": 401,
+      "code": "access denied",
+      "message": "access denied"
+    },
+    {
+      "rpc": "make_tournament_match_official",
+      "actor": "collab",
+      "why": "off:collaborator",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_MATCH_FORBIDDEN"
+    },
+    {
+      "rpc": "make_tournament_match_official",
+      "actor": "captain-0",
+      "why": "off:captain",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_MATCH_FORBIDDEN"
+    },
+    {
+      "rpc": "make_tournament_match_official",
+      "actor": "player",
+      "why": "off:player",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_MATCH_FORBIDDEN"
+    },
+    {
+      "rpc": "make_tournament_match_official",
+      "actor": "outsider",
+      "why": "off:other-organization",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_MATCH_FORBIDDEN"
+    },
+    {
+      "rpc": "make_tournament_match_official",
+      "actor": "season2-admin",
+      "why": "off:other-season",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_MATCH_FORBIDDEN"
+    },
+    {
+      "rpc": "set_tournament_match_dual_control",
+      "actor": "admin-b",
+      "why": "admin-changes-policy",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "set_tournament_match_dual_control",
+      "actor": "collab",
+      "why": "collaborator-changes-policy",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "set_tournament_match_dual_control",
+      "actor": "season2-admin",
+      "why": "other-season",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "set_tournament_match_dual_control",
+      "actor": "outsider",
+      "why": "other-organization",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "set_tournament_match_dual_control",
+      "actor": "owner",
+      "why": "null",
+      "status": 400,
+      "code": "22023",
+      "message": "TORNEOS_INVALID_DUAL_CONTROL"
+    },
+    {
+      "rpc": "set_tournament_match_dual_control",
+      "actor": "outsider",
+      "why": "single-validator",
+      "status": 400,
+      "code": "P0001",
+      "message": "TORNEOS_DUAL_CONTROL_SECOND_VALIDATOR_REQUIRED"
+    },
+    {
+      "rpc": "validate_tournament_match_operation",
+      "actor": "owner",
+      "why": "on:owner-self",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_MATCH_DUAL_CONTROL_REQUIRED"
+    },
+    {
+      "rpc": "validate_tournament_match_operation",
+      "actor": "admin-b",
+      "why": "on:admin-self",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_MATCH_DUAL_CONTROL_REQUIRED"
+    },
+    {
+      "rpc": "validate_tournament_match_operation",
+      "actor": "outsider",
+      "why": "on:other-organization",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_MATCH_FORBIDDEN"
+    },
+    {
+      "rpc": "validate_tournament_match_operation",
+      "actor": "season2-admin",
+      "why": "on:other-season",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_MATCH_FORBIDDEN"
+    },
+    {
+      "rpc": "validate_tournament_match_operation",
+      "actor": "collab",
+      "why": "on:collaborator",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_MATCH_FORBIDDEN"
+    },
+    {
+      "rpc": "validate_tournament_match_operation",
+      "actor": "captain-1",
+      "why": "on:captain",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_MATCH_FORBIDDEN"
+    },
+    {
+      "rpc": "validate_tournament_match_operation",
+      "actor": "player",
+      "why": "on:player",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_MATCH_FORBIDDEN"
+    },
+    {
+      "rpc": "validate_tournament_match_operation",
+      "actor": "removed-admin",
+      "why": "on:removed-member",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_MATCH_FORBIDDEN"
+    },
+    {
+      "rpc": "validate_tournament_match_operation",
+      "actor": "no-bearer",
+      "why": "on:anon",
+      "status": 401,
+      "code": "access denied",
+      "message": "access denied"
+    },
+    {
+      "rpc": "get_tournament_match_operations_context",
+      "actor": "removed-admin",
+      "why": "removed-member-read",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_MATCH_FORBIDDEN"
+    },
+    {
+      "rpc": "validate_tournament_match_operation",
+      "actor": "owner",
+      "why": "double-validation",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_MATCH_FORBIDDEN"
+    },
+    {
+      "rpc": "validate_tournament_match_operation",
+      "actor": "owner",
+      "why": "stale:draft",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_MATCH_FORBIDDEN"
+    },
+    {
+      "rpc": "make_tournament_match_official",
+      "actor": "owner",
+      "why": "stale:draft",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_MATCH_FORBIDDEN"
+    },
+    {
+      "rpc": "validate_tournament_match_operation",
+      "actor": "owner",
+      "why": "stale:submitted",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_MATCH_FORBIDDEN"
+    },
+    {
+      "rpc": "make_tournament_match_official",
+      "actor": "owner",
+      "why": "stale:submitted",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_MATCH_FORBIDDEN"
+    },
+    {
+      "rpc": "validate_tournament_match_operation",
+      "actor": "admin-c",
+      "why": "on:admin-self",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_MATCH_DUAL_CONTROL_REQUIRED"
+    },
+    {
+      "rpc": "review_tournament_match_operation",
+      "actor": "owner",
+      "why": "stale:official",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_MATCH_FORBIDDEN"
+    },
+    {
+      "rpc": "validate_tournament_match_operation",
+      "actor": "owner",
+      "why": "on:owner-self",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_MATCH_DUAL_CONTROL_REQUIRED"
+    },
+    {
+      "rpc": "set_tournament_match_dual_control",
+      "actor": "owner",
+      "why": "finished",
+      "status": 400,
+      "code": "22023",
+      "message": "TORNEOS_COMPETITION_READ_ONLY"
+    },
+    {
+      "rpc": "request_tournament_match_correction",
+      "actor": "owner",
+      "why": "finished-correction",
+      "status": 400,
+      "code": "22023",
+      "message": "TORNEOS_COMPETITION_READ_ONLY"
+    },
+    {
+      "rpc": "open_tournament_match_operation",
+      "actor": "owner",
+      "why": "withdrawn-team",
+      "status": 400,
+      "code": "22023",
+      "message": "TORNEOS_MATCH_NOT_OPENABLE"
+    },
+    {
+      "rpc": "validate_tournament_match_operation",
+      "actor": "owner",
+      "why": "random-operation",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_MATCH_FORBIDDEN"
+    },
+    {
+      "rpc": "validate_tournament_match_operation",
+      "actor": "owner",
+      "why": "random-organization",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_MATCH_FORBIDDEN"
+    },
+    {
+      "rpc": "set_tournament_match_dual_control",
+      "actor": "owner",
+      "why": "random-tournament",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "get_tournament_match_dual_control",
+      "actor": "owner",
+      "why": "foreign-pairing",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_RESOURCE_FORBIDDEN"
+    },
+    {
+      "rpc": "revoke_tournament_organization_invitation",
+      "actor": "owner",
+      "why": "random-invitation",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_INVITATION_INVALID"
+    },
+    {
+      "rpc": "update_tournament_organization_member_role",
+      "actor": "owner",
+      "why": "random-membership",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_MEMBER_FORBIDDEN"
+    },
+    {
+      "rpc": "remove_tournament_organization_member",
+      "actor": "owner",
+      "why": "random-membership",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_MEMBER_FORBIDDEN"
+    },
+    {
+      "rpc": "accept_tournament_organization_invitation",
+      "actor": "late",
+      "why": "bad-token",
+      "status": 403,
+      "code": "TORNEOS_INVITATION_INVALID",
+      "message": "TORNEOS_INVITATION_INVALID"
+    },
+    {
+      "rpc": "accept_tournament_organization_invitation",
+      "actor": "late",
+      "why": "bad-token",
+      "status": 403,
+      "code": "TORNEOS_INVITATION_INVALID",
+      "message": "TORNEOS_INVITATION_INVALID"
+    },
+    {
+      "rpc": "accept_tournament_organization_invitation",
+      "actor": "late",
+      "why": "bad-token",
+      "status": 403,
+      "code": "TORNEOS_INVITATION_INVALID",
+      "message": "TORNEOS_INVITATION_INVALID"
+    },
+    {
+      "rpc": "invite_tournament_organization_member",
+      "actor": "owner",
+      "why": "bad-email",
+      "status": 400,
+      "code": "22023",
+      "message": "TORNEOS_INVALID_MEMBER_EMAIL"
+    },
+    {
+      "rpc": "anon:list_tournament_organization_members",
+      "actor": "direct-postgrest",
+      "why": "no-gateway",
+      "status": 401,
+      "code": "42501",
+      "message": "permission denied for function list_tournament_organization_members"
+    },
+    {
+      "rpc": "anon:list_tournament_organization_invitations",
+      "actor": "direct-postgrest",
+      "why": "no-gateway",
+      "status": 401,
+      "code": "42501",
+      "message": "permission denied for function list_tournament_organization_invitations"
+    },
+    {
+      "rpc": "anon:invite_tournament_organization_member",
+      "actor": "direct-postgrest",
+      "why": "no-gateway",
+      "status": 401,
+      "code": "42501",
+      "message": "permission denied for function invite_tournament_organization_member"
+    },
+    {
+      "rpc": "anon:revoke_tournament_organization_invitation",
+      "actor": "direct-postgrest",
+      "why": "no-gateway",
+      "status": 401,
+      "code": "42501",
+      "message": "permission denied for function revoke_tournament_organization_invitation"
+    },
+    {
+      "rpc": "anon:accept_tournament_organization_invitation",
+      "actor": "direct-postgrest",
+      "why": "no-gateway",
+      "status": 401,
+      "code": "42501",
+      "message": "permission denied for function accept_tournament_organization_invitation"
+    },
+    {
+      "rpc": "anon:update_tournament_organization_member_role",
+      "actor": "direct-postgrest",
+      "why": "no-gateway",
+      "status": 401,
+      "code": "42501",
+      "message": "permission denied for function update_tournament_organization_member_role"
+    },
+    {
+      "rpc": "anon:remove_tournament_organization_member",
+      "actor": "direct-postgrest",
+      "why": "no-gateway",
+      "status": 401,
+      "code": "42501",
+      "message": "permission denied for function remove_tournament_organization_member"
+    },
+    {
+      "rpc": "anon:get_tournament_match_dual_control",
+      "actor": "direct-postgrest",
+      "why": "no-gateway",
+      "status": 401,
+      "code": "42501",
+      "message": "permission denied for function get_tournament_match_dual_control"
+    },
+    {
+      "rpc": "anon:set_tournament_match_dual_control",
+      "actor": "direct-postgrest",
+      "why": "no-gateway",
+      "status": 401,
+      "code": "42501",
+      "message": "permission denied for function set_tournament_match_dual_control"
+    },
+    {
+      "rpc": "bearer:accept-without-attestation",
+      "actor": "direct-postgrest",
+      "why": "no-gateway",
+      "status": 403,
+      "code": "42501",
+      "message": "TORNEOS_CORE_ATTESTATION_REQUIRED"
+    },
+    {
+      "rpc": "bearer:table",
+      "actor": "direct-postgrest",
+      "why": "no-gateway",
+      "status": 403,
+      "code": "42501",
+      "message": "permission denied for table tournament_organization_invitations"
+    },
+    {
+      "rpc": "anon:table",
+      "actor": "direct-postgrest",
+      "why": "no-gateway",
+      "status": 401,
+      "code": "42501",
+      "message": "permission denied for table tournament_organization_invitations"
+    }
+  ],
+  "no_store": {
+    "responses": 455,
+    "without_no_store": 0
+  }
+}

@@ -1988,7 +1988,7 @@
   min-width: 0;
   min-height: 72px;
   display: grid;
-  grid-template-columns: 44px minmax(0, 1fr) minmax(190px, 300px) auto;
+  grid-template-columns: 44px minmax(0, 1fr) minmax(190px, 300px) auto auto;
   align-items: center;
   gap: 12px;
   padding: 12px 14px;
@@ -2602,4 +2602,113 @@
   .appCalloutDismiss { position: absolute; top: 9px; right: 9px; }
   .appCalloutLinks { grid-column: 1 / -1; flex-wrap: wrap; margin-top: 4px; }
   .appCalloutLinks a { flex: 1 1 128px; justify-content: center; }
+}
+
+/* OFFICIALIZATION-V1: invitaciones y gestión de miembros. */
+.membersToolbar button.membersToolbarAction {
+  color: #eee8f6;
+  background: rgba(136, 92, 255, 0.16);
+  border-color: rgba(136, 92, 255, 0.4);
+  cursor: pointer;
+}
+
+.inviteForm {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(150px, 0.4fr) auto;
+  align-items: end;
+  gap: 10px;
+}
+
+.inviteForm label {
+  min-width: 0;
+}
+
+.inviteForm input,
+.inviteLinkRow input {
+  min-height: 40px;
+  width: 100%;
+  padding: 0 11px;
+  color: #eee8f6;
+  background: #17131d;
+  border: 1px solid var(--torneos-border);
+  border-radius: 8px;
+}
+
+.inviteForm button,
+.inviteLinkRow button,
+.inviteSecondary {
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 12px;
+  color: #eee8f6;
+  background: rgba(136, 92, 255, 0.16);
+  border: 1px solid rgba(136, 92, 255, 0.4);
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.inviteForm button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.inviteResult {
+  display: grid;
+  gap: 10px;
+}
+
+.inviteResult p {
+  margin: 0;
+  color: var(--torneos-muted);
+  font-size: 12px;
+}
+
+.inviteLinkRow {
+  display: flex;
+  gap: 8px;
+}
+
+.inviteSecondary {
+  justify-self: start;
+  background: transparent;
+}
+
+.memberRole select {
+  min-height: 32px;
+  padding: 0 8px;
+  color: #eee8f6;
+  background: #17131d;
+  border: 1px solid var(--torneos-border);
+  border-radius: 7px;
+}
+
+.memberRemove {
+  width: 34px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #f3b3c0;
+  background: rgba(255, 90, 120, 0.06);
+  border: 1px solid rgba(255, 90, 120, 0.25);
+  border-radius: 7px;
+  cursor: pointer;
+}
+
+.memberRemove:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+@media (max-width: 720px) {
+  .inviteForm {
+    grid-template-columns: 1fr;
+  }
+
+  .inviteLinkRow {
+    flex-direction: column;
+  }
 }

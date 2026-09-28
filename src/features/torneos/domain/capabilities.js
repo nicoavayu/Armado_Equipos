@@ -104,6 +104,8 @@ export const TOURNAMENT_CAPABILITIES = Object.freeze({
   MATCH_OPERATIONS_REQUEST_CORRECTION: 'match_operations.request_correction',
   MATCH_OPERATIONS_CORRECT: 'match_operations.correct',
   MATCH_OPERATIONS_VOID: 'match_operations.void',
+  // OFFICIALIZATION-V1: política de doble control del torneo (sólo el propietario).
+  MATCH_OPERATIONS_CONFIGURE_DUAL_CONTROL: 'match_operations.configure_dual_control',
   MATCH_SQUADS_READ: 'match_squads.read',
   MATCH_SQUADS_MANAGE: 'match_squads.manage',
   MATCH_SQUADS_SUBMIT: 'match_squads.submit',
@@ -330,6 +332,8 @@ export const ROLE_CAPABILITIES = Object.freeze({
     TOURNAMENT_CAPABILITIES.WORKSPACE_MANAGE,
     // Reabrir una competencia finalizada es exclusivo del propietario.
     TOURNAMENT_CAPABILITIES.TOURNAMENTS_REOPEN,
+    // También lo es la política de doble control de actas.
+    TOURNAMENT_CAPABILITIES.MATCH_OPERATIONS_CONFIGURE_DUAL_CONTROL,
     ...competitionManagementCapabilities,
     ...teamReadCapabilities,
     ...teamManagementCapabilities,

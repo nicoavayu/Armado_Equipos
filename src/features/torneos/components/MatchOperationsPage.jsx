@@ -37,6 +37,12 @@ import { useTorneosFixture } from '../context/TorneosFixtureContext';
 import { useTorneosWorkspace } from '../context/TorneosWorkspaceContext';
 import { hasCapability, TOURNAMENT_CAPABILITIES } from '../domain/capabilities';
 import {
+  canConfirmAlone,
+  canViewerValidate,
+  confirmMatchOperation,
+  readDualControl,
+} from '../domain/matchOfficialization';
+import {
   getCompetitionErrorContext,
   getLifecycleErrorMessage,
   getMatchResolutionPresentation,
@@ -896,11 +902,21 @@ export default function MatchOperationsPage({ mode = 'list' }) {
   const canOpen = hasCapability(organization, TOURNAMENT_CAPABILITIES.MATCH_OPERATIONS_OPEN);
   const canManage = hasCapability(organization, TOURNAMENT_CAPABILITIES.MATCH_OPERATIONS_UPDATE_DRAFT);
   const canReview = hasCapability(organization, TOURNAMENT_CAPABILITIES.MATCH_OPERATIONS_REVIEW);
+  const canValidateRole = hasCapability(organization, TOURNAMENT_CAPABILITIES.MATCH_OPERATIONS_VALIDATE);
+  const canMakeOfficialRole = hasCapability(organization, TOURNAMENT_CAPABILITIES.MATCH_OPERATIONS_MAKE_OFFICIAL);
   const matchRoutes = useMatchRoutes(organization.id);
+  // OFFICIALIZATION-V1: the tournament's dual-control policy, as the operation context reports it.
+  const dualControl = readDualControl(state.operation);
+  const canConfirm = canConfirmAlone(state.operation, {
+    canSubmit: hasCapability(organization, TOURNAMENT_CAPABILITIES.MATCH_OPERATIONS_SUBMIT),
+    canReview,
+    canValidate: canValidateRole,
+    canMakeOfficial: canMakeOfficialRole,
+  });
 
   const run = async (action, payload = {}) => {
     if (busy) return;
-    if (action === 'official'
+    if (['official', 'confirm'].includes(action)
       && !window.confirm('¿Confirmás que esta versión será el resultado oficial e inmutable?')) return;
     if (action === 'outcome'
       && ['walkover_home', 'walkover_away'].includes(payload.outcomeType)
@@ -923,6 +939,13 @@ export default function MatchOperationsPage({ mode = 'list' }) {
       if (action === 'review') await service.reviewMatchOperation({ ...common, operationId, ...payload });
       if (action === 'validate') await service.validateMatchOperation({ ...common, operationId });
       if (action === 'official') await service.makeMatchOfficial({ ...common, operationId });
+      if (action === 'confirm') {
+        await confirmMatchOperation(service, {
+          ...common,
+          operationId,
+          ...(reviewReason.trim().length >= 3 ? { reason: reviewReason.trim() } : {}),
+        });
+      }
       if (action === 'requestCorrection') await service.requestMatchCorrection({ ...common, operationId, reason: payload.reason });
       if (action === 'createCorrection') await service.createMatchCorrection({ ...common, operationId });
       await load({ notice: {
@@ -935,8 +958,9 @@ export default function MatchOperationsPage({ mode = 'list' }) {
         voidEvent: 'Evento anulado sin borrar historial.',
         submit: 'Acta presentada para revisión.',
         review: 'Revisión registrada.',
-        validate: 'Acta validada por doble control.',
+        validate: 'Acta validada.',
         official: 'El resultado ya es oficial.',
+        confirm: 'El resultado ya es oficial. Recalculá la tabla para reflejarlo.',
         requestCorrection: 'Corrección solicitada.',
         createCorrection: 'Nueva versión editable creada.',
       }[action] });
@@ -1089,8 +1113,20 @@ export default function MatchOperationsPage({ mode = 'list' }) {
                 <ReportEditor match={match} context={state.operation} canManage={canManage} busy={busy} run={run} />
                 {state.operation.operation.status === 'draft' && canManage && (
                   <section className={styles.closureCard}>
-                    <div><CheckCircle2 size={25} /><span>Cierre</span><h2>Presentar acta</h2><p>El backend revalida outcome, score, eventos y resoluciones pendientes en una sola transacción.</p></div>
-                    <button className={styles.primaryButton} type="button" disabled={busy} onClick={() => run('submit')}><LockKeyhole size={17} /> Presentar para revisión</button>
+                    {canConfirm ? (
+                      <>
+                        <div><CheckCircle2 size={25} /><span>Cierre</span><h2>Confirmar resultado</h2><p>Este torneo no usa doble control: podés presentar el acta y oficializarla vos. Cada paso queda auditado.</p></div>
+                        <div className={styles.closureActions}>
+                          <button className={styles.primaryButton} type="button" disabled={busy} onClick={() => run('confirm')}><CheckCircle2 size={17} /> Presentar y oficializar</button>
+                          <button type="button" disabled={busy} onClick={() => run('submit')}><LockKeyhole size={17} /> Sólo presentar</button>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div><CheckCircle2 size={25} /><span>Cierre</span><h2>Presentar acta</h2><p>{dualControl.known && dualControl.enabled ? 'Este torneo usa doble control: otra persona autorizada deberá validar el acta que presentes.' : 'El backend revalida outcome, score, eventos y resoluciones pendientes en una sola transacción.'}</p></div>
+                        <button className={styles.primaryButton} type="button" disabled={busy} onClick={() => run('submit')}><LockKeyhole size={17} /> Presentar para revisión</button>
+                      </>
+                    )}
                   </section>
                 )}
               </>
@@ -1100,12 +1136,27 @@ export default function MatchOperationsPage({ mode = 'list' }) {
           {mode === 'review' && (
             <section className={styles.reviewPanel}>
               <div className={styles.panelHeading}>
-                <div><span>Doble control</span><h2>Revisión y validación</h2></div>
+                <div><span>{dualControl.enabled ? 'Doble control' : 'Control del organizador'}</span><h2>Revisión y validación</h2></div>
                 <UserCheck size={24} />
               </div>
               {!state.operation ? <p>No hay un acta abierta.</p> : (
                 <>
                   <MatchScore match={match} operation={state.operation} />
+                  {dualControl.known && (
+                    <p className={styles.dualControlNote} data-dual-control={dualControl.enabled ? 'on' : 'off'}>
+                      {dualControl.enabled
+                        ? 'Doble control activo: quien presenta el acta no puede validarla.'
+                        : 'Doble control desactivado: un Propietario o Administrador puede confirmar su propia acta.'}
+                      {state.operation.operation.submitted_at && (
+                        dualControl.submittedByViewer
+                          ? ' Presentada por vos.'
+                          : ' Presentada por otro miembro de la organización.'
+                      )}
+                      {dualControl.enabled && dualControl.submittedByViewer
+                        && ['submitted', 'under_review'].includes(state.operation.operation.status)
+                        && ' Otro Administrador debe validarla.'}
+                    </p>
+                  )}
                   <label><span>Fundamento de la revisión</span><textarea value={reviewReason} onChange={(event) => setReviewReason(event.target.value)} placeholder="Observaciones concretas, sin datos privados innecesarios…" /></label>
                   <div className={styles.reviewActions}>
                     {canReview && state.operation.operation.status === 'submitted' && (
@@ -1114,11 +1165,15 @@ export default function MatchOperationsPage({ mode = 'list' }) {
                         <button type="button" disabled={busy || reviewReason.trim().length < 3} onClick={() => run('review', { decision: 'approved', reason: reviewReason })}><ShieldCheck size={17} /> Aprobar revisión</button>
                       </>
                     )}
-                    {hasCapability(organization, TOURNAMENT_CAPABILITIES.MATCH_OPERATIONS_VALIDATE)
+                    {canConfirm && state.operation.operation.status !== 'draft' && (
+                      <button className={styles.primaryButton} type="button" disabled={busy} onClick={() => run('confirm')}><CheckCircle2 size={17} /> Confirmar y oficializar</button>
+                    )}
+                    {!canConfirm && canValidateRole
+                      && canViewerValidate(state.operation)
                       && state.operation.operation.status === 'under_review' && (
                       <button type="button" disabled={busy} onClick={() => run('validate')}><UserCheck size={17} /> Validar acta</button>
                     )}
-                    {hasCapability(organization, TOURNAMENT_CAPABILITIES.MATCH_OPERATIONS_MAKE_OFFICIAL)
+                    {!canConfirm && canMakeOfficialRole
                       && state.operation.operation.status === 'validated' && (
                       <button className={styles.primaryButton} type="button" disabled={busy} onClick={() => run('official')}><CheckCircle2 size={17} /> Hacer oficial</button>
                     )}

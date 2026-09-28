@@ -55,6 +55,7 @@ import TeamsPage from './TeamsPage';
 import NewTeamEntryPage from './NewTeamEntryPage';
 import TeamRegistrationPage from './TeamRegistrationPage';
 import TeamInvitationPage from './TeamInvitationPage';
+import OrganizationInvitationPage from './OrganizationInvitationPage';
 import WorkspaceSwitcher from './WorkspaceSwitcher';
 import FixtureWorkspacePage from './FixtureWorkspacePage';
 import MatchOperationsPage from './MatchOperationsPage';
@@ -67,6 +68,7 @@ import MyCommunicationsPage from './MyCommunicationsPage';
 import CommunicationsAdminPage from './CommunicationsAdminPage';
 import MediaAdminPage from './MediaAdminPage';
 import SocialStudioPage from './SocialStudioPage';
+import { resolveTorneosEnvironmentNotice } from '../config/environmentNotice';
 import styles from './TorneosShell.module.css';
 
 //
@@ -314,6 +316,7 @@ export default function TorneosShell() {
   const { isKeyboardOpen } = useKeyboard();
   const { activeOrganization } = useTorneosWorkspace();
   const features = useTorneosFeatures();
+  const environmentNotice = resolveTorneosEnvironmentNotice();
   // A route whose surface is off renders the unavailable page instead of its
   // component, so the component never mounts and never requests anything.
   const gate = (feature, element) => (
@@ -364,13 +367,15 @@ export default function TorneosShell() {
           features={features}
         />
 
-        <div className={styles.previewNotice}>
-          <ShieldCheck size={16} aria-hidden="true" />
-          <div>
-            <strong>Entorno aislado</strong>
-            <span>Sin conexión intencional a producción</span>
+        {environmentNotice && (
+          <div className={styles.previewNotice}>
+            <ShieldCheck size={16} aria-hidden="true" />
+            <div>
+              <strong>{environmentNotice.title}</strong>
+              <span>{environmentNotice.detail}</span>
+            </div>
           </div>
-        </div>
+        )}
       </aside>
 
       <section className={styles.workspace}>
@@ -617,6 +622,7 @@ export default function TorneosShell() {
               element={gate('participant_hub', <TournamentHubPage defaultSection="disciplina" />)}
             />
             <Route path="invitacion/equipo/:token" element={<TeamInvitationPage />} />
+            <Route path="invitacion/organizacion/:token" element={gate('organization_members', <OrganizationInvitationPage />)} />
             <Route path="*" element={<Navigate to="/torneos" replace />} />
           </Routes>
         </main>

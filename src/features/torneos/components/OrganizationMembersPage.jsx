@@ -1,12 +1,16 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   Check,
   Clock3,
+  Copy,
   LoaderCircle,
   LockKeyhole,
+  Mail,
   Plus,
+  Trash2,
   UserRound,
   Users,
+  X,
 } from 'lucide-react';
 import { useOutletContext } from 'react-router-dom';
 import {
@@ -16,6 +20,7 @@ import {
   TOURNAMENT_CAPABILITIES,
 } from '../domain/capabilities';
 import { useTorneosWorkspace } from '../context/TorneosWorkspaceContext';
+import { useTorneosFeature } from '../context/TorneosFeaturesContext';
 import OrganizationSettingsNav from './OrganizationSettingsNav';
 import { WorkspaceError, WorkspaceLoading } from './WorkspaceState';
 import styles from './TorneosShell.module.css';
@@ -40,8 +45,19 @@ function RoleGuideGroup({ label, roles }) {
 }
 
 function safeMemberLabel(member, organization) {
-  if (member.role === 'owner') return `Propietario de ${organization.name}`;
-  return `Miembro · ${String(member.user_id).slice(0, 8)}`;
+  const base = member.role === 'owner'
+    ? `Propietario de ${organization.name}`
+    : (member.email || `Miembro · ${String(member.user_id).slice(0, 8)}`);
+  return member.is_viewer ? `${base} (vos)` : base;
+}
+
+const INVITABLE_ROLES = {
+  owner: ['admin', 'collaborator'],
+  admin: ['collaborator'],
+};
+
+export function organizationInvitationUrl(token, origin = window.location.origin) {
+  return `${origin}/torneos/invitacion/organizacion/${token}`;
 }
 
 function formatDate(value) {
@@ -72,10 +88,119 @@ export default function OrganizationMembersPage() {
   const [assignmentState, setAssignmentState] = useState({
     status: 'idle', assignments: [], entitlements: null, error: '', pendingId: '',
   });
+  const membersFeature = useTorneosFeature('organization_members');
+  const offers = (name) => membersFeature && typeof service?.[name] === 'function';
+  const isOwner = organization.role === 'owner';
   const canInvite = hasCapability(
     organization,
     TOURNAMENT_CAPABILITIES.MEMBERS_INVITE,
   );
+  // OFFICIALIZATION-V1: invitations, role changes and removals exist only where the
+  // mounted service offers them (hybrid gateway); the rules below mirror the RPCs so
+  // no button is offered that the backend must refuse.
+  const canSendInvitations = canInvite && offers('inviteMember');
+  const invitableRoles = INVITABLE_ROLES[organization.role] || [];
+  const canChangeRoles = isOwner && offers('updateMemberRole');
+  const canRemoveMember = (member) => offers('removeMember')
+    && hasCapability(organization, TOURNAMENT_CAPABILITIES.MEMBERS_REMOVE)
+    && member.status === 'active'
+    && member.role !== 'owner'
+    && !member.is_viewer
+    && (member.role !== 'admin' || isOwner);
+  const [inviteState, setInviteState] = useState({
+    open: false, email: '', role: 'collaborator', status: 'idle', error: '', created: null,
+  });
+  const [invitations, setInvitations] = useState([]);
+  const [memberAction, setMemberAction] = useState({ pendingId: '', error: '' });
+
+  const loadInvitations = useCallback(async () => {
+    if (!canInvite || !membersFeature || typeof service?.listMemberInvitations !== 'function') {
+      setInvitations([]);
+      return;
+    }
+    try {
+      setInvitations(await service.listMemberInvitations({ organizationId: organization.id }) || []);
+    } catch {
+      setInvitations([]);
+    }
+  }, [canInvite, membersFeature, organization.id, service]);
+
+  useEffect(() => { loadInvitations(); }, [loadInvitations]);
+
+  const reloadMembers = async () => {
+    const members = await service.listMembers(organization.id);
+    setState((current) => ({ ...current, members }));
+  };
+
+  const sendInvitation = async (event) => {
+    event.preventDefault();
+    if (inviteState.status === 'loading') return;
+    setInviteState((current) => ({ ...current, status: 'loading', error: '' }));
+    try {
+      const result = await service.inviteMember({
+        organizationId: organization.id,
+        email: inviteState.email.trim(),
+        role: inviteState.role,
+      });
+      setInviteState({
+        open: true,
+        email: '',
+        role: inviteState.role,
+        status: 'idle',
+        error: '',
+        created: {
+          url: organizationInvitationUrl(result.token),
+          email: result.email,
+          role: result.role,
+          expiresAt: result.expiresAt,
+        },
+      });
+      await loadInvitations();
+    } catch (error) {
+      setInviteState((current) => ({
+        ...current, status: 'idle', error: error?.message || 'No pudimos generar la invitación.',
+      }));
+    }
+  };
+
+  const revokeInvitation = async (invitation) => {
+    if (memberAction.pendingId) return;
+    if (!window.confirm(`¿Revocar la invitación de ${invitation.email}? El enlace dejará de funcionar.`)) return;
+    setMemberAction({ pendingId: invitation.id, error: '' });
+    try {
+      await service.revokeMemberInvitation({ organizationId: organization.id, invitationId: invitation.id });
+      await loadInvitations();
+      setMemberAction({ pendingId: '', error: '' });
+    } catch (error) {
+      setMemberAction({ pendingId: '', error: error?.message || 'No pudimos revocar la invitación.' });
+    }
+  };
+
+  const changeRole = async (member, role) => {
+    if (memberAction.pendingId || role === member.role) return;
+    if (!window.confirm(`¿Cambiar el rol de ${safeMemberLabel(member, organization)} a ${getRoleLabel(role)}?`)) return;
+    setMemberAction({ pendingId: member.id, error: '' });
+    try {
+      await service.updateMemberRole({ organizationId: organization.id, membershipId: member.id, role });
+      await reloadMembers();
+      setMemberAction({ pendingId: '', error: '' });
+    } catch (error) {
+      setMemberAction({ pendingId: '', error: error?.message || 'No pudimos cambiar el rol.' });
+    }
+  };
+
+  const removeMember = async (member) => {
+    if (memberAction.pendingId) return;
+    if (!window.confirm(`¿Quitar a ${safeMemberLabel(member, organization)} de la organización? Pierde el acceso y sus cupos de temporada.`)) return;
+    setMemberAction({ pendingId: member.id, error: '' });
+    try {
+      await service.removeMember({ organizationId: organization.id, membershipId: member.id });
+      await reloadMembers();
+      setMemberAction({ pendingId: '', error: '' });
+    } catch (error) {
+      setMemberAction({ pendingId: '', error: error?.message || 'No pudimos quitar al miembro.' });
+    }
+  };
 
   const load = async () => {
     setState((current) => ({ ...current, status: 'loading', error: '' }));
@@ -235,12 +360,131 @@ export default function OrganizationMembersPage() {
 
       <div className={styles.membersToolbar}>
         <span><Users size={18} /> {state.members.length} miembros</span>
-        <button type="button" disabled title="Las invitaciones estarán disponibles en una próxima fase">
-          <Plus size={17} />
-          Invitar miembro
-          <small>Próximamente</small>
-        </button>
+        {canSendInvitations && (
+          <button
+            type="button"
+            className={styles.membersToolbarAction}
+            aria-expanded={inviteState.open}
+            onClick={() => setInviteState((current) => ({
+              ...current,
+              open: !current.open,
+              role: invitableRoles.includes(current.role) ? current.role : invitableRoles[0],
+              error: '',
+            }))}
+          >
+            <Plus size={17} />
+            Invitar miembro
+          </button>
+        )}
       </div>
+
+      {canSendInvitations && inviteState.open && (
+        <section className={styles.seasonAssignments} aria-labelledby="invite-member-title">
+          <header>
+            <div>
+              <span className={styles.eyebrow}>Invitación privada</span>
+              <h2 id="invite-member-title">Invitar miembro</h2>
+              <p>
+                Generamos un enlace de un solo uso, válido por 7 días. Sólo puede aceptarlo la cuenta
+                de Arma2 con ese email verificado. Compartilo vos: no enviamos emails.
+              </p>
+            </div>
+          </header>
+          {inviteState.created ? (
+            <div className={styles.inviteResult}>
+              <p>
+                Enlace para <strong>{inviteState.created.email}</strong> como{' '}
+                {getRoleLabel(inviteState.created.role)}. No volverá a mostrarse; vence el{' '}
+                {new Date(inviteState.created.expiresAt).toLocaleString('es-AR')}.
+              </p>
+              <div className={styles.inviteLinkRow}>
+                <input readOnly value={inviteState.created.url} aria-label="Enlace de invitación" />
+                <button type="button" onClick={() => navigator.clipboard?.writeText(inviteState.created.url)}>
+                  <Copy size={15} /> Copiar
+                </button>
+              </div>
+              <button
+                type="button"
+                className={styles.inviteSecondary}
+                onClick={() => setInviteState((current) => ({ ...current, created: null }))}
+              >
+                Invitar a otra persona
+              </button>
+            </div>
+          ) : (
+            <form className={styles.inviteForm} onSubmit={sendInvitation}>
+              <label>
+                <span>Email</span>
+                <input
+                  type="email"
+                  required
+                  value={inviteState.email}
+                  onChange={(event) => setInviteState((current) => ({ ...current, email: event.target.value }))}
+                  placeholder="nombre@club.com"
+                />
+              </label>
+              <label>
+                <span>Rol</span>
+                <select
+                  value={inviteState.role}
+                  onChange={(event) => setInviteState((current) => ({ ...current, role: event.target.value }))}
+                >
+                  {invitableRoles.map((role) => (
+                    <option key={role} value={role}>{getRoleLabel(role)}</option>
+                  ))}
+                </select>
+              </label>
+              <button type="submit" disabled={inviteState.status === 'loading' || !inviteState.email.trim()}>
+                {inviteState.status === 'loading' ? <LoaderCircle className={styles.spinIcon} size={15} /> : <Mail size={15} />}
+                Generar enlace
+              </button>
+            </form>
+          )}
+          {inviteState.error && <p className={styles.assignmentError} role="alert">{inviteState.error}</p>}
+          {!isOwner && (
+            <p className={styles.assignmentEmpty}>Sólo el Propietario puede invitar Administradores.</p>
+          )}
+        </section>
+      )}
+
+      {canSendInvitations && invitations.length > 0 && (
+        <section className={styles.seasonAssignments} aria-labelledby="pending-invitations-title">
+          <header>
+            <div>
+              <span className={styles.eyebrow}>Pendientes</span>
+              <h2 id="pending-invitations-title">Invitaciones enviadas</h2>
+            </div>
+          </header>
+          <div className={styles.assignmentList}>
+            {invitations.map((invitation) => (
+              <article key={invitation.id}>
+                <span>
+                  <strong>{invitation.email}</strong>
+                  <small>
+                    {getRoleLabel(invitation.role)}
+                    {' · '}
+                    {invitation.status === 'expired'
+                      ? 'Vencida'
+                      : `Vence ${formatDate(invitation.expiresAt)}`}
+                  </small>
+                </span>
+                {(invitation.role !== 'admin' || isOwner) && (
+                  <button
+                    type="button"
+                    disabled={Boolean(memberAction.pendingId)}
+                    onClick={() => revokeInvitation(invitation)}
+                  >
+                    {memberAction.pendingId === invitation.id
+                      ? <LoaderCircle className={styles.spinIcon} size={15} />
+                      : <X size={15} />}
+                    Revocar
+                  </button>
+                )}
+              </article>
+            ))}
+          </div>
+        </section>
+      )}
 
       {!canInvite && (
         <div className={styles.readOnlyBanner}>
@@ -334,6 +578,10 @@ export default function OrganizationMembersPage() {
         )}
       </section>
 
+      {memberAction.error && (
+        <p className={styles.assignmentError} role="alert">{memberAction.error}</p>
+      )}
+
       <div className={styles.memberList}>
         {state.members.map((member) => (
           <article key={member.id}>
@@ -346,12 +594,37 @@ export default function OrganizationMembersPage() {
               </small>
             </span>
             <span className={styles.memberRole}>
-              <span className={styles.roleChip}>{getRoleLabel(member.role)}</span>
+              {canChangeRoles && member.role !== 'owner' && !member.is_viewer && member.status === 'active' ? (
+                <select
+                  aria-label={`Rol de ${safeMemberLabel(member, organization)}`}
+                  value={member.role}
+                  disabled={Boolean(memberAction.pendingId)}
+                  onChange={(event) => changeRole(member, event.target.value)}
+                >
+                  <option value="admin">{getRoleLabel('admin')}</option>
+                  <option value="collaborator">{getRoleLabel('collaborator')}</option>
+                </select>
+              ) : (
+                <span className={styles.roleChip}>{getRoleLabel(member.role)}</span>
+              )}
               <small>{getRoleDescription(member.role)}</small>
             </span>
             <span className={member.status === 'active' ? styles.activeChip : styles.neutralChip}>
               {member.status === 'active' ? 'Activo' : member.status}
             </span>
+            {canRemoveMember(member) && (
+              <button
+                type="button"
+                className={styles.memberRemove}
+                disabled={Boolean(memberAction.pendingId)}
+                onClick={() => removeMember(member)}
+                aria-label={`Quitar a ${safeMemberLabel(member, organization)}`}
+              >
+                {memberAction.pendingId === member.id
+                  ? <LoaderCircle className={styles.spinIcon} size={15} />
+                  : <Trash2 size={15} />}
+              </button>
+            )}
           </article>
         ))}
       </div>

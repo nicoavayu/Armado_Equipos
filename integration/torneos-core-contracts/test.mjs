@@ -242,12 +242,13 @@ test('Phase 3A — real Core contracts → Torneos end-to-end', async (t) => {
       const install = JSON.parse(await readFile('.runtime/install.json', 'utf8'));
       assert.equal(install.torneos.sha256, 'f857bd0939054bc1a32a3855894b7b20e14a0c7456c9d5c8c5e8432e5b8ed19f');
       assert.equal(install.torneos.sha256, install.torneos.certified_sha256);
-      assert.deepEqual(install.torneos.migrations_after_baseline.map(m => [m.file.split('/').pop(), m.applied]), [['00000000000001_staging_v1_rpc_exposure.sql', true], ['00000000000002_mercadopago_checkout_pro_test.sql', true], ['00000000000003_mercadopago_provider_ordering.sql', true], ['00000000000004_competition_v1_rpc_exposure.sql', true]], 'Phase 2D gate, the MP-A2 commercial DB delta, MP-B1.2 provider ordering and COMPETITION-V1, applied after the baseline');
+      assert.deepEqual(install.torneos.migrations_after_baseline.map(m => [m.file.split('/').pop(), m.applied]), [['00000000000001_staging_v1_rpc_exposure.sql', true], ['00000000000002_mercadopago_checkout_pro_test.sql', true], ['00000000000003_mercadopago_provider_ordering.sql', true], ['00000000000004_competition_v1_rpc_exposure.sql', true], ['00000000000005_officialization_v1.sql', true], ['00000000000006_domain_error_contract.sql', true]], 'Phase 2D gate, the MP-A2 commercial DB delta, MP-B1.2 provider ordering, COMPETITION-V1, OFFICIALIZATION-V1 and ERROR-CONTRACT-V1, applied after the baseline');
       assert.equal(install.torneos.migrations_after_baseline[1].sha256, '06378f12b57620e8ae550a0d881ad66464ffdc0a734ad621cba8a6ba3e6d6078', 'MP-A2 migration pinned');
       assert.equal(coreSql("select count(*) from pg_tables where schemaname='public'").trim(), '153', 'all 42 Core migrations applied');
       assert.equal(coreSql("select count(*) from pg_proc where proname like 'torneos_contract_%'").trim(), '5');
-      // MP-B1.2 (00000000000003) adds tournament_payment_provider_watermarks; COMPETITION-V1 (0004) adds no table.
-      assert.equal(torneosSql("select count(*) from pg_tables where schemaname='public'").trim(), '105');
+      // MP-B1.2 (00000000000003) adds tournament_payment_provider_watermarks; COMPETITION-V1 (0004) adds no table;
+      // OFFICIALIZATION-V1 (0005) adds tournament_organization_invitations.
+      assert.equal(torneosSql("select count(*) from pg_tables where schemaname='public'").trim(), '106');
       assert.equal(torneosSql("select count(*) from pg_tables where schemaname='public' and tablename in ('usuarios','jugadores','teams','team_members')").trim(), '0');
       assert.equal(torneosSql("select count(*) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname in ('public','private') and p.prosrc ~ 'auth\\.(users|sessions|uid)'").trim(), '0', 'baseline never reads GoTrue tables (the image pre-creates an empty auth schema)');
       assert.equal(coreSql("select to_regclass('public.torneos_identity') is null").trim(), 't', 'Core has no Torneos identity table');
@@ -803,8 +804,10 @@ test('Phase 3A — real Core contracts → Torneos end-to-end', async (t) => {
       const mpB12New = (await readFile(`${repo}backend/torneos/supabase/migrations/00000000000003_mercadopago_provider_ordering.sql`, 'utf8')).match(/^CREATE FUNCTION public\./gm).length;
       // COMPETITION-V1 (00000000000004) gives authenticated back exactly the 15 of its manifest and creates no function.
       const cv1Grants = JSON.parse(await readFile(`${repo}backend/torneos/competition-v1/contract.json`, 'utf8')).acl.granted_by_0004.length;
-      const total = 359 + mpA2New + mpB12New;
-      assert.deepEqual(after, { anon_execute_public_functions: `12/${total}`, authenticated_execute_public_functions: `${180 - gate.functions.length + mpA2AuthNet + cv1Grants}/${total}`, service_role_execute_public_functions: `328/${total}`, anon_execute_security_definer: `12/${304 + mpA2New + mpB12New}`, anon_execute_private_beyond_token_helpers: '0', public_execute_functions: '0', anon_sequence_privilege: '0/7', anon_non_select_table_grants: '0' });
+      // OFFICIALIZATION-V1 (00000000000005) creates its SECURITY DEFINER RPCs, EXECUTE to authenticated + service_role only.
+      const ov1New = JSON.parse(await readFile(`${repo}backend/torneos/officialization-v1/contract.json`, 'utf8')).acl.new_functions.length;
+      const total = 359 + mpA2New + mpB12New + ov1New;
+      assert.deepEqual(after, { anon_execute_public_functions: `12/${total}`, authenticated_execute_public_functions: `${180 - gate.functions.length + mpA2AuthNet + cv1Grants + ov1New}/${total}`, service_role_execute_public_functions: `${328 + ov1New}/${total}`, anon_execute_security_definer: `12/${304 + mpA2New + mpB12New + ov1New}`, anon_execute_private_beyond_token_helpers: '0', public_execute_functions: '0', anon_sequence_privilege: '0/7', anon_non_select_table_grants: '0' });
       // Reachability: the certified gateway refuses anon; a directly exposed Data API now denies by ACL, before the body.
       assert.equal((await request('/torneos/rest/v1/rpc/tournament_media_pipeline_readiness', null, 'POST', {})).status, 401);
       const direct = directTorneosRpc(null, 'tournament_media_pipeline_readiness', {});

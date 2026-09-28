@@ -1,0 +1,244 @@
+{
+ "verdict": "REHEARSAL_PASS",
+ "passed": 55,
+ "total": 55,
+ "image": "public.ecr.aws/supabase/postgres:17.6.1.147",
+ "annotation": "OFFLINE REHEARSAL 20260928T124811Z — local public.ecr.aws/supabase/postgres:17.6.1.147 on an internal network, installer postgres; real gateway handle() of both sources; fake Deno API and Keychain; NOT a remote run",
+ "delta_pin_sha256": "6eab4b5ff9e6fa84e833435c88ba84e30defe0e8a97f32b5ba00a5bb1f95870a",
+ "results": [
+  {
+   "name": "migration + rollback files = pins (0000–0006, both rollbacks), migrations dir = exactly 0000–0006",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "name": "POST_0004 catalog = foundation pin on every strict path except the two COMPETITION-V1 moves",
+   "pass": true,
+   "detail": "execute,functions.bodies_md5"
+  },
+  {
+   "name": "POST_0004 COMPETITION-V1 paths = the certified COMPETITION-V1 post pin (the one Production matched at W1)",
+   "pass": true
+  },
+  {
+   "name": "state after 0000–0004 = POST_0004 (162 / 12, 0005 objects absent, 17 of the 18 at POST_0005 md5, 3 × 40001 raisers)",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "name": "POST_0004 pins required by 0005: validate 4f43a729… / context 2f43290e… / authorizer 488ca6bb…",
+   "pass": true
+  },
+  {
+   "name": "0005 as postgres in ONE transaction → POST_0005 (171 / 12)",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "name": "0005 moves exactly the pinned catalog paths (+ acl_md5)",
+   "pass": true,
+   "detail": "tables.public_tables,tables.names_md5,functions.public,functions.definer,functions.signatures_md5,functions.bodies_md5,execute"
+  },
+  {
+   "name": "new_function_bodies: set_tournament_match_dual_control = the POST_0005 md5 0006 pins",
+   "pass": true
+  },
+  {
+   "name": "function attributes identical at POST_0004 for every function that exists there",
+   "pass": true
+  },
+  {
+   "name": "0005 re-applied on POST_0005 → no-op (catalog unchanged)",
+   "pass": true
+  },
+  {
+   "name": "0006 as postgres in ONE transaction → POST_0006 (171 / 12, 0 × 40001 raisers, 18 PTxyz raisers)",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "name": "0006 moves ONLY functions.bodies_md5 (no grant / RLS / owner / table / policy / anon change)",
+   "pass": true,
+   "detail": "functions.bodies_md5"
+  },
+  {
+   "name": "the 18 bodies differ from POST_0005 ONLY in errcode literals, exactly 23 of them, all → PT409/PT422/PT429",
+   "pass": true,
+   "detail": "changed 23"
+  },
+  {
+   "name": "former storm cases (STALE_FIXTURE_VERSION, STANDINGS_SOURCES_CHANGED, CORRECTION_ALREADY_SUPERSEDED) raise PT409, not 40001",
+   "pass": true
+  },
+  {
+   "name": "static (top-level statements): 0006 = BEGIN, temp tables, DO pre/post, 18 CREATE OR REPLACE FUNCTION, COMMIT — no GRANT / REVOKE / ALTER / POLICY / TABLE / DROP / data write",
+   "pass": true
+  },
+  {
+   "name": "static (top-level statements): neither rollback deletes data (no DELETE / TRUNCATE / UPDATE / DROP TABLE / DROP COLUMN); R0005 drops exactly the 9 RPCs",
+   "pass": true
+  },
+  {
+   "name": "0006 re-applied on POST_0006 → no-op",
+   "pass": true
+  },
+  {
+   "name": "HAZARD proven: raw 0005 on POST_0006 exits 0 and reverts set_tournament_match_dual_control → DRIFT (partial 0006) — the tooling never sends it",
+   "pass": true,
+   "detail": "partial_or_unknown: new 9/9, replaced 0005, 0006 bodies 17/18 (POST_0005 1), column true, table true, capability true, authenticated 171, 40001 raisers 0"
+  },
+  {
+   "name": "0006 re-applied after that heals to POST_0006 with the same catalog",
+   "pass": true
+  },
+  {
+   "name": "HAZARD proven: the 0005 rollback on POST_0006 runs and drops a 0006 function (17/18 left) — the tooling refuses it; the probe transaction rolled back",
+   "pass": true,
+   "detail": "{\"dual\":false,\"ec_after\":17}"
+  },
+  {
+   "name": "0006 rollback → POST_0005 with EXACTLY the POST_0005 catalog (every strict path + acl_md5)",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "name": "0006 rollback on POST_0005 → refused or no-op, state unchanged",
+   "pass": true,
+   "detail": "exit 0"
+  },
+  {
+   "name": "0006 re-applied after its rollback → POST_0006, same catalog as the first apply",
+   "pass": true
+  },
+  {
+   "name": "0005 rollback on POST_0005 → ROLLED_BACK_0005: 162 / 12, 9 RPCs dropped, 3 bodies POST_0004; column + table + capability kept",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "name": "ROLLED_BACK_0005 execute / signatures / bodies = POST_0004; tables keep the invitations table",
+   "pass": true
+  },
+  {
+   "name": "0005 re-apply on ROLLED_BACK_0005 → REFUSED by its own precondition, nothing changed (terminal state)",
+   "pass": true,
+   "detail": "psql:<stdin>:186: ERROR:  TORNEOS_OFFICIALIZATION_V1_PRECONDITION_FAILED: public.validate_tournament_match_operation(uuid,uuid) body 4f43a7292753cbd191c9800dac0"
+  },
+  {
+   "name": "G1 on the real database (+ fake Deno, real gateway live source) → G1_PASS",
+   "pass": true
+  },
+  {
+   "name": "unexpected grant (authenticated on a closed function) → G1_FAILED, W1 refused before any phrase",
+   "pass": true
+  },
+  {
+   "name": "anon drift (anon EXECUTE on a granted function) → W1 refused",
+   "pass": true
+  },
+  {
+   "name": "partial 0005 (column without the rest) → DRIFT, W1 refused",
+   "pass": true
+  },
+  {
+   "name": "drift removed → POST_0004 again",
+   "pass": true
+  },
+  {
+   "name": "W1 with a wrong phrase → NOT_AUTHORIZED, nothing sent",
+   "pass": true
+  },
+  {
+   "name": "W2 before W1 → W2_REFUSED_0005_NOT_APPLIED",
+   "pass": true
+  },
+  {
+   "name": "W3 before W2 → W3_DB_NOT_POST_0006, no Deno write",
+   "pass": true
+  },
+  {
+   "name": "W1 rollback on POST_0004 → refused (nothing to roll back)",
+   "pass": true
+  },
+  {
+   "name": "W1 → W1_DONE (0005 as postgres, one transaction; POST_0005; gateway still live source, probes pass)",
+   "pass": true
+  },
+  {
+   "name": "W1 again on POST_0005 → W1_REFUSED_ALREADY_POST_0005",
+   "pass": true
+  },
+  {
+   "name": "partial 0006 (1 of 18 bodies) → DRIFT, W2 refused (the migration itself would accept it; the tooling does not)",
+   "pass": true
+  },
+  {
+   "name": "partial 0006 undone → POST_0005 again",
+   "pass": true
+  },
+  {
+   "name": "W2 → W2_DONE (0006; POST_0006; 0 × 40001)",
+   "pass": true
+  },
+  {
+   "name": "W1 on POST_0006 → W1_REFUSED_POST_0006_0005_WOULD_REVERT_0006 (0005 NEVER re-sent)",
+   "pass": true
+  },
+  {
+   "name": "W1 rollback on POST_0006 → refused (roll back 0006 first)",
+   "pass": true
+  },
+  {
+   "name": "W2 again on POST_0006 → refused",
+   "pass": true
+  },
+  {
+   "name": "W3 → W3_DONE (assets + labels only; env unchanged; candidate probes pass)",
+   "pass": true
+  },
+  {
+   "name": "W2 rollback while the candidate serves → refused (gateway first)",
+   "pass": true
+  },
+  {
+   "name": "W3 rollback → W3_ROLLBACK_DONE (live source rebuilt from git = 75e3535a…; live probes pass)",
+   "pass": true
+  },
+  {
+   "name": "W2 rollback → W2_ROLLBACK_DONE (POST_0005)",
+   "pass": true
+  },
+  {
+   "name": "W2 re-apply after its rollback → W2_DONE (POST_0006)",
+   "pass": true
+  },
+  {
+   "name": "W2 rollback again → POST_0005",
+   "pass": true
+  },
+  {
+   "name": "W1 rollback → W1_ROLLBACK_DONE (ROLLED_BACK_0005, 162 / 12, members kept)",
+   "pass": true
+  },
+  {
+   "name": "final catalog 162 / 12",
+   "pass": true
+  },
+  {
+   "name": "W1 on ROLLED_BACK_0005 → refused (terminal; needs a new certified phase)",
+   "pass": true
+  },
+  {
+   "name": "files sent = exactly 0005, 0006, R0006, 0006, R0006, R0005 (never 0005 after 0006)",
+   "pass": true
+  },
+  {
+   "name": "Deno writes = exactly the 2 deploys; no other write kind",
+   "pass": true
+  },
+  {
+   "name": "evidence carries no secret of the run",
+   "pass": true
+  }
+ ]
+}

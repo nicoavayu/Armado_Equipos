@@ -1,5 +1,5 @@
 {
-  "generatedFrom": "ff9f9a77e4b7dfe99765f5b94055f94dedb2384b",
+  "generatedFrom": "20bd3222b90925ffc2e30f027d7506637870d9f0",
   "legacyBase": "2058da039a2a5eaaed22d87d01946bc596ae5f50",
   "coreSingletonSha256": "f39572e4cab0fd287bd1dea2ca87c97bd5500d0eff57cb8de6160f1e3271600c",
   "reachableCallSignatures": {
@@ -463,8 +463,13 @@
       "source": "../context/TorneosWorkspaceContext"
     },
     {
+      "file": "src/features/torneos/components/OrganizationInvitationPage.jsx",
+      "line": 4,
+      "source": "../context/TorneosWorkspaceContext"
+    },
+    {
       "file": "src/features/torneos/components/OrganizationMembersPage.jsx",
-      "line": 18,
+      "line": 22,
       "source": "../context/TorneosWorkspaceContext"
     },
     {
@@ -524,7 +529,7 @@
     },
     {
       "file": "src/features/torneos/components/PublicTournamentPage.jsx",
-      "line": 19,
+      "line": 20,
       "source": "./BrandingImage"
     },
     {
@@ -730,61 +735,66 @@
     {
       "file": "src/features/torneos/components/TorneosShell.jsx",
       "line": 58,
-      "source": "./WorkspaceSwitcher"
+      "source": "./OrganizationInvitationPage"
     },
     {
       "file": "src/features/torneos/components/TorneosShell.jsx",
       "line": 59,
-      "source": "./FixtureWorkspacePage"
+      "source": "./WorkspaceSwitcher"
     },
     {
       "file": "src/features/torneos/components/TorneosShell.jsx",
       "line": 60,
-      "source": "./MatchOperationsPage"
+      "source": "./FixtureWorkspacePage"
     },
     {
       "file": "src/features/torneos/components/TorneosShell.jsx",
       "line": 61,
-      "source": "./MyTournamentMatchesPage"
+      "source": "./MatchOperationsPage"
     },
     {
       "file": "src/features/torneos/components/TorneosShell.jsx",
       "line": 62,
-      "source": "./CaptainMatchSquadPage"
+      "source": "./MyTournamentMatchesPage"
     },
     {
       "file": "src/features/torneos/components/TorneosShell.jsx",
       "line": 63,
-      "source": "./CompetitionCenterPage"
+      "source": "./CaptainMatchSquadPage"
     },
     {
       "file": "src/features/torneos/components/TorneosShell.jsx",
       "line": 64,
-      "source": "./MyTournamentsPage"
+      "source": "./CompetitionCenterPage"
     },
     {
       "file": "src/features/torneos/components/TorneosShell.jsx",
       "line": 65,
-      "source": "./TournamentHubPage"
+      "source": "./MyTournamentsPage"
     },
     {
       "file": "src/features/torneos/components/TorneosShell.jsx",
       "line": 66,
-      "source": "./MyCommunicationsPage"
+      "source": "./TournamentHubPage"
     },
     {
       "file": "src/features/torneos/components/TorneosShell.jsx",
       "line": 67,
-      "source": "./CommunicationsAdminPage"
+      "source": "./MyCommunicationsPage"
     },
     {
       "file": "src/features/torneos/components/TorneosShell.jsx",
       "line": 68,
-      "source": "./MediaAdminPage"
+      "source": "./CommunicationsAdminPage"
     },
     {
       "file": "src/features/torneos/components/TorneosShell.jsx",
       "line": 69,
+      "source": "./MediaAdminPage"
+    },
+    {
+      "file": "src/features/torneos/components/TorneosShell.jsx",
+      "line": 70,
       "source": "./SocialStudioPage"
     },
     {
@@ -814,12 +824,12 @@
     },
     {
       "file": "src/features/torneos/components/TournamentWizardPage.jsx",
-      "line": 62,
+      "line": 63,
       "source": "./TeamVisualPolicySettings"
     },
     {
       "file": "src/features/torneos/components/TournamentWizardPage.jsx",
-      "line": 63,
+      "line": 64,
       "source": "./BrandingAssetField"
     },
     {
@@ -2898,7 +2908,7 @@
     },
     {
       "file": "src/features/torneos/foundation/torneosClient.js",
-      "line": 40,
+      "line": 42,
       "kind": "rpc",
       "callee": "transport.rpc",
       "targets": [],
@@ -2907,7 +2917,7 @@
     },
     {
       "file": "src/features/torneos/foundation/torneosTransport.js",
-      "line": 103,
+      "line": 114,
       "kind": "transport",
       "callee": "window.fetch",
       "targets": [],
@@ -2916,7 +2926,7 @@
     },
     {
       "file": "src/features/torneos/foundation/torneosTransport.js",
-      "line": 151,
+      "line": 162,
       "kind": "transport",
       "callee": "fetchImpl",
       "targets": [],
@@ -2925,7 +2935,7 @@
     },
     {
       "file": "src/features/torneos/foundation/torneosTransport.js",
-      "line": 209,
+      "line": 220,
       "kind": "transport",
       "callee": "fetchImpl",
       "targets": [],
@@ -2934,7 +2944,7 @@
     },
     {
       "file": "src/features/torneos/foundation/torneosTransport.js",
-      "line": 312,
+      "line": 325,
       "kind": "transport",
       "callee": "window.fetch",
       "targets": [],
@@ -2943,7 +2953,7 @@
     },
     {
       "file": "src/features/torneos/foundation/torneosTransport.js",
-      "line": 328,
+      "line": 341,
       "kind": "transport",
       "callee": "fetchImpl",
       "targets": [],

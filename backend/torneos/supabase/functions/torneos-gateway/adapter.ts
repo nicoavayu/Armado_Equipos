@@ -19,6 +19,11 @@ export const CONTRACTS: Record<string, { contract: string; request: (b: Body) =>
     contract: "verified_email",
     request: (b) => ({ token: b.p_token }),
   },
+  // OFFICIALIZATION-V1: same Core contract, keyed by the organization invitation (private.authorize_core_contract).
+  accept_tournament_organization_invitation: {
+    contract: "verified_email",
+    request: (b) => ({ organization_invitation_token: b.p_token }),
+  },
   search_tournament_players: {
     contract: "directory_players",
     request: (b) => ({ organization_id: b.p_organization_id, tournament_id: b.p_tournament_id,

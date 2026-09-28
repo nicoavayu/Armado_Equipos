@@ -1,0 +1,460 @@
+{
+  "phase": "ERROR-CONTRACT-V1",
+  "purpose": "Expected Torneos domain errors must answer as 4xx with their functional code, never as an outage. Single source of truth for migration 00000000000006_domain_error_contract.sql (built by build-migration.mjs), its rollback, the gateway's legacy-SQLSTATE defense (torneos-gateway/competition.ts DOMAIN_ERROR_STATUS) and the lab certification (integration/torneos-core-contracts/error-contract.test.mjs); guard tests keep them equal.",
+  "root_cause": [
+    "PostgREST v14.15 answers SQLSTATE 55000 / 55P03 / 54000 / P0002 (and INTO STRICT) with HTTP 500.",
+    "PostgREST retries SQLSTATE 40001 (serialization_failure) inside the same request: a deterministic domain 40001 is re-raised thousands of times until the gateway gives up at 5 s and answers 503.",
+    "torneosTransport.js treated any status >= 500 as an outage: it dropped the bridge bearer, threw TORNEOS_UNAVAILABLE and lost rpcError, so the UI showed 'Torneos no disponible' for ordinary conflicts."
+  ],
+  "postgrest": {
+    "version": "v14.15",
+    "custom_status": "RAISE ... USING errcode = 'PTxyz' answers HTTP xyz with the unchanged { code, message, details, hint } body (code = 'PTxyz'); measured in the lab before writing the migration.",
+    "legacy_5xx_sqlstates": [
+      "55000",
+      "54000"
+    ],
+    "retried_sqlstates": [
+      "40001"
+    ]
+  },
+  "semantics": {
+    "400": "invalid domain input (P0001 / 22023 / 23514, unchanged)",
+    "403": "permission / domain authorization (42501, unchanged)",
+    "404": "only when no existence leak (none introduced)",
+    "409": "stale state, conflict, already exists, read-only lifecycle",
+    "422": "valid request refused by a domain limit",
+    "429": "rate limit"
+  },
+  "http": {
+    "TORNEOS_COMPETITION_READ_ONLY": 409,
+    "TORNEOS_CORRECTION_ALREADY_SUPERSEDED": 409,
+    "TORNEOS_FIXTURE_DRAFT_READ_ONLY": 409,
+    "TORNEOS_MATCH_AVAILABILITY_SELF_AUTHORITATIVE": 409,
+    "TORNEOS_MATCH_CORRECTION_EXISTS": 409,
+    "TORNEOS_MATCH_REVIEW_NOT_OPEN": 409,
+    "TORNEOS_MATCH_SQUAD_LOCKED": 409,
+    "TORNEOS_QUALIFICATION_AMBIGUOUS": 409,
+    "TORNEOS_QUALIFICATION_INCOMPLETE": 409,
+    "TORNEOS_QUALIFICATION_MANUAL_LOCKED": 409,
+    "TORNEOS_STALE_FIXTURE_VERSION": 409,
+    "TORNEOS_STANDINGS_SOURCES_CHANGED": 409,
+    "TORNEOS_SUSPENSION_NOT_ACTIVE": 409,
+    "TORNEOS_AUDIENCE_LIMIT_REACHED": 422,
+    "TORNEOS_DRAFT_LIMIT_REACHED": 422,
+    "TORNEOS_LINK_LIMIT_REACHED": 422,
+    "TORNEOS_RECIPIENT_LIMIT_REACHED": 422,
+    "TORNEOS_PUBLISH_RATE_LIMITED": 429
+  },
+  "changes": [
+    {
+      "function": "public.append_tournament_playoff_phase(uuid,uuid,uuid,uuid,integer,boolean,uuid)",
+      "reach": "gateway",
+      "raises": [
+        {
+          "message": "TORNEOS_COMPETITION_READ_ONLY",
+          "from": "55000",
+          "count": 1,
+          "flow": "append playoffs to a finished competition (stale view / other admin finished it)"
+        }
+      ]
+    },
+    {
+      "function": "public.create_tournament_announcement_draft(uuid,uuid,uuid,text,text,text,text,text,text,timestamp with time zone,uuid,text,uuid)",
+      "reach": "gateway",
+      "raises": [
+        {
+          "message": "TORNEOS_DRAFT_LIMIT_REACHED",
+          "from": "54000",
+          "count": 1,
+          "flow": "the author already has 100 open drafts/scheduled announcements in the organization"
+        }
+      ]
+    },
+    {
+      "function": "public.create_tournament_match_correction(uuid,uuid)",
+      "reach": "gateway",
+      "raises": [
+        {
+          "message": "TORNEOS_MATCH_CORRECTION_EXISTS",
+          "from": "55000",
+          "count": 1,
+          "flow": "a second 'crear corrección' while one correction version is open (two tabs / two admins)"
+        }
+      ]
+    },
+    {
+      "function": "public.request_tournament_match_correction(uuid,uuid,text)",
+      "reach": "gateway",
+      "raises": [
+        {
+          "message": "TORNEOS_MATCH_CORRECTION_EXISTS",
+          "from": "55000",
+          "count": 1,
+          "flow": "requesting a correction while one is already requested"
+        }
+      ]
+    },
+    {
+      "function": "public.mark_tournament_suspension_served(uuid,uuid,text)",
+      "reach": "closed (no client EXECUTE)",
+      "raises": [
+        {
+          "message": "TORNEOS_SUSPENSION_NOT_ACTIVE",
+          "from": "55000",
+          "count": 1,
+          "flow": "marking a suspension that another actor revoked"
+        }
+      ]
+    },
+    {
+      "function": "public.protect_active_tournament_fixture_draft()",
+      "reach": "trigger (11 RPCs writing draft phases/rounds/matches/sources)",
+      "raises": [
+        {
+          "message": "TORNEOS_FIXTURE_DRAFT_READ_ONLY",
+          "from": "55000",
+          "count": 1,
+          "flow": "editing a draft fixture after the competition started"
+        }
+      ]
+    },
+    {
+      "function": "public.protect_tournament_completed_competition()",
+      "reach": "trigger (match operations, events, scores, squads … of a finished competition)",
+      "raises": [
+        {
+          "message": "TORNEOS_COMPETITION_READ_ONLY",
+          "from": "22023",
+          "count": 1,
+          "flow": "writing match data of a finished competition (was 400; one code, one status)"
+        }
+      ]
+    },
+    {
+      "function": "public.protect_tournament_match_squad_players()",
+      "reach": "trigger (squad player rows)",
+      "raises": [
+        {
+          "message": "TORNEOS_MATCH_SQUAD_LOCKED",
+          "from": "42501",
+          "count": 1,
+          "flow": "writing players of a submitted/locked squad (was 403; one code, one status)"
+        }
+      ]
+    },
+    {
+      "function": "public.publish_tournament_announcement(uuid,integer)",
+      "reach": "gateway",
+      "raises": [
+        {
+          "message": "TORNEOS_PUBLISH_RATE_LIMITED",
+          "from": "54000",
+          "count": 1,
+          "flow": "21st publication within one hour in the organization"
+        },
+        {
+          "message": "TORNEOS_RECIPIENT_LIMIT_REACHED",
+          "from": "54000",
+          "count": 1,
+          "flow": "the audience resolves to more than 5000 recipients"
+        },
+        {
+          "message": "TORNEOS_CORRECTION_ALREADY_SUPERSEDED",
+          "from": "40001",
+          "count": 1,
+          "flow": "publishing a second correction of an announcement another correction already superseded"
+        }
+      ]
+    },
+    {
+      "function": "public.publish_tournament_fixture(uuid,uuid)",
+      "reach": "gateway",
+      "raises": [
+        {
+          "message": "TORNEOS_STALE_FIXTURE_VERSION",
+          "from": "40001",
+          "count": 1,
+          "flow": "'Generar borrador' twice, then 'Publicar' on the older draft"
+        }
+      ]
+    },
+    {
+      "function": "public.rebuild_tournament_standings(uuid,uuid,uuid,uuid,uuid,text,uuid)",
+      "reach": "gateway",
+      "raises": [
+        {
+          "message": "TORNEOS_STANDINGS_SOURCES_CHANGED",
+          "from": "40001",
+          "count": 1,
+          "flow": "an official result changed while the table was being rebuilt (concurrent actor)"
+        }
+      ]
+    },
+    {
+      "function": "public.record_manual_match_availability(uuid,uuid,uuid,text,text,text)",
+      "reach": "closed (no client EXECUTE)",
+      "raises": [
+        {
+          "message": "TORNEOS_MATCH_AVAILABILITY_SELF_AUTHORITATIVE",
+          "from": "55000",
+          "count": 1,
+          "flow": "manual availability over the player's own answer"
+        }
+      ]
+    },
+    {
+      "function": "public.resolve_tournament_qualification(uuid,text)",
+      "reach": "gateway",
+      "raises": [
+        {
+          "message": "TORNEOS_QUALIFICATION_INCOMPLETE",
+          "from": "55000",
+          "count": 1,
+          "flow": "'Resolver clasificados' on a table published mid-phase (matches still pending)"
+        },
+        {
+          "message": "TORNEOS_QUALIFICATION_AMBIGUOUS",
+          "from": "55000",
+          "count": 2,
+          "flow": "a tie that needs a manual decision / a source with no determinable team"
+        },
+        {
+          "message": "TORNEOS_QUALIFICATION_MANUAL_LOCKED",
+          "from": "55000",
+          "count": 1,
+          "flow": "the slot was resolved manually"
+        }
+      ]
+    },
+    {
+      "function": "public.review_tournament_match_operation(uuid,uuid,text,text)",
+      "reach": "gateway",
+      "raises": [
+        {
+          "message": "TORNEOS_MATCH_REVIEW_NOT_OPEN",
+          "from": "55000",
+          "count": 1,
+          "flow": "a second reviewer approves an acta another reviewer already approved (status stays under_review)"
+        }
+      ]
+    },
+    {
+      "function": "public.save_match_squad(uuid,uuid,uuid,jsonb)",
+      "reach": "gateway",
+      "raises": [
+        {
+          "message": "TORNEOS_MATCH_SQUAD_LOCKED",
+          "from": "55000",
+          "count": 1,
+          "flow": "saving a squad that was already submitted"
+        }
+      ]
+    },
+    {
+      "function": "public.set_tournament_announcement_audience(uuid,text,uuid,uuid,uuid,uuid)",
+      "reach": "PostgREST (authenticated EXECUTE; not in the gateway allowlist)",
+      "raises": [
+        {
+          "message": "TORNEOS_AUDIENCE_LIMIT_REACHED",
+          "from": "54000",
+          "count": 1,
+          "flow": "13th audience criterion"
+        }
+      ]
+    },
+    {
+      "function": "public.set_tournament_announcement_link(uuid,text,uuid,text,text,integer)",
+      "reach": "gateway",
+      "raises": [
+        {
+          "message": "TORNEOS_LINK_LIMIT_REACHED",
+          "from": "54000",
+          "count": 1,
+          "flow": "6th link on an announcement"
+        }
+      ]
+    },
+    {
+      "function": "public.set_tournament_match_dual_control(uuid,uuid,boolean)",
+      "reach": "gateway (introduced by 0005)",
+      "raises": [
+        {
+          "message": "TORNEOS_COMPETITION_READ_ONLY",
+          "from": "22023",
+          "count": 1,
+          "flow": "changing the dual-control policy of a finished competition (was 400; one code, one status)"
+        }
+      ]
+    }
+  ],
+  "unchanged": [
+    {
+      "class": "A",
+      "function": "public.make_tournament_match_official(uuid,uuid)",
+      "message": "TORNEOS_MATCH_REVIEW_OPEN",
+      "sqlstate": "55000",
+      "reason": "invariant: a validated operation cannot carry a non-validation open review (correction reviews live on the official source)"
+    },
+    {
+      "class": "A",
+      "function": "public.make_tournament_match_official(uuid,uuid)",
+      "message": "TORNEOS_MATCH_CORRECTION_STALE",
+      "sqlstate": "55000",
+      "reason": "invariant: one correction version per source (MATCH_CORRECTION_EXISTS) and only make_official closes the correction review"
+    },
+    {
+      "class": "A",
+      "function": "public.begin_tournament_media_asset_delete(uuid,uuid)",
+      "message": "TORNEOS_MEDIA_STORAGE_PATH_INVALID",
+      "sqlstate": "55000",
+      "reason": "invariant: stored paths are written by the pipeline"
+    },
+    {
+      "class": "A",
+      "function": "public.create_tournament_disciplinary_override / mark_tournament_suspension_served / publish_tournament_standings_revision / rebuild_tournament_standings (×2) / revoke_tournament_points_adjustment",
+      "message": "INTO STRICT (P0002 / P0003)",
+      "sqlstate": "P0002",
+      "reason": "invariant reads of rows that exist by construction; a miss is corrupted data → genuine 500"
+    },
+    {
+      "class": "B",
+      "function": "public.tournament_media_require_pipeline_ready() / public.tournament_media_require_upload_tier(text) (×3)",
+      "message": "TORNEOS_MEDIA_PIPELINE_NOT_READY",
+      "sqlstate": "55000",
+      "reason": "deployment readiness of the media pipeline (infrastructure), not a user conflict"
+    },
+    {
+      "class": "B",
+      "function": "engine",
+      "message": "serialization_failure / deadlock_detected / lock_not_available",
+      "sqlstate": "40001 / 40P01 / 55P03",
+      "reason": "true transient engine conditions; no Torneos function raises them explicitly after 0006 (no NOWAIT, no lock_timeout)"
+    },
+    {
+      "class": "commerce",
+      "function": "activate_verified_tournament_purchase, apply_fake_tournament_payment_status, apply_tournament_purchase_reversal, cancel_tournament_purchase, create_fake_tournament_purchase, create_tournament_season_checkout_purchase, create_tournament_season_purchase, enforce_tournament_purchase_transition, get_provider_tournament_purchase, protect_referenced_tournament_offer, protect_tournament_purchase_snapshots, record_tournament_purchase_preference, reject_append_only_tournament_commercial_mutation, unordered_tournament_payment_status",
+      "message": "TORNEOS_PURCHASE_* / TORNEOS_*_PREMIUM / TORNEOS_PAYMENT_CONFLICT / …",
+      "sqlstate": "55000 / P0002",
+      "reason": "commerce is OFF and its own gateway route (MP-A4 commerce.ts) maps these; unordered_tournament_payment_reversal catches object_not_in_prerequisite_state (55000), so the SQLSTATE is load-bearing; MP chain certified separately"
+    },
+    {
+      "class": "C (already 4xx)",
+      "function": "public.set_tournament_organization_subscription(uuid,text,text)",
+      "message": "TORNEOS_LEGACY_SUBSCRIPTION_DISABLED",
+      "sqlstate": "0A000",
+      "reason": "closed function; PostgREST already answers 400"
+    }
+  ],
+  "migration": {
+    "file": "backend/torneos/supabase/migrations/00000000000006_domain_error_contract.sql",
+    "requires": "00000000000005_officialization_v1.sql (set_tournament_match_dual_control is one of the replaced bodies)",
+    "remote_order": "POST_0004 → 0005 → 0006",
+    "untouched_migrations": {
+      "00000000000000_torneos_baseline_v1.sql": "f857bd0939054bc1a32a3855894b7b20e14a0c7456c9d5c8c5e8432e5b8ed19f",
+      "00000000000001_staging_v1_rpc_exposure.sql": "3df4b96eecc7321eaeda84a480f089fe4bff2b28c20aa4479db92caf33457e62",
+      "00000000000002_mercadopago_checkout_pro_test.sql": "06378f12b57620e8ae550a0d881ad66464ffdc0a734ad621cba8a6ba3e6d6078",
+      "00000000000003_mercadopago_provider_ordering.sql": "d54b3293da53aea1202d3daed9a70e45d86e306a56a1fdd58107fc5719e36714",
+      "00000000000004_competition_v1_rpc_exposure.sql": "36e45eddf57690470d80a0284f454a74ebfe4135cf89cbc0f4274ffdf41e3729",
+      "00000000000005_officialization_v1.sql": "51fe200f2124e786345a85e5dbadfc844765db550a7f8cc837adefbddf0aeb78"
+    },
+    "acl": {
+      "authenticated_public": 171,
+      "anon_public": 12
+    },
+    "sha256": "767d57e8fb96ca69cd9d3b9379c0c3135652c8cb7bc07d83d81d1d815e0f3cc3",
+    "rollback": "backend/torneos/error-contract-v1/rollback/00000000000006_domain_error_contract.rollback.sql",
+    "rollback_sha256": "30c15af17f952cc4b341c54168f6b01ee0a37066fe1d5a8f81fe4cfe4ac80f1b",
+    "pins": [
+      {
+        "function": "public.append_tournament_playoff_phase(uuid,uuid,uuid,uuid,integer,boolean,uuid)",
+        "md5_before": "996cb4f6fc49524fbda06f16227bc472",
+        "md5_after": "1166ca6ba0811a83c688ed8c6d8c828c"
+      },
+      {
+        "function": "public.create_tournament_announcement_draft(uuid,uuid,uuid,text,text,text,text,text,text,timestamp with time zone,uuid,text,uuid)",
+        "md5_before": "02eaa14aef6b3a9e709935e28232fe1b",
+        "md5_after": "f2f2dd910245f8ebb0c8ca2fd8448f19"
+      },
+      {
+        "function": "public.create_tournament_match_correction(uuid,uuid)",
+        "md5_before": "e951e5be55e80835906f355360398590",
+        "md5_after": "d0e27384efd5b70f5ef1baf9893ecf30"
+      },
+      {
+        "function": "public.request_tournament_match_correction(uuid,uuid,text)",
+        "md5_before": "6cbfbe91fb54eafca64520456e700a1a",
+        "md5_after": "ea194c20129c58a1581ff0804ca362dd"
+      },
+      {
+        "function": "public.mark_tournament_suspension_served(uuid,uuid,text)",
+        "md5_before": "179376cfb1cd940d64ffa7dc34c40dc6",
+        "md5_after": "0ca29ae1d9e55671dc3cdd9d18d83efd"
+      },
+      {
+        "function": "public.protect_active_tournament_fixture_draft()",
+        "md5_before": "c067a91075ab2dd5f6b0d114b694286f",
+        "md5_after": "4aef5269146750bfe579910f7772447f"
+      },
+      {
+        "function": "public.protect_tournament_completed_competition()",
+        "md5_before": "94012caa5505b8845a21ea247d26a496",
+        "md5_after": "f3f77a153eab65aef37046c65b891698"
+      },
+      {
+        "function": "public.protect_tournament_match_squad_players()",
+        "md5_before": "d6a8eb923c378bbe47ceb4ee77a4f164",
+        "md5_after": "517664b2b2e325b42af98731f5ec4366"
+      },
+      {
+        "function": "public.publish_tournament_announcement(uuid,integer)",
+        "md5_before": "7b5de1040a89810b8a09055087d56519",
+        "md5_after": "e5e6d5e9c2e0acf73548209a0e265c80"
+      },
+      {
+        "function": "public.publish_tournament_fixture(uuid,uuid)",
+        "md5_before": "b730e3eda644554c36dca95eafb6bbce",
+        "md5_after": "2c64761a38d28e5fbdcd5735fb0a76b2"
+      },
+      {
+        "function": "public.rebuild_tournament_standings(uuid,uuid,uuid,uuid,uuid,text,uuid)",
+        "md5_before": "647d3a01d3489af7111afa6017e9dba3",
+        "md5_after": "1cd1dbdabeae82ea7d6e0c9a7fce37c0"
+      },
+      {
+        "function": "public.record_manual_match_availability(uuid,uuid,uuid,text,text,text)",
+        "md5_before": "63f7fb5c744586172f56043487225ca7",
+        "md5_after": "1acdb4e53b05f3a8cb3c5a9b98bdfb3b"
+      },
+      {
+        "function": "public.resolve_tournament_qualification(uuid,text)",
+        "md5_before": "3f1af0ba733eacf51bc868542c150c73",
+        "md5_after": "193a69bf4fb8e95047015a9b9da3e9cd"
+      },
+      {
+        "function": "public.review_tournament_match_operation(uuid,uuid,text,text)",
+        "md5_before": "6f5912e4cf6601ad1d8301ed61bf7adc",
+        "md5_after": "840710c77dc6343c2232b4c6590c946f"
+      },
+      {
+        "function": "public.save_match_squad(uuid,uuid,uuid,jsonb)",
+        "md5_before": "b95278f07e0ce51fc297f3324ef1600a",
+        "md5_after": "931d2820b0711135eb2365b50e95f303"
+      },
+      {
+        "function": "public.set_tournament_announcement_audience(uuid,text,uuid,uuid,uuid,uuid)",
+        "md5_before": "9d00a52f2abea44a7d020f3db7a9ffe7",
+        "md5_after": "7d7bbe6ba33b95a9fb601b3129b902d9"
+      },
+      {
+        "function": "public.set_tournament_announcement_link(uuid,text,uuid,text,text,integer)",
+        "md5_before": "b20a2f8a60d793fd8ab09ede3f7d7b4c",
+        "md5_after": "8ff92a71f5efa6167556e5297f8b5cf1"
+      },
+      {
+        "function": "public.set_tournament_match_dual_control(uuid,uuid,boolean)",
+        "md5_before": "0379096408e86030361fa2390fcf02b1",
+        "md5_after": "631be35793594b6641529ded5b91c055"
+      }
+    ]
+  }
+}

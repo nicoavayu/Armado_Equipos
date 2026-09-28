@@ -183,6 +183,9 @@ test('the only backend access B04 adds is the gateway transport (fetch) and the 
   assert.deepEqual(addedEdges, [
     'src/features/torneos/TorneosFeatureGate.jsx -> ./stagingV1/StagingV1TorneosApp',
     'src/features/torneos/api/legacyCommerceAdapter.js -> ./tournamentWorkspaceService',
+    // OFFICIALIZATION-V1: the organization invitation page accepts through the MOUNTED composition's service
+    // (hybrid: the gateway's Core-attested route; legacy LOCAL: no alias, the button stays disabled).
+    'src/features/torneos/components/OrganizationInvitationPage.jsx -> ../context/TorneosWorkspaceContext',
     'src/features/torneos/components/PlanExperiencePage.jsx -> ../context/TorneosCommerceContext',
     // COMPETITION-V1: the public-page route composes the page; the legacy public service (the page's old
     // default) is handed only to the LOCAL single-project composition — hybrid/closed never call it.
@@ -191,6 +194,7 @@ test('the only backend access B04 adds is the gateway transport (fetch) and the 
     'src/features/torneos/components/PurchaseStatusPage.jsx -> ../context/TorneosCommerceContext',
     // COMPETITION-V1: the wizard hands its settings panels the MOUNTED composition's service (their own
     // default is the legacy Core service, which a hybrid wizard must never reach).
+    'src/features/torneos/components/TorneosShell.jsx -> ./OrganizationInvitationPage',
     'src/features/torneos/components/TournamentWizardPage.jsx -> ../context/TorneosWorkspaceContext',
     'src/features/torneos/context/TorneosCommerceContext.jsx -> ../api/legacyCommerceAdapter',
     'src/features/torneos/stagingV1/StagingV1TorneosApp.jsx -> ../context/TorneosWorkspaceContext',
@@ -306,12 +310,13 @@ test('the audited fixture is exactly the audit of the working tree (regenerate w
   assert.deepEqual(audit(currentSources()), snapshot);
 });
 
-test('T13 — the feature map is data: its ON keys are the Phase 2D + COMPETITION-V1 scope keys, every shell route and nav entry is classified', () => {
+test('T13 — the feature map is data: its ON keys are the Phase 2D + COMPETITION-V1 + OFFICIALIZATION-V1 scope keys, every shell route and nav entry is classified', () => {
   const rt = runtime();
-  const { stagingV1Features, legacyFeatures, stagingV1OnFeatures, competitionV1OnFeatures } = rt.load('src/features/torneos/stagingV1/stagingV1Features.js');
+  const { stagingV1Features, legacyFeatures, stagingV1OnFeatures, competitionV1OnFeatures, officializationV1OnFeatures } = rt.load('src/features/torneos/stagingV1/stagingV1Features.js');
   same(stagingV1OnFeatures, Object.keys(scopeSource));
   same(competitionV1OnFeatures, Object.keys(competitionSource.features));
-  const on = [...stagingV1OnFeatures, ...competitionV1OnFeatures];
+  same(officializationV1OnFeatures, Object.keys(JSON.parse(read('backend/torneos/supabase/functions/torneos-gateway/officialization-v1-rpc-allowlist.json')).features));
+  const on = [...stagingV1OnFeatures, ...competitionV1OnFeatures, ...officializationV1OnFeatures];
   for (const key of on) assert.equal(stagingV1Features[key], true, key);
   for (const [key, value] of Object.entries(stagingV1Features)) if (!on.includes(key)) assert.equal(value, false, key);
   // Never on in hybrid without its own certification: media, social studio, billing, branding uploads.
@@ -337,8 +342,8 @@ test('T13 — the feature map is data: its ON keys are the Phase 2D + COMPETITIO
     assert.ok(onPages.has(component), `route element <${component}> is neither an ON surface nor gated`);
   }
   for (const match of shell.matchAll(/element=\{gate\('([a-z_]+)',\s*<([A-Za-z]+)/g)) {
-    assert.ok(stagingV1Features[match[1]] === false || competitionV1OnFeatures.includes(match[1]),
-      `gate('${match[1]}') on <${match[2]}> must gate an OFF surface or a COMPETITION-V1 surface`);
+    assert.ok(stagingV1Features[match[1]] === false || competitionV1OnFeatures.includes(match[1]) || officializationV1OnFeatures.includes(match[1]),
+      `gate('${match[1]}') on <${match[2]}> must gate an OFF surface, a COMPETITION-V1 or an OFFICIALIZATION-V1 surface`);
   }
 });
 
