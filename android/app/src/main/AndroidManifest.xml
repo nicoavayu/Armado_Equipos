@@ -27,6 +27,11 @@
             android:windowSoftInputMode="adjustResize"
             android:exported="true">
 
+            <!-- Temporary API 36 opt-out; remove with ANDROID LARGE SCREEN ADAPTATION before API 37. -->
+            <property
+                android:name="android.window.PROPERTY_COMPAT_ALLOW_RESTRICTED_RESIZABILITY"
+                android:value="true" />
+
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
