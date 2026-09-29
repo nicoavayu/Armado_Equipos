@@ -20,6 +20,7 @@ import {
   TOURNAMENT_CAPABILITIES,
 } from '../domain/capabilities';
 import { useTorneosWorkspace } from '../context/TorneosWorkspaceContext';
+import { useOptionalTorneosCompetition } from '../context/TorneosCompetitionContext';
 import { useTorneosFeature } from '../context/TorneosFeaturesContext';
 import OrganizationSettingsNav from './OrganizationSettingsNav';
 import { WorkspaceError, WorkspaceLoading } from './WorkspaceState';
@@ -91,6 +92,7 @@ export default function OrganizationMembersPage() {
     status: 'idle', assignments: [], entitlements: null, error: '', pendingId: '',
   });
   const membersFeature = useTorneosFeature('organization_members');
+  const competition = useOptionalTorneosCompetition();
   const offers = (name) => membersFeature && typeof service?.[name] === 'function';
   const isOwner = organization.role === 'owner';
   const canInvite = hasCapability(
@@ -204,41 +206,23 @@ export default function OrganizationMembersPage() {
     }
   };
 
-  const load = async () => {
-    setState((current) => ({ ...current, status: 'loading', error: '' }));
-    try {
-      const [members, competition] = await Promise.all([
-        service.listMembers(organization.id),
-        service.loadCompetitionContext(organization.id),
-      ]);
-      const seasons = competition?.seasons || [];
-      setState({ status: 'ready', members, seasons, error: '' });
-      setSelectedSeasonId((current) => (
-        seasons.some((season) => season.id === current) ? current : (seasons[0]?.id || '')
-      ));
-    } catch (error) {
-      setState({
-        status: 'error',
-        members: [],
-        seasons: [],
-        error: error?.message || 'No pudimos cargar los miembros.',
-      });
-    }
-  };
-
+  // POST-BETA perf: the organization's seasons are already in the competition context that
+  // OrganizationRouteGuard loads for every organization page. Reading them there (instead of a second
+  // get_tournament_competition_context) lets the season accesses load in the same round as the member
+  // list when the context is already in memory. Without that provider the page reads them itself.
+  const [loadKey, setLoadKey] = useState(0);
   useEffect(() => {
     let active = true;
+    setState((current) => ({ ...current, status: 'loading', error: '' }));
     Promise.all([
       service.listMembers(organization.id),
-      service.loadCompetitionContext(organization.id),
+      competition ? null : service.loadCompetitionContext(organization.id),
     ])
-      .then(([members, competition]) => {
+      .then(([members, ownCompetition]) => {
         if (!active) return;
-        const seasons = competition?.seasons || [];
-        setState({ status: 'ready', members, seasons, error: '' });
-        setSelectedSeasonId((current) => (
-          seasons.some((season) => season.id === current) ? current : (seasons[0]?.id || '')
-        ));
+        setState({
+          status: 'ready', members, seasons: ownCompetition?.seasons || [], error: '',
+        });
       })
       .catch((error) => {
         if (active) {
@@ -253,7 +237,27 @@ export default function OrganizationMembersPage() {
     return () => {
       active = false;
     };
-  }, [organization.id, service]);
+  // `competition` only decides whether the page reads the seasons itself; its updates don't reload.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loadKey, organization.id, service, Boolean(competition)]);
+
+  const seasons = competition ? competition.seasons : state.seasons;
+  const pageStatus = (() => {
+    if (state.status !== 'ready' || !competition) return state.status;
+    if (competition.status === 'error') return 'error';
+    return competition.status === 'ready' ? 'ready' : 'loading';
+  })();
+  const pageError = state.status === 'error' ? state.error : (competition?.error || state.error);
+  const load = () => {
+    if (competition?.status === 'error') competition.refresh().catch(() => {});
+    setLoadKey((key) => key + 1);
+  };
+
+  useEffect(() => {
+    setSelectedSeasonId((current) => (
+      seasons.some((season) => season.id === current) ? current : (seasons[0]?.id || '')
+    ));
+  }, [seasons]);
 
   useEffect(() => {
     if (!selectedSeasonId) {
@@ -337,8 +341,8 @@ export default function OrganizationMembersPage() {
     }
   };
 
-  if (state.status === 'loading') return <WorkspaceLoading label="Cargando miembros…" />;
-  if (state.status === 'error') return <WorkspaceError message={state.error} onRetry={load} />;
+  if (pageStatus === 'loading') return <WorkspaceLoading label="Cargando miembros…" />;
+  if (pageStatus === 'error') return <WorkspaceError message={pageError} onRetry={load} />;
 
   return (
     <div className={styles.membersPage}>
@@ -505,14 +509,14 @@ export default function OrganizationMembersPage() {
               colaboradores sólo acceden a las temporadas que les asignes.
             </p>
           </div>
-          {state.seasons.length > 0 && (
+          {seasons.length > 0 && (
             <label>
               <span>Temporada</span>
               <select
                 value={selectedSeasonId}
                 onChange={(event) => setSelectedSeasonId(event.target.value)}
               >
-                {state.seasons.map((season) => (
+                {seasons.map((season) => (
                   <option key={season.id} value={season.id}>{season.name}</option>
                 ))}
               </select>
@@ -520,7 +524,7 @@ export default function OrganizationMembersPage() {
           )}
         </header>
 
-        {state.seasons.length === 0 && (
+        {seasons.length === 0 && (
           <p className={styles.assignmentEmpty}>Creá una temporada para asignar accesos.</p>
         )}
 
