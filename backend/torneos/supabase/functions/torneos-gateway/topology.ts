@@ -33,6 +33,9 @@ export const PRODUCTION = Object.freeze({
   coreContractUrl: `https://${CORE_PRODUCTION_REF}.supabase.co/functions/v1/torneos-core-contract`,
   torneosRestUrl: `https://${TORNEOS_DATA_REF}.supabase.co/rest/v1`,
   allowedOrigin: "https://app.arma2.com.ar",
+  // The Android app's WebView (Capacitor 7: androidScheme https, hostname localhost), measured on the wire
+  // 2026-09-29. Pinned here, never from env; allowed only in addition to the web origin, only on Production.
+  nativeAppOrigin: "https://localhost",
   identityWriterLogin: "torneos_edge_identity_writer",
   coreAdapterLogin: "torneos_edge_core_adapter",
   // Supavisor (session :5432 / transaction :6543) in the project's region, or the direct host.
