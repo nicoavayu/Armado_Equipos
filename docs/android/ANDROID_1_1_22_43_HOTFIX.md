@@ -63,23 +63,29 @@ Other rules:
 - Debug/local builds keep using plain `npm run build` and stay closed.
 - Tests: `scripts/build-android-release.test.mjs`.
 
-**Root cause B (runtime, open):**
-- The Production gateway allows exactly one browser origin,
-  `https://app.arma2.com.ar`. See `backend/torneos/supabase/functions/torneos-gateway/topology.ts`,
-  `PRODUCTION.allowedOrigin`.
-- The Capacitor Android WebView origin is `https://localhost`.
-- Read-only preflight, 2026-09-29:
+**Root cause B (runtime, resolved by the gateway, PR #165):**
+- The Production gateway allowed exactly one browser origin,
+  `https://app.arma2.com.ar`. The Capacitor Android WebView sends
+  `Origin: https://localhost` (measured on the wire on Android 16). It got
+  **403**, and so did `capacitor://localhost`.
+- `f7efe18f` sets `PRODUCTION.nativeAppOrigin = "https://localhost"` in
+  `backend/torneos/supabase/functions/torneos-gateway/topology.ts`. The Production
+  allowlist is now exactly `[https://app.arma2.com.ar, https://localhost]`:
+  - exact match only, no wildcard;
+  - ACAO echoes the matched origin;
+  - auth unchanged.
+- Deployed 2026-09-29 as gateway revision `tmxxr5taty23` (digest
+  `59573b50…`), env 13/13 unchanged. Rollback to `0f049ef5` / `6c252863…` is
+  prepared. Merged into main as `acd87aaa`.
+- Read-only probes after the merge:
 
   | Origin | Result |
   |---|---|
-  | `https://app.arma2.com.ar` | 204 |
-  | `https://localhost` | **403** |
-  | `capacitor://localhost` | **403** |
+  | `https://app.arma2.com.ar` | 200 / 204, exact ACAO |
+  | `https://localhost` | 200 / 204, exact ACAO; RPC reaches Core auth (401) |
+  | `http://localhost`, `capacitor://localhost`, `https://localhost:8443`, `https://evil.example` | 403, no ACAO |
 
-- With the config compiled in, the app would show Torneos as available, and then
-  every gateway call from the WebView would be rejected.
-- Resolving this is outside this hotfix's scope, which is no Deno or gateway
-  changes. It needs an explicit decision before an AAB enables Torneos.
+- iOS (`capacitor://localhost`) stays refused. It is not part of this hotfix.
 
 ## 3. Amigos → Comunidad search
 
