@@ -181,4 +181,29 @@ describe('AmigosView community search', () => {
     expect(screen.getByText('Thomas Nuevo')).toBeInTheDocument();
     expect(screen.queryByText('Thor Viejo')).not.toBeInTheDocument();
   });
+
+  test('results never render another user\'s email, even when the payload carries it', async () => {
+    mockSearch.mockImplementation(async () => ({
+      data: [
+        {
+          id: 'u-relay',
+          nombre: 'Thomas Relay',
+          email: 'abc123xyz@privaterelay.appleid.com',
+          avatar_url: 'https://example.com/avatar.png',
+        },
+        { id: 'u-plain', nombre: 'Thomas Plano', email: 'thomas.plano@gmail.com' },
+      ],
+      error: null,
+    }));
+    const input = await renderCommunity();
+
+    fireEvent.change(input, { target: { value: 'Thomas' } });
+
+    expect(await screen.findByText('Thomas Relay')).toBeInTheDocument();
+    expect(screen.getByText('Thomas Plano')).toBeInTheDocument();
+    expect(screen.getByAltText('Thomas Relay')).toHaveAttribute('src', 'https://example.com/avatar.png');
+    expect(document.body.textContent).not.toMatch(/@/);
+    expect(screen.queryByText(/privaterelay/i)).not.toBeInTheDocument();
+    expect(screen.queryByText('thomas.plano@gmail.com')).not.toBeInTheDocument();
+  });
 });

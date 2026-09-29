@@ -1136,7 +1136,9 @@ const SearchUserItem = ({
           />
           <div className="flex-1 min-w-0">
             <div className="font-semibold text-white text-sm truncate">{user.nombre}</div>
-            <div className="text-xs text-white/60 mt-0.5 truncate">{subtitle || user.email || 'Usuario'}</div>
+            {/* Nunca el email: es dato privado (incluye relays de Apple) y esta
+              tarjeta lista a otros usuarios en búsquedas públicas. */}
+            <div className="text-xs text-white/60 mt-0.5 truncate">{subtitle || 'Usuario'}</div>
           </div>
         </div>
       </PlayerCardTrigger>
