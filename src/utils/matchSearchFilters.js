@@ -7,8 +7,25 @@ export const MATCH_SEARCH_FILTERS = ['all', 'players', 'goalkeeper'];
 
 export const MATCH_SEARCH_FILTER_LABELS = {
   all: 'Todos',
-  players: 'Buscan jugadores',
-  goalkeeper: 'Buscan arquero',
+  players: 'Busca jugador',
+  goalkeeper: 'Busca arquero',
+};
+
+// Only the two narrowing filters are rendered as chips. `all` has no chip of its
+// own: it is the state where neither chip is selected, so both labels fit on
+// one line at 320px without truncation.
+export const MATCH_SEARCH_FILTER_CHIPS = ['players', 'goalkeeper'];
+
+/**
+ * Next filter after tapping a chip: the chip's filter, or back to `all` when
+ * the tapped chip was already active.
+ * @param {('all'|'players'|'goalkeeper')} current
+ * @param {('players'|'goalkeeper')} tapped
+ * @returns {('all'|'players'|'goalkeeper')}
+ */
+export const toggleMatchSearchFilter = (current, tapped) => {
+  if (!MATCH_SEARCH_FILTER_CHIPS.includes(tapped)) return 'all';
+  return current === tapped ? 'all' : tapped;
 };
 
 /** @param {object} match @returns {boolean} */
