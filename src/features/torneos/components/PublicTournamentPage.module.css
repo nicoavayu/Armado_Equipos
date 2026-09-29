@@ -7,6 +7,8 @@
   --violet-dark: #3d1ba5;
   --line: #dfdae8;
   min-height: 100vh;
+  /* Standalone route (no app layout): it owns the top inset itself. */
+  padding-top: var(--safe-top, 0px);
   overflow-x: clip;
   color: var(--ink);
   background:
@@ -17,6 +19,21 @@
 }
 
 .publicPage * { box-sizing: border-box; }
+
+/* Status bar plate (Android 15+ edge-to-edge / iOS): the system clock and
+   icons are white and the page is light, so the inset gets the hero's dark
+   color; content scrolling under it stays hidden. 0px tall on the web. */
+.publicPage::before {
+  content: '';
+  position: fixed;
+  z-index: 20;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: var(--safe-top, 0px);
+  background: #21114e;
+  pointer-events: none;
+}
 
 .skipLink {
   position: fixed;
@@ -239,7 +256,7 @@
 .tabs {
   position: sticky;
   z-index: 10;
-  top: 0;
+  top: var(--safe-top, 0px);
   display: flex;
   width: min(1180px, calc(100% - 40px));
   margin: 20px auto 0;

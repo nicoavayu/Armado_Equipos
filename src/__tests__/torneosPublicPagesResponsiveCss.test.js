@@ -36,6 +36,12 @@ describe('public tournament responsive contract', () => {
     expect(css).toMatch(/\.brandOwnImage \{[^}]*object-fit: contain/s);
   });
 
+  test('the standalone page owns the top safe area: padded, a dark status plate, tabs stick below it', () => {
+    expect(css).toMatch(/\.publicPage \{[^}]*padding-top: var\(--safe-top, 0px\)/s);
+    expect(css).toMatch(/\.publicPage::before \{[^}]*position: fixed[^}]*height: var\(--safe-top, 0px\)[^}]*background: #21114e/s);
+    expect(css).toMatch(/\.tabs \{[^}]*top: var\(--safe-top, 0px\)/s);
+  });
+
   test('keeps interactive controls at accessible touch sizes', () => {
     expect(css).toMatch(/\.tabs button[^}]*min-height: 52px/s);
     expect(settingsCss).toMatch(/\.linkBox button[^}]*min-height: 44px/s);
