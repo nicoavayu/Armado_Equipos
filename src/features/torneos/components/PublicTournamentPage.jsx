@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   CalendarDays,
   ChevronRight,
@@ -18,6 +18,10 @@ import {
 import { getCompetitionFormatName, getSportModalityName } from '../domain/competitionCatalog';
 import styles from './PublicTournamentPage.module.css';
 import BrandingImage from './BrandingImage';
+// Byte-identical file copy of BASE_LOCKUP_DATA_URL (social/base/brandAsset.js):
+// the approved Arma2 Torneos lockup, served as a cacheable asset instead of
+// inlining 77 KB of base64 into the public page chunk.
+import OfficialLockup from '../../../assets/branding/arma2-torneos-lockup.webp';
 
 const TABS = [
   ['inicio', 'Inicio'],
@@ -28,6 +32,63 @@ const TABS = [
   ['equipos', 'Equipos'],
   ['disciplina', 'Disciplina'],
 ];
+
+export const OFFICIAL_LOCKUP_ALT = 'Arma2 Torneos';
+
+// Which brand the public page shows in its header and footer.
+//
+// FREE (or no plan signal at all): the official Arma2 Torneos logo.
+// PREMIUM (`branding.canRemoveArma2`, the entitlement contract's flag): the
+// tournament's own logo, else the organization's; with neither, or when they
+// fail to load, the official logo. A logo path alone never switches the brand:
+// without the Premium signal it would white-label a Free page. The public
+// payload does not carry that signal today, and the hybrid composition strips
+// logo paths, so production renders the official logo until the backend
+// publishes both.
+export function resolvePublicBrand(page) {
+  const premium = page?.branding?.canRemoveArma2 === true;
+  const tournamentPath = page?.tournament?.logoPath || null;
+  const organizationPath = page?.organization?.logoPath
+    || page?.tournament?.organizationLogoPath
+    || null;
+  if (premium && (tournamentPath || organizationPath)) {
+    return { kind: 'own', tournamentPath, organizationPath };
+  }
+  return { kind: 'official' };
+}
+
+// The lockup's "ARMA2" is white: it always sits on the dark brand plate.
+function OfficialBrandMark() {
+  return (
+    <span className={styles.brandOfficial} data-brand="official">
+      <img
+        src={OfficialLockup}
+        alt={OFFICIAL_LOCKUP_ALT}
+        width="864"
+        height="100"
+        className={styles.brandOfficialImage}
+      />
+    </span>
+  );
+}
+
+function PublicBrandMark({ page }) {
+  const brand = resolvePublicBrand(page);
+  if (brand.kind !== 'own') return <OfficialBrandMark />;
+  return (
+    <BrandingImage
+      kind="tournament"
+      path={brand.tournamentPath}
+      fallbackPath={brand.organizationPath}
+      name={page.organization?.name || page.tournament?.name || ''}
+      decorative={false}
+      loading="eager"
+      className={styles.brandOwn}
+      imageClassName={styles.brandOwnImage}
+      fallback={<OfficialBrandMark />}
+    />
+  );
+}
 
 const STATUS_LABELS = {
   registration: 'Inscripción',
@@ -255,6 +316,7 @@ export default function PublicTournamentPage({ service = publicTournamentService
   const [state, setState] = useState({ status: 'loading', page: null });
   const [activeTab, setActiveTab] = useState('inicio');
   const [scopeKey, setScopeKey] = useState('');
+  const tabsRef = useRef(null);
 
   useEffect(() => {
     let current = true;
@@ -302,6 +364,18 @@ export default function PublicTournamentPage({ service = publicTournamentService
     };
   }, [state]);
 
+  // On a narrow bar the selected tab can sit half outside it: bring it fully
+  // into the bar (scrolling only the bar, never the page).
+  useEffect(() => {
+    const bar = tabsRef.current;
+    const active = bar?.querySelector('[aria-current="page"]');
+    if (!bar || !active) return;
+    const barBox = bar.getBoundingClientRect();
+    const tabBox = active.getBoundingClientRect();
+    if (tabBox.left < barBox.left) bar.scrollLeft -= barBox.left - tabBox.left;
+    else if (tabBox.right > barBox.right) bar.scrollLeft += tabBox.right - barBox.right;
+  }, [activeTab, state.status]);
+
   const page = state.page;
   const scope = useMemo(() => page?.competition?.find((item) => item.scopeKey === scopeKey)
     || page?.competition?.[0] || null, [page, scopeKey]);
@@ -316,7 +390,7 @@ export default function PublicTournamentPage({ service = publicTournamentService
     <div className={styles.publicPage}>
       <a className={styles.skipLink} href="#contenido-publico">Saltar al contenido</a>
       <header className={styles.topbar}>
-        <div className={styles.brand}><img src={Logo} alt="" /><span><b>ARMA2</b> TORNEOS</span></div>
+        <PublicBrandMark page={page} />
         <span className={styles.officialBadge}><Shield size={14} /> Sitio oficial</span>
       </header>
       <section className={styles.hero}>
@@ -351,13 +425,13 @@ export default function PublicTournamentPage({ service = publicTournamentService
         {page.categories.length > 1 && <label><span>Categoría</span><select aria-label="Categoría" value={selectedCategory?.slug || ''} onChange={(event) => setSearchParams(event.target.value ? { categoria: event.target.value } : {})}>{page.categories.map((category) => <option key={category.slug} value={category.slug}>{category.name}</option>)}</select></label>}
         {page.competition.length > 1 && <label><span>Fase o grupo</span><select aria-label="Fase o grupo" value={scope?.scopeKey || ''} onChange={(event) => setScopeKey(event.target.value)}>{page.competition.map((item) => <option key={item.scopeKey} value={item.scopeKey}>{item.label}</option>)}</select></label>}
       </div>
-      <nav className={styles.tabs} aria-label="Secciones del torneo">
+      <nav ref={tabsRef} className={styles.tabs} aria-label="Secciones del torneo">
         {TABS.map(([key, label]) => <button key={key} type="button" aria-current={activeTab === key ? 'page' : undefined} onClick={() => setActiveTab(key)}>{label}</button>)}
       </nav>
       <main id="contenido-publico" className={styles.content} tabIndex="-1">
         <PublicTournamentContent page={page} activeTab={activeTab} scope={scope} service={service} />
       </main>
-      <footer className={styles.pageFooter}><div className={styles.brand}><img src={Logo} alt="" /><span><b>ARMA2</b> TORNEOS</span></div><p>Información oficial publicada por {page.organization.name}.</p></footer>
+      <footer className={styles.pageFooter}><PublicBrandMark page={page} /><p>Información oficial publicada por {page.organization.name}.</p></footer>
     </div>
   );
 }

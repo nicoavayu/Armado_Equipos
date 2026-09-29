@@ -43,22 +43,42 @@
 
 .topbar { min-height: 76px; }
 
-.brand {
+/* Official Arma2 Torneos lockup, drawn as the approved bitmap (never rebuilt
+   from text). Its "ARMA2" half is white, so it always sits on the dark plate. */
+.brandOfficial {
   display: inline-flex;
-  gap: 10px;
+  flex: 0 1 auto;
   align-items: center;
-  font-family: 'Bebas Neue', Impact, sans-serif;
-  font-size: 18px;
-  letter-spacing: .12em;
+  min-width: 0;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: #21114e;
 }
 
-.brand img {
-  width: 34px;
-  height: 34px;
+.brandOfficialImage {
+  display: block;
+  width: auto;
+  max-width: 100%;
+  height: 24px;
   object-fit: contain;
 }
 
-.brand b { color: var(--violet); }
+/* Premium own logo: any aspect ratio, contained, never cropped or stretched. */
+.brandOwn {
+  display: inline-flex;
+  flex: 0 1 auto;
+  align-items: center;
+  min-width: 0;
+  height: 48px;
+}
+
+.brandOwnImage {
+  display: block;
+  width: auto;
+  max-width: min(220px, 100%);
+  height: 100%;
+  object-fit: contain;
+}
 
 .officialBadge {
   display: inline-flex;
@@ -224,6 +244,7 @@
   width: min(1180px, calc(100% - 40px));
   margin: 20px auto 0;
   overflow-x: auto;
+  overscroll-behavior-x: contain;
   border-bottom: 1px solid var(--line);
   background: rgba(246, 244, 250, .96);
   scrollbar-width: none;
@@ -235,6 +256,7 @@
   flex: 0 0 auto;
   min-height: 52px;
   padding: 0 17px;
+  white-space: nowrap;
   color: var(--muted);
   border: 0;
   border-bottom: 3px solid transparent;
@@ -368,8 +390,11 @@ a:focus-visible { outline: 3px solid #a78aff; outline-offset: 3px; }
   .controls,
   .tabs,
   .content { width: min(100% - 24px, 1180px); }
-  .topbar { min-height: 64px; }
-  .officialBadge { padding: 7px; font-size: 0; }
+  .topbar { min-height: 64px; gap: 12px; }
+  .brandOfficial { padding: 8px 11px; }
+  .brandOfficialImage { height: 20px; }
+  .brandOwn { height: 40px; }
+  .officialBadge { flex: 0 0 auto; padding: 7px; font-size: 0; }
   .hero { margin-top: 4px; padding: 34px 20px 20px; border-radius: 3px 3px 16px 3px; }
   .hero h1 { font-size: clamp(46px, 17vw, 72px); }
   .heroCopy > p { font-size: 14px; }

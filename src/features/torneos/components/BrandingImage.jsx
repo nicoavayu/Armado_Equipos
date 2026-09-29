@@ -21,6 +21,9 @@ export default function BrandingImage({
   style,
   decorative = true,
   loading = 'lazy',
+  // Rendered instead of the initials once no candidate is left (none resolved
+  // or every one failed to load).
+  fallback = null,
 }) {
   const candidates = useMemo(() => resolveBrandingAssetCandidates({
     kind,
@@ -32,6 +35,7 @@ export default function BrandingImage({
   useEffect(() => setCandidateIndex(0), [candidates.join('|')]);
 
   const src = candidates[candidateIndex] || null;
+  if (!src && fallback) return fallback;
   return (
     <span
       className={className}
