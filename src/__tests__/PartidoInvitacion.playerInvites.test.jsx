@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import PartidoInvitacion from '../pages/PartidoInvitacion';
+import { TopSafeAreaAppliedContext } from '../context/TopSafeAreaContext';
 import { supabase } from '../supabase';
 import { isUserMemberOfMatch } from '../utils/membershipCheck';
 
@@ -54,6 +55,16 @@ jest.mock('../components/ProfileComponents', () => ({
 }));
 
 jest.mock('../components/TabBar', () => () => null);
+
+// PageTitle owns the inset through `respectSafeArea` (jsdom drops its
+// max(var(--safe-top)) inline value), so the double exposes that prop.
+jest.mock('../components/PageTitle', () => function MockPageTitle({ title, respectSafeArea }) {
+  return (
+    <div data-testid="page-title" data-respect-safe-area={String(Boolean(respectSafeArea))}>
+      <h2>{title}</h2>
+    </div>
+  );
+});
 
 jest.mock('../hooks/useRefreshOnVisibility', () => ({
   useRefreshOnVisibility: jest.fn(),
@@ -133,7 +144,8 @@ const buildPlayerRow = (userId = PLAYER_ID) => ({
   is_substitute: false,
 });
 
-const renderPublicMatch = async () => {
+const renderPublicMatch = async ({ topSafeAreaApplied } = {}) => {
+  const page = <PartidoInvitacion mode="public" />;
   render(
     <MemoryRouter
       initialEntries={[`/partido-publico/${MATCH_ID}`]}
@@ -142,7 +154,11 @@ const renderPublicMatch = async () => {
       <Routes>
         <Route
           path="/partido-publico/:partidoId"
-          element={<PartidoInvitacion mode="public" />}
+          element={topSafeAreaApplied === undefined ? page : (
+            <TopSafeAreaAppliedContext.Provider value={topSafeAreaApplied}>
+              {page}
+            </TopSafeAreaAppliedContext.Provider>
+          )}
         />
       </Routes>
     </MemoryRouter>,
@@ -256,5 +272,41 @@ describe('PartidoInvitacion registered player invites', () => {
     fireEvent.click(inviteButton);
 
     expect(await screen.findByTestId('registered-invite-modal')).toHaveAttribute('data-mode', 'direct');
+  });
+});
+
+// /partido-publico is routed outside MainLayout (only AppAuthWrapper), so no
+// ancestor pads the top inset: its own header must, exactly once.
+describe('PartidoInvitacion public detail top safe area', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockAuthUser = { id: PLAYER_ID, email: 'player@example.com' };
+    mockMatchRow = buildMatch();
+    mockPlayersRows = [buildPlayerRow(PLAYER_ID)];
+    mockIsMember = true;
+    isUserMemberOfMatch.mockImplementation(async () => ({
+      isMember: true,
+      jugadorRow: buildPlayerRow(PLAYER_ID),
+    }));
+    supabase.from.mockImplementation((table) => {
+      if (table === 'partidos_view') return createQueryBuilder({ data: mockMatchRow, error: null });
+      if (table === 'jugadores') {
+        return createQueryBuilder({ data: mockPlayersRows, count: mockPlayersRows.length, error: null });
+      }
+      return createQueryBuilder({ data: null, error: null });
+    });
+    supabase.rpc.mockResolvedValue({ data: null, error: null });
+  });
+
+  test('standalone route: the sticky title pads itself below the status bar', async () => {
+    await renderPublicMatch();
+
+    expect(screen.getByTestId('page-title')).toHaveAttribute('data-respect-safe-area', 'true');
+  });
+
+  test('nested in a layout that already applies --safe-top: no double inset', async () => {
+    await renderPublicMatch({ topSafeAreaApplied: true });
+
+    expect(screen.getByTestId('page-title')).toHaveAttribute('data-respect-safe-area', 'false');
   });
 });

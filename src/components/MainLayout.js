@@ -6,6 +6,7 @@ import { OnboardingProvider, OnboardingHost } from '../features/onboarding';
 import GlobalHeader from './global-header/GlobalHeader';
 import { AwardsStoryProvider } from './global-header/AwardsStoryContext';
 import { isArma2SpaceRoot } from '../features/space-navigation/spaceNavigation';
+import { TopSafeAreaAppliedContext } from '../context/TopSafeAreaContext';
 
 const MainLayout = () => {
   const location = useLocation();
@@ -31,9 +32,8 @@ const MainLayout = () => {
   //   así que este padding baja header y contenido juntos debajo de status bar y
   //   cutout. Sin él (pt-0), el título queda debajo de la status bar en Android
   //   15+ edge-to-edge (targetSdk 35/36) y en iOS.
-  const mainPaddingTopClass = showSpaceHeader || isVotingShellRoute || isImmersiveNewMatchRoute
-    ? 'pt-0'
-    : 'pt-[var(--safe-top,0px)]';
+  const mainOwnsTopSafeArea = !(showSpaceHeader || isVotingShellRoute || isImmersiveNewMatchRoute);
+  const mainPaddingTopClass = mainOwnsTopSafeArea ? 'pt-[var(--safe-top,0px)]' : 'pt-0';
 
   useEffect(() => {
     const root = document.documentElement;
@@ -87,8 +87,26 @@ const MainLayout = () => {
             ref={mainScrollResetRef}
             className={`flex-1 flex flex-col ${mainPaddingTopClass} ${mainPaddingBottomClass} overflow-x-hidden ${isHomeDashboard ? 'min-h-0 overflow-y-hidden overscroll-none' : ''}`}
           >
-            <Outlet />
+            <TopSafeAreaAppliedContext.Provider value={mainOwnsTopSafeArea}>
+              <Outlet />
+            </TopSafeAreaAppliedContext.Provider>
           </main>
+
+          {/* Protección de status bar: el padding de <main> sólo ubica bien el
+            estado inicial. Al scrollear window, el PageTitle (dentro de un
+            ancestro transformado) se va con el contenido y buscador/tarjetas
+            pasaban debajo del reloj e íconos del sistema (Android 15+
+            edge-to-edge / iOS). Esta franja fija del alto del inset, con el color
+            del PageTitle, se funde con el header en reposo y tapa lo que scrollea
+            debajo. z-[1001]: sobre PageTitle/TabBar (1000), bajo GlobalHeader
+            (1200), loaders y modales. En web sin inset mide 0. */}
+          {mainOwnsTopSafeArea && (
+            <div
+              aria-hidden="true"
+              data-testid="status-bar-scrim"
+              className="fixed inset-x-0 top-0 z-[1001] h-[var(--safe-top,0px)] pointer-events-none bg-[rgba(18,14,40,0.96)]"
+            />
+          )}
 
           {!isVotingShellRoute && !isImmersiveNewMatchRoute && (
             <TabBar
