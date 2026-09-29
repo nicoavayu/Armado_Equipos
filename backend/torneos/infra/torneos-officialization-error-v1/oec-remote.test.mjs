@@ -15,6 +15,7 @@ import { mintBridgeToken } from '../torneos-gateway-auth/bridge-probe.mjs';
 import { makeRemote, readOnlyEnv, installerEnv, REFUSALS } from './oec-remote.mjs';
 import { runCommand } from './oec-session.mjs';
 import { buildCandidate, buildLive } from './oec-bundle.mjs';
+import { buildFromCommit } from '../torneos-competition-v1/competition-bundle.mjs';
 import { fixtureEnv, gatewayPair, fakeDeno, fakeDb, fakeDeltaPin, contractState } from './test-support.mjs';
 
 const DENO_TOKEN = `ddo_${crypto.randomBytes(24).toString('base64url')}`;
@@ -111,7 +112,8 @@ test('bundles: live rebuilt from git = the deploy pin (16 files, 75e3535a…); c
   const live = buildLive();
   assert.equal(live.digest, C.LIVE.digest); assert.equal(live.manifest.length, 16); assert.equal(live.head, C.LIVE.head);
   assert.deepEqual(live.manifest, C.readLiveDeployPin().source.files);
-  const a = buildCandidate({ requireClean: false }); const b = buildCandidate({ requireClean: false });
+  // OEC is deployed (t5vxxvzp1t9f) and superseded at HEAD by ANDROID-ORIGIN: its candidate is rebuilt from its certified commit.
+  const a = buildFromCommit(CAND_PIN.source_commit); const b = buildFromCommit(CAND_PIN.source_commit);
   assert.equal(a.digest, b.digest, 'deterministic');
   assert.equal(a.digest, CAND_PIN.digest); assert.equal(a.manifest.length, CAND_PIN.files); assert.deepEqual(a.manifest, CAND_PIN.manifest);
   assert.equal(CAND_PIN.digest, '6c252863fd94bcad0f785af9bb3636d09b2bc2265baafb0af2a771efdb6143a4');
