@@ -60,6 +60,7 @@ import {
   resourceMatchesCanonicalScope,
 } from '../domain/routeResourceScope';
 import { describeMatchOutcomeGap } from '../domain/matchOutcome';
+import { describeSquadLock, getSquadActionErrorMessage } from '../domain/matchSquads';
 import { describeEarlyOpen, isEarlyOpenReasonValid } from '../domain/matchSchedule';
 import {
   getMatchPeriodLabel,
@@ -376,11 +377,16 @@ function MatchList({
 export function SquadEditor({
   context,
   readOnly,
+  lockMessage = '',
   busy,
   onSave,
   onSubmit,
 }) {
   const [query, setQuery] = useState('');
+  // `lockMessage`: the backend would reject any save/submit (see domain/matchSquads). The squad stays
+  // visible, nothing in it is editable and the actions say why instead of failing on click.
+  const locked = Boolean(lockMessage);
+  const frozen = Boolean(readOnly) || locked;
   const [players, setPlayers] = useState([]);
 
   useEffect(() => {
@@ -462,7 +468,7 @@ export function SquadEditor({
               <button
                 type="button"
                 className={styles.playerIdentity}
-                disabled={readOnly}
+                disabled={frozen}
                 onClick={() => toggleCallup(player)}
                 aria-pressed={called}
               >
@@ -485,7 +491,7 @@ export function SquadEditor({
                 <div className={styles.playerControls}>
                   <select
                     aria-label={`Alineación de ${player.displayName}`}
-                    disabled={readOnly}
+                    disabled={frozen}
                     value={player.lineupStatus}
                     onChange={(event) => patch(player.rosterPlayerId, { lineupStatus: event.target.value })}
                   >
@@ -494,7 +500,7 @@ export function SquadEditor({
                   </select>
                   <select
                     aria-label={`Presencia de ${player.displayName}`}
-                    disabled={readOnly}
+                    disabled={frozen}
                     value={player.attendanceStatus}
                     onChange={(event) => patch(player.rosterPlayerId, {
                       attendanceStatus: event.target.value,
@@ -516,7 +522,7 @@ export function SquadEditor({
                   </button>
                   <button
                     type="button"
-                    disabled={readOnly}
+                    disabled={frozen}
                     aria-pressed={player.isCaptain}
                     onClick={() => setPlayers((current) => current.map((candidate) => ({
                       ...candidate,
@@ -531,15 +537,26 @@ export function SquadEditor({
           );
         })}
       </div>
+      {locked && (
+        <p className={styles.inlineHint} id={`squad-lock-${context?.teamEntryId || 'team'}`} role="note">
+          <LockKeyhole size={15} aria-hidden="true" /> {lockMessage}
+        </p>
+      )}
       {!readOnly && (
         <div className={styles.stickyActions}>
-          <button type="button" disabled={busy} onClick={() => onSave(serialize())}>
+          <button
+            type="button"
+            disabled={busy || locked}
+            aria-describedby={locked ? `squad-lock-${context?.teamEntryId || 'team'}` : undefined}
+            onClick={() => onSave(serialize())}
+          >
             <Save size={17} /> Guardar borrador
           </button>
           <button
             type="button"
             className={styles.primaryButton}
-            disabled={busy || starters.length !== Number(context?.teamSize || 11)
+            aria-describedby={locked ? `squad-lock-${context?.teamEntryId || 'team'}` : undefined}
+            disabled={busy || locked || starters.length !== Number(context?.teamSize || 11)
               || selected.filter((player) => player.isCaptain).length !== 1}
             onClick={async () => {
               await onSave(serialize());
@@ -978,6 +995,11 @@ export default function MatchOperationsPage({ mode = 'list' }) {
   const canValidateRole = hasCapability(organization, TOURNAMENT_CAPABILITIES.MATCH_OPERATIONS_VALIDATE);
   const canMakeOfficialRole = hasCapability(organization, TOURNAMENT_CAPABILITIES.MATCH_OPERATIONS_MAKE_OFFICIAL);
   const matchRoutes = useMatchRoutes(organization.id);
+  const squadLock = match ? describeSquadLock({
+    planningStatus: match.planningStatus,
+    operationId: match.operationId,
+    operationStatus: match.operationStatus,
+  }) : null;
   // OFFICIALIZATION-V1: the tournament's dual-control policy, as the operation context reports it.
   const dualControl = readDualControl(state.operation);
   const canConfirm = canConfirmAlone(state.operation, {
@@ -1041,13 +1063,16 @@ export default function MatchOperationsPage({ mode = 'list' }) {
       // Con la competencia cerrada el rechazo llega casi siempre como falta de
       // permisos, aunque el propietario tenga el rol: la causa real es el
       // estado. Se explica con lo que esta pantalla ya sabe.
+      const message = getLifecycleErrorMessage(
+        error,
+        error.message,
+        getCompetitionErrorContext(organization, activeTournament),
+      );
       setState((current) => ({
         ...current,
-        error: getLifecycleErrorMessage(
-          error,
-          error.message,
-          getCompetitionErrorContext(organization, activeTournament),
-        ),
+        error: ['saveSquad', 'submitSquad'].includes(action)
+          ? getSquadActionErrorMessage(error, message)
+          : message,
         notice: '',
       }));
     } finally {
@@ -1183,6 +1208,7 @@ export default function MatchOperationsPage({ mode = 'list' }) {
                 readOnly={!hasCapability(organization, TOURNAMENT_CAPABILITIES.MATCH_SQUADS_MANAGE)
                   || (state.squads[activeTeamId]?.squad?.status
                     && state.squads[activeTeamId]?.squad?.status !== 'draft')}
+                lockMessage={squadLock?.message || ''}
                 busy={busy}
                 onSave={(players) => run('saveSquad', players)}
                 onSubmit={() => run('submitSquad')}

@@ -88,7 +88,8 @@ export const ERROR_MESSAGES = {
   TORNEOS_MATCH_FORBIDDEN: 'El partido no está disponible o no tenés permiso para verlo.',
   TORNEOS_MATCH_NOT_OPENABLE: 'El partido todavía no reúne las condiciones para abrir el acta.',
   TORNEOS_MATCH_ALREADY_OFFICIAL: 'El partido ya tiene un resultado oficial. Solicitá una corrección para crear otra versión.',
-  TORNEOS_MATCH_OPERATION_ACTIVE: 'El partido ya tiene un acta activa y no admite cambios de programación.',
+  // La levantan la programación, la convocatoria y la disponibilidad: la copy no puede hablar de una sola.
+  TORNEOS_MATCH_OPERATION_ACTIVE: 'El partido ya tiene un acta activa: su programación, convocatorias y disponibilidad ya no admiten cambios.',
   TORNEOS_MATCH_OPEN_WINDOW: 'El acta se está abriendo fuera de horario. Indicá el motivo del override.',
   TORNEOS_MATCH_PLAYER_OUT_OF_SCOPE: 'Ese jugador no pertenece al plantel habilitado del equipo.',
   TORNEOS_MATCH_PLAYER_ABSENT: 'Ese jugador figura ausente o justificado y no puede recibir el evento.',
