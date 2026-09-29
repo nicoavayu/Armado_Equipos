@@ -31,11 +31,14 @@ export default function BrandingImage({
     fallbackPath,
   }), [fallbackPath, kind, path]);
   // The failed-candidate cursor belongs to one candidate list: a new list starts
-  // over at 0. Derived during render instead of reset by an effect, because a
-  // mount effect that has not flushed yet when an early onError lands would
-  // overwrite that +1 with 0 and pin the broken first candidate.
+  // over at 0. Reset during render instead of by an effect, because a mount
+  // effect that has not flushed yet when an early onError lands would overwrite
+  // that +1 with 0 and pin the broken first candidate. The reset is stored (not
+  // only derived), so going A → B → A starts A over instead of reviving A's
+  // old cursor.
   const candidateKey = candidates.join('|');
   const [cursor, setCursor] = useState({ key: candidateKey, index: 0 });
+  if (cursor.key !== candidateKey) setCursor({ key: candidateKey, index: 0 });
   const candidateIndex = cursor.key === candidateKey ? cursor.index : 0;
 
   const src = candidates[candidateIndex] || null;
