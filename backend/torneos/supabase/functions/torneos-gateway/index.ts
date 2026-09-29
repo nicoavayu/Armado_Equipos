@@ -102,9 +102,9 @@ function getRuntime(): Runtime {
 
 const NO_STORE = { "cache-control": "no-store", "x-content-type-options": "nosniff", "referrer-policy": "no-referrer" }
 function corsHeaders(cfg: GatewayConfig | null, origin: string | null): Record<string, string> {
-  if (!cfg || !origin || origin !== cfg.allowedOrigin) return {}
+  if (!cfg || !origin || !cfg.allowedOrigins.includes(origin)) return {}
   return {
-    "access-control-allow-origin": cfg.allowedOrigin,
+    "access-control-allow-origin": origin,
     "access-control-allow-methods": "GET, HEAD, POST, PATCH, DELETE, OPTIONS",
     "access-control-allow-headers": "authorization, content-type, accept, prefer, range, apikey, x-client-info, x-supabase-api-version",
     "access-control-expose-headers": "content-range",
@@ -203,7 +203,7 @@ export async function handle(req: Request): Promise<Response> {
     cors = corsHeaders(rt.cfg, origin)
     const expectedHost = rt.cfg.publicUrl.host
     const hostOk = [req.headers.get("host"), req.headers.get("x-forwarded-host")].includes(expectedHost)
-    if (!hostOk || (origin && origin !== rt.cfg.allowedOrigin)) return json(403, { error: "origin rejected" })
+    if (!hostOk || (origin && !rt.cfg.allowedOrigins.includes(origin))) return json(403, { error: "origin rejected" })
     const url = new URL(req.url)
     const path = routePath(url.pathname)
     if (path === null) return json(404, { error: "not found" }, cors)

@@ -469,7 +469,7 @@ export default function postgres(url, options) {
       check('exchange with identity input → 400', withIdentity.status === 400, { status: withIdentity.status });
       const capacitor = await call('/config', { origin: 'capacitor://localhost' });
       const localhost = await call('/config', { origin: 'https://localhost' });
-      check('other origins (capacitor://localhost, https://localhost) → 403, no CORS (single certified origin kept)', capacitor.status === 403 && localhost.status === 403 && !capacitor.cors && !localhost.cors, { capacitor: capacitor.status, localhost: localhost.status });
+      check('capacitor://localhost → 403, no CORS; the Android app origin https://localhost → 200 with its exact CORS grant (web + Android only)', capacitor.status === 403 && !capacitor.cors && localhost.status === 200 && localhost.cors === 'https://localhost', { capacitor: capacitor.status, localhost: localhost.status });
       core.contractUp = false;
       const down = await call('/torneos/rest/v1/torneos_identity?select=id', { token: bridge });
       const exDown = await call('/exchange', { method: 'POST', token: ct, body: '{}' });
