@@ -1,0 +1,1028 @@
+{
+ "tool": "backend/torneos/infra/torneos-android-origin",
+ "app": "torneos-gateway",
+ "verdict": "G1_PASS",
+ "read_only": true,
+ "writes": 0,
+ "db": "not connected",
+ "bundle": {
+  "candidate": {
+   "head": "f7efe18f954f55237d90855dee300793cbc2d275",
+   "digest": "59573b5087226d55e3c47e0f7300abd94185111d00276dbebd9b59e470c6f832",
+   "files": 17
+  },
+  "live": {
+   "head": "0f049ef5657a3b3046276ff00f44464aba998c08",
+   "digest": "6c252863fd94bcad0f785af9bb3636d09b2bc2265baafb0af2a771efdb6143a4",
+   "files": 17
+  },
+  "delta": {
+   "added": [],
+   "changed": [
+    "torneos-gateway/config.ts",
+    "torneos-gateway/index.ts",
+    "torneos-gateway/topology.ts"
+   ],
+   "removed": []
+  }
+ },
+ "deno": {
+  "app": {
+   "id": "5d4f18e9-1614-4e24-b8e0-fd7cff8e4c3d",
+   "slug": "torneos-gateway",
+   "layers": [],
+   "config": {
+    "runtime": {
+     "type": "dynamic",
+     "entrypoint": "torneos-gateway/index.ts"
+    },
+    "crons": false
+   },
+   "updated_at": "2026-09-26T01:12:00.894Z"
+  },
+  "env": [
+   {
+    "key": "CORE_ANON_KEY",
+    "secret": false,
+    "contexts": "all",
+    "sha256_16": "a1d1cb5d369c7580",
+    "matches_pin": true
+   },
+   {
+    "key": "CORE_AUTH_URL",
+    "secret": false,
+    "contexts": "all",
+    "sha256_16": "9364396cacff0ab1",
+    "matches_pin": true
+   },
+   {
+    "key": "CORE_CONTRACT_URL",
+    "secret": false,
+    "contexts": "all",
+    "sha256_16": "b6f432a614e2c029",
+    "matches_pin": true
+   },
+   {
+    "key": "CORE_JWT_ISSUER",
+    "secret": false,
+    "contexts": "all",
+    "sha256_16": "9364396cacff0ab1",
+    "matches_pin": true
+   },
+   {
+    "key": "TORNEOS_ALLOWED_ORIGIN",
+    "secret": false,
+    "contexts": "all",
+    "sha256_16": "a0e9fbdecb35de79",
+    "matches_pin": true
+   },
+   {
+    "key": "TORNEOS_ANON_KEY",
+    "secret": false,
+    "contexts": "all",
+    "sha256_16": "20bae0628fcc597d",
+    "matches_pin": true
+   },
+   {
+    "key": "TORNEOS_BRIDGE_KEYS",
+    "secret": true,
+    "contexts": "all",
+    "value_returned": false
+   },
+   {
+    "key": "TORNEOS_CONTRACT_SERVICE_SECRET",
+    "secret": true,
+    "contexts": "all",
+    "value_returned": false
+   },
+   {
+    "key": "TORNEOS_DB_CORE_ADAPTER_URL",
+    "secret": true,
+    "contexts": "all",
+    "value_returned": false
+   },
+   {
+    "key": "TORNEOS_DB_IDENTITY_WRITER_URL",
+    "secret": true,
+    "contexts": "all",
+    "value_returned": false
+   },
+   {
+    "key": "TORNEOS_DB_SSL_CA",
+    "secret": false,
+    "contexts": "all",
+    "sha256_16": "e18e0434fdff1506",
+    "matches_pin": true
+   },
+   {
+    "key": "TORNEOS_GATEWAY_PUBLIC_URL",
+    "secret": false,
+    "contexts": "all",
+    "sha256_16": "a504cee093a43533",
+    "matches_pin": true
+   },
+   {
+    "key": "TORNEOS_REST_URL",
+    "secret": false,
+    "contexts": "all",
+    "sha256_16": "3b340551a4d2028f",
+    "matches_pin": true
+   }
+  ],
+  "env_count": 13,
+  "current": {
+   "id": "t5vxxvzp1t9f",
+   "status": "succeeded",
+   "labels": {
+    "custom.git_head": "0f049ef5657a3b3046276ff00f44464aba998c08",
+    "custom.bundle_digest": "6c252863fd94bcad0f785af9bb3636d09b2bc2265baafb0af2a771efdb6143a4"
+   },
+   "created_at": "2026-09-28T14:43:17.283Z",
+   "failure": null
+  },
+  "revisions": [
+   {
+    "id": "t5vxxvzp1t9f",
+    "status": "succeeded",
+    "labels": {
+     "custom.git_head": "0f049ef5657a3b3046276ff00f44464aba998c08",
+     "custom.bundle_digest": "6c252863fd94bcad0f785af9bb3636d09b2bc2265baafb0af2a771efdb6143a4"
+    },
+    "created_at": "2026-09-28T14:43:17.283Z",
+    "failure": null
+   },
+   {
+    "id": "66we8r12079d",
+    "status": "succeeded",
+    "labels": {
+     "custom.git_head": "ee34b2a79008692178b6dbb42530aca5947d7027",
+     "custom.bundle_digest": "75e3535acc3fba99c871ee820d1927e1c695eba4c10044ec4e6ffda38b59afc7"
+    },
+    "created_at": "2026-09-27T16:44:56.254Z",
+    "failure": null
+   },
+   {
+    "id": "3rvq2wx9tyyg",
+    "status": "succeeded",
+    "labels": {
+     "custom.git_head": "bea307a3a82fd8e610f99210c2f8b40f9ceb0697"
+    },
+    "created_at": "2026-09-26T01:12:01.540Z",
+    "failure": null
+   },
+   {
+    "id": "ec6zv20gx8hn",
+    "status": "succeeded",
+    "labels": {
+     "custom.git_head": "bea307a3a82fd8e610f99210c2f8b40f9ceb0697"
+    },
+    "created_at": "2026-09-26T01:08:17.167Z",
+    "failure": null
+   }
+  ],
+  "failures": [],
+  "audit": {
+   "checks": [
+    {
+     "name": "organization: apps visible to the token = pin (slug + id)",
+     "pass": true,
+     "observed": [
+      {
+       "slug": "torneos-gateway",
+       "id": "5d4f18e9-1614-4e24-b8e0-fd7cff8e4c3d"
+      },
+      {
+       "slug": "torneos-payments-test",
+       "id": "46dc4189-bc99-4c89-88d0-ea596e31d0a1"
+      }
+     ]
+    },
+    {
+     "name": "organization: no shared layers",
+     "pass": true,
+     "observed": 0
+    },
+    {
+     "name": "current revision served on the pinned production domain",
+     "pass": true,
+     "observed": {
+      "slug": "production",
+      "domains": [
+       "torneos-gateway.nicoavayu.deno.net"
+      ]
+     }
+    },
+    {
+     "name": "app id = pin",
+     "pass": true,
+     "observed": "5d4f18e9-1614-4e24-b8e0-fd7cff8e4c3d"
+    },
+    {
+     "name": "app config = certified (dynamic, entrypoint, no crons)",
+     "pass": true,
+     "observed": {
+      "runtime": {
+       "type": "dynamic",
+       "entrypoint": "torneos-gateway/index.ts"
+      },
+      "crons": false
+     }
+    },
+    {
+     "name": "app labels = certified",
+     "pass": true,
+     "observed": {
+      "custom.component": "arma2-torneos-gateway"
+     }
+    },
+    {
+     "name": "app created_at = certified",
+     "pass": true,
+     "observed": "2026-09-26T01:08:16.167Z"
+    },
+    {
+     "name": "app updated_at = certified (no config/env change since the variables were set)",
+     "pass": true,
+     "observed": "2026-09-26T01:12:00.894Z"
+    },
+    {
+     "name": "revision set = certified (no revision since OEC W3)",
+     "pass": true,
+     "observed": [
+      "t5vxxvzp1t9f",
+      "66we8r12079d",
+      "3rvq2wx9tyyg",
+      "ec6zv20gx8hn"
+     ]
+    },
+    {
+     "name": "current revision = t5vxxvzp1t9f (same created_at)",
+     "pass": true,
+     "observed": {
+      "id": "t5vxxvzp1t9f",
+      "created_at": "2026-09-28T14:43:17.283Z"
+     }
+    },
+    {
+     "name": "current revision succeeded, labels = live source (0f049ef5 + 6c252863…)",
+     "pass": true,
+     "observed": {
+      "status": "succeeded",
+      "labels": {
+       "custom.git_head": "0f049ef5657a3b3046276ff00f44464aba998c08",
+       "custom.bundle_digest": "6c252863fd94bcad0f785af9bb3636d09b2bc2265baafb0af2a771efdb6143a4"
+      }
+     }
+    }
+   ],
+   "failures": [],
+   "timelines": [
+    {
+     "slug": "production",
+     "domains": [
+      "torneos-gateway.nicoavayu.deno.net"
+     ]
+    },
+    {
+     "slug": "preview",
+     "domains": [
+      "torneos-gateway-t5vxxvzp1t9f.nicoavayu.deno.net"
+     ]
+    }
+   ]
+  }
+ },
+ "logs": {
+  "available": true,
+  "window_minutes": 60,
+  "lines": 0,
+  "by_level": {},
+  "truncated": false
+ },
+ "probes": {
+  "phase": "live",
+  "base": {
+   "passed": 66,
+   "total": 66,
+   "pass": true,
+   "checks": [
+    {
+     "name": "GET /config → the Torneos publishable key is the pinned one (digest)",
+     "pass": true,
+     "status": 200,
+     "error": null,
+     "cache": "no-store"
+    },
+    {
+     "name": "B7 GET /health (allowed origin) → 200 ready + exact CORS origin + no-store",
+     "pass": true,
+     "status": 200,
+     "error": null,
+     "acao": "https://app.arma2.com.ar",
+     "cache": "no-store"
+    },
+    {
+     "name": "B7 GET /.well-known/jwks.json → exactly the pinned public k1 (active) + k2 (standby), no private member",
+     "pass": true,
+     "status": 200,
+     "error": null,
+     "acao": "https://app.arma2.com.ar",
+     "cache": "no-store",
+     "kids": [
+      "arma2-torneos-prod-k1-svt92JOHlnVoXI35",
+      "arma2-torneos-prod-k2-9EgKZ6KojpyuHmBx"
+     ]
+    },
+    {
+     "name": "B7 GET /config → {coreUrl, torneosUrl, anonKey}: Core Production URL, gateway /torneos, Torneos publishable key; nothing secret",
+     "pass": true,
+     "status": 200,
+     "error": null,
+     "acao": "https://app.arma2.com.ar",
+     "cache": "no-store",
+     "secret_findings": []
+    },
+    {
+     "name": "B7 GET /health, foreign Origin → 403 origin rejected, no CORS grant",
+     "pass": true,
+     "status": 403,
+     "error": "origin rejected",
+     "acao": null,
+     "cache": "no-store"
+    },
+    {
+     "name": "B7 GET /health, Origin null → 403",
+     "pass": true,
+     "status": 403,
+     "error": "origin rejected",
+     "acao": null,
+     "cache": "no-store"
+    },
+    {
+     "name": "B7 GET /health, look-alike Origin → 403",
+     "pass": true,
+     "status": 403,
+     "error": "origin rejected",
+     "acao": null,
+     "cache": "no-store"
+    },
+    {
+     "name": "B7 OPTIONS /exchange (allowed origin) → 204 with exact CORS grant",
+     "pass": true,
+     "status": 204,
+     "error": null,
+     "acao": "https://app.arma2.com.ar",
+     "cache": "no-store"
+    },
+    {
+     "name": "B7 OPTIONS /exchange (foreign origin) → 403, no CORS grant",
+     "pass": true,
+     "status": 403,
+     "error": "origin rejected",
+     "acao": null,
+     "cache": "no-store"
+    },
+    {
+     "name": "B7 POST /exchange without bearer → 401",
+     "pass": true,
+     "status": 401,
+     "error": "access denied",
+     "acao": "https://app.arma2.com.ar",
+     "cache": "no-store"
+    },
+    {
+     "name": "B7 POST /exchange with a non-Core bearer → 401 (GoTrue refuses it)",
+     "pass": true,
+     "status": 401,
+     "error": "access denied",
+     "acao": "https://app.arma2.com.ar",
+     "cache": "no-store"
+    },
+    {
+     "name": "B7 POST /exchange with identity/role input → 400 (refused before any Core call)",
+     "pass": true,
+     "status": 400,
+     "error": "exchange accepts no identity or role input",
+     "acao": "https://app.arma2.com.ar",
+     "cache": "no-store"
+    },
+    {
+     "name": "B7 POST /exchange with a 20 KB body → refused (4xx, never 2xx)",
+     "pass": true,
+     "status": 401,
+     "error": "access denied",
+     "acao": "https://app.arma2.com.ar",
+     "cache": "no-store"
+    },
+    {
+     "name": "B7 POST allowlisted RPC without bearer → 401",
+     "pass": true,
+     "status": 401,
+     "error": "access denied",
+     "acao": "https://app.arma2.com.ar",
+     "cache": "no-store"
+    },
+    {
+     "name": "B7 POST commerce RPC (commerce OFF), valid k1 bridge token → 403 rpc not enabled (before any Core call)",
+     "pass": true,
+     "status": 403,
+     "error": "rpc not enabled",
+     "acao": "https://app.arma2.com.ar",
+     "cache": "no-store"
+    },
+    {
+     "name": "B7 POST checkout-creation RPC, valid k1 bridge token → 403 rpc not enabled",
+     "pass": true,
+     "status": 403,
+     "error": "rpc not enabled",
+     "acao": "https://app.arma2.com.ar",
+     "cache": "no-store"
+    },
+    {
+     "name": "B7 POST /commerce/v1/season-checkout (commerce OFF) → 404, route absent",
+     "pass": true,
+     "status": 404,
+     "error": "not found",
+     "acao": "https://app.arma2.com.ar",
+     "cache": "no-store"
+    },
+    {
+     "name": "B7 POST allowlisted RPC, valid k1 token for a Core user that does not exist → 401 (live Core authority: session inactive)",
+     "pass": true,
+     "status": 401,
+     "error": "access denied",
+     "acao": "https://app.arma2.com.ar",
+     "cache": "no-store"
+    },
+    {
+     "name": "B7 POST allowlisted RPC, expired k1 token → 401",
+     "pass": true,
+     "status": 401,
+     "error": "access denied",
+     "acao": "https://app.arma2.com.ar",
+     "cache": "no-store"
+    },
+    {
+     "name": "B7 POST allowlisted RPC, k1 token with exp−iat ≠ 120 → 401 (token contract)",
+     "pass": true,
+     "status": 401,
+     "error": "access denied",
+     "acao": "https://app.arma2.com.ar",
+     "cache": "no-store"
+    },
+    {
+     "name": "B7 POST allowlisted RPC, token signed by a foreign key under the k1 kid → 401",
+     "pass": true,
+     "status": 401,
+     "error": "access denied",
+     "acao": "https://app.arma2.com.ar",
+     "cache": "no-store"
+    },
+    {
+     "name": "B7 POST allowlisted RPC, k1 token with aud=authenticated → 401",
+     "pass": true,
+     "status": 401,
+     "error": "access denied",
+     "acao": "https://app.arma2.com.ar",
+     "cache": "no-store"
+    },
+    {
+     "name": "B7 GET unknown path under the mount → 404",
+     "pass": true,
+     "status": 404,
+     "error": "not found",
+     "acao": "https://app.arma2.com.ar",
+     "cache": "no-store"
+    },
+    {
+     "name": "B7 GET / (outside the mount) → 404",
+     "pass": true,
+     "status": 404,
+     "error": "not found",
+     "acao": "https://app.arma2.com.ar",
+     "cache": "no-store"
+    },
+    {
+     "name": "B7 no response body carries a secret the session holds (contract secret, DB passwords, private keys, tokens)",
+     "pass": true,
+     "error": null,
+     "acao": null,
+     "cache": null,
+     "findings": []
+    },
+    {
+     "name": "COMPETITION-V1 get_tournament_fixture_context, valid k1 token, Core user that does not exist → 401 (allowlisted; Core authority checked on this request), no-store",
+     "pass": true,
+     "status": 401,
+     "error": "access denied",
+     "cache": "no-store"
+    },
+    {
+     "name": "COMPETITION-V1 publish_tournament_fixture, valid k1 token, Core user that does not exist → 401 (allowlisted; Core authority checked on this request), no-store",
+     "pass": true,
+     "status": 401,
+     "error": "access denied",
+     "cache": "no-store"
+    },
+    {
+     "name": "OFFICIALIZATION-V1 invite_tournament_organization_member, valid k1 token, Core user that does not exist → 401 (allowlisted; Core authority checked on this request)",
+     "pass": true,
+     "status": 401,
+     "error": "access denied",
+     "cache": "no-store"
+    },
+    {
+     "name": "OFFICIALIZATION-V1 list_tournament_organization_invitations, valid k1 token, Core user that does not exist → 401 (allowlisted; Core authority checked on this request)",
+     "pass": true,
+     "status": 401,
+     "error": "access denied",
+     "cache": "no-store"
+    },
+    {
+     "name": "OFFICIALIZATION-V1 revoke_tournament_organization_invitation, valid k1 token, Core user that does not exist → 401 (allowlisted; Core authority checked on this request)",
+     "pass": true,
+     "status": 401,
+     "error": "access denied",
+     "cache": "no-store"
+    },
+    {
+     "name": "OFFICIALIZATION-V1 accept_tournament_organization_invitation, valid k1 token, Core user that does not exist → 401 (allowlisted; Core authority checked on this request)",
+     "pass": true,
+     "status": 401,
+     "error": "access denied",
+     "cache": "no-store"
+    },
+    {
+     "name": "OFFICIALIZATION-V1 list_tournament_organization_members, valid k1 token, Core user that does not exist → 401 (allowlisted; Core authority checked on this request)",
+     "pass": true,
+     "status": 401,
+     "error": "access denied",
+     "cache": "no-store"
+    },
+    {
+     "name": "OFFICIALIZATION-V1 update_tournament_organization_member_role, valid k1 token, Core user that does not exist → 401 (allowlisted; Core authority checked on this request)",
+     "pass": true,
+     "status": 401,
+     "error": "access denied",
+     "cache": "no-store"
+    },
+    {
+     "name": "OFFICIALIZATION-V1 remove_tournament_organization_member, valid k1 token, Core user that does not exist → 401 (allowlisted; Core authority checked on this request)",
+     "pass": true,
+     "status": 401,
+     "error": "access denied",
+     "cache": "no-store"
+    },
+    {
+     "name": "OFFICIALIZATION-V1 get_tournament_match_dual_control, valid k1 token, Core user that does not exist → 401 (allowlisted; Core authority checked on this request)",
+     "pass": true,
+     "status": 401,
+     "error": "access denied",
+     "cache": "no-store"
+    },
+    {
+     "name": "OFFICIALIZATION-V1 set_tournament_match_dual_control, valid k1 token, Core user that does not exist → 401 (allowlisted; Core authority checked on this request)",
+     "pass": true,
+     "status": 401,
+     "error": "access denied",
+     "cache": "no-store"
+    },
+    {
+     "name": "archive_tournament_fixture on the authenticated route, valid k1 token → 403 rpc not enabled (both sources; commerce OFF)",
+     "pass": true,
+     "status": 403,
+     "error": "rpc not enabled",
+     "cache": "no-store"
+    },
+    {
+     "name": "lock_tournament_roster on the authenticated route, valid k1 token → 403 rpc not enabled (both sources; commerce OFF)",
+     "pass": true,
+     "status": 403,
+     "error": "rpc not enabled",
+     "cache": "no-store"
+    },
+    {
+     "name": "get_tournament_purchase on the authenticated route, valid k1 token → 403 rpc not enabled (both sources; commerce OFF)",
+     "pass": true,
+     "status": 403,
+     "error": "rpc not enabled",
+     "cache": "no-store"
+    },
+    {
+     "name": "get_public_tournament_page on the authenticated route, valid k1 token → 403 rpc not enabled (both sources; commerce OFF)",
+     "pass": true,
+     "status": 403,
+     "error": "rpc not enabled",
+     "cache": "no-store"
+    },
+    {
+     "name": "get_tournament_fixture_context without bearer → 401",
+     "pass": true,
+     "status": 401,
+     "error": "access denied",
+     "cache": "no-store"
+    },
+    {
+     "name": "publish_tournament_fixture without bearer → 401",
+     "pass": true,
+     "status": 401,
+     "error": "access denied",
+     "cache": "no-store"
+    },
+    {
+     "name": "invite_tournament_organization_member without bearer → 401",
+     "pass": true,
+     "status": 401,
+     "error": "access denied",
+     "cache": "no-store"
+    },
+    {
+     "name": "list_tournament_organization_invitations without bearer → 401",
+     "pass": true,
+     "status": 401,
+     "error": "access denied",
+     "cache": "no-store"
+    },
+    {
+     "name": "revoke_tournament_organization_invitation without bearer → 401",
+     "pass": true,
+     "status": 401,
+     "error": "access denied",
+     "cache": "no-store"
+    },
+    {
+     "name": "accept_tournament_organization_invitation without bearer → 401",
+     "pass": true,
+     "status": 401,
+     "error": "access denied",
+     "cache": "no-store"
+    },
+    {
+     "name": "list_tournament_organization_members without bearer → 401",
+     "pass": true,
+     "status": 401,
+     "error": "access denied",
+     "cache": "no-store"
+    },
+    {
+     "name": "update_tournament_organization_member_role without bearer → 401",
+     "pass": true,
+     "status": 401,
+     "error": "access denied",
+     "cache": "no-store"
+    },
+    {
+     "name": "remove_tournament_organization_member without bearer → 401",
+     "pass": true,
+     "status": 401,
+     "error": "access denied",
+     "cache": "no-store"
+    },
+    {
+     "name": "get_tournament_match_dual_control without bearer → 401",
+     "pass": true,
+     "status": 401,
+     "error": "access denied",
+     "cache": "no-store"
+    },
+    {
+     "name": "set_tournament_match_dual_control without bearer → 401",
+     "pass": true,
+     "status": 401,
+     "error": "access denied",
+     "cache": "no-store"
+    },
+    {
+     "name": "public route: unknown (well-formed) slug → 200 null, no-store",
+     "pass": true,
+     "status": 200,
+     "error": null,
+     "cache": "no-store"
+    },
+    {
+     "name": "public route does not expose OFFICIALIZATION-V1 invite_tournament_organization_member → 403 rpc not enabled",
+     "pass": true,
+     "status": 403,
+     "error": "rpc not enabled",
+     "cache": "no-store"
+    },
+    {
+     "name": "public route does not expose OFFICIALIZATION-V1 list_tournament_organization_invitations → 403 rpc not enabled",
+     "pass": true,
+     "status": 403,
+     "error": "rpc not enabled",
+     "cache": "no-store"
+    },
+    {
+     "name": "public route does not expose OFFICIALIZATION-V1 revoke_tournament_organization_invitation → 403 rpc not enabled",
+     "pass": true,
+     "status": 403,
+     "error": "rpc not enabled",
+     "cache": "no-store"
+    },
+    {
+     "name": "public route does not expose OFFICIALIZATION-V1 accept_tournament_organization_invitation → 403 rpc not enabled",
+     "pass": true,
+     "status": 403,
+     "error": "rpc not enabled",
+     "cache": "no-store"
+    },
+    {
+     "name": "public route does not expose OFFICIALIZATION-V1 list_tournament_organization_members → 403 rpc not enabled",
+     "pass": true,
+     "status": 403,
+     "error": "rpc not enabled",
+     "cache": "no-store"
+    },
+    {
+     "name": "public route does not expose OFFICIALIZATION-V1 update_tournament_organization_member_role → 403 rpc not enabled",
+     "pass": true,
+     "status": 403,
+     "error": "rpc not enabled",
+     "cache": "no-store"
+    },
+    {
+     "name": "public route does not expose OFFICIALIZATION-V1 remove_tournament_organization_member → 403 rpc not enabled",
+     "pass": true,
+     "status": 403,
+     "error": "rpc not enabled",
+     "cache": "no-store"
+    },
+    {
+     "name": "public route does not expose OFFICIALIZATION-V1 get_tournament_match_dual_control → 403 rpc not enabled",
+     "pass": true,
+     "status": 403,
+     "error": "rpc not enabled",
+     "cache": "no-store"
+    },
+    {
+     "name": "public route does not expose OFFICIALIZATION-V1 set_tournament_match_dual_control → 403 rpc not enabled",
+     "pass": true,
+     "status": 403,
+     "error": "rpc not enabled",
+     "cache": "no-store"
+    },
+    {
+     "name": "public route with Authorization → 400 (credentials refused)",
+     "pass": true,
+     "status": 400,
+     "error": "public route accepts no credentials",
+     "cache": "no-store"
+    },
+    {
+     "name": "public route, a non-public RPC → 403 rpc not enabled",
+     "pass": true,
+     "status": 403,
+     "error": "rpc not enabled",
+     "cache": "no-store"
+    },
+    {
+     "name": "public route, shape-invalid slug → 400 (refused before Torneos REST)",
+     "pass": true,
+     "status": 400,
+     "error": "invalid arguments",
+     "cache": "no-store"
+    },
+    {
+     "name": "public route, GET → 405",
+     "pass": true,
+     "status": 405,
+     "error": "method not allowed",
+     "cache": "no-store"
+    },
+    {
+     "name": "no probe result carries a secret this process holds",
+     "pass": true
+    }
+   ]
+  },
+  "origin": {
+   "passed": 21,
+   "total": 21,
+   "checks": [
+    {
+     "name": "https://app.arma2.com.ar GET /health → 200 ready, CORS grant = exactly https://app.arma2.com.ar, Vary: Origin, no-store",
+     "pass": true,
+     "status": 200,
+     "error": null,
+     "acao": "https://app.arma2.com.ar",
+     "cache": "no-store"
+    },
+    {
+     "name": "https://app.arma2.com.ar preflight OPTIONS /exchange → 204, CORS grant = exactly https://app.arma2.com.ar, authorization allowed",
+     "pass": true,
+     "status": 204,
+     "error": null,
+     "acao": "https://app.arma2.com.ar",
+     "cache": "no-store"
+    },
+    {
+     "name": "https://app.arma2.com.ar POST /exchange without bearer → 401 (the origin is not a credential), CORS grant = https://app.arma2.com.ar",
+     "pass": true,
+     "status": 401,
+     "error": "access denied",
+     "acao": "https://app.arma2.com.ar",
+     "cache": "no-store"
+    },
+    {
+     "name": "https://localhost GET /health → 403 origin rejected, no CORS grant",
+     "pass": true,
+     "status": 403,
+     "error": "origin rejected",
+     "acao": null,
+     "cache": "no-store"
+    },
+    {
+     "name": "https://localhost preflight OPTIONS /exchange → 403, no CORS grant",
+     "pass": true,
+     "status": 403,
+     "error": "origin rejected",
+     "acao": null,
+     "cache": "no-store"
+    },
+    {
+     "name": "https://localhost POST /exchange → 403 origin rejected (before any auth), no CORS grant",
+     "pass": true,
+     "status": 403,
+     "error": "origin rejected",
+     "acao": null,
+     "cache": "no-store"
+    },
+    {
+     "name": "http://localhost GET /health → 403 origin rejected, no CORS grant",
+     "pass": true,
+     "status": 403,
+     "error": "origin rejected",
+     "acao": null,
+     "cache": "no-store"
+    },
+    {
+     "name": "http://localhost preflight OPTIONS /exchange → 403, no CORS grant",
+     "pass": true,
+     "status": 403,
+     "error": "origin rejected",
+     "acao": null,
+     "cache": "no-store"
+    },
+    {
+     "name": "http://localhost POST /exchange → 403 origin rejected (before any auth), no CORS grant",
+     "pass": true,
+     "status": 403,
+     "error": "origin rejected",
+     "acao": null,
+     "cache": "no-store"
+    },
+    {
+     "name": "capacitor://localhost GET /health → 403 origin rejected, no CORS grant",
+     "pass": true,
+     "status": 403,
+     "error": "origin rejected",
+     "acao": null,
+     "cache": "no-store"
+    },
+    {
+     "name": "capacitor://localhost preflight OPTIONS /exchange → 403, no CORS grant",
+     "pass": true,
+     "status": 403,
+     "error": "origin rejected",
+     "acao": null,
+     "cache": "no-store"
+    },
+    {
+     "name": "capacitor://localhost POST /exchange → 403 origin rejected (before any auth), no CORS grant",
+     "pass": true,
+     "status": 403,
+     "error": "origin rejected",
+     "acao": null,
+     "cache": "no-store"
+    },
+    {
+     "name": "https://localhost:8443 GET /health → 403 origin rejected, no CORS grant",
+     "pass": true,
+     "status": 403,
+     "error": "origin rejected",
+     "acao": null,
+     "cache": "no-store"
+    },
+    {
+     "name": "https://localhost:8443 preflight OPTIONS /exchange → 403, no CORS grant",
+     "pass": true,
+     "status": 403,
+     "error": "origin rejected",
+     "acao": null,
+     "cache": "no-store"
+    },
+    {
+     "name": "https://localhost:8443 POST /exchange → 403 origin rejected (before any auth), no CORS grant",
+     "pass": true,
+     "status": 403,
+     "error": "origin rejected",
+     "acao": null,
+     "cache": "no-store"
+    },
+    {
+     "name": "https://evil.example GET /health → 403 origin rejected, no CORS grant",
+     "pass": true,
+     "status": 403,
+     "error": "origin rejected",
+     "acao": null,
+     "cache": "no-store"
+    },
+    {
+     "name": "https://evil.example preflight OPTIONS /exchange → 403, no CORS grant",
+     "pass": true,
+     "status": 403,
+     "error": "origin rejected",
+     "acao": null,
+     "cache": "no-store"
+    },
+    {
+     "name": "https://evil.example POST /exchange → 403 origin rejected (before any auth), no CORS grant",
+     "pass": true,
+     "status": 403,
+     "error": "origin rejected",
+     "acao": null,
+     "cache": "no-store"
+    },
+    {
+     "name": "https://localhost allowlisted RPC, valid k1 token → 403 origin rejected (before auth)",
+     "pass": true,
+     "status": 403,
+     "error": "origin rejected",
+     "acao": null,
+     "cache": "no-store"
+    },
+    {
+     "name": "no probe answer is 5xx or a transport failure",
+     "pass": true,
+     "status": null,
+     "statuses_5xx": 0
+    },
+    {
+     "name": "no origin-probe result carries a secret this process holds",
+     "pass": true
+    }
+   ]
+  },
+  "pass": true
+ },
+ "deno_requests": [
+  {
+   "id": "app",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "revisions",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "apps",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "layers",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "app",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "revisions",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "revision",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "revision-timelines",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  },
+  {
+   "id": "logs",
+   "kind": "read",
+   "method": "GET",
+   "status": 200
+  }
+ ],
+ "failures": [],
+ "warnings": [],
+ "expected_w1_plan_id": "472ba9b34a10"
+}
