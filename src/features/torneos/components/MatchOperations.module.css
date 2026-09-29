@@ -1495,3 +1495,15 @@
   white-space: nowrap;
   cursor: pointer;
 }
+
+/* POST-BETA: why the convocatoria cannot be saved, with its lock icon inline. */
+.squadLock {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.squadLock svg {
+  flex: none;
+  margin-top: 3px;
+}

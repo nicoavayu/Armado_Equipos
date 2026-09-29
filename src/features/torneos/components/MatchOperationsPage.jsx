@@ -538,8 +538,9 @@ export function SquadEditor({
         })}
       </div>
       {locked && (
-        <p className={styles.inlineHint} id={`squad-lock-${context?.teamEntryId || 'team'}`} role="note">
-          <LockKeyhole size={15} aria-hidden="true" /> {lockMessage}
+        <p className={`${styles.inlineHint} ${styles.squadLock}`} id={`squad-lock-${context?.teamEntryId || 'team'}`} role="note">
+          <LockKeyhole size={15} aria-hidden="true" />
+          <span>{lockMessage}</span>
         </p>
       )}
       {!readOnly && (
