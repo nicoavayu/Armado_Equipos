@@ -147,9 +147,17 @@ test('full W1 → rollback with fakes: one write each, assets + labels only, env
     const deployed = JSON.parse(fs.readFileSync(h.files.deployed, 'utf8'));
     assert.deepEqual([deployed.previous_revision, deployed.source.digest, deployed.env.length], ['t5vxxvzp1t9f', C.CANDIDATE.digest, 13]);
     assert.equal(await stopCode(h.remote.w1()), 'W1_LIVE_REVISION_UNEXPECTED', 'no second W1');
+    // Same session as W1: the rollback dry-run counts only its own requests, not W1's POST.
+    const rbPlan = await h.remote.rollbackPlan();
+    assert.equal(rbPlan.verdict, 'ROLLBACK_PLAN_ONLY'); assert.equal(rbPlan.writes, 0);
+    assert.equal(h.deno.state.writes.length, 1, 'the rollback dry-run wrote nothing');
+    const rbPlanEv = h.evidence().find((e) => e.json.verdict === 'ROLLBACK_PLAN_ONLY');
+    assert.ok(rbPlanEv.json.deno_requests.length > 0 && rbPlanEv.json.deno_requests.every((r) => r.kind === 'read'));
+    assert.equal(rbPlanEv.json.session_writes_before, 1);
     h.lines.push('PLAN');
     const rb = await h.remote.rollback();
     assert.equal(rb.verdict, 'ROLLBACK_DONE');
+    assert.equal(rb.plan_id, rbPlan.plan_id, 'the dry-run plan id = the one the rollback asks for');
     assert.equal(h.deno.state.writes.length, 2);
     const back = h.deno.state.deployBodies[1];
     assert.deepEqual(back.labels, { 'custom.git_head': '0f049ef5657a3b3046276ff00f44464aba998c08', 'custom.bundle_digest': '6c252863fd94bcad0f785af9bb3636d09b2bc2265baafb0af2a771efdb6143a4' });

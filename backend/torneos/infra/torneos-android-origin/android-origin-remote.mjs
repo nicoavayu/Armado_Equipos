@@ -279,6 +279,8 @@ export function makeRemote(deps) {
     const step = which === 'candidate' ? 'W1' : 'ROLLBACK';
     if (readOnly && !dryRun) stop('READ_ONLY_SESSION_REFUSES_WRITE', { step });
     if (!denoToken) stop('DENO_TOKEN_REQUIRED');
+    // A dry-run answers for its own requests only: a session that already ran W1 holds that POST in denoLog.
+    const logMark = denoLog.length;
     const b = bundles();
     if (b.failures.length) stop(`${step}_SOURCE_DIGEST_REFUSED`, { failures: b.failures });
     const source = which === 'candidate' ? b.candidate : b.live;
@@ -302,8 +304,9 @@ export function makeRemote(deps) {
     const id = C.planIdOf(plan);
     say(`\nPLAN ${id}: ${plan.step} — ONE production revision of ${C.APP_SLUG}: ${source.manifest.length} files, digest ${source.digest.slice(0, 16)}… (label HEAD ${source.head.slice(0, 12)})\n  request = assets + labels only (no env, no config, no layers); env ${dn.env_count}/${C.ENV_COUNT} unchanged; no DB, no Core, no Vercel\n  current revision ${dn.current.id} (${on})${before ? `; probes ${before.base.passed}/${before.base.total} + origin ${before.origin.passed}/${before.origin.total}` : ''}`);
     if (dryRun) {
-      if (writes()) stop('DRY_RUN_ISSUED_A_WRITE');
-      writeEvidence(`ao-${step.toLowerCase()}-plan-${stamp()}.json`, { verdict: `${step}_PLAN_ONLY`, writes: 0, plan, plan_id: id, phrase: (which === 'candidate' ? C.PHRASES.w1 : C.PHRASES.rollback)(id), before: dn, probes_before: before, deno_requests: denoLog });
+      const ownRequests = denoLog.slice(logMark);
+      if (ownRequests.some((r) => r.kind !== 'read')) stop('DRY_RUN_ISSUED_A_WRITE');
+      writeEvidence(`ao-${step.toLowerCase()}-plan-${stamp()}.json`, { verdict: `${step}_PLAN_ONLY`, writes: 0, plan, plan_id: id, phrase: (which === 'candidate' ? C.PHRASES.w1 : C.PHRASES.rollback)(id), before: dn, probes_before: before, deno_requests: ownRequests, session_writes_before: writes() });
       return { verdict: `${step}_PLAN_ONLY`, plan_id: id, phrase: (which === 'candidate' ? C.PHRASES.w1 : C.PHRASES.rollback)(id), writes: 0 };
     }
     const authorization = requirePhrase((which === 'candidate' ? C.PHRASES.w1 : C.PHRASES.rollback)(id));
