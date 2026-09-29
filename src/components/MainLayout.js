@@ -17,13 +17,23 @@ const MainLayout = () => {
   const mainPaddingBottomClass = isVotingShellRoute || isImmersiveNewMatchRoute
     ? 'pb-[env(safe-area-inset-bottom)] md:pb-[env(safe-area-inset-bottom)]'
     : 'pb-[104px] md:pb-[112px]';
-  const mainPaddingTopClass = 'pt-0';
   // Home se comporta como dashboard: acotamos <main> al viewport para que solo
   // scrollee el panel "Actividad reciente" (scroll interno) y no toda la página.
   // Se limita SOLO al home para no cambiar el scroll global de otras rutas
   // (p.ej. el scroll-lock por teclado del chat depende del scroll de window).
   const isHomeDashboard = (location.pathname === '/' || location.pathname === '/home') && !isVotingShellRoute;
   const showSpaceHeader = isArma2SpaceRoot(location.pathname) && !isVotingShellRoute;
+  // La safe area superior la resuelve UNA sola capa por ruta:
+  // - Home: el GlobalHeader (padding con --safe-top).
+  // - Voting shell y /nuevo-partido: sus propias vistas inmersivas.
+  // - Resto: <main>. Sus PageTitle `fixed` viven dentro de un ancestro con
+  //   transform (PageTransition / translateZ(0)), que es su containing block,
+  //   así que este padding baja header y contenido juntos debajo de status bar y
+  //   cutout. Sin él (pt-0), el título queda debajo de la status bar en Android
+  //   15+ edge-to-edge (targetSdk 35/36) y en iOS.
+  const mainPaddingTopClass = showSpaceHeader || isVotingShellRoute || isImmersiveNewMatchRoute
+    ? 'pt-0'
+    : 'pt-[var(--safe-top,0px)]';
 
   useEffect(() => {
     const root = document.documentElement;
