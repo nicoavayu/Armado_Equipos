@@ -1,11 +1,8 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import {
-  ArrowLeft,
-  CalendarClock,
-  ShieldCheck,
-} from 'lucide-react';
+import { ArrowLeft, ShieldCheck } from 'lucide-react';
 import { Link, useParams } from 'react-router-dom';
 import { useTorneosWorkspace } from '../context/TorneosWorkspaceContext';
+import { describeSquadLock, getSquadActionErrorMessage } from '../domain/matchSquads';
 import { SquadEditor } from './MatchOperationsPage';
 import { WorkspaceError, WorkspaceLoading } from './WorkspaceState';
 import styles from './MatchOperations.module.css';
@@ -73,7 +70,9 @@ export default function CaptainMatchSquadPage() {
           : 'Borrador guardado.',
       });
     } catch (error) {
-      setState((current) => ({ ...current, error: error.message, notice: '' }));
+      setState((current) => ({
+        ...current, error: getSquadActionErrorMessage(error, error.message), notice: '',
+      }));
     } finally {
       setBusy(false);
     }
@@ -91,10 +90,10 @@ export default function CaptainMatchSquadPage() {
       minute: '2-digit',
     })
     : 'Horario a confirmar';
-  const readOnly = Boolean(
-    state.context.status === 'postponed'
-      || (state.context.squad?.status && state.context.squad.status !== 'draft'),
-  );
+  // The captain's context has the match status but not the acta: an active acta is still refused by the
+  // backend, with the squad copy of domain/matchSquads.
+  const squadLock = describeSquadLock({ planningStatus: state.context.status });
+  const readOnly = Boolean(state.context.squad?.status && state.context.squad.status !== 'draft');
 
   return (
     <div className={styles.page}>
@@ -117,14 +116,10 @@ export default function CaptainMatchSquadPage() {
       </header>
       {state.notice && <div className={styles.successNotice} role="status">{state.notice}</div>}
       {state.error && <div className={styles.errorNotice} role="alert">{state.error}</div>}
-      {state.context.status === 'postponed' && (
-        <div className={styles.errorNotice}>
-          <CalendarClock size={17} /> El partido está postergado; la convocatoria se conserva.
-        </div>
-      )}
       <SquadEditor
         context={state.context}
         readOnly={readOnly}
+        lockMessage={squadLock?.message || ''}
         busy={busy}
         onSave={(players) => run('save', players)}
         onSubmit={() => run('submit')}
