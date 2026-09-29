@@ -26,6 +26,7 @@ import OrganizationSettingsNav from './OrganizationSettingsNav';
 import { WorkspaceError, WorkspaceLoading } from './WorkspaceState';
 import styles from './TorneosShell.module.css';
 import { formatCount } from '../domain/countCopy';
+import { getShareableAppOrigin } from '../../../utils/shareableAppUrl';
 
 const ORGANIZATION_ROLE_GUIDE = ['owner', 'admin', 'collaborator'];
 const RELATIONAL_ROLE_GUIDE = ['delegate', 'player'];
@@ -59,7 +60,7 @@ const INVITABLE_ROLES = {
   admin: ['collaborator'],
 };
 
-export function organizationInvitationUrl(token, origin = window.location.origin) {
+export function organizationInvitationUrl(token, origin = getShareableAppOrigin()) {
   return `${origin}/torneos/invitacion/organizacion/${token}`;
 }
 
