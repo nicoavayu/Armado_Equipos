@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { tournamentWorkspaceService } from '../api/tournamentWorkspaceService';
 import styles from './TournamentPublicPageSettings.module.css';
+import { toShareableAppUrl } from '../../../utils/shareableAppUrl';
 
 const REASONS = {
   organization_inactive: 'La organización debe estar activa.',
@@ -42,7 +43,7 @@ export default function TournamentPublicPageSettings({
 
   const publicUrl = useMemo(() => (
     state.settings?.publicPath
-      ? `${window.location.origin}${state.settings.publicPath}`
+      ? toShareableAppUrl(state.settings.publicPath)
       : ''
   ), [state.settings]);
 

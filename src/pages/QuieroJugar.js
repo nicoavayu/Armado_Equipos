@@ -22,8 +22,10 @@ import { notifyBlockingError } from 'utils/notifyBlockingError';
 import { hasValidCoordinates, toCoordinateNumber } from '../utils/matchLocation';
 import {
   MATCH_SEARCH_FILTERS,
+  MATCH_SEARCH_FILTER_CHIPS,
   MATCH_SEARCH_FILTER_LABELS,
   filterMatchesBySearchType,
+  toggleMatchSearchFilter,
   getMatchSearchBadges,
 } from '../utils/matchSearchFilters';
 import { buildGoalkeeperMarket } from '../utils/goalkeeperMarket';
@@ -84,7 +86,6 @@ const buildMatchLocationLabel = (partido) => {
 };
 
 const MATCH_SEARCH_FILTER_STORAGE_KEY = 'quiero-jugar-match-search-filter';
-const MATCH_SEARCH_FILTER_ICONS = { players: Users, goalkeeper: Hand };
 const MATCH_DISTANCE_STORAGE_KEY = 'quiero-jugar-match-distance-km';
 const MIN_MATCH_DISTANCE_KM = 1;
 const MAX_MATCH_DISTANCE_KM = 30;
@@ -799,24 +800,22 @@ const QuieroJugar = ({
                 {/* Compact "what is this match looking for" filter chips. Coexist
                     with the distance slider and Lista/Mapa above; apply to both. */}
                 <div className="w-full max-w-[500px] mb-3 flex gap-1.5" role="group" aria-label="Filtrar partidos por lo que buscan">
-                  {MATCH_SEARCH_FILTERS.map((filterKey) => {
-                    const Icon = MATCH_SEARCH_FILTER_ICONS[filterKey];
+                  {/* Sin chip "Todos": ninguno activo = todos. Tocar el activo lo apaga. */}
+                  {MATCH_SEARCH_FILTER_CHIPS.map((filterKey) => {
                     const isActive = matchSearchFilter === filterKey;
                     return (
                       <button
                         key={filterKey}
                         type="button"
                         aria-pressed={isActive}
-                        className={`flex-1 min-w-0 py-2 px-2 rounded-full text-[11px] font-bold tracking-[0.02em] uppercase whitespace-nowrap cursor-pointer transition-all duration-200 border ${isActive
+                        data-testid={`match-search-filter-${filterKey}`}
+                        className={`flex-1 min-w-0 min-h-[36px] py-2 px-2 rounded-full text-[11px] font-bold tracking-[0.02em] uppercase whitespace-nowrap cursor-pointer transition-all duration-200 border ${isActive
                           ? 'bg-[rgba(106,67,255,0.25)] text-white border-[rgba(148,134,255,0.5)] shadow-[0_0_12px_rgba(106,67,255,0.2)]'
                           : 'bg-white/[0.03] text-white/45 border-[rgba(148,134,255,0.14)] hover:bg-white/[0.06] hover:text-white/70'
                           }`}
-                        onClick={() => selectMatchSearchFilter(filterKey)}
+                        onClick={() => selectMatchSearchFilter(toggleMatchSearchFilter(matchSearchFilter, filterKey))}
                       >
-                        <span className="flex items-center gap-1 justify-center">
-                          {Icon ? <Icon size={12} className="shrink-0" /> : null}
-                          <span className="truncate">{MATCH_SEARCH_FILTER_LABELS[filterKey]}</span>
-                        </span>
+                        {MATCH_SEARCH_FILTER_LABELS[filterKey]}
                       </button>
                     );
                   })}

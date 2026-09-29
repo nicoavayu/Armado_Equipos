@@ -7,6 +7,7 @@ import { isUserMemberOfMatch, clearGuestMembership } from '../utils/membershipCh
 import { formatLocalDateShort } from '../utils/dateLocal';
 import LoadingSpinner from '../components/LoadingSpinner';
 import PageTitle from '../components/PageTitle';
+import { useTopSafeAreaApplied } from '../context/TopSafeAreaContext';
 import MatchInfoSection from '../components/MatchInfoSection';
 import TabBar from '../components/TabBar';
 import normalizePartidoForHeader from '../utils/normalizePartidoForHeader';
@@ -802,7 +803,10 @@ function SharedInviteLayout({
   onInviteFriends,
   showBottomNav = false,
 }) {
-  const isEmbeddedInMainLayout = mode === 'public';
+  // /partido-publico vive fuera de MainLayout (338eff6c): inferirlo por `mode`
+  // dejaba el título debajo de la status bar. El layout que ya aplica
+  // --safe-top lo declara por contexto; si no hay ninguno, lo aplica este header.
+  const isEmbeddedInMainLayout = useTopSafeAreaApplied();
   const isPending = joinStatus === 'pending';
   const isApproved = joinStatus === 'approved';
   const isPendingSync = joinStatus === 'approved_pending_sync';

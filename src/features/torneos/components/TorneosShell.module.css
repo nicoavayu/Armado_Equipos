@@ -135,6 +135,20 @@
   mask-image: linear-gradient(to bottom, black, transparent 80%);
 }
 
+/* Sobre la topbar (15), la sidebar (20) y la navegación móvil (40); debajo de
+   diálogos y overlays (50+) y del GlobalHeader (1200), cuyo propio padding ya
+   pinta esta misma franja en reposo. */
+.statusBarScrim {
+  position: fixed;
+  z-index: 45;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: var(--safe-top, env(safe-area-inset-top, 0px));
+  pointer-events: none;
+  background: rgba(9, 9, 15, 0.95);
+}
+
 .skipLink {
   position: fixed;
   z-index: 100;

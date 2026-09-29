@@ -4,6 +4,10 @@ import {
   getConvocatoriaDescription,
   matchSearchesPlayers,
   matchSearchesGoalkeeper,
+  toggleMatchSearchFilter,
+  MATCH_SEARCH_FILTERS,
+  MATCH_SEARCH_FILTER_CHIPS,
+  MATCH_SEARCH_FILTER_LABELS,
 } from '../utils/matchSearchFilters';
 
 const playersOnly = { id: 1, falta_jugadores: true, busca_arquero: false };
@@ -44,6 +48,38 @@ describe('filterMatchesBySearchType', () => {
     const gk = filterMatchesBySearchType([both], 'goalkeeper');
     expect(players).toHaveLength(1);
     expect(gk).toHaveLength(1);
+  });
+});
+
+describe('match search chips (ALL / PLAYER / GOALKEEPER)', () => {
+  test('the three states still exist; only the two narrowing ones have a chip', () => {
+    expect(MATCH_SEARCH_FILTERS).toEqual(['all', 'players', 'goalkeeper']);
+    expect(MATCH_SEARCH_FILTER_CHIPS).toEqual(['players', 'goalkeeper']);
+  });
+
+  test('chip labels are the full, untruncated copy', () => {
+    expect(MATCH_SEARCH_FILTER_LABELS.players).toBe('Busca jugador');
+    expect(MATCH_SEARCH_FILTER_LABELS.goalkeeper).toBe('Busca arquero');
+  });
+
+  test('tapping a chip from ALL selects it', () => {
+    expect(toggleMatchSearchFilter('all', 'players')).toBe('players');
+    expect(toggleMatchSearchFilter('all', 'goalkeeper')).toBe('goalkeeper');
+  });
+
+  test('tapping the other chip switches filter', () => {
+    expect(toggleMatchSearchFilter('players', 'goalkeeper')).toBe('goalkeeper');
+    expect(toggleMatchSearchFilter('goalkeeper', 'players')).toBe('players');
+  });
+
+  test('tapping the active chip returns to ALL', () => {
+    expect(toggleMatchSearchFilter('players', 'players')).toBe('all');
+    expect(toggleMatchSearchFilter('goalkeeper', 'goalkeeper')).toBe('all');
+  });
+
+  test('an unknown chip falls back to ALL', () => {
+    expect(toggleMatchSearchFilter('players', 'all')).toBe('all');
+    expect(toggleMatchSearchFilter('players', 'nope')).toBe('all');
   });
 });
 

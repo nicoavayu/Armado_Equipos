@@ -730,7 +730,9 @@
 
 .detailTabs a {
   display: inline-flex;
-  min-height: 42px;
+  flex: 0 0 auto;
+  min-height: 44px;
+  white-space: nowrap;
   align-items: center;
   gap: 7px;
   padding: 0 15px;

@@ -7,36 +7,12 @@ import reportWebVitals from './reportWebVitals';
 import './utils/updateExistingMatches'; // Importar script para actualizar partidos existentes
 import { initSentry } from 'utils/monitoring/sentry';
 import { cleanupLegacyServiceWorkers } from './utils/legacyServiceWorkerCleanup';
+import { installHorizontalSwipeGuard } from './utils/horizontalSwipeGuard';
 
-// Global mobile guard: prevent accidental horizontal drag/side-scroll.
+// Global mobile guard: prevent accidental horizontal drag/side-scroll of the
+// page; real horizontal scrollers (tabs, chips, tables) keep their swipe.
 if (typeof window !== 'undefined' && 'ontouchstart' in window) {
-  let startX = 0;
-  let startY = 0;
-  let edgeGesture = false;
-
-  document.addEventListener('touchstart', (event) => {
-    if (event.touches.length !== 1) return;
-    const touch = event.touches[0];
-    startX = touch.clientX;
-    startY = touch.clientY;
-    edgeGesture = touch.clientX <= 24 || touch.clientX >= (window.innerWidth - 24);
-  }, { passive: true });
-
-  document.addEventListener('touchmove', (event) => {
-    if (event.touches.length !== 1 || edgeGesture) return;
-
-    const touch = event.touches[0];
-    const deltaX = Math.abs(touch.clientX - startX);
-    const deltaY = Math.abs(touch.clientY - startY);
-
-    // If gesture is mainly horizontal, block it unless explicitly allowed.
-    if (deltaX > deltaY + 4) {
-      const target = event.target instanceof Element
-        ? event.target.closest('[data-allow-horizontal-scroll="true"]')
-        : null;
-      if (!target) event.preventDefault();
-    }
-  }, { passive: false });
+  installHorizontalSwipeGuard(window);
 }
 
 // Herramientas de debug solo en desarrollo.

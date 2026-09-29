@@ -17,6 +17,13 @@ import PrivateGroupsTab from './friends/PrivateGroupsTab';
 import { useAuth } from './AuthProvider';
 import { useRefreshOnVisibility } from '../hooks/useRefreshOnVisibility';
 import { useSupabaseRealtime } from '../hooks/useSupabaseRealtime';
+import {
+  COMMUNITY_SEARCH_DEBOUNCE_MS,
+  COMMUNITY_SEARCH_MIN_CHARS_HINT,
+  countCommunitySearchChars,
+  isCommunitySearchReady,
+  normalizeCommunitySearchQuery,
+} from '../utils/communitySearch';
 
 const toCoordinateNumber = (value) => {
   if (typeof value === 'number') return Number.isFinite(value) ? value : null;
@@ -120,6 +127,28 @@ const AmigosView = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [searchLoading, setSearchLoading] = useState(false);
+  const searchRequestIdRef = useRef(0);
+  const searchDebounceRef = useRef(null);
+
+  // Every change bumps the request id: a response that arrives after the query
+  // changed (or dropped under the minimum) is discarded instead of repainting
+  // stale results.
+  const cancelPendingSearch = useCallback(() => {
+    searchRequestIdRef.current += 1;
+    if (searchDebounceRef.current) {
+      clearTimeout(searchDebounceRef.current);
+      searchDebounceRef.current = null;
+    }
+  }, []);
+
+  const resetUserSearch = useCallback(() => {
+    cancelPendingSearch();
+    setSearchQuery('');
+    setSearchResults([]);
+    setSearchLoading(false);
+  }, [cancelPendingSearch]);
+
+  useEffect(() => cancelPendingSearch, [cancelPendingSearch]);
 
   const [friendSearchQuery, setFriendSearchQuery] = useState('');
   const [userLocation, setUserLocation] = useState(null);
@@ -488,11 +517,8 @@ const AmigosView = () => {
   }, [activeTab, currentUserId, loadFriendSuggestions]);
 
   useEffect(() => {
-    if (activeTab !== 'discover') {
-      setSearchQuery('');
-      setSearchResults([]);
-    }
-  }, [activeTab]);
+    if (activeTab !== 'discover') resetUserSearch();
+  }, [activeTab, resetUserSearch]);
 
   const scheduleAmigosRefresh = useCallback(() => {
     if (amigosRefreshTimeoutRef.current) {
@@ -669,13 +695,8 @@ const AmigosView = () => {
     }
   };
 
-  const searchUsers = async (query) => {
-    if (!query || query.length < 2) {
-      setSearchResults([]);
-      return;
-    }
 
-    setSearchLoading(true);
+  const searchUsers = async (query, requestId) => {
     try {
       const { data, error: searchError } = await supabase
         .from('usuarios')
@@ -684,15 +705,40 @@ const AmigosView = () => {
         .neq('id', currentUserId)
         .limit(10);
 
+      if (requestId !== searchRequestIdRef.current) return;
       if (searchError) throw searchError;
       setSearchResults(data || []);
     } catch (searchError) {
+      if (requestId !== searchRequestIdRef.current) return;
       logger.error('Error searching users:', searchError);
       setSearchResults([]);
     } finally {
-      setSearchLoading(false);
+      if (requestId === searchRequestIdRef.current) setSearchLoading(false);
     }
   };
+
+  const handleSearchQueryChange = (value) => {
+    setSearchQuery(value);
+    cancelPendingSearch();
+    // Old results never stay on screen while the query changes.
+    setSearchResults([]);
+
+    if (!isCommunitySearchReady(value)) {
+      setSearchLoading(false);
+      return;
+    }
+
+    const requestId = searchRequestIdRef.current;
+    const query = normalizeCommunitySearchQuery(value);
+    setSearchLoading(true);
+    searchDebounceRef.current = setTimeout(() => {
+      searchDebounceRef.current = null;
+      searchUsers(query, requestId);
+    }, COMMUNITY_SEARCH_DEBOUNCE_MS);
+  };
+
+  const isSearchQueryReady = isCommunitySearchReady(searchQuery);
+  const showSearchHint = !isSearchQueryReady && countCommunitySearchChars(searchQuery) > 0;
 
   const filteredFriends = useMemo(() => {
     const term = String(friendSearchQuery || '').trim().toLowerCase();
@@ -794,18 +840,18 @@ const AmigosView = () => {
               type="text"
               placeholder="Buscar jugador por nombre o email..."
               value={searchQuery}
-              onChange={(e) => {
-                setSearchQuery(e.target.value);
-                if (e.target.value.trim()) {
-                  searchUsers(e.target.value.trim());
-                } else {
-                  setSearchResults([]);
-                }
-              }}
+              onChange={(e) => handleSearchQueryChange(e.target.value)}
               className={searchInputClass}
+              aria-describedby={showSearchHint ? 'community-search-hint' : undefined}
             />
 
-            {searchQuery && (
+            {showSearchHint && (
+              <p id="community-search-hint" className="mt-2 px-5 text-[12px] text-white/50 font-sans" aria-live="polite">
+                {COMMUNITY_SEARCH_MIN_CHARS_HINT}
+              </p>
+            )}
+
+            {isSearchQueryReady && (
               <div className="w-full max-w-[700px] mx-auto rounded-2xl absolute left-1/2 -translate-x-1/2 top-full bg-[#141029]/98 border border-[rgba(148,134,255,0.3)] max-h-[300px] overflow-y-auto z-[1000] mt-2 sm:max-w-[98vw] shadow-[0_24px_64px_rgba(5,3,16,0.65)] backdrop-blur-xl custom-scrollbar">
                 {searchLoading ? (
                   <div className="flex items-center gap-2 p-4 text-white/70 text-sm">
@@ -822,8 +868,7 @@ const AmigosView = () => {
                       sendFriendRequest={sendFriendRequest}
                       onInlineNotice={showInlineNotice}
                       onRequestSent={() => {
-                        setSearchQuery('');
-                        setSearchResults([]);
+                        resetUserSearch();
                         loadFriendSuggestions({ silent: true });
                       }}
                     />
@@ -1091,7 +1136,9 @@ const SearchUserItem = ({
           />
           <div className="flex-1 min-w-0">
             <div className="font-semibold text-white text-sm truncate">{user.nombre}</div>
-            <div className="text-xs text-white/60 mt-0.5 truncate">{subtitle || user.email || 'Usuario'}</div>
+            {/* Nunca el email: es dato privado (incluye relays de Apple) y esta
+              tarjeta lista a otros usuarios en búsquedas públicas. */}
+            <div className="text-xs text-white/60 mt-0.5 truncate">{subtitle || 'Usuario'}</div>
           </div>
         </div>
       </PlayerCardTrigger>

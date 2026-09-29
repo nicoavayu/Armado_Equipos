@@ -16,6 +16,7 @@ import { getTeamRegistrationAvailability } from '../domain/competitionLifecycle'
 import { canonicalRoutes } from '../routing/canonicalRoutes';
 import { tournamentSurface } from '../routing/legacyRoutes';
 import styles from './TeamRegistration.module.css';
+import { toShareableAppUrl } from '../../../utils/shareableAppUrl';
 
 export default function NewTeamEntryPage() {
   const { organization } = useOutletContext();
@@ -101,7 +102,7 @@ export default function NewTeamEntryPage() {
       });
       setCreatedInvitation({
         entryId: result.entryId,
-        url: `${window.location.origin}/torneos/invitacion/equipo/${invitation.token}`,
+        url: toShareableAppUrl(`/torneos/invitacion/equipo/${invitation.token}`),
         expiresAt: invitation.expiresAt,
       });
       setState({ status: 'success', error: '' });
