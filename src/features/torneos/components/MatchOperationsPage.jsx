@@ -18,9 +18,11 @@ import {
   Flag,
   Goal,
   History,
+  LoaderCircle,
   LockKeyhole,
   MapPin,
   Plus,
+  RotateCcw,
   Save,
   Search,
   ShieldAlert,
@@ -31,7 +33,12 @@ import {
   UsersRound,
   XCircle,
 } from 'lucide-react';
-import { Link, useOutletContext, useParams } from 'react-router-dom';
+import {
+  Link,
+  NavLink,
+  useOutletContext,
+  useParams,
+} from 'react-router-dom';
 import { useTorneosCompetition } from '../context/TorneosCompetitionContext';
 import { useTorneosFixture } from '../context/TorneosFixtureContext';
 import { useTorneosWorkspace } from '../context/TorneosWorkspaceContext';
@@ -789,11 +796,21 @@ export default function MatchOperationsPage({ mode = 'list' }) {
   const { activeTournament, status: competitionStatus } = useTorneosCompetition();
   const { categoryId, categories } = useTorneosFixture();
   const requestRef = useRef(0);
+  const squadsRequestRef = useRef(0);
+  // The tab (`mode`) is read, not depended on: Resumen / Convocatorias / Acta / Revisión / Historial are
+  // views of ONE match load. Switching tabs never re-reads the match nor shows the full-page loader.
+  const modeRef = useRef(mode);
+  modeRef.current = mode;
   const [state, setState] = useState({
     status: 'loading',
     matches: [],
     operation: null,
     squads: {},
+    // Which match `squads` belongs to, and whether it is loading/ready/error. Only the Convocatorias tab
+    // needs them; they load there, inside the tab, the first time it is shown for a match.
+    squadsMatchId: null,
+    squadsStatus: 'idle',
+    squadsError: '',
     error: '',
     notice: '',
   });
@@ -802,14 +819,37 @@ export default function MatchOperationsPage({ mode = 'list' }) {
   const [busy, setBusy] = useState(false);
   const [reviewReason, setReviewReason] = useState('');
 
+  const readSquads = useCallback((match) => Promise.all([
+    service.loadMatchSquad({
+      organizationId: organization.id,
+      matchId: match.id,
+      teamEntryId: match.homeTeamEntryId,
+    }),
+    service.loadMatchSquad({
+      organizationId: organization.id,
+      matchId: match.id,
+      teamEntryId: match.awayTeamEntryId,
+    }),
+  ]).then((contexts) => ({
+    [match.homeTeamEntryId]: contexts[0],
+    [match.awayTeamEntryId]: contexts[1],
+  })), [organization.id, service]);
+
   // `background`: the re-read after an action keeps the screen (and the selected team) mounted
   // instead of replacing it with the full-page loader; a failed re-read still closes it.
   const load = useCallback(async ({ notice = '', background = false } = {}) => {
     const requestId = requestRef.current + 1;
     requestRef.current = requestId;
+    // Any lazy squads read still in flight belongs to data this load replaces.
+    squadsRequestRef.current += 1;
+    const emptySquads = {
+      squads: {}, squadsMatchId: null, squadsStatus: 'idle', squadsError: '',
+    };
     if (!activeTournament?.id) {
       setActiveTeamId(null);
-      setState({ status: 'ready', matches: [], operation: null, squads: {}, error: '', notice });
+      setState({
+        status: 'ready', matches: [], operation: null, ...emptySquads, error: '', notice,
+      });
       return;
     }
     if (!background) {
@@ -818,7 +858,7 @@ export default function MatchOperationsPage({ mode = 'list' }) {
         status: 'loading',
         matches: [],
         operation: null,
-        squads: {},
+        ...emptySquads,
         error: '',
         notice,
       });
@@ -831,41 +871,27 @@ export default function MatchOperationsPage({ mode = 'list' }) {
       });
       const matches = payload?.matches || [];
       const match = matchId ? matches.find((candidate) => candidate.id === matchId) : null;
-      let operation = null;
-      let squads = {};
-      if (match?.operationId) {
-        operation = await service.loadMatchOperation({
-          organizationId: organization.id,
-          operationId: match.operationId,
-        });
-        // `get_tournament_match_operation_context(org, operationId)` no recibe
-        // torneo: autoriza la lectura, pero no afirma que la operación sea del
-        // torneo de esta URL. La operación sí trae `tournament_id`, así que la
-        // pertenencia se comprueba acá en vez de asumirse.
-        if (!resourceMatchesCanonicalScope(operation?.operation, {
-          organizationId: organization.id,
-          tournamentId: activeTournament.id,
-        })) {
-          throw new Error(RESOURCE_SCOPE_MESSAGE);
-        }
-      }
-      if (match && mode === 'squads') {
-        const contexts = await Promise.all([
-          service.loadMatchSquad({
+      // The acta and the squads both depend only on the match row: read them side by side, not one
+      // after the other. The squads are read here only when the Convocatorias tab is the one showing.
+      const withSquads = Boolean(match) && modeRef.current === 'squads';
+      const [operation, squads] = await Promise.all([
+        match?.operationId
+          ? service.loadMatchOperation({
             organizationId: organization.id,
-            matchId: match.id,
-            teamEntryId: match.homeTeamEntryId,
-          }),
-          service.loadMatchSquad({
-            organizationId: organization.id,
-            matchId: match.id,
-            teamEntryId: match.awayTeamEntryId,
-          }),
-        ]);
-        squads = {
-          [match.homeTeamEntryId]: contexts[0],
-          [match.awayTeamEntryId]: contexts[1],
-        };
+            operationId: match.operationId,
+          })
+          : null,
+        withSquads ? readSquads(match) : null,
+      ]);
+      // `get_tournament_match_operation_context(org, operationId)` no recibe
+      // torneo: autoriza la lectura, pero no afirma que la operación sea del
+      // torneo de esta URL. La operación sí trae `tournament_id`, así que la
+      // pertenencia se comprueba acá en vez de asumirse.
+      if (match?.operationId && !resourceMatchesCanonicalScope(operation?.operation, {
+        organizationId: organization.id,
+        tournamentId: activeTournament.id,
+      })) {
+        throw new Error(RESOURCE_SCOPE_MESSAGE);
       }
       if (requestRef.current !== requestId) return;
       const sides = [match?.homeTeamEntryId, match?.awayTeamEntryId];
@@ -876,7 +902,11 @@ export default function MatchOperationsPage({ mode = 'list' }) {
         status: 'ready',
         matches,
         operation,
-        squads,
+        ...(withSquads
+          ? {
+            squads, squadsMatchId: match.id, squadsStatus: 'ready', squadsError: '',
+          }
+          : emptySquads),
         error: '',
         notice,
       });
@@ -886,7 +916,7 @@ export default function MatchOperationsPage({ mode = 'list' }) {
         status: 'error',
         matches: [],
         operation: null,
-        squads: {},
+        ...emptySquads,
         error: error.message,
         notice: '',
       });
@@ -895,17 +925,53 @@ export default function MatchOperationsPage({ mode = 'list' }) {
     activeTournament?.id,
     categoryId,
     matchId,
-    mode,
     organization.id,
+    readSquads,
     service,
   ]);
 
   useEffect(() => {
     load();
-    return () => { requestRef.current += 1; };
+    return () => {
+      requestRef.current += 1;
+      squadsRequestRef.current += 1;
+    };
   }, [load]);
 
   const match = matchId ? state.matches.find((candidate) => candidate.id === matchId) : null;
+
+  // Convocatorias opened from another tab: only the two squad contexts are read, inside the tab. A
+  // failed read stays inside the tab (with a retry) and never shows a squad that could not be read.
+  const loadSquads = useCallback(async (target) => {
+    const requestId = squadsRequestRef.current + 1;
+    squadsRequestRef.current = requestId;
+    setState((current) => ({
+      ...current, squads: {}, squadsMatchId: target.id, squadsStatus: 'loading', squadsError: '',
+    }));
+    try {
+      const squads = await readSquads(target);
+      if (squadsRequestRef.current !== requestId) return;
+      setState((current) => ({
+        ...current, squads, squadsMatchId: target.id, squadsStatus: 'ready', squadsError: '',
+      }));
+    } catch (error) {
+      if (squadsRequestRef.current !== requestId) return;
+      setState((current) => ({
+        ...current,
+        squads: {},
+        squadsMatchId: target.id,
+        squadsStatus: 'error',
+        squadsError: error?.message || 'No pudimos cargar las convocatorias.',
+      }));
+    }
+  }, [readSquads]);
+
+  useEffect(() => {
+    if (mode !== 'squads' || state.status !== 'ready' || !match) return;
+    if (state.squadsMatchId === match.id) return;
+    loadSquads(match);
+  }, [loadSquads, match, mode, state.squadsMatchId, state.status]);
+
   const canOpen = hasCapability(organization, TOURNAMENT_CAPABILITIES.MATCH_OPERATIONS_OPEN);
   const canManage = hasCapability(organization, TOURNAMENT_CAPABILITIES.MATCH_OPERATIONS_UPDATE_DRAFT);
   const canReview = hasCapability(organization, TOURNAMENT_CAPABILITIES.MATCH_OPERATIONS_REVIEW);
@@ -1040,11 +1106,11 @@ export default function MatchOperationsPage({ mode = 'list' }) {
           </header>
           <MatchScore match={match} operation={state.operation} />
           <nav className={styles.matchSubnav} aria-label="Secciones del partido">
-            <Link to={matchRoutes.detail(match.id)}>Resumen</Link>
-            <Link to={matchRoutes.squads(match.id)}>Convocatorias</Link>
-            <Link to={matchRoutes.report(match.id)}>Acta</Link>
-            <Link to={matchRoutes.review(match.id)}>Revisión</Link>
-            <Link to={matchRoutes.history(match.id)}>Historial</Link>
+            <NavLink end to={matchRoutes.detail(match.id)}>Resumen</NavLink>
+            <NavLink to={matchRoutes.squads(match.id)}>Convocatorias</NavLink>
+            <NavLink to={matchRoutes.report(match.id)}>Acta</NavLink>
+            <NavLink to={matchRoutes.review(match.id)}>Revisión</NavLink>
+            <NavLink to={matchRoutes.history(match.id)}>Historial</NavLink>
           </nav>
           {state.notice && <div className={styles.successNotice} role="status">{state.notice}</div>}
           {state.error && <div className={styles.errorNotice} role="alert">{state.error}</div>}
@@ -1079,7 +1145,25 @@ export default function MatchOperationsPage({ mode = 'list' }) {
             </div>
           )}
 
-          {mode === 'squads' && (
+          {mode === 'squads' && state.squadsStatus !== 'ready' && (
+            state.squadsStatus === 'error' ? (
+              <section className={styles.emptyState} role="alert">
+                <AlertTriangle size={30} />
+                <h2>No pudimos cargar las convocatorias</h2>
+                <p>{state.squadsError}</p>
+                <button type="button" className={styles.sectionRetry} onClick={() => loadSquads(match)}>
+                  <RotateCcw size={17} /> Reintentar
+                </button>
+              </section>
+            ) : (
+              <section className={styles.emptyState} role="status" aria-live="polite" data-section-loading="squads">
+                <LoaderCircle className={styles.sectionSpinner} size={30} />
+                <h2>Cargando convocatorias…</h2>
+              </section>
+            )
+          )}
+
+          {mode === 'squads' && state.squadsStatus === 'ready' && (
             <>
               <div className={styles.teamTabs} role="tablist" aria-label="Equipo de la convocatoria">
                 {[match.homeTeamEntryId, match.awayTeamEntryId].map((teamId, index) => (
