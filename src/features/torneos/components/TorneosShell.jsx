@@ -359,6 +359,12 @@ export default function TorneosShell() {
       </a>
       <div className={styles.ambientGlow} aria-hidden="true" />
       <div className={styles.gridTexture} aria-hidden="true" />
+      {/* El inset superior lo aplica una sola capa (GlobalHeader o, sin él, la
+        topbar), pero sólo ubica bien el estado en reposo: al scrollear, el
+        contenido pasaba por debajo del reloj y la cámara (Android 15+
+        edge-to-edge / iOS). Esta franja fija del alto del inset lo tapa, como la
+        de MainLayout. No agrega padding; en web sin inset mide 0. */}
+      <div className={styles.statusBarScrim} aria-hidden="true" data-testid="torneos-status-bar-scrim" />
 
       {showSpaceHeader && <GlobalHeader className={styles.globalHeader} />}
 
