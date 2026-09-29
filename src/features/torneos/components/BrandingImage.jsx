@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { resolveBrandingAssetCandidates } from '../domain/brandingAssets';
 
 // First letters of the first two words. When the name ends in a number ("QA Equipo 1",
@@ -30,9 +30,13 @@ export default function BrandingImage({
     path,
     fallbackPath,
   }), [fallbackPath, kind, path]);
-  const [candidateIndex, setCandidateIndex] = useState(0);
-
-  useEffect(() => setCandidateIndex(0), [candidates.join('|')]);
+  // The failed-candidate cursor belongs to one candidate list: a new list starts
+  // over at 0. Derived during render instead of reset by an effect, because a
+  // mount effect that has not flushed yet when an early onError lands would
+  // overwrite that +1 with 0 and pin the broken first candidate.
+  const candidateKey = candidates.join('|');
+  const [cursor, setCursor] = useState({ key: candidateKey, index: 0 });
+  const candidateIndex = cursor.key === candidateKey ? cursor.index : 0;
 
   const src = candidates[candidateIndex] || null;
   if (!src && fallback) return fallback;
@@ -48,7 +52,10 @@ export default function BrandingImage({
           alt={decorative ? '' : name}
           loading={loading}
           className={imageClassName}
-          onError={() => setCandidateIndex((current) => current + 1)}
+          onError={() => setCursor((current) => ({
+            key: candidateKey,
+            index: (current.key === candidateKey ? current.index : 0) + 1,
+          }))}
         />
       ) : initials(name)}
     </span>

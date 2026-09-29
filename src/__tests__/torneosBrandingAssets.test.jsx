@@ -112,6 +112,20 @@ describe('Torneos branding assets', () => {
     expect(screen.getByText('TA')).toBeInTheDocument();
   });
 
+  test('a new candidate list starts over at its first candidate', () => {
+    const otherTournamentPath = `${organizationId}/tournaments/${tournamentId}/55555555-5555-4555-8555-555555555555.png`;
+    const { rerender } = render(
+      <BrandingImage kind="tournament" path={tournamentPath} fallbackPath={organizationPath} name="Torneo Apertura" decorative={false} />,
+    );
+    fireEvent.error(screen.getByAltText('Torneo Apertura'));
+    expect(screen.getByAltText('Torneo Apertura')).toHaveAttribute('src', `https://assets.local/${organizationPath}`);
+
+    rerender(
+      <BrandingImage kind="tournament" path={otherTournamentPath} fallbackPath={organizationPath} name="Torneo Apertura" decorative={false} />,
+    );
+    expect(screen.getByAltText('Torneo Apertura')).toHaveAttribute('src', `https://assets.local/${otherTournamentPath}`);
+  });
+
   test('derives the organization monogram from the authoritative visible name', () => {
     const { rerender } = render(
       <BrandingImage
