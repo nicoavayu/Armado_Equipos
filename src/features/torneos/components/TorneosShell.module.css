@@ -2557,6 +2557,23 @@
     display: none;
   }
 }
+
+/* POST-BETA: at 320 px the label box was 43.2 px and "Partidos"/"Torneos" measure 41–44 px depending on
+   the font actually rendered (Inter, or the system fallback) — the ellipsis cut them. Up to 360 px the bar
+   gives the labels the room its margins and gaps were taking: ~52 px per label, still five whole items
+   and ~56 × 54 px tap targets. Wider viewports keep the rules above. */
+@media (max-width: 360px) {
+  .mobileNavigation {
+    right: 8px;
+    left: 8px;
+    gap: 2px;
+    grid-auto-columns: minmax(calc((100% - 8px) / 5), 1fr);
+  }
+
+  .mobileNavigation .navigationItem {
+    padding-inline: 1px;
+  }
+}
 .brandingContain {
   width: 100%;
   height: 100%;
