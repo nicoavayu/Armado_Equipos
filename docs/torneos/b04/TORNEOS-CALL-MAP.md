@@ -1,6 +1,6 @@
 # TORNEOS-CALL-MAP — auditoría B04
 
-Inventario legacy congelado en `2058da039a2a5eaaed22d87d01946bc596ae5f50` (Phase 2D); árbol integrado auditado en `abe4f79f9492b9c216cc63779e49c655b67900e1`. Reconstruido del código. No representa resultados de R2/R3/R4/R5.
+Inventario legacy congelado en `2058da039a2a5eaaed22d87d01946bc596ae5f50` (Phase 2D); árbol integrado auditado en `d75879b3dfa6e9fa8e7ad28b4cdf01c384ad988f`. Reconstruido del código. No representa resultados de R2/R3/R4/R5.
 
 161 sitios RPC legacy; 160 nombres distintos; 108 nombres dentro de scope; 52 fuera. La selección dinámica de `changeTournamentMatchPlan` se resuelve a sus tres nombres literales. No quedan RPC dinámicas sin resolver.
 
@@ -320,15 +320,15 @@ Cada fila es un import que alcanza el singleton por el grafo estático, no una c
 | [src/features/torneos/components/BrandingAssetField.jsx:3](../../../src/features/torneos/components/BrandingAssetField.jsx#L3) | `../api/tournamentBrandingService` |
 | [src/features/torneos/components/BrandingAssetField.jsx:7](../../../src/features/torneos/components/BrandingAssetField.jsx#L7) | `./BrandingImage` |
 | [src/features/torneos/components/BrandingImage.jsx:2](../../../src/features/torneos/components/BrandingImage.jsx#L2) | `../domain/brandingAssets` |
-| [src/features/torneos/components/CaptainMatchSquadPage.jsx:8](../../../src/features/torneos/components/CaptainMatchSquadPage.jsx#L8) | `../context/TorneosWorkspaceContext` |
-| [src/features/torneos/components/CaptainMatchSquadPage.jsx:9](../../../src/features/torneos/components/CaptainMatchSquadPage.jsx#L9) | `./MatchOperationsPage` |
+| [src/features/torneos/components/CaptainMatchSquadPage.jsx:4](../../../src/features/torneos/components/CaptainMatchSquadPage.jsx#L4) | `../context/TorneosWorkspaceContext` |
+| [src/features/torneos/components/CaptainMatchSquadPage.jsx:6](../../../src/features/torneos/components/CaptainMatchSquadPage.jsx#L6) | `./MatchOperationsPage` |
 | [src/features/torneos/components/CommunicationsAdminPage.jsx:24](../../../src/features/torneos/components/CommunicationsAdminPage.jsx#L24) | `../context/TorneosWorkspaceContext` |
 | [src/features/torneos/components/CompetitionCenterPage.jsx:25](../../../src/features/torneos/components/CompetitionCenterPage.jsx#L25) | `../context/TorneosWorkspaceContext` |
 | [src/features/torneos/components/CompetitionCenterPage.jsx:33](../../../src/features/torneos/components/CompetitionCenterPage.jsx#L33) | `./BrandingImage` |
 | [src/features/torneos/components/CompetitionOverviewPage.jsx:27](../../../src/features/torneos/components/CompetitionOverviewPage.jsx#L27) | `./BrandingImage` |
 | [src/features/torneos/components/CreateOrganizationPage.jsx:8](../../../src/features/torneos/components/CreateOrganizationPage.jsx#L8) | `../context/TorneosWorkspaceContext` |
 | [src/features/torneos/components/FixtureWorkspacePage.jsx:45](../../../src/features/torneos/components/FixtureWorkspacePage.jsx#L45) | `./BrandingImage` |
-| [src/features/torneos/components/MatchOperationsPage.jsx:37](../../../src/features/torneos/components/MatchOperationsPage.jsx#L37) | `../context/TorneosWorkspaceContext` |
+| [src/features/torneos/components/MatchOperationsPage.jsx:44](../../../src/features/torneos/components/MatchOperationsPage.jsx#L44) | `../context/TorneosWorkspaceContext` |
 | [src/features/torneos/components/MediaAdminPage.jsx:33](../../../src/features/torneos/components/MediaAdminPage.jsx#L33) | `../context/TorneosWorkspaceContext` |
 | [src/features/torneos/components/MyCommunicationsPage.jsx:15](../../../src/features/torneos/components/MyCommunicationsPage.jsx#L15) | `../context/TorneosWorkspaceContext` |
 | [src/features/torneos/components/MyTournamentMatchesPage.jsx:19](../../../src/features/torneos/components/MyTournamentMatchesPage.jsx#L19) | `../context/TorneosWorkspaceContext` |

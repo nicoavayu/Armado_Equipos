@@ -1,5 +1,5 @@
 {
-  "generatedFrom": "abe4f79f9492b9c216cc63779e49c655b67900e1",
+  "generatedFrom": "d75879b3dfa6e9fa8e7ad28b4cdf01c384ad988f",
   "legacyBase": "2058da039a2a5eaaed22d87d01946bc596ae5f50",
   "coreSingletonSha256": "f39572e4cab0fd287bd1dea2ca87c97bd5500d0eff57cb8de6160f1e3271600c",
   "reachableCallSignatures": {
@@ -394,12 +394,12 @@
     },
     {
       "file": "src/features/torneos/components/CaptainMatchSquadPage.jsx",
-      "line": 8,
+      "line": 4,
       "source": "../context/TorneosWorkspaceContext"
     },
     {
       "file": "src/features/torneos/components/CaptainMatchSquadPage.jsx",
-      "line": 9,
+      "line": 6,
       "source": "./MatchOperationsPage"
     },
     {
@@ -434,7 +434,7 @@
     },
     {
       "file": "src/features/torneos/components/MatchOperationsPage.jsx",
-      "line": 37,
+      "line": 44,
       "source": "../context/TorneosWorkspaceContext"
     },
     {
