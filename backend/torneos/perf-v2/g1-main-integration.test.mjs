@@ -82,7 +82,15 @@ test('integration: changes after the integration base are confined to Mi plan, P
     'scripts/torneos-frontend/commerce.test.mjs', 'scripts/torneos-frontend/foundation.test.mjs']);
   const prefixes = ['backend/torneos/season-scope-fix/', 'scripts/qa/plan-ux/', 'src/features/torneos/', 'src/__tests__/torneos'];
   for (const file of changed) assert.ok(allowed.has(file) || prefixes.some((p) => file.startsWith(p)), file);
-  for (const file of changed) assert.deepEqual(secretFindings(fs.readFileSync(path.join(REPO_ROOT, file), 'utf8')), [], `secret scan: ${file}`);
+  // Secret scan of what this integration introduces: whole new files, added lines of files that existed at the base
+  // (some pre-existing guards carry deliberate leak-shaped fixtures that must stay refused there).
+  const atBase = new Set(git('ls-tree', '-r', '--name-only', BASE).split('\n'));
+  for (const file of changed) {
+    const introduced = atBase.has(file)
+      ? git('diff', '--unified=0', BASE, '--', file).split('\n').filter((l) => l.startsWith('+') && !l.startsWith('+++')).map((l) => l.slice(1)).join('\n')
+      : fs.readFileSync(path.join(REPO_ROOT, file), 'utf8');
+    assert.deepEqual(secretFindings(introduced), [], `secret scan: ${file}`);
+  }
   assert.deepEqual(git('diff', '--name-only', BASE, '--', 'backend/torneos/supabase/migrations').trim().split('\n'),
     ['backend/torneos/supabase/migrations/00000000000007_season_entitlements_scope.sql'], 'only 0007 is new; 0000–0006 untouched');
   const before = JSON.parse(git('show', `${BASE}:package.json`));
