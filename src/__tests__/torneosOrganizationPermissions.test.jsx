@@ -16,6 +16,7 @@ import OrganizationSettingsPage from '../features/torneos/components/Organizatio
 import {
   getCapabilitiesForRole,
 } from '../features/torneos/domain/capabilities';
+import { tournamentEntitlementsFixture } from '../testUtils/tournamentEntitlementsFixture';
 
 let mockWorkspace;
 
@@ -156,6 +157,11 @@ describe('organization settings permission contract', () => {
     mockWorkspace.service.listSeasonMemberAssignments
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([{ membershipId: 'member-admin' }]);
+    // The page only shows limits from a trusted, in-scope plan read (certified FREE / default_free shape).
+    mockWorkspace.service.loadSeasonEntitlements.mockResolvedValue(tournamentEntitlementsFixture({
+      seasonId: 'season-1',
+      tournamentId: null,
+    }));
 
     renderOrganizationRoute(
       <OrganizationMembersPage />,
@@ -175,5 +181,29 @@ describe('organization settings permission contract', () => {
     });
     expect(await screen.findByRole('button', { name: 'Asignado' })).toBeInTheDocument();
     expect(screen.getByText('1 / 1')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Más colaboradores · Premium/ })).toBeInTheDocument();
+  });
+
+  test('does not show a seat limit from an untrusted plan payload', async () => {
+    mockWorkspace.service.listMembers.mockResolvedValue([
+      {
+        id: 'member-owner', user_id: 'owner-user', role: 'owner', status: 'active',
+      },
+      {
+        id: 'member-admin', user_id: 'admin-user', role: 'admin', status: 'active',
+      },
+    ]);
+    mockWorkspace.service.loadCompetitionContext.mockResolvedValue({
+      seasons: [{ id: 'season-1', name: 'Apertura 2026' }],
+    });
+
+    renderOrganizationRoute(
+      <OrganizationMembersPage />,
+      organizationFor('owner'),
+      'miembros',
+    );
+
+    expect(await screen.findByText('0 / —')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Más colaboradores · Premium/ })).not.toBeInTheDocument();
   });
 });
