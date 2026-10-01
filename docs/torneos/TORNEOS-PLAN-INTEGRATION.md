@@ -53,6 +53,7 @@ Ninguna variable se agrega a archivos versionados. **Mergear no activa PLAN READ
   - OEC sigue enviando sólo 0005/0006.
   - El conteo del candidato W3 se deriva, ya no está fijo en 17.
 - `integration/torneos-core-contracts/exposure.test.mjs`: el lab espera 0007 después de 0006.
+- `deno-runtime-hardening.test.mjs` y `remote-test-enablement.test.mjs`: `TORNEOS_PLAN_READ_MODE` queda declarado como variable del gateway, no secreta. Las listas prohibidas de MP/pagos no cambian.
 - `gateway-remote.test.mjs` y `competition-remote.test.mjs`: el grafo del gateway pasa de 17 a 18 archivos y `plan-read.ts` es obligatorio.
 - `src/__tests__/torneosOrganizationPermissions.test.jsx`: el fixture de cupos usa un plan read confiable, y un caso nuevo cubre el payload no confiable (`0 / —`, sin upsell).
 - `docs/torneos/b04/*`: regenerado con `node scripts/torneos-frontend/report.mjs`.
