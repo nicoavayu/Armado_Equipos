@@ -59,6 +59,7 @@ test('integration: changes after approved UX are confined to plan-read, its guar
   const allowed = new Set([INDEX, PLAN, 'backend/torneos/plan-read/plan-read.test.mjs',
     'backend/torneos/perf-v2/g1-main-integration.test.mjs', 'docs/torneos/TORNEOS-PLAN-READ-LOCAL-READY.md',
     'docs/torneos/TORNEOS-PLAN-READ-SHADOW-CERTIFICATION.md',
+    'docs/torneos/b04/b04-audit.json',
     'src/__tests__/torneosStagingV1Gate.test.jsx', 'src/features/torneos/TorneosFeatureGate.jsx',
     'src/features/torneos/foundation/config.js', 'src/features/torneos/foundation/torneosClient.js',
     'src/features/torneos/stagingV1/StagingV1TorneosApp.jsx', 'src/features/torneos/stagingV1/stagingV1Features.js',
