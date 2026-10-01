@@ -65,6 +65,10 @@ export const M0005 = Object.freeze({ seq: '0005', file: `${MIG_DIR}/000000000000
 export const M0006 = Object.freeze({ seq: '0006', file: `${MIG_DIR}/00000000000006_domain_error_contract.sql`, sha256: '767d57e8fb96ca69cd9d3b9379c0c3135652c8cb7bc07d83d81d1d815e0f3cc3' });
 export const R0005 = Object.freeze({ file: 'backend/torneos/officialization-v1/rollback/00000000000005_officialization_v1.rollback.sql', sha256: '3dc0776b18842a29f92aaa479fefce0806083a5e1750e29e65bae4cb6bb8e33a' });
 export const R0006 = Object.freeze({ file: 'backend/torneos/error-contract-v1/rollback/00000000000006_domain_error_contract.rollback.sql', sha256: '30c15af17f952cc4b341c54168f6b01ee0a37066fe1d5a8f81fe4cfe4ac80f1b' });
+/** SEASON-SCOPE-FIX (0007), applied in Production 2026-10-01 outside this tooling (body a533331a → bf263aca). Known and
+ *  hash-pinned so the directory set stays exact; OEC never sends it. */
+export const M0007 = Object.freeze({ seq: '0007', file: `${MIG_DIR}/00000000000007_season_entitlements_scope.sql`, sha256: 'ba0450f965f3357679e493efc8ac465eb37c836dafccdf21138ea9244d85a205' });
+export const R0007 = Object.freeze({ file: 'backend/torneos/season-scope-fix/rollback/00000000000007_season_entitlements_scope.rollback.sql', sha256: '054985997ea06a0c7745f1e700489a9b879cbd40f0320d83d7049780f2758be3' });
 if (APPLIED[4].sha256 !== CV1.MIGRATION.sha256) throw new Error('oec_0004_pin_differs_from_competition_v1');
 
 export function assertFileHash(rel, expected) {
@@ -76,12 +80,12 @@ export function assertFileHash(rel, expected) {
 /** Every migration and rollback file this tooling can touch, re-hashed (migration drift = refusal). */
 export function migrationDrift() {
   const out = [];
-  for (const m of [...APPLIED, M0005, M0006, R0005, R0006]) {
+  for (const m of [...APPLIED, M0005, M0006, M0007, R0005, R0006, R0007]) {
     try { assertFileHash(m.file, m.sha256); } catch (e) { out.push(String(e.message)); }
   }
   const dir = path.join(REPO_ROOT, MIG_DIR);
   const listed = fs.readdirSync(dir).filter((f) => f.endsWith('.sql')).sort();
-  const known = [...APPLIED, M0005, M0006].map((m) => path.basename(m.file)).sort();
+  const known = [...APPLIED, M0005, M0006, M0007].map((m) => path.basename(m.file)).sort();
   if (JSON.stringify(listed) !== JSON.stringify(known)) out.push(`migrations_dir_set ${listed.join(',')}`);
   return out;
 }

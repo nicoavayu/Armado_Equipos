@@ -30,6 +30,9 @@ test('pins: migration + rollback bytes, 0000–0005 byte-identical, function set
   assert.equal(C.M0005.sha256, '51fe200f2124e786345a85e5dbadfc844765db550a7f8cc837adefbddf0aeb78');
   assert.equal(C.M0006.sha256, '767d57e8fb96ca69cd9d3b9379c0c3135652c8cb7bc07d83d81d1d815e0f3cc3');
   assert.throws(() => C.assertFileHash(C.M0005.file, C.M0006.sha256), /file_hash_mismatch/);
+  // 0007 (SEASON-SCOPE-FIX) is applied in Production outside OEC: known to the directory set, pinned, never an OEC write.
+  for (const m of [C.M0007, C.R0007]) C.assertFileHash(m.file, m.sha256);
+  assert.equal(C.M0007.sha256, 'ba0450f965f3357679e493efc8ac465eb37c836dafccdf21138ea9244d85a205');
   assert.deepEqual([C.GRANTED_0004.length, C.CLOSED.length, C.NEW_0005.length, C.REPLACED_0005.length, C.EC_PINS.length, C.ALL_SIGS.length], [15, 23, 9, 3, 18, 60]);
   assert.deepEqual([C.COUNTS.post0004, C.COUNTS.post0005, C.COUNTS.anon], [162, 171, 12]);
   assert.deepEqual(C.REPLACED_0005.map((r) => r.before.slice(0, 8)), ['4f43a729', '2f43290e', '488ca6bb']);
@@ -322,10 +325,10 @@ test('fail closed: drift, migration drift, failed apply, gateway not on the live
     const h = await harness();
     try {
       h.lines.push('PLAN'); await h.remote.w1(); h.lines.push('PLAN'); await h.remote.w2();
-      fs.writeFileSync(h.files.cand, JSON.stringify({ digest: '0'.repeat(64), files: 17 }));
+      fs.writeFileSync(h.files.cand, JSON.stringify({ digest: '0'.repeat(64), files: h.cand.manifest.length }));
       assert.equal(await stopCode(h.remote.w3()), 'W3_BUNDLES');
       assert.equal(h.deno.state.writes.length, 0);
-      fs.writeFileSync(h.files.cand, JSON.stringify({ digest: h.cand.digest, files: 17 }));
+      fs.writeFileSync(h.files.cand, JSON.stringify({ digest: h.cand.digest, files: h.cand.manifest.length }));
       h.deno.state.failDeploy = true; h.lines.push('PLAN');
       assert.equal(await stopCode(h.remote.w3()), 'W3_POSTCHECK_FAILED');
       assert.ok(!fs.existsSync(h.files.deployed)); assert.equal(h.gw.state.live, 'current');
