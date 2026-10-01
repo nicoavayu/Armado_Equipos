@@ -143,16 +143,24 @@ async function body(req: Request): Promise<Uint8Array> {
   return out
 }
 
-/** Core session authority, over HTTPS only: GoTrue health + the Core contract `session` verdict. */
+/**
+ * Core session authority, over HTTPS only: GoTrue health + the Core contract `session` verdict.
+ * PERF-V2 G1: both are asked at the same time and both must settle; they are then read in the original
+ * order (health first), so every outcome (503, CORE_UNAVAILABLE, 401) is the one the serial code gave.
+ */
 async function activeSession(rt: Runtime, userId: string, sessionId: string): Promise<void> {
   if (!uuid(userId) || !uuid(sessionId)) throw new Error("unauthorized")
+  const [health, verdict] = await Promise.allSettled([
+    dependencyFetch(`${rt.cfg.coreAuthUrl}/health`, {
+      headers: rt.cfg.coreAnonKey ? { apikey: rt.cfg.coreAnonKey } : {}, signal: AbortSignal.timeout(2000) }),
+    rt.core.call(ROUTES.session, { core_user_id: userId, session_id: sessionId }),
+  ])
   // Explicit fail-closed contract even if GoTrue is down while its DB is alive.
-  const health = await dependencyFetch(`${rt.cfg.coreAuthUrl}/health`, {
-    headers: rt.cfg.coreAnonKey ? { apikey: rt.cfg.coreAnonKey } : {}, signal: AbortSignal.timeout(2000) })
-  if (!health.ok) throw new Unavailable()
+  if (health.status === "rejected") throw health.reason
+  if (!health.value.ok) throw new Unavailable()
   try {
-    const verdict = await rt.core.call(ROUTES.session, { core_user_id: userId, session_id: sessionId })
-    if (verdict.active !== true) throw new Error("inactive session")
+    if (verdict.status === "rejected") throw verdict.reason
+    if (verdict.value.active !== true) throw new Error("inactive session")
   } catch (error) {
     if (error instanceof Denied) {
       if (error.status >= 500) throw new CoreUnavailable()
@@ -266,8 +274,16 @@ export async function handle(req: Request): Promise<Response> {
       // Phase 2D: RPC names outside the staging v1 allowlist never reach PostgREST through this
       // gateway (verified bearer or not; the answer is a plain refusal, not a proxied 42501).
       if (rpc && !rt.rpcAllowlist.has(rpc)) return json(403, { error: "rpc not enabled" }, cors)
-      await activeSession(rt, p.core_user_id, p.session_id)
-      if (!await identityExists(rt.identity, p.sub, p.core_user_id)) throw new Error("identity mismatch")
+      // PERF-V2 G1: the Core session and the local identity (a read-only SELECT of the verified claims) are
+      // checked at the same time; both must settle and both must pass, read in the original order (session
+      // first). Nothing that writes (the adapter, PostgREST) starts before that.
+      const [session, identity] = await Promise.allSettled([
+        activeSession(rt, p.core_user_id, p.session_id),
+        identityExists(rt.identity, p.sub, p.core_user_id),
+      ])
+      if (session.status === "rejected") throw session.reason
+      if (identity.status === "rejected") throw identity.reason
+      if (!identity.value) throw new Error("identity mismatch")
       let raw: Uint8Array | undefined
       if (req.method === "POST" && rpc && CONTRACTS[rpc]) {
         raw = await body(req)

@@ -52,6 +52,7 @@
     "web-vitals": "^2.1.4"
   },
   "scripts": {
+    "test:torneos:g1": "node --test --test-concurrency=1 backend/torneos/perf-v2/g1-parallel-checks.test.mjs backend/torneos/perf-v2/g1-main-integration.test.mjs",
     "start": "react-scripts start",
     "prebuild": "node scripts/validate-build-env.mjs",
     "build": "GENERATE_SOURCEMAP=${GENERATE_SOURCEMAP:-false} REACT_APP_AUTH_REDIRECT_URL=com.teambalancer.app://auth/callback react-scripts build && node scripts/write-build-info.mjs",
