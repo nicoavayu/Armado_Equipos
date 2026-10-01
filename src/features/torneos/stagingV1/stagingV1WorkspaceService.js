@@ -158,10 +158,11 @@ function validCheckoutAnswer(answer, { organizationId, seasonId }) {
 export function createStagingV1WorkspaceService({
   transport,
   commerce = false,
+  planRead = false,
   checkoutTimeoutMs = CHECKOUT_TIMEOUT_MS,
 }) {
   const commerceEnabled = commerce === true;
-  const client = createTorneosClient({ transport, commerce: commerceEnabled });
+  const client = createTorneosClient({ transport, commerce: commerceEnabled, planRead });
   if (client.status !== 'connected') {
     throw new TournamentWorkspaceError(
       'TORNEOS_TRANSPORT_NOT_CONNECTED',
@@ -183,8 +184,8 @@ export function createStagingV1WorkspaceService({
     }, 'No pudimos cargar tus torneos.');
   }
 
-  const commerceAliases = commerceEnabled ? {
-    // ── commerce (MP-A5, billing TEST overlay only) ────────────────────────
+  // Independent read-only contract. Default OFF until the gateway serves it.
+  const planAliases = commerceEnabled || planRead === true ? {
     loadSeasonEntitlements: async ({ organizationId, seasonId } = {}) => {
       if (!UUID.test(String(organizationId)) || !UUID.test(String(seasonId))) throw invalidRequest();
       return call(
@@ -193,6 +194,9 @@ export function createStagingV1WorkspaceService({
         'No pudimos cargar las funcionalidades disponibles para esta temporada.',
       );
     },
+  } : {};
+
+  const commerceAliases = commerceEnabled ? {
     // The purchase must belong to the organization and season of the route: anything
     // else fails closed, whatever the server returned.
     loadPurchase: async ({ purchaseId, organizationId, seasonId } = {}) => {
@@ -227,6 +231,7 @@ export function createStagingV1WorkspaceService({
   } : {};
 
   return Object.freeze({
+    ...planAliases,
     ...commerceAliases,
     // ── organizations / workspaces ─────────────────────────────────────────
     loadContext: () => call(
@@ -1175,9 +1180,9 @@ export function createStagingV1Commerce(service, { redirect = null } = {}) {
 
 // A service with every commerce alias removed: what the workspace providers receive while
 // billing is off, so no screen can duck-type its way into a commerce request.
-export function withoutCommerce(service) {
+export function withoutCommerce(service, { planRead = false } = {}) {
   if (!service) return service;
   return Object.freeze(Object.fromEntries(
-    Object.entries(service).filter(([name]) => !COMMERCE_METHODS.includes(name)),
+    Object.entries(service).filter(([name]) => !COMMERCE_METHODS.includes(name) || (planRead === true && name === 'loadSeasonEntitlements')),
   ));
 }

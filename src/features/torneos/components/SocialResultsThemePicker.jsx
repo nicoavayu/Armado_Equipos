@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { LockKeyhole } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import {
   hasEffectiveTournamentEntitlement,
   TOURNAMENT_ENTITLEMENTS,
 } from '../domain/entitlements';
+import PremiumFeatureGate from './PremiumFeatureGate';
 import { canonicalRoutes } from '../routing/canonicalRoutes';
 import { SOCIAL_RESULTS_THEMES } from '../social/socialThemes';
 import styles from './SocialStudioPage.module.css';
@@ -34,15 +35,18 @@ export default function SocialResultsThemePicker({
   onLockedPreview = null,
 }) {
   const navigate = useNavigate();
+  const [upsellOpen, setUpsellOpen] = useState(false);
+  const planTarget = seasonId ? canonicalRoutes.seasonPlan(organizationId, seasonId) : canonicalRoutes.organizationMyPlan(organizationId);
   const premiumAllowed = canUsePremiumResultStyles(planState, seasonId);
 
   const chooseTheme = (entry) => {
     onSelect(entry.id);
-    if (entry.id !== 'base' && !premiumAllowed) onLockedPreview?.(entry.id);
+    if (entry.id !== 'base' && !premiumAllowed) { onLockedPreview?.(entry.id); setUpsellOpen(true); }
   };
 
   return (
       <div className={styles.themePicker}>
+        <PremiumFeatureGate open={upsellOpen} feature="Estilos Premium" onClose={() => setUpsellOpen(false)} onViewPremium={() => navigate(`${planTarget}#premium`)} />
         <div className={styles.chipRow} role="radiogroup" aria-label="Estilo de resultados">
           {SOCIAL_RESULTS_THEMES.map((entry) => {
             const locked = entry.id !== 'base' && !premiumAllowed;
@@ -68,7 +72,7 @@ export default function SocialResultsThemePicker({
             <span><LockKeyhole size={14} aria-hidden="true" /> Preview white-label · export bloqueado</span>
             <button
               type="button"
-              onClick={() => navigate(canonicalRoutes.seasonPlan(organizationId, seasonId))}
+              onClick={() => navigate(`${planTarget}#premium`)}
             >
               Ver Premium
             </button>

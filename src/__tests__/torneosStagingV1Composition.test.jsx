@@ -252,7 +252,7 @@ describe('hybrid composition — full competition through the adapter; OFF surfa
     const { adapter } = renderPath(`/torneos/organizacion/${ORG}/torneo/${TOURNAMENT}`);
     await waitFor(() => expect(currentPath).toBe(`/torneos/organizacion/${ORG}/torneo/${TOURNAMENT}/fixture`));
     const nav = screen.getAllByRole('navigation', { name: /Navegación de la organización/ })[0];
-    expect(within(nav).getAllByRole('link').map((link) => link.textContent)).toEqual(['Inicio', 'Torneos', 'Equipos', 'Fixture', 'Partidos', 'Competencia', 'Comunicaciones', 'Configuración']);
+    expect(within(nav).getAllByRole('link').map((link) => link.textContent)).toEqual(['Inicio', 'Torneos', 'Equipos', 'Fixture', 'Partidos', 'Competencia', 'Comunicaciones', 'Mi plan', 'Configuración']);
     await waitFor(() => expect(adapter.loadFixtureContext).toHaveBeenCalledWith(ORG, TOURNAMENT, CATEGORY));
     expect(adapter.loadScheduleContext).toHaveBeenCalledWith(ORG, TOURNAMENT, CATEGORY);
   });
@@ -351,9 +351,9 @@ describe('hybrid composition — full competition through the adapter; OFF surfa
 
   test('the feature map is the static staging-v1 + COMPETITION-V1 + OFFICIALIZATION-V1 map; media, social studio and billing stay off', () => {
     expect(Object.entries(stagingV1Features).filter(([, on]) => on).map(([key]) => key).sort())
-      .toEqual([...stagingV1OnFeatures, ...competitionV1OnFeatures, ...officializationV1OnFeatures].sort());
-    expect(Object.values(stagingV1Features).filter(Boolean)).toHaveLength(19);
-    for (const key of ['media', 'social_studio', 'billing', 'plan', 'entitlements', 'branding_assets', 'player_portraits', 'team_photos', 'team_visual_policy', 'roster_lock']) {
+      .toEqual([...stagingV1OnFeatures, ...competitionV1OnFeatures, ...officializationV1OnFeatures, 'plan'].sort());
+    expect(Object.values(stagingV1Features).filter(Boolean)).toHaveLength(20);
+    for (const key of ['media', 'social_studio', 'billing', 'entitlements', 'branding_assets', 'player_portraits', 'team_photos', 'team_visual_policy', 'roster_lock']) {
       expect(stagingV1Features[key]).toBe(false);
     }
   });

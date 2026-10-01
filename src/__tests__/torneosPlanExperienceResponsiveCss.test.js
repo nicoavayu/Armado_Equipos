@@ -76,7 +76,7 @@ describe('Torneos plan experience responsive CSS', () => {
   });
 
   test('keeps plan badges, locked themes and the modal mobile-safe', () => {
-    expect(competitionSelector).toContain('Plan no verificado');
+    expect(competitionSelector).toContain('describePlanState');
     expect(socialCss).toMatch(/\.themePicker \.chipRow button\s*\{[^}]*white-space:\s*nowrap/);
     expect(premiumGateCss).toMatch(/width:\s*min\(100%,\s*430px\)/);
     expect(premiumGateCss).toMatch(/\.actions button[\s\S]*?white-space:\s*nowrap/);

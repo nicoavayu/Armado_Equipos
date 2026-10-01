@@ -31,6 +31,7 @@ export default function StagingV1TorneosApp({
   service = null,
   features = null,
   billingMode = 'off',
+  planRead = false,
   checkoutRedirect = null,
 }) {
   const billing = (typeof billingMode === 'string' ? billingMode : billingMode?.mode) === 'test';
@@ -47,23 +48,23 @@ export default function StagingV1TorneosApp({
       getCoreAccessToken: bridge.getCoreAccessToken,
       onCoreAuthChange: bridge.onCoreAuthChange,
     });
-    setRuntime({ transport, service: createStagingV1WorkspaceService({ transport, commerce: billing }) });
+    setRuntime({ transport, service: createStagingV1WorkspaceService({ transport, commerce: billing, planRead }) });
     return () => {
       transport.dispose();
       setRuntime((current) => (current?.transport === transport ? null : current));
     };
-  }, [billing, gatewayUrl, service]);
+  }, [billing, gatewayUrl, service, planRead]);
 
   // Keyed on the service itself so the providers keep one identity per service.
   const runtimeService = runtime?.service || null;
   const composition = useMemo(() => {
     if (!runtimeService) return null;
-    const workspaceService = billing ? runtimeService : withoutCommerce(runtimeService);
+    const workspaceService = billing ? runtimeService : withoutCommerce(runtimeService, { planRead });
     const commerce = billing
       ? createStagingV1Commerce(runtimeService, { redirect: checkoutRedirect }) || disabledCommerce
       : disabledCommerce;
     return { workspaceService, commerce };
-  }, [billing, checkoutRedirect, runtimeService]);
+  }, [billing, checkoutRedirect, runtimeService, planRead]);
 
   if (!composition) return <AppLoadingScreen />;
 

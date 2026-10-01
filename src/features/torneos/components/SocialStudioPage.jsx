@@ -1,3 +1,4 @@
+import PremiumUpsell from './PremiumUpsell';
 import React, {
   useCallback,
   useEffect,
@@ -749,7 +750,7 @@ export default function SocialStudioPage() {
               <span>Mostrar firma, logo y URL de Arma2</span>
             </label>
             {!canRemoveArma2Branding && (
-              <p className={styles.previewHint}>En FREE el branding Arma2 permanece visible.</p>
+              <><p className={styles.previewHint}>En FREE el branding Arma2 permanece visible.</p><PremiumUpsell feature="Quitar firma Arma2" organizationId={organizationId} seasonId={seasonId} soon /></>
             )}
           </fieldset> : (
             <p className={styles.whiteLabelNotice}>Heritage, Street, Scoreboard y Editorial son siempre white-label. El arte no incluye branding Arma2.</p>
@@ -975,7 +976,7 @@ export default function SocialStudioPage() {
             </p>
           )}
           {canExport && !catalogAccess.exportable && (
-            <p className={styles.previewHint}>Preview disponible · exportación Premium bloqueada.</p>
+            <PremiumUpsell feature="Exportar diseño" organizationId={organizationId} seasonId={seasonId} soon />
           )}
         </section>
       </div>

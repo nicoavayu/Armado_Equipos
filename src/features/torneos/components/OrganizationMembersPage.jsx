@@ -1,3 +1,5 @@
+import { normalizeTournamentEntitlements } from '../domain/entitlements';
+import PremiumUpsell from './PremiumUpsell';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   Check,
@@ -78,7 +80,7 @@ function formatDate(value) {
 // shows and the assignment RPCs still work — instead of a rejected Promise.all.
 const loadSeasonEntitlementsIfServed = (service, input) => (
   typeof service?.loadSeasonEntitlements === 'function'
-    ? service.loadSeasonEntitlements(input)
+    ? service.loadSeasonEntitlements(input).then((payload) => normalizeTournamentEntitlements(payload, input))
     : Promise.resolve(null)
 );
 
@@ -545,6 +547,11 @@ export default function OrganizationMembersPage() {
               </strong>
               <span>cupos usados en esta temporada</span>
             </div>
+            {assignmentState.entitlements?.isTrusted && assignmentState.entitlements?.scope?.seasonId === selectedSeasonId
+              && assignmentState.entitlements.plan === 'FREE'
+              && assignmentState.assignments.length >= assignmentState.entitlements?.limits?.administrativeCollaboratorLimit && (
+                <PremiumUpsell feature="Más colaboradores" organizationId={organization.id} seasonId={selectedSeasonId} />
+              )}
             {assignmentState.error && (
               <p className={styles.assignmentError} role="alert">{assignmentState.error}</p>
             )}

@@ -42,7 +42,7 @@ function setup(initialPlan = 'FREE', initialStatus = 'pending', providerStatus =
 }
 
 async function openPurchase(initialPlan) {
-  await screen.findByRole('heading', { name: `Arma2 Torneos ${initialPlan === 'PREMIUM' ? 'Premium' : 'Free'}` });
+  await screen.findByRole('heading', { name: `${initialPlan} · Temporada` });
   fireEvent.click(screen.getByText('Ver compra'));
   await screen.findByText('Volver al Plan');
 }
@@ -60,7 +60,7 @@ test.each([
   fireEvent.click(screen.getByRole('button', { name: 'Actualizar' }));
   await screen.findByText(nextStatus === 'approved' ? 'Premium ya está activo' : nextStatus === 'refunded' ? 'El pago fue reembolsado' : 'El pago está en contracargo');
   fireEvent.click(screen.getByText('Volver al Plan'));
-  await screen.findByRole('heading', { name: `Arma2 Torneos ${nextPlan === 'PREMIUM' ? 'Premium' : 'Free'}` });
+  await screen.findByRole('heading', { name: `${nextPlan} · Temporada` });
   expect(app.commerce.createCheckout).not.toHaveBeenCalled();
 });
 
@@ -89,7 +89,7 @@ test('polling approval refreshes Plan without a manual status refresh', async ()
   await act(async () => { jest.advanceTimersByTime(4000); });
   expect(screen.getByText('Premium ya está activo')).toBeInTheDocument();
   fireEvent.click(screen.getByText('Volver al Plan'));
-  expect(screen.getByRole('heading', { name: 'Arma2 Torneos Premium' })).toBeInTheDocument();
+  expect(screen.getByRole('heading', { name: 'PREMIUM · Temporada' })).toBeInTheDocument();
   app.unmount();
   expect(jest.getTimerCount()).toBe(0);
   jest.useRealTimers();
@@ -103,9 +103,9 @@ test('navigation during an entitlement read keeps Plan closed until the shared r
   app.change('approved', 'PREMIUM');
   await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Actualizar' })); });
   fireEvent.click(screen.getByText('Volver al Plan'));
-  expect(screen.queryByRole('heading', { name: 'Arma2 Torneos Free' })).not.toBeInTheDocument();
+  expect(screen.queryByRole('heading', { name: 'FREE · Temporada' })).not.toBeInTheDocument();
   await act(async () => { resolve(tournamentEntitlementsFixture({ plan: 'PREMIUM', tournamentId: null })); });
-  expect(screen.getByRole('heading', { name: 'Arma2 Torneos Premium' })).toBeInTheDocument();
+  expect(screen.getByRole('heading', { name: 'PREMIUM · Temporada' })).toBeInTheDocument();
 });
 
 test('a superseded purchase response cannot overwrite the newer entitlement', async () => {
@@ -120,7 +120,7 @@ test('a superseded purchase response cannot overwrite the newer entitlement', as
   await act(async () => { resolve({ seasonId, status: 'pending' }); });
   expect(screen.getByText('Premium ya está activo')).toBeInTheDocument();
   fireEvent.click(screen.getByText('Volver al Plan'));
-  expect(screen.getByRole('heading', { name: 'Arma2 Torneos Premium' })).toBeInTheDocument();
+  expect(screen.getByRole('heading', { name: 'PREMIUM · Temporada' })).toBeInTheDocument();
 });
 
 
@@ -131,6 +131,7 @@ test('failed entitlement refresh clears the previously effective Premium', async
   fireEvent.click(screen.getByRole('button', { name: 'Actualizar' }));
   await screen.findByText('Pago aprobado · verificando Premium');
   fireEvent.click(screen.getByText('Volver al Plan'));
-  expect(screen.queryByRole('heading', { name: 'Arma2 Torneos Premium' })).not.toBeInTheDocument();
-  expect(screen.getByText('Entitlement unavailable')).toBeInTheDocument();
+  expect(screen.queryByRole('heading', { name: 'PREMIUM · Temporada' })).not.toBeInTheDocument();
+  expect(screen.getByRole('heading', { name: 'Error transitorio' })).toBeInTheDocument();
+  expect(screen.queryByText('Entitlement unavailable')).not.toBeInTheDocument();
 });

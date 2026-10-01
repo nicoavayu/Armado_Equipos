@@ -22,13 +22,14 @@ export function normalizeRpcParams(params) {
 // `commerce: true` (MP-A5, billing TEST overlay only) widens it by exactly the commerce
 // scope: the two commerce reads and the fixed checkout route. Without it both fail
 // closed before the transport, like any other operation outside the scope.
-export function createTorneosClient({ transport = null, commerce = false } = {}) {
+export function createTorneosClient({ transport = null, commerce = false, planRead = false } = {}) {
   const connected = Boolean(transport) && typeof transport.rpc === 'function';
   const commerceEnabled = commerce === true;
   const permitted = (operation) => isStagingV1Operation(operation)
     || isCompetitionV1Operation(operation)
     || isOfficializationV1Operation(operation)
-    || (commerceEnabled && isStagingV1CommerceRead(operation));
+    || (commerceEnabled && isStagingV1CommerceRead(operation))
+    || (planRead === true && operation === 'get_effective_tournament_season_entitlements');
   return Object.freeze({
     status: connected ? 'connected' : 'foundation-disabled',
     async execute(operation, params = {}, options = {}) {

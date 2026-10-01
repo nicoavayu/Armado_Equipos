@@ -1,3 +1,5 @@
+import PremiumUpsell from './PremiumUpsell';
+import { useOptionalTorneosCompetition } from '../context/TorneosCompetitionContext';
 import React, {
   useEffect,
   useMemo,
@@ -279,6 +281,8 @@ function AssetPreview({
 
 export default function MediaAdminPage() {
   const { organizationId } = useParams();
+  const planCompetition = useOptionalTorneosCompetition();
+  const [quotaSeasonId, setQuotaSeasonId] = useState(null);
   const { service } = useTorneosWorkspace();
   const requestRef = useRef(0);
   const publishLockRef = useRef(false);
@@ -507,6 +511,9 @@ export default function MediaAdminPage() {
       });
       await load();
     } catch (error) {
+      if (error?.code === 'TORNEOS_SEASON_MEDIA_QUOTA_EXCEEDED') setQuotaSeasonId(
+        selectedGallery.seasonId || planCompetition?.tournaments?.find((entry) => entry.id === selectedGallery.tournamentId)?.seasonId || null,
+      );
       patchQueueItem(item.id, {
         status: error?.code === 'cancelled' ? 'cancelled' : 'error',
         error: error?.message || 'No pudimos subir esta foto.',
@@ -738,6 +745,10 @@ export default function MediaAdminPage() {
         <em>{capability.readinessLabel}</em>
       </div>
 
+      {quotaSeasonId && quotaSeasonId === planCompetition?.activeSeason?.id && planCompetition?.planState?.status === 'ready'
+        && planCompetition.planState.data?.plan === 'FREE' && (
+          <PremiumUpsell feature="Ampliar galería" organizationId={organizationId} seasonId={planCompetition.activeSeason?.id} soon />
+        )}
       {(state.error || notice) && (
         <div className={state.error ? styles.errorBanner : styles.noticeBanner} role="status">
           {state.error ? <AlertTriangle size={17} /> : <CheckCircle2 size={17} />}

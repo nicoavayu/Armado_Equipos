@@ -186,7 +186,6 @@ test('the only backend access B04 adds is the gateway transport (fetch) and the 
     // OFFICIALIZATION-V1: the organization invitation page accepts through the MOUNTED composition's service
     // (hybrid: the gateway's Core-attested route; legacy LOCAL: no alias, the button stays disabled).
     'src/features/torneos/components/OrganizationInvitationPage.jsx -> ../context/TorneosWorkspaceContext',
-    'src/features/torneos/components/PlanExperiencePage.jsx -> ../context/TorneosCommerceContext',
     // COMPETITION-V1: the public-page route composes the page; the legacy public service (the page's old
     // default) is handed only to the LOCAL single-project composition — hybrid/closed never call it.
     'src/features/torneos/components/PublicTournamentRoute.jsx -> ./PublicTournamentPage',
@@ -316,11 +315,11 @@ test('T13 — the feature map is data: its ON keys are the Phase 2D + COMPETITIO
   same(stagingV1OnFeatures, Object.keys(scopeSource));
   same(competitionV1OnFeatures, Object.keys(competitionSource.features));
   same(officializationV1OnFeatures, Object.keys(JSON.parse(read('backend/torneos/supabase/functions/torneos-gateway/officialization-v1-rpc-allowlist.json')).features));
-  const on = [...stagingV1OnFeatures, ...competitionV1OnFeatures, ...officializationV1OnFeatures];
+  const on = [...stagingV1OnFeatures, ...competitionV1OnFeatures, ...officializationV1OnFeatures, 'plan'];
   for (const key of on) assert.equal(stagingV1Features[key], true, key);
   for (const [key, value] of Object.entries(stagingV1Features)) if (!on.includes(key)) assert.equal(value, false, key);
   // Never on in hybrid without its own certification: media, social studio, billing, branding uploads.
-  for (const key of ['media', 'social_studio', 'billing', 'plan', 'entitlements', 'branding_assets', 'player_portraits', 'team_photos', 'team_visual_policy', 'roster_lock']) {
+  for (const key of ['media', 'social_studio', 'billing', 'entitlements', 'branding_assets', 'player_portraits', 'team_photos', 'team_visual_policy', 'roster_lock']) {
     assert.equal(stagingV1Features[key], false, key);
   }
   assert.ok(Object.values(legacyFeatures).every((v) => v === true));
@@ -342,7 +341,7 @@ test('T13 — the feature map is data: its ON keys are the Phase 2D + COMPETITIO
     assert.ok(onPages.has(component), `route element <${component}> is neither an ON surface nor gated`);
   }
   for (const match of shell.matchAll(/element=\{gate\('([a-z_]+)',\s*<([A-Za-z]+)/g)) {
-    assert.ok(stagingV1Features[match[1]] === false || competitionV1OnFeatures.includes(match[1]) || officializationV1OnFeatures.includes(match[1]),
+    assert.ok(match[1] === 'plan' || stagingV1Features[match[1]] === false || competitionV1OnFeatures.includes(match[1]) || officializationV1OnFeatures.includes(match[1]),
       `gate('${match[1]}') on <${match[2]}> must gate an OFF surface, a COMPETITION-V1 or an OFFICIALIZATION-V1 surface`);
   }
 });

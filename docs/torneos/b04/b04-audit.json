@@ -1,5 +1,5 @@
 {
-  "generatedFrom": "d75879b3dfa6e9fa8e7ad28b4cdf01c384ad988f",
+  "generatedFrom": "4a8c5bbe62fc340df9308b3e3b773a98d75b6cd1",
   "legacyBase": "2058da039a2a5eaaed22d87d01946bc596ae5f50",
   "coreSingletonSha256": "f39572e4cab0fd287bd1dea2ca87c97bd5500d0eff57cb8de6160f1e3271600c",
   "reachableCallSignatures": {
@@ -439,7 +439,7 @@
     },
     {
       "file": "src/features/torneos/components/MediaAdminPage.jsx",
-      "line": 33,
+      "line": 35,
       "source": "../context/TorneosWorkspaceContext"
     },
     {
@@ -469,7 +469,7 @@
     },
     {
       "file": "src/features/torneos/components/OrganizationMembersPage.jsx",
-      "line": 22,
+      "line": 24,
       "source": "../context/TorneosWorkspaceContext"
     },
     {
@@ -496,11 +496,6 @@
       "file": "src/features/torneos/components/PersonalWorkspaceSwitcher.jsx",
       "line": 12,
       "source": "../context/TorneosWorkspaceContext"
-    },
-    {
-      "file": "src/features/torneos/components/PlanExperiencePage.jsx",
-      "line": 14,
-      "source": "../context/TorneosCommerceContext"
     },
     {
       "file": "src/features/torneos/components/PlayerPortraitActions.jsx",
@@ -554,7 +549,7 @@
     },
     {
       "file": "src/features/torneos/components/SocialStudioPage.jsx",
-      "line": 27,
+      "line": 28,
       "source": "../context/TorneosWorkspaceContext"
     },
     {
@@ -686,11 +681,6 @@
       "file": "src/features/torneos/components/TorneosShell.jsx",
       "line": 46,
       "source": "./OrganizationSettingsPage"
-    },
-    {
-      "file": "src/features/torneos/components/TorneosShell.jsx",
-      "line": 47,
-      "source": "./PlanExperiencePage"
     },
     {
       "file": "src/features/torneos/components/TorneosShell.jsx",
@@ -2908,7 +2898,7 @@
     },
     {
       "file": "src/features/torneos/foundation/torneosClient.js",
-      "line": 42,
+      "line": 43,
       "kind": "rpc",
       "callee": "transport.rpc",
       "targets": [],

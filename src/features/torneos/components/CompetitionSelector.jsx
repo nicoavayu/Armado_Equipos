@@ -1,37 +1,20 @@
 import React, { useState } from 'react';
 import { CalendarRange, ChevronDown, Trophy } from 'lucide-react';
-import { useMatch, useNavigate } from 'react-router-dom';
+import { Link, useMatch, useNavigate, useParams } from 'react-router-dom';
 import { useTorneosCompetition } from '../context/TorneosCompetitionContext';
 import {
+  canonicalRoutes,
   CANONICAL_TOURNAMENT_ROUTE_PATTERN,
   tournamentSectionRoute,
 } from '../routing/canonicalRoutes';
+import { describePlanState } from '../domain/planUx';
 import styles from './CompetitionCore.module.css';
 
-function TournamentPlanBadge({ planState }) {
-  const trustedPlan = planState?.status === 'ready' && planState.data?.isTrusted
-    ? planState.data.plan
-    : null;
-  const label = trustedPlan === 'PREMIUM'
-    ? 'Premium'
-    : trustedPlan === 'FREE'
-      ? 'Free'
-      : planState?.status === 'loading'
-        ? 'Verificando plan'
-        : 'Plan no verificado';
-  const tone = trustedPlan?.toLowerCase()
-    || (planState?.status === 'loading' ? 'loading' : 'unverified');
-
-  return (
-    <span
-      className={styles.planBadge}
-      data-plan={tone}
-      role="status"
-      aria-label={`Plan del torneo: ${label}`}
-    >
-      {label}
-    </span>
-  );
+function TournamentPlanBadge({ planState, season, organizationId }) {
+  const label = describePlanState(planState, season);
+  return <Link className={styles.planBadge} data-plan={label.toLowerCase()}
+    to={season ? canonicalRoutes.seasonPlan(organizationId, season.id) : canonicalRoutes.organizationMyPlan(organizationId)}
+    aria-label={`Mi plan: ${label} · ${season?.name || 'Sin temporada'}`}>{label}</Link>;
 }
 
 export default function CompetitionSelector({ compact = false }) {
@@ -41,11 +24,15 @@ export default function CompetitionSelector({ compact = false }) {
     tournaments,
     preference,
     planState,
+    activeSeason,
     selectContext,
   } = useTorneosCompetition();
+  const { organizationId: routeOrganizationId } = useParams();
+  const organizationId = routeOrganizationId || preference.organizationId;
   const [busy, setBusy] = useState(false);
   const navigate = useNavigate();
   const canonicalMatch = useMatch(CANONICAL_TOURNAMENT_ROUTE_PATTERN);
+  const seasonMatch = useMatch('/torneos/organizacion/:organizationId/temporada/:seasonId/plan');
   const seasonTournaments = tournaments.filter(
     (tournament) => tournament.seasonId === preference.activeSeasonId,
   );
@@ -74,6 +61,11 @@ export default function CompetitionSelector({ compact = false }) {
       const fallback = tournaments.find(
         (tournament) => tournament.seasonId === seasonId,
       );
+      if (seasonMatch) {
+        navigate(canonicalRoutes.seasonPlan(organizationId, seasonId));
+        selectContext(seasonId, fallback?.id || null).catch(() => {});
+        return;
+      }
       if (goToTournament(fallback?.id)) {
         selectContext(seasonId, fallback.id).catch(() => {});
         return;
@@ -123,6 +115,7 @@ export default function CompetitionSelector({ compact = false }) {
           disabled={busy}
           aria-label="Temporada activa"
         >
+          {!preference.activeSeasonId && <option value="">Elegí una temporada</option>}
           {seasons.map((season) => (
             <option key={season.id} value={season.id}>{season.name}</option>
           ))}
@@ -147,9 +140,10 @@ export default function CompetitionSelector({ compact = false }) {
             </option>
           ))}
         </select>
-        {preference.activeTournamentId && <TournamentPlanBadge planState={planState} />}
+
         <ChevronDown size={14} className={styles.selectorChevron} aria-hidden="true" />
       </label>
+      <TournamentPlanBadge planState={planState} season={activeSeason} organizationId={organizationId} />
     </section>
   );
 }

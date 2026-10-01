@@ -92,7 +92,7 @@ describe('Social Studio Premium result styles', () => {
       expect(locked).toHaveTextContent('Premium');
       fireEvent.click(locked);
       expect(onSelect).toHaveBeenCalledWith(label.toLowerCase());
-      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      expect(screen.getByRole('dialog')).toHaveTextContent('Esta función está incluida en Premium.');
     },
   );
 

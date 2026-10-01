@@ -4,7 +4,7 @@
 // server's effective entitlements, never from a redirect route, a Preference or MP query params.
 import React from 'react';
 import {
-  act, fireEvent, render, screen, waitFor,
+  act, fireEvent, render, screen, waitFor, within,
 } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import StagingV1TorneosApp from '../features/torneos/stagingV1/StagingV1TorneosApp';
@@ -130,7 +130,7 @@ function LocationProbe() {
 }
 
 function renderHybrid(path, {
-  adapter = createAdapter(), billingMode = 'test', features = undefined, checkoutRedirect = jest.fn(),
+  adapter = createAdapter(), billingMode = 'test', planRead = false, features = undefined, checkoutRedirect = jest.fn(),
 } = {}) {
   currentPath = path;
   const utils = render(
@@ -144,6 +144,7 @@ function renderHybrid(path, {
               gatewayUrl="http://127.0.0.1:58423"
               service={adapter}
               billingMode={billingMode}
+              planRead={planRead}
               features={features}
               checkoutRedirect={checkoutRedirect}
             />
@@ -155,7 +156,6 @@ function renderHybrid(path, {
   return { ...utils, adapter, checkoutRedirect };
 }
 
-const buyButton = () => screen.findByRole('button', { name: /Comprar Premium/i });
 
 beforeEach(() => {
   coreAccesses.length = 0;
@@ -171,9 +171,9 @@ describe('MP-A5 feature gating in the hybrid composition', () => {
   test('default hybrid (billing off): Plan and purchase routes are unavailable and no commerce method is ever called', async () => {
     const adapter = createAdapter();
     renderHybrid(PLAN_PATH, { adapter, billingMode: 'off' });
-    await screen.findByText(/todavía no está habilitada/);
+    await screen.findByRole('heading', { name: 'Lectura no disponible' });
     renderHybrid(statusPath('exito'), { adapter, billingMode: 'off' });
-    await waitFor(() => expect(screen.getAllByText(/todavía no está habilitada/).length).toBe(2));
+    await waitFor(() => expect(screen.getAllByText(/todavía no está habilitada/).length).toBe(1));
     for (const name of ['loadSeasonEntitlements', 'loadPurchase', 'createCheckout']) expect(adapter[name]).not.toHaveBeenCalled();
   });
 
@@ -186,175 +186,39 @@ describe('MP-A5 feature gating in the hybrid composition', () => {
 
   test('organization settings link Plan to the season plan route, not to the legacy redirect', async () => {
     renderHybrid(`/torneos/organizacion/${ORG}/configuracion`);
-    const link = await screen.findByRole('link', { name: 'Plan' });
-    expect(link.getAttribute('href')).toBe(PLAN_PATH);
+    const nav = await screen.findByRole('navigation', { name: 'Secciones de configuración' });
+    const link = within(nav).getByRole('link', { name: 'Mi plan' });
+    await waitFor(() => expect(link.getAttribute('href')).toBe(PLAN_PATH));
   });
 
   test('plan without billing shows the plan but offers no purchase', async () => {
     const adapter = createAdapter();
     renderHybrid(PLAN_PATH, { adapter, features: { ...stagingV1Features, entitlements: true, plan: true, billing: false } });
-    expect(await screen.findByRole('heading', { name: 'Arma2 Torneos Free' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'FREE · Apertura 2026' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Comprar Premium/i })).toBeNull();
-    expect(screen.getByText(/compra no está habilitada en este entorno/i)).toBeInTheDocument();
+    expect(screen.getByText(/compra de Premium todavía no está disponible/i)).toBeInTheDocument();
     expect(adapter.createCheckout).not.toHaveBeenCalled();
   });
 });
 
-describe('MP-A5 Plan page', () => {
-  test('FREE shows the server-side list and launch prices, one-time payment and the current plan', async () => {
-    const { adapter } = renderHybrid(PLAN_PATH);
-    expect(await screen.findByRole('heading', { name: 'Arma2 Torneos Free' })).toBeInTheDocument();
-    expect(screen.getByText(/Precio habitual:/)).toHaveTextContent(/51\.000/);
-    expect(screen.getByText('Precio lanzamiento').nextElementSibling).toHaveTextContent(/41\.000/);
-    expect(document.body).not.toHaveTextContent(/39\.900|49\.900/);
-    expect(screen.getByText('Pago único para esta temporada · Sin suscripción')).toBeInTheDocument();
-    expect(await buyButton()).toBeEnabled();
-    expect(adapter.loadSeasonEntitlements).toHaveBeenCalledWith({ organizationId: ORG, seasonId: SEASON });
-  });
+test('independent plan read survives billing OFF without enabling any purchase operation', async () => {
+  const adapter = createAdapter();
+  renderHybrid(PLAN_PATH, { adapter, billingMode: 'off', planRead: true });
+  await screen.findByRole('heading', { name: 'FREE · Apertura 2026' });
+  expect(adapter.loadSeasonEntitlements).toHaveBeenCalledWith({ organizationId: ORG, seasonId: SEASON });
+  expect(adapter.loadPurchase).not.toHaveBeenCalled();
+  expect(adapter.createCheckout).not.toHaveBeenCalled();
+});
 
-  test('PREMIUM (server entitlement) shows Premium as the current plan and no purchase button', async () => {
-    renderHybrid(PLAN_PATH, { adapter: createAdapter({ seasonEntitlements: premium() }) });
-    expect(await screen.findByRole('heading', { name: 'Arma2 Torneos Premium' })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /Comprar Premium/i })).toBeNull();
-  });
-
-  test('a collaborator without billing.manage sees the plan but cannot buy', async () => {
-    const { adapter } = renderHybrid(PLAN_PATH, { adapter: createAdapter({ role: 'collaborator' }) });
-    expect(await buyButton()).toBeDisabled();
-    expect(screen.getByText(/Sólo el Propietario o un Administrador pueden comprar/)).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: /Comprar Premium/i }));
+describe('Mi plan stays informational with the TEST overlay', () => {
+  test.each(['FREE', 'PREMIUM'])('%s is read but no purchase is offered', async (plan) => {
+    const adapter = createAdapter();
+    adapter.loadSeasonEntitlements.mockResolvedValue(entitlements({ plan }));
+    renderHybrid(PLAN_PATH, { adapter });
+    expect(await screen.findByRole('heading', { name: `${plan} · Apertura 2026` })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Ver Premium' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Comprar Premium/ })).toBeNull();
     expect(adapter.createCheckout).not.toHaveBeenCalled();
-  });
-
-  test('loading, then an entitlement error fails closed with a retry and without Premium', async () => {
-    const adapter = createAdapter();
-    let reject;
-    adapter.loadSeasonEntitlements.mockReturnValueOnce(new Promise((_, r) => { reject = r; }));
-    renderHybrid(PLAN_PATH, { adapter });
-    expect(await screen.findByText(/Cargando el plan de esta temporada/)).toBeInTheDocument();
-    await act(async () => reject(new TournamentWorkspaceError('TORNEOS_UNAVAILABLE', 'Torneos no está disponible en este momento.')));
-    expect(await screen.findByText('No pudimos cargar el plan')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /Comprar Premium/i })).toBeNull();
-    expect(document.body).not.toHaveTextContent('Arma2 Torneos Premium');
-    fireEvent.click(screen.getByRole('button', { name: 'Reintentar' }));
-    expect(await screen.findByRole('heading', { name: 'Arma2 Torneos Free' })).toBeInTheDocument();
-  });
-
-  test('G1 stale purchase: status `created` + a valid preference redirects to Checkout Pro and grants nothing', async () => {
-    const { adapter, checkoutRedirect } = renderHybrid(PLAN_PATH);
-    fireEvent.click(await buyButton());
-    await waitFor(() => expect(checkoutRedirect).toHaveBeenCalledWith(CHECKOUT_URL));
-    expect(checkoutRedirect).toHaveBeenCalledTimes(1);
-    expect(adapter.createCheckout).toHaveBeenCalledWith({ organizationId: ORG, seasonId: SEASON, idempotencyKey: KEY });
-    expect(Object.keys(adapter.createCheckout.mock.calls[0][0])).toEqual(['organizationId', 'seasonId', 'idempotencyKey']);
-    expect(screen.getByRole('heading', { name: 'Arma2 Torneos Free' })).toBeInTheDocument();
-    expect(currentPath).toBe(PLAN_PATH);
-    expect(adapter.loadPurchase).not.toHaveBeenCalled();
-  });
-
-  test('a double click creates one checkout request', async () => {
-    const adapter = createAdapter();
-    let resolve;
-    adapter.createCheckout.mockReturnValueOnce(new Promise((r) => { resolve = r; }));
-    const { checkoutRedirect } = renderHybrid(PLAN_PATH, { adapter });
-    const button = await buyButton();
-    fireEvent.click(button);
-    fireEvent.click(button);
-    fireEvent.click(button);
-    expect(adapter.createCheckout).toHaveBeenCalledTimes(1);
-    await act(async () => resolve({ purchase: purchase('created'), preference: { provider: 'MERCADO_PAGO', preferenceId: 'p', checkoutUrl: CHECKOUT_URL, expiresAt: 'x' } }));
-    await waitFor(() => expect(checkoutRedirect).toHaveBeenCalledTimes(1));
-    expect(adapter.createCheckout).toHaveBeenCalledTimes(1);
-  });
-
-  test('a retry after an error reuses the same idempotency key (no new key per attempt)', async () => {
-    const adapter = createAdapter();
-    adapter.createCheckout.mockRejectedValueOnce(new TournamentWorkspaceError('TORNEOS_PAYMENTS_UNAVAILABLE', 'El servicio de pagos no está disponible en este momento. Volvé a intentar.'));
-    const { checkoutRedirect } = renderHybrid(PLAN_PATH, { adapter });
-    fireEvent.click(await buyButton());
-    expect(await screen.findByText(/servicio de pagos no está disponible/)).toBeInTheDocument();
-    expect(checkoutRedirect).not.toHaveBeenCalled();
-    expect(adapter.createCheckout).toHaveBeenCalledTimes(1);
-    fireEvent.click(await buyButton());
-    await waitFor(() => expect(checkoutRedirect).toHaveBeenCalledWith(CHECKOUT_URL));
-    expect(adapter.createCheckout).toHaveBeenCalledTimes(2);
-    expect(adapter.createCheckout.mock.calls[1][0].idempotencyKey).toBe(adapter.createCheckout.mock.calls[0][0].idempotencyKey);
-    expect(adapter.createIdempotencyKey).toHaveBeenCalledTimes(1);
-  });
-
-  test('TORNEOS_SEASON_PREMIUM_SUSPENDED explains the suspension and offers no new purchase', async () => {
-    const adapter = createAdapter();
-    adapter.createCheckout.mockRejectedValueOnce(new TournamentWorkspaceError('TORNEOS_SEASON_PREMIUM_SUSPENDED', 'El Premium de esta temporada está suspendido por un contracargo en disputa.'));
-    const { checkoutRedirect } = renderHybrid(PLAN_PATH, { adapter });
-    fireEvent.click(await buyButton());
-    expect(await screen.findByText(/Premium de esta temporada está suspendido/)).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /Comprar Premium/i })).toBeNull();
-    const blocked = screen.getByRole('button', { name: /Compra no disponible/i });
-    expect(blocked).toBeDisabled();
-    fireEvent.click(blocked);
-    expect(adapter.createCheckout).toHaveBeenCalledTimes(1);
-    expect(checkoutRedirect).not.toHaveBeenCalled();
-    expect(document.body).not.toHaveTextContent('Arma2 Torneos Premium');
-  });
-
-  test('TORNEOS_SEASON_ALREADY_PREMIUM re-reads the server plan instead of claiming Premium locally', async () => {
-    const adapter = createAdapter();
-    adapter.createCheckout.mockRejectedValueOnce(new TournamentWorkspaceError('TORNEOS_SEASON_ALREADY_PREMIUM', 'Esta temporada ya tiene Premium activo.'));
-    renderHybrid(PLAN_PATH, { adapter });
-    fireEvent.click(await buyButton());
-    adapter.loadSeasonEntitlements.mockResolvedValue(premium());
-    expect(await screen.findByRole('heading', { name: 'Arma2 Torneos Premium' })).toBeInTheDocument();
-    expect(adapter.loadSeasonEntitlements).toHaveBeenCalledTimes(2);
-  });
-
-  test('a purchase that is no longer open (preference null) opens its status page; the server decides', async () => {
-    const adapter = createAdapter();
-    adapter.createCheckout.mockResolvedValueOnce({ purchase: purchase('pending'), preference: null });
-    const { checkoutRedirect } = renderHybrid(PLAN_PATH, { adapter });
-    fireEvent.click(await buyButton());
-    await waitFor(() => expect(currentPath).toBe(statusPath('pendiente')));
-    expect(checkoutRedirect).not.toHaveBeenCalled();
-    expect(await screen.findByRole('heading', { name: /esperando confirmación/i })).toBeInTheDocument();
-  });
-
-  test.each([
-    ['plain http', 'http://www.mercadopago.com.ar/checkout/v1/redirect?pref_id=x'],
-    ['lookalike host', 'https://mercadopago.com.ar.lab-attacker.invalid/checkout/v1/redirect?pref_id=x'],
-    ['suffix host', 'https://evilmercadopago.com.ar/checkout/v1/redirect?pref_id=x'],
-    ['subdomain spoof', 'https://www.mercadopago.com.ar.evil.example/checkout'],
-    ['userinfo', 'https://www.mercadopago.com.ar@evil.example/checkout'],
-    ['userinfo on the real host', 'https://attacker:secret@www.mercadopago.com.ar/checkout'],
-    ['explicit port', 'https://www.mercadopago.com.ar:8443/checkout'],
-    // eslint-disable-next-line no-script-url
-    ['javascript scheme', 'javascript:alert(1)'],
-    ['data scheme', 'data:text/html,<script>alert(1)</script>'],
-    ['relative path', '/checkout/v1/redirect'],
-    ['malformed', 'https://'],
-    ['not a string', 42],
-  ])('redirect security — %s is refused before any navigation', async (_, checkoutUrl) => {
-    const adapter = createAdapter();
-    adapter.createCheckout.mockResolvedValueOnce({
-      purchase: purchase('created'), preference: { provider: 'MERCADO_PAGO', preferenceId: 'p', checkoutUrl, expiresAt: 'x' },
-    });
-    const { checkoutRedirect } = renderHybrid(PLAN_PATH, { adapter });
-    fireEvent.click(await buyButton());
-    expect(await screen.findByText(/dirección de pago inválida/)).toBeInTheDocument();
-    expect(checkoutRedirect).not.toHaveBeenCalled();
-    expect(currentPath).toBe(PLAN_PATH);
-  });
-
-  test('redirect security — the Checkout Pro HTTPS hosts are accepted', async () => {
-    for (const url of [CHECKOUT_URL, 'https://www.mercadopago.com/checkout/v1/redirect?pref_id=x', 'https://sandbox.mercadopago.com.ar/checkout/v1/redirect?pref_id=x']) {
-      const adapter = createAdapter();
-      adapter.createCheckout.mockResolvedValueOnce({
-        purchase: purchase('created'), preference: { provider: 'MERCADO_PAGO', preferenceId: 'p', checkoutUrl: url, expiresAt: 'x' },
-      });
-      const { checkoutRedirect, unmount } = renderHybrid(PLAN_PATH, { adapter });
-      fireEvent.click(await buyButton());
-      // eslint-disable-next-line no-await-in-loop
-      await waitFor(() => expect(checkoutRedirect).toHaveBeenCalledWith(url));
-      unmount();
-    }
   });
 });
 
@@ -479,15 +343,10 @@ describe('MP-A5 service injected → hybrid transport (no Core singleton, no leg
     };
     const service = createStagingV1WorkspaceService({ transport, commerce: true });
     const { checkoutRedirect } = renderHybrid(PLAN_PATH, { adapter: service });
-    fireEvent.click(await buyButton());
-    await waitFor(() => expect(checkoutRedirect).toHaveBeenCalledWith(CHECKOUT_URL));
-    const commerce = calls.filter(([kind]) => kind === 'commerce');
-    expect(commerce).toHaveLength(1);
-    expect(commerce[0][1]).toBe('/commerce/v1/season-checkout');
-    expect(Object.keys(commerce[0][2])).toEqual(['organizationId', 'seasonId', 'idempotencyKey']);
-    expect(commerce[0][2]).toMatchObject({ organizationId: ORG, seasonId: SEASON });
-    expect(commerce[0][2].idempotencyKey).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
-    expect(commerce[0][3]).toBe('number');
+    await screen.findByRole('heading', { name: 'FREE · Apertura 2026' });
+    fireEvent.click(screen.getByRole('button', { name: 'Ver Premium' }));
+    expect(checkoutRedirect).not.toHaveBeenCalled();
+    expect(calls.filter(([kind]) => kind === 'commerce')).toHaveLength(0);
     expect(calls).toContainEqual(['rpc', 'get_effective_tournament_season_entitlements', { p_organization_id: ORG, p_season_id: SEASON }]);
   });
 });

@@ -153,6 +153,7 @@ export const organizationNavigation = [
     builder: 'organizationSocialStudio',
     feature: 'social_studio',
   },
+  { label: 'Mi plan', path: 'mi-plan', icon: ShieldCheck, builder: 'organizationMyPlan', feature: 'plan', relatedPaths: ['temporada'] },
   {
     label: 'Configuración',
     mobileLabel: 'Ajustes',
@@ -414,6 +415,7 @@ export default function TorneosShell() {
               </div>
             </>
           )}
+          <div id="torneos-plan-context" className={styles.planContext} />
         </header>
 
         <main id="torneos-main" className={styles.main} tabIndex="-1">
@@ -425,6 +427,7 @@ export default function TorneosShell() {
               element={<OrganizationRouteGuard />}
             >
               <Route index element={<Navigate to="inicio" replace />} />
+              <Route path="mi-plan" element={gate('plan', <LegacyPlanRedirect />)} />
               <Route path="inicio" element={<TorneosDashboard />} />
               <Route path="temporadas" element={<Navigate to="../torneos" replace />} />
               <Route path="temporadas/nueva" element={<SeasonFormPage />} />
@@ -432,15 +435,15 @@ export default function TorneosShell() {
               <Route path="temporada/:seasonId/plan" element={gate('plan', <PlanExperiencePage />)} />
               <Route
                 path="temporada/:seasonId/plan/compra/:purchaseId/exito"
-                element={gate('plan', <PurchaseStatusPage view="success" />)}
+                element={gate('billing', <PurchaseStatusPage view="success" />)}
               />
               <Route
                 path="temporada/:seasonId/plan/compra/:purchaseId/pendiente"
-                element={gate('plan', <PurchaseStatusPage view="pending" />)}
+                element={gate('billing', <PurchaseStatusPage view="pending" />)}
               />
               <Route
                 path="temporada/:seasonId/plan/compra/:purchaseId/fallo"
-                element={gate('plan', <PurchaseStatusPage view="failure" />)}
+                element={gate('billing', <PurchaseStatusPage view="failure" />)}
               />
               <Route path="torneos" element={<CompetitionOverviewPage />} />
               <Route path="torneos/nuevo" element={<TournamentWizardPage />} />

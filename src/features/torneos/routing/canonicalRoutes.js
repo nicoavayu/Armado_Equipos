@@ -167,6 +167,7 @@ export const seasonPurchaseFailure = (organizationId, seasonId, purchaseId) => (
 );
 export const organizationMembers = organizationRoute('/miembros');
 export const organizationSettings = organizationRoute('/configuracion');
+export const organizationMyPlan = organizationRoute('/mi-plan');
 export const organizationSettingsPlan = organizationRoute('/configuracion/plan');
 export const organizationCommunications = organizationRoute('/comunicaciones');
 export const organizationMedia = organizationRoute('/multimedia');
@@ -279,6 +280,7 @@ export const canonicalRoutes = Object.freeze({
   organizationMembers,
   organizationSettings,
   organizationSettingsPlan,
+  organizationMyPlan,
   organizationCommunications,
   organizationMedia,
   organizationSocialStudio,

@@ -15,7 +15,7 @@ function planTarget({ organizationId, tournamentId, legacyRoutes, seasonId }) {
       ? canonicalRoutes.tournamentPlan(organizationId, tournamentId)
       : canonicalRoutes.organizationSettingsPlan(organizationId);
   }
-  return seasonId ? canonicalRoutes.seasonPlan(organizationId, seasonId) : null;
+  return seasonId ? canonicalRoutes.seasonPlan(organizationId, seasonId) : canonicalRoutes.organizationMyPlan(organizationId);
 }
 
 export default function OrganizationSettingsNav() {
@@ -45,7 +45,7 @@ export default function OrganizationSettingsNav() {
           className={({ isActive }) => (isActive ? styles.active : '')}
         >
           <BadgeCheck size={17} aria-hidden="true" />
-          Plan
+          Mi plan
         </NavLink>
       )}
       <NavLink

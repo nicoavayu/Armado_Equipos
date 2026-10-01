@@ -174,7 +174,7 @@ describe('MP-A5.1 premium intent → hybrid season Plan', () => {
     expect(currentPath()).not.toContain('?');
     // The real shell route renders the Plan (not «no disponible») and reads the returned season
     // through the injected service.
-    expect(await screen.findByRole('heading', { name: 'Arma2 Torneos Free' }, { timeout: 5000 })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: /^FREE ·/ }, { timeout: 5000 })).toBeInTheDocument();
     expect(screen.queryByText(/todavía no está habilitada/)).toBeNull();
     await waitFor(() => expect(service.loadSeasonEntitlements).toHaveBeenCalledWith({ organizationId: ORG, seasonId: SEASON_B }));
     expect(service.createCheckout).not.toHaveBeenCalled();
@@ -201,13 +201,13 @@ describe('MP-A5.1 premium intent → hybrid season Plan', () => {
     expect(service.createCheckout).not.toHaveBeenCalled();
   }, 20_000);
 
-  test('hybrid with plan OFF (billing off) + premium intent: no commercial navigation is invented', async () => {
+  test('billing OFF + premium intent opens informational Mi plan without checkout', async () => {
     const service = createService({ commerce: false });
     renderHybrid(WIZARD_PREMIUM, { service, billingMode: 'off' });
     await createFromWizard();
 
-    await waitFor(() => expect(currentPath()).toBe(configurationPath(CREATED)), { timeout: 5000 });
-    expect(visited.some((path) => path.includes('/plan'))).toBe(false);
+    await waitFor(() => expect(currentPath()).toBe(seasonPlanPath(SEASON_B)), { timeout: 5000 });
+    expect(await screen.findByRole('heading', { name: 'Lectura no disponible' })).toBeInTheDocument();
     expect(screen.queryByText(/todavía no está habilitada/)).toBeNull();
   }, 20_000);
 
