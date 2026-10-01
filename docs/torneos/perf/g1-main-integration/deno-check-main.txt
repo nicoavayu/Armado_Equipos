@@ -1,0 +1,56 @@
+Check ../../tmp/arma2-g1-main-runtime/backend/torneos/supabase/functions/torneos-gateway/index.ts
+TS18046 [ERROR]: 'rows' is of type 'unknown'.
+      return rows[0].authorization as Authorization
+             ~~~~
+    at file:///tmp/arma2-g1-main-runtime/backend/torneos/supabase/functions/torneos-gateway/adapter.ts:87:14
+
+TS2769 [ERROR]: No overload matches this call.
+  Overload 1 of 2, '(format: "jwk", keyData: JsonWebKey, algorithm: AlgorithmIdentifier | HmacImportParams | RsaHashedImportParams | EcKeyImportParams, extractable: boolean, keyUsages: KeyUsage[]): Promise<...>', gave the following error.
+    Argument of type '"raw"' is not assignable to parameter of type '"jwk"'.
+  Overload 2 of 2, '(format: "raw" | "pkcs8" | "raw-secret" | "raw-public" | "raw-private" | "raw-seed" | "spki", keyData: BufferSource, algorithm: AlgorithmIdentifier | HmacImportParams | RsaHashedImportParams | EcKeyImportParams, extractable: boolean, keyUsages: KeyUsage[]): Promise<...>', gave the following error.
+    Argument of type 'Uint8Array<ArrayBufferLike>' is not assignable to parameter of type 'BufferSource'.
+      Type 'Uint8Array<ArrayBufferLike>' is not assignable to type 'ArrayBufferView<ArrayBuffer>'.
+        Types of property 'buffer' are incompatible.
+          Type 'ArrayBufferLike' is not assignable to type 'ArrayBuffer'.
+            Type 'SharedArrayBuffer' is missing the following properties from type 'ArrayBuffer': resizable, resize, detached, transfer, transferToFixedLength
+    const key = await crypto.subtle.importKey("raw", this.key, { name: "HMAC", hash: "SHA-256" }, false, ["sign"])
+                                    ~~~~~~~~~
+    at file:///tmp/arma2-g1-main-runtime/backend/torneos/supabase/functions/torneos-gateway/core-client.ts:135:37
+
+TS2322 [ERROR]: Type 'UnwrapPromiseArray<T>' is not assignable to type 'T'.
+  'T' could be instantiated with an arbitrary type which could be unrelated to 'UnwrapPromiseArray<T>'.
+    return await sql.begin(async (tx) => {
+    ~~~~~~
+    at file:///tmp/arma2-g1-main-runtime/backend/torneos/supabase/functions/torneos-gateway/db.ts:42:5
+
+TS2322 [ERROR]: Type '{ apikey: string; } | { apikey?: undefined; }' is not assignable to type 'Record<string, string> | undefined'.
+  Type '{ apikey?: undefined; }' is not assignable to type 'Record<string, string>'.
+    Property 'apikey' is incompatible with index signature.
+      Type 'undefined' is not assignable to type 'string'.
+  const core = new CoreClient(cfg.coreContractUrl, cfg.coreContractSecret, { extraHeaders: coreHeaders })
+                                                                             ~~~~~~~~~~~~
+    at file:///tmp/arma2-g1-main-runtime/backend/torneos/supabase/functions/torneos-gateway/index.ts:85:78
+
+TS2322 [ERROR]: Type 'Uint8Array<ArrayBufferLike> | undefined' is not assignable to type 'BodyInit | null | undefined'.
+  Type 'Uint8Array<ArrayBufferLike>' is not assignable to type 'BodyInit | null | undefined'.
+    Type 'Uint8Array<ArrayBufferLike>' is missing the following properties from type 'URLSearchParams': append, delete, getAll, get, and 2 more.
+    body: ["GET", "HEAD"].includes(req.method) ? undefined : (raw ?? await body(req)),
+    ~~~~
+    at file:///tmp/arma2-g1-main-runtime/backend/torneos/supabase/functions/torneos-gateway/index.ts:189:5
+
+TS2769 [ERROR]: No overload matches this call.
+  Overload 1 of 2, '(format: "jwk", keyData: JsonWebKey, algorithm: AlgorithmIdentifier | HmacImportParams | RsaHashedImportParams | EcKeyImportParams, extractable: boolean, keyUsages: KeyUsage[]): Promise<...>', gave the following error.
+    Argument of type '"raw"' is not assignable to parameter of type '"jwk"'.
+  Overload 2 of 2, '(format: "raw" | "pkcs8" | "raw-secret" | "raw-public" | "raw-private" | "raw-seed" | "spki", keyData: BufferSource, algorithm: AlgorithmIdentifier | HmacImportParams | RsaHashedImportParams | EcKeyImportParams, extractable: boolean, keyUsages: KeyUsage[]): Promise<...>', gave the following error.
+    Argument of type 'Uint8Array<ArrayBufferLike>' is not assignable to parameter of type 'BufferSource'.
+      Type 'Uint8Array<ArrayBufferLike>' is not assignable to type 'ArrayBufferView<ArrayBuffer>'.
+        Types of property 'buffer' are incompatible.
+          Type 'ArrayBufferLike' is not assignable to type 'ArrayBuffer'.
+            Type 'SharedArrayBuffer' is missing the following properties from type 'ArrayBuffer': resizable, resize, detached, transfer, transferToFixedLength
+  const key = await crypto.subtle.importKey("raw", secret, { name: "HMAC", hash: "SHA-256" }, false, ["sign"])
+                                  ~~~~~~~~~
+    at file:///tmp/arma2-g1-main-runtime/backend/torneos/supabase/functions/torneos-payments/hmac.ts:45:35
+
+Found 6 errors.
+
+error: Type checking failed.

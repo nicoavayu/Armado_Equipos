@@ -1,0 +1,96 @@
+{
+  "productionAnchor": "approved user handoff: G1 / d2edf66d, Cloud Run torneos-gateway-00001-7lw",
+  "sourceCommit": "d2edf66d0043d4534148c8d18693c6bb4900264a",
+  "manifestDigest": "cfe5cd02e5de9703c7b2634ccea196070f3e188f9d859754f299adb0e020ccd2",
+  "bare": [
+    "npm:jose@6.2.12",
+    "npm:postgres@3.4.7"
+  ],
+  "manifest": [
+    {
+      "path": "torneos-gateway/adapter.ts",
+      "sha256": "f46dc415ab27ec91a986136616bb8d39e2bf602dd58276f6f22bb9f1f3c185c8",
+      "bytes": 5833
+    },
+    {
+      "path": "torneos-gateway/commerce-test-rpc-allowlist.json",
+      "sha256": "9760386a687cd7e81d31e0d24d7b067412ccb70cf3ab37f82b2e5c5a53858502",
+      "bytes": 620
+    },
+    {
+      "path": "torneos-gateway/commerce.ts",
+      "sha256": "6e05a56b0ac536761c740acc4097ded7f2a6da998567f602e4e7d2069395f314",
+      "bytes": 27424
+    },
+    {
+      "path": "torneos-gateway/competition-v1-rpc-allowlist.json",
+      "sha256": "6066102a5e43f22608af3dd27e82418563266694cb75040df96a5ae207d6e931",
+      "bytes": 4187
+    },
+    {
+      "path": "torneos-gateway/competition.ts",
+      "sha256": "812c7a3e2869504f75d2760a8302d8d067046d1bc00e343be3e1b5846ff7bb98",
+      "bytes": 13698
+    },
+    {
+      "path": "torneos-gateway/config.ts",
+      "sha256": "23ba2c2ae023b1a53f83999bb93d7b05d2f7f181b5115ec980ccf9ea6c14d1e9",
+      "bytes": 9576
+    },
+    {
+      "path": "torneos-gateway/core-client.ts",
+      "sha256": "b49490d20a10e23d658b657fba631fcdab16fa4e885d89b8943dcf59ca772ea6",
+      "bytes": 9528
+    },
+    {
+      "path": "torneos-gateway/db.ts",
+      "sha256": "8ef15818d2d0656d934e8f393aa6a825a74e9d164e5b5233366f787c09e2a695",
+      "bytes": 3579
+    },
+    {
+      "path": "torneos-gateway/index.ts",
+      "sha256": "a56b6acfc460c5720215e2fede4fbe7dd2cf46455f74c9e7cffb674a3ded979c",
+      "bytes": 19211
+    },
+    {
+      "path": "torneos-gateway/officialization-v1-rpc-allowlist.json",
+      "sha256": "97159a9afaa9ce75380c14a40c1a09c4c28371cc952da52544fa3133afa48597",
+      "bytes": 1232
+    },
+    {
+      "path": "torneos-gateway/schemas.json",
+      "sha256": "0363775e5cd8fe49d37dc56dd07dea8a7eb2a3b697d000490252ce62f4aebedd",
+      "bytes": 8940
+    },
+    {
+      "path": "torneos-gateway/session.schema.json",
+      "sha256": "cffbe79176cbb999f8d76a5ec14fe94bba37d6deb23f0ff696f0150f036adce1",
+      "bytes": 1086
+    },
+    {
+      "path": "torneos-gateway/staging-v1-rpc-allowlist.json",
+      "sha256": "149c7659f27aa6d61b512c44e1b0b0fa1bff700d4a0a3f9bdb4024418227b78c",
+      "bytes": 2902
+    },
+    {
+      "path": "torneos-gateway/token.ts",
+      "sha256": "4eedf6e67e7631b7a82da1cfd00219c18493067b927cf69742f652591c5f4be8",
+      "bytes": 3312
+    },
+    {
+      "path": "torneos-gateway/topology.ts",
+      "sha256": "28e3e2eb9adaf185534a4837225c9a2a9124da77cd53bae09ec2393c6d2532a2",
+      "bytes": 11434
+    },
+    {
+      "path": "torneos-payments/hmac.ts",
+      "sha256": "aa2ba972022e487605a0efecbfdd0bbcf2cd62e916298cd16299eb29f78b0ed3",
+      "bytes": 3360
+    },
+    {
+      "path": "torneos-payments/remote-hosts.ts",
+      "sha256": "004c1c6e1305a17d6fd3b99cfca79c2997198516152e84dba22cec1843e2f47a",
+      "bytes": 2296
+    }
+  ]
+}

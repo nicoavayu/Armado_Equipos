@@ -1,0 +1,22 @@
+
+> team-balancer@0.1.0 test:torneos:g1
+> node --test --test-concurrency=1 backend/torneos/perf-v2/g1-parallel-checks.test.mjs backend/torneos/perf-v2/g1-main-integration.test.mjs
+
+✔ integration: the complete reachable gateway graph equals certified G1 byte for byte (29.315292ms)
+✔ integration: only the G1 entrypoint differs from current main in the complete functions tree (10.268875ms)
+✔ integration: repository changes are confined to gateway G1, its tests, one npm command and the review evidence (25.996375ms)
+✔ G1 matrix: every health × Core-session × identity outcome answers exactly as the serial Production gateway (72 cases) (1551.458125ms)
+✔ G1 precedence: an outage outranks a denial, a denial outranks a missing identity — same order as before (158.457541ms)
+✔ G1 bearer: an invalid, foreign, expired or missing bridge bearer is refused before ANY dependency, as before (29.891208ms)
+✔ G1 identity: a bearer whose sub is not the identity bound to its core_user_id is refused (401), never proxied (25.639875ms)
+✔ G1 timeouts: a hung GoTrue health or Core contract still ends at the SAME 2 s timeout with the same answer (4020.140541ms)
+✔ G1 latency: the three checks overlap (all started before the first ends); a valid RPC costs ~2 hops instead of ~4 (1894.567375ms)
+✔ G1 exchange: /exchange keeps /user → (health ∥ session) → identity upsert, same verdicts; the upsert never runs on a failed check (170.898792ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 10
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 8275.622625

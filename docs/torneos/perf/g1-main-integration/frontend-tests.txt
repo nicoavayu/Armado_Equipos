@@ -1,0 +1,125 @@
+
+> team-balancer@0.1.0 test:torneos:frontend-foundation
+> node --test scripts/torneos-frontend/foundation.test.mjs scripts/torneos-frontend/transport.test.mjs scripts/torneos-frontend/session-race.test.mjs scripts/torneos-frontend/adapter.test.mjs scripts/torneos-frontend/competition-adapter.test.mjs scripts/torneos-frontend/officialization-adapter.test.mjs scripts/torneos-frontend/error-contract.test.mjs scripts/torneos-frontend/commerce.test.mjs
+
+Browserslist: browsers data (caniuse-lite) is 9 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+✔ the adapter exposes exactly the legacy aliases of the staging-v1 + COMPETITION-V1 scope, the OFFICIALIZATION-V1 aliases and nothing of the blocked surfaces (217.597417ms)
+✔ every alias sends the same RPC name and p_* payload as the legacy service; together they cover the 34 migrable RPCs and no other (166.439125ms)
+✔ loadExperienceRelations paginates get_my_tournament_memberships like the legacy service (page 50, max 500) (45.65275ms)
+✔ listMembers reads the OFFICIALIZATION-V1 membership RPC (it replaced the Phase 2D table read); a non-uuid id never reaches the network (61.179542ms)
+✔ T3 — statuses served by other RPCs (active/completed/scheduled) are refused before the network; only draft/registration/archived leave the client (38.007708ms)
+✔ boundary errors become TournamentWorkspaceError with the codes and copy the pages already understand (35.323916ms)
+✔ T2 — with the transport failing, the Core singleton receives zero calls and the adapter holds no legacy function (79.408834ms)
+✔ the adapter refuses to be built without a connected transport (45.206166ms)
+Browserslist: browsers data (caniuse-lite) is 9 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+✔ MP-A5 F1 — the staging-v1 map keeps entitlements, plan and billing OFF; the TEST overlay turns exactly those three on (88.070333ms)
+✔ MP-A5 F2 — billing mode matrix: only test + hybrid + loopback gateway/Core/app + non-production environment is ON (161.704542ms)
+✔ MP-A5 F3 — Production can never carry billing: env files, Vercel config and the prebuild (29.121458ms)
+✔ MP-A5 F4 — no Mercado Pago secret or payments configuration is readable by the frontend (37.12375ms)
+✔ MP-A5 S1 — the frontend commerce scope is exactly the MP-A4 gateway contract: 2 reads + the fixed checkout path (9.259292ms)
+✔ MP-A5 S2 — the client reaches the commerce reads and the checkout only when built with commerce; nothing else widens (11.361542ms)
+✔ MP-A5 T1 — commerce(): POST to the fixed path with the bridge bearer, exact JSON body, no credentials, no-store, redirect error (12.301792ms)
+✔ MP-A5 T2 — commerce() refuses any other path, method-less or non-object body before the network (9.16425ms)
+✔ MP-A5 T3 — per-call timeout: the checkout uses its own deadline, not the RPC default (235.373209ms)
+✔ MP-A5 T4 — 401 renews the bridge once and repeats once; a second 401 is terminal (18.57475ms)
+✔ MP-A5 T5 — 400/403/409/413/502/503 are single attempts; business and dependency codes are preserved (123.517333ms)
+✔ MP-A5 T6 — the RPC/table semantics of send() are unchanged by the commerce channel (7.842792ms)
+✔ MP-A5 V1 — without commerce the hybrid service has no commerce method at all (0 commerce requests possible) (48.563958ms)
+✔ MP-A5 V2 — loadSeasonEntitlements uses exactly get_effective_tournament_season_entitlements (41.300625ms)
+✔ MP-A5 V3 — loadPurchase reads get_tournament_purchase and fails closed on another org, season or purchase (34.961083ms)
+✔ MP-A5 V4 — createCheckout sends exactly {organizationId, seasonId, idempotencyKey}; never price, provider, currency or environment (43.321792ms)
+✔ MP-A5 V5 — createCheckout validates the answer: stale purchase + valid preference is OK; foreign or malformed answers fail closed (38.910541ms)
+✔ MP-A5 V6 — error mapping: 400 input, 401 session, 403 permission, 409 business (suspended is its own code), 502 contract, 503 unavailable (37.821167ms)
+✔ MP-A5 G1 — Plan and PurchaseStatus import neither the legacy service nor a Supabase client: commerce comes from the injected context (10.108792ms)
+✔ MP-A5 G2 — routing: season plan + purchase status are gated by `plan`; every legacy Plan route stays behind `plan_legacy_routes` (0.280042ms)
+Browserslist: browsers data (caniuse-lite) is 9 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+✔ every competition alias sends the same RPC name and p_* payload as the legacy service; together they reach exactly the 74 competition RPCs (514.147375ms)
+✔ venues and courts come from the two certified table routes and map rows exactly like the legacy service; a non-uuid id never reaches the network (83.264458ms)
+✔ the hybrid adapter offers no alias outside the contract (service-only actions, roster lock, discipline bookkeeping, media, branding, social) (34.374708ms)
+✔ the public page: anonymous transport posts only to the public route, with no credential; the client permits only the public RPC (17.997459ms)
+✔ the public page composition: hybrid → gateway public route without branding paths; legacy-local → legacy service; anything else closed (no request) (16.532666ms)
+Browserslist: browsers data (caniuse-lite) is 9 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+✔ gateway DOMAIN_ERROR_STATUS = contract.json http; legacy SQLSTATEs = contract (1.8955ms)
+✔ every contract code has product copy; the transport surfaces it instead of the outage copy (209.76975ms)
+✔ migration 0006 is the generated contract: pins, header table, no 40001 left in its bodies, commerce and invariants untouched (2.61275ms)
+Browserslist: browsers data (caniuse-lite) is 9 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+✔ explicit Core export shares the exact legacy singleton and Auth options; the singleton is the audited one (89.451875ms)
+✔ scope equals the existing Phase 2D allowlist exactly, including review (7.335291ms)
+✔ COMPETITION-V1 scope equals the gateway competition allowlist exactly (authenticated features and the public route); disjoint from staging v1 (4.270292ms)
+✔ without a transport every permitted service method is disconnected, even with enable/core arguments (27.331875ms)
+✔ all legacy out-of-scope RPCs and arbitrary names fail closed before the transport; tables outside the contract too (20.68025ms)
+✔ configuration: one gateway target, https (loopback http only for labs), never inherited from Core (9.515291ms)
+✔ configuration rejects partial/conflicting Core aliases, Core/Torneos collisions, non-https remote targets and the Production ref (3.619083ms)
+✔ backend access reachable from Torneos matches the audited fixture exactly; the legacy RPC inventory did not grow or move (984.871416ms)
+✔ the only backend access B04 adds is the gateway transport (fetch) and the read-only Core session bridge (0.444792ms)
+✔ guard catches direct, aliased and transitive Core imports plus second login and RPC bypasses (9783.200542ms)
+✔ T1 — no second login anywhere in the frontend: createClient/signIn/setSession/persistSession only in the Core singleton and the Phase 1.5 lab (148.957916ms)
+✔ guard detects secrets, privileged JWTs, hardcoded endpoints and production ref (0.420292ms)
+✔ new/changed frontend and config lines contain no secrets or hardcoded targets (22.782167ms)
+✔ foundation is consumed only by the staging-v1 composition and the feature gate; never by the legacy service, providers or pages (24.989208ms)
+✔ audit resolves every legacy RPC dispatch; the single unresolved dispatch is the foundation gateway boundary (399.351709ms)
+✔ the audited fixture is exactly the audit of the working tree (regenerate with report.mjs on purpose) (401.402583ms)
+✔ T13 — the feature map is data: its ON keys are the Phase 2D + COMPETITION-V1 + OFFICIALIZATION-V1 scope keys, every shell route and nav entry is classified (5.00025ms)
+✔ the prebuild validation applies the same gateway-target rule as the runtime config (5.64975ms)
+Browserslist: browsers data (caniuse-lite) is 9 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+✔ scope = gateway allowlist = contract.json (feature by feature), disjoint from the other scopes (93.927417ms)
+✔ every alias sends its exact RPC name and p_* payload; together they reach the 9 RPCs (listMembers included) (120.765917ms)
+✔ listMembers maps the membership RPC to the page row shape; a non-uuid organization never reaches the network (61.179083ms)
+✔ the client permits exactly staging v1 + COMPETITION-V1 + OFFICIALIZATION-V1; anything else fails before the transport (11.418583ms)
+✔ the feature map turns on exactly the OFFICIALIZATION-V1 keys; the legacy composition keeps every surface (1.819875ms)
+Browserslist: browsers data (caniuse-lite) is 9 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+✔ RACE-1 — TOKEN_REFRESHED during the exchange: the action completes with a bearer derived from the NEW Core token; the superseded answer is never used (133.107208ms)
+✔ RACE-2 — SIGNED_IN re-announcing the same session (tab becomes visible) during the exchange: no false logout (32.675417ms)
+✔ RACE-3 — concurrent actions caught by one renewal share ONE re-exchange (30.19475ms)
+✔ RACE-4 — Core remains the authority: a renewal after which Core has no session fails closed with CORE_AUTH_REQUIRED and no re-exchange (17.537291ms)
+✔ RACE-5 — bounded: a second renewal during the re-exchange is not chased; CORE_AUTH_REQUIRED, no RPC (21.637666ms)
+✔ RACE-6 — identity boundaries keep failing closed mid-exchange: SIGNED_OUT, another user, USER_UPDATED, and a renewal the bridge cannot attribute (85.926666ms)
+✔ RACE-7 — a renewal followed by an identity change before the re-derived bearer is used: the action never runs as the new identity (22.644875ms)
+✔ RACE-8 — after a renewal the gateway contract is unchanged: real 401 → one re-exchange then TORNEOS_SESSION_INVALID; 403 no retry; domain 409 keeps the bearer; 503 drops it (30.970917ms)
+✔ RACE-9 — a renewal re-exchange refused by the gateway (401) stays a real denial: TORNEOS_EXCHANGE_DENIED, no loop (15.582083ms)
+✔ RACE-10 — a renewal while the RPC itself is in flight does not disturb the action; the next action re-exchanges (15.235625ms)
+✔ RACE-13 — an identity change while the RPC is in flight: its 401 is not retried under the new identity (14.716583ms)
+✔ RACE-11 — bridge: sameIdentity only for TOKEN_REFRESHED / SIGNED_IN of the already-known user (13.435416ms)
+✔ RACE-12 — bridge: a session whose user cannot be read (auth-js userStorage proxy) is never "the same identity" (9.690625ms)
+Browserslist: browsers data (caniuse-lite) is 9 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+✔ exchange happens once per Core token, is reused under the TTL and never leaves the gateway origin (125.838375ms)
+✔ bearer renews silently through a new exchange before its TTL and after a Core token refresh (27.230458ms)
+✔ T8 — 401 on an RPC: one silent re-exchange and retry; a second 401 surfaces TORNEOS_SESSION_INVALID without more network (44.486375ms)
+✔ T8 — logged-out Core session: the retry exchange is refused (401) and surfaces as TORNEOS_EXCHANGE_DENIED (12.556958ms)
+✔ T9 — 403 rpc not enabled → TORNEOS_FORBIDDEN with no retry and no new exchange; adapter TORNEOS_* refusals keep their code (14.119667ms)
+✔ T14 — PostgREST passthrough keeps { message, code, details, hint } intact for the legacy code lookup (11.270416ms)
+✔ T10 — CORE_UNAVAILABLE on exchange and on RPC surfaces as CORE_UNAVAILABLE, no loop, no fallback (32.333125ms)
+✔ T11 — generic 503 access denied, adapter TORNEOS_UNAVAILABLE, network failure and timeout all surface as TORNEOS_UNAVAILABLE and drop the bearer (73.756417ms)
+✔ T12 — logout / user change: no Core session → CORE_AUTH_REQUIRED without network; late exchange responses of a previous generation are discarded (34.919167ms)
+✔ dispose unsubscribes from Core auth and closes the transport; the bearer is never persisted or decoded (9.100292ms)
+✔ exchange contract: malformed 200, 400 and 403 answers fail closed; the caller signal aborts without touching the cache semantics (26.83575ms)
+✔ table route: GET with the bridge bearer, query allowlisted by key, rows returned as an array (8.186208ms)
+✔ transport refuses to exist without a gateway URL or a Core session reader (7.7825ms)
+✔ T15 — domain 409 / 422 / 429 (PTxyz) surface as TORNEOS_RPC_ERROR with rpcError intact; the bearer is kept; no retry (10.315667ms)
+✔ T16 — a structured Torneos 500 (legacy SQLSTATE before 0006, or an invariant) keeps the bearer and surfaces rpcError, not TORNEOS_UNAVAILABLE (10.18125ms)
+✔ T17 — genuine failures stay fail-closed: unstructured 500, prefixed message, gateway 500, 502, 503 with a domain body and a timeout → TORNEOS_UNAVAILABLE and the bearer is dropped (61.334792ms)
+✔ T18 — 401 and 403 keep their contract next to the domain statuses: one silent re-exchange on 401, none on 403 or 409 (7.309958ms)
+ℹ tests 89
+ℹ suites 0
+ℹ pass 89
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 12214.774041

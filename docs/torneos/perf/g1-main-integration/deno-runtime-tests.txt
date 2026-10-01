@@ -1,0 +1,48 @@
+▶ MP-B1.1 R3 — unmodified entrypoints on standard Deno 2.x (offline)
+  ✔ runtime: DENO_BIN is a standard Deno 2.x binary (17.519916ms)
+  ✔ resolution: inside the repo the root package.json switches Deno 2 to node_modules resolution → npm: imports fail closed; rooted at the functions tree they resolve (9.165209ms)
+  ✖ type check: payments entrypoint graph type-checks clean on Deno 2.x; gateway type-check reports only the 3 known pre-existing strict-type diagnostics (runtime is unaffected: Deno does not type-check at run time) (671.48775ms)
+  ✔ payments boots on Deno 2.x with the TEST fixture (Deno.serve + Deno.env.toObject + npm:postgres loaded) and serves only its two routes under /functions/v1/torneos-payments (66.504083ms)
+  ✔ payments on Deno 2.x refuses to boot (503 on both routes, "config_rejected") with bridge keys, a Core/Supabase admin secret, a PG* variable or a gateway DB login (150.958542ms)
+  ✔ gateway boots on Deno 2.x in remote-test commerce (https + declared hosts): JWKS, /config, /exchange and the commerce route answer under /functions/v1/torneos-gateway; wrong Host → 403; Core unreachable → 503 (43.3345ms)
+  ✔ gateway on Deno 2.x refuses to boot (503 everywhere, value-free reason) with a Mercado Pago secret or the payments DB login in its environment (60.744917ms)
+✖ MP-B1.1 R3 — unmodified entrypoints on standard Deno 2.x (offline) (1023.262791ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 6
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1132.973084
+
+✖ failing tests:
+
+test at integration/torneos-core-contracts/deno-runtime-compat.test.mjs:114:13
+✖ type check: payments entrypoint graph type-checks clean on Deno 2.x; gateway type-check reports only the 3 known pre-existing strict-type diagnostics (runtime is unaffected: Deno does not type-check at run time) (671.48775ms)
+  AssertionError [ERR_ASSERTION]: Check functions/torneos-payments/index.ts
+  TS2769 [ERROR]: No overload matches this call.
+    Overload 1 of 2, '(format: "jwk", keyData: JsonWebKey, algorithm: AlgorithmIdentifier | HmacImportParams | RsaHashedImportParams | EcKeyImportParams, extractable: boolean, keyUsages: KeyUsage[]): Promise<...>', gave the following error.
+      Argument of type '"raw"' is not assignable to parameter of type '"jwk"'.
+    Overload 2 of 2, '(format: "raw" | "pkcs8" | "raw-secret" | "raw-public" | "raw-private" | "raw-seed" | "spki", keyData: BufferSource, algorithm: AlgorithmIdentifier | HmacImportParams | RsaHashedImportParams | EcKeyImportParams, extractable: boolean, keyUsages: KeyUsage[]): Promise<...>', gave the following error.
+      Argument of type 'Uint8Array<ArrayBufferLike>' is not assignable to para
+
+  1 !== 0
+
+      at file:///Users/nicoavayu/Downloads/arma2/arma2-g1-main-integration/integration/torneos-core-contracts/deno-runtime-compat.test.mjs:139:14
+      at TestContext.<anonymous> (file:///Users/nicoavayu/Downloads/arma2/arma2-g1-main-integration/integration/torneos-core-contracts/deno-runtime-compat.test.mjs:115:19)
+      at Test.runInAsyncScope (node:async_hooks:213:14)
+      at Test.run (node:internal/test_runner/test:1106:25)
+      at Test.start (node:internal/test_runner/test:1003:17)
+      at TestContext.test (node:internal/test_runner/test:378:20)
+      at check (file:///Users/nicoavayu/Downloads/arma2/arma2-g1-main-integration/integration/torneos-core-contracts/deno-runtime-compat.test.mjs:114:13)
+      at TestContext.<anonymous> (file:///Users/nicoavayu/Downloads/arma2/arma2-g1-main-integration/integration/torneos-core-contracts/deno-runtime-compat.test.mjs:134:11)
+      at async Test.run (node:internal/test_runner/test:1113:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
