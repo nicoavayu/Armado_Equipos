@@ -70,9 +70,11 @@ export const stagingV1BillingTestOverlay = Object.freeze({
 
 const billingTestFeatures = Object.freeze({ ...stagingV1Features, ...stagingV1BillingTestOverlay });
 
-export function stagingV1FeaturesFor(billingMode) {
+const planReadFeatures = Object.freeze({ ...stagingV1Features, entitlements: true });
+
+export function stagingV1FeaturesFor(billingMode, { planRead = false } = {}) {
   const mode = typeof billingMode === 'string' ? billingMode : billingMode?.mode;
-  return mode === 'test' ? billingTestFeatures : stagingV1Features;
+  return mode === 'test' ? billingTestFeatures : planRead === true ? planReadFeatures : stagingV1Features;
 }
 
 // The legacy composition (single-project LOCAL QA) keeps every surface on.

@@ -25,7 +25,8 @@ import { stagingV1FeaturesFor } from './stagingV1Features';
 // MP-A5: `billingMode` (resolved by the gate, fail-closed) decides the commerce
 // surfaces. `test` → the TEST feature overlay, a service with the commerce scope and
 // its commerce for the Plan pages. Anything else → the static map, a service without
-// any commerce alias and the disabled commerce: never the legacy one.
+// commercial aliases and disabled commerce. `planRead` independently preserves
+// the certified entitlement reads.
 export default function StagingV1TorneosApp({
   gatewayUrl,
   service = null,
@@ -69,7 +70,7 @@ export default function StagingV1TorneosApp({
   if (!composition) return <AppLoadingScreen />;
 
   return (
-    <TorneosFeaturesProvider features={features || stagingV1FeaturesFor(billing ? 'test' : 'off')}>
+    <TorneosFeaturesProvider features={features || stagingV1FeaturesFor(billing ? 'test' : 'off', { planRead })}>
       <TorneosCommerceProvider commerce={composition.commerce}>
         <TorneosWorkspaceProvider service={composition.workspaceService}>
           <TorneosShell />

@@ -16,7 +16,7 @@
 // social / portrait / team-photo / visual-policy alias.
 //
 // MP-A5: with `commerce: true` (billing TEST overlay only) it also serves the commerce
-// scope — loadSeasonEntitlements, loadPurchase, createCheckout — through the same client.
+// scope — loadPurchase, createCheckout — through the same client. Plan reads have an independent opt-in.
 // Without it those aliases do not exist, so nothing ever asks for them.
 import { v4 as uuidv4 } from 'uuid';
 import { createTorneosClient } from '../foundation/torneosClient';
@@ -84,6 +84,7 @@ const orNull = (value) => (value === undefined || value === '' ? null : value);
 export const CHECKOUT_TIMEOUT_MS = COMMERCE_REQUEST_TIMEOUT_MS;
 // Every alias a commerce surface may duck-type. The composition strips them from any
 // service while billing is off, so an OFF overlay can never send a commerce request.
+export const PLAN_READ_METHODS = Object.freeze(['loadSeasonEntitlements', 'loadEntitlements']);
 export const COMMERCE_METHODS = Object.freeze([
   'loadSeasonEntitlements', 'loadEntitlements', 'loadPurchase', 'createCheckout', 'simulateFakePayment', 'cancelPurchase',
 ]);
@@ -192,6 +193,14 @@ export function createStagingV1WorkspaceService({
         'get_effective_tournament_season_entitlements',
         { p_organization_id: organizationId, p_season_id: seasonId },
         'No pudimos cargar las funcionalidades disponibles para esta temporada.',
+      );
+    },
+    loadEntitlements: async ({ organizationId, tournamentId } = {}) => {
+      if (!UUID.test(String(organizationId)) || !UUID.test(String(tournamentId))) throw invalidRequest();
+      return call(
+        'get_effective_tournament_entitlements',
+        { p_organization_id: organizationId, p_tournament_id: tournamentId },
+        'No pudimos cargar las funcionalidades disponibles para este torneo.',
       );
     },
   } : {};
@@ -1183,6 +1192,6 @@ export function createStagingV1Commerce(service, { redirect = null } = {}) {
 export function withoutCommerce(service, { planRead = false } = {}) {
   if (!service) return service;
   return Object.freeze(Object.fromEntries(
-    Object.entries(service).filter(([name]) => !COMMERCE_METHODS.includes(name) || (planRead === true && name === 'loadSeasonEntitlements')),
+    Object.entries(service).filter(([name]) => !COMMERCE_METHODS.includes(name) || (planRead === true && PLAN_READ_METHODS.includes(name))),
   ));
 }
