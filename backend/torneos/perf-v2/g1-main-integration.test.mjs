@@ -76,6 +76,8 @@ test('integration: changes after the integration base are confined to Mi plan, P
     'backend/torneos/infra/torneos-officialization-error-v1/oec-remote-contract.mjs',
     'backend/torneos/infra/torneos-officialization-error-v1/oec-remote.test.mjs',
     'integration/torneos-core-contracts/exposure.test.mjs',
+    'backend/torneos/infra/torneos-gateway-remote/gateway-remote.test.mjs',
+    'backend/torneos/infra/torneos-competition-v1/competition-remote.test.mjs',
     'docs/torneos/TORNEOS-PLAN-INTEGRATION.md', 'docs/torneos/b04/b04-audit.json', 'docs/torneos/b04/TORNEOS-CALL-MAP.md',
     'scripts/torneos-frontend/commerce.test.mjs', 'scripts/torneos-frontend/foundation.test.mjs']);
   const prefixes = ['backend/torneos/season-scope-fix/', 'scripts/qa/plan-ux/', 'src/features/torneos/', 'src/__tests__/torneos'];
