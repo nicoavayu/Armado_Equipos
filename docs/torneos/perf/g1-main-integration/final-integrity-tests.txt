@@ -1,0 +1,11 @@
+✔ integration: the complete reachable gateway graph equals certified G1 byte for byte (27.460208ms)
+✔ integration: only the G1 entrypoint differs from current main in the complete functions tree (9.61775ms)
+✔ integration: repository changes are confined to gateway G1, its tests, one npm command and the review evidence (23.262458ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 125.884208

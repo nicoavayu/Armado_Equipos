@@ -1,0 +1,173 @@
+{
+  "version": 1,
+  "diagnostics": [
+    {
+      "filename": "file:///tmp/arma2-g1-runtime/functions/torneos-gateway/adapter.ts",
+      "range": {
+        "start": {
+          "line": 16,
+          "col": 27,
+          "bytePos": 918
+        },
+        "end": {
+          "line": 16,
+          "col": 30,
+          "bytePos": 921
+        }
+      },
+      "message": "`any` type is not allowed",
+      "code": "no-explicit-any",
+      "hint": "Use a specific type other than `any`"
+    },
+    {
+      "filename": "file:///tmp/arma2-g1-runtime/functions/torneos-gateway/adapter.ts",
+      "range": {
+        "start": {
+          "line": 76,
+          "col": 54,
+          "bytePos": 3614
+        },
+        "end": {
+          "line": 76,
+          "col": 57,
+          "bytePos": 3617
+        }
+      },
+      "message": "`any` type is not allowed",
+      "code": "no-explicit-any",
+      "hint": "Use a specific type other than `any`"
+    },
+    {
+      "filename": "file:///tmp/arma2-g1-runtime/functions/torneos-gateway/config.ts",
+      "range": {
+        "start": {
+          "line": 74,
+          "col": 11,
+          "bytePos": 4395
+        },
+        "end": {
+          "line": 74,
+          "col": 14,
+          "bytePos": 4398
+        }
+      },
+      "message": "`any` type is not allowed",
+      "code": "no-explicit-any",
+      "hint": "Use a specific type other than `any`"
+    },
+    {
+      "filename": "file:///tmp/arma2-g1-runtime/functions/torneos-gateway/config.ts",
+      "range": {
+        "start": {
+          "line": 82,
+          "col": 35,
+          "bytePos": 5277
+        },
+        "end": {
+          "line": 82,
+          "col": 38,
+          "bytePos": 5280
+        }
+      },
+      "message": "`any` type is not allowed",
+      "code": "no-explicit-any",
+      "hint": "Use a specific type other than `any`"
+    },
+    {
+      "filename": "file:///tmp/arma2-g1-runtime/functions/torneos-gateway/config.ts",
+      "range": {
+        "start": {
+          "line": 84,
+          "col": 92,
+          "bytePos": 5504
+        },
+        "end": {
+          "line": 84,
+          "col": 95,
+          "bytePos": 5507
+        }
+      },
+      "message": "`any` type is not allowed",
+      "code": "no-explicit-any",
+      "hint": "Use a specific type other than `any`"
+    },
+    {
+      "filename": "file:///tmp/arma2-g1-runtime/functions/torneos-gateway/core-client.ts",
+      "range": {
+        "start": {
+          "line": 18,
+          "col": 29,
+          "bytePos": 1324
+        },
+        "end": {
+          "line": 18,
+          "col": 32,
+          "bytePos": 1327
+        }
+      },
+      "message": "`any` type is not allowed",
+      "code": "no-explicit-any",
+      "hint": "Use a specific type other than `any`"
+    },
+    {
+      "filename": "file:///tmp/arma2-g1-runtime/functions/torneos-gateway/core-client.ts",
+      "range": {
+        "start": {
+          "line": 19,
+          "col": 60,
+          "bytePos": 1389
+        },
+        "end": {
+          "line": 19,
+          "col": 63,
+          "bytePos": 1392
+        }
+      },
+      "message": "`any` type is not allowed",
+      "code": "no-explicit-any",
+      "hint": "Use a specific type other than `any`"
+    },
+    {
+      "filename": "file:///tmp/arma2-g1-runtime/functions/torneos-gateway/core-client.ts",
+      "range": {
+        "start": {
+          "line": 19,
+          "col": 90,
+          "bytePos": 1419
+        },
+        "end": {
+          "line": 19,
+          "col": 93,
+          "bytePos": 1422
+        }
+      },
+      "message": "`any` type is not allowed",
+      "code": "no-explicit-any",
+      "hint": "Use a specific type other than `any`"
+    },
+    {
+      "filename": "file:///tmp/arma2-g1-runtime/functions/torneos-gateway/core-client.ts",
+      "range": {
+        "start": {
+          "line": 143,
+          "col": 85,
+          "bytePos": 7557
+        },
+        "end": {
+          "line": 143,
+          "col": 88,
+          "bytePos": 7560
+        }
+      },
+      "message": "`any` type is not allowed",
+      "code": "no-explicit-any",
+      "hint": "Use a specific type other than `any`"
+    }
+  ],
+  "errors": [],
+  "checked_files": [
+    "/tmp/arma2-g1-runtime/functions/torneos-gateway/adapter.ts",
+    "/tmp/arma2-g1-runtime/functions/torneos-gateway/config.ts",
+    "/tmp/arma2-g1-runtime/functions/torneos-gateway/core-client.ts"
+  ]
+}

@@ -1,0 +1,45 @@
+(node:36244) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/nicoavayu/Downloads/arma2/arma2-g1-main-integration/backend/torneos/supabase/functions/torneos-gateway/commerce.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/nicoavayu/Downloads/arma2/arma2-g1-main-integration/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+▶ MP-A4 — T6 gateway commerce (unit)
+  ✔ U T6-B config: unset / blank TORNEOS_COMMERCE_MODE → commerce OFF, and OFF reads nothing else (stray payments variables are ignored, as today) (0.876333ms)
+  ✔ U T6-B config: TORNEOS_COMMERCE_MODE=test with a lab internal URL and a strong distinct secret → commerce TEST (URL = the payments mount, 32-byte key, the 2 read RPCs) (0.618542ms)
+  ✔ U T6-B config: live / production / prod / any value other than exactly "test" → fail closed (0.123667ms)
+  ✔ U T6-B config: missing / blank URL or secret → fail closed (0.107542ms)
+  ✔ U T6-B config: weak secret (short, non-hex, uppercase, odd length, degenerate, low entropy) → fail closed (0.165167ms)
+  ✔ U T6-B config: the internal secret must differ from the Core contract secret, the bridge signing keys and the public keys (0.095125ms)
+  ✔ U T6-B config: internal URL outside the lab (Production ref, Staging, any https or public host), wrong mount, query, credentials → fail closed (0.200458ms)
+  ✔ U T6-B config: commerce TEST is lab-only — a gateway published outside loopback (hosted Staging / Production) refuses it (0.075042ms)
+  ✔ U T6-B config: in TEST the gateway refuses to boot with Mercado Pago credentials or the payment-service DB login in its environment (0.139625ms)
+  ✔ U T6-C allowlist: staging-v1 copies byte-identical (sha 149c7659), 43 names; commerce file exactly the 2 reads; intersection 0; the creation RPC in neither (3.656917ms)
+  ✔ U T6-C allowlist: OFF → exactly the 43 (the same set); TEST → 43 + 2 = 45; the creation RPC never in the generic proxy set (0.13475ms)
+  ✔ U T6-C allowlist: boot refuses a commerce list with an extra name, a duplicate of the 43, a write, a missing read, a repeated entry, a non-test mode or a bad shape (0.275791ms)
+  ✔ U T6-D order: no bearer / non-Bearer → 401 before anything (0 calls, body unread) (0.455458ms)
+  ✔ U T6-D order: invalid bridge → 401 after verifyBridge only; revoked Core session → 401 after core; Core down → 503 CORE_UNAVAILABLE; 0 DB, 0 payments, body unread (0.170167ms)
+  ✔ U T6-D order: unknown identity → 401 (identity checked after Core, before the body); Torneos identity store down → 503 TORNEOS_UNAVAILABLE (0.111083ms)
+  ✔ U T6-D order: invalid body with a bad bearer / revoked session is still 401 (auth first); invalid body with valid auth → 400 after identity, 0 DB (0.20375ms)
+  ✔ U T6-D order: DB authorization refusal (no billing.manage) → 403, payments never called; happy path order = bridge → core → identity → DB → payments (18.906584ms)
+  ✔ U T6-E DB call: POST <rest>/rpc/create_tournament_season_checkout_purchase with the USER bearer and exactly {p_organization_id, p_season_id, p_idempotency_key}; no service credential; redirects refused (0.651625ms)
+  ✔ U T6-E response: exactly {purchase, preference}; purchase = the whitelisted projection (+ idempotentReplay/existingOpenPurchase); preference = exactly provider/preferenceId/checkoutUrl/expiresAt; provider extras never pass (0.423791ms)
+  ✔ U T6-E status routing: created / preference_created → payments; pending / approved / cancelled / refunded / charged_back → preference null (0 payments); expired → 409 TORNEOS_CHECKOUT_EXPIRED (0 payments) (1.39325ms)
+  ✔ U T6-G mapping: DB business refusals keep their code (403 / 409), whatever PostgREST status they arrive with — never 503 (0.522625ms)
+  ✔ U T6-G mapping: DB auth / input refusals — TORNEOS_AUTH_REQUIRED or a PostgREST JWT refusal → 401 (one re-exchange); TORNEOS_PURCHASE_INVALID → 400; unknown 4xx / malformed 200 → 502 TORNEOS_CHECKOUT_FAILED (0.492208ms)
+  ✔ U T6-H mapping: Torneos REST down / 5xx without a business code / timeout (4 s) → 503 TORNEOS_UNAVAILABLE; no retry (one DB call), no payments (41.591667ms)
+  ✔ U T6-H mapping: payments 503 / down / timeout (8 s) → 503 TORNEOS_PAYMENTS_UNAVAILABLE; 409 preference_expired → 409 TORNEOS_CHECKOUT_EXPIRED; not payable / conflict → 409; contract faults → 502; exactly one payments call (no retry) (44.217375ms)
+  ✔ U T6-H timeouts: defaults are Torneos REST 4000 ms and payments 8000 ms, applied as abort signals on exactly those calls (0.433791ms)
+  ✔ U T6-I body: exactly {organizationId, seasonId, idempotencyKey} as UUID strings; extras (price, amount, provider, environment, product, URLs), missing, non-UUID, non-object, non-JSON, invalid UTF-8, query → 400; > 1 KiB → 413; 1 KiB exactly accepted (1.510125ms)
+  ✔ U T6-I HMAC: one POST to <internal url>/internal/v1/season-checkout-preference, body exactly {"purchase_id"}, X-Time/X-Nonce/X-Signature over path\ntime\nnonce\nbody accepted by the MP-A3 verifier; no Authorization/Origin; fresh nonce per call; redirects refused (9.598042ms)
+  ✔ U T6-I logs: one line per request with only request id, purchase id, result code, status and timing — never bearer, body, HMAC, secret or checkout URL (0.514708ms)
+  ✔ U parity wiring: Edge index.ts and Node gateway.mjs both run the SAME commerce module (loadCommerceConfig, effectiveRpcAllowlist, seasonCheckout); only it knows the payments route and the HMAC (0.513791ms)
+  ✔ U separation: gateway sources never read Mercado Pago credentials or the payment-service DB login (only commerce.ts names them, in its refusal list) (0.412375ms)
+  ✔ U separation (edge-main env): OFF → the gateway worker gets no payments variable (MP-A3 isolation intact); TEST → exactly TORNEOS_PAYMENTS_INTERNAL_URL + _SECRET more; payments worker never gets Core/bridge/gateway-DB/commerce-mode values (0.645292ms)
+✔ MP-A4 — T6 gateway commerce (unit) (133.713791ms)
+ℹ tests 32
+ℹ suites 0
+ℹ pass 32
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 244.18325

@@ -1,0 +1,43 @@
+(node:35894) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/nicoavayu/Downloads/arma2/arma2-g1-main-integration/backend/torneos/supabase/functions/torneos-payments/config.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/nicoavayu/Downloads/arma2/arma2-g1-main-integration/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+▶ MP-B1.1 R3 — isolated remote commerce runtime hardening (offline)
+  ✔ H1 baseline: the fixture TEST configuration boots (0.755791ms)
+  ✔ H1 payments refuses to boot with gateway / bridge private material (TORNEOS_BRIDGE_KEYS, TORNEOS_CONTRACT_SERVICE_SECRET, gateway DB URLs) (0.142458ms)
+  ✔ H1 payments refuses to boot with Core private material (CORE_SERVICE_ROLE_KEY, CORE_JWT_SECRET) (0.0685ms)
+  ✔ H1 payments refuses to boot with Supabase service-role / admin credentials (SUPABASE_SERVICE_ROLE_KEY, SUPABASE_SECRET_KEYS, SUPABASE_DB_URL) (0.066625ms)
+  ✔ H1 payments refuses to boot with an automatic database binding (DATABASE_URL or any libpq PG* variable postgres.js would silently use) (0.168458ms)
+  ✔ H1 not over-broad: Deno Deploy platform variables, shell variables and PUBLIC gateway/Core configuration do not refuse the boot; blank foreign values are ignored (0.506791ms)
+  ✔ H1 runtime: a refused payments configuration serves 503 on both routes, opens no DB connection and logs no value (17.556208ms)
+  ✔ H2 payments refuses a DB URL whose LOGIN is a gateway login (plain, pooler <login>.<ref>, upper case, %-encoded) (0.284625ms)
+  ✔ H2 the rule is the login, not the variable name: the gateway login in TORNEOS_PAYMENTS_DB_URL is refused even when no gateway variable is present (0.097292ms)
+  ✔ H2 the dedicated payments login stays allowed (plain and pooler forms); platform roles stay refused (0.442292ms)
+  ✔ TS module: parse/verify/freshness API present; future skew stays +300 s (0.089167ms)
+  ✔ TS valid signed 10-digit seconds and 13-digit milliseconds (now) → accepted, provider re-fetched (7.589083ms)
+  ✔ TS OLD authentic notifications (seconds and milliseconds, −1 h / −30 d / −2 y) → accepted (no maximum age) and always re-fetched (1.88075ms)
+  ✔ TS future within skew (seconds +1/+60/+300; milliseconds +1 ms/+60 s/+300 000 ms) → accepted (1.28275ms)
+  ✔ TS absurd future (seconds +301 s/+1 d/+10 y; milliseconds +300 001 ms/+1 d/+10 y) → 401 before any provider or DB call (0.783083ms)
+  ✔ TS malformed ts (lengths 9/11/12/14/19, leading zero, float, exponent, sign, whitespace, garbage, non-ASCII digits) → 401 before any provider call even when HMAC-signed over itself (1.8645ms)
+  ✔ TS duplicate ts / v1 keys are ambiguous → 401 (whichever occurrence is signed); unknown extra keys are ignored; key spacing is tolerated (1.13975ms)
+  ✔ TS bad signature / wrong secret / wrong request id → 401 before any provider call (10 and 13 digits) (0.622833ms)
+  ✔ RAW HMAC: the manifest carries the ts bytes exactly as received — a 13-digit ts signed as its seconds, or a 10-digit ts signed as milliseconds, is refused (1.386375ms)
+  ✔ RAW HMAC: normalisation exists only in the freshness module (seconds → ×1000, milliseconds as is) and never feeds the manifest (0.982042ms)
+  ✔ RAW HMAC: the byte-pinned shared provider copy is untouched (no fork of the legacy file) (0.40425ms)
+  ✔ ORD the ordering RPC receives the re-fetched provider date_last_updated verbatim — never the webhook ts (10 or 13 digits) nor the body date (0.98125ms)
+  ✔ DD module graph: both entrypoints import only relative files inside backend/torneos/supabase/functions, pinned npm:jose@6.2.12 / npm:postgres@3.4.7, and JSON with `with { type: "json" }` (4.222708ms)
+  ✔ DD runtime APIs: only Deno.serve and Deno.env (plus Web platform APIs) — no EdgeRuntime, filesystem, subprocess, KV, cron, FFI, process.env or edge-runtime paths (3.368334ms)
+  ✔ DD routing: /functions/v1/<app>/… is served as-is (no hostname, no platform prefix required); webhook path and notification URL contract unchanged (3.92475ms)
+  ✔ DD remote-test still demands HTTPS and the exact declared hosts (http payments URL / wrong host → CommerceConfigError) (0.77775ms)
+  ✔ ISO contract: two separate apps, APP-level variables only, no organization variables, no database integration, no frontend secrets; certification = CODE_READY (not REMOTE_PLATFORM_CERTIFIED) (0.481209ms)
+  ✔ ISO contract ↔ code: every variable each runtime reads is declared for that app; payments boot-refuses every variable its contract forbids; the gateway boot-refuses (remote-test) every payments secret (4.047417ms)
+  ✔ ISO frontend: 0 secrets — src/ names no gateway, payments, Core-private, Supabase-admin or Deno Deploy secret and exposes no REACT_APP_* secret (73.375917ms)
+✔ MP-B1.1 R3 — isolated remote commerce runtime hardening (offline) (132.080125ms)
+ℹ tests 30
+ℹ suites 0
+ℹ pass 30
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 255.18525

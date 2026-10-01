@@ -1,0 +1,48 @@
+{
+  "status": "G1_MAIN_INTEGRATION_READY",
+  "main": "46479c6470a47a43dd702f3ccf098fb8ee73b314",
+  "deno": "2.9.7",
+  "gatewayStrictTypeErrors": {
+    "main": 6,
+    "g1": 6,
+    "sameDiagnosticsIgnoringPathsAndLineOffsets": true
+  },
+  "gatewayDenoLint": {
+    "main": 9,
+    "g1": 9,
+    "sameRulesAndMessages": true
+  },
+  "productionEquivalenceBasis": "byte-identical certified G1 source graph + approved user handoff; no live runtime attestation in this task",
+  "tests": {
+    "g1": 10,
+    "gatewayContracts": 72,
+    "hardening": 30,
+    "frontend": 89,
+    "commerceBehavior": 32,
+    "denoRuntimeOnly": 7,
+    "migrationGuard": 8
+  },
+  "historicalSuites": {
+    "commerceFull": "97 pass, 2 fail (historical scope subtest + parent); 32 pass when historical scope assertion is excluded",
+    "denoFull": "6 pass, 2 fail (historical strict-type subtest + parent); 7 pass when strict-type assertion is excluded"
+  },
+  "secretScan": "PASS: repository secretFindings on all changed files via integration test",
+  "archivedCutoverLogs": [
+    {
+      "file": "/tmp/arma2-cloudrun-final.json",
+      "sha256": "e48852edd07c936557921165d08d5a3d72f3c7a08bda53a8d305666c6b91e8d9",
+      "entries": 1145,
+      "httpRequests": 1132,
+      "http5xx": 0,
+      "coreUnavailableEntries": 0
+    },
+    {
+      "file": "/tmp/arma2-cloudrun-postcutover-current.json",
+      "sha256": "22f0e59f00c02deabc8de4d7328e4405d2c7102a07e3352b748e0e7d427a6ab4",
+      "entries": 989,
+      "httpRequests": 976,
+      "http5xx": 0,
+      "coreUnavailableEntries": 0
+    }
+  ]
+}

@@ -1,0 +1,8 @@
+Download https://registry.npmjs.org/jose
+Download https://registry.npmjs.org/postgres
+Download https://registry.npmjs.org/jose/-/jose-6.2.12.tgz
+Download https://registry.npmjs.org/postgres/-/postgres-3.4.7.tgz
+
+Dependencies:
++ npm:jose 6.2.12
++ npm:postgres 3.4.7
