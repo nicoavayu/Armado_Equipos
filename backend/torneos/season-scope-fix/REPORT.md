@@ -1,5 +1,9 @@
 # SEASON-SCOPE-FIX — `get_effective_tournament_season_entitlements` ata organización y temporada
 
+> **Actualización 2026-10-01:** 0007 aplicada en la DB Torneos de Production (`onzpwnqxnvlgsevivngf`, cuerpo
+> `a533331a…` → `bf263aca…`) y certificada en vivo vía el shadow `tgw-sp-g1` (N1/N2 → 403). Integración en Git:
+> `docs/torneos/TORNEOS-PLAN-INTEGRATION.md`. El resto de este informe describe el estado de lab previo.
+
 Estado: **TORNEOS_SEASON_SCOPE_FIX_READY (lab)**. Sólo local: no se tocó Production DB, Cloud Run, Vercel, Deno, Android
 ni Billing/MP. No hay push ni PR.
 

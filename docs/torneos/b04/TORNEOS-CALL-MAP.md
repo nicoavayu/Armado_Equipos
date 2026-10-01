@@ -1,6 +1,6 @@
 # TORNEOS-CALL-MAP — auditoría B04
 
-Inventario legacy congelado en `2058da039a2a5eaaed22d87d01946bc596ae5f50` (Phase 2D); árbol integrado auditado en `4a8c5bbe62fc340df9308b3e3b773a98d75b6cd1`. Reconstruido del código. No representa resultados de R2/R3/R4/R5.
+Inventario legacy congelado en `2058da039a2a5eaaed22d87d01946bc596ae5f50` (Phase 2D); árbol integrado auditado en `ef748956ae2a862e3efdae0e29e709e615972ea4`. Reconstruido del código. No representa resultados de R2/R3/R4/R5.
 
 161 sitios RPC legacy; 160 nombres distintos; 108 nombres dentro de scope; 52 fuera. La selección dinámica de `changeTournamentMatchPlan` se resuelve a sus tres nombres literales. No quedan RPC dinámicas sin resolver.
 
@@ -207,7 +207,7 @@ Los únicos sitios fuera del inventario legacy. El transporte habla sólo con el
 
 | Tipo | Llamada | Sitio |
 | --- | --- | --- |
-| rpc | `transport.rpc` | [src/features/torneos/foundation/torneosClient.js:43](../../../src/features/torneos/foundation/torneosClient.js#L43) |
+| rpc | `transport.rpc` | [src/features/torneos/foundation/torneosClient.js:44](../../../src/features/torneos/foundation/torneosClient.js#L44) |
 | transport | `window.fetch` | [src/features/torneos/foundation/torneosTransport.js:126](../../../src/features/torneos/foundation/torneosTransport.js#L126) |
 | transport | `fetchImpl` | [src/features/torneos/foundation/torneosTransport.js:178](../../../src/features/torneos/foundation/torneosTransport.js#L178) |
 | transport | `fetchImpl` | [src/features/torneos/foundation/torneosTransport.js:257](../../../src/features/torneos/foundation/torneosTransport.js#L257) |
