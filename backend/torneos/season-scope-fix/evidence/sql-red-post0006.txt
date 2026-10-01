@@ -1,0 +1,20 @@
+PASS P1 owner orgA+seasonA                          expect=OK   got=OK   | FREE src=default_free season=5a5a5a5a-0000-4000-8000-0000000000a1 gal=25 adm=1 usage=1 social=3 caps=9cd693ba43455ba5d7fa1f712a103354
+PASS P2 owner orgA+seasonA2 (2nd season)            expect=OK   got=OK   | FREE src=default_free season=5a5a5a5a-0000-4000-8000-0000000000a2 gal=25 adm=1 usage=0 social=3 caps=9cd693ba43455ba5d7fa1f712a103354
+PASS P3 owner orgB+seasonB                          expect=OK   got=OK   | FREE src=default_free season=5b5b5b5b-0000-4000-8000-0000000000b1 gal=25 adm=1 usage=0 social=3 caps=9cd693ba43455ba5d7fa1f712a103354
+PASS P4 collaborator orgA+assigned seasonA          expect=OK   got=OK   | FREE src=default_free season=5a5a5a5a-0000-4000-8000-0000000000a1 gal=25 adm=1 usage=1 social=3 caps=9cd693ba43455ba5d7fa1f712a103354
+PASS P5 tournament RPC orgA+tournamentA             expect=OK   got=OK   | FREE src=default_free season=5a5a5a5a-0000-4000-8000-0000000000a1 gal=25 adm=1 usage=1 social=3 caps=9cd693ba43455ba5d7fa1f712a103354
+FAIL N1 owner orgA+seasonB (cross)                  expect=DENY got=NULL | NULL
+FAIL N2 owner orgB+seasonA (cross)                  expect=DENY got=NULL | NULL
+FAIL N3 owner orgA+season inexistente               expect=DENY got=NULL | NULL
+PASS N4 org inexistente+seasonA                     expect=DENY got=DENY | ERROR: TORNEOS_ENTITLEMENTS_FORBIDDEN
+FAIL N5 owner orgA+season NULL                      expect=DENY got=NULL | NULL
+PASS N6 org NULL+seasonA                            expect=DENY got=DENY | ERROR: TORNEOS_ENTITLEMENTS_FORBIDDEN
+FAIL N7 owner orgA+seasonC (foreign org)            expect=DENY got=NULL | NULL
+PASS N8 non-member orgC+seasonC by U                expect=DENY got=DENY | ERROR: TORNEOS_ENTITLEMENTS_FORBIDDEN
+PASS N9 user without membership orgA+seasonA        expect=DENY got=DENY | ERROR: TORNEOS_ENTITLEMENTS_FORBIDDEN
+PASS N10 collaborator orgA+unassigned seasonA2      expect=DENY got=DENY | ERROR: TORNEOS_ENTITLEMENTS_FORBIDDEN
+PASS N11 collaborator orgA+seasonB (cross)          expect=DENY got=DENY | ERROR: TORNEOS_ENTITLEMENTS_FORBIDDEN
+PASS N12 no identity claims                         expect=AUTH got=AUTH | ERROR: TORNEOS_AUTH_REQUIRED
+PASS N13 tournament RPC orgB+tournamentA            expect=DENY got=DENY | ERROR: TORNEOS_ENTITLEMENTS_FORBIDDEN
+PASS N14 tournament RPC orgA+tournament NULL        expect=DENY got=DENY | ERROR: TORNEOS_ENTITLEMENTS_FORBIDDEN
+TOTAL PASS=14 FAIL=5
