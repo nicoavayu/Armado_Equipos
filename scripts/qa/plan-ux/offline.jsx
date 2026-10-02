@@ -1,5 +1,6 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
+import './fonts.css';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import PremiumUpsell from '../../../src/features/torneos/components/PremiumUpsell';
 import TorneosShell from '../../../src/features/torneos/components/TorneosShell';
