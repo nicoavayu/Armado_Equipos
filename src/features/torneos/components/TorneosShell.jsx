@@ -266,6 +266,23 @@ function OrganizationNavigation({
   relativePath = '',
   features,
 }) {
+  const navigationRef = React.useRef(null);
+  // The mobile bar shows five items and scrolls the rest: when the current
+  // section is past them (Mi plan, Ajustes), bring it into the bar so the
+  // user still sees where they are. Only the bar scrolls, never the page.
+  React.useEffect(() => {
+    const bar = navigationRef.current;
+    if (!mobile || !bar) return;
+    // By class, not aria-current: NavLink only sets aria-current on its own
+    // exact match, and Mi plan is current on the season plan route.
+    const current = bar.querySelector(`.${styles.navigationItemActive}`);
+    if (!current) return;
+    const barBox = bar.getBoundingClientRect();
+    const itemBox = current.getBoundingClientRect();
+    if (itemBox.left < barBox.left || itemBox.right > barBox.right) {
+      bar.scrollLeft += itemBox.left - barBox.left;
+    }
+  }, [mobile, relativePath, organization]);
   if (!organization) return null;
   // Estar dentro de un torneo no puede perderse al cambiar de sección: si la
   // URL lo nombra, la navegación sigue nombrándolo, con su categoría.
@@ -281,6 +298,7 @@ function OrganizationNavigation({
   );
   return (
     <nav
+      ref={navigationRef}
       className={
         mobile
           ? `${styles.mobileNavigation} ${keyboardHidden ? styles.mobileNavigationHidden : ''}`

@@ -240,6 +240,10 @@ describe('PLAN READ gate — Mi plan exists only with the read opt-in', () => {
     await waitFor(() => expect(planBadges(plan)).toHaveLength(2));
     expect(orgNavLinks()).toContain('Mi plan');
     expect(document.getElementById('torneos-plan-context')).toHaveTextContent(`${plan} · Apertura 2026`);
+    // Mobile discoverability: the header entry names Mi plan and carries the plan as its badge.
+    const headerEntry = document.querySelector('#torneos-plan-context a');
+    expect(headerEntry).toHaveTextContent(/^Mi plan/);
+    expect(headerEntry.querySelector('strong')).toHaveTextContent(new RegExp(`^${plan}$`));
     for (const badge of planBadges(plan)) expect(badge.getAttribute('href')).toBe(PLAN_PATH);
     expect(adapter.loadSeasonEntitlements).toHaveBeenCalledWith({ organizationId: ORG, seasonId: SEASON });
     expect(adapter.loadPurchase).not.toHaveBeenCalled();
