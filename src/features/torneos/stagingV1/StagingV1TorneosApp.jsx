@@ -25,12 +25,14 @@ import { stagingV1FeaturesFor } from './stagingV1Features';
 // MP-A5: `billingMode` (resolved by the gate, fail-closed) decides the commerce
 // surfaces. `test` → the TEST feature overlay, a service with the commerce scope and
 // its commerce for the Plan pages. Anything else → the static map, a service without
-// any commerce alias and the disabled commerce: never the legacy one.
+// commercial aliases and disabled commerce. `planRead` independently preserves
+// the certified entitlement reads.
 export default function StagingV1TorneosApp({
   gatewayUrl,
   service = null,
   features = null,
   billingMode = 'off',
+  planRead = false,
   checkoutRedirect = null,
 }) {
   const billing = (typeof billingMode === 'string' ? billingMode : billingMode?.mode) === 'test';
@@ -47,28 +49,28 @@ export default function StagingV1TorneosApp({
       getCoreAccessToken: bridge.getCoreAccessToken,
       onCoreAuthChange: bridge.onCoreAuthChange,
     });
-    setRuntime({ transport, service: createStagingV1WorkspaceService({ transport, commerce: billing }) });
+    setRuntime({ transport, service: createStagingV1WorkspaceService({ transport, commerce: billing, planRead }) });
     return () => {
       transport.dispose();
       setRuntime((current) => (current?.transport === transport ? null : current));
     };
-  }, [billing, gatewayUrl, service]);
+  }, [billing, gatewayUrl, service, planRead]);
 
   // Keyed on the service itself so the providers keep one identity per service.
   const runtimeService = runtime?.service || null;
   const composition = useMemo(() => {
     if (!runtimeService) return null;
-    const workspaceService = billing ? runtimeService : withoutCommerce(runtimeService);
+    const workspaceService = billing ? runtimeService : withoutCommerce(runtimeService, { planRead });
     const commerce = billing
       ? createStagingV1Commerce(runtimeService, { redirect: checkoutRedirect }) || disabledCommerce
       : disabledCommerce;
     return { workspaceService, commerce };
-  }, [billing, checkoutRedirect, runtimeService]);
+  }, [billing, checkoutRedirect, runtimeService, planRead]);
 
   if (!composition) return <AppLoadingScreen />;
 
   return (
-    <TorneosFeaturesProvider features={features || stagingV1FeaturesFor(billing ? 'test' : 'off')}>
+    <TorneosFeaturesProvider features={features || stagingV1FeaturesFor(billing ? 'test' : 'off', { planRead })}>
       <TorneosCommerceProvider commerce={composition.commerce}>
         <TorneosWorkspaceProvider service={composition.workspaceService}>
           <TorneosShell />

@@ -297,7 +297,7 @@ export function TorneosCompetitionProvider({
     (tournament) => tournament.id === state.preference.activeTournamentId,
   ) || null;
   const activeTournament = pinnedTournamentId ? pinnedTournament : preferredTournament;
-  const activeSeason = state.seasons.find((season) => (
+  const activeSeason = (state.preference.organizationId === organizationId ? state.seasons : []).find((season) => (
     season.id === (pinnedSeasonId
       || (pinnedTournamentId ? pinnedTournament?.seasonId : state.preference.activeSeasonId))
   )) || null;
@@ -307,22 +307,24 @@ export function TorneosCompetitionProvider({
     : activeTournament?.id || null;
 
   const loadActiveTournamentPlan = useCallback(async () => {
+    const scopeKey = `${organizationId}:${activeSeasonId || ''}`;
+    const setScopedPlanState = (next) => setPlanState({ ...next, scopeKey });
     const requestId = planRequestRef.current + 1;
     planRequestRef.current = requestId;
     if (!organizationId || !activeSeasonId) {
-      setPlanState({ status: 'empty', data: FAIL_CLOSED_ENTITLEMENTS, error: '' });
+      setScopedPlanState({ status: 'empty', data: FAIL_CLOSED_ENTITLEMENTS, error: '' });
       return FAIL_CLOSED_ENTITLEMENTS;
     }
     if (typeof service?.loadSeasonEntitlements !== 'function'
       && (typeof service?.loadEntitlements !== 'function' || !fallbackTournamentId)) {
-      const error = 'No pudimos verificar el plan de esta temporada.';
-      setPlanState({ status: 'error', data: FAIL_CLOSED_ENTITLEMENTS, error });
+      const error = 'La lectura del plan no está disponible.';
+      setScopedPlanState({ status: 'unavailable', data: FAIL_CLOSED_ENTITLEMENTS, error });
       return FAIL_CLOSED_ENTITLEMENTS;
     }
 
     // El plan anterior nunca sobrevive al cambio de torneo. Durante la nueva
     // resolución no afirmamos Free ni Premium.
-    setPlanState({ status: 'loading', data: FAIL_CLOSED_ENTITLEMENTS, error: '' });
+    setScopedPlanState({ status: 'loading', data: FAIL_CLOSED_ENTITLEMENTS, error: '' });
     try {
       const payload = typeof service.loadSeasonEntitlements === 'function'
         ? await service.loadSeasonEntitlements({ organizationId, seasonId: activeSeasonId })
@@ -332,24 +334,24 @@ export function TorneosCompetitionProvider({
         seasonId: activeSeasonId,
       });
       if (!mountedRef.current || planRequestRef.current !== requestId) return normalized;
-      if (!normalized.isTrusted) {
-        setPlanState({
+      if (!normalized.isTrusted || !['FREE', 'PREMIUM'].includes(normalized.plan)) {
+        setScopedPlanState({
           status: 'error',
           data: FAIL_CLOSED_ENTITLEMENTS,
           error: 'No pudimos confirmar el plan de esta temporada.',
         });
         return normalized;
       }
-      setPlanState({ status: 'ready', data: normalized, error: '' });
+      setScopedPlanState({ status: 'ready', data: normalized, error: '' });
       return normalized;
     } catch (error) {
       if (!mountedRef.current || planRequestRef.current !== requestId) {
         return FAIL_CLOSED_ENTITLEMENTS;
       }
-      setPlanState({
-        status: 'error',
+      setScopedPlanState({
+        status: ['TORNEOS_FORBIDDEN', 'TORNEOS_OUTSIDE_STAGING_V1', 'TORNEOS_ENTITLEMENTS_FORBIDDEN'].includes(error?.code) ? 'unavailable' : 'error',
         data: FAIL_CLOSED_ENTITLEMENTS,
-        error: error?.message || 'No pudimos verificar el plan de esta temporada.',
+        error: 'No pudimos cargar el plan. Reintentá en unos momentos.',
       });
       return FAIL_CLOSED_ENTITLEMENTS;
     }
@@ -377,7 +379,13 @@ export function TorneosCompetitionProvider({
       activeSeasonId: pinnedTournament?.seasonId || state.preference.activeSeasonId,
       activeTournamentId: pinnedTournament?.id || null,
     }
-    : state.preference;
+    : { ...state.preference, activeSeasonId: activeSeason?.id || null, activeTournamentId: activeTournament && activeSeason && activeTournament.seasonId === activeSeason.id ? activeTournament.id : null };
+
+  const visiblePlanState = !activeSeasonId && state.status === 'loading'
+    ? { status: 'loading', data: FAIL_CLOSED_ENTITLEMENTS, error: '' }
+    : planState.scopeKey === `${organizationId}:${activeSeasonId || ''}`
+    ? planState
+    : { status: activeSeasonId || state.status === 'loading' ? 'loading' : 'empty', data: FAIL_CLOSED_ENTITLEMENTS, error: '' };
 
   const value = useMemo(() => ({
     ...state,
@@ -388,7 +396,7 @@ export function TorneosCompetitionProvider({
     routeTournamentStatus,
     activeSeason,
     activeTournament,
-    planState,
+    planState: visiblePlanState,
     retryPlan: loadActiveTournamentPlan,
     refresh,
     selectContext,
@@ -408,7 +416,7 @@ export function TorneosCompetitionProvider({
     activeSeason,
     activeTournament,
     loadActiveTournamentPlan,
-    planState,
+    visiblePlanState,
     effectivePreference,
     pinnedTournamentId,
     routeTournamentStatus,

@@ -433,7 +433,9 @@ test('MP-B1.1 R3 — isolated remote commerce runtime hardening (offline)', asyn
       // PAYMENTS TEST: the payments app's declared set is the R3 contract plus the payments-test delta (configAdded).
       const delta = JSON.parse(await readFile(new URL('../../backend/torneos/infra/torneos-payments-test/pins/payments-test-isolation-delta.json', import.meta.url), 'utf8'));
       assert.equal(delta.extends.sha256, sha256(await readFile(`${EVIDENCE}deno-deploy-isolation-contract.json`)), 'the delta extends exactly the R3 contract');
-      const added = (app) => delta.apps[app]?.configAdded ?? [];
+      // PLAN READ (2026-10-01): the gateway's non-secret plan-read opt-in (torneos-gateway/plan-read.ts), default off.
+      const planReadAdded = { 'torneos-gateway': ['TORNEOS_PLAN_READ_MODE'] };
+      const added = (app) => [...(delta.apps[app]?.configAdded ?? []), ...(planReadAdded[app] ?? [])];
       const declared = (app) => new Set([...c.apps[app].secrets, ...c.apps[app].config, ...added(app)]);
       for (const n of gwReads) assert.ok(declared('torneos-gateway').has(n), `gateway reads undeclared ${n}`);
       for (const n of payReads) assert.ok(declared('torneos-payments').has(n) || n === 'TORNEOS_PAYMENTS_LAB_MP_API_ORIGIN', `payments reads undeclared ${n}`);

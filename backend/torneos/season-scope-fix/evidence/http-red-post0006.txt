@@ -1,0 +1,11 @@
+PASS P1 owner orgA+seasonA                      expect=200 got=200 | FREE season=5a5a5a5a
+PASS P5 tournament orgA+tournamentA             expect=200 got=200 | FREE season=5a5a5a5a
+FAIL N1 orgA+seasonB (cross)                    expect=403 got=200 | None
+FAIL N2 orgB+seasonA (cross)                    expect=403 got=200 | None
+FAIL N3 season inexistente                      expect=403 got=200 | None
+PASS N4 org inexistente                         expect=403 got=403 | TORNEOS_ENTITLEMENTS_FORBIDDEN
+PASS N9 sin membership                          expect=403 got=403 | TORNEOS_ENTITLEMENTS_FORBIDDEN
+PASS N13 tournament orgB+tournamentA            expect=403 got=403 | TORNEOS_ENTITLEMENTS_FORBIDDEN
+PASS X1 sin bearer (anon)                       expect=401 got=401 | permission denied for function get_effective_tournament_season_entitlements
+PASS X2 bearer firma invalida                   expect=401 got=401 | No suitable key or wrong key type
+TOTAL PASS=7 FAIL=3

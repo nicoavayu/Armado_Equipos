@@ -50,9 +50,9 @@ function billing(env, appHostname = 'localhost') {
   return JSON.parse(JSON.stringify(resolveTorneosBillingMode(env, { backendMode: resolveTorneosBackendMode(env), appHostname })));
 }
 
-test('MP-A5 F1 — the staging-v1 map keeps entitlements, plan and billing OFF; the TEST overlay turns exactly those three on', () => {
+test('MP-A5 F1 — the staging-v1 map keeps entitlements, plan and billing OFF; PLAN READ turns on entitlements + plan, the TEST overlay those three', () => {
   const rt = runtime();
-  const { stagingV1Features, stagingV1BillingTestOverlay, stagingV1FeaturesFor, legacyFeatures } = rt.load(FEATURES);
+  const { stagingV1Features, stagingV1BillingTestOverlay, stagingV1PlanReadOverlay, stagingV1FeaturesFor, legacyFeatures } = rt.load(FEATURES);
   for (const key of ['entitlements', 'plan', 'billing', 'plan_legacy_routes']) assert.equal(stagingV1Features[key], false, key);
   same(stagingV1BillingTestOverlay, { entitlements: true, plan: true, billing: true });
   assert.ok(Object.isFrozen(stagingV1BillingTestOverlay));
@@ -66,6 +66,15 @@ test('MP-A5 F1 — the staging-v1 map keeps entitlements, plan and billing OFF; 
   same(overlaid, { ...stagingV1Features, entitlements: true, plan: true, billing: true });
   // The legacy redirects of Plan stay off in hybrid, overlay or not.
   assert.equal(overlaid.plan_legacy_routes, false);
+  // PLAN READ (REACT_APP_TORNEOS_PLAN_READ_MODE=on): the read and Mi plan go on together, never billing;
+  // only an exact `true` counts, and the TEST overlay still wins.
+  same(stagingV1PlanReadOverlay, { entitlements: true, plan: true });
+  assert.ok(Object.isFrozen(stagingV1PlanReadOverlay));
+  const planRead = stagingV1FeaturesFor('off', { planRead: true });
+  assert.ok(Object.isFrozen(planRead));
+  same(planRead, { ...stagingV1Features, entitlements: true, plan: true });
+  for (const bogus of [false, undefined, null, 'on', 1, 'true']) same(stagingV1FeaturesFor('off', { planRead: bogus }), stagingV1Features);
+  same(stagingV1FeaturesFor({ mode: 'test' }, { planRead: true }), overlaid);
   // Legacy composition: everything on, as before (billing and the legacy routes included).
   assert.ok(Object.values(legacyFeatures).every((v) => v === true));
   same(Object.keys(legacyFeatures), Object.keys(stagingV1Features));
@@ -495,7 +504,8 @@ test('MP-A5 G1 — Plan and PurchaseStatus import neither the legacy service nor
     for (const forbidden of [/api\/tournamentWorkspaceService$/, /supabase/i, /coreSupabaseClient/, /lib\/supabaseClient/, /\/foundation\//]) {
       assert.ok(!sources.some((s) => forbidden.test(s)), `${page} imports ${forbidden}`);
     }
-    assert.ok(sources.includes('../context/TorneosCommerceContext'), `${page} uses the commerce context`);
+    if (page.includes('PurchaseStatus')) assert.ok(sources.includes('../context/TorneosCommerceContext'), `${page} uses the commerce context`);
+    else assert.doesNotMatch(read(page), /createCheckout|Comprar Premium/, 'Mi plan has no purchase action');
     assert.doesNotMatch(read(page), /\b39900\b|\b49900\b|39\.900|49\.900/, `${page} hardcodes a price`);
   }
   // The legacy service is reachable only through the legacy adapter, which the hybrid provider replaces.
@@ -511,12 +521,11 @@ test('MP-A5 G2 — routing: season plan + purchase status are gated by `plan`; e
   const routes = [...shell.matchAll(/<Route\s+path="([^"]+)"\s+element=\{gate\('([a-z_]+)',\s*<([A-Za-z]+)/g)].map((m) => [m[1], m[2], m[3]]);
   const planRoutes = routes.filter(([, , element]) => /Plan|Purchase/.test(element));
   same(planRoutes.filter(([, feature]) => feature === 'plan'), [
+    ['mi-plan', 'plan', 'LegacyPlanRedirect'],
     ['temporada/:seasonId/plan', 'plan', 'PlanExperiencePage'],
-    ['temporada/:seasonId/plan/compra/:purchaseId/exito', 'plan', 'PurchaseStatusPage'],
-    ['temporada/:seasonId/plan/compra/:purchaseId/pendiente', 'plan', 'PurchaseStatusPage'],
-    ['temporada/:seasonId/plan/compra/:purchaseId/fallo', 'plan', 'PurchaseStatusPage'],
   ]);
-  same(planRoutes.filter(([, feature]) => feature !== 'plan').map(([p, feature]) => [p, feature]), [
+  same(planRoutes.filter(([, feature]) => feature === 'billing').map(([p]) => p), ['temporada/:seasonId/plan/compra/:purchaseId/exito', 'temporada/:seasonId/plan/compra/:purchaseId/pendiente', 'temporada/:seasonId/plan/compra/:purchaseId/fallo']);
+  same(planRoutes.filter(([, feature]) => feature === 'plan_legacy_routes').map(([p, feature]) => [p, feature]), [
     ['plan', 'plan_legacy_routes'],
     ['plan/compra/:purchaseId/exito', 'plan_legacy_routes'],
     ['plan/compra/:purchaseId/pendiente', 'plan_legacy_routes'],

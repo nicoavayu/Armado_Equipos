@@ -54,12 +54,12 @@ describe('selected tournament plan awareness', () => {
     renderSelector(createService(jest.fn().mockResolvedValue(
       tournamentEntitlementsFixture({ tournamentId: FREE }),
     )));
-    const badge = await screen.findByLabelText('Plan del torneo: Free');
+    const badge = await screen.findByLabelText('Mi plan: FREE · Temporada 2027');
     const seasonControl = screen.getByRole('combobox', { name: 'Temporada activa' });
     const tournamentControl = screen.getByRole('combobox', { name: 'Torneo activo' });
 
-    expect(badge).toHaveTextContent('Free');
-    expect(tournamentControl.closest('label')).toContainElement(badge);
+    expect(badge).toHaveTextContent('FREE');
+    expect(tournamentControl.closest('label')).not.toContainElement(badge);
     expect(seasonControl.closest('label')).not.toContainElement(badge);
   });
 
@@ -71,22 +71,22 @@ describe('selected tournament plan awareness', () => {
       })),
       PREMIUM,
     ));
-    expect(await screen.findByLabelText('Plan del torneo: Premium')).toHaveTextContent('Premium');
+    expect(await screen.findByLabelText('Mi plan: PREMIUM · Temporada 2027')).toHaveTextContent('PREMIUM');
   });
 
   test('loading never temporarily labels a tournament Free', async () => {
     const unresolved = new Promise(() => {});
     renderSelector(createService(jest.fn(() => unresolved)));
-    expect(await screen.findByLabelText('Plan del torneo: Verificando plan'))
-      .toHaveTextContent('Verificando plan');
-    expect(screen.queryByLabelText('Plan del torneo: Free')).not.toBeInTheDocument();
+    expect(await screen.findByLabelText('Mi plan: Cargando plan… · Temporada 2027'))
+      .toHaveTextContent('Cargando plan…');
+    expect(screen.queryByLabelText('Mi plan: FREE · Temporada 2027')).not.toBeInTheDocument();
   });
 
   test('resolver failure says Plan no verificado instead of Free', async () => {
     renderSelector(createService(jest.fn().mockRejectedValue(new Error('offline'))));
-    expect(await screen.findByLabelText('Plan del torneo: Plan no verificado'))
-      .toHaveTextContent('Plan no verificado');
-    expect(screen.queryByLabelText('Plan del torneo: Free')).not.toBeInTheDocument();
+    expect(await screen.findByLabelText('Mi plan: Error transitorio · Temporada 2027'))
+      .toHaveTextContent('Error transitorio');
+    expect(screen.queryByLabelText('Mi plan: FREE · Temporada 2027')).not.toBeInTheDocument();
   });
 
   test('changing tournament discards Premium immediately and resolves the new Free plan', async () => {
@@ -101,16 +101,16 @@ describe('selected tournament plan awareness', () => {
         : nextFree
     ));
     renderSelector(createService(loadEntitlements, PREMIUM));
-    expect(await screen.findByLabelText('Plan del torneo: Premium')).toBeInTheDocument();
+    expect(await screen.findByLabelText('Mi plan: PREMIUM · Temporada 2027')).toBeInTheDocument();
 
     fireEvent.change(screen.getByRole('combobox', { name: 'Torneo activo' }), {
       target: { value: FREE },
     });
-    expect(await screen.findByLabelText('Plan del torneo: Verificando plan')).toBeInTheDocument();
-    expect(screen.queryByLabelText('Plan del torneo: Premium')).not.toBeInTheDocument();
+    expect(await screen.findByLabelText('Mi plan: Cargando plan… · Temporada 2027')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Mi plan: PREMIUM · Temporada 2027')).not.toBeInTheDocument();
 
     releaseFree(tournamentEntitlementsFixture({ tournamentId: FREE }));
-    await waitFor(() => expect(screen.getByLabelText('Plan del torneo: Free')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByLabelText('Mi plan: FREE · Temporada 2027')).toBeInTheDocument());
     expect(loadEntitlements).toHaveBeenLastCalledWith({
       organizationId: ORGANIZATION,
       tournamentId: FREE,

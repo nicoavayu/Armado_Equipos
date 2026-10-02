@@ -4,9 +4,10 @@
 // singleton is a fake whose ONLY usable surface is the session; any other access
 // is recorded and would fail the test.
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import TorneosFeatureGate from '../features/torneos/TorneosFeatureGate';
+import { tournamentEntitlementsFixture } from '../testUtils/tournamentEntitlementsFixture';
 import { getCapabilitiesForRole } from '../features/torneos/domain/capabilities';
 
 // Plain functions, not jest.fn: CRA resets mock implementations between tests.
@@ -43,7 +44,9 @@ function jsonResponse(status, body, headers = {}) {
   return { status, ok: status >= 200 && status < 300, headers: { get: (n) => all[n.toLowerCase()] ?? null, has: (n) => n.toLowerCase() in all }, text: async () => JSON.stringify(body) };
 }
 
-function scriptedGateway() {
+const SEASON = 'a2000000-0000-4000-8000-000000000001';
+
+function scriptedGateway(plan = null) {
   const calls = [];
   const organization = { id: ORG, name: 'Liga Devoto', slug: 'liga-devoto', role: 'owner', status: 'active', membershipStatus: 'active', capabilities: getCapabilitiesForRole('owner') };
   const fetchImpl = jest.fn(async (url, init = {}) => {
@@ -54,15 +57,16 @@ function scriptedGateway() {
     }
     if (url === `${GATEWAY}/torneos/rest/v1/rpc/get_my_tournament_memberships`) return jsonResponse(200, { items: [], pagination: { hasMore: false } });
     if (url === `${GATEWAY}/torneos/rest/v1/rpc/set_tournament_workspace_preference`) return jsonResponse(200, { activeOrganizationId: ORG });
-    if (url === `${GATEWAY}/torneos/rest/v1/rpc/get_tournament_competition_context`) return jsonResponse(200, { seasons: [], tournaments: [], modalities: [], formats: [], preference: {} });
+    if (url === `${GATEWAY}/torneos/rest/v1/rpc/get_tournament_competition_context`) return jsonResponse(200, { seasons: plan ? [{ id: SEASON, organizationId: ORG, name: 'Apertura 2026', status: 'active' }] : [], tournaments: [], modalities: [], formats: [], preference: { organizationId: ORG, activeSeasonId: SEASON } });
+    if (url === `${GATEWAY}/torneos/rest/v1/rpc/get_effective_tournament_season_entitlements`) return jsonResponse(200, tournamentEntitlementsFixture({ organizationId: ORG, seasonId: SEASON, tournamentId: null, plan }));
     return jsonResponse(404, { error: 'not found' });
   });
   return { calls, fetchImpl };
 }
 
-function renderGate(backendMode, extra = {}) {
+function renderGate(backendMode, extra = {}, initialPath = '/torneos') {
   return render(
-    <MemoryRouter initialEntries={['/torneos']}>
+    <MemoryRouter initialEntries={[initialPath]}>
       <Routes>
         <Route path="/torneos/*" element={<TorneosFeatureGate enabled backendMode={backendMode} native={false} {...extra} />} />
       </Routes>
@@ -141,4 +145,58 @@ describe('TorneosFeatureGate — backend mode', () => {
     await waitFor(() => expect(screen.getAllByTestId('legacy-torneos-app')).toHaveLength(2));
     expect(window.fetch).not.toHaveBeenCalled();
   });
+});
+
+// Without the opt-in (Production today) the same chain mounts no plan UX and sends no plan read.
+test('gate without REACT_APP_TORNEOS_PLAN_READ_MODE=on: no Mi plan, no plan context, no entitlement request', async () => {
+  const previousMode = process.env.REACT_APP_TORNEOS_PLAN_READ_MODE;
+  const originalFetch = window.fetch;
+  for (const mode of [undefined, 'off', 'ON', 'true']) {
+    if (mode === undefined) delete process.env.REACT_APP_TORNEOS_PLAN_READ_MODE;
+    else process.env.REACT_APP_TORNEOS_PLAN_READ_MODE = mode;
+    try {
+      const gateway = scriptedGateway('PREMIUM');
+      window.fetch = gateway.fetchImpl;
+      const { unmount } = renderGate({ mode: 'hybrid', gatewayUrl: GATEWAY }, { billingMode: 'off' },
+        `/torneos/organizacion/${ORG}/temporada/${SEASON}/plan`);
+      expect(await screen.findByText(/todavía no está habilitada/)).toBeInTheDocument();
+      const nav = screen.getAllByRole('navigation', { name: /Navegación de la organización/ })[0];
+      expect(within(nav).queryByRole('link', { name: 'Mi plan' })).toBeNull();
+      expect(document.getElementById('torneos-plan-context')).toBeNull();
+      expect(screen.queryAllByRole('link', { name: /^Mi plan:/ })).toHaveLength(0);
+      expect(gateway.calls.some(c => /entitlements|commerce|purchase/.test(c.url))).toBe(false);
+      unmount();
+    } finally {
+      window.fetch = originalFetch;
+      if (previousMode === undefined) delete process.env.REACT_APP_TORNEOS_PLAN_READ_MODE;
+      else process.env.REACT_APP_TORNEOS_PLAN_READ_MODE = previousMode;
+    }
+  }
+});
+
+// Drive the actual gate → bridge → transport → adapter → Mi plan chain with the read opt-in.
+test.each(['FREE', 'PREMIUM'])('gate opt-in confirms %s with Billing OFF and no commercial request', async (plan) => {
+  const previousMode = process.env.REACT_APP_TORNEOS_PLAN_READ_MODE;
+  const originalFetch = window.fetch;
+  process.env.REACT_APP_TORNEOS_PLAN_READ_MODE = 'on';
+  try {
+    const gateway = scriptedGateway(plan);
+    window.fetch = gateway.fetchImpl;
+    renderGate({ mode: 'hybrid', gatewayUrl: GATEWAY }, { billingMode: 'off' },
+      `/torneos/organizacion/${ORG}/temporada/${SEASON}/plan`);
+    await screen.findByRole('heading', { name: `${plan} · Apertura 2026` });
+    const nav = screen.getAllByRole('navigation', { name: /Navegación de la organización/ })[0];
+    expect(within(nav).getByRole('link', { name: 'Mi plan' })).toBeInTheDocument();
+    await waitFor(() => expect(document.getElementById('torneos-plan-context')).toHaveTextContent(`${plan} · Apertura 2026`));
+    const read = gateway.calls.find(c => c.url.endsWith('/rpc/get_effective_tournament_season_entitlements'));
+    expect(JSON.parse(read.init.body)).toEqual({ p_organization_id: ORG, p_season_id: SEASON });
+    expect(read.init.headers.Authorization).toBe('Bearer bridge-bearer-placeholder');
+    expect(gateway.calls.some(c => /commerce|purchase|payment|preference_created/.test(c.url))).toBe(false);
+    expect(screen.queryByRole('button', { name: /Comprar Premium/i })).toBeNull();
+    expect(coreDataAccesses).toEqual([]);
+  } finally {
+    window.fetch = originalFetch;
+    if (previousMode === undefined) delete process.env.REACT_APP_TORNEOS_PLAN_READ_MODE;
+    else process.env.REACT_APP_TORNEOS_PLAN_READ_MODE = previousMode;
+  }
 });

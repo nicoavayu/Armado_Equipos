@@ -2758,3 +2758,6 @@
     flex-direction: column;
   }
 }
+.planContext { margin-left: auto; min-width: 0; }
+.topbar:has(.planContext) { flex-wrap: wrap; }
+@media (max-width: 760px) { .planContext { width: 100%; } }

@@ -16,7 +16,7 @@
 // social / portrait / team-photo / visual-policy alias.
 //
 // MP-A5: with `commerce: true` (billing TEST overlay only) it also serves the commerce
-// scope — loadSeasonEntitlements, loadPurchase, createCheckout — through the same client.
+// scope — loadPurchase, createCheckout — through the same client. Plan reads have an independent opt-in.
 // Without it those aliases do not exist, so nothing ever asks for them.
 import { v4 as uuidv4 } from 'uuid';
 import { createTorneosClient } from '../foundation/torneosClient';
@@ -84,6 +84,7 @@ const orNull = (value) => (value === undefined || value === '' ? null : value);
 export const CHECKOUT_TIMEOUT_MS = COMMERCE_REQUEST_TIMEOUT_MS;
 // Every alias a commerce surface may duck-type. The composition strips them from any
 // service while billing is off, so an OFF overlay can never send a commerce request.
+export const PLAN_READ_METHODS = Object.freeze(['loadSeasonEntitlements', 'loadEntitlements']);
 export const COMMERCE_METHODS = Object.freeze([
   'loadSeasonEntitlements', 'loadEntitlements', 'loadPurchase', 'createCheckout', 'simulateFakePayment', 'cancelPurchase',
 ]);
@@ -158,10 +159,11 @@ function validCheckoutAnswer(answer, { organizationId, seasonId }) {
 export function createStagingV1WorkspaceService({
   transport,
   commerce = false,
+  planRead = false,
   checkoutTimeoutMs = CHECKOUT_TIMEOUT_MS,
 }) {
   const commerceEnabled = commerce === true;
-  const client = createTorneosClient({ transport, commerce: commerceEnabled });
+  const client = createTorneosClient({ transport, commerce: commerceEnabled, planRead });
   if (client.status !== 'connected') {
     throw new TournamentWorkspaceError(
       'TORNEOS_TRANSPORT_NOT_CONNECTED',
@@ -183,8 +185,8 @@ export function createStagingV1WorkspaceService({
     }, 'No pudimos cargar tus torneos.');
   }
 
-  const commerceAliases = commerceEnabled ? {
-    // ── commerce (MP-A5, billing TEST overlay only) ────────────────────────
+  // Independent read-only contract. Default OFF until the gateway serves it.
+  const planAliases = commerceEnabled || planRead === true ? {
     loadSeasonEntitlements: async ({ organizationId, seasonId } = {}) => {
       if (!UUID.test(String(organizationId)) || !UUID.test(String(seasonId))) throw invalidRequest();
       return call(
@@ -193,6 +195,17 @@ export function createStagingV1WorkspaceService({
         'No pudimos cargar las funcionalidades disponibles para esta temporada.',
       );
     },
+    loadEntitlements: async ({ organizationId, tournamentId } = {}) => {
+      if (!UUID.test(String(organizationId)) || !UUID.test(String(tournamentId))) throw invalidRequest();
+      return call(
+        'get_effective_tournament_entitlements',
+        { p_organization_id: organizationId, p_tournament_id: tournamentId },
+        'No pudimos cargar las funcionalidades disponibles para este torneo.',
+      );
+    },
+  } : {};
+
+  const commerceAliases = commerceEnabled ? {
     // The purchase must belong to the organization and season of the route: anything
     // else fails closed, whatever the server returned.
     loadPurchase: async ({ purchaseId, organizationId, seasonId } = {}) => {
@@ -227,6 +240,7 @@ export function createStagingV1WorkspaceService({
   } : {};
 
   return Object.freeze({
+    ...planAliases,
     ...commerceAliases,
     // ── organizations / workspaces ─────────────────────────────────────────
     loadContext: () => call(
@@ -1175,9 +1189,9 @@ export function createStagingV1Commerce(service, { redirect = null } = {}) {
 
 // A service with every commerce alias removed: what the workspace providers receive while
 // billing is off, so no screen can duck-type its way into a commerce request.
-export function withoutCommerce(service) {
+export function withoutCommerce(service, { planRead = false } = {}) {
   if (!service) return service;
   return Object.freeze(Object.fromEntries(
-    Object.entries(service).filter(([name]) => !COMMERCE_METHODS.includes(name)),
+    Object.entries(service).filter(([name]) => !COMMERCE_METHODS.includes(name) || (planRead === true && PLAN_READ_METHODS.includes(name))),
   ));
 }

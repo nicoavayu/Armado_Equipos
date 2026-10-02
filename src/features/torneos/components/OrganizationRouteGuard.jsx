@@ -4,6 +4,7 @@ import { CANONICAL_TOURNAMENT_ROUTE_PATTERN } from '../routing/canonicalRoutes';
 import { TorneosCompetitionProvider } from '../context/TorneosCompetitionContext';
 import { TorneosFixtureProvider } from '../context/TorneosFixtureContext';
 import { useTorneosWorkspace } from '../context/TorneosWorkspaceContext';
+import PlanContextHeader from './PlanContextHeader';
 import { WorkspaceError, WorkspaceLoading } from './WorkspaceState';
 
 export default function OrganizationRouteGuard() {
@@ -131,6 +132,7 @@ export default function OrganizationRouteGuard() {
       routeSeasonId={routeSeasonId}
       service={service}
     >
+      <PlanContextHeader organization={organization} />
       <TorneosFixtureProvider
         organizationId={(organization || relationalOrganization).id}
         service={service}

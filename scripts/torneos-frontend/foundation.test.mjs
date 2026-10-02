@@ -186,7 +186,6 @@ test('the only backend access B04 adds is the gateway transport (fetch) and the 
     // OFFICIALIZATION-V1: the organization invitation page accepts through the MOUNTED composition's service
     // (hybrid: the gateway's Core-attested route; legacy LOCAL: no alias, the button stays disabled).
     'src/features/torneos/components/OrganizationInvitationPage.jsx -> ../context/TorneosWorkspaceContext',
-    'src/features/torneos/components/PlanExperiencePage.jsx -> ../context/TorneosCommerceContext',
     // COMPETITION-V1: the public-page route composes the page; the legacy public service (the page's old
     // default) is handed only to the LOCAL single-project composition — hybrid/closed never call it.
     'src/features/torneos/components/PublicTournamentRoute.jsx -> ./PublicTournamentPage',

@@ -2,7 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { LockKeyhole, X } from 'lucide-react';
 import styles from './PremiumFeatureGate.module.css';
 
-export default function PremiumFeatureGate({ open, onClose, onViewPremium }) {
+export default function PremiumFeatureGate({ open, onClose, onViewPremium, feature = 'Función Premium' }) {
   const dialogRef = useRef(null);
   const previousFocusRef = useRef(null);
 
@@ -59,10 +59,10 @@ export default function PremiumFeatureGate({ open, onClose, onViewPremium }) {
           <X size={18} aria-hidden="true" />
         </button>
         <span className={styles.icon}><LockKeyhole size={22} aria-hidden="true" /></span>
-        <p>ESTILOS DE RESULTADOS</p>
-        <h2 id="premium-feature-title">Disponible con Premium</h2>
+        <p>{feature}</p>
+        <h2 id="premium-feature-title">Esta función está incluida en Premium.</h2>
         <span id="premium-feature-copy">
-          Sumá más estilos profesionales para tus placas de resultados.
+          Consultá qué agrega Premium a esta temporada.
         </span>
         <div className={styles.actions}>
           <button type="button" onClick={onViewPremium}>Ver Premium</button>

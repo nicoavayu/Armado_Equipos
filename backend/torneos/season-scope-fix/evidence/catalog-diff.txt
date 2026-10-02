@@ -1,0 +1,4 @@
+2c2
+< get_effective_tournament_season_entitlements(uuid,uuid)|a533331a821dbbac90c6eedbc7b053b3|t|s|{"search_path=\"\""}|supabase_admin|{supabase_admin=X/supabase_admin,postgres=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}
+---
+> get_effective_tournament_season_entitlements(uuid,uuid)|bf263acafb185ee0993117d5805bc701|t|s|{"search_path=\"\""}|supabase_admin|{supabase_admin=X/supabase_admin,postgres=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}

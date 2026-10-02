@@ -124,3 +124,9 @@ export function resolveTorneosBillingMode(env = process.env, {
   if (!LOOPBACK_HOSTS.has(String(appHostname || ''))) return off('TORNEOS_BILLING_REQUIRES_LOCAL_APP');
   return Object.freeze({ mode: 'test', reason: null });
 }
+
+// Independent of billing. Only an explicit read opt-in in the gateway composition.
+export function resolveTorneosPlanRead(env = process.env, { backendMode = resolveTorneosBackendMode(env) } = {}) {
+  return backendMode.mode === 'hybrid'
+    && env.REACT_APP_TORNEOS_PLAN_READ_MODE === 'on';
+}
