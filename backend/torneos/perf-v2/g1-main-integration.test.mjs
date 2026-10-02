@@ -107,7 +107,8 @@ test('integration: changes after the integration base are confined to Mi plan, P
     'backend/torneos/infra/torneos-competition-v1/competition-remote.test.mjs',
     'docs/torneos/TORNEOS-PLAN-INTEGRATION.md', 'docs/torneos/b04/b04-audit.json', 'docs/torneos/b04/TORNEOS-CALL-MAP.md',
     'scripts/torneos-frontend/commerce.test.mjs', 'scripts/torneos-frontend/foundation.test.mjs']);
-  const prefixes = ['backend/torneos/season-scope-fix/', 'scripts/qa/plan-ux/', 'src/features/torneos/', 'src/__tests__/torneos'];
+  const prefixes = ['backend/torneos/season-scope-fix/', 'backend/torneos/social-v1/', 'backend/torneos/infra/torneos-cloudrun-readonly/',
+    'scripts/qa/plan-ux/', 'src/features/torneos/', 'src/__tests__/torneos'];
   for (const file of changed) assert.ok(allowed.has(file) || prefixes.some((p) => file.startsWith(p)), file);
   // Secret scan of what this integration introduces: whole new files, added lines of files that existed at the base
   // (some pre-existing guards carry deliberate leak-shaped fixtures that must stay refused there).

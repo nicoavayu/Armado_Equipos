@@ -1,0 +1,182 @@
+{
+  "readAt": "2026-10-02T19:46:59.284Z",
+  "target": {
+    "project": "arma2-465223",
+    "region": "southamerica-east1",
+    "service": "torneos-gateway"
+  },
+  "service": {
+    "name": "projects/arma2-465223/locations/southamerica-east1/services/torneos-gateway",
+    "uri": "https://torneos-gateway-7fnauuvvxa-rj.a.run.app",
+    "urls": [
+      "https://torneos-gateway-476836389730.southamerica-east1.run.app",
+      "https://torneos-gateway-7fnauuvvxa-rj.a.run.app"
+    ],
+    "generation": "5",
+    "observedGeneration": "5",
+    "etag": "\"CIee_9UGEOi2t50B/cHJvamVjdHMvYXJtYTItNDY1MjIzL2xvY2F0aW9ucy9zb3V0aGFtZXJpY2EtZWFzdDEvc2VydmljZXMvdG9ybmVvcy1nYXRld2F5\"",
+    "ingress": "INGRESS_TRAFFIC_ALL",
+    "invokerIamDisabled": true,
+    "latestReadyRevision": "torneos-gateway-00003-b78",
+    "latestCreatedRevision": "torneos-gateway-00003-b78",
+    "terminalCondition": {
+      "type": "Ready",
+      "state": "CONDITION_SUCCEEDED"
+    },
+    "traffic": [
+      {
+        "type": "TRAFFIC_TARGET_ALLOCATION_TYPE_REVISION",
+        "revision": "torneos-gateway-00003-b78",
+        "percent": 100
+      }
+    ],
+    "trafficStatuses": [
+      {
+        "type": "TRAFFIC_TARGET_ALLOCATION_TYPE_REVISION",
+        "revision": "torneos-gateway-00003-b78",
+        "percent": 100
+      }
+    ],
+    "template": {
+      "serviceAccount": "torneos-gateway-prod@arma2-465223.iam.gserviceaccount.com",
+      "scaling": {
+        "maxInstanceCount": 3
+      },
+      "maxInstanceRequestConcurrency": 80,
+      "timeout": "30s",
+      "container": {
+        "image": "southamerica-east1-docker.pkg.dev/arma2-465223/torneos-gateway/gateway@sha256:dc8049d3c285c008219a32b7eff1329c160b374ff8862e9c26bec372f847c191",
+        "digest": "sha256:dc8049d3c285c008219a32b7eff1329c160b374ff8862e9c26bec372f847c191",
+        "resources": {
+          "limits": {
+            "cpu": "1",
+            "memory": "512Mi"
+          },
+          "cpuIdle": true,
+          "startupCpuBoost": true
+        },
+        "env": [
+          {
+            "name": "CORE_ANON_KEY",
+            "value": "sha256:a1d1cb5d369c len=208"
+          },
+          {
+            "name": "CORE_AUTH_URL",
+            "value": "sha256:9364396cacff len=48"
+          },
+          {
+            "name": "CORE_CONTRACT_URL",
+            "value": "sha256:b6f432a614e2 len=75"
+          },
+          {
+            "name": "CORE_JWT_ISSUER",
+            "value": "sha256:9364396cacff len=48"
+          },
+          {
+            "name": "TORNEOS_ALLOWED_ORIGIN",
+            "value": "https://app.arma2.com.ar"
+          },
+          {
+            "name": "TORNEOS_ANON_KEY",
+            "value": "sha256:20bae0628fcc len=46"
+          },
+          {
+            "name": "TORNEOS_DB_SSL_CA",
+            "value": "sha256:e18e0434fdff len=1824"
+          },
+          {
+            "name": "TORNEOS_GATEWAY_PUBLIC_URL",
+            "value": "https://torneos-gateway-476836389730.southamerica-east1.run.app/functions/v1/torneos-gateway"
+          },
+          {
+            "name": "TORNEOS_REST_URL",
+            "value": "sha256:3b340551a4d2 len=48"
+          },
+          {
+            "name": "TORNEOS_PLAN_READ_MODE",
+            "value": "on"
+          },
+          {
+            "name": "TORNEOS_BRIDGE_KEYS",
+            "secret": "torneos-gw-shadow-bridge-keys@1"
+          },
+          {
+            "name": "TORNEOS_CONTRACT_SERVICE_SECRET",
+            "secret": "torneos-gw-shadow-contract-secret@1"
+          },
+          {
+            "name": "TORNEOS_DB_IDENTITY_WRITER_URL",
+            "secret": "torneos-gw-shadow-db-identity-writer-url@1"
+          },
+          {
+            "name": "TORNEOS_DB_CORE_ADAPTER_URL",
+            "secret": "torneos-gw-shadow-db-core-adapter-url@1"
+          }
+        ]
+      }
+    },
+    "commercialEnv": []
+  },
+  "revisions": [
+    {
+      "name": "torneos-gateway-00003-b78",
+      "createTime": "2026-10-02T15:33:37.282419Z",
+      "digest": "sha256:dc8049d3c285c008219a32b7eff1329c160b374ff8862e9c26bec372f847c191",
+      "envCount": 14,
+      "flags": {
+        "TORNEOS_PLAN_READ_MODE": "on"
+      },
+      "ready": "CONDITION_SUCCEEDED"
+    },
+    {
+      "name": "torneos-gateway-00002-skw",
+      "createTime": "2026-10-02T14:58:51.641450Z",
+      "digest": "sha256:dc8049d3c285c008219a32b7eff1329c160b374ff8862e9c26bec372f847c191",
+      "envCount": 13,
+      "flags": {},
+      "ready": "CONDITION_SUCCEEDED"
+    },
+    {
+      "name": "torneos-gateway-00001-7lw",
+      "createTime": "2026-09-30T20:10:15.701267Z",
+      "digest": "sha256:d163a36bf05fbc8d31d4c9b8c67284cc7c637183bb8727c3b8cc789df2acd09e",
+      "envCount": 13,
+      "flags": {},
+      "ready": "CONDITION_SUCCEEDED"
+    }
+  ],
+  "logs": {
+    "since": "2026-10-01T19:46:57.254Z",
+    "minutes": 1440,
+    "total": 575,
+    "fiveXx": 0,
+    "truncated": false,
+    "byRevision": {
+      "torneos-gateway-00003-b78": {
+        "503": 0,
+        "requests": 421,
+        "2xx": 373,
+        "3xx": 0,
+        "4xx": 48,
+        "5xx": 0
+      },
+      "torneos-gateway-00002-skw": {
+        "503": 0,
+        "requests": 98,
+        "2xx": 42,
+        "3xx": 0,
+        "4xx": 56,
+        "5xx": 0
+      },
+      "torneos-gateway-00001-7lw": {
+        "503": 0,
+        "requests": 56,
+        "2xx": 44,
+        "3xx": 0,
+        "4xx": 12,
+        "5xx": 0
+      }
+    }
+  },
+  "failures": []
+}
