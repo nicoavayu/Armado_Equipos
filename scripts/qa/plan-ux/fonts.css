@@ -1,0 +1,8 @@
+/* The app's self-hosted Bebas Neue (src/styles.css), so the plan seal is measured in its real typeface. */
+@font-face {
+  font-family: 'Bebas Neue';
+  font-style: normal;
+  font-weight: 400;
+  font-display: block;
+  src: url('../../../src/fonts/bebas-neue-latin.woff2') format('woff2');
+}

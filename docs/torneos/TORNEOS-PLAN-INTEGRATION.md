@@ -32,6 +32,16 @@ Diferencia visual con `main` en OFF: `main` mostraba en el selector una píldora
 
 **Disponible hoy vs Próximamente (2026-10-02):** la tabla FREE vs PREMIUM de Mi plan (`domain/planComparison.js`, `PLAN_COMPARISON`) lista sólo lo que hoy se usa en Production: fixture/partidos/actas/tabla, página pública y comunicados, y colaboradores por temporada. Estudio Social, galería de fotos y logos y escudos (`social_studio`, `media` y `branding_assets` siguen en `false` en la composición híbrida) viven en una sección aparte, **Próximamente** (`PLAN_COMING_SOON`), que explica en pocas palabras cómo se van a repartir entre los planes, sin nombres internos. El sello del plan sigue centrado. `browser-check.cjs` verifica en 1440/390/320 que la tabla no mencione nada de Próximamente y que esa sección no desborde.
 
+**Sello FREE/PREMIUM en teléfonos (2026-10-02):** hasta ahora el sello (`.planSignal`) tenía `display: none` a ≤520 px, así que en 390/320 no había sello y la medición "offset (0, 0)" medía una caja de 0×0. Ahora se ve en todos los anchos. A ≤520 px es un emblema compacto de 88–100 px (`clamp(88px, 25vw, 100px)`), centrado encima del texto, con FREE en 26–32 px y PREMIUM en 16–18 px. La tarjeta crece entre 80 y 110 px. A ≤760 px (la columna de 108 px, o sea 700 y 540) el escudo y la palabra se achican y los anillos se acercan al borde: con 48 px, FREE salía 4 px del círculo. Desktop (1440/1024) no cambia. El header "Mi plan" tampoco. El test estático (`torneosPlanExperienceResponsiveCss.test.js`) falla si alguna regla del sello lo oculta o lo colapsa. `browser-check.cjs` mide el sello en 1440/1024/700/540/390/320 con FREE y PREMIUM, usando Bebas Neue local (`plan-ux/fonts.css`). Antes de medir, falla si el sello está oculto, con opacidad 0 o con una caja de 0×0. Después mide:
+
+- el círculo tiene al menos 88 px;
+- el emblema está centrado (±1,5 px);
+- la palabra entra en el círculo con 4 px de margen;
+- el sello no está recortado por la tarjeta, no pisa el texto y no lo tapa nada;
+- en teléfonos está centrado en la tarjeta y mide 120 px o menos.
+
+Si otro worktree ocupa el puerto 3187, se usa `PLAN_UX_PORT`.
+
 ## 0007 = lo aplicado en Production
 
 - Archivo: sha256 `ba0450f965f3357679e493efc8ac465eb37c836dafccdf21138ea9244d85a205`. Es el pin del gate de apply de Production.

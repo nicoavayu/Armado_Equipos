@@ -956,6 +956,42 @@
   .premiumBenefits {
     grid-template-columns: 1fr;
   }
+
+  /* En la columna de 108px (y en teléfonos) la palabra completa tiene que
+     quedar dentro del círculo: anillos más cerca del borde, escudo y palabra
+     más chicos. */
+  .planSignal::before {
+    inset: 6px;
+  }
+
+  .planSignal::after {
+    inset: 12px;
+  }
+
+  .planSignalMark {
+    gap: 4px;
+  }
+
+  .planSignalMark svg {
+    width: 28px;
+    height: 28px;
+  }
+
+  .planSignalLabel {
+    font-size: 34px;
+  }
+
+  .currentPlan[data-plan="premium"] .planSignal::before {
+    inset: -6px;
+  }
+
+  .currentPlan[data-plan="premium"] .planSignal::after {
+    inset: 8px;
+  }
+
+  .currentPlan[data-plan="premium"] .planSignalLabel {
+    font-size: 19px;
+  }
 }
 
 @media (max-width: 520px) {
@@ -965,8 +1001,24 @@
     text-align: center;
   }
 
+  /* En teléfonos el sello no se oculta: queda como emblema compacto,
+     centrado encima del texto. */
   .planSignal {
-    display: none;
+    width: clamp(88px, 25vw, 100px);
+    margin-bottom: 12px;
+  }
+
+  .planSignalMark svg {
+    width: 24px;
+    height: 24px;
+  }
+
+  .planSignalLabel {
+    font-size: clamp(26px, 8vw, 32px);
+  }
+
+  .currentPlan[data-plan="premium"] .planSignalLabel {
+    font-size: clamp(16px, 4.6vw, 18px);
   }
 
   .lifecycle {

@@ -40,12 +40,32 @@ describe('Torneos plan experience responsive CSS', () => {
     expect(css).toMatch(
       /@media \(max-width:\s*760px\)[\s\S]*?\.premiumBenefits\s*\{[\s\S]*?grid-template-columns:\s*1fr/,
     );
-    expect(css).toMatch(
-      /@media \(max-width:\s*520px\)[\s\S]*?\.planSignal\s*\{[\s\S]*?display:\s*none/,
-    );
     expect(navigationCss).toMatch(
       /@media \(max-width:\s*520px\)[\s\S]*?\.nav\s*\{[\s\S]*?width:\s*100%/,
     );
+  });
+
+  test('keeps the plan seal visible on phones instead of hiding it', () => {
+    const mediaBlock = (query) => {
+      const start = css.indexOf(`@media (${query}) {`);
+      expect(start).toBeGreaterThan(-1);
+      let depth = 0;
+      for (let i = css.indexOf('{', start); i < css.length; i += 1) {
+        if (css[i] === '{') depth += 1;
+        if (css[i] === '}' && --depth === 0) return css.slice(start, i + 1);
+      }
+      throw new Error(`Unclosed ${query}`);
+    };
+    // No rule anywhere may hide or collapse the seal, its emblem or its word.
+    const sealRules = [...css.matchAll(/\.planSignal(?:Mark|Label)?(?:\s+svg)?\s*\{([^}]*)\}/g)].map((m) => m[1]);
+    expect(sealRules.length).toBeGreaterThan(0);
+    for (const body of sealRules) {
+      expect(body).not.toMatch(/display:\s*none|visibility:\s*hidden|opacity:\s*0(?![.\d])|(?:^|[^-])(?:width|height):\s*0(?![.\d])/);
+    }
+    const phones = mediaBlock('max-width: 520px');
+    expect(phones).toMatch(/\.planSignal\s*\{[^}]*width:\s*clamp\(88px,/);
+    expect(phones).toMatch(/\.planSignalLabel\s*\{[^}]*font-size:\s*clamp\(26px,/);
+    expect(phones).toMatch(/\[data-plan="premium"\] \.planSignalLabel\s*\{[^}]*font-size:\s*clamp\(16px,/);
   });
 
   test('keeps touch targets, focus affordances and reduced motion explicit', () => {
