@@ -1,5 +1,5 @@
 import React from 'react';
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import PlanExperiencePage from '../features/torneos/components/PlanExperiencePage';
 import PremiumUpsell from '../features/torneos/components/PremiumUpsell';
@@ -23,7 +23,32 @@ test.each(['FREE','PREMIUM'])('%s is confirmed for its season; no checkout is of
  expect(screen.queryByRole('button',{name:/Comprar/})).not.toBeInTheDocument();
  expect(screen.getByText('Propietario + 1')).toBeInTheDocument();
  expect(screen.getByText('Propietario + 10')).toBeInTheDocument();
- expect(screen.getAllByText('Próximamente')).toHaveLength(5);
+ expect(screen.getByRole('heading',{name:'Próximamente'})).toBeInTheDocument();
+});
+test('the FREE vs PREMIUM comparison lists only what works today; future capabilities live apart',async()=>{
+ show();
+ await screen.findByRole('heading',{name:'FREE · Temporada 2026'});
+ const rows=screen.getAllByRole('row').slice(1).map(row=>row.querySelector('th').textContent);
+ expect(rows).toEqual(['Fixture, partidos, actas y tabla','Página pública y comunicados','Colaboradores por temporada']);
+ const comparison=screen.getByRole('region',{name:'Qué agrega Premium'});
+ expect(comparison).not.toHaveTextContent(/Estudio|Galería|Logo|escudo|Próximamente/);
+ const included=screen.getByRole('region',{name:'Inclusiones actuales'});
+ expect(included).not.toHaveTextContent(/Logo|Galería|Estudio/);
+ const upcoming=screen.getByRole('region',{name:'Próximamente'});
+ expect(upcoming).toHaveTextContent('Estas funciones todavía no están disponibles.');
+ for(const name of ['Estudio Social','Galería de fotos','Logos y escudos']) expect(within(upcoming).getByRole('region',{name})).toBeInTheDocument();
+});
+test('Próximamente explains the Estudio Social in human terms, without internal names',async()=>{
+ show();
+ await screen.findByRole('heading',{name:'FREE · Temporada 2026'});
+ expect(document.body).not.toHaveTextContent(/famili|Social Studio|social_studio|round_results|next_fixture|branding_assets/i);
+ const studio=screen.getByRole('region',{name:'Estudio Social'});
+ const tier=(name)=>within(studio).getByRole('heading',{name}).parentElement.querySelectorAll('li');
+ expect([...tier('FREE')].map(li=>li.textContent)).toEqual(['Estilo Base','Resultados','Tabla de posiciones','Próxima fecha']);
+ expect([...tier('PREMIUM')].map(li=>li.textContent)).toEqual(['Todas las placas','5 estilos: Base, Heritage, Street, Scoreboard y Editorial','Posibilidad de quitar la firma Arma2']);
+ const gallery=screen.getByRole('region',{name:'Galería de fotos'});
+ expect(gallery).toHaveTextContent('Hasta 25 archivos');
+ expect(gallery).toHaveTextContent('Hasta 1.000 archivos');
 });
 test.each([0,1,2])('%i seasons can be inspected',async count=>{
  show({count});

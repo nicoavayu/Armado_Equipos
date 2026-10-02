@@ -201,9 +201,28 @@
   box-shadow: 0 0 34px rgba(111, 88, 220, 0.08);
 }
 
-.planSignal span {
+.planSignalMark {
   position: relative;
   z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  color: #c6baff;
+}
+
+.planSignalMark svg {
+  display: block;
+}
+
+.planSignalLabel {
+  position: relative;
+  z-index: 2;
+  display: block;
+  /* Bebas Neue sólo tiene mayúsculas: con la caja de línea normal queda el
+     espacio del descendente debajo y la palabra se ve corrida hacia arriba. A
+     0.7 (la altura de sus mayúsculas) la caja coincide con la tinta. */
+  line-height: 0.7;
   color: #f4f2ff;
   font-family: "Bebas Neue", Impact, sans-serif;
   font-size: clamp(48px, 6vw, 78px);
@@ -264,7 +283,7 @@
   box-shadow: 0 0 42px rgba(99, 102, 255, 0.18);
 }
 
-.currentPlan[data-plan="premium"] .planSignal span {
+.currentPlan[data-plan="premium"] .planSignalLabel {
   font-size: clamp(24px, 3.4vw, 42px);
   letter-spacing: 0.055em;
   text-shadow:
@@ -986,6 +1005,13 @@
 .contextPlan > span { color: #c6cee8; }
 .contextPlan a { display: inline-flex; align-items: center; min-height: 44px; padding: 8px 14px; border: 1px solid #8777d8; border-radius: 12px; color: #f7f3ff; background: #211942; text-decoration: none; font-weight: 700; overflow-wrap: anywhere; }
 .contextPlan a[data-plan="premium"] { border-color: #bd9dff; background: #38275c; }
+.contextPlan a { gap: 8px; }
+.contextPlan a > svg { flex-shrink: 0; color: #c6baff; }
+.contextPlanTitle { white-space: nowrap; }
+.contextPlanBadge { padding: 2px 8px; border: 1px solid rgba(198, 186, 255, .45); border-radius: 999px; background: rgba(139, 124, 255, .18); font-size: 11px; font-weight: 800; letter-spacing: .04em; }
+.contextPlan a[data-plan="premium"] .contextPlanBadge { border-color: #e0cbff; background: rgba(189, 157, 255, .32); }
+.contextPlanSeason { min-width: 0; color: #c6cee8; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.contextPlanChevron { margin-left: auto; }
 .viewPremium { min-height: 44px; margin: 18px 8px 0 0; padding: 10px 18px; background: #8b7cff; border: 0; border-radius: 12px; color: #100b21; font-weight: 750; cursor: pointer; }
 .viewPremium:focus-visible, .contextPlan a:focus-visible, .comparison:focus-visible { outline: 3px solid #c6baff; outline-offset: 4px; }
 .inclusions { padding: 24px 0; }
@@ -1001,8 +1027,19 @@
 .comparisonTable tbody th { font-weight: 500; }
 .comparisonTable td:last-child { background: rgba(139,124,255,.06); }
 .tableCaption { text-align: left; padding: 16px; color: #c6cee8; }
-.comingSoon { display: block; color: #ffca6a; font-size: 11px; margin-top: 6px; }
+.upcoming { margin-top: clamp(38px, 6vw, 68px); }
+.upcoming .sectionHeading > span { color: #ffca6a; }
+.upcomingList { display: grid; gap: 12px; margin-top: 20px; }
+.upcomingItem { min-width: 0; padding: 20px; border: 1px dashed rgba(255,202,106,.35); border-radius: 16px; background: rgba(20,16,41,.6); }
+.upcomingItem h3 { margin: 0; font-size: 18px; }
+.upcomingItem > p { margin: 6px 0 0; color: #c6cee8; font-size: 13px; line-height: 1.6; }
+.upcomingTiers { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 16px; }
+.upcomingTiers > div { min-width: 0; padding: 16px; border: 1px solid rgba(255,255,255,.1); border-radius: 12px; }
+.upcomingTiers > div[data-tier="premium"] { border-color: rgba(139,124,255,.4); background: rgba(139,124,255,.06); }
+.upcomingTiers h4 { margin: 0; color: #c6baff; font-size: 12px; letter-spacing: .08em; }
+.upcomingTiers ul { display: grid; gap: 8px; margin: 12px 0 0; padding: 0 0 0 18px; }
+.upcomingTiers li { color: #f7f3ff; font-size: 13px; line-height: 1.5; overflow-wrap: anywhere; }
 .availability { color: #c6cee8; font-size: 13px; line-height: 1.6; margin: 20px 0; }
-@media (max-width: 760px) { .contextPlan { align-items: flex-start; } .contextPlan > span { display: none; } .contextPlan a { width: 100%; } .comparisonTable th, .comparisonTable td { padding: 14px 9px; font-size: 12px; } .comparisonTable th:first-child { width: 40%; } }
+@media (max-width: 760px) { .upcomingTiers { grid-template-columns: 1fr; } .upcomingItem { padding: 16px; } .contextPlan { align-items: flex-start; } .contextPlan > span { display: none; } .contextPlan a { width: 100%; } .comparisonTable th, .comparisonTable td { padding: 14px 9px; font-size: 12px; } .comparisonTable th:first-child { width: 40%; } }
 
 .comparisonTable th, .comparisonTable td { color: #f7f3ff; }
