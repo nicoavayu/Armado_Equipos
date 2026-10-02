@@ -8,6 +8,21 @@ import * as G from '../infra/torneos-gateway-auth/gateway-auth-contract.mjs';
 import { mintBridgeToken } from '../infra/torneos-gateway-auth/bridge-probe.mjs';
 import { runtime } from '../../../scripts/torneos-frontend/sandbox.mjs';
 
+// Approved UX baseline 33eee168 is not on origin. Its gateway entrypoint and Torneos baseline SQL are the very
+// same blobs as origin/main at the integration base, so the baseline is read from there and pinned by blob id.
+const UX_BASELINE = {
+  commit: '4a8c5bbe62fc340df9308b3e3b773a98d75b6cd1',
+  blobs: {
+    'backend/torneos/supabase/functions/torneos-gateway/index.ts': '6abec1b1b6519dd6b7b0ac5c0f1501f003667c62',
+    'backend/torneos/supabase/migrations/00000000000000_torneos_baseline_v1.sql': 'c9ceb50800bbd0cff113db461a25423781daa661',
+  },
+};
+function uxBaseline(file) {
+  const ref = `${UX_BASELINE.commit}:${file}`;
+  assert.equal(execFileSync('git', ['rev-parse', ref], { encoding: 'utf8' }).trim(), UX_BASELINE.blobs[file], `UX baseline blob ${file}`);
+  return execFileSync('git', ['show', ref], { encoding: 'utf8', maxBuffer: 10 * 1024 * 1024 });
+}
+
 const ORG = '10000000-0000-4000-8000-000000000001';
 const SEASON = '20000000-0000-4000-8000-000000000001';
 const OTHER = '20000000-0000-4000-8000-000000000002';
@@ -118,7 +133,7 @@ test('frontend read opt-in works in production without billing and strips commer
 });
 test('G1 session/identity authorization code is byte-identical to approved UX baseline', () => {
   const current = fs.readFileSync(FN + 'index.ts', 'utf8');
-  const old = execFileSync('git', ['show', '33eee168:' + FN + 'index.ts'], { encoding: 'utf8' });
+  const old = uxBaseline(FN + 'index.ts');
   const section = (s, start, end) => s.slice(s.indexOf(start), s.indexOf(end, s.indexOf(start)));
   assert.equal(section(current, 'async function activeSession', 'async function verifiedCore'), section(old, 'async function activeSession', 'async function verifiedCore'));
   assert.equal(section(current, '    const rest =', '    return json(404'), section(old, '    const rest =', '    return json(404'));
@@ -128,7 +143,7 @@ test('G1 session/identity authorization code is byte-identical to approved UX ba
 test('certified SQL read dependency closure: STABLE, fixed search_path, no writes/dynamic SQL, scoped authorization and unchanged ACL/RLS', () => {
   const file = 'backend/torneos/supabase/migrations/00000000000000_torneos_baseline_v1.sql';
   const sql = fs.readFileSync(file, 'utf8');
-  assert.equal(sql, execFileSync('git', ['show', '33eee168:' + file], { encoding: 'utf8', maxBuffer: 10 * 1024 * 1024 }));
+  assert.equal(sql, uxBaseline(file));
   const functions = new Map();
   for (const m of sql.matchAll(/CREATE FUNCTION ((?:public|private)\.[a-z0-9_]+)\([\s\S]*?AS \$\$([\s\S]*?)\$\$;/g)) functions.set(m[1], { full: m[0], body: m[2] });
   const seen = new Set();
