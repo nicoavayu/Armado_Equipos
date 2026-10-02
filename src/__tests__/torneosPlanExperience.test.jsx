@@ -23,7 +23,22 @@ test.each(['FREE','PREMIUM'])('%s is confirmed for its season; no checkout is of
  expect(screen.queryByRole('button',{name:/Comprar/})).not.toBeInTheDocument();
  expect(screen.getByText('Propietario + 1')).toBeInTheDocument();
  expect(screen.getByText('Propietario + 10')).toBeInTheDocument();
- expect(screen.getAllByText('Próximamente')).toHaveLength(5);
+ expect(screen.getAllByText('Próximamente')).toHaveLength(4);
+});
+test('Mi plan explains the Estudio Social with the catalog it really draws, without internal terms', async()=>{
+ show();
+ await screen.findByRole('heading',{name:'FREE · Temporada 2026'});
+ expect(document.body).not.toHaveTextContent(/famili/i);
+ expect(document.body).not.toHaveTextContent(/Social Studio/);
+ const studio=screen.getByRole('region',{name:'Estudio Social'});
+ expect(studio).toHaveTextContent('Placas: Próxima fecha, Resultados de la fecha, Tabla de posiciones.');
+ expect(studio).toHaveTextContent('Estilo: Base.');
+ expect(studio).toHaveTextContent('Placas: Goleadores, Sancionados, Equipo de la fecha, Figura, Resumen de fecha, Semifinales, Final, Campeón.');
+ expect(studio).toHaveTextContent('Estilos: Heritage, Street, Scoreboard, Editorial, además de Base.');
+ expect(screen.getByRole('row',{name:/Estudio Social/})).toHaveTextContent('3 placas · estilo Base · con firma Arma2');
+ expect(screen.getByRole('row',{name:/Estudio Social/})).toHaveTextContent('Todas las placas · 5 estilos · firma Arma2 opcional');
+ const included=screen.getByRole('region',{name:'Inclusiones actuales'});
+ expect(included).not.toHaveTextContent(/Logo|Galería|Estudio/);
 });
 test.each([0,1,2])('%i seasons can be inspected',async count=>{
  show({count});

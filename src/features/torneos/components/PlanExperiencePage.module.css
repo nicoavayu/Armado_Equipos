@@ -201,9 +201,28 @@
   box-shadow: 0 0 34px rgba(111, 88, 220, 0.08);
 }
 
-.planSignal span {
+.planSignalMark {
   position: relative;
   z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  color: #c6baff;
+}
+
+.planSignalMark svg {
+  display: block;
+}
+
+.planSignalLabel {
+  position: relative;
+  z-index: 2;
+  display: block;
+  /* Bebas Neue sólo tiene mayúsculas: con la caja de línea normal queda el
+     espacio del descendente debajo y la palabra se ve corrida hacia arriba. A
+     0.7 (la altura de sus mayúsculas) la caja coincide con la tinta. */
+  line-height: 0.7;
   color: #f4f2ff;
   font-family: "Bebas Neue", Impact, sans-serif;
   font-size: clamp(48px, 6vw, 78px);
@@ -264,7 +283,7 @@
   box-shadow: 0 0 42px rgba(99, 102, 255, 0.18);
 }
 
-.currentPlan[data-plan="premium"] .planSignal span {
+.currentPlan[data-plan="premium"] .planSignalLabel {
   font-size: clamp(24px, 3.4vw, 42px);
   letter-spacing: 0.055em;
   text-shadow:
@@ -1009,7 +1028,17 @@
 .comparisonTable td:last-child { background: rgba(139,124,255,.06); }
 .tableCaption { text-align: left; padding: 16px; color: #c6cee8; }
 .comingSoon { display: block; color: #ffca6a; font-size: 11px; margin-top: 6px; }
+.studioPlan { margin-top: 24px; padding: 20px; border: 1px solid rgba(255,255,255,.12); border-radius: 16px; background: rgba(20,16,41,.6); }
+.studioPlan h3 { margin: 0; font-size: 18px; }
+.studioPlan > p { margin: 8px 0 0; color: #c6cee8; font-size: 13px; line-height: 1.6; }
+.studioTiers { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 16px; }
+.studioTiers > div { min-width: 0; padding: 16px; border: 1px solid rgba(255,255,255,.1); border-radius: 12px; }
+.studioTiers > div[data-tier="premium"] { border-color: rgba(139,124,255,.4); background: rgba(139,124,255,.06); }
+.studioTiers h4 { margin: 0; color: #c6baff; font-size: 12px; letter-spacing: .08em; }
+.studioTiers ul { display: grid; gap: 8px; margin: 12px 0 0; padding: 0; list-style: none; }
+.studioTiers li { color: #f7f3ff; font-size: 13px; line-height: 1.5; overflow-wrap: anywhere; }
+.studioTiers strong { color: #fff; }
 .availability { color: #c6cee8; font-size: 13px; line-height: 1.6; margin: 20px 0; }
-@media (max-width: 760px) { .contextPlan { align-items: flex-start; } .contextPlan > span { display: none; } .contextPlan a { width: 100%; } .comparisonTable th, .comparisonTable td { padding: 14px 9px; font-size: 12px; } .comparisonTable th:first-child { width: 40%; } }
+@media (max-width: 760px) { .studioTiers { grid-template-columns: 1fr; } .studioPlan { padding: 16px; } .contextPlan { align-items: flex-start; } .contextPlan > span { display: none; } .contextPlan a { width: 100%; } .comparisonTable th, .comparisonTable td { padding: 14px 9px; font-size: 12px; } .comparisonTable th:first-child { width: 40%; } }
 
 .comparisonTable th, .comparisonTable td { color: #f7f3ff; }
