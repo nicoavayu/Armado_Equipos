@@ -19,12 +19,14 @@ No entran las capturas PNG (unos 10 MB), los dumps de evidencia de `plan-read-ev
 | Capa | Variable | Default | Efecto en ON |
 |---|---|---|---|
 | Gateway | `TORNEOS_PLAN_READ_MODE` | ausente/`off`: no cambia la allowlist | Agrega sólo `get_effective_tournament_season_entitlements` y `get_effective_tournament_entitlements`. Cualquier otro valor cierra el boot |
-| Frontend | `REACT_APP_TORNEOS_PLAN_READ_MODE` | sólo `on` en composición `hybrid` | `entitlements=true` y conserva `billing=false` |
+| Frontend | `REACT_APP_TORNEOS_PLAN_READ_MODE` | sólo `on` (exacto) en composición `hybrid` | `entitlements=true` + `plan=true` (overlay `stagingV1PlanReadOverlay`); conserva `billing=false` |
 | Billing / Commerce / MP | `TORNEOS_COMMERCE_MODE`, billing | OFF | Sin cambios. Production sigue rechazando commerce |
 
 Ninguna variable se agrega a archivos versionados. **Mergear no activa PLAN READ.**
 
-**Ojo:** el feature `plan` (UX informativa) ya está ON en el mapa híbrido base, por diseño aprobado y fijado por guards. Si se publica el frontend con PLAN READ OFF, se ven "Mi plan" y el badge en estado **"Lectura no disponible"**. Nunca se inventa FREE.
+**Gate visual (pre-PR hardening):** el feature `plan` volvió a OFF en el mapa híbrido base (igual que en `main`) y sólo lo enciende el overlay de PLAN READ, junto con `entitlements`. Con el flag OFF no existen la entrada "Mi plan" de la navegación ni la de Configuración, el contenedor `#torneos-plan-context` del header (que además cambia el layout del topbar), el badge del selector ni las rutas `mi-plan` / `temporada/:id/plan` (muestran "todavía no está habilitada"), y no se pide ninguna lectura de plan. Con el flag ON aparecen todos y los estados internos no cambiaron: FREE / PREMIUM confirmados por temporada, "Cargando plan…", **"Lectura no disponible"** (lectura denegada o no servida) y "Error transitorio". Nunca se inventa FREE.
+
+Diferencia visual con `main` en OFF: `main` mostraba en el selector una píldora "Plan no verificado" con un torneo activo (la lectura nunca estaba servida en hybrid). Con el gate esa píldora tampoco aparece: con el flag OFF no hay ninguna superficie de plan.
 
 ## 0007 = lo aplicado en Production
 
@@ -46,6 +48,7 @@ Ninguna variable se agrega a archivos versionados. **Mergear no activa PLAN READ
 
 - `backend/torneos/perf-v2/g1-main-integration.test.mjs`
   - Mide la confinación desde la base de integración, no desde un commit local de UX.
+  - Clone-clean: G1 = manifiesto versionado fijado por digest; ningún objeto Git fuera de origin.
   - Fija el digest del shadow.
   - Exige que 0000–0006 queden intactas.
 - `backend/torneos/infra/torneos-officialization-error-v1/oec-remote-contract.mjs` + test
@@ -61,7 +64,7 @@ Ninguna variable se agrega a archivos versionados. **Mergear no activa PLAN READ
 ## Rollout propuesto (cada paso con go explícito)
 
 1. **Push + PR** de esta branch. CI: lint, build, test:ci, migrations guard.
-2. **Merge.** Si Vercel publica `main`, el frontend sale con PLAN READ OFF: "Mi plan" queda visible en "Lectura no disponible", sin datos inventados. Opcional: gatear `plan` detrás del opt-in antes del PR (ver Pendientes).
+2. **Merge.** Si Vercel publica `main`, el frontend sale con PLAN READ OFF: sin "Mi plan", sin badge y sin lectura de plan (gate visual). No hay ventana visible antes de activar.
 3. **Gateway Production** (Cloud Run SP) con el código mergeado y `TORNEOS_PLAN_READ_MODE` ausente.
    - Verificar que la allowlist no cambió: los RPC de plan dan 403 `rpc not enabled` y G1 queda igual.
    - Rollback: revisión anterior.
@@ -77,8 +80,8 @@ La DB no requiere más pasos: 0007 ya está aplicada. Su rollback sólo debe usa
 
 ## Pendientes / riesgos
 
-- `plan` visible con PLAN READ OFF (paso 2). Si no se quiere esa ventana, hay que mover `plan` al overlay de PLAN READ y gatear `PlanContextHeader`. Eso cambia guards aprobados (`foundation.test.mjs`, `torneosStagingV1Composition`, `commerce.test.mjs`) y necesita decisión.
+- ~~`plan` visible con PLAN READ OFF~~ — resuelto: `plan` pasó al overlay de PLAN READ; `foundation.test.mjs` (T13), `torneosStagingV1Composition` y `commerce.test.mjs` (F1) volvieron a su forma de `main` (`plan` OFF en el mapa base) y F1 fija además el overlay exacto `{ entitlements, plan }`. Tests nuevos de flag OFF/ON en `torneosMpA5HybridCommerce` (nav, header, badge, FREE/PREMIUM, "Lectura no disponible", "Error transitorio") y en `torneosStagingV1Gate` (env ausente/`off`/`ON`/`true` → nada de plan, ninguna request de entitlements).
 - El clasificador remoto OEC (`classifyState`) sigue fijado en POST_0006. Contra Production reporta `OEC_PATH_DRIFT functions.bodies_md5` por 0007. Es esperado y no se usa en este rollout.
 - La rama owner de `has_tournament_season_access` sigue sin ligar el par. Queda un barrido de llamadores en tarea aparte (ver `season-scope-fix/REPORT.md`).
-- `g1-main-integration` reconstruye G1 desde `d2edf66d`, un commit que sólo existe localmente (es anterior a esta integración). En un clone limpio esa suite no corre. No está en `test:ci`.
+- ~~`g1-main-integration` depende de `d2edf66d`~~ — resuelto: el grafo G1 certificado sale del manifiesto versionado `docs/torneos/perf/g1-main-integration/source-manifest.json` (en `origin/main` desde #167), aceptado sólo si hashea al digest fijado en el test (`cfe5cd02…`). Un test nuevo exige que la base `4a8c5bbe` (en origin) tenga exactamente ese grafo, y el `index.ts` G1 se compara contra `BASE:index.ts` y contra el hash del manifiesto. La suite sólo lee objetos alcanzables desde origin; verificada desde un clone limpio + `npm ci`.
 - Las suites históricas de fase (MP-A4 scope, r3/remote-test invariants: "exactamente 4 migrations") ya estaban rotas en `main` desde 0004. No se tocaron.

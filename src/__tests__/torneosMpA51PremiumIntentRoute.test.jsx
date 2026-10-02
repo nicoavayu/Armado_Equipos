@@ -114,14 +114,14 @@ function LocationProbe() {
 }
 const currentPath = () => visited[visited.length - 1];
 
-function renderHybrid(path, { service, billingMode = 'test' }) {
+function renderHybrid(path, { service, billingMode = 'test', planRead = false }) {
   return render(
     <MemoryRouter initialEntries={[path]}>
       <LocationProbe />
       <Routes>
         <Route
           path="/torneos/*"
-          element={<StagingV1TorneosApp gatewayUrl="http://127.0.0.1:58423" service={service} billingMode={billingMode} />}
+          element={<StagingV1TorneosApp gatewayUrl="http://127.0.0.1:58423" service={service} billingMode={billingMode} planRead={planRead} />}
         />
       </Routes>
     </MemoryRouter>,
@@ -201,9 +201,19 @@ describe('MP-A5.1 premium intent → hybrid season Plan', () => {
     expect(service.createCheckout).not.toHaveBeenCalled();
   }, 20_000);
 
-  test('billing OFF + premium intent opens informational Mi plan without checkout', async () => {
+  test('hybrid with plan OFF (billing off, PLAN READ off) + premium intent: no commercial navigation is invented', async () => {
     const service = createService({ commerce: false });
     renderHybrid(WIZARD_PREMIUM, { service, billingMode: 'off' });
+    await createFromWizard();
+
+    await waitFor(() => expect(currentPath()).toBe(configurationPath(CREATED)), { timeout: 5000 });
+    expect(visited.some((path) => path.includes('/plan'))).toBe(false);
+    expect(screen.queryByText(/todavía no está habilitada/)).toBeNull();
+  }, 20_000);
+
+  test('PLAN READ on (billing off) + premium intent opens informational Mi plan without checkout', async () => {
+    const service = createService({ commerce: false });
+    renderHybrid(WIZARD_PREMIUM, { service, billingMode: 'off', planRead: true });
     await createFromWizard();
 
     await waitFor(() => expect(currentPath()).toBe(seasonPlanPath(SEASON_B)), { timeout: 5000 });

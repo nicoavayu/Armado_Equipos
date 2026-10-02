@@ -415,7 +415,7 @@ export default function TorneosShell() {
               </div>
             </>
           )}
-          <div id="torneos-plan-context" className={styles.planContext} />
+          {features.plan !== false && <div id="torneos-plan-context" className={styles.planContext} />}
         </header>
 
         <main id="torneos-main" className={styles.main} tabIndex="-1">

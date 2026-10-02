@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { CalendarRange, ChevronDown, Trophy } from 'lucide-react';
 import { Link, useMatch, useNavigate, useParams } from 'react-router-dom';
 import { useTorneosCompetition } from '../context/TorneosCompetitionContext';
+import { useTorneosFeature } from '../context/TorneosFeaturesContext';
 import {
   canonicalRoutes,
   CANONICAL_TOURNAMENT_ROUTE_PATTERN,
@@ -29,6 +30,7 @@ export default function CompetitionSelector({ compact = false }) {
   } = useTorneosCompetition();
   const { organizationId: routeOrganizationId } = useParams();
   const organizationId = routeOrganizationId || preference.organizationId;
+  const planEnabled = useTorneosFeature('plan');
   const [busy, setBusy] = useState(false);
   const navigate = useNavigate();
   const canonicalMatch = useMatch(CANONICAL_TOURNAMENT_ROUTE_PATTERN);
@@ -143,7 +145,7 @@ export default function CompetitionSelector({ compact = false }) {
 
         <ChevronDown size={14} className={styles.selectorChevron} aria-hidden="true" />
       </label>
-      <TournamentPlanBadge planState={planState} season={activeSeason} organizationId={organizationId} />
+      {planEnabled && <TournamentPlanBadge planState={planState} season={activeSeason} organizationId={organizationId} />}
     </section>
   );
 }

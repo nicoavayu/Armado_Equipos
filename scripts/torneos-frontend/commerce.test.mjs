@@ -50,11 +50,10 @@ function billing(env, appHostname = 'localhost') {
   return JSON.parse(JSON.stringify(resolveTorneosBillingMode(env, { backendMode: resolveTorneosBackendMode(env), appHostname })));
 }
 
-test('MP-A5 F1 — the staging-v1 map keeps entitlements, plan and billing OFF; the TEST overlay turns exactly those three on', () => {
+test('MP-A5 F1 — the staging-v1 map keeps entitlements, plan and billing OFF; PLAN READ turns on entitlements + plan, the TEST overlay those three', () => {
   const rt = runtime();
-  const { stagingV1Features, stagingV1BillingTestOverlay, stagingV1FeaturesFor, legacyFeatures } = rt.load(FEATURES);
-  for (const key of ['entitlements', 'billing', 'plan_legacy_routes']) assert.equal(stagingV1Features[key], false, key);
-  assert.equal(stagingV1Features.plan, true);
+  const { stagingV1Features, stagingV1BillingTestOverlay, stagingV1PlanReadOverlay, stagingV1FeaturesFor, legacyFeatures } = rt.load(FEATURES);
+  for (const key of ['entitlements', 'plan', 'billing', 'plan_legacy_routes']) assert.equal(stagingV1Features[key], false, key);
   same(stagingV1BillingTestOverlay, { entitlements: true, plan: true, billing: true });
   assert.ok(Object.isFrozen(stagingV1BillingTestOverlay));
   same(stagingV1FeaturesFor('off'), stagingV1Features);
@@ -67,6 +66,15 @@ test('MP-A5 F1 — the staging-v1 map keeps entitlements, plan and billing OFF; 
   same(overlaid, { ...stagingV1Features, entitlements: true, plan: true, billing: true });
   // The legacy redirects of Plan stay off in hybrid, overlay or not.
   assert.equal(overlaid.plan_legacy_routes, false);
+  // PLAN READ (REACT_APP_TORNEOS_PLAN_READ_MODE=on): the read and Mi plan go on together, never billing;
+  // only an exact `true` counts, and the TEST overlay still wins.
+  same(stagingV1PlanReadOverlay, { entitlements: true, plan: true });
+  assert.ok(Object.isFrozen(stagingV1PlanReadOverlay));
+  const planRead = stagingV1FeaturesFor('off', { planRead: true });
+  assert.ok(Object.isFrozen(planRead));
+  same(planRead, { ...stagingV1Features, entitlements: true, plan: true });
+  for (const bogus of [false, undefined, null, 'on', 1, 'true']) same(stagingV1FeaturesFor('off', { planRead: bogus }), stagingV1Features);
+  same(stagingV1FeaturesFor({ mode: 'test' }, { planRead: true }), overlaid);
   // Legacy composition: everything on, as before (billing and the legacy routes included).
   assert.ok(Object.values(legacyFeatures).every((v) => v === true));
   same(Object.keys(legacyFeatures), Object.keys(stagingV1Features));

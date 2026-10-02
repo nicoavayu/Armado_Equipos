@@ -171,9 +171,9 @@ describe('MP-A5 feature gating in the hybrid composition', () => {
   test('default hybrid (billing off): Plan and purchase routes are unavailable and no commerce method is ever called', async () => {
     const adapter = createAdapter();
     renderHybrid(PLAN_PATH, { adapter, billingMode: 'off' });
-    await screen.findByRole('heading', { name: 'Lectura no disponible' });
+    await screen.findByText(/todavía no está habilitada/);
     renderHybrid(statusPath('exito'), { adapter, billingMode: 'off' });
-    await waitFor(() => expect(screen.getAllByText(/todavía no está habilitada/).length).toBe(1));
+    await waitFor(() => expect(screen.getAllByText(/todavía no está habilitada/).length).toBe(2));
     for (const name of ['loadSeasonEntitlements', 'loadPurchase', 'createCheckout']) expect(adapter[name]).not.toHaveBeenCalled();
   });
 
@@ -208,6 +208,57 @@ test('independent plan read survives billing OFF without enabling any purchase o
   expect(adapter.loadSeasonEntitlements).toHaveBeenCalledWith({ organizationId: ORG, seasonId: SEASON });
   expect(adapter.loadPurchase).not.toHaveBeenCalled();
   expect(adapter.createCheckout).not.toHaveBeenCalled();
+});
+
+// Pre-PR gate: before REACT_APP_TORNEOS_PLAN_READ_MODE=on the plan UX does not exist in the hybrid
+// composition (nav, header context, selector badge); with it on, the certified states all render.
+describe('PLAN READ gate — Mi plan exists only with the read opt-in', () => {
+  const OVERVIEW = `/torneos/organizacion/${ORG}/torneos`;
+  const orgNavLinks = () => within(screen.getAllByRole('navigation', { name: /Navegación de la organización/ })[0])
+    .getAllByRole('link').map((link) => link.textContent);
+  const planBadges = (label) => screen.queryAllByRole('link', { name: `Mi plan: ${label} · Apertura 2026` });
+
+  test('OFF: no Mi plan in nav or settings, no header context, no badge, no read', async () => {
+    const adapter = createAdapter();
+    renderHybrid(OVERVIEW, { adapter, billingMode: 'off' });
+    await screen.findByRole('combobox', { name: 'Temporada activa' });
+    expect(orgNavLinks()).not.toContain('Mi plan');
+    expect(document.getElementById('torneos-plan-context')).toBeNull();
+    expect(screen.queryAllByRole('link', { name: /^Mi plan:/ })).toHaveLength(0);
+    expect(document.querySelector('[data-plan]')).toBeNull();
+    renderHybrid(`/torneos/organizacion/${ORG}/configuracion`, { adapter, billingMode: 'off' });
+    const settings = await screen.findByRole('navigation', { name: 'Secciones de configuración' });
+    expect(within(settings).queryByRole('link', { name: 'Mi plan' })).toBeNull();
+    renderHybrid(`/torneos/organizacion/${ORG}/mi-plan`, { adapter, billingMode: 'off' });
+    expect(await screen.findByText(/todavía no está habilitada/)).toBeInTheDocument();
+    for (const name of ['loadSeasonEntitlements', 'loadPurchase', 'createCheckout']) expect(adapter[name]).not.toHaveBeenCalled();
+  });
+
+  test.each(['FREE', 'PREMIUM'])('ON: Mi plan in nav, header context and selector badge confirm %s', async (plan) => {
+    const adapter = createAdapter({ seasonEntitlements: entitlements({ plan }) });
+    renderHybrid(OVERVIEW, { adapter, billingMode: 'off', planRead: true });
+    await waitFor(() => expect(planBadges(plan)).toHaveLength(2));
+    expect(orgNavLinks()).toContain('Mi plan');
+    expect(document.getElementById('torneos-plan-context')).toHaveTextContent(`${plan} · Apertura 2026`);
+    for (const badge of planBadges(plan)) expect(badge.getAttribute('href')).toBe(PLAN_PATH);
+    expect(adapter.loadSeasonEntitlements).toHaveBeenCalledWith({ organizationId: ORG, seasonId: SEASON });
+    expect(adapter.loadPurchase).not.toHaveBeenCalled();
+    expect(adapter.createCheckout).not.toHaveBeenCalled();
+  });
+
+  test.each([
+    ['TORNEOS_FORBIDDEN', 'Lectura no disponible'],
+    ['TORNEOS_UNAVAILABLE', 'Error transitorio'],
+  ])('ON: a failed read (%s) is shown honestly as «%s», never as a plan', async (code, label) => {
+    const adapter = createAdapter();
+    adapter.loadSeasonEntitlements.mockRejectedValue(new TournamentWorkspaceError(code, 'detalle interno'));
+    renderHybrid(OVERVIEW, { adapter, billingMode: 'off', planRead: true });
+    await waitFor(() => expect(planBadges(label)).toHaveLength(2));
+    expect(orgNavLinks()).toContain('Mi plan');
+    expect(planBadges('FREE')).toHaveLength(0);
+    expect(planBadges('PREMIUM')).toHaveLength(0);
+    expect(document.body).not.toHaveTextContent('detalle interno');
+  });
 });
 
 describe('Mi plan stays informational with the TEST overlay', () => {

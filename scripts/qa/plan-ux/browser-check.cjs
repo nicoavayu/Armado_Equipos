@@ -35,6 +35,31 @@ const path = require('path');
    await page.close();
   }
  }
+ // PLAN READ OFF: no Mi plan in nav, no header context, no badge, no plan read; the plan routes are closed.
+ for(const [viewportName,width,height] of [['desktop',1440,1000],['mobile',390,844],['small-mobile',320,740]]) {
+  for(const [route,closed] of [['inicio',false],['temporada/20000000-0000-4000-8000-000000000001/plan',true],['mi-plan',true]]) {
+   const page=await browser.newPage({viewport:{width,height},reducedMotion:'reduce'});
+   const errors=[],remote=[];
+   page.on('pageerror',e=>errors.push(e.message));
+   await page.route('**/*',r=> {const url=new URL(r.request().url());if(url.hostname==='127.0.0.1' && url.port==='3187') return r.continue();remote.push(url.origin);return r.abort();});
+   await page.goto(`http://127.0.0.1:3187?planRead=off&state=premium&seasons=2&path=${encodeURIComponent(route)}`);
+   // Desktop and mobile navs (the hidden one included): none may offer Mi plan.
+   const navLinks=page.locator('nav[aria-label$="de la organización"] a');
+   await expect(page.getByRole('navigation',{name:/^Navegación (móvil )?de la organización$/}).first()).toBeVisible();
+   if(closed) await expect(page.getByText(/todavía no está habilitada/).first()).toBeVisible();
+   const labels=await navLinks.allTextContents();
+   if(labels.length<5 || labels.some(l=>/Mi plan/.test(l))) throw new Error(`Mi plan visible with PLAN READ OFF at ${width}`);
+   await expect(page.locator('#torneos-plan-context')).toHaveCount(0);
+   await expect(page.locator('[aria-label^="Mi plan:"]')).toHaveCount(0);
+   await expect(page.locator('[data-plan]')).toHaveCount(0);
+   if(/PREMIUM|FREE ·|Lectura no disponible/.test(await page.locator('body').innerText())) throw new Error(`Plan state shown with PLAN READ OFF at ${width}`);
+   if(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth)) throw new Error(`Horizontal overflow at ${width}`);
+   if(errors.length || remote.length) throw new Error(JSON.stringify({errors,remote}));
+   if(width!==320) await page.screenshot({path:path.join('artifacts/plan-ux',`off-${viewportName}-${route.split('/')[0]}.png`),fullPage:true});
+   results.push({viewport:viewportName,planRead:'off',route,passed:true,remoteRequests:remote.length});
+   await page.close();
+  }
+ }
  fs.writeFileSync('artifacts/plan-ux/browser-results.json',JSON.stringify(results,null,2));
  await browser.close();console.log(`${results.length} browser scenarios passed; no remote requests`);
 })().catch(e=>{console.error(e);process.exit(1)});

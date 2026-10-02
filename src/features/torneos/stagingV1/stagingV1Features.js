@@ -38,11 +38,10 @@ const OFFICIALIZATION_V1_ON = Object.freeze({
   match_dual_control: true,     // optional dual control of match reports, per tournament (2 RPC)
 });
 
-const PLAN_UX_ON = Object.freeze({ plan: true }); // informational UX, no purchase or RPC enabled
-
 const OFF = Object.freeze({
-  // plan / billing — three separate concepts; only the MP-A5 TEST overlay below turns them on
+  // plan / billing — three separate concepts; only the PLAN READ and MP-A5 TEST overlays below turn them on
   entitlements: false,          // reading the effective season plan (get_effective_tournament_season_entitlements)
+  plan: false,                  // Mi plan: nav, header context, selector badge and the season Plan page
   billing: false,               // the frontend may start a checkout (Comprar Premium)
   plan_legacy_routes: false,    // legacy Plan redirects (organization settings, tournament-scoped plan/purchase)
   // competition extras outside the contract (no page calls them in hybrid)
@@ -56,7 +55,7 @@ const OFF = Object.freeze({
   social_studio: false,
 });
 
-export const stagingV1Features = Object.freeze({ ...STAGING_V1_ON, ...COMPETITION_V1_ON, ...OFFICIALIZATION_V1_ON, ...PLAN_UX_ON, ...OFF });
+export const stagingV1Features = Object.freeze({ ...STAGING_V1_ON, ...COMPETITION_V1_ON, ...OFFICIALIZATION_V1_ON, ...OFF });
 
 // MP-A5: Mercado Pago Checkout Pro TEST in the local lab. The overlay is applied only for a
 // billing mode resolved to `test` (foundation/config.js resolveTorneosBillingMode: hybrid +
@@ -70,7 +69,16 @@ export const stagingV1BillingTestOverlay = Object.freeze({
 
 const billingTestFeatures = Object.freeze({ ...stagingV1Features, ...stagingV1BillingTestOverlay });
 
-const planReadFeatures = Object.freeze({ ...stagingV1Features, entitlements: true });
+// PLAN READ: `REACT_APP_TORNEOS_PLAN_READ_MODE=on` in the hybrid composition (foundation/config.js
+// resolveTorneosPlanRead). Reading the season plan and showing it (Mi plan) go on together, never
+// one without the other: before the read is deliberately enabled the plan UX does not exist.
+// No purchase: billing stays off.
+export const stagingV1PlanReadOverlay = Object.freeze({
+  entitlements: true,
+  plan: true,
+});
+
+const planReadFeatures = Object.freeze({ ...stagingV1Features, ...stagingV1PlanReadOverlay });
 
 export function stagingV1FeaturesFor(billingMode, { planRead = false } = {}) {
   const mode = typeof billingMode === 'string' ? billingMode : billingMode?.mode;
@@ -86,5 +94,3 @@ export const stagingV1OnFeatures = Object.freeze(Object.keys(STAGING_V1_ON));
 export const competitionV1OnFeatures = Object.freeze(Object.keys(COMPETITION_V1_ON));
 export const officializationV1OnFeatures = Object.freeze(Object.keys(OFFICIALIZATION_V1_ON));
 export const stagingV1OffFeatures = Object.freeze(Object.keys(OFF));
-
-export const planUxOnFeatures = Object.freeze(Object.keys(PLAN_UX_ON));
