@@ -58,6 +58,7 @@ Diferencia visual con `main` en OFF: `main` mostraba en el selector una píldora
 - `integration/torneos-core-contracts/exposure.test.mjs`: el lab espera 0007 después de 0006.
 - `deno-runtime-hardening.test.mjs` y `remote-test-enablement.test.mjs`: `TORNEOS_PLAN_READ_MODE` queda declarado como variable del gateway, no secreta. Las listas prohibidas de MP/pagos no cambian.
 - `gateway-remote.test.mjs` y `competition-remote.test.mjs`: el grafo del gateway pasa de 17 a 18 archivos y `plan-read.ts` es obligatorio.
+- `backend/torneos/plan-read/plan-read.test.mjs`: la línea de base UX `33eee168` (no está en origin) se lee de `4a8c5bbe:` con los blob ids fijados (`6abec1b1…` index.ts, `c9ceb508…` baseline SQL): son los mismos blobs, así que la comparación sigue siendo exacta y la suite es clone-clean.
 - `src/__tests__/torneosOrganizationPermissions.test.jsx`: el fixture de cupos usa un plan read confiable, y un caso nuevo cubre el payload no confiable (`0 / —`, sin upsell).
 - `docs/torneos/b04/*`: regenerado con `node scripts/torneos-frontend/report.mjs`.
 
