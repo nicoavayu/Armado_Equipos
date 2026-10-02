@@ -83,8 +83,8 @@ app.arma2.com.ar (Vercel, CRA)  ──Core auth──▶  Supabase Core  rcyuuoa
 | Campo | Valor |
 |---|---|
 | Proyecto | `prj_h8ozz0T5Jw1yZHZfqwObwhF2gu2c` (`arma2`), dominio `app.arma2.com.ar` |
-| Deploy Production actual | `dpl_3i3jzSDodUVY4RKzwBioZ5szDB9o` (main `44b4b4b2`, bundle `main.45421abc.js`, PLAN READ ON) |
-| Rollback frontend | promover `dpl_FYRP4LaoNBvs2gpz3wjyH5hyQvmN` (mismo main, bundle `main.d122a441.js`, PLAN READ OFF). Más atrás: deployment sobre `4a8c5bbe` (GitHub deployment 6785088892) |
+| Deploy Production actual | `dpl_GidwEwYRqGpxSAePKcivtboiEvuz` (main `80083f45`, PR #171, bundle `main.11d2f066.js`, PLAN READ ON; GitHub deployment 6814557307) |
+| Rollback frontend | Mi plan anterior a PR #171: promover `dpl_3i3jzSDodUVY4RKzwBioZ5szDB9o` (main `44b4b4b2`, bundle `main.45421abc.js`, PLAN READ ON). PLAN READ OFF: promover `dpl_FYRP4LaoNBvs2gpz3wjyH5hyQvmN` (mismo main, bundle `main.d122a441.js`, PLAN READ OFF). Más atrás: deployment sobre `4a8c5bbe` (GitHub deployment 6785088892) |
 | `REACT_APP_TORNEOS_GATEWAY_URL` | URL Cloud Run de arriba (env id `uNG4dxIq8STJFH59`, production-only) |
 | `REACT_APP_TORNEOS_PLAN_READ_MODE` | `on` (env id `vC6YHwcitmPuCbNy`, production-only, 2026-10-02) |
 | Billing | ausente → OFF (`NOT_CONFIGURED`) |
@@ -156,7 +156,7 @@ Con el flag de frontend OFF no existen "Mi plan", el badge FREE/PREMIUM, "Plan n
 
 | Qué | Valor |
 |---|---|
-| main | `44b4b4b2205887bc5eab1709b47269e1e4c34eb3` |
+| main | `80083f45b08b60c432b48d6f4455521df11ea9ea` (merge de PR #171 sobre `44b4b4b2`; el grafo del gateway no cambió) |
 | Imagen Prod actual (= shadow plan-read, grafo = main) | `sha256:dc8049d3c285c008219a32b7eff1329c160b374ff8862e9c26bec372f847c191` (Cloud Build `74b7cb5e`, tag `torneos-gw-shadow/gateway:plan-read-6726a07d-readable`) |
 | Imagen Prod anterior, rev `00001-7lw` (G1 `d2edf66d`, 17 archivos) | `sha256:d163a36bf05fbc8d31d4c9b8c67284cc7c637183bb8727c3b8cc789df2acd09e` |
 | Grafo G1 base (manifiesto versionado) | digest `cfe5cd02e5de9703c7b2634ccea196070f3e188f9d859754f299adb0e020ccd2` |
@@ -176,6 +176,7 @@ Con el flag de frontend OFF no existen "Mi plan", el badge FREE/PREMIUM, "Plan n
 | 5. Certificar gateway Production (matriz del shadow, 1 `/exchange`) | ✅ `TORNEOS_GATEWAY_PROD_PLAN_READ_ON_CERTIFIED` (32/32) |
 | 6. Vercel `REACT_APP_TORNEOS_PLAN_READ_MODE=on` + redeploy | ✅ env `vC6YHwcitmPuCbNy` + `dpl_3i3jzSDodUVY4RKzwBioZ5szDB9o` (main `44b4b4b2`, bundle `main.45421abc.js`) |
 | 7. Certificar UX en Production (Mi plan, badge, temporadas, desktop/mobile, sin checkout) | ✅ `TORNEOS_WEB_PROD_PLAN_READ_UX_CERTIFIED` (ver abajo) |
+| 7b. PR #171 (Mi plan: comparación sólo con lo disponible, Próximamente aparte, sello centrado, discoverability mobile) | ✅ mergeado `80083f45` + Vercel Production, `TORNEOS_WEB_PROD_MI_PLAN_V2_CERTIFIED` (ver abajo) |
 | 8. Android (build nuevo con este frontend) | ⛔ gate J — **próximo gate** |
 
 **Certificación UX web (2026-10-02, sesión real de Nico, org QA `ff425559…`, temporada `8b82d3ab…`):**
@@ -187,6 +188,16 @@ Con el flag de frontend OFF no existen "Mi plan", el badge FREE/PREMIUM, "Plan n
 - Fail-closed: temporada inexistente → "Sin temporada", badge "Sin temporada", **sin** lectura de plan, nunca FREE. Los estados "Lectura no disponible"/"Error transitorio" no se forzaron en Prod (cubiertos por tests y por los 403 del gateway en la matriz 32/32).
 - Viewports (popup same-origin): 1440 sin overflow; 390 y 320 sin scroll horizontal, badge y card completos.
 - No verificado: ruta `…/plan/compra/` (el clasificador bloqueó navegarla); con Billing OFF el bundle no la referencia. PREMIUM no se vio en Prod (no hay temporada PREMIUM).
+
+**Certificación Mi plan v2 (2026-10-02, PR #171 → main `80083f45`, sesión real de Nico, org QA `ff425559…`, temporada `8b82d3ab…`):**
+
+- Merge: merge commit (padres `44b4b4b2` + `16046560`), CI de PR y post-merge SUCCESS, Vercel Production SUCCESS → `dpl_GidwEwYRqGpxSAePKcivtboiEvuz`, bundle `main.11d2f066.js` (Mi plan en el chunk `1432.3f9f16b5`).
+- Bundle: `REACT_APP_TORNEOS_PLAN_READ_MODE:"on"`; sin env `BILLING`/`COMMERCE`/MP horneada. "familias" sólo en `SocialStudioPage` (Estudio Social apagado), no en Mi plan.
+- Tabla FREE vs PREMIUM: exactamente 3 filas (fixture/partidos/actas/tabla, página pública y comunicados, colaboradores Propietario + 1 / + 10). Sin Estudio Social, Galería ni Logos.
+- "Próximamente" (EN PREPARACIÓN) separado: Estudio Social (FREE: Estilo Base, Resultados, Tabla de posiciones, Próxima fecha; PREMIUM: Todas las placas, 5 estilos: Base, Heritage, Street, Scoreboard y Editorial, Posibilidad de quitar la firma Arma2), Galería (25 / 1.000), Logos y escudos.
+- Sello FREE: grupo escudo+palabra centrado sobre el círculo, offset (0, 0) a 1728/1440/1024/700/540. A ≤520 px el sello está oculto por diseño (`display: none` desde `8353333e`, agosto): en teléfonos no hay sello que medir.
+- Mobile 390/320: header "Mi plan FREE · QA Temporada 2026" visible y linkeado a `temporada/:id/plan`; barra móvil en el orden de siempre (Mi plan 8 de 9) y con Mi plan activo scrolleado a la vista; 0 scroll horizontal.
+- Red: 1 `get_effective_tournament_season_entitlements` → 200; 0 llamadas commerce/checkout; 0 controles de compra. Gateway 1 h: 110 requests en `00003-b78`, 0 5xx.
 
 Objetivo final: "Mi plan" en la navegación, badge FREE/PREMIUM, pantalla Mi plan por temporada con plan autoritativo real, errores fail-closed (nunca inventar FREE), Billing OFF y sin compra.
 
@@ -269,6 +280,7 @@ GO de Nico (gates B+C) sólo para `TORNEOS_PLAN_READ_MODE=on` en el gateway Prod
 
 | Estado | Fecha |
 |---|---|
+| `TORNEOS_WEB_PROD_MI_PLAN_V2_CERTIFIED` (PR #171, main `80083f45`) | 2026-10-02 |
 | `TORNEOS_WEB_PROD_PLAN_READ_UX_CERTIFIED` | 2026-10-02 |
 | `TORNEOS_GATEWAY_PROD_PLAN_READ_ON_CERTIFIED` | 2026-10-02 |
 | `TORNEOS_GATEWAY_PROD_PLAN_READ_OFF_CERTIFIED` | 2026-10-02 |
