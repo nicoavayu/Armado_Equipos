@@ -1,5 +1,7 @@
 // The Production source anchor is supplied by the approved cutover handoff.
 // This suite reads Git and local files only; it never queries a remote service.
+// Clone-clean: it needs only objects reachable from origin (MAIN, BASE) and versioned files. The certified
+// G1 commit itself is never read from Git: its graph is the versioned source manifest, pinned by digest here.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -11,7 +13,10 @@ import { REPO_ROOT, sha256 } from '../infra/torneos-gateway-remote/remote-contra
 import { secretFindings } from '../infra/torneos-gateway-auth/gateway-auth-contract.mjs';
 
 const MAIN = '46479c6470a47a43dd702f3ccf098fb8ee73b314';
-const G1 = 'd2edf66d0';
+// Certified G1 (Cloud Run torneos-gateway-00001-7lw). Recorded, never resolved: the object is not on origin.
+const G1 = 'd2edf66d0043d4534148c8d18693c6bb4900264a';
+const G1_MANIFEST_FILE = 'docs/torneos/perf/g1-main-integration/source-manifest.json';
+const G1_DIGEST = 'cfe5cd02e5de9703c7b2634ccea196070f3e188f9d859754f299adb0e020ccd2';
 // origin/main when Mi plan + PLAN READ + 0007 were integrated (G1 PR #167 and Android build 44 PR #168 included).
 const BASE = '4a8c5bbe62fc340df9308b3e3b773a98d75b6cd1';
 // Complete gateway graph deployed to the shadow tgw-sp-g1 and certified there (PLAN READ ON, Commerce OFF), 2026-10-01.
@@ -20,6 +25,15 @@ const FUNCTIONS = 'backend/torneos/supabase/functions';
 const INDEX = `${FUNCTIONS}/torneos-gateway/index.ts`;
 const git = (...args) => execFileSync('git', ['-C', REPO_ROOT, ...args], { encoding: 'utf8' });
 const PLAN = `${FUNCTIONS}/torneos-gateway/plan-read.ts`;
+// The versioned G1 manifest, accepted only if it still hashes to the pinned digest.
+function certifiedG1() {
+  const recorded = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, G1_MANIFEST_FILE), 'utf8'));
+  assert.equal(recorded.sourceCommit, G1);
+  assert.equal(recorded.manifestDigest, G1_DIGEST);
+  assert.equal(sha256(JSON.stringify(recorded.manifest)), G1_DIGEST, 'versioned G1 manifest was edited');
+  assert.deepEqual(recorded.bare, ['npm:jose@6.2.12', 'npm:postgres@3.4.7']);
+  return { manifest: recorded.manifest, bare: recorded.bare, digest: G1_DIGEST };
+}
 // Reverse only the reviewed composition delta. Any handler/concurrency/security edit still fails.
 function withoutPlanComposition(source) {
   for (const [added, previous] of [
@@ -34,8 +48,16 @@ function withoutPlanComposition(source) {
   return source;
 }
 
+test('integration: the integration base on origin carries exactly the certified G1 graph (versioned manifest)', () => {
+  const certified = certifiedG1();
+  const base = buildFromCommit(BASE);
+  assert.deepEqual(base.manifest, certified.manifest);
+  assert.deepEqual(base.bare, certified.bare);
+  assert.equal(base.digest, G1_DIGEST);
+});
+
 test('integration: certified G1 graph stays byte-identical except the pinned plan-read composition', () => {
-  const expected = buildFromCommit(git('rev-parse', G1).trim());
+  const expected = certifiedG1();
   const root = path.join(REPO_ROOT, FUNCTIONS);
   const { files, bare } = moduleGraph(root);
   const manifest = files.map((file) => {
@@ -64,7 +86,10 @@ test('integration: the complete gateway graph equals the candidate certified on 
 
 test('integration: only G1 entrypoint and the exact plan-read module differ from pinned main', () => {
   assert.deepEqual(git('diff', '--name-only', MAIN, '--', FUNCTIONS).trim().split('\n'), [INDEX, PLAN]);
-  assert.equal(withoutPlanComposition(fs.readFileSync(path.join(REPO_ROOT, INDEX), 'utf8')), git('show', `${G1}:${INDEX}`));
+  const g1Index = withoutPlanComposition(fs.readFileSync(path.join(REPO_ROOT, INDEX), 'utf8'));
+  const certifiedIndex = certifiedG1().manifest.find((m) => m.path === 'torneos-gateway/index.ts');
+  assert.deepEqual({ sha256: sha256(g1Index), bytes: Buffer.byteLength(g1Index) }, { sha256: certifiedIndex.sha256, bytes: certifiedIndex.bytes });
+  assert.equal(g1Index, git('show', `${BASE}:${INDEX}`));
 });
 
 test('integration: changes after the integration base are confined to Mi plan, PLAN READ, 0007 and their guards; npm contract unchanged', () => {
