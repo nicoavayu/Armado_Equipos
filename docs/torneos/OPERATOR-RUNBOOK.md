@@ -83,10 +83,10 @@ app.arma2.com.ar (Vercel, CRA)  ──Core auth──▶  Supabase Core  rcyuuoa
 | Campo | Valor |
 |---|---|
 | Proyecto | `prj_h8ozz0T5Jw1yZHZfqwObwhF2gu2c` (`arma2`), dominio `app.arma2.com.ar` |
-| Deploy Production actual | `dpl_FYRP4LaoNBvs2gpz3wjyH5hyQvmN` (main `44b4b4b2`, bundle `main.d122a441.js`) |
-| Rollback frontend | deployment anterior sobre `4a8c5bbe` (GitHub deployment 6785088892) |
+| Deploy Production actual | `dpl_3i3jzSDodUVY4RKzwBioZ5szDB9o` (main `44b4b4b2`, bundle `main.45421abc.js`, PLAN READ ON) |
+| Rollback frontend | promover `dpl_FYRP4LaoNBvs2gpz3wjyH5hyQvmN` (mismo main, bundle `main.d122a441.js`, PLAN READ OFF). Más atrás: deployment sobre `4a8c5bbe` (GitHub deployment 6785088892) |
 | `REACT_APP_TORNEOS_GATEWAY_URL` | URL Cloud Run de arriba (env id `uNG4dxIq8STJFH59`, production-only) |
-| `REACT_APP_TORNEOS_PLAN_READ_MODE` | **ausente** (OFF) |
+| `REACT_APP_TORNEOS_PLAN_READ_MODE` | `on` (env id `vC6YHwcitmPuCbNy`, production-only, 2026-10-02) |
 | Billing | ausente → OFF (`NOT_CONFIGURED`) |
 
 ### Supabase
@@ -147,7 +147,8 @@ Con el flag de frontend OFF no existen "Mi plan", el badge FREE/PREMIUM, "Plan n
   - Temporada QA + otra org, org QA + temporada ajena, temporada inexistente, org inexistente, torneo cruzado → 403 `TORNEOS_ENTITLEMENTS_FORBIDDEN`.
   - QA → FREE, `assignmentSource=default_free`, `schemaVersion=4`, galería 25, 1 colaborador admin + owner, Social Studio Base 3.
   - Sin bearer / bearer inválido → 401. RPC desconocida y 14 comerciales → 403. Checkout/MP → 404.
-- Production `torneos-gateway-00003-b78` (PLAN READ ON) certificado el 2026-10-02 con la misma matriz: 32/32 (`TORNEOS_GATEWAY_PROD_PLAN_READ_ON_CERTIFIED`). El frontend Production todavía no pide plan (flag de Vercel OFF).
+- Production `torneos-gateway-00003-b78` (PLAN READ ON) certificado el 2026-10-02 con la misma matriz: 32/32 (`TORNEOS_GATEWAY_PROD_PLAN_READ_ON_CERTIFIED`). 
+- Frontend Production con PLAN READ ON (`dpl_3i3jzSDo…`) certificado el 2026-10-02 (`TORNEOS_WEB_PROD_PLAN_READ_UX_CERTIFIED`), ver §8.
 
 ---
 
@@ -173,9 +174,19 @@ Con el flag de frontend OFF no existen "Mi plan", el badge FREE/PREMIUM, "Plan n
 | 3. Gateway Production desde main, PLAN READ OFF | ✅ `TORNEOS_GATEWAY_PROD_PLAN_READ_OFF_CERTIFIED` (rev `torneos-gateway-00002-skw`) |
 | 4. Gateway `TORNEOS_PLAN_READ_MODE=on` | ✅ rev `torneos-gateway-00003-b78` (misma imagen `dc8049d3…`) |
 | 5. Certificar gateway Production (matriz del shadow, 1 `/exchange`) | ✅ `TORNEOS_GATEWAY_PROD_PLAN_READ_ON_CERTIFIED` (32/32) |
-| 6. Vercel `REACT_APP_TORNEOS_PLAN_READ_MODE=on` + redeploy | ⛔ gate B+C — **próximo gate** |
-| 7. Certificar UX en Production (Mi plan, badge, temporadas, desktop/mobile, sin checkout) | pendiente |
-| 8. Android (build nuevo con este frontend) | ⛔ gate J |
+| 6. Vercel `REACT_APP_TORNEOS_PLAN_READ_MODE=on` + redeploy | ✅ env `vC6YHwcitmPuCbNy` + `dpl_3i3jzSDodUVY4RKzwBioZ5szDB9o` (main `44b4b4b2`, bundle `main.45421abc.js`) |
+| 7. Certificar UX en Production (Mi plan, badge, temporadas, desktop/mobile, sin checkout) | ✅ `TORNEOS_WEB_PROD_PLAN_READ_UX_CERTIFIED` (ver abajo) |
+| 8. Android (build nuevo con este frontend) | ⛔ gate J — **próximo gate** |
+
+**Certificación UX web (2026-10-02, sesión real de Nico, org QA `ff425559…`, temporada `8b82d3ab…`):**
+
+- Bundle: `REACT_APP_TORNEOS_PLAN_READ_MODE:"on"`, sin `REACT_APP_TORNEOS_BILLING_MODE`, 0 strings `checkout`/`mercadopago`. Env Vercel sin Billing/Commerce/MP.
+- Header: badge `FREE · QA Temporada 2026` (link a `temporada/:id/plan`); pill FREE en el selector. "Mi plan" en el rail desktop y en la barra móvil (ítem 8 de 9, scrolleable); `/mi-plan` redirige a la temporada activa.
+- Pantalla Mi plan: `FREE · QA Temporada 2026`, "FREE confirmado para esta temporada y sus torneos", comparación FREE vs PREMIUM, "La compra de Premium todavía no está disponible". 0 controles de compra.
+- Red: 1 `get_effective_tournament_season_entitlements` → 200 por carga, rev `00003-b78`. Logs gateway 1 h: 0 5xx, 0 `CORE_UNAVAILABLE`.
+- Fail-closed: temporada inexistente → "Sin temporada", badge "Sin temporada", **sin** lectura de plan, nunca FREE. Los estados "Lectura no disponible"/"Error transitorio" no se forzaron en Prod (cubiertos por tests y por los 403 del gateway en la matriz 32/32).
+- Viewports (popup same-origin): 1440 sin overflow; 390 y 320 sin scroll horizontal, badge y card completos.
+- No verificado: ruta `…/plan/compra/` (el clasificador bloqueó navegarla); con Billing OFF el bundle no la referencia. PREMIUM no se vio en Prod (no hay temporada PREMIUM).
 
 Objetivo final: "Mi plan" en la navegación, badge FREE/PREMIUM, pantalla Mi plan por temporada con plan autoritativo real, errores fail-closed (nunca inventar FREE), Billing OFF y sin compra.
 
@@ -188,7 +199,7 @@ Objetivo final: "Mi plan" en la navegación, badge FREE/PREMIUM, pantalla Mi pla
 | Gateway (hoy) | Tráfico 100 % a `torneos-gateway-00002-skw` (misma imagen `dc8049d3…`, PLAN READ OFF). Segundos, sin rebuild. Más atrás: `torneos-gateway-00001-7lw` (imagen `d163a36b…`, pre-PLAN READ) |
 | Gateway (genérico) | Tráfico 100 % a la revisión anterior (Run API v2: `PATCH services/torneos-gateway` con `traffic=[{type: REVISION, revision: <anterior>, percent: 100}]`). Sin rebuild |
 | Gateway PLAN READ ON → OFF | quitar `TORNEOS_PLAN_READ_MODE` (nueva revisión) o volver tráfico a la revisión OFF |
-| Frontend | promover el deploy Vercel anterior, o quitar `REACT_APP_TORNEOS_PLAN_READ_MODE` y redeploy |
+| Frontend | promover `dpl_FYRP4LaoNBvs2gpz3wjyH5hyQvmN` (PLAN READ OFF, mismo main), o borrar env `vC6YHwcitmPuCbNy` y redeploy |
 | Web → Deno | `REACT_APP_TORNEOS_GATEWAY_URL` a la URL Deno + redeploy (último recurso) |
 | DB 0007 | script de rollback fijado arriba (gate D) |
 
@@ -258,6 +269,7 @@ GO de Nico (gates B+C) sólo para `TORNEOS_PLAN_READ_MODE=on` en el gateway Prod
 
 | Estado | Fecha |
 |---|---|
+| `TORNEOS_WEB_PROD_PLAN_READ_UX_CERTIFIED` | 2026-10-02 |
 | `TORNEOS_GATEWAY_PROD_PLAN_READ_ON_CERTIFIED` | 2026-10-02 |
 | `TORNEOS_GATEWAY_PROD_PLAN_READ_OFF_CERTIFIED` | 2026-10-02 |
 | `TORNEOS_PLAN_MAIN_MERGED_SAFE` | 2026-10-02 |
