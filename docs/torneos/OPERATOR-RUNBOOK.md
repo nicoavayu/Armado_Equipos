@@ -177,7 +177,8 @@ Con el flag de frontend OFF no existen "Mi plan", el badge FREE/PREMIUM, "Plan n
 | 6. Vercel `REACT_APP_TORNEOS_PLAN_READ_MODE=on` + redeploy | ✅ env `vC6YHwcitmPuCbNy` + `dpl_3i3jzSDodUVY4RKzwBioZ5szDB9o` (main `44b4b4b2`, bundle `main.45421abc.js`) |
 | 7. Certificar UX en Production (Mi plan, badge, temporadas, desktop/mobile, sin checkout) | ✅ `TORNEOS_WEB_PROD_PLAN_READ_UX_CERTIFIED` (ver abajo) |
 | 7b. PR #171 (Mi plan: comparación sólo con lo disponible, Próximamente aparte, sello centrado, discoverability mobile) | ✅ mergeado `80083f45` + Vercel Production, `TORNEOS_WEB_PROD_MI_PLAN_V2_CERTIFIED` (ver abajo) |
-| 8. Android (build nuevo con este frontend) | ⛔ gate J — **próximo gate** |
+| 7c. PR #172 (sello FREE/PREMIUM visible en teléfonos + test que rechaza sellos ocultos o 0×0) | 🟡 abierto, CI/Preview en curso — **gate A pendiente (merge)**. Sin Production |
+| 8. Android (build nuevo con este frontend) | ⛔ gate J — después de #172 |
 
 **Certificación UX web (2026-10-02, sesión real de Nico, org QA `ff425559…`, temporada `8b82d3ab…`):**
 
@@ -195,7 +196,7 @@ Con el flag de frontend OFF no existen "Mi plan", el badge FREE/PREMIUM, "Plan n
 - Bundle: `REACT_APP_TORNEOS_PLAN_READ_MODE:"on"`; sin env `BILLING`/`COMMERCE`/MP horneada. "familias" sólo en `SocialStudioPage` (Estudio Social apagado), no en Mi plan.
 - Tabla FREE vs PREMIUM: exactamente 3 filas (fixture/partidos/actas/tabla, página pública y comunicados, colaboradores Propietario + 1 / + 10). Sin Estudio Social, Galería ni Logos.
 - "Próximamente" (EN PREPARACIÓN) separado: Estudio Social (FREE: Estilo Base, Resultados, Tabla de posiciones, Próxima fecha; PREMIUM: Todas las placas, 5 estilos: Base, Heritage, Street, Scoreboard y Editorial, Posibilidad de quitar la firma Arma2), Galería (25 / 1.000), Logos y escudos.
-- Sello FREE: grupo escudo+palabra centrado sobre el círculo, offset (0, 0) a 1728/1440/1024/700/540. A ≤520 px el sello está oculto por diseño (`display: none` desde `8353333e`, agosto): en teléfonos no hay sello que medir.
+- Sello FREE: grupo escudo+palabra centrado sobre el círculo, offset (0, 0) a 1728/1440/1024/700/540. A ≤520 px el sello está oculto por diseño (`display: none` desde `8353333e`, agosto): en teléfonos no hay sello que medir. **Falso positivo:** a 390/320 el "offset (0, 0)" medía una caja de 0×0. Además, a 700/540 la palabra FREE (48 px) salía 4 px del círculo de 108 px; nadie lo había medido. Ambos se corrigen en PR #172 (ver abajo).
 - Mobile 390/320: header "Mi plan FREE · QA Temporada 2026" visible y linkeado a `temporada/:id/plan`; barra móvil en el orden de siempre (Mi plan 8 de 9) y con Mi plan activo scrolleado a la vista; 0 scroll horizontal.
 - Red: 1 `get_effective_tournament_season_entitlements` → 200; 0 llamadas commerce/checkout; 0 controles de compra. Gateway 1 h: 110 requests en `00003-b78`, 0 5xx.
 
@@ -267,6 +268,20 @@ GO de Nico (gates B+C) sólo para `TORNEOS_PLAN_READ_MODE=on` en el gateway Prod
 - **Efecto:** aparecen "Mi plan", el badge FREE/PREMIUM y la pantalla por temporada leyendo el plan autoritativo del gateway. Billing sigue `false` → sin compra ni checkout.
 - **Certificación:** bundle nuevo con el flag `on` y sin Billing; UX en Production (Mi plan, badge, temporadas, desktop/mobile, sin checkout, errores fail-closed) con la sesión QA; logs del gateway.
 - **Rollback:** promover `dpl_FYRP4LaoNBvs2gpz3wjyH5hyQvmN` (bundle `main.d122a441.js`) o quitar la env y redeployar.
+
+## PR #172 — sello FREE/PREMIUM en teléfonos (2026-10-02, abierto, NO mergeado)
+
+- **Rama:** `claude/free-premium-badge-mobile-28d076`, commit `cf9962cc`, sobre main `80083f45`.
+- **CSS:**
+  - ≤520: emblema de 88–100 px centrado encima del texto. La tarjeta crece entre 80 y 110 px.
+  - ≤760: palabra y escudo más chicos, anillos más cerca del borde.
+  - 1440/1024 y el header "Mi plan" no cambian.
+- **Tests:**
+  - `torneosPlanExperienceResponsiveCss.test.js` falla si alguna regla oculta o colapsa el sello.
+  - `scripts/qa/plan-ux/browser-check.cjs` mide 1440/1024/700/540/390/320 × FREE/PREMIUM con Bebas Neue local. Rechaza `display: none`, `visibility`, opacidad 0 y cajas de 0×0 antes de medir.
+  - Puerto configurable: `PLAN_UX_PORT`. Otro worktree puede tener ocupado el 3187 con un build distinto, así que hay que chequear con `lsof` el cwd del server antes de confiar en una corrida.
+- **Local:** harness 51/51, `test:ci` 348/3377, G1 12/12, QA guards 104/104.
+- **Próximo:** gate A (merge). Después, Vercel Production desde main (gate B, por git) y la recertificación visual en 390/320 con la sesión de Nico.
 
 ## Gotchas operativos
 
