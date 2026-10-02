@@ -76,15 +76,17 @@ app.arma2.com.ar (Vercel, CRA)  ──Core auth──▶  Supabase Core  rcyuuoa
 | Env de PLAN READ | `TORNEOS_PLAN_READ_MODE=on` (desde rev `00003-b78`) |
 | Artifact Registry | `southamerica-east1-docker.pkg.dev/arma2-465223/torneos-gateway/gateway` (Prod) y `.../torneos-gw-shadow/gateway` (shadows) |
 
-`gcloud` local corre con Python 3.9 y `gcloud run` crashea (`CommandLoadFailure`). Operar Cloud Run por la REST API v2 (`run.googleapis.com/v2/...`) con `gcloud auth print-access-token`; las copias de imagen y las verificaciones de contenido se hacen con Cloud Build (`gcrane`, `docker run` del digest).
+`gcloud` local corre con Python 3.9 y `gcloud run` crashea (`CommandLoadFailure`). Operar Cloud Run por la REST API v2 (`run.googleapis.com/v2/...`) con `gcloud auth print-access-token`; las copias de imagen y las verificaciones de contenido se hacen con Cloud Build (`gcrane`, `docker run` del digest). El proyecto por defecto de gcloud en esta Mac es `ruko-493223`: pasar siempre `arma2-465223` explícito.
+
+**Lectura read-only de Cloud Run:** `backend/torneos/infra/torneos-cloudrun-readonly/cloudrun-readonly.mjs` (PR #173). Sólo puede enviar GET service, GET revisions y Logging `entries:list`; exige `--project/--region/--service`; nunca imprime el token ni valores de env (salvo flags); un no-2xx es error. Expectativas: `--expect-traffic-revision`, `--expect-digest`, `--expect-env K=V|<absent>` (exit 1 si difieren, o si hay env comercial o 5xx en la ventana). Ejemplo: `node backend/torneos/infra/torneos-cloudrun-readonly/cloudrun-readonly.mjs --project arma2-465223 --region southamerica-east1 --service torneos-gateway --logs-minutes 60 --expect-traffic-revision torneos-gateway-00003-b78`. Arreglo definitivo de gcloud (instala software, no aplicado): `brew install python@3.12` + `CLOUDSDK_PYTHON`.
 
 ### Vercel
 
 | Campo | Valor |
 |---|---|
 | Proyecto | `prj_h8ozz0T5Jw1yZHZfqwObwhF2gu2c` (`arma2`), dominio `app.arma2.com.ar` |
-| Deploy Production actual | `dpl_GidwEwYRqGpxSAePKcivtboiEvuz` (main `80083f45`, PR #171, bundle `main.11d2f066.js`, PLAN READ ON; GitHub deployment 6814557307) |
-| Rollback frontend | Mi plan anterior a PR #171: promover `dpl_3i3jzSDodUVY4RKzwBioZ5szDB9o` (main `44b4b4b2`, bundle `main.45421abc.js`, PLAN READ ON). PLAN READ OFF: promover `dpl_FYRP4LaoNBvs2gpz3wjyH5hyQvmN` (mismo main, bundle `main.d122a441.js`, PLAN READ OFF). Más atrás: deployment sobre `4a8c5bbe` (GitHub deployment 6785088892) |
+| Deploy Production actual | `dpl_9y9zFtwvSFp81Jpqrm4bUHqJqPUE` (main `6a489648`, PR #172, bundle `main.ae463a7d.js`, PLAN READ ON; GitHub deployment 6816199390) |
+| Rollback frontend | Sello oculto ≤520 (antes de PR #172): promover `dpl_GidwEwYRqGpxSAePKcivtboiEvuz` (main `80083f45`, bundle `main.11d2f066.js`). Mi plan anterior a PR #171: promover `dpl_3i3jzSDodUVY4RKzwBioZ5szDB9o` (main `44b4b4b2`, bundle `main.45421abc.js`, PLAN READ ON). PLAN READ OFF: promover `dpl_FYRP4LaoNBvs2gpz3wjyH5hyQvmN` (mismo main, bundle `main.d122a441.js`, PLAN READ OFF). Más atrás: deployment sobre `4a8c5bbe` (GitHub deployment 6785088892) |
 | `REACT_APP_TORNEOS_GATEWAY_URL` | URL Cloud Run de arriba (env id `uNG4dxIq8STJFH59`, production-only) |
 | `REACT_APP_TORNEOS_PLAN_READ_MODE` | `on` (env id `vC6YHwcitmPuCbNy`, production-only, 2026-10-02) |
 | Billing | ausente → OFF (`NOT_CONFIGURED`) |
@@ -156,7 +158,7 @@ Con el flag de frontend OFF no existen "Mi plan", el badge FREE/PREMIUM, "Plan n
 
 | Qué | Valor |
 |---|---|
-| main | `80083f45b08b60c432b48d6f4455521df11ea9ea` (merge de PR #171 sobre `44b4b4b2`; el grafo del gateway no cambió) |
+| main | `6a489648b055cb29d7b41934b38410529ce5be52` (merge de PR #172 sobre `80083f45`; el grafo del gateway no cambió) |
 | Imagen Prod actual (= shadow plan-read, grafo = main) | `sha256:dc8049d3c285c008219a32b7eff1329c160b374ff8862e9c26bec372f847c191` (Cloud Build `74b7cb5e`, tag `torneos-gw-shadow/gateway:plan-read-6726a07d-readable`) |
 | Imagen Prod anterior, rev `00001-7lw` (G1 `d2edf66d`, 17 archivos) | `sha256:d163a36bf05fbc8d31d4c9b8c67284cc7c637183bb8727c3b8cc789df2acd09e` |
 | Grafo G1 base (manifiesto versionado) | digest `cfe5cd02e5de9703c7b2634ccea196070f3e188f9d859754f299adb0e020ccd2` |
@@ -177,8 +179,8 @@ Con el flag de frontend OFF no existen "Mi plan", el badge FREE/PREMIUM, "Plan n
 | 6. Vercel `REACT_APP_TORNEOS_PLAN_READ_MODE=on` + redeploy | ✅ env `vC6YHwcitmPuCbNy` + `dpl_3i3jzSDodUVY4RKzwBioZ5szDB9o` (main `44b4b4b2`, bundle `main.45421abc.js`) |
 | 7. Certificar UX en Production (Mi plan, badge, temporadas, desktop/mobile, sin checkout) | ✅ `TORNEOS_WEB_PROD_PLAN_READ_UX_CERTIFIED` (ver abajo) |
 | 7b. PR #171 (Mi plan: comparación sólo con lo disponible, Próximamente aparte, sello centrado, discoverability mobile) | ✅ mergeado `80083f45` + Vercel Production, `TORNEOS_WEB_PROD_MI_PLAN_V2_CERTIFIED` (ver abajo) |
-| 7c. PR #172 (sello FREE/PREMIUM visible en teléfonos + test que rechaza sellos ocultos o 0×0) | 🟡 abierto, CI/Preview en curso — **gate A pendiente (merge)**. Sin Production |
-| 8. Android (build nuevo con este frontend) | ⛔ gate J — después de #172 |
+| 7c. PR #172 (sello FREE/PREMIUM visible en teléfonos + test que rechaza sellos ocultos o 0×0) | ✅ mergeado `6a489648` + Vercel `dpl_9y9zFtwv…` (`main.ae463a7d.js`), sello certificado en Prod 1440→320 |
+| 8. Android (build nuevo con este frontend) | ⛔ gate J — Nico: "NO Android todavía" |
 
 **Certificación UX web (2026-10-02, sesión real de Nico, org QA `ff425559…`, temporada `8b82d3ab…`):**
 
@@ -262,14 +264,32 @@ GO de Nico (gates B+C) sólo para `TORNEOS_PLAN_READ_MODE=on` en el gateway Prod
 - **Frontend:** bundle Production `main.d122a441.js` sin `REACT_APP_TORNEOS_PLAN_READ_MODE` ni referencias a las RPC de plan → sin cambio visible.
 - **DB:** ninguna operación. Billing, Commerce y MP LIVE siguen OFF.
 
-## Próximo gate — PLAN READ ON en el frontend Production (Vercel)
+## SOCIAL-V1 — Estudio Social en Production (auditoría + plan, 2026-10-02, PR #173 abierto)
 
-- **Cambio exacto:** agregar `REACT_APP_TORNEOS_PLAN_READ_MODE=on` (production-only) al proyecto Vercel `arma2` y redeployar Production desde `main` (mismo commit). Sin env de Billing, Commerce ni MP.
-- **Efecto:** aparecen "Mi plan", el badge FREE/PREMIUM y la pantalla por temporada leyendo el plan autoritativo del gateway. Billing sigue `false` → sin compra ni checkout.
-- **Certificación:** bundle nuevo con el flag `on` y sin Billing; UX en Production (Mi plan, badge, temporadas, desktop/mobile, sin checkout, errores fail-closed) con la sesión QA; logs del gateway.
-- **Rollback:** promover `dpl_FYRP4LaoNBvs2gpz3wjyH5hyQvmN` (bundle `main.d122a441.js`) o quitar la env y redeployar.
+Nada habilitado. Detalle en `backend/torneos/social-v1/AUDIT.md` y `PLAN.md` (rama `claude/social-v1-audit-plan-74a9ff`).
 
-## PR #172 — sello FREE/PREMIUM en teléfonos (2026-10-02, abierto, NO mergeado)
+- **Contrato:** 3 RPC (`get_tournament_social_studio_context`, `get_tournament_social_snapshot`, `authorize_tournament_social_export`). `set_tournament_social_permission` no tiene consumidor en la UI → fuera de la allowlist.
+- **ACL POST_0007:** las dos lecturas tienen EXECUTE para `authenticated` desde el baseline; `authorize_…` está cerrada (0001), md5 `f211d9a2…`. 171/12.
+- **Hallazgo F1 (lab):** `authorize_…` con `theme NULL` autoriza a un FREE como white-label; con `piece NULL` también autoriza. Se corrige en 0008.
+- **Migración mínima 0008:** NULL-guards en el cuerpo + `GRANT EXECUTE` a `authenticated` (172/12), con pre/post fail-closed y rollback.
+- **Gateway:** `TORNEOS_SOCIAL_MODE=on` agrega exactamente las 3 (`social.ts` + `social-v1-rpc-allowlist.json`); otro valor cierra el boot.
+- **Web:** `socialContentGenerator` entra a `PRODUCTION_ELIGIBLE_FLAGS`; overlay `social_studio` sólo con híbrido + PLAN READ + flag. Vercel: `REACT_APP_TORNEOS_SOCIAL_GENERATOR_ENABLED=true`.
+- **Sin Multimedia:** escudos → monograma/iniciales, foto sólo local, firma embebida. Las 11 placas renderizan sin fotos.
+- **FREE:** exporta Base `round_results`/`standings`/`next_fixture` con firma.
+- **PREMIUM:** 11 placas × 5 estilos.
+- **Billing/Commerce/MP:** sin cambios.
+- **Rollout (cada uno es un gate):**
+  1. Merge (A, todo OFF).
+  2. 0008 en DB (D).
+  3. Imagen gateway con SOCIAL ausente (B).
+  4. `TORNEOS_SOCIAL_MODE=on` (B+C).
+  5. Env Vercel + redeploy (C).
+
+## Próximo gate
+
+**A — merge de la implementación SOCIAL-V1**, una vez hecha (T1–T5 del plan, todo OFF por defecto). Antes de eso no hay ningún gate de Production. Android (J) sigue en espera.
+
+## PR #172 — sello FREE/PREMIUM en teléfonos (2026-10-02, mergeado `6a489648`, certificado en Prod)
 
 - **Rama:** `claude/free-premium-badge-mobile-28d076`, commit `cf9962cc`, sobre main `80083f45`.
 - **CSS:**
@@ -281,12 +301,12 @@ GO de Nico (gates B+C) sólo para `TORNEOS_PLAN_READ_MODE=on` en el gateway Prod
   - `scripts/qa/plan-ux/browser-check.cjs` mide 1440/1024/700/540/390/320 × FREE/PREMIUM con Bebas Neue local. Rechaza `display: none`, `visibility`, opacidad 0 y cajas de 0×0 antes de medir.
   - Puerto configurable: `PLAN_UX_PORT`. Otro worktree puede tener ocupado el 3187 con un build distinto, así que hay que chequear con `lsof` el cwd del server antes de confiar en una corrida.
 - **Local:** harness 51/51, `test:ci` 348/3377, G1 12/12, QA guards 104/104.
-- **Próximo:** gate A (merge). Después, Vercel Production desde main (gate B, por git) y la recertificación visual en 390/320 con la sesión de Nico.
+- **Prod (`TORNEOS_WEB_PROD_PLAN_SEAL_MOBILE_CERTIFIED`):** popup same-origin (Prod manda `X-Frame-Options: DENY`). Círculo de 236/150/108/108/98/88 px a 1440/1024/700/540/390/320, emblema centrado, sin overflow, 1 lectura de plan, 0 commerce. Rollback: promover `dpl_GidwEwYR…`.
 
 ## Gotchas operativos
 
 - `integration/torneos-core-contracts/deno-runtime-hardening.test.mjs` reescribe `backend/torneos/mp-b/evidence/mp-b1.1-r3/offline.json`; restaurarlo con `git checkout --` después de correrlo, o el guard de confinamiento G1 falla.
-- `backend/torneos/perf-v2/g1-main-integration.test.mjs` exige que todo archivo cambiado desde `4a8c5bbe` esté en su allowlist: un doc nuevo en `docs/torneos/` necesita entrar ahí.
+- `backend/torneos/perf-v2/g1-main-integration.test.mjs` exige que todo archivo cambiado desde `4a8c5bbe` esté en su allowlist: un doc nuevo en `docs/torneos/` necesita entrar ahí (SOCIAL-V1 agregó los prefijos `backend/torneos/social-v1/` y `backend/torneos/infra/torneos-cloudrun-readonly/`).
 - `plan-read.test.mjs` necesita `node_modules` (`npm ci`).
 - El probe autenticado debe esperar `/terms` y abortar si la app ya llamó al gateway: si la pestaña de Chrome recibe foco/clics puede navegar a `/torneos` y la app hace su propio `/exchange`. Si la sesión QA está por vencer, recargar `/login?returnTo=%2Fterms` deja que la app la renueve al iniciar (en una pestaña ya abierta el auto-refresh puede no correr).
 - En claude-in-chrome, `javascript_tool` no espera un IIFE async suelto: guardar la promesa en `window` y hacer `await` en una segunda llamada. El filtro de salida bloquea claves con "token"/"bearer"/"auth".
@@ -295,6 +315,8 @@ GO de Nico (gates B+C) sólo para `TORNEOS_PLAN_READ_MODE=on` en el gateway Prod
 
 | Estado | Fecha |
 |---|---|
+| `SOCIAL_V1_AUDIT_READY` (auditoría + plan, sin Production) | 2026-10-02 |
+| `TORNEOS_WEB_PROD_PLAN_SEAL_MOBILE_CERTIFIED` (PR #172, main `6a489648`) | 2026-10-02 |
 | `TORNEOS_WEB_PROD_MI_PLAN_V2_CERTIFIED` (PR #171, main `80083f45`) | 2026-10-02 |
 | `TORNEOS_WEB_PROD_PLAN_READ_UX_CERTIFIED` | 2026-10-02 |
 | `TORNEOS_GATEWAY_PROD_PLAN_READ_ON_CERTIFIED` | 2026-10-02 |
