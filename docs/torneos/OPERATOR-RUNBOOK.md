@@ -64,15 +64,16 @@ app.arma2.com.ar (Vercel, CRA)  ──Core auth──▶  Supabase Core  rcyuuoa
 | Servicio | `torneos-gateway` |
 | URL pública (única aceptada por el host guard) | `https://torneos-gateway-476836389730.southamerica-east1.run.app/functions/v1/torneos-gateway` |
 | Alias `*-7fnauuvvxa-rj.a.run.app` | responde 403 (host guard), esperado |
-| Revisión activa | `torneos-gateway-00002-skw`, 100 % fijado por REVISION (no LATEST: una revisión nueva no recibe tráfico sola). Anterior: `torneos-gateway-00001-7lw` |
+| Revisión activa | `torneos-gateway-00003-b78` (PLAN READ ON), 100 % fijado por REVISION (no LATEST: una revisión nueva no recibe tráfico sola). Anteriores: `torneos-gateway-00002-skw` (misma imagen, PLAN READ OFF), `torneos-gateway-00001-7lw` (imagen pre-PLAN READ) |
 | Imagen activa | `.../torneos-gateway/gateway@sha256:dc8049d3c285c008219a32b7eff1329c160b374ff8862e9c26bec372f847c191` (tag `main-44b4b4b2`) |
 | Escalado | min 0, max 3, concurrencia 80, 1 vCPU / 512Mi, `cpuIdle` (request-based billing), startup CPU boost |
 | Timeout | 30 s |
 | Service account | `torneos-gateway-prod@arma2-465223.iam.gserviceaccount.com` (sólo `secretAccessor` sobre 4 secretos) |
 | Ingress / invoker | all / IAM invoker deshabilitado (público, la autenticación es del gateway) |
 | Secretos (Secret Manager, @1) | `torneos-gw-shadow-bridge-keys`, `-contract-secret`, `-db-identity-writer-url`, `-db-core-adapter-url`. Etiquetados `production=torneos-gateway`: **no borrar en una limpieza de shadows** |
-| Env no secretas | `CORE_ANON_KEY`, `CORE_AUTH_URL`, `CORE_CONTRACT_URL`, `CORE_JWT_ISSUER`, `TORNEOS_ALLOWED_ORIGIN=https://app.arma2.com.ar`, `TORNEOS_ANON_KEY`, `TORNEOS_DB_SSL_CA`, `TORNEOS_GATEWAY_PUBLIC_URL`, `TORNEOS_REST_URL` (13 env en total con los 4 secretos) |
-| Env de commerce / billing / MP / PLAN READ | **ninguna** |
+| Env no secretas | `CORE_ANON_KEY`, `CORE_AUTH_URL`, `CORE_CONTRACT_URL`, `CORE_JWT_ISSUER`, `TORNEOS_ALLOWED_ORIGIN=https://app.arma2.com.ar`, `TORNEOS_ANON_KEY`, `TORNEOS_DB_SSL_CA`, `TORNEOS_GATEWAY_PUBLIC_URL`, `TORNEOS_PLAN_READ_MODE=on`, `TORNEOS_REST_URL` (14 env en total con los 4 secretos) |
+| Env de commerce / billing / MP | **ninguna** |
+| Env de PLAN READ | `TORNEOS_PLAN_READ_MODE=on` (desde rev `00003-b78`) |
 | Artifact Registry | `southamerica-east1-docker.pkg.dev/arma2-465223/torneos-gateway/gateway` (Prod) y `.../torneos-gw-shadow/gateway` (shadows) |
 
 `gcloud` local corre con Python 3.9 y `gcloud run` crashea (`CommandLoadFailure`). Operar Cloud Run por la REST API v2 (`run.googleapis.com/v2/...`) con `gcloud auth print-access-token`; las copias de imagen y las verificaciones de contenido se hacen con Cloud Build (`gcrane`, `docker run` del digest).
@@ -122,7 +123,7 @@ Directorio: `backend/torneos/supabase/migrations/`. Production está en **POST_0
 
 | Capa | Variable | Estado Production | Efecto en ON |
 |---|---|---|---|
-| Gateway | `TORNEOS_PLAN_READ_MODE` | **ausente (OFF)** | Agrega sólo `get_effective_tournament_season_entitlements` y `get_effective_tournament_entitlements` a la allowlist. Cualquier valor distinto de `on`/`off`/vacío cierra el boot (`PlanReadConfigError`) |
+| Gateway | `TORNEOS_PLAN_READ_MODE` | **`on`** (rev `00003-b78`, 2026-10-02) | Agrega sólo `get_effective_tournament_season_entitlements` y `get_effective_tournament_entitlements` a la allowlist. Cualquier valor distinto de `on`/`off`/vacío cierra el boot (`PlanReadConfigError`) |
 | Gateway | `TORNEOS_COMMERCE_MODE` y env de MP/pagos | **ausentes (OFF)** | Production rechaza commerce |
 | Frontend | `REACT_APP_TORNEOS_PLAN_READ_MODE` | **ausente (OFF)** | Sólo `on` exacto, en composición `hybrid`: `entitlements` + `plan` (overlay `stagingV1PlanReadOverlay`). Billing sigue `false` |
 | Frontend | Billing | OFF | — |
@@ -146,6 +147,7 @@ Con el flag de frontend OFF no existen "Mi plan", el badge FREE/PREMIUM, "Plan n
   - Temporada QA + otra org, org QA + temporada ajena, temporada inexistente, org inexistente, torneo cruzado → 403 `TORNEOS_ENTITLEMENTS_FORBIDDEN`.
   - QA → FREE, `assignmentSource=default_free`, `schemaVersion=4`, galería 25, 1 colaborador admin + owner, Social Studio Base 3.
   - Sin bearer / bearer inválido → 401. RPC desconocida y 14 comerciales → 403. Checkout/MP → 404.
+- Production `torneos-gateway-00003-b78` (PLAN READ ON) certificado el 2026-10-02 con la misma matriz: 32/32 (`TORNEOS_GATEWAY_PROD_PLAN_READ_ON_CERTIFIED`). El frontend Production todavía no pide plan (flag de Vercel OFF).
 
 ---
 
@@ -169,9 +171,9 @@ Con el flag de frontend OFF no existen "Mi plan", el badge FREE/PREMIUM, "Plan n
 | 1. PR #169 | ✅ mergeado (`44b4b4b2`) |
 | 2. Vercel Production desde main, PLAN READ OFF | ✅ READY, sin superficie de plan |
 | 3. Gateway Production desde main, PLAN READ OFF | ✅ `TORNEOS_GATEWAY_PROD_PLAN_READ_OFF_CERTIFIED` (rev `torneos-gateway-00002-skw`) |
-| 4. Gateway `TORNEOS_PLAN_READ_MODE=on` | ⛔ gate B+C — **próximo gate** |
-| 5. Certificar gateway Production (matriz del shadow, 1 `/exchange`) | pendiente |
-| 6. Vercel `REACT_APP_TORNEOS_PLAN_READ_MODE=on` + redeploy | ⛔ gate B+C |
+| 4. Gateway `TORNEOS_PLAN_READ_MODE=on` | ✅ rev `torneos-gateway-00003-b78` (misma imagen `dc8049d3…`) |
+| 5. Certificar gateway Production (matriz del shadow, 1 `/exchange`) | ✅ `TORNEOS_GATEWAY_PROD_PLAN_READ_ON_CERTIFIED` (32/32) |
+| 6. Vercel `REACT_APP_TORNEOS_PLAN_READ_MODE=on` + redeploy | ⛔ gate B+C — **próximo gate** |
 | 7. Certificar UX en Production (Mi plan, badge, temporadas, desktop/mobile, sin checkout) | pendiente |
 | 8. Android (build nuevo con este frontend) | ⛔ gate J |
 
@@ -183,7 +185,7 @@ Objetivo final: "Mi plan" en la navegación, badge FREE/PREMIUM, pantalla Mi pla
 
 | Capa | Cómo |
 |---|---|
-| Gateway (hoy) | Tráfico 100 % a `torneos-gateway-00001-7lw` (imagen `d163a36b…`): vuelve al gateway pre-PLAN READ. Segundos, sin rebuild |
+| Gateway (hoy) | Tráfico 100 % a `torneos-gateway-00002-skw` (misma imagen `dc8049d3…`, PLAN READ OFF). Segundos, sin rebuild. Más atrás: `torneos-gateway-00001-7lw` (imagen `d163a36b…`, pre-PLAN READ) |
 | Gateway (genérico) | Tráfico 100 % a la revisión anterior (Run API v2: `PATCH services/torneos-gateway` con `traffic=[{type: REVISION, revision: <anterior>, percent: 100}]`). Sin rebuild |
 | Gateway PLAN READ ON → OFF | quitar `TORNEOS_PLAN_READ_MODE` (nueva revisión) o volver tráfico a la revisión OFF |
 | Frontend | promover el deploy Vercel anterior, o quitar `REACT_APP_TORNEOS_PLAN_READ_MODE` y redeploy |
@@ -219,24 +221,44 @@ Deploy autorizado por Nico (gate B) desde `main 44b4b4b2`, PLAN READ ausente.
 - **Logs desde 14:30Z:** 0 5xx, 0 `CORE_UNAVAILABLE`, 0 líneas de error. Latencia server-side en instancia nueva: exchange 1.2 s, contexto 1.16 s (en ráfaga de 22), comparable con `00001-7lw` tras cold start (1.18 s / 1.6–1.8 s). Unauth ~260 ms, igual que antes. Sin regresión.
 - **DB:** ninguna operación de DB ni migración en este paso; 0007 no se reaplicó. Billing, Commerce y MP LIVE siguen OFF.
 
-## Próximo gate — PLAN READ ON en el gateway Production
+## Certificación 2026-10-02 — `TORNEOS_GATEWAY_PROD_PLAN_READ_ON_CERTIFIED`
 
-- **Cambio exacto:** agregar la env `TORNEOS_PLAN_READ_MODE=on` al template de `torneos-gateway` (misma imagen `dc8049d3…`), sin env de commerce, billing ni MP. Crea la revisión 00003 con 0 % de tráfico (el tráfico está fijado en `00002-skw`); chequeo por tag, luego 100 %.
-- **Efecto:** la allowlist suma sólo `get_effective_tournament_season_entitlements` y `get_effective_tournament_entitlements`. El frontend Production sigue sin pedirlas (flag de Vercel OFF), así que no hay cambio visible.
-- **Certificación:** la matriz del shadow (32 checks) contra la URL Production con un solo `/exchange`.
-- **Rollback:** tráfico 100 % a `torneos-gateway-00002-skw`.
+GO de Nico (gates B+C) sólo para `TORNEOS_PLAN_READ_MODE=on` en el gateway Production, misma imagen y todo lo demás sin cambios. Vercel, Billing, Commerce y MP no se tocaron.
+
+- **Baseline:** servicio en gen 3, 100 % a `00002-skw`, 13 env, imagen `dc8049d3…`. Unauth 15/15 idéntica (status + hash de body) a la certificación OFF.
+- **Revisión:** PATCH con el `etag` leído; template idéntico salvo la env nueva (verificado por diff). Creó `torneos-gateway-00003-b78` con 0 % (tráfico fijado en `00002-skw`) y tag temporal: Ready y healthy (el boot acepta `on`, sin `PlanReadConfigError`). Candidata por URL de tag + `x-forwarded-host`: unauth 15/15 sin diffs.
+- **Tráfico:** 100 % a `00003-b78` (REVISION), tag eliminado. Config post-cambio: template = anterior + `TORNEOS_PLAN_READ_MODE=on`; 0 env de commerce/billing/MP; labels, escalado (max 3), ingress e invoker iguales. Unauth 15/15 en la URL Production sin diffs.
+- **Autenticado (32/32 + 2/2 de regresión, un solo `/exchange` del probe, 2.9 s, 15:42:59Z):** documento `/login?returnTo=%2Fterms`, sesión QA `44106956…` (renovada por la propia app al cargar), identidad preexistente `67671b64…`, TTL 120 s. Guard de fetch: 0 bloqueadas del probe; 9 GET de la app a Core REST bloqueados por el guard (no salieron).
+  - Org QA + temporada QA → 200; lectura por torneo → 200; mismo scope, plan, capabilities y límites.
+  - QA → FREE, `default_free`, `schemaVersion=4`, `requiresPremium=false`, galería 25, 1 colaborador admin + owner (no cuenta), Social Studio Base 3, premium/full `false`.
+  - N1 (temporada QA + org ajena), N2 (org QA + temporada ajena), temporada inexistente, org inexistente, torneo cruzado → 403 `42501 TORNEOS_ENTITLEMENTS_FORBIDDEN`.
+  - Sin bearer / bearer inválido → 401. RPC desconocida y las 14 comerciales → 403 `rpc not enabled`. `/commerce/v1/season-checkout` y `/internal/v1/season-checkout-preference` → 404.
+  - Regresión: `get_tournament_workspace_context` y `get_tournament_competition_context` (org QA) → 200.
+- **Incidente de harness (sin impacto):** el primer intento falló cerrado con `WRONG_PAGE_STOP` antes de su exchange: la pestaña pasó a `/torneos` (el documento tenía foco; el código no redirige `/terms`) y la app hizo su propio `/exchange` + `get_my_tournament_memberships` + `get_tournament_workspace_context`, los tres 200 contra `00003-b78`. Se reintentó en un documento nuevo con espera de `/terms` y guard `APP_ALREADY_HIT_GATEWAY_STOP`. Exchanges 200 en `00003-b78`: 2 (app 15:39:28Z, probe 15:43:00Z).
+- **Logs desde 15:30Z:** 0 5xx, 0 líneas de error, 0 `CORE_UNAVAILABLE`, 0 `PlanReadConfigError`. Latencia server-side: exchange ≤ 1.0 s, lecturas de plan ≤ 0.9 s, contexto ≤ 1.13 s.
+- **Frontend:** bundle Production `main.d122a441.js` sin `REACT_APP_TORNEOS_PLAN_READ_MODE` ni referencias a las RPC de plan → sin cambio visible.
+- **DB:** ninguna operación. Billing, Commerce y MP LIVE siguen OFF.
+
+## Próximo gate — PLAN READ ON en el frontend Production (Vercel)
+
+- **Cambio exacto:** agregar `REACT_APP_TORNEOS_PLAN_READ_MODE=on` (production-only) al proyecto Vercel `arma2` y redeployar Production desde `main` (mismo commit). Sin env de Billing, Commerce ni MP.
+- **Efecto:** aparecen "Mi plan", el badge FREE/PREMIUM y la pantalla por temporada leyendo el plan autoritativo del gateway. Billing sigue `false` → sin compra ni checkout.
+- **Certificación:** bundle nuevo con el flag `on` y sin Billing; UX en Production (Mi plan, badge, temporadas, desktop/mobile, sin checkout, errores fail-closed) con la sesión QA; logs del gateway.
+- **Rollback:** promover `dpl_FYRP4LaoNBvs2gpz3wjyH5hyQvmN` (bundle `main.d122a441.js`) o quitar la env y redeployar.
 
 ## Gotchas operativos
 
 - `integration/torneos-core-contracts/deno-runtime-hardening.test.mjs` reescribe `backend/torneos/mp-b/evidence/mp-b1.1-r3/offline.json`; restaurarlo con `git checkout --` después de correrlo, o el guard de confinamiento G1 falla.
 - `backend/torneos/perf-v2/g1-main-integration.test.mjs` exige que todo archivo cambiado desde `4a8c5bbe` esté en su allowlist: un doc nuevo en `docs/torneos/` necesita entrar ahí.
 - `plan-read.test.mjs` necesita `node_modules` (`npm ci`).
+- El probe autenticado debe esperar `/terms` y abortar si la app ya llamó al gateway: si la pestaña de Chrome recibe foco/clics puede navegar a `/torneos` y la app hace su propio `/exchange`. Si la sesión QA está por vencer, recargar `/login?returnTo=%2Fterms` deja que la app la renueve al iniciar (en una pestaña ya abierta el auto-refresh puede no correr).
 - En claude-in-chrome, `javascript_tool` no espera un IIFE async suelto: guardar la promesa en `window` y hacer `await` en una segunda llamada. El filtro de salida bloquea claves con "token"/"bearer"/"auth".
 
 ## Último estado certificado
 
 | Estado | Fecha |
 |---|---|
+| `TORNEOS_GATEWAY_PROD_PLAN_READ_ON_CERTIFIED` | 2026-10-02 |
 | `TORNEOS_GATEWAY_PROD_PLAN_READ_OFF_CERTIFIED` | 2026-10-02 |
 | `TORNEOS_PLAN_MAIN_MERGED_SAFE` | 2026-10-02 |
 | `TORNEOS_SEASON_SCOPE_PROD_DB_CERTIFIED` | 2026-10-01 |
