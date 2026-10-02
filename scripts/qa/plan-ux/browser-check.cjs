@@ -25,13 +25,48 @@ const path = require('path');
     if(width===1440){const labels=await page.getByRole('navigation',{name:'Navegación de la organización',exact:true}).getByRole('link').allTextContents();if(labels.indexOf('Mi plan')!==labels.indexOf('Configuración')-1)throw new Error('Navigation order');}
     await page.getByLabel('Temporada activa').selectOption('20000000-0000-4000-8000-000000000002');
     await expect(page.getByRole('heading',{name:'PREMIUM · Temporada 2027',exact:true})).toBeVisible();
-    await expect(page.locator('#torneos-plan-context a')).toHaveText('PREMIUM · Temporada 2027');
+    await expect(page.locator('#torneos-plan-context a')).toContainText('PREMIUM · Temporada 2027');
     await page.locator('#torneos-plan-context a').click();
     await expect(page.getByRole('heading',{name:'PREMIUM · Temporada 2027',exact:true})).toBeVisible();
     await page.getByRole('button',{name:'Ver Premium',exact:true}).click();
     await expect(page.locator('section[aria-labelledby="plan-comparison-title"]')).toBeFocused();
    }
    results.push({viewport:viewportName,state,seasons:count,passed:true,remoteRequests:remote.length});
+   await page.close();
+  }
+ }
+ // Mobile discoverability: the header names Mi plan above the fold with its badge; the bottom bar
+ // keeps its operational order (Mi plan stays in it) and shows it when it is the current section.
+ for(const [viewportName,width,height] of [['mobile',390,844],['small-mobile',320,740]]) {
+  for(const [state,route,badge] of [['free','inicio','FREE'],['premium','partidos','PREMIUM'],['free','mi-plan','FREE']]) {
+   const page=await browser.newPage({viewport:{width,height},reducedMotion:'reduce'});
+   const errors=[],remote=[];
+   page.on('pageerror',e=>errors.push(e.message));
+   await page.route('**/*',r=> {const url=new URL(r.request().url());if(url.hostname==='127.0.0.1' && url.port==='3187') return r.continue();remote.push(url.origin);return r.abort();});
+   await page.goto(`http://127.0.0.1:3187?state=${state}&seasons=2&path=${route}`);
+   const entry=page.locator('#torneos-plan-context').getByRole('link',{name:`Mi plan: ${badge} · Temporada 2026`,exact:true});
+   await expect(entry).toBeVisible();
+   await expect(entry).toContainText('Mi plan');
+   await expect(entry.locator('strong')).toHaveText(badge);
+   const box=await entry.boundingBox();
+   if(box.y+box.height>height/3 || box.height<44) throw new Error(`Mi plan header entry not above the fold at ${width}`);
+   const bar=page.getByRole('navigation',{name:'Navegación móvil de la organización',exact:true});
+   const labels=await bar.getByRole('link').allTextContents();
+   if(labels.slice(0,5).join()!=='Inicio,Torneos,Equipos,Fixture,Partidos' || !labels.includes('Mi plan')) throw new Error(`Mobile bar changed at ${width}: ${labels}`);
+   if(route==='mi-plan'){
+    // MemoryRouter: the redirect to the season plan shows as its heading, not in the URL.
+    await expect(page.getByRole('heading',{name:`${badge} · Temporada 2026`,exact:true})).toBeVisible();
+    const item=await bar.getByRole('link',{name:'Mi plan',exact:true}).boundingBox();
+    const navBox=await bar.boundingBox();
+    if(item.x<navBox.x || item.x+item.width>navBox.x+navBox.width+1) throw new Error(`Current Mi plan not shown in the bar at ${width}`);
+   } else {
+    await entry.click();
+    await expect(page.getByRole('heading',{name:`${badge} · Temporada 2026`,exact:true})).toBeVisible();
+   }
+   if(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth)) throw new Error(`Horizontal overflow at ${width}`);
+   if(errors.length || remote.length) throw new Error(JSON.stringify({errors,remote}));
+   if(width!==320) await page.screenshot({path:path.join('artifacts/plan-ux',`discover-${viewportName}-${route}.png`)});
+   results.push({viewport:viewportName,discoverability:route,state,passed:true,remoteRequests:remote.length});
    await page.close();
   }
  }

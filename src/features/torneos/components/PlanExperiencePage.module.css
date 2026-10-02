@@ -986,6 +986,13 @@
 .contextPlan > span { color: #c6cee8; }
 .contextPlan a { display: inline-flex; align-items: center; min-height: 44px; padding: 8px 14px; border: 1px solid #8777d8; border-radius: 12px; color: #f7f3ff; background: #211942; text-decoration: none; font-weight: 700; overflow-wrap: anywhere; }
 .contextPlan a[data-plan="premium"] { border-color: #bd9dff; background: #38275c; }
+.contextPlan a { gap: 8px; }
+.contextPlan a > svg { flex-shrink: 0; color: #c6baff; }
+.contextPlanTitle { white-space: nowrap; }
+.contextPlanBadge { padding: 2px 8px; border: 1px solid rgba(198, 186, 255, .45); border-radius: 999px; background: rgba(139, 124, 255, .18); font-size: 11px; font-weight: 800; letter-spacing: .04em; }
+.contextPlan a[data-plan="premium"] .contextPlanBadge { border-color: #e0cbff; background: rgba(189, 157, 255, .32); }
+.contextPlanSeason { min-width: 0; color: #c6cee8; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.contextPlanChevron { margin-left: auto; }
 .viewPremium { min-height: 44px; margin: 18px 8px 0 0; padding: 10px 18px; background: #8b7cff; border: 0; border-radius: 12px; color: #100b21; font-weight: 750; cursor: pointer; }
 .viewPremium:focus-visible, .contextPlan a:focus-visible, .comparison:focus-visible { outline: 3px solid #c6baff; outline-offset: 4px; }
 .inclusions { padding: 24px 0; }

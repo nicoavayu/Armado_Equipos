@@ -28,6 +28,8 @@ Ninguna variable se agrega a archivos versionados. **Mergear no activa PLAN READ
 
 Diferencia visual con `main` en OFF: `main` mostraba en el selector una píldora "Plan no verificado" con un torneo activo (la lectura nunca estaba servida en hybrid). Con el gate esa píldora tampoco aparece: con el flag OFF no hay ninguna superficie de plan.
 
+**Discoverability mobile (2026-10-02, post-certificación web):** en mobile "Mi plan" era el ítem 8 de 9 de la barra inferior y había que scrollearla para encontrarlo. No se reordenó la barra: las cinco primeras siguen siendo Inicio, Torneos, Equipos, Fixture y Partidos, y "Mi plan" sigue en ella. Lo que cambió es la entrada del header (`#torneos-plan-context`), que ya estaba arriba en todas las pantallas de la organización pero sólo decía "FREE · Temporada". Ahora dice **Mi plan**, muestra el plan como badge (FREE / PREMIUM / estados no confirmados), luego la temporada y un chevron, y su nombre accesible es el mismo. Además, la barra inferior trae a la vista su ítem actual cuando está fuera de las cinco primeras (Mi plan en la ruta de temporada, Ajustes). Sólo se mueve la barra, nunca la página. Desktop recibe la misma entrada, con el rail sin cambios. El flag sigue igual: con PLAN READ OFF no se ve nada de esto, y Billing, Commerce y MP siguen OFF. Para verificarlo, `scripts/qa/plan-ux/browser-check.cjs` (escenarios `discoverability`, 390 y 320).
+
 ## 0007 = lo aplicado en Production
 
 - Archivo: sha256 `ba0450f965f3357679e493efc8ac465eb37c836dafccdf21138ea9244d85a205`. Es el pin del gate de apply de Production.
