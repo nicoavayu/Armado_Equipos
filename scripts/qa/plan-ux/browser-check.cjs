@@ -19,6 +19,14 @@ const path = require('path');
    if(/Plan no verificado|Plan comercial|en este entorno|INTERNAL_CODE_DO_NOT_SHOW/.test(copy)) throw new Error(`Forbidden copy: ${state}`);
    if(!['free','premium'].includes(state) && /(?:FREE|PREMIUM) confirmado/.test(copy)) throw new Error('Unconfirmed plan shown');
    if(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth)) throw new Error(`Horizontal overflow at ${width}`);
+   // Future capabilities never share the FREE vs PREMIUM table: they live in their own Próximamente section,
+   // after it, and every block of it fits the viewport.
+   const comparison=await page.locator('section[aria-labelledby="plan-comparison-title"]').innerText();
+   if(/Estudio|Galería|Logo|escudo|Próximamente/.test(comparison)) throw new Error(`Future capability in the comparison at ${width}`);
+   const upcoming=page.locator('section[aria-labelledby="plan-upcoming-title"]');
+   await expect(upcoming.getByRole('heading',{name:'Próximamente',exact:true})).toBeVisible();
+   for(const name of ['Estudio Social','Galería de fotos','Logos y escudos']) await expect(upcoming.getByRole('heading',{name,exact:true})).toBeVisible();
+   if(await upcoming.evaluate(section=>[...section.querySelectorAll('*')].some(el=>el.getBoundingClientRect().right>window.innerWidth+0.5 || (el.scrollWidth>el.clientWidth+1 && getComputedStyle(el).overflowX==='hidden')))) throw new Error(`Próximamente overflows at ${width}`);
    if(errors.length || remote.length) throw new Error(JSON.stringify({errors,remote}));
    if(width!==320) await page.screenshot({path:path.join('artifacts/plan-ux',`after-${viewportName}-${state}-${count}.png`),fullPage:true});
    if(state==='free' && count===2){

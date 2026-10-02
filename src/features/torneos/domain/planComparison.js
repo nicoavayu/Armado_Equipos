@@ -1,43 +1,61 @@
-import { SOCIAL_FORMATS, SOCIAL_PIECES } from '../social/socialContracts';
+import { SOCIAL_PIECES } from '../social/socialContracts';
 import { FREE_BASE_FAMILY_IDS } from '../social/socialAccessPolicy';
 import { SOCIAL_THEME_REGISTRY } from '../social/socialThemes';
 
-// Lo que Mi plan promete del Estudio Social sale del catálogo que el Estudio
-// realmente dibuja y que `authorize_tournament_social_export` autoriza: si una
-// placa o un estilo cambia allá, la página del plan cambia con él.
-const FREE_PIECES = new Set(FREE_BASE_FAMILY_IDS);
+// La comparación FREE vs PREMIUM sólo lista lo que hoy se usa en Production
+// (todas son claves encendidas de la composición híbrida). Lo que sigue apagado
+// vive aparte, en PLAN_COMING_SOON: nunca se mezcla con lo disponible.
+export const PLAN_COMPARISON = Object.freeze([
+  { name: 'Fixture, partidos, actas y tabla', free: 'Incluidos', premium: 'Incluidos' },
+  { name: 'Página pública y comunicados', free: 'Incluidos', premium: 'Incluidos' },
+  { name: 'Colaboradores por temporada', free: 'Propietario + 1', premium: 'Propietario + 10' },
+].map((row) => Object.freeze(row)));
 
-export const SOCIAL_STUDIO_PLAN = Object.freeze({
-  freePieces: Object.freeze(SOCIAL_PIECES
-    .filter((piece) => FREE_PIECES.has(piece.id))
-    .map((piece) => piece.label)),
-  premiumPieces: Object.freeze(SOCIAL_PIECES
-    .filter((piece) => !FREE_PIECES.has(piece.id))
-    .map((piece) => piece.label)),
-  freeStyles: Object.freeze(SOCIAL_THEME_REGISTRY
-    .filter((theme) => theme.tier === 'free')
-    .map((theme) => theme.name)),
-  premiumStyles: Object.freeze(SOCIAL_THEME_REGISTRY
-    .filter((theme) => theme.tier === 'premium')
-    .map((theme) => theme.name)),
-  formats: Object.freeze(Object.values(SOCIAL_FORMATS).map((format) => format.label)),
+// Nombres cortos de las placas FREE tal como las nombra Mi plan; las placas
+// salen del catálogo que `authorize_tournament_social_export` autoriza.
+const FREE_PIECE_NAMES = Object.freeze({
+  round_results: 'Resultados',
+  standings: 'Tabla de posiciones',
+  next_fixture: 'Próxima fecha',
 });
 
-const count = (items, singular, plural) => `${items.length} ${items.length === 1 ? singular : plural}`;
+const joinAnd = (items) => (items.length > 1 ? `${items.slice(0, -1).join(', ')} y ${items[items.length - 1]}` : items.join(''));
 
-// `soon` marca lo que hoy no se puede usar en la app: Multimedia, la carga de
-// logos y escudos y el Estudio Social siguen apagados fuera del laboratorio.
-// `included` es lo que "Qué incluye tu plan" muestra como disponible hoy.
-export const PLAN_COMPARISON = Object.freeze([
-  { name: 'Fixture, partidos, actas y tabla', free: 'Incluidos', premium: 'Incluidos', included: true },
-  { name: 'Página pública y comunicados', free: 'Incluidos', premium: 'Incluidos', included: true },
-  { name: 'Colaboradores por temporada', free: 'Propietario + 1', premium: 'Propietario + 10', included: true },
-  { name: 'Logo del torneo y escudos', free: 'Incluidos', premium: 'Incluidos', soon: true },
-  { name: 'Galería de fotos', free: '25 archivos', premium: '1.000 archivos', soon: true },
+const themeNames = (tier) => SOCIAL_THEME_REGISTRY
+  .filter((theme) => !tier || theme.tier === tier)
+  .map((theme) => theme.name);
+
+const freePieceNames = FREE_BASE_FAMILY_IDS.map((id) => (
+  FREE_PIECE_NAMES[id] || SOCIAL_PIECES.find((piece) => piece.id === id)?.label || id
+));
+
+const allStyles = themeNames();
+
+// Estudio Social, galería de fotos y logos y escudos siguen apagados en
+// Production (`social_studio`, `media` y `branding_assets` en false): Mi plan
+// sólo adelanta cómo se van a repartir entre los planes.
+export const PLAN_COMING_SOON = Object.freeze([
   {
     name: 'Estudio Social',
-    free: `${count(SOCIAL_STUDIO_PLAN.freePieces, 'placa', 'placas')} · estilo ${SOCIAL_STUDIO_PLAN.freeStyles.join(', ')} · con firma Arma2`,
-    premium: `Todas las placas · ${count([...SOCIAL_STUDIO_PLAN.freeStyles, ...SOCIAL_STUDIO_PLAN.premiumStyles], 'estilo', 'estilos')} · firma Arma2 opcional`,
-    soon: true,
+    summary: 'Placas para redes con los datos oficiales del torneo.',
+    free: [...themeNames('free').map((name) => `Estilo ${name}`), ...freePieceNames],
+    premium: [
+      'Todas las placas',
+      `${allStyles.length} estilos: ${joinAnd(allStyles)}`,
+      'Posibilidad de quitar la firma Arma2',
+    ],
   },
-].map((row) => Object.freeze(row)));
+  {
+    name: 'Galería de fotos',
+    summary: 'Fotos de la temporada.',
+    free: ['Hasta 25 archivos'],
+    premium: ['Hasta 1.000 archivos'],
+  },
+  {
+    name: 'Logos y escudos',
+    summary: 'Logo del torneo y escudos de los equipos, en los dos planes.',
+  },
+].map((item) => Object.freeze({
+  ...item,
+  ...(item.free ? { free: Object.freeze(item.free), premium: Object.freeze(item.premium) } : {}),
+})));

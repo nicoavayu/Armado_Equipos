@@ -1027,18 +1027,19 @@
 .comparisonTable tbody th { font-weight: 500; }
 .comparisonTable td:last-child { background: rgba(139,124,255,.06); }
 .tableCaption { text-align: left; padding: 16px; color: #c6cee8; }
-.comingSoon { display: block; color: #ffca6a; font-size: 11px; margin-top: 6px; }
-.studioPlan { margin-top: 24px; padding: 20px; border: 1px solid rgba(255,255,255,.12); border-radius: 16px; background: rgba(20,16,41,.6); }
-.studioPlan h3 { margin: 0; font-size: 18px; }
-.studioPlan > p { margin: 8px 0 0; color: #c6cee8; font-size: 13px; line-height: 1.6; }
-.studioTiers { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 16px; }
-.studioTiers > div { min-width: 0; padding: 16px; border: 1px solid rgba(255,255,255,.1); border-radius: 12px; }
-.studioTiers > div[data-tier="premium"] { border-color: rgba(139,124,255,.4); background: rgba(139,124,255,.06); }
-.studioTiers h4 { margin: 0; color: #c6baff; font-size: 12px; letter-spacing: .08em; }
-.studioTiers ul { display: grid; gap: 8px; margin: 12px 0 0; padding: 0; list-style: none; }
-.studioTiers li { color: #f7f3ff; font-size: 13px; line-height: 1.5; overflow-wrap: anywhere; }
-.studioTiers strong { color: #fff; }
+.upcoming { margin-top: clamp(38px, 6vw, 68px); }
+.upcoming .sectionHeading > span { color: #ffca6a; }
+.upcomingList { display: grid; gap: 12px; margin-top: 20px; }
+.upcomingItem { min-width: 0; padding: 20px; border: 1px dashed rgba(255,202,106,.35); border-radius: 16px; background: rgba(20,16,41,.6); }
+.upcomingItem h3 { margin: 0; font-size: 18px; }
+.upcomingItem > p { margin: 6px 0 0; color: #c6cee8; font-size: 13px; line-height: 1.6; }
+.upcomingTiers { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 16px; }
+.upcomingTiers > div { min-width: 0; padding: 16px; border: 1px solid rgba(255,255,255,.1); border-radius: 12px; }
+.upcomingTiers > div[data-tier="premium"] { border-color: rgba(139,124,255,.4); background: rgba(139,124,255,.06); }
+.upcomingTiers h4 { margin: 0; color: #c6baff; font-size: 12px; letter-spacing: .08em; }
+.upcomingTiers ul { display: grid; gap: 8px; margin: 12px 0 0; padding: 0 0 0 18px; }
+.upcomingTiers li { color: #f7f3ff; font-size: 13px; line-height: 1.5; overflow-wrap: anywhere; }
 .availability { color: #c6cee8; font-size: 13px; line-height: 1.6; margin: 20px 0; }
-@media (max-width: 760px) { .studioTiers { grid-template-columns: 1fr; } .studioPlan { padding: 16px; } .contextPlan { align-items: flex-start; } .contextPlan > span { display: none; } .contextPlan a { width: 100%; } .comparisonTable th, .comparisonTable td { padding: 14px 9px; font-size: 12px; } .comparisonTable th:first-child { width: 40%; } }
+@media (max-width: 760px) { .upcomingTiers { grid-template-columns: 1fr; } .upcomingItem { padding: 16px; } .contextPlan { align-items: flex-start; } .contextPlan > span { display: none; } .contextPlan a { width: 100%; } .comparisonTable th, .comparisonTable td { padding: 14px 9px; font-size: 12px; } .comparisonTable th:first-child { width: 40%; } }
 
 .comparisonTable th, .comparisonTable td { color: #f7f3ff; }

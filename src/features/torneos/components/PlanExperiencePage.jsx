@@ -2,7 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { Check, ShieldCheck } from 'lucide-react';
 import { useOutletContext, useLocation } from 'react-router-dom';
 import { useOptionalTorneosCompetition } from '../context/TorneosCompetitionContext';
-import { PLAN_COMPARISON, SOCIAL_STUDIO_PLAN } from '../domain/planComparison';
+import { PLAN_COMING_SOON, PLAN_COMPARISON } from '../domain/planComparison';
 import { describePlanState } from '../domain/planUx';
 import { clearPremiumIntent } from '../domain/premiumIntent';
 import CompetitionSelector from './CompetitionSelector';
@@ -42,37 +42,27 @@ export default function PlanExperiencePage({ organization: organizationProp = nu
     </section>
     {confirmed && <section className={styles.inclusions} aria-label="Inclusiones actuales">
       <h2>Qué incluye tu plan</h2>
-      <ul>{PLAN_COMPARISON.filter((row) => row.included).map(({ name, free, premium }) => <li key={name}><Check size={16} aria-hidden="true" /><span>{name}: {label === 'PREMIUM' ? premium : free}</span></li>)}</ul>
+      <ul>{PLAN_COMPARISON.map(({ name, free, premium }) => <li key={name}><Check size={16} aria-hidden="true" /><span>{name}: {label === 'PREMIUM' ? premium : free}</span></li>)}</ul>
     </section>}
     <section ref={comparisonRef} tabIndex={-1} className={styles.comparison} aria-labelledby="plan-comparison-title">
       <div className={styles.sectionHeading}><span>FREE VS PREMIUM</span><h2 id="plan-comparison-title">Qué agrega Premium</h2><p>El plan se elige por temporada e incluye todos sus torneos. Premium no se extiende a otras temporadas.</p></div>
       <div className={styles.comparisonTable}>
-        <table><caption className={styles.tableCaption}>Qué incluye cada plan en una temporada</caption><thead><tr><th scope="col">Incluye</th><th scope="col">FREE</th><th scope="col">PREMIUM</th></tr></thead><tbody>{PLAN_COMPARISON.map(({ name, free, premium, soon }) => <tr key={name}><th scope="row">{name}{soon && <small className={styles.comingSoon}>Próximamente</small>}</th><td>{free}</td><td>{premium}</td></tr>)}</tbody></table>
+        <table><caption className={styles.tableCaption}>Qué incluye cada plan en una temporada</caption><thead><tr><th scope="col">Incluye</th><th scope="col">FREE</th><th scope="col">PREMIUM</th></tr></thead><tbody>{PLAN_COMPARISON.map(({ name, free, premium }) => <tr key={name}><th scope="row">{name}</th><td>{free}</td><td>{premium}</td></tr>)}</tbody></table>
       </div>
-      <section className={styles.studioPlan} aria-labelledby="plan-studio-title">
-        <h3 id="plan-studio-title">Estudio Social</h3>
-        <p>Placas para redes armadas con los datos oficiales del torneo, en {SOCIAL_STUDIO_PLAN.formats.join(' y ')}.</p>
-        <div className={styles.studioTiers}>
-          <div>
-            <h4>FREE</h4>
-            <ul>
-              <li><strong>Placas:</strong> {SOCIAL_STUDIO_PLAN.freePieces.join(', ')}.</li>
-              <li><strong>Estilo:</strong> {SOCIAL_STUDIO_PLAN.freeStyles.join(', ')}.</li>
-              <li>Las placas llevan la firma Arma2.</li>
-            </ul>
-          </div>
-          <div data-tier="premium">
-            <h4>PREMIUM suma</h4>
-            <ul>
-              <li><strong>Placas:</strong> {SOCIAL_STUDIO_PLAN.premiumPieces.join(', ')}.</li>
-              <li><strong>Estilos:</strong> {SOCIAL_STUDIO_PLAN.premiumStyles.join(', ')}, además de {SOCIAL_STUDIO_PLAN.freeStyles.join(', ')}.</li>
-              <li>Podés quitar la firma Arma2.</li>
-            </ul>
-          </div>
-        </div>
-      </section>
-      <p className={styles.availability}>Estudio Social, galería de fotos y carga de logos y escudos: <strong>Próximamente</strong>. Todavía no se pueden usar en la app.</p>
       <p className={styles.availability}>La compra de Premium todavía no está disponible.</p>
+    </section>
+    <section className={styles.upcoming} aria-labelledby="plan-upcoming-title">
+      <div className={styles.sectionHeading}><span>EN PREPARACIÓN</span><h2 id="plan-upcoming-title">Próximamente</h2><p>Estas funciones todavía no están disponibles. Así se van a repartir entre los planes cuando lleguen.</p></div>
+      <div className={styles.upcomingList}>
+        {PLAN_COMING_SOON.map(({ name, summary, free, premium }) => <section key={name} className={styles.upcomingItem} aria-label={name}>
+          <h3>{name}</h3>
+          <p>{summary}</p>
+          {free && <div className={styles.upcomingTiers}>
+            <div><h4>FREE</h4><ul>{free.map((item) => <li key={item}>{item}</li>)}</ul></div>
+            <div data-tier="premium"><h4>PREMIUM</h4><ul>{premium.map((item) => <li key={item}>{item}</li>)}</ul></div>
+          </div>}
+        </section>)}
+      </div>
     </section>
   </div>;
 }
