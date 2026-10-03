@@ -27,8 +27,9 @@ import {
   renderSocialPiece,
   shareSocialPiece,
 } from '../features/torneos/social/socialStudio';
-import { getSocialTemplate } from '../features/torneos/social/socialTemplates';
 import { fitLines, initialsOf } from '../features/torneos/social/base/core';
+import { BASE_PIECE_IDS } from '../features/torneos/social/base/content';
+import { PIECES as BASE_PIECES } from '../features/torneos/social/base/pieces';
 
 const ORGANIZATION = '11111111-1111-4111-8111-111111111111';
 
@@ -229,9 +230,10 @@ async function renderToLog(pieceId, overrides = {}, renderOptions = {}) {
 }
 
 describe('social snapshot contracts', () => {
-  test('every registered piece has a template and a snapshot fixture', () => {
+  test('every registered piece has a Base renderer and a snapshot fixture', () => {
     for (const piece of SOCIAL_PIECES) {
-      expect(getSocialTemplate(piece.id)).toBeInstanceOf(Function);
+      const baseId = BASE_PIECE_IDS[piece.id];
+      expect(BASE_PIECES.find((entry) => entry.id === baseId)?.render).toBeInstanceOf(Function);
       expect(SNAPSHOTS[piece.id]).toBeTruthy();
     }
     expect(SOCIAL_PIECES).toHaveLength(11);
@@ -491,7 +493,7 @@ describe('deterministic renderer', () => {
   });
 
   test('a template is never asked to draw a piece it does not own', () => {
-    expect(getSocialTemplate('does_not_exist')).toBeNull();
+    expect(BASE_PIECE_IDS.does_not_exist).toBeUndefined();
     expect(() => drawSocialPiece(recordingContext([]), {
       snapshot: { ...SNAPSHOTS.standings, piece: 'does_not_exist' },
       editorial: createEditorialState(SNAPSHOTS.standings),
@@ -568,7 +570,7 @@ describe('export and share', () => {
       skipFonts: true,
     });
     expect(result.blob.type).toBe('image/png');
-    expect(result.fileName).toBe('copa-horizonte-primera-fecha-6-tabla-de-posiciones-portrait.png');
+    expect(result.fileName).toBe('copa-horizonte-primera-fecha-6-tabla-de-posiciones-base-feed-4x5.png');
     expect(result.fileName).not.toMatch(/[^a-z0-9.-]/);
   });
 
@@ -581,10 +583,21 @@ describe('export and share', () => {
         roundName: '',
       },
     };
-    const name = socialFileName(snapshot, { format: 'story' });
+    const name = socialFileName(snapshot, { format: 'story' }, 'editorial');
     expect(name).toMatch(/^[a-z0-9-]+\.png$/);
     expect(name).not.toContain('..');
-    expect(name.length).toBeLessThanOrEqual(94);
+    expect(name.length).toBeLessThanOrEqual(110);
+    // The long description is shortened; the style and the format never are.
+    expect(name).toMatch(/-editorial-historia-9x16\.png$/);
+  });
+
+  test('the same piece in another style or format never gets the same file name', () => {
+    const names = new Set();
+    for (const theme of ['base', 'heritage', 'street', 'scoreboard', 'editorial']) {
+      for (const format of ['portrait', 'story']) names.add(socialFileName(SNAPSHOTS.standings, { format }, theme));
+    }
+    expect(names.size).toBe(10);
+    expect(socialFileName(SNAPSHOTS.standings, { format: 'portrait' })).toMatch(/-base-feed-4x5\.png$/);
   });
 
   test('shares a file when the browser really supports it', async () => {

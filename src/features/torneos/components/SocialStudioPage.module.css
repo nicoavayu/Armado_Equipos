@@ -149,6 +149,22 @@
   min-height: 34px; padding: 0 10px; border: 1px solid rgba(255,255,255,.14);
   border-radius: 9px; background: transparent; color: #fff; cursor: pointer;
 }
+.premiumLock {
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 10px;
+  width: 100%; max-width: 420px; padding: 12px 14px; border: 1px solid rgba(157, 123, 255, .3);
+  border-radius: 14px; background: rgba(157, 123, 255, .08); color: #e4defa; text-align: left;
+}
+.premiumLock > svg { color: #b9adff; }
+.premiumLock span { display: grid; gap: 3px; min-width: 0; }
+.premiumLock strong { font-size: 13px; }
+.premiumLock small { color: #b4abca; font-size: 12px; line-height: 1.45; }
+.premiumLock button {
+  min-height: 44px; padding: 0 14px; border: 0; border-radius: 11px;
+  background: #8b7cff; color: #100b21; font: inherit; font-weight: 750; cursor: pointer; white-space: nowrap;
+}
+.premiumLock button:focus-visible { outline: 2px solid var(--social-cyan); outline-offset: 2px; }
+.heroPlan[data-plan="PREMIUM"] { border-color: rgba(99, 238, 208, .35) !important; }
+.heroPlan[data-plan="PREMIUM"] svg { color: var(--social-cyan); }
 .whiteLabelNotice {
   margin: 0; padding: 12px 14px; border: 1px solid rgba(99, 238, 208, .18);
   border-radius: 12px; color: #b9d8d1; background: rgba(99, 238, 208, .05);
@@ -181,6 +197,18 @@
   padding: 0 !important; margin: -1px !important; overflow: hidden !important;
   clip: rect(0, 0, 0, 0) !important; white-space: nowrap !important; border: 0 !important;
 }
+/* Figura photo tools live in the preview panel, under the art they frame. */
+.previewPanel .photoEditor {
+  display: grid; gap: 10px; width: 100%; max-width: 320px; min-width: 0; margin: 0; padding: 12px;
+  border: 1px solid rgba(255, 255, 255, .08); border-radius: 14px; background: rgba(14, 11, 22, .68);
+}
+.previewPanel .photoEditor[disabled] { opacity: .55; }
+.previewPanel .photoEditor legend {
+  display: inline-flex; align-items: center; gap: 6px; padding: 0 6px;
+  font-size: 12px; letter-spacing: 2px; text-transform: uppercase; color: var(--social-cyan);
+}
+.previewPanel .photoEditor label { display: grid; gap: 6px; font-size: 13px; color: #cfc7de; }
+.previewPanel .photoEditor :is(button, input):focus-visible { outline: 2px solid var(--social-cyan); outline-offset: 2px; }
 .photoEditor > button {
   display: inline-flex; align-items: center; justify-content: center; gap: 8px;
   min-height: 42px; padding: 0 13px; border: 1px solid rgba(255,255,255,.14);
@@ -245,7 +273,7 @@ div.previewCanvas[data-premium-renderer="v2"] {
 .previewOverlay svg { color: var(--social-cyan); animation: socialSpin 1s linear infinite; }
 @keyframes socialSpin { to { transform: rotate(360deg); } }
 
-.previewError, .previewHint, .provenance { margin: 0; max-width: 320px; text-align: center; font-size: 12px; }
+.previewError, .previewHint, .provenance { margin: 0; max-width: 360px; text-align: center; font-size: 12px; line-height: 1.45; }
 .previewError { color: #f9b4ad; }
 .previewHint { color: #f4c27e; }
 .provenance { color: #7f7794; }
@@ -264,8 +292,12 @@ div.previewCanvas[data-premium-renderer="v2"] {
   .previewPanel { position: static; }
 }
 @media (max-width: 480px) {
+  .hero { padding: 18px; }
   .hero h1 { font-size: 32px; }
+  .heroMetrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); width: 100%; }
   .candidateList { grid-template-columns: 1fr; }
+  .premiumLock { grid-template-columns: auto minmax(0, 1fr); }
+  .premiumLock button { grid-column: 1 / -1; width: 100%; }
 }
 @container (max-width: 440px) {
   .pieceGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }

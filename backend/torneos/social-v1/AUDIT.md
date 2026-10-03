@@ -1,5 +1,8 @@
 # SOCIAL-V1 — auditoría para volver a habilitar el Estudio Social en Production
 
+> **2026-10-03:** implementado y certificado localmente — ver [`REPORT.md`](REPORT.md) (`SOCIAL_STUDIO_V2_READY_FOR_GATE_A`).
+> La migración final rechaza también la firma `NULL` (22023 `TORNEOS_SOCIAL_BRANDING_INVALID`) en vez de `coalesce`.
+
 Estado: **SOCIAL_V1_AUDIT_READY** (2026-10-02). Sólo auditoría + plan: no se tocó Production DB, Cloud Run, Vercel,
 Deno ni Android. Las lecturas de Production fueron read-only (Cloud Run REST y el bundle público). Billing, Commerce y MP
 siguen OFF. Plan de implementación: [`PLAN.md`](PLAN.md).

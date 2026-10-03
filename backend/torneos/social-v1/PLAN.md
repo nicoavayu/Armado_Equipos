@@ -1,5 +1,10 @@
 # SOCIAL-V1 Implementation Plan
 
+> **Estado 2026-10-03: T1–T5 implementados y verificados** — resultado, desvíos y evidencia en [`REPORT.md`](REPORT.md).
+> Desvíos: la firma `NULL` se rechaza (no `coalesce`); el driver de Production es `remote/db8.mjs`; el probe vive en
+> `probe/social-matrix.mjs`; Mi plan usa `planComparisonFor`; se agregó un chequeo de navegador real
+> (`scripts/qa/social-studio/`).
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Volver a habilitar el Estudio Social en Production (FREE: Base + 3 placas con firma Arma2; PREMIUM: todo) detrás de flags que hoy quedan OFF, sin Multimedia, sin Billing/Commerce/MP y fail-closed en cada capa.
@@ -43,12 +48,12 @@
 **Interfaces:**
 - Produces: `contract.json` = `{ "phase": "SOCIAL-V1", "rpcs": [3 nombres], "grant": ["authorize_tournament_social_export(uuid,uuid,text,text,boolean)"], "excluded": { "set_tournament_social_permission": "sin consumidor en la UI" }, "pins": { "authorize_pre_md5": "f211d9a2…", "authorize_post_md5": "<calculado>", "acl_pre": [171,12], "acl_post": [172,12] } }`. T2 y T3 leen `rpcs` de acá en sus guards.
 
-- [ ] **Step 1: Test estático que falla** — `social-v1-migration.test.mjs`: el archivo 0008 existe; contiene exactamente un `GRANT EXECUTE` (a `authenticated`, sobre `authorize_tournament_social_export`), cero `REVOKE`, cero `anon`, ningún otro `CREATE OR REPLACE FUNCTION`; el cuerpo nuevo es el baseline con sólo 3 cambios (`p_theme is null or`, `p_piece is null or`, `coalesce(p_include_arma2_branding, true)` en las dos lecturas); el md5 del cuerpo nuevo = `contract.json.pins.authorize_post_md5`.
-- [ ] **Step 2:** `node --test backend/torneos/social-v1/social-v1-migration.test.mjs` ⇒ FAIL (archivo inexistente).
-- [ ] **Step 3: Escribir 0008** con el patrón de 0007/0004: `BEGIN`; tabla temporal de ACL; precondición (md5 ∈ {pre, post}, ACL ∈ {cerrada, abierta}, conteos ∈ {171/12, 172/12}, `prosecdef`, `search_path=""`, los otros 2 RPC y los 9 helpers con su md5 de `evidence/catalog-post0007.txt`) ⇒ si no, `TORNEOS_SOCIAL_V1_PRECONDITION_FAILED`; `CREATE OR REPLACE` del cuerpo; `GRANT`; postcondición (172/12 exactos, sin `anon`/`PUBLIC`/`torneos_core_adapter`/`torneos_identity_writer`/`torneos_payment_service`, resto idéntico) ⇒ `TORNEOS_SOCIAL_V1_POSTCONDITION_FAILED`; `COMMIT`. Rollback: inverso, mismas guardas.
-- [ ] **Step 4: Lab** — `lab/run-lab.sh`: los casos A0–A12, R1–R8 del audit con estas expectativas post-0008: A0 ⇒ `OK` (ya no "permission denied"); **F1a ⇒ `ERR:TORNEOS_SOCIAL_THEME_UNKNOWN`, F1b ⇒ `ERR:TORNEOS_SOCIAL_PIECE_UNKNOWN`, F1c ⇒ `ERR:TORNEOS_SOCIAL_THEME_UNKNOWN`, F1d ⇒ `OK:"includeArma2Branding": true`**; agregar un caso PREMIUM (fila en `tournament_season_plan_grants` para la temporada A2 + torneo en A2): `mvp`/`heritage`/sin firma ⇒ OK con `includeArma2Branding:false`, Base con firma pedida ⇒ `true`. Re-apply ⇒ no-op (md5 igual); rollback ⇒ catálogo idéntico a `catalog-post0007.txt`; diff de catálogo POST_0007→POST_0008 = sólo la fila de `authorize_…` (md5 + `authenticated`).
-- [ ] **Step 5:** `node --test …migration.test.mjs` y `backend/torneos/social-v1/lab/run-lab.sh` ⇒ PASS, `SOCIAL_V1_LAB_PASS`. Evidencia en `evidence/`.
-- [ ] **Step 6: Commit** `feat(torneos): SOCIAL-V1 migration 0008 opens export authorization with NULL guards`.
+- [x] **Step 1: Test estático que falla** — `social-v1-migration.test.mjs`: el archivo 0008 existe; contiene exactamente un `GRANT EXECUTE` (a `authenticated`, sobre `authorize_tournament_social_export`), cero `REVOKE`, cero `anon`, ningún otro `CREATE OR REPLACE FUNCTION`; el cuerpo nuevo es el baseline con sólo 3 cambios (`p_theme is null or`, `p_piece is null or`, `coalesce(p_include_arma2_branding, true)` en las dos lecturas); el md5 del cuerpo nuevo = `contract.json.pins.authorize_post_md5`.
+- [x] **Step 2:** `node --test backend/torneos/social-v1/social-v1-migration.test.mjs` ⇒ FAIL (archivo inexistente).
+- [x] **Step 3: Escribir 0008** con el patrón de 0007/0004: `BEGIN`; tabla temporal de ACL; precondición (md5 ∈ {pre, post}, ACL ∈ {cerrada, abierta}, conteos ∈ {171/12, 172/12}, `prosecdef`, `search_path=""`, los otros 2 RPC y los 9 helpers con su md5 de `evidence/catalog-post0007.txt`) ⇒ si no, `TORNEOS_SOCIAL_V1_PRECONDITION_FAILED`; `CREATE OR REPLACE` del cuerpo; `GRANT`; postcondición (172/12 exactos, sin `anon`/`PUBLIC`/`torneos_core_adapter`/`torneos_identity_writer`/`torneos_payment_service`, resto idéntico) ⇒ `TORNEOS_SOCIAL_V1_POSTCONDITION_FAILED`; `COMMIT`. Rollback: inverso, mismas guardas.
+- [x] **Step 4: Lab** — `lab/run-lab.sh`: los casos A0–A12, R1–R8 del audit con estas expectativas post-0008: A0 ⇒ `OK` (ya no "permission denied"); **F1a ⇒ `ERR:TORNEOS_SOCIAL_THEME_UNKNOWN`, F1b ⇒ `ERR:TORNEOS_SOCIAL_PIECE_UNKNOWN`, F1c ⇒ `ERR:TORNEOS_SOCIAL_THEME_UNKNOWN`, F1d ⇒ `OK:"includeArma2Branding": true`**; agregar un caso PREMIUM (fila en `tournament_season_plan_grants` para la temporada A2 + torneo en A2): `mvp`/`heritage`/sin firma ⇒ OK con `includeArma2Branding:false`, Base con firma pedida ⇒ `true`. Re-apply ⇒ no-op (md5 igual); rollback ⇒ catálogo idéntico a `catalog-post0007.txt`; diff de catálogo POST_0007→POST_0008 = sólo la fila de `authorize_…` (md5 + `authenticated`).
+- [x] **Step 5:** `node --test …migration.test.mjs` y `backend/torneos/social-v1/lab/run-lab.sh` ⇒ PASS, `SOCIAL_V1_LAB_PASS`. Evidencia en `evidence/`.
+- [x] **Step 6: Commit** `feat(torneos): SOCIAL-V1 migration 0008 opens export authorization with NULL guards`.
 
 ### Task 2: Gateway — `TORNEOS_SOCIAL_MODE` opt-in con 3 RPC exactas
 
@@ -63,11 +68,11 @@
 - Consumes: `contract.json.rpcs` (T1).
 - Produces: `export const SOCIAL_RPCS: readonly string[]`, `export class SocialConfigError extends Error`, `export function withSocial(base: ReadonlySet<string>, env: Record<string, string | undefined>): ReadonlySet<string>`.
 
-- [ ] **Step 1: Tests que fallan**: (a) `withSocial(base, {})`, `{TORNEOS_SOCIAL_MODE:''}`, `'off'` ⇒ mismo set; `'on'` ⇒ base + exactamente `SOCIAL_RPCS`; `'ON'`, `'on '`, `'true'`, `'1'` ⇒ `SocialConfigError`. (b) JSON = `contract.json.rpcs`, disjunto de staging/competition/officialization/públicas/`PLAN_READ_RPCS`/commerce. (c) Gateway real (sandbox de plan-read) con `on`: las 3 llegan a REST; `set_tournament_social_permission` y las 14 comerciales ⇒ 403 `rpc not enabled` sin REST; checkout ⇒ 404; ruta pública con las 3 ⇒ 403; sin bearer ⇒ 401 sin dependencias. (d) Con modo ausente: las 3 ⇒ 403 `rpc not enabled`.
-- [ ] **Step 2:** `node --test backend/torneos/social-v1/social-v1-gateway.test.mjs` ⇒ FAIL (`social.ts` no existe).
-- [ ] **Step 3: Implementar** `social.ts` (calco de `plan-read.ts`, lee el JSON y valida `phase === "SOCIAL-V1"`) y en `index.ts` `const rpcAllowlist = withSocial(withPlanRead(effectiveRpcAllowlist(baseAllowlist, commerce), env), env)`.
-- [ ] **Step 4:** tests de T2 + `npm run test:torneos:g1` + `node --test backend/torneos/plan-read/plan-read.test.mjs` ⇒ PASS.
-- [ ] **Step 5: Commit** `feat(torneos): gateway SOCIAL-V1 opt-in (TORNEOS_SOCIAL_MODE) with three exact RPCs`.
+- [x] **Step 1: Tests que fallan**: (a) `withSocial(base, {})`, `{TORNEOS_SOCIAL_MODE:''}`, `'off'` ⇒ mismo set; `'on'` ⇒ base + exactamente `SOCIAL_RPCS`; `'ON'`, `'on '`, `'true'`, `'1'` ⇒ `SocialConfigError`. (b) JSON = `contract.json.rpcs`, disjunto de staging/competition/officialization/públicas/`PLAN_READ_RPCS`/commerce. (c) Gateway real (sandbox de plan-read) con `on`: las 3 llegan a REST; `set_tournament_social_permission` y las 14 comerciales ⇒ 403 `rpc not enabled` sin REST; checkout ⇒ 404; ruta pública con las 3 ⇒ 403; sin bearer ⇒ 401 sin dependencias. (d) Con modo ausente: las 3 ⇒ 403 `rpc not enabled`.
+- [x] **Step 2:** `node --test backend/torneos/social-v1/social-v1-gateway.test.mjs` ⇒ FAIL (`social.ts` no existe).
+- [x] **Step 3: Implementar** `social.ts` (calco de `plan-read.ts`, lee el JSON y valida `phase === "SOCIAL-V1"`) y en `index.ts` `const rpcAllowlist = withSocial(withPlanRead(effectiveRpcAllowlist(baseAllowlist, commerce), env), env)`.
+- [x] **Step 4:** tests de T2 + `npm run test:torneos:g1` + `node --test backend/torneos/plan-read/plan-read.test.mjs` ⇒ PASS.
+- [x] **Step 5: Commit** `feat(torneos): gateway SOCIAL-V1 opt-in (TORNEOS_SOCIAL_MODE) with three exact RPCs`.
 
 ### Task 3: Frontend — elegibilidad, overlay, scope y alias (todo OFF por defecto)
 
@@ -85,11 +90,11 @@
 - Consumes: `social-v1-rpc-allowlist.json` (T2) para el guard de igualdad del scope.
 - Produces: `resolveTorneosSocialStudio(env = process.env, { backendMode, planRead }) => boolean` (= `backendMode.mode === 'hybrid' && planRead === true && resolveTorneosFeatureFlags(env).socialContentGenerator === true`); `isSocialV1Operation(name) => boolean`; `SOCIAL_METHODS = ['loadSocialStudioContext','loadSocialSnapshot','authorizeSocialExport']`; `stagingV1SocialOverlay = { social_studio: true }`.
 
-- [ ] **Step 1: Tests que fallan**: flags — Production certificado + `REACT_APP_TORNEOS_SOCIAL_GENERATOR_ENABLED=true` ⇒ `socialContentGenerator === true` (hoy `false`, línea 405); `'TRUE'`/`'1'` ⇒ `false`. Composición — `social` sólo si híbrido ∧ PLAN READ ∧ flag; con cualquiera en falso: `features.social_studio === false`, el servicio no tiene ninguno de `SOCIAL_METHODS`, sin nav "Estudio Social", y 0 llamadas sociales al transport. Adapter — cada alias manda el mismo RPC y `p_*` que el legacy (`api/tournamentWorkspaceService.js:1940-1980`); `setSocialPermission`, `signMediaReadUrls`, `resolveTeamShieldUrl`, `resolveTournamentLogoUrl` ausentes; cliente con `social:false` ⇒ `TORNEOS_OUTSIDE_STAGING_V1`; scope = JSON del gateway.
-- [ ] **Step 2:** `CI=true npx react-scripts test --watchAll=false torneosFeatureFlags torneosStagingV1Composition` + `node --test scripts/torneos-frontend/social-adapter.test.mjs` ⇒ FAIL.
-- [ ] **Step 3: Implementar** con los nombres de Interfaces; el overlay se aplica después del de PLAN READ (`billing test` sigue mandando sobre ambos).
-- [ ] **Step 4:** mismos comandos + `npm run test:torneos:frontend-foundation` ⇒ PASS.
-- [ ] **Step 5: Commit** `feat(torneos): SOCIAL-V1 frontend composition behind the production-eligible social flag`.
+- [x] **Step 1: Tests que fallan**: flags — Production certificado + `REACT_APP_TORNEOS_SOCIAL_GENERATOR_ENABLED=true` ⇒ `socialContentGenerator === true` (hoy `false`, línea 405); `'TRUE'`/`'1'` ⇒ `false`. Composición — `social` sólo si híbrido ∧ PLAN READ ∧ flag; con cualquiera en falso: `features.social_studio === false`, el servicio no tiene ninguno de `SOCIAL_METHODS`, sin nav "Estudio Social", y 0 llamadas sociales al transport. Adapter — cada alias manda el mismo RPC y `p_*` que el legacy (`api/tournamentWorkspaceService.js:1940-1980`); `setSocialPermission`, `signMediaReadUrls`, `resolveTeamShieldUrl`, `resolveTournamentLogoUrl` ausentes; cliente con `social:false` ⇒ `TORNEOS_OUTSIDE_STAGING_V1`; scope = JSON del gateway.
+- [x] **Step 2:** `CI=true npx react-scripts test --watchAll=false torneosFeatureFlags torneosStagingV1Composition` + `node --test scripts/torneos-frontend/social-adapter.test.mjs` ⇒ FAIL.
+- [x] **Step 3: Implementar** con los nombres de Interfaces; el overlay se aplica después del de PLAN READ (`billing test` sigue mandando sobre ambos).
+- [x] **Step 4:** mismos comandos + `npm run test:torneos:frontend-foundation` ⇒ PASS.
+- [x] **Step 5: Commit** `feat(torneos): SOCIAL-V1 frontend composition behind the production-eligible social flag`.
 
 ### Task 4: UX del Estudio en la composición híbrida
 
@@ -103,11 +108,11 @@
 - Consumes: `SOCIAL_METHODS` y el servicio de T3; `PLAN_COMPARISON`/`PLAN_COMING_SOON` actuales.
 - Produces: `planComparisonFor(features) => { comparison, comingSoon }` (reemplaza el uso directo de las constantes en `PlanExperiencePage`).
 
-- [ ] **Step 1: Tests que fallan**: matriz — para las 11 piezas × {base, heritage, street, scoreboard, editorial} × {portrait, story}, `prepareSocialRender` con snapshot de fixture, `signMediaReadUrls`/`resolveShieldUrl` `undefined`, sin logo ni foto ⇒ resuelve (curadas con selección hecha) y ninguna llamada de red de medios; plan no confiable (`loading`, `error`, otra temporada) ⇒ `catalogAccess.exportable` sólo para las 3 Base; FREE ⇒ `authorizeSocialExport` recibe `includeArma2Branding: true`; `TORNEOS_SOCIAL_PREMIUM_REQUIRED` del servidor ⇒ aviso "Esta familia de piezas requiere Premium en la temporada." y 0 descargas; `SCOPE_UNAVAILABLE` ⇒ copy de fixture no publicado. Mi plan — con `social_studio` on, 4 filas y "Estudio Social" fuera de Próximamente; off ⇒ igual que hoy (3 filas).
-- [ ] **Step 2:** `CI=true npx react-scripts test --watchAll=false torneosSocialStudioV1Matrix torneosPlanExperience` ⇒ FAIL.
-- [ ] **Step 3: Implementar** copy + `planComparisonFor` + propagación del mensaje en `runExport`.
-- [ ] **Step 4:** `npm run test:ci` ⇒ PASS (todas las suites); `scripts/qa/plan-ux/browser-check.cjs` ⇒ verde.
-- [ ] **Step 5: Commit** `feat(torneos): Social Studio UX for the hybrid composition (errors, Mi plan, no-photo matrix)`.
+- [x] **Step 1: Tests que fallan**: matriz — para las 11 piezas × {base, heritage, street, scoreboard, editorial} × {portrait, story}, `prepareSocialRender` con snapshot de fixture, `signMediaReadUrls`/`resolveShieldUrl` `undefined`, sin logo ni foto ⇒ resuelve (curadas con selección hecha) y ninguna llamada de red de medios; plan no confiable (`loading`, `error`, otra temporada) ⇒ `catalogAccess.exportable` sólo para las 3 Base; FREE ⇒ `authorizeSocialExport` recibe `includeArma2Branding: true`; `TORNEOS_SOCIAL_PREMIUM_REQUIRED` del servidor ⇒ aviso "Esta familia de piezas requiere Premium en la temporada." y 0 descargas; `SCOPE_UNAVAILABLE` ⇒ copy de fixture no publicado. Mi plan — con `social_studio` on, 4 filas y "Estudio Social" fuera de Próximamente; off ⇒ igual que hoy (3 filas).
+- [x] **Step 2:** `CI=true npx react-scripts test --watchAll=false torneosSocialStudioV1Matrix torneosPlanExperience` ⇒ FAIL.
+- [x] **Step 3: Implementar** copy + `planComparisonFor` + propagación del mensaje en `runExport`.
+- [x] **Step 4:** `npm run test:ci` ⇒ PASS (todas las suites); `scripts/qa/plan-ux/browser-check.cjs` ⇒ verde.
+- [x] **Step 5: Commit** `feat(torneos): Social Studio UX for the hybrid composition (errors, Mi plan, no-photo matrix)`.
 
 ### Task 5: Certificación y operación
 
@@ -120,8 +125,8 @@
 - Consumes: gateway de T2; `cloudrun-readonly.mjs` (ya en el repo).
 - Produces: matriz con expectativas fijas: contexto org QA ⇒ 200 con `capabilities` y `freeBaseFamilies`; snapshot `standings` ⇒ 200 o `SCOPE_UNAVAILABLE` según datos QA; authorize FREE Base `round_results` con firma ⇒ 200 `authorized:true includeArma2Branding:true`; `mvp` ⇒ 403 `TORNEOS_SOCIAL_PREMIUM_REQUIRED`; `heritage` ⇒ 403; Base sin firma ⇒ 403 `TORNEOS_BRANDING_PREMIUM_REQUIRED`; theme `null` ⇒ 400 `TORNEOS_SOCIAL_THEME_UNKNOWN`; org ajena ⇒ 403; `set_tournament_social_permission` ⇒ 403 `rpc not enabled`; 14 comerciales ⇒ 403; checkout ⇒ 404; sin bearer ⇒ 401. Un solo `/exchange`.
 
-- [ ] **Step 1–4:** test del probe contra el sandbox (FAIL → implementar → PASS), runbook actualizado.
-- [ ] **Step 5: Commit** `test(torneos): SOCIAL-V1 certification probe and runbook`.
+- [x] **Step 1–4:** test del probe contra el sandbox (FAIL → implementar → PASS), runbook actualizado.
+- [x] **Step 5: Commit** `test(torneos): SOCIAL-V1 certification probe and runbook`.
 
 ---
 
