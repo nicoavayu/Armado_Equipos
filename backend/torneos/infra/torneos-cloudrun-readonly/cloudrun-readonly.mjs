@@ -14,6 +14,9 @@
 //   • the access token is never printed, logged or written; env values are shown only for the flag keys in
 //     PLAIN_ENV, every other value is reduced to sha256 prefix + length, secrets to their Secret Manager reference;
 //   • a non-2xx answer is an error, never an empty result: "0 5xx" always means the Logging API answered.
+//   • the gateway never logs CORE_UNAVAILABLE: it answers it as a 503, so `503` per revision is its upper bound; a boot
+//     refused by configuration (an unknown TORNEOS_SOCIAL_MODE / TORNEOS_PLAN_READ_MODE, a commerce fault…) is logged
+//     once per instance as "[torneos-gateway] disabled: <reason>" and is counted as `bootDisabled` (any ⇒ failure).
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import process from 'node:process';
@@ -195,7 +198,24 @@ export async function countRequests(request, target, { minutes, maxEntries, now 
     if (pageToken && total >= maxEntries) { truncated = true; break; }
   } while (pageToken);
   const fiveXx = Object.values(byRevision).reduce((sum, b) => sum + b['5xx'], 0);
-  return { since, minutes, total, fiveXx, truncated, byRevision };
+  const serviceUnavailable = Object.values(byRevision).reduce((sum, b) => sum + b['503'], 0);
+  // Boot faults: the reason is a fixed configuration message (never a value), safe to report.
+  const boot = await request('POST', 'https://logging.googleapis.com/v2/entries:list', {
+    resourceNames: [`projects/${target.project}`],
+    filter: [
+      'resource.type="cloud_run_revision"',
+      `resource.labels.service_name="${target.service}"`,
+      `resource.labels.location="${target.region}"`,
+      `timestamp>="${since}"`,
+      'textPayload:"[torneos-gateway] disabled:"',
+    ].join(' AND '),
+    orderBy: 'timestamp desc', pageSize: 50,
+  });
+  const bootDisabled = (boot.entries || []).map((entry) => ({
+    revision: entry.resource?.labels?.revision_name || 'unknown',
+    reason: String(entry.textPayload || '').replace(/^.*\[torneos-gateway\] disabled: /, '').slice(0, 120),
+  }));
+  return { since, minutes, total, fiveXx, serviceUnavailable, bootDisabled, truncated, byRevision };
 }
 
 export function checkExpectations(summary, opts) {
@@ -218,6 +238,7 @@ export function checkExpectations(summary, opts) {
   }
   if (summary.service.commercialEnv.length) failures.push(`commercial env present: ${summary.service.commercialEnv.join(', ')}`);
   if (summary.logs?.fiveXx) failures.push(`${summary.logs.fiveXx} responses ≥ 500 in the last ${summary.logs.minutes} min`);
+  if (summary.logs?.bootDisabled?.length) failures.push(`gateway boot disabled ${summary.logs.bootDisabled.length}× (${[...new Set(summary.logs.bootDisabled.map((b) => b.reason))].join('; ')})`);
   return failures;
 }
 

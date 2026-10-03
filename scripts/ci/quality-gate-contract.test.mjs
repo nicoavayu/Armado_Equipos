@@ -25,6 +25,12 @@
  *   npm run lint                    — ESLint over src/
  *   npm run build                   — production build
  *   npm run test:ci                 — which is, in order:
+ *       npm run test:torneos:social       — SOCIAL-V1 (Estudio Social): the
+ *                                           0008 migration/rollback pins and
+ *                                           the operator driver, the gateway
+ *                                           opt-in against the real gateway
+ *                                           source, and the certification
+ *                                           matrix (no database, no network)
  *       npm run test:staging:guard        — this contract test, the staging
  *                                           guard, the A1/A2 execution
  *                                           contracts, psql TLS + live
@@ -93,7 +99,7 @@ const workflowExecutedScripts = [...workflowDirectives.matchAll(/npm run ([a-z0-
 
 /** The suites `test:ci` must compose. Removing one from the script fails here. */
 const REQUIRED_IN_TEST_CI = [
-  'test:staging:guard', 'test:worker:signer-renewer', 'test:worker:media:ci',
+  'test:staging:guard', 'test:worker:signer-renewer', 'test:worker:media:ci', 'test:torneos:social',
 ];
 
 /**

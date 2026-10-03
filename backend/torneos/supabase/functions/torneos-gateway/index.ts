@@ -44,6 +44,7 @@ import { loadConfig, routePath, ConfigError, type GatewayConfig } from "./config
 import { COMMERCE_ROUTE, CommerceConfigError, effectiveRpcAllowlist, loadCommerceConfig, seasonCheckout, type CommerceConfig } from "./commerce.ts"
 import { CompetitionConfigError, domainErrorStatus, loadCompetitionContract, loadOfficializationContract, preparePublicRpc, PublicGate, PUBLIC_RPC_ROUTE, withCompetition, withOfficialization, type CompetitionContract } from "./competition.ts"
 import { withPlanRead, PlanReadConfigError } from "./plan-read.ts"
+import { withSocial, SocialConfigError } from "./social.ts"
 import allowlistDoc from "./staging-v1-rpc-allowlist.json" with { type: "json" }
 
 // Staging v1 RPC allowlist: fail closed if the document is malformed or empty.
@@ -79,7 +80,7 @@ export function boot(env: Record<string, string | undefined>): Runtime {
   const commerce = loadCommerceConfig(env, { baseAllowlist, gatewayPublicUrl: cfg.publicUrl,
     distinctFrom: [env.TORNEOS_CONTRACT_SERVICE_SECRET, env.TORNEOS_BRIDGE_KEYS, ...cfg.bridge.keys.map((k) => k.privateKey), cfg.coreAnonKey, cfg.torneosAnonKey],
     dependencyUrls: [cfg.coreAuthUrl, cfg.coreJwtIssuer, cfg.coreContractUrl, cfg.torneosRestUrl, cfg.allowedOrigin] })
-  const rpcAllowlist = withPlanRead(effectiveRpcAllowlist(baseAllowlist, commerce), env)
+  const rpcAllowlist = withSocial(withPlanRead(effectiveRpcAllowlist(baseAllowlist, commerce), env), env)
   const identity = connect(cfg.identityWriterUrl, { sslCa: cfg.dbSslCa })
   const adapterSql = connect(cfg.coreAdapterUrl, { sslCa: cfg.dbSslCa })
   const coreHeaders = cfg.coreAnonKey ? { apikey: cfg.coreAnonKey } : {}
@@ -96,7 +97,7 @@ function getRuntime(): Runtime {
     return runtime
   } catch (error) {
     // Configuration faults disable the gateway; the reason is logged once, without values.
-    bootError = error instanceof ConfigError || error instanceof CommerceConfigError || error instanceof CompetitionConfigError || error instanceof PlanReadConfigError ? error.message : "boot failed"
+    bootError = error instanceof ConfigError || error instanceof CommerceConfigError || error instanceof CompetitionConfigError || error instanceof PlanReadConfigError || error instanceof SocialConfigError ? error.message : "boot failed"
     console.error(`[torneos-gateway] disabled: ${bootError}`)
     throw new Unavailable()
   }

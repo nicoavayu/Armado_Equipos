@@ -43,7 +43,7 @@ const service = {
   },
 };
 
-function fakeFetch({ entries = [], svc = service, failLogs = false } = {}) {
+function fakeFetch({ entries = [], svc = service, failLogs = false, bootEntries = [] } = {}) {
   const calls = [];
   const impl = async (url, init) => {
     calls.push({ url, method: init.method, auth: init.headers.authorization, body: init.body });
@@ -53,6 +53,7 @@ function fakeFetch({ entries = [], svc = service, failLogs = false } = {}) {
     }
     if (url === 'https://logging.googleapis.com/v2/entries:list') {
       if (failLogs) return new Response('{"error":{"code":403}}', { status: 403 });
+      if (JSON.parse(init.body).filter.includes('textPayload:"[torneos-gateway] disabled:"')) return new Response(JSON.stringify({ entries: bootEntries }), { status: 200 });
       return new Response(JSON.stringify({ entries }), { status: 200 });
     }
     return new Response('nope', { status: 404 });
@@ -90,7 +91,9 @@ test('inspect: summary pins traffic, digest and flags; no token or env value lea
   { token: TOKEN, fetchImpl: impl, now: new Date('2026-10-02T18:00:00Z') });
   const text = JSON.stringify(summary);
   assert.ok(!text.includes(TOKEN) && !text.includes(SECRET_LOOKING), 'no secret material in the output');
-  assert.deepEqual(calls.map((c) => c.method), ['GET', 'GET', 'POST']);
+  assert.deepEqual(calls.map((c) => c.method), ['GET', 'GET', 'POST', 'POST']);
+  assert.equal(summary.logs.serviceUnavailable, 1, 'CORE_UNAVAILABLE upper bound = the 503s');
+  assert.deepEqual(summary.logs.bootDisabled, []);
   assert.ok(calls.every((c) => c.auth === `Bearer ${TOKEN}`));
   assert.equal(summary.service.template.container.digest, DIGEST);
   assert.deepEqual(summary.service.template.container.env.map((e) => e.secret || e.value.split(' ')[0]),
@@ -122,4 +125,14 @@ test('an API error is an error, never an empty log window', async () => {
 test('the token comes from `gcloud auth print-access-token` and is validated', () => {
   assert.equal(accessTokenFromGcloud(() => `${TOKEN}\n`), TOKEN);
   assert.throws(() => accessTokenFromGcloud(() => 'ERROR: (gcloud) reauth required'), /did not return an access token/);
+});
+
+test('a gateway boot refused by configuration (e.g. an unknown TORNEOS_SOCIAL_MODE) fails the inspection with its reason', async () => {
+  const { impl } = fakeFetch({ bootEntries: [
+    { resource: { labels: { revision_name: 'torneos-gateway-00005-xyz' } }, textPayload: '[torneos-gateway] disabled: TORNEOS_SOCIAL_MODE must be on or off' },
+    { resource: { labels: { revision_name: 'torneos-gateway-00005-xyz' } }, textPayload: '[torneos-gateway] disabled: TORNEOS_SOCIAL_MODE must be on or off' },
+  ] });
+  const summary = await inspect(parseArgs(TARGET), { token: TOKEN, fetchImpl: impl, now: new Date('2026-10-02T18:00:00Z') });
+  assert.deepEqual(summary.failures, ['gateway boot disabled 2× (TORNEOS_SOCIAL_MODE must be on or off)']);
+  assert.equal(summary.logs.bootDisabled[0].revision, 'torneos-gateway-00005-xyz');
 });
