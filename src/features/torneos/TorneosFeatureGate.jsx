@@ -2,7 +2,12 @@ import React, { lazy, Suspense } from 'react';
 import { Navigate } from 'react-router-dom';
 import AppLoadingScreen from '../../components/AppLoadingScreen';
 import { torneosFeatureFlags } from './config/featureFlags';
-import { resolveTorneosBackendMode, resolveTorneosBillingMode, resolveTorneosPlanRead } from './foundation/config';
+import {
+  resolveTorneosBackendMode,
+  resolveTorneosBillingMode,
+  resolveTorneosPlanRead,
+  resolveTorneosSocialStudio,
+} from './foundation/config';
 import { isArma2NativeRuntime } from '../../utils/runtimePlatform';
 
 const TorneosApp = lazy(() => import('./TorneosApp'));
@@ -53,6 +58,8 @@ export default function TorneosFeatureGate({
   backendMode = torneosBackendMode,
   billingMode = torneosBillingMode,
   planRead = resolveTorneosPlanRead(process.env, { backendMode }),
+  // SOCIAL-V1: hybrid + PLAN READ + the production-eligible Social flag, all three or nothing.
+  social = resolveTorneosSocialStudio(process.env, { backendMode, planRead, flags: torneosFeatureFlags }),
   service,
   native = isArma2NativeRuntime(),
 }) {
@@ -63,7 +70,7 @@ export default function TorneosFeatureGate({
   if (!service && backendMode.mode === 'hybrid') {
     return (
       <Suspense fallback={<AppLoadingScreen />}>
-        <StagingV1TorneosApp gatewayUrl={backendMode.gatewayUrl} billingMode={billingMode} planRead={planRead} />
+        <StagingV1TorneosApp gatewayUrl={backendMode.gatewayUrl} billingMode={billingMode} planRead={planRead} social={social} />
       </Suspense>
     );
   }

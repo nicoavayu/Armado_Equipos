@@ -1,6 +1,7 @@
 import { isStagingV1Operation } from './stagingV1Scope';
 import { isCompetitionV1Operation, isCompetitionV1PublicOperation } from './competitionV1Scope';
 import { isOfficializationV1Operation } from './officializationV1Scope';
+import { isSocialV1Operation } from './socialV1Scope';
 import { isStagingV1Table } from './stagingV1Tables';
 import { isStagingV1CommerceRead, SEASON_CHECKOUT_PATH } from './stagingV1CommerceScope';
 import { TorneosBoundaryError } from './errors';
@@ -23,14 +24,16 @@ export function normalizeRpcParams(params) {
 // scope: the two commerce reads and the fixed checkout route. Without it both fail
 // closed before the transport. Independent `planRead: true` adds only the two
 // certified entitlement RPCs; it never permits purchase reads or checkout.
-export function createTorneosClient({ transport = null, commerce = false, planRead = false } = {}) {
+// Independent `social: true` (SOCIAL-V1) adds only the three Estudio Social RPCs.
+export function createTorneosClient({ transport = null, commerce = false, planRead = false, social = false } = {}) {
   const connected = Boolean(transport) && typeof transport.rpc === 'function';
   const commerceEnabled = commerce === true;
   const permitted = (operation) => isStagingV1Operation(operation)
     || isCompetitionV1Operation(operation)
     || isOfficializationV1Operation(operation)
     || (commerceEnabled && isStagingV1CommerceRead(operation))
-    || (planRead === true && ['get_effective_tournament_season_entitlements', 'get_effective_tournament_entitlements'].includes(operation));
+    || (planRead === true && ['get_effective_tournament_season_entitlements', 'get_effective_tournament_entitlements'].includes(operation))
+    || (social === true && isSocialV1Operation(operation));
   return Object.freeze({
     status: connected ? 'connected' : 'foundation-disabled',
     async execute(operation, params = {}, options = {}) {

@@ -26,15 +26,18 @@ import { stagingV1FeaturesFor } from './stagingV1Features';
 // surfaces. `test` → the TEST feature overlay, a service with the commerce scope and
 // its commerce for the Plan pages. Anything else → the static map, a service without
 // commercial aliases and disabled commerce. `planRead` independently preserves
-// the certified entitlement reads.
+// the certified entitlement reads. `social` (SOCIAL-V1, resolved by the gate: hybrid + PLAN READ + the
+// production-eligible flag) adds the Estudio Social feature and its three aliases, together or not at all.
 export default function StagingV1TorneosApp({
   gatewayUrl,
   service = null,
   features = null,
   billingMode = 'off',
   planRead = false,
+  social = false,
   checkoutRedirect = null,
 }) {
+  const socialEnabled = social === true && planRead === true;
   const billing = (typeof billingMode === 'string' ? billingMode : billingMode?.mode) === 'test';
   const [runtime, setRuntime] = useState(() => (service ? { transport: null, service } : null));
 
@@ -49,12 +52,12 @@ export default function StagingV1TorneosApp({
       getCoreAccessToken: bridge.getCoreAccessToken,
       onCoreAuthChange: bridge.onCoreAuthChange,
     });
-    setRuntime({ transport, service: createStagingV1WorkspaceService({ transport, commerce: billing, planRead }) });
+    setRuntime({ transport, service: createStagingV1WorkspaceService({ transport, commerce: billing, planRead, social: socialEnabled }) });
     return () => {
       transport.dispose();
       setRuntime((current) => (current?.transport === transport ? null : current));
     };
-  }, [billing, gatewayUrl, service, planRead]);
+  }, [billing, gatewayUrl, service, planRead, socialEnabled]);
 
   // Keyed on the service itself so the providers keep one identity per service.
   const runtimeService = runtime?.service || null;
@@ -70,7 +73,7 @@ export default function StagingV1TorneosApp({
   if (!composition) return <AppLoadingScreen />;
 
   return (
-    <TorneosFeaturesProvider features={features || stagingV1FeaturesFor(billing ? 'test' : 'off', { planRead })}>
+    <TorneosFeaturesProvider features={features || stagingV1FeaturesFor(billing ? 'test' : 'off', { planRead, social: socialEnabled })}>
       <TorneosCommerceProvider commerce={composition.commerce}>
         <TorneosWorkspaceProvider service={composition.workspaceService}>
           <TorneosShell />
