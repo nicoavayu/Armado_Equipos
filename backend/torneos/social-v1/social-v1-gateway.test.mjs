@@ -15,6 +15,8 @@ const TOURNAMENT = '30000000-0000-4000-8000-000000000001';
 const CATEGORY = '40000000-0000-4000-8000-000000000001';
 const PHASE = '50000000-0000-4000-8000-000000000001';
 const FN = 'backend/torneos/supabase/functions/torneos-gateway/';
+// A PEM-shaped placeholder: the in-process gateway only decodes TORNEOS_DB_SSL_CA (Postgres is stubbed), and CI has no CA file.
+const TEST_CA = '-----BEGIN CERTIFICATE-----\nU09DSUFMLVYxLXRlc3QtY2E=\n-----END CERTIFICATE-----\n';
 const SRC = 'src/features/torneos/';
 const CONTRACT = JSON.parse(fs.readFileSync('backend/torneos/social-v1/contract.json', 'utf8'));
 const SOCIAL = ['get_tournament_social_studio_context', 'get_tournament_social_snapshot', 'authorize_tournament_social_export'];
@@ -58,7 +60,7 @@ function restAnswer(name, body) {
 
 let fx, tree, gateway, originalFetch, currentEnv;
 test.before(async () => {
-  fx = fixtureEnv();
+  fx = fixtureEnv({ caPem: TEST_CA });
   originalFetch = globalThis.fetch;
   globalThis.fetch = async (url, init = {}) => {
     const u = String(url);

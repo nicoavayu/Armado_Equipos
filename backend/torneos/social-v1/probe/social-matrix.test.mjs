@@ -11,6 +11,8 @@ import { runtime } from '../../../../scripts/torneos-frontend/sandbox.mjs';
 import { runSocialMatrix, browserProbe, socialMatrixCases, PRODUCTION_QA, COMMERCIAL_RPCS } from './social-matrix.mjs';
 
 const ids = { organizationId: '10000000-0000-4000-8000-000000000001', seasonId: '20000000-0000-4000-8000-000000000001', tournamentId: '30000000-0000-4000-8000-000000000001', foreignOrganizationId: '10000000-0000-4000-8000-000000000009' };
+// A PEM-shaped placeholder: the in-process gateway only decodes TORNEOS_DB_SSL_CA (Postgres is stubbed), and CI has no CA file.
+const TEST_CA = '-----BEGIN CERTIFICATE-----\nU09DSUFMLVYxLXRlc3QtY2E=\n-----END CERTIFICATE-----\n';
 const THEMES = ['base', 'heritage', 'street', 'scoreboard', 'editorial'];
 const PIECES = ['round_results', 'next_fixture', 'standings', 'mvp', 'final', 'champion', 'scorers', 'discipline', 'best_eleven', 'round_summary', 'semifinals'];
 const fixture = runtime({ modules: { uuid: { v4: () => ids.tournamentId } } }).load('src/testUtils/tournamentEntitlementsFixture.js').tournamentEntitlementsFixture;
@@ -41,7 +43,7 @@ function database(name, b) {
 }
 let fx, tree, gateway, originalFetch;
 test.before(async () => {
-  fx = fixtureEnv();
+  fx = fixtureEnv({ caPem: TEST_CA });
   originalFetch = globalThis.fetch;
   globalThis.fetch = async (url, init = {}) => {
     const u = String(url);

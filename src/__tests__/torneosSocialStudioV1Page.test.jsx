@@ -381,3 +381,16 @@ test('the Base renderer waits for every font weight it draws (deterministic prev
   }
   expect(SOCIAL_REQUIRED_FONTS).toContain('400 96px "Bebas Neue"');
 });
+
+test('re-choosing the format already chosen does not render the piece again', async () => {
+  setup();
+  await ready();
+  await waitFor(() => expect(screen.getByRole('button', { name: /Descargar PNG/ })).toBeEnabled());
+  const renders = studio.prepareSocialRender.mock.calls.length;
+  fireEvent.click(within(screen.getByRole('radiogroup', { name: 'Formato' })).getByRole('radio', { name: 'Feed 4:5' }));
+  fireEvent.click(styleButton('Base'));
+  await act(async () => { await new Promise((resolve) => { setTimeout(resolve, 50); }); });
+  expect(studio.prepareSocialRender.mock.calls.length).toBe(renders);
+  fireEvent.click(within(screen.getByRole('radiogroup', { name: 'Formato' })).getByRole('radio', { name: 'Historia 9:16' }));
+  await waitFor(() => expect(studio.prepareSocialRender.mock.calls.length).toBe(renders + 1));
+});

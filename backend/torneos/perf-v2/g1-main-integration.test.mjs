@@ -127,6 +127,7 @@ test('integration: changes after the integration base are confined to Mi plan, P
     'backend/torneos/supabase/migrations/00000000000008_social_v1_export_authorization.sql',
     'backend/torneos/season-scope-fix/season-scope.test.mjs',
     'backend/torneos/infra/torneos-competition-v1/competition-remote.test.mjs',
+    'backend/torneos/infra/torneos-competition-v1/test-support.mjs',
     'scripts/torneos-frontend/social-adapter.test.mjs',
     'scripts/ci/quality-gate-contract.test.mjs',
     'docs/torneos/social-studio-premium-master-spec.md',

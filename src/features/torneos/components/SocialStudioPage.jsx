@@ -347,23 +347,20 @@ export default function SocialStudioPage() {
     () => resolveEditorialStandingsPagination(snapshot, editorial, selectedTheme),
     [editorial, selectedTheme, snapshot],
   );
-  const branding = useMemo(() => {
-    const competitionTournament = competition.tournaments?.find(
-      (entry) => entry.id === scope.tournamentId,
-    );
-    return {
-      tournamentName: snapshot?.competition?.tournamentName || tournament?.name || '',
-      tournamentLogo: service.resolveTournamentLogoUrl?.(competitionTournament?.logoPath) || null,
-      primaryColor: null,
-      secondaryColor: null,
-      showArma2Branding: effectiveThemeId === 'base'
-        ? (canRemoveArma2Branding ? includeArma2Branding : true)
-        : resolveSocialPreviewBranding({
-          themeId: effectiveThemeId,
-          entitlements: effectiveEntitlements,
-        }),
-    };
-  }, [canRemoveArma2Branding, competition.tournaments, effectiveEntitlements, effectiveThemeId, includeArma2Branding, scope.tournamentId, service, snapshot, tournament]);
+  // Only values: a new plan object or tournaments array with the same content must not re-render the piece.
+  const brandingTournamentName = snapshot?.competition?.tournamentName || tournament?.name || '';
+  const brandingLogoPath = competition.tournaments?.find((entry) => entry.id === scope.tournamentId)?.logoPath || null;
+  const brandingLogoUrl = service.resolveTournamentLogoUrl?.(brandingLogoPath) || null;
+  const showArma2Branding = effectiveThemeId === 'base'
+    ? (canRemoveArma2Branding ? includeArma2Branding : true)
+    : resolveSocialPreviewBranding({ themeId: effectiveThemeId, entitlements: effectiveEntitlements });
+  const branding = useMemo(() => ({
+    tournamentName: brandingTournamentName,
+    tournamentLogo: brandingLogoUrl,
+    primaryColor: null,
+    secondaryColor: null,
+    showArma2Branding,
+  }), [brandingLogoUrl, brandingTournamentName, showArma2Branding]);
 
   // Re-render the preview whenever anything it depends on changes. The canvas
   // is replaced wholesale rather than mutated so a failed render never leaves
@@ -446,7 +443,10 @@ export default function SocialStudioPage() {
 
   useEffect(() => { setExportError(''); }, [pieceId, effectiveThemeId, editorial, scope, includeArma2Branding]);
 
-  const updateEditorial = (patch) => setEditorial((current) => ({ ...current, ...patch }));
+  // Re-choosing what is already chosen (a format chip, the same zoom) keeps the same state: no new render.
+  const updateEditorial = (patch) => setEditorial((current) => (
+    Object.entries(patch).every(([key, value]) => Object.is(current[key], value)) ? current : { ...current, ...patch }
+  ));
 
   const toggleSelection = (id) => {
     if (!canSelect) return;
