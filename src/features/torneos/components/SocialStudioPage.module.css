@@ -1,6 +1,8 @@
 /* Estudio Social — misma identidad negra/violeta que el Centro Multimedia. */
 
 .page {
+  /* minmax(0, 1fr): the implicit auto track grew to the preview's min-content and pushed it past a 320 px screen. */
+  grid-template-columns: minmax(0, 1fr);
   --social-violet: #9d7bff;
   --social-blue: #3b82f6;
   --social-cyan: #63eed0;
@@ -223,6 +225,7 @@
 .resetCrop { background: transparent !important; font-weight: 600 !important; }
 
 .previewPanel {
+  min-width: 0;
   display: grid; gap: 12px; justify-items: center;
   padding: 16px; border: 1px solid rgba(255, 255, 255, .08);
   border-radius: 20px; background: rgba(9, 7, 16, .72);

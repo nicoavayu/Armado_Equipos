@@ -416,7 +416,7 @@ export default function SocialStudioPage() {
       surface.className = styles.previewCanvas;
       if (prepared.node) {
         surface.style.setProperty(
-          '--social-preview-scale', String(PREVIEW_WIDTH / prepared.format.width),
+          '--social-preview-scale', String((host.clientWidth || PREVIEW_WIDTH) / prepared.format.width),
         );
       }
       host.replaceChildren(surface);
@@ -447,6 +447,20 @@ export default function SocialStudioPage() {
   }, [snapshot, editorial, organizationId, service, piece, selectedTheme, branding, localPhoto, fontRetry]);
 
   useEffect(() => { setFontRetry((attempt) => (attempt === 0 ? attempt : 0)); }, [snapshot, editorial, selectedTheme, branding, localPhoto]);
+
+  // The Premium preview is the 1080 px composition scaled down: the scale follows the real stage width (a phone
+  // narrows it below 300 px), so the whole art stays visible and the export keeps its exact size.
+  useEffect(() => {
+    const host = canvasHostRef.current;
+    if (!host || typeof ResizeObserver !== 'function') return undefined;
+    const observer = new ResizeObserver(() => {
+      const node = host.firstElementChild;
+      const width = Number.parseInt(node?.style?.width, 10);
+      if (node?.dataset?.premiumRenderer && width) node.style.setProperty('--social-preview-scale', String(host.clientWidth / width));
+    });
+    observer.observe(host);
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => () => {
     releasePreparedSocialRender(preparedRenderRef.current);
