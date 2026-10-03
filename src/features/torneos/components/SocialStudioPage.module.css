@@ -288,8 +288,9 @@ div.previewCanvas[data-premium-renderer="v2"] {
 .stateCard p { margin: 0; max-width: 420px; color: #a79fbb; font-size: 14px; }
 
 @media (max-width: 1024px) {
-  .workspace { grid-template-columns: 1fr; }
-  .previewPanel { position: static; }
+  /* minmax(0, 1fr): a 1fr track would never shrink below the 300 px preview (cut off at 320 px). */
+  .workspace { grid-template-columns: minmax(0, 1fr); }
+  .previewPanel { position: static; min-width: 0; }
 }
 @media (max-width: 480px) {
   .hero { padding: 18px; }

@@ -65,7 +65,13 @@ La DB es la autoridad final: el plan del browser, el tema elegido y la firma env
 12. **Render no determinístico:** el renderer Base dibuja Oswald 300/400 pero sólo esperaba 500/600, y la app declara
     Oswald dos veces (variable local + caras estáticas de Google). Un primer render podía salir con una cara y uno
     posterior con otra. ⇒ se esperan todos los pesos que dibuja, con un test que lo deriva del código del renderer.
-13. **Frontera de la foundation:** el primer borrador de `resolveTorneosSocialStudio` importaba la config del shell desde
+13. **Renders de más:** la vista previa se regeneraba sin cambios visibles (el objeto `branding` dependía de identidades
+    y volver a tocar el formato elegido creaba otro estado), y el botón de descarga se deshabilitaba un instante. ⇒
+    `branding` memoizado por valores; re-elegir lo elegido no cambia el estado.
+14. **Tipografías tardías:** con caché fría el primer render fallaba cerrado ("No pudimos cargar las tipografías") y la
+    vista previa quedaba rota. ⇒ hasta 2 reintentos automáticos antes de informar el error (nunca se dibuja con una
+    tipografía de reemplazo).
+15. **Frontera de la foundation:** el primer borrador de `resolveTorneosSocialStudio` importaba la config del shell desde
     `foundation/` (lo atrapó el guard). ⇒ los flags se inyectan; sin flags, cerrado.
 
 **Legacy eliminado** (sin importadores, probado): `socialTemplates.js`, `resultsThemeLayouts.js`,

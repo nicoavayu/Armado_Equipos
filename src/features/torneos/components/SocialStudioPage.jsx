@@ -63,6 +63,8 @@ import SocialResultsThemePicker from './SocialResultsThemePicker';
 import styles from './SocialStudioPage.module.css';
 
 const PREVIEW_WIDTH = 300;
+const FONT_RETRIES = 2;
+const FONT_RETRY_DELAY_MS = 1200;
 // Lossless renderer asset derived from the approved Social Studio lockup. Its
 // meaningful transparent space is preserved instead of cropping or rebuilding
 // the identity from separate marks.
@@ -198,6 +200,7 @@ export default function SocialStudioPage() {
   const localPhotoUrlRef = useRef(null);
   const photoDragRef = useRef(null);
   const requestRef = useRef(0);
+  const fontRetryTimer = useRef(null);
   const [context, setContext] = useState({ status: 'loading', data: null, error: '' });
   const [scope, setScope] = useState({
     tournamentId: '', categoryId: '', phaseId: '', roundId: '',
@@ -213,6 +216,9 @@ export default function SocialStudioPage() {
   const [notice, setNotice] = useState('');
   const [exportError, setExportError] = useState('');
   const [localPhoto, setLocalPhoto] = useState(null);
+  // Web fonts can arrive after the first render (cold cache, slow network): a font failure is retried a few times
+  // before the preview reports it. Rendering stays fail-closed: never a piece drawn with fallback typography.
+  const [fontRetry, setFontRetry] = useState(0);
 
   const capabilities = context.data?.capabilities || [];
   const canCreate = hasSocialStudioRoleCapability(capabilities, 'social.create');
@@ -421,6 +427,12 @@ export default function SocialStudioPage() {
       canvasHostRef.current?.replaceChildren();
       releasePreparedSocialRender(preparedRenderRef.current);
       preparedRenderRef.current = null;
+      const fontCode = error?.code || String(error?.message || '').split(':')[0];
+      if (['SOCIAL_FONTS_UNAVAILABLE', 'PREMIUM_FONT_UNAVAILABLE'].includes(fontCode) && fontRetry < FONT_RETRIES) {
+        setRenderState({ status: 'loading', error: '', renderKey: '' });
+        fontRetryTimer.current = setTimeout(() => setFontRetry((attempt) => attempt + 1), FONT_RETRY_DELAY_MS);
+        return;
+      }
       setRenderState({
         status: error?.code === 'CURATION_REQUIRED' ? 'curation' : 'error',
         error: describeRenderError(error),
@@ -429,8 +441,12 @@ export default function SocialStudioPage() {
     return () => {
       cancelled = true;
       controller.abort();
+      clearTimeout(fontRetryTimer.current);
     };
-  }, [snapshot, editorial, organizationId, service, piece, selectedTheme, branding, localPhoto]);
+    // fontRetry only re-runs a render that failed on fonts; it is reset whenever the piece itself changes.
+  }, [snapshot, editorial, organizationId, service, piece, selectedTheme, branding, localPhoto, fontRetry]);
+
+  useEffect(() => { setFontRetry((attempt) => (attempt === 0 ? attempt : 0)); }, [snapshot, editorial, selectedTheme, branding, localPhoto]);
 
   useEffect(() => () => {
     releasePreparedSocialRender(preparedRenderRef.current);

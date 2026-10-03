@@ -1,6 +1,6 @@
 # TORNEOS-CALL-MAP — auditoría B04
 
-Inventario legacy congelado en `2058da039a2a5eaaed22d87d01946bc596ae5f50` (Phase 2D); árbol integrado auditado en `6b9b05adc8599742a5fe8801152170ae5689825e`. Reconstruido del código. No representa resultados de R2/R3/R4/R5.
+Inventario legacy congelado en `2058da039a2a5eaaed22d87d01946bc596ae5f50` (Phase 2D); árbol integrado auditado en `21f158854229098c5cea62e677ecdd1fa8a82ea1`. Reconstruido del código. No representa resultados de R2/R3/R4/R5.
 
 161 sitios RPC legacy; 160 nombres distintos; 108 nombres dentro de scope; 52 fuera. La selección dinámica de `changeTournamentMatchPlan` se resuelve a sus tres nombres literales. No quedan RPC dinámicas sin resolver.
 

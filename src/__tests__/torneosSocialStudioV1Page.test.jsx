@@ -394,3 +394,18 @@ test('re-choosing the format already chosen does not render the piece again', as
   fireEvent.click(within(screen.getByRole('radiogroup', { name: 'Formato' })).getByRole('radio', { name: 'Historia 9:16' }));
   await waitFor(() => expect(studio.prepareSocialRender.mock.calls.length).toBe(renders + 1));
 });
+
+test('late web fonts: the preview retries instead of staying broken, and gives up with human copy', async () => {
+  const fontError = () => Object.assign(new Error('SOCIAL_FONTS_UNAVAILABLE'), { code: 'SOCIAL_FONTS_UNAVAILABLE' });
+  const ok = studio.prepareSocialRender.getMockImplementation();
+  studio.prepareSocialRender.mockImplementationOnce(async () => { throw fontError(); });
+  setup();
+  await screen.findByRole('img', { name: /Vista previa/ }, { timeout: 4000 });
+  expect(screen.queryByText(/tipografías/)).not.toBeInTheDocument();
+  document.body.replaceChildren();
+  studio.prepareSocialRender.mockImplementation(async () => { throw fontError(); });
+  setup();
+  expect(await screen.findByText(/No pudimos cargar las tipografías/, {}, { timeout: 6000 })).toBeInTheDocument();
+  expect(studio.prepareSocialRender.mock.calls.length).toBeGreaterThanOrEqual(3);
+  studio.prepareSocialRender.mockImplementation(ok);
+}, 15000);
