@@ -1,0 +1,4 @@
+1c1
+< authorize_tournament_social_export(uuid,uuid,text,text,boolean)|f211d9a26d99448d4069c499c7508c55|t|s|{"search_path=\"\""}|supabase_admin|f|f|t|f
+---
+> authorize_tournament_social_export(uuid,uuid,text,text,boolean)|85bb485891d9a2c046798f9eaa0cb649|t|s|{"search_path=\"\""}|supabase_admin|f|t|t|f

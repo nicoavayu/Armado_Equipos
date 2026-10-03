@@ -1,0 +1,171 @@
+## POST_0007 baseline
+PASS catalog = audit evidence catalog-post0007.txt                  authorize_tournament_social_export(uuid,uuid,text,text,boolean)|f211d9a26d99448d4069c499c7508c55|t|s|{"search_path=\"\""}|supabase_admin|f|f|t|f
+current_user_tournament_social_capabilities(uuid)|40ace2223c80ee45ffafd3033603b768|t|s|{"search_path=\"\""}|supabase_admin|f|f|t|f
+get_tournament_social_snapshot(uuid,uuid,uuid,uuid,text,uuid,uuid)|5640252b8bbf9aebb1575b48aa78db0a|t|s|{"search_path=\"\""}|supabase_admin|f|t|t|f
+get_tournament_social_snapshot_plan_legacy(uuid,uuid,uuid,uuid,text,uuid,uuid)|e7606acb7df7381f81b9302aa3c987ae|t|s|{"search_path=\"\""}|supabase_admin|f|f|t|f
+get_tournament_social_studio_context(uuid)|860a6746dbf4b3a9fd29c3430ac8b8a7|t|s|{"search_path=\"\""}|supabase_admin|f|t|t|f
+get_tournament_social_studio_context_organization_legacy(uuid)|42287a3a4e91e5714cfdb20e0332ed23|t|s|{"search_path=\"\""}|supabase_admin|f|f|t|f
+has_tournament_social_capability(uuid,text)|f7558d609734718f7131b9f9dc027a13|t|s|{"search_path=\"\""}|supabase_admin|f|f|t|f
+set_tournament_social_permission(uuid,uuid,boolean)|6bec22e64e5dd60a9303c42e5df17eda|t|v|{"search_path=\"\""}|supabase_admin|f|t|t|f
+tournament_social_match_rows(uuid,uuid,uuid,boolean)|37686ea2a0fe990907e50b09207486a8|t|s|{"search_path=\"\""}|supabase_admin|f|f|t|f
+tournament_social_next_fixture(uuid,uuid,uuid)|42e14685d1b169fc4c2dc0f61341e552|t|s|{"search_path=\"\""}|supabase_admin|f|f|f|f
+tournament_social_player_candidates(uuid,jsonb)|f60726bbd0d3de5349dd07b48849d7c8|t|s|{"search_path=\"\""}|supabase_admin|f|f|f|f
+tournament_social_published_scope(uuid,uuid,uuid,uuid)|e479c745bdeeb899140aef691fae79f6|t|s|{"search_path=\"\""}|supabase_admin|f|f|t|f
+tournament_social_role_capabilities(text)|2763a8313613bff6211867fb0be33512|f|i|{"search_path=\"\""}|supabase_admin|f|f|t|f
+PASS ACL counts POST_0007                                           authenticated=171 anon=12
+## RED — authorize closed for authenticated (as in Production)
+PASS RED0 owner FREE round_results/base, ACL closed                 expect=ERR:permission denied for function                         | ERR:permission denied for function authorize_tournament_social_export
+PASS RED-F1 FREE theme NULL is authorized white-label before 0008   bug-reproduced
+PASS RED leaves no state behind                                     f78781c7be2df862178bd9c1cc2af5be
+## after 0008
+PASS ACL counts POST_0008                                           authenticated=172 anon=12
+PASS catalog diff = only the authorize row (md5 + authenticated)    1c1
+< authorize_tournament_social_export(uuid,uuid,text,text,boolean)|f211d9a26d99448d4069c499c7508c55|t|s|{"search_path=\"\""}|supabase_admin|f|f|t|f
+---
+> authorize_tournament_social_export(uuid,uuid,text,text,boolean)|85bb485891d9a2c046798f9eaa0cb649|t|s|{"search_path=\"\""}|supabase_admin|f|t|t|f
+## access (the access check runs before any input validation)
+PASS G1 bearer absent: no identity claims                           expect=ERR:TORNEOS_SOCIAL_EXPORT_FORBIDDEN                        | ERR:TORNEOS_SOCIAL_EXPORT_FORBIDDEN
+PASS G2 unknown identity (no torneos_identity row)                  expect=ERR:TORNEOS_SOCIAL_EXPORT_FORBIDDEN                        | ERR:TORNEOS_SOCIAL_EXPORT_FORBIDDEN
+PASS G3 identity without membership                                 expect=ERR:TORNEOS_SOCIAL_EXPORT_FORBIDDEN                        | ERR:TORNEOS_SOCIAL_EXPORT_FORBIDDEN
+PASS G4 identity without access + NULL theme (no oracle)            expect=ERR:TORNEOS_SOCIAL_EXPORT_FORBIDDEN                        | ERR:TORNEOS_SOCIAL_EXPORT_FORBIDDEN
+PASS G5 collaborator without export grant                           expect=ERR:TORNEOS_SOCIAL_EXPORT_FORBIDDEN                        | ERR:TORNEOS_SOCIAL_EXPORT_FORBIDDEN
+PASS G6 cross org: tournament A sent under org B                    expect=ERR:TORNEOS_SOCIAL_EXPORT_FORBIDDEN                        | ERR:TORNEOS_SOCIAL_EXPORT_FORBIDDEN
+PASS G7 cross org: owner A on org C tournament                      expect=ERR:TORNEOS_SOCIAL_EXPORT_FORBIDDEN                        | ERR:TORNEOS_SOCIAL_EXPORT_FORBIDDEN
+PASS G8 cross season: admin of season A2 on Copa A (A1)             expect=ERR:TORNEOS_SOCIAL_EXPORT_FORBIDDEN                        | ERR:TORNEOS_SOCIAL_EXPORT_FORBIDDEN
+PASS G9 nonexistent tournament (no season)                          expect=ERR:TORNEOS_SOCIAL_EXPORT_FORBIDDEN                        | ERR:TORNEOS_SOCIAL_EXPORT_FORBIDDEN
+PASS G10 NULL organization                                          expect=ERR:TORNEOS_SOCIAL_EXPORT_FORBIDDEN                        | ERR:TORNEOS_SOCIAL_EXPORT_FORBIDDEN
+PASS G11 NULL tournament                                            expect=ERR:TORNEOS_SOCIAL_EXPORT_FORBIDDEN                        | ERR:TORNEOS_SOCIAL_EXPORT_FORBIDDEN
+## NULL / unknown inputs (F1 fixed: never authorized, never coerced)
+PASS N1 FREE theme NULL                                             expect=ERR:TORNEOS_SOCIAL_THEME_UNKNOWN                           | ERR:TORNEOS_SOCIAL_THEME_UNKNOWN
+PASS N2 FREE piece NULL                                             expect=ERR:TORNEOS_SOCIAL_PIECE_UNKNOWN                           | ERR:TORNEOS_SOCIAL_PIECE_UNKNOWN
+PASS N3 FREE piece NULL theme NULL branding NULL                    expect=ERR:TORNEOS_SOCIAL_THEME_UNKNOWN                           | ERR:TORNEOS_SOCIAL_THEME_UNKNOWN
+PASS N4 FREE branding NULL                                          expect=ERR:TORNEOS_SOCIAL_BRANDING_INVALID                        | ERR:TORNEOS_SOCIAL_BRANDING_INVALID
+PASS N5 PREMIUM theme NULL                                          expect=ERR:TORNEOS_SOCIAL_THEME_UNKNOWN                           | ERR:TORNEOS_SOCIAL_THEME_UNKNOWN
+PASS N6 PREMIUM piece NULL                                          expect=ERR:TORNEOS_SOCIAL_PIECE_UNKNOWN                           | ERR:TORNEOS_SOCIAL_PIECE_UNKNOWN
+PASS N7 PREMIUM branding NULL                                       expect=ERR:TORNEOS_SOCIAL_BRANDING_INVALID                        | ERR:TORNEOS_SOCIAL_BRANDING_INVALID
+PASS N8 unknown theme                                               expect=ERR:TORNEOS_SOCIAL_THEME_UNKNOWN                           | ERR:TORNEOS_SOCIAL_THEME_UNKNOWN
+PASS N9 theme with a different case (no coercion)                   expect=ERR:TORNEOS_SOCIAL_THEME_UNKNOWN                           | ERR:TORNEOS_SOCIAL_THEME_UNKNOWN
+PASS N10 theme with padding (no coercion)                           expect=ERR:TORNEOS_SOCIAL_THEME_UNKNOWN                           | ERR:TORNEOS_SOCIAL_THEME_UNKNOWN
+PASS N11 unknown piece                                              expect=ERR:TORNEOS_SOCIAL_PIECE_UNKNOWN                           | ERR:TORNEOS_SOCIAL_PIECE_UNKNOWN
+PASS N12 empty piece                                                expect=ERR:TORNEOS_SOCIAL_PIECE_UNKNOWN                           | ERR:TORNEOS_SOCIAL_PIECE_UNKNOWN
+## FREE (season A1): Base + 3 pieces + Arma2 signature, nothing else
+PASS F1 FREE round_results/base/signed                              expect=OK:"plan": "FREE"&&"includeArma2Branding": true&&"authorized": true | OK:{"plan": "FREE", "piece": "round_results", "theme": "base", "seasonId": "5a5a5a5a-0000-4000-8000-0000000000a1", "authorized": true, "capability": "social_studio.premium", "tournamentId": "7a7a7a7a-0000-4000-8000-0000000000a1", "organizationId": "aaaaaaaa-0000-4000-8000-00000000000a", "includeArma2Branding": true}
+PASS F2 FREE standings/base/signed                                  expect=OK:"plan": "FREE"&&"includeArma2Branding": true            | OK:{"plan": "FREE", "piece": "standings", "theme": "base", "seasonId": "5a5a5a5a-0000-4000-8000-0000000000a1", "authorized": true, "capability": "social_studio.premium", "tournamentId": "7a7a7a7a-0000-4000-8000-0000000000a1", "organizationId": "aaaaaaaa-0000-4000-8000-00000000000a", "includeArma2Branding": true}
+PASS F3 FREE next_fixture/base/signed                               expect=OK:"plan": "FREE"&&"includeArma2Branding": true            | OK:{"plan": "FREE", "piece": "next_fixture", "theme": "base", "seasonId": "5a5a5a5a-0000-4000-8000-0000000000a1", "authorized": true, "capability": "social_studio.premium", "tournamentId": "7a7a7a7a-0000-4000-8000-0000000000a1", "organizationId": "aaaaaaaa-0000-4000-8000-00000000000a", "includeArma2Branding": true}
+PASS F5 FREE mvp/base (premium piece)                               expect=ERR:TORNEOS_SOCIAL_PREMIUM_REQUIRED                        | ERR:TORNEOS_SOCIAL_PREMIUM_REQUIRED
+PASS F5 FREE final/base (premium piece)                             expect=ERR:TORNEOS_SOCIAL_PREMIUM_REQUIRED                        | ERR:TORNEOS_SOCIAL_PREMIUM_REQUIRED
+PASS F5 FREE champion/base (premium piece)                          expect=ERR:TORNEOS_SOCIAL_PREMIUM_REQUIRED                        | ERR:TORNEOS_SOCIAL_PREMIUM_REQUIRED
+PASS F5 FREE scorers/base (premium piece)                           expect=ERR:TORNEOS_SOCIAL_PREMIUM_REQUIRED                        | ERR:TORNEOS_SOCIAL_PREMIUM_REQUIRED
+PASS F5 FREE discipline/base (premium piece)                        expect=ERR:TORNEOS_SOCIAL_PREMIUM_REQUIRED                        | ERR:TORNEOS_SOCIAL_PREMIUM_REQUIRED
+PASS F5 FREE best_eleven/base (premium piece)                       expect=ERR:TORNEOS_SOCIAL_PREMIUM_REQUIRED                        | ERR:TORNEOS_SOCIAL_PREMIUM_REQUIRED
+PASS F5 FREE round_summary/base (premium piece)                     expect=ERR:TORNEOS_SOCIAL_PREMIUM_REQUIRED                        | ERR:TORNEOS_SOCIAL_PREMIUM_REQUIRED
+PASS F5 FREE semifinals/base (premium piece)                        expect=ERR:TORNEOS_SOCIAL_PREMIUM_REQUIRED                        | ERR:TORNEOS_SOCIAL_PREMIUM_REQUIRED
+PASS F6 FREE round_results/heritage (premium theme)                 expect=ERR:TORNEOS_SOCIAL_PREMIUM_REQUIRED                        | ERR:TORNEOS_SOCIAL_PREMIUM_REQUIRED
+PASS F6 FREE round_results/street (premium theme)                   expect=ERR:TORNEOS_SOCIAL_PREMIUM_REQUIRED                        | ERR:TORNEOS_SOCIAL_PREMIUM_REQUIRED
+PASS F6 FREE round_results/scoreboard (premium theme)               expect=ERR:TORNEOS_SOCIAL_PREMIUM_REQUIRED                        | ERR:TORNEOS_SOCIAL_PREMIUM_REQUIRED
+PASS F6 FREE round_results/editorial (premium theme)                expect=ERR:TORNEOS_SOCIAL_PREMIUM_REQUIRED                        | ERR:TORNEOS_SOCIAL_PREMIUM_REQUIRED
+PASS F7 FREE Base removing the Arma2 signature                      expect=ERR:TORNEOS_BRANDING_PREMIUM_REQUIRED                      | ERR:TORNEOS_BRANDING_PREMIUM_REQUIRED
+PASS F8 FREE org B (other FREE org of the same owner)               expect=OK:"plan": "FREE"&&"includeArma2Branding": true            | OK:{"plan": "FREE", "piece": "next_fixture", "theme": "base", "seasonId": "5b5b5b5b-0000-4000-8000-0000000000b1", "authorized": true, "capability": "social_studio.premium", "tournamentId": "7b7b7b7b-0000-4000-8000-0000000000b1", "organizationId": "bbbbbbbb-0000-4000-8000-00000000000b", "includeArma2Branding": true}
+## PREMIUM (season A2): 11 pieces × 5 styles, Base signature optional, Premium styles always white-label
+PASS P1 PREMIUM round_results/base signed                           expect=OK:"plan": "PREMIUM"&&"includeArma2Branding": true         | OK:{"plan": "PREMIUM", "piece": "round_results", "theme": "base", "seasonId": "5a5a5a5a-0000-4000-8000-0000000000a2", "authorized": true, "capability": "social_studio.premium", "tournamentId": "7a7a7a7a-0000-4000-8000-0000000000a2", "organizationId": "aaaaaaaa-0000-4000-8000-00000000000a", "includeArma2Branding": true}
+PASS P1 PREMIUM next_fixture/base signed                            expect=OK:"plan": "PREMIUM"&&"includeArma2Branding": true         | OK:{"plan": "PREMIUM", "piece": "next_fixture", "theme": "base", "seasonId": "5a5a5a5a-0000-4000-8000-0000000000a2", "authorized": true, "capability": "social_studio.premium", "tournamentId": "7a7a7a7a-0000-4000-8000-0000000000a2", "organizationId": "aaaaaaaa-0000-4000-8000-00000000000a", "includeArma2Branding": true}
+PASS P1 PREMIUM standings/base signed                               expect=OK:"plan": "PREMIUM"&&"includeArma2Branding": true         | OK:{"plan": "PREMIUM", "piece": "standings", "theme": "base", "seasonId": "5a5a5a5a-0000-4000-8000-0000000000a2", "authorized": true, "capability": "social_studio.premium", "tournamentId": "7a7a7a7a-0000-4000-8000-0000000000a2", "organizationId": "aaaaaaaa-0000-4000-8000-00000000000a", "includeArma2Branding": true}
+PASS P1 PREMIUM mvp/base signed                                     expect=OK:"plan": "PREMIUM"&&"includeArma2Branding": true         | OK:{"plan": "PREMIUM", "piece": "mvp", "theme": "base", "seasonId": "5a5a5a5a-0000-4000-8000-0000000000a2", "authorized": true, "capability": "social_studio.premium", "tournamentId": "7a7a7a7a-0000-4000-8000-0000000000a2", "organizationId": "aaaaaaaa-0000-4000-8000-00000000000a", "includeArma2Branding": true}
+PASS P1 PREMIUM final/base signed                                   expect=OK:"plan": "PREMIUM"&&"includeArma2Branding": true         | OK:{"plan": "PREMIUM", "piece": "final", "theme": "base", "seasonId": "5a5a5a5a-0000-4000-8000-0000000000a2", "authorized": true, "capability": "social_studio.premium", "tournamentId": "7a7a7a7a-0000-4000-8000-0000000000a2", "organizationId": "aaaaaaaa-0000-4000-8000-00000000000a", "includeArma2Branding": true}
+PASS P1 PREMIUM champion/base signed                                expect=OK:"plan": "PREMIUM"&&"includeArma2Branding": true         | OK:{"plan": "PREMIUM", "piece": "champion", "theme": "base", "seasonId": "5a5a5a5a-0000-4000-8000-0000000000a2", "authorized": true, "capability": "social_studio.premium", "tournamentId": "7a7a7a7a-0000-4000-8000-0000000000a2", "organizationId": "aaaaaaaa-0000-4000-8000-00000000000a", "includeArma2Branding": true}
+PASS P1 PREMIUM scorers/base signed                                 expect=OK:"plan": "PREMIUM"&&"includeArma2Branding": true         | OK:{"plan": "PREMIUM", "piece": "scorers", "theme": "base", "seasonId": "5a5a5a5a-0000-4000-8000-0000000000a2", "authorized": true, "capability": "social_studio.premium", "tournamentId": "7a7a7a7a-0000-4000-8000-0000000000a2", "organizationId": "aaaaaaaa-0000-4000-8000-00000000000a", "includeArma2Branding": true}
+PASS P1 PREMIUM discipline/base signed                              expect=OK:"plan": "PREMIUM"&&"includeArma2Branding": true         | OK:{"plan": "PREMIUM", "piece": "discipline", "theme": "base", "seasonId": "5a5a5a5a-0000-4000-8000-0000000000a2", "authorized": true, "capability": "social_studio.premium", "tournamentId": "7a7a7a7a-0000-4000-8000-0000000000a2", "organizationId": "aaaaaaaa-0000-4000-8000-00000000000a", "includeArma2Branding": true}
+PASS P1 PREMIUM best_eleven/base signed                             expect=OK:"plan": "PREMIUM"&&"includeArma2Branding": true         | OK:{"plan": "PREMIUM", "piece": "best_eleven", "theme": "base", "seasonId": "5a5a5a5a-0000-4000-8000-0000000000a2", "authorized": true, "capability": "social_studio.premium", "tournamentId": "7a7a7a7a-0000-4000-8000-0000000000a2", "organizationId": "aaaaaaaa-0000-4000-8000-00000000000a", "includeArma2Branding": true}
+PASS P1 PREMIUM round_summary/base signed                           expect=OK:"plan": "PREMIUM"&&"includeArma2Branding": true         | OK:{"plan": "PREMIUM", "piece": "round_summary", "theme": "base", "seasonId": "5a5a5a5a-0000-4000-8000-0000000000a2", "authorized": true, "capability": "social_studio.premium", "tournamentId": "7a7a7a7a-0000-4000-8000-0000000000a2", "organizationId": "aaaaaaaa-0000-4000-8000-00000000000a", "includeArma2Branding": true}
+PASS P1 PREMIUM semifinals/base signed                              expect=OK:"plan": "PREMIUM"&&"includeArma2Branding": true         | OK:{"plan": "PREMIUM", "piece": "semifinals", "theme": "base", "seasonId": "5a5a5a5a-0000-4000-8000-0000000000a2", "authorized": true, "capability": "social_studio.premium", "tournamentId": "7a7a7a7a-0000-4000-8000-0000000000a2", "organizationId": "aaaaaaaa-0000-4000-8000-00000000000a", "includeArma2Branding": true}
+PASS P2 PREMIUM Base branding OFF                                   expect=OK:"plan": "PREMIUM"&&"includeArma2Branding": false        | OK:{"plan": "PREMIUM", "piece": "standings", "theme": "base", "seasonId": "5a5a5a5a-0000-4000-8000-0000000000a2", "authorized": true, "capability": "social_studio.premium", "tournamentId": "7a7a7a7a-0000-4000-8000-0000000000a2", "organizationId": "aaaaaaaa-0000-4000-8000-00000000000a", "includeArma2Branding": false}
+PASS P3 PREMIUM heritage asked WITH Arma2 → white-label           expect=OK:"theme": "heritage"&&"includeArma2Branding": false      | OK:{"plan": "PREMIUM", "piece": "mvp", "theme": "heritage", "seasonId": "5a5a5a5a-0000-4000-8000-0000000000a2", "authorized": true, "capability": "social_studio.premium", "tournamentId": "7a7a7a7a-0000-4000-8000-0000000000a2", "organizationId": "aaaaaaaa-0000-4000-8000-00000000000a", "includeArma2Branding": false}
+PASS P4 PREMIUM heritage without Arma2 → white-label              expect=OK:"theme": "heritage"&&"includeArma2Branding": false      | OK:{"plan": "PREMIUM", "piece": "champion", "theme": "heritage", "seasonId": "5a5a5a5a-0000-4000-8000-0000000000a2", "authorized": true, "capability": "social_studio.premium", "tournamentId": "7a7a7a7a-0000-4000-8000-0000000000a2", "organizationId": "aaaaaaaa-0000-4000-8000-00000000000a", "includeArma2Branding": false}
+PASS P3 PREMIUM street asked WITH Arma2 → white-label             expect=OK:"theme": "street"&&"includeArma2Branding": false        | OK:{"plan": "PREMIUM", "piece": "mvp", "theme": "street", "seasonId": "5a5a5a5a-0000-4000-8000-0000000000a2", "authorized": true, "capability": "social_studio.premium", "tournamentId": "7a7a7a7a-0000-4000-8000-0000000000a2", "organizationId": "aaaaaaaa-0000-4000-8000-00000000000a", "includeArma2Branding": false}
+PASS P4 PREMIUM street without Arma2 → white-label                expect=OK:"theme": "street"&&"includeArma2Branding": false        | OK:{"plan": "PREMIUM", "piece": "champion", "theme": "street", "seasonId": "5a5a5a5a-0000-4000-8000-0000000000a2", "authorized": true, "capability": "social_studio.premium", "tournamentId": "7a7a7a7a-0000-4000-8000-0000000000a2", "organizationId": "aaaaaaaa-0000-4000-8000-00000000000a", "includeArma2Branding": false}
+PASS P3 PREMIUM scoreboard asked WITH Arma2 → white-label         expect=OK:"theme": "scoreboard"&&"includeArma2Branding": false    | OK:{"plan": "PREMIUM", "piece": "mvp", "theme": "scoreboard", "seasonId": "5a5a5a5a-0000-4000-8000-0000000000a2", "authorized": true, "capability": "social_studio.premium", "tournamentId": "7a7a7a7a-0000-4000-8000-0000000000a2", "organizationId": "aaaaaaaa-0000-4000-8000-00000000000a", "includeArma2Branding": false}
+PASS P4 PREMIUM scoreboard without Arma2 → white-label            expect=OK:"theme": "scoreboard"&&"includeArma2Branding": false    | OK:{"plan": "PREMIUM", "piece": "champion", "theme": "scoreboard", "seasonId": "5a5a5a5a-0000-4000-8000-0000000000a2", "authorized": true, "capability": "social_studio.premium", "tournamentId": "7a7a7a7a-0000-4000-8000-0000000000a2", "organizationId": "aaaaaaaa-0000-4000-8000-00000000000a", "includeArma2Branding": false}
+PASS P3 PREMIUM editorial asked WITH Arma2 → white-label          expect=OK:"theme": "editorial"&&"includeArma2Branding": false     | OK:{"plan": "PREMIUM", "piece": "mvp", "theme": "editorial", "seasonId": "5a5a5a5a-0000-4000-8000-0000000000a2", "authorized": true, "capability": "social_studio.premium", "tournamentId": "7a7a7a7a-0000-4000-8000-0000000000a2", "organizationId": "aaaaaaaa-0000-4000-8000-00000000000a", "includeArma2Branding": false}
+PASS P4 PREMIUM editorial without Arma2 → white-label             expect=OK:"theme": "editorial"&&"includeArma2Branding": false     | OK:{"plan": "PREMIUM", "piece": "champion", "theme": "editorial", "seasonId": "5a5a5a5a-0000-4000-8000-0000000000a2", "authorized": true, "capability": "social_studio.premium", "tournamentId": "7a7a7a7a-0000-4000-8000-0000000000a2", "organizationId": "aaaaaaaa-0000-4000-8000-00000000000a", "includeArma2Branding": false}
+PASS P5 PREMIUM unknown theme                                       expect=ERR:TORNEOS_SOCIAL_THEME_UNKNOWN                           | ERR:TORNEOS_SOCIAL_THEME_UNKNOWN
+PASS P7 PREMIUM admin of the season, Scoreboard                     expect=OK:"plan": "PREMIUM"&&"includeArma2Branding": false        | OK:{"plan": "PREMIUM", "piece": "discipline", "theme": "scoreboard", "seasonId": "5a5a5a5a-0000-4000-8000-0000000000a2", "authorized": true, "capability": "social_studio.premium", "tournamentId": "7a7a7a7a-0000-4000-8000-0000000000a2", "organizationId": "aaaaaaaa-0000-4000-8000-00000000000a", "includeArma2Branding": false}
+PASS P6 PREMIUM season does not leak to FREE season A1              expect=ERR:TORNEOS_SOCIAL_PREMIUM_REQUIRED                        | ERR:TORNEOS_SOCIAL_PREMIUM_REQUIRED
+## read RPCs (unchanged by 0008)
+PASS R1 owner studio context                                        expect=OK:"social.export"&&"freeBaseFamilies"                     | OK:{"brand": {"canHideArma2Logo": true, "organizationName": "Lab Org A"}, "tournaments": [{"id": "7a7a7a7a-0000-4000-8000-0000000000a2", "name": "Copa A2", "status": "draft", "categories": []}, {"id": "7a7a7a7a-0000-4000-8000-0000000000a1", "name": "Copa A", "status": "draft", "categories": []}], "capabilities": ["social.read", "social.create", "social.export", "social.manual_selection", "social.editorial_text", "social.brand_toggle", "social.manage_permissions"], "commercialUnit": "season", "freeBaseFamilies": ["round_results", "standings", "next_fixture"]}
+PASS R2 season-scoped admin sees its season A2 tournament           expect=OK:Copa A2"                                                | OK:{"brand": {"canHideArma2Logo": true, "organizationName": "Lab Org A"}, "tournaments": [{"id": "7a7a7a7a-0000-4000-8000-0000000000a2", "name": "Copa A2", "status": "draft", "categories": []}], "capabilities": ["social.read", "social.create", "social.export", "social.manual_selection", "social.editorial_text", "social.brand_toggle", "social.manage_permissions"], "commercialUnit": "season", "freeBaseFamilies": ["round_results", "standings", "next_fixture"]}
+PASS R3 identity without membership studio context                  expect=ERR:TORNEOS_SOCIAL_FORBIDDEN                               | ERR:TORNEOS_SOCIAL_FORBIDDEN
+PASS R4 no identity studio context                                  expect=ERR:TORNEOS_SOCIAL_FORBIDDEN                               | ERR:TORNEOS_SOCIAL_FORBIDDEN
+PASS R5 snapshot without a published fixture                        expect=ERR:TORNEOS_SOCIAL_SCOPE_UNAVAILABLE                       | ERR:TORNEOS_SOCIAL_SCOPE_UNAVAILABLE
+PASS R6 snapshot cross org                                          expect=ERR:TORNEOS_SOCIAL_FORBIDDEN                               | ERR:TORNEOS_SOCIAL_FORBIDDEN
+PASS R7 snapshot cross season (admin A2 on Copa A)                  expect=ERR:TORNEOS_SOCIAL_FORBIDDEN                               | ERR:TORNEOS_SOCIAL_FORBIDDEN
+PASS R8 snapshot identity without membership                        expect=ERR:TORNEOS_SOCIAL_FORBIDDEN                               | ERR:TORNEOS_SOCIAL_FORBIDDEN
+PASS R2b season-scoped admin does not see Copa A (A1)               absent
+## collaborator W with an explicit export grant (season A1 only)
+PASS C1 granted collaborator FREE round_results/base/signed         expect=OK:"plan": "FREE"&&"includeArma2Branding": true            | OK:{"plan": "FREE", "piece": "round_results", "theme": "base", "seasonId": "5a5a5a5a-0000-4000-8000-0000000000a1", "authorized": true, "capability": "social_studio.premium", "tournamentId": "7a7a7a7a-0000-4000-8000-0000000000a1", "organizationId": "aaaaaaaa-0000-4000-8000-00000000000a", "includeArma2Branding": true}
+PASS C2 granted collaborator cross season (Copa A2)                 expect=ERR:TORNEOS_SOCIAL_EXPORT_FORBIDDEN                        | ERR:TORNEOS_SOCIAL_EXPORT_FORBIDDEN
+PASS C3 granted collaborator FREE premium theme                     expect=ERR:TORNEOS_SOCIAL_PREMIUM_REQUIRED                        | ERR:TORNEOS_SOCIAL_PREMIUM_REQUIRED
+## re-apply 0008 = no-op
+PASS catalog after re-apply                                         authorize_tournament_social_export(uuid,uuid,text,text,boolean)|85bb485891d9a2c046798f9eaa0cb649|t|s|{"search_path=\"\""}|supabase_admin|f|t|t|f
+current_user_tournament_social_capabilities(uuid)|40ace2223c80ee45ffafd3033603b768|t|s|{"search_path=\"\""}|supabase_admin|f|f|t|f
+get_tournament_social_snapshot(uuid,uuid,uuid,uuid,text,uuid,uuid)|5640252b8bbf9aebb1575b48aa78db0a|t|s|{"search_path=\"\""}|supabase_admin|f|t|t|f
+get_tournament_social_snapshot_plan_legacy(uuid,uuid,uuid,uuid,text,uuid,uuid)|e7606acb7df7381f81b9302aa3c987ae|t|s|{"search_path=\"\""}|supabase_admin|f|f|t|f
+get_tournament_social_studio_context(uuid)|860a6746dbf4b3a9fd29c3430ac8b8a7|t|s|{"search_path=\"\""}|supabase_admin|f|t|t|f
+get_tournament_social_studio_context_organization_legacy(uuid)|42287a3a4e91e5714cfdb20e0332ed23|t|s|{"search_path=\"\""}|supabase_admin|f|f|t|f
+has_tournament_social_capability(uuid,text)|f7558d609734718f7131b9f9dc027a13|t|s|{"search_path=\"\""}|supabase_admin|f|f|t|f
+set_tournament_social_permission(uuid,uuid,boolean)|6bec22e64e5dd60a9303c42e5df17eda|t|v|{"search_path=\"\""}|supabase_admin|f|t|t|f
+tournament_social_match_rows(uuid,uuid,uuid,boolean)|37686ea2a0fe990907e50b09207486a8|t|s|{"search_path=\"\""}|supabase_admin|f|f|t|f
+tournament_social_next_fixture(uuid,uuid,uuid)|42e14685d1b169fc4c2dc0f61341e552|t|s|{"search_path=\"\""}|supabase_admin|f|f|f|f
+tournament_social_player_candidates(uuid,jsonb)|f60726bbd0d3de5349dd07b48849d7c8|t|s|{"search_path=\"\""}|supabase_admin|f|f|f|f
+tournament_social_published_scope(uuid,uuid,uuid,uuid)|e479c745bdeeb899140aef691fae79f6|t|s|{"search_path=\"\""}|supabase_admin|f|f|t|f
+tournament_social_role_capabilities(text)|2763a8313613bff6211867fb0be33512|f|i|{"search_path=\"\""}|supabase_admin|f|f|t|f
+PASS public/private fingerprint after re-apply                      624f766fce3d0861101aa69a724c1aa1
+## tampered state: 0008 aborts and changes nothing
+PASS 0008 refuses anon EXECUTE on authorize                         refused
+PASS nothing applied by the refused run                             ab4501beafd24530786e54c5c8ffedfa
+PASS tamper reverted                                                624f766fce3d0861101aa69a724c1aa1
+## rollback
+PASS catalog after rollback = POST_0007                             authorize_tournament_social_export(uuid,uuid,text,text,boolean)|f211d9a26d99448d4069c499c7508c55|t|s|{"search_path=\"\""}|supabase_admin|f|f|t|f
+current_user_tournament_social_capabilities(uuid)|40ace2223c80ee45ffafd3033603b768|t|s|{"search_path=\"\""}|supabase_admin|f|f|t|f
+get_tournament_social_snapshot(uuid,uuid,uuid,uuid,text,uuid,uuid)|5640252b8bbf9aebb1575b48aa78db0a|t|s|{"search_path=\"\""}|supabase_admin|f|t|t|f
+get_tournament_social_snapshot_plan_legacy(uuid,uuid,uuid,uuid,text,uuid,uuid)|e7606acb7df7381f81b9302aa3c987ae|t|s|{"search_path=\"\""}|supabase_admin|f|f|t|f
+get_tournament_social_studio_context(uuid)|860a6746dbf4b3a9fd29c3430ac8b8a7|t|s|{"search_path=\"\""}|supabase_admin|f|t|t|f
+get_tournament_social_studio_context_organization_legacy(uuid)|42287a3a4e91e5714cfdb20e0332ed23|t|s|{"search_path=\"\""}|supabase_admin|f|f|t|f
+has_tournament_social_capability(uuid,text)|f7558d609734718f7131b9f9dc027a13|t|s|{"search_path=\"\""}|supabase_admin|f|f|t|f
+set_tournament_social_permission(uuid,uuid,boolean)|6bec22e64e5dd60a9303c42e5df17eda|t|v|{"search_path=\"\""}|supabase_admin|f|t|t|f
+tournament_social_match_rows(uuid,uuid,uuid,boolean)|37686ea2a0fe990907e50b09207486a8|t|s|{"search_path=\"\""}|supabase_admin|f|f|t|f
+tournament_social_next_fixture(uuid,uuid,uuid)|42e14685d1b169fc4c2dc0f61341e552|t|s|{"search_path=\"\""}|supabase_admin|f|f|f|f
+tournament_social_player_candidates(uuid,jsonb)|f60726bbd0d3de5349dd07b48849d7c8|t|s|{"search_path=\"\""}|supabase_admin|f|f|f|f
+tournament_social_published_scope(uuid,uuid,uuid,uuid)|e479c745bdeeb899140aef691fae79f6|t|s|{"search_path=\"\""}|supabase_admin|f|f|t|f
+tournament_social_role_capabilities(text)|2763a8313613bff6211867fb0be33512|f|i|{"search_path=\"\""}|supabase_admin|f|f|t|f
+PASS ACL counts after rollback                                      authenticated=171 anon=12
+PASS RB1 authorize closed again                                     expect=ERR:permission denied for function                         | ERR:permission denied for function authorize_tournament_social_export
+PASS rollback re-run = no-op                                        authorize_tournament_social_export(uuid,uuid,text,text,boolean)|f211d9a26d99448d4069c499c7508c55|t|s|{"search_path=\"\""}|supabase_admin|f|f|t|f
+current_user_tournament_social_capabilities(uuid)|40ace2223c80ee45ffafd3033603b768|t|s|{"search_path=\"\""}|supabase_admin|f|f|t|f
+get_tournament_social_snapshot(uuid,uuid,uuid,uuid,text,uuid,uuid)|5640252b8bbf9aebb1575b48aa78db0a|t|s|{"search_path=\"\""}|supabase_admin|f|t|t|f
+get_tournament_social_snapshot_plan_legacy(uuid,uuid,uuid,uuid,text,uuid,uuid)|e7606acb7df7381f81b9302aa3c987ae|t|s|{"search_path=\"\""}|supabase_admin|f|f|t|f
+get_tournament_social_studio_context(uuid)|860a6746dbf4b3a9fd29c3430ac8b8a7|t|s|{"search_path=\"\""}|supabase_admin|f|t|t|f
+get_tournament_social_studio_context_organization_legacy(uuid)|42287a3a4e91e5714cfdb20e0332ed23|t|s|{"search_path=\"\""}|supabase_admin|f|f|t|f
+has_tournament_social_capability(uuid,text)|f7558d609734718f7131b9f9dc027a13|t|s|{"search_path=\"\""}|supabase_admin|f|f|t|f
+set_tournament_social_permission(uuid,uuid,boolean)|6bec22e64e5dd60a9303c42e5df17eda|t|v|{"search_path=\"\""}|supabase_admin|f|t|t|f
+tournament_social_match_rows(uuid,uuid,uuid,boolean)|37686ea2a0fe990907e50b09207486a8|t|s|{"search_path=\"\""}|supabase_admin|f|f|t|f
+tournament_social_next_fixture(uuid,uuid,uuid)|42e14685d1b169fc4c2dc0f61341e552|t|s|{"search_path=\"\""}|supabase_admin|f|f|f|f
+tournament_social_player_candidates(uuid,jsonb)|f60726bbd0d3de5349dd07b48849d7c8|t|s|{"search_path=\"\""}|supabase_admin|f|f|f|f
+tournament_social_published_scope(uuid,uuid,uuid,uuid)|e479c745bdeeb899140aef691fae79f6|t|s|{"search_path=\"\""}|supabase_admin|f|f|t|f
+tournament_social_role_capabilities(text)|2763a8313613bff6211867fb0be33512|f|i|{"search_path=\"\""}|supabase_admin|f|f|t|f
+## 0008 again after the rollback
+PASS catalog after re-forward = POST_0008                           authorize_tournament_social_export(uuid,uuid,text,text,boolean)|85bb485891d9a2c046798f9eaa0cb649|t|s|{"search_path=\"\""}|supabase_admin|f|t|t|f
+current_user_tournament_social_capabilities(uuid)|40ace2223c80ee45ffafd3033603b768|t|s|{"search_path=\"\""}|supabase_admin|f|f|t|f
+get_tournament_social_snapshot(uuid,uuid,uuid,uuid,text,uuid,uuid)|5640252b8bbf9aebb1575b48aa78db0a|t|s|{"search_path=\"\""}|supabase_admin|f|t|t|f
+get_tournament_social_snapshot_plan_legacy(uuid,uuid,uuid,uuid,text,uuid,uuid)|e7606acb7df7381f81b9302aa3c987ae|t|s|{"search_path=\"\""}|supabase_admin|f|f|t|f
+get_tournament_social_studio_context(uuid)|860a6746dbf4b3a9fd29c3430ac8b8a7|t|s|{"search_path=\"\""}|supabase_admin|f|t|t|f
+get_tournament_social_studio_context_organization_legacy(uuid)|42287a3a4e91e5714cfdb20e0332ed23|t|s|{"search_path=\"\""}|supabase_admin|f|f|t|f
+has_tournament_social_capability(uuid,text)|f7558d609734718f7131b9f9dc027a13|t|s|{"search_path=\"\""}|supabase_admin|f|f|t|f
+set_tournament_social_permission(uuid,uuid,boolean)|6bec22e64e5dd60a9303c42e5df17eda|t|v|{"search_path=\"\""}|supabase_admin|f|t|t|f
+tournament_social_match_rows(uuid,uuid,uuid,boolean)|37686ea2a0fe990907e50b09207486a8|t|s|{"search_path=\"\""}|supabase_admin|f|f|t|f
+tournament_social_next_fixture(uuid,uuid,uuid)|42e14685d1b169fc4c2dc0f61341e552|t|s|{"search_path=\"\""}|supabase_admin|f|f|f|f
+tournament_social_player_candidates(uuid,jsonb)|f60726bbd0d3de5349dd07b48849d7c8|t|s|{"search_path=\"\""}|supabase_admin|f|f|f|f
+tournament_social_published_scope(uuid,uuid,uuid,uuid)|e479c745bdeeb899140aef691fae79f6|t|s|{"search_path=\"\""}|supabase_admin|f|f|t|f
+tournament_social_role_capabilities(text)|2763a8313613bff6211867fb0be33512|f|i|{"search_path=\"\""}|supabase_admin|f|f|t|f
+PASS RF1 FREE theme NULL refused                                    expect=ERR:TORNEOS_SOCIAL_THEME_UNKNOWN                           | ERR:TORNEOS_SOCIAL_THEME_UNKNOWN
+PASS RF2 PREMIUM editorial white-label                              expect=OK:"includeArma2Branding": false                           | OK:{"plan": "PREMIUM", "piece": "standings", "theme": "editorial", "seasonId": "5a5a5a5a-0000-4000-8000-0000000000a2", "authorized": true, "capability": "social_studio.premium", "tournamentId": "7a7a7a7a-0000-4000-8000-0000000000a2", "organizationId": "aaaaaaaa-0000-4000-8000-00000000000a", "includeArma2Branding": false}
+TOTAL PASS=94 FAIL=0
