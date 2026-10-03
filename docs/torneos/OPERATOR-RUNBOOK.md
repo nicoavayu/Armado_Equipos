@@ -3,7 +3,7 @@
 Autoridad operativa para continuar Arma2 Torneos. Se actualiza en cada paso de rollout.
 **Sin secretos:** este archivo nunca contiene access/refresh tokens, service_role, anon keys, claves privadas ni URLs de DB con credenciales. Los secretos viven en Secret Manager (Cloud Run) y en las env de Vercel/Supabase.
 
-Última actualización: 2026-10-02 (ver [Último estado certificado](#último-estado-certificado)).
+Última actualización: 2026-10-03 (ver [Último estado certificado](#último-estado-certificado)).
 
 ---
 
@@ -118,6 +118,7 @@ Directorio: `backend/torneos/supabase/migrations/`. Production está en **POST_0
 
 - 0007 aplicada en Production y certificada (`TORNEOS_SEASON_SCOPE_PROD_DB_CERTIFIED`). Cuerpo `md5(prosrc)` = `bf263acafb185ee0993117d5805bc701` (antes `a533331a…`). **No volver a aplicarla.**
 - Rollback de 0007: sha256 `054985997ea06a0c7745f1e700489a9b879cbd40f0320d83d7049780f2758be3`, restaura `a533331a…`. Sólo con PLAN READ y Commerce en OFF. Es gate D.
+- **0008 `social_v1_export_authorization.sql` — en git (PR #174), NO aplicada en Production.** sha256 `8b1e7bf96c13caa5b8102ff1150e462346820e472c8a58f8f6bd6be0a6310c2f`. Cambia sólo el cuerpo de `authorize_tournament_social_export` (`f211d9a2…` → `85bb4858…`: tema/placa/firma `NULL` ⇒ 22023, sin coerción) y le da `EXECUTE` a `authenticated` (171→172 / anon 12). Driver de operador: `backend/torneos/social-v1/remote/db8.mjs` (`observe` read-only; `apply APPLY TORNEOS 0008 onzpwnqxnvlgsevivngf 8b1e7bf96c13` sólo desde `POST_0007`). Rollback: `backend/torneos/social-v1/rollback/00000000000008_social_v1_export_authorization.rollback.sql`, sha256 `dcc65afe7aeb1f0b9013616d24bac9c9d95a4a6b0ee003d81b7ac66f08be148d` (`db8.mjs rollback ROLLBACK TORNEOS 0008 onzpwnqxnvlgsevivngf dcc65afe7aeb`; sólo con `TORNEOS_SOCIAL_MODE` ausente). Lab 94/94. Es gate D.
 
 ---
 
@@ -126,8 +127,10 @@ Directorio: `backend/torneos/supabase/migrations/`. Production está en **POST_0
 | Capa | Variable | Estado Production | Efecto en ON |
 |---|---|---|---|
 | Gateway | `TORNEOS_PLAN_READ_MODE` | **`on`** (rev `00003-b78`, 2026-10-02) | Agrega sólo `get_effective_tournament_season_entitlements` y `get_effective_tournament_entitlements` a la allowlist. Cualquier valor distinto de `on`/`off`/vacío cierra el boot (`PlanReadConfigError`) |
+| Gateway | `TORNEOS_SOCIAL_MODE` | **ausente (OFF)**; la imagen Prod actual (`dc8049d3…`) ni siquiera tiene `social.ts` | `on` agrega exactamente `get_tournament_social_studio_context`, `get_tournament_social_snapshot`, `authorize_tournament_social_export`. Nunca `set_tournament_social_permission` ni la ruta pública. Cualquier otro valor cierra el boot (`SocialConfigError`, logueado como `[torneos-gateway] disabled: TORNEOS_SOCIAL_MODE must be on or off`) |
 | Gateway | `TORNEOS_COMMERCE_MODE` y env de MP/pagos | **ausentes (OFF)** | Production rechaza commerce |
-| Frontend | `REACT_APP_TORNEOS_PLAN_READ_MODE` | **ausente (OFF)** | Sólo `on` exacto, en composición `hybrid`: `entitlements` + `plan` (overlay `stagingV1PlanReadOverlay`). Billing sigue `false` |
+| Frontend | `REACT_APP_TORNEOS_PLAN_READ_MODE` | **`on`** (env `vC6YHwcitmPuCbNy`, 2026-10-02) | Sólo `on` exacto, en composición `hybrid`: `entitlements` + `plan` (overlay `stagingV1PlanReadOverlay`). Billing sigue `false` |
+| Frontend | `REACT_APP_TORNEOS_SOCIAL_GENERATOR_ENABLED` | **ausente (OFF)** | Sólo `true` exacto, y además híbrido + PLAN READ (`resolveTorneosSocialStudio`): nav "Estudio Social", ruta, overlay `social_studio`, 3 alias. Mi plan pasa el Estudio de "Próximamente" a la comparación FREE vs PREMIUM |
 | Frontend | Billing | OFF | — |
 
 Con el flag de frontend OFF no existen "Mi plan", el badge FREE/PREMIUM, "Plan no verificado" ni lecturas de plan.
@@ -264,30 +267,30 @@ GO de Nico (gates B+C) sólo para `TORNEOS_PLAN_READ_MODE=on` en el gateway Prod
 - **Frontend:** bundle Production `main.d122a441.js` sin `REACT_APP_TORNEOS_PLAN_READ_MODE` ni referencias a las RPC de plan → sin cambio visible.
 - **DB:** ninguna operación. Billing, Commerce y MP LIVE siguen OFF.
 
-## SOCIAL-V1 — Estudio Social en Production (auditoría + plan, 2026-10-02, PR #173 abierto)
+## SOCIAL-V1 — Estudio Social V2 completo (2026-10-03, PR #174 abierto, todo OFF)
 
-Nada habilitado. Detalle en `backend/torneos/social-v1/AUDIT.md` y `PLAN.md` (rama `claude/social-v1-audit-plan-74a9ff`).
+Implementado y certificado localmente (`SOCIAL_STUDIO_V2_READY_FOR_GATE_A`). Detalle: `backend/torneos/social-v1/REPORT.md` (auditoría y plan de origen: `AUDIT.md`, `PLAN.md`; PR #173 queda reemplazado por este).
 
-- **Contrato:** 3 RPC (`get_tournament_social_studio_context`, `get_tournament_social_snapshot`, `authorize_tournament_social_export`). `set_tournament_social_permission` no tiene consumidor en la UI → fuera de la allowlist.
-- **ACL POST_0007:** las dos lecturas tienen EXECUTE para `authenticated` desde el baseline; `authorize_…` está cerrada (0001), md5 `f211d9a2…`. 171/12.
-- **Hallazgo F1 (lab):** `authorize_…` con `theme NULL` autoriza a un FREE como white-label; con `piece NULL` también autoriza. Se corrige en 0008.
-- **Migración mínima 0008:** NULL-guards en el cuerpo + `GRANT EXECUTE` a `authenticated` (172/12), con pre/post fail-closed y rollback.
-- **Gateway:** `TORNEOS_SOCIAL_MODE=on` agrega exactamente las 3 (`social.ts` + `social-v1-rpc-allowlist.json`); otro valor cierra el boot.
-- **Web:** `socialContentGenerator` entra a `PRODUCTION_ELIGIBLE_FLAGS`; overlay `social_studio` sólo con híbrido + PLAN READ + flag. Vercel: `REACT_APP_TORNEOS_SOCIAL_GENERATOR_ENABLED=true`.
-- **Sin Multimedia:** escudos → monograma/iniciales, foto sólo local, firma embebida. Las 11 placas renderizan sin fotos.
-- **FREE:** exporta Base `round_results`/`standings`/`next_fixture` con firma.
-- **PREMIUM:** 11 placas × 5 estilos.
-- **Billing/Commerce/MP:** sin cambios.
-- **Rollout (cada uno es un gate):**
-  1. Merge (A, todo OFF).
-  2. 0008 en DB (D).
-  3. Imagen gateway con SOCIAL ausente (B).
-  4. `TORNEOS_SOCIAL_MODE=on` (B+C).
-  5. Env Vercel + redeploy (C).
+- **Producto:** FREE descarga Resultados, Tabla de posiciones y Próxima fecha en estilo Base con firma Arma2 obligatoria; ve y previsualiza todo lo demás con candado ("Ver Premium" → Mi plan, sin checkout). PREMIUM: 11 placas × 5 estilos × Feed 4:5 / Historia 9:16; firma opcional en Base; Heritage/Street/Scoreboard/Editorial siempre sin firma. Sin Multimedia: monogramas, foto local, firma embebida.
+- **Capas:** 0008 (DB, autoridad final), `TORNEOS_SOCIAL_MODE` (gateway), `REACT_APP_TORNEOS_SOCIAL_GENERATOR_ENABLED` + híbrido + PLAN READ (web). Antes de cada PNG la página verifica que la autorización del servidor describa exactamente la placa, el estilo y la firma renderizados.
+- **Evidencia local:** lab Docker 0008 94/94; `test:torneos:social` (en `test:ci`); `social-adapter.test.mjs`; Jest del Estudio y Mi plan; navegador real `scripts/qa/social-studio/browser-check.cjs` (PNG reales de tamaño exacto, FREE idéntico byte a byte a la vista previa, matriz PREMIUM 11×5×2, Figura, Equipo ideal 5–11, Editorial multipágina, 1440/1024/390/320).
+- **Bugs corregidos:** F1 (NULL autorizado), firma perdida al volver a Base, autorización ignorada, nombres de archivo ambiguos, compartir multipágina, carrera de unmount, errores tapando la vista previa, modal sobre la vista previa, herramientas de foto fuera de pantalla (CSS global anula `sticky`), render no determinístico (pesos de Oswald), copy técnico, estados vacíos. Legacy muerto eliminado.
+
+### Rollout SOCIAL-V1 (cada paso es un gate, en este orden)
+
+| # | Gate | Cambio exacto | Certificación | Rollback |
+|---|---|---|---|---|
+| 0 | A | Merge del PR #174; Vercel redeploya `main` sin env nueva | bundle sin valor para `REACT_APP_TORNEOS_SOCIAL_GENERATOR_ENABLED`; sin "Estudio Social" en la nav; Mi plan con el Estudio en Próximamente; gateway Prod intacto | revert del merge |
+| 1 | D | `db8.mjs observe` ⇒ `POST_0007`; `db8.mjs apply APPLY TORNEOS 0008 onzpwnqxnvlgsevivngf 8b1e7bf96c13` | `APPLY_0008_DONE`; `observe` ⇒ `POST_0008` (172/12, `85bb4858…`, resto del catálogo idéntico) | `db8.mjs rollback ROLLBACK TORNEOS 0008 onzpwnqxnvlgsevivngf dcc65afe7aeb` |
+| 2 | B | Imagen desde `main` (grafo de 20 archivos), revisión nueva 0 % + tag, `TORNEOS_SOCIAL_MODE` **ausente** ⇒ 100 % (procedimiento §10) | unauth 15/15 sin diffs; las 3 RPC ⇒ 403 `rpc not enabled`; `cloudrun-readonly.mjs … --expect-env TORNEOS_SOCIAL_MODE='<absent>'` sin fallas (0 5xx, 0 `bootDisabled`) | tráfico 100 % a `torneos-gateway-00003-b78` |
+| 3 | B+C | Revisión nueva = anterior + `TORNEOS_SOCIAL_MODE=on` | `backend/torneos/social-v1/probe/social-matrix.mjs` → `browserProbe(PRODUCTION_QA)` en el documento `/login?returnTo=%2Fterms` con la sesión QA (un `/exchange`): matriz completa + PLAN READ; `cloudrun-readonly.mjs … --expect-env TORNEOS_SOCIAL_MODE=on` | tráfico a la revisión del paso 2 |
+| 4 | C | Vercel `REACT_APP_TORNEOS_SOCIAL_GENERATOR_ENABLED=true` (production-only) + redeploy de `main` | sesión QA (FREE): nav "Estudio Social"; 3 placas Base descargan PNG con firma; el resto con candado, sin checkout; Mi plan con el Estudio en la comparación; 390/320 sin overflow; 0 commerce/medios | promover el deploy anterior o borrar la env |
+
+El 3 no va antes del 1 (sin 0008 el export responde `permission denied`) y el 4 no va antes del 3 (el Estudio aparecería en la nav sin poder abrirse). Cada paso deja Production coherente si se frena ahí. Android (J) fuera de alcance: el build no lleva la env hasta revisarlo.
 
 ## Próximo gate
 
-**A — merge de la implementación SOCIAL-V1**, una vez hecha (T1–T5 del plan, todo OFF por defecto). Antes de eso no hay ningún gate de Production. Android (J) sigue en espera.
+**A — merge de SOCIAL STUDIO V2 completo (PR #174)**, todo OFF por defecto. Después, en orden: D (0008), B (imagen con SOCIAL ausente), B+C (`TORNEOS_SOCIAL_MODE=on`), C (env Vercel). Android (J) sigue en espera.
 
 ## PR #172 — sello FREE/PREMIUM en teléfonos (2026-10-02, mergeado `6a489648`, certificado en Prod)
 
@@ -308,6 +311,11 @@ Nada habilitado. Detalle en `backend/torneos/social-v1/AUDIT.md` y `PLAN.md` (ra
 - `integration/torneos-core-contracts/deno-runtime-hardening.test.mjs` reescribe `backend/torneos/mp-b/evidence/mp-b1.1-r3/offline.json`; restaurarlo con `git checkout --` después de correrlo, o el guard de confinamiento G1 falla.
 - `backend/torneos/perf-v2/g1-main-integration.test.mjs` exige que todo archivo cambiado desde `4a8c5bbe` esté en su allowlist: un doc nuevo en `docs/torneos/` necesita entrar ahí (SOCIAL-V1 agregó los prefijos `backend/torneos/social-v1/` y `backend/torneos/infra/torneos-cloudrun-readonly/`).
 - `plan-read.test.mjs` necesita `node_modules` (`npm ci`).
+- Correr las suites de `integration/torneos-core-contracts` y `backend/torneos/phase3b` reescribe evidencia versionada de `backend/torneos/mp-a/evidence/` y `backend/torneos/mp-b/evidence/` (y deja `backend/torneos/phase3b/evidence/r42-worker-invocation-tests-*.json`): restaurar con `git checkout -- backend/torneos/mp-a/evidence backend/torneos/mp-b/evidence` antes de G1.
+- El lab de integración (`integration/torneos-core-contracts`) usa puertos fijos 58420/58421; si otro worktree tiene levantado el suyo (p. ej. `arma2-b04-hybrid-lab`), no se puede correr en paralelo. SOCIAL-V1 certificó 0008 en su propio lab (`backend/torneos/social-v1/lab/run-lab.sh`, red interna, sin puertos).
+- `scripts/qa/social-studio/browser-check.cjs` levanta su propio servidor en un puerto efímero (sin choques con otros worktrees); compilar antes con `build.cjs`.
+- El CSS global (`body { overflow-y: scroll }` + `html { overflow-x: clip }`) anula `position: sticky` en toda la app: no confiar en `sticky` para mantener algo a la vista.
+- `cloudrun-readonly.mjs` reporta `serviceUnavailable` (503 = cota de `CORE_UNAVAILABLE`, el gateway no lo loguea) y `bootDisabled` (líneas `[torneos-gateway] disabled: <motivo>`; cualquiera es falla).
 - El probe autenticado debe esperar `/terms` y abortar si la app ya llamó al gateway: si la pestaña de Chrome recibe foco/clics puede navegar a `/torneos` y la app hace su propio `/exchange`. Si la sesión QA está por vencer, recargar `/login?returnTo=%2Fterms` deja que la app la renueve al iniciar (en una pestaña ya abierta el auto-refresh puede no correr).
 - En claude-in-chrome, `javascript_tool` no espera un IIFE async suelto: guardar la promesa en `window` y hacer `await` en una segunda llamada. El filtro de salida bloquea claves con "token"/"bearer"/"auth".
 
@@ -315,6 +323,7 @@ Nada habilitado. Detalle en `backend/torneos/social-v1/AUDIT.md` y `PLAN.md` (ra
 
 | Estado | Fecha |
 |---|---|
+| `SOCIAL_STUDIO_V2_READY_FOR_GATE_A` (PR #174, todo OFF, sin Production) | 2026-10-03 |
 | `SOCIAL_V1_AUDIT_READY` (auditoría + plan, sin Production) | 2026-10-02 |
 | `TORNEOS_WEB_PROD_PLAN_SEAL_MOBILE_CERTIFIED` (PR #172, main `6a489648`) | 2026-10-02 |
 | `TORNEOS_WEB_PROD_MI_PLAN_V2_CERTIFIED` (PR #171, main `80083f45`) | 2026-10-02 |
