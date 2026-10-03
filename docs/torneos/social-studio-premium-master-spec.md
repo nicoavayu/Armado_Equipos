@@ -154,10 +154,14 @@ página de forma estable y cada página se descarga una sola vez.
 
 ## 8. Límites de la integración
 
-La implementación V2 convive con compatibilidad legacy. Los módulos
-`resultsThemeLayouts.js`, `socialTemplates.js` y los helpers legacy de
-`premiumRenderer.js` no forman parte del contrato visual nuevo y permanecen sin
-refactor en esta integración.
+El producto renderiza sólo con el contrato V2: Base en Canvas (`social/base`) y
+los cuatro estilos Premium en DOM (`social/premium/generated`, ocho layouts
+4:5 / 9:16). SOCIAL-V1 eliminó los renderers legacy que ya no tenían ningún
+importador (`socialTemplates.js`, `resultsThemeLayouts.js`,
+`results{Editorial,Street,List}Layout.js`, `resultsBranding.js`,
+`resultsLayoutTuning.js`), así ningún camino de Production puede volver a ellos.
+`premiumRenderer.js` queda como fachada del renderer DOM V2; su helper Canvas
+Premium está retirado y falla cerrado (`PREMIUM_CANVAS_RENDERER_RETIRED`).
 
 La evidencia de QA, los PNGs de revisión y los scripts temporales de captura o
 comparación no forman parte del producto ni del plan de commits.

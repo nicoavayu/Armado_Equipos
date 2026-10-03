@@ -40,9 +40,10 @@ test('0007 is byte-identical to the migration applied in Production and yields t
   assert.match(sql, new RegExp(`IF v_md5 <> '${POST_0007_MD5}'`), 'postcondition pins the applied body');
 });
 
-test('0007 starts from the certified POST_0006 body: baseline defines it, 0001–0006 never redefine it', () => {
+test('0007 starts from the certified POST_0006 body: baseline defines it, no other migration redefines it', () => {
   const files = fs.readdirSync(path.join(REPO, MIG_DIR)).filter((f) => f.endsWith('.sql')).sort();
-  assert.equal(files.at(-1), path.basename(M0007), '0007 is the last migration');
+  // Successors are known by name; none of them may touch this function (checked right below).
+  assert.deepEqual(files.slice(files.indexOf(path.basename(M0007)) + 1), ['00000000000008_social_v1_export_authorization.sql']);
   const defs = files.map((f) => [f, bodyMd5s(read(`${MIG_DIR}/${f}`))]).filter(([, b]) => b.length);
   assert.deepEqual(defs, [['00000000000000_torneos_baseline_v1.sql', [POST_0006_MD5]], [path.basename(M0007), [POST_0007_MD5]]]);
 });

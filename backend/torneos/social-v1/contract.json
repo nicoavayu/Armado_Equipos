@@ -1,0 +1,34 @@
+{
+  "phase": "SOCIAL-V1",
+  "rpcs": [
+    "get_tournament_social_studio_context",
+    "get_tournament_social_snapshot",
+    "authorize_tournament_social_export"
+  ],
+  "grant": [
+    "public.authorize_tournament_social_export(uuid,uuid,text,text,boolean)"
+  ],
+  "excluded": {
+    "set_tournament_social_permission": "no UI consumer: no screen hands out Social permissions, so it never enters an allowlist"
+  },
+  "migration": "backend/torneos/supabase/migrations/00000000000008_social_v1_export_authorization.sql",
+  "rollback": "backend/torneos/social-v1/rollback/00000000000008_social_v1_export_authorization.rollback.sql",
+  "pins": {
+    "authorize_pre_md5": "f211d9a26d99448d4069c499c7508c55",
+    "authorize_post_md5": "85bb485891d9a2c046798f9eaa0cb649",
+    "acl_pre": [
+      171,
+      12
+    ],
+    "acl_post": [
+      172,
+      12
+    ],
+    "migration_sha256": "8b1e7bf96c13caa5b8102ff1150e462346820e472c8a58f8f6bd6be0a6310c2f",
+    "rollback_sha256": "dcc65afe7aeb1f0b9013616d24bac9c9d95a4a6b0ee003d81b7ac66f08be148d"
+  },
+  "env": {
+    "gateway": "TORNEOS_SOCIAL_MODE",
+    "web": "REACT_APP_TORNEOS_SOCIAL_GENERATOR_ENABLED"
+  }
+}

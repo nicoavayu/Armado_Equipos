@@ -18,6 +18,12 @@
 // MP-A5: with `commerce: true` (billing TEST overlay only) it also serves the commerce
 // scope — loadPurchase, createCheckout — through the same client. Plan reads have an independent opt-in.
 // Without it those aliases do not exist, so nothing ever asks for them.
+//
+// SOCIAL-V1: with `social: true` (foundation/config.js resolveTorneosSocialStudio) it also serves the three Estudio
+// Social aliases — loadSocialStudioContext, loadSocialSnapshot, authorizeSocialExport — with the legacy RPC and p_*
+// payload (scripts/torneos-frontend/social-adapter.test.mjs). Never setSocialPermission (no screen hands out
+// permissions), and never the Multimedia signer or the crest/logo resolvers: without them every crest falls back to
+// its monogram and a photo can only be a local file (social/socialStudio.js).
 import { v4 as uuidv4 } from 'uuid';
 import { createTorneosClient } from '../foundation/torneosClient';
 import { isTorneosBoundaryError } from '../foundation/errors';
@@ -85,6 +91,7 @@ export const CHECKOUT_TIMEOUT_MS = COMMERCE_REQUEST_TIMEOUT_MS;
 // Every alias a commerce surface may duck-type. The composition strips them from any
 // service while billing is off, so an OFF overlay can never send a commerce request.
 export const PLAN_READ_METHODS = Object.freeze(['loadSeasonEntitlements', 'loadEntitlements']);
+export const SOCIAL_METHODS = Object.freeze(['loadSocialStudioContext', 'loadSocialSnapshot', 'authorizeSocialExport']);
 export const COMMERCE_METHODS = Object.freeze([
   'loadSeasonEntitlements', 'loadEntitlements', 'loadPurchase', 'createCheckout', 'simulateFakePayment', 'cancelPurchase',
 ]);
@@ -160,10 +167,11 @@ export function createStagingV1WorkspaceService({
   transport,
   commerce = false,
   planRead = false,
+  social = false,
   checkoutTimeoutMs = CHECKOUT_TIMEOUT_MS,
 }) {
   const commerceEnabled = commerce === true;
-  const client = createTorneosClient({ transport, commerce: commerceEnabled, planRead });
+  const client = createTorneosClient({ transport, commerce: commerceEnabled, planRead, social: social === true });
   if (client.status !== 'connected') {
     throw new TournamentWorkspaceError(
       'TORNEOS_TRANSPORT_NOT_CONNECTED',
@@ -239,9 +247,51 @@ export function createStagingV1WorkspaceService({
     },
   } : {};
 
+  // SOCIAL-V1: exact legacy payloads; every id is checked before the network and the export branding must be a real
+  // boolean (the database refuses NULL, the client never coerces it).
+  const isUuid = (value) => UUID.test(String(value));
+  const isName = (value) => typeof value === 'string' && /^[a-z_]{1,40}$/.test(value);
+  const socialAliases = social === true ? {
+    loadSocialStudioContext: async (organizationId) => {
+      if (!isUuid(organizationId)) throw invalidRequest();
+      return call('get_tournament_social_studio_context', {
+        p_organization_id: organizationId,
+      }, 'No pudimos abrir el Estudio Social.');
+    },
+    loadSocialSnapshot: async ({
+      organizationId, tournamentId, categoryId, phaseId, piece, roundId = null, groupId = null,
+    } = {}) => {
+      if (![organizationId, tournamentId, categoryId, phaseId].every(isUuid) || !isName(piece)
+        || ![roundId, groupId].every((id) => id === null || isUuid(id))) throw invalidRequest();
+      return call('get_tournament_social_snapshot', {
+        p_organization_id: organizationId,
+        p_tournament_id: tournamentId,
+        p_category_id: categoryId,
+        p_phase_id: phaseId,
+        p_piece: piece,
+        p_round_id: roundId,
+        p_group_id: groupId,
+      }, 'No pudimos preparar esta pieza con datos oficiales.');
+    },
+    authorizeSocialExport: async ({
+      organizationId, tournamentId, piece, theme, includeArma2Branding,
+    } = {}) => {
+      if (![organizationId, tournamentId].every(isUuid) || !isName(piece) || !isName(theme)
+        || typeof includeArma2Branding !== 'boolean') throw invalidRequest();
+      return call('authorize_tournament_social_export', {
+        p_organization_id: organizationId,
+        p_tournament_id: tournamentId,
+        p_piece: piece,
+        p_theme: theme,
+        p_include_arma2_branding: includeArma2Branding,
+      }, 'No pudimos autorizar la exportación de esta pieza.');
+    },
+  } : {};
+
   return Object.freeze({
     ...planAliases,
     ...commerceAliases,
+    ...socialAliases,
     // ── organizations / workspaces ─────────────────────────────────────────
     loadContext: () => call(
       'get_tournament_workspace_context',

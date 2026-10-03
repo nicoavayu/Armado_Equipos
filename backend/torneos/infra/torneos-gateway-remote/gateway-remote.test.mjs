@@ -75,13 +75,14 @@ test('Deno API allowlist: reads only on the one app, writes only armed, bodies p
   assert.throws(() => R.assertDenoWriteBody('deploy', { assets: { ...assets, 'torneos-gateway/leak.ts': { kind: 'file', encoding: 'utf-8', content: `const k = "${passwords.torneos_edge_core_adapter}"; const u = "postgres://a:${passwords.torneos_edge_core_adapter}@h/p"` } }, labels: {}, production: true, preview: false }), /secret_shaped/);
 });
 
-test('deployed source = the gateway module graph (18 files, jose/postgres pins), never payments config or the MP provider', () => {
+test('deployed source = the gateway module graph (20 files, jose/postgres pins), never payments config or the MP provider', () => {
   const g = moduleGraph();
   // COMPETITION-V1: 14 + competition.ts and its allowlist (competition-v1-rpc-allowlist.json);
   // OFFICIALIZATION-V1: + officialization-v1-rpc-allowlist.json (loaded by competition.ts);
-  // PLAN READ: + plan-read.ts (imported by index.ts, default OFF).
-  assert.equal(g.files.length, 18);
-  assert.ok(['torneos-gateway/competition.ts', 'torneos-gateway/competition-v1-rpc-allowlist.json', 'torneos-gateway/officialization-v1-rpc-allowlist.json', 'torneos-gateway/plan-read.ts'].every((f) => g.files.includes(f)));
+  // PLAN READ: + plan-read.ts (imported by index.ts, default OFF);
+  // SOCIAL-V1: + social.ts and social-v1-rpc-allowlist.json (imported by index.ts, TORNEOS_SOCIAL_MODE default OFF).
+  assert.equal(g.files.length, 20);
+  assert.ok(['torneos-gateway/competition.ts', 'torneos-gateway/competition-v1-rpc-allowlist.json', 'torneos-gateway/officialization-v1-rpc-allowlist.json', 'torneos-gateway/plan-read.ts', 'torneos-gateway/social.ts', 'torneos-gateway/social-v1-rpc-allowlist.json'].every((f) => g.files.includes(f)));
   assert.deepEqual(g.bare, ['npm:jose@6.2.12', 'npm:postgres@3.4.7']);
   assert.ok(g.files.every((f) => f.startsWith('torneos-gateway/') || ['torneos-payments/hmac.ts', 'torneos-payments/remote-hosts.ts'].includes(f)));
   assert.ok(!g.files.some((f) => /_shared|torneos-payments\/(config|handler|index|db)\.ts/.test(f)));

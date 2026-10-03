@@ -1,5 +1,5 @@
 {
-  "generatedFrom": "ef748956ae2a862e3efdae0e29e709e615972ea4",
+  "generatedFrom": "21f158854229098c5cea62e677ecdd1fa8a82ea1",
   "legacyBase": "2058da039a2a5eaaed22d87d01946bc596ae5f50",
   "coreSingletonSha256": "f39572e4cab0fd287bd1dea2ca87c97bd5500d0eff57cb8de6160f1e3271600c",
   "reachableCallSignatures": {
@@ -304,12 +304,12 @@
     },
     {
       "file": "src/features/torneos/TorneosFeatureGate.jsx",
-      "line": 8,
+      "line": 13,
       "source": "./TorneosApp"
     },
     {
       "file": "src/features/torneos/TorneosFeatureGate.jsx",
-      "line": 9,
+      "line": 14,
       "source": "./stagingV1/StagingV1TorneosApp"
     },
     {
@@ -549,7 +549,7 @@
     },
     {
       "file": "src/features/torneos/components/SocialStudioPage.jsx",
-      "line": 28,
+      "line": 27,
       "source": "../context/TorneosWorkspaceContext"
     },
     {
@@ -2898,7 +2898,7 @@
     },
     {
       "file": "src/features/torneos/foundation/torneosClient.js",
-      "line": 44,
+      "line": 47,
       "kind": "rpc",
       "callee": "transport.rpc",
       "targets": [],

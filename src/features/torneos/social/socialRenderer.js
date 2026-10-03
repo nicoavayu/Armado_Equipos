@@ -41,6 +41,11 @@ export const SOCIAL_REQUIRED_FONTS = Object.freeze([
   // Bebas Neue ships as a single 400 face; canvas may synthesize a heavier
   // title, but readiness must load/check the real bundled face.
   '400 96px "Bebas Neue"',
+  // Every Oswald weight the Base renderer draws (social/base). The app declares Oswald twice (the bundled
+  // variable face and the Google static faces): a weight left out could be drawn with one face in a first
+  // render and with the other once it loads, so a later render of the same piece would differ.
+  '300 20px "Oswald"',
+  '400 20px "Oswald"',
   '500 40px "Oswald"',
   '600 44px "Oswald"',
   '400 30px "Inter"',

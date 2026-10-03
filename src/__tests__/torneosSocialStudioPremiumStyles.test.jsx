@@ -92,7 +92,8 @@ describe('Social Studio Premium result styles', () => {
       expect(locked).toHaveTextContent('Premium');
       fireEvent.click(locked);
       expect(onSelect).toHaveBeenCalledWith(label.toLowerCase());
-      expect(screen.getByRole('dialog')).toHaveTextContent('Esta función está incluida en Premium.');
+      // The locked style is previewed for real: nothing covers it.
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     },
   );
 
@@ -168,7 +169,7 @@ describe('Social Studio Premium result styles', () => {
 
   test('FREE preview of a Premium theme is clearly locked outside the art', () => {
     renderPicker({ themeId: 'heritage' });
-    expect(screen.getByText(/Preview white-label · export bloqueado/)).toBeInTheDocument();
+    expect(screen.getByText(/Vista previa del estilo Premium · Se descarga con Premium/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Ver Premium' })).toBeInTheDocument();
   });
 });

@@ -373,7 +373,7 @@ describe('Arma2 Torneos production enablement', () => {
     expect(flags.publicPages).toBe(false);
   });
 
-  test('keeps media and the social generator closed in production even when every variable says true', () => {
+  test('keeps media closed in production even when every variable says true; the social generator is eligible (SOCIAL-V1)', () => {
     const flags = resolveTorneosFeatureFlags(productionEnv({
       REACT_APP_TORNEOS_PRODUCTION_ENABLED: 'true',
       REACT_APP_TORNEOS_WORKSPACE_SWITCHER_ENABLED: 'true',
@@ -402,7 +402,23 @@ describe('Arma2 Torneos production enablement', () => {
     expect(flags.mediaEnabled).toBe(false);
     expect(flags.mediaUploadEnabled).toBe(false);
     expect(flags.mediaOperationalReady).toBe(false);
-    expect(flags.socialContentGenerator).toBe(false);
+    // Eligible, but never alone: the Studio also needs the hybrid composition and the plan read
+    // (foundation/config.js resolveTorneosSocialStudio, scripts/torneos-frontend/social-adapter.test.mjs).
+    expect(flags.socialContentGenerator).toBe(true);
+  });
+
+  test('the social generator still needs its own literal opt-in in production', () => {
+    for (const value of [undefined, '', 'TRUE', '1', 'yes', 'on']) {
+      const flags = resolveTorneosFeatureFlags(productionEnv({
+        REACT_APP_TORNEOS_PRODUCTION_ENABLED: 'true',
+        REACT_APP_TORNEOS_SOCIAL_GENERATOR_ENABLED: value,
+      }));
+      expect(flags.socialContentGenerator).toBe(false);
+    }
+    const closedTorneos = resolveTorneosFeatureFlags(productionEnv({
+      REACT_APP_TORNEOS_SOCIAL_GENERATOR_ENABLED: 'true',
+    }));
+    expect(closedTorneos.socialContentGenerator).toBe(false);
   });
 
   test('the isolated-backend path still opens every surface it opened before', () => {
