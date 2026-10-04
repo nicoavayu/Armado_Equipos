@@ -19,8 +19,13 @@ const PRODUCTION_ENABLE_ENV_KEY = 'REACT_APP_TORNEOS_PRODUCTION_ENABLED';
 // Superficies que la activación de Production puede encender, cada una todavía
 // con su propia variable. Lo que no está acá queda cerrado en Production aunque
 // su variable diga `true`: multimedia depende de infraestructura que no está
-// desplegada ahí, y el generador social sigue en revisión. Ampliar esta lista
-// es una decisión explícita, no un efecto lateral de abrir el shell.
+// desplegada ahí. Ampliar esta lista es una decisión explícita, no un efecto
+// lateral de abrir el shell.
+//
+// SOCIAL-V1: el Estudio Social es elegible, pero su variable sola no lo abre: la
+// composición híbrida además exige PLAN READ (foundation/config.js
+// resolveTorneosSocialStudio) y el gateway sólo sirve sus RPC con
+// TORNEOS_SOCIAL_MODE=on.
 const PRODUCTION_ELIGIBLE_FLAGS = new Set([
   'torneosEnabled',
   'workspacesEnabled',
@@ -29,6 +34,7 @@ const PRODUCTION_ELIGIBLE_FLAGS = new Set([
   'notifications',
   'officialStats',
   'publicPages',
+  'socialContentGenerator',
 ]);
 const FLAG_ENV_KEYS = {
   torneosEnabled: 'REACT_APP_TORNEOS_ENABLED',

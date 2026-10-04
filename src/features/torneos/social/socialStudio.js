@@ -378,7 +378,7 @@ export async function exportSocialPiece(options) {
     options.editorial,
     prepared.theme,
   );
-  const baseFileName = socialFileName(options.snapshot, options.editorial);
+  const baseFileName = socialFileName(options.snapshot, options.editorial, prepared.theme?.id);
   const pageSuffix = pagination.enabled
     ? `-pagina-${pagination.page}-de-${pagination.pageCount}`
     : '';
@@ -414,6 +414,38 @@ export async function shareSocialPiece({ blob, fileName, title }) {
   }
   downloadSocialPiece({ blob, fileName });
   return { shared: false, downloaded: true };
+}
+
+/**
+ * Several files (every page of an Editorial table) in ONE share sheet when the browser accepts them all; otherwise
+ * every file is downloaded. Same cancel semantics as a single piece.
+ */
+export async function shareSocialPieces({ files, title }) {
+  if (!Array.isArray(files) || !files.length) throw new SocialRenderError('RENDER_NOT_READY');
+  if (files.length === 1) return shareSocialPiece({ ...files[0], title });
+  const shareable = typeof File === 'function'
+    ? files.map(({ blob, fileName }) => new File([blob], fileName, { type: 'image/png' }))
+    : null;
+  if (shareable && navigator?.canShare?.({ files: shareable }) && navigator.share) {
+    try {
+      await navigator.share({ files: shareable, title });
+      return { shared: true, downloaded: false };
+    } catch (error) {
+      if (error?.name === 'AbortError') return { shared: false, downloaded: false };
+    }
+  }
+  await downloadSocialPieces(files);
+  return { shared: false, downloaded: true };
+}
+
+// Browsers drop or block back-to-back programmatic downloads: they are spaced, in page order.
+export const SOCIAL_DOWNLOAD_SPACING_MS = 300;
+
+export async function downloadSocialPieces(files, { spacingMs = SOCIAL_DOWNLOAD_SPACING_MS } = {}) {
+  for (let index = 0; index < files.length; index += 1) {
+    if (index > 0 && spacingMs > 0) await new Promise((resolve) => { setTimeout(resolve, spacingMs); });
+    downloadSocialPiece(files[index]);
+  }
 }
 
 export function downloadSocialPiece({ blob, fileName }) {

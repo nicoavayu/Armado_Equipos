@@ -1,0 +1,13 @@
+authorize_tournament_social_export(uuid,uuid,text,text,boolean)|f211d9a26d99448d4069c499c7508c55|t|s|{"search_path=\"\""}|supabase_admin|f|f|t|f
+current_user_tournament_social_capabilities(uuid)|40ace2223c80ee45ffafd3033603b768|t|s|{"search_path=\"\""}|supabase_admin|f|f|t|f
+get_tournament_social_snapshot(uuid,uuid,uuid,uuid,text,uuid,uuid)|5640252b8bbf9aebb1575b48aa78db0a|t|s|{"search_path=\"\""}|supabase_admin|f|t|t|f
+get_tournament_social_snapshot_plan_legacy(uuid,uuid,uuid,uuid,text,uuid,uuid)|e7606acb7df7381f81b9302aa3c987ae|t|s|{"search_path=\"\""}|supabase_admin|f|f|t|f
+get_tournament_social_studio_context(uuid)|860a6746dbf4b3a9fd29c3430ac8b8a7|t|s|{"search_path=\"\""}|supabase_admin|f|t|t|f
+get_tournament_social_studio_context_organization_legacy(uuid)|42287a3a4e91e5714cfdb20e0332ed23|t|s|{"search_path=\"\""}|supabase_admin|f|f|t|f
+has_tournament_social_capability(uuid,text)|f7558d609734718f7131b9f9dc027a13|t|s|{"search_path=\"\""}|supabase_admin|f|f|t|f
+set_tournament_social_permission(uuid,uuid,boolean)|6bec22e64e5dd60a9303c42e5df17eda|t|v|{"search_path=\"\""}|supabase_admin|f|t|t|f
+tournament_social_match_rows(uuid,uuid,uuid,boolean)|37686ea2a0fe990907e50b09207486a8|t|s|{"search_path=\"\""}|supabase_admin|f|f|t|f
+tournament_social_next_fixture(uuid,uuid,uuid)|42e14685d1b169fc4c2dc0f61341e552|t|s|{"search_path=\"\""}|supabase_admin|f|f|f|f
+tournament_social_player_candidates(uuid,jsonb)|f60726bbd0d3de5349dd07b48849d7c8|t|s|{"search_path=\"\""}|supabase_admin|f|f|f|f
+tournament_social_published_scope(uuid,uuid,uuid,uuid)|e479c745bdeeb899140aef691fae79f6|t|s|{"search_path=\"\""}|supabase_admin|f|f|t|f
+tournament_social_role_capabilities(text)|2763a8313613bff6211867fb0be33512|f|i|{"search_path=\"\""}|supabase_admin|f|f|t|f

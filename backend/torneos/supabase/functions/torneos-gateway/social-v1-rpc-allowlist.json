@@ -1,0 +1,11 @@
+{
+  "phase": "SOCIAL-V1",
+  "scope": "Torneos gateway allowlist of the Estudio Social, added on the authenticated generic route POST /torneos/rest/v1/rpc/<name> ONLY when TORNEOS_SOCIAL_MODE=on (social.ts). Exactly the three RPCs the Studio page calls (backend/torneos/social-v1/contract.json): the organization context, the official snapshot of a piece and the export authorization asked before every PNG. set_tournament_social_permission is deliberately absent (no screen hands out Social permissions). Never on the public route. The database (00000000000008_social_v1_export_authorization.sql) remains the final boundary: it re-authorizes plan, piece, style and Arma2 signature on every export.",
+  "features": {
+    "social_studio": [
+      "get_tournament_social_studio_context",
+      "get_tournament_social_snapshot",
+      "authorize_tournament_social_export"
+    ]
+  }
+}

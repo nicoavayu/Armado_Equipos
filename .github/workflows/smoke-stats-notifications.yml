@@ -14,7 +14,12 @@ name: Prelaunch Quality Gate
 #   test:db:security   RPC grants + Security Advisor parser
 #   lint               ESLint over src/
 #   build              production build
-#   test:ci            = test:staging:guard          (CI contract, staging guard,
+#   test:ci            = test:torneos:social:browser (Estudio Social in real
+#                                                     Chromium: Social OFF, FREE,
+#                                                     PREMIUM, 4:5/9:16, 320/390
+#                                                     px boxes, branding, exports,
+#                                                     Editorial pages)
+#                      + test:staging:guard          (CI contract, staging guard,
 #                                                     A1/A2 execution contracts,
 #                                                     psql TLS + live connection
 #                                                     contracts, readonly
@@ -89,7 +94,8 @@ jobs:
       - name: Run build
         run: npm run build
 
-      # Composes test:staging:guard, test:worker:signer-renewer and Jest.
+      # Composes test:torneos:social:browser, test:staging:guard,
+      # test:worker:signer-renewer and Jest.
       # Suites are added to the script, never as a step beside it.
       - name: Run staging guards, signer-renewer and Jest suites
         run: npm run test:ci

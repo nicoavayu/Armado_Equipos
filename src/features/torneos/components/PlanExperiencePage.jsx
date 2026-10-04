@@ -2,7 +2,9 @@ import React, { useEffect, useRef } from 'react';
 import { Check, ShieldCheck } from 'lucide-react';
 import { useOutletContext, useLocation } from 'react-router-dom';
 import { useOptionalTorneosCompetition } from '../context/TorneosCompetitionContext';
-import { PLAN_COMING_SOON, PLAN_COMPARISON } from '../domain/planComparison';
+import { planComparisonFor } from '../domain/planComparison';
+import { torneosFeatureFlags } from '../config/featureFlags';
+import { useTorneosFeatures } from '../context/TorneosFeaturesContext';
 import { describePlanState } from '../domain/planUx';
 import { clearPremiumIntent } from '../domain/premiumIntent';
 import CompetitionSelector from './CompetitionSelector';
@@ -11,6 +13,11 @@ import styles from './PlanExperiencePage.module.css';
 export default function PlanExperiencePage({ organization: organizationProp = null, season: seasonProp = null }) {
   const outlet = useOutletContext() || {};
   const competition = useOptionalTorneosCompetition();
+  const features = useTorneosFeatures();
+  // Same condition as the Estudio Social entry of the navigation (TorneosShell): flag + composition feature.
+  const { comparison, comingSoon } = planComparisonFor({
+    socialStudio: torneosFeatureFlags.socialContentGenerator === true && features.social_studio === true,
+  });
   const organization = organizationProp || outlet.organization;
   const season = seasonProp || competition?.activeSeason;
   const state = competition?.planState;
@@ -42,19 +49,19 @@ export default function PlanExperiencePage({ organization: organizationProp = nu
     </section>
     {confirmed && <section className={styles.inclusions} aria-label="Inclusiones actuales">
       <h2>Qué incluye tu plan</h2>
-      <ul>{PLAN_COMPARISON.map(({ name, free, premium }) => <li key={name}><Check size={16} aria-hidden="true" /><span>{name}: {label === 'PREMIUM' ? premium : free}</span></li>)}</ul>
+      <ul>{comparison.map(({ name, free, premium }) => <li key={name}><Check size={16} aria-hidden="true" /><span>{name}: {label === 'PREMIUM' ? premium : free}</span></li>)}</ul>
     </section>}
     <section ref={comparisonRef} tabIndex={-1} className={styles.comparison} aria-labelledby="plan-comparison-title">
       <div className={styles.sectionHeading}><span>FREE VS PREMIUM</span><h2 id="plan-comparison-title">Qué agrega Premium</h2><p>El plan se elige por temporada e incluye todos sus torneos. Premium no se extiende a otras temporadas.</p></div>
       <div className={styles.comparisonTable}>
-        <table><caption className={styles.tableCaption}>Qué incluye cada plan en una temporada</caption><thead><tr><th scope="col">Incluye</th><th scope="col">FREE</th><th scope="col">PREMIUM</th></tr></thead><tbody>{PLAN_COMPARISON.map(({ name, free, premium }) => <tr key={name}><th scope="row">{name}</th><td>{free}</td><td>{premium}</td></tr>)}</tbody></table>
+        <table><caption className={styles.tableCaption}>Qué incluye cada plan en una temporada</caption><thead><tr><th scope="col">Incluye</th><th scope="col">FREE</th><th scope="col">PREMIUM</th></tr></thead><tbody>{comparison.map(({ name, free, premium }) => <tr key={name}><th scope="row">{name}</th><td>{free}</td><td>{premium}</td></tr>)}</tbody></table>
       </div>
       <p className={styles.availability}>La compra de Premium todavía no está disponible.</p>
     </section>
     <section className={styles.upcoming} aria-labelledby="plan-upcoming-title">
       <div className={styles.sectionHeading}><span>EN PREPARACIÓN</span><h2 id="plan-upcoming-title">Próximamente</h2><p>Estas funciones todavía no están disponibles. Así se van a repartir entre los planes cuando lleguen.</p></div>
       <div className={styles.upcomingList}>
-        {PLAN_COMING_SOON.map(({ name, summary, free, premium }) => <section key={name} className={styles.upcomingItem} aria-label={name}>
+        {comingSoon.map(({ name, summary, free, premium }) => <section key={name} className={styles.upcomingItem} aria-label={name}>
           <h3>{name}</h3>
           <p>{summary}</p>
           {free && <div className={styles.upcomingTiers}>

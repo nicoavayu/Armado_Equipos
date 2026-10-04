@@ -452,22 +452,30 @@ export function describeCurationGap(snapshot, editorial) {
 }
 
 /** `Copa Horizonte · Fecha 6 · tabla` → `copa-horizonte-fecha-6-tabla.png` */
-export function socialFileName(snapshot, editorial) {
-  const parts = [
-    snapshot?.competition?.tournamentName,
-    snapshot?.competition?.categoryName,
-    snapshot?.competition?.roundName,
-    findSocialPiece(snapshot?.piece)?.label,
-    editorial?.format,
-  ];
-  const slug = parts
-    .filter(Boolean)
-    .join(' ')
+const SOCIAL_FILE_FORMATS = Object.freeze({ portrait: 'feed-4x5', story: 'historia-9x16' });
+
+function fileSlug(value) {
+  return String(value || '')
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 90);
-  return `${slug || 'arma2-torneos'}.png`;
+    .replace(/^-+|-+$/g, '');
+}
+
+/**
+ * `<torneo>-<categoría>-<fecha>-<placa>-<estilo>-<formato>.png`. The descriptive part is shortened when it is long;
+ * the style and the format never are, so two files of the same piece in different styles or formats can never share a
+ * name.
+ */
+export function socialFileName(snapshot, editorial, themeId = 'base') {
+  const description = fileSlug([
+    snapshot?.competition?.tournamentName,
+    snapshot?.competition?.categoryName,
+    snapshot?.competition?.roundName,
+    findSocialPiece(snapshot?.piece)?.label,
+  ].filter(Boolean).join(' ')).slice(0, 72).replace(/-+$/g, '');
+  const style = fileSlug(themeId) || 'base';
+  const format = SOCIAL_FILE_FORMATS[editorial?.format] || SOCIAL_FILE_FORMATS.portrait;
+  return `${description || 'arma2-torneos'}-${style}-${format}.png`;
 }

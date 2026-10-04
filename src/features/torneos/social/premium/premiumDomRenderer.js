@@ -62,7 +62,11 @@ export async function premiumDomToPngBlob(node, format) {
   return blob;
 }
 
+// Called from the page's effect cleanups, i.e. while the app's own tree may be committing: unmounting this
+// separate root synchronously there races React ("synchronously unmount a root while React was already
+// rendering"). The node leaves the document at once; its root is unmounted right after the current commit.
 export function releasePremiumDomRender(prepared) {
-  prepared?.root?.unmount?.();
+  const root = prepared?.root;
   prepared?.node?.remove?.();
+  if (root?.unmount) setTimeout(() => root.unmount(), 0);
 }

@@ -69,6 +69,10 @@ export const R0006 = Object.freeze({ file: 'backend/torneos/error-contract-v1/ro
  *  hash-pinned so the directory set stays exact; OEC never sends it. */
 export const M0007 = Object.freeze({ seq: '0007', file: `${MIG_DIR}/00000000000007_season_entitlements_scope.sql`, sha256: 'ba0450f965f3357679e493efc8ac465eb37c836dafccdf21138ea9244d85a205' });
 export const R0007 = Object.freeze({ file: 'backend/torneos/season-scope-fix/rollback/00000000000007_season_entitlements_scope.rollback.sql', sha256: '054985997ea06a0c7745f1e700489a9b879cbd40f0320d83d7049780f2758be3' });
+/** SOCIAL-V1 (0008): applied by its own driver (backend/torneos/social-v1/remote/db8.mjs, gate D). Known and hash-pinned
+ *  so the directory set stays exact; OEC never sends it. */
+export const M0008 = Object.freeze({ seq: '0008', file: `${MIG_DIR}/00000000000008_social_v1_export_authorization.sql`, sha256: '8b1e7bf96c13caa5b8102ff1150e462346820e472c8a58f8f6bd6be0a6310c2f' });
+export const R0008 = Object.freeze({ file: 'backend/torneos/social-v1/rollback/00000000000008_social_v1_export_authorization.rollback.sql', sha256: 'dcc65afe7aeb1f0b9013616d24bac9c9d95a4a6b0ee003d81b7ac66f08be148d' });
 if (APPLIED[4].sha256 !== CV1.MIGRATION.sha256) throw new Error('oec_0004_pin_differs_from_competition_v1');
 
 export function assertFileHash(rel, expected) {
@@ -80,12 +84,12 @@ export function assertFileHash(rel, expected) {
 /** Every migration and rollback file this tooling can touch, re-hashed (migration drift = refusal). */
 export function migrationDrift() {
   const out = [];
-  for (const m of [...APPLIED, M0005, M0006, M0007, R0005, R0006, R0007]) {
+  for (const m of [...APPLIED, M0005, M0006, M0007, M0008, R0005, R0006, R0007, R0008]) {
     try { assertFileHash(m.file, m.sha256); } catch (e) { out.push(String(e.message)); }
   }
   const dir = path.join(REPO_ROOT, MIG_DIR);
   const listed = fs.readdirSync(dir).filter((f) => f.endsWith('.sql')).sort();
-  const known = [...APPLIED, M0005, M0006, M0007].map((m) => path.basename(m.file)).sort();
+  const known = [...APPLIED, M0005, M0006, M0007, M0008].map((m) => path.basename(m.file)).sort();
   if (JSON.stringify(listed) !== JSON.stringify(known)) out.push(`migrations_dir_set ${listed.join(',')}`);
   return out;
 }

@@ -1,4 +1,3 @@
-import PremiumUpsell from './PremiumUpsell';
 import React, {
   useCallback,
   useEffect,
@@ -23,7 +22,7 @@ import {
   Users,
   ZoomIn,
 } from 'lucide-react';
-import { useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useTorneosCompetition } from '../context/TorneosCompetitionContext';
 import { useTorneosWorkspace } from '../context/TorneosWorkspaceContext';
 import {
@@ -41,31 +40,102 @@ import {
   selectionSizeForSnapshot,
 } from '../social/socialContracts';
 import {
+  downloadSocialPieces,
   exportSocialPiece,
   prepareSocialRender,
   releasePreparedSocialRender,
   replacePreparedSocialRender,
-  shareSocialPiece,
+  shareSocialPieces,
 } from '../social/socialStudio';
 import { resolveSocialTheme } from '../social/socialThemes';
 import { resolveEditorialStandingsPagination } from '../social/premium/premiumPagination';
 import {
   describeSocialCatalogAccess,
+  FREE_BASE_FAMILY_IDS,
   hasSocialStudioPremium,
   resolveSocialExportPolicy,
   resolveSocialPreviewBranding,
 } from '../social/socialAccessPolicy';
+import { SOCIAL_THEME_REGISTRY } from '../social/socialThemes';
 import { BASE_LOCKUP_DATA_URL } from '../social/base/brandAsset';
+import { canonicalRoutes } from '../routing/canonicalRoutes';
 import SocialResultsThemePicker from './SocialResultsThemePicker';
 import styles from './SocialStudioPage.module.css';
 
 const PREVIEW_WIDTH = 300;
+const FONT_RETRIES = 2;
+const FONT_RETRY_DELAY_MS = 1200;
 // Lossless renderer asset derived from the approved Social Studio lockup. Its
 // meaningful transparent space is preserved instead of cropping or rebuilding
 // the identity from separate marks.
 const OFFICIAL_BRAND_ASSETS = Object.freeze({
   lockup: BASE_LOCKUP_DATA_URL,
 });
+
+const FREE_PIECE_NAMES = FREE_BASE_FAMILY_IDS
+  .map((id) => SOCIAL_PIECES.find((entry) => entry.id === id)?.label || id);
+const FREE_PIECES_COPY = `${FREE_PIECE_NAMES.slice(0, -1).join(', ')} y ${FREE_PIECE_NAMES.at(-1)}`;
+
+// What the person reads when an export fails. Server refusals (TournamentWorkspaceError) already carry human copy;
+// everything else gets a fixed sentence — never an internal code.
+const EXPORT_ERROR_COPY = Object.freeze({
+  THEME_ENTITLEMENT_REQUIRED: 'Esta placa o este estilo necesitan Premium en esta temporada.',
+  THEME_UNKNOWN: 'Ese estilo no está disponible. Elegí uno de la lista.',
+  SOCIAL_AUTHORIZATION_MISMATCH: 'No pudimos confirmar la autorización de esta placa. Volvé a intentar.',
+  RENDER_STALE: 'La vista previa cambió mientras preparábamos el archivo. Volvé a intentar.',
+  PREMIUM_FONT_UNAVAILABLE: 'No pudimos cargar las tipografías del estilo. Revisá la conexión y volvé a intentar.',
+  SOCIAL_FONTS_UNAVAILABLE: 'No pudimos cargar las tipografías de la placa. Revisá la conexión y volvé a intentar.',
+});
+
+export function describeSocialExportError(error) {
+  if (error?.code === 'CURATION_REQUIRED') return String(error.message || '').replace('CURATION_REQUIRED: ', '');
+  if (typeof error?.code === 'string' && error.code.startsWith('TORNEOS_') && error.message && !/TORNEOS_/.test(error.message)) {
+    return error.message;
+  }
+  const code = error?.code || String(error?.message || '').split(':')[0];
+  return EXPORT_ERROR_COPY[code] || 'No pudimos generar el archivo. Revisá los datos y volvé a intentar.';
+}
+
+function describeRenderError(error) {
+  if (error?.code === 'CURATION_REQUIRED') return String(error.message || '').replace('CURATION_REQUIRED: ', '');
+  const code = error?.code || String(error?.message || '').split(':')[0];
+  if (code === 'PREMIUM_FONT_UNAVAILABLE' || code === 'SOCIAL_FONTS_UNAVAILABLE') return EXPORT_ERROR_COPY[code];
+  if (code === 'ASSET_PHOTO_UNAVAILABLE') return 'No pudimos leer esa foto. Probá con otra imagen JPG, PNG o WebP.';
+  return 'No pudimos generar la vista previa con estos datos.';
+}
+
+/**
+ * The server authorizes before every file and its answer must describe exactly what was rendered: same piece, same
+ * style and the same Arma2 signature. Anything else is refused, whatever the browser thinks of the plan.
+ */
+export function assertSocialExportAuthorization(authorization, { piece, theme, showArma2Branding }) {
+  if (authorization?.authorized !== true
+    || authorization.piece !== piece
+    || authorization.theme !== theme
+    || authorization.includeArma2Branding !== showArma2Branding) {
+    const error = new Error('SOCIAL_AUTHORIZATION_MISMATCH');
+    error.code = 'SOCIAL_AUTHORIZATION_MISMATCH';
+    throw error;
+  }
+  return authorization;
+}
+
+function StudioPremiumLock({ title, copy, organizationId, seasonId }) {
+  const navigate = useNavigate();
+  const target = seasonId
+    ? canonicalRoutes.seasonPlan(organizationId, seasonId)
+    : canonicalRoutes.organizationMyPlan(organizationId);
+  return (
+    <div className={styles.premiumLock} role="note">
+      <LockKeyhole size={16} aria-hidden="true" />
+      <span>
+        <strong>{title}</strong>
+        <small>{copy}</small>
+      </span>
+      <button type="button" onClick={() => navigate(`${target}#premium`)}>Ver Premium</button>
+    </div>
+  );
+}
 
 function StudioState({ icon: Icon = Sparkles, title, copy, action = null }) {
   return (
@@ -130,6 +200,7 @@ export default function SocialStudioPage() {
   const localPhotoUrlRef = useRef(null);
   const photoDragRef = useRef(null);
   const requestRef = useRef(0);
+  const fontRetryTimer = useRef(null);
   const [context, setContext] = useState({ status: 'loading', data: null, error: '' });
   const [scope, setScope] = useState({
     tournamentId: '', categoryId: '', phaseId: '', roundId: '',
@@ -143,7 +214,11 @@ export default function SocialStudioPage() {
   const [renderState, setRenderState] = useState({ status: 'idle', error: '' });
   const [busy, setBusy] = useState('');
   const [notice, setNotice] = useState('');
+  const [exportError, setExportError] = useState('');
   const [localPhoto, setLocalPhoto] = useState(null);
+  // Web fonts can arrive after the first render (cold cache, slow network): a font failure is retried a few times
+  // before the preview reports it. Rendering stays fail-closed: never a piece drawn with fallback typography.
+  const [fontRetry, setFontRetry] = useState(0);
 
   const capabilities = context.data?.capabilities || [];
   const canCreate = hasSocialStudioRoleCapability(capabilities, 'social.create');
@@ -192,10 +267,11 @@ export default function SocialStudioPage() {
   });
   const availablePieces = SOCIAL_PIECES;
 
+  // FREE always signs. The person's choice for Base is kept while they look at other styles: the Premium styles are
+  // white-label by policy (preview, export and server), never by overwriting that choice.
   useEffect(() => {
-    if (effectiveThemeId !== 'base') setIncludeArma2Branding(false);
-    else if (!canRemoveArma2Branding) setIncludeArma2Branding(true);
-  }, [canRemoveArma2Branding, effectiveThemeId]);
+    if (!canRemoveArma2Branding) setIncludeArma2Branding(true);
+  }, [canRemoveArma2Branding]);
 
   const scopeForTournament = useCallback((entry) => {
     const nextCategory = entry?.categories?.[0];
@@ -277,23 +353,20 @@ export default function SocialStudioPage() {
     () => resolveEditorialStandingsPagination(snapshot, editorial, selectedTheme),
     [editorial, selectedTheme, snapshot],
   );
-  const branding = useMemo(() => {
-    const competitionTournament = competition.tournaments?.find(
-      (entry) => entry.id === scope.tournamentId,
-    );
-    return {
-      tournamentName: snapshot?.competition?.tournamentName || tournament?.name || '',
-      tournamentLogo: service.resolveTournamentLogoUrl?.(competitionTournament?.logoPath) || null,
-      primaryColor: null,
-      secondaryColor: null,
-      showArma2Branding: effectiveThemeId === 'base'
-        ? (canRemoveArma2Branding ? includeArma2Branding : true)
-        : resolveSocialPreviewBranding({
-          themeId: effectiveThemeId,
-          entitlements: effectiveEntitlements,
-        }),
-    };
-  }, [canRemoveArma2Branding, competition.tournaments, effectiveEntitlements, effectiveThemeId, includeArma2Branding, scope.tournamentId, service, snapshot, tournament]);
+  // Only values: a new plan object or tournaments array with the same content must not re-render the piece.
+  const brandingTournamentName = snapshot?.competition?.tournamentName || tournament?.name || '';
+  const brandingLogoPath = competition.tournaments?.find((entry) => entry.id === scope.tournamentId)?.logoPath || null;
+  const brandingLogoUrl = service.resolveTournamentLogoUrl?.(brandingLogoPath) || null;
+  const showArma2Branding = effectiveThemeId === 'base'
+    ? (canRemoveArma2Branding ? includeArma2Branding : true)
+    : resolveSocialPreviewBranding({ themeId: effectiveThemeId, entitlements: effectiveEntitlements });
+  const branding = useMemo(() => ({
+    tournamentName: brandingTournamentName,
+    tournamentLogo: brandingLogoUrl,
+    primaryColor: null,
+    secondaryColor: null,
+    showArma2Branding,
+  }), [brandingLogoUrl, brandingTournamentName, showArma2Branding]);
 
   // Re-render the preview whenever anything it depends on changes. The canvas
   // is replaced wholesale rather than mutated so a failed render never leaves
@@ -338,12 +411,12 @@ export default function SocialStudioPage() {
       surface.setAttribute('role', 'img');
       surface.setAttribute(
         'aria-label',
-        `Vista previa de ${piece?.label || 'la pieza'} en ${SOCIAL_FORMATS[editorial.format].label}, theme ${selectedTheme.label}`,
+        `Vista previa de ${piece?.label || 'la placa'} en ${SOCIAL_FORMATS[editorial.format].label}, estilo ${selectedTheme.label}`,
       );
       surface.className = styles.previewCanvas;
       if (prepared.node) {
         surface.style.setProperty(
-          '--social-preview-scale', String(PREVIEW_WIDTH / prepared.format.width),
+          '--social-preview-scale', String((host.getBoundingClientRect().width || PREVIEW_WIDTH) / prepared.format.width),
         );
       }
       host.replaceChildren(surface);
@@ -354,18 +427,41 @@ export default function SocialStudioPage() {
       canvasHostRef.current?.replaceChildren();
       releasePreparedSocialRender(preparedRenderRef.current);
       preparedRenderRef.current = null;
+      const fontCode = error?.code || String(error?.message || '').split(':')[0];
+      if (['SOCIAL_FONTS_UNAVAILABLE', 'PREMIUM_FONT_UNAVAILABLE'].includes(fontCode) && fontRetry < FONT_RETRIES) {
+        setRenderState({ status: 'loading', error: '', renderKey: '' });
+        fontRetryTimer.current = setTimeout(() => setFontRetry((attempt) => attempt + 1), FONT_RETRY_DELAY_MS);
+        return;
+      }
       setRenderState({
         status: error?.code === 'CURATION_REQUIRED' ? 'curation' : 'error',
-        error: error?.code === 'CURATION_REQUIRED'
-          ? error.message.replace('CURATION_REQUIRED: ', '')
-          : 'No pudimos generar la vista previa con estos datos.',
+        error: describeRenderError(error),
       });
     });
     return () => {
       cancelled = true;
       controller.abort();
+      clearTimeout(fontRetryTimer.current);
     };
-  }, [snapshot, editorial, organizationId, service, piece, selectedTheme, branding, localPhoto]);
+    // fontRetry only re-runs a render that failed on fonts; it is reset whenever the piece itself changes.
+  }, [snapshot, editorial, organizationId, service, piece, selectedTheme, branding, localPhoto, fontRetry]);
+
+  useEffect(() => { setFontRetry((attempt) => (attempt === 0 ? attempt : 0)); }, [snapshot, editorial, selectedTheme, branding, localPhoto]);
+
+  // The Premium preview is the 1080 px composition scaled down: the scale follows the real stage width (a phone
+  // narrows it below 300 px), so the whole art stays visible and the export keeps its exact size.
+  useEffect(() => {
+    const host = canvasHostRef.current;
+    if (!host || typeof ResizeObserver !== 'function') return undefined;
+    const observer = new ResizeObserver(([entry]) => {
+      const node = host.firstElementChild;
+      const width = Number.parseInt(node?.style?.width, 10);
+      // contentRect keeps the fractional width (clientWidth rounds it, and the art would miss the stage by a pixel).
+      if (node?.dataset?.premiumRenderer && width) node.style.setProperty('--social-preview-scale', String(entry.contentRect.width / width));
+    });
+    observer.observe(host);
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => () => {
     releasePreparedSocialRender(preparedRenderRef.current);
@@ -376,7 +472,12 @@ export default function SocialStudioPage() {
     if (localPhotoUrlRef.current) URL.revokeObjectURL(localPhotoUrlRef.current);
   }, []);
 
-  const updateEditorial = (patch) => setEditorial((current) => ({ ...current, ...patch }));
+  useEffect(() => { setExportError(''); }, [pieceId, effectiveThemeId, editorial, scope, includeArma2Branding]);
+
+  // Re-choosing what is already chosen (a format chip, the same zoom) keeps the same state: no new render.
+  const updateEditorial = (patch) => setEditorial((current) => (
+    Object.entries(patch).every(([key, value]) => Object.is(current[key], value)) ? current : { ...current, ...patch }
+  ));
 
   const toggleSelection = (id) => {
     if (!canSelect) return;
@@ -470,6 +571,8 @@ export default function SocialStudioPage() {
     ) return;
     setBusy(mode);
     setNotice('');
+    setExportError('');
+    const prepared = preparedRenderRef.current;
     try {
       const exportPolicy = resolveSocialExportPolicy({
         familyId: pieceId,
@@ -477,72 +580,74 @@ export default function SocialStudioPage() {
         entitlements: effectiveEntitlements,
         requestedArma2Branding: includeArma2Branding,
       });
-      await service.authorizeSocialExport({
+      // The file is exactly what is on screen: its signature must be the one the policy (and then the server) allows.
+      if (prepared.branding?.showArma2Branding !== exportPolicy.showArma2Branding) {
+        const error = new Error('SOCIAL_AUTHORIZATION_MISMATCH');
+        error.code = 'SOCIAL_AUTHORIZATION_MISMATCH';
+        throw error;
+      }
+      assertSocialExportAuthorization(await service.authorizeSocialExport({
         organizationId,
         tournamentId: scope.tournamentId,
         piece: pieceId,
         theme: effectiveThemeId,
         includeArma2Branding: exportPolicy.showArma2Branding,
-      });
+      }), { piece: pieceId, theme: effectiveThemeId, showArma2Branding: exportPolicy.showArma2Branding });
       const result = await exportSocialPiece({
-        prepared: preparedRenderRef.current,
+        prepared,
         snapshot,
         editorial,
         expectedRenderKey: renderState.renderKey,
       });
-      if (mode === 'share') {
-        const outcome = await shareSocialPiece({
-          blob: result.blob, fileName: result.fileName, title: result.pieceLabel,
-        });
-        setNotice(outcome.shared
-          ? 'Pieza compartida.'
-          : outcome.downloaded ? 'Descargamos el PNG.' : 'Compartir cancelado.');
+      // Editorial tables longer than one page export every page, in order, each with its own file name.
+      const files = [];
+      if (!standingsPagination.enabled) {
+        files.push(result);
       } else {
-        const { downloadSocialPiece } = await import('../social/socialStudio');
-        if (!standingsPagination.enabled) {
-          downloadSocialPiece({ blob: result.blob, fileName: result.fileName });
-          setNotice(`Descargamos ${result.fileName}.`);
-        } else {
-          const downloads = [];
-          for (let page = 1; page <= standingsPagination.pageCount; page += 1) {
-            if (page === standingsPagination.page) {
-              downloads.push(result);
-              continue;
-            }
-            let prepared = null;
-            try {
-              prepared = await prepareSocialRender({
-                snapshot,
-                editorial: { ...editorial, page },
-                organizationId,
-                signMediaReadUrls: service.signMediaReadUrls,
-                resolveShieldUrl: service.resolveTeamShieldUrl,
-                theme: selectedTheme,
-                branding,
-                brandAssetUrls: branding.showArma2Branding ? OFFICIAL_BRAND_ASSETS : null,
-                photoSourceUrl: localPhoto?.url || null,
-              });
-              downloads.push(await exportSocialPiece({
-                prepared,
-                snapshot,
-                editorial: { ...editorial, page },
-              }));
-            } finally {
-              releasePreparedSocialRender(prepared);
-            }
+        for (let page = 1; page <= standingsPagination.pageCount; page += 1) {
+          if (page === standingsPagination.page) {
+            files.push(result);
+            continue;
           }
-          downloads.forEach(({ blob, fileName }) => downloadSocialPiece({ blob, fileName }));
-          setNotice(`Descargamos ${downloads.length} páginas de la tabla.`);
+          let pagePrepared = null;
+          try {
+            pagePrepared = await prepareSocialRender({
+              snapshot,
+              editorial: { ...editorial, page },
+              organizationId,
+              signMediaReadUrls: service.signMediaReadUrls,
+              resolveShieldUrl: service.resolveTeamShieldUrl,
+              theme: selectedTheme,
+              branding,
+              brandAssetUrls: branding.showArma2Branding ? OFFICIAL_BRAND_ASSETS : null,
+              photoSourceUrl: localPhoto?.url || null,
+            });
+            files.push(await exportSocialPiece({
+              prepared: pagePrepared,
+              snapshot,
+              editorial: { ...editorial, page },
+            }));
+          } finally {
+            releasePreparedSocialRender(pagePrepared);
+          }
         }
+      }
+      if (mode === 'share') {
+        const outcome = await shareSocialPieces({ files, title: result.pieceLabel });
+        setNotice(outcome.shared
+          ? (files.length > 1 ? `Compartimos las ${files.length} páginas de la tabla.` : 'Placa compartida.')
+          : outcome.downloaded
+            ? (files.length > 1 ? `Descargamos las ${files.length} páginas de la tabla.` : `Descargamos ${files[0].fileName}.`)
+            : 'Compartir cancelado.');
+      } else {
+        await downloadSocialPieces(files);
+        setNotice(files.length > 1
+          ? `Descargamos las ${files.length} páginas de la tabla.`
+          : `Descargamos ${files[0].fileName}.`);
       }
     } catch (error) {
       setNotice('');
-      setRenderState({
-        status: 'error',
-        error: error?.code === 'CURATION_REQUIRED'
-          ? error.message.replace('CURATION_REQUIRED: ', '')
-          : 'No pudimos exportar la pieza. Revisá los datos y reintentá.',
-      });
+      setExportError(describeSocialExportError(error));
     } finally {
       setBusy('');
     }
@@ -563,26 +668,50 @@ export default function SocialStudioPage() {
 
   const candidates = snapshot?.official?.candidates || [];
   const format = SOCIAL_FORMATS[editorial.format];
+  const planLabel = trustedSeasonPlan ? (isPremiumSeason ? 'PREMIUM' : 'FREE') : null;
+  const hero = (
+    <header className={styles.hero}>
+      <div>
+        <p>Placas listas para publicar · Datos oficiales</p>
+        <h1>Estudio Social</h1>
+        <span>Generá placas para redes con los resultados, la tabla y los partidos que ya publicaste.</span>
+      </div>
+      <div className={styles.heroMetrics}>
+        <article><LayoutTemplate size={19} aria-hidden="true" /><span><strong>{availablePieces.length}</strong><small>placas</small></span></article>
+        <article><Palette size={19} aria-hidden="true" /><span><strong>{SOCIAL_THEME_REGISTRY.length}</strong><small>estilos</small></span></article>
+        <article><ImageIcon size={19} aria-hidden="true" /><span><strong>{Object.keys(SOCIAL_FORMATS).length}</strong><small>formatos</small></span></article>
+        {planLabel && (
+          <article className={styles.heroPlan} data-plan={planLabel}>
+            <Sparkles size={19} aria-hidden="true" /><span><strong>{planLabel}</strong><small>plan de la temporada</small></span>
+          </article>
+        )}
+      </div>
+    </header>
+  );
+
+  if (!tournaments.length) {
+    return (
+      <div className={styles.page}>
+        {hero}
+        <StudioState
+          icon={LayoutTemplate}
+          title="Todavía no hay torneos para generar placas"
+          copy="Cuando tengas un torneo con el fixture publicado, vas a poder crear placas con sus datos oficiales."
+        />
+      </div>
+    );
+  }
+
   return (
     <div className={styles.page}>
-      <header className={styles.hero}>
-        <div>
-          <p>Piezas listas para publicar · Datos oficiales</p>
-          <h1>Estudio Social</h1>
-          <span>Generá placas con la identidad de Arma2 a partir de lo que ya está publicado.</span>
-        </div>
-        <div className={styles.heroMetrics}>
-          <article><LayoutTemplate size={19} aria-hidden="true" /><span><strong>{availablePieces.length}</strong><small>familias visibles</small></span></article>
-          <article><ImageIcon size={19} aria-hidden="true" /><span><strong>2</strong><small>formatos</small></span></article>
-        </div>
-      </header>
+      {hero}
 
       {!canCreate && (
         <div className={styles.readOnlyBanner}>
           <AlertTriangle size={18} aria-hidden="true" />
           <span>
             <strong>Modo lectura</strong>
-            <small>Tu rol puede ver el Estudio, sin generar ni exportar piezas.</small>
+            <small>Tu rol puede ver el Estudio, sin generar ni descargar placas.</small>
           </span>
         </div>
       )}
@@ -690,7 +819,9 @@ export default function SocialStudioPage() {
               })}
             </div>
             {!isPremiumSeason && (
-              <p className={styles.previewHint}><LockKeyhole size={14} /> Premium habilita las 11 familias Base.</p>
+              <p className={styles.previewHint}>
+                <LockKeyhole size={14} aria-hidden="true" /> Con FREE descargás {FREE_PIECES_COPY} en estilo Base. Premium suma las {availablePieces.length} placas y los {SOCIAL_THEME_REGISTRY.length} estilos.
+              </p>
             )}
           </fieldset>
 
@@ -717,7 +848,7 @@ export default function SocialStudioPage() {
                 themeId={themeId}
                 displayThemeId={effectiveThemeId}
                 onSelect={setThemeId}
-                onLockedPreview={() => setNotice('Estás viendo el diseño Premium real. La exportación permanece bloqueada.')}
+                onLockedPreview={() => setNotice('Estás viendo el estilo Premium real. Para descargarlo necesitás Premium en esta temporada.')}
               />
             {selectedTheme.id !== 'base' && (
               <div className={styles.chipRow} role="radiogroup" aria-label="Acento">
@@ -739,21 +870,26 @@ export default function SocialStudioPage() {
           </fieldset>
 
           {selectedTheme.id === 'base' ? <fieldset>
-            <legend>Branding Arma2</legend>
-            <label>
+            <legend>Firma Arma2</legend>
+            <label className={styles.checkboxRow}>
               <input
                 type="checkbox"
                 checked={includeArma2Branding}
                 disabled={!canRemoveArma2Branding}
                 onChange={(event) => setIncludeArma2Branding(event.target.checked)}
               />
-              <span>Mostrar firma, logo y URL de Arma2</span>
+              <span>Mostrar la firma Arma2 en la placa</span>
             </label>
             {!canRemoveArma2Branding && (
-              <><p className={styles.previewHint}>En FREE el branding Arma2 permanece visible.</p><PremiumUpsell feature="Quitar firma Arma2" organizationId={organizationId} seasonId={seasonId} soon /></>
+              <StudioPremiumLock
+                title="En FREE la firma Arma2 va siempre"
+                copy="Con Premium podés descargar el estilo Base sin la firma."
+                organizationId={organizationId}
+                seasonId={seasonId}
+              />
             )}
           </fieldset> : (
-            <p className={styles.whiteLabelNotice}>Heritage, Street, Scoreboard y Editorial son siempre white-label. El arte no incluye branding Arma2.</p>
+            <p className={styles.whiteLabelNotice}>Los estilos Premium no llevan la firma Arma2: la placa sale sólo con la identidad de tu torneo.</p>
           )}
 
           {selectedTheme.id !== 'base' && (
@@ -845,6 +981,84 @@ export default function SocialStudioPage() {
             </fieldset>
           )}
 
+        </section>
+
+        <section className={styles.previewPanel} aria-label="Vista previa">
+          <header>
+            <span>
+              <strong>{piece?.label}</strong>
+              <small>{format.width} × {format.height}</small>
+            </span>
+            <button type="button" onClick={loadSnapshot} aria-label="Actualizar datos oficiales">
+              <RefreshCw size={16} aria-hidden="true" /> Actualizar
+            </button>
+          </header>
+
+          <div
+            className={`${styles.previewStage} ${hasFigurePhoto ? styles.previewStageDraggable : ''}`}
+            style={{ width: PREVIEW_WIDTH, maxWidth: '100%' }}
+            onPointerDown={startPhotoDrag}
+            onPointerMove={movePhotoDrag}
+            onPointerUp={stopPhotoDrag}
+            onPointerCancel={stopPhotoDrag}
+            onClick={hasFigurePhoto ? claimFiguraDragPointer : undefined}
+          >
+            {/* The format's proportions belong to the art box, inside the stage border: on the stage itself
+                (border-box sizing) they would leave a strip of the stage uncovered under the art. */}
+            <div
+              ref={canvasHostRef}
+              className={styles.previewHost}
+              style={{ aspectRatio: `${format.width} / ${format.height}` }}
+            />
+            {['loading', 'rendering'].includes(renderState.status) && (
+              <span className={styles.previewOverlay} role="status">
+                <Loader2 size={22} aria-hidden="true" /> Generando…
+              </span>
+            )}
+            {!['loading', 'rendering'].includes(renderState.status) && renderState.error && (
+              <span className={styles.previewOverlay} role="status">
+                <AlertTriangle size={22} aria-hidden="true" /> {renderState.error}
+              </span>
+            )}
+          </div>
+
+          {snapshotError && (
+            <p className={styles.previewError} role="status">{snapshotError}</p>
+          )}
+          {!snapshotError && tournament && !(tournament.categories || []).length && (
+            <p className={styles.previewHint} role="status">
+              Este torneo todavía no tiene un fixture publicado. Publicalo para generar placas con datos oficiales.
+            </p>
+          )}
+          {curationGap && !snapshotError && renderState.status !== 'curation' && (
+            <p className={styles.previewHint} role="status">{curationGap}</p>
+          )}
+          {snapshot?.source?.standingsRevisionNumber && (
+            <p className={styles.provenance}>
+              Datos oficiales · revisión {snapshot.source.standingsRevisionNumber}
+            </p>
+          )}
+          {standingsPagination.enabled && (
+            <nav className={styles.pagination} aria-label="Páginas de la tabla de posiciones">
+              <button
+                type="button"
+                disabled={standingsPagination.page === 1 || busy !== ''}
+                onClick={() => updateEditorial({ page: standingsPagination.page - 1 })}
+              >
+                Anterior
+              </button>
+              <span>Página {standingsPagination.page} de {standingsPagination.pageCount}</span>
+              <button
+                type="button"
+                disabled={standingsPagination.page === standingsPagination.pageCount || busy !== ''}
+                onClick={() => updateEditorial({ page: standingsPagination.page + 1 })}
+              >
+                Siguiente
+              </button>
+            </nav>
+          )}
+
+          {/* The photo is framed by dragging on the preview: its tools live next to it, never scrolled away. */}
           {pieceId === 'mvp' && (
             <fieldset className={styles.photoEditor} disabled={!canSelect}>
               <legend><ImageIcon size={15} aria-hidden="true" /> Foto de la figura</legend>
@@ -883,100 +1097,41 @@ export default function SocialStudioPage() {
               )}
             </fieldset>
           )}
-        </section>
-
-        <section className={styles.previewPanel} aria-label="Vista previa">
-          <header>
-            <span>
-              <strong>{piece?.label}</strong>
-              <small>{format.width} × {format.height}</small>
-            </span>
-            <button type="button" onClick={loadSnapshot} aria-label="Actualizar datos oficiales">
-              <RefreshCw size={16} aria-hidden="true" /> Actualizar
-            </button>
-          </header>
-
-          <div
-            className={`${styles.previewStage} ${hasFigurePhoto ? styles.previewStageDraggable : ''}`}
-            style={{
-              width: PREVIEW_WIDTH,
-              maxWidth: '100%',
-              aspectRatio: `${format.width} / ${format.height}`,
-            }}
-            onPointerDown={startPhotoDrag}
-            onPointerMove={movePhotoDrag}
-            onPointerUp={stopPhotoDrag}
-            onPointerCancel={stopPhotoDrag}
-            onClick={hasFigurePhoto ? claimFiguraDragPointer : undefined}
-          >
-            <div ref={canvasHostRef} className={styles.previewHost} />
-            {['loading', 'rendering'].includes(renderState.status) && (
-              <span className={styles.previewOverlay} role="status">
-                <Loader2 size={22} aria-hidden="true" /> Generando…
-              </span>
-            )}
-            {!['loading', 'rendering'].includes(renderState.status) && renderState.error && (
-              <span className={styles.previewOverlay} role="status">
-                <AlertTriangle size={22} aria-hidden="true" /> {renderState.error}
-              </span>
-            )}
-          </div>
-
-          {snapshotError && (
-            <p className={styles.previewError} role="status">{snapshotError}</p>
-          )}
-          {curationGap && !snapshotError && (
-            <p className={styles.previewHint} role="status">{curationGap}</p>
-          )}
-          {snapshot?.source?.standingsRevisionNumber && (
-            <p className={styles.provenance}>
-              Datos oficiales · revisión {snapshot.source.standingsRevisionNumber}
-            </p>
-          )}
-          {standingsPagination.enabled && (
-            <nav className={styles.pagination} aria-label="Páginas de la tabla de posiciones">
+          {canExport && catalogAccess.exportable && (
+            <footer className={styles.exportActions}>
               <button
                 type="button"
-                disabled={standingsPagination.page === 1 || busy !== ''}
-                onClick={() => updateEditorial({ page: standingsPagination.page - 1 })}
+                disabled={busy !== '' || renderState.status !== 'ready'}
+                onClick={() => runExport('download')}
               >
-                Anterior
+                {busy === 'download' ? <Loader2 size={17} aria-hidden="true" /> : <Download size={17} aria-hidden="true" />}
+                {standingsPagination.enabled ? `Descargar ${standingsPagination.pageCount} PNG` : 'Descargar PNG'}
               </button>
-              <span>Página {standingsPagination.page} de {standingsPagination.pageCount}</span>
               <button
                 type="button"
-                disabled={standingsPagination.page === standingsPagination.pageCount || busy !== ''}
-                onClick={() => updateEditorial({ page: standingsPagination.page + 1 })}
+                className={styles.secondaryAction}
+                disabled={busy !== '' || renderState.status !== 'ready'}
+                onClick={() => runExport('share')}
               >
-                Siguiente
+                {busy === 'share' ? <Loader2 size={17} aria-hidden="true" /> : <Share2 size={17} aria-hidden="true" />} Compartir
               </button>
-            </nav>
+            </footer>
           )}
-
-          <footer className={styles.exportActions}>
-            <button
-              type="button"
-              disabled={!canExport || !catalogAccess.exportable || busy !== '' || renderState.status !== 'ready'}
-              onClick={() => runExport('download')}
-            >
-              <Download size={17} aria-hidden="true" /> Descargar PNG
-            </button>
-            <button
-              type="button"
-              className={styles.secondaryAction}
-              disabled={!canExport || !catalogAccess.exportable || busy !== '' || renderState.status !== 'ready'}
-              onClick={() => runExport('share')}
-            >
-              <Share2 size={17} aria-hidden="true" /> Compartir
-            </button>
-          </footer>
+          {exportError && (
+            <p className={styles.previewError} role="alert">{exportError}</p>
+          )}
           {!canExport && (
             <p className={styles.previewHint}>
-              Tu rol no puede exportar piezas. Pedí el permiso a un administrador.
+              Tu rol no puede descargar placas. Pedí el permiso a un administrador.
             </p>
           )}
           {canExport && !catalogAccess.exportable && (
-            <PremiumUpsell feature="Exportar diseño" organizationId={organizationId} seasonId={seasonId} soon />
+            <StudioPremiumLock
+              title={effectiveThemeId !== 'base' ? `El estilo ${selectedTheme.label} es Premium` : `${piece?.label || 'Esta placa'} es Premium`}
+              copy={`Podés verla completa. Con FREE descargás ${FREE_PIECES_COPY} en estilo Base, con la firma Arma2. La compra de Premium todavía no está disponible.`}
+              organizationId={organizationId}
+              seasonId={seasonId}
+            />
           )}
         </section>
       </div>

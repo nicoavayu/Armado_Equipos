@@ -130,3 +130,19 @@ export function resolveTorneosPlanRead(env = process.env, { backendMode = resolv
   return backendMode.mode === 'hybrid'
     && env.REACT_APP_TORNEOS_PLAN_READ_MODE === 'on';
 }
+
+// SOCIAL-V1: the Estudio Social in the gateway composition. ONE variable never decides it: the
+// production-eligible flag `socialContentGenerator` (REACT_APP_TORNEOS_SOCIAL_GENERATOR_ENABLED=true, with every
+// condition the flags already demand) counts only together with the hybrid composition AND the plan read, because
+// FREE vs PREMIUM is decided per season from that read. Without any of the three the Studio does not exist: no
+// navigation, no route, no Social alias, no request. The resolved flags are passed in (the foundation never imports
+// the shell configuration); without them the Studio stays closed.
+export function resolveTorneosSocialStudio(env = process.env, {
+  backendMode = resolveTorneosBackendMode(env),
+  planRead = resolveTorneosPlanRead(env, { backendMode }),
+  flags = null,
+} = {}) {
+  return backendMode.mode === 'hybrid'
+    && planRead === true
+    && flags?.socialContentGenerator === true;
+}

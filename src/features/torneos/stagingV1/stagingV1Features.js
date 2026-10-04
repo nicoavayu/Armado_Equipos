@@ -52,7 +52,7 @@ const OFF = Object.freeze({
   team_photos: false,
   team_visual_policy: false,
   media: false,
-  social_studio: false,
+  social_studio: false,         // the Estudio Social: only the SOCIAL-V1 overlay below turns it on
 });
 
 export const stagingV1Features = Object.freeze({ ...STAGING_V1_ON, ...COMPETITION_V1_ON, ...OFFICIALIZATION_V1_ON, ...OFF });
@@ -80,9 +80,21 @@ export const stagingV1PlanReadOverlay = Object.freeze({
 
 const planReadFeatures = Object.freeze({ ...stagingV1Features, ...stagingV1PlanReadOverlay });
 
-export function stagingV1FeaturesFor(billingMode, { planRead = false } = {}) {
+// SOCIAL-V1: the Estudio Social (foundation/config.js resolveTorneosSocialStudio = hybrid + PLAN READ + the
+// production-eligible flag). It needs the season plan to tell FREE from PREMIUM, so it never applies without the
+// plan read: `social` alone keeps it off. Billing is not part of it.
+export const stagingV1SocialOverlay = Object.freeze({
+  social_studio: true,
+});
+
+const planReadSocialFeatures = Object.freeze({ ...planReadFeatures, ...stagingV1SocialOverlay });
+const billingTestSocialFeatures = Object.freeze({ ...billingTestFeatures, ...stagingV1SocialOverlay });
+
+export function stagingV1FeaturesFor(billingMode, { planRead = false, social = false } = {}) {
   const mode = typeof billingMode === 'string' ? billingMode : billingMode?.mode;
-  return mode === 'test' ? billingTestFeatures : planRead === true ? planReadFeatures : stagingV1Features;
+  if (mode === 'test') return social === true ? billingTestSocialFeatures : billingTestFeatures;
+  if (planRead !== true) return stagingV1Features;
+  return social === true ? planReadSocialFeatures : planReadFeatures;
 }
 
 // The legacy composition (single-project LOCAL QA) keeps every surface on.

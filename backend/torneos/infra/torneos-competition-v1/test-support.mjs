@@ -21,15 +21,16 @@ const fakeJwt = (claims) => `${b64u({ alg: 'HS256', typ: 'JWT' })}.${b64u(claims
 export const HOST = 'torneos-gateway.nicoavayu.deno.net';
 export const BASE = C.GATEWAY_BASE;
 
-/** Throwaway Production-shaped gateway env + the matching public pins (deploy pin with digests, JWKS pin). */
-export function fixtureEnv() {
+/** Throwaway Production-shaped gateway env + the matching public pins (deploy pin with digests, JWKS pin).
+ *  `caPem` replaces the operator host's Supabase CA file (CI has none; the in-process gateway only decodes it). */
+export function fixtureEnv({ caPem = null } = {}) {
   const ring = generateRing();
   const jwksPin = jwksPinDocument(ring.jwks, { generatedAt: '2026-09-27T00:00:00.000Z' });
   const passwords = Object.fromEntries(G.EDGE_LOGINS.map((l) => [l.login, crypto.randomBytes(30).toString('base64url')]));
   const contractSecret = crypto.randomBytes(32).toString('hex');
   const torneosAnonKey = `sb_publishable_${crypto.randomBytes(18).toString('base64url')}`;
   const env = buildGatewayEnv({ publicUrl: BASE, poolerHost: C.POOLER_HOST, jwksPin, k1Pkcs8: ring.slots[0].pkcs8, torneosAnonKey,
-    coreAnonKey: fakeJwt({ iss: 'supabase', ref: G.CORE_PROD_REF, role: 'anon', iat: 1, exp: 2 }), caPem: fs.readFileSync(CA_CERT, 'utf8'), contractSecret, passwords });
+    coreAnonKey: fakeJwt({ iss: 'supabase', ref: G.CORE_PROD_REF, role: 'anon', iat: 1, exp: 2 }), caPem: caPem ?? fs.readFileSync(CA_CERT, 'utf8'), contractSecret, passwords });
   const real = C.readCurrentDeployPin();
   const deployPin = { ...real, env: describeEnv(env) };
   const secrets = [contractSecret, ...Object.values(passwords), ring.slots[0].pkcs8, ring.slots[1].pkcs8, env.TORNEOS_BRIDGE_KEYS, env.TORNEOS_DB_CORE_ADAPTER_URL, env.TORNEOS_DB_IDENTITY_WRITER_URL];
