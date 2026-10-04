@@ -416,7 +416,7 @@ export default function SocialStudioPage() {
       surface.className = styles.previewCanvas;
       if (prepared.node) {
         surface.style.setProperty(
-          '--social-preview-scale', String(PREVIEW_WIDTH / prepared.format.width),
+          '--social-preview-scale', String((host.getBoundingClientRect().width || PREVIEW_WIDTH) / prepared.format.width),
         );
       }
       host.replaceChildren(surface);
@@ -447,6 +447,21 @@ export default function SocialStudioPage() {
   }, [snapshot, editorial, organizationId, service, piece, selectedTheme, branding, localPhoto, fontRetry]);
 
   useEffect(() => { setFontRetry((attempt) => (attempt === 0 ? attempt : 0)); }, [snapshot, editorial, selectedTheme, branding, localPhoto]);
+
+  // The Premium preview is the 1080 px composition scaled down: the scale follows the real stage width (a phone
+  // narrows it below 300 px), so the whole art stays visible and the export keeps its exact size.
+  useEffect(() => {
+    const host = canvasHostRef.current;
+    if (!host || typeof ResizeObserver !== 'function') return undefined;
+    const observer = new ResizeObserver(([entry]) => {
+      const node = host.firstElementChild;
+      const width = Number.parseInt(node?.style?.width, 10);
+      // contentRect keeps the fractional width (clientWidth rounds it, and the art would miss the stage by a pixel).
+      if (node?.dataset?.premiumRenderer && width) node.style.setProperty('--social-preview-scale', String(entry.contentRect.width / width));
+    });
+    observer.observe(host);
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => () => {
     releasePreparedSocialRender(preparedRenderRef.current);
@@ -981,18 +996,20 @@ export default function SocialStudioPage() {
 
           <div
             className={`${styles.previewStage} ${hasFigurePhoto ? styles.previewStageDraggable : ''}`}
-            style={{
-              width: PREVIEW_WIDTH,
-              maxWidth: '100%',
-              aspectRatio: `${format.width} / ${format.height}`,
-            }}
+            style={{ width: PREVIEW_WIDTH, maxWidth: '100%' }}
             onPointerDown={startPhotoDrag}
             onPointerMove={movePhotoDrag}
             onPointerUp={stopPhotoDrag}
             onPointerCancel={stopPhotoDrag}
             onClick={hasFigurePhoto ? claimFiguraDragPointer : undefined}
           >
-            <div ref={canvasHostRef} className={styles.previewHost} />
+            {/* The format's proportions belong to the art box, inside the stage border: on the stage itself
+                (border-box sizing) they would leave a strip of the stage uncovered under the art. */}
+            <div
+              ref={canvasHostRef}
+              className={styles.previewHost}
+              style={{ aspectRatio: `${format.width} / ${format.height}` }}
+            />
             {['loading', 'rendering'].includes(renderState.status) && (
               <span className={styles.previewOverlay} role="status">
                 <Loader2 size={22} aria-hidden="true" /> Generando…

@@ -31,6 +31,13 @@
  *                                           opt-in against the real gateway
  *                                           source, and the certification
  *                                           matrix (no database, no network)
+ *       npm run test:torneos:social:browser — the Estudio Social in real
+ *                                           Chromium (CI profile): Social OFF,
+ *                                           FREE, PREMIUM in every style, 4:5
+ *                                           and 9:16, branding, real PNG
+ *                                           exports of exact size, Editorial
+ *                                           pages, and every control's real
+ *                                           box on screen at 320 and 390 px
  *       npm run test:staging:guard        — this contract test, the staging
  *                                           guard, the A1/A2 execution
  *                                           contracts, psql TLS + live
@@ -100,6 +107,7 @@ const workflowExecutedScripts = [...workflowDirectives.matchAll(/npm run ([a-z0-
 /** The suites `test:ci` must compose. Removing one from the script fails here. */
 const REQUIRED_IN_TEST_CI = [
   'test:staging:guard', 'test:worker:signer-renewer', 'test:worker:media:ci', 'test:torneos:social',
+  'test:torneos:social:browser',
 ];
 
 /**
@@ -144,6 +152,24 @@ test('test:ci runs the signer-renewer suite', () => {
   }
   assert.ok(scripts['test:worker:signer-renewer'].includes('workers/tournament-media-signer-renewer/test/'),
     'test:worker:signer-renewer no longer points at the renewer test directory');
+});
+
+test('test:ci certifies the Estudio Social in a real browser', () => {
+  // The phone layout broke while every Node suite stayed green: the Studio is certified by measuring real boxes in
+  // Chromium, and its coverage contract (ci.mjs) fails a run that checked less than FREE, PREMIUM, both formats,
+  // 320/390 px, branding, exports, Editorial pages and Social OFF.
+  assert.equal(scripts['test:torneos:social:browser'], 'node scripts/qa/social-studio/ci.mjs');
+  const runner = readText('scripts/qa/social-studio/ci.mjs');
+  assert.ok(runner.includes("SOCIAL_QA_PROFILE: 'ci'") && runner.includes('delete env.SOCIAL_QA_ONLY'),
+    'ci.mjs must run every section of the CI profile');
+  assert.ok(runner.includes('SOCIAL_STUDIO_BROWSER_FAIL') && runner.includes('process.exit(1)'),
+    'ci.mjs must fail the gate when the browser run or its coverage contract fails');
+  const harness = readText('scripts/qa/social-studio/browser-check.cjs');
+  for (const guard of ['assertOnScreen', 'assertNothingOffScreen', 'assertWholeArt', 'elementFromPoint', 'checkVisibility']) {
+    assert.ok(harness.includes(guard), `browser-check.cjs no longer uses ${guard}`);
+  }
+  assert.equal(/\.scrollWidth\s*[<>]/.test(harness), false,
+    'the app clips overflow-x globally: scrollWidth cannot prove anything is on screen');
 });
 
 test('test:ci runs the media-processor suites that need no infrastructure', () => {
