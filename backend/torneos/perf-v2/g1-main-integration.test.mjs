@@ -130,6 +130,8 @@ test('integration: changes after the integration base are confined to Mi plan, P
     'backend/torneos/infra/torneos-competition-v1/test-support.mjs',
     'scripts/torneos-frontend/social-adapter.test.mjs',
     'scripts/ci/quality-gate-contract.test.mjs',
+    // The Quality Gate's coverage comment names the Estudio Social browser certification (no directive changes).
+    '.github/workflows/smoke-stats-notifications.yml',
     'docs/torneos/social-studio-premium-master-spec.md',
     'package.json',
     'backend/torneos/perf-v2/g1-main-integration.test.mjs',
@@ -164,12 +166,14 @@ test('integration: changes after the integration base are confined to Mi plan, P
   const before = JSON.parse(git('show', `${BASE}:package.json`));
   const after = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, 'package.json'), 'utf8'));
   assert.equal(typeof after.scripts['test:torneos:g1'], 'string');
-  // The only npm changes (SOCIAL-V1): the adapter guard joins the frontend-foundation suite, and the backend suites
-  // (migration/driver pins, gateway opt-in, certification matrix) run as test:torneos:social inside test:ci.
+  // The only npm changes (SOCIAL-V1): the adapter guard joins the frontend-foundation suite, the backend suites
+  // (migration/driver pins, gateway opt-in, certification matrix) run as test:torneos:social, and the Estudio Social
+  // is certified in real Chromium as test:torneos:social:browser — both inside test:ci.
   const key = 'test:torneos:frontend-foundation';
   assert.equal(after.scripts[key], `${before.scripts[key]} scripts/torneos-frontend/social-adapter.test.mjs`);
   assert.equal(after.scripts['test:torneos:social'], 'node --test --test-concurrency=1 backend/torneos/social-v1/social-v1-migration.test.mjs backend/torneos/social-v1/social-v1-gateway.test.mjs backend/torneos/social-v1/probe/social-matrix.test.mjs');
-  assert.equal(after.scripts['test:ci'], before.scripts['test:ci'].replace('npm run test:torneos:frontend-foundation && ', 'npm run test:torneos:frontend-foundation && npm run test:torneos:social && '));
-  const { 'test:torneos:social': _social, ...rest } = after.scripts;
+  assert.equal(after.scripts['test:torneos:social:browser'], 'node scripts/qa/social-studio/ci.mjs');
+  assert.equal(after.scripts['test:ci'], before.scripts['test:ci'].replace('npm run test:torneos:frontend-foundation && ', 'npm run test:torneos:frontend-foundation && npm run test:torneos:social && npm run test:torneos:social:browser && '));
+  const { 'test:torneos:social': _social, 'test:torneos:social:browser': _browser, ...rest } = after.scripts;
   assert.deepEqual({ ...after, scripts: { ...rest, [key]: before.scripts[key], 'test:ci': before.scripts['test:ci'] } }, before);
 });

@@ -100,6 +100,41 @@ function crc32(buffer) {
 }
 
 // ── page helpers ────────────────────────────────────────────────────────────────────────────────────────────────
+// The Google Fonts faces are fetched once per run (with retries) and replayed to every context from memory: dozens of
+// cold contexts no longer each depend on the CDN answering, so a network hiccup cannot fail the certification while
+// the page still loads exactly the faces it asks for, from the same two hosts only.
+const fontCache = new Map();
+async function serveFont(route) {
+  const url = route.request().url();
+  if (!fontCache.has(url)) {
+    fontCache.set(url, (async () => {
+      let lastError = null;
+      for (let attempt = 1; attempt <= 4; attempt += 1) {
+        try {
+          const response = await route.fetch({ timeout: 15000 });
+          if (response.ok()) {
+            const headers = response.headers();
+            return {
+              status: response.status(),
+              body: await response.body(),
+              headers: Object.fromEntries(['content-type', 'access-control-allow-origin', 'timing-allow-origin']
+                .filter((name) => headers[name]).map((name) => [name, headers[name]])),
+            };
+          }
+          lastError = new Error(`HTTP ${response.status()}`);
+        } catch (error) { lastError = error; }
+        await new Promise((resolve) => { setTimeout(resolve, 750 * attempt); });
+      }
+      throw new Error(`font ${url}: ${lastError?.message}`);
+    })());
+  }
+  try {
+    return await route.fulfill(await fontCache.get(url));
+  } catch (error) {
+    fontCache.delete(url);
+    return route.abort();
+  }
+}
 async function open(browser, base, query, viewport = { width: 1440, height: 1000 }, device = {}) {
   const context = await browser.newContext({ viewport, acceptDownloads: true, reducedMotion: 'reduce', ...device });
   const page = await context.newPage();
@@ -108,7 +143,8 @@ async function open(browser, base, query, viewport = { width: 1440, height: 1000
   page.on('console', (m) => { if (m.type() === 'error' && !/Download the React DevTools/.test(m.text())) errors.push(m.text()); });
   await page.route('**/*', (route) => {
     const url = new URL(route.request().url());
-    if (url.origin === base || ALLOWED_REMOTE.has(url.hostname)) return route.continue();
+    if (url.origin === base) return route.continue();
+    if (ALLOWED_REMOTE.has(url.hostname)) return serveFont(route);
     remote.push(url.href); return route.abort();
   });
   await page.goto(`${base}/?${query}`);
@@ -148,24 +184,29 @@ async function previewReady(page, { piece, style, format }) {
   });
 }
 async function selectCuration(page, id, count) {
-  if (!['mvp', 'best_eleven', 'champion'].includes(id)) return;
+  if (!['mvp', 'best_eleven', 'champion'].includes(id)) return false;
   const boxes = page.getByRole('group', { name: /Selección manual/ }).getByRole('checkbox');
-  for (let i = 0; i < count; i += 1) if (!(await boxes.nth(i).isChecked())) await boxes.nth(i).check();
+  let changed = false;
+  for (let i = 0; i < count; i += 1) if (!(await boxes.nth(i).isChecked())) { await boxes.nth(i).check(); changed = true; }
+  return changed;
+}
+// The preview settles before anything is compared: no "Generando…" and a surface on screen (or nothing to render).
+async function settled(page) {
+  await page.waitForFunction(() => ![...document.querySelectorAll('[role="status"]')].some((el) => el.textContent.includes('Generando')), null, { timeout: 30000 });
+  return page.evaluate(() => document.querySelector('[role="img"][aria-label^="Vista previa"]')?.getAttribute('aria-label') || null);
 }
 async function configure(page, { id, label, style, format, teamSize = 5 }) {
-  // Asking for what is already on screen re-renders nothing: only a real change waits for a new surface.
   const expected = `Vista previa de ${label} en ${format}, estilo ${style}`;
-  const current = await page.evaluate(() => {
-    const busy = [...document.querySelectorAll('[role="status"]')].some((el) => el.textContent.includes('Generando'));
-    return busy ? null : document.querySelector('[role="img"][aria-label^="Vista previa"]')?.getAttribute('aria-label');
-  });
-  const curated = ['mvp', 'best_eleven', 'champion'].includes(id);
-  if (current !== expected || curated) await markRender(page);
-  else await page.evaluate(() => document.querySelectorAll('[role="img"][aria-label^="Vista previa"]').forEach((el) => { delete el.dataset.qaPrevious; }));
+  const before = await settled(page);
+  await markRender(page);
   await pieceRadio(page, label).click();
-  await selectCuration(page, id, id === 'best_eleven' ? teamSize : 1);
+  const curationChanged = await selectCuration(page, id, id === 'best_eleven' ? teamSize : 1);
   await styleRadio(page, style).click();
   await page.getByRole('radiogroup', { name: 'Formato' }).getByRole('radio', { name: format }).click();
+  // Asking for what was already on screen re-renders nothing: only a real change has to produce a new surface.
+  if (before === expected && !curationChanged) {
+    await page.evaluate(() => document.querySelectorAll('[role="img"][aria-label^="Vista previa"]').forEach((el) => { delete el.dataset.qaPrevious; }));
+  }
   await previewReady(page, { piece: label, style, format });
 }
 async function download(page, label, buttonName = /^Descargar PNG$/) {
@@ -633,7 +674,12 @@ async function assertWholeArt(page, label, [, , width, height]) {
       const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
       const page = await context.newPage();
       const remote = [];
-      await page.route('**/*', (route) => { const u = new URL(route.request().url()); if (u.origin === base || ALLOWED_REMOTE.has(u.hostname)) return route.continue(); remote.push(u.href); return route.abort(); });
+      await page.route('**/*', (route) => {
+        const u = new URL(route.request().url());
+        if (u.origin === base) return route.continue();
+        if (ALLOWED_REMOTE.has(u.hostname)) return serveFont(route);
+        remote.push(u.href); return route.abort();
+      });
       await page.goto(`${base}/?social=off&path=inicio`);
       const nav = page.getByRole('navigation', { name: 'Navegación de la organización' });
       await expect(nav.getByRole('link', { name: 'Mi plan' })).toBeVisible({ timeout: 15000 });
