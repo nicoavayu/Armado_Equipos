@@ -3,7 +3,7 @@
 Autoridad operativa para continuar Arma2 Torneos. Se actualiza en cada paso de rollout.
 **Sin secretos:** este archivo nunca contiene access/refresh tokens, service_role, anon keys, claves privadas ni URLs de DB con credenciales. Los secretos viven en Secret Manager (Cloud Run) y en las env de Vercel/Supabase.
 
-Última actualización: 2026-10-03 (ver [Último estado certificado](#último-estado-certificado)).
+Última actualización: 2026-10-04 (ver [Último estado certificado](#último-estado-certificado)).
 
 ---
 
@@ -64,8 +64,8 @@ app.arma2.com.ar (Vercel, CRA)  ──Core auth──▶  Supabase Core  rcyuuoa
 | Servicio | `torneos-gateway` |
 | URL pública (única aceptada por el host guard) | `https://torneos-gateway-476836389730.southamerica-east1.run.app/functions/v1/torneos-gateway` |
 | Alias `*-7fnauuvvxa-rj.a.run.app` | responde 403 (host guard), esperado |
-| Revisión activa | `torneos-gateway-00003-b78` (PLAN READ ON), 100 % fijado por REVISION (no LATEST: una revisión nueva no recibe tráfico sola). Anteriores: `torneos-gateway-00002-skw` (misma imagen, PLAN READ OFF), `torneos-gateway-00001-7lw` (imagen pre-PLAN READ) |
-| Imagen activa | `.../torneos-gateway/gateway@sha256:dc8049d3c285c008219a32b7eff1329c160b374ff8862e9c26bec372f847c191` (tag `main-44b4b4b2`) |
+| Revisión activa | `torneos-gateway-00004-jn4` (imagen SOCIAL-V1 de `main 2b22aadd`, PLAN READ ON, `TORNEOS_SOCIAL_MODE` ausente), 100 % fijado por REVISION (no LATEST: una revisión nueva no recibe tráfico sola). Anteriores: `torneos-gateway-00003-b78` (imagen `dc8049d3…`, PLAN READ ON), `torneos-gateway-00002-skw` (imagen `dc8049d3…`, PLAN READ OFF), `torneos-gateway-00001-7lw` (imagen pre-PLAN READ) |
+| Imagen activa | `.../torneos-gateway/gateway@sha256:e9b4ed0f067afe290677bf1a56e1731e8736bd6d4ba4616dfa47ee02c4949d07` (tag `main-2b22aadd`, grafo de 20 archivos = `main 2b22aadd`). Anterior: `…@sha256:dc8049d3c285c008219a32b7eff1329c160b374ff8862e9c26bec372f847c191` (tag `main-44b4b4b2`) |
 | Escalado | min 0, max 3, concurrencia 80, 1 vCPU / 512Mi, `cpuIdle` (request-based billing), startup CPU boost |
 | Timeout | 30 s |
 | Service account | `torneos-gateway-prod@arma2-465223.iam.gserviceaccount.com` (sólo `secretAccessor` sobre 4 secretos) |
@@ -85,8 +85,8 @@ app.arma2.com.ar (Vercel, CRA)  ──Core auth──▶  Supabase Core  rcyuuoa
 | Campo | Valor |
 |---|---|
 | Proyecto | `prj_h8ozz0T5Jw1yZHZfqwObwhF2gu2c` (`arma2`), dominio `app.arma2.com.ar` |
-| Deploy Production actual | `dpl_9y9zFtwvSFp81Jpqrm4bUHqJqPUE` (main `6a489648`, PR #172, bundle `main.ae463a7d.js`, PLAN READ ON; GitHub deployment 6816199390) |
-| Rollback frontend | Sello oculto ≤520 (antes de PR #172): promover `dpl_GidwEwYRqGpxSAePKcivtboiEvuz` (main `80083f45`, bundle `main.11d2f066.js`). Mi plan anterior a PR #171: promover `dpl_3i3jzSDodUVY4RKzwBioZ5szDB9o` (main `44b4b4b2`, bundle `main.45421abc.js`, PLAN READ ON). PLAN READ OFF: promover `dpl_FYRP4LaoNBvs2gpz3wjyH5hyQvmN` (mismo main, bundle `main.d122a441.js`, PLAN READ OFF). Más atrás: deployment sobre `4a8c5bbe` (GitHub deployment 6785088892) |
+| Deploy Production actual | `dpl_42GWYpyQYh912ybv8KUPmL1TBDGU` (main `2b22aadd`, PR #174, bundle `main.133661b0.js`, PLAN READ ON, Social OFF; GitHub deployment 6842386375) |
+| Rollback frontend | Antes de PR #174: promover `dpl_9y9zFtwvSFp81Jpqrm4bUHqJqPUE` (main `6a489648`, bundle `main.ae463a7d.js`). Sello oculto ≤520 (antes de PR #172): promover `dpl_GidwEwYRqGpxSAePKcivtboiEvuz` (main `80083f45`, bundle `main.11d2f066.js`). Mi plan anterior a PR #171: promover `dpl_3i3jzSDodUVY4RKzwBioZ5szDB9o` (main `44b4b4b2`, bundle `main.45421abc.js`, PLAN READ ON). PLAN READ OFF: promover `dpl_FYRP4LaoNBvs2gpz3wjyH5hyQvmN` (mismo main, bundle `main.d122a441.js`, PLAN READ OFF). Más atrás: deployment sobre `4a8c5bbe` (GitHub deployment 6785088892) |
 | `REACT_APP_TORNEOS_GATEWAY_URL` | URL Cloud Run de arriba (env id `uNG4dxIq8STJFH59`, production-only) |
 | `REACT_APP_TORNEOS_PLAN_READ_MODE` | `on` (env id `vC6YHwcitmPuCbNy`, production-only, 2026-10-02) |
 | Billing | ausente → OFF (`NOT_CONFIGURED`) |
@@ -103,7 +103,7 @@ app.arma2.com.ar (Vercel, CRA)  ──Core auth──▶  Supabase Core  rcyuuoa
 
 ## 4. Migrations Torneos (Production)
 
-Directorio: `backend/torneos/supabase/migrations/`. Production está en **POST_0007**.
+Directorio: `backend/torneos/supabase/migrations/`. Production está en **POST_0008** (172/12, `authorize_tournament_social_export` md5 `85bb4858…`).
 
 | # | Archivo | sha256 (prefijo) |
 |---|---|---|
@@ -118,7 +118,7 @@ Directorio: `backend/torneos/supabase/migrations/`. Production está en **POST_0
 
 - 0007 aplicada en Production y certificada (`TORNEOS_SEASON_SCOPE_PROD_DB_CERTIFIED`). Cuerpo `md5(prosrc)` = `bf263acafb185ee0993117d5805bc701` (antes `a533331a…`). **No volver a aplicarla.**
 - Rollback de 0007: sha256 `054985997ea06a0c7745f1e700489a9b879cbd40f0320d83d7049780f2758be3`, restaura `a533331a…`. Sólo con PLAN READ y Commerce en OFF. Es gate D.
-- **0008 `social_v1_export_authorization.sql` — en git (PR #174), NO aplicada en Production.** sha256 `8b1e7bf96c13caa5b8102ff1150e462346820e472c8a58f8f6bd6be0a6310c2f`. Cambia sólo el cuerpo de `authorize_tournament_social_export` (`f211d9a2…` → `85bb4858…`: tema/placa/firma `NULL` ⇒ 22023, sin coerción) y le da `EXECUTE` a `authenticated` (171→172 / anon 12). Driver de operador: `backend/torneos/social-v1/remote/db8.mjs` (`observe` read-only; `apply APPLY TORNEOS 0008 onzpwnqxnvlgsevivngf 8b1e7bf96c13` sólo desde `POST_0007`). Rollback: `backend/torneos/social-v1/rollback/00000000000008_social_v1_export_authorization.rollback.sql`, sha256 `dcc65afe7aeb1f0b9013616d24bac9c9d95a4a6b0ee003d81b7ac66f08be148d` (`db8.mjs rollback ROLLBACK TORNEOS 0008 onzpwnqxnvlgsevivngf dcc65afe7aeb`; sólo con `TORNEOS_SOCIAL_MODE` ausente). Lab 94/94. Es gate D.
+- **0008 `social_v1_export_authorization.sql` — aplicada en Production el 2026-10-04 15:00:58Z (gate D, `APPLY_0008_DONE`; observe independiente ⇒ `POST_0008`, resto del catálogo idéntico). No volver a aplicarla.** sha256 `8b1e7bf96c13caa5b8102ff1150e462346820e472c8a58f8f6bd6be0a6310c2f`. Cambia sólo el cuerpo de `authorize_tournament_social_export` (`f211d9a2…` → `85bb4858…`: tema/placa/firma `NULL` ⇒ 22023, sin coerción) y le da `EXECUTE` a `authenticated` (171→172 / anon 12). Driver de operador: `backend/torneos/social-v1/remote/db8.mjs` (`observe` read-only; `apply APPLY TORNEOS 0008 onzpwnqxnvlgsevivngf 8b1e7bf96c13` sólo desde `POST_0007`). Rollback: `backend/torneos/social-v1/rollback/00000000000008_social_v1_export_authorization.rollback.sql`, sha256 `dcc65afe7aeb1f0b9013616d24bac9c9d95a4a6b0ee003d81b7ac66f08be148d` (`db8.mjs rollback ROLLBACK TORNEOS 0008 onzpwnqxnvlgsevivngf dcc65afe7aeb`; sólo con `TORNEOS_SOCIAL_MODE` ausente). Lab 94/94. Es gate D.
 
 ---
 
@@ -127,7 +127,7 @@ Directorio: `backend/torneos/supabase/migrations/`. Production está en **POST_0
 | Capa | Variable | Estado Production | Efecto en ON |
 |---|---|---|---|
 | Gateway | `TORNEOS_PLAN_READ_MODE` | **`on`** (rev `00003-b78`, 2026-10-02) | Agrega sólo `get_effective_tournament_season_entitlements` y `get_effective_tournament_entitlements` a la allowlist. Cualquier valor distinto de `on`/`off`/vacío cierra el boot (`PlanReadConfigError`) |
-| Gateway | `TORNEOS_SOCIAL_MODE` | **ausente (OFF)**; la imagen Prod actual (`dc8049d3…`) ni siquiera tiene `social.ts` | `on` agrega exactamente `get_tournament_social_studio_context`, `get_tournament_social_snapshot`, `authorize_tournament_social_export`. Nunca `set_tournament_social_permission` ni la ruta pública. Cualquier otro valor cierra el boot (`SocialConfigError`, logueado como `[torneos-gateway] disabled: TORNEOS_SOCIAL_MODE must be on or off`) |
+| Gateway | `TORNEOS_SOCIAL_MODE` | **ausente (OFF)** en `00004-jn4`; su imagen (`e9b4ed0f…`) ya trae `social.ts`, así que activarlo es sólo env (gate B+C) | `on` agrega exactamente `get_tournament_social_studio_context`, `get_tournament_social_snapshot`, `authorize_tournament_social_export`. Nunca `set_tournament_social_permission` ni la ruta pública. Cualquier otro valor cierra el boot (`SocialConfigError`, logueado como `[torneos-gateway] disabled: TORNEOS_SOCIAL_MODE must be on or off`) |
 | Gateway | `TORNEOS_COMMERCE_MODE` y env de MP/pagos | **ausentes (OFF)** | Production rechaza commerce |
 | Frontend | `REACT_APP_TORNEOS_PLAN_READ_MODE` | **`on`** (env `vC6YHwcitmPuCbNy`, 2026-10-02) | Sólo `on` exacto, en composición `hybrid`: `entitlements` + `plan` (overlay `stagingV1PlanReadOverlay`). Billing sigue `false` |
 | Frontend | `REACT_APP_TORNEOS_SOCIAL_GENERATOR_ENABLED` | **ausente (OFF)** | Sólo `true` exacto, y además híbrido + PLAN READ (`resolveTorneosSocialStudio`): nav "Estudio Social", ruta, overlay `social_studio`, 3 alias. Mi plan pasa el Estudio de "Próximamente" a la comparación FREE vs PREMIUM |
@@ -213,12 +213,12 @@ Objetivo final: "Mi plan" en la navegación, badge FREE/PREMIUM, pantalla Mi pla
 
 | Capa | Cómo |
 |---|---|
-| Gateway (hoy) | Tráfico 100 % a `torneos-gateway-00002-skw` (misma imagen `dc8049d3…`, PLAN READ OFF). Segundos, sin rebuild. Más atrás: `torneos-gateway-00001-7lw` (imagen `d163a36b…`, pre-PLAN READ) |
+| Gateway (hoy) | Tráfico 100 % a `torneos-gateway-00003-b78` (imagen anterior `dc8049d3…`, PLAN READ ON, sin `social.ts`). Segundos, sin rebuild. Más atrás: `00002-skw` (PLAN READ OFF), `00001-7lw` (pre-PLAN READ) |
 | Gateway (genérico) | Tráfico 100 % a la revisión anterior (Run API v2: `PATCH services/torneos-gateway` con `traffic=[{type: REVISION, revision: <anterior>, percent: 100}]`). Sin rebuild |
 | Gateway PLAN READ ON → OFF | quitar `TORNEOS_PLAN_READ_MODE` (nueva revisión) o volver tráfico a la revisión OFF |
 | Frontend | promover `dpl_FYRP4LaoNBvs2gpz3wjyH5hyQvmN` (PLAN READ OFF, mismo main), o borrar env `vC6YHwcitmPuCbNy` y redeploy |
 | Web → Deno | `REACT_APP_TORNEOS_GATEWAY_URL` a la URL Deno + redeploy (último recurso) |
-| DB 0007 | script de rollback fijado arriba (gate D) |
+| DB 0007 / 0008 | scripts de rollback fijados en §4 (gate D; 0008 sólo con `TORNEOS_SOCIAL_MODE` ausente) |
 
 ---
 
@@ -267,7 +267,7 @@ GO de Nico (gates B+C) sólo para `TORNEOS_PLAN_READ_MODE=on` en el gateway Prod
 - **Frontend:** bundle Production `main.d122a441.js` sin `REACT_APP_TORNEOS_PLAN_READ_MODE` ni referencias a las RPC de plan → sin cambio visible.
 - **DB:** ninguna operación. Billing, Commerce y MP LIVE siguen OFF.
 
-## SOCIAL-V1 — Estudio Social V2 completo (2026-10-03, PR #174 abierto, todo OFF)
+## SOCIAL-V1 — Estudio Social V2 completo (PR #174 mergeado `2b22aadd`; 0008 y la imagen ya en Production, Social OFF)
 
 Implementado y certificado localmente (`SOCIAL_STUDIO_V2_READY_FOR_GATE_A`). Detalle: `backend/torneos/social-v1/REPORT.md` (auditoría y plan de origen: `AUDIT.md`, `PLAN.md`; PR #173 queda reemplazado por este).
 
@@ -288,9 +288,23 @@ Implementado y certificado localmente (`SOCIAL_STUDIO_V2_READY_FOR_GATE_A`). Det
 
 El 3 no va antes del 1 (sin 0008 el export responde `permission denied`) y el 4 no va antes del 3 (el Estudio aparecería en la nav sin poder abrirse). Cada paso deja Production coherente si se frena ahí. Android (J) fuera de alcance: el build no lleva la env hasta revisarlo.
 
+## Gates SOCIAL-V1 ejecutados
+
+- **A (2026-10-04):** PR #174 mergeado normal (`2b22aadd`, padres `6a489648` + `4a296569`). CI post-merge OK. Vercel `dpl_42GWYpyQ…` (`main.133661b0.js`): sin env Social/Billing/Commerce/MP, nav sin Estudio Social, Mi plan con el Estudio en Próximamente.
+- **D (2026-10-04 15:00:58Z):** `db8.mjs apply` ⇒ `APPLY_0008_DONE` (990 ms); observe independiente ⇒ `POST_0008` 172/12, `85bb4858…`, other_fn/relations/policies idénticos.
+- **B (2026-10-04, `TORNEOS_GATEWAY_PROD_SOCIAL_IMAGE_OFF_DEPLOYED`):**
+  - Imagen: Cloud Build `93ec3d14` hizo `gcrane cp` del shadow `torneos-gw-shadow/gateway@sha256:e9b4ed0f…` a `torneos-gateway/gateway:main-2b22aadd`; el digest destino es idéntico (`gcrane digest`). Dentro: Deno 2.9.7, usuario `deno` (UID 1993), 20/20 archivos con sha256 = `main 2b22aadd`.
+  - Revisión: PATCH con el `etag` de gen 5; template = anterior salvo `containers[0].image` (verificado por diff de servicio y de revisión). Creó `torneos-gateway-00004-jn4` con 0 % (tráfico fijo en `00003-b78`) y tag `socialoff`. Ready en 5.96 s; boot limpio (sin `disabled:` ni `SocialConfigError`).
+  - Candidata por URL de tag + `x-forwarded-host`: unauth **16/16** idéntica a `00003-b78` (status, error, hash de body, ACAO, cache), contra el baseline de las 15:07Z y contra una corrida simultánea. Sin `x-forwarded-host` ⇒ 403 (host guard).
+  - Tráfico: 100 % REVISION `00004-jn4` (15:34:24Z), tag eliminado (URL del tag ⇒ 404). Servicio: labels, ingress, invoker, escalado, SA, recursos, 14 env y 4 secretos @1 iguales; sólo cambió la imagen. Unauth 16/16 en la URL Production sin diffs; `/internal/v1/season-checkout-preference` ⇒ 404.
+  - `cloudrun-readonly.mjs --expect-traffic-revision torneos-gateway-00004-jn4 --expect-digest sha256:e9b4ed0f… --expect-env TORNEOS_SOCIAL_MODE='<absent>' --expect-env TORNEOS_PLAN_READ_MODE=on` ⇒ `failures: []`, 0 env comerciales, 0 5xx, 0 503, 0 `bootDisabled`.
+  - UI Production (Chrome de Nico, org QA): nav sin Estudio Social (desktop y barra móvil), header "Mi plan FREE · QA Temporada 2026", Mi plan "FREE confirmado" con el Estudio sólo en Próximamente, 0 controles de compra; `/estudio-social` directo ⇒ `/torneos`; 0 requests Social/commerce. La propia app contra `00004-jn4`: `/exchange`, memberships, workspace/competition/teams/fixture/schedule context, `set_tournament_workspace_preference` y PLAN READ ⇒ 200 (latencias 0.27–1.43 s).
+  - Local: `social-v1-gateway.test.mjs` + `social-matrix.test.mjs` 18/18 (incluye "SOCIAL absent: the three RPCs answer 403 rpc not enabled").
+  - **Pendiente:** probe autenticado directo (`off-probe`, un `/exchange` QA: 3 RPC Social y `set_tournament_social_permission` ⇒ 403, 14 comerciales ⇒ 403, checkout ⇒ 404 con bearer válido). El clasificador de auto mode bloqueó materializar los datos de la sesión QA (`PRODUCTION_QA`); lo corre Nico o se habilita el permiso.
+
 ## Próximo gate
 
-**A — merge de SOCIAL STUDIO V2 completo (PR #174)**, todo OFF por defecto. Después, en orden: D (0008), B (imagen con SOCIAL ausente), B+C (`TORNEOS_SOCIAL_MODE=on`), C (env Vercel). Android (J) sigue en espera.
+**B+C — `TORNEOS_SOCIAL_MODE=on` en el gateway Production.** Revisión nueva = `00004-jn4` + esa env (14 → 15 env; imagen, secretos, SA, escalado y recursos iguales), 0 % + tag `socialon`, unauth 16/16 sin diffs, luego 100 %. Certificación: `browserProbe(PRODUCTION_QA)` (matriz Social completa + PLAN READ, un `/exchange`) y `cloudrun-readonly.mjs … --expect-env TORNEOS_SOCIAL_MODE=on`. Rollback: tráfico 100 % a `00004-jn4`. Después: C (env Vercel). Android (J) sigue en espera.
 
 ## PR #172 — sello FREE/PREMIUM en teléfonos (2026-10-02, mergeado `6a489648`, certificado en Prod)
 
@@ -323,6 +337,9 @@ El 3 no va antes del 1 (sin 0008 el export responde `permission denied`) y el 4 
 
 | Estado | Fecha |
 |---|---|
+| `TORNEOS_GATEWAY_PROD_SOCIAL_IMAGE_OFF_DEPLOYED` (rev `00004-jn4`, imagen `e9b4ed0f…`, SOCIAL ausente; probe autenticado directo pendiente) | 2026-10-04 |
+| 0008 aplicada en Production (`POST_0008`, gate D) | 2026-10-04 |
+| PR #174 mergeado (`2b22aadd`), Vercel `dpl_42GWYpyQ…` Social OFF (gate A) | 2026-10-04 |
 | `SOCIAL_STUDIO_V2_READY_FOR_GATE_A` (PR #174, todo OFF, sin Production) | 2026-10-03 |
 | `SOCIAL_V1_AUDIT_READY` (auditoría + plan, sin Production) | 2026-10-02 |
 | `TORNEOS_WEB_PROD_PLAN_SEAL_MOBILE_CERTIFIED` (PR #172, main `6a489648`) | 2026-10-02 |
