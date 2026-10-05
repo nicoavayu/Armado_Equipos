@@ -35,6 +35,10 @@ const record = (window.__social = { authorize: [], snapshots: [], refusals: [] }
 // The official order of the table rows, for the multi-page checks.
 window.__socialTeamNames = (count) => socialQaStandings(count).map((row) => row.teamName);
 const refuse = (code) => { record.refusals.push(code); const error = new Error(code); error.code = code; throw error; };
+// Transitions (D1): the browser gate slows answers down or fails one, to open the windows a slow network opens. Nothing
+// is held or failed unless a check asks for it.
+const control = (window.__socialControl = { snapshotDelayMs: 0, authorizeDelayMs: 0, failSnapshot: [], failAuthorize: 0 });
+const pause = (ms) => (ms > 0 ? new Promise((resolve) => { setTimeout(resolve, ms); }) : Promise.resolve());
 
 const service = {
   loadContext: async () => ({ organizations: [org], preference: { activeOrganizationId: org.id } }),
@@ -63,11 +67,23 @@ const service = {
     }),
     loadSocialSnapshot: async ({ piece }) => {
       record.snapshots.push(piece);
+      await pause(control.snapshotDelayMs);
+      if (control.failSnapshot.includes(piece)) {
+        control.failSnapshot = control.failSnapshot.filter((entry) => entry !== piece);
+        throw new Error('No pudimos preparar esta pieza con datos oficiales.');
+      }
       return socialQaSnapshot(piece, { organizationId: org.id, tournamentId: tournament.id, ...ids, teamSize, standingsRows });
     },
     // The rules of 00000000000008, in the same order: access, then NULL/unknown inputs, then the plan.
     authorizeSocialExport: async ({ organizationId, tournamentId, piece, theme, includeArma2Branding }) => {
       record.authorize.push({ piece, theme, includeArma2Branding });
+      await pause(control.authorizeDelayMs);
+      if (control.failAuthorize > 0) {
+        control.failAuthorize -= 1;
+        const error = new Error('Torneos no está disponible en este momento. Volvé a intentar en unos minutos.');
+        error.code = 'TORNEOS_UNAVAILABLE';
+        throw error;
+      }
       if (role === 'collaborator' || organizationId !== org.id || tournamentId !== tournament.id) refuse('TORNEOS_SOCIAL_EXPORT_FORBIDDEN');
       if (!THEMES.includes(theme)) refuse('TORNEOS_SOCIAL_THEME_UNKNOWN');
       if (!PIECES.includes(piece)) refuse('TORNEOS_SOCIAL_PIECE_UNKNOWN');
