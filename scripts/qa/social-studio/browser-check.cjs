@@ -333,6 +333,9 @@ async function assertWholeArt(page, label, [, , width, height]) {
   const server = await start(0);
   const base = `http://127.0.0.1:${server.address().port}`;
   const browser = await chromium.launch({ headless: true });
+  // Headless Chromium hides scrollbars by default (--hide-scrollbars): the "scrollbar" phones run in a second instance
+  // that paints classic 15 px scrollbars, like desktop Chrome on Windows/Linux or macOS set to always show them.
+  const classicScrollbars = await chromium.launch({ headless: true, ignoreDefaultArgs: ['--hide-scrollbars'] });
   try {
     // ── FREE: Base + 3 pieces with the Arma2 signature, everything else previewable and locked ────────────────
     if (want('free')) {
@@ -566,13 +569,13 @@ async function assertWholeArt(page, label, [, , width, height]) {
     }
 
     // ── Responsive: every functional part of the Studio on screen at phone, tablet and desktop widths ───────────
-    // Phones run twice: with a classic 15 px scrollbar (the narrowest layout, 305 px at 320) and as a touch phone.
+    // Phones run twice: with classic 15 px scrollbars (the narrowest layout, 305 px at 320) and as a touch phone.
     const devices = (width) => (width <= 390 ? [['scrollbar', {}], ['phone', { isMobile: true, hasTouch: true, deviceScaleFactor: 2 }]] : [['desktop', {}]]);
     for (const [width, height] of want('responsive') ? PROFILE.widths : []) {
       for (const [deviceName, device] of devices(width)) {
         for (const plan of ['free', 'premium']) {
           // PREMIUM reads a 16-row table so the Editorial pages and their navigation are measured too.
-          const s = await open(browser, base, `plan=${plan}${plan === 'premium' ? '&rows=16' : ''}`, { width, height }, device);
+          const s = await open(deviceName === 'scrollbar' ? classicScrollbars : browser, base, `plan=${plan}${plan === 'premium' ? '&rows=16' : ''}`, { width, height }, device);
           const { page } = s;
           const at = `${plan} ${width} ${deviceName}`;
           for (const fmt of FORMATS) {
@@ -730,6 +733,7 @@ async function assertWholeArt(page, label, [, , width, height]) {
     console.log(JSON.stringify({ result: 'SOCIAL_STUDIO_BROWSER_PASS', ...evidence.summary }));
   } finally {
     await browser.close();
+    await classicScrollbars.close();
     server.close();
   }
 })().catch((error) => { console.error(error); process.exitCode = 1; });
