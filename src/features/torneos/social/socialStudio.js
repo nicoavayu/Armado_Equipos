@@ -338,6 +338,8 @@ export async function exportSocialPiece(options) {
     throw new SocialRenderError('RENDER_NOT_READY');
   }
   const prepared = options.prepared || await prepareSocialRender(options);
+  // A released render has lost its Premium root or its bitmaps: encoding it would produce a broken file.
+  if (isPreparedSocialRenderReleased(prepared)) throw new SocialRenderError('RENDER_STALE');
   const { canvas, node, format } = prepared;
   let expectedRenderKey = options.expectedRenderKey;
   if (!expectedRenderKey && options.prepared && options.snapshot && options.editorial) {
@@ -475,7 +477,41 @@ export function releaseSocialAssets(assets) {
   Object.values(assets.branding || {}).forEach(close);
 }
 
+// An export (authorization, PNG encoding, share sheet) keeps using its prepared render after the preview has moved on
+// to another selection. Releasing it then would unmount a Premium root or close a bitmap under the encoder, so the
+// export retains it and a release that arrives meanwhile waits until the export lets go. Releasing is idempotent.
+const renderLeases = new WeakMap();
+const releasedRenders = new WeakSet();
+
+export function retainPreparedSocialRender(prepared) {
+  if (!prepared) return () => {};
+  const lease = renderLeases.get(prepared) || { holders: 0, releaseRequested: false };
+  lease.holders += 1;
+  renderLeases.set(prepared, lease);
+  let held = true;
+  return () => {
+    if (!held) return;
+    held = false;
+    lease.holders -= 1;
+    if (lease.holders === 0) {
+      renderLeases.delete(prepared);
+      if (lease.releaseRequested) releasePreparedSocialRender(prepared);
+    }
+  };
+}
+
+export function isPreparedSocialRenderReleased(prepared) {
+  return Boolean(prepared) && releasedRenders.has(prepared);
+}
+
 export function releasePreparedSocialRender(prepared) {
+  if (!prepared || releasedRenders.has(prepared)) return;
+  const lease = renderLeases.get(prepared);
+  if (lease) {
+    lease.releaseRequested = true;
+    return;
+  }
+  releasedRenders.add(prepared);
   releasePremiumDomRender(prepared);
   releaseSocialAssets(prepared?.assets);
 }
