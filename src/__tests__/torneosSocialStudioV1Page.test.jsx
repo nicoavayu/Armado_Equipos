@@ -21,6 +21,8 @@ const ORG = '10000000-0000-4000-8000-000000000001';
 const SEASON = '20000000-0000-4000-8000-000000000001';
 const OTHER_SEASON = '20000000-0000-4000-8000-000000000002';
 const TOURNAMENT = '30000000-0000-4000-8000-000000000001';
+const OTHER_ORG = '10000000-0000-4000-8000-000000000002';
+const OTHER_TOURNAMENT = '30000000-0000-4000-8000-000000000002';
 const CATEGORY = '40000000-0000-4000-8000-000000000001';
 const PHASE = '50000000-0000-4000-8000-000000000001';
 const ROUND = '60000000-0000-4000-8000-000000000001';
@@ -76,8 +78,16 @@ function setup({
   const service = {
     loadSocialStudioContext: jest.fn().mockResolvedValue({ capabilities, tournaments, freeBaseFamilies: ['round_results', 'standings', 'next_fixture'] }),
     loadSocialSnapshot: jest.fn(async ({ piece }) => socialQaSnapshot(piece, { organizationId: ORG, ...snapshotOptions })),
+    // The answer of authorize_tournament_social_export (00000000000008): it names the scope it authorized.
     authorizeSocialExport: jest.fn(authorize || (async (args) => ({
-      authorized: true, piece: args.piece, theme: args.theme, includeArma2Branding: args.includeArma2Branding, plan,
+      authorized: true,
+      organizationId: args.organizationId,
+      seasonId: SEASON,
+      tournamentId: args.tournamentId,
+      piece: args.piece,
+      theme: args.theme,
+      includeArma2Branding: args.includeArma2Branding,
+      plan,
     }))),
   };
   mockWorkspace = { service };
@@ -344,6 +354,13 @@ test('export errors are always human copy', () => {
   expect(describeSocialExportError({ code: 'TORNEOS_X', message: 'TORNEOS_X' })).not.toMatch(/TORNEOS_/);
   expect(() => assertSocialExportAuthorization({ authorized: true, piece: 'standings', theme: 'base', includeArma2Branding: true },
     { piece: 'standings', theme: 'base', showArma2Branding: true })).not.toThrow();
+  // An authorization for another organization, tournament or season does not cover this file.
+  const answer = { authorized: true, organizationId: ORG, seasonId: SEASON, tournamentId: TOURNAMENT, piece: 'standings', theme: 'base', includeArma2Branding: true };
+  const expected = { organizationId: ORG, tournamentId: TOURNAMENT, seasonId: SEASON, piece: 'standings', theme: 'base', showArma2Branding: true };
+  expect(() => assertSocialExportAuthorization(answer, expected)).not.toThrow();
+  for (const foreign of [{ organizationId: OTHER_ORG }, { tournamentId: OTHER_TOURNAMENT }, { seasonId: OTHER_SEASON }, { organizationId: undefined }, { tournamentId: undefined }]) {
+    expect(() => assertSocialExportAuthorization({ ...answer, ...foreign }, expected)).toThrow('SOCIAL_AUTHORIZATION_MISMATCH');
+  }
 });
 
 test('a Premium preview root is never unmounted synchronously inside a React commit', () => {

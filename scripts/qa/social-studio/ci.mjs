@@ -61,6 +61,14 @@ expect(has('Figura photo/drag/zoom/reset'), 'Figura photo, focal point, zoom and
 expect(has('Editorial multi-page'), 'Editorial multi-page export');
 expect(has('roles and empty states'), 'roles and empty states');
 expect(checks.some((c) => c.name.startsWith('Studio OFF')), 'Social Studio OFF');
+// D1: the file is the selection on screen, also through slow answers, a changed mind and failures.
+for (const name of [
+  'transitions: FREE → FREE with a slow answer exports the selected piece',
+  'transitions: Premium locked → FREE with a slow answer never exports the Premium render',
+  'transitions: selection changed during the authorization → no file, then the right one',
+  'transitions: snapshot and authorization failures recover',
+  'transitions: PREMIUM style, format and signature switches export what is shown',
+]) expect(has(name), name);
 
 if (failures.length) {
   console.error(`SOCIAL_STUDIO_BROWSER_FAIL: the CI certification is missing ${failures.length} required check(s):\n- ${failures.join('\n- ')}`);
