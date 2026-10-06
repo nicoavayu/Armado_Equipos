@@ -28,8 +28,11 @@ torneos ni de pedir una inscripción: todo equipo entraba por el organizador.
 | Cambiar a Core | implícito (perfil, campana) | sólo explícito en el selector de producto |
 | Navbar / onboarding Core | no montados en `/torneos` (se conserva) | idem |
 | Core | — | sin cambios de comportamiento; una única entrada discreta «Explorar torneos» |
+| Dónde se ve el encabezado | inicio y algunas pantallas | toda pantalla autenticada de `/torneos` (centro del torneo, fotos, partidos, inscripción, solicitudes, perfil, avisos), uno solo; la página pública conserva su encabezado público con «Volver» |
+| Avisos del otro producto | — | punto rojo discreto junto al logo y en cada opción del selector, con texto accesible; nunca un segundo contador. Abrir el selector no marca nada como leído |
+| Al abrir la app | siempre el inicio del producto por defecto | el último producto y pantalla válidos de esa cuenta (preferencia local, nunca una autorización; se revalida al entrar). Gana un enlace o aviso explícito y el destino del login; sin Core en la plataforma, Torneos |
 
-`GlobalHeader` recibe una variante de espacio. En Core el componente es idéntico.
+`GlobalHeader` recibe una variante de espacio. En Core el componente es idéntico salvo el punto de avisos de Torneos.
 
 ## Experiencia por relación
 
@@ -59,8 +62,21 @@ Crear un torneo no activa ninguno. El catálogo publica una proyección segura: 
 organizador, localidad (y sede de la organización si se eligió), deporte/modalidad,
 formato, género, categorías con requisitos de edad, fechas, cierre de inscripción,
 cupos (si se definieron), costo y qué incluye (texto; Arma2 no cobra), requisitos,
-resumen de reglas y estado de inscripción. Nunca planteles, contactos, auditoría ni
-borradores.
+resumen de reglas, estado de inscripción y el logo del torneo (o el de la organización,
+o sus iniciales: la misma regla que la página pública). Nunca planteles, contactos de
+personas, auditoría ni borradores.
+
+- **Costo**: tres estados distintos — no informado (`null`, la tarjeta no muestra nada y la
+  ficha dice «Precio no informado por la organización»), gratuito (`0`, «Participación
+  gratuita») e informado (monto + unidad: por equipo o por jugador). `null` nunca se
+  convierte en `0`. Siempre se aclara que Arma2 no cobra ni procesa el pago.
+- **WhatsApp de contacto** (opcional, por convocatoria): lo carga quien gestiona el
+  catálogo, con aviso de que es público y confirmación explícita
+  (`TORNEOS_CONTACT_CONSENT_REQUIRED` sin ella); se normaliza a dígitos E.164
+  (`TORNEOS_CONTACT_INVALID` si no es válido), se puede quitar y queda auditado. La ficha
+  ofrece «Contactar al organizador por WhatsApp» (`wa.me` con un mensaje inicial, en otra
+  pestaña) sólo si existe. Consultar no es pedir la inscripción ni reserva lugar; el
+  intercambio de la solicitud sigue en Torneos. Nunca se usa el teléfono de un perfil.
 
 Orden explícito: «Cierre más próximo» (default), «Inicio más próximo», «Publicados
 recientemente». Filtros: texto, localidad, deporte, género, sólo abiertas, rango de
@@ -89,7 +105,15 @@ Explorar → ficha → «Solicitar inscripción» → categoría → equipo auto
   Core. LOCAL: `team_user_is_admin_or_owner` en la misma base. Híbrido: contrato Core
   `team_snapshot` atestado por el gateway (el `teamId` del cliente nunca autoriza).
   Búsqueda de equipos propios: contrato `directory_teams` (sólo devuelve equipos que el
-  usuario administra). Equipo nuevo: nombre explícito; el creador sólo es capitán de
+  usuario administra). **Lista sin escribir** (`list_my_core_teams_for_application`):
+  LOCAL lee Core en la misma base; híbrido usa el contrato Core v1.2 `my_teams`
+  (migración Core `20261007120000`, atestación de un solo uso). Devuelve los equipos
+  activos del usuario con `canRegister` (dueño/admin) o sólo integrante, y en qué
+  categorías de este torneo ya está cada uno. Inscribir sigue exigiendo `team_snapshot`.
+- **Lo que falta, junto al botón**: crear la solicitud y enviar el plantel muestran la lista
+  de pendientes (con acceso al campo); ningún botón queda deshabilitado sin explicación.
+  Un equipo ya inscripto en esa categoría no se puede elegir (índice único por torneo,
+  categoría y equipo de Core). Equipo nuevo: nombre explícito; el creador sólo es capitán de
   esa inscripción, nunca miembro de la organización.
 - Importar no toca Core ni inscribe miembros: el plantel se arma a mano.
 - Enviar no da acceso privado: `get_my_tournament_memberships` y el hub exigen
@@ -131,7 +155,7 @@ efecto y se reemplazan por esa explicación.
 | --- | --- | --- |
 | Migración | `supabase/migrations/20261006120000_torneos_connected_product_v1.sql` | `backend/torneos/supabase/migrations/00000000000009_connected_product_v1.sql` |
 | Identidad | `auth.uid()` | `private.current_identity_id()` |
-| Autoridad Core | misma base | gateway: `team_snapshot` / `directory_teams` atestados |
+| Autoridad Core | misma base | gateway: `team_snapshot` / `directory_teams` / `my_teams` (v1.2) atestados |
 | Transporte | supabase-js | gateway; RPC autenticadas + 3 públicas (anon) |
 | Activación | siempre | `TORNEOS_CONNECTED_MODE=on` (gateway) + `REACT_APP_TORNEOS_CONNECTED_MODE=on` (build) |
 
@@ -145,20 +169,30 @@ sí aplican siempre).
   (`qa-connected-{organizer,applicant,dual,revoked}@localhost.invalid`, `qa_seed_key = torneos-connected-v1`),
   «QA Liga Conectada» con tres torneos (convocatoria abierta, convocatoria cerrada, página pública sin
   convocatoria), equipos de Core para el capitán y el dual, una solicitud aprobada y otra pendiente, y la
-  membresía revocada. No toca a las seis identidades QA existentes. `--retire-local` retira convocatorias y
+  membresía revocada. No toca a las seis identidades QA existentes. La **etapa 2** (incremental, mismo comando)
+  suma: escudo QA en la Copa (subido al Storage local y asignado con la RPC del organizador), Copa con precio por
+  equipo + WhatsApp de formato válido sin persona real (`+54 9 11 0000 0000`), Belgrano sin precio ni contacto, la
+  convocatoria gratuita «QA Liga Gratuita Caballito» (sin logo: iniciales) y, para el capitán, «QA Vecinos FC»
+  (sólo integra) y «QA Ex Capitanía» (fue admin y lo bajaron a integrante). `--retire-local` retira convocatorias y
   páginas QA con las RPC del organizador (el dominio no borra organizaciones). El selector `/qa/rol` suma los
   cuatro roles cuando existen; `QA_TORNEOS_REVIEW_PORT` permite una segunda revisión en paralelo.
 - **Híbrido** (laboratorio `integration/torneos-core-contracts`, gateway con `TORNEOS_CONNECTED_MODE=on`):
   `connected.test.mjs` (Node y Edge) y, para el navegador,
   `B04_LAB_APP_PORT=3103 node scripts/torneos-frontend/start-hybrid-lab-app.mjs --start --connected` +
-  `lab-fixtures.mjs connected-call` (el organizador publica la convocatoria por el gateway).
+  `lab-fixtures.mjs connected-call` (el organizador publica la convocatoria por el gateway, con precio por jugador y
+  WhatsApp; el capitán administra «Lab Halcones», integra «Lab Vecinos» y perdió el rol en «Lab Ex Capitanía»;
+  `b04-sin-equipos@lab.test` no tiene equipos).
 - **Postgres real**: `scripts/db-integration/torneos-connected-product.mjs` sobre un clon descartable
   `torneos_connected_test*`.
 
 ## Decisiones y límites conocidos
 
-- «Mis torneos» conserva el comportamiento de la base: lista también las membresías de organización
-  (rol «Propietario», etc.). La separación participación/gestión está en Inicio («Mis torneos / Gestionar»).
+- «Mis torneos» lista sólo participación (`get_my_tournament_participations`, paginada en el servidor): las
+  organizaciones que la persona gestiona están en «Gestionar». «Tus solicitudes» son las inscripciones en curso.
+- Híbrido sin multimedia: logos y escudos no viajan (se ven iniciales), igual que la página pública.
+- No existe importación de jugadores desde el equipo de Core: el plantel se arma con la búsqueda del directorio o
+  jugadores sin cuenta.
+- Avisos y push entre productos: ver `NOTIFICATIONS-AUDIT.md` (lo nativo queda pendiente de dispositivo).
 - La bandeja de solicitudes muestra el nombre de Torneos vigente del responsable (fallback: el del plantel).
 - Sin push, web push ni email: sólo bandeja interna. No se ofrecen controles para canales inexistentes.
 - Sin UI de administración de plataforma: sólo la palanca `service_role` descripta arriba.

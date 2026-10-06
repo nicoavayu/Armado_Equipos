@@ -21,6 +21,7 @@
 //   QA_ALLOW_CONNECTED_FIXTURES=true node scripts/qa/seed-torneos-connected-fixtures.mjs --retire-local
 //
 import { randomUUID } from 'node:crypto';
+import zlib from 'node:zlib';
 import { execFileSync } from 'node:child_process';
 import process from 'node:process';
 
@@ -228,7 +229,7 @@ async function seed() {
     }
 
     await organizer.rpc(
-      "public.save_tournament_catalog_listing($1, $2, $3, 'Palermo, CABA', null, 1500000, $4, $5, $6, $7)",
+      "public.save_tournament_catalog_listing($1, $2, $3, 'Palermo, CABA', null, 1500000, $4, $5, $6, $7, 'team', null, null)",
       [organizationId, open.tournamentId,
         'QA · Torneo de fútbol 5 los sábados por la tarde. Fixture todos contra todos y final por categoría.',
         'Árbitro, pelota y seguro de la cancha',
@@ -241,7 +242,7 @@ async function seed() {
     await organizer.rpc('public.save_tournament_category_capacity($1, $2, $3, 4)', [organizationId, open.tournamentId, open.categories.intermedia]);
 
     await organizer.rpc(
-      "public.save_tournament_catalog_listing($1, $2, $3, 'Belgrano, CABA', null, null, null, null, null, null)",
+      "public.save_tournament_catalog_listing($1, $2, $3, 'Belgrano, CABA', null, null, null, null, null, null, 'team', null, null)",
       [organizationId, closed.tournamentId, 'QA · Fútbol 7 nocturno de los miércoles. La organización todavía no recibe solicitudes.']);
     await organizer.rpc('public.set_tournament_catalog_listing_status($1, $2, true)', [organizationId, closed.tournamentId]);
 
@@ -305,6 +306,149 @@ async function seed() {
   }
 }
 
+// ---------------------------------------------------------------------------------------------- etapa 2
+// Lo que el cierre de #182 necesita reproducir: logo con y sin imagen, precio informado / no informado / gratuito,
+// WhatsApp presente y ausente, y los equipos de Core del capitán solicitante que no puede inscribir (sólo integra uno;
+// en otro fue administrador y lo bajaron a integrante). Idempotente: se marca con la convocatoria gratuita.
+const FREE_CALL = { name: 'QA Liga Gratuita Caballito', slug: 'qa-liga-gratuita-caballito' };
+// Formato válido, ninguna persona real detrás: wa.me responde que el número no usa WhatsApp.
+const QA_WHATSAPP = '+54 9 11 0000 0000';
+
+function crc32(buffer) {
+  let crc = ~0;
+  for (const byte of buffer) {
+    crc ^= byte;
+    for (let bit = 0; bit < 8; bit += 1) crc = (crc >>> 1) ^ (0xedb88320 & -(crc & 1));
+  }
+  return (~crc) >>> 0;
+}
+
+// Un escudo QA de 160×160 (círculo violeta con banda clara), PNG RGBA sin dependencias.
+function qaCrestPng(size = 160) {
+  const raw = Buffer.alloc((size * 4 + 1) * size);
+  for (let y = 0; y < size; y += 1) {
+    raw[y * (size * 4 + 1)] = 0;
+    for (let x = 0; x < size; x += 1) {
+      const dx = x - size / 2 + 0.5;
+      const dy = y - size / 2 + 0.5;
+      const inside = dx * dx + dy * dy <= (size / 2 - 4) ** 2;
+      const band = Math.abs(dy) < size / 10;
+      const offset = y * (size * 4 + 1) + 1 + x * 4;
+      const [r, g, b] = band ? [242, 238, 255] : [124, 77, 255];
+      raw[offset] = r; raw[offset + 1] = g; raw[offset + 2] = b; raw[offset + 3] = inside ? 255 : 0;
+    }
+  }
+  const chunk = (type, data) => {
+    const length = Buffer.alloc(4); length.writeUInt32BE(data.length);
+    const body = Buffer.concat([Buffer.from(type), data]);
+    const crc = Buffer.alloc(4); crc.writeUInt32BE(crc32(body));
+    return Buffer.concat([length, body, crc]);
+  };
+  const header = Buffer.alloc(13);
+  header.writeUInt32BE(size, 0); header.writeUInt32BE(size, 4);
+  header[8] = 8; header[9] = 6; header[10] = 0; header[11] = 0; header[12] = 0;
+  return Buffer.concat([
+    Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+    chunk('IHDR', header), chunk('IDAT', zlib.deflateSync(raw)), chunk('IEND', Buffer.alloc(0)),
+  ]);
+}
+
+async function uploadQaCrest(serviceKey, path) {
+  const response = await fetch(`${API_ORIGIN}/storage/v1/object/tournament-branding/${path}`, {
+    method: 'POST',
+    headers: { apikey: serviceKey, authorization: `Bearer ${serviceKey}`, 'content-type': 'image/png', 'x-upsert': 'true' },
+    body: qaCrestPng(),
+  });
+  if (!response.ok) throw new Error(`Storage LOCAL no aceptó el escudo QA (${response.status}).`);
+}
+
+async function seedStage2() {
+  assertTarget();
+  const client = new pg.Client({ connectionString: DATABASE_URL });
+  await client.connect();
+  try {
+    if ((await client.query('select 1 from public.tournaments where slug = $1', [FREE_CALL.slug])).rowCount) {
+      return { status: 'already_seeded' };
+    }
+    const ids = Object.fromEntries((await client.query(
+      "select raw_app_meta_data->>'qa_role' role, id from auth.users where raw_app_meta_data->>'qa_seed_key' = $1",
+      [CONNECTED_SEED_KEY],
+    )).rows.map((row) => [row.role, row.id]));
+    const organizationId = (await client.query('select id from public.tournament_organizations where slug = $1', [ORGANIZATION.slug])).rows[0]?.id;
+    if (!organizationId || !ids.organizer || !ids.applicant || !ids.dual) throw new Error('Falta la etapa 1 de los fixtures.');
+    const tournament = async (slug) => (await client.query('select id, season_id from public.tournaments where slug = $1 and organization_id = $2', [slug, organizationId])).rows[0];
+    const open = await tournament('qa-copa-abierta-palermo');
+    const serviceKey = resolveServiceKey();
+
+    // El escudo se sube antes de la transacción (Storage no participa de ella); la referencia la asigna el organizador.
+    const crestPath = `${organizationId}/tournaments/${open.id}/${randomUUID()}.png`;
+    await uploadQaCrest(serviceKey, crestPath);
+
+    await client.query('begin');
+    const db = session(client);
+    const organizer = db.as(ids.organizer);
+    await organizer.rpc("public.set_tournament_branding_reference($1, 'tournament', $2, $3)", [organizationId, open.id, crestPath]);
+
+    // Copa Abierta: precio por equipo + WhatsApp publicado con confirmación explícita.
+    await organizer.rpc(
+      "public.save_tournament_catalog_listing($1, $2, $3, 'Palermo, CABA', null, 1500000, $4, $5, $6, $7, 'team', $8, true)",
+      [organizationId, open.id,
+        'QA · Torneo de fútbol 5 los sábados por la tarde. Fixture todos contra todos y final por categoría.',
+        'Árbitro, pelota y seguro de la cancha',
+        'QA · Se coordina con la organización. Arma2 no cobra la inscripción.',
+        'DNI de cada jugador y una camiseta numerada por equipo.',
+        'QA · Reglamento de fútbol 5 adaptado: 2 tiempos de 20 minutos, cambios ilimitados.', QA_WHATSAPP]);
+
+    // Una convocatoria gratuita, sin logo propio (usa las iniciales), abierta.
+    const free = await createTournament(organizer, organizationId, open.season_id, {
+      name: FREE_CALL.name, slug: FREE_CALL.slug, modality: 'football_5', gender: 'mixed', teamSize: 5,
+      startsIn: 28, endsIn: 84, registrationClosesInDays: 18,
+      categories: [{ name: 'Libre', slug: 'libre' }],
+    });
+    await organizer.rpc('public.set_tournament_public_page_published($1, $2, true)', [organizationId, free.tournamentId]);
+    await organizer.rpc(
+      "public.save_tournament_catalog_listing($1, $2, $3, 'Caballito, CABA', null, 0, null, null, null, null, 'team', null, null)",
+      [organizationId, free.tournamentId, 'QA · Liga mixta de fútbol 5 los domingos. Participación gratuita, cupos limitados.']);
+    await organizer.rpc('public.set_tournament_catalog_listing_status($1, $2, true)', [organizationId, free.tournamentId]);
+    await organizer.rpc("public.set_tournament_applications_state($1, $2, 'open')", [organizationId, free.tournamentId]);
+    await organizer.rpc('public.save_tournament_category_capacity($1, $2, $3, 6)', [organizationId, free.tournamentId, free.categories.libre]);
+
+    // Equipos de Core del capitán solicitante que NO puede inscribir, como los crea la app de Core (dueño = dual).
+    const coreMember = async (teamName, permissionsRole) => {
+      const team = (await db.owner(
+        "insert into public.teams (owner_user_id, name, format, color_primary, color_secondary) values ($1, $2, 5, '#0f766e', '#f8fafc') returning id",
+        [ids.dual, teamName],
+      )).rows[0].id;
+      const partido = (await db.owner('insert into public.partidos default values returning id')).rows[0].id;
+      const jugador = (await db.owner('insert into public.jugadores (partido_id, nombre, usuario_id) values ($1, $2, $3) returning id',
+        [partido, CONNECTED_QA_IDENTITIES.applicant, ids.applicant])).rows[0].id;
+      await db.owner("select set_config('request.jwt.claims', $1, true)", [JSON.stringify({ sub: ids.dual, role: 'authenticated' })]);
+      const member = (await db.owner(
+        'insert into public.team_members (team_id, jugador_id, user_id, permissions_role) values ($1, $2, $3, $4) returning id',
+        [team, jugador, ids.applicant, permissionsRole],
+      )).rows[0].id;
+      return member;
+    };
+    await coreMember('QA Vecinos FC', 'member');
+    const demoted = await coreMember('QA Ex Capitanía', 'admin');
+    await db.owner("update public.team_members set permissions_role = 'member' where id = $1", [demoted]);
+
+    await client.query('commit');
+    return {
+      status: 'seeded',
+      crest: 'QA Copa Abierta Palermo (escudo QA); QA Nocturno Belgrano y la gratuita sin logo',
+      prices: { informed: 'Copa Abierta · $15.000 por equipo', notInformed: 'Nocturno Belgrano', free: FREE_CALL.name },
+      whatsapp: { present: 'Copa Abierta', absent: 'Nocturno Belgrano / gratuita' },
+      applicantTeams: { canRegister: CORE_TEAMS.applicant, memberOnly: 'QA Vecinos FC', lostAuthority: 'QA Ex Capitanía' },
+    };
+  } catch (error) {
+    await client.query('rollback').catch(() => {});
+    throw error;
+  } finally {
+    await client.end().catch(() => {});
+  }
+}
+
 // Retira lo que es visible fuera de la organización (convocatorias y páginas públicas QA) con las RPC del
 // organizador. Las identidades y la organización quedan: el dominio no borra organizaciones.
 async function retire() {
@@ -344,7 +488,10 @@ async function retire() {
 
 async function main() {
   const args = new Set(process.argv.slice(2));
-  if (args.has('--apply-local')) return console.log(JSON.stringify(await seed(), null, 2));
+  if (args.has('--apply-local')) {
+    if (process.env.QA_ALLOW_CONNECTED_FIXTURES !== 'true') throw new Error('QA_ALLOW_CONNECTED_FIXTURES=true es obligatorio.');
+    return console.log(JSON.stringify({ stage1: await seed(), stage2: await seedStage2() }, null, 2));
+  }
   if (args.has('--retire-local')) return console.log(JSON.stringify(await retire(), null, 2));
   console.log(JSON.stringify({
     status: 'plan', writes: false,
