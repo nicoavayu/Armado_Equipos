@@ -1,6 +1,7 @@
 import React, {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -45,6 +46,7 @@ import {
   prepareSocialRender,
   releasePreparedSocialRender,
   replacePreparedSocialRender,
+  retainPreparedSocialRender,
   shareSocialPieces,
 } from '../social/socialStudio';
 import { resolveSocialTheme } from '../social/socialThemes';
@@ -105,11 +107,17 @@ function describeRenderError(error) {
 }
 
 /**
- * The server authorizes before every file and its answer must describe exactly what was rendered: same piece, same
- * style and the same Arma2 signature. Anything else is refused, whatever the browser thinks of the plan.
+ * The server authorizes before every file and its answer must describe exactly what was rendered: same organization
+ * and tournament (and season, when the page knows it), same piece, same style and the same Arma2 signature. Anything
+ * else is refused, whatever the browser thinks of the plan.
  */
-export function assertSocialExportAuthorization(authorization, { piece, theme, showArma2Branding }) {
+export function assertSocialExportAuthorization(authorization, {
+  organizationId, tournamentId, seasonId = null, piece, theme, showArma2Branding,
+}) {
   if (authorization?.authorized !== true
+    || (organizationId !== undefined && authorization.organizationId !== organizationId)
+    || (tournamentId !== undefined && authorization.tournamentId !== tournamentId)
+    || (seasonId && authorization.seasonId !== seasonId)
     || authorization.piece !== piece
     || authorization.theme !== theme
     || authorization.includeArma2Branding !== showArma2Branding) {
@@ -119,6 +127,34 @@ export function assertSocialExportAuthorization(authorization, { piece, theme, s
   }
   return authorization;
 }
+
+/**
+ * A snapshot only counts for the request it answers: the piece and the scope (organization, tournament, category,
+ * phase and, when one was asked for, the round) must be the ones requested. A different answer is never shown,
+ * rendered or exported as this selection.
+ */
+export function assertSocialSnapshotAnswersRequest(snapshot, request) {
+  const source = snapshot?.source || {};
+  if (snapshot?.piece !== request.piece
+    || source.organizationId !== request.organizationId
+    || source.tournamentId !== request.tournamentId
+    || source.categoryId !== request.categoryId
+    || source.phaseId !== request.phaseId
+    || (request.roundId && source.roundId !== request.roundId)) {
+    const error = new Error('No pudimos preparar esta pieza con los datos de esta selección. Actualizá y volvé a intentar.');
+    error.code = 'SNAPSHOT_SCOPE_MISMATCH';
+    throw error;
+  }
+  return snapshot;
+}
+
+function staleRenderError() {
+  const error = new Error('RENDER_STALE');
+  error.code = 'RENDER_STALE';
+  return error;
+}
+
+const NO_SNAPSHOT = Object.freeze({ key: '', version: 0, status: 'idle', data: null, error: '' });
 
 function StudioPremiumLock({ title, copy, organizationId, seasonId }) {
   const navigate = useNavigate();
@@ -201,17 +237,20 @@ export default function SocialStudioPage() {
   const photoDragRef = useRef(null);
   const requestRef = useRef(0);
   const fontRetryTimer = useRef(null);
+  // What the page shows right now, readable from an export that started earlier (see runExport).
+  const currentRenderInputsRef = useRef('');
   const [context, setContext] = useState({ status: 'loading', data: null, error: '' });
   const [scope, setScope] = useState({
     tournamentId: '', categoryId: '', phaseId: '', roundId: '',
   });
   const [pieceId, setPieceId] = useState('standings');
-  const [snapshot, setSnapshot] = useState(null);
-  const [snapshotError, setSnapshotError] = useState('');
+  // The official data of ONE request (piece + scope). It only counts while that request is still the selection: the
+  // previous piece's data and late answers are never shown, rendered, authorized or exported as the current one.
+  const [snapshotEntry, setSnapshotEntry] = useState(NO_SNAPSHOT);
   const [editorial, setEditorial] = useState(() => createEditorialState(null));
   const [themeId, setThemeId] = useState('base');
   const [includeArma2Branding, setIncludeArma2Branding] = useState(true);
-  const [renderState, setRenderState] = useState({ status: 'idle', error: '' });
+  const [renderState, setRenderState] = useState({ status: 'idle', error: '', renderKey: '', inputsKey: '' });
   const [busy, setBusy] = useState('');
   const [notice, setNotice] = useState('');
   const [exportError, setExportError] = useState('');
@@ -305,22 +344,39 @@ export default function SocialStudioPage() {
     tournaments,
   ]);
 
+  const requiresRound = Boolean(piece?.requiresRound);
+  const snapshotRequest = useMemo(() => (
+    scope.tournamentId && scope.categoryId && scope.phaseId ? {
+      organizationId,
+      tournamentId: scope.tournamentId,
+      categoryId: scope.categoryId,
+      phaseId: scope.phaseId,
+      piece: pieceId,
+      roundId: requiresRound ? (scope.roundId || null) : null,
+    } : null
+  ), [organizationId, pieceId, requiresRound, scope.categoryId, scope.phaseId, scope.roundId, scope.tournamentId]);
+  const snapshotRequestKey = snapshotRequest ? JSON.stringify(snapshotRequest) : '';
+  // Derived while rendering, so the very commit that changes the selection already stops using the previous data.
+  const snapshotIsCurrent = snapshotRequestKey !== '' && snapshotEntry.key === snapshotRequestKey;
+  const snapshot = snapshotIsCurrent ? snapshotEntry.data : null;
+  const snapshotError = snapshotIsCurrent ? snapshotEntry.error : '';
+  const snapshotPending = snapshotRequestKey !== '' && (!snapshotIsCurrent || snapshotEntry.status === 'loading');
+
   const loadSnapshot = useCallback(async () => {
-    if (!scope.tournamentId || !scope.categoryId || !scope.phaseId) return;
+    if (!snapshotRequest) return;
+    const request = snapshotRequest;
+    const key = snapshotRequestKey;
     const requestId = requestRef.current + 1;
     requestRef.current = requestId;
-    setSnapshotError('');
+    // Refreshing the same selection keeps its data on screen until the new answer arrives; another selection starts
+    // empty.
+    setSnapshotEntry((current) => (current.key === key
+      ? { ...current, status: 'loading', error: '' }
+      : { key, version: requestId, status: 'loading', data: null, error: '' }));
     try {
-      const data = await service.loadSocialSnapshot({
-        organizationId,
-        tournamentId: scope.tournamentId,
-        categoryId: scope.categoryId,
-        phaseId: scope.phaseId,
-        piece: pieceId,
-        roundId: piece?.requiresRound ? (scope.roundId || null) : null,
-      });
+      const data = assertSocialSnapshotAnswersRequest(await service.loadSocialSnapshot(request), request);
       if (requestRef.current !== requestId) return;
-      setSnapshot(data);
+      setSnapshotEntry({ key, version: requestId, status: 'ready', data, error: '' });
       setEditorial((current) => createEditorialState(data, {
         ...current,
         // `format` stays the person's choice: another piece or fresher data never changes it.
@@ -332,12 +388,11 @@ export default function SocialStudioPage() {
       }));
     } catch (error) {
       if (requestRef.current !== requestId) return;
-      setSnapshot(null);
-      setSnapshotError(error?.message || 'No pudimos preparar esta pieza.');
+      setSnapshotEntry({
+        key, version: requestId, status: 'error', data: null, error: error?.message || 'No pudimos preparar esta pieza.',
+      });
     }
-    // `piece` is derived from pieceId.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [organizationId, pieceId, scope, service]);
+  }, [service, snapshotRequest, snapshotRequestKey]);
 
   useEffect(() => { loadSnapshot(); }, [loadSnapshot]);
 
@@ -368,6 +423,14 @@ export default function SocialStudioPage() {
     showArma2Branding,
   }), [brandingLogoUrl, brandingTournamentName, showArma2Branding]);
 
+  // Everything the preview is made of, as one value: the request it answers (and which answer), the editorial state,
+  // the style, the signature and the local photo. Each prepared render carries the value it was made from, and
+  // Download and Share only work while that is still the page's value.
+  const renderInputsKey = snapshot
+    ? JSON.stringify([snapshotRequestKey, snapshotEntry.version, editorial, selectedTheme.id, branding, localPhoto?.key || null])
+    : '';
+  useLayoutEffect(() => { currentRenderInputsRef.current = renderInputsKey; });
+
   // Re-render the preview whenever anything it depends on changes. The canvas
   // is replaced wholesale rather than mutated so a failed render never leaves
   // half of the previous piece on screen.
@@ -376,13 +439,15 @@ export default function SocialStudioPage() {
       canvasHostRef.current?.replaceChildren();
       releasePreparedSocialRender(preparedRenderRef.current);
       preparedRenderRef.current = null;
-      setRenderState({ status: 'idle', error: '', renderKey: '' });
+      setRenderState({ status: 'idle', error: '', renderKey: '', inputsKey: '' });
       return undefined;
     }
     if (!canvasHostRef.current) return undefined;
     let cancelled = false;
     const controller = new AbortController();
-    setRenderState({ status: 'loading', error: '', renderKey: '' });
+    const inputsKey = renderInputsKey;
+    const photoSourceUrl = localPhoto?.url || null;
+    setRenderState({ status: 'loading', error: '', renderKey: '', inputsKey: '' });
     prepareSocialRender({
       snapshot,
       editorial,
@@ -392,10 +457,10 @@ export default function SocialStudioPage() {
       theme: selectedTheme,
       branding,
       brandAssetUrls: branding.showArma2Branding ? OFFICIAL_BRAND_ASSETS : null,
-      photoSourceUrl: localPhoto?.url || null,
+      photoSourceUrl,
       signal: controller.signal,
       onStatus: (status) => {
-        if (!cancelled) setRenderState({ status, error: '', renderKey: '' });
+        if (!cancelled) setRenderState({ status, error: '', renderKey: '', inputsKey: '' });
       },
     }).then((prepared) => {
       if (cancelled) {
@@ -419,9 +484,25 @@ export default function SocialStudioPage() {
           '--social-preview-scale', String((host.getBoundingClientRect().width || PREVIEW_WIDTH) / prepared.format.width),
         );
       }
+      // What this render is, for the export: the data and editorial state it drew, and the exact request the server
+      // has to authorize for it.
+      prepared.studio = Object.freeze({
+        inputsKey,
+        snapshot,
+        editorial,
+        branding,
+        photoSourceUrl,
+        target: Object.freeze({
+          organizationId: snapshot.source.organizationId,
+          tournamentId: snapshot.source.tournamentId,
+          piece: snapshot.piece,
+          theme: selectedTheme.id,
+          includeArma2Branding: branding.showArma2Branding === true,
+        }),
+      });
       host.replaceChildren(surface);
       replacePreparedSocialRender(preparedRenderRef, prepared);
-      setRenderState({ status: 'ready', error: '', renderKey: prepared.renderKey });
+      setRenderState({ status: 'ready', error: '', renderKey: prepared.renderKey, inputsKey });
     }).catch((error) => {
       if (cancelled) return;
       canvasHostRef.current?.replaceChildren();
@@ -429,13 +510,15 @@ export default function SocialStudioPage() {
       preparedRenderRef.current = null;
       const fontCode = error?.code || String(error?.message || '').split(':')[0];
       if (['SOCIAL_FONTS_UNAVAILABLE', 'PREMIUM_FONT_UNAVAILABLE'].includes(fontCode) && fontRetry < FONT_RETRIES) {
-        setRenderState({ status: 'loading', error: '', renderKey: '' });
+        setRenderState({ status: 'loading', error: '', renderKey: '', inputsKey: '' });
         fontRetryTimer.current = setTimeout(() => setFontRetry((attempt) => attempt + 1), FONT_RETRY_DELAY_MS);
         return;
       }
       setRenderState({
         status: error?.code === 'CURATION_REQUIRED' ? 'curation' : 'error',
         error: describeRenderError(error),
+        renderKey: '',
+        inputsKey: '',
       });
     });
     return () => {
@@ -444,7 +527,14 @@ export default function SocialStudioPage() {
       clearTimeout(fontRetryTimer.current);
     };
     // fontRetry only re-runs a render that failed on fonts; it is reset whenever the piece itself changes.
-  }, [snapshot, editorial, organizationId, service, piece, selectedTheme, branding, localPhoto, fontRetry]);
+  }, [snapshot, renderInputsKey, editorial, organizationId, service, piece, selectedTheme, branding, localPhoto, fontRetry]);
+
+  // Download and Share work only on a finished render of exactly what is selected now.
+  const renderMatchesSelection = renderInputsKey !== ''
+    && renderState.status === 'ready'
+    && renderState.inputsKey === renderInputsKey;
+  // While the selected piece's data is on its way the preview is loading, not empty.
+  const previewStatus = !snapshot && snapshotPending ? 'loading' : renderState.status;
 
   useEffect(() => { setFontRetry((attempt) => (attempt === 0 ? attempt : 0)); }, [snapshot, editorial, selectedTheme, branding, localPhoto]);
 
@@ -561,77 +651,105 @@ export default function SocialStudioPage() {
   };
 
   const runExport = async (mode) => {
+    // Whoever calls this (the buttons or anything else), the file can only come from a finished render of exactly what
+    // the page shows now.
+    const prepared = preparedRenderRef.current;
+    const rendered = prepared?.studio;
     if (
       !canExport
-      || !snapshot
       || busy
-      || renderState.status !== 'ready'
-      || !preparedRenderRef.current
+      || !renderMatchesSelection
+      || !rendered
+      || rendered.inputsKey !== renderInputsKey
+      || rendered.inputsKey !== currentRenderInputsRef.current
       || !catalogAccess.exportable
     ) return;
     setBusy(mode);
     setNotice('');
     setExportError('');
-    const prepared = preparedRenderRef.current;
+    // The render stays alive for this export even if the preview moves on meanwhile.
+    const letGo = retainPreparedSocialRender(prepared);
+    // The selection can change while the server answers or the file is encoded: the file is only delivered while the
+    // page still shows what it was made from.
+    const assertStillShown = () => {
+      if (currentRenderInputsRef.current !== rendered.inputsKey || preparedRenderRef.current !== prepared) {
+        throw staleRenderError();
+      }
+    };
     try {
+      // The server authorizes what was rendered (its piece, tournament, style and signature), not what the controls
+      // say: both are the same here, and the request is built from the render so it cannot drift.
+      const { target } = rendered;
       const exportPolicy = resolveSocialExportPolicy({
-        familyId: pieceId,
-        themeId: effectiveThemeId,
+        familyId: target.piece,
+        themeId: target.theme,
         entitlements: effectiveEntitlements,
-        requestedArma2Branding: includeArma2Branding,
+        requestedArma2Branding: target.includeArma2Branding,
       });
       // The file is exactly what is on screen: its signature must be the one the policy (and then the server) allows.
-      if (prepared.branding?.showArma2Branding !== exportPolicy.showArma2Branding) {
+      if (prepared.branding?.showArma2Branding !== exportPolicy.showArma2Branding
+        || target.includeArma2Branding !== exportPolicy.showArma2Branding) {
         const error = new Error('SOCIAL_AUTHORIZATION_MISMATCH');
         error.code = 'SOCIAL_AUTHORIZATION_MISMATCH';
         throw error;
       }
       assertSocialExportAuthorization(await service.authorizeSocialExport({
-        organizationId,
-        tournamentId: scope.tournamentId,
-        piece: pieceId,
-        theme: effectiveThemeId,
+        organizationId: target.organizationId,
+        tournamentId: target.tournamentId,
+        piece: target.piece,
+        theme: target.theme,
         includeArma2Branding: exportPolicy.showArma2Branding,
-      }), { piece: pieceId, theme: effectiveThemeId, showArma2Branding: exportPolicy.showArma2Branding });
+      }), {
+        organizationId: target.organizationId,
+        tournamentId: target.tournamentId,
+        seasonId,
+        piece: target.piece,
+        theme: target.theme,
+        showArma2Branding: exportPolicy.showArma2Branding,
+      });
+      assertStillShown();
       const result = await exportSocialPiece({
         prepared,
-        snapshot,
-        editorial,
+        snapshot: rendered.snapshot,
+        editorial: rendered.editorial,
         expectedRenderKey: renderState.renderKey,
       });
-      // Editorial tables longer than one page export every page, in order, each with its own file name.
+      // Editorial tables longer than one page export every page, in order, each with its own file name, all from the
+      // same data, editorial state, style and signature as the page on screen.
+      const pagination = resolveEditorialStandingsPagination(rendered.snapshot, rendered.editorial, prepared.theme);
       const files = [];
-      if (!standingsPagination.enabled) {
+      if (!pagination.enabled) {
         files.push(result);
       } else {
-        for (let page = 1; page <= standingsPagination.pageCount; page += 1) {
-          if (page === standingsPagination.page) {
+        for (let page = 1; page <= pagination.pageCount; page += 1) {
+          if (page === pagination.page) {
             files.push(result);
             continue;
           }
           let pagePrepared = null;
           try {
             pagePrepared = await prepareSocialRender({
-              snapshot,
-              editorial: { ...editorial, page },
-              organizationId,
+              snapshot: rendered.snapshot,
+              editorial: { ...rendered.editorial, page },
+              organizationId: target.organizationId,
               signMediaReadUrls: service.signMediaReadUrls,
               resolveShieldUrl: service.resolveTeamShieldUrl,
-              theme: selectedTheme,
-              branding,
-              brandAssetUrls: branding.showArma2Branding ? OFFICIAL_BRAND_ASSETS : null,
-              photoSourceUrl: localPhoto?.url || null,
+              theme: prepared.theme,
+              branding: rendered.branding,
+              brandAssetUrls: rendered.branding.showArma2Branding ? OFFICIAL_BRAND_ASSETS : null,
+              photoSourceUrl: rendered.photoSourceUrl,
             });
             files.push(await exportSocialPiece({
               prepared: pagePrepared,
-              snapshot,
-              editorial: { ...editorial, page },
+              snapshot: rendered.snapshot,
+              editorial: { ...rendered.editorial, page },
             }));
           } finally {
             releasePreparedSocialRender(pagePrepared);
           }
         }
       }
+      assertStillShown();
       if (mode === 'share') {
         const outcome = await shareSocialPieces({ files, title: result.pieceLabel });
         setNotice(outcome.shared
@@ -649,6 +767,7 @@ export default function SocialStudioPage() {
       setNotice('');
       setExportError(describeSocialExportError(error));
     } finally {
+      letGo();
       setBusy('');
     }
   };
@@ -1010,12 +1129,12 @@ export default function SocialStudioPage() {
               className={styles.previewHost}
               style={{ aspectRatio: `${format.width} / ${format.height}` }}
             />
-            {['loading', 'rendering'].includes(renderState.status) && (
+            {['loading', 'rendering'].includes(previewStatus) && (
               <span className={styles.previewOverlay} role="status">
                 <Loader2 size={22} aria-hidden="true" /> Generando…
               </span>
             )}
-            {!['loading', 'rendering'].includes(renderState.status) && renderState.error && (
+            {!['loading', 'rendering'].includes(previewStatus) && renderState.error && (
               <span className={styles.previewOverlay} role="status">
                 <AlertTriangle size={22} aria-hidden="true" /> {renderState.error}
               </span>
@@ -1030,7 +1149,7 @@ export default function SocialStudioPage() {
               Este torneo todavía no tiene un fixture publicado. Publicalo para generar placas con datos oficiales.
             </p>
           )}
-          {curationGap && !snapshotError && renderState.status !== 'curation' && (
+          {curationGap && !snapshotError && previewStatus !== 'curation' && (
             <p className={styles.previewHint} role="status">{curationGap}</p>
           )}
           {snapshot?.source?.standingsRevisionNumber && (
@@ -1101,7 +1220,7 @@ export default function SocialStudioPage() {
             <footer className={styles.exportActions}>
               <button
                 type="button"
-                disabled={busy !== '' || renderState.status !== 'ready'}
+                disabled={busy !== '' || !renderMatchesSelection}
                 onClick={() => runExport('download')}
               >
                 {busy === 'download' ? <Loader2 size={17} aria-hidden="true" /> : <Download size={17} aria-hidden="true" />}
@@ -1110,7 +1229,7 @@ export default function SocialStudioPage() {
               <button
                 type="button"
                 className={styles.secondaryAction}
-                disabled={busy !== '' || renderState.status !== 'ready'}
+                disabled={busy !== '' || !renderMatchesSelection}
                 onClick={() => runExport('share')}
               >
                 {busy === 'share' ? <Loader2 size={17} aria-hidden="true" /> : <Share2 size={17} aria-hidden="true" />} Compartir

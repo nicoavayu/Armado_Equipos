@@ -7,7 +7,8 @@
 //
 // SOCIAL_QA_PROFILE=ci is the deterministic subset the Prelaunch Quality Gate runs on every PR (`npm run
 // test:torneos:social:browser`): Social OFF, FREE, PREMIUM (every style, both formats), branding, real exports,
-// Editorial pages and the phone layouts at 390 and 320 px. Without it (the certification before gate A) every
+// Editorial pages, the transitions (slow answers, a changed mind, failures: the file is always what is on screen) and
+// the phone layouts at 390 and 320 px. Without it (the certification before gate A) every
 // section runs in full: 11 pieces × 5 styles × 2 formats, Figura, Equipo ideal 5–11 and six widths.
 const { chromium, expect } = require('@playwright/test');
 const fs = require('fs');
@@ -440,6 +441,130 @@ async function assertWholeArt(page, label, [, , width, height]) {
       check('PREMIUM Base signature optional; Premium styles white-label', { authorizeCalls: social.authorize.length });
       await page.getByRole('checkbox', { name: 'Mostrar la firma Arma2 en la placa' }).check();
       await close(s, 'PREMIUM');
+    }
+
+    // ── Transitions (D1): the file is what is on screen, also while answers are slow or the person changes their mind ─
+    // offline.jsx slows answers down (window.__socialControl). Every file is compared byte for byte with the canvas on
+    // screen when it was exported and must differ from the previous piece; a click in a stale window starts nothing.
+    if (want('transitions')) {
+      const s = await open(browser, base, 'plan=free');
+      const { page } = s;
+      const control = (patch) => page.evaluate((p) => Object.assign(window.__socialControl, p), patch);
+      const authorizeCalls = () => page.evaluate(() => window.__social.authorize.length);
+      const assertNothingExportable = async (label) => {
+        const before = await authorizeCalls();
+        for (const name of [/^Descargar/, /^Compartir$/]) await expect(page.getByRole('button', { name })).toBeDisabled({ timeout: 1000 });
+        // The browser drops a click on a disabled button; the handler would refuse anyway.
+        const file = page.waitForEvent('download', { timeout: 1500 }).catch(() => null);
+        await page.getByRole('button', { name: /^Descargar/ }).click({ force: true });
+        if (await file) throw new Error(`${label}: a file was downloaded while the selection was not on screen`);
+        if ((await authorizeCalls()) !== before) throw new Error(`${label}: an export was authorized while the selection was not on screen`);
+      };
+      const exportShown = async (label, { piece, slug }) => {
+        const shown = await previewCanvasPng(page);
+        const [file] = await download(page, label);
+        await assertSameRender(page, label);
+        assertCleanPng(file.buffer, 1080, 1350, file.name);
+        if (!file.name.includes(slug)) throw new Error(`${label}: file ${file.name}, expected ${piece}`);
+        if (!shown.equals(file.buffer)) throw new Error(`${label}: the file is not the canvas on screen`);
+        return file.buffer;
+      };
+
+      // FREE → FREE with a slow answer.
+      await configure(page, { id: 'standings', label: 'Tabla de posiciones', style: 'Base', format: 'Feed 4:5' });
+      const tableShown = await previewCanvasPng(page);
+      await control({ snapshotDelayMs: 1500 });
+      await markRender(page);
+      await pieceRadio(page, 'Resultados de la fecha').click();
+      await assertNothingExportable('FREE → FREE');
+      await previewReady(page, { piece: 'Resultados de la fecha', style: 'Base', format: 'Feed 4:5' });
+      const results = await exportShown('transitions FREE → FREE', { piece: 'round_results', slug: '-resultados-de-la-fecha-base-feed-4x5' });
+      if (results.equals(tableShown)) throw new Error('transitions FREE → FREE: the previous piece was exported');
+      check('transitions: FREE → FREE with a slow answer exports the selected piece', { sha: sha(results) });
+
+      // Premium locked → FREE with a slow answer: the Goleadores preview is never the Próxima fecha file.
+      await control({ snapshotDelayMs: 0 });
+      await configure(page, { id: 'scorers', label: 'Goleadores', style: 'Base', format: 'Feed 4:5' });
+      const scorersShown = await previewCanvasPng(page);
+      await control({ snapshotDelayMs: 1500 });
+      await markRender(page);
+      await pieceRadio(page, 'Próxima fecha').click();
+      await assertNothingExportable('Premium locked → FREE');
+      await previewReady(page, { piece: 'Próxima fecha', style: 'Base', format: 'Feed 4:5' });
+      const next = await exportShown('transitions Premium → FREE', { piece: 'next_fixture', slug: '-proxima-fecha-base-feed-4x5' });
+      if (next.equals(scorersShown)) throw new Error('transitions Premium → FREE: the Goleadores render was exported');
+      check('transitions: Premium locked → FREE with a slow answer never exports the Premium render', { sha: sha(next) });
+
+      // The selection changes while the server authorizes: no file, a clear message, then the right file.
+      await control({ snapshotDelayMs: 0, authorizeDelayMs: 2000 });
+      const lateFile = page.waitForEvent('download', { timeout: 5000 }).catch(() => null);
+      await page.getByRole('button', { name: /^Descargar/ }).click();
+      await markRender(page);
+      await pieceRadio(page, 'Tabla de posiciones').click();
+      await expect(page.getByRole('alert')).toContainText('La vista previa cambió mientras preparábamos el archivo', { timeout: 10000 });
+      if (await lateFile) throw new Error('transitions: a file was delivered after the selection changed during its authorization');
+      await control({ authorizeDelayMs: 0 });
+      await previewReady(page, { piece: 'Tabla de posiciones', style: 'Base', format: 'Feed 4:5' });
+      const table = await exportShown('transitions after a stale authorization', { piece: 'standings', slug: '-tabla-de-posiciones-base-feed-4x5' });
+      check('transitions: selection changed during the authorization → no file, then the right one', { sha: sha(table) });
+
+      // Failures leave a clear, recoverable state.
+      await control({ failSnapshot: ['next_fixture'] });
+      await pieceRadio(page, 'Próxima fecha').click();
+      await expect(page.getByText('No pudimos preparar esta pieza con datos oficiales.')).toBeVisible({ timeout: 10000 });
+      await assertNothingExportable('snapshot failure');
+      await markRender(page);
+      await page.getByRole('button', { name: 'Actualizar datos oficiales' }).click();
+      await previewReady(page, { piece: 'Próxima fecha', style: 'Base', format: 'Feed 4:5' });
+      await exportShown('transitions snapshot failure recovered', { piece: 'next_fixture', slug: '-proxima-fecha-base-feed-4x5' });
+      await control({ failAuthorize: 1 });
+      await page.getByRole('button', { name: /^Descargar/ }).click();
+      await expect(page.getByRole('alert')).toContainText('Torneos no está disponible', { timeout: 10000 });
+      await expect(preview(page)).toBeVisible();
+      await exportShown('transitions authorization failure retried', { piece: 'next_fixture', slug: '-proxima-fecha-base-feed-4x5' });
+      check('transitions: snapshot and authorization failures recover');
+      await close(s, 'transitions FREE');
+
+      // PREMIUM: switching style, format or signature never leaves the previous render exportable.
+      const p = await open(browser, base, 'plan=premium');
+      const pp = p.page;
+      // Right after the change (once React has applied it) the buttons are off: the previous render is not this one.
+      const switchAndProbe = (locator) => locator.evaluate(async (el) => {
+        el.click();
+        await Promise.resolve();
+        return [...document.querySelectorAll('button')].filter((b) => /^(Descargar|Compartir)/.test(b.textContent.trim())).map((b) => b.disabled);
+      });
+      await configure(pp, { id: 'standings', label: 'Tabla de posiciones', style: 'Heritage', format: 'Feed 4:5' });
+      const [heritage] = await download(pp, 'transitions Heritage');
+      await markRender(pp);
+      if ((await switchAndProbe(styleRadio(pp, 'Street'))).some((disabled) => !disabled)) throw new Error('transitions: Heritage exportable as Street');
+      await previewReady(pp, { piece: 'Tabla de posiciones', style: 'Street', format: 'Feed 4:5' });
+      const [street] = await download(pp, 'transitions Street');
+      if (!street.name.endsWith('-street-feed-4x5.png') || street.buffer.equals(heritage.buffer)) throw new Error(`transitions: style switch exported ${street.name}`);
+      await markRender(pp);
+      if ((await switchAndProbe(pp.getByRole('radiogroup', { name: 'Formato' }).getByRole('radio', { name: 'Historia 9:16' }))).some((disabled) => !disabled)) {
+        throw new Error('transitions: the 4:5 render was exportable as 9:16');
+      }
+      await previewReady(pp, { piece: 'Tabla de posiciones', style: 'Street', format: 'Historia 9:16' });
+      const [story] = await download(pp, 'transitions Street 9:16');
+      assertCleanPng(story.buffer, 1080, 1920, story.name);
+      await configure(pp, { id: 'standings', label: 'Tabla de posiciones', style: 'Base', format: 'Feed 4:5' });
+      const signedShown = await previewCanvasPng(pp);
+      await markRender(pp);
+      if ((await switchAndProbe(pp.getByRole('checkbox', { name: 'Mostrar la firma Arma2 en la placa' }))).some((disabled) => !disabled)) {
+        throw new Error('transitions: the signed render was exportable as unsigned');
+      }
+      await previewReady(pp, { piece: 'Tabla de posiciones', style: 'Base', format: 'Feed 4:5' });
+      const unsignedShown = await previewCanvasPng(pp);
+      const [unsigned] = await download(pp, 'transitions unsigned');
+      await assertSameRender(pp, 'transitions unsigned');
+      if (!unsigned.buffer.equals(unsignedShown) || unsigned.buffer.equals(signedShown)) throw new Error('transitions: the unsigned file is not the unsigned canvas');
+      const social = await pp.evaluate(() => window.__social);
+      if (social.refusals.length) throw new Error(`transitions PREMIUM refusals ${social.refusals}`);
+      if (social.authorize.at(-1).includeArma2Branding !== false) throw new Error('transitions: unsigned export authorized with the signature');
+      check('transitions: PREMIUM style, format and signature switches export what is shown', { shas: [heritage, street, story, unsigned].map((f) => sha(f.buffer)) });
+      await pp.getByRole('checkbox', { name: 'Mostrar la firma Arma2 en la placa' }).check();
+      await close(p, 'transitions PREMIUM');
     }
 
     // ── Figura: local photo, drag of the focal point, zoom, reset; preview = export; fallback without photo ─────

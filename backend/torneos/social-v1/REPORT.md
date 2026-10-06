@@ -73,6 +73,16 @@ La DB es la autoridad final: el plan del browser, el tema elegido y la firma env
     tipografía de reemplazo).
 15. **Frontera de la foundation:** el primer borrador de `resolveTorneosSocialStudio` importaba la config del shell desde
     `foundation/` (lo atrapó el guard). ⇒ los flags se inyectan; sin flags, cerrado.
+16. **D1 — se exportaba el render anterior (post GATE C, 2026-10-05).** Al cambiar de placa, el snapshot anterior seguía
+    en estado y se volvía a dibujar como "listo" hasta que llegaba el nuevo. En esa ventana, Descargar autorizaba la placa
+    nueva y entregaba el PNG de la anterior. Se reprodujo en Production FREE→FREE (archivo equivocado). En el fixture
+    offline, una temporada FREE exportó Goleadores, que es Premium. ⇒ El snapshot queda atado al pedido que contesta
+    (placa + organización, torneo, categoría, fase y fecha, verificado contra su `source`). Cada render lleva las entradas
+    con las que se hizo. Descargar y Compartir sólo funcionan sobre un render terminado de lo que está seleccionado ahora.
+    `runExport` vuelve a verificarlo antes de autorizar, después de la autorización y antes de entregar. La autorización
+    se pide para lo renderizado y su respuesta tiene que nombrar ese alcance. El render que se exporta queda retenido:
+    no se libera bajo el codificador. Tests: `torneosSocialStudioExportCoherence` (7 de 12 fallan con el código
+    anterior) y la sección `transitions` del navegador, que falla en Chromium con el código anterior.
 
 **Legacy eliminado** (sin importadores, probado): `socialTemplates.js`, `resultsThemeLayouts.js`,
 `results{Editorial,Street,List}Layout.js`, `resultsBranding.js`, `resultsLayoutTuning.js` y `domain/planExperience.js`
