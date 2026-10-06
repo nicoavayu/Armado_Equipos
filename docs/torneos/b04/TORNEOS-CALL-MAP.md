@@ -1,6 +1,6 @@
 # TORNEOS-CALL-MAP — auditoría B04
 
-Inventario legacy congelado en `2058da039a2a5eaaed22d87d01946bc596ae5f50` (Phase 2D); árbol integrado auditado en `2b22aadd42345b56192e9e594da2a0cc1a0ac805`. Reconstruido del código. No representa resultados de R2/R3/R4/R5.
+Inventario legacy congelado en `2058da039a2a5eaaed22d87d01946bc596ae5f50` (Phase 2D); árbol integrado auditado en `ffaf131c3a24a1a29ebe01b5d7ae1a80688c95ee`. Reconstruido del código. No representa resultados de R2/R3/R4/R5.
 
 161 sitios RPC legacy; 160 nombres distintos; 108 nombres dentro de scope; 52 fuera. La selección dinámica de `changeTournamentMatchPlan` se resuelve a sus tres nombres literales. No quedan RPC dinámicas sin resolver.
 
@@ -367,8 +367,8 @@ Cada fila es un import que alcanza el singleton por el grafo estático, no una c
 | [src/features/torneos/components/TeamVisualPolicySettings.jsx:3](../../../src/features/torneos/components/TeamVisualPolicySettings.jsx#L3) | `../api/tournamentWorkspaceService` |
 | [src/features/torneos/components/TeamsPage.jsx:22](../../../src/features/torneos/components/TeamsPage.jsx#L22) | `../context/TorneosWorkspaceContext` |
 | [src/features/torneos/components/TeamsPage.jsx:33](../../../src/features/torneos/components/TeamsPage.jsx#L33) | `./BrandingImage` |
-| [src/features/torneos/components/TorneosDashboard.jsx:23](../../../src/features/torneos/components/TorneosDashboard.jsx#L23) | `../context/TorneosWorkspaceContext` |
-| [src/features/torneos/components/TorneosDashboard.jsx:40](../../../src/features/torneos/components/TorneosDashboard.jsx#L40) | `./BrandingImage` |
+| [src/features/torneos/components/TorneosDashboard.jsx:24](../../../src/features/torneos/components/TorneosDashboard.jsx#L24) | `../context/TorneosWorkspaceContext` |
+| [src/features/torneos/components/TorneosDashboard.jsx:41](../../../src/features/torneos/components/TorneosDashboard.jsx#L41) | `./BrandingImage` |
 | [src/features/torneos/components/TorneosLanding.jsx:24](../../../src/features/torneos/components/TorneosLanding.jsx#L24) | `../context/TorneosWorkspaceContext` |
 | [src/features/torneos/components/TorneosShell.jsx:27](../../../src/features/torneos/components/TorneosShell.jsx#L27) | `../../../components/global-header/GlobalHeader` |
 | [src/features/torneos/components/TorneosShell.jsx:36](../../../src/features/torneos/components/TorneosShell.jsx#L36) | `../context/TorneosWorkspaceContext` |

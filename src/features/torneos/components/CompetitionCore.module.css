@@ -1869,3 +1869,34 @@
   object-fit: contain;
 }
 .contextSelector > .planBadge { grid-column: 1 / -1; justify-self: start; margin: 6px 10px; min-height: 36px; max-width: none; text-decoration: none; }
+
+/* The whole field opens its picker, not only the 23 px line of its value. The select's box is stretched over the
+   caption and the padding of its own field with negative margins that its padding gives back, so the value text does
+   not move; caption, icon and chevron are drawn on top and let the tap through. The plan badge stays a link. */
+.contextSelector label {
+  position: relative;
+}
+
+.contextSelector label > :not(select):not(.planBadge) {
+  position: relative;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.contextSelector label > .planBadge {
+  position: relative;
+  z-index: 2;
+}
+
+.contextSelector select {
+  position: relative;
+  z-index: 0;
+  margin: -20px -34px -8px -36px;
+  padding: 20px 34px 8px 36px;
+  box-sizing: content-box;
+}
+
+.contextSelectorCompact select {
+  margin: -20px -30px -8px -10px;
+  padding: 20px 30px 8px 10px;
+}
