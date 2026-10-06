@@ -379,7 +379,7 @@ export default function SocialStudioPage() {
       setSnapshotEntry({ key, version: requestId, status: 'ready', data, error: '' });
       setEditorial((current) => createEditorialState(data, {
         ...current,
-        format: data.piece === 'round_results' ? 'portrait' : current.format,
+        // `format` stays the person's choice: another piece or fresher data never changes it.
         title: undefined,
         subtitle: undefined,
         selection: [],

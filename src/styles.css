@@ -227,9 +227,19 @@ body {
   overflow-x: hidden;
   overflow-x: clip;
   overflow-y: scroll;
+  /* `html` is not overflow:visible (overflow-x: clip above), so this overflow never reaches the viewport: the body is
+     its own scroller that never scrolls (it grows with its content) while the viewport does. With classic scrollbars
+     its always-on bar was a second, dead gutter: every page lost 15 px and the fixed mobile navigation sat 3–7 px
+     under it. Only that dead bar is hidden; the viewport keeps its stable gutter (`html { scrollbar-gutter: stable }`). */
+  scrollbar-width: none;
   overscroll-behavior-x: none;
   /* Horizontal rails need pan-x to remain available through the ancestor chain. */
   touch-action: pan-x pan-y pinch-zoom;
+}
+
+body::-webkit-scrollbar {
+  width: 0;
+  height: 0;
 }
 
 /* Home is a fixed dashboard. Lock the document only while that route is active;

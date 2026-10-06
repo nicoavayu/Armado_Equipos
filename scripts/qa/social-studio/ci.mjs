@@ -53,8 +53,10 @@ for (const width of [320, 390]) {
     }
   }
   expect(exports.some((e) => e.viewport?.startsWith(`${width} `) && e.style === 'editorial'), `Editorial pages exported at ${width}`);
+  expect(has('D2 mobile navigation symmetric, no dead body gutter', (c) => c.width === width && c.device === 'scrollbar'), `D2: mobile navigation at ${width} with a classic scrollbar`);
 }
 expect(has('FREE authorize payloads'), 'FREE authorization payloads (Base, three pieces, Arma2 signature)');
+expect(has('FREE: Resultados keeps the chosen format (switch and refresh)'), 'D3: Resultados keeps the chosen format');
 expect(has('FREE premium style previewed and locked'), 'FREE: Premium styles previewed and locked');
 expect(has('PREMIUM Base signature optional; Premium styles white-label'), 'branding: Arma2 signature optional on PREMIUM Base, white-label styles');
 expect(has('Figura photo/drag/zoom/reset'), 'Figura photo, focal point, zoom and reset');

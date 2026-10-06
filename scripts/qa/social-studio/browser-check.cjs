@@ -251,7 +251,8 @@ function inspectInPage(node) {
   const describe = (el) => `${el.tagName.toLowerCase()}${el.getAttribute('aria-label') ? `[${el.getAttribute('aria-label')}]` : ''}${el.textContent ? ` "${el.textContent.trim().slice(0, 30)}"` : ''}`;
   const problems = [];
   node.scrollIntoView({ block: 'center', inline: 'nearest' });
-  // The body is the page's scroller (global CSS): its scrollbar takes the right edge of the screen.
+  // The usable width excludes every scrollbar on screen: the viewport's, and the body's if a page ever shows one again
+  // (src/styles.css hides the body's dead bar, D2).
   const vw = Math.min(document.documentElement.clientWidth, document.body.clientWidth);
   const vh = window.innerHeight;
   if (typeof node.checkVisibility === 'function' && !node.checkVisibility({ opacityProperty: true, visibilityProperty: true })) problems.push('hidden');
@@ -333,6 +334,9 @@ async function assertWholeArt(page, label, [, , width, height]) {
   const server = await start(0);
   const base = `http://127.0.0.1:${server.address().port}`;
   const browser = await chromium.launch({ headless: true });
+  // Headless Chromium hides scrollbars by default (--hide-scrollbars): the "scrollbar" phones run in a second instance
+  // that paints classic 15 px scrollbars, like desktop Chrome on Windows/Linux or macOS set to always show them.
+  const classicScrollbars = await chromium.launch({ headless: true, ignoreDefaultArgs: ['--hide-scrollbars'] });
   try {
     // ── FREE: Base + 3 pieces with the Arma2 signature, everything else previewable and locked ────────────────
     if (want('free')) {
@@ -354,6 +358,22 @@ async function assertWholeArt(page, label, [, , width, height]) {
           evidence.exports.push({ plan: 'FREE', piece: id, style: 'base', format: slug, file: file.name, sha: sha(file.buffer), previewIdentical: true });
         }
       }
+      // D3: the format is the person's choice. Historia 9:16 survives switching to Resultados and refreshing it, in the
+      // preview and in the 1080×1920 file.
+      await configure(page, { id: 'standings', label: 'Tabla de posiciones', style: 'Base', format: 'Historia 9:16' });
+      await markRender(page);
+      await pieceRadio(page, 'Resultados de la fecha').click();
+      await previewReady(page, { piece: 'Resultados de la fecha', style: 'Base', format: 'Historia 9:16' });
+      await markRender(page);
+      await page.getByRole('button', { name: 'Actualizar datos oficiales' }).click();
+      await previewReady(page, { piece: 'Resultados de la fecha', style: 'Base', format: 'Historia 9:16' });
+      await expect(page.getByRole('radiogroup', { name: 'Formato' }).getByRole('radio', { name: 'Historia 9:16' })).toHaveAttribute('aria-checked', 'true');
+      const keptShown = await previewCanvasPng(page);
+      const [kept] = await download(page, 'FREE Resultados keeps 9:16');
+      assertCleanPng(kept.buffer, 1080, 1920, kept.name);
+      await assertSameRender(page, 'FREE Resultados keeps 9:16');
+      if (!kept.name.endsWith('-resultados-de-la-fecha-base-historia-9x16.png') || !keptShown.equals(kept.buffer)) throw new Error(`FREE Resultados keeps 9:16: ${kept.name}`);
+      check('FREE: Resultados keeps the chosen format (switch and refresh)', { sha: sha(kept.buffer) });
       for (const [id, label] of PIECES.filter(([pid]) => !FREE_PIECES.includes(pid))) {
         await pieceRadio(page, label).click();
         await expect(pieceRadio(page, label)).toContainText('Premium');
@@ -674,13 +694,13 @@ async function assertWholeArt(page, label, [, , width, height]) {
     }
 
     // ── Responsive: every functional part of the Studio on screen at phone, tablet and desktop widths ───────────
-    // Phones run twice: with the classic 15 px scrollbar (the narrowest layout, 305 px at 320) and as a touch phone.
+    // Phones run twice: with classic 15 px scrollbars (the narrowest layout, 305 px at 320) and as a touch phone.
     const devices = (width) => (width <= 390 ? [['scrollbar', {}], ['phone', { isMobile: true, hasTouch: true, deviceScaleFactor: 2 }]] : [['desktop', {}]]);
     for (const [width, height] of want('responsive') ? PROFILE.widths : []) {
       for (const [deviceName, device] of devices(width)) {
         for (const plan of ['free', 'premium']) {
           // PREMIUM reads a 16-row table so the Editorial pages and their navigation are measured too.
-          const s = await open(browser, base, `plan=${plan}${plan === 'premium' ? '&rows=16' : ''}`, { width, height }, device);
+          const s = await open(deviceName === 'scrollbar' ? classicScrollbars : browser, base, `plan=${plan}${plan === 'premium' ? '&rows=16' : ''}`, { width, height }, device);
           const { page } = s;
           const at = `${plan} ${width} ${deviceName}`;
           for (const fmt of FORMATS) {
@@ -773,6 +793,17 @@ async function assertWholeArt(page, label, [, , width, height]) {
             const mobileNav = page.getByRole('navigation', { name: 'Navegación móvil de la organización' });
             await assertOnScreen(page, at, 'mobile navigation', mobileNav);
             await assertOnScreen(page, at, 'mobile Estudio link', mobileNav.getByRole('link', { name: 'Estudio' }));
+            // D2: at most one scrollbar (the viewport's): no dead gutter on the body, and the fixed bar sits symmetric
+            // inside the usable width instead of 3–7 px under a second bar.
+            const geometry = await mobileNav.evaluate((nav) => {
+              const r = nav.getBoundingClientRect();
+              const usable = Math.min(document.documentElement.clientWidth, document.body.clientWidth);
+              return { deadGutter: document.body.offsetWidth - document.body.clientWidth, left: Math.round(r.left * 10) / 10, right: Math.round((usable - r.right) * 10) / 10 };
+            });
+            if (geometry.deadGutter !== 0 || geometry.right < 0 || Math.abs(geometry.left - geometry.right) > 1) {
+              throw new Error(`${at}: mobile navigation ${JSON.stringify(geometry)}`);
+            }
+            check('D2 mobile navigation symmetric, no dead body gutter', { plan, width, device: deviceName, ...geometry });
           }
           await page.screenshot({ path: path.join(OUT, `studio-${plan}-${width}-${deviceName}.png`), fullPage: true });
           await close(s, `responsive ${at}`);
@@ -827,6 +858,7 @@ async function assertWholeArt(page, label, [, , width, height]) {
     console.log(JSON.stringify({ result: 'SOCIAL_STUDIO_BROWSER_PASS', ...evidence.summary }));
   } finally {
     await browser.close();
+    await classicScrollbars.close();
     server.close();
   }
 })().catch((error) => { console.error(error); process.exitCode = 1; });
