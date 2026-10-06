@@ -142,6 +142,69 @@ describe('Explorar → solicitud de inscripción', () => {
   });
 });
 
+describe('Tus equipos de Arma2 en la solicitud', () => {
+  const TEAMS = {
+    items: [
+      { id: 'team-free', name: 'Halcones', crestUrl: null, canRegister: true, registrations: [] },
+      { id: 'team-taken', name: 'Halcones B', crestUrl: null, canRegister: true,
+        registrations: [{ categorySlug: 'primera', categoryName: 'Primera', status: 'approved' }] },
+      { id: 'team-member', name: 'Vecinos', crestUrl: null, canRegister: false, registrations: [] },
+    ],
+    hasMore: false,
+  };
+
+  function renderWithTeams(listMyCoreTeamsForApplication) {
+    mockWorkspace.service = baseService({ listMyCoreTeamsForApplication });
+    return renderAt(`/torneos/explorar/${SLUG}/solicitar`, '/torneos/explorar/:publicSlug/solicitar', <TournamentApplicationPage />);
+  }
+
+  test('your teams are listed without typing; members are explained; a team already in the category cannot be chosen', async () => {
+    renderWithTeams(jest.fn().mockResolvedValue(TEAMS));
+    expect(await screen.findByRole('radio', { name: /Halcones Podés inscribirlo/ })).toBeEnabled();
+    expect(screen.getByRole('radio', { name: /Halcones B.*Ya está en Primera/ })).toBeDisabled();
+    // A team they only belong to: no way to register it, the call can be shared with its responsible.
+    expect(screen.queryByRole('radio', { name: /Vecinos/ })).not.toBeInTheDocument();
+    expect(screen.getByText('Vecinos')).toBeInTheDocument();
+    expect(screen.getByText(/Sos integrante: no podés inscribirlo/)).toBeInTheDocument();
+    expect(screen.queryByLabelText('Nombre de tu equipo')).not.toBeInTheDocument();
+    expect(mockWorkspace.service.listMyCoreTeamsForApplication).toHaveBeenCalledWith({ publicSlug: SLUG });
+  });
+
+  test('the disabled button says what is missing, next to it, and each item takes you to its field', async () => {
+    renderWithTeams(jest.fn().mockResolvedValue(TEAMS));
+    await screen.findByRole('radio', { name: /Halcones Podés inscribirlo/ });
+    const create = screen.getByRole('button', { name: /Crear solicitud/ });
+    expect(create).toBeDisabled();
+    expect(create).toHaveAttribute('aria-describedby', 'application-missing');
+    const missing = document.getElementById('application-missing');
+    expect(missing).toHaveTextContent('Para crear la solicitud falta:');
+    fireEvent.click(within(missing).getByRole('button', { name: 'Aceptar las condiciones' }));
+    expect(screen.getByRole('checkbox', { name: /Leí y acepto las condiciones/ })).toHaveFocus();
+
+    fireEvent.click(screen.getByRole('radio', { name: /Halcones Podés inscribirlo/ }));
+    fireEvent.click(screen.getByRole('checkbox', { name: /Leí y acepto las condiciones/ }));
+    expect(create).toBeEnabled();
+    expect(document.getElementById('application-missing')).toBeNull();
+    fireEvent.click(create);
+    await waitFor(() => expect(mockWorkspace.service.startTournamentApplication)
+      .toHaveBeenCalledWith(expect.objectContaining({ coreTeamId: 'team-free', categorySlug: 'primera' })));
+  });
+
+  test('without teams it offers a new team; a failed load is an error with retry, never «no teams»', async () => {
+    const list = jest.fn()
+      .mockRejectedValueOnce(Object.assign(new Error('No pudimos cargar tus equipos.'), { code: 'TORNEOS_UNAVAILABLE' }))
+      .mockResolvedValueOnce({ items: [], hasMore: false });
+    renderWithTeams(list);
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('No pudimos cargar tus equipos.');
+    expect(screen.queryByText(/No tenés equipos en Arma2/)).not.toBeInTheDocument();
+    fireEvent.click(within(alert).getByRole('button', { name: /Reintentar/ }));
+    expect(await screen.findByText(/No tenés equipos en Arma2/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Inscribir un equipo nuevo' }));
+    expect(screen.getByLabelText('Nombre del equipo')).toBeInTheDocument();
+  });
+});
+
 describe('La solicitud desde el espacio del equipo', () => {
   function SendButton() {
     const { onRegistrationChanged } = useOutletContext();
@@ -333,14 +396,13 @@ describe('Header de Torneos', () => {
     renderAt('/torneos', '/torneos', <TorneosAccountMenu />);
     fireEvent.click(screen.getByRole('button', { name: 'Abrir tu cuenta de Torneos' }));
     const menu = await screen.findByRole('dialog');
-    const items = within(menu).getAllByRole('button').map((item) => item.textContent)
-      .filter((text) => text);
-    expect(items).toEqual([
-      expect.stringContaining('Mi perfil de Torneos'),
-      expect.stringContaining('Avisos de Torneos'),
-      expect.stringContaining('Explorar torneos'),
-    ]);
-    fireEvent.click(within(menu).getByRole('button', { name: /Mi perfil de Torneos/ }));
+    expect(within(menu).getAllByRole('button').filter((item) => item.textContent).length).toBe(3);
+    // «Torneos» in this one item is the official wordmark; its accessible name stays complete.
+    const profileItem = within(menu).getByRole('button', { name: /^Mi perfil de Torneos/ });
+    expect(within(profileItem).getByRole('img', { name: 'Torneos' })).toBeInTheDocument();
+    expect(within(menu).getByRole('button', { name: /^Avisos de Torneos/ })).toBeInTheDocument();
+    expect(within(menu).getByRole('button', { name: /^Explorar torneos/ })).toBeInTheDocument();
+    fireEvent.click(profileItem);
     expect(screen.getByTestId('location')).toHaveTextContent('/torneos/perfil');
   });
 });

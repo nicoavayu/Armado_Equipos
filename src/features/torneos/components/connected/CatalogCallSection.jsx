@@ -4,6 +4,7 @@ import {
   CircleDollarSign,
   ClipboardList,
   MapPin,
+  MessageCircle,
   ShieldCheck,
   Timer,
   Users,
@@ -14,12 +15,14 @@ import {
   ageRangeLabel,
   capacityLabel,
   entryFeeLabel,
+  entryFeeState,
   formatDateTime,
   periodLabel,
   sportLabel,
+  whatsappContactUrl,
 } from '../../domain/connectedProduct';
 import { getCompetitionFormatName } from '../../domain/competitionCatalog';
-import { CatalogStateChip } from './TournamentCatalog';
+import CatalogStateChip from './CatalogStateChip';
 import styles from './ConnectedProduct.module.css';
 
 // The call for teams of ONE tournament: what a team needs to decide whether to take part. Same component inside the
@@ -30,6 +33,8 @@ export default function CatalogCallSection({ entry, actions = null, headingLevel
   const Heading = `h${headingLevel}`;
   const categories = Array.isArray(entry.categories) ? entry.categories : [];
   const venue = entry.venue;
+  const feeState = entryFeeState(entry.entryFee);
+  const whatsappUrl = whatsappContactUrl(entry.contactWhatsapp, entry.tournamentName);
   return (
     <section className={styles.callSection} aria-labelledby="catalog-call-title" data-catalog-call="true">
       <header className={styles.callHeader}>
@@ -80,14 +85,28 @@ export default function CatalogCallSection({ entry, actions = null, headingLevel
       <div className={styles.callFee}>
         <CircleDollarSign size={20} aria-hidden="true" />
         <div>
-          <strong>{entryFeeLabel(entry.entryFee)}</strong>
+          {/* Not informed is not «free»: the organization did not publish a price. */}
+          <strong>
+            {feeState === 'not_informed'
+              ? (whatsappUrl ? 'Precio: consultá al organizador' : 'Precio no informado por la organización')
+              : entryFeeLabel(entry.entryFee)}
+          </strong>
           {entry.entryFee?.includes && <span>Incluye: {entry.entryFee.includes}</span>}
           {entry.entryFee?.paymentNote && <span>{entry.entryFee.paymentNote}</span>}
-          {entry.entryFee && Number(entry.entryFee.amountCents) > 0 && (
-            <small>Arma2 no cobra ni procesa este pago: se coordina con la organización.</small>
+          {feeState === 'price' && (
+            <small>Es información de la organización: Arma2 no cobra ni procesa este pago.</small>
           )}
         </div>
       </div>
+
+      {whatsappUrl && (
+        <div className={styles.callContact}>
+          <a className={styles.secondaryAction} href={whatsappUrl} target="_blank" rel="noopener noreferrer">
+            <MessageCircle size={16} aria-hidden="true" /> Contactar al organizador por WhatsApp
+          </a>
+          <small>Consultar no es pedir la inscripción ni reserva un lugar.</small>
+        </div>
+      )}
 
       {categories.length > 0 && (
         <div className={styles.callCategories}>

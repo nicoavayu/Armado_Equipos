@@ -1,5 +1,5 @@
 {
-  "generatedFrom": "30f6e429c1b445bc1cf2cbe19c9f01602adfb5c9",
+  "generatedFrom": "985c22a24b1a0963f31327b950de080933a95f74",
   "legacyBase": "2058da039a2a5eaaed22d87d01946bc596ae5f50",
   "coreSingletonSha256": "f39572e4cab0fd287bd1dea2ca87c97bd5500d0eff57cb8de6160f1e3271600c",
   "reachableCallSignatures": {
@@ -31,13 +31,14 @@
     "src/features/equipos/views/EquipoDetalleView.jsx": "41d7b9a51aa1d452032f3a5c44f73280b04a5190da832e0aa454e3bdf5f0b4dd",
     "src/features/onboarding/pendingIntent.js": "094700d083c8f26876bec39e13634081c16c9dc4529fc62b20fa615c0721c3c1",
     "src/features/onboarding/storage.js": "b8ddbe2110aa611efb3defc34f41792a72fc0eb5d672bfa858748da6413ccf6a",
+    "src/features/space-navigation/crossProductUnread.js": "3eb5f65c48a3897140173d07650ae03fb1324a4a60f2a83854b528f4ece2e049",
     "src/features/torneos/api/publicCatalogService.js": "088f37f552b39d24b7dc35a3e7b857c858c0213fb0386afe00c71d96c3388cb7",
     "src/features/torneos/api/publicTournamentService.js": "bbbe6bc3a4c8f54dbddd8d2ada3d4c2ab3e4858dfa1331608647039c271bc0da",
     "src/features/torneos/api/tournamentBrandingService.js": "ac0da541e639c64900abf9a9249752926129467d92dd95e1d42304bc043a7d32",
     "src/features/torneos/api/tournamentMediaUploadClient.js": "9da0b2942845076b059a91aee3626af7aec8102d0b9d79cdcc47698d00d3f5d0",
     "src/features/torneos/api/tournamentPlayerPortraitService.js": "fca6d5c8be8942dbfee0cf801003214732c7143d4d68c7b16c5d7b66f918e8ed",
     "src/features/torneos/api/tournamentTeamPhotoService.js": "7a59a1f8919e99f43a99536ec37884c2387eb3a11afa4eab23612b9776aabbea",
-    "src/features/torneos/api/tournamentWorkspaceService.js": "e28a9ed09b92db8e225cf0447ffde2b8afbbc40cb4f5bbe7f689f3945da8d2a3",
+    "src/features/torneos/api/tournamentWorkspaceService.js": "8576a9b1579b779f048777b496e1abbc97c78d5de8bd6b31d53595f37e300f7e",
     "src/features/torneos/components/MobileAppCallout.jsx": "b33bbd3205ea86246e099ee13f8c7ce6cc378626deba9a9f8294197cdba5246c",
     "src/features/torneos/components/TorneosLanding.jsx": "dd564545830b034c252417cbd4ad2b631780cec7c81bb6b8dc80cbae26c9b79f",
     "src/features/torneos/context/TorneosWorkspaceContext.jsx": "2989e947a2c7d137309492e645484d6b5e4796e58bdabb98825f702c031797e5",
@@ -51,7 +52,7 @@
     "src/features/torneos/stagingV1/coreSessionBridge.js": "5b42800e627a243248c539206ca778d5c1f3d59e0a3e69c031b53aaf08b63e51",
     "src/hooks/useAdminPanelState.js": "b265d45ab23aac685b3fd3993b51cee72d17cc2fd59c02bc5b8c28f3c14044ec",
     "src/hooks/useAmigos.js": "17c48e1911d094ee77890e408172a0f98ee153ae9ed19f7d2ecc28f2970ec854",
-    "src/hooks/useNativeFeatures.js": "c88b9f464fe7ef7e5aa4e5c8a8ff7b5e0251dbc9b0763de2eda86e47130628fd",
+    "src/hooks/useNativeFeatures.js": "81262fe911f7aaefa3f37f6fc1ca1722fa9c332383a3a5a96421fb5f6c9f4661",
     "src/hooks/useSupabaseRealtime.js": "bbee9aabed7b2e6aef995a7652c07c36962f9d63b08949617fd7741160358bf9",
     "src/lib/supabaseClient.js": "797da8adf4008e5aaec84a0772255d1aa57d18e3f9eb2f4cebb49b396ec36185",
     "src/pages/AdminPanel.js": "b3beba1156823c02aa05ed9d329bdcb9d7587cdaea877a4c16c9a12a093eae75",
@@ -681,202 +682,202 @@
     },
     {
       "file": "src/features/torneos/components/TorneosShell.jsx",
-      "line": 27,
+      "line": 28,
       "source": "../../../components/global-header/GlobalHeader"
     },
     {
       "file": "src/features/torneos/components/TorneosShell.jsx",
-      "line": 36,
+      "line": 37,
       "source": "../context/TorneosWorkspaceContext"
     },
     {
       "file": "src/features/torneos/components/TorneosShell.jsx",
-      "line": 39,
+      "line": 40,
       "source": "./CreateOrganizationPage"
     },
     {
       "file": "src/features/torneos/components/TorneosShell.jsx",
-      "line": 40,
+      "line": 41,
       "source": "./CompetitionOverviewPage"
     },
     {
       "file": "src/features/torneos/components/TorneosShell.jsx",
-      "line": 41,
+      "line": 42,
       "source": "./OrganizationMembersPage"
     },
     {
       "file": "src/features/torneos/components/TorneosShell.jsx",
-      "line": 43,
+      "line": 44,
       "source": "./OrganizationRouteGuard"
     },
     {
       "file": "src/features/torneos/components/TorneosShell.jsx",
-      "line": 44,
+      "line": 45,
       "source": "./OrganizationVenuesPage"
     },
     {
       "file": "src/features/torneos/components/TorneosShell.jsx",
-      "line": 46,
+      "line": 47,
       "source": "./OrganizationSettingsPage"
     },
     {
       "file": "src/features/torneos/components/TorneosShell.jsx",
-      "line": 48,
+      "line": 49,
       "source": "./PurchaseStatusPage"
     },
     {
       "file": "src/features/torneos/components/TorneosShell.jsx",
-      "line": 50,
+      "line": 51,
       "source": "./TorneosDashboard"
     },
     {
       "file": "src/features/torneos/components/TorneosShell.jsx",
-      "line": 51,
+      "line": 52,
       "source": "./TorneosLanding"
     },
     {
       "file": "src/features/torneos/components/TorneosShell.jsx",
-      "line": 53,
+      "line": 54,
       "source": "./TournamentWizardPage"
     },
     {
       "file": "src/features/torneos/components/TorneosShell.jsx",
-      "line": 54,
+      "line": 55,
       "source": "./TeamsPage"
     },
     {
       "file": "src/features/torneos/components/TorneosShell.jsx",
-      "line": 55,
+      "line": 56,
       "source": "./NewTeamEntryPage"
     },
     {
       "file": "src/features/torneos/components/TorneosShell.jsx",
-      "line": 56,
+      "line": 57,
       "source": "./TeamRegistrationPage"
     },
     {
       "file": "src/features/torneos/components/TorneosShell.jsx",
-      "line": 57,
+      "line": 58,
       "source": "./TeamInvitationPage"
     },
     {
       "file": "src/features/torneos/components/TorneosShell.jsx",
-      "line": 58,
+      "line": 59,
       "source": "./OrganizationInvitationPage"
     },
     {
       "file": "src/features/torneos/components/TorneosShell.jsx",
-      "line": 59,
+      "line": 60,
       "source": "./WorkspaceSwitcher"
     },
     {
       "file": "src/features/torneos/components/TorneosShell.jsx",
-      "line": 60,
+      "line": 61,
       "source": "./FixtureWorkspacePage"
     },
     {
       "file": "src/features/torneos/components/TorneosShell.jsx",
-      "line": 61,
+      "line": 62,
       "source": "./MatchOperationsPage"
     },
     {
       "file": "src/features/torneos/components/TorneosShell.jsx",
-      "line": 62,
+      "line": 63,
       "source": "./MyTournamentMatchesPage"
     },
     {
       "file": "src/features/torneos/components/TorneosShell.jsx",
-      "line": 63,
+      "line": 64,
       "source": "./CaptainMatchSquadPage"
     },
     {
       "file": "src/features/torneos/components/TorneosShell.jsx",
-      "line": 64,
+      "line": 65,
       "source": "./CompetitionCenterPage"
     },
     {
       "file": "src/features/torneos/components/TorneosShell.jsx",
-      "line": 65,
+      "line": 66,
       "source": "./MyTournamentsPage"
     },
     {
       "file": "src/features/torneos/components/TorneosShell.jsx",
-      "line": 66,
+      "line": 67,
       "source": "./TournamentHubPage"
     },
     {
       "file": "src/features/torneos/components/TorneosShell.jsx",
-      "line": 67,
+      "line": 68,
       "source": "./CommunicationsAdminPage"
     },
     {
       "file": "src/features/torneos/components/TorneosShell.jsx",
-      "line": 68,
+      "line": 69,
       "source": "./MediaAdminPage"
     },
     {
       "file": "src/features/torneos/components/TorneosShell.jsx",
-      "line": 69,
+      "line": 70,
       "source": "./SocialStudioPage"
     },
     {
       "file": "src/features/torneos/components/TorneosShell.jsx",
-      "line": 70,
+      "line": 71,
       "source": "./connected/TorneosAccountMenu"
     },
     {
       "file": "src/features/torneos/components/TorneosShell.jsx",
-      "line": 71,
+      "line": 72,
       "source": "./connected/TorneosInboxBell"
     },
     {
       "file": "src/features/torneos/components/TorneosShell.jsx",
-      "line": 72,
+      "line": 73,
       "source": "./connected/useTorneosInboxSummary"
     },
     {
       "file": "src/features/torneos/components/TorneosShell.jsx",
-      "line": 73,
+      "line": 74,
       "source": "./connected/PersonalNavigation"
     },
     {
       "file": "src/features/torneos/components/TorneosShell.jsx",
-      "line": 74,
+      "line": 75,
       "source": "./connected/ExplorePage"
     },
     {
       "file": "src/features/torneos/components/TorneosShell.jsx",
-      "line": 75,
+      "line": 76,
       "source": "./connected/CatalogCallPage"
     },
     {
       "file": "src/features/torneos/components/TorneosShell.jsx",
-      "line": 76,
+      "line": 77,
       "source": "./connected/TournamentApplicationPage"
     },
     {
       "file": "src/features/torneos/components/TorneosShell.jsx",
-      "line": 77,
+      "line": 78,
       "source": "./connected/TorneosInboxPage"
     },
     {
       "file": "src/features/torneos/components/TorneosShell.jsx",
-      "line": 78,
+      "line": 79,
       "source": "./connected/TorneosProfilePage"
     },
     {
       "file": "src/features/torneos/components/TorneosShell.jsx",
-      "line": 79,
+      "line": 80,
       "source": "./connected/ParticipantTeamRoute"
     },
     {
       "file": "src/features/torneos/components/TorneosShell.jsx",
-      "line": 80,
+      "line": 81,
       "source": "./connected/CatalogListingPage"
     },
     {
       "file": "src/features/torneos/components/TorneosShell.jsx",
-      "line": 81,
+      "line": 82,
       "source": "./connected/ApplicationInboxPage"
     },
     {
@@ -951,6 +952,11 @@
     },
     {
       "file": "src/features/torneos/components/connected/ExplorePage.jsx",
+      "line": 3,
+      "source": "./TournamentCatalog"
+    },
+    {
+      "file": "src/features/torneos/components/connected/ExplorePage.jsx",
       "line": 4,
       "source": "./useCatalogService"
     },
@@ -968,6 +974,11 @@
       "file": "src/features/torneos/components/connected/PersonalNavigation.jsx",
       "line": 11,
       "source": "./useTorneosInboxSummary"
+    },
+    {
+      "file": "src/features/torneos/components/connected/PublicCatalogRoute.jsx",
+      "line": 5,
+      "source": "./TournamentCatalog"
     },
     {
       "file": "src/features/torneos/components/connected/PublicCatalogRoute.jsx",
@@ -1016,23 +1027,28 @@
     },
     {
       "file": "src/features/torneos/components/connected/TournamentApplicationPage.jsx",
-      "line": 18,
+      "line": 20,
       "source": "../../context/TorneosWorkspaceContext"
     },
     {
       "file": "src/features/torneos/components/connected/TournamentApplicationPage.jsx",
-      "line": 27,
+      "line": 29,
       "source": "./CatalogCallPage"
     },
     {
       "file": "src/features/torneos/components/connected/TournamentApplicationPage.jsx",
-      "line": 28,
+      "line": 30,
       "source": "./useCatalogService"
     },
     {
       "file": "src/features/torneos/components/connected/TournamentApplicationPage.jsx",
-      "line": 29,
+      "line": 31,
       "source": "./useTorneosProfile"
+    },
+    {
+      "file": "src/features/torneos/components/connected/TournamentCatalog.jsx",
+      "line": 31,
+      "source": "../BrandingImage"
     },
     {
       "file": "src/features/torneos/components/connected/useCatalogService.js",
@@ -1123,6 +1139,16 @@
       "file": "src/features/torneos/stagingV1/publicTournamentComposition.js",
       "line": 13,
       "source": "../api/publicCatalogService"
+    },
+    {
+      "file": "src/features/torneos/stagingV1/torneosInboxProbe.js",
+      "line": 8,
+      "source": "../api/tournamentWorkspaceService"
+    },
+    {
+      "file": "src/features/torneos/stagingV1/torneosInboxProbe.js",
+      "line": 9,
+      "source": "./coreSessionBridge"
     }
   ],
   "calls": [
@@ -2791,18 +2817,18 @@
     },
     {
       "file": "src/features/torneos/api/tournamentWorkspaceService.js",
-      "line": 1601,
+      "line": 1604,
       "kind": "rpc",
       "callee": "supabase.rpc",
       "targets": [
         "save_tournament_catalog_listing"
       ],
       "function": "saveTournamentCatalogListing",
-      "expression": "supabase.rpc('save_tournament_catalog_listing', { p_organization_id: organizationId, p_tournament_id: tournamentId, p_summary: summary ?? null, p_locality: locality ?? null, p_venue_id: venueId, p_entry_fee_cents: entryFeeCents, p_entry_fee_includes: entryFeeIncludes, p_payment_note: paymentNote, p_requirements: requirements, p_rules_summary: rulesSummary, })"
+      "expression": "supabase.rpc('save_tournament_catalog_listing', { p_organization_id: organizationId, p_tournament_id: tournamentId, p_summary: summary ?? null, p_locality: locality ?? null, p_venue_id: venueId, p_entry_fee_cents: entryFeeCents, p_entry_fee_includes: entryFeeIncludes, p_payment_note: paymentNote, p_requirements: requirements, p_rules_summary: rulesSummary, p_entry_fee_unit: entryFeeUnit || 'team', p_contact_whatsapp: contactWhatsapp || null, p_contact_public: contactPublic === true, })"
     },
     {
       "file": "src/features/torneos/api/tournamentWorkspaceService.js",
-      "line": 1616,
+      "line": 1622,
       "kind": "rpc",
       "callee": "supabase.rpc",
       "targets": [
@@ -2813,7 +2839,7 @@
     },
     {
       "file": "src/features/torneos/api/tournamentWorkspaceService.js",
-      "line": 1624,
+      "line": 1630,
       "kind": "rpc",
       "callee": "supabase.rpc",
       "targets": [
@@ -2824,7 +2850,7 @@
     },
     {
       "file": "src/features/torneos/api/tournamentWorkspaceService.js",
-      "line": 1632,
+      "line": 1638,
       "kind": "rpc",
       "callee": "supabase.rpc",
       "targets": [
@@ -2835,7 +2861,7 @@
     },
     {
       "file": "src/features/torneos/api/tournamentWorkspaceService.js",
-      "line": 1647,
+      "line": 1653,
       "kind": "rpc",
       "callee": "supabase.rpc",
       "targets": [
@@ -2846,7 +2872,7 @@
     },
     {
       "file": "src/features/torneos/api/tournamentWorkspaceService.js",
-      "line": 1657,
+      "line": 1663,
       "kind": "rpc",
       "callee": "supabase.rpc",
       "targets": [
@@ -2857,7 +2883,18 @@
     },
     {
       "file": "src/features/torneos/api/tournamentWorkspaceService.js",
-      "line": 1673,
+      "line": 1671,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "list_my_core_teams_for_application"
+      ],
+      "function": "listMyCoreTeamsForApplication",
+      "expression": "supabase.rpc('list_my_core_teams_for_application', { p_public_slug: publicSlug, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 1685,
       "kind": "rpc",
       "callee": "supabase.rpc",
       "targets": [
@@ -2868,7 +2905,18 @@
     },
     {
       "file": "src/features/torneos/api/tournamentWorkspaceService.js",
-      "line": 1685,
+      "line": 1697,
+      "kind": "rpc",
+      "callee": "supabase.rpc",
+      "targets": [
+        "get_my_tournament_participations"
+      ],
+      "function": "loadMyTournamentParticipations",
+      "expression": "supabase.rpc('get_my_tournament_participations', { p_limit: limit, p_offset: offset, })"
+    },
+    {
+      "file": "src/features/torneos/api/tournamentWorkspaceService.js",
+      "line": 1704,
       "kind": "rpc",
       "callee": "supabase.rpc",
       "targets": [
@@ -2879,7 +2927,7 @@
     },
     {
       "file": "src/features/torneos/api/tournamentWorkspaceService.js",
-      "line": 1695,
+      "line": 1714,
       "kind": "rpc",
       "callee": "supabase.rpc",
       "targets": [
@@ -2890,7 +2938,7 @@
     },
     {
       "file": "src/features/torneos/api/tournamentWorkspaceService.js",
-      "line": 1705,
+      "line": 1724,
       "kind": "rpc",
       "callee": "supabase.rpc",
       "targets": [
@@ -2901,7 +2949,7 @@
     },
     {
       "file": "src/features/torneos/api/tournamentWorkspaceService.js",
-      "line": 1715,
+      "line": 1734,
       "kind": "rpc",
       "callee": "supabase.rpc",
       "targets": [
@@ -2912,7 +2960,7 @@
     },
     {
       "file": "src/features/torneos/api/tournamentWorkspaceService.js",
-      "line": 1736,
+      "line": 1755,
       "kind": "rpc",
       "callee": "supabase.rpc",
       "targets": [
@@ -2923,7 +2971,7 @@
     },
     {
       "file": "src/features/torneos/api/tournamentWorkspaceService.js",
-      "line": 1761,
+      "line": 1780,
       "kind": "rpc",
       "callee": "supabase.rpc",
       "targets": [
@@ -2934,7 +2982,7 @@
     },
     {
       "file": "src/features/torneos/api/tournamentWorkspaceService.js",
-      "line": 1779,
+      "line": 1798,
       "kind": "rpc",
       "callee": "supabase.rpc",
       "targets": [
@@ -2945,7 +2993,7 @@
     },
     {
       "file": "src/features/torneos/api/tournamentWorkspaceService.js",
-      "line": 1797,
+      "line": 1816,
       "kind": "rpc",
       "callee": "supabase.rpc",
       "targets": [
@@ -2956,7 +3004,7 @@
     },
     {
       "file": "src/features/torneos/api/tournamentWorkspaceService.js",
-      "line": 1816,
+      "line": 1835,
       "kind": "rpc",
       "callee": "supabase.rpc",
       "targets": [
@@ -2967,7 +3015,7 @@
     },
     {
       "file": "src/features/torneos/api/tournamentWorkspaceService.js",
-      "line": 1828,
+      "line": 1847,
       "kind": "rpc",
       "callee": "supabase.rpc",
       "targets": [
@@ -2978,7 +3026,7 @@
     },
     {
       "file": "src/features/torneos/api/tournamentWorkspaceService.js",
-      "line": 1837,
+      "line": 1856,
       "kind": "rpc",
       "callee": "supabase.rpc",
       "targets": [
@@ -2989,7 +3037,7 @@
     },
     {
       "file": "src/features/torneos/api/tournamentWorkspaceService.js",
-      "line": 1855,
+      "line": 1874,
       "kind": "rpc",
       "callee": "supabase.rpc",
       "targets": [
@@ -3000,7 +3048,7 @@
     },
     {
       "file": "src/features/torneos/api/tournamentWorkspaceService.js",
-      "line": 1870,
+      "line": 1889,
       "kind": "rpc",
       "callee": "supabase.rpc",
       "targets": [
@@ -3011,7 +3059,7 @@
     },
     {
       "file": "src/features/torneos/api/tournamentWorkspaceService.js",
-      "line": 1883,
+      "line": 1902,
       "kind": "rpc",
       "callee": "supabase.rpc",
       "targets": [
@@ -3022,7 +3070,7 @@
     },
     {
       "file": "src/features/torneos/api/tournamentWorkspaceService.js",
-      "line": 1890,
+      "line": 1909,
       "kind": "rpc",
       "callee": "supabase.rpc",
       "targets": [
@@ -3033,7 +3081,7 @@
     },
     {
       "file": "src/features/torneos/api/tournamentWorkspaceService.js",
-      "line": 1893,
+      "line": 1912,
       "kind": "rpc",
       "callee": "supabase.rpc",
       "targets": [
@@ -3044,7 +3092,7 @@
     },
     {
       "file": "src/features/torneos/api/tournamentWorkspaceService.js",
-      "line": 1903,
+      "line": 1922,
       "kind": "rpc",
       "callee": "supabase.rpc",
       "targets": [
@@ -3055,7 +3103,7 @@
     },
     {
       "file": "src/features/torneos/api/tournamentWorkspaceService.js",
-      "line": 1931,
+      "line": 1950,
       "kind": "rpc",
       "callee": "supabase.rpc",
       "targets": [
@@ -3066,7 +3114,7 @@
     },
     {
       "file": "src/features/torneos/api/tournamentWorkspaceService.js",
-      "line": 1951,
+      "line": 1970,
       "kind": "rpc",
       "callee": "supabase.rpc",
       "targets": [
@@ -3077,7 +3125,7 @@
     },
     {
       "file": "src/features/torneos/api/tournamentWorkspaceService.js",
-      "line": 1967,
+      "line": 1986,
       "kind": "rpc",
       "callee": "supabase.rpc",
       "targets": [
@@ -3088,7 +3136,7 @@
     },
     {
       "file": "src/features/torneos/api/tournamentWorkspaceService.js",
-      "line": 1977,
+      "line": 1996,
       "kind": "rpc",
       "callee": "supabase.rpc",
       "targets": [
@@ -3099,7 +3147,7 @@
     },
     {
       "file": "src/features/torneos/api/tournamentWorkspaceService.js",
-      "line": 1987,
+      "line": 2006,
       "kind": "rpc",
       "callee": "supabase.rpc",
       "targets": [
@@ -3110,7 +3158,7 @@
     },
     {
       "file": "src/features/torneos/api/tournamentWorkspaceService.js",
-      "line": 1995,
+      "line": 2014,
       "kind": "rpc",
       "callee": "supabase.rpc",
       "targets": [
@@ -3121,7 +3169,7 @@
     },
     {
       "file": "src/features/torneos/api/tournamentWorkspaceService.js",
-      "line": 2006,
+      "line": 2025,
       "kind": "rpc",
       "callee": "supabase.rpc",
       "targets": [
@@ -3132,7 +3180,7 @@
     },
     {
       "file": "src/features/torneos/api/tournamentWorkspaceService.js",
-      "line": 2014,
+      "line": 2033,
       "kind": "rpc",
       "callee": "supabase.rpc",
       "targets": [
@@ -3143,7 +3191,7 @@
     },
     {
       "file": "src/features/torneos/api/tournamentWorkspaceService.js",
-      "line": 2024,
+      "line": 2043,
       "kind": "rpc",
       "callee": "supabase.rpc",
       "targets": [
@@ -3154,7 +3202,7 @@
     },
     {
       "file": "src/features/torneos/api/tournamentWorkspaceService.js",
-      "line": 2038,
+      "line": 2057,
       "kind": "rpc",
       "callee": "supabase.rpc",
       "targets": [
@@ -3165,7 +3213,7 @@
     },
     {
       "file": "src/features/torneos/api/tournamentWorkspaceService.js",
-      "line": 2054,
+      "line": 2073,
       "kind": "rpc",
       "callee": "supabase.rpc",
       "targets": [
@@ -3176,7 +3224,7 @@
     },
     {
       "file": "src/features/torneos/api/tournamentWorkspaceService.js",
-      "line": 2081,
+      "line": 2100,
       "kind": "rpc",
       "callee": "supabase.rpc",
       "targets": [
@@ -3187,7 +3235,7 @@
     },
     {
       "file": "src/features/torneos/api/tournamentWorkspaceService.js",
-      "line": 2095,
+      "line": 2114,
       "kind": "rpc",
       "callee": "supabase.rpc",
       "targets": [
@@ -3198,7 +3246,7 @@
     },
     {
       "file": "src/features/torneos/api/tournamentWorkspaceService.js",
-      "line": 2113,
+      "line": 2132,
       "kind": "rpc",
       "callee": "supabase.rpc",
       "targets": [
@@ -3209,7 +3257,7 @@
     },
     {
       "file": "src/features/torneos/api/tournamentWorkspaceService.js",
-      "line": 2127,
+      "line": 2146,
       "kind": "rpc",
       "callee": "supabase.rpc",
       "targets": [
@@ -3220,7 +3268,7 @@
     },
     {
       "file": "src/features/torneos/api/tournamentWorkspaceService.js",
-      "line": 2147,
+      "line": 2166,
       "kind": "rpc",
       "callee": "supabase.rpc",
       "targets": [

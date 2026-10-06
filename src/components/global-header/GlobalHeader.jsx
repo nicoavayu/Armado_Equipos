@@ -10,7 +10,12 @@ import styles from './GlobalHeader.module.css';
 // Core passes nothing and gets its own avatar menu (availability, awards, Core profile) and notifications bell.
 // Torneos passes its own `accountMenu` and `notificationsControl`, so opening the profile or the bell never
 // leaves Torneos; switching product stays an explicit action of the space selector.
-export default function GlobalHeader({ className = '', accountMenu = null, notificationsControl = null }) {
+export default function GlobalHeader({
+  className = '',
+  accountMenu = null,
+  notificationsControl = null,
+  currentUnread = null,
+}) {
   const { currentSpace, switchSpace, isSpaceAvailable } = useSpaceNavigation();
   const notificationsContext = useNotifications() || {};
   const unreadCount = currentSpace === APP_SPACE.ARMA2
@@ -25,7 +30,13 @@ export default function GlobalHeader({ className = '', accountMenu = null, notif
     >
       <div className={styles.headerInner}>
         <div className={styles.headerSideLeft}>{accountMenu || <UserAvatarMenu />}</div>
-        <div className={styles.headerCenter}><SpaceSelector /></div>
+        <div className={styles.headerCenter}>
+          <SpaceSelector
+            currentUnread={currentUnread || (currentSpace === APP_SPACE.ARMA2
+              ? { status: 'ready', hasUnread: Number(unreadCount.total) > 0 }
+              : null)}
+          />
+        </div>
         <div className={styles.headerSideRight}>
           {notificationsControl || (
             <NotificationsBell

@@ -287,7 +287,11 @@ export default function TorneosLanding() {
   }), [availableOrganizations, relationsState.relations]);
   const hasParticipantSide = experience.hasParticipantActivity || relationsState.registrations.length > 0;
   const dual = experience.hasAdministration && hasParticipantSide;
-  const [view, setView] = useState(() => readHomeView());
+  // `?vista=` (a link such as «Los torneos que organizás están en Gestionar») is an explicit, visual-only request.
+  const requestedView = new URLSearchParams(location.search).get('vista');
+  const [view, setView] = useState(() => (
+    requestedView === 'gestionar' || requestedView === 'mis-torneos' ? requestedView : readHomeView()
+  ));
   const effectiveView = dual
     ? (view === 'gestionar' || view === 'mis-torneos' ? view : 'mis-torneos')
     : (experience.hasAdministration ? 'gestionar' : 'mis-torneos');

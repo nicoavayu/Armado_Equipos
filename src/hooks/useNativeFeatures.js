@@ -21,6 +21,7 @@ import { track } from '../utils/monitoring/analytics';
 
 let pushBootstrapPromise = null;
 let pushListenersAttached = false;
+let pushTapListenerPromise = null;
 let lastRegistrationToken = '';
 const NATIVE_PUSH_REDIRECT_EVENT = 'native-push-redirect';
 const PENDING_NATIVE_PUSH_REDIRECT_KEY = 'pending_native_push_redirect';
@@ -198,59 +199,87 @@ export const consumePendingNativePushRedirect = () => {
 
 export const getNativePushRedirectEventName = () => NATIVE_PUSH_REDIRECT_EVENT;
 
+// A tap on a push opens its destination wherever the app is (Core or Torneos). Only this listener is app-wide: the
+// permission prompt, token registration and foreground notices stay with Core's own bootstrap.
+const handleNativePushAction = async (action) => {
+  const data = action?.notification?.data || action?.notification?.extra || {};
+  const notificationType = String(
+    data?.notificationType
+    || data?.notification_type
+    || data?.type
+    || action?.actionId
+    || action?.notification?.title
+    || '',
+  ).trim();
+
+  const route = resolveRouteFromPushData(data);
+  debugNotificationEvent('NOTIFICATION_TAP', getNativePushDebugPayload({
+    notificationType,
+    data,
+    route,
+    source: 'capacitor_push_action',
+    raw: action || null,
+  }));
+
+  track('push_opened', {
+    notification_type: notificationType || undefined,
+    route: route || undefined,
+    opened_from_push: true,
+    source: 'capacitor_push',
+  });
+
+  const resolvedRoute = await resolvePushRedirectRoute({
+    notificationType,
+    data,
+    route,
+  });
+  debugNotificationEvent('NOTIFICATION_ROUTE_RESOLVED', getNativePushDebugPayload({
+    notificationType,
+    data,
+    route: resolvedRoute,
+    source: 'capacitor_push_action',
+    raw: action || null,
+  }));
+
+  if (isSafeInternalPath(resolvedRoute)) {
+    queueNativePushRedirect({
+      route: resolvedRoute,
+      notificationType,
+    });
+  }
+};
+
+export const attachNativePushTapListener = async () => {
+  if (!Capacitor.isNativePlatform()) return;
+  if (!pushTapListenerPromise) {
+    pushTapListenerPromise = PushNotifications.addListener('pushNotificationActionPerformed', handleNativePushAction)
+      .catch((error) => {
+        pushTapListenerPromise = null;
+        logger.warn('[PUSH] tap listener failed', error);
+      });
+  }
+  await pushTapListenerPromise;
+};
+
+/** Whether a push tap is waiting for Core to open it (read only: Core's redirect hook consumes it). */
+export const peekPendingNativePushRedirect = () => {
+  if (typeof window === 'undefined') return null;
+  try {
+    const parsed = JSON.parse(window.sessionStorage.getItem(PENDING_NATIVE_PUSH_REDIRECT_KEY) || 'null');
+    const route = String(parsed?.route || '').trim();
+    return route ? { route } : null;
+  } catch {
+    return null;
+  }
+};
+
 export const initNativePushNotifications = async () => {
   if (!Capacitor.isNativePlatform()) return;
 
   if (!pushBootstrapPromise) {
     pushBootstrapPromise = (async () => {
       if (!pushListenersAttached) {
-        await PushNotifications.addListener('pushNotificationActionPerformed', async (action) => {
-          const data = action?.notification?.data || action?.notification?.extra || {};
-          const notificationType = String(
-            data?.notificationType
-            || data?.notification_type
-            || data?.type
-            || action?.actionId
-            || action?.notification?.title
-            || '',
-          ).trim();
-
-          const route = resolveRouteFromPushData(data);
-          debugNotificationEvent('NOTIFICATION_TAP', getNativePushDebugPayload({
-            notificationType,
-            data,
-            route,
-            source: 'capacitor_push_action',
-            raw: action || null,
-          }));
-
-          track('push_opened', {
-            notification_type: notificationType || undefined,
-            route: route || undefined,
-            opened_from_push: true,
-            source: 'capacitor_push',
-          });
-
-          const resolvedRoute = await resolvePushRedirectRoute({
-            notificationType,
-            data,
-            route,
-          });
-          debugNotificationEvent('NOTIFICATION_ROUTE_RESOLVED', getNativePushDebugPayload({
-            notificationType,
-            data,
-            route: resolvedRoute,
-            source: 'capacitor_push_action',
-            raw: action || null,
-          }));
-
-          if (isSafeInternalPath(resolvedRoute)) {
-            queueNativePushRedirect({
-              route: resolvedRoute,
-              notificationType,
-            });
-          }
-        });
+        await attachNativePushTapListener();
 
         await PushNotifications.addListener('pushNotificationReceived', async (notification) => {
           const data = notification?.data || notification?.extra || {};

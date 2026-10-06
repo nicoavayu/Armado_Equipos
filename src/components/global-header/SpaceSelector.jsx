@@ -16,9 +16,17 @@ const SPACE_OPTIONS = Object.freeze({
   },
 });
 
-export default function SpaceSelector() {
+// `currentUnread`: the CURRENT product's own unread state, from its own inbox (the header knows it). The other product's
+// comes from the space navigation (a bounded aggregate read). Opening the selector or switching marks nothing as read.
+export default function SpaceSelector({ currentUnread = null }) {
   const chevronGradientId = `space-chevron-${useId().replace(/:/g, '')}`;
-  const { currentSpace, switchSpace, isSpaceAvailable } = useSpaceNavigation();
+  const {
+    currentSpace, switchSpace, isSpaceAvailable, otherSpace, otherProductUnread,
+  } = useSpaceNavigation();
+  const otherHasUnread = otherProductUnread?.status === 'ready' && otherProductUnread.hasUnread === true;
+  const unreadIn = (space) => (space === currentSpace
+    ? currentUnread?.status === 'ready' && currentUnread.hasUnread === true
+    : space === otherSpace && otherHasUnread);
   const [open, setOpen] = useState(false);
   const triggerRef = useRef(null);
   const dialogRef = useRef(null);
@@ -70,10 +78,12 @@ export default function SpaceSelector() {
         type="button"
         aria-haspopup="dialog"
         aria-expanded={open}
-        aria-label={`Abrir selector de espacio. Espacio actual: ${SPACE_OPTIONS[currentSpace].title}`}
+        aria-label={`Abrir selector de espacio. Espacio actual: ${SPACE_OPTIONS[currentSpace].title}${
+          otherHasUnread ? `. Hay avisos sin leer en ${SPACE_OPTIONS[otherSpace].title}` : ''}`}
         onClick={() => setOpen(true)}
       >
         <SpaceBrand space={currentSpace} />
+        {otherHasUnread && <span className={styles.spaceUnreadDot} data-testid="space-other-unread" aria-hidden="true" />}
         <svg
           className={styles.spaceAffordance}
           viewBox="0 0 16 16"
@@ -146,7 +156,10 @@ export default function SpaceSelector() {
                     disabled={current || !available}
                     onClick={() => chooseSpace(space)}
                   >
-                    <span className={styles.optionBrand}><SpaceBrand space={space} /></span>
+                    <span className={styles.optionBrand}>
+                      <SpaceBrand space={space} />
+                      {unreadIn(space) && <span className={styles.spaceUnreadDot} aria-hidden="true" />}
+                    </span>
                     <span className={styles.optionCopy}>
                       <small>{option.description}</small>
                       <span className={`${styles.optionAction} ${current ? styles.optionActionCurrent : ''}`}>
@@ -158,6 +171,7 @@ export default function SpaceSelector() {
                           'No disponible en este entorno'
                         )}
                       </span>
+                      {unreadIn(space) && <span className={styles.srOnly}>Tiene avisos sin leer</span>}
                     </span>
                   </button>
                 );

@@ -237,8 +237,10 @@ describe('Arma2 Torneos teams flow', () => {
     renderPath(`/torneos/organizacion/${ORG}/equipos/${ENTRY}/plantel`, service);
 
     expect(await screen.findByRole('heading', { name: 'Barrio Norte' })).toBeInTheDocument();
-    expect(screen.getByText('Los requisitos del plantel todavía no están configurados.'))
-      .toBeInTheDocument();
+    // Said in the roster status and again next to the action it blocks (the button is described by it).
+    expect(screen.getAllByText('Los requisitos del plantel todavía no están configurados.')).toHaveLength(2);
+    expect(screen.getByRole('button', { name: 'Presentar plantel' }))
+      .toHaveAttribute('aria-describedby', 'roster-submit-missing');
     expect(screen.getByText('jugadores · mínimo sin definir')).toBeInTheDocument();
     expect(screen.queryByText('0/0')).not.toBeInTheDocument();
     expect(screen.getAllByText('Sin definir')).toHaveLength(4);

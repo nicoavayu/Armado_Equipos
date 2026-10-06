@@ -21,7 +21,6 @@ import {
 import { Link, useSearchParams } from 'react-router-dom';
 import {
   CATALOG_SORTS,
-  CATALOG_STATE,
   GENDER_LABELS,
   entryFeeLabel,
   formatDay,
@@ -29,6 +28,8 @@ import {
   sportLabel,
 } from '../../domain/connectedProduct';
 import { getCompetitionFormatName } from '../../domain/competitionCatalog';
+import BrandingImage from '../BrandingImage';
+import CatalogStateChip from './CatalogStateChip';
 import styles from './ConnectedProduct.module.css';
 
 // URL ⇄ filters. The URL is the state, so a search can be shared and the back button restores it.
@@ -67,11 +68,6 @@ function writeCatalogFilters(filters) {
   return next;
 }
 
-export function CatalogStateChip({ state }) {
-  const meta = CATALOG_STATE[state] || CATALOG_STATE.closed;
-  return <span className={styles.stateChip} data-tone={meta.tone}>{meta.label}</span>;
-}
-
 function CatalogCard({ item, to }) {
   const categories = Array.isArray(item.categories) ? item.categories : [];
   const shown = categories.slice(0, 3);
@@ -86,9 +82,20 @@ function CatalogCard({ item, to }) {
           </span>
         )}
       </header>
-      <div className={styles.catalogCardTitle}>
-        <h2>{item.tournamentName}</h2>
-        <p>{item.organizationName}</p>
+      <div className={styles.catalogCardIdentity}>
+        {/* The public page's branding: the tournament's logo, else the organization's, else its initials. */}
+        <BrandingImage
+          kind="tournament"
+          path={item.logoPath || null}
+          fallbackPath={item.organizationLogoPath || null}
+          name={item.tournamentName}
+          className={styles.catalogCardLogo}
+          imageClassName={styles.catalogCardLogoImage}
+        />
+        <div className={styles.catalogCardTitle}>
+          <h2>{item.tournamentName}</h2>
+          <p>{item.organizationName}</p>
+        </div>
       </div>
       {item.summary && <p className={styles.catalogCardSummary}>{item.summary}</p>}
       <dl className={styles.catalogFacts}>
@@ -115,7 +122,7 @@ function CatalogCard({ item, to }) {
           {shown.map((category) => <li key={category.slug}>{category.name}</li>)}
           {categories.length > shown.length && <li>+{categories.length - shown.length}</li>}
         </ul>
-        <span className={styles.feeLabel}>{entryFeeLabel(item.entryFee)}</span>
+        {entryFeeLabel(item.entryFee) && <span className={styles.feeLabel}>{entryFeeLabel(item.entryFee)}</span>}
       </div>
       <Link className={styles.cardLink} to={to} aria-label={`Ver convocatoria de ${item.tournamentName}`}>
         Ver convocatoria

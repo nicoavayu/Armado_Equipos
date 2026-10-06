@@ -82,10 +82,33 @@ export function sportLabel(code) {
 const money = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 });
 
 // The entry fee is information, never a checkout: Arma2 does not collect it.
+export const ENTRY_FEE_UNITS = Object.freeze({ team: 'por equipo', player: 'por jugador' });
+
+// Three different things, never collapsed: not informed (null), free (0) and a price (with its unit). Not informed
+// is not «free»: `null` is returned so a card shows nothing instead of an empty or invented label.
+export function entryFeeState(entryFee) {
+  if (!entryFee || entryFee.amountCents === null || entryFee.amountCents === undefined) return 'not_informed';
+  return Number(entryFee.amountCents) === 0 ? 'free' : 'price';
+}
+
 export function entryFeeLabel(entryFee) {
-  if (!entryFee || entryFee.amountCents === null || entryFee.amountCents === undefined) return 'Costo a confirmar por la organización';
-  if (Number(entryFee.amountCents) === 0) return 'Sin costo de inscripción';
-  return `${money.format(Number(entryFee.amountCents) / 100)} por equipo`;
+  const state = entryFeeState(entryFee);
+  if (state === 'not_informed') return null;
+  if (state === 'free') return 'Participación gratuita';
+  return `${money.format(Number(entryFee.amountCents) / 100)} ${ENTRY_FEE_UNITS[entryFee.unit] || ENTRY_FEE_UNITS.team}`;
+}
+
+// The organizer's WhatsApp for one call (published by them for it): an international number, digits only.
+export function whatsappContactUrl(number, tournamentName) {
+  const digits = String(number || '').replace(/\D/g, '');
+  if (!/^[1-9][0-9]{7,14}$/.test(digits)) return null;
+  const text = `Hola, vi la convocatoria «${String(tournamentName || '').slice(0, 80)}» en Arma2 Torneos y quería hacer una consulta.`;
+  return `https://wa.me/${digits}?text=${encodeURIComponent(text)}`;
+}
+
+export function formatWhatsapp(number) {
+  const digits = String(number || '').replace(/\D/g, '');
+  return digits ? `+${digits}` : '';
 }
 
 export function formatDay(value, { withYear = false } = {}) {

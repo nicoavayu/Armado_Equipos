@@ -43,21 +43,16 @@ export function isTorneosSpaceRoot(pathname = '') {
   return pathname === '/torneos' || pathname === '/torneos/';
 }
 
-const TORNEOS_PERSONAL_TOP_LEVEL_PATTERNS = Object.freeze([
-  /^\/torneos\/?$/,
-  /^\/torneos\/(?:mis-torneos|mis-partidos|comunicados|nueva-organizacion|avisos|perfil|explorar)\/?$/,
+// The space header (product logo + selector, Torneos account, Torneos bell) is on EVERY authenticated Torneos screen:
+// inside a tournament, a team entry or an organization tool the person keeps their account, their inbox and the
+// explicit way back to Core. Only the public pages (their own header) and QA tooling live outside the shell.
+const TORNEOS_WITHOUT_SPACE_HEADER = Object.freeze([
+  /^\/torneos\/publico(?:\/|$)/,
 ]);
 
-const TORNEOS_ORGANIZATION_TOP_LEVEL_PATTERN = new RegExp(
-  '^/torneos/organizacion/[a-z0-9-]+'
-  + '(?:/(?:inicio|torneos|equipos|fixture|partidos|comunicaciones|multimedia|'
-  + 'estudio-social|configuracion|competencia(?:/tabla)?))?/?$',
-  'i',
-);
-
 export function shouldShowTorneosSpaceHeader(pathname = '') {
-  return TORNEOS_PERSONAL_TOP_LEVEL_PATTERNS.some((pattern) => pattern.test(pathname))
-    || TORNEOS_ORGANIZATION_TOP_LEVEL_PATTERN.test(pathname);
+  if (!(pathname === '/torneos' || pathname.startsWith('/torneos/'))) return false;
+  return !TORNEOS_WITHOUT_SPACE_HEADER.some((pattern) => pattern.test(pathname));
 }
 
 // La query es parte de lo que la ruta reproduce: una ruta canónica de torneo
@@ -143,6 +138,8 @@ export function getSpaceNavigationStorageKey(userId) {
 export function createDefaultSpaceNavigation() {
   return {
     lastSpace: APP_SPACE.ARMA2,
+    // Whether Torneos was used on this device by this account (its inbox is only read from Core once it was).
+    torneosVisited: false,
     lastRoute: {
       [APP_SPACE.ARMA2]: SPACE_FALLBACK_ROUTE[APP_SPACE.ARMA2],
       [APP_SPACE.TORNEOS]: SPACE_FALLBACK_ROUTE[APP_SPACE.TORNEOS],
@@ -169,6 +166,7 @@ export function readSpaceNavigation(userId, storage) {
       : defaults.lastSpace;
     return {
       lastSpace,
+      torneosVisited: parsed.torneosVisited === true,
       lastRoute: {
         [APP_SPACE.ARMA2]: getValidRouteForSpace(
           APP_SPACE.ARMA2,
@@ -195,6 +193,7 @@ export function writeSpaceNavigation(userId, preference, storage) {
     : defaults.lastSpace;
   const safePreference = {
     lastSpace,
+    torneosVisited: preference?.torneosVisited === true,
     lastRoute: {
       [APP_SPACE.ARMA2]: getValidRouteForSpace(
         APP_SPACE.ARMA2,
@@ -222,6 +221,7 @@ export function rememberSpaceRoute(userId, pathname, storage) {
   const current = readSpaceNavigation(userId, storage);
   const next = {
     lastSpace: space,
+    torneosVisited: current.torneosVisited || space === APP_SPACE.TORNEOS,
     lastRoute: {
       ...current.lastRoute,
       [space]: safeRoute,

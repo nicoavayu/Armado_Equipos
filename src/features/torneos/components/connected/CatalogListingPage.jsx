@@ -20,7 +20,7 @@ import { useTorneosWorkspace } from '../../context/TorneosWorkspaceContext';
 import { canonicalRoutes } from '../../routing/canonicalRoutes';
 import { BLOCK_REASON_COPY } from '../../domain/connectedProduct';
 import TournamentPublicPageSettings from '../TournamentPublicPageSettings';
-import { CatalogStateChip } from './TournamentCatalog';
+import CatalogStateChip from './CatalogStateChip';
 import styles from './ConnectedProduct.module.css';
 
 const APPLICATION_STATES = Object.freeze([
@@ -37,11 +37,23 @@ function toForm(listing) {
     venueId: listing?.venueId || '',
     feeMode: fee === null || fee === undefined ? 'unknown' : (Number(fee) === 0 ? 'free' : 'amount'),
     feeAmount: fee ? String(Math.round(Number(fee) / 100)) : '',
+    feeUnit: listing?.entryFeeUnit === 'player' ? 'player' : 'team',
+    whatsapp: listing?.contactWhatsapp ? `+${listing.contactWhatsapp}` : '',
+    // Saved before means it was already confirmed as public; a new number needs the confirmation again.
+    whatsappPublic: Boolean(listing?.contactWhatsapp),
     entryFeeIncludes: listing?.entryFeeIncludes || '',
     paymentNote: listing?.paymentNote || '',
     requirements: listing?.requirements || '',
     rulesSummary: listing?.rulesSummary || '',
   };
+}
+
+// Same normalization as the backend: international digits, «+» / «00» and separators removed.
+function normalizeWhatsapp(value) {
+  let digits = String(value || '').trim().replace(/[\s().-]/g, '');
+  if (digits.startsWith('+')) digits = digits.slice(1);
+  else if (digits.startsWith('00')) digits = digits.slice(2);
+  return digits;
 }
 
 function CapacityRow({ category, disabled, onSave }) {
@@ -150,23 +162,35 @@ export default function CatalogListingPage() {
   const feeCents = form.feeMode === 'free' ? 0
     : form.feeMode === 'amount' && form.feeAmount.trim() ? Number.parseInt(form.feeAmount, 10) * 100 : null;
   const feeValid = form.feeMode !== 'amount' || (Number.isInteger(feeCents) && feeCents > 0);
-  const formValid = form.summary.trim().length >= 10 && form.locality.trim().length >= 2 && feeValid;
+  const whatsappDigits = normalizeWhatsapp(form.whatsapp);
+  const whatsappValid = !whatsappDigits || /^[1-9][0-9]{7,14}$/.test(whatsappDigits);
+  const whatsappChanged = whatsappDigits !== (listing.contactWhatsapp || '');
+  const whatsappConfirmed = !whatsappDigits || form.whatsappPublic;
+  const formValid = form.summary.trim().length >= 10 && form.locality.trim().length >= 2 && feeValid
+    && whatsappValid && whatsappConfirmed;
+
+  const listingPayload = () => ({
+    organizationId,
+    tournamentId,
+    summary: form.summary.trim(),
+    locality: form.locality.trim(),
+    venueId: form.venueId || null,
+    entryFeeCents: feeCents,
+    entryFeeIncludes: form.entryFeeIncludes.trim() || null,
+    paymentNote: form.paymentNote.trim() || null,
+    requirements: form.requirements.trim() || null,
+    rulesSummary: form.rulesSummary.trim() || null,
+    entryFeeUnit: form.feeUnit,
+    contactWhatsapp: whatsappDigits || null,
+    contactPublic: Boolean(whatsappDigits) && form.whatsappPublic,
+  });
 
   const saveListing = (event) => {
     event.preventDefault();
     if (!formValid) return;
-    run('save', () => service.saveCatalogListing({
-      organizationId,
-      tournamentId,
-      summary: form.summary.trim(),
-      locality: form.locality.trim(),
-      venueId: form.venueId || null,
-      entryFeeCents: feeCents,
-      entryFeeIncludes: form.entryFeeIncludes.trim() || null,
-      paymentNote: form.paymentNote.trim() || null,
-      requirements: form.requirements.trim() || null,
-      rulesSummary: form.rulesSummary.trim() || null,
-    }), 'Convocatoria guardada.');
+    run('save', () => service.saveCatalogListing(listingPayload()), whatsappChanged
+      ? (whatsappDigits ? 'Convocatoria guardada. El WhatsApp ya se muestra en la convocatoria.' : 'Convocatoria guardada. Quitamos el WhatsApp de la convocatoria.')
+      : 'Convocatoria guardada.');
   };
 
   const field = (key) => ({
@@ -295,19 +319,31 @@ export default function CatalogListingPage() {
           </label>
         </div>
         <fieldset className={styles.field}>
-          <legend>Costo de inscripción por equipo</legend>
+          <legend>Costo de inscripción (opcional)</legend>
           <div className={styles.segmented} role="radiogroup" aria-label="Costo">
-            {[['unknown', 'A confirmar'], ['free', 'Sin costo'], ['amount', 'Con costo']].map(([value, label]) => (
+            {[['unknown', 'No informar'], ['free', 'Gratis'], ['amount', 'Con precio']].map(([value, label]) => (
               <button key={value} type="button" role="radio" aria-checked={form.feeMode === value}
                 disabled={!canManage || removed}
                 onClick={() => setForm((current) => ({ ...current, feeMode: value }))}>{label}</button>
             ))}
           </div>
+          {form.feeMode === 'unknown' && (
+            <p className={styles.help}>La convocatoria no muestra un precio. Podés agregarlo cuando lo tengas.</p>
+          )}
           {form.feeMode === 'amount' && (
-            <label className={styles.field}>
-              <span>Monto en pesos</span>
-              <input type="number" inputMode="numeric" min={1} {...field('feeAmount')} aria-invalid={!feeValid} />
-            </label>
+            <div className={styles.fieldRow}>
+              <label className={styles.field}>
+                <span>Monto en pesos (ARS)</span>
+                <input type="number" inputMode="numeric" min={1} {...field('feeAmount')} aria-invalid={!feeValid} />
+              </label>
+              <label className={styles.field}>
+                <span>Se cobra</span>
+                <select {...field('feeUnit')}>
+                  <option value="team">Por equipo</option>
+                  <option value="player">Por jugador</option>
+                </select>
+              </label>
+            </div>
           )}
         </fieldset>
         {form.feeMode === 'amount' && (
@@ -323,6 +359,52 @@ export default function CatalogListingPage() {
           </div>
         )}
         {form.feeMode === 'amount' && <p className={styles.help}>Arma2 no cobra ni procesa este pago: es información para los equipos.</p>}
+        <fieldset className={styles.field}>
+          <legend>WhatsApp de contacto (opcional)</legend>
+          <label className={styles.field}>
+            <span>Número con código de país</span>
+            <input
+              type="tel"
+              inputMode="tel"
+              autoComplete="off"
+              placeholder="+54 9 11 2345 6789"
+              maxLength={24}
+              {...field('whatsapp')}
+              aria-invalid={!whatsappValid}
+              aria-describedby="listing-whatsapp-help"
+            />
+          </label>
+          <p id="listing-whatsapp-help" className={styles.help}>
+            Se muestra públicamente en la convocatoria para que los equipos te consulten. Usá un número institucional o
+            el que elijas para esta convocatoria. Contactarte no es pedir la inscripción ni reserva un lugar.
+          </p>
+          {!whatsappValid && <p className={styles.errorText} role="alert">Ingresalo con código de país, por ejemplo +54 9 11 2345 6789.</p>}
+          {whatsappDigits && whatsappValid && (
+            <label className={styles.checkboxField}>
+              <input
+                type="checkbox"
+                checked={form.whatsappPublic}
+                disabled={!canManage || removed}
+                onChange={(event) => setForm((current) => ({ ...current, whatsappPublic: event.target.checked }))}
+              />
+              <span>Entiendo que este número se va a ver públicamente en la convocatoria.</span>
+            </label>
+          )}
+          {listing.contactWhatsapp && canManage && !removed && (
+            <button
+              type="button"
+              className={styles.textAction}
+              disabled={Boolean(busy) || form.summary.trim().length < 10 || form.locality.trim().length < 2 || !feeValid}
+              onClick={() => {
+                setForm((current) => ({ ...current, whatsapp: '', whatsappPublic: false }));
+                run('save', () => service.saveCatalogListing({ ...listingPayload(), contactWhatsapp: null, contactPublic: false }),
+                  'Quitamos el WhatsApp de la convocatoria.');
+              }}
+            >
+              Quitar el WhatsApp de la convocatoria
+            </button>
+          )}
+        </fieldset>
         <label className={styles.field}>
           <span>Requisitos (opcional)</span>
           <textarea rows={2} maxLength={600} {...field('requirements')} />

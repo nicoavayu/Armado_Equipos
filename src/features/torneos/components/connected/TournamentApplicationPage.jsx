@@ -1,4 +1,5 @@
 import React, {
+  useCallback,
   useEffect,
   useMemo,
   useRef,
@@ -9,6 +10,7 @@ import {
   ArrowLeft,
   CheckCircle2,
   Loader2,
+  RefreshCw,
   Search,
   Send,
   ShieldCheck,
@@ -30,6 +32,23 @@ import { announceTorneosProfileChanged, useTorneosProfile } from './useTorneosPr
 import styles from './ConnectedProduct.module.css';
 
 const SEARCH_DELAY_MS = 350;
+
+// A team's request or entry in the chosen category blocks a new one (same rule as the backend's duplicate check).
+function registrationIn(team, categorySlug) {
+  return (team?.registrations || []).find((item) => item.categorySlug === categorySlug) || null;
+}
+
+function TeamCrest({ name, crestUrl }) {
+  const [failed, setFailed] = useState(false);
+  const initials = String(name || '?').split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join('').toUpperCase();
+  return (
+    <span className={styles.teamCrest} aria-hidden="true">
+      {crestUrl && !failed && /^https:\/\//.test(crestUrl)
+        ? <img src={crestUrl} alt="" loading="lazy" onError={() => setFailed(true)} />
+        : <span>{initials}</span>}
+    </span>
+  );
+}
 
 function errorCopy(error, fallback) {
   if (error?.code === 'CORE_DENIED') {
@@ -56,6 +75,9 @@ export default function TournamentApplicationPage() {
   const [teamMode, setTeamMode] = useState('core');
   const [query, setQuery] = useState('');
   const [search, setSearch] = useState({ status: 'idle', items: [], error: '' });
+  const [teams, setTeams] = useState({ status: 'idle', items: [], hasMore: false, error: '' });
+  const listSupported = typeof service?.listMyCoreTeamsForApplication === 'function';
+  const fieldRefs = useRef({});
   const [coreTeamId, setCoreTeamId] = useState('');
   const [teamName, setTeamName] = useState('');
   const [message, setMessage] = useState('');
@@ -85,16 +107,35 @@ export default function TournamentApplicationPage() {
 
   const entry = entryState.entry;
   const categories = useMemo(() => (entry?.categories || []), [entry]);
+  const callOpen = entryState.status === 'ready' && entry?.state === 'open';
+
+  // Your own Arma2 teams, without typing: Core says which ones you can register and which ones you only belong to.
+  const loadTeams = useCallback(async () => {
+    if (!listSupported) return;
+    setTeams((current) => ({ ...current, status: 'loading', error: '' }));
+    try {
+      const payload = await service.listMyCoreTeamsForApplication({ publicSlug });
+      setTeams({ status: 'ready', items: payload?.items || [], hasMore: Boolean(payload?.hasMore), error: '' });
+    } catch (error) {
+      // A failure is never shown as «no teams».
+      setTeams({ status: 'error', items: [], hasMore: false, error: errorCopy(error, 'No pudimos cargar tus equipos de Arma2.') });
+    }
+  }, [listSupported, publicSlug, service]);
+
+  useEffect(() => {
+    if (callOpen && teamMode === 'core' && teams.status === 'idle') loadTeams();
+  }, [callOpen, loadTeams, teamMode, teams.status]);
   useEffect(() => {
     if (categorySlug || !categories.length) return;
     const firstOpen = categories.find((category) => category.accepting);
     if (firstOpen) setCategorySlug(firstOpen.slug);
   }, [categories, categorySlug]);
 
+  const searchAvailable = !listSupported || teams.hasMore;
   useEffect(() => {
-    if (teamMode !== 'core') return undefined;
+    if (teamMode !== 'core' || !searchAvailable) return undefined;
     const trimmed = query.trim();
-    setCoreTeamId('');
+    if (!listSupported) setCoreTeamId('');
     if (trimmed.length < 2) {
       setSearch({ status: 'idle', items: [], error: '' });
       return undefined;
@@ -113,13 +154,43 @@ export default function TournamentApplicationPage() {
       }
     }, SEARCH_DELAY_MS);
     return () => window.clearTimeout(timer);
-  }, [publicSlug, query, service, teamMode]);
+  }, [listSupported, publicSlug, query, searchAvailable, service, teamMode]);
 
   const openExisting = existing.filter((item) => OPEN_REGISTRATION_STATUSES.includes(item.status) || item.status === 'approved');
   const nameValid = displayName.trim().length >= 2 && displayName.trim().length <= 60;
-  const teamValid = teamMode === 'core' ? Boolean(coreTeamId) : teamName.trim().length >= 2;
+  const selectableTeams = (query.trim().length >= 2 && searchAvailable && search.items.length ? search.items : teams.items);
+  const selectedTeam = selectableTeams.find((team) => team.id === coreTeamId)
+    || teams.items.find((team) => team.id === coreTeamId) || null;
+  const selectedTeamTaken = Boolean(selectedTeam && registrationIn(selectedTeam, categorySlug));
+  const teamValid = teamMode === 'core'
+    ? Boolean(coreTeamId) && !selectedTeamTaken
+    : teamName.trim().length >= 2;
   const ready = supported && entry?.state === 'open' && nameValid && Boolean(categorySlug) && teamValid && accepted
     && submit.status !== 'saving';
+  // What is still missing, said next to the action and linked to each field: the button never stays disabled silently.
+  const missing = [
+    !nameValid && { key: 'name', label: 'Tu nombre de presentación (2 a 60 letras)' },
+    !categorySlug && { key: 'category', label: 'Elegir una categoría con lugar' },
+    !teamValid && {
+      key: 'team',
+      label: teamMode === 'core'
+        ? (selectedTeamTaken ? 'Elegir otro equipo: el elegido ya está en esa categoría' : 'Elegir uno de tus equipos')
+        : 'El nombre del equipo nuevo',
+    },
+    !accepted && { key: 'conditions', label: 'Aceptar las condiciones' },
+  ].filter(Boolean);
+  const focusField = (key) => {
+    const target = fieldRefs.current[key];
+    if (target) {
+      target.scrollIntoView?.({ block: 'center' });
+      target.focus?.();
+    }
+  };
+
+  // Changing category clears a team that already has a request there.
+  useEffect(() => {
+    if (selectedTeamTaken) setCoreTeamId('');
+  }, [selectedTeamTaken]);
 
   const send = async (event) => {
     event.preventDefault();
@@ -215,6 +286,7 @@ export default function TournamentApplicationPage() {
             <label className={styles.field}>
               <span>Nombre de presentación en Torneos</span>
               <input
+                ref={(node) => { fieldRefs.current.name = node; }}
                 value={displayName}
                 maxLength={60}
                 autoComplete="name"
@@ -234,6 +306,7 @@ export default function TournamentApplicationPage() {
               {categories.map((category) => (
                 <label key={category.slug} className={styles.choice} data-disabled={!category.accepting}>
                   <input
+                    ref={(node) => { if (node && category.accepting && !fieldRefs.current.category) fieldRefs.current.category = node; }}
                     type="radio"
                     name="category"
                     value={category.slug}
@@ -255,62 +328,139 @@ export default function TournamentApplicationPage() {
             <legend><span>3</span> Equipo</legend>
             <div className={styles.segmented} role="radiogroup" aria-label="Qué equipo vas a inscribir">
               <button type="button" role="radio" aria-checked={teamMode === 'core'} onClick={() => setTeamMode('core')}>
-                Un equipo que administro en Arma2
+                Mis equipos de Arma2
               </button>
               <button type="button" role="radio" aria-checked={teamMode === 'new'} onClick={() => setTeamMode('new')}>
                 Un equipo nuevo para este torneo
               </button>
             </div>
             {teamMode === 'core' ? (
-              <>
-                <label className={styles.searchField}>
-                  <Search size={18} aria-hidden="true" />
-                  <span className={styles.srOnly}>Nombre de tu equipo</span>
-                  <input
-                    type="search"
-                    value={query}
-                    maxLength={100}
-                    placeholder="Escribí el nombre de tu equipo"
-                    onChange={(event) => setQuery(event.target.value)}
-                  />
-                </label>
-                <p className={styles.help}>
-                  Sólo aparecen equipos de los que sos dueño o administrador en Arma2. Inscribirlo no cambia sus
-                  miembros ni sus partidos, y nadie entra al plantel automáticamente.
-                </p>
-                {search.status === 'loading' && <p className={styles.help} role="status"><Loader2 className={styles.spin} size={14} /> Buscando…</p>}
-                {search.status === 'error' && <p className={styles.errorText} role="alert">{search.error}</p>}
-                {search.status === 'ready' && search.items.length === 0 && (
+              <div ref={(node) => { fieldRefs.current.team = node; }} tabIndex={-1} className={styles.teamPicker}>
+                {listSupported && teams.status === 'loading' && (
+                  <p className={styles.help} role="status"><Loader2 className={styles.spin} size={14} aria-hidden="true" /> Cargando tus equipos…</p>
+                )}
+                {listSupported && teams.status === 'error' && (
+                  <div className={styles.infoCard} role="alert">
+                    <p>{teams.error}</p>
+                    <button type="button" className={styles.secondaryAction} onClick={loadTeams}>
+                      <RefreshCw size={15} aria-hidden="true" /> Reintentar
+                    </button>
+                  </div>
+                )}
+                {listSupported && teams.status === 'ready' && teams.items.length === 0 && (
                   <div className={styles.infoCard}>
-                    <p>
-                      No encontramos equipos que administres con ese nombre. Si sos jugador, compartí la convocatoria
-                      con quien administra el equipo, o inscribí un equipo nuevo.
+                    <p>No tenés equipos en Arma2. Podés inscribir un equipo nuevo para este torneo.</p>
+                    <button type="button" className={styles.secondaryAction} onClick={() => setTeamMode('new')}>Inscribir un equipo nuevo</button>
+                  </div>
+                )}
+                {teams.items.some((team) => team.canRegister) && (
+                  <div className={styles.choiceList}>
+                    {teams.items.filter((team) => team.canRegister).map((team) => {
+                      const taken = registrationIn(team, categorySlug);
+                      const elsewhere = (team.registrations || []).filter((item) => item.categorySlug !== categorySlug);
+                      return (
+                        <label key={team.id} className={styles.choice} data-disabled={Boolean(taken)}>
+                          <input
+                            type="radio"
+                            name="core-team"
+                            value={team.id}
+                            checked={coreTeamId === team.id}
+                            disabled={Boolean(taken)}
+                            onChange={() => setCoreTeamId(team.id)}
+                          />
+                          <TeamCrest name={team.name} crestUrl={team.crestUrl} />
+                          <span>
+                            <strong>{team.name}</strong>
+                            {taken
+                              ? <small className={styles.warningText}>Ya está en {taken.categoryName}: {registrationStage(taken.status).label.toLowerCase()}</small>
+                              : <small>Podés inscribirlo: lo administrás en Arma2</small>}
+                            {!taken && elsewhere.length > 0 && (
+                              <small>También está en {elsewhere.map((item) => item.categoryName).join(', ')}</small>
+                            )}
+                          </span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                )}
+                {teams.items.some((team) => !team.canRegister) && (
+                  <div className={styles.memberTeams}>
+                    <h3>Equipos que integrás</h3>
+                    <p className={styles.help}>
+                      La inscripción la hace su responsable en Arma2. Compartile la convocatoria para que la pida.
                     </p>
+                    <ul>
+                      {teams.items.filter((team) => !team.canRegister).map((team) => (
+                        <li key={team.id}>
+                          <TeamCrest name={team.name} crestUrl={team.crestUrl} />
+                          <span><strong>{team.name}</strong><small>Sos integrante: no podés inscribirlo</small></span>
+                        </li>
+                      ))}
+                    </ul>
                     <ShareCallButton publicSlug={publicSlug} tournamentName={entry.tournamentName} />
                   </div>
                 )}
-                {search.items.length > 0 && (
-                  <div className={styles.choiceList}>
-                    {search.items.map((team) => (
-                      <label key={team.id} className={styles.choice}>
-                        <input
-                          type="radio"
-                          name="core-team"
-                          value={team.id}
-                          checked={coreTeamId === team.id}
-                          onChange={() => setCoreTeamId(team.id)}
-                        />
-                        <span><strong>{team.name}</strong><small>Equipo de Arma2 que administrás</small></span>
-                      </label>
-                    ))}
-                  </div>
+                {searchAvailable && (
+                  <>
+                    {listSupported && <p className={styles.help}>¿No está tu equipo? Buscalo por nombre.</p>}
+                    <label className={styles.searchField}>
+                      <Search size={18} aria-hidden="true" />
+                      <span className={styles.srOnly}>Nombre de tu equipo</span>
+                      <input
+                        type="search"
+                        value={query}
+                        maxLength={100}
+                        placeholder="Escribí el nombre de tu equipo"
+                        onChange={(event) => setQuery(event.target.value)}
+                      />
+                    </label>
+                    {search.status === 'loading' && <p className={styles.help} role="status"><Loader2 className={styles.spin} size={14} /> Buscando…</p>}
+                    {search.status === 'error' && <p className={styles.errorText} role="alert">{search.error}</p>}
+                    {search.status === 'ready' && search.items.length === 0 && (
+                      <p className={styles.help}>No encontramos equipos que administres con ese nombre.</p>
+                    )}
+                    {search.items.length > 0 && (
+                      <div className={styles.choiceList}>
+                        {search.items.map((team) => {
+                          const taken = registrationIn(team, categorySlug);
+                          return (
+                            <label key={team.id} className={styles.choice} data-disabled={Boolean(taken)}>
+                              <input
+                                type="radio"
+                                name="core-team"
+                                value={team.id}
+                                checked={coreTeamId === team.id}
+                                disabled={Boolean(taken)}
+                                onChange={() => setCoreTeamId(team.id)}
+                              />
+                              <TeamCrest name={team.name} crestUrl={team.crestUrl} />
+                              <span>
+                                <strong>{team.name}</strong>
+                                {taken
+                                  ? <small className={styles.warningText}>Ya está en {taken.categoryName}: {registrationStage(taken.status).label.toLowerCase()}</small>
+                                  : <small>Podés inscribirlo: lo administrás en Arma2</small>}
+                              </span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </>
                 )}
-              </>
+                <p className={styles.help}>
+                  Inscribirlo no cambia sus miembros ni sus partidos en Arma2, y nadie entra al plantel automáticamente.
+                </p>
+              </div>
             ) : (
               <>
                 <label className={styles.field}>
                   <span>Nombre del equipo</span>
-                  <input value={teamName} maxLength={100} onChange={(event) => setTeamName(event.target.value)} />
+                  <input
+                    ref={(node) => { fieldRefs.current.team = node; }}
+                    value={teamName}
+                    maxLength={100}
+                    onChange={(event) => setTeamName(event.target.value)}
+                  />
                 </label>
                 <p className={styles.help}>
                   Vas a ser su responsable sólo en esta inscripción. No te da permisos sobre la organización ni crea un
@@ -323,7 +473,11 @@ export default function TournamentApplicationPage() {
           <fieldset className={styles.step}>
             <legend><span>4</span> Condiciones</legend>
             <ul className={styles.conditions}>
-              <li><strong>Costo:</strong> {entryFeeLabel(entry.entryFee)}{entry.entryFee?.includes ? ` (incluye ${entry.entryFee.includes})` : ''}.</li>
+              <li>
+                <strong>Costo:</strong>{' '}
+                {entryFeeLabel(entry.entryFee) || 'la organización no publicó un precio; consultalo antes de enviar'}
+                {entry.entryFee?.includes ? ` (incluye ${entry.entryFee.includes})` : ''}.
+              </li>
               {entry.entryFee?.paymentNote && <li><strong>Pago:</strong> {entry.entryFee.paymentNote}</li>}
               {entry.entryFee && Number(entry.entryFee.amountCents) > 0 && <li>Arma2 no cobra ni procesa este pago.</li>}
               {entry.requirements && <li><strong>Requisitos:</strong> {entry.requirements}</li>}
@@ -335,14 +489,24 @@ export default function TournamentApplicationPage() {
               <textarea rows={3} maxLength={500} value={message} onChange={(event) => setMessage(event.target.value)} />
             </label>
             <label className={styles.checkboxField}>
-              <input type="checkbox" checked={accepted} onChange={(event) => setAccepted(event.target.checked)} />
+              <input
+                ref={(node) => { fieldRefs.current.conditions = node; }}
+                type="checkbox"
+                checked={accepted}
+                onChange={(event) => setAccepted(event.target.checked)}
+              />
               <span>Leí y acepto las condiciones de esta convocatoria.</span>
             </label>
           </fieldset>
 
           {submit.status === 'error' && <p className={styles.errorText} role="alert"><AlertCircle size={16} aria-hidden="true" /> {submit.error}</p>}
           <div className={styles.formActions}>
-            <button type="submit" className={styles.primaryAction} disabled={!ready}>
+            <button
+              type="submit"
+              className={styles.primaryAction}
+              disabled={!ready}
+              aria-describedby={missing.length ? 'application-missing' : undefined}
+            >
               {submit.status === 'saving' ? <Loader2 className={styles.spin} size={17} aria-hidden="true" /> : <Send size={17} aria-hidden="true" />}
               Crear solicitud
             </button>
@@ -350,6 +514,18 @@ export default function TournamentApplicationPage() {
               <UsersRound size={14} aria-hidden="true" /> Después armás el plantel y la enviás.
             </span>
           </div>
+          {missing.length > 0 && submit.status !== 'saving' && (
+            <div id="application-missing" className={styles.missingList}>
+              <p>Para crear la solicitud falta:</p>
+              <ul>
+                {missing.map((item) => (
+                  <li key={item.key}>
+                    <button type="button" className={styles.textAction} onClick={() => focusField(item.key)}>{item.label}</button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
           {submit.status === 'saving' && <p className={styles.help} role="status"><CheckCircle2 size={14} /> Creando la solicitud…</p>}
         </form>
       )}

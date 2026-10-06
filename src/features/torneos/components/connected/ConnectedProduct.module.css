@@ -831,6 +831,54 @@ fieldset.field { margin: 0; padding: 0; border: 0; }
 .choice strong { color: #fff; }
 .choice small { color: var(--cp-muted); font-size: 0.82rem; }
 
+/* Team picker: own Arma2 teams (selectable), the ones the person only belongs to (explained, shareable). */
+.teamPicker { display: grid; gap: 12px; outline: none; }
+.teamCrest {
+  flex: 0 0 auto;
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--cp-border);
+  border-radius: 12px;
+  font: 800 0.8rem var(--cp-font);
+  letter-spacing: 0.04em;
+}
+/* Crests keep their proportion: never stretched or cropped. */
+.teamCrest img { width: 100%; height: 100%; object-fit: contain; padding: 3px; }
+.memberTeams {
+  display: grid;
+  gap: 8px;
+  padding: 14px 16px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px dashed var(--cp-border);
+  border-radius: 16px;
+}
+.memberTeams h3 { margin: 0; color: #fff; font-size: 0.95rem; }
+.memberTeams ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; }
+.memberTeams li { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.memberTeams li > span { display: grid; gap: 2px; min-width: 0; }
+.memberTeams strong { color: #fff; overflow-wrap: anywhere; }
+.memberTeams small { color: var(--cp-muted); font-size: 0.82rem; }
+
+/* What is still missing before an action, next to it and linked to each field. */
+.missingList {
+  display: grid;
+  gap: 6px;
+  padding: 12px 14px;
+  color: var(--cp-copy);
+  background: rgba(255, 196, 107, 0.08);
+  border: 1px solid rgba(255, 196, 107, 0.26);
+  border-radius: 14px;
+}
+.missingList p { margin: 0; font-size: 0.86rem; font-weight: 700; }
+.missingList ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
+.missingList li { color: var(--cp-amber); }
+.missingList button { padding: 0; text-align: left; }
+
 .segmented {
   width: fit-content;
   max-width: 100%;
@@ -1460,4 +1508,36 @@ fieldset.field { margin: 0; padding: 0; border: 0; }
   .skeletonBlock,
   .spin { animation: none; transition: none; }
   .catalogCard:hover { transform: none; }
+}
+
+/* Catalog card identity: the tournament's logo (or initials) next to its name, a fixed small square. */
+.catalogCardIdentity { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.catalogCardIdentity .catalogCardTitle { min-width: 0; }
+.catalogCardLogo {
+  flex: 0 0 auto;
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--cp-border);
+  border-radius: 12px;
+  font: 800 0.82rem var(--cp-font);
+  letter-spacing: 0.04em;
+}
+/* Logos and crests keep their proportion: contained, never stretched or cropped. */
+.catalogCardLogoImage { width: 100%; height: 100%; object-fit: contain; padding: 4px; }
+
+.callContact { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.callContact small { color: var(--cp-muted); font-size: 0.82rem; }
+
+/* «Mi perfil de [TORNEOS]»: the wordmark at the line's cap height, aligned with the text. */
+.inlineWordmark {
+  display: inline-block;
+  width: auto;
+  height: 0.82em;
+  margin-left: 1px;
+  vertical-align: -0.04em;
 }

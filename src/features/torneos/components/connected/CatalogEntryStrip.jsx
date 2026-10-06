@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 import { useTorneosWorkspace } from '../../context/TorneosWorkspaceContext';
 import { useTorneosFeatures } from '../../context/TorneosFeaturesContext';
 import { canonicalRoutes } from '../../routing/canonicalRoutes';
-import { CatalogStateChip } from './TournamentCatalog';
+import CatalogStateChip from './CatalogStateChip';
 import styles from './ConnectedProduct.module.css';
 
 // Where an organizer reaches the call for teams and the requests of a tournament, from its teams screen.

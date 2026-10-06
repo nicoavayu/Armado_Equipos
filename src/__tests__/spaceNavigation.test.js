@@ -30,6 +30,7 @@ describe('space navigation persistence', () => {
     });
     expect(readSpaceNavigation(USER_ID)).toEqual({
       lastSpace: APP_SPACE.TORNEOS,
+      torneosVisited: false,
       lastRoute: {
         arma2: '/desafios',
         torneos: '/torneos/mis-torneos',
@@ -40,11 +41,14 @@ describe('space navigation persistence', () => {
 
   test('remembers each space without overwriting the other route', () => {
     rememberSpaceRoute(USER_ID, '/desafios');
+    expect(readSpaceNavigation(USER_ID).torneosVisited).toBe(false);
     rememberSpaceRoute(USER_ID, '/torneos/mis-partidos');
     rememberSpaceRoute(USER_ID, '/amigos');
 
     expect(readSpaceNavigation(USER_ID)).toEqual({
       lastSpace: APP_SPACE.ARMA2,
+      // Torneos was used on this device: its inbox may be read from Core (and never before).
+      torneosVisited: true,
       lastRoute: {
         arma2: '/amigos',
         torneos: '/torneos/mis-partidos',
@@ -100,6 +104,7 @@ describe('space navigation persistence', () => {
 
     expect(readSpaceNavigation(USER_ID)).toEqual({
       lastSpace: APP_SPACE.TORNEOS,
+      torneosVisited: false,
       lastRoute: createDefaultSpaceNavigation().lastRoute,
     });
   });

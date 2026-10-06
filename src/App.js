@@ -1,7 +1,7 @@
 import logger from './utils/logger';
 // import './HomeStyleKit.css'; // Removed in Tailwind migration
 import React, { lazy, Suspense, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useParams, Outlet } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useNavigate, useParams, Outlet } from 'react-router-dom';
 import { Capacitor } from '@capacitor/core';
 import { App as CapacitorApp } from '@capacitor/app';
 import { Browser } from '@capacitor/browser';
@@ -18,7 +18,12 @@ import MainLayout from './components/MainLayout';
 import PublicVotingRouteIsolation from './components/PublicVotingRouteIsolation';
 import TorneosFeatureGate from './features/torneos/TorneosFeatureGate';
 import { isolatedSsoEnabled } from './features/torneos/isolated/config';
-import { initNativePushNotifications } from './hooks/useNativeFeatures';
+import {
+  attachNativePushTapListener,
+  getNativePushRedirectEventName,
+  initNativePushNotifications,
+  peekPendingNativePushRedirect,
+} from './hooks/useNativeFeatures';
 import { useNotificationRedirect } from './hooks/useNotificationRedirect';
 import { useRouteScrollReset } from './hooks/useScrollReset';
 import { setAuthReturnTo } from './utils/authReturnTo';
@@ -115,6 +120,7 @@ export default function App() {
         <AuthProvider>
           <Router>
             <SpaceNavigationProvider>
+              <NativePushTapBootstrap />
               <RouteScopedProviders>
                 <PersonalRuntimeEffects />
                 <ScopedPublicVotingRouteIsolation>
@@ -409,9 +415,10 @@ export function RouteScopedProviders({ children }) {
 
 export function PersonalRuntimeEffects() {
   const location = useLocation();
+  // Inside Torneos none of Core's runtime runs; only a pending tap on a Core push is honoured (see the bridge).
+  if (isTorneosNamespace(location.pathname)) return <CorePushFromTorneosBridge />;
   if (
-    isTorneosNamespace(location.pathname)
-    || isBlockedWebPlayerRoute(location.pathname)
+    isBlockedWebPlayerRoute(location.pathname)
     || isIsolatedWebSpecialRoute(location.pathname)
   ) {
     return null;
@@ -462,6 +469,37 @@ function GoogleMapsScriptBootstrap() {
     return undefined;
   }, []);
 
+  return null;
+}
+
+// The tap listener is the one push piece that runs everywhere: a notification opens its destination even when the app
+// was restored into Torneos. Permission, token registration and foreground notices stay in Core's NativePushBootstrap.
+export function NativePushTapBootstrap() {
+  useEffect(() => {
+    attachNativePushTapListener().catch((error) => {
+      logger.warn('[PUSH] NativePushTapBootstrap failed', error);
+    });
+  }, []);
+  return null;
+}
+
+// A tap on a Core push while the person is in Torneos: the notification's destination wins over where they were, so
+// go to Core, whose own redirect hook consumes the pending tap (actionability checks included). Nothing from Core is
+// mounted here, and where Core does not exist (web Production) nothing happens.
+export function CorePushFromTorneosBridge({ coreAvailable = isPersonalSpaceAvailable() }) {
+  const navigate = useNavigate();
+  useEffect(() => {
+    if (!coreAvailable) return undefined;
+    const openInCore = () => {
+      const pending = peekPendingNativePushRedirect();
+      if (!pending || pending.route.startsWith('/torneos')) return;
+      navigate('/');
+    };
+    openInCore();
+    const eventName = getNativePushRedirectEventName();
+    window.addEventListener(eventName, openInCore);
+    return () => window.removeEventListener(eventName, openInCore);
+  }, [coreAvailable, navigate]);
   return null;
 }
 

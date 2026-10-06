@@ -602,6 +602,7 @@ export default function TeamRegistrationPage({ initialTab = 'inscripcion' }) {
                 className={styles.primaryButton}
                 type="button"
                 disabled={!submittable || !progress.complete || applicationBlocked || Boolean(busy)}
+                aria-describedby={submittable && (!progress.complete || applicationBlocked) ? 'roster-submit-missing' : undefined}
                 title={submittable ? undefined : 'El responsable del equipo tiene que aceptar la invitación antes de presentar el plantel.'}
                 onClick={() => run(
                   'submit',
@@ -618,6 +619,19 @@ export default function TeamRegistrationPage({ initialTab = 'inscripcion' }) {
                 {isApplication ? 'Enviar solicitud' : 'Presentar plantel'}
               </button>
             )}
+            {/* The button never stays disabled without saying why, next to it. */}
+            {editable && submittable && (!progress.complete || applicationBlocked) && (
+              <div id="roster-submit-missing" className={styles.submitMissing} role="status">
+                <strong>{isApplication ? 'Para enviar la solicitud falta:' : 'Para presentar el plantel falta:'}</strong>
+                <ul>
+                  {applicationBlocked && <li>Que la organización vuelva a recibir solicitudes en esta convocatoria.</li>}
+                  {progress.errors.map((error) => <li key={error}>{error}</li>)}
+                </ul>
+                {progress.goalkeepers < progress.minimumGoalkeepers && (
+                  <p>Para marcar al arquero, elegí «Arquero» en la posición de un jugador del plantel.</p>
+                )}
+              </div>
+            )}
             {editable && !submittable && (
               <p className={styles.submitHint}>
                 {hasActiveManager
@@ -632,7 +646,7 @@ export default function TeamRegistrationPage({ initialTab = 'inscripcion' }) {
       {initialTab === 'revision' && canReview && (
         <div className={styles.reviewLayout}>
           <section className={styles.reviewPanel}>
-            <div className={styles.sectionHeading}><span>03</span><div><h2>Decisión del organizador</h2><p>El backend vuelve a validar el plantel antes de aprobar.</p></div></div>
+            <div className={styles.sectionHeading}><span>03</span><div><h2>Decisión del organizador</h2><p>Antes de aprobar se vuelve a revisar el plantel.</p></div></div>
             <div className={styles.decisionPicker}>
               <button type="button" aria-pressed={review.decision === 'changes_requested'} onClick={() => setReview({ ...review, decision: 'changes_requested' })}><MessageSquareWarning size={19} /> Solicitar cambios</button>
               <button type="button" aria-pressed={review.decision === 'approved'} onClick={() => setReview({ ...review, decision: 'approved' })}><ShieldCheck size={19} /> Aprobar</button>

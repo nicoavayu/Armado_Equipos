@@ -5,6 +5,8 @@ import { firstName } from '../../../../utils/displayName';
 import { useTorneosFeatures } from '../../context/TorneosFeaturesContext';
 import { useTorneosProfile } from './useTorneosProfile';
 import headerStyles from '../../../../components/global-header/GlobalHeader.module.css';
+import TorneosWordmark from '../../../../assets/branding/arma2-torneos.png';
+import styles from './ConnectedProduct.module.css';
 
 // The account menu of Torneos. It shows the Torneos presentation name and opens Torneos destinations only: no Core
 // availability (that is about Core match invitations), no Core awards or stories, no Core profile. Switching product
@@ -51,7 +53,18 @@ export default function TorneosAccountMenu() {
   };
 
   const actions = [
-    { path: '/torneos/perfil', icon: UserRound, title: 'Mi perfil de Torneos', copy: 'Tu nombre en Torneos, tus vínculos y tus avisos' },
+    {
+      path: '/torneos/perfil',
+      icon: UserRound,
+      // Only here the word is the official wordmark; its alt keeps the full name «Mi perfil de Torneos».
+      title: (
+        <>
+          Mi perfil de{' '}
+          <img className={styles.inlineWordmark} src={TorneosWordmark} alt="Torneos" width="696" height="111" />
+        </>
+      ),
+      copy: 'Tu nombre en Torneos, tus vínculos y tus avisos',
+    },
     { path: '/torneos/avisos', icon: Bell, title: 'Avisos de Torneos', copy: 'Comunicados y novedades de tus inscripciones' },
     ...(features.tournament_catalog === false ? [] : [
       { path: '/torneos/explorar', icon: Compass, title: 'Explorar torneos', copy: 'Convocatorias abiertas para tu equipo' },

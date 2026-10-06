@@ -99,12 +99,16 @@ export function createHybridPublicCatalogService({ gatewayUrl, fetchImpl } = {})
   };
   return Object.freeze({
     mode: 'hybrid',
-    search: (filters = {}) => execute('search_tournament_catalog', catalogSearchParams(filters),
-      'No pudimos cargar las convocatorias.'),
+    // Same branding rule as the public page: a stored logo path would resolve against the Core project's storage, so
+    // none travels here either (cards and the call render the tournament's initials).
+    search: async (filters = {}) => withoutBrandingPaths(await execute('search_tournament_catalog', catalogSearchParams(filters),
+      'No pudimos cargar las convocatorias.')),
     loadFacets: () => execute('get_tournament_catalog_facets', {}, 'No pudimos cargar los filtros.'),
     async loadEntry(publicSlug) {
       if (!PUBLIC_SLUG.test(publicSlug || '')) return null;
-      return execute('get_tournament_catalog_entry', { p_public_slug: publicSlug }, 'No pudimos cargar la convocatoria.');
+      return withoutBrandingPaths(
+        await execute('get_tournament_catalog_entry', { p_public_slug: publicSlug }, 'No pudimos cargar la convocatoria.'),
+      );
     },
   });
 }

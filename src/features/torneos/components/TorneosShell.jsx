@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
   ArrowLeft,
   CalendarRange,
@@ -20,6 +20,7 @@ import {
   Route,
   Routes,
   useLocation,
+  useNavigationType,
   useMatch,
   useParams,
 } from 'react-router-dom';
@@ -69,7 +70,7 @@ import MediaAdminPage from './MediaAdminPage';
 import SocialStudioPage from './SocialStudioPage';
 import TorneosAccountMenu from './connected/TorneosAccountMenu';
 import TorneosInboxBell from './connected/TorneosInboxBell';
-import { TorneosInboxSummaryProvider } from './connected/useTorneosInboxSummary';
+import { TorneosInboxSummaryProvider, useTorneosInboxSummary } from './connected/useTorneosInboxSummary';
 import PersonalNavigation, { PERSONAL_NAVIGATION } from './connected/PersonalNavigation';
 import ExplorePage from './connected/ExplorePage';
 import CatalogCallPage from './connected/CatalogCallPage';
@@ -348,8 +349,25 @@ function OrganizationNavigation({
   );
 }
 
+// Core's route scroll reset is not mounted under /torneos (PersonalRuntimeEffects): a new Torneos screen opened at
+// the previous one's scroll position. A new screen starts at the top; going back keeps the browser's position.
+function useTorneosScrollReset(pathname) {
+  const navigationType = useNavigationType();
+  useEffect(() => {
+    if (navigationType === 'POP') return;
+    try {
+      window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+    } catch {
+      window.scrollTo(0, 0);
+    }
+  }, [navigationType, pathname]);
+}
+
 function TorneosShellContent() {
   const location = useLocation();
+  useTorneosScrollReset(location.pathname);
+  // Torneos' own unread state (the bell's summary, one request per shell) for the product selector's signal.
+  const inboxSummary = useTorneosInboxSummary();
   const { isKeyboardOpen } = useKeyboard();
   const { activeOrganization, availableOrganizations } = useTorneosWorkspace();
   const features = useTorneosFeatures();
@@ -377,6 +395,11 @@ function TorneosShellContent() {
   // CONNECTED-V1: outside an organization the shell is the person's own Torneos — personal navigation, no
   // administrative chrome. The organization switcher only exists for someone who manages one.
   const managesOrganizations = (availableOrganizations || []).length > 0;
+  // The topbar only exists when it carries something: an organization's identity and tools, the way back from
+  // creating one, or (phone) the switcher of someone who manages organizations. A personal screen has nothing there,
+  // and an empty sticky band under the global header was exactly the gap above «Hola».
+  const showTopbar = isCreateOrganizationRoute || isOrganizationRoute || managesOrganizations;
+  const personalTopbar = !isCreateOrganizationRoute && !isOrganizationRoute;
   const personalSection = !isOrganizationRoute
     ? PERSONAL_NAVIGATION.find(({ match }) => match(location.pathname))
     : null;
@@ -407,6 +430,7 @@ function TorneosShellContent() {
           className={styles.globalHeader}
           accountMenu={<TorneosAccountMenu />}
           notificationsControl={<TorneosInboxBell />}
+          currentUnread={{ status: inboxSummary.status, hasUnread: Number(inboxSummary.total) > 0 }}
         />
       )}
 
@@ -436,7 +460,10 @@ function TorneosShellContent() {
       </aside>
 
       <section className={styles.workspace}>
-        <header className={`${styles.topbar} ${isCreateOrganizationRoute ? styles.topbarContextual : ''}`}>
+        {showTopbar && (
+        <header
+          className={`${styles.topbar} ${isCreateOrganizationRoute ? styles.topbarContextual : ''} ${personalTopbar ? styles.topbarPersonal : ''}`}
+        >
           {isCreateOrganizationRoute ? (
             <Link className={styles.contextBackLink} to="/torneos">
               <ArrowLeft size={17} aria-hidden="true" />
@@ -462,6 +489,7 @@ function TorneosShellContent() {
           )}
           {features.plan !== false && <div id="torneos-plan-context" className={styles.planContext} />}
         </header>
+        )}
 
         <main id="torneos-main" className={styles.main} tabIndex="-1">
           <Routes>

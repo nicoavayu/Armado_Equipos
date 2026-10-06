@@ -273,6 +273,15 @@ test('the only backend access B04 adds is the gateway transport (fetch) and the 
     'src/features/torneos/components/connected/useCatalogService.js -> ../../api/publicCatalogService',
     'src/features/torneos/components/connected/useCatalogService.js -> ../../stagingV1/publicTournamentComposition',
     'src/features/torneos/components/connected/useTorneosInboxSummary.jsx -> ../../context/TorneosWorkspaceContext',
+    // PR #182 closure. Explorar shows each call with the public page's own branding (BrandingImage: the tournament's
+    // logo, else the organization's, else initials; the hybrid composition strips storage paths, so only initials).
+    'src/features/torneos/components/connected/TournamentCatalog.jsx -> ../BrandingImage',
+    'src/features/torneos/components/connected/ExplorePage.jsx -> ./TournamentCatalog',
+    'src/features/torneos/components/connected/PublicCatalogRoute.jsx -> ./TournamentCatalog',
+    // The space selector's «Torneos has unread notices» dot, read while the person is in Core: one aggregated RPC
+    // through the composition's rule (LOCAL service on the QA stack; the gateway with the read-only session bridge).
+    'src/features/torneos/stagingV1/torneosInboxProbe.js -> ../api/tournamentWorkspaceService',
+    'src/features/torneos/stagingV1/torneosInboxProbe.js -> ./coreSessionBridge',
     'src/features/torneos/components/connected/useTorneosProfile.js -> ../../context/TorneosWorkspaceContext',
     'src/features/torneos/stagingV1/publicTournamentComposition.js -> ../api/publicCatalogService',
   ]).sort());
@@ -331,6 +340,10 @@ test('guard detects secrets, privileged JWTs, hardcoded endpoints and production
   }
 });
 
+// CONNECTED-V1: the organizer's optional WhatsApp contact opens WhatsApp's public click-to-chat link (the same one
+// Core's share button uses). It is a link the person follows, not a backend target; no other URL is allowed.
+const EXTERNAL_LINKS = new Map([['src/features/torneos/domain/connectedProduct.js', ['https://wa.me/']]]);
+
 test('new/changed frontend and config lines contain no secrets or hardcoded targets', () => {
   const tracked = execFileSync('git', ['diff','--name-only','HEAD','--','src','config'], {cwd:root,encoding:'utf8'}).trim().split('\n');
   const untracked = execFileSync('git', ['ls-files','--others','--exclude-standard','--','src','config'], {cwd:root,encoding:'utf8'}).trim().split('\n');
@@ -343,6 +356,10 @@ test('new/changed frontend and config lines contain no secrets or hardcoded targ
     }
     // Tests may name example endpoints (gateway.example.test); they still may not carry credentials.
     const isTest = /(__tests__|\.test\.)/.test(file);
+    for (const link of EXTERNAL_LINKS.get(file) || []) {
+      assert.ok(added.includes(link), `${file}: the allowed link ${link} is no longer used; drop the exception`);
+      added = added.split(link).join('');
+    }
     assert.deepEqual(frontendLiteralViolations(added).filter((v) => !(isTest && v === 'Hardcoded endpoint/ref')), [], file);
   }
   // Wherever the tree ends up, the foundation and the composition carry no target at all.
@@ -363,6 +380,7 @@ test('foundation is consumed only by the staging-v1 composition and the feature 
     'src/features/torneos/stagingV1/coreSessionBridge.js',
     'src/features/torneos/stagingV1/publicTournamentComposition.js',
     'src/features/torneos/stagingV1/stagingV1WorkspaceService.js',
+    'src/features/torneos/stagingV1/torneosInboxProbe.js',
   ]);
   const rt = runtime({ modules: { uuid: uuidStub } });
   rt.load(prefix+'stagingV1Service.js').createStagingV1Service();
