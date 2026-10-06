@@ -1,6 +1,6 @@
 # TORNEOS-CALL-MAP — auditoría B04
 
-Inventario legacy congelado en `2058da039a2a5eaaed22d87d01946bc596ae5f50` (Phase 2D); árbol integrado auditado en `2b22aadd42345b56192e9e594da2a0cc1a0ac805`. Reconstruido del código. No representa resultados de R2/R3/R4/R5.
+Inventario legacy congelado en `2058da039a2a5eaaed22d87d01946bc596ae5f50` (Phase 2D); árbol integrado auditado en `1d930f143fde52387908706c8956d3424b196abf`. Reconstruido del código. No representa resultados de R2/R3/R4/R5.
 
 161 sitios RPC legacy; 160 nombres distintos; 108 nombres dentro de scope; 52 fuera. La selección dinámica de `changeTournamentMatchPlan` se resuelve a sus tres nombres literales. No quedan RPC dinámicas sin resolver.
 
@@ -253,7 +253,7 @@ Ninguna de estas superficies se habilita en la composición híbrida. `from` pue
 | transport | `fetchImpl` | No literal / sin argumento | [src/features/torneos/isolated/createTorneosClient.js:31](../../../src/features/torneos/isolated/createTorneosClient.js#L31) |
 | transport | `fetchImpl` | No literal / sin argumento | [src/features/torneos/isolated/createTorneosClient.js:50](../../../src/features/torneos/isolated/createTorneosClient.js#L50) |
 | transport | `createClient` | No literal / sin argumento | [src/features/torneos/isolated/createTorneosClient.js:58](../../../src/features/torneos/isolated/createTorneosClient.js#L58) |
-| transport | `fetch` | No literal / sin argumento | [src/features/torneos/social/socialStudio.js:69](../../../src/features/torneos/social/socialStudio.js#L69) |
+| transport | `fetch` | No literal / sin argumento | [src/features/torneos/social/socialStudio.js:70](../../../src/features/torneos/social/socialStudio.js#L70) |
 
 ## Imports directos del singleton Core (33)
 
@@ -351,7 +351,7 @@ Cada fila es un import que alcanza el singleton por el grafo estático, no una c
 | [src/features/torneos/components/PublicTournamentRoute.jsx:3](../../../src/features/torneos/components/PublicTournamentRoute.jsx#L3) | `../api/publicTournamentService` |
 | [src/features/torneos/components/PurchaseStatusPage.jsx:11](../../../src/features/torneos/components/PurchaseStatusPage.jsx#L11) | `../context/TorneosCommerceContext` |
 | [src/features/torneos/components/RosterPlayerPortrait.jsx:7](../../../src/features/torneos/components/RosterPlayerPortrait.jsx#L7) | `./usePlayerPortraitUrl` |
-| [src/features/torneos/components/SocialStudioPage.jsx:28](../../../src/features/torneos/components/SocialStudioPage.jsx#L28) | `../context/TorneosWorkspaceContext` |
+| [src/features/torneos/components/SocialStudioPage.jsx:30](../../../src/features/torneos/components/SocialStudioPage.jsx#L30) | `../context/TorneosWorkspaceContext` |
 | [src/features/torneos/components/TeamInvitationPage.jsx:4](../../../src/features/torneos/components/TeamInvitationPage.jsx#L4) | `../context/TorneosWorkspaceContext` |
 | [src/features/torneos/components/TeamPhotoPanel.jsx:11](../../../src/features/torneos/components/TeamPhotoPanel.jsx#L11) | `../api/tournamentTeamPhotoService` |
 | [src/features/torneos/components/TeamPhotoPanel.jsx:17](../../../src/features/torneos/components/TeamPhotoPanel.jsx#L17) | `./useTeamPhotoUrl` |
