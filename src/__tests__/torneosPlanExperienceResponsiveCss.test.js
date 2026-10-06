@@ -97,7 +97,9 @@ describe('Torneos plan experience responsive CSS', () => {
 
   test('keeps plan badges, locked themes and the modal mobile-safe', () => {
     expect(competitionSelector).toContain('describePlanState');
-    expect(socialCss).toMatch(/\.themePicker \.chipRow button\s*\{[^}]*white-space:\s*nowrap/);
+    // Style names stay on one line inside their tiles (five per row, three per row under 380 px).
+    expect(socialCss).toMatch(/\.styleName\s*\{[^}]*white-space:\s*nowrap/);
+    expect(socialCss).toMatch(/@media \(max-width:\s*379px\)\s*\{[^}]*\.styleRow\s*\{[^}]*repeat\(3,/);
     expect(premiumGateCss).toMatch(/width:\s*min\(100%,\s*430px\)/);
     expect(premiumGateCss).toMatch(/\.actions button[\s\S]*?white-space:\s*nowrap/);
     expect(premiumGateCss).toMatch(/@media \(max-width:\s*360px\)/);
