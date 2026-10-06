@@ -104,37 +104,56 @@ function crc32(buffer) {
 // The Google Fonts faces are fetched once per run (with retries) and replayed to every context from memory: dozens of
 // cold contexts no longer each depend on the CDN answering, so a network hiccup cannot fail the certification while
 // the page still loads exactly the faces it asks for, from the same two hosts only.
+// A download runs through the route of the context that asked first, so it dies with that context: closed early (a
+// section that ends on another page with a font still on its way), the next context asking for the same file must not
+// inherit that failure (its page would log "Failed to load resource" for a font that is fine) and downloads it again
+// through its own route. A real network failure still fails the page.
 const fontCache = new Map();
+const sessionClosed = (error) => /has been closed|has been disposed/.test(error?.message || '');
+function downloadFont(route, url) {
+  return (async () => {
+    let lastError = null;
+    for (let attempt = 1; attempt <= 4; attempt += 1) {
+      try {
+        const response = await route.fetch({ timeout: 15000 });
+        if (response.ok()) {
+          const headers = response.headers();
+          return {
+            status: response.status(),
+            body: await response.body(),
+            headers: Object.fromEntries(['content-type', 'access-control-allow-origin', 'timing-allow-origin']
+              .filter((name) => headers[name]).map((name) => [name, headers[name]])),
+          };
+        }
+        lastError = new Error(`HTTP ${response.status()}`);
+      } catch (error) {
+        lastError = error;
+        // Its session is gone: retrying through its route can only fail again.
+        if (sessionClosed(error)) break;
+      }
+      await new Promise((resolve) => { setTimeout(resolve, 750 * attempt); });
+    }
+    throw new Error(`font ${url}: ${lastError?.message}`);
+  })();
+}
 async function serveFont(route) {
   const url = route.request().url();
-  if (!fontCache.has(url)) {
-    fontCache.set(url, (async () => {
-      let lastError = null;
-      for (let attempt = 1; attempt <= 4; attempt += 1) {
-        try {
-          const response = await route.fetch({ timeout: 15000 });
-          if (response.ok()) {
-            const headers = response.headers();
-            return {
-              status: response.status(),
-              body: await response.body(),
-              headers: Object.fromEntries(['content-type', 'access-control-allow-origin', 'timing-allow-origin']
-                .filter((name) => headers[name]).map((name) => [name, headers[name]])),
-            };
-          }
-          lastError = new Error(`HTTP ${response.status()}`);
-        } catch (error) { lastError = error; }
-        await new Promise((resolve) => { setTimeout(resolve, 750 * attempt); });
-      }
-      throw new Error(`font ${url}: ${lastError?.message}`);
-    })());
+  let entry = fontCache.get(url);
+  if (!entry) {
+    entry = { route, font: downloadFont(route, url) };
+    fontCache.set(url, entry);
   }
+  let font;
   try {
-    return await route.fulfill(await fontCache.get(url));
+    font = await entry.font;
   } catch (error) {
-    fontCache.delete(url);
-    return route.abort();
+    if (fontCache.get(url) === entry) fontCache.delete(url);
+    // Another context's download died with that context: this one downloads the font again through its own route.
+    if (entry.route !== route) return serveFont(route);
+    return route.abort().catch(() => {});
   }
+  // This context may close while the font is on its way: then there is no page left to answer.
+  return route.fulfill(font).catch(() => {});
 }
 async function open(browser, base, query, viewport = { width: 1440, height: 1000 }, device = {}) {
   const context = await browser.newContext({ viewport, acceptDownloads: true, reducedMotion: 'reduce', ...device });
