@@ -284,3 +284,35 @@ describe('retiro de un equipo', () => {
     expect(alert).not.toHaveTextContent(/TORNEOS_/);
   });
 });
+
+describe('jerarquía del ciclo de vida en el tablero', () => {
+  test('finalizar, junto a la operación del día, es secundario', () => {
+    render(
+      <CompetitionLifecycleActions
+        organization={owner}
+        tournament={competition('active')}
+        emphasis="secondary"
+      />,
+    );
+    const trigger = screen.getByRole('button', { name: 'Finalizar competencia' });
+    expect(trigger).toHaveAttribute('data-emphasis', 'secondary');
+    expect(trigger).toHaveClass('lifecycleSecondaryButton');
+    expect(trigger).not.toHaveClass('lifecycleActionButton');
+    // La confirmación sigue siendo explícita y su botón de confirmar, el principal.
+    fireEvent.click(trigger);
+    expect(screen.getByRole('alertdialog')).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: 'Finalizar competencia' }).at(-1)).toHaveClass('lifecycleActionButton');
+  });
+
+  test('iniciar, cuando es el próximo paso, es la acción principal (el default)', () => {
+    render(
+      <CompetitionLifecycleActions
+        organization={owner}
+        tournament={competition('scheduled')}
+      />,
+    );
+    const trigger = screen.getByRole('button', { name: /iniciar competencia/i });
+    expect(trigger).toHaveAttribute('data-emphasis', 'primary');
+    expect(trigger).toHaveClass('lifecycleActionButton');
+  });
+});

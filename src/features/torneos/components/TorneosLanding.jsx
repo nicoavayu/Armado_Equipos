@@ -155,8 +155,9 @@ export default function TorneosLanding() {
           experience.hasParticipantActivity && !experience.hasAdministration
         )) && (
           <div className={styles.heroActions}>
+            {/* A player's main path is their activity, right below: organizing is offered, not pushed. */}
             {experience.hasParticipantActivity && !experience.hasAdministration && (
-              <Link className={styles.primaryButton} to={premiumIntent ? withPremiumIntent('/torneos/nueva-organizacion') : '/torneos/nueva-organizacion'}>
+              <Link className={styles.secondaryButton} to={premiumIntent ? withPremiumIntent('/torneos/nueva-organizacion') : '/torneos/nueva-organizacion'}>
                 <Plus size={18} aria-hidden="true" />
                 Crear organización
               </Link>
@@ -177,8 +178,6 @@ export default function TorneosLanding() {
           {location.state.safeMessage}
         </div>
       )}
-
-      <MobileAppCallout />
 
       {experience.hasParticipantActivity && (
         <section className={styles.experienceSection} aria-labelledby="activity-title">
@@ -231,6 +230,9 @@ export default function TorneosLanding() {
           </div>
         </section>
       )}
+
+      {/* The app is an extra: it comes after what the person came for (their activity, their organizations). */}
+      <MobileAppCallout />
 
       {!experience.hasAnyRelationship && (
         <section className={styles.unifiedEmptyState}>
