@@ -1066,7 +1066,7 @@
   text-transform: uppercase;
 }
 
-.playerMatchHeading h2 {
+.playerMatchHeading :is(h2, h3) {
   margin: 4px 0;
   font-size: clamp(1.45rem, 3vw, 2rem);
 }
@@ -1335,9 +1335,6 @@
 }
 
 @media (max-width: 390px) {
-  .metrics {
-    grid-template-columns: 1fr;
-  }
 
   .matchRow {
     grid-template-columns: 76px minmax(0, 1fr);
@@ -1508,4 +1505,165 @@
 .squadLock svg {
   flex: none;
   margin-top: 3px;
+}
+
+/* Mis partidos: upcoming first, history folded; compact cards on phones. */
+.playerMatchGroup {
+  display: grid;
+  gap: 12px;
+}
+
+.playerMatchGroupTitle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  color: #f2edff;
+  font-size: 0.82rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.playerMatchGroupTitle span {
+  min-width: 26px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(136, 92, 255, 0.18);
+  color: #d9ceff;
+  font-size: 0.72rem;
+  text-align: center;
+}
+
+.playerMatchGroupEmpty {
+  margin: 0;
+  padding: 16px;
+  border: 1px dashed var(--torneos-border);
+  border-radius: 16px;
+  color: var(--torneos-muted);
+}
+
+.playedMatches {
+  border: 1px solid var(--torneos-border);
+  border-radius: 18px;
+  background: rgba(16, 14, 24, 0.6);
+}
+
+.playedMatches > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 60px;
+  padding: 12px 16px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.playedMatches > summary::-webkit-details-marker {
+  display: none;
+}
+
+.playedMatches > summary > span {
+  display: grid;
+  gap: 2px;
+}
+
+.playedMatches > summary small {
+  color: var(--torneos-muted);
+}
+
+.playedMatches > summary svg {
+  flex: 0 0 auto;
+  color: var(--torneos-purple-bright);
+  transition: transform 160ms ease;
+}
+
+.playedMatches[open] > summary svg {
+  transform: rotate(180deg);
+}
+
+.playedMatches > summary:focus-visible {
+  outline: 2px solid var(--torneos-purple-bright);
+  outline-offset: 3px;
+  border-radius: 18px;
+}
+
+.playedMatches > .playerMatches {
+  padding: 0 12px 12px;
+}
+
+@media (max-width: 760px) {
+  /* Venue, court and call-up stay one row of three small facts instead of three stacked blocks. */
+  .matchFacts {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+  }
+
+  .matchFacts > div {
+    grid-template-columns: 1fr;
+    gap: 2px;
+    padding: 8px;
+  }
+
+  .matchFacts svg {
+    grid-row: auto;
+    width: 14px;
+    height: 14px;
+  }
+
+  .matchFacts dd {
+    overflow-wrap: anywhere;
+    font-size: 0.74rem;
+  }
+
+  .playerMatchBody {
+    gap: 12px;
+    padding: 14px;
+  }
+
+  .playerMatchHeading :is(h2, h3) {
+    font-size: 1.3rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .playedMatches > summary svg {
+    transition: none;
+  }
+}
+
+/* Partidos list on phones: date and status become one strip over the match (in a 76 px column "Sin hora" overflowed
+   into the team names), the teams take the full width. */
+@media (max-width: 430px) {
+  .matchRow {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px;
+  }
+
+  .matchRow > .dateBlock {
+    grid-column: 1;
+    grid-row: 1;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 4px 10px;
+    min-height: 0;
+    padding: 7px 10px;
+  }
+
+  .matchRow > .dateBlock strong {
+    font-size: 1rem;
+  }
+
+  .matchRow > .teamsBlock {
+    grid-column: 1 / -1;
+  }
+
+  /* The status shares the date strip's row instead of taking one of its own. */
+  .matchRow > .statusPill {
+    grid-column: 2;
+    grid-row: 1;
+    justify-self: end;
+  }
 }

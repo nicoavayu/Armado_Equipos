@@ -1670,3 +1670,16 @@
 .scheduleForm select {
   border-radius: var(--torneos-control-radius);
 }
+
+/* The four fixture figures read as a 2 × 2 block on phones instead of four full-width cards. */
+@media (max-width: 680px) {
+  .metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .metrics article {
+    min-height: 0;
+    padding: 14px;
+  }
+}
