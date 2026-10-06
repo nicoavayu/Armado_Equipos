@@ -98,6 +98,34 @@ describe('SpaceNavigationProvider', () => {
     await waitFor(() => expect(screen.getByTestId('pathname')).toHaveTextContent(/^\/torneos$/));
   });
 
+  // Found in the iOS simulator: a tournament's screen carries `?categoria=` and was never remembered, so closing the
+  // app inside a tournament reopened Torneos at its start.
+  test("remembers a tournament screen with its category, and never a query outside the allowlist", async () => {
+    const tournamentScreen = '/torneos/torneo/tournament-1/partidos?categoria=category-1';
+    renderProvider(tournamentScreen);
+    await waitFor(() => expect(JSON.parse(window.localStorage.getItem('arma2:space-navigation:v1:user-123')))
+      .toMatchObject({ lastSpace: 'torneos', lastRoute: { torneos: tournamentScreen } }));
+
+    window.localStorage.clear();
+    renderProvider('/torneos/torneo/tournament-1/partidos?categoria=category-1&token=secret');
+    await act(async () => { await new Promise((resolve) => setTimeout(resolve, 0)); });
+    expect(window.localStorage.getItem('arma2:space-navigation:v1:user-123')).toBeNull();
+  });
+
+  test('a normal opening restores that tournament screen with its category', async () => {
+    remember({ lastSpace: 'torneos', lastRoute: { arma2: '/', torneos: '/torneos/torneo/tournament-1/partidos?categoria=category-1' } });
+    function Search() { return <output data-testid="search">{useLocation().search}</output>; }
+    render(
+      <MemoryRouter initialEntries={['/']}>
+        <SpaceNavigationProvider native torneosAvailable>
+          <Routes><Route path="*" element={<><Probe /><Search /></>} /></Routes>
+        </SpaceNavigationProvider>
+      </MemoryRouter>,
+    );
+    await waitFor(() => expect(screen.getByTestId('pathname')).toHaveTextContent('/torneos/torneo/tournament-1/partidos'));
+    expect(screen.getByTestId('search')).toHaveTextContent('?categoria=category-1');
+  });
+
   test('respects an explicit deep link', async () => {
     window.localStorage.setItem('arma2:space-navigation:v1:user-123', JSON.stringify({
       lastSpace: 'torneos',

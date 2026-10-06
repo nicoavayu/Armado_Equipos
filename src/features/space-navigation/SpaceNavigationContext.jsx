@@ -113,10 +113,12 @@ export function SpaceNavigationProvider({
     if (!isCanonicalOpening(location)) setOpeningSettled(true);
   }, [authResolved, location, openingSettled, user?.id]);
 
+  // The query is part of what a screen reproduces (a tournament's `?categoria=`): it is remembered with the path, and
+  // rememberSpaceRoute keeps only allowlisted keys — any other query (a token, an invitation) is never stored.
   useEffect(() => {
     if (!authResolved || !user?.id || !openingSettled) return;
-    if (location.search || location.hash) return;
-    rememberSpaceRoute(user.id, location.pathname);
+    if (location.hash) return;
+    rememberSpaceRoute(user.id, `${location.pathname}${location.search}`);
   }, [authResolved, location.hash, location.pathname, location.search, openingSettled, user?.id]);
 
   const switchSpace = useCallback((targetSpace, { route } = {}) => {

@@ -75,22 +75,30 @@
   outline: none;
 }
 
-/* Unread notices in a product: a small red dot under its logo. Never a second counter. */
+/* A product's logo, sized to the logo itself so the unread dot can sit right after it. */
+.brandMark {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  line-height: 0;
+}
+
+/* Unread notices: a small, discreet dot right after the logo, at its baseline (next to Arma2's «2» / Torneos' «S»).
+   It never covers the logo and is never a second counter. */
 .spaceUnreadDot {
   position: absolute;
-  right: -2px;
-  bottom: 6px;
-  width: 8px;
-  height: 8px;
+  bottom: 1px;
+  left: 100%;
+  width: 5px;
+  height: 5px;
+  margin-left: 3px;
   background: #ff3b6b;
-  border: 2px solid #0b0a16;
+  border: 1.5px solid #0b0a16;
   border-radius: 50%;
   box-sizing: content-box;
   pointer-events: none;
 }
 
-.optionBrand { position: relative; }
-.optionBrand .spaceUnreadDot { right: 2px; bottom: -2px; }
 
 .srOnly {
   position: absolute;
@@ -124,6 +132,9 @@
   transform: translateY(-50%) rotate(180deg);
 }
 
+/* With the dot next to the logo, the selector's chevron moves aside so they never touch. */
+.spaceTriggerUnread .spaceAffordance { margin-left: 14px; }
+
 .arma2Logo {
   width: 55px;
   height: 38px;
@@ -133,7 +144,7 @@
 
 .torneosOfficialLogo {
   width: min(116px, 34vw);
-  height: 30px;
+  height: auto;
   object-fit: contain;
 }
 
@@ -427,7 +438,9 @@
 .spaceOption:disabled:not(.spaceOptionCurrent) { opacity: 0.52; }
 .optionBrand { display: grid; place-items: center; }
 .optionBrand .arma2Logo { width: 58px; height: 42px; }
-.optionBrand .torneosOfficialLogo { width: min(128px, 100%); height: auto; }
+/* The wordmark leaves room in its column for the unread dot right after it. */
+.optionBrand .brandMark[data-space="torneos"] { width: min(128px, calc(100% - 12px)); }
+.optionBrand .brandMark[data-space="torneos"] .torneosOfficialLogo { width: 100%; height: auto; }
 .optionCopy { min-width: 0; display: flex; flex-direction: column; gap: 4px; }
 .optionCopy small { color: rgba(255, 255, 255, 0.68); font: 13px/1.4 Arial, sans-serif; }
 .optionAction {
@@ -468,7 +481,7 @@
   .torneosOfficialLogo { width: min(108px, 34vw); }
   .selectorDialog { padding: 14px; }
   .spaceOption { grid-template-columns: 98px minmax(0, 1fr); gap: 12px; padding: 12px; }
-  .optionBrand .torneosOfficialLogo { width: min(98px, 100%); }
+  .optionBrand .brandMark[data-space="torneos"] { width: min(98px, calc(100% - 12px)); }
 }
 
 @media (prefers-reduced-motion: reduce) {

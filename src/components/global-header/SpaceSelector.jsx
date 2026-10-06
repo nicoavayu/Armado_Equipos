@@ -74,7 +74,7 @@ export default function SpaceSelector({ currentUnread = null }) {
     <>
       <button
         ref={triggerRef}
-        className={styles.spaceTrigger}
+        className={`${styles.spaceTrigger} ${otherHasUnread ? styles.spaceTriggerUnread : ''}`}
         type="button"
         aria-haspopup="dialog"
         aria-expanded={open}
@@ -82,8 +82,7 @@ export default function SpaceSelector({ currentUnread = null }) {
           otherHasUnread ? `. Hay avisos sin leer en ${SPACE_OPTIONS[otherSpace].title}` : ''}`}
         onClick={() => setOpen(true)}
       >
-        <SpaceBrand space={currentSpace} />
-        {otherHasUnread && <span className={styles.spaceUnreadDot} data-testid="space-other-unread" aria-hidden="true" />}
+        <SpaceBrand space={currentSpace} unread={otherHasUnread} unreadTestId="space-other-unread" />
         <svg
           className={styles.spaceAffordance}
           viewBox="0 0 16 16"
@@ -157,8 +156,7 @@ export default function SpaceSelector({ currentUnread = null }) {
                     onClick={() => chooseSpace(space)}
                   >
                     <span className={styles.optionBrand}>
-                      <SpaceBrand space={space} />
-                      {unreadIn(space) && <span className={styles.spaceUnreadDot} aria-hidden="true" />}
+                      <SpaceBrand space={space} unread={unreadIn(space)} />
                     </span>
                     <span className={styles.optionCopy}>
                       <small>{option.description}</small>

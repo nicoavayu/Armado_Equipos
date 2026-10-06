@@ -215,7 +215,7 @@ export function writeSpaceNavigation(userId, preference, storage) {
 }
 
 export function rememberSpaceRoute(userId, pathname, storage) {
-  const space = getSpaceFromPath(pathname);
+  const space = getSpaceFromPath(String(pathname || '').split('?')[0]);
   const safeRoute = getValidRouteForSpace(space, pathname);
   if (!safeRoute) return readSpaceNavigation(userId, storage);
   const current = readSpaceNavigation(userId, storage);
