@@ -1,5 +1,5 @@
 {
-  "generatedFrom": "663966084185d17d484e2122203ee71ddb4b1c45",
+  "generatedFrom": "06dc9ef54b50acdf5fc71287931d145a164434a0",
   "legacyBase": "2058da039a2a5eaaed22d87d01946bc596ae5f50",
   "coreSingletonSha256": "f39572e4cab0fd287bd1dea2ca87c97bd5500d0eff57cb8de6160f1e3271600c",
   "reachableCallSignatures": {
@@ -398,7 +398,7 @@
     },
     {
       "file": "src/features/torneos/components/BrandingAssetField.jsx",
-      "line": 8,
+      "line": 9,
       "source": "./BrandingImage"
     },
     {

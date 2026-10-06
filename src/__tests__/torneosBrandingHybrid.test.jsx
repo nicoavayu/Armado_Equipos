@@ -1,7 +1,7 @@
 // BRANDING-V1 in the hybrid composition: only URLs the Torneos gateway signed become images; a stored path never turns
 // into a storage URL of another project; the upload follows the LOCAL service's exact sequence through the gateway.
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import {
   authorizedBrandingUrl,
   forgetAuthorizedBrandingUrls,
@@ -12,7 +12,13 @@ import {
 import { withSignedBranding } from '../features/torneos/stagingV1/brandingUrls';
 import { resolveBrandingAssetUrl } from '../features/torneos/domain/brandingAssets';
 import BrandingImage from '../features/torneos/components/BrandingImage';
+import BrandingAssetField from '../features/torneos/components/BrandingAssetField';
 import { createStagingV1WorkspaceService, BRANDING_METHODS } from '../features/torneos/stagingV1/stagingV1WorkspaceService';
+
+let mockComposed = null;
+jest.mock('../features/torneos/context/TorneosWorkspaceContext', () => ({
+  useOptionalTorneosWorkspace: () => (mockComposed ? { service: mockComposed } : null),
+}));
 
 jest.mock('../features/torneos/domain/brandingFiles', () => {
   const actual = jest.requireActual('../features/torneos/domain/brandingFiles');
@@ -30,7 +36,7 @@ const OTHER = `${ORG}/tournaments/${TNT}/44444444-4444-4444-8444-444444444444.pn
 const signed = (path, base = 'https://abcdefghijklmnopqrst.supabase.co/storage/v1') => `${base}/object/sign/tournament-branding/${path}?token=t`;
 const fakeStorageClient = { storage: { from: () => ({ getPublicUrl: (p) => ({ data: { publicUrl: `https://core.example.test/public/${p}` } }) }) } };
 
-afterEach(() => forgetAuthorizedBrandingUrls({ resetMode: true }));
+afterEach(() => { forgetAuthorizedBrandingUrls({ resetMode: true }); mockComposed = null; });
 
 describe('authorized branding URLs', () => {
   test('only a signed URL of exactly that object of the branding bucket, over https (http only on loopback)', () => {
@@ -143,5 +149,30 @@ describe('hybrid adapter branding', () => {
     expect(await service.loadTeamRegistration(ORG, TNT)).toEqual({ entry: { shieldPath: PATH }, other: { shieldPath: null } });
     expect(authorizedBrandingUrl(PATH)).toBe(signed(PATH));
     expect(await service.loadContext()).toEqual({ organizations: [{ logoPath: OTHER }] });
+  });
+});
+
+describe('the organization settings logo in the hybrid composition', () => {
+  // Found in the promotion rehearsal: the settings read the logo path from the workspace context, which the gateway does
+  // not sign, so an existing logo showed the initials. The field asks the signed branding context once.
+  test('an unsigned path asks the signed branding context once and then shows the image', async () => {
+    const calls = [];
+    mockComposed = {
+      loadBrandingContext: async (input) => { calls.push(input); withSignedBranding({ organization: { logoPath: PATH, logoUrl: signed(PATH) } }); return {}; },
+    };
+    withSignedBranding({ organizations: [] }); // the hybrid composition is mounted: only authorized URLs become images
+    const { container } = render(<BrandingAssetField organizationId={ORG} kind="organization" entityId={ORG} path={PATH} name="Copa Lab" />);
+    await waitFor(() => expect(container.querySelector('img')?.getAttribute('src')).toBe(signed(PATH)));
+    expect(calls).toEqual([{ organizationId: ORG, tournamentId: null }]);
+  });
+
+  test('LOCAL (no authorized-URL rule) and team shields never ask for it', async () => {
+    const calls = [];
+    mockComposed = { loadBrandingContext: async (input) => { calls.push(input); return {}; } };
+    render(<BrandingAssetField organizationId={ORG} kind="organization" entityId={ORG} path={PATH} name="Copa Lab" />);
+    withSignedBranding({});
+    render(<BrandingAssetField organizationId={ORG} kind="team" entityId={TNT} path={OTHER} name="Lab Halcones" />);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(calls).toEqual([]);
   });
 });

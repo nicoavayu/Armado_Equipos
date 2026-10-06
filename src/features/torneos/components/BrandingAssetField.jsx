@@ -5,6 +5,7 @@ import {
   uploadTournamentBrandingAsset,
 } from '../api/tournamentBrandingService';
 import { useOptionalTorneosWorkspace } from '../context/TorneosWorkspaceContext';
+import { authorizedBrandingUrl, brandingRequiresAuthorizedUrls } from '../domain/brandingUrlRegistry';
 import BrandingImage from './BrandingImage';
 import styles from './BrandingAssetField.module.css';
 
@@ -38,6 +39,21 @@ export default function BrandingAssetField({
   const removeAsset = typeof composed?.removeBrandingAsset === 'function'
     ? composed.removeBrandingAsset
     : removeTournamentBrandingAsset;
+  const loadSignedBranding = typeof composed?.loadBrandingContext === 'function' ? composed.loadBrandingContext : null;
+  const [signedVersion, setSignedVersion] = useState(0);
+
+  // Hybrid composition: a logo path read from an unsigned answer (the workspace context) becomes an image only through
+  // the gateway's signature. The organization's branding context is that signed answer for its own logo and its
+  // tournaments' logos, so it is asked once when the current path has no authorized URL yet (team shields already
+  // arrive signed with their registration context).
+  useEffect(() => {
+    if (!loadSignedBranding || kind === 'team' || !path || !brandingRequiresAuthorizedUrls() || authorizedBrandingUrl(path)) return undefined;
+    let active = true;
+    loadSignedBranding({ organizationId, tournamentId: kind === 'tournament' ? entityId : null })
+      .then(() => { if (active) setSignedVersion((version) => version + 1); })
+      .catch(() => {});
+    return () => { active = false; };
+  }, [entityId, kind, loadSignedBranding, organizationId, path]);
 
   useEffect(() => () => {
     if (previewUrl) URL.revokeObjectURL(previewUrl);
@@ -94,6 +110,7 @@ export default function BrandingAssetField({
           <span><img src={previewUrl} alt={`Vista previa de ${label.toLowerCase()}`} /></span>
         ) : (
           <BrandingImage
+            key={signedVersion}
             kind={kind}
             path={path}
             fallbackPath={fallbackPath}
