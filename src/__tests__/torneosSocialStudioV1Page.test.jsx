@@ -133,7 +133,10 @@ beforeEach(() => {
   studio.shareSocialPieces.mockResolvedValue({ shared: true, downloaded: false });
 });
 
-const pieceButton = (name) => within(screen.getByRole('radiogroup', { name: 'Plantilla' })).getByRole('radio', { name: new RegExp(`^${name}`) });
+const pieceSelect = () => screen.getByRole('combobox', { name: 'Placa' });
+const pieceOption = (name) => within(pieceSelect()).getAllByRole('option')
+  .find((option) => option.textContent === name || option.textContent.startsWith(`${name} ·`));
+const choosePiece = (name) => fireEvent.change(pieceSelect(), { target: { value: pieceOption(name).value } });
 const styleButton = (name) => within(screen.getByRole('radiogroup', { name: 'Estilo' })).getByRole('radio', { name: new RegExp(`^${name}`) });
 async function ready() {
   await waitFor(() => expect(studio.prepareSocialRender).toHaveBeenCalled());
@@ -145,8 +148,10 @@ describe('FREE season', () => {
     const service = setup();
     await ready();
     for (const piece of ['Tabla de posiciones', 'Resultados de la fecha', 'Próxima fecha']) {
-      fireEvent.click(pieceButton(piece));
+      choosePiece(piece);
       await waitFor(() => expect(screen.getByRole('button', { name: /Descargar PNG/ })).toBeEnabled());
+      // A piece FREE can download is shown clean: no Premium veil over it.
+      expect(document.querySelector('[data-premium-preview-lock]')).toBeNull();
       service.authorizeSocialExport.mockClear(); studio.downloadSocialPieces.mockClear();
       await act(async () => { fireEvent.click(screen.getByRole('button', { name: /Descargar PNG/ })); });
       expect(service.authorizeSocialExport).toHaveBeenCalledWith(expect.objectContaining({
@@ -161,7 +166,7 @@ describe('FREE season', () => {
     const signature = screen.getByRole('checkbox', { name: 'Mostrar la firma Arma2 en la placa' });
     expect(signature).toBeChecked();
     expect(signature).toBeDisabled();
-    expect(screen.getByText('En FREE la firma Arma2 va siempre')).toBeInTheDocument();
+    expect(screen.getByText(/En FREE la firma Arma2 va siempre/)).toBeInTheDocument();
   });
 
   test.each(['Figura', 'Equipo de la fecha', 'Goleadores', 'Sancionados', 'Resumen de fecha', 'Semifinales', 'Final', 'Campeón'])(
@@ -169,10 +174,11 @@ describe('FREE season', () => {
     async (piece) => {
       const service = setup();
       await ready();
-      const button = pieceButton(piece);
-      expect(button).toHaveTextContent('Premium');
-      fireEvent.click(button);
+      expect(pieceOption(piece)).toHaveTextContent(`${piece} · Premium`);
+      choosePiece(piece);
       await waitFor(() => expect(service.loadSocialSnapshot).toHaveBeenLastCalledWith(expect.objectContaining({ organizationId: ORG })));
+      // The teaser is visible but never clean: the Premium veil covers the art.
+      await waitFor(() => expect(document.querySelector('[data-premium-preview-lock="true"]')).not.toBeNull());
       expect(screen.queryByRole('button', { name: /Descargar/ })).not.toBeInTheDocument();
       expect(screen.queryByRole('button', { name: 'Compartir' })).not.toBeInTheDocument();
       const lock = screen.getByText(/es Premium$/).closest('[role="note"]');
@@ -191,7 +197,9 @@ describe('FREE season', () => {
       theme: expect.objectContaining({ id: style.toLowerCase() }),
       brandAssetUrls: null,
     })));
+    await waitFor(() => expect(document.querySelector('[data-premium-preview-lock="true"]')).not.toBeNull());
     expect(screen.queryByRole('button', { name: /Descargar/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Compartir' })).not.toBeInTheDocument();
     expect(screen.getByText(`El estilo ${style} es Premium`)).toBeInTheDocument();
     expect(screen.getByText(/no llevan la firma Arma2/)).toBeInTheDocument();
     expect(service.authorizeSocialExport).not.toHaveBeenCalled();
@@ -207,8 +215,8 @@ describe('FREE season', () => {
       const { unmount } = { unmount: () => document.body.replaceChildren() };
       setup({ plan_state: state });
       await ready();
-      expect(pieceButton('Figura')).toHaveTextContent('Premium');
-      expect(pieceButton('Tabla de posiciones')).toHaveTextContent('Disponible');
+      expect(pieceOption('Figura')).toHaveTextContent('Figura · Premium');
+      expect(pieceOption('Tabla de posiciones').textContent).toBe('Tabla de posiciones');
       expect(screen.getByRole('checkbox', { name: 'Mostrar la firma Arma2 en la placa' })).toBeDisabled();
       expect(screen.queryByText('PREMIUM')).not.toBeInTheDocument();
       unmount();
@@ -254,7 +262,7 @@ describe('PREMIUM season', () => {
     const service = setup({ plan: TOURNAMENT_PLANS.PREMIUM });
     await ready();
     expect(screen.getByText('PREMIUM')).toBeInTheDocument();
-    for (const piece of ['Figura', 'Equipo de la fecha', 'Campeón', 'Goleadores']) expect(pieceButton(piece)).toHaveTextContent('Disponible');
+    for (const piece of ['Figura', 'Equipo de la fecha', 'Campeón', 'Goleadores']) expect(pieceOption(piece).textContent).toBe(piece);
     const signature = screen.getByRole('checkbox', { name: 'Mostrar la firma Arma2 en la placa' });
     expect(signature).toBeEnabled();
     fireEvent.click(signature);
@@ -268,6 +276,7 @@ describe('PREMIUM season', () => {
       fireEvent.click(styleButton(style));
       await waitFor(() => expect(studio.prepareSocialRender).toHaveBeenLastCalledWith(expect.objectContaining({ theme: expect.objectContaining({ id: style.toLowerCase() }) })));
       await waitFor(() => expect(screen.getByRole('button', { name: /Descargar PNG/ })).toBeEnabled());
+      expect(document.querySelector('[data-premium-preview-lock]')).toBeNull();
       await act(async () => { fireEvent.click(screen.getByRole('button', { name: /Descargar PNG/ })); });
       expect(service.authorizeSocialExport).toHaveBeenLastCalledWith(expect.objectContaining({ theme: style.toLowerCase(), includeArma2Branding: false }));
       expect(studio.downloadSocialPieces.mock.calls.at(-1)[0][0].fileName).toMatch(new RegExp(`-${style.toLowerCase()}-feed-4x5\\.png$`));
@@ -337,11 +346,9 @@ test('empty states: no tournaments, and a tournament without a published fixture
 test('the page never shows internal names, codes or "familias"', async () => {
   setup();
   await ready();
-  fireEvent.click(pieceButton('Figura'));
+  choosePiece('Figura');
   await waitFor(() => expect(screen.getByText(/es Premium$/)).toBeInTheDocument());
   expect(document.body).not.toHaveTextContent(/famili|white-label|TORNEOS_|social_studio|round_results|next_fixture|best_eleven|capabilit|theme /i);
-  expect(screen.getByText('11')).toBeInTheDocument();
-  expect(screen.getByText('placas')).toBeInTheDocument();
 });
 
 test('export errors are always human copy', () => {

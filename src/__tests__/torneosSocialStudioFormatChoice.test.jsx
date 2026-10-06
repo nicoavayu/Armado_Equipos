@@ -98,7 +98,10 @@ beforeEach(() => {
   studio.shareSocialPieces.mockResolvedValue({ shared: true, downloaded: false });
 });
 
-const pieceButton = (name) => within(screen.getByRole('radiogroup', { name: 'Plantilla' })).getByRole('radio', { name: new RegExp(`^${name}`) });
+const pieceSelect = () => screen.getByRole('combobox', { name: 'Placa' });
+const pieceOption = (name) => within(pieceSelect()).getAllByRole('option')
+  .find((option) => option.textContent === name || option.textContent.startsWith(`${name} ·`));
+const choosePiece = (name) => fireEvent.change(pieceSelect(), { target: { value: pieceOption(name).value } });
 const formatButton = (name) => within(screen.getByRole('radiogroup', { name: 'Formato' })).getByRole('radio', { name });
 const onScreen = () => screen.queryByRole('img', { name: /Vista previa/ })?.dataset.content || null;
 const download = () => screen.getByRole('button', { name: /^Descargar PNG$/ });
@@ -125,21 +128,21 @@ test('Historia 9:16 chosen, then Resultados de la fecha: the preview and the fil
   await waitFor(() => expect(onScreen()).toBe('standings|portrait'));
   fireEvent.click(formatButton('Historia 9:16'));
   await waitFor(() => expect(onScreen()).toBe('standings|story'));
-  fireEvent.click(pieceButton('Resultados de la fecha'));
+  choosePiece('Resultados de la fecha');
   await waitFor(() => expect(studio.prepareSocialRender).toHaveBeenLastCalledWith(expect.objectContaining({
     snapshot: expect.objectContaining({ piece: 'round_results' }),
   })));
   await settle();
   expect(onScreen()).toBe('round_results|story');
   expect(formatButton('Historia 9:16')).toHaveAttribute('aria-checked', 'true');
-  expect(screen.getByText('1080 × 1920')).toBeInTheDocument();
+  expect(screen.getByText('Historia 9:16 · 1080 × 1920')).toBeInTheDocument();
   expect(await exportFile()).toEqual({ name: expect.stringMatching(/-resultados-de-la-fecha-base-historia-9x16\.png$/), content: 'PNG round_results|story' });
 });
 
 test('Actualizar on Resultados keeps the chosen format (9:16 and 4:5)', async () => {
   const service = setup();
   await waitFor(() => expect(onScreen()).toBe('standings|portrait'));
-  fireEvent.click(pieceButton('Resultados de la fecha'));
+  choosePiece('Resultados de la fecha');
   await waitFor(() => expect(onScreen()).toBe('round_results|portrait'));
   fireEvent.click(formatButton('Historia 9:16'));
   await waitFor(() => expect(onScreen()).toBe('round_results|story'));

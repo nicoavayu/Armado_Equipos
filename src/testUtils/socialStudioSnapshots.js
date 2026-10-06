@@ -125,7 +125,8 @@ function snapshot(piece, official, { organizationId, tournamentId, categoryId, p
 
 /**
  * The official payload of each piece. `teamSize` drives the Equipo ideal (5, 6, 7, 8, 9 or 11), `standingsRows` the
- * table (Editorial paginates above 15).
+ * table (Editorial paginates above 15) and `listSize`, when given, keeps only the first N entries of every other list
+ * (results, fixtures, scorers, discipline, semifinals): the sparse pieces of a league that just started.
  */
 export function socialQaSnapshot(piece, {
   organizationId = SOCIAL_QA_ORGANIZATION_ID,
@@ -135,17 +136,19 @@ export function socialQaSnapshot(piece, {
   roundId = '60000000-0000-4000-8000-000000000001',
   teamSize = 5,
   standingsRows = 8,
+  listSize = null,
 } = {}) {
   const scope = { organizationId, tournamentId, categoryId, phaseId, roundId };
   const players = Array.from({ length: 14 }, (_unused, index) => player(index));
+  const first = (list, size) => (listSize ? list.slice(0, Math.min(listSize, size ?? list.length)) : list.slice(0, size ?? list.length));
   const official = {
-    round_results: { matches: PLAYED },
-    next_fixture: { semantics: 'next_scheduled_unplayed_round', matches: NEXT },
+    round_results: { matches: first(PLAYED) },
+    next_fixture: { semantics: 'next_scheduled_unplayed_round', matches: first(NEXT) },
     standings: { revision: { id: 'revision-9', number: 9 }, rows: socialQaStandings(standingsRows) },
-    scorers: { revisionId: 'revision-9', players: players.slice(0, 8) },
+    scorers: { revisionId: 'revision-9', players: first(players, 8) },
     discipline: {
       revisionId: 'revision-9',
-      players: players.slice(2, 7).map((entry, index) => ({
+      players: first(players.slice(2, 7)).map((entry, index) => ({
         ...entry,
         yellowCards: 4 - Math.min(index, 3),
         directReds: index === 0 ? 1 : 0,
@@ -161,11 +164,11 @@ export function socialQaSnapshot(piece, {
     },
     mvp: { requiresHumanSelection: true, candidates: players },
     round_summary: {
-      matches: PLAYED,
+      matches: first(PLAYED),
       leaders: players.slice(0, 3),
       topOfTable: { position: 1, teamName: socialQaTeam(0).name, points: 60 },
     },
-    semifinals: { matches: PLAYED.slice(0, 2) },
+    semifinals: { matches: first(PLAYED, 2) },
     final: { matches: PLAYED.slice(0, 1) },
     champion: {
       requiresHumanSelection: true,

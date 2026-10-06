@@ -5,6 +5,34 @@ import { toBlob } from 'html-to-image';
 import { SOCIAL_FORMATS } from '../socialContracts';
 import PremiumRenderer from './PremiumRenderer';
 
+// The layout hardening (premiumLayoutHardening.js) measures the composition: computed display, flex direction, real
+// heights. A browser computes none of that for a node outside the document, so the composition is laid out here, at
+// its full export size, off screen and transparent, before its layout effects run. The page later moves the node into
+// the preview; a render that is never shown (an Editorial page exported in the background) stays here until released.
+const LAYOUT_HOST_ID = 'premium-social-layout-host';
+
+function premiumLayoutHost() {
+  let host = document.getElementById(LAYOUT_HOST_ID);
+  if (host) return host;
+  host = document.createElement('div');
+  host.id = LAYOUT_HOST_ID;
+  host.setAttribute('aria-hidden', 'true');
+  Object.assign(host.style, {
+    position: 'fixed',
+    top: '0',
+    left: '-20000px',
+    width: '0',
+    height: '0',
+    overflow: 'visible',
+    // Not `visibility: hidden`: it is inherited, and the export copies each element's computed style.
+    opacity: '0',
+    pointerEvents: 'none',
+    contain: 'layout style',
+  });
+  document.body.appendChild(host);
+  return host;
+}
+
 export function createPremiumDomRender({
   snapshot, content, editorial, assets, branding, theme, sponsors = [],
 }) {
@@ -19,6 +47,7 @@ export function createPremiumDomRender({
   node.style.position = 'relative';
   node.style.overflow = 'hidden';
   node.style.flex = 'none';
+  if (document.body) premiumLayoutHost().appendChild(node);
   const root = createRoot(node);
   flushSync(() => {
     root.render(

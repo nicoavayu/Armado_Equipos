@@ -213,7 +213,10 @@ beforeEach(() => {
 });
 
 // ── helpers ─────────────────────────────────────────────────────────────────────────────────────────────────────
-const pieceButton = (name) => within(screen.getByRole('radiogroup', { name: 'Plantilla' })).getByRole('radio', { name: new RegExp(`^${name}`) });
+const pieceSelect = () => screen.getByRole('combobox', { name: 'Placa' });
+const pieceOption = (name) => within(pieceSelect()).getAllByRole('option')
+  .find((option) => option.textContent === name || option.textContent.startsWith(`${name} ·`));
+const choosePiece = (name) => fireEvent.change(pieceSelect(), { target: { value: pieceOption(name).value } });
 const styleButton = (name) => within(screen.getByRole('radiogroup', { name: 'Estilo' })).getByRole('radio', { name: new RegExp(`^${name}`) });
 const formatButton = (name) => within(screen.getByRole('radiogroup', { name: 'Formato' })).getByRole('radio', { name });
 const downloadButton = () => screen.queryByRole('button', { name: /^Descargar/ });
@@ -271,7 +274,7 @@ test('FREE → FREE: while Resultados is on its way nothing can be exported; the
   const service = setup();
   await shown(STANDINGS);
   const results = hold('snapshot', (request) => request.piece === 'round_results');
-  fireEvent.click(pieceButton('Resultados de la fecha'));
+  choosePiece('Resultados de la fecha');
   await waitFor(() => expect(results.used).toBe(1));
   expect(onScreen()).not.toBe(STANDINGS);
   await expectNoExportPossible(service);
@@ -289,11 +292,11 @@ test('FREE → FREE: while Resultados is on its way nothing can be exported; the
 test('Premium locked → FREE: the Goleadores render (Premium) is never exported as Próxima fecha (share)', async () => {
   const service = setup();
   await shown(STANDINGS);
-  fireEvent.click(pieceButton('Goleadores'));
+  choosePiece('Goleadores');
   await shown(SCORERS, { exportable: false });
   expect(downloadButton()).not.toBeInTheDocument();
   const next = hold('snapshot', (request) => request.piece === 'next_fixture');
-  fireEvent.click(pieceButton('Próxima fecha'));
+  choosePiece('Próxima fecha');
   await waitFor(() => expect(next.used).toBe(1));
   await expectNoExportPossible(service);
 
@@ -314,9 +317,9 @@ test('rapid piece changes with answers out of order: only the last selection is 
   const scorers = hold('snapshot', (request) => request.piece === 'scorers');
   const discipline = hold('snapshot', (request) => request.piece === 'discipline');
   const next = hold('snapshot', (request) => request.piece === 'next_fixture');
-  fireEvent.click(pieceButton('Goleadores'));
-  fireEvent.click(pieceButton('Sancionados'));
-  fireEvent.click(pieceButton('Próxima fecha'));
+  choosePiece('Goleadores');
+  choosePiece('Sancionados');
+  choosePiece('Próxima fecha');
   await waitFor(() => expect(next.used).toBe(1));
   await expectNoExportPossible(service);
 
@@ -368,7 +371,7 @@ test('changing category, round and tournament: the file and its authorization fo
   // Round: Resultados asks for a round; switching it while the answer travels exports nothing in between.
   fireEvent.change(screen.getByRole('combobox', { name: 'Categoría' }), { target: { value: CAT_A } });
   fireEvent.change(screen.getByRole('combobox', { name: 'Fase' }), { target: { value: PHASE_A } });
-  fireEvent.click(pieceButton('Resultados de la fecha'));
+  choosePiece('Resultados de la fecha');
   fireEvent.change(await screen.findByRole('combobox', { name: 'Fecha' }), { target: { value: ROUND_2 } });
   await shown(expectedContent({ piece: 'round_results', roundId: ROUND_2 }));
   const round1 = hold('snapshot', (request) => request.roundId === ROUND_1);
@@ -445,7 +448,7 @@ test('selection changed during a pending authorization: no file, a clear message
   await waitFor(() => expect(authorization.used).toBe(1));
   const standingsRender = rendersMade.find((prepared) => prepared.content === STANDINGS);
 
-  fireEvent.click(pieceButton('Próxima fecha'));
+  choosePiece('Próxima fecha');
   await shown(NEXT, { exportable: false });
   // The render the pending export uses is still alive.
   expect(standingsRender.assets.photo.closed).toBe(false);
@@ -484,7 +487,7 @@ test('snapshot failure: a clear error, nothing exportable; Actualizar recovers a
   const service = setup();
   await shown(STANDINGS);
   failOnce('snapshot', (request) => request.piece === 'next_fixture', new Error('No pudimos preparar esta pieza con datos oficiales.'));
-  fireEvent.click(pieceButton('Próxima fecha'));
+  choosePiece('Próxima fecha');
   expect(await screen.findByText('No pudimos preparar esta pieza con datos oficiales.')).toBeInTheDocument();
   expect(onScreen()).toBe(null);
   await expectNoExportPossible(service);
@@ -501,7 +504,7 @@ test('an answer for another scope is refused: never rendered, never exported', a
   service.loadSocialSnapshot.mockImplementationOnce(async (request) => socialQaSnapshot('scorers', {
     organizationId: request.organizationId, tournamentId: request.tournamentId, categoryId: request.categoryId, phaseId: request.phaseId, roundId: ROUND_2,
   }));
-  fireEvent.click(pieceButton('Próxima fecha'));
+  choosePiece('Próxima fecha');
   expect(await screen.findByText(/No pudimos preparar esta pieza con los datos de esta selección/)).toBeInTheDocument();
   expect(rendersMade.some((prepared) => prepared.content.startsWith('scorers|'))).toBe(false);
   await expectNoExportPossible(service);
@@ -513,7 +516,7 @@ test('render failure: the preview says so, nothing is exportable; a new render r
   const service = setup();
   await shown(STANDINGS);
   failOnce('render', (content) => content === NEXT, new Error('boom'));
-  fireEvent.click(pieceButton('Próxima fecha'));
+  choosePiece('Próxima fecha');
   expect(await screen.findByText('No pudimos generar la vista previa con estos datos.')).toBeInTheDocument();
   await expectNoExportPossible(service);
   fireEvent.click(screen.getByRole('button', { name: 'Actualizar datos oficiales' }));

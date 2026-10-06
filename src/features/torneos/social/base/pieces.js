@@ -240,7 +240,7 @@ export function resultados(ctx, g, d, imgs) {
   const tall = g.id === '9:16';
   // density mode: the cap is what stops a sparse fixture from becoming stretched cards
   const cap = n === 3 ? (tall ? 400 : 320) : n === 4 ? (tall ? 300 : 250) : n <= 6 ? (tall ? 212 : 180) : (tall ? 158 : 138);
-  const L = rowLayout(area, n, { min: 76, max: cap, gap: n > 6 ? 10 : 14 });
+  const L = rowLayout(area, n, { min: 76, max: cap, gap: n > 6 ? 10 : 14, align: 'top' });
   let y = L.y;
   for (const m of shown) {
     matchRow(ctx, m, box.x, y, box.w, L.h, imgs);
@@ -307,7 +307,7 @@ export function proximos(ctx, g, d, imgs) {
   }
   const tall = g.id === '9:16';
   const cap = n === 3 ? (tall ? 400 : 300) : n === 4 ? (tall ? 300 : 232) : (tall ? 214 : 172);
-  const L = rowLayout(area, n, { min: 124, max: cap, gap: 14 });
+  const L = rowLayout(area, n, { min: 124, max: cap, gap: 14, align: 'top' });
   let y = L.y;
   for (const m of shown) {
     upcomingRow(ctx, m, box.x, y, box.w, L.h, imgs);
@@ -570,7 +570,7 @@ export function goleadores(ctx, g, d, imgs) {
   const nP = players.length;
   const tall = g.id === '9:16';
   const capP = nP <= 3 ? (tall ? 400 : 330) : nP <= 5 ? (tall ? 250 : 208) : nP <= 8 ? (tall ? 186 : 158) : (tall ? 148 : 128);
-  const L = rowLayout(area, nP, { min: 58, max: capP, gap: nP > 6 ? 8 : 12 });
+  const L = rowLayout(area, nP, { min: 58, max: capP, gap: nP > 6 ? 8 : 12, align: 'top' });
   let y = L.y;
   const dense = L.h < 88;
   for (let i = 0; i < players.length; i++) {
@@ -639,7 +639,7 @@ export function sancionados(ctx, g, d, imgs) {
   const players = d.players.slice(0, g.id === '9:16' ? 8 : 6);
   const tallS = g.id === '9:16';
   const capS = players.length <= 4 ? (tallS ? 290 : 240) : players.length <= 6 ? (tallS ? 212 : 172) : (tallS ? 172 : 150);
-  const L = rowLayout(box, players.length, { min: 92, max: capS, gap: 12 });
+  const L = rowLayout(box, players.length, { min: 92, max: capS, gap: 12, align: 'top' });
   let y = L.y;
   for (const p of players) {
     panel(ctx, box.x, y, box.w, L.h, { fill: hexa(C.panel, 0.94), fill2: hexa(C.violetInk, 0.5), r: 12, cut: 20, border: hexa(C.border, 0.95), topLight: 0.05 });
@@ -684,7 +684,9 @@ export function resumen(ctx, g, d, imgs) {
   const shown = d.matches.slice(0, 6);
   const rest = d.matches.length - shown.length;
   const area = { x: box.x, y, w: box.w, h: resH - 44 - (rest > 0 ? 52 : 0) };
-  const L = rowLayout(area, shown.length, { min: 66, max: g.id === '9:16' ? 200 : 150, gap: 8 });
+  const L = rowLayout(area, shown.length, {
+    min: 66, max: g.id === '9:16' ? 200 : 150, gap: 8, align: 'top',
+  });
   let ry = L.y;
   for (const m of shown) { matchRow(ctx, m, box.x, ry, box.w, L.h, imgs); ry += L.h + L.gap; }
   if (rest > 0) { overflow(ctx, `+${rest} partidos más`, box.x, ry + 2, box.w, { h: 40 }); ry += 44; }
@@ -752,7 +754,9 @@ export function semis(ctx, g, d, imgs) {
   const tall = g.id === '9:16';
   // important, but deliberately below the Final in scale
   const cap = ms.length <= 2 ? (tall ? 545 : 385) : (tall ? 300 : 232);
-  const L = rowLayout(box, ms.length, { min: 150, max: cap, gap: tall ? 26 : 20 });
+  const L = rowLayout(box, ms.length, {
+    min: 150, max: cap, gap: tall ? 26 : 20, align: 'top',
+  });
   let y = L.y;
   ms.forEach((m, i) => {
     knockoutRow(ctx, m, `Semifinal ${i + 1}`, box.x, y, box.w, L.h, imgs);

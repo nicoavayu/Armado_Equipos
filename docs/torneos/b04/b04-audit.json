@@ -1,5 +1,5 @@
 {
-  "generatedFrom": "ffaf131c3a24a1a29ebe01b5d7ae1a80688c95ee",
+  "generatedFrom": "ecbbdf6ee4a101822f25708dc6bb398d7c965684",
   "legacyBase": "2058da039a2a5eaaed22d87d01946bc596ae5f50",
   "coreSingletonSha256": "f39572e4cab0fd287bd1dea2ca87c97bd5500d0eff57cb8de6160f1e3271600c",
   "reachableCallSignatures": {
@@ -549,7 +549,7 @@
     },
     {
       "file": "src/features/torneos/components/SocialStudioPage.jsx",
-      "line": 28,
+      "line": 29,
       "source": "../context/TorneosWorkspaceContext"
     },
     {
