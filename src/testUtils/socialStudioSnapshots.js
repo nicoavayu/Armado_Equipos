@@ -77,6 +77,19 @@ const NEXT = [
   match('n-3', 4, 5, null, null, '2026-08-30T18:30:00.000Z'),
 ];
 
+// `count` matches of a round: the fixed ones first, then more distinct pairings (sparse and crowded layouts).
+function roundMatches(fixed, count, { played, prefix, day }) {
+  if (count == null) return fixed;
+  return Array.from({ length: count }, (_unused, index) => fixed[index] || match(
+    `${prefix}-${index + 1}`,
+    (index * 2) % TEAM_NAMES.length,
+    (index * 2 + 1) % TEAM_NAMES.length,
+    played ? index % 4 : null,
+    played ? (index + 1) % 3 : null,
+    `2026-08-${day}T${String(10 + (index % 12)).padStart(2, '0')}:30:00.000Z`,
+  ));
+}
+
 export function socialQaStandings(count) {
   return Array.from({ length: count }, (_unused, index) => ({
     ...socialQaTeam(index),
@@ -125,7 +138,8 @@ function snapshot(piece, official, { organizationId, tournamentId, categoryId, p
 
 /**
  * The official payload of each piece. `teamSize` drives the Equipo ideal (5, 6, 7, 8, 9 or 11), `standingsRows` the
- * table (Editorial paginates above 15).
+ * table (Editorial paginates above 15). The optional counts make sparse and crowded pieces: `matchCount` (results,
+ * next fixture and summary), `scorerCount` (up to 14), `disciplineCount` (up to 12) and `semifinalCount` (1 or 2).
  */
 export function socialQaSnapshot(piece, {
   organizationId = SOCIAL_QA_ORGANIZATION_ID,
@@ -135,17 +149,25 @@ export function socialQaSnapshot(piece, {
   roundId = '60000000-0000-4000-8000-000000000001',
   teamSize = 5,
   standingsRows = 8,
+  matchCount = null,
+  scorerCount = 8,
+  disciplineCount = 5,
+  semifinalCount = 2,
 } = {}) {
   const scope = { organizationId, tournamentId, categoryId, phaseId, roundId };
   const players = Array.from({ length: 14 }, (_unused, index) => player(index));
+  const played = roundMatches(PLAYED, matchCount, { played: true, prefix: 'm', day: '22' });
   const official = {
-    round_results: { matches: PLAYED },
-    next_fixture: { semantics: 'next_scheduled_unplayed_round', matches: NEXT },
+    round_results: { matches: played },
+    next_fixture: {
+      semantics: 'next_scheduled_unplayed_round',
+      matches: roundMatches(NEXT, matchCount, { played: false, prefix: 'n', day: '29' }),
+    },
     standings: { revision: { id: 'revision-9', number: 9 }, rows: socialQaStandings(standingsRows) },
-    scorers: { revisionId: 'revision-9', players: players.slice(0, 8) },
+    scorers: { revisionId: 'revision-9', players: players.slice(0, scorerCount) },
     discipline: {
       revisionId: 'revision-9',
-      players: players.slice(2, 7).map((entry, index) => ({
+      players: players.slice(2, 2 + disciplineCount).map((entry, index) => ({
         ...entry,
         yellowCards: 4 - Math.min(index, 3),
         directReds: index === 0 ? 1 : 0,
@@ -161,11 +183,11 @@ export function socialQaSnapshot(piece, {
     },
     mvp: { requiresHumanSelection: true, candidates: players },
     round_summary: {
-      matches: PLAYED,
+      matches: played,
       leaders: players.slice(0, 3),
       topOfTable: { position: 1, teamName: socialQaTeam(0).name, points: 60 },
     },
-    semifinals: { matches: PLAYED.slice(0, 2) },
+    semifinals: { matches: PLAYED.slice(0, semifinalCount) },
     final: { matches: PLAYED.slice(0, 1) },
     champion: {
       requiresHumanSelection: true,

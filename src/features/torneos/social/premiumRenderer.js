@@ -11,6 +11,7 @@ export {
   createPremiumDomRender,
   premiumDomToPngBlob,
   releasePremiumDomRender,
+  settlePremiumDomLayout,
   waitForPremiumDomAssets,
 } from './premium/premiumDomRenderer';
 export { PREMIUM_DOM_LAYOUTS } from './premium/PremiumRenderer';

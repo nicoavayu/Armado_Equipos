@@ -134,7 +134,8 @@ beforeEach(() => {
 });
 
 const pieceButton = (name) => within(screen.getByRole('radiogroup', { name: 'Plantilla' })).getByRole('radio', { name: new RegExp(`^${name}`) });
-const styleButton = (name) => within(screen.getByRole('radiogroup', { name: 'Estilo' })).getByRole('radio', { name: new RegExp(`^${name}`) });
+// The style is one dropdown: choosing a style is a change of its value.
+const chooseStyle = (name) => fireEvent.change(screen.getByRole('combobox', { name: 'Estilo' }), { target: { value: name.toLowerCase() } });
 async function ready() {
   await waitFor(() => expect(studio.prepareSocialRender).toHaveBeenCalled());
   await screen.findByRole('img', { name: /Vista previa/ });
@@ -186,7 +187,7 @@ describe('FREE season', () => {
   test.each(['Heritage', 'Street', 'Scoreboard', 'Editorial'])('the %s style previews for real but stays locked', async (style) => {
     const service = setup();
     await ready();
-    fireEvent.click(styleButton(style));
+    chooseStyle(style);
     await waitFor(() => expect(studio.prepareSocialRender).toHaveBeenLastCalledWith(expect.objectContaining({
       theme: expect.objectContaining({ id: style.toLowerCase() }),
       brandAssetUrls: null,
@@ -265,7 +266,7 @@ describe('PREMIUM season', () => {
     expect(studio.downloadSocialPieces).toHaveBeenCalledTimes(1);
 
     for (const style of ['Heritage', 'Street', 'Scoreboard', 'Editorial']) {
-      fireEvent.click(styleButton(style));
+      chooseStyle(style);
       await waitFor(() => expect(studio.prepareSocialRender).toHaveBeenLastCalledWith(expect.objectContaining({ theme: expect.objectContaining({ id: style.toLowerCase() }) })));
       await waitFor(() => expect(screen.getByRole('button', { name: /Descargar PNG/ })).toBeEnabled());
       await act(async () => { fireEvent.click(screen.getByRole('button', { name: /Descargar PNG/ })); });
@@ -277,9 +278,9 @@ describe('PREMIUM season', () => {
   test('visiting a Premium style never changes the Base signature choice', async () => {
     const service = setup({ plan: TOURNAMENT_PLANS.PREMIUM });
     await ready();
-    fireEvent.click(styleButton('Heritage'));
+    chooseStyle('Heritage');
     await waitFor(() => expect(studio.prepareSocialRender).toHaveBeenLastCalledWith(expect.objectContaining({ theme: expect.objectContaining({ id: 'heritage' }) })));
-    fireEvent.click(styleButton('Base'));
+    chooseStyle('Base');
     const signature = await screen.findByRole('checkbox', { name: 'Mostrar la firma Arma2 en la placa' });
     expect(signature).toBeChecked();
     await waitFor(() => expect(studio.prepareSocialRender).toHaveBeenLastCalledWith(expect.objectContaining({
@@ -293,7 +294,7 @@ describe('PREMIUM season', () => {
   test('Editorial standings with 24 teams export every page, in order, with unambiguous names (download and share)', async () => {
     const service = setup({ plan: TOURNAMENT_PLANS.PREMIUM, snapshotOptions: { standingsRows: 24 } });
     await ready();
-    fireEvent.click(styleButton('Editorial'));
+    chooseStyle('Editorial');
     expect(await screen.findByText('Página 1 de 2')).toBeInTheDocument();
     const download = await screen.findByRole('button', { name: /Descargar 2 PNG/ });
     await waitFor(() => expect(download).toBeEnabled());
@@ -405,7 +406,7 @@ test('re-choosing the format already chosen does not render the piece again', as
   await waitFor(() => expect(screen.getByRole('button', { name: /Descargar PNG/ })).toBeEnabled());
   const renders = studio.prepareSocialRender.mock.calls.length;
   fireEvent.click(within(screen.getByRole('radiogroup', { name: 'Formato' })).getByRole('radio', { name: 'Feed 4:5' }));
-  fireEvent.click(styleButton('Base'));
+  chooseStyle('Base');
   await act(async () => { await new Promise((resolve) => { setTimeout(resolve, 50); }); });
   expect(studio.prepareSocialRender.mock.calls.length).toBe(renders);
   fireEvent.click(within(screen.getByRole('radiogroup', { name: 'Formato' })).getByRole('radio', { name: 'Historia 9:16' }));
@@ -426,3 +427,78 @@ test('late web fonts: the preview retries instead of staying broken, and gives u
   expect(studio.prepareSocialRender.mock.calls.length).toBeGreaterThanOrEqual(3);
   studio.prepareSocialRender.mockImplementation(ok);
 }, 15000);
+
+describe('Premium preview lock and compact controls', () => {
+  // The stage stays mounted while the art inside it is replaced on every render.
+  const stage = () => document.querySelector('section[aria-label="Vista previa"] [data-format]');
+
+  test('FREE: a Premium style or piece is previewed under the Premium lock, never offered as a file', async () => {
+    setup();
+    await ready();
+    // FREE pieces in Base: the art is shown clean.
+    expect(stage()).not.toHaveAttribute('data-premium-locked');
+    chooseStyle('Heritage');
+    await waitFor(() => expect(stage()).toHaveAttribute('data-premium-locked', 'true'));
+    const veil = stage().querySelector('[aria-hidden="true"]');
+    expect(veil).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Descargar/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Compartir' })).not.toBeInTheDocument();
+    // Back to Base, then a Premium piece: locked again by the piece.
+    chooseStyle('Base');
+    await waitFor(() => expect(stage()).not.toHaveAttribute('data-premium-locked'));
+    fireEvent.click(pieceButton('Goleadores'));
+    await waitFor(() => expect(stage()).toHaveAttribute('data-premium-locked', 'true'));
+    expect(screen.queryByRole('button', { name: /Descargar/ })).not.toBeInTheDocument();
+  });
+
+  test('PREMIUM: no lock over any piece or style', async () => {
+    setup({ plan: TOURNAMENT_PLANS.PREMIUM });
+    await ready();
+    for (const style of ['Heritage', 'Street', 'Scoreboard', 'Editorial', 'Base']) {
+      chooseStyle(style);
+      await screen.findByRole('img', { name: new RegExp(`estilo ${style}$`) });
+      expect(screen.getByRole('button', { name: /Descargar PNG/ })).toBeInTheDocument();
+      expect(stage()).not.toHaveAttribute('data-premium-locked');
+    }
+    fireEvent.click(pieceButton('Goleadores'));
+    await waitFor(() => expect(screen.getByRole('button', { name: /Descargar PNG/ })).toBeInTheDocument());
+    expect(stage()).not.toHaveAttribute('data-premium-locked');
+  });
+
+  test('the controls stay compact and fully named: short chips, ratio segments, one style dropdown, folding scope', async () => {
+    setup();
+    await ready();
+    // A chip shows a short name inside its full accessible name, and its status for assistive tech.
+    expect(pieceButton('Tabla de posiciones')).toHaveTextContent('Tabla');
+    expect(pieceButton('Goleadores')).toHaveAccessibleName('Goleadores, Premium');
+    // The format segments keep their full names whatever part of the label fits on screen.
+    const formats = within(screen.getByRole('radiogroup', { name: 'Formato' })).getAllByRole('radio');
+    expect(formats.map((radio) => radio.getAttribute('aria-label'))).toEqual(['Feed 4:5', 'Historia 9:16']);
+    expect(within(screen.getByRole('combobox', { name: 'Estilo' })).getAllByRole('option')).toHaveLength(5);
+    // The scope folds into one line on a phone; it reads the current choice and opens on demand.
+    const summary = screen.getByRole('button', { name: /Apertura · Primera · Fase regular/ });
+    expect(summary).toHaveAttribute('aria-expanded', 'false');
+    fireEvent.click(summary);
+    expect(summary).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByRole('combobox', { name: 'Torneo' })).toBeInTheDocument();
+  });
+
+  test('the piece folds into one line that names it; choosing another one folds it and keeps the focus on that line', async () => {
+    setup();
+    await ready();
+    const pieceGroup = screen.getByRole('group', { name: 'Pieza' });
+    const summary = within(pieceGroup).getByRole('button');
+    expect(summary).toHaveTextContent('Tabla de posiciones');
+    expect(summary).toHaveAttribute('aria-expanded', 'false');
+    expect(summary).toHaveAttribute('aria-controls', screen.getByRole('radiogroup', { name: 'Plantilla' }).parentElement.id);
+    fireEvent.click(summary);
+    expect(summary).toHaveAttribute('aria-expanded', 'true');
+    expect(summary).toHaveTextContent('Listo');
+    fireEvent.click(pieceButton('Goleadores'));
+    expect(summary).toHaveAttribute('aria-expanded', 'false');
+    expect(summary).toHaveFocus();
+    // A FREE season reads that the piece on screen is Premium without opening the chips.
+    expect(summary).toHaveTextContent('Goleadores · Premium');
+    expect(pieceButton('Goleadores')).toHaveAttribute('aria-checked', 'true');
+  });
+});

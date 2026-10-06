@@ -799,13 +799,13 @@ export function emptyState(ctx, box, o = {}) {
 }
 
 /** Distributes n rows inside a box: clamps row height and centres the stack. */
+// Rows start right under the header, wherever the list ends: a short list is never centred in the art.
 export function rowLayout(box, n, o = {}) {
   const { min = 74, max = 150, gap = 12 } = o;
   const raw = (box.h - gap * (n - 1)) / n;
   const h = Math.max(min, Math.min(max, raw));
   const total = h * n + gap * (n - 1);
-  const y = box.y + Math.max(0, (box.h - total) / 2);
-  return { h, gap, y, total };
+  return { h, gap, y: box.y, total };
 }
 
 export function cardImage(ctx, img, x, y, w, h, o = {}) {

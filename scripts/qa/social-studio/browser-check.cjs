@@ -104,37 +104,56 @@ function crc32(buffer) {
 // The Google Fonts faces are fetched once per run (with retries) and replayed to every context from memory: dozens of
 // cold contexts no longer each depend on the CDN answering, so a network hiccup cannot fail the certification while
 // the page still loads exactly the faces it asks for, from the same two hosts only.
+// A download runs through the route of the context that asked first, so it dies with that context: closed early (a
+// section that ends on another page with a font still on its way), the next context asking for the same file must not
+// inherit that failure (its page would log "Failed to load resource" for a font that is fine) and downloads it again
+// through its own route. A real network failure still fails the page.
 const fontCache = new Map();
+const sessionClosed = (error) => /has been closed|has been disposed/.test(error?.message || '');
+function downloadFont(route, url) {
+  return (async () => {
+    let lastError = null;
+    for (let attempt = 1; attempt <= 4; attempt += 1) {
+      try {
+        const response = await route.fetch({ timeout: 15000 });
+        if (response.ok()) {
+          const headers = response.headers();
+          return {
+            status: response.status(),
+            body: await response.body(),
+            headers: Object.fromEntries(['content-type', 'access-control-allow-origin', 'timing-allow-origin']
+              .filter((name) => headers[name]).map((name) => [name, headers[name]])),
+          };
+        }
+        lastError = new Error(`HTTP ${response.status()}`);
+      } catch (error) {
+        lastError = error;
+        // Its session is gone: retrying through its route can only fail again.
+        if (sessionClosed(error)) break;
+      }
+      await new Promise((resolve) => { setTimeout(resolve, 750 * attempt); });
+    }
+    throw new Error(`font ${url}: ${lastError?.message}`);
+  })();
+}
 async function serveFont(route) {
   const url = route.request().url();
-  if (!fontCache.has(url)) {
-    fontCache.set(url, (async () => {
-      let lastError = null;
-      for (let attempt = 1; attempt <= 4; attempt += 1) {
-        try {
-          const response = await route.fetch({ timeout: 15000 });
-          if (response.ok()) {
-            const headers = response.headers();
-            return {
-              status: response.status(),
-              body: await response.body(),
-              headers: Object.fromEntries(['content-type', 'access-control-allow-origin', 'timing-allow-origin']
-                .filter((name) => headers[name]).map((name) => [name, headers[name]])),
-            };
-          }
-          lastError = new Error(`HTTP ${response.status()}`);
-        } catch (error) { lastError = error; }
-        await new Promise((resolve) => { setTimeout(resolve, 750 * attempt); });
-      }
-      throw new Error(`font ${url}: ${lastError?.message}`);
-    })());
+  let entry = fontCache.get(url);
+  if (!entry) {
+    entry = { route, font: downloadFont(route, url) };
+    fontCache.set(url, entry);
   }
+  let font;
   try {
-    return await route.fulfill(await fontCache.get(url));
+    font = await entry.font;
   } catch (error) {
-    fontCache.delete(url);
-    return route.abort();
+    if (fontCache.get(url) === entry) fontCache.delete(url);
+    // Another context's download died with that context: this one downloads the font again through its own route.
+    if (entry.route !== route) return serveFont(route);
+    return route.abort().catch(() => {});
   }
+  // This context may close while the font is on its way: then there is no page left to answer.
+  return route.fulfill(font).catch(() => {});
 }
 async function open(browser, base, query, viewport = { width: 1440, height: 1000 }, device = {}) {
   const context = await browser.newContext({ viewport, acceptDownloads: true, reducedMotion: 'reduce', ...device });
@@ -161,7 +180,27 @@ async function close({ context, errors, remote }, label) {
 }
 const pieces = (page) => page.getByRole('radiogroup', { name: 'Plantilla' });
 const pieceRadio = (page, label) => pieces(page).getByRole('radio', { name: new RegExp(`^${label}`) });
-const styleRadio = (page, label) => page.getByRole('radiogroup', { name: 'Estilo' }).getByRole('radio', { name: new RegExp(`^${label}`) });
+// On one column (phone, tablet) the pieces fold into one line that names the piece on screen: it opens them, and
+// choosing one folds them again. On a desktop the chips are always there and that line is not.
+const pieceSummary = (page) => page.getByRole('group', { name: 'Pieza' }).getByRole('button');
+async function openPieces(page) {
+  if (await pieces(page).isVisible()) return false;
+  await pieceSummary(page).click();
+  await expect(pieces(page)).toBeVisible();
+  return true;
+}
+async function pickPiece(page, label) {
+  const folds = await openPieces(page);
+  await pieceRadio(page, label).click();
+  if (folds) {
+    await expect(pieces(page)).toBeHidden();
+    await expect(pieceSummary(page)).toHaveAttribute('aria-expanded', 'false');
+    await expect(pieceSummary(page)).toContainText(label);
+  }
+}
+// The style is one dropdown (its options read "Heritage · Premium" while the season is FREE).
+const styleSelect = (page) => page.getByRole('combobox', { name: 'Estilo' });
+const chooseStyle = (page, label) => styleSelect(page).selectOption(label.toLowerCase());
 const preview = (page) => page.getByRole('img', { name: /^Vista previa de / });
 
 // The page replaces the preview surface wholesale on every render: marking the current one and waiting for an
@@ -200,9 +239,9 @@ async function configure(page, { id, label, style, format, teamSize = 5 }) {
   const expected = `Vista previa de ${label} en ${format}, estilo ${style}`;
   const before = await settled(page);
   await markRender(page);
-  await pieceRadio(page, label).click();
+  await pickPiece(page, label);
   const curationChanged = await selectCuration(page, id, id === 'best_eleven' ? teamSize : 1);
-  await styleRadio(page, style).click();
+  await chooseStyle(page, style);
   await page.getByRole('radiogroup', { name: 'Formato' }).getByRole('radio', { name: format }).click();
   // Asking for what was already on screen re-renders nothing: only a real change has to produce a new surface.
   if (before === expected && !curationChanged) {
@@ -310,6 +349,26 @@ async function assertNothingOffScreen(page, label) {
   if (offenders.length) throw new Error(`${label}: off the screen: ${offenders.join(' | ')}`);
 }
 // The preview shows the whole piece: the art fills the stage exactly, at the format's proportions, nothing cropped.
+// FREE previews of Premium art carry the Premium veil (watermark, scrim and lock over the art, never part of the file).
+const lockedStage = (page) => page.locator('section[aria-label="Vista previa"] [data-premium-locked="true"]');
+async function assertLockedPreview(page, label) {
+  if (await lockedStage(page).count() !== 1) throw new Error(`${label}: the Premium preview is not locked`);
+  const veil = lockedStage(page).locator(':scope > [aria-hidden="true"]');
+  await assertOnScreen(page, label, 'Premium veil', veil);
+  const [veilBox, artBox] = [await veil.boundingBox(), await preview(page).boundingBox()];
+  const near = (p, q) => Math.abs(p - q) <= 1.5;
+  if (!artBox || !near(veilBox.x, artBox.x) || !near(veilBox.y, artBox.y) || !near(veilBox.width, artBox.width) || !near(veilBox.height, artBox.height)) {
+    throw new Error(`${label}: the Premium veil does not cover the art ${JSON.stringify({ veilBox, artBox })}`);
+  }
+  const badge = await veil.evaluate((el) => getComputedStyle(el.firstElementChild, '::after').content);
+  if (!/PREMIUM/.test(badge)) throw new Error(`${label}: the Premium veil has no PREMIUM badge (${badge})`);
+  await expect(page.getByRole('button', { name: /^Descargar/ })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Compartir' })).toHaveCount(0);
+}
+async function assertCleanPreview(page, label) {
+  if (await page.locator('[data-premium-locked]').count()) throw new Error(`${label}: an allowed preview carries the Premium veil`);
+}
+
 async function assertWholeArt(page, label, [, , width, height]) {
   const art = await preview(page).evaluate((surface) => {
     const stage = surface.parentElement.parentElement;
@@ -349,6 +408,8 @@ async function assertWholeArt(page, label, [, , width, height]) {
       for (const [id, label] of PIECES.filter(([pid]) => FREE_PIECES.includes(pid))) {
         for (const [format, slug, width, height] of FORMATS) {
           await configure(page, { id, label, style: 'Base', format });
+          await assertCleanPreview(page, `FREE ${id} ${slug}`);
+          check('FREE allowed preview clean', { piece: id, format: slug });
           const shown = await previewCanvasPng(page);
           const [file] = await download(page, `FREE ${id} ${slug}`);
           assertCleanPng(file.buffer, width, height, file.name);
@@ -362,7 +423,7 @@ async function assertWholeArt(page, label, [, , width, height]) {
       // preview and in the 1080×1920 file.
       await configure(page, { id: 'standings', label: 'Tabla de posiciones', style: 'Base', format: 'Historia 9:16' });
       await markRender(page);
-      await pieceRadio(page, 'Resultados de la fecha').click();
+      await pickPiece(page, 'Resultados de la fecha');
       await previewReady(page, { piece: 'Resultados de la fecha', style: 'Base', format: 'Historia 9:16' });
       await markRender(page);
       await page.getByRole('button', { name: 'Actualizar datos oficiales' }).click();
@@ -375,21 +436,29 @@ async function assertWholeArt(page, label, [, , width, height]) {
       if (!kept.name.endsWith('-resultados-de-la-fecha-base-historia-9x16.png') || !keptShown.equals(kept.buffer)) throw new Error(`FREE Resultados keeps 9:16: ${kept.name}`);
       check('FREE: Resultados keeps the chosen format (switch and refresh)', { sha: sha(kept.buffer) });
       for (const [id, label] of PIECES.filter(([pid]) => !FREE_PIECES.includes(pid))) {
-        await pieceRadio(page, label).click();
+        await pickPiece(page, label);
         await expect(pieceRadio(page, label)).toContainText('Premium');
         await expect(page.getByRole('button', { name: /Descargar/ })).toHaveCount(0);
         await expect(page.getByRole('note').filter({ hasText: `${label} es Premium` })).toBeVisible();
         check('FREE premium piece locked', { piece: id });
+        if (!['best_eleven', 'mvp', 'champion'].includes(id)) {
+          // Pieces a person must curate show their prompt instead of art: there is nothing to veil until then.
+          await previewReady(page, { piece: label, style: 'Base', format: 'Historia 9:16' });
+          await assertLockedPreview(page, `FREE ${label}`);
+          check('FREE premium preview veiled', { piece: id });
+        }
       }
-      await pieceRadio(page, 'Tabla de posiciones').click();
+      await pickPiece(page, 'Tabla de posiciones');
       for (const style of STYLES.slice(1)) {
-        await styleRadio(page, style).click();
+        await chooseStyle(page, style);
         await previewReady(page, { piece: 'Tabla de posiciones', style, format: 'Historia 9:16' });
         await expect(page.locator(`div[data-premium-renderer="v2"][data-theme="${style.toLowerCase()}"]`)).toHaveCount(1);
         await expect(page.getByRole('button', { name: /Descargar/ })).toHaveCount(0);
         await expect(page.getByText(`El estilo ${style} es Premium`)).toBeVisible();
         await expect(page.getByRole('dialog')).toHaveCount(0);
+        await assertLockedPreview(page, `FREE ${style}`);
         check('FREE premium style previewed and locked', { style });
+        check('FREE premium preview veiled', { style });
       }
       const social = await page.evaluate(() => window.__social);
       if (social.refusals.length) throw new Error(`FREE: the page asked for something the database refuses: ${social.refusals}`);
@@ -404,6 +473,70 @@ async function assertWholeArt(page, label, [, , width, height]) {
       await close(s, 'FREE');
     }
 
+    // ── Sparse pieces start under their header (Premium styles): a table, a round and a discipline list with two
+    // items start exactly where the same layout starts when full, keep the footer in place and keep the rhythm of the
+    // full list (no item stretched to fill the art). Base is canvas: its anchoring is unit-tested (rowLayout).
+    if (want('sparse')) {
+      const measure = () => {
+        const surface = document.querySelector('[role="img"][aria-label^="Vista previa"]');
+        const snapshot = window.__social.lastSnapshot;
+        const sr = surface.getBoundingClientRect(); const scale = sr.width / 1080;
+        const box = (el) => { const r = el.getBoundingClientRect(); return { top: Math.round((r.top - sr.top) / scale), bottom: Math.round((r.bottom - sr.top) / scale), height: Math.round(r.height / scale) }; };
+        const official = snapshot.official || {};
+        const items = snapshot.piece === 'standings' ? (official.rows || []).map((r) => [r.teamName])
+          : snapshot.piece === 'discipline' ? (official.players || []).map((p) => [p.team?.name || p.name])
+            : (official.matches || []).map((m) => [m.home.name, m.away.name]);
+        const norm = (v) => String(v || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+        const all = [...surface.querySelectorAll('*')];
+        const leaves = items.map((keys) => {
+          const ks = keys.map(norm); let best = null;
+          for (const el of all) {
+            const t = norm(el.textContent);
+            if (!ks.every((k) => t.includes(k))) continue;
+            const bl = best ? norm(best.textContent).length : Infinity;
+            if (t.length < bl || (t.length === bl && best.contains(el))) best = el;
+          }
+          return best;
+        }).filter(Boolean);
+        let parent = leaves[0].parentElement;
+        while (parent && !leaves.every((leaf) => parent.contains(leaf))) parent = parent.parentElement;
+        const rows = leaves.map((leaf) => { let n = leaf; while (n.parentElement && n.parentElement !== parent) n = n.parentElement; return box(n); });
+        let footer = 0;
+        for (const el of all) if (!el.children.length && el.textContent.trim()) footer = Math.max(footer, box(el).bottom);
+        return { items: leaves.length, firstRowTop: rows[0].top, rowHeight: rows[0].height, footer };
+      };
+      const sets = [['sparse', 'rows=2&matches=2&discipline=2'], ['full-portrait', 'rows=8&matches=4&discipline=8'], ['full-story', 'rows=12&matches=4&discipline=10']];
+      const results = {};
+      for (const [set, query] of sets) {
+        const s = await open(browser, base, `plan=premium&${query}`);
+        const { page } = s;
+        for (const [id, label] of [['standings', 'Tabla de posiciones'], ['round_results', 'Resultados de la fecha'], ['discipline', 'Sancionados']]) {
+          for (const [format, slug] of FORMATS) {
+            if (set === 'full-portrait' && slug !== 'feed-4x5') continue;
+            if (set === 'full-story' && slug !== 'historia-9x16') continue;
+            for (const style of STYLES.slice(1)) {
+              await configure(page, { id, label, style, format });
+              results[`${set} ${id} ${style} ${slug}`] = await page.evaluate(measure);
+            }
+          }
+        }
+        await close(s, `sparse ${set}`);
+      }
+      for (const [id] of [['standings'], ['round_results'], ['discipline']]) {
+        for (const [, slug] of FORMATS) {
+          for (const style of STYLES.slice(1)) {
+            const where = `sparse ${id} ${style} ${slug}`;
+            const sparse = results[`sparse ${id} ${style} ${slug}`];
+            const full = results[`${slug === 'feed-4x5' ? 'full-portrait' : 'full-story'} ${id} ${style} ${slug}`];
+            if (Math.abs(sparse.firstRowTop - full.firstRowTop) > 24) throw new Error(`${where}: the first item starts at ${sparse.firstRowTop}, the full list at ${full.firstRowTop}`);
+            if (Math.abs(sparse.footer - full.footer) > 4) throw new Error(`${where}: the footer moved (${sparse.footer} vs ${full.footer})`);
+            if (sparse.rowHeight > Math.max(1.6 * full.rowHeight, full.rowHeight + 48)) throw new Error(`${where}: items stretched to ${sparse.rowHeight} (full list ${full.rowHeight})`);
+            check('sparse piece anchored under its header', { piece: id, style, format: slug, shift: sparse.firstRowTop - full.firstRowTop, rowHeight: sparse.rowHeight, fullRowHeight: full.rowHeight });
+          }
+        }
+      }
+    }
+
     // ── PREMIUM: 11 pieces × 5 styles × 2 formats, real PNG of exact size ─────────────────────────────────────
     if (want('premium')) {
       const s = await open(browser, base, 'plan=premium');
@@ -412,6 +545,8 @@ async function assertWholeArt(page, label, [, , width, height]) {
         for (const style of STYLES) {
           for (const [format, slug, width, height] of FORMATS) {
             await configure(page, { id, label, style, format });
+            await assertCleanPreview(page, `PREMIUM ${id} ${style} ${slug}`);
+            check('PREMIUM preview clean', { piece: id, style, format: slug });
             const shown = style === 'Base' ? await previewCanvasPng(page) : null;
             const [file] = await download(page, `PREMIUM ${id} ${style} ${slug}`);
             assertCleanPng(file.buffer, width, height, file.name);
@@ -475,7 +610,7 @@ async function assertWholeArt(page, label, [, , width, height]) {
       const tableShown = await previewCanvasPng(page);
       await control({ snapshotDelayMs: 1500 });
       await markRender(page);
-      await pieceRadio(page, 'Resultados de la fecha').click();
+      await pickPiece(page, 'Resultados de la fecha');
       await assertNothingExportable('FREE → FREE');
       await previewReady(page, { piece: 'Resultados de la fecha', style: 'Base', format: 'Feed 4:5' });
       const results = await exportShown('transitions FREE → FREE', { piece: 'round_results', slug: '-resultados-de-la-fecha-base-feed-4x5' });
@@ -488,7 +623,7 @@ async function assertWholeArt(page, label, [, , width, height]) {
       const scorersShown = await previewCanvasPng(page);
       await control({ snapshotDelayMs: 1500 });
       await markRender(page);
-      await pieceRadio(page, 'Próxima fecha').click();
+      await pickPiece(page, 'Próxima fecha');
       await assertNothingExportable('Premium locked → FREE');
       await previewReady(page, { piece: 'Próxima fecha', style: 'Base', format: 'Feed 4:5' });
       const next = await exportShown('transitions Premium → FREE', { piece: 'next_fixture', slug: '-proxima-fecha-base-feed-4x5' });
@@ -500,7 +635,7 @@ async function assertWholeArt(page, label, [, , width, height]) {
       const lateFile = page.waitForEvent('download', { timeout: 5000 }).catch(() => null);
       await page.getByRole('button', { name: /^Descargar/ }).click();
       await markRender(page);
-      await pieceRadio(page, 'Tabla de posiciones').click();
+      await pickPiece(page, 'Tabla de posiciones');
       await expect(page.getByRole('alert')).toContainText('La vista previa cambió mientras preparábamos el archivo', { timeout: 10000 });
       if (await lateFile) throw new Error('transitions: a file was delivered after the selection changed during its authorization');
       await control({ authorizeDelayMs: 0 });
@@ -510,7 +645,7 @@ async function assertWholeArt(page, label, [, , width, height]) {
 
       // Failures leave a clear, recoverable state.
       await control({ failSnapshot: ['next_fixture'] });
-      await pieceRadio(page, 'Próxima fecha').click();
+      await pickPiece(page, 'Próxima fecha');
       await expect(page.getByText('No pudimos preparar esta pieza con datos oficiales.')).toBeVisible({ timeout: 10000 });
       await assertNothingExportable('snapshot failure');
       await markRender(page);
@@ -534,10 +669,17 @@ async function assertWholeArt(page, label, [, , width, height]) {
         await Promise.resolve();
         return [...document.querySelectorAll('button')].filter((b) => /^(Descargar|Compartir)/.test(b.textContent.trim())).map((b) => b.disabled);
       });
+      // The same probe for the style dropdown: the change and the reading happen in one task.
+      const switchStyleAndProbe = (page, value) => styleSelect(page).evaluate(async (el, next) => {
+        el.value = next;
+        el.dispatchEvent(new Event('change', { bubbles: true }));
+        await Promise.resolve();
+        return [...document.querySelectorAll('button')].filter((b) => /^(Descargar|Compartir)/.test(b.textContent.trim())).map((b) => b.disabled);
+      }, value);
       await configure(pp, { id: 'standings', label: 'Tabla de posiciones', style: 'Heritage', format: 'Feed 4:5' });
       const [heritage] = await download(pp, 'transitions Heritage');
       await markRender(pp);
-      if ((await switchAndProbe(styleRadio(pp, 'Street'))).some((disabled) => !disabled)) throw new Error('transitions: Heritage exportable as Street');
+      if ((await switchStyleAndProbe(pp, 'street')).some((disabled) => !disabled)) throw new Error('transitions: Heritage exportable as Street');
       await previewReady(pp, { piece: 'Tabla de posiciones', style: 'Street', format: 'Feed 4:5' });
       const [street] = await download(pp, 'transitions Street');
       if (!street.name.endsWith('-street-feed-4x5.png') || street.buffer.equals(heritage.buffer)) throw new Error(`transitions: style switch exported ${street.name}`);
@@ -709,11 +851,24 @@ async function assertWholeArt(page, label, [, , width, height]) {
               const where = `${at} ${style} ${slug}`;
               await configure(page, { id: 'standings', label: 'Tabla de posiciones', style, format });
               await assertNothingOffScreen(page, where);
-              await assertOnScreen(page, where, 'preview', preview(page));
+              // A FREE season sees Premium art through the Premium veil; anything it may download is shown clean.
+              if (plan === 'free' && style !== 'Base') await assertLockedPreview(page, where);
+              else await assertOnScreen(page, where, 'preview', preview(page));
               const art = await assertWholeArt(page, where, fmt);
+              // Folded, the line that opens the pieces names the piece on screen; opened, every chip is on screen.
+              const folded = await pieceSummary(page).isVisible();
+              if (folded) await assertOnScreen(page, where, 'piece summary', pieceSummary(page));
+              if (width > 1024 && folded) throw new Error(`${where}: the pieces fold on a desktop`);
+              if (width <= 1024 && !folded) throw new Error(`${where}: the pieces do not fold on one column`);
+              await openPieces(page);
               await assertOnScreen(page, where, 'piece selector', pieces(page).getByRole('radio'), { min: PIECES.length });
+              if (folded) {
+                await pieceSummary(page).click();
+                await expect(pieces(page)).toBeHidden();
+              }
               await assertOnScreen(page, where, 'format selector', page.getByRole('radiogroup', { name: 'Formato' }).getByRole('radio'), { min: FORMATS.length });
-              await assertOnScreen(page, where, 'style selector', page.getByRole('radiogroup', { name: 'Estilo' }).getByRole('radio'), { min: STYLES.length });
+              await assertOnScreen(page, where, 'style selector', styleSelect(page));
+              if (await styleSelect(page).locator('option').count() < STYLES.length) throw new Error(`${where}: the style dropdown lost styles`);
               await assertOnScreen(page, where, 'refresh', page.getByRole('button', { name: 'Actualizar datos oficiales' }));
               if (style === 'Base') await assertOnScreen(page, where, 'Arma2 signature', page.getByRole('checkbox', { name: 'Mostrar la firma Arma2 en la placa' }));
               let pageCount = 1;
@@ -759,8 +914,8 @@ async function assertWholeArt(page, label, [, , width, height]) {
           // Figura: the photo tools sit under the preview and fit on screen with the art they frame.
           const figura = `${at} Figura`;
           if (plan === 'free') {
-            await styleRadio(page, 'Base').click();
-            await pieceRadio(page, 'Figura').click();
+            await chooseStyle(page, 'Base');
+            await pickPiece(page, 'Figura');
             const lock = page.getByRole('note').filter({ hasText: 'Figura es Premium' });
             await assertOnScreen(page, figura, 'Premium lock', lock);
             await assertOnScreen(page, figura, 'Ver Premium', lock.getByRole('button', { name: 'Ver Premium' }));

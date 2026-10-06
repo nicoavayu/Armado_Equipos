@@ -35,6 +35,7 @@ import {
   ensurePremiumSocialFonts,
   premiumDomToPngBlob,
   releasePremiumDomRender,
+  settlePremiumDomLayout,
   waitForPremiumDomAssets,
 } from './premiumRenderer';
 import { resolveEditorialStandingsPagination } from './premium/premiumPagination';
@@ -313,6 +314,8 @@ export async function prepareSocialRender({
       });
       ({ node, root } = premiumRender);
       await waitForPremiumDomAssets(node);
+      // Laid out for real before anyone sees or encodes it: the preview and every exported page are the same art.
+      settlePremiumDomLayout(premiumRender, { snapshot, editorial, themeId: selectedTheme.id });
     }
     const renderKey = createSocialRenderKey({
       snapshot, content, editorial, format, theme: selectedTheme, variant, assetPlan,

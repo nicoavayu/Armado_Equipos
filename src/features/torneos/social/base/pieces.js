@@ -517,9 +517,8 @@ export function tabla(ctx, g, d, imgs) {
   const availH = box.h - headH - bodyTopGap - (rest > 0 ? 58 : 0);
   const rowH = Math.min(rows.length > 12 ? 78 : 150, (availH - gap * (rows.length - 1)) / rows.length);
   const totalH = rowH * rows.length + gap * (rows.length - 1);
-  // Keep a little breathing room when the table is short, while biasing the
-  // body upward so the header and first team read as one compact table.
-  const startY = box.y + headH + bodyTopGap + Math.max(0, (availH - totalH) * 0.06);
+  // The first team sits right under the column header, whatever the number of teams.
+  const startY = box.y + headH + bodyTopGap;
 
   // header
   const colX = (i) => box.x + box.w - numTotal + (i * numW) + (i === cols.length - 1 ? 0 : 0) + numW / 2;

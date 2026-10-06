@@ -1,5 +1,5 @@
 {
-  "generatedFrom": "2b22aadd42345b56192e9e594da2a0cc1a0ac805",
+  "generatedFrom": "1d930f143fde52387908706c8956d3424b196abf",
   "legacyBase": "2058da039a2a5eaaed22d87d01946bc596ae5f50",
   "coreSingletonSha256": "f39572e4cab0fd287bd1dea2ca87c97bd5500d0eff57cb8de6160f1e3271600c",
   "reachableCallSignatures": {
@@ -549,7 +549,7 @@
     },
     {
       "file": "src/features/torneos/components/SocialStudioPage.jsx",
-      "line": 28,
+      "line": 30,
       "source": "../context/TorneosWorkspaceContext"
     },
     {
@@ -3008,7 +3008,7 @@
     },
     {
       "file": "src/features/torneos/social/socialStudio.js",
-      "line": 69,
+      "line": 70,
       "kind": "transport",
       "callee": "fetch",
       "targets": [],

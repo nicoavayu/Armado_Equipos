@@ -77,10 +77,13 @@ function renderPicker({
   return { onSelect, onFallback };
 }
 
+const styleSelect = () => screen.getByRole('combobox', { name: 'Estilo' });
+
 describe('Social Studio Premium result styles', () => {
   test('FREE keeps Base enabled', () => {
-    const { onSelect } = renderPicker();
-    fireEvent.click(screen.getByRole('radio', { name: 'Base' }));
+    const { onSelect } = renderPicker({ themeId: 'street' });
+    expect(screen.getByRole('option', { name: 'Base' })).toBeInTheDocument();
+    fireEvent.change(styleSelect(), { target: { value: 'base' } });
     expect(onSelect).toHaveBeenCalledWith('base');
   });
 
@@ -88,11 +91,10 @@ describe('Social Studio Premium result styles', () => {
     'FREE keeps %s visible and selects its locked preview',
     (label) => {
       const { onSelect } = renderPicker();
-      const locked = screen.getByRole('radio', { name: `${label}, disponible con Premium` });
-      expect(locked).toHaveTextContent('Premium');
-      fireEvent.click(locked);
+      // The option says it is Premium; choosing it still previews it (the preview carries the lock).
+      expect(screen.getByRole('option', { name: `${label} · Premium` })).toBeInTheDocument();
+      fireEvent.change(styleSelect(), { target: { value: label.toLowerCase() } });
       expect(onSelect).toHaveBeenCalledWith(label.toLowerCase());
-      // The locked style is previewed for real: nothing covers it.
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     },
   );
@@ -114,7 +116,9 @@ describe('Social Studio Premium result styles', () => {
       ['Base', 'base'], ['Heritage', 'heritage'], ['Street', 'street'],
       ['Scoreboard', 'scoreboard'], ['Editorial', 'editorial'],
     ]) {
-      fireEvent.click(screen.getByRole('radio', { name: label }));
+      // No Premium mark on any option of a PREMIUM season.
+      expect(screen.getByRole('option', { name: label })).toBeInTheDocument();
+      fireEvent.change(styleSelect(), { target: { value: id } });
       expect(onSelect).toHaveBeenCalledWith(id);
     }
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();

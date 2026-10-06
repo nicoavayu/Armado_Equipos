@@ -97,7 +97,9 @@ describe('Torneos plan experience responsive CSS', () => {
 
   test('keeps plan badges, locked themes and the modal mobile-safe', () => {
     expect(competitionSelector).toContain('describePlanState');
-    expect(socialCss).toMatch(/\.themePicker \.chipRow button\s*\{[^}]*white-space:\s*nowrap/);
+    // The Studio style is one dropdown that always fits its column (it replaced the locked style chips).
+    expect(socialCss).toMatch(/\.themePicker select\s*\{[^}]*width:\s*100%[^}]*min-width:\s*0/);
+    expect(socialCss).toMatch(/\.controls fieldset, \.look fieldset, \.options fieldset\s*\{[^}]*min-width:\s*0/);
     expect(premiumGateCss).toMatch(/width:\s*min\(100%,\s*430px\)/);
     expect(premiumGateCss).toMatch(/\.actions button[\s\S]*?white-space:\s*nowrap/);
     expect(premiumGateCss).toMatch(/@media \(max-width:\s*360px\)/);

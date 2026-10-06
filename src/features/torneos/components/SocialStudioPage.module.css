@@ -1,4 +1,7 @@
-/* Estudio Social — misma identidad negra/violeta que el Centro Multimedia. */
+/* Estudio Social — misma identidad negra/violeta que el Centro Multimedia.
+   Compact by design: on a phone the preview comes right after the two choices that pick it (scope and piece, each
+   folded into one line); its look (format, style) and the secondary choices (signature, texts, manual selection)
+   follow it. */
 
 .page {
   /* minmax(0, 1fr): the implicit auto track grew to the preview's min-content and pushed it past a 320 px screen. */
@@ -7,7 +10,7 @@
   --social-blue: #3b82f6;
   --social-cyan: #63eed0;
   display: grid;
-  gap: 20px;
+  gap: 14px;
   padding: 0 0 max(28px, env(safe-area-inset-bottom));
   color: #f3effa;
 }
@@ -25,37 +28,41 @@
   100% { background-position: -200% 0; }
 }
 
+/* ── hero: one slim band ─────────────────────────────────────────────────────────────────────────────────────── */
 .hero {
   display: flex;
   flex-wrap: wrap;
-  gap: 18px;
+  gap: 12px 18px;
   justify-content: space-between;
   align-items: flex-end;
-  padding: 22px;
-  border-radius: 22px;
+  padding: 16px 18px;
+  border-radius: 18px;
   border: 1px solid rgba(255, 255, 255, .07);
   background:
-    radial-gradient(circle at 18% 12%, rgba(157, 123, 255, .3), transparent 46%),
+    radial-gradient(circle at 18% 12%, rgba(157, 123, 255, .28), transparent 46%),
     linear-gradient(140deg, #1a1230, #0b0912);
 }
-.hero p { margin: 0 0 4px; font-size: 12px; letter-spacing: 2px; text-transform: uppercase; color: var(--social-cyan); }
-.hero h1 { margin: 0; font-family: 'Bebas Neue', 'Oswald', sans-serif; font-size: 40px; letter-spacing: 1px; }
-.hero span { color: #b2aac4; font-size: 14px; }
-.heroMetrics { display: flex; gap: 10px; flex-wrap: wrap; }
+.hero > div:first-child { min-width: 0; }
+.hero p { margin: 0 0 2px; font-size: 11px; letter-spacing: 1.8px; text-transform: uppercase; color: var(--social-cyan); }
+.hero h1 { margin: 0; font-family: 'Bebas Neue', 'Oswald', sans-serif; font-size: 34px; line-height: 1; letter-spacing: 1px; }
+.heroIntro { display: block; margin-top: 4px; color: #b2aac4; font-size: 13px; }
+.heroMetrics { display: flex; gap: 8px; flex-wrap: wrap; }
 .heroMetrics article {
-  display: flex; align-items: center; gap: 9px;
-  padding: 10px 14px; border-radius: 14px;
+  display: flex; align-items: center; gap: 7px;
+  padding: 7px 11px; border-radius: 12px;
   border: 1px solid rgba(255, 255, 255, .08);
   background: rgba(9, 7, 16, .6);
 }
 .heroMetrics svg { color: var(--social-violet); }
 .heroMetrics span { display: grid; }
-.heroMetrics strong { font-size: 18px; }
-.heroMetrics small { color: #9a92ae; font-size: 11px; }
+.heroMetrics strong { font-size: 15px; line-height: 1.1; }
+.heroMetrics small { color: #9a92ae; font-size: 10px; }
+.heroPlan[data-plan="PREMIUM"] { border-color: rgba(99, 238, 208, .35) !important; }
+.heroPlan[data-plan="PREMIUM"] svg { color: var(--social-cyan); }
 
 .readOnlyBanner, .noticeBanner {
   display: flex; align-items: center; gap: 12px;
-  padding: 13px 16px; border-radius: 14px;
+  padding: 11px 14px; border-radius: 14px;
   border: 1px solid rgba(255, 255, 255, .08);
   background: rgba(16, 12, 26, .8);
 }
@@ -63,97 +70,136 @@
 .readOnlyBanner span { display: grid; gap: 3px; }
 .readOnlyBanner small { color: #aaa2b9; }
 
-.workspace { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 20px; align-items: start; }
-
-.controls { display: grid; gap: 16px; min-width: 0; }
-.controls fieldset {
-  display: grid; gap: 12px; margin: 0; padding: 16px;
-  border: 1px solid rgba(255, 255, 255, .08); border-radius: 18px;
+/* ── workspace: controls, look, options | preview (desktop) · controls, preview, look, options (phone) ──────── */
+.workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 392px;
+  grid-template-areas:
+    "controls preview"
+    "look preview"
+    "options preview";
+  gap: 14px 20px;
+  align-items: start;
+}
+.controls { grid-area: controls; }
+.look { grid-area: look; }
+.options { grid-area: options; }
+.controls, .look, .options { display: grid; gap: 12px; min-width: 0; }
+.controls fieldset, .look fieldset, .options fieldset {
+  /* Fieldsets default to min-width: min-content, and an implicit auto track grows to its widest line (a long
+     tournament name in the scope summary): both would push a narrow column wider than the screen. */
+  display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; min-width: 0; margin: 0; padding: 12px 14px 14px;
+  border: 1px solid rgba(255, 255, 255, .08); border-radius: 16px;
   background: rgba(14, 11, 22, .68);
 }
-.controls fieldset[disabled] { opacity: .55; }
-.controls legend {
+.controls fieldset[disabled], .look fieldset[disabled], .options fieldset[disabled] { opacity: .55; }
+.controls legend, .look legend, .options legend {
   display: inline-flex; align-items: center; gap: 6px;
-  padding: 0 8px; font-size: 12px; letter-spacing: 2px;
+  padding: 0 6px; font-size: 11px; letter-spacing: 1.6px;
   text-transform: uppercase; color: var(--social-cyan);
 }
-.controls label { display: grid; gap: 6px; font-size: 13px; color: #cfc7de; }
-.controls select, .controls input[type='text'], .controls input:not([type]), .controls textarea {
-  min-height: 44px; padding: 10px 12px;
+.controls label, .look label, .options label { display: grid; gap: 5px; min-width: 0; font-size: 12px; color: #cfc7de; }
+.controls select, .look select, .options select, .options input[type='text'], .options input:not([type]), .options textarea {
+  width: 100%; min-width: 0; min-height: 44px; padding: 10px 12px;
   border: 1px solid rgba(255, 255, 255, .12); border-radius: 12px;
-  background: #100c1b; color: #f3effa; font: inherit;
+  background: #100c1b; color: #f3effa; font: inherit; font-size: 14px;
+  text-overflow: ellipsis;
 }
-.controls textarea { min-height: 88px; resize: vertical; }
-.controls :is(select, input, textarea):focus-visible,
-.controls button:focus-visible, .previewPanel button:focus-visible {
+.options textarea { min-height: 76px; resize: vertical; }
+.controls :is(select, input, textarea, button):focus-visible,
+.look :is(select, input, textarea, button):focus-visible,
+.options :is(select, input, textarea, button):focus-visible,
+.previewPanel button:focus-visible {
   outline: 2px solid var(--social-cyan); outline-offset: 2px;
 }
 
+/* Scope and piece: all their choices on a desktop; on a phone or tablet each folds into one summary line (what is
+   on screen now) that opens them on demand. */
+.scopeSummary, .pieceSummary { display: none; }
+.scopeFields { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+
+/* Piece: compact chips, short names; the lock marks a Premium piece. */
 .pieceFieldset { container-type: inline-size; }
-.pieceGrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.pieceFields { display: grid; gap: 10px; min-width: 0; }
+.pieceGrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 6px; }
 .pieceGrid button, .chipRow button {
-  display: inline-flex; align-items: center; justify-content: center; gap: 7px;
-  min-width: 0; min-height: 44px; padding: 8px 14px;
-  border: 1px solid rgba(255, 255, 255, .12); border-radius: 12px;
-  background: transparent; color: #dcd5e9; font-weight: 600; line-height: 1.25;
-  text-wrap: balance; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+  min-width: 0; min-height: 44px; padding: 6px 8px;
+  border: 1px solid rgba(255, 255, 255, .12); border-radius: 11px;
+  background: rgba(255, 255, 255, .02); color: #dcd5e9;
+  font: inherit; font-size: 13px; font-weight: 650; line-height: 1.15; text-align: center;
+  cursor: pointer;
 }
-.pieceGrid button { flex-wrap: wrap; }
-.pieceGrid button small {
-  flex-basis: 100%; color: #938ba7; font-size: 9px; letter-spacing: .06em;
-  text-transform: uppercase;
-}
-.pieceLocked { border-color: rgba(167, 150, 225, .18) !important; }
-.pieceLocked svg { color: #b9adff; }
+.pieceGrid button { position: relative; }
+.pieceGrid button span { min-width: 0; text-wrap: balance; }
+.pieceLocked { color: #c3bbd6 !important; border-color: rgba(167, 150, 225, .16) !important; }
+/* The lock is a corner badge: the short name keeps the whole width of a phone column. */
+.pieceLocked svg { position: absolute; top: 4px; right: 4px; width: 11px; height: 11px; color: #b9adff; }
 .pieceActive, .chipActive {
   border-color: var(--social-violet) !important;
-  background: rgba(157, 123, 255, .18) !important;
+  background: rgba(157, 123, 255, .2) !important;
   color: #fff !important;
 }
-.chipRow { display: flex; flex-wrap: wrap; gap: 8px; }
+.freeHint { display: flex; align-items: center; gap: 6px; margin: 0; color: #f4c27e; font-size: 12px; line-height: 1.4; }
+.freeHint svg { flex: none; }
 
-.themePicker { display: grid; gap: 8px; }
-.themePicker .chipRow button { white-space: nowrap; text-wrap: nowrap; }
-.themeLocked {
-  justify-content: flex-start !important;
-  color: #d8d3e4 !important;
-  background: rgba(111, 91, 185, .055) !important;
-  border-color: rgba(167, 150, 225, .2) !important;
+/* Format and style: a two-option segmented control and one dropdown, side by side. */
+.lookRow { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; align-items: end; }
+.formatField { display: grid; gap: 5px; min-width: 0; }
+.fieldCaption { font-size: 12px; color: #cfc7de; }
+.segmented {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 3px;
+  min-height: 44px; padding: 3px;
+  border: 1px solid rgba(255, 255, 255, .12); border-radius: 12px; background: #100c1b;
 }
-.themeLocked svg { flex: 0 0 auto; color: #b9adff; }
-.themeLocked span { min-width: 0; }
-.themeLocked small {
-  padding: 3px 5px;
-  color: #c8beff;
-  background: rgba(139, 124, 255, .12);
-  border: 1px solid rgba(139, 124, 255, .16);
-  border-radius: 999px;
-  font-size: 8px;
-  font-weight: 800;
-  letter-spacing: .05em;
-  line-height: 1;
-  text-transform: uppercase;
+.segmented button {
+  min-width: 0; padding: 0 6px; border: 0; border-radius: 9px;
+  background: transparent; color: #cfc7de; font: inherit; font-size: 13px; font-weight: 650;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer;
 }
-.planVerificationNotice {
-  margin: 0;
-  color: #b9b1c9;
-  font-size: 11px;
-  line-height: 1.45;
-}
+.segmentActive { background: rgba(157, 123, 255, .26) !important; color: #fff !important; box-shadow: inset 0 0 0 1px var(--social-violet); }
+.themePicker { display: contents; }
+.themePicker select { width: 100%; min-width: 0; }
+.fieldLabel { display: grid; gap: 5px; min-width: 0; font-size: 12px; color: #cfc7de; }
 .lockedThemeNotice {
-  display: flex; align-items: center; justify-content: space-between; gap: 10px;
-  padding: 10px 12px; border: 1px solid rgba(157, 123, 255, .25);
+  grid-column: 1 / -1;
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 10px;
+  margin: 0; padding: 8px 10px; border: 1px solid rgba(157, 123, 255, .25);
   border-radius: 12px; background: rgba(157, 123, 255, .08); color: #d8d2ff;
-  font-size: 11px;
+  font-size: 11px; line-height: 1.4;
 }
-.lockedThemeNotice span { display: inline-flex; align-items: center; gap: 6px; }
+.lockedThemeNotice span { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
 .lockedThemeNotice button {
-  min-height: 34px; padding: 0 10px; border: 1px solid rgba(255,255,255,.14);
-  border-radius: 9px; background: transparent; color: #fff; cursor: pointer;
+  min-height: 40px; padding: 0 12px; border: 1px solid rgba(255,255,255,.16);
+  border-radius: 9px; background: transparent; color: #fff; font: inherit; font-weight: 700; cursor: pointer;
 }
+.chipRow { display: flex; flex-wrap: wrap; gap: 6px; }
+
+/* Signature and white label: one row each. */
+.signatureFieldset { gap: 8px !important; }
+.checkboxRow { display: flex !important; align-items: center; gap: 10px; min-height: 40px; font-size: 13px !important; }
+.checkboxRow input { width: 20px; height: 20px; flex: none; }
+.inlineLock {
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 8px 10px;
+  margin: 0; padding: 8px 10px; border: 1px solid rgba(157, 123, 255, .25);
+  border-radius: 12px; background: rgba(157, 123, 255, .07); color: #c9c1de;
+  font-size: 12px; line-height: 1.4;
+}
+.inlineLock > svg { color: #b9adff; }
+.inlineLock strong { display: block; color: #efeaff; font-size: 12px; }
+.inlineLock button {
+  min-height: 40px; padding: 0 12px; border: 0; border-radius: 10px;
+  background: #8b7cff; color: #100b21; font: inherit; font-weight: 750; white-space: nowrap; cursor: pointer;
+}
+.whiteLabelNotice {
+  margin: 0; padding: 10px 12px; border: 1px solid rgba(99, 238, 208, .18);
+  border-radius: 12px; color: #b9d8d1; background: rgba(99, 238, 208, .05);
+  font-size: 12px; line-height: 1.45;
+}
+
 .premiumLock {
   display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 10px;
-  width: 100%; max-width: 420px; padding: 12px 14px; border: 1px solid rgba(157, 123, 255, .3);
+  width: 100%; padding: 12px 14px; border: 1px solid rgba(157, 123, 255, .3);
   border-radius: 14px; background: rgba(157, 123, 255, .08); color: #e4defa; text-align: left;
 }
 .premiumLock > svg { color: #b9adff; }
@@ -165,16 +211,6 @@
   background: #8b7cff; color: #100b21; font: inherit; font-weight: 750; cursor: pointer; white-space: nowrap;
 }
 .premiumLock button:focus-visible { outline: 2px solid var(--social-cyan); outline-offset: 2px; }
-.heroPlan[data-plan="PREMIUM"] { border-color: rgba(99, 238, 208, .35) !important; }
-.heroPlan[data-plan="PREMIUM"] svg { color: var(--social-cyan); }
-.whiteLabelNotice {
-  margin: 0; padding: 12px 14px; border: 1px solid rgba(99, 238, 208, .18);
-  border-radius: 12px; color: #b9d8d1; background: rgba(99, 238, 208, .05);
-  font-size: 12px; line-height: 1.5;
-}
-
-.checkboxRow { display: flex; align-items: center; gap: 10px; min-height: 44px; }
-.checkboxRow input { width: 20px; height: 20px; }
 
 .curationCopy { margin: 0; font-size: 12px; color: #9a92ae; }
 .candidateList { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; max-height: 320px; overflow: auto; }
@@ -201,7 +237,7 @@
 }
 /* Figura photo tools live in the preview panel, under the art they frame. */
 .previewPanel .photoEditor {
-  display: grid; gap: 10px; width: 100%; max-width: 320px; min-width: 0; margin: 0; padding: 12px;
+  display: grid; gap: 10px; width: 100%; max-width: 360px; min-width: 0; margin: 0; padding: 12px;
   border: 1px solid rgba(255, 255, 255, .08); border-radius: 14px; background: rgba(14, 11, 22, .68);
 }
 .previewPanel .photoEditor[disabled] { opacity: .55; }
@@ -224,17 +260,19 @@
 .zoomControl output { color: var(--social-cyan); font-variant-numeric: tabular-nums; }
 .resetCrop { background: transparent !important; font-weight: 600 !important; }
 
+/* ── preview ─────────────────────────────────────────────────────────────────────────────────────────────────── */
 .previewPanel {
-  /* One explicit minmax(0, 1fr) track: the implicit auto track took the stage's 300 px (max-width: 100% cannot
+  /* One explicit minmax(0, 1fr) track: the implicit auto track took the stage's width (max-width: 100% cannot
      clamp a track that is sized from that very item) and pushed the preview, header and actions past a phone. */
+  grid-area: preview;
   min-width: 0;
   display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; justify-items: center;
-  padding: 16px; border: 1px solid rgba(255, 255, 255, .08);
-  border-radius: 20px; background: rgba(9, 7, 16, .72);
+  padding: 14px; border: 1px solid rgba(255, 255, 255, .08);
+  border-radius: 18px; background: rgba(9, 7, 16, .72);
   position: sticky; top: 16px;
 }
 .previewPanel header { display: flex; width: 100%; align-items: center; justify-content: space-between; gap: 12px; }
-.previewPanel header span { display: grid; }
+.previewPanel header span { display: grid; min-width: 0; }
 .previewPanel header small { color: #948ca8; font-size: 11px; }
 .previewPanel header button, .exportActions button {
   display: inline-flex; align-items: center; justify-content: center; gap: 8px;
@@ -255,10 +293,12 @@
 }
 .pagination button:disabled { opacity: .4; cursor: not-allowed; }
 
+/* The art box: as wide as the column allows, a Story kept narrower so it never takes the whole screen height. */
 .previewStage {
-  position: relative; overflow: hidden; border-radius: 14px;
+  position: relative; overflow: hidden; width: 100%; max-width: 360px; border-radius: 14px;
   border: 1px solid rgba(255, 255, 255, .1); background: #07060d;
 }
+.previewStage[data-format="story"] { max-width: 300px; }
 .previewStageDraggable { cursor: grab; touch-action: none; user-select: none; }
 .previewStageDraggable:active { cursor: grabbing; }
 /* overflow: hidden also drops the automatic minimum height, so the 1080 px composition never stretches the box. */
@@ -271,8 +311,29 @@ div.previewCanvas[data-premium-renderer="v2"] {
   transform: scale(var(--social-preview-scale));
   transform-origin: top left;
 }
+/* FREE previews of Premium art: a watermark, a light scrim and a lock over the art (outside the render, so the file
+   is untouched and never offered); the style still reads through it. */
+.premiumVeil {
+  position: absolute; inset: 0; z-index: 1;
+  display: grid; place-items: center;
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='150' height='96'%3E%3Ctext x='75' y='54' text-anchor='middle' transform='rotate(-26 75 48)' font-family='Arial,Helvetica,sans-serif' font-size='17' font-weight='800' letter-spacing='3' fill='rgba(255,255,255,0.34)' stroke='rgba(12,9,22,0.34)' stroke-width='0.8' paint-order='stroke'%3EPREMIUM%3C/text%3E%3C/svg%3E") 0 0 / 150px 96px repeat,
+    linear-gradient(180deg, rgba(8, 6, 16, .14), rgba(8, 6, 16, .42));
+  pointer-events: auto;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+.premiumVeilBadge {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 9px 15px; border-radius: 999px;
+  border: 1px solid rgba(185, 173, 255, .6); background: rgba(12, 9, 22, .86); color: #fff;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, .45);
+}
+.premiumVeilBadge svg { color: #b9adff; }
+.premiumVeilBadge::after { content: 'PREMIUM'; font-size: 13px; font-weight: 800; letter-spacing: .18em; }
 .previewOverlay {
-  position: absolute; inset: 0; display: flex; flex-direction: column;
+  position: absolute; inset: 0; z-index: 2; display: flex; flex-direction: column;
   align-items: center; justify-content: center; gap: 8px; padding: 20px;
   text-align: center; font-size: 13px; color: #cfc7de; background: rgba(7, 6, 13, .82);
 }
@@ -293,22 +354,54 @@ div.previewCanvas[data-premium-renderer="v2"] {
 .stateCard h2 { margin: 0; font-family: 'Bebas Neue', 'Oswald', sans-serif; font-size: 26px; }
 .stateCard p { margin: 0; max-width: 420px; color: #a79fbb; font-size: 14px; }
 
+/* ── tablet and phone: one column, the preview right after the choices that pick it ──────────────────────────── */
 @media (max-width: 1024px) {
-  /* minmax(0, 1fr): a 1fr track would never shrink below the 300 px preview (cut off at 320 px). */
-  .workspace { grid-template-columns: minmax(0, 1fr); }
-  .previewPanel { position: static; min-width: 0; }
+  /* minmax(0, 1fr): a 1fr track would never shrink below the preview (cut off at 320 px). */
+  .workspace {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "controls" "preview" "look" "options";
+  }
+  .previewPanel { position: static; }
+  .previewStage { max-width: min(100%, 400px); }
+  .previewStage[data-format="story"] { max-width: min(100%, 300px); }
+  .scopeSummary, .pieceSummary {
+    display: flex; align-items: center; gap: 8px; width: 100%; min-width: 0; min-height: 44px; padding: 0 12px;
+    border: 1px solid rgba(255, 255, 255, .12); border-radius: 12px; background: #100c1b;
+    color: #f3effa; font: inherit; text-align: left; cursor: pointer;
+  }
+  .scopeSummary span, .pieceSummary span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; }
+  .scopeSummary small, .pieceSummary small { color: var(--social-cyan); font-size: 12px; font-weight: 700; }
+  .scopeSummary svg, .pieceSummary svg { flex: none; transition: transform .15s ease; }
+  .pieceSummary svg:first-child:not(:last-child) { color: #b9adff; transition: none; }
+  .scopeFieldset[data-open="true"] .scopeSummary svg, .pieceFieldset[data-open="true"] .pieceSummary svg:last-child { transform: rotate(180deg); }
+  .scopeFieldset[data-open="false"] .scopeFields, .pieceFieldset[data-open="false"] .pieceFields { display: none; }
+  .scopeFields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .scopeTournament { grid-column: 1 / -1; }
 }
-@media (max-width: 480px) {
-  .hero { padding: 18px; }
-  .hero h1 { font-size: 32px; }
-  .heroMetrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); width: 100%; }
-  .candidateList { grid-template-columns: 1fr; }
-  .premiumLock { grid-template-columns: auto minmax(0, 1fr); }
-  .premiumLock button { grid-column: 1 / -1; width: 100%; }
+@media (max-width: 700px) {
+  .hero { padding: 12px 14px; align-items: center; }
+  .hero p, .heroIntro, .heroMetrics .heroMetric { display: none; }
+  .hero h1 { font-size: 28px; }
+  .heroMetrics article { padding: 6px 10px; }
 }
 @container (max-width: 440px) {
-  .pieceGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .pieceGrid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .pieceGrid button { padding: 6px 4px; font-size: 12.5px; }
+}
+/* Side by side on a phone the format segments keep only the ratio; a 320 px phone stacks them (full labels). */
+@media (min-width: 341px) and (max-width: 440px) {
+  .formatWord { display: none; }
+}
+@media (max-width: 340px) {
+  .lookRow { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 400px) {
+  .premiumLock { grid-template-columns: auto minmax(0, 1fr); }
+  .premiumLock button { grid-column: 1 / -1; width: 100%; }
+  .inlineLock { grid-template-columns: auto minmax(0, 1fr); }
+  .inlineLock button { grid-column: 1 / -1; width: 100%; }
+  .candidateList { grid-template-columns: 1fr; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .skeleton span, .previewOverlay svg { animation: none; }
+  .skeleton span, .previewOverlay svg, .scopeSummary svg, .pieceSummary svg { animation: none; transition: none; }
 }

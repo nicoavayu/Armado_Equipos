@@ -58,6 +58,19 @@ for (const width of [320, 390]) {
 expect(has('FREE authorize payloads'), 'FREE authorization payloads (Base, three pieces, Arma2 signature)');
 expect(has('FREE: Resultados keeps the chosen format (switch and refresh)'), 'D3: Resultados keeps the chosen format');
 expect(has('FREE premium style previewed and locked'), 'FREE: Premium styles previewed and locked');
+// Polish: FREE previews of Premium art carry the Premium veil; allowed and PREMIUM previews never do.
+for (const style of ['Heritage', 'Street', 'Scoreboard', 'Editorial']) expect(has('FREE premium preview veiled', (c) => c.style === style), `FREE ${style} preview veiled`);
+expect(has('FREE premium preview veiled', (c) => c.piece === 'scorers'), 'FREE Premium piece preview veiled');
+expect(has('FREE allowed preview clean'), 'FREE allowed preview without the Premium veil');
+expect(has('PREMIUM preview clean'), 'PREMIUM preview without the Premium veil');
+// Polish: sparse tables, rounds and discipline lists start under their header in every Premium style and format.
+for (const piece of ['standings', 'round_results', 'discipline']) {
+  for (const format of ['feed-4x5', 'historia-9x16']) {
+    for (const style of ['Heritage', 'Street', 'Scoreboard', 'Editorial']) {
+      expect(has('sparse piece anchored under its header', (c) => c.piece === piece && c.format === format && c.style === style), `sparse ${piece} ${style} ${format} anchored`);
+    }
+  }
+}
 expect(has('PREMIUM Base signature optional; Premium styles white-label'), 'branding: Arma2 signature optional on PREMIUM Base, white-label styles');
 expect(has('Figura photo/drag/zoom/reset'), 'Figura photo, focal point, zoom and reset');
 expect(has('Editorial multi-page'), 'Editorial multi-page export');
