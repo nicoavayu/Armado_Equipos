@@ -501,10 +501,14 @@
 }
 
 .teamTabs button {
+  /* Block, not the shared inline-flex: an ellipsis only applies to text in a block box (as a flex item the long
+     name was cut on both sides with no "…"). */
+  display: block;
   min-width: 0;
   overflow: hidden;
   border-color: transparent;
   border-radius: 12px;
+  text-align: center;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
