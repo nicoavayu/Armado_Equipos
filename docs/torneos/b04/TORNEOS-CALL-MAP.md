@@ -331,7 +331,7 @@ Cada fila es un import que alcanza el singleton por el grafo estático, no una c
 | [src/features/torneos/components/MatchOperationsPage.jsx:44](../../../src/features/torneos/components/MatchOperationsPage.jsx#L44) | `../context/TorneosWorkspaceContext` |
 | [src/features/torneos/components/MediaAdminPage.jsx:35](../../../src/features/torneos/components/MediaAdminPage.jsx#L35) | `../context/TorneosWorkspaceContext` |
 | [src/features/torneos/components/MyCommunicationsPage.jsx:15](../../../src/features/torneos/components/MyCommunicationsPage.jsx#L15) | `../context/TorneosWorkspaceContext` |
-| [src/features/torneos/components/MyTournamentMatchesPage.jsx:19](../../../src/features/torneos/components/MyTournamentMatchesPage.jsx#L19) | `../context/TorneosWorkspaceContext` |
+| [src/features/torneos/components/MyTournamentMatchesPage.jsx:20](../../../src/features/torneos/components/MyTournamentMatchesPage.jsx#L20) | `../context/TorneosWorkspaceContext` |
 | [src/features/torneos/components/MyTournamentsPage.jsx:16](../../../src/features/torneos/components/MyTournamentsPage.jsx#L16) | `../context/TorneosWorkspaceContext` |
 | [src/features/torneos/components/NewTeamEntryPage.jsx:14](../../../src/features/torneos/components/NewTeamEntryPage.jsx#L14) | `../context/TorneosWorkspaceContext` |
 | [src/features/torneos/components/OrganizationInvitationPage.jsx:4](../../../src/features/torneos/components/OrganizationInvitationPage.jsx#L4) | `../context/TorneosWorkspaceContext` |
