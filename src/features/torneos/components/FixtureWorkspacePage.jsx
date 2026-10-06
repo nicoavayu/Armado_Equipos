@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   AlertTriangle,
   ArrowRight,
@@ -82,9 +82,38 @@ const GENERATION_METHOD_LABELS = Object.freeze({
 
 const statusLabel = (status, fallback = 'Sin definir') => STATUS_LABELS[status] || fallback;
 
+// The bubble opens under its "?" and is nudged sideways so it never leaves the screen (on a phone the "?" often sits
+// past the middle of a heading). Escape or a tap elsewhere closes it.
 function SectionHelp({ label = 'Ayuda sobre esta sección', children }) {
+  const detailsRef = useRef(null);
+  const place = () => {
+    const details = detailsRef.current;
+    const bubble = details?.querySelector('p');
+    if (!details?.open || !bubble) return;
+    bubble.style.setProperty('--help-shift', '0px');
+    const box = bubble.getBoundingClientRect();
+    const viewport = document.documentElement.clientWidth;
+    const gutter = 12;
+    let shift = 0;
+    if (box.right > viewport - gutter) shift = viewport - gutter - box.right;
+    if (box.left + shift < gutter) shift = gutter - box.left;
+    bubble.style.setProperty('--help-shift', `${Math.round(shift)}px`);
+  };
+  useEffect(() => {
+    const close = (event) => {
+      const details = detailsRef.current;
+      if (!details?.open) return;
+      if (event.type === 'keydown' ? event.key === 'Escape' : !details.contains(event.target)) details.open = false;
+    };
+    document.addEventListener('keydown', close);
+    document.addEventListener('pointerdown', close);
+    return () => {
+      document.removeEventListener('keydown', close);
+      document.removeEventListener('pointerdown', close);
+    };
+  }, []);
   return (
-    <details className={styles.sectionHelp}>
+    <details ref={detailsRef} className={styles.sectionHelp} onToggle={place}>
       <summary aria-label={label} title={label}>
         <CircleHelp size={17} aria-hidden="true" />
       </summary>

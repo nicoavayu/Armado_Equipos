@@ -23,7 +23,7 @@ import { resolveTorneosUserExperience } from '../domain/userExperience';
 import { capturePremiumIntent, isPremiumIntentSearch, withPremiumIntent } from '../domain/premiumIntent';
 import { useTorneosWorkspace } from '../context/TorneosWorkspaceContext';
 import { useTorneosFeatures } from '../context/TorneosFeaturesContext';
-import { WorkspaceError, WorkspaceLoading } from './WorkspaceState';
+import { SESSION_CHECK_DETAIL, WorkspaceError, WorkspaceLoading } from './WorkspaceState';
 import { canonicalRoutes } from '../routing/canonicalRoutes';
 import MobileAppCallout from './MobileAppCallout';
 import styles from './TorneosShell.module.css';
@@ -117,11 +117,12 @@ export default function TorneosLanding() {
   }), [availableOrganizations, relationsState.relations]);
 
   if (status === 'validating' || status === 'idle' || relationsState.status === 'loading') {
-    return <WorkspaceLoading label="Resolviendo tu experiencia de Torneos…" />;
+    return <WorkspaceLoading label="Resolviendo tu experiencia de Torneos…" detail={SESSION_CHECK_DETAIL} />;
   }
   if (status === 'error' || relationsState.status === 'error') {
     return (
       <WorkspaceError
+        title="No pudimos abrir Torneos"
         message={error || relationsState.error}
         onRetry={() => Promise.all([
           refresh().catch(() => {}),

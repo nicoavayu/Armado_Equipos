@@ -1198,6 +1198,7 @@ export default function MatchOperationsPage({ mode = 'list' }) {
                     type="button"
                     role="tab"
                     aria-selected={activeTeamId === teamId}
+                    title={index === 0 ? match.homeName : match.awayName}
                     onClick={() => setActiveTeamId(teamId)}
                   >
                     {index === 0 ? match.homeName : match.awayName}

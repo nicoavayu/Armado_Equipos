@@ -1,4 +1,4 @@
-.page { display: grid; gap: 20px; min-width: 0; }
+.page { display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; min-width: 0; }
 .page button, .page input, .page select, .page textarea { box-sizing: border-box; }
 .page button:focus-visible, .page a:focus-visible, .page select:focus-visible,
 .page textarea:focus-visible, .teamDetail summary:focus-visible {

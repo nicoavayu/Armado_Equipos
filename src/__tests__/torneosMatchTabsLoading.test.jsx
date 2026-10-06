@@ -248,6 +248,6 @@ describe('pestañas del partido: una sola carga, sin loader de página completa'
     fireEvent.click(save);
     await waitFor(() => expect(service.saveMatchSquad).toHaveBeenCalledTimes(1));
     expect(screen.queryByText(PAGE_LOADER)).not.toBeInTheDocument();
-    expect(await screen.findByText('No pudimos abrir Torneos')).toBeInTheDocument();
+    expect(await screen.findByText('No pudimos cargar esta pantalla')).toBeInTheDocument();
   });
 });

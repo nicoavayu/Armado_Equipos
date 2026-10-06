@@ -9,6 +9,9 @@
 
 .page {
   display: grid;
+  /* One shrinkable track: an implicit auto track grows to its longest unbreakable child and pushes the page
+     past a phone screen. */
+  grid-template-columns: minmax(0, 1fr);
   gap: 22px;
 }
 
@@ -522,6 +525,7 @@
 .formPage,
 .detailPage {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 18px;
 }
 
@@ -1159,6 +1163,7 @@
 
 .invitationPage {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   min-height: calc(100vh - 110px);
   place-items: center;
   padding: 24px;

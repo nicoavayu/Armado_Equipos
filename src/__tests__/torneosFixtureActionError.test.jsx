@@ -65,7 +65,7 @@ test('generating a groups fixture before the draw keeps the page and explains th
   fireEvent.click(generate);
   const alert = await screen.findByRole('alert');
   expect(alert).toHaveTextContent('Primero sorteá y publicá los grupos.');
-  expect(screen.queryByText('No pudimos abrir Torneos')).not.toBeInTheDocument();
+  expect(screen.queryByText('No pudimos cargar esta pantalla')).not.toBeInTheDocument();
   await waitFor(() => expect(service.loadFixtureContext).toHaveBeenCalledTimes(2));
   // The form is still there and usable.
   expect(screen.getByRole('button', { name: /Generar borrador/ })).toBeEnabled();

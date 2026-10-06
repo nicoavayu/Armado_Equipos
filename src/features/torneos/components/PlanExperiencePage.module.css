@@ -1055,12 +1055,12 @@
 }
 .contextPlan { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; font-size: 12px; }
 .contextPlan > span { color: #c6cee8; }
-.contextPlan a { display: inline-flex; align-items: center; min-height: 44px; padding: 8px 14px; border: 1px solid #8777d8; border-radius: 12px; color: #f7f3ff; background: #211942; text-decoration: none; font-weight: 700; overflow-wrap: anywhere; }
+.contextPlan a { display: inline-flex; align-items: center; min-width: 0; max-width: 100%; min-height: 44px; padding: 8px 14px; border: 1px solid #8777d8; border-radius: 12px; color: #f7f3ff; background: #211942; text-decoration: none; font-weight: 700; }
 .contextPlan a[data-plan="premium"] { border-color: #bd9dff; background: #38275c; }
 .contextPlan a { gap: 8px; }
 .contextPlan a > svg { flex-shrink: 0; color: #c6baff; }
 .contextPlanTitle { white-space: nowrap; }
-.contextPlanBadge { padding: 2px 8px; border: 1px solid rgba(198, 186, 255, .45); border-radius: 999px; background: rgba(139, 124, 255, .18); font-size: 11px; font-weight: 800; letter-spacing: .04em; }
+.contextPlanBadge { flex-shrink: 0; white-space: nowrap; padding: 2px 8px; border: 1px solid rgba(198, 186, 255, .45); border-radius: 999px; background: rgba(139, 124, 255, .18); font-size: 11px; font-weight: 800; letter-spacing: .04em; }
 .contextPlan a[data-plan="premium"] .contextPlanBadge { border-color: #e0cbff; background: rgba(189, 157, 255, .32); }
 .contextPlanSeason { min-width: 0; color: #c6cee8; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .contextPlanChevron { margin-left: auto; }

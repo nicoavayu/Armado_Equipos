@@ -198,11 +198,18 @@ export default function TorneosDashboard() {
             />
             <div>
               <span className={styles.eyebrow}>Organización de competencias</span>
-              <h1>{seasons.length ? 'Creá tu primer ' : 'Empezá un '}<em>torneo</em></h1>
+              {canCreateTournament ? (
+                <h1>{seasons.length ? 'Creá tu primer ' : 'Empezá un '}<em>torneo</em></h1>
+              ) : (
+                <h1>Todavía no hay <em>torneos</em></h1>
+              )}
               <p>
-                {seasons.length
-                  ? 'La temporada ya está lista. Ahora definí una competencia y sus reglas.'
-                  : 'Primero creá una temporada; después vas a poder configurar torneos y categorías.'}
+                {/* Only people who can create are told to create: everyone else learns what to expect instead. */}
+                {canCreateTournament
+                  ? (seasons.length
+                    ? 'La temporada ya está lista. Ahora definí una competencia y sus reglas.'
+                    : 'Primero creá una temporada; después vas a poder configurar torneos y categorías.')
+                  : 'Cuando un administrador cree la temporada y su torneo, vas a poder seguirlos desde acá.'}
               </p>
             </div>
           </div>
@@ -211,12 +218,14 @@ export default function TorneosDashboard() {
         <section className={coreStyles.emptyCompetition}>
           <span><Trophy size={27} /></span>
           <div>
-            <span className={coreStyles.kicker}>Primer paso</span>
+            <span className={coreStyles.kicker}>{canCreateTournament ? 'Primer paso' : 'Sin actividad todavía'}</span>
             <h2>{seasons.length ? 'No hay un torneo activo' : 'No hay temporadas todavía'}</h2>
             <p>
-              {seasons.length
-                ? 'Creá el torneo que vas a organizar y completá sus reglas y categorías.'
-                : 'Creá una temporada para agrupar los torneos de este período.'}
+              {canCreateTournament
+                ? (seasons.length
+                  ? 'Creá el torneo que vas a organizar y completá sus reglas y categorías.'
+                  : 'Creá una temporada para agrupar los torneos de este período.')
+                : 'Tu rol puede consultar la organización, pero crear temporadas y torneos es de sus administradores.'}
             </p>
           </div>
           {canCreateTournament && (

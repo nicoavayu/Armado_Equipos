@@ -639,7 +639,9 @@
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  margin-bottom: 24px;
+  /* A 44 px tap target, like every other way back in Torneos; the margin gives back the height it adds. */
+  min-height: 44px;
+  margin-bottom: 12px;
   color: var(--torneos-muted);
   font-size: 12px;
   font-weight: 700;

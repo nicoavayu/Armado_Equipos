@@ -2,6 +2,9 @@
   --media-cyan: #63eed0;
   --media-violet: #9d7bff;
   display: grid;
+  /* One shrinkable track: an implicit auto track grows to its longest unbreakable child and pushes the page
+     past a phone screen. */
+  grid-template-columns: minmax(0, 1fr);
   gap: 20px;
   color: #f7f4ff;
 }
@@ -114,7 +117,9 @@
   border-radius: 18px;
   background: #13101d;
 }
-.toolbar > div { display: flex; align-items: end; gap: 12px; }
+.toolbar > div { display: flex; flex-wrap: wrap; align-items: end; gap: 12px; min-width: 0; }
+.toolbar label { min-width: 0; flex: 1 1 160px; }
+.toolbar select { width: 100%; min-width: 0; }
 .toolbar > div > svg { align-self: center; color: #867c99; }
 .toolbar label, .formGrid label { display: grid; gap: 6px; }
 .toolbar label span, .formGrid label span {

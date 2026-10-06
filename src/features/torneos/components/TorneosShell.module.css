@@ -2095,6 +2095,7 @@
 .placeholderPage {
   min-height: 420px;
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   place-items: center;
   text-align: center;
 }

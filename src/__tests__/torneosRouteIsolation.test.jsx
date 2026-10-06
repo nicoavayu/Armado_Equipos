@@ -110,9 +110,11 @@ describe('Arma2 Torneos route isolation', () => {
       </MemoryRouter>,
     );
 
+    // This organization's capabilities do not include creating tournaments: the empty dashboard says what to expect
+    // instead of asking the person to create one.
     expect(await screen.findByRole(
       'heading',
-      { name: /empezá un torneo/i },
+      { name: /todavía no hay torneos/i },
       { timeout: 5000 },
     ))
       .toBeInTheDocument();
