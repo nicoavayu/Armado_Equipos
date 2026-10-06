@@ -128,6 +128,21 @@ async function createCoreTeam(admin, ownerId, name) {
   )).rows[0].id;
 }
 
+// A Core team member the way Core's own app creates one: a jugadores row and a team_members row written as the team
+// owner (Core's trigger only lets owner/admin write).
+async function addCoreMember(admin, ownerId, teamId, userId, permissionsRole) {
+  const partido = (await admin.query('insert into public.partidos default values returning id')).rows[0].id;
+  const jugador = (await admin.query('insert into public.jugadores (partido_id, nombre, usuario_id) values ($1, $2, $3) returning id',
+    [partido, `Integrante ${TAG}`, userId])).rows[0].id;
+  await admin.query('begin');
+  await admin.query("select set_config('request.jwt.claims', $1, true)", [JSON.stringify({ sub: ownerId, role: 'authenticated' })]);
+  const member = (await admin.query(
+    'insert into public.team_members (team_id, jugador_id, user_id, permissions_role) values ($1, $2, $3, $4) returning id',
+    [teamId, jugador, userId, permissionsRole])).rows[0].id;
+  await admin.query('commit');
+  return member;
+}
+
 async function addValidRoster(client, organizationId, teamEntryId) {
   const registration = await rpc(client, 'public.get_team_registration_context($1, $2)', [organizationId, teamEntryId]);
   const rosterId = registration?.roster?.id || registration?.rosterId || registration?.currentRoster?.id;
@@ -227,7 +242,7 @@ async function main() {
 
   const collaborator = await as(USERS.collaborator);
   await expectError(() => rpc(collaborator,
-    "public.save_tournament_catalog_listing($1, $2, 'Resumen colaborador', 'Palermo', null, null, null, null, null, null)",
+    "public.save_tournament_catalog_listing($1, $2, 'Resumen colaborador', 'Palermo', null, null, null, null, null, null, null, null, null)",
     [organizationId, tournamentId]), /TORNEOS_RESOURCE_FORBIDDEN/, 'un colaborador no puede editar la convocatoria');
   const outsider = await as(USERS.outsider);
   await expectError(() => rpc(outsider, 'public.get_tournament_catalog_listing_settings($1, $2)', [organizationId, tournamentId]),
@@ -239,7 +254,8 @@ async function main() {
     /TORNEOS_CATALOG_LISTING_INCOMPLETE/, 'no se publica una convocatoria sin datos mínimos');
   await rpc(organizer,
     `public.save_tournament_catalog_listing($1, $2, 'Torneo de fútbol 5 los sábados en Palermo.', '  Palermo,   CABA ', null,
-      1500000, 'Árbitro, pelota y seguro', 'Se coordina con la organización; Arma2 no cobra.', 'DNI de cada jugador', 'Reglamento FIFA adaptado.')`,
+      1500000, 'Árbitro, pelota y seguro', 'Se coordina con la organización; Arma2 no cobra.', 'DNI de cada jugador', 'Reglamento FIFA adaptado.',
+      'team', null, null)`,
     [organizationId, tournamentId]);
   eq((await searchAll()).total, 0, 'guardar la convocatoria no la publica');
 
@@ -260,13 +276,54 @@ async function main() {
   const entry = await rpc(anon, 'public.get_tournament_catalog_entry($1)', [publicSlug]);
   eq(entry.categories.map((item) => item.slug), ['primera', 'senior'], 'la ficha lista las categorías activas en orden');
   eq(entry.entryFee?.amountCents, 1500000, 'el costo se publica como dato, no como checkout');
+  eq(entry.entryFee?.unit, 'team', 'con su unidad (por equipo)');
+  eq(entry.contactWhatsapp, null, 'sin contacto publicado por defecto');
+
+  console.log('\n1b. Precio opcional, contacto por WhatsApp y logo');
+  const saveListing = (fee, unit, whatsapp, consent) => rpc(organizer,
+    `public.save_tournament_catalog_listing($1, $2, 'Torneo de fútbol 5 los sábados en Palermo.', 'Palermo, CABA', null,
+      $3::integer, 'Árbitro, pelota y seguro', 'Se coordina con la organización; Arma2 no cobra.', 'DNI de cada jugador',
+      'Reglamento FIFA adaptado.', $4, $5, $6)`,
+    [organizationId, tournamentId, fee, unit, whatsapp, consent]);
+  const entryNow = () => rpc(anon, 'public.get_tournament_catalog_entry($1)', [publicSlug]);
+  await saveListing(null, 'team', null, null);
+  eq((await entryNow()).entryFee, null, 'precio no informado: null, nunca 0 ni «gratis»');
+  eq((await searchAll()).items[0]?.entryFee, null, 'tampoco en la tarjeta');
+  await saveListing(0, 'team', null, null);
+  eq((await entryNow()).entryFee?.amountCents, 0, 'participación gratuita: 0 explícito');
+  await saveListing(250000, 'player', null, null);
+  eq([(await entryNow()).entryFee?.amountCents, (await entryNow()).entryFee?.unit], [250000, 'player'], 'precio por jugador');
+  await expectError(() => saveListing(250000, 'familia', null, null), /TORNEOS_CATALOG_LISTING_INVALID/, 'una unidad que el modelo no soporta se rechaza');
+  await expectError(() => saveListing(1500000, 'team', '+54 9 11 2345-6789', false), /TORNEOS_CONTACT_CONSENT_REQUIRED/,
+    'publicar un WhatsApp exige confirmar que será público');
+  await expectError(() => saveListing(1500000, 'team', '011 15 2345 6789', true), /TORNEOS_CONTACT_INVALID/,
+    'un número sin código de país se rechaza');
+  await expectError(() => saveListing(1500000, 'team', 'whatsapp', true), /TORNEOS_CONTACT_INVALID/, 'y uno que no es un número también');
+  await saveListing(1500000, 'team', '+54 9 11 2345-6789', true);
+  eq((await entryNow()).contactWhatsapp, '5491123456789', 'el número se normaliza a dígitos internacionales');
+  eq((await rpc(organizer, 'public.get_tournament_catalog_listing_settings($1, $2)', [organizationId, tournamentId])).listing.contactWhatsapp,
+    '5491123456789', 'y el organizador lo ve en su configuración');
+  eq(Object.hasOwn((await searchAll()).items[0] || {}, 'contactWhatsapp'), false, 'la tarjeta del catálogo no lo repite');
+  await saveListing(1500000, 'team', null, null);
+  eq((await entryNow()).contactWhatsapp, null, 'quitarlo lo saca de la ficha');
+  const contactAudit = (await admin.query(
+    "select metadata->>'contact' contact from public.tournament_audit_log where resource_id = $1 and action = 'catalog.listing_saved' order by created_at",
+    [tournamentId])).rows.map((row) => row.contact);
+  eq(contactAudit.slice(-2), ['published', 'removed'], 'publicar y quitar el contacto queda auditado');
+  const logoPath = `${organizationId}/tournaments/${tournamentId}/${randomUUID()}.webp`;
+  await admin.query('update public.tournaments set logo_path = $2 where id = $1', [tournamentId, logoPath]);
+  eq([(await searchAll()).items[0]?.logoPath, (await entryNow()).logoPath], [logoPath, logoPath],
+    'tarjeta y ficha usan el mismo logo que la página pública');
 
   const { keys: publicKeys, values: publicValues } = collectKeysAndValues([listed, entry,
     await rpc(anon, 'public.get_tournament_catalog_facets()')]);
   const forbiddenKeys = ['email', 'roster', 'players', 'userId', 'organizationId', 'tournamentId', 'teamEntryId',
     'audit', 'createdBy', 'updatedBy', 'listedBy', 'phone', 'manager'];
   eq(forbiddenKeys.filter((key) => publicKeys.has(key)), [], 'la proyección pública no tiene claves privadas');
-  eq(publicValues.filter((item) => UUID.test(item)), [], 'la proyección pública no expone identificadores internos');
+  // Branding paths are published exactly like get_public_tournament_branding does (storage object names); every other
+  // public value stays free of internal identifiers.
+  const BRANDING_PATH = /^[0-9a-f-]{36}\/(?:organizations|tournaments)\/[0-9a-f-]{36}\/[0-9a-f-]{36}\.(?:jpg|png|webp)$/;
+  eq(publicValues.filter((item) => UUID.test(item) && !BRANDING_PATH.test(item)), [], 'la proyección pública no expone identificadores internos');
 
   await rpc(organizer, 'public.set_tournament_public_page_published($1, $2, false)', [organizationId, tournamentId]);
   eq((await searchAll()).total, 0, 'despublicar la página saca la convocatoria del catálogo');
@@ -312,12 +369,39 @@ async function main() {
   const teams = await rpc(applicant, 'public.search_my_applicable_core_teams($1, $2, 8)', [publicSlug, TAG]);
   eq(teams.items.map((item) => item.id), [coreTeamA], 'la búsqueda sólo devuelve equipos de Core que la persona administra');
 
+  // Their own teams, listed without typing: can register (owner/admin) vs only a member (incl. a responsible demoted).
+  const memberOnlyTeam = await createCoreTeam(admin, USERS.outsider, `Vecinos ${TAG}`);
+  await addCoreMember(admin, USERS.outsider, memberOnlyTeam, USERS.applicant, 'member');
+  const demotedTeam = await createCoreTeam(admin, USERS.outsider, `Ex Capitanía ${TAG}`);
+  const demotedMember = await addCoreMember(admin, USERS.outsider, demotedTeam, USERS.applicant, 'admin');
+  let ownTeams = await rpc(applicant, 'public.list_my_core_teams_for_application($1)', [publicSlug]);
+  const byId = (list) => Object.fromEntries(list.items.map((item) => [item.id, item.canRegister]));
+  eq([byId(ownTeams)[coreTeamA], byId(ownTeams)[demotedTeam], byId(ownTeams)[memberOnlyTeam], Object.hasOwn(byId(ownTeams), foreignTeam)],
+    [true, true, false, false], 'tus equipos: los que podés inscribir, los que sólo integrás, nunca los ajenos');
+  // The team owner demotes them, the way Core's own app does (only an owner/admin can change administrative roles).
+  await admin.query('begin');
+  await admin.query("select set_config('request.jwt.claims', $1, true)", [JSON.stringify({ sub: USERS.outsider, role: 'authenticated' })]);
+  await admin.query("update public.team_members set permissions_role = 'member' where id = $1", [demotedMember]);
+  await admin.query('commit');
+  ownTeams = await rpc(applicant, 'public.list_my_core_teams_for_application($1)', [publicSlug]);
+  eq(byId(ownTeams)[demotedTeam], false, 'un responsable que perdió permisos en Core pasa a «sólo integrante»');
+  await expectError(() => rpc(applicant, 'public.start_tournament_application($1, $2, $3, null, null, true, $4::uuid)',
+    [publicSlug, 'primera', demotedTeam, randomUUID()]), /TORNEOS_TEAM_NOT_AUTHORIZED/, 'y ya no puede inscribirlo');
+  await expectError(() => rpc(applicant, 'public.start_tournament_application($1, $2, $3, null, null, true, $4::uuid)',
+    [publicSlug, 'primera', memberOnlyTeam, randomUUID()]), /TORNEOS_TEAM_NOT_AUTHORIZED/, 'un integrante sin permisos no puede inscribir su equipo');
+  eq((await rpc(await as(USERS.serial), 'public.list_my_core_teams_for_application($1)', [publicSlug])).items, [],
+    'alguien sin equipos en Arma2 ve la lista vacía');
+
   const key = randomUUID();
   const started = await rpc(applicant,
     "public.start_tournament_application($1, $2, $3, null, 'Jugamos los sábados', true, $4::uuid)",
     [publicSlug, 'primera', coreTeamA, key]);
   eq(started.status, 'in_progress', 'la solicitud nace en preparación');
   const teamEntryId = started.teamEntryId;
+  const afterStart = (await rpc(applicant, 'public.list_my_core_teams_for_application($1)', [publicSlug]))
+    .items.find((item) => item.id === coreTeamA);
+  eq(afterStart.registrations.map((item) => [item.categorySlug, item.categoryName, item.status]), [['primera', 'Primera', 'in_progress']],
+    'la lista avisa que ese equipo ya pidió Primera, antes de intentarlo de nuevo');
   const replay = await rpc(applicant,
     "public.start_tournament_application($1, $2, $3, null, 'Jugamos los sábados', true, $4::uuid)",
     [publicSlug, 'primera', coreTeamA, key]);
@@ -423,6 +507,13 @@ async function main() {
     [organizationId, teamEntryId]);
   const approvedNotice = await rpc(applicant, 'public.get_my_torneos_notifications(true, 1, 0)');
   eq(approvedNotice.items[0]?.kind, 'registration.approved', 'el solicitante recibe la aprobación');
+  const participationsAfter = await rpc(applicant, 'public.get_my_tournament_participations(50, 0)');
+  eq(participationsAfter.items.some((item) => item.tournamentId === tournamentId && item.role === 'captain'), true,
+    'Mis torneos (participación) incluye el torneo aprobado como capitán');
+  const organizerMemberships = await rpc(organizer, 'public.get_my_tournament_memberships(50, 0)');
+  const organizerParticipations = await rpc(organizer, 'public.get_my_tournament_participations(50, 0)');
+  eq([organizerMemberships.pagination.total > 0, organizerParticipations.pagination.total],
+    [true, 0], 'gestionar un torneo no lo vuelve participación: queda en Gestionar, con su propia paginación');
   const membershipsAfter = await rpc(applicant, 'public.get_my_tournament_memberships(50, 0)');
   eq((membershipsAfter.items || []).some((item) => item.tournamentId === tournamentId), true,
     'aprobada, el torneo aparece en Mis torneos del responsable');

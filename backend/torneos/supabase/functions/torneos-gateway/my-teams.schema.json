@@ -1,0 +1,39 @@
+{
+  "$comment": "CONNECTED-V1 — Core contract v1.2 `my_teams` operation (supabase/migrations/20261007120000_torneos_core_contract_v1_2_my_teams.sql). Same keyword subset as backend/torneos/phase2a/schemas.json (which stays byte-identical to Phase 2A): no $ref, closed objects. Request: {core_user_id, session_id, limit 1-30}. Response: the person's active Core teams (owner/admin: can_register true; plain member: false), no member, role or contact data.",
+  "$defs": {
+    "myTeamsRequest": {
+      "type": "object",
+      "properties": {
+        "core_user_id": { "type": "string", "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$" },
+        "session_id": { "type": "string", "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$" },
+        "limit": { "type": "integer", "minimum": 1, "maximum": 30 }
+      },
+      "required": ["core_user_id", "session_id", "limit"],
+      "additionalProperties": false
+    },
+    "myTeamsResponse": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "core_team_id": { "type": "string", "minLength": 36, "maxLength": 36, "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$" },
+              "name": { "type": "string", "minLength": 2, "maxLength": 100 },
+              "crest_url": { "type": ["string", "null"], "maxLength": 2048, "pattern": "^https://[^\\s]+$" },
+              "can_register": { "type": "boolean" }
+            },
+            "required": ["core_team_id", "name", "crest_url", "can_register"],
+            "additionalProperties": false
+          },
+          "maxItems": 30
+        },
+        "has_more": { "type": "boolean" },
+        "checked_at": { "type": "integer", "minimum": 0 }
+      },
+      "required": ["items", "has_more", "checked_at"],
+      "additionalProperties": false
+    }
+  }
+}

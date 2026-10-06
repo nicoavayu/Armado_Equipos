@@ -67,6 +67,7 @@ const SAMPLES = {
   saveCatalogListing: [
     [{ organizationId: ORG, tournamentId: TOURNAMENT, summary: 'Fútbol 5 los sábados.', locality: 'Rosario' }],
     [{ organizationId: ORG, tournamentId: TOURNAMENT, summary: 'Fútbol 5 los sábados.', locality: 'Rosario', venueId: CATEGORY, entryFeeCents: 1500000, entryFeeIncludes: 'Árbitro', paymentNote: 'Transferencia', requirements: 'DNI', rulesSummary: 'FIFA' }],
+    [{ organizationId: ORG, tournamentId: TOURNAMENT, summary: 'Fútbol 5.', locality: 'Rosario', entryFeeCents: 0, entryFeeUnit: 'player', contactWhatsapp: '5491122223333', contactPublic: true }],
   ],
   setCatalogListingStatus: [[{ organizationId: ORG, tournamentId: TOURNAMENT, listed: true }], [{ organizationId: ORG, tournamentId: TOURNAMENT, listed: false }]],
   setApplicationsState: [[{ organizationId: ORG, tournamentId: TOURNAMENT, state: 'paused' }]],
@@ -78,6 +79,8 @@ const SAMPLES = {
     [{ publicSlug: 'copa-abierta', categorySlug: 'primera', teamName: 'Nuevo FC', message: 'Hola', acceptConditions: true, idempotencyKey: KEY }],
   ],
   loadMyRegistrations: [[{}], [{ limit: 50, offset: 0 }]],
+  listMyCoreTeamsForApplication: [[{ publicSlug: 'copa-abierta' }]],
+  loadMyParticipations: [[{}], [{ limit: 6, offset: 12 }]],
 };
 
 test('each connected alias sends the same RPC name and p_* payload as the LOCAL service', async () => {

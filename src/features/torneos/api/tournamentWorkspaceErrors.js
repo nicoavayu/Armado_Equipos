@@ -219,6 +219,8 @@ export const ERROR_MESSAGES = {
     'Para publicar la convocatoria el torneo tiene que estar en inscripción, con su página pública publicada y al menos una categoría activa.',
   TORNEOS_CATALOG_LISTING_INCOMPLETE: 'Completá el resumen y la localidad antes de publicar la convocatoria.',
   TORNEOS_CATALOG_LISTING_INVALID: 'Revisá los datos de la convocatoria.',
+  TORNEOS_CONTACT_INVALID: 'Ingresá el WhatsApp con código de país, por ejemplo +54 9 11 2345 6789.',
+  TORNEOS_CONTACT_CONSENT_REQUIRED: 'Confirmá que el WhatsApp se va a mostrar públicamente en la convocatoria.',
   TORNEOS_CATALOG_LISTING_REMOVED: 'Arma2 retiró esta convocatoria del catálogo y no puede volver a publicarse.',
   TORNEOS_CAPACITY_BELOW_APPROVED: 'El cupo no puede ser menor que la cantidad de equipos ya aprobados.',
   TORNEOS_SEARCH_QUERY_INVALID: 'Escribí al menos 2 letras del nombre de tu equipo.',

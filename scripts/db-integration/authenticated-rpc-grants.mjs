@@ -103,6 +103,10 @@ const ANON_ALLOWLIST = [
   'public.public_submit_player_rating(bigint,text,text,bigint,integer)',
   'public.resolve_match_by_code(text)',
   'public.validate_guest_match_invite(bigint,text,text)',
+  // CONNECTED-V1 (20261006120000): Explorar torneos, the public catalog's safe projection.
+  'public.search_tournament_catalog(text,text,text,text,text,text,text,text,text)',
+  'public.get_tournament_catalog_facets()',
+  'public.get_tournament_catalog_entry(text)',
 ];
 
 // Functions created after the canonical contracts migration cannot be listed
@@ -202,6 +206,29 @@ const POST_CANONICAL_AUTHENTICATED_ALLOWLIST = [
   ],
   ['public.authorize_tournament_social_export(uuid,uuid,text,text,boolean)', 'frontend_legitimate'],
   ['public.get_tournament_season_media_usage(uuid,uuid)', 'frontend_legitimate'],
+  // CONNECTED-V1 (20261006120000): Torneos profile and inbox, catalog management, registration requests, participation.
+  ['public.search_tournament_catalog(text,text,text,text,text,text,text,text,text)', 'frontend_legitimate'],
+  ['public.get_tournament_catalog_facets()', 'frontend_legitimate'],
+  ['public.get_tournament_catalog_entry(text)', 'frontend_legitimate'],
+  ['public.get_my_torneos_profile()', 'frontend_legitimate'],
+  ['public.update_my_torneos_profile(text,boolean)', 'frontend_legitimate'],
+  ['public.get_my_torneos_notifications(boolean,integer,integer)', 'frontend_legitimate'],
+  ['public.mark_my_torneos_notifications_read(uuid[])', 'frontend_legitimate'],
+  ['public.get_my_torneos_inbox_summary()', 'frontend_legitimate'],
+  ['public.get_tournament_catalog_listing_settings(uuid,uuid)', 'frontend_legitimate'],
+  [
+    'public.save_tournament_catalog_listing(uuid,uuid,text,text,uuid,integer,text,text,text,text,text,text,boolean)',
+    'frontend_legitimate',
+  ],
+  ['public.set_tournament_catalog_listing_status(uuid,uuid,boolean)', 'frontend_legitimate'],
+  ['public.set_tournament_applications_state(uuid,uuid,text)', 'frontend_legitimate'],
+  ['public.save_tournament_category_capacity(uuid,uuid,uuid,integer)', 'frontend_legitimate'],
+  ['public.get_tournament_application_inbox(uuid,uuid,text,integer,integer)', 'frontend_legitimate'],
+  ['public.search_my_applicable_core_teams(text,text,integer)', 'frontend_legitimate'],
+  ['public.list_my_core_teams_for_application(text)', 'frontend_legitimate'],
+  ['public.start_tournament_application(text,text,uuid,text,text,boolean,uuid)', 'frontend_legitimate'],
+  ['public.get_my_tournament_registrations(integer,integer)', 'frontend_legitimate'],
+  ['public.get_my_tournament_participations(integer,integer)', 'frontend_legitimate'],
 ];
 
 const contracts = fs.readFileSync(contractsPath, 'utf8');

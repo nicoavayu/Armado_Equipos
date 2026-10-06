@@ -196,12 +196,15 @@ export async function applyCore() {
   // Phase 3B: the v1.1 `session` operation is a `create or replace` of the entry point; a
   // kept volume gets it when its current definition lacks the branch.
   const missingSession = missingContract || sql('core-db', "select position('p_operation = ''session''' in pg_get_functiondef('public.torneos_contract_execute(text,text,jsonb)'::regprocedure)) = 0").trim() === 't';
+  // CONNECTED-V1: v1.2 adds `my_teams` the same way (create or replace with the identical body + one branch).
+  const missingMyTeams = missingSession || sql('core-db', "select position('p_operation = ''my_teams''' in pg_get_functiondef('public.torneos_contract_execute(text,text,jsonb)'::regprocedure)) = 0").trim() === 't';
   const record = [];
   for (const file of files) {
     const source = await readFile(file, 'utf8');
     const isContract = file.endsWith('20260914120000_torneos_core_contract_v1.sql');
     const isSession = file.endsWith('20260915120000_torneos_core_contract_v1_1_session.sql');
-    const apply = fresh || (isContract && missingContract) || (isSession && missingSession);
+    const isMyTeams = file.endsWith('20261007120000_torneos_core_contract_v1_2_my_teams.sql');
+    const apply = fresh || (isContract && missingContract) || (isSession && missingSession) || (isMyTeams && missingMyTeams);
     if (apply) sql('core-db', source, 'postgres');
     record.push({ file: file.slice(repo.length), sha256: createHash('sha256').update(source).digest('hex'), applied_this_run: apply });
   }

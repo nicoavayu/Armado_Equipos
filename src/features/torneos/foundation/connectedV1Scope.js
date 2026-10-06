@@ -26,7 +26,9 @@ const features = {
   "tournament_applications": [
     "search_my_applicable_core_teams",
     "start_tournament_application",
-    "get_my_tournament_registrations"
+    "get_my_tournament_registrations",
+    "list_my_core_teams_for_application",
+    "get_my_tournament_participations"
   ]
 };
 const publicFeatures = {

@@ -91,10 +91,18 @@ test('0009 is additive, idempotent and never touches a certified body', () => {
     assert.match(sql, new RegExp(`drop trigger if exists ${match[1]} on`, 'i'), `${match[1]} re-creatable`);
   }
   assert.doesNotMatch(sql, /\bdrop (function|table)\b/i, 'nothing is dropped');
+  // Core contract v1.2 adds `my_teams` to the closed list of attestation contracts: those two statements, and only
+  // them, touch a certified table (the list gains one name; TTL, binding and single use are unchanged).
+  const attestationList = [
+    'alter table private.core_contract_attestations drop constraint if exists core_contract_attestations_contract_check;',
+    "alter table private.core_contract_attestations add constraint core_contract_attestations_contract_check\n  check (contract in ('verified_email', 'directory_players', 'directory_teams', 'team_snapshot', 'my_teams'));",
+  ];
   for (const statement of sql.match(/\balter table [^;]*;/gi) || []) {
+    if (attestationList.includes(statement)) continue;
     assert.match(statement, new RegExp(`^alter table public\\.(?:${CONTRACT.tables.join('|')}) enable row level security;$`, 'i'),
       `only its own tables are altered (RLS): ${statement}`);
   }
+  for (const statement of attestationList) assert.ok(sql.includes(statement), statement);
   assert.doesNotMatch(sql, /\balter function\b/i);
   assert.doesNotMatch(sql, /function private\.authorize_core_contract\(/i, 'the certified authorizer is not replaced');
   for (const name of ['review_tournament_team_entry', 'submit_tournament_team_entry', 'create_tournament_team_entry',
@@ -111,6 +119,13 @@ test('0009 never reads Core: identity is torneos_identity and team authority com
   assert.match(isolated.get('public.search_my_applicable_core_teams').body, /private\.consume_core_attestation\(\s*'directory_teams'/);
   assert.match(isolated.get('public.start_tournament_application').body, /private\.consume_core_attestation\(\s*'team_snapshot'/);
   assert.doesNotMatch(isolated.get('public.search_my_applicable_core_teams').header, /\bstable\b/i, 'consuming an attestation writes');
+  assert.match(isolated.get('public.list_my_core_teams_for_application').body,
+    /private\.consume_core_attestation\(\s*'my_teams',\s*jsonb_build_object\('applicantTournamentId', v_page\.tournament_id, 'limit', 30\)/);
+  assert.doesNotMatch(isolated.get('public.list_my_core_teams_for_application').header, /\bstable\b/i, 'consuming an attestation writes');
+  assert.match(isolated.get('private.authorize_applicant_core_contract').body,
+    /v_request := jsonb_build_object\('applicantTournamentId', v_page\.tournament_id, 'limit', 30\);\s*v_core_request := jsonb_build_object\('limit', 30\);/);
+  // LOCAL reads the same Core rule in the same database.
+  assert.match(functions(LOCAL).get('public.list_my_core_teams_for_application').body, /public\.team_user_is_admin_or_owner\(team\.id, v_uid\)/);
   // The authorizer binds exactly what the RPCs consume.
   const authorizer = isolated.get('private.authorize_applicant_core_contract').body;
   assert.match(authorizer, /'applicantTournamentId', v_page\.tournament_id, 'query', v_query, 'limit', v_limit/);

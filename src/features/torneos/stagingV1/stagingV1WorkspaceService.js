@@ -100,7 +100,7 @@ export const CONNECTED_METHODS = Object.freeze([
   'loadTorneosProfile', 'updateTorneosProfile', 'loadTorneosNotifications', 'markTorneosNotificationsRead',
   'loadTorneosInboxSummary', 'loadCatalogListingSettings', 'saveCatalogListing', 'setCatalogListingStatus',
   'setApplicationsState', 'saveCategoryCapacity', 'loadApplicationInbox', 'searchApplicableCoreTeams',
-  'startTournamentApplication', 'loadMyRegistrations',
+  'startTournamentApplication', 'loadMyRegistrations', 'listMyCoreTeamsForApplication', 'loadMyParticipations',
 ]);
 export const COMMERCE_METHODS = Object.freeze([
   'loadSeasonEntitlements', 'loadEntitlements', 'loadPurchase', 'createCheckout', 'simulateFakePayment', 'cancelPurchase',
@@ -331,6 +331,7 @@ export function createStagingV1WorkspaceService({
     saveCatalogListing: ({
       organizationId, tournamentId, summary, locality, venueId = null, entryFeeCents = null,
       entryFeeIncludes = null, paymentNote = null, requirements = null, rulesSummary = null,
+      entryFeeUnit = 'team', contactWhatsapp = null, contactPublic = false,
     } = {}) => call('save_tournament_catalog_listing', {
       p_organization_id: organizationId,
       p_tournament_id: tournamentId,
@@ -342,6 +343,9 @@ export function createStagingV1WorkspaceService({
       p_payment_note: paymentNote,
       p_requirements: requirements,
       p_rules_summary: rulesSummary,
+      p_entry_fee_unit: entryFeeUnit || 'team',
+      p_contact_whatsapp: contactWhatsapp || null,
+      p_contact_public: contactPublic === true,
     }, 'No pudimos guardar la convocatoria.'),
     setCatalogListingStatus: ({ organizationId, tournamentId, listed } = {}) => call('set_tournament_catalog_listing_status', {
       p_organization_id: organizationId,
@@ -373,6 +377,10 @@ export function createStagingV1WorkspaceService({
       p_query: query,
       p_limit: limit,
     }, 'No pudimos buscar tus equipos.'),
+    // Core contract v1.2 through the gateway: the applicant's own teams, with Core's verdict per team.
+    listMyCoreTeamsForApplication: ({ publicSlug } = {}) => call('list_my_core_teams_for_application', {
+      p_public_slug: publicSlug,
+    }, 'No pudimos cargar tus equipos.'),
     startTournamentApplication: ({
       publicSlug, categorySlug, coreTeamId = null, teamName = null, message = null, acceptConditions, idempotencyKey,
     } = {}) => call('start_tournament_application', {
@@ -388,6 +396,10 @@ export function createStagingV1WorkspaceService({
       p_limit: limit,
       p_offset: offset,
     }, 'No pudimos cargar tus inscripciones.'),
+    loadMyParticipations: ({ limit = 18, offset = 0 } = {}) => call('get_my_tournament_participations', {
+      p_limit: limit,
+      p_offset: offset,
+    }, 'No pudimos cargar tus torneos.'),
   } : {};
 
   return Object.freeze({

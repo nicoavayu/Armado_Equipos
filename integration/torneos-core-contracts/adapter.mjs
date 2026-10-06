@@ -51,6 +51,11 @@ export const CONTRACTS = {
     contract: 'directory_teams',
     request: (b) => ({ applicant_public_slug: b.p_public_slug, query: b.p_query, limit: b.p_limit ?? 8 }),
   },
+  // Core contract v1.2: the applicant's own teams (can register / only a member); a fixed limit, no client input.
+  list_my_core_teams_for_application: {
+    contract: 'my_teams',
+    request: (b) => ({ applicant_public_slug: b.p_public_slug, limit: 30 }),
+  },
   start_tournament_application: {
     contract: 'team_snapshot',
     // Only a request for an existing Core team needs an attestation; a new team does not.

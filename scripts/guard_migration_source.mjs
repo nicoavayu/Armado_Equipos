@@ -49,6 +49,9 @@ const expectedCanonicalMigrations = [
   '20260901120000_social_studio_theme_export_contract.sql',
   '20260914120000_torneos_core_contract_v1.sql',
   '20260915120000_torneos_core_contract_v1_1_session.sql',
+  // CONNECTED-V1 (#182): the LOCAL single-project twin of backend/torneos 0009 and the Core contract v1.2 (my_teams).
+  '20261006120000_torneos_connected_product_v1.sql',
+  '20261007120000_torneos_core_contract_v1_2_my_teams.sql',
 ];
 
 const exitWithError = (message) => {

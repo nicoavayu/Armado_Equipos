@@ -10,8 +10,20 @@
     "mode": "TORNEOS_CONNECTED_MODE",
     "frontend_mode": "REACT_APP_TORNEOS_CONNECTED_MODE",
     "core_contracts": {
-      "search_my_applicable_core_teams": { "contract": "directory_teams", "authorizer": "private.authorize_applicant_core_contract" },
-      "start_tournament_application": { "contract": "team_snapshot", "authorizer": "private.authorize_applicant_core_contract", "only_with": "p_core_team_id" }
+      "search_my_applicable_core_teams": {
+        "contract": "directory_teams",
+        "authorizer": "private.authorize_applicant_core_contract"
+      },
+      "start_tournament_application": {
+        "contract": "team_snapshot",
+        "authorizer": "private.authorize_applicant_core_contract",
+        "only_with": "p_core_team_id"
+      },
+      "list_my_core_teams_for_application": {
+        "contract": "my_teams",
+        "authorizer": "private.authorize_applicant_core_contract",
+        "core": "supabase/migrations/20261007120000_torneos_core_contract_v1_2_my_teams.sql"
+      }
     }
   },
   "rpcs": [
@@ -28,7 +40,9 @@
     "get_tournament_application_inbox",
     "search_my_applicable_core_teams",
     "start_tournament_application",
-    "get_my_tournament_registrations"
+    "get_my_tournament_registrations",
+    "list_my_core_teams_for_application",
+    "get_my_tournament_participations"
   ],
   "public_rpcs": [
     "search_tournament_catalog",
@@ -49,7 +63,8 @@
     "guard_tournament_team_entry_connected_transition",
     "notify_tournament_team_entry_submitted",
     "notify_tournament_team_entry_reviewed",
-    "assert_tournament_catalog_manager"
+    "assert_tournament_catalog_manager",
+    "tournament_application_team_registrations"
   ],
   "tables": [
     "tournament_user_profiles",
@@ -59,8 +74,13 @@
     "tournament_user_notifications"
   ],
   "triggers": {
-    "tournament_team_entries": ["tournament_team_entries_connected_guard", "tournament_team_entries_notify_submitted"],
-    "tournament_team_reviews": ["tournament_team_reviews_notify"]
+    "tournament_team_entries": [
+      "tournament_team_entries_connected_guard",
+      "tournament_team_entries_notify_submitted"
+    ],
+    "tournament_team_reviews": [
+      "tournament_team_reviews_notify"
+    ]
   },
   "errors": {
     "TORNEOS_APPLICATIONS_CLOSED": "PT409",
@@ -80,8 +100,20 @@
     "TORNEOS_CATALOG_INVALID_FILTER": "22023",
     "TORNEOS_SEARCH_QUERY_INVALID": "22023",
     "TORNEOS_APPLICATIONS_INVALID_FILTER": "22023",
-    "TORNEOS_NOTIFICATIONS_INVALID": "22023"
+    "TORNEOS_NOTIFICATIONS_INVALID": "22023",
+    "TORNEOS_CONTACT_INVALID": "22023",
+    "TORNEOS_CONTACT_CONSENT_REQUIRED": "22023"
   },
   "capacity_rule": "An approved team entry consumes a place; a pending request never does. Checked on submit (requests only) and on approval (every entry) under the advisory lock review_tournament_team_entry already takes for (tournament, category).",
-  "channels": { "inbox": true, "push": false, "email": false }
+  "channels": {
+    "inbox": true,
+    "push": false,
+    "email": false
+  },
+  "attestation_contracts_added": [
+    "my_teams"
+  ],
+  "public_contact": {
+    "contact_whatsapp": "Optional, published only when the organization saves it with p_contact_public = true; never a profile phone."
+  }
 }

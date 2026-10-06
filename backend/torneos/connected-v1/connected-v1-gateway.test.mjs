@@ -163,8 +163,13 @@ test('CONNECTED on: a Core team request goes through the applicant authorizer be
   assert.equal(CONTRACTS.start_tournament_application.request({ p_public_slug: 'copa', p_category_slug: 'libre', p_core_team_id: null }), null);
   assert.equal(authorizerFor(search), 'authorize_applicant_core_contract');
   assert.equal(authorizerFor(team), 'authorize_applicant_core_contract');
+  // Core contract v1.2: the applicant's own teams; the limit is fixed by the gateway, nothing else travels.
+  const mine = CONTRACTS.list_my_core_teams_for_application.request({ p_public_slug: 'copa', p_limit: 500, p_query: 'x' });
+  assert.deepEqual(mine, { applicant_public_slug: 'copa', limit: 30 });
+  assert.equal(CONTRACTS.list_my_core_teams_for_application.contract, 'my_teams');
+  assert.equal(authorizerFor(mine), 'authorize_applicant_core_contract');
   for (const [name, mapper] of Object.entries(CONTRACTS)) {
-    if (['search_my_applicable_core_teams', 'start_tournament_application'].includes(name)) continue;
+    if (['search_my_applicable_core_teams', 'start_tournament_application', 'list_my_core_teams_for_application'].includes(name)) continue;
     const sample = mapper.request({ p_token: 't'.repeat(64), p_organization_id: 'o', p_tournament_id: 't', p_category_id: 'c', p_arma2_team_id: 'a', p_query: 'q', p_limit: 3, applicant_public_slug: 'injected' });
     if (sample) assert.equal(authorizerFor(sample), 'authorize_core_contract', `${name} keeps the certified authorizer whatever the client sends`);
   }

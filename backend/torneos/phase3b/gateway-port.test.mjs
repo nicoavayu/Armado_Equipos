@@ -29,13 +29,16 @@ const labRequire = createRequire(path.join(LAB, 'package.json'));
 const ts = (await import(pathToFileURL(path.join(ROOT, 'node_modules/typescript/lib/typescript.js')).href)).default;
 const jose = await import(pathToFileURL(labRequire.resolve('jose')).href);
 const nodeToken = await import(pathToFileURL(path.join(ROOT, 'integration/torneos-sso/token.mjs')).href);
-// The Node modules resolve ./schemas.json next to themselves (a lab mount): stage them with it.
+// The Node modules resolve ./schemas.json (and the v1.2 ./my-teams.schema.json) next to themselves (lab mounts):
+// stage them with them.
+const FN_SCHEMAS = path.join(ROOT, 'backend/torneos/supabase/functions/torneos-gateway');
 const NODE_STAGE = await fs.mkdtemp(path.join(os.tmpdir(), 'arma2-node-gateway-'));
 for (const f of ['core-client.mjs', 'adapter.mjs']) {
   const src = await fs.readFile(path.join(LAB, f), 'utf8');
   await fs.writeFile(path.join(NODE_STAGE, f), src.replace(/from 'node:crypto'/, `from 'node:crypto'`));
 }
 await fs.copyFile(path.join(ROOT, 'backend/torneos/phase2a/schemas.json'), path.join(NODE_STAGE, 'schemas.json'));
+await fs.copyFile(path.join(FN_SCHEMAS, 'my-teams.schema.json'), path.join(NODE_STAGE, 'my-teams.schema.json'));
 const nodeCoreClient = await import(pathToFileURL(path.join(NODE_STAGE, 'core-client.mjs')).href);
 const nodeAdapter = await import(pathToFileURL(path.join(NODE_STAGE, 'adapter.mjs')).href);
 
@@ -63,7 +66,7 @@ export default function postgres(url, options) {
     const out = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022, isolatedModules: true, verbatimModuleSyntax: false }, fileName: file }).outputText;
     await fs.writeFile(path.join(outDir, file.replace(/\.ts$/, '.mjs')), out);
   }
-  for (const json of ['schemas.json', 'session.schema.json', 'staging-v1-rpc-allowlist.json']) await fs.copyFile(path.join(FN, json), path.join(outDir, json));
+  for (const json of ['schemas.json', 'session.schema.json', 'my-teams.schema.json', 'staging-v1-rpc-allowlist.json']) await fs.copyFile(path.join(FN, json), path.join(outDir, json));
   const mod = async (name) => import(pathToFileURL(path.join(outDir, `${name}.mjs`)).href);
   return { topology: await mod('topology'), token: await mod('token'), coreClient: await mod('core-client'), db: await mod('db'), adapter: await mod('adapter'), config: await mod('config'),
     stub: await mod('postgres-stub'), cleanup: () => fs.rm(outDir, { recursive: true, force: true }) };

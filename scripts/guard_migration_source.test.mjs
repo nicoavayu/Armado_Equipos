@@ -15,6 +15,8 @@ const globalAvailabilityMigration = '20260831200904_global_availability_atomic_c
 const socialStudioThemeMigration = '20260901120000_social_studio_theme_export_contract.sql';
 const torneosCoreContractMigration = '20260914120000_torneos_core_contract_v1.sql';
 const torneosCoreContractSessionMigration = '20260915120000_torneos_core_contract_v1_1_session.sql';
+const torneosConnectedLocalMigration = '20261006120000_torneos_connected_product_v1.sql';
+const torneosCoreContractMyTeamsMigration = '20261007120000_torneos_core_contract_v1_2_my_teams.sql';
 const approvedMigrations = fs.readdirSync(path.join(repoRoot, 'supabase', 'migrations'))
   .filter((file) => file.endsWith('.sql'))
   .sort();
@@ -38,7 +40,7 @@ const runGuard = (cwd) => spawnSync(process.execPath, [guardPath], {
 });
 
 test('accepts the closed set including Auto-Match, contract repair and global availability', (t) => {
-  assert.equal(approvedMigrations.length, 43);
+  assert.equal(approvedMigrations.length, 45);
   assert.ok(approvedMigrations.includes(autoMatchMigration));
   assert.ok(approvedMigrations.includes(contractRepairMigration));
   assert.ok(approvedMigrations.includes(mediaSessionReuseMigration));
@@ -46,6 +48,8 @@ test('accepts the closed set including Auto-Match, contract repair and global av
   assert.ok(approvedMigrations.includes(socialStudioThemeMigration));
   assert.ok(approvedMigrations.includes(torneosCoreContractMigration));
   assert.ok(approvedMigrations.includes(torneosCoreContractSessionMigration));
+  assert.ok(approvedMigrations.includes(torneosConnectedLocalMigration));
+  assert.ok(approvedMigrations.includes(torneosCoreContractMyTeamsMigration));
   assert.equal(
     approvedMigrations.filter(
       (file) => file !== autoMatchMigration
@@ -53,7 +57,9 @@ test('accepts the closed set including Auto-Match, contract repair and global av
         && file !== globalAvailabilityMigration
         && file !== socialStudioThemeMigration
         && file !== torneosCoreContractMigration
-        && file !== torneosCoreContractSessionMigration,
+        && file !== torneosCoreContractSessionMigration
+        && file !== torneosConnectedLocalMigration
+        && file !== torneosCoreContractMyTeamsMigration,
     ).length,
     37,
   );

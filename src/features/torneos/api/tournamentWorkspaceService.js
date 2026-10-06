@@ -1597,6 +1597,9 @@ export async function saveTournamentCatalogListing({
   paymentNote = null,
   requirements = null,
   rulesSummary = null,
+  entryFeeUnit = 'team',
+  contactWhatsapp = null,
+  contactPublic = false,
 }) {
   return unwrapRpc(await supabase.rpc('save_tournament_catalog_listing', {
     p_organization_id: organizationId,
@@ -1609,6 +1612,9 @@ export async function saveTournamentCatalogListing({
     p_payment_note: paymentNote,
     p_requirements: requirements,
     p_rules_summary: rulesSummary,
+    p_entry_fee_unit: entryFeeUnit || 'team',
+    p_contact_whatsapp: contactWhatsapp || null,
+    p_contact_public: contactPublic === true,
   }), 'No pudimos guardar la convocatoria.');
 }
 
@@ -1661,6 +1667,12 @@ export async function searchApplicableCoreTeams({ publicSlug, query, limit = 8 }
   }), 'No pudimos buscar tus equipos.');
 }
 
+export async function listMyCoreTeamsForApplication({ publicSlug }) {
+  return unwrapRpc(await supabase.rpc('list_my_core_teams_for_application', {
+    p_public_slug: publicSlug,
+  }), 'No pudimos cargar tus equipos.');
+}
+
 export async function startTournamentApplication({
   publicSlug,
   categorySlug,
@@ -1679,6 +1691,13 @@ export async function startTournamentApplication({
     p_accept_conditions: acceptConditions,
     p_idempotency_key: idempotencyKey,
   }), 'No pudimos crear la solicitud.');
+}
+
+export async function loadMyTournamentParticipations({ limit = 18, offset = 0 } = {}) {
+  return unwrapRpc(await supabase.rpc('get_my_tournament_participations', {
+    p_limit: limit,
+    p_offset: offset,
+  }), 'No pudimos cargar tus torneos.');
 }
 
 export async function loadMyTournamentRegistrations({ limit = 20, offset = 0 } = {}) {
@@ -2318,7 +2337,9 @@ export const tournamentWorkspaceService = Object.freeze({
   saveCategoryCapacity: saveTournamentCategoryCapacity,
   loadApplicationInbox: loadTournamentApplicationInbox,
   searchApplicableCoreTeams,
+  listMyCoreTeamsForApplication,
   startTournamentApplication,
+  loadMyParticipations: loadMyTournamentParticipations,
   loadMyRegistrations: loadMyTournamentRegistrations,
   resolveTeamShieldUrl,
   resolveTournamentLogoUrl,

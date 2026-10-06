@@ -12,7 +12,7 @@
 --     pre-authorized by a NEW private.authorize_applicant_core_contract, so the certified
 --     private.authorize_core_contract (pinned by 0005) stays byte-identical;
 --   * nothing reaches the client unless the gateway serves it: TORNEOS_CONNECTED_MODE=on adds exactly the RPCs of
---     torneos-gateway/connected-v1-rpc-allowlist.json (14 authenticated + 3 public read-only).
+--     torneos-gateway/connected-v1-rpc-allowlist.json (16 authenticated + 3 public read-only).
 --
 -- Three separate, explicit concepts — none is enabled by creating a tournament: the public page
 -- (tournament_public_pages, unchanged), the catalog listing (tournament_catalog_listings.status = 'listed', requires
@@ -23,7 +23,7 @@
 -- submitting a request outside an open call (TORNEOS_APPLICATIONS_CLOSED) and approving over a category capacity
 -- (TORNEOS_CATEGORY_FULL, same advisory lock as the review). An approved entry consumes a place; a pending one never.
 --
--- ACL: 14 functions EXECUTE to authenticated, 3 public read-only functions to anon + authenticated, the platform
+-- ACL: 16 functions EXECUTE to authenticated, 3 public read-only functions to anon + authenticated, the platform
 -- removal lever to service_role only, the applicant authorizer to torneos_core_adapter only; new tables have RLS
 -- and no API grant (SECURITY DEFINER RPCs only).
 BEGIN;
@@ -42,6 +42,15 @@ BEGIN
   END IF;
 END $pre$;
 
+
+-- ============================================================================================ attestations
+-- Core contract v1.2 (supabase/migrations/20261007120000_torneos_core_contract_v1_2_my_teams.sql) adds `my_teams`: the
+-- applicant's own teams and Core's verdict on whether they can register each one. Its attestation is single-use and
+-- bound exactly like the other four (identity, session, request hash, 10 s TTL); the only change is that the closed
+-- list of contract names gains this one. Nothing else in the certified attestation table changes.
+alter table private.core_contract_attestations drop constraint if exists core_contract_attestations_contract_check;
+alter table private.core_contract_attestations add constraint core_contract_attestations_contract_check
+  check (contract in ('verified_email', 'directory_players', 'directory_teams', 'team_snapshot', 'my_teams'));
 
 -- ============================================================================================ tables
 
@@ -69,10 +78,12 @@ create table if not exists public.tournament_catalog_listings (
   venue_id uuid references public.tournament_venues(id) on delete set null,
   entry_fee_cents integer,
   entry_fee_currency text not null default 'ARS',
+  entry_fee_unit text not null default 'team',
   entry_fee_includes text,
   payment_note text,
   requirements text,
   rules_summary text,
+  contact_whatsapp text,
   listed_at timestamptz,
   listed_by uuid references public.torneos_identity(id) on delete restrict,
   withdrawn_at timestamptz,
@@ -95,6 +106,9 @@ create table if not exists public.tournament_catalog_listings (
   constraint tournament_catalog_listings_locality_check check (locality is null or (locality = btrim(locality) and char_length(locality) between 2 and 80)),
   constraint tournament_catalog_listings_fee_check check (entry_fee_cents is null or entry_fee_cents between 0 and 100000000),
   constraint tournament_catalog_listings_currency_check check (entry_fee_currency = 'ARS'),
+  constraint tournament_catalog_listings_fee_unit_check check (entry_fee_unit in ('team', 'player')),
+  -- Explicitly published by the organization for this call (never a profile phone): international digits only.
+  constraint tournament_catalog_listings_whatsapp_check check (contact_whatsapp is null or contact_whatsapp ~ '^[1-9][0-9]{7,14}$'),
   constraint tournament_catalog_listings_fee_includes_check check (entry_fee_includes is null or char_length(entry_fee_includes) between 2 and 300),
   constraint tournament_catalog_listings_payment_note_check check (payment_note is null or char_length(payment_note) between 2 and 300),
   constraint tournament_catalog_listings_requirements_check check (requirements is null or char_length(requirements) between 2 and 600),
@@ -707,6 +721,7 @@ begin
       tournament.gender_category, tournament.team_size, tournament.start_date, tournament.end_date,
       tournament.registration_closes_at, tournament.registration_opens_at,
       organization.name organization_name, page.public_slug, venue.name venue_name,
+      tournament.logo_path tournament_logo_path, organization.logo_path organization_logo_path,
       public.tournament_catalog_state(tournament.id) catalog_state
     from public.tournament_catalog_listings listing
     join public.tournaments tournament
@@ -763,7 +778,10 @@ begin
       'registrationClosesAt', ordered.registration_closes_at,
       'state', ordered.catalog_state,
       'entryFee', case when ordered.entry_fee_cents is null then null else jsonb_build_object(
-        'amountCents', ordered.entry_fee_cents, 'currency', ordered.entry_fee_currency) end,
+        'amountCents', ordered.entry_fee_cents, 'currency', ordered.entry_fee_currency, 'unit', ordered.entry_fee_unit) end,
+      -- Same branding the public page publishes (get_public_tournament_branding): tournament logo, else organization's.
+      'logoPath', ordered.tournament_logo_path,
+      'organizationLogoPath', ordered.organization_logo_path,
       'categories', (
         select coalesce(jsonb_agg(jsonb_build_object('name', category.name, 'slug', category.slug)
           order by category.sort_order, category.name), '[]'::jsonb)
@@ -858,8 +876,12 @@ begin
     'registrationOpensAt', v_tournament.registration_opens_at,
     'registrationClosesAt', v_tournament.registration_closes_at,
     'entryFee', case when v_listing.entry_fee_cents is null then null else jsonb_build_object(
-      'amountCents', v_listing.entry_fee_cents, 'currency', v_listing.entry_fee_currency,
+      'amountCents', v_listing.entry_fee_cents, 'currency', v_listing.entry_fee_currency, 'unit', v_listing.entry_fee_unit,
       'includes', v_listing.entry_fee_includes, 'paymentNote', v_listing.payment_note) end,
+    -- Published by the organization for this call; null unless they chose to.
+    'contactWhatsapp', v_listing.contact_whatsapp,
+    'logoPath', v_tournament.logo_path,
+    'organizationLogoPath', (select logo_path from public.tournament_organizations where id = v_tournament.organization_id),
     'requirements', v_listing.requirements,
     'rulesSummary', v_listing.rules_summary,
     'state', public.tournament_catalog_state(v_tournament.id),
@@ -904,6 +926,7 @@ begin
       'applicationsState', coalesce(v_listing.applications_state, 'closed'),
       'summary', v_listing.summary, 'locality', v_listing.locality, 'venueId', v_listing.venue_id,
       'entryFeeCents', v_listing.entry_fee_cents, 'entryFeeCurrency', coalesce(v_listing.entry_fee_currency, 'ARS'),
+      'entryFeeUnit', coalesce(v_listing.entry_fee_unit, 'team'), 'contactWhatsapp', v_listing.contact_whatsapp,
       'entryFeeIncludes', v_listing.entry_fee_includes, 'paymentNote', v_listing.payment_note,
       'requirements', v_listing.requirements, 'rulesSummary', v_listing.rules_summary,
       'listedAt', v_listing.listed_at, 'withdrawnAt', v_listing.withdrawn_at,
@@ -966,12 +989,18 @@ create or replace function public.save_tournament_catalog_listing(
   p_entry_fee_includes text,
   p_payment_note text,
   p_requirements text,
-  p_rules_summary text
+  p_rules_summary text,
+  p_entry_fee_unit text,
+  p_contact_whatsapp text,
+  p_contact_public boolean
 ) returns jsonb language plpgsql security definer set search_path = '' as $$
 declare
   v_tournament public.tournaments%rowtype;
   v_summary text := nullif(btrim(coalesce(p_summary, '')), '');
   v_locality text := nullif(btrim(regexp_replace(coalesce(p_locality, ''), '\s+', ' ', 'g')), '');
+  v_unit text := coalesce(nullif(btrim(coalesce(p_entry_fee_unit, '')), ''), 'team');
+  v_whatsapp text := nullif(regexp_replace(btrim(coalesce(p_contact_whatsapp, '')), '[[:space:]().-]', '', 'g'), '');
+  v_previous_whatsapp text;
 begin
   v_tournament := public.assert_tournament_catalog_manager(p_organization_id, p_tournament_id);
   if v_tournament.status = 'archived' then
@@ -983,6 +1012,20 @@ begin
   ) then
     raise exception using errcode = '22023', message = 'TORNEOS_CATALOG_LISTING_INVALID';
   end if;
+  if v_unit not in ('team', 'player') then
+    raise exception using errcode = '22023', message = 'TORNEOS_CATALOG_LISTING_INVALID';
+  end if;
+  -- WhatsApp: international format (country code, no leading 0); "+", "00", spaces, dots, dashes and parentheses are
+  -- accepted and removed. It is published for this call only, so the organizer must say so explicitly.
+  if v_whatsapp like '+%' then v_whatsapp := substr(v_whatsapp, 2);
+  elsif v_whatsapp like '00%' then v_whatsapp := substr(v_whatsapp, 3);
+  end if;
+  if v_whatsapp is not null and v_whatsapp !~ '^[1-9][0-9]{7,14}$' then
+    raise exception using errcode = '22023', message = 'TORNEOS_CONTACT_INVALID';
+  end if;
+  if v_whatsapp is not null and p_contact_public is not true then
+    raise exception using errcode = '22023', message = 'TORNEOS_CONTACT_CONSENT_REQUIRED';
+  end if;
   if exists (
     select 1 from public.tournament_catalog_listings listing
     where listing.tournament_id = p_tournament_id and listing.platform_removed_at is not null
@@ -990,20 +1033,24 @@ begin
     raise exception using errcode = 'PT409', message = 'TORNEOS_CATALOG_LISTING_REMOVED';
   end if;
   perform pg_advisory_xact_lock(hashtextextended(p_tournament_id::text, 20261006));
+  select listing.contact_whatsapp into v_previous_whatsapp
+  from public.tournament_catalog_listings listing where listing.tournament_id = p_tournament_id;
   begin
     insert into public.tournament_catalog_listings (
-      tournament_id, organization_id, summary, locality, venue_id, entry_fee_cents,
-      entry_fee_includes, payment_note, requirements, rules_summary, updated_by
+      tournament_id, organization_id, summary, locality, venue_id, entry_fee_cents, entry_fee_unit,
+      entry_fee_includes, payment_note, requirements, rules_summary, contact_whatsapp, updated_by
     ) values (
-      p_tournament_id, p_organization_id, v_summary, v_locality, p_venue_id, p_entry_fee_cents,
+      p_tournament_id, p_organization_id, v_summary, v_locality, p_venue_id, p_entry_fee_cents, v_unit,
       nullif(btrim(coalesce(p_entry_fee_includes, '')), ''), nullif(btrim(coalesce(p_payment_note, '')), ''),
-      nullif(btrim(coalesce(p_requirements, '')), ''), nullif(btrim(coalesce(p_rules_summary, '')), ''), private.current_identity_id()
+      nullif(btrim(coalesce(p_requirements, '')), ''), nullif(btrim(coalesce(p_rules_summary, '')), ''), v_whatsapp, private.current_identity_id()
     )
     on conflict (tournament_id) do update set
       summary = excluded.summary, locality = excluded.locality, venue_id = excluded.venue_id,
-      entry_fee_cents = excluded.entry_fee_cents, entry_fee_includes = excluded.entry_fee_includes,
+      entry_fee_cents = excluded.entry_fee_cents, entry_fee_unit = excluded.entry_fee_unit,
+      entry_fee_includes = excluded.entry_fee_includes,
       payment_note = excluded.payment_note, requirements = excluded.requirements,
-      rules_summary = excluded.rules_summary, updated_by = excluded.updated_by, updated_at = now();
+      rules_summary = excluded.rules_summary, contact_whatsapp = excluded.contact_whatsapp,
+      updated_by = excluded.updated_by, updated_at = now();
   exception when check_violation then
     raise exception using errcode = '22023', message = 'TORNEOS_CATALOG_LISTING_INVALID';
   end;
@@ -1016,7 +1063,11 @@ begin
     raise exception using errcode = '22023', message = 'TORNEOS_CATALOG_LISTING_INCOMPLETE';
   end if;
   perform public.append_tournament_audit(
-    p_organization_id, 'catalog.listing_saved', 'tournament', p_tournament_id, null, p_tournament_id, '{}'::jsonb
+    p_organization_id, 'catalog.listing_saved', 'tournament', p_tournament_id, null, p_tournament_id,
+    jsonb_build_object('contact', case
+      when v_whatsapp is not distinct from v_previous_whatsapp then 'unchanged'
+      when v_whatsapp is null then 'removed'
+      else 'published' end)
   );
   return public.get_tournament_catalog_listing_settings(p_organization_id, p_tournament_id);
 end;
@@ -1253,6 +1304,53 @@ $$;
 
 -- ============================================================================================ applicant
 
+
+-- Which requests or entries a Core team already has in a tournament (any category), so the applicant sees it before
+-- choosing instead of hitting TORNEOS_TEAM_ALREADY_REGISTERED at the end. Same statuses that block a new request.
+create or replace function public.tournament_application_team_registrations(p_tournament_id uuid, p_core_team_id uuid)
+returns jsonb language sql stable security definer set search_path = '' as $$
+  select coalesce(jsonb_agg(jsonb_build_object(
+      'categorySlug', category.slug, 'categoryName', category.name, 'status', entry.status)
+    order by category.sort_order, category.name), '[]'::jsonb)
+  from public.tournament_team_entries entry
+  join public.tournament_categories category on category.id = entry.category_id
+  where entry.tournament_id = p_tournament_id
+    and entry.arma2_team_id = p_core_team_id
+    and entry.status not in ('withdrawn', 'archived', 'rejected');
+$$;
+
+-- The caller's own active Core teams for a call, from Core's contract v1.2 (my_teams) attested by the gateway for THIS
+-- identity and request: the ones they can register (Core: owner/admin) and the ones they only belong to
+-- (canRegister = false). Display only: start_tournament_application consumes a team_snapshot attestation on its own.
+create or replace function public.list_my_core_teams_for_application(p_public_slug text)
+returns jsonb language plpgsql security definer set search_path = '' as $$
+declare
+  v_page public.tournament_public_pages%rowtype;
+  v_teams jsonb;
+begin
+  if private.current_identity_id() is null then raise exception using errcode = '42501', message = 'TORNEOS_AUTH_REQUIRED'; end if;
+  select * into v_page from public.tournament_public_pages where public_slug = p_public_slug and status = 'published';
+  if v_page.tournament_id is null or public.tournament_catalog_block_reason(v_page.tournament_id, null) is not null then
+    raise exception using errcode = 'PT409', message = 'TORNEOS_APPLICATIONS_CLOSED';
+  end if;
+  v_teams := private.consume_core_attestation(
+    'my_teams',
+    jsonb_build_object('applicantTournamentId', v_page.tournament_id, 'limit', 30)
+  );
+  return jsonb_build_object(
+    'items', coalesce((
+      select jsonb_agg(jsonb_build_object(
+          'id', item->>'core_team_id', 'name', item->>'name', 'crestUrl', item->'crest_url',
+          'canRegister', coalesce((item->>'can_register')::boolean, false),
+          'registrations', public.tournament_application_team_registrations(v_page.tournament_id, (item->>'core_team_id')::uuid))
+        order by coalesce((item->>'can_register')::boolean, false) desc, lower(item->>'name'), item->>'core_team_id')
+      from jsonb_array_elements(coalesce(v_teams->'items', '[]'::jsonb)) item
+    ), '[]'::jsonb),
+    'hasMore', coalesce((v_teams->>'has_more')::boolean, false)
+  );
+end;
+$$;
+
 create or replace function public.search_my_applicable_core_teams(p_public_slug text, p_query text, p_limit integer default 8)
 returns jsonb language plpgsql security definer set search_path = '' as $$
 declare
@@ -1277,7 +1375,9 @@ begin
     jsonb_build_object('applicantTournamentId', v_page.tournament_id, 'query', v_query, 'limit', v_limit)
   );
   return jsonb_build_object('items', coalesce((
-    select jsonb_agg(jsonb_build_object('id', item->>'core_team_id', 'name', item->>'name', 'crestUrl', item->'crest_url')
+    select jsonb_agg(jsonb_build_object('id', item->>'core_team_id', 'name', item->>'name', 'crestUrl', item->'crest_url',
+        'canRegister', true,
+        'registrations', public.tournament_application_team_registrations(v_page.tournament_id, (item->>'core_team_id')::uuid))
       order by item->>'name', item->>'core_team_id')
     from jsonb_array_elements(coalesce(v_directory->'items', '[]'::jsonb)) item
   ), '[]'::jsonb));
@@ -1599,12 +1699,14 @@ revoke all on function
   public.get_tournament_catalog_facets(),
   public.get_tournament_catalog_entry(text),
   public.get_tournament_catalog_listing_settings(uuid, uuid),
-  public.save_tournament_catalog_listing(uuid, uuid, text, text, uuid, integer, text, text, text, text),
+  public.save_tournament_catalog_listing(uuid, uuid, text, text, uuid, integer, text, text, text, text, text, text, boolean),
   public.set_tournament_catalog_listing_status(uuid, uuid, boolean),
   public.set_tournament_applications_state(uuid, uuid, text),
   public.save_tournament_category_capacity(uuid, uuid, uuid, integer),
   public.get_tournament_application_inbox(uuid, uuid, text, integer, integer),
   public.search_my_applicable_core_teams(text, text, integer),
+  public.tournament_application_team_registrations(uuid, uuid),
+  public.list_my_core_teams_for_application(text),
   public.start_tournament_application(text, text, uuid, text, text, boolean, uuid),
   public.get_my_tournament_registrations(integer, integer),
   public.platform_remove_tournament_catalog_listing(uuid, text)
@@ -1623,12 +1725,13 @@ grant execute on function
   public.mark_my_torneos_notifications_read(uuid[]),
   public.get_my_torneos_inbox_summary(),
   public.get_tournament_catalog_listing_settings(uuid, uuid),
-  public.save_tournament_catalog_listing(uuid, uuid, text, text, uuid, integer, text, text, text, text),
+  public.save_tournament_catalog_listing(uuid, uuid, text, text, uuid, integer, text, text, text, text, text, text, boolean),
   public.set_tournament_catalog_listing_status(uuid, uuid, boolean),
   public.set_tournament_applications_state(uuid, uuid, text),
   public.save_tournament_category_capacity(uuid, uuid, uuid, integer),
   public.get_tournament_application_inbox(uuid, uuid, text, integer, integer),
   public.search_my_applicable_core_teams(text, text, integer),
+  public.list_my_core_teams_for_application(text),
   public.start_tournament_application(text, text, uuid, text, text, boolean, uuid),
   public.get_my_tournament_registrations(integer, integer)
 to authenticated;
@@ -1637,7 +1740,278 @@ grant execute on function public.platform_remove_tournament_catalog_listing(uuid
 
 -- ============================================================================================ applicant authorizer
 
--- Server-side pre-authorization of the two applicant Core contracts, called by the gateway adapter (as
+-- «Mis torneos» is participation: approved team entries the caller represents (captain/delegate) or plays in. Same
+-- projection and paging as get_my_tournament_memberships without its organization-membership branch.
+create or replace function public.get_my_tournament_participations(p_limit integer default 20, p_offset integer default 0)
+returns jsonb language plpgsql security definer set search_path = '' as $$
+declare
+  v_limit integer := least(greatest(coalesce(p_limit, 20), 1), 50);
+  v_offset integer := greatest(coalesce(p_offset, 0), 0);
+  v_result jsonb;
+begin
+  if private.current_identity_id() is null then
+    raise exception using errcode = '42501', message = 'TORNEOS_AUTH_REQUIRED';
+  end if;
+
+  with authorized_relations as (
+    select
+      entry.organization_id,
+      entry.tournament_id,
+      entry.category_id,
+      null::text organization_role
+    from public.tournament_team_entries entry
+    join public.tournament_team_managers manager
+      on manager.organization_id = entry.organization_id
+     and manager.team_entry_id = entry.id
+     and manager.user_id = private.current_identity_id()
+     and manager.status = 'active'
+     and manager.role in ('captain', 'delegate')
+    join public.tournament_organizations organization
+      on organization.id = entry.organization_id
+     and organization.status = 'active'
+    where entry.status = 'approved'
+    union all
+    select
+      entry.organization_id,
+      entry.tournament_id,
+      entry.category_id,
+      null::text
+    from public.tournament_team_entries entry
+    join public.get_my_current_tournament_roster_players() player
+      on player.team_entry_id = entry.id
+    join public.tournament_organizations organization
+      on organization.id = entry.organization_id
+     and organization.status = 'active'
+    where entry.status = 'approved'
+  ),
+  authorized_categories as (
+    select
+      relation.organization_id,
+      relation.tournament_id,
+      relation.category_id,
+      max(relation.organization_role) organization_role
+    from authorized_relations relation
+    group by
+      relation.organization_id,
+      relation.tournament_id,
+      relation.category_id
+  ),
+  scoped as (
+    select
+      access.organization_id,
+      access.tournament_id,
+      access.category_id,
+      organization.name organization_name,
+      organization.logo_path organization_logo_path,
+      tournament.name tournament_name,
+      tournament.status tournament_status,
+      tournament.start_date,
+      tournament.end_date,
+      season.name season_name,
+      season.status season_status,
+      category.name category_name,
+      coalesce(
+        access.organization_role,
+        membership.role
+      ) organization_role,
+      own_team.team_entry_id,
+      own_team.team_name,
+      own_team.team_short_name,
+      own_team.team_shield_path,
+      own_team.primary_color,
+      own_team.manager_role,
+      own_team.roster_player_id,
+      case
+        when own_team.manager_role is not null then own_team.manager_role
+        when own_team.roster_player_id is not null then 'player'
+        else coalesce(access.organization_role, membership.role)
+      end relation_role,
+      fixture.id fixture_version_id
+    from authorized_categories access
+    join public.tournament_organizations organization
+      on organization.id = access.organization_id
+    join public.tournaments tournament
+      on tournament.organization_id = access.organization_id
+     and tournament.id = access.tournament_id
+    join public.tournament_seasons season
+      on season.organization_id = tournament.organization_id
+     and season.id = tournament.season_id
+    join public.tournament_categories category
+      on category.organization_id = access.organization_id
+     and category.tournament_id = access.tournament_id
+     and category.id = access.category_id
+    left join public.tournament_organization_members membership
+      on membership.organization_id = access.organization_id
+     and membership.user_id = private.current_identity_id()
+     and membership.status = 'active'
+    left join lateral (
+      select
+        entry.id team_entry_id,
+        entry.name team_name,
+        entry.short_name team_short_name,
+        entry.shield_path team_shield_path,
+        entry.primary_color,
+        manager.role manager_role,
+        player.roster_player_id
+      from public.tournament_team_entries entry
+      left join public.tournament_team_managers manager
+        on manager.organization_id = entry.organization_id
+       and manager.team_entry_id = entry.id
+       and manager.user_id = private.current_identity_id()
+       and manager.status = 'active'
+       and manager.role in ('captain', 'delegate')
+      left join public.get_my_current_tournament_roster_players() player
+        on player.team_entry_id = entry.id
+      where entry.organization_id = access.organization_id
+        and entry.tournament_id = access.tournament_id
+        and entry.category_id = access.category_id
+        and entry.status = 'approved'
+        and (
+          manager.id is not null
+          or player.roster_player_id is not null
+        )
+      order by
+        (player.roster_player_id is not null) desc,
+        (manager.id is not null) desc,
+        entry.name
+      limit 1
+    ) own_team on true
+    left join public.tournament_fixture_versions fixture
+      on fixture.organization_id = access.organization_id
+     and fixture.tournament_id = access.tournament_id
+     and fixture.category_id = access.category_id
+     and fixture.status = 'published'
+  ),
+  enriched as (
+    select
+      scoped.*,
+      upcoming.match_payload next_match,
+      standing.position
+    from scoped
+    left join lateral (
+      select jsonb_build_object(
+        'matchId', match_row.id,
+        'scheduledAt', match_row.scheduled_at,
+        'status', match_row.status,
+        'roundName', round_row.name,
+        'homeName', home.snapshot_name,
+        'awayName', away.snapshot_name,
+        'isMyTeam', scoped.team_entry_id is not null and (
+          home.team_entry_id = scoped.team_entry_id
+          or away.team_entry_id = scoped.team_entry_id
+        )
+      ) match_payload
+      from public.tournament_matches match_row
+      join public.tournament_rounds round_row on round_row.id = match_row.round_id
+      left join public.tournament_competition_participants home
+        on home.id = match_row.home_participant_id
+      left join public.tournament_competition_participants away
+        on away.id = match_row.away_participant_id
+      where match_row.fixture_version_id = scoped.fixture_version_id
+        and match_row.status in ('scheduled', 'ready', 'postponed')
+        and (
+          scoped.team_entry_id is null
+          or home.team_entry_id = scoped.team_entry_id
+          or away.team_entry_id = scoped.team_entry_id
+        )
+        and (match_row.scheduled_at is null or match_row.scheduled_at >= now())
+      order by match_row.scheduled_at nulls last, match_row.match_number
+      limit 1
+    ) upcoming on true
+    left join lateral (
+      select standings.position
+      from public.tournament_standings_revisions revision
+      join public.tournament_phases phase on phase.id = revision.phase_id
+      join public.tournament_team_standings standings
+        on standings.revision_id = revision.id
+       and standings.team_entry_id = scoped.team_entry_id
+      where revision.fixture_version_id = scoped.fixture_version_id
+        and revision.status = 'published'
+      order by phase.sequence_number desc, revision.group_id nulls first,
+        revision.revision_number desc
+      limit 1
+    ) standing on true
+  ),
+  ordered as (
+    select enriched.*,
+      count(*) over () total_count
+    from enriched
+    order by
+      case enriched.tournament_status
+        when 'active' then 0
+        when 'scheduled' then 1
+        when 'registration' then 2
+        when 'completed' then 3
+        when 'archived' then 4
+        else 5
+      end,
+      enriched.start_date desc nulls last,
+      enriched.tournament_name,
+      enriched.category_name
+    limit v_limit offset v_offset
+  )
+  select jsonb_build_object(
+    'items',
+    coalesce(jsonb_agg(jsonb_build_object(
+      'organizationId', organization_id,
+      'organizationName', organization_name,
+      'logoPath', organization_logo_path,
+      'tournamentId', tournament_id,
+      'tournamentName', tournament_name,
+      'tournamentStatus', tournament_status,
+      'seasonName', season_name,
+      'seasonStatus', season_status,
+      'categoryId', category_id,
+      'categoryName', category_name,
+      'teamEntryId', team_entry_id,
+      'teamName', team_name,
+      'teamShortName', team_short_name,
+      'teamShieldPath', team_shield_path,
+      'primaryColor', primary_color,
+      'role', relation_role,
+      'organizationRole', organization_role,
+      'position', position,
+      'nextMatch', next_match,
+      'hasPublishedFixture', fixture_version_id is not null,
+      'readOnly', tournament_status in ('completed', 'archived')
+    ) order by
+      case tournament_status
+        when 'active' then 0
+        when 'scheduled' then 1
+        when 'registration' then 2
+        when 'completed' then 3
+        when 'archived' then 4
+        else 5
+      end,
+      start_date desc nulls last,
+      tournament_name,
+      category_name), '[]'::jsonb),
+    'pagination', jsonb_build_object(
+      'limit', v_limit,
+      'offset', v_offset,
+      'total', coalesce(max(total_count), 0),
+      'hasMore', v_offset + count(*) < coalesce(max(total_count), 0)
+    )
+  )
+  into v_result
+  from ordered;
+
+  return coalesce(v_result, jsonb_build_object(
+    'items', '[]'::jsonb,
+    'pagination', jsonb_build_object(
+      'limit', v_limit,
+      'offset', v_offset,
+      'total', 0,
+      'hasMore', false
+    )
+  ));
+end;
+$$;
+
+revoke all on function public.get_my_tournament_participations(integer, integer) from public, anon, authenticated, service_role;
+grant execute on function public.get_my_tournament_participations(integer, integer) to authenticated;
+
+-- Server-side pre-authorization of the three applicant Core contracts, called by the gateway adapter (as
 -- torneos_core_adapter) before Core is asked. Same return shape as private.authorize_core_contract; the request hash
 -- binds exactly what start_tournament_application / search_my_applicable_core_teams will consume.
 create or replace function private.authorize_applicant_core_contract(p_contract text, p_request jsonb)
@@ -1657,7 +2031,22 @@ begin
   if p_request is null or jsonb_typeof(p_request) <> 'object' then
     raise exception using errcode = '22023', message = 'TORNEOS_INVALID_CORE_CONTRACT_REQUEST';
   end if;
-  if p_contract = 'directory_teams' then
+  if p_contract = 'my_teams' then
+    if (select array_agg(key order by key) from jsonb_object_keys(p_request) key)
+      is distinct from array['applicant_public_slug', 'limit'] then
+      raise exception using errcode = '22023', message = 'TORNEOS_INVALID_CORE_CONTRACT_REQUEST';
+    end if;
+    select * into v_page from public.tournament_public_pages
+    where public_slug = p_request->>'applicant_public_slug' and status = 'published';
+    if v_page.tournament_id is null or public.tournament_catalog_block_reason(v_page.tournament_id, null) is not null then
+      raise exception using errcode = 'PT409', message = 'TORNEOS_APPLICATIONS_CLOSED';
+    end if;
+    if (p_request->>'limit') is distinct from '30' then
+      raise exception using errcode = '22023', message = 'TORNEOS_INVALID_CORE_CONTRACT_REQUEST';
+    end if;
+    v_request := jsonb_build_object('applicantTournamentId', v_page.tournament_id, 'limit', 30);
+    v_core_request := jsonb_build_object('limit', 30);
+  elsif p_contract = 'directory_teams' then
     if (select array_agg(key order by key) from jsonb_object_keys(p_request) key)
       is distinct from array['applicant_public_slug', 'limit', 'query'] then
       raise exception using errcode = '22023', message = 'TORNEOS_INVALID_CORE_CONTRACT_REQUEST';
@@ -1724,11 +2113,13 @@ DECLARE
     'public.get_my_torneos_profile()', 'public.update_my_torneos_profile(text,boolean)',
     'public.get_my_torneos_notifications(boolean,integer,integer)', 'public.mark_my_torneos_notifications_read(uuid[])',
     'public.get_my_torneos_inbox_summary()', 'public.get_tournament_catalog_listing_settings(uuid,uuid)',
-    'public.save_tournament_catalog_listing(uuid,uuid,text,text,uuid,integer,text,text,text,text)',
+    'public.save_tournament_catalog_listing(uuid,uuid,text,text,uuid,integer,text,text,text,text,text,text,boolean)',
     'public.set_tournament_catalog_listing_status(uuid,uuid,boolean)', 'public.set_tournament_applications_state(uuid,uuid,text)',
     'public.save_tournament_category_capacity(uuid,uuid,uuid,integer)',
     'public.get_tournament_application_inbox(uuid,uuid,text,integer,integer)',
     'public.search_my_applicable_core_teams(text,text,integer)',
+    'public.list_my_core_teams_for_application(text)',
+    'public.get_my_tournament_participations(integer,integer)',
     'public.start_tournament_application(text,text,uuid,text,text,boolean,uuid)',
     'public.get_my_tournament_registrations(integer,integer)'];
   v_public text[] := array[

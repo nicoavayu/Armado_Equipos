@@ -70,6 +70,14 @@ async function tok(u) { if (!u.token || Date.now() - u.tokenAt > 80_000) await e
 function coreTeam(owner, name) {
   return coreSql(`insert into public.teams (owner_user_id, name, format) values (${lit(owner.coreUserId)}, ${lit(name)}, 5) returning id`).trim();
 }
+// A Core member the way Core's app adds one: a jugadores row and a team_members row written as the team owner.
+function coreMember(owner, teamId, member, permissionsRole = 'member') {
+  const partido = coreSql('insert into public.partidos default values returning id').trim();
+  const jugador = coreSql(`insert into public.jugadores (partido_id, nombre, usuario_id) values (${partido}, 'Integrante', ${lit(member.coreUserId)}) returning id`).trim();
+  return coreSql(`BEGIN; SELECT set_config('request.jwt.claims', ${lit(JSON.stringify({ sub: owner.coreUserId, role: 'authenticated' }))}, true);
+    insert into public.team_members (team_id, jugador_id, user_id, permissions_role) values (${lit(teamId)}, ${jugador}, ${lit(member.coreUserId)}, ${lit(permissionsRole)}) returning id; COMMIT;`)
+    .split('\n').map((line) => line.trim()).find((line) => UUID.test(line));
+}
 
 test(`CONNECTED-V1 — connected product on the real hybrid stack (${GATEWAY_NAME} gateway)`, async (t) => {
   const check = (name, fn) => t.test(name, fn);
@@ -123,7 +131,8 @@ test(`CONNECTED-V1 — connected product on the real hybrid stack (${GATEWAY_NAM
     assert.equal((await pub('get_tournament_catalog_entry', { p_public_slug: S.slug })).body, null, 'a public page is not a call');
     await ok('save_tournament_catalog_listing', S.organizer, { p_organization_id: S.org, p_tournament_id: S.tournament,
       p_summary: 'Fútbol 5 los sábados por la tarde.', p_locality: 'Rosario', p_venue_id: null, p_entry_fee_cents: 0,
-      p_entry_fee_includes: null, p_payment_note: null, p_requirements: null, p_rules_summary: null });
+      p_entry_fee_includes: null, p_payment_note: null, p_requirements: null, p_rules_summary: null,
+      p_entry_fee_unit: 'team', p_contact_whatsapp: null, p_contact_public: null });
     await ok('set_tournament_catalog_listing_status', S.organizer, { p_organization_id: S.org, p_tournament_id: S.tournament, p_listed: true });
     const listed = await pub('search_tournament_catalog', { p_query: RUN, p_scope: 'all' });
     assert.deepEqual([listed.body.total, listed.body.items[0]?.state], [1, 'closed'], 'listed, applications still closed');
@@ -143,6 +152,28 @@ test(`CONNECTED-V1 — connected product on the real hybrid stack (${GATEWAY_NAM
     const foreign = await gw('start_tournament_application', await tok(S.applicant), { p_public_slug: S.slug, p_category_slug: 'libre',
       p_core_team_id: S.foreignTeam, p_team_name: null, p_message: null, p_accept_conditions: true, p_idempotency_key: randomUUID() });
     assert.ok([403, 404].includes(foreign.status) && foreign.body?.error === 'CORE_DENIED', `foreign Core team: ${show(foreign)}`);
+  });
+
+  await check('C2b. their own teams without typing (Core contract v1.2 my_teams): can register vs only a member, attested once', async () => {
+    S.memberTeam = coreTeam(S.other, `Vecinos ${RUN}`);
+    coreMember(S.other, S.memberTeam, S.applicant, 'member');
+    const before = Number(torneosSql("select count(*) from private.core_contract_attestations where contract = 'my_teams'").trim());
+    const mine = await ok('list_my_core_teams_for_application', S.applicant, { p_public_slug: S.slug });
+    const byId = Object.fromEntries(mine.items.map((item) => [item.id, item.canRegister]));
+    assert.deepEqual([byId[S.coreTeam], byId[S.memberTeam], Object.hasOwn(byId, S.foreignTeam)], [true, false, false],
+      'Core decides: the team they administer can be registered, the one they only belong to cannot, a foreign one is absent');
+    assert.equal(mine.hasMore, false);
+    assert.equal(Number(torneosSql("select count(*) from private.core_contract_attestations where contract = 'my_teams' and consumed_at is not null").trim()) > 0, true,
+      'the listing consumed a my_teams attestation');
+    assert.equal(Number(torneosSql("select count(*) from private.core_contract_attestations where contract = 'my_teams'").trim()), before + 1, 'exactly one per listing');
+    const member = await gw('start_tournament_application', await tok(S.applicant), { p_public_slug: S.slug, p_category_slug: 'libre',
+      p_core_team_id: S.memberTeam, p_team_name: null, p_message: null, p_accept_conditions: true, p_idempotency_key: randomUUID() });
+    assert.ok([403, 404].includes(member.status) && member.body?.error === 'CORE_DENIED', `member-only team: ${show(member)}`);
+    // The client cannot widen what Core is asked: the gateway's Core request is fixed ({limit: 30}) and the function
+    // takes only the slug, so a body with a client limit or query is a signature PostgREST does not know.
+    const widened = await gw('list_my_core_teams_for_application', await tok(S.applicant), { p_public_slug: S.slug, p_limit: 500, p_query: 'x' });
+    assert.ok(widened.status >= 400 && widened.status < 500, `widened body: ${show(widened)}`);
+    assert.equal(JSON.stringify(widened.body ?? {}).includes(S.coreTeam), false, 'no team reaches a widened request');
   });
 
   await check('C3. request with the Core team, roster, submit; organizer inbox + Torneos inbox; approval reaches the applicant', async () => {
@@ -186,6 +217,11 @@ test(`CONNECTED-V1 — connected product on the real hybrid stack (${GATEWAY_NAM
     assert.deepEqual(notifications.items.map((item) => item.kind), ['registration.approved', 'registration.received']);
     const memberships = await ok('get_my_tournament_memberships', S.applicant, { p_limit: 50, p_offset: 0 });
     assert.ok(memberships.items.some((item) => item.tournamentId === S.tournament), 'approved: the tournament is the applicant\'s');
+    const participations = await ok('get_my_tournament_participations', S.applicant, { p_limit: 50, p_offset: 0 });
+    assert.ok(participations.items.some((item) => item.tournamentId === S.tournament && item.role === 'captain'), 'and it is participation');
+    const organizerParticipations = await ok('get_my_tournament_participations', S.organizer, { p_limit: 50, p_offset: 0 });
+    assert.equal(organizerParticipations.items.some((item) => item.tournamentId === S.tournament), false,
+      'managing a tournament is not participating in it');
     const mine = await ok('get_my_tournament_registrations', S.applicant, { p_limit: 20, p_offset: 0 });
     assert.equal(mine.items.find((item) => item.teamEntryId === S.entry)?.status, 'approved');
   });
