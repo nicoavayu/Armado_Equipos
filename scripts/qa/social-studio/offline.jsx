@@ -19,6 +19,13 @@ const social = args.get('social') !== 'off';
 const role = args.get('role') || 'owner';
 const teamSize = Number(args.get('teamSize') || 5);
 const standingsRows = Number(args.get('rows') || 8);
+// Sparse and crowded pieces (the anchoring checks): matches of a round, scorers, discipline rows and semifinals.
+const counts = {
+  ...(args.get('matches') ? { matchCount: Number(args.get('matches')) } : {}),
+  ...(args.get('scorers') ? { scorerCount: Number(args.get('scorers')) } : {}),
+  ...(args.get('discipline') ? { disciplineCount: Number(args.get('discipline')) } : {}),
+  ...(args.get('semis') ? { semifinalCount: Number(args.get('semis')) } : {}),
+};
 const org = { id: '10000000-0000-4000-8000-000000000001', name: 'Liga Devoto', slug: 'liga-devoto', role, capabilities: ['organization.read', 'workspace.access', 'workspace.manage'] };
 const season = { id: '20000000-0000-4000-8000-000000000001', name: 'Temporada 2026' };
 const tournament = { id: '30000000-0000-4000-8000-000000000001', seasonId: season.id, organizationId: org.id, name: 'Copa Horizonte 2026' };
@@ -72,7 +79,9 @@ const service = {
         control.failSnapshot = control.failSnapshot.filter((entry) => entry !== piece);
         throw new Error('No pudimos preparar esta pieza con datos oficiales.');
       }
-      return socialQaSnapshot(piece, { organizationId: org.id, tournamentId: tournament.id, ...ids, teamSize, standingsRows });
+      // The last answer stays readable: the layout checks locate each official row on the rendered piece.
+      record.lastSnapshot = socialQaSnapshot(piece, { organizationId: org.id, tournamentId: tournament.id, ...ids, teamSize, standingsRows, ...counts });
+      return record.lastSnapshot;
     },
     // The rules of 00000000000008, in the same order: access, then NULL/unknown inputs, then the plan.
     authorizeSocialExport: async ({ organizationId, tournamentId, piece, theme, includeArma2Branding }) => {

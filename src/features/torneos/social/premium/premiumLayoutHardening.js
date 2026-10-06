@@ -125,7 +125,18 @@ function findVerticalFlowFrame(parent, root) {
   return parent;
 }
 
-function rowForMatch(root, match, scoreText, unused) {
+// With a single match, the body frame (it fills the art's remaining height) reads exactly like the match row: climbing
+// into it would size the whole body as one row and pull the footer up. It is the outermost growing element that holds
+// nothing but the match. Read from the inline style: this also runs on the detached art, before layout. With several
+// matches the climb already stops at the row (the list holds more text), so this only guards the single match.
+function isSingleMatchFrame(element, single) {
+  return single
+    && Number.parseFloat(element?.style?.flexGrow) > 0
+    && Boolean(element.parentElement)
+    && text(element.parentElement.textContent) !== text(element.textContent);
+}
+
+function rowForMatch(root, match, scoreText, unused, single = false) {
   const home = text(match?.home?.name || match?.home?.teamName);
   const away = text(match?.away?.name || match?.away?.teamName);
   const found = smallestContainer(root, [home, away, scoreText], { unused });
@@ -134,13 +145,14 @@ function rowForMatch(root, match, scoreText, unused) {
   while (
     row.parentElement
     && row.parentElement !== root
+    && !isSingleMatchFrame(row.parentElement, single)
     && text(row.parentElement.textContent) === text(row.textContent)
   ) row = row.parentElement;
   unused.add(row);
   return row;
 }
 
-function rowForScoreboardMatch(root, match, unused) {
+function rowForScoreboardMatch(root, match, unused, single = false) {
   const home = text(match?.home?.name || match?.home?.teamName);
   const away = text(match?.away?.name || match?.away?.teamName);
   const found = smallestContainer(root, [home, away], { unused });
@@ -149,6 +161,7 @@ function rowForScoreboardMatch(root, match, unused) {
   while (
     row.parentElement
     && row.parentElement !== root
+    && !isSingleMatchFrame(row.parentElement, single)
     && text(row.parentElement.textContent) === text(row.textContent)
     && directElements(row.parentElement).length <= 2
   ) row = row.parentElement;
@@ -171,8 +184,8 @@ function hardenResultRows(root, matches, themeId, formatId) {
       ? `${result.homeScore ?? result.home ?? '—'} - ${result.awayScore ?? result.away ?? '—'}`
       : '—';
     return themeId === 'scoreboard'
-      ? rowForScoreboardMatch(root, match, unused)
-      : rowForMatch(root, match, scoreText, unused);
+      ? rowForScoreboardMatch(root, match, unused, matches.length === 1)
+      : rowForMatch(root, match, scoreText, unused, matches.length === 1);
   }).filter(Boolean);
   if (!rows.length) return;
 
@@ -182,7 +195,9 @@ function hardenResultRows(root, matches, themeId, formatId) {
   const gap = dense ? (rows.length >= 8 ? 10 : 14) : 18;
   const pad = dense ? 10 : 20;
   const available = parent.clientHeight || Number.parseFloat(getComputedStyle(parent).height) || 1100;
-  const rowHeight = Math.max(72, Math.floor((available - pad * 2 - gap * (rows.length - 1)) / rows.length));
+  // A short round keeps the rhythm of a four-match one (anchored on top) instead of stretching each card to fill.
+  const capacity = Math.max(rows.length, 4);
+  const rowHeight = Math.max(72, Math.floor((available - pad * 2 - gap * (capacity - 1)) / capacity));
   Object.assign(parent.style, {
     justifyContent: 'flex-start',
     alignContent: 'start',
