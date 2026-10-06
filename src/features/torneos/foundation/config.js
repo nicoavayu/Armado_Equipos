@@ -151,6 +151,15 @@ export function resolveTorneosSocialStudio(env = process.env, {
 // the public catalog). In the gateway composition it exists only with the explicit opt-in that matches the gateway's
 // TORNEOS_CONNECTED_MODE=on; the single-project LOCAL stack serves it from its own migration. Anything else: no
 // alias, no route, no request.
+// BRANDING-V1: logos and shields of the hybrid composition (upload and the organization's branding context). Hybrid
+// + the explicit opt-in that matches the gateway's TORNEOS_BRANDING_MODE=on. Displaying what the gateway signed
+// needs no flag: without the gateway mode nothing is signed and every mark shows its initials.
+export function resolveTorneosBranding(env = process.env, {
+  backendMode = resolveTorneosBackendMode(env),
+} = {}) {
+  return backendMode.mode === 'hybrid' && env.REACT_APP_TORNEOS_BRANDING_MODE === 'on';
+}
+
 export function resolveTorneosConnectedProduct(env = process.env, {
   backendMode = resolveTorneosBackendMode(env),
 } = {}) {

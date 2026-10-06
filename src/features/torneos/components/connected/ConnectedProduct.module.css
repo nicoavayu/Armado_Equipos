@@ -1541,3 +1541,27 @@ fieldset.field { margin: 0; padding: 0; border: 0; }
   margin-left: 1px;
   vertical-align: -0.04em;
 }
+
+/* The call's identity: the tournament's logo (or initials) next to its title, same rule as the catalog card. */
+.callIdentity { display: flex; align-items: flex-start; gap: 14px; min-width: 0; }
+.callIdentity > div { min-width: 0; }
+.callLogo {
+  flex: 0 0 auto;
+  width: 64px;
+  height: 64px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--cp-border);
+  border-radius: 16px;
+  font: 800 1.05rem var(--cp-font);
+  letter-spacing: 0.04em;
+}
+@media (max-width: 520px) {
+  .callLogo { width: 52px; height: 52px; border-radius: 14px; }
+}
+
+/* Arma2's external notices (Core push), a preference of the common account shown in the Torneos profile. */
+.corePushPreference { display: grid; gap: 8px; padding: 12px 0 4px; border-top: 1px solid var(--cp-border); }

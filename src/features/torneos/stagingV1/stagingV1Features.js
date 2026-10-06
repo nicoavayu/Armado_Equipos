@@ -106,6 +106,13 @@ export const stagingV1ConnectedOverlay = Object.freeze({
   tournament_catalog: true,
 });
 
+// BRANDING-V1: logo / shield upload and the organization's branding context (foundation/config.js
+// resolveTorneosBranding = hybrid + the opt-in that matches the gateway's TORNEOS_BRANDING_MODE=on). Only branding:
+// portraits, team photos, the media pipeline and the visual policy stay off.
+export const stagingV1BrandingOverlay = Object.freeze({
+  branding_assets: true,
+});
+
 function baseFeaturesFor(billingMode, { planRead = false, social = false } = {}) {
   const mode = typeof billingMode === 'string' ? billingMode : billingMode?.mode;
   if (mode === 'test') return social === true ? billingTestSocialFeatures : billingTestFeatures;
@@ -113,9 +120,16 @@ function baseFeaturesFor(billingMode, { planRead = false, social = false } = {})
   return social === true ? planReadSocialFeatures : planReadFeatures;
 }
 
-export function stagingV1FeaturesFor(billingMode, { planRead = false, social = false, connected = false } = {}) {
+export function stagingV1FeaturesFor(billingMode, {
+  planRead = false, social = false, connected = false, branding = false,
+} = {}) {
   const base = baseFeaturesFor(billingMode, { planRead, social });
-  return connected === true ? Object.freeze({ ...base, ...stagingV1ConnectedOverlay }) : base;
+  if (connected !== true && branding !== true) return base;
+  return Object.freeze({
+    ...base,
+    ...(connected === true ? stagingV1ConnectedOverlay : {}),
+    ...(branding === true ? stagingV1BrandingOverlay : {}),
+  });
 }
 
 // The legacy composition (single-project LOCAL QA) keeps every surface on.

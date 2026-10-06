@@ -1,5 +1,5 @@
 {
-  "generatedFrom": "985c22a24b1a0963f31327b950de080933a95f74",
+  "generatedFrom": "663966084185d17d484e2122203ee71ddb4b1c45",
   "legacyBase": "2058da039a2a5eaaed22d87d01946bc596ae5f50",
   "coreSingletonSha256": "f39572e4cab0fd287bd1dea2ca87c97bd5500d0eff57cb8de6160f1e3271600c",
   "reachableCallSignatures": {
@@ -45,7 +45,7 @@
     "src/features/torneos/domain/brandingAssets.js": "d61310a6c564670f4ddac9d8d2991c314da3c5a501621f0d8bbbc6f9806cd575",
     "src/features/torneos/domain/premiumIntent.js": "d017a4b9ad7a5564ff958aaccd571629064db25311d547f34ecaeaca168e1d4c",
     "src/features/torneos/foundation/torneosClient.js": "9e1a1f8d3802935594dda8cacd5b959895e6f7f2df9cd6db08e688fb2b3ec25d",
-    "src/features/torneos/foundation/torneosTransport.js": "4a395cb19cb28f650c8d257cb8176c07c86ca166b8cf03dbb89cad9f2b1da75e",
+    "src/features/torneos/foundation/torneosTransport.js": "c486917a061f7ba0b7b77ee5a0f29e429ad198eaaad13b9690671fa3e434655f",
     "src/features/torneos/isolated/IsolatedTorneosPage.jsx": "648a0c66c255ab6753874e48a8a35467f9a198fd1d9587e47dfaadd2b900ef76",
     "src/features/torneos/isolated/createTorneosClient.js": "7fa1212c6f9d1f5fb57dd5a594e029986a49b7f531d46f4c9eaf27a25acda3cf",
     "src/features/torneos/social/socialStudio.js": "9618e2978bb5f45ca23566098bd7b01a3ea9816cae8532cc26ba20ee6d871128",
@@ -71,6 +71,7 @@
     "src/services/authLogoutService.js": "fe859f73dee0abd2ec5c2e6d1c4586f1f90be27a47152c25692be007b35fea70",
     "src/services/awardsService.js": "980bcc97c85cbbe4aae9582f97e175d8faacef5a5ee40389c2c3d116755be07c",
     "src/services/challengeResultNotificationService.js": "8f8f1b02c783cf7ced404fd81be09eb425e1360c4f537f78fd71f520a5beff0f",
+    "src/services/corePushPreferenceService.js": "1192c481c868246e56bc617a6c9ac7e87d2b3591a6326585082de83a68404680",
     "src/services/db/availability.js": "6fbccc53e80d2c7a8f92c329831b636c738d52010e0a3e60a74a9dfa04647e19",
     "src/services/db/awards.js": "c182a4fb26d395b27dc790e96c5c91ea7393bbadc322e4f906cbde157799623e",
     "src/services/db/dbErrors.js": "1cce94d7db6cb12b686e84ad0fcbe9043b1b0aff0410f5484e1061f807372583",
@@ -307,12 +308,12 @@
     },
     {
       "file": "src/features/torneos/TorneosFeatureGate.jsx",
-      "line": 14,
+      "line": 15,
       "source": "./TorneosApp"
     },
     {
       "file": "src/features/torneos/TorneosFeatureGate.jsx",
-      "line": 15,
+      "line": 16,
       "source": "./stagingV1/StagingV1TorneosApp"
     },
     {
@@ -393,6 +394,11 @@
     {
       "file": "src/features/torneos/components/BrandingAssetField.jsx",
       "line": 7,
+      "source": "../context/TorneosWorkspaceContext"
+    },
+    {
+      "file": "src/features/torneos/components/BrandingAssetField.jsx",
+      "line": 8,
       "source": "./BrandingImage"
     },
     {
@@ -933,6 +939,11 @@
     {
       "file": "src/features/torneos/components/connected/CatalogCallPage.jsx",
       "line": 11,
+      "source": "../BrandingImage"
+    },
+    {
+      "file": "src/features/torneos/components/connected/CatalogCallPage.jsx",
+      "line": 12,
       "source": "./useCatalogService"
     },
     {
@@ -1022,7 +1033,17 @@
     },
     {
       "file": "src/features/torneos/components/connected/TorneosProfilePage.jsx",
-      "line": 130,
+      "line": 28,
+      "source": "../../../../services/corePushPreferenceService"
+    },
+    {
+      "file": "src/features/torneos/components/connected/TorneosProfilePage.jsx",
+      "line": 41,
+      "source": "../../../../services/corePushPreferenceService"
+    },
+    {
+      "file": "src/features/torneos/components/connected/TorneosProfilePage.jsx",
+      "line": 189,
       "source": "../../../../services/authLogoutService"
     },
     {
@@ -1044,6 +1065,11 @@
       "file": "src/features/torneos/components/connected/TournamentApplicationPage.jsx",
       "line": 31,
       "source": "./useTorneosProfile"
+    },
+    {
+      "file": "src/features/torneos/components/connected/TournamentApplicationPage.jsx",
+      "line": 32,
+      "source": "../BrandingImage"
     },
     {
       "file": "src/features/torneos/components/connected/TournamentCatalog.jsx",
@@ -1092,7 +1118,7 @@
     },
     {
       "file": "src/features/torneos/domain/brandingAssets.js",
-      "line": 2,
+      "line": 1,
       "source": "../../../services/api/supabase"
     },
     {
@@ -3333,7 +3359,7 @@
     },
     {
       "file": "src/features/torneos/domain/brandingAssets.js",
-      "line": 94,
+      "line": 30,
       "kind": "storage",
       "callee": "client.storage.from.getPublicUrl",
       "targets": [],
@@ -3342,7 +3368,7 @@
     },
     {
       "file": "src/features/torneos/domain/brandingAssets.js",
-      "line": 94,
+      "line": 30,
       "kind": "from",
       "callee": "client.storage.from",
       "targets": [],
@@ -3378,7 +3404,7 @@
     },
     {
       "file": "src/features/torneos/foundation/torneosClient.js",
-      "line": 52,
+      "line": 56,
       "kind": "rpc",
       "callee": "transport.rpc",
       "targets": [],
@@ -3387,7 +3413,7 @@
     },
     {
       "file": "src/features/torneos/foundation/torneosTransport.js",
-      "line": 126,
+      "line": 130,
       "kind": "transport",
       "callee": "window.fetch",
       "targets": [],
@@ -3396,7 +3422,7 @@
     },
     {
       "file": "src/features/torneos/foundation/torneosTransport.js",
-      "line": 178,
+      "line": 182,
       "kind": "transport",
       "callee": "fetchImpl",
       "targets": [],
@@ -3405,16 +3431,16 @@
     },
     {
       "file": "src/features/torneos/foundation/torneosTransport.js",
-      "line": 257,
+      "line": 262,
       "kind": "transport",
       "callee": "fetchImpl",
       "targets": [],
       "function": "send",
-      "expression": "fetchImpl(`${base}${path}`, { method, headers: { Authorization: `Bearer ${token}`, Accept: 'application/json', ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}), ...headers, }, body: body !== undefined ? JSON.stringify(body) : undefined, credentials: 'omit', cache: 'no-store', redirect: 'error', signal: timed, })"
+      "expression": "fetchImpl(`${base}${path}`, { method, headers: { Authorization: `Bearer ${token}`, Accept: 'application/json', ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}), ...headers, }, // A raw body (BRANDING-V1 image) travels as is, with the Content-Type the caller fixed. body: rawBody !== undefined ? rawBody : (body !== undefined ? JSON.stringify(body) : undefined), credentials: 'omit', cache: 'no-store', redirect: 'error', signal: timed, })"
     },
     {
       "file": "src/features/torneos/foundation/torneosTransport.js",
-      "line": 362,
+      "line": 386,
       "kind": "transport",
       "callee": "window.fetch",
       "targets": [],
@@ -3423,7 +3449,7 @@
     },
     {
       "file": "src/features/torneos/foundation/torneosTransport.js",
-      "line": 378,
+      "line": 402,
       "kind": "transport",
       "callee": "fetchImpl",
       "targets": [],

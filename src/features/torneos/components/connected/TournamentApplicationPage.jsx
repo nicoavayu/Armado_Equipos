@@ -29,6 +29,7 @@ import {
 import { ShareCallButton } from './CatalogCallPage';
 import { useCatalogService } from './useCatalogService';
 import { announceTorneosProfileChanged, useTorneosProfile } from './useTorneosProfile';
+import BrandingImage from '../BrandingImage';
 import styles from './ConnectedProduct.module.css';
 
 const SEARCH_DELAY_MS = 350;
@@ -216,7 +217,7 @@ export default function TournamentApplicationPage() {
       });
       navigate(`/torneos/mis-equipos/${encodeURIComponent(result.organizationId)}/${encodeURIComponent(result.teamEntryId)}/plantel`, {
         replace: true,
-        state: { notice: 'Solicitud creada. Completá el plantel con los requisitos del torneo y enviala a la organización.' },
+        state: { notice: 'Solicitud creada y guardada. Ahora sumá a los jugadores al plantel y, cuando esté completo, enviala a la organización.' },
       });
     } catch (error) {
       setSubmit({ status: 'error', error: errorCopy(error, 'No pudimos crear la solicitud.') });
@@ -247,10 +248,20 @@ export default function TournamentApplicationPage() {
   return (
     <div className={styles.page}>
       {back}
-      <header className={styles.pageHero}>
-        <span className={styles.kicker}><ShieldCheck size={15} aria-hidden="true" /> Solicitud de inscripción</span>
-        <h1>{entry.tournamentName}</h1>
-        <p>Organiza {entry.organizationName}. Pedir la inscripción no garantiza un lugar: la organización revisa cada solicitud.</p>
+      <header className={`${styles.pageHero} ${styles.callIdentity}`}>
+        <BrandingImage
+          kind="tournament"
+          path={entry.logoPath || null}
+          fallbackPath={entry.organizationLogoPath || null}
+          name={entry.tournamentName}
+          className={styles.callLogo}
+          imageClassName={styles.catalogCardLogoImage}
+        />
+        <div>
+          <span className={styles.kicker}><ShieldCheck size={15} aria-hidden="true" /> Solicitud de inscripción</span>
+          <h1>{entry.tournamentName}</h1>
+          <p>Organiza {entry.organizationName}. Pedir la inscripción no garantiza un lugar: la organización revisa cada solicitud.</p>
+        </div>
       </header>
 
       {openExisting.length > 0 && (
@@ -448,7 +459,8 @@ export default function TournamentApplicationPage() {
                   </>
                 )}
                 <p className={styles.help}>
-                  Inscribirlo no cambia sus miembros ni sus partidos en Arma2, y nadie entra al plantel automáticamente.
+                  La solicitud usa el nombre y el escudo del equipo. Sus jugadores no se copian: en el paso siguiente sumás
+                  a cada uno al plantel. No cambia sus miembros ni sus partidos en Arma2.
                 </p>
               </div>
             ) : (
@@ -511,7 +523,7 @@ export default function TournamentApplicationPage() {
               Crear solicitud
             </button>
             <span className={styles.help}>
-              <UsersRound size={14} aria-hidden="true" /> Después armás el plantel y la enviás.
+              <UsersRound size={14} aria-hidden="true" /> Siguiente paso: armar el plantel. Lo que completes queda guardado.
             </span>
           </div>
           {missing.length > 0 && submit.status !== 'saving' && (

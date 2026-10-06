@@ -8,6 +8,7 @@ import {
 import { Link, useParams } from 'react-router-dom';
 import { useTorneosFeatures } from '../../context/TorneosFeaturesContext';
 import CatalogCallSection from './CatalogCallSection';
+import BrandingImage from '../BrandingImage';
 import { useCatalogService } from './useCatalogService';
 import styles from './ConnectedProduct.module.css';
 
@@ -84,6 +85,18 @@ export default function CatalogCallPage() {
         <CatalogCallSection
           entry={state.entry}
           headingLevel={1}
+          mark={(
+            // Same branding rule as the card and the public page: the tournament's logo, else the organization's,
+            // else its initials (in the hybrid composition only what the gateway signed becomes an image).
+            <BrandingImage
+              kind="tournament"
+              path={state.entry.logoPath || null}
+              fallbackPath={state.entry.organizationLogoPath || null}
+              name={state.entry.tournamentName}
+              className={styles.callLogo}
+              imageClassName={styles.catalogCardLogoImage}
+            />
+          )}
           actions={(
             <>
               {state.entry.state === 'open' && features.tournament_applications !== false && (

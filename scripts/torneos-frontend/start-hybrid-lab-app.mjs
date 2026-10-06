@@ -9,7 +9,8 @@
 //   node scripts/torneos-frontend/start-hybrid-lab-app.mjs --start    (bridge + app)
 //   B04_LAB_APP_PORT=3103 node scripts/torneos-frontend/start-hybrid-lab-app.mjs --start --connected
 //     (another port when 3000 is taken; --connected = REACT_APP_TORNEOS_CONNECTED_MODE=on, which only works against a
-//      lab gateway started with TORNEOS_CONNECTED_MODE=on)
+//      lab gateway started with TORNEOS_CONNECTED_MODE=on; --branding = REACT_APP_TORNEOS_BRANDING_MODE=on, against a lab
+//      started with TORNEOS_BRANDING_MODE=on — logos/shields in the lab's Torneos storage, signed by the gateway)
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -22,6 +23,7 @@ const APP_PORT = process.env.B04_LAB_APP_PORT || '3000';
 if (!/^3[0-9]{3}$/.test(APP_PORT)) { console.error('B04_LAB_APP_PORT must be a 3000-3999 port'); process.exit(1); }
 const APP_ORIGIN = `http://localhost:${APP_PORT}`;
 const CONNECTED = process.argv.includes('--connected');
+const BRANDING = process.argv.includes('--branding');
 const CORE_URL = 'http://127.0.0.1:58422';
 const GATEWAY_URL = 'http://127.0.0.1:58423';
 
@@ -73,9 +75,10 @@ const env = {
   REACT_APP_PRODUCTION_PROJECT_REF: process.env.REACT_APP_PRODUCTION_PROJECT_REF || '',
   REACT_APP_TORNEOS_ISOLATED_SSO: 'false',
   REACT_APP_TORNEOS_CONNECTED_MODE: CONNECTED ? 'on' : 'off',
+  REACT_APP_TORNEOS_BRANDING_MODE: BRANDING ? 'on' : 'off',
   B04_LAB_APP_ORIGIN: APP_ORIGIN,
 };
-console.log(`B04 hybrid lab app: Core ${CORE_URL} · gateway ${GATEWAY_URL} · app ${APP_ORIGIN} · DATA_ENV=local · connected ${CONNECTED ? 'on' : 'off'} · anon key from lab .runtime (not printed)`);
+console.log(`B04 hybrid lab app: Core ${CORE_URL} · gateway ${GATEWAY_URL} · app ${APP_ORIGIN} · DATA_ENV=local · connected ${CONNECTED ? 'on' : 'off'} · branding ${BRANDING ? 'on' : 'off'} · anon key from lab .runtime (not printed)`);
 if (!process.argv.includes('--start')) process.exit(0);
 
 const bridge = spawn(process.execPath, [path.join(root, 'scripts/torneos-frontend/lab-bridge.mjs')], { env, stdio: 'inherit' });

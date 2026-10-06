@@ -28,6 +28,11 @@
 // CONNECTED-V1: with `connected: true` (foundation/config.js resolveTorneosConnectedProduct) it also serves the
 // connected product — Torneos profile and inbox, catalog management, registration requests — with the legacy RPC
 // and p_* payload (scripts/torneos-frontend/connected-adapter.test.mjs). Never the platform removal lever.
+//
+// BRANDING-V1: with `branding: true` (foundation/config.js resolveTorneosBranding) it also serves the existing branding
+// contract — upload/remove a logo or shield (object route + set_tournament_branding_reference, the LOCAL service's
+// exact sequence) and the organization's branding context. Whatever the option, a branding path of a response only
+// becomes an image through a URL the gateway signed (brandingUrls.js); nothing here resolves storage URLs itself.
 import { v4 as uuidv4 } from 'uuid';
 import { createTorneosClient } from '../foundation/torneosClient';
 import { isTorneosBoundaryError } from '../foundation/errors';
@@ -40,6 +45,9 @@ import {
 } from '../api/tournamentWorkspaceErrors';
 import { TOURNAMENT_STATUS_TRANSITIONS } from '../domain/competitionLifecycle';
 import { normalizeMatchOutcome } from '../domain/matchOutcome';
+import { buildBrandingPath, prepareBrandingFile } from '../domain/brandingFiles';
+import { requireAuthorizedBrandingUrls } from '../domain/brandingUrlRegistry';
+import { withSignedBranding } from './brandingUrls';
 
 // Copy for failures that happen before or around the RPC (transport, session,
 // gateway). The RPC's own functional codes keep the legacy ERROR_MESSAGES copy.
@@ -102,6 +110,15 @@ export const CONNECTED_METHODS = Object.freeze([
   'setApplicationsState', 'saveCategoryCapacity', 'loadApplicationInbox', 'searchApplicableCoreTeams',
   'startTournamentApplication', 'loadMyRegistrations', 'listMyCoreTeamsForApplication', 'loadMyParticipations',
 ]);
+export const BRANDING_METHODS = Object.freeze(['uploadBrandingAsset', 'removeBrandingAsset', 'loadBrandingContext']);
+// Responses the gateway signs (torneos-gateway/branding.ts SIGNED_AUTHENTICATED_RPCS): their paths keep only with a URL.
+const SIGNED_BRANDING_RPCS = new Set([
+  'get_tournament_branding_context', 'get_team_registration_context', 'get_tournament_teams_context',
+  'get_tournament_participant_hub',
+]);
+const BRANDING_LABELS = Object.freeze({
+  organization: 'logo de la organización', tournament: 'logo del torneo', team: 'escudo del equipo',
+});
 export const COMMERCE_METHODS = Object.freeze([
   'loadSeasonEntitlements', 'loadEntitlements', 'loadPurchase', 'createCheckout', 'simulateFakePayment', 'cancelPurchase',
 ]);
@@ -179,11 +196,16 @@ export function createStagingV1WorkspaceService({
   planRead = false,
   social = false,
   connected = false,
+  branding = false,
   checkoutTimeoutMs = CHECKOUT_TIMEOUT_MS,
 }) {
   const commerceEnabled = commerce === true;
+  const brandingEnabled = branding === true;
+  // The hybrid composition never turns a stored branding path into a storage URL of another project.
+  requireAuthorizedBrandingUrls();
   const client = createTorneosClient({
     transport, commerce: commerceEnabled, planRead, social: social === true, connected: connected === true,
+    branding: brandingEnabled,
   });
   if (client.status !== 'connected') {
     throw new TournamentWorkspaceError(
@@ -192,11 +214,13 @@ export function createStagingV1WorkspaceService({
     );
   }
   const call = async (operation, params, fallbackMessage) => {
+    let result;
     try {
-      return await client.execute(operation, params);
+      result = await client.execute(operation, params);
     } catch (error) {
       throw translateBoundaryError(error, fallbackMessage);
     }
+    return SIGNED_BRANDING_RPCS.has(operation) ? withSignedBranding(result) : result;
   };
 
   async function loadMyTournaments({ limit = 20, offset = 0 } = {}) {
@@ -402,11 +426,61 @@ export function createStagingV1WorkspaceService({
     }, 'No pudimos cargar tus torneos.'),
   } : {};
 
+  // BRANDING-V1: the LOCAL service's exact sequence (tournamentBrandingService.js) over the gateway: store a new
+  // versioned object, switch the durable reference, then remove the previous object; a failure removes what was
+  // stored. Storage RLS and set_tournament_branding_reference decide who may do it.
+  const removeBrandingObject = async (path) => {
+    if (!path) return;
+    await client.brandingObject('DELETE', path).catch(() => {});
+  };
+  const brandingError = (error, kind, verb) => translateBoundaryError(
+    error, `No pudimos ${verb} el ${BRANDING_LABELS[kind] || 'asset'}.`,
+  );
+  const brandingAliases = brandingEnabled ? {
+    loadBrandingContext: ({ organizationId, tournamentId = null }) => call(
+      'get_tournament_branding_context',
+      { p_organization_id: organizationId, p_tournament_id: tournamentId },
+      'No pudimos cargar la identidad visual.',
+    ),
+    uploadBrandingAsset: async ({ organizationId, kind, entityId, file }) => {
+      let uploadedPath = null;
+      try {
+        const prepared = await prepareBrandingFile(file);
+        uploadedPath = buildBrandingPath({ organizationId, kind, entityId, mime: prepared.mime });
+        await client.brandingObject('POST', uploadedPath, prepared.source);
+        const reference = await client.execute('set_tournament_branding_reference', {
+          p_organization_id: organizationId, p_entity_kind: kind, p_entity_id: entityId, p_path: uploadedPath,
+        });
+        if (reference?.previousPath && reference.previousPath !== uploadedPath) await removeBrandingObject(reference.previousPath);
+        return { ...reference, path: uploadedPath, width: prepared.width, height: prepared.height, mime: prepared.mime };
+      } catch (error) {
+        if (uploadedPath) await removeBrandingObject(uploadedPath);
+        // The file itself was refused before any request (format, size, dimensions): its own copy.
+        if (!isTorneosBoundaryError(error) && !(error instanceof TournamentWorkspaceError)) {
+          throw new Error(error?.message || `No pudimos guardar el ${BRANDING_LABELS[kind] || 'asset'}.`);
+        }
+        throw brandingError(error, kind, 'guardar');
+      }
+    },
+    removeBrandingAsset: async ({ organizationId, kind, entityId }) => {
+      try {
+        const reference = await client.execute('set_tournament_branding_reference', {
+          p_organization_id: organizationId, p_entity_kind: kind, p_entity_id: entityId, p_path: null,
+        });
+        if (reference?.previousPath) await client.brandingObject('DELETE', reference.previousPath);
+        return reference;
+      } catch (error) {
+        throw brandingError(error, kind, 'quitar');
+      }
+    },
+  } : {};
+
   return Object.freeze({
     ...planAliases,
     ...commerceAliases,
     ...socialAliases,
     ...connectedAliases,
+    ...brandingAliases,
     // ── organizations / workspaces ─────────────────────────────────────────
     loadContext: () => call(
       'get_tournament_workspace_context',
@@ -545,13 +619,19 @@ export function createStagingV1WorkspaceService({
         { p_organization_id: organizationId },
         'No pudimos cargar temporadas y torneos.',
       );
+      // BRANDING-V1: the same composition as the LOCAL service, from the signed branding context.
+      const branding = brandingEnabled
+        ? await call('get_tournament_branding_context', { p_organization_id: organizationId, p_tournament_id: null },
+          'No pudimos cargar la identidad visual.').catch(() => null)
+        : null;
+      const logoByTournament = new Map((branding?.tournaments || []).map((item) => [item.id, item.logoPath || null]));
       return {
         ...context,
-        organizationBranding: null,
+        organizationBranding: branding?.organization || null,
         tournaments: (context?.tournaments || []).map((tournament) => ({
           ...tournament,
-          logoPath: null,
-          organizationLogoPath: null,
+          logoPath: logoByTournament.get(tournament.id) || null,
+          organizationLogoPath: branding?.organization?.logoPath || null,
         })),
       };
     },
@@ -1181,7 +1261,16 @@ function competitionAliases(call, client) {
       const hub = await call('get_tournament_participant_hub', {
         p_tournament_id: tournamentId, p_category_id: categoryId,
       }, 'No pudimos cargar el centro del torneo.');
-      return { ...hub, tournament: { ...(hub?.tournament || {}), logoPath: null, organizationLogoPath: null } };
+      // Signed by the gateway (call → withSignedBranding): only a path with a URL it signed survives; otherwise null
+      // and the page shows the initials, as before branding existed.
+      return {
+        ...hub,
+        tournament: {
+          ...(hub?.tournament || {}),
+          logoPath: hub?.tournament?.logoPath || null,
+          organizationLogoPath: hub?.tournament?.organizationLogoPath || null,
+        },
+      };
     },
     setHubCategory: ({ tournamentId, categoryId }) => call('set_my_tournament_hub_category', {
       p_tournament_id: tournamentId, p_category_id: categoryId,

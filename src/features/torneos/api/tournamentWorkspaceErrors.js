@@ -41,6 +41,11 @@ export const ERROR_MESSAGES = {
   TORNEOS_SEASON_MEDIA_QUOTA_EXCEEDED: 'La temporada alcanzó la cuota multimedia de su plan.',
   TORNEOS_SOCIAL_PREMIUM_REQUIRED: 'Esta placa o este estilo necesitan Premium en esta temporada.',
   TORNEOS_BRANDING_PREMIUM_REQUIRED: 'Sólo Premium permite descargar placas sin la firma Arma2.',
+  // BRANDING-V1 (hybrid): the same copy as the LOCAL branding service.
+  TORNEOS_BRANDING_FORBIDDEN: 'No tenés permiso para modificar este asset.',
+  TORNEOS_BRANDING_INVALID_REFERENCE: 'La referencia del asset no es válida.',
+  TORNEOS_BRANDING_INVALID_TYPE: 'Formato no admitido. Usá JPEG, PNG o WebP.',
+  TORNEOS_BRANDING_TOO_LARGE: 'La imagen supera los 2 MB una vez optimizada.',
   // Estudio Social (SOCIAL-V1): the database re-authorizes every export; these are its answers.
   TORNEOS_SOCIAL_EXPORT_FORBIDDEN: 'Tu rol no puede descargar ni compartir placas de esta temporada. Pedíselo a un administrador.',
   TORNEOS_SOCIAL_FORBIDDEN: 'No tenés acceso al Estudio Social de esta organización o temporada.',

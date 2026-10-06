@@ -28,7 +28,8 @@ import styles from './ConnectedProduct.module.css';
 // The call for teams of ONE tournament: what a team needs to decide whether to take part. Same component inside the
 // app and on the public page, fed by the same safe projection (get_tournament_catalog_entry); the tournament's own
 // public page stays its only file. Nothing here is a checkout: Arma2 does not collect the entry fee.
-export default function CatalogCallSection({ entry, actions = null, headingLevel = 2, compactHeader = false }) {
+// `mark`: the tournament's logo, rendered by the page that knows its branding rule (the public page shows its own).
+export default function CatalogCallSection({ entry, actions = null, headingLevel = 2, compactHeader = false, mark = null }) {
   if (!entry) return null;
   const Heading = `h${headingLevel}`;
   const categories = Array.isArray(entry.categories) ? entry.categories : [];
@@ -38,10 +39,13 @@ export default function CatalogCallSection({ entry, actions = null, headingLevel
   return (
     <section className={styles.callSection} aria-labelledby="catalog-call-title" data-catalog-call="true">
       <header className={styles.callHeader}>
-        <div>
+        <div className={mark ? styles.callIdentity : undefined}>
+          {mark}
+          <div>
           <span className={styles.kicker}><ShieldCheck size={15} aria-hidden="true" /> Convocatoria a equipos</span>
           <Heading id="catalog-call-title">{compactHeader ? 'Convocatoria' : entry.tournamentName}</Heading>
           {!compactHeader && <p>Organiza {entry.organizationName}</p>}
+          </div>
         </div>
         <CatalogStateChip state={entry.state} />
       </header>

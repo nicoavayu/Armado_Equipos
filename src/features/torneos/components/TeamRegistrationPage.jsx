@@ -578,7 +578,19 @@ export default function TeamRegistrationPage({ initialTab = 'inscripcion' }) {
                   )}
                 />
               ))}
-              {!players.length && <div className={styles.inlineEmpty}><UserPlus size={24} /><span><strong>Plantel vacío</strong>{' '}<small>Buscá un jugador o crealo sin cuenta.</small></span></div>}
+              {!players.length && (
+                <div className={styles.inlineEmpty}>
+                  <UserPlus size={24} />
+                  <span>
+                    <strong>Plantel vacío</strong>{' '}
+                    <small>
+                      {data.entry.linked
+                        ? 'Los jugadores de tu equipo de Arma2 no se agregan solos: buscá a cada uno o crealo sin cuenta. Cada jugador que sumás queda guardado.'
+                        : 'Buscá un jugador o crealo sin cuenta. Cada jugador que sumás queda guardado.'}
+                    </small>
+                  </span>
+                </div>
+              )}
             </div>
           </section>
           <aside className={styles.requirementsPanel}>

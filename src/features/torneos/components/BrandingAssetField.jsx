@@ -4,6 +4,7 @@ import {
   removeTournamentBrandingAsset,
   uploadTournamentBrandingAsset,
 } from '../api/tournamentBrandingService';
+import { useOptionalTorneosWorkspace } from '../context/TorneosWorkspaceContext';
 import BrandingImage from './BrandingImage';
 import styles from './BrandingAssetField.module.css';
 
@@ -28,6 +29,15 @@ export default function BrandingAssetField({
   const [busy, setBusy] = useState('');
   const [message, setMessage] = useState('');
   const label = LABELS[kind] || 'Imagen';
+  // The MOUNTED composition stores the asset: the hybrid one through the Torneos gateway (BRANDING-V1 aliases), the
+  // LOCAL single-project one with its own storage service, as before.
+  const composed = useOptionalTorneosWorkspace()?.service;
+  const uploadAsset = typeof composed?.uploadBrandingAsset === 'function'
+    ? composed.uploadBrandingAsset
+    : uploadTournamentBrandingAsset;
+  const removeAsset = typeof composed?.removeBrandingAsset === 'function'
+    ? composed.removeBrandingAsset
+    : removeTournamentBrandingAsset;
 
   useEffect(() => () => {
     if (previewUrl) URL.revokeObjectURL(previewUrl);
@@ -40,7 +50,7 @@ export default function BrandingAssetField({
     setPreviewUrl(selectedPreviewUrl);
     setBusy('upload');
     try {
-      const result = await uploadTournamentBrandingAsset({
+      const result = await uploadAsset({
         organizationId,
         kind,
         entityId,
@@ -63,7 +73,7 @@ export default function BrandingAssetField({
     setBusy('remove');
     setMessage('');
     try {
-      const result = await removeTournamentBrandingAsset({
+      const result = await removeAsset({
         organizationId,
         kind,
         entityId,

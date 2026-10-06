@@ -282,6 +282,16 @@ test('the only backend access B04 adds is the gateway transport (fetch) and the 
     // through the composition's rule (LOCAL service on the QA stack; the gateway with the read-only session bridge).
     'src/features/torneos/stagingV1/torneosInboxProbe.js -> ../api/tournamentWorkspaceService',
     'src/features/torneos/stagingV1/torneosInboxProbe.js -> ./coreSessionBridge',
+    // BRANDING-V1: the upload field stores the asset through the MOUNTED composition's service (hybrid: the gateway's
+    // object route; LOCAL: its storage service, the field's previous default, still the fallback).
+    'src/features/torneos/components/BrandingAssetField.jsx -> ../context/TorneosWorkspaceContext',
+    // The call and the request show the tournament's logo with the same branding rule as the card and the public page.
+    'src/features/torneos/components/connected/CatalogCallPage.jsx -> ../BrandingImage',
+    'src/features/torneos/components/connected/TournamentApplicationPage.jsx -> ../BrandingImage',
+    // Arma2's external notices are a preference of the common account (Core's own RPC, auth.uid() only), changed from
+    // the Torneos profile like the account's sign-out: loaded only on that page (read, then change).
+    'src/features/torneos/components/connected/TorneosProfilePage.jsx -> ../../../../services/corePushPreferenceService',
+    'src/features/torneos/components/connected/TorneosProfilePage.jsx -> ../../../../services/corePushPreferenceService',
     'src/features/torneos/components/connected/useTorneosProfile.js -> ../../context/TorneosWorkspaceContext',
     'src/features/torneos/stagingV1/publicTournamentComposition.js -> ../api/publicCatalogService',
   ]).sort());
