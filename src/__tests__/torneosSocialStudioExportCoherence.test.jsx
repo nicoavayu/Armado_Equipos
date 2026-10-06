@@ -214,7 +214,8 @@ beforeEach(() => {
 
 // ── helpers ─────────────────────────────────────────────────────────────────────────────────────────────────────
 const pieceButton = (name) => within(screen.getByRole('radiogroup', { name: 'Plantilla' })).getByRole('radio', { name: new RegExp(`^${name}`) });
-const styleButton = (name) => within(screen.getByRole('radiogroup', { name: 'Estilo' })).getByRole('radio', { name: new RegExp(`^${name}`) });
+// The style is one dropdown: choosing a style is a change of its value.
+const chooseStyle = (name) => fireEvent.change(screen.getByRole('combobox', { name: 'Estilo' }), { target: { value: name.toLowerCase() } });
 const formatButton = (name) => within(screen.getByRole('radiogroup', { name: 'Formato' })).getByRole('radio', { name });
 const downloadButton = () => screen.queryByRole('button', { name: /^Descargar/ });
 const shareButton = () => screen.queryByRole('button', { name: /^Compartir$/ });
@@ -402,7 +403,7 @@ test('PREMIUM: style, format and signature changes never export the previous ren
 
   const street = expectedContent({ piece: 'standings', theme: 'street', firma: false });
   const streetRender = hold('render', (content) => content === street);
-  fireEvent.click(styleButton('Street'));
+  chooseStyle('Street');
   await waitFor(() => expect(streetRender.used).toBe(1));
   await expectNoExportPossible(service);
   await streetRender.open();
@@ -418,7 +419,7 @@ test('PREMIUM: style, format and signature changes never export the previous ren
   await shown(streetStory);
   await exportWith(shareButton);
 
-  fireEvent.click(styleButton('Base'));
+  chooseStyle('Base');
   const signed = expectedContent({ piece: 'standings', format: 'story' });
   await shown(signed);
   const unsigned = expectedContent({ piece: 'standings', format: 'story', firma: false });
@@ -470,7 +471,7 @@ test('selection changed while the PNG is encoded: the render in use is not relea
   await waitFor(() => expect(encoding.used).toBe(1));
   const standingsRender = rendersMade.find((prepared) => prepared.content === STANDINGS);
 
-  fireEvent.click(styleButton('Heritage'));
+  chooseStyle('Heritage');
   await shown(expectedContent({ piece: 'standings', theme: 'heritage', firma: false }), { exportable: false });
   expect(standingsRender.assets.photo.closed).toBe(false);
   await encoding.open();

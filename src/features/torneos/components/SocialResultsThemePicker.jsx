@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useId } from 'react';
 import { LockKeyhole } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -24,6 +24,11 @@ export function isSocialResultThemeAllowed(themeId, planState, seasonId) {
     || canUsePremiumResultStyles(planState, seasonId);
 }
 
+/**
+ * The style of the piece: one compact dropdown (it never outgrows a 320 px phone, and the current style always reads at
+ * a glance). A FREE season can still pick a Premium style to preview it: the option says so, and the preview carries
+ * the Premium lock.
+ */
 export default function SocialResultsThemePicker({
   organizationId,
   seasonId,
@@ -34,48 +39,41 @@ export default function SocialResultsThemePicker({
   onLockedPreview = null,
 }) {
   const navigate = useNavigate();
+  const hintId = useId();
   const planTarget = seasonId ? canonicalRoutes.seasonPlan(organizationId, seasonId) : canonicalRoutes.organizationMyPlan(organizationId);
   const premiumAllowed = canUsePremiumResultStyles(planState, seasonId);
+  const lockedPreview = !premiumAllowed && displayThemeId !== 'base';
 
-  // A locked style is previewed for real, never covered: the notice below and the export lock explain it.
-  const chooseTheme = (entry) => {
-    onSelect(entry.id);
-    if (entry.id !== 'base' && !premiumAllowed) onLockedPreview?.(entry.id);
+  const chooseTheme = (nextThemeId) => {
+    onSelect(nextThemeId);
+    if (nextThemeId !== 'base' && !premiumAllowed) onLockedPreview?.(nextThemeId);
   };
 
   return (
-      <div className={styles.themePicker}>
-        <div className={styles.chipRow} role="radiogroup" aria-label="Estilo">
+    <div className={styles.themePicker}>
+      <label className={styles.fieldLabel}>
+        <span>Estilo</span>
+        <select
+          value={displayThemeId}
+          onChange={(event) => chooseTheme(event.target.value)}
+          aria-describedby={lockedPreview ? hintId : undefined}
+        >
           {SOCIAL_RESULTS_THEMES.map((entry) => {
             const locked = entry.id !== 'base' && !premiumAllowed;
             return (
-              <button
-                key={entry.id}
-                type="button"
-                role="radio"
-                aria-checked={displayThemeId === entry.id}
-                aria-label={locked ? `${entry.label}, disponible con Premium` : entry.label}
-                className={`${displayThemeId === entry.id ? styles.chipActive : ''} ${locked ? styles.themeLocked : ''}`}
-                onClick={() => chooseTheme(entry)}
-              >
-                {locked && <LockKeyhole size={15} aria-hidden="true" />}
-                <span>{entry.label}</span>
-                {locked && <small>Premium</small>}
-              </button>
+              <option key={entry.id} value={entry.id}>
+                {locked ? `${entry.label} · Premium` : entry.label}
+              </option>
             );
           })}
-        </div>
-        {!premiumAllowed && displayThemeId !== 'base' && (
-          <div className={styles.lockedThemeNotice} role="status">
-            <span><LockKeyhole size={14} aria-hidden="true" /> Vista previa del estilo Premium · Se descarga con Premium</span>
-            <button
-              type="button"
-              onClick={() => navigate(`${planTarget}#premium`)}
-            >
-              Ver Premium
-            </button>
-          </div>
-        )}
-      </div>
+        </select>
+      </label>
+      {lockedPreview && (
+        <p id={hintId} className={styles.lockedThemeNotice} role="status">
+          <span><LockKeyhole size={13} aria-hidden="true" /> Vista previa del estilo Premium · Se descarga con Premium</span>
+          <button type="button" onClick={() => navigate(`${planTarget}#premium`)}>Ver Premium</button>
+        </p>
+      )}
+    </div>
   );
 }
