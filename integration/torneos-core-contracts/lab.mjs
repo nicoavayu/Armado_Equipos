@@ -27,10 +27,13 @@ const docker = process.platform === 'darwin'
 // MP-A3: TORNEOS_LAB_MODE=commerce adds the local Mercado Pago overlay (compose.mpa.yaml: the
 // torneos-payments secrets for torneos-functions and the mp-stub). Any other value is refused.
 export const COMMERCE = process.env.TORNEOS_LAB_MODE === 'commerce';
+// BRANDING-V1: Supabase Storage on the isolated Torneos database (compose.branding.yaml) + the gateways' branding mode.
+export const BRANDING = process.env.TORNEOS_BRANDING_MODE === 'on';
+export const STORAGE_PUBLIC_BASE = 'http://127.0.0.1:58425';
 if (process.env.TORNEOS_LAB_MODE && !COMMERCE) throw new Error('TORNEOS_LAB_MODE accepts only "commerce"');
 export const PAYMENTS_BASE = 'http://127.0.0.1:58421/torneos-payments';
 export const MP_STUB_BASE = 'http://127.0.0.1:58426';
-const COMPOSE_FILES = ['-f', 'compose.yaml', ...(COMMERCE ? ['-f', 'compose.mpa.yaml'] : [])];
+const COMPOSE_FILES = ['-f', 'compose.yaml', ...(COMMERCE ? ['-f', 'compose.mpa.yaml'] : []), ...(BRANDING ? ['-f', 'compose.branding.yaml'] : [])];
 
 // Force the local Unix socket, ignoring DOCKER_HOST/context inherited by the shell.
 export function dc(args, input, capture = false) {
@@ -85,6 +88,8 @@ export async function writeEdgeEnv(c) {
   ];
   // CONNECTED-V1 stays opt-in in the lab: only an explicit TORNEOS_CONNECTED_MODE reaches the Edge gateway.
   if (process.env.TORNEOS_CONNECTED_MODE) lines.push(`TORNEOS_CONNECTED_MODE=${process.env.TORNEOS_CONNECTED_MODE}`);
+  // BRANDING-V1: same opt-in; the storage targets are the lab's (hosted: derived from TORNEOS_REST_URL).
+  if (BRANDING) lines.push('TORNEOS_BRANDING_MODE=on', 'TORNEOS_STORAGE_URL=http://torneos-storage:5000', `TORNEOS_STORAGE_PUBLIC_URL=${STORAGE_PUBLIC_BASE}`);
   await writeFile(`${root}.runtime/torneos-gateway.env`, lines.join('\n') + '\n', { mode: 0o600 });
 }
 export async function writeServerConfig(c) {
@@ -126,9 +131,25 @@ async function prepare() {
   }
   await writeServerConfig(await config());
   await writeEdgeEnv(await config());
+  if (BRANDING) await writeStorageEnv(await config());
+  else await rm(`${root}.runtime/torneos-storage.env`, { force: true });
   if (COMMERCE) await writeCommerceEnv();
   // MP-A4: outside commerce mode no gateway commerce configuration may survive from an earlier run.
   else await Promise.all(GATEWAY_COMMERCE_FILES.map((f) => rm(`${root}.runtime/${f}`, { force: true })));
+}
+// BRANDING-V1 (branding mode only): the storage-api of the isolated Torneos database. It verifies the bridge's RS256
+// tokens through JWT_JWKS (hosted: Third-Party Auth with the same JWKS) and the lab anon key through AUTH_JWT_SECRET
+// (in this lab the Torneos anon key is the lab's legacy anon key). Never handed to a gateway.
+async function writeStorageEnv(c) {
+  const jwks = { keys: c.keys.filter((k) => c.trustedKids.includes(k.kid)).map((k) => k.publicKey) };
+  const lines = [
+    `ANON_KEY=${c.anonKey}`,
+    `SERVICE_KEY=${c.serviceRoleKey}`,
+    `AUTH_JWT_SECRET=${c.coreSecret}`,
+    `JWT_JWKS=${JSON.stringify(jwks)}`,
+    `DATABASE_URL=postgres://supabase_storage_admin:${c.dbPassword}@torneos-db:5432/postgres`,
+  ];
+  await writeFile(`${root}.runtime/torneos-storage.env`, lines.join('\n') + '\n', { mode: 0o600 });
 }
 // MP-A4 (commerce mode only): the gateways' commerce configuration — TORNEOS_COMMERCE_MODE=test, the lab payments
 // mount and the internal HMAC key shared with torneos-payments. Node gateway: its private .runtime/server dir;
@@ -240,9 +261,15 @@ export async function installTorneos(c) {
     REVOKE ALL ON SCHEMA lab_meta FROM PUBLIC;`);
   const ledger = new Set(sql('torneos-db', 'SELECT name FROM lab_meta.torneos_migrations').split('\n').map((x) => x.trim()).filter(Boolean));
   const followUps = [];
+  const storageReady = sql('torneos-db', "select to_regclass('storage.objects') is not null").trim() === 't';
   for (const name of files.slice(1)) {
     const text = await readFile(dir + name, 'utf8');
     const digest = createHash('sha256').update(text).digest('hex');
+    // BRANDING-V1 needs the project's Storage schema (hosted: always there; this lab: only the branding overlay).
+    if (name.endsWith('_branding_v1.sql') && !storageReady) {
+      followUps.push({ file: (dir + name).slice(repo.length), sha256: digest, applied: false, skipped: 'no storage service in this lab run' });
+      continue;
+    }
     const apply = !ledger.has(name);
     if (apply) {
       sql('torneos-db', text);
@@ -295,6 +322,12 @@ async function main() {
       CREATE POLICY poc_session_lookup ON auth.sessions FOR SELECT TO poc_session_reader USING (true);
       DROP POLICY IF EXISTS poc_user_lookup ON auth.users;
       CREATE POLICY poc_user_lookup ON auth.users FOR SELECT TO poc_session_reader USING (true);`);
+    if (BRANDING) {
+      // storage-api migrates its own schema into the Torneos database before 00000000000010 can install the bucket.
+      sql('torneos-db', `ALTER ROLE supabase_storage_admin PASSWORD '${c.dbPassword}';`);
+      dc(['up', '-d', 'torneos-storage']);
+      await waitFor('torneos-storage', () => sql('torneos-db', "select to_regclass('storage.objects') is not null and to_regclass('storage.buckets') is not null").trim() === 't');
+    }
     const torneos = await installTorneos(c);
     dc(['up', '-d']);
     await waitFor('gateway', async () => (await fetch(`${BASE}/health`)).ok);

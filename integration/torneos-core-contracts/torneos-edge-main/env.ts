@@ -13,6 +13,8 @@ const GATEWAY_ENV = [
   "TORNEOS_COMMERCE_MODE",
   // CONNECTED-V1: the opt-in mode only (no secret); absent in the container → absent in the worker.
   "TORNEOS_CONNECTED_MODE",
+  // BRANDING-V1: the opt-in mode and the storage targets (no secret; the anon key is already listed above).
+  "TORNEOS_BRANDING_MODE", "TORNEOS_STORAGE_URL", "TORNEOS_STORAGE_PUBLIC_URL",
 ] as const
 const GATEWAY_COMMERCE_ENV = ["TORNEOS_PAYMENTS_INTERNAL_URL", "TORNEOS_PAYMENTS_INTERNAL_SECRET"] as const
 const PAYMENTS_ENV = [

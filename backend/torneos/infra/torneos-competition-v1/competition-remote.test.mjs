@@ -69,14 +69,15 @@ test('state classifier: PRE / POST / ROLLED_BACK exactly; every deviation is DRI
   assert.equal(C.classifyState(null).state, 'DRIFT');
 });
 
-test('bundles: previous rebuilt from git = the deploy pin (14 files, 723c5d39…); candidate = the working-tree graph with the competition (+2), OFFICIALIZATION-V1 (+1), PLAN READ (+1), SOCIAL-V1 (+2) and CONNECTED-V1 (+2) files', () => {
+test('bundles: previous rebuilt from git = the deploy pin (14 files, 723c5d39…); candidate = the working-tree graph with the competition (+2), OFFICIALIZATION-V1 (+1), PLAN READ (+1), SOCIAL-V1 (+2), CONNECTED-V1 (+3) and BRANDING-V1 (+2) files', () => {
   const prev = buildPrevious();
   assert.equal(prev.digest, C.CURRENT.digest); assert.equal(prev.manifest.length, 14); assert.equal(prev.head, C.CURRENT.head);
   assert.deepEqual(prev.manifest, C.readCurrentDeployPin().source.files);
   const cand = buildCandidate({ requireClean: false });
-  assert.equal(cand.manifest.length, 22);
+  assert.equal(cand.manifest.length, 25);
   assert.ok(['torneos-gateway/competition.ts', 'torneos-gateway/competition-v1-rpc-allowlist.json', 'torneos-gateway/officialization-v1-rpc-allowlist.json', 'torneos-gateway/plan-read.ts', 'torneos-gateway/social.ts', 'torneos-gateway/social-v1-rpc-allowlist.json',
-    'torneos-gateway/connected.ts', 'torneos-gateway/connected-v1-rpc-allowlist.json'].every((f) => cand.manifest.some((m) => m.path === f)));
+    'torneos-gateway/connected.ts', 'torneos-gateway/connected-v1-rpc-allowlist.json', 'torneos-gateway/my-teams.schema.json',
+    'torneos-gateway/branding.ts', 'torneos-gateway/branding-v1-rpc-allowlist.json'].every((f) => cand.manifest.some((m) => m.path === f)));
   assert.notEqual(cand.digest, prev.digest);
   // W2 sends assets + labels only: the allowlisted deploy body shape accepts both sources and nothing else.
   for (const b of [prev, cand]) assert.ok(R.assertDenoWriteBody('deploy', { assets: b.assets, labels: { 'custom.git_head': b.head, 'custom.bundle_digest': b.digest }, production: true, preview: false }));
