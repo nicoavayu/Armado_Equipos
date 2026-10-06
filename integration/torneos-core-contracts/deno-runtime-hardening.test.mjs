@@ -435,7 +435,11 @@ test('MP-B1.1 R3 — isolated remote commerce runtime hardening (offline)', asyn
       assert.equal(delta.extends.sha256, sha256(await readFile(`${EVIDENCE}deno-deploy-isolation-contract.json`)), 'the delta extends exactly the R3 contract');
       // PLAN READ (2026-10-01): the gateway's non-secret plan-read opt-in (torneos-gateway/plan-read.ts), default off.
       // SOCIAL-V1 (2026-10-03): the gateway's non-secret Estudio Social opt-in (torneos-gateway/social.ts), default off.
-      const planReadAdded = { 'torneos-gateway': ['TORNEOS_PLAN_READ_MODE', 'TORNEOS_SOCIAL_MODE'] };
+      // CONNECTED-V1 (2026-10-05): the non-secret Explorar/solicitudes opt-in (torneos-gateway/connected.ts), default off.
+      // BRANDING-V1 (2026-10-06): the non-secret logos opt-in and, for the local lab only, its storage targets
+      // (torneos-gateway/branding.ts; hosted derives storage from TORNEOS_REST_URL and refuses any other value).
+      const planReadAdded = { 'torneos-gateway': ['TORNEOS_PLAN_READ_MODE', 'TORNEOS_SOCIAL_MODE', 'TORNEOS_CONNECTED_MODE',
+        'TORNEOS_BRANDING_MODE', 'TORNEOS_STORAGE_URL', 'TORNEOS_STORAGE_PUBLIC_URL'] };
       const added = (app) => [...(delta.apps[app]?.configAdded ?? []), ...(planReadAdded[app] ?? [])];
       const declared = (app) => new Set([...c.apps[app].secrets, ...c.apps[app].config, ...added(app)]);
       for (const n of gwReads) assert.ok(declared('torneos-gateway').has(n), `gateway reads undeclared ${n}`);

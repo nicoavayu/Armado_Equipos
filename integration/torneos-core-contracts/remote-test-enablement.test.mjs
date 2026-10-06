@@ -246,7 +246,12 @@ test('MP-B1.1 R2 — remote TEST enablement (offline)', async (t) => {
       // PLAN READ (2026-10-01): non-secret opt-in for the two plan reads (torneos-gateway/plan-read.ts), default off.
       'TORNEOS_PLAN_READ_MODE',
       // SOCIAL-V1 (2026-10-03): non-secret opt-in for the three Estudio Social RPCs (torneos-gateway/social.ts), default off.
-      'TORNEOS_SOCIAL_MODE']);
+      'TORNEOS_SOCIAL_MODE',
+      // CONNECTED-V1 (2026-10-05): non-secret opt-in for Explorar/solicitudes (torneos-gateway/connected.ts), default off.
+      'TORNEOS_CONNECTED_MODE',
+      // BRANDING-V1 (2026-10-06): non-secret logos opt-in and the local lab's storage targets (torneos-gateway/branding.ts;
+      // hosted derives storage from TORNEOS_REST_URL and refuses any other value), default off.
+      'TORNEOS_BRANDING_MODE', 'TORNEOS_STORAGE_URL', 'TORNEOS_STORAGE_PUBLIC_URL']);
     const PAYMENTS_MAY_READ = new Set(['TORNEOS_PAYMENT_PROVIDER', 'MERCADO_PAGO_ENVIRONMENT', 'MERCADO_PAGO_TEST_ACCESS_TOKEN', 'MERCADO_PAGO_TEST_WEBHOOK_SECRET',
       'MERCADO_PAGO_TEST_SELLER_ID', 'APP_PUBLIC_URL', 'TORNEOS_PAYMENTS_NOTIFICATION_URL', 'TORNEOS_PAYMENTS_INTERNAL_SECRET', 'TORNEOS_PAYMENTS_DB_URL',
       'TORNEOS_PAYMENTS_DB_SSL_CA', 'TORNEOS_PAYMENTS_LAB_MP_API_ORIGIN',

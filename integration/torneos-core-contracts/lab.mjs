@@ -86,6 +86,8 @@ export async function writeEdgeEnv(c) {
     `TORNEOS_DB_CORE_ADAPTER_URL=postgres://lab_core_adapter:${c.adapterPassword}@torneos-db:5432/postgres`,
     `TORNEOS_BRIDGE_KEYS=${bridge}`,
   ];
+  // PLAN READ / SOCIAL-V1 (Production runs both on): opt-in in the lab, only when set explicitly.
+  for (const flag of ['TORNEOS_PLAN_READ_MODE', 'TORNEOS_SOCIAL_MODE']) if (process.env[flag]) lines.push(`${flag}=${process.env[flag]}`);
   // CONNECTED-V1 stays opt-in in the lab: only an explicit TORNEOS_CONNECTED_MODE reaches the Edge gateway.
   if (process.env.TORNEOS_CONNECTED_MODE) lines.push(`TORNEOS_CONNECTED_MODE=${process.env.TORNEOS_CONNECTED_MODE}`);
   // BRANDING-V1: same opt-in; the storage targets are the lab's (hosted: derived from TORNEOS_REST_URL).

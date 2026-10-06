@@ -72,8 +72,9 @@ function storageTargets(env: Record<string, string | undefined>, restUrl: string
   const explicit = (env.TORNEOS_STORAGE_URL ?? "").trim().replace(/\/$/, "")
   const explicitPublic = (env.TORNEOS_STORAGE_PUBLIC_URL ?? "").trim().replace(/\/$/, "")
   if (hosted) {
-    // Hosted: storage is the same Torneos project as the REST API. Nothing else is accepted.
-    const derived = `https://${hosted[1]}.supabase.co/storage/v1`
+    // Hosted: storage is the same Torneos project as the REST API (same origin, /storage/v1). Nothing else is
+    // accepted. Derived from the validated REST URL so no platform hostname is written in code.
+    const derived = `${new URL(rest).origin}/storage/v1`
     if ((explicit && explicit !== derived) || (explicitPublic && explicitPublic !== derived)) {
       throw new BrandingConfigError("TORNEOS_STORAGE_URL must be the Torneos project's own storage")
     }

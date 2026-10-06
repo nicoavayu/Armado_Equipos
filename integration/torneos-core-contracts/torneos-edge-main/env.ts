@@ -11,6 +11,8 @@ const GATEWAY_ENV = [
   "CORE_CONTRACT_URL", "TORNEOS_CONTRACT_SERVICE_SECRET", "TORNEOS_REST_URL", "TORNEOS_ANON_KEY",
   "TORNEOS_DB_IDENTITY_WRITER_URL", "TORNEOS_DB_CORE_ADAPTER_URL", "TORNEOS_DB_SSL_CA", "TORNEOS_BRIDGE_KEYS",
   "TORNEOS_COMMERCE_MODE",
+  // PLAN READ / SOCIAL-V1: the gateway's non-secret opt-ins, so a lab can mirror Production's flags (absent → absent).
+  "TORNEOS_PLAN_READ_MODE", "TORNEOS_SOCIAL_MODE",
   // CONNECTED-V1: the opt-in mode only (no secret); absent in the container → absent in the worker.
   "TORNEOS_CONNECTED_MODE",
   // BRANDING-V1: the opt-in mode and the storage targets (no secret; the anon key is already listed above).
