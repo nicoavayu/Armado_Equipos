@@ -52,6 +52,8 @@ const expectedCanonicalMigrations = [
   // CONNECTED-V1 (#182): the LOCAL single-project twin of backend/torneos 0009 and the Core contract v1.2 (my_teams).
   '20261006120000_torneos_connected_product_v1.sql',
   '20261007120000_torneos_core_contract_v1_2_my_teams.sql',
+  // #182 closure: the account's Core push preference (get/set) enforced at the push queue.
+  '20261008120000_core_push_preference_v1.sql',
 ];
 
 const exitWithError = (message) => {

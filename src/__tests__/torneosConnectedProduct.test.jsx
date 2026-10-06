@@ -29,6 +29,17 @@ jest.mock('../features/torneos/components/connected/useCatalogService', () => ({
   useCatalogService: () => mockCatalog,
 }));
 jest.mock('../features/torneos/components/MyCommunicationsPage', () => () => <p>Comunicados oficiales</p>);
+// Core's push preference of the common account (server-side; Torneos only shows and changes it).
+const mockCorePush = { enabled: true, fail: false, saved: [], available: true };
+jest.mock('../services/corePushPreferenceService', () => ({
+  loadMyCorePushPreference: async () => ({ available: mockCorePush.available, pushEnabled: mockCorePush.enabled }),
+  saveMyCorePushPreference: async (enabled) => {
+    if (mockCorePush.fail) throw new Error('offline');
+    mockCorePush.saved.push(enabled);
+    mockCorePush.enabled = enabled;
+    return { pushEnabled: enabled };
+  },
+}));
 
 const SLUG = 'liga-norte-copa-abierta-1a2b3c';
 const ENTRY = {
@@ -372,6 +383,37 @@ describe('Perfil de Torneos', () => {
     expect(mockWorkspace.service.updateTorneosProfile).toHaveBeenCalledWith({ displayName: 'Capi Halcones', notifyRegistrationRequests: true });
     expect(setItem.mock.calls.filter(([key]) => /perfil|profile|display/i.test(key))).toEqual([]);
     setItem.mockRestore();
+  });
+
+  test('Arma2 notices on the phone: a server-side account preference, without touching Torneos or the session', async () => {
+    Object.assign(mockCorePush, { enabled: true, fail: false, saved: [], available: true });
+    mockWorkspace.service.loadTorneosProfile = jest.fn(async () => ({ displayName: 'Capi', notifyRegistrationRequests: true, channels: { inbox: true, push: false, email: false } }));
+    renderAt('/torneos/perfil', '/torneos/perfil', <TorneosProfilePage />);
+    const toggle = await screen.findByRole('checkbox', { name: 'Recibir notificaciones de Arma2 en el teléfono' });
+    await waitFor(() => expect(toggle).not.toBeDisabled());
+    expect(toggle).toBeChecked();
+    expect(toggle).toHaveAccessibleDescription(/No cambia tus avisos de Torneos ni cierra tu sesión/);
+    fireEvent.click(toggle);
+    expect(await screen.findByText(/Arma2 deja de enviarte notificaciones al teléfono\. Tus avisos de Torneos siguen/)).toBeInTheDocument();
+    expect(mockCorePush.saved).toEqual([false]);
+    expect(toggle).not.toBeChecked();
+    // A failed save keeps the previous value and says so.
+    mockCorePush.fail = true;
+    fireEvent.click(toggle);
+    expect(await screen.findByText('No pudimos guardar el cambio. Volvé a intentar.')).toBeInTheDocument();
+    expect(toggle).not.toBeChecked();
+  });
+
+  // A frontend deployed before Core's migration (20261008120000): the RPC does not exist yet, so the control is not
+  // offered at all — never an error on the profile and never a switch that cannot work.
+  test('without Core\'s preference contract yet, the profile hides the control', async () => {
+    Object.assign(mockCorePush, { enabled: true, fail: false, saved: [], available: false });
+    mockWorkspace.service.loadTorneosProfile = jest.fn(async () => ({ displayName: 'Capi', notifyRegistrationRequests: true, channels: { inbox: true, push: false, email: false } }));
+    renderAt('/torneos/perfil', '/torneos/perfil', <TorneosProfilePage />);
+    expect(await screen.findByRole('button', { name: 'Cerrar sesión' })).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByText('Cargando tu preferencia…')).not.toBeInTheDocument());
+    expect(screen.queryByRole('checkbox', { name: 'Recibir notificaciones de Arma2 en el teléfono' })).not.toBeInTheDocument();
+    expect(screen.queryByText(/No pudimos leer esta preferencia/)).not.toBeInTheDocument();
   });
 });
 

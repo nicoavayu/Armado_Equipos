@@ -24,6 +24,8 @@ import pg from 'pg';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const MIGRATION = path.join(ROOT, 'supabase', 'migrations', '20261006120000_torneos_connected_product_v1.sql');
+// Core: the account's push preference (Torneos users may turn Core's external notices off without leaving Arma2).
+const PUSH_MIGRATION = path.join(ROOT, 'supabase', 'migrations', '20261008120000_core_push_preference_v1.sql');
 const DATABASE_URL = process.env.CONNECTED_TEST_DATABASE_URL
   || 'postgresql://postgres:postgres@127.0.0.1:57322/torneos_connected_test';
 const TAG = randomUUID().slice(0, 8);
@@ -602,6 +604,65 @@ async function main() {
     [publicSlug, 'senior', `Serial extra ${TAG}`, randomUUID()]),
   /TORNEOS_APPLICATION_LIMIT_REACHED/, 'la cuarta se rechaza');
 
+  // ------------------------------------------------------------------ 6b. participación vs gestión, paginada
+  console.log('\n6b. «Mis torneos»: sólo participación, filtrada y paginada en el servidor');
+  // Una segunda convocatoria (sin requisitos de edad) donde la misma persona también queda inscripta.
+  const t2 = await rpc(organizer,
+    `public.create_tournament_with_defaults($1, $2, $3, $4, null, 'football_5', 'league', 'open', current_date + 30, current_date + 90, $5::uuid)`,
+    [organizationId, seasonId, `Copa Dos ${TAG}`, `copa-dos-${TAG}`, randomUUID()]);
+  const t2Id = t2.id || t2.tournament?.id;
+  await rpc(organizer,
+    "public.save_tournament_category($1, $2, null, 'Libre', 'libre', null, 0, null, null, null, 'football_5', 5::smallint, 'active')",
+    [organizationId, t2Id]);
+  await rpc(organizer, "public.change_tournament_status($1, $2, 'registration')", [organizationId, t2Id]);
+  const t2Slug = (await rpc(organizer, 'public.set_tournament_public_page_published($1, $2, true)', [organizationId, t2Id])).publicSlug;
+  await rpc(organizer,
+    "public.save_tournament_catalog_listing($1, $2, 'Segunda convocatoria de prueba.', 'Palermo, CABA', null, null, null, null, null, null, 'team', null, null)",
+    [organizationId, t2Id]);
+  await rpc(organizer, 'public.set_tournament_catalog_listing_status($1, $2, true)', [organizationId, t2Id]);
+  await rpc(organizer, "public.set_tournament_applications_state($1, $2, 'open')", [organizationId, t2Id]);
+  const secondEntry = await rpc(serial, 'public.start_tournament_application($1, $2, null, $3, null, true, $4::uuid)',
+    [t2Slug, 'libre', `Serial Dos ${TAG}`, randomUUID()]);
+  await addValidRoster(serial, organizationId, secondEntry.teamEntryId);
+  await rpc(serial, 'public.submit_tournament_team_entry($1, $2)', [organizationId, secondEntry.teamEntryId]);
+  await rpc(organizer, "public.review_tournament_team_entry($1, $2, 'approved', 'Bienvenidos', '[]'::jsonb)",
+    [organizationId, secondEntry.teamEntryId]);
+  // Aprobada, la convocatoria se retira del catálogo (no interfiere con las búsquedas por etiqueta de más abajo).
+  await rpc(organizer, 'public.set_tournament_catalog_listing_status($1, $2, false)', [organizationId, t2Id]);
+  // La misma persona organiza su propia liga con dos torneos publicados: gestión, nunca participación.
+  const ownOrganization = await rpc(serial, 'public.create_tournament_organization($1, $2, $3::uuid)',
+    [`Liga Propia ${TAG}`, `liga-propia-${TAG}`, randomUUID()]);
+  const ownOrganizationId = ownOrganization.organization?.id || ownOrganization.id;
+  const ownSeason = await rpc(serial, 'public.create_tournament_season($1, $2, $3, null, null, $4::uuid)',
+    [ownOrganizationId, `Propia ${TAG}`, `propia-${TAG}`, randomUUID()]);
+  const ownSeasonId = ownSeason.id || ownSeason.season?.id;
+  await rpc(serial, "public.update_tournament_season($1, $2, $3, $4, null, null, 'active', false, false)",
+    [ownOrganizationId, ownSeasonId, `Propia ${TAG}`, `propia-${TAG}`]);
+  const ownTournaments = [];
+  for (const index of [1, 2]) {
+    const created = await rpc(serial,
+      `public.create_tournament_with_defaults($1, $2, $3, $4, null, 'football_5', 'league', 'open', current_date + 30, current_date + 90, $5::uuid)`,
+      [ownOrganizationId, ownSeasonId, `Propio ${index} ${TAG}`, `propio-${index}-${TAG}`, randomUUID()]);
+    const ownTournamentId = created.id || created.tournament?.id;
+    await rpc(serial,
+      "public.save_tournament_category($1, $2, null, 'Libre', 'libre', null, 0, null, null, null, 'football_5', 5::smallint, 'active')",
+      [ownOrganizationId, ownTournamentId]);
+    await rpc(serial, "public.change_tournament_status($1, $2, 'registration')", [ownOrganizationId, ownTournamentId]);
+    ownTournaments.push(ownTournamentId);
+  }
+  const mixed = await rpc(serial, 'public.get_my_tournament_memberships(50, 0)');
+  const pages = [];
+  for (let offset = 0; offset < 4; offset += 1) pages.push(await rpc(serial, 'public.get_my_tournament_participations(1, $1)', [offset]));
+  const seen = pages.flatMap((page) => page.items || []);
+  eq([pages[0].pagination.total, pages[0].pagination.hasMore, pages[1].pagination.hasMore, pages[2].items.length],
+    [2, true, false, 0], 'dos participaciones, una por página: total y «hay más» calculados sobre la participación');
+  eq(seen.map((item) => item.tournamentId).sort(), [tournamentId, t2Id].sort(),
+    'recorriendo las páginas aparecen las dos, ninguna se pierde ni se repite');
+  eq(seen.some((item) => ownTournaments.includes(item.tournamentId)), false,
+    'ningún torneo de su propia liga aparece como participación');
+  ok((mixed.items || []).some((item) => ownTournaments.includes(item.tournamentId)) && mixed.pagination.total > 2,
+    'la lista anterior (membresías) sí mezclaba gestión: por eso «Mis torneos» usa la participación');
+
   // ------------------------------------------------------------------ 7. permisos revocados y preferencias
   console.log('\n7. Permisos revocados, preferencias y lectura');
   await rpc(organizer, "public.update_my_torneos_profile('Organizadora', false)");
@@ -653,6 +714,30 @@ async function main() {
       `authenticated no lee ${table} directamente`);
     await expectError(() => anon.query(`select * from public.${table} limit 1`), /permission denied/, `anon no lee ${table}`);
   }
+
+  // ------------------------------------------------------------------ 9. preferencia de push de Core
+  console.log('\n9. Avisos externos de Core: la preferencia se respeta en el servidor');
+  const pushApplied = (await admin.query("select to_regprocedure('public.set_my_push_preference(boolean)') is not null applied")).rows[0].applied;
+  if (!pushApplied) await admin.query(fs.readFileSync(PUSH_MIGRATION, 'utf8'));
+  eq((await rpc(applicant, 'public.get_my_push_preference()')).pushEnabled, true, 'por defecto los push de Core están activos');
+  const queuePush = async (userId, channel = 'push') => (await admin.query(
+    `insert into public.notification_delivery_log (user_id, notification_type, channel, status)
+     values ($1, 'friend_request', $2, 'queued') returning id, status, error_text`, [userId, channel])).rows[0];
+  const waiting = await queuePush(USERS.applicant);
+  eq(waiting.status, 'queued', 'con la preferencia activa, un push entra a la cola');
+  const off = await rpc(applicant, 'public.set_my_push_preference(false)');
+  eq([off.pushEnabled, off.pendingSkipped >= 1], [false, true], 'al apagarla, lo que esperaba en la cola se descarta');
+  eq((await admin.query('select status, error_text from public.notification_delivery_log where id = $1', [waiting.id])).rows[0],
+    { status: 'skipped', error_text: 'push_disabled' }, 'y nunca se envía');
+  eq(await queuePush(USERS.applicant).then((row) => [row.status, row.error_text]), ['skipped', 'push_disabled'],
+    'cualquier flujo que encole un push después (también los dirigidos) queda descartado');
+  eq(await queuePush(USERS.applicant, 'in_app').then((row) => row.status), 'queued', 'la bandeja interna no cambia');
+  eq(await queuePush(USERS.serial).then((row) => row.status), 'queued', 'la preferencia es de esa cuenta, no de otras');
+  eq((await rpc(applicant, 'public.get_my_torneos_inbox_summary()')).total >= 0, true, 'los avisos internos de Torneos siguen disponibles');
+  eq((await rpc(applicant, 'public.set_my_push_preference(true)')).pushEnabled, true, 'se puede volver a activar');
+  eq(await queuePush(USERS.applicant).then((row) => row.status), 'queued', 'y los push nuevos vuelven a encolarse');
+  await expectError(() => rpc(anon, 'public.set_my_push_preference(false)'), /permission denied/, 'anon no cambia preferencias');
+  await expectError(() => rpc(applicant, 'public.set_my_push_preference(null)'), /PUSH_PREFERENCE_REQUIRED/, 'null no es una preferencia');
 
   console.log(`\n${checks - failures}/${checks} checks OK`);
   if (failures > 0) process.exitCode = 1;

@@ -17,6 +17,7 @@ const torneosCoreContractMigration = '20260914120000_torneos_core_contract_v1.sq
 const torneosCoreContractSessionMigration = '20260915120000_torneos_core_contract_v1_1_session.sql';
 const torneosConnectedLocalMigration = '20261006120000_torneos_connected_product_v1.sql';
 const torneosCoreContractMyTeamsMigration = '20261007120000_torneos_core_contract_v1_2_my_teams.sql';
+const corePushPreferenceMigration = '20261008120000_core_push_preference_v1.sql';
 const approvedMigrations = fs.readdirSync(path.join(repoRoot, 'supabase', 'migrations'))
   .filter((file) => file.endsWith('.sql'))
   .sort();
@@ -40,7 +41,7 @@ const runGuard = (cwd) => spawnSync(process.execPath, [guardPath], {
 });
 
 test('accepts the closed set including Auto-Match, contract repair and global availability', (t) => {
-  assert.equal(approvedMigrations.length, 45);
+  assert.equal(approvedMigrations.length, 46);
   assert.ok(approvedMigrations.includes(autoMatchMigration));
   assert.ok(approvedMigrations.includes(contractRepairMigration));
   assert.ok(approvedMigrations.includes(mediaSessionReuseMigration));
@@ -50,6 +51,7 @@ test('accepts the closed set including Auto-Match, contract repair and global av
   assert.ok(approvedMigrations.includes(torneosCoreContractSessionMigration));
   assert.ok(approvedMigrations.includes(torneosConnectedLocalMigration));
   assert.ok(approvedMigrations.includes(torneosCoreContractMyTeamsMigration));
+  assert.ok(approvedMigrations.includes(corePushPreferenceMigration));
   assert.equal(
     approvedMigrations.filter(
       (file) => file !== autoMatchMigration
@@ -59,7 +61,8 @@ test('accepts the closed set including Auto-Match, contract repair and global av
         && file !== torneosCoreContractMigration
         && file !== torneosCoreContractSessionMigration
         && file !== torneosConnectedLocalMigration
-        && file !== torneosCoreContractMyTeamsMigration,
+        && file !== torneosCoreContractMyTeamsMigration
+        && file !== corePushPreferenceMigration,
     ).length,
     37,
   );

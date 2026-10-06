@@ -229,6 +229,9 @@ const POST_CANONICAL_AUTHENTICATED_ALLOWLIST = [
   ['public.start_tournament_application(text,text,uuid,text,text,boolean,uuid)', 'frontend_legitimate'],
   ['public.get_my_tournament_registrations(integer,integer)', 'frontend_legitimate'],
   ['public.get_my_tournament_participations(integer,integer)', 'frontend_legitimate'],
+  // #182 closure: the account's own Core push preference (auth.uid() only).
+  ['public.get_my_push_preference()', 'frontend_legitimate'],
+  ['public.set_my_push_preference(boolean)', 'frontend_legitimate'],
 ];
 
 const contracts = fs.readFileSync(contractsPath, 'utf8');

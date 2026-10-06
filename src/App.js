@@ -23,6 +23,7 @@ import {
   getNativePushRedirectEventName,
   initNativePushNotifications,
   peekPendingNativePushRedirect,
+  refreshGrantedNativePushRegistration,
 } from './hooks/useNativeFeatures';
 import { useNotificationRedirect } from './hooks/useNotificationRedirect';
 import { useRouteScrollReset } from './hooks/useScrollReset';
@@ -416,7 +417,14 @@ export function RouteScopedProviders({ children }) {
 export function PersonalRuntimeEffects() {
   const location = useLocation();
   // Inside Torneos none of Core's runtime runs; only a pending tap on a Core push is honoured (see the bridge).
-  if (isTorneosNamespace(location.pathname)) return <CorePushFromTorneosBridge />;
+  if (isTorneosNamespace(location.pathname)) {
+    return (
+      <>
+        <CorePushFromTorneosBridge />
+        <CorePushRegistrationKeeper />
+      </>
+    );
+  }
   if (
     isBlockedWebPlayerRoute(location.pathname)
     || isIsolatedWebSpecialRoute(location.pathname)
@@ -500,6 +508,33 @@ export function CorePushFromTorneosBridge({ coreAvailable = isPersonalSpaceAvail
     window.addEventListener(eventName, openInCore);
     return () => window.removeEventListener(eventName, openInCore);
   }, [coreAvailable, navigate]);
+  return null;
+}
+
+// While the app runs in Torneos, Arma2's push keeps working for whoever already allowed it in Arma2: the device's
+// registration is refreshed on entering Torneos, on every account change and when the app comes back to the front
+// (a rotated token reaches the account). Torneos never asks for the permission; without it this does nothing.
+export function CorePushRegistrationKeeper({ coreAvailable = isPersonalSpaceAvailable() }) {
+  const { user } = useAuth();
+  const userId = user?.id || null;
+  useEffect(() => {
+    if (!coreAvailable || !userId || !Capacitor.isNativePlatform()) return undefined;
+    const refresh = () => {
+      refreshGrantedNativePushRegistration({ source: 'torneos_runtime' }).catch((error) => {
+        logger.warn('[PUSH] Torneos registration refresh failed', error);
+      });
+    };
+    refresh();
+    let handle = null;
+    let cancelled = false;
+    CapacitorApp.addListener('appStateChange', ({ isActive }) => { if (isActive) refresh(); })
+      .then((listener) => { if (cancelled) listener.remove(); else handle = listener; })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+      handle?.remove?.();
+    };
+  }, [coreAvailable, userId]);
   return null;
 }
 

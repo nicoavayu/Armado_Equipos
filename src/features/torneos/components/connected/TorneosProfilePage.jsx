@@ -18,6 +18,65 @@ import { registrationStage } from '../../domain/connectedProduct';
 import { announceTorneosProfileChanged, useTorneosProfile } from './useTorneosProfile';
 import styles from './ConnectedProduct.module.css';
 
+// Arma2's external notices (push to the account's phones) are a preference of the common account, applied by the
+// server. Turning them off never touches Torneos' inbox, the account or its session. Loaded only on this page.
+function CorePushPreference() {
+  const [state, setState] = useState({ status: 'loading', pushEnabled: true, message: '' });
+
+  useEffect(() => {
+    let active = true;
+    import('../../../../services/corePushPreferenceService')
+      .then(({ loadMyCorePushPreference }) => loadMyCorePushPreference())
+      .then((preference) => {
+        if (active) setState({ status: preference.available ? 'ready' : 'unavailable', pushEnabled: preference.pushEnabled, message: '' });
+      })
+      .catch(() => { if (active) setState({ status: 'error', pushEnabled: true, message: 'No pudimos leer esta preferencia. Probá de nuevo más tarde.' }); });
+    return () => { active = false; };
+  }, []);
+
+  const change = async (pushEnabled) => {
+    const previous = state.pushEnabled;
+    setState({ status: 'saving', pushEnabled, message: '' });
+    try {
+      const { saveMyCorePushPreference } = await import('../../../../services/corePushPreferenceService');
+      const saved = await saveMyCorePushPreference(pushEnabled);
+      setState({
+        status: 'ready',
+        pushEnabled: saved.pushEnabled,
+        message: saved.pushEnabled
+          ? 'Listo: las notificaciones de Arma2 vuelven a llegar a tus teléfonos.'
+          : 'Listo: Arma2 deja de enviarte notificaciones al teléfono. Tus avisos de Torneos siguen en esta bandeja.',
+      });
+    } catch {
+      setState({ status: 'ready', pushEnabled: previous, message: 'No pudimos guardar el cambio. Volvé a intentar.' });
+    }
+  };
+
+  if (state.status === 'unavailable') return null;
+
+  return (
+    <div className={styles.corePushPreference}>
+      <label className={styles.checkboxField}>
+        <input
+          type="checkbox"
+          checked={state.pushEnabled}
+          disabled={state.status === 'loading' || state.status === 'saving' || state.status === 'error'}
+          onChange={(event) => change(event.target.checked)}
+          aria-describedby="core-push-help"
+        />
+        <span>Recibir notificaciones de Arma2 en el teléfono</span>
+      </label>
+      <p id="core-push-help" className={styles.help}>
+        Partidos, invitaciones y amigos de Arma2. Se aplica a toda tu cuenta, en el servidor. No cambia tus avisos de Torneos
+        ni cierra tu sesión.
+      </p>
+      {state.status === 'loading' && <p className={styles.help} role="status">Cargando tu preferencia…</p>}
+      {state.message && state.status === 'error' && <p className={styles.errorText} role="alert"><AlertCircle size={16} aria-hidden="true" /> {state.message}</p>}
+      {state.message && state.status !== 'error' && <p className={styles.successNotice} role="status"><CheckCircle2 size={16} aria-hidden="true" /> {state.message}</p>}
+    </div>
+  );
+}
+
 function RelationsSection() {
   const { service, availableOrganizations } = useTorneosWorkspace();
   const [relations, setRelations] = useState({ status: 'loading', teams: [], registrations: [] });
@@ -216,6 +275,7 @@ export default function TorneosProfilePage() {
         <dl className={styles.accountFacts}>
           <div><dt>Email</dt><dd>{profile.email || '—'}</dd></div>
         </dl>
+        <CorePushPreference />
         <div className={styles.formActions}>
           <button type="button" className={styles.secondaryAction} disabled={signingOut} onClick={signOut}>
             {signingOut ? <Loader2 className={styles.spin} size={17} aria-hidden="true" /> : <LogOut size={17} aria-hidden="true" />}

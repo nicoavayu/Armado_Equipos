@@ -80,6 +80,7 @@ jest.mock('../hooks/useNativeFeatures', () => ({
   attachNativePushTapListener: jest.fn().mockResolvedValue(undefined),
   peekPendingNativePushRedirect: jest.fn(() => null),
   getNativePushRedirectEventName: () => 'native-push-redirect',
+  refreshGrantedNativePushRegistration: jest.fn().mockResolvedValue({ status: 'web' }),
 }));
 
 jest.mock('../hooks/useNotificationRedirect', () => ({
