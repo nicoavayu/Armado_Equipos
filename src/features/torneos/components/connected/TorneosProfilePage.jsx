@@ -67,8 +67,8 @@ function CorePushPreference() {
         <span>Recibir notificaciones de Arma2 en el teléfono</span>
       </label>
       <p id="core-push-help" className={styles.help}>
-        Partidos, invitaciones y amigos de Arma2. Se aplica a toda tu cuenta, en el servidor. No cambia tus avisos de Torneos
-        ni cierra tu sesión.
+        Partidos, invitaciones y amigos de Arma2. Se aplica a toda tu cuenta, en todos tus dispositivos. No cambia tus
+        avisos de Torneos ni cierra tu sesión.
       </p>
       {state.status === 'loading' && <p className={styles.help} role="status">Cargando tu preferencia…</p>}
       {state.message && state.status === 'error' && <p className={styles.errorText} role="alert"><AlertCircle size={16} aria-hidden="true" /> {state.message}</p>}

@@ -392,7 +392,8 @@ describe('Perfil de Torneos', () => {
     const toggle = await screen.findByRole('checkbox', { name: 'Recibir notificaciones de Arma2 en el teléfono' });
     await waitFor(() => expect(toggle).not.toBeDisabled());
     expect(toggle).toBeChecked();
-    expect(toggle).toHaveAccessibleDescription(/No cambia tus avisos de Torneos ni cierra tu sesión/);
+    expect(toggle).toHaveAccessibleDescription(/Se aplica a toda tu cuenta, en todos tus dispositivos\. No cambia tus avisos de Torneos ni cierra tu sesión/);
+    expect(toggle).not.toHaveAccessibleDescription(/servidor/);
     fireEvent.click(toggle);
     expect(await screen.findByText(/Arma2 deja de enviarte notificaciones al teléfono\. Tus avisos de Torneos siguen/)).toBeInTheDocument();
     expect(mockCorePush.saved).toEqual([false]);
