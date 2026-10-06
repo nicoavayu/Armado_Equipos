@@ -7,6 +7,9 @@
 //
 //   node scripts/torneos-frontend/start-hybrid-lab-app.mjs            (checks only)
 //   node scripts/torneos-frontend/start-hybrid-lab-app.mjs --start    (bridge + app)
+//   B04_LAB_APP_PORT=3103 node scripts/torneos-frontend/start-hybrid-lab-app.mjs --start --connected
+//     (another port when 3000 is taken; --connected = REACT_APP_TORNEOS_CONNECTED_MODE=on, which only works against a
+//      lab gateway started with TORNEOS_CONNECTED_MODE=on)
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -15,7 +18,10 @@ import { fileURLToPath } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const labRuntime = path.join(root, 'integration/torneos-core-contracts/.runtime/config.json');
-const APP_ORIGIN = 'http://localhost:3000';
+const APP_PORT = process.env.B04_LAB_APP_PORT || '3000';
+if (!/^3[0-9]{3}$/.test(APP_PORT)) { console.error('B04_LAB_APP_PORT must be a 3000-3999 port'); process.exit(1); }
+const APP_ORIGIN = `http://localhost:${APP_PORT}`;
+const CONNECTED = process.argv.includes('--connected');
 const CORE_URL = 'http://127.0.0.1:58422';
 const GATEWAY_URL = 'http://127.0.0.1:58423';
 
@@ -37,7 +43,7 @@ if (!anonKey) { console.error('lab anon key missing'); process.exit(1); }
 
 const env = {
   ...process.env,
-  PORT: '3000',
+  PORT: APP_PORT,
   BROWSER: 'none',
   REACT_APP_SUPABASE_URL: CORE_URL,
   REACT_APP_SUPABASE_ANON_KEY: anonKey,
@@ -53,7 +59,8 @@ const env = {
   REACT_APP_TORNEOS_DEEP_LINKS_ENABLED: 'true',
   REACT_APP_TORNEOS_NOTIFICATIONS_ENABLED: 'false',
   REACT_APP_TORNEOS_OFFICIAL_STATS_ENABLED: 'false',
-  REACT_APP_TORNEOS_PUBLIC_PAGES_ENABLED: 'false',
+  // Explorar torneos shows a call on the tournament's published public page: the connected run needs public pages.
+  REACT_APP_TORNEOS_PUBLIC_PAGES_ENABLED: CONNECTED ? 'true' : 'false',
   REACT_APP_TORNEOS_MEDIA_ENABLED: 'false',
   REACT_APP_TORNEOS_MEDIA_UPLOAD_ENABLED: 'false',
   REACT_APP_TORNEOS_SOCIAL_GENERATOR_ENABLED: 'false',
@@ -65,9 +72,10 @@ const env = {
   REACT_APP_TORNEOS_PRODUCTION_ENABLED: 'false',
   REACT_APP_PRODUCTION_PROJECT_REF: process.env.REACT_APP_PRODUCTION_PROJECT_REF || '',
   REACT_APP_TORNEOS_ISOLATED_SSO: 'false',
+  REACT_APP_TORNEOS_CONNECTED_MODE: CONNECTED ? 'on' : 'off',
   B04_LAB_APP_ORIGIN: APP_ORIGIN,
 };
-console.log(`B04 hybrid lab app: Core ${CORE_URL} · gateway ${GATEWAY_URL} · app ${APP_ORIGIN} · DATA_ENV=local · anon key from lab .runtime (not printed)`);
+console.log(`B04 hybrid lab app: Core ${CORE_URL} · gateway ${GATEWAY_URL} · app ${APP_ORIGIN} · DATA_ENV=local · connected ${CONNECTED ? 'on' : 'off'} · anon key from lab .runtime (not printed)`);
 if (!process.argv.includes('--start')) process.exit(0);
 
 const bridge = spawn(process.execPath, [path.join(root, 'scripts/torneos-frontend/lab-bridge.mjs')], { env, stdio: 'inherit' });

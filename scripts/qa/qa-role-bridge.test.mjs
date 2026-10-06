@@ -260,7 +260,7 @@ test('el puente no emite cabeceras CORS en ninguna respuesta', async () => {
   }
 });
 
-test('el catálogo publica los seis roles sin tokens ni paths', async () => {
+test('el catálogo publica los roles QA sin tokens ni paths', async () => {
   const repoRoot = temporaryRepo();
   const gate = resolveQaRoleBridgeGate(LOCAL_ENV);
   const roles = await listRoles({
@@ -272,7 +272,11 @@ test('el catálogo publica los seis roles sin tokens ni paths', async () => {
   assert.equal(serialized.includes('local-token-'), false);
   assert.equal(serialized.includes('.secrets'), false);
   assert.equal(serialized.includes(repoRoot), false);
-  assert.equal(QA_ROLE_CATALOG.length, 6);
+  assert.deepEqual(QA_ROLES, [
+    'owner', 'admin', 'collaborator', 'delegate', 'player', 'outsider',
+    'organizer', 'applicant', 'dual', 'revoked',
+  ]);
+  assert.equal(new Set(QA_ROLES).size, QA_ROLE_CATALOG.length);
 });
 
 test('una sesión que Auth LOCAL no reconoce no se entrega', async () => {

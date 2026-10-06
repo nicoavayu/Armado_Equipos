@@ -1,7 +1,7 @@
 //
 // Puente QA LOCAL para cambiar de rol desde el navegador.
 //
-// Las seis sesiones QA viven como storage states 0600 en `.secrets/torneos-review-auth/`.
+// Las sesiones QA viven como storage states 0600 en `.secrets/torneos-review-auth/`.
 // El navegador no puede leer un archivo del disco, así que hace falta algo que se lo
 // entregue. Ese "algo" no es un servidor nuevo: es el dev-server que la revisión ya
 // levanta. CRA carga `src/setupProxy.js` y le pasa su propio Express, de modo que el
@@ -26,9 +26,11 @@ const AUTH_STATE_DIRECTORY = path.join('.secrets', 'torneos-review-auth');
 const LOOPBACK_HOSTS = new Set(['127.0.0.1', 'localhost', '::1', '[::1]']);
 const MAX_STATE_BYTES = 256 * 1024;
 
-// Las seis identidades QA existentes. La lista es cerrada a propósito: es la
-// allowlist contra la que se valida el rol pedido y, a la vez, el único origen
-// de los nombres de archivo que este módulo llega a abrir.
+// Las seis identidades QA existentes y las cuatro de CONNECTED-V1 (sólo existen si
+// se corrió scripts/qa/seed-torneos-connected-fixtures.mjs; si no, figuran como no
+// preparadas). La lista es cerrada a propósito: es la allowlist contra la que se
+// valida el rol pedido y, a la vez, el único origen de los nombres de archivo que
+// este módulo llega a abrir.
 const QA_ROLE_CATALOG = Object.freeze([
   Object.freeze({
     role: 'owner',
@@ -59,6 +61,26 @@ const QA_ROLE_CATALOG = Object.freeze([
     role: 'outsider',
     label: 'Outsider',
     description: 'Usuario autenticado sin vínculo con la organización privada.',
+  }),
+  Object.freeze({
+    role: 'organizer',
+    label: 'Organizador',
+    description: 'Gestiona QA Liga Conectada sin perfil deportivo: convocatoria, catálogo y solicitudes.',
+  }),
+  Object.freeze({
+    role: 'applicant',
+    label: 'Capitán solicitante',
+    description: 'Administra equipos de Core (QA Visitantes) y todavía no pidió inscripción.',
+  }),
+  Object.freeze({
+    role: 'dual',
+    label: 'Dual',
+    description: 'Organiza QA Club Dual y juega la QA Copa Abierta Palermo con su equipo.',
+  }),
+  Object.freeze({
+    role: 'revoked',
+    label: 'Acceso perdido',
+    description: 'Fue colaborador de QA Liga Conectada y la organización lo quitó.',
   }),
 ]);
 
