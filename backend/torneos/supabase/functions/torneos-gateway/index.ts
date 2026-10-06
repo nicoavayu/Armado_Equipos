@@ -32,6 +32,11 @@
 // per-tournament dual-control policy on the generic route; accepting an organization invitation goes through the
 // Core-contract adapter (verified_email), like a team invitation.
 //
+// CONNECTED-V1 (connected.ts, connected-v1-rpc-allowlist.json): TORNEOS_CONNECTED_MODE=on adds the connected product —
+// Torneos profile and inbox, catalog management, registration requests — on the generic route and the public catalog
+// on the public read-only route; the two applicant Core contracts go through the adapter with the applicant
+// authorizer. Absent/off changes nothing; any other value or a faulty document disables the gateway.
+//
 // ERROR-CONTRACT-V1 (competition.ts domainErrorStatus): a proxied 500 whose body is a legacy-SQLSTATE (55000 / 54000)
 // Torneos domain error is answered with its contract status (409 / 422 / 429), body unchanged; every other status,
 // including a genuine 500 and the 503 of a timeout, passes through as before.
@@ -45,6 +50,7 @@ import { COMMERCE_ROUTE, CommerceConfigError, effectiveRpcAllowlist, loadCommerc
 import { CompetitionConfigError, domainErrorStatus, loadCompetitionContract, loadOfficializationContract, preparePublicRpc, PublicGate, PUBLIC_RPC_ROUTE, withCompetition, withOfficialization, type CompetitionContract } from "./competition.ts"
 import { withPlanRead, PlanReadConfigError } from "./plan-read.ts"
 import { withSocial, SocialConfigError } from "./social.ts"
+import { ConnectedConfigError, loadConnectedContract, prepareConnectedPublicRpc, withConnected, type ConnectedContract } from "./connected.ts"
 import allowlistDoc from "./staging-v1-rpc-allowlist.json" with { type: "json" }
 
 // Staging v1 RPC allowlist: fail closed if the document is malformed or empty.
@@ -64,6 +70,7 @@ type Runtime = {
   core: CoreClient
   commerce: CommerceConfig
   competition: CompetitionContract
+  connected: ConnectedContract
   publicGate: PublicGate
   rpcAllowlist: ReadonlySet<string>
 }
@@ -80,13 +87,16 @@ export function boot(env: Record<string, string | undefined>): Runtime {
   const commerce = loadCommerceConfig(env, { baseAllowlist, gatewayPublicUrl: cfg.publicUrl,
     distinctFrom: [env.TORNEOS_CONTRACT_SERVICE_SECRET, env.TORNEOS_BRIDGE_KEYS, ...cfg.bridge.keys.map((k) => k.privateKey), cfg.coreAnonKey, cfg.torneosAnonKey],
     dependencyUrls: [cfg.coreAuthUrl, cfg.coreJwtIssuer, cfg.coreContractUrl, cfg.torneosRestUrl, cfg.allowedOrigin] })
-  const rpcAllowlist = withSocial(withPlanRead(effectiveRpcAllowlist(baseAllowlist, commerce), env), env)
+  const servedAllowlist = withSocial(withPlanRead(effectiveRpcAllowlist(baseAllowlist, commerce), env), env)
+  // CONNECTED-V1: validated against everything already served on both routes (a faulty document disables the gateway).
+  const connected = loadConnectedContract(env, servedAllowlist, competition.publicRpcs)
+  const rpcAllowlist = withConnected(servedAllowlist, connected)
   const identity = connect(cfg.identityWriterUrl, { sslCa: cfg.dbSslCa })
   const adapterSql = connect(cfg.coreAdapterUrl, { sslCa: cfg.dbSslCa })
   const coreHeaders = cfg.coreAnonKey ? { apikey: cfg.coreAnonKey } : {}
   // The Core service secret lives only in this function's env and in Core's function env.
   const core = new CoreClient(cfg.coreContractUrl, cfg.coreContractSecret, { extraHeaders: coreHeaders })
-  return { cfg, identity, adapterSql, adapter: new Adapter(adapterSql, core), core, commerce, competition, publicGate: new PublicGate(), rpcAllowlist }
+  return { cfg, identity, adapterSql, adapter: new Adapter(adapterSql, core), core, commerce, competition, connected, publicGate: new PublicGate(), rpcAllowlist }
 }
 
 function getRuntime(): Runtime {
@@ -97,7 +107,7 @@ function getRuntime(): Runtime {
     return runtime
   } catch (error) {
     // Configuration faults disable the gateway; the reason is logged once, without values.
-    bootError = error instanceof ConfigError || error instanceof CommerceConfigError || error instanceof CompetitionConfigError || error instanceof PlanReadConfigError || error instanceof SocialConfigError ? error.message : "boot failed"
+    bootError = error instanceof ConfigError || error instanceof CommerceConfigError || error instanceof CompetitionConfigError || error instanceof ConnectedConfigError || error instanceof PlanReadConfigError || error instanceof SocialConfigError ? error.message : "boot failed"
     console.error(`[torneos-gateway] disabled: ${bootError}`)
     throw new Unavailable()
   }
@@ -255,9 +265,13 @@ export async function handle(req: Request): Promise<Response> {
     const publicRpc = PUBLIC_RPC_ROUTE.exec(path)
     if (publicRpc) {
       if (req.method !== "POST") return json(405, { error: "method not allowed" }, cors)
-      const decision = await preparePublicRpc({ name: publicRpc[1], authorization: req.headers.get("authorization"),
+      const publicRequest = { name: publicRpc[1], authorization: req.headers.get("authorization"),
         apikey: req.headers.get("apikey"), contentType: req.headers.get("content-type"),
-        contentLength: req.headers.get("content-length"), body: req.body }, rt.competition)
+        contentLength: req.headers.get("content-length"), body: req.body }
+      // CONNECTED-V1: its public catalog RPCs carry their own body contract; everything else is COMPETITION-V1.
+      const decision = rt.connected.publicRpcs.has(publicRpc[1])
+        ? await prepareConnectedPublicRpc(publicRequest, rt.connected)
+        : await preparePublicRpc(publicRequest, rt.competition)
       if (!decision.ok) return json(decision.status, { error: decision.error }, cors)
       if (!rt.publicGate.tryEnter()) return json(503, { error: "public route busy" }, { ...cors, "retry-after": "1" })
       try {

@@ -16,6 +16,7 @@
 // COMPETITION-V1: the SAME competition.ts as the Edge gateway (mounted read-only with its allowlist): the
 // full-competition RPCs on top of the 43 on the authenticated route, and the anonymous public read-only route
 // POST /torneos/public/v1/rpc/<name>. A malformed competition allowlist disables the gateway.
+// CONNECTED-V1: the same connected.ts loads connected-v1-rpc-allowlist.json when TORNEOS_CONNECTED_MODE=on.
 // OFFICIALIZATION-V1: the same competition.ts loads officialization-v1-rpc-allowlist.json (membership + dual-control
 // policy) onto the authenticated route; accept_tournament_organization_invitation goes through the adapter.
 import http from 'node:http';
@@ -64,7 +65,18 @@ if (commerceEnv === null || (commerceEnv.TORNEOS_COMMERCE_MODE ?? '').trim()) {
     console.error(`[gateway] disabled: ${error?.constructor?.name === 'CommerceConfigError' ? error.message : 'boot failed'}`);
   }
 }
-const rpcAllowlist = commerceModule && !disabled ? commerceModule.effectiveRpcAllowlist(BASE_ALLOWLIST, commerce) : BASE_ALLOWLIST;
+const servedAllowlist = commerceModule && !disabled ? commerceModule.effectiveRpcAllowlist(BASE_ALLOWLIST, commerce) : BASE_ALLOWLIST;
+// CONNECTED-V1: the SAME connected.ts as the Edge gateway (mounted read-only with its allowlist), driven by the
+// container's TORNEOS_CONNECTED_MODE (absent/off = unchanged). A faulty mode or document disables the gateway.
+const connectedModule = await import('./functions/torneos-gateway/connected.ts');
+let connected = { mode: 'off', rpcs: new Set(), publicRpcs: new Set() };
+try {
+  connected = connectedModule.loadConnectedContract(process.env, servedAllowlist, competition.publicRpcs);
+} catch (error) {
+  disabled = true;
+  console.error(`[gateway] disabled: ${error?.constructor?.name === 'ConnectedConfigError' ? error.message : 'boot failed'}`);
+}
+const rpcAllowlist = connectedModule.withConnected(servedAllowlist, connected);
 
 function json(res, status, body) {
   res.writeHead(status, { 'content-type': 'application/json', 'cache-control': 'no-store' });
@@ -206,9 +218,13 @@ const server = http.createServer(async (req, res) => {
     const publicRpc = competitionModule.PUBLIC_RPC_ROUTE.exec(url.pathname);
     if (publicRpc) {
       if (req.method !== 'POST') return json(res, 405, { error: 'method not allowed' });
-      const decision = await competitionModule.preparePublicRpc({ name: publicRpc[1], authorization: req.headers.authorization ?? null,
+      const publicRequest = { name: publicRpc[1], authorization: req.headers.authorization ?? null,
         apikey: req.headers.apikey ?? null, contentType: req.headers['content-type'] ?? null,
-        contentLength: req.headers['content-length'] ?? null, body: req }, competition);
+        contentLength: req.headers['content-length'] ?? null, body: req };
+      // CONNECTED-V1: its public catalog RPCs carry their own body contract; everything else is COMPETITION-V1.
+      const decision = connected.publicRpcs.has(publicRpc[1])
+        ? await connectedModule.prepareConnectedPublicRpc(publicRequest, connected)
+        : await competitionModule.preparePublicRpc(publicRequest, competition);
       if (!decision.ok) return json(res, decision.status, { error: decision.error });
       if (!publicGate.tryEnter()) { res.setHeader('retry-after', '1'); return json(res, 503, { error: 'public route busy' }); }
       try {

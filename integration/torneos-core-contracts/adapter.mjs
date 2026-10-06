@@ -10,6 +10,15 @@
 // request-body flag, an email claim or a browser-readable table.
 import { Denied, ROUTES } from './core-client.mjs';
 
+// The private functions that pre-authorize a Core contract. Fixed names only: the SQL text is built from this list.
+export const AUTHORIZERS = Object.freeze(['authorize_core_contract', 'authorize_applicant_core_contract']);
+// CONNECTED-V1: the applicant requests are the only ones carrying these keys. The request object is built by the
+// mappers below from a fixed set of keys (a client cannot add one), so its shape names its authorizer; the authorizer
+// itself then re-checks the exact key set.
+const APPLICANT_KEYS = Object.freeze(['applicant_public_slug', 'application_public_slug']);
+export function authorizerFor(request) {
+  return APPLICANT_KEYS.some((key) => Object.hasOwn(request, key)) ? 'authorize_applicant_core_contract' : 'authorize_core_contract';
+}
 export const CONTRACTS = {
   accept_tournament_team_invitation: {
     contract: 'verified_email',
@@ -36,6 +45,18 @@ export const CONTRACTS = {
     request: (b) => (b.p_arma2_team_id ? { organization_id: b.p_organization_id, tournament_id: b.p_tournament_id,
       category_id: b.p_category_id, core_team_id: b.p_arma2_team_id } : null),
   },
+  // CONNECTED-V1: the applicant's own Core teams and their frozen snapshot, pre-authorized by
+  // private.authorize_applicant_core_contract (an open call in the catalog, never an organization capability).
+  search_my_applicable_core_teams: {
+    contract: 'directory_teams',
+    request: (b) => ({ applicant_public_slug: b.p_public_slug, query: b.p_query, limit: b.p_limit ?? 8 }),
+  },
+  start_tournament_application: {
+    contract: 'team_snapshot',
+    // Only a request for an existing Core team needs an attestation; a new team does not.
+    request: (b) => (b.p_core_team_id ? { application_public_slug: b.p_public_slug, category_slug: b.p_category_slug,
+      core_team_id: b.p_core_team_id } : null),
+  },
 };
 
 export class AdapterDenied extends Error {
@@ -47,6 +68,8 @@ function mapSqlError(error) {
   if (/^TORNEOS_[A-Z_]+$/.test(message)) {
     if (message === 'TORNEOS_SEARCH_RATE_LIMITED') return new AdapterDenied(429, message);
     if (error.code === '22023') return new AdapterDenied(400, message);
+    // ERROR-CONTRACT-V1 custom statuses (PT409 / PT422 / PT429) keep their HTTP meaning before PostgREST is reached.
+    if (typeof error.code === 'string' && /^PT4(?:09|22|29)$/.test(error.code)) return new AdapterDenied(Number(error.code.slice(2)), message);
     return new AdapterDenied(403, message);
   }
   return new AdapterDenied(503, 'TORNEOS_UNAVAILABLE');
@@ -79,10 +102,11 @@ export class Adapter {
     }
   }
 
-  async authorize(claims, contract, request) {
+  async authorize(claims, contract, request, authorizer = authorizerFor(request)) {
+    if (!AUTHORIZERS.includes(authorizer)) throw new AdapterDenied(403, 'TORNEOS_RESOURCE_FORBIDDEN');
     try {
       const { rows } = await this._asAdapter(claims, (c) =>
-        c.query('SELECT private.authorize_core_contract($1, $2::jsonb) AS authorization', [contract, JSON.stringify(request)]));
+        c.query(`SELECT private.${authorizer}($1, $2::jsonb) AS authorization`, [contract, JSON.stringify(request)]));
       return rows[0].authorization;
     } catch (error) {
       throw mapSqlError(error);
@@ -101,8 +125,8 @@ export class Adapter {
   }
 
   /** Local authorization first; Core second; attestation last. Any failure leaves nothing behind. */
-  async prepare(claims, contract, request) {
-    const authorization = await this.authorize(claims, contract, request);
+  async prepare(claims, contract, request, authorizer) {
+    const authorization = await this.authorize(claims, contract, request, authorizer);
     if (authorization.identity_id !== claims.sub) throw new AdapterDenied(403, 'TORNEOS_RESOURCE_FORBIDDEN');
     const response = await this.client.call(ROUTES[contract], {
       core_user_id: claims.core_user_id, session_id: claims.session_id, ...authorization.core_request,

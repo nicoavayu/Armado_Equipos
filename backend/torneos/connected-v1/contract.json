@@ -1,0 +1,87 @@
+{
+  "phase": "CONNECTED-V1",
+  "purpose": "Torneos as a connected product on the common account: Torneos profile, Torneos inbox, public catalog of calls for teams (Explorar torneos) and registration requests from authorized team representatives, reusing the existing competition domain (team entries, rosters, review).",
+  "migrations": {
+    "isolated": "backend/torneos/supabase/migrations/00000000000009_connected_product_v1.sql",
+    "local": "supabase/migrations/20261006120000_torneos_connected_product_v1.sql"
+  },
+  "gateway": {
+    "allowlist": "backend/torneos/supabase/functions/torneos-gateway/connected-v1-rpc-allowlist.json",
+    "mode": "TORNEOS_CONNECTED_MODE",
+    "frontend_mode": "REACT_APP_TORNEOS_CONNECTED_MODE",
+    "core_contracts": {
+      "search_my_applicable_core_teams": { "contract": "directory_teams", "authorizer": "private.authorize_applicant_core_contract" },
+      "start_tournament_application": { "contract": "team_snapshot", "authorizer": "private.authorize_applicant_core_contract", "only_with": "p_core_team_id" }
+    }
+  },
+  "rpcs": [
+    "get_my_torneos_profile",
+    "update_my_torneos_profile",
+    "get_my_torneos_notifications",
+    "mark_my_torneos_notifications_read",
+    "get_my_torneos_inbox_summary",
+    "get_tournament_catalog_listing_settings",
+    "save_tournament_catalog_listing",
+    "set_tournament_catalog_listing_status",
+    "set_tournament_applications_state",
+    "save_tournament_category_capacity",
+    "get_tournament_application_inbox",
+    "search_my_applicable_core_teams",
+    "start_tournament_application",
+    "get_my_tournament_registrations"
+  ],
+  "public_rpcs": [
+    "search_tournament_catalog",
+    "get_tournament_catalog_facets",
+    "get_tournament_catalog_entry"
+  ],
+  "service_only": [
+    "platform_remove_tournament_catalog_listing"
+  ],
+  "internal": [
+    "tournament_catalog_normalize",
+    "tournament_catalog_block_reason",
+    "tournament_catalog_is_visible",
+    "tournament_catalog_state",
+    "tournament_catalog_categories",
+    "tournament_registration_reviewer_ids",
+    "tournament_notification_visible",
+    "guard_tournament_team_entry_connected_transition",
+    "notify_tournament_team_entry_submitted",
+    "notify_tournament_team_entry_reviewed",
+    "assert_tournament_catalog_manager"
+  ],
+  "tables": [
+    "tournament_user_profiles",
+    "tournament_catalog_listings",
+    "tournament_category_capacities",
+    "tournament_team_applications",
+    "tournament_user_notifications"
+  ],
+  "triggers": {
+    "tournament_team_entries": ["tournament_team_entries_connected_guard", "tournament_team_entries_notify_submitted"],
+    "tournament_team_reviews": ["tournament_team_reviews_notify"]
+  },
+  "errors": {
+    "TORNEOS_APPLICATIONS_CLOSED": "PT409",
+    "TORNEOS_CATEGORY_FULL": "PT409",
+    "TORNEOS_TEAM_NAME_TAKEN": "PT409",
+    "TORNEOS_CATALOG_LISTING_NOT_READY": "PT409",
+    "TORNEOS_CATALOG_LISTING_REMOVED": "PT409",
+    "TORNEOS_CAPACITY_BELOW_APPROVED": "PT409",
+    "TORNEOS_APPLICATION_LIMIT_REACHED": "PT422",
+    "TORNEOS_TEAM_NOT_AUTHORIZED": "42501",
+    "TORNEOS_TEAM_ALREADY_REGISTERED": "23505",
+    "TORNEOS_PROFILE_NAME_REQUIRED": "22023",
+    "TORNEOS_PROFILE_INVALID": "22023",
+    "TORNEOS_APPLICATION_CONDITIONS_REQUIRED": "22023",
+    "TORNEOS_CATALOG_LISTING_INVALID": "22023",
+    "TORNEOS_CATALOG_LISTING_INCOMPLETE": "22023",
+    "TORNEOS_CATALOG_INVALID_FILTER": "22023",
+    "TORNEOS_SEARCH_QUERY_INVALID": "22023",
+    "TORNEOS_APPLICATIONS_INVALID_FILTER": "22023",
+    "TORNEOS_NOTIFICATIONS_INVALID": "22023"
+  },
+  "capacity_rule": "An approved team entry consumes a place; a pending request never does. Checked on submit (requests only) and on approval (every entry) under the advisory lock review_tournament_team_entry already takes for (tournament, category).",
+  "channels": { "inbox": true, "push": false, "email": false }
+}

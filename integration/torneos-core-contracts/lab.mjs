@@ -83,6 +83,8 @@ export async function writeEdgeEnv(c) {
     `TORNEOS_DB_CORE_ADAPTER_URL=postgres://lab_core_adapter:${c.adapterPassword}@torneos-db:5432/postgres`,
     `TORNEOS_BRIDGE_KEYS=${bridge}`,
   ];
+  // CONNECTED-V1 stays opt-in in the lab: only an explicit TORNEOS_CONNECTED_MODE reaches the Edge gateway.
+  if (process.env.TORNEOS_CONNECTED_MODE) lines.push(`TORNEOS_CONNECTED_MODE=${process.env.TORNEOS_CONNECTED_MODE}`);
   await writeFile(`${root}.runtime/torneos-gateway.env`, lines.join('\n') + '\n', { mode: 0o600 });
 }
 export async function writeServerConfig(c) {
@@ -226,12 +228,24 @@ export async function installTorneos(c) {
     installed = true;
   }
   // Phase 2D: later Torneos migrations (the staging v1 RPC exposure gate) apply in order after the
-  // baseline, as the same installer; they are idempotent, so a kept volume re-applies them.
+  // baseline, as the same installer. CONNECTED-V1: a kept volume no longer re-applies a migration it already
+  // installed (lab_meta.torneos_migrations, outside the public/private schemas every certification inspects):
+  // 00000000000008 pins absolute catalog counts in its precondition, so it cannot be re-applied once a later
+  // migration adds functions — exactly like a real database, where each migration runs once.
+  sql('torneos-db', `CREATE SCHEMA IF NOT EXISTS lab_meta;
+    CREATE TABLE IF NOT EXISTS lab_meta.torneos_migrations (name text PRIMARY KEY, sha256 text NOT NULL, applied_at timestamptz NOT NULL DEFAULT now());
+    REVOKE ALL ON SCHEMA lab_meta FROM PUBLIC;`);
+  const ledger = new Set(sql('torneos-db', 'SELECT name FROM lab_meta.torneos_migrations').split('\n').map((x) => x.trim()).filter(Boolean));
   const followUps = [];
   for (const name of files.slice(1)) {
     const text = await readFile(dir + name, 'utf8');
-    sql('torneos-db', text);
-    followUps.push({ file: (dir + name).slice(repo.length), sha256: createHash('sha256').update(text).digest('hex'), applied: true });
+    const digest = createHash('sha256').update(text).digest('hex');
+    const apply = !ledger.has(name);
+    if (apply) {
+      sql('torneos-db', text);
+      sql('torneos-db', `INSERT INTO lab_meta.torneos_migrations (name, sha256) VALUES ('${name}', '${digest}') ON CONFLICT (name) DO NOTHING`);
+    }
+    followUps.push({ file: (dir + name).slice(repo.length), sha256: digest, applied: apply });
   }
   // Server logins: NOINHERIT members of the baseline's NOLOGIN roles; the gateway must SET ROLE.
   sql('torneos-db', `
