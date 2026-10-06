@@ -2,6 +2,7 @@ import { isStagingV1Operation } from './stagingV1Scope';
 import { isCompetitionV1Operation, isCompetitionV1PublicOperation } from './competitionV1Scope';
 import { isOfficializationV1Operation } from './officializationV1Scope';
 import { isSocialV1Operation } from './socialV1Scope';
+import { isConnectedV1Operation, isConnectedV1PublicOperation } from './connectedV1Scope';
 import { isStagingV1Table } from './stagingV1Tables';
 import { isStagingV1CommerceRead, SEASON_CHECKOUT_PATH } from './stagingV1CommerceScope';
 import { TorneosBoundaryError } from './errors';
@@ -25,7 +26,10 @@ export function normalizeRpcParams(params) {
 // closed before the transport. Independent `planRead: true` adds only the two
 // certified entitlement RPCs; it never permits purchase reads or checkout.
 // Independent `social: true` (SOCIAL-V1) adds only the three Estudio Social RPCs.
-export function createTorneosClient({ transport = null, commerce = false, planRead = false, social = false } = {}) {
+// Independent `connected: true` (CONNECTED-V1) adds only the connected product's authenticated RPCs.
+export function createTorneosClient({
+  transport = null, commerce = false, planRead = false, social = false, connected: connectedProduct = false,
+} = {}) {
   const connected = Boolean(transport) && typeof transport.rpc === 'function';
   const commerceEnabled = commerce === true;
   const permitted = (operation) => isStagingV1Operation(operation)
@@ -33,7 +37,8 @@ export function createTorneosClient({ transport = null, commerce = false, planRe
     || isOfficializationV1Operation(operation)
     || (commerceEnabled && isStagingV1CommerceRead(operation))
     || (planRead === true && ['get_effective_tournament_season_entitlements', 'get_effective_tournament_entitlements'].includes(operation))
-    || (social === true && isSocialV1Operation(operation));
+    || (social === true && isSocialV1Operation(operation))
+    || (connectedProduct === true && isConnectedV1Operation(operation));
   return Object.freeze({
     status: connected ? 'connected' : 'foundation-disabled',
     async execute(operation, params = {}, options = {}) {
@@ -69,12 +74,16 @@ export function createTorneosClient({ transport = null, commerce = false, planRe
 
 // COMPETITION-V1: the anonymous public read-only client (the public tournament page). It carries no
 // session at all and permits exactly the public scope; everything else fails closed before the network.
-export function createTorneosPublicClient({ transport = null } = {}) {
+// CONNECTED-V1: `connected: true` adds exactly the public catalog RPCs.
+export function createTorneosPublicClient({ transport = null, connected: connectedProduct = false } = {}) {
   const connected = Boolean(transport) && typeof transport.publicRpc === 'function';
   return Object.freeze({
     status: connected ? 'connected' : 'foundation-disabled',
     async execute(operation, params = {}, options = {}) {
-      if (!isCompetitionV1PublicOperation(operation)) throw new TorneosBoundaryError('TORNEOS_OUTSIDE_STAGING_V1');
+      if (!isCompetitionV1PublicOperation(operation)
+        && !(connectedProduct === true && isConnectedV1PublicOperation(operation))) {
+        throw new TorneosBoundaryError('TORNEOS_OUTSIDE_STAGING_V1');
+      }
       if (!connected) throw new TorneosBoundaryError('TORNEOS_TRANSPORT_NOT_CONNECTED');
       if (params === null || typeof params !== 'object' || Array.isArray(params)) {
         throw new TorneosBoundaryError('TORNEOS_INVALID_REQUEST');

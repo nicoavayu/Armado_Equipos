@@ -24,6 +24,7 @@ export default function TournamentPublicPageSettings({
   tournamentId,
   canPublish,
   service = tournamentWorkspaceService,
+  onChange = null,
 }) {
   const [state, setState] = useState({ status: 'loading', settings: null, error: '' });
   const [busy, setBusy] = useState('');
@@ -57,6 +58,8 @@ export default function TournamentPublicPageSettings({
         published,
       });
       setState({ status: 'ready', settings, error: '' });
+      // CONNECTED-V1: the call for teams depends on the published page; whoever shows both refreshes.
+      if (typeof onChange === 'function') onChange(settings);
     } catch (error) {
       setState((current) => ({ ...current, error: error?.message || 'No pudimos actualizar la publicación.' }));
     } finally {

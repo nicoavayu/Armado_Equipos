@@ -24,6 +24,10 @@
 // payload (scripts/torneos-frontend/social-adapter.test.mjs). Never setSocialPermission (no screen hands out
 // permissions), and never the Multimedia signer or the crest/logo resolvers: without them every crest falls back to
 // its monogram and a photo can only be a local file (social/socialStudio.js).
+//
+// CONNECTED-V1: with `connected: true` (foundation/config.js resolveTorneosConnectedProduct) it also serves the
+// connected product — Torneos profile and inbox, catalog management, registration requests — with the legacy RPC
+// and p_* payload (scripts/torneos-frontend/connected-adapter.test.mjs). Never the platform removal lever.
 import { v4 as uuidv4 } from 'uuid';
 import { createTorneosClient } from '../foundation/torneosClient';
 import { isTorneosBoundaryError } from '../foundation/errors';
@@ -92,6 +96,12 @@ export const CHECKOUT_TIMEOUT_MS = COMMERCE_REQUEST_TIMEOUT_MS;
 // service while billing is off, so an OFF overlay can never send a commerce request.
 export const PLAN_READ_METHODS = Object.freeze(['loadSeasonEntitlements', 'loadEntitlements']);
 export const SOCIAL_METHODS = Object.freeze(['loadSocialStudioContext', 'loadSocialSnapshot', 'authorizeSocialExport']);
+export const CONNECTED_METHODS = Object.freeze([
+  'loadTorneosProfile', 'updateTorneosProfile', 'loadTorneosNotifications', 'markTorneosNotificationsRead',
+  'loadTorneosInboxSummary', 'loadCatalogListingSettings', 'saveCatalogListing', 'setCatalogListingStatus',
+  'setApplicationsState', 'saveCategoryCapacity', 'loadApplicationInbox', 'searchApplicableCoreTeams',
+  'startTournamentApplication', 'loadMyRegistrations',
+]);
 export const COMMERCE_METHODS = Object.freeze([
   'loadSeasonEntitlements', 'loadEntitlements', 'loadPurchase', 'createCheckout', 'simulateFakePayment', 'cancelPurchase',
 ]);
@@ -168,10 +178,13 @@ export function createStagingV1WorkspaceService({
   commerce = false,
   planRead = false,
   social = false,
+  connected = false,
   checkoutTimeoutMs = CHECKOUT_TIMEOUT_MS,
 }) {
   const commerceEnabled = commerce === true;
-  const client = createTorneosClient({ transport, commerce: commerceEnabled, planRead, social: social === true });
+  const client = createTorneosClient({
+    transport, commerce: commerceEnabled, planRead, social: social === true, connected: connected === true,
+  });
   if (client.status !== 'connected') {
     throw new TournamentWorkspaceError(
       'TORNEOS_TRANSPORT_NOT_CONNECTED',
@@ -288,10 +301,100 @@ export function createStagingV1WorkspaceService({
     },
   } : {};
 
+  const connectedAliases = connected === true ? {
+    loadTorneosProfile: () => call('get_my_torneos_profile', {}, 'No pudimos cargar tu perfil de Torneos.'),
+    updateTorneosProfile: async ({ displayName, notifyRegistrationRequests } = {}) => {
+      if (typeof notifyRegistrationRequests !== 'boolean') throw invalidRequest();
+      return call('update_my_torneos_profile', {
+        p_display_name: displayName ?? null,
+        p_notify_registration_requests: notifyRegistrationRequests,
+      }, 'No pudimos guardar tu perfil de Torneos.');
+    },
+    loadTorneosNotifications: ({ unreadOnly = false, limit = 20, offset = 0 } = {}) => call('get_my_torneos_notifications', {
+      p_unread_only: unreadOnly,
+      p_limit: limit,
+      p_offset: offset,
+    }, 'No pudimos cargar tus avisos.'),
+    markTorneosNotificationsRead: async ({ notificationIds = null } = {}) => {
+      if (notificationIds !== null && (!Array.isArray(notificationIds) || !notificationIds.every((id) => UUID.test(String(id))))) {
+        throw invalidRequest();
+      }
+      return call('mark_my_torneos_notifications_read', {
+        p_notification_ids: notificationIds,
+      }, 'No pudimos marcar los avisos como leídos.');
+    },
+    loadTorneosInboxSummary: () => call('get_my_torneos_inbox_summary', {}, 'No pudimos cargar tus avisos.'),
+    loadCatalogListingSettings: ({ organizationId, tournamentId } = {}) => call('get_tournament_catalog_listing_settings', {
+      p_organization_id: organizationId,
+      p_tournament_id: tournamentId,
+    }, 'No pudimos cargar la convocatoria.'),
+    saveCatalogListing: ({
+      organizationId, tournamentId, summary, locality, venueId = null, entryFeeCents = null,
+      entryFeeIncludes = null, paymentNote = null, requirements = null, rulesSummary = null,
+    } = {}) => call('save_tournament_catalog_listing', {
+      p_organization_id: organizationId,
+      p_tournament_id: tournamentId,
+      p_summary: summary ?? null,
+      p_locality: locality ?? null,
+      p_venue_id: venueId,
+      p_entry_fee_cents: entryFeeCents,
+      p_entry_fee_includes: entryFeeIncludes,
+      p_payment_note: paymentNote,
+      p_requirements: requirements,
+      p_rules_summary: rulesSummary,
+    }, 'No pudimos guardar la convocatoria.'),
+    setCatalogListingStatus: ({ organizationId, tournamentId, listed } = {}) => call('set_tournament_catalog_listing_status', {
+      p_organization_id: organizationId,
+      p_tournament_id: tournamentId,
+      p_listed: listed,
+    }, 'No pudimos cambiar la publicación en el catálogo.'),
+    setApplicationsState: ({ organizationId, tournamentId, state } = {}) => call('set_tournament_applications_state', {
+      p_organization_id: organizationId,
+      p_tournament_id: tournamentId,
+      p_state: state,
+    }, 'No pudimos cambiar la recepción de solicitudes.'),
+    saveCategoryCapacity: ({ organizationId, tournamentId, categoryId, maxTeams = null } = {}) => call('save_tournament_category_capacity', {
+      p_organization_id: organizationId,
+      p_tournament_id: tournamentId,
+      p_category_id: categoryId,
+      p_max_teams: maxTeams,
+    }, 'No pudimos guardar el cupo.'),
+    loadApplicationInbox: ({
+      organizationId, tournamentId, status = 'submitted', limit = 20, offset = 0,
+    } = {}) => call('get_tournament_application_inbox', {
+      p_organization_id: organizationId,
+      p_tournament_id: tournamentId,
+      p_status: status,
+      p_limit: limit,
+      p_offset: offset,
+    }, 'No pudimos cargar las solicitudes.'),
+    searchApplicableCoreTeams: ({ publicSlug, query, limit = 8 } = {}) => call('search_my_applicable_core_teams', {
+      p_public_slug: publicSlug,
+      p_query: query,
+      p_limit: limit,
+    }, 'No pudimos buscar tus equipos.'),
+    startTournamentApplication: ({
+      publicSlug, categorySlug, coreTeamId = null, teamName = null, message = null, acceptConditions, idempotencyKey,
+    } = {}) => call('start_tournament_application', {
+      p_public_slug: publicSlug,
+      p_category_slug: categorySlug,
+      p_core_team_id: coreTeamId,
+      p_team_name: teamName,
+      p_message: message,
+      p_accept_conditions: acceptConditions,
+      p_idempotency_key: idempotencyKey,
+    }, 'No pudimos crear la solicitud.'),
+    loadMyRegistrations: ({ limit = 20, offset = 0 } = {}) => call('get_my_tournament_registrations', {
+      p_limit: limit,
+      p_offset: offset,
+    }, 'No pudimos cargar tus inscripciones.'),
+  } : {};
+
   return Object.freeze({
     ...planAliases,
     ...commerceAliases,
     ...socialAliases,
+    ...connectedAliases,
     // ── organizations / workspaces ─────────────────────────────────────────
     loadContext: () => call(
       'get_tournament_workspace_context',

@@ -146,3 +146,14 @@ export function resolveTorneosSocialStudio(env = process.env, {
     && planRead === true
     && flags?.socialContentGenerator === true;
 }
+
+// CONNECTED-V1: the connected product (Torneos profile, Torneos inbox, catalog management, registration requests and
+// the public catalog). In the gateway composition it exists only with the explicit opt-in that matches the gateway's
+// TORNEOS_CONNECTED_MODE=on; the single-project LOCAL stack serves it from its own migration. Anything else: no
+// alias, no route, no request.
+export function resolveTorneosConnectedProduct(env = process.env, {
+  backendMode = resolveTorneosBackendMode(env),
+} = {}) {
+  if (backendMode.mode === 'legacy-local') return true;
+  return backendMode.mode === 'hybrid' && env.REACT_APP_TORNEOS_CONNECTED_MODE === 'on';
+}

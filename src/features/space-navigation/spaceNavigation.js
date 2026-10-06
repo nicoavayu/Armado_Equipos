@@ -21,7 +21,9 @@ const ARMA2_ROUTE_PATTERNS = Object.freeze([
 
 const TORNEOS_ROUTE_PATTERNS = Object.freeze([
   /^\/torneos\/?$/,
-  /^\/torneos\/(?:mis-partidos|mis-torneos|comunicados)\/?$/,
+  /^\/torneos\/(?:mis-partidos|mis-torneos|comunicados|avisos|perfil|explorar)\/?$/,
+  /^\/torneos\/explorar\/[a-z0-9-]+\/?$/i,
+  /^\/torneos\/mis-equipos\/[a-z0-9-]+\/[a-z0-9-]+(?:\/plantel)?\/?$/i,
   /^\/torneos\/mis-partidos\/[a-z0-9-]+(?:\/convocatoria)?\/?$/i,
   /^\/torneos\/torneo\/[a-z0-9-]+(?:\/(?:novedades|partidos|tabla|estadisticas|equipos|fotos|disciplina)(?:\/[a-z0-9-]+)?)?\/?$/i,
   /^\/torneos\/organizacion\/[a-z0-9-]+(?:\/[a-z0-9-]+)*\/?$/i,
@@ -43,7 +45,7 @@ export function isTorneosSpaceRoot(pathname = '') {
 
 const TORNEOS_PERSONAL_TOP_LEVEL_PATTERNS = Object.freeze([
   /^\/torneos\/?$/,
-  /^\/torneos\/(?:mis-torneos|mis-partidos|comunicados|nueva-organizacion)\/?$/,
+  /^\/torneos\/(?:mis-torneos|mis-partidos|comunicados|nueva-organizacion|avisos|perfil|explorar)\/?$/,
 ]);
 
 const TORNEOS_ORGANIZATION_TOP_LEVEL_PATTERN = new RegExp(

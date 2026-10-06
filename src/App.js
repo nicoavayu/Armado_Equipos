@@ -79,6 +79,7 @@ const AdminPanelPage = lazy(() => import('./pages/AdminPanelPage'));
 const PartidoInvitacion = lazy(() => import('./pages/PartidoInvitacion'));
 const IsolatedTorneosPage = lazy(() => import('./features/torneos/isolated/IsolatedTorneosPage'));
 const PublicTournamentPage = lazy(() => import('./features/torneos/components/PublicTournamentRoute'));
+const PublicTournamentCatalog = lazy(() => import('./features/torneos/components/connected/PublicCatalogRoute'));
 const QaRoleSwitcherPage = lazy(() => import('./features/qa/QaRoleSwitcherPage'));
 const QaTournamentReviewMapPage = lazy(() => import('./features/qa/QaTournamentReviewMapPage'));
 const SocialStudioBaseGalleryPage = lazy(
@@ -203,6 +204,11 @@ export default function App() {
                   <Route path="/votar-equipos" element={
                     <Suspense fallback={<AppLoadingScreen />}>
                       <VotarEquiposPage />
+                    </Suspense>
+                  } />
+                  <Route path="/torneos/publico" element={
+                    <Suspense fallback={<AppLoadingScreen />}>
+                      <PublicTournamentCatalog />
                     </Suspense>
                   } />
                   <Route path="/torneos/publico/:publicSlug" element={
@@ -761,6 +767,12 @@ export function AppAuthWrapper() {
   }
 
   if (!user) {
+    // Explorar torneos is public: a visitor without a session browses the public catalog (and a call's public page)
+    // instead of being asked to sign in. Requesting a place stays behind the login below.
+    const publicCatalog = /^\/torneos\/explorar(?:\/([a-z0-9-]+))?\/?$/i.exec(location.pathname);
+    if (publicCatalog) {
+      return <Navigate to={publicCatalog[1] ? `/torneos/publico/${publicCatalog[1]}` : `/torneos/publico${location.search}`} replace />;
+    }
     const returnTo = `${location.pathname}${location.search}${location.hash}`;
     setAuthReturnTo(returnTo);
     logger.info('[AUTH] app_auth_wrapper_redirect_login', {

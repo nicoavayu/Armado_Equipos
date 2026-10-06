@@ -213,6 +213,20 @@ describe('Arma2 Torneos teams flow', () => {
     await waitFor(() => expect(screen.getByText('Presentar plantel')).toBeDisabled());
   });
 
+  test('a player without an account is added with an explicit empty shirt number', async () => {
+    const service = createService();
+    service.createProvisionalPlayer.mockResolvedValue({ id: 'provisional-a', displayName: 'Ana Sin App' });
+    service.addRosterPlayer.mockResolvedValue({});
+    renderPath(`/torneos/organizacion/${ORG}/equipos/${ENTRY}/plantel`, service);
+    fireEvent.change(await screen.findByLabelText('Buscar jugador de Arma2'), { target: { value: 'Ana Sin App' } });
+    fireEvent.click(await screen.findByRole('button', { name: /Crear “Ana Sin App” sin cuenta/ }));
+    await waitFor(() => expect(service.addRosterPlayer).toHaveBeenCalled());
+    const [input] = service.addRosterPlayer.mock.calls[0];
+    // PostgREST resolves add_tournament_roster_player by every named argument: "no number" must travel as null.
+    expect(Object.prototype.hasOwnProperty.call(input, 'shirtNumber')).toBe(true);
+    expect(input).toMatchObject({ provisionalPlayerId: 'provisional-a', displayName: 'Ana Sin App', shirtNumber: null });
+  });
+
   test('renders a roster safely when the persisted settings row is absent', async () => {
     const service = createService();
     service.loadTeamRegistration.mockResolvedValue({

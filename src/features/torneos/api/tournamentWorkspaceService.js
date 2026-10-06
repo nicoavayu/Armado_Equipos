@@ -1548,6 +1548,146 @@ export async function updateTournamentNotificationPreferences({
   }), 'No pudimos actualizar tus preferencias.');
 }
 
+// ── CONNECTED-V1: Torneos profile, Torneos inbox, catalog and registration requests ─────────────
+
+export async function loadTorneosProfile() {
+  return unwrapRpc(await supabase.rpc('get_my_torneos_profile', {}), 'No pudimos cargar tu perfil de Torneos.');
+}
+
+export async function updateTorneosProfile({ displayName, notifyRegistrationRequests }) {
+  return unwrapRpc(await supabase.rpc('update_my_torneos_profile', {
+    p_display_name: displayName ?? null,
+    p_notify_registration_requests: notifyRegistrationRequests,
+  }), 'No pudimos guardar tu perfil de Torneos.');
+}
+
+export async function loadTorneosNotifications({ unreadOnly = false, limit = 20, offset = 0 } = {}) {
+  return unwrapRpc(await supabase.rpc('get_my_torneos_notifications', {
+    p_unread_only: unreadOnly,
+    p_limit: limit,
+    p_offset: offset,
+  }), 'No pudimos cargar tus avisos.');
+}
+
+export async function markTorneosNotificationsRead({ notificationIds = null } = {}) {
+  return unwrapRpc(await supabase.rpc('mark_my_torneos_notifications_read', {
+    p_notification_ids: notificationIds,
+  }), 'No pudimos marcar los avisos como leídos.');
+}
+
+export async function loadTorneosInboxSummary() {
+  return unwrapRpc(await supabase.rpc('get_my_torneos_inbox_summary', {}), 'No pudimos cargar tus avisos.');
+}
+
+export async function loadTournamentCatalogListingSettings({ organizationId, tournamentId }) {
+  return unwrapRpc(await supabase.rpc('get_tournament_catalog_listing_settings', {
+    p_organization_id: organizationId,
+    p_tournament_id: tournamentId,
+  }), 'No pudimos cargar la convocatoria.');
+}
+
+export async function saveTournamentCatalogListing({
+  organizationId,
+  tournamentId,
+  summary,
+  locality,
+  venueId = null,
+  entryFeeCents = null,
+  entryFeeIncludes = null,
+  paymentNote = null,
+  requirements = null,
+  rulesSummary = null,
+}) {
+  return unwrapRpc(await supabase.rpc('save_tournament_catalog_listing', {
+    p_organization_id: organizationId,
+    p_tournament_id: tournamentId,
+    p_summary: summary ?? null,
+    p_locality: locality ?? null,
+    p_venue_id: venueId,
+    p_entry_fee_cents: entryFeeCents,
+    p_entry_fee_includes: entryFeeIncludes,
+    p_payment_note: paymentNote,
+    p_requirements: requirements,
+    p_rules_summary: rulesSummary,
+  }), 'No pudimos guardar la convocatoria.');
+}
+
+export async function setTournamentCatalogListingStatus({ organizationId, tournamentId, listed }) {
+  return unwrapRpc(await supabase.rpc('set_tournament_catalog_listing_status', {
+    p_organization_id: organizationId,
+    p_tournament_id: tournamentId,
+    p_listed: listed,
+  }), 'No pudimos cambiar la publicación en el catálogo.');
+}
+
+export async function setTournamentApplicationsState({ organizationId, tournamentId, state }) {
+  return unwrapRpc(await supabase.rpc('set_tournament_applications_state', {
+    p_organization_id: organizationId,
+    p_tournament_id: tournamentId,
+    p_state: state,
+  }), 'No pudimos cambiar la recepción de solicitudes.');
+}
+
+export async function saveTournamentCategoryCapacity({ organizationId, tournamentId, categoryId, maxTeams = null }) {
+  return unwrapRpc(await supabase.rpc('save_tournament_category_capacity', {
+    p_organization_id: organizationId,
+    p_tournament_id: tournamentId,
+    p_category_id: categoryId,
+    p_max_teams: maxTeams,
+  }), 'No pudimos guardar el cupo.');
+}
+
+export async function loadTournamentApplicationInbox({
+  organizationId,
+  tournamentId,
+  status = 'submitted',
+  limit = 20,
+  offset = 0,
+}) {
+  return unwrapRpc(await supabase.rpc('get_tournament_application_inbox', {
+    p_organization_id: organizationId,
+    p_tournament_id: tournamentId,
+    p_status: status,
+    p_limit: limit,
+    p_offset: offset,
+  }), 'No pudimos cargar las solicitudes.');
+}
+
+export async function searchApplicableCoreTeams({ publicSlug, query, limit = 8 }) {
+  return unwrapRpc(await supabase.rpc('search_my_applicable_core_teams', {
+    p_public_slug: publicSlug,
+    p_query: query,
+    p_limit: limit,
+  }), 'No pudimos buscar tus equipos.');
+}
+
+export async function startTournamentApplication({
+  publicSlug,
+  categorySlug,
+  coreTeamId = null,
+  teamName = null,
+  message = null,
+  acceptConditions,
+  idempotencyKey,
+}) {
+  return unwrapRpc(await supabase.rpc('start_tournament_application', {
+    p_public_slug: publicSlug,
+    p_category_slug: categorySlug,
+    p_core_team_id: coreTeamId,
+    p_team_name: teamName,
+    p_message: message,
+    p_accept_conditions: acceptConditions,
+    p_idempotency_key: idempotencyKey,
+  }), 'No pudimos crear la solicitud.');
+}
+
+export async function loadMyTournamentRegistrations({ limit = 20, offset = 0 } = {}) {
+  return unwrapRpc(await supabase.rpc('get_my_tournament_registrations', {
+    p_limit: limit,
+    p_offset: offset,
+  }), 'No pudimos cargar tus inscripciones.');
+}
+
 export async function loadPublishedTournamentDocuments({
   tournamentId,
   categoryId = null,
@@ -2166,6 +2306,20 @@ export const tournamentWorkspaceService = Object.freeze({
   setPublicPagePublished: setTournamentPublicPagePublished,
   loadTeamVisualPolicy: loadTournamentTeamVisualPolicy,
   setTeamVisualPolicy: setTournamentTeamVisualPolicy,
+  loadTorneosProfile,
+  updateTorneosProfile,
+  loadTorneosNotifications,
+  markTorneosNotificationsRead,
+  loadTorneosInboxSummary,
+  loadCatalogListingSettings: loadTournamentCatalogListingSettings,
+  saveCatalogListing: saveTournamentCatalogListing,
+  setCatalogListingStatus: setTournamentCatalogListingStatus,
+  setApplicationsState: setTournamentApplicationsState,
+  saveCategoryCapacity: saveTournamentCategoryCapacity,
+  loadApplicationInbox: loadTournamentApplicationInbox,
+  searchApplicableCoreTeams,
+  startTournamentApplication,
+  loadMyRegistrations: loadMyTournamentRegistrations,
   resolveTeamShieldUrl,
   resolveTournamentLogoUrl,
   createIdempotencyKey,

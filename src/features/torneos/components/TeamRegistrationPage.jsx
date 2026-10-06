@@ -115,7 +115,11 @@ function PlayerRow({
 }
 
 export default function TeamRegistrationPage({ initialTab = 'inscripcion' }) {
-  const { organization } = useOutletContext();
+  const { organization, registration = null, onRegistrationChanged = null } = useOutletContext();
+  // CONNECTED-V1: a request made from Explorar is sent, not "presented", and stops while the call does not accept
+  // requests (the backend refuses it anyway; this only says why before trying).
+  const isApplication = registration?.source === 'application';
+  const applicationBlocked = Boolean(isApplication && registration?.blockReason);
   const { teamEntryId } = useParams();
   const { service } = useTorneosWorkspace();
   // Portraits, team photo and shield are served by other RPCs, storage and Edge
@@ -136,7 +140,12 @@ export default function TeamRegistrationPage({ initialTab = 'inscripcion' }) {
   const portraitsRequestRef = useRef(0);
   const [teamPhoto, setTeamPhoto] = useState(() => ({ status: teamPhotosEnabled ? 'loading' : 'ready', state: null }));
   const teamPhotoRequestRef = useRef(0);
-  const entryTab = {
+  const entryTab = organization.participantRoutes ? {
+    inscripcion: canonicalRoutes.participantTeamEntry(organization.id, teamEntryId),
+    visualIdentity: canonicalRoutes.participantTeamEntry(organization.id, teamEntryId),
+    plantel: canonicalRoutes.participantTeamEntryRoster(organization.id, teamEntryId),
+    revision: canonicalRoutes.participantTeamEntry(organization.id, teamEntryId),
+  } : {
     inscripcion: canonicalRoutes.organizationTeamEntryRegistration(organization.id, teamEntryId),
     visualIdentity: canonicalRoutes.organizationTeamEntryVisualIdentity(
       organization.id,
@@ -287,6 +296,8 @@ export default function TeamRegistrationPage({ initialTab = 'inscripcion' }) {
     arma2UserId: player.userId,
     displayName: player.displayName,
     avatarUrl: player.avatarUrl,
+    // Explicit: PostgREST resolves the function by every named argument, and an undefined one is dropped.
+    shirtNumber: null,
     primaryPosition: player.positions?.[0] || null,
     isGoalkeeper: player.positions?.[0] === 'ARQ',
   }), 'Jugador agregado.');
@@ -302,6 +313,7 @@ export default function TeamRegistrationPage({ initialTab = 'inscripcion' }) {
       rosterId: data.roster.id,
       provisionalPlayerId: provisional.id,
       displayName: provisional.displayName,
+      shirtNumber: null,
     });
   }, 'Jugador sin cuenta agregado.');
   const updatePlayer = (player, patch) => run(`player-${player.id}`, () => (
@@ -589,16 +601,21 @@ export default function TeamRegistrationPage({ initialTab = 'inscripcion' }) {
               <button
                 className={styles.primaryButton}
                 type="button"
-                disabled={!submittable || !progress.complete || Boolean(busy)}
+                disabled={!submittable || !progress.complete || applicationBlocked || Boolean(busy)}
                 title={submittable ? undefined : 'El responsable del equipo tiene que aceptar la invitación antes de presentar el plantel.'}
                 onClick={() => run(
                   'submit',
-                  () => service.submitTeamEntry({ organizationId: organization.id, teamEntryId }),
-                  'Inscripción presentada para revisión.',
+                  async () => {
+                    await service.submitTeamEntry({ organizationId: organization.id, teamEntryId });
+                    onRegistrationChanged?.();
+                  },
+                  isApplication
+                    ? 'Solicitud enviada. La organización la va a revisar; enviarla no confirma un cupo.'
+                    : 'Inscripción presentada para revisión.',
                 )}
               >
                 {busy === 'submit' ? <Loader2 className={styles.spin} size={18} /> : <Send size={18} />}
-                Presentar plantel
+                {isApplication ? 'Enviar solicitud' : 'Presentar plantel'}
               </button>
             )}
             {editable && !submittable && (

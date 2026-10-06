@@ -7,7 +7,10 @@ describe('global vs Torneos internal navigation responsibilities', () => {
   test('Torneos shell mounts the space header by route hierarchy and removes duplicate branding/exit', () => {
     const source = read('src/features/torneos/components/TorneosShell.jsx');
     expect(source).toContain('shouldShowTorneosSpaceHeader(location.pathname)');
-    expect(source).toContain('{showSpaceHeader && <GlobalHeader');
+    expect(source).toMatch(/\{showSpaceHeader && \(\s*<GlobalHeader/);
+    // Inside Torneos the header's account menu and bell are Torneos' own: opening them never switches product.
+    expect(source).toContain('accountMenu={<TorneosAccountMenu />}');
+    expect(source).toContain('notificationsControl={<TorneosInboxBell />}');
     expect(source).not.toContain('topbarExit');
     expect(source).not.toContain('mobileBrand');
   });

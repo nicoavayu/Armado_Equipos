@@ -1238,6 +1238,14 @@
   }
 }
 
+/* A player row needs ~540px; beside the 250px requirements panel the roster column is narrower than that until the
+   viewport is wide enough, so the panel goes below the roster instead of covering the rows' status and actions. */
+@media (max-width: 1180px) {
+  .rosterLayout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 @media (max-width: 1000px) {
   .entryCard {
     grid-template-columns: 1fr auto;

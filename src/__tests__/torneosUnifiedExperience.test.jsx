@@ -96,10 +96,13 @@ describe('Arma2 Torneos unified participant/admin entrypoint', () => {
     renderLanding(createService({ relations: [PARTICIPANT_RELATION] }));
 
     expect(await screen.findByText('Mi actividad')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /Mis torneos/i })).toBeInTheDocument();
+    expect(screen.getAllByRole('link', { name: /Mis torneos/i }).length).toBeGreaterThan(0);
     expect(screen.getByRole('link', { name: /Mis partidos/i })).toBeInTheDocument();
-    expect(screen.queryByText('Administrar')).not.toBeInTheDocument();
+    expect(screen.getAllByRole('link', { name: /Explorar torneos/i }).length).toBeGreaterThan(0);
+    expect(screen.queryByText('Gestionar')).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Tus organizaciones' })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: /Nueva organización/i })).not.toBeInTheDocument();
+    // Organizing stays possible, as a discreet secondary link — never part of the participant's normal flow.
     expect(screen.getByRole('link', { name: 'Crear organización' }))
       .toHaveAttribute('href', '/torneos/nueva-organizacion');
   });
@@ -116,9 +119,10 @@ describe('Arma2 Torneos unified participant/admin entrypoint', () => {
       relations: [ownerRelation],
     }));
 
-    expect(await screen.findByText('Administrar')).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Tus organizaciones' })).toBeInTheDocument();
     expect(screen.getByText('Liga Devoto')).toBeInTheDocument();
     expect(screen.queryByText('Mi actividad')).not.toBeInTheDocument();
+    expect(screen.queryByRole('radiogroup', { name: 'Qué querés ver' })).not.toBeInTheDocument();
   });
 
   test('dual participant and owner can access both areas with one context', async () => {
@@ -127,9 +131,18 @@ describe('Arma2 Torneos unified participant/admin entrypoint', () => {
       relations: [PARTICIPANT_RELATION],
     }));
 
+    // Both relations, one context: «Mis torneos» first, «Gestionar» one explicit switch away.
+    window.localStorage.removeItem('arma2:torneos:home-view:v1');
     expect(await screen.findByText('Mi actividad')).toBeInTheDocument();
-    expect(screen.getByText('Administrar')).toBeInTheDocument();
+    const views = screen.getByRole('radiogroup', { name: 'Qué querés ver' });
+    expect(views).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('radio', { name: 'Gestionar' }));
+    expect(await screen.findByRole('heading', { name: 'Tus organizaciones' })).toBeInTheDocument();
     expect(screen.getByText('Liga Devoto')).toBeInTheDocument();
+    expect(screen.queryByText('Mi actividad')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('radio', { name: 'Mis torneos' }));
+    expect(await screen.findByText('Mi actividad')).toBeInTheDocument();
+    window.localStorage.removeItem('arma2:torneos:home-view:v1');
   });
 
   test('limited collaborator keeps its role and may create a separate organization', async () => {

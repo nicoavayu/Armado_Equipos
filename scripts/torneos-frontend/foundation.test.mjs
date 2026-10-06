@@ -15,6 +15,11 @@ const baseline = JSON.parse(read('docs/torneos/b04/b04-audit.json'));
 const scopeSource = JSON.parse(read('backend/torneos/phase2d/staging-v1-rpc-allowlist.json')).features;
 // COMPETITION-V1: the full-competition contract of the gateway (authenticated `features` + anonymous `public`).
 const competitionSource = JSON.parse(read('backend/torneos/supabase/functions/torneos-gateway/competition-v1-rpc-allowlist.json'));
+// CONNECTED-V1: the only RPC names the connected product may add to the LOCAL single-project service.
+const connectedSource = JSON.parse(read('backend/torneos/supabase/functions/torneos-gateway/connected-v1-rpc-allowlist.json'));
+const CONNECTED_AUTHENTICATED = Object.values(connectedSource.features).flat();
+const CONNECTED_PUBLIC = Object.values(connectedSource.public).flat();
+const CONNECTED = new Set([...CONNECTED_AUTHENTICATED, ...CONNECTED_PUBLIC]);
 const prefix = 'src/features/torneos/foundation/';
 const uuidStub = { v4: () => 'placeholder' };
 // Objects built inside the sandbox realm have another Object.prototype: compare by value.
@@ -156,7 +161,12 @@ test('backend access reachable from Torneos matches the audited fixture exactly;
   const legacyFiles = new Set(legacy.calls.map((c) => c.file));
   const legacyRpc = legacy.calls.filter((c) => c.kind === 'rpc').map(strip);
   const currentLegacyRpc = baseline.calls.filter((c) => c.kind === 'rpc' && legacyFiles.has(c.file)).map(strip);
-  assert.deepEqual(currentLegacyRpc, legacyRpc);
+  // CONNECTED-V1 adds the connected product to the LOCAL single-project service: exactly the authenticated names of
+  // its gateway contract (the hybrid adapter serves the same aliases through the gateway), nothing else. Every
+  // earlier legacy call stays where it was.
+  const isConnected = (c) => c.targets.length > 0 && c.targets.every((target) => CONNECTED.has(target));
+  assert.deepEqual(currentLegacyRpc.filter((c) => !isConnected(c)), legacyRpc);
+  assert.deepEqual(currentLegacyRpc.filter(isConnected).flatMap((c) => c.targets).sort(), [...CONNECTED_AUTHENTICATED].sort());
   assert.equal(legacyRpc.length, 160);
   assert.deepEqual(baseline.calls.filter((c) => c.kind !== 'rpc' && legacyFiles.has(c.file)).map(strip), legacy.calls.filter((c) => c.kind !== 'rpc').map(strip));
 });
@@ -174,13 +184,25 @@ test('the only backend access B04 adds is the gateway transport (fetch) and the 
     { file: 'src/features/torneos/foundation/torneosTransport.js', kind: 'transport', callee: 'fetchImpl' },
     { file: 'src/features/torneos/stagingV1/coreSessionBridge.js', kind: 'auth', callee: 'client.auth.getSession' },
     { file: 'src/features/torneos/stagingV1/coreSessionBridge.js', kind: 'auth', callee: 'client.auth.onAuthStateChange' },
-  ]);
+  ].concat([
+    // CONNECTED-V1: Explorar torneos on the LOCAL single-project stack (the hybrid composition reaches the same three
+    // public RPCs through the gateway's public route) and the home's visual preference (never an authorization).
+    { file: 'src/features/torneos/api/publicCatalogService.js', kind: 'rpc', callee: 'supabase.rpc' },
+    { file: 'src/features/torneos/api/publicCatalogService.js', kind: 'rpc', callee: 'supabase.rpc' },
+    { file: 'src/features/torneos/api/publicCatalogService.js', kind: 'rpc', callee: 'supabase.rpc' },
+    { file: 'src/features/torneos/components/TorneosLanding.jsx', kind: 'persistence', callee: 'window.localStorage.getItem' },
+    { file: 'src/features/torneos/components/TorneosLanding.jsx', kind: 'persistence', callee: 'window.localStorage.setItem' },
+  ]).sort((a, b) => `${a.file}\u0000${a.kind}`.localeCompare(`${b.file}\u0000${b.kind}`)));
+  for (const call of baseline.calls.filter((c) => c.file === 'src/features/torneos/api/publicCatalogService.js')) {
+    assert.ok(call.targets.length === 1 && CONNECTED_PUBLIC.includes(call.targets[0]), `public catalog call ${call.targets}`);
+  }
   const legacyEdges = new Set(legacy.coreDependencies.map((c) => `${c.file} -> ${c.source}`));
   const addedEdges = baseline.coreDependencies.map((c) => `${c.file} -> ${c.source}`).filter((edge) => !legacyEdges.has(edge));
   // MP-A5 adds the commerce context: Plan/PurchaseStatus read commerce from it, its default is the
   // legacy adapter (the only path from those pages to the legacy service) and the hybrid composition
   // always overrides it (torneosMpA5HybridCommerce.test.jsx traps both the singleton and the adapter).
-  assert.deepEqual(addedEdges, [
+  // Compared as a set: the edges are what matters, not the order the audit lists them in.
+  assert.deepEqual([...addedEdges].sort(), [
     'src/features/torneos/TorneosFeatureGate.jsx -> ./stagingV1/StagingV1TorneosApp',
     'src/features/torneos/api/legacyCommerceAdapter.js -> ./tournamentWorkspaceService',
     // OFFICIALIZATION-V1: the organization invitation page accepts through the MOUNTED composition's service
@@ -201,7 +223,59 @@ test('the only backend access B04 adds is the gateway transport (fetch) and the 
     'src/features/torneos/stagingV1/StagingV1TorneosApp.jsx -> ../components/TorneosShell',
     'src/features/torneos/stagingV1/StagingV1TorneosApp.jsx -> ./coreSessionBridge',
     'src/features/torneos/stagingV1/coreSessionBridge.js -> ../../../lib/coreSupabaseClient',
-  ]);
+  ].concat([
+    // CONNECTED-V1 — the connected product. Pages read the MOUNTED composition's service from the workspace context
+    // (never a default Core service); the catalog reaches the legacy public service only on the LOCAL stack, through
+    // the same composition rule as the public page. The shared identity is only READ, from the session context alone
+    // (components/AuthContext: no backend access, so not an edge here). One edge leaves the feature on purpose: the
+    // Torneos profile's «Cerrar sesión» is the common account's own sign-out, loaded only when the person asks for it.
+    'src/features/torneos/api/publicCatalogService.js -> ../../../services/api/supabase',
+    'src/features/torneos/components/MyTournamentsPage.jsx -> ./connected/MyRegistrationsSection',
+    'src/features/torneos/components/PublicTournamentRoute.jsx -> ../stagingV1/publicTournamentComposition',
+    'src/features/torneos/components/PublicTournamentRoute.jsx -> ../api/publicCatalogService',
+    'src/features/torneos/components/TeamsPage.jsx -> ./connected/CatalogEntryStrip',
+    'src/features/torneos/components/TorneosLanding.jsx -> ./connected/MyRegistrationsSection',
+    'src/features/torneos/components/TorneosLanding.jsx -> ./connected/useTorneosProfile',
+    'src/features/torneos/components/TorneosShell.jsx -> ./connected/TorneosAccountMenu',
+    'src/features/torneos/components/TorneosShell.jsx -> ./connected/TorneosInboxBell',
+    'src/features/torneos/components/TorneosShell.jsx -> ./connected/useTorneosInboxSummary',
+    'src/features/torneos/components/TorneosShell.jsx -> ./connected/PersonalNavigation',
+    'src/features/torneos/components/TorneosShell.jsx -> ./connected/ExplorePage',
+    'src/features/torneos/components/TorneosShell.jsx -> ./connected/CatalogCallPage',
+    'src/features/torneos/components/TorneosShell.jsx -> ./connected/TournamentApplicationPage',
+    'src/features/torneos/components/TorneosShell.jsx -> ./connected/TorneosInboxPage',
+    'src/features/torneos/components/TorneosShell.jsx -> ./connected/TorneosProfilePage',
+    'src/features/torneos/components/TorneosShell.jsx -> ./connected/ParticipantTeamRoute',
+    'src/features/torneos/components/TorneosShell.jsx -> ./connected/CatalogListingPage',
+    'src/features/torneos/components/TorneosShell.jsx -> ./connected/ApplicationInboxPage',
+    'src/features/torneos/components/connected/ApplicationInboxPage.jsx -> ../../context/TorneosWorkspaceContext',
+    'src/features/torneos/components/connected/CatalogCallPage.jsx -> ./useCatalogService',
+    'src/features/torneos/components/connected/CatalogEntryStrip.jsx -> ../../context/TorneosWorkspaceContext',
+    'src/features/torneos/components/connected/CatalogListingPage.jsx -> ../../context/TorneosWorkspaceContext',
+    'src/features/torneos/components/connected/CatalogListingPage.jsx -> ../TournamentPublicPageSettings',
+    'src/features/torneos/components/connected/ExplorePage.jsx -> ./useCatalogService',
+    'src/features/torneos/components/connected/MyRegistrationsSection.jsx -> ../../context/TorneosWorkspaceContext',
+    'src/features/torneos/components/connected/ParticipantTeamRoute.jsx -> ../../context/TorneosWorkspaceContext',
+    'src/features/torneos/components/connected/PersonalNavigation.jsx -> ./useTorneosInboxSummary',
+    'src/features/torneos/components/connected/PublicCatalogRoute.jsx -> ./useCatalogService',
+    'src/features/torneos/components/connected/TorneosAccountMenu.jsx -> ./useTorneosProfile',
+    'src/features/torneos/components/connected/TorneosInboxBell.jsx -> ./useTorneosInboxSummary',
+    'src/features/torneos/components/connected/TorneosInboxPage.jsx -> ../../context/TorneosWorkspaceContext',
+    'src/features/torneos/components/connected/TorneosInboxPage.jsx -> ../MyCommunicationsPage',
+    'src/features/torneos/components/connected/TorneosInboxPage.jsx -> ./useTorneosInboxSummary',
+    'src/features/torneos/components/connected/TorneosProfilePage.jsx -> ../../context/TorneosWorkspaceContext',
+    'src/features/torneos/components/connected/TorneosProfilePage.jsx -> ./useTorneosProfile',
+    'src/features/torneos/components/connected/TorneosProfilePage.jsx -> ../../../../services/authLogoutService',
+    'src/features/torneos/components/connected/TournamentApplicationPage.jsx -> ../../context/TorneosWorkspaceContext',
+    'src/features/torneos/components/connected/TournamentApplicationPage.jsx -> ./CatalogCallPage',
+    'src/features/torneos/components/connected/TournamentApplicationPage.jsx -> ./useCatalogService',
+    'src/features/torneos/components/connected/TournamentApplicationPage.jsx -> ./useTorneosProfile',
+    'src/features/torneos/components/connected/useCatalogService.js -> ../../api/publicCatalogService',
+    'src/features/torneos/components/connected/useCatalogService.js -> ../../stagingV1/publicTournamentComposition',
+    'src/features/torneos/components/connected/useTorneosInboxSummary.jsx -> ../../context/TorneosWorkspaceContext',
+    'src/features/torneos/components/connected/useTorneosProfile.js -> ../../context/TorneosWorkspaceContext',
+    'src/features/torneos/stagingV1/publicTournamentComposition.js -> ../api/publicCatalogService',
+  ]).sort());
   // The bridge reads the session; it never signs in/out, sets a session or touches data.
   const bridge = inspect('src/features/torneos/stagingV1/coreSessionBridge.js', read('src/features/torneos/stagingV1/coreSessionBridge.js'));
   assert.deepEqual(bridge.calls.map((c) => c.callee), ['client.auth.getSession', 'client.auth.onAuthStateChange']);
@@ -299,7 +373,8 @@ test('audit resolves every legacy RPC dispatch; the single unresolved dispatch i
   assert.equal(legacy.calls.filter(c => c.kind === 'rpc' && c.targets.length === 0).length, 0);
   const actual = audit(currentSources());
   const rpc = actual.calls.filter(c => c.kind === 'rpc');
-  assert.equal(rpc.length, 161);
+  // 161 audited dispatches + CONNECTED-V1: the 14 authenticated aliases of the LOCAL service and the 3 public catalog reads.
+  assert.equal(rpc.length, 161 + CONNECTED_AUTHENTICATED.length + CONNECTED_PUBLIC.length);
   assert.deepEqual(rpc.filter(c => c.targets.length === 0).map(c => c.file), ['src/features/torneos/foundation/torneosClient.js']);
 });
 
@@ -335,7 +410,11 @@ test('T13 — the feature map is data: its ON keys are the Phase 2D + COMPETITIO
   const onPages = new Set(['TorneosLanding', 'CreateOrganizationPage', 'OrganizationRouteGuard', 'TorneosDashboard', 'SeasonFormPage',
     'CompetitionOverviewPage', 'TournamentWizardPage', 'TeamEntryRedirect', 'TeamRegistrationPage', 'TournamentConfigurationRedirect',
     'TournamentRouteGuard', 'CanonicalIndexRedirect', 'TeamsPage', 'NewTeamEntryPage', 'LegacyTournamentRoute', 'OrganizationSettingsPage',
-    'OrganizationMembersPage', 'MyTournamentsPage', 'TeamInvitationPage', 'Navigate']);
+    'OrganizationMembersPage', 'MyTournamentsPage', 'TeamInvitationPage', 'Navigate',
+    // CONNECTED-V1: surfaces every composition serves (degrading without the connected product): the Torneos inbox
+    // falls back to the official communications, the profile to the shared identity read-only, and the team route
+    // only uses the staging v1 registration context.
+    'TorneosInboxPage', 'TorneosProfilePage', 'ParticipantTeamRoute']);
   for (const match of shell.matchAll(/element=\{(<([A-Za-z]+)[^}]*)\}/g)) {
     const component = match[2];
     assert.ok(onPages.has(component), `route element <${component}> is neither an ON surface nor gated`);

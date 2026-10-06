@@ -204,7 +204,7 @@ describe('Participant Hub', () => {
       </MemoryRouter>,
     );
     expect(await screen.findByRole('heading', {
-      name: 'Todavía no tenés torneos vinculados',
+      name: 'Todavía no tenés torneos confirmados',
     })).toBeInTheDocument();
   });
 

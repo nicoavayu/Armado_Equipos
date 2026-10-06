@@ -64,10 +64,21 @@ import CaptainMatchSquadPage from './CaptainMatchSquadPage';
 import CompetitionCenterPage from './CompetitionCenterPage';
 import MyTournamentsPage from './MyTournamentsPage';
 import TournamentHubPage from './TournamentHubPage';
-import MyCommunicationsPage from './MyCommunicationsPage';
 import CommunicationsAdminPage from './CommunicationsAdminPage';
 import MediaAdminPage from './MediaAdminPage';
 import SocialStudioPage from './SocialStudioPage';
+import TorneosAccountMenu from './connected/TorneosAccountMenu';
+import TorneosInboxBell from './connected/TorneosInboxBell';
+import { TorneosInboxSummaryProvider } from './connected/useTorneosInboxSummary';
+import PersonalNavigation, { PERSONAL_NAVIGATION } from './connected/PersonalNavigation';
+import ExplorePage from './connected/ExplorePage';
+import CatalogCallPage from './connected/CatalogCallPage';
+import TournamentApplicationPage from './connected/TournamentApplicationPage';
+import TorneosInboxPage from './connected/TorneosInboxPage';
+import TorneosProfilePage from './connected/TorneosProfilePage';
+import ParticipantTeamRoute from './connected/ParticipantTeamRoute';
+import CatalogListingPage from './connected/CatalogListingPage';
+import ApplicationInboxPage from './connected/ApplicationInboxPage';
 import { resolveTorneosEnvironmentNotice } from '../config/environmentNotice';
 import styles from './TorneosShell.module.css';
 
@@ -337,10 +348,10 @@ function OrganizationNavigation({
   );
 }
 
-export default function TorneosShell() {
+function TorneosShellContent() {
   const location = useLocation();
   const { isKeyboardOpen } = useKeyboard();
-  const { activeOrganization } = useTorneosWorkspace();
+  const { activeOrganization, availableOrganizations } = useTorneosWorkspace();
   const features = useTorneosFeatures();
   const environmentNotice = resolveTorneosEnvironmentNotice();
   // A route whose surface is off renders the unavailable page instead of its
@@ -363,6 +374,12 @@ export default function TorneosShell() {
   const organizationRelativePath = canonicalTournamentMatch
     ? (canonicalTournamentMatch.params['*'] || '')
     : (isOrganizationRoute ? location.pathname.split('/').slice(4).join('/') : '');
+  // CONNECTED-V1: outside an organization the shell is the person's own Torneos — personal navigation, no
+  // administrative chrome. The organization switcher only exists for someone who manages one.
+  const managesOrganizations = (availableOrganizations || []).length > 0;
+  const personalSection = !isOrganizationRoute
+    ? PERSONAL_NAVIGATION.find(({ match }) => match(location.pathname))
+    : null;
   const currentNavigation = organizationNavigation.find(({ path, relatedPaths = [] }) => (
     organizationRelativePath === path
     || organizationRelativePath.startsWith(`${path}/`)
@@ -385,10 +402,18 @@ export default function TorneosShell() {
         de MainLayout. No agrega padding; en web sin inset mide 0. */}
       <div className={styles.statusBarScrim} aria-hidden="true" data-testid="torneos-status-bar-scrim" />
 
-      {showSpaceHeader && <GlobalHeader className={styles.globalHeader} />}
+      {showSpaceHeader && (
+        <GlobalHeader
+          className={styles.globalHeader}
+          accountMenu={<TorneosAccountMenu />}
+          notificationsControl={<TorneosInboxBell />}
+        />
+      )}
 
       <aside className={styles.sidebar}>
-        <WorkspaceSwitcher />
+        {(managesOrganizations || isOrganizationRoute) && <WorkspaceSwitcher />}
+
+        {!isOrganizationRoute && <PersonalNavigation />}
 
         <OrganizationNavigation
           organization={isOrganizationRoute ? activeOrganization : null}
@@ -420,17 +445,19 @@ export default function TorneosShell() {
           ) : (
             <>
               <div className={styles.pageIdentity}>
-                <span>{currentNavigation?.label || (isOrganizationRoute ? 'Organización' : 'Torneos')}</span>
+                <span>{currentNavigation?.label || (isOrganizationRoute ? 'Organización' : (personalSection?.label || 'Torneos'))}</span>
                 <strong>
-                  {activeOrganization
+                  {isOrganizationRoute && activeOrganization
                     ? `${activeOrganization.name} · ${activeOrganization.slug}`
-                    : 'Workspaces privados'}
+                    : 'Arma2 Torneos'}
                 </strong>
               </div>
 
-              <div className={styles.mobileSwitcher}>
-                <WorkspaceSwitcher />
-              </div>
+              {(managesOrganizations || isOrganizationRoute) && (
+                <div className={styles.mobileSwitcher}>
+                  <WorkspaceSwitcher />
+                </div>
+              )}
             </>
           )}
           {features.plan !== false && <div id="torneos-plan-context" className={styles.planContext} />}
@@ -531,6 +558,8 @@ export default function TorneosShell() {
                   */}
                 <Route path="equipos" element={<TeamsPage />} />
                 <Route path="equipos/nuevo" element={<NewTeamEntryPage />} />
+                <Route path="convocatoria" element={gate('catalog_management', <CatalogListingPage />)} />
+                <Route path="solicitudes" element={gate('catalog_management', <ApplicationInboxPage />)} />
                 <Route path="fixture" element={gate('fixtures', <FixtureWorkspacePage mode="overview" />)} />
                 <Route path="fixture/participantes" element={gate('fixtures', <FixtureWorkspacePage mode="participants" />)} />
                 <Route path="fixture/bombos" element={gate('fixtures', <FixtureWorkspacePage mode="pots" />)} />
@@ -621,7 +650,19 @@ export default function TorneosShell() {
             <Route path="mis-partidos/:matchId" element={gate('match_operations', <MyTournamentMatchesPage />)} />
             <Route path="mis-partidos/:matchId/convocatoria" element={gate('match_operations', <CaptainMatchSquadPage />)} />
             <Route path="mis-torneos" element={<MyTournamentsPage />} />
-            <Route path="comunicados" element={gate('communications', <MyCommunicationsPage />)} />
+            <Route path="comunicados" element={<TorneosInboxPage defaultTab="comunicados" />} />
+            <Route path="avisos" element={<TorneosInboxPage />} />
+            <Route path="perfil" element={<TorneosProfilePage />} />
+            <Route path="explorar" element={gate('tournament_catalog', <ExplorePage />)} />
+            <Route path="explorar/:publicSlug" element={gate('tournament_catalog', <CatalogCallPage />)} />
+            <Route
+              path="explorar/:publicSlug/solicitar"
+              element={gate('tournament_applications', <TournamentApplicationPage />)}
+            />
+            <Route path="mis-equipos/:organizationId/:teamEntryId" element={<ParticipantTeamRoute />}>
+              <Route index element={<TeamRegistrationPage initialTab="inscripcion" />} />
+              <Route path="plantel" element={<TeamRegistrationPage initialTab="plantel" />} />
+            </Route>
             <Route path="torneo/:tournamentId" element={gate('participant_hub', <TournamentHubPage />)} />
             <Route
               path="torneo/:tournamentId/novedades"
@@ -661,6 +702,8 @@ export default function TorneosShell() {
           </Routes>
         </main>
 
+        {!isOrganizationRoute && <PersonalNavigation mobile keyboardHidden={isKeyboardOpen} />}
+
         <OrganizationNavigation
           organization={isOrganizationRoute ? activeOrganization : null}
           mobile
@@ -677,5 +720,14 @@ export default function TorneosShell() {
         {torneosFeatureFlags.deployEnvironment}
       </span>
     </div>
+  );
+}
+
+// One Torneos inbox summary per shell: the bell, both navigation bars and the inbox read the same request.
+export default function TorneosShell() {
+  return (
+    <TorneosInboxSummaryProvider>
+      <TorneosShellContent />
+    </TorneosInboxSummaryProvider>
   );
 }

@@ -6,10 +6,11 @@
 //   anything else → a closed service that answers "not found" without any network call.
 //
 // Never the Core project for Torneos data in a hybrid or closed build.
-import { resolveTorneosBackendMode } from '../foundation/config';
+import { resolveTorneosBackendMode, resolveTorneosConnectedProduct } from '../foundation/config';
 import { createTorneosPublicTransport } from '../foundation/torneosTransport';
 import { createTorneosPublicClient } from '../foundation/torneosClient';
 import { stagingV1Features } from './stagingV1Features';
+import { catalogSearchParams } from '../api/publicCatalogService';
 
 const PUBLIC_SLUG = /^[a-z0-9](?:[a-z0-9-]{1,94}[a-z0-9])$/;
 const CATEGORY_SLUG = /^[a-z0-9](?:[a-z0-9-]{0,46}[a-z0-9])$/;
@@ -72,4 +73,52 @@ export function resolvePublicTournamentService({
   }
   if (backendMode.mode === 'legacy-local' && legacyService) return legacyService;
   return closedPublicTournamentService;
+}
+
+// CONNECTED-V1: which service Explorar torneos (the catalog and its call block) uses. Same composition rule as the
+// public page: the gateway's public route in hybrid (only with the connected opt-in), the legacy service on the LOCAL
+// stack, and a closed service (empty catalog, no call, no request) anywhere else.
+export const closedPublicCatalogService = Object.freeze({
+  mode: 'closed',
+  search: async () => ({ items: [], page: 1, pageSize: 12, total: 0, hasMore: false, sort: 'closing', scope: 'open' }),
+  loadFacets: async () => ({ localities: [], sports: [], genders: [], total: 0 }),
+  loadEntry: async () => null,
+});
+
+export function createHybridPublicCatalogService({ gatewayUrl, fetchImpl } = {}) {
+  const client = createTorneosPublicClient({
+    transport: createTorneosPublicTransport({ gatewayUrl, ...(fetchImpl ? { fetchImpl } : {}) }),
+    connected: true,
+  });
+  const execute = async (name, params, message) => {
+    try {
+      return await client.execute(name, params);
+    } catch {
+      throw new Error(message);
+    }
+  };
+  return Object.freeze({
+    mode: 'hybrid',
+    search: (filters = {}) => execute('search_tournament_catalog', catalogSearchParams(filters),
+      'No pudimos cargar las convocatorias.'),
+    loadFacets: () => execute('get_tournament_catalog_facets', {}, 'No pudimos cargar los filtros.'),
+    async loadEntry(publicSlug) {
+      if (!PUBLIC_SLUG.test(publicSlug || '')) return null;
+      return execute('get_tournament_catalog_entry', { p_public_slug: publicSlug }, 'No pudimos cargar la convocatoria.');
+    },
+  });
+}
+
+export function resolvePublicCatalogService({
+  env = process.env,
+  flags,
+  legacyService = null,
+  fetchImpl,
+} = {}) {
+  if (!flags?.torneosEnabled || !flags?.publicPages) return closedPublicCatalogService;
+  const backendMode = resolveTorneosBackendMode(env);
+  if (!resolveTorneosConnectedProduct(env, { backendMode })) return closedPublicCatalogService;
+  if (backendMode.mode === 'hybrid') return createHybridPublicCatalogService({ gatewayUrl: backendMode.gatewayUrl, fetchImpl });
+  if (backendMode.mode === 'legacy-local' && legacyService) return legacyService;
+  return closedPublicCatalogService;
 }

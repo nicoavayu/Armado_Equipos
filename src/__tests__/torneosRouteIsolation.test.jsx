@@ -179,7 +179,7 @@ describe('Arma2 Torneos route isolation', () => {
       </MemoryRouter>,
     );
 
-    expect(await screen.findByRole('heading', { name: /tu competencia/i }))
+    expect(await screen.findByRole('heading', { name: /tu próxima competencia/i }))
       .toBeInTheDocument();
     expect(screen.queryByText(/organización secreta/i)).not.toBeInTheDocument();
     expect(service.setPreference).not.toHaveBeenCalled();

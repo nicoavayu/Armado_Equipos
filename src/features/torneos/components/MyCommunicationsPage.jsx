@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useTorneosWorkspace } from '../context/TorneosWorkspaceContext';
+import { announceTorneosInboxChanged } from './connected/torneosInboxEvents';
 import styles from './TournamentCommunications.module.css';
 
 function formatDate(value) {
@@ -45,7 +46,8 @@ function priorityLabel(priority) {
   return 'Información';
 }
 
-export default function MyCommunicationsPage() {
+// `embedded`: rendered as the «Comunicados» tab of the Torneos inbox, whose header already says where you are.
+export default function MyCommunicationsPage({ embedded = false }) {
   const { service } = useTorneosWorkspace();
   const requestRef = useRef(0);
   const [filter, setFilter] = useState('all');
@@ -110,6 +112,8 @@ export default function MyCommunicationsPage() {
         announcementId: state.detail.id,
         confirm,
       });
+      // The Torneos bell counts unread communications too.
+      announceTorneosInboxChanged();
       if (filterRef.current === actionFilter) await load();
     } finally {
       if (filterRef.current === actionFilter) setBusy('');
@@ -189,14 +193,16 @@ export default function MyCommunicationsPage() {
   const items = state.data?.items || [];
   return (
     <section className={styles.communicationPanel}>
-      <header className={styles.panelHeader}>
-        <div>
-          <p className={styles.eyebrow}>Tu centro personal</p>
-          <h2>Comunicados</h2>
-          <p>Avisos oficiales de todos tus torneos, ordenados por prioridad.</p>
-        </div>
-        <Link to="/torneos/mis-torneos">Volver a Mis torneos</Link>
-      </header>
+      {!embedded && (
+        <header className={styles.panelHeader}>
+          <div>
+            <p className={styles.eyebrow}>Tu centro personal</p>
+            <h2>Comunicados</h2>
+            <p>Avisos oficiales de todos tus torneos, ordenados por prioridad.</p>
+          </div>
+          <Link to="/torneos/mis-torneos">Volver a Mis torneos</Link>
+        </header>
+      )}
       <div className={styles.sectionTabs} role="tablist" aria-label="Filtrar comunicados">
         {[
           ['all', 'Todos'],
