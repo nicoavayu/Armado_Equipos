@@ -89,7 +89,7 @@ describe('Social Studio Premium result styles', () => {
     (label) => {
       const { onSelect } = renderPicker();
       const locked = screen.getByRole('radio', { name: `${label}, disponible con Premium` });
-      expect(locked).toHaveTextContent('Premium');
+      expect(locked).toHaveTextContent(label);
       fireEvent.click(locked);
       expect(onSelect).toHaveBeenCalledWith(label.toLowerCase());
       // The locked style is previewed for real: nothing covers it.
@@ -97,12 +97,10 @@ describe('Social Studio Premium result styles', () => {
     },
   );
 
-  test('Ver Premium targets the current organization and season Plan', () => {
+  test('FREE explains the lock once, in the heading of the styles, with no second call to action', () => {
     renderPicker({ themeId: 'street' });
-    fireEvent.click(screen.getByRole('button', { name: 'Ver Premium' }));
-    expect(screen.getByTestId('location')).toHaveTextContent(
-      `/torneos/organizacion/${ORGANIZATION_ID}/temporada/${FREE_SEASON}/plan`,
-    );
+    expect(screen.getByText('Premium', { selector: 'small' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Ver Premium' })).not.toBeInTheDocument();
   });
 
   test('PREMIUM enables all five catalog themes without an explanation', () => {
@@ -167,9 +165,10 @@ describe('Social Studio Premium result styles', () => {
     expect(next).toMatchObject({ figuraFocalX: 0.25, figuraFocalY: 0.75 });
   });
 
-  test('FREE preview of a Premium theme is clearly locked outside the art', () => {
-    renderPicker({ themeId: 'heritage' });
-    expect(screen.getByText(/Vista previa del estilo Premium · Se descarga con Premium/)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Ver Premium' })).toBeInTheDocument();
+  test('PREMIUM shows no lock at all', () => {
+    renderPicker({ planState: PREMIUM_PLAN, seasonId: PREMIUM_SEASON, themeId: 'street' });
+    expect(screen.queryByText('Premium', { selector: 'small' })).not.toBeInTheDocument();
+    expect(screen.getAllByRole('radio').every((radio) => !/disponible con Premium/.test(radio.getAttribute('aria-label'))))
+      .toBe(true);
   });
 });
