@@ -1,6 +1,7 @@
 # Arma2 Torneos — producto conectado (CONNECTED-V1)
 
-Estado: implementación local + laboratorio híbrido. **Nada aplicado en remoto, nada desplegado.**
+Estado: implementación local + laboratorio híbrido + validación en simulador iOS. **Nada aplicado en remoto, nada
+desplegado.** Procedimiento de despliegue y rollback: `DEPLOY.md`. Avisos y push: `NOTIFICATIONS-AUDIT.md`.
 
 ## Base
 
@@ -29,8 +30,8 @@ torneos ni de pedir una inscripción: todo equipo entraba por el organizador.
 | Navbar / onboarding Core | no montados en `/torneos` (se conserva) | idem |
 | Core | — | sin cambios de comportamiento; una única entrada discreta «Explorar torneos» |
 | Dónde se ve el encabezado | inicio y algunas pantallas | toda pantalla autenticada de `/torneos` (centro del torneo, fotos, partidos, inscripción, solicitudes, perfil, avisos), uno solo; la página pública conserva su encabezado público con «Volver» |
-| Avisos del otro producto | — | punto rojo discreto junto al logo y en cada opción del selector, con texto accesible; nunca un segundo contador. Abrir el selector no marca nada como leído |
-| Al abrir la app | siempre el inicio del producto por defecto | el último producto y pantalla válidos de esa cuenta (preferencia local, nunca una autorización; se revalida al entrar). Gana un enlace o aviso explícito y el destino del login; sin Core en la plataforma, Torneos |
+| Avisos del otro producto | — | punto rojo chico pegado al logo, abajo a la derecha (junto al «2» de Arma2 o la «S» de Torneos, sin taparlo), y en cada opción del selector, con texto accesible; nunca un segundo contador. Abrir el selector no marca nada como leído. No es una suscripción push |
+| Al abrir la app | siempre el inicio del producto por defecto | el último producto y pantalla válidos de esa cuenta (preferencia local, nunca una autorización; se revalida al entrar; la query sólo con claves reproducibles como `?categoria=`). Gana un enlace o aviso explícito y el destino del login; sin Core en la plataforma, Torneos |
 
 `GlobalHeader` recibe una variante de espacio. En Core el componente es idéntico salvo el punto de avisos de Torneos.
 
@@ -47,7 +48,13 @@ ninguna ruta, RPC ni permiso la lee.
 - **Capitán/delegado**: lo anterior + su equipo (inscripción/plantel) en rutas
   personales `/torneos/mis-equipos/...`, no dentro del shell de la organización.
 - **Gestor**: Inicio con sus organizaciones; no exige perfil deportivo.
-- **Ambos**: conmutador «Mis torneos / Gestionar».
+- **Ambos**: conmutador «Mis torneos / Gestionar», con las dos listas separadas.
+
+La separación sale del servidor, no de filtrar en el cliente: «Mis torneos» usa
+`get_my_tournament_participations` (sólo inscripciones aprobadas donde la persona es responsable activo o jugador
+vinculado, paginado en el servidor) y «Gestionar» las organizaciones de `get_tournament_workspace_context`. Las
+solicitudes en curso tienen su propia sección («Tus solicitudes», `get_my_tournament_registrations`). El rol de capitán
+se muestra según la relación real de cada inscripción.
 
 ## Explorar torneos — tres conceptos separados
 
@@ -115,7 +122,10 @@ Explorar → ficha → «Solicitar inscripción» → categoría → equipo auto
   Un equipo ya inscripto en esa categoría no se puede elegir (índice único por torneo,
   categoría y equipo de Core). Equipo nuevo: nombre explícito; el creador sólo es capitán de
   esa inscripción, nunca miembro de la organización.
-- Importar no toca Core ni inscribe miembros: el plantel se arma a mano.
+- La solicitud usa el nombre y el escudo del equipo; **sus jugadores no se copian** y no se toca Core. La pantalla lo
+  dice antes de crearla («Siguiente paso: armar el plantel. Lo que completes queda guardado.») y, al crearla, lleva al
+  plantel, donde el estado vacío explica que cada jugador se suma con la búsqueda o sin cuenta y queda guardado. Un
+  integrante sin autoridad sobre el equipo no puede inscribirlo (se lista aparte, con «Compartir convocatoria»).
 - Enviar no da acceso privado: `get_my_tournament_memberships` y el hub exigen
   `approved`.
 - **Cupo**: lo consume una inscripción `approved`. Pendientes no. Capacidad opcional
@@ -158,6 +168,7 @@ efecto y se reemplazan por esa explicación.
 | Autoridad Core | misma base | gateway: `team_snapshot` / `directory_teams` / `my_teams` (v1.2) atestados |
 | Transporte | supabase-js | gateway; RPC autenticadas + 3 públicas (anon) |
 | Activación | siempre | `TORNEOS_CONNECTED_MODE=on` (gateway) + `REACT_APP_TORNEOS_CONNECTED_MODE=on` (build) |
+| Logos y escudos | Storage local (rutas → URL pública del bucket local) | BRANDING-V1: migración `00000000000010_branding_v1.sql`, `TORNEOS_BRANDING_MODE=on` (gateway) + `REACT_APP_TORNEOS_BRANDING_MODE=on` (subida) |
 
 Sin los dos flags, Production queda exactamente como hoy (las fronteras de encabezado
 sí aplican siempre).
@@ -176,12 +187,15 @@ sí aplican siempre).
   (sólo integra) y «QA Ex Capitanía» (fue admin y lo bajaron a integrante). `--retire-local` retira convocatorias y
   páginas QA con las RPC del organizador (el dominio no borra organizaciones). El selector `/qa/rol` suma los
   cuatro roles cuando existen; `QA_TORNEOS_REVIEW_PORT` permite una segunda revisión en paralelo.
+- **Simulador iOS**: build Debug de la rama contra el stack LOCAL; matriz y pendientes en `NOTIFICATIONS-AUDIT.md`.
 - **Híbrido** (laboratorio `integration/torneos-core-contracts`, gateway con `TORNEOS_CONNECTED_MODE=on`):
   `connected.test.mjs` (Node y Edge) y, para el navegador,
   `B04_LAB_APP_PORT=3103 node scripts/torneos-frontend/start-hybrid-lab-app.mjs --start --connected` +
   `lab-fixtures.mjs connected-call` (el organizador publica la convocatoria por el gateway, con precio por jugador y
   WhatsApp; el capitán administra «Lab Halcones», integra «Lab Vecinos» y perdió el rol en «Lab Ex Capitanía»;
-  `b04-sin-equipos@lab.test` no tiene equipos).
+  `b04-sin-equipos@lab.test` no tiene equipos). Con logos: `--connected --branding` (levanta el Storage del
+  laboratorio y aplica `0010`) + `lab-fixtures.mjs connected-branding` (el organizador sube por la ruta de objeto del
+  gateway el logo de la organización, el del torneo y el escudo de «Lab Halcones»); `branding.test.mjs` (Node y Edge).
 - **Postgres real**: `scripts/db-integration/torneos-connected-product.mjs` sobre un clon descartable
   `torneos_connected_test*`.
 
@@ -189,10 +203,21 @@ sí aplican siempre).
 
 - «Mis torneos» lista sólo participación (`get_my_tournament_participations`, paginada en el servidor): las
   organizaciones que la persona gestiona están en «Gestionar». «Tus solicitudes» son las inscripciones en curso.
-- Híbrido sin multimedia: logos y escudos no viajan (se ven iniciales), igual que la página pública.
+- **Logos y escudos en híbrido (BRANDING-V1)** sin activar el resto de la multimedia: bucket `tournament-branding`
+  **privado** en el proyecto de Torneos; lectura pública sólo de lo que ya muestra la página publicada (logo vigente del
+  torneo/organización y escudos del fixture publicado); lectura autenticada para quien puede escribir y para los
+  responsables activos de esa inscripción. El gateway firma en lote (una llamada por respuesta, URLs de 1 h) y el
+  frontend sólo convierte en imagen una URL firmada de exactamente esa ruta (registro con TTL de 50 min); nunca arma
+  URLs de storage de otro proyecto. Sin URL firmada, iniciales. La subida sigue la secuencia LOCAL (objeto → referencia →
+  borrar el anterior) y las políticas de Storage reutilizan `can_write_tournament_branding_object`.
+- En el selector de equipos de Core se ven iniciales cuando el equipo no tiene escudo (o su URL no es https: el
+  saneador de Core la descarta).
 - No existe importación de jugadores desde el equipo de Core: el plantel se arma con la búsqueda del directorio o
   jugadores sin cuenta.
-- Avisos y push entre productos: ver `NOTIFICATIONS-AUDIT.md` (lo nativo queda pendiente de dispositivo).
+- Avisos y push entre productos: ver `NOTIFICATIONS-AUDIT.md`. Torneos no pide permiso de push; con el permiso ya
+  concedido en Arma2, mantiene el registro del dispositivo de Core mientras la app está en Torneos. La cuenta puede
+  apagar los avisos externos de Arma2 desde «Mi perfil de Torneos» (preferencia de Core aplicada en el servidor, sin
+  tocar la bandeja de Torneos ni la sesión).
 - La bandeja de solicitudes muestra el nombre de Torneos vigente del responsable (fallback: el del plantel).
 - Sin push, web push ni email: sólo bandeja interna. No se ofrecen controles para canales inexistentes.
 - Sin UI de administración de plataforma: sólo la palanca `service_role` descripta arriba.
