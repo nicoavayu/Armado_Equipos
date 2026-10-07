@@ -67,6 +67,9 @@ export const NotificationProvider = ({ children }) => {
   const [currentUserId, setCurrentUserId] = useState(null);
   const [subscriptionStatus, setSubscriptionStatus] = useState(null);
   const [lastFetchAt, setLastFetchAt] = useState(null);
+  // Account whose first notifications fetch has settled (loaded or failed). Until it
+  // matches the current account, an empty list means "not loaded yet", not "nothing".
+  const [settledUserId, setSettledUserId] = useState(null);
   const [lastFetchCount, setLastFetchCount] = useState(null);
   const [lastRealtimeAt, setLastRealtimeAt] = useState(null);
   const [lastRealtimePayloadType, setLastRealtimePayloadType] = useState(null);
@@ -633,6 +636,8 @@ export const NotificationProvider = ({ children }) => {
       updateUnreadCount(dedupedVisible);
     } catch (error) {
       handleError(error, { showToast: false, onError: () => { } });
+    } finally {
+      setSettledUserId(currentUserId);
     }
   }, [currentUserId, enrichNotificationMatchStarts, filterPrematureAwardsNotifications]);
 
@@ -1415,10 +1420,11 @@ export const NotificationProvider = ({ children }) => {
     currentUserId,
     subscriptionStatus,
     lastFetchAt,
+    notificationsReady: Boolean(currentUserId) && settledUserId === currentUserId,
     lastFetchCount,
     lastRealtimeAt,
     lastRealtimePayloadType,
-  }), [notifications, scheduledNotifications, unreadCount, markAsRead, markAllAsRead, markTypeAsRead, markTeamInvitationAsHandled, createNotification, fetchNotifications, clearAllNotifications, currentUserId, subscriptionStatus, lastFetchAt, lastFetchCount, lastRealtimeAt, lastRealtimePayloadType]);
+  }), [notifications, scheduledNotifications, unreadCount, markAsRead, markAllAsRead, markTypeAsRead, markTeamInvitationAsHandled, createNotification, fetchNotifications, clearAllNotifications, currentUserId, subscriptionStatus, lastFetchAt, settledUserId, lastFetchCount, lastRealtimeAt, lastRealtimePayloadType]);
 
   return (
     <NotificationContext.Provider value={value}>

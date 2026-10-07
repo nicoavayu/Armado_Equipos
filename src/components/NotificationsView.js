@@ -119,6 +119,7 @@ const NotificationsView = () => {
     markAllAsRead,
     fetchNotifications,
     unreadCount,
+    notificationsReady = true,
   } = useNotifications();
 
 
@@ -1080,7 +1081,27 @@ const NotificationsView = () => {
           </div>
         )}
 
-        {!hasAnyNotifications ? (
+        {!hasAnyNotifications && !notificationsReady ? (
+          <div className="grid grid-cols-1 gap-3" role="status" aria-live="polite" aria-busy="true">
+            <span className="sr-only">Cargando notificaciones…</span>
+            {Array.from({ length: 3 }).map((_, index) => (
+              <div
+                key={`notification-skeleton-${index}`}
+                data-testid="notification-skeleton"
+                className="rounded-[18px] border border-[rgba(148,134,255,0.16)] bg-white/[0.035] p-4"
+              >
+                <div className="flex items-start gap-3">
+                  <div className="h-9 w-9 shrink-0 rounded-xl bg-white/[0.09] animate-pulse" />
+                  <div className="min-w-0 flex-1 pt-0.5">
+                    <div className="h-3.5 w-[62%] rounded-full bg-white/[0.12] animate-pulse" />
+                    <div className="mt-2.5 h-3 w-[88%] rounded-full bg-white/[0.07] animate-pulse" />
+                    <div className="mt-1.5 h-3 w-[46%] rounded-full bg-white/[0.07] animate-pulse" />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : !hasAnyNotifications ? (
           <div className="flex justify-center">
             <EmptyStateCard
               icon={Bell}
