@@ -50,10 +50,17 @@ const expectedCanonicalMigrations = [
   '20260914120000_torneos_core_contract_v1.sql',
   '20260915120000_torneos_core_contract_v1_1_session.sql',
   // Core security/stability review: trigger helper grants, public voting identity,
-  // notifications_ext match columns (parity with Production; see the Core report).
+  // notifications_ext match columns (parity with Production; see the Core report),
+  // organizer vote reset, private profile columns, public match reads by code, team
+  // roster identity and the survey's reported winner (parity).
   '20261010120000_core_trigger_helper_execute_grants.sql',
   '20261010121000_core_public_voting_roster_identity.sql',
   '20261010122000_core_notifications_ext_match_columns.sql',
+  '20261010123000_core_reset_votacion_score_default.sql',
+  '20261010124000_core_usuarios_private_columns.sql',
+  '20261010125000_core_public_match_reads_by_code.sql',
+  '20261010126000_core_team_roster_identity.sql',
+  '20261010127000_core_post_match_surveys_result_columns.sql',
 ];
 
 const exitWithError = (message) => {

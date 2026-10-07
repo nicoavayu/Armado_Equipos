@@ -19,6 +19,11 @@ const coreReviewMigrations = [
   '20261010120000_core_trigger_helper_execute_grants.sql',
   '20261010121000_core_public_voting_roster_identity.sql',
   '20261010122000_core_notifications_ext_match_columns.sql',
+  '20261010123000_core_reset_votacion_score_default.sql',
+  '20261010124000_core_usuarios_private_columns.sql',
+  '20261010125000_core_public_match_reads_by_code.sql',
+  '20261010126000_core_team_roster_identity.sql',
+  '20261010127000_core_post_match_surveys_result_columns.sql',
 ];
 const approvedMigrations = fs.readdirSync(path.join(repoRoot, 'supabase', 'migrations'))
   .filter((file) => file.endsWith('.sql'))
@@ -43,7 +48,7 @@ const runGuard = (cwd) => spawnSync(process.execPath, [guardPath], {
 });
 
 test('accepts the closed set including Auto-Match, contract repair and global availability', (t) => {
-  assert.equal(approvedMigrations.length, 46);
+  assert.equal(approvedMigrations.length, 51);
   for (const migration of coreReviewMigrations) assert.ok(approvedMigrations.includes(migration));
   assert.ok(approvedMigrations.includes(autoMatchMigration));
   assert.ok(approvedMigrations.includes(contractRepairMigration));
