@@ -7,7 +7,11 @@
     "id": "tournament-media",
     "public": false,
     "file_size_limit": 4194304,
-    "allowed_mime_types": ["image/jpeg", "image/png", "image/webp"]
+    "allowed_mime_types": [
+      "image/jpeg",
+      "image/png",
+      "image/webp"
+    ]
   },
   "storage_policies": [
     "tournament_media_client_update_denied",
@@ -21,16 +25,19 @@
   ],
   "functions_added": [
     "private.tournament_media_gateway_session()",
+    "public.tournament_media_thumbnail_path(text)",
     "public.can_write_tournament_media_gateway_object(text)",
     "public.can_delete_tournament_media_gateway_object(text)",
     "public.can_read_tournament_media_object(text)",
-    "public.begin_tournament_media_gallery_upload(uuid,uuid,text,bigint)",
-    "public.complete_tournament_media_gallery_upload(uuid,text,text,bigint,integer,integer,text)",
+    "public.tournament_media_storage_budget_status()",
+    "public.begin_tournament_media_gallery_upload(uuid,uuid,text,bigint,bigint)",
+    "public.complete_tournament_media_gallery_upload(uuid,text,text,bigint,integer,integer,text,bigint,integer,integer,text)",
     "public.fail_tournament_media_gallery_upload(uuid,text)",
     "public.get_tournament_media_read_targets(uuid[],text)"
   ],
   "functions_replaced": [
     "public.tournament_media_storage_contract_status()",
+    "public.tournament_media_effective_readiness()",
     "public.get_published_tournament_media(uuid,uuid,uuid,integer,integer)"
   ],
   "grants_restored": [
@@ -62,7 +69,7 @@
     "get_tournament_media_read_targets"
   ],
   "routes": {
-    "upload": "POST /torneos/media/v1/upload?gallery=<uuid>&key=<uuid> (image/jpeg|png|webp, ≤ 4194304 bytes)",
+    "upload": "POST /torneos/media/v1/upload?gallery=<uuid>&key=<uuid>[&thumb=<bytes>] (photo image/jpeg|png|webp ≤ 4194304 bytes, then its JPEG thumbnail ≤ 524288 bytes)",
     "urls": "POST /torneos/media/v1/urls {items:[{assetId,kind}]} (≤ 120 items, ≤ 60 per kind)"
   },
   "gateway_claim": "torneos_media_upload_session",
@@ -73,5 +80,20 @@
     "photographer assignment",
     "permanent erasure of a stored object (retiring = hide / revoke / archive)",
     "PROCESSOR_EXTERNAL (worker, libvips, antivirus)"
-  ]
+  ],
+  "tables_added": [
+    "public.tournament_media_storage_budget"
+  ],
+  "storage_budget_defaults": {
+    "project_max_bytes": 471859200,
+    "gallery_max_bytes": 419430400,
+    "max_inflight_uploads": 12
+  },
+  "thumbnail": {
+    "kind": "thumbnail",
+    "mime": "image/jpeg",
+    "max_edge": 640,
+    "max_bytes": 524288,
+    "path": "<uuid>/<uuid>/<uuid>/<uuid>-thumbnail.jpg"
+  }
 }

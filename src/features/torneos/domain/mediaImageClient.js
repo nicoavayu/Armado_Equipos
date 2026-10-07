@@ -24,6 +24,11 @@ import {
 } from './mediaPipeline';
 
 const JPEG_QUALITY = 0.86;
+// MEDIA-V1: the grid image that travels with each photo. 640 px covers a grid tile at 2x/3x density and the cover on a
+// phone; the gateway refuses anything larger than 640 px or 512 KiB.
+export const THUMBNAIL_MAX_EDGE = 640;
+export const THUMBNAIL_MAX_BYTES = 512 * 1024;
+const THUMBNAIL_QUALITY = 0.8;
 
 export class MediaClientError extends Error {
   constructor(code, message) {
@@ -265,7 +270,23 @@ export async function prepareUploadPayload(file, { signal, limits = MEDIA_LIMITS
       );
     }
 
-    return { mime, width, height, source };
+    // MEDIA-V1: the thumbnail is drawn from the same decoded, oriented pixels, so it is the same photo, smaller.
+    let thumbnail = null;
+    if (limits.thumbnail === true) {
+      const longest = Math.max(width, height);
+      const scale = longest <= THUMBNAIL_MAX_EDGE ? 1 : THUMBNAIL_MAX_EDGE / longest;
+      const thumbWidth = Math.max(1, Math.floor(width * scale));
+      const thumbHeight = Math.max(1, Math.floor(height * scale));
+      const canvas = drawTo(decoded, thumbWidth, thumbHeight);
+      for (let attempt = 0; attempt < 4 && !thumbnail; attempt += 1) {
+        // eslint-disable-next-line no-await-in-loop
+        const candidate = await encode(canvas, 'image/jpeg', THUMBNAIL_QUALITY - attempt * 0.08);
+        if (candidate.size <= THUMBNAIL_MAX_BYTES) thumbnail = { source: candidate, width: thumbWidth, height: thumbHeight };
+      }
+      if (!thumbnail) throw new MediaClientError('thumbnail', 'No pudimos preparar la miniatura de esta foto.');
+    }
+
+    return { mime, width, height, source, thumbnail };
   } finally {
     if (typeof decoded.close === 'function') decoded.close();
   }

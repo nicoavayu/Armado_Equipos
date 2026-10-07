@@ -1,8 +1,8 @@
 -- Rollback of 00000000000012_media_gallery_v1.sql (MEDIA-V1). Documented, never automatic; run only with an explicit GO
 -- and AFTER the gateway runs with TORNEOS_MEDIA_MODE=off and the frontend without REACT_APP_TORNEOS_MEDIA_MODE.
 --
--- What it does NOT touch, on purpose: the `tournament-media` bucket and its objects, and every gallery / asset / session
--- row. Photos are user content: removing them is a separate, explicit data decision (backend/torneos/media-v1/ACTIVATION.md
+-- What it does NOT touch, on purpose: the `tournament-media` bucket and its objects (photos and thumbnails), and every
+-- gallery / asset / variant / session row. Photos are user content: removing them is a separate, explicit data decision (backend/torneos/media-v1/ACTIVATION.md
 -- §Rollback). With the policies below gone, nothing can read or write those objects except the service role.
 -- The pipeline mode is restored by the operator step that changed it (ACTIVATION.md), not here.
 BEGIN;
@@ -23,12 +23,16 @@ revoke execute on function public.report_tournament_media_asset(uuid,text,text,b
 
 drop function if exists public.get_tournament_media_read_targets(uuid[],text);
 drop function if exists public.fail_tournament_media_gallery_upload(uuid,text);
-drop function if exists public.complete_tournament_media_gallery_upload(uuid,text,text,bigint,integer,integer,text);
-drop function if exists public.begin_tournament_media_gallery_upload(uuid,uuid,text,bigint);
+drop function if exists public.complete_tournament_media_gallery_upload(uuid,text,text,bigint,integer,integer,text,bigint,integer,integer,text);
+drop function if exists public.begin_tournament_media_gallery_upload(uuid,uuid,text,bigint,bigint);
+drop function if exists public.tournament_media_storage_budget_status();
 drop function if exists public.can_read_tournament_media_object(text);
 drop function if exists public.can_delete_tournament_media_gateway_object(text);
 drop function if exists public.can_write_tournament_media_gateway_object(text);
+drop function if exists public.tournament_media_thumbnail_path(text);
 drop function if exists private.tournament_media_gateway_session();
+-- The budget is configuration, not content: it goes with the contract that enforced it.
+drop table if exists public.tournament_media_storage_budget;
 
 -- The baseline bodies, verbatim (00000000000000_torneos_baseline_v1.sql).
 SELECT pg_catalog.set_config('search_path', '', true);
@@ -265,7 +269,8 @@ $$;
 
 DO $post$
 BEGIN
-  IF to_regprocedure('public.begin_tournament_media_gallery_upload(uuid,uuid,text,bigint)') IS NOT NULL
+  IF to_regprocedure('public.begin_tournament_media_gallery_upload(uuid,uuid,text,bigint,bigint)') IS NOT NULL
+    OR to_regclass('public.tournament_media_storage_budget') IS NOT NULL
     OR (select count(*) from pg_policies where schemaname = 'storage' and tablename = 'objects'
       and policyname like 'tournament_media_%') <> 0
     OR has_function_privilege('authenticated', 'public.transition_tournament_media_asset(uuid,text,text)', 'EXECUTE') THEN

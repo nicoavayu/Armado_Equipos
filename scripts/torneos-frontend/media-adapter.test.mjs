@@ -133,6 +133,9 @@ test('the client scope is the gateway allowlist, stays closed without media: tru
     { galleryId: GALLERY, idempotencyKey: KEY, file: { size: 0, type: 'image/jpeg' } },
     { galleryId: GALLERY, idempotencyKey: KEY, file: { size: 4 * 1024 * 1024 + 1, type: 'image/jpeg' } },
     { galleryId: GALLERY, idempotencyKey: KEY, file: { size: 10, type: 'image/heic' } },
+    { galleryId: GALLERY, idempotencyKey: KEY, file: { size: 10, type: 'image/jpeg' }, thumbnailSize: 10 },
+    { galleryId: GALLERY, idempotencyKey: KEY, file: { size: 600000, type: 'image/jpeg' }, thumbnailSize: 512 * 1024 + 1 },
+    { galleryId: GALLERY, idempotencyKey: KEY, file: { size: 10, type: 'image/jpeg' }, thumbnailSize: 1.5 },
   ]) await assert.rejects(open.mediaUpload(bad), (e) => e.code === 'TORNEOS_INVALID_REQUEST', JSON.stringify(bad));
   for (const bad of [[], [{ assetId: 'x', kind: 'grid' }], [{ assetId: ASSET, kind: 'original' }], Array.from({ length: 121 }, () => ({ assetId: ASSET, kind: 'grid' }))]) {
     await assert.rejects(open.mediaUrls(bad), (e) => e.code === 'TORNEOS_INVALID_REQUEST');
@@ -188,6 +191,10 @@ test('the transport: exact media routes, the raw photo, the bearer, and the gate
   assert.equal(upload.init.headers.Authorization, 'Bearer bridge-token');
   assert.equal(upload.init.headers['Content-Type'], 'image/jpeg');
   assert.equal(upload.init.body, photo, 'the normalized photo itself, never re-encoded or wrapped');
+  // MEDIA-V1 thumbnails: the photo then its thumbnail in one body; `thumb` says where the photo ends.
+  const withThumb = new Blob([new Uint8Array(10), new Uint8Array(4)], { type: 'image/jpeg' });
+  await transport.mediaUpload({ galleryId: GALLERY, idempotencyKey: KEY, file: withThumb, thumbnailSize: 4 });
+  assert.equal(calls.at(-1).url, `${GW}/torneos/media/v1/upload?gallery=${GALLERY}&key=${KEY}&thumb=4`);
   answer = { status: 200, body: { items: [{ assetId: ASSET, kind: 'grid', url: 'https://s.test/a' }], expiresIn: 300 } };
   same(await transport.mediaUrls([{ assetId: ASSET, kind: 'grid' }]), answer.body);
   assert.equal(calls.at(-1).url, `${GW}/torneos/media/v1/urls`);
@@ -220,6 +227,7 @@ test('what the organizer reads: quota in numbers, content in words, retries only
   assert.equal(e.message, 'Las imágenes animadas todavía no se admiten.');
   assert.equal(e.retryable, false);
   for (const [code, retryable] of [['TORNEOS_MEDIA_DUPLICATE', false], ['TORNEOS_MEDIA_UPLOAD_IN_PROGRESS', true],
+    ['TORNEOS_MEDIA_BUSY', true], ['TORNEOS_MEDIA_STORAGE_BUDGET_EXCEEDED', false],
     ['TORNEOS_MEDIA_MVP_RATE_LIMITED', true], ['TORNEOS_MEDIA_FORBIDDEN', false], ['TORNEOS_MEDIA_GALLERY_IMMUTABLE', false]]) {
     e = translateMediaUploadError(refusal(code));
     assert.equal(e.retryable, retryable, code);

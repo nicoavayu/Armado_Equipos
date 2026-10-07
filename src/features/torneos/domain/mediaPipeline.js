@@ -156,6 +156,7 @@ const CONTENT_MESSAGES = Object.freeze({
   MEDIA_ORIENTATION_NOT_NORMALIZED: 'No pudimos normalizar la orientación. Reintentá.',
   MEDIA_METADATA_PRESENT: 'No pudimos limpiar los metadatos de la foto. Reintentá.',
   MEDIA_UNKNOWN_CRITICAL_CHUNK: 'La imagen usa una función que no admitimos.',
+  MEDIA_THUMBNAIL_MISMATCH: 'No pudimos preparar la miniatura de esta foto. Reintentá.',
 });
 
 export function describeMediaPipelineError(error, code) {

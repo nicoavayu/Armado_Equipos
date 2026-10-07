@@ -160,11 +160,11 @@ test('upload: verified bytes → session with the caller\'s token → write + co
   world.replies.complete_tournament_media_gallery_upload = [200, { assetId: AST, status: 'pending_review' }];
   const bearer = token();
   const r = await upload(JPEG, { bearer });
-  assert.deepEqual([r.status, await r.json()], [201, { assetId: AST, status: 'pending_review', width: 64, height: 48 }]);
+  assert.deepEqual([r.status, await r.json()], [201, { assetId: AST, status: 'pending_review', width: 64, height: 48, thumbnail: false }]);
   const [begin, complete] = world.rest;
   assert.equal(begin.name, 'begin_tournament_media_gallery_upload');
   assert.equal(begin.authorization, `Bearer ${bearer}`, 'the caller opens its own session');
-  assert.deepEqual(begin.args, { p_gallery_id: GAL, p_idempotency_key: KEY, p_mime: 'image/jpeg', p_byte_size: JPEG.length });
+  assert.deepEqual(begin.args, { p_gallery_id: GAL, p_idempotency_key: KEY, p_mime: 'image/jpeg', p_byte_size: JPEG.length, p_thumbnail_size: null });
   const [put] = world.storage;
   assert.deepEqual([put.url, put.method, put.headers['x-upsert'], put.headers['content-type']], [`/object/tournament-media/${OBJECT}`, 'POST', 'false', 'image/jpeg']);
   assert.deepEqual(new Uint8Array(put.body), JPEG, 'exactly the verified bytes');
@@ -177,13 +177,65 @@ test('upload: verified bytes → session with the caller\'s token → write + co
   assert.equal(complete.name, 'complete_tournament_media_gallery_upload');
   assert.equal(complete.authorization, put.headers.authorization);
   assert.deepEqual(complete.args, { p_session_id: SES, p_token: 'a'.repeat(64), p_detected_mime: 'image/jpeg', p_byte_size: JPEG.length,
-    p_width: 64, p_height: 48, p_checksum_sha256: crypto.createHash('sha256').update(JPEG).digest('hex') });
+    p_width: 64, p_height: 48, p_checksum_sha256: crypto.createHash('sha256').update(JPEG).digest('hex'),
+    p_thumbnail_size: null, p_thumbnail_width: null, p_thumbnail_height: null, p_thumbnail_checksum: null });
   for (const [name, type] of [['clean-64x48.png', 'image/png'], ['clean-64x48.webp', 'image/webp']]) {
     reset();
     world.replies.begin_tournament_media_gallery_upload = [200, { ...issued(), objectName: OBJECT.replace('.jpg', type === 'image/png' ? '.png' : '.webp') }];
     world.replies.complete_tournament_media_gallery_upload = [200, { assetId: AST, status: 'pending_review' }];
     assert.equal((await upload(fixture(name), { type })).status, 201, name);
   }
+});
+
+test('thumbnail: photo then JPEG thumbnail in one body; both verified, both written under the same claim, registered at completion', async () => {
+  const THUMB_OBJECT = OBJECT.replace('.jpg', '-thumbnail.jpg');
+  world.replies.begin_tournament_media_gallery_upload = [200, { ...issued(), thumbnailObjectName: THUMB_OBJECT }];
+  world.replies.complete_tournament_media_gallery_upload = [200, { assetId: AST, status: 'pending_review', thumbnail: true }];
+  // A 64×48 thumbnail of a 64×48 photo: the same shape, within the 640 px / 512 KiB thumbnail contract.
+  const thumb = JPEG;
+  const body = new Uint8Array([...JPEG, ...thumb]);
+  const r = await upload(body, { query: `gallery=${GAL}&key=${KEY}&thumb=${thumb.length}` });
+  assert.deepEqual([r.status, (await r.json()).thumbnail], [201, true]);
+  const [begin, complete] = world.rest;
+  assert.equal(begin.args.p_thumbnail_size, thumb.length);
+  assert.deepEqual(world.storage.map((call) => [call.method, call.url, call.headers['content-type']]), [
+    ['POST', `/object/tournament-media/${OBJECT}`, 'image/jpeg'], ['POST', `/object/tournament-media/${THUMB_OBJECT}`, 'image/jpeg']]);
+  assert.equal(world.storage[0].headers.authorization, world.storage[1].headers.authorization, 'the same session claim');
+  assert.deepEqual(new Uint8Array(world.storage[1].body), thumb);
+  assert.deepEqual([complete.args.p_thumbnail_size, complete.args.p_thumbnail_width, complete.args.p_thumbnail_height],
+    [thumb.length, 64, 48]);
+  // A thumbnail that is not the same photo shape, not a JPEG, too big, or a session that does not announce it: refused.
+  reset();
+  const square = fixture('probe-8x8.jpg');
+  let refused = await upload(new Uint8Array([...JPEG, ...square]), { query: `gallery=${GAL}&key=${KEY}&thumb=${square.length}` });
+  assert.deepEqual([refused.status, (await refused.json()).code], [422, 'MEDIA_THUMBNAIL_MISMATCH']);
+  const png = fixture('clean-64x48.png');
+  refused = await upload(new Uint8Array([...JPEG, ...png]), { query: `gallery=${GAL}&key=${KEY}&thumb=${png.length}` });
+  assert.deepEqual([refused.status, (await refused.json()).code], [422, 'MEDIA_MIME_MISMATCH']);
+  assert.equal((await upload(JPEG, { query: `gallery=${GAL}&key=${KEY}&thumb=${512 * 1024 + 1}` })).status, 413);
+  assert.equal((await upload(JPEG, { query: `gallery=${GAL}&key=${KEY}&thumb=${JPEG.length}` })).status, 413, 'nothing left for the photo');
+  assert.equal(world.rest.length + world.storage.length, 0);
+  world.replies.begin_tournament_media_gallery_upload = [200, issued()];
+  assert.equal((await upload(body, { query: `gallery=${GAL}&key=${KEY}&thumb=${thumb.length}` })).status, 503,
+    'a session that does not announce the thumbnail never gets one written');
+  assert.equal(world.storage.length, 0);
+  // A thumbnail write refused by storage undoes the photo already written.
+  reset();
+  world.replies.begin_tournament_media_gallery_upload = [200, { ...issued(), thumbnailObjectName: THUMB_OBJECT }];
+  world.replies.fail_tournament_media_gallery_upload = [200, { status: 'failed' }];
+  let calls = 0;
+  const saved = globalThis.fetch;
+  globalThis.fetch = async (url, init) => {
+    if (String(url).endsWith(THUMB_OBJECT) && init.method === 'POST') { calls += 1; world.storage.push({ url: 'thumb', method: 'POST' }); return new Response('{}', { status: 400 }); }
+    return saved(url, init);
+  };
+  try {
+    refused = await upload(body, { query: `gallery=${GAL}&key=${KEY}&thumb=${thumb.length}` });
+  } finally { globalThis.fetch = saved; }
+  assert.equal(refused.status, 403);
+  assert.equal(calls, 1);
+  assert.ok(world.storage.some((call) => call.method === 'DELETE' && call.url === `/object/tournament-media/${OBJECT}`), 'the photo is undone');
+  assert.ok(world.rest.some((call) => call.name === 'fail_tournament_media_gallery_upload'));
 });
 
 test('content is refused BEFORE any session, quota or storage call: orientation, metadata, animation, fake type, size, format', async () => {
@@ -225,6 +277,8 @@ test('a retry or a double tap never makes a second photo; quota and permission r
     [{ message: 'TORNEOS_MEDIA_MVP_RATE_LIMITED', code: 'P0001' }, 400, 429],
     [{ message: 'TORNEOS_MEDIA_PIPELINE_NOT_READY', code: '55000' }, 500, 409],
     [{ message: 'TORNEOS_MEDIA_GALLERY_IMMUTABLE', code: '22023' }, 400, 409],
+    [{ message: 'TORNEOS_MEDIA_BUSY', code: 'P0001' }, 400, 429],
+    [{ message: 'TORNEOS_MEDIA_STORAGE_BUDGET_EXCEEDED', code: '22023' }, 400, 409],
   ];
   for (const [body, status, expected] of answers) {
     world.replies.begin_tournament_media_gallery_upload = [status, body];

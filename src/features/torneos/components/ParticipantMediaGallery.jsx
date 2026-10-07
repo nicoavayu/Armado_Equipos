@@ -33,9 +33,13 @@ const REPORT_REASONS = [
 ];
 
 function ProtectedImage({
-  asset, variant = 'grid', alt = '', className = '', eager = false, onExpired = null, onLoad = null,
+  asset, variant = 'grid', alt = '', className = '', eager = false, onExpired = null, onLoad = null, sizes = null,
 }) {
   const url = getMediaAssetUrl(asset, variant);
+  // MEDIA-V1: the grid loads the 640 px thumbnail; a large tile (the cover) lets the browser pick the full photo only
+  // where the screen needs it (desktop, high density) — the full photo is otherwise downloaded on opening it.
+  const srcSet = sizes && asset.gridUrl && asset.detailUrl && asset.gridUrl !== asset.detailUrl
+    ? `${asset.gridUrl} 640w, ${asset.detailUrl} ${Math.max(asset.width || 1600, 641)}w` : undefined;
   if (!url) {
     return (
       <span className={`${styles.protectedFrame} ${className}`} role="img" aria-label={alt || 'Foto protegida pendiente de entrega segura'}>
@@ -48,6 +52,8 @@ function ProtectedImage({
     <img
       className={className}
       src={url}
+      srcSet={srcSet}
+      sizes={srcSet ? sizes : undefined}
       alt={alt}
       loading={eager ? 'eager' : 'lazy'}
       decoding="async"
@@ -468,6 +474,7 @@ export default function ParticipantMediaGallery({
                     alt={cover.caption || `Portada de ${gallery.title}`}
                     eager={galleryIndex === 0}
                     onExpired={onExpired}
+                    sizes="(max-width: 760px) 100vw, 62vw"
                   />
                   <span><Camera size={16} /> Abrir galería</span>
                 </button>

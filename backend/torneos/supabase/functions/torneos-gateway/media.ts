@@ -6,8 +6,8 @@
 //   • TORNEOS_MEDIA_MODE absent, "" or "off" → nothing changes (no route, no RPC);
 //   • "on" → (1) the authenticated route gains exactly the RPCs of media-v1-rpc-allowlist.json (the baseline gallery
 //     contract: galleries, review, cover / order, publication, retiring content, reports, the participant read);
-//     (2) POST /torneos/media/v1/upload?gallery=<uuid>&key=<uuid> takes ONE normalized photo (JPEG / PNG / WebP,
-//     ≤ 4 MiB): the gateway verifies its structure with the pipeline's own verifier (media-image.ts: magic bytes,
+//     (2) POST /torneos/media/v1/upload?gallery=<uuid>&key=<uuid>[&thumb=<bytes>] takes ONE normalized photo (JPEG /
+//     PNG / WebP, ≤ 4 MiB) followed by its JPEG thumbnail (≤ 640 px, ≤ 512 KiB): the gateway verifies both structures with the pipeline's own verifier (media-image.ts: magic bytes,
 //     full container walk, no metadata carrier, orientation 1, real dimensions ≤ 1600 px / 2.56 MP), hashes it, opens
 //     or replays the session with the caller's token, writes the object and completes the session with a 120 s
 //     bridge token that carries the gateway claim for THAT session (migration 00000000000012: only that claim may
@@ -30,6 +30,9 @@ export const MEDIA_UPLOAD_ROUTE = "/torneos/media/v1/upload"
 export const MEDIA_URLS_ROUTE = "/torneos/media/v1/urls"
 export const MEDIA_MAX_BYTES = MVP_SIMPLE_MEDIA_LIMITS.maxFileBytes
 export const MEDIA_SIGNED_URL_TTL = 300
+/** The grid image that travels with each photo: a JPEG of at most 640 px and 512 KiB (MEDIA-V1 thumbnails). */
+export const MEDIA_THUMBNAIL_MAX_BYTES = 512 * 1024
+export const MEDIA_THUMBNAIL_MAX_EDGE = 640
 /** The claim only the gateway signs: the upload session a token may write and complete. */
 export const MEDIA_GATEWAY_CLAIM = "torneos_media_upload_session"
 /** Called by the gateway itself, never served on the generic route. */
@@ -177,6 +180,8 @@ function refusal(outcome: Extract<RpcOutcome, { ok: false }>): MediaResult {
     TORNEOS_MEDIA_GALLERY_IMMUTABLE: 409,
     TORNEOS_MEDIA_PIPELINE_NOT_READY: 409,
     TORNEOS_MEDIA_MVP_RATE_LIMITED: 429,
+    TORNEOS_MEDIA_BUSY: 429,
+    TORNEOS_MEDIA_STORAGE_BUDGET_EXCEEDED: 409,
     TORNEOS_MEDIA_QUOTA_EXCEEDED: 429,
     TORNEOS_AUTH_REQUIRED: 403,
     TORNEOS_MEDIA_FORBIDDEN: 403,
@@ -208,34 +213,57 @@ export async function mediaUpload(request: MediaUploadRequest, contract: MediaCo
   const params = new URLSearchParams(request.search)
   const galleryId = params.get("gallery") ?? ""
   const key = params.get("key") ?? ""
-  if ([...params.keys()].sort().join() !== "gallery,key" || !UUID.test(galleryId) || !UUID.test(key)) {
+  const thumbParam = params.get("thumb")
+  const names = [...params.keys()].sort().join()
+  if (!["gallery,key", "gallery,key,thumb"].includes(names) || !UUID.test(galleryId) || !UUID.test(key)
+    || (thumbParam !== null && !/^[1-9][0-9]{0,6}$/.test(thumbParam))) {
     return { status: 400, body: { error: "invalid arguments" } }
   }
+  const thumbBytes = thumbParam === null ? 0 : Number(thumbParam)
+  if (thumbBytes > MEDIA_THUMBNAIL_MAX_BYTES) return { status: 413, body: { error: "TORNEOS_MEDIA_TOO_LARGE" } }
   const mime = (request.contentType ?? "").split(";")[0].trim().toLowerCase()
   if (!MIME_TYPES.has(mime)) return { status: 415, body: { error: "TORNEOS_MEDIA_TYPE_UNSUPPORTED" } }
   const declared = /^[0-9]{1,8}$/.test(request.contentLength ?? "") ? Number(request.contentLength) : -1
-  if (declared <= 0 || declared > MEDIA_MAX_BYTES) return { status: 413, body: { error: "TORNEOS_MEDIA_TOO_LARGE" } }
-  const bytes = await readLimited(request.body, declared, MEDIA_MAX_BYTES, true)
-  if (!bytes) return { status: 413, body: { error: "TORNEOS_MEDIA_TOO_LARGE" } }
+  if (declared <= thumbBytes || declared - thumbBytes > MEDIA_MAX_BYTES) return { status: 413, body: { error: "TORNEOS_MEDIA_TOO_LARGE" } }
+  const raw = await readLimited(request.body, declared, MEDIA_MAX_BYTES + MEDIA_THUMBNAIL_MAX_BYTES, true)
+  if (!raw) return { status: 413, body: { error: "TORNEOS_MEDIA_TOO_LARGE" } }
+  // One body: the photo, then (when declared) its JPEG thumbnail. Both verified before anything exists.
+  const bytes = raw.subarray(0, declared - thumbBytes)
+  const thumb = thumbBytes ? raw.subarray(declared - thumbBytes) : null
 
   let inspection
+  let thumbInspection = null
   try {
     inspection = verifyNormalizedImage(bytes, mime, {
       maxFileBytes: MVP_SIMPLE_MEDIA_LIMITS.maxFileBytes,
       maxPixels: MVP_SIMPLE_MEDIA_LIMITS.maxPixels,
       maxEdge: MVP_SIMPLE_MEDIA_LIMITS.maxEdge,
     })
+    if (thumb) {
+      thumbInspection = verifyNormalizedImage(thumb, "image/jpeg", {
+        maxFileBytes: MEDIA_THUMBNAIL_MAX_BYTES, maxPixels: MEDIA_THUMBNAIL_MAX_EDGE * MEDIA_THUMBNAIL_MAX_EDGE,
+        maxEdge: MEDIA_THUMBNAIL_MAX_EDGE,
+      })
+    }
   } catch (error) {
     const code = error instanceof MediaImageError ? error.code : "MEDIA_CONTENT_CORRUPT"
     return { status: 422, body: { error: "TORNEOS_MEDIA_CONTENT_REJECTED", code } }
   }
-  if (inspection.alreadyClean !== true) {
+  if (inspection.alreadyClean !== true || (thumbInspection && thumbInspection.alreadyClean !== true)) {
     return { status: 422, body: { error: "TORNEOS_MEDIA_CONTENT_REJECTED", code: "MEDIA_METADATA_PRESENT" } }
   }
+  // The thumbnail is the same photo, smaller: same shape (±1 px of rounding), never larger than the photo.
+  if (thumbInspection && (thumbInspection.width > inspection.width || thumbInspection.height > inspection.height
+    || Math.abs(thumbInspection.width * inspection.height - thumbInspection.height * inspection.width)
+      > Math.max(inspection.width, inspection.height))) {
+    return { status: 422, body: { error: "TORNEOS_MEDIA_CONTENT_REJECTED", code: "MEDIA_THUMBNAIL_MISMATCH" } }
+  }
   const checksum = await sha256Hex(bytes)
+  const thumbChecksum = thumb ? await sha256Hex(thumb) : null
 
   const begun = await rpc(contract, deps, deps.bearer, "begin_tournament_media_gallery_upload", {
     p_gallery_id: galleryId, p_idempotency_key: key, p_mime: inspection.mime, p_byte_size: inspection.byteSize,
+    p_thumbnail_size: thumb ? thumb.length : null,
   })
   if (!begun.ok) return refusal(begun)
   const session = begun.data as Record<string, unknown> | null
@@ -245,9 +273,11 @@ export async function mediaUpload(request: MediaUploadRequest, contract: MediaCo
   const sessionId = session?.sessionId
   const token = session?.token
   const objectName = session?.objectName
+  const thumbName = session?.thumbnailObjectName ?? null
   if (session?.state !== "issued" || typeof sessionId !== "string" || !UUID.test(sessionId)
     || typeof token !== "string" || !/^[0-9a-f]{64}$/.test(token)
-    || typeof objectName !== "string" || !OBJECT_NAME.test(objectName) || objectName.split("/")[2] !== galleryId) {
+    || typeof objectName !== "string" || !OBJECT_NAME.test(objectName) || objectName.split("/")[2] !== galleryId
+    || (thumb ? thumbName !== objectName.replace(/\.(jpg|png|webp)$/, "-thumbnail.jpg") : thumbName !== null)) {
     throw new Unavailable()
   }
 
@@ -255,43 +285,61 @@ export async function mediaUpload(request: MediaUploadRequest, contract: MediaCo
   const fail = async (failureCode: string) => {
     try { await rpc(contract, deps, claim, "fail_tournament_media_gallery_upload", { p_session_id: sessionId, p_failure_code: failureCode }) } catch { /* the sweeper retires it */ }
   }
-  const target = `${contract.storageUrl}/object/${MEDIA_BUCKET}/${objectName}`
   const authorization = { authorization: `Bearer ${claim}`, ...(deps.apikey ? { apikey: deps.apikey } : {}) }
-  let stored: Response
-  try {
-    stored = await (deps.fetchImpl ?? fetch)(target, {
-      method: "POST",
-      headers: { ...authorization, "content-type": inspection.mime, "cache-control": "max-age=31536000", "x-upsert": "false" },
-      body: bytes, redirect: "error", signal: AbortSignal.timeout(15000),
-    })
-  } catch {
-    await fail("STORAGE_UNAVAILABLE")
-    throw new Unavailable()
+  const written: string[] = []
+  const undo = async () => {
+    for (const name of written) {
+      try {
+        const removed = await (deps.fetchImpl ?? fetch)(`${contract.storageUrl}/object/${MEDIA_BUCKET}/${name}`, {
+          method: "DELETE", headers: authorization, redirect: "error", signal: AbortSignal.timeout(5000) })
+        await removed.body?.cancel()
+      } catch { /* the sweeper owns orphans */ }
+    }
   }
-  await stored.body?.cancel()
-  if (stored.status !== 200) {
+  const store = async (name: string, content: Uint8Array, type: string): Promise<MediaResult | null> => {
+    let stored: Response
+    try {
+      stored = await (deps.fetchImpl ?? fetch)(`${contract.storageUrl}/object/${MEDIA_BUCKET}/${name}`, {
+        method: "POST",
+        headers: { ...authorization, "content-type": type, "cache-control": "private, max-age=31536000, immutable", "x-upsert": "false" },
+        body: content, redirect: "error", signal: AbortSignal.timeout(15000),
+      })
+    } catch {
+      await undo()
+      await fail("STORAGE_UNAVAILABLE")
+      throw new Unavailable()
+    }
+    await stored.body?.cancel()
+    if (stored.status === 200) { written.push(name); return null }
+    await undo()
     await fail(stored.status === 409 ? "OBJECT_EXISTS" : stored.status >= 500 ? "STORAGE_UNAVAILABLE" : "STORAGE_REFUSED")
     if (stored.status >= 500) throw new Unavailable()
     return { status: stored.status === 409 ? 409 : 403, body: { error: stored.status === 409 ? "TORNEOS_MEDIA_UPLOAD_IN_PROGRESS" : "TORNEOS_MEDIA_FORBIDDEN" } }
   }
+  const photoRefused = await store(objectName, bytes, inspection.mime)
+  if (photoRefused) return photoRefused
+  if (thumb && typeof thumbName === "string") {
+    const thumbRefused = await store(thumbName, thumb, "image/jpeg")
+    if (thumbRefused) return thumbRefused
+  }
 
-  // An outage here leaves the outcome unknown: the object stays, and a retry with the same key reads the truth
+  // An outage here leaves the outcome unknown: the objects stay, and a retry with the same key reads the truth
   // (`uploaded`, or a fresh session once this one expires).
   const completed = await rpc(contract, deps, claim, "complete_tournament_media_gallery_upload", {
     p_session_id: sessionId, p_token: token, p_detected_mime: inspection.mime, p_byte_size: inspection.byteSize,
     p_width: inspection.width, p_height: inspection.height, p_checksum_sha256: checksum,
+    p_thumbnail_size: thumb ? thumb.length : null, p_thumbnail_width: thumbInspection?.width ?? null,
+    p_thumbnail_height: thumbInspection?.height ?? null, p_thumbnail_checksum: thumbChecksum,
   })
   if (!completed.ok) {
-    // The photo never became an asset: undo our own write, then record why.
-    try {
-      const removed = await (deps.fetchImpl ?? fetch)(target, { method: "DELETE", headers: authorization, redirect: "error", signal: AbortSignal.timeout(5000) })
-      await removed.body?.cancel()
-    } catch { /* the sweeper owns orphans */ }
+    // The photo never became an asset: undo our own writes, then record why.
+    await undo()
     await fail(completed.code === "TORNEOS_MEDIA_DUPLICATE" ? "DUPLICATE" : "COMPLETION_REFUSED")
     return refusal(completed)
   }
   const asset = completed.data as Record<string, unknown> | null
-  return { status: 201, body: { assetId: asset?.assetId ?? null, status: asset?.status ?? "pending_review", width: inspection.width, height: inspection.height } }
+  return { status: 201, body: { assetId: asset?.assetId ?? null, status: asset?.status ?? "pending_review",
+    width: inspection.width, height: inspection.height, thumbnail: thumbInspection !== null } }
 }
 
 export type MediaUrlsRequest = { contentType: string | null; contentLength: string | null; body: Body }

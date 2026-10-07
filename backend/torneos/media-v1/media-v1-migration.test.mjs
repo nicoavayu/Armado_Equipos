@@ -11,6 +11,7 @@ const BASELINE = fs.readFileSync('backend/torneos/supabase/migrations/0000000000
 const code = (text) => text.split('\n').filter((line) => !line.trim().startsWith('--')).join('\n');
 const body = code(SQL);
 const rollback = code(ROLLBACK);
+const same = (a, b) => assert.deepEqual(JSON.parse(JSON.stringify(a)), JSON.parse(JSON.stringify(b)));
 const fnText = (text, start) => {
   const i = text.indexOf(start);
   assert.ok(i >= 0, start);
@@ -76,12 +77,15 @@ test('the gateway claim: a valid bridge identity first, a strict uuid, never cal
   for (const gate of ['session.id = private.tournament_media_gateway_session()', 'session.internal_path = p_name',
     'session.requested_by = private.current_identity_id()', "session.status = 'issued'", 'session.expires_at > now()',
     "session.processing_tier = 'mvp_simple'", 'public.tournament_media_mvp_user_can_upload(session.requested_by, session.gallery_id)',
-    'asset.internal_path = p_name']) assert.ok(write.includes(gate), gate);
+    'asset.internal_path = session.internal_path', "session.quota_snapshot ? 'thumbnailBytes'",
+    'public.tournament_media_thumbnail_path(session.internal_path) = p_name', 'variant.internal_path = p_name']) assert.ok(write.includes(gate), gate);
   const remove = fnText(SQL, 'create or replace function public.can_delete_tournament_media_gateway_object(p_name text)');
   assert.ok(remove.includes("session.status in ('issued', 'failed')") && remove.includes('session.asset_id is null'),
     'an asset is never deleted through the gateway claim');
   const read = fnText(SQL, 'create or replace function public.can_read_tournament_media_object(p_name text)');
   assert.ok(read.includes("perform public.authorize_tournament_media_read(v_identity, v_asset_id, 'detail');"), 'the baseline decides reads');
+  assert.ok(read.includes("variant.internal_path = p_name and variant.bucket = 'tournament-media' and variant.status = 'ready'"),
+    'a thumbnail is readable exactly when its photo is');
   assert.match(read, /exception when insufficient_privilege or invalid_parameter_value then\s+return false;/);
 });
 
@@ -99,6 +103,8 @@ test('gateway RPCs: completion and failure only under the claim for THAT session
   const targets = fnText(SQL, 'create or replace function public.get_tournament_media_read_targets(');
   assert.ok(targets.includes('cardinality(p_asset_ids) > 60') && targets.includes("p_kind not in ('thumbnail', 'grid', 'detail')"));
   assert.ok(targets.includes('public.authorize_tournament_media_read(v_identity, v_asset_id, p_kind)'));
+  assert.ok(targets.includes("if p_kind in ('thumbnail', 'grid') then") && targets.includes("variant.kind = 'thumbnail' and variant.status = 'ready'"),
+    'the grid reads the thumbnail; detail reads the photo');
   for (const sig of CONTRACT.functions_added.filter((s) => s.startsWith('public.'))) {
     const name = sig.slice(0, sig.indexOf('('));
     assert.match(body, new RegExp(`revoke all on function ${name.replace('.', '\\.')}\\(`), `${sig} revoked from public/anon`);
@@ -121,6 +127,33 @@ test('replaced bodies change only what they say: the readiness selection cap, th
   assert.ok(storage.includes("policy.policyname = 'tournament_media_gateway_insert' and policy.cmd = 'INSERT'"));
   assert.ok(storage.includes("policy.policyname = 'tournament_media_gateway_delete' and policy.cmd = 'DELETE'"));
   assert.ok(storage.includes('and not (policy.policyname::text = any($1))'), 'every OTHER client write still closes uploads');
+});
+
+test('storage budget and concurrency: one operator singleton, enforced before any byte under one global lock', () => {
+  assert.match(body, /create table if not exists public\.tournament_media_storage_budget \(/);
+  assert.match(body, /alter table public\.tournament_media_storage_budget enable row level security;/);
+  assert.match(body, /revoke all on table public\.tournament_media_storage_budget from public, anon, authenticated;/);
+  assert.match(body, /values \(true, 471859200, 419430400, 12\)\s+on conflict \(singleton\) do nothing;/);
+  same(CONTRACT.storage_budget_defaults, { project_max_bytes: 471859200, gallery_max_bytes: 419430400, max_inflight_uploads: 12 });
+  const status = fnText(SQL, 'create or replace function public.tournament_media_storage_budget_status()');
+  for (const part of ["(object.metadata->>'size')::bigint", "object.bucket_id = 'tournament-media'", "object.bucket_id = 'tournament-branding'",
+    "coalesce((session.quota_snapshot->>'thumbnailBytes')::bigint, 0)"]) assert.ok(status.includes(part), part);
+  assert.match(body, /revoke all on function public\.tournament_media_storage_budget_status\(\) from public, anon, authenticated;/);
+  const begin = fnText(SQL, 'create or replace function public.begin_tournament_media_gallery_upload(');
+  const lock = begin.indexOf("hashtextextended('tournament-media:storage-budget', 0)");
+  assert.ok(lock > 0 && lock < begin.indexOf('public.request_tournament_media_upload_session('), 'budget decided before the session exists');
+  for (const code of ['TORNEOS_MEDIA_BUSY', 'TORNEOS_MEDIA_STORAGE_BUDGET_EXCEEDED']) assert.ok(begin.includes(code), code);
+  assert.ok(begin.includes("> (v_budget->>'projectMaxBytes')::bigint") && begin.includes("> (v_budget->>'galleryMaxBytes')::bigint"));
+  assert.ok(begin.indexOf("'state', 'uploaded'") < lock, 'a replay of an uploaded photo never needs budget');
+});
+
+test('thumbnails: a JPEG variant of the same photo, declared at begin, verified in the bucket at completion', () => {
+  const complete = fnText(SQL, 'create or replace function public.complete_tournament_media_gallery_upload(');
+  for (const part of ['(v_declared is null) <> (p_thumbnail_size is null)', 'p_thumbnail_size <> v_declared',
+    'p_thumbnail_width not between 1 and 640', 'abs(p_thumbnail_width::bigint * p_height - p_thumbnail_height::bigint * p_width) > greatest(p_width, p_height)',
+    "object.name = v_thumbnail_path", "'thumbnail', v_thumbnail_path,\n      'image/jpeg'"]) assert.ok(complete.includes(part.replace('\\n', '\n')), part);
+  const path = fnText(SQL, 'create or replace function public.tournament_media_thumbnail_path(p_internal_path text)');
+  assert.ok(path.includes("'-thumbnail.jpg'") && path.includes('immutable'));
 });
 
 test('retiring content: the three moderation / lifecycle / report RPCs regain authenticated, nothing else is re-exposed', () => {

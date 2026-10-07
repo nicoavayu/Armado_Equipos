@@ -146,6 +146,8 @@ export const MEDIA_UPLOAD_MESSAGES = Object.freeze({
   TORNEOS_MEDIA_PIPELINE_NOT_READY: ['La carga de fotos no está disponible en este momento.', false],
   TORNEOS_MEDIA_MVP_RATE_LIMITED: ['Subiste muchas fotos seguidas. Esperá unos minutos y reintentá.', true],
   TORNEOS_MEDIA_QUOTA_EXCEEDED: ['Hay muchas fotos subiéndose a la vez. Esperá a que terminen y reintentá.', true],
+  TORNEOS_MEDIA_BUSY: ['Hay muchas fotos subiéndose ahora en Arma2 Torneos. Reintentá en unos segundos.', true],
+  TORNEOS_MEDIA_STORAGE_BUDGET_EXCEEDED: ['El espacio para fotos está completo por ahora. Retirá fotos que no uses o escribinos.', false],
   TORNEOS_MEDIA_TOO_LARGE: ['La foto supera los 4 MB incluso optimizada. Probá con otra.', false],
   TORNEOS_MEDIA_TYPE_UNSUPPORTED: ['Formato no admitido. Usá JPEG, PNG o WebP.', false],
   TORNEOS_MEDIA_FILE_INVALID: ['No pudimos verificar esta imagen. Probá con otro archivo.', false],
@@ -172,7 +174,7 @@ export function translateMediaUploadError(error) {
   }
   if (error instanceof MediaClientError) {
     return new MediaUploadError(error.message, {
-      code: error.code, retryable: !['mime', 'dimensions', 'size', 'canvas_unavailable', 'decode_failed', 'decode_unsupported', 'encode_unsupported'].includes(error.code), cause: error,
+      code: error.code, retryable: !['mime', 'dimensions', 'size', 'thumbnail', 'canvas_unavailable', 'decode_failed', 'decode_unsupported', 'encode_unsupported'].includes(error.code), cause: error,
     });
   }
   if (isTorneosBoundaryError(error)) {
@@ -640,11 +642,14 @@ export function createStagingV1WorkspaceService({
     }) => {
       try {
         onStage('preparing');
-        const payload = await prepareUploadPayload(file, { signal, limits });
+        const payload = await prepareUploadPayload(file, { signal, limits: { ...limits, thumbnail: true } });
         if (signal?.aborted) throw new MediaUploadError('Carga cancelada.', { code: 'cancelled' });
-        const upload = new Blob([payload.source], { type: payload.mime });
+        // One request: the photo, then its grid thumbnail. The gateway verifies both and stores both, or neither.
+        const upload = new Blob([payload.source, payload.thumbnail.source], { type: payload.mime });
         onStage('uploading');
-        const result = await client.mediaUpload({ galleryId, idempotencyKey, file: upload }, {
+        const result = await client.mediaUpload({
+          galleryId, idempotencyKey, file: upload, thumbnailSize: payload.thumbnail.source.size,
+        }, {
           signal,
           onProgress: (fraction) => {
             onProgress(Math.min(0.97, fraction));
@@ -658,7 +663,8 @@ export function createStagingV1WorkspaceService({
           replayed: result?.replayed === true,
           width: payload.width ?? null,
           height: payload.height ?? null,
-          byteSize: upload.size,
+          byteSize: payload.source.size,
+          thumbnailBytes: payload.thumbnail.source.size,
         };
       } catch (error) {
         throw translateMediaUploadError(error);

@@ -39,5 +39,6 @@ export const MEDIA_UPLOAD_ROUTE = '/torneos/media/v1/upload';
 export const MEDIA_URLS_ROUTE = '/torneos/media/v1/urls';
 export const MEDIA_UPLOAD_TYPES = Object.freeze(['image/jpeg', 'image/png', 'image/webp']);
 export const MEDIA_UPLOAD_MAX_BYTES = 4 * 1024 * 1024;
+export const MEDIA_THUMBNAIL_MAX_BYTES = 512 * 1024;
 export const MEDIA_READ_KINDS = Object.freeze(['thumbnail', 'grid', 'detail']);
 export const MEDIA_URLS_MAX_ITEMS = 120;

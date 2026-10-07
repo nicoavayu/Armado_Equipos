@@ -1,5 +1,5 @@
 {
-  "generatedFrom": "565182b9b16e21b3ab0e5131bfa281029bfd540e",
+  "generatedFrom": "24cf615fd1c049eb023877c669f3d55eb71c70c4",
   "legacyBase": "2058da039a2a5eaaed22d87d01946bc596ae5f50",
   "coreSingletonSha256": "f39572e4cab0fd287bd1dea2ca87c97bd5500d0eff57cb8de6160f1e3271600c",
   "reachableCallSignatures": {
@@ -3458,7 +3458,7 @@
     },
     {
       "file": "src/features/torneos/foundation/torneosTransport.js",
-      "line": 448,
+      "line": 450,
       "kind": "transport",
       "callee": "window.fetch",
       "targets": [],
@@ -3467,7 +3467,7 @@
     },
     {
       "file": "src/features/torneos/foundation/torneosTransport.js",
-      "line": 464,
+      "line": 466,
       "kind": "transport",
       "callee": "fetchImpl",
       "targets": [],

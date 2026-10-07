@@ -4,7 +4,7 @@ import { isOfficializationV1Operation } from './officializationV1Scope';
 import { isSocialV1Operation } from './socialV1Scope';
 import { isConnectedV1Operation, isConnectedV1PublicOperation } from './connectedV1Scope';
 import { BRANDING_OBJECT_PATH, isBrandingV1Operation, isBrandingV1PublicOperation } from './brandingV1Scope';
-import { isMediaV1Operation, MEDIA_READ_KINDS, MEDIA_UPLOAD_MAX_BYTES, MEDIA_UPLOAD_TYPES, MEDIA_URLS_MAX_ITEMS } from './mediaV1Scope';
+import { isMediaV1Operation, MEDIA_READ_KINDS, MEDIA_THUMBNAIL_MAX_BYTES, MEDIA_UPLOAD_MAX_BYTES, MEDIA_UPLOAD_TYPES, MEDIA_URLS_MAX_ITEMS } from './mediaV1Scope';
 import { isStagingV1Table } from './stagingV1Tables';
 import { isStagingV1CommerceRead, SEASON_CHECKOUT_PATH } from './stagingV1CommerceScope';
 import { TorneosBoundaryError } from './errors';
@@ -88,16 +88,19 @@ export function createTorneosClient({
       return transport.brandingObject(method, path, file, options);
     },
     // MEDIA-V1: one normalized photo to a gallery (the gateway verifies, stores and registers it), with real byte progress.
-    async mediaUpload({ galleryId, idempotencyKey, file }, options = {}) {
+    // `file` is the photo followed by its JPEG thumbnail; `thumbnailSize` says where the photo ends (0 = no thumbnail).
+    async mediaUpload({ galleryId, idempotencyKey, file, thumbnailSize = 0 }, options = {}) {
       if (media !== true) throw new TorneosBoundaryError('TORNEOS_OUTSIDE_STAGING_V1');
       if (!UUID.test(String(galleryId)) || !UUID.test(String(idempotencyKey)) || !file || typeof file.size !== 'number'
-        || file.size <= 0 || file.size > MEDIA_UPLOAD_MAX_BYTES || !MEDIA_UPLOAD_TYPES.includes(file.type)) {
+        || !Number.isInteger(thumbnailSize) || thumbnailSize < 0 || thumbnailSize > MEDIA_THUMBNAIL_MAX_BYTES
+        || file.size - thumbnailSize <= 0 || file.size - thumbnailSize > MEDIA_UPLOAD_MAX_BYTES
+        || !MEDIA_UPLOAD_TYPES.includes(file.type)) {
         throw new TorneosBoundaryError('TORNEOS_INVALID_REQUEST');
       }
       if (!connected || typeof transport.mediaUpload !== 'function') {
         throw new TorneosBoundaryError('TORNEOS_TRANSPORT_NOT_CONNECTED');
       }
-      return transport.mediaUpload({ galleryId, idempotencyKey, file }, options);
+      return transport.mediaUpload({ galleryId, idempotencyKey, file, thumbnailSize }, options);
     },
     // MEDIA-V1: short-lived read URLs for the assets the caller may see.
     async mediaUrls(items, options = {}) {

@@ -420,8 +420,10 @@ export function createTorneosTransport({
     },
     // MEDIA-V1: the client validated ids, type and size. A functional refusal (422 content, 409 duplicate / in
     // progress, 422 season quota) keeps the gateway's code on the error (gatewayError) and its numbers (detail).
-    async mediaUpload({ galleryId, idempotencyKey, file }, { signal, onProgress } = {}) {
-      const query = new URLSearchParams({ gallery: galleryId, key: idempotencyKey }).toString();
+    async mediaUpload({ galleryId, idempotencyKey, file, thumbnailSize = 0 }, { signal, onProgress } = {}) {
+      const query = new URLSearchParams({
+        gallery: galleryId, key: idempotencyKey, ...(thumbnailSize > 0 ? { thumb: String(thumbnailSize) } : {}),
+      }).toString();
       const { json, status } = await send('POST', `${MEDIA_UPLOAD_ROUTE}?${query}`, {
         rawBody: file, headers: { 'Content-Type': file.type }, signal, timeoutMs: MEDIA_UPLOAD_TIMEOUT_MS,
         onUploadProgress: typeof onProgress === 'function' ? onProgress : () => {},

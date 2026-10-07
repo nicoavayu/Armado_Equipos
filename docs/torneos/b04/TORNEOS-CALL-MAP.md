@@ -1,6 +1,6 @@
 # TORNEOS-CALL-MAP — auditoría B04
 
-Inventario legacy congelado en `2058da039a2a5eaaed22d87d01946bc596ae5f50` (Phase 2D); árbol integrado auditado en `565182b9b16e21b3ab0e5131bfa281029bfd540e`. Reconstruido del código. No representa resultados de R2/R3/R4/R5.
+Inventario legacy congelado en `2058da039a2a5eaaed22d87d01946bc596ae5f50` (Phase 2D); árbol integrado auditado en `24cf615fd1c049eb023877c669f3d55eb71c70c4`. Reconstruido del código. No representa resultados de R2/R3/R4/R5.
 
 180 sitios RPC legacy; 179 nombres distintos; 108 nombres dentro de scope; 71 fuera. La selección dinámica de `changeTournamentMatchPlan` se resuelve a sus tres nombres literales. No quedan RPC dinámicas sin resolver.
 
@@ -237,8 +237,8 @@ Los únicos sitios fuera del inventario legacy. El transporte habla sólo con el
 | transport | `window.fetch` | [src/features/torneos/foundation/torneosTransport.js:171](../../../src/features/torneos/foundation/torneosTransport.js#L171) |
 | transport | `fetchImpl` | [src/features/torneos/foundation/torneosTransport.js:224](../../../src/features/torneos/foundation/torneosTransport.js#L224) |
 | transport | `fetchImpl` | [src/features/torneos/foundation/torneosTransport.js:321](../../../src/features/torneos/foundation/torneosTransport.js#L321) |
-| transport | `window.fetch` | [src/features/torneos/foundation/torneosTransport.js:448](../../../src/features/torneos/foundation/torneosTransport.js#L448) |
-| transport | `fetchImpl` | [src/features/torneos/foundation/torneosTransport.js:464](../../../src/features/torneos/foundation/torneosTransport.js#L464) |
+| transport | `window.fetch` | [src/features/torneos/foundation/torneosTransport.js:450](../../../src/features/torneos/foundation/torneosTransport.js#L450) |
+| transport | `fetchImpl` | [src/features/torneos/foundation/torneosTransport.js:466](../../../src/features/torneos/foundation/torneosTransport.js#L466) |
 | auth | `client.auth.getSession` | [src/features/torneos/stagingV1/coreSessionBridge.js:21](../../../src/features/torneos/stagingV1/coreSessionBridge.js#L21) |
 | auth | `client.auth.onAuthStateChange` | [src/features/torneos/stagingV1/coreSessionBridge.js:32](../../../src/features/torneos/stagingV1/coreSessionBridge.js#L32) |
 
