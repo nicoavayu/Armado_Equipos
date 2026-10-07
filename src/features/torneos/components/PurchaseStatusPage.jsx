@@ -143,8 +143,8 @@ export default function PurchaseStatusPage({ view }) {
     const key = `${state.purchase.id}:${state.purchase.status}:${state.plan}`;
     if (notifiedRef.current === key) return;
     notifiedRef.current = key;
-    notifyPlanChanged({ organizationId, seasonId: state.purchase.seasonId, plan: state.plan });
-  }, [entitlementsAuthority, organizationId, state.plan, state.purchase, state.status]);
+    notifyPlanChanged({ organizationId, seasonId: state.purchase.seasonId || seasonId, plan: state.plan });
+  }, [entitlementsAuthority, organizationId, seasonId, state.plan, state.purchase, state.status]);
   const consultAgain = () => { pollsRef.current = 0; setPollingStopped(false); refresh({ reconcile: true }); };
 
   const canonicalView = useMemo(() => {
@@ -170,7 +170,7 @@ export default function PurchaseStatusPage({ view }) {
   if (canonicalView && canonicalView !== view) {
     return <Navigate to={routeForStatus(
       organizationId,
-      state.purchase.seasonId,
+      state.purchase.seasonId || seasonId,
       purchaseId,
       state.purchase.status,
     )} replace />;
@@ -255,7 +255,7 @@ export default function PurchaseStatusPage({ view }) {
           </p>
         )}
         <div className={styles.actions}>
-          <Link to={canonicalRoutes.seasonPlan(organizationId, state.purchase.seasonId)}>Volver a Mi plan</Link>
+          <Link to={canonicalRoutes.seasonPlan(organizationId, state.purchase.seasonId || seasonId)}>Volver a Mi plan</Link>
           <button type="button" onClick={consultAgain}><RefreshCw size={16} /> {canReconcile ? 'Consultar de nuevo' : 'Actualizar'}</button>
         </div>
         <small><ShieldCheck size={14} /> Premium se activa sólo cuando Mercado Pago confirma el pago.</small>
