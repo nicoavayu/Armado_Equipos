@@ -1293,7 +1293,7 @@ export default function ArmarEquiposView({
         <ConfirmModal
           isOpen={confirmConfig.open && confirmConfig.action === 'reset'}
           title={'Resetear votación'}
-          message={'Esta acción borra todos los votos del partido y vuelve la votación a cero. No se puede deshacer.'}
+          message={'Se borran todos los votos (de la app y del link), quiénes ya votaron y los equipos armados. Todos pueden volver a votar con el mismo link, y los jugadores con cuenta reciben otra vez el aviso. No se puede deshacer.'}
           onConfirm={() => {
             setConfirmConfig({ open: false, action: null });
             handleResetVotacion();

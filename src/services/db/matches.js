@@ -1491,7 +1491,10 @@ export const resetVotacion = async (partidoId) => {
 
     logger.log('✅ SUPABASE: Partido estado reset to "votacion"');
 
-    // Verificar que no queden votos colgando
+    // Verificar que no queden votos colgando. Sin la RPC, RLS convierte los deletes de
+    // votos ajenos en no-ops silenciosos: si quedan votos, el reset no ocurrió y no se
+    // puede mostrar "Votación reseteada".
+    let remainingVotes = 0;
     try {
       const { data: remaining, error: remainingError } = await supabase
         .from('votos')
@@ -1500,11 +1503,15 @@ export const resetVotacion = async (partidoId) => {
 
       if (remainingError) {
         logger.warn('⚠️ SUPABASE: No se pudo verificar votos restantes', remainingError);
-      } else if (remaining && remaining.length > 0) {
-        logger.warn('⚠️ SUPABASE: Quedaron votos sin borrar después de reset', remaining.length);
+      } else {
+        remainingVotes = remaining?.length || 0;
       }
     } catch (verifyError) {
       logger.warn('⚠️ SUPABASE: Error verificando votos restantes', verifyError);
+    }
+    if (remainingVotes > 0) {
+      logger.warn('⚠️ SUPABASE: Quedaron votos sin borrar después de reset', remainingVotes);
+      throw new Error('No se pudo resetear la votación: los votos siguen guardados. Intentá de nuevo.');
     }
 
     let rebuiltNotificationCount = 0;

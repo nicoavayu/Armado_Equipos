@@ -620,7 +620,7 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
         <ConfirmModal
           isOpen={showResetConfirm}
           title="Resetear votación"
-          message="Se borran los votos y los equipos anteriores. Después podrás volver a armar con el plantel actual. ¿Querés continuar?"
+          message="Se borran todos los votos (de la app y del link), quiénes ya votaron y los equipos armados. Todos pueden volver a votar con el mismo link, y los jugadores con cuenta reciben otra vez el aviso. No se puede deshacer."
           confirmText={resetting ? 'Reseteando…' : 'Resetear'}
           cancelText="Cancelar"
           danger
@@ -1728,7 +1728,7 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
       <ConfirmModal
         isOpen={showResetConfirm}
         title="Resetear votación"
-        message="Se borran los votos y los equipos armados, y el partido vuelve al estado de votación para volver a armar. ¿Querés continuar?"
+        message="Se borran todos los votos (de la app y del link), quiénes ya votaron y los equipos armados. Todos pueden volver a votar con el mismo link, y los jugadores con cuenta reciben otra vez el aviso. No se puede deshacer."
         confirmText={resetting ? 'Reseteando…' : 'Resetear'}
         cancelText="Cancelar"
         danger
