@@ -149,6 +149,17 @@ describe('MEDIA-V1 · organizer', () => {
     await waitFor(() => expect(mockContextService.loadSeasonMediaUsage.mock.calls.length).toBeGreaterThan(1));
   });
 
+  test('a season-scoped admin refused the organization-wide view opens the active tournament instead of an error', async () => {
+    mockCompetition = { ...mockCompetition, activeTournament: { id: 'tournament-a', seasonId: 'season-a' } };
+    const forbidden = Object.assign(new Error('La galería no está disponible o no tenés permiso para esa acción.'), { code: 'TORNEOS_MEDIA_FORBIDDEN' });
+    mockContextService.loadMediaAdminContext = jest.fn(({ tournamentId }) => (tournamentId
+      ? Promise.resolve(adminPayload()) : Promise.reject(forbidden)));
+    renderAdmin();
+    expect(await screen.findByRole('heading', { name: 'Fecha 1' })).toBeInTheDocument();
+    expect(mockContextService.loadMediaAdminContext).toHaveBeenLastCalledWith(expect.objectContaining({ tournamentId: 'tournament-a' }));
+    expect(screen.queryByText('No pudimos abrir Multimedia')).not.toBeInTheDocument();
+  });
+
   test('published photos can be retired and restored, never erased, in the hybrid composition', async () => {
     mockContextService = hybridService(adminPayload({
       status: 'published', coverAssetId: 'asset-a', assets: [asset('asset-a'), asset('asset-b', { sortOrder: 1, status: 'hidden' })],

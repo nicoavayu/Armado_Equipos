@@ -144,6 +144,103 @@ export async function loginUrl(role, appOrigin = process.env.MEDIA_LAB_APP_ORIGI
 }
 
 const steps = { setup };
+// ─────────────────────────────────────────────────────────────────────────────── certification steps
+const CLEAN = process.env.MEDIA_LAB_CLEAN;
+const STORAGE_PUBLIC = 'http://127.0.0.1:58445';
+const out = (entry) => console.log(JSON.stringify(entry));
+const photo = (i) => fs.readFileSync(path.join(CLEAN, `p${String(i).padStart(2, '0')}.jpg`));
+const thumbOf = (i) => fs.readFileSync(path.join(CLEAN, `t${String(i).padStart(2, '0')}.jpg`));
+export async function upload(role, galleryId, i, { idempotencyKey = key(), withThumb = true } = {}) {
+  const body = withThumb ? Buffer.concat([photo(i), thumbOf(i)]) : photo(i);
+  const search = `?gallery=${galleryId}&key=${idempotencyKey}${withThumb ? `&thumb=${thumbOf(i).length}` : ''}`;
+  return media(role, 'upload', { body, search, headers: { 'content-type': 'image/jpeg' } });
+}
+async function urls(role, ids, kind = 'detail') {
+  return media(role, 'urls', { body: JSON.stringify({ items: ids.map((assetId) => ({ assetId, kind })) }), headers: { 'content-type': 'application/json' } });
+}
+async function gallery(role, organizationId, tournamentId, title, visibility = 'tournament_participants') {
+  return (await rpc(role, 'create_tournament_media_gallery', { p_organization_id: organizationId, p_tournament_id: tournamentId, p_category_id: null, p_round_id: null, p_match_id: null, p_title: title, p_description: '', p_visibility: visibility, p_idempotency_key: key() })).json;
+}
+async function publishedIds(role) {
+  const pub = (await rpc(role, 'get_published_tournament_media', { p_tournament_id: state.tournamentId, p_category_id: null, p_match_id: null, p_limit: 50, p_offset: 0 })).json;
+  return pub.items.flatMap((g) => g.assets.map((a) => a.id));
+}
+const status = (r) => `${r.status}${r.json?.error ? ` ${r.json.error}` : ''}${r.json?.message ? ` ${r.json.message}` : ''}`;
+
+steps.matrix = async () => {
+  const ids = await publishedIds('owner');
+  const draft = await gallery('owner', state.organizationId, state.tournamentId, 'Borrador matriz');
+  state.matrixGallery = draft; save();
+  const rows = [];
+  const row = (actor, action, result) => { rows.push({ actor, action, result }); };
+  row('owner', 'upload to own draft', status(await upload('owner', draft, 30)));
+  row('admin (season assigned)', 'admin context', (await rpc('admin', 'get_tournament_media_admin_context', { p_organization_id: state.organizationId, p_tournament_id: null, p_status: null, p_limit: 30, p_offset: 0 }, { expect: null })).status);
+  row('admin (season assigned)', 'upload to org draft', status(await upload('admin', draft, 31)));
+  row('captain (participant)', 'published galleries of his tournament', (await rpc('captain', 'get_published_tournament_media', { p_tournament_id: state.tournamentId, p_category_id: null, p_match_id: null, p_limit: 50, p_offset: 0 }, { expect: null })).json?.items?.length ?? 'refused');
+  row('captain (participant)', 'detail URLs of published photos', `${(await urls('captain', ids)).json?.items?.length} of ${ids.length}`);
+  row('captain (participant)', 'admin context', (await rpc('captain', 'get_tournament_media_admin_context', { p_organization_id: state.organizationId, p_tournament_id: null, p_status: null, p_limit: 30, p_offset: 0 }, { expect: null })).status);
+  row('captain (participant)', 'upload to org draft', status(await upload('captain', draft, 32)));
+  row('captain (participant)', 'create a gallery', (await rpc('captain', 'create_tournament_media_gallery', { p_organization_id: state.organizationId, p_tournament_id: state.tournamentId, p_category_id: null, p_round_id: null, p_match_id: null, p_title: 'intruso', p_description: '', p_visibility: 'tournament_participants', p_idempotency_key: key() }, { expect: null })).status);
+  row('captain (participant)', 'hide a published photo', (await rpc('captain', 'transition_tournament_media_asset', { p_asset_id: ids[0], p_action: 'hide', p_reason: 'intruso' }, { expect: null })).status);
+  row('outsider (authenticated, no relation)', 'published galleries', (await rpc('outsider', 'get_published_tournament_media', { p_tournament_id: state.tournamentId, p_category_id: null, p_match_id: null, p_limit: 50, p_offset: 0 }, { expect: null })).status);
+  row('outsider (authenticated, no relation)', 'detail URLs by asset id', `${(await urls('outsider', ids)).json?.items?.length} of ${ids.length}`);
+  row('outsider (authenticated, no relation)', 'thumbnail URLs by asset id', `${(await urls('outsider', ids, 'thumbnail')).json?.items?.length} of ${ids.length}`);
+  row('other org owner', 'admin context of Lab Galería', (await rpc('other', 'get_tournament_media_admin_context', { p_organization_id: state.organizationId, p_tournament_id: null, p_status: null, p_limit: 30, p_offset: 0 }, { expect: null })).status);
+  row('other org owner', 'detail URLs of Lab Galería photos', `${(await urls('other', ids)).json?.items?.length} of ${ids.length}`);
+  row('other org owner', 'upload to a Lab Galería gallery id', status(await upload('other', draft, 33)));
+  row('other org owner', 'create gallery in Lab Galería', (await rpc('other', 'create_tournament_media_gallery', { p_organization_id: state.organizationId, p_tournament_id: state.tournamentId, p_category_id: null, p_round_id: null, p_match_id: null, p_title: 'ajena', p_description: '', p_visibility: 'tournament_participants', p_idempotency_key: key() }, { expect: null })).status);
+  row('other org owner', 'publish a Lab Galería gallery', (await rpc('other', 'publish_tournament_media_gallery', { p_gallery_id: draft }, { expect: null })).status);
+  row('other org owner', 'hide a Lab Galería photo', (await rpc('other', 'transition_tournament_media_asset', { p_asset_id: ids[0], p_action: 'hide', p_reason: 'ajena' }, { expect: null })).status);
+  row('visitor (no session)', 'upload route', (await media(null, 'upload', { body: photo(34), search: `?gallery=${draft}&key=${key()}`, headers: { 'content-type': 'image/jpeg' } })).status);
+  row('visitor (no session)', 'urls route', (await media(null, 'urls', { body: JSON.stringify({ items: [{ assetId: ids[0], kind: 'detail' }] }), headers: { 'content-type': 'application/json' } })).status);
+  row('visitor (no session)', 'published galleries via the public route', (await fetch(`${GATEWAY}/torneos/public/v1/rpc/get_published_tournament_media`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ p_tournament_id: state.tournamentId }) })).status);
+  const anyUrl = (await urls('owner', ids)).json.items[0].url;
+  const objectPath = new URL(anyUrl).pathname.replace('/object/sign/', '');
+  row('visitor (no session)', 'storage public URL of a real object', (await fetch(`${STORAGE_PUBLIC}/object/public/${objectPath}`)).status);
+  row('visitor (no session)', 'storage authenticated URL without token', (await fetch(`${STORAGE_PUBLIC}/object/authenticated/${objectPath}`)).status);
+  row('visitor (no session)', 'signed URL with a tampered token', (await fetch(anyUrl.replace(/token=.{6}/, 'token=xxxxxx'))).status);
+  row('captain (participant)', 'own bridge token straight to storage (write)', (await fetch(`${STORAGE_PUBLIC}/object/tournament-media/${state.organizationId}/${state.tournamentId}/${draft}/${crypto.randomUUID()}.jpg`, { method: 'POST', headers: { authorization: `Bearer ${await token('owner')}`, 'content-type': 'image/jpeg' }, body: photo(35) })).status);
+  row('captain (participant)', 'kind=original', (await urls('captain', ids.slice(0, 1), 'original')).status);
+  for (const entry of rows) out({ step: 'matrix', ...entry });
+};
+
+steps['retire-url'] = async () => {
+  const ids = await publishedIds('owner');
+  const target = ids[ids.length - 1];
+  const issued = (await urls('captain', [target])).json.items[0].url;
+  const t0 = Date.now();
+  const at = () => `${Math.round((Date.now() - t0) / 1000)} s`;
+  out({ step: 'retire-url', at: at(), event: 'URL issued to the participant', get: (await fetch(issued)).status });
+  await rpc('owner', 'transition_tournament_media_asset', { p_asset_id: target, p_action: 'hide', p_reason: 'Retiro de laboratorio' });
+  out({ step: 'retire-url', at: at(), event: 'photo retired (hide)', oldUrlGet: (await fetch(issued)).status,
+    newUrlsForParticipant: (await urls('captain', [target])).json.items.length, stillListed: (await publishedIds('captain')).includes(target),
+    ownerCanStillSee: (await urls('owner', [target])).json.items.length });
+  for (const wait of [60, 120, 240, 300, 310]) {
+    await new Promise((resolve) => { setTimeout(resolve, Math.max(0, wait * 1000 - (Date.now() - t0))); });
+    out({ step: 'retire-url', at: at(), event: 'old URL after retiring', get: (await fetch(issued)).status });
+  }
+  await rpc('owner', 'transition_tournament_media_asset', { p_asset_id: target, p_action: 'restore', p_reason: null });
+  out({ step: 'retire-url', at: at(), event: 'restored', newUrlsForParticipant: (await urls('captain', [target])).json.items.length });
+};
+
+steps.retries = async () => {
+  const draft = await gallery('owner', state.organizationId, state.tournamentId, 'Reintentos');
+  const k = key();
+  const first = await upload('owner', draft, 1, { idempotencyKey: k });
+  const again = await upload('owner', draft, 1, { idempotencyKey: k });
+  out({ step: 'retries', case: 'same key twice (lost answer)', first: status(first), second: status(again), sameAsset: first.json?.assetId === again.json?.assetId, replayed: again.json?.replayed === true });
+  const k2 = key();
+  const [a, b] = await Promise.all([upload('owner', draft, 2, { idempotencyKey: k2 }), upload('owner', draft, 2, { idempotencyKey: k2 })]);
+  out({ step: 'retries', case: 'double tap (same key, concurrent)', results: [status(a), status(b)].sort() });
+  const dupe = await upload('owner', draft, 1, { idempotencyKey: key() });
+  out({ step: 'retries', case: 'same photo, new key', result: status(dupe) });
+  const D = '/Applications/Docker.app/Contents/Resources/bin/docker';
+  const { spawnSync } = await import('node:child_process');
+  const count = spawnSync(D, ['exec', 'arma2-promo-rehearsal-torneos-db-1', 'psql', '-U', 'supabase_admin', '-d', 'postgres', '-At', '-c',
+    `select count(*) from public.tournament_media_assets where gallery_id = '${draft}'`], { encoding: 'utf8' }).stdout.trim();
+  out({ step: 'retries', case: 'assets in the gallery after all of it', assets: Number(count), expected: 2 });
+};
+
 const step = process.argv[2];
 const invokedDirectly = process.argv[1] && path.resolve(process.argv[1]) === path.resolve(new URL(import.meta.url).pathname);
 if (invokedDirectly && steps[step]) await steps[step]();

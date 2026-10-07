@@ -335,6 +335,15 @@ export default function MediaAdminPage() {
       ));
     } catch (error) {
       if (requestRef.current !== requestId) return;
+      // A season-scoped admin may not see the whole organization at once: the database asks for a tournament. Open the
+      // active one of the competition context instead of an error.
+      const fallbackTournament = planCompetition?.activeTournament?.id
+        || planCompetition?.tournaments?.find((entry) => entry.seasonId === planCompetition?.activeSeason?.id)?.id
+        || null;
+      if (!filters.tournamentId && fallbackTournament && error?.code === 'TORNEOS_MEDIA_FORBIDDEN') {
+        setFilters((current) => ({ ...current, tournamentId: fallbackTournament }));
+        return;
+      }
       setState({
         status: 'error',
         data: null,
