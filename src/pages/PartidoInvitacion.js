@@ -2,6 +2,7 @@ import logger from '../utils/logger';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '../supabase';
+import { fetchPublicMatchByCode } from '../services/db/publicMatch';
 import { useAuth } from '../components/AuthProvider';
 import { isUserMemberOfMatch, clearGuestMembership } from '../utils/membershipCheck';
 import { formatLocalDateShort } from '../utils/dateLocal';
@@ -345,6 +346,23 @@ async function validateGuestInviteLink({ matchId, codigo, inviteToken }) {
     reason: String(row?.reason || '').trim().toLowerCase() || null,
     unsupported: false,
   };
+}
+
+const INVITE_MATCH_FLAG_FIELDS = [
+  'player_invites_enabled',
+  'busca_arquero',
+  'falta_jugadores',
+  'tipo_partido',
+  'precio_cancha_por_persona',
+];
+
+// The flags hydratePlayerInvitesEnabled would otherwise read from `partidos`.
+function pickInviteMatchFlags(matchRow) {
+  return INVITE_MATCH_FLAG_FIELDS.reduce((flags, field) => (
+    matchRow && Object.prototype.hasOwnProperty.call(matchRow, field)
+      ? { ...flags, [field]: matchRow[field] }
+      : flags
+  ), {});
 }
 
 async function hydratePlayerInvitesEnabled(partidoData, matchId) {
@@ -1578,14 +1596,25 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
           setLoading(false);
           return;
         }
-        const partidoData = await hydratePlayerInvitesEnabled(data[0], partidoId);
+        // Without a session the code is the only read on the match (20261010125000): one
+        // call brings its flags and roster. Older backends fall back to direct reads.
+        const byCode = await fetchPublicMatchByCode({ codigo: codigoParam, partidoId });
 
         if (reqId !== reqIdRef.current) return;
 
-        const { data: jugadoresData, count } = await supabase
-          .from('jugadores')
-          .select('*', { count: 'exact' })
-          .eq('partido_id', partidoId);
+        const partidoData = await hydratePlayerInvitesEnabled(
+          byCode.partido ? { ...data[0], ...pickInviteMatchFlags(byCode.partido) } : data[0],
+          partidoId,
+        );
+
+        if (reqId !== reqIdRef.current) return;
+
+        const { data: jugadoresData, count } = byCode.partido
+          ? { data: byCode.jugadores, count: byCode.jugadores.length }
+          : await supabase
+            .from('jugadores')
+            .select('*', { count: 'exact' })
+            .eq('partido_id', partidoId);
 
         if (reqId === reqIdRef.current) {
           setPartido({ ...partidoData, jugadoresCount: count || 0 });

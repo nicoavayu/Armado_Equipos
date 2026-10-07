@@ -2,6 +2,7 @@ import logger from './logger';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
 // src/utils/matchResolver.js
 import { supabase } from '../supabase';
+import { fetchPublicMatchByCode } from '../services/db/publicMatch';
 
 const IS_DEV = process.env.NODE_ENV === 'development';
 export const MATCH_RESOLUTION_STATUS = Object.freeze({
@@ -20,6 +21,7 @@ const EXPECTED_STATUSES = new Set([
 
 const createResolutionResult = ({
     partidoId = null,
+    codigo = null,
     error = null,
     source = null,
     status = MATCH_RESOLUTION_STATUS.OK,
@@ -28,6 +30,7 @@ const createResolutionResult = ({
     context = {},
 } = {}) => ({
     partidoId,
+    codigo,
     error,
     source,
     status,
@@ -182,7 +185,7 @@ export async function resolveMatchIdFromQueryParams(params) {
                     if (IS_DEV) {
                         logger.log('[VOTING] Resolved codigo -> partidoId via RPC:', partidoId);
                     }
-                    return createResolutionResult({ partidoId, error: null, source: 'codigo' });
+                    return createResolutionResult({ partidoId, codigo, error: null, source: 'codigo' });
                 }
                 return createReportableResolution(
                     'No pudimos validar el código del partido. Intentá de nuevo en unos minutos.',
@@ -211,7 +214,7 @@ export async function resolveMatchIdFromQueryParams(params) {
                     if (IS_DEV) {
                         logger.log('[VOTING] Resolved codigo -> partidoId via partidos_view:', partidoId);
                     }
-                    return createResolutionResult({ partidoId, error: null, source: 'codigo' });
+                    return createResolutionResult({ partidoId, codigo, error: null, source: 'codigo' });
                 }
                 return createReportableResolution(
                     'No pudimos validar el código del partido. Intentá de nuevo en unos minutos.',
@@ -240,7 +243,7 @@ export async function resolveMatchIdFromQueryParams(params) {
                     if (IS_DEV) {
                         logger.log('[VOTING] Resolved codigo -> partidoId via partidos:', partidoId);
                     }
-                    return createResolutionResult({ partidoId, error: null, source: 'codigo' });
+                    return createResolutionResult({ partidoId, codigo, error: null, source: 'codigo' });
                 }
                 return createReportableResolution(
                     'No pudimos validar el código del partido. Intentá de nuevo en unos minutos.',
@@ -330,10 +333,27 @@ export async function resolveMatchIdFromQueryParams(params) {
 /**
  * Fetch match data by ID
  * @param {number} partidoId - Match ID
+ * @param {{ codigo?: string|null }} [options] - the link's match code: without a session it
+ *   is the only way to read the match (20261010125000), so it is tried first.
  * @returns {Promise<{ partido: object|null, error: string|null }>}
  */
-export async function fetchMatchById(partidoId) {
+export async function fetchMatchById(partidoId, { codigo = null } = {}) {
     try {
+        if (codigo) {
+            const byCode = await fetchPublicMatchByCode({ codigo, partidoId });
+            if (byCode.partido) {
+                return {
+                    partido: { ...byCode.partido, jugadores: byCode.jugadores },
+                    error: null,
+                    status: MATCH_RESOLUTION_STATUS.OK,
+                    shouldReport: false,
+                };
+            }
+            if (byCode.error && !byCode.unsupported) {
+                logger.warn('[VOTING] Match by code unavailable, trying direct reads', byCode.error);
+            }
+        }
+
         const { data: partido, error } = await supabase
             .from('partidos_view')
             .select('*')

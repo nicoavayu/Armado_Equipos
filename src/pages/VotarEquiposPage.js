@@ -138,7 +138,7 @@ const VotarEquiposPage = () => {
         }
 
         // Fetch match data
-        const matchResult = await fetchMatchById(resolvedId);
+        const matchResult = await fetchMatchById(resolvedId, { codigo: resolution.codigo });
         const { partido, error: fetchError } = matchResult;
         if (fetchError || !partido) {
           handlePublicVotingError(matchResult);
