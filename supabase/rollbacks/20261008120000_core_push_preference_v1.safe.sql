@@ -1,6 +1,7 @@
 -- SAFE CONTAINMENT for 20261008120000_core_push_preference_v1.sql
--- PRECONDITION: the frontend that shows «Recibir notificaciones de Arma2 en el teléfono» is rolled back or the
---   control is hidden (otherwise the screen reports an error when saving).
+-- FRONTEND: none required. The screen that shows «Recibir notificaciones de Arma2 en el teléfono» treats the revoked
+--   EXECUTE (42501 permission denied) as "unavailable" and hides the control (src/services/corePushPreferenceService.js);
+--   rehearsed against the candidate frontend in the promotion lab (C4).
 -- PRESERVES: public.usuarios.push_enabled values (a pre-existing column that the main notification trigger already
 --   honoured before this migration), notification_delivery_log rows (rows skipped as push_disabled stay skipped: the
 --   person had opted out when they were queued), device tokens.

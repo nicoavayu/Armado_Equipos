@@ -1,5 +1,5 @@
 // Core's push preference as read from Torneos' profile: a missing contract (frontend deployed before Core's migration)
-// is "unavailable", never a failure; any other error is reported as one.
+// or a revoked one (Core's safe rollback) is "unavailable", never a failure; any other error is reported as one.
 const mockRpc = { result: { data: null, error: null }, calls: [] };
 
 jest.mock('../services/api/supabase', () => ({
@@ -21,9 +21,16 @@ test('without the RPC yet (PGRST202) the preference is unavailable, not an error
   await expect(loadMyCorePushPreference()).resolves.toEqual({ available: false, pushEnabled: true });
 });
 
-test('any other error is reported', async () => {
+test("after Core's safe rollback (EXECUTE revoked, 42501) the preference is unavailable, not an error", async () => {
+  mockRpc.result = { data: null, error: { code: '42501', message: 'permission denied for function get_my_push_preference' } };
+  await expect(loadMyCorePushPreference()).resolves.toEqual({ available: false, pushEnabled: true });
+});
+
+test("any other error is reported, including the function's own AUTH_REQUIRED", async () => {
+  mockRpc.result = { data: null, error: { code: 'PGRST301', message: 'JWT expired' } };
+  await expect(loadMyCorePushPreference()).rejects.toMatchObject({ code: 'PGRST301' });
   mockRpc.result = { data: null, error: { code: '42501', message: 'AUTH_REQUIRED' } };
-  await expect(loadMyCorePushPreference()).rejects.toMatchObject({ code: '42501' });
+  await expect(loadMyCorePushPreference()).rejects.toMatchObject({ code: '42501', message: 'AUTH_REQUIRED' });
 });
 
 test('saving sends only a boolean', async () => {
