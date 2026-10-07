@@ -63,6 +63,15 @@ describe('HomeWelcomeCard', () => {
     expect(screen.queryByRole('heading', { name: /Tu punto de partida/i })).not.toBeInTheDocument();
   });
 
+  test('no aparece en una cuenta que ya pasó por el tutorial (terminado, salteado o a medias)', () => {
+    ['completed', 'skipped', 'in_progress'].forEach((status) => {
+      useOnboardingOptional.mockReturnValue(onboardingState({ state: { status, welcomeCardDismissed: false } }));
+      const { unmount } = renderCard();
+      expect(screen.queryByRole('heading', { name: /Tu punto de partida/i })).not.toBeInTheDocument();
+      unmount();
+    });
+  });
+
   test('no aparece mientras el estado de la cuenta se está cargando', () => {
     useOnboardingOptional.mockReturnValue(onboardingState({ stateLoaded: false }));
     renderCard();

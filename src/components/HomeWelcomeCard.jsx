@@ -3,6 +3,7 @@ import { useLocation } from 'react-router-dom';
 import logo from '../Logo.png';
 import { useAuth } from './AuthProvider';
 import { useOnboardingOptional } from '../features/onboarding/OnboardingContext';
+import { hasSeenOnboarding } from '../features/onboarding/eligibility';
 
 // Shown once per ACCOUNT (not per device): the answer is stored with the account's
 // onboarding state (user_onboarding_state.welcome_card_dismissed) and locally under the
@@ -41,7 +42,11 @@ export default function HomeWelcomeCard() {
   const [dismissedNow, setDismissedNow] = useState(false);
 
   const stateLoaded = onboarding ? onboarding.stateLoaded : true;
-  const dismissedForAccount = Boolean(onboarding?.state?.welcomeCardDismissed) || hasSeenHomeWelcomeCard(userId);
+  // Only an account's first entry: one that already went through the tutorial (done,
+  // skipped or half-way) is past it, even on a new device.
+  const dismissedForAccount = Boolean(onboarding?.state?.welcomeCardDismissed)
+    || hasSeenHomeWelcomeCard(userId)
+    || hasSeenOnboarding(onboarding?.state);
   // A link (match, survey, invitation…) lands with parameters: never cover it.
   const arrivedWithIntent = Boolean(location?.search && location.search.length > 1);
   const isVisible = Boolean(userId) && stateLoaded && !dismissedForAccount && !dismissedNow && !arrivedWithIntent;
