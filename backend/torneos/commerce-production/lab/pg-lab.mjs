@@ -82,8 +82,9 @@ async function waitReady() {
 }
 
 /** Applies every Torneos migration once, in order (0010 needs Supabase Storage and is skipped, as in the shared lab). */
-export function migrate() {
-  const files = readdirSync(MIGRATIONS_DIR).filter((f) => /^\d{14}_.*\.sql$/.test(f)).sort();
+export function migrate({ upTo = null } = {}) {
+  const files = readdirSync(MIGRATIONS_DIR).filter((f) => /^\d{14}_.*\.sql$/.test(f)).sort()
+    .filter((f) => upTo === null || f.slice(0, 14) <= upTo);
   sql(`CREATE SCHEMA IF NOT EXISTS lab_meta;
     CREATE TABLE IF NOT EXISTS lab_meta.torneos_migrations (name text PRIMARY KEY, sha256 text NOT NULL, applied_at timestamptz NOT NULL DEFAULT now());
     REVOKE ALL ON SCHEMA lab_meta FROM PUBLIC;`);
@@ -114,7 +115,7 @@ export function ensureLogins(passwords) {
   }
 }
 
-export async function up({ fresh = false } = {}) {
+export async function up({ fresh = false, upTo = null } = {}) {
   mkdirSync(STATE_DIR, { recursive: true, mode: 0o700 });
   if (fresh) docker(['rm', '-f', CONTAINER]);
   let s = existsSync(STATE_FILE) && running() && !fresh ? state() : null;
@@ -129,7 +130,7 @@ export async function up({ fresh = false } = {}) {
     writeFileSync(STATE_FILE, JSON.stringify(s), { mode: 0o600 });
   }
   await waitReady();
-  const applied = migrate();
+  const applied = migrate({ upTo });
   ensureLogins(s.passwords);
   return { container: CONTAINER, port: PORT, applied };
 }
