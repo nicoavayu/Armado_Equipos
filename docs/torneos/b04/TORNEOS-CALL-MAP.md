@@ -1,6 +1,6 @@
 # TORNEOS-CALL-MAP — auditoría B04
 
-Inventario legacy congelado en `2058da039a2a5eaaed22d87d01946bc596ae5f50` (Phase 2D); árbol integrado auditado en `2bef35e9f83b13ff043bbd65d97c93bd4461bb81`. Reconstruido del código. No representa resultados de R2/R3/R4/R5.
+Inventario legacy congelado en `2058da039a2a5eaaed22d87d01946bc596ae5f50` (Phase 2D); árbol integrado auditado en `d15f344b9a0b0dd033bb28ed973572e8d3c415c6`. Reconstruido del código. No representa resultados de R2/R3/R4/R5.
 
 161 sitios RPC legacy; 160 nombres distintos; 108 nombres dentro de scope; 52 fuera. La selección dinámica de `changeTournamentMatchPlan` se resuelve a sus tres nombres literales. No quedan RPC dinámicas sin resolver.
 
@@ -255,7 +255,7 @@ Ninguna de estas superficies se habilita en la composición híbrida. `from` pue
 | transport | `createClient` | No literal / sin argumento | [src/features/torneos/isolated/createTorneosClient.js:58](../../../src/features/torneos/isolated/createTorneosClient.js#L58) |
 | transport | `fetch` | No literal / sin argumento | [src/features/torneos/social/socialStudio.js:69](../../../src/features/torneos/social/socialStudio.js#L69) |
 
-## Imports directos del singleton Core (36)
+## Imports directos del singleton Core (37)
 
 | Archivo | Import |
 | --- | --- |
@@ -274,6 +274,7 @@ Ninguna de estas superficies se habilita en la composición híbrida. `from` pue
 | [src/services/db/frequentMatches.js:2](../../../src/services/db/frequentMatches.js#L2) | `../../lib/supabaseClient` |
 | [src/services/db/friends.js:2](../../../src/services/db/friends.js#L2) | `../../lib/supabaseClient` |
 | [src/services/db/importedMatchPlayers.js:1](../../../src/services/db/importedMatchPlayers.js#L1) | `../../lib/supabaseClient` |
+| [src/services/db/matchAccessCode.js:1](../../../src/services/db/matchAccessCode.js#L1) | `../../lib/supabaseClient` |
 | [src/services/db/matchScheduling.js:1](../../../src/services/db/matchScheduling.js#L1) | `../../lib/supabaseClient` |
 | [src/services/db/matches.js:2](../../../src/services/db/matches.js#L2) | `../../lib/supabaseClient` |
 | [src/services/db/notifications.js:2](../../../src/services/db/notifications.js#L2) | `../../lib/supabaseClient` |

@@ -1,11 +1,11 @@
 {
-  "generatedFrom": "2bef35e9f83b13ff043bbd65d97c93bd4461bb81",
+  "generatedFrom": "d15f344b9a0b0dd033bb28ed973572e8d3c415c6",
   "legacyBase": "2058da039a2a5eaaed22d87d01946bc596ae5f50",
   "coreSingletonSha256": "f39572e4cab0fd287bd1dea2ca87c97bd5500d0eff57cb8de6160f1e3271600c",
   "reachableCallSignatures": {
     "src/api/supabaseWrapper.js": "9efd37acfa411583ee3bcdc82e642cd82c84eda2eda019cca8b005acbcc57468",
     "src/components/AmigosView.js": "288d149c563f43bc0dc1b5c82c1186a42a518655317a5cea0c813e5929682583",
-    "src/components/ArmarEquiposView.js": "c7189e9df625b43f783e5dd39c7f3ae4dede40ec1d0a8489992f0d049364305d",
+    "src/components/ArmarEquiposView.js": "fc104750b291013dc3535a656def915d0b97a2a09a307e5665ff8f509a098660",
     "src/components/AuthProvider.js": "af1001ac71ec552e3da8f4dfac9976e1a8520440a1180b0d4317f9d411b79c78",
     "src/components/ChatButton.js": "8732c5255b31bbb78d56776f882cd5dda2fa6ddda3366f95273b6451ea78c129",
     "src/components/FifaHomeContent.js": "7eff02a8177cc63cdd15873ef9f89be9fb892a65a3c852e4d71c06c20134b90b",
@@ -73,9 +73,10 @@
     "src/services/db/frequentMatches.js": "3f4a0040dab299427801c6cc64e65e9f9454d9e91024c935926264c687151dd7",
     "src/services/db/friends.js": "6f584f99770651d56e2ab6233d489fc3fa176c38b1a1d79da51d53aa7e44c832",
     "src/services/db/importedMatchPlayers.js": "da81344b390686c6d95e3a3216d69061c4f47869278c802c5363c4d14f111bac",
+    "src/services/db/matchAccessCode.js": "d7f54e8a3a82aabf2b3bead93ff1b7be96f1e7f216290f9b87fcf0a71a54d8cf",
     "src/services/db/matchJoinRequests.js": "55a3d71d15f08f5a84b59fc1d479d7599edb7e5200a5438230764c37e59334be",
     "src/services/db/matchScheduling.js": "66a227f1ea05823b3498b6ecfa9badb489e6ecdb48abfe025b6c58a16f23ed05",
-    "src/services/db/matches.js": "343a5cf96b2df56c2b1fe96025fdd1ef8c3691d41b9f4b3279e35107eb0d88db",
+    "src/services/db/matches.js": "9003119dc7fa8494ee7a09c6d252b73c94349e73d7e128f96809fd965718048f",
     "src/services/db/notifications.js": "6a288c071d303e9dffdf23a5f99dcebc4e63a22cea4cd207782e0130ce467819",
     "src/services/db/openMatches.js": "cd7bfaf0d794dbaeb968b1763036d5f290b0382e9a82a84280dea27eb7a74bbc",
     "src/services/db/payments.js": "7d21fce6297cec6edb8511bcb7599baefe358df5841643cd9203d4363198a82a",
@@ -95,7 +96,7 @@
     "src/services/matchFinishService.js": "2a276ac7a35e5534e3f56ee7c0520039a93cce1ab510f66542935b0da0973dda",
     "src/services/matchJoinNotificationService.js": "11cd2d8d1a50fd5277d92477dca0712106b16cf6339502b978ed3e320ed375a7",
     "src/services/matchStatsService.js": "49e8e137721fe5de993bd8cccc3d13db780a2dbd98906666150c57309e38c928",
-    "src/services/notificationService.js": "d6f765dcbecfb98e89c4171c822dc5fb1e27795fa29faac4b1916e9354bd3301",
+    "src/services/notificationService.js": "4b1d430a7e565e584908cd43fbf76f03745ad0fe4d6d78d03f967560e47c153e",
     "src/services/pushDispatchService.js": "a9b6227f68fff883235499f9ea60a4a016941ed01d1c049d81c5ace005b7f73e",
     "src/services/pushTokenService.js": "edf546ac9e60e1fe8db162548f3812510742711364710458ddd31d3db848c6a6",
     "src/services/realtimeService.js": "d0ff99b3b50b3ee16ccfb8a3c2b7243fce42870fdd501fe61e55859f2acf018b",
@@ -193,6 +194,11 @@
     },
     {
       "file": "src/services/db/importedMatchPlayers.js",
+      "line": 1,
+      "source": "../../lib/supabaseClient"
+    },
+    {
+      "file": "src/services/db/matchAccessCode.js",
       "line": 1,
       "source": "../../lib/supabaseClient"
     },
