@@ -856,10 +856,10 @@ export default function AvailabilityOpportunityCard() {
       const { data, error: profileError } = await runAutoMatchRefreshStep(
         AUTO_MATCH_REFRESH_STEPS.profileLocation,
         async () => {
+          // Own exact location: only the owner reads it (get_my_profile).
           const response = await supabase
-            .from('usuarios')
+            .rpc('get_my_profile')
             .select('latitud, longitud')
-            .eq('id', user.id)
             .maybeSingle();
           if (response.error) throw response.error;
           return response;

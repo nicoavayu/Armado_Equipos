@@ -6,6 +6,7 @@ import { PlayerCardTrigger } from './ProfileComponents';
 import MiniFriendCard from './MiniFriendCard';
 import ConfirmModal from './ConfirmModal';
 import { supabase } from '../supabase';
+import { searchPublicUsers } from '../services/db/publicProfiles';
 import LoadingSpinner from './LoadingSpinner';
 import { useNotifications } from '../context/NotificationContext';
 import { Check, Loader2, Users, X } from 'lucide-react';
@@ -307,10 +308,10 @@ const AmigosView = () => {
     }
 
     try {
+      // Own exact location: only the owner reads it (get_my_profile).
       const { data, error: profileError } = await supabase
-        .from('usuarios')
+        .rpc('get_my_profile')
         .select('latitud, longitud')
-        .eq('id', userId)
         .maybeSingle();
 
       if (profileError) throw profileError;
@@ -423,7 +424,7 @@ const AmigosView = () => {
 
       const { data: users, error: usersError } = await supabase
         .from('usuarios')
-        .select('id, nombre, email, avatar_url, localidad, ranking, partidos_jugados, posicion, latitud, longitud')
+        .select('id, nombre, avatar_url, localidad, ranking, partidos_jugados, posicion')
         .in('id', suggestionIds)
         .limit(30);
 
@@ -698,15 +699,10 @@ const AmigosView = () => {
 
   const searchUsers = async (query, requestId) => {
     try {
-      const { data, error: searchError } = await supabase
-        .from('usuarios')
-        .select('id, nombre, email, avatar_url, localidad, ranking, posicion, partidos_jugados, latitud, longitud')
-        .or(`nombre.ilike.%${query}%,email.ilike.%${query}%`)
-        .neq('id', currentUserId)
-        .limit(10);
+      // By name, or by the exact email (never part of one); emails never come back.
+      const data = await searchPublicUsers(query, 10);
 
       if (requestId !== searchRequestIdRef.current) return;
-      if (searchError) throw searchError;
       setSearchResults(data || []);
     } catch (searchError) {
       if (requestId !== searchRequestIdRef.current) return;

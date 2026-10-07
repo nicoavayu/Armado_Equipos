@@ -453,10 +453,10 @@ export const useAmigos = (currentUserId) => {
         .in('id', requesterIds);
 
       let usuariosResponse = await fetchUsuarios(
-        'id, nombre, avatar_url, email, posicion, ranking, partidos_jugados, pais_codigo, numero, pierna_habil, nivel',
+        'id, nombre, avatar_url, posicion, ranking, partidos_jugados, pais_codigo, numero, pierna_habil, nivel',
       );
       if (usuariosResponse.error && isMissingColumnError(usuariosResponse.error)) {
-        usuariosResponse = await fetchUsuarios('id, nombre, avatar_url, email, posicion, ranking, partidos_jugados');
+        usuariosResponse = await fetchUsuarios('id, nombre, avatar_url, posicion, ranking, partidos_jugados');
       }
 
       const [

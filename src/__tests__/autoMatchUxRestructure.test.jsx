@@ -26,13 +26,13 @@ jest.mock('../components/AuthProvider', () => ({
   useAuth: () => ({ user: mockUser }),
 }));
 
+// The own profile location is read through get_my_profile() (exact coordinates are
+// private columns since 20261010124000).
 jest.mock('../lib/supabaseClient', () => ({
   supabase: {
-    from: () => ({
+    rpc: () => ({
       select: () => ({
-        eq: () => ({
-          maybeSingle: async () => ({ data: mockProfileLocation, error: null }),
-        }),
+        maybeSingle: async () => ({ data: mockProfileLocation, error: null }),
       }),
     }),
   },

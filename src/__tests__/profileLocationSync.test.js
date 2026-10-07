@@ -38,7 +38,19 @@ describe('profile location auto-match sync', () => {
     mockEq.mockReturnValue({ select: mockSelect });
     mockUpdate.mockReturnValue({ eq: mockEq });
     mockFrom.mockReturnValue({ update: mockUpdate });
-    mockRpc.mockResolvedValue({ data: { id: 88 }, error: null });
+    // The saved row comes back through get_my_profile() (private columns are not
+    // readable through the table); the location sync is the other RPC.
+    mockRpc.mockImplementation((name) => {
+      if (name === 'get_my_profile') {
+        return {
+          single: async () => ({
+            data: { id: 'user-123', latitud: -34.6037347, longitud: -58.3815704 },
+            error: null,
+          }),
+        };
+      }
+      return Promise.resolve({ data: { id: 88 }, error: null });
+    });
   });
 
   test('actualiza la búsqueda existente mediante el sync in-place sin crear otra disponibilidad', async () => {
@@ -52,7 +64,9 @@ describe('profile location auto-match sync', () => {
     expect(mockFrom).toHaveBeenCalledWith('usuarios');
     expect(mockUpdate).toHaveBeenCalledTimes(1);
     expect(mockEq).toHaveBeenCalledWith('id', 'user-123');
-    expect(mockRpc).toHaveBeenCalledTimes(1);
+    expect(mockSelect).toHaveBeenCalledWith('id');
+    expect(mockRpc).toHaveBeenCalledTimes(2);
+    expect(mockRpc).toHaveBeenCalledWith('get_my_profile');
     expect(mockRpc).toHaveBeenCalledWith('sync_my_auto_match_location_from_profile');
     expect(mockFrom).not.toHaveBeenCalledWith('player_availability');
   });

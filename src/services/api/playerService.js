@@ -154,11 +154,18 @@ export const uploadFoto = async (file, jugador) => {
  */
 export const getProfile = async (userId) => {
   logger.log('getProfile called for userId:', userId);
-  const { data, error } = await supabase
-    .from('usuarios')
-    .select('*')
-    .eq('id', userId)
-    .single();
+  // Private columns are only readable by their owner, through get_my_profile();
+  // anyone else gets the public profile.
+  const { data: sessionData } = await supabase.auth.getSession();
+  let data = null;
+  let error = null;
+  if (sessionData?.session?.user?.id === userId) {
+    ({ data, error } = await supabase.rpc('get_my_profile').single());
+  } else {
+    ({ data, error } = await supabase.rpc('get_public_profiles', { p_user_ids: [userId] }));
+    data = Array.isArray(data) ? (data[0] || null) : null;
+    if (!error && !data) error = { code: 'PGRST116', message: 'Profile not found' };
+  }
 
   if (error) {
     logger.error('getProfile error:', error);
@@ -184,13 +191,16 @@ export const getProfile = async (userId) => {
 export const updateProfile = async (userId, profileData) => {
   const completion = calculateProfileCompletion(profileData);
 
-  const { data, error } = await supabase
+  const { error: updateError } = await supabase
     .from('usuarios')
     .update({ ...profileData, profile_completion: completion })
     .eq('id', userId)
-    .select()
+    .select('id')
     .single();
 
+  if (updateError) throw updateError;
+  // The owner's full row (private columns included) only comes from get_my_profile().
+  const { data, error } = await supabase.rpc('get_my_profile').single();
   if (error) throw error;
   return data;
 };
@@ -252,11 +262,15 @@ export const createOrUpdateProfile = async (user) => {
   }
 
   // Insertar o actualizar (upsert)
-  const { data, error } = await supabase
+  const { error: upsertError } = await supabase
     .from('usuarios')
     .upsert(profileData, { onConflict: 'id' })
-    .select()
+    .select('id')
     .single();
+  // The owner's full row (private columns included) only comes from get_my_profile().
+  const { data, error } = upsertError
+    ? { data: null, error: upsertError }
+    : await supabase.rpc('get_my_profile').single();
 
   if (error) {
     logger.error('Error upserting user profile:', error);

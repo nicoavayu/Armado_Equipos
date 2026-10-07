@@ -14,6 +14,7 @@ import { ensureSurveyWindowOpen } from '../services/surveyCompletionService';
 import { listMatchNoShowSummary } from '../services/db/penalties';
 import { subscribeToMatchUpdates } from '../services/realtimeService';
 import { getProfile as getLiveProfile } from '../services/db/profiles';
+import { fetchPublicProfiles } from '../services/db/publicProfiles';
 import Logo from '../Logo.png';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
 import { debugNotificationEvent } from '../utils/notificationRouter';
@@ -949,11 +950,13 @@ const ResultadosEncuestaView = () => {
     if (profileIds.length === 0) return roster;
 
     try {
-      const { data: usersData, error: usersError } = await supabase
-        .from('usuarios')
-        .select('*')
-        .in('id', profileIds);
-      const safeUsers = usersError ? [] : (Array.isArray(usersData) ? usersData : []);
+      // Public profiles only (private columns are not readable by other accounts).
+      let safeUsers = [];
+      try {
+        safeUsers = await fetchPublicProfiles(profileIds);
+      } catch (_usersError) {
+        safeUsers = [];
+      }
 
       let profilesData = [];
       try {
@@ -982,7 +985,7 @@ const ResultadosEncuestaView = () => {
       const liveProfilesById = new Map(liveProfilesResolved.filter(Boolean));
 
       if (
-        (!Array.isArray(usersData) || usersData.length === 0)
+        safeUsers.length === 0
         && profilesData.length === 0
         && liveProfilesById.size === 0
       ) {

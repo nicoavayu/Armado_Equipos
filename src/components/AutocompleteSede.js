@@ -233,10 +233,10 @@ export default function AutocompleteSede({
       }
 
       try {
+        // Own exact location: only the owner reads it (get_my_profile).
         const { data, error } = await supabase
-          .from('usuarios')
+          .rpc('get_my_profile')
           .select('latitud, longitud')
-          .eq('id', user.id)
           .single();
 
         if (cancelled) return;

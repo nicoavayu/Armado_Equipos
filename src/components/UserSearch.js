@@ -1,6 +1,6 @@
 import logger from '../utils/logger';
 import React, { useState, useEffect } from 'react';
-import { supabase } from '../supabase';
+import { searchPublicUsers } from '../services/db/publicProfiles';
 import { useAmigos } from '../hooks/useAmigos';
 import { useAuth } from './AuthProvider';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
@@ -22,14 +22,8 @@ const UserSearch = ({ onClose }) => {
 
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('usuarios')
-        .select('id, nombre, email, avatar_url, localidad')
-        .or(`nombre.ilike.%${term}%,email.ilike.%${term}%`)
-        .neq('id', user?.id) // Exclude current user
-        .limit(10);
-
-      if (error) throw error;
+      // By name, or by the exact email (never part of one); emails never come back.
+      const data = await searchPublicUsers(term, 10);
 
       setSearchResults(data || []);
 
@@ -143,7 +137,6 @@ const UserSearch = ({ onClose }) => {
                 </div>
                 <div className="flex-1">
                   <div className="text-white font-semibold mb-[2px]">{searchUser.nombre}</div>
-                  <div className="text-white/80 text-sm mb-[2px]">{searchUser.email}</div>
                   {searchUser.localidad && (
                     <div className="text-white/60 text-xs">{searchUser.localidad}</div>
                   )}

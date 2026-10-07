@@ -98,13 +98,22 @@ export const uploadFoto = async (file, jugador) => {
  */
 export const getProfile = async (userId) => {
   logger.log('getProfile called for userId:', userId);
-  // Use a simple, safe select of all columns from usuarios filtered by id.
-  // Do NOT mix explicit columns with '*' and do NOT request non-existent columns.
-  const { data, error } = await supabase
-    .from('usuarios')
-    .select('*')
-    .eq('id', userId)
-    .single();
+  // Private columns (email, birth date, exact location) are only readable by their owner,
+  // through get_my_profile(); anyone else gets the public profile. Both keep the whole row
+  // without naming columns, so a schema difference between environments cannot break them.
+  const { data: sessionData } = await supabase.auth.getSession();
+  const isOwnProfile = Boolean(userId) && sessionData?.session?.user?.id === userId;
+  let data = null;
+  let error = null;
+  if (isOwnProfile) {
+    ({ data, error } = await supabase.rpc('get_my_profile').single());
+  } else {
+    ({ data, error } = await supabase.rpc('get_public_profiles', { p_user_ids: [userId] }));
+    data = Array.isArray(data) ? (data[0] || null) : null;
+    if (!error && !data) {
+      error = { code: 'PGRST116', message: 'Profile not found' };
+    }
+  }
 
   if (error) {
     logger.error('getProfile error:', error);
@@ -416,11 +425,13 @@ export const updateProfile = async (userId, profileData) => {
   const maxAttempts = Math.max(3, Object.keys(payloadToUpdate).length + 1);
 
   for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+    // Only `id` comes back: private columns are not readable through the table (the
+    // owner's full row is read below through get_my_profile()).
     const { data: updatedData, error } = await supabase
       .from('usuarios')
       .update(payloadToUpdate)
       .eq('id', userId)
-      .select()
+      .select('id')
       .single();
 
     if (!error) {
@@ -441,6 +452,14 @@ export const updateProfile = async (userId, profileData) => {
   }
 
   if (lastError && !data) throw lastError;
+
+  const { data: savedProfile, error: savedProfileError } = await supabase.rpc('get_my_profile').single();
+  if (savedProfileError) {
+    logger.warn('[UPDATE_PROFILE] Saved; could not reload the profile, using the sent fields', savedProfileError);
+    data = { ...data, ...payloadToUpdate, id: userId };
+  } else {
+    data = savedProfile;
+  }
 
   // Actualizar el nombre en todos los partidos donde el usuario es jugador
   if (cleanProfileData && cleanProfileData.nombre) {
@@ -557,11 +576,15 @@ export const createOrUpdateProfile = async (user) => {
   // Auth metadata updates should only happen when the user explicitly uploads/changes avatar.
 
   // Insert or update (upsert) into usuarios table
-  const { data, error } = await supabase
+  const { error: upsertError } = await supabase
     .from('usuarios')
     .upsert(profileData, { onConflict: 'id' })
-    .select()
+    .select('id')
     .single();
+  // The owner's full row (private columns included) only comes from get_my_profile().
+  const { data, error } = upsertError
+    ? { data: null, error: upsertError }
+    : await supabase.rpc('get_my_profile').single();
 
   if (error) {
     logger.error('[PROFILE_BOOTSTRAP] Error upserting user profile to usuarios:', error);
