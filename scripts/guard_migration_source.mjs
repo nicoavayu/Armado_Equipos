@@ -61,6 +61,9 @@ const expectedCanonicalMigrations = [
   '20261010125000_core_public_match_reads_by_code.sql',
   '20261010126000_core_team_roster_identity.sql',
   '20261010127000_core_post_match_surveys_result_columns.sql',
+  '20261010128000_core_contact_phone_and_public_profile_list.sql',
+  '20261010129000_core_survey_finalization_recovery.sql',
+  '20261010130000_core_client_build_reports.sql',
 ];
 
 const exitWithError = (message) => {

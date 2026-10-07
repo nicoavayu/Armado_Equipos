@@ -299,7 +299,6 @@ export const calculateProfileCompletion = (profile) => {
  */
 export const updateProfile = async (userId, profileData) => {
   logger.log('[UPDATE_PROFILE] Input fields:', Object.keys(profileData));
-  logger.log('[UPDATE_PROFILE] Input data:', profileData);
 
   const completion = calculateProfileCompletion(profileData);
 
@@ -656,7 +655,7 @@ export const addFreePlayer = async () => {
 
     // Get user profile
     const profile = await getProfile(user.id);
-    logger.log('User profile:', profile);
+    logger.log('User profile:', { id: profile?.id || null });
 
     if (!profile) {
       logger.warn('Profile not found, creating minimal profile');

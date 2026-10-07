@@ -268,7 +268,7 @@ export default function ProfileMenu({ isOpen, onClose, onProfileChange }) {
     return null;
   }
 
-  logger.log('ProfileMenu rendering with profile:', profile);
+  logger.log('ProfileMenu rendering with profile:', { id: profile?.id || null });
 
   return (
     <>

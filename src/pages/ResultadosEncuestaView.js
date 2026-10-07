@@ -960,9 +960,10 @@ const ResultadosEncuestaView = () => {
 
       let profilesData = [];
       try {
+        // Public columns only: profiles.telefono is private data.
         const { data: profilesRows } = await supabase
           .from('profiles')
-          .select('*')
+          .select('id, nombre, avatar_url, posicion, ciudad')
           .in('id', profileIds);
         profilesData = Array.isArray(profilesRows) ? profilesRows : [];
       } catch (_profilesFallbackErr) {

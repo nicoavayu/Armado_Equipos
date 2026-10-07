@@ -29,7 +29,11 @@ jest.mock('../utils/logger', () => ({
   default: { warn: jest.fn(), log: jest.fn(), error: jest.fn() },
 }));
 
+const { readFileSync } = require('fs');
+const { join } = require('path');
+
 const {
+  PUBLIC_PROFILE_FIELDS,
   PRIVATE_PROFILE_FIELDS,
   fetchPublicProfiles,
   readMyProfile,
@@ -42,8 +46,12 @@ const MISSING_RPC = { code: 'PGRST202', message: 'Could not find the function' }
 describe('public profile reads (other users never get private columns)', () => {
   beforeEach(() => { mockRpc.mockReset(); mockFrom.mockReset(); });
 
-  test('the private columns are the ones the database no longer exposes', () => {
-    expect(PRIVATE_PROFILE_FIELDS).toEqual(['email', 'fecha_nacimiento', 'latitud', 'longitud', 'location_accuracy_m']);
+  test('the public list is explicit, matches the database list and leaves every private field out', () => {
+    const migration = readFileSync(join(__dirname, '../../supabase/migrations/20261010128000_core_contact_phone_and_public_profile_list.sql'), 'utf8');
+    const sqlList = migration.match(/select array\[([\s\S]*?)\]::text\[\]/)[1].match(/'([a-z_]+)'/g).map((name) => name.slice(1, -1));
+    expect(PUBLIC_PROFILE_FIELDS).toEqual(sqlList);
+    PRIVATE_PROFILE_FIELDS.forEach((field) => expect(PUBLIC_PROFILE_FIELDS).not.toContain(field));
+    expect(PRIVATE_PROFILE_FIELDS).toEqual(['email', 'telefono', 'fecha_nacimiento', 'latitud', 'longitud', 'location_accuracy_m']);
   });
 
   test('other users\' coordinates come from the ~1 km RPC, merged by id, one call for the list', async () => {
@@ -103,7 +111,10 @@ describe('public profile reads (other users never get private columns)', () => {
 
   test('before phase A, others\' profiles drop the private keys and search is by name only', async () => {
     mockRpc.mockResolvedValue({ data: null, error: MISSING_RPC });
-    mockFrom.mockReturnValueOnce(chain({ data: [{ id: 'u1', nombre: 'Ana', email: 'a@x.com', latitud: -34.5 }], error: null }));
+    mockFrom.mockReturnValueOnce(chain({
+      data: [{ id: 'u1', nombre: 'Ana', email: 'a@x.com', telefono: '+54 11 0000', latitud: -34.5, push_enabled: true, columna_nueva: 'x' }],
+      error: null,
+    }));
     await expect(fetchPublicProfiles(['u1'])).resolves.toEqual([{ id: 'u1', nombre: 'Ana' }]);
 
     const searchQuery = chain({ data: [{ id: 'u2', nombre: 'Thomas' }], error: null });

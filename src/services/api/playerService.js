@@ -177,7 +177,7 @@ export const getProfile = async (userId) => {
   }
 
   logger.log('getProfile result:', {
-    data: data,
+    id: data?.id || null,
     avatar_url: data?.avatar_url,
     foto_url: data?.foto_url,
     all_fields: Object.keys(data || {}),
@@ -281,7 +281,7 @@ export const createOrUpdateProfile = async (user) => {
     throw error;
   }
 
-  logger.log('createOrUpdateProfile OK:', data);
+  logger.log('createOrUpdateProfile OK:', { id: data?.id || null });
   return data;
 };
 
@@ -330,7 +330,7 @@ export const addFreePlayer = async () => {
 
     // Get user profile
     const profile = await getProfile(user.id);
-    logger.log('User profile:', profile);
+    logger.log('User profile:', { id: profile?.id || null });
 
     if (!profile) {
       logger.warn('Profile not found, creating minimal profile');

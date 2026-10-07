@@ -24,6 +24,9 @@ const coreReviewMigrations = [
   '20261010125000_core_public_match_reads_by_code.sql',
   '20261010126000_core_team_roster_identity.sql',
   '20261010127000_core_post_match_surveys_result_columns.sql',
+  '20261010128000_core_contact_phone_and_public_profile_list.sql',
+  '20261010129000_core_survey_finalization_recovery.sql',
+  '20261010130000_core_client_build_reports.sql',
 ];
 const approvedMigrations = fs.readdirSync(path.join(repoRoot, 'supabase', 'migrations'))
   .filter((file) => file.endsWith('.sql'))
@@ -48,7 +51,7 @@ const runGuard = (cwd) => spawnSync(process.execPath, [guardPath], {
 });
 
 test('accepts the closed set including Auto-Match, contract repair and global availability', (t) => {
-  assert.equal(approvedMigrations.length, 51);
+  assert.equal(approvedMigrations.length, 54);
   for (const migration of coreReviewMigrations) assert.ok(approvedMigrations.includes(migration));
   assert.ok(approvedMigrations.includes(autoMatchMigration));
   assert.ok(approvedMigrations.includes(contractRepairMigration));

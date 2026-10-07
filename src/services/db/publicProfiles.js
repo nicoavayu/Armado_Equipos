@@ -1,14 +1,30 @@
 import { supabase } from '../../lib/supabaseClient';
 import logger from '../../utils/logger';
 
-// Columns of public.usuarios that other accounts must not read. Rollout in two phases:
-//   A (20261010124000): the RPCs below exist and this client reads through them;
-//   B (supabase/pending/20261010124500): SELECT on these columns is revoked, once no app
-//     version still reads the profile with select('*').
-// Until A is applied, each read falls back to the table exactly as before, so this client
-// can ship before the migration. Never select these columns (or '*') of another user.
+// What other accounts may read of public.usuarios is an explicit list, the same one the
+// database uses (app_private.usuarios_public_columns(), 20261010128000). Everything else —
+// email, phone, birth date, exact location, activity and push settings, any new column — is
+// private by default. Rollout in two phases:
+//   A (20261010124000 + 20261010128000): the RPCs below exist and this client reads through
+//     them (the phone only through get_match_contact_phone);
+//   B (docs/database/core-review/phase-b-usuarios-private-columns.sql): SELECT on every
+//     other column is revoked, once no installed app still reads the profile with select('*').
+// Until A is applied, each read falls back to the table and keeps only the public list, so
+// this client can ship before the migration. Never select '*' of another user.
+export const PUBLIC_PROFILE_FIELDS = Object.freeze([
+  'id', 'nombre', 'avatar_url', 'avatar_zoom', 'avatar_pos_x', 'avatar_pos_y',
+  'ciudad', 'localidad', 'location_label', 'location_city', 'location_state', 'location_country',
+  'posicion', 'posiciones', 'pierna_habil', 'nivel', 'numero', 'bio', 'nacionalidad', 'pais_codigo',
+  'disponible_arquero', 'acepta_invitaciones', 'lesion_activa', 'is_active',
+  'ranking', 'partidos_jugados', 'partidos_ganados', 'partidos_perdidos', 'partidos_empatados',
+  'partidos_abandonados', 'mvps', 'guantes_dorados', 'tarjetas_rojas',
+  'perfil_completo', 'profile_completion', 'created_at', 'updated_at',
+]);
+
+// The sensitive ones, named for tests and reviews (the rule is the allowlist above).
 export const PRIVATE_PROFILE_FIELDS = Object.freeze([
   'email',
+  'telefono',
   'fecha_nacimiento',
   'latitud',
   'longitud',
@@ -28,11 +44,10 @@ const uniqueIds = (ids) => Array.from(new Set(
     .filter(Boolean),
 )).slice(0, MAX_IDS_PER_CALL);
 
-const withoutPrivateFields = (row) => {
+const PUBLIC_FIELD_SET = new Set(PUBLIC_PROFILE_FIELDS);
+const withPublicFieldsOnly = (row) => {
   if (!row || typeof row !== 'object') return row;
-  const copy = { ...row };
-  PRIVATE_PROFILE_FIELDS.forEach((field) => { delete copy[field]; });
-  return copy;
+  return Object.fromEntries(Object.entries(row).filter(([field]) => PUBLIC_FIELD_SET.has(field)));
 };
 
 /**
@@ -61,7 +76,7 @@ export async function fetchMyProfile(columns = '*') {
   return data || null;
 }
 
-/** Other users' public profiles (every column except the private ones), in no particular order. */
+/** Other users' public profiles (only PUBLIC_PROFILE_FIELDS), in no particular order. */
 export async function fetchPublicProfiles(userIds) {
   const ids = uniqueIds(userIds);
   if (ids.length === 0) return [];
@@ -69,7 +84,7 @@ export async function fetchPublicProfiles(userIds) {
   if (error && isMissingRpcError(error)) {
     const legacy = await supabase.from('usuarios').select('*').in('id', ids);
     if (legacy.error) throw legacy.error;
-    return (legacy.data || []).map(withoutPrivateFields);
+    return (legacy.data || []).map(withPublicFieldsOnly);
   }
   if (error) throw error;
   return Array.isArray(data) ? data.filter(Boolean) : [];

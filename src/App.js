@@ -47,6 +47,8 @@ import {
 
 import { NotificationProvider } from './context/NotificationContext';
 import { BadgeProvider } from './context/BadgeContext';
+import { SurveyFinalizationRecovery } from './hooks/useSurveyFinalizationRecovery';
+import { ClientBuildReporter } from './services/clientBuildReport';
 
 // Lazy load pages
 const EncuestaPartido = lazy(() => import('./pages/EncuestaPartido'));
@@ -771,7 +773,13 @@ export function AppAuthWrapper() {
     return <Navigate to={`/login?returnTo=${encodeURIComponent(returnTo)}`} replace />;
   }
 
-  return <Outlet />;
+  return (
+    <>
+      <SurveyFinalizationRecovery userId={user.id} />
+      <ClientBuildReporter userId={user.id} />
+      <Outlet />
+    </>
+  );
 }
 
 function LegacyTemplateRedirect() {

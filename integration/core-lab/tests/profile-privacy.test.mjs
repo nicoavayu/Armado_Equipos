@@ -49,7 +49,7 @@ test('phase A alone does not close the exposure yet (recorded until phase B is a
     select email from public.usuarios where id = '${ORGANIZER}';`, { withPhaseB: false })), ['organizador@arma2.lab']);
 });
 
-for (const column of ['email', 'fecha_nacimiento', 'latitud', 'longitud']) {
+for (const column of ['email', 'telefono', 'fecha_nacimiento', 'latitud', 'longitud']) {
   test(`phase B: an unrelated account cannot read another user's ${column}`, () => {
     const result = withPrivateData(`${asRole('authenticated', qa.ids.nuevo)}
       select ${column} from public.usuarios where id = '${ORGANIZER}';`);
@@ -73,8 +73,8 @@ test('the owner reads their own private data through get_my_profile() (both phas
 
 test('others get the public profile without the private keys', () => {
   assert.deepEqual(lines(withPrivateData(`${asRole('authenticated', qa.ids.nuevo)}
-    select (p ? 'nombre')::text || (p ? 'email')::text || (p ? 'fecha_nacimiento')::text || (p ? 'latitud')::text
-    from public.get_public_profiles(array['${ORGANIZER}'::uuid]) p;`)), ['truefalsefalsefalse']);
+    select (p ? 'nombre')::text || (p ? 'email')::text || (p ? 'telefono')::text || (p ? 'fecha_nacimiento')::text || (p ? 'latitud')::text
+    from public.get_public_profiles(array['${ORGANIZER}'::uuid]) p;`)), ['truefalsefalsefalsefalse']);
 });
 
 test('others only get coordinates rounded to ~1 km', () => {
@@ -103,4 +103,107 @@ test('phase B: the owner still edits their own private data', () => {
   assert.deepEqual(lines(withPrivateData(`${asRole('authenticated', ORGANIZER)}
     update public.usuarios set fecha_nacimiento = '1991-01-02', latitud = -34.6 where id = '${ORGANIZER}';
     select fecha_nacimiento || '|' || latitud from public.get_my_profile();`)), ['1991-01-02|-34.6']);
+});
+
+// 20261010128000: the phone is a contact for a match organizer, and only when the player
+// acted toward that match (asked to join, or accepted the invitation). Creating a match,
+// adding someone to its roster or inviting them is something the organizer does alone: it
+// must not reveal anyone's phone.
+const PHONE_MATCH = `
+  insert into public.partidos (id, nombre, codigo, fecha, hora, sede, modalidad, cupo_jugadores, estado, creado_por, admin_id)
+  values (990501, 'Contacto lab', 'PHONELAB', current_date + 1, '21:00', 'Cancha lab', 'F5', 10, 'activo', '${ORGANIZER}', '${ORGANIZER}');
+  update public.usuarios set telefono = '+54 9 11 4444-1111' where id = '${qa.ids.jugador1}';
+  update public.usuarios set telefono = '+54 9 11 4444-2222' where id = '${qa.ids.ajeno}';`;
+const phoneOf = (userId) => `select coalesce(public.get_match_contact_phone(990501, '${userId}'), 'null');`;
+const invite = (userId, status) => `insert into public.notifications (user_id, partido_id, type, title, message, data)
+  values ('${userId}', 990501, 'match_invite', 'Invitación', 'Te invitaron', jsonb_build_object('match_id', '990501', 'status', '${status}'));`;
+const deniedFor = (statements) => {
+  const result = withPrivateData(statements);
+  assert.equal(result.ok, false, `phone readable: ${result.out}`);
+  assert.match(result.error, /not_authorized/);
+};
+
+test('the owner always reads their own phone', () => {
+  assert.deepEqual(lines(withPrivateData(`${PHONE_MATCH}
+    ${asRole('authenticated', qa.ids.jugador1)} ${phoneOf(qa.ids.jugador1)}`)), ['+54 9 11 4444-1111']);
+});
+
+test('the organizer reads it when the player asked to join (pending or approved)', () => {
+  for (const status of ['pending', 'approved']) {
+    assert.deepEqual(lines(withPrivateData(`${PHONE_MATCH}
+      insert into public.match_join_requests (match_id, user_id, status) values (990501, '${qa.ids.ajeno}', '${status}');
+      ${asRole('authenticated', ORGANIZER)} ${phoneOf(qa.ids.ajeno)}`)), ['+54 9 11 4444-2222']);
+  }
+});
+
+test('the organizer reads it when the player accepted the invitation', () => {
+  assert.deepEqual(lines(withPrivateData(`${PHONE_MATCH} ${invite(qa.ids.jugador1, 'accepted')}
+    ${asRole('authenticated', ORGANIZER)} ${phoneOf(qa.ids.jugador1)}`)), ['+54 9 11 4444-1111']);
+});
+
+test('abuse: a match of my own + a pending invitation I sent does not reveal the phone', () => {
+  deniedFor(`${PHONE_MATCH} ${asRole('authenticated', ORGANIZER)}
+    select public.send_match_invite('${qa.ids.ajeno}', 990501, 'Invitación', 'Vení', 'direct');
+    ${phoneOf(qa.ids.ajeno)}`);
+});
+
+test('the organizer reads it when the player joined the match themselves (their own roster row)', () => {
+  assert.deepEqual(lines(withPrivateData(`${PHONE_MATCH}
+    ${asRole('authenticated', qa.ids.ajeno)}
+    insert into public.jugadores (partido_id, nombre, usuario_id) values (990501, 'Ramiro', '${qa.ids.ajeno}');
+    reset role; ${asRole('authenticated', ORGANIZER)} ${phoneOf(qa.ids.ajeno)}`)), ['+54 9 11 4444-2222']);
+});
+
+test('added_by is set by the server, never by the client, and cannot be rewritten', () => {
+  assert.deepEqual(lines(withPrivateData(`${PHONE_MATCH} ${asRole('authenticated', ORGANIZER)}
+    insert into public.jugadores (partido_id, nombre, usuario_id, added_by) values (990501, 'Ramiro', '${qa.ids.ajeno}', '${qa.ids.ajeno}');
+    update public.jugadores set added_by = '${qa.ids.ajeno}' where partido_id = 990501 and usuario_id = '${qa.ids.ajeno}';
+    select (added_by = '${ORGANIZER}')::text from public.jugadores where partido_id = 990501 and usuario_id = '${qa.ids.ajeno}';`)),
+  ['true']);
+});
+
+test('abuse: re-pointing someone else\'s join request to the target account is rejected', () => {
+  const result = withPrivateData(`${PHONE_MATCH}
+    insert into public.match_join_requests (match_id, user_id, status) values (990501, '${qa.ids.jugador3}', 'pending');
+    ${asRole('authenticated', ORGANIZER)}
+    update public.match_join_requests set user_id = '${qa.ids.ajeno}', status = 'approved'
+    where match_id = 990501 and user_id = '${qa.ids.jugador3}';
+    ${phoneOf(qa.ids.ajeno)}`);
+  assert.equal(result.ok, false, `rewrite accepted: ${result.out}`);
+  assert.match(result.error, /cannot change|not_authorized/);
+});
+
+test('abuse: adding the account to my roster myself does not reveal the phone', () => {
+  deniedFor(`${PHONE_MATCH} ${asRole('authenticated', ORGANIZER)}
+    insert into public.jugadores (partido_id, nombre, usuario_id) values (990501, 'Ramiro', '${qa.ids.ajeno}');
+    ${phoneOf(qa.ids.ajeno)}`);
+});
+
+test('a rejected or cancelled request, or a declined invitation, does not count', () => {
+  deniedFor(`${PHONE_MATCH}
+    insert into public.match_join_requests (match_id, user_id, status) values (990501, '${qa.ids.ajeno}', 'rejected');
+    ${invite(qa.ids.ajeno, 'declined')}
+    ${asRole('authenticated', ORGANIZER)} ${phoneOf(qa.ids.ajeno)}`);
+});
+
+test('another player of the same match never reads a teammate\'s phone', () => {
+  deniedFor(`${PHONE_MATCH}
+    insert into public.match_join_requests (match_id, user_id, status) values (990501, '${qa.ids.jugador1}', 'approved');
+    insert into public.jugadores (partido_id, nombre, usuario_id) values (990501, 'Sofía Ruiz', '${qa.ids.jugador2}');
+    ${asRole('authenticated', qa.ids.jugador2)} ${phoneOf(qa.ids.jugador1)}`);
+});
+
+test('an organizer of another match cannot use a request made to a different match', () => {
+  deniedFor(`${PHONE_MATCH}
+    insert into public.match_join_requests (match_id, user_id, status) values (990501, '${qa.ids.ajeno}', 'pending');
+    insert into public.partidos (id, nombre, codigo, fecha, hora, sede, modalidad, cupo_jugadores, estado, creado_por, admin_id)
+    values (990502, 'Otro lab', 'OTROLAB', current_date + 1, '21:00', 'Cancha lab', 'F5', 10, 'activo', '${qa.ids.jugador3}', '${qa.ids.jugador3}');
+    ${asRole('authenticated', qa.ids.jugador3)}
+    select coalesce(public.get_match_contact_phone(990502, '${qa.ids.ajeno}'), 'null');`);
+});
+
+test('phase B: the legacy profiles table no longer exposes telefono', () => {
+  const result = withPrivateData(`${asRole('authenticated', qa.ids.nuevo)} select telefono from public.profiles limit 1;`);
+  assert.equal(result.ok, false);
+  assert.match(result.error, /permission denied/);
 });

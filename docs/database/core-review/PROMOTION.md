@@ -20,6 +20,9 @@ por código, jugador sin cuenta). Por eso la web puede salir antes que la base.
 | `20261010125000_core_public_match_reads_by_code` | anon ya no lista partidos/planteles; lee un partido por su código | ver nota |
 | `20261010126000_core_team_roster_identity` | equipo permanente: `jugadores.partido_id` admite NULL, trigger antes de borrar, RPC de jugador sin cuenta | aditiva para clientes viejos |
 | `20261010127000_core_post_match_surveys_result_columns` | `ganador`/`resultado` en encuestas | no-op si existen |
+| `20261010128000_core_contact_phone_and_public_profile_list` | lista pública explícita de `usuarios`; `get_public_profiles` sólo la devuelve; `get_match_contact_phone`; `jugadores.added_by` (trigger); `user_id`/`match_id` de solicitudes inmutables por la API | aditiva; el teléfono se sigue pudiendo leer de la tabla hasta la fase B |
+| `20261010129000_core_survey_finalization_recovery` | `list_my_pending_survey_finalizations`: encuestas vencidas del organizador | aditiva |
+| `20261010130000_core_client_build_reports` | `report_client_build` + `app_private.privacy_phase_b_readiness` | aditiva; tabla en `app_private` |
 
 **Nota 125000:** con la web nueva publicada, las páginas públicas (votación por link,
 invitación de invitado) ya leen por código. Una build nativa vieja abierta **sin sesión**
@@ -28,11 +31,38 @@ aplicar 125000 junto con la fase B.
 
 ## 3. Fase B de privacidad (manual, más adelante)
 
-`phase-b-usuarios-private-columns.sql` (no es migración): revoca la lectura de `email`,
-`fecha_nacimiento`, `latitud`, `longitud`, `location_accuracy_m` de otros usuarios. Aplicar
-**solo** cuando la versión mínima de Android/iOS en uso incluya el cliente de la fase A
-(las builds actuales leen su propio perfil con `select('*')` y dejarían de cargarlo).
-Rollback: `grant select on table public.usuarios to anon, authenticated;`
+`phase-b-usuarios-private-columns.sql` (no es migración): la API deja de entregar toda
+columna de `usuarios` fuera de la lista pública explícita (`app_private.usuarios_public_columns()`):
+email, **teléfono**, nacimiento, ubicación exacta, actividad y push. `profiles` queda con sus
+columnas públicas (sin `telefono`). Rollback: `grant select on table public.usuarios, public.profiles to anon, authenticated;`
+
+**Qué está distribuido hoy (evidencia, 2026-10-07):** App Store y Google Play ofrecen 1.1.21
+(Play: actualización 7 ago 2026, "100+ descargas", Android 6.0+; App Store: lanzada 8 ago 2026).
+El repo tiene Android 1.1.22 (versionCode 44) e iOS 1.1.21 (build 41) sin publicar. No hay
+evidencia de cuántos usuarios activos usan cada versión: Play Console (Estadísticas → versiones
+de la app) y App Store Connect (Analytics → versión) son los únicos que lo dicen y no se
+consultaron. `device_tokens.app_version` está siempre vacío (`REACT_APP_VERSION` nunca se definió).
+
+**Qué rompe en 1.1.21** (código de `dad2a0b9`, que lee con `select('*')` o columnas privadas):
+perfil propio (`usuarios select('*')` → la app no carga el perfil), tarjeta de jugador
+(`telefono`), Amigos (`email`, coordenadas), Quiero jugar (coordenadas), resultados
+(`profiles select('*')`), búsqueda (`email`). La web se publica con el cliente nuevo y no depende de esto.
+
+**Transición:**
+1. Publicar la web y aplicar 124000 + 128000 + 130000 (aditivas; nada cambia para 1.1.21).
+2. Publicar Android e iOS con el cliente de fase A. **Versión mínima** = la primera build de
+   cada tienda que lo incluya (hoy serían Android versionCode ≥ 45 e iOS build ≥ 42; anotar las
+   reales al subirlas).
+3. Esperar al menos 30 días con esas builds en las tiendas y medir cada semana (SQL editor):
+   `select * from app_private.privacy_phase_b_readiness(<min Android>, <min iOS>, 30);`
+   - `native_below_minimum` = cuentas que reportaron una build nativa menor;
+   - `active_without_any_report` = cuentas con sesión renovada en la ventana que nunca
+     reportaron (corren un cliente anterior al reporte: 1.1.21 o anterior);
+   - cruzar con Play Console / App Store Connect.
+4. GO para la fase B cuando ambos sean 0, o cuando el dueño acepte el residuo (esas cuentas
+   tendrían que actualizar la app). Aplicar el archivo, correr su chequeo y repetir las pruebas
+   de `integration/core-lab/tests/profile-privacy.test.mjs` contra Staging.
+5. Vigilar 24 h: errores `permission denied` en la API (logs de PostgREST) y reportes de builds.
 
 ## 4. Verificación posterior
 
@@ -43,6 +73,10 @@ Rollback: `grant select on table public.usuarios to anon, authenticated;`
   `partidos` como anon devuelve 0 filas.
 - Cuenta nueva acepta invitación de equipo; salir de un partido no la saca del equipo.
 - Encuesta: guardar muestra la confirmación en < 1 s; el ganador queda guardado.
+- Teléfono: el organizador lo ve sólo para quien se sumó por sí mismo, pidió sumarse o aceptó
+  su invitación; invitar o agregar a alguien al plantel no lo habilita.
+- Encuesta vencida (todos votaron o pasó el plazo): el organizador abre la app en cualquier
+  pantalla y en segundos queda cerrada, con resultados y premios.
 
 ## 5. Rollback por migración
 
@@ -52,3 +86,7 @@ Rollback: `grant select on table public.usuarios to anon, authenticated;`
 - 126000: recrear `rpc_accept_team_invitation` previa y `drop trigger trg_keep_team_roster_on_match_player_delete`;
   `partido_id` puede quedar nullable (las filas de plantel ya creadas lo necesitan).
 - 120000 / 122000 / 127000: inocuas; no requieren rollback.
+- 128000: `drop function public.get_match_contact_phone(bigint, uuid)`; recrear `get_public_profiles` de 124000;
+  `drop trigger trg_jugadores_added_by on public.jugadores` y `drop trigger trg_match_join_request_identity_immutable on public.match_join_requests`
+  (la columna `added_by` puede quedar).
+- 129000 / 130000: `drop function` de sus RPCs (y `drop table app_private.client_build_reports`); el cliente lo tolera (`PGRST202`).
