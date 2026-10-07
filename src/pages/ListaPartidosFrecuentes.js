@@ -4,7 +4,7 @@ import { friendlyError } from '../utils/friendlyError';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabase';
 import { useAuth } from '../components/AuthProvider';
-import { createMatchLinkedToTemplate, templateLinkFailureMessage } from '../services/db/templateMatchLink';
+import { createMatchLinkedToTemplate, templateLinkNotice } from '../services/db/templateMatchLink';
 import PageTitle from '../components/PageTitle';
 import PageLoadingState from '../components/PageLoadingState';
 import HistoryTemplateCard from '../components/historial/HistoryTemplateCard';
@@ -162,7 +162,8 @@ function UseTemplateModal({ isOpen, template, onCancel, onUse }) {
         logger.warn('[USAR PLANTILLA] roster prefill failed (non-blocking)', e);
       }
 
-      if (templateLink?.linked) {
+      const linkNotice = templateLinkNotice(templateLink, template.nombre);
+      if (!linkNotice) {
         showInlineNotice({
           key: 'frecuentes_match_created',
           type: 'success',
@@ -174,10 +175,10 @@ function UseTemplateModal({ isOpen, template, onCancel, onUse }) {
           templateId: template.id,
           status: templateLink?.status,
         });
-        notifyBlockingError(templateLinkFailureMessage(templateLink, template.nombre), {
-          title: 'Partido creado sin historial',
+        notifyBlockingError(linkNotice.message, {
+          title: linkNotice.title,
           confirmText: 'Entendido',
-          key: 'template_link_not_saved',
+          key: 'template_link_notice',
         });
       }
       onUse && onUse({ ...partido, templateLink });

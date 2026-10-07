@@ -43,24 +43,41 @@ export const verifyTemplateLink = async (matchId, templateId) => {
   return { linked: false, status: TEMPLATE_LINK_STATUS.NOT_SAVED };
 };
 
-/** One more try for a link that did not stick (same server rule: own template only). */
-const relinkOnce = async (matchId, templateId) => {
-  const { error } = await supabase
-    .from('partidos')
-    .update({ template_id: templateId })
-    .eq('id', Number(matchId));
-  if (error) {
-    return {
-      linked: false,
-      status: isMissingTemplateColumn(error) ? TEMPLATE_LINK_STATUS.UNSUPPORTED : TEMPLATE_LINK_STATUS.NOT_SAVED,
-      error,
-    };
+const safeVerify = async (matchId, templateId) => {
+  try {
+    return await verifyTemplateLink(matchId, templateId);
+  } catch (error) {
+    return { linked: false, status: TEMPLATE_LINK_STATUS.UNVERIFIED, error };
   }
-  return verifyTemplateLink(matchId, templateId);
 };
 
 /**
- * Creates the match already linked to the template and confirms the link.
+ * The link state of one existing match, decided only by reading it back. A failed read is
+ * read once more (never assumed missing); a link verified as missing is written again on
+ * the SAME match and read back. Nothing here creates a match.
+ */
+export const confirmTemplateLink = async (matchId, templateId) => {
+  let link = await safeVerify(matchId, templateId);
+  if (link.status === TEMPLATE_LINK_STATUS.UNVERIFIED) {
+    link = await safeVerify(matchId, templateId);
+  }
+  if (link.status !== TEMPLATE_LINK_STATUS.NOT_SAVED) return link;
+
+  try {
+    await supabase
+      .from('partidos')
+      .update({ template_id: templateId })
+      .eq('id', Number(matchId));
+  } catch (_error) {
+    // The read below decides the state; a failed write is not proof of anything.
+  }
+  return safeVerify(matchId, templateId);
+};
+
+/**
+ * Creates the match already linked to the template and confirms the link. The match is
+ * created once: a second insert happens only when the first one created nothing because
+ * this database has no template_id column yet.
  * @returns {Promise<{ partido: Object, link: { linked: boolean, status: string, error?: any } }>}
  */
 export const createMatchLinkedToTemplate = async (payload, templateId) => {
@@ -78,19 +95,33 @@ export const createMatchLinkedToTemplate = async (payload, templateId) => {
     return { partido, link: { linked: false, status: TEMPLATE_LINK_STATUS.UNSUPPORTED, error } };
   }
 
-  let link = await verifyTemplateLink(partido.id, templateId);
-  if (!link.linked && link.status !== TEMPLATE_LINK_STATUS.UNSUPPORTED) {
-    link = await relinkOnce(partido.id, templateId);
-  }
+  const link = await confirmTemplateLink(partido.id, templateId);
   return { partido, link };
 };
 
-/** What the person reads when the match exists but is not in the template history. */
-export const templateLinkFailureMessage = (link, templateName = '') => {
+/**
+ * What the person reads when the match exists but its history is not confirmed; null when
+ * it is linked. "Sin historial" only when the link was verified as missing.
+ * @returns {{ title: string, message: string } | null}
+ */
+export const templateLinkNotice = (link, templateName = '') => {
+  if (link?.linked) return null;
   const name = String(templateName || '').trim();
   const where = name ? `el historial de “${name}”` : 'el historial de la plantilla';
-  if (link?.status === TEMPLATE_LINK_STATUS.UNSUPPORTED) {
-    return `El partido se creó, pero todavía no se puede guardar en ${where}: el historial de plantillas no está disponible en este servidor.`;
+  if (link?.status === TEMPLATE_LINK_STATUS.UNVERIFIED || !link?.status) {
+    return {
+      title: 'Partido creado',
+      message: `El partido se creó, pero no pudimos comprobar si quedó en ${where}. Revisalo más tarde ahí.`,
+    };
   }
-  return `El partido se creó, pero no se pudo guardar en ${where}. No va a aparecer ahí: el partido funciona igual.`;
+  if (link.status === TEMPLATE_LINK_STATUS.UNSUPPORTED) {
+    return {
+      title: 'Partido creado sin historial',
+      message: `El partido se creó, pero no va a aparecer en ${where}: el historial de plantillas todavía no está disponible en este servidor.`,
+    };
+  }
+  return {
+    title: 'Partido creado sin historial',
+    message: `El partido se creó, pero no quedó guardado en ${where}. El partido funciona igual.`,
+  };
 };

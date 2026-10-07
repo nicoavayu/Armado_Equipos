@@ -185,6 +185,11 @@ const inferCupoFromModalidad = (modalidad = '') => {
   return 10;
 };
 
+const isMissingColumnError = (error) => {
+  const code = String(error?.code || '');
+  return code === 'PGRST204' || code === '42703';
+};
+
 export const crearPartidoDesdeFrec = async (partidoFrecuente, fecha, modalidad = 'F5', cupo = null) => {
   const normalizedDate = typeof fecha === 'string' ? fecha.split('T')[0] : fecha;
   const { data: { user } } = await supabase.auth.getUser();
@@ -264,6 +269,10 @@ export const crearPartidoDesdeFrec = async (partidoFrecuente, fecha, modalidad =
       break;
     } catch (err) {
       lastCreateError = err;
+      // Only a column this database lacks means nothing was created and a smaller payload
+      // may work; any other error (permissions, network, …) stops here so a match is never
+      // created twice.
+      if (!isMissingColumnError(err)) break;
       logger.warn('[crearPartidoDesdeFrec] create attempt failed', {
         variant: i + 1,
         message: err?.message,

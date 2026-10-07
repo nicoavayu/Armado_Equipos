@@ -10,7 +10,7 @@ import { useAuth } from '../components/AuthProvider';
 import ConfirmModal from '../components/ConfirmModal';
 import { findDuplicateTemplateMatch, findUserScheduleConflicts } from '../services/db/matchScheduling';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
-import { templateLinkFailureMessage } from '../services/db/templateMatchLink';
+import { templateLinkNotice } from '../services/db/templateMatchLink';
 import {
   nextYmdForWeekday,
   normalizeYmd,
@@ -131,11 +131,12 @@ const FrecuentesPage = () => {
       partidoFrecuente?.modalidad || 'F5',
       cupo,
     );
-    if (!partido?.templateLink?.linked) {
-      notifyBlockingError(templateLinkFailureMessage(partido?.templateLink, partidoFrecuente?.nombre), {
-        title: 'Partido creado sin historial',
+    const linkNotice = templateLinkNotice(partido?.templateLink, partidoFrecuente?.nombre);
+    if (linkNotice) {
+      notifyBlockingError(linkNotice.message, {
+        title: linkNotice.title,
         confirmText: 'Entendido',
-        key: 'template_link_not_saved',
+        key: 'template_link_notice',
       });
     }
 
