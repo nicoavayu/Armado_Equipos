@@ -1,3 +1,5 @@
+import { isLabDeviceHost } from './labDeviceHost';
+
 const ENABLED_VALUE = 'true';
 const PRODUCTION_ENVIRONMENT = 'production';
 const NON_PRODUCTION_ENVIRONMENTS = new Set([
@@ -104,7 +106,7 @@ export function resolveTorneosBackendIsolation(env = {}) {
   );
   const isLocal = (
     dataEnvironment === 'local'
-    && LOCAL_SUPABASE_HOSTS.has(hostname)
+    && (LOCAL_SUPABASE_HOSTS.has(hostname) || isLabDeviceHost(hostname, env))
     && ['http:', 'https:'].includes(parsedUrl.protocol)
     && !hasUnexpectedUrlParts
   );
