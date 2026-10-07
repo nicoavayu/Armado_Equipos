@@ -6,7 +6,7 @@ import { isConnectedV1Operation, isConnectedV1PublicOperation } from './connecte
 import { BRANDING_OBJECT_PATH, isBrandingV1Operation, isBrandingV1PublicOperation } from './brandingV1Scope';
 import { isMediaV1Operation, MEDIA_READ_KINDS, MEDIA_THUMBNAIL_MAX_BYTES, MEDIA_UPLOAD_MAX_BYTES, MEDIA_UPLOAD_TYPES, MEDIA_URLS_MAX_ITEMS } from './mediaV1Scope';
 import { isStagingV1Table } from './stagingV1Tables';
-import { isStagingV1CommerceRead, SEASON_CHECKOUT_PATH } from './stagingV1CommerceScope';
+import { isStagingV1CommerceRead, PURCHASE_REFRESH_PATH, SEASON_CHECKOUT_PATH } from './stagingV1CommerceScope';
 import { TorneosBoundaryError } from './errors';
 
 export { TorneosBoundaryError };
@@ -75,6 +75,14 @@ export function createTorneosClient({
         throw new TorneosBoundaryError('TORNEOS_TRANSPORT_NOT_CONNECTED');
       }
       return transport.commerce(SEASON_CHECKOUT_PATH, body, options);
+    },
+    // COMMERCE-PRODUCTION: the purchase refresh ("I already paid"), the same commerce scope as the checkout.
+    async refreshPurchase(body, options = {}) {
+      if (!commerceEnabled) throw new TorneosBoundaryError('TORNEOS_OUTSIDE_STAGING_V1');
+      if (!connected || typeof transport.commerce !== 'function') {
+        throw new TorneosBoundaryError('TORNEOS_TRANSPORT_NOT_CONNECTED');
+      }
+      return transport.commerce(PURCHASE_REFRESH_PATH, body, options);
     },
     // BRANDING-V1: store (POST, with the file) or remove (DELETE) one versioned branding object.
     async brandingObject(method, path, file = undefined, options = {}) {

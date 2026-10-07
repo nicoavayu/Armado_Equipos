@@ -21,8 +21,9 @@ const StagingV1TorneosApp = lazy(() => import('./stagingV1/StagingV1TorneosApp')
 // single-project LOCAL QA stack; anything else stays closed — a staging or
 // preview build without a gateway never serves Torneos from the Core project.
 export const torneosBackendMode = resolveTorneosBackendMode(process.env);
-// MP-A5: the Premium purchase (Checkout Pro TEST) only for the hybrid composition in the local
-// lab — see resolveTorneosBillingMode; `off` everywhere else, whatever a single variable says.
+// MP-A5 / COMMERCE-PRODUCTION: the Premium purchase only for the hybrid composition in the local lab (TEST) or on the
+// production web app (production) — see resolveTorneosBillingMode; `off` everywhere else (native shells included),
+// whatever a single variable says.
 export const torneosBillingMode = resolveTorneosBillingMode(process.env, {
   backendMode: torneosBackendMode,
   appHostname: typeof window === 'undefined' ? null : window.location.hostname,

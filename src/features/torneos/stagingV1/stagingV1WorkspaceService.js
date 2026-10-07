@@ -205,6 +205,7 @@ export function translateMediaUploadError(error) {
 
 export const COMMERCE_METHODS = Object.freeze([
   'loadSeasonEntitlements', 'loadEntitlements', 'loadPurchase', 'createCheckout', 'simulateFakePayment', 'cancelPurchase',
+  'loadSeasonPurchases', 'refreshPurchase',
 ]);
 
 // User copy for the gateway's commerce answers (MP-A4 RISKS.md error mapping). The code
@@ -224,6 +225,7 @@ export const COMMERCE_MESSAGES = Object.freeze({
   TORNEOS_OFFER_UNAVAILABLE: 'La oferta de Premium no está disponible en este momento.',
   TORNEOS_CHECKOUT_FAILED: 'No pudimos preparar el pago y no se realizó ningún cobro. Volvé a intentar en unos minutos.',
   TORNEOS_PAYMENTS_UNAVAILABLE: 'El servicio de pagos no está disponible en este momento y no se realizó ningún cobro. Volvé a intentar en unos minutos.',
+  TORNEOS_BILLING_DISABLED: 'La compra de Premium todavía no está habilitada para esta organización. No se realizó ningún cobro.',
 });
 
 function commerceCodeOf(error) {
@@ -260,6 +262,15 @@ const checkoutFailed = () => new TournamentWorkspaceError(
   'TORNEOS_CHECKOUT_FAILED',
   COMMERCE_MESSAGES.TORNEOS_CHECKOUT_FAILED,
 );
+
+// COMMERCE-PRODUCTION: the purchases of one season as Mi plan shows them (newest first). Only the organization and
+// season of the route; anything else fails closed.
+function validSeasonPurchases(answer, { organizationId, seasonId }) {
+  return isPlainObject(answer) && sameId(answer.organizationId, organizationId) && sameId(answer.seasonId, seasonId)
+    && typeof answer.canManageBilling === 'boolean' && Array.isArray(answer.purchases)
+    && answer.purchases.every((item) => isPlainObject(item) && UUID.test(String(item.id)) && typeof item.status === 'string');
+}
+const REFRESH_OUTCOME = /^[a-z][a-z0-9_]{1,59}$/;
 
 // The gateway answers {purchase, preference}. `purchase` is the DB snapshot at creation
 // (MP-A4 G1: a fresh checkout still says `created`); only `preference` matters for the
@@ -367,6 +378,38 @@ export function createStagingV1WorkspaceService({
       }
       if (!validCheckoutAnswer(answer, { organizationId, seasonId })) throw checkoutFailed();
       return answer;
+    },
+    loadSeasonPurchases: async ({ organizationId, seasonId } = {}) => {
+      if (![organizationId, seasonId].every((id) => UUID.test(String(id)))) throw invalidRequest();
+      const answer = await call(
+        'get_tournament_season_purchases',
+        { p_organization_id: organizationId, p_season_id: seasonId },
+        'No pudimos consultar las compras de esta temporada.',
+      );
+      if (!validSeasonPurchases(answer, { organizationId, seasonId })) throw purchaseForbidden();
+      return answer;
+    },
+    // "I already paid": the gateway asks Mercado Pago again (production) and answers the purchase as the server sees it
+    // now. A gateway without the route (TEST lab) answers 404: the plain read is the answer then.
+    refreshPurchase: async ({ purchaseId, organizationId, seasonId } = {}) => {
+      if (![purchaseId, organizationId, seasonId].every((id) => UUID.test(String(id)))) throw invalidRequest();
+      let answer;
+      try {
+        answer = await client.refreshPurchase({ purchaseId }, { timeoutMs: checkoutTimeoutMs });
+      } catch (error) {
+        if (error?.status === 404) answer = null;
+        else throw translateCommerceError(error, 'No pudimos actualizar el estado de la compra.');
+      }
+      if (answer === null) {
+        const purchase = await commerceAliases.loadPurchase({ purchaseId, organizationId, seasonId });
+        return { purchase, refresh: 'not_available' };
+      }
+      const purchase = answer?.purchase;
+      if (!isPlainObject(purchase) || !sameId(purchase.id, purchaseId)
+        || !sameId(purchase.organizationId, organizationId) || !sameId(purchase.seasonId, seasonId)) {
+        throw purchaseForbidden();
+      }
+      return { purchase, refresh: REFRESH_OUTCOME.test(String(answer.refresh)) ? answer.refresh : 'unknown' };
     },
   } : {};
 
@@ -1633,16 +1676,20 @@ function competitionAliases(call, client) {
 
 // The value of TorneosCommerceContext for the hybrid composition: the commerce aliases
 // of a staging-v1 service (never the legacy service). `null` when the service has none.
-export function createStagingV1Commerce(service, { redirect = null } = {}) {
+export function createStagingV1Commerce(service, { redirect = null, environment = 'test' } = {}) {
   const required = ['loadSeasonEntitlements', 'loadPurchase', 'createCheckout', 'createIdempotencyKey'];
   if (!service || required.some((name) => typeof service[name] !== 'function')) return null;
   return Object.freeze({
     source: 'hybrid',
+    // COMMERCE-PRODUCTION: 'test' (lab, no real charge) or 'production' (real charges); the pages only label it.
+    environment: environment === 'production' ? 'production' : 'test',
     // Premium is shown only from the server's effective season entitlement.
     entitlementsAuthority: true,
     loadSeasonEntitlements: (input) => service.loadSeasonEntitlements(input),
     loadPurchase: (input) => service.loadPurchase(input),
     createCheckout: (input) => service.createCheckout(input),
+    loadSeasonPurchases: typeof service.loadSeasonPurchases === 'function' ? (input) => service.loadSeasonPurchases(input) : null,
+    refreshPurchase: typeof service.refreshPurchase === 'function' ? (input) => service.refreshPurchase(input) : null,
     createIdempotencyKey: () => service.createIdempotencyKey(),
     redirect: typeof redirect === 'function' ? redirect : null,
   });

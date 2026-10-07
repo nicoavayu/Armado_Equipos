@@ -5,15 +5,19 @@ import { useOptionalTorneosCompetition } from '../context/TorneosCompetitionCont
 import { planComparisonFor } from '../domain/planComparison';
 import { torneosFeatureFlags } from '../config/featureFlags';
 import { useTorneosFeatures } from '../context/TorneosFeaturesContext';
+import { useTorneosCommerce } from '../context/TorneosCommerceContext';
 import { describePlanState } from '../domain/planUx';
 import { clearPremiumIntent } from '../domain/premiumIntent';
+import { isArma2NativeRuntime } from '../../../utils/runtimePlatform';
 import CompetitionSelector from './CompetitionSelector';
+import PremiumPurchasePanel from './PremiumPurchasePanel';
 import styles from './PlanExperiencePage.module.css';
 
 export default function PlanExperiencePage({ organization: organizationProp = null, season: seasonProp = null }) {
   const outlet = useOutletContext() || {};
   const competition = useOptionalTorneosCompetition();
   const features = useTorneosFeatures();
+  const commerce = useTorneosCommerce();
   // Same condition as the Estudio Social entry of the navigation (TorneosShell): flag + composition feature.
   const { comparison, comingSoon } = planComparisonFor({
     socialStudio: torneosFeatureFlags.socialContentGenerator === true && features.social_studio === true,
@@ -26,10 +30,18 @@ export default function PlanExperiencePage({ organization: organizationProp = nu
   const label = describePlanState(state, season);
   const confirmed = ['FREE', 'PREMIUM'].includes(label);
   const comparisonRef = useRef(null);
+  const purchaseRef = useRef(null);
   const { hash } = useLocation();
-  useEffect(() => { if (hash === '#premium') { comparisonRef.current?.scrollIntoView?.(); comparisonRef.current?.focus(); } }, [hash]);
+  // COMMERCE-PRODUCTION: the purchase exists only where the hybrid composition enabled billing (production web app or the
+  // TEST lab) and only for a confirmed plan of this season; native shells never show a purchase or a price.
+  const billing = features.billing === true && commerce.source === 'hybrid' && confirmed;
+  const native = isArma2NativeRuntime();
+  const premiumTarget = () => (billing ? purchaseRef.current : null) || comparisonRef.current;
+  useEffect(() => { if (hash === '#premium') { premiumTarget()?.scrollIntoView?.(); premiumTarget()?.focus?.(); } }, [hash]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { clearPremiumIntent(); }, []);
-  const viewPremium = () => { comparisonRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'start' }); comparisonRef.current?.focus(); };
+  const viewPremium = () => { premiumTarget()?.scrollIntoView?.({ behavior: 'smooth', block: 'start' }); premiumTarget()?.focus?.(); };
+  // What Premium adds (only rows that differ and are available today: the same table, never "Próximamente").
+  const premiumRows = comparison.filter(({ free, premium }) => free !== premium);
   return <div className={styles.page}>
     <header className={styles.pageHeader}>
       <span>Tu temporada</span><h1>Mi plan</h1>
@@ -49,6 +61,9 @@ export default function PlanExperiencePage({ organization: organizationProp = nu
         <button type="button" className={styles.viewPremium} onClick={viewPremium}>Ver Premium</button>
       </div>
     </section>
+    {billing && <div ref={purchaseRef} tabIndex={-1}>
+      <PremiumPurchasePanel organization={organization} season={season} entitlements={state?.data} premiumRows={premiumRows} />
+    </div>}
     {confirmed && <section className={styles.inclusions} aria-label="Inclusiones actuales">
       <h2>Qué incluye tu plan</h2>
       <ul>{comparison.map(({ name, free, premium }) => <li key={name}><Check size={16} aria-hidden="true" /><span>{name}: {label === 'PREMIUM' ? premium : free}</span></li>)}</ul>
@@ -58,7 +73,7 @@ export default function PlanExperiencePage({ organization: organizationProp = nu
       <div className={styles.comparisonTable}>
         <table><caption className={styles.tableCaption}>Qué incluye cada plan en una temporada</caption><thead><tr><th scope="col">Incluye</th><th scope="col">FREE</th><th scope="col">PREMIUM</th></tr></thead><tbody>{comparison.map(({ name, free, premium }) => <tr key={name}><th scope="row">{name}</th><td>{free}</td><td>{premium}</td></tr>)}</tbody></table>
       </div>
-      <p className={styles.availability}>La compra de Premium todavía no está disponible.</p>
+      {!billing && !native && <p className={styles.availability}>La compra de Premium todavía no está disponible.</p>}
     </section>
     <section className={styles.upcoming} aria-labelledby="plan-upcoming-title">
       <div className={styles.sectionHeading}><span>EN PREPARACIÓN</span><h2 id="plan-upcoming-title">Próximamente</h2><p>Estas funciones todavía no están disponibles. Así se van a repartir entre los planes cuando lleguen.</p></div>

@@ -120,9 +120,13 @@ export const stagingV1MediaOverlay = Object.freeze({
   media: true,
 });
 
+// COMMERCE-PRODUCTION: the purchase overlay is the same for a billing mode resolved to `test` (local lab) or
+// `production` (foundation/config.js: the production web app only); the mode itself never changes what is shown.
+const BILLING_MODES = new Set(['test', 'production']);
+
 function baseFeaturesFor(billingMode, { planRead = false, social = false } = {}) {
   const mode = typeof billingMode === 'string' ? billingMode : billingMode?.mode;
-  if (mode === 'test') return social === true ? billingTestSocialFeatures : billingTestFeatures;
+  if (BILLING_MODES.has(mode)) return social === true ? billingTestSocialFeatures : billingTestFeatures;
   if (planRead !== true) return stagingV1Features;
   return social === true ? planReadSocialFeatures : planReadFeatures;
 }

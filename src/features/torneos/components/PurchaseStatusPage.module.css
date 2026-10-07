@@ -138,3 +138,14 @@
   .card { animation: purchaseReveal 320ms ease-out both; }
   @keyframes purchaseReveal { from { opacity: 0; transform: translateY(12px); } }
 }
+
+.waitNote {
+  margin: 14px 0 0;
+  padding: 10px 12px;
+  color: #ffe1a9;
+  background: rgba(255, 202, 106, 0.08);
+  border: 1px solid rgba(255, 202, 106, 0.3);
+  border-radius: 10px;
+  font-size: 13px;
+  line-height: 1.5;
+}

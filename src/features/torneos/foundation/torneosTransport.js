@@ -37,12 +37,12 @@
 // POST /torneos/media/v1/upload?gallery=&key= (one normalized photo as the raw body; real upload progress through
 // XMLHttpRequest, the only browser API that reports it) and POST /torneos/media/v1/urls (signed reads).
 //
-// MP-A5 adds ONE commerce route (MP-A4 gateway, commerce TEST only): POST
-// /commerce/v1/season-checkout with the same bearer, headers and failure mapping as the
-// RPC route. It is never retried beyond that single 401 renewal: the caller repeats a
-// checkout on purpose, with the same idempotency key.
+// MP-A5 adds the commerce routes (MP-A4 gateway): POST /commerce/v1/season-checkout and, with the
+// COMMERCE-PRODUCTION gateway, POST /commerce/v1/purchase-refresh, with the same bearer, headers and
+// failure mapping as the RPC route. They are never retried beyond that single 401 renewal: the caller
+// repeats a checkout on purpose, with the same idempotency key.
 import { TorneosBoundaryError } from './errors';
-import { SEASON_CHECKOUT_PATH } from './stagingV1CommerceScope';
+import { COMMERCE_PATHS } from './stagingV1CommerceScope';
 import { MEDIA_UPLOAD_ROUTE, MEDIA_URLS_ROUTE } from './mediaV1Scope';
 
 export const EXCHANGE_PATH = '/exchange';
@@ -390,7 +390,7 @@ export function createTorneosTransport({
       return Array.isArray(json) ? json : [];
     },
     async commerce(path, body, { signal, timeoutMs = COMMERCE_REQUEST_TIMEOUT_MS } = {}) {
-      if (path !== SEASON_CHECKOUT_PATH) throw new TorneosBoundaryError('TORNEOS_INVALID_REQUEST');
+      if (!COMMERCE_PATHS.includes(path)) throw new TorneosBoundaryError('TORNEOS_INVALID_REQUEST');
       if (body === null || typeof body !== 'object' || Array.isArray(body)) {
         throw new TorneosBoundaryError('TORNEOS_INVALID_REQUEST');
       }
