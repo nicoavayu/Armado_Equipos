@@ -32,6 +32,11 @@ import { CoreClient, Denied } from './core-client.mjs';
 import { Adapter, AdapterDenied, CONTRACTS } from './adapter.mjs';
 
 const origin = 'http://127.0.0.1:58420';
+// The loopback origin the browser-facing bridge presents. Default: this gateway's own published port. A second lab
+// gateway on the same lab (MEDIA-V1's, beside the preview's) is published on another loopback port of the 584xx lab
+// range; `origin` stays the Core issuer base either way.
+const publicOrigin = process.env.PHASE3A_GATEWAY_PUBLIC_ORIGIN || origin;
+if (!/^http:\/\/127\.0\.0\.1:584[0-9]{2}$/.test(publicOrigin)) throw new Error('PHASE3A_GATEWAY_PUBLIC_ORIGIN must be a 584xx loopback origin');
 const readConfig = async () => JSON.parse(await readFile('.runtime/server/config.json', 'utf8'));
 const initial = await readConfig();
 // Staging v1 RPC allowlist: fail closed if the file is missing, malformed or empty.
@@ -213,8 +218,8 @@ const server = http.createServer(async (req, res) => {
   res.setHeader('content-security-policy', "default-src 'self'; script-src 'self'; connect-src 'self'; object-src 'none'; frame-ancestors 'none'");
   try {
     if (disabled) return json(res, 503, { error: 'access denied' });
-    if (req.headers.host !== '127.0.0.1:58420' ||
-        (req.headers.origin && req.headers.origin !== origin)) return json(res, 403, { error: 'origin rejected' });
+    if (req.headers.host !== new URL(publicOrigin).host ||
+        (req.headers.origin && req.headers.origin !== publicOrigin)) return json(res, 403, { error: 'origin rejected' });
     const url = new URL(req.url, origin);
     if (req.method === 'GET' && url.pathname === '/config') {
       return json(res, 200, { coreUrl: origin, torneosUrl: `${origin}/torneos`, anonKey: initial.anonKey });

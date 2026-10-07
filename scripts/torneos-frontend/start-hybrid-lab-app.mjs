@@ -12,7 +12,10 @@
 //      lab gateway started with TORNEOS_CONNECTED_MODE=on; --branding = REACT_APP_TORNEOS_BRANDING_MODE=on, against a lab
 //      started with TORNEOS_BRANDING_MODE=on — logos/shields in the lab's Torneos storage, signed by the gateway;
 //      --production-flags = the feature flags Production's bundle carries today: PLAN READ on, Estudio Social on, public
-//      pages on — against a lab gateway with TORNEOS_PLAN_READ_MODE=on and TORNEOS_SOCIAL_MODE=on)
+//      pages on — against a lab gateway with TORNEOS_PLAN_READ_MODE=on and TORNEOS_SOCIAL_MODE=on;
+//      --media = the photo galleries (REACT_APP_TORNEOS_MEDIA_ENABLED=true + REACT_APP_TORNEOS_MEDIA_MODE=on), against a
+//      lab gateway with TORNEOS_MEDIA_MODE=on — e.g. backend/torneos/media-v1/lab/media-lab.mjs, which runs its own gateway
+//      and bridge ports through B04_LAB_GATEWAY_ORIGIN, B04_LAB_BRIDGE_CORE_PORT and B04_LAB_BRIDGE_GATEWAY_PORT)
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -29,14 +32,18 @@ const BRANDING = process.argv.includes('--branding');
 const PRODUCTION_FLAGS = process.argv.includes('--production-flags');
 // --edge: the bridge talks to the lab's Edge gateway (the hosted runtime) instead of its Node port.
 const EDGE = process.argv.includes('--edge');
-const CORE_URL = 'http://127.0.0.1:58422';
-const GATEWAY_URL = 'http://127.0.0.1:58423';
+const MEDIA = process.argv.includes('--media');
+const CORE_URL = `http://127.0.0.1:${process.env.B04_LAB_BRIDGE_CORE_PORT || '58422'}`;
+const GATEWAY_URL = `http://127.0.0.1:${process.env.B04_LAB_BRIDGE_GATEWAY_PORT || '58423'}`;
+const GATEWAY_HEALTH = process.env.B04_LAB_GATEWAY_ORIGIN
+  ? `${process.env.B04_LAB_GATEWAY_ORIGIN}/health`
+  : (EDGE ? 'http://127.0.0.1:58421/torneos-gateway/health' : 'http://127.0.0.1:58420/health');
 
 async function probe(url) {
   try { const r = await fetch(url, { signal: AbortSignal.timeout(3000) }); return r.status; } catch { return null; }
 }
 
-const gatewayHealth = await probe(EDGE ? 'http://127.0.0.1:58421/torneos-gateway/health' : 'http://127.0.0.1:58420/health');
+const gatewayHealth = await probe(GATEWAY_HEALTH);
 const coreHealth = await probe('http://127.0.0.1:58424/auth/v1/health');
 if (gatewayHealth !== 200 || coreHealth !== 200) {
   console.error(`B04 hybrid lab is not up (gateway ${gatewayHealth}, core-api ${coreHealth}).`);
@@ -68,7 +75,8 @@ const env = {
   REACT_APP_TORNEOS_OFFICIAL_STATS_ENABLED: 'false',
   // Explorar torneos shows a call on the tournament's published public page: the connected run needs public pages.
   REACT_APP_TORNEOS_PUBLIC_PAGES_ENABLED: CONNECTED || PRODUCTION_FLAGS ? 'true' : 'false',
-  REACT_APP_TORNEOS_MEDIA_ENABLED: 'false',
+  REACT_APP_TORNEOS_MEDIA_ENABLED: MEDIA ? 'true' : 'false',
+  REACT_APP_TORNEOS_MEDIA_MODE: MEDIA ? 'on' : 'off',
   REACT_APP_TORNEOS_MEDIA_UPLOAD_ENABLED: 'false',
   REACT_APP_TORNEOS_SOCIAL_GENERATOR_ENABLED: PRODUCTION_FLAGS ? 'true' : 'false',
   ...(PRODUCTION_FLAGS ? { REACT_APP_TORNEOS_PLAN_READ_MODE: 'on' } : {}),
@@ -85,7 +93,7 @@ const env = {
   B04_LAB_APP_ORIGIN: APP_ORIGIN,
   ...(EDGE ? { B04_LAB_GATEWAY: 'edge' } : {}),
 };
-console.log(`B04 hybrid lab app: Core ${CORE_URL} · gateway ${GATEWAY_URL} · app ${APP_ORIGIN} · DATA_ENV=local · connected ${CONNECTED ? 'on' : 'off'} · branding ${BRANDING ? 'on' : 'off'} · anon key from lab .runtime (not printed)`);
+console.log(`B04 hybrid lab app: Core ${CORE_URL} · gateway ${GATEWAY_URL} · app ${APP_ORIGIN} · DATA_ENV=local · connected ${CONNECTED ? 'on' : 'off'} · branding ${BRANDING ? 'on' : 'off'} · media ${MEDIA ? 'on' : 'off'} · anon key from lab .runtime (not printed)`);
 if (!process.argv.includes('--start')) process.exit(0);
 
 const bridge = spawn(process.execPath, [path.join(root, 'scripts/torneos-frontend/lab-bridge.mjs')], { env, stdio: 'inherit' });

@@ -267,6 +267,7 @@ horario de poco tráfico.
 | LOCAL (`legacy-local`) | `20261006120000` + las de Core en la misma base | Stack `arma2-torneos-qa-seed`, preview 3102, simulador iOS |
 | Core Production | Sólo `20261007120000`, `20261008120000` y la función `torneos-core-contract` | INFRA-1.2 |
 | Torneos aislado | `0009`, `0010`, `0011` + gateway + flags | `db-0009-0011.mjs`, runbook §10, Vercel |
+| Galería de fotos (MEDIA-V1, **GO propio, fuera de esta promoción**) | Torneos `0012` + modo `MVP_SIMPLE` + gateway `TORNEOS_MEDIA_MODE=on` + frontend `REACT_APP_TORNEOS_MEDIA_MODE=on` y `REACT_APP_TORNEOS_MEDIA_ENABLED=true` | `backend/torneos/media-v1/ACTIVATION.md` |
 
 Torneos nunca escribe en Core: la autoridad sobre los equipos de Core llega atestada por el contrato (`team_snapshot`,
 `directory_teams`, `my_teams`).

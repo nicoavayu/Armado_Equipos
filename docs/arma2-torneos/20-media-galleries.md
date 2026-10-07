@@ -1,5 +1,9 @@
 # Fotos y galerías de partidos
 
+> **MEDIA-V1 (composición híbrida).** El dominio de este documento es el que usa la galería publicada; la carga pasa por
+> el gateway de Torneos y la entrega por URLs firmadas que el gateway pide con el token del propio usuario. Ver
+> [`backend/torneos/media-v1/README.md`](../../backend/torneos/media-v1/README.md).
+
 Estado auditado: contratos, metadata y superficies del dominio privado de
 Multimedia.
 
