@@ -1,7 +1,7 @@
 # Arma2 en el plan Free de Supabase — capacidad, backups y herramientas
 
-**Estado (2026-10-07): diagnóstico hecho con lecturas, remediación y backups preparados y ensayados en laboratorio.
-Nada se ejecutó en Production.** Decisión vigente: no contratar Pro, PITR ni adicionales. Este documento reformula la
+**Estado (2026-10-07 14:45 UTC): mantenimiento de capacidad de Core (R0 → R3) ejecutado en Production. Core pasó de
+491,9 a 63,6 MiB; el resultado está en §8.** Torneos y Storage siguen sin backup. Decisión vigente: no contratar Pro, PITR ni adicionales. Este documento reformula la
 promoción web de Torneos conectado para que funcione dentro de los límites de Free
 (`docs/torneos/connected-product/DEPLOY.md`).
 
@@ -65,7 +65,7 @@ Lecturas de `pg_database_size` y del catálogo, 2026-10-07. El script es `supaba
 **Después de la remediación:** Core queda en unos 77 MB y la organización en unos 114 MB de 500 (23 %). Con la retención
 activa, Core deja de crecer por logs.
 
-## 4. Remediación de capacidad — alcance para aprobar (nada ejecutado)
+## 4. Remediación de capacidad — alcance (ejecutada el 2026-10-07, resultado en §8)
 
 Orden: **R0 → R1 → R2 → R3**. Todos los pasos se ejecutan con
 `python3 scripts/ops/free-plan/core_apply.py apply <paso> --phrase "<frase>"`, desde Terminal, con la contraseña de la
@@ -258,6 +258,33 @@ Todo lo ejecuta un único script, que se frena en la primera falla:
 **Por qué lo corre Nico:** cada paso necesita la contraseña de la base de Core, escrita en una terminal real. El
 agente no la tiene y no debe sortear ese mecanismo (ni con el editor SQL del panel, ni con el Keychain, ni de otra
 forma).
+
+### Resultado en Production (2026-10-07, hecho: no se repite)
+
+| Paso | Resultado |
+| --- | --- |
+| R0 | Backup `20261007T140548Z`: 198 tablas, 1.487.026 filas, dump de 31,4 MB cifrado. La primera verificación dio `RESTORE MISMATCH` (roles de plataforma, ver «Por qué falló el R0»). Repetida sobre el mismo backup con `b2371998`: `RESTORE VERIFIED`, pg_restore con salida 0, 0 errores y 0 diferencias |
+| R1 | `REINDEX_DONE` en 0,32 s: índices de `notification_delivery_log` de 67 MB a 0,2 MB, las mismas 16 filas |
+| R2 | `MIGRATION-20261009120000_DONE`: jobs 8 → 10 (`ops_log_retention_scheduler` 03:41 UTC, `ops_delivery_log_reindex` el día 1 a las 04:11 UTC). Ledger con `20261009120000` |
+| R3 | `COMPACT_DONE` en 4,99 s, unos 14 MB de WAL. Se retiraron 1.108.728 corridas de cron y 286.990 ticks anteriores al 2026-09-30 14:45 UTC; quedan los 7 días (37.303 y 10.080) y todo lo anterior está en el backup |
+
+- **Tamaño:** `pg_database_size` 491,9 → 63,6 MiB. Panel a las 14:50 UTC: Core 77,99 MB, Torneos 36,92 MB, organización
+  0,082 / 0,5 GB, sin exceso. El panel marca unos 14 MB más que `pg_database_size`, igual antes que después.
+- **Salud a los 75 s de cada paso:** sin sólo lectura, 0 corridas de cron fallidas y el tick de push escribiendo.
+- **Evidencia** (fuera del repo): `~/Arma2Backups/core-maintenance-20261007T140145Z/`, con `REPORT.json`, `r1`…`r3`
+  y los dos `RESTORE-CHECK-*`.
+- **Datos funcionales (lectura de 15:18 UTC contra el `MANIFEST.json` del backup, transacción de sólo lectura):**
+  - 193 de 198 tablas idénticas fila por fila al backup: usuarios, equipos, partidos, encuestas, notificaciones,
+    fotos (`storage.objects`) y todo lo demás.
+  - Las 5 distintas son las esperadas:
+    - `cron.job`: 8 → 10, con los 8 originales idénticos;
+    - los dos logs compactados, que siguen creciendo;
+    - `push_sender_scheduler_state`: una fila que cambia con cada tick;
+    - `supabase_migrations.schema_migrations`: 238 → 239, con las 238 anteriores idénticas.
+  - Catálogo: funciones iguales salvo la nueva `run_ops_log_retention`; políticas, triggers y permisos de tablas
+    iguales.
+  - En los 33 minutos posteriores: 126 corridas de cron, 0 fallidas, y 34 ticks de push. 10 jobs activos.
+- **Cerrado.** No se repite. Lo que sigue es la operación de G11: `inspect` semanal y el backup semanal.
 
 **Ensayo general** del mismo script en una copia de Core con los volúmenes de Production y pg_cron activo
 (`scripts/ops/free-plan/evidence/maintenance-dress-rehearsal-20261007.json`):
