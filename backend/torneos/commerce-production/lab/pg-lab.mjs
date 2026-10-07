@@ -86,15 +86,25 @@ async function waitReady() {
   throw new Error('lab database did not become ready');
 }
 
-/** Applied migrations whose file changed since (by sha256). Empty when the ledger does not exist yet. */
+/**
+ * Why the lab database no longer matches the tree: applied migrations whose file changed (sha256), and files that sort
+ * before an applied migration but were never applied (a migration arriving "in the middle", e.g. the gallery's 0012 after
+ * 0013 ran). Empty when the ledger does not exist yet.
+ */
 export function staleMigrations() {
   const r = sqlTry("select coalesce(json_agg(json_build_object('name', name, 'sha256', sha256)), '[]') from lab_meta.torneos_migrations");
   if (!r.ok) return [];
   const applied = JSON.parse(r.out.trim() || '[]');
-  return applied.filter(({ name, sha256 }) => {
+  const changed = applied.filter(({ name, sha256 }) => {
     const file = path.join(MIGRATIONS_DIR, name);
     return !existsSync(file) || createHash('sha256').update(readFileSync(file, 'utf8')).digest('hex') !== sha256;
   }).map(({ name }) => name);
+  const last = applied.map(({ name }) => name).sort().pop();
+  const names = new Set(applied.map(({ name }) => name));
+  const skipped = sql("select coalesce(to_regclass('storage.objects') is not null, false)").trim() === 't' ? [] : ['branding_v1', 'media_gallery_v1'];
+  const missing = readdirSync(MIGRATIONS_DIR).filter((f) => /^\d{14}_.*\.sql$/.test(f) && last && f < last && !names.has(f)
+    && !skipped.some((suffix) => f.endsWith(`_${suffix}.sql`)));
+  return [...changed, ...missing];
 }
 
 /** Applies every Torneos migration once, in order (0010 needs Supabase Storage and is skipped, as in the shared lab). */
