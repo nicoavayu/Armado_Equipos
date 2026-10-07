@@ -1,6 +1,6 @@
 # TORNEOS-CALL-MAP — auditoría B04
 
-Inventario legacy congelado en `2058da039a2a5eaaed22d87d01946bc596ae5f50` (Phase 2D); árbol integrado auditado en `a9ce6953d137272dfb9d208e57595f997e833e69`. Reconstruido del código. No representa resultados de R2/R3/R4/R5.
+Inventario legacy congelado en `2058da039a2a5eaaed22d87d01946bc596ae5f50` (Phase 2D); árbol integrado auditado en `a6f0eb32efee41cbee8afb0a8c0348e70f71ef5d`. Reconstruido del código. No representa resultados de R2/R3/R4/R5.
 
 161 sitios RPC legacy; 160 nombres distintos; 108 nombres dentro de scope; 52 fuera. La selección dinámica de `changeTournamentMatchPlan` se resuelve a sus tres nombres literales. No quedan RPC dinámicas sin resolver.
 
@@ -255,7 +255,7 @@ Ninguna de estas superficies se habilita en la composición híbrida. `from` pue
 | transport | `createClient` | No literal / sin argumento | [src/features/torneos/isolated/createTorneosClient.js:58](../../../src/features/torneos/isolated/createTorneosClient.js#L58) |
 | transport | `fetch` | No literal / sin argumento | [src/features/torneos/social/socialStudio.js:69](../../../src/features/torneos/social/socialStudio.js#L69) |
 
-## Imports directos del singleton Core (33)
+## Imports directos del singleton Core (37)
 
 | Archivo | Import |
 | --- | --- |
@@ -263,15 +263,18 @@ Ninguna de estas superficies se habilita en la composición híbrida. `from` pue
 | [src/components/jugar/AvailabilityOpportunityCard.jsx:27](../../../src/components/jugar/AvailabilityOpportunityCard.jsx#L27) | `../../lib/supabaseClient` |
 | [src/features/onboarding/storage.js:6](../../../src/features/onboarding/storage.js#L6) | `../../lib/supabaseClient` |
 | [src/features/torneos/isolated/IsolatedTorneosPage.jsx:4](../../../src/features/torneos/isolated/IsolatedTorneosPage.jsx#L4) | `../../../lib/supabaseClient` |
+| [src/hooks/useSurveyFinalizationRecovery.js:2](../../../src/hooks/useSurveyFinalizationRecovery.js#L2) | `../lib/supabaseClient` |
 | [src/lib/coreSupabaseClient.js:3](../../../src/lib/coreSupabaseClient.js#L3) | `./supabaseClient` |
 | [src/services/api/supabase.js:10](../../../src/services/api/supabase.js#L10) | `../../lib/supabaseClient` |
 | [src/services/autoMatchPushService.js:2](../../../src/services/autoMatchPushService.js#L2) | `../lib/supabaseClient` |
+| [src/services/clientBuildReport.js:4](../../../src/services/clientBuildReport.js#L4) | `../lib/supabaseClient` |
 | [src/services/db/availability.js:1](../../../src/services/db/availability.js#L1) | `../../lib/supabaseClient` |
 | [src/services/db/awards.js:2](../../../src/services/db/awards.js#L2) | `../../lib/supabaseClient` |
 | [src/services/db/dbErrors.js:1](../../../src/services/db/dbErrors.js#L1) | `../../lib/supabaseClient` |
 | [src/services/db/frequentMatches.js:2](../../../src/services/db/frequentMatches.js#L2) | `../../lib/supabaseClient` |
 | [src/services/db/friends.js:2](../../../src/services/db/friends.js#L2) | `../../lib/supabaseClient` |
 | [src/services/db/importedMatchPlayers.js:1](../../../src/services/db/importedMatchPlayers.js#L1) | `../../lib/supabaseClient` |
+| [src/services/db/matchAccessCode.js:1](../../../src/services/db/matchAccessCode.js#L1) | `../../lib/supabaseClient` |
 | [src/services/db/matchScheduling.js:1](../../../src/services/db/matchScheduling.js#L1) | `../../lib/supabaseClient` |
 | [src/services/db/matches.js:2](../../../src/services/db/matches.js#L2) | `../../lib/supabaseClient` |
 | [src/services/db/notifications.js:2](../../../src/services/db/notifications.js#L2) | `../../lib/supabaseClient` |
@@ -280,6 +283,7 @@ Ninguna de estas superficies se habilita en la composición híbrida. `from` pue
 | [src/services/db/penalties.js:2](../../../src/services/db/penalties.js#L2) | `../../lib/supabaseClient` |
 | [src/services/db/privateFriendGroups.js:1](../../../src/services/db/privateFriendGroups.js#L1) | `../../lib/supabaseClient` |
 | [src/services/db/profiles.js:1](../../../src/services/db/profiles.js#L1) | `../../lib/supabaseClient` |
+| [src/services/db/publicProfiles.js:1](../../../src/services/db/publicProfiles.js#L1) | `../../lib/supabaseClient` |
 | [src/services/db/realtime.js:2](../../../src/services/db/realtime.js#L2) | `../../lib/supabaseClient` |
 | [src/services/db/surveys.js:2](../../../src/services/db/surveys.js#L2) | `../../lib/supabaseClient` |
 | [src/services/db/teamChallenges.js:2](../../../src/services/db/teamChallenges.js#L2) | `../../lib/supabaseClient` |
