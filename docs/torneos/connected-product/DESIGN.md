@@ -1,7 +1,8 @@
 # Arma2 Torneos — producto conectado (CONNECTED-V1)
 
-Estado: implementación local + laboratorio híbrido + validación en simulador iOS. **Nada aplicado en remoto, nada
-desplegado.** Procedimiento de despliegue y rollback: `DEPLOY.md`. Avisos y push: `NOTIFICATIONS-AUDIT.md`.
+Estado: implementación local + laboratorio híbrido + validación en simulador iOS + ensayo completo de la promoción web
+(laboratorio descartable). **Nada aplicado en remoto, nada desplegado.** Promoción, preflight, ensayo y rollback:
+`DEPLOY.md`. Avisos y push: `NOTIFICATIONS-AUDIT.md`.
 
 ## Base
 
@@ -169,6 +170,7 @@ efecto y se reemplazan por esa explicación.
 | Transporte | supabase-js | gateway; RPC autenticadas + 3 públicas (anon) |
 | Activación | siempre | `TORNEOS_CONNECTED_MODE=on` (gateway) + `REACT_APP_TORNEOS_CONNECTED_MODE=on` (build) |
 | Logos y escudos | Storage local (rutas → URL pública del bucket local) | BRANDING-V1: migración `00000000000010_branding_v1.sql`, `TORNEOS_BRANDING_MODE=on` (gateway) + `REACT_APP_TORNEOS_BRANDING_MODE=on` (subida) |
+| Búsqueda de jugadores para el plantel | `search_tournament_players` en la misma base | `00000000000011_connected_roster_search.sql`: el responsable de una inscripción de afuera de la organización busca jugadores de Arma2 para su plantel; la guarda de temporada queda sólo para el camino de la organización (búsqueda y autorizador del contrato `directory_players`) |
 
 Sin los dos flags, Production queda exactamente como hoy (las fronteras de encabezado
 sí aplican siempre).
@@ -216,8 +218,9 @@ sí aplican siempre).
   jugadores sin cuenta.
 - Avisos y push entre productos: ver `NOTIFICATIONS-AUDIT.md`. Torneos no pide permiso de push; con el permiso ya
   concedido en Arma2, mantiene el registro del dispositivo de Core mientras la app está en Torneos. La cuenta puede
-  apagar los avisos externos de Arma2 desde «Mi perfil de Torneos» (preferencia de Core aplicada en el servidor, sin
-  tocar la bandeja de Torneos ni la sesión).
+  apagar los avisos externos de Arma2 desde «Mi perfil de Torneos»: la preferencia es de Core, se aplica a toda la
+  cuenta y en todos sus dispositivos, y no toca la bandeja de Torneos ni la sesión. Si Core no tiene la RPC o revocó su
+  EXECUTE (rollback seguro), el control no se muestra.
 - La bandeja de solicitudes muestra el nombre de Torneos vigente del responsable (fallback: el del plantel).
 - Sin push, web push ni email: sólo bandeja interna. No se ofrecen controles para canales inexistentes.
 - Sin UI de administración de plataforma: sólo la palanca `service_role` descripta arriba.
