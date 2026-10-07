@@ -54,6 +54,8 @@ const expectedCanonicalMigrations = [
   '20261007120000_torneos_core_contract_v1_2_my_teams.sql',
   // #182 closure: the account's Core push preference (get/set) enforced at the push queue.
   '20261008120000_core_push_preference_v1.sql',
+  // Free-plan capacity: 7-day retention of cron's run history and the push scheduler's tick log (capped daily run).
+  '20261009120000_core_ops_log_retention.sql',
 ];
 
 const exitWithError = (message) => {

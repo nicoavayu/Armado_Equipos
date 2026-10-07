@@ -18,6 +18,7 @@ const torneosCoreContractSessionMigration = '20260915120000_torneos_core_contrac
 const torneosConnectedLocalMigration = '20261006120000_torneos_connected_product_v1.sql';
 const torneosCoreContractMyTeamsMigration = '20261007120000_torneos_core_contract_v1_2_my_teams.sql';
 const corePushPreferenceMigration = '20261008120000_core_push_preference_v1.sql';
+const coreOpsLogRetentionMigration = '20261009120000_core_ops_log_retention.sql';
 const approvedMigrations = fs.readdirSync(path.join(repoRoot, 'supabase', 'migrations'))
   .filter((file) => file.endsWith('.sql'))
   .sort();
@@ -41,7 +42,7 @@ const runGuard = (cwd) => spawnSync(process.execPath, [guardPath], {
 });
 
 test('accepts the closed set including Auto-Match, contract repair and global availability', (t) => {
-  assert.equal(approvedMigrations.length, 46);
+  assert.equal(approvedMigrations.length, 47);
   assert.ok(approvedMigrations.includes(autoMatchMigration));
   assert.ok(approvedMigrations.includes(contractRepairMigration));
   assert.ok(approvedMigrations.includes(mediaSessionReuseMigration));
@@ -52,6 +53,7 @@ test('accepts the closed set including Auto-Match, contract repair and global av
   assert.ok(approvedMigrations.includes(torneosConnectedLocalMigration));
   assert.ok(approvedMigrations.includes(torneosCoreContractMyTeamsMigration));
   assert.ok(approvedMigrations.includes(corePushPreferenceMigration));
+  assert.ok(approvedMigrations.includes(coreOpsLogRetentionMigration));
   assert.equal(
     approvedMigrations.filter(
       (file) => file !== autoMatchMigration
@@ -62,7 +64,8 @@ test('accepts the closed set including Auto-Match, contract repair and global av
         && file !== torneosCoreContractSessionMigration
         && file !== torneosConnectedLocalMigration
         && file !== torneosCoreContractMyTeamsMigration
-        && file !== corePushPreferenceMigration,
+        && file !== corePushPreferenceMigration
+        && file !== coreOpsLogRetentionMigration,
     ).length,
     37,
   );
