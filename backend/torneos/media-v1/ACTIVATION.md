@@ -21,6 +21,10 @@ la galería no aparece o no carga; nunca queda una mitad insegura (sin gateway n
 
 ## 1. Base (Torneos, GO requerido)
 
+Fuera de la promoción de #182: `backend/torneos/connected-v1/remote/db-0009-0011.mjs` conoce hasta `POST_0011` y
+clasifica cualquier base con `0012` como `DRIFT`. MEDIA-V1 se promueve después, desde `POST_0011`, con su propio
+gate (y su propio driver si se automatiza), y con el gateway de 29 archivos en una imagen propia.
+
 Pre-check (sólo lectura, SQL editor o psql `READ ONLY`):
 
 ```sql
