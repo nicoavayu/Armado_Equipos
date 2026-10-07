@@ -107,6 +107,7 @@ services:
       DB_AFTER_CONNECT_QUERY: SET search_path TO _realtime
       DB_ENC_KEY: supabaserealtime
       API_JWT_SECRET: ${CORE_JWT_SECRET}
+      METRICS_JWT_SECRET: ${CORE_JWT_SECRET}
       SECRET_KEY_BASE: ${REALTIME_SECRET_KEY_BASE}
       ERL_AFLAGS: -proto_dist inet_tcp
       DNS_NODES: "''"

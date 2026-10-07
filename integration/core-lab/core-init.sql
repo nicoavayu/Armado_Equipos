@@ -3,3 +3,5 @@
 -- afterwards by lab.mjs as `postgres`, like hosted Supabase does.
 CREATE SCHEMA IF NOT EXISTS auth AUTHORIZATION supabase_auth_admin;
 ALTER ROLE supabase_auth_admin SET search_path = auth, public;
+-- Realtime keeps its tenant catalog in `_realtime` (created by the hosted platform).
+CREATE SCHEMA IF NOT EXISTS _realtime AUTHORIZATION supabase_admin;

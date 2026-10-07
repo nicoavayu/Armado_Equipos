@@ -32,6 +32,12 @@ const day = (offset) => {
   const d = new Date(Date.now() + offset * 86400000);
   return d.toISOString().slice(0, 10);
 };
+// Match times are Buenos Aires wall-clock (the survey scheduler reads them that way).
+const buenosAiresSlot = (hoursFromNow) => {
+  const local = new Date(Date.now() + hoursFromNow * 3600000 - 3 * 3600000);
+  const minutes = local.getUTCMinutes() < 30 ? '00' : '30';
+  return { fecha: local.toISOString().slice(0, 10), hora: `${String(local.getUTCHours()).padStart(2, '0')}:${minutes}` };
+};
 
 async function adminFetch(c, path, init = {}) {
   const r = await fetch(`${API}${path}`, { ...init, headers: { apikey: c.serviceRoleKey,
@@ -96,7 +102,8 @@ export async function seed() {
   }).select().single().then(must(`match ${fields.nombre}`));
   const jueves = await createMatch(org.client, ids.organizador, { nombre: 'Fútbol del jueves', fecha: day(3), hora: '21:00' });
   const sabado = await createMatch(org.client, ids.organizador, { nombre: 'Sábado en Palermo', fecha: day(1), hora: '18:00', falta_jugadores: false });
-  const pasado = await createMatch(org.client, ids.organizador, { nombre: 'Picadito del domingo', fecha: day(-2), hora: '20:00', falta_jugadores: false });
+  // Finished three hours ago: its post-match survey is open for the next ~21 hours.
+  const pasado = await createMatch(org.client, ids.organizador, { nombre: 'Picadito de anoche', ...buenosAiresSlot(-3), falta_jugadores: false });
   const ajeno = await createMatch(s.ajeno.client, ids.ajeno, { nombre: 'Partido privado de Ramiro', fecha: day(2), hora: '22:00' });
 
   // Rosters: the organizer joins their own matches like the app does; other players' joins
@@ -110,9 +117,8 @@ export async function seed() {
   await roster(sabado, ['organizador', 'jugador1', 'jugador2', 'jugador3', 'jugador4', 'jugador5', 'jugador6', 'jugador7', 'jugador8', 'jugador9']);
   await roster(pasado, ['organizador', 'jugador1', 'jugador2', 'jugador3', 'jugador4', 'jugador5', 'jugador6', 'jugador7', 'jugador8', 'jugador9']);
   await roster(ajeno, ['ajeno']);
-  await admin.from('partidos').update({ estado: 'finalizado', result_status: 'finished', finished_at: new Date(Date.now() - 2 * 86400000 + 7200000).toISOString(),
-    survey_status: 'open', survey_opened_at: new Date(Date.now() - 2 * 86400000 + 7200000).toISOString(),
-    survey_closes_at: new Date(Date.now() + 86400000).toISOString() }).eq('id', pasado.id).then(must('finish match'));
+  await admin.from('partidos').update({ estado: 'finalizado', result_status: 'finished', finished_at: new Date(Date.now() - 3600000).toISOString() })
+    .eq('id', pasado.id).then(must('finish match'));
 
   // Friendships through the app path (request as the sender, accept as the recipient).
   for (const key of ['jugador1', 'jugador2', 'jugador3', 'jugador4', 'jugador5']) {
@@ -144,17 +150,14 @@ export async function seed() {
   await org.client.rpc('rpc_send_team_invitation', { p_team_id: team.id, p_invited_user_id: ids.jugador4 })
     .then(({ error }) => { if (error) console.warn(`team invitation skipped: ${error.message}`); });
 
-  await notifyLikeTheBackend(c, ids, passwords);
+  await notifyLikeTheBackend(c);
   console.log(`QA fixture ready: ${PEOPLE.length} accounts (@${QA_DOMAIN}), matches ${[jueves, sabado, pasado, ajeno].map((m) => m.id).join(', ')}, team ${team.id}`);
 }
 
-// Notifications the backend would have produced by now, through the same RPCs: the friend
-// request notice (client RPC, as the sender) and the post-match survey (the scheduler's job).
-export async function notifyLikeTheBackend(c, ids, passwords) {
+// Notifications the backend would have produced by now. Friend requests already notify
+// through the amigos trigger; the post-match survey is the scheduler's job.
+export async function notifyLikeTheBackend(c) {
   const admin = createClient(API, c.serviceRoleKey, { auth: { persistSession: false, autoRefreshToken: false } });
-  const sender = await signIn(c, 'jugador7', passwords);
-  await sender.client.rpc('create_notification', { p_type: 'friend_request', p_recipient_id: ids.organizador, p_context: {} })
-    .then(must('friend request notice'));
   await admin.rpc('process_survey_start_notifications_backend', { p_delay_minutes: 60, p_limit: 50 })
     .then(must('survey start notifications'));
 }
