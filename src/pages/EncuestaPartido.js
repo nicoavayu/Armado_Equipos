@@ -757,6 +757,8 @@ const EncuestaPartido = () => {
   const [loggedRosterCount, setLoggedRosterCount] = useState(0);
   const [surveyClosed, setSurveyClosed] = useState(false);
   const [surveyClosedAt, setSurveyClosedAt] = useState(null);
+  // Only for someone who already answered: the survey has closed since (results are out).
+  const [answeredAndClosed, setAnsweredAndClosed] = useState(false);
   const [surveyUnavailableMessage, setSurveyUnavailableMessage] = useState('');
 
   const [formData, setFormData] = useState(DEFAULT_FORM_DATA);
@@ -1309,6 +1311,8 @@ const EncuestaPartido = () => {
           matchStartAt,
           now: Date.now(),
         });
+
+        setAnsweredAndClosed(Boolean(hasSubmitted && closedState.closed));
 
         if (!hasSubmitted && closedState.closed) {
           let closedAt = closedState.finishedAt || closedState.closesAt || null;
@@ -2786,8 +2790,10 @@ const EncuestaPartido = () => {
               ) : (
                 <SurveySavedCelebration
                   title={<>YA COMPLETASTE<br />LA ENCUESTA</>}
-                  message="¡Gracias por tu participación!"
-                  onHome={() => navigate('/')}
+                  message={answeredAndClosed ? 'La encuesta ya cerró y los resultados están listos.' : '¡Gracias por tu participación!'}
+                  detail={answeredAndClosed ? '' : 'Los resultados salen cuando cierre la encuesta.'}
+                  homeLabel={answeredAndClosed ? 'VER RESULTADOS' : 'VOLVER AL INICIO'}
+                  onHome={() => (answeredAndClosed ? navigate(`/resultados-encuesta/${partidoId || matchId}`) : navigate('/'))}
                   buttonClassName={btnClass}
                 />
               )}
