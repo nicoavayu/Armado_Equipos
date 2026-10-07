@@ -69,3 +69,12 @@ test('API: the team confirmation payload passes the column check (no template_id
   // Not PGRST204 (unknown column): it reaches the row rules, which reject a match the caller does not run.
   assert.notEqual(r.body?.code, 'PGRST204', JSON.stringify(r.body));
 });
+
+test('API: creating a match needs creado_por (the "Usar plantilla" modal did not send it)', async () => {
+  const r = await organizer('POST', 'partidos?select=id', {
+    nombre: 'Lab sin creador', fecha: '2026-12-02', hora: '21:00', sede: 'Lab', modalidad: 'F5', cupo_jugadores: 10,
+    tipo_partido: 'Masculino', codigo: `TN${Date.now().toString(16).slice(-6)}`,
+  });
+  assert.equal(r.status, 403, JSON.stringify(r.body));
+  assert.equal(r.body?.code, '42501');
+});

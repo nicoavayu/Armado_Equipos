@@ -10,6 +10,7 @@ import { useAuth } from '../components/AuthProvider';
 import ConfirmModal from '../components/ConfirmModal';
 import { findDuplicateTemplateMatch, findUserScheduleConflicts } from '../services/db/matchScheduling';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
+import { templateLinkFailureMessage } from '../services/db/templateMatchLink';
 import {
   nextYmdForWeekday,
   normalizeYmd,
@@ -130,6 +131,13 @@ const FrecuentesPage = () => {
       partidoFrecuente?.modalidad || 'F5',
       cupo,
     );
+    if (!partido?.templateLink?.linked) {
+      notifyBlockingError(templateLinkFailureMessage(partido?.templateLink, partidoFrecuente?.nombre), {
+        title: 'Partido creado sin historial',
+        confirmText: 'Entendido',
+        key: 'template_link_not_saved',
+      });
+    }
 
     // Keep the template date moving forward so next creation suggests the following week.
     if (partidoFrecuente?.id && fechaObjetivo) {

@@ -6,6 +6,7 @@ import { supabase } from '../supabase';
 import ConfirmModal from '../components/ConfirmModal';
 import { useAuth } from '../components/AuthProvider';
 import { crearPartidoDesdeFrec } from '../services/db/frequentMatches';
+import { templateLinkFailureMessage } from '../services/db/templateMatchLink';
 import { findDuplicateTemplateMatch, findUserScheduleConflicts } from '../services/db/matchScheduling';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
 import { resolveNextTemplateDate } from '../utils/frequentTemplateDate';
@@ -119,6 +120,13 @@ const TemplateDetailsPage = () => {
       templateData?.modalidad || 'F5',
       cupo,
     );
+    if (!partido?.templateLink?.linked) {
+      notifyBlockingError(templateLinkFailureMessage(partido?.templateLink, templateData?.nombre), {
+        title: 'Partido creado sin historial',
+        confirmText: 'Entendido',
+        key: 'template_link_not_saved',
+      });
+    }
     navigate(`/admin/${partido.id}`);
   };
 

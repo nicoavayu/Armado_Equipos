@@ -202,7 +202,8 @@ export const crearPartidoDesdeFrec = async (partidoFrecuente, fecha, modalidad =
     throw dupError;
   }
 
-  const { crearPartido, updateJugadoresPartido } = await import('./matches');
+  const { updateJugadoresPartido } = await import('./matches');
+  const { createMatchLinkedToTemplate } = await import('./templateMatchLink');
 
   const finalModalidad = partidoFrecuente.modalidad || modalidad;
   const finalCupo = Number(cupo) || Number(partidoFrecuente?.cupo_jugadores || partidoFrecuente?.cupo || 0) || inferCupoFromModalidad(finalModalidad);
@@ -254,10 +255,12 @@ export const crearPartidoDesdeFrec = async (partidoFrecuente, fecha, modalidad =
   });
 
   let lastCreateError = null;
+  let templateLink = null;
   for (let i = 0; i < uniqueVariants.length; i++) {
     const payload = uniqueVariants[i];
     try {
-      partido = await crearPartido(payload);
+      // The link travels in the same insert and is read back (never a silent best effort).
+      ({ partido, link: templateLink } = await createMatchLinkedToTemplate(payload, partidoFrecuente?.id));
       break;
     } catch (err) {
       lastCreateError = err;
@@ -273,36 +276,19 @@ export const crearPartidoDesdeFrec = async (partidoFrecuente, fecha, modalidad =
 
   if (!partido) throw lastCreateError || new Error('No se pudo crear el partido desde plantilla');
 
-  // Best effort: link template columns if the schema has them.
-  try {
-    const partidoId = Number(partido.id);
-    if (Number.isFinite(partidoId)) {
-      let res = await supabase
-        .from('partidos')
-        .update({
-          template_id: partidoFrecuente?.id || null,
-        })
-        .eq('id', partidoId);
-
-      if (res?.error && /template_id/i.test(String(res.error.message || ''))) {
-        res = await supabase
-          .from('partidos')
-          .update({
-            from_frequent_match_id: partidoFrecuente?.id || null,
-          })
-          .eq('id', partidoId);
-      }
-
-      if (res?.error) {
-        logger.warn('[crearPartidoDesdeFrec] could not link template columns (non-fatal)', res.error);
-      }
-    }
-  } catch (linkErr) {
-    logger.warn('[crearPartidoDesdeFrec] could not link template columns (non-fatal)', linkErr);
+  if (!templateLink?.linked) {
+    logger.error('[crearPartidoDesdeFrec] match created without its template link', {
+      partidoId: partido?.id,
+      templateId: partidoFrecuente?.id,
+      status: templateLink?.status,
+      message: templateLink?.error?.message,
+    });
   }
+  // Callers must tell the person when the match is not in the template history.
+  partido.templateLink = templateLink;
 
   partido.frequent_match_name = partidoFrecuente.nombre;
-  partido.template_id = partidoFrecuente.id;
+  partido.template_id = templateLink?.linked ? partidoFrecuente.id : null;
   partido.tipo_partido = partidoFrecuente.tipo_partido || 'Masculino';
 
   const jugadoresFrecuentes = partidoFrecuente.jugadores_frecuentes || [];
