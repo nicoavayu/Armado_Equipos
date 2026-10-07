@@ -86,7 +86,7 @@
       "status": "PASS"
     },
     {
-      "name": "F module: the ts parser mirrors the certified verifier (split on \",\", first \"=\", trim, last duplicate wins, exactly 10 digits); future skew is small and documented",
+      "name": "F module: the ts the HMAC covers is the ts the freshness check judges (one parser, raw 10- or 13-digit ts, duplicates refused); future skew is small and documented",
       "status": "PASS"
     },
     {
@@ -106,7 +106,7 @@
       "status": "PASS"
     },
     {
-      "name": "F handler: duplicate-ts differential parsing is impossible — \"ts=<future>,ts=<now>\" is judged on the same ts the verifier signs (accepted); \"ts=<now>,ts=<future>\" signed on the future ts → rejected",
+      "name": "F handler: duplicate-ts differential parsing is impossible — R3: a repeated ts is ambiguous and refused before any provider call, whichever occurrence is signed",
       "status": "PASS"
     },
     {
@@ -1756,7 +1756,7 @@
     },
     {
       "case": "duplicate ts: future then now (signed now)",
-      "http": 200
+      "http": 401
     },
     {
       "case": "duplicate ts: now then future (signed future)",
@@ -1771,19 +1771,26 @@
       "CORE_JWT_ISSUER",
       "TORNEOS_ALLOWED_ORIGIN",
       "TORNEOS_ANON_KEY",
+      "TORNEOS_BRANDING_MODE",
       "TORNEOS_BRIDGE_KEYS",
       "TORNEOS_COMMERCE_DEPLOYMENT",
       "TORNEOS_COMMERCE_MODE",
       "TORNEOS_COMMERCE_REMOTE_GATEWAY_HOST",
       "TORNEOS_COMMERCE_REMOTE_PAYMENTS_HOST",
+      "TORNEOS_CONNECTED_MODE",
       "TORNEOS_CONTRACT_SERVICE_SECRET",
       "TORNEOS_DB_CORE_ADAPTER_URL",
       "TORNEOS_DB_IDENTITY_WRITER_URL",
       "TORNEOS_DB_SSL_CA",
       "TORNEOS_GATEWAY_PUBLIC_URL",
+      "TORNEOS_MEDIA_MODE",
       "TORNEOS_PAYMENTS_INTERNAL_SECRET",
       "TORNEOS_PAYMENTS_INTERNAL_URL",
-      "TORNEOS_REST_URL"
+      "TORNEOS_PLAN_READ_MODE",
+      "TORNEOS_REST_URL",
+      "TORNEOS_SOCIAL_MODE",
+      "TORNEOS_STORAGE_PUBLIC_URL",
+      "TORNEOS_STORAGE_URL"
     ],
     "paymentsReads": [
       "APP_PUBLIC_URL",
@@ -1793,12 +1800,13 @@
       "MERCADO_PAGO_TEST_WEBHOOK_SECRET",
       "TORNEOS_PAYMENTS_DB_SSL_CA",
       "TORNEOS_PAYMENTS_DB_URL",
+      "TORNEOS_PAYMENTS_DEPLOYMENT",
       "TORNEOS_PAYMENTS_INTERNAL_SECRET",
       "TORNEOS_PAYMENTS_LAB_MP_API_ORIGIN",
       "TORNEOS_PAYMENTS_NOTIFICATION_URL",
       "TORNEOS_PAYMENT_PROVIDER"
     ],
-    "frontendFilesScanned": 912,
+    "frontendFilesScanned": 986,
     "frontendSecrets": 0
   }
 }

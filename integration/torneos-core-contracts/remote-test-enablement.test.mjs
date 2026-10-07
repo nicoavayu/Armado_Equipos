@@ -251,7 +251,9 @@ test('MP-B1.1 R2 — remote TEST enablement (offline)', async (t) => {
       'TORNEOS_CONNECTED_MODE',
       // BRANDING-V1 (2026-10-06): non-secret logos opt-in and the local lab's storage targets (torneos-gateway/branding.ts;
       // hosted derives storage from TORNEOS_REST_URL and refuses any other value), default off.
-      'TORNEOS_BRANDING_MODE', 'TORNEOS_STORAGE_URL', 'TORNEOS_STORAGE_PUBLIC_URL']);
+      'TORNEOS_BRANDING_MODE', 'TORNEOS_STORAGE_URL', 'TORNEOS_STORAGE_PUBLIC_URL',
+      // MEDIA-V1 (2026-10-07): non-secret photo galleries opt-in (torneos-gateway/media.ts), default off.
+      'TORNEOS_MEDIA_MODE']);
     const PAYMENTS_MAY_READ = new Set(['TORNEOS_PAYMENT_PROVIDER', 'MERCADO_PAGO_ENVIRONMENT', 'MERCADO_PAGO_TEST_ACCESS_TOKEN', 'MERCADO_PAGO_TEST_WEBHOOK_SECRET',
       'MERCADO_PAGO_TEST_SELLER_ID', 'APP_PUBLIC_URL', 'TORNEOS_PAYMENTS_NOTIFICATION_URL', 'TORNEOS_PAYMENTS_INTERNAL_SECRET', 'TORNEOS_PAYMENTS_DB_URL',
       'TORNEOS_PAYMENTS_DB_SSL_CA', 'TORNEOS_PAYMENTS_LAB_MP_API_ORIGIN',
@@ -331,7 +333,10 @@ test('MP-B1.1 R2 — remote TEST enablement (offline)', async (t) => {
       assert.match(edge, /error instanceof ConfigError \|\| error instanceof CommerceConfigError/, 'Edge: config fault → gateway disabled');
       assert.match(node, /CommerceConfigError/); assert.match(node, /if \(disabled\) return json\(res, 503/, 'Node: config fault → 503 everywhere');
       for (const text of [edge, node]) assert.ok(!/remote-test|REMOTE_GATEWAY_HOST|REMOTE_PAYMENTS_HOST|TORNEOS_COMMERCE_DEPLOYMENT/.test(codeOf(text)), 'no gateway-local deployment logic');
-      assert.match(node, /req\.headers\.host !== '127\.0\.0\.1:58420'/, 'Node gateway stays loopback-only');
+      // MEDIA-V1 lab: a second lab gateway may present another loopback port, but only 127.0.0.1:584xx — still loopback-only.
+      assert.match(node, /req\.headers\.host !== new URL\(publicOrigin\)\.host/, 'Node gateway checks its own public origin');
+      assert.match(node, /const publicOrigin = process\.env\.PHASE3A_GATEWAY_PUBLIC_ORIGIN \|\| origin;/, 'default: its own loopback port');
+      assert.ok(node.includes("if (!/^http:\\/\\/127\\.0\\.0\\.1:584[0-9]{2}$/.test(publicOrigin)) throw"), 'Node gateway stays loopback-only');
     });
     await check('E Node runtime: every relative import of commerce.ts is mounted read-only into the Node lab gateway (compose.mpa.yaml), so the Node gateway loads the very same module graph as Edge', async () => {
       const src = await readFile(`${GW_DIR}commerce.ts`, 'utf8');
