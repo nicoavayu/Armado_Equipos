@@ -16,7 +16,7 @@ const MiniAvatar = ({ player, className = 'h-7 w-7 text-[10px]' }) => {
  * What the person picked, said back in one line above the button (single pick: avatar +
  * name; several: stacked avatars + count). Announced politely to screen readers.
  */
-export const SurveySelectionSummary = ({ players = [], emptyLabel = '', label = '' }) => {
+export const SurveySelectionSummary = ({ players = [], emptyLabel = '', label = '', hints = null }) => {
   const picked = players.filter(Boolean);
   if (picked.length === 0 && !emptyLabel) return <div className="h-9" aria-hidden="true" />;
   return (
@@ -29,7 +29,9 @@ export const SurveySelectionSummary = ({ players = [], emptyLabel = '', label = 
             {picked.slice(0, 3).map((player) => <MiniAvatar key={player.uuid} player={player} />)}
           </span>
           <span className="truncate font-oswald text-[13px] text-white">
-            {label || (picked.length === 1 ? picked[0].nombre : `${picked.length} jugadores`)}
+            {label || (picked.length === 1
+              ? [picked[0].nombre, hints?.get(picked[0].uuid)].filter(Boolean).join(' · ')
+              : `${picked.length} jugadores`)}
           </span>
         </span>
       )}

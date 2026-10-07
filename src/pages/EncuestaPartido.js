@@ -83,6 +83,13 @@ import {
   SURVEY_CHALLENGE_DISABLED_MESSAGE,
   isChallengeLikeTeamMatchRow,
 } from '../utils/surveyChallengePolicy';
+import {
+  buildHomonymHints,
+  dedupeSurveyRoster,
+  fillMissingPlayerFields,
+  haveConflictingIdentity,
+  resolveSurveyPlayerIdentity,
+} from '../utils/surveyRosterIdentity';
 
 // Styles are now directly in Tailwind
 // import './LegacyVoting.css'; // Removed
@@ -279,6 +286,7 @@ const resolveTeamMatchFixedTeams = ({
   if (membersA.length === 0 || membersB.length === 0) return { teamA: [], teamB: [] };
 
   const byUserId = new Map();
+  const byPlayerId = new Map();
   const byName = new Map();
   const allRosterKeys = [];
 
@@ -290,6 +298,11 @@ const resolveTeamMatchFixedTeams = ({
     const userToken = normalizeIdentityToken(player?.usuario_id);
     if (userToken && !byUserId.has(userToken)) {
       byUserId.set(userToken, key);
+    }
+
+    const playerIdNum = Number(player?.id || 0);
+    if (Number.isFinite(playerIdNum) && playerIdNum > 0 && !byPlayerId.has(playerIdNum)) {
+      byPlayerId.set(playerIdNum, key);
     }
 
     const nameToken = normalizeIdentityToken(player?.nombre);
@@ -309,6 +322,13 @@ const resolveTeamMatchFixedTeams = ({
         usedKeys.add(userKey);
         return userKey;
       }
+    }
+
+    const memberPlayerId = Number(member?.jugador_id || member?.jugador?.id || 0);
+    const playerKey = byPlayerId.get(memberPlayerId);
+    if (playerKey && !usedKeys.has(playerKey)) {
+      usedKeys.add(playerKey);
+      return playerKey;
     }
 
     const nameToken = normalizeIdentityToken(member?.jugador?.nombre);
@@ -343,90 +363,8 @@ const resolveTeamMatchFixedTeams = ({
   return { teamA: dedupTeamA, teamB: dedupTeamB };
 };
 
-const fillMissingPlayerFields = (existing, candidate) => ({
-  ...existing,
-  uuid: existing?.uuid || candidate?.uuid || null,
-  usuario_id: existing?.usuario_id || candidate?.usuario_id || null,
-  nombre: existing?.nombre || candidate?.nombre || 'Jugador',
-  avatar_url: existing?.avatar_url || candidate?.avatar_url || null,
-  score: existing?.score ?? candidate?.score ?? null,
-  is_goalkeeper: existing?.is_goalkeeper ?? candidate?.is_goalkeeper ?? false,
-});
-
-const dedupeChallengeSurveyRoster = (players = [], options = {}) => {
-  const includeLooseName = options?.includeLooseName === true;
-  const input = Array.isArray(players) ? players : [];
-  const deduped = [];
-  const tokenToIndex = new Map();
-
-  const buildIdentityTokens = (player) => {
-    const tokens = [];
-    const userToken = normalizeIdentityToken(player?.usuario_id);
-    if (userToken) tokens.push(`user:${userToken}`);
-
-    const numericId = Number(player?.id || 0);
-    if (Number.isFinite(numericId) && numericId > 0) tokens.push(`id:${numericId}`);
-
-    const uuidToken = normalizeIdentityToken(player?.uuid);
-    if (uuidToken && !uuidToken.startsWith('tm-') && !uuidToken.startsWith('member-')) {
-      tokens.push(`uuid:${uuidToken}`);
-    }
-
-    const nameToken = normalizeIdentityToken(player?.nombre);
-    if (nameToken) {
-      const avatarToken = normalizeIdentityToken(player?.avatar_url || player?.foto_url || '');
-      tokens.push(`name_avatar:${nameToken}|${avatarToken}`);
-      if (includeLooseName) {
-        tokens.push(`name:${nameToken}`);
-      }
-    }
-    return Array.from(new Set(tokens.filter(Boolean)));
-  };
-
-  input.forEach((player) => {
-    const keyToken = normalizeIdentityToken(resolvePlayerKey(player));
-    const identityTokens = buildIdentityTokens(player);
-    if (keyToken) identityTokens.push(`key:${keyToken}`);
-
-    const existingIndex = identityTokens.reduce((found, token) => (
-      found >= 0 ? found : (tokenToIndex.has(token) ? tokenToIndex.get(token) : -1)
-    ), -1);
-
-    if (existingIndex >= 0) {
-      deduped[existingIndex] = fillMissingPlayerFields(deduped[existingIndex], player);
-      const mergedTokens = buildIdentityTokens(deduped[existingIndex]);
-      const mergedKeyToken = normalizeIdentityToken(resolvePlayerKey(deduped[existingIndex]));
-      if (mergedKeyToken) mergedTokens.push(`key:${mergedKeyToken}`);
-      mergedTokens.forEach((token) => tokenToIndex.set(token, existingIndex));
-      return;
-    }
-
-    deduped.push(player);
-    const nextIndex = deduped.length - 1;
-    identityTokens.forEach((token) => tokenToIndex.set(token, nextIndex));
-  });
-
-  return deduped;
-};
-
-const resolveChallengePlayerIdentity = (player) => {
-  const userToken = normalizeIdentityToken(player?.usuario_id);
-  if (userToken) return `user:${userToken}`;
-
-  const uuidToken = normalizeIdentityToken(player?.uuid);
-  if (uuidToken && !uuidToken.startsWith('tm-') && !uuidToken.startsWith('member-')) {
-    return `uuid:${uuidToken}`;
-  }
-
-  const nameToken = normalizeIdentityToken(player?.nombre);
-  if (nameToken) return `name:${nameToken}`;
-
-  const idNum = Number(player?.id || 0);
-  if (Number.isFinite(idNum) && idNum > 0) return `id:${idNum}`;
-
-  const keyToken = normalizeIdentityToken(resolvePlayerKey(player));
-  return keyToken ? `key:${keyToken}` : null;
-};
+const dedupeChallengeSurveyRoster = dedupeSurveyRoster;
+const resolveChallengePlayerIdentity = resolveSurveyPlayerIdentity;
 
 const sanitizeTeamKeysByIdentity = ({
   teamKeys = [],
@@ -530,7 +468,13 @@ const mergeApprovedChallengeSquadIntoRoster = ({ roster = [], approvedByTeamId =
     const uuidToken = normalizeIdentityToken(player?.uuid);
     if (uuidToken && !byUuid.has(uuidToken)) byUuid.set(uuidToken, index);
     const nameToken = normalizeIdentityToken(player?.nombre);
-    if (nameToken && !byName.has(nameToken)) byName.set(nameToken, index);
+    if (nameToken) byName.set(nameToken, new Set([...(byName.get(nameToken) || []), index]));
+  };
+  // The name joins two records only when one record has it and their IDs do not disagree.
+  const indexByName = (nameToken, candidate) => {
+    const indexes = Array.from(byName.get(nameToken) || []);
+    if (indexes.length !== 1 || haveConflictingIdentity(merged[indexes[0]], candidate)) return -1;
+    return indexes[0];
   };
 
   merged.forEach((player, index) => registerIndex(player, index));
@@ -544,12 +488,6 @@ const mergeApprovedChallengeSquadIntoRoster = ({ roster = [], approvedByTeamId =
       const uuidToken = normalizeIdentityToken(jugador?.uuid);
       const nameToken = normalizeIdentityToken(jugador?.nombre);
 
-      let index = -1;
-      if (playerId && byPlayerId.has(playerId)) index = byPlayerId.get(playerId);
-      else if (userToken && byUserId.has(userToken)) index = byUserId.get(userToken);
-      else if (uuidToken && byUuid.has(uuidToken)) index = byUuid.get(uuidToken);
-      else if (nameToken && byName.has(nameToken)) index = byName.get(nameToken);
-
       const candidate = {
         id: playerId,
         uuid: jugador?.uuid || jugador?.usuario_id || `approved-${row?.id || playerId || nameToken || 'player'}`,
@@ -559,6 +497,12 @@ const mergeApprovedChallengeSquadIntoRoster = ({ roster = [], approvedByTeamId =
         score: jugador?.score ?? null,
         is_goalkeeper: false,
       };
+
+      let index = -1;
+      if (playerId && byPlayerId.has(playerId)) index = byPlayerId.get(playerId);
+      else if (userToken && byUserId.has(userToken)) index = byUserId.get(userToken);
+      else if (uuidToken && byUuid.has(uuidToken)) index = byUuid.get(uuidToken);
+      else if (nameToken) index = indexByName(nameToken, candidate);
 
       if (index >= 0) {
         merged[index] = fillMissingPlayerFields(merged[index], candidate);
@@ -2695,10 +2639,12 @@ const EncuestaPartido = () => {
       if (absentCount > 0) recap.push({ label: 'Faltaron', value: `${absentCount} ${absentCount === 1 ? 'jugador' : 'jugadores'}` });
       return recap;
     }
+    const homonymHints = buildHomonymHints(jugadores);
+    const shownName = (player) => [player.nombre, homonymHints.get(player.uuid)].filter(Boolean).join(' · ');
     const mvpPlayer = surveyStepPlayer(formData.mvp_id);
-    if (mvpPlayer) recap.push({ label: 'Mejor jugador', value: mvpPlayer.nombre, player: mvpPlayer });
+    if (mvpPlayer) recap.push({ label: 'Mejor jugador', value: shownName(mvpPlayer), player: mvpPlayer });
     const goalkeeper = surveyStepPlayer(formData.arquero_id);
-    if (goalkeeper) recap.push({ label: 'Mejor arquero', value: goalkeeper.nombre, player: goalkeeper });
+    if (goalkeeper) recap.push({ label: 'Mejor arquero', value: shownName(goalkeeper), player: goalkeeper });
     else if (formData.sin_arquero_fijo) recap.push({ label: 'Mejor arquero', value: 'No hubo' });
     if (absentCount > 0) recap.push({ label: 'Faltaron', value: `${absentCount} ${absentCount === 1 ? 'jugador' : 'jugadores'}` });
     if (mvpPlayer || goalkeeper || formData.sin_arquero_fijo) {
@@ -2929,7 +2875,13 @@ const EncuestaPartido = () => {
         />
       </div>
       <SurveyActionBar
-        summary={<SurveySelectionSummary players={selectedPlayers} emptyLabel={emptyLabel} />}
+        summary={(
+          <SurveySelectionSummary
+            players={selectedPlayers}
+            emptyLabel={emptyLabel}
+            hints={buildHomonymHints(jugadores)}
+          />
+        )}
         error={withError ? renderSubmitError() : null}
       >
         {actions}

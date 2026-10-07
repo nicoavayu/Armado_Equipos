@@ -2,6 +2,7 @@ import React from 'react';
 import { DragDropContext, Draggable, Droppable } from '@hello-pangea/dnd';
 import { Check } from 'lucide-react';
 import { getInitials } from './AvatarFallback';
+import { buildHomonymHints } from '../utils/surveyRosterIdentity';
 
 const TEAM_A_ID = 'equipoA';
 const TEAM_B_ID = 'equipoB';
@@ -18,6 +19,7 @@ const resolveAvatar = (player) => player?.avatar_url || player?.foto_url || null
 
 const PlayerChip = ({
   player,
+  hint = null,
   provided,
   snapshot,
   isReplacementTarget = false,
@@ -46,6 +48,7 @@ const PlayerChip = ({
       </div>
       <div className="min-w-0 flex-1 text-[13px] font-oswald leading-tight text-white/90">
         <div className="line-clamp-2 break-words">{resolveName(player)}</div>
+        {hint ? <div className="truncate text-[11px] text-white/55">{hint}</div> : null}
       </div>
     </div>
   );
@@ -56,6 +59,7 @@ const TeamColumn = ({
   droppableId,
   playerKeys,
   playersByKey = {},
+  hints = null,
   selected = false,
   onSelect,
   isDragging = false,
@@ -114,6 +118,7 @@ const TeamColumn = ({
                   {(dragProvided, dragSnapshot) => (
                     <PlayerChip
                       player={player}
+                      hint={hints?.get(player?.uuid) || null}
                       provided={dragProvided}
                       snapshot={dragSnapshot}
                       isReplacementTarget={isReplacementTarget}
@@ -143,6 +148,8 @@ export default function TeamsDnDEditor({
   onWinnerChange,
   allowWinnerSelectionWhenDisabled = false,
 }) {
+  // Same name, no photo: a short hint tells the chips apart.
+  const homonymHints = React.useMemo(() => buildHomonymHints(Object.values(playersByKey || {})), [playersByKey]);
   const suppressSelectRef = React.useRef(false);
   const [isDragging, setIsDragging] = React.useState(false);
   const [dragTarget, setDragTarget] = React.useState(null);
@@ -258,6 +265,7 @@ export default function TeamsDnDEditor({
           droppableId={TEAM_A_ID}
           playerKeys={teamA}
           playersByKey={playersByKey}
+          hints={homonymHints}
           selected={selectedWinner === 'equipo_a'}
           isDragging={isDragging}
           dragTarget={dragTarget}
@@ -274,6 +282,7 @@ export default function TeamsDnDEditor({
           droppableId={TEAM_B_ID}
           playerKeys={teamB}
           playersByKey={playersByKey}
+          hints={homonymHints}
           selected={selectedWinner === 'equipo_b'}
           isDragging={isDragging}
           dragTarget={dragTarget}

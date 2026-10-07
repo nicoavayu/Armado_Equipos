@@ -2,6 +2,7 @@ import React from 'react';
 import { Check } from 'lucide-react';
 import { getInitials } from '../AvatarFallback';
 import { surveyHaptic } from './surveyHaptics';
+import { buildHomonymHints } from '../../utils/surveyRosterIdentity';
 
 // Phone widths: big enough to recognize a face and hit with a thumb.
 const resolveColumns = (count) => {
@@ -10,8 +11,9 @@ const resolveColumns = (count) => {
   return 5;
 };
 
-const PlayerTile = ({ player, selected, dimmed, onSelect, index, columns }) => {
+const PlayerTile = ({ player, hint, selected, dimmed, onSelect, index, columns }) => {
   const name = player?.nombre || 'Jugador';
+  const label = hint ? `${name}, ${hint}` : name;
   const photoUrl = player?.avatar_url || player?.foto_url || null;
   const initialsClass = columns <= 3 ? 'text-[30px]' : columns === 4 ? 'text-[24px]' : 'text-[19px]';
   return (
@@ -21,8 +23,8 @@ const PlayerTile = ({ player, selected, dimmed, onSelect, index, columns }) => {
       <button
         type="button"
         aria-pressed={selected}
-        aria-label={name}
-        title={name}
+        aria-label={label}
+        title={label}
         onClick={() => {
           surveyHaptic('light');
           onSelect(player.uuid);
@@ -69,6 +71,11 @@ const PlayerTile = ({ player, selected, dimmed, onSelect, index, columns }) => {
         >
           {name}
         </span>
+        {hint ? (
+          <span className="-mt-1 w-full truncate font-oswald text-[11px] text-white/55">
+            {hint}
+          </span>
+        ) : null}
       </button>
     </div>
   );
@@ -88,6 +95,8 @@ const SurveyPlayerGrid = ({
 }) => {
   const allPlayers = sections ? sections.flatMap((section) => section.players) : players;
   const hasSelection = allPlayers.some((player) => isSelected(player.uuid));
+  // Same name, no photo: a short hint tells them apart (identity itself is the uuid).
+  const homonymHints = buildHomonymHints(allPlayers);
 
   const renderGrid = (list, keyPrefix) => {
     const columns = resolveColumns(list.length);
@@ -102,6 +111,7 @@ const SurveyPlayerGrid = ({
             <PlayerTile
               key={`${keyPrefix}${player.uuid}`}
               player={player}
+              hint={homonymHints.get(player.uuid) || null}
               selected={selected}
               dimmed={!multiple && hasSelection && !selected}
               onSelect={onSelect}
