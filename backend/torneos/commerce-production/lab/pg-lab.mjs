@@ -86,6 +86,17 @@ async function waitReady() {
   throw new Error('lab database did not become ready');
 }
 
+/** Applied migrations whose file changed since (by sha256). Empty when the ledger does not exist yet. */
+export function staleMigrations() {
+  const r = sqlTry("select coalesce(json_agg(json_build_object('name', name, 'sha256', sha256)), '[]') from lab_meta.torneos_migrations");
+  if (!r.ok) return [];
+  const applied = JSON.parse(r.out.trim() || '[]');
+  return applied.filter(({ name, sha256 }) => {
+    const file = path.join(MIGRATIONS_DIR, name);
+    return !existsSync(file) || createHash('sha256').update(readFileSync(file, 'utf8')).digest('hex') !== sha256;
+  }).map(({ name }) => name);
+}
+
 /** Applies every Torneos migration once, in order (0010 needs Supabase Storage and is skipped, as in the shared lab). */
 export function migrate({ upTo = null } = {}) {
   const files = readdirSync(MIGRATIONS_DIR).filter((f) => /^\d{14}_.*\.sql$/.test(f)).sort()
@@ -155,6 +166,8 @@ export async function up({ fresh = false, upTo = null, storage = true } = {}) {
   mkdirSync(STATE_DIR, { recursive: true, mode: 0o700 });
   if (fresh) docker(['rm', '-f', CONTAINER]);
   let s = existsSync(STATE_FILE) && running() && !fresh ? state() : null;
+  // A migration edited after it was applied makes the database stale: the lab is disposable, so it is rebuilt.
+  if (s && staleMigrations().length) { docker(['rm', '-f', CONTAINER]); s = null; }
   if (!s) {
     docker(['rm', '-f', CONTAINER]);
     docker(['network', 'create', '--label', 'arma2.lab=commerce-production', NETWORK]);

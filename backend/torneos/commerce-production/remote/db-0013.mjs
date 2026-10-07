@@ -24,7 +24,7 @@ export const REF = 'onzpwnqxnvlgsevivngf';
 const file = (rel, sha256, from, to) => Object.freeze({ path: path.join(REPO, rel), rel, sha256, from, to });
 export const FILES = Object.freeze({
   'apply-0013': file('backend/torneos/supabase/migrations/00000000000013_mercadopago_checkout_pro_production.sql',
-    '3f57141052a9cbf05c93e2d8c38d9a06310991f1c0feac94d5192c04e6df8d2d', 'PRE_0013', 'POST_0013'),
+    '72943492749d399850c69d807902069dfa47afd68b668aaf6dea0bf407d9eece', 'PRE_0013', 'POST_0013'),
   'rollback-0013': file('backend/torneos/commerce-production/rollback/00000000000013_mercadopago_checkout_pro_production.rollback.sql',
     '2365a37cb53c87ca403ab59fdf4dd9659a2a94c9b12bd175b61563b43e3177db', 'POST_0013', 'PRE_0013'),
 });

@@ -21,7 +21,8 @@
 --     environment and price are fixed server-side (torneos_premium / MERCADO_PAGO / production / current offer); same
 --     authorization, Premium block, stale sweep, idempotency and single-open-purchase rules as the TEST wrapper.
 --   * get_tournament_season_purchases: what Mi plan needs to show a purchase in progress or a past one without
---     buying again (billing.manage sees the season's purchases; anyone else with season access only their own).
+--     buying again (billing.manage sees the season's purchases; anyone else with season access only their own), and
+--     whether the switch lets this organization start a production purchase now (checkoutAvailable).
 --   * Production service RPCs (same domain policy as the certified MP-A2 + MP-B1.2 TEST chain, environment
 --     'production'): purchase lookup, preference record, ordered status / reversal (provider date_last_updated
 --     watermark), reconciliation candidates and per-purchase check claim/complete (throttle + bookkeeping in
@@ -390,6 +391,7 @@ CREATE OR REPLACE FUNCTION public.get_tournament_season_purchases(p_organization
 declare
   v_uid uuid := private.current_identity_id();
   v_manage boolean;
+  v_available boolean;
   v_items jsonb;
 begin
   if v_uid is null then
@@ -422,8 +424,14 @@ begin
     order by purchase.created_at desc
     limit 20
   ) listed;
+  -- Whether a production purchase can start for this organization now (the operator switch): Mi plan never offers a
+  -- payment the server would refuse.
+  select settings.checkout_scope = 'open' or (settings.checkout_scope = 'allowlist' and exists (
+    select 1 from public.tournament_commerce_production_allowlist allowed where allowed.organization_id = p_organization_id))
+  into v_available
+  from public.tournament_commerce_production_settings settings where settings.singleton;
   return jsonb_build_object('schemaVersion',1,'organizationId',p_organization_id,'seasonId',p_season_id,
-    'canManageBilling',v_manage,'purchases',v_items);
+    'canManageBilling',v_manage,'checkoutAvailable',coalesce(v_available,false),'purchases',v_items);
 end;
 $$;
 

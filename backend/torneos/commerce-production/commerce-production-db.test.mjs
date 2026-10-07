@@ -364,6 +364,14 @@ describe('Mi plan: purchases of a season', () => {
     assert.equal(mine.purchases[0].id, p.id);
     assert.equal(mine.purchases[0].boughtByMe, true);
     assert.equal('buyerUserId' in mine.purchases[0], false);
+    assert.equal(mine.checkoutAvailable, true, 'scope open');
+    setScope('allowlist');
+    assert.equal(asUserJson(p.owner, `select public.get_tournament_season_purchases(${lit(p.org)}, ${lit(p.season)})`).checkoutAvailable, false);
+    allow(p.org);
+    assert.equal(asUserJson(p.owner, `select public.get_tournament_season_purchases(${lit(p.org)}, ${lit(p.season)})`).checkoutAvailable, true);
+    setScope('off');
+    assert.equal(asUserJson(p.owner, `select public.get_tournament_season_purchases(${lit(p.org)}, ${lit(p.season)})`).checkoutAvailable, false);
+    setScope('open');
     const theirs = asUserJson(collaborator, `select public.get_tournament_season_purchases(${lit(p.org)}, ${lit(p.season)})`);
     assert.deepEqual([theirs.canManageBilling, theirs.purchases.length], [false, 0]);
     assert.equal(refusal(outsider, `select public.get_tournament_season_purchases(${lit(p.org)}, ${lit(p.season)})`), 'TORNEOS_PURCHASE_FORBIDDEN');

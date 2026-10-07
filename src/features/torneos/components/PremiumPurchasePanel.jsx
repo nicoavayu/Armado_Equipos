@@ -56,6 +56,9 @@ export default function PremiumPurchasePanel({ organization, season, entitlement
   const canManage = typeof purchases.data?.canManageBilling === 'boolean'
     ? purchases.data.canManageBilling : ['owner', 'admin'].includes(organization?.role);
   const testEnvironment = commerce.environment !== 'production';
+  // Production: only where the operator switch lets this organization buy (server-side, the same rule the checkout
+  // enforces). The TEST lab never depends on it. Until the read answers, nothing is offered.
+  const checkoutAvailable = testEnvironment || purchases.data?.checkoutAvailable === true;
   const busy = checkout.status === 'loading' || checkout.status === 'redirecting';
 
   const beginCheckout = async () => {
@@ -199,23 +202,34 @@ export default function PremiumPurchasePanel({ organization, season, entitlement
           {premiumRows.map(({ name, premium }) => <li key={name}><CheckCircle2 size={15} aria-hidden="true" /><span><strong>{name}</strong>{premium}</span></li>)}
         </ul>
       )}
-      <div className={styles.actions}>
-        <button type="button" className={styles.primary} onClick={beginCheckout} disabled={!canManage || !pricing || busy}>
-          <CreditCard size={17} aria-hidden="true" />
-          {checkout.status === 'redirecting' ? 'Abriendo Mercado Pago…' : checkout.status === 'loading' ? 'Preparando el pago…' : 'Pagar con Mercado Pago'}
-        </button>
-        {checkout.status === 'error' && (
-          <button type="button" className={styles.secondary} onClick={loadPurchases}>
-            <RefreshCw size={15} aria-hidden="true" /> Actualizar
-          </button>
-        )}
-      </div>
-      {!canManage && <p className={styles.note}>Sólo el Propietario o un Administrador de esta temporada pueden comprar Premium.</p>}
-      {checkout.error && <p className={styles.error} role="alert">{checkout.error}</p>}
-      <p className={styles.note}>
-        Vas a pagar en Mercado Pago. Premium se activa cuando Mercado Pago confirma el pago; si cerrás la ventana, el estado
-        se ve acá en Mi plan.
-      </p>
+      {checkoutAvailable ? (
+        <>
+          <div className={styles.actions}>
+            <button type="button" className={styles.primary} onClick={beginCheckout} disabled={!canManage || !pricing || busy}>
+              <CreditCard size={17} aria-hidden="true" />
+              {checkout.status === 'redirecting' ? 'Abriendo Mercado Pago…' : checkout.status === 'loading' ? 'Preparando el pago…' : 'Pagar con Mercado Pago'}
+            </button>
+            {checkout.status === 'error' && (
+              <button type="button" className={styles.secondary} onClick={loadPurchases}>
+                <RefreshCw size={15} aria-hidden="true" /> Actualizar
+              </button>
+            )}
+          </div>
+          {!canManage && <p className={styles.note}>Sólo el Propietario o un Administrador de esta temporada pueden comprar Premium.</p>}
+          {checkout.error && <p className={styles.error} role="alert">{checkout.error}</p>}
+          <p className={styles.note}>
+            Vas a pagar en Mercado Pago. Premium se activa cuando Mercado Pago confirma el pago; si cerrás la ventana, el estado
+            se ve acá en Mi plan.
+          </p>
+        </>
+      ) : purchases.status === 'error' ? (
+        <div className={styles.actions}>
+          <p className={styles.note}>No pudimos consultar si la compra está disponible para esta organización.</p>
+          <button type="button" className={styles.secondary} onClick={loadPurchases}><RefreshCw size={15} aria-hidden="true" /> Reintentar</button>
+        </div>
+      ) : (
+        <p className={styles.note}>{purchases.status === 'ready' ? 'La compra de Premium todavía no está disponible para esta organización.' : 'Consultando la disponibilidad de la compra…'}</p>
+      )}
       {environmentNote}
     </section>
   );

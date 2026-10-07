@@ -50,7 +50,7 @@ const commerce = billing ? Object.freeze({
   loadSeasonEntitlements: service.loadSeasonEntitlements,
   loadPurchase: async () => PURCHASES[purchaseKind][0],
   loadSeasonPurchases: async ({ organizationId, seasonId }) => ({ schemaVersion: 1, organizationId, seasonId,
-    canManageBilling: ['owner', 'admin'].includes(org.role), purchases: PURCHASES[purchaseKind] || [] }),
+    canManageBilling: ['owner', 'admin'].includes(org.role), checkoutAvailable: args.get('available') !== 'no', purchases: PURCHASES[purchaseKind] || [] }),
   refreshPurchase: async () => ({ purchase: PURCHASES[purchaseKind][0], refresh: 'no_payment' }),
   createCheckout: async () => { throw Object.assign(new Error('Laboratorio sin conexión: no se realizó ningún cobro.'), { code: 'TORNEOS_PAYMENTS_UNAVAILABLE' }); },
   createIdempotencyKey: () => '40000000-0000-4000-8000-000000000001',

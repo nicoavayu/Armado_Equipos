@@ -124,8 +124,8 @@ function createAdapter({ role = 'owner', commerce = true, seasonEntitlements = e
     refreshPurchase: jest.fn().mockResolvedValue({ purchase: purchase('pending'), refresh: 'no_payment' }),
   };
 }
-function seasonPurchases(purchases, { canManageBilling = true } = {}) {
-  return { schemaVersion: 1, organizationId: ORG, seasonId: SEASON, canManageBilling, purchases };
+function seasonPurchases(purchases, { canManageBilling = true, checkoutAvailable = true } = {}) {
+  return { schemaVersion: 1, organizationId: ORG, seasonId: SEASON, canManageBilling, checkoutAvailable, purchases };
 }
 
 let currentPath = '';
@@ -368,6 +368,19 @@ describe('COMMERCE-PRODUCTION: Mi plan sells Premium with the purchase overlay (
     fireEvent.click(await screen.findByRole('button', { name: 'Pagar con Mercado Pago' }));
     expect(await screen.findByRole('alert')).toHaveTextContent(/dirección de pago inválida/);
     expect(checkoutRedirect).not.toHaveBeenCalled();
+  });
+
+  test('production: the button exists only where the server says this organization can buy now', async () => {
+    const closed = createAdapter();
+    closed.loadSeasonPurchases.mockResolvedValue(seasonPurchases([], { checkoutAvailable: false }));
+    renderHybrid(PLAN_PATH, { adapter: closed, billingMode: { mode: 'production' } });
+    expect(await screen.findByText('La compra de Premium todavía no está disponible para esta organización.')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Pagar con Mercado Pago' })).toBeNull();
+    expect(screen.queryByText(/Entorno de prueba/)).toBeNull();
+    const open = createAdapter();
+    open.loadSeasonPurchases.mockResolvedValue(seasonPurchases([], { checkoutAvailable: true }));
+    renderHybrid(PLAN_PATH, { adapter: open, billingMode: { mode: 'production' } });
+    expect(await screen.findByRole('button', { name: 'Pagar con Mercado Pago' })).toBeEnabled();
   });
 
   test('without billing the plan stays informational (production web before the switch)', async () => {
