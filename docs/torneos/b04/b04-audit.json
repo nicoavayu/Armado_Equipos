@@ -1,5 +1,5 @@
 {
-  "generatedFrom": "7a2595191a1edd3362e14958740f15f821c12c39",
+  "generatedFrom": "2bef35e9f83b13ff043bbd65d97c93bd4461bb81",
   "legacyBase": "2058da039a2a5eaaed22d87d01946bc596ae5f50",
   "coreSingletonSha256": "f39572e4cab0fd287bd1dea2ca87c97bd5500d0eff57cb8de6160f1e3271600c",
   "reachableCallSignatures": {
@@ -15,7 +15,7 @@
     "src/components/InviteToMatchModal.jsx": "6a42e299f001f5819d46c4a45e9192e3ece39419358e0004cf3ce8e6a5c26d13",
     "src/components/ManualMatchModal.js": "e4e14bb601cff6762dae4c3459a97fd623da07a4bc3579690255f380bf920951",
     "src/components/MatchChat.js": "784f6d4a698bea07699b7878ad641f63e5a6e66d4be921f66078623e89693960",
-    "src/components/ProfileCardModal.js": "ae859b5fc8b0fd3ae50954bdd95564860272498386cf4e535a2f7bc740e9d7f3",
+    "src/components/ProfileCardModal.js": "67e6e25e9fd70861fd292aec906c7091c102202cec3981478c39bc3453b0835d",
     "src/components/ProfileEditor.js": "7d0eabe48e1ce4920beb4dc58435de4dcc4f8490b4e0edc73bb83cffc8e54b3a",
     "src/components/ProximosPartidos.js": "30fd588909bb2a1205205936e441cf614757ac3f611f7ab8ea6590e4443fc4f7",
     "src/components/StatsView.js": "342440d9f68e93219baafa2042ffa3f30419c778723276477bda359b22aa8a6c",
@@ -142,6 +142,11 @@
       "source": "../../../lib/supabaseClient"
     },
     {
+      "file": "src/hooks/useSurveyFinalizationRecovery.js",
+      "line": 2,
+      "source": "../lib/supabaseClient"
+    },
+    {
       "file": "src/lib/coreSupabaseClient.js",
       "line": 3,
       "source": "./supabaseClient"
@@ -154,6 +159,11 @@
     {
       "file": "src/services/autoMatchPushService.js",
       "line": 2,
+      "source": "../lib/supabaseClient"
+    },
+    {
+      "file": "src/services/clientBuildReport.js",
+      "line": 4,
       "source": "../lib/supabaseClient"
     },
     {
