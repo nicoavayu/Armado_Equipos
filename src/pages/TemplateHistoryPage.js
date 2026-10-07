@@ -491,8 +491,8 @@ const TemplateHistoryPage = () => {
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">
               <div className="font-sans text-[10px] font-bold uppercase tracking-[0.18em] text-[#b0a0ff]/80">Plantilla</div>
-              <div className="font-oswald text-[20px] font-semibold leading-tight text-white truncate mt-0.5">
-                {formatSentenceCase(template?.nombre, 'Plantilla')}
+              <div className="font-oswald text-[20px] font-semibold leading-tight text-white break-words mt-0.5">
+                {String(template?.nombre || '').trim() || 'Plantilla'}
               </div>
             </div>
             {matches.length > 0 && (

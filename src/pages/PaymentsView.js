@@ -149,6 +149,9 @@ const PaymentsView = () => {
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
   const [showReportConfirm, setShowReportConfirm] = useState(false);
   const [remindResult, setRemindResult] = useState('');
+  // Rows handled from "Para confirmar" stay in that section (as settled) until leaving the
+  // page, so the layout does not move under a second tap.
+  const [handledHere, setHandledHere] = useState(() => new Set());
 
   const handleBack = () => {
     const backTo = location.state?.backTo;
@@ -330,7 +333,7 @@ const PaymentsView = () => {
     usuario_id: row.user_id || null,
     nombre: row.player_name,
   })));
-  const reportedRows = rows.filter((row) => row.status === 'reported_paid');
+  const reportedRows = rows.filter((row) => row.status === 'reported_paid' || handledHere.has(row.id));
   // Reminders reach players with an account (never the organizer); guests get nothing.
   const remindableCount = rows.filter((row) => row.status === 'pending' && row.user_id && String(row.user_id) !== String(user?.id || '')).length;
   const guestPendingCount = rows.filter((row) => row.status === 'pending' && !row.user_id).length;
@@ -489,7 +492,7 @@ const PaymentsView = () => {
           {/* Para confirmar (organizador): lo que espera una acción suya, primero */}
           {isAdmin && !isClosed && reportedRows.length > 0 ? (
             <div className={CARD_BASE}>
-              <SectionLabel>Para confirmar ({reportedRows.length})</SectionLabel>
+              <SectionLabel>Para confirmar ({reportedRows.filter((row) => row.status === 'reported_paid').length})</SectionLabel>
               <p className="text-[12px] text-white/55 leading-snug mb-2.5">Avisaron que pagaron. Confirmá cuando veas que te llegó.</p>
               <div className="flex flex-col gap-2">
                 {reportedRows.map((row) => (
@@ -504,12 +507,20 @@ const PaymentsView = () => {
                       </div>
                     </div>
                     <div className="mt-2.5 grid grid-cols-2 gap-2">
-                      <button type="button" className={`${SECONDARY_BTN} !min-h-[42px]`} disabled={busyRow === row.jugador_id || actionBusy} onClick={() => handleSetStatus(row, 'pending')}>
-                        No llegó
-                      </button>
-                      <button type="button" className={`${PRIMARY_BTN} !min-h-[42px]`} disabled={busyRow === row.jugador_id || actionBusy} onClick={() => handleSetStatus(row, 'paid')}>
-                        <Check size={15} /> Confirmar
-                      </button>
+                      {row.status === 'reported_paid' ? (
+                        <>
+                          <button type="button" className={`${SECONDARY_BTN} !min-h-[42px]`} disabled={busyRow === row.jugador_id || actionBusy} onClick={() => { setHandledHere((prev) => new Set(prev).add(row.id)); handleSetStatus(row, 'pending'); }}>
+                            No llegó
+                          </button>
+                          <button type="button" className={`${PRIMARY_BTN} !min-h-[42px]`} disabled={busyRow === row.jugador_id || actionBusy} onClick={() => { setHandledHere((prev) => new Set(prev).add(row.id)); handleSetStatus(row, 'paid'); }}>
+                            <Check size={15} /> Confirmar
+                          </button>
+                        </>
+                      ) : (
+                        <div className={`col-span-2 min-h-[42px] flex items-center justify-center gap-1.5 rounded-xl text-[13px] font-semibold ${row.status === 'paid' ? 'text-[#86efac] bg-[#22c55e]/10' : 'text-[#fda4af] bg-[#f43f5e]/10'}`} role="status">
+                          {row.status === 'paid' ? <><Check size={14} /> Confirmado</> : 'Marcado como pendiente'}
+                        </div>
+                      )}
                     </div>
                   </div>
                 ))}

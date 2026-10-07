@@ -314,7 +314,9 @@ const MatchCard = ({
                             <button
                                 key={action.label}
                                 type="button"
-                                className={`flex-1 min-w-0 whitespace-nowrap truncate font-bebas font-semibold text-[15px] tracking-[0.02em] px-3 py-2 border rounded-xl cursor-pointer transition-all text-white min-h-[44px] flex items-center justify-center text-center sm:text-[13px] sm:px-3 sm:py-2 sm:min-h-[40px] ${action.primary
+                                // Sized by its label: when two do not fit side by side they wrap to
+                                // full-width rows instead of cutting the text.
+                                className={`flex-auto whitespace-nowrap font-bebas font-semibold text-[15px] tracking-[0.02em] px-3 py-2 border rounded-xl cursor-pointer transition-all text-white min-h-[44px] flex items-center justify-center text-center sm:text-[13px] sm:px-3 sm:py-2 sm:min-h-[40px] ${action.primary
                                     ? 'bg-cta-gradient border-white/20 shadow-cta hover:brightness-105 active:scale-[0.985]'
                                     : 'bg-white/[0.06] border-[rgba(148,134,255,0.28)] hover:bg-white/[0.12]'}`}
                                 onClick={(e) => {
