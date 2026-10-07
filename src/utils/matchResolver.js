@@ -3,6 +3,7 @@ import { notifyBlockingError } from 'utils/notifyBlockingError';
 // src/utils/matchResolver.js
 import { supabase } from '../supabase';
 import { fetchPublicMatchByCode } from '../services/db/publicMatch';
+import { isMissingRpcError } from './backendFallback';
 
 const IS_DEV = process.env.NODE_ENV === 'development';
 export const MATCH_RESOLUTION_STATUS = Object.freeze({
@@ -195,6 +196,36 @@ export async function resolveMatchIdFromQueryParams(params) {
                         context: {
                             action: 'resolve_match_by_code',
                             response_source: 'rpc',
+                            ...getCodeContext(codigo),
+                        },
+                    },
+                );
+            }
+
+            // The RPC answered: an unknown code is simply not found. The lookups below are
+            // only for a backend without the RPC — the code column is not readable by
+            // accounts (phase B), so they must never run otherwise.
+            if (!rpcError) {
+                if (IS_DEV) {
+                    logger.warn('[VOTING] No match found for codigo:', codigo);
+                }
+                return createExpectedResolution(
+                    MATCH_RESOLUTION_STATUS.NOT_FOUND,
+                    'No encontramos ese partido. Revisá el código o pedí un link nuevo.',
+                    {
+                        source: 'codigo',
+                        context: getCodeContext(codigo),
+                    },
+                );
+            }
+            if (!isMissingRpcError(rpcError)) {
+                return createReportableResolution(
+                    'No pudimos validar el código del partido. Intentá de nuevo en unos minutos.',
+                    toError(rpcError, 'resolve_match_by_code failed'),
+                    {
+                        source: 'codigo',
+                        context: {
+                            action: 'resolve_match_by_code',
                             ...getCodeContext(codigo),
                         },
                     },
