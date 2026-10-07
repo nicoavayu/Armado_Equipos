@@ -1,5 +1,5 @@
 {
-  "generatedFrom": "2b22aadd42345b56192e9e594da2a0cc1a0ac805",
+  "generatedFrom": "53c08354551dc21987e838d3714e188c162e16d5",
   "legacyBase": "2058da039a2a5eaaed22d87d01946bc596ae5f50",
   "coreSingletonSha256": "f39572e4cab0fd287bd1dea2ca87c97bd5500d0eff57cb8de6160f1e3271600c",
   "reachableCallSignatures": {
@@ -54,7 +54,7 @@
     "src/lib/supabaseClient.js": "797da8adf4008e5aaec84a0772255d1aa57d18e3f9eb2f4cebb49b396ec36185",
     "src/pages/AdminPanel.js": "b3beba1156823c02aa05ed9d329bdcb9d7587cdaea877a4c16c9a12a093eae75",
     "src/pages/EditarPartidoFrecuente.js": "0357a5f93abb68a4337d5bbb3a07d0d96bc2c788945119c96f60928da2f55bb3",
-    "src/pages/EncuestaPartido.js": "9055735c3faf38790d8b17f3d8d7327a6b01ba30b62cfdca93e0bffa207f536f",
+    "src/pages/EncuestaPartido.js": "4c45b5759c8ee1b5a141bc027ddabd2df7c5f10b09994b0d80bcb5667ffb4de1",
     "src/pages/FormularioNuevoPartidoFlow.js": "995626fe8b6486e480774f37f09d82565d5c3ff4db98700777741bffdf031a91",
     "src/pages/ListaPartidosFrecuentes.js": "a91a238f89459cb59dd19129277e7490c763e0f670dc807d82bc268f93443750",
     "src/pages/PartidoInvitacion.js": "3e550e3a5525eb5add4f24605e6bf03d499f4bc546141cf371a648197572706f",
