@@ -41,6 +41,7 @@ import {
 } from '../utils/matchSummaryShare';
 import { clampPlayerRating } from '../utils/playerRating';
 import ShareableMatchSummaryCard from '../components/share/ShareableMatchSummaryCard';
+import { buildHomonymHints } from '../utils/surveyRosterIdentity';
 import { PARTIDO_COLUMNS } from '../services/db/matchAccessCode';
 
 const ensurePlayersList = (players) => {
@@ -533,6 +534,16 @@ const SummaryAwardsMosaic = ({ awards }) => {
 // Context to broadcast live previewPlayers without recreating slides
 const PreviewPlayersContext = createContext([]);
 
+// fecha is a date-only column and hora a wall-clock time: parsing fecha alone as a Date reads
+// it as UTC midnight and shows the previous day in Argentina.
+const formatMatchWallClock = (fecha, hora) => {
+  const day = String(fecha || '').slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return '';
+  const time = String(hora || '').trim().replace('.', ':').match(/^(\d{1,2}):(\d{2})/);
+  const date = new Date(`${day}T${time ? `${time[1].padStart(2, '0')}:${time[2]}` : '00:00'}:00`);
+  return date.toLocaleString('es-ES', time ? { dateStyle: 'full', timeStyle: 'short' } : { dateStyle: 'full' });
+};
+
 const ResultadosEncuestaView = () => {
   const { partidoId } = useParams();
   const { user } = useAuth();
@@ -741,6 +752,15 @@ const ResultadosEncuestaView = () => {
     return Array.from(new Set(tokens));
   };
   const getPrimaryIdentity = (entity) => getIdentityTokens(entity)[0] || null;
+  // A winner is stored by an ID (account or roster uuid); its name comes from the roster,
+  // with the hint that tells homonyms apart.
+  const highlightNameFor = (winnerId) => {
+    if (!winnerId) return null;
+    const roster = Array.isArray(jugadores) ? jugadores : [];
+    const winner = roster.find((player) => getIdentityTokens(player).includes(normalizeIdentityToken(winnerId)));
+    if (!winner?.nombre) return null;
+    return [winner.nombre, buildHomonymHints(roster).get(winner.uuid)].filter(Boolean).join(' · ');
+  };
   const sharesIdentity = (entityA, entityBOrValue) => {
     const left = new Set(getIdentityTokens(entityA));
     const right = getIdentityTokens(entityBOrValue);
@@ -2880,7 +2900,7 @@ const ResultadosEncuestaView = () => {
             {partido.nombre || partido.titulo || `Partido ${partidoId}`}
           </h2>
           <p className="text-white/60 text-base mb-1 font-sans">
-            {new Date(partido.fecha).toLocaleString('es-ES', { dateStyle: 'full', timeStyle: 'short' })}
+            {formatMatchWallClock(partido.fecha, partido.hora)}
           </p>
         </div>
 
@@ -2894,7 +2914,7 @@ const ResultadosEncuestaView = () => {
                   <span className="text-2xl">🏆</span>
                   <div className="flex flex-col">
                     <span className="font-oswald text-lg text-gray-400 tracking-[0.01em] font-semibold">Mvp</span>
-                    <span className="text-lg text-white  text-shadow-sm">{canonicalResults.mvp_nombre || '—'}</span>
+                    <span className="text-lg text-white  text-shadow-sm">{canonicalResults.mvp_nombre || highlightNameFor(canonicalResults.mvp) || '—'}</span>
                   </div>
                 </div>
               )}
@@ -2903,7 +2923,7 @@ const ResultadosEncuestaView = () => {
                   <span className="text-2xl">🥇</span>
                   <div className="flex flex-col">
                     <span className="font-oswald text-lg text-gray-400 tracking-[0.01em] font-semibold">Mejor arquero</span>
-                    <span className="text-lg text-white  text-shadow-sm">{canonicalResults.golden_glove_nombre || '—'}</span>
+                    <span className="text-lg text-white  text-shadow-sm">{canonicalResults.golden_glove_nombre || highlightNameFor(canonicalResults.golden_glove) || '—'}</span>
                   </div>
                 </div>
               )}

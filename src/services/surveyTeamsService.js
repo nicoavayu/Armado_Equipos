@@ -33,20 +33,30 @@ export const resolvePersistRef = (player) => {
   return preferred || null;
 };
 
+// IDs always resolve to their player. A name resolves only when a single player has it:
+// two players with the same name (and no photo) are still two players.
 export const buildPlayerRefToKeyMap = (players = []) => {
   const map = new Map();
+  const keysByName = new Map();
 
   (players || []).forEach((player) => {
     const key = resolvePlayerKey(player);
     if (!key) return;
 
+    const nameRef = normalizePersistNameRef(player?.nombre);
+    if (nameRef) keysByName.set(nameRef, new Set([...(keysByName.get(nameRef) || []), key]));
+
     [
-      ...getOrderedPlayerPersistRefs(player),
+      ...getOrderedPlayerPersistRefs(player).filter((ref) => ref !== nameRef),
       key,
     ]
       .map((ref) => normalizeIdentityRef(ref))
       .filter(Boolean)
       .forEach((ref) => map.set(ref, key));
+  });
+
+  keysByName.forEach((keys, nameRef) => {
+    if (keys.size === 1 && !map.has(nameRef)) map.set(nameRef, Array.from(keys)[0]);
   });
 
   return map;

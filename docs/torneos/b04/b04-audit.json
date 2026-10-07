@@ -1,12 +1,13 @@
 {
-  "generatedFrom": "9c0c2d59251b131cecc51d1a923c8e23807964e5",
+  "generatedFrom": "a9ce6953d137272dfb9d208e57595f997e833e69",
   "legacyBase": "2058da039a2a5eaaed22d87d01946bc596ae5f50",
   "coreSingletonSha256": "f39572e4cab0fd287bd1dea2ca87c97bd5500d0eff57cb8de6160f1e3271600c",
   "reachableCallSignatures": {
     "src/api/supabaseWrapper.js": "9efd37acfa411583ee3bcdc82e642cd82c84eda2eda019cca8b005acbcc57468",
-    "src/components/AmigosView.js": "288d149c563f43bc0dc1b5c82c1186a42a518655317a5cea0c813e5929682583",
-    "src/components/ArmarEquiposView.js": "fc104750b291013dc3535a656def915d0b97a2a09a307e5665ff8f509a098660",
-    "src/components/AuthProvider.js": "af1001ac71ec552e3da8f4dfac9976e1a8520440a1180b0d4317f9d411b79c78",
+    "src/components/AmigosView.js": "ec38209a1ed09f882d858c680081a8f97e8db97e9e7742e1f3646812d4a454b1",
+    "src/components/ArmarEquiposView.js": "c7189e9df625b43f783e5dd39c7f3ae4dede40ec1d0a8489992f0d049364305d",
+    "src/components/AuthProvider.js": "0a0bf99f7b115f6e91124a6da817bc1fb96609bb71a8a0b7496b730c8bb68981",
+    "src/components/AutocompleteSede.js": "3c7e56bb3268df1a4125cac87f53eaaf5a9f554db228262c656f1997381282ed",
     "src/components/ChatButton.js": "8732c5255b31bbb78d56776f882cd5dda2fa6ddda3366f95273b6451ea78c129",
     "src/components/FifaHomeContent.js": "7eff02a8177cc63cdd15873ef9f89be9fb892a65a3c852e4d71c06c20134b90b",
     "src/components/HomeWelcomeCard.jsx": "59110e6ee2bfa5aeacb7f3576ab496534c534846be21450f044cffbb22f135f4",
@@ -15,7 +16,7 @@
     "src/components/InviteToMatchModal.jsx": "6a42e299f001f5819d46c4a45e9192e3ece39419358e0004cf3ce8e6a5c26d13",
     "src/components/ManualMatchModal.js": "e4e14bb601cff6762dae4c3459a97fd623da07a4bc3579690255f380bf920951",
     "src/components/MatchChat.js": "784f6d4a698bea07699b7878ad641f63e5a6e66d4be921f66078623e89693960",
-    "src/components/ProfileCardModal.js": "67e6e25e9fd70861fd292aec906c7091c102202cec3981478c39bc3453b0835d",
+    "src/components/ProfileCardModal.js": "ae859b5fc8b0fd3ae50954bdd95564860272498386cf4e535a2f7bc740e9d7f3",
     "src/components/ProfileEditor.js": "7d0eabe48e1ce4920beb4dc58435de4dcc4f8490b4e0edc73bb83cffc8e54b3a",
     "src/components/ProximosPartidos.js": "30fd588909bb2a1205205936e441cf614757ac3f611f7ab8ea6590e4443fc4f7",
     "src/components/StatsView.js": "342440d9f68e93219baafa2042ffa3f30419c778723276477bda359b22aa8a6c",
@@ -24,7 +25,7 @@
     "src/components/admin/SolicitudesSection.jsx": "aa15c356cb06b1520278df26579fa2401d9e9cf119b139bbe1cb81f6653ef5b2",
     "src/components/friends/InviteGroupToMatchModal.jsx": "0e9d59d329c3c045997bfab1d1f1a4b27b5e99e7cc31ec72a1fea4776f8197c5",
     "src/components/global-header/AwardsStoryContext.jsx": "28e1a52aba4c966e81a5ebbb5a0a159bb329dc00644ca4301fa038d5dc51d43d",
-    "src/components/jugar/AvailabilityOpportunityCard.jsx": "358d1df1d918c5b72f9161b5c2512ae9c3f25c020f859f5adc296153c9592e9c",
+    "src/components/jugar/AvailabilityOpportunityCard.jsx": "897c1a9d212f1d618fd55e3a3e66b19885cff5b16e8c481efdc2a8554da27cd3",
     "src/context/NotificationContext.js": "c1ce433e2e51fb52d9989bca90cd5b7343045083b2178365f226bb9d54da16eb",
     "src/features/equipos/QuieroJugarEquipos.jsx": "419de39c0196930f7bc66a25093a9cf83125f717ed002cf06c92cc73c86e6b8c",
     "src/features/equipos/views/EquipoDetalleView.jsx": "41d7b9a51aa1d452032f3a5c44f73280b04a5190da832e0aa454e3bdf5f0b4dd",
@@ -53,15 +54,15 @@
     "src/lib/supabaseClient.js": "797da8adf4008e5aaec84a0772255d1aa57d18e3f9eb2f4cebb49b396ec36185",
     "src/pages/AdminPanel.js": "b3beba1156823c02aa05ed9d329bdcb9d7587cdaea877a4c16c9a12a093eae75",
     "src/pages/EditarPartidoFrecuente.js": "0357a5f93abb68a4337d5bbb3a07d0d96bc2c788945119c96f60928da2f55bb3",
-    "src/pages/EncuestaPartido.js": "9055735c3faf38790d8b17f3d8d7327a6b01ba30b62cfdca93e0bffa207f536f",
+    "src/pages/EncuestaPartido.js": "4c45b5759c8ee1b5a141bc027ddabd2df7c5f10b09994b0d80bcb5667ffb4de1",
     "src/pages/FormularioNuevoPartidoFlow.js": "995626fe8b6486e480774f37f09d82565d5c3ff4db98700777741bffdf031a91",
     "src/pages/ListaPartidosFrecuentes.js": "a91a238f89459cb59dd19129277e7490c763e0f670dc807d82bc268f93443750",
     "src/pages/PartidoInvitacion.js": "3e550e3a5525eb5add4f24605e6bf03d499f4bc546141cf371a648197572706f",
-    "src/pages/QuieroJugar.js": "e7519f9d67e16faeceb2cadcceee64c69fa429ea808699b4a009291685641b82",
-    "src/pages/ResultadosEncuestaView.js": "bb80efef913c48593b0bb88d5267c1d30e3556cf0193ccba6a48651e2cc8759a",
+    "src/pages/QuieroJugar.js": "6f05add6ca774aa2573ff1c1cb94295d79040c536e4633125f748fdade0b0876",
+    "src/pages/ResultadosEncuestaView.js": "73d6239d87be21f497414b616210d790e6e8feb3b8ee8e8e2dea5339585937cd",
     "src/pages/VotingView.js": "28c2541bb8fb0a394bd7882f3c81bcca72ceb9d8fdb52c7d6b19e78b067d31f2",
     "src/services/absenceService.js": "165054dc97813a40d84c81f479bd600aaf9ac67b074140a1f2b03cdf9e7be9e3",
-    "src/services/api/playerService.js": "9b5de2841fabd9e73f30a59488a595dde813a39c638788c497b0c268ee733a40",
+    "src/services/api/playerService.js": "06bc4e7c8f489945673ef62ef2fd92c2ca8017c952f7a95110e80005724d3b13",
     "src/services/api/supabase.js": "1450e1ee26c49a6e825bc9c4e676bf6f8cb5d4951ec00f52b6911b2783456031",
     "src/services/auth/socialAuth.js": "b6b782c8ed7081ab253a1c0d60482835b908e029df404475a1ad532ed0804919",
     "src/services/authLogoutService.js": "fe859f73dee0abd2ec5c2e6d1c4586f1f90be27a47152c25692be007b35fea70",
@@ -73,30 +74,27 @@
     "src/services/db/frequentMatches.js": "3f4a0040dab299427801c6cc64e65e9f9454d9e91024c935926264c687151dd7",
     "src/services/db/friends.js": "6f584f99770651d56e2ab6233d489fc3fa176c38b1a1d79da51d53aa7e44c832",
     "src/services/db/importedMatchPlayers.js": "da81344b390686c6d95e3a3216d69061c4f47869278c802c5363c4d14f111bac",
-    "src/services/db/matchAccessCode.js": "d7f54e8a3a82aabf2b3bead93ff1b7be96f1e7f216290f9b87fcf0a71a54d8cf",
     "src/services/db/matchJoinRequests.js": "55a3d71d15f08f5a84b59fc1d479d7599edb7e5200a5438230764c37e59334be",
     "src/services/db/matchScheduling.js": "66a227f1ea05823b3498b6ecfa9badb489e6ecdb48abfe025b6c58a16f23ed05",
-    "src/services/db/matches.js": "9003119dc7fa8494ee7a09c6d252b73c94349e73d7e128f96809fd965718048f",
+    "src/services/db/matches.js": "343a5cf96b2df56c2b1fe96025fdd1ef8c3691d41b9f4b3279e35107eb0d88db",
     "src/services/db/notifications.js": "6a288c071d303e9dffdf23a5f99dcebc4e63a22cea4cd207782e0130ce467819",
     "src/services/db/openMatches.js": "cd7bfaf0d794dbaeb968b1763036d5f290b0382e9a82a84280dea27eb7a74bbc",
     "src/services/db/payments.js": "7d21fce6297cec6edb8511bcb7599baefe358df5841643cd9203d4363198a82a",
     "src/services/db/penalties.js": "e9fac9f08df126c7e6a7530e0f59829a160544138b77b8300d7f6245172313f4",
     "src/services/db/privateFriendGroups.js": "756aafa2a609b0e6fafb03dfa1d1fe05529c4580845870e5591efaf0c3b30be5",
-    "src/services/db/profiles.js": "6f2f200f362b859c928518e64832b8d9277ce1bebc6f41aebd87cc20cc1e7b8d",
-    "src/services/db/publicMatch.js": "2db7d98ab6280e964c9f8362ea0aee369e8297aef76c3e16456fff3613183fed",
-    "src/services/db/publicProfiles.js": "3f5db95f9c908b535ba0c4a39411f8a32847e5512aae2235eb9814e4469f3a24",
+    "src/services/db/profiles.js": "c716e4398c4154d6b94099f535c9b1fc3e0b084f1fdc444efc8278b5132468fc",
     "src/services/db/realtime.js": "7629f351a3c5274635dc8b0933476cfaa12a37bbdd354ba9ce7c751061f2600c",
     "src/services/db/surveys.js": "d5083e28e35e65895b1ec1cfd5643090c18cbdcaac87b8abe8ecd9b0919f013a",
-    "src/services/db/teamChallenges.js": "4057f30bdc3881d4d660ad6979e1094cf4266014444cfb69561fc2d7f4dcd66d",
+    "src/services/db/teamChallenges.js": "f2c254c77ad1eaaa52373eff7f32efe6e7b9eb9558b8af4a0e8c340f213be28a",
     "src/services/db/teamRankings.js": "b09bc8b6903d2afaaaae6fcc3359ca091fc4cb0ac33776a99ee8f7fe3bc360b5",
     "src/services/db/teams.js": "ef0109c626837a481a728d613971cfdf3d805f316cb2277d8dba5d5a2591de76",
     "src/services/db/userIdentity.js": "57cb392bb2114dff52c9d30d636d9200cf60b37b32d64d3191e28ff54904e9f3",
-    "src/services/historySnapshotService.js": "4e8df9f91fc1296309568cc708e17d1bfdf82c40891b57e96620b4de5effa7c6",
+    "src/services/historySnapshotService.js": "a5f3fa695c0a7cac7a66864f8c1d60587d0998dc4197599eac8fca589091d71e",
     "src/services/locationService.js": "4d728859d6df2d43800f06078de9ce051c0ab37e3c866ae6ee40f5cd1498f25f",
     "src/services/matchFinishService.js": "2a276ac7a35e5534e3f56ee7c0520039a93cce1ab510f66542935b0da0973dda",
     "src/services/matchJoinNotificationService.js": "11cd2d8d1a50fd5277d92477dca0712106b16cf6339502b978ed3e320ed375a7",
     "src/services/matchStatsService.js": "49e8e137721fe5de993bd8cccc3d13db780a2dbd98906666150c57309e38c928",
-    "src/services/notificationService.js": "4b1d430a7e565e584908cd43fbf76f03745ad0fe4d6d78d03f967560e47c153e",
+    "src/services/notificationService.js": "d6f765dcbecfb98e89c4171c822dc5fb1e27795fa29faac4b1916e9354bd3301",
     "src/services/pushDispatchService.js": "a9b6227f68fff883235499f9ea60a4a016941ed01d1c049d81c5ace005b7f73e",
     "src/services/pushTokenService.js": "edf546ac9e60e1fe8db162548f3812510742711364710458ddd31d3db848c6a6",
     "src/services/realtimeService.js": "d0ff99b3b50b3ee16ccfb8a3c2b7243fce42870fdd501fe61e55859f2acf018b",
@@ -143,11 +141,6 @@
       "source": "../../../lib/supabaseClient"
     },
     {
-      "file": "src/hooks/useSurveyFinalizationRecovery.js",
-      "line": 2,
-      "source": "../lib/supabaseClient"
-    },
-    {
       "file": "src/lib/coreSupabaseClient.js",
       "line": 3,
       "source": "./supabaseClient"
@@ -160,11 +153,6 @@
     {
       "file": "src/services/autoMatchPushService.js",
       "line": 2,
-      "source": "../lib/supabaseClient"
-    },
-    {
-      "file": "src/services/clientBuildReport.js",
-      "line": 4,
       "source": "../lib/supabaseClient"
     },
     {
@@ -194,11 +182,6 @@
     },
     {
       "file": "src/services/db/importedMatchPlayers.js",
-      "line": 1,
-      "source": "../../lib/supabaseClient"
-    },
-    {
-      "file": "src/services/db/matchAccessCode.js",
       "line": 1,
       "source": "../../lib/supabaseClient"
     },
@@ -239,11 +222,6 @@
     },
     {
       "file": "src/services/db/profiles.js",
-      "line": 1,
-      "source": "../../lib/supabaseClient"
-    },
-    {
-      "file": "src/services/db/publicProfiles.js",
       "line": 1,
       "source": "../../lib/supabaseClient"
     },
