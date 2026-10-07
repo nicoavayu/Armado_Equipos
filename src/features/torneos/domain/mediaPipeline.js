@@ -95,7 +95,7 @@ export const MEDIA_UPLOAD_STATE_LABELS = Object.freeze({
   ready: 'Lista para subir',
   preparing: 'Preparando',
   uploading: 'Subiendo',
-  processing: 'Procesando',
+  processing: 'Verificando',
   pending_review: 'Pendiente de aprobación',
   error: 'Con error',
   cancelled: 'Cancelada',
@@ -110,7 +110,7 @@ export const MEDIA_ASSET_STATE_LABELS = Object.freeze({
   approved: 'Aprobada',
   published: 'Publicada',
   rejected: 'Rechazada',
-  hidden: 'Oculta',
+  hidden: 'Retirada',
   revoked: 'Consentimiento revocado',
   failed: 'Con error',
 });

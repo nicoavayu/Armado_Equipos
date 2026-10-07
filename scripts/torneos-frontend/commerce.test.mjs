@@ -281,8 +281,9 @@ test('MP-A5 T2 — commerce() refuses any other path, method-less or non-object 
   }
   assert.equal(h.calls.length, 0);
   // No generic commerce channel: the transport exposes exactly rpc/select/commerce + lifecycle, and BRANDING-V1's
-  // one-object route (its own path, validated by the client scope; never a commerce path).
-  same(Object.keys(h.transport).sort(), ['brandingObject', 'clear', 'commerce', 'dispose', 'rpc', 'select', 'status'].sort());
+  // one-object route (its own path, validated by the client scope; never a commerce path), and MEDIA-V1's two fixed
+  // routes (upload, signed reads: constants of mediaV1Scope.js, no caller-supplied path at all).
+  same(Object.keys(h.transport).sort(), ['brandingObject', 'clear', 'commerce', 'dispose', 'mediaUpload', 'mediaUrls', 'rpc', 'select', 'status'].sort());
   await assert.rejects(h.transport.brandingObject('POST', CHECKOUT_PATH, undefined), { code: 'TORNEOS_INVALID_REQUEST' });
   assert.equal(h.calls.length, 0);
 });

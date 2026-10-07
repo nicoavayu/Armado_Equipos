@@ -176,6 +176,10 @@ test('the only backend access B04 adds is the gateway transport (fetch) and the 
   const added = baseline.calls.filter((c) => !legacyFiles.has(c.file)).map(({ file, kind, callee }) => ({ file, kind, callee }));
   assert.deepEqual(added, [
     { file: 'src/features/torneos/foundation/torneosClient.js', kind: 'rpc', callee: 'transport.rpc' },
+    // MEDIA-V1: the photo upload to the gateway's media route with real byte progress (XMLHttpRequest; fetch where it
+    // does not exist). Same gateway, same bearer and failure mapping as every other route of the transport.
+    { file: 'src/features/torneos/foundation/torneosTransport.js', kind: 'transport', callee: 'fetchImpl' },
+    { file: 'src/features/torneos/foundation/torneosTransport.js', kind: 'transport', callee: 'XMLHttpRequest' },
     { file: 'src/features/torneos/foundation/torneosTransport.js', kind: 'transport', callee: 'window.fetch' },
     { file: 'src/features/torneos/foundation/torneosTransport.js', kind: 'transport', callee: 'fetchImpl' },
     { file: 'src/features/torneos/foundation/torneosTransport.js', kind: 'transport', callee: 'fetchImpl' },

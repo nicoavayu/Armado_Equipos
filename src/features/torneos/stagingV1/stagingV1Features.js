@@ -9,7 +9,7 @@
 //   • OFFICIALIZATION_V1_ON — exactly the OFFICIALIZATION-V1 contract keys (officialization-v1-rpc-allowlist.json +
 //     migration 00000000000005, guarded by test): organization membership and the dual-control policy;
 //   • everything OFF has no RPC in either gateway allowlist or lives outside the gateway
-//     contract (media pipeline, storage uploads, social studio, billing).
+//     contract (media pipeline, storage uploads, social studio, billing) — until its own overlay below.
 const STAGING_V1_ON = Object.freeze({
   organizations_workspaces: true,
   collaborators: true,
@@ -113,6 +113,13 @@ export const stagingV1BrandingOverlay = Object.freeze({
   branding_assets: true,
 });
 
+// MEDIA-V1: the photo galleries (foundation/config.js resolveTorneosMedia = hybrid + the opt-in that matches the
+// gateway's TORNEOS_MEDIA_MODE=on + the media flag): the organizer's Centro Multimedia and the participant galleries of
+// the hub and the match. Only galleries: portraits, team photos and the visual policy stay off.
+export const stagingV1MediaOverlay = Object.freeze({
+  media: true,
+});
+
 function baseFeaturesFor(billingMode, { planRead = false, social = false } = {}) {
   const mode = typeof billingMode === 'string' ? billingMode : billingMode?.mode;
   if (mode === 'test') return social === true ? billingTestSocialFeatures : billingTestFeatures;
@@ -121,14 +128,15 @@ function baseFeaturesFor(billingMode, { planRead = false, social = false } = {})
 }
 
 export function stagingV1FeaturesFor(billingMode, {
-  planRead = false, social = false, connected = false, branding = false,
+  planRead = false, social = false, connected = false, branding = false, media = false,
 } = {}) {
   const base = baseFeaturesFor(billingMode, { planRead, social });
-  if (connected !== true && branding !== true) return base;
+  if (connected !== true && branding !== true && media !== true) return base;
   return Object.freeze({
     ...base,
     ...(connected === true ? stagingV1ConnectedOverlay : {}),
     ...(branding === true ? stagingV1BrandingOverlay : {}),
+    ...(media === true ? stagingV1MediaOverlay : {}),
   });
 }
 

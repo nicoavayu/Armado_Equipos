@@ -152,8 +152,19 @@ export function targetMimeFor(file, { allowHeicTranscode = true } = {}) {
  * everything the processor will check anyway — this exists to keep obvious
  * mistakes out of the queue, not to be a security boundary.
  */
+const HEIC_NAME = /\.(heic|heif)$/i;
+
 export function validateSelection(file, limits = MEDIA_LIMITS) {
   if (!file) return { valid: false, code: 'missing', message: 'Elegí un archivo.' };
+  // iPhone photos in their original format: said before any upload starts, with what to do instead.
+  const heic = MEDIA_TRANSCODABLE_MIME.includes(String(file.type || '').toLowerCase()) || HEIC_NAME.test(String(file.name || ''));
+  if (heic && limits.allowHeicTranscode === false) {
+    return {
+      valid: false,
+      code: 'mime',
+      message: 'Las fotos HEIC del iPhone no se pueden subir así. Elegilas desde la app Fotos del iPhone (se convierten solas a JPEG) o exportalas como JPEG.',
+    };
+  }
   if (!targetMimeFor(file, { allowHeicTranscode: limits.allowHeicTranscode !== false })) {
     return {
       valid: false,

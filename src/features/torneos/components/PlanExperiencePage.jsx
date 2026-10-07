@@ -17,6 +17,8 @@ export default function PlanExperiencePage({ organization: organizationProp = nu
   // Same condition as the Estudio Social entry of the navigation (TorneosShell): flag + composition feature.
   const { comparison, comingSoon } = planComparisonFor({
     socialStudio: torneosFeatureFlags.socialContentGenerator === true && features.social_studio === true,
+    // MEDIA-V1: same condition as the Multimedia entry of the navigation.
+    media: torneosFeatureFlags.mediaEnabled === true && features.media === true,
   });
   const organization = organizationProp || outlet.organization;
   const season = seasonProp || competition?.activeSeason;

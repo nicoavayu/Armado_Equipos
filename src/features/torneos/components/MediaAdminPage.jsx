@@ -165,12 +165,12 @@ function DeletePhotoDialog({ busy, onCancel, onConfirm }) {
 }
 
 function AssetPreview({
-  asset, cover, gallery, capabilities, onAction, onMove, thumbnailUrl, lastOrder,
+  asset, cover, gallery, capabilities, onAction, onMove, thumbnailUrl, lastOrder, canErase = true,
 }) {
   // Four ready variants is the same gate the database enforces on approval, so
   // the card can say "procesando" without guessing.
   const processing = !assetDisplayReady(asset);
-  const actions = resolveMediaAssetActions(asset, gallery, capabilities, { isCover: cover });
+  const actions = resolveMediaAssetActions(asset, gallery, capabilities, { isCover: cover, canErase });
   const curation = actions.cover || actions.reorder;
   const moderation = actions.approve || actions.reject || actions.hide || actions.restore;
   return (
@@ -224,7 +224,7 @@ function AssetPreview({
                   className={styles.assetGhostAction}
                   onClick={() => onAction(asset, 'hide')}
                 >
-                  <EyeOff size={15} aria-hidden="true" /> Ocultar
+                  <EyeOff size={15} aria-hidden="true" /> Retirar
                 </button>
               )}
               {actions.restore && (
@@ -302,7 +302,11 @@ export default function MediaAdminPage() {
   const [dragging, setDragging] = useState(false);
   const [thumbnails, setThumbnails] = useState({});
   const [pendingDelete, setPendingDelete] = useState(null);
+  const [seasonUsage, setSeasonUsage] = useState(null);
   queueRef.current = queue;
+  // MEDIA-V1: the hybrid composition retires photos (hide / revoke); permanent erasure exists only where the service
+  // offers it.
+  const canErase = typeof service.deleteMediaAsset === 'function';
 
   const patchQueueItem = (id, patch) => setQueue((current) => current.map(
     (candidate) => (candidate.id === id ? { ...candidate, ...patch } : candidate),
@@ -378,6 +382,31 @@ export default function MediaAdminPage() {
   const selectedTournament = useMemo(() => (
     state.data?.tournaments?.find((item) => item.id === form.tournamentId) || null
   ), [form.tournamentId, state.data]);
+
+  // The season's photo quota, in the organizer's words: the same count the server enforces (plan catalog).
+  const usageSeasonId = (selectedGallery && planCompetition?.tournaments?.find(
+    (entry) => entry.id === selectedGallery.tournamentId,
+  )?.seasonId) || planCompetition?.activeSeason?.id || null;
+  const refreshSeasonUsage = () => {
+    if (!usageSeasonId || typeof service.loadSeasonMediaUsage !== 'function') return;
+    service.loadSeasonMediaUsage({ organizationId, seasonId: usageSeasonId })
+      .then((usage) => setSeasonUsage(usage && usage.seasonId === usageSeasonId ? usage : null))
+      .catch(() => setSeasonUsage(null));
+  };
+  useEffect(() => {
+    setSeasonUsage(null);
+    refreshSeasonUsage();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [organizationId, usageSeasonId, service, state.data]);
+  // A purchase or a refund changes the season's plan: read everything again (Premium MP announces it).
+  useEffect(() => {
+    const onPlanChanged = (event) => {
+      if (!event?.detail?.organizationId || event.detail.organizationId === organizationId) load();
+    };
+    window.addEventListener('torneos:plan-changed', onPlanChanged);
+    return () => window.removeEventListener('torneos:plan-changed', onPlanChanged);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [organizationId, service]);
 
   const updateForm = (key, value) => {
     setForm((current) => ({
@@ -475,6 +504,9 @@ export default function MediaAdminPage() {
 
   const startUpload = async (item) => {
     if (!selectedGallery || !uploadReady) return;
+    // A double tap (or "Subir todas" while one is running) never starts the same photo twice.
+    const current = queueRef.current.find((candidate) => candidate.id === item.id);
+    if (current && ['preparing', 'uploading', 'processing', 'pending_review'].includes(current.status)) return;
     if (activeUploadsRef.current >= capability.maxConcurrentUploads) {
       patchQueueItem(item.id, {
         status: 'ready',
@@ -518,10 +550,13 @@ export default function MediaAdminPage() {
         status: error?.code === 'cancelled' ? 'cancelled' : 'error',
         error: error?.message || 'No pudimos subir esta foto.',
         retryable: error?.retryable !== false,
-        // A consumed intent can never be replayed, so a retry needs a new one.
-        idempotencyKey: service.createIdempotencyKey(),
+        // The same key on retry: if the first attempt did land, the server answers with that photo instead of making
+        // a second one. Only a key bound to another gallery needs a new one.
+        idempotencyKey: error?.code === 'TORNEOS_MEDIA_IDEMPOTENCY_CONFLICT'
+          ? service.createIdempotencyKey() : item.idempotencyKey,
         progress: 0,
       });
+      if (error?.code === 'TORNEOS_SEASON_MEDIA_QUOTA_EXCEEDED') refreshSeasonUsage();
     } finally {
       controllersRef.current.delete(item.id);
       activeUploadsRef.current = Math.max(0, activeUploadsRef.current - 1);
@@ -744,6 +779,26 @@ export default function MediaAdminPage() {
         </span>
         <em>{capability.readinessLabel}</em>
       </div>
+
+      {seasonUsage && Number.isInteger(seasonUsage.limit) && (
+        <div
+          className={styles.quotaMeter}
+          data-full={seasonUsage.remaining === 0}
+          role="status"
+          aria-label={`Fotos de la temporada: ${seasonUsage.usage} de ${seasonUsage.limit}`}
+        >
+          <span>
+            <strong>Fotos de la temporada</strong>
+            <small>
+              {seasonUsage.remaining === 0
+                ? `Usaste las ${seasonUsage.limit} fotos de tu plan. Retirá o rechazá fotos para liberar lugar.`
+                : `Quedan ${seasonUsage.remaining} de ${seasonUsage.limit}. Cuentan las fotos subidas, salvo las rechazadas o retiradas por consentimiento.`}
+            </small>
+          </span>
+          <em>{seasonUsage.usage} / {seasonUsage.limit}</em>
+          <i aria-hidden="true"><b style={{ width: `${Math.min(100, Math.round((seasonUsage.usage / Math.max(1, seasonUsage.limit)) * 100))}%` }} /></i>
+        </div>
+      )}
 
       {quotaSeasonId && quotaSeasonId === planCompetition?.activeSeason?.id && planCompetition?.planState?.status === 'ready'
         && planCompetition.planState.data?.plan === 'FREE' && (
@@ -991,6 +1046,7 @@ export default function MediaAdminPage() {
                       onMove={moveAsset}
                       lastOrder={selectedGallery.assets.length - 1}
                       thumbnailUrl={thumbnails[`${asset.id}:thumbnail`] || ''}
+                      canErase={canErase}
                     />
                   ))}
                 </div>
