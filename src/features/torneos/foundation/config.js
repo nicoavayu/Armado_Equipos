@@ -5,6 +5,8 @@
 // Everything Torneos goes through ONE gateway URL (`REACT_APP_TORNEOS_GATEWAY_URL`):
 // exchange, RPC and the table routes of the certified contract. There is no
 // separate Data API target and nothing is ever inherited from Core.
+import { isLabDeviceHost } from './labDeviceHost';
+
 const LOOPBACK_HOSTS = new Set(['127.0.0.1', 'localhost', '[::1]']);
 
 function parseUrl(value, invalidCode) {
@@ -16,10 +18,10 @@ function parseUrl(value, invalidCode) {
 }
 
 // Mirrors the gateway's own rule: https everywhere, plain http only on loopback
-// (the local labs). No credentials, no query, no fragment.
-export function assertTorneosGatewayUrl(value, { coreOrigin = null, productionRef = '' } = {}) {
+// (the local labs, plus the explicit lab device host of labDeviceHost.js). No credentials, no query, no fragment.
+export function assertTorneosGatewayUrl(value, { coreOrigin = null, productionRef = '', env = {} } = {}) {
   const url = parseUrl(value, 'TORNEOS_CONFIG_INVALID');
-  const loopback = LOOPBACK_HOSTS.has(url.hostname);
+  const loopback = LOOPBACK_HOSTS.has(url.hostname) || isLabDeviceHost(url.hostname, env);
   const protocolOk = url.protocol === 'https:' || (url.protocol === 'http:' && loopback);
   if (!protocolOk || url.username || url.password || url.search || url.hash) {
     throw new Error('TORNEOS_CONFIG_INVALID');
@@ -50,7 +52,7 @@ export function readDualBackendConfig(env = process.env) {
   let gatewayUrl = '';
   if (rawGatewayUrl) {
     const coreOrigin = coreUrl ? parseUrl(coreUrl, 'CORE_CONFIG_INVALID').origin : null;
-    gatewayUrl = assertTorneosGatewayUrl(rawGatewayUrl, { coreOrigin, productionRef });
+    gatewayUrl = assertTorneosGatewayUrl(rawGatewayUrl, { coreOrigin, productionRef, env });
   }
   return Object.freeze({
     core: Object.freeze({ url: coreUrl, anonKey: coreAnonKey }),
