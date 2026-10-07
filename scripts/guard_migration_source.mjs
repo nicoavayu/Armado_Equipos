@@ -49,6 +49,11 @@ const expectedCanonicalMigrations = [
   '20260901120000_social_studio_theme_export_contract.sql',
   '20260914120000_torneos_core_contract_v1.sql',
   '20260915120000_torneos_core_contract_v1_1_session.sql',
+  // Core security/stability review: trigger helper grants, public voting identity,
+  // notifications_ext match columns (parity with Production; see the Core report).
+  '20261010120000_core_trigger_helper_execute_grants.sql',
+  '20261010121000_core_public_voting_roster_identity.sql',
+  '20261010122000_core_notifications_ext_match_columns.sql',
 ];
 
 const exitWithError = (message) => {

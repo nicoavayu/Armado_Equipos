@@ -15,6 +15,11 @@ const globalAvailabilityMigration = '20260831200904_global_availability_atomic_c
 const socialStudioThemeMigration = '20260901120000_social_studio_theme_export_contract.sql';
 const torneosCoreContractMigration = '20260914120000_torneos_core_contract_v1.sql';
 const torneosCoreContractSessionMigration = '20260915120000_torneos_core_contract_v1_1_session.sql';
+const coreReviewMigrations = [
+  '20261010120000_core_trigger_helper_execute_grants.sql',
+  '20261010121000_core_public_voting_roster_identity.sql',
+  '20261010122000_core_notifications_ext_match_columns.sql',
+];
 const approvedMigrations = fs.readdirSync(path.join(repoRoot, 'supabase', 'migrations'))
   .filter((file) => file.endsWith('.sql'))
   .sort();
@@ -38,7 +43,8 @@ const runGuard = (cwd) => spawnSync(process.execPath, [guardPath], {
 });
 
 test('accepts the closed set including Auto-Match, contract repair and global availability', (t) => {
-  assert.equal(approvedMigrations.length, 43);
+  assert.equal(approvedMigrations.length, 46);
+  for (const migration of coreReviewMigrations) assert.ok(approvedMigrations.includes(migration));
   assert.ok(approvedMigrations.includes(autoMatchMigration));
   assert.ok(approvedMigrations.includes(contractRepairMigration));
   assert.ok(approvedMigrations.includes(mediaSessionReuseMigration));
@@ -53,7 +59,8 @@ test('accepts the closed set including Auto-Match, contract repair and global av
         && file !== globalAvailabilityMigration
         && file !== socialStudioThemeMigration
         && file !== torneosCoreContractMigration
-        && file !== torneosCoreContractSessionMigration,
+        && file !== torneosCoreContractSessionMigration
+        && !coreReviewMigrations.includes(file),
     ).length,
     37,
   );
