@@ -15,6 +15,11 @@ caminos seguros y ya los usa la app nueva, pero **no cierra nada por sí sola**.
 
 Se aplican **juntos**, en la misma ventana: rompen lo mismo y necesitan la misma evidencia.
 
+**Lo que la fase B no cierra:** el plantel de cualquier partido (`jugadores`: nombre, foto y
+`usuario_id` de cada anotado) sigue legible por cualquier cuenta con sesión, porque
+`jugadores_select_authenticated` es `USING (true)` y el descubrimiento y las invitaciones lo usan.
+Decidir qué parte del plantel es pública es una regla aparte (pendiente).
+
 `lesion_activa` queda pública a propósito (la tarjeta del jugador y Amigos muestran "lesionado");
 el detalle de la lesión (`lesiones`) ya es sólo del dueño. Si se prefiere privada, es un cambio de
 una línea en la lista y en `PUBLIC_PROFILE_FIELDS` (decisión de producto).
