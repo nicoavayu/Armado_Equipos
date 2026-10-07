@@ -1,7 +1,6 @@
 import logger from '../utils/logger';
 import { useState, useEffect, useCallback } from 'react';
 import { supabase, getAmigos as getAmigosFromSupabase } from '../supabase';
-import { useNotifications } from '../context/NotificationContext';
 import { requestImmediatePushDispatchSafe } from '../services/pushDispatchService';
 import { track } from '../utils/monitoring/analytics';
 import { insertNotificationSecure } from '../utils/notificationHelpers';
@@ -51,7 +50,6 @@ export const useAmigos = (currentUserId) => {
   const [amigos, setAmigos] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const { createNotification: _createNotification } = useNotifications();
 
   // Get all friends with status 'accepted' usando la nueva función refactorizada
   const getAmigos = useCallback(async (options = {}) => {
