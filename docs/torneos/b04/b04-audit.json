@@ -1,5 +1,5 @@
 {
-  "generatedFrom": "09a733559cdf4dd908983a2eaa055e1372213826",
+  "generatedFrom": "915b23d02d9ba66ee2af4a33fbf0b14409df043a",
   "legacyBase": "2058da039a2a5eaaed22d87d01946bc596ae5f50",
   "coreSingletonSha256": "f39572e4cab0fd287bd1dea2ca87c97bd5500d0eff57cb8de6160f1e3271600c",
   "reachableCallSignatures": {
@@ -70,7 +70,7 @@
     "src/services/db/availability.js": "6fbccc53e80d2c7a8f92c329831b636c738d52010e0a3e60a74a9dfa04647e19",
     "src/services/db/awards.js": "c182a4fb26d395b27dc790e96c5c91ea7393bbadc322e4f906cbde157799623e",
     "src/services/db/dbErrors.js": "1cce94d7db6cb12b686e84ad0fcbe9043b1b0aff0410f5484e1061f807372583",
-    "src/services/db/frequentMatches.js": "3f4a0040dab299427801c6cc64e65e9f9454d9e91024c935926264c687151dd7",
+    "src/services/db/frequentMatches.js": "dffc5146fbe118cfb2c92b0680e0822a2bc11a97417147b1be3e15d6b1f4936e",
     "src/services/db/friends.js": "6f584f99770651d56e2ab6233d489fc3fa176c38b1a1d79da51d53aa7e44c832",
     "src/services/db/importedMatchPlayers.js": "da81344b390686c6d95e3a3216d69061c4f47869278c802c5363c4d14f111bac",
     "src/services/db/matchAccessCode.js": "d7f54e8a3a82aabf2b3bead93ff1b7be96f1e7f216290f9b87fcf0a71a54d8cf",
@@ -90,6 +90,7 @@
     "src/services/db/teamChallenges.js": "4057f30bdc3881d4d660ad6979e1094cf4266014444cfb69561fc2d7f4dcd66d",
     "src/services/db/teamRankings.js": "b09bc8b6903d2afaaaae6fcc3359ca091fc4cb0ac33776a99ee8f7fe3bc360b5",
     "src/services/db/teams.js": "ef0109c626837a481a728d613971cfdf3d805f316cb2277d8dba5d5a2591de76",
+    "src/services/db/templateMatchLink.js": "19014a948d450b67051e2b9a5bb7964ceba0a9ea80d40e5c15af01bcbc24553b",
     "src/services/db/userIdentity.js": "57cb392bb2114dff52c9d30d636d9200cf60b37b32d64d3191e28ff54904e9f3",
     "src/services/historySnapshotService.js": "a5f3fa695c0a7cac7a66864f8c1d60587d0998dc4197599eac8fca589091d71e",
     "src/services/locationService.js": "4d728859d6df2d43800f06078de9ce051c0ab37e3c866ae6ee40f5cd1498f25f",
@@ -271,6 +272,11 @@
     {
       "file": "src/services/db/teams.js",
       "line": 2,
+      "source": "../../lib/supabaseClient"
+    },
+    {
+      "file": "src/services/db/templateMatchLink.js",
+      "line": 1,
       "source": "../../lib/supabaseClient"
     },
     {
