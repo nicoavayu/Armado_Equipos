@@ -276,7 +276,10 @@ async function fetchInviteAccessState({ userId, matchId }) {
 
   if (!extError) {
     rows = extRows || [];
-  } else if (extError.code === '42P01') {
+  } else if (extError.code === '42P01' || extError.code === '42703') {
+    // The view (42P01) or its match_id_text column (42703) may be missing on a
+    // schema rebuilt from the repository: read the base table instead of
+    // declaring a real invitation invalid.
     const orFilters = buildMatchNotificationOrFilter(matchId);
 
     let fallbackQuery = supabase
