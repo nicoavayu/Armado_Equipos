@@ -7,10 +7,9 @@
 import { after, before, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
-import { emulator, LAB_ENV, labProductionDb, SECRET_HEX, send, service, webhookRequest } from './lab/payments-harness.mjs';
+import { emulator, LAB_ENV, labProductionDb, SECRET_HEX, send, service, tree, webhookRequest } from './lab/payments-harness.mjs';
 
-const GATEWAY = new URL('../supabase/functions/torneos-gateway/', import.meta.url);
-const commerce = await import(new URL('commerce.ts', GATEWAY).href);
+const commerce = await tree.import('torneos-gateway/commerce.ts');
 const { loadCommerceConfig, effectiveRpcAllowlist, seasonCheckout, purchaseRefresh, CommerceConfigError } = commerce;
 
 const BASE43 = new Set(Array.from({ length: 43 }, (_, i) => `staging_rpc_${i}`));

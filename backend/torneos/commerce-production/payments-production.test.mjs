@@ -9,12 +9,11 @@ import { after, before, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import {
-  BASE, emulator, internalRequest, LAB_ENV, labProductionDb, PREFERENCE_PATH, RECONCILE_PATH, SECRET_HEX, SELLER, send, service, TOKEN,
-  WEBHOOK_SECRET, webhookRequest,
+  BASE, DbError, emulator, internalRequest, LAB_ENV, labProductionDb, PREFERENCE_PATH, RECONCILE_PATH, SECRET_HEX, SELLER, send, service, TOKEN,
+  tree, webhookRequest,
 } from './lab/payments-harness.mjs';
 
-const FUNCTIONS = new URL('../supabase/functions/torneos-payments-production/', import.meta.url);
-const { loadProductionPaymentsConfig, notificationHostProblem, hostedDbProblem } = await import(new URL('config.ts', FUNCTIONS).href);
+const { loadProductionPaymentsConfig, notificationHostProblem, hostedDbProblem } = await tree.import('torneos-payments-production/config.ts');
 
 const HOSTED = Object.freeze({
   ...LAB_ENV,
@@ -76,7 +75,7 @@ function memoryDb(purchase, { applied = [] } = {}) {
     applied,
     async call(name, args) {
       if (name === 'get_production_provider_tournament_purchase') {
-        if (args[0] !== purchase.externalReference) { const e = new (await import(new URL('rpc.ts', FUNCTIONS).href)).DbError('P0002', 'TORNEOS_PURCHASE_NOT_FOUND'); throw e; }
+        if (args[0] !== purchase.externalReference) throw new DbError('P0002', 'TORNEOS_PURCHASE_NOT_FOUND');
         return purchase;
       }
       if (name === 'record_production_tournament_purchase_preference') {

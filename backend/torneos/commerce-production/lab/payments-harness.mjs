@@ -5,11 +5,13 @@
 import { createHmac, randomUUID } from 'node:crypto';
 import pg from 'pg';
 import { makeMercadoPago, signedNotification } from '../../infra/torneos-payments-test/mp-emulator.mjs';
+import { loadGatewayTree } from '../../infra/torneos-gateway-auth/gateway-loader.mjs';
 import { LOGINS, loginUrl } from './pg-lab.mjs';
 
-const FUNCTIONS = new URL('../../supabase/functions/torneos-payments-production/', import.meta.url);
-export const { createProductionPaymentsService } = await import(new URL('handler.ts', FUNCTIONS).href);
-export const { productionRpcStatement, DbError, DbUnavailable } = await import(new URL('rpc.ts', FUNCTIONS).href);
+// The REAL function sources, transpiled like every other offline suite of the functions tree (works on Node 20 / CI).
+export const tree = await loadGatewayTree();
+export const { createProductionPaymentsService } = await tree.import('torneos-payments-production/handler.ts');
+export const { productionRpcStatement, DbError, DbUnavailable } = await tree.import('torneos-payments-production/rpc.ts');
 
 export const SELLER = '2468013579';
 export const TOKEN = 'APP_USR-2468013579123456-100726-0123456789abcdef0123456789abcdef-2468013579';

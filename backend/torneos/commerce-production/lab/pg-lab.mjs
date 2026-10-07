@@ -9,7 +9,7 @@
 //
 // Runtime state (generated passwords) lives outside the repository, in $TMPDIR/arma2-commerce-production-lab.
 import { spawnSync } from 'node:child_process';
-import { createHash, randomBytes } from 'node:crypto';
+import { createHash, createHmac, randomBytes } from 'node:crypto';
 import { mkdirSync, readFileSync, readdirSync, writeFileSync, existsSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -18,7 +18,12 @@ import { fileURLToPath } from 'node:url';
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 export const REPO = path.resolve(HERE, '../../../..');
 export const MIGRATIONS_DIR = path.join(REPO, 'backend/torneos/supabase/migrations');
+/** The last migration before 0013 in this tree (0011 alone, or 0012 once the gallery is integrated). */
+export const BEFORE_0013 = readdirSync(MIGRATIONS_DIR).filter((f) => /^\d{14}_.*\.sql$/.test(f) && f < '00000000000013').sort().pop().slice(0, 14);
 export const IMAGE = 'public.ecr.aws/supabase/postgres:17.6.1.143';
+// The storage-api of the shared lab's branding overlay: run once to migrate the Storage schema into this database, so
+// 00000000000010 (logos) and 00000000000012 (gallery) apply exactly as on the hosted project; then removed.
+export const STORAGE_IMAGE = 'public.ecr.aws/supabase/storage-api:v1.67.15';
 export const CONTAINER = process.env.COMMERCE_PRODUCTION_LAB_CONTAINER || 'arma2-commerce-production-lab-db';
 export const PORT = Number(process.env.COMMERCE_PRODUCTION_LAB_PORT || 58650);
 const STATE_DIR = path.join(os.tmpdir(), 'arma2-commerce-production-lab');
@@ -115,34 +120,68 @@ export function ensureLogins(passwords) {
   }
 }
 
-export async function up({ fresh = false, upTo = null } = {}) {
+const NETWORK = `${CONTAINER}-net`;
+const b64url = (value) => Buffer.from(typeof value === 'string' ? value : JSON.stringify(value)).toString('base64url');
+function hs256(secret, claims) {
+  const head = b64url({ alg: 'HS256', typ: 'JWT' });
+  const body = b64url({ iss: 'supabase', iat: 1700000000, exp: 4100000000, ...claims });
+  return `${head}.${body}.${createHmac('sha256', secret).update(`${head}.${body}`).digest('base64url')}`;
+}
+/** Migrates the Supabase Storage schema into the lab database (storage-api, once), then removes the storage container. */
+async function migrateStorage(dbPassword) {
+  if (sql("select to_regclass('storage.objects') is not null and to_regclass('storage.buckets') is not null").trim() === 't') return false;
+  sql(`ALTER ROLE supabase_storage_admin PASSWORD '${dbPassword}';`);
+  const secret = randomBytes(32).toString('hex');
+  const name = `${CONTAINER}-storage`;
+  docker(['rm', '-f', name]);
+  const r = docker(['run', '-d', '--name', name, '--network', NETWORK, '-e', 'STORAGE_BACKEND=file', '-e', 'FILE_STORAGE_BACKEND_PATH=/var/lib/storage',
+    '-e', 'TENANT_ID=commerce-production-lab', '-e', 'REGION=local', '-e', 'GLOBAL_S3_BUCKET=lab', '-e', 'DB_MIGRATIONS_FREEZE_AT=',
+    '-e', `AUTH_JWT_SECRET=${secret}`, '-e', `ANON_KEY=${hs256(secret, { role: 'anon' })}`, '-e', `SERVICE_KEY=${hs256(secret, { role: 'service_role' })}`,
+    '-e', `DATABASE_URL=postgres://supabase_storage_admin:${dbPassword}@torneos-db:5432/postgres`, STORAGE_IMAGE]);
+  if (!r.ok) throw new Error(`storage-api run failed: ${r.err.split('\n')[0]}`);
+  try {
+    for (let i = 0; i < 90; i += 1) {
+      if (sql("select to_regclass('storage.objects') is not null and to_regclass('storage.buckets') is not null").trim() === 't') return true;
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+    }
+    throw new Error('storage schema did not appear');
+  } finally {
+    docker(['rm', '-f', name]);
+  }
+}
+
+// Storage is on by default: the hosted Torneos project always has it (0010 and 0012 need it).
+export async function up({ fresh = false, upTo = null, storage = true } = {}) {
   mkdirSync(STATE_DIR, { recursive: true, mode: 0o700 });
   if (fresh) docker(['rm', '-f', CONTAINER]);
   let s = existsSync(STATE_FILE) && running() && !fresh ? state() : null;
   if (!s) {
     docker(['rm', '-f', CONTAINER]);
+    docker(['network', 'create', '--label', 'arma2.lab=commerce-production', NETWORK]);
     const dbPassword = randomBytes(18).toString('hex');
-    const r = docker(['run', '-d', '--name', CONTAINER, '--label', 'arma2.lab=commerce-production',
+    const r = docker(['run', '-d', '--name', CONTAINER, '--label', 'arma2.lab=commerce-production', '--network', NETWORK, '--network-alias', 'torneos-db',
       '-e', `POSTGRES_PASSWORD=${dbPassword}`, '-p', `127.0.0.1:${PORT}:5432`, IMAGE,
       'postgres', '-D', '/etc/postgresql', '-c', 'log_statement=none', '-c', 'log_min_error_statement=panic', '-c', 'log_parameter_max_length_on_error=0']);
     if (!r.ok) throw new Error(`docker run failed: ${r.err.split('\n')[0]}`);
-    s = { container: CONTAINER, port: PORT, passwords: Object.fromEntries(Object.values(LOGINS).map(({ login }) => [login, randomBytes(18).toString('hex')])) };
+    s = { container: CONTAINER, port: PORT, dbPassword, passwords: Object.fromEntries(Object.values(LOGINS).map(({ login }) => [login, randomBytes(18).toString('hex')])) };
     writeFileSync(STATE_FILE, JSON.stringify(s), { mode: 0o600 });
   }
   await waitReady();
+  const storageMigrated = storage ? await migrateStorage(s.dbPassword ?? randomBytes(18).toString('hex')) : false;
   const applied = migrate({ upTo });
   ensureLogins(s.passwords);
-  return { container: CONTAINER, port: PORT, applied };
+  return { container: CONTAINER, port: PORT, storageMigrated, applied };
 }
 
 export function down() {
-  docker(['rm', '-f', CONTAINER]);
+  docker(['rm', '-f', CONTAINER, `${CONTAINER}-storage`]);
+  docker(['network', 'rm', NETWORK]);
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const [command] = process.argv.slice(2);
   if (command === 'up' || command === 'fresh') {
-    const result = await up({ fresh: command === 'fresh' });
+    const result = await up({ fresh: command === 'fresh', storage: !process.argv.includes('--no-storage') });
     process.stdout.write(`${JSON.stringify(result, null, 1)}\n`);
   } else if (command === 'down') {
     down();

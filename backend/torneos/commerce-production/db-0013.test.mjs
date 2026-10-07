@@ -37,7 +37,7 @@ const deps = {
 const phrase = (...words) => words.join(' ').split(' ');
 const run = (mode, ...args) => D.run(mode, args.flatMap((a) => String(a).split(' ')), deps);
 
-before(async () => { await lab.up({ fresh: true, upTo: '00000000000011' }); });
+before(async () => { await lab.up({ fresh: true, upTo: lab.BEFORE_0013 }); });
 after(() => lab.down());
 
 test('the driver pins exactly the files of this branch and the Torneos data plane', () => {
@@ -98,8 +98,8 @@ test('the whole operator life cycle on a real database', async () => {
   await assert.rejects(run('rollback-0013', `ROLLBACK TORNEOS 0013 ${D.REF} ${rsha12}`), /ROLLBACK_REFUSED/, 'the purchase created above is history');
 });
 
-test('rollback on a database that never sold anything returns to POST_0011', async () => {
-  await lab.up({ fresh: true, upTo: '00000000000011' });
+test('rollback on a database that never sold anything returns to the state before 0013', async () => {
+  await lab.up({ fresh: true, upTo: lab.BEFORE_0013 });
   const pristine = await deps.catalog();
   const sha12 = D.FILES['apply-0013'].sha256.slice(0, 12);
   await run('apply-0013', `APPLY TORNEOS 0013 ${D.REF} ${sha12}`);

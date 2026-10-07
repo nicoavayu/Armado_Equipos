@@ -1,5 +1,6 @@
 // COMMERCE-PRODUCTION — 00000000000013 and its rollback on a disposable database of their own (container
-// arma2-commerce-production-lab-rb, port 58651): POST_0011 → 0013 → rollback → the catalog of POST_0011 again, byte for
+// arma2-commerce-production-lab-rb, port 58651): the state before 0013 (POST_0011, or POST_0012 with the gallery) → 0013 →
+// rollback → that catalog again, byte for
 // byte; a re-application after the rollback works; the rollback refuses once a production purchase or login exists.
 //   node --test backend/torneos/commerce-production/rollback-0013.test.mjs
 import { after, before, test } from 'node:test';
@@ -28,10 +29,10 @@ const CATALOG = `select json_build_object(
 )`;
 const catalog = () => JSON.parse(lab.sql(CATALOG).trim());
 
-before(async () => { await lab.up({ fresh: true, upTo: '00000000000011' }); });
+before(async () => { await lab.up({ fresh: true, upTo: lab.BEFORE_0013 }); });
 after(() => lab.down());
 
-test('POST_0011 → 0013 → rollback leaves the catalog exactly as before; 0013 applies again afterwards', () => {
+test('the state before 0013 → 0013 → rollback leaves the catalog exactly as before; 0013 applies again afterwards', () => {
   const before0013 = catalog();
   lab.sql(MIGRATION);
   const with0013 = catalog();
