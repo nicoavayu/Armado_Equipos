@@ -144,5 +144,17 @@ export async function seed() {
   await org.client.rpc('rpc_send_team_invitation', { p_team_id: team.id, p_invited_user_id: ids.jugador4 })
     .then(({ error }) => { if (error) console.warn(`team invitation skipped: ${error.message}`); });
 
+  await notifyLikeTheBackend(c, ids, passwords);
   console.log(`QA fixture ready: ${PEOPLE.length} accounts (@${QA_DOMAIN}), matches ${[jueves, sabado, pasado, ajeno].map((m) => m.id).join(', ')}, team ${team.id}`);
+}
+
+// Notifications the backend would have produced by now, through the same RPCs: the friend
+// request notice (client RPC, as the sender) and the post-match survey (the scheduler's job).
+export async function notifyLikeTheBackend(c, ids, passwords) {
+  const admin = createClient(API, c.serviceRoleKey, { auth: { persistSession: false, autoRefreshToken: false } });
+  const sender = await signIn(c, 'jugador7', passwords);
+  await sender.client.rpc('create_notification', { p_type: 'friend_request', p_recipient_id: ids.organizador, p_context: {} })
+    .then(must('friend request notice'));
+  await admin.rpc('process_survey_start_notifications_backend', { p_delay_minutes: 60, p_limit: 50 })
+    .then(must('survey start notifications'));
 }
