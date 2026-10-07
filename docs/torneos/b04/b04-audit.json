@@ -1,5 +1,5 @@
 {
-  "generatedFrom": "53c08354551dc21987e838d3714e188c162e16d5",
+  "generatedFrom": "a9ce6953d137272dfb9d208e57595f997e833e69",
   "legacyBase": "2058da039a2a5eaaed22d87d01946bc596ae5f50",
   "coreSingletonSha256": "f39572e4cab0fd287bd1dea2ca87c97bd5500d0eff57cb8de6160f1e3271600c",
   "reachableCallSignatures": {
@@ -89,7 +89,7 @@
     "src/services/db/teamRankings.js": "b09bc8b6903d2afaaaae6fcc3359ca091fc4cb0ac33776a99ee8f7fe3bc360b5",
     "src/services/db/teams.js": "ef0109c626837a481a728d613971cfdf3d805f316cb2277d8dba5d5a2591de76",
     "src/services/db/userIdentity.js": "57cb392bb2114dff52c9d30d636d9200cf60b37b32d64d3191e28ff54904e9f3",
-    "src/services/historySnapshotService.js": "4e8df9f91fc1296309568cc708e17d1bfdf82c40891b57e96620b4de5effa7c6",
+    "src/services/historySnapshotService.js": "a5f3fa695c0a7cac7a66864f8c1d60587d0998dc4197599eac8fca589091d71e",
     "src/services/locationService.js": "4d728859d6df2d43800f06078de9ce051c0ab37e3c866ae6ee40f5cd1498f25f",
     "src/services/matchFinishService.js": "2a276ac7a35e5534e3f56ee7c0520039a93cce1ab510f66542935b0da0973dda",
     "src/services/matchJoinNotificationService.js": "11cd2d8d1a50fd5277d92477dca0712106b16cf6339502b978ed3e320ed375a7",
