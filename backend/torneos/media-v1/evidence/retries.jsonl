@@ -1,0 +1,4 @@
+{"step":"retries","case":"same key twice (lost answer)","first":"201","second":"200","sameAsset":true,"replayed":true}
+{"step":"retries","case":"double tap (same key, concurrent)","results":["201","409 TORNEOS_MEDIA_UPLOAD_IN_PROGRESS"]}
+{"step":"retries","case":"same photo, new key","result":"409 TORNEOS_MEDIA_DUPLICATE"}
+{"step":"retries","case":"assets in the gallery after all of it","assets":2,"expected":2}

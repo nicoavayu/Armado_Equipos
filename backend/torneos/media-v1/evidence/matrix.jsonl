@@ -1,0 +1,26 @@
+{"step":"matrix","actor":"owner","action":"upload to own draft","result":"201"}
+{"step":"matrix","actor":"admin (season assigned)","action":"admin context","result":403}
+{"step":"matrix","actor":"admin (season assigned)","action":"upload to org draft","result":"201"}
+{"step":"matrix","actor":"captain (participant)","action":"published galleries of his tournament","result":1}
+{"step":"matrix","actor":"captain (participant)","action":"detail URLs of published photos","result":"4 of 4"}
+{"step":"matrix","actor":"captain (participant)","action":"admin context","result":403}
+{"step":"matrix","actor":"captain (participant)","action":"upload to org draft","result":"403 TORNEOS_MEDIA_FORBIDDEN"}
+{"step":"matrix","actor":"captain (participant)","action":"create a gallery","result":403}
+{"step":"matrix","actor":"captain (participant)","action":"hide a published photo","result":403}
+{"step":"matrix","actor":"outsider (authenticated, no relation)","action":"published galleries","result":403}
+{"step":"matrix","actor":"outsider (authenticated, no relation)","action":"detail URLs by asset id","result":"0 of 4"}
+{"step":"matrix","actor":"outsider (authenticated, no relation)","action":"thumbnail URLs by asset id","result":"0 of 4"}
+{"step":"matrix","actor":"other org owner","action":"admin context of Lab Galería","result":403}
+{"step":"matrix","actor":"other org owner","action":"detail URLs of Lab Galería photos","result":"0 of 4"}
+{"step":"matrix","actor":"other org owner","action":"upload to a Lab Galería gallery id","result":"403 TORNEOS_MEDIA_FORBIDDEN"}
+{"step":"matrix","actor":"other org owner","action":"create gallery in Lab Galería","result":403}
+{"step":"matrix","actor":"other org owner","action":"publish a Lab Galería gallery","result":403}
+{"step":"matrix","actor":"other org owner","action":"hide a Lab Galería photo","result":403}
+{"step":"matrix","actor":"visitor (no session)","action":"upload route","result":401}
+{"step":"matrix","actor":"visitor (no session)","action":"urls route","result":401}
+{"step":"matrix","actor":"visitor (no session)","action":"published galleries via the public route","result":403}
+{"step":"matrix","actor":"visitor (no session)","action":"storage public URL of a real object","result":400}
+{"step":"matrix","actor":"visitor (no session)","action":"storage authenticated URL without token","result":400}
+{"step":"matrix","actor":"visitor (no session)","action":"signed URL with a tampered token","result":400}
+{"step":"matrix","actor":"captain (participant)","action":"own bridge token straight to storage (write)","result":400}
+{"step":"matrix","actor":"captain (participant)","action":"kind=original","result":400}
