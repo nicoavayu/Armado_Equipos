@@ -1,43 +1,19 @@
--- Core: other accounts no longer read a user's email, birth date or exact location.
+-- Core: private profile data gets its own read path (phase A of 2).
 --
--- usuarios_select_authenticated is USING (true) and every column was granted, so any
--- signed-in account (sign-up is open) could list everyone's email, birth date and home
--- coordinates. Rows stay readable (names, avatars, stats and positions are the public
--- profile the app shows everywhere); the private columns become unreadable through the
--- API for everyone, the owner included, and the app reads them through RPCs instead:
---   * get_my_profile()                       → the caller's own full row (profile, editor);
---   * get_public_profiles(uuid[])            → other users' rows without the private keys
---                                              (replaces `select('*')` on others);
---   * get_usuarios_approx_location(uuid[])   → others' coordinates rounded to 0.01°
---                                              (~1 km): enough to sort and show "a 3 km",
---                                              not enough to find a home;
---   * search_usuarios(text, integer)         → name search, or an exact email match
---                                              (finding a friend by email keeps working;
---                                              emails are never returned or partially matched).
--- Writes are unchanged (UPDATE/INSERT privileges and the own-row policies stay).
--- Kept readable on purpose, pending a client change: telefono (the admin contact on the
--- player card reads it directly; see the Core report).
--- NOTE for later migrations: SELECT on usuarios is granted per column now. A new public
--- column needs `grant select (<column>) on public.usuarios to anon, authenticated`.
-
-do $usuarios_private_columns$
-declare
-  v_private constant text[] := array['email', 'fecha_nacimiento', 'latitud', 'longitud', 'location_accuracy_m'];
-  v_public_columns text;
-begin
-  select string_agg(format('%I', attribute.attname), ', ' order by attribute.attnum)
-  into v_public_columns
-  from pg_attribute attribute
-  where attribute.attrelid = 'public.usuarios'::regclass
-    and attribute.attnum > 0
-    and not attribute.attisdropped
-    and attribute.attname <> all (v_private);
-
-  -- Revoking the table privilege also revokes every column privilege of that role.
-  revoke select on table public.usuarios from anon, authenticated;
-  execute format('grant select (%s) on table public.usuarios to anon, authenticated', v_public_columns);
-end
-$usuarios_private_columns$;
+-- usuarios_select_authenticated is USING (true) with every column granted, so any
+-- signed-in account (sign-up is open) can list everyone's email, birth date and home
+-- coordinates. Closing it means revoking SELECT on those columns (phase B), but every app
+-- version in use reads its own profile with select('*') and would stop loading it. So:
+--   * phase A (this migration, additive): the reads the app needs without those columns —
+--       get_my_profile()                     → the caller's own full row;
+--       get_public_profiles(uuid[])          → others' rows without the private keys;
+--       get_usuarios_approx_location(uuid[]) → others' coordinates rounded to ~1 km;
+--       search_usuarios(text, integer)       → by name or the exact email, no emails back;
+--     the new client uses them (and falls back to the table where they do not exist yet);
+--   * phase B (docs/database/core-review/phase-b-usuarios-private-columns.sql): the revoke,
+--     applied by hand once no installed app version still reads select('*') on usuarios.
+-- telefono stays readable in both phases (the admin contact on the player card reads it
+-- directly; see the Core report).
 
 create or replace function public.get_my_profile()
 returns setof public.usuarios
@@ -140,24 +116,17 @@ grant execute on function public.get_public_profiles(uuid[]) to authenticated, s
 grant execute on function public.get_usuarios_approx_location(uuid[]) to authenticated, service_role;
 grant execute on function public.search_usuarios(text, integer) to authenticated, service_role;
 
-do $usuarios_private_columns_check$
-declare
-  v_column text;
+do $usuarios_profile_rpcs_check$
 begin
-  foreach v_column in array array['email', 'fecha_nacimiento', 'latitud', 'longitud', 'location_accuracy_m'] loop
-    if has_column_privilege('authenticated', 'public.usuarios', v_column, 'select')
-       or has_column_privilege('anon', 'public.usuarios', v_column, 'select') then
-      raise exception 'usuarios.% is still readable through the API', v_column;
-    end if;
-  end loop;
-  if not has_column_privilege('authenticated', 'public.usuarios', 'nombre', 'select')
-     or not has_column_privilege('authenticated', 'public.usuarios', 'avatar_url', 'select')
-     or not has_column_privilege('authenticated', 'public.usuarios', 'email', 'update') then
-    raise exception 'usuarios public columns or own-row writes lost their privileges';
-  end if;
   if has_function_privilege('anon', 'public.get_my_profile()', 'execute')
+     or has_function_privilege('anon', 'public.get_public_profiles(uuid[])', 'execute')
+     or has_function_privilege('anon', 'public.get_usuarios_approx_location(uuid[])', 'execute')
      or has_function_privilege('anon', 'public.search_usuarios(text,integer)', 'execute') then
     raise exception 'usuarios profile RPCs must not be executable by anon';
   end if;
+  if not has_function_privilege('authenticated', 'public.get_my_profile()', 'execute')
+     or not has_function_privilege('authenticated', 'public.search_usuarios(text,integer)', 'execute') then
+    raise exception 'usuarios profile RPCs must be executable by authenticated';
+  end if;
 end
-$usuarios_private_columns_check$;
+$usuarios_profile_rpcs_check$;

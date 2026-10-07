@@ -1,26 +1,31 @@
-// 20261010124000: personal data of public.usuarios as seen by an unrelated, brand-new
-// account. Before, usuarios_select_authenticated was USING (true) with every column granted:
-// any signed-in account (sign-up is open) read everyone's email, birth date and coordinates.
-// Now the private columns are not readable through the API; the owner reads them through
-// get_my_profile(), others get the public profile, rounded coordinates and an exact-email
-// search. Every write rolls back.
+// Personal data of public.usuarios as seen by an unrelated, brand-new account.
+// usuarios_select_authenticated is USING (true) with every column granted: any signed-in
+// account (sign-up is open) reads everyone's email, birth date and coordinates.
+// The fix ships in two phases (installed apps read their own profile with select('*')):
+//   A — 20261010124000: get_my_profile / get_public_profiles / approx location / search;
+//   B — docs/database/core-review/phase-b-usuarios-private-columns.sql: the column revoke,
+//       applied by hand once no app version still reads select('*').
+// Phase B is applied here inside each rolled-back transaction. Every write rolls back.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import { root, sqlTry } from '../lab.mjs';
+import { repo, root, sqlTry } from '../lab.mjs';
 
 const qa = JSON.parse(await readFile(`${root}.runtime/qa-users.json`, 'utf8'));
+const phaseB = await readFile(`${repo}docs/database/core-review/phase-b-usuarios-private-columns.sql`, 'utf8');
 const ORGANIZER = qa.ids.organizador;
 
 const asRole = (role, userId = null) => `
   ${userId ? `set local "request.jwt.claims" to '{"sub":"${userId}","role":"authenticated"}';` : ''}
   set local role ${role};`;
 
-// The organizer gets a phone, a birth date and an exact location, then the statements run.
-const withPrivateData = (statements) => sqlTry(`
+// The organizer gets a phone, a birth date and an exact location, then (optionally phase B
+// and) the statements run.
+const withPrivateData = (statements, { withPhaseB = true } = {}) => sqlTry(`
   begin;
   update public.usuarios set telefono = '+54 9 11 5555-0000', fecha_nacimiento = '1990-05-01',
     latitud = -34.58123, longitud = -58.43456 where id = '${ORGANIZER}';
+  ${withPhaseB ? phaseB : ''}
   ${statements}
   rollback;`);
 
@@ -34,8 +39,18 @@ test('anon cannot read anyone\'s profile row', () => {
     select count(*) from public.usuarios where id = '${ORGANIZER}';`)), ['0']);
 });
 
+test('phase A keeps installed apps working: the owner still reads select(*) of their own row', () => {
+  assert.deepEqual(lines(withPrivateData(`${asRole('authenticated', ORGANIZER)}
+    select email from public.usuarios where id = '${ORGANIZER}';`, { withPhaseB: false })), ['organizador@arma2.lab']);
+});
+
+test('phase A alone does not close the exposure yet (recorded until phase B is applied)', () => {
+  assert.deepEqual(lines(withPrivateData(`${asRole('authenticated', qa.ids.nuevo)}
+    select email from public.usuarios where id = '${ORGANIZER}';`, { withPhaseB: false })), ['organizador@arma2.lab']);
+});
+
 for (const column of ['email', 'fecha_nacimiento', 'latitud', 'longitud']) {
-  test(`an unrelated account cannot read another user's ${column}`, () => {
+  test(`phase B: an unrelated account cannot read another user's ${column}`, () => {
     const result = withPrivateData(`${asRole('authenticated', qa.ids.nuevo)}
       select ${column} from public.usuarios where id = '${ORGANIZER}';`);
     assert.equal(result.ok, false, `readable: ${result.out}`);
@@ -43,15 +58,17 @@ for (const column of ['email', 'fecha_nacimiento', 'latitud', 'longitud']) {
   });
 }
 
-test('the public profile stays readable (name, avatar, stats) by any account', () => {
+test('phase B: the public profile stays readable (name, avatar, stats) by any account', () => {
   assert.deepEqual(lines(withPrivateData(`${asRole('authenticated', qa.ids.nuevo)}
     select nombre is not null and partidos_jugados is not null from public.usuarios where id = '${ORGANIZER}';`)), ['t']);
 });
 
-test('the owner reads their own private data through get_my_profile()', () => {
-  assert.deepEqual(lines(withPrivateData(`${asRole('authenticated', ORGANIZER)}
-    select concat_ws('|', email, fecha_nacimiento, latitud, longitud) from public.get_my_profile();`)),
-  ['organizador@arma2.lab|1990-05-01|-34.58123|-58.43456']);
+test('the owner reads their own private data through get_my_profile() (both phases)', () => {
+  for (const withPhaseB of [false, true]) {
+    assert.deepEqual(lines(withPrivateData(`${asRole('authenticated', ORGANIZER)}
+      select concat_ws('|', email, fecha_nacimiento, latitud, longitud) from public.get_my_profile();`, { withPhaseB })),
+    ['organizador@arma2.lab|1990-05-01|-34.58123|-58.43456']);
+  }
 });
 
 test('others get the public profile without the private keys', () => {
@@ -82,7 +99,7 @@ test('anon cannot call the profile RPCs', () => {
   assert.match(result.error, /permission denied/);
 });
 
-test('the owner still edits their own private data', () => {
+test('phase B: the owner still edits their own private data', () => {
   assert.deepEqual(lines(withPrivateData(`${asRole('authenticated', ORGANIZER)}
     update public.usuarios set fecha_nacimiento = '1991-01-02', latitud = -34.6 where id = '${ORGANIZER}';
     select fecha_nacimiento || '|' || latitud from public.get_my_profile();`)), ['1991-01-02|-34.6']);

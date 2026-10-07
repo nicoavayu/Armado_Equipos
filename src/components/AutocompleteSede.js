@@ -3,6 +3,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import usePlacesAutocomplete, { getGeocode, getLatLng } from 'use-places-autocomplete';
 import { useAuth } from './AuthProvider';
 import { supabase } from '../supabase';
+import { readMyProfile } from '../services/db/publicProfiles';
 import { distanceInMeters } from '../services/locationService';
 import { hasValidCoordinates, toCoordinateNumber } from '../utils/matchLocation';
 
@@ -234,10 +235,7 @@ export default function AutocompleteSede({
 
       try {
         // Own exact location: only the owner reads it (get_my_profile).
-        const { data, error } = await supabase
-          .rpc('get_my_profile')
-          .select('latitud, longitud')
-          .single();
+        const { data, error } = await readMyProfile({ columns: 'latitud, longitud', single: true });
 
         if (cancelled) return;
         if (error) throw error;

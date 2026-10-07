@@ -3,7 +3,7 @@ import React, { useState, useEffect, useMemo, useRef, useDeferredValue, useCallb
 import { friendlyError } from '../utils/friendlyError';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabase';
-import { withApproxLocations } from '../services/db/publicProfiles';
+import { readMyProfile, withApproxLocations } from '../services/db/publicProfiles';
 import { useAuth } from '../components/AuthProvider';
 import { useInterval } from '../hooks/useInterval';
 import { useAmigos } from '../hooks/useAmigos';
@@ -212,10 +212,7 @@ const QuieroJugar = ({
 
     try {
       // Own exact location: only the owner reads it (get_my_profile).
-      const { data, error } = await supabase
-        .rpc('get_my_profile')
-        .select('latitud, longitud, location_updated_at')
-        .single();
+      const { data, error } = await readMyProfile({ columns: 'latitud, longitud, location_updated_at', single: true });
 
       if (error) throw error;
 

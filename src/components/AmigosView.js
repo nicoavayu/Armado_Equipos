@@ -6,7 +6,7 @@ import { PlayerCardTrigger } from './ProfileComponents';
 import MiniFriendCard from './MiniFriendCard';
 import ConfirmModal from './ConfirmModal';
 import { supabase } from '../supabase';
-import { searchPublicUsers } from '../services/db/publicProfiles';
+import { readMyProfile, searchPublicUsers } from '../services/db/publicProfiles';
 import LoadingSpinner from './LoadingSpinner';
 import { useNotifications } from '../context/NotificationContext';
 import { Check, Loader2, Users, X } from 'lucide-react';
@@ -309,10 +309,7 @@ const AmigosView = () => {
 
     try {
       // Own exact location: only the owner reads it (get_my_profile).
-      const { data, error: profileError } = await supabase
-        .rpc('get_my_profile')
-        .select('latitud, longitud')
-        .maybeSingle();
+      const { data, error: profileError } = await readMyProfile({ columns: 'latitud, longitud' });
 
       if (profileError) throw profileError;
 

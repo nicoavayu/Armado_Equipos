@@ -45,6 +45,7 @@ jest.mock('../supabase', () => ({
 // The community search goes through the search_usuarios RPC (by name or exact email;
 // emails never come back): mockSearch(query) answers it.
 jest.mock('../services/db/publicProfiles', () => ({
+  readMyProfile: async () => ({ data: null, error: null }),
   searchPublicUsers: async (query) => {
     const { data, error } = await mockSearch(query);
     if (error) throw error;

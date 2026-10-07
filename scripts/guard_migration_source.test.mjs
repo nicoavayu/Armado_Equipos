@@ -20,7 +20,7 @@ const coreReviewMigrations = [
   '20261010121000_core_public_voting_roster_identity.sql',
   '20261010122000_core_notifications_ext_match_columns.sql',
   '20261010123000_core_reset_votacion_score_default.sql',
-  '20261010124000_core_usuarios_private_columns.sql',
+  '20261010124000_core_usuarios_profile_rpcs.sql',
   '20261010125000_core_public_match_reads_by_code.sql',
   '20261010126000_core_team_roster_identity.sql',
   '20261010127000_core_post_match_surveys_result_columns.sql',

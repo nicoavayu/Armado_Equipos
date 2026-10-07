@@ -10,6 +10,7 @@ import logger from '../../utils/logger';
  */
 
 import { supabase } from './supabase';
+import { fetchPublicProfiles, readMyProfile } from '../db/publicProfiles';
 import { prepareImageForUpload } from '../../utils/imageUpload';
 
 /**
@@ -160,11 +161,14 @@ export const getProfile = async (userId) => {
   let data = null;
   let error = null;
   if (sessionData?.session?.user?.id === userId) {
-    ({ data, error } = await supabase.rpc('get_my_profile').single());
+    ({ data, error } = await readMyProfile({ single: true }));
   } else {
-    ({ data, error } = await supabase.rpc('get_public_profiles', { p_user_ids: [userId] }));
-    data = Array.isArray(data) ? (data[0] || null) : null;
-    if (!error && !data) error = { code: 'PGRST116', message: 'Profile not found' };
+    try {
+      data = (await fetchPublicProfiles([userId]))[0] || null;
+      if (!data) error = { code: 'PGRST116', message: 'Profile not found' };
+    } catch (publicProfileError) {
+      error = publicProfileError;
+    }
   }
 
   if (error) {
@@ -200,7 +204,7 @@ export const updateProfile = async (userId, profileData) => {
 
   if (updateError) throw updateError;
   // The owner's full row (private columns included) only comes from get_my_profile().
-  const { data, error } = await supabase.rpc('get_my_profile').single();
+  const { data, error } = await readMyProfile({ single: true });
   if (error) throw error;
   return data;
 };
@@ -270,7 +274,7 @@ export const createOrUpdateProfile = async (user) => {
   // The owner's full row (private columns included) only comes from get_my_profile().
   const { data, error } = upsertError
     ? { data: null, error: upsertError }
-    : await supabase.rpc('get_my_profile').single();
+    : await readMyProfile({ single: true });
 
   if (error) {
     logger.error('Error upserting user profile:', error);

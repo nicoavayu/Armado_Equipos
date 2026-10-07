@@ -1,4 +1,5 @@
 import { supabase } from '../../lib/supabaseClient';
+import { fetchPublicProfiles, readMyProfile } from './publicProfiles';
 import logger from '../../utils/logger';
 import { prepareImageForUpload } from '../../utils/imageUpload';
 import { hasValidCoordinates } from '../../utils/matchLocation';
@@ -106,12 +107,13 @@ export const getProfile = async (userId) => {
   let data = null;
   let error = null;
   if (isOwnProfile) {
-    ({ data, error } = await supabase.rpc('get_my_profile').single());
+    ({ data, error } = await readMyProfile({ single: true }));
   } else {
-    ({ data, error } = await supabase.rpc('get_public_profiles', { p_user_ids: [userId] }));
-    data = Array.isArray(data) ? (data[0] || null) : null;
-    if (!error && !data) {
-      error = { code: 'PGRST116', message: 'Profile not found' };
+    try {
+      data = (await fetchPublicProfiles([userId]))[0] || null;
+      if (!data) error = { code: 'PGRST116', message: 'Profile not found' };
+    } catch (publicProfileError) {
+      error = publicProfileError;
     }
   }
 
@@ -453,7 +455,7 @@ export const updateProfile = async (userId, profileData) => {
 
   if (lastError && !data) throw lastError;
 
-  const { data: savedProfile, error: savedProfileError } = await supabase.rpc('get_my_profile').single();
+  const { data: savedProfile, error: savedProfileError } = await readMyProfile({ single: true });
   if (savedProfileError) {
     logger.warn('[UPDATE_PROFILE] Saved; could not reload the profile, using the sent fields', savedProfileError);
     data = { ...data, ...payloadToUpdate, id: userId };
@@ -584,7 +586,7 @@ export const createOrUpdateProfile = async (user) => {
   // The owner's full row (private columns included) only comes from get_my_profile().
   const { data, error } = upsertError
     ? { data: null, error: upsertError }
-    : await supabase.rpc('get_my_profile').single();
+    : await readMyProfile({ single: true });
 
   if (error) {
     logger.error('[PROFILE_BOOTSTRAP] Error upserting user profile to usuarios:', error);

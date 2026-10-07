@@ -72,6 +72,12 @@ jest.mock('../supabase', () => ({
   supabase: { from: jest.fn(() => makeChainableQuery()) },
 }));
 
+// Own location and other players' ~1 km locations come through the profile RPC helpers.
+jest.mock('../services/db/publicProfiles', () => ({
+  readMyProfile: async () => ({ data: null, error: null }),
+  withApproxLocations: async (rows) => rows,
+}));
+
 const openMatches = [
   {
     id: 'match-1',

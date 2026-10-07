@@ -1,9 +1,12 @@
 import { supabase } from '../../lib/supabaseClient';
 import logger from '../../utils/logger';
 
-// Columns of public.usuarios that nobody reads through the API (20261010124000): the owner
-// reads them through get_my_profile(); other accounts get the public profile, coordinates
-// rounded to ~1 km and an exact-email search. Never select these (or '*') from usuarios.
+// Columns of public.usuarios that other accounts must not read. Rollout in two phases:
+//   A (20261010124000): the RPCs below exist and this client reads through them;
+//   B (supabase/pending/20261010124500): SELECT on these columns is revoked, once no app
+//     version still reads the profile with select('*').
+// Until A is applied, each read falls back to the table exactly as before, so this client
+// can ship before the migration. Never select these columns (or '*') of another user.
 export const PRIVATE_PROFILE_FIELDS = Object.freeze([
   'email',
   'fecha_nacimiento',
@@ -14,19 +17,46 @@ export const PRIVATE_PROFILE_FIELDS = Object.freeze([
 
 const MAX_IDS_PER_CALL = 500;
 
+export const isMissingRpcError = (error) => {
+  const code = String(error?.code || '').trim();
+  return code === 'PGRST202' || code === '42883';
+};
+
 const uniqueIds = (ids) => Array.from(new Set(
   (Array.isArray(ids) ? ids : [])
     .map((id) => String(id || '').trim())
     .filter(Boolean),
 )).slice(0, MAX_IDS_PER_CALL);
 
+const withoutPrivateFields = (row) => {
+  if (!row || typeof row !== 'object') return row;
+  const copy = { ...row };
+  PRIVATE_PROFILE_FIELDS.forEach((field) => { delete copy[field]; });
+  return copy;
+};
+
 /**
- * The signed-in user's own profile row, private fields included (null when signed out).
- * @param {string} [columns] PostgREST select list; '*' for the whole row.
+ * The signed-in user's own profile row, private fields included. Same `{ data, error }`
+ * shape as a PostgREST read: `single` keeps PGRST116 when there is no row.
+ * @param {{ columns?: string, single?: boolean }} [options]
  */
+export async function readMyProfile({ columns = '*', single = false } = {}) {
+  let request = supabase.rpc('get_my_profile');
+  if (columns !== '*') request = request.select(columns);
+  const response = single ? await request.single() : await request.maybeSingle();
+  if (!response?.error || !isMissingRpcError(response.error)) return response;
+
+  // Backend without phase A yet: the owner's own row, read from the table as before.
+  const { data: sessionData } = await supabase.auth.getSession();
+  const userId = sessionData?.session?.user?.id;
+  if (!userId) return { data: null, error: response.error };
+  const fallback = supabase.from('usuarios').select(columns).eq('id', userId);
+  return single ? fallback.single() : fallback.maybeSingle();
+}
+
+/** The signed-in user's own profile row, or null; throws on errors. */
 export async function fetchMyProfile(columns = '*') {
-  const request = supabase.rpc('get_my_profile');
-  const { data, error } = await (columns === '*' ? request : request.select(columns)).maybeSingle();
+  const { data, error } = await readMyProfile({ columns });
   if (error) throw error;
   return data || null;
 }
@@ -36,6 +66,11 @@ export async function fetchPublicProfiles(userIds) {
   const ids = uniqueIds(userIds);
   if (ids.length === 0) return [];
   const { data, error } = await supabase.rpc('get_public_profiles', { p_user_ids: ids });
+  if (error && isMissingRpcError(error)) {
+    const legacy = await supabase.from('usuarios').select('*').in('id', ids);
+    if (legacy.error) throw legacy.error;
+    return (legacy.data || []).map(withoutPrivateFields);
+  }
   if (error) throw error;
   return Array.isArray(data) ? data.filter(Boolean) : [];
 }
@@ -46,6 +81,7 @@ export async function fetchApproxLocations(userIds) {
   const locations = new Map();
   if (ids.length === 0) return locations;
   const { data, error } = await supabase.rpc('get_usuarios_approx_location', { p_user_ids: ids });
+  if (error && isMissingRpcError(error)) return locations;
   if (error) throw error;
   (data || []).forEach((row) => {
     if (row?.id) locations.set(String(row.id), { latitud: row.latitud, longitud: row.longitud });
@@ -77,6 +113,20 @@ export async function withApproxLocations(rows, getUserId = (row) => row?.id) {
 /** Name search (or an exact email) over other users; never returns emails. */
 export async function searchPublicUsers(query, limit = 10) {
   const { data, error } = await supabase.rpc('search_usuarios', { p_query: query, p_limit: limit });
+  if (error && isMissingRpcError(error)) {
+    // Backend without phase A yet: by name only (never by part of an email).
+    const term = String(query || '').trim().replace(/[%_,()]/g, ' ');
+    const { data: { session } = {} } = await supabase.auth.getSession();
+    let request = supabase
+      .from('usuarios')
+      .select('id, nombre, avatar_url, localidad, ranking, posicion, partidos_jugados')
+      .ilike('nombre', `%${term}%`)
+      .limit(limit);
+    if (session?.user?.id) request = request.neq('id', session.user.id);
+    const legacy = await request;
+    if (legacy.error) throw legacy.error;
+    return legacy.data || [];
+  }
   if (error) throw error;
   return data || [];
 }
