@@ -1,5 +1,9 @@
 # Implementación de Carrusel de Premios y Ajustes de UI
 
+> **Histórico.** Desde el 2026-10-07 cada premio del carrusel es `src/components/awards/AwardScene.jsx`
+> (datos en `src/utils/awardsCeremony.js`): la profile card del ganador, el trofeo girando que impacta
+> en ella y el contador real del perfil, sólo si `player_awards` confirma el premio. Ya no hay "+1" local.
+
 **Fecha:** 25 de Enero, 2026  
 **Archivos Modificados:**
 - `src/pages/NotificationsPage.js`
