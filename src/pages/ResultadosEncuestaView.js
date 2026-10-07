@@ -41,6 +41,7 @@ import {
 } from '../utils/matchSummaryShare';
 import { clampPlayerRating } from '../utils/playerRating';
 import ShareableMatchSummaryCard from '../components/share/ShareableMatchSummaryCard';
+import { PARTIDO_COLUMNS } from '../services/db/matchAccessCode';
 
 const ensurePlayersList = (players) => {
   if (players && players.length > 0) return players;
@@ -2538,7 +2539,7 @@ const ResultadosEncuestaView = () => {
     try {
       const matchIdNum = Number(partidoId);
       const [{ data: partidoData, error: partidoErr }, { data: playersData, error: playersErr }, { data: resultsData, error: resultsError }] = await Promise.all([
-        supabase.from('partidos').select('*').eq('id', matchIdNum).maybeSingle(),
+        supabase.from('partidos').select(PARTIDO_COLUMNS).eq('id', matchIdNum).maybeSingle(),
         supabase.from('jugadores').select('*').eq('partido_id', matchIdNum),
         supabase.from('survey_results').select('*').eq('partido_id', matchIdNum).maybeSingle(),
       ]);

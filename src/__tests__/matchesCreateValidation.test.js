@@ -38,7 +38,10 @@ describe('crearPartido name validation', () => {
     await expect(crearPartido({ nombre: '  Partido real  ', codigo: ' ABC123 ' })).resolves.toEqual({
       id: 123,
       nombre: 'Partido real',
+      codigo: 'ABC123',
     });
+    // The code is the creator's own choice; it is never read back (phase B revokes it).
+    expect(select.mock.calls[0][0]).not.toMatch(/codigo|\*/);
 
     expect(supabase.from).toHaveBeenCalledWith('partidos');
     expect(insert).toHaveBeenCalledWith([

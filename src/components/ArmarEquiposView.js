@@ -31,6 +31,7 @@ import GoalkeeperSelectModal from '../components/GoalkeeperSelectModal';
 import { buildBalancedTeams, splitMatchPlayersForVotingAndTeams } from '../utils/teamBalancer';
 import { MoreVertical, RotateCcw } from 'lucide-react';
 import { analyzeTeamsAgainstRoster } from '../utils/teamRosterValidity';
+import { fetchMatchAccessCode } from '../services/db/matchAccessCode';
 
 const INVITE_ACCEPT_BUTTON_VIOLET = '#644dff';
 const SLOT_SKEW_X = 0;
@@ -689,16 +690,8 @@ export default function ArmarEquiposView({
     if (!partidoActual?.id) return null;
 
     try {
-      const { data, error } = await supabase
-        .from('partidos')
-        .select('codigo')
-        .eq('id', Number(partidoActual.id))
-        .maybeSingle();
-      if (error) {
-        logger.error('[Teams] Could not fetch match code from DB:', error);
-        return null;
-      }
-      return normalizeMatchCode(data?.codigo);
+      // Only the match's admin and players get its code (server-side rule).
+      return normalizeMatchCode(await fetchMatchAccessCode(Number(partidoActual.id)));
     } catch (error) {
       logger.error('[Teams] Unexpected error resolving match code:', error);
       return null;

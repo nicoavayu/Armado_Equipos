@@ -23,6 +23,9 @@ por código, jugador sin cuenta). Por eso la web puede salir antes que la base.
 | `20261010128000_core_contact_phone_and_public_profile_list` | lista pública explícita de `usuarios`; `get_public_profiles` sólo la devuelve; `get_match_contact_phone`; `jugadores.added_by` (trigger); `user_id`/`match_id` de solicitudes inmutables por la API | aditiva; el teléfono se sigue pudiendo leer de la tabla hasta la fase B |
 | `20261010129000_core_survey_finalization_recovery` | `list_my_pending_survey_finalizations`: encuestas vencidas del organizador | aditiva |
 | `20261010130000_core_client_build_reports` | `report_client_build` + `app_private.privacy_phase_b_readiness` | aditiva; tabla en `app_private` |
+| `20261010131000_core_survey_server_finalization` | cierre, resultados, premios, avisos e historial de encuestas desde el servidor (pg_cron cada 5 min, mismas reglas que la app) | cierra encuestas vencidas que hoy quedan abiertas; idempotente |
+| `20261010132000_core_friend_request_acceptance` | sólo el destinatario acepta una solicitud de amistad | la app ya funciona así |
+| `20261010133000_core_match_access_code` | vistas y descubrimiento muestran el código sólo al admin y al plantel; `get_match_access_codes` | apps instaladas no leen códigos ajenos de esas vistas |
 
 **Nota 125000:** con la web nueva publicada, las páginas públicas (votación por link,
 invitación de invitado) ya leen por código. Una build nativa vieja abierta **sin sesión**
@@ -48,21 +51,11 @@ perfil propio (`usuarios select('*')` → la app no carga el perfil), tarjeta de
 (`telefono`), Amigos (`email`, coordenadas), Quiero jugar (coordenadas), resultados
 (`profiles select('*')`), búsqueda (`email`). La web se publica con el cliente nuevo y no depende de esto.
 
-**Transición:**
-1. Publicar la web y aplicar 124000 + 128000 + 130000 (aditivas; nada cambia para 1.1.21).
-2. Publicar Android e iOS con el cliente de fase A. **Versión mínima** = la primera build de
-   cada tienda que lo incluya (hoy serían Android versionCode ≥ 45 e iOS build ≥ 42; anotar las
-   reales al subirlas).
-3. Esperar al menos 30 días con esas builds en las tiendas y medir cada semana (SQL editor):
-   `select * from app_private.privacy_phase_b_readiness(<min Android>, <min iOS>, 30);`
-   - `native_below_minimum` = cuentas que reportaron una build nativa menor;
-   - `active_without_any_report` = cuentas con sesión renovada en la ventana que nunca
-     reportaron (corren un cliente anterior al reporte: 1.1.21 o anterior);
-   - cruzar con Play Console / App Store Connect.
-4. GO para la fase B cuando ambos sean 0, o cuando el dueño acepte el residuo (esas cuentas
-   tendrían que actualizar la app). Aplicar el archivo, correr su chequeo y repetir las pruebas
-   de `integration/core-lab/tests/profile-privacy.test.mjs` contra Staging.
-5. Vigilar 24 h: errores `permission denied` en la API (logs de PostgREST) y reportes de builds.
+**Transición:** plan completo, evidencia faltante y usuarios afectados en
+[`PHASE-B-PLAN.md`](PHASE-B-PLAN.md). Resumen: web y migraciones primero; builds nativas con el
+cliente de fase A (su número es la versión mínima); ≥30 días midiendo con
+`app_private.privacy_phase_b_readiness(<min Android>, <min iOS>, 30)` y las consolas de las
+tiendas; fase B de `usuarios` y de `partidos.codigo` (`phase-b-partidos-access-code.sql`) juntas.
 
 ## 4. Verificación posterior
 
@@ -75,8 +68,12 @@ perfil propio (`usuarios select('*')` → la app no carga el perfil), tarjeta de
 - Encuesta: guardar muestra la confirmación en < 1 s; el ganador queda guardado.
 - Teléfono: el organizador lo ve sólo para quien se sumó por sí mismo, pidió sumarse o aceptó
   su invitación; invitar o agregar a alguien al plantel no lo habilita.
-- Encuesta vencida (todos votaron o pasó el plazo): el organizador abre la app en cualquier
-  pantalla y en segundos queda cerrada, con resultados y premios.
+- Encuesta vencida (todos votaron o pasó el plazo): sin que nadie abra la app, a los ≤5 min queda
+  cerrada, con resultados, premios, avisos e historial (`app_private.survey_finalization_runs`
+  muestra el resultado por partido). Si el organizador abre la app antes, lo hace su app.
+- Amistades: una solicitud creada como `accepted` o aceptada por quien la envió → rechazada.
+- Códigos: una cuenta ajena ve el partido en "Quiero jugar" y en `partidos_view` con `codigo` vacío;
+  el admin y el plantel lo ven; los enlaces de WhatsApp y de votación siguen abriendo el partido.
 
 ## 5. Rollback por migración
 
@@ -90,3 +87,6 @@ perfil propio (`usuarios select('*')` → la app no carga el perfil), tarjeta de
   `drop trigger trg_jugadores_added_by on public.jugadores` y `drop trigger trg_match_join_request_identity_immutable on public.match_join_requests`
   (la columna `added_by` puede quedar).
 - 129000 / 130000: `drop function` de sus RPCs (y `drop table app_private.client_build_reports`); el cliente lo tolera (`PGRST202`).
+- 131000: `select cron.unschedule('survey_finalization_backend_scheduler');` (las funciones pueden quedar; la app sigue cerrando como antes).
+- 132000: `drop trigger trg_amigos_request_rules on public.amigos;` y recrear `amigos_insert_sender` sin `status = 'pending'`.
+- 133000: recrear las tres vistas con `p.codigo` (definición previa en el baseline) y `drop function public.get_match_access_codes(bigint[])`.

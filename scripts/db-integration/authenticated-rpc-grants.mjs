@@ -143,6 +143,8 @@ const POST_CANONICAL_AUTHENTICATED_ALLOWLIST = [
   ['public.list_my_pending_survey_finalizations(integer)', 'frontend_legitimate'],
   // 20261010130000: each client reports its build (evidence for privacy phase B).
   ['public.report_client_build(text,text,integer)', 'frontend_legitimate'],
+  // 20261010133000: the access codes of the caller's own matches (admin or roster).
+  ['public.get_match_access_codes(bigint[])', 'frontend_legitimate'],
   ['public.is_tournament_branding_path(text,text)', 'rls_helper_required'],
   ['public.can_update_tournament_team_branding(uuid,uuid)', 'rls_helper_required'],
   ['public.can_write_tournament_branding_object(text)', 'rls_helper_required'],

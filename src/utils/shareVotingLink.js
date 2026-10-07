@@ -1,5 +1,6 @@
 import logger from './logger';
 import { supabase } from '../supabase';
+import { fetchMatchAccessCode } from '../services/db/matchAccessCode';
 import { getPublicBaseUrl } from './publicBaseUrl';
 
 // Self-contained helpers to share the public voting link for a match.
@@ -22,16 +23,8 @@ export const resolveMatchCode = async (partido) => {
   if (!Number.isFinite(matchId) || matchId <= 0) return null;
 
   try {
-    const { data, error } = await supabase
-      .from('partidos')
-      .select('codigo')
-      .eq('id', matchId)
-      .maybeSingle();
-    if (error) {
-      logger.error('[shareVotingLink] Could not fetch match code from DB:', error);
-      return null;
-    }
-    return normalizeMatchCode(data?.codigo);
+    // Only the match's admin and players get its code (server-side rule).
+    return normalizeMatchCode(await fetchMatchAccessCode(matchId));
   } catch (error) {
     logger.error('[shareVotingLink] Unexpected error resolving match code:', error);
     return null;

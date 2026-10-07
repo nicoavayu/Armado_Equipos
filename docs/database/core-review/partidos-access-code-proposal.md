@@ -1,7 +1,13 @@
 # Partidos: el código de acceso deja de ser enumerable — PROPUESTA (no aplicada)
 
-Estado: propuesta para decidir. Ninguna migración ni cambio de cliente de este documento
-está aplicado. Fecha: 2026-10-07.
+Estado (2026-10-07, tarde): **preparada y probada localmente, no aplicada en Producción.**
+Fase A = migración `20261010133000_core_match_access_code` + cliente que nunca lee `partidos` con
+`*` y pide el código con `get_match_access_codes`. Fase B = `phase-b-partidos-access-code.sql`.
+Pruebas: `integration/core-lab/tests/match-access-code.test.mjs` (tablas, vistas y RPC como
+visitante, cuenta ajena y miembro, en fase A, fase B en transacción y fase B real por la API) y
+navegador mobile con ambas fases B aplicadas (panel del admin con su código, enlace de WhatsApp
+de una cuenta ajena, votación por enlace sin sesión). En la fase A el admin y el plantel siguen
+viendo el código en las vistas; para todos los demás llega vacío.
 
 ## Qué pasa hoy
 
@@ -41,10 +47,10 @@ faltan jugadores), verlos en el mapa y pedir ingreso. Nada de eso necesita el c�
 ## Cómo se aplicaría (dos fases, igual que los datos privados de `usuarios`)
 
 **Fase A — aditiva, segura para apps instaladas**
-1. RPC `get_match_access_code(p_partido_id)` (SECURITY DEFINER): devuelve el código si quien
-   llama es admin (`is_match_admin`), está en `jugadores` del partido, tiene
-   `match_join_requests` aprobada o una notificación `match_invite` de ese partido; si no,
-   `not_authorized`.
+1. `app_private.match_access_code(id)` (el código para su admin o un jugador del plantel, si no
+   NULL) y `get_match_access_codes(ids)` para el cliente; las vistas `partidos_view` y
+   `partidos_abiertos_operativos(_v2)` (y por lo tanto "Quiero jugar") lo usan en lugar de la columna.
+   Quien sólo fue invitado ya tiene el código en su aviso de invitación.
 2. El cliente deja de leer `partidos.codigo` directo:
    `shareVotingLink.js`, `ArmarEquiposView.js`, `notificationService.js` (llamado a votar),
    `InviteToMatchModal.jsx` (mis partidos) → la RPC; `getPartidoPorCodigo` y el fallback de

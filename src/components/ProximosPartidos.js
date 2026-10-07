@@ -35,6 +35,7 @@ import { useNativeFeatures } from '../hooks/useNativeFeatures';
 import ShareableMatchSummaryCard from './share/ShareableMatchSummaryCard';
 
 import MatchCard from './MatchCard';
+import { PARTIDO_COLUMNS } from '../services/db/matchAccessCode';
 
 // Post-match cleanup windows (kept in sync with utils/paymentStatus).
 const POST_MATCH_PLAYER_WINDOW_MS = 72 * 60 * 60 * 1000; // 72h
@@ -367,10 +368,7 @@ const ProximosPartidos = ({ onClose }) => {
       if (todosLosPartidosIds.length > 0) {
         const legacyMatchesResponse = await supabase
           .from('partidos')
-          .select(`
-            *,
-            jugadores(is_substitute)
-          `)
+          .select(`${PARTIDO_COLUMNS}, jugadores(is_substitute)`)
           .in('id', todosLosPartidosIds)
           .order('fecha', { ascending: true })
           .order('hora', { ascending: true });

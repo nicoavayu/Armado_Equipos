@@ -4,6 +4,8 @@ import { schedulePostMatchNotification } from '../notificationService';
 import { incrementPartidosAbandonados } from '../matchStatsService';
 import { requestImmediatePushDispatch } from '../pushDispatchService';
 import { splitMatchPlayersForVotingAndTeams } from '../../utils/teamBalancer';
+import { PARTIDO_COLUMNS, fetchMatchAccessCode } from './matchAccessCode';
+import { isMissingRpcError } from './publicProfiles';
 
 const generateMatchCode = (length = 6) => {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -208,16 +210,20 @@ export const getJugadoresDelPartido = async (partidoId) => {
 export const getPartidoPorId = async (partidoId) => {
   const pid = Number(partidoId);
   if (!pid || Number.isNaN(pid)) return null;
-  const { data, error } = await supabase
-    .from('partidos')
-    .select('*')
-    .eq('id', pid)
-    .single();
+  // The code only comes back for the match's admin and players (see matchAccessCode.js).
+  const [{ data, error }, codigo] = await Promise.all([
+    supabase
+      .from('partidos')
+      .select(PARTIDO_COLUMNS)
+      .eq('id', pid)
+      .single(),
+    fetchMatchAccessCode(pid).catch(() => null),
+  ]);
   if (error) {
     if (error.code === 'PGRST116') return null;
     throw error;
   }
-  return data || null;
+  return data ? { ...data, codigo } : null;
 };
 
 /**
@@ -228,13 +234,21 @@ export const getPartidoPorId = async (partidoId) => {
 export const getPartidoPorCodigo = async (codigo) => {
   const code = String(codigo || '').trim();
   if (!code) return null;
-  const { data, error } = await supabase
-    .from('partidos')
-    .select('*')
-    .eq('codigo', code)
-    .maybeSingle();
+  // The server resolves the code; the code column itself is not readable (phase B).
+  const { data: matchId, error } = await supabase.rpc('resolve_match_by_code', { p_codigo: code });
+  if (error && isMissingRpcError(error)) {
+    const legacy = await supabase
+      .from('partidos')
+      .select('*')
+      .eq('codigo', code)
+      .maybeSingle();
+    if (legacy.error) throw legacy.error;
+    return legacy.data || null;
+  }
   if (error) throw error;
-  return data || null;
+  if (!matchId) return null;
+  const partido = await getPartidoPorId(matchId);
+  return partido ? { ...partido, codigo: partido.codigo || code } : null;
 };
 
 /**
@@ -353,9 +367,10 @@ export const crearPartido = async (partidoData) => {
     const { data, error } = await supabase
       .from('partidos')
       .insert([payload])
-      .select()
+      .select(PARTIDO_COLUMNS)
       .single();
-    if (!error) return data;
+    // The creator chose the code; it is not read back (phase B).
+    if (!error) return { ...data, codigo: payload.codigo };
 
     // Retry only when code collides with unique constraint.
     const errMsg = `${error?.message || ''}`.toLowerCase();
