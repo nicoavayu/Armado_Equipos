@@ -12,7 +12,7 @@ Este plan respeta las dos y termina con los tres frentes funcionando en Producti
 | --- | --- | --- | --- | --- | --- | --- |
 | Torneos conectado | PR #182 `672ece4d` | integración #178–#181 | `0009`–`0011` | 25 archivos | Completo y ensayado (`connected-product/DEPLOY.md`). Mantenimiento de capacidad de Core **hecho en Production** (63,6 MiB, organización al 16 %) | Backups de Torneos y Storage (G0a) y GO |
 | Galería (MEDIA-V1) | PR #189 borrador `24cf615f` | #182 | `0012` | 29 archivos | Backend, frontend, documentación de activación y rollback, driver de laboratorio. **En curso:** miniaturas y presupuesto de Storage en el servidor (450 MiB por proyecto, 400 MiB para fotos y miniaturas, 12 cargas simultáneas; se ajusta al activar como 1 GB − Core − margen; se controla al pedir cada carga) | Su head final con miniaturas y presupuesto, validación en laboratorio (Nico ya dio permiso de Docker, sólo para este laboratorio), driver de operador `0012`, mediciones de costo |
-| Premium (Mercado Pago producción) | rama local `claude/torneos-mercadopago-prod-c369ba` `2e9bb24e`, sin push ni PR | #182 | `0013` | 26 archivos + servicio `torneos-payments-production` (Deno Deploy, cron de conciliación cada 15 min) | Base, servicio, modo de producción del gateway, compra en Mi plan, rollback de `0013` | Push y PR, documentación de activación, validación desde `POST_0012`, credenciales de producción |
+| Premium (Mercado Pago producción) | rama local `claude/torneos-mercadopago-prod-c369ba` (8 commits, último `85647a57`), sin push ni PR | #182 (pasa a #189) | `0013` + driver `db-0013.mjs` | 26 archivos + servicio `torneos-payments-production` (Deno Deploy, cron de conciliación cada 15 min) | Base, servicio, modo de producción del gateway, compra en Mi plan, rollback de `0013`. Probado `0000 → 0012 → 0013` con el `0012` **anterior** (`24cf615f`): 71 casos y conflictos sólo aditivos | Repetir la prueba y los pins sobre el `0012` final (`824582c4`, sha256 `859fa24d…`), PR apilado sobre #189, `commerce-production/DEPLOY.md` y CI completo |
 
 ## 2. Dependencias
 
@@ -113,7 +113,26 @@ publicado: cada PR se mergea en su estación, y al final el árbol de `main` es 
 | C0 | Backups | Core (backup con restauración verificada del mantenimiento de capacidad); Torneos (base) + Storage de Core y de Torneos, con `ops_free_plan.py` y restauración verificada |
 | C1 | **#182** | `connected-product/DEPLOY.md`, G1–G11: merge, Core `20261007`/`20261008` y función, Torneos `0009`–`0011`, gateway sin flags → CONNECTED → frontend → BRANDING (con la prueba de Storage a 0 %) → frontend → datos QA → seguimiento |
 | C2 | **Galería** | Merge de #189 → backup de Torneos → `0012` (driver) → modo `MVP_SIMPLE` → imagen del gateway con MEDIA **apagado** → MEDIA a 0 % con tag (carga y lectura con QA1) → 100 % → frontend (`REACT_APP_TORNEOS_MEDIA_MODE` y `_ENABLED`, en un deploy propio) → recorrido QA → alarmas de Storage y egress activas |
-| C3 | **Premium** | Merge → backup → `0013` (driver) → Deno Deploy `torneos-payments-production` con los secretos de producción → webhook registrado en Mercado Pago → `TORNEOS_COMMERCE_MODE=production` a 0 % con tag → frontend de billing → interruptor del operador `allowlist` (una compra real de QA, con precio y devolución decididos por Nico) → `open` |
+| C3 | **Premium** | Merge → backup → `0013` (`db-0013.mjs`) → Deno Deploy `torneos-payments-production` → webhook → modo de commerce del gateway a 0 % con tag → frontend de billing → primera compra real → interruptor en `open` sólo después de revisar la evidencia (detalle abajo) |
+
+**Detalle de C3**, tal como lo definió la sesión de Premium:
+
+1. Backup y `0013` con `db-0013.mjs`.
+2. Deploy de `torneos-payments-production` en Deno Deploy. Los secretos de producción los escribe Nico en la terminal
+   del operador, sin eco.
+3. En Mercado Pago, Nico activa las credenciales de producción y configura los Webhooks en modo productivo:
+   - URL: `https://torneos-payments.nicoavayu.deno.net/functions/v1/torneos-payments-production/webhooks/mercadopago/v1`;
+   - eventos: Pagos y Contracargos.
+4. Gateway en Cloud Run: `TORNEOS_COMMERCE_MODE=production` más la clave HMAC interna en Secret Manager, a 0 % con tag
+   y después al 100 %.
+5. Vercel: `REACT_APP_TORNEOS_BILLING_MODE=production`.
+6. Primera compra real:
+   - interruptor en `allowlist`, sólo con la organización de Nico;
+   - un pago real al precio de catálogo (ARS 39.900);
+   - verificar que se otorga Premium y que llegan el webhook y la conciliación;
+   - devolverlo desde el panel de Mercado Pago y verificar que se revoca;
+   - interruptor en `off` hasta revisar la evidencia.
+7. Recién entonces, `open`.
 
 Contención: la de cada estación, en este orden:
 1. frontend;
@@ -128,11 +147,12 @@ Ninguna estación borra fotos ni compras.
 
 1. ~~Dar a la sesión de Galería el permiso de Docker para el laboratorio (A1).~~ Hecho.
 2. Decidir el tope de fotos de Premium y las alarmas (§3).
-3. Preparar Mercado Pago de producción para C3:
-   - cuenta vendedora, Access Token y webhook secret de producción;
-   - seller id;
-   - token de organización de Deno Deploy;
-   - precio final.
+3. Preparar, sólo al momento del GO de C3:
+   - en Mercado Pago: credenciales de producción activas, Access Token, webhook secret, seller id y Webhooks en modo
+     productivo;
+   - el token de organización de Deno Deploy;
+   - la contraseña del instalador de Torneos (Keychain), para `db-0013.mjs`;
+   - confirmar el precio final (hoy ARS 39.900).
    - Aspectos fiscales y de facturación: fuera del alcance técnico, pero tienen que estar resueltos antes de `open`.
 4. Revisión de producto en el preview (B, punto 6).
 5. GOs separados para C1, C2 y C3.
