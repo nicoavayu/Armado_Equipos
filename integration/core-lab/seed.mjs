@@ -102,7 +102,8 @@ export async function seed() {
   }).select().single().then(must(`match ${fields.nombre}`));
   const jueves = await createMatch(org.client, ids.organizador, { nombre: 'Fútbol del jueves', fecha: day(3), hora: '21:00' });
   const sabado = await createMatch(org.client, ids.organizador, { nombre: 'Sábado en Palermo', fecha: day(1), hora: '18:00', falta_jugadores: false });
-  // Finished three hours ago: its post-match survey is open for the next ~21 hours.
+  // Played three hours ago and still 'activo' (results come after the survey closes): the
+  // scheduler opens its post-match survey for the next ~21 hours.
   const pasado = await createMatch(org.client, ids.organizador, { nombre: 'Picadito de anoche', ...buenosAiresSlot(-3), falta_jugadores: false });
   const ajeno = await createMatch(s.ajeno.client, ids.ajeno, { nombre: 'Partido privado de Ramiro', fecha: day(2), hora: '22:00' });
 
@@ -117,8 +118,6 @@ export async function seed() {
   await roster(sabado, ['organizador', 'jugador1', 'jugador2', 'jugador3', 'jugador4', 'jugador5', 'jugador6', 'jugador7', 'jugador8', 'jugador9']);
   await roster(pasado, ['organizador', 'jugador1', 'jugador2', 'jugador3', 'jugador4', 'jugador5', 'jugador6', 'jugador7', 'jugador8', 'jugador9']);
   await roster(ajeno, ['ajeno']);
-  await admin.from('partidos').update({ estado: 'finalizado', result_status: 'finished', finished_at: new Date(Date.now() - 3600000).toISOString() })
-    .eq('id', pasado.id).then(must('finish match'));
 
   // Friendships through the app path (request as the sender, accept as the recipient).
   for (const key of ['jugador1', 'jugador2', 'jugador3', 'jugador4', 'jugador5']) {

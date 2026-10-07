@@ -137,6 +137,7 @@ services:
     depends_on: [core-rest, core-auth, core-storage, core-realtime, core-functions]
     environment:
       LAB_ALLOWED_ORIGINS: ${APP_ORIGIN},http://localhost:3110
+      LAB_SLOW_PATHS: ${LAB_SLOW_PATHS:-}
     volumes:
       - ./core-api.mjs:/lab/core-api.mjs:ro
     ports: ["127.0.0.1:58530:8000"]

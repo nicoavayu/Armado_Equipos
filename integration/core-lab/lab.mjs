@@ -172,9 +172,14 @@ async function main() {
   if (cmd === 'up') return up();
   if (cmd === 'seed') return (await import('./seed.mjs')).seed();
   if (cmd === 'app') return app();
+  // Simulated slow network for UX review: `slow /rest/v1/notifications=2500`; `slow` alone clears it.
+  if (cmd === 'slow') {
+    process.env.LAB_SLOW_PATHS = process.argv.slice(3).join(',');
+    return dc(['up', '-d', '--force-recreate', 'core-api']);
+  }
   if (cmd === 'down') return dc(['down', '--remove-orphans']);
   if (cmd === 'destroy') return dc(['down', '-v', '--remove-orphans']);
-  throw new Error('Use prepare | up | seed | app | down | destroy. No remote operations exist.');
+  throw new Error('Use prepare | up | seed | app | slow | down | destroy. No remote operations exist.');
 }
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   main().catch((e) => { console.error('Core lab operation failed (local services only):', e?.message ?? ''); process.exitCode = 1; });

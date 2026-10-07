@@ -11,6 +11,10 @@ import net from 'node:net';
 
 const ALLOWED_ORIGINS = new Set(String(process.env.LAB_ALLOWED_ORIGINS || '')
   .split(',').map((origin) => origin.trim()).filter(Boolean));
+// Optional slow network for UX review: "prefix=ms,prefix=ms" (e.g. /rest/v1/notifications=2500).
+const SLOW_PATHS = String(process.env.LAB_SLOW_PATHS || '').split(',').map((entry) => entry.trim()).filter(Boolean)
+  .map((entry) => { const [prefix, ms] = entry.split('='); return [prefix, Math.min(Number(ms) || 0, 15000)]; });
+const delayFor = (pathname) => SLOW_PATHS.find(([prefix]) => pathname.startsWith(prefix))?.[1] || 0;
 
 const routes = [
   ['/rest/v1/', { host: 'core-rest', port: 3000, prefix: '/' }],
@@ -73,6 +77,15 @@ const server = http.createServer((req, res) => {
     res.writeHead(404, { 'content-type': 'application/json', ...cors });
     return res.end('{"error":"not found"}');
   }
+  const delay = req.method === 'OPTIONS' ? 0 : delayFor(url.pathname);
+  if (delay) {
+    req.pause();
+    return setTimeout(() => { req.resume(); proxy(req, res, url, target, cors); }, delay);
+  }
+  return proxy(req, res, url, target, cors);
+});
+
+function proxy(req, res, url, target, cors) {
   const upstream = http.request({
     host: target.host, port: target.port, method: req.method,
     path: target.path + url.search, headers: upstreamHeaders(req, target),
@@ -93,7 +106,7 @@ const server = http.createServer((req, res) => {
     } else res.end();
   });
   req.pipe(upstream);
-});
+}
 
 // Realtime websocket upgrade: raw TCP tunnel after rewriting the request line.
 server.on('upgrade', (req, socket, head) => {
