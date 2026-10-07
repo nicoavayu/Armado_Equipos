@@ -52,7 +52,7 @@ explícitamente el residuo).
 
 1. **GO + merge** de #183 y #186 (y #184/#185 si se decide). Verificar: CI verde en `main`.
 2. **Web** a Producción. Verificar: `main.*.js` nuevo en el dominio; abrir perfil, Amigos, un partido, compartir votación; ningún 4xx en la consola.
-3. **Migraciones** 20261010120000–20261010133000 en Producción (GO, backup, fuera de R0–R3).
+3. **Migraciones** 20261010120000–20261010134000 en Producción (GO, backup, fuera de R0–R3).
    Verificar: los chequeos de cada migración pasan; `select * from cron.job where jobname = 'survey_finalization_backend_scheduler'` existe;
    `select count(*) from app_private.client_build_reports` empieza a crecer con la web.
 4. **Builds nativas** con el cliente de fase A: Android versionCode ≥ 45 e iOS build ≥ 42 (anotar los números reales:

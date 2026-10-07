@@ -12,6 +12,9 @@ const StoryLikeCarousel = ({
   // Optional CTA rendered above the tap zones on the LAST slide only,
   // anchored to the bottom safe area (e.g. "Compartir resumen").
   endFooter = null,
+  // The last slide waits for the viewer (its CTAs or the close button) instead of
+  // closing the story by itself.
+  holdLastSlide = false,
 }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [progress, setProgress] = useState(0);
@@ -75,6 +78,7 @@ const StoryLikeCarousel = ({
       setProgress(pct);
 
       if (elapsed >= slideDuration) {
+        if (holdLastSlide && currentIndex === safeSlides.length - 1) return;
         handleNext();
         return;
       }
@@ -86,7 +90,7 @@ const StoryLikeCarousel = ({
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
     };
     // IMPORTANT: depend only on index + duration, not the full slides object
-  }, [currentIndex, autoAdvance, slideDuration, safeSlides.length, paused]);
+  }, [currentIndex, autoAdvance, slideDuration, safeSlides.length, paused, holdLastSlide]);
 
   if (!currentSlide) return null;
 

@@ -1,6 +1,6 @@
 # TORNEOS-CALL-MAP — auditoría B04
 
-Inventario legacy congelado en `2058da039a2a5eaaed22d87d01946bc596ae5f50` (Phase 2D); árbol integrado auditado en `9c0c2d59251b131cecc51d1a923c8e23807964e5`. Reconstruido del código. No representa resultados de R2/R3/R4/R5.
+Inventario legacy congelado en `2058da039a2a5eaaed22d87d01946bc596ae5f50` (Phase 2D); árbol integrado auditado en `48dcc02880edc6a74008efa716c99a2cf3e1ecb3`. Reconstruido del código. No representa resultados de R2/R3/R4/R5.
 
 161 sitios RPC legacy; 160 nombres distintos; 108 nombres dentro de scope; 52 fuera. La selección dinámica de `changeTournamentMatchPlan` se resuelve a sus tres nombres literales. No quedan RPC dinámicas sin resolver.
 
@@ -255,7 +255,7 @@ Ninguna de estas superficies se habilita en la composición híbrida. `from` pue
 | transport | `createClient` | No literal / sin argumento | [src/features/torneos/isolated/createTorneosClient.js:58](../../../src/features/torneos/isolated/createTorneosClient.js#L58) |
 | transport | `fetch` | No literal / sin argumento | [src/features/torneos/social/socialStudio.js:69](../../../src/features/torneos/social/socialStudio.js#L69) |
 
-## Imports directos del singleton Core (37)
+## Imports directos del singleton Core (38)
 
 | Archivo | Import |
 | --- | --- |
@@ -289,6 +289,7 @@ Ninguna de estas superficies se habilita en la composición híbrida. `from` pue
 | [src/services/db/teamChallenges.js:2](../../../src/services/db/teamChallenges.js#L2) | `../../lib/supabaseClient` |
 | [src/services/db/teamRankings.js:1](../../../src/services/db/teamRankings.js#L1) | `../../lib/supabaseClient` |
 | [src/services/db/teams.js:2](../../../src/services/db/teams.js#L2) | `../../lib/supabaseClient` |
+| [src/services/db/templateMatchLink.js:1](../../../src/services/db/templateMatchLink.js#L1) | `../../lib/supabaseClient` |
 | [src/services/db/userIdentity.js:1](../../../src/services/db/userIdentity.js#L1) | `../../lib/supabaseClient` |
 | [src/services/pushDispatchService.js:2](../../../src/services/pushDispatchService.js#L2) | `../lib/supabaseClient` |
 | [src/services/storage/teamCrests.js:1](../../../src/services/storage/teamCrests.js#L1) | `../../lib/supabaseClient` |

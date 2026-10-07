@@ -129,6 +129,16 @@ const MEDIA_CI_SUITES = [
 const testFilesOf = (script) => String(script || '').split(/\s+/)
   .filter((token) => token.endsWith('.test.mjs'));
 
+test('the gate runs on every PR into main and the epic, and on stacked PRs', () => {
+  const prBlock = workflowDirectives.match(/\n  pull_request:\n\s+branches:\s*\[([^\]]*)\]/);
+  assert.ok(prBlock, 'the workflow must trigger on pull_request with an explicit branch list');
+  const branches = prBlock[1].split(',').map((name) => name.trim().replace(/^['"]|['"]$/g, ''));
+  for (const required of ['main', 'epic/arma2-torneos', 'claude/**']) {
+    assert.ok(branches.includes(required), `pull_request no longer covers ${required}`);
+  }
+  assert.match(workflowDirectives, /\n  push:\n\s+branches:\s*\[[^\]]*\bmain\b/, 'push to main must still run the gate');
+});
+
 test('the workflow delegates to npm scripts that actually exist', () => {
   assert.ok(workflowScriptCalls.length > 0, 'the workflow runs no npm scripts at all');
   for (const name of workflowScriptCalls) {

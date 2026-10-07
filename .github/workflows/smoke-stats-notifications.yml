@@ -42,7 +42,9 @@ on:
   push:
     branches: [main, prelaunch-hardening, epic/arma2-torneos]
   pull_request:
-    branches: [main, epic/arma2-torneos]
+    # A PR stacked on another agent branch (base claude/...) gets the same gate as
+    # one into main: nothing reaches main through a branch that skipped it.
+    branches: [main, epic/arma2-torneos, 'claude/**']
 
 jobs:
   quality:

@@ -29,7 +29,14 @@ import {
   formatPaymentAmount,
 } from '../utils/paymentStatus';
 import { buildMyMatchSections } from '../utils/myMatchesSections';
-import { buildMatchSummaryShareCardData } from '../utils/matchSummaryShare';
+import {
+  buildMatchSummaryShareCardData,
+  getWinnerDisplayLabel,
+  normalizeResultStatus,
+  normalizeWinnerTeam,
+} from '../utils/matchSummaryShare';
+import { derivePostMatchCard } from '../utils/postMatchCard';
+import { hasSeenCeremony } from '../utils/awardsCeremony';
 import { useShareTeamsCard } from '../hooks/useShareTeamsCard';
 import { useNativeFeatures } from '../hooks/useNativeFeatures';
 import ShareableMatchSummaryCard from './share/ShareableMatchSummaryCard';
@@ -1298,43 +1305,46 @@ const ProximosPartidos = ({ onClose }) => {
       }
       : null;
 
-    if (ctx.isAdmin) {
-      const rows = postMatchData.summaryRowsByMatch[ctx.matchKey] || [];
-      const summary = summarizePayments(rows);
-      const surveyCount = postMatchData.surveyCountByMatch[ctx.matchKey] || 0;
-      const rosterCount = Array.isArray(partido.jugadores)
-        ? partido.jugadores.filter((j) => !j?.is_substitute).length
-        : 0;
-      return {
-        encuestaLabel: rosterCount > 0 ? `Encuesta ${surveyCount}/${rosterCount}` : `Encuesta · ${surveyCount} respondieron`,
-        pagoLabel: summary.total > 0
-          ? `Pagos ${summary.paid}/${summary.total}${summary.reported ? ` · ${summary.reported} a confirmar` : ''}`
-          : 'Pagos · administrar',
-        encuestaAction: { label: 'Encuesta', onClick: goEncuesta },
-        pagosAction: { label: 'Pagos', primary: true, onClick: goPagos },
-        shareAction,
-      };
-    }
-
-    let pagoLabel = null;
-    if (ctx.paymentStatus === 'paid') pagoLabel = 'Pago confirmado';
-    else if (ctx.paymentStatus === 'reported_paid') pagoLabel = 'Avisaste que pagaste';
-    else if (ctx.paymentStatus === 'exempt') pagoLabel = 'Exento';
-    else if (ctx.paymentStatus === 'pending') pagoLabel = `Pago pendiente · ${amountLabel}`;
+    const goResults = () => { onClose(); navigate(`/resultados-encuesta/${partido.id}`, { state: detailNavigationState }); };
+    const surveyClosed = String(partido?.survey_status || '').toLowerCase() === 'closed'
+      || Boolean(resultsRow?.encuesta_cerrada_at);
+    const resultsReady = Boolean(resultsRow?.results_ready);
+    const awardsReady = resultsReady && Boolean(
+      resultsRow?.mvp || resultsRow?.golden_glove || (Array.isArray(resultsRow?.red_cards) && resultsRow.red_cards.length > 0),
+    );
+    const resultStatus = normalizeResultStatus(resultsRow?.result_status);
+    const winnerTeam = normalizeWinnerTeam(resultsRow?.winner_team);
+    // Without the roster the winner label can fall back to a generic text: show it only
+    // when it names the team.
+    const winnerLabel = resultStatus === 'finished' && winnerTeam
+      ? getWinnerDisplayLabel(partido, winnerTeam, [])
+      : null;
+    const resultLabel = winnerLabel && winnerLabel !== 'Victoria confirmada'
+      ? winnerLabel
+      : (resultStatus === 'draw' ? 'Empate' : null);
+    const card = derivePostMatchCard({
+      isAdmin: ctx.isAdmin,
+      hasCompletedSurvey: ctx.hasCompletedSurvey,
+      surveyClosed,
+      resultsReady,
+      awardsReady,
+      awardsSeen: hasSeenCeremony(user?.id, partido.id),
+      myPaymentStatus: postMatchData.myStatusByMatch[ctx.matchKey] || null,
+      amountLabel: ctx.amount ? amountLabel : null,
+      paymentsClosed: Boolean(ctx.settings?.is_closed),
+      adminSummary: ctx.isAdmin ? summarizePayments(postMatchData.summaryRowsByMatch[ctx.matchKey] || []) : null,
+      surveyCount: postMatchData.surveyCountByMatch[ctx.matchKey] || 0,
+      rosterCount: Array.isArray(partido.jugadores) ? partido.jugadores.filter((j) => !j?.is_substitute).length : 0,
+    });
+    const handlers = { survey: goEncuesta, results: goResults, pay: goPagos, payments: goPagos };
+    const toAction = (action, primary) => (action ? { label: action.label, primary, onClick: handlers[action.kind] } : null);
 
     return {
-      encuestaLabel: ctx.hasCompletedSurvey ? 'Encuesta completada' : 'Encuesta pendiente',
-      pagoLabel,
-      encuestaAction: ctx.hasCompletedSurvey
-        ? { label: 'Respondida', disabled: true }
-        : { label: 'Encuesta', onClick: goEncuesta },
-      pagosAction: ctx.paymentStatus
-        ? {
-          label: ctx.paymentStatus === 'pending' ? 'Pagar' : 'Ver pagos',
-          primary: ctx.paymentStatus === 'pending',
-          onClick: goPagos,
-        }
-        : null,
+      matchName: String(partido?.nombre || '').trim() || null,
+      resultLabel,
+      lines: card.lines,
+      primaryAction: toAction(card.primary, true),
+      secondaryAction: toAction(card.secondary, false),
       shareAction,
     };
   };
