@@ -1,36 +1,66 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import logo from '../Logo.png';
+import { useAuth } from './AuthProvider';
+import { useOnboardingOptional } from '../features/onboarding/OnboardingContext';
 
+// Shown once per ACCOUNT (not per device): the answer is stored with the account's
+// onboarding state (user_onboarding_state.welcome_card_dismissed) and locally under the
+// account id. The old per-device key counts as already seen, so nobody who saw it
+// before this change sees it again.
 export const HOME_WELCOME_CARD_SEEN_KEY = 'arma2:home:welcome-card-seen:v1';
+const accountKey = (userId) => `${HOME_WELCOME_CARD_SEEN_KEY}:${userId}`;
 
-const hasSeenHomeWelcomeCard = () => {
+const readFlag = (key) => {
   if (typeof window === 'undefined') return false;
-
   try {
-    return window.localStorage.getItem(HOME_WELCOME_CARD_SEEN_KEY) === '1';
+    return window.localStorage.getItem(key) === '1';
   } catch (_error) {
     return false;
   }
 };
 
-const persistHomeWelcomeCardSeen = () => {
+const writeFlag = (key) => {
   if (typeof window === 'undefined') return;
-
   try {
-    window.localStorage.setItem(HOME_WELCOME_CARD_SEEN_KEY, '1');
+    window.localStorage.setItem(key, '1');
   } catch (_error) {
-    // Ignore storage failures; the card can reappear next time.
+    // Ignore storage failures; the account state (DB) still records it.
   }
 };
 
+export const hasSeenHomeWelcomeCard = (userId) => (
+  readFlag(HOME_WELCOME_CARD_SEEN_KEY) || (Boolean(userId) && readFlag(accountKey(userId)))
+);
+
 export default function HomeWelcomeCard() {
-  const [isVisible, setIsVisible] = useState(() => !hasSeenHomeWelcomeCard());
+  const { user } = useAuth() || {};
+  const onboarding = useOnboardingOptional();
+  const location = useLocation();
+  const userId = user?.id || null;
+  const [dismissedNow, setDismissedNow] = useState(false);
+
+  const stateLoaded = onboarding ? onboarding.stateLoaded : true;
+  const dismissedForAccount = Boolean(onboarding?.state?.welcomeCardDismissed) || hasSeenHomeWelcomeCard(userId);
+  // A link (match, survey, invitation…) lands with parameters: never cover it.
+  const arrivedWithIntent = Boolean(location?.search && location.search.length > 1);
+  const isVisible = Boolean(userId) && stateLoaded && !dismissedForAccount && !dismissedNow && !arrivedWithIntent;
+
+  // Someone who saw it on this device before (old per-device key) has it recorded
+  // for the account too, so other devices do not show it again.
+  useEffect(() => {
+    if (!userId || !stateLoaded || !onboarding?.dismissWelcomeCard) return;
+    if (!onboarding.state?.welcomeCardDismissed && hasSeenHomeWelcomeCard(userId)) {
+      onboarding.dismissWelcomeCard();
+    }
+  }, [userId, stateLoaded, onboarding]);
 
   if (!isVisible) return null;
 
   const handleDismiss = () => {
-    persistHomeWelcomeCardSeen();
-    setIsVisible(false);
+    writeFlag(accountKey(userId));
+    onboarding?.dismissWelcomeCard?.();
+    setDismissedNow(true);
   };
 
   return (
