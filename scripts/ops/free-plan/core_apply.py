@@ -129,8 +129,10 @@ def verified_backup(path, ref):
     if datetime.datetime.now(datetime.timezone.utc) - created > datetime.timedelta(hours=24):
         ops.die('the backup is older than 24 h: take a new one')
     checks = sorted(f for f in os.listdir(path) if f.startswith('RESTORE-CHECK-'))
-    if not checks or json.load(open(os.path.join(path, checks[-1])))['verdict'] != 'RESTORE VERIFIED':
-        ops.die('the backup has no RESTORE VERIFIED check')
+    # The latest check decides, and it has to meet the strict criteria (pg_restore exit 0, no error, no difference):
+    # a version-1 report could say VERIFIED with pg_restore errors.
+    if not checks or not ops.strictly_verified(json.load(open(os.path.join(path, checks[-1])))):
+        ops.die('the backup has no strict RESTORE VERIFIED check (pg_restore exit 0, no error, no difference)')
     for t in ('cron.job_run_details', 'public.push_sender_scheduler_runs'):
         if t not in (record['manifest'].get('tables') or {}):
             ops.die(f'the backup does not hold {t}')

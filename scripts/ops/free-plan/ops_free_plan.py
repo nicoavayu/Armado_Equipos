@@ -325,7 +325,73 @@ def docker(*argv, **kw):
     return subprocess.run([DOCKER, *argv], **kw)
 
 
+# Role names a dump's DDL refers to: owners, ACL grantees and grantors (pg_dump runs a grant whose grantor is not the
+# owner under SET SESSION AUTHORIZATION), default privileges and policies. PUBLIC is not a role.
+_ROLE = r'(?:"(?:[^"]|"")*"|[A-Za-z_][A-Za-z0-9_$]*)'
+_ROLE_LIST = rf'({_ROLE}(?:\s*,\s*{_ROLE})*)'
+ROLE_REFERENCES = [
+    re.compile(rf'\bOWNER TO {_ROLE_LIST}\s*;'),
+    re.compile(rf'^SET SESSION AUTHORIZATION {_ROLE_LIST}\s*;', re.M),
+    re.compile(rf'\bFOR ROLE {_ROLE_LIST}\s+(?:IN SCHEMA|GRANT|REVOKE)\b'),
+    re.compile(rf'^(?:ALTER DEFAULT PRIVILEGES .*?)?GRANT .+? TO {_ROLE_LIST}(?: WITH (?:GRANT|ADMIN) OPTION)?(?: GRANTED BY {_ROLE})?\s*;$', re.M),
+    re.compile(rf'^(?:ALTER DEFAULT PRIVILEGES .*?)?REVOKE .+? FROM {_ROLE_LIST}(?: GRANTED BY {_ROLE})?(?: CASCADE| RESTRICT)?\s*;$', re.M),
+    re.compile(rf'^CREATE POLICY .+? TO {_ROLE_LIST}(?=\s+USING\b|\s+WITH CHECK\b|\s*;)', re.M | re.S),
+]
+
+
+def referenced_roles(ddl):
+    found = set()
+    for pattern in ROLE_REFERENCES:
+        for m in pattern.finditer(ddl):
+            for token in re.findall(_ROLE, m.group(1)):
+                if token.startswith('"'):
+                    found.add(token[1:-1].replace('""', '"'))
+                elif token.upper() != 'PUBLIC':
+                    found.add(token)
+    return found
+
+
+def restore_errors_with_context(stderr):
+    """Each pg_restore error with its TOC entry and the failed command (pg_restore writes them on separate lines)."""
+    blocks = []
+    for line in stderr.splitlines():
+        if line.startswith('pg_restore: ') or not blocks:
+            blocks.append([line])
+        else:
+            blocks[-1].append(line)
+    errors, toc = [], None
+    for block in blocks:
+        text = '\n'.join(l for l in block if l.strip())
+        if block[0].startswith('pg_restore: from TOC entry'):
+            toc = text
+        elif block[0].startswith('pg_restore: error'):
+            errors.append(((toc + '\n') if toc else '') + text)
+            toc = None
+    return [e[:800] for e in errors]
+
+
+def restore_verdict(pg_restore_exit, errors, differences):
+    """VERIFIED needs all three: pg_restore exited 0, it reported no error, and nothing differs from the manifest."""
+    if pg_restore_exit != 0 or errors:
+        return 'RESTORE FAILED'
+    if differences:
+        return 'RESTORE MISMATCH'
+    return 'RESTORE VERIFIED'
+
+
+def strictly_verified(check):
+    """A restore-check report that proves the backup restores: version-2 report with the strict criteria all met."""
+    return (check.get('version') == 2 and check.get('verdict') == 'RESTORE VERIFIED' and check.get('pg_restore_exit') == 0
+            and check.get('restore_error_count') == 0 and not check.get('restore_errors') and check.get('differences') == []
+            and all(step.get('exit') == 0 for step in check.get('steps') or [{'exit': 1}]))
+
+
 def cmd_restore_check(args):
+    """Restores a backup in a disposable container and compares it with its manifest.
+
+    RESTORE VERIFIED only when every preparation command succeeded, pg_restore exited 0 with no error, and every table
+    and catalog digest equals the manifest. A step that fails stops the check (no verdict file is written then).
+    """
     backup = os.path.abspath(args.backup)
     record = json.load(open(os.path.join(backup, 'MANIFEST.json')))
     if sha256_file(os.path.join(backup, record['artifact']['file'])) != record['artifact']['ciphertext_sha256']:
@@ -334,66 +400,124 @@ def cmd_restore_check(args):
         die('roles.sql hash differs from MANIFEST.json', 1)
     passphrase = read_secret('Passphrase del backup: ', 'LAB_BACKUP_PASSPHRASE', record['target'].startswith('lab:'))
     name, pw, started = f'arma2-restore-check-{secrets.token_hex(4)}', secrets.token_hex(16), time.time()
+    steps = []
+
+    def must(label, result, detail=''):
+        steps.append({'step': label, 'exit': result.returncode})
+        if result.returncode != 0:
+            err = (getattr(result, 'stderr', '') or '')
+            err = err.decode(errors='replace') if isinstance(err, bytes) else err
+            die(f'{label} failed (exit {result.returncode}){": " + detail if detail else ""} {err.strip()[-400:]}', 1)
+        return result
+
     # Empty database in a disposable container without network; pg_cron may only be created in cron.database_name, and
     # the restored jobs must not run there (they would add rows while the copy is being compared).
-    run = docker('run', '-d', '--name', name, '--network', 'none', '-e', f'POSTGRES_PASSWORD={pw}', args.image,
-                 'postgres', '-D', '/etc/postgresql', '-c', 'cron.database_name=restore_check', '-c', 'cron.launch_active_jobs=off',
-                 capture_output=True, text=True)
-    if run.returncode != 0:
-        die(f'docker run: {run.stderr.strip()[-300:]}', 1)
+    must('docker run', docker('run', '-d', '--name', name, '--network', 'none', '-e', f'POSTGRES_PASSWORD={pw}', args.image,
+                              'postgres', '-D', '/etc/postgresql', '-c', 'cron.database_name=restore_check',
+                              '-c', 'cron.launch_active_jobs=off', capture_output=True, text=True))
     try:
+        ready = False
         for _ in range(90):
             if docker('exec', name, 'pg_isready', '-U', 'postgres', '-h', 'localhost', capture_output=True).returncode == 0:
+                ready = True
                 break
             time.sleep(2)
+        steps.append({'step': 'pg_isready', 'exit': 0 if ready else 1})
+        if not ready:
+            die('the restore container never became ready', 1)
         time.sleep(4)
 
         def psql(db, user, *argv, stdin=None):
             return docker('exec', '-i', '-e', f'PGPASSWORD={pw}', name, 'psql', '-h', 'localhost', '-U', user, '-d', db,
-                          '-X', '-A', '-t', '-q', *argv, input=stdin, capture_output=True, text=True)
+                          '-X', '-A', '-t', '-q', '-v', 'ON_ERROR_STOP=1', *argv, input=stdin, capture_output=True, text=True)
 
-        psql('postgres', 'supabase_admin', '-c', 'create database restore_check')
-        r = psql('restore_check', 'supabase_admin', '-v', 'ON_ERROR_STOP=1', stdin=open(os.path.join(backup, 'roles.sql')).read())
-        if r.returncode != 0:
-            die(f'roles: {r.stderr.strip()[-300:]}', 1)
-        sink = subprocess.Popen([DOCKER, 'exec', '-i', name, 'sh', '-c', 'umask 077; cat > /tmp/database.dump'], stdin=subprocess.PIPE)
+        must('create database', psql('postgres', 'supabase_admin', '-c', 'create database restore_check'))
+        sink = subprocess.Popen([DOCKER, 'exec', '-i', name, 'sh', '-c', 'umask 077; cat > /tmp/database.dump'],
+                                stdin=subprocess.PIPE, stderr=subprocess.PIPE)
         plain_sha, _ = decrypt_stream(os.path.join(backup, record['artifact']['file']), passphrase, sink.stdin)
         sink.stdin.close()
-        sink.wait()
+        steps.append({'step': 'copy dump into the container', 'exit': sink.wait()})
+        if steps[-1]['exit'] != 0:
+            die(f'copying the dump into the container failed: {sink.stderr.read().decode(errors="replace")[-300:]}', 1)
         if plain_sha != record['artifact']['plaintext_sha256']:
             die('the decrypted dump differs from the hash taken while it was written', 1)
+
+        # Roles. The project's own roles come from the backup (roles.sql). Platform roles are not in a backup: each
+        # Supabase project has them, but some are created by platform services (Realtime: supabase_realtime_admin,
+        # Functions: supabase_functions_admin), not by the Postgres image, so the restore image may lack them. Every
+        # role the dump's DDL names must exist before pg_restore, or the objects it owns are left to the restoring
+        # superuser and their owner and ACL grantor change. The missing platform ones are created here, inside the
+        # disposable container only, as plain NOLOGIN NOINHERIT roles without password or membership: pg_dump never
+        # writes role attributes or memberships, and everything the dump does with them (ALTER ... OWNER TO, GRANT under
+        # SET SESSION AUTHORIZATION) is run by the restoring superuser. Any other missing role stops the check.
+        must('roles.sql', psql('restore_check', 'supabase_admin', stdin=open(os.path.join(backup, 'roles.sql')).read()))
+        ddl = must('list the dump DDL', docker('exec', name, 'pg_restore', '--schema-only', '--file=-', '/tmp/database.dump',
+                                                capture_output=True, text=True)).stdout
+        referenced = referenced_roles(ddl)
+        existing = set(must('read roles', psql('restore_check', 'supabase_admin', '-c',
+                                               'select rolname from pg_roles')).stdout.split())
+        missing = sorted(referenced - existing)
+        unexpected = [r for r in missing if not PLATFORM_ROLES.match(r)]
+        if unexpected:
+            die(f'the dump names roles that are neither in the backup nor platform roles: {unexpected}', 1)
+        provisioned = []
+        for role in missing:
+            must(f'create platform role {role}', psql('restore_check', 'supabase_admin', '-c',
+                                                      f'create role {quote_ident(role)} nologin noinherit'))
+            provisioned.append({'role': role, 'attributes': 'NOLOGIN NOINHERIT, no password, no membership',
+                                'scope': 'disposable restore container only'})
+        existing = set(must('read roles', psql('restore_check', 'supabase_admin', '-c',
+                                               'select rolname from pg_roles')).stdout.split())
+        if referenced - existing:
+            die(f'roles still missing before pg_restore: {sorted(referenced - existing)}', 1)
+
         restore = docker('exec', '-e', f'PGPASSWORD={pw}', name, 'pg_restore', '-h', 'localhost', '-U', 'supabase_admin',
                          '-d', 'restore_check', '/tmp/database.dump', capture_output=True, text=True)
-        errors = [l for l in restore.stderr.splitlines() if 'error:' in l.lower()]
-        r = psql('restore_check', 'postgres', '-v', 'ON_ERROR_STOP=1', '-c', "set timezone = 'UTC'", '-c', 'set extra_float_digits = 1',
-                 '-c', open(os.path.join(HERE, 'sql', 'manifest.sql')).read())
-        if r.returncode != 0:
-            die(f'manifest on the restored copy: {r.stderr.strip()[-400:]}', 1)
+        steps.append({'step': 'pg_restore', 'exit': restore.returncode})
+        errors = restore_errors_with_context(restore.stderr)
+        r = must('manifest on the restored copy', psql('restore_check', 'postgres', '-c', "set timezone = 'UTC'",
+                                                       '-c', 'set extra_float_digits = 1',
+                                                       '-c', open(os.path.join(HERE, 'sql', 'manifest.sql')).read()))
         restored = json.loads(r.stdout.strip().splitlines()[-1])
+        expected = record['manifest']
+        diffs = [{'table': k, 'backup': v, 'restored': (restored['tables'] or {}).get(k)}
+                 for k, v in (expected['tables'] or {}).items() if (restored['tables'] or {}).get(k) != v]
+        extra = sorted(set(restored['tables'] or {}) - set(expected['tables'] or {}))
+        diffs += [{'table': k, 'backup': None, 'restored': restored['tables'][k]} for k in extra]
+        diffs += [{'catalog': k, 'backup': expected[k], 'restored': restored[k]}
+                  for k in ('functions', 'policies', 'triggers', 'table_acl') if expected[k] != restored[k]]
+        # A catalog digest only says "different": keep the restored per-object state so a difference can be explained.
+        detail = None
+        if any('catalog' in d for d in diffs):
+            r = must('catalog detail on the restored copy', psql('restore_check', 'postgres', '-c',
+                                                                open(os.path.join(HERE, 'sql', 'catalog-detail.sql')).read()))
+            detail = json.loads(r.stdout.strip().splitlines()[-1])
     finally:
         docker('rm', '-f', name, capture_output=True)
-    expected = record['manifest']
-    diffs = [{'table': k, 'backup': v, 'restored': (restored['tables'] or {}).get(k)}
-             for k, v in (expected['tables'] or {}).items() if (restored['tables'] or {}).get(k) != v]
-    diffs += [{'catalog': k, 'backup': expected[k], 'restored': restored[k]}
-              for k in ('functions', 'policies', 'triggers', 'table_acl') if expected[k] != restored[k]]
+    verdict = restore_verdict(restore.returncode, errors, diffs)
     result = {
-        'kind': 'arma2-free-plan-restore-check', 'backup': backup, 'checked_at': now_stamp(), 'image': args.image,
-        'seconds': round(time.time() - started, 1), 'restore_errors': errors[:50],
+        'kind': 'arma2-free-plan-restore-check', 'version': 2, 'backup': backup, 'checked_at': now_stamp(), 'image': args.image,
+        'seconds': round(time.time() - started, 1), 'steps': steps,
+        'referenced_roles': sorted(referenced), 'provisioned_roles': provisioned,
+        'pg_restore_exit': restore.returncode, 'restore_errors': errors[:80], 'restore_error_count': len(errors),
         'tables_checked': len(expected['tables'] or {}), 'rows_checked': sum(t['rows'] for t in (expected['tables'] or {}).values()),
-        'differences': diffs, 'verdict': 'RESTORE VERIFIED' if not diffs else 'RESTORE MISMATCH',
+        'differences': diffs, 'restored_catalog_detail': detail,
+        'criteria': 'pg_restore exit 0, no pg_restore error, every table and catalog digest equal to the manifest',
+        'verdict': verdict,
     }
     path = os.path.join(backup, f'RESTORE-CHECK-{now_stamp()}.json')
     with open(path, 'w') as f:
         json.dump(result, f, indent=1)
     os.chmod(path, 0o600)
-    print(f"{result['verdict']}: {result['tables_checked']} tables / {result['rows_checked']} rows, {len(diffs)} differences, "
-          f"{len(errors)} pg_restore errors ({result['seconds']} s) -> {path}")
+    print(f"{verdict}: {result['tables_checked']} tables / {result['rows_checked']} rows, {len(diffs)} differences, "
+          f"pg_restore exit {restore.returncode} with {len(errors)} errors ({result['seconds']} s) -> {path}")
+    if provisioned:
+        print('  platform roles created in the disposable container:', ', '.join(p['role'] for p in provisioned))
     for e in errors[:10]:
-        print('  pg_restore:', e[:240])
+        print('  pg_restore:', e.replace('\n', ' | ')[:300])
     for d in diffs[:10]:
         print('  diff:', json.dumps(d)[:300])
-    sys.exit(0 if not diffs else 1)
+    sys.exit(0 if verdict == 'RESTORE VERIFIED' else 1)
 
 
 def storage_call(base, key, method, path, body=None):

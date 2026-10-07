@@ -142,10 +142,34 @@ Qué contiene un backup de base:
 - `roles.sql`: los roles propios del proyecto, **sin contraseñas**.
 
 `restore-check`:
-1. Descifra el dump dentro de un Postgres de Supabase descartable, sin red.
-2. Lo restaura en una base vacía, con los jobs de pg_cron apagados.
-3. Recalcula el manifest y compara.
-4. Escribe `RESTORE-CHECK-*.json`, con veredicto `RESTORE VERIFIED` o `RESTORE MISMATCH`.
+1. Descifra el dump dentro de un Postgres de Supabase descartable, sin red. Cada comando que prepara el contenedor
+   (arranque, base vacía, copia del dump, roles) se controla; si uno falla, se detiene sin veredicto.
+2. Crea los roles que el dump nombra:
+   - los propios del proyecto salen de `roles.sql`;
+   - los de plataforma que la imagen no trae se crean **sólo en el contenedor**, `NOLOGIN NOINHERIT`, sin contraseña
+     ni membresías. Por ejemplo, `supabase_realtime_admin` y `supabase_functions_admin`, que en Supabase crean los
+     servicios Realtime y Functions, no la imagen de Postgres.
+   - Cualquier otro rol faltante detiene la verificación.
+3. Lo restaura en una base vacía, con los jobs de pg_cron apagados.
+4. Recalcula el manifest y compara.
+5. Escribe `RESTORE-CHECK-*.json` (versión 2) al lado del backup, sin tocar sus archivos.
+   - `RESTORE VERIFIED` exige las tres cosas: `pg_restore` termina con exit 0, no reporta ningún error y no hay
+     diferencias.
+   - Si `pg_restore` falla: `RESTORE FAILED`. Si sólo hay diferencias: `RESTORE MISMATCH`.
+   - R3 sólo acepta un informe versión 2 que cumpla esos criterios.
+
+**Por qué falló el R0 del 2026-10-07 (33 errores, diferencias en `functions` y `table_acl`):**
+- La imagen de restauración no trae `supabase_realtime_admin` ni `supabase_functions_admin`.
+- Los `ALTER … OWNER TO` de los objetos de `realtime` y `supabase_functions` fallaron, y esos objetos quedaron con
+  dueño `supabase_admin`, el usuario que restaura.
+- El otorgante de cada permiso es el dueño, así que también cambiaron las ACL; los cuerpos de las funciones eran
+  idénticos.
+- El veredicto viejo dependía sólo de las diferencias e ignoraba los errores y el código de salida de `pg_restore`.
+- El ensayo previo no lo detectó por dos razones: la copia de laboratorio no tenía objetos de esos roles, y su armado
+  ignoraba los errores de `pg_restore`.
+- Reproducido y corregido en laboratorio con objetos de esos roles (evidencia en el PR): veredicto viejo
+  `RESTORE MISMATCH` con 37 errores; veredicto nuevo `RESTORE VERIFIED`, `pg_restore` exit 0, 0 errores y
+  0 diferencias.
 
 **Verificado en laboratorio** (`scripts/ops/free-plan/evidence/lab-20261007.json`):
 
@@ -285,6 +309,20 @@ Lo que va a pedir, en orden:
 **Al terminar** muestra `MANTENIMIENTO COMPLETO` y la ruta de `REPORT.json`, dentro de
 `~/Arma2Backups/core-maintenance-<fecha>/`. Esa carpeta es el backup y se conserva: contiene el historial completo
 anterior a la limpieza.
+
+**Reanudar después de R0** (misma carpeta, R0 no se repite, un paso con evidencia `DONE` no se vuelve a correr):
+
+```bash
+bash scripts/ops/free-plan/core-capacity-maintenance.sh --resume ~/Arma2Backups/core-maintenance-<fecha>
+```
+
+Antes de conectarse exige:
+- que el backup de esa carpeta sea de Core;
+- que tenga menos de 22 h (R3 rechaza los de más de 24 h);
+- que contenga las dos tablas de logs;
+- que su última verificación sea un `RESTORE VERIFIED` estricto.
+
+Pide `MANTENIMIENTO CORE` y la contraseña de la base una vez por paso (R1, R2, R3).
 
 **Si aparece `STOP en …`:**
 - No se ejecutó nada posterior.
