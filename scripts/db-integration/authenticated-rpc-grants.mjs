@@ -122,6 +122,10 @@ const POST_CANONICAL_AUTHENTICATED_ALLOWLIST = [
   ],
   ['public.normalize_partido_estado(text)', 'rls_helper_required'],
   ['public.partido_kickoff_at(date,text)', 'rls_helper_required'],
+  // 20261010120000: pure helpers called by SECURITY INVOKER triggers on tables that
+  // `authenticated` writes (usuarios, challenges). Production already grants them.
+  ['public.normalize_posicion_token(text)', 'trigger_helper_required'],
+  ['public.resolve_challenge_squad_limits(smallint)', 'trigger_helper_required'],
   ['public.is_tournament_branding_path(text,text)', 'rls_helper_required'],
   ['public.can_update_tournament_team_branding(uuid,uuid)', 'rls_helper_required'],
   ['public.can_write_tournament_branding_object(text)', 'rls_helper_required'],
