@@ -31,6 +31,7 @@ import re
 import secrets
 import subprocess
 import sys
+import time
 import urllib.error
 import urllib.request
 
@@ -85,6 +86,15 @@ PINS = {
 }
 for _k, _v in PINS.items():
     STEPS[_k]['sha256'] = _v
+
+# After a step: is the database writable, does pg_cron keep recording runs (and none failed), does the push tick log?
+HEALTH_SQL = """select json_build_object(
+  'read_only', current_setting('default_transaction_read_only'),
+  'jobs_active', (select count(*) from cron.job where active),
+  'cron_runs_since', (select count(*) from cron.job_run_details where start_time > :mark::timestamptz),
+  'cron_failed_since', (select count(*) from cron.job_run_details where start_time > :mark::timestamptz and status = 'failed'),
+  'push_tick_job_active', exists (select 1 from cron.job where jobname = 'push_sender_dispatch_scheduler' and active),
+  'push_ticks_since', (select count(*) from public.push_sender_scheduler_runs where triggered_at > :mark::timestamptz))::jsonb::text"""
 
 LEDGER_SQL = """select coalesce(json_agg(version order by version), '[]'::json)::text
 from supabase_migrations.schema_migrations where version >= '20260914120000'"""
@@ -186,8 +196,24 @@ def cmd_apply(args):
     if spec.get('post'):
         evidence['post'] = json.loads(session.run(spec['post']).splitlines()[-1])
     evidence['ledger_after'] = json.loads(session.run(LEDGER_SQL).splitlines()[-1])
+    if args.verify_wait:
+        # Production keeps working after the step: wait, then see pg_cron and the push tick write again, without failures.
+        mark = session.run('select now()').splitlines()[-1].strip()
+        time.sleep(args.verify_wait)
+        evidence['health'] = json.loads(session.run(HEALTH_SQL.replace(':mark', ops.quote_literal(mark))).splitlines()[-1])
+        evidence['health']['waited_s'] = args.verify_wait
     session.close()
     failures = [k for k, v in (evidence.get('post') or {}).items() if v is not True]
+    h = evidence.get('health')
+    if h is not None:
+        if h['read_only'] != 'off':
+            failures.append('read_only')
+        if h['cron_runs_since'] == 0:
+            failures.append('cron_not_writing')
+        if h['cron_failed_since'] > 0:
+            failures.append('cron_failures_after_step')
+        if h['push_tick_job_active'] and h['push_ticks_since'] == 0:
+            failures.append('push_tick_not_writing')
     if spec['kind'] == 'migration' and spec['version'] not in evidence['ledger_after']:
         failures.append('ledger_row_missing')
     if step == 'reindex' and evidence['after']['notification_delivery_log']['indexes'] > evidence['before']['notification_delivery_log']['indexes']:
@@ -199,6 +225,10 @@ def cmd_apply(args):
     evidence['verdict'] = f"{step.upper()}_{'DONE' if not failures else 'FAILED'}"
     evidence['failures'] = failures
     mb = lambda b: round(b / 1048576, 1)
+    if args.evidence:
+        with open(args.evidence, 'w') as f:
+            json.dump(evidence, f, indent=1, default=str)
+        os.chmod(args.evidence, 0o600)
     print(json.dumps(evidence, indent=1, default=str))
     print(f"{evidence['verdict']}: database {mb(evidence['before']['database_bytes'])} -> {mb(evidence['after']['database_bytes'])} MB "
           f"in {evidence['seconds']} s{'; failures: ' + ', '.join(failures) if failures else ''}")
@@ -319,6 +349,8 @@ def main():
     p.add_argument('--phrase', default='')
     p.add_argument('--lab-port', type=int)
     p.add_argument('--verified-backup')
+    p.add_argument('--verify-wait', type=int, default=0, help='seconds to wait after the step and check that cron and the push tick keep writing')
+    p.add_argument('--evidence', help='also write the evidence JSON to this file')
     p = sub.add_parser('function-plan')
     p.add_argument('--from-ref', default='HEAD')
     p = sub.add_parser('function-deploy')

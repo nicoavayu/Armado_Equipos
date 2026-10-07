@@ -219,3 +219,80 @@ Pruebas offline: `npm run test:ops:free-plan` (en `test:ci`).
   - Mientras no exista: revisar el estado del proyecto en el panel una vez por semana.
 - **No hay tercer proyecto:** Staging de Core/Torneos queda pausado. Las certificaciones se hacen en el laboratorio local.
 - **Egress:** las imágenes firmadas de logos y los backups de Storage consumen egress. Hoy se usa el 2 %.
+
+## 8. Mantenimiento de capacidad autorizado (GO del 2026-10-07, sólo R0 → R3)
+
+GO de Nico limitado a este mantenimiento:
+- **Incluido:** backup y verificación (R0), reindex (R1), migración `20261009120000` (R2) y compactación de los dos logs
+  con 7 días de historial (R3).
+- **Excluido:** la promoción de Torneos, `20261007`/`20261008`, deploys, flags, planes pagos, keep-alive, borrar
+  archivos, usuarios o información deportiva, y envíos reales.
+
+Todo lo ejecuta un único script, que se frena en la primera falla:
+`scripts/ops/free-plan/core-capacity-maintenance.sh`.
+
+**Por qué lo corre Nico:** cada paso necesita la contraseña de la base de Core, escrita en una terminal real. El
+agente no la tiene y no debe sortear ese mecanismo (ni con el editor SQL del panel, ni con el Keychain, ni de otra
+forma).
+
+**Ensayo general** del mismo script en una copia de Core con los volúmenes de Production y pg_cron activo
+(`scripts/ops/free-plan/evidence/maintenance-dress-rehearsal-20261007.json`):
+
+| Paso | Resultado | Salud a los 75 s |
+| --- | --- | --- |
+| R0 | Backup de 1.462.676 filas; `RESTORE VERIFIED` con 0 diferencias | — |
+| R1 | 350,3 → 304,2 MB | Escribe; cron con 0 fallas; tick de push escribiendo |
+| R2 | Jobs 8 → 10 | Igual |
+| R3 | 304,2 → **35,2 MB**; 1.124.780 corridas de cron y 286.578 ticks retirados (el backup conserva todo) | Igual |
+
+**Línea base de Production (lectura del 2026-10-07):**
+- 515,04 MB y no está en sólo lectura;
+- últimas 24 h: 5.329 corridas de cron, 0 fallidas, y 1.440 ticks;
+- `notification_delivery_log`: 16 filas y 67 MB de índices;
+- 8 jobs activos;
+- extensiones `btree_gist`, `pg_cron`, `pg_net`, `pg_stat_statements`, `pgcrypto`, `plpgsql`, `supabase_vault` y
+  `uuid-ossp`, todas disponibles en la imagen de verificación;
+- tablas de configuración que entran al dump: `vault.secrets` (3), `cron.job` (8) y `cron.job_run_details`
+  (1.143.641).
+
+### Qué hacer (Terminal.app, una sola vez)
+
+Antes de empezar:
+1. Docker Desktop abierto.
+2. Unos 2 GB libres.
+3. La contraseña de la base de Core a mano. Si no la tenés, **no la resetees**: avisá. Resetearla es un cambio de
+   Production que este GO no cubre.
+4. Una passphrase nueva de al menos 12 caracteres, guardada **antes** en el gestor de contraseñas. Sin ella el backup
+   no se puede restaurar.
+
+```bash
+cd /Users/nicoavayu/Downloads/arma2/arma2/.claude/worktrees/torneos-connected-product-c3f3a0
+```
+
+```bash
+bash scripts/ops/free-plan/core-capacity-maintenance.sh ~/Arma2Backups
+```
+
+Lo que va a pedir, en orden:
+1. `MANTENIMIENTO CORE` (escrito tal cual).
+2. La passphrase, dos veces.
+3. `Password for user postgres.rcyuuoaqfwcembdajcss` (psql) y después `Password:` (pg_dump): la de la base, dos veces.
+4. La passphrase otra vez (verificación de la restauración).
+5. La contraseña de la base una vez por cada paso: R1, R2 y R3.
+
+**Duración:** entre 15 y 30 minutos. Cada paso espera 75 s y controla que Core siga escribiendo.
+
+**Al terminar** muestra `MANTENIMIENTO COMPLETO` y la ruta de `REPORT.json`, dentro de
+`~/Arma2Backups/core-maintenance-<fecha>/`. Esa carpeta es el backup y se conserva: contiene el historial completo
+anterior a la limpieza.
+
+**Si aparece `STOP en …`:**
+- No se ejecutó nada posterior.
+- `STOP en R0`: ninguna escritura ocurrió.
+- `STOP en reindex`, `migration-…` o `compact`: el paso indicado corrió pero su control posterior falló. No se sigue y
+  hay que avisar.
+
+**Después:** avisar «listo». El agente lee `REPORT.json` en esta misma Mac. Además, en el panel:
+- mira el tamaño de Core y de la organización (se actualiza dentro de una hora);
+- revisa los logs de Postgres de la ventana del mantenimiento, por errores nuevos;
+- confirma los 10 jobs y sus corridas, e informa.

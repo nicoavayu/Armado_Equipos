@@ -134,6 +134,20 @@ test('the capacity rehearsal with Production volumes: every step done, short pau
   assert.deepEqual(e.retention_function_acl, { anon: false, authenticated: false, scheduled: '41 3 * * *', reindex_scheduled: '11 4 1 * *', reindex_command_ran: true });
 });
 
+test('the authorized maintenance runs exactly R0 → R1 → R2 → R3 and stops at the first failure', () => {
+  const sh = read('scripts/ops/free-plan/core-capacity-maintenance.sh');
+  const order = ['backup-db', 'restore-check', 'step reindex', 'step migration-20261009120000', 'step compact'].map((k) => sh.indexOf(k));
+  assert.ok(order.every((i, n) => i > 0 && (n === 0 || i > order[n - 1])), `order ${order}`);
+  assert.match(sh, /grep -q '\^RESTORE VERIFIED' "\$OUT\/r0-restore-check\.log" \|\| stop R0/, 'no write unless the restore is verified');
+  assert.match(sh, /step compact .* --verified-backup "\$OUT\/backup"/, 'R3 bound to the backup just verified');
+  assert.match(sh, /MANTENIMIENTO CORE/, 'typed confirmation in Production');
+  assert.doesNotMatch(sh, /migration-2026100[78]/, 'no other migration');
+  assert.equal(spawnSync('bash', ['-n', 'scripts/ops/free-plan/core-capacity-maintenance.sh']).status, 0);
+  const apply = read(CORE_APPLY);
+  assert.match(apply, /'cron_failed_since', \(select count\(\*\) from cron\.job_run_details where start_time > :mark::timestamptz and status = 'failed'\)/);
+  for (const f of ['read_only', 'cron_not_writing', 'cron_failures_after_step', 'push_tick_not_writing']) assert.ok(apply.includes(`'${f}'`), f);
+});
+
 test('both tools compile', () => {
   const r = py(['-c', 'import ast, sys; [ast.parse(open(f).read(), f) for f in sys.argv[1:]]', OPS, CORE_APPLY]);
   assert.equal(r.status, 0, r.stderr);
