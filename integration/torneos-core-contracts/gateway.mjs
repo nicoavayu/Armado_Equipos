@@ -352,6 +352,9 @@ const server = http.createServer(async (req, res) => {
     else res.end();
   }
 });
-server.requestTimeout = 10000;
+// Production's gateway (Cloud Run) cuts a request at 30 s; a lab run that measures slow uploads mirrors it explicitly.
+const requestTimeout = Number(process.env.PHASE3A_GATEWAY_REQUEST_TIMEOUT_MS || 10000);
+if (!Number.isInteger(requestTimeout) || requestTimeout < 10000 || requestTimeout > 60000) throw new Error('PHASE3A_GATEWAY_REQUEST_TIMEOUT_MS must be 10000-60000');
+server.requestTimeout = requestTimeout;
 server.headersTimeout = 10000;
 server.listen(58420, '0.0.0.0', () => console.log('Phase 3A gateway ready'));

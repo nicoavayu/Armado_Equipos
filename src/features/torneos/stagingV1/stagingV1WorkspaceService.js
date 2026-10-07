@@ -642,7 +642,7 @@ export function createStagingV1WorkspaceService({
     }) => {
       try {
         onStage('preparing');
-        const payload = await prepareUploadPayload(file, { signal, limits: { ...limits, thumbnail: true } });
+        const payload = await prepareUploadPayload(file, { signal, limits: { ...limits, thumbnail: true, outputMime: 'image/jpeg' } });
         if (signal?.aborted) throw new MediaUploadError('Carga cancelada.', { code: 'cancelled' });
         // One request: the photo, then its grid thumbnail. The gateway verifies both and stores both, or neither.
         const upload = new Blob([payload.source, payload.thumbnail.source], { type: payload.mime });

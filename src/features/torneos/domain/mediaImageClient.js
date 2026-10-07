@@ -113,13 +113,18 @@ export function fitMediaDimensions(width, height, limits = MEDIA_LIMITS) {
   };
 }
 
-function drawTo(source, width, height) {
+function drawTo(source, width, height, { opaque = false } = {}) {
   const canvas = document.createElement('canvas');
   canvas.width = width;
   canvas.height = height;
   const context = canvas.getContext('2d');
   if (!context) {
     throw new MediaClientError('canvas_unavailable', 'Este navegador no puede procesar la foto.');
+  }
+  // A JPEG has no transparency: a transparent area becomes white, never black.
+  if (opaque) {
+    context.fillStyle = '#ffffff';
+    context.fillRect(0, 0, width, height);
   }
   context.imageSmoothingEnabled = true;
   context.imageSmoothingQuality = 'high';
@@ -214,12 +219,15 @@ export async function prepareUploadPayload(file, { signal, limits = MEDIA_LIMITS
   if (!hasCanvas()) {
     throw new MediaClientError('canvas_unavailable', 'Este navegador no puede procesar la foto.');
   }
-  const mime = targetMimeFor(file, {
+  const accepted = targetMimeFor(file, {
     allowHeicTranscode: limits.allowHeicTranscode !== false,
   });
-  if (!mime) {
+  if (!accepted) {
     throw new MediaClientError('mime', 'Formato no admitido. Usá JPEG, PNG o WebP.');
   }
+  // MEDIA-V1 galleries keep every photo as JPEG: a 1600 px PNG weighs ~10× the same photo as JPEG (lab: 2.48 MB vs
+  // 0.14–0.31 MB), and the grid and the Free plan pay for every byte.
+  const mime = limits.outputMime === 'image/jpeg' ? 'image/jpeg' : accepted;
 
   const decoded = await decode(file);
   try {
@@ -257,7 +265,7 @@ export async function prepareUploadPayload(file, { signal, limits = MEDIA_LIMITS
         ? undefined
         : Math.max(0.58, JPEG_QUALITY - (attempt * 0.04));
       // eslint-disable-next-line no-await-in-loop
-      const candidate = await encode(drawTo(decoded, width, height), mime, quality);
+      const candidate = await encode(drawTo(decoded, width, height, { opaque: mime === 'image/jpeg' }), mime, quality);
       if (candidate.size <= limits.maxFileBytes) {
         source = candidate;
         break;
@@ -277,7 +285,7 @@ export async function prepareUploadPayload(file, { signal, limits = MEDIA_LIMITS
       const scale = longest <= THUMBNAIL_MAX_EDGE ? 1 : THUMBNAIL_MAX_EDGE / longest;
       const thumbWidth = Math.max(1, Math.floor(width * scale));
       const thumbHeight = Math.max(1, Math.floor(height * scale));
-      const canvas = drawTo(decoded, thumbWidth, thumbHeight);
+      const canvas = drawTo(decoded, thumbWidth, thumbHeight, { opaque: true });
       for (let attempt = 0; attempt < 4 && !thumbnail; attempt += 1) {
         // eslint-disable-next-line no-await-in-loop
         const candidate = await encode(canvas, 'image/jpeg', THUMBNAIL_QUALITY - attempt * 0.08);

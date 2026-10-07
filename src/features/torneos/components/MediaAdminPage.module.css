@@ -166,6 +166,7 @@
    Los CTAs entran al sistema de `Continuar`; lo propio de Multimedia sigue
    siendo el color. */
 .toolbar > button, .composer footer button:last-child, .uploadPanel > button,
+.uploadActions > button:not(.secondaryAction),
 .galleryActions .publishAction {
   display: inline-flex;
   align-items: center;
@@ -664,6 +665,7 @@ button:focus-visible, .galleryRail button:focus-visible {
 
 .toolbar button,
 .composer button[type="submit"],
+.uploadActions > button:not(.secondaryAction),
 .galleryActions .publishAction {
   color: #fff;
   background: var(--torneos-cta);

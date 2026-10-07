@@ -238,10 +238,23 @@ test('thumbnail: photo then JPEG thumbnail in one body; both verified, both writ
   assert.ok(world.rest.some((call) => call.name === 'fail_tournament_media_gallery_upload'));
 });
 
+test('metadata carriers are stripped by the gateway (real browsers embed a colour profile); only the clean bytes exist after', async () => {
+  world.replies.begin_tournament_media_gallery_upload = [200, { ...issued(), objectName: OBJECT.replace('.jpg', '.webp') }];
+  world.replies.complete_tournament_media_gallery_upload = [200, { assetId: AST, status: 'pending_review' }];
+  const withExif = fixture('exif-64x48.webp');
+  const r = await upload(withExif, { type: 'image/webp' });
+  assert.equal(r.status, 201);
+  const stored = new Uint8Array(world.storage[0].body);
+  assert.ok(stored.length < withExif.length, 'the stored object is the stripped one');
+  assert.ok(!Buffer.from(stored).includes(Buffer.from('EXIF')), 'no EXIF chunk left');
+  const [begin, complete] = world.rest;
+  assert.equal(begin.args.p_byte_size, stored.length);
+  assert.equal(complete.args.p_checksum_sha256, crypto.createHash('sha256').update(stored).digest('hex'), 'the checksum describes the stored bytes');
+});
+
 test('content is refused BEFORE any session, quota or storage call: orientation, metadata, animation, fake type, size, format', async () => {
   for (const [name, type, code] of [
     ['exif-orient6-64x48.jpg', 'image/jpeg', 'MEDIA_ORIENTATION_NOT_NORMALIZED'],
-    ['exif-64x48.webp', 'image/webp', 'MEDIA_METADATA_PRESENT'],
     ['animated-16x16.png', 'image/png', 'MEDIA_ANIMATION_UNSUPPORTED'],
     ['animated-16x16.webp', 'image/webp', 'MEDIA_ANIMATION_UNSUPPORTED'],
     ['clean-64x48.jpg', 'image/png', 'MEDIA_MIME_MISMATCH'],
@@ -334,7 +347,7 @@ test('the gateway claim is never accepted from a client and the internal RPCs ar
 test('read URLs: the caller\'s targets per kind, ONE signature batch with the caller\'s token, refused assets absent', async () => {
   world.replies.get_tournament_media_read_targets = (args) => [200, args.p_asset_ids
     .filter((id) => id !== '50000000-0000-4000-8000-0000000000ff')
-    .map((id) => ({ assetId: id, kind: args.p_kind, objectName: id === AST ? OBJECT : OBJECT2 }))];
+    .map((id) => ({ assetId: id, kind: args.p_kind, objectName: id === AST ? (args.p_kind === 'grid' ? OBJECT.replace('.jpg', '-thumbnail.jpg') : OBJECT) : OBJECT2 }))];
   world.refuse = new Set([OBJECT2]);
   const bearer = token();
   const r = await urls({ items: [{ assetId: AST, kind: 'grid' }, { assetId: AST, kind: 'detail' }, { assetId: AST2, kind: 'grid' },
@@ -342,8 +355,9 @@ test('read URLs: the caller\'s targets per kind, ONE signature batch with the ca
   assert.equal(r.status, 200);
   const json = await r.json();
   assert.equal(json.expiresIn, 300);
+  const THUMB = OBJECT.replace('.jpg', '-thumbnail.jpg');
   assert.deepEqual(json.items, [
-    { assetId: AST, kind: 'grid', url: `${STORAGE}/object/sign/tournament-media/${OBJECT}?token=t-${OBJECT.slice(-12)}` },
+    { assetId: AST, kind: 'grid', url: `${STORAGE}/object/sign/tournament-media/${THUMB}?token=t-${THUMB.slice(-12)}` },
     { assetId: AST, kind: 'detail', url: `${STORAGE}/object/sign/tournament-media/${OBJECT}?token=t-${OBJECT.slice(-12)}` },
   ]);
   assert.deepEqual(world.rest.map((call) => [call.name, call.authorization, call.args.p_kind]), [
@@ -351,7 +365,7 @@ test('read URLs: the caller\'s targets per kind, ONE signature batch with the ca
   const signs = world.storage.filter((call) => call.url === '/object/sign/tournament-media');
   assert.equal(signs.length, 1);
   assert.equal(signs[0].headers.authorization, `Bearer ${bearer}`, 'storage RLS decides again, as the caller');
-  assert.deepEqual(JSON.parse(signs[0].body).paths, [OBJECT, OBJECT2]);
+  assert.deepEqual(JSON.parse(signs[0].body).paths, [THUMB, OBJECT2, OBJECT], 'the grid signs the thumbnail, detail the photo');
   assert.ok(!JSON.stringify(json).includes(OBJECT2), 'a refused object never leaves the gateway');
   for (const body of [{}, { items: [] }, { items: [{ assetId: 'x', kind: 'grid' }] }, { items: [{ assetId: AST, kind: 'original' }] },
     { items: [{ assetId: AST, kind: 'grid', path: 'x' }] }, { items: Array.from({ length: 121 }, () => ({ assetId: AST, kind: 'grid' })) },

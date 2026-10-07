@@ -94,7 +94,7 @@ if (command === 'status') {
     '--add-host', `torneos-storage:${storageIp}`,
     '-e', 'TORNEOS_CONNECTED_MODE=on', '-e', 'TORNEOS_BRANDING_MODE=on', '-e', 'TORNEOS_MEDIA_MODE=on',
     '-e', 'TORNEOS_STORAGE_URL=http://torneos-storage:5000', '-e', 'TORNEOS_STORAGE_PUBLIC_URL=http://127.0.0.1:58445',
-    '-e', 'PHASE3A_GATEWAY_PUBLIC_ORIGIN=http://127.0.0.1:58440',
+    '-e', 'PHASE3A_GATEWAY_PUBLIC_ORIGIN=http://127.0.0.1:58440', '-e', 'PHASE3A_GATEWAY_REQUEST_TIMEOUT_MS=30000',
     ...mount(path.join(ROOT, 'integration/torneos-core-contracts/gateway.mjs'), '/lab/gateway.mjs'),
     ...mount(path.join(ROOT, 'integration/torneos-core-contracts/adapter.mjs'), '/lab/adapter.mjs'),
     ...mount(path.join(ROOT, 'integration/torneos-core-contracts/core-client.mjs'), '/lab/core-client.mjs'),

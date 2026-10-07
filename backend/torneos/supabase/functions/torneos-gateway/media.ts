@@ -20,7 +20,7 @@
 // Nothing here is a public bucket, a service key, an object name handed to the browser or a list of objects.
 import mediaDoc from "./media-v1-rpc-allowlist.json" with { type: "json" }
 import { MVP_SIMPLE_MEDIA_LIMITS } from "./media-contract.ts"
-import { MediaImageError, sha256Hex, verifyNormalizedImage } from "./media-image.ts"
+import { inspectImage, MediaImageError, sha256Hex, verifyNormalizedImage, type MediaImageLimits } from "./media-image.ts"
 import { storageTargets } from "./branding.ts"
 
 export class MediaConfigError extends Error {}
@@ -48,6 +48,8 @@ const MAX_URL_ITEMS = 120
 const URLS_BODY_LIMIT = 16384
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 const OBJECT_NAME = /^[0-9a-f-]{36}\/[0-9a-f-]{36}\/[0-9a-f-]{36}\/[0-9a-f-]{36}\.(jpg|png|webp)$/
+/** A readable object: the photo or its thumbnail (the variants path rule). */
+const READ_OBJECT_NAME = /^[0-9a-f-]{36}\/[0-9a-f-]{36}\/[0-9a-f-]{36}\/[0-9a-f-]{36}(-thumbnail\.jpg|\.(jpg|png|webp))$/
 const NAME = /^[a-z0-9_]+$/
 
 export type MediaContract = {
@@ -201,6 +203,15 @@ function refusal(outcome: Extract<RpcOutcome, { ok: false }>): MediaResult {
   return { status, body }
 }
 
+/** The bytes without any metadata carrier, refusing a non-identity EXIF orientation (stripping it would rotate the photo). */
+function sanitized(bytes: Uint8Array, mime: string, limits: MediaImageLimits): Uint8Array {
+  const inspection = inspectImage(bytes, mime, limits)
+  if (inspection.exifOrientation !== null && inspection.exifOrientation !== 1) {
+    throw new MediaImageError("MEDIA_ORIENTATION_NOT_NORMALIZED", `orientation ${inspection.exifOrientation}`)
+  }
+  return inspection.alreadyClean ? bytes : inspection.sanitized
+}
+
 export type MediaUploadRequest = { search: string; contentType: string | null; contentLength: string | null; body: Body }
 
 /**
@@ -228,22 +239,33 @@ export async function mediaUpload(request: MediaUploadRequest, contract: MediaCo
   const raw = await readLimited(request.body, declared, MEDIA_MAX_BYTES + MEDIA_THUMBNAIL_MAX_BYTES, true)
   if (!raw) return { status: 413, body: { error: "TORNEOS_MEDIA_TOO_LARGE" } }
   // One body: the photo, then (when declared) its JPEG thumbnail. Both verified before anything exists.
-  const bytes = raw.subarray(0, declared - thumbBytes)
-  const thumb = thumbBytes ? raw.subarray(declared - thumbBytes) : null
+  const received = raw.subarray(0, declared - thumbBytes)
+  const receivedThumb = thumbBytes ? raw.subarray(declared - thumbBytes) : null
 
   let inspection
   let thumbInspection = null
+  let bytes: Uint8Array
+  let thumb: Uint8Array | null = null
   try {
+    // Browsers' canvas encoders always embed a colour profile (Chrome: JPEG APP2 ICC, WebP ICCP), so "send it already
+    // clean" can never be met by a real browser. The gateway strips every metadata carrier itself with the pipeline's
+    // structural stripper, verifies the result is clean, and from here on only the stripped bytes exist: they are what
+    // is hashed, stored and registered. Orientation is never stripped silently: anything but 1 is refused.
+    bytes = sanitized(received, mime, {
+      maxFileBytes: MVP_SIMPLE_MEDIA_LIMITS.maxFileBytes,
+      maxPixels: MVP_SIMPLE_MEDIA_LIMITS.maxPixels,
+      maxEdge: MVP_SIMPLE_MEDIA_LIMITS.maxEdge,
+    })
     inspection = verifyNormalizedImage(bytes, mime, {
       maxFileBytes: MVP_SIMPLE_MEDIA_LIMITS.maxFileBytes,
       maxPixels: MVP_SIMPLE_MEDIA_LIMITS.maxPixels,
       maxEdge: MVP_SIMPLE_MEDIA_LIMITS.maxEdge,
     })
-    if (thumb) {
-      thumbInspection = verifyNormalizedImage(thumb, "image/jpeg", {
-        maxFileBytes: MEDIA_THUMBNAIL_MAX_BYTES, maxPixels: MEDIA_THUMBNAIL_MAX_EDGE * MEDIA_THUMBNAIL_MAX_EDGE,
-        maxEdge: MEDIA_THUMBNAIL_MAX_EDGE,
-      })
+    if (receivedThumb) {
+      const limits = { maxFileBytes: MEDIA_THUMBNAIL_MAX_BYTES, maxPixels: MEDIA_THUMBNAIL_MAX_EDGE * MEDIA_THUMBNAIL_MAX_EDGE,
+        maxEdge: MEDIA_THUMBNAIL_MAX_EDGE }
+      thumb = sanitized(receivedThumb, "image/jpeg", limits)
+      thumbInspection = verifyNormalizedImage(thumb, "image/jpeg", limits)
     }
   } catch (error) {
     const code = error instanceof MediaImageError ? error.code : "MEDIA_CONTENT_CORRUPT"
@@ -377,7 +399,7 @@ export async function mediaUrls(request: MediaUrlsRequest, contract: MediaContra
     if (!outcome.ok) return refusal(outcome)
     for (const entry of Array.isArray(outcome.data) ? outcome.data : []) {
       const { assetId, objectName } = (entry ?? {}) as Record<string, unknown>
-      if (typeof assetId === "string" && ids.has(assetId) && typeof objectName === "string" && OBJECT_NAME.test(objectName)) {
+      if (typeof assetId === "string" && ids.has(assetId) && typeof objectName === "string" && READ_OBJECT_NAME.test(objectName)) {
         targets.push({ assetId, kind, objectName })
       }
     }
