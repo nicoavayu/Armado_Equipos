@@ -67,6 +67,7 @@ const expectedCanonicalMigrations = [
   '20261010131000_core_survey_server_finalization.sql',
   '20261010132000_core_friend_request_acceptance.sql',
   '20261010133000_core_match_access_code.sql',
+  '20261010134000_core_partidos_template_link.sql',
 ];
 
 const exitWithError = (message) => {

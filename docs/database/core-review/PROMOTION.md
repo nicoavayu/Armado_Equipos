@@ -26,6 +26,7 @@ por código, jugador sin cuenta). Por eso la web puede salir antes que la base.
 | `20261010131000_core_survey_server_finalization` | cierre, resultados, premios, avisos e historial de encuestas desde el servidor (pg_cron cada 5 min, mismas reglas que la app) | cierra encuestas vencidas que hoy quedan abiertas; idempotente |
 | `20261010132000_core_friend_request_acceptance` | sólo el destinatario acepta una solicitud de amistad | la app ya funciona así |
 | `20261010133000_core_match_access_code` | vistas y descubrimiento muestran el código sólo al admin y al plantel; `get_match_access_codes` | apps instaladas no leen códigos ajenos de esas vistas |
+| `20261010134000_core_partidos_template_link` | `partidos.template_id` (FK a `partidos_frecuentes`, sólo plantilla propia): el historial de frecuentes deja de estar siempre vacío | ninguno (columna nueva y opcional); **verificar antes en Producción** que la columna no exista con otro tipo: `select column_name, data_type from information_schema.columns where table_schema='public' and table_name='partidos' and column_name in ('template_id','from_frequent_match_id');` |
 
 **Nota 125000:** con la web nueva publicada, las páginas públicas (votación por link,
 invitación de invitado) ya leen por código. Una build nativa vieja abierta **sin sesión**
@@ -90,3 +91,4 @@ tiendas; fase B de `usuarios` y de `partidos.codigo` (`phase-b-partidos-access-c
 - 131000: `select cron.unschedule('survey_finalization_backend_scheduler');` (las funciones pueden quedar; la app sigue cerrando como antes).
 - 132000: `drop trigger trg_amigos_request_rules on public.amigos;` y recrear `amigos_insert_sender` sin `status = 'pending'`.
 - 133000: recrear las tres vistas con `p.codigo` (definición previa en el baseline) y `drop function public.get_match_access_codes(bigint[])`.
+- 134000: `drop trigger partidos_template_owner on public.partidos; drop function app_private.tg_partidos_template_owner(); alter table public.partidos drop column template_id;` (se pierden los vínculos creados desde entonces).
