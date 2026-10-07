@@ -10,8 +10,33 @@ import PageTransition from '../components/PageTransition';
 import ConfirmModal from '../components/ConfirmModal';
 import TeamsDnDEditor from '../components/TeamsDnDEditor';
 import SurveyImportantDisclaimer from '../components/survey/SurveyImportantDisclaimer';
-import { getInitials } from '../components/AvatarFallback';
-import { Check, Loader2 } from 'lucide-react';
+import SurveyStepHeader from '../components/survey/SurveyStepHeader';
+import SurveyQuestion from '../components/survey/SurveyQuestion';
+import SurveyYesNo from '../components/survey/SurveyYesNo';
+import SurveyPlayerGrid from '../components/survey/SurveyPlayerGrid';
+import SurveyActionBar, { SurveyRosterStack, SurveySelectionSummary } from '../components/survey/SurveyActionBar';
+import SurveySavedCelebration from '../components/survey/SurveySavedCelebration';
+import { surveyHaptic } from '../components/survey/surveyHaptics';
+import '../components/survey/surveyMotion.css';
+import {
+  CalendarCheck,
+  CalendarDays,
+  Check,
+  CircleHelp,
+  ClipboardX,
+  Clock3,
+  CloudRain,
+  Hand,
+  Loader2,
+  MapPin,
+  ShieldCheck,
+  Shuffle,
+  Star,
+  TriangleAlert,
+  Trophy,
+  UserX,
+  UsersRound,
+} from 'lucide-react';
 import {
   finalizeIfComplete,
   hasExistingSurveyResponse,
@@ -98,6 +123,12 @@ const NOT_PLAYED_REASON_OPTIONS = [
     description: 'Cierra la encuesta sin continuar el flujo del partido jugado.',
   },
 ];
+
+const NOT_PLAYED_REASON_ICONS = {
+  absence_without_notice: UserX,
+  weather_or_pitch: CloudRain,
+  organization_issues: ClipboardX,
+};
 
 const getViewportMetrics = () => {
   if (typeof window === 'undefined') {
@@ -760,6 +791,9 @@ const EncuestaPartido = () => {
   // SÍ/NO answers show as chosen only after the person taps them (defaults are not answers).
   const [answeredChoices, setAnsweredChoices] = useState({});
   const markAnswered = (field) => setAnsweredChoices((prev) => (prev[field] ? prev : { ...prev, [field]: true }));
+  // Steps already answered on this path, to go back and change an answer.
+  const [stepHistory, setStepHistory] = useState([]);
+  const [stepDirection, setStepDirection] = useState('forward');
   const [partido, setPartido] = useState(null);
   const [teamsConfirmed, setTeamsConfirmed] = useState(false);
   const [confirmedTeams, setConfirmedTeams] = useState({ teamA: [], teamB: [] });
@@ -900,6 +934,11 @@ const EncuestaPartido = () => {
       setChallengeSurveyName('');
       setChallengeSurveyTeamLabels({ teamA: 'Equipo A', teamB: 'Equipo B' });
       setCurrentStep(SURVEY_STEPS.PLAYED);
+      setStepHistory([]);
+      setStepDirection('forward');
+      setAnsweredChoices({});
+      setSubmittedNow(false);
+      setSubmitError('');
       setFormData({ ...DEFAULT_FORM_DATA });
       setLinkedPlayerId(null);
       setLinkedPlayerIds([]);
@@ -1585,6 +1624,24 @@ const EncuestaPartido = () => {
 
   const handleInputChange = (field, value) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
+  };
+
+  // Forward moves remember where they came from, so "atrás" returns to the previous
+  // question of this path with its answer still selected.
+  const goToStep = (nextStep) => {
+    setStepHistory((prev) => [...prev, currentStep]);
+    setStepDirection('forward');
+    setSubmitError('');
+    setCurrentStep(nextStep);
+  };
+
+  const goBack = () => {
+    if (submitInFlightRef.current || stepHistory.length === 0) return;
+    const previousStep = stepHistory[stepHistory.length - 1];
+    setStepHistory(stepHistory.slice(0, -1));
+    setStepDirection('back');
+    setSubmitError('');
+    setCurrentStep(previousStep);
   };
 
   const toggleJugadorAusente = (jugadorId) => {
@@ -2472,7 +2529,7 @@ const EncuestaPartido = () => {
         return;
       }
 
-      setCurrentStep(SURVEY_STEPS.RESULT);
+      goToStep(SURVEY_STEPS.RESULT);
     } catch (error) {
       trace?.end({ status: 'error', reason: 'persist_teams_exception' });
       handleError(error, { showToast: false, onError: () => { } });
@@ -2487,7 +2544,7 @@ const EncuestaPartido = () => {
     if (!selectedNotPlayedReason || submitInFlightRef.current || submitting || encuestaFinalizada) return;
 
     if (selectedNotPlayedReason.value === 'absence_without_notice') {
-      setCurrentStep(SURVEY_STEPS.NOT_PLAYED_ABSENTS);
+      goToStep(SURVEY_STEPS.NOT_PLAYED_ABSENTS);
       return;
     }
 
@@ -2532,34 +2589,17 @@ const EncuestaPartido = () => {
     boxSizing: 'border-box',
   };
   const cardClass = `w-full max-w-[1180px] mx-auto h-full min-h-0 px-2.5 sm:px-4 ${isCompressedLayout ? 'pb-3 sm:pb-4' : 'pb-5 sm:pb-6'} flex flex-col overflow-hidden`;
-  const stepClass = `w-full flex-1 min-h-0 flex flex-col items-center justify-center ${isTightLayout ? 'gap-1 sm:gap-1.5 pb-0 sm:pb-0.5' : isCompressedLayout ? 'gap-1.5 sm:gap-2 pb-1 sm:pb-1.5' : 'gap-2 sm:gap-3 pb-1.5 sm:pb-2'}`;
-  const playerStepClass = `w-full flex-1 min-h-0 flex flex-col items-center justify-between gap-0 ${isCompressedLayout ? 'pb-0 sm:pb-1' : 'pb-1 sm:pb-1.5'}`;
-  const questionRowClass = 'w-full shrink-0 flex items-center justify-center pt-0';
-  const progressRowClass = `sticky top-0 z-40 w-full shrink-0 ${isCompressedLayout ? 'pt-1 sm:pt-1.5' : 'pt-1.5 sm:pt-2'}`;
   const progressGapClass = `w-full shrink-0 ${isTightLayout ? 'h-4 sm:h-5' : isCompressedLayout ? 'h-5 sm:h-6' : 'h-7 sm:h-8'}`;
   const progressActionsClass = `w-full shrink-0 flex items-start justify-end ${isTightLayout ? 'h-9 pt-1.5 sm:h-10' : isCompressedLayout ? 'h-10 pt-2 sm:h-11' : 'h-11 pt-2.5 sm:h-12'}`;
-  const contentRowClass = 'w-full flex-1 min-h-0 flex items-center justify-center overflow-visible';
-  const playerContentRowClass = `w-full flex-1 min-h-0 flex items-center justify-center overflow-visible ${isTightLayout ? 'pt-2 sm:pt-3 pb-1 sm:pb-1.5' : isCompressedLayout ? 'pt-3 sm:pt-4 pb-2 sm:pb-3' : 'pt-5 sm:pt-6 pb-3 sm:pb-4'}`;
-  const actionRowClass = `w-full shrink-0 flex items-center justify-center ${isTightLayout ? 'pt-1.5 sm:pt-2' : isCompressedLayout ? 'pt-2 sm:pt-3' : 'pt-3 sm:pt-4'}`;
-  const playerActionRowClass = `w-full shrink-0 flex items-center justify-center ${isTightLayout ? 'pt-1.5 sm:pt-2' : isCompressedLayout ? 'pt-2 sm:pt-2.5' : 'pt-2.5 sm:pt-3.5'}`;
   const logoRowClass = 'hidden';
   const titleClass = `font-bebas text-white font-bold text-center uppercase drop-shadow-[0_8px_18px_rgba(6,9,36,0.42)] break-words w-full px-1 ${isTightLayout ? 'text-[clamp(24px,5.6vw,42px)] tracking-[0.04em] leading-[0.95]' : isCompressedLayout ? 'text-[clamp(26px,6vw,48px)] tracking-[0.045em] leading-[0.95]' : 'text-[clamp(28px,6.2vw,54px)] tracking-[0.05em] leading-[0.95]'}`;
   const surveyBtnBaseClass = `w-full border border-[rgba(148,134,255,0.35)] bg-white/[0.08] text-white font-bebas text-center cursor-pointer transition-[opacity,background-color,border-color,transform] duration-200 ease-out hover:bg-white/[0.14] active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/85 focus-visible:ring-offset-2 focus-visible:ring-offset-[#1c1442] flex items-center justify-center rounded-2xl tracking-[0.08em] shadow-[inset_0_1px_0_rgba(255,255,255,0.18),0_12px_30px_rgba(8,6,30,0.32)] disabled:opacity-55 disabled:cursor-not-allowed ${isTightLayout ? 'text-[18px] sm:text-[20px] py-2 min-h-[46px]' : isCompressedLayout ? 'text-[19px] sm:text-[22px] py-2 min-h-[48px]' : 'text-[20px] sm:text-[24px] py-2.5 min-h-[52px]'}`;
   const btnClass = `${surveyBtnBaseClass} font-bold uppercase !border-white/20 !bg-cta-gradient hover:!brightness-105 !shadow-cta`;
   const optionBtnClass = `${surveyBtnBaseClass} uppercase`;
   const optionBtnSelectedClass = '!bg-[rgba(106,67,255,0.42)] !border-[#a78bfa] shadow-[inset_0_1px_0_rgba(255,255,255,0.3),0_16px_30px_rgba(54,32,140,0.45),0_0_18px_rgba(106,67,255,0.3)]';
-  const compactPrimaryBtnClass = `${btnClass} !w-auto ${isTightLayout ? '!min-w-[128px] sm:!min-w-[150px] !px-4 sm:!px-5' : isCompressedLayout ? '!min-w-[136px] sm:!min-w-[160px] !px-4 sm:!px-5' : '!min-w-[146px] sm:!min-w-[176px] !px-5 sm:!px-6'}`;
-  const compactSecondaryBtnClass = `${optionBtnClass} !w-full !min-h-[50px] !py-2 !px-4 bg-white/[0.07] border-white/24 shadow-[inset_0_1px_0_rgba(255,255,255,0.16),0_8px_16px_rgba(7,10,35,0.22)]`;
   const resultSecondaryBtnClass = `${optionBtnClass} !w-auto ${isTightLayout ? '!min-h-[44px] !py-1.5 !px-4 sm:!px-5' : isCompressedLayout ? '!min-h-[46px] !py-2 !px-4 sm:!px-5' : '!min-h-[48px] !py-2 !px-5 sm:!px-6'}`;
-  const compactButtonRowClass = 'w-full max-w-[760px] mx-auto flex items-center justify-center';
-  const compactDualButtonRowClass = `w-full max-w-[760px] mx-auto flex items-center justify-center ${isCompressedLayout ? 'gap-2 sm:gap-2.5' : 'gap-2.5 sm:gap-3'}`;
-  const gridClass = `grid grid-cols-2 w-full max-w-[920px] mx-auto ${isCompressedLayout ? 'gap-2 sm:gap-2.5' : 'gap-3'}`;
-  const textClass = `text-white font-oswald text-center font-normal tracking-wide ${isCompressedLayout ? 'text-[16px] md:text-[18px]' : 'text-[18px] md:text-[20px]'}`;
-  const actionDockClass = 'w-full max-w-[980px] mx-auto flex flex-col gap-1';
   const centeredSummaryStackClass = `w-full flex-1 min-h-0 flex flex-col items-center justify-center ${isCompressedLayout ? 'gap-4 sm:gap-5' : 'gap-5 sm:gap-6'}`;
   const centeredSummaryButtonWrapClass = 'w-full max-w-[460px] sm:max-w-[500px] mx-auto';
-  const miniCardsStageClass = `w-full max-h-full min-h-0 overflow-y-auto overscroll-contain flex items-start justify-center ${isTightLayout ? 'px-1.5 sm:px-2 pb-1 sm:pb-1.5' : isCompressedLayout ? 'px-2 sm:px-2.5 pb-1.5 sm:pb-2' : 'px-2 sm:px-3 pb-2 sm:pb-3'}`;
-  const notPlayedReasonListClass = `w-full max-w-[760px] mx-auto flex flex-col ${isCompressedLayout ? 'gap-2 sm:gap-2.5' : 'gap-3 sm:gap-3.5'}`;
   const selectedNotPlayedReason = NOT_PLAYED_REASON_OPTIONS.find((option) => option.value === formData.motivo_no_jugado) || null;
   const notPlayedPrimaryButtonLabel = selectedNotPlayedReason?.value === 'absence_without_notice' ? 'Continuar' : 'Finalizar';
 
@@ -2592,17 +2632,7 @@ const EncuestaPartido = () => {
   const progressCurrentStep = currentStep === SURVEY_STEPS.DONE
     ? progressTotalSteps
     : Math.max(currentFlowIndex + 1, 1);
-  const progressFillScale = Math.min(Math.max(progressCurrentStep / progressTotalSteps, 0), 1);
-  const progressFillPercent = Math.round(progressFillScale * 100);
-  const [animatedProgressPercent, setAnimatedProgressPercent] = useState(progressFillPercent);
-
-  useEffect(() => {
-    const animationFrame = window.requestAnimationFrame(() => {
-      setAnimatedProgressPercent(progressFillPercent);
-    });
-
-    return () => window.cancelAnimationFrame(animationFrame);
-  }, [progressFillPercent]);
+  const canGoBack = stepHistory.length > 0 && !submitting && currentStep !== SURVEY_STEPS.DONE;
 
   const surveyMatchLabel = (isTeamChallengeSurvey && challengeSurveyName) ? challengeSurveyName : (partido?.nombre || '');
 
@@ -2636,41 +2666,6 @@ const EncuestaPartido = () => {
     );
   };
 
-  // What (this match's survey), how much is left (step N of M) and the way out, in one row.
-  const renderStepProgress = () => (
-    <div className={progressRowClass}>
-      <div className="flex items-center justify-between gap-3">
-        <div className="min-w-0 flex-1">
-          <span className="section-eyebrow !mb-0 truncate">
-            {surveyMatchLabel ? `Encuesta · ${surveyMatchLabel}` : 'Encuesta del partido'}
-          </span>
-          <div className="mt-0.5 font-oswald text-[12px] tabular-nums text-white/65" aria-live="polite">
-            {currentStep === SURVEY_STEPS.DONE ? 'Encuesta completa' : `Paso ${progressCurrentStep} de ${progressTotalSteps}`}
-          </div>
-        </div>
-        {renderExitSurveyButton({ inline: true })}
-      </div>
-      <div
-        className="mt-2 h-[3px] w-full overflow-hidden rounded-full bg-white/14 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.12)]"
-        role="progressbar"
-        aria-label="Avance de la encuesta"
-        aria-valuemin={0}
-        aria-valuemax={progressTotalSteps}
-        aria-valuenow={progressCurrentStep}
-      >
-        <div
-          className="h-full origin-left rounded-full transition-[width] duration-[280ms] ease-out"
-          style={{
-            width: `${animatedProgressPercent}%`,
-            background:
-              'linear-gradient(90deg, rgba(139,92,255,0.9) 0%, rgba(176,160,255,0.85) 55%, rgba(236,0,125,0.85) 100%)',
-            boxShadow: '0 0 8px rgba(139,92,255,0.35)',
-          }}
-        />
-      </div>
-    </div>
-  );
-
   // Busy label for the buttons that save: the tap is acknowledged at once, and nothing
   // says "done" until the answer is stored.
   const renderSaveButtonLabel = (label) => (submitting ? (
@@ -2687,204 +2682,38 @@ const EncuestaPartido = () => {
     </p>
   ) : null);
 
-  const resolveAdaptiveGridConfig = (playerCount, ratio, height) => {
-    const safeCount = Math.max(playerCount || 1, 1);
-    const safeHeight = Math.max(height || 0, 1);
-    const isWideViewport = ratio >= 0.95;
-    const isShortViewport = safeHeight <= 860;
-    const isVeryShortViewport = safeHeight <= 760;
-    let columns;
-    let rows;
+  const surveyStepPlayer = (uuid) => (uuid ? jugadores.find((player) => player.uuid === uuid) || null : null);
 
-    if (safeCount <= 10) {
-      columns = isWideViewport ? 4 : 3;
-      if (!isWideViewport && isShortViewport && safeCount >= 8) {
-        columns += 1;
-      }
-      rows = Math.ceil(safeCount / columns);
-    } else if (safeCount <= 14) {
-      columns = isWideViewport ? 5 : 4;
-      if (!isWideViewport && isShortViewport) {
-        columns += 1;
-      }
-      rows = Math.max(isVeryShortViewport ? 2 : 3, Math.ceil(safeCount / columns));
-    } else if (safeCount <= 22) {
-      columns = isWideViewport ? 6 : 5;
-      if (!isWideViewport && isShortViewport) {
-        columns += 1;
-      }
-      rows = Math.max(isVeryShortViewport ? 3 : 4, Math.ceil(safeCount / columns));
-    } else {
-      columns = isWideViewport ? 7 : 6;
-      if (!isWideViewport && isVeryShortViewport) {
-        columns += 1;
-      }
-      rows = Math.ceil(safeCount / columns);
+  // What was saved, said back on the final screen (only what this path asked).
+  const buildSurveyRecap = () => {
+    const recap = [];
+    const outcome = resolveSurveyOutcome();
+    const absentCount = (formData.jugadores_ausentes || []).length;
+    if (!outcome.seJugo) {
+      recap.push({ label: '¿Se jugó?', value: 'No' });
+      if (selectedNotPlayedReason) recap.push({ label: 'Motivo', value: selectedNotPlayedReason.label });
+      if (absentCount > 0) recap.push({ label: 'Faltaron', value: `${absentCount} ${absentCount === 1 ? 'jugador' : 'jugadores'}` });
+      return recap;
     }
-
-    while (rows * columns < safeCount) {
-      rows += 1;
+    const mvpPlayer = surveyStepPlayer(formData.mvp_id);
+    if (mvpPlayer) recap.push({ label: 'Mejor jugador', value: mvpPlayer.nombre, player: mvpPlayer });
+    const goalkeeper = surveyStepPlayer(formData.arquero_id);
+    if (goalkeeper) recap.push({ label: 'Mejor arquero', value: goalkeeper.nombre, player: goalkeeper });
+    else if (formData.sin_arquero_fijo) recap.push({ label: 'Mejor arquero', value: 'No hubo' });
+    if (absentCount > 0) recap.push({ label: 'Faltaron', value: `${absentCount} ${absentCount === 1 ? 'jugador' : 'jugadores'}` });
+    if (mvpPlayer || goalkeeper || formData.sin_arquero_fijo) {
+      const dirtyCount = (formData.jugadores_violentos || []).length;
+      recap.push({
+        label: 'Partido limpio',
+        value: formData.partido_limpio || dirtyCount === 0 ? 'Sí' : `No · ${dirtyCount} ${dirtyCount === 1 ? 'marcado' : 'marcados'}`,
+      });
     }
-
-    const gap = isVeryShortViewport
-      ? safeCount >= 22 ? 4 : safeCount >= 14 ? 5 : 6
-      : isShortViewport
-        ? safeCount >= 22 ? 5 : safeCount >= 14 ? 6 : 7
-        : safeCount >= 22 ? 6 : safeCount >= 14 ? 8 : 9;
-    // Names sit under the photo (not over it): readable sizes, two lines at most.
-    const nameSizeClass = safeCount >= 22
-      ? 'text-[10px] sm:text-[11px]'
-      : safeCount >= 14 || isVeryShortViewport
-        ? 'text-[11px] sm:text-[12px]'
-        : 'text-[12px] sm:text-[14px]';
-    const gridMaxWidth = safeCount <= 10
-      ? (isWideViewport ? 980 : isShortViewport ? 860 : 760)
-      : safeCount <= 14
-        ? (isWideViewport ? 1060 : isShortViewport ? 940 : 840)
-        : (isWideViewport ? 1160 : isShortViewport ? 1020 : 920);
-    const gridPadding = isVeryShortViewport ? '2px' : isShortViewport ? '3px 2px' : '4px 3px';
-
-    return {
-      rows,
-      columns,
-      gap,
-      nameSizeClass,
-      gridMaxWidth,
-      gridPadding,
-    };
-  };
-
-  const renderMiniPlayerCards = ({
-    isSelected,
-    onSelect,
-  }) => {
-    const playerCount = jugadores.length;
-    const adaptiveGrid = resolveAdaptiveGridConfig(playerCount, viewportRatio, viewportHeight);
-    const hasSelection = jugadores.some((candidate) => isSelected(candidate.uuid));
-    const renderGrid = ({
-      players,
-      gridConfig,
-      keyPrefix,
-      gridMaxWidth = null,
-    }) => {
-      // Square photos (cropped to the face, never letterboxed) with the full name below:
-      // cards keep their proportion instead of stretching to fill the screen height.
-      const cardMaxWidth = viewportRatio >= 0.95 ? 150 : 132;
-      const resolvedMaxWidth = gridMaxWidth
-        ?? (gridConfig.columns * cardMaxWidth) + ((gridConfig.columns - 1) * gridConfig.gap);
-      const initialsSizeClass = gridConfig.columns <= 4
-        ? 'text-[22px] sm:text-[30px]'
-        : gridConfig.columns === 5 ? 'text-[18px] sm:text-[24px]' : 'text-[15px] sm:text-[20px]';
-      return (
-        <div
-          className="mx-auto grid w-full content-center"
-          style={{
-            gridTemplateColumns: `repeat(${gridConfig.columns}, minmax(0, 1fr))`,
-            gap: `${gridConfig.gap}px`,
-            maxWidth: `${resolvedMaxWidth}px`,
-            padding: gridConfig.gridPadding,
-          }}
-        >
-          {players.map((jugador, index) => {
-            const selected = isSelected(jugador.uuid);
-            const photoUrl = jugador.avatar_url || jugador.foto_url || null;
-            // The entrance animation lives on the wrapper: on the button its fill would
-            // override the dimmed opacity and the press scale.
-            return (
-              <div key={`${keyPrefix}${jugador.uuid}`} className="a2-rise min-w-0" style={{ animationDelay: `${Math.min(index * 12, 120)}ms` }}>
-              <button
-                type="button"
-                aria-pressed={selected}
-                aria-label={jugador.nombre}
-                title={jugador.nombre}
-                onClick={() => onSelect(jugador.uuid)}
-                className={`group relative flex w-full min-w-0 flex-col overflow-hidden rounded-2xl border text-left transition-[transform,opacity,border-color,box-shadow] duration-200 ease-out active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/85 focus-visible:ring-offset-2 focus-visible:ring-offset-[#1c1442] ${
-                  selected
-                    ? 'z-10 border-[#a78bfa] bg-[rgba(106,67,255,0.3)] shadow-[0_0_0_1px_rgba(167,139,250,0.9),0_0_22px_rgba(139,92,255,0.45)]'
-                    : 'border-[rgba(148,134,255,0.26)] bg-surface-gradient shadow-elev-1'
-                } ${hasSelection && !selected ? 'opacity-60' : 'opacity-100'}`}
-              >
-                <span className="relative block aspect-square w-full overflow-hidden bg-[#151037]">
-                  {photoUrl ? (
-                    <img
-                      src={photoUrl}
-                      alt=""
-                      className="h-full w-full object-cover"
-                      style={{ objectPosition: '50% 30%' }}
-                      loading="lazy"
-                      draggable={false}
-                    />
-                  ) : (
-                    <span
-                      className={`flex h-full w-full items-center justify-center bg-gradient-to-br from-blue-500 to-purple-600 font-bold uppercase text-white ${initialsSizeClass}`}
-                      aria-hidden="true"
-                    >
-                      {getInitials(jugador.nombre)}
-                    </span>
-                  )}
-                  {selected ? (
-                    <span className="a2-pop absolute right-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-accent text-white shadow-glow-accent" aria-hidden="true">
-                      <Check size={14} strokeWidth={3} />
-                    </span>
-                  ) : null}
-                </span>
-                <span
-                  className={`flex min-h-[2.5em] w-full items-center justify-center px-1.5 py-1 text-center font-oswald font-semibold leading-tight text-white ${gridConfig.nameSizeClass}`}
-                >
-                  <span className="line-clamp-2 break-words">{jugador.nombre}</span>
-                </span>
-              </button>
-              </div>
-            );
-          })}
-        </div>
-      );
-    };
-
-    if (challengeSurveyPlayerSections.length > 0) {
-      return (
-        <div className={`${miniCardsStageClass} items-stretch`}>
-          <div className="w-full h-full min-h-0 max-w-[980px] overflow-y-auto overscroll-contain pr-1">
-            <div className={`mx-auto flex min-h-full w-full flex-col ${isTightLayout ? 'gap-2.5' : isCompressedLayout ? 'gap-3' : 'gap-4'}`}>
-              {challengeSurveyPlayerSections.map((section, index) => {
-                const sectionGrid = resolveAdaptiveGridConfig(
-                  section.players.length,
-                  viewportRatio,
-                  Math.max(viewportHeight - (isTightLayout ? 300 : isCompressedLayout ? 340 : 380), 360),
-                );
-                return (
-                  <div key={section.key} className="w-full min-h-0">
-                    <div className={`flex items-center gap-3 ${index > 0 ? 'pt-1' : ''}`}>
-                      <span className={`shrink-0 font-bebas uppercase tracking-[0.08em] text-white/88 ${isTightLayout ? 'text-[16px]' : isCompressedLayout ? 'text-[17px]' : 'text-[18px]'}`}>
-                        {section.label}
-                      </span>
-                      <span className="h-px flex-1 bg-white/14" />
-                    </div>
-                    <div className={isTightLayout ? 'pt-1.5' : isCompressedLayout ? 'pt-2' : 'pt-2.5'}>
-                      {renderGrid({
-                        players: section.players,
-                        gridConfig: sectionGrid,
-                        keyPrefix: `${section.key}-`,
-                      })}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-      );
-    }
-
-    return (
-      <div className={miniCardsStageClass}>
-        {renderGrid({
-          players: jugadores,
-          gridConfig: adaptiveGrid,
-          keyPrefix: 'all-',
-        })}
-      </div>
-    );
+    const teamALabel = isTeamChallengeSurvey ? challengeSurveyTeamLabels.teamA : 'Equipo A';
+    const teamBLabel = isTeamChallengeSurvey ? challengeSurveyTeamLabels.teamB : 'Equipo B';
+    if (formData.ganador === 'equipo_a') recap.push({ label: 'Resultado', value: `Ganó ${teamALabel}` });
+    else if (formData.ganador === 'equipo_b') recap.push({ label: 'Resultado', value: `Ganó ${teamBLabel}` });
+    else if (formData.ganador === 'empate') recap.push({ label: 'Resultado', value: 'Empate' });
+    return recap;
   };
 
   if (loading) {
@@ -2990,36 +2819,32 @@ const EncuestaPartido = () => {
         <div className="relative h-[100dvh] w-full overflow-hidden">
           <div className="absolute inset-0 overflow-hidden" style={screenBackgroundStyle} />
           <div className="relative z-[1] h-full w-full overflow-hidden" style={safeAreaStyle}>
-            <div className={cardClass}>
-              {renderExitSurveyButton({ immediate: true }) || <div className={progressGapClass} />}
-              <div className={`${centeredSummaryStackClass} a2-rise`}>
-                <div className="w-full flex flex-col items-center gap-4">
-                  {submittedNow ? (
-                    <span className="a2-pop a2-success-glow flex h-16 w-16 items-center justify-center rounded-full border border-[rgba(167,139,250,0.6)] bg-[rgba(106,67,255,0.3)] text-white" aria-hidden="true">
-                      <Check size={32} strokeWidth={2.75} />
-                    </span>
-                  ) : null}
-                  <h1 className="font-bebas text-[30px] md:text-[44px] text-white tracking-[0.04em] font-bold text-center leading-[1.05] uppercase drop-shadow-md break-words w-full">
-                    {submittedNow ? '¡GRACIAS POR CALIFICAR!' : (<>YA COMPLETASTE<br />LA ENCUESTA</>)}
-                  </h1>
-                </div>
-                <div role="status" className="text-white text-[18px] md:text-[22px] font-oswald text-center font-normal tracking-wide leading-[1.25]">
-                  {submittedNow ? 'Tus respuestas quedaron guardadas.' : '¡Gracias por tu participación!'}
-                </div>
-                {submittedNow ? (
-                  <div className="-mt-2 text-white/72 text-[15px] md:text-[17px] font-oswald text-center leading-snug">
-                    Los resultados se publicarán en ~{SURVEY_WINDOW_HOURS} horas.
-                  </div>
-                ) : null}
-                <div className={centeredSummaryButtonWrapClass}>
-                  <button className={btnClass} onClick={() => navigate('/')}>
-                    VOLVER AL INICIO
-                  </button>
-                </div>
-                <div className={logoRowClass}>
-                  <SurveyFooterLogo />
-                </div>
-              </div>
+            <div className="mx-auto flex h-full w-full max-w-[520px] flex-col overflow-y-auto px-3.5 pb-4">
+              <SurveyStepHeader
+                matchLabel={surveyMatchLabel}
+                stepNumber={progressTotalSteps}
+                stepCount={progressTotalSteps}
+                isDone
+                onClose={() => navigateBackFromSurvey()}
+              />
+              {submittedNow ? (
+                <SurveySavedCelebration
+                  justSaved
+                  title="¡GRACIAS POR CALIFICAR!"
+                  message="Tus respuestas quedaron guardadas."
+                  detail={`Los resultados se publicarán en ~${SURVEY_WINDOW_HOURS} horas.`}
+                  recap={buildSurveyRecap()}
+                  onHome={() => navigate('/')}
+                  buttonClassName={btnClass}
+                />
+              ) : (
+                <SurveySavedCelebration
+                  title={<>YA COMPLETASTE<br />LA ENCUESTA</>}
+                  message="¡Gracias por tu participación!"
+                  onHome={() => navigate('/')}
+                  buttonClassName={btnClass}
+                />
+              )}
             </div>
           </div>
         </div>
@@ -3070,624 +2895,581 @@ const EncuestaPartido = () => {
     );
   }
 
-  return (
-    <PageTransition>
-      <div className="relative h-[100dvh] w-full overflow-hidden">
-        <div className="absolute inset-0 overflow-hidden" style={screenBackgroundStyle} />
-        <div className="relative z-[1] h-full w-full overflow-hidden" style={safeAreaStyle}>
-          <div className={cardClass}>
-            {renderStepProgress()}
-            <div className={isCompressedLayout ? 'h-2 shrink-0' : 'h-4 shrink-0'} />
-          {/* STEP 0: ¿SE JUGÓ? */}
-          {currentStep === SURVEY_STEPS.PLAYED && (
-            <div className={`${stepClass} !justify-start a2-rise`}>
-              <div className="w-full flex-1 min-h-0 flex flex-col items-center justify-center">
-                <div className={questionRowClass}>
-                  <div className="w-full">
-                    <h1 id="survey-step-title" className={titleClass}>
-                      ¿SE JUGÓ EL PARTIDO?
-                    </h1>
-                    {isTeamChallengeSurvey && challengeSurveyName ? (
-                      <div className={`text-center font-oswald leading-tight text-white ${isCompressedLayout ? 'mt-1 text-[16px] md:text-[18px]' : 'mt-1.5 text-[18px] md:text-[21px]'}`}>
-                        Desafío: {challengeSurveyName}
-                      </div>
-                    ) : null}
-                    <div className={`text-white font-oswald text-center font-normal tracking-wide ${isCompressedLayout ? 'mt-1.5 text-[15px] md:text-[18px]' : 'mt-2 text-[17px] md:text-[20px]'}`}>
-                      {formatFecha(partido.fecha)}<br />
-                      {partido.hora && `${partido.hora} - `}{partido.sede ? partido.sede.split(/[,(]/)[0].trim() : 'Sin ubicación'}
-                    </div>
+  const surveyShellClass = 'mx-auto flex h-full w-full max-w-[520px] flex-col px-3.5';
+  const stepContentClass = 'flex min-h-0 flex-1 flex-col';
+  // Long lists scroll under a soft fade instead of a hard edge above the buttons.
+  const scrollAreaClass = 'min-h-0 flex-1 overflow-y-auto overscroll-contain px-0.5 pb-8 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [mask-image:linear-gradient(to_bottom,#000_calc(100%-32px),transparent)]';
+  const secondaryActionClass = `${optionBtnClass} !w-auto shrink-0 !px-5`;
+  const questionTopClass = isCompressedLayout ? 'shrink-0 pt-3.5' : 'shrink-0 pt-5';
+  const sectionsForGrid = challengeSurveyPlayerSections.length > 0 ? challengeSurveyPlayerSections : null;
+
+  const renderPlayersStep = ({
+    icon,
+    title,
+    hint,
+    isSelected,
+    onSelect,
+    multiple = false,
+    selectedPlayers = [],
+    emptyLabel,
+    actions,
+    withError = false,
+  }) => (
+    <>
+      <div className={questionTopClass}>
+        <SurveyQuestion icon={icon} title={title} hint={hint} compact />
+      </div>
+      <div className={`${scrollAreaClass} pt-4`}>
+        <SurveyPlayerGrid
+          players={jugadores}
+          sections={sectionsForGrid}
+          isSelected={isSelected}
+          onSelect={onSelect}
+          multiple={multiple}
+        />
+      </div>
+      <SurveyActionBar
+        summary={<SurveySelectionSummary players={selectedPlayers} emptyLabel={emptyLabel} />}
+        error={withError ? renderSubmitError() : null}
+      >
+        {actions}
+      </SurveyActionBar>
+    </>
+  );
+
+  const renderStepBody = () => {
+    switch (currentStep) {
+      case SURVEY_STEPS.PLAYED:
+        return (
+          <>
+            <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-4 overflow-y-auto pt-2">
+              <SurveyQuestion
+                icon={CalendarCheck}
+                title="¿SE JUGÓ EL PARTIDO?"
+                hint="Son pocos pasos y tu voto define los premios del partido."
+                compact={isCompressedLayout}
+              >
+                {isTeamChallengeSurvey && challengeSurveyName ? (
+                  <p className="mt-1 font-oswald text-[15px] text-white/90">Desafío: {challengeSurveyName}</p>
+                ) : null}
+              </SurveyQuestion>
+              <div className="a2-survey-rise surface-card w-full max-w-[420px] px-4 py-3" style={{ animationDelay: '120ms' }}>
+                <dl className="flex flex-col gap-2 font-oswald text-[14px] text-white/90">
+                  <div className="flex items-center gap-2.5">
+                    <dt className="sr-only">Fecha</dt>
+                    <CalendarDays size={17} className="shrink-0 text-[#b9a6ff]" aria-hidden="true" />
+                    <dd className="first-letter:uppercase">{formatFecha(partido.fecha)}</dd>
                   </div>
-                </div>
-                <div className={actionRowClass}>
-                  <div className={gridClass} role="group" aria-labelledby="survey-step-title">
-                    <button
-                      className={`${optionBtnClass} ${answeredChoices.se_jugo && formData.se_jugo === true ? optionBtnSelectedClass : ''}`}
-                      aria-pressed={Boolean(answeredChoices.se_jugo && formData.se_jugo === true)}
-                      onClick={() => {
-                        markAnswered('se_jugo');
-                        handleInputChange('se_jugo', true);
-                        handleInputChange('motivo_no_jugado', '');
-                        if (formData.ganador === 'no_jugado') {
-                          handleInputChange('ganador', '');
-                        }
-                        setCurrentStep(
-                          compactFlowMode
-                            ? resolveNextResultGateStep({
-                              teamsConfirmed,
-                              teamsLocked,
-                              forceOrganizeTeamsStep: shouldForceOrganizeTeamsStep,
-                              disableOrganizeTeamsStep: shouldDisableTeamReorganization,
-                            })
-                            : SURVEY_STEPS.ATTENDANCE,
-                        );
-                      }}
-                      type="button"
-                    >
-                      SÍ
-                    </button>
-                    <button
-                      className={`${optionBtnClass} ${answeredChoices.se_jugo && formData.se_jugo === false ? optionBtnSelectedClass : ''}`}
-                      aria-pressed={Boolean(answeredChoices.se_jugo && formData.se_jugo === false)}
-                      onClick={() => {
-                        markAnswered('se_jugo');
-                        handleInputChange('se_jugo', false);
-                        handleInputChange('ganador', 'no_jugado');
-                        handleInputChange('motivo_no_jugado', '');
-                        handleInputChange('jugadores_ausentes', []);
-                        setCurrentStep(SURVEY_STEPS.NOT_PLAYED_REASON);
-                      }}
-                      type="button"
-                    >
-                      NO
-                    </button>
-                  </div>
-                </div>
-              </div>
-              <div className={`w-full shrink-0 ${isCompressedLayout ? 'pt-2 sm:pt-3 pb-0.5 sm:pb-1' : 'pt-3 sm:pt-4 pb-1.5 sm:pb-2'}`}>
-                <SurveyImportantDisclaimer className="mx-auto w-full max-w-[820px]" />
-              </div>
-              <div className={logoRowClass}>
-                <SurveyFooterLogo />
-              </div>
-            </div>
-          )}
-
-          {/* STEP 1: ¿ASISTIERON TODOS? */}
-          {currentStep === SURVEY_STEPS.ATTENDANCE && (
-            <div className={`${stepClass} a2-rise`}>
-              <div className={questionRowClass}>
-                <h1 id="survey-step-title" className={titleClass}>
-                  ¿ASISTIERON TODOS?
-                </h1>
-              </div>
-              <div className={actionRowClass}>
-                <div className={gridClass} role="group" aria-labelledby="survey-step-title">
-                  <button
-                    className={optionBtnClass}
-                    onClick={() => {
-                      handleInputChange('asistieron_todos', true);
-                      setCurrentStep(SURVEY_STEPS.MVP);
-                    }}
-                    type="button"
-                  >
-                    SÍ
-                  </button>
-                  <button
-                    className={optionBtnClass}
-                    onClick={() => {
-                      handleInputChange('asistieron_todos', false);
-                      setCurrentStep(SURVEY_STEPS.ABSENTS);
-                    }}
-                    type="button"
-                  >
-                    NO
-                  </button>
-                </div>
-              </div>
-              <div className={logoRowClass}>
-                <SurveyFooterLogo />
-              </div>
-            </div>
-          )}
-
-          {/* STEP 2: MVP */}
-          {currentStep === SURVEY_STEPS.MVP && (
-            <div className={`${playerStepClass} a2-rise`}>
-              <div className={questionRowClass}>
-                <h1 id="survey-step-title" className={titleClass}>
-                  ¿QUIÉN FUE EL MEJOR JUGADOR?
-                </h1>
-              </div>
-              <div className={playerContentRowClass}>
-                {renderMiniPlayerCards({
-                  isSelected: (uuid) => formData.mvp_id === uuid,
-                  onSelect: (uuid) => handleInputChange('mvp_id', uuid),
-                })}
-              </div>
-              <div className={playerActionRowClass}>
-                <div className={compactButtonRowClass}>
-                  <button
-                    className={compactPrimaryBtnClass}
-                    onClick={() => setCurrentStep(SURVEY_STEPS.GOALKEEPER)}
-                    disabled={!formData.mvp_id}
-                  >
-                    SIGUIENTE
-                  </button>
-                </div>
-              </div>
-              <div className={logoRowClass}>
-                <SurveyFooterLogo />
-              </div>
-            </div>
-          )}
-
-          {/* STEP 3: ARQUERO */}
-          {currentStep === SURVEY_STEPS.GOALKEEPER && (
-            <div className={`${playerStepClass} a2-rise`}>
-              <div className={questionRowClass}>
-                <h1 id="survey-step-title" className={titleClass}>
-                  ¿QUIÉN FUE EL MEJOR ARQUERO?
-                </h1>
-              </div>
-              <div className={playerContentRowClass}>
-                {renderMiniPlayerCards({
-                  isSelected: (uuid) => formData.arquero_id === uuid,
-                  onSelect: (uuid) => {
-                    handleInputChange('arquero_id', uuid);
-                    handleInputChange('sin_arquero_fijo', false);
-                  },
-                })}
-              </div>
-              <div className={playerActionRowClass}>
-                <div className={compactDualButtonRowClass}>
-                  <button
-                    type="button"
-                    className={`${compactPrimaryBtnClass} ${formData.sin_arquero_fijo && !formData.arquero_id ? optionBtnSelectedClass : ''}`}
-                    onClick={() => {
-                      handleInputChange('arquero_id', '');
-                      handleInputChange('sin_arquero_fijo', true);
-                      setCurrentStep(SURVEY_STEPS.CLEAN_MATCH);
-                    }}
-                  >
-                    NO HUBO
-                  </button>
-                  <button
-                    className={compactPrimaryBtnClass}
-                    onClick={() => setCurrentStep(SURVEY_STEPS.CLEAN_MATCH)}
-                    disabled={!formData.arquero_id && !formData.sin_arquero_fijo}
-                  >
-                    SIGUIENTE
-                  </button>
-                </div>
-              </div>
-              <div className={logoRowClass}>
-                <SurveyFooterLogo />
-              </div>
-            </div>
-          )}
-
-          {/* STEP 4: ¿PARTIDO LIMPIO? */}
-          {currentStep === SURVEY_STEPS.CLEAN_MATCH && (
-            <div className={`${stepClass} a2-rise`}>
-              <div className={questionRowClass}>
-                <h1 id="survey-step-title" className={titleClass}>
-                  ¿FUE UN PARTIDO LIMPIO?
-                </h1>
-              </div>
-              <div className={actionRowClass}>
-                <div className={gridClass} role="group" aria-labelledby="survey-step-title">
-                  <button
-                    className={`${optionBtnClass} ${answeredChoices.partido_limpio && formData.partido_limpio === true ? optionBtnSelectedClass : ''}`}
-                    aria-pressed={Boolean(answeredChoices.partido_limpio && formData.partido_limpio === true)}
-                    onClick={() => {
-                      markAnswered('partido_limpio');
-                      handleInputChange('partido_limpio', true);
-                      setCurrentStep(resolveNextResultGateStep({
-                        teamsConfirmed,
-                        teamsLocked,
-                        forceOrganizeTeamsStep: shouldForceOrganizeTeamsStep,
-                        disableOrganizeTeamsStep: shouldDisableTeamReorganization,
-                      }));
-                    }}
-                    type="button"
-                  >
-                    SÍ
-                  </button>
-                  <button
-                    className={`${optionBtnClass} ${answeredChoices.partido_limpio && formData.partido_limpio === false ? optionBtnSelectedClass : ''}`}
-                    aria-pressed={Boolean(answeredChoices.partido_limpio && formData.partido_limpio === false)}
-                    onClick={() => {
-                      markAnswered('partido_limpio');
-                      handleInputChange('partido_limpio', false);
-                      setCurrentStep(SURVEY_STEPS.DIRTY_PLAYERS);
-                    }}
-                    type="button"
-                  >
-                    NO
-                  </button>
-                </div>
-              </div>
-              <div className={logoRowClass}>
-                <SurveyFooterLogo />
-              </div>
-            </div>
-          )}
-
-          {/* STEP 5: ¿QUIÉN GANÓ? */}
-          {currentStep === SURVEY_STEPS.RESULT && (
-            <div className={`${stepClass} a2-rise`}>
-              <div className={questionRowClass}>
-                <div className="w-full">
-                  <h1 id="survey-step-title" className={titleClass}>
-                    ¿QUIÉN GANÓ?
-                  </h1>
-                  {!isTeamChallengeSurvey && (
-                    <div className="mt-2 text-center font-oswald text-[13px] leading-snug text-white/75 md:text-[14px]">
-                      {teamsContextLabel}
-                    </div>
-                  )}
-                  {finalTeams.teamA.length > 0 && finalTeams.teamB.length > 0 ? (
-                    <div className="mt-1 text-center font-oswald text-[13px] leading-snug text-white/90 md:text-[14px]">
-                      Tocá el equipo que ganó o marcá empate.
+                  {partido.hora ? (
+                    <div className="flex items-center gap-2.5">
+                      <dt className="sr-only">Hora</dt>
+                      <Clock3 size={17} className="shrink-0 text-[#b9a6ff]" aria-hidden="true" />
+                      <dd>{partido.hora}</dd>
                     </div>
                   ) : null}
-                </div>
-              </div>
-              <div className={`${contentRowClass} items-start`}>
-                <div className="w-full max-w-[760px] mx-auto">
-                  {finalTeams.teamA.length > 0 && finalTeams.teamB.length > 0 ? (
-                    <div className="w-full space-y-3">
-                      <TeamsDnDEditor
-                        teamA={finalTeams.teamA}
-                        teamB={finalTeams.teamB}
-                        playersByKey={playersByKey}
-                        teamALabel={isTeamChallengeSurvey ? challengeSurveyTeamLabels.teamA : 'Equipo A'}
-                        teamBLabel={isTeamChallengeSurvey ? challengeSurveyTeamLabels.teamB : 'Equipo B'}
-                        selectedWinner={formData.ganador}
-                        onWinnerChange={(winner) => {
-                          handleInputChange('ganador', winner);
-                          handleInputChange('se_jugo', true);
-                          closeSurveyModal();
-                        }}
-                        allowWinnerSelectionWhenDisabled={finalTeamsValidation.ok}
-                        disabled={true}
-                        onChange={() => {}}
-                      />
-                    </div>
-                  ) : (
-                    <div className="h-[2px] w-full" />
-                  )}
-
-                  <div className="mt-6 sm:mt-7 flex flex-wrap items-center justify-center gap-2.5 sm:gap-3">
-                    <button
-                      type="button"
-                      className={`${resultSecondaryBtnClass} ${formData.ganador === 'empate' ? optionBtnSelectedClass : ''}`}
-                      onClick={() => {
-                        handleInputChange('ganador', 'empate');
-                        handleInputChange('se_jugo', true);
-                        closeSurveyModal();
-                      }}
-                    >
-                      EMPATE
-                    </button>
+                  <div className="flex items-center gap-2.5">
+                    <dt className="sr-only">Lugar</dt>
+                    <MapPin size={17} className="shrink-0 text-[#b9a6ff]" aria-hidden="true" />
+                    <dd className="min-w-0 truncate">{partido.sede ? partido.sede.split(/[,(]/)[0].trim() : 'Sin ubicación'}</dd>
                   </div>
-                </div>
+                </dl>
               </div>
-              <div className={actionRowClass}>
-                <div className={actionDockClass}>
-                  <button
-                    className={btnClass}
-                    onClick={handleSubmit}
-                    disabled={submitting || encuestaFinalizada || !formData.ganador}
-                    aria-busy={submitting}
-                  >
-                    {renderSaveButtonLabel('FINALIZAR ENCUESTA')}
-                  </button>
-                  {renderSubmitError()}
-                </div>
-              </div>
-              <div className={logoRowClass}>
-                <SurveyFooterLogo />
-              </div>
+              <SurveyImportantDisclaimer variant="survey" className="a2-survey-rise w-full max-w-[420px]" />
             </div>
-          )}
-
-          {/* STEP 6: JUGADORES VIOLENTOS */}
-          {currentStep === SURVEY_STEPS.DIRTY_PLAYERS && (
-            <div className={`${playerStepClass} a2-rise`}>
-              <div className={questionRowClass}>
-                <h1 id="survey-step-title" className={titleClass}>
-                  ¿QUIÉN JUGÓ SUCIO?
-                </h1>
-              </div>
-              <div className={playerContentRowClass}>
-                {renderMiniPlayerCards({
-                  isSelected: (uuid) => formData.jugadores_violentos.includes(uuid),
-                  onSelect: (uuid) => toggleJugadorViolento(uuid),
-                })}
-              </div>
-              <div className={playerActionRowClass}>
-                <div className={compactButtonRowClass}>
-                  <button
-                    className={compactPrimaryBtnClass}
-                    onClick={() => {
-                      setCurrentStep(resolveNextResultGateStep({
+            <SurveyActionBar>
+              <SurveyYesNo
+                value={answeredChoices.se_jugo ? (formData.se_jugo ? 'yes' : 'no') : null}
+                onYes={() => {
+                  markAnswered('se_jugo');
+                  handleInputChange('se_jugo', true);
+                  handleInputChange('motivo_no_jugado', '');
+                  if (formData.ganador === 'no_jugado') {
+                    handleInputChange('ganador', '');
+                  }
+                  goToStep(
+                    compactFlowMode
+                      ? resolveNextResultGateStep({
                         teamsConfirmed,
                         teamsLocked,
                         forceOrganizeTeamsStep: shouldForceOrganizeTeamsStep,
                         disableOrganizeTeamsStep: shouldDisableTeamReorganization,
-                      }));
-                    }}
-                    disabled={formData.jugadores_violentos.length === 0}
-                  >
-                    SIGUIENTE
-                  </button>
-                </div>
-              </div>
-              <div className={logoRowClass}>
-                <SurveyFooterLogo />
+                      })
+                      : SURVEY_STEPS.ATTENDANCE,
+                  );
+                }}
+                onNo={() => {
+                  markAnswered('se_jugo');
+                  handleInputChange('se_jugo', false);
+                  handleInputChange('ganador', 'no_jugado');
+                  handleInputChange('motivo_no_jugado', '');
+                  handleInputChange('jugadores_ausentes', []);
+                  goToStep(SURVEY_STEPS.NOT_PLAYED_REASON);
+                }}
+              />
+            </SurveyActionBar>
+          </>
+        );
+
+      case SURVEY_STEPS.ATTENDANCE:
+        return (
+          <>
+            <div className="flex min-h-0 flex-1 flex-col items-center justify-center">
+              <SurveyQuestion
+                icon={UsersRound}
+                title="¿ASISTIERON TODOS?"
+                hint="Si faltó alguien, lo marcás en el paso siguiente."
+                compact={isCompressedLayout}
+              />
+              <div className="mt-6">
+                <SurveyRosterStack players={jugadores} />
               </div>
             </div>
-          )}
+            <SurveyActionBar>
+              <SurveyYesNo
+                value={answeredChoices.asistieron_todos ? (formData.asistieron_todos ? 'yes' : 'no') : null}
+                onYes={() => {
+                  markAnswered('asistieron_todos');
+                  handleInputChange('asistieron_todos', true);
+                  // Coming back to change NO → SÍ: nobody is absent anymore.
+                  handleInputChange('jugadores_ausentes', []);
+                  goToStep(SURVEY_STEPS.MVP);
+                }}
+                onNo={() => {
+                  markAnswered('asistieron_todos');
+                  handleInputChange('asistieron_todos', false);
+                  goToStep(SURVEY_STEPS.ABSENTS);
+                }}
+              />
+            </SurveyActionBar>
+          </>
+        );
 
-          {/* STEP 7: ORGANIZAR EQUIPOS */}
-          {currentStep === SURVEY_STEPS.ORGANIZE_TEAMS && (
-            <div className={`${stepClass} !justify-start ${isCompressedLayout ? 'pt-1 sm:pt-2' : 'pt-2 sm:pt-4'} a2-rise`}>
-              <div className={questionRowClass}>
-                <div className="w-full">
-                  <h1 id="survey-step-title" className={titleClass}>
-                    {shouldShowWinnerSelectionInOrganizeStep ? '¿Quién ganó el partido?' : 'ARMÁ LOS EQUIPOS COMO FINALMENTE SE JUGÓ'}
-                  </h1>
-                  <div className={`text-center font-oswald leading-snug text-white/75 ${isCompressedLayout ? 'mt-1.5 text-[12px] md:text-[13px]' : 'mt-2 text-[13px] md:text-[14px]'}`}>
-                    {shouldShowWinnerSelectionInOrganizeStep ? friendlyOrganizeAndResultHelperText : organizeTeamsHelperText}
-                  </div>
-                </div>
-              </div>
-              <div className={`w-full flex-1 min-h-0 flex items-center justify-center ${isCompressedLayout ? 'pt-1.5 sm:pt-2' : 'pt-2 sm:pt-3'}`}>
-                <div className="w-full max-w-[760px] mx-auto">
+      case SURVEY_STEPS.MVP:
+        return renderPlayersStep({
+          icon: Star,
+          title: '¿QUIÉN FUE EL MEJOR JUGADOR?',
+          hint: 'Elegí uno. Podés cambiarlo antes de seguir.',
+          isSelected: (uuid) => formData.mvp_id === uuid,
+          onSelect: (uuid) => handleInputChange('mvp_id', uuid),
+          selectedPlayers: [surveyStepPlayer(formData.mvp_id)],
+          emptyLabel: 'Tocá a un jugador',
+          actions: (
+            <button
+              type="button"
+              className={btnClass}
+              onClick={() => goToStep(SURVEY_STEPS.GOALKEEPER)}
+              disabled={!formData.mvp_id}
+            >
+              SIGUIENTE
+            </button>
+          ),
+        });
+
+      case SURVEY_STEPS.GOALKEEPER:
+        return renderPlayersStep({
+          icon: Hand,
+          title: '¿QUIÉN FUE EL MEJOR ARQUERO?',
+          hint: 'Elegí uno, o «No hubo» si no hubo arquero fijo.',
+          isSelected: (uuid) => formData.arquero_id === uuid,
+          onSelect: (uuid) => {
+            handleInputChange('arquero_id', uuid);
+            handleInputChange('sin_arquero_fijo', false);
+          },
+          selectedPlayers: [surveyStepPlayer(formData.arquero_id)],
+          emptyLabel: 'Tocá a un jugador',
+          actions: (
+            <>
+              <button
+                type="button"
+                className={`${secondaryActionClass} ${formData.sin_arquero_fijo && !formData.arquero_id ? optionBtnSelectedClass : ''}`}
+                onClick={() => {
+                  handleInputChange('arquero_id', '');
+                  handleInputChange('sin_arquero_fijo', true);
+                  goToStep(SURVEY_STEPS.CLEAN_MATCH);
+                }}
+              >
+                NO HUBO
+              </button>
+              <button
+                type="button"
+                className={btnClass}
+                onClick={() => goToStep(SURVEY_STEPS.CLEAN_MATCH)}
+                disabled={!formData.arquero_id && !formData.sin_arquero_fijo}
+              >
+                SIGUIENTE
+              </button>
+            </>
+          ),
+        });
+
+      case SURVEY_STEPS.CLEAN_MATCH:
+        return (
+          <>
+            <div className="flex min-h-0 flex-1 flex-col items-center justify-center">
+              <SurveyQuestion
+                icon={ShieldCheck}
+                title="¿FUE UN PARTIDO LIMPIO?"
+                hint="Si respondés NO, marcás quién jugó sucio."
+                compact={isCompressedLayout}
+              />
+            </div>
+            <SurveyActionBar>
+              <SurveyYesNo
+                value={answeredChoices.partido_limpio ? (formData.partido_limpio ? 'yes' : 'no') : null}
+                onYes={() => {
+                  markAnswered('partido_limpio');
+                  handleInputChange('partido_limpio', true);
+                  // Coming back to change NO → SÍ: nobody is marked as dirty anymore.
+                  handleInputChange('jugadores_violentos', []);
+                  goToStep(resolveNextResultGateStep({
+                    teamsConfirmed,
+                    teamsLocked,
+                    forceOrganizeTeamsStep: shouldForceOrganizeTeamsStep,
+                    disableOrganizeTeamsStep: shouldDisableTeamReorganization,
+                  }));
+                }}
+                onNo={() => {
+                  markAnswered('partido_limpio');
+                  handleInputChange('partido_limpio', false);
+                  goToStep(SURVEY_STEPS.DIRTY_PLAYERS);
+                }}
+              />
+            </SurveyActionBar>
+          </>
+        );
+
+      case SURVEY_STEPS.RESULT:
+        return (
+          <>
+            <div className={`${scrollAreaClass} pt-2`}>
+              <SurveyQuestion
+                icon={Trophy}
+                title="¿QUIÉN GANÓ?"
+                hint={finalTeams.teamA.length > 0 && finalTeams.teamB.length > 0
+                  ? 'Tocá el equipo que ganó o marcá empate.'
+                  : 'Marcá el resultado del partido.'}
+                compact
+              >
+                {!isTeamChallengeSurvey ? (
+                  <p className="mt-1 max-w-[34ch] font-oswald text-[12.5px] leading-snug text-white/58">{teamsContextLabel}</p>
+                ) : null}
+              </SurveyQuestion>
+              <div className="mt-4 w-full">
+                {finalTeams.teamA.length > 0 && finalTeams.teamB.length > 0 ? (
                   <TeamsDnDEditor
                     teamA={finalTeams.teamA}
                     teamB={finalTeams.teamB}
                     playersByKey={playersByKey}
                     teamALabel={isTeamChallengeSurvey ? challengeSurveyTeamLabels.teamA : 'Equipo A'}
                     teamBLabel={isTeamChallengeSurvey ? challengeSurveyTeamLabels.teamB : 'Equipo B'}
-                    selectedWinner={shouldShowWinnerSelectionInOrganizeStep ? formData.ganador : ''}
+                    selectedWinner={formData.ganador}
                     onWinnerChange={(winner) => {
-                      if (!shouldShowWinnerSelectionInOrganizeStep) return;
+                      surveyHaptic('light');
                       handleInputChange('ganador', winner);
                       handleInputChange('se_jugo', true);
                       closeSurveyModal();
                     }}
-                    onChange={(next) => {
-                      if (shouldDisableTeamReorganization) return;
-                      setFinalTeams(next);
+                    allowWinnerSelectionWhenDisabled={finalTeamsValidation.ok}
+                    disabled={true}
+                    onChange={() => {}}
+                  />
+                ) : null}
+                <div className="mt-4 flex items-center justify-center">
+                  <button
+                    type="button"
+                    aria-pressed={formData.ganador === 'empate'}
+                    className={`${resultSecondaryBtnClass} ${formData.ganador === 'empate' ? `${optionBtnSelectedClass} a2-survey-pop` : ''}`}
+                    onClick={() => {
+                      surveyHaptic('light');
+                      handleInputChange('ganador', 'empate');
+                      handleInputChange('se_jugo', true);
                       closeSurveyModal();
                     }}
-                    disabled={shouldDisableTeamReorganization}
-                  />
+                  >
+                    EMPATE
+                  </button>
+                </div>
+              </div>
+            </div>
+            <SurveyActionBar error={renderSubmitError()}>
+              <button
+                type="button"
+                className={btnClass}
+                onClick={handleSubmit}
+                disabled={submitting || encuestaFinalizada || !formData.ganador}
+                aria-busy={submitting}
+              >
+                {renderSaveButtonLabel('FINALIZAR ENCUESTA')}
+              </button>
+            </SurveyActionBar>
+          </>
+        );
 
-                  {shouldShowWinnerSelectionInOrganizeStep ? (
-                    <div className={`w-full flex items-center justify-center ${isCompressedLayout ? 'pt-3 sm:pt-4' : 'pt-4 sm:pt-5'}`}>
+      case SURVEY_STEPS.DIRTY_PLAYERS:
+        return renderPlayersStep({
+          icon: TriangleAlert,
+          title: '¿QUIÉN JUGÓ SUCIO?',
+          hint: 'Podés marcar más de uno.',
+          isSelected: (uuid) => formData.jugadores_violentos.includes(uuid),
+          onSelect: (uuid) => toggleJugadorViolento(uuid),
+          multiple: true,
+          selectedPlayers: formData.jugadores_violentos.map(surveyStepPlayer),
+          emptyLabel: 'Marcá a uno o más jugadores',
+          actions: (
+            <button
+              type="button"
+              className={btnClass}
+              onClick={() => {
+                goToStep(resolveNextResultGateStep({
+                  teamsConfirmed,
+                  teamsLocked,
+                  forceOrganizeTeamsStep: shouldForceOrganizeTeamsStep,
+                  disableOrganizeTeamsStep: shouldDisableTeamReorganization,
+                }));
+              }}
+              disabled={formData.jugadores_violentos.length === 0}
+            >
+              SIGUIENTE
+            </button>
+          ),
+        });
+
+      case SURVEY_STEPS.ORGANIZE_TEAMS:
+        return (
+          <>
+            <div className={`${scrollAreaClass} pt-2`}>
+              <SurveyQuestion
+                icon={shouldShowWinnerSelectionInOrganizeStep ? Trophy : Shuffle}
+                title={shouldShowWinnerSelectionInOrganizeStep ? '¿Quién ganó el partido?' : 'ARMÁ LOS EQUIPOS COMO FINALMENTE SE JUGÓ'}
+                hint={shouldShowWinnerSelectionInOrganizeStep ? friendlyOrganizeAndResultHelperText : organizeTeamsHelperText}
+                compact
+              />
+              <div className="mt-4 w-full">
+                <TeamsDnDEditor
+                  teamA={finalTeams.teamA}
+                  teamB={finalTeams.teamB}
+                  playersByKey={playersByKey}
+                  teamALabel={isTeamChallengeSurvey ? challengeSurveyTeamLabels.teamA : 'Equipo A'}
+                  teamBLabel={isTeamChallengeSurvey ? challengeSurveyTeamLabels.teamB : 'Equipo B'}
+                  selectedWinner={shouldShowWinnerSelectionInOrganizeStep ? formData.ganador : ''}
+                  onWinnerChange={(winner) => {
+                    if (!shouldShowWinnerSelectionInOrganizeStep) return;
+                    surveyHaptic('light');
+                    handleInputChange('ganador', winner);
+                    handleInputChange('se_jugo', true);
+                    closeSurveyModal();
+                  }}
+                  onChange={(next) => {
+                    if (shouldDisableTeamReorganization) return;
+                    setFinalTeams(next);
+                    closeSurveyModal();
+                  }}
+                  disabled={shouldDisableTeamReorganization}
+                />
+                {shouldShowWinnerSelectionInOrganizeStep ? (
+                  <div className="mt-4 flex items-center justify-center">
+                    <button
+                      type="button"
+                      aria-pressed={formData.ganador === 'empate'}
+                      className={`${resultSecondaryBtnClass} !min-w-[170px] ${formData.ganador === 'empate' ? `${optionBtnSelectedClass} a2-survey-pop` : ''}`}
+                      onClick={() => {
+                        surveyHaptic('light');
+                        handleInputChange('ganador', 'empate');
+                        handleInputChange('se_jugo', true);
+                        closeSurveyModal();
+                      }}
+                    >
+                      Empate
+                    </button>
+                  </div>
+                ) : null}
+              </div>
+            </div>
+            <SurveyActionBar error={renderSubmitError()}>
+              <button
+                type="button"
+                className={btnClass}
+                onClick={handleLockTeamsAndContinue}
+                aria-busy={submitting}
+                disabled={
+                  submitting
+                  || encuestaFinalizada
+                  || (shouldShowWinnerSelectionInOrganizeStep && !['equipo_a', 'equipo_b', 'empate'].includes(formData.ganador))
+                }
+              >
+                {renderSaveButtonLabel(shouldShowWinnerSelectionInOrganizeStep ? 'FINALIZAR ENCUESTA' : 'CONTINUAR')}
+              </button>
+            </SurveyActionBar>
+          </>
+        );
+
+      case SURVEY_STEPS.NOT_PLAYED_REASON:
+        return (
+          <>
+            <div className={`${scrollAreaClass} pt-4`}>
+              <SurveyQuestion
+                icon={CircleHelp}
+                title="¿QUÉ PASÓ?"
+                hint="Elegí el motivo para cerrar la encuesta."
+                compact
+              />
+              <div className="mt-5 flex w-full flex-col gap-2.5" role="radiogroup" aria-labelledby="survey-step-title">
+                {NOT_PLAYED_REASON_OPTIONS.map((option, index) => {
+                  const isSelected = selectedNotPlayedReason?.value === option.value;
+                  const OptionIcon = NOT_PLAYED_REASON_ICONS[option.value] || CircleHelp;
+                  return (
+                    <div key={option.value} className="a2-survey-rise" style={{ animationDelay: `${80 + (index * 60)}ms` }}>
                       <button
                         type="button"
-                        className={`${resultSecondaryBtnClass} !min-w-[170px] ${formData.ganador === 'empate' ? optionBtnSelectedClass : ''}`}
+                        role="radio"
+                        aria-checked={isSelected}
+                        className={`flex w-full items-center gap-3.5 rounded-[20px] border px-4 py-4 text-left transition-[transform,background-color,border-color,box-shadow] duration-200 ease-out active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/85 ${
+                          isSelected
+                            ? 'a2-survey-pop border-[#b9a6ff] bg-[rgba(106,67,255,0.34)] shadow-[0_0_0_1px_rgba(185,166,255,0.6),0_14px_30px_rgba(54,32,140,0.45)]'
+                            : 'border-[rgba(148,134,255,0.24)] bg-surface-gradient shadow-elev-1'
+                        }`}
                         onClick={() => {
-                          handleInputChange('ganador', 'empate');
-                          handleInputChange('se_jugo', true);
-                          closeSurveyModal();
+                          surveyHaptic('light');
+                          handleNotPlayedReasonSelect(option.value);
                         }}
                       >
-                        Empate
+                        <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] border ${isSelected ? 'border-white/40 bg-white/20' : 'border-white/12 bg-white/[0.06]'}`} aria-hidden="true">
+                          <OptionIcon size={22} strokeWidth={2.2} className="text-white" />
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block font-bebas text-[22px] leading-none tracking-[0.05em] text-white">{option.label}</span>
+                          <span className={`mt-1 block font-oswald text-[13px] leading-snug ${isSelected ? 'text-white/90' : 'text-white/64'}`}>{option.description}</span>
+                        </span>
+                        <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border ${isSelected ? 'border-accent bg-accent' : 'border-white/30'}`} aria-hidden="true">
+                          {isSelected ? <Check size={14} strokeWidth={3.2} className="text-white" /> : null}
+                        </span>
                       </button>
                     </div>
-                  ) : null}
-                </div>
-              </div>
-              <div className={`w-full shrink-0 flex items-center justify-center ${isCompressedLayout ? 'pb-1 sm:pb-1.5' : 'pb-2 sm:pb-2.5'} ${shouldShowWinnerSelectionInOrganizeStep ? (isCompressedLayout ? 'pt-5 sm:pt-6' : 'pt-8 sm:pt-10') : (isCompressedLayout ? 'pt-1.5 sm:pt-2' : 'pt-2 sm:pt-3')}`}>
-                <div className={actionDockClass}>
-                  <button
-                    className={btnClass}
-                    onClick={handleLockTeamsAndContinue}
-                    aria-busy={submitting}
-                    disabled={
-                      submitting
-                      || encuestaFinalizada
-                      || (shouldShowWinnerSelectionInOrganizeStep && !['equipo_a', 'equipo_b', 'empate'].includes(formData.ganador))
-                    }
-                  >
-                    {renderSaveButtonLabel(shouldShowWinnerSelectionInOrganizeStep ? 'FINALIZAR ENCUESTA' : 'CONTINUAR')}
-                  </button>
-                  {renderSubmitError()}
-                </div>
-              </div>
-              <div className={logoRowClass}>
-                <SurveyFooterLogo />
-              </div>
-            </div>
-          )}
-
-          {/* STEP 10: MOTIVO NO JUGADO */}
-          {currentStep === SURVEY_STEPS.NOT_PLAYED_REASON && (
-            <div className={`${stepClass} a2-rise`}>
-              <div className={questionRowClass}>
-                <div className="w-full">
-                  <h1 id="survey-step-title" className={titleClass}>
-                    ¿QUÉ PASÓ?
-                  </h1>
-                  <div className={`${textClass} ${isCompressedLayout ? 'mt-2 sm:mt-2.5' : 'mt-2.5 sm:mt-3'} text-white/82`}>
-                    Elegí el motivo para cerrar la encuesta.
-                  </div>
-                </div>
-              </div>
-              <div className={contentRowClass}>
-                <div className={notPlayedReasonListClass}>
-                  {NOT_PLAYED_REASON_OPTIONS.map((option) => {
-                    const isSelected = selectedNotPlayedReason?.value === option.value;
-                    return (
-                      <button
-                        key={option.value}
-                        type="button"
-                        className={`
-                          w-full text-left rounded-[16px] border transition-all duration-200
-                          ${isCompressedLayout ? 'px-4 py-4 sm:px-5 sm:py-4.5' : 'px-5 py-5 sm:px-6 sm:py-5.5'}
-                          ${isSelected
-                            ? 'border-[#a78bfa] bg-[rgba(106,67,255,0.35)] shadow-[inset_0_1px_0_rgba(255,255,255,0.3),0_16px_32px_rgba(54,32,140,0.4),0_0_18px_rgba(106,67,255,0.25)]'
-                            : 'border-[rgba(148,134,255,0.22)] bg-white/[0.06] shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_10px_24px_rgba(8,6,30,0.25)] hover:bg-white/[0.1] hover:border-[rgba(148,134,255,0.4)]'}
-                        `}
-                        onClick={() => handleNotPlayedReasonSelect(option.value)}
-                      >
-                        <div className="flex items-start justify-between gap-4">
-                          <div className="min-w-0">
-                            <div className={`font-bebas tracking-[0.05em] ${isCompressedLayout ? 'text-[24px] sm:text-[26px]' : 'text-[26px] sm:text-[30px]'} ${isSelected ? 'text-white' : 'text-white/92'}`}>
-                              {option.label}
-                            </div>
-                            <div className={`font-oswald leading-relaxed ${isCompressedLayout ? 'mt-1 text-[14px] sm:text-[15px]' : 'mt-1.5 text-[15px] sm:text-[16px]'} ${isSelected ? 'text-white/90' : 'text-white/68'}`}>
-                              {option.description}
-                            </div>
-                          </div>
-                          <div className={`mt-0.5 h-5 w-5 shrink-0 rounded-full border ${isSelected ? 'border-[#ec007d] bg-[#ec007d] shadow-[0_0_0_4px_rgba(236,0,125,0.18)]' : 'border-white/26 bg-transparent'}`} />
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-              <div className={actionRowClass}>
-                <div className={actionDockClass}>
-                  <button
-                    className={btnClass}
-                    type="button"
-                    onClick={handleNotPlayedPrimaryAction}
-                    disabled={!selectedNotPlayedReason || submitting || encuestaFinalizada}
-                    aria-busy={submitting}
-                  >
-                    {renderSaveButtonLabel(notPlayedPrimaryButtonLabel)}
-                  </button>
-                  {renderSubmitError()}
-                </div>
-              </div>
-              <div className={logoRowClass}>
-                <SurveyFooterLogo />
-              </div>
-            </div>
-          )}
-
-          {/* STEP 11: AUSENTES SIN AVISO (PARTIDO NO JUGADO) */}
-          {currentStep === SURVEY_STEPS.NOT_PLAYED_ABSENTS && (
-            <div className={`${playerStepClass} a2-rise`}>
-              <div className={questionRowClass}>
-                <div className="w-full">
-                  <h1 id="survey-step-title" className={titleClass}>
-                    ¿QUIÉNES FALTARON?
-                  </h1>
-                  <div className={`${textClass} ${isCompressedLayout ? 'mt-2 sm:mt-2.5' : 'mt-2.5 sm:mt-3'} text-white/82`}>
-                    Marcá uno o varios ausentes sin aviso. Después de confirmar, la encuesta termina.
-                  </div>
-                </div>
-              </div>
-              <div className={playerContentRowClass}>
-                {renderMiniPlayerCards({
-                  isSelected: (uuid) => formData.jugadores_ausentes.includes(uuid),
-                  onSelect: (uuid) => toggleJugadorAusente(uuid),
+                  );
                 })}
               </div>
-              <div className={playerActionRowClass}>
-                <div className={actionDockClass}>
-                  <button
-                    className={btnClass}
-                    onClick={handleSubmit}
-                    disabled={submitting || encuestaFinalizada || formData.jugadores_ausentes.length === 0}
-                    aria-busy={submitting}
-                  >
-                    {renderSaveButtonLabel('FINALIZAR')}
-                  </button>
-                  {renderSubmitError()}
-                </div>
-              </div>
-              <div className={logoRowClass}>
-                <SurveyFooterLogo />
-              </div>
             </div>
-          )}
+            <SurveyActionBar error={renderSubmitError()}>
+              <button
+                type="button"
+                className={btnClass}
+                onClick={handleNotPlayedPrimaryAction}
+                disabled={!selectedNotPlayedReason || submitting || encuestaFinalizada}
+                aria-busy={submitting}
+              >
+                {renderSaveButtonLabel(notPlayedPrimaryButtonLabel)}
+              </button>
+            </SurveyActionBar>
+          </>
+        );
 
-          {/* STEP 12: AUSENTES (PARTIDO JUGADO) */}
-          {currentStep === SURVEY_STEPS.ABSENTS && (
-            <div className={`${playerStepClass} a2-rise`}>
-              <div className={questionRowClass}>
-                <h1 id="survey-step-title" className={titleClass}>
-                  ¿QUIÉNES FALTARON?
-                </h1>
-              </div>
-              <div className={playerContentRowClass}>
-                {renderMiniPlayerCards({
-                  isSelected: (uuid) => formData.jugadores_ausentes.includes(uuid),
-                  onSelect: (uuid) => toggleJugadorAusente(uuid),
-                })}
-              </div>
-              <div className={playerActionRowClass}>
-                <div className={compactButtonRowClass}>
-                  <button
-                    className={compactPrimaryBtnClass}
-                    onClick={() => setCurrentStep(SURVEY_STEPS.MVP)}
-                    disabled={formData.jugadores_ausentes.length === 0}
-                  >
-                    SIGUIENTE
-                  </button>
-                </div>
-              </div>
-              <div className={logoRowClass}>
-                <SurveyFooterLogo />
-              </div>
-            </div>
-          )}
+      case SURVEY_STEPS.NOT_PLAYED_ABSENTS:
+        return renderPlayersStep({
+          icon: UserX,
+          title: '¿QUIÉNES FALTARON?',
+          hint: 'Marcá uno o varios ausentes sin aviso. Después de confirmar, la encuesta termina.',
+          isSelected: (uuid) => formData.jugadores_ausentes.includes(uuid),
+          onSelect: (uuid) => toggleJugadorAusente(uuid),
+          multiple: true,
+          selectedPlayers: formData.jugadores_ausentes.map(surveyStepPlayer),
+          emptyLabel: 'Marcá a quienes faltaron',
+          withError: true,
+          actions: (
+            <button
+              type="button"
+              className={btnClass}
+              onClick={handleSubmit}
+              disabled={submitting || encuestaFinalizada || formData.jugadores_ausentes.length === 0}
+              aria-busy={submitting}
+            >
+              {renderSaveButtonLabel('FINALIZAR')}
+            </button>
+          ),
+        });
 
-          {/* STEP 99: FINAL */}
-          {currentStep === SURVEY_STEPS.DONE && (
-            <div className={`${centeredSummaryStackClass} a2-rise`}>
-              <div className="w-full">
-                <h1 id="survey-step-title" className={titleClass}>
-                  ¡GRACIAS POR CALIFICAR!
-                </h1>
-              </div>
-              <div className={`${textClass} text-[26px] !mb-0`}>
-                Los resultados se publicarán en ~{SURVEY_WINDOW_HOURS} horas.
-              </div>
-              <div className={centeredSummaryButtonWrapClass}>
-                <button
-                  className={btnClass}
-                  onClick={() => navigate('/')}
-                >
-                  VOLVER AL INICIO
-                </button>
-              </div>
-              <div className={logoRowClass}>
-                <SurveyFooterLogo />
-              </div>
+      case SURVEY_STEPS.ABSENTS:
+        return renderPlayersStep({
+          icon: UserX,
+          title: '¿QUIÉNES FALTARON?',
+          hint: 'Podés marcar varios.',
+          isSelected: (uuid) => formData.jugadores_ausentes.includes(uuid),
+          onSelect: (uuid) => toggleJugadorAusente(uuid),
+          multiple: true,
+          selectedPlayers: formData.jugadores_ausentes.map(surveyStepPlayer),
+          emptyLabel: 'Marcá a quienes faltaron',
+          actions: (
+            <button
+              type="button"
+              className={btnClass}
+              onClick={() => goToStep(SURVEY_STEPS.MVP)}
+              disabled={formData.jugadores_ausentes.length === 0}
+            >
+              SIGUIENTE
+            </button>
+          ),
+        });
+
+      case SURVEY_STEPS.DONE:
+        return (
+          <SurveySavedCelebration
+            justSaved
+            title="¡GRACIAS POR CALIFICAR!"
+            message="Tus respuestas quedaron guardadas."
+            detail={`Los resultados se publicarán en ~${SURVEY_WINDOW_HOURS} horas.`}
+            recap={buildSurveyRecap()}
+            onHome={() => navigate('/')}
+            buttonClassName={btnClass}
+          />
+        );
+
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <PageTransition>
+      <div className="relative h-[100dvh] w-full overflow-hidden">
+        <div className="absolute inset-0 overflow-hidden" style={screenBackgroundStyle} />
+        <div className="relative z-[1] h-full w-full overflow-hidden" style={safeAreaStyle}>
+          <div className={surveyShellClass}>
+            <SurveyStepHeader
+              matchLabel={surveyMatchLabel}
+              stepNumber={progressCurrentStep}
+              stepCount={progressTotalSteps}
+              isDone={currentStep === SURVEY_STEPS.DONE}
+              onBack={canGoBack ? goBack : null}
+              onClose={currentStep === SURVEY_STEPS.DONE ? null : () => setExitSurveyModalOpen(true)}
+            />
+            <div
+              key={currentStep}
+              className={`${stepContentClass} ${stepDirection === 'back' ? 'a2-survey-step-back' : 'a2-survey-step-forward'}`}
+            >
+              {renderStepBody()}
             </div>
-          )}
+          </div>
         </div>
       </div>
-    </div>
-    <ConfirmModal
-      isOpen={surveyModal.isOpen}
-      title={surveyModal.title}
-      message={surveyModal.message}
-      confirmText="Aceptar"
-      singleButton={true}
-      onConfirm={closeSurveyModal}
-      onCancel={closeSurveyModal}
-      actionsAlign="center"
-    />
-    <ConfirmModal
-      isOpen={exitSurveyModalOpen}
-      title="Cerrar encuesta"
-      message="Si salís ahora, la encuesta va a quedar pendiente y vas a poder volver más tarde para completarla."
-      confirmText="Salir"
-      cancelText="Cancelar"
-      onConfirm={confirmExitSurvey}
-      onCancel={closeExitSurveyModal}
-      actionsAlign="center"
-    />
+      <ConfirmModal
+        isOpen={surveyModal.isOpen}
+        title={surveyModal.title}
+        message={surveyModal.message}
+        confirmText="Aceptar"
+        singleButton={true}
+        onConfirm={closeSurveyModal}
+        onCancel={closeSurveyModal}
+        actionsAlign="center"
+      />
+      <ConfirmModal
+        isOpen={exitSurveyModalOpen}
+        title="Cerrar encuesta"
+        message="Si salís ahora, la encuesta va a quedar pendiente y vas a poder volver más tarde para completarla."
+        confirmText="Salir"
+        cancelText="Cancelar"
+        onConfirm={confirmExitSurvey}
+        onCancel={closeExitSurveyModal}
+        actionsAlign="center"
+      />
     </PageTransition>
   );
 };
