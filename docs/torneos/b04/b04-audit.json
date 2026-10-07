@@ -1,12 +1,12 @@
 {
-  "generatedFrom": "2b22aadd42345b56192e9e594da2a0cc1a0ac805",
+  "generatedFrom": "203072a0dac18c166daa9cf7144b0d2168536749",
   "legacyBase": "2058da039a2a5eaaed22d87d01946bc596ae5f50",
   "coreSingletonSha256": "f39572e4cab0fd287bd1dea2ca87c97bd5500d0eff57cb8de6160f1e3271600c",
   "reachableCallSignatures": {
     "src/api/supabaseWrapper.js": "9efd37acfa411583ee3bcdc82e642cd82c84eda2eda019cca8b005acbcc57468",
     "src/components/AmigosView.js": "ec38209a1ed09f882d858c680081a8f97e8db97e9e7742e1f3646812d4a454b1",
     "src/components/ArmarEquiposView.js": "c7189e9df625b43f783e5dd39c7f3ae4dede40ec1d0a8489992f0d049364305d",
-    "src/components/AuthProvider.js": "0a0bf99f7b115f6e91124a6da817bc1fb96609bb71a8a0b7496b730c8bb68981",
+    "src/components/AuthProvider.js": "af1001ac71ec552e3da8f4dfac9976e1a8520440a1180b0d4317f9d411b79c78",
     "src/components/AutocompleteSede.js": "3c7e56bb3268df1a4125cac87f53eaaf5a9f554db228262c656f1997381282ed",
     "src/components/ChatButton.js": "8732c5255b31bbb78d56776f882cd5dda2fa6ddda3366f95273b6451ea78c129",
     "src/components/FifaHomeContent.js": "7eff02a8177cc63cdd15873ef9f89be9fb892a65a3c852e4d71c06c20134b90b",
