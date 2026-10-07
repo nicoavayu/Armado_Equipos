@@ -241,6 +241,142 @@ steps.retries = async () => {
   out({ step: 'retries', case: 'assets in the gallery after all of it', assets: Number(count), expected: 2 });
 };
 
+const DOCKER = '/Applications/Docker.app/Contents/Resources/bin/docker';
+async function labSql(sql) {
+  const { spawnSync } = await import('node:child_process');
+  const r = spawnSync(DOCKER, ['exec', '-i', 'arma2-promo-rehearsal-torneos-db-1', 'psql', '-U', 'supabase_admin', '-d', 'postgres', '-X', '-At', '-v', 'ON_ERROR_STOP=1'], { input: sql, encoding: 'utf8' });
+  if (r.status !== 0) throw new Error(`lab sql: ${(r.stderr || '').split('\n').filter((l) => l.startsWith('ERROR')).join(' ')}`);
+  return r.stdout.trim();
+}
+const usage = async (role, organizationId, seasonId) => (await rpc(role, 'get_tournament_season_media_usage', { p_organization_id: organizationId, p_season_id: seasonId })).json;
+
+steps.quota = async () => {
+  const before = await usage('owner', state.organizationId, state.seasonId);
+  out({ step: 'quota', event: 'FREE season before', plan: before.plan, usage: before.usage, limit: before.limit });
+  const draft = await gallery('owner', state.organizationId, state.tournamentId, 'Cuota FREE');
+  let accepted = 0; let refusal = null; let lastAsset = null;
+  for (let i = 3; i < 30 && !refusal; i += 1) {
+    const r = await upload('owner', draft, i);
+    if (r.status === 201) { accepted += 1; lastAsset = r.json.assetId; } else refusal = r;
+  }
+  out({ step: 'quota', event: 'uploads until the server refused', accepted, refusal: status(refusal), quota: refusal?.json?.quota });
+  const full = await usage('owner', state.organizationId, state.seasonId);
+  out({ step: 'quota', event: 'usage at the limit', usage: full.usage, limit: full.limit, remaining: full.remaining });
+  await rpc('owner', 'transition_tournament_media_asset', { p_asset_id: lastAsset, p_action: 'reject', p_reason: 'Libera lugar en el laboratorio.' });
+  const freed = await usage('owner', state.organizationId, state.seasonId);
+  out({ step: 'quota', event: 'one photo rejected', usage: freed.usage, remaining: freed.remaining, nextUpload: status(await upload('owner', draft, 29)) });
+  const grants = [];
+  for (const name of ['grant_tournament_season_plan', 'create_tournament_season_plan_grant', 'set_tournament_season_plan', 'simulate_tournament_fake_payment', 'get_effective_tournament_season_entitlements']) {
+    grants.push(`${name} ${(await rpc('owner', name, { p_organization_id: state.organizationId, p_season_id: state.seasonId }, { expect: null })).status}`);
+  }
+  out({ step: 'quota', event: 'client attempts to become PREMIUM', results: grants, planAfter: (await usage('owner', state.organizationId, state.seasonId)).plan });
+};
+
+steps.premium = async () => {
+  // Lab-only operator simulation of a PREMIUM season (what a confirmed purchase grants), on the OTHER organization.
+  await labSql(`insert into public.tournament_season_plan_grants (organization_id, season_id, plan_code, source, reason)
+    select '${state.otherOrganizationId}', '${state.otherSeasonId}', 'PREMIUM', 'manual_legacy', 'Laboratorio MEDIA-V1: simulación de operador'
+    where not exists (select 1 from public.tournament_season_plan_grants where season_id = '${state.otherSeasonId}');`);
+  const premium = await usage('other', state.otherOrganizationId, state.otherSeasonId);
+  const draft = await gallery('other', state.otherOrganizationId, state.otherTournamentId, 'Galería Premium');
+  out({ step: 'premium', plan: premium.plan, limit: premium.limit, upload: status(await upload('other', draft, 36)),
+    crossOrgStillRefused: `${(await urls('other', await publishedIds('owner'))).json.items.length} Lab Galería URLs` });
+};
+
+steps.budget = async () => {
+  const budget = JSON.parse(await labSql('select public.tournament_media_storage_budget_status()'));
+  const draft = await gallery('owner', state.organizationId, state.tournamentId, 'Presupuesto');
+  try {
+    await labSql(`update public.tournament_media_storage_budget set gallery_max_bytes = greatest(1048576, ${budget.galleryStoredBytes} + 1000), updated_at = now();`);
+    out({ step: 'budget', event: 'gallery budget = stored + 1 KB', upload: status(await upload('owner', draft, 37)),
+      storedBytes: JSON.parse(await labSql('select public.tournament_media_storage_budget_status()')).galleryStoredBytes });
+  } finally {
+    await labSql('update public.tournament_media_storage_budget set gallery_max_bytes = 419430400, updated_at = now();');
+  }
+  try {
+    await labSql('update public.tournament_media_storage_budget set max_inflight_uploads = 1, updated_at = now();');
+    // On the PREMIUM organization (room in its season): one slot project-wide, three photos at the same time.
+    const premiumDraft = await gallery('other', state.otherOrganizationId, state.otherTournamentId, 'Concurrencia');
+    const results = await Promise.all([10, 11, 12].map((i) => upload('other', premiumDraft, i)));
+    out({ step: 'budget', event: 'three simultaneous uploads with 1 slot', results: results.map(status).sort() });
+    const retried = await Promise.all(results.map((r, n) => (r.status === 429 ? upload('other', premiumDraft, [10, 11, 12][n]) : r)));
+    out({ step: 'budget', event: 'the refused ones retried after', results: retried.map(status).sort() });
+  } finally {
+    await labSql('update public.tournament_media_storage_budget set max_inflight_uploads = 12, updated_at = now();');
+  }
+  out({ step: 'budget', event: 'restored', budget: JSON.parse(await labSql('select public.tournament_media_storage_budget_status()')) });
+};
+
+steps.cut = async () => {
+  const http = await import('node:http');
+  const { spawnSync } = await import('node:child_process');
+  const draft = await gallery('other', state.otherOrganizationId, state.otherTournamentId, 'Corte de red');
+  const idempotencyKey = key();
+  const body = Buffer.concat([photo(13), thumbOf(13)]);
+  const bearer = await token('other');
+  const search = `?gallery=${draft}&key=${idempotencyKey}&thumb=${thumbOf(13).length}`;
+  // The body trickles in 256-byte chunks; the gateway dies after the first chunks are on the wire.
+  const cut = await new Promise((resolve) => {
+    const request = http.request(`${GATEWAY}/torneos/media/v1/upload${search}`, { method: 'POST', headers: {
+      authorization: `Bearer ${bearer}`, 'content-type': 'image/jpeg', 'content-length': String(body.length) } }, (response) => {
+      response.resume(); response.on('end', () => resolve(`HTTP ${response.statusCode}`));
+    });
+    request.on('error', (error) => resolve(`client error ${error.code || error.message}`));
+    let offset = 0;
+    const timer = setInterval(() => {
+      if (offset === 2048) spawnSync(DOCKER, ['kill', 'arma2-media-lab-gateway']);
+      if (offset >= body.length) { clearInterval(timer); request.end(); return; }
+      request.write(body.subarray(offset, offset + 256)); offset += 256;
+    }, 20);
+  });
+  spawnSync(DOCKER, ['start', 'arma2-media-lab-gateway']);
+  for (let i = 0; i < 30; i += 1) {
+    const health = await fetch(`${GATEWAY}/health`).then((r) => r.status).catch(() => 0);
+    if (health === 200) break;
+    await new Promise((resolve) => { setTimeout(resolve, 500); });
+  }
+  const retried = await upload('other', draft, 13, { idempotencyKey });
+  const replay = await upload('other', draft, 13, { idempotencyKey });
+  const assets = await labSql(`select count(*) from public.tournament_media_assets where gallery_id = '${draft}'`);
+  const sessions = await labSql(`select string_agg(status, ',' order by created_at) from public.tournament_media_upload_sessions where gallery_id = '${draft}'`);
+  const orphanObjects = await labSql(`select count(*) from storage.objects o where o.bucket_id = 'tournament-media' and o.name like '%/${draft}/%'
+    and not exists (select 1 from public.tournament_media_assets a where a.internal_path = o.name)
+    and not exists (select 1 from public.tournament_media_variants v where v.internal_path = o.name)`);
+  out({ step: 'cut', whileCut: cut, retrySameKey: status(retried), againSameKey: `${status(replay)}${replay.json?.replayed ? ' replayed' : ''}`,
+    assetsInGallery: Number(assets), sessions, orphanObjects: Number(orphanObjects) });
+};
+
+steps.branding = async () => {
+  // The lab's OWN stack (its Node gateway on 58420 and storage on 58425), untouched by MEDIA-V1: the existing
+  // Lab Copa Conectada logos must still sign and load after the media uploads on the shared storage volume.
+  const listed = await fetch('http://127.0.0.1:58420/torneos/public/v1/rpc/search_tournament_catalog', {
+    method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ p_query: 'Lab Copa Conectada', p_scope: 'all' }) }).then((r) => r.json());
+  const item = listed?.items?.[0];
+  const result = {};
+  for (const field of ['logoUrl', 'organizationLogoUrl']) {
+    if (!item?.[field]) { result[field] = 'none'; continue; }
+    const r = await fetch(item[field]);
+    result[field] = `${r.status} ${r.headers.get('content-type')} ${(await r.arrayBuffer()).byteLength} bytes`;
+  }
+  out({ step: 'branding', call: item?.name ?? null, ...result });
+};
+
+steps.rollback = async () => {
+  // The documented rollback, executed for real on the lab DB inside a transaction that is rolled back at the end:
+  // it must run, pass its own postconditions, and leave the photos; nothing stays changed.
+  const file = fs.readFileSync(path.resolve(path.dirname(new URL(import.meta.url).pathname), '../rollback/00000000000012_media_gallery_v1.rollback.sql'), 'utf8');
+  const probe = `${file.replace(/^COMMIT;$/m, '')}
+    select json_build_object('policies', (select count(*) from pg_policies where schemaname='storage' and policyname like 'tournament_media_%'),
+      'begin_fn', to_regprocedure('public.begin_tournament_media_gallery_upload(uuid,uuid,text,bigint,bigint)') is not null,
+      'assets_kept', (select count(*) from public.tournament_media_assets), 'objects_kept', (select count(*) from storage.objects where bucket_id='tournament-media'),
+      'transition_granted', has_function_privilege('authenticated', 'public.transition_tournament_media_asset(uuid,text,text)', 'EXECUTE'));
+    ROLLBACK;`;
+  const inside = (await labSql(probe)).split('\n').filter((line) => line.startsWith('{')).pop();
+  const after = await labSql(`select json_build_object('policies', (select count(*) from pg_policies where schemaname='storage' and policyname like 'tournament_media_%'),
+    'begin_fn', to_regprocedure('public.begin_tournament_media_gallery_upload(uuid,uuid,text,bigint,bigint)') is not null)`);
+  out({ step: 'rollback', insideRolledBackTransaction: JSON.parse(inside), afterwards: JSON.parse(after) });
+};
+
 const step = process.argv[2];
 const invokedDirectly = process.argv[1] && path.resolve(process.argv[1]) === path.resolve(new URL(import.meta.url).pathname);
 if (invokedDirectly && steps[step]) await steps[step]();

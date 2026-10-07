@@ -49,9 +49,23 @@ const shot = async (page, name, { full = false } = {}) => {
 };
 const sum = (rows, field) => rows.reduce((total, row) => total + (row[field] || 0), 0);
 
-async function organizer(form) {
-  const { browser, page, traffic } = await open('owner', form);
+// MEDIA_LAB_ORG=other runs the organizer as the PREMIUM organization's owner (Lab Galería's FREE season may be full).
+const ORGANIZER = process.env.MEDIA_LAB_ORG === 'other'
+  ? { role: 'other', organizationId: state.otherOrganizationId } : { role: 'owner', organizationId: state.organizationId };
+
+async function overview(form) {
+  const { browser, page } = await open('owner', form);
   await page.goto(`${APP}/torneos/organizacion/${state.organizationId}/multimedia`);
+  await page.getByRole('heading', { name: 'Centro Multimedia' }).waitFor({ timeout: 30000 });
+  await page.waitForTimeout(2500);
+  await shot(page, `${form}-20-centro-cuota-llena`, { full: true });
+  note({ scenario: 'overview', form, quota: await page.locator('[aria-label^="Fotos de la temporada"]').getAttribute('aria-label').catch(() => null) });
+  await browser.close();
+}
+
+async function organizer(form) {
+  const { browser, page, traffic } = await open(ORGANIZER.role, form);
+  await page.goto(`${APP}/torneos/organizacion/${ORGANIZER.organizationId}/multimedia`);
   await page.getByRole('heading', { name: 'Centro Multimedia' }).waitFor({ timeout: 30000 });
   await shot(page, `${form}-01-centro-vacio`);
   const title = `Fecha 1 · ${form}`;
@@ -127,8 +141,76 @@ async function participant(form) {
   await browser.close();
 }
 
+const queueSettled = (page, timeout = 60000) => page.waitForFunction(() => {
+  const rows = [...document.querySelectorAll('[aria-live] article')];
+  return rows.length > 0 && rows.every((row) => ['pending_review', 'error', 'invalid', 'cancelled'].includes(row.dataset.status));
+}, null, { timeout }).catch(() => null);
+
+// Slow uplink and a cut connection, through Chrome's own network emulation (CDP), on the PREMIUM organization.
+async function slowUpload(form) {
+  const { browser, context, page, traffic } = await open('other', form);
+  const cdp = await context.newCDPSession(page);
+  await page.goto(`${APP}/torneos/organizacion/${state.otherOrganizationId}/multimedia`);
+  await page.getByRole('heading', { name: 'Centro Multimedia' }).waitFor({ timeout: 30000 });
+  await page.getByRole('button', { name: 'Crear galería' }).click();
+  const title = `Conexión lenta · ${Date.now() % 100000}`;
+  await page.getByLabel('Título').fill(title);
+  await page.getByRole('button', { name: 'Crear borrador' }).click();
+  await page.getByText('Galería creada.').waitFor({ timeout: 20000 });
+  for (const [label, kbps] of process.env.MEDIA_LAB_ONLY_CUT ? [] : [['3G lento (400 kbit/s de subida)', 400], ['1 Mbit/s de subida', 1000]]) {
+    const photoFile = kbps === 400 ? 'slow-a-12mp.jpg' : 'slow-b-24mp.jpg';
+    await page.getByLabel('Seleccionar fotos').setInputFiles(path.join(PHOTOS, photoFile));
+    await page.getByRole('button', { name: 'Subir', exact: true }).waitFor();
+    await cdp.send('Network.emulateNetworkConditions', { offline: false, latency: 300, downloadThroughput: 1.6e6 / 8, uploadThroughput: (kbps * 1000) / 8 });
+    const started = Date.now();
+    const progress = [];
+    const poll = setInterval(async () => {
+      const value = await page.getByRole('progressbar').first().getAttribute('aria-valuenow').catch(() => null);
+      if (value !== null && progress.at(-1) !== value) progress.push(value);
+    }, 250);
+    await page.getByRole('button', { name: 'Subir', exact: true }).click();
+    await queueSettled(page);
+    clearInterval(poll);
+    const statusNow = await page.$$eval('[aria-live] article', (rows) => rows.map((row) => row.dataset.status));
+    const upload = traffic.filter((row) => row.route.endsWith('/torneos/media/v1/upload')).at(-1);
+    note({ scenario: 'slow-upload', form, link: label, photo: photoFile, elapsedMs: Date.now() - started, finalStatus: statusNow, progressSeen: progress, httpStatus: upload?.status ?? null });
+    await cdp.send('Network.emulateNetworkConditions', { offline: false, latency: 0, downloadThroughput: -1, uploadThroughput: -1 });
+    await page.getByRole('button', { name: /^Quitar Foto/ }).first().click().catch(() => null);
+  }
+  // A connection cut in the middle of the upload, then a retry with the same key once it is back.
+  await page.getByLabel('Seleccionar fotos').setInputFiles(path.join(PHOTOS, 'slow-c-portrait.jpg'));
+  await cdp.send('Network.emulateNetworkConditions', { offline: false, latency: 300, downloadThroughput: 1.6e6 / 8, uploadThroughput: 200000 / 8 });
+  await page.getByRole('button', { name: 'Subir', exact: true }).click();
+  // Cut as soon as real bytes are moving (the bar has left 0 %).
+  await page.waitForFunction(() => Number(document.querySelector('[role="progressbar"]')?.getAttribute('aria-valuenow') || 0) > 5, null, { timeout: 30000 }).catch(() => null);
+  const cutAt = await page.getByRole('progressbar').first().getAttribute('aria-valuenow').catch(() => null);
+  // CDP's offline mode does not cut a request already on the wire: the real cut is the lab gateway dying mid-upload.
+  const { spawnSync } = await import('node:child_process');
+  const DOCKER = '/Applications/Docker.app/Contents/Resources/bin/docker';
+  spawnSync(DOCKER, ['kill', 'arma2-media-lab-gateway'], { encoding: 'utf8' });
+  const failed = [];
+  page.on('requestfailed', (request) => failed.push(`${request.method()} ${request.url().replace(/^https?:\/\/[^/]+/, '').replace(/\?.*$/, '').replace(/[0-9a-f-]{36}/g, ':id')} ${request.failure()?.errorText}`));
+  const before = traffic.length;
+  await page.locator('[aria-live] article').getByRole('button', { name: 'Reintentar' }).first().waitFor({ timeout: 90000 });
+  note({ scenario: 'slow-upload-debug', failed, finishedWhileOffline: traffic.slice(before).map((row) => `${row.method} ${row.route} ${row.status}`) });
+  const cutMessage = await page.$$eval('[aria-live] article em', (rows) => rows.map((row) => row.textContent.trim()));
+  await shot(page, `${form}-30-corte-de-red`, { full: false });
+  await cdp.send('Network.emulateNetworkConditions', { offline: false, latency: 0, downloadThroughput: -1, uploadThroughput: -1 });
+  spawnSync(DOCKER, ['start', 'arma2-media-lab-gateway'], { encoding: 'utf8' });
+  await page.waitForTimeout(5000);
+  await page.locator('[aria-live] article').getByRole('button', { name: 'Reintentar' }).first().click();
+  await page.waitForTimeout(500);
+  await queueSettled(page);
+  const after = await page.$$eval('[aria-live] article', (rows) => rows.map((row) => row.dataset.status));
+  note({ scenario: 'slow-upload', form, link: 'connection cut mid-upload, then retry', cutAtPercent: cutAt, messageWhileCut: cutMessage, finalStatus: after });
+  state.slowGallery = title; save();
+  await browser.close();
+}
+
 const [scenario, form = 'mobile'] = process.argv.slice(2);
 if (scenario === 'organizer') await organizer(form);
 else if (scenario === 'participant') await participant(form);
+else if (scenario === 'overview') await overview(form);
+else if (scenario === 'slow-upload') await slowUpload(form);
 else { console.error('usage: media-browser.mjs organizer|participant [mobile|desktop]'); process.exit(2); }
 fs.writeFileSync(path.join(EVIDENCE, `evidence-${scenario}-${form}.json`), JSON.stringify(evidence, null, 2));

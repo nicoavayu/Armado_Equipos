@@ -344,11 +344,12 @@ export default function MediaAdminPage() {
         setFilters((current) => ({ ...current, tournamentId: fallbackTournament }));
         return;
       }
-      setState({
-        status: 'error',
-        data: null,
-        error: error?.message || 'No pudimos abrir Multimedia.',
-      });
+      // A refresh that fails after the page already has data (a connection that drops right after an upload) keeps
+      // what is on screen — and the upload queue with it — and says so, instead of replacing the page with an error.
+      const message = error?.message || 'No pudimos abrir Multimedia.';
+      setState((current) => (current.data
+        ? { ...current, status: 'ready', error: `${message} Lo que ves puede no estar actualizado.` }
+        : { status: 'error', data: null, error: message }));
     }
   };
 
@@ -938,7 +939,7 @@ export default function MediaAdminPage() {
               >
                 <span>{gallery.matchId ? 'PARTIDO' : gallery.categoryId ? 'CATEGORÍA' : 'TORNEO'}</span>
                 <strong>{gallery.title}</strong>
-                <small>{gallery.assets.length} fotos · {STATUS_LABELS[gallery.status]}</small>
+                <small>{gallery.assets.length} {gallery.assets.length === 1 ? 'foto' : 'fotos'} · {STATUS_LABELS[gallery.status]}</small>
               </button>
             ))}
           </aside>

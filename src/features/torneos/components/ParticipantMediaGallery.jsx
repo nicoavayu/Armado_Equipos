@@ -67,6 +67,7 @@ function ProtectedImage({
 }
 
 const SWIPE_MIN_PX = 48;
+const photoCount = (count) => `${count} ${count === 1 ? 'foto' : 'fotos'}`;
 
 function Lightbox({
   assets, activeIndex, setActiveIndex, close, service, onExpired,
@@ -458,8 +459,8 @@ export default function ParticipantMediaGallery({
         return (
           <article className={styles.gallery} key={gallery.id}>
             <header>
-              <span><strong>{gallery.title}</strong><small>{gallery.description || `${gallery.assets.length} fotos publicadas`}</small></span>
-              <em>{gallery.assets.length} fotos</em>
+              <span><strong>{gallery.title}</strong><small>{gallery.description || `${photoCount(gallery.assets.length)} ${gallery.assets.length === 1 ? 'publicada' : 'publicadas'}`}</small></span>
+              <em>{photoCount(gallery.assets.length)}</em>
             </header>
             <div className={styles.photoGrid}>
               {cover && (
