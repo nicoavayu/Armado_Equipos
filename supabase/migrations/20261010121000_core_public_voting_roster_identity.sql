@@ -1,19 +1,19 @@
 -- Core: public voting accepts only the voters the voting screen offers.
 --
--- Public voting (/votar-equipos?codigo=…) identifies a voter by name. The screen only
--- offers the match's guest starters (no account, not a substitute) and leaves the
--- voter out of the players to rate, but the RPCs accepted ANY name: whoever has the
--- match code could create unlimited fictitious voters and rate anyone, including
--- themselves, skewing the ratings used to balance teams. The match code is not a
--- secret in practice (anon can read partidos.codigo — see the Core security report),
--- so the server must enforce the screen's rules:
+-- Public voting (/votar-equipos?codigo=…) identifies a voter by name — on purpose: the
+-- WhatsApp link plus picking your name is the product, and picking someone else's name
+-- is an accepted limitation (the server cannot tell who is holding the phone). The
+-- screen only offers the match's guest starters (no account, not a substitute: the
+-- screen tells substitutes they do not need to vote), but the RPCs accepted ANY name:
+-- whoever has the match code could create unlimited fictitious voters, skewing the
+-- ratings used to balance teams. So the server enforces the screen's roster rule:
 --   * public_get_or_create_voter (service-only, shared by public_submit_player_rating,
 --     public_submit_no_lo_conozco and public_mark_voter_completed) resolves a voter
---     only for a guest starter of that match; anything else returns NULL → 'invalid';
---   * public_submit_player_rating / public_submit_no_lo_conozco reject rating oneself
---     with 'invalid_player'.
+--     only for a guest starter of that match; anything else returns NULL → 'invalid'.
+-- Self-rating is deliberately NOT changed here: the screen leaves the voter out of the
+-- players to rate, and the RPCs keep accepting what they accepted before.
 -- Signatures, SECURITY DEFINER, search_path, return values and grants are unchanged;
--- bodies are the current definitions plus the two checks.
+-- bodies are the current definitions plus the roster check.
 
 CREATE OR REPLACE FUNCTION public.public_get_or_create_voter(p_partido_id bigint, p_codigo text, p_votante_nombre text)
  RETURNS bigint
@@ -142,16 +142,6 @@ BEGIN
     RETURN 'invalid_player';
   END IF;
 
-  -- Nobody rates themselves (the voting screen already leaves the voter out).
-  IF EXISTS (
-    SELECT 1
-    FROM public.jugadores
-    WHERE id = p_votado_jugador_id
-      AND public.public_normalize_voter_name(nombre) = public.public_normalize_voter_name(p_votante_nombre)
-  ) THEN
-    RETURN 'invalid_player';
-  END IF;
-
   v_voter_id := public.public_get_or_create_voter(
     p_partido_id,
     trim(p_codigo),
@@ -236,16 +226,6 @@ BEGIN
     RETURN 'invalid_player';
   END IF;
 
-  -- Nobody rates themselves (the voting screen already leaves the voter out).
-  IF EXISTS (
-    SELECT 1
-    FROM public.jugadores
-    WHERE id = p_votado_jugador_id
-      AND public.public_normalize_voter_name(nombre) = public.public_normalize_voter_name(p_votante_nombre)
-  ) THEN
-    RETURN 'invalid_player';
-  END IF;
-
   v_voter_id := public.public_get_or_create_voter(
     p_partido_id,
     trim(p_codigo),
@@ -295,10 +275,8 @@ $function$;
 
 do $public_voting_identity_check$
 begin
-  if position('roster_player.usuario_id IS NULL' in pg_get_functiondef('public.public_get_or_create_voter(bigint,text,text)'::regprocedure)) = 0
-     or position('Nobody rates themselves' in pg_get_functiondef('public.public_submit_player_rating(bigint,text,text,bigint,integer)'::regprocedure)) = 0
-     or position('Nobody rates themselves' in pg_get_functiondef('public.public_submit_no_lo_conozco(bigint,text,text,bigint)'::regprocedure)) = 0 then
-    raise exception 'public voting identity checks did not install';
+  if position('roster_player.usuario_id IS NULL' in pg_get_functiondef('public.public_get_or_create_voter(bigint,text,text)'::regprocedure)) = 0 then
+    raise exception 'public voting roster check did not install';
   end if;
   if has_function_privilege('anon', 'public.public_get_or_create_voter(bigint,text,text)', 'execute') then
     raise exception 'public_get_or_create_voter must stay service-only';

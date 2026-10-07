@@ -1,5 +1,6 @@
 // 20261010121000: public voting accepts only the voters the voting screen offers (guest
-// starters of the match) and nobody rates themselves. Runs against the Core lab as `anon`,
+// starters of the match). Self-rating keeps its previous behavior (the screen leaves the
+// voter out; the RPCs accept it) — a product decision, not part of this fix. Runs against the Core lab as `anon`,
 // exactly like the RPCs PostgREST exposes; every fixture lives in a rolled-back transaction.
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -62,9 +63,16 @@ test('a substitute or a player with an account is not a public voter', () => {
     ['invalid', 'invalid']);
 });
 
-test('nobody rates themselves', () => {
-  assert.deepEqual(outputs(asAnonOnOpenVoting(`${rate('Invitado Uno', 990101)} ${unknown('Invitado Uno', 990101)}`)),
-    ['invalid_player', 'invalid_player']);
+test('self-rating keeps its previous server behavior (only the screen leaves the voter out)', () => {
+  assert.deepEqual(outputs(asAnonOnOpenVoting(`${rate('Invitado Uno', 990101)} ${unknown('Invitado Dos', 990102)}`)),
+    ['ok', 'ok']);
+});
+
+test('a double click or a retry never stores a second vote for the same player', () => {
+  assert.deepEqual(outputs(asAnonOnOpenVoting(`${rate('Invitado Uno', 990102)} ${rate('Invitado Uno', 990102, 3)}
+    ${unknown('Invitado Uno', 990102)} ${complete('Invitado Uno')} ${rate('Invitado Uno', 990104)}
+    reset role; select count(*) || ':' || max(puntaje) from public.votos_publicos where partido_id = 990001;`)),
+  ['ok', 'already_voted_for_player', 'already_voted_for_player', 'ok', 'already_voted_for_match', '1:8']);
 });
 
 test('the code still gates everything', () => {
