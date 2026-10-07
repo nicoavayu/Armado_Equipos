@@ -1,5 +1,5 @@
 import logger from '../utils/logger';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../supabase';
 import { handleError, AppError, ERROR_CODES } from '../lib/errorHandler';
@@ -10,6 +10,8 @@ import PageTransition from '../components/PageTransition';
 import ConfirmModal from '../components/ConfirmModal';
 import TeamsDnDEditor from '../components/TeamsDnDEditor';
 import SurveyImportantDisclaimer from '../components/survey/SurveyImportantDisclaimer';
+import { getInitials } from '../components/AvatarFallback';
+import { Check, Loader2 } from 'lucide-react';
 import {
   finalizeIfComplete,
   hasExistingSurveyResponse,
@@ -23,6 +25,11 @@ import { useSmartBackNavigation } from '../hooks/useSmartBackNavigation';
 import { listChallengeApprovedSquad, listTeamMatchMembers } from '../services/db/teamChallenges';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
 import { SURVEY_START_DELAY_MS } from '../config/surveyConfig';
+import {
+  isDuplicateSurveyResponseError,
+  resolveSurveySubmitErrorMessage,
+  runWithSubmitTimeout,
+} from '../utils/surveySubmitGuards';
 import { SURVEY_WINDOW_HOURS } from '../utils/surveyNotificationCopy';
 import {
   resolveEffectiveSurveyWindow,
@@ -736,13 +743,23 @@ const EncuestaPartido = () => {
   const { partidoId, matchId } = useParams();
   const id = partidoId ?? matchId;
   const { user } = useAuth();
-  const { fetchNotifications } = useNotifications();
+  // Public web routes (/encuesta/:id) render without a NotificationProvider.
+  const { fetchNotifications } = useNotifications() || {};
   const navigate = useNavigate();
   const { navigateWithAnimation: _navigateWithAnimation } = useAnimatedNavigation();
   const navigateBackFromSurvey = useSmartBackNavigation({ fallback: '/' });
 
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  // Set synchronously on the first tap: a second tap in the same frame cannot start
+  // another submission before `submitting` re-renders the button disabled.
+  const submitInFlightRef = useRef(false);
+  const isMountedRef = useRef(true);
+  const [submitError, setSubmitError] = useState('');
+  const [submittedNow, setSubmittedNow] = useState(false);
+  // SÍ/NO answers show as chosen only after the person taps them (defaults are not answers).
+  const [answeredChoices, setAnsweredChoices] = useState({});
+  const markAnswered = (field) => setAnsweredChoices((prev) => (prev[field] ? prev : { ...prev, [field]: true }));
   const [partido, setPartido] = useState(null);
   const [teamsConfirmed, setTeamsConfirmed] = useState(false);
   const [confirmedTeams, setConfirmedTeams] = useState({ teamA: [], teamB: [] });
@@ -780,6 +797,13 @@ const EncuestaPartido = () => {
   const viewportHeight = viewportMetrics.height;
 
   useScrollResetOnChange(currentStep);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   const closeSurveyModal = () => {
     setSurveyModal({ isOpen: false, title: '', message: '' });
@@ -2040,29 +2064,27 @@ const EncuestaPartido = () => {
       return { canSubmit: false, closedAt: null };
     }
 
-    let lifecycleRow = null;
-    try {
-      const { data, error } = await supabase
+    // Independent reads: one round trip instead of two.
+    const readOrNull = async (query) => {
+      try {
+        const { data, error } = await query;
+        return error ? null : (data || null);
+      } catch (_error) {
+        return null;
+      }
+    };
+    const [lifecycleRow, lifecycleTeamMatchRow] = await Promise.all([
+      readOrNull(supabase
         .from('partidos')
         .select('survey_status, survey_opened_at, survey_closes_at, result_status, finished_at, fecha, hora')
         .eq('id', matchIdNum)
-        .maybeSingle();
-      if (!error) lifecycleRow = data || null;
-    } catch (_error) {
-      lifecycleRow = null;
-    }
-
-    let lifecycleTeamMatchRow = null;
-    try {
-      const { data, error } = await supabase
+        .maybeSingle()),
+      readOrNull(supabase
         .from('team_matches')
         .select('scheduled_at')
         .eq('partido_id', matchIdNum)
-        .maybeSingle();
-      if (!error) lifecycleTeamMatchRow = data || null;
-    } catch (_teamMatchError) {
-      lifecycleTeamMatchRow = null;
-    }
+        .maybeSingle()),
+    ]);
 
     const lifecycleMatchStartAt = resolveSurveyMatchStartAt({
       partidoRow: lifecycleRow,
@@ -2135,9 +2157,75 @@ const EncuestaPartido = () => {
     },
   });
 
+  // After the answer is saved: closing the survey and computing results/awards when this
+  // was the last voter. It does not change what the person sees (the saved screen), so it
+  // runs after showing it instead of keeping the button busy for ~10 more round trips.
+  const reconcileSurveyAfterSubmit = async (matchIdNum, trace) => {
+    let finalizeResult = null;
+    try {
+      finalizeResult = await trace.measure(
+        'background.finalizeIfComplete',
+        () => finalizeIfComplete(matchIdNum, { trace }),
+      );
+      trace.mark('finalizeIfComplete_result', {
+        done: finalizeResult?.done === true,
+        alreadyClosed: finalizeResult?.alreadyClosed === true,
+        closedByThisCall: finalizeResult?.closedByThisCall === true,
+        surveyStatus: finalizeResult?.survey_status || null,
+        expectedVoters: finalizeResult?.expectedVoters ?? null,
+        submissionsCount: finalizeResult?.submissionsCount ?? null,
+        remainingVotes: finalizeResult?.remainingVotes ?? null,
+        deadlineReached: finalizeResult?.deadlineReached === true,
+        allEligibleVoted: finalizeResult?.allEligibleVoted === true,
+        triggeredByLastVoter: finalizeResult?.triggeredByLastVoter === true,
+      });
+    } catch (e) {
+      logger.warn('[finalizeIfComplete] non-blocking error:', e);
+      trace.mark('finalizeIfComplete_non_blocking_error', {
+        message: e?.message || String(e),
+        code: e?.code || null,
+      });
+    }
+
+    let postSubmitSubmissionGate = null;
+    if (shouldRecheckPostSubmitSubmissionGate(finalizeResult)) {
+      try {
+        postSubmitSubmissionGate = await trace.measure(
+          'background.ensureSurveyCanReceiveSubmission',
+          () => ensureSurveyCanReceiveSubmission(),
+        );
+      } catch (_submissionGateError) {
+        postSubmitSubmissionGate = null;
+      }
+    }
+
+    const postSubmitUiState = resolvePostSubmitCompletionUiState({
+      finalizeResult,
+      submissionGate: postSubmitSubmissionGate,
+    });
+    if (!isMountedRef.current) return;
+    setSurveyClosed(postSubmitUiState.shouldMarkSurveyClosed);
+    setSurveyClosedAt(postSubmitUiState.closedAt || null);
+    setEncuestaFinalizada(postSubmitUiState.shouldMarkSurveyClosed);
+    trace.mark('background.reconciled', {
+      shouldMarkSurveyClosed: postSubmitUiState.shouldMarkSurveyClosed,
+      closedAt: postSubmitUiState.closedAt || null,
+    });
+
+    // NO auto-limpiamos el partido de "Mis partidos" al completar la encuesta.
+    // La tarjeta post-partido ahora tiene su propio ciclo de vida (pagos): la
+    // visibilidad la decide shouldShowPostMatchCard. Para el admin la tarjeta
+    // debe seguir visible hasta que cierre los pagos/partido desde la pantalla
+    // de pagos (o se cumpla la ventana de 7 días); para el jugador, sigue
+    // visible si tiene un pago pendiente. Limpiar acá ocultaba la gestión de
+    // pagos del admin apenas completaba su propia encuesta (bug crítico).
+    trace.mark('clearMatchFromList_skipped_post_match_card_owns_lifecycle');
+  };
+
   const continueSubmitFlow = async ({ skipPersistTeams = false, trace: incomingTrace = null } = {}) => {
     const trace = incomingTrace || createSubmitTrace('continueSubmitFlow', { skipPersistTeams });
     let submitStatus = 'unknown';
+    setSubmitError('');
     try {
       trace.mark('flow_start', { skipPersistTeams });
 
@@ -2148,16 +2236,6 @@ const EncuestaPartido = () => {
       }
 
       const matchIdNum = Number(id);
-      const submissionGate = await trace.measure(
-        'pre_validation.ensureSurveyCanReceiveSubmission',
-        () => ensureSurveyCanReceiveSubmission(),
-      );
-      if (!submissionGate.canSubmit) {
-        enforceSurveyClosedUiState(submissionGate.closedAt);
-        submitStatus = 'survey_closed_before_insert';
-        return;
-      }
-
       const currentUserSurveyPlayerIds = resolveCurrentUserSurveyPlayerIds();
       const canonicalSurveyPlayerId = resolveCanonicalSurveyPlayerId({
         primaryPlayerId: linkedPlayerId,
@@ -2168,14 +2246,27 @@ const EncuestaPartido = () => {
         submitStatus = 'invalid_survey_player';
         return;
       }
-      const hasExistingResponse = await trace.measure(
-        'pre_validation.hasExistingSurveyResponse',
-        () => hasExistingSurveyResponse({
-          partidoId: matchIdNum,
-          playerIds: currentUserSurveyPlayerIds,
-        }),
-        { playerIdsCount: currentUserSurveyPlayerIds.length },
-      );
+
+      // "Is it still open?" and "did I already answer?" are independent reads: one round trip.
+      const [submissionGate, hasExistingResponse] = await runWithSubmitTimeout(() => Promise.all([
+        trace.measure(
+          'pre_validation.ensureSurveyCanReceiveSubmission',
+          () => ensureSurveyCanReceiveSubmission(),
+        ),
+        trace.measure(
+          'pre_validation.hasExistingSurveyResponse',
+          () => hasExistingSurveyResponse({
+            partidoId: matchIdNum,
+            playerIds: currentUserSurveyPlayerIds,
+          }),
+          { playerIdsCount: currentUserSurveyPlayerIds.length },
+        ),
+      ]));
+      if (!submissionGate.canSubmit) {
+        enforceSurveyClosedUiState(submissionGate.closedAt);
+        submitStatus = 'survey_closed_before_insert';
+        return;
+      }
       if (hasExistingResponse) {
         setAlreadySubmitted(true);
         setEncuestaFinalizada(true);
@@ -2185,10 +2276,10 @@ const EncuestaPartido = () => {
 
       const outcome = resolveSurveyOutcome();
       if (outcome.seJugo && !skipPersistTeams && (!shouldDisableTeamReorganization || isTeamChallengeSurvey)) {
-        const persistResult = await trace.measure(
+        const persistResult = await runWithSubmitTimeout(() => trace.measure(
           'pre_validation.persistSurveyTeamsDefinition',
           () => persistSurveyTeamsDefinition(),
-        );
+        ));
         if (!persistResult.ok) {
           openSurveyModal(persistResult.message, 'No se pudieron guardar los equipos');
           submitStatus = 'persist_teams_failed';
@@ -2228,17 +2319,20 @@ const EncuestaPartido = () => {
         created_at: new Date().toISOString(),
       };
 
-      const insertResult = await trace.measure(
-        'db.insert_post_match_surveys',
-        () => supabase
-          .from('post_match_surveys')
-          .insert([surveyData]),
-        {
-          seJugo: outcome.seJugo,
-          absentCount: ausentesIds.length,
-          violentCount: violentosIds.length,
+      const insertSurvey = (payload, label, details = {}) => runWithSubmitTimeout((signal) => trace.measure(
+        label,
+        () => {
+          const request = supabase.from('post_match_surveys').insert([payload]);
+          return signal && typeof request.abortSignal === 'function' ? request.abortSignal(signal) : request;
         },
-      );
+        details,
+      ));
+
+      const insertResult = await insertSurvey(surveyData, 'db.insert_post_match_surveys', {
+        seJugo: outcome.seJugo,
+        absentCount: ausentesIds.length,
+        violentCount: violentosIds.length,
+      });
       let insertError = insertResult.error || null;
       let usedLegacySurveyInsert = false;
 
@@ -2248,15 +2342,18 @@ const EncuestaPartido = () => {
         delete legacySurveyData.ganador;
         delete legacySurveyData.resultado;
         usedLegacySurveyInsert = true;
-        const legacyRes = await trace.measure(
-          'db.insert_post_match_surveys_legacy_retry',
-          () => supabase.from('post_match_surveys').insert([legacySurveyData]),
-        );
+        const legacyRes = await insertSurvey(legacySurveyData, 'db.insert_post_match_surveys_legacy_retry');
         insertError = legacyRes.error || null;
       }
+
+      // Unique per match and voter: a double tap or a retry after a lost response is
+      // already saved, not an error.
+      const alreadyStored = Boolean(insertError) && isDuplicateSurveyResponseError(insertError);
+      if (alreadyStored) insertError = null;
       trace.mark('db.insert_post_match_surveys_result', {
         ok: !insertError,
         usedLegacySurveyInsert,
+        alreadyStored,
       });
 
       if (insertError) {
@@ -2264,89 +2361,35 @@ const EncuestaPartido = () => {
         throw insertError;
       }
 
-      let finalizeResult = null;
-      try {
-        finalizeResult = await trace.measure(
-          'finalizeIfComplete',
-          () => finalizeIfComplete(matchIdNum, { trace }),
-        );
-        trace.mark('finalizeIfComplete_result', {
-          done: finalizeResult?.done === true,
-          alreadyClosed: finalizeResult?.alreadyClosed === true,
-          closedByThisCall: finalizeResult?.closedByThisCall === true,
-          surveyStatus: finalizeResult?.survey_status || null,
-          expectedVoters: finalizeResult?.expectedVoters ?? null,
-          submissionsCount: finalizeResult?.submissionsCount ?? null,
-          remainingVotes: finalizeResult?.remainingVotes ?? null,
-          deadlineReached: finalizeResult?.deadlineReached === true,
-          allEligibleVoted: finalizeResult?.allEligibleVoted === true,
-          triggeredByLastVoter: finalizeResult?.triggeredByLastVoter === true,
-        });
-      } catch (e) {
-        logger.warn('[finalizeIfComplete] non-blocking error:', e);
-        trace.mark('finalizeIfComplete_non_blocking_error', {
-          message: e?.message || String(e),
-          code: e?.code || null,
-        });
-      }
-
-      let postSubmitSubmissionGate = null;
-      if (shouldRecheckPostSubmitSubmissionGate(finalizeResult)) {
-        try {
-          postSubmitSubmissionGate = await trace.measure(
-            'post_validation.ensureSurveyCanReceiveSubmission',
-            () => ensureSurveyCanReceiveSubmission(),
-          );
-        } catch (_submissionGateError) {
-          postSubmitSubmissionGate = null;
-        }
-      } else {
-        trace.mark('post_validation.ensureSurveyCanReceiveSubmission_skipped', {
-          reason: 'finalize_result_definitive',
-          surveyStatus: finalizeResult?.survey_status || null,
-        });
-      }
-
-      const postSubmitUiState = resolvePostSubmitCompletionUiState({
-        finalizeResult,
-        submissionGate: postSubmitSubmissionGate,
-      });
-
+      // Saved: show it now. Closing the survey / results continue in the background.
+      setSubmittedNow(true);
       setAlreadySubmitted(true);
-      setSurveyClosed(postSubmitUiState.shouldMarkSurveyClosed);
-      setSurveyClosedAt(postSubmitUiState.closedAt || null);
-      setEncuestaFinalizada(postSubmitUiState.shouldMarkSurveyClosed);
-      if (postSubmitUiState.shouldMarkSurveyClosed) {
-        setCurrentStep(SURVEY_STEPS.DONE);
-      }
-      trace.mark('visual_state_updated', {
-        shouldMarkSurveyClosed: postSubmitUiState.shouldMarkSurveyClosed,
-        closedAt: postSubmitUiState.closedAt || null,
-      });
-
-      // NO auto-limpiamos el partido de "Mis partidos" al completar la encuesta.
-      // La tarjeta post-partido ahora tiene su propio ciclo de vida (pagos): la
-      // visibilidad la decide shouldShowPostMatchCard. Para el admin la tarjeta
-      // debe seguir visible hasta que cierre los pagos/partido desde la pantalla
-      // de pagos (o se cumpla la ventana de 7 días); para el jugador, sigue
-      // visible si tiene un pago pendiente. Limpiar acá ocultaba la gestión de
-      // pagos del admin apenas completaba su propia encuesta (bug crítico).
-      trace.mark('clearMatchFromList_skipped_post_match_card_owns_lifecycle');
+      trace.mark('visual_state_updated', { savedBeforeReconcile: true });
       submitStatus = 'success';
-
+      reconcileSurveyAfterSubmit(matchIdNum, trace).catch((reconcileError) => {
+        logger.warn('[ENCUESTA] post-submit reconcile failed', reconcileError);
+      });
     } catch (error) {
       submitStatus = 'error';
-      handleError(error, { showToast: true, onError: () => { } });
+      // Nothing was saved: the answers stay on screen and the button allows a retry.
+      handleError(error, { showToast: false, onError: () => { } });
+      if (isMountedRef.current) setSubmitError(resolveSurveySubmitErrorMessage(error));
     } finally {
-      setSubmitting(false);
+      submitInFlightRef.current = false;
+      if (isMountedRef.current) setSubmitting(false);
       trace.end({ status: submitStatus });
     }
   };
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
+    e?.preventDefault?.();
     const trace = createSubmitTrace('handleSubmit');
     trace.mark('click_received');
+
+    if (submitInFlightRef.current) {
+      trace.end({ status: 'blocked', reason: 'already_processing' });
+      return;
+    }
 
     if (!user || !id) {
       notifyBlockingError('Debes iniciar sesión para calificar un partido');
@@ -2385,12 +2428,13 @@ const EncuestaPartido = () => {
       return;
     }
 
+    submitInFlightRef.current = true;
     setSubmitting(true);
     await continueSubmitFlow({ trace });
   };
 
   const handleLockTeamsAndContinue = async () => {
-    if (submitting || encuestaFinalizada || alreadySubmitted) return;
+    if (submitInFlightRef.current || submitting || encuestaFinalizada || alreadySubmitted) return;
 
     if (shouldShowWinnerSelectionInOrganizeStep && !['equipo_a', 'equipo_b', 'empate'].includes(formData.ganador)) {
       openSurveyModal('Elegí quién ganó o marcá empate para finalizar la encuesta.', 'Falta seleccionar resultado');
@@ -2403,7 +2447,9 @@ const EncuestaPartido = () => {
       : null;
     trace?.mark('click_received');
 
+    submitInFlightRef.current = true;
     setSubmitting(true);
+    setSubmitError('');
     try {
       const persistResult = trace
         ? await trace.measure(
@@ -2429,14 +2475,16 @@ const EncuestaPartido = () => {
       setCurrentStep(SURVEY_STEPS.RESULT);
     } catch (error) {
       trace?.end({ status: 'error', reason: 'persist_teams_exception' });
-      throw error;
+      handleError(error, { showToast: false, onError: () => { } });
+      if (isMountedRef.current) setSubmitError(resolveSurveySubmitErrorMessage(error));
     } finally {
-      setSubmitting(false);
+      submitInFlightRef.current = false;
+      if (isMountedRef.current) setSubmitting(false);
     }
   };
 
   const handleNotPlayedPrimaryAction = async () => {
-    if (!selectedNotPlayedReason || submitting || encuestaFinalizada) return;
+    if (!selectedNotPlayedReason || submitInFlightRef.current || submitting || encuestaFinalizada) return;
 
     if (selectedNotPlayedReason.value === 'absence_without_notice') {
       setCurrentStep(SURVEY_STEPS.NOT_PLAYED_ABSENTS);
@@ -2447,13 +2495,19 @@ const EncuestaPartido = () => {
       selectedNotPlayedReason: selectedNotPlayedReason.value,
     });
     trace.mark('click_received');
+    submitInFlightRef.current = true;
     setSubmitting(true);
     await continueSubmitFlow({ trace });
   };
 
   const formatFecha = (fechaStr) => {
     try {
-      const fecha = new Date(fechaStr);
+      // 'YYYY-MM-DD' is a calendar day: parsed as UTC it showed the previous day in Argentina.
+      const calendarDay = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(fechaStr || '').trim());
+      const fecha = calendarDay
+        ? new Date(Number(calendarDay[1]), Number(calendarDay[2]) - 1, Number(calendarDay[3]))
+        : new Date(fechaStr);
+      if (Number.isNaN(fecha.getTime())) return fechaStr || 'Fecha no disponible';
       return fecha.toLocaleDateString('es-ES', {
         weekday: 'long',
         day: 'numeric',
@@ -2489,11 +2543,11 @@ const EncuestaPartido = () => {
   const actionRowClass = `w-full shrink-0 flex items-center justify-center ${isTightLayout ? 'pt-1.5 sm:pt-2' : isCompressedLayout ? 'pt-2 sm:pt-3' : 'pt-3 sm:pt-4'}`;
   const playerActionRowClass = `w-full shrink-0 flex items-center justify-center ${isTightLayout ? 'pt-1.5 sm:pt-2' : isCompressedLayout ? 'pt-2 sm:pt-2.5' : 'pt-2.5 sm:pt-3.5'}`;
   const logoRowClass = 'hidden';
-  const titleClass = `font-bebas text-white font-bold text-center uppercase drop-shadow-[0_8px_18px_rgba(6,9,36,0.42)] break-words w-full px-1 ${isTightLayout ? 'text-[clamp(24px,5.6vw,52px)] tracking-[0.04em] leading-[0.88]' : isCompressedLayout ? 'text-[clamp(28px,6vw,62px)] tracking-[0.048em] leading-[0.9]' : 'text-[clamp(30px,6.2vw,74px)] tracking-[0.055em] leading-[0.92]'}`;
-  const surveyBtnBaseClass = `w-full border border-[rgba(148,134,255,0.35)] bg-white/[0.08] text-white font-bebas text-center cursor-pointer transition-[opacity,background-color,border-color] duration-220 ease-out hover:bg-white/[0.14] flex items-center justify-center rounded-2xl tracking-[0.08em] shadow-[inset_0_1px_0_rgba(255,255,255,0.18),0_12px_30px_rgba(8,6,30,0.32)] disabled:opacity-55 disabled:cursor-not-allowed ${isTightLayout ? 'text-[18px] sm:text-[20px] py-2 min-h-[46px]' : isCompressedLayout ? 'text-[19px] sm:text-[22px] py-2 min-h-[48px]' : 'text-[20px] sm:text-[24px] py-2.5 min-h-[52px]'}`;
+  const titleClass = `font-bebas text-white font-bold text-center uppercase drop-shadow-[0_8px_18px_rgba(6,9,36,0.42)] break-words w-full px-1 ${isTightLayout ? 'text-[clamp(24px,5.6vw,42px)] tracking-[0.04em] leading-[0.95]' : isCompressedLayout ? 'text-[clamp(26px,6vw,48px)] tracking-[0.045em] leading-[0.95]' : 'text-[clamp(28px,6.2vw,54px)] tracking-[0.05em] leading-[0.95]'}`;
+  const surveyBtnBaseClass = `w-full border border-[rgba(148,134,255,0.35)] bg-white/[0.08] text-white font-bebas text-center cursor-pointer transition-[opacity,background-color,border-color,transform] duration-200 ease-out hover:bg-white/[0.14] active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/85 focus-visible:ring-offset-2 focus-visible:ring-offset-[#1c1442] flex items-center justify-center rounded-2xl tracking-[0.08em] shadow-[inset_0_1px_0_rgba(255,255,255,0.18),0_12px_30px_rgba(8,6,30,0.32)] disabled:opacity-55 disabled:cursor-not-allowed ${isTightLayout ? 'text-[18px] sm:text-[20px] py-2 min-h-[46px]' : isCompressedLayout ? 'text-[19px] sm:text-[22px] py-2 min-h-[48px]' : 'text-[20px] sm:text-[24px] py-2.5 min-h-[52px]'}`;
   const btnClass = `${surveyBtnBaseClass} font-bold uppercase !border-white/20 !bg-cta-gradient hover:!brightness-105 !shadow-cta`;
   const optionBtnClass = `${surveyBtnBaseClass} uppercase`;
-  const optionBtnSelectedClass = 'bg-[rgba(106,67,255,0.42)] border-[#a78bfa] shadow-[inset_0_1px_0_rgba(255,255,255,0.3),0_16px_30px_rgba(54,32,140,0.45),0_0_18px_rgba(106,67,255,0.3)]';
+  const optionBtnSelectedClass = '!bg-[rgba(106,67,255,0.42)] !border-[#a78bfa] shadow-[inset_0_1px_0_rgba(255,255,255,0.3),0_16px_30px_rgba(54,32,140,0.45),0_0_18px_rgba(106,67,255,0.3)]';
   const compactPrimaryBtnClass = `${btnClass} !w-auto ${isTightLayout ? '!min-w-[128px] sm:!min-w-[150px] !px-4 sm:!px-5' : isCompressedLayout ? '!min-w-[136px] sm:!min-w-[160px] !px-4 sm:!px-5' : '!min-w-[146px] sm:!min-w-[176px] !px-5 sm:!px-6'}`;
   const compactSecondaryBtnClass = `${optionBtnClass} !w-full !min-h-[50px] !py-2 !px-4 bg-white/[0.07] border-white/24 shadow-[inset_0_1px_0_rgba(255,255,255,0.16),0_8px_16px_rgba(7,10,35,0.22)]`;
   const resultSecondaryBtnClass = `${optionBtnClass} !w-auto ${isTightLayout ? '!min-h-[44px] !py-1.5 !px-4 sm:!px-5' : isCompressedLayout ? '!min-h-[46px] !py-2 !px-4 sm:!px-5' : '!min-h-[48px] !py-2 !px-5 sm:!px-6'}`;
@@ -2504,7 +2558,7 @@ const EncuestaPartido = () => {
   const actionDockClass = 'w-full max-w-[980px] mx-auto flex flex-col gap-1';
   const centeredSummaryStackClass = `w-full flex-1 min-h-0 flex flex-col items-center justify-center ${isCompressedLayout ? 'gap-4 sm:gap-5' : 'gap-5 sm:gap-6'}`;
   const centeredSummaryButtonWrapClass = 'w-full max-w-[460px] sm:max-w-[500px] mx-auto';
-  const miniCardsStageClass = `w-full h-full min-h-0 overflow-visible flex items-center justify-center ${isTightLayout ? 'px-1.5 sm:px-2 pb-1 sm:pb-1.5' : isCompressedLayout ? 'px-2 sm:px-2.5 pb-1.5 sm:pb-2' : 'px-2 sm:px-3 pb-2 sm:pb-3'}`;
+  const miniCardsStageClass = `w-full max-h-full min-h-0 overflow-y-auto overscroll-contain flex items-start justify-center ${isTightLayout ? 'px-1.5 sm:px-2 pb-1 sm:pb-1.5' : isCompressedLayout ? 'px-2 sm:px-2.5 pb-1.5 sm:pb-2' : 'px-2 sm:px-3 pb-2 sm:pb-3'}`;
   const notPlayedReasonListClass = `w-full max-w-[760px] mx-auto flex flex-col ${isCompressedLayout ? 'gap-2 sm:gap-2.5' : 'gap-3 sm:gap-3.5'}`;
   const selectedNotPlayedReason = NOT_PLAYED_REASON_OPTIONS.find((option) => option.value === formData.motivo_no_jugado) || null;
   const notPlayedPrimaryButtonLabel = selectedNotPlayedReason?.value === 'absence_without_notice' ? 'Continuar' : 'Finalizar';
@@ -2550,48 +2604,88 @@ const EncuestaPartido = () => {
     return () => window.cancelAnimationFrame(animationFrame);
   }, [progressFillPercent]);
 
-  const renderStepProgress = () => (
-    <div className={progressRowClass}>
-      <div className="w-full">
-        <div className="h-[3px] w-full overflow-hidden rounded-full bg-white/14 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.12)]">
-          <div
-            className="h-full origin-left rounded-full transition-[width] duration-[280ms] ease-out"
-            style={{
-              width: `${animatedProgressPercent}%`,
-              background:
-                'linear-gradient(90deg, rgba(139,92,255,0.9) 0%, rgba(176,160,255,0.85) 55%, rgba(236,0,125,0.85) 100%)',
-              boxShadow: '0 0 8px rgba(139,92,255,0.35)',
-            }}
-          />
-        </div>
-      </div>
-    </div>
-  );
+  const surveyMatchLabel = (isTeamChallengeSurvey && challengeSurveyName) ? challengeSurveyName : (partido?.nombre || '');
 
-  const renderExitSurveyButton = ({ immediate = false } = {}) => {
+  const renderExitSurveyButton = ({ immediate = false, inline = false } = {}) => {
     if (!immediate && currentStep === SURVEY_STEPS.DONE) {
       return null;
     }
 
+    const button = (
+      <button
+        type="button"
+        aria-label="Cerrar encuesta"
+        onClick={() => {
+          if (immediate) {
+            navigateBackFromSurvey();
+            return;
+          }
+          setExitSurveyModalOpen(true);
+        }}
+        className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-transparent text-[28px] leading-none text-white/78 transition-colors duration-150 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80 sm:text-[30px]"
+      >
+        <span className="-mt-[2px]" aria-hidden="true">×</span>
+      </button>
+    );
+    if (inline) return button;
+
     return (
       <div className={progressActionsClass}>
-        <button
-          type="button"
-          aria-label="Cerrar encuesta"
-          onClick={() => {
-            if (immediate) {
-              navigateBackFromSurvey();
-              return;
-            }
-            setExitSurveyModalOpen(true);
-          }}
-          className="inline-flex h-9 w-9 items-center justify-center bg-transparent text-[28px] leading-none text-white/78 transition-all duration-150 hover:text-white active:scale-[0.98] sm:h-10 sm:w-10 sm:text-[30px]"
-        >
-          <span className="-mt-[2px]">×</span>
-        </button>
+        {button}
       </div>
     );
   };
+
+  // What (this match's survey), how much is left (step N of M) and the way out, in one row.
+  const renderStepProgress = () => (
+    <div className={progressRowClass}>
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <span className="section-eyebrow !mb-0 truncate">
+            {surveyMatchLabel ? `Encuesta · ${surveyMatchLabel}` : 'Encuesta del partido'}
+          </span>
+          <div className="mt-0.5 font-oswald text-[12px] tabular-nums text-white/65" aria-live="polite">
+            {currentStep === SURVEY_STEPS.DONE ? 'Encuesta completa' : `Paso ${progressCurrentStep} de ${progressTotalSteps}`}
+          </div>
+        </div>
+        {renderExitSurveyButton({ inline: true })}
+      </div>
+      <div
+        className="mt-2 h-[3px] w-full overflow-hidden rounded-full bg-white/14 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.12)]"
+        role="progressbar"
+        aria-label="Avance de la encuesta"
+        aria-valuemin={0}
+        aria-valuemax={progressTotalSteps}
+        aria-valuenow={progressCurrentStep}
+      >
+        <div
+          className="h-full origin-left rounded-full transition-[width] duration-[280ms] ease-out"
+          style={{
+            width: `${animatedProgressPercent}%`,
+            background:
+              'linear-gradient(90deg, rgba(139,92,255,0.9) 0%, rgba(176,160,255,0.85) 55%, rgba(236,0,125,0.85) 100%)',
+            boxShadow: '0 0 8px rgba(139,92,255,0.35)',
+          }}
+        />
+      </div>
+    </div>
+  );
+
+  // Busy label for the buttons that save: the tap is acknowledged at once, and nothing
+  // says "done" until the answer is stored.
+  const renderSaveButtonLabel = (label) => (submitting ? (
+    <span className="inline-flex items-center justify-center gap-2">
+      <Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" />
+      GUARDANDO…
+    </span>
+  ) : label);
+
+  // Nothing was saved: say so next to the button that retries; the answers stay as chosen.
+  const renderSubmitError = () => (submitError ? (
+    <p role="alert" className="mt-2 text-center font-oswald text-[14px] leading-snug text-[#ffb3cf]">
+      {submitError}
+    </p>
+  ) : null);
 
   const resolveAdaptiveGridConfig = (playerCount, ratio, height) => {
     const safeCount = Math.max(playerCount || 1, 1);
@@ -2637,16 +2731,12 @@ const EncuestaPartido = () => {
       : isShortViewport
         ? safeCount >= 22 ? 5 : safeCount >= 14 ? 6 : 7
         : safeCount >= 22 ? 6 : safeCount >= 14 ? 8 : 9;
-    const nameSizeClass = safeCount >= 22 || isVeryShortViewport
-      ? 'text-[8px] sm:text-[9px]'
-      : safeCount >= 14 || isShortViewport
-        ? 'text-[9px] sm:text-[10px]'
-        : 'text-[11px] sm:text-[12px]';
-    const silhouetteSizeClass = safeCount >= 22 || isVeryShortViewport
-      ? 'h-[38%] w-[38%]'
-      : safeCount >= 14 || isShortViewport
-        ? 'h-[44%] w-[44%]'
-        : 'h-[54%] w-[54%]';
+    // Names sit under the photo (not over it): readable sizes, two lines at most.
+    const nameSizeClass = safeCount >= 22
+      ? 'text-[10px] sm:text-[11px]'
+      : safeCount >= 14 || isVeryShortViewport
+        ? 'text-[11px] sm:text-[12px]'
+        : 'text-[12px] sm:text-[14px]';
     const gridMaxWidth = safeCount <= 10
       ? (isWideViewport ? 980 : isShortViewport ? 860 : 760)
       : safeCount <= 14
@@ -2659,27 +2749,10 @@ const EncuestaPartido = () => {
       columns,
       gap,
       nameSizeClass,
-      silhouetteSizeClass,
       gridMaxWidth,
       gridPadding,
     };
   };
-
-  const PlayerPhotoFallback = ({ silhouetteSizeClass }) => (
-    <div className="relative h-full w-full overflow-hidden bg-[linear-gradient(160deg,#3b2f7a_0%,#2c2362_45%,#1c1644_100%)]">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_18%,rgba(207,196,255,0.24)_0%,rgba(44,35,98,0)_66%)]" />
-      <svg
-        viewBox="0 0 160 160"
-        aria-hidden="true"
-        className={`absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-[46%] text-white/34 ${silhouetteSizeClass}`}
-      >
-        <path
-          fill="currentColor"
-          d="M80 68c14 0 25-11 25-25S94 18 80 18 55 29 55 43s11 25 25 25Zm0 10c-24 0-44 14-50 36a8 8 0 0 0 8 10h84a8 8 0 0 0 8-10c-6-22-26-36-50-36Z"
-        />
-      </svg>
-    </div>
-  );
 
   const renderMiniPlayerCards = ({
     isSelected,
@@ -2692,85 +2765,81 @@ const EncuestaPartido = () => {
       players,
       gridConfig,
       keyPrefix,
-      rowMinHeight = null,
-      maxHeight = '100%',
-      gridMaxWidth = gridConfig.gridMaxWidth,
-    }) => (
-      <div
-        className="mx-auto grid h-full w-full place-content-center overflow-visible"
-        style={{
-          gridTemplateColumns: `repeat(${gridConfig.columns}, minmax(0, 1fr))`,
-          gridTemplateRows: rowMinHeight
-            ? `repeat(${gridConfig.rows}, minmax(${rowMinHeight}px, auto))`
-            : `repeat(${gridConfig.rows}, minmax(0, 1fr))`,
-          gap: `${gridConfig.gap}px`,
-          maxWidth: `${gridMaxWidth}px`,
-          maxHeight,
-          minHeight: 0,
-          padding: gridConfig.gridPadding,
-        }}
-      >
-        {players.map((jugador, index) => {
-          const selected = isSelected(jugador.uuid);
-          const hasPhoto = Boolean(jugador.avatar_url || jugador.foto_url);
-          return (
-            <button
-              key={`${keyPrefix}${jugador.uuid}`}
-              type="button"
-              onClick={() => onSelect(jugador.uuid)}
-              className={`group relative h-full min-h-0 min-w-0 transform-gpu overflow-visible rounded-xl border bg-[linear-gradient(168deg,rgba(106,67,255,0.28),rgba(22,16,55,0.9))] transition-[transform,opacity,filter] duration-[260ms] ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80 ${
-                selected
-                  ? `z-20 -translate-y-[2px] ${isTightLayout ? 'scale-[1.015]' : isCompressedLayout ? 'scale-[1.022]' : 'scale-[1.035]'}`
-                  : 'z-10 translate-y-0 scale-100'
-              } ${
-                hasSelection && !selected ? 'saturate-[0.74]' : ''
-              }`}
-              style={{
-                borderColor: selected ? 'rgba(216,206,255,0.85)' : 'rgba(148,134,255,0.26)',
-                opacity: hasSelection && !selected ? 0.45 : 1,
-                boxShadow: selected
-                  ? '0 0 0 1px rgba(199,184,255,0.85), 0 0 22px rgba(139,92,255,0.4), 0 16px 26px rgba(7,5,28,0.5)'
-                  : '0 10px 18px rgba(8,6,30,0.4)',
-              }}
-            >
-              {selected ? (
-                <div className="pointer-events-none absolute -inset-1.5 rounded-[14px] bg-[radial-gradient(circle,rgba(176,160,255,0.4)_0%,rgba(176,160,255,0.12)_50%,rgba(176,160,255,0)_76%)]" />
-              ) : null}
-              <div
-                className="relative flex h-full w-full flex-col overflow-hidden rounded-xl"
-                style={{
-                  animation: 'cardIn 420ms cubic-bezier(0.22,1,0.36,1) both',
-                  animationDelay: `${Math.min(index * 16, 160)}ms`,
-                }}
+      gridMaxWidth = null,
+    }) => {
+      // Square photos (cropped to the face, never letterboxed) with the full name below:
+      // cards keep their proportion instead of stretching to fill the screen height.
+      const cardMaxWidth = viewportRatio >= 0.95 ? 150 : 132;
+      const resolvedMaxWidth = gridMaxWidth
+        ?? (gridConfig.columns * cardMaxWidth) + ((gridConfig.columns - 1) * gridConfig.gap);
+      const initialsSizeClass = gridConfig.columns <= 4
+        ? 'text-[22px] sm:text-[30px]'
+        : gridConfig.columns === 5 ? 'text-[18px] sm:text-[24px]' : 'text-[15px] sm:text-[20px]';
+      return (
+        <div
+          className="mx-auto grid w-full content-center"
+          style={{
+            gridTemplateColumns: `repeat(${gridConfig.columns}, minmax(0, 1fr))`,
+            gap: `${gridConfig.gap}px`,
+            maxWidth: `${resolvedMaxWidth}px`,
+            padding: gridConfig.gridPadding,
+          }}
+        >
+          {players.map((jugador, index) => {
+            const selected = isSelected(jugador.uuid);
+            const photoUrl = jugador.avatar_url || jugador.foto_url || null;
+            // The entrance animation lives on the wrapper: on the button its fill would
+            // override the dimmed opacity and the press scale.
+            return (
+              <div key={`${keyPrefix}${jugador.uuid}`} className="a2-rise min-w-0" style={{ animationDelay: `${Math.min(index * 12, 120)}ms` }}>
+              <button
+                type="button"
+                aria-pressed={selected}
+                aria-label={jugador.nombre}
+                title={jugador.nombre}
+                onClick={() => onSelect(jugador.uuid)}
+                className={`group relative flex w-full min-w-0 flex-col overflow-hidden rounded-2xl border text-left transition-[transform,opacity,border-color,box-shadow] duration-200 ease-out active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/85 focus-visible:ring-offset-2 focus-visible:ring-offset-[#1c1442] ${
+                  selected
+                    ? 'z-10 border-[#a78bfa] bg-[rgba(106,67,255,0.3)] shadow-[0_0_0_1px_rgba(167,139,250,0.9),0_0_22px_rgba(139,92,255,0.45)]'
+                    : 'border-[rgba(148,134,255,0.26)] bg-surface-gradient shadow-elev-1'
+                } ${hasSelection && !selected ? 'opacity-60' : 'opacity-100'}`}
               >
-                <div className="relative h-[75%] w-full overflow-hidden bg-[#161038]">
-                  {hasPhoto ? (
+                <span className="relative block aspect-square w-full overflow-hidden bg-[#151037]">
+                  {photoUrl ? (
                     <img
-                      src={jugador.avatar_url || jugador.foto_url}
-                      alt={jugador.nombre}
-                      className="h-full w-full object-contain object-center bg-[#151037]"
+                      src={photoUrl}
+                      alt=""
+                      className="h-full w-full object-cover"
+                      style={{ objectPosition: '50% 30%' }}
                       loading="lazy"
+                      draggable={false}
                     />
                   ) : (
-                    <PlayerPhotoFallback
-                      silhouetteSizeClass={gridConfig.silhouetteSizeClass}
-                    />
+                    <span
+                      className={`flex h-full w-full items-center justify-center bg-gradient-to-br from-blue-500 to-purple-600 font-bold uppercase text-white ${initialsSizeClass}`}
+                      aria-hidden="true"
+                    >
+                      {getInitials(jugador.nombre)}
+                    </span>
                   )}
-                  <div className="pointer-events-none absolute inset-x-0 bottom-0 h-[46%] bg-gradient-to-t from-[#0a0722]/94 via-[#120d33]/55 to-transparent" />
-                </div>
-                <div className="relative flex h-[25%] w-full items-center justify-center px-1.5 bg-[linear-gradient(180deg,rgba(34,26,74,0.96)_0%,rgba(22,16,52,0.98)_100%)]">
-                  <span
-                    className={`w-full truncate text-center font-oswald font-semibold tracking-[0.035em] text-white ${gridConfig.nameSizeClass}`}
-                  >
-                    {jugador.nombre}
-                  </span>
-                </div>
+                  {selected ? (
+                    <span className="a2-pop absolute right-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-accent text-white shadow-glow-accent" aria-hidden="true">
+                      <Check size={14} strokeWidth={3} />
+                    </span>
+                  ) : null}
+                </span>
+                <span
+                  className={`flex min-h-[2.5em] w-full items-center justify-center px-1.5 py-1 text-center font-oswald font-semibold leading-tight text-white ${gridConfig.nameSizeClass}`}
+                >
+                  <span className="line-clamp-2 break-words">{jugador.nombre}</span>
+                </span>
+              </button>
               </div>
-            </button>
-          );
-        })}
-      </div>
-    );
+            );
+          })}
+        </div>
+      );
+    };
 
     if (challengeSurveyPlayerSections.length > 0) {
       return (
@@ -2783,12 +2852,6 @@ const EncuestaPartido = () => {
                   viewportRatio,
                   Math.max(viewportHeight - (isTightLayout ? 300 : isCompressedLayout ? 340 : 380), 360),
                 );
-                const rowMinHeight = isTightLayout
-                  ? 90
-                  : isCompressedLayout
-                    ? 98
-                    : 110;
-
                 return (
                   <div key={section.key} className="w-full min-h-0">
                     <div className={`flex items-center gap-3 ${index > 0 ? 'pt-1' : ''}`}>
@@ -2802,9 +2865,6 @@ const EncuestaPartido = () => {
                         players: section.players,
                         gridConfig: sectionGrid,
                         keyPrefix: `${section.key}-`,
-                        rowMinHeight,
-                        maxHeight: 'none',
-                        gridMaxWidth: Math.min(sectionGrid.gridMaxWidth, 880),
                       })}
                     </div>
                   </div>
@@ -2826,18 +2886,6 @@ const EncuestaPartido = () => {
       </div>
     );
   };
-
-  // Animation style
-  const animationStyle = `
-    @keyframes slideIn {
-      from { transform: translateY(14px); opacity: 0; }
-      to { transform: translateY(0); opacity: 1; }
-    }
-    @keyframes cardIn {
-      from { transform: translateY(12px) scale(0.96); opacity: 0; }
-      to { transform: translateY(0) scale(1); opacity: 1; }
-    }
-  `;
 
   if (loading) {
     return (
@@ -2868,11 +2916,11 @@ const EncuestaPartido = () => {
           <div className="relative z-[1] h-full w-full overflow-hidden" style={safeAreaStyle}>
             <div className={cardClass}>
               {renderExitSurveyButton({ immediate: true }) || <div className={progressGapClass} />}
-              <div className={`${centeredSummaryStackClass} animate-[slideIn_0.42s_cubic-bezier(0.22,1,0.36,1)_forwards]`}>
+              <div className={`${centeredSummaryStackClass} a2-rise`}>
                 <div className="w-full">
-                  <div className={titleClass}>
+                  <h1 id="survey-step-title" className={titleClass}>
                     ENCUESTA NO DISPONIBLE
-                  </div>
+                  </h1>
                 </div>
                 <div className="text-white text-[18px] md:text-[22px] font-oswald text-center font-normal tracking-wide leading-[1.25]">
                   {surveyUnavailableMessage}
@@ -2901,11 +2949,11 @@ const EncuestaPartido = () => {
           <div className="relative z-[1] h-full w-full overflow-hidden" style={safeAreaStyle}>
             <div className={cardClass}>
               {renderExitSurveyButton({ immediate: true }) || <div className={progressGapClass} />}
-              <div className={`${centeredSummaryStackClass} animate-[slideIn_0.42s_cubic-bezier(0.22,1,0.36,1)_forwards]`}>
+              <div className={`${centeredSummaryStackClass} a2-rise`}>
                 <div className="w-full">
-                  <div className={titleClass}>
+                  <h1 id="survey-step-title" className={titleClass}>
                     ENCUESTA CERRADA
-                  </div>
+                  </h1>
                 </div>
                 <div className="text-white text-[18px] md:text-[22px] font-oswald text-center font-normal tracking-wide leading-[1.25]">
                   {getSurveyClosedMessage(surveyClosedAt)}
@@ -2944,15 +2992,25 @@ const EncuestaPartido = () => {
           <div className="relative z-[1] h-full w-full overflow-hidden" style={safeAreaStyle}>
             <div className={cardClass}>
               {renderExitSurveyButton({ immediate: true }) || <div className={progressGapClass} />}
-              <div className={`${centeredSummaryStackClass} animate-[slideIn_0.42s_cubic-bezier(0.22,1,0.36,1)_forwards]`}>
-                <div className="w-full">
-                  <div className="font-bebas text-[30px] md:text-[44px] text-white tracking-[0.04em] font-bold text-center leading-[1.05] uppercase drop-shadow-md break-words w-full">
-                    YA COMPLETASTE<br />LA ENCUESTA
+              <div className={`${centeredSummaryStackClass} a2-rise`}>
+                <div className="w-full flex flex-col items-center gap-4">
+                  {submittedNow ? (
+                    <span className="a2-pop a2-success-glow flex h-16 w-16 items-center justify-center rounded-full border border-[rgba(167,139,250,0.6)] bg-[rgba(106,67,255,0.3)] text-white" aria-hidden="true">
+                      <Check size={32} strokeWidth={2.75} />
+                    </span>
+                  ) : null}
+                  <h1 className="font-bebas text-[30px] md:text-[44px] text-white tracking-[0.04em] font-bold text-center leading-[1.05] uppercase drop-shadow-md break-words w-full">
+                    {submittedNow ? '¡GRACIAS POR CALIFICAR!' : (<>YA COMPLETASTE<br />LA ENCUESTA</>)}
+                  </h1>
+                </div>
+                <div role="status" className="text-white text-[18px] md:text-[22px] font-oswald text-center font-normal tracking-wide leading-[1.25]">
+                  {submittedNow ? 'Tus respuestas quedaron guardadas.' : '¡Gracias por tu participación!'}
+                </div>
+                {submittedNow ? (
+                  <div className="-mt-2 text-white/72 text-[15px] md:text-[17px] font-oswald text-center leading-snug">
+                    Los resultados se publicarán en ~{SURVEY_WINDOW_HOURS} horas.
                   </div>
-                </div>
-                <div className="text-white text-[18px] md:text-[22px] font-oswald text-center font-normal tracking-wide leading-[1.25]">
-                  ¡Gracias por tu participación!
-                </div>
+                ) : null}
                 <div className={centeredSummaryButtonWrapClass}>
                   <button className={btnClass} onClick={() => navigate('/')}>
                     VOLVER AL INICIO
@@ -2977,11 +3035,11 @@ const EncuestaPartido = () => {
           <div className="relative z-[1] h-full w-full overflow-hidden" style={safeAreaStyle}>
             <div className={cardClass}>
               {renderExitSurveyButton({ immediate: true }) || <div className={progressGapClass} />}
-              <div className={`${centeredSummaryStackClass} animate-[slideIn_0.42s_cubic-bezier(0.22,1,0.36,1)_forwards]`}>
+              <div className={`${centeredSummaryStackClass} a2-rise`}>
                 <div className="w-full">
-                  <div className={titleClass}>
+                  <h1 id="survey-step-title" className={titleClass}>
                     ENCUESTA NO DISPONIBLE
-                  </div>
+                  </h1>
                 </div>
                 <div className="text-white text-[18px] md:text-[22px] font-oswald text-center font-normal tracking-wide leading-[1.25]">
                   No se pudieron cargar los datos del partido.
@@ -3017,19 +3075,18 @@ const EncuestaPartido = () => {
       <div className="relative h-[100dvh] w-full overflow-hidden">
         <div className="absolute inset-0 overflow-hidden" style={screenBackgroundStyle} />
         <div className="relative z-[1] h-full w-full overflow-hidden" style={safeAreaStyle}>
-          <style>{animationStyle}</style>
           <div className={cardClass}>
             {renderStepProgress()}
-            {renderExitSurveyButton() || <div className={progressGapClass} />}
+            <div className={isCompressedLayout ? 'h-2 shrink-0' : 'h-4 shrink-0'} />
           {/* STEP 0: ¿SE JUGÓ? */}
           {currentStep === SURVEY_STEPS.PLAYED && (
-            <div className={`${stepClass} !justify-start animate-[slideIn_0.42s_cubic-bezier(0.22,1,0.36,1)_forwards]`}>
+            <div className={`${stepClass} !justify-start a2-rise`}>
               <div className="w-full flex-1 min-h-0 flex flex-col items-center justify-center">
                 <div className={questionRowClass}>
                   <div className="w-full">
-                    <div className={titleClass}>
+                    <h1 id="survey-step-title" className={titleClass}>
                       ¿SE JUGÓ EL PARTIDO?
-                    </div>
+                    </h1>
                     {isTeamChallengeSurvey && challengeSurveyName ? (
                       <div className={`text-center font-oswald leading-tight text-white ${isCompressedLayout ? 'mt-1 text-[16px] md:text-[18px]' : 'mt-1.5 text-[18px] md:text-[21px]'}`}>
                         Desafío: {challengeSurveyName}
@@ -3042,10 +3099,12 @@ const EncuestaPartido = () => {
                   </div>
                 </div>
                 <div className={actionRowClass}>
-                  <div className={gridClass}>
+                  <div className={gridClass} role="group" aria-labelledby="survey-step-title">
                     <button
-                      className={`${optionBtnClass} ${formData.se_jugo ? optionBtnSelectedClass : ''}`}
+                      className={`${optionBtnClass} ${answeredChoices.se_jugo && formData.se_jugo === true ? optionBtnSelectedClass : ''}`}
+                      aria-pressed={Boolean(answeredChoices.se_jugo && formData.se_jugo === true)}
                       onClick={() => {
+                        markAnswered('se_jugo');
                         handleInputChange('se_jugo', true);
                         handleInputChange('motivo_no_jugado', '');
                         if (formData.ganador === 'no_jugado') {
@@ -3067,8 +3126,10 @@ const EncuestaPartido = () => {
                       SÍ
                     </button>
                     <button
-                      className={`${optionBtnClass} ${!formData.se_jugo ? optionBtnSelectedClass : ''}`}
+                      className={`${optionBtnClass} ${answeredChoices.se_jugo && formData.se_jugo === false ? optionBtnSelectedClass : ''}`}
+                      aria-pressed={Boolean(answeredChoices.se_jugo && formData.se_jugo === false)}
                       onClick={() => {
+                        markAnswered('se_jugo');
                         handleInputChange('se_jugo', false);
                         handleInputChange('ganador', 'no_jugado');
                         handleInputChange('motivo_no_jugado', '');
@@ -3093,14 +3154,14 @@ const EncuestaPartido = () => {
 
           {/* STEP 1: ¿ASISTIERON TODOS? */}
           {currentStep === SURVEY_STEPS.ATTENDANCE && (
-            <div className={`${stepClass} animate-[slideIn_0.42s_cubic-bezier(0.22,1,0.36,1)_forwards]`}>
+            <div className={`${stepClass} a2-rise`}>
               <div className={questionRowClass}>
-                <div className={titleClass}>
+                <h1 id="survey-step-title" className={titleClass}>
                   ¿ASISTIERON TODOS?
-                </div>
+                </h1>
               </div>
               <div className={actionRowClass}>
-                <div className={gridClass}>
+                <div className={gridClass} role="group" aria-labelledby="survey-step-title">
                   <button
                     className={optionBtnClass}
                     onClick={() => {
@@ -3131,11 +3192,11 @@ const EncuestaPartido = () => {
 
           {/* STEP 2: MVP */}
           {currentStep === SURVEY_STEPS.MVP && (
-            <div className={`${playerStepClass} animate-[slideIn_0.42s_cubic-bezier(0.22,1,0.36,1)_forwards]`}>
+            <div className={`${playerStepClass} a2-rise`}>
               <div className={questionRowClass}>
-                <div className={titleClass}>
+                <h1 id="survey-step-title" className={titleClass}>
                   ¿QUIÉN FUE EL MEJOR JUGADOR?
-                </div>
+                </h1>
               </div>
               <div className={playerContentRowClass}>
                 {renderMiniPlayerCards({
@@ -3162,11 +3223,11 @@ const EncuestaPartido = () => {
 
           {/* STEP 3: ARQUERO */}
           {currentStep === SURVEY_STEPS.GOALKEEPER && (
-            <div className={`${playerStepClass} animate-[slideIn_0.42s_cubic-bezier(0.22,1,0.36,1)_forwards]`}>
+            <div className={`${playerStepClass} a2-rise`}>
               <div className={questionRowClass}>
-                <div className={titleClass}>
+                <h1 id="survey-step-title" className={titleClass}>
                   ¿QUIÉN FUE EL MEJOR ARQUERO?
-                </div>
+                </h1>
               </div>
               <div className={playerContentRowClass}>
                 {renderMiniPlayerCards({
@@ -3207,17 +3268,19 @@ const EncuestaPartido = () => {
 
           {/* STEP 4: ¿PARTIDO LIMPIO? */}
           {currentStep === SURVEY_STEPS.CLEAN_MATCH && (
-            <div className={`${stepClass} animate-[slideIn_0.42s_cubic-bezier(0.22,1,0.36,1)_forwards]`}>
+            <div className={`${stepClass} a2-rise`}>
               <div className={questionRowClass}>
-                <div className={titleClass}>
+                <h1 id="survey-step-title" className={titleClass}>
                   ¿FUE UN PARTIDO LIMPIO?
-                </div>
+                </h1>
               </div>
               <div className={actionRowClass}>
-                <div className={gridClass}>
+                <div className={gridClass} role="group" aria-labelledby="survey-step-title">
                   <button
-                    className={`${optionBtnClass} ${formData.partido_limpio ? optionBtnSelectedClass : ''}`}
+                    className={`${optionBtnClass} ${answeredChoices.partido_limpio && formData.partido_limpio === true ? optionBtnSelectedClass : ''}`}
+                    aria-pressed={Boolean(answeredChoices.partido_limpio && formData.partido_limpio === true)}
                     onClick={() => {
+                      markAnswered('partido_limpio');
                       handleInputChange('partido_limpio', true);
                       setCurrentStep(resolveNextResultGateStep({
                         teamsConfirmed,
@@ -3231,8 +3294,10 @@ const EncuestaPartido = () => {
                     SÍ
                   </button>
                   <button
-                    className={`${optionBtnClass} ${!formData.partido_limpio ? optionBtnSelectedClass : ''}`}
+                    className={`${optionBtnClass} ${answeredChoices.partido_limpio && formData.partido_limpio === false ? optionBtnSelectedClass : ''}`}
+                    aria-pressed={Boolean(answeredChoices.partido_limpio && formData.partido_limpio === false)}
                     onClick={() => {
+                      markAnswered('partido_limpio');
                       handleInputChange('partido_limpio', false);
                       setCurrentStep(SURVEY_STEPS.DIRTY_PLAYERS);
                     }}
@@ -3250,17 +3315,22 @@ const EncuestaPartido = () => {
 
           {/* STEP 5: ¿QUIÉN GANÓ? */}
           {currentStep === SURVEY_STEPS.RESULT && (
-            <div className={`${stepClass} animate-[slideIn_0.42s_cubic-bezier(0.22,1,0.36,1)_forwards]`}>
+            <div className={`${stepClass} a2-rise`}>
               <div className={questionRowClass}>
                 <div className="w-full">
-                  <div className={titleClass}>
+                  <h1 id="survey-step-title" className={titleClass}>
                     ¿QUIÉN GANÓ?
-                  </div>
+                  </h1>
                   {!isTeamChallengeSurvey && (
                     <div className="mt-2 text-center font-oswald text-[13px] leading-snug text-white/75 md:text-[14px]">
                       {teamsContextLabel}
                     </div>
                   )}
+                  {finalTeams.teamA.length > 0 && finalTeams.teamB.length > 0 ? (
+                    <div className="mt-1 text-center font-oswald text-[13px] leading-snug text-white/90 md:text-[14px]">
+                      Tocá el equipo que ganó o marcá empate.
+                    </div>
+                  ) : null}
                 </div>
               </div>
               <div className={`${contentRowClass} items-start`}>
@@ -3309,9 +3379,11 @@ const EncuestaPartido = () => {
                     className={btnClass}
                     onClick={handleSubmit}
                     disabled={submitting || encuestaFinalizada || !formData.ganador}
+                    aria-busy={submitting}
                   >
-                    FINALIZAR ENCUESTA
+                    {renderSaveButtonLabel('FINALIZAR ENCUESTA')}
                   </button>
+                  {renderSubmitError()}
                 </div>
               </div>
               <div className={logoRowClass}>
@@ -3322,11 +3394,11 @@ const EncuestaPartido = () => {
 
           {/* STEP 6: JUGADORES VIOLENTOS */}
           {currentStep === SURVEY_STEPS.DIRTY_PLAYERS && (
-            <div className={`${playerStepClass} animate-[slideIn_0.42s_cubic-bezier(0.22,1,0.36,1)_forwards]`}>
+            <div className={`${playerStepClass} a2-rise`}>
               <div className={questionRowClass}>
-                <div className={titleClass}>
+                <h1 id="survey-step-title" className={titleClass}>
                   ¿QUIÉN JUGÓ SUCIO?
-                </div>
+                </h1>
               </div>
               <div className={playerContentRowClass}>
                 {renderMiniPlayerCards({
@@ -3360,12 +3432,12 @@ const EncuestaPartido = () => {
 
           {/* STEP 7: ORGANIZAR EQUIPOS */}
           {currentStep === SURVEY_STEPS.ORGANIZE_TEAMS && (
-            <div className={`${stepClass} !justify-start ${isCompressedLayout ? 'pt-1 sm:pt-2' : 'pt-2 sm:pt-4'} animate-[slideIn_0.42s_cubic-bezier(0.22,1,0.36,1)_forwards]`}>
+            <div className={`${stepClass} !justify-start ${isCompressedLayout ? 'pt-1 sm:pt-2' : 'pt-2 sm:pt-4'} a2-rise`}>
               <div className={questionRowClass}>
                 <div className="w-full">
-                  <div className={titleClass}>
+                  <h1 id="survey-step-title" className={titleClass}>
                     {shouldShowWinnerSelectionInOrganizeStep ? '¿Quién ganó el partido?' : 'ARMÁ LOS EQUIPOS COMO FINALMENTE SE JUGÓ'}
-                  </div>
+                  </h1>
                   <div className={`text-center font-oswald leading-snug text-white/75 ${isCompressedLayout ? 'mt-1.5 text-[12px] md:text-[13px]' : 'mt-2 text-[13px] md:text-[14px]'}`}>
                     {shouldShowWinnerSelectionInOrganizeStep ? friendlyOrganizeAndResultHelperText : organizeTeamsHelperText}
                   </div>
@@ -3416,14 +3488,16 @@ const EncuestaPartido = () => {
                   <button
                     className={btnClass}
                     onClick={handleLockTeamsAndContinue}
+                    aria-busy={submitting}
                     disabled={
                       submitting
                       || encuestaFinalizada
                       || (shouldShowWinnerSelectionInOrganizeStep && !['equipo_a', 'equipo_b', 'empate'].includes(formData.ganador))
                     }
                   >
-                    {shouldShowWinnerSelectionInOrganizeStep ? 'FINALIZAR ENCUESTA' : 'CONTINUAR'}
+                    {renderSaveButtonLabel(shouldShowWinnerSelectionInOrganizeStep ? 'FINALIZAR ENCUESTA' : 'CONTINUAR')}
                   </button>
+                  {renderSubmitError()}
                 </div>
               </div>
               <div className={logoRowClass}>
@@ -3434,12 +3508,12 @@ const EncuestaPartido = () => {
 
           {/* STEP 10: MOTIVO NO JUGADO */}
           {currentStep === SURVEY_STEPS.NOT_PLAYED_REASON && (
-            <div className={`${stepClass} animate-[slideIn_0.42s_cubic-bezier(0.22,1,0.36,1)_forwards]`}>
+            <div className={`${stepClass} a2-rise`}>
               <div className={questionRowClass}>
                 <div className="w-full">
-                  <div className={titleClass}>
+                  <h1 id="survey-step-title" className={titleClass}>
                     ¿QUÉ PASÓ?
-                  </div>
+                  </h1>
                   <div className={`${textClass} ${isCompressedLayout ? 'mt-2 sm:mt-2.5' : 'mt-2.5 sm:mt-3'} text-white/82`}>
                     Elegí el motivo para cerrar la encuesta.
                   </div>
@@ -3485,9 +3559,11 @@ const EncuestaPartido = () => {
                     type="button"
                     onClick={handleNotPlayedPrimaryAction}
                     disabled={!selectedNotPlayedReason || submitting || encuestaFinalizada}
+                    aria-busy={submitting}
                   >
-                    {notPlayedPrimaryButtonLabel}
+                    {renderSaveButtonLabel(notPlayedPrimaryButtonLabel)}
                   </button>
+                  {renderSubmitError()}
                 </div>
               </div>
               <div className={logoRowClass}>
@@ -3498,12 +3574,12 @@ const EncuestaPartido = () => {
 
           {/* STEP 11: AUSENTES SIN AVISO (PARTIDO NO JUGADO) */}
           {currentStep === SURVEY_STEPS.NOT_PLAYED_ABSENTS && (
-            <div className={`${playerStepClass} animate-[slideIn_0.42s_cubic-bezier(0.22,1,0.36,1)_forwards]`}>
+            <div className={`${playerStepClass} a2-rise`}>
               <div className={questionRowClass}>
                 <div className="w-full">
-                  <div className={titleClass}>
+                  <h1 id="survey-step-title" className={titleClass}>
                     ¿QUIÉNES FALTARON?
-                  </div>
+                  </h1>
                   <div className={`${textClass} ${isCompressedLayout ? 'mt-2 sm:mt-2.5' : 'mt-2.5 sm:mt-3'} text-white/82`}>
                     Marcá uno o varios ausentes sin aviso. Después de confirmar, la encuesta termina.
                   </div>
@@ -3520,10 +3596,12 @@ const EncuestaPartido = () => {
                   <button
                     className={btnClass}
                     onClick={handleSubmit}
-                    disabled={formData.jugadores_ausentes.length === 0}
+                    disabled={submitting || encuestaFinalizada || formData.jugadores_ausentes.length === 0}
+                    aria-busy={submitting}
                   >
-                    FINALIZAR
+                    {renderSaveButtonLabel('FINALIZAR')}
                   </button>
+                  {renderSubmitError()}
                 </div>
               </div>
               <div className={logoRowClass}>
@@ -3534,11 +3612,11 @@ const EncuestaPartido = () => {
 
           {/* STEP 12: AUSENTES (PARTIDO JUGADO) */}
           {currentStep === SURVEY_STEPS.ABSENTS && (
-            <div className={`${playerStepClass} animate-[slideIn_0.42s_cubic-bezier(0.22,1,0.36,1)_forwards]`}>
+            <div className={`${playerStepClass} a2-rise`}>
               <div className={questionRowClass}>
-                <div className={titleClass}>
+                <h1 id="survey-step-title" className={titleClass}>
                   ¿QUIÉNES FALTARON?
-                </div>
+                </h1>
               </div>
               <div className={playerContentRowClass}>
                 {renderMiniPlayerCards({
@@ -3565,11 +3643,11 @@ const EncuestaPartido = () => {
 
           {/* STEP 99: FINAL */}
           {currentStep === SURVEY_STEPS.DONE && (
-            <div className={`${centeredSummaryStackClass} animate-[slideIn_0.42s_cubic-bezier(0.22,1,0.36,1)_forwards]`}>
+            <div className={`${centeredSummaryStackClass} a2-rise`}>
               <div className="w-full">
-                <div className={titleClass}>
+                <h1 id="survey-step-title" className={titleClass}>
                   ¡GRACIAS POR CALIFICAR!
-                </div>
+                </h1>
               </div>
               <div className={`${textClass} text-[26px] !mb-0`}>
                 Los resultados se publicarán en ~{SURVEY_WINDOW_HOURS} horas.
