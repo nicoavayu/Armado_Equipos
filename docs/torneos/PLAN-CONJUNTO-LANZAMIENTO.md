@@ -11,8 +11,8 @@ Este plan respeta las dos y termina con los tres frentes funcionando en Producti
 | Frente | Rama / PR | Base | Base de datos Torneos | Gateway | Estado | Falta |
 | --- | --- | --- | --- | --- | --- | --- |
 | Torneos conectado | PR #182 `672ece4d` | integración #178–#181 | `0009`–`0011` | 25 archivos | Completo y ensayado (`connected-product/DEPLOY.md`). Mantenimiento de capacidad de Core **hecho en Production** (63,6 MiB, organización al 16 %) | Backups de Torneos y Storage (G0a) y GO |
-| Galería (MEDIA-V1) | PR #189 borrador `24cf615f` | #182 | `0012` | 29 archivos | Backend, frontend, documentación de activación y rollback, driver de laboratorio. **En curso:** miniaturas y presupuesto de Storage en el servidor (450 MiB por proyecto, 400 MiB para fotos y miniaturas, 12 cargas simultáneas; se ajusta al activar como 1 GB − Core − margen; se controla al pedir cada carga) | Su head final con miniaturas y presupuesto, validación en laboratorio (Nico ya dio permiso de Docker, sólo para este laboratorio), driver de operador `0012`, mediciones de costo |
-| Premium (Mercado Pago producción) | rama local `claude/torneos-mercadopago-prod-c369ba` (10 commits, último `e19c69a1`), sin push ni PR. Espera a que #189 `824582c4` esté en origin | #189 final `824582c4` | `0013` (sha256 `72943492…`) + driver `db-0013.mjs` | 30 archivos en el árbol integrado + servicio `torneos-payments-production` (Deno Deploy, cron de conciliación cada 15 min) | Rebasada sobre la Galería final, con los conflictos resueltos conservando ambos lados y el B04 regenerado. Cadena `0000 → 0012 (859fa24d) → 0013` en orden. Commerce 71/71 (incluye el rollback desde `POST_0012`, byte a byte), media 20/20, foundation 109/109, grafo 8/8 y 7/7. `checkoutAvailable`: Mi plan muestra «Pagar» sólo donde el servidor lo aceptaría (no hay botones que fallen durante `allowlist`) | Push y PR (base `claude/torneos-photo-gallery`), `commerce-production/DEPLOY.md`, lint + Jest completos |
+| Galería (MEDIA-V1) | PR #189 borrador `f60a4051` | #182 | `0012` | 29 archivos | Backend, frontend, documentación de activación y rollback, driver de laboratorio. **En curso:** miniaturas y presupuesto de Storage en el servidor (450 MiB por proyecto, 400 MiB para fotos y miniaturas, 12 cargas simultáneas; se ajusta al activar como 1 GB − Core − margen; se controla al pedir cada carga) | Su head final con miniaturas y presupuesto, validación en laboratorio (Nico ya dio permiso de Docker, sólo para este laboratorio), driver de operador `0012`, mediciones de costo |
+| Premium (Mercado Pago producción) | PR #190 borrador `6e37f6b3` | #189 `f60a4051` | `0013` (sha256 `72943492…`; exige `0012` = `859fa24d…`) + driver `db-0013.mjs` + rollback `2365a37c…` | 30 archivos (árbol integrado) + servicio `torneos-payments-production` (Deno Deploy, cron cada 15 min) | Inerte al mergear: sin env, sin app de Deno, interruptor en `off`. Jest 3551/3551, commerce 71/71, foundation 109/109, media 21/21, grafo 8/8 y 7/7, staging guard 259/259, build y eslint OK. `DEPLOY.md` y `monitoring.sql` de commerce incluidos | Validación conjunta (fase B) con su capa para el laboratorio: emulador de Mercado Pago y servicio de pagos |
 
 ## 2. Dependencias
 
@@ -44,7 +44,7 @@ Este plan respeta las dos y termina con los tres frentes funcionando en Producti
   - las credenciales de Mercado Pago de producción;
   - su webhook.
 
-**Orden resultante:** **#182 → Galería → Premium**.
+**Orden resultante:** **#182 → Galería → Premium**. Los PRs están apilados: #182 ← #189 ← #190. El head de #190 (`6e37f6b3`) es el árbol integrado de los tres; las suites de #182 pasan sobre él (connected 22/22, branding 14/14, ops 16/16, guard 8/8).
 - En código hay **una sola integración** de los tres, resuelta una vez y validada como unidad. La sesión de Galería
   está de acuerdo.
 - Recomendado: el PR de Premium apilado sobre el head **final** de #189 (con miniaturas y presupuesto).
