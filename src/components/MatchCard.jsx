@@ -37,6 +37,14 @@ const getOriginClass = (originLabel) => {
     return 'border-slate-400/40 bg-slate-500/15 text-slate-200';
 };
 
+// Dot color per post-match status line (survey, payment).
+const POST_MATCH_TONE_DOT = {
+    ok: 'bg-[#22c55e]',
+    warn: 'bg-amber-400',
+    danger: 'bg-[#f43f5e]',
+    muted: 'bg-white/35',
+};
+
 const MatchCard = ({
     partido,
     isFinished = false,
@@ -281,26 +289,36 @@ const MatchCard = ({
 
             {isPostMatch && postMatchInfo ? (
                 <div className="mt-1">
-                    <div className="flex flex-col gap-0.5 mb-3">
-                        {postMatchInfo.encuestaLabel ? (
-                            <div className="font-sans text-[12.5px] font-medium text-white/75">{postMatchInfo.encuestaLabel}</div>
-                        ) : null}
-                        {postMatchInfo.pagoLabel ? (
-                            <div className="font-sans text-[12.5px] font-medium text-white/75">{postMatchInfo.pagoLabel}</div>
-                        ) : null}
-                    </div>
+                    {postMatchInfo.matchName || postMatchInfo.resultLabel ? (
+                        <div className="mb-2.5 flex flex-wrap items-center gap-x-2 gap-y-1">
+                            {postMatchInfo.matchName ? (
+                                <div className="font-oswald text-[15px] font-bold text-white leading-tight break-words min-w-0">{postMatchInfo.matchName}</div>
+                            ) : null}
+                            {postMatchInfo.resultLabel ? (
+                                <span className="border border-[#f5c451]/40 bg-[#f5c451]/10 text-[#f5c451] px-2.5 py-[3px] rounded-full text-[11px] font-bold whitespace-nowrap">
+                                    {postMatchInfo.resultLabel}
+                                </span>
+                            ) : null}
+                        </div>
+                    ) : null}
+                    <ul className="flex flex-col gap-1 mb-3">
+                        {(postMatchInfo.lines || []).map((line) => (
+                            <li key={line.key} className="font-sans text-[12.5px] font-medium text-white/80 flex items-start gap-2">
+                                <span aria-hidden="true" className={`mt-[6px] h-1.5 w-1.5 rounded-full shrink-0 ${POST_MATCH_TONE_DOT[line.tone] || POST_MATCH_TONE_DOT.muted}`} />
+                                <span className="min-w-0">{line.text}</span>
+                            </li>
+                        ))}
+                    </ul>
                     <div className="flex flex-wrap gap-3">
-                        {[postMatchInfo.encuestaAction, postMatchInfo.pagosAction].filter(Boolean).map((action, idx) => (
+                        {[postMatchInfo.primaryAction, postMatchInfo.secondaryAction].filter(Boolean).map((action) => (
                             <button
-                                key={idx}
-                                className={`flex-1 min-w-0 whitespace-nowrap truncate font-bebas font-semibold text-[15px] tracking-[0.02em] px-3 py-2 border rounded-xl cursor-pointer transition-all text-white min-h-[44px] flex items-center justify-center text-center sm:text-[13px] sm:px-3 sm:py-2 sm:min-h-[40px] ${action.disabled
-                                    ? 'bg-[#1d1740] text-white/40 cursor-not-allowed border-white/10'
-                                    : action.primary
-                                        ? 'bg-cta-gradient border-white/20 shadow-cta hover:brightness-105 active:scale-[0.985]'
-                                        : 'bg-white/[0.06] border-[rgba(148,134,255,0.28)] hover:bg-white/[0.12]'}`}
+                                key={action.label}
+                                type="button"
+                                className={`flex-1 min-w-0 whitespace-nowrap truncate font-bebas font-semibold text-[15px] tracking-[0.02em] px-3 py-2 border rounded-xl cursor-pointer transition-all text-white min-h-[44px] flex items-center justify-center text-center sm:text-[13px] sm:px-3 sm:py-2 sm:min-h-[40px] ${action.primary
+                                    ? 'bg-cta-gradient border-white/20 shadow-cta hover:brightness-105 active:scale-[0.985]'
+                                    : 'bg-white/[0.06] border-[rgba(148,134,255,0.28)] hover:bg-white/[0.12]'}`}
                                 onClick={(e) => {
                                     e.stopPropagation();
-                                    if (action.disabled) return;
                                     action.onClick?.(e);
                                 }}
                             >
