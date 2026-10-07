@@ -54,16 +54,24 @@ test('db 0009–0011 classify: POST_0008, POST_0009, POST_0010 and every drift f
     ['POST_0008', (c) => { c.torneos_tables = false; return c; }],
   ]) assert.equal(classify(catalogAt(state, mutate)).state, 'DRIFT', `${state} drift`);
   assert.equal(classify(null).state, 'DRIFT');
+  // rollback-0010 keeps the private bucket row: accepted as residue below 0010, only with the exact 0010 configuration.
+  const withResidue = (state, bucket = { ...BRANDING_BUCKET }) => catalogAt(state, (c) => { c.branding.bucket = bucket; return c; });
+  for (const state of ['POST_0009', 'POST_0008']) {
+    assert.deepEqual(classify(withResidue(state)), { state, failures: [], residue: ['tournament-branding bucket (private, no policies; kept by rollback-0010)'] });
+    assert.equal(classify(withResidue(state, { ...BRANDING_BUCKET, public: true })).state, 'DRIFT', `${state} public residue`);
+  }
+  assert.equal(classify(catalogAt('POST_0010', (c) => { c.branding.policies = []; c.branding.functions = 0; return c; })).state, 'DRIFT', 'counts still 193/16');
 });
 
 test('db 0009–0011 apply/rollback: phrase, file hash, exact states and order gate every write', async () => {
   let current = 'POST_0008';
+  let bucketKept = false; // what the real rollback-0010 does (rehearsal lab): the bucket row stays
   const sent = [];
   const next = { 'apply-0009': 'POST_0009', 'apply-0010': 'POST_0010', 'apply-0011': 'POST_0011', 'rollback-0011': 'POST_0010',
     'rollback-0010': 'POST_0009', 'rollback-0009': 'POST_0008' };
   const deps = (mode) => ({
-    catalog: async () => catalogAt(current),
-    applySql: async () => { sent.push(mode); current = next[mode]; return { code: 0 }; },
+    catalog: async () => catalogAt(current, (c) => { if (bucketKept && !STATES[current].branding) c.branding.bucket = { ...BRANDING_BUCKET }; return c; }),
+    applySql: async () => { sent.push(mode); current = next[mode]; if (mode === 'rollback-0010') bucketKept = true; return { code: 0 }; },
   });
   await assert.rejects(run('apply-0009', ['APPLY', 'TORNEOS', '0009'], deps('apply-0009')), /PHRASE_REQUIRED/);
   await assert.rejects(run('apply-0009', phrase('apply-0009'), { ...deps('apply-0009'), readFile: () => Buffer.from('tampered') }), /FILE_HASH_MISMATCH/);
@@ -81,7 +89,14 @@ test('db 0009–0011 apply/rollback: phrase, file hash, exact states and order g
   assert.equal((await run('rollback-0011', phrase('rollback-0011'), deps('rollback-0011'))).verdict, 'ROLLBACK_0011_DONE');
   assert.equal((await run('rollback-0010', phrase('rollback-0010'), deps('rollback-0010'))).verdict, 'ROLLBACK_0010_DONE');
   assert.equal((await run('rollback-0009', phrase('rollback-0009'), deps('rollback-0009'))).verdict, 'ROLLBACK_0009_DONE');
-  assert.deepEqual(sent, ['apply-0009', 'apply-0010', 'apply-0011', 'rollback-0011', 'rollback-0010', 'rollback-0009']);
+  assert.deepEqual((await run('observe', [], deps('observe'))).verdict.residue?.length, 1, 'POST_0008 with the kept bucket');
+  // Re-applying over the residue (0010 upserts the bucket row) passes the same gates.
+  for (const mode of ['apply-0009', 'apply-0010', 'apply-0011', 'rollback-0011', 'rollback-0010', 'rollback-0009']) {
+    assert.match((await run(mode, phrase(mode), deps(mode))).verdict, /_DONE$/, `${mode} over the residue`);
+  }
+  assert.deepEqual(sent, ['apply-0009', 'apply-0010', 'apply-0011', 'rollback-0011', 'rollback-0010', 'rollback-0009',
+    'apply-0009', 'apply-0010', 'apply-0011', 'rollback-0011', 'rollback-0010', 'rollback-0009']);
+  bucketKept = false;
   // A write that moves anything that existed before 0009, or lands in the wrong state, is FAILED.
   current = 'POST_0008';
   const moved = await run('apply-0009', phrase('apply-0009'), { ...deps('apply-0009'),

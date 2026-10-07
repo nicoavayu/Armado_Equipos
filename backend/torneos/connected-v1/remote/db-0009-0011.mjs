@@ -15,6 +15,8 @@
 // identical before and after, except the two certified bodies 0011 replaces, which are pinned by md5 in every state. The
 // rollbacks of 0009/0010 are destructive for what they created (see docs/torneos/connected-product/DEPLOY.md): containment of
 // last resort, after the flags are off, with an export of the new tables. 0011's rollback only restores two bodies.
+// rollback-0010 leaves the private bucket row and its objects (unreachable without policies); classify() accepts exactly
+// that residue, so rollback-0009 and a later apply-0010 (bucket upsert) still pass their gates (found on the rehearsal lab).
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
@@ -62,7 +64,7 @@ export const STATES = Object.freeze({
 const sha256 = (bytes) => crypto.createHash('sha256').update(bytes).digest('hex');
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 
-/** POST_0008 | POST_0009 | POST_0010 | DRIFT, with every reason. Pure. */
+/** POST_0008 | POST_0009 | POST_0010 | POST_0011 | DRIFT, with every reason (and the accepted residue, if any). Pure. */
 export function classify(catalog) {
   if (!catalog || catalog.torneos_tables !== true) return { state: 'DRIFT', failures: ['not_the_torneos_db'] };
   const failures = [];
@@ -72,20 +74,24 @@ export function classify(catalog) {
   if (connected && !(same(tables, CONNECTED_TABLES) && same(triggers, CONNECTED_TRIGGERS) && c.attestation_my_teams === true && c.functions === CONNECTED_FUNCTIONS)) {
     failures.push(`connected_partial tables=${tables.length} triggers=${triggers.length} attestation=${c.attestation_my_teams} functions=${c.functions}`);
   }
-  const branding = b.bucket != null || policies.length > 0 || (b.functions ?? 0) > 0;
+  // rollback-0010 keeps the bucket row (Storage refuses to drop a bucket that still holds objects): a private bucket with
+  // the exact 0010 configuration, without policies or read rules, is the expected residue of POST_0009 / POST_0008.
+  const branding = policies.length > 0 || (b.functions ?? 0) > 0;
+  const residue = !branding && b.bucket != null;
   if (branding) {
     if (!same(b.bucket, BRANDING_BUCKET)) failures.push(`bucket ${JSON.stringify(b.bucket)}`);
     if (!same(policies, BRANDING_POLICIES)) failures.push(`policies ${policies.join(',')}`);
     if (b.functions !== 2) failures.push(`branding_functions ${b.functions}`);
     if (!connected) failures.push('branding_without_connected');
-  }
+  } else if (residue && !same(b.bucket, BRANDING_BUCKET)) failures.push(`bucket_residue ${JSON.stringify(b.bucket)}`);
   const search = Object.entries(ROSTER_SEARCH).find(([, pin]) => same(pin, catalog.roster_search))?.[0];
   if (!search) failures.push(`roster_search ${JSON.stringify(catalog.roster_search)}`);
   const state = Object.entries(STATES).find(([, s]) => s.connected === connected && s.branding === branding && s.search === search)?.[0];
   if (!state) return { state: 'DRIFT', failures: [...failures, 'no_state'] };
   const want = STATES[state].counts;
   if (catalog.counts?.authenticated !== want[0] || catalog.counts?.anon !== want[1]) failures.push(`counts ${catalog.counts?.authenticated}/${catalog.counts?.anon}`);
-  return failures.length ? { state: 'DRIFT', failures } : { state, failures: [] };
+  if (failures.length) return { state: 'DRIFT', failures };
+  return residue ? { state, failures: [], residue: ['tournament-branding bucket (private, no policies; kept by rollback-0010)'] } : { state, failures: [] };
 }
 
 /** What existed before 0009 must not move: returns the names of the sections that changed. */
