@@ -5,7 +5,7 @@
 // Everything Torneos goes through ONE gateway URL (`REACT_APP_TORNEOS_GATEWAY_URL`):
 // exchange, RPC and the table routes of the certified contract. There is no
 // separate Data API target and nothing is ever inherited from Core.
-import { isLabDeviceHost } from '../config/labDeviceHost';
+import { isLabDeviceHost } from './labDeviceHost';
 
 const LOOPBACK_HOSTS = new Set(['127.0.0.1', 'localhost', '[::1]']);
 

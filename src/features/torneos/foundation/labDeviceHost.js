@@ -7,8 +7,8 @@
 //   * REACT_APP_DEPLOY_ENV=development and REACT_APP_TORNEOS_DATA_ENV=local;
 //   * the value is a private IPv4 literal (10/8, 172.16/12, 192.168/16) and nothing else.
 // Staging and the Production enablement contract never read it.
-// Same rule as foundation/labDeviceHost.js (the gateway check), which cannot import from here;
-// src/__tests__/torneosLabDeviceHost.test.js requires both copies to agree.
+// foundation/ stays self-contained (it imports nothing outside itself), so config/labDeviceHost.js holds the same
+// rule for the feature flags; src/__tests__/torneosLabDeviceHost.test.js requires both copies to agree.
 const IPV4 = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/;
 
 function isPrivateIpv4(value) {

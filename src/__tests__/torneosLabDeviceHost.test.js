@@ -1,4 +1,5 @@
 import { isLabDeviceHost, resolveLabDeviceHost } from '../features/torneos/config/labDeviceHost';
+import * as foundationCopy from '../features/torneos/foundation/labDeviceHost';
 import { resolveTorneosBackendIsolation, resolveTorneosFeatureFlags } from '../features/torneos/config/featureFlags';
 import { assertTorneosGatewayUrl, readDualBackendConfig } from '../features/torneos/foundation/config';
 
@@ -56,5 +57,16 @@ describe('lab device host (explicit Wi-Fi phone test setting)', () => {
   test('Core and Torneos keep separate targets: the gateway may not be the Core origin', () => {
     expect(() => assertTorneosGatewayUrl('http://192.168.0.171:58432', { coreOrigin: 'http://192.168.0.171:58432', env: labPhoneEnv }))
       .toThrow('TORNEOS_CORE_TARGET_COLLISION');
+  });
+
+  test('the config and foundation copies give the same answer for every case', () => {
+    const cases = [labPhoneEnv, { ...labPhoneEnv, NODE_ENV: 'production' }, { ...labPhoneEnv, REACT_APP_DEPLOY_ENV: 'preview' },
+      { ...labPhoneEnv, REACT_APP_TORNEOS_DATA_ENV: 'staging' }, { ...labPhoneEnv, REACT_APP_LAB_DEVICE_HOST: '10.0.0.5' },
+      { ...labPhoneEnv, REACT_APP_LAB_DEVICE_HOST: '172.31.1.1' }, { ...labPhoneEnv, REACT_APP_LAB_DEVICE_HOST: '172.32.1.1' },
+      { ...labPhoneEnv, REACT_APP_LAB_DEVICE_HOST: '8.8.8.8' }, { ...labPhoneEnv, REACT_APP_LAB_DEVICE_HOST: 'lab.local' }, {}];
+    for (const env of cases) {
+      expect(foundationCopy.resolveLabDeviceHost(env)).toBe(resolveLabDeviceHost(env));
+      expect(foundationCopy.isLabDeviceHost('192.168.0.171', env)).toBe(isLabDeviceHost('192.168.0.171', env));
+    }
   });
 });
