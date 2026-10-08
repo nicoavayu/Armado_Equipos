@@ -456,6 +456,29 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
     return true;
   })();
 
+  // The primary action is disabled until the step is complete: say what is missing
+  // instead of leaving a dim button (e.g. hour and minutes chosen, AM/PM not).
+  const missingRequirement = (() => {
+    if (step === NEW_MATCH_STEPS.NAME && !isMatchNameValid) return 'Poné un nombre para seguir.';
+    if (step === NEW_MATCH_STEPS.WHEN) {
+      if (!fecha) return hora ? 'Elegí el día del partido.' : 'Elegí el día y la hora del partido.';
+      const missingParts = [
+        !timeParts.hour && 'la hora',
+        !timeParts.minute && 'los minutos',
+        !timeParts.period && 'AM o PM',
+      ].filter(Boolean);
+      if (missingParts.length === 3) return 'Elegí la hora del partido.';
+      if (missingParts.length > 0) {
+        const list = missingParts.length === 1
+          ? missingParts[0]
+          : `${missingParts.slice(0, -1).join(', ')} y ${missingParts[missingParts.length - 1]}`;
+        return `Falta elegir ${list}.`;
+      }
+    }
+    if (step === NEW_MATCH_STEPS.WHERE && !sede.trim()) return 'Escribí dónde se juega.';
+    return null;
+  })();
+
   const handleNext = () => {
     if (step === NEW_MATCH_STEPS.NAME && !isMatchNameValid) {
       setError(MATCH_NAME_REQUIRED_MESSAGE);
@@ -1249,11 +1272,20 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
               className={PRIMARY_ACTION_BUTTON_CLASS}
               disabled={loading || isTransitioning || (step !== NEW_MATCH_STEPS.CONFIRM && !canAdvance)}
               onClick={step === NEW_MATCH_STEPS.CONFIRM ? handleSubmit : handleNext}
+              aria-describedby={missingRequirement ? 'new-match-next-hint' : undefined}
             >
               {step === NEW_MATCH_STEPS.CONFIRM
                 ? loading ? 'Creando…' : 'Crear partido'
                 : editMode ? 'Guardar cambios' : 'Siguiente'}
             </button>
+            <p
+              id="new-match-next-hint"
+              data-testid="new-match-next-hint"
+              aria-live="polite"
+              className={`mt-2 min-h-[18px] text-center font-sans text-[12.5px] leading-[18px] text-white/64 ${missingRequirement && !notice?.message ? '' : 'sr-only'}`}
+            >
+              {missingRequirement && !notice?.message ? missingRequirement : ''}
+            </p>
             {error && step === NEW_MATCH_STEPS.CONFIRM ? (
               <div role="alert" className={`${FORM_ERROR_CLASS} mt-3`}>{error}</div>
             ) : notice?.message ? (

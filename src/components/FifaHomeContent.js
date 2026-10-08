@@ -143,6 +143,8 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
   const { user } = useAuth();
   const notificationsCtx = useNotifications() || {};
   const notifications = notificationsCtx.notifications || [];
+  // Outside a NotificationProvider there is nothing to wait for.
+  const notificationsReady = notificationsCtx.notificationsReady !== false;
   const navigate = useNavigate();
   const location = useLocation();
   const { setIntervalSafe, clearIntervalSafe } = useInterval();
@@ -359,9 +361,12 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
 
     activeMatchesSignatureRef.current = buildActiveMatchesSignature(snapshot.activeMatches);
     setActiveMatches(snapshot.activeMatches);
-    setActivityItems(filterDismissedRecentActivityItems(snapshot.activityItems, user.id));
-    activityLoadedRef.current = true;
-    setActivityLoading(false);
+    const cachedItems = filterDismissedRecentActivityItems(snapshot.activityItems, user.id);
+    setActivityItems(cachedItems);
+    // A cached empty feed proves nothing about now (a new notification is often why the
+    // app was opened): keep loading until the fresh feed is built.
+    activityLoadedRef.current = cachedItems.length > 0;
+    setActivityLoading(cachedItems.length === 0);
   }, [user?.id]);
 
   useEffect(() => {
@@ -659,6 +664,9 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
 
       if (!activityLoadedRef.current) {
         setActivityLoading(true);
+        // The first feed waits for the account's notifications: building it from the
+        // still-empty list would flash "Sin notificaciones" before the real activity.
+        if (!notificationsReady) return;
       }
       const items = await buildActivityFeed(notifications || [], {
         activeMatches,
@@ -679,7 +687,7 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
     return () => {
       cancelled = true;
     };
-  }, [activeMatches, activityRefreshNonce, notifications, user?.id]);
+  }, [activeMatches, activityRefreshNonce, notifications, notificationsReady, user?.id]);
 
   // Mostrar ProximosPartidos si está activo
   if (showProximosPartidos) {

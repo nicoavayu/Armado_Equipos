@@ -116,7 +116,8 @@ export default function MatchInfoSection(props) {
   })();
 
   const horaRaw = partidoObj?.hora ?? hora;
-  const horaDisplay = horaRaw || 'Sin hora';
+  // Some sources (e.g. the invite RPC) return a SQL time ("21:00:00"): show "21:00".
+  const horaDisplay = horaRaw ? String(horaRaw).replace(/^(\d{1,2}:\d{2}):\d{2}(?:\.\d+)?$/, '$1') : 'Sin hora';
 
   const modalidadDisplay = partidoObj?.modalidad ?? modalidad ?? 'F5';
 

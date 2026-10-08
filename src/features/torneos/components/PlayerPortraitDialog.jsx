@@ -2,8 +2,8 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom';
 import { AlertCircle, ImagePlus, Loader2, Lock } from 'lucide-react';
 import {
-  PLAYER_PORTRAIT_DEFAULT_CROP,
-  normalizeCrop,
+  PLAYER_PORTRAIT_DEFAULT_CROP, PLAYER_PORTRAIT_EDITOR_FRAME,
+  clampCrop, normalizeCrop,
   validatePlayerPortraitFile,
 } from '../domain/playerPortraits';
 import PlayerPortraitCropEditor from './PlayerPortraitCropEditor';
@@ -30,9 +30,18 @@ export default function PlayerPortraitDialog({
   const inputRef = useRef(null);
   const [file, setFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState('');
-  const [crop, setCrop] = useState(
-    () => normalizeCrop(portrait?.crop || PLAYER_PORTRAIT_DEFAULT_CROP),
-  );
+  // When the row carries the portrait's dimensions, the first state is already the crop
+  // the editor shows (clamped to the 4:5 frame). Starting from the raw saved value and
+  // letting an effect correct it one render later left a window in which "Guardar foto"
+  // stored the out-of-range value: what is seen is what is saved, from the first frame.
+  const [crop, setCrop] = useState(() => {
+    const saved = normalizeCrop(portrait?.crop || PLAYER_PORTRAIT_DEFAULT_CROP);
+    if (!portrait?.width || !portrait?.height) return saved;
+    return clampCrop(saved, {
+      natural: { width: portrait.width, height: portrait.height },
+      frameRatio: PLAYER_PORTRAIT_EDITOR_FRAME.ratio,
+    });
+  });
   const [localError, setLocalError] = useState('');
   const current = usePlayerPortraitUrl(portrait?.ref || null);
   const titleId = 'player-portrait-dialog-title';
