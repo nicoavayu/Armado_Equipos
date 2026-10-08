@@ -99,6 +99,28 @@ Al retirar la foto (0 s):
   - afuera: el estado quedó intacto.
 - La `0013` de Premium no toca media; el orden 0012 → 0013 es independiente.
 
+## 0014 — retirar la última foto devuelve a borrador (2026-10-08, `evidence/draft-on-retire.jsonl`)
+
+Decisión de Nico. Antes, retirar la única foto publicada (la portada) archivaba la galería, sin vuelta atrás. La `0014`
+se aplicó al lab con el driver de operador: `POST_0012 → POST_0014`, nada fuera de media se movió. Ciclo en «Lab Otra
+Liga» (PREMIUM), con el capitán del lab como participante de un equipo de esa liga:
+
+| Paso | Resultado |
+|---|---|
+| Publicar con 1 foto | publicada; el participante la ve (1 de 1 URL) |
+| Capitán / ajeno / otra organización retiran o publican | 403 los tres; visitante 401; nada cambió |
+| El organizador retira la única foto | galería en **borrador** (sin portada ni sellos), foto `hidden`; el participante deja de verla y no recibe URLs nuevas; la URL emitida antes respondió 200, como se espera hasta sus 300 s |
+| Capitán sobre el borrador: restaurar / publicar | 403 / 403 |
+| Foto pendiente de revisión en el borrador | publicar → `400 TORNEOS_MEDIA_GALLERY_NOT_PUBLISHABLE` (se rechazó después) |
+| Aprobar otra foto, portada, publicar (la retirada sigue oculta) | publicada; el participante ve sólo la nueva (1 de 2) |
+| Restaurar la retirada en la galería publicada | vuelve a `published` (2 de 2) |
+| Retirar las dos (la portada al final) → restaurar → portada → publicar | borrador, y otra vez publicada |
+| «Archivar galería» explícito | archivada; restaurar y republicar fallan: sigue siendo final |
+| Auditoría | `created, cover_set, published, unpublished, cover_set, published, unpublished, cover_set, published, archive` |
+
+La UI pide confirmación antes: «¿Retirar la única foto publicada? La galería volverá a borrador…». Después explica la
+vuelta: restaurar o aprobar otra, elegir portada y publicar.
+
 ## Límites que siguen
 
 - MVP_SIMPLE: sin antivirus, sin decodificación de píxeles en servidor.
