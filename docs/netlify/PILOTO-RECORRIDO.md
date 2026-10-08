@@ -75,12 +75,30 @@ Probado en LAB el 2026-10-08, sobre el build de Netlify `cc2e86e6` y a través d
 
 ## Seguridad (laboratorio)
 
-Privacidad de Core, PR #193:
-- una cuenta ajena ya no lee email, teléfono ni fecha de nacimiento;
-- las coordenadas salen aproximadas (~1 km);
-- `select('*')` de 1.1.21 no se rompe.
+Privacidad de Core, PR #193 `4a5a9179`:
+- **135000/136000** (aplicadas en el laboratorio compartido):
+  - una cuenta ajena ya no lee email, teléfono ni fecha de nacimiento;
+  - las coordenadas salen aproximadas (~1 km);
+  - `select('*')` de 1.1.21 no se rompe.
+- **137000/138000** se verificaron sobre el laboratorio dentro de una transacción revertida (el laboratorio compartido no las tiene aplicadas):
+  - **Cuenta ajena con sesión, sobre el partido 379, publicado buscando jugadores:**
+    - antes leía el código `F62A30C2` de la tabla;
+    - ahora la tabla no le devuelve el partido;
+    - `partidos_view` y «Quiero jugar» se lo muestran con el código oculto;
+    - ve el plantel (2 filas);
+    - 0 códigos ajenos legibles en la tabla y las vistas.
+  - **Organizador:** sigue viendo su código.
+  - **Sin sesión:**
+    - las vistas devuelven 0 filas, sin error;
+    - el link con el código (WhatsApp) abre el partido;
+    - un código inválido no abre nada.
+  - **Foto de invitado (138000):**
+    - la primera sesión que toma el nombre es dueña de la foto;
+    - otra sesión con el mismo código queda rechazada.
+  - **En el laboratorio compartido**, aplicar 137000 como `postgres` no otorga los permisos para anon porque esas funciones son de `supabase_admin`. Es un artefacto del laboratorio: en Producción son de `postgres`, y el post-check del runbook («anon: 0 filas sin error») lo detectaría.
+- **Residual hasta una build nativa nueva** (ver `docs/database/core-review/ROSTER-FIELDS.md`): mientras un partido está publicado buscando jugadores, cualquier cuenta con sesión ve en su plantel el nombre, la foto, `usuario_id` y `score`. No hay datos personales privados en esa tabla.
 
-Quedan legibles el código y el plantel de los partidos que están publicados buscando jugadores. **Mientras #193 no esté en Production, el piloto no es apto para usuarios reales.**
+**Mientras #193 no esté en Production, el piloto no es apto para usuarios reales.** El procedimiento para publicarlo está en `docs/database/core-review/RUNBOOK-193.md`.
 
 ## Netlify real
 
@@ -90,8 +108,9 @@ Quedan legibles el código y el plantel de los partidos que están publicados bu
 
 | Pendiente | Tipo |
 | --- | --- |
-| Lectura del código de los partidos abiertos (#193) | Decisión |
-| Deploy real en Netlify y backend de prueba alojado | Bloqueado, requiere a Nico |
+| Publicar #193 con RUNBOOK-193 | Requiere la aprobación de Nico |
+| `usuario_id` y `score` en planteles de partidos publicados | Hasta una build nativa nueva; 139000 (`added_by`) espera GO |
+| Deploy real en Netlify y backend de prueba alojado | Bloqueado: ver `BACKEND-PRUEBA.md` (Codespaces necesita el permiso `codespace` de Nico) |
 | Teléfono físico (iOS/Android) | No probado |
 | Realtime | No probado: el puente del laboratorio no reenvía WebSocket y en la consola aparecen errores de conexión a `/realtime/v1`. Los datos se verificaron recargando y por la API |
 | Mercado Pago real | No probado |

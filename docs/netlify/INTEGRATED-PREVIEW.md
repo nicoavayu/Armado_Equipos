@@ -9,12 +9,12 @@
 
 | Frente | PR y head |
 | --- | --- |
-| Base: Torneos + Galería + Premium | #190 `5b41caf9`, que trae #189 `c58cfcad`, #182 `228bb139` (piloto: programación y 0015) y #178–#181 |
-| Core | #187 `abd9e8f2` (con #183 y #186), #184 `dadc7c19`, #185 `64de0d89`, #193 `0925bbfe` (privacidad) |
+| Base: Torneos + Galería + Premium | #190 `fa0f82cb`, que trae #189 `dba47fce` y #182 `7d435472` (piloto: programación, 0015, avisos 0016) y #178–#181 |
+| Core | #187 `abd9e8f2` (con #183 y #186), #184 `dadc7c19`, #185 `64de0d89`, #193 `4a5a9179` (privacidad: 135000–138000 y RUNBOOK-193) |
 | Netlify | #191 `9c40146d` |
 
 Conflictos resueltos en la integración:
-- guarda de migraciones de Core: las dos listas (64 con #193);
+- guarda de migraciones de Core: las dos listas (66 con #193 `4a5a9179`);
 - workflow de CI: se conserva `claude/**`;
 - B04 regenerado.
 
