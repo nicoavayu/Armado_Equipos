@@ -30,8 +30,14 @@ begin
   end if;
 end;
 $$;
--- The migration role must be able to hand the views to it (ALTER … OWNER TO).
-grant core_match_public_reader to current_user;
+-- The migration role must be able to hand the views to it (ALTER … OWNER TO needs SET on
+-- the new owner). By name: `grant … to current_user` crashes the backend (signal 11) when
+-- run by the non-superuser postgres on supabase/postgres 17.6.1.143 (dry run 2026-10-08).
+do $$
+begin
+  execute format('grant core_match_public_reader to %I', current_user);
+end;
+$$;
 
 -- The signed-in account as auth.uid() reads it, without needing the auth schema.
 create or replace function app_private.request_user_id()
@@ -157,9 +163,13 @@ create or replace view public.partidos_view as
    FROM public.partidos p
   WHERE deleted_at IS NULL;
 
+-- ALTER … OWNER TO also requires the new owner to have CREATE on the schema; the reader
+-- keeps it only for these three statements.
+grant create on schema public to core_match_public_reader;
 alter view public.partidos_view owner to core_match_public_reader;
 alter view public.partidos_abiertos_operativos owner to core_match_public_reader;
 alter view public.partidos_abiertos_operativos_v2 owner to core_match_public_reader;
+revoke create on schema public from core_match_public_reader;
 alter view public.partidos_view set (security_invoker = false);
 alter view public.partidos_abiertos_operativos set (security_invoker = false);
 alter view public.partidos_abiertos_operativos_v2 set (security_invoker = false);
@@ -173,8 +183,9 @@ begin
   ) then
     raise exception 'partidos_select_authenticated must not return published matches to everyone';
   end if;
-  if exists (select 1 from pg_roles where rolname = 'core_match_public_reader' and (rolcanlogin or rolbypassrls or rolsuper)) then
-    raise exception 'core_match_public_reader must not log in nor bypass RLS';
+  if exists (select 1 from pg_roles where rolname = 'core_match_public_reader' and (rolcanlogin or rolbypassrls or rolsuper))
+     or has_schema_privilege('core_match_public_reader', 'public', 'create') then
+    raise exception 'core_match_public_reader must not log in, bypass RLS nor create objects';
   end if;
   if (select count(*) from pg_class where relname in ('partidos_view', 'partidos_abiertos_operativos', 'partidos_abiertos_operativos_v2')
         and pg_get_userbyid(relowner) = 'core_match_public_reader') <> 3 then
