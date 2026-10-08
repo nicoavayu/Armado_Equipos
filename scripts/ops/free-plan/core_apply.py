@@ -40,6 +40,21 @@ import ops_free_plan as ops  # noqa: E402
 
 CORE_REF = ops.TARGETS['core']
 LEDGER_BASE = ('20260914120000', '20260915120000')
+# A ledger version is known when this checkout ships its migration file (e.g. #193's 20261010120000…139000, recorded by
+# the RUNBOOK-193 apply): a containment step such as rollback-push-preference must still run after them. Never the
+# LOCAL twin, which must not exist in Production.
+NEVER_IN_PRODUCTION = ('20261006120000',)
+
+
+def repo_migration_versions():
+    folder = os.path.join(ops.REPO, 'supabase/migrations')
+    return {name[:14] for name in os.listdir(folder) if re.fullmatch(r'\d{14}_[a-z0-9_]+\.sql', name)}
+
+
+def unknown_versions(ledger, steps, shipped):
+    """Ledger versions this runner must refuse to work around: not base, not one of its steps, not shipped here."""
+    return [v for v in ledger if v in NEVER_IN_PRODUCTION
+            or (v not in LEDGER_BASE and f'migration-{v}' not in steps and v not in shipped)]
 
 STEPS = {
     'reindex': {'file': 'supabase/ops/free-plan-capacity/01-reindex-notification-delivery-log.sql',
@@ -179,7 +194,7 @@ def cmd_apply(args):
     evidence['ledger_before'] = ledger
     if not all(v in ledger for v in LEDGER_BASE):
         ops.die(f'ledger does not hold {LEDGER_BASE}: {ledger}', 1)
-    unknown = [v for v in ledger if v not in LEDGER_BASE and f'migration-{v}' not in STEPS]
+    unknown = unknown_versions(ledger, STEPS, repo_migration_versions())
     if unknown:
         ops.die(f'ledger has versions this runner does not know: {unknown}', 1)
     if spec['kind'] == 'migration' and spec['version'] in ledger:

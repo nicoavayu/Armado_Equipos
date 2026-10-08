@@ -35,6 +35,19 @@ test('core_apply pins the exact bytes of every step it can run', () => {
   }
 });
 
+test('core_apply still runs its containment after later shipped migrations, never with the LOCAL twin or an unknown version', () => {
+  const probe = `import sys; sys.path.insert(0, 'scripts/ops/free-plan'); import json, core_apply as c
+base = list(c.LEDGER_BASE) + ['20261008120000']
+shipped = c.repo_migration_versions()
+print(json.dumps({
+  'later_shipped': c.unknown_versions(base + ['20261010120000', '20261010139000'], c.STEPS, shipped | {'20261010120000', '20261010139000'}),
+  'local_twin': c.unknown_versions(base + ['20261006120000'], c.STEPS, shipped | {'20261006120000'}),
+  'not_shipped': c.unknown_versions(base + ['20991231000000'], c.STEPS, shipped)}))`;
+  const r = py(['-c', probe]);
+  assert.equal(r.status, 0, r.stderr);
+  assert.deepEqual(JSON.parse(r.stdout), { later_shipped: [], local_twin: ['20261006120000'], not_shipped: ['20991231000000'] });
+});
+
 test('the reports and the manifest only read', () => {
   for (const file of ['supabase/ops/free-plan-capacity/inspect.sql', 'supabase/ops/free-plan-capacity/inspect-core-logs.sql', 'scripts/ops/free-plan/sql/manifest.sql']) {
     const sql = code(read(file));
