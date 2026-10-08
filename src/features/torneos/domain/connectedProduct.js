@@ -131,6 +131,16 @@ export function formatDateTime(value) {
   }).format(date);
 }
 
+// A kickoff the way Mis partidos shows it: «sáb, 17 oct, 03:00 p. m.».
+export function formatKickoff(value) {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  const day = new Intl.DateTimeFormat('es-AR', { weekday: 'short', day: 'numeric', month: 'short' }).format(date);
+  const time = new Intl.DateTimeFormat('es-AR', { hour: '2-digit', minute: '2-digit' }).format(date);
+  return `${day}, ${time}`;
+}
+
 export function periodLabel(startDate, endDate) {
   const start = formatDay(startDate, { withYear: true });
   const end = formatDay(endDate, { withYear: true });
@@ -157,6 +167,9 @@ export function capacityLabel(category) {
 // Where a Torneos inbox item leads. Only internal routes of Torneos, built from the item's own resource ids.
 export function notificationTarget(item) {
   if (!item?.organizationId || !item?.tournamentId) return '/torneos/avisos';
+  if ((item.kind === 'match.rescheduled' || item.kind === 'match.postponed') && item.matchId) {
+    return `/torneos/mis-partidos/${encodeURIComponent(item.matchId)}`;
+  }
   if (item.audience === 'organization') {
     const query = item.teamEntryId ? `?equipo=${encodeURIComponent(item.teamEntryId)}` : '';
     return `/torneos/organizacion/${encodeURIComponent(item.organizationId)}/torneo/${encodeURIComponent(item.tournamentId)}/solicitudes${query}`;

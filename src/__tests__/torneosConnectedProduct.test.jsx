@@ -358,6 +358,51 @@ describe('Avisos de Torneos', () => {
       .toHaveTextContent('/torneos/organizacion/org-1/torneo/t-1/solicitudes?equipo=entry-1'));
     expect(mockWorkspace.service.markTorneosNotificationsRead).not.toHaveBeenCalled();
   });
+
+  test('a rescheduled match says the previous and the new time, never a reason, and opens the match', async () => {
+    const previous = '2030-10-17T18:00:00.000Z';
+    const next = '2030-10-18T20:30:00.000Z';
+    const kickoff = (value) => {
+      const date = new Date(value);
+      const day = new Intl.DateTimeFormat('es-AR', { weekday: 'short', day: 'numeric', month: 'short' }).format(date);
+      return `${day}, ${new Intl.DateTimeFormat('es-AR', { hour: '2-digit', minute: '2-digit' }).format(date)}`;
+    };
+    mockWorkspace.service = {
+      loadTorneosNotifications: jest.fn().mockResolvedValue({
+        items: [{
+          ...NOTICE, id: 'n-3', kind: 'match.rescheduled', title: 'Partido reprogramado', message: null,
+          body: 'Halcones vs. Pumas · Copa Abierta · Primera', matchId: 'match-1', previousScheduledAt: previous, scheduledAt: next,
+        }],
+        pagination: { hasMore: false },
+      }),
+      markTorneosNotificationsRead: jest.fn().mockResolvedValue({}),
+    };
+    renderAt('/torneos/avisos', '/torneos/avisos', <TorneosInboxPage />);
+    const notice = await screen.findByRole('button', { name: /Partido reprogramado/ });
+    expect(notice).toHaveTextContent(`Antes: ${kickoff(previous)} · Ahora: ${kickoff(next)}`);
+    expect(notice.querySelector('q')).toBeNull();
+    fireEvent.click(notice);
+    await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent('/torneos/mis-partidos/match-1'));
+    expect(mockWorkspace.service.markTorneosNotificationsRead).toHaveBeenCalledWith({ notificationIds: ['n-3'] });
+  });
+
+  test('a postponed match says the time it had, that the new date is to be confirmed, and opens the match', async () => {
+    mockWorkspace.service = {
+      loadTorneosNotifications: jest.fn().mockResolvedValue({
+        items: [{
+          ...NOTICE, id: 'n-4', kind: 'match.postponed', title: 'Partido postergado', message: null,
+          body: 'Halcones vs. Pumas · Copa Abierta · Primera', matchId: 'match-2', previousScheduledAt: '2030-10-17T18:00:00.000Z', scheduledAt: null,
+        }],
+        pagination: { hasMore: false },
+      }),
+      markTorneosNotificationsRead: jest.fn().mockResolvedValue({}),
+    };
+    renderAt('/torneos/avisos', '/torneos/avisos', <TorneosInboxPage />);
+    const notice = await screen.findByRole('button', { name: /Partido postergado/ });
+    expect(notice).toHaveTextContent(/Antes: .+ · Nueva fecha: a confirmar/);
+    fireEvent.click(notice);
+    await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent('/torneos/mis-partidos/match-2'));
+  });
 });
 
 describe('Perfil de Torneos', () => {
