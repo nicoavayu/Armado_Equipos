@@ -6,7 +6,7 @@ import access from '../../netlify/functions/private-web-access.mjs';
 import logout from '../../netlify/functions/private-web-logout.mjs';
 
 prepare();
-const { default: gate } = await import('../../.netlify-generated/edge-functions/private-web-gate.mjs');
+const { default: gate } = await import('../../.netlify-generated/edge-functions/private-web-gate.js');
 const base = 'https://arma2-test.netlify.app';
 const secret = 'test-only-signing-secret-that-is-not-a-deployed-credential';
 const context = (request) => ({ next: async (replacement) => new Response(new URL(replacement?.url || request.url).pathname) });

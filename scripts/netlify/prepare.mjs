@@ -39,7 +39,7 @@ export function prepare(root = path.resolve(path.dirname(fileURLToPath(import.me
   source = source.replaceAll('withGateSecurityHeaders(rewrite(', 'withGateSecurityHeaders(await rewrite(')
     .replaceAll('withGateSecurityHeaders(next())', 'withGateSecurityHeaders(await next())');
   replace("matcher: '/:path*',", "path: '/*',\n  onError: 'fail',");
-  fs.writeFileSync(path.join(destination, 'edge-functions/private-web-gate.mjs'), source);
+  fs.writeFileSync(path.join(destination, 'edge-functions/private-web-gate.js'), source);
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) prepare();
