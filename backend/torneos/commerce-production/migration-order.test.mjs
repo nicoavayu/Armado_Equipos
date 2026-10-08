@@ -1,7 +1,7 @@
 // COMMERCE-PRODUCTION — 0013 commutes with the migrations around it. Production applies them by station, not by file
-// name: C1 (#182: 0015), C2 (gallery: 0012 + 0014), C3 (Premium: 0013). So the orders run here on a disposable database
+// name: C1 (#182: 0015 + 0016), C2 (gallery: 0012 + 0014), C3 (Premium: 0013). So the orders run here on a disposable database
 // of its own (arma2-commerce-production-lab-ord-<checkout tag>, a port Docker picks) with the REAL driver (remote/db-0013.mjs) and the REAL
-// catalog SQL: 0013 applies and rolls back over 0014 and 0015 without touching them, and 0014 applies over 0013 without
+// catalog SQL: 0013 applies and rolls back over 0014, 0015 and 0016 without touching them, and 0014 applies over 0013 without
 // touching any commerce object.
 //   node --test backend/torneos/commerce-production/migration-order.test.mjs
 import { after, test } from 'node:test';
@@ -20,6 +20,7 @@ const MIGRATION_0013 = '00000000000013_mercadopago_checkout_pro_production.sql';
 const MIGRATION_0014 = '00000000000014_media_gallery_draft_on_retire.sql';
 const MIGRATION_0012 = '00000000000012_media_gallery_v1.sql';
 const MIGRATION_0015 = '00000000000015_participant_match_reschedule_visibility.sql';
+const MIGRATION_0016 = '00000000000016_match_reschedule_notice.sql';
 const sha256 = (b) => crypto.createHash('sha256').update(b).digest('hex');
 
 const deps = {
@@ -43,18 +44,24 @@ const mediaBodies = () => JSON.parse(lab.sql(`select json_build_object(
   'transition', (select md5(prosrc) from pg_proc where oid = 'public.transition_tournament_media_asset(uuid,text,text)'::regprocedure),
   'publish', (select md5(prosrc) from pg_proc where oid = 'public.publish_tournament_media_gallery(uuid)'::regprocedure))`).trim());
 
-// The two match reads 0015 redefines (previousScheduledAt).
-const matchBodies = () => JSON.parse(lab.sql(`select json_object_agg(p.oid::regprocedure::text, md5(p.prosrc)) from pg_proc p
-  join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and p.proname in ('get_player_tournament_matches', 'get_managed_tournament_matches')`).trim());
+// What C1 redefines or adds: the two match reads of 0015 (previousScheduledAt) and, from 0016, the reschedule, the
+// notifications read and the notice trigger function, plus the trigger itself.
+const C1_FUNCTIONS = ['get_player_tournament_matches', 'get_managed_tournament_matches', 'reschedule_tournament_match',
+  'get_my_torneos_notifications', 'notify_tournament_match_schedule_change'];
+const c1Objects = () => JSON.parse(lab.sql(`select json_build_object(
+  'functions', (select json_object_agg(p.oid::regprocedure::text, md5(p.prosrc) || ' ' || coalesce(p.proacl::text, ''))
+    from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and p.proname = any(array['${C1_FUNCTIONS.join("','")}'])),
+  'trigger', (select pg_get_triggerdef(t.oid) from pg_trigger t where t.tgname = 'tournament_match_reschedules_notify' and not t.tgisinternal))`).trim());
 
 after(() => lab.down());
 
-test('Production stations: 0011 → 0015 (C1) → 0012 → 0014 (C2) → 0013 (C3), apply and rollback through the driver', async () => {
+test('Production stations: 0011 → 0015 → 0016 (C1) → 0012 → 0014 (C2) → 0013 (C3), apply and rollback through the driver', async () => {
   await lab.up({ fresh: true, upTo: '00000000000011' });
   applyFile(MIGRATION_0015);
-  const matches = matchBodies();
-  assert.equal(Object.keys(matches).length, 2, JSON.stringify(matches));
-  assert.deepEqual(Object.values(matches).map((m) => m.slice(0, 8)).sort(), ['54d543bd', 'c997fcf5'], JSON.stringify(matches));
+  applyFile(MIGRATION_0016);
+  const matches = c1Objects();
+  assert.equal(Object.keys(matches.functions).length, C1_FUNCTIONS.length, JSON.stringify(matches));
+  assert.match(matches.trigger ?? '', /AFTER INSERT ON public\.tournament_match_reschedules/);
   applyFile(MIGRATION_0012);
   applyFile(MIGRATION_0014);
   const gallery = mediaBodies();
@@ -62,11 +69,11 @@ test('Production stations: 0011 → 0015 (C1) → 0012 → 0014 (C2) → 0013 (C
 
   const applied = await apply();
   assert.deepEqual([applied.verdict, applied.before, applied.after, applied.outsideUnchanged, applied.scope], ['APPLY_0013_DONE', 'PRE_0013', 'POST_0013', true, 'off']);
-  assert.deepEqual([matchBodies(), mediaBodies()], [matches, gallery], '0013 leaves 0015 and 0014 untouched');
+  assert.deepEqual([c1Objects(), mediaBodies()], [matches, gallery], '0013 leaves 0015, 0016 and 0014 untouched');
 
   const rolled = await rollback();
   assert.deepEqual([rolled.verdict, rolled.after, rolled.outsideUnchanged], ['ROLLBACK_0013_DONE', 'PRE_0013', true]);
-  assert.deepEqual([matchBodies(), mediaBodies()], [matches, gallery], 'the 0013 rollback leaves 0015 and 0014 untouched');
+  assert.deepEqual([c1Objects(), mediaBodies()], [matches, gallery], 'the 0013 rollback leaves 0015, 0016 and 0014 untouched');
 });
 
 test('0012 → 0014 → 0013 (gallery first, as C2 then C3): the driver applies and rolls back 0013 over 0014, which stays intact', async () => {
