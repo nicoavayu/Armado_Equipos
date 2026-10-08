@@ -56,6 +56,18 @@ select json_build_object('check', 'grants: own-profile RPCs for accounts only; p
       and not has_function_privilege('authenticated', 'public.bind_voting_photo_slot(bigint,text,bigint)', 'execute'),
   'value', null)::text;
 
+-- A function inside a view runs with the caller's EXECUTE: without these, anon reading
+-- partidos_view gets "permission denied" instead of no rows (e.g. if 136000's helpers were
+-- created by another role, 137000's grants as postgres would be no-ops).
+select json_build_object('check', '137000: anon and authenticated can execute every function the match views call',
+  'pass', bool_and(has_function_privilege('anon', f, 'execute') and has_function_privilege('authenticated', f, 'execute')),
+  'value', json_object_agg(f::text, has_function_privilege('anon', f, 'execute')))::text
+from unnest(array[
+  'public.partido_is_operationally_open(text,timestamp with time zone,text,text,timestamp with time zone,date,text,boolean,timestamp with time zone)'::regprocedure,
+  'public.partido_kickoff_at(date,text)'::regprocedure, 'public.normalize_partido_estado(text)'::regprocedure,
+  'app_private.request_user_id()'::regprocedure, 'app_private.match_involves_user(bigint,uuid)'::regprocedure,
+  'app_private.match_is_publicly_open(bigint)'::regprocedure, 'app_private.match_access_code(bigint)'::regprocedure]) f;
+
 select json_build_object('check', '138000: a guest photo slot belongs to its first session',
   'pass', (select prosrc ~ 'pg_advisory_xact_lock' and prosrc ~ 'public_voters' from pg_proc where oid = 'public.bind_voting_photo_slot(bigint,text,bigint)'::regprocedure),
   'value', null)::text;
