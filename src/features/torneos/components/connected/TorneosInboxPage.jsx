@@ -14,7 +14,7 @@ import {
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useTorneosWorkspace } from '../../context/TorneosWorkspaceContext';
 import { useTorneosFeatures } from '../../context/TorneosFeaturesContext';
-import { formatDateTime, notificationTarget } from '../../domain/connectedProduct';
+import { formatDateTime, formatKickoff, notificationTarget } from '../../domain/connectedProduct';
 import MyCommunicationsPage from '../MyCommunicationsPage';
 import { announceTorneosInboxChanged } from './torneosInboxEvents';
 import { useTorneosInboxSummary } from './useTorneosInboxSummary';
@@ -100,7 +100,8 @@ function ActivityList() {
         <h2>Sin actividad todavía</h2>
         <p>
           Acá llegan los avisos de tus inscripciones: cuando enviás una solicitud, cuando la organización la aprueba,
-          pide cambios o la rechaza. Si gestionás un torneo, también las solicitudes que recibís.
+          pide cambios o la rechaza. También cuando cambia el horario de uno de tus partidos y, si gestionás un torneo,
+          las solicitudes que recibís.
         </p>
       </section>
     );
@@ -133,6 +134,16 @@ function ActivityList() {
                 </small>
                 <strong>{item.title}</strong>
                 <span>{item.body}</span>
+                {(item.kind === 'match.rescheduled' || item.kind === 'match.postponed') && (
+                  <span className={styles.activityChange}>
+                    {formatKickoff(item.previousScheduledAt) && (
+                      <>Antes: <del>{formatKickoff(item.previousScheduledAt)}</del> · </>
+                    )}
+                    {item.kind === 'match.postponed'
+                      ? <>Nueva fecha: <ins>a confirmar</ins></>
+                      : <>Ahora: <ins>{formatKickoff(item.scheduledAt) || 'A confirmar'}</ins></>}
+                  </span>
+                )}
                 {item.message && <q>{item.message}</q>}
                 <time dateTime={item.createdAt}>{formatDateTime(item.createdAt)}</time>
               </span>

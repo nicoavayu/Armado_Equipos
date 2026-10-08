@@ -109,7 +109,9 @@ function PlayerMatchCard({
         </div>
         {previous && (
           <p className={styles.rescheduledNote}>
-            <strong>Reprogramado</strong> · antes era el {previous.day}, {previous.time}
+            {match.status === 'postponed'
+              ? <><strong>Postergado</strong> · estaba para el {previous.day}, {previous.time}</>
+              : <><strong>Reprogramado</strong> · antes era el {previous.day}, {previous.time}</>}
           </p>
         )}
         <dl className={styles.matchFacts}>
