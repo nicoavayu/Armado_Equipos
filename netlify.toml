@@ -3,6 +3,8 @@
   publish = "build"
   functions = "netlify/functions"
   edge_functions = ".netlify-generated/edge-functions"
+  # Free plan: a merge that touches no web path does not build or publish (15 credits per production deploy).
+  ignore = "node scripts/netlify/should-build.mjs"
 
 [build.environment]
   NODE_VERSION = "22"
@@ -22,6 +24,19 @@
     X-Frame-Options = "DENY"
     Referrer-Policy = "same-origin"
     X-Robots-Tag = "noindex, nofollow, noarchive"
+
+# Universal links / App Links: the same content type and cache as vercel.json (iOS reads the extensionless file).
+[[headers]]
+  for = "/.well-known/apple-app-site-association"
+  [headers.values]
+    Content-Type = "application/json; charset=utf-8"
+    Cache-Control = "public, max-age=3600"
+
+[[headers]]
+  for = "/.well-known/assetlinks.json"
+  [headers.values]
+    Content-Type = "application/json; charset=utf-8"
+    Cache-Control = "public, max-age=3600"
 
 [[headers]]
   for = "/static/*"

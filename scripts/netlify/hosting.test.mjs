@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import { prepare } from './prepare.mjs';
+import { decide, onlyNonWebChanges } from './should-build.mjs';
 import { createPrivateWebPasswordHash, createPrivateWebAccessToken } from '../../server/privateWebAccess.mjs';
 import access from '../../netlify/functions/private-web-access.mjs';
 import logout from '../../netlify/functions/private-web-logout.mjs';
@@ -72,4 +74,28 @@ test('logout remains same-origin and expires the cookie', async () => {
   const response = await logout(new Request(base + '/api/private-web-logout', { method: 'POST', headers: { origin: base } }));
   assert.equal(response.status, 204);
   assert.match(response.headers.get('Set-Cookie'), /Max-Age=0/);
+});
+test('universal-link files keep the content type and cache vercel.json gives them', () => {
+  const vercel = JSON.parse(fs.readFileSync(new URL('../../vercel.json', import.meta.url), 'utf8'));
+  const toml = fs.readFileSync(new URL('../../netlify.toml', import.meta.url), 'utf8');
+  for (const file of ['/.well-known/apple-app-site-association', '/.well-known/assetlinks.json']) {
+    const expected = vercel.headers.find((rule) => rule.source === file).headers;
+    const block = toml.split('[[headers]]').find((part) => part.includes(`for = "${file}"`));
+    assert.ok(block, `netlify.toml has no header rule for ${file}`);
+    for (const { key, value } of expected) assert.ok(block.includes(`${key} = "${value}"`), `${file}: ${key}`);
+  }
+});
+test('the ignore command skips only merges that touch no web path, and builds when unsure', () => {
+  assert.equal(onlyNonWebChanges(['backend/torneos/x.sql', 'docs/a.md', 'android/app/build.gradle', 'README.md']), true);
+  assert.equal(onlyNonWebChanges(['backend/torneos/x.sql', 'src/App.js']), false);
+  for (const web of ['public/index.html', 'package.json', 'netlify.toml', 'middleware.ts', 'server/privateWebAccess.mjs',
+    'api/private-web-access.mjs', 'netlify/functions/private-web-access.mjs', 'scripts/netlify/prepare.mjs', 'scripts/build-env.mjs']) {
+    assert.equal(onlyNonWebChanges(['docs/a.md', web]), false, web);
+  }
+  assert.equal(onlyNonWebChanges([]), false);
+  assert.deepEqual(decide({ from: undefined, to: 'b' }).skip, false);
+  assert.deepEqual(decide({ from: 'a', to: 'a' }).skip, false);
+  assert.equal(decide({ from: 'a', to: 'b', git: () => { throw new Error('shallow'); } }).skip, false);
+  assert.equal(decide({ from: 'a', to: 'b', git: () => 'supabase/migrations/x.sql\ndocs/y.md\n' }).skip, true);
+  assert.equal(decide({ from: 'a', to: 'b', git: () => 'supabase/migrations/x.sql\nsrc/index.js\n' }).skip, false);
 });
