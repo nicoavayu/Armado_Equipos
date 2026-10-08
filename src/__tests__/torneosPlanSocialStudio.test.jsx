@@ -19,6 +19,20 @@ jest.mock('../features/torneos/config/featureFlags', () => {
   };
 });
 
+// #182 alone always keeps the Galería upcoming; the empty list first appears once the Gallery's media joins Social and
+// branding, so this file can force it.
+let mockNothingUpcoming = false;
+jest.mock('../features/torneos/domain/planComparison', () => {
+  const actual = jest.requireActual('../features/torneos/domain/planComparison');
+  return {
+    ...actual,
+    planComparisonFor: (options) => {
+      const composition = actual.planComparisonFor(options);
+      return mockNothingUpcoming ? { ...composition, comingSoon: [] } : composition;
+    },
+  };
+});
+
 const org = { id: '10000000-0000-4000-8000-000000000001', name: 'Liga Devoto' };
 const season = { id: '20000000-0000-4000-8000-000000000001', name: 'Temporada 2026' };
 
@@ -39,7 +53,7 @@ function show({ plan = 'FREE', social = true, branding = false } = {}) {
   );
 }
 
-beforeEach(() => { mockSocialFlag = true; });
+beforeEach(() => { mockSocialFlag = true; mockNothingUpcoming = false; });
 
 test('available: the Studio joins FREE vs PREMIUM with the real split and leaves Próximamente', async () => {
   show();
@@ -113,4 +127,13 @@ test('branding available: Logos y escudos is included in both plans and is no lo
   const row = within(screen.getByRole('region', { name: 'Qué agrega Premium' })).getByRole('rowheader', { name: 'Logos y escudos' }).closest('tr');
   expect([...row.querySelectorAll('td')].map((cell) => cell.textContent)).toEqual(['Incluidos', 'Incluidos']);
   expect(screen.getByRole('region', { name: 'Inclusiones actuales' })).toHaveTextContent('Logos y escudos: Incluidos');
+});
+
+test('nothing upcoming: Mi plan drops Próximamente instead of announcing an empty list', async () => {
+  mockNothingUpcoming = true;
+  show({ branding: true });
+  await screen.findByRole('heading', { name: 'FREE · Temporada 2026' });
+  expect(screen.queryByRole('heading', { name: 'Próximamente' })).not.toBeInTheDocument();
+  expect(screen.queryByText(/todavía no están disponibles/)).not.toBeInTheDocument();
+  expect(screen.getByRole('region', { name: 'Qué agrega Premium' })).toBeInTheDocument();
 });
