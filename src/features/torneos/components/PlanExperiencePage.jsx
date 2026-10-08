@@ -15,10 +15,12 @@ export default function PlanExperiencePage({ organization: organizationProp = nu
   const competition = useOptionalTorneosCompetition();
   const features = useTorneosFeatures();
   // Same condition as the Estudio Social entry of the navigation (TorneosShell): flag + composition feature.
+  // Logos y escudos: the composition feature that every logo/shield upload surface reads.
   const { comparison, comingSoon } = planComparisonFor({
     socialStudio: torneosFeatureFlags.socialContentGenerator === true && features.social_studio === true,
     // MEDIA-V1: same condition as the Multimedia entry of the navigation.
     media: torneosFeatureFlags.mediaEnabled === true && features.media === true,
+    branding: features.branding_assets === true,
   });
   const organization = organizationProp || outlet.organization;
   const season = seasonProp || competition?.activeSeason;
