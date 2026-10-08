@@ -560,7 +560,8 @@ describe('MP-A5 service injected → hybrid transport (no Core singleton, no leg
     expect(checkoutRedirect).not.toHaveBeenCalled();
     expect(calls.filter(([kind]) => kind === 'commerce')).toHaveLength(0);
     expect(calls).toContainEqual(['rpc', 'get_effective_tournament_season_entitlements', { p_organization_id: ORG, p_season_id: SEASON }]);
-    expect(calls).toContainEqual(['rpc', 'get_tournament_season_purchases', { p_organization_id: ORG, p_season_id: SEASON }]);
+    // The purchase panel reads the season's purchases in its own effect, after the plan: awaited, never assumed (CI load).
+    await waitFor(() => expect(calls).toContainEqual(['rpc', 'get_tournament_season_purchases', { p_organization_id: ORG, p_season_id: SEASON }]));
     // Pagar con Mercado Pago: exactly the fixed checkout route with the three UUIDs, then the validated redirect.
     fireEvent.click(await screen.findByRole('button', { name: 'Pagar con Mercado Pago' }));
     await waitFor(() => expect(checkoutRedirect).toHaveBeenCalledWith(CHECKOUT_URL));
