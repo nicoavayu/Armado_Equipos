@@ -147,7 +147,8 @@ export const MEDIA_UPLOAD_MESSAGES = Object.freeze({
   TORNEOS_MEDIA_MVP_RATE_LIMITED: ['Subiste muchas fotos seguidas. Esperá unos minutos y reintentá.', true],
   TORNEOS_MEDIA_QUOTA_EXCEEDED: ['Hay muchas fotos subiéndose a la vez. Esperá a que terminen y reintentá.', true],
   TORNEOS_MEDIA_BUSY: ['Hay muchas fotos subiéndose ahora en Arma2 Torneos. Reintentá en unos segundos.', true],
-  TORNEOS_MEDIA_STORAGE_BUDGET_EXCEEDED: ['El espacio para fotos está completo por ahora. Retirá fotos que no uses o escribinos.', false],
+  // Project-wide byte budget: retiring a photo keeps its file, so it frees nothing; only the operator can raise it.
+  TORNEOS_MEDIA_STORAGE_BUDGET_EXCEEDED: ['El espacio para fotos de Arma2 Torneos está completo por ahora. Escribinos para seguir subiendo.', false],
   TORNEOS_MEDIA_TOO_LARGE: ['La foto supera los 4 MB incluso optimizada. Probá con otra.', false],
   TORNEOS_MEDIA_TYPE_UNSUPPORTED: ['Formato no admitido. Usá JPEG, PNG o WebP.', false],
   TORNEOS_MEDIA_FILE_INVALID: ['No pudimos verificar esta imagen. Probá con otro archivo.', false],
@@ -184,7 +185,8 @@ export function translateMediaUploadError(error) {
       const quota = details?.quota || null;
       const numbers = Number.isInteger(quota?.usage) && Number.isInteger(quota?.limit) ? ` (${quota.usage} de ${quota.limit})` : '';
       return new MediaUploadError(
-        `Llegaste al límite de fotos de esta temporada${numbers}. Retirá fotos que no uses${quota?.upgradeRequired ? ' o pasá la temporada a Premium' : ''}.`,
+        // Same rule as the season meter: retired photos still count (they can be restored); rejected ones do not.
+        `Llegaste al límite de fotos de esta temporada${numbers}. Para liberar lugar, rechazá fotos que todavía no publicaste${quota?.upgradeRequired ? ', o pasá la temporada a Premium' : ''}.`,
         { code, retryable: false, quota, cause: error },
       );
     }

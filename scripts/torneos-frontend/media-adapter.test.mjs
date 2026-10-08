@@ -223,6 +223,11 @@ test('what the organizer reads: quota in numbers, content in words, retries only
   assert.match(e.message, /Premium/);
   e = translateMediaUploadError(refusal('TORNEOS_SEASON_MEDIA_QUOTA_EXCEEDED', { code: null, quota: { usage: 1000, limit: 1000, upgradeRequired: false } }));
   assert.doesNotMatch(e.message, /Premium/, 'a Premium season is not offered Premium');
+  // Retired photos still count toward the season and keep their file: no refusal may promise that retiring frees room.
+  assert.match(e.message, /rechazá fotos que todavía no publicaste/);
+  for (const code of ['TORNEOS_SEASON_MEDIA_QUOTA_EXCEEDED', 'TORNEOS_MEDIA_STORAGE_BUDGET_EXCEEDED']) {
+    assert.doesNotMatch(translateMediaUploadError(refusal(code, { code: null, quota: { usage: 25, limit: 25, upgradeRequired: true } })).message, /Retirá/, code);
+  }
   e = translateMediaUploadError(refusal('TORNEOS_MEDIA_CONTENT_REJECTED', { code: 'MEDIA_ANIMATION_UNSUPPORTED', quota: null }));
   assert.equal(e.message, 'Las imágenes animadas todavía no se admiten.');
   assert.equal(e.retryable, false);

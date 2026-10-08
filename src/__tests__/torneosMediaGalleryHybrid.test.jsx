@@ -150,7 +150,7 @@ describe('MEDIA-V1 · organizer', () => {
     expect(mockContextService.uploadMediaPhoto).not.toHaveBeenCalled();
 
     mockContextService.uploadMediaPhoto.mockRejectedValueOnce(Object.assign(
-      new Error('Llegaste al límite de fotos de esta temporada (25 de 25). Retirá fotos que no uses o pasá la temporada a Premium.'),
+      new Error('Llegaste al límite de fotos de esta temporada (25 de 25). Para liberar lugar, rechazá fotos que todavía no publicaste, o pasá la temporada a Premium.'),
       { code: 'TORNEOS_SEASON_MEDIA_QUOTA_EXCEEDED', retryable: false },
     ));
     pick();
@@ -173,15 +173,37 @@ describe('MEDIA-V1 · organizer', () => {
 
   test('published photos can be retired and restored, never erased, in the hybrid composition', async () => {
     mockContextService = hybridService(adminPayload({
-      status: 'published', coverAssetId: 'asset-a', assets: [asset('asset-a'), asset('asset-b', { sortOrder: 1, status: 'hidden' })],
+      status: 'published', coverAssetId: 'asset-a',
+      assets: [asset('asset-a'), asset('asset-b', { sortOrder: 1, status: 'hidden' }), asset('asset-c', { sortOrder: 2 })],
     }));
+    const confirm = jest.spyOn(window, 'confirm');
     renderAdmin();
-    const retire = await screen.findByRole('button', { name: /Retirar/ });
+    const [retire] = await screen.findAllByRole('button', { name: /Retirar/ });
     expect(screen.queryByRole('button', { name: /Eliminar/ })).not.toBeInTheDocument();
     expect(screen.getByText('Retirada')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Restaurar/ })).toBeInTheDocument();
     await userEvent.click(retire);
     expect(mockContextService.transitionMediaAsset).toHaveBeenCalledWith(expect.objectContaining({ assetId: 'asset-a', action: 'hide' }));
+    expect(confirm).not.toHaveBeenCalled();
+    confirm.mockRestore();
+  });
+
+  // Server rule (transition_tournament_media_asset): retiring the cover with no other published photo archives the
+  // gallery, and nothing un-archives it. Found on the integrated Netlify preview, 2026-10-08.
+  test('retiring the only published photo asks first, because the gallery is archived for good', async () => {
+    mockContextService = hybridService(adminPayload({
+      status: 'published', coverAssetId: 'asset-a', assets: [asset('asset-a'), asset('asset-b', { sortOrder: 1, status: 'hidden' })],
+    }));
+    const confirm = jest.spyOn(window, 'confirm').mockReturnValueOnce(false).mockReturnValueOnce(true);
+    renderAdmin();
+    const retire = await screen.findByRole('button', { name: /Retirar/ });
+    await userEvent.click(retire);
+    expect(confirm).toHaveBeenLastCalledWith(expect.stringMatching(/única foto publicada.*quedará archivada.*no se puede volver a publicar/s));
+    expect(mockContextService.transitionMediaAsset).not.toHaveBeenCalled();
+    await userEvent.click(retire);
+    expect(mockContextService.transitionMediaAsset).toHaveBeenCalledWith(expect.objectContaining({ assetId: 'asset-a', action: 'hide' }));
+    expect(confirm).toHaveBeenCalledTimes(2);
+    confirm.mockRestore();
   });
 });
 
