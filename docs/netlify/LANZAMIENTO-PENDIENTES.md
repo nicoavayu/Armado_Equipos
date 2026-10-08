@@ -95,7 +95,7 @@ Core en la web está detrás del acceso privado. La contraseña de laboratorio e
 | D6 | **Privacidad de Core:** aceptar el riesgo con una fecha (ver §5) y publicar la fase A antes o junto al lanzamiento | No técnico; riesgo |
 | D7 | **CI de calidad de #189:** el clasificador bloqueó en la sesión de Galería el cherry-pick de `48dcc028`. Opciones: aprobarlo, mergear antes #187 (que lo trae) o cambiar la base | Merge de #189 con gate |
 | D8 | **Link de una foto retirada:** hoy dura hasta 300 s; la alternativa es 120 s | — |
-| D9 | **Galería:** retirar la única foto (la portada) archiva la galería sin aviso y ya no se puede restaurar. Además, el error al llegar al tope dice «Retirá fotos que no uses», pero retirar no libera lugar | — (texto o confirmación) |
+| D9 | **Galería:** retirar la última foto publicada (la portada) archiva la galería, y el archivo es terminal. **Corregido en #189 `388bd54e`** (sólo frontend; falta que llegue a #190 y a esta integración): ahora se pide confirmación antes de retirarla, y los rechazos por tope y por presupuesto ya no dicen «Retirá». Queda a decisión de Nico si archivar debe dejar de ser terminal (requiere rediseño) | — |
 
 ### 4.2 REAL, por estación (cada una con GO propio)
 
