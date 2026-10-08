@@ -1,7 +1,7 @@
 # Netlify Free — preview integrada y lo que falta para reemplazar Vercel
 
 **Estado (2026-10-08):**
-- Rama aislada `claude/netlify-integrated-preview` (local).
+- Rama aislada `claude/netlify-integrated-preview`, PR #192 en borrador («NO MERGEAR»).
 - Sin contrataciones, merges, DNS ni cambios en Production.
 - `app.arma2.com.ar` sigue en Vercel.
 
@@ -9,12 +9,12 @@
 
 | Frente | PR y head |
 | --- | --- |
-| Base: Torneos + Galería + Premium | #190 `7a467827`, que trae #182 `938d6ddd` (+ docs `ffb888d6`), #189 `34cd4c25` y #178–#181 |
-| Core | #187 `abd9e8f2` (con #183 y #186), #184 `dadc7c19`, #185 `64de0d89` |
+| Base: Torneos + Galería + Premium | #190 `5b41caf9`, que trae #189 `c58cfcad`, #182 `228bb139` (piloto: programación y 0015) y #178–#181 |
+| Core | #187 `abd9e8f2` (con #183 y #186), #184 `dadc7c19`, #185 `64de0d89`, #193 `0925bbfe` (privacidad) |
 | Netlify | #191 `9c40146d` |
 
 Conflictos resueltos en la integración:
-- guarda de migraciones de Core: las dos listas, 62 en total;
+- guarda de migraciones de Core: las dos listas (64 con #193);
 - workflow de CI: se conserva `claude/**`;
 - B04 regenerado.
 
