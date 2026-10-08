@@ -182,7 +182,6 @@ function signedInternal(base, secretHex, pathName, payload) {
 export async function selftest({ keep = false, log = console.log } = {}) {
   const NAME = 'arma2-phaseb-selftest';
   process.env.COMMERCE_PRODUCTION_LAB_CONTAINER = `${NAME}-db`;
-  process.env.COMMERCE_PRODUCTION_LAB_PORT = '58474';
   const lab = await import('../pg-lab.mjs');
   const fx = await import('../fixtures.mjs');
   const net = `${lab.CONTAINER}-net`;

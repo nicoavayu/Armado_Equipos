@@ -1,5 +1,5 @@
 // COMMERCE-PRODUCTION — 00000000000013 and its rollback on a disposable database of their own (container
-// arma2-commerce-production-lab-rb, port 58651): the state before 0013 (POST_0011, or POST_0012 with the gallery) → 0013 →
+// arma2-commerce-production-lab-rb-<checkout tag>, a port Docker picks): the state before 0013 (POST_0011, or POST_0012 with the gallery) → 0013 →
 // rollback → that catalog again, byte for
 // byte; a re-application after the rollback works; the rollback refuses once a production purchase or login exists.
 //   node --test backend/torneos/commerce-production/rollback-0013.test.mjs
@@ -10,7 +10,6 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 process.env.COMMERCE_PRODUCTION_LAB_CONTAINER = 'arma2-commerce-production-lab-rb';
-process.env.COMMERCE_PRODUCTION_LAB_PORT = '58651';
 const lab = await import('./lab/pg-lab.mjs');
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const MIGRATION = readFileSync(path.join(lab.MIGRATIONS_DIR, '00000000000013_mercadopago_checkout_pro_production.sql'), 'utf8');
