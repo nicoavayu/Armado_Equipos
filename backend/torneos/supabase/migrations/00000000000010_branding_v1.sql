@@ -127,7 +127,10 @@ $$;
 
 revoke all on function public.is_public_tournament_branding_object(text) from public;
 grant execute on function public.is_public_tournament_branding_object(text) to anon, authenticated, service_role;
-revoke all on function public.can_read_tournament_branding_object(text) from public;
+-- Applied as postgres (the hosted installer), whose default privileges in public grant EXECUTE on every new function to
+-- anon, authenticated and service_role: the identity read rule must be revoked from anon explicitly (found by the
+-- pilot dress rehearsal, applied as postgres; the lab installer supabase_admin has no such default).
+revoke all on function public.can_read_tournament_branding_object(text) from public, anon;
 grant execute on function public.can_read_tournament_branding_object(text) to authenticated, service_role;
 
 -- ============================================================================================ bucket + policies

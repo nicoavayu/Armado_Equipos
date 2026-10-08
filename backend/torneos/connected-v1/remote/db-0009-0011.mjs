@@ -30,7 +30,7 @@ export const FILES = Object.freeze({
   'apply-0009': file('backend/torneos/supabase/migrations/00000000000009_connected_product_v1.sql',
     '8bb8e6c84bbe0acb6d5976a49fde88d2fbd55626a6001e595c5c2cc8db994cac', 'POST_0008', 'POST_0009', '0009'),
   'apply-0010': file('backend/torneos/supabase/migrations/00000000000010_branding_v1.sql',
-    '76d13425116d60ec918e6523129d548595fe25bbaeb8f6e12d771c2e74b0b6ea', 'POST_0009', 'POST_0010', '0010'),
+    '55afd5e81bcc62a81b89c4299c452eec8d357291c96c34810d37f719f8d86ee8', 'POST_0009', 'POST_0010', '0010'),
   'apply-0011': file('backend/torneos/supabase/migrations/00000000000011_connected_roster_search.sql',
     '3cac4d885955242d4b544c2a2081d1cbb187cbc1b05b22ee6596571addd6703a', 'POST_0010', 'POST_0011', '0011'),
   'rollback-0011': file('backend/torneos/connected-v1/rollback/00000000000011_connected_roster_search.rollback.sql',
