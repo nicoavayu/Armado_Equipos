@@ -140,7 +140,7 @@ describe('FPR-001.1 · galería publicada: inmutable de verdad', () => {
   test('conserva moderación y borrado, que el backend sí permite publicada', async () => {
     renderAdmin('published');
     await screen.findByText('Galería publicada');
-    expect(screen.getAllByRole('button', { name: /Ocultar/ })).toHaveLength(2);
+    expect(screen.getAllByRole('button', { name: /Retirar/ })).toHaveLength(2);
     expect(screen.getAllByRole('button', { name: /^Eliminar$/ })).toHaveLength(2);
   });
 
@@ -230,7 +230,7 @@ describe('FPR-001.1 · un actor sin capability no ve acciones ajenas', () => {
     renderAdmin('published', READ_ONLY_CAPABILITIES);
     await screen.findByText('Modo lectura');
 
-    ['Portada', 'Ocultar', 'Eliminar', 'Archivar', 'Publicar', 'Crear galería']
+    ['Portada', 'Retirar', 'Eliminar', 'Archivar', 'Publicar', 'Crear galería']
       .forEach((label) => {
         expect(screen.queryByRole('button', { name: new RegExp(label) })).toBeNull();
       });

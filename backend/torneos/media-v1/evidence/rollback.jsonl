@@ -1,0 +1,1 @@
+{"step":"rollback","insideRolledBackTransaction":{"policies":0,"begin_fn":false,"assets_kept":39,"objects_kept":78,"transition_granted":false},"afterwards":{"policies":8,"begin_fn":true}}

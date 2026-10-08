@@ -33,12 +33,17 @@
 // POST /torneos/public/v1/rpc/<name>, with NO credential of any kind (the gateway refuses one)
 // and no Core session involved. It serves the public tournament page and nothing else.
 //
+// MEDIA-V1 adds the gateway's two media routes with the same bearer, renewal and failure mapping as the RPC route:
+// POST /torneos/media/v1/upload?gallery=&key= (one normalized photo as the raw body; real upload progress through
+// XMLHttpRequest, the only browser API that reports it) and POST /torneos/media/v1/urls (signed reads).
+//
 // MP-A5 adds ONE commerce route (MP-A4 gateway, commerce TEST only): POST
 // /commerce/v1/season-checkout with the same bearer, headers and failure mapping as the
 // RPC route. It is never retried beyond that single 401 renewal: the caller repeats a
 // checkout on purpose, with the same idempotency key.
 import { TorneosBoundaryError } from './errors';
 import { SEASON_CHECKOUT_PATH } from './stagingV1CommerceScope';
+import { MEDIA_UPLOAD_ROUTE, MEDIA_URLS_ROUTE } from './mediaV1Scope';
 
 export const EXCHANGE_PATH = '/exchange';
 export const REST_PATH = '/torneos/rest/v1';
@@ -48,6 +53,8 @@ export const BRANDING_OBJECT_ROUTE = '/torneos/branding/v1/object';
 const BRANDING_UPLOAD_TYPES = Object.freeze({ jpg: 'image/jpeg', png: 'image/png', webp: 'image/webp' });
 const BRANDING_UPLOAD_MAX_BYTES = 2 * 1024 * 1024;
 export const DEFAULT_REQUEST_TIMEOUT_MS = 10_000;
+// A 4 MiB photo on a slow mobile uplink, plus the gateway's verification and storage write.
+export const MEDIA_UPLOAD_TIMEOUT_MS = 90_000;
 // The gateway gives the checkout up to 4 s (DB) + 8 s (payments) after its own checks.
 export const COMMERCE_REQUEST_TIMEOUT_MS = 20_000;
 const MAX_REQUEST_TIMEOUT_MS = 120_000;
@@ -62,6 +69,40 @@ export const CORE_AUTH_RENEWAL_EVENTS = Object.freeze(['TOKEN_REFRESHED', 'SIGNE
 const SESSION_RENEWED = 'CORE_SESSION_RENEWED';
 const RPC_NAME = /^[a-z0-9_]{1,63}$/;
 const TABLE_NAME = /^[a-z0-9_]{1,63}$/;
+
+// fetch cannot report upload progress; XMLHttpRequest can. Same request (method, headers, body, abort), answered as a
+// Response so the caller's mapping is the one every other route uses. Without XMLHttpRequest (tests, workers): fetch.
+export function xhrUpload(url, { method, headers, body, signal, onProgress, fetchImpl }) {
+  if (typeof XMLHttpRequest === 'undefined' || typeof Response === 'undefined') {
+    return fetchImpl(url, { method, headers, body, credentials: 'omit', cache: 'no-store', redirect: 'error', signal });
+  }
+  return new Promise((resolve, reject) => {
+    const request = new XMLHttpRequest();
+    const abort = () => request.abort();
+    request.open(method, url, true);
+    request.withCredentials = false;
+    Object.entries(headers).forEach(([name, value]) => request.setRequestHeader(name, value));
+    request.upload.onprogress = (event) => {
+      if (event.lengthComputable && typeof onProgress === 'function') onProgress(event.loaded / event.total);
+    };
+    const settle = () => signal?.removeEventListener?.('abort', abort);
+    request.onload = () => {
+      settle();
+      resolve(new Response(request.responseText, {
+        status: request.status,
+        headers: { 'content-type': request.getResponseHeader('content-type') || 'application/json' },
+      }));
+    };
+    request.onerror = () => { settle(); reject(new TypeError('network')); };
+    request.ontimeout = () => { settle(); reject(new TypeError('timeout')); };
+    request.onabort = () => { settle(); reject(signal?.reason || new DOMException('aborted', 'AbortError')); };
+    if (signal) {
+      if (signal.aborted) { abort(); return; }
+      signal.addEventListener('abort', abort, { once: true });
+    }
+    request.send(body);
+  });
+}
 
 function withTimeout(ms, external) {
   const controller = new AbortController();
@@ -128,6 +169,7 @@ export function createTorneosTransport({
   getCoreAccessToken,
   onCoreAuthChange = null,
   fetchImpl = (...args) => window.fetch(...args),
+  uploadImpl = xhrUpload,
   now = () => Date.now(),
   requestTimeoutMs = DEFAULT_REQUEST_TIMEOUT_MS,
 } = {}) {
@@ -253,13 +295,13 @@ export function createTorneosTransport({
 
   async function send(method, path, {
     body = undefined, rawBody = undefined, headers = {}, signal = undefined, attempt = 0, timeoutMs = requestTimeoutMs,
-    epoch = identity,
+    epoch = identity, onUploadProgress = undefined,
   } = {}) {
     const token = await bearer({ force: attempt > 0, epoch });
     const { signal: timed, release } = withTimeout(timeoutMs, signal);
     let response;
     try {
-      response = await fetchImpl(`${base}${path}`, {
+      const request = {
         method,
         headers: {
           Authorization: `Bearer ${token}`,
@@ -267,13 +309,16 @@ export function createTorneosTransport({
           ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}),
           ...headers,
         },
-        // A raw body (BRANDING-V1 image) travels as is, with the Content-Type the caller fixed.
+        // A raw body (BRANDING-V1 / MEDIA-V1 image) travels as is, with the Content-Type the caller fixed.
         body: rawBody !== undefined ? rawBody : (body !== undefined ? JSON.stringify(body) : undefined),
         credentials: 'omit',
         cache: 'no-store',
         redirect: 'error',
         signal: timed,
-      });
+      };
+      response = onUploadProgress
+        ? await uploadImpl(`${base}${path}`, { ...request, onProgress: onUploadProgress, fetchImpl })
+        : await fetchImpl(`${base}${path}`, request);
     } catch (cause) {
       if (signal?.aborted) throw cause;
       clear();
@@ -291,7 +336,7 @@ export function createTorneosTransport({
     if (status === 401) {
       clear();
       // One silent renewal: the bearer may simply have aged past the gateway's TTL.
-      if (attempt === 0) return send(method, path, { body, rawBody, headers, signal, timeoutMs, attempt: 1, epoch });
+      if (attempt === 0) return send(method, path, { body, rawBody, headers, signal, timeoutMs, attempt: 1, epoch, onUploadProgress });
       throw new TorneosBoundaryError('TORNEOS_SESSION_INVALID', { status, gatewayError });
     }
     if (status === 503) {
@@ -307,8 +352,11 @@ export function createTorneosTransport({
     }
     // Adapter refusals carry a functional code; PostgREST errors come through untouched.
     if (gatewayError && /^(TORNEOS_[A-Z_]+|CORE_DENIED)$/.test(gatewayError)) {
+      // MEDIA-V1 refusals carry what the person can act on: the content verdict (code) and the season quota numbers.
+      const mediaDetail = json && (typeof json.code === 'string' || (json.quota && typeof json.quota === 'object'))
+        ? { code: typeof json.code === 'string' ? json.code : null, quota: json.quota || null } : null;
       throw new TorneosBoundaryError('TORNEOS_RPC_ERROR', {
-        status, gatewayError, rpcError: { message: gatewayError, code: gatewayError, details: null, hint: null },
+        status, gatewayError, rpcError: { message: gatewayError, code: gatewayError, details: mediaDetail, hint: null },
       });
     }
     if (rpcError) throw new TorneosBoundaryError('TORNEOS_RPC_ERROR', { status, rpcError });
@@ -368,6 +416,22 @@ export function createTorneosTransport({
       }
       if (method !== 'DELETE') throw new TorneosBoundaryError('TORNEOS_INVALID_REQUEST');
       const { json } = await send('DELETE', `${BRANDING_OBJECT_ROUTE}/${path}`, { signal });
+      return json;
+    },
+    // MEDIA-V1: the client validated ids, type and size. A functional refusal (422 content, 409 duplicate / in
+    // progress, 422 season quota) keeps the gateway's code on the error (gatewayError) and its numbers (detail).
+    async mediaUpload({ galleryId, idempotencyKey, file, thumbnailSize = 0 }, { signal, onProgress } = {}) {
+      const query = new URLSearchParams({
+        gallery: galleryId, key: idempotencyKey, ...(thumbnailSize > 0 ? { thumb: String(thumbnailSize) } : {}),
+      }).toString();
+      const { json, status } = await send('POST', `${MEDIA_UPLOAD_ROUTE}?${query}`, {
+        rawBody: file, headers: { 'Content-Type': file.type }, signal, timeoutMs: MEDIA_UPLOAD_TIMEOUT_MS,
+        onUploadProgress: typeof onProgress === 'function' ? onProgress : () => {},
+      });
+      return { ...(json || {}), httpStatus: status };
+    },
+    async mediaUrls(items, { signal } = {}) {
+      const { json } = await send('POST', MEDIA_URLS_ROUTE, { body: { items }, signal });
       return json;
     },
     clear,

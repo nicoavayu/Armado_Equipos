@@ -160,6 +160,19 @@ export function resolveTorneosBranding(env = process.env, {
   return backendMode.mode === 'hybrid' && env.REACT_APP_TORNEOS_BRANDING_MODE === 'on';
 }
 
+// MEDIA-V1: the photo galleries of the hybrid composition (organizer's Centro Multimedia, uploads through the gateway,
+// participant galleries). Hybrid + the explicit opt-in that matches the gateway's TORNEOS_MEDIA_MODE=on + the
+// production-eligible `mediaEnabled` flag (REACT_APP_TORNEOS_MEDIA_ENABLED=true, which also opens the route). All three
+// or nothing: no alias, no route, no request.
+export function resolveTorneosMedia(env = process.env, {
+  backendMode = resolveTorneosBackendMode(env),
+  flags = null,
+} = {}) {
+  return backendMode.mode === 'hybrid'
+    && env.REACT_APP_TORNEOS_MEDIA_MODE === 'on'
+    && flags?.mediaEnabled === true;
+}
+
 export function resolveTorneosConnectedProduct(env = process.env, {
   backendMode = resolveTorneosBackendMode(env),
 } = {}) {

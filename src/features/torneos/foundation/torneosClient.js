@@ -4,11 +4,14 @@ import { isOfficializationV1Operation } from './officializationV1Scope';
 import { isSocialV1Operation } from './socialV1Scope';
 import { isConnectedV1Operation, isConnectedV1PublicOperation } from './connectedV1Scope';
 import { BRANDING_OBJECT_PATH, isBrandingV1Operation, isBrandingV1PublicOperation } from './brandingV1Scope';
+import { isMediaV1Operation, MEDIA_READ_KINDS, MEDIA_THUMBNAIL_MAX_BYTES, MEDIA_UPLOAD_MAX_BYTES, MEDIA_UPLOAD_TYPES, MEDIA_URLS_MAX_ITEMS } from './mediaV1Scope';
 import { isStagingV1Table } from './stagingV1Tables';
 import { isStagingV1CommerceRead, SEASON_CHECKOUT_PATH } from './stagingV1CommerceScope';
 import { TorneosBoundaryError } from './errors';
 
 export { TorneosBoundaryError };
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 // PostgREST resolves an RPC by the exact set of named arguments it receives and the
 // baseline functions declare no defaults: an argument left `undefined` by a page
@@ -29,9 +32,10 @@ export function normalizeRpcParams(params) {
 // Independent `social: true` (SOCIAL-V1) adds only the three Estudio Social RPCs.
 // Independent `connected: true` (CONNECTED-V1) adds only the connected product's authenticated RPCs.
 // Independent `branding: true` (BRANDING-V1) adds only the two branding RPCs and the object route.
+// Independent `media: true` (MEDIA-V1) adds only the gallery RPCs and the two media routes (upload, signed reads).
 export function createTorneosClient({
   transport = null, commerce = false, planRead = false, social = false, connected: connectedProduct = false,
-  branding = false,
+  branding = false, media = false,
 } = {}) {
   const connected = Boolean(transport) && typeof transport.rpc === 'function';
   const commerceEnabled = commerce === true;
@@ -42,7 +46,8 @@ export function createTorneosClient({
     || (planRead === true && ['get_effective_tournament_season_entitlements', 'get_effective_tournament_entitlements'].includes(operation))
     || (social === true && isSocialV1Operation(operation))
     || (connectedProduct === true && isConnectedV1Operation(operation))
-    || (branding === true && isBrandingV1Operation(operation));
+    || (branding === true && isBrandingV1Operation(operation))
+    || (media === true && isMediaV1Operation(operation));
   return Object.freeze({
     status: connected ? 'connected' : 'foundation-disabled',
     async execute(operation, params = {}, options = {}) {
@@ -81,6 +86,33 @@ export function createTorneosClient({
         throw new TorneosBoundaryError('TORNEOS_TRANSPORT_NOT_CONNECTED');
       }
       return transport.brandingObject(method, path, file, options);
+    },
+    // MEDIA-V1: one normalized photo to a gallery (the gateway verifies, stores and registers it), with real byte progress.
+    // `file` is the photo followed by its JPEG thumbnail; `thumbnailSize` says where the photo ends (0 = no thumbnail).
+    async mediaUpload({ galleryId, idempotencyKey, file, thumbnailSize = 0 }, options = {}) {
+      if (media !== true) throw new TorneosBoundaryError('TORNEOS_OUTSIDE_STAGING_V1');
+      if (!UUID.test(String(galleryId)) || !UUID.test(String(idempotencyKey)) || !file || typeof file.size !== 'number'
+        || !Number.isInteger(thumbnailSize) || thumbnailSize < 0 || thumbnailSize > MEDIA_THUMBNAIL_MAX_BYTES
+        || file.size - thumbnailSize <= 0 || file.size - thumbnailSize > MEDIA_UPLOAD_MAX_BYTES
+        || !MEDIA_UPLOAD_TYPES.includes(file.type)) {
+        throw new TorneosBoundaryError('TORNEOS_INVALID_REQUEST');
+      }
+      if (!connected || typeof transport.mediaUpload !== 'function') {
+        throw new TorneosBoundaryError('TORNEOS_TRANSPORT_NOT_CONNECTED');
+      }
+      return transport.mediaUpload({ galleryId, idempotencyKey, file, thumbnailSize }, options);
+    },
+    // MEDIA-V1: short-lived read URLs for the assets the caller may see.
+    async mediaUrls(items, options = {}) {
+      if (media !== true) throw new TorneosBoundaryError('TORNEOS_OUTSIDE_STAGING_V1');
+      if (!Array.isArray(items) || items.length === 0 || items.length > MEDIA_URLS_MAX_ITEMS
+        || items.some((item) => !item || !UUID.test(String(item.assetId)) || !MEDIA_READ_KINDS.includes(item.kind))) {
+        throw new TorneosBoundaryError('TORNEOS_INVALID_REQUEST');
+      }
+      if (!connected || typeof transport.mediaUrls !== 'function') {
+        throw new TorneosBoundaryError('TORNEOS_TRANSPORT_NOT_CONNECTED');
+      }
+      return transport.mediaUrls(items.map(({ assetId, kind }) => ({ assetId, kind })), options);
     },
     clear() { transport?.clear?.(); },
     dispose() { transport?.dispose?.(); },

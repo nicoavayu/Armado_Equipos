@@ -1,0 +1,21 @@
+[
+  {
+    "scenario": "participant-grid",
+    "form": "mobile",
+    "images": 4,
+    "bytes": 223269,
+    "perImage": [
+      138063,
+      26076,
+      39622,
+      19508
+    ]
+  },
+  {
+    "scenario": "participant-lightbox",
+    "form": "mobile",
+    "afterNavigation": "Foto 2 de 4",
+    "images": 3,
+    "bytes": 2959367
+  }
+]

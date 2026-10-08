@@ -1,0 +1,6 @@
+{"step":"A","mode":"MVP_SIMPLE","counts":"206/16","objects":78,"verdict":{"state":"POST_0012","failures":[]}}
+{"step":"B","mode":"PROCESSOR_EXTERNAL","counts":"206/16","objects":78,"verdict":{"state":"POST_0012","failures":[]}}
+{"step":"C","mode":"PROCESSOR_EXTERNAL","counts":"195/16","objects":78,"verdict":{"state":"POST_0011","failures":[],"residue":["tournament-media bucket (private, no policies, 78 objects; kept by rollback-0012)"]}}
+{"step":"D","mode":"PROCESSOR_EXTERNAL","counts":"206/16","objects":78,"verdict":{"state":"POST_0012","failures":[]}}
+{"step":"E","mode":"MVP_SIMPLE","counts":"206/16","objects":78,"verdict":{"state":"POST_0012","failures":[]}}
+{"step":"db-0012-rehearsal","changedOutside":{"A→B (mode off)":[],"B→C (rollback-0012)":[],"C→D (apply-0012)":[],"D→E (mode MVP_SIMPLE)":[],"A≡E":true},"transaction":"rolled back"}

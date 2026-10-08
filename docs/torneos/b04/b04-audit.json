@@ -1,5 +1,5 @@
 {
-  "generatedFrom": "06dc9ef54b50acdf5fc71287931d145a164434a0",
+  "generatedFrom": "e05460f9c6d8d313f387cc5c8e4505b7d748ec02",
   "legacyBase": "2058da039a2a5eaaed22d87d01946bc596ae5f50",
   "coreSingletonSha256": "f39572e4cab0fd287bd1dea2ca87c97bd5500d0eff57cb8de6160f1e3271600c",
   "reachableCallSignatures": {
@@ -45,7 +45,7 @@
     "src/features/torneos/domain/brandingAssets.js": "d61310a6c564670f4ddac9d8d2991c314da3c5a501621f0d8bbbc6f9806cd575",
     "src/features/torneos/domain/premiumIntent.js": "d017a4b9ad7a5564ff958aaccd571629064db25311d547f34ecaeaca168e1d4c",
     "src/features/torneos/foundation/torneosClient.js": "9e1a1f8d3802935594dda8cacd5b959895e6f7f2df9cd6db08e688fb2b3ec25d",
-    "src/features/torneos/foundation/torneosTransport.js": "c486917a061f7ba0b7b77ee5a0f29e429ad198eaaad13b9690671fa3e434655f",
+    "src/features/torneos/foundation/torneosTransport.js": "268ab2cd3399d34237545771b2c01e84d5c86228837e9285e9bbb7314ec0f8dd",
     "src/features/torneos/isolated/IsolatedTorneosPage.jsx": "648a0c66c255ab6753874e48a8a35467f9a198fd1d9587e47dfaadd2b900ef76",
     "src/features/torneos/isolated/createTorneosClient.js": "7fa1212c6f9d1f5fb57dd5a594e029986a49b7f531d46f4c9eaf27a25acda3cf",
     "src/features/torneos/social/socialStudio.js": "9618e2978bb5f45ca23566098bd7b01a3ea9816cae8532cc26ba20ee6d871128",
@@ -308,12 +308,12 @@
     },
     {
       "file": "src/features/torneos/TorneosFeatureGate.jsx",
-      "line": 15,
+      "line": 16,
       "source": "./TorneosApp"
     },
     {
       "file": "src/features/torneos/TorneosFeatureGate.jsx",
-      "line": 16,
+      "line": 17,
       "source": "./stagingV1/StagingV1TorneosApp"
     },
     {
@@ -3404,7 +3404,7 @@
     },
     {
       "file": "src/features/torneos/foundation/torneosClient.js",
-      "line": 56,
+      "line": 61,
       "kind": "rpc",
       "callee": "transport.rpc",
       "targets": [],
@@ -3413,7 +3413,25 @@
     },
     {
       "file": "src/features/torneos/foundation/torneosTransport.js",
-      "line": 130,
+      "line": 77,
+      "kind": "transport",
+      "callee": "fetchImpl",
+      "targets": [],
+      "function": "xhrUpload",
+      "expression": "fetchImpl(url, { method, headers, body, credentials: 'omit', cache: 'no-store', redirect: 'error', signal })"
+    },
+    {
+      "file": "src/features/torneos/foundation/torneosTransport.js",
+      "line": 80,
+      "kind": "transport",
+      "callee": "XMLHttpRequest",
+      "targets": [],
+      "function": "<callback>",
+      "expression": "new XMLHttpRequest()"
+    },
+    {
+      "file": "src/features/torneos/foundation/torneosTransport.js",
+      "line": 171,
       "kind": "transport",
       "callee": "window.fetch",
       "targets": [],
@@ -3422,7 +3440,7 @@
     },
     {
       "file": "src/features/torneos/foundation/torneosTransport.js",
-      "line": 182,
+      "line": 224,
       "kind": "transport",
       "callee": "fetchImpl",
       "targets": [],
@@ -3431,16 +3449,16 @@
     },
     {
       "file": "src/features/torneos/foundation/torneosTransport.js",
-      "line": 262,
+      "line": 321,
       "kind": "transport",
       "callee": "fetchImpl",
       "targets": [],
       "function": "send",
-      "expression": "fetchImpl(`${base}${path}`, { method, headers: { Authorization: `Bearer ${token}`, Accept: 'application/json', ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}), ...headers, }, // A raw body (BRANDING-V1 image) travels as is, with the Content-Type the caller fixed. body: rawBody !== undefined ? rawBody : (body !== undefined ? JSON.stringify(body) : undefined), credentials: 'omit', cache: 'no-store', redirect: 'error', signal: timed, })"
+      "expression": "fetchImpl(`${base}${path}`, request)"
     },
     {
       "file": "src/features/torneos/foundation/torneosTransport.js",
-      "line": 386,
+      "line": 450,
       "kind": "transport",
       "callee": "window.fetch",
       "targets": [],
@@ -3449,7 +3467,7 @@
     },
     {
       "file": "src/features/torneos/foundation/torneosTransport.js",
-      "line": 402,
+      "line": 466,
       "kind": "transport",
       "callee": "fetchImpl",
       "targets": [],

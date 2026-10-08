@@ -19,11 +19,20 @@ import http from 'node:http';
 
 const APP_ORIGIN = process.env.B04_LAB_APP_ORIGIN || 'http://localhost:3000';
 const EDGE_GATEWAY = process.env.B04_LAB_GATEWAY === 'edge';
-const LAB_GATEWAY_ORIGIN = EDGE_GATEWAY ? 'http://127.0.0.1:58421' : 'http://127.0.0.1:58420';
+// A second lab gateway (B04_LAB_GATEWAY_ORIGIN, e.g. MEDIA-V1's beside the preview's) and its own bridge ports, all on
+// the 584xx loopback range of the lab; the defaults are the original single-gateway lab.
+const LOOPBACK_584 = /^http:\/\/127\.0\.0\.1:584[0-9]{2}$/;
+const bridgePort = (name, fallback) => {
+  const value = Number(process.env[name] || fallback);
+  if (!Number.isInteger(value) || value < 58400 || value > 58499) throw new Error(`${name} must be a 584xx port`);
+  return value;
+};
+const LAB_GATEWAY_ORIGIN = process.env.B04_LAB_GATEWAY_ORIGIN || (EDGE_GATEWAY ? 'http://127.0.0.1:58421' : 'http://127.0.0.1:58420');
+if (!LOOPBACK_584.test(LAB_GATEWAY_ORIGIN)) throw new Error('B04_LAB_GATEWAY_ORIGIN must be a 584xx loopback origin');
 const LAB_GATEWAY_UPSTREAM = EDGE_GATEWAY ? `${LAB_GATEWAY_ORIGIN}/torneos-gateway` : LAB_GATEWAY_ORIGIN;
 const LAB_CORE_ORIGIN = 'http://127.0.0.1:58424';
-const CORE_PORT = 58422;
-const GATEWAY_PORT = 58423;
+const CORE_PORT = bridgePort('B04_LAB_BRIDGE_CORE_PORT', 58422);
+const GATEWAY_PORT = bridgePort('B04_LAB_BRIDGE_GATEWAY_PORT', 58423);
 const HOP_BY_HOP = new Set(['connection', 'keep-alive', 'transfer-encoding', 'te', 'trailer', 'upgrade', 'proxy-authorization', 'proxy-authenticate', 'host', 'origin', 'content-length']);
 
 function cors(req, res) {

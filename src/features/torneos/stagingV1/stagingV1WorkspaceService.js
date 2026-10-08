@@ -33,6 +33,13 @@
 // contract — upload/remove a logo or shield (object route + set_tournament_branding_reference, the LOCAL service's
 // exact sequence) and the organization's branding context. Whatever the option, a branding path of a response only
 // becomes an image through a URL the gateway signed (brandingUrls.js); nothing here resolves storage URLs itself.
+//
+// MEDIA-V1: with `media: true` (foundation/config.js resolveTorneosMedia) it also serves the photo galleries — the
+// LOCAL service's gallery aliases with the same RPC name and p_* payload (scripts/torneos-frontend/media-adapter.test.mjs),
+// plus uploadMediaPhoto (normalize in the browser, then ONE request to the gateway's upload route, which verifies,
+// stores and registers the photo; a retry with the same key never makes a second photo) and signMediaReadUrls (the
+// gateway's signed reads). Never deleteMediaAsset: retiring a photo is moderation (hide / revoke), and the permanent
+// erasure of an object is not part of MEDIA-V1.
 import { v4 as uuidv4 } from 'uuid';
 import { createTorneosClient } from '../foundation/torneosClient';
 import { isTorneosBoundaryError } from '../foundation/errors';
@@ -48,6 +55,8 @@ import { normalizeMatchOutcome } from '../domain/matchOutcome';
 import { buildBrandingPath, prepareBrandingFile } from '../domain/brandingFiles';
 import { requireAuthorizedBrandingUrls } from '../domain/brandingUrlRegistry';
 import { withSignedBranding } from './brandingUrls';
+import { prepareUploadPayload, MediaClientError } from '../domain/mediaImageClient';
+import { describeMediaPipelineError } from '../domain/mediaPipeline';
 
 // Copy for failures that happen before or around the RPC (transport, session,
 // gateway). The RPC's own functional codes keep the legacy ERROR_MESSAGES copy.
@@ -119,6 +128,83 @@ const SIGNED_BRANDING_RPCS = new Set([
 const BRANDING_LABELS = Object.freeze({
   organization: 'logo de la organización', tournament: 'logo del torneo', team: 'escudo del equipo',
 });
+export const MEDIA_METHODS = Object.freeze([
+  'loadMediaAdminContext', 'loadSeasonMediaUsage', 'createMediaGallery', 'updateMediaGallery', 'cancelMediaUploadSession',
+  'transitionMediaAsset', 'setMediaCover', 'reorderMediaItem', 'publishMediaGallery', 'changeMediaGalleryState',
+  'handleMediaReport', 'loadPublishedMedia', 'reportMediaAsset', 'uploadMediaPhoto', 'signMediaReadUrls',
+]);
+
+// What the organizer reads when ONE photo cannot be uploaded. Retryable answers keep the same idempotency key, so a
+// retry never makes a second photo. Never a path, a bucket or an internal code.
+export const MEDIA_UPLOAD_MESSAGES = Object.freeze({
+  TORNEOS_MEDIA_DUPLICATE: ['Esta foto ya está cargada en la organización.', false],
+  TORNEOS_MEDIA_UPLOAD_IN_PROGRESS: ['Esta foto ya se está subiendo. Esperá unos segundos y reintentá.', true],
+  TORNEOS_MEDIA_IDEMPOTENCY_CONFLICT: ['Esta foto se preparó para otra galería. Quitala y volvé a elegirla.', false],
+  TORNEOS_MEDIA_FORBIDDEN: ['No tenés permiso para cargar fotos en esta galería.', false],
+  TORNEOS_AUTH_REQUIRED: ['Tu sesión venció. Volvé a iniciar sesión y reintentá.', false],
+  TORNEOS_MEDIA_GALLERY_IMMUTABLE: ['Esta galería ya no admite fotos nuevas.', false],
+  TORNEOS_MEDIA_PIPELINE_NOT_READY: ['La carga de fotos no está disponible en este momento.', false],
+  TORNEOS_MEDIA_MVP_RATE_LIMITED: ['Subiste muchas fotos seguidas. Esperá unos minutos y reintentá.', true],
+  TORNEOS_MEDIA_QUOTA_EXCEEDED: ['Hay muchas fotos subiéndose a la vez. Esperá a que terminen y reintentá.', true],
+  TORNEOS_MEDIA_BUSY: ['Hay muchas fotos subiéndose ahora en Arma2 Torneos. Reintentá en unos segundos.', true],
+  // Project-wide byte budget: retiring a photo keeps its file, so it frees nothing; only the operator can raise it.
+  TORNEOS_MEDIA_STORAGE_BUDGET_EXCEEDED: ['El espacio para fotos de Arma2 Torneos está completo por ahora. Escribinos para seguir subiendo.', false],
+  TORNEOS_MEDIA_TOO_LARGE: ['La foto supera los 4 MB incluso optimizada. Probá con otra.', false],
+  TORNEOS_MEDIA_TYPE_UNSUPPORTED: ['Formato no admitido. Usá JPEG, PNG o WebP.', false],
+  TORNEOS_MEDIA_FILE_INVALID: ['No pudimos verificar esta imagen. Probá con otro archivo.', false],
+  TORNEOS_MEDIA_UPLOAD_SESSION_INVALID: ['La preparación de esta foto venció. Reintentá.', true],
+  TORNEOS_MEDIA_GATEWAY_REQUIRED: ['No pudimos completar la carga. Reintentá en unos minutos.', true],
+});
+
+export class MediaUploadError extends Error {
+  constructor(message, { code = null, retryable = true, quota = null, cause = null } = {}) {
+    super(message);
+    this.name = 'MediaUploadError';
+    this.code = code;
+    this.retryable = retryable;
+    this.quota = quota;
+    this.cause = cause;
+  }
+}
+
+/** One gateway refusal (or outage) → what the queue shows for that file. */
+export function translateMediaUploadError(error) {
+  if (error instanceof MediaUploadError) return error;
+  if (error?.name === 'AbortError' || error?.code === 'cancelled') {
+    return new MediaUploadError('Carga cancelada.', { code: 'cancelled', retryable: true, cause: error });
+  }
+  if (error instanceof MediaClientError) {
+    return new MediaUploadError(error.message, {
+      code: error.code, retryable: !['mime', 'dimensions', 'size', 'thumbnail', 'canvas_unavailable', 'decode_failed', 'decode_unsupported', 'encode_unsupported'].includes(error.code), cause: error,
+    });
+  }
+  if (isTorneosBoundaryError(error)) {
+    const code = error.rpcError?.message || error.gatewayError || error.code;
+    const details = error.rpcError?.details || null;
+    if (code === 'TORNEOS_SEASON_MEDIA_QUOTA_EXCEEDED') {
+      const quota = details?.quota || null;
+      const numbers = Number.isInteger(quota?.usage) && Number.isInteger(quota?.limit) ? ` (${quota.usage} de ${quota.limit})` : '';
+      return new MediaUploadError(
+        // Same rule as the season meter: retired photos still count (they can be restored); rejected ones do not.
+        `Llegaste al límite de fotos de esta temporada${numbers}. Para liberar lugar, rechazá fotos que todavía no publicaste${quota?.upgradeRequired ? ', o pasá la temporada a Premium' : ''}.`,
+        { code, retryable: false, quota, cause: error },
+      );
+    }
+    if (code === 'TORNEOS_MEDIA_CONTENT_REJECTED') {
+      return new MediaUploadError(describeMediaPipelineError(null, details?.code), { code: details?.code || code, retryable: false, cause: error });
+    }
+    if (MEDIA_UPLOAD_MESSAGES[code]) {
+      const [message, retryable] = MEDIA_UPLOAD_MESSAGES[code];
+      return new MediaUploadError(message, { code, retryable, cause: error });
+    }
+    const boundary = translateBoundaryError(error, 'No pudimos completar la carga. Reintentá en unos minutos.');
+    return new MediaUploadError(boundary.message, {
+      code: boundary.code, retryable: !['TORNEOS_AUTH_REQUIRED', 'TORNEOS_OUTSIDE_STAGING_V1', 'TORNEOS_INVALID_REQUEST'].includes(boundary.code), cause: error,
+    });
+  }
+  return new MediaUploadError('No pudimos completar la carga. Reintentá en unos minutos.', { code: 'media_service_failed', cause: error });
+}
+
 export const COMMERCE_METHODS = Object.freeze([
   'loadSeasonEntitlements', 'loadEntitlements', 'loadPurchase', 'createCheckout', 'simulateFakePayment', 'cancelPurchase',
 ]);
@@ -197,15 +283,17 @@ export function createStagingV1WorkspaceService({
   social = false,
   connected = false,
   branding = false,
+  media = false,
   checkoutTimeoutMs = CHECKOUT_TIMEOUT_MS,
 }) {
   const commerceEnabled = commerce === true;
   const brandingEnabled = branding === true;
+  const mediaEnabled = media === true;
   // The hybrid composition never turns a stored branding path into a storage URL of another project.
   requireAuthorizedBrandingUrls();
   const client = createTorneosClient({
     transport, commerce: commerceEnabled, planRead, social: social === true, connected: connected === true,
-    branding: brandingEnabled,
+    branding: brandingEnabled, media: mediaEnabled,
   });
   if (client.status !== 'connected') {
     throw new TournamentWorkspaceError(
@@ -475,12 +563,133 @@ export function createStagingV1WorkspaceService({
     },
   } : {};
 
+  // MEDIA-V1: the LOCAL service's gallery aliases, same RPC and p_* payload (api/tournamentWorkspaceService.js). Every
+  // decision — capability, audience, lifecycle, consent, season quota — is the database's.
+  const mediaAliases = mediaEnabled ? {
+    loadMediaAdminContext: async ({
+      organizationId, tournamentId = null, status = null, limit = 30, offset = 0,
+    }) => {
+      if (!isUuid(organizationId)) throw invalidRequest();
+      const [context, storage, processingTiers] = await Promise.all([
+        call('get_tournament_media_admin_context', {
+          p_organization_id: organizationId, p_tournament_id: tournamentId, p_status: status, p_limit: limit, p_offset: offset,
+        }, 'No pudimos cargar el Centro Multimedia.'),
+        call('get_tournament_media_upload_capability', { p_organization_id: organizationId }, 'No pudimos verificar la carga de fotos.'),
+        call('get_tournament_media_asset_processing_tiers', { p_organization_id: organizationId }, 'No pudimos cargar las fotos.'),
+      ]);
+      const galleries = (context?.galleries || []).map((gallery) => ({
+        ...gallery,
+        assets: (gallery.assets || []).map((asset) => ({
+          ...asset,
+          processingTier: processingTiers?.[asset.id] || 'processor_external',
+        })),
+      }));
+      return { ...context, galleries, storage, entitlements: null };
+    },
+    loadSeasonMediaUsage: ({ organizationId, seasonId }) => {
+      if (!isUuid(organizationId) || !isUuid(seasonId)) throw invalidRequest();
+      return call('get_tournament_season_media_usage', {
+        p_organization_id: organizationId, p_season_id: seasonId,
+      }, 'No pudimos calcular el uso de fotos de la temporada.');
+    },
+    createMediaGallery: ({
+      organizationId, tournamentId, categoryId = null, roundId = null, matchId = null, title, description = '',
+      visibility = 'tournament_participants', idempotencyKey,
+    }) => call('create_tournament_media_gallery', {
+      p_organization_id: organizationId, p_tournament_id: tournamentId, p_category_id: categoryId, p_round_id: roundId,
+      p_match_id: matchId, p_title: title, p_description: description, p_visibility: visibility,
+      p_idempotency_key: idempotencyKey,
+    }, 'No pudimos crear la galería.'),
+    updateMediaGallery: ({
+      galleryId, title, description = '', visibility, submitForReview = false,
+    }) => call('update_tournament_media_gallery', {
+      p_gallery_id: galleryId, p_title: title, p_description: description, p_visibility: visibility,
+      p_submit_for_review: submitForReview,
+    }, 'No pudimos actualizar la galería.'),
+    cancelMediaUploadSession: (sessionId) => call('cancel_tournament_media_upload_session', {
+      p_session_id: sessionId,
+    }, 'No pudimos cancelar la preparación de la foto.'),
+    transitionMediaAsset: ({ assetId, action, reason = null }) => call('transition_tournament_media_asset', {
+      p_asset_id: assetId, p_action: action, p_reason: reason,
+    }, 'No pudimos actualizar el estado de la foto.'),
+    setMediaCover: ({ galleryId, assetId }) => call('set_tournament_media_cover', {
+      p_gallery_id: galleryId, p_asset_id: assetId,
+    }, 'No pudimos elegir la portada.'),
+    reorderMediaItem: ({ galleryId, assetId, targetOrder }) => call('reorder_tournament_media_item', {
+      p_gallery_id: galleryId, p_asset_id: assetId, p_target_order: targetOrder,
+    }, 'No pudimos reordenar la foto.'),
+    publishMediaGallery: (galleryId) => call('publish_tournament_media_gallery', {
+      p_gallery_id: galleryId,
+    }, 'No pudimos publicar la galería.'),
+    changeMediaGalleryState: ({ galleryId, action, reason }) => call('change_tournament_media_gallery_state', {
+      p_gallery_id: galleryId, p_action: action, p_reason: reason,
+    }, 'No pudimos actualizar la galería.'),
+    handleMediaReport: ({ reportId, status, resolution = null }) => call('handle_tournament_media_report', {
+      p_report_id: reportId, p_status: status, p_resolution: resolution,
+    }, 'No pudimos resolver el reporte.'),
+    loadPublishedMedia: ({
+      tournamentId, categoryId = null, matchId = null, limit = 20, offset = 0,
+    }) => call('get_published_tournament_media', {
+      p_tournament_id: tournamentId, p_category_id: categoryId, p_match_id: matchId, p_limit: limit, p_offset: offset,
+    }, 'No pudimos cargar las fotos.'),
+    reportMediaAsset: ({
+      assetId, reason, detail = '', requestHide = false, idempotencyKey,
+    }) => call('report_tournament_media_asset', {
+      p_asset_id: assetId, p_reason: reason, p_detail: detail, p_request_hide: requestHide,
+      p_idempotency_key: idempotencyKey,
+    }, 'No pudimos enviar el reporte.'),
+    // One photo: normalized here (orientation, ≤ 1600 px, no metadata), verified and registered by the gateway.
+    uploadMediaPhoto: async ({
+      galleryId, file, idempotencyKey, limits, signal, onStage = () => {}, onProgress = () => {},
+    }) => {
+      try {
+        onStage('preparing');
+        const payload = await prepareUploadPayload(file, { signal, limits: { ...limits, thumbnail: true, outputMime: 'image/jpeg' } });
+        if (signal?.aborted) throw new MediaUploadError('Carga cancelada.', { code: 'cancelled' });
+        // One request: the photo, then its grid thumbnail. The gateway verifies both and stores both, or neither.
+        const upload = new Blob([payload.source, payload.thumbnail.source], { type: payload.mime });
+        onStage('uploading');
+        const result = await client.mediaUpload({
+          galleryId, idempotencyKey, file: upload, thumbnailSize: payload.thumbnail.source.size,
+        }, {
+          signal,
+          onProgress: (fraction) => {
+            onProgress(Math.min(0.97, fraction));
+            if (fraction >= 1) onStage('processing');
+          },
+        });
+        onProgress(1);
+        return {
+          assetId: result?.assetId || null,
+          status: result?.status || 'pending_review',
+          replayed: result?.replayed === true,
+          width: payload.width ?? null,
+          height: payload.height ?? null,
+          byteSize: payload.source.size,
+          thumbnailBytes: payload.thumbnail.source.size,
+        };
+      } catch (error) {
+        throw translateMediaUploadError(error);
+      }
+    },
+    signMediaReadUrls: async (assets, { signal } = {}) => {
+      if (!Array.isArray(assets) || assets.length === 0) return {};
+      const answer = await client.mediaUrls(assets.slice(0, 120), { signal });
+      const urls = {};
+      for (const item of answer?.items || []) {
+        if (item?.assetId && item?.kind && typeof item.url === 'string') urls[`${item.assetId}:${item.kind}`] = item.url;
+      }
+      return urls;
+    },
+  } : {};
+
   return Object.freeze({
     ...planAliases,
     ...commerceAliases,
     ...socialAliases,
     ...connectedAliases,
     ...brandingAliases,
+    ...mediaAliases,
     // ── organizations / workspaces ─────────────────────────────────────────
     loadContext: () => call(
       'get_tournament_workspace_context',

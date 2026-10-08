@@ -31,6 +31,8 @@ import { stagingV1FeaturesFor } from './stagingV1Features';
 // `connected` (CONNECTED-V1, resolved by the gate: hybrid + REACT_APP_TORNEOS_CONNECTED_MODE=on) adds the connected
 // product's features and aliases, together or not at all. `branding` (BRANDING-V1: hybrid +
 // REACT_APP_TORNEOS_BRANDING_MODE=on) adds logo/shield upload and the branding context, together or not at all.
+// `media` (MEDIA-V1: hybrid + REACT_APP_TORNEOS_MEDIA_MODE=on + the media flag) adds the photo galleries — the
+// organizer's Centro Multimedia, gateway uploads and the participant galleries — together or not at all.
 export default function StagingV1TorneosApp({
   gatewayUrl,
   service = null,
@@ -40,10 +42,12 @@ export default function StagingV1TorneosApp({
   social = false,
   connected = false,
   branding = false,
+  media = false,
   checkoutRedirect = null,
 }) {
   const connectedEnabled = connected === true;
   const brandingEnabled = branding === true;
+  const mediaEnabled = media === true;
   const socialEnabled = social === true && planRead === true;
   const billing = (typeof billingMode === 'string' ? billingMode : billingMode?.mode) === 'test';
   const [runtime, setRuntime] = useState(() => (service ? { transport: null, service } : null));
@@ -61,12 +65,13 @@ export default function StagingV1TorneosApp({
     });
     setRuntime({ transport, service: createStagingV1WorkspaceService({
       transport, commerce: billing, planRead, social: socialEnabled, connected: connectedEnabled, branding: brandingEnabled,
+      media: mediaEnabled,
     }) });
     return () => {
       transport.dispose();
       setRuntime((current) => (current?.transport === transport ? null : current));
     };
-  }, [billing, gatewayUrl, service, planRead, socialEnabled, connectedEnabled, brandingEnabled]);
+  }, [billing, gatewayUrl, service, planRead, socialEnabled, connectedEnabled, brandingEnabled, mediaEnabled]);
 
   // Keyed on the service itself so the providers keep one identity per service.
   const runtimeService = runtime?.service || null;
@@ -83,7 +88,7 @@ export default function StagingV1TorneosApp({
 
   return (
     <TorneosFeaturesProvider features={features || stagingV1FeaturesFor(billing ? 'test' : 'off', {
-      planRead, social: socialEnabled, connected: connectedEnabled, branding: brandingEnabled,
+      planRead, social: socialEnabled, connected: connectedEnabled, branding: brandingEnabled, media: mediaEnabled,
     })}>
       <TorneosCommerceProvider commerce={composition.commerce}>
         <TorneosWorkspaceProvider service={composition.workspaceService}>

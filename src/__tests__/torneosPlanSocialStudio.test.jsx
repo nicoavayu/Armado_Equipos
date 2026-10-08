@@ -7,28 +7,17 @@ import PlanExperiencePage from '../features/torneos/components/PlanExperiencePag
 import { TorneosCompetitionProvider } from '../features/torneos/context/TorneosCompetitionContext';
 import { TorneosFeaturesProvider } from '../features/torneos/context/TorneosFeaturesContext';
 import { stagingV1FeaturesFor } from '../features/torneos/stagingV1/stagingV1Features';
-import { planComparisonFor, PLAN_COMPARISON, PLAN_COMING_SOON, PLAN_BRANDING_ROW } from '../features/torneos/domain/planComparison';
+import { planComparisonFor, PLAN_COMPARISON, PLAN_COMING_SOON, PLAN_BRANDING_ROW, PLAN_MEDIA_GALLERY_ROW } from '../features/torneos/domain/planComparison';
 import { tournamentEntitlementsFixture } from '../testUtils/tournamentEntitlementsFixture';
 
 let mockSocialFlag = true;
+let mockMediaFlag = false;
 jest.mock('../features/torneos/config/featureFlags', () => {
   const actual = jest.requireActual('../features/torneos/config/featureFlags');
   return {
     ...actual,
-    get torneosFeatureFlags() { return { ...actual.torneosFeatureFlags, socialContentGenerator: mockSocialFlag }; },
-  };
-});
-
-// #182 alone always keeps the Galería upcoming; the empty list first appears once the Gallery's media joins Social and
-// branding, so this file can force it.
-let mockNothingUpcoming = false;
-jest.mock('../features/torneos/domain/planComparison', () => {
-  const actual = jest.requireActual('../features/torneos/domain/planComparison');
-  return {
-    ...actual,
-    planComparisonFor: (options) => {
-      const composition = actual.planComparisonFor(options);
-      return mockNothingUpcoming ? { ...composition, comingSoon: [] } : composition;
+    get torneosFeatureFlags() {
+      return { ...actual.torneosFeatureFlags, socialContentGenerator: mockSocialFlag, mediaEnabled: mockMediaFlag };
     },
   };
 });
@@ -36,7 +25,7 @@ jest.mock('../features/torneos/domain/planComparison', () => {
 const org = { id: '10000000-0000-4000-8000-000000000001', name: 'Liga Devoto' };
 const season = { id: '20000000-0000-4000-8000-000000000001', name: 'Temporada 2026' };
 
-function show({ plan = 'FREE', social = true, branding = false } = {}) {
+function show({ plan = 'FREE', social = true, branding = false, media = false } = {}) {
   const service = {
     loadCompetitionContext: jest.fn().mockResolvedValue({ seasons: [season], tournaments: [], preference: { activeSeasonId: season.id } }),
     setTournamentContext: jest.fn().mockResolvedValue({}),
@@ -44,7 +33,7 @@ function show({ plan = 'FREE', social = true, branding = false } = {}) {
   };
   render(
     <MemoryRouter>
-      <TorneosFeaturesProvider features={stagingV1FeaturesFor('off', { planRead: true, social, branding })}>
+      <TorneosFeaturesProvider features={stagingV1FeaturesFor('off', { planRead: true, social, branding, media })}>
         <TorneosCompetitionProvider organizationId={org.id} service={service}>
           <PlanExperiencePage organization={org} />
         </TorneosCompetitionProvider>
@@ -53,7 +42,7 @@ function show({ plan = 'FREE', social = true, branding = false } = {}) {
   );
 }
 
-beforeEach(() => { mockSocialFlag = true; mockNothingUpcoming = false; });
+beforeEach(() => { mockSocialFlag = true; mockMediaFlag = false; });
 
 test('available: the Studio joins FREE vs PREMIUM with the real split and leaves Próximamente', async () => {
   show();
@@ -102,20 +91,32 @@ test('planComparisonFor is all-or-nothing and never mutates the Production table
 // upcoming and lists them as included in both plans (found in the integrated phase B preview, 2026-10-08).
 test('planComparisonFor: each surface leaves Próximamente only when it is available, in every combination', () => {
   for (const socialStudio of [false, true]) {
-    for (const branding of [false, true]) {
-      const { comparison, comingSoon } = planComparisonFor({ socialStudio, branding });
-      const rows = comparison.map((row) => row.name);
-      const upcoming = comingSoon.map((item) => item.name);
-      expect(rows.includes('Estudio Social')).toBe(socialStudio);
-      expect(upcoming.includes('Estudio Social')).toBe(!socialStudio);
-      expect(rows.includes('Logos y escudos')).toBe(branding);
-      expect(upcoming.includes('Logos y escudos')).toBe(!branding);
-      expect(upcoming).toContain('Galería de fotos');
-      expect(Object.isFrozen(comparison) && Object.isFrozen(comingSoon)).toBe(true);
+    for (const media of [false, true]) {
+      for (const branding of [false, true]) {
+        const { comparison, comingSoon } = planComparisonFor({ socialStudio, media, branding });
+        const rows = comparison.map((row) => row.name);
+        const upcoming = comingSoon.map((item) => item.name);
+        for (const [name, available] of [['Estudio Social', socialStudio], ['Galería de fotos', media], ['Logos y escudos', branding]]) {
+          expect(rows.includes(name)).toBe(available);
+          expect(upcoming.includes(name)).toBe(!available);
+        }
+        expect(Object.isFrozen(comparison) && Object.isFrozen(comingSoon)).toBe(true);
+      }
     }
   }
-  expect(planComparisonFor({ branding: 'true' })).toBe(planComparisonFor());
+  expect(planComparisonFor({ branding: 'true', media: 'true' })).toBe(planComparisonFor());
+  expect(planComparisonFor().comparison).toBe(PLAN_COMPARISON);
   expect(PLAN_BRANDING_ROW).toEqual({ name: 'Logos y escudos', free: 'Incluidos', premium: 'Incluidos' });
+});
+
+// MEDIA-V1: the gallery row says exactly what the server counts per season (tournament_plan_catalog).
+test('the gallery row quotes the plan catalog the server enforces', () => {
+  // eslint-disable-next-line global-require
+  const baseline = require('fs').readFileSync(require('path').join(__dirname, '../../backend/torneos/supabase/migrations/00000000000000_torneos_baseline_v1.sql'), 'utf8');
+  const limit = (plan) => Number(new RegExp(`INSERT INTO public\\.tournament_plan_catalog \\(plan_code, gallery_asset_limit[^)]*\\) VALUES \\('${plan}', (\\d+),`).exec(baseline)[1]);
+  expect([limit('FREE'), limit('PREMIUM')]).toEqual([25, 1000]);
+  expect(PLAN_MEDIA_GALLERY_ROW.free).toBe(`Hasta ${limit('FREE')} fotos por temporada`);
+  expect(PLAN_MEDIA_GALLERY_ROW.premium).toBe(`Hasta ${limit('PREMIUM').toLocaleString('es-AR')} fotos por temporada`);
 });
 
 test('branding available: Logos y escudos is included in both plans and is no longer upcoming', async () => {
@@ -129,10 +130,16 @@ test('branding available: Logos y escudos is included in both plans and is no lo
   expect(screen.getByRole('region', { name: 'Inclusiones actuales' })).toHaveTextContent('Logos y escudos: Incluidos');
 });
 
+// MEDIA-V1: with the Gallery, Social and logos all available the list really is empty (no mock needed).
 test('nothing upcoming: Mi plan drops Próximamente instead of announcing an empty list', async () => {
-  mockNothingUpcoming = true;
-  show({ branding: true });
+  expect(planComparisonFor({ socialStudio: true, media: true, branding: true }).comingSoon).toEqual([]);
+  mockMediaFlag = true;
+  show({ branding: true, media: true });
   await screen.findByRole('heading', { name: 'FREE · Temporada 2026' });
+  const comparison = screen.getByRole('region', { name: 'Qué agrega Premium' });
+  for (const name of ['Estudio Social', 'Galería de fotos', 'Logos y escudos']) {
+    expect(within(comparison).getByRole('rowheader', { name })).toBeInTheDocument();
+  }
   expect(screen.queryByRole('heading', { name: 'Próximamente' })).not.toBeInTheDocument();
   expect(screen.queryByText(/todavía no están disponibles/)).not.toBeInTheDocument();
   expect(screen.getByRole('region', { name: 'Qué agrega Premium' })).toBeInTheDocument();

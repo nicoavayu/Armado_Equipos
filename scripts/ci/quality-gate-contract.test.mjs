@@ -38,6 +38,10 @@
  *                                           storage policies, and the gateway's
  *                                           object route and signed URLs against
  *                                           the real gateway source (no network)
+ *       npm run test:torneos:media        — MEDIA-V1: the 0012 private bucket, gateway-claim
+ *                                           storage policies and RPCs, and the gateway's
+ *                                           upload / signed-read routes against the real
+ *                                           gateway source and real image bytes (no network)
  *       npm run test:torneos:social:browser — the Estudio Social in real
  *                                           Chromium (CI profile): Social OFF,
  *                                           FREE, PREMIUM in every style, 4:5
@@ -114,7 +118,7 @@ const workflowExecutedScripts = [...workflowDirectives.matchAll(/npm run ([a-z0-
 /** The suites `test:ci` must compose. Removing one from the script fails here. */
 const REQUIRED_IN_TEST_CI = [
   'test:staging:guard', 'test:worker:signer-renewer', 'test:worker:media:ci', 'test:torneos:social',
-  'test:torneos:social:browser', 'test:torneos:connected', 'test:torneos:branding',
+  'test:torneos:social:browser', 'test:torneos:connected', 'test:torneos:branding', 'test:torneos:media',
 ];
 
 /**
@@ -135,6 +139,16 @@ const MEDIA_CI_SUITES = [
 /** Extracts the test files a `node --test a.mjs b.mjs` script names. */
 const testFilesOf = (script) => String(script || '').split(/\s+/)
   .filter((token) => token.endsWith('.test.mjs'));
+
+test('the gate runs on every PR into main and the epic, and on stacked PRs', () => {
+  const prBlock = workflowDirectives.match(/\n  pull_request:\n\s+branches:\s*\[([^\]]*)\]/);
+  assert.ok(prBlock, 'the workflow must trigger on pull_request with an explicit branch list');
+  const branches = prBlock[1].split(',').map((name) => name.trim().replace(/^['"]|['"]$/g, ''));
+  for (const required of ['main', 'epic/arma2-torneos', 'claude/**']) {
+    assert.ok(branches.includes(required), `pull_request no longer covers ${required}`);
+  }
+  assert.match(workflowDirectives, /\n  push:\n\s+branches:\s*\[[^\]]*\bmain\b/, 'push to main must still run the gate');
+});
 
 test('the workflow delegates to npm scripts that actually exist', () => {
   assert.ok(workflowScriptCalls.length > 0, 'the workflow runs no npm scripts at all');

@@ -71,6 +71,16 @@ export const PLAN_SOCIAL_STUDIO_ROW = Object.freeze({
   premium: `Todas las placas, ${allStyles.length} estilos y la opción de quitar la firma Arma2`,
 });
 
+// MEDIA-V1: la fila de la galería cuando está disponible. Las cifras son las del
+// catálogo de planes (tournament_plan_catalog.gallery_asset_limit: FREE 25,
+// PREMIUM 1000 fotos por temporada), las mismas que el servidor cuenta en cada
+// carga; un test las ata al catálogo.
+export const PLAN_MEDIA_GALLERY_ROW = Object.freeze({
+  name: 'Galería de fotos',
+  free: 'Hasta 25 fotos por temporada',
+  premium: 'Hasta 1.000 fotos por temporada',
+});
+
 // BRANDING-V1: logos y escudos, cuando la composición los ofrece. Están en los
 // dos planes, así que la fila no suma nada a «Qué agrega Premium».
 export const PLAN_BRANDING_ROW = Object.freeze({
@@ -79,30 +89,35 @@ export const PLAN_BRANDING_ROW = Object.freeze({
   premium: 'Incluidos',
 });
 
-const compose = ({ social, branding }) => Object.freeze({
+const compose = ({ social, media, branding }) => Object.freeze({
   comparison: Object.freeze([
     ...PLAN_COMPARISON,
     ...(social ? [PLAN_SOCIAL_STUDIO_ROW] : []),
+    ...(media ? [PLAN_MEDIA_GALLERY_ROW] : []),
     ...(branding ? [PLAN_BRANDING_ROW] : []),
   ]),
   comingSoon: Object.freeze(PLAN_COMING_SOON.filter((item) => !(
-    (social && item.name === 'Estudio Social') || (branding && item.name === 'Logos y escudos')
+    (social && item.name === 'Estudio Social')
+    || (media && item.name === 'Galería de fotos')
+    || (branding && item.name === 'Logos y escudos')
   ))),
 });
+const compositionKey = ({ social, media, branding }) => `${social === true}:${media === true}:${branding === true}`;
 const NOTHING_AVAILABLE = Object.freeze({ comparison: PLAN_COMPARISON, comingSoon: PLAN_COMING_SOON });
-const COMPOSITIONS = Object.freeze({
-  'false:false': NOTHING_AVAILABLE,
-  'true:false': compose({ social: true, branding: false }),
-  'false:true': compose({ social: false, branding: true }),
-  'true:true': compose({ social: true, branding: true }),
-});
+const COMPOSITIONS = Object.freeze(Object.fromEntries([false, true].flatMap((social) => [false, true].flatMap(
+  (media) => [false, true].map((branding) => {
+    const key = compositionKey({ social, media, branding });
+    return [key, social || media || branding ? compose({ social, media, branding }) : NOTHING_AVAILABLE];
+  }),
+))));
 
 // `socialStudio` es exactamente la condición con la que el shell muestra el
 // Estudio (flag + feature de la composición): Mi plan nunca lo da por disponible
 // si la navegación no lo ofrece, ni lo deja como futuro si ya se puede usar.
+// `media` sigue la misma regla con la galería de fotos (flag + feature `media`).
 // `branding` sigue la misma regla con la feature `branding_assets` de la
 // composición, la misma con la que ajustes, asistente e inscripción ofrecen subir
 // logos y escudos.
-export function planComparisonFor({ socialStudio = false, branding = false } = {}) {
-  return COMPOSITIONS[`${socialStudio === true}:${branding === true}`];
+export function planComparisonFor({ socialStudio = false, media = false, branding = false } = {}) {
+  return COMPOSITIONS[compositionKey({ social: socialStudio, media, branding })];
 }

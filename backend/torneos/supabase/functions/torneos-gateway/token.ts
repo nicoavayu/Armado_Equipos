@@ -26,6 +26,24 @@ export async function issueToken(cfg: BridgeConfig, identity: Identity, sessionI
     .sign(await importPKCS8(key.privateKey, "RS256"))
 }
 
+/**
+ * MEDIA-V1: the same bridge token (identity, Core session, issuer, audience, TTL) for an identity the gateway has
+ * ALREADY verified, plus the one claim only the gateway signs: the upload session it may write and complete
+ * (migration 00000000000012, private.tournament_media_gateway_session). Never returned to a client.
+ */
+export async function issueMediaUploadToken(cfg: BridgeConfig, verified: { sub: string; core_user_id: string; session_id: string },
+  uploadSessionId: string, now = Math.floor(Date.now() / 1000)): Promise<string> {
+  if (![verified.sub, verified.core_user_id, verified.session_id, uploadSessionId].every(uuid)) throw new Error("invalid media claim")
+  const key = cfg.keys.find((k) => k.kid === cfg.activeKid)
+  if (!key?.privateKey) throw new Error("active signing key unavailable")
+  return await new SignJWT({ core_user_id: verified.core_user_id, session_id: verified.session_id, role: "authenticated",
+    torneos_media_upload_session: uploadSessionId })
+    .setProtectedHeader({ alg: "RS256", typ: "JWT", kid: key.kid })
+    .setIssuer(ISSUER).setAudience(AUDIENCE).setSubject(verified.sub)
+    .setIssuedAt(now).setNotBefore(now).setExpirationTime(now + TTL).setJti(crypto.randomUUID())
+    .sign(await importPKCS8(key.privateKey, "RS256"))
+}
+
 export type TorneosClaims = {
   sub: string; core_user_id: string; session_id: string; jti: string; role: string
   iat: number; exp: number; nbf: number; iss: string; aud: string
@@ -44,7 +62,9 @@ export async function verifyToken(token: string, cfg: BridgeConfig, currentDate 
   if (h.typ !== "JWT" || p.aud !== AUDIENCE || c.role !== "authenticated" ||
       ![c.sub, c.core_user_id, c.session_id, c.jti].every(uuid) ||
       ![c.iat, c.exp, c.nbf].every(Number.isInteger) || c.exp - c.iat !== TTL ||
-      c.nbf !== c.iat || c.iat > Math.floor(currentDate.getTime() / 1000) + 5) {
+      c.nbf !== c.iat || c.iat > Math.floor(currentDate.getTime() / 1000) + 5 ||
+      // MEDIA-V1: the upload-session claim is gateway-internal; a presented token never carries it.
+      "torneos_media_upload_session" in p) {
     throw new Error("invalid token contract")
   }
   return c

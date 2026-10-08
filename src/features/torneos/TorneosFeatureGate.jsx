@@ -7,6 +7,7 @@ import {
   resolveTorneosBillingMode,
   resolveTorneosConnectedProduct,
   resolveTorneosBranding,
+  resolveTorneosMedia,
   resolveTorneosPlanRead,
   resolveTorneosSocialStudio,
 } from './foundation/config';
@@ -66,6 +67,8 @@ export default function TorneosFeatureGate({
   connected = resolveTorneosConnectedProduct(process.env, { backendMode }),
   // BRANDING-V1: hybrid + the explicit opt-in that matches the gateway's TORNEOS_BRANDING_MODE=on.
   branding = resolveTorneosBranding(process.env, { backendMode }),
+  // MEDIA-V1: hybrid + REACT_APP_TORNEOS_MEDIA_MODE=on (gateway TORNEOS_MEDIA_MODE=on) + the media flag.
+  media = resolveTorneosMedia(process.env, { backendMode, flags: torneosFeatureFlags }),
   service,
   native = isArma2NativeRuntime(),
 }) {
@@ -83,6 +86,7 @@ export default function TorneosFeatureGate({
           social={social}
           connected={connected}
           branding={branding}
+          media={media}
         />
       </Suspense>
     );

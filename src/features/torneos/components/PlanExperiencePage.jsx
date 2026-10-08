@@ -18,6 +18,8 @@ export default function PlanExperiencePage({ organization: organizationProp = nu
   // Logos y escudos: the composition feature that every logo/shield upload surface reads.
   const { comparison, comingSoon } = planComparisonFor({
     socialStudio: torneosFeatureFlags.socialContentGenerator === true && features.social_studio === true,
+    // MEDIA-V1: same condition as the Multimedia entry of the navigation.
+    media: torneosFeatureFlags.mediaEnabled === true && features.media === true,
     branding: features.branding_assets === true,
   });
   const organization = organizationProp || outlet.organization;

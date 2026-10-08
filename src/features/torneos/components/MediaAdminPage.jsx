@@ -165,12 +165,12 @@ function DeletePhotoDialog({ busy, onCancel, onConfirm }) {
 }
 
 function AssetPreview({
-  asset, cover, gallery, capabilities, onAction, onMove, thumbnailUrl, lastOrder,
+  asset, cover, gallery, capabilities, onAction, onMove, thumbnailUrl, lastOrder, canErase = true,
 }) {
   // Four ready variants is the same gate the database enforces on approval, so
   // the card can say "procesando" without guessing.
   const processing = !assetDisplayReady(asset);
-  const actions = resolveMediaAssetActions(asset, gallery, capabilities, { isCover: cover });
+  const actions = resolveMediaAssetActions(asset, gallery, capabilities, { isCover: cover, canErase });
   const curation = actions.cover || actions.reorder;
   const moderation = actions.approve || actions.reject || actions.hide || actions.restore;
   return (
@@ -224,7 +224,7 @@ function AssetPreview({
                   className={styles.assetGhostAction}
                   onClick={() => onAction(asset, 'hide')}
                 >
-                  <EyeOff size={15} aria-hidden="true" /> Ocultar
+                  <EyeOff size={15} aria-hidden="true" /> Retirar
                 </button>
               )}
               {actions.restore && (
@@ -302,7 +302,11 @@ export default function MediaAdminPage() {
   const [dragging, setDragging] = useState(false);
   const [thumbnails, setThumbnails] = useState({});
   const [pendingDelete, setPendingDelete] = useState(null);
+  const [seasonUsage, setSeasonUsage] = useState(null);
   queueRef.current = queue;
+  // MEDIA-V1: the hybrid composition retires photos (hide / revoke); permanent erasure exists only where the service
+  // offers it.
+  const canErase = typeof service.deleteMediaAsset === 'function';
 
   const patchQueueItem = (id, patch) => setQueue((current) => current.map(
     (candidate) => (candidate.id === id ? { ...candidate, ...patch } : candidate),
@@ -331,11 +335,21 @@ export default function MediaAdminPage() {
       ));
     } catch (error) {
       if (requestRef.current !== requestId) return;
-      setState({
-        status: 'error',
-        data: null,
-        error: error?.message || 'No pudimos abrir Multimedia.',
-      });
+      // A season-scoped admin may not see the whole organization at once: the database asks for a tournament. Open the
+      // active one of the competition context instead of an error.
+      const fallbackTournament = planCompetition?.activeTournament?.id
+        || planCompetition?.tournaments?.find((entry) => entry.seasonId === planCompetition?.activeSeason?.id)?.id
+        || null;
+      if (!filters.tournamentId && fallbackTournament && error?.code === 'TORNEOS_MEDIA_FORBIDDEN') {
+        setFilters((current) => ({ ...current, tournamentId: fallbackTournament }));
+        return;
+      }
+      // A refresh that fails after the page already has data (a connection that drops right after an upload) keeps
+      // what is on screen — and the upload queue with it — and says so, instead of replacing the page with an error.
+      const message = error?.message || 'No pudimos abrir Multimedia.';
+      setState((current) => (current.data
+        ? { ...current, status: 'ready', error: `${message} Lo que ves puede no estar actualizado.` }
+        : { status: 'error', data: null, error: message }));
     }
   };
 
@@ -378,6 +392,31 @@ export default function MediaAdminPage() {
   const selectedTournament = useMemo(() => (
     state.data?.tournaments?.find((item) => item.id === form.tournamentId) || null
   ), [form.tournamentId, state.data]);
+
+  // The season's photo quota, in the organizer's words: the same count the server enforces (plan catalog).
+  const usageSeasonId = (selectedGallery && planCompetition?.tournaments?.find(
+    (entry) => entry.id === selectedGallery.tournamentId,
+  )?.seasonId) || planCompetition?.activeSeason?.id || null;
+  const refreshSeasonUsage = () => {
+    if (!usageSeasonId || typeof service.loadSeasonMediaUsage !== 'function') return;
+    service.loadSeasonMediaUsage({ organizationId, seasonId: usageSeasonId })
+      .then((usage) => setSeasonUsage(usage && usage.seasonId === usageSeasonId ? usage : null))
+      .catch(() => setSeasonUsage(null));
+  };
+  useEffect(() => {
+    setSeasonUsage(null);
+    refreshSeasonUsage();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [organizationId, usageSeasonId, service, state.data]);
+  // A purchase or a refund changes the season's plan: read everything again (Premium MP announces it).
+  useEffect(() => {
+    const onPlanChanged = (event) => {
+      if (!event?.detail?.organizationId || event.detail.organizationId === organizationId) load();
+    };
+    window.addEventListener('torneos:plan-changed', onPlanChanged);
+    return () => window.removeEventListener('torneos:plan-changed', onPlanChanged);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [organizationId, service]);
 
   const updateForm = (key, value) => {
     setForm((current) => ({
@@ -475,6 +514,9 @@ export default function MediaAdminPage() {
 
   const startUpload = async (item) => {
     if (!selectedGallery || !uploadReady) return;
+    // A double tap (or "Subir todas" while one is running) never starts the same photo twice.
+    const current = queueRef.current.find((candidate) => candidate.id === item.id);
+    if (current && ['preparing', 'uploading', 'processing', 'pending_review'].includes(current.status)) return;
     if (activeUploadsRef.current >= capability.maxConcurrentUploads) {
       patchQueueItem(item.id, {
         status: 'ready',
@@ -518,10 +560,13 @@ export default function MediaAdminPage() {
         status: error?.code === 'cancelled' ? 'cancelled' : 'error',
         error: error?.message || 'No pudimos subir esta foto.',
         retryable: error?.retryable !== false,
-        // A consumed intent can never be replayed, so a retry needs a new one.
-        idempotencyKey: service.createIdempotencyKey(),
+        // The same key on retry: if the first attempt did land, the server answers with that photo instead of making
+        // a second one. Only a key bound to another gallery needs a new one.
+        idempotencyKey: error?.code === 'TORNEOS_MEDIA_IDEMPOTENCY_CONFLICT'
+          ? service.createIdempotencyKey() : item.idempotencyKey,
         progress: 0,
       });
+      if (error?.code === 'TORNEOS_SEASON_MEDIA_QUOTA_EXCEEDED') refreshSeasonUsage();
     } finally {
       controllersRef.current.delete(item.id);
       activeUploadsRef.current = Math.max(0, activeUploadsRef.current - 1);
@@ -551,7 +596,7 @@ export default function MediaAdminPage() {
     setQueue((current) => current.filter((candidate) => candidate.id !== item.id));
   };
 
-  const actOnAsset = async (asset, action) => {
+  const actOnAsset = async (asset, action, { done = '' } = {}) => {
     if (busy) return;
     setBusy(`${action}:${asset.id}`);
     try {
@@ -571,6 +616,7 @@ export default function MediaAdminPage() {
           action,
           reason: reasons[action] || null,
         });
+        if (done) setNotice(done);
       }
       await load();
     } catch (error) {
@@ -586,7 +632,19 @@ export default function MediaAdminPage() {
       setPendingDelete(asset);
       return;
     }
-    actOnAsset(asset, action);
+    // Retiring the cover of a published gallery with no other published photo sends the gallery back to draft
+    // (server rule since MEDIA-V1 0014, transition_tournament_media_asset): it disappears for participants until it is
+    // published again, so it is confirmed first and the way back is said right after.
+    const lastPublished = action === 'hide' && selectedGallery?.status === 'published'
+      && selectedGallery.coverAssetId === asset.id
+      && !selectedGallery.assets.some((other) => other.id !== asset.id && other.status === 'published');
+    if (lastPublished && !window.confirm(
+      '¿Retirar la única foto publicada? La galería volverá a borrador: dejará de verse para los participantes '
+      + 'hasta que la publiques de nuevo.',
+    )) return;
+    actOnAsset(asset, action, lastPublished ? {
+      done: 'La galería volvió a borrador. Restaurá la foto o aprobá otra, elegí la portada y publicala de nuevo.',
+    } : {});
   };
 
   const confirmDelete = () => {
@@ -745,6 +803,28 @@ export default function MediaAdminPage() {
         <em>{capability.readinessLabel}</em>
       </div>
 
+      {seasonUsage && Number.isInteger(seasonUsage.limit) && (
+        <div
+          className={styles.quotaMeter}
+          data-full={seasonUsage.remaining === 0}
+          role="status"
+          aria-label={`Fotos de la temporada: ${seasonUsage.usage} de ${seasonUsage.limit}`}
+        >
+          <span>
+            <strong>Fotos de la temporada</strong>
+            <small>
+              {/* The server's count: every uploaded photo except rejected ones (and consent revocations). A retired
+                  (hidden) photo still counts — it can be restored and it still takes space. */}
+              {seasonUsage.remaining === 0
+                ? `Usaste las ${seasonUsage.limit} fotos de tu plan. Para liberar lugar, rechazá fotos que todavía no publicaste: las retiradas siguen contando porque se pueden restaurar.`
+                : `Quedan ${seasonUsage.remaining} de ${seasonUsage.limit}. Cuentan todas las fotos subidas, también las retiradas; las rechazadas no cuentan.`}
+            </small>
+          </span>
+          <em>{seasonUsage.usage} / {seasonUsage.limit}</em>
+          <i aria-hidden="true"><b style={{ width: `${Math.min(100, Math.round((seasonUsage.usage / Math.max(1, seasonUsage.limit)) * 100))}%` }} /></i>
+        </div>
+      )}
+
       {quotaSeasonId && quotaSeasonId === planCompetition?.activeSeason?.id && planCompetition?.planState?.status === 'ready'
         && planCompetition.planState.data?.plan === 'FREE' && (
           <PremiumUpsell feature="Ampliar galería" organizationId={organizationId} seasonId={planCompetition.activeSeason?.id} soon />
@@ -874,7 +954,7 @@ export default function MediaAdminPage() {
               >
                 <span>{gallery.matchId ? 'PARTIDO' : gallery.categoryId ? 'CATEGORÍA' : 'TORNEO'}</span>
                 <strong>{gallery.title}</strong>
-                <small>{gallery.assets.length} fotos · {STATUS_LABELS[gallery.status]}</small>
+                <small>{gallery.assets.length} {gallery.assets.length === 1 ? 'foto' : 'fotos'} · {STATUS_LABELS[gallery.status]}</small>
               </button>
             ))}
           </aside>
@@ -991,6 +1071,7 @@ export default function MediaAdminPage() {
                       onMove={moveAsset}
                       lastOrder={selectedGallery.assets.length - 1}
                       thumbnailUrl={thumbnails[`${asset.id}:thumbnail`] || ''}
+                      canErase={canErase}
                     />
                   ))}
                 </div>

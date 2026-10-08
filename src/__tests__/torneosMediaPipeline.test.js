@@ -277,7 +277,7 @@ describe('local file handling', () => {
     const decoded = { width: 4000, height: 3000, close: jest.fn() };
     const originalCreateImageBitmap = global.createImageBitmap;
     global.createImageBitmap = jest.fn().mockResolvedValue(decoded);
-    const context = { drawImage: jest.fn(), imageSmoothingEnabled: false };
+    const context = { drawImage: jest.fn(), fillRect: jest.fn(), imageSmoothingEnabled: false };
     const contextSpy = jest.spyOn(HTMLCanvasElement.prototype, 'getContext')
       .mockReturnValue(context);
     const toBlobSpy = jest.spyOn(HTMLCanvasElement.prototype, 'toBlob')

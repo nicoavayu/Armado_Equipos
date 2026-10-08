@@ -66,7 +66,9 @@ const LAB_STORAGE = "http://torneos-storage:5000"
 const LAB_PUBLIC = /^http:\/\/(127\.0\.0\.1|localhost):[0-9]{2,5}$/
 const HOSTED_REST = /^https:\/\/([a-z0-9]{20})\.supabase\.co\/rest\/v1$/
 
-function storageTargets(env: Record<string, string | undefined>, restUrl: string): { storageUrl: string; publicBase: string } {
+/** The only storage targets a gateway contract may use (BRANDING-V1, and MEDIA-V1 with its own error class). */
+export function storageTargets(env: Record<string, string | undefined>, restUrl: string,
+  Fault: new (message: string) => Error = BrandingConfigError): { storageUrl: string; publicBase: string } {
   const rest = restUrl.replace(/\/$/, "")
   const hosted = HOSTED_REST.exec(rest)
   const explicit = (env.TORNEOS_STORAGE_URL ?? "").trim().replace(/\/$/, "")
@@ -76,13 +78,13 @@ function storageTargets(env: Record<string, string | undefined>, restUrl: string
     // accepted. Derived from the validated REST URL so no platform hostname is written in code.
     const derived = `${new URL(rest).origin}/storage/v1`
     if ((explicit && explicit !== derived) || (explicitPublic && explicitPublic !== derived)) {
-      throw new BrandingConfigError("TORNEOS_STORAGE_URL must be the Torneos project's own storage")
+      throw new Fault("TORNEOS_STORAGE_URL must be the Torneos project's own storage")
     }
     return { storageUrl: derived, publicBase: derived }
   }
   // The local lab only: the internal storage service and a loopback port for the browser.
   if (explicit !== LAB_STORAGE || !LAB_PUBLIC.test(explicitPublic)) {
-    throw new BrandingConfigError("branding storage is only the Torneos project's storage (or the local lab's)")
+    throw new Fault("storage is only the Torneos project's storage (or the local lab's)")
   }
   return { storageUrl: explicit, publicBase: explicitPublic }
 }

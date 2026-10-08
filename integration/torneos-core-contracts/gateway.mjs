@@ -19,17 +19,24 @@
 // CONNECTED-V1: the same connected.ts loads connected-v1-rpc-allowlist.json when TORNEOS_CONNECTED_MODE=on.
 // BRANDING-V1: the same branding.ts (mounted by compose.branding.yaml) when TORNEOS_BRANDING_MODE=on: the branding
 // RPCs, the object route to the Torneos storage of the lab and signed URLs in the branding responses.
+// MEDIA-V1: the same media.ts (mounted by compose.media.yaml) when TORNEOS_MEDIA_MODE=on: the gallery RPCs, the upload
+// route (verified photo, gateway-claim write + completion) and the signed-read route, against the lab's Torneos storage.
 // OFFICIALIZATION-V1: the same competition.ts loads officialization-v1-rpc-allowlist.json (membership + dual-control
 // policy) onto the authenticated route; accept_tournament_organization_invitation goes through the adapter.
 import http from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { decodeJwt } from 'jose';
 import pg from 'pg';
-import { issueToken, verifyToken, uuid, TTL } from './token.mjs';
+import { issueMediaUploadToken, issueToken, verifyToken, uuid, TTL } from './token.mjs';
 import { CoreClient, Denied } from './core-client.mjs';
 import { Adapter, AdapterDenied, CONTRACTS } from './adapter.mjs';
 
 const origin = 'http://127.0.0.1:58420';
+// The loopback origin the browser-facing bridge presents. Default: this gateway's own published port. A second lab
+// gateway on the same lab (MEDIA-V1's, beside the preview's) is published on another loopback port of the 584xx lab
+// range; `origin` stays the Core issuer base either way.
+const publicOrigin = process.env.PHASE3A_GATEWAY_PUBLIC_ORIGIN || origin;
+if (!/^http:\/\/127\.0\.0\.1:584[0-9]{2}$/.test(publicOrigin)) throw new Error('PHASE3A_GATEWAY_PUBLIC_ORIGIN must be a 584xx loopback origin');
 const readConfig = async () => JSON.parse(await readFile('.runtime/server/config.json', 'utf8'));
 const initial = await readConfig();
 // Staging v1 RPC allowlist: fail closed if the file is missing, malformed or empty.
@@ -92,7 +99,20 @@ if (!['', 'off'].includes((process.env.TORNEOS_BRANDING_MODE ?? '').trim())) {
     console.error(`[gateway] disabled: ${error?.constructor?.name === 'BrandingConfigError' ? error.message : 'boot failed'}`);
   }
 }
-const rpcAllowlist = brandingModule && branding.mode === 'on' ? brandingModule.withBranding(connectedAllowlist, branding) : connectedAllowlist;
+const brandedAllowlist = brandingModule && branding.mode === 'on' ? brandingModule.withBranding(connectedAllowlist, branding) : connectedAllowlist;
+// MEDIA-V1: loaded only when the overlay turns it on (the module is mounted only then). A fault disables the gateway.
+let media = { mode: 'off', rpcs: new Set() };
+let mediaModule = null;
+if (!['', 'off'].includes((process.env.TORNEOS_MEDIA_MODE ?? '').trim())) {
+  try {
+    mediaModule = await import('./functions/torneos-gateway/media.ts');
+    media = mediaModule.loadMediaContract(process.env, brandedAllowlist, 'http://torneos-rest:3000');
+  } catch (error) {
+    disabled = true;
+    console.error(`[gateway] disabled: ${error?.constructor?.name === 'MediaConfigError' ? error.message : 'boot failed'}`);
+  }
+}
+const rpcAllowlist = mediaModule && media.mode === 'on' ? mediaModule.withMedia(brandedAllowlist, media) : brandedAllowlist;
 
 function json(res, status, body) {
   res.writeHead(status, { 'content-type': 'application/json', 'cache-control': 'no-store' });
@@ -198,8 +218,8 @@ const server = http.createServer(async (req, res) => {
   res.setHeader('content-security-policy', "default-src 'self'; script-src 'self'; connect-src 'self'; object-src 'none'; frame-ancestors 'none'");
   try {
     if (disabled) return json(res, 503, { error: 'access denied' });
-    if (req.headers.host !== '127.0.0.1:58420' ||
-        (req.headers.origin && req.headers.origin !== origin)) return json(res, 403, { error: 'origin rejected' });
+    if (req.headers.host !== new URL(publicOrigin).host ||
+        (req.headers.origin && req.headers.origin !== publicOrigin)) return json(res, 403, { error: 'origin rejected' });
     const url = new URL(req.url, origin);
     if (req.method === 'GET' && url.pathname === '/config') {
       return json(res, 200, { coreUrl: origin, torneosUrl: `${origin}/torneos`, anonKey: initial.anonKey });
@@ -277,6 +297,26 @@ const server = http.createServer(async (req, res) => {
         branding, token, null);
       return json(res, result.status, result.body);
     }
+    // MEDIA-V1: one verified photo in, or signed reads out — for the caller's own verified identity only.
+    if (media.mode === 'on' && req.method === 'POST' && [mediaModule.MEDIA_UPLOAD_ROUTE, mediaModule.MEDIA_URLS_ROUTE].includes(url.pathname)) {
+      const token = bearer(req);
+      const config = await readConfig();
+      const p = await verifyToken(token, config);
+      await activeSession(p.core_user_id, p.session_id);
+      if (!await identityExists(p.sub, p.core_user_id)) throw new Error('identity mismatch');
+      const deps = { bearer: token, apikey: null, mint: (sessionId) => issueMediaUploadToken(config, p, sessionId) };
+      try {
+        const result = url.pathname === mediaModule.MEDIA_UPLOAD_ROUTE
+          ? await mediaModule.mediaUpload({ search: url.search, contentType: req.headers['content-type'] ?? null,
+            contentLength: req.headers['content-length'] ?? null, body: req }, media, deps)
+          : await mediaModule.mediaUrls({ contentType: req.headers['content-type'] ?? null,
+            contentLength: req.headers['content-length'] ?? null, body: req }, media, deps);
+        return json(res, result.status, result.body);
+      } catch (error) {
+        if (mediaModule.isMediaUnavailable(error)) throw new Unavailable();
+        throw error;
+      }
+    }
     const rest = /^\/torneos\/rest\/v1\/(rpc\/([a-z0-9_]+)|[a-z0-9_]+)$/.exec(url.pathname);
     if (rest && ['GET', 'HEAD', 'POST', 'PATCH', 'DELETE'].includes(req.method)) {
       const token = bearer(req);
@@ -312,6 +352,9 @@ const server = http.createServer(async (req, res) => {
     else res.end();
   }
 });
-server.requestTimeout = 10000;
+// Production's gateway (Cloud Run) cuts a request at 30 s; a lab run that measures slow uploads mirrors it explicitly.
+const requestTimeout = Number(process.env.PHASE3A_GATEWAY_REQUEST_TIMEOUT_MS || 10000);
+if (!Number.isInteger(requestTimeout) || requestTimeout < 10000 || requestTimeout > 60000) throw new Error('PHASE3A_GATEWAY_REQUEST_TIMEOUT_MS must be 10000-60000');
+server.requestTimeout = requestTimeout;
 server.headersTimeout = 10000;
 server.listen(58420, '0.0.0.0', () => console.log('Phase 3A gateway ready'));

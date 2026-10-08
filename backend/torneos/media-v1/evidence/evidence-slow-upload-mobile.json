@@ -1,0 +1,24 @@
+[
+  {
+    "scenario": "slow-upload-debug",
+    "failed": [
+      "POST /torneos/rest/v1/rpc/get_tournament_media_admin_context net::ERR_INTERNET_DISCONNECTED",
+      "POST /torneos/rest/v1/rpc/get_tournament_media_upload_capability net::ERR_INTERNET_DISCONNECTED",
+      "POST /torneos/rest/v1/rpc/get_tournament_media_asset_processing_tiers net::ERR_INTERNET_DISCONNECTED",
+      "POST /exchange net::ERR_INTERNET_DISCONNECTED"
+    ],
+    "finishedWhileOffline": [
+      "POST /torneos/media/v1/upload 201"
+    ]
+  },
+  {
+    "scenario": "slow-upload",
+    "form": "mobile",
+    "link": "connection cut mid-upload, then retry",
+    "cutAtPercent": "11",
+    "messageWhileCut": [],
+    "finalStatus": [
+      "pending_review"
+    ]
+  }
+]
