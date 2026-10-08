@@ -148,9 +148,15 @@ function hs256(secret, claims) {
   const body = b64url({ iss: 'supabase', iat: 1700000000, exp: 4100000000, ...claims });
   return `${head}.${body}.${createHmac('sha256', secret).update(`${head}.${body}`).digest('base64url')}`;
 }
+// What 0010/0012 use of the Storage schema: both tables and the two newest bucket columns they set. The tables appear
+// early in storage-api's own migration run, the columns later: the schema counts as migrated only with all of them, and
+// only once storage-api's migration ledger has stopped growing (removing the container mid-run left a partial schema).
+const STORAGE_COMPLETE = `select to_regclass('storage.migrations') is not null and to_regclass('storage.objects') is not null
+  and (select count(*) from information_schema.columns where table_schema = 'storage' and table_name = 'buckets'
+       and column_name in ('file_size_limit', 'allowed_mime_types')) = 2`;
 /** Migrates the Supabase Storage schema into the lab database (storage-api, once), then removes the storage container. */
 async function migrateStorage(dbPassword) {
-  if (sql("select to_regclass('storage.objects') is not null and to_regclass('storage.buckets') is not null").trim() === 't') return false;
+  if (sql(STORAGE_COMPLETE).trim() === 't') return false;
   sql(`ALTER ROLE supabase_storage_admin PASSWORD '${dbPassword}';`);
   const secret = randomBytes(32).toString('hex');
   const name = `${CONTAINER}-storage`;
@@ -161,11 +167,18 @@ async function migrateStorage(dbPassword) {
     '-e', `DATABASE_URL=postgres://supabase_storage_admin:${dbPassword}@torneos-db:5432/postgres`, STORAGE_IMAGE]);
   if (!r.ok) throw new Error(`storage-api run failed: ${r.err.split('\n')[0]}`);
   try {
-    for (let i = 0; i < 90; i += 1) {
-      if (sql("select to_regclass('storage.objects') is not null and to_regclass('storage.buckets') is not null").trim() === 't') return true;
+    let last = -1;
+    let stable = 0;
+    for (let i = 0; i < 180; i += 1) {
+      if (sql(STORAGE_COMPLETE).trim() === 't') {
+        const applied = Number(sql('select count(*) from storage.migrations').trim());
+        stable = applied === last ? stable + 1 : 0;
+        last = applied;
+        if (stable >= 3) return true;
+      }
       await new Promise((resolve) => setTimeout(resolve, 1000));
     }
-    throw new Error('storage schema did not appear');
+    throw new Error('storage schema did not finish migrating');
   } finally {
     docker(['rm', '-f', name]);
   }
