@@ -52,6 +52,20 @@ Los avisos generados fueron sólo de Torneos: `registration.received` / `submitt
 
 0015 es independiente de 0012–0014. En el laboratorio se aplicó, revirtió y volvió a aplicar con pre y postcondiciones por md5. Galería confirmó `db-0012` con 0015 presente y Premium lo agrega a su prueba de orden.
 
+## Aviso de reprogramación y postergación (Torneos 0016, #182 `7d435472`)
+
+Probado en LAB el 2026-10-08, sobre el build de Netlify `cc2e86e6` y a través del gateway Edge del laboratorio.
+
+| Prueba | Resultado |
+| --- | --- |
+| El organizador reprograma desde la interfaz con doble clic (18/10 17:30 → 19/10 18:00), con un motivo marcado | 1 fila de historial nueva. 3 avisos: Ana y Beto (jugadores) y el capitán (gestiona los dos equipos). Son exactamente los participantes de una consulta independiente; el organizador no figura |
+| La misma reprogramación otras 3 veces por la API (dos simultáneas) | Todas responden 200. 0 filas y 0 avisos nuevos |
+| Postergación sin fecha nueva (directa en la base del laboratorio: la web no ofrece postergar y el gateway la rechaza con «rpc not enabled») | 3 avisos «Partido postergado» con la hora anterior. El reintento se rechaza y no agrega nada |
+| El organizador le da al partido postergado una fecha nueva (gateway) | El aviso dice «Antes: lun 19 oct 18:00 · Ahora: mar 20 oct 18:00», es decir, la hora previa a la postergación |
+| Lo que recibe cada participante | El motivo no aparece en ningún payload: `message` es siempre null y la base lo exige |
+| Ana (mobile) y el capitán (desktop) en Avisos | Ven los tres avisos con «Antes / Ahora» o «Nueva fecha: a confirmar». Al tocar uno se abre `/torneos/mis-partidos/<partido>`, con «Reprogramado · antes era el lun, 19 oct, 06:00 p. m.». Sin desborde y sin 4xx |
+| Cuentas ajenas (otra organización, una cuenta sin equipos) y los propios participantes | Reprogramar → 403 `42501`. Postergar → 403. Las ajenas no ven ningún aviso del partido. Marcar como leídos los avisos de Ana desde otra cuenta → `updated: 0` |
+
 ## Comparación acotada con Timbo
 
 - **Anunciado** en timbo.futbol: inscripción online, app para jugadores con perfil y notificaciones, horarios, sedes y canchas, legajos, sanciones, presentismo, planillas PDF, sitio del torneo, personalización y sponsors, varios usuarios, soporte por WhatsApp.
@@ -76,7 +90,6 @@ Quedan legibles el código y el plantel de los partidos que están publicados bu
 
 | Pendiente | Tipo |
 | --- | --- |
-| Aviso de reprogramación a los participantes. Hoy no existe ese tipo de aviso | Decisión de producto |
 | Lectura del código de los partidos abiertos (#193) | Decisión |
 | Deploy real en Netlify y backend de prueba alojado | Bloqueado, requiere a Nico |
 | Teléfono físico (iOS/Android) | No probado |
