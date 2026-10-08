@@ -21,8 +21,10 @@ const ProfilePage = () => {
         document.querySelectorAll('*').forEach((el) => {
           const rect = el.getBoundingClientRect();
           if (rect.right > window.innerWidth + 1 || rect.left < -1) {
+            // SVG elements expose className as an SVGAnimatedString, not a string.
+            const classes = String(el.getAttribute('class') || '').trim();
             offenders.push({
-              element: el.tagName + (el.className ? '.' + el.className.split(' ').join('.') : ''),
+              element: el.tagName + (classes ? '.' + classes.split(/\s+/).join('.') : ''),
               right: rect.right,
               viewport: window.innerWidth,
               left: rect.left,

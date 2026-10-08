@@ -504,27 +504,33 @@ const ProfileCardModal = ({
     }
 
     try {
-      const userId = registeredUserId;
-      logger.log('[CONTACT] Fetching phone for user:', { userId, profileId: profile?.id, usuarioId: profile?.usuario_id });
+      // The server decides: only this match's organizer, and only when the player asked to
+      // join it or accepted its invitation (never logged: it is private data).
+      let { data: phoneData, error } = await supabase.rpc('get_match_contact_phone', {
+        p_partido_id: Number(partidoActual?.id) || null,
+        p_user_id: registeredUserId,
+      });
 
-      const { data: userData, error } = await supabase
-        .from('usuarios')
-        .select('telefono')
-        .eq('id', userId)
-        .single();
-
-      logger.log('[CONTACT] Query result:', { userData, error });
+      if (error && ['PGRST202', '42883'].includes(String(error.code || ''))) {
+        // Backend without 20261010128000 yet: the previous direct read.
+        const legacy = await supabase
+          .from('usuarios')
+          .select('telefono')
+          .eq('id', registeredUserId)
+          .single();
+        phoneData = legacy.data?.telefono || null;
+        error = legacy.error || null;
+      }
 
       if (error) throw error;
 
-      const phone = userData?.telefono || null;
-      logger.log('[CONTACT] Setting phone:', phone);
-
-      setPlayerPhone(phone);
+      setPlayerPhone(typeof phoneData === 'string' && phoneData.trim() ? phoneData.trim() : null);
       setShowContactInfo(true);
     } catch (error) {
-      logger.error('[CONTACT] Error fetching contact info:', error);
-      notifyBlockingError('Error al obtener información de contacto');
+      logger.error('[CONTACT] Error fetching contact info:', { code: error?.code || null });
+      notifyBlockingError(String(error?.message || '').includes('not_authorized')
+        ? 'El teléfono se comparte con el organizador cuando el jugador pidió sumarse o aceptó la invitación a este partido'
+        : 'Error al obtener información de contacto');
     }
   };
 

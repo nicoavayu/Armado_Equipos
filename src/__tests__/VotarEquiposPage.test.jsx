@@ -175,6 +175,32 @@ describe('VotarEquiposPage public code resolution', () => {
     expect(captureMessage).not.toHaveBeenCalled();
   });
 
+  test('si la RPC responde que no existe, no busca el código en las tablas', async () => {
+    installSupabaseMock({ rpcResult: noRows });
+
+    renderVotingRoute('/votar-equipos?codigo=ZZZZ0000');
+
+    expect(await screen.findByRole('heading', { name: /No encontramos ese partido/i })).toBeInTheDocument();
+    expect(mockFrom).not.toHaveBeenCalledWith('partidos_view');
+    expect(mockFrom).not.toHaveBeenCalledWith('partidos');
+    expect(captureException).not.toHaveBeenCalled();
+  });
+
+  test('sólo un backend sin la RPC usa la búsqueda anterior en las tablas', async () => {
+    installSupabaseMock({
+      rpcResult: { data: null, error: { code: 'PGRST202', message: 'Could not find the function' } },
+      viewCodeResult: { data: { id: 321 }, error: null },
+      matchResult: { data: buildMatch(), error: null },
+    });
+
+    renderVotingRoute('/votar-equipos?codigo=H03G61');
+
+    await waitFor(() => {
+      expect(screen.getByTestId('voting-view')).toHaveTextContent('Voting ready 321');
+    });
+    expect(mockFrom).toHaveBeenCalledWith('partidos_view');
+  });
+
   test('normaliza códigos con minúsculas y espacios antes de resolver', async () => {
     installSupabaseMock({
       rpcResult: { data: 321, error: null },

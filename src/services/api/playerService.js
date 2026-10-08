@@ -10,6 +10,7 @@ import logger from '../../utils/logger';
  */
 
 import { supabase } from './supabase';
+import { fetchPublicProfiles, readMyProfile } from '../db/publicProfiles';
 import { prepareImageForUpload } from '../../utils/imageUpload';
 
 /**
@@ -154,11 +155,21 @@ export const uploadFoto = async (file, jugador) => {
  */
 export const getProfile = async (userId) => {
   logger.log('getProfile called for userId:', userId);
-  const { data, error } = await supabase
-    .from('usuarios')
-    .select('*')
-    .eq('id', userId)
-    .single();
+  // Private columns are only readable by their owner, through get_my_profile();
+  // anyone else gets the public profile.
+  const { data: sessionData } = await supabase.auth.getSession();
+  let data = null;
+  let error = null;
+  if (sessionData?.session?.user?.id === userId) {
+    ({ data, error } = await readMyProfile({ single: true }));
+  } else {
+    try {
+      data = (await fetchPublicProfiles([userId]))[0] || null;
+      if (!data) error = { code: 'PGRST116', message: 'Profile not found' };
+    } catch (publicProfileError) {
+      error = publicProfileError;
+    }
+  }
 
   if (error) {
     logger.error('getProfile error:', error);
@@ -166,7 +177,7 @@ export const getProfile = async (userId) => {
   }
 
   logger.log('getProfile result:', {
-    data: data,
+    id: data?.id || null,
     avatar_url: data?.avatar_url,
     foto_url: data?.foto_url,
     all_fields: Object.keys(data || {}),
@@ -184,13 +195,16 @@ export const getProfile = async (userId) => {
 export const updateProfile = async (userId, profileData) => {
   const completion = calculateProfileCompletion(profileData);
 
-  const { data, error } = await supabase
+  const { error: updateError } = await supabase
     .from('usuarios')
     .update({ ...profileData, profile_completion: completion })
     .eq('id', userId)
-    .select()
+    .select('id')
     .single();
 
+  if (updateError) throw updateError;
+  // The owner's full row (private columns included) only comes from get_my_profile().
+  const { data, error } = await readMyProfile({ single: true });
   if (error) throw error;
   return data;
 };
@@ -252,18 +266,22 @@ export const createOrUpdateProfile = async (user) => {
   }
 
   // Insertar o actualizar (upsert)
-  const { data, error } = await supabase
+  const { error: upsertError } = await supabase
     .from('usuarios')
     .upsert(profileData, { onConflict: 'id' })
-    .select()
+    .select('id')
     .single();
+  // The owner's full row (private columns included) only comes from get_my_profile().
+  const { data, error } = upsertError
+    ? { data: null, error: upsertError }
+    : await readMyProfile({ single: true });
 
   if (error) {
     logger.error('Error upserting user profile:', error);
     throw error;
   }
 
-  logger.log('createOrUpdateProfile OK:', data);
+  logger.log('createOrUpdateProfile OK:', { id: data?.id || null });
   return data;
 };
 
@@ -312,7 +330,7 @@ export const addFreePlayer = async () => {
 
     // Get user profile
     const profile = await getProfile(user.id);
-    logger.log('User profile:', profile);
+    logger.log('User profile:', { id: profile?.id || null });
 
     if (!profile) {
       logger.warn('Profile not found, creating minimal profile');

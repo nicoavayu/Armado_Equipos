@@ -20,11 +20,39 @@ const buildParticipantsSnapshot = (players = []) => {
     uuid: p?.uuid || null,
     usuario_id: p?.usuario_id || null,
     nombre: p?.nombre || 'Jugador',
-    avatar_url: p?.avatar_url || p?.foto_url || null,
+    avatar_url: p?.avatar_url || null,
     score: typeof p?.score === 'number' ? p.score : null,
     is_goalkeeper: Boolean(p?.is_goalkeeper),
   }));
 };
+
+// The roster photo is jugadores.avatar_url (copied when the player joined; there is no
+// jugadores.foto_url). A registered player who joined before having a photo keeps an empty
+// roster photo: the history takes their profile photo (usuarios.avatar_url, a public column).
+async function withProfilePhotos(players = []) {
+  const missing = [...new Set(players
+    .filter((player) => !player?.avatar_url && player?.usuario_id)
+    .map((player) => player.usuario_id))];
+  if (missing.length === 0) return players;
+
+  try {
+    const { data, error } = await supabase
+      .from('usuarios')
+      .select('id, avatar_url')
+      .in('id', missing);
+    if (error) throw error;
+    const photoByUser = new Map((data || []).map((row) => [row.id, row.avatar_url || null]));
+    return players.map((player) => (
+      !player?.avatar_url && photoByUser.get(player?.usuario_id)
+        ? { ...player, avatar_url: photoByUser.get(player.usuario_id) }
+        : player
+    ));
+  } catch (error) {
+    // The photo is decoration: the snapshot still records who played.
+    logger.warn('[HISTORY_SNAPSHOT] profile photos unavailable', { code: error?.code || null });
+    return players;
+  }
+}
 
 async function getSurveyResultsRow(partidoId) {
   try {
@@ -73,29 +101,15 @@ export async function ensureParticipantsSnapshot(partidoId) {
       return { ok: true, changed: false, reason: 'already_snapshoted' };
     }
 
-    let players = null;
-    let playersError = null;
-    ({ data: players, error: playersError } = await supabase
+    const { data: rosterRows, error: playersError } = await supabase
       .from('jugadores')
-      .select('id, uuid, usuario_id, nombre, avatar_url, foto_url, score, is_goalkeeper')
+      .select('id, uuid, usuario_id, nombre, avatar_url, score, is_goalkeeper')
       .eq('partido_id', id)
-      .order('id', { ascending: true }));
+      .order('id', { ascending: true });
+    if (playersError) throw playersError;
+    const players = await withProfilePhotos(rosterRows || []);
 
-    if (playersError) {
-      const msg = String(playersError?.message || '').toLowerCase();
-      const missingFotoUrl = msg.includes('foto_url') && msg.includes('does not exist');
-      if (!missingFotoUrl) throw playersError;
-
-      const fallback = await supabase
-        .from('jugadores')
-        .select('id, uuid, usuario_id, nombre, avatar_url, score, is_goalkeeper')
-        .eq('partido_id', id)
-        .order('id', { ascending: true });
-      players = fallback.data || [];
-      if (fallback.error) throw fallback.error;
-    }
-
-    let participantsSnapshot = buildParticipantsSnapshot(players || []);
+    let participantsSnapshot = buildParticipantsSnapshot(players);
     let equiposSnapshot = null;
     let surveyTeamsSnapshot = null;
     let partidosRow = null;

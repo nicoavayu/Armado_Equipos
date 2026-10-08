@@ -42,6 +42,17 @@ jest.mock('../supabase', () => ({
   supabase: { from: (...args) => mockSupabaseFrom(...args) },
 }));
 
+// The community search goes through the search_usuarios RPC (by name or exact email;
+// emails never come back): mockSearch(query) answers it.
+jest.mock('../services/db/publicProfiles', () => ({
+  readMyProfile: async () => ({ data: null, error: null }),
+  searchPublicUsers: async (query) => {
+    const { data, error } = await mockSearch(query);
+    if (error) throw error;
+    return data || [];
+  },
+}));
+
 jest.mock('../components/ProfileComponents', () => ({
   PlayerCardTrigger: ({ children }) => children,
 }));
@@ -54,8 +65,7 @@ jest.mock('../hooks/useRefreshOnVisibility', () => ({ useRefreshOnVisibility: ()
 jest.mock('../hooks/useSupabaseRealtime', () => ({ useSupabaseRealtime: () => {} }));
 jest.mock('../components/LoadingSpinner', () => () => <div data-testid="loading-spinner-inline" />);
 
-// Chainable query builder. Any query that calls `.or(...)` is the community
-// search: it resolves with whatever `mockSearch(filter)` returns.
+// Chainable query builder for the other reads of the view (suggestions, location...).
 const createBuilder = () => {
   let searchFilter = null;
   const empty = { data: [], error: null };
@@ -137,7 +147,7 @@ describe('AmigosView community search', () => {
     fireEvent.change(input, { target: { value: ' Thomas ' } });
 
     expect(await screen.findByText('Thomas Rivas')).toBeInTheDocument();
-    expect(searchCalls()).toEqual(['nombre.ilike.%Thomas%,email.ilike.%Thomas%']);
+    expect(searchCalls()).toEqual(['Thomas']);
     expect(screen.queryByText('Escribí al menos 3 letras para buscar')).not.toBeInTheDocument();
   });
 

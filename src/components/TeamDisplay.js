@@ -126,7 +126,6 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
   const [teamsConfirmed, setTeamsConfirmed] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [unconfirming, setUnconfirming] = useState(false);
-  const [templateId, setTemplateId] = useState(null);
   const [dragTarget, setDragTarget] = useState(null);
   const [activeDragId, setActiveDragId] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -172,47 +171,17 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
     loadTeamsFromDatabase();
   }, [partidoId]);
 
-  // Load "teams_confirmed" + template_id (best-effort; doesn't break if columns don't exist)
+  // Load "teams_confirmed" (best-effort).
   useEffect(() => {
     const loadConfirmState = async () => {
       if (!partidoId) return;
       try {
-        let data = null;
-
-        // Prefer modern schema first. This avoids legacy-column 400s on current DBs.
-        const modernRes = await supabase
+        const { data, error: confirmedError } = await supabase
           .from('partidos')
-          .select('teams_confirmed, template_id')
+          .select('teams_confirmed')
           .eq('id', Number(partidoId))
           .maybeSingle();
-
-        if (!modernRes.error) {
-          data = modernRes.data;
-        } else if (hasMissingColumnError(modernRes.error, 'template_id')) {
-          // Backward compatibility: legacy schema
-          const legacyRes = await supabase
-            .from('partidos')
-            .select('teams_confirmed, from_frequent_match_id')
-            .eq('id', Number(partidoId))
-            .maybeSingle();
-
-          if (!legacyRes.error) {
-            data = legacyRes.data;
-          } else if (hasMissingColumnError(legacyRes.error, 'from_frequent_match_id')) {
-            // Very old schema: only teams_confirmed exists
-            const minimalRes = await supabase
-              .from('partidos')
-              .select('teams_confirmed')
-              .eq('id', Number(partidoId))
-              .maybeSingle();
-            if (minimalRes.error) throw minimalRes.error;
-            data = minimalRes.data;
-          } else {
-            throw legacyRes.error;
-          }
-        } else {
-          throw modernRes.error;
-        }
+        if (confirmedError) throw confirmedError;
 
         let hasConfirmationSnapshot = false;
         try {
@@ -234,7 +203,6 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
         const matchFlagConfirmed = Boolean(data?.teams_confirmed);
         const resolvedConfirmed = matchFlagConfirmed || hasConfirmationSnapshot;
         setTeamsConfirmed(resolvedConfirmed);
-        setTemplateId(data?.template_id || data?.from_frequent_match_id || null);
 
         // Heal old rows that have snapshot but stale/missing teams_confirmed flag.
         if (!matchFlagConfirmed && hasConfirmationSnapshot) {
@@ -246,7 +214,7 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
         }
       } catch (e) {
         // Older DBs may not have these columns yet.
-        logger.warn('[TEAMS_CONFIRM] could not load teams_confirmed/template_id (non-blocking)', e?.message || e);
+        logger.warn('[TEAMS_CONFIRM] could not load teams_confirmed (non-blocking)', e?.message || e);
       }
     };
     loadConfirmState();
@@ -620,7 +588,7 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
         <ConfirmModal
           isOpen={showResetConfirm}
           title="Resetear votación"
-          message="Se borran los votos y los equipos anteriores. Después podrás volver a armar con el plantel actual. ¿Querés continuar?"
+          message="Se borran todos los votos (de la app y del link), quiénes ya votaron y los equipos armados. Todos pueden volver a votar con el mismo link, y los jugadores con cuenta reciben otra vez el aviso. No se puede deshacer."
           confirmText={resetting ? 'Reseteando…' : 'Resetear'}
           cancelText="Cancelar"
           danger
@@ -823,7 +791,8 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
 
       const payload = {
         partido_id: Number(partidoId),
-        template_id: templateId,
+        // partido_team_confirmations has no template link (the match carries it): sending
+        // one made PostgREST reject every confirmation (PGRST204).
         confirmed_by: auth?.user?.id || null,
         participants: snapshot.participants,
         team_a: snapshot.teamAUuid,
@@ -1728,7 +1697,7 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
       <ConfirmModal
         isOpen={showResetConfirm}
         title="Resetear votación"
-        message="Se borran los votos y los equipos armados, y el partido vuelve al estado de votación para volver a armar. ¿Querés continuar?"
+        message="Se borran todos los votos (de la app y del link), quiénes ya votaron y los equipos armados. Todos pueden volver a votar con el mismo link, y los jugadores con cuenta reciben otra vez el aviso. No se puede deshacer."
         confirmText={resetting ? 'Reseteando…' : 'Resetear'}
         cancelText="Cancelar"
         danger

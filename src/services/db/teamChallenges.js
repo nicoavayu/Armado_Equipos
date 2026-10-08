@@ -1446,14 +1446,21 @@ export const ensureLocalTeamPlayerByName = async ({ teamId, displayName }) => {
     };
   }
 
-  const insertResponse = await supabase
-    .from('jugadores')
-    .insert({
-      nombre: trimmedName,
-      usuario_id: null,
-    })
-    .select('id, usuario_id, nombre, avatar_url, score')
+  // Only the team's owner/admins/captain create players without an account (server-checked).
+  let insertResponse = await supabase
+    .rpc('rpc_create_team_local_player', { p_team_id: teamId, p_nombre: trimmedName })
     .single();
+
+  if (insertResponse.error && ['PGRST202', '42883'].includes(String(insertResponse.error.code || ''))) {
+    insertResponse = await supabase
+      .from('jugadores')
+      .insert({
+        nombre: trimmedName,
+        usuario_id: null,
+      })
+      .select('id, usuario_id, nombre, avatar_url, score')
+      .single();
+  }
 
   if (insertResponse.error) {
     throw new Error(insertResponse.error.message || 'No se pudo crear el jugador local');
@@ -1473,11 +1480,14 @@ export const ensureLocalTeamPlayerByName = async ({ teamId, displayName }) => {
 export const ensureRosterCandidateByUserId = async (userId) => {
   assertAuthenticatedUser(userId);
 
+  // The team roster identity is the user's match-less row (partido_id null): a match row
+  // disappears when the user leaves that match.
   const existingResponse = await supabase
     .from('jugadores')
     .select('id, usuario_id, nombre, avatar_url, score')
     .eq('usuario_id', userId)
-    .order('id', { ascending: false })
+    .is('partido_id', null)
+    .order('id', { ascending: true })
     .limit(1);
 
   if (existingResponse.error) {

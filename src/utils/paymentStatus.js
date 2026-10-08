@@ -6,14 +6,14 @@ export const PAYMENT_STATUSES = ['pending', 'reported_paid', 'paid', 'exempt'];
 const STATUS_META = {
   paid: {
     key: 'paid',
-    label: 'Pagado',
+    label: 'Confirmado',
     // verde
     pillClass: 'border-[#22c55e]/45 bg-[#22c55e]/12 text-[#86efac]',
     dotClass: 'bg-[#22c55e]',
   },
   reported_paid: {
     key: 'reported_paid',
-    label: 'Avisó pago',
+    label: 'Avisó que pagó',
     // amarillo / naranja
     pillClass: 'border-amber-400/40 bg-amber-500/12 text-amber-300',
     dotClass: 'bg-amber-400',
@@ -27,8 +27,8 @@ const STATUS_META = {
   },
   pending: {
     key: 'pending',
-    label: 'Debe',
-    // rojo: deuda pendiente (debe / no pagó)
+    label: 'Pendiente',
+    // rojo: deuda pendiente (no pagó)
     pillClass: 'border-[#f43f5e]/55 bg-[#f43f5e]/14 text-[#fda4af]',
     dotClass: 'bg-[#f43f5e]',
   },

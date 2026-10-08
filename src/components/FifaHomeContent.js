@@ -29,6 +29,7 @@ import {
   getRecentActivityItemKey,
 } from '../utils/recentActivityDismissals';
 import { useAwardsStory } from './global-header/AwardsStoryContext';
+import { PARTIDO_COLUMNS } from '../services/db/matchAccessCode';
 
 export {
   getDirectAwardsRingMatchIds,
@@ -451,7 +452,7 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
       if (todosLosPartidosIds.length > 0) {
         const legacyMatchesResponse = await supabase
           .from('partidos')
-          .select('*, jugadores(count)')
+          .select(`${PARTIDO_COLUMNS}, jugadores(count)`)
           .in('id', todosLosPartidosIds)
           .order('fecha', { ascending: true })
           .order('hora', { ascending: true });

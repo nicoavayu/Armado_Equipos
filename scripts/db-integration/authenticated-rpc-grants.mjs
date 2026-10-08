@@ -101,6 +101,8 @@ const ANON_ALLOWLIST = [
   'public.public_mark_voter_completed(bigint,text,text)',
   'public.public_submit_no_lo_conozco(bigint,text,text,bigint)',
   'public.public_submit_player_rating(bigint,text,text,bigint,integer)',
+  // 20261010125000: the only read anon has on matches (a code opens its own match).
+  'public.public_get_match_by_code(text,bigint)',
   'public.resolve_match_by_code(text)',
   'public.validate_guest_match_invite(bigint,text,text)',
   // CONNECTED-V1 (20261006120000): Explorar torneos, the public catalog's safe projection.
@@ -126,6 +128,27 @@ const POST_CANONICAL_AUTHENTICATED_ALLOWLIST = [
   ],
   ['public.normalize_partido_estado(text)', 'rls_helper_required'],
   ['public.partido_kickoff_at(date,text)', 'rls_helper_required'],
+  // 20261010120000: pure helpers called by SECURITY INVOKER triggers on tables that
+  // `authenticated` writes (usuarios, challenges). Production already grants them.
+  ['public.normalize_posicion_token(text)', 'trigger_helper_required'],
+  ['public.resolve_challenge_squad_limits(smallint)', 'trigger_helper_required'],
+  // 20261010124000: private profile columns are read through these instead of the table.
+  ['public.get_my_profile()', 'frontend_legitimate'],
+  ['public.get_public_profiles(uuid[])', 'frontend_legitimate'],
+  ['public.get_usuarios_approx_location(uuid[])', 'frontend_legitimate'],
+  ['public.search_usuarios(text,integer)', 'frontend_legitimate'],
+  // 20261010125000: public match link read (also used by signed-in accounts).
+  ['public.public_get_match_by_code(text,bigint)', 'frontend_legitimate'],
+  // 20261010126000: team owner/admin/captain creates a player without an account.
+  ['public.rpc_create_team_local_player(uuid,text)', 'frontend_legitimate'],
+  // 20261010128000: the phone only for its owner or the organizer the player turned to.
+  ['public.get_match_contact_phone(bigint,uuid)', 'frontend_legitimate'],
+  // 20261010129000: surveys due for this account, finished from any screen of the app.
+  ['public.list_my_pending_survey_finalizations(integer)', 'frontend_legitimate'],
+  // 20261010130000: each client reports its build (evidence for privacy phase B).
+  ['public.report_client_build(text,text,integer)', 'frontend_legitimate'],
+  // 20261010133000: the access codes of the caller's own matches (admin or roster).
+  ['public.get_match_access_codes(bigint[])', 'frontend_legitimate'],
   ['public.is_tournament_branding_path(text,text)', 'rls_helper_required'],
   ['public.can_update_tournament_team_branding(uuid,uuid)', 'rls_helper_required'],
   ['public.can_write_tournament_branding_object(text)', 'rls_helper_required'],

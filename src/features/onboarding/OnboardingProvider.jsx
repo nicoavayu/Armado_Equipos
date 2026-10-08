@@ -345,6 +345,12 @@ export function OnboardingProvider({ children }) {
     closeProfileTour('onboarding_profile_tour_completed');
   }, [closeProfileTour]);
 
+  // The Home welcome card ("Tu punto de partida") is answered once per account.
+  const dismissWelcomeCard = useCallback(() => {
+    if (state.welcomeCardDismissed) return;
+    persist((prev) => ({ ...prev, welcomeCardDismissed: true }), { event: 'home_welcome_card_dismissed' });
+  }, [persist, state.welcomeCardDismissed]);
+
   const dismissProfileTour = useCallback(() => {
     closeProfileTour('onboarding_profile_tour_dismissed');
   }, [closeProfileTour]);
@@ -403,6 +409,7 @@ export function OnboardingProvider({ children }) {
     openProfileTour,
     completeProfileTour,
     dismissProfileTour,
+    dismissWelcomeCard,
     // coach marks
     markCoachMarkSeen,
     markCoachMarkGroupDone,
@@ -428,6 +435,7 @@ export function OnboardingProvider({ children }) {
     openProfileTour,
     completeProfileTour,
     dismissProfileTour,
+    dismissWelcomeCard,
     markCoachMarkSeen,
     markCoachMarkGroupDone,
     isCoachMarkGroupDone,

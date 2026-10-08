@@ -1,0 +1,104 @@
+/* Post-match survey motion. Short, transform/opacity only, and off with reduced motion. */
+
+@keyframes a2SurveyInForward {
+  from { opacity: 0; transform: translate3d(28px, 0, 0); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes a2SurveyInBack {
+  from { opacity: 0; transform: translate3d(-28px, 0, 0); }
+  to { opacity: 1; transform: none; }
+}
+
+.a2-survey-step-forward { animation: a2SurveyInForward 300ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+.a2-survey-step-back { animation: a2SurveyInBack 300ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+@keyframes a2SurveyIconIn {
+  0% { opacity: 0; transform: scale(0.6) rotate(-10deg); }
+  60% { opacity: 1; transform: scale(1.08) rotate(3deg); }
+  100% { opacity: 1; transform: none; }
+}
+
+.a2-survey-icon { animation: a2SurveyIconIn 460ms cubic-bezier(0.34, 1.56, 0.64, 1) 60ms both; }
+
+@keyframes a2SurveyPop {
+  0% { transform: scale(1); }
+  45% { transform: scale(1.05); }
+  100% { transform: scale(1); }
+}
+
+.a2-survey-pop { animation: a2SurveyPop 280ms cubic-bezier(0.34, 1.56, 0.64, 1); }
+
+@keyframes a2SurveyRise {
+  from { opacity: 0; transform: translate3d(0, 10px, 0); }
+  to { opacity: 1; transform: none; }
+}
+
+.a2-survey-rise { animation: a2SurveyRise 320ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+@keyframes a2SurveyStroke {
+  to { stroke-dashoffset: 0; }
+}
+
+.a2-survey-check-circle {
+  stroke-dasharray: 166;
+  stroke-dashoffset: 166;
+  animation: a2SurveyStroke 560ms cubic-bezier(0.65, 0, 0.45, 1) 80ms forwards;
+}
+
+.a2-survey-check-mark {
+  stroke-dasharray: 48;
+  stroke-dashoffset: 48;
+  animation: a2SurveyStroke 340ms cubic-bezier(0.65, 0, 0.45, 1) 560ms forwards;
+}
+
+/* Celebration: a ring of small dots in the Arma2 violet/magenta, once. */
+.a2-survey-burst {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.a2-survey-burst span {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 8px;
+  height: 8px;
+  margin: -4px 0 0 -4px;
+  border-radius: 999px;
+  opacity: 0;
+  animation: a2SurveyBurst 900ms cubic-bezier(0.16, 1, 0.3, 1) 520ms forwards;
+}
+
+@keyframes a2SurveyBurst {
+  0% { opacity: 0; transform: rotate(var(--a)) translateY(0) scale(0.4); }
+  25% { opacity: 1; }
+  100% { opacity: 0; transform: rotate(var(--a)) translateY(calc(-1 * var(--d))) scale(1); }
+}
+
+@keyframes a2SurveyGlowPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(139, 92, 255, 0); }
+  50% { box-shadow: 0 0 22px 2px rgba(139, 92, 255, 0.45); }
+}
+
+.a2-survey-glow { animation: a2SurveyGlowPulse 1800ms ease-in-out 900ms 2; }
+
+@media (prefers-reduced-motion: reduce) {
+  .a2-survey-step-forward,
+  .a2-survey-step-back,
+  .a2-survey-icon,
+  .a2-survey-pop,
+  .a2-survey-rise,
+  .a2-survey-glow {
+    animation: none !important;
+  }
+
+  .a2-survey-check-circle,
+  .a2-survey-check-mark {
+    animation: none !important;
+    stroke-dashoffset: 0;
+  }
+
+  .a2-survey-burst { display: none; }
+}

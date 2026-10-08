@@ -3,6 +3,7 @@ import React, { useState, useEffect, useMemo, useRef, useDeferredValue, useCallb
 import { friendlyError } from '../utils/friendlyError';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabase';
+import { readMyProfile, withApproxLocations } from '../services/db/publicProfiles';
 import { useAuth } from '../components/AuthProvider';
 import { useInterval } from '../hooks/useInterval';
 import { useAmigos } from '../hooks/useAmigos';
@@ -210,11 +211,8 @@ const QuieroJugar = ({
     if (!user?.id) return null;
 
     try {
-      const { data, error } = await supabase
-        .from('usuarios')
-        .select('latitud, longitud, location_updated_at')
-        .eq('id', user.id)
-        .single();
+      // Own exact location: only the owner reads it (get_my_profile).
+      const { data, error } = await readMyProfile({ columns: 'latitud, longitud, location_updated_at', single: true });
 
       if (error) throw error;
 
@@ -377,12 +375,14 @@ const QuieroJugar = ({
         return;
       }
 
-      const { data: userProfiles, error: usersError } = await supabase
+      const { data: userProfileRows, error: usersError } = await supabase
         .from('usuarios')
-        .select('id, nombre, avatar_url, localidad, latitud, longitud, ranking, partidos_jugados, posicion, posiciones, disponible_arquero, acepta_invitaciones, bio, updated_at, nacionalidad, mvps')
+        .select('id, nombre, avatar_url, localidad, ranking, partidos_jugados, posicion, posiciones, disponible_arquero, acepta_invitaciones, bio, updated_at, nacionalidad, mvps')
         .in('id', userIds);
 
       if (usersError) throw usersError;
+      // Other players' location only at ~1 km (exact coordinates are private).
+      const userProfiles = await withApproxLocations(userProfileRows || []);
 
       const players = freePlayersData
         .map((freePlayer) => {
@@ -416,13 +416,15 @@ const QuieroJugar = ({
   // Jugadores; distance/order is applied client-side just like there.
   const fetchGoalkeepers = useCallback(async () => {
     try {
-      const { data, error } = await supabase
+      const { data: goalkeeperRows, error } = await supabase
         .from('usuarios')
-        .select('id, nombre, avatar_url, localidad, latitud, longitud, ranking, partidos_jugados, posicion, posiciones, disponible_arquero, acepta_invitaciones, bio, nacionalidad, mvps')
+        .select('id, nombre, avatar_url, localidad, ranking, partidos_jugados, posicion, posiciones, disponible_arquero, acepta_invitaciones, bio, nacionalidad, mvps')
         .eq('disponible_arquero', true)
         .contains('posiciones', ['ARQ']);
 
       if (error) throw error;
+      // Other players' location only at ~1 km (exact coordinates are private).
+      const data = await withApproxLocations(goalkeeperRows || []);
 
       const mapped = (data || []).map((profile) => ({
         ...profile,

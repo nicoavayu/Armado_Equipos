@@ -158,6 +158,13 @@ describe('public WhatsApp guest match invitation flow', () => {
       if (name === 'get_partido_by_invite') {
         return { data: [mockMatchRow], error: null };
       }
+      if (name === 'public_get_match_by_code') {
+        // The whole partidos row, as the RPC returns it (flags included).
+        const partido = {
+          busca_arquero: false, falta_jugadores: false, precio_cancha_por_persona: null, ...mockMatchRow,
+        };
+        return { data: { partido, jugadores: mockPlayersRows }, error: null };
+      }
       return { data: null, error: null };
     });
 
@@ -204,6 +211,13 @@ describe('public WhatsApp guest match invitation flow', () => {
     expect(screen.getByText('20:00')).toBeInTheDocument();
     expect(screen.getByText('Club Test')).toBeInTheDocument();
     expect(screen.queryByText(/iniciar sesión|crear cuenta/i)).not.toBeInTheDocument();
+    // Without a session the match and its roster come only from the code (no table reads).
+    expect(supabase.rpc).toHaveBeenCalledWith('public_get_match_by_code', {
+      p_codigo: MATCH_CODE,
+      p_partido_id: MATCH_ID,
+    });
+    expect(supabase.from).not.toHaveBeenCalledWith('jugadores');
+    expect(supabase.from).not.toHaveBeenCalledWith('partidos');
     expect(supabase.rpc).toHaveBeenCalledWith('validate_guest_match_invite', {
       p_partido_id: MATCH_ID,
       p_codigo: MATCH_CODE,

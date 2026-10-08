@@ -1,5 +1,5 @@
 import logger from '../utils/logger';
-import React, { useCallback, useEffect, useRef, useState, createContext, useContext } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '../supabase';
 import { db } from '../api/supabaseWrapper';
@@ -8,13 +8,15 @@ import LoadingSpinner from '../components/LoadingSpinner';
 import PageLoadingState from '../components/PageLoadingState';
 import ProfileCard from '../components/ProfileCard';
 import StoryLikeCarousel from '../components/StoryLikeCarousel';
+import AwardScene from '../components/awards/AwardScene';
+import Logo from '../Logo.png';
 import { APP_PAGE_TITLE_BASE_CLASS } from '../components/PageTitle';
 import { ensureAwards } from '../services/awardsService';
 import { ensureSurveyWindowOpen } from '../services/surveyCompletionService';
 import { listMatchNoShowSummary } from '../services/db/penalties';
 import { subscribeToMatchUpdates } from '../services/realtimeService';
 import { getProfile as getLiveProfile } from '../services/db/profiles';
-import Logo from '../Logo.png';
+import { fetchPublicProfiles } from '../services/db/publicProfiles';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
 import { debugNotificationEvent } from '../utils/notificationRouter';
 import {
@@ -40,6 +42,9 @@ import {
 } from '../utils/matchSummaryShare';
 import { clampPlayerRating } from '../utils/playerRating';
 import ShareableMatchSummaryCard from '../components/share/ShareableMatchSummaryCard';
+import { buildHomonymHints } from '../utils/surveyRosterIdentity';
+import { buildCeremonyEntries, hasSeenCeremony, markCeremonySeen } from '../utils/awardsCeremony';
+import { PARTIDO_COLUMNS } from '../services/db/matchAccessCode';
 
 const ensurePlayersList = (players) => {
   if (players && players.length > 0) return players;
@@ -47,6 +52,8 @@ const ensurePlayersList = (players) => {
 };
 
 const DEFAULT_NO_SHOW_PENALTY_DELTA = 0.5;
+// Each award plays its sequence in ~2 s and rests briefly before the next one.
+const AWARD_SLIDE_MS = 3200;
 
 const isClosedSurveyStatus = (value) => {
   const token = String(value || '').trim().toLowerCase();
@@ -146,9 +153,9 @@ export const deriveAbsenceResultsFromSummary = ({
 /**
  * Single source of truth for the penalty slide's "before → after" rating.
  *
- * The story resolves the on-screen player through previewPlayers (a roster
- * clone) which does NOT carry prePenaltyRanking/penaltyRanking — those fields
- * live on the absences entry passed to the slide. Reading the transition from
+ * The on-screen player may be a roster clone that does NOT carry
+ * prePenaltyRanking/penaltyRanking — those fields live on the absences entry
+ * passed to the slide. Reading the transition from
  * the wrong object made the pill show "5.0 → 5.0" while the bottom label said
  * an impossible above-cap transition. Both now derive from here: penalty
  * fields first (absences entry, then live player), falling back to the live
@@ -528,8 +535,16 @@ const SummaryAwardsMosaic = ({ awards }) => {
   );
 };
 
-// Context to broadcast live previewPlayers without recreating slides
-const PreviewPlayersContext = createContext([]);
+
+// fecha is a date-only column and hora a wall-clock time: parsing fecha alone as a Date reads
+// it as UTC midnight and shows the previous day in Argentina.
+const formatMatchWallClock = (fecha, hora) => {
+  const day = String(fecha || '').slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return '';
+  const time = String(hora || '').trim().replace('.', ':').match(/^(\d{1,2}):(\d{2})/);
+  const date = new Date(`${day}T${time ? `${time[1].padStart(2, '0')}:${time[2]}` : '00:00'}:00`);
+  return date.toLocaleString('es-ES', time ? { dateStyle: 'full', timeStyle: 'short' } : { dateStyle: 'full' });
+};
 
 const ResultadosEncuestaView = () => {
   const { partidoId } = useParams();
@@ -587,12 +602,10 @@ const ResultadosEncuestaView = () => {
   const [_animationComplete, _setAnimationComplete] = useState(false);
   const [absences, setAbsences] = useState([]);
   const [carouselSlides, setCarouselSlides] = useState([]);
-  const [previewPlayers, setPreviewPlayers] = useState([]);
-  const [slideStages, setSlideStages] = useState({}); // 0 award only, 1 card visible, 2 token fly/apply, 3 done
+  // Backend-confirmed awards (player_awards) of this match's winners and their public
+  // profiles, so the ceremony shows real counters only.
+  const [awardFacts, setAwardFacts] = useState({ rows: [], profiles: {} });
   const penaltyListRef = useRef([]);
-  const badgesApplied = useRef(new Set());
-  const liveApplied = useRef(new Set());
-  const badgeTimers = useRef([]);
   const forceStoryOpenedRef = useRef(null);
   const autoAwardsOpenedRef = useRef(null);
   const autoOpenGuardRef = useRef(null);
@@ -608,79 +621,12 @@ const ResultadosEncuestaView = () => {
     surveyProgress,
   });
 
-  const setStage = (key, stage) => {
-    setSlideStages((prev) => ({ ...prev, [key]: stage }));
-  };
-
-  const clearTimers = () => {
-    badgeTimers.current.forEach((t) => clearTimeout(t));
-    badgeTimers.current = [];
-  };
-
   const clearAutoOpenGuard = () => {
     if (autoOpenGuardRef.current) {
       clearTimeout(autoOpenGuardRef.current);
       autoOpenGuardRef.current = null;
     }
   };
-
-  const _applyAward = (slideType) => {
-    if (badgesApplied.current.has(slideType)) return;
-    badgesApplied.current.add(slideType);
-
-    if (slideType === 'mvp' && results?.mvp) {
-      setPreviewPlayers((prev) => prev.map((p) =>
-        sharesIdentity(p, results.mvp)
-          ? { ...p, mvp_badges: (p.mvp_badges || 0) + 1 }
-          : p,
-      ));
-    } else if (slideType === 'glove' && results?.golden_glove) {
-      setPreviewPlayers((prev) => prev.map((p) =>
-        sharesIdentity(p, results.golden_glove)
-          ? { ...p, gk_badges: (p.gk_badges || 0) + 1 }
-          : p,
-      ));
-    } else if (slideType === 'dirty' && results?.dirty_player) {
-      setPreviewPlayers((prev) => prev.map((p) =>
-        sharesIdentity(p, results.dirty_player)
-          ? { ...p, red_badges: (p.red_badges || 0) + 1 }
-          : p,
-      ));
-    } else if (slideType === 'penalty' && penaltyListRef.current.length > 0) {
-      const ids = penaltyListRef.current.map((p) => p.playerId).filter(Boolean);
-      setPreviewPlayers((prev) => prev.map((p) => {
-        if (!ids.some((candidate) => sharesIdentity(p, candidate))) return p;
-        const current = parseFloat(p.ranking || p.calificacion || 5.0) || 0;
-        const next = Math.max(0, current - 0.5);
-        return { ...p, ranking: next.toFixed(1) };
-      }));
-    }
-  };
-
-  const startSlideSequence = (slideType) => {
-    // Solo para slides con premio/penalización
-    if (!['mvp', 'glove', 'dirty', 'penalty'].includes(slideType)) return;
-
-    // Evitar reiniciar si ya está en progreso
-    if (slideStages[slideType] > 0) return;
-
-    clearTimers();
-    setStage(slideType, 0);
-
-    const t1 = setTimeout(() => setStage(slideType, 1), 900); // Card aparece
-    const t2 = setTimeout(() => {
-      setStage(slideType, 2); // Token en vuelo
-    }, 1700);
-
-    badgeTimers.current.push(t1, t2);
-  };
-
-  const handleCarouselIndexChange = (index, slideKey) => {
-    const key = slideKey || carouselSlides?.[index]?.key || `slide-${index}`;
-    startSlideSequence(key);
-  };
-
-  useEffect(() => () => clearTimers(), []);
 
   // ✅ Helpers
   const toRating = (p, fallback = 5.0) => {
@@ -739,6 +685,15 @@ const ResultadosEncuestaView = () => {
     return Array.from(new Set(tokens));
   };
   const getPrimaryIdentity = (entity) => getIdentityTokens(entity)[0] || null;
+  // A winner is stored by an ID (account or roster uuid); its name comes from the roster,
+  // with the hint that tells homonyms apart.
+  const highlightNameFor = (winnerId) => {
+    if (!winnerId) return null;
+    const roster = Array.isArray(jugadores) ? jugadores : [];
+    const winner = roster.find((player) => getIdentityTokens(player).includes(normalizeIdentityToken(winnerId)));
+    if (!winner?.nombre) return null;
+    return [winner.nombre, buildHomonymHints(roster).get(winner.uuid)].filter(Boolean).join(' · ');
+  };
   const sharesIdentity = (entityA, entityBOrValue) => {
     const left = new Set(getIdentityTokens(entityA));
     const right = getIdentityTokens(entityBOrValue);
@@ -949,17 +904,20 @@ const ResultadosEncuestaView = () => {
     if (profileIds.length === 0) return roster;
 
     try {
-      const { data: usersData, error: usersError } = await supabase
-        .from('usuarios')
-        .select('*')
-        .in('id', profileIds);
-      const safeUsers = usersError ? [] : (Array.isArray(usersData) ? usersData : []);
+      // Public profiles only (private columns are not readable by other accounts).
+      let safeUsers = [];
+      try {
+        safeUsers = await fetchPublicProfiles(profileIds);
+      } catch (_usersError) {
+        safeUsers = [];
+      }
 
       let profilesData = [];
       try {
+        // Public columns only: profiles.telefono is private data.
         const { data: profilesRows } = await supabase
           .from('profiles')
-          .select('*')
+          .select('id, nombre, avatar_url, posicion, ciudad')
           .in('id', profileIds);
         profilesData = Array.isArray(profilesRows) ? profilesRows : [];
       } catch (_profilesFallbackErr) {
@@ -982,7 +940,7 @@ const ResultadosEncuestaView = () => {
       const liveProfilesById = new Map(liveProfilesResolved.filter(Boolean));
 
       if (
-        (!Array.isArray(usersData) || usersData.length === 0)
+        safeUsers.length === 0
         && profilesData.length === 0
         && liveProfilesById.size === 0
       ) {
@@ -1103,448 +1061,74 @@ const ResultadosEncuestaView = () => {
     }
   }, []);
 
-  const applyLiveAward = (type, playerId) => {
-    const key = `${type}-${normalizeIdentityToken(playerId) || String(playerId || '')}`;
-    if (liveApplied.current.has(key) || badgesApplied.current.has(key)) {
-      return;
-    }
-    liveApplied.current.add(key);
-    badgesApplied.current.add(key);
-    setPreviewPlayers((prev) => {
-      const updated = prev.map((p) => {
-        if (!sharesIdentity(p, playerId)) return p;
+  // The awards of the match, straight from the results row: one entry per award with its
+  // winner from the roster. [] when there is nothing to present.
+  const collectAwardSlides = (currentResults = results, currentPlayers = jugadores) => {
+    if (!currentResults) return [];
 
-        if (type === 'mvp') {
-          const current = p.mvp_badges ?? p.mvps ?? 0;
-          const newVal = current + 1;
-          return normalizeBadges({ ...p, mvp_badges: newVal, mvps: newVal });
-        }
-        if (type === 'glove') {
-          const current = p.gk_badges ?? p.guantes_dorados ?? 0;
-          const newVal = current + 1;
-          return normalizeBadges({ ...p, gk_badges: newVal, guantes_dorados: newVal });
-        }
-        if (type === 'dirty') {
-          const current = p.red_badges ?? p.tarjetas_rojas ?? 0;
-          const newVal = current + 1;
-          return normalizeBadges({ ...p, red_badges: newVal, tarjetas_rojas: newVal });
-        }
-        if (type === 'penalty') {
-          const resolvedPenalty = penaltyListRef.current.find((entry) => sharesIdentity(entry, playerId));
-          const next = Number.isFinite(Number(resolvedPenalty?.penaltyRanking))
-            ? Number(resolvedPenalty.penaltyRanking)
-            : toRating(p, 5.0);
-          return normalizeBadges({ ...p, ranking: fmt1(clamp1(next)) });
-        }
-        return normalizeBadges(p);
+    const roster = ensurePlayersList(currentPlayers);
+    const findP = (id) => (id ? roster.find((j) => sharesIdentity(j, id)) || null : null);
+    const awardsObj = currentResults?.awards || {};
+    const slides = [];
+    const pushAward = (type, player, votes) => {
+      if (player) slides.push({ key: type, type, player, votes: Number(votes) || 0 });
+    };
+
+    pushAward(
+      'mvp',
+      findP(currentResults?.mvp ?? awardsObj?.mvp?.player_id ?? null),
+      currentResults.mvp_votes || awardsObj?.mvp?.votes,
+    );
+    pushAward(
+      'best_gk',
+      findP(currentResults?.golden_glove ?? awardsObj?.best_gk?.player_id ?? null),
+      currentResults.golden_glove_votes || awardsObj?.best_gk?.votes,
+    );
+    const dirtyId = currentResults.dirty_player
+      || (Array.isArray(currentResults.red_cards) ? currentResults.red_cards[0] : null)
+      || awardsObj?.red_card?.player_id;
+    pushAward(
+      'red_card',
+      findP(dirtyId),
+      currentResults.dirty_player_fouls || currentResults.red_card_votes || awardsObj?.red_card?.votes,
+    );
+
+    const penalized = absences.find((entry) => entry?.penaltyApplied);
+    if (penalized) {
+      const { from, to } = resolvePenaltyRatingTransition({ penaltyPlayer: penalized });
+      slides.push({
+        key: 'penalty',
+        type: 'penalty',
+        player: penalized,
+        votes: 0,
+        penalty: { from: fmt1(from), to: fmt1(to) },
       });
-      return updated.map(normalizeBadges);
-    });
+    }
+
+    return slides;
   };
 
-  // ✅ Componente "EA Sports" para cada premio
-  const AwardStory = ({
-    kind, // 'mvp' | 'glove' | 'dirty' | 'penalty'
-    title,
-    subtitle,
-    icon,
-    accent,
-    border,
-    player,
-    playerId,
-    bottomLabel,
-    onApply,
-  }) => {
-    const previewPlayers = useContext(PreviewPlayersContext);
-    const [stage, setStage] = React.useState(0); // 0: título, 1: card, 2: token aparece, 3: token vuela, 4: premio aplicado
-    const appliedRef = React.useRef(false);
-    const [showFlash, setShowFlash] = React.useState(false);
-    const flashPlayedRef = React.useRef(false);
-    const flashTimerRef = React.useRef(null);
-
-    // Resolve live player from previewPlayers to reflect real-time award impacts
-    const resolvedPlayer = React.useMemo(() => {
-      const pid = playerId || getPrimaryIdentity(player);
-      if (!pid) return normalizeBadges(player);
-      const found = previewPlayers.find((j) => sharesIdentity(j, pid));
-      return normalizeBadges(found || player);
-    }, [previewPlayers, player, playerId]);
-
-    // Penalty rating animation states
-    const [penaltyFrom, setPenaltyFrom] = React.useState(null);
-    const [penaltyTo, setPenaltyTo] = React.useState(null);
-    const [penaltyNow, setPenaltyNow] = React.useState(null);
-
-    React.useEffect(() => {
-      // Reset stage solo cuando cambia la slide (tipo o identidad), no por cambios de conteo
-      setStage(0);
-      appliedRef.current = false;
-      setShowFlash(false);
-      flashPlayedRef.current = false;
-      if (flashTimerRef.current) {
-        clearTimeout(flashTimerRef.current);
-        flashTimerRef.current = null;
-      }
-
-      // Precompute animation values per slide. The penalty fields come from
-      // the absences entry (player prop); resolvedPlayer is only the live
-      // roster copy and does not carry them.
-      if (kind === 'penalty') {
-        const { from, to } = resolvePenaltyRatingTransition({
-          penaltyPlayer: player,
-          livePlayer: resolvedPlayer,
-        });
-        setPenaltyFrom(clamp1(from));
-        setPenaltyTo(clamp1(to));
-        setPenaltyNow(clamp1(from));
-      } else {
-        // For MVP, GLOVE, DIRTY: no rating change, only award count change
-        setPenaltyFrom(null);
-        setPenaltyTo(null);
-        setPenaltyNow(null);
-      }
-
-      // Stage 0 → 1: Título visible, card aparece (suspenso)
-      const t0 = setTimeout(() => setStage(1), 600);
-
-      // Stage 1 → 2: Card visible, token aparece ARRIBA
-      const t1 = setTimeout(() => setStage(2), 1200);
-
-      // Stage 2 → 3: Token empieza a volar hacia la card
-      const t2 = setTimeout(() => setStage(3), 1700);
-
-      // Stage 3 → 4: Token termina el vuelo, APLICAR PREMIO
-      const t3 = setTimeout(() => {
-        setStage(4);
-        if (!appliedRef.current) {
-          appliedRef.current = true;
-          onApply?.();
-        }
-      }, 2600); // 1700 + ~900ms de animación del vuelo
-
-      return () => {
-        clearTimeout(t0);
-        clearTimeout(t1);
-        clearTimeout(t2);
-        clearTimeout(t3);
-      };
-    }, [kind, playerId, player?.uuid, player?.usuario_id, player?.id, onApply]);
-
-    // Programar flash justo al final del vuelo (antes de aplicar el premio)
-    React.useEffect(() => {
-      if (stage !== 3) return;
-      if (flashPlayedRef.current) return; // asegurar una sola vez
-      // El vuelo dura ~1300ms; disparamos el flash apenas llega (ligeramente antes)
-      flashTimerRef.current = setTimeout(() => {
-        flashPlayedRef.current = true;
-        setShowFlash(true);
-      }, 780);
-      return () => {
-        if (flashTimerRef.current) {
-          clearTimeout(flashTimerRef.current);
-          flashTimerRef.current = null;
-        }
-      };
-    }, [stage]);
-
-    // Animate penalty rating change on stage 4
-    React.useEffect(() => {
-      if (kind !== 'penalty') return;
-      if (stage !== 4) return;
-      if (penaltyFrom == null || penaltyTo == null) return;
-
-      let raf = null;
-      const duration = 600;
-      const start = performance.now();
-      const tick = (ts) => {
-        const t = Math.min(1, (ts - start) / duration);
-        const val = penaltyFrom + (penaltyTo - penaltyFrom) * t;
-        setPenaltyNow(val);
-        if (t < 1) {
-          raf = requestAnimationFrame(tick);
-        }
-      };
-      raf = requestAnimationFrame(tick);
-      return () => {
-        if (raf) cancelAnimationFrame(raf);
-      };
-    }, [stage, kind, penaltyFrom, penaltyTo]);
-
-    const titleFontSize = 'clamp(48px, 12vw, 78px)';
-    const winnerIconSize = 76;
-    const winnerPlusSize = 25;
-    const awardSlotHeight = kind === 'penalty'
-      ? 'clamp(86px, 14vh, 112px)'
-      : 'clamp(108px, 18vh, 140px)';
-
-    return (
-      <div
-        className="relative w-full h-full flex flex-col items-center overflow-hidden"
-        style={{
-          background:
-            kind === 'mvp'
-              ? 'linear-gradient(135deg,#070B18 0%,#1B1030 35%,#070B18 100%)'
-              : kind === 'glove'
-                ? 'linear-gradient(135deg,#061019 0%,#062F3A 40%,#061019 100%)'
-                : kind === 'dirty'
-                  ? 'linear-gradient(135deg,#12060B 0%,#3A0A18 42%,#12060B 100%)'
-                  : 'linear-gradient(135deg,#0B0F16 0%,#1B2432 45%,#0B0F16 100%)',
-          gap: 14,
-          paddingTop: 'max(52px, calc(env(safe-area-inset-top) + 30px))',
-          paddingBottom: 'max(16px, calc(env(safe-area-inset-bottom) + 12px))',
-          paddingLeft: 'clamp(10px, 3vw, 24px)',
-          paddingRight: 'clamp(10px, 3vw, 24px)',
-        }}
-      >
-        {/* glow */}
-        <div
-          className="absolute inset-0 pointer-events-none"
-          style={{
-            background: `radial-gradient(650px 260px at 50% 18%, ${accent} 0%, rgba(0,0,0,0) 70%)`,
-            opacity: 0.35,
-            filter: 'blur(14px)',
-          }}
-        />
-
-        {/* Acto 1: award */}
-        <div className="relative z-10 text-center px-2">
-          {subtitle && (
-            <div className="text-white/70 tracking-[0.32em] text-[10px] sm:text-xs md:text-sm mb-1 sm:mb-2" style={{ animation: 'eaSubIn 740ms ease-out 120ms both' }}>
-              {subtitle}
-            </div>
-          )}
-
-          <div
-            className="font-bebas-real leading-[0.9]"
-            style={{
-              fontSize: titleFontSize,
-              color: border,
-              letterSpacing: '0.02em',
-              textShadow: `0 0 22px ${accent}`,
-              animation: 'eaTitleIn 760ms cubic-bezier(.2,.9,.2,1) 80ms both',
-            }}
-          >
-            {title}
-          </div>
-        </div>
-
-        {/* Acto 2: card */}
-        <div className="relative z-10 w-full flex-1 min-h-0 flex items-center justify-center">
-          {resolvedPlayer && (
-            <div
-              className="w-full flex items-center justify-center"
-              style={{
-                opacity: stage >= 1 ? 1 : 0,
-                visibility: stage >= 1 ? 'visible' : 'hidden',
-                animation: stage === 1 ? 'eaCardIn 520ms ease-out both' : 'none',
-              }}
-            >
-              <ProfileCard
-                profile={resolvedPlayer}
-                isVisible={true}
-                ratingOverride={kind === 'penalty' ? penaltyNow : null}
-                enableTilt={false}
-                disableInternalMotion={true}
-                awardsLayout="space-left"
-                showSideAwards={false}
-              />
-            </div>
-          )}
-
-          {/* Token (Acto 3) - Aparece ARRIBA en stage 2, vuela en stage 3 */}
-          {stage >= 2 && stage < 4 && (
-            <div
-              className="absolute pointer-events-none z-50"
-              style={{
-                right: stage >= 3 ? '50%' : '10%',
-                top: stage >= 3 ? '42%' : '2%',
-                transform: stage >= 3 ? 'translate(50%, -50%)' : 'none',
-                opacity: stage >= 3 ? 0.3 : 1,
-                transition: stage >= 3 ? 'right 900ms cubic-bezier(.25,.8,.25,1), top 900ms cubic-bezier(.25,.8,.25,1), opacity 900ms ease-out' : 'none',
-                animation: stage === 2 ? 'eaTokenAppear 360ms cubic-bezier(.2,.85,.2,1) both' : 'none',
-                zIndex: 60,
-              }}
-            >
-              <div
-                className="px-4 py-2 rounded-full"
-                style={{
-                  background: 'rgba(0,0,0,0.55)',
-                  border: '1px solid rgba(255,255,255,0.16)',
-                  boxShadow: '0 16px 55px rgba(0,0,0,0.6)',
-                  backdropFilter: 'blur(10px)',
-                }}
-              >
-                <div className="flex items-center gap-2">
-                  {typeof icon === 'string' && icon.startsWith('/') ? (
-                    <img src={icon} alt="award" width={32} height={32} draggable={false} style={{ filter: `drop-shadow(0 0 18px ${accent})` }} />
-                  ) : (
-                    <span className="text-2xl" style={{ filter: `drop-shadow(0 0 18px ${accent})` }}>
-                      {icon}
-                    </span>
-                  )}
-                  <span className="text-white font-bold">
-                    {kind === 'penalty'
-                      ? `-${fmt1(
-                        penaltyFrom != null && penaltyTo != null && penaltyFrom - penaltyTo > 0
-                          ? penaltyFrom - penaltyTo
-                          : DEFAULT_NO_SHOW_PENALTY_DELTA,
-                      )}`
-                      : '+1'}
-                  </span>
-                </div>
-              </div>
-            </div>
-          )}
-          {showFlash && (
-            <div className="absolute inset-0 pointer-events-none z-[60] flex items-center justify-center">
-              <div
-                style={{
-                  width: 220,
-                  height: 220,
-                  borderRadius: '50%',
-                  background: 'radial-gradient(closest-side, rgba(255,255,255,0.85), rgba(255,255,255,0.35) 40%, rgba(255,255,255,0) 70%)',
-                  boxShadow: `0 0 60px ${accent}`,
-                  animation: 'eaMergeFlash 540ms ease-out forwards',
-                  filter: `drop-shadow(0 0 22px ${accent})`,
-                }}
-                onAnimationEnd={() => setShowFlash(false)}
-              />
-            </div>
-          )}
-        </div>
-
-        {/* Footer */}
-        <div
-          className="relative z-10 w-full flex flex-col items-center justify-center gap-2"
-          style={{ marginTop: 4, minHeight: awardSlotHeight, height: awardSlotHeight }}
-        >
-          {kind === 'penalty' && (
-            <div
-              className="absolute inset-0 flex flex-col items-center justify-start gap-2 pt-1"
-              style={{
-                opacity: stage >= 1 ? 1 : 0,
-                transform: stage >= 1 ? 'translateY(0)' : 'translateY(8px)',
-                transition: 'opacity 260ms ease, transform 320ms ease',
-              }}
-            >
-              {penaltyNow != null && penaltyTo != null && (
-                <div
-                  className="px-4 sm:px-5 py-1.5 sm:py-2 rounded-full text-white/85 text-xs sm:text-sm md:text-base"
-                  style={{
-                    background: 'rgba(0,0,0,0.45)',
-                    border: '1px solid rgba(255,255,255,0.14)',
-                    backdropFilter: 'blur(10px)',
-                    animation: stage === 1 ? 'eaFooterIn 520ms ease-out both' : 'none',
-                  }}
-                >
-                  Rating: {fmt1(penaltyFrom ?? penaltyNow)} → {fmt1(penaltyNow)}
-                </div>
-              )}
-              {bottomLabel && stage >= 4 && (
-                <div className="text-white/70 text-xs md:text-sm text-center">
-                  {bottomLabel}
-                </div>
-              )}
-            </div>
-          )}
-
-          {kind !== 'penalty' && (
-            <div
-              className="absolute inset-0 flex items-start justify-center pt-1 pointer-events-none"
-              style={{
-                opacity: stage >= 4 ? 1 : 0,
-                transform: stage >= 4 ? 'translateY(0) scale(1)' : 'translateY(8px) scale(0.94)',
-                transition: 'opacity 260ms ease, transform 340ms ease',
-              }}
-            >
-              <div
-                className="text-white font-black flex items-center justify-center"
-                style={{
-                  animation: stage === 4 ? 'eaWinnerChipIn 420ms ease-out both' : 'none',
-                  textShadow: `0 0 14px ${accent}`,
-                }}
-              >
-                <div className="relative" style={{ width: winnerIconSize, height: winnerIconSize }}>
-                  {typeof icon === 'string' && icon.startsWith('/') ? (
-                    <img
-                      src={icon}
-                      alt="premio ganador"
-                      width={winnerIconSize}
-                      height={winnerIconSize}
-                      draggable={false}
-                      style={{ filter: `drop-shadow(0 0 16px ${accent})` }}
-                    />
-                  ) : (
-                    <span style={{ filter: `drop-shadow(0 0 16px ${accent})` }}>{icon}</span>
-                  )}
-                  <span
-                    style={{
-                      position: 'absolute',
-                      left: '100%',
-                      top: '50%',
-                      transform: 'translate(6px, -48%)',
-                      fontSize: winnerPlusSize,
-                      lineHeight: 1,
-                      whiteSpace: 'nowrap',
-                    }}
-                  >
-                    +1
-                  </span>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-
-        <style>{`
-          @keyframes eaAwardIn {
-            0% { opacity:0; transform: translateY(-24px) scale(0.92); }
-            60% { opacity:1; transform: translateY(0px) scale(1.04); }
-            100% { opacity:1; transform: translateY(0px) scale(1); }
-          }
-          @keyframes eaTitleIn {
-            0% { opacity:0; transform: translateY(14px) scale(0.99); }
-            100% { opacity:1; transform: translateY(0px) scale(1); }
-          }
-          @keyframes eaSubIn {
-            0% { opacity:0; transform: translateY(10px); }
-            100% { opacity:1; transform: translateY(0); }
-          }
-          @keyframes eaCardIn {
-            0% { opacity:0; transform: translateY(48px) scale(0.96); }
-            60% { opacity:1; transform: translateY(6px) scale(1.02); }
-            100% { opacity:1; transform: translateY(0) scale(1); }
-          }
-          @keyframes eaFooterIn {
-            0% { opacity:0; transform: translateY(12px); }
-            100% { opacity:1; transform: translateY(0); }
-          }
-          @keyframes eaWinnerChipIn {
-            0% { opacity:0; transform: translateY(8px) scale(0.92); }
-            100% { opacity:1; transform: translateY(0) scale(1); }
-          }
-          @keyframes eaTokenAppear {
-            0% { opacity:0; transform: scale(0.5) translateY(-10px); }
-            60% { opacity:1; transform: scale(1.08) translateY(0); }
-            100% { opacity:1; transform: scale(1) translateY(0); }
-          }
-          @keyframes eaPulse {
-            0% { transform: scale(0.6); opacity: 0.0; }
-            40% { transform: scale(1.0); opacity: 0.9; }
-            100% { transform: scale(2.2); opacity: 0; }
-          }
-          @keyframes eaMergeFlash {
-            0% { transform: scale(0.8); opacity: 0; }
-            30% { transform: scale(1.15); opacity: 1; }
-            100% { transform: scale(1.6); opacity: 0; }
-          }
-        `}</style>
-      </div>
-    );
+  // Each award slide renders from the latest confirmed data (counters arrive after the
+  // slides are built), so the scene reads it through a ref.
+  const awardSceneDataRef = useRef({});
+  awardSceneDataRef.current = { awardFacts, userId: user?.id || null, jugadores };
+  const renderAwardScene = (award) => {
+    const { awardFacts: facts, userId, jugadores: roster } = awardSceneDataRef.current;
+    const [entry] = buildCeremonyEntries({
+      slides: [award],
+      matchId: partidoId,
+      currentUserId: userId,
+      awardRows: facts?.rows || [],
+      profilesById: facts?.profiles || {},
+      hints: buildHomonymHints(ensurePlayersList(roster)),
+    });
+    return entry ? <AwardScene entry={entry} /> : null;
   };
 
   const prepareCarouselSlides = (currentResults = results, currentPlayers = jugadores) => {
     if (!currentResults) return [];
+    const awardSlides = collectAwardSlides(currentResults, currentPlayers);
+    if (awardSlides.length === 0) return [];
 
     const roster = ensurePlayersList(currentPlayers);
     const matchInfo = partido || { nombre: `Partido ${partidoId}`, fecha: new Date().toISOString(), awards_status: 'pending' };
@@ -1616,121 +1200,22 @@ const ResultadosEncuestaView = () => {
       ),
     });
 
-    // MVP
-    if (mvpWinnerId) {
-      const p = findP(mvpWinnerId);
-      if (p) {
-        const pid = getPrimaryIdentity(p);
-        slides.push({
-          key: 'mvp',
-          duration: 4500,
-          content: (
-            <AwardStory
-              kind="mvp"
-              icon="/mvp_award.webp"
-              title="MVP"
-              subtitle={null}
-              accent="rgba(255,215,0,0.65)"
-              border="#FFD700"
-              player={p}
-              playerId={pid}
-              bottomLabel={`${currentResults.mvp_votes || awardsObj?.mvp?.votes || 0} VOTOS`}
-              onApply={() => applyLiveAward('mvp', pid)}
-            />
-          ),
-        });
-      }
-    }
+    // One slide per award: presentation, winner card, trophy reveal and impact on the card.
+    awardSlides.forEach((award) => {
+      slides.push({
+        key: award.key,
+        duration: AWARD_SLIDE_MS,
+        content: () => renderAwardScene(award),
+      });
+    });
 
-    // Guante
-    if (gloveWinnerId) {
-      const p = findP(gloveWinnerId);
-      if (p) {
-        const pid = getPrimaryIdentity(p);
-        slides.push({
-          key: 'glove',
-          duration: 4500,
-          content: (
-            <AwardStory
-              kind="glove"
-              icon="/goalkeeper_award.webp"
-              title="MEJOR ARQUERO"
-              subtitle={null}
-              accent="rgba(34,211,238,0.55)"
-              border="#22d3ee"
-              player={p}
-              playerId={pid}
-              bottomLabel={`${currentResults.golden_glove_votes || awardsObj?.best_gk?.votes || 0} VOTOS`}
-              onApply={() => applyLiveAward('glove', pid)}
-            />
-          ),
-        });
-      }
-    }
-
-    // Tarjeta roja / Más sucio
     const dirtyId = currentResults.dirty_player
       || (Array.isArray(currentResults.red_cards) ? currentResults.red_cards[0] : null)
       || dirtyWinnerIdFromAwards;
-    if (dirtyId) {
-      const p = findP(dirtyId);
-      if (p) {
-        const pid = getPrimaryIdentity(p);
-        slides.push({
-          key: 'dirty',
-          duration: 4500,
-          content: (
-            <AwardStory
-              kind="dirty"
-              icon="/redcard_award.webp"
-              title="MÁS SUCIO"
-              subtitle={null}
-              accent="rgba(248,113,113,0.55)"
-              border="#f87171"
-              player={p}
-              playerId={pid}
-              bottomLabel={`${currentResults.dirty_player_fouls || currentResults.red_card_votes || awardsObj?.red_card?.votes || 0} VOTOS`}
-              onApply={() => applyLiveAward('dirty', pid)}
-            />
-          ),
-        });
-      }
-    }
-
-    // PENALIZACIÓN
     const penalized = (() => {
-      const punished = absences.filter((a) => a.penaltyApplied);
-      if (punished?.length) {
-        const first = punished[0];
-        const pid = getPrimaryIdentity(first);
-        return { player: first, playerId: pid };
-      }
-      return null;
+      const first = absences.find((a) => a.penaltyApplied);
+      return first ? { player: first, playerId: getPrimaryIdentity(first) } : null;
     })();
-
-    if (penalized?.player) {
-      // Same source as the animated pill inside the slide, so label and pill
-      // can never disagree.
-      const { from, to, delta } = resolvePenaltyRatingTransition({ penaltyPlayer: penalized.player });
-      slides.push({
-        key: 'penalty',
-        duration: 4500,
-        content: (
-          <AwardStory
-            kind="penalty"
-            icon="/penalizacion.webp"
-            title="PENALIZACIÓN"
-            subtitle={null}
-            accent="rgba(251,146,60,0.55)"
-            border="#FDBA74"
-            player={penalized.player}
-            playerId={penalized.playerId}
-            bottomLabel={`Penalización ${fmt1(delta > 0 ? delta : Math.abs(Number(penalized.player?.penaltyAmount || 0)))} • Rating: ${fmt1(from)} → ${fmt1(to)}`}
-            onApply={() => applyLiveAward('penalty', penalized.playerId)}
-          />
-        ),
-      });
-    }
 
     // RESUMEN FINAL: Última slide siempre
     const summaryBlockFor = (player, awardName, icon, color) => ({
@@ -1857,6 +1342,7 @@ const ResultadosEncuestaView = () => {
       ),
     });
 
+
     return slides;
   };
 
@@ -1878,16 +1364,6 @@ const ResultadosEncuestaView = () => {
     showingBadgeAnimations,
     forcedAwardsFallback,
   });
-
-  // Animation Styles encapsulated here to avoid external CSS
-
-  // NO regenerar slides durante reproducción - content functions ya leen slideStages/previewPlayers en vivo
-  // useEffect(() => {
-  //   if (!results || !showingBadgeAnimations || previewPlayers.length === 0) return;
-  //   const slides = prepareCarouselSlides(results, jugadores);
-  //   setCarouselSlides(slides);
-  //   // eslint-disable-next-line react-hooks/exhaustive-deps
-  // }, [slideStages, previewPlayers]);
 
   useEffect(() => {
     let alive = true;
@@ -2241,10 +1717,6 @@ const ResultadosEncuestaView = () => {
               awards_status: row?.awards_status || null,
               has_awards_payload: hasAnyAwardData(row),
             }));
-            setPreviewPlayers(JSON.parse(JSON.stringify(roster)));
-            badgesApplied.current.clear();
-            liveApplied.current.clear();
-            setSlideStages({});
             setCarouselSlides(maybeSlides);
             setShowingBadgeAnimations(true);
             openedStory = true;
@@ -2339,10 +1811,6 @@ const ResultadosEncuestaView = () => {
           results_ready: row?.results_ready ?? null,
           has_awards_payload: hasAnyAwardData(row),
         }));
-        setPreviewPlayers(JSON.parse(JSON.stringify(roster)));
-        badgesApplied.current.clear();
-        liveApplied.current.clear();
-        setSlideStages({});
         setCarouselSlides(slides);
         setShowingBadgeAnimations(true);
         openedStory = true;
@@ -2430,10 +1898,6 @@ const ResultadosEncuestaView = () => {
     const slides = prepareCarouselSlides(results, roster);
     if (!slides.length) return;
 
-    setPreviewPlayers(JSON.parse(JSON.stringify(roster)));
-    badgesApplied.current.clear();
-    liveApplied.current.clear();
-    setSlideStages({});
     setCarouselSlides(slides);
   }, [forceAwardsMode, showingBadgeAnimations, carouselSlides, results, jugadores]);
 
@@ -2442,10 +1906,53 @@ const ResultadosEncuestaView = () => {
   }, [absences]);
 
   useEffect(() => {
+    if (!partidoId || !awardsReady) return undefined;
+    let cancelled = false;
+    const loadAwardFacts = async () => {
+      try {
+        const { data: matchAwards, error: matchAwardsError } = await supabase
+          .from('player_awards')
+          .select('jugador_id, award_type, partido_id, created_at')
+          .eq('partido_id', Number(partidoId));
+        if (matchAwardsError) throw matchAwardsError;
+        const winnerIds = Array.from(new Set((matchAwards || []).map((row) => row?.jugador_id).filter(Boolean)));
+        if (winnerIds.length === 0) {
+          if (!cancelled) setAwardFacts({ rows: [], profiles: {} });
+          return;
+        }
+        // The winners' whole award history tells whether this match is their latest.
+        const [{ data: history, error: historyError }, profiles] = await Promise.all([
+          supabase
+            .from('player_awards')
+            .select('jugador_id, award_type, partido_id, created_at')
+            .in('jugador_id', winnerIds),
+          fetchPublicProfiles(winnerIds),
+        ]);
+        if (historyError) throw historyError;
+        if (cancelled) return;
+        setAwardFacts({
+          rows: Array.isArray(history) ? history : matchAwards,
+          profiles: Object.fromEntries((profiles || []).map((row) => [String(row.id).toLowerCase(), row])),
+        });
+      } catch (factsError) {
+        // Without confirmed data the ceremony still runs, without counters.
+        logger.warn('[RESULTADOS] confirmed awards unavailable', factsError);
+        if (!cancelled) setAwardFacts({ rows: [], profiles: {} });
+      }
+    };
+    loadAwardFacts();
+    return () => {
+      cancelled = true;
+    };
+  }, [partidoId, awardsReady, results?.updated_at]);
+
+  useEffect(() => {
     if (forceAwardsMode) return;
     if (!canonicalResults || !awardsReady) return;
     if (showingBadgeAnimations || autoOpeningAwards) return;
 
+    // Opens by itself once per account and match; afterwards "Ver premiación" replays it.
+    if (hasSeenCeremony(user?.id, partidoId)) return;
     const autoOpenKey = `${partidoId}:${location.key || location.search || 'results'}:${canonicalResults?.updated_at || canonicalResults?.created_at || 'ready'}`;
     if (autoAwardsOpenedRef.current === autoOpenKey) return;
 
@@ -2453,10 +1960,6 @@ const ResultadosEncuestaView = () => {
     if (!slides || slides.length === 0) return;
 
     autoAwardsOpenedRef.current = autoOpenKey;
-    setPreviewPlayers(JSON.parse(JSON.stringify(jugadores)));
-    badgesApplied.current.clear();
-    liveApplied.current.clear();
-    setSlideStages({});
     setCarouselSlides(slides);
     setShowingBadgeAnimations(true);
   }, [
@@ -2469,7 +1972,13 @@ const ResultadosEncuestaView = () => {
     location.search,
     partidoId,
     showingBadgeAnimations,
+    user?.id,
   ]);
+
+  // Once shown (by itself, from a notification or replayed), it does not open by itself again.
+  useEffect(() => {
+    if (showingBadgeAnimations) markCeremonySeen(user?.id, partidoId);
+  }, [showingBadgeAnimations, user?.id, partidoId]);
 
   useEffect(() => {
     if (loading || autoOpeningAwards || showingBadgeAnimations || !partido) return;
@@ -2534,7 +2043,7 @@ const ResultadosEncuestaView = () => {
     try {
       const matchIdNum = Number(partidoId);
       const [{ data: partidoData, error: partidoErr }, { data: playersData, error: playersErr }, { data: resultsData, error: resultsError }] = await Promise.all([
-        supabase.from('partidos').select('*').eq('id', matchIdNum).maybeSingle(),
+        supabase.from('partidos').select(PARTIDO_COLUMNS).eq('id', matchIdNum).maybeSingle(),
         supabase.from('jugadores').select('*').eq('partido_id', matchIdNum),
         supabase.from('survey_results').select('*').eq('partido_id', matchIdNum).maybeSingle(),
       ]);
@@ -2646,6 +2155,25 @@ const ResultadosEncuestaView = () => {
     goBackSmart();
   };
 
+  // Closing (or "Ver resultados") stays on this page. A notification link opened it with
+  // showAwards/forceAwards: those are dropped so it does not open again on its own.
+  const closeCeremony = () => {
+    setShowingBadgeAnimations(false);
+    if (!forceAwardsMode) return;
+    const params = new URLSearchParams(location.search);
+    params.delete('showAwards');
+    params.delete('forceAwards');
+    const query = params.toString();
+    navigate(`${location.pathname}${query ? `?${query}` : ''}${location.hash || ''}`, { replace: true, state: null });
+  };
+
+  const replayCeremony = () => {
+    const slides = prepareCarouselSlides(canonicalResults, jugadores);
+    if (slides.length === 0) return;
+    setCarouselSlides(slides);
+    setShowingBadgeAnimations(true);
+  };
+
   // "Compartir resumen": the render condition and the share handler use the
   // exact same payload (same helper, same inputs). If the button is visible,
   // the share works; if the summary can't be generated, the button never
@@ -2718,39 +2246,39 @@ const ResultadosEncuestaView = () => {
   );
   const showSecondaryResultsSections = absences.length > 0;
 
-  // OVERLAY ANIMATION RENDER
-  // Carousel state
+  // Awards story: the award scenes show the results row, player_awards and the winners'
+  // public profiles; nothing is written, so replays never add to a counter.
   if (showingBadgeAnimations && carouselSlides.length > 0) {
     return (
       <>
-        <PreviewPlayersContext.Provider value={previewPlayers}>
-          <StoryLikeCarousel
-            slides={carouselSlides}
-            paused={isSharingSummary}
-            endFooter={canShareSummary ? (
+        <StoryLikeCarousel
+          slides={carouselSlides}
+          paused={isSharingSummary}
+          holdLastSlide
+          endFooter={(
+            <div className="w-full max-w-[360px] flex flex-col gap-2.5">
+              {canShareSummary ? (
+                <button
+                  type="button"
+                  onClick={handleShareSummary}
+                  disabled={isSharingSummary}
+                  aria-busy={isSharingSummary}
+                  className="min-h-[52px] w-full px-6 rounded-full text-[17px] font-bebas font-semibold tracking-[0.06em] uppercase whitespace-nowrap text-white bg-cta-gradient border border-white/25 shadow-cta hover:brightness-105 active:scale-[0.985] transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {isSharingSummary ? 'Generando…' : 'Compartir resumen'}
+                </button>
+              ) : null}
               <button
                 type="button"
-                onClick={handleShareSummary}
-                disabled={isSharingSummary}
-                aria-busy={isSharingSummary}
-                className="min-h-[52px] w-full max-w-[360px] px-6 rounded-full text-[17px] font-bebas font-semibold tracking-[0.06em] uppercase text-white bg-cta-gradient border border-white/25 shadow-cta hover:brightness-105 active:scale-[0.985] transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+                onClick={closeCeremony}
+                className="min-h-[52px] w-full px-6 rounded-full text-[17px] font-bebas font-semibold tracking-[0.06em] uppercase whitespace-nowrap text-white bg-white/[0.07] border border-[rgba(148,134,255,0.3)] hover:bg-white/[0.12] active:scale-[0.985] transition-all"
               >
-                {isSharingSummary ? 'Generando…' : 'Compartir resumen'}
+                Ver resultados
               </button>
-            ) : null}
-            onClose={() => {
-              clearTimers();
-              setShowingBadgeAnimations(false);
-              badgesApplied.current.clear();
-              liveApplied.current.clear();
-              setSlideStages({});
-              if (forceAwardsMode) {
-                navigate('/');
-              }
-            }}
-            onIndexChange={handleCarouselIndexChange}
-          />
-        </PreviewPlayersContext.Provider>
+            </div>
+          )}
+          onClose={closeCeremony}
+        />
 
         {/* Off-screen render used only while capturing the shareable summary */}
         {summaryShareCardData ? (
@@ -2767,52 +2295,6 @@ const ResultadosEncuestaView = () => {
             <ShareableMatchSummaryCard ref={summaryShareCardRef} data={summaryShareCardData} />
           </div>
         ) : null}
-
-        <style>{`
-          @keyframes awardDropIn {
-            0% { transform: translateY(-30px) scale(0.6); opacity: 0; }
-            60% { transform: translateY(8px) scale(1.08); }
-            100% { transform: translateY(0) scale(1); opacity: 1; }
-          }
-          @keyframes cardReveal {
-            0% { transform: translateY(20px) scale(0.96); opacity: 0; }
-            100% { transform: translateY(0) scale(1); opacity: 1; }
-          }
-          @keyframes tokenFlyToCard {
-            0% { transform: translate(-50%, 0) scale(1); opacity: 1; }
-            70% { transform: translate(-50%, 200px) scale(0.9); opacity: 1; }
-            100% { transform: translate(-50%, 230px) scale(0.75); opacity: 0; }
-          }
-          @keyframes badgePopPulse {
-            0% { transform: scale(0.8); opacity: 0.4; box-shadow: 0 0 0 0 rgba(255,255,255,0.15); }
-            60% { transform: scale(1.15); opacity: 1; box-shadow: 0 0 0 10px rgba(255,255,255,0); }
-            100% { transform: scale(1); opacity: 0.8; box-shadow: 0 0 0 0 rgba(255,255,255,0); }
-          }
-          @keyframes dropIn {
-            0% { transform: translateY(-100px) scale(0); opacity: 0; }
-            60% { transform: translateY(10px) scale(1.05); }
-            100% { transform: translateY(0) scale(1); opacity: 1; }
-          }
-          @keyframes slideInUp {
-            0% { transform: translateY(50px); opacity: 0; }
-            100% { transform: translateY(0); opacity: 1; }
-          }
-          @keyframes scaleIn {
-            0% { transform: scale(0.92); opacity: 0; }
-            100% { transform: scale(1); opacity: 1; }
-          }
-          @keyframes fadeIn {
-            0% { opacity: 0; }
-            100% { opacity: 1; }
-          }
-          @keyframes pulse {
-            0%, 100% { opacity: 0.3; }
-            50% { opacity: 0.6; }
-          }
-          .animate-cardReveal { animation: cardReveal 0.6s ease-out both; }
-          .animate-badgePopPulse { animation: badgePopPulse 0.8s ease-out both; }
-          .token-flight { pointer-events: none; }
-        `}</style>
       </>
     );
   }
@@ -2875,7 +2357,7 @@ const ResultadosEncuestaView = () => {
             {partido.nombre || partido.titulo || `Partido ${partidoId}`}
           </h2>
           <p className="text-white/60 text-base mb-1 font-sans">
-            {new Date(partido.fecha).toLocaleString('es-ES', { dateStyle: 'full', timeStyle: 'short' })}
+            {formatMatchWallClock(partido.fecha, partido.hora)}
           </p>
         </div>
 
@@ -2889,7 +2371,7 @@ const ResultadosEncuestaView = () => {
                   <span className="text-2xl">🏆</span>
                   <div className="flex flex-col">
                     <span className="font-oswald text-lg text-gray-400 tracking-[0.01em] font-semibold">Mvp</span>
-                    <span className="text-lg text-white  text-shadow-sm">{canonicalResults.mvp_nombre || '—'}</span>
+                    <span className="text-lg text-white  text-shadow-sm">{canonicalResults.mvp_nombre || highlightNameFor(canonicalResults.mvp) || '—'}</span>
                   </div>
                 </div>
               )}
@@ -2898,7 +2380,7 @@ const ResultadosEncuestaView = () => {
                   <span className="text-2xl">🥇</span>
                   <div className="flex flex-col">
                     <span className="font-oswald text-lg text-gray-400 tracking-[0.01em] font-semibold">Mejor arquero</span>
-                    <span className="text-lg text-white  text-shadow-sm">{canonicalResults.golden_glove_nombre || '—'}</span>
+                    <span className="text-lg text-white  text-shadow-sm">{canonicalResults.golden_glove_nombre || highlightNameFor(canonicalResults.golden_glove) || '—'}</span>
                   </div>
                 </div>
               )}
@@ -2924,6 +2406,15 @@ const ResultadosEncuestaView = () => {
               className="min-h-[52px] px-6 rounded-2xl text-[18px] font-bebas font-semibold tracking-[0.04em] uppercase text-white bg-cta-gradient border border-white/20 shadow-cta hover:brightness-105 active:scale-[0.985] transition-all disabled:opacity-60 disabled:cursor-not-allowed"
             >
               {isSharingSummary ? 'Generando…' : 'Compartir resumen'}
+            </button>
+          )}
+          {awardsReady && renderableResultsSlidesCount > 0 && (
+            <button
+              type="button"
+              onClick={replayCeremony}
+              className="min-h-[52px] px-6 rounded-2xl text-[18px] font-bebas font-semibold tracking-[0.04em] uppercase text-white bg-white/[0.07] border border-[rgba(148,134,255,0.3)] hover:bg-white/[0.12] active:scale-[0.985] transition-all shadow-elev-1"
+            >
+              Ver premiación
             </button>
           )}
           <button
