@@ -631,6 +631,15 @@ export default function MediaAdminPage() {
       setPendingDelete(asset);
       return;
     }
+    // Retiring the cover of a published gallery with no other published photo archives the gallery (server rule,
+    // transition_tournament_media_asset), and nothing un-archives it: same confirmation as «Archivar».
+    const lastPublished = action === 'hide' && selectedGallery?.status === 'published'
+      && selectedGallery.coverAssetId === asset.id
+      && !selectedGallery.assets.some((other) => other.id !== asset.id && other.status === 'published');
+    if (lastPublished && !window.confirm(
+      '¿Retirar la única foto publicada? La galería quedará archivada: dejará de verse para los participantes '
+      + 'y no se puede volver a publicar.',
+    )) return;
     actOnAsset(asset, action);
   };
 
