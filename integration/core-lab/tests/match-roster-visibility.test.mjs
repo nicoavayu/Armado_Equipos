@@ -227,6 +227,18 @@ test('a match published looking for players is shown through the views (code mas
   assert.equal(mine.codigo, null);
 });
 
+// 20261010139000: who added whom is not in the roster row anymore, for anybody.
+test('nobody reads who added a player: select(*) has no added_by and asking for it fails', async () => {
+  for (const who of ['stranger', 'openMember', 'organizer']) {
+    const all = await as[who]('GET', `jugadores?select=*&partido_id=eq.${OPEN_MATCH}`);
+    assert.equal(all.status, 200, `${who}: ${JSON.stringify(all.body)}`);
+    assert.ok(all.body.length > 0, who);
+    assert.ok(all.body.every((row) => !('added_by' in row)), who);
+    const asked = await as[who]('GET', `jugadores?select=id,added_by&partido_id=eq.${OPEN_MATCH}`);
+    assert.equal(asked.status, 400, `${who}: ${asked.status}`);
+  }
+});
+
 test('the code of a published match never reaches a foreign account (table, views, listing)', async () => {
   assert.deepEqual((await as.stranger('GET', `partidos?select=id,codigo&id=eq.${OPEN_MATCH}`)).body, []);
   const all = await as.stranger('GET', 'partidos?select=codigo&limit=1000');

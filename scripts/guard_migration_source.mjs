@@ -79,6 +79,7 @@ const expectedCanonicalMigrations = [
   '20261010136000_core_match_roster_visibility.sql',
   '20261010137000_core_match_code_never_public.sql',
   '20261010138000_core_voting_photo_slot_owner.sql',
+  '20261010139000_core_roster_added_by_private.sql',
 ];
 
 const exitWithError = (message) => {

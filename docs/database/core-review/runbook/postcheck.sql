@@ -8,9 +8,9 @@
 begin;
 
 -- ---------- as postgres: structure and data ----------
-select json_build_object('check', 'ledger holds the 19 migrations 20261010120000…138000',
-  'pass', (select count(*) from supabase_migrations.schema_migrations where version between '20261010120000' and '20261010138000') = 19,
-  'value', (select count(*) from supabase_migrations.schema_migrations where version between '20261010120000' and '20261010138000'))::text;
+select json_build_object('check', 'ledger holds the 20 migrations 20261010120000…139000',
+  'pass', (select count(*) from supabase_migrations.schema_migrations where version between '20261010120000' and '20261010139000') = 20,
+  'value', (select count(*) from supabase_migrations.schema_migrations where version between '20261010120000' and '20261010139000'))::text;
 
 select json_build_object('check', '135000: no email, phone or birth date left in the shared rows',
   'pass', (select count(*) from public.usuarios where email is not null or telefono is not null or fecha_nacimiento is not null) = 0
@@ -71,6 +71,14 @@ from unnest(array[
 select json_build_object('check', '138000: a guest photo slot belongs to its first session',
   'pass', (select prosrc ~ 'pg_advisory_xact_lock' and prosrc ~ 'public_voters' from pg_proc where oid = 'public.bind_voting_photo_slot(bigint,text,bigint)'::regprocedure),
   'value', null)::text;
+
+select json_build_object('check', '139000: no added_by in public.jugadores; who added whom lives only in app_private, recorded by an AFTER INSERT trigger',
+  'pass', not exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'jugadores' and column_name = 'added_by')
+      and to_regclass('app_private.jugadores_added_by') is not null
+      and not has_table_privilege('authenticated', 'app_private.jugadores_added_by', 'select')
+      and not has_table_privilege('anon', 'app_private.jugadores_added_by', 'select')
+      and exists (select 1 from pg_trigger where tgname = 'trg_jugadores_added_by' and tgrelid = 'public.jugadores'::regclass and not tgisinternal and (tgtype & 2) = 0 and (tgtype & 1) = 1),
+  'value', (select count(*) from app_private.jugadores_added_by))::text;
 
 select json_build_object('check', '131000: survey finalization scheduled every 5 minutes',
   'pass', exists (select 1 from cron.job where jobname = 'survey_finalization_backend_scheduler' and active and schedule = '*/5 * * * *'),

@@ -209,12 +209,33 @@ test('the organizer reads it when the player joined the match themselves (their 
     reset role; ${asRole('authenticated', ORGANIZER)} ${phoneOf(qa.ids.ajeno)}`)), ['+54 9 11 4444-2222']);
 });
 
-test('added_by is set by the server, never by the client, and cannot be rewritten', () => {
-  assert.deepEqual(lines(withPrivateData(`${PHONE_MATCH} ${asRole('authenticated', ORGANIZER)}
-    insert into public.jugadores (partido_id, nombre, usuario_id, added_by) values (990501, 'Ramiro', '${qa.ids.ajeno}', '${qa.ids.ajeno}');
-    update public.jugadores set added_by = '${qa.ids.ajeno}' where partido_id = 990501 and usuario_id = '${qa.ids.ajeno}';
-    select (added_by = '${ORGANIZER}')::text from public.jugadores where partido_id = 990501 and usuario_id = '${qa.ids.ajeno}';`)),
-  ['true']);
+// 20261010139000: who inserted a roster row lives in app_private.jugadores_added_by.
+test('who added a roster row is recorded by the server, outside the shared row', () => {
+  assert.deepEqual(lines(withPrivateData(`${PHONE_MATCH}
+    ${asRole('authenticated', qa.ids.ajeno)}
+    insert into public.jugadores (partido_id, nombre, usuario_id) values (990501, 'Ramiro', '${qa.ids.ajeno}');
+    reset role; ${asRole('authenticated', ORGANIZER)}
+    insert into public.jugadores (partido_id, nombre, usuario_id) values (990501, 'Sofía Ruiz', '${qa.ids.jugador2}');
+    reset role;
+    select j.nombre || ':' || (a.added_by = j.usuario_id)::text || ':' || (a.added_by = '${ORGANIZER}')::text
+    from public.jugadores j join app_private.jugadores_added_by a on a.jugador_id = j.id
+    where j.partido_id = 990501 order by j.nombre;`)),
+  ['Ramiro:true:false', 'Sofía Ruiz:false:true']);
+});
+
+test('no client can write or read who added whom', () => {
+  const write = withPrivateData(`${PHONE_MATCH} ${asRole('authenticated', ORGANIZER)}
+    insert into public.jugadores (partido_id, nombre, usuario_id, added_by) values (990501, 'Ramiro', '${qa.ids.ajeno}', '${qa.ids.ajeno}');`);
+  assert.equal(write.ok, false);
+  assert.match(write.error, /column "added_by" .* does not exist/);
+  for (const who of [ORGANIZER, qa.ids.ajeno, qa.ids.jugador2]) {
+    const read = withPrivateData(`${PHONE_MATCH} ${asRole('authenticated', who)} select count(*) from app_private.jugadores_added_by;`);
+    assert.equal(read.ok, false, who);
+    assert.match(read.error, /permission denied/);
+  }
+  const anon = withPrivateData(`${PHONE_MATCH} ${asRole('anon')} select count(*) from app_private.jugadores_added_by;`);
+  assert.equal(anon.ok, false);
+  assert.match(anon.error, /permission denied/);
 });
 
 test('abuse: re-pointing someone else\'s join request to the target account is rejected', () => {

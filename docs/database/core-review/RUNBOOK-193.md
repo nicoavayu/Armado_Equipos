@@ -10,7 +10,7 @@ no superusuario, igual que en Supabase. La evidencia está en
 ## 1. Qué se aplica
 
 Producción tiene las 43 migraciones de `main` más `20261009120000_core_ops_log_retention`
-(mantenimiento de capacidad del 2026-10-07). Encima van **19 migraciones, en este orden**:
+(mantenimiento de capacidad del 2026-10-07). Encima van **20 migraciones, en este orden**:
 
 | # | Migración | Qué cambia | Dry run |
 |---|---|---|---|
@@ -33,6 +33,7 @@ Producción tiene las 43 migraciones de `main` más `20261009120000_core_ops_log
 | 17 | `20261010136000_core_match_roster_visibility` | partido y plantel sólo para quien participa (+ publicados) | 73 ms |
 | 18 | `20261010137000_core_match_code_never_public` | el código no llega a nadie ajeno: la tabla sólo devuelve partidos propios; los publicados se ven por las vistas, con el código oculto | 77 ms |
 | 19 | `20261010138000_core_voting_photo_slot_owner` | la foto de un invitado sólo la cambia quien vota como él | 67 ms |
+| 20 | `20261010139000_core_roster_added_by_private` | quién agregó a cada jugador sale de la fila de `jugadores` a `app_private.jugadores_added_by`; se elimina la columna (ningún cliente la nombra) | 82 ms |
 
 Tiempos del dry run con ~1.200 cuentas, 400 partidos y 4.000 filas de plantel. Ninguna
 migración usa `CONCURRENTLY` ni abre su propia transacción.
@@ -125,9 +126,9 @@ Cada línea es `{check, pass, value}`. **Si algún `pass` es `false`, no seguir.
 /opt/homebrew/opt/libpq/bin/psql "$CORE_CONNINFO" --password -X -f docs/database/core-review/runbook/apply-193.psql
 ```
 
-- Aplica las 19 migraciones en orden. Cada una va en su propia transacción, junto con su fila
+- Aplica las 20 migraciones en orden. Cada una va en su propia transacción, junto con su fila
   en `supabase_migrations.schema_migrations`.
-- Se esperan 19 líneas `>>> 2026101012xxxx …` y al final `>>> done`.
+- Se esperan 20 líneas `>>> 202610101xxxxx …` y al final `>>> done`.
 - Si una falla, psql se detiene: esa migración se revierte entera y las anteriores quedan
   aplicadas.
 - El mismo comando retoma desde donde quedó, porque saltea lo que ya está en el ledger. Antes
@@ -143,7 +144,8 @@ No escribe nada: es una transacción que se revierte. Actúa como una cuenta nue
 anon, como el organizador del último partido y como una cuenta con teléfono. **Todas las líneas
 deben dar `pass: true`.**
 
-- **Ledger:** las 19 migraciones están registradas.
+- **Ledger:** las 20 migraciones están registradas.
+- **139000:** `public.jugadores` no tiene `added_by`; quién agregó a quién está sólo en `app_private`, sin lectura para `anon`/`authenticated`, con trigger AFTER INSERT.
 - **135000:**
   - cero email, teléfono o nacimiento en las filas compartidas;
   - una fila privada por cuenta;
@@ -196,7 +198,7 @@ Fuentes: replays de las 32 + 84 formas de lectura de la 1.1.21 y de sus escritur
 
 ## 9. Rollback por paso
 
-Los rollbacks de 135000–138000 son archivos probados en el dry run. Aplicados en orden inverso,
+Los rollbacks de 135000–139000 son archivos probados en el dry run. Aplicados en orden inverso,
 devuelven exactamente el estado previo a 135000; la única diferencia esperada es la de
 `partidos_view` (ver la fila de 137000). Cada rollback borra su fila del ledger, así que
 `apply-193.psql` puede volver a aplicarlo. Comando, con `<archivo>` reemplazado:
@@ -207,6 +209,7 @@ devuelven exactamente el estado previo a 135000; la única diferencia esperada e
 
 | Paso | Archivo / acción | Datos perdidos | Tiempo | Efecto |
 |---|---|---|---|---|
+| 139000 | `20261010139000_core_roster_added_by_private.rollback.sql` | ninguno: vuelven a la columna todos los valores registrados, incluidos los de filas agregadas mientras 139000 estuvo aplicada; la tabla privada queda | < 1 s | quien lee una fila de plantel vuelve a ver quién agregó a ese jugador |
 | 138000 | `20261010138000_core_voting_photo_slot_owner.rollback.sql` | ninguno (los claims quedan) | < 1 s | cualquiera con el código vuelve a poder reemplazar fotos de invitados |
 | 137000 | `20261010137000_core_match_code_never_public.rollback.sql` | ninguno | < 1 s | cualquier cuenta vuelve a leer de la tabla el código de los partidos publicados. `partidos_view` conserva sus 3 columnas nuevas, porque `CREATE OR REPLACE` no puede quitarlas y a ningún cliente le molestan |
 | 136000 | `20261010136000_core_match_roster_visibility.rollback.sql` (después del de 137000) | ninguno | < 1 s | cualquier cuenta vuelve a listar todos los partidos, códigos y planteles |
@@ -244,20 +247,20 @@ reintentar a ciegas.
   de datos privados idénticos. Los 20 errores son de `pg_cron`, que sólo vive en la base
   `postgres`. En Producción la prueba estricta es `restore-check`.
 - **Prechecks:** todos `true`.
-- **Aplicación:** 19/19 como `postgres`, una transacción cada una, 1,4 s en total, sin reinicio
+- **Aplicación:** 20/20 como `postgres`, una transacción cada una, 1,5 s en total, sin reinicio
   del servidor.
 - **Post-checks:** todos `true`. Valores privados movidos: 1.203 emails, 361 teléfonos,
   227 nacimientos y 478 ubicaciones, igual que la línea base.
 - **Rollbacks y reaplicación:**
-  - 138→135 aplicados: el estado es idéntico al previo a 135000 (policies, funciones, triggers,
-    vistas, digest de `usuarios`/`profiles`, ledger), salvo las 3 columnas esperadas de
-    `partidos_view`;
-  - reaplicación 135→138 y post-checks de nuevo: todos `true`.
+  - 139→135 aplicados: el estado es idéntico al previo a 135000 (policies, funciones, triggers,
+    vistas, digest de `usuarios`/`profiles`, columnas de `jugadores` y los 1.069 `added_by` de la
+    semilla, ledger), salvo las 3 columnas esperadas de `partidos_view`;
+  - reaplicación 135→139 y post-checks de nuevo: todos `true`.
 - **Con los archivos exactos de este runbook** (`apply-193.psql`, `rollbacks/*` con `-1`):
   - aplicación;
-  - segunda corrida idempotente (19 salteadas);
-  - rollbacks (ledger 15);
-  - reaplicación retomada (4 aplicadas, 15 salteadas);
+  - segunda corrida idempotente (20 salteadas);
+  - rollbacks 139→135 (ledger 15);
+  - reaplicación retomada (5 aplicadas, 15 salteadas);
   - post-checks en `true`, sin reinicio.
 
 **Lo que el dry run encontró y ya está corregido en 137000:**
