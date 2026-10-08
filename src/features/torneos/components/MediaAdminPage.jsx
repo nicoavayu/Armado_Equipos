@@ -800,9 +800,11 @@ export default function MediaAdminPage() {
           <span>
             <strong>Fotos de la temporada</strong>
             <small>
+              {/* The server's count: every uploaded photo except rejected ones (and consent revocations). A retired
+                  (hidden) photo still counts — it can be restored and it still takes space. */}
               {seasonUsage.remaining === 0
-                ? `Usaste las ${seasonUsage.limit} fotos de tu plan. Retirá o rechazá fotos para liberar lugar.`
-                : `Quedan ${seasonUsage.remaining} de ${seasonUsage.limit}. Cuentan las fotos subidas, salvo las rechazadas o retiradas por consentimiento.`}
+                ? `Usaste las ${seasonUsage.limit} fotos de tu plan. Para liberar lugar, rechazá fotos que todavía no publicaste: las retiradas siguen contando porque se pueden restaurar.`
+                : `Quedan ${seasonUsage.remaining} de ${seasonUsage.limit}. Cuentan todas las fotos subidas, también las retiradas; las rechazadas no cuentan.`}
             </small>
           </span>
           <em>{seasonUsage.usage} / {seasonUsage.limit}</em>

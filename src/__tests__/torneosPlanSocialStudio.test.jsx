@@ -11,18 +11,21 @@ import { planComparisonFor, PLAN_COMPARISON, PLAN_COMING_SOON, PLAN_BRANDING_ROW
 import { tournamentEntitlementsFixture } from '../testUtils/tournamentEntitlementsFixture';
 
 let mockSocialFlag = true;
+let mockMediaFlag = false;
 jest.mock('../features/torneos/config/featureFlags', () => {
   const actual = jest.requireActual('../features/torneos/config/featureFlags');
   return {
     ...actual,
-    get torneosFeatureFlags() { return { ...actual.torneosFeatureFlags, socialContentGenerator: mockSocialFlag }; },
+    get torneosFeatureFlags() {
+      return { ...actual.torneosFeatureFlags, socialContentGenerator: mockSocialFlag, mediaEnabled: mockMediaFlag };
+    },
   };
 });
 
 const org = { id: '10000000-0000-4000-8000-000000000001', name: 'Liga Devoto' };
 const season = { id: '20000000-0000-4000-8000-000000000001', name: 'Temporada 2026' };
 
-function show({ plan = 'FREE', social = true, branding = false } = {}) {
+function show({ plan = 'FREE', social = true, branding = false, media = false } = {}) {
   const service = {
     loadCompetitionContext: jest.fn().mockResolvedValue({ seasons: [season], tournaments: [], preference: { activeSeasonId: season.id } }),
     setTournamentContext: jest.fn().mockResolvedValue({}),
@@ -30,7 +33,7 @@ function show({ plan = 'FREE', social = true, branding = false } = {}) {
   };
   render(
     <MemoryRouter>
-      <TorneosFeaturesProvider features={stagingV1FeaturesFor('off', { planRead: true, social, branding })}>
+      <TorneosFeaturesProvider features={stagingV1FeaturesFor('off', { planRead: true, social, branding, media })}>
         <TorneosCompetitionProvider organizationId={org.id} service={service}>
           <PlanExperiencePage organization={org} />
         </TorneosCompetitionProvider>
@@ -39,7 +42,7 @@ function show({ plan = 'FREE', social = true, branding = false } = {}) {
   );
 }
 
-beforeEach(() => { mockSocialFlag = true; });
+beforeEach(() => { mockSocialFlag = true; mockMediaFlag = false; });
 
 test('available: the Studio joins FREE vs PREMIUM with the real split and leaves Próximamente', async () => {
   show();
@@ -125,4 +128,19 @@ test('branding available: Logos y escudos is included in both plans and is no lo
   const row = within(screen.getByRole('region', { name: 'Qué agrega Premium' })).getByRole('rowheader', { name: 'Logos y escudos' }).closest('tr');
   expect([...row.querySelectorAll('td')].map((cell) => cell.textContent)).toEqual(['Incluidos', 'Incluidos']);
   expect(screen.getByRole('region', { name: 'Inclusiones actuales' })).toHaveTextContent('Logos y escudos: Incluidos');
+});
+
+// MEDIA-V1: with the Gallery, Social and logos all available the list really is empty (no mock needed).
+test('nothing upcoming: Mi plan drops Próximamente instead of announcing an empty list', async () => {
+  expect(planComparisonFor({ socialStudio: true, media: true, branding: true }).comingSoon).toEqual([]);
+  mockMediaFlag = true;
+  show({ branding: true, media: true });
+  await screen.findByRole('heading', { name: 'FREE · Temporada 2026' });
+  const comparison = screen.getByRole('region', { name: 'Qué agrega Premium' });
+  for (const name of ['Estudio Social', 'Galería de fotos', 'Logos y escudos']) {
+    expect(within(comparison).getByRole('rowheader', { name })).toBeInTheDocument();
+  }
+  expect(screen.queryByRole('heading', { name: 'Próximamente' })).not.toBeInTheDocument();
+  expect(screen.queryByText(/todavía no están disponibles/)).not.toBeInTheDocument();
+  expect(screen.getByRole('region', { name: 'Qué agrega Premium' })).toBeInTheDocument();
 });
