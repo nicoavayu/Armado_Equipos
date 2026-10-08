@@ -188,9 +188,9 @@ describe('MEDIA-V1 · organizer', () => {
     confirm.mockRestore();
   });
 
-  // Server rule (transition_tournament_media_asset): retiring the cover with no other published photo archives the
-  // gallery, and nothing un-archives it. Found on the integrated Netlify preview, 2026-10-08.
-  test('retiring the only published photo asks first, because the gallery is archived for good', async () => {
+  // Server rule since MEDIA-V1 0014 (transition_tournament_media_asset): retiring the cover with no other published
+  // photo sends the gallery back to draft (it used to archive it for good). Product decision, 2026-10-08.
+  test('retiring the only published photo asks first: the gallery goes back to draft until it is published again', async () => {
     mockContextService = hybridService(adminPayload({
       status: 'published', coverAssetId: 'asset-a', assets: [asset('asset-a'), asset('asset-b', { sortOrder: 1, status: 'hidden' })],
     }));
@@ -198,10 +198,20 @@ describe('MEDIA-V1 · organizer', () => {
     renderAdmin();
     const retire = await screen.findByRole('button', { name: /Retirar/ });
     await userEvent.click(retire);
-    expect(confirm).toHaveBeenLastCalledWith(expect.stringMatching(/única foto publicada.*quedará archivada.*no se puede volver a publicar/s));
+    expect(confirm).toHaveBeenLastCalledWith(expect.stringMatching(/única foto publicada.*volverá a borrador.*hasta que la publiques de nuevo/s));
+    expect(confirm.mock.calls[0][0]).not.toMatch(/archivad/);
     expect(mockContextService.transitionMediaAsset).not.toHaveBeenCalled();
+
+    // The server answers with the gallery in draft: the retired photo can be restored and the gallery published again.
+    mockContextService.loadMediaAdminContext.mockResolvedValue(adminPayload({
+      status: 'draft', coverAssetId: null, assets: [asset('asset-a', { status: 'hidden' }), asset('asset-b', { sortOrder: 1, status: 'hidden' })],
+    }));
     await userEvent.click(retire);
     expect(mockContextService.transitionMediaAsset).toHaveBeenCalledWith(expect.objectContaining({ assetId: 'asset-a', action: 'hide' }));
+    expect(await screen.findByText(/La galería volvió a borrador\. Restaurá la foto o aprobá otra/)).toBeInTheDocument();
+    expect(await screen.findAllByRole('button', { name: /Restaurar/ })).toHaveLength(2);
+    expect(screen.getByRole('button', { name: /Publicar galería/ })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Archivar/ })).not.toBeInTheDocument();
     expect(confirm).toHaveBeenCalledTimes(2);
     confirm.mockRestore();
   });

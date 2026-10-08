@@ -30,14 +30,14 @@ function catalogAt(state, { commerce = false, mode, mutate = (c) => c } = {}) {
     mode: mode ?? (s.media ? 'MVP_SIMPLE' : 'PROCESSOR_EXTERNAL'),
     counts: { authenticated: s.counts[0] + (commerce ? COMMERCE_DELTA[0] : 0), anon: s.counts[1] + (commerce ? COMMERCE_DELTA[1] : 0) },
     media: s.media
-      ? { functions: [...MEDIA_FUNCTIONS], policies: [...MEDIA_POLICIES], budget_table: true, bodies: { ...MEDIA_BODIES.media },
+      ? { functions: [...MEDIA_FUNCTIONS], policies: [...MEDIA_POLICIES], budget_table: true, bodies: { ...MEDIA_BODIES[s.bodies] },
         bucket: { ...MEDIA_BUCKET, allowed_mime_types: [...MEDIA_BUCKET.allowed_mime_types] }, grants: { transition: true, change_state: true, report: true } }
       : { functions: [], policies: [], budget_table: false, bodies: { ...MEDIA_BODIES.certified }, bucket: null,
         grants: { transition: false, change_state: false, report: false } },
     kept_fn: { count: 425, digest: 'a' }, kept_relations: { count: 123, digest: 'b' }, kept_policies: { count: 69, digest: 'c' }, other_buckets: { count: 1, digest: 'd' },
   });
 }
-const phrase = (mode) => `${mode.split('-')[0].toUpperCase()} TORNEOS 0012 ${REF} ${FILES[mode].sha256.slice(0, 12)}`.split(' ');
+const phrase = (mode) => `${mode.split('-')[0].toUpperCase()} TORNEOS ${FILES[mode].phase} ${REF} ${FILES[mode].sha256.slice(0, 12)}`.split(' ');
 
 test('db 0012 pins the exact files of this branch, the target ref and the bodies they install', () => {
   assert.equal(REF, 'onzpwnqxnvlgsevivngf');
@@ -51,6 +51,17 @@ test('db 0012 pins the exact files of this branch, the target ref and the bodies
     assert.equal(md5(prosrc(rollback, fn)), MEDIA_BODIES.certified[key], `rollback restores ${fn} to the byte`);
     assert.equal(md5(prosrc(media, fn)), MEDIA_BODIES.media[key], `0012 ${fn}`);
   }
+  // 0014: the two moderation bodies, from the baseline text, restored byte for byte by its rollback.
+  const draft = fs.readFileSync(FILES['apply-0014'].rel, 'utf8');
+  const undraft = fs.readFileSync(FILES['rollback-0014'].rel, 'utf8');
+  for (const [key, fn] of [['transition', 'public.transition_tournament_media_asset'], ['publish', 'public.publish_tournament_media_gallery']]) {
+    assert.equal(md5(prosrc(baseline, fn)), MEDIA_BODIES.certified[key], `baseline ${fn}`);
+    assert.equal(MEDIA_BODIES.media[key], MEDIA_BODIES.certified[key], `0012 does not touch ${fn}`);
+    assert.equal(md5(prosrc(draft, fn)), MEDIA_BODIES.draft[key], `0014 ${fn}`);
+    assert.equal(md5(prosrc(undraft, fn)), MEDIA_BODIES.certified[key], `rollback-0014 restores ${fn} to the byte`);
+    assert.ok(draft.includes(`'${MEDIA_BODIES.certified[key]}'`) && draft.includes(`'${MEDIA_BODIES.draft[key]}'`), `0014 pins ${fn} before and after`);
+  }
+  for (const key of ['storage', 'readiness', 'published']) assert.equal(MEDIA_BODIES.draft[key], MEDIA_BODIES.media[key], `0014 leaves ${key}`);
   for (const name of MEDIA_FUNCTIONS) assert.match(media, new RegExp(`create (or replace )?function ${name.replace('.', '\\.')}\\(`, 'i'), name);
   for (const name of MEDIA_POLICIES) assert.match(media, new RegExp(`create policy ${name}\\b`), name);
   // 8 new functions granted to authenticated + 3 baseline RPCs (transition / change state / report) = +11.
@@ -58,7 +69,7 @@ test('db 0012 pins the exact files of this branch, the target ref and the bodies
   assert.equal((media.match(/^grant execute on function public\.[^\n]* to authenticated/gm) || []).length, 11);
 });
 
-test('db 0012 classify: POST_0011, POST_0012 (with or without 0013) and every drift fails closed', () => {
+test('db 0012 classify: POST_0011, POST_0012, POST_0014 (with or without 0013) and every drift fails closed', () => {
   for (const state of Object.keys(STATES)) {
     for (const commerce of [false, true]) assert.deepEqual(classify(catalogAt(state, { commerce })), { state, failures: [] }, `${state} commerce=${commerce}`);
   }
@@ -82,6 +93,9 @@ test('db 0012 classify: POST_0011, POST_0012 (with or without 0013) and every dr
     ['POST_0012', (c) => { c.counts.anon = 17; return c; }, 'anon grant'],
     ['POST_0012', (c) => { c.mode = 'SOMETHING'; return c; }, 'unknown mode'],
     ['POST_0012', (c) => { c.torneos_tables = false; return c; }, 'not Torneos'],
+    ['POST_0012', (c) => { c.media.bodies.transition = MEDIA_BODIES.draft.transition; return c; }, 'half of 0014'],
+    ['POST_0014', (c) => { c.media.bodies.publish = MEDIA_BODIES.certified.publish; return c; }, 'half of 0014 (publish)'],
+    ['POST_0011', (c) => { c.media.bodies.transition = MEDIA_BODIES.draft.transition; return c; }, '0014 without 0012'],
   ]) assert.equal(classify(catalogAt(state, { mutate })).state, 'DRIFT', why);
   assert.equal(classify(null).state, 'DRIFT');
   // rollback-0012 keeps the private bucket and its photos: accepted below 0012 only with the exact 0012 configuration.
@@ -141,6 +155,26 @@ test('db 0012 rollback: only with the pipeline off MVP_SIMPLE, and it lands on P
   // …and apply-0012 passes its gate again from that residue.
   const again = await run('apply-0012', phrase('apply-0012'), fakeDb('POST_0011', { mutate: (c) => { c.media.bucket = { ...MEDIA_BUCKET }; return c; }, next: transitionTo('POST_0012') }).deps);
   assert.equal(again.verdict, 'APPLY_0012_DONE');
+});
+
+test('db 0014: from POST_0012 only, a body swap that may land with the pipeline live, and its rollback returns to POST_0012', async () => {
+  const early = fakeDb('POST_0011');
+  await assert.rejects(run('apply-0014', phrase('apply-0014'), early.deps), /PRE_STATE_POST_0011/);
+  assert.equal(early.calls.length, 0);
+  await assert.rejects(run('apply-0014', ['APPLY', 'TORNEOS', '0012', REF, FILES['apply-0014'].sha256.slice(0, 12)], fakeDb('POST_0012').deps), /PHRASE_REQUIRED: APPLY TORNEOS 0014/);
+  for (const commerce of [false, true]) {
+    const db = fakeDb('POST_0012', { commerce, next: transitionTo('POST_0014') });
+    const out = await run('apply-0014', phrase('apply-0014'), db.deps);
+    assert.deepEqual([out.verdict, out.before, out.after, out.changedOutside], ['APPLY_0014_DONE', 'POST_0012', 'POST_0014', []], `commerce=${commerce}`);
+    assert.equal(db.calls[0], fs.readFileSync(FILES['apply-0014'].rel, 'utf8'));
+  }
+  const back = await run('rollback-0014', phrase('rollback-0014'), fakeDb('POST_0014', { next: transitionTo('POST_0012') }).deps);
+  assert.deepEqual([back.verdict, back.before, back.after], ['ROLLBACK_0014_DONE', 'POST_0014', 'POST_0012']);
+  // The contract is withdrawn in order: 0014 first, then 0012.
+  await assert.rejects(run('rollback-0012', phrase('rollback-0012'), fakeDb('POST_0014', { mode: 'PROCESSOR_EXTERNAL' }).deps), /PRE_STATE_POST_0014/);
+  const on = await run('mode', ['MVP_SIMPLE', ...`SET TORNEOS MEDIA PIPELINE MODE MVP_SIMPLE ${REF}`.split(' ')],
+    fakeDb('POST_0014', { mode: 'PROCESSOR_EXTERNAL', next: (c) => ({ ...c, mode: 'MVP_SIMPLE' }) }).deps);
+  assert.equal(on.verdict, 'MODE_MVP_SIMPLE_DONE');
 });
 
 test('db 0012 mode: validated literal, MVP_SIMPLE only on POST_0012, verified after the write', async () => {

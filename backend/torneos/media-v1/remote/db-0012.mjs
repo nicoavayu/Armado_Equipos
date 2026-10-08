@@ -1,14 +1,17 @@
 #!/usr/bin/env node
-// MEDIA-V1 0012 operator driver for the Torneos Production DB (after #182's POST_0011). Never run by CI or by the operator without GO.
+// MEDIA-V1 0012 + 0014 operator driver for the Torneos Production DB (after #182's POST_0011). Never run by CI or by the operator without GO.
 //   node backend/torneos/media-v1/remote/db-0012.mjs observe                                        (read only)
 //   … apply-0012          APPLY TORNEOS 0012 <ref> <sha12 of 0012>
-//   … rollback-0012       ROLLBACK TORNEOS 0012 <ref> <sha12 of its rollback>     (only with the pipeline mode off MVP_SIMPLE)
-//   … mode <MODE>         SET TORNEOS MEDIA PIPELINE MODE <MODE> <ref>             (MVP_SIMPLE only on POST_0012)
+//   … apply-0014          APPLY TORNEOS 0014 <ref> <sha12 of 0014>                 (retiring the last photo → draft)
+//   … rollback-0014       ROLLBACK TORNEOS 0014 <ref> <sha12 of its rollback>
+//   … rollback-0012       ROLLBACK TORNEOS 0012 <ref> <sha12 of its rollback>     (only from POST_0012, mode off MVP_SIMPLE)
+//   … mode <MODE>         SET TORNEOS MEDIA PIPELINE MODE <MODE> <ref>             (MVP_SIMPLE only on POST_0012 / POST_0014)
 // Transport = the certified OEC/CV1/CONNECTED one (installer postgres.<ref>, Session Pooler sa-east-1:5432, verify-full + the
 // Supabase CA, the installer password read from the macOS Keychain into memory only and redacted from every output). Every
 // write is gated by the exact phrase, the file sha256 where there is a file, the exact observed state before
-// (POST_0011 → POST_0012 and back) and after, and "nothing outside MEDIA-V1 moved": every other function (body, ACL, owner,
-// config), relation, policy and bucket, by digest. The three baseline bodies 0012 replaces are pinned by md5 in every state.
+// (POST_0011 → POST_0012 → POST_0014 and back) and after, and "nothing outside MEDIA-V1 moved": every other function (body,
+// ACL, owner, config), relation, policy and bucket, by digest. The five media bodies 0012 / 0014 replace are pinned by md5 in
+// every state.
 // 0013 (COMMERCE-PRODUCTION) is independent of 0012 and either may land first: its 14 functions add exactly 2 authenticated
 // EXECUTE grants on public functions, accepted only together with the whole 0013 surface being present.
 // rollback-0012 keeps the private bucket row and its objects (user content; unreachable without policies): classify() accepts
@@ -22,12 +25,16 @@ import { ROSTER_SEARCH } from '../../connected-v1/remote/db-0009-0011.mjs';
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const REPO = path.resolve(HERE, '../../../..');
 export const REF = 'onzpwnqxnvlgsevivngf';
-const file = (rel, sha256, from, to) => Object.freeze({ path: path.join(REPO, rel), rel, sha256, from, to });
+const file = (rel, sha256, from, to, phase) => Object.freeze({ path: path.join(REPO, rel), rel, sha256, from, to, phase });
 export const FILES = Object.freeze({
   'apply-0012': file('backend/torneos/supabase/migrations/00000000000012_media_gallery_v1.sql',
-    '859fa24d259f4f0b0d3074d68c126c9a03f402bdf31f4d11485e01737fd6f7cb', 'POST_0011', 'POST_0012'),
+    '859fa24d259f4f0b0d3074d68c126c9a03f402bdf31f4d11485e01737fd6f7cb', 'POST_0011', 'POST_0012', '0012'),
   'rollback-0012': file('backend/torneos/media-v1/rollback/00000000000012_media_gallery_v1.rollback.sql',
-    '7c99e5d0d35ca918419724a4d73c3b723c64580b0baea4f40566ae8a085a1e5a', 'POST_0012', 'POST_0011'),
+    '7c99e5d0d35ca918419724a4d73c3b723c64580b0baea4f40566ae8a085a1e5a', 'POST_0012', 'POST_0011', '0012'),
+  'apply-0014': file('backend/torneos/supabase/migrations/00000000000014_media_gallery_draft_on_retire.sql',
+    'd455afd1d1525f47bd6b2c8ccc4900e36e56b8f96bd18e5ae15d5de87f970a07', 'POST_0012', 'POST_0014', '0014'),
+  'rollback-0014': file('backend/torneos/media-v1/rollback/00000000000014_media_gallery_draft_on_retire.rollback.sql',
+    '6dd9f7565f1427078378d27191f4c13ccabae66557de9312ddd427c42fc88478', 'POST_0014', 'POST_0012', '0014'),
 });
 export const MEDIA_FUNCTIONS = Object.freeze([
   'private.tournament_media_gateway_session', 'public.begin_tournament_media_gallery_upload', 'public.can_delete_tournament_media_gateway_object',
@@ -38,23 +45,28 @@ export const MEDIA_POLICIES = Object.freeze([
   'tournament_media_client_update_denied', 'tournament_media_gateway_delete', 'tournament_media_gateway_insert', 'tournament_media_reader_select',
   'tournament_media_service_delete', 'tournament_media_service_insert', 'tournament_media_service_read', 'tournament_media_service_update']);
 export const MEDIA_BUCKET = Object.freeze({ public: false, file_size_limit: 4194304, allowed_mime_types: ['image/jpeg', 'image/png', 'image/webp'] });
-// md5(prosrc) of the three bodies 0012 redefines: the baseline ones (certified) and 0012's (both measured on the rehearsal lab).
+// md5(prosrc) of the bodies 0012 and 0014 redefine (all measured on the rehearsal lab): the baseline ones (certified), 0012's
+// three (storage contract, readiness, delivery) and 0014's two (retiring the last photo → draft; publishing the approved ones).
+const BASELINE_MODERATION = Object.freeze({ transition: 'bbf724512ff4e767d51343a2a199ba25', publish: '9eb5ac61631329a44139f1f0c6071c28' });
+const MEDIA_0012 = Object.freeze({ storage: 'ec168be2e4f86c9916b58556e1a3ac58', readiness: 'd17c84cf1a4c830a4a1fd30b12537d23', published: 'c7500f1dfc29c458464529b2f65cfbf8' });
 export const MEDIA_BODIES = Object.freeze({
-  certified: Object.freeze({ storage: 'c9948ce05e76d02abf6cd3813f6a8120', readiness: '8d350e729e0315400f940524af2a5938', published: 'd74780902cab93ea6d8136a103b5eda7' }),
-  media: Object.freeze({ storage: 'ec168be2e4f86c9916b58556e1a3ac58', readiness: 'd17c84cf1a4c830a4a1fd30b12537d23', published: 'c7500f1dfc29c458464529b2f65cfbf8' }),
+  certified: Object.freeze({ storage: 'c9948ce05e76d02abf6cd3813f6a8120', readiness: '8d350e729e0315400f940524af2a5938', published: 'd74780902cab93ea6d8136a103b5eda7', ...BASELINE_MODERATION }),
+  media: Object.freeze({ ...MEDIA_0012, ...BASELINE_MODERATION }),
+  draft: Object.freeze({ ...MEDIA_0012, transition: 'ec3357d48b3a17561975126e7144939c', publish: 'b16c376ab0421c98cd2ecbdfa78d5c1e' }),
 });
 // EXECUTE counts on public functions (authenticated / anon). POST_0011 = what #182's driver leaves; 0012 adds 8 functions and
 // grants 3 baseline RPCs to authenticated (+11 / +0). 0013 adds +2 / +0 when its whole surface is present (commerce = true).
 export const STATES = Object.freeze({
   POST_0011: Object.freeze({ counts: [193, 16], media: false, bodies: 'certified' }),
   POST_0012: Object.freeze({ counts: [204, 16], media: true, bodies: 'media' }),
+  POST_0014: Object.freeze({ counts: [204, 16], media: true, bodies: 'draft' }),
 });
 export const COMMERCE_DELTA = Object.freeze([2, 0]);
 export const MODES = Object.freeze(['DISABLED', 'MVP_SIMPLE', 'PROCESSOR_EXTERNAL']);
 const sha256 = (bytes) => crypto.createHash('sha256').update(bytes).digest('hex');
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 
-/** POST_0011 | POST_0012 | DRIFT, with every reason (and the accepted residue, if any). Pure. */
+/** POST_0011 | POST_0012 | POST_0014 | DRIFT, with every reason (and the accepted residue, if any). Pure. */
 export function classify(catalog) {
   if (!catalog || catalog.torneos_tables !== true) return { state: 'DRIFT', failures: ['not_the_torneos_db'] };
   const failures = [];
@@ -95,9 +107,9 @@ export const changedOutside = (before, after) => ['kept_fn', 'kept_relations', '
 
 function phraseFor(mode, arg) {
   const f = FILES[mode];
-  if (f) return `${mode.split('-')[0].toUpperCase()} TORNEOS 0012 ${REF} ${f.sha256.slice(0, 12)}`;
+  if (f) return `${mode.split('-')[0].toUpperCase()} TORNEOS ${f.phase} ${REF} ${f.sha256.slice(0, 12)}`;
   if (mode === 'mode') return `SET TORNEOS MEDIA PIPELINE MODE ${arg} ${REF}`;
-  throw new Error('usage: observe | apply-0012 | rollback-0012 | mode <DISABLED|MVP_SIMPLE|PROCESSOR_EXTERNAL> <phrase>');
+  throw new Error('usage: observe | apply-0012 | apply-0014 | rollback-0014 | rollback-0012 | mode <DISABLED|MVP_SIMPLE|PROCESSOR_EXTERNAL> <phrase>');
 }
 
 /** The pipeline mode write (no file): the literal is validated against MODES before it is interpolated. */
@@ -127,11 +139,12 @@ export async function run(mode, args, { readFile = fs.readFileSync, catalog, app
   } else sql = modeSql(arg);
   const before = await catalog();
   const pre = classify(before);
-  const from = f ? f.from : (arg === 'MVP_SIMPLE' ? 'POST_0012' : pre.state);
+  const from = f ? f.from : (arg === 'MVP_SIMPLE' && pre.state !== 'POST_0014' ? 'POST_0012' : pre.state);
   if (pre.state === 'DRIFT' || pre.state !== from) throw new Error(`PRE_STATE_${pre.state} ${pre.failures.join('; ')}`);
   // Order of switching off is frontend → gateway → mode → base: the contract is never withdrawn under live sessions.
   if (mode === 'rollback-0012' && before.mode === 'MVP_SIMPLE') throw new Error('ROLLBACK_REFUSED mode is MVP_SIMPLE: set PROCESSOR_EXTERNAL first (ACTIVATION.md)');
   if (mode === 'apply-0012' && before.storage_ready !== true) throw new Error('STORAGE_SCHEMA_MISSING');
+  // 0014 is a pure body swap (no new grant, object or policy): it may land with the pipeline live.
   out.psql = await applySql(sql);
   const after = await catalog();
   const post = classify(after);

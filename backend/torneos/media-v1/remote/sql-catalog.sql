@@ -7,15 +7,16 @@ with added(name) as (values
   ('public.begin_tournament_media_gallery_upload'), ('public.complete_tournament_media_gallery_upload'),
   ('public.fail_tournament_media_gallery_upload'), ('public.get_tournament_media_read_targets')),
 moved(name) as (values
-  -- bodies 0012 replaces (tracked by md5) and the three RPCs it grants to authenticated (tracked in media.grants)
+  -- bodies 0012 / 0014 replace (tracked by md5) and the three RPCs 0012 grants to authenticated (tracked in media.grants)
   ('public.tournament_media_storage_contract_status'), ('public.tournament_media_effective_readiness'),
-  ('public.get_published_tournament_media'), ('public.transition_tournament_media_asset'),
+  ('public.get_published_tournament_media'), ('public.transition_tournament_media_asset'), ('public.publish_tournament_media_gallery'),
   ('public.change_tournament_media_gallery_state'), ('public.report_tournament_media_asset')),
 fns as (select p.oid, n.nspname || '.' || p.proname as qname from pg_proc p join pg_namespace n on n.oid = p.pronamespace
   where n.nspname in ('public', 'private')),
 body(name, sig) as (values
   ('storage', 'public.tournament_media_storage_contract_status()'), ('readiness', 'public.tournament_media_effective_readiness()'),
-  ('published', 'public.get_published_tournament_media(uuid,uuid,uuid,integer,integer)'))
+  ('published', 'public.get_published_tournament_media(uuid,uuid,uuid,integer,integer)'),
+  ('transition', 'public.transition_tournament_media_asset(uuid,text,text)'), ('publish', 'public.publish_tournament_media_gallery(uuid)'))
 select json_build_object(
  'db', current_database(), 'tx_read_only', current_setting('transaction_read_only'),
  'torneos_tables', to_regclass('public.tournament_seasons') is not null and to_regclass('public.tournament_media_galleries') is not null,
