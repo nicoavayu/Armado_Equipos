@@ -124,7 +124,7 @@ test('MP-A3 — T5 config / privilege / isolation', async (t) => {
     });
     await check('env isolation (edge-main): gateway worker gets no MERCADO_PAGO_* / payments secrets; payments worker gets no Core, bridge, gateway DB or service keys; unknown workers get nothing', async () => {
       const { workerEnv, WORKERS } = await import(`${EDGE_MAIN}env.ts`);
-      assert.deepEqual([...WORKERS].sort(), ['torneos-gateway', 'torneos-payments']);
+      assert.deepEqual([...WORKERS].sort(), ['torneos-gateway', 'torneos-payments', 'torneos-payments-production']);
       const full = { ...UNIT_ENV, TORNEOS_PAYMENTS_LAB_MP_API_ORIGIN: 'http://mp-stub:8080', TORNEOS_GATEWAY_PUBLIC_URL: 'x', TORNEOS_ALLOWED_ORIGIN: 'x', CORE_AUTH_URL: 'x', CORE_JWT_ISSUER: 'x', CORE_ANON_KEY: 'x',
         CORE_CONTRACT_URL: 'x', TORNEOS_CONTRACT_SERVICE_SECRET: 'x', TORNEOS_REST_URL: 'x', TORNEOS_ANON_KEY: 'x', TORNEOS_DB_IDENTITY_WRITER_URL: 'x', TORNEOS_DB_CORE_ADAPTER_URL: 'x',
         TORNEOS_BRIDGE_KEYS: 'x', SUPABASE_SERVICE_ROLE_KEY: 'x', SUPABASE_DB_URL: 'x', PATH: '/bin', HOME: '/root' };

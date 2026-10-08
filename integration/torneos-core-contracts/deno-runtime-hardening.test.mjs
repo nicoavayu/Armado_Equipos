@@ -380,13 +380,13 @@ test('MP-B1.1 R3 — isolated remote commerce runtime hardening (offline)', asyn
         TORNEOS_COMMERCE_REMOTE_PAYMENTS_HOST: 'pay.torneos-test.example.com', TORNEOS_PAYMENTS_INTERNAL_URL: 'https://pay.torneos-test.example.com/functions/v1/torneos-payments',
         TORNEOS_PAYMENTS_INTERNAL_SECRET: sha256('r3-fixture') };
       const ctx = { baseAllowlist: new Set(), gatewayPublicUrl: 'https://gw.torneos-test.example.com/functions/v1/torneos-gateway', distinctFrom: [], dependencyUrls: ['https://core.torneos-test.example.com/auth/v1'] };
-      const ok = commerce.loadCommerceConfig(env, ctx, { mode: 'test', rpcs: ['get_effective_tournament_season_entitlements', 'get_tournament_purchase'] });
+      const ok = commerce.loadCommerceConfig(env, ctx, { mode: 'test', rpcs: ['get_effective_tournament_season_entitlements', 'get_tournament_purchase', 'get_tournament_season_purchases'] });
       assert.deepEqual([ok.mode, ok.deployment, ok.paymentsUrl], ['test', 'remote-test', 'https://pay.torneos-test.example.com/functions/v1/torneos-payments']);
       for (const [label, e, c] of [['http payments URL', { ...env, TORNEOS_PAYMENTS_INTERNAL_URL: 'http://pay.torneos-test.example.com/functions/v1/torneos-payments' }, ctx],
         ['payments on a Deno Deploy default domain not declared', { ...env, TORNEOS_PAYMENTS_INTERNAL_URL: 'https://torneos-payments.deno.dev/functions/v1/torneos-payments' }, ctx],
         ['gateway published on an undeclared host', env, { ...ctx, gatewayPublicUrl: 'https://torneos-gateway.deno.dev/functions/v1/torneos-gateway' }],
         ['http gateway', env, { ...ctx, gatewayPublicUrl: 'http://gw.torneos-test.example.com/functions/v1/torneos-gateway' }]]) {
-        assert.throws(() => commerce.loadCommerceConfig(e, c, { mode: 'test', rpcs: ['get_effective_tournament_season_entitlements', 'get_tournament_purchase'] }),
+        assert.throws(() => commerce.loadCommerceConfig(e, c, { mode: 'test', rpcs: ['get_effective_tournament_season_entitlements', 'get_tournament_purchase', 'get_tournament_season_purchases'] }),
           (error) => error?.constructor?.name === 'CommerceConfigError', label);
       }
     });
@@ -438,8 +438,9 @@ test('MP-B1.1 R3 — isolated remote commerce runtime hardening (offline)', asyn
       // CONNECTED-V1 (2026-10-05): the non-secret Explorar/solicitudes opt-in (torneos-gateway/connected.ts), default off.
       // BRANDING-V1 (2026-10-06): the non-secret logos opt-in and, for the local lab only, its storage targets
       // (torneos-gateway/branding.ts; hosted derives storage from TORNEOS_REST_URL and refuses any other value).
+      // COMMERCE-PRODUCTION (2026-10-07): the hosted production payments host (non-secret; torneos-gateway/commerce.ts).
       const planReadAdded = { 'torneos-gateway': ['TORNEOS_PLAN_READ_MODE', 'TORNEOS_SOCIAL_MODE', 'TORNEOS_CONNECTED_MODE',
-        'TORNEOS_BRANDING_MODE', 'TORNEOS_STORAGE_URL', 'TORNEOS_STORAGE_PUBLIC_URL'] };
+        'TORNEOS_BRANDING_MODE', 'TORNEOS_STORAGE_URL', 'TORNEOS_STORAGE_PUBLIC_URL', 'TORNEOS_COMMERCE_PRODUCTION_PAYMENTS_HOST'] };
       const added = (app) => [...(delta.apps[app]?.configAdded ?? []), ...(planReadAdded[app] ?? [])];
       const declared = (app) => new Set([...c.apps[app].secrets, ...c.apps[app].config, ...added(app)]);
       for (const n of gwReads) assert.ok(declared('torneos-gateway').has(n), `gateway reads undeclared ${n}`);
@@ -452,7 +453,7 @@ test('MP-B1.1 R3 — isolated remote commerce runtime hardening (offline)', asyn
         TORNEOS_COMMERCE_REMOTE_PAYMENTS_HOST: 'pay.torneos-test.example.com', TORNEOS_PAYMENTS_INTERNAL_URL: 'https://pay.torneos-test.example.com/functions/v1/torneos-payments',
         TORNEOS_PAYMENTS_INTERNAL_SECRET: sha256('r3-fixture') };
       const ctx = { baseAllowlist: new Set(), gatewayPublicUrl: 'https://gw.torneos-test.example.com/functions/v1/torneos-gateway', distinctFrom: [], dependencyUrls: ['https://core.torneos-test.example.com/auth/v1'] };
-      const doc = { mode: 'test', rpcs: ['get_effective_tournament_season_entitlements', 'get_tournament_purchase'] };
+      const doc = { mode: 'test', rpcs: ['get_effective_tournament_season_entitlements', 'get_tournament_purchase', 'get_tournament_season_purchases'] };
       for (const n of c.apps['torneos-payments'].secrets.filter(x => x !== 'TORNEOS_PAYMENTS_INTERNAL_SECRET')) {
         assert.throws(() => commerce.loadCommerceConfig({ ...REMOTE, [n]: 'fixture-value-not-a-secret' }, ctx, doc), (e) => e?.constructor?.name === 'CommerceConfigError', `gateway boots with ${n}`);
       }

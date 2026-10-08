@@ -105,7 +105,7 @@ test('MP-B1.1 R2 — remote TEST enablement (offline)', async (t) => {
       assert.deepEqual([implicit.mode, implicit.deployment, implicit.paymentsUrl], ['test', 'local-lab', 'http://torneos-functions:9000/torneos-payments']);
       const c = mod().loadCommerceConfig({ ...LAB_ENV }, labCtx());
       assert.equal(Buffer.from(c.secret).toString('hex'), SECRET);
-      assert.equal(c.readRpcs.size, 2);
+      assert.equal(c.readRpcs.size, 3); // COMMERCE-PRODUCTION: + get_tournament_season_purchases (read-only)
     });
     await check('A local-lab stays lab-only: an https / hosted gateway, an https payments URL or declared remote hosts in local-lab → fail closed', async () => {
       expectReject({ ...LAB_ENV }, labCtx({ gatewayPublicUrl: GW_URL }), 'local-lab with a hosted gateway');
@@ -122,8 +122,8 @@ test('MP-B1.1 R2 — remote TEST enablement (offline)', async (t) => {
         remoteCtx(), 'remote-test gateway and payments on one declared host');
       assert.equal(same.paymentsUrl, `https://${GW_HOST}/functions/v1/torneos-payments`);
       const c = mod().loadCommerceConfig({ ...REMOTE_ENV }, remoteCtx());
-      assert.equal(c.readRpcs.size, 2, 'remote-test adds the same 2 reads');
-      assert.equal(mod().effectiveRpcAllowlist(BASE43, c).size, 45);
+      assert.equal(c.readRpcs.size, 3, 'remote-test adds the same 3 reads');
+      assert.equal(mod().effectiveRpcAllowlist(BASE43, c).size, 46);
     });
     await check('A deployment accepts exactly local-lab | remote-test (live / prod / production / variants → fail closed)', async () => {
       for (const d of ['remote', 'Remote-Test', 'REMOTE-TEST', 'remote_test', 'remote-test ', 'remote-live', 'live', 'prod', 'production', 'staging', 'hosted', 'lab', 'local', 'test', 'off', 'remote-test,local-lab']) {
@@ -251,7 +251,9 @@ test('MP-B1.1 R2 — remote TEST enablement (offline)', async (t) => {
       'TORNEOS_CONNECTED_MODE',
       // BRANDING-V1 (2026-10-06): non-secret logos opt-in and the local lab's storage targets (torneos-gateway/branding.ts;
       // hosted derives storage from TORNEOS_REST_URL and refuses any other value), default off.
-      'TORNEOS_BRANDING_MODE', 'TORNEOS_STORAGE_URL', 'TORNEOS_STORAGE_PUBLIC_URL']);
+      'TORNEOS_BRANDING_MODE', 'TORNEOS_STORAGE_URL', 'TORNEOS_STORAGE_PUBLIC_URL',
+      // COMMERCE-PRODUCTION (2026-10-07): the hosted production payments host (non-secret; commerce.ts, production mode only).
+      'TORNEOS_COMMERCE_PRODUCTION_PAYMENTS_HOST']);
     const PAYMENTS_MAY_READ = new Set(['TORNEOS_PAYMENT_PROVIDER', 'MERCADO_PAGO_ENVIRONMENT', 'MERCADO_PAGO_TEST_ACCESS_TOKEN', 'MERCADO_PAGO_TEST_WEBHOOK_SECRET',
       'MERCADO_PAGO_TEST_SELLER_ID', 'APP_PUBLIC_URL', 'TORNEOS_PAYMENTS_NOTIFICATION_URL', 'TORNEOS_PAYMENTS_INTERNAL_SECRET', 'TORNEOS_PAYMENTS_DB_URL',
       'TORNEOS_PAYMENTS_DB_SSL_CA', 'TORNEOS_PAYMENTS_LAB_MP_API_ORIGIN',
@@ -303,6 +305,11 @@ test('MP-B1.1 R2 — remote TEST enablement (offline)', async (t) => {
       const pay = workerEnv('torneos-payments', env).map(([k]) => k);
       for (const name of ['TORNEOS_COMMERCE_DEPLOYMENT', 'TORNEOS_COMMERCE_REMOTE_GATEWAY_HOST', 'TORNEOS_COMMERCE_REMOTE_PAYMENTS_HOST']) {
         assert.ok(!gw.includes(name) && !pay.includes(name), name);
+      }
+      // COMMERCE-PRODUCTION: in production mode the router pins local-lab itself, whatever the container says.
+      for (const deployment of ['remote-test', 'production', 'local-lab', undefined]) {
+        const prod = Object.fromEntries(workerEnv('torneos-gateway', { ...env, TORNEOS_COMMERCE_MODE: 'production', TORNEOS_COMMERCE_DEPLOYMENT: deployment }));
+        assert.equal(prod.TORNEOS_COMMERCE_DEPLOYMENT, 'local-lab', `production mode, container deployment ${deployment}`);
       }
       assert.ok(!pay.some(k => PAYMENTS_MUST_NOT.test(k)), `payments worker env: ${pay}`);
       assert.ok(!gw.some(k => GATEWAY_MUST_NOT.test(k)), `gateway worker env: ${gw}`);
