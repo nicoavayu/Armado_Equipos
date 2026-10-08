@@ -249,6 +249,26 @@ cron lo aplica.
 - **Pantallas sin backend:** `node scripts/qa/plan-ux/build.cjs`, servir `artifacts/plan-ux/site` y abrir
   `?billing=production&purchase=none|open|pending|approved|refunded|charged_back&available=yes|no&role=owner|collaborator`.
   Para la página de estado, agregar `&path=temporada/<id>/plan/compra/<id>/pendiente`.
-- **Preview integrada (fase B):** la integración monta #182 + #189 + esta rama. Para hacer clic en la compra en el lab
-  compartido hace falta un overlay aditivo (la función productiva con el emulador de Mercado Pago y el gateway en
-  `local-lab`), que se prepara cuando exista el head integrado.
+- **Preview integrada (fase B, laboratorio):** compra clickeable sobre el lab compartido `arma2-promo-rehearsal`, sin Mercado
+  Pago real, sin servicios hosteados y sin credenciales reales. La herramienta es
+  `backend/torneos/commerce-production/lab/phase-b/overlay.mjs`:
+  1. `node backend/torneos/commerce-production/lab/phase-b/overlay.mjs prepare --app-origin http://localhost:3121` escribe
+     en `lab/phase-b/.runtime/` (0600, ignorado por git) los secretos efímeros del laboratorio y estos archivos:
+     - `torneos-functions-production.env`, para el contenedor `torneos-functions`. Lleva los valores con prefijo
+       `PRODUCTION_PAYMENTS__`; el router del lab se los entrega sólo a `torneos-payments-production`;
+     - `edge-gateway-commerce.env` (gateway Edge: modo y montaje). El router fija `local-lab` y la clave HMAC del
+       trabajador productivo;
+     - `gateway-commerce.env` (gateway Node: los 4 valores);
+     - `lab-login.sql` (login del laboratorio, sólo el verificador SCRAM), `scope-open.sql` y `scope-off.sql`.
+  2. El dueño del lab aplica `lab-login.sql` y `scope-open.sql` como superusuario y suma los archivos env a sus gateways.
+  3. `… overlay.mjs stub-up --network arma2-promo-rehearsal_isolated` levanta el Mercado Pago de laboratorio (alias
+     `mp-stub`, consola en `127.0.0.1:58461`; `… overlay.mjs status` muestra la URL).
+  4. En la preview: Mi plan → “Pagar con Mercado Pago” abre mercadopago.com.ar con una Preference del emulador, que
+     Mercado Pago no reconoce. El pago se hace en la consola: aprobar, rechazar, pendiente, acreditar, devolver,
+     contracargo ganado o perdido. Cada acción manda el aviso firmado; “volver a la app” abre la página de estado de la
+     compra.
+  5. Al terminar: `scope-off.sql`, `… overlay.mjs stub-down`, quitar los env y `DROP` del login (`lab-login-drop.sql`).
+
+  En localhost el frontend usa `REACT_APP_TORNEOS_BILLING_MODE=test`, porque el modo `production` sólo vale en
+  `app.arma2.com.ar`. Los componentes son los mismos; el gateway y el servicio ejercitados son los de producción.
+  `… overlay.mjs selftest` prueba todo esto en una réplica privada (18 controles).

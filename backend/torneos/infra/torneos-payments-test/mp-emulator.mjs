@@ -9,9 +9,10 @@ import crypto from 'node:crypto';
 // Sandbox realism (2026-09-26): Mercado Pago Checkout Pro sandbox answers live_mode=true for TEST-seller payments, so the
 // emulator defaults to it (`liveMode`); every Preference carries the creating application's client_id and every merchant
 // order its application_id (`applicationId`), which the remote-test sandbox policy binds.
-export function makeMercadoPago({ sellerId, accessToken, me = null, liveMode: defaultLiveMode = true, applicationId = '4412345678901234' }) {
+// `idBase` (default unchanged) lets a long-lived lab stub (commerce-production phase B) start each run on fresh payment ids.
+export function makeMercadoPago({ sellerId, accessToken, me = null, liveMode: defaultLiveMode = true, applicationId = '4412345678901234', idBase = 90_000_000_000 }) {
   const state = { preferences: new Map(), payments: new Map(), orders: new Map(), chargebacks: new Map(), refunds: new Map(), calls: [], served: new Map(), down: null, meOverride: me, refuseLiveRefunds: false };
-  let seq = 90_000_000_000;
+  let seq = idBase;
   const nextId = () => String(++seq);
   const json = (status, body) => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
   const snapshotOf = (id) => {
