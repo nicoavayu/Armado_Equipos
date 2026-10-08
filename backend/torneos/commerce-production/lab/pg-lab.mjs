@@ -24,8 +24,11 @@ export const IMAGE = 'public.ecr.aws/supabase/postgres:17.6.1.143';
 // The storage-api of the shared lab's branding overlay: run once to migrate the Storage schema into this database, so
 // 00000000000010 (logos) and 00000000000012 (gallery) apply exactly as on the hosted project; then removed.
 export const STORAGE_IMAGE = 'public.ecr.aws/supabase/storage-api:v1.67.15';
-export const CONTAINER = process.env.COMMERCE_PRODUCTION_LAB_CONTAINER || 'arma2-commerce-production-lab-db';
-export const PORT = Number(process.env.COMMERCE_PRODUCTION_LAB_PORT || 58650);
+// Each checkout (worktree) gets its own containers: the suite names its base (COMMERCE_PRODUCTION_LAB_CONTAINER) and the
+// checkout's path adds a tag, so two sessions running these suites never share a container, a network or a state file.
+// The host port is Docker's choice (127.0.0.1 only), read back after `docker run`: no two labs ever ask for the same one.
+export const CHECKOUT_TAG = createHash('sha256').update(REPO).digest('hex').slice(0, 8);
+export const CONTAINER = `${process.env.COMMERCE_PRODUCTION_LAB_CONTAINER || 'arma2-commerce-production-lab-db'}-${CHECKOUT_TAG}`;
 const STATE_DIR = path.join(os.tmpdir(), 'arma2-commerce-production-lab');
 const STATE_FILE = path.join(STATE_DIR, `${CONTAINER}.json`);
 const DOCKER = process.platform === 'darwin' ? '/Applications/Docker.app/Contents/Resources/bin/docker' : 'docker';
@@ -64,7 +67,7 @@ export function state() {
 export function loginUrl(kind) {
   const s = state();
   const { login } = LOGINS[kind];
-  return `postgres://${login}:${s.passwords[login]}@127.0.0.1:${PORT}/postgres`;
+  return `postgres://${login}:${s.passwords[login]}@127.0.0.1:${s.port}/postgres`;
 }
 
 function running() {
@@ -196,17 +199,19 @@ export async function up({ fresh = false, upTo = null, storage = true } = {}) {
     docker(['network', 'create', '--label', 'arma2.lab=commerce-production', NETWORK]);
     const dbPassword = randomBytes(18).toString('hex');
     const r = docker(['run', '-d', '--name', CONTAINER, '--label', 'arma2.lab=commerce-production', '--network', NETWORK, '--network-alias', 'torneos-db',
-      '-e', `POSTGRES_PASSWORD=${dbPassword}`, '-p', `127.0.0.1:${PORT}:5432`, IMAGE,
+      '-e', `POSTGRES_PASSWORD=${dbPassword}`, '-p', '127.0.0.1::5432', IMAGE,
       'postgres', '-D', '/etc/postgresql', '-c', 'log_statement=none', '-c', 'log_min_error_statement=panic', '-c', 'log_parameter_max_length_on_error=0']);
     if (!r.ok) throw new Error(`docker run failed: ${r.err.split('\n')[0]}`);
-    s = { container: CONTAINER, port: PORT, dbPassword, passwords: Object.fromEntries(Object.values(LOGINS).map(({ login }) => [login, randomBytes(18).toString('hex')])) };
+    const published = /127\.0\.0\.1:(\d+)/.exec(docker(['port', CONTAINER, '5432/tcp']).out);
+    if (!published) throw new Error('docker port: no loopback port published');
+    s = { container: CONTAINER, port: Number(published[1]), dbPassword, passwords: Object.fromEntries(Object.values(LOGINS).map(({ login }) => [login, randomBytes(18).toString('hex')])) };
     writeFileSync(STATE_FILE, JSON.stringify(s), { mode: 0o600 });
   }
   await waitReady();
   const storageMigrated = storage ? await migrateStorage(s.dbPassword ?? randomBytes(18).toString('hex')) : false;
   const applied = migrate({ upTo });
   ensureLogins(s.passwords);
-  return { container: CONTAINER, port: PORT, storageMigrated, applied };
+  return { container: CONTAINER, port: s.port, storageMigrated, applied };
 }
 
 export function down() {

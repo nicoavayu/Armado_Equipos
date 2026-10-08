@@ -1,5 +1,5 @@
 // COMMERCE-PRODUCTION — the Production DB driver (remote/db-0013.mjs) run against a disposable database of its own
-// (arma2-commerce-production-lab-drv, port 58652) with the REAL catalog SQL and the REAL statements; only the transport
+// (arma2-commerce-production-lab-drv-<checkout tag>, a port Docker picks) with the REAL catalog SQL and the REAL statements; only the transport
 // (psql over the pooler) and the Keychain are replaced. POST_0011 → apply → switch / allowlist → login → refusals →
 // drop-login → rollback → POST_0011.
 //   node --test backend/torneos/commerce-production/db-0013.test.mjs
@@ -12,7 +12,6 @@ import { fileURLToPath } from 'node:url';
 import pg from 'pg';
 
 process.env.COMMERCE_PRODUCTION_LAB_CONTAINER = 'arma2-commerce-production-lab-drv';
-process.env.COMMERCE_PRODUCTION_LAB_PORT = '58652';
 const lab = await import('./lab/pg-lab.mjs');
 const fx = await import('./lab/fixtures.mjs');
 const D = await import('./remote/db-0013.mjs');
@@ -77,7 +76,7 @@ test('the whole operator life cycle on a real database', async () => {
   const login = await run('login', `CREATE TORNEOS PAYMENTS PRODUCTION LOGIN ${P.PRODUCTION_LOGIN} ${D.REF}`);
   assert.equal(login.verdict, 'LOGIN_DONE');
   await assert.rejects(run('login', `CREATE TORNEOS PAYMENTS PRODUCTION LOGIN ${P.PRODUCTION_LOGIN} ${D.REF}`), /ALREADY_PRESENT/);
-  const client = new pg.Client({ connectionString: `postgres://${P.PRODUCTION_LOGIN}:${encodeURIComponent(keychain.dbPassword.read())}@127.0.0.1:58652/postgres` });
+  const client = new pg.Client({ connectionString: `postgres://${P.PRODUCTION_LOGIN}:${encodeURIComponent(keychain.dbPassword.read())}@127.0.0.1:${lab.state().port}/postgres` });
   await client.connect();
   try {
     await client.query('BEGIN');
