@@ -1141,6 +1141,17 @@
   border-color: transparent;
 }
 
+/* A rescheduled match: the previous time, next to the new one in the rail. */
+.rescheduledNote {
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: 10px;
+  color: #f3cd90;
+  background: rgba(132, 79, 9, 0.16);
+  font-size: 13px;
+  line-height: 1.35;
+}
+
 .officialResult {
   display: flex;
   align-items: center;
