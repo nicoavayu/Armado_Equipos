@@ -15,8 +15,10 @@ export default function PlanExperiencePage({ organization: organizationProp = nu
   const competition = useOptionalTorneosCompetition();
   const features = useTorneosFeatures();
   // Same condition as the Estudio Social entry of the navigation (TorneosShell): flag + composition feature.
+  // Logos y escudos: the composition feature that every logo/shield upload surface reads.
   const { comparison, comingSoon } = planComparisonFor({
     socialStudio: torneosFeatureFlags.socialContentGenerator === true && features.social_studio === true,
+    branding: features.branding_assets === true,
   });
   const organization = organizationProp || outlet.organization;
   const season = seasonProp || competition?.activeSeason;
