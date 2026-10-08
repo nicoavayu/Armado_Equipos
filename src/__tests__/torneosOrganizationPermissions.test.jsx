@@ -22,6 +22,8 @@ let mockWorkspace;
 
 jest.mock('../features/torneos/context/TorneosWorkspaceContext', () => ({
   useTorneosWorkspace: () => mockWorkspace,
+  // BrandingAssetField reads the mounted composition's service (BRANDING-V1); the LOCAL service has no upload alias.
+  useOptionalTorneosWorkspace: () => mockWorkspace,
 }));
 
 const organizationFor = (role) => ({

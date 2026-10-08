@@ -31,6 +31,7 @@ import TeamWithdrawalDialog from './TeamWithdrawalDialog';
 import { WorkspaceError, WorkspaceLoading } from './WorkspaceState';
 import styles from './TeamRegistration.module.css';
 import BrandingImage from './BrandingImage';
+import CatalogEntryStrip from './connected/CatalogEntryStrip';
 import { formatCount } from '../domain/countCopy';
 
 // El retiro estructural sólo existe una vez que la competencia tiene el fixture
@@ -205,6 +206,8 @@ export default function TeamsPage() {
                 </Link>
             )}
           </section>
+
+          <CatalogEntryStrip organizationId={organization.id} tournamentId={activeTournament.id} />
 
           <section className={styles.metrics} aria-label="Resumen de inscripciones">
             <article><span>Total</span><strong>{metrics.total}</strong><small>equipos vigentes</small></article>

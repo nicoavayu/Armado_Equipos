@@ -49,7 +49,8 @@ export default function OrganizationVenuesPage() {
     status: 'loading', venues: [], courts: [], error: '', notice: '',
   });
   const [venue, setVenue] = useState(EMPTY_VENUE);
-  const [court, setCourt] = useState({ venueId: '', name: '', sportModality: 'football_7' });
+  // No modality is preselected: a court created with the wrong one can't host the tournament's matches.
+  const [court, setCourt] = useState({ venueId: '', name: '', sportModality: '' });
   const [busy, setBusy] = useState(false);
 
   const canManageVenues = hasCapability(organization, TOURNAMENT_CAPABILITIES.VENUES_CREATE);
@@ -158,8 +159,10 @@ export default function OrganizationVenuesPage() {
                     <h3>{item.name}</h3>
                     <p>{item.address}</p>
                     <small>
-                      {state.courts.filter((value) => value.venueId === item.id).length}
-                      {' canchas · '}
+                      {(() => {
+                        const count = state.courts.filter((value) => value.venueId === item.id).length;
+                        return `${count} ${count === 1 ? 'cancha' : 'canchas'} · `;
+                      })()}
                       {statusLabel(item.status)}
                     </small>
                   </div>
@@ -245,9 +248,11 @@ export default function OrganizationVenuesPage() {
               <label>
                 <span>Modalidad</span>
                 <select
+                  required
                   value={court.sportModality}
                   onChange={(event) => setCourt({ ...court, sportModality: event.target.value })}
                 >
+                  <option value="" disabled>Elegí la modalidad</option>
                   {MODALITIES.map(([code, label]) => (
                     <option key={code} value={code}>{label}</option>
                   ))}

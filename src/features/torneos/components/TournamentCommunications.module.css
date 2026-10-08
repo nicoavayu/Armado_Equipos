@@ -532,3 +532,19 @@ button:disabled {
   border-color: rgba(255, 255, 255, 0.15);
   box-shadow: var(--torneos-cta-shadow);
 }
+
+/* CONNECTED-V1: the Avisos tab of the tournament says where notices arrive and links to the Torneos profile. */
+.preferencesLink {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  min-height: 44px;
+  margin-top: 14px;
+  padding: 0 16px;
+  color: #f7f3ff;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.05);
+  font-weight: 700;
+  text-decoration: none;
+}

@@ -31,6 +31,13 @@
  *                                           opt-in against the real gateway
  *                                           source, and the certification
  *                                           matrix (no database, no network)
+ *       npm run test:torneos:connected    — CONNECTED-V1: the 0009 migration/rollback
+ *                                           pins and the gateway opt-in against the
+ *                                           real gateway source (no DB, no network)
+ *       npm run test:torneos:branding     — BRANDING-V1: the 0010 private bucket and
+ *                                           storage policies, and the gateway's
+ *                                           object route and signed URLs against
+ *                                           the real gateway source (no network)
  *       npm run test:torneos:social:browser — the Estudio Social in real
  *                                           Chromium (CI profile): Social OFF,
  *                                           FREE, PREMIUM in every style, 4:5
@@ -107,7 +114,7 @@ const workflowExecutedScripts = [...workflowDirectives.matchAll(/npm run ([a-z0-
 /** The suites `test:ci` must compose. Removing one from the script fails here. */
 const REQUIRED_IN_TEST_CI = [
   'test:staging:guard', 'test:worker:signer-renewer', 'test:worker:media:ci', 'test:torneos:social',
-  'test:torneos:social:browser',
+  'test:torneos:social:browser', 'test:torneos:connected', 'test:torneos:branding',
 ];
 
 /**

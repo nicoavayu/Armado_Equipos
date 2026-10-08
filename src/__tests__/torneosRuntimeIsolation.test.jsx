@@ -15,7 +15,7 @@ import {
   isPlayerProductRoute,
   isPublicSpecialWebRoute,
 } from '../App';
-import { initNativePushNotifications } from '../hooks/useNativeFeatures';
+import { initNativePushNotifications, peekPendingNativePushRedirect } from '../hooks/useNativeFeatures';
 import { useNotificationRedirect } from '../hooks/useNotificationRedirect';
 import { useRouteScrollReset } from '../hooks/useScrollReset';
 import { loadGoogleMapsScript } from '../services/googleMapsLoader';
@@ -77,6 +77,10 @@ jest.mock('../context/BadgeContext', () => ({
 
 jest.mock('../hooks/useNativeFeatures', () => ({
   initNativePushNotifications: jest.fn().mockResolvedValue(undefined),
+  attachNativePushTapListener: jest.fn().mockResolvedValue(undefined),
+  peekPendingNativePushRedirect: jest.fn(() => null),
+  getNativePushRedirectEventName: () => 'native-push-redirect',
+  refreshGrantedNativePushRegistration: jest.fn().mockResolvedValue({ status: 'web' }),
 }));
 
 jest.mock('../hooks/useNotificationRedirect', () => ({
@@ -122,6 +126,7 @@ describe('Torneos global runtime isolation', () => {
     jest.clearAllMocks();
     loadGoogleMapsScript.mockResolvedValue(undefined);
     initNativePushNotifications.mockResolvedValue(undefined);
+    peekPendingNativePushRedirect.mockReturnValue(null);
     warmLikelyRoutes.mockReturnValue(undefined);
   });
 
@@ -163,6 +168,30 @@ describe('Torneos global runtime isolation', () => {
     expect(warmLikelyRoutes).not.toHaveBeenCalled();
     expect(useNotificationRedirect).not.toHaveBeenCalled();
     expect(useRouteScrollReset).not.toHaveBeenCalled();
+  });
+
+  test('a pending tap on a Core push opens Core from Torneos: the notification wins over where the app was', async () => {
+    peekPendingNativePushRedirect.mockReturnValue({ route: '/partido/42' });
+    render(
+      <MemoryRouter initialEntries={['/torneos/mis-torneos']}>
+        <RuntimeHarness />
+      </MemoryRouter>,
+    );
+    // Core takes over (its own redirect hook consumes the pending tap there).
+    expect(await screen.findByText('/')).toBeInTheDocument();
+    await waitFor(() => expect(useNotificationRedirect).toHaveBeenCalled());
+  });
+
+  test('where Core does not exist, a pending tap never pulls Torneos out of its space', () => {
+    mockNativeRuntime = false;
+    peekPendingNativePushRedirect.mockReturnValue({ route: '/partido/42' });
+    render(
+      <MemoryRouter initialEntries={['/torneos/mis-torneos']}>
+        <RuntimeHarness />
+      </MemoryRouter>,
+    );
+    expect(screen.getByText('/torneos/mis-torneos')).toBeInTheDocument();
+    expect(useNotificationRedirect).not.toHaveBeenCalled();
   });
 
   test('mounts no personal runtime while a browser player URL is redirected', () => {

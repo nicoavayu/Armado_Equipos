@@ -15,8 +15,10 @@ export default function PlanExperiencePage({ organization: organizationProp = nu
   const competition = useOptionalTorneosCompetition();
   const features = useTorneosFeatures();
   // Same condition as the Estudio Social entry of the navigation (TorneosShell): flag + composition feature.
+  // Logos y escudos: the composition feature that every logo/shield upload surface reads.
   const { comparison, comingSoon } = planComparisonFor({
     socialStudio: torneosFeatureFlags.socialContentGenerator === true && features.social_studio === true,
+    branding: features.branding_assets === true,
   });
   const organization = organizationProp || outlet.organization;
   const season = seasonProp || competition?.activeSeason;
@@ -58,7 +60,8 @@ export default function PlanExperiencePage({ organization: organizationProp = nu
       </div>
       <p className={styles.availability}>La compra de Premium todavía no está disponible.</p>
     </section>
-    <section className={styles.upcoming} aria-labelledby="plan-upcoming-title">
+    {/* Once every surface is available there is nothing to announce: no "todavía no están disponibles" over an empty list. */}
+    {comingSoon.length > 0 && <section className={styles.upcoming} aria-labelledby="plan-upcoming-title">
       <div className={styles.sectionHeading}><span>EN PREPARACIÓN</span><h2 id="plan-upcoming-title">Próximamente</h2><p>Estas funciones todavía no están disponibles. Así se van a repartir entre los planes cuando lleguen.</p></div>
       <div className={styles.upcomingList}>
         {comingSoon.map(({ name, summary, free, premium }) => <section key={name} className={styles.upcomingItem} aria-label={name}>
@@ -70,6 +73,6 @@ export default function PlanExperiencePage({ organization: organizationProp = nu
           </div>}
         </section>)}
       </div>
-    </section>
+    </section>}
   </div>;
 }

@@ -1238,6 +1238,14 @@
   }
 }
 
+/* A player row needs ~540px; beside the 250px requirements panel the roster column is narrower than that until the
+   viewport is wide enough, so the panel goes below the roster instead of covering the rows' status and actions. */
+@media (max-width: 1180px) {
+  .rosterLayout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 @media (max-width: 1000px) {
   .entryCard {
     grid-template-columns: 1fr auto;
@@ -1515,6 +1523,21 @@
 }
 
 /* OFFICIALIZATION-V1 (smoke): por qué todavía no se puede presentar el plantel. */
+.submitMissing {
+  display: grid;
+  gap: 6px;
+  margin: 10px 0 0;
+  padding: 10px 12px;
+  color: rgba(255, 255, 255, 0.86);
+  background: rgba(255, 196, 107, 0.08);
+  border: 1px solid rgba(255, 196, 107, 0.26);
+  border-radius: 12px;
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+.submitMissing ul { margin: 0; padding-left: 18px; color: #ffc46b; }
+.submitMissing p { margin: 0; color: rgba(255, 255, 255, 0.72); }
+
 .submitHint {
   margin: 8px 0 0;
   color: rgba(255, 255, 255, 0.62);

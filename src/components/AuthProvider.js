@@ -1,12 +1,12 @@
 import logger from '../utils/logger';
-import React, { useState, useEffect, createContext, useContext, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useContext, useCallback, useRef } from 'react';
 import { supabase, getProfile, createOrUpdateProfile } from '../supabase';
 import AppLoadingScreen from './AppLoadingScreen';
 import { clearAuthFlowIfSessionSettled } from '../services/auth/socialAuth';
 import { clearSentryUser, setSentryUser } from '../utils/monitoring/sentry';
 import { withTimeout } from '../utils/promiseTimeout';
 
-const AuthContext = createContext();
+import { AuthContext } from './AuthContext';
 let authProviderInstanceCounter = 0;
 
 const LOCAL_EDIT_MODE = process.env.NODE_ENV === 'development' && process.env.REACT_APP_LOCAL_EDIT_MODE !== 'false';
@@ -102,6 +102,7 @@ export const useAuth = () => {
   }
   return context;
 };
+export { useOptionalAuth } from './AuthContext';
 
 const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);

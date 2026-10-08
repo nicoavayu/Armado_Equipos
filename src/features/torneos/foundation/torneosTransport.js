@@ -43,6 +43,10 @@ import { SEASON_CHECKOUT_PATH } from './stagingV1CommerceScope';
 export const EXCHANGE_PATH = '/exchange';
 export const REST_PATH = '/torneos/rest/v1';
 export const PUBLIC_RPC_PATH = '/torneos/public/v1/rpc';
+// BRANDING-V1: one versioned object of the branding bucket (gateway object route).
+export const BRANDING_OBJECT_ROUTE = '/torneos/branding/v1/object';
+const BRANDING_UPLOAD_TYPES = Object.freeze({ jpg: 'image/jpeg', png: 'image/png', webp: 'image/webp' });
+const BRANDING_UPLOAD_MAX_BYTES = 2 * 1024 * 1024;
 export const DEFAULT_REQUEST_TIMEOUT_MS = 10_000;
 // The gateway gives the checkout up to 4 s (DB) + 8 s (payments) after its own checks.
 export const COMMERCE_REQUEST_TIMEOUT_MS = 20_000;
@@ -248,7 +252,8 @@ export function createTorneosTransport({
   }
 
   async function send(method, path, {
-    body = undefined, headers = {}, signal = undefined, attempt = 0, timeoutMs = requestTimeoutMs, epoch = identity,
+    body = undefined, rawBody = undefined, headers = {}, signal = undefined, attempt = 0, timeoutMs = requestTimeoutMs,
+    epoch = identity,
   } = {}) {
     const token = await bearer({ force: attempt > 0, epoch });
     const { signal: timed, release } = withTimeout(timeoutMs, signal);
@@ -262,7 +267,8 @@ export function createTorneosTransport({
           ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}),
           ...headers,
         },
-        body: body !== undefined ? JSON.stringify(body) : undefined,
+        // A raw body (BRANDING-V1 image) travels as is, with the Content-Type the caller fixed.
+        body: rawBody !== undefined ? rawBody : (body !== undefined ? JSON.stringify(body) : undefined),
         credentials: 'omit',
         cache: 'no-store',
         redirect: 'error',
@@ -285,7 +291,7 @@ export function createTorneosTransport({
     if (status === 401) {
       clear();
       // One silent renewal: the bearer may simply have aged past the gateway's TTL.
-      if (attempt === 0) return send(method, path, { body, headers, signal, timeoutMs, attempt: 1, epoch });
+      if (attempt === 0) return send(method, path, { body, rawBody, headers, signal, timeoutMs, attempt: 1, epoch });
       throw new TorneosBoundaryError('TORNEOS_SESSION_INVALID', { status, gatewayError });
     }
     if (status === 503) {
@@ -344,6 +350,24 @@ export function createTorneosTransport({
         throw new TorneosBoundaryError('TORNEOS_INVALID_REQUEST');
       }
       const { json } = await send('POST', path, { body, signal, timeoutMs });
+      return json;
+    },
+    // BRANDING-V1: the client validated the path; the image must match its extension and the bucket limit.
+    async brandingObject(method, path, file = undefined, { signal } = {}) {
+      const extension = String(path).slice(String(path).lastIndexOf('.') + 1);
+      if (method === 'POST') {
+        const type = BRANDING_UPLOAD_TYPES[extension];
+        if (!file || typeof file.size !== 'number' || file.size <= 0 || file.size > BRANDING_UPLOAD_MAX_BYTES
+          || file.type !== type) {
+          throw new TorneosBoundaryError('TORNEOS_INVALID_REQUEST');
+        }
+        const { json } = await send('POST', `${BRANDING_OBJECT_ROUTE}/${path}`, {
+          rawBody: file, headers: { 'Content-Type': type }, signal, timeoutMs: COMMERCE_REQUEST_TIMEOUT_MS,
+        });
+        return json;
+      }
+      if (method !== 'DELETE') throw new TorneosBoundaryError('TORNEOS_INVALID_REQUEST');
+      const { json } = await send('DELETE', `${BRANDING_OBJECT_ROUTE}/${path}`, { signal });
       return json;
     },
     clear,

@@ -53,6 +53,12 @@ const OFF = Object.freeze({
   team_visual_policy: false,
   media: false,
   social_studio: false,         // the Estudio Social: only the SOCIAL-V1 overlay below turns it on
+  // connected product: only the CONNECTED-V1 overlay below turns them on
+  torneos_profile: false,       // Mi perfil de Torneos (nombre de presentación + avisos que la bandeja cumple)
+  torneos_inbox: false,         // bandeja de actividad de Torneos + contador de la campana
+  catalog_management: false,    // convocatoria, cupos y bandeja de solicitudes del organizador
+  tournament_applications: false, // solicitud de inscripción con equipo autorizado + seguimiento
+  tournament_catalog: false,    // Explorar torneos (catálogo público)
 });
 
 export const stagingV1Features = Object.freeze({ ...STAGING_V1_ON, ...COMPETITION_V1_ON, ...OFFICIALIZATION_V1_ON, ...OFF });
@@ -90,11 +96,40 @@ export const stagingV1SocialOverlay = Object.freeze({
 const planReadSocialFeatures = Object.freeze({ ...planReadFeatures, ...stagingV1SocialOverlay });
 const billingTestSocialFeatures = Object.freeze({ ...billingTestFeatures, ...stagingV1SocialOverlay });
 
-export function stagingV1FeaturesFor(billingMode, { planRead = false, social = false } = {}) {
+// CONNECTED-V1: the connected product (foundation/config.js resolveTorneosConnectedProduct = hybrid + the explicit
+// opt-in that matches the gateway's TORNEOS_CONNECTED_MODE=on). Independent of plan, billing and Social.
+export const stagingV1ConnectedOverlay = Object.freeze({
+  torneos_profile: true,
+  torneos_inbox: true,
+  catalog_management: true,
+  tournament_applications: true,
+  tournament_catalog: true,
+});
+
+// BRANDING-V1: logo / shield upload and the organization's branding context (foundation/config.js
+// resolveTorneosBranding = hybrid + the opt-in that matches the gateway's TORNEOS_BRANDING_MODE=on). Only branding:
+// portraits, team photos, the media pipeline and the visual policy stay off.
+export const stagingV1BrandingOverlay = Object.freeze({
+  branding_assets: true,
+});
+
+function baseFeaturesFor(billingMode, { planRead = false, social = false } = {}) {
   const mode = typeof billingMode === 'string' ? billingMode : billingMode?.mode;
   if (mode === 'test') return social === true ? billingTestSocialFeatures : billingTestFeatures;
   if (planRead !== true) return stagingV1Features;
   return social === true ? planReadSocialFeatures : planReadFeatures;
+}
+
+export function stagingV1FeaturesFor(billingMode, {
+  planRead = false, social = false, connected = false, branding = false,
+} = {}) {
+  const base = baseFeaturesFor(billingMode, { planRead, social });
+  if (connected !== true && branding !== true) return base;
+  return Object.freeze({
+    ...base,
+    ...(connected === true ? stagingV1ConnectedOverlay : {}),
+    ...(branding === true ? stagingV1BrandingOverlay : {}),
+  });
 }
 
 // The legacy composition (single-project LOCAL QA) keeps every surface on.

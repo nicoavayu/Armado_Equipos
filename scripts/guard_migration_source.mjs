@@ -49,6 +49,13 @@ const expectedCanonicalMigrations = [
   '20260901120000_social_studio_theme_export_contract.sql',
   '20260914120000_torneos_core_contract_v1.sql',
   '20260915120000_torneos_core_contract_v1_1_session.sql',
+  // CONNECTED-V1 (#182): the LOCAL single-project twin of backend/torneos 0009 and the Core contract v1.2 (my_teams).
+  '20261006120000_torneos_connected_product_v1.sql',
+  '20261007120000_torneos_core_contract_v1_2_my_teams.sql',
+  // #182 closure: the account's Core push preference (get/set) enforced at the push queue.
+  '20261008120000_core_push_preference_v1.sql',
+  // Free-plan capacity: 7-day retention of cron's run history and the push scheduler's tick log (capped daily run).
+  '20261009120000_core_ops_log_retention.sql',
 ];
 
 const exitWithError = (message) => {

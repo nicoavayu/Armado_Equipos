@@ -41,8 +41,10 @@ name: Prelaunch Quality Gate
 on:
   push:
     branches: [main, prelaunch-hardening, epic/arma2-torneos]
+  # Stacked PRs whose base is a local integration of open PRs (e.g. #182 on
+  # claude/torneos-ux-integration-178-181) get the same gate on their real head.
   pull_request:
-    branches: [main, epic/arma2-torneos]
+    branches: [main, epic/arma2-torneos, 'claude/torneos-ux-integration-*']
 
 jobs:
   quality:

@@ -339,11 +339,14 @@ describe('hybrid composition — full competition through the adapter; OFF surfa
     expect(screen.queryByText(/todavía no está habilitada/)).toBeNull();
   });
 
-  test('landing — "Mis partidos" and "Comunicados" are offered; mis-torneos links to the participant hub', async () => {
+  test('landing — "Mis partidos" and "Avisos" are offered; mis-torneos links to the participant hub', async () => {
     renderPath('/torneos');
-    await screen.findByRole('link', { name: /Mis torneos/ });
+    await screen.findByText('Mi actividad');
+    expect(screen.getAllByRole('link', { name: /Mis torneos/ }).length).toBeGreaterThan(0);
     expect(screen.getByRole('link', { name: /Mis partidos/ })).toBeTruthy();
-    expect(screen.getByRole('link', { name: /Comunicados/ })).toBeTruthy();
+    expect(screen.getAllByRole('link', { name: /Avisos/ }).length).toBeGreaterThan(0);
+    // Without REACT_APP_TORNEOS_CONNECTED_MODE the connected product does not exist: no Explorar entry.
+    expect(screen.queryByRole('link', { name: /Explorar torneos/ })).toBeNull();
     renderPath('/torneos/mis-torneos');
     await screen.findAllByText('Liga Híbrida');
     expect(screen.queryByText(/Portal del participante no disponible/)).toBeNull();

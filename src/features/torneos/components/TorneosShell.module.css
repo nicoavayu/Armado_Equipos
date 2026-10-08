@@ -489,6 +489,12 @@
   min-height: 64px;
 }
 
+/* Personal screens: on a wide layout the sidebar already says where you are, so the topbar is not drawn; on a phone
+   it only appears for someone who manages organizations (it carries their switcher). */
+.topbarPersonal {
+  display: none;
+}
+
 .contextBackLink {
   min-height: 44px;
   display: inline-flex;
@@ -2155,6 +2161,10 @@
     min-height: 68px;
     justify-content: stretch;
     padding: 8px 14px;
+  }
+
+  .topbarPersonal {
+    display: flex;
   }
 
   .shellWithoutGlobalHeader .topbar {

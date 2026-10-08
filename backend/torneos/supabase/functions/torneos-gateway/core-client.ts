@@ -14,9 +14,12 @@
 import { CORE_PRODUCTION_REF, PRODUCTION, TORNEOS_DATA_REF, refsOf } from "./topology.ts"
 import schemasDoc from "./schemas.json" with { type: "json" }
 import sessionDoc from "./session.schema.json" with { type: "json" }
+import myTeamsDoc from "./my-teams.schema.json" with { type: "json" }
 
 type Schema = Record<string, any>
-const SCHEMAS: Record<string, Schema> = { ...(schemasDoc as any).$defs, ...(sessionDoc as any).$defs }
+const SCHEMAS: Record<string, Schema> = {
+  ...(schemasDoc as any).$defs, ...(sessionDoc as any).$defs, ...(myTeamsDoc as any).$defs,
+}
 
 export class Denied extends Error {
   status: number
@@ -86,6 +89,8 @@ export const ROUTES: Record<string, string> = {
   directory_teams: "/v1/directory",
   team_snapshot: "/v1/team-snapshot",
   session: "/v1/session",
+  // CONNECTED-V1 (Core contract v1.2): the applicant's own teams and whether Core lets them register each one.
+  my_teams: "/v1/my-teams",
 }
 
 const encoder = new TextEncoder()
@@ -170,6 +175,7 @@ export class CoreClient {
       const result = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(raw))
       const schema = ({
         "/v1/verified-email": "verifiedEmailResponse", "/v1/team-snapshot": "teamSnapshotResponse", "/v1/session": "sessionResponse",
+        "/v1/my-teams": "myTeamsResponse",
         "/v1/directory": request.kind === "players" ? "playersResponse" : "teamsResponse",
       } as Record<string, string>)[path]
       validate(result, schema)

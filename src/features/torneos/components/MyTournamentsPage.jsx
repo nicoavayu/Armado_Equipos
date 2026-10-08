@@ -16,6 +16,8 @@ import { Link } from 'react-router-dom';
 import { useTorneosWorkspace } from '../context/TorneosWorkspaceContext';
 import { useTorneosFeature } from '../context/TorneosFeaturesContext';
 import { getRoleLabel } from '../domain/rolePresentation';
+import { useTorneosFeatures } from '../context/TorneosFeaturesContext';
+import MyRegistrationsSection from './connected/MyRegistrationsSection';
 import styles from './ParticipantHub.module.css';
 
 const STATUS_LABELS = {
@@ -117,8 +119,13 @@ function TournamentSkeleton() {
 }
 
 export default function MyTournamentsPage() {
-  const { service } = useTorneosWorkspace();
+  const { service, availableOrganizations } = useTorneosWorkspace();
+  // CONNECTED-V1: «Mis torneos» is participation (approved entries you represent or play in), paged by the server.
+  // Managing a tournament lives under Gestionar. Without the connected product, the earlier list stays as it was.
+  const participationOnly = typeof service?.loadMyParticipations === 'function';
+  const managesOrganizations = (availableOrganizations || []).length > 0;
   const hubEnabled = useTorneosFeature('participant_hub');
+  const features = useTorneosFeatures();
   const requestRef = useRef(0);
   const [state, setState] = useState({
     status: 'loading',
@@ -137,7 +144,9 @@ export default function MyTournamentsPage() {
       error: '',
     }));
     try {
-      const payload = await service.loadMyTournaments({ limit: 18, offset });
+      const payload = participationOnly
+        ? await service.loadMyParticipations({ limit: 18, offset })
+        : await service.loadMyTournaments({ limit: 18, offset });
       if (requestRef.current !== requestId) return;
       setState((current) => ({
         status: 'ready',
@@ -156,7 +165,7 @@ export default function MyTournamentsPage() {
         error: error?.message || 'No pudimos cargar tus torneos.',
       });
     }
-  }, [service]);
+  }, [participationOnly, service]);
 
   useEffect(() => {
     load();
@@ -167,7 +176,7 @@ export default function MyTournamentsPage() {
     <div className={styles.hubPage}>
       <header className={styles.myTournamentsHero}>
         <div>
-          <span className={styles.hubKicker}><ShieldCheck size={15} /> Experiencia autenticada</span>
+          <span className={styles.hubKicker}><ShieldCheck size={15} /> Tus competencias</span>
           <h1>Mis torneos</h1>
           <p>
             Tu calendario competitivo, tu equipo y cada dato oficial,
@@ -199,15 +208,27 @@ export default function MyTournamentsPage() {
         </section>
       )}
 
+      {/* Requests are not tournaments: they live in their own section, above and apart. */}
+      <MyRegistrationsSection />
+
+      {participationOnly && managesOrganizations && (
+        <p className={styles.manageHint}>
+          Los torneos que organizás están en <Link to="/torneos?vista=gestionar">Gestionar</Link>.
+        </p>
+      )}
+
       {state.status === 'ready' && !state.items.length && (
         <section className={styles.hubState}>
           <Trophy size={31} />
-          <h2>Todavía no tenés torneos vinculados</h2>
+          <h2>Todavía no tenés torneos confirmados</h2>
           <p>
-            Cuando una organización te agregue como jugador, capitán,
-            delegado o miembro, aparecerá acá.
+            {participationOnly
+              ? 'Aparecen cuando la organización aprueba la inscripción de tu equipo y vos estás en su plantel o sos su responsable.'
+              : 'Aparecen cuando la organización aprueba la inscripción de tu equipo y vos estás en su plantel o sos su responsable, o cuando una organización te suma como miembro.'}
           </p>
-          <Link to="/torneos">Explorar tus espacios</Link>
+          {features.tournament_catalog !== false
+            ? <Link to="/torneos/explorar">Explorar torneos</Link>
+            : <Link to="/torneos">Volver al inicio</Link>}
         </section>
       )}
 

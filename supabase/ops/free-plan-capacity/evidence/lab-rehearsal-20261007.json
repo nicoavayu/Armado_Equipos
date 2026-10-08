@@ -1,0 +1,194 @@
+{
+ "generated_at": "2026-10-07T03:15:08.128875+00:00",
+ "image": "public.ecr.aws/supabase/postgres:17.6.1.143",
+ "network": "none",
+ "volumes": "Production 2026-10-07: cron 1,143,332 rows; scheduler runs 296,343; delivery log 16 live rows with bloated indexes",
+ "initial": {
+  "wal_lsn": "0/38341470",
+  "cron_jobs": [
+   {
+    "name": "lab_delivery",
+    "active": true,
+    "schedule": "1 seconds"
+   },
+   {
+    "name": "lab_push_tick",
+    "active": true,
+    "schedule": "1 seconds"
+   }
+  ],
+  "privileges": {
+   "cron_insert": true,
+   "ndl_maintain": true,
+   "cron_truncate": true,
+   "runs_truncate": true
+  },
+  "database_bytes": 454257811,
+  "cron_job_run_details": {
+   "rows": 1143368,
+   "bytes": 243621888,
+   "oldest": "2025-10-08T03:13:39.791784+00:00",
+   "last_7d": 21736
+  },
+  "notification_delivery_log": {
+   "heap": 8192,
+   "rows": 17,
+   "indexes": 83501056
+  },
+  "push_sender_scheduler_runs": {
+   "rows": 296361,
+   "bytes": 118620160,
+   "oldest": "2026-03-13T03:14:25.820513+00:00",
+   "last_7d": 9786,
+   "skipped_no_work": 290435
+  }
+ },
+ "steps": [
+  {
+   "step": "reindex",
+   "wall_ms": 229,
+   "max_push_tick_gap_ms": 1025,
+   "max_cron_record_gap_ms": 983,
+   "wal_bytes": 210464,
+   "database_bytes_before": 454257811,
+   "database_bytes_after": 370920595,
+   "cron_rows": [
+    1143370,
+    1143380
+   ],
+   "scheduler_rows": [
+    296362,
+    296367
+   ],
+   "delivery_log_index_bytes": [
+    83501056,
+    131072
+   ]
+  },
+  {
+   "step": "retention_migration",
+   "wall_ms": 465,
+   "max_push_tick_gap_ms": 1153,
+   "max_cron_record_gap_ms": 1073,
+   "wal_bytes": 110000,
+   "database_bytes_before": 370920595,
+   "database_bytes_after": 370920595,
+   "cron_rows": [
+    1143382,
+    1143393
+   ],
+   "scheduler_rows": [
+    296368,
+    296373
+   ],
+   "delivery_log_index_bytes": [
+    131072,
+    131072
+   ]
+  },
+  {
+   "step": "retention_first_run_on_full_backlog",
+   "wall_ms": 1064,
+   "max_push_tick_gap_ms": 1061,
+   "max_cron_record_gap_ms": 904,
+   "wal_bytes": 11908456,
+   "database_bytes_before": 370920595,
+   "database_bytes_after": 370928787,
+   "cron_rows": [
+    1143396,
+    1123408
+   ],
+   "scheduler_rows": [
+    296375,
+    276381
+   ],
+   "delivery_log_index_bytes": [
+    131072,
+    131072
+   ]
+  },
+  {
+   "step": "compact",
+   "wall_ms": 907,
+   "max_push_tick_gap_ms": 1082,
+   "max_cron_record_gap_ms": 1081,
+   "wal_bytes": 11782496,
+   "database_bytes_before": 370928787,
+   "database_bytes_after": 17312915,
+   "cron_rows": [
+    1123411,
+    21789
+   ],
+   "scheduler_rows": [
+    276382,
+    9813
+   ],
+   "delivery_log_index_bytes": [
+    131072,
+    131072
+   ]
+  }
+ ],
+ "retention_run_after_compaction": {
+  "cutoff": "2026-09-30T03:15:07.193567+00:00",
+  "cron_job_run_details": 0,
+  "push_sender_scheduler_runs": 0
+ },
+ "retention_function_acl": {
+  "anon": false,
+  "authenticated": false,
+  "scheduled": "41 3 * * *",
+  "reindex_scheduled": "11 4 1 * *",
+  "reindex_command_ran": true
+ },
+ "final": {
+  "wal_lsn": "0/39A5DE28",
+  "cron_jobs": [
+   {
+    "name": "lab_delivery",
+    "active": true,
+    "schedule": "1 seconds"
+   },
+   {
+    "name": "lab_push_tick",
+    "active": true,
+    "schedule": "1 seconds"
+   },
+   {
+    "name": "ops_delivery_log_reindex",
+    "active": true,
+    "schedule": "11 4 1 * *"
+   },
+   {
+    "name": "ops_log_retention_scheduler",
+    "active": true,
+    "schedule": "41 3 * * *"
+   }
+  ],
+  "privileges": {
+   "cron_insert": true,
+   "ndl_maintain": true,
+   "cron_truncate": true,
+   "runs_truncate": true
+  },
+  "database_bytes": 17329299,
+  "cron_job_run_details": {
+   "rows": 21791,
+   "bytes": 4874240,
+   "oldest": "2026-09-30T03:15:27.291784+00:00",
+   "last_7d": 21791
+  },
+  "notification_delivery_log": {
+   "heap": 8192,
+   "rows": 17,
+   "indexes": 131072
+  },
+  "push_sender_scheduler_runs": {
+   "rows": 9814,
+   "bytes": 3702784,
+   "oldest": "2026-09-30T03:15:10.820513+00:00",
+   "last_7d": 9814,
+   "skipped_no_work": 9619
+  }
+ }
+}

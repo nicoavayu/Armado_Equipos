@@ -1,7 +1,7 @@
 import logger from './utils/logger';
 // import './HomeStyleKit.css'; // Removed in Tailwind migration
 import React, { lazy, Suspense, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useParams, Outlet } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useNavigate, useParams, Outlet } from 'react-router-dom';
 import { Capacitor } from '@capacitor/core';
 import { App as CapacitorApp } from '@capacitor/app';
 import { Browser } from '@capacitor/browser';
@@ -18,7 +18,13 @@ import MainLayout from './components/MainLayout';
 import PublicVotingRouteIsolation from './components/PublicVotingRouteIsolation';
 import TorneosFeatureGate from './features/torneos/TorneosFeatureGate';
 import { isolatedSsoEnabled } from './features/torneos/isolated/config';
-import { initNativePushNotifications } from './hooks/useNativeFeatures';
+import {
+  attachNativePushTapListener,
+  getNativePushRedirectEventName,
+  initNativePushNotifications,
+  peekPendingNativePushRedirect,
+  refreshGrantedNativePushRegistration,
+} from './hooks/useNativeFeatures';
 import { useNotificationRedirect } from './hooks/useNotificationRedirect';
 import { useRouteScrollReset } from './hooks/useScrollReset';
 import { setAuthReturnTo } from './utils/authReturnTo';
@@ -79,6 +85,7 @@ const AdminPanelPage = lazy(() => import('./pages/AdminPanelPage'));
 const PartidoInvitacion = lazy(() => import('./pages/PartidoInvitacion'));
 const IsolatedTorneosPage = lazy(() => import('./features/torneos/isolated/IsolatedTorneosPage'));
 const PublicTournamentPage = lazy(() => import('./features/torneos/components/PublicTournamentRoute'));
+const PublicTournamentCatalog = lazy(() => import('./features/torneos/components/connected/PublicCatalogRoute'));
 const QaRoleSwitcherPage = lazy(() => import('./features/qa/QaRoleSwitcherPage'));
 const QaTournamentReviewMapPage = lazy(() => import('./features/qa/QaTournamentReviewMapPage'));
 const SocialStudioBaseGalleryPage = lazy(
@@ -114,6 +121,7 @@ export default function App() {
         <AuthProvider>
           <Router>
             <SpaceNavigationProvider>
+              <NativePushTapBootstrap />
               <RouteScopedProviders>
                 <PersonalRuntimeEffects />
                 <ScopedPublicVotingRouteIsolation>
@@ -203,6 +211,11 @@ export default function App() {
                   <Route path="/votar-equipos" element={
                     <Suspense fallback={<AppLoadingScreen />}>
                       <VotarEquiposPage />
+                    </Suspense>
+                  } />
+                  <Route path="/torneos/publico" element={
+                    <Suspense fallback={<AppLoadingScreen />}>
+                      <PublicTournamentCatalog />
                     </Suspense>
                   } />
                   <Route path="/torneos/publico/:publicSlug" element={
@@ -403,9 +416,17 @@ export function RouteScopedProviders({ children }) {
 
 export function PersonalRuntimeEffects() {
   const location = useLocation();
+  // Inside Torneos none of Core's runtime runs; only a pending tap on a Core push is honoured (see the bridge).
+  if (isTorneosNamespace(location.pathname)) {
+    return (
+      <>
+        <CorePushFromTorneosBridge />
+        <CorePushRegistrationKeeper />
+      </>
+    );
+  }
   if (
-    isTorneosNamespace(location.pathname)
-    || isBlockedWebPlayerRoute(location.pathname)
+    isBlockedWebPlayerRoute(location.pathname)
     || isIsolatedWebSpecialRoute(location.pathname)
   ) {
     return null;
@@ -456,6 +477,64 @@ function GoogleMapsScriptBootstrap() {
     return undefined;
   }, []);
 
+  return null;
+}
+
+// The tap listener is the one push piece that runs everywhere: a notification opens its destination even when the app
+// was restored into Torneos. Permission, token registration and foreground notices stay in Core's NativePushBootstrap.
+export function NativePushTapBootstrap() {
+  useEffect(() => {
+    attachNativePushTapListener().catch((error) => {
+      logger.warn('[PUSH] NativePushTapBootstrap failed', error);
+    });
+  }, []);
+  return null;
+}
+
+// A tap on a Core push while the person is in Torneos: the notification's destination wins over where they were, so
+// go to Core, whose own redirect hook consumes the pending tap (actionability checks included). Nothing from Core is
+// mounted here, and where Core does not exist (web Production) nothing happens.
+export function CorePushFromTorneosBridge({ coreAvailable = isPersonalSpaceAvailable() }) {
+  const navigate = useNavigate();
+  useEffect(() => {
+    if (!coreAvailable) return undefined;
+    const openInCore = () => {
+      const pending = peekPendingNativePushRedirect();
+      if (!pending || pending.route.startsWith('/torneos')) return;
+      navigate('/');
+    };
+    openInCore();
+    const eventName = getNativePushRedirectEventName();
+    window.addEventListener(eventName, openInCore);
+    return () => window.removeEventListener(eventName, openInCore);
+  }, [coreAvailable, navigate]);
+  return null;
+}
+
+// While the app runs in Torneos, Arma2's push keeps working for whoever already allowed it in Arma2: the device's
+// registration is refreshed on entering Torneos, on every account change and when the app comes back to the front
+// (a rotated token reaches the account). Torneos never asks for the permission; without it this does nothing.
+export function CorePushRegistrationKeeper({ coreAvailable = isPersonalSpaceAvailable() }) {
+  const { user } = useAuth();
+  const userId = user?.id || null;
+  useEffect(() => {
+    if (!coreAvailable || !userId || !Capacitor.isNativePlatform()) return undefined;
+    const refresh = () => {
+      refreshGrantedNativePushRegistration({ source: 'torneos_runtime' }).catch((error) => {
+        logger.warn('[PUSH] Torneos registration refresh failed', error);
+      });
+    };
+    refresh();
+    let handle = null;
+    let cancelled = false;
+    CapacitorApp.addListener('appStateChange', ({ isActive }) => { if (isActive) refresh(); })
+      .then((listener) => { if (cancelled) listener.remove(); else handle = listener; })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+      handle?.remove?.();
+    };
+  }, [coreAvailable, userId]);
   return null;
 }
 
@@ -761,6 +840,12 @@ export function AppAuthWrapper() {
   }
 
   if (!user) {
+    // Explorar torneos is public: a visitor without a session browses the public catalog (and a call's public page)
+    // instead of being asked to sign in. Requesting a place stays behind the login below.
+    const publicCatalog = /^\/torneos\/explorar(?:\/([a-z0-9-]+))?\/?$/i.exec(location.pathname);
+    if (publicCatalog) {
+      return <Navigate to={publicCatalog[1] ? `/torneos/publico/${publicCatalog[1]}` : `/torneos/publico${location.search}`} replace />;
+    }
     const returnTo = `${location.pathname}${location.search}${location.hash}`;
     setAuthReturnTo(returnTo);
     logger.info('[AUTH] app_auth_wrapper_redirect_login', {

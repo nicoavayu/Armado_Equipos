@@ -3,6 +3,7 @@ import { Capacitor } from '@capacitor/core';
 import { App as CapacitorApp } from '@capacitor/app';
 import { supabase } from '../supabase';
 import { useAuth } from '../components/AuthProvider';
+import { publishCoreUnreadSnapshot } from '../features/space-navigation/crossProductUnread';
 import { flushPendingPushToken, getPushTokenSyncState } from '../services/pushTokenService';
 import { handleError } from '../lib/errorHandler';
 import logger from '../utils/logger';
@@ -1060,6 +1061,8 @@ export const NotificationProvider = ({ children }) => {
       matches: matchInvites + matchUpdates + matchKicked + teamInvites + captainTransfers + matchJoinRequests + matchJoinApproved + callToVote + surveyStarts + postMatchSurveys + surveyReminders + surveyResults + awardsReady + awardWon + surveyFinished + noShowPenalty + noShowRecovery + challengeAccepted + teamMatchCreated + challengeSquadOpen,
       total: unread.length,
     };
+    // The space selector's signal in Torneos starts from Core's exact total (in memory, this account, this session).
+    publishCoreUnreadSnapshot(currentUserId, next.total);
     // Keep the previous object when counts are identical so consumers
     // (TabBar, bell, Home) don't re-render on every background refresh.
     setUnreadCount((prev) => (

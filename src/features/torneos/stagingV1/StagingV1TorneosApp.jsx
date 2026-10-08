@@ -28,6 +28,9 @@ import { stagingV1FeaturesFor } from './stagingV1Features';
 // commercial aliases and disabled commerce. `planRead` independently preserves
 // the certified entitlement reads. `social` (SOCIAL-V1, resolved by the gate: hybrid + PLAN READ + the
 // production-eligible flag) adds the Estudio Social feature and its three aliases, together or not at all.
+// `connected` (CONNECTED-V1, resolved by the gate: hybrid + REACT_APP_TORNEOS_CONNECTED_MODE=on) adds the connected
+// product's features and aliases, together or not at all. `branding` (BRANDING-V1: hybrid +
+// REACT_APP_TORNEOS_BRANDING_MODE=on) adds logo/shield upload and the branding context, together or not at all.
 export default function StagingV1TorneosApp({
   gatewayUrl,
   service = null,
@@ -35,8 +38,12 @@ export default function StagingV1TorneosApp({
   billingMode = 'off',
   planRead = false,
   social = false,
+  connected = false,
+  branding = false,
   checkoutRedirect = null,
 }) {
+  const connectedEnabled = connected === true;
+  const brandingEnabled = branding === true;
   const socialEnabled = social === true && planRead === true;
   const billing = (typeof billingMode === 'string' ? billingMode : billingMode?.mode) === 'test';
   const [runtime, setRuntime] = useState(() => (service ? { transport: null, service } : null));
@@ -52,12 +59,14 @@ export default function StagingV1TorneosApp({
       getCoreAccessToken: bridge.getCoreAccessToken,
       onCoreAuthChange: bridge.onCoreAuthChange,
     });
-    setRuntime({ transport, service: createStagingV1WorkspaceService({ transport, commerce: billing, planRead, social: socialEnabled }) });
+    setRuntime({ transport, service: createStagingV1WorkspaceService({
+      transport, commerce: billing, planRead, social: socialEnabled, connected: connectedEnabled, branding: brandingEnabled,
+    }) });
     return () => {
       transport.dispose();
       setRuntime((current) => (current?.transport === transport ? null : current));
     };
-  }, [billing, gatewayUrl, service, planRead, socialEnabled]);
+  }, [billing, gatewayUrl, service, planRead, socialEnabled, connectedEnabled, brandingEnabled]);
 
   // Keyed on the service itself so the providers keep one identity per service.
   const runtimeService = runtime?.service || null;
@@ -73,7 +82,9 @@ export default function StagingV1TorneosApp({
   if (!composition) return <AppLoadingScreen />;
 
   return (
-    <TorneosFeaturesProvider features={features || stagingV1FeaturesFor(billing ? 'test' : 'off', { planRead, social: socialEnabled })}>
+    <TorneosFeaturesProvider features={features || stagingV1FeaturesFor(billing ? 'test' : 'off', {
+      planRead, social: socialEnabled, connected: connectedEnabled, branding: brandingEnabled,
+    })}>
       <TorneosCommerceProvider commerce={composition.commerce}>
         <TorneosWorkspaceProvider service={composition.workspaceService}>
           <TorneosShell />
