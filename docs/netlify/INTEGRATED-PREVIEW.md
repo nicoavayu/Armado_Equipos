@@ -10,7 +10,7 @@
 | Frente | PR y head |
 | --- | --- |
 | Base: Torneos + Galería + Premium | #190 `fa0f82cb`, que trae #189 `dba47fce` y #182 `7d435472` (piloto: programación, 0015, avisos 0016) y #178–#181 |
-| Core | #187 `abd9e8f2` (con #183 y #186), #184 `dadc7c19`, #185 `64de0d89`, #193 `4a5a9179` (privacidad: 135000–138000 y RUNBOOK-193) |
+| Core | #187 `abd9e8f2` (con #183 y #186), #184 `dadc7c19`, #185 `64de0d89`, #193 `733c99b3` (privacidad: 135000–138000 y RUNBOOK-193) |
 | Netlify | #191 `9c40146d` |
 
 Conflictos resueltos en la integración:
