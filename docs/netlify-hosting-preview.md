@@ -29,8 +29,9 @@ as part of this deployment.
 
 ## Checks
 
-Run `node --test scripts/netlify/hosting.test.mjs server/__tests__/privateWebAccess.test.mjs`
-for the Netlify transport and original access policy, then `npm run lint` and
+Run `npm run test:netlify:hosting` for the Netlify transport (it is part of `test:ci`), and
+`npm run test:netlify:vercel-policy` for the original access policy: that one imports `middleware.ts`
+and needs Node 23+ (type stripping), so it stays a local check; CI runs Node 20. Then `npm run lint` and
 `node scripts/netlify/prepare.mjs && npm run build`.
 
 Before declaring hosting ready, check the deployed root/private routes remain
