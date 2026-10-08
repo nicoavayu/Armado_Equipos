@@ -97,8 +97,19 @@ describe('MEDIA-V1 · organizer', () => {
     renderAdmin();
     expect(await screen.findByText('12 / 25')).toBeInTheDocument();
     expect(screen.getByText(/Quedan 13 de 25/)).toBeInTheDocument();
+    // The copy promises exactly the server's rule: retired photos still count, rejected ones do not.
+    expect(screen.getByText(/también las retiradas; las rechazadas no cuentan/)).toBeInTheDocument();
     expect(mockContextService.loadSeasonMediaUsage).toHaveBeenCalledWith({ organizationId: 'org-a', seasonId: 'season-a' });
     expect(screen.queryByText(/bucket|storage|signer|MVP|cuota multimedia/i)).not.toBeInTheDocument();
+  });
+
+  test('at full quota the copy never promises that retiring frees a slot', async () => {
+    mockContextService.loadSeasonMediaUsage.mockResolvedValue({ schemaVersion: 1, seasonId: 'season-a', plan: 'FREE', assetCount: 25,
+      pendingCount: 0, usage: 25, limit: 25, remaining: 0 });
+    renderAdmin();
+    expect(await screen.findByText('25 / 25')).toBeInTheDocument();
+    expect(screen.getByText(/rechazá fotos que todavía no publicaste: las retiradas siguen contando/)).toBeInTheDocument();
+    expect(screen.queryByText(/Retirá o rechazá/)).not.toBeInTheDocument();
   });
 
   test('a failed upload is retried with the SAME key (the server answers with the photo, never a second one)', async () => {
