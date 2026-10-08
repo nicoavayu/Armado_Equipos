@@ -145,6 +145,8 @@ const POST_CANONICAL_AUTHENTICATED_ALLOWLIST = [
   ['public.report_client_build(text,text,integer)', 'frontend_legitimate'],
   // 20261010133000: the access codes of the caller's own matches (admin or roster).
   ['public.get_match_access_codes(bigint[])', 'frontend_legitimate'],
+  // 20261010135000: the owner clears a private profile value (blank writes keep it).
+  ['public.clear_my_profile_fields(text[])', 'frontend_legitimate'],
   ['public.is_tournament_branding_path(text,text)', 'rls_helper_required'],
   ['public.can_update_tournament_team_branding(uuid,uuid)', 'rls_helper_required'],
   ['public.can_write_tournament_branding_object(text)', 'rls_helper_required'],
