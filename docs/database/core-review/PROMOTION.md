@@ -27,36 +27,30 @@ por código, jugador sin cuenta). Por eso la web puede salir antes que la base.
 | `20261010132000_core_friend_request_acceptance` | sólo el destinatario acepta una solicitud de amistad | la app ya funciona así |
 | `20261010133000_core_match_access_code` | vistas y descubrimiento muestran el código sólo al admin y al plantel; `get_match_access_codes` | apps instaladas no leen códigos ajenos de esas vistas |
 | `20261010134000_core_partidos_template_link` | `partidos.template_id` (FK a `partidos_frecuentes`, sólo plantilla propia): el historial de frecuentes deja de estar siempre vacío | ninguno (columna nueva y opcional); **verificar antes en Producción** que la columna no exista con otro tipo: `select column_name, data_type from information_schema.columns where table_schema='public' and table_name='partidos' and column_name in ('template_id','from_frequent_match_id');` |
+| `20261010135000_core_private_profile_fields` | email, teléfono, nacimiento y ubicación exacta salen de la fila compartida de `usuarios` (y el teléfono de `profiles`) a `app_private.usuarios_private`; la fila conserva las columnas en `NULL` y la ubicación a ~1 km; `get_my_profile`, `clear_my_profile_fields`; contacto, búsqueda, auto-match y arqueros leen la tabla privada | 1.1.21 sigue funcionando: ve vacíos su teléfono y nacimiento propios y no ve teléfonos ajenos; un guardado en blanco no borra nada |
+| `20261010136000_core_match_roster_visibility` | `partidos` y `jugadores` visibles sólo para quien participa (organizador, plantel, solicitud, aviso) y, mientras está publicado buscando jugadores, para cualquier cuenta; filas sin partido (equipos) visibles | ninguno nuevo: una cuenta ajena recibe filas vacías (no errores); directorios que recorrían todos los planteles quedan acotados |
 
 **Nota 125000:** con la web nueva publicada, las páginas públicas (votación por link,
 invitación de invitado) ya leen por código. Una build nativa vieja abierta **sin sesión**
 desde un link de votación no podría cargar el partido hasta actualizarse. Si eso importa,
 aplicar 125000 junto con la fase B.
 
-## 3. Fase B de privacidad (manual, más adelante)
+## 3. Privacidad: cierre compatible (135000 + 136000) y fase B opcional
 
-`phase-b-usuarios-private-columns.sql` (no es migración): la API deja de entregar toda
-columna de `usuarios` fuera de la lista pública explícita (`app_private.usuarios_public_columns()`):
-email, **teléfono**, nacimiento, ubicación exacta, actividad y push. `profiles` queda con sus
-columnas públicas (sin `telefono`). Rollback: `grant select on table public.usuarios, public.profiles to anon, authenticated;`
+Las migraciones 135000 y 136000 cierran la exposición de datos personales, de códigos y de
+planteles **sin revocar columnas**, así que la 1.1.21 (la versión en ambas tiendas) sigue
+funcionando y no hace falta esperar builds nuevas. Detalle, residual y compatibilidad en
+[`PHASE-B-PLAN.md`](PHASE-B-PLAN.md).
+
+`phase-b-usuarios-private-columns.sql` y `phase-b-partidos-access-code.sql` (revocar columnas)
+quedan como **refuerzo opcional** para cuando no queden apps viejas, medido con
+`app_private.privacy_phase_b_readiness(<min Android>, <min iOS>, 30)` y las consolas de las
+tiendas. Rompen la 1.1.21 (`select('*')` sobre `usuarios`/`partidos`) y no son necesarios para el
+cierre. Rollback: `grant select on table public.usuarios, public.profiles, public.partidos to anon, authenticated;`
 
 **Qué está distribuido hoy (evidencia, 2026-10-07):** App Store y Google Play ofrecen 1.1.21
 (Play: actualización 7 ago 2026, "100+ descargas", Android 6.0+; App Store: lanzada 8 ago 2026).
-El repo tiene Android 1.1.22 (versionCode 44) e iOS 1.1.21 (build 41) sin publicar. No hay
-evidencia de cuántos usuarios activos usan cada versión: Play Console (Estadísticas → versiones
-de la app) y App Store Connect (Analytics → versión) son los únicos que lo dicen y no se
-consultaron. `device_tokens.app_version` está siempre vacío (`REACT_APP_VERSION` nunca se definió).
-
-**Qué rompe en 1.1.21** (código de `dad2a0b9`, que lee con `select('*')` o columnas privadas):
-perfil propio (`usuarios select('*')` → la app no carga el perfil), tarjeta de jugador
-(`telefono`), Amigos (`email`, coordenadas), Quiero jugar (coordenadas), resultados
-(`profiles select('*')`), búsqueda (`email`). La web se publica con el cliente nuevo y no depende de esto.
-
-**Transición:** plan completo, evidencia faltante y usuarios afectados en
-[`PHASE-B-PLAN.md`](PHASE-B-PLAN.md). Resumen: web y migraciones primero; builds nativas con el
-cliente de fase A (su número es la versión mínima); ≥30 días midiendo con
-`app_private.privacy_phase_b_readiness(<min Android>, <min iOS>, 30)` y las consolas de las
-tiendas; fase B de `usuarios` y de `partidos.codigo` (`phase-b-partidos-access-code.sql`) juntas.
+No hay forma de forzar la actualización.
 
 ## 4. Verificación posterior
 
@@ -92,3 +86,11 @@ tiendas; fase B de `usuarios` y de `partidos.codigo` (`phase-b-partidos-access-c
 - 132000: `drop trigger trg_amigos_request_rules on public.amigos;` y recrear `amigos_insert_sender` sin `status = 'pending'`.
 - 133000: recrear las tres vistas con `p.codigo` (definición previa en el baseline) y `drop function public.get_match_access_codes(bigint[])`.
 - 134000: `drop trigger partidos_template_owner on public.partidos; drop function app_private.tg_partidos_template_owner(); alter table public.partidos drop column template_id;` (se pierden los vínculos creados desde entonces).
+- 135000 (devuelve los valores a la fila, en este orden):
+  `drop trigger trg_usuarios_private_fields on public.usuarios; drop trigger trg_profiles_private_phone on public.profiles;`
+  `update public.usuarios u set email = p.email, telefono = p.telefono, fecha_nacimiento = p.fecha_nacimiento, latitud = p.latitud, longitud = p.longitud, location_accuracy_m = p.location_accuracy_m from app_private.usuarios_private p where p.user_id = u.id;`
+  recrear `get_my_profile` de 124000, `get_match_contact_phone` de 128000 y `search_usuarios`,
+  `sync_my_auto_match_location_from_profile`, `_notify_goalkeepers_for_match` desde su definición previa;
+  `drop function public.clear_my_profile_fields(text[])` (el cliente tolera `PGRST202`). La tabla privada puede quedar.
+- 136000: recrear `partidos_select_authenticated` como `using ((deleted_at is null) or app_private.is_match_admin(id))` y
+  `jugadores_select_authenticated` como `using (true)`. Las funciones y los índices pueden quedar.
