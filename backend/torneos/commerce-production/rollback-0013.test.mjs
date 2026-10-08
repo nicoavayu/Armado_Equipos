@@ -43,7 +43,7 @@ test('the state before 0013 → 0013 → rollback leaves the catalog exactly as 
 });
 
 test('the rollback refuses while a login holds the production role, and once a production purchase exists', async () => {
-  lab.ensureLogins(JSON.parse(readFileSync(path.join((await import('node:os')).tmpdir(), 'arma2-commerce-production-lab', 'arma2-commerce-production-lab-rb.json'), 'utf8')).passwords);
+  lab.ensureLogins(lab.state().passwords);
   assert.match(lab.sqlTry(ROLLBACK).error, /a login still holds torneos_payment_production_service/);
   lab.sql('DROP ROLE lab_payment_production_service');
   const fx = await import('./lab/fixtures.mjs');
