@@ -86,6 +86,10 @@ function PlayerMatchCard({
   headingLevel = 2,
 }) {
   const date = formatMatchDate(match.scheduledAt);
+  // A rescheduled match says the time it had before, so nobody keeps the old date in mind.
+  const previous = match.previousScheduledAt && match.previousScheduledAt !== match.scheduledAt
+    ? formatMatchDate(match.previousScheduledAt)
+    : null;
   // Under a "Por jugar" / "Jugados" group the match is a level-3 heading; alone (its own page) it is level 2.
   const Heading = headingLevel === 3 ? 'h3' : 'h2';
   return (
@@ -103,6 +107,11 @@ function PlayerMatchCard({
           </div>
           <span className={styles.teamSide}>{match.isHome ? 'LOCAL' : 'VISITANTE'}</span>
         </div>
+        {previous && (
+          <p className={styles.rescheduledNote}>
+            <strong>Reprogramado</strong> · antes era el {previous.day}, {previous.time}
+          </p>
+        )}
         <dl className={styles.matchFacts}>
           <div><MapPin size={16} /><dt>Sede</dt><dd>{match.venue || 'A confirmar'}</dd></div>
           <div><Swords size={16} /><dt>Cancha</dt><dd>{match.court || 'A confirmar'}</dd></div>
