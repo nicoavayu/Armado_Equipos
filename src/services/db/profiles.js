@@ -401,6 +401,16 @@ export const updateProfile = async (userId, profileData) => {
 
   const finalData = { ...cleanProfileData, profile_completion: completion, updated_at: new Date().toISOString() };
 
+  // Phone, birth date and exact location live outside the shared row (20261010135000): a
+  // blank write there means "not provided", so emptying one of them is an explicit clear.
+  const isBlank = (value) => value === null || (typeof value === 'string' && value.trim() === '');
+  const fieldsToClear = [
+    Object.prototype.hasOwnProperty.call(cleanProfileData, 'telefono') && isBlank(cleanProfileData.telefono) ? 'telefono' : null,
+    Object.prototype.hasOwnProperty.call(cleanProfileData, 'fecha_nacimiento') && isBlank(cleanProfileData.fecha_nacimiento) ? 'fecha_nacimiento' : null,
+    (Object.prototype.hasOwnProperty.call(cleanProfileData, 'latitud') && isBlank(cleanProfileData.latitud))
+      || (Object.prototype.hasOwnProperty.call(cleanProfileData, 'longitud') && isBlank(cleanProfileData.longitud)) ? 'ubicacion' : null,
+  ].filter(Boolean);
+
   logger.log('[UPDATE_PROFILE] Mapped fields:', Object.keys(finalData));
 
   const getMissingSchemaColumn = (error) => {
@@ -453,6 +463,15 @@ export const updateProfile = async (userId, profileData) => {
   }
 
   if (lastError && !data) throw lastError;
+
+  if (fieldsToClear.length > 0) {
+    const { error: clearError } = await supabase.rpc('clear_my_profile_fields', { p_fields: fieldsToClear });
+    // A backend without 20261010135000 keeps the values in the row, where the update above
+    // already cleared them.
+    if (clearError && !['PGRST202', '42883'].includes(String(clearError.code || ''))) {
+      throw clearError;
+    }
+  }
 
   const { data: savedProfile, error: savedProfileError } = await readMyProfile({ single: true });
   if (savedProfileError) {

@@ -75,6 +75,8 @@ const expectedCanonicalMigrations = [
   '20261010132000_core_friend_request_acceptance.sql',
   '20261010133000_core_match_access_code.sql',
   '20261010134000_core_partidos_template_link.sql',
+  '20261010135000_core_private_profile_fields.sql',
+  '20261010136000_core_match_roster_visibility.sql',
 ];
 
 const exitWithError = (message) => {
