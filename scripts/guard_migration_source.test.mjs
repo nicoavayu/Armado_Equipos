@@ -33,6 +33,8 @@ const coreReviewMigrations = [
   '20261010134000_core_partidos_template_link.sql',
   '20261010135000_core_private_profile_fields.sql',
   '20261010136000_core_match_roster_visibility.sql',
+  '20261010137000_core_match_code_never_public.sql',
+  '20261010138000_core_voting_photo_slot_owner.sql',
 ];
 const approvedMigrations = fs.readdirSync(path.join(repoRoot, 'supabase', 'migrations'))
   .filter((file) => file.endsWith('.sql'))
@@ -57,7 +59,7 @@ const runGuard = (cwd) => spawnSync(process.execPath, [guardPath], {
 });
 
 test('accepts the closed set including Auto-Match, contract repair and global availability', (t) => {
-  assert.equal(approvedMigrations.length, 60);
+  assert.equal(approvedMigrations.length, 62);
   for (const migration of coreReviewMigrations) assert.ok(approvedMigrations.includes(migration));
   assert.ok(approvedMigrations.includes(autoMatchMigration));
   assert.ok(approvedMigrations.includes(contractRepairMigration));
