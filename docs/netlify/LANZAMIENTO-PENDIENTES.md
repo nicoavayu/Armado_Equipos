@@ -11,18 +11,18 @@ Nada de lo LAB cuenta como listo para Production.
 
 ## 1. Qué se integró y CI
 
-Rama local `claude/netlify-integrated-preview`, head **`e27f4923`**. Sin push, sin merges, sin cambios en Production.
+Rama local `claude/netlify-integrated-preview`, head de código **`dddf3ba8`** (actualizada el 2026-10-08 con #190 `0317caee`). Sin push, sin merges, sin cambios en Production.
 
 | PR | Commit integrado | Qué trae |
 | --- | --- | --- |
-| #190 | `7a467827` | Premium (`0013` `72943492…`) + #189 `34cd4c25` (Galería, `0012` `859fa24d…`, driver `db-0012`) + #182 `938d6ddd` (+ docs `ffb888d6`) + #178–#181 |
+| #190 | `0317caee` | Premium (`0013` `72943492…`) + #189 `388bd54e` (Galería, `0012` `859fa24d…`, driver `db-0012`, confirmación al retirar la última foto y textos de rechazo corregidos) + #182 `938d6ddd` (+ docs `ffb888d6`) + #178–#181 |
 | #187 | `abd9e8f2` | Core UX + #183 `415624af` (seguridad, migraciones 120000–133000) + #186 `f05147b4` (encuesta) |
 | #184 | `dadc7c19` | Core rendimiento |
 | #185 | `64de0d89` | Core UX |
 | #191 | `9c40146d` | Netlify (prueba) |
 | esta rama | `edb0ae16`, `e27f4923` | `apple-app-site-association` como JSON, `ignore` de builds no web, tests de hosting en CI, docs |
 
-**CI final** (local, `npm run test:ci` sobre `e27f4923`), todo verde, rc=0:
+**CI final** (local, `npm run test:ci` sobre `dddf3ba8`), todo verde, rc=0:
 
 | Suite | Resultado |
 | --- | --- |
@@ -39,7 +39,7 @@ Rama local `claude/netlify-integrated-preview`, head **`e27f4923`**. Sin push, s
 | staging guard | 259 |
 | workers | 156 / 118 |
 | media runtime | 84 |
-| Jest | 3679/3679 |
+| Jest | 3680/3680 |
 
 La prueba del Estudio Social en navegador había fallado 2 de 5 veces antes de esta corrida, con un recurso abortado sin URL; sobre #190 solo pasó 3 de 3. Hay que vigilarla. El CI de GitHub no corrió sobre esta rama porque no está subida.
 
@@ -95,7 +95,7 @@ Core en la web está detrás del acceso privado. La contraseña de laboratorio e
 | D6 | **Privacidad de Core:** aceptar el riesgo con una fecha (ver §5) y publicar la fase A antes o junto al lanzamiento | No técnico; riesgo |
 | D7 | **CI de calidad de #189:** el clasificador bloqueó en la sesión de Galería el cherry-pick de `48dcc028`. Opciones: aprobarlo, mergear antes #187 (que lo trae) o cambiar la base | Merge de #189 con gate |
 | D8 | **Link de una foto retirada:** hoy dura hasta 300 s; la alternativa es 120 s | — |
-| D9 | **Galería:** retirar la última foto publicada (la portada) archiva la galería, y el archivo es terminal. **Corregido en #189 `388bd54e`** (sólo frontend; falta que llegue a #190 y a esta integración): ahora se pide confirmación antes de retirarla, y los rechazos por tope y por presupuesto ya no dicen «Retirá». Queda a decisión de Nico si archivar debe dejar de ser terminal (requiere rediseño) | — |
+| D9 | **Galería:** retirar la última foto publicada (la portada) archiva la galería, y el archivo es terminal. **Corregido en #189 `388bd54e` e integrado (`0317caee`)**, verificado en LAB sobre el build de Netlify. Hay confirmación: «¿Retirar la única foto publicada? La galería quedará archivada…»; cancelar no hace nada y aceptar oculta la foto y archiva. Los rechazos ya no dicen «Retirá». Queda a decisión de Nico si archivar debe dejar de ser terminal (requiere rediseño) | — |
 
 ### 4.2 REAL, por estación (cada una con GO propio)
 
