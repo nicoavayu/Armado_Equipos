@@ -371,7 +371,8 @@ test('new/changed frontend and config lines contain no secrets or hardcoded targ
     // Tests may name example endpoints (gateway.example.test); they still may not carry credentials.
     const isTest = /(__tests__|\.test\.)/.test(file);
     for (const link of EXTERNAL_LINKS.get(file) || []) {
-      assert.ok(added.includes(link), `${file}: the allowed link ${link} is no longer used; drop the exception`);
+      // Whether the exception is still needed is a property of the file, not of the lines this change touched.
+      assert.ok(read(file).includes(link), `${file}: the allowed link ${link} is no longer used; drop the exception`);
       added = added.split(link).join('');
     }
     assert.deepEqual(frontendLiteralViolations(added).filter((v) => !(isTest && v === 'Hardcoded endpoint/ref')), [], file);

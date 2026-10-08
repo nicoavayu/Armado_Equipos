@@ -1023,6 +1023,8 @@ fieldset.field { margin: 0; padding: 0; border: 0; }
 .activityCopy strong { color: #fff; font-size: 0.98rem; }
 .activityCopy span { color: #ddd6f3; font-size: 0.88rem; line-height: 1.45; overflow-wrap: anywhere; }
 .activityCopy q { color: #f1edff; font-size: 0.88rem; font-style: italic; overflow-wrap: anywhere; }
+.activityCopy .activityChange del { color: var(--cp-muted); }
+.activityCopy .activityChange ins { color: #fff; font-weight: 800; text-decoration: none; }
 .activityCopy time { color: var(--cp-muted); font-size: 0.76rem; }
 
 .unreadDot {
