@@ -120,10 +120,10 @@ test.before(() => {
   sql(`
     delete from public.partidos where id in (${PRIVATE_MATCH}, ${OPEN_MATCH}, ${DELETED_MATCH});
     delete from public.jugadores where id = ${TEAM_PLAYER};
-    insert into public.partidos (id, nombre, codigo, fecha, hora, sede, modalidad, cupo_jugadores, estado, creado_por, admin_id, falta_jugadores, deleted_at) values
-      (${PRIVATE_MATCH}, 'Privado lab', 'PRIVLAB1', current_date + 2, '21:00', 'Cancha lab', 'F5', 10, 'activo', '${ORG}', '${ORG}', false, null),
-      (${OPEN_MATCH}, 'Abierto lab', 'OPENLAB1', current_date + 2, '21:00', 'Cancha lab', 'F5', 10, 'activo', '${ORG}', '${ORG}', true, null),
-      (${DELETED_MATCH}, 'Borrado lab', 'DELLAB01', current_date + 2, '21:00', 'Cancha lab', 'F5', 10, 'activo', '${ORG}', '${ORG}', false, now());
+    insert into public.partidos (id, nombre, codigo, fecha, hora, sede, modalidad, cupo_jugadores, estado, creado_por, admin_id, falta_jugadores, deleted_at, tipo_partido, precio_cancha_por_persona) values
+      (${PRIVATE_MATCH}, 'Privado lab', 'PRIVLAB1', current_date + 2, '21:00', 'Cancha lab', 'F5', 10, 'activo', '${ORG}', '${ORG}', false, null, 'Masculino', null),
+      (${OPEN_MATCH}, 'Abierto lab', 'OPENLAB1', current_date + 2, '21:00', 'Cancha lab', 'F5', 10, 'activo', '${ORG}', '${ORG}', true, null, 'Masculino', 2500),
+      (${DELETED_MATCH}, 'Borrado lab', 'DELLAB01', current_date + 2, '21:00', 'Cancha lab', 'F5', 10, 'activo', '${ORG}', '${ORG}', false, now(), 'Masculino', null);
     insert into public.jugadores (partido_id, nombre, usuario_id) values
       (${PRIVATE_MATCH}, 'Martín (lab)', '${qa.ids.jugador1}'),
       (${PRIVATE_MATCH}, 'Invitado lab', null),
@@ -209,9 +209,13 @@ test('an unrelated account no longer reads every roster (only open matches and t
 
 test('a match published looking for players is shown through the views (code masked) with its roster', async () => {
   // How installed apps open it: partidos_view + the roster from jugadores.
-  const view = await as.stranger('GET', `partidos_view?select=id,codigo,busca_arquero,player_invites_enabled,falta_jugadores&id=eq.${OPEN_MATCH}`);
+  // Every field the public page would otherwise read from the table comes with the view.
+  const view = await as.stranger('GET', `partidos_view?select=id,codigo,busca_arquero,player_invites_enabled,falta_jugadores,tipo_partido,precio_cancha_por_persona&id=eq.${OPEN_MATCH}`);
   assert.equal(view.status, 200, JSON.stringify(view.body));
-  assert.deepEqual(view.body, [{ id: OPEN_MATCH, codigo: null, busca_arquero: false, player_invites_enabled: false, falta_jugadores: true }]);
+  assert.deepEqual(view.body, [{
+    id: OPEN_MATCH, codigo: null, busca_arquero: false, player_invites_enabled: false, falta_jugadores: true,
+    tipo_partido: 'Masculino', precio_cancha_por_persona: 2500,
+  }]);
   const roster = await as.stranger('GET', `jugadores?select=nombre&partido_id=eq.${OPEN_MATCH}`);
   assert.deepEqual(roster.body.map((row) => row.nombre), ['Sofía (lab)']);
   const listing = await as.stranger('GET', `partidos_abiertos_operativos_v2?select=id,codigo&id=eq.${OPEN_MATCH}`);

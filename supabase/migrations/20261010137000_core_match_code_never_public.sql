@@ -17,8 +17,9 @@
 --     read the tables as core_match_public_reader (no login, no other privileges), whose
 --     own policies allow exactly: involved, or published looking for players — instead of
 --     inheriting the table rule;
---   * partidos_view gains busca_arquero and player_invites_enabled, so no app falls back to
---     reading those flags from the table (installed apps did for published matches).
+--   * partidos_view gains busca_arquero, player_invites_enabled and
+--     precio_cancha_por_persona, so no app falls back to reading them from the table for a
+--     published match (1.1.21 does for the flags, the current web for the price).
 -- Rosters of published matches stay readable from jugadores (no private personal data in
 -- that table; installed apps list them on the public match page).
 
@@ -151,7 +152,8 @@ create or replace view public.partidos_view as
     created_at,
     updated_at,
     busca_arquero,
-    player_invites_enabled
+    player_invites_enabled,
+    precio_cancha_por_persona
    FROM public.partidos p
   WHERE deleted_at IS NULL;
 
