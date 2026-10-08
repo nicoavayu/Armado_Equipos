@@ -1,0 +1,34 @@
+[build]
+  command = "node scripts/netlify/prepare.mjs && npm run build"
+  publish = "build"
+  functions = "netlify/functions"
+  edge_functions = ".netlify-generated/edge-functions"
+
+[build.environment]
+  NODE_VERSION = "22"
+  GENERATE_SOURCEMAP = "false"
+  REACT_APP_DEPLOY_ENV = "preview"
+  REACT_APP_TORNEOS_PRODUCTION_ENABLED = "false"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    X-Frame-Options = "DENY"
+    Referrer-Policy = "same-origin"
+    X-Robots-Tag = "noindex, nofollow, noarchive"
+
+[[headers]]
+  for = "/static/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/index.html"
+  [headers.values]
+    Cache-Control = "no-cache"
