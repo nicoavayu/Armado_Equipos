@@ -13,7 +13,7 @@ Este plan respeta las dos y termina con los tres frentes funcionando en Producti
 | --- | --- | --- | --- | --- | --- | --- |
 | Torneos conectado | PR #182 `938d6ddd` (más commits sólo de documentación) | integración #178–#181 | `0009`–`0011` | 25 archivos | Completo y ensayado (`connected-product/DEPLOY.md`). Mantenimiento de capacidad de Core **hecho en Production** (63,6 MiB, organización al 16 %). Fase B: dos arreglos de Mi plan (§5.1) | Backups de Torneos y Storage (G0a) y GO |
 | Galería (MEDIA-V1) | PR #189 borrador `34cd4c25` | #182 `938d6ddd` | `0012` (sha256 `859fa24d…`) | 29 archivos | Miniaturas y presupuesto de Storage en el servidor (450 MiB por proyecto, 400 MiB para fotos y miniaturas, 12 cargas simultáneas). Validada en el laboratorio con bytes medidos (`media-v1/REPORT.md`); `rollback-0012` probado dentro de una transacción revertida (conserva 39 fotos y 78 objetos). Fotos siempre guardadas como JPEG. Driver de operador `db-0012.mjs` (A2) ensayado en el laboratorio | GO |
-| Premium (Mercado Pago producción) | PR #190 borrador `81a39063` = **árbol integrado** | #189 `acba4490` | `0013` (sha256 `72943492…`; exige `0012` = `859fa24d…`) + driver `db-0013.mjs` + rollback `2365a37c…` | 30 archivos (árbol integrado) + servicio `torneos-payments-production` (Deno Deploy, cron cada 15 min) | Inerte al mergear: sin env, sin app de Deno, interruptor en `off`. Sobre `81a39063`: Jest 3556/3556, commerce 78/78, media 21/21, foundation 109/109, staging guard 259/259, eslint OK. Fase B: compra, pendiente, acreditación y devolución con el emulador (§5.1) | Tope de fotos (A5) y GO |
+| Premium (Mercado Pago producción) | PR #190 borrador `7a467827` = **árbol integrado** | #189 `34cd4c25` | `0013` (sha256 `72943492…`; exige `0012` = `859fa24d…`) + driver `db-0013.mjs` + rollback `2365a37c…` | 30 archivos (árbol integrado) + servicio `torneos-payments-production` (Deno Deploy, cron cada 15 min) | Inerte al mergear: sin env, sin app de Deno, interruptor en `off`. Sobre `81a39063`: Jest 3556/3556, commerce 78/78, media 21/21, foundation 109/109, staging guard 259/259, eslint OK. Fase B: compra, pendiente, acreditación y devolución con el emulador (§5.1) | Tope de fotos (A5) y GO |
 
 ## 2. Dependencias
 
@@ -45,7 +45,7 @@ Este plan respeta las dos y termina con los tres frentes funcionando en Producti
   - las credenciales de Mercado Pago de producción;
   - su webhook.
 
-**Orden resultante:** **#182 → Galería → Premium**. Los PRs están apilados: #182 ← #189 ← #190. El head de #190 (`81a39063`) es el árbol integrado de los tres y el que se validó en la fase B. Cada arreglo de #182 llega a los otros dos por un merge normal en la pila (sin force-push).
+**Orden resultante:** **#182 → Galería → Premium**. Los PRs están apilados: #182 ← #189 ← #190. El head de #190 (`7a467827`) es el árbol integrado de los tres. La fase B se validó sobre `81a39063`; `7a467827` sólo le suma el driver de operador de `0012`, sus tests y su documentación (nada que corra en la app ni en el gateway, y `0012`/`0013` sin cambios). El laboratorio de la revisión ya corre `7a467827`. Cada arreglo de #182 llega a los otros dos por un merge normal en la pila (sin force-push).
 - En código hay **una sola integración** de los tres, resuelta una vez y validada como unidad. La sesión de Galería
   está de acuerdo.
 - Recomendado: el PR de Premium apilado sobre el head **final** de #189 (con miniaturas y presupuesto).
