@@ -1343,6 +1343,32 @@
   background: rgba(21, 111, 75, 0.18);
 }
 
+/* The schedule validation lists its reasons in words; the icon stays at the top of the block. */
+.validation > div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.validation ul {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.validation:has(ul) {
+  align-items: flex-start;
+}
+
+.checkLine {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.scheduleForm .checkLine input {
+  width: auto;
+}
+
 .venueLayout,
 .resourceForms {
   display: grid;

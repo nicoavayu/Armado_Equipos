@@ -403,4 +403,46 @@ describe('FixtureWorkspacePage', () => {
     // Y consume las sedes de la organización sin ser dueña de ellas.
     expect(screen.queryByRole('heading', { name: 'Nueva sede' })).not.toBeInTheDocument();
   });
+
+  test('schedule validation names each blocker and keeps Guardar off until it is fixed', async () => {
+    mockFixtureState.courts = [{ id: 'court-a', venueId: 'venue-a', name: 'Cancha 1', status: 'active', sportModality: 'football_7' }];
+    mockFixtureState.venues = [{ id: 'venue-a', name: 'Complejo Central', address: 'Av. Central 100', status: 'active', timezone: 'America/Argentina/Buenos_Aires' }];
+    mockFixtureState.actions.validateSchedule.mockResolvedValue({ valid: false, blockers: [{ code: 'incompatible_modality' }], warnings: [] });
+    render(<MemoryRouter><FixtureWorkspacePage mode="schedule" /></MemoryRouter>);
+    fireEvent.change(screen.getByLabelText('Partido'), { target: { value: mockFixtureState.matches[0].id } });
+    fireEvent.change(screen.getByLabelText('Fecha y hora'), { target: { value: '2026-10-17T15:00' } });
+    fireEvent.change(screen.getByLabelText('Sede'), { target: { value: 'venue-a' } });
+    expect(screen.getByRole('option', { name: 'Cancha 1 · Fútbol 7' })).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Cancha'), { target: { value: 'court-a' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Validar' }));
+    expect(await screen.findByText('La cancha no es de la modalidad del torneo.')).toBeInTheDocument();
+    expect(screen.getByText('No se puede guardar todavía')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Guardar' })).toBeDisabled();
+    // Changing a value drops the stale validation and lets the organizer try again.
+    fireEvent.change(screen.getByLabelText('Duración'), { target: { value: '50' } });
+    expect(screen.queryByText('La cancha no es de la modalidad del torneo.')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Guardar' })).toBeEnabled();
+  });
+
+  test('warnings can be confirmed with a reason and travel to the backend as an override', async () => {
+    mockFixtureState.courts = [{ id: 'court-a', venueId: 'venue-a', name: 'Cancha 1', status: 'active', sportModality: 'football_5' }];
+    mockFixtureState.venues = [{ id: 'venue-a', name: 'Complejo Central', address: 'Av. Central 100', status: 'active', timezone: 'America/Argentina/Buenos_Aires' }];
+    mockFixtureState.actions.validateSchedule.mockResolvedValue({ valid: true, blockers: [], warnings: [{ code: 'short_rest' }] });
+    mockFixtureState.actions.schedule.mockResolvedValue({});
+    render(<MemoryRouter><FixtureWorkspacePage mode="schedule" /></MemoryRouter>);
+    fireEvent.change(screen.getByLabelText('Partido'), { target: { value: mockFixtureState.matches[0].id } });
+    fireEvent.change(screen.getByLabelText('Fecha y hora'), { target: { value: '2026-10-17T15:00' } });
+    fireEvent.change(screen.getByLabelText('Sede'), { target: { value: 'venue-a' } });
+    fireEvent.change(screen.getByLabelText('Cancha'), { target: { value: 'court-a' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Validar' }));
+    expect(await screen.findByText('Uno de los equipos tiene poco descanso entre partidos.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Guardar' })).toBeDisabled();
+    fireEvent.click(screen.getByLabelText('Programar igual, con estas advertencias'));
+    fireEvent.change(screen.getByLabelText('Motivo de la excepción'), { target: { value: 'Único horario de la cancha.' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar' }));
+    await waitFor(() => expect(mockFixtureState.actions.schedule).toHaveBeenCalledTimes(1));
+    expect(mockFixtureState.actions.schedule.mock.calls[0][0]).toEqual(expect.objectContaining({
+      courtId: 'court-a', overrideWarnings: true, overrideReason: 'Único horario de la cancha.',
+    }));
+  });
 });

@@ -70,7 +70,7 @@ describe('Sedes sigue siendo organization-scoped', () => {
       .toBeInTheDocument();
     expect(await screen.findByRole('heading', { name: 'Complejo Central' }))
       .toBeInTheDocument();
-    expect(screen.getByText(/1 canchas/)).toBeInTheDocument();
+    expect(screen.getByText(/^1 cancha · /)).toBeInTheDocument();
 
     // La lectura es de la organización y no pasa por el contexto de torneo.
     expect(api.loadOrganizationVenues).toHaveBeenCalledWith(ORG);
