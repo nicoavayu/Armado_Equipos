@@ -153,7 +153,11 @@ deben dar `pass: true`.**
 - **Vistas:**
   - dueño `core_match_public_reader`, que no puede loguearse, no saltea RLS y no crea objetos;
   - ninguna cuenta puede escribir a través de `partidos_view`.
-- **Grants:** RPCs del perfil propio sólo para cuentas; el binding de fotos sólo para el servidor.
+- **Grants:**
+  - RPCs del perfil propio sólo para cuentas; el binding de fotos sólo para el servidor;
+  - anon y authenticated pueden ejecutar todas las funciones que llaman las vistas. Si no, anon
+    recibiría "permission denied" en `partidos_view`. Pasa si las funciones de 136000 son de otro
+    rol, como en el ensayo, donde son de `supabase_admin`.
 - **pg_cron:** el job de cierre de encuestas corre cada 5 min.
 - **Cuenta nueva:**
   - 0 partidos desde la tabla;

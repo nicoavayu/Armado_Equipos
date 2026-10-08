@@ -11,7 +11,7 @@
  "repo_head_when_run": "2c8a409a + runbook files (uncommitted at run time)",
  "files_sha256": {
   "precheck.sql": "918ef2bb1a85a7104b7140f9da151160b37916bca38cc9380db7298972313885",
-  "postcheck.sql": "fa08a3e2ef285ccafb5d933786ecc47a9584166d778d37fd01409c373dd3fbf7",
+  "postcheck.sql": "5450059d3aed497dd7837c9e87e67beea23c5436e26561626c9bead15e0eab06",
   "apply-193.psql": "854e6a9d4adf24c13fdff287be6d5ce0b1817b3eb361ffd4c3d01c8cc5ea11dc",
   "rollbacks/20261010135000_core_private_profile_fields.rollback.sql": "1f00abed7c84c625b49206bb0d5086fc0c06b9ba3537860cdcf970c53642c8a0",
   "rollbacks/20261010136000_core_match_roster_visibility.rollback.sql": "e023cfd1cb3c998e398179e2fd0c55c0aeb989aecec45c281e2141d44f1da311",
@@ -332,11 +332,11 @@
   "postcheck_after_reapply_failures": []
  },
  "pass3_exact_runbook_files": {
-  "started_at": "2026-10-08T19:34:28.385Z",
+  "started_at": "2026-10-08T19:42:20.821Z",
   "precheck_failures": [],
   "apply": {
    "ok": true,
-   "ms": 161,
+   "ms": 150,
    "applied": 19,
    "ledger": 19,
    "error": null
@@ -350,19 +350,19 @@
    {
     "file": "20261010138000_core_voting_photo_slot_owner.rollback.sql",
     "ok": true,
-    "ms": 70,
+    "ms": 81,
     "error": null
    },
    {
     "file": "20261010137000_core_match_code_never_public.rollback.sql",
     "ok": true,
-    "ms": 76,
+    "ms": 70,
     "error": null
    },
    {
     "file": "20261010136000_core_match_roster_visibility.rollback.sql",
     "ok": true,
-    "ms": 67,
+    "ms": 68,
     "error": null
    },
    {
@@ -385,5 +385,6 @@
  "found_and_fixed_by_the_dry_run": [
   "grant core_match_public_reader to current_user (137000) crashed the backend with signal 11 when run by postgres; every connection was reset. Now granted by name.",
   "ALTER VIEW … OWNER TO core_match_public_reader needs the new owner to have CREATE on schema public (a superuser skips that check). Now granted only around the three statements and revoked."
- ]
+ ],
+ "postcheck_revision": "postcheck.sql gained \"anon and authenticated can execute every function the match views call\" after pass 2; pass 3 above was re-run with it (all true), and revoking anon EXECUTE on match_involves_user in a rolled-back transaction makes it false and anon on partidos_view fails with permission denied — the case seen on rehearsal, where 136000 helpers are owned by supabase_admin."
 }
