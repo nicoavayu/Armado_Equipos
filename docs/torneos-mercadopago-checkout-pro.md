@@ -4,7 +4,7 @@
 
 Esta etapa integra Checkout Pro mediante Preferences API exclusivamente con credenciales de prueba. El modelo es `one_time`, producto `torneos_premium`, scope `season`, moneda `ARS` y precio resuelto por el catálogo comercial del servidor.
 
-Producción no está habilitada: no existe un environment productivo en el constraint, no existe fallback de configuración y este runbook no autoriza deploy remoto.
+Este documento describe el modo **TEST**. El modo productivo existe por separado (COMMERCE-PRODUCTION: migración `00000000000013`, función `torneos-payments-production`, gateway `TORNEOS_COMMERCE_MODE=production`, frontend `REACT_APP_TORNEOS_BILLING_MODE=production`), apagado por defecto y sin fallback entre modos; su activación, monitoreo y rollback están en [`docs/torneos/commerce-production/DEPLOY.md`](torneos/commerce-production/DEPLOY.md). Nada de TEST cambió: el constraint TEST, sus funciones y su runtime quedan como fueron certificados.
 
 Referencias oficiales consultadas:
 
@@ -175,9 +175,10 @@ No ejecutar estos pasos con credenciales productivas:
 
 No pegar ninguna credencial en chat. Esta rama no ejecuta esa compra ni configura infraestructura remota.
 
-## Producción futura (fuera de alcance)
+## Producción (etapa separada, ya preparada)
 
-Antes de agregar producción se requiere una etapa y revisión separadas:
+Lo que esta sección pedía antes de producción quedó resuelto en COMMERCE-PRODUCTION, sin tocar TEST (ver
+[`docs/torneos/commerce-production/DEPLOY.md`](torneos/commerce-production/DEPLOY.md)). Lo que sigue era la lista original:
 
 - nuevo modelo explícito de environment y credenciales productivas;
 - URL y secret de webhook productivos separados;

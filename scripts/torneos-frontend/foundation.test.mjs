@@ -217,6 +217,11 @@ test('the only backend access B04 adds is the gateway transport (fetch) and the 
     'src/features/torneos/components/PublicTournamentRoute.jsx -> ./PublicTournamentPage',
     'src/features/torneos/components/PublicTournamentRoute.jsx -> ../api/publicTournamentService',
     'src/features/torneos/components/PurchaseStatusPage.jsx -> ../context/TorneosCommerceContext',
+    // COMMERCE-PRODUCTION: Mi plan's purchase panel reads the MOUNTED composition's commerce (hybrid: the gateway's commerce
+    // routes; the context's legacy default is the same one PurchaseStatusPage already reaches and is never used in hybrid).
+    'src/features/torneos/components/PlanExperiencePage.jsx -> ../context/TorneosCommerceContext',
+    'src/features/torneos/components/PlanExperiencePage.jsx -> ./PremiumPurchasePanel',
+    'src/features/torneos/components/PremiumPurchasePanel.jsx -> ../context/TorneosCommerceContext',
     // COMPETITION-V1: the wizard hands its settings panels the MOUNTED composition's service (their own
     // default is the legacy Core service, which a hybrid wizard must never reach).
     'src/features/torneos/components/TorneosShell.jsx -> ./OrganizationInvitationPage',

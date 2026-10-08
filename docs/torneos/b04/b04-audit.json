@@ -1,5 +1,5 @@
 {
-  "generatedFrom": "e05460f9c6d8d313f387cc5c8e4505b7d748ec02",
+  "generatedFrom": "4898375be023a4dbba71238b883bc7305831be03",
   "legacyBase": "2058da039a2a5eaaed22d87d01946bc596ae5f50",
   "coreSingletonSha256": "f39572e4cab0fd287bd1dea2ca87c97bd5500d0eff57cb8de6160f1e3271600c",
   "reachableCallSignatures": {
@@ -517,6 +517,16 @@
       "source": "../context/TorneosWorkspaceContext"
     },
     {
+      "file": "src/features/torneos/components/PlanExperiencePage.jsx",
+      "line": 8,
+      "source": "../context/TorneosCommerceContext"
+    },
+    {
+      "file": "src/features/torneos/components/PlanExperiencePage.jsx",
+      "line": 13,
+      "source": "./PremiumPurchasePanel"
+    },
+    {
       "file": "src/features/torneos/components/PlayerPortraitActions.jsx",
       "line": 4,
       "source": "../api/tournamentPlayerPortraitService"
@@ -535,6 +545,11 @@
       "file": "src/features/torneos/components/PlayerPortraitDialog.jsx",
       "line": 10,
       "source": "./usePlayerPortraitUrl"
+    },
+    {
+      "file": "src/features/torneos/components/PremiumPurchasePanel.jsx",
+      "line": 5,
+      "source": "../context/TorneosCommerceContext"
     },
     {
       "file": "src/features/torneos/components/PublicTournamentPage.jsx",
@@ -725,6 +740,11 @@
       "file": "src/features/torneos/components/TorneosShell.jsx",
       "line": 47,
       "source": "./OrganizationSettingsPage"
+    },
+    {
+      "file": "src/features/torneos/components/TorneosShell.jsx",
+      "line": 48,
+      "source": "./PlanExperiencePage"
     },
     {
       "file": "src/features/torneos/components/TorneosShell.jsx",

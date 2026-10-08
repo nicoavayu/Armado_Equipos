@@ -44,7 +44,7 @@ function setup(initialPlan = 'FREE', initialStatus = 'pending', providerStatus =
 async function openPurchase(initialPlan) {
   await screen.findByRole('heading', { name: `${initialPlan} · Temporada` });
   fireEvent.click(screen.getByText('Ver compra'));
-  await screen.findByText('Volver al Plan');
+  await screen.findByText('Volver a Mi plan');
 }
 
 test.each([
@@ -59,7 +59,7 @@ test.each([
   app.change(nextStatus, nextPlan);
   fireEvent.click(screen.getByRole('button', { name: 'Actualizar' }));
   await screen.findByText(nextStatus === 'approved' ? 'Premium ya está activo' : nextStatus === 'refunded' ? 'El pago fue reembolsado' : 'El pago está en contracargo');
-  fireEvent.click(screen.getByText('Volver al Plan'));
+  fireEvent.click(screen.getByText('Volver a Mi plan'));
   await screen.findByRole('heading', { name: `${nextPlan} · Temporada` });
   expect(app.commerce.createCheckout).not.toHaveBeenCalled();
 });
@@ -68,7 +68,7 @@ test('unchanged terminal entitlement does not loop or keep polling', async () =>
   const app = setup('PREMIUM', 'approved');
   await openPurchase('PREMIUM');
   for (let visit = 0; visit < 3; visit += 1) {
-    fireEvent.click(screen.getByText('Volver al Plan'));
+    fireEvent.click(screen.getByText('Volver a Mi plan'));
     await openPurchase('PREMIUM');
   }
   expect(app.loadSeasonEntitlements.mock.calls.length).toBeLessThanOrEqual(9);
@@ -88,7 +88,7 @@ test('polling approval refreshes Plan without a manual status refresh', async ()
   app.change('approved', 'PREMIUM');
   await act(async () => { jest.advanceTimersByTime(4000); });
   expect(screen.getByText('Premium ya está activo')).toBeInTheDocument();
-  fireEvent.click(screen.getByText('Volver al Plan'));
+  fireEvent.click(screen.getByText('Volver a Mi plan'));
   expect(screen.getByRole('heading', { name: 'PREMIUM · Temporada' })).toBeInTheDocument();
   app.unmount();
   expect(jest.getTimerCount()).toBe(0);
@@ -102,7 +102,7 @@ test('navigation during an entitlement read keeps Plan closed until the shared r
   app.loadSeasonEntitlements.mockImplementationOnce(() => new Promise((done) => { resolve = done; }));
   app.change('approved', 'PREMIUM');
   await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Actualizar' })); });
-  fireEvent.click(screen.getByText('Volver al Plan'));
+  fireEvent.click(screen.getByText('Volver a Mi plan'));
   expect(screen.queryByRole('heading', { name: 'FREE · Temporada' })).not.toBeInTheDocument();
   await act(async () => { resolve(tournamentEntitlementsFixture({ plan: 'PREMIUM', tournamentId: null })); });
   expect(screen.getByRole('heading', { name: 'PREMIUM · Temporada' })).toBeInTheDocument();
@@ -119,7 +119,7 @@ test('a superseded purchase response cannot overwrite the newer entitlement', as
   await screen.findByText('Premium ya está activo');
   await act(async () => { resolve({ seasonId, status: 'pending' }); });
   expect(screen.getByText('Premium ya está activo')).toBeInTheDocument();
-  fireEvent.click(screen.getByText('Volver al Plan'));
+  fireEvent.click(screen.getByText('Volver a Mi plan'));
   expect(screen.getByRole('heading', { name: 'PREMIUM · Temporada' })).toBeInTheDocument();
 });
 
@@ -130,7 +130,7 @@ test('failed entitlement refresh clears the previously effective Premium', async
   app.loadSeasonEntitlements.mockRejectedValue(new Error('Entitlement unavailable'));
   fireEvent.click(screen.getByRole('button', { name: 'Actualizar' }));
   await screen.findByText('Pago aprobado · verificando Premium');
-  fireEvent.click(screen.getByText('Volver al Plan'));
+  fireEvent.click(screen.getByText('Volver a Mi plan'));
   expect(screen.queryByRole('heading', { name: 'PREMIUM · Temporada' })).not.toBeInTheDocument();
   expect(screen.getByRole('heading', { name: 'Error transitorio' })).toBeInTheDocument();
   expect(screen.queryByText('Entitlement unavailable')).not.toBeInTheDocument();

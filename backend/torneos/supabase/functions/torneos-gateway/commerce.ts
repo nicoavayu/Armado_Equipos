@@ -31,19 +31,44 @@
 //     anything else → configuration error. There is no live / production deployment.
 //   The gateway holds TORNEOS_PAYMENTS_INTERNAL_SECRET and nothing of Mercado Pago or the payments DB, in both
 //   deployments (a secret scope shared with torneos-payments makes the gateway refuse to boot).
+//
+// COMMERCE-PRODUCTION: "production" → Mercado Pago Checkout Pro PRODUCTION, a separate mode with its own pieces, never a
+// relaxed TEST. It adds, on top of the same 1–5 checks:
+//     • POST /commerce/v1/season-checkout → create_tournament_season_production_checkout_purchase (the DB fixes
+//       MERCADO_PAGO/production and checks the operator switch) → torneos-payments-production (HMAC) → Preference;
+//     • POST /commerce/v1/purchase-refresh → get_tournament_purchase with the USER bearer (the DB decides who may see the
+//       purchase) → torneos-payments-production reconcile (HMAC; asks Mercado Pago, throttled per purchase) → the same
+//       read again → {purchase, refresh}. The return URL never grants anything: this route only re-reads the provider;
+//     • the production read allowlist (commerce-production-rpc-allowlist.json): 3 reads.
+//   TORNEOS_COMMERCE_DEPLOYMENT (read only in production): "production" (default) → hosted: the declared payments host
+//   TORNEOS_COMMERCE_PRODUCTION_PAYMENTS_HOST (canonical, no test / sandbox / lab label), the internal URL exactly
+//   https://<it>/functions/v1/torneos-payments-production, this gateway and every dependency https;
+//   "local-lab" → the lab (loopback gateway, lab payments host). The TEST-only names refuse the boot here.
 import { signInternal } from "../torneos-payments/hmac.ts"
 import { canonicalRemoteHost, productionHostProblem } from "../torneos-payments/remote-hosts.ts"
 import commerceAllowlistDoc from "./commerce-test-rpc-allowlist.json" with { type: "json" }
+import commerceProductionAllowlistDoc from "./commerce-production-rpc-allowlist.json" with { type: "json" }
 
 export const COMMERCE_ROUTE = "/commerce/v1/season-checkout"
 export const CHECKOUT_RPC = "create_tournament_season_checkout_purchase"
 export const PAYMENTS_INTERNAL_PATH = "/internal/v1/season-checkout-preference"
 export const COMMERCE_TIMEOUTS = Object.freeze({ restMs: 4000, paymentsMs: 8000 })
 export const MAX_CHECKOUT_BODY = 1024
-export const EXPECTED_COMMERCE_RPCS: readonly string[] = Object.freeze(["get_effective_tournament_season_entitlements", "get_tournament_purchase"])
+export const EXPECTED_COMMERCE_RPCS: readonly string[] = Object.freeze(["get_effective_tournament_season_entitlements", "get_tournament_purchase", "get_tournament_season_purchases"])
 export const GATEWAY_COMMERCE_ENV: readonly string[] = Object.freeze(["TORNEOS_COMMERCE_MODE", "TORNEOS_COMMERCE_DEPLOYMENT", "TORNEOS_COMMERCE_REMOTE_GATEWAY_HOST",
   "TORNEOS_COMMERCE_REMOTE_PAYMENTS_HOST", "TORNEOS_PAYMENTS_INTERNAL_URL", "TORNEOS_PAYMENTS_INTERNAL_SECRET"])
 export const COMMERCE_DEPLOYMENTS: readonly string[] = Object.freeze(["local-lab", "remote-test"])
+// COMMERCE-PRODUCTION
+export const REFRESH_ROUTE = "/commerce/v1/purchase-refresh"
+export const PRODUCTION_CHECKOUT_RPC = "create_tournament_season_production_checkout_purchase"
+export const PAYMENTS_RECONCILE_PATH = "/internal/v1/purchase-reconcile"
+export const EXPECTED_PRODUCTION_COMMERCE_RPCS: readonly string[] = Object.freeze(["get_effective_tournament_season_entitlements", "get_tournament_purchase", "get_tournament_season_purchases"])
+export const GATEWAY_COMMERCE_PRODUCTION_ENV: readonly string[] = Object.freeze(["TORNEOS_COMMERCE_MODE", "TORNEOS_COMMERCE_DEPLOYMENT",
+  "TORNEOS_COMMERCE_PRODUCTION_PAYMENTS_HOST", "TORNEOS_PAYMENTS_INTERNAL_URL", "TORNEOS_PAYMENTS_INTERNAL_SECRET"])
+export const PRODUCTION_COMMERCE_DEPLOYMENTS: readonly string[] = Object.freeze(["local-lab", "production"])
+const PRODUCTION_PAYMENTS_MOUNT = "/functions/v1/torneos-payments-production"
+const LAB_PRODUCTION_PAYMENTS_MOUNTS = new Set(["/torneos-payments-production", "/functions/v1/torneos-payments-production"])
+const NON_PRODUCTION_LABEL_RE = /(?:^|-)(?:test|testing|sandbox|qa|lab|staging|stage|preview|dev|local)(?:-|$)/
 
 const PRODUCTION_REF = "rcyuuoaqfwcembdajcss"
 const LAB_GATEWAY_HOSTS = new Set(["127.0.0.1", "localhost"])
@@ -71,6 +96,7 @@ const DB_REFUSALS: Record<string, [number, string]> = {
   TORNEOS_OFFER_UNAVAILABLE: [409, "TORNEOS_OFFER_UNAVAILABLE"],
   TORNEOS_PURCHASE_INVALID: [400, "TORNEOS_CHECKOUT_INVALID"],
   TORNEOS_AUTH_REQUIRED: [401, "access denied"],
+  TORNEOS_BILLING_DISABLED: [409, "TORNEOS_BILLING_DISABLED"],
 }
 // torneos-payments internal answers (MP-A3 contract) → gateway answer. Anything unlisted is a contract fault (502).
 const PAYMENTS_REFUSALS: Record<string, [number, string]> = {
@@ -84,7 +110,10 @@ export class CommerceConfigError extends Error {}
 export type CommerceOff = { mode: "off" }
 export type CommerceDeployment = "local-lab" | "remote-test"
 export type CommerceTest = { mode: "test"; deployment: CommerceDeployment; paymentsUrl: string; secret: Uint8Array; readRpcs: ReadonlySet<string> }
-export type CommerceConfig = CommerceOff | CommerceTest
+export type CommerceProductionDeployment = "local-lab" | "production"
+export type CommerceProduction = { mode: "production"; deployment: CommerceProductionDeployment; paymentsUrl: string; secret: Uint8Array; readRpcs: ReadonlySet<string> }
+export type CommerceEnabled = CommerceTest | CommerceProduction
+export type CommerceConfig = CommerceOff | CommerceTest | CommerceProduction
 export type CommerceContext = {
   baseAllowlist: ReadonlySet<string>        // the 43 staging v1 RPCs the gateway already loaded
   gatewayPublicUrl: string | URL            // where this gateway is published (lab = loopback)
@@ -94,19 +123,20 @@ export type CommerceContext = {
 type Env = Record<string, string | undefined>
 
 // ============================================================================ configuration
-export function validateCommerceAllowlist(doc: unknown, base: ReadonlySet<string>): ReadonlySet<string> {
+export function validateCommerceAllowlist(doc: unknown, base: ReadonlySet<string>, mode: "test" | "production" = "test",
+  expected: readonly string[] = mode === "test" ? EXPECTED_COMMERCE_RPCS : EXPECTED_PRODUCTION_COMMERCE_RPCS): ReadonlySet<string> {
   const d = doc as { mode?: unknown; rpcs?: unknown }
-  if (!d || typeof d !== "object" || d.mode !== "test" || !Array.isArray(d.rpcs)) throw new CommerceConfigError("commerce allowlist shape")
+  if (!d || typeof d !== "object" || d.mode !== mode || !Array.isArray(d.rpcs)) throw new CommerceConfigError("commerce allowlist shape")
   const names = d.rpcs as unknown[]
   if (!names.every((n) => typeof n === "string" && /^[a-z0-9_]+$/.test(n))) throw new CommerceConfigError("commerce allowlist names")
   const set = new Set(names as string[])
   if (set.size !== names.length) throw new CommerceConfigError("commerce allowlist repeats a name")
   for (const name of set) {
-    if (name === CHECKOUT_RPC || WRITE_RPC_RE.test(name)) throw new CommerceConfigError("commerce allowlist contains a write")
+    if (name === CHECKOUT_RPC || name === PRODUCTION_CHECKOUT_RPC || WRITE_RPC_RE.test(name)) throw new CommerceConfigError("commerce allowlist contains a write")
     if (base.has(name)) throw new CommerceConfigError("commerce allowlist repeats a staging v1 RPC")
-    if (!EXPECTED_COMMERCE_RPCS.includes(name)) throw new CommerceConfigError("commerce allowlist has an extra name")
+    if (!expected.includes(name)) throw new CommerceConfigError("commerce allowlist has an extra name")
   }
-  if (!EXPECTED_COMMERCE_RPCS.every((name) => set.has(name))) throw new CommerceConfigError("commerce allowlist misses a read")
+  if (!expected.every((name) => set.has(name))) throw new CommerceConfigError("commerce allowlist misses a read")
   return set
 }
 
@@ -187,11 +217,85 @@ function remoteTestLinks(env: Env, ctx: CommerceContext, paymentsRaw: string): s
   return canonical
 }
 
+// ---------------------------------------------------------------------------- production (COMMERCE-PRODUCTION)
+function productionLinks(env: Env, ctx: CommerceContext, paymentsRaw: string): string {
+  const hostValue = (env.TORNEOS_COMMERCE_PRODUCTION_PAYMENTS_HOST ?? "").trim()
+  if (!hostValue) throw new CommerceConfigError("production requires TORNEOS_COMMERCE_PRODUCTION_PAYMENTS_HOST")
+  const paymentsHost = canonicalRemoteHost(hostValue)
+  if (!paymentsHost) throw new CommerceConfigError("TORNEOS_COMMERCE_PRODUCTION_PAYMENTS_HOST must be one exact lowercase public DNS hostname")
+  if (paymentsHost.split(".").some((label) => NON_PRODUCTION_LABEL_RE.test(label))) {
+    throw new CommerceConfigError("TORNEOS_COMMERCE_PRODUCTION_PAYMENTS_HOST carries a test / sandbox / lab label")
+  }
+  if (paymentsHost.includes(PRODUCTION_REF)) throw new CommerceConfigError("TORNEOS_COMMERCE_PRODUCTION_PAYMENTS_HOST names the Core project")
+  const canonical = `https://${paymentsHost}${PRODUCTION_PAYMENTS_MOUNT}`
+  if (paymentsRaw !== canonical && paymentsRaw !== `${canonical}/`) throw new CommerceConfigError("TORNEOS_PAYMENTS_INTERNAL_URL is not the declared production payments URL")
+  // This gateway and everything it talks to (or accepts browsers from): https, public, never loopback or Core.
+  const targets: Array<[string, string | URL | null | undefined]> = [["gateway public URL", ctx.gatewayPublicUrl]]
+  for (const dependency of ctx.dependencyUrls ?? []) targets.push(["gateway dependency URL", dependency])
+  for (const [label, raw] of targets) {
+    if (raw === null || raw === undefined || String(raw).trim() === "") throw new CommerceConfigError(`production ${label} missing`)
+    let url: URL
+    try { url = new URL(String(raw)) } catch { throw new CommerceConfigError(`${label} is not a URL`) }
+    if (url.protocol !== "https:" || url.username || url.password) throw new CommerceConfigError(`${label} must be https for production commerce`)
+    if (LAB_GATEWAY_HOSTS.has(url.hostname) || LAB_PAYMENTS_HOSTS.has(url.hostname) || url.hostname === "[::1]") {
+      throw new CommerceConfigError(`${label} is not a public hostname`)
+    }
+  }
+  if (!ctx.dependencyUrls?.length) throw new CommerceConfigError("production requires the gateway dependency URLs")
+  return canonical
+}
+
+function labProductionPaymentsUrl(raw: string): string {
+  let url: URL
+  try { url = new URL(raw) } catch { throw new CommerceConfigError("TORNEOS_PAYMENTS_INTERNAL_URL is not a URL") }
+  if (url.href.includes(PRODUCTION_REF)) throw new CommerceConfigError("TORNEOS_PAYMENTS_INTERNAL_URL names Production")
+  if (url.protocol !== "http:" || !LAB_PAYMENTS_HOSTS.has(url.hostname)) throw new CommerceConfigError("TORNEOS_PAYMENTS_INTERNAL_URL must be the lab payments host")
+  if (url.username || url.password || url.search || url.hash || raw.includes("?") || raw.includes("#")) throw new CommerceConfigError("TORNEOS_PAYMENTS_INTERNAL_URL carries credentials, query or fragment")
+  const mount = url.pathname.replace(/\/$/, "")
+  if (!LAB_PRODUCTION_PAYMENTS_MOUNTS.has(mount)) throw new CommerceConfigError("TORNEOS_PAYMENTS_INTERNAL_URL must be the torneos-payments-production mount")
+  return `${url.origin}${mount}`
+}
+
+function loadProductionCommerce(env: Env, ctx: CommerceContext, allowlistDoc: unknown): CommerceProduction {
+  for (const [name, value] of Object.entries(env)) {
+    if ((value ?? "").trim() && FORBIDDEN_GATEWAY_ENV.some((re) => re.test(name))) throw new CommerceConfigError(`refusing ${name} in the gateway`)
+  }
+  for (const name of ["TORNEOS_COMMERCE_REMOTE_GATEWAY_HOST", "TORNEOS_COMMERCE_REMOTE_PAYMENTS_HOST"]) {
+    if ((env[name] ?? "").trim()) throw new CommerceConfigError(`${name} is for remote TEST only`)
+  }
+  const deployment = (env.TORNEOS_COMMERCE_DEPLOYMENT ?? "").trim() || "production"
+  if (!PRODUCTION_COMMERCE_DEPLOYMENTS.includes(deployment)) throw new CommerceConfigError("production commerce runs only hosted or in the local lab")
+  const url = (env.TORNEOS_PAYMENTS_INTERNAL_URL ?? "").trim()
+  const secret = (env.TORNEOS_PAYMENTS_INTERNAL_SECRET ?? "").trim()
+  if (!url) throw new CommerceConfigError("missing TORNEOS_PAYMENTS_INTERNAL_URL")
+  if (!secret) throw new CommerceConfigError("missing TORNEOS_PAYMENTS_INTERNAL_SECRET")
+  let paymentsUrl: string
+  if (deployment === "local-lab") {
+    if ((env.TORNEOS_COMMERCE_PRODUCTION_PAYMENTS_HOST ?? "").trim()) throw new CommerceConfigError("TORNEOS_COMMERCE_PRODUCTION_PAYMENTS_HOST is for hosted production only")
+    let gateway: URL
+    try { gateway = new URL(String(ctx.gatewayPublicUrl)) } catch { throw new CommerceConfigError("gateway public URL") }
+    if (!LAB_GATEWAY_HOSTS.has(gateway.hostname)) throw new CommerceConfigError("local-lab production commerce is loopback-only")
+    paymentsUrl = labProductionPaymentsUrl(url)
+  } else {
+    paymentsUrl = productionLinks(env, ctx, url)
+  }
+  return {
+    mode: "production",
+    deployment: deployment as CommerceProductionDeployment,
+    paymentsUrl,
+    secret: secretOf(secret, ctx.distinctFrom),
+    readRpcs: validateCommerceAllowlist(allowlistDoc, ctx.baseAllowlist, "production"),
+  }
+}
+
 /** Fail-closed commerce configuration. OFF reads nothing but the mode; any fault throws CommerceConfigError. */
-export function loadCommerceConfig(env: Env, ctx: CommerceContext, allowlistDoc: unknown = commerceAllowlistDoc): CommerceConfig {
+export function loadCommerceConfig(env: Env, ctx: CommerceContext, allowlistDoc: unknown = commerceAllowlistDoc,
+  productionAllowlistDoc: unknown = commerceProductionAllowlistDoc): CommerceConfig {
   const mode = (env.TORNEOS_COMMERCE_MODE ?? "").trim()
   if (!mode) return { mode: "off" }
-  if (mode !== "test") throw new CommerceConfigError("TORNEOS_COMMERCE_MODE accepts only test")
+  if (mode === "production") return loadProductionCommerce(env, ctx, productionAllowlistDoc)
+  if (mode !== "test") throw new CommerceConfigError("TORNEOS_COMMERCE_MODE accepts only test or production")
+  if ((env.TORNEOS_COMMERCE_PRODUCTION_PAYMENTS_HOST ?? "").trim()) throw new CommerceConfigError("TORNEOS_COMMERCE_PRODUCTION_PAYMENTS_HOST is for production only")
   for (const [name, value] of Object.entries(env)) {
     if ((value ?? "").trim() && FORBIDDEN_GATEWAY_ENV.some((re) => re.test(name))) throw new CommerceConfigError(`refusing ${name} in the gateway`)
   }
@@ -224,9 +328,9 @@ export function loadCommerceConfig(env: Env, ctx: CommerceContext, allowlistDoc:
   }
 }
 
-/** Generic proxy allowlist: the 43 when OFF (the same set), 43 + the 2 commerce reads in TEST. */
+/** Generic proxy allowlist: the 43 when OFF (the same set), 43 + the commerce reads in TEST or production. */
 export function effectiveRpcAllowlist(base: ReadonlySet<string>, commerce: CommerceConfig): ReadonlySet<string> {
-  if (commerce.mode !== "test") return base
+  if (commerce.mode === "off") return base
   return new Set([...base, ...commerce.readRpcs])
 }
 
@@ -304,11 +408,12 @@ function parseJson(text: string | null): unknown {
 type Step = { result: CheckoutResult } | { purchase: Record<string, unknown> }
 
 /** Step 6: the DB wrapper with the user's own bearer. Business refusals keep their code; only transients are 503. */
-async function createPurchase(token: string, input: CheckoutInput, hooks: CheckoutHooks, doFetch: typeof fetch, restMs: number): Promise<Step> {
+async function createPurchase(token: string, input: CheckoutInput, hooks: CheckoutHooks, doFetch: typeof fetch, restMs: number,
+  environment: "test" | "production" = "test"): Promise<Step> {
   let response: Response
   let text: string | null
   try {
-    response = await doFetch(`${hooks.restUrl}/rpc/${CHECKOUT_RPC}`, {
+    response = await doFetch(`${hooks.restUrl}/rpc/${environment === "production" ? PRODUCTION_CHECKOUT_RPC : CHECKOUT_RPC}`, {
       method: "POST",
       headers: { authorization: `Bearer ${token}`, "content-type": "application/json", accept: "application/json",
         ...(hooks.restApiKey ? { apikey: hooks.restApiKey } : {}) },
@@ -322,7 +427,7 @@ async function createPurchase(token: string, input: CheckoutInput, hooks: Checko
   const body = parseJson(text)
   if (response.status === 200) {
     if (!isPlainObject(body) || typeof body.id !== "string" || !UUID_RE.test(body.id) || typeof body.status !== "string"
-      || body.provider !== "MERCADO_PAGO" || body.providerEnvironment !== "test") return { result: FAILED() }
+      || body.provider !== "MERCADO_PAGO" || body.providerEnvironment !== environment) return { result: FAILED() }
     return { purchase: body }
   }
   const refusal = isPlainObject(body) && typeof body.message === "string" ? body.message : null
@@ -333,7 +438,7 @@ async function createPurchase(token: string, input: CheckoutInput, hooks: Checko
 }
 
 /** Step 7: HMAC-signed internal call to torneos-payments (manifest = MP-A3 signInternal). One attempt, 8 s. */
-async function requestPreference(cfg: CommerceTest, purchaseId: string, doFetch: typeof fetch, nowMs: number, paymentsMs: number): Promise<CheckoutResult | { preference: Record<string, string> }> {
+async function requestPreference(cfg: CommerceEnabled, purchaseId: string, doFetch: typeof fetch, nowMs: number, paymentsMs: number): Promise<CheckoutResult | { preference: Record<string, string> }> {
   const body = JSON.stringify({ purchase_id: purchaseId })
   const time = String(Math.floor(nowMs / 1000))
   const nonce = crypto.randomUUID()
@@ -373,8 +478,8 @@ function projection(purchase: Record<string, unknown>): Record<string, unknown> 
   return out
 }
 
-/** POST /commerce/v1/season-checkout, after the gateway matched method + path and commerce is TEST. */
-export async function seasonCheckout(req: CheckoutRequest, cfg: CommerceTest, hooks: CheckoutHooks): Promise<CheckoutResult> {
+/** POST /commerce/v1/season-checkout, after the gateway matched method + path and commerce is TEST or production. */
+export async function seasonCheckout(req: CheckoutRequest, cfg: CommerceEnabled, hooks: CheckoutHooks): Promise<CheckoutResult> {
   const now = hooks.now ?? (() => Date.now())
   const started = now()
   const rid = crypto.randomUUID()
@@ -410,7 +515,7 @@ export async function seasonCheckout(req: CheckoutRequest, cfg: CommerceTest, ho
     const input = raw ? parseInput(raw) : null
     if (!input) return done(INVALID())
     // 6. the DB decides authorization, plan, price, provider, environment and idempotency
-    const created = await createPurchase(token, input, hooks, doFetch, restMs)
+    const created = await createPurchase(token, input, hooks, doFetch, restMs, cfg.mode === "production" ? "production" : "test")
     if ("result" in created) return done(created.result)
     const purchase = created.purchase
     purchaseId = purchase.id as string
@@ -421,6 +526,119 @@ export async function seasonCheckout(req: CheckoutRequest, cfg: CommerceTest, ho
     if (!("preference" in preference)) return done(preference)
     // 8. whitelisted answer
     return done({ status: 200, body: { purchase: projection(purchase), preference: preference.preference } })
+  } catch {
+    return done(FAILED())
+  }
+}
+
+// ============================================================================ the refresh route (COMMERCE-PRODUCTION)
+const REFRESHABLE = new Set(["preference_created", "pending", "approved", "charged_back"])
+
+/** Step 6 of the refresh: the buyer's (or a billing manager's) own read; the DB decides who may see the purchase. */
+async function readPurchase(token: string, purchaseId: string, hooks: CheckoutHooks, doFetch: typeof fetch, restMs: number): Promise<Step> {
+  let response: Response
+  let text: string | null
+  try {
+    response = await doFetch(`${hooks.restUrl}/rpc/get_tournament_purchase`, {
+      method: "POST",
+      headers: { authorization: `Bearer ${token}`, "content-type": "application/json", accept: "application/json",
+        ...(hooks.restApiKey ? { apikey: hooks.restApiKey } : {}) },
+      body: JSON.stringify({ p_purchase_id: purchaseId }), redirect: "error", signal: AbortSignal.timeout(restMs),
+    })
+    text = await readText(response)
+  } catch {
+    return { result: answer(503, "TORNEOS_UNAVAILABLE") }
+  }
+  const body = parseJson(text)
+  if (response.status === 200) {
+    if (!isPlainObject(body) || body.id !== purchaseId || typeof body.status !== "string") return { result: FAILED() }
+    return { purchase: body }
+  }
+  const refusal = isPlainObject(body) && typeof body.message === "string" ? body.message : null
+  if (refusal && Object.hasOwn(DB_REFUSALS, refusal)) { const [status, code] = DB_REFUSALS[refusal]; return { result: answer(status, code) } }
+  if (response.status === 401) return { result: DENIED() }
+  if (response.status >= 500) return { result: answer(503, "TORNEOS_UNAVAILABLE") }
+  return { result: FAILED() }
+}
+
+/** HMAC-signed reconcile request to torneos-payments-production. Its own failures never hide the purchase. */
+async function requestReconcile(cfg: CommerceProduction, purchaseId: string, doFetch: typeof fetch, nowMs: number, paymentsMs: number): Promise<string> {
+  const body = JSON.stringify({ purchase_id: purchaseId })
+  const time = String(Math.floor(nowMs / 1000))
+  const nonce = crypto.randomUUID()
+  try {
+    const signature = await signInternal(cfg.secret, PAYMENTS_RECONCILE_PATH, time, nonce, body)
+    const response = await doFetch(`${cfg.paymentsUrl}${PAYMENTS_RECONCILE_PATH}`, {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-time": time, "x-nonce": nonce, "x-signature": signature },
+      body, redirect: "error", signal: AbortSignal.timeout(paymentsMs),
+    })
+    const parsed = parseJson(await readText(response, 8192))
+    if (response.status === 200 && isPlainObject(parsed) && typeof parsed.outcome === "string" && /^[a-z][a-z0-9_]{1,59}$/.test(parsed.outcome)) {
+      return parsed.outcome
+    }
+    return response.status === 503 ? "unavailable" : "failed"
+  } catch {
+    return "unavailable"
+  }
+}
+
+type RefreshInput = { purchaseId: string }
+function parseRefreshInput(raw: Uint8Array): RefreshInput | null {
+  let value: unknown
+  try { value = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(raw)) } catch { return null }
+  if (!isPlainObject(value) || Object.keys(value).length !== 1 || typeof value.purchaseId !== "string" || !UUID_RE.test(value.purchaseId)) return null
+  return { purchaseId: value.purchaseId.toLowerCase() }
+}
+
+/**
+ * POST /commerce/v1/purchase-refresh {purchaseId} (production only): "I already paid" / "update". The buyer's read decides
+ * access; only a production purchase that could still change is reconciled with Mercado Pago (the payments service
+ * throttles per purchase); the answer is the buyer's read again plus the reconcile outcome. Grants come only from the
+ * verified payment inside the payments service, never from this route.
+ */
+export async function purchaseRefresh(req: CheckoutRequest, cfg: CommerceProduction, hooks: CheckoutHooks): Promise<CheckoutResult> {
+  const now = hooks.now ?? (() => Date.now())
+  const started = now()
+  const rid = crypto.randomUUID()
+  let purchaseId: string | null = null
+  const done = (result: CheckoutResult): CheckoutResult => {
+    const code = result.status === 200 ? String(result.body.refresh ?? "read") : String(result.body.error)
+    hooks.log?.({ fn: "torneos-gateway", route: "commerce.purchase_refresh", rid, purchaseId, status: result.status, code, ms: now() - started })
+    return result
+  }
+  const doFetch = hooks.fetch ?? fetch
+  const { restMs, paymentsMs } = hooks.timeouts ?? COMMERCE_TIMEOUTS
+  try {
+    const header = req.authorization
+    if (!header?.startsWith("Bearer ") || header.length > 12000) return done(DENIED())
+    const token = header.slice(7)
+    let claims: BridgeClaims
+    try { claims = await hooks.verifyBridge(token) } catch { return done(DENIED()) }
+    try { await hooks.activeSession(claims) } catch (error) {
+      return done(hooks.isUnavailable(error) ? answer(503, "CORE_UNAVAILABLE") : DENIED())
+    }
+    try {
+      if (!await hooks.identityExists(claims)) return done(DENIED())
+    } catch (error) {
+      return done(hooks.isUnavailable(error) ? answer(503, "TORNEOS_UNAVAILABLE") : DENIED())
+    }
+    if (req.search) return done(INVALID())
+    const raw = await readLimited(req.body, req.contentLength, MAX_CHECKOUT_BODY).catch(() => undefined)
+    if (raw === null) return done(answer(413, "TORNEOS_CHECKOUT_TOO_LARGE"))
+    const input = raw ? parseRefreshInput(raw) : null
+    if (!input) return done(INVALID())
+    purchaseId = input.purchaseId
+    const first = await readPurchase(token, input.purchaseId, hooks, doFetch, restMs)
+    if ("result" in first) return done(first.result)
+    const production = first.purchase.provider === "MERCADO_PAGO" && first.purchase.providerEnvironment === "production"
+    if (!production || !REFRESHABLE.has(first.purchase.status as string)) {
+      return done({ status: 200, body: { purchase: projection(first.purchase), refresh: "not_applicable" } })
+    }
+    const refresh = await requestReconcile(cfg, input.purchaseId, doFetch, now(), paymentsMs)
+    const second = await readPurchase(token, input.purchaseId, hooks, doFetch, restMs)
+    const purchase = "purchase" in second ? second.purchase : first.purchase
+    return done({ status: 200, body: { purchase: projection(purchase), refresh } })
   } catch {
     return done(FAILED())
   }

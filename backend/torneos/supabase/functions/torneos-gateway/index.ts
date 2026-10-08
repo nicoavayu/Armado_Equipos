@@ -20,8 +20,10 @@
 // (service HMAC, RS256 private key, database logins) live only in this function's env.
 //
 // MP-A4: commerce (commerce.ts, shared with the Node lab gateway). TORNEOS_COMMERCE_MODE unset → nothing
-// changes. "test" → POST /commerce/v1/season-checkout and the 2 commerce reads on top of the 43, in the local lab
+// changes. "test" → POST /commerce/v1/season-checkout and the commerce reads on top of the 43, in the local lab
 // or (MP-B1.1 R2, TORNEOS_COMMERCE_DEPLOYMENT=remote-test) on exactly declared https hosts, never Production;
+// "production" (COMMERCE-PRODUCTION) → the same checkout route on the production wrapper, POST
+// /commerce/v1/purchase-refresh and the production reads, against torneos-payments-production only;
 // any other value, or a faulty commerce configuration, disables the whole gateway like any config fault.
 //
 // COMPETITION-V1 (competition.ts): the generic route serves the full-competition RPCs on top of the 43
@@ -50,7 +52,7 @@ import { CoreClient, Denied, ROUTES } from "./core-client.ts"
 import { Adapter, AdapterDenied, CONTRACTS } from "./adapter.ts"
 import { connect, allocateIdentity, identityExists, isUnavailable, type Sql } from "./db.ts"
 import { loadConfig, routePath, ConfigError, type GatewayConfig } from "./config.ts"
-import { COMMERCE_ROUTE, CommerceConfigError, effectiveRpcAllowlist, loadCommerceConfig, seasonCheckout, type CommerceConfig } from "./commerce.ts"
+import { COMMERCE_ROUTE, CommerceConfigError, effectiveRpcAllowlist, loadCommerceConfig, purchaseRefresh, REFRESH_ROUTE, seasonCheckout, type CommerceConfig } from "./commerce.ts"
 import { CompetitionConfigError, domainErrorStatus, loadCompetitionContract, loadOfficializationContract, preparePublicRpc, PublicGate, PUBLIC_RPC_ROUTE, withCompetition, withOfficialization, type CompetitionContract } from "./competition.ts"
 import { withPlanRead, PlanReadConfigError } from "./plan-read.ts"
 import { withSocial, SocialConfigError } from "./social.ts"
@@ -268,16 +270,19 @@ export async function handle(req: Request): Promise<Response> {
       const token = await issueToken(rt.cfg.bridge, row, c.sessionId)
       return json(200, { access_token: token, token_type: "Bearer", expires_in: TTL }, cors)
     }
-    if (rt.commerce.mode === "test" && req.method === "POST" && path === COMMERCE_ROUTE) {
-      const r = await seasonCheckout({ authorization: req.headers.get("authorization"), search: url.search,
-        contentLength: req.headers.get("content-length"), body: req.body }, rt.commerce, {
-        verifyBridge: (token) => verifyToken(token, rt.cfg.bridge),
-        activeSession: (c) => activeSession(rt, c.core_user_id, c.session_id),
-        identityExists: (c) => identityExists(rt.identity, c.sub, c.core_user_id),
-        isUnavailable: (error) => error instanceof Unavailable || isUnavailable(error),
+    // MP-A4 TEST / COMMERCE-PRODUCTION: the fixed checkout route (and, in production only, the purchase refresh).
+    const commerce = rt.commerce
+    if (commerce.mode !== "off" && req.method === "POST" && (path === COMMERCE_ROUTE || (commerce.mode === "production" && path === REFRESH_ROUTE))) {
+      const request = { authorization: req.headers.get("authorization"), search: url.search, contentLength: req.headers.get("content-length"), body: req.body }
+      const hooks = {
+        verifyBridge: (token: string) => verifyToken(token, rt.cfg.bridge),
+        activeSession: (c: { core_user_id: string; session_id: string }) => activeSession(rt, c.core_user_id, c.session_id),
+        identityExists: (c: { sub: string; core_user_id: string }) => identityExists(rt.identity, c.sub, c.core_user_id),
+        isUnavailable: (error: unknown) => error instanceof Unavailable || isUnavailable(error),
         restUrl: rt.cfg.torneosRestUrl, restApiKey: rt.cfg.torneosAnonKey,
-        log: (entry) => console.log(JSON.stringify(entry)),
-      })
+        log: (entry: unknown) => console.log(JSON.stringify(entry)),
+      }
+      const r = path === COMMERCE_ROUTE ? await seasonCheckout(request, commerce, hooks) : await purchaseRefresh(request, commerce as Extract<CommerceConfig, { mode: "production" }>, hooks)
       return json(r.status, r.body, cors)
     }
     // COMPETITION-V1: the public read-only route. No bearer, no Core session, no identity: anon only.

@@ -243,8 +243,12 @@ const server = http.createServer(async (req, res) => {
       const token = await issueToken(await readConfig(), row, c.sessionId);
       return json(res, 200, { access_token: token, token_type: 'Bearer', expires_in: TTL });
     }
-    if (commerce.mode === 'test' && req.method === 'POST' && url.pathname === commerceModule.COMMERCE_ROUTE) {
-      const r = await commerceModule.seasonCheckout({ authorization: req.headers.authorization ?? null, search: url.search,
+    // COMMERCE-PRODUCTION: production mode serves the same checkout route plus the purchase refresh (same module as Edge).
+    const commerceRoute = commerce.mode !== 'off' && req.method === 'POST' && (url.pathname === commerceModule?.COMMERCE_ROUTE
+      || (commerce.mode === 'production' && url.pathname === commerceModule?.REFRESH_ROUTE));
+    if (commerceRoute) {
+      const handler = url.pathname === commerceModule.COMMERCE_ROUTE ? commerceModule.seasonCheckout : commerceModule.purchaseRefresh;
+      const r = await handler({ authorization: req.headers.authorization ?? null, search: url.search,
         contentLength: req.headers['content-length'] ?? null, body: req }, commerce, {
         verifyBridge: async (token) => verifyToken(token, await readConfig()),
         activeSession: (c) => activeSession(c.core_user_id, c.session_id),

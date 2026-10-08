@@ -119,7 +119,13 @@ function createAdapter({ role = 'owner', commerce = true, seasonEntitlements = e
       purchase: purchase('created', { providerPreferenceId: null }),
       preference: { provider: 'MERCADO_PAGO', preferenceId: 'lab-pref-1', checkoutUrl: CHECKOUT_URL, expiresAt: '2026-09-24T00:00:00Z' },
     }),
+    // COMMERCE-PRODUCTION: Mi plan's purchase list (none by default) and the buyer's refresh.
+    loadSeasonPurchases: jest.fn().mockResolvedValue(seasonPurchases([], { canManageBilling: ['owner', 'admin'].includes(role) })),
+    refreshPurchase: jest.fn().mockResolvedValue({ purchase: purchase('pending'), refresh: 'no_payment' }),
   };
+}
+function seasonPurchases(purchases, { canManageBilling = true, checkoutAvailable = true } = {}) {
+  return { schemaVersion: 1, organizationId: ORG, seasonId: SEASON, canManageBilling, checkoutAvailable, purchases };
 }
 
 let currentPath = '';
@@ -265,15 +271,165 @@ describe('PLAN READ gate — Mi plan exists only with the read opt-in', () => {
   });
 });
 
-describe('Mi plan stays informational with the TEST overlay', () => {
-  test.each(['FREE', 'PREMIUM'])('%s is read but no purchase is offered', async (plan) => {
+describe('COMMERCE-PRODUCTION: Mi plan sells Premium with the purchase overlay (TEST lab or production web)', () => {
+  const later = () => new Date(Date.now() + 20 * 60_000).toISOString();
+
+  test('FREE: the server price, the season scope and one-time payment; one checkout for a double tap', async () => {
     const adapter = createAdapter();
-    adapter.loadSeasonEntitlements.mockResolvedValue(entitlements({ plan }));
+    const { checkoutRedirect } = renderHybrid(PLAN_PATH, { adapter });
+    expect(await screen.findByRole('heading', { name: 'FREE · Apertura 2026' })).toBeInTheDocument();
+    const panel = await screen.findByRole('region', { name: 'Pasá Apertura 2026 a Premium' });
+    expect(panel).toHaveTextContent(/41\.000/);
+    expect(panel).toHaveTextContent(/51\.000/);
+    expect(panel).toHaveTextContent('ARS · por temporada');
+    expect(panel).toHaveTextContent('Pago único. No es una suscripción: no se renueva ni se vuelve a cobrar.');
+    expect(panel).toHaveTextContent('Incluye todos los torneos de esta temporada.');
+    expect(panel).toHaveTextContent('Entorno de prueba: no se cobra dinero real.');
+    const pay = within(panel).getByRole('button', { name: 'Pagar con Mercado Pago' });
+    fireEvent.click(pay);
+    fireEvent.click(pay);
+    await waitFor(() => expect(checkoutRedirect).toHaveBeenCalledWith(CHECKOUT_URL));
+    expect(adapter.createCheckout).toHaveBeenCalledTimes(1);
+    expect(adapter.createCheckout).toHaveBeenCalledWith({ organizationId: ORG, seasonId: SEASON, idempotencyKey: KEY });
+    expect(adapter.loadSeasonPurchases).toHaveBeenCalledWith({ organizationId: ORG, seasonId: SEASON });
+  });
+
+  test('PREMIUM: confirmation of the paid season, no purchase offered', async () => {
+    const adapter = createAdapter({ seasonEntitlements: premium() });
+    adapter.loadSeasonPurchases.mockResolvedValue(seasonPurchases([purchase('approved', { approvedAt: '2026-10-01T15:00:00Z' })]));
     renderHybrid(PLAN_PATH, { adapter });
-    expect(await screen.findByRole('heading', { name: `${plan} · Apertura 2026` })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Ver Premium' })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /Comprar Premium/ })).toBeNull();
+    const panel = await screen.findByRole('region', { name: 'Premium activo en Apertura 2026' });
+    expect(panel).toHaveTextContent('No es una suscripción: no se renueva ni se vuelve a cobrar.');
+    await waitFor(() => expect(panel).toHaveTextContent('Mercado Pago'));
+    expect(screen.queryByRole('button', { name: 'Pagar con Mercado Pago' })).toBeNull();
     expect(adapter.createCheckout).not.toHaveBeenCalled();
+  });
+
+  test('an open purchase is continued or consulted, never bought twice', async () => {
+    const adapter = createAdapter();
+    adapter.loadSeasonPurchases.mockResolvedValue(seasonPurchases([purchase('preference_created', { preferenceExpiresAt: later() })]));
+    const { checkoutRedirect } = renderHybrid(PLAN_PATH, { adapter });
+    const panel = await screen.findByRole('region', { name: 'Esperando el pago' });
+    expect(within(panel).getByRole('link', { name: 'Ver estado de la compra' }).getAttribute('href')).toBe(statusPath('pendiente'));
+    expect(screen.queryByRole('button', { name: 'Pagar con Mercado Pago' })).toBeNull();
+    fireEvent.click(within(panel).getByRole('button', { name: 'Continuar el pago' }));
+    await waitFor(() => expect(checkoutRedirect).toHaveBeenCalledWith(CHECKOUT_URL));
+  });
+
+  test('a payment in process (cash) offers no new payment', async () => {
+    const adapter = createAdapter();
+    adapter.loadSeasonPurchases.mockResolvedValue(seasonPurchases([purchase('pending')]));
+    renderHybrid(PLAN_PATH, { adapter });
+    const panel = await screen.findByRole('region', { name: 'Pago en proceso' });
+    expect(panel).toHaveTextContent('No hace falta volver a pagar');
+    expect(within(panel).queryByRole('button')).toBeNull();
+  });
+
+  test('a returned payment: the season is FREE again, nothing was deleted, Premium can be bought again', async () => {
+    const adapter = createAdapter();
+    adapter.loadSeasonPurchases.mockResolvedValue(seasonPurchases([purchase('refunded', { refundedAt: '2026-10-02T12:00:00Z' })]));
+    renderHybrid(PLAN_PATH, { adapter });
+    expect(await screen.findByText(/fue devuelto el .*2026\. La temporada volvió a FREE y no se borró nada/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Pagar con Mercado Pago' })).toBeEnabled();
+  });
+
+  test('a disputed payment suspends the purchase surface', async () => {
+    const adapter = createAdapter();
+    adapter.loadSeasonPurchases.mockResolvedValue(seasonPurchases([purchase('charged_back')]));
+    renderHybrid(PLAN_PATH, { adapter });
+    expect(await screen.findByRole('region', { name: 'Hay un contracargo en revisión' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Pagar con Mercado Pago' })).toBeNull();
+  });
+
+  test('only managers may buy: a collaborator sees why', async () => {
+    const adapter = createAdapter({ role: 'collaborator' });
+    renderHybrid(PLAN_PATH, { adapter });
+    const pay = await screen.findByRole('button', { name: 'Pagar con Mercado Pago' });
+    await waitFor(() => expect(pay).toBeDisabled());
+    expect(screen.getByText('Sólo el Propietario o un Administrador de esta temporada pueden comprar Premium.')).toBeInTheDocument();
+  });
+
+  test.each([
+    [new TournamentWorkspaceError('TORNEOS_BILLING_DISABLED', 'La compra de Premium todavía no está habilitada para esta organización. No se realizó ningún cobro.'), /todavía no está habilitada para esta organización/],
+    [new TournamentWorkspaceError('TORNEOS_PAYMENTS_UNAVAILABLE', 'El servicio de pagos no está disponible en este momento y no se realizó ningún cobro.'), /no se realizó ningún cobro/],
+  ])('checkout refused → a plain message, no redirect (%#)', async (error, message) => {
+    const adapter = createAdapter();
+    adapter.createCheckout.mockRejectedValue(error);
+    const { checkoutRedirect } = renderHybrid(PLAN_PATH, { adapter });
+    fireEvent.click(await screen.findByRole('button', { name: 'Pagar con Mercado Pago' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(message);
+    expect(checkoutRedirect).not.toHaveBeenCalled();
+  });
+
+  test('a checkout URL outside Mercado Pago is never followed', async () => {
+    const adapter = createAdapter();
+    adapter.createCheckout.mockResolvedValue({ purchase: purchase('created'), preference: { provider: 'MERCADO_PAGO', preferenceId: 'x', checkoutUrl: 'https://evil.example.com/pay', expiresAt: later() } });
+    const { checkoutRedirect } = renderHybrid(PLAN_PATH, { adapter });
+    fireEvent.click(await screen.findByRole('button', { name: 'Pagar con Mercado Pago' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(/dirección de pago inválida/);
+    expect(checkoutRedirect).not.toHaveBeenCalled();
+  });
+
+  test('production: the button exists only where the server says this organization can buy now', async () => {
+    const closed = createAdapter();
+    closed.loadSeasonPurchases.mockResolvedValue(seasonPurchases([], { checkoutAvailable: false }));
+    renderHybrid(PLAN_PATH, { adapter: closed, billingMode: { mode: 'production' } });
+    expect(await screen.findByText('La compra de Premium todavía no está disponible para esta organización.')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Pagar con Mercado Pago' })).toBeNull();
+    expect(screen.queryByText(/Entorno de prueba/)).toBeNull();
+    const open = createAdapter();
+    open.loadSeasonPurchases.mockResolvedValue(seasonPurchases([], { checkoutAvailable: true }));
+    renderHybrid(PLAN_PATH, { adapter: open, billingMode: { mode: 'production' } });
+    expect(await screen.findByRole('button', { name: 'Pagar con Mercado Pago' })).toBeEnabled();
+  });
+
+  test('without billing the plan stays informational (production web before the switch)', async () => {
+    const adapter = createAdapter();
+    renderHybrid(PLAN_PATH, { adapter, billingMode: 'off', planRead: true });
+    expect(await screen.findByRole('heading', { name: 'FREE · Apertura 2026' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Pagar con Mercado Pago' })).toBeNull();
+    expect(adapter.loadSeasonPurchases).not.toHaveBeenCalled();
+    expect(adapter.createCheckout).not.toHaveBeenCalled();
+  });
+});
+
+describe('COMMERCE-PRODUCTION: back from Mercado Pago', () => {
+  test('an open purchase is reconciled once on arrival; "Consultar de nuevo" asks again', async () => {
+    const adapter = createAdapter({ seasonEntitlements: premium() });
+    adapter.loadPurchase.mockResolvedValue(purchase('preference_created'));
+    adapter.refreshPurchase.mockResolvedValueOnce({ purchase: purchase('preference_created'), refresh: 'no_payment' })
+      .mockResolvedValue({ purchase: purchase('approved'), refresh: 'verified' });
+    renderHybrid(statusPath('exito', '?collection_status=approved'), { adapter });
+    await waitFor(() => expect(adapter.refreshPurchase).toHaveBeenCalledTimes(1));
+    expect(await screen.findByRole('heading', { name: /esperando confirmación/i })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Consultar de nuevo' }));
+    expect(await screen.findByRole('heading', { name: 'Premium ya está activo' })).toBeInTheDocument();
+    expect(adapter.refreshPurchase).toHaveBeenCalledTimes(2);
+  });
+
+  test('polling stops after 3 minutes and says so; the plan-changed event fires once Premium is confirmed', async () => {
+    jest.useFakeTimers();
+    const events = [];
+    const listener = (event) => events.push(event.detail);
+    window.addEventListener('torneos:plan-changed', listener);
+    try {
+      const adapter = createAdapter({ seasonEntitlements: premium() });
+      adapter.loadPurchase.mockResolvedValue(purchase('pending'));
+      adapter.refreshPurchase.mockResolvedValue({ purchase: purchase('pending'), refresh: 'no_payment' });
+      renderHybrid(statusPath('pendiente'), { adapter });
+      expect(await screen.findByRole('heading', { name: /esperando confirmación/i })).toBeInTheDocument();
+      for (let i = 0; i < 47; i += 1) await act(async () => { jest.advanceTimersByTime(4000); });
+      expect(await screen.findByText(/Todavía no tenemos la confirmación de Mercado Pago/)).toBeInTheDocument();
+      const calls = adapter.loadPurchase.mock.calls.length;
+      await act(async () => { jest.advanceTimersByTime(20000); });
+      expect(adapter.loadPurchase.mock.calls.length).toBe(calls);
+      adapter.refreshPurchase.mockResolvedValue({ purchase: purchase('approved'), refresh: 'verified' });
+      fireEvent.click(screen.getByRole('button', { name: 'Consultar de nuevo' }));
+      expect(await screen.findByRole('heading', { name: 'Premium ya está activo' })).toBeInTheDocument();
+      await waitFor(() => expect(events).toEqual([{ organizationId: ORG, seasonId: SEASON, plan: 'PREMIUM' }]));
+    } finally {
+      window.removeEventListener('torneos:plan-changed', listener);
+    }
   });
 });
 
@@ -386,6 +542,7 @@ describe('MP-A5 service injected → hybrid transport (no Core singleton, no leg
       get_tournament_workspace_context: { preference: { workspaceType: 'tournament_organization', activeOrganizationId: ORG }, organizations: [organization] },
       get_tournament_competition_context: competition(),
       get_effective_tournament_season_entitlements: entitlements(),
+      get_tournament_season_purchases: seasonPurchases([]),
     };
     const transport = {
       rpc: async (name, params) => { calls.push(['rpc', name, params]); return answers[name] ?? null; },
@@ -403,5 +560,14 @@ describe('MP-A5 service injected → hybrid transport (no Core singleton, no leg
     expect(checkoutRedirect).not.toHaveBeenCalled();
     expect(calls.filter(([kind]) => kind === 'commerce')).toHaveLength(0);
     expect(calls).toContainEqual(['rpc', 'get_effective_tournament_season_entitlements', { p_organization_id: ORG, p_season_id: SEASON }]);
+    // The purchase panel reads the season's purchases in its own effect, after the plan: awaited, never assumed (CI load).
+    await waitFor(() => expect(calls).toContainEqual(['rpc', 'get_tournament_season_purchases', { p_organization_id: ORG, p_season_id: SEASON }]));
+    // Pagar con Mercado Pago: exactly the fixed checkout route with the three UUIDs, then the validated redirect.
+    fireEvent.click(await screen.findByRole('button', { name: 'Pagar con Mercado Pago' }));
+    await waitFor(() => expect(checkoutRedirect).toHaveBeenCalledWith(CHECKOUT_URL));
+    const commerceCalls = calls.filter(([kind]) => kind === 'commerce');
+    expect(commerceCalls).toHaveLength(1);
+    expect(commerceCalls[0][1]).toBe('/commerce/v1/season-checkout');
+    expect(Object.keys(commerceCalls[0][2]).sort()).toEqual(['idempotencyKey', 'organizationId', 'seasonId']);
   });
 });

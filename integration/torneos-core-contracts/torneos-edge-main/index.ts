@@ -1,6 +1,6 @@
 // Lab main service for Supabase's edge-runtime hosting the TORNEOS project's functions
-// (backend/torneos/supabase/functions). Mounts ONLY torneos-gateway and (MP-A3) torneos-payments;
-// every other name is refused. Mirrors edge-main/index.ts, which hosts only Core's
+// (backend/torneos/supabase/functions). Mounts ONLY torneos-gateway, (MP-A3) torneos-payments and
+// (COMMERCE-PRODUCTION, lab only) torneos-payments-production; every other name is refused. Mirrors edge-main/index.ts, which hosts only Core's
 // torneos-core-contract. Each worker receives only its own variables (env.ts).
 import { WORKERS, workerEnv } from "./env.ts";
 

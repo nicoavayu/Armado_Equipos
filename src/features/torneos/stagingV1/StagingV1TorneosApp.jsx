@@ -23,7 +23,7 @@ import { stagingV1FeaturesFor } from './stagingV1Features';
 // transport instead of a disposed one being reused.
 //
 // MP-A5: `billingMode` (resolved by the gate, fail-closed) decides the commerce
-// surfaces. `test` → the TEST feature overlay, a service with the commerce scope and
+// surfaces. `test` or `production` → the purchase feature overlay, a service with the commerce scope and
 // its commerce for the Plan pages. Anything else → the static map, a service without
 // commercial aliases and disabled commerce. `planRead` independently preserves
 // the certified entitlement reads. `social` (SOCIAL-V1, resolved by the gate: hybrid + PLAN READ + the
@@ -49,7 +49,11 @@ export default function StagingV1TorneosApp({
   const brandingEnabled = branding === true;
   const mediaEnabled = media === true;
   const socialEnabled = social === true && planRead === true;
-  const billing = (typeof billingMode === 'string' ? billingMode : billingMode?.mode) === 'test';
+  // MP-A5 `test` (local lab) or COMMERCE-PRODUCTION `production` (the production web app): the same surfaces, the
+  // commerce only labels which one it is. Anything else: no purchase at all.
+  const resolvedBilling = typeof billingMode === 'string' ? billingMode : billingMode?.mode;
+  const billing = resolvedBilling === 'test' || resolvedBilling === 'production';
+  const billingEnvironment = resolvedBilling === 'production' ? 'production' : 'test';
   const [runtime, setRuntime] = useState(() => (service ? { transport: null, service } : null));
 
   useEffect(() => {
@@ -79,15 +83,15 @@ export default function StagingV1TorneosApp({
     if (!runtimeService) return null;
     const workspaceService = billing ? runtimeService : withoutCommerce(runtimeService, { planRead });
     const commerce = billing
-      ? createStagingV1Commerce(runtimeService, { redirect: checkoutRedirect }) || disabledCommerce
+      ? createStagingV1Commerce(runtimeService, { redirect: checkoutRedirect, environment: billingEnvironment }) || disabledCommerce
       : disabledCommerce;
     return { workspaceService, commerce };
-  }, [billing, checkoutRedirect, runtimeService, planRead]);
+  }, [billing, billingEnvironment, checkoutRedirect, runtimeService, planRead]);
 
   if (!composition) return <AppLoadingScreen />;
 
   return (
-    <TorneosFeaturesProvider features={features || stagingV1FeaturesFor(billing ? 'test' : 'off', {
+    <TorneosFeaturesProvider features={features || stagingV1FeaturesFor(billing ? billingEnvironment : 'off', {
       planRead, social: socialEnabled, connected: connectedEnabled, branding: brandingEnabled, media: mediaEnabled,
     })}>
       <TorneosCommerceProvider commerce={composition.commerce}>
