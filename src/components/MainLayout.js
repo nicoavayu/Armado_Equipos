@@ -2,7 +2,10 @@ import React, { useEffect } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import TabBar from './TabBar';
 import { useScrollResetContainer } from '../hooks/useScrollReset';
-import { OnboardingProvider, OnboardingHost } from '../features/onboarding';
+// Direct imports, not the feature barrel: the barrel re-exports every onboarding surface
+// (and framer-motion with them) into the initial bundle.
+import OnboardingProvider from '../features/onboarding/OnboardingProvider';
+import LazyOnboardingHost from '../features/onboarding/LazyOnboardingHost';
 import GlobalHeader from './global-header/GlobalHeader';
 import { AwardsStoryProvider } from './global-header/AwardsStoryContext';
 import { isArma2SpaceRoot } from '../features/space-navigation/spaceNavigation';
@@ -116,7 +119,7 @@ const MainLayout = () => {
           )}
         </div>
       </AwardsStoryProvider>
-      <OnboardingHost />
+      <LazyOnboardingHost />
     </OnboardingProvider>
   );
 };
