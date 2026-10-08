@@ -1,11 +1,15 @@
 # Privacidad de Core — cierre compatible con las apps instaladas
 
-Estado al 2026-10-08: **la solución está preparada y probada en el laboratorio de Core; no está
-aplicada en Producción.** Hasta que se apliquen las migraciones 20261010135000 y 20261010136000,
-cualquier cuenta con sesión (el registro es abierto) puede leer de las tablas lo siguiente:
+Estado al 2026-10-08: **la solución está preparada, probada en el laboratorio de Core y en un dry
+run aplicado como `postgres` ([RUNBOOK-193.md](RUNBOOK-193.md)); no está aplicada en Producción.**
+Hasta que se apliquen 20261010135000–138000, cualquier cuenta con sesión (el registro es
+abierto) puede leer de las tablas:
 - email, teléfono, fecha de nacimiento y ubicación exacta de todos los usuarios;
 - el código de todos los partidos;
 - todos los planteles.
+
+El código es una credencial: con él se vota por link como cualquier invitado del plantel y, hasta
+138000, se reemplazaba la foto de cualquier invitado.
 
 ## Qué cambió respecto del plan anterior
 
@@ -17,15 +21,17 @@ la actualización. Ahora el cierre no revoca columnas:
 |---|---|---|
 | email, teléfono, fecha de nacimiento, precisión de ubicación (`usuarios`, `profiles.telefono`) | **135000**: los valores salen de la fila compartida a `app_private.usuarios_private` (sin acceso por la API). Las columnas siguen existiendo. Un trigger captura lo que escribe cualquier app o el servidor. | `NULL` |
 | ubicación exacta (`latitud`, `longitud`) | **135000**: la fila compartida guarda la aproximación a ~1 km. | coordenadas redondeadas a 2 decimales |
-| partido y su código (`partidos`) | **136000**: regla por fila. | sólo partidos en los que participa o que están publicados buscando jugadores (ver "residual") |
-| plantel (`jugadores`) | **136000**: el plantel sigue la visibilidad del partido. Las filas sin partido (jugadores de equipos) y las propias siguen visibles. | sólo planteles de partidos en los que participa o publicados |
+| partido y su código (`partidos`) | **136000** + **137000**: la tabla devuelve un partido sólo a quien participa; los publicados se ven por `partidos_view` y "Quiero jugar", que leen como `core_match_public_reader` y ocultan el código. | sus partidos; los publicados, por las vistas y sin código |
+| plantel (`jugadores`) | **136000**: el plantel sigue la visibilidad del partido. Las filas sin partido (jugadores de equipos) y las propias siguen visibles. | sólo planteles de partidos en los que participa o publicados (ver "residual") |
+| foto de un invitado en la votación por link | **138000**: el slot es de la primera sesión que lo toma; no se toma el de un invitado que ya votó. | no puede reemplazar la foto de otro invitado |
 
 **Quién ve un partido y su plantel:**
 - su organizador o administrador;
 - quien está en el plantel;
 - quien pidió sumarse;
 - quien recibió un aviso sobre ese partido (invitación, llamado a votar…);
-- mientras el partido está publicado buscando jugadores ("Quiero jugar"), cualquier cuenta con sesión.
+- mientras el partido está publicado buscando jugadores ("Quiero jugar"), cualquier cuenta con
+  sesión, por las vistas y sin el código; el plantel también desde la tabla.
 
 Un visitante sin sesión no lee filas (sin cambios). La votación por enlace y las invitaciones
 usan RPCs del servidor y no cambian.
@@ -36,13 +42,11 @@ de contacto del organizador, búsqueda por email, ubicación de auto-match y dis
 
 ## Residual (decisión de producto)
 
-- **El código de un partido publicado buscando jugadores** se puede leer desde la tabla mientras
-  sigue publicado; deja de verse en cuanto el partido deja de buscar jugadores. Ese partido ya se
-  muestra a todos en "Quiero jugar" y cualquiera puede pedir sumarse. El código además habilita
-  la votación por enlace, que en la práctica ocurre con el plantel completo, cuando el partido ya
-  no está publicado. Las vistas siguen sin mostrar el código a quien no es miembro (133000).
-  Cerrarlo del todo exige una vista con permisos de definidor, que el Security Advisor marca como
-  error. Queda como opción si se pide cero.
+- **Planteles de partidos publicados:** mientras el partido está publicado, cualquier cuenta con
+  sesión lee su plantel (nombre, foto, `usuario_id`, `score`). La 1.1.21 lo muestra en la
+  página pública. Análisis campo por campo y transición en [ROSTER-FIELDS.md](ROSTER-FIELDS.md).
+- **El código de un partido publicado** ya no es residual (137000): no llega a nadie ajeno ni
+  desde la tabla, ni desde las vistas, ni desde el listado.
 - **Metadatos de actividad** de `usuarios` (`push_enabled`, `last_seen_at`,
   `last_seen_partido_id`, `location_updated_at`) siguen legibles: no estaban en el pedido. Si se
   quieren cerrar, el mismo patrón de 135000 sirve.
@@ -66,16 +70,15 @@ funcionar.
 
 1. Merge #183 → #186 → #187 → la PR de este cierre. Verificar: CI verde.
 2. Web a Producción.
-3. Backup. Después, migraciones 20261010120000 a 20261010136000, en orden, fuera de las ventanas
-   R0–R3. Cada una trae sus chequeos; 135000 falla si alguna fila de `usuarios`/`profiles` sigue
-   con valores privados.
+3. Backup verificado, prechecks, migraciones 20261010120000 a 20261010138000, post-checks:
+   paso a paso en [RUNBOOK-193.md](RUNBOOK-193.md).
 4. Verificar con una cuenta de prueba ajena:
    - `usuarios?select=email,telefono,fecha_nacimiento` devuelve `NULL`;
-   - `partidos?select=codigo` sólo trae partidos propios o publicados;
+   - `partidos?select=codigo` sólo trae partidos propios; `partidos_view` lista los publicados con `codigo` vacío;
    - `jugadores` de un partido privado ajeno devuelve vacío;
    - perfil propio, Amigos, un partido, un enlace de WhatsApp y la votación por enlace funcionan.
 5. Vigilar 24 h los errores en los logs de PostgREST.
-6. Rollback: está en PROMOTION.md. Volver de 135000 restaura los valores desde la tabla privada.
+6. Rollback: archivos probados en `runbook/rollbacks/` (135000–138000) y PROMOTION.md §5 (el resto).
 
 Las builds nuevas no son prerequisito. Los archivos `phase-b-*.sql` (revocar columnas) quedan como
 **refuerzo opcional** para cuando no queden apps viejas en uso, medido con

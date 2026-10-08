@@ -77,6 +77,8 @@ const expectedCanonicalMigrations = [
   '20261010134000_core_partidos_template_link.sql',
   '20261010135000_core_private_profile_fields.sql',
   '20261010136000_core_match_roster_visibility.sql',
+  '20261010137000_core_match_code_never_public.sql',
+  '20261010138000_core_voting_photo_slot_owner.sql',
 ];
 
 const exitWithError = (message) => {

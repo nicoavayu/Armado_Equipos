@@ -2,6 +2,9 @@
 
 Nada de esto se aplicó en Producción. Requiere GO, backup previo y una ventana fuera de R0–R3.
 
+Procedimiento completo (backup, prechecks, aplicación, post-checks, rollbacks probados y dry
+run): [RUNBOOK-193.md](RUNBOOK-193.md).
+
 ## 1. Publicar la web primero
 
 El cliente nuevo funciona **con y sin** las migraciones: si una RPC nueva todavía no existe
@@ -29,6 +32,8 @@ por código, jugador sin cuenta). Por eso la web puede salir antes que la base.
 | `20261010134000_core_partidos_template_link` | `partidos.template_id` (FK a `partidos_frecuentes`, sólo plantilla propia): el historial de frecuentes deja de estar siempre vacío | ninguno (columna nueva y opcional); **verificar antes en Producción** que la columna no exista con otro tipo: `select column_name, data_type from information_schema.columns where table_schema='public' and table_name='partidos' and column_name in ('template_id','from_frequent_match_id');` |
 | `20261010135000_core_private_profile_fields` | email, teléfono, nacimiento y ubicación exacta salen de la fila compartida de `usuarios` (y el teléfono de `profiles`) a `app_private.usuarios_private`; la fila conserva las columnas en `NULL` y la ubicación a ~1 km; `get_my_profile`, `clear_my_profile_fields`; contacto, búsqueda, auto-match y arqueros leen la tabla privada | 1.1.21 sigue funcionando: ve vacíos su teléfono y nacimiento propios y no ve teléfonos ajenos; un guardado en blanco no borra nada |
 | `20261010136000_core_match_roster_visibility` | `partidos` y `jugadores` visibles sólo para quien participa (organizador, plantel, solicitud, aviso) y, mientras está publicado buscando jugadores, para cualquier cuenta; filas sin partido (equipos) visibles | ninguno nuevo: una cuenta ajena recibe filas vacías (no errores); directorios que recorrían todos los planteles quedan acotados |
+| `20261010137000_core_match_code_never_public` | la tabla `partidos` devuelve un partido sólo a quien participa; `partidos_view` y "Quiero jugar" muestran los publicados leyendo como `core_match_public_reader` (sin login, sus propias policies) y con el código oculto; `partidos_view` suma `busca_arquero`, `player_invites_enabled` y `precio_cancha_por_persona` | 1.1.21 abre los publicados por la vista (ya no recurre a la tabla); no recibe en tiempo real cambios de partidos publicados ajenos |
+| `20261010138000_core_voting_photo_slot_owner` | la foto de un invitado la cambia sólo la primera sesión que toma ese nombre; no se toma el de quien ya votó | ninguno: el edge function ya responde 409 |
 
 **Nota 125000:** con la web nueva publicada, las páginas públicas (votación por link,
 invitación de invitado) ya leen por código. Una build nativa vieja abierta **sin sesión**
@@ -86,6 +91,7 @@ No hay forma de forzar la actualización.
 - 132000: `drop trigger trg_amigos_request_rules on public.amigos;` y recrear `amigos_insert_sender` sin `status = 'pending'`.
 - 133000: recrear las tres vistas con `p.codigo` (definición previa en el baseline) y `drop function public.get_match_access_codes(bigint[])`.
 - 134000: `drop trigger partidos_template_owner on public.partidos; drop function app_private.tg_partidos_template_owner(); alter table public.partidos drop column template_id;` (se pierden los vínculos creados desde entonces).
+- 138000 / 137000 / 136000 / 135000: archivos probados en [`runbook/rollbacks/`](runbook/rollbacks/), en ese orden (detalle abajo para 135000/136000).
 - 135000 (devuelve los valores a la fila, en este orden):
   `drop trigger trg_usuarios_private_fields on public.usuarios; drop trigger trg_profiles_private_phone on public.profiles;`
   `update public.usuarios u set email = p.email, telefono = p.telefono, fecha_nacimiento = p.fecha_nacimiento, latitud = p.latitud, longitud = p.longitud, location_accuracy_m = p.location_accuracy_m from app_private.usuarios_private p where p.user_id = u.id;`

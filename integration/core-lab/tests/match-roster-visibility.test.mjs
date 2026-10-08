@@ -9,10 +9,10 @@ import { API, config, root, sqlTry } from '../lab.mjs';
 
 const qa = JSON.parse(await readFile(`${root}.runtime/qa-users.json`, 'utf8'));
 const c = await config();
-const PRIVATE_MATCH = 990701;
-const OPEN_MATCH = 990702;
-const DELETED_MATCH = 990703;
-const TEAM_PLAYER = 990799;
+const PRIVATE_MATCH = 991001;
+const OPEN_MATCH = 991002;
+const DELETED_MATCH = 991003;
+const TEAM_PLAYER = 991099;
 const ORG = qa.ids.organizador;
 
 const LEGACY_SELECTS = {
@@ -120,10 +120,10 @@ test.before(() => {
   sql(`
     delete from public.partidos where id in (${PRIVATE_MATCH}, ${OPEN_MATCH}, ${DELETED_MATCH});
     delete from public.jugadores where id = ${TEAM_PLAYER};
-    insert into public.partidos (id, nombre, codigo, fecha, hora, sede, modalidad, cupo_jugadores, estado, creado_por, admin_id, falta_jugadores, deleted_at) values
-      (${PRIVATE_MATCH}, 'Privado lab', 'PRIVLAB1', current_date + 2, '21:00', 'Cancha lab', 'F5', 10, 'activo', '${ORG}', '${ORG}', false, null),
-      (${OPEN_MATCH}, 'Abierto lab', 'OPENLAB1', current_date + 2, '21:00', 'Cancha lab', 'F5', 10, 'activo', '${ORG}', '${ORG}', true, null),
-      (${DELETED_MATCH}, 'Borrado lab', 'DELLAB01', current_date + 2, '21:00', 'Cancha lab', 'F5', 10, 'activo', '${ORG}', '${ORG}', false, now());
+    insert into public.partidos (id, nombre, codigo, fecha, hora, sede, modalidad, cupo_jugadores, estado, creado_por, admin_id, falta_jugadores, deleted_at, tipo_partido, precio_cancha_por_persona) values
+      (${PRIVATE_MATCH}, 'Privado lab', 'PRIVLAB1', current_date + 2, '21:00', 'Cancha lab', 'F5', 10, 'activo', '${ORG}', '${ORG}', false, null, 'Masculino', null),
+      (${OPEN_MATCH}, 'Abierto lab', 'OPENLAB1', current_date + 2, '21:00', 'Cancha lab', 'F5', 10, 'activo', '${ORG}', '${ORG}', true, null, 'Masculino', 2500),
+      (${DELETED_MATCH}, 'Borrado lab', 'DELLAB01', current_date + 2, '21:00', 'Cancha lab', 'F5', 10, 'activo', '${ORG}', '${ORG}', false, now(), 'Masculino', null);
     insert into public.jugadores (partido_id, nombre, usuario_id) values
       (${PRIVATE_MATCH}, 'Martín (lab)', '${qa.ids.jugador1}'),
       (${PRIVATE_MATCH}, 'Invitado lab', null),
@@ -192,11 +192,9 @@ test('an unrelated account can no longer list the codes of every match', async (
   assert.equal(r.status, 200);
   const visible = r.body.map((row) => row.id);
   assert.ok(!visible.includes(PRIVATE_MATCH));
-  // Everything still listed is published looking for players (or involves the account).
+  // Everything still listed from the table involves the account (published ones come via the views).
   const listed = sql(`select coalesce(string_agg(id::text, ',' order by id), '') from public.partidos p
     where p.id = any(array[${visible.join(',') || 'null'}]::bigint[])
-      and not public.partido_is_operationally_open(p.estado, p.deleted_at, p.survey_status, p.result_status, p.finished_at,
-        p.fecha, p.hora, coalesce(p.falta_jugadores, false) or coalesce(p.busca_arquero, false), now())
       and not app_private.match_involves_user(p.id, '${qa.ids.jugador9}')`);
   assert.equal(listed, '');
 });
@@ -209,18 +207,42 @@ test('an unrelated account no longer reads every roster (only open matches and t
   assert.ok(r.body.some((row) => row.id === TEAM_PLAYER), 'team players (no match) stay visible');
 });
 
-test('a match published looking for players stays visible with its roster (installed apps open it from the table)', async () => {
-  assert.deepEqual(await ids('stranger', `partidos?select=id&id=eq.${OPEN_MATCH}`), [OPEN_MATCH]);
+test('a match published looking for players is shown through the views (code masked) with its roster', async () => {
+  // How installed apps open it: partidos_view + the roster from jugadores.
+  // Every field the public page would otherwise read from the table comes with the view.
+  const view = await as.stranger('GET', `partidos_view?select=id,codigo,busca_arquero,player_invites_enabled,falta_jugadores,tipo_partido,precio_cancha_por_persona&id=eq.${OPEN_MATCH}`);
+  assert.equal(view.status, 200, JSON.stringify(view.body));
+  assert.deepEqual(view.body, [{
+    id: OPEN_MATCH, codigo: null, busca_arquero: false, player_invites_enabled: false, falta_jugadores: true,
+    tipo_partido: 'Masculino', precio_cancha_por_persona: 2500,
+  }]);
   const roster = await as.stranger('GET', `jugadores?select=nombre&partido_id=eq.${OPEN_MATCH}`);
   assert.deepEqual(roster.body.map((row) => row.nombre), ['Sofía (lab)']);
-  // Through the view the code stays masked for non-members (20261010133000).
-  const view = await as.stranger('GET', `partidos_view?select=id,codigo&id=eq.${OPEN_MATCH}`);
-  assert.deepEqual(view.body, [{ id: OPEN_MATCH, codigo: null }]);
+  const listing = await as.stranger('GET', `partidos_abiertos_operativos_v2?select=id,codigo&id=eq.${OPEN_MATCH}`);
+  assert.deepEqual(listing.body, [{ id: OPEN_MATCH, codigo: null }]);
+  const rpc = await as.stranger('POST', 'rpc/get_open_matches_for_quiero_jugar_v2', { p_user_lat: null, p_user_lng: null, p_max_distance_km: 30 });
+  assert.equal(rpc.status, 200, JSON.stringify(rpc.body));
+  const mine = rpc.body.find((row) => row.id === OPEN_MATCH);
+  assert.ok(mine, 'the published match is listed');
+  assert.equal(mine.codigo, null);
 });
 
-test('residual, recorded: the code of a match published looking for players is readable from the table', async () => {
-  const r = await as.stranger('GET', `partidos?select=codigo&id=eq.${OPEN_MATCH}`);
-  assert.deepEqual(r.body, [{ codigo: 'OPENLAB1' }]);
+test('the code of a published match never reaches a foreign account (table, views, listing)', async () => {
+  assert.deepEqual((await as.stranger('GET', `partidos?select=id,codigo&id=eq.${OPEN_MATCH}`)).body, []);
+  const all = await as.stranger('GET', 'partidos?select=codigo&limit=1000');
+  assert.ok(!all.body.some((row) => row.codigo === 'OPENLAB1'));
+  const views = await as.stranger('GET', 'partidos_view?select=codigo&codigo=not.is.null&limit=1000');
+  assert.ok(!views.body.some((row) => row.codigo === 'OPENLAB1' || row.codigo === 'PRIVLAB1'));
+});
+
+test('the organizer and the roster still see the code of their published match', async () => {
+  assert.deepEqual((await as.organizer('GET', `partidos?select=codigo&id=eq.${OPEN_MATCH}`)).body, [{ codigo: 'OPENLAB1' }]);
+  assert.deepEqual((await as.openMember('GET', `partidos_view?select=codigo&id=eq.${OPEN_MATCH}`)).body, [{ codigo: 'OPENLAB1' }]);
+});
+
+test('anon sees nothing through the views either', async () => {
+  const r = await as.anon('GET', `partidos_view?select=id&id=in.(${PRIVATE_MATCH},${OPEN_MATCH})`);
+  assert.deepEqual(r.status === 200 ? r.body : [], []);
 });
 
 test('a deleted match is only visible to its admin', async () => {

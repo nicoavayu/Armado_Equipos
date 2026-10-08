@@ -109,6 +109,11 @@ const ANON_ALLOWLIST = [
   'public.search_tournament_catalog(text,text,text,text,text,text,text,text,text)',
   'public.get_tournament_catalog_facets()',
   'public.get_tournament_catalog_entry(text)',
+  // 20261010137000: anon keeps SELECT on partidos_view, whose rows are filtered by these
+  // pure helpers; a function inside a view is executed with the caller's privilege.
+  'public.normalize_partido_estado(text)',
+  'public.partido_is_operationally_open(text,timestamp with time zone,text,text,timestamp with time zone,date,text,boolean,timestamp with time zone)',
+  'public.partido_kickoff_at(date,text)',
 ];
 
 // Functions created after the canonical contracts migration cannot be listed
