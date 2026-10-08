@@ -377,6 +377,111 @@ steps.rollback = async () => {
   out({ step: 'rollback', insideRolledBackTransaction: JSON.parse(inside), afterwards: JSON.parse(after) });
 };
 
+// MEDIA-V1 0014 (product decision 2026-10-08): retiring a gallery's last published photo sends it back to DRAFT, never
+// archives it; it can be published again. Run in «Lab Otra Liga» (PREMIUM), never in Lab Galería (its FREE season is
+// kept at 25/25). The lab captain joins a team there (product RPCs) so a real participant sees and stops seeing it.
+async function otherParticipant() {
+  if (state.otherEntryApproved) return;
+  if (!state.otherCategoryId) {
+    const category = (await rpc('other', 'save_tournament_category', { p_organization_id: state.otherOrganizationId, p_tournament_id: state.otherTournamentId, p_category_id: null, p_name: 'Libre', p_slug: 'libre', p_description: null, p_sort_order: null, p_min_age: null, p_max_age: null, p_gender_category: null, p_sport_modality: null, p_team_size: null, p_status: 'active' })).json;
+    state.otherCategoryId = category?.id || category?.categoryId || category?.category?.id || null;
+    await rpc('other', 'change_tournament_status', { p_organization_id: state.otherOrganizationId, p_tournament_id: state.otherTournamentId, p_status: 'registration' });
+    save();
+  }
+  if (!state.otherEntryId) {
+    const entry = (await rpc('other', 'create_tournament_team_entry', { p_organization_id: state.otherOrganizationId, p_tournament_id: state.otherTournamentId, p_category_id: state.otherCategoryId, p_arma2_team_id: null, p_name: 'Otra FC', p_short_name: 'OFC', p_primary_color: '#0ea5e9', p_secondary_color: '#f97316', p_registration_source: null, p_manager_user_id: null, p_manager_email: null, p_manager_display_name: null, p_idempotency_key: key() })).json;
+    state.otherEntryId = entry.entryId; state.otherRosterId = entry.rosterId; save();
+  }
+  if (!state.otherCaptainAccepted) {
+    const invitation = (await rpc('other', 'invite_tournament_team_manager', { p_organization_id: state.otherOrganizationId, p_team_entry_id: state.otherEntryId, p_email: USERS.captain.email, p_display_name: USERS.captain.name, p_role: 'captain' })).json;
+    await rpc('captain', 'accept_tournament_team_invitation', { p_token: invitation.token });
+    state.otherCaptainAccepted = true; save();
+  }
+  for (const [index, position] of ['ARQ', 'DEF', 'DEF', 'MED', 'DEL', 'DEL'].entries()) {
+    const player = (await rpc('other', 'create_tournament_provisional_player', { p_organization_id: state.otherOrganizationId, p_team_entry_id: state.otherEntryId, p_display_name: `Jugador Otra ${index + 1}` })).json;
+    await rpc('other', 'add_tournament_roster_player', { p_organization_id: state.otherOrganizationId, p_team_entry_id: state.otherEntryId, p_roster_id: state.otherRosterId, p_arma2_user_id: null, p_provisional_player_id: player.id || player.provisionalPlayerId || player.playerId, p_display_name: `Jugador Otra ${index + 1}`, p_avatar_url: null, p_shirt_number: index + 1, p_primary_position: position, p_secondary_position: null, p_is_goalkeeper: position === 'ARQ' });
+  }
+  await rpc('captain', 'submit_tournament_team_entry', { p_organization_id: state.otherOrganizationId, p_team_entry_id: state.otherEntryId });
+  await rpc('other', 'review_tournament_team_entry', { p_organization_id: state.otherOrganizationId, p_team_entry_id: state.otherEntryId, p_decision: 'approved', p_reason: 'Plantel de laboratorio completo.', p_issues: [] });
+  state.otherEntryApproved = true; save();
+}
+
+steps['draft-cycle'] = async () => {
+  await otherParticipant();
+  const sql = async (q) => JSON.parse(await labSql(`select row_to_json(x) from (${q}) x`));
+  const galleryRow = (id) => sql(`select status, cover_asset_id is not null as has_cover, submitted_at is null as no_submitted, published_at is null as no_published, archived_at is null as no_archived, version from public.tournament_media_galleries where id = '${id}'`);
+  const assetStatus = async (id) => (await sql(`select status from public.tournament_media_assets where id = '${id}'`)).status;
+  const seen = async (role, galleryId) => {
+    const r = await rpc(role, 'get_published_tournament_media', { p_tournament_id: state.otherTournamentId, p_category_id: null, p_match_id: null, p_limit: 50, p_offset: 0 }, { expect: null });
+    return r.status === 200 ? (r.json?.items || []).some((g) => g.id === galleryId || g.galleryId === galleryId) : `refused ${r.status}`;
+  };
+  const move = (role, assetId, action, reason = null) => rpc(role, 'transition_tournament_media_asset', { p_asset_id: assetId, p_action: action, p_reason: reason }, { expect: null });
+  const publish = (role, galleryId) => rpc(role, 'publish_tournament_media_gallery', { p_gallery_id: galleryId }, { expect: null });
+  const cover = (role, galleryId, assetId) => rpc(role, 'set_tournament_media_cover', { p_gallery_id: galleryId, p_asset_id: assetId }, { expect: null });
+  const code = (r) => `${r.status}${r.json?.message ? ` ${r.json.message}` : r.json?.error ? ` ${r.json.error}` : ''}`;
+
+  const galleryId = await gallery('other', state.otherOrganizationId, state.otherTournamentId, `Ciclo borrador ${new Date().toISOString().slice(11, 19)}`);
+  state.draftCycleGallery = galleryId; save();
+  const first = await upload('other', galleryId, 38);
+  const a = first.json?.assetId;
+  out({ step: 'draft-cycle', event: 'upload p38 as owner', result: code(first) });
+  await move('other', a, 'approve');
+  await cover('other', galleryId, a);
+  out({ step: 'draft-cycle', event: 'publish', result: code(await publish('other', galleryId)), gallery: await galleryRow(galleryId),
+    participantSees: await seen('captain', galleryId), participantUrls: `${(await urls('captain', [a])).json?.items?.length ?? 0} of 1` });
+
+  // The role matrix on the moderation that now sends the gallery back to draft: only staff of THIS organization.
+  for (const role of ['captain', 'outsider', 'owner']) {
+    out({ step: 'draft-cycle', actor: { captain: 'captain (participant)', outsider: 'outsider', owner: 'Lab Galería owner (other org)' }[role],
+      hide: code(await move(role, a, 'hide', 'intento ajeno')), publish: code(await publish(role, galleryId)) });
+  }
+  out({ step: 'draft-cycle', actor: 'visitor (no session)', hide: (await fetch(`${GATEWAY}/torneos/rest/v1/rpc/transition_tournament_media_asset`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ p_asset_id: a, p_action: 'hide', p_reason: 'visitante' }) })).status });
+  out({ step: 'draft-cycle', event: 'after the refused attempts', gallery: await galleryRow(galleryId), asset: await assetStatus(a) });
+
+  const issued = (await urls('captain', [a])).json?.items?.[0]?.url;
+  const retired = await move('other', a, 'hide', 'Retirada por el organizador');
+  out({ step: 'draft-cycle', event: 'owner retires the only published photo (the cover)', result: code(retired), gallery: await galleryRow(galleryId),
+    asset: await assetStatus(a), participantSees: await seen('captain', galleryId), newParticipantUrls: `${(await urls('captain', [a])).json?.items?.length ?? 0} of 1`,
+    urlIssuedBefore: issued ? (await fetch(issued)).status : 'none', ownerSeesInAdmin: (await rpc('other', 'get_tournament_media_admin_context', { p_organization_id: state.otherOrganizationId, p_tournament_id: state.otherTournamentId, p_status: null, p_limit: 30, p_offset: 0 }, { expect: null })).json?.galleries?.some((g) => g.id === galleryId) ?? null });
+
+  // In draft: the captain still cannot restore or publish it.
+  out({ step: 'draft-cycle', actor: 'captain (participant) on the draft', restore: code(await move('captain', a, 'restore')), publish: code(await publish('captain', galleryId)) });
+
+  // A photo pending review blocks publication; rejecting it unblocks.
+  const pending = await upload('other', galleryId, 37);
+  const p = pending.json?.assetId;
+  out({ step: 'draft-cycle', event: 'pending photo in the draft', upload: code(pending), publishWithPending: code(await publish('other', galleryId)) });
+  await move('other', p, 'reject', 'No corresponde a la galería');
+
+  // Way back 1: approve ANOTHER photo while the retired one stays hidden; publish; the retired one stays out.
+  const other = await upload('other', galleryId, 39);
+  const b = other.json?.assetId;
+  await move('other', b, 'approve');
+  await cover('other', galleryId, b);
+  out({ step: 'draft-cycle', event: 'approve another, set it as cover, publish (retired one still hidden)', result: code(await publish('other', galleryId)),
+    gallery: await galleryRow(galleryId), assets: { retired: await assetStatus(a), another: await assetStatus(b) }, participantSees: await seen('captain', galleryId),
+    participantUrls: `${(await urls('captain', [a, b])).json?.items?.length ?? 0} of 2 (only the new one)` });
+
+  // Way back 2: restore the retired photo inside the published gallery: it is published again.
+  out({ step: 'draft-cycle', event: 'restore the retired photo in the published gallery', result: code(await move('other', a, 'restore')), asset: await assetStatus(a),
+    participantUrls: `${(await urls('captain', [a, b])).json?.items?.length ?? 0} of 2` });
+
+  // Retire both (cover last) → draft again; restore → cover → publish (the plain way back).
+  await move('other', a, 'hide', 'Retirada por el organizador');
+  const last = await move('other', b, 'hide', 'Retirada por el organizador');
+  out({ step: 'draft-cycle', event: 'retire both, the cover last', result: code(last), gallery: await galleryRow(galleryId), participantSees: await seen('captain', galleryId) });
+  out({ step: 'draft-cycle', event: 'restore the cover photo in the draft', result: code(await move('other', b, 'restore')), asset: await assetStatus(b) });
+  out({ step: 'draft-cycle', event: 'cover + publish again', cover: code(await cover('other', galleryId, b)), result: code(await publish('other', galleryId)),
+    gallery: await galleryRow(galleryId), participantSees: await seen('captain', galleryId), assets: { a: await assetStatus(a), b: await assetStatus(b) } });
+
+  // The explicit «Archivar galería» is unchanged and still final.
+  out({ step: 'draft-cycle', event: 'explicit archive still works and is final',
+    archive: code(await rpc('other', 'change_tournament_media_gallery_state', { p_gallery_id: galleryId, p_action: 'archive', p_reason: 'Cierre del ciclo de laboratorio' }, { expect: null })),
+    gallery: (await galleryRow(galleryId)).status, restoreAfterArchive: code(await move('other', b, 'restore')), republish: code(await publish('other', galleryId)) });
+  const audit = await labSql(`select string_agg(action, ',' order by id) from public.tournament_audit_log where resource_id = '${galleryId}'`).catch((e) => String(e.message));
+  out({ step: 'draft-cycle', event: 'gallery audit trail', actions: audit });
+};
+
 const step = process.argv[2];
 const invokedDirectly = process.argv[1] && path.resolve(process.argv[1]) === path.resolve(new URL(import.meta.url).pathname);
 if (invokedDirectly && steps[step]) await steps[step]();

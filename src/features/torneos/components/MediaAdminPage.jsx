@@ -596,7 +596,7 @@ export default function MediaAdminPage() {
     setQueue((current) => current.filter((candidate) => candidate.id !== item.id));
   };
 
-  const actOnAsset = async (asset, action) => {
+  const actOnAsset = async (asset, action, { done = '' } = {}) => {
     if (busy) return;
     setBusy(`${action}:${asset.id}`);
     try {
@@ -616,6 +616,7 @@ export default function MediaAdminPage() {
           action,
           reason: reasons[action] || null,
         });
+        if (done) setNotice(done);
       }
       await load();
     } catch (error) {
@@ -631,16 +632,19 @@ export default function MediaAdminPage() {
       setPendingDelete(asset);
       return;
     }
-    // Retiring the cover of a published gallery with no other published photo archives the gallery (server rule,
-    // transition_tournament_media_asset), and nothing un-archives it: same confirmation as «Archivar».
+    // Retiring the cover of a published gallery with no other published photo sends the gallery back to draft
+    // (server rule since MEDIA-V1 0014, transition_tournament_media_asset): it disappears for participants until it is
+    // published again, so it is confirmed first and the way back is said right after.
     const lastPublished = action === 'hide' && selectedGallery?.status === 'published'
       && selectedGallery.coverAssetId === asset.id
       && !selectedGallery.assets.some((other) => other.id !== asset.id && other.status === 'published');
     if (lastPublished && !window.confirm(
-      '¿Retirar la única foto publicada? La galería quedará archivada: dejará de verse para los participantes '
-      + 'y no se puede volver a publicar.',
+      '¿Retirar la única foto publicada? La galería volverá a borrador: dejará de verse para los participantes '
+      + 'hasta que la publiques de nuevo.',
     )) return;
-    actOnAsset(asset, action);
+    actOnAsset(asset, action, lastPublished ? {
+      done: 'La galería volvió a borrador. Restaurá la foto o aprobá otra, elegí la portada y publicala de nuevo.',
+    } : {});
   };
 
   const confirmDelete = () => {

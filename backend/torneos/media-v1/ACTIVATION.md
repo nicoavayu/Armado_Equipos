@@ -8,6 +8,7 @@ ejecuta sin el GO explícito de Nico para cada entorno. Producción no se toca d
 | Capa | Interruptor | Default | Efecto |
 |---|---|---|---|
 | Base Torneos | migración `00000000000012_media_gallery_v1.sql` | no aplicada | bucket privado `tournament-media`, policies con claim del gateway, RPCs del gateway, entrega firmada, grants de retiro/reporte. **No cambia nada visible**: el modo del pipeline sigue igual |
+| Base Torneos | migración `00000000000014_media_gallery_draft_on_retire.sql` | no aplicada | retirar la última foto publicada devuelve la galería a **borrador** (no la archiva) y se puede volver a publicar; publicar publica las fotos aprobadas sin que las retiradas lo bloqueen |
 | Base Torneos | modo del pipeline → `MVP_SIMPLE` (SQL de operador, abajo) | `PROCESSOR_EXTERNAL` | habilita la emisión de sesiones de carga (sólo owner/admin) |
 | Gateway | `TORNEOS_MEDIA_MODE=on` | ausente = off | RPCs de galería + `POST /torneos/media/v1/upload` + `POST /torneos/media/v1/urls`. Cualquier otro valor deshabilita el gateway (fail closed) |
 | Frontend | `REACT_APP_TORNEOS_MEDIA_MODE=on` **y** `REACT_APP_TORNEOS_MEDIA_ENABLED=true` | off | Centro Multimedia, sección Fotos del hub y del partido, link «Fotos» en Mis torneos, fila de Mi plan |
@@ -36,14 +37,16 @@ Mismo transporte y disciplina que `db-0009-0011.mjs`:
 ```bash
 node backend/torneos/media-v1/remote/db-0012.mjs observe
 node backend/torneos/media-v1/remote/db-0012.mjs apply-0012 APPLY TORNEOS 0012 onzpwnqxnvlgsevivngf 859fa24d259f
+node backend/torneos/media-v1/remote/db-0012.mjs apply-0014 APPLY TORNEOS 0014 onzpwnqxnvlgsevivngf d455afd1d152
 node backend/torneos/media-v1/remote/db-0012.mjs mode MVP_SIMPLE SET TORNEOS MEDIA PIPELINE MODE MVP_SIMPLE onzpwnqxnvlgsevivngf
 node backend/torneos/media-v1/remote/db-0012.mjs mode PROCESSOR_EXTERNAL SET TORNEOS MEDIA PIPELINE MODE PROCESSOR_EXTERNAL onzpwnqxnvlgsevivngf
+node backend/torneos/media-v1/remote/db-0012.mjs rollback-0014 ROLLBACK TORNEOS 0014 onzpwnqxnvlgsevivngf 6dd9f7565f14
 node backend/torneos/media-v1/remote/db-0012.mjs rollback-0012 ROLLBACK TORNEOS 0012 onzpwnqxnvlgsevivngf 7c99e5d0d35c
 ```
 
 Estados (`classify`, puro; cualquier otra cosa es `DRIFT` y no se escribe):
 
-| | `POST_0011` | `POST_0012` |
+| | `POST_0011` | `POST_0012` (`POST_0014`: igual salvo la última fila) |
 |---|---|---|
 | Búsqueda de plantel | cuerpos `fixed` de 0011 | igual |
 | 10 funciones de 0012 | ninguna | las 10 exactas |
@@ -54,6 +57,34 @@ Estados (`classify`, puro; cualquier otra cosa es `DRIFT` y no se escribe):
 | md5 de los 3 cuerpos redefinidos (contrato de storage, readiness, entrega publicada) | baseline | 0012 |
 | EXECUTE en funciones `public` (authenticated / anon) | 193 / 16 | 204 / 16 |
 | Modo del pipeline | nunca `MVP_SIMPLE` | cualquiera |
+| md5 de retirar foto / publicar galería | baseline | baseline en `POST_0012`; 0014 (`ec3357d4…` / `b16c376a…`) en `POST_0014` |
+
+**0014 (decisión de producto, 2026-10-08).** Antes, retirar la portada de una galería publicada sin otra foto publicada
+la **archivaba**, y archivada es terminal. Con 0014:
+- la galería vuelve a **borrador**: portada y sellos de envío/publicación limpios, versión + 1, auditoría `media.gallery.unpublished`;
+- los participantes dejan de verla al instante; una URL ya emitida vive hasta sus 300 s;
+- publicar publica las fotos **aprobadas**. Las retiradas, revocadas o rechazadas quedan fuera sin bloquear, y una pendiente de revisión sigue bloqueando;
+- «Archivar galería» sigue siendo la única forma de archivar, y sigue siendo final.
+
+Cambia exactamente dos cuerpos, desde su texto del baseline y fijados por md5 antes y después; no toca ACL, dueño ni
+`search_path`. No toca nada de lo que fija 0013.
+
+Orden de los drivers:
+- `apply-0014` sólo desde `POST_0012`. Es un cambio de cuerpos, se puede aplicar con el pipeline encendido.
+- `rollback-0014` vuelve a `POST_0012`. Las galerías que quedaron en borrador siguen en borrador.
+- `rollback-0012` se niega desde `POST_0014`: primero 0014.
+
+Ensayo real en el lab (`evidence/draft-on-retire.jsonl`): `APPLY_0014_DONE` por el driver, con changedOutside vacío. Ciclo completo:
+1. Publicar.
+2. Retirar la única foto: la galería pasa a borrador y el participante deja de verla.
+3. Aprobar otra foto y republicar.
+4. Restaurar la retirada.
+5. Retirar todas, restaurar, portada, publicar.
+6. Archivar explícito: sigue siendo final.
+
+Matriz de roles sobre las RPC cambiadas:
+- capitán, cuenta ajena y otra organización: 403;
+- visitante: 401.
 
 **Relación con `0013` (COMMERCE-PRODUCTION, #190).** Son independientes y se pueden aplicar en cualquier orden:
 - `db-0013.mjs` no mira media: su `PRE_0013` sólo fija la cadena TEST de pagos, así que `POST_0012` le resulta `PRE_0013` sin más.
@@ -125,7 +156,7 @@ Instant Rollback al deploy inmediatamente anterior: hacerlo en un deploy propio,
 1. Frontend: quitar las dos variables y redeployar (o Instant Rollback al deploy anterior).
 2. Gateway: quitar `TORNEOS_MEDIA_MODE` (o `off`).
 3. Modo: `PROCESSOR_EXTERNAL`.
-4. Base (sólo si hace falta retirar el contrato): `db-0012.mjs rollback-0012 …`, que aplica
+4. Base (sólo si hace falta retirar el contrato): primero `db-0012.mjs rollback-0014 …` (si está aplicada), y luego `db-0012.mjs rollback-0012 …`, que aplica
    `backend/torneos/media-v1/rollback/00000000000012_media_gallery_v1.rollback.sql`.
    Restaura los tres cuerpos del baseline al byte, borra policies y funciones nuevas y devuelve los grants de 0001.
    **No borra fotos ni filas**: las fotos son contenido de usuarios; borrarlas es una decisión de datos aparte
