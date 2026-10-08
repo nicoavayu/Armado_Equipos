@@ -34,6 +34,7 @@ por código, jugador sin cuenta). Por eso la web puede salir antes que la base.
 | `20261010136000_core_match_roster_visibility` | `partidos` y `jugadores` visibles sólo para quien participa (organizador, plantel, solicitud, aviso) y, mientras está publicado buscando jugadores, para cualquier cuenta; filas sin partido (equipos) visibles | ninguno nuevo: una cuenta ajena recibe filas vacías (no errores); directorios que recorrían todos los planteles quedan acotados |
 | `20261010137000_core_match_code_never_public` | la tabla `partidos` devuelve un partido sólo a quien participa; `partidos_view` y "Quiero jugar" muestran los publicados leyendo como `core_match_public_reader` (sin login, sus propias policies) y con el código oculto; `partidos_view` suma `busca_arquero`, `player_invites_enabled` y `precio_cancha_por_persona` | 1.1.21 abre los publicados por la vista (ya no recurre a la tabla); no recibe en tiempo real cambios de partidos publicados ajenos |
 | `20261010138000_core_voting_photo_slot_owner` | la foto de un invitado la cambia sólo la primera sesión que toma ese nombre; no se toma el de quien ya votó | ninguno: el edge function ya responde 409 |
+| `20261010139000_core_roster_added_by_private` | `jugadores.added_by` pasa a `app_private.jugadores_added_by` (trigger AFTER INSERT) y la columna se elimina; `get_match_contact_phone` lee de ahí | ninguno: ni la 1.1.21 ni la web nombran la columna; `select('*')` sigue igual |
 
 **Nota 125000:** con la web nueva publicada, las páginas públicas (votación por link,
 invitación de invitado) ya leen por código. Una build nativa vieja abierta **sin sesión**
@@ -91,7 +92,7 @@ No hay forma de forzar la actualización.
 - 132000: `drop trigger trg_amigos_request_rules on public.amigos;` y recrear `amigos_insert_sender` sin `status = 'pending'`.
 - 133000: recrear las tres vistas con `p.codigo` (definición previa en el baseline) y `drop function public.get_match_access_codes(bigint[])`.
 - 134000: `drop trigger partidos_template_owner on public.partidos; drop function app_private.tg_partidos_template_owner(); alter table public.partidos drop column template_id;` (se pierden los vínculos creados desde entonces).
-- 138000 / 137000 / 136000 / 135000: archivos probados en [`runbook/rollbacks/`](runbook/rollbacks/), en ese orden (detalle abajo para 135000/136000).
+- 139000 / 138000 / 137000 / 136000 / 135000: archivos probados en [`runbook/rollbacks/`](runbook/rollbacks/), en ese orden (detalle abajo para 135000/136000).
 - 135000 (devuelve los valores a la fila, en este orden):
   `drop trigger trg_usuarios_private_fields on public.usuarios; drop trigger trg_profiles_private_phone on public.profiles;`
   `update public.usuarios u set email = p.email, telefono = p.telefono, fecha_nacimiento = p.fecha_nacimiento, latitud = p.latitud, longitud = p.longitud, location_accuracy_m = p.location_accuracy_m from app_private.usuarios_private p where p.user_id = u.id;`

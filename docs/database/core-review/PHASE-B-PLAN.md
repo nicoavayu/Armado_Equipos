@@ -2,7 +2,7 @@
 
 Estado al 2026-10-08: **la solución está preparada, probada en el laboratorio de Core y en un dry
 run aplicado como `postgres` ([RUNBOOK-193.md](RUNBOOK-193.md)); no está aplicada en Producción.**
-Hasta que se apliquen 20261010135000–138000, cualquier cuenta con sesión (el registro es
+Hasta que se apliquen 20261010135000–139000, cualquier cuenta con sesión (el registro es
 abierto) puede leer de las tablas:
 - email, teléfono, fecha de nacimiento y ubicación exacta de todos los usuarios;
 - el código de todos los partidos;
@@ -44,7 +44,8 @@ de contacto del organizador, búsqueda por email, ubicación de auto-match y dis
 
 - **Planteles de partidos publicados:** mientras el partido está publicado, cualquier cuenta con
   sesión lee su plantel (nombre, foto, `usuario_id`, `score`). La 1.1.21 lo muestra en la
-  página pública. Análisis campo por campo y transición en [ROSTER-FIELDS.md](ROSTER-FIELDS.md).
+  página pública. `added_by` ya salió de la fila (139000). Qué permite el resto, qué mecanismo de
+  versión existe y las opciones de cierre: [ROSTER-FIELDS.md](ROSTER-FIELDS.md).
 - **El código de un partido publicado** ya no es residual (137000): no llega a nadie ajeno ni
   desde la tabla, ni desde las vistas, ni desde el listado.
 - **Metadatos de actividad** de `usuarios` (`push_enabled`, `last_seen_at`,

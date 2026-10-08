@@ -40,13 +40,16 @@ select json_build_object('check', 'match views run as the caller today (security
 from pg_class c
 where c.relnamespace = 'public'::regnamespace and c.relname in ('partidos_view', 'partidos_abiertos_operativos', 'partidos_abiertos_operativos_v2');
 
-select json_build_object('check', 'nothing of the stack exists yet (private table, reader role, template link)',
+select json_build_object('check', 'nothing of the stack exists yet (private tables, reader role, template link, roster added_by)',
   'pass', to_regclass('app_private.usuarios_private') is null
     and not exists (select 1 from pg_roles where rolname = 'core_match_public_reader')
-    and not exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'partidos' and column_name = 'template_id'),
+    and not exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'partidos' and column_name = 'template_id')
+    and not exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'jugadores' and column_name = 'added_by')
+    and to_regclass('app_private.jugadores_added_by') is null,
   'value', json_build_object('usuarios_private', to_regclass('app_private.usuarios_private') is not null,
     'reader_role', exists (select 1 from pg_roles where rolname = 'core_match_public_reader'),
-    'partidos_template_id', (select data_type from information_schema.columns where table_schema = 'public' and table_name = 'partidos' and column_name = 'template_id')))::text;
+    'partidos_template_id', (select data_type from information_schema.columns where table_schema = 'public' and table_name = 'partidos' and column_name = 'template_id'),
+    'jugadores_added_by', exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'jugadores' and column_name = 'added_by')))::text;
 
 select json_build_object('check', 'pg_cron available (20261010131000 schedules the survey finalization)',
   'pass', exists (select 1 from pg_extension where extname = 'pg_cron'),
