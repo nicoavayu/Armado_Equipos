@@ -121,6 +121,8 @@ const ANON_ALLOWLIST = [
 // fail before the later feature migration has created them. Keep each later
 // authenticated surface explicit here so the catalog remains fail-closed.
 const POST_CANONICAL_AUTHENTICATED_ALLOWLIST = [
+  // 20261010140000: the roster of a published match for its public page (no usuario_id/score for outsiders).
+  ['public.get_public_match_roster(bigint)', 'frontend_legitimate'],
   ['public.set_my_global_availability(boolean)', 'frontend_legitimate'],
   ['public.cancel_my_availability_detailed()', 'frontend_legitimate'],
   [

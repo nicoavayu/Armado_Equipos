@@ -2,7 +2,7 @@ import logger from '../utils/logger';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '../supabase';
-import { fetchPublicMatchByCode } from '../services/db/publicMatch';
+import { fetchPublicMatchByCode, fetchPublicMatchRoster } from '../services/db/publicMatch';
 import { useAuth } from '../components/AuthProvider';
 import { isUserMemberOfMatch, clearGuestMembership } from '../utils/membershipCheck';
 import { formatLocalDateShort } from '../utils/dateLocal';
@@ -1215,10 +1215,8 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
       return null;
     }
 
-    const { data: jugadoresData, count } = await supabase
-      .from('jugadores')
-      .select('*', { count: 'exact' })
-      .eq('partido_id', partidoId);
+    // An account not in the match gets the roster without usuario_id/score (20261010140000).
+    const { jugadores: jugadoresData, count } = await fetchPublicMatchRoster(partidoId);
 
     const hydratedPartido = await hydratePlayerInvitesEnabled(partidoData, partidoId);
 
@@ -1373,10 +1371,8 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
 
           if (reqId !== reqIdRef.current) return;
 
-          const { data: jugadoresData, count } = await supabase
-            .from('jugadores')
-            .select('*', { count: 'exact' })
-            .eq('partido_id', partidoId);
+          // An account not in the match gets the roster without usuario_id/score (20261010140000).
+          const { jugadores: jugadoresData, count } = await fetchPublicMatchRoster(partidoId);
 
           // Check if this request is stale
           if (reqId !== reqIdRef.current) return;

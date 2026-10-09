@@ -202,8 +202,12 @@ test('abuse: a match of my own + a pending invitation I sent does not reveal the
     ${phoneOf(qa.ids.ajeno)}`);
 });
 
+// Joining oneself needs a legitimate path since 20261010140000: here, the guest invite link
+// the player opened (validate_guest_match_invite records it for a signed-in account).
+const LINK_ACCESS = (userId) => `insert into app_private.match_link_access (partido_id, user_id) values (990501, '${userId}');`;
+
 test('the organizer reads it when the player joined the match themselves (their own roster row)', () => {
-  assert.deepEqual(lines(withPrivateData(`${PHONE_MATCH}
+  assert.deepEqual(lines(withPrivateData(`${PHONE_MATCH} ${LINK_ACCESS(qa.ids.ajeno)}
     ${asRole('authenticated', qa.ids.ajeno)}
     insert into public.jugadores (partido_id, nombre, usuario_id) values (990501, 'Ramiro', '${qa.ids.ajeno}');
     reset role; ${asRole('authenticated', ORGANIZER)} ${phoneOf(qa.ids.ajeno)}`)), ['+54 9 11 4444-2222']);
@@ -211,7 +215,7 @@ test('the organizer reads it when the player joined the match themselves (their 
 
 // 20261010139000: who inserted a roster row lives in app_private.jugadores_added_by.
 test('who added a roster row is recorded by the server, outside the shared row', () => {
-  assert.deepEqual(lines(withPrivateData(`${PHONE_MATCH}
+  assert.deepEqual(lines(withPrivateData(`${PHONE_MATCH} ${LINK_ACCESS(qa.ids.ajeno)}
     ${asRole('authenticated', qa.ids.ajeno)}
     insert into public.jugadores (partido_id, nombre, usuario_id) values (990501, 'Ramiro', '${qa.ids.ajeno}');
     reset role; ${asRole('authenticated', ORGANIZER)}

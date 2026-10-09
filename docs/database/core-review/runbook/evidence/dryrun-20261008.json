@@ -1,7 +1,7 @@
 {
  "kind": "core-review-193-dry-run",
- "date": "2026-10-08",
- "revision": "20 migrations (120000–139000)",
+ "date": "2026-10-09",
+ "revision": "21 migrations (120000–140000)",
  "environment": {
   "compose_project": "arma2-dryrun (disposable, no published ports, torn down after each pass)",
   "image": "public.ecr.aws/supabase/postgres:17.6.1.143 + GoTrue v2.194.0 + storage-api v1.67.15",
@@ -10,14 +10,15 @@
   "seed": "synthetic: 1203 accounts (email all, phone ~30 %, birth date ~20 %, location pair ~40 %), 403 matches, 4009 roster rows, 1201 notifications, 1 guest photo slot shared by 2 sessions; before 135000, 1069 roster rows get an added_by (trigger paused for that seed only)"
  },
  "files_sha256": {
-  "precheck.sql": "bd3a0a778cf015aff4cbf638e9b070a5b8dd79da822b02492871efb387284e5d",
-  "postcheck.sql": "5c1060cc97b85e93ce2b43955aea973c7d9aecaa48f702cb8919e42475261a1c",
-  "apply-193.psql": "318aaab4b1d0bce468d81676712f09898cc6b7618968e698e6cbebfe72a8ea01",
+  "precheck.sql": "e98cfccd297ed89a741d091808f45b64bc8cc2bcbd612518d63e7f3e7e059212",
+  "postcheck.sql": "d3cf73891c83d0c3def84302f8d0eab2e3b900131c3069291188db0bd8669692",
+  "apply-193.psql": "dc443aa7368b5353c8fa9b34088b18bdc939a673ba63518176dbc453c00134d1",
   "rollbacks/20261010135000_core_private_profile_fields.rollback.sql": "1f00abed7c84c625b49206bb0d5086fc0c06b9ba3537860cdcf970c53642c8a0",
   "rollbacks/20261010136000_core_match_roster_visibility.rollback.sql": "e023cfd1cb3c998e398179e2fd0c55c0aeb989aecec45c281e2141d44f1da311",
   "rollbacks/20261010137000_core_match_code_never_public.rollback.sql": "fef49deb67b4ecd22f55be28a465b97f2db17a30f78429ba0e76463cb2a23082",
   "rollbacks/20261010138000_core_voting_photo_slot_owner.rollback.sql": "7de1db466f0bf438c64c354ed2adf9ca3e6cc46a09334ad61b48373b5f9173b0",
   "rollbacks/20261010139000_core_roster_added_by_private.rollback.sql": "c4706b3b3731a03465365569025284de6c5fc860bb94430538c443eb544a33d1",
+  "rollbacks/20261010140000_core_published_roster_identity.rollback.sql": "f70606ea4e3c53f22965f07598607ad52f4e70fe9c7841126c472afd9dd7e1ab",
   "supabase/migrations/20261010120000_core_trigger_helper_execute_grants.sql": "31b0d51fab51e31c8991919c8ed3d633184870301dee51ad5f22701e6924f258",
   "supabase/migrations/20261010121000_core_public_voting_roster_identity.sql": "6b42cfebe32773205ac1821161a87c1c7180230ca463cea6116c560735f66b62",
   "supabase/migrations/20261010122000_core_notifications_ext_match_columns.sql": "6f0b3eb8a2bc8ca76439f22104ef37b90e25c6761ef5a191a21fb7dd83b3d3ad",
@@ -37,15 +38,16 @@
   "supabase/migrations/20261010136000_core_match_roster_visibility.sql": "0c8cfd47ee617f6543abd3d25efbcb1c6b5e79e2a3155562a98884493ee79f4b",
   "supabase/migrations/20261010137000_core_match_code_never_public.sql": "58a8685895fecce815a85635f46df0d9228c0ba215c6d7dd16bd7a75a1832775",
   "supabase/migrations/20261010138000_core_voting_photo_slot_owner.sql": "5de6799e1bf44f915c914334e89e365f3a8cc81cdd41244cb2cc152e836357ad",
-  "supabase/migrations/20261010139000_core_roster_added_by_private.sql": "3ca05124dc5671d2a29cb08afddcd406dbddfe94afba84c03ba3aec96c4c7f33"
+  "supabase/migrations/20261010139000_core_roster_added_by_private.sql": "3ca05124dc5671d2a29cb08afddcd406dbddfe94afba84c03ba3aec96c4c7f33",
+  "supabase/migrations/20261010140000_core_published_roster_identity.sql": "6f591572b968305563689d8a9520ce4bf9b1929f68cc64c29d0210276550744b"
  },
  "pass2_per_migration": {
   "backup": {
-   "ms": 260,
-   "bytes": 3979487
+   "ms": 258,
+   "bytes": 3979049
   },
   "restore_check": {
-   "ms": 1195,
+   "ms": 1212,
    "pg_restore_exit_ok": false,
    "errors": 20,
    "identical": true,
@@ -152,15 +154,25 @@
     }
    },
    {
+    "check": "informative: join requests duplicated per account and match today (140000 refuses new duplicates; existing ones are kept)",
+    "pass": true,
+    "value": 0
+   },
+   {
+    "check": "informative: can an account execute approve_join_request? (the approve-join-request function calls it as the organizer; false = approvals already fail today, unrelated to #193)",
+    "pass": true,
+    "value": false
+   },
+   {
     "check": "baseline: private values in the shared rows (must all move after 135000)",
     "pass": true,
     "value": {
      "usuarios": 1203,
      "with_email": 1203,
-     "with_phone": 377,
-     "with_birth_date": 222,
-     "with_location": 480,
-     "profiles_with_phone": 377,
+     "with_phone": 353,
+     "with_birth_date": 256,
+     "with_location": 482,
+     "profiles_with_phone": 353,
      "partidos": 403,
      "jugadores": 4009,
      "shared_photo_slots": 1
@@ -168,34 +180,40 @@
    }
   ],
   "apply_ms": {
-   "20261010120000": 64,
-   "20261010121000": 68,
-   "20261010122000": 71,
-   "20261010123000": 69,
-   "20261010124000": 73,
-   "20261010125000": 67,
-   "20261010126000": 72,
-   "20261010127000": 73,
-   "20261010128000": 72,
-   "20261010129000": 71,
-   "20261010130000": 71,
-   "20261010131000": 74,
-   "20261010132000": 72,
-   "20261010133000": 72,
-   "20261010134000": 71,
-   "20261010135000": 98,
-   "20261010136000": 73,
-   "20261010137000": 80,
-   "20261010138000": 66,
-   "20261010139000": 82
+   "20261010120000": 67,
+   "20261010121000": 71,
+   "20261010122000": 70,
+   "20261010123000": 66,
+   "20261010124000": 71,
+   "20261010125000": 68,
+   "20261010126000": 77,
+   "20261010127000": 67,
+   "20261010128000": 66,
+   "20261010129000": 68,
+   "20261010130000": 68,
+   "20261010131000": 73,
+   "20261010132000": 68,
+   "20261010133000": 70,
+   "20261010134000": 73,
+   "20261010135000": 96,
+   "20261010136000": 69,
+   "20261010137000": 71,
+   "20261010138000": 69,
+   "20261010139000": 104,
+   "20261010140000": 75
   },
-  "apply_total_ms": 1459,
+  "apply_total_ms": 1527,
   "server_restarted": false,
   "postcheck": [
    {
-    "check": "ledger holds the 20 migrations 20261010120000…139000",
+    "check": "ledger holds the 21 migrations 20261010120000…140000",
     "pass": true,
-    "value": 20
+    "value": 21
+   },
+   {
+    "check": "140000: published rosters per involvement; entries built for the viewer; self-join, self-update and request guards in place",
+    "pass": true,
+    "value": null
    },
    {
     "check": "135000: no email, phone or birth date left in the shared rows",
@@ -212,15 +230,15 @@
      "usuarios": 1203,
      "private_rows": 1203,
      "with_email": 1203,
-     "with_phone": 377,
-     "with_birth_date": 222,
-     "with_location": 480
+     "with_phone": 353,
+     "with_birth_date": 256,
+     "with_location": 482
     }
    },
    {
     "check": "135000: shared coordinates are approximate (2 decimals)",
     "pass": true,
-    "value": 480
+    "value": 482
    },
    {
     "check": "136000/137000: table policies are per involvement (no open clause, no USING true)",
@@ -284,11 +302,23 @@
     }
    },
    {
-    "check": "new account: rosters only of published matches and of teams",
+    "check": "new account: no usuario_id or score in any roster entry (views, Quiero jugar, public roster RPC, link code)",
     "pass": true,
     "value": {
-     "visible": 212,
-     "expected": 212
+     "entries_in_views": 212
+    }
+   },
+   {
+    "check": "new account: cannot join a published match by inserting itself, nor file an approved request",
+    "pass": true,
+    "value": true
+   },
+   {
+    "check": "new account: no match roster from the table, only team rows",
+    "pass": true,
+    "value": {
+     "visible": 0,
+     "expected": 0
     }
    },
    {
@@ -312,6 +342,11 @@
     "value": null
    },
    {
+    "check": "anon: the link code gives roster entries without usuario_id or score",
+    "pass": true,
+    "value": null
+   },
+   {
     "check": "anon: a WhatsApp/voting link (code + id) still opens its own match",
     "pass": true,
     "value": true
@@ -329,9 +364,14 @@
   ],
   "rollbacks": [
    {
+    "file": "20261010140000_core_published_roster_identity.rollback.sql",
+    "ok": true,
+    "ms": 74
+   },
+   {
     "file": "20261010139000_core_roster_added_by_private.rollback.sql",
     "ok": true,
-    "ms": 86
+    "ms": 82
    },
    {
     "file": "20261010138000_core_voting_photo_slot_owner.rollback.sql",
@@ -341,17 +381,17 @@
    {
     "file": "20261010137000_core_match_code_never_public.rollback.sql",
     "ok": true,
-    "ms": 74
+    "ms": 70
    },
    {
     "file": "20261010136000_core_match_roster_visibility.rollback.sql",
     "ok": true,
-    "ms": 70
+    "ms": 66
    },
    {
     "file": "20261010135000_core_private_profile_fields.rollback.sql",
     "ok": true,
-    "ms": 84
+    "ms": 79
    }
   ],
   "rollback_vs_state_before_135000": "identical",
@@ -369,37 +409,43 @@
   "postcheck_after_reapply_failures": []
  },
  "pass3_exact_runbook_files": {
-  "started_at": "2026-10-08T22:16:55.540Z",
+  "started_at": "2026-10-09T14:07:08.655Z",
   "precheck_failures": [],
   "apply": {
    "ok": true,
-   "ms": 176,
-   "applied": 20,
-   "ledger": 20,
+   "ms": 177,
+   "applied": 21,
+   "ledger": 21,
    "error": null
   },
   "postcheck_failures": [],
   "rerun": {
    "ok": true,
-   "skipped": 20
+   "skipped": 21
   },
   "rollbacks": [
    {
-    "file": "20261010139000_core_roster_added_by_private.rollback.sql",
+    "file": "20261010140000_core_published_roster_identity.rollback.sql",
     "ok": true,
-    "ms": 69,
+    "ms": 75,
     "error": null
    },
    {
-    "file": "20261010138000_core_voting_photo_slot_owner.rollback.sql",
+    "file": "20261010139000_core_roster_added_by_private.rollback.sql",
     "ok": true,
     "ms": 70,
     "error": null
    },
    {
+    "file": "20261010138000_core_voting_photo_slot_owner.rollback.sql",
+    "ok": true,
+    "ms": 66,
+    "error": null
+   },
+   {
     "file": "20261010137000_core_match_code_never_public.rollback.sql",
     "ok": true,
-    "ms": 72,
+    "ms": 70,
     "error": null
    },
    {
@@ -411,16 +457,16 @@
    {
     "file": "20261010135000_core_private_profile_fields.rollback.sql",
     "ok": true,
-    "ms": 84,
+    "ms": 91,
     "error": null
    }
   ],
   "ledger_after_rollbacks": 15,
   "reapply": {
    "ok": true,
-   "applied": 5,
+   "applied": 6,
    "skipped": 15,
-   "ledger": 20
+   "ledger": 21
   },
   "postcheck_after_reapply_failures": [],
   "server_restarted": false
@@ -429,5 +475,25 @@
   "grant core_match_public_reader to current_user (137000) crashed the backend with signal 11 when run by postgres; every connection was reset. Now granted by name.",
   "ALTER VIEW … OWNER TO core_match_public_reader needs the new owner to have CREATE on schema public (a superuser skips that check). Now granted only around the three statements and revoked."
  ],
- "postcheck_note": "\"anon and authenticated can execute every function the match views call\" is shown false (and anon on partidos_view fails with permission denied) when anon EXECUTE on match_involves_user is revoked — the case seen on rehearsal, where the 136000 helpers are owned by supabase_admin."
+ "postcheck_note": "\"anon and authenticated can execute every function the match views call\" is shown false (and anon on partidos_view fails with permission denied) when anon EXECUTE on match_involves_user is revoked — the case seen on rehearsal, where the 136000 helpers are owned by supabase_admin.",
+ "snapshot_covers": [
+  "added_by_digest",
+  "added_by_rows",
+  "added_by_trigger",
+  "claims",
+  "code_and_invite_fns",
+  "contact_phone_fn",
+  "functions",
+  "jugadores_columns",
+  "jugadores_with_check",
+  "policies",
+  "profiles_digest",
+  "request_policies",
+  "roles",
+  "roster_helpers",
+  "roster_triggers",
+  "triggers",
+  "usuarios_digest",
+  "views"
+ ]
 }

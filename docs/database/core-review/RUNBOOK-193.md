@@ -10,7 +10,7 @@ no superusuario, igual que en Supabase. La evidencia está en
 ## 1. Qué se aplica
 
 Producción tiene las 43 migraciones de `main` más `20261009120000_core_ops_log_retention`
-(mantenimiento de capacidad del 2026-10-07). Encima van **20 migraciones, en este orden**:
+(mantenimiento de capacidad del 2026-10-07). Encima van **21 migraciones, en este orden**:
 
 | # | Migración | Qué cambia | Dry run |
 |---|---|---|---|
@@ -34,6 +34,7 @@ Producción tiene las 43 migraciones de `main` más `20261009120000_core_ops_log
 | 18 | `20261010137000_core_match_code_never_public` | el código no llega a nadie ajeno: la tabla sólo devuelve partidos propios; los publicados se ven por las vistas, con el código oculto | 77 ms |
 | 19 | `20261010138000_core_voting_photo_slot_owner` | la foto de un invitado sólo la cambia quien vota como él | 67 ms |
 | 20 | `20261010139000_core_roster_added_by_private` | quién agregó a cada jugador sale de la fila de `jugadores` a `app_private.jugadores_added_by`; se elimina la columna (ningún cliente la nombra) | 82 ms |
+| 21 | `20261010140000_core_published_roster_identity` | quien no participa (y anon) no recibe `usuario_id` ni `score` de ningún plantel: tabla, realtime, vistas de "Quiero jugar", código del link; RPC `get_public_match_roster` para la web. En el servidor: sumarse uno mismo sólo con invitación, solicitud aprobada o link de invitación validado; el jugador sólo edita nombre, foto y posición de su fila; solicitudes siempre pendientes, una por cuenta y partido | 75 ms |
 
 Tiempos del dry run con ~1.200 cuentas, 400 partidos y 4.000 filas de plantel. Ninguna
 migración usa `CONCURRENTLY` ni abre su propia transacción.
@@ -126,9 +127,9 @@ Cada línea es `{check, pass, value}`. **Si algún `pass` es `false`, no seguir.
 /opt/homebrew/opt/libpq/bin/psql "$CORE_CONNINFO" --password -X -f docs/database/core-review/runbook/apply-193.psql
 ```
 
-- Aplica las 20 migraciones en orden. Cada una va en su propia transacción, junto con su fila
+- Aplica las 21 migraciones en orden. Cada una va en su propia transacción, junto con su fila
   en `supabase_migrations.schema_migrations`.
-- Se esperan 20 líneas `>>> 202610101xxxxx …` y al final `>>> done`.
+- Se esperan 21 líneas `>>> 202610101xxxxx …` y al final `>>> done`.
 - Si una falla, psql se detiene: esa migración se revierte entera y las anteriores quedan
   aplicadas.
 - El mismo comando retoma desde donde quedó, porque saltea lo que ya está en el ledger. Antes
@@ -144,7 +145,13 @@ No escribe nada: es una transacción que se revierte. Actúa como una cuenta nue
 anon, como el organizador del último partido y como una cuenta con teléfono. **Todas las líneas
 deben dar `pass: true`.**
 
-- **Ledger:** las 20 migraciones están registradas.
+- **Ledger:** las 21 migraciones están registradas.
+- **140000:**
+  - policies, vistas, `public_get_match_by_code` y guardas en su lugar;
+  - como cuenta nueva: 0 `usuario_id`/`score` en vistas, "Quiero jugar", `get_public_match_roster` y el link;
+  - no puede sumarse sola a un partido publicado ni crear una solicitud ya aprobada;
+  - de la tabla sólo ve filas de equipos;
+  - anon: el link trae el plantel sin `usuario_id`/`score`.
 - **139000:** `public.jugadores` no tiene `added_by`; quién agregó a quién está sólo en `app_private`, sin lectura para `anon`/`authenticated`, con trigger AFTER INSERT.
 - **135000:**
   - cero email, teléfono o nacimiento en las filas compartidas;
@@ -191,14 +198,14 @@ Fuentes: replays de las 32 + 84 formas de lectura de la 1.1.21 y de sus escritur
 
 | Cliente | Con sesión | Sin sesión |
 |---|---|---|
-| **1.1.21 Android/iOS** (tiendas) | **Funciona sin errores nuevos.**<br>- perfil propio: teléfono y nacimiento aparecen vacíos (no se borran; un guardado en blanco los conserva);<br>- no ve teléfonos ajenos;<br>- distancias con la ubicación aproximada;<br>- abre partidos publicados por `partidos_view` (ya trae `busca_arquero`, `player_invites_enabled` y el precio), con plantel;<br>- no ve el código de partidos ajenos;<br>- no recibe en tiempo real los cambios de un partido publicado ajeno (sí de los propios). | Desde 125000 una página pública abierta sin sesión dentro de la app vieja no carga el partido. Los links de WhatsApp abren en el navegador, o sea en la web. |
+| **1.1.21 Android/iOS** (tiendas) | **Funciona sin errores nuevos en lo propio.**<br>- perfil propio: teléfono y nacimiento aparecen vacíos (no se borran; un guardado en blanco los conserva);<br>- no ve teléfonos ajenos;<br>- distancias con la ubicación aproximada;<br>- sus partidos y planteles, completos;<br>- **partido publicado ajeno** (140000): lo abre por `partidos_view` con el plantel **vacío** y cupo 0. Pedir sumarse crea una solicitud pendiente (una sola; un segundo toque se reabre por RPC) y el organizador la aprueba con el cupo verificado en el servidor;<br>- sumarse por invitación de la app o por el link de invitación de WhatsApp (código + token, que valida al abrirlo) sigue funcionando. Un link viejo con sólo el código ya no deja sumarse con cuenta;<br>- no recibe en tiempo real los cambios de un partido publicado ajeno. | Desde 125000 una página pública abierta sin sesión dentro de la app vieja no carga el partido. Los links de WhatsApp abren en el navegador, o sea en la web. |
 | **Web publicada hoy (`main`)** | No se probó pantalla por pantalla: va reemplazada antes (§2). Lo que lea de la tabla sobre un partido ajeno publicado vuelve vacío. | **Se rompe:** votación e invitación por link no cargan el partido. Por eso la web nueva va antes. |
-| **Web nueva (#193 + #187)** | Funciona con y sin migraciones: perfil por `get_my_profile`, borrar campos con `clear_my_profile_fields`, teléfono de contacto por RPC, partidos publicados por la vista. | Votación e invitación por código (`public_get_match_by_code`). Foto de invitado: el primero que toma un nombre es dueño de su foto. |
+| **Web nueva (#193 + #187)** | Funciona con y sin migraciones: perfil por `get_my_profile`, borrar campos con `clear_my_profile_fields`, teléfono de contacto por RPC, partidos publicados por la vista, plantel publicado por `get_public_match_roster` (nombres, fotos, cupo; sin `usuario_id`/`score`). | Votación e invitación por código (`public_get_match_by_code`, plantel sin `usuario_id`/`score`; los invitados se reconocen por `has_account`). Foto de invitado: el primero que toma un nombre es dueño de su foto. |
 | **Build nativa nueva (pendiente)** | Igual que la web nueva; además recupera ver y borrar teléfono y nacimiento propios. | — |
 
 ## 9. Rollback por paso
 
-Los rollbacks de 135000–139000 son archivos probados en el dry run. Aplicados en orden inverso,
+Los rollbacks de 135000–140000 son archivos probados en el dry run. Aplicados en orden inverso,
 devuelven exactamente el estado previo a 135000; la única diferencia esperada es la de
 `partidos_view` (ver la fila de 137000). Cada rollback borra su fila del ledger, así que
 `apply-193.psql` puede volver a aplicarlo. Comando, con `<archivo>` reemplazado:
@@ -209,6 +216,7 @@ devuelven exactamente el estado previo a 135000; la única diferencia esperada e
 
 | Paso | Archivo / acción | Datos perdidos | Tiempo | Efecto |
 |---|---|---|---|---|
+| 140000 | `20261010140000_core_published_roster_identity.rollback.sql` | ninguno (`app_private.match_link_access` queda) | < 1 s | vuelve a verse `usuario_id`/`score` de planteles publicados y vuelven los atajos de escritura (sumarse a cualquier partido, editar la propia fila entera, solicitudes ya aprobadas o duplicadas) |
 | 139000 | `20261010139000_core_roster_added_by_private.rollback.sql` | ninguno: vuelven a la columna todos los valores registrados, incluidos los de filas agregadas mientras 139000 estuvo aplicada; la tabla privada queda | < 1 s | quien lee una fila de plantel vuelve a ver quién agregó a ese jugador |
 | 138000 | `20261010138000_core_voting_photo_slot_owner.rollback.sql` | ninguno (los claims quedan) | < 1 s | cualquiera con el código vuelve a poder reemplazar fotos de invitados |
 | 137000 | `20261010137000_core_match_code_never_public.rollback.sql` | ninguno | < 1 s | cualquier cuenta vuelve a leer de la tabla el código de los partidos publicados. `partidos_view` conserva sus 3 columnas nuevas, porque `CREATE OR REPLACE` no puede quitarlas y a ningún cliente le molestan |
@@ -247,20 +255,20 @@ reintentar a ciegas.
   de datos privados idénticos. Los 20 errores son de `pg_cron`, que sólo vive en la base
   `postgres`. En Producción la prueba estricta es `restore-check`.
 - **Prechecks:** todos `true`.
-- **Aplicación:** 20/20 como `postgres`, una transacción cada una, 1,5 s en total, sin reinicio
+- **Aplicación:** 21/21 como `postgres`, una transacción cada una, 1,5 s en total, sin reinicio
   del servidor.
 - **Post-checks:** todos `true`. Valores privados movidos: 1.203 emails, 361 teléfonos,
   227 nacimientos y 478 ubicaciones, igual que la línea base.
 - **Rollbacks y reaplicación:**
-  - 139→135 aplicados: el estado es idéntico al previo a 135000 (policies, funciones, triggers,
+  - 140→135 aplicados: el estado es idéntico al previo a 135000 (policies, funciones, triggers,
     vistas, digest de `usuarios`/`profiles`, columnas de `jugadores` y los 1.069 `added_by` de la
     semilla, ledger), salvo las 3 columnas esperadas de `partidos_view`;
-  - reaplicación 135→139 y post-checks de nuevo: todos `true`.
+  - reaplicación 135→140 y post-checks de nuevo: todos `true`.
 - **Con los archivos exactos de este runbook** (`apply-193.psql`, `rollbacks/*` con `-1`):
   - aplicación;
-  - segunda corrida idempotente (20 salteadas);
-  - rollbacks 139→135 (ledger 15);
-  - reaplicación retomada (5 aplicadas, 15 salteadas);
+  - segunda corrida idempotente (21 salteadas);
+  - rollbacks 140→135 (ledger 15);
+  - reaplicación retomada (6 aplicadas, 15 salteadas);
   - post-checks en `true`, sin reinicio.
 
 **Lo que el dry run encontró y ya está corregido en 137000:**
