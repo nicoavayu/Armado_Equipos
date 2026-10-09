@@ -86,6 +86,7 @@ const expectedCanonicalMigrations = [
   '20261010141000_core_organizer_approves_join_requests.sql',
   '20261010142000_core_join_request_notifications.sql',
   '20261010143000_core_roster_identity_roster_only.sql',
+  '20261010144000_core_partidos_row_roster_only.sql',
   '20261010145000_core_match_notification_callers.sql',
   '20261010146000_core_open_definer_writers.sql',
 ];

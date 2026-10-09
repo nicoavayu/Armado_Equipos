@@ -1,4 +1,4 @@
--- #193 promotion — applies 20261010118000…146000 on Core (no 144000: a draft; 118000 is the urgent fix, skipped if already applied alone), in order, each in its own transaction
+-- #193 promotion — applies 20261010118000…146000 on Core (118000 is the urgent fix, skipped if already applied alone), in order, each in its own transaction
 -- together with its ledger row (supabase_migrations.schema_migrations). A version already in the
 -- ledger is skipped, so the same file resumes after a stop or re-applies after a rollback (the
 -- rollbacks remove their ledger row). Run from the repository root, connected as postgres:
@@ -327,6 +327,18 @@ begin;
 \i supabase/migrations/20261010143000_core_roster_identity_roster_only.sql
 \set migration_source `cat supabase/migrations/20261010143000_core_roster_identity_roster_only.sql`
 insert into supabase_migrations.schema_migrations (version, name, statements) values ('20261010143000', 'core_roster_identity_roster_only', array[:'migration_source']);
+commit;
+\endif
+
+select exists (select 1 from supabase_migrations.schema_migrations where version = '20261010144000') as already_applied \gset
+\if :already_applied
+\echo '=== 20261010144000 already in the ledger: skipped'
+\else
+\echo '>>> 20261010144000 core_partidos_row_roster_only'
+begin;
+\i supabase/migrations/20261010144000_core_partidos_row_roster_only.sql
+\set migration_source `cat supabase/migrations/20261010144000_core_partidos_row_roster_only.sql`
+insert into supabase_migrations.schema_migrations (version, name, statements) values ('20261010144000', 'core_partidos_row_roster_only', array[:'migration_source']);
 commit;
 \endif
 

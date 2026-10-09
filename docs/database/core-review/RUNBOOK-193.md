@@ -14,7 +14,7 @@ el agente no tiene acceso a Producción y la contraseña de la base sólo se tip
 Este runbook está ensayado sobre ese esquema **real**, aplicado como `postgres` no superusuario
 (`integration/prod-schema/`, §11):
 - datos sintéticos con la forma de Producción;
-- 74 chequeos de humo;
+- 81 chequeos de humo;
 - rollbacks comparados contra el catálogo original.
 
 La evidencia está en
@@ -23,7 +23,7 @@ La evidencia está en
 ## 1. Qué se aplica
 
 El ledger de Producción tiene las 43 migraciones de `main` hasta `20260915`, más `20261007`,
-`20261008` y `20261009120000`. Encima van **28 migraciones, en este orden**: 118000 (el arreglo urgente, que puede haberse aplicado antes por su cuenta), 119000…143000, 145000 y 146000. `20261010144000` es un borrador aparte, en [`drafts/`](drafts/README.md), y no se aplica. 119000 y 142000
+`20261008` y `20261009120000`. Encima van **29 migraciones, en este orden**: 118000 (el arreglo urgente; **ya aplicado en Producción el 2026-10-09** con su propio GO, así que `apply-193.psql` lo saltea) y 119000…146000. 119000 y 142000
 existen por las diferencias de Producción; ninguna de las dos cambia algo sobre el esquema del
 repositorio. 143000 cierra lo que el gate B encontró sobre las columnas reales de `jugadores`; 145000, los avisos de partido abiertos a cualquiera; 118000 y 146000, las funciones que cualquiera podía llamar para escribir.
 
@@ -55,8 +55,9 @@ repositorio. 143000 cierra lo que el gate B encontró sobre las columnas reales 
 | 22 | `20261010141000_core_organizer_approves_join_requests` | `approve_join_request` ejecutable por cuentas, no por anon. En el repositorio no lo era ("forbidden"); en Producción ya lo era, y sólo se le quita a anon. Guarda el ACL previo para el rollback | 37 ms |
 | 23 | `20261010142000_core_join_request_notifications` | **arreglo de Producción.** Hoy, desde la segunda solicitud a un mismo partido, la inserción falla con 23505, porque el aviso al organizador choca con un índice único por partido. `fn_notifications_fill_partido_id` (sólo existe en Producción) deja de volver a llenar `partido_id` en los avisos de cada solicitud | 43 ms |
 | 24 | `20261010143000_core_roster_identity_roster_only` | **lo que encontró el gate B sobre el esquema real.** Quién es cada jugador queda sólo para el organizador y el plantel (regla de Nico). Afuera (cuenta ajena, una cuenta que sólo pidió sumarse o recibió un aviso, y anon por el link) cada entrada de plantel va sin `usuario_id`, `score` ni `responsabilidad_score` (columna de Producción), y su `uuid` (en Producción, el id de la cuenta de un jugador registrado; el de un invitado es su clave de dispositivo) se reemplaza por una clave opaca por fila. Vistas, `get_public_match_roster`, `public_get_match_by_code` y la tabla `jugadores` (y realtime). Las filas `match_ref` sin partido de Producción siguen la misma regla | 47 ms |
-| 25 | `20261010145000_core_match_notification_callers` | **avisos de partido sólo del organizador y de la gente del partido** (Nico, 2026-10-09). Hoy cualquiera, anon incluido, manda un aviso con texto propio a todo el plantel de cualquier partido. Las dos funciones originales se mueven sin cambios a `app_private.*_unchecked` y en su lugar queda un envoltorio con la misma firma que, llamado por la API, exige: organizador (todo), o involucrado (sólo `match_join_request`/`match_update` al organizador), o jugador del plantel (sólo `match_update` a todos). Las funciones SECURITY DEFINER, pg_cron y `service_role` siguen igual. anon pierde EXECUTE (también sobre `add_creator_to_match`). Detalle, llamadores y rollback: [`NOTIFICATION-FUNCTIONS.md`](NOTIFICATION-FUNCTIONS.md) | 46 ms |
-| 26 | `20261010146000_core_open_definer_writers` | **las demás funciones SECURITY DEFINER que cualquiera podía llamar para escribir** (Nico, 2026-10-09). 9 sin llamador en los clientes pierden EXECUTE para PUBLIC/anon/authenticated (`service_role`, pg_cron y las funciones DEFINER siguen igual). Las 3 que llama la 1.1.21 pasan a envoltorios con control: aviso de expulsión (organizador), sincronización de partido de equipos (miembro de alguno de los dos equipos), plantel de desafío (dueño o capitán). Exige la guarda de 118000. Inventario y consumidores: [`DEFINER-WRITERS.md`](DEFINER-WRITERS.md) | 37 ms |
+| 25 | `20261010144000_core_partidos_row_roster_only` | **la fila del partido (y su código) desde la tabla sólo para organizador y plantel** (opción A, elegida por Nico tras el gate B con 1.1.21). Antes, quien sólo pidió sumarse o recibió un aviso leía `partidos.codigo` desde la tabla. Siguen viendo el partido en `partidos_view` (código oculto) y se suman igual por invitación, solicitud aprobada o link validado | 40 ms |
+| 26 | `20261010145000_core_match_notification_callers` | **avisos de partido sólo del organizador y de la gente del partido** (Nico, 2026-10-09). Hoy cualquiera, anon incluido, manda un aviso con texto propio a todo el plantel de cualquier partido. Las dos funciones originales se mueven sin cambios a `app_private.*_unchecked` y en su lugar queda un envoltorio con la misma firma que, llamado por la API, exige: organizador (todo), o involucrado (sólo `match_join_request`/`match_update` al organizador), o jugador del plantel (sólo `match_update` a todos). Las funciones SECURITY DEFINER, pg_cron y `service_role` siguen igual. anon pierde EXECUTE (también sobre `add_creator_to_match`). Detalle, llamadores y rollback: [`NOTIFICATION-FUNCTIONS.md`](NOTIFICATION-FUNCTIONS.md) | 46 ms |
+| 27 | `20261010146000_core_open_definer_writers` | **las demás funciones SECURITY DEFINER que cualquiera podía llamar para escribir** (Nico, 2026-10-09). 9 sin llamador en los clientes pierden EXECUTE para PUBLIC/anon/authenticated (`service_role`, pg_cron y las funciones DEFINER siguen igual). Las 3 que llama la 1.1.21 pasan a envoltorios con control: aviso de expulsión (organizador), sincronización de partido de equipos (miembro de alguno de los dos equipos), plantel de desafío (dueño o capitán). Exige la guarda de 118000. Inventario y consumidores: [`DEFINER-WRITERS.md`](DEFINER-WRITERS.md) | 37 ms |
 
 Tiempos del ensayo sobre el esquema real con ~1.200 cuentas, 400 partidos y 4.000 filas de
 plantel (1,05 s en total). Ninguna migración usa `CONCURRENTLY` ni abre su propia transacción.
@@ -174,9 +175,9 @@ Cada línea es `{check, pass, value}`. **Si algún `pass` es `false`, no seguir.
 /opt/homebrew/opt/libpq/bin/psql "$CORE_CONNINFO" --password -X -f docs/database/core-review/runbook/apply-193.psql
 ```
 
-- Aplica las 28 migraciones en orden (118000 se saltea si ya está en el ledger). Cada una va en su propia transacción, junto con su fila
+- Aplica las 29 migraciones en orden (118000 se saltea si ya está en el ledger). Cada una va en su propia transacción, junto con su fila
   en `supabase_migrations.schema_migrations`.
-- Se esperan 28 líneas `>>> 202610101xxxxx …` (27 y una `=== 20261010118000 already in the ledger: skipped` si el arreglo urgente ya estaba) y al final `>>> done`.
+- Se esperan 28 líneas `>>> 202610101xxxxx …` y una `=== 20261010118000 already in the ledger: skipped` (el arreglo urgente ya está en Producción) y al final `>>> done`.
 - Si una falla, psql se detiene: esa migración se revierte entera y las anteriores quedan
   aplicadas.
 - El mismo comando retoma desde donde quedó, porque saltea lo que ya está en el ledger. Antes
@@ -192,7 +193,7 @@ No escribe nada: es una transacción que se revierte. Actúa como una cuenta nue
 anon, como el organizador del último partido y como una cuenta con teléfono. **Todas las líneas
 deben dar `pass: true`.**
 
-- **Ledger:** 118000 y las 27 de 119000…146000 están registradas.
+- **Ledger:** 118000 y las 28 de 119000…146000 están registradas.
 - **119000:**
   - `SELECT`/`INSERT` de `partidos`/`jugadores` sólo tienen las policies del repositorio
     (más `partidos_insert_own` de Producción);
@@ -204,6 +205,7 @@ deben dar `pass: true`.**
   El valor lista lo registrado en `production_alignment_log`.
 - **118000 + 146000:** `cancel_partido_with_notification` tiene la guarda del organizador; ninguna de las 13 funciones es ejecutable por anon; las 3 que llama la 1.1.21 son envoltorios con control.
 - **145000:** anon no ejecuta `enqueue_partido_notification`, `enqueue_match_participant_notification` ni `add_creator_to_match`; las dos primeras son los envoltorios con control (INVOKER) y las originales están en `app_private` como SECURITY DEFINER, sin anon.
+- **144000:** la policy de lectura de `partidos` usa `match_roster_identity_visible`; la cuenta de la última solicitud pendiente no recibe esa fila (ni su código) desde la tabla.
 - **143000:**
   - las vistas, las dos RPC de plantel y la policy de lectura de `jugadores` usan
     `match_roster_identity_visible` (organizador y plantel);
@@ -267,7 +269,7 @@ Fuentes: replays de las 32 + 84 formas de lectura de la 1.1.21 y de sus escritur
 
 | Cliente | Con sesión | Sin sesión |
 |---|---|---|
-| **1.1.21 Android/iOS** (tiendas) | **Funciona sin errores nuevos en lo propio.**<br>- perfil propio: teléfono y nacimiento aparecen vacíos (no se borran; un guardado en blanco los conserva);<br>- no ve teléfonos ajenos;<br>- distancias con la ubicación aproximada;<br>- sus partidos y planteles, completos;<br>- **partido publicado ajeno** (140000): lo abre por `partidos_view` con el plantel **vacío** y cupo 0. Pedir sumarse crea una solicitud pendiente (una sola; un segundo toque se reabre por RPC) y el organizador la aprueba con el cupo verificado en el servidor;<br>- sumarse por invitación de la app o por el link de invitación de WhatsApp (código + token, que valida al abrirlo) sigue funcionando. Un link viejo con sólo el código ya no deja sumarse con cuenta;<br>- **invitado o con solicitud pendiente, todavía fuera del plantel** (143000): ve el partido, pero el plantel desde la tabla vacío hasta sumarse (en la vista y por RPC, enmascarado);<br>- no recibe en tiempo real los cambios de un partido publicado ajeno. | Desde 125000 una página pública abierta sin sesión dentro de la app vieja no carga el partido. Los links de WhatsApp abren en el navegador, o sea en la web. |
+| **1.1.21 Android/iOS** (tiendas) | **Funciona sin errores nuevos en lo propio.**<br>- perfil propio: teléfono y nacimiento aparecen vacíos (no se borran; un guardado en blanco los conserva);<br>- no ve teléfonos ajenos;<br>- distancias con la ubicación aproximada;<br>- sus partidos y planteles, completos;<br>- **partido publicado ajeno** (140000): lo abre por `partidos_view` con el plantel **vacío** y cupo 0. Pedir sumarse crea una solicitud pendiente (una sola; un segundo toque se reabre por RPC) y el organizador la aprueba con el cupo verificado en el servidor;<br>- sumarse por invitación de la app o por el link de invitación de WhatsApp (código + token, que valida al abrirlo) sigue funcionando. Un link viejo con sólo el código ya no deja sumarse con cuenta;<br>- **invitado o con solicitud pendiente, todavía fuera del plantel** (143000/144000): desde la tabla no recibe ni el plantel ni la fila del partido (ni su código) hasta sumarse; en la vista lo ve con el código oculto y el plantel enmascarado. Verificado en el gate B: la invitación a un privado y la solicitud siguen funcionando;<br>- no recibe en tiempo real los cambios de un partido publicado ajeno. | Desde 125000 una página pública abierta sin sesión dentro de la app vieja no carga el partido. Los links de WhatsApp abren en el navegador, o sea en la web. |
 | **Web publicada hoy (`main`)** | No se probó pantalla por pantalla: va reemplazada antes (§2). Lo que lea de la tabla sobre un partido ajeno publicado vuelve vacío. | **Se rompe:** votación e invitación por link no cargan el partido. Por eso la web nueva va antes. |
 | **Web nueva (#193 + #187)** | Funciona con y sin migraciones: perfil por `get_my_profile`, borrar campos con `clear_my_profile_fields`, teléfono de contacto por RPC, partidos publicados por la vista, plantel publicado por `get_public_match_roster` (nombres, fotos, cupo; sin `usuario_id`/`score`). | Votación e invitación por código (`public_get_match_by_code`, plantel sin `usuario_id`/`score`; los invitados se reconocen por `has_account`). Foto de invitado: el primero que toma un nombre es dueño de su foto. |
 | **Build nativa nueva (pendiente)** | Igual que la web nueva; además recupera ver y borrar teléfono y nacimiento propios. | — |
@@ -300,6 +302,7 @@ Comando, con `<archivo>` reemplazado:
 |---|---|---|---|
 | 146000 | `20261010146000_core_open_definer_writers.rollback.sql` (primero) | ninguno | vuelven las 12 funciones exactamente como estaban (cuerpo, oid y ACL): cualquiera, anon incluido, puede volver a llamarlas. No toca `cancel_partido_with_notification` |
 | 145000 | `20261010145000_core_match_notification_callers.rollback.sql` | ninguno | vuelven las funciones originales a `public` (mismo cuerpo y oid) con sus permisos exactos: cualquiera, anon incluido, vuelve a poder mandar avisos a cualquier plantel |
+| 144000 | `20261010144000_core_partidos_row_roster_only.rollback.sql` | ninguno | quien pidió sumarse o recibió un aviso vuelve a leer la fila del partido con su código |
 | 143000 | `20261010143000_core_roster_identity_roster_only.rollback.sql` | ninguno | quien pidió sumarse o recibió un aviso vuelve a ver el plantel completo; afuera y anon vuelven a recibir el `uuid` (id de cuenta) y `responsabilidad_score` |
 | 142000 | `20261010142000_core_join_request_notifications.rollback.sql` | ninguno | vuelve el 23505 desde el segundo solicitante de un partido |
 | 141000 | `20261010141000_core_organizer_approves_join_requests.rollback.sql` | ninguno | el ACL de `approve_join_request` vuelve exactamente al previo (Producción: también authenticated y anon) |
@@ -347,25 +350,25 @@ reintentar a ciegas.
 
 **A — por migración:**
 - precheck en `true`;
-- 28/28 aplicadas como `postgres` (1,09 s en total);
+- 29/29 aplicadas como `postgres` (1,17 s en total);
 - postcheck en `true`;
-- humo `integration/prod-schema/smoke.sql`: **74/74**;
+- humo `integration/prod-schema/smoke.sql`: **81/81**;
 - rollbacks 146→133: estado idéntico al previo a 133000 (policies, funciones, triggers, vistas,
   ACLs, digests de datos). Con la limpieza opcional, **catálogo completo idéntico**;
 - reaplicación y postcheck en `true`; sin reinicio del servidor.
 
 **B — archivos exactos de este runbook:**
 - precheck en `true`;
-- `apply-193.psql`: 28 aplicadas en 193 ms; postcheck en `true` (36/36, incluidos el digest de las policies intactas y una solicitud pendiente real de la semilla); humo 74/74;
-- segunda corrida: 28 salteadas;
+- `apply-193.psql`: 29 aplicadas en 197 ms (la copia del esquema no tiene 118000; en Producción se saltea); postcheck en `true` (38/38, incluidos el digest de las policies intactas y una solicitud pendiente real de la semilla); humo 81/81;
+- segunda corrida: 29 salteadas;
 - rollbacks 146→133 con `-1`: ledger 14 (más 118000);
-- reaplicación retomada: 13 aplicadas, 15 salteadas; postcheck en `true`.
+- reaplicación retomada: 14 aplicadas, 15 salteadas; postcheck en `true`.
 
 **C — 119000 sola contra el original:** la migración cambia el catálogo; su rollback lo deja
 **idéntico al original** (digest completo), con los datos iguales.
 
 **D — recuperación que deja 120000…132000** (como la del gate B):
-- se aplican las 28, se deshacen 146→133 con la limpieza, y después 119000;
+- se aplican las 29, se deshacen 146→133 con la limpieza, y después 119000;
 - se llaman las 28 funciones de 120000…132000 (24 invocables) como una cuenta: ninguna falla por
   columna, función o tabla inexistente, y ningún cuerpo nombra una función de `app_private` que no exista;
 - el rollback de 119000 conserva `partidos.admin_id` y `app_private.is_match_admin`, y correrlo
@@ -376,11 +379,11 @@ reintentar a ciegas.
 **Policies (alcance de Nico del 2026-10-09):**
 - se quitan 18 y se crean 7, todas listadas en [`POLICIES-REPLACED.md`](POLICIES-REPLACED.md);
 - las otras 192 del esquema `public` no cambian;
-- con las 28 aplicadas, los rollbacks 146→133 y luego 119000 dejan las policies de las 11 tablas
+- con las 29 aplicadas, los rollbacks 146→133 y luego 119000 dejan las policies de las 11 tablas
   involucradas idénticas a R0, campo por campo;
 - las sentencias de rollback del documento, corridas a mano, dan el mismo resultado.
 
-**Los 74 chequeos de humo** corren como anon y como cuentas concretas:
+**Los 81 chequeos de humo** corren como anon y como cuentas concretas:
 - campos privados, incluido el email que copia el trigger `auth.users → usuarios` de Producción;
 - lecturas de ajeno, miembro, organizador y anon (tabla, `partidos_view` con su plantel
   embebido, "Quiero jugar", RPCs);
@@ -406,9 +409,12 @@ reintentar a ciegas.
   organizador manda el aviso de expulsión; los dueños de los dos equipos sincronizan su partido; el
   trigger del puente sigue funcionando; los trabajos corren como el dueño; `service_role` conserva
   EXECUTE. Control negativo: sin 146000 fallan los dos chequeos de "no puede";
+- 144000: quien sólo pidió sumarse y un invitado a un privado no leen el código desde la tabla, pero
+  ven el partido en `partidos_view` con el código oculto; el invitado se suma y después lee partido y
+  código; miembro y organizador, igual que antes. Control negativo: sin 144000 fallan los dos "no code";
 - el job de cierre de encuestas corre.
 
-**Esquema del repositorio:** las 28 también se aplican (base limpia `main` + `20261009120000`, 2026-10-09), y el laboratorio Core reconstruido con
+**Esquema del repositorio:** las 29 también se aplican (base limpia `main` + `20261009120000`, 2026-10-09), y el laboratorio Core reconstruido con
 las 24 anteriores pasaba **366/366**.
 
 **Antes de este ensayo**, el dry run del 2026-10-08 sobre el esquema del repositorio había

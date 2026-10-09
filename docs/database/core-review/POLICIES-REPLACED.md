@@ -19,7 +19,7 @@ Quedan **intactas** (verificado, ver §4):
 
 Fuente: `pg_policies` del esquema **real** de Producción (`pg_dump --schema-only` del 2026-10-09,
 `~/Arma2Backups/d3-core-schema-20261009-1641.sql`), cargado en un contenedor descartable sin red,
-antes (R0) y después de aplicar las 28 migraciones. Las definiciones son las que imprime Postgres
+antes (R0) y después de aplicar las 29 migraciones. Las definiciones son las que imprime Postgres
 (`qual` / `with_check`), con los saltos de línea colapsados.
 
 ## 1. Policies que se quitan (18), su reemplazo y su rollback
@@ -32,12 +32,12 @@ antes (R0) y después de aplicar las 28 migraciones. Las definiciones son las qu
 | # | Tabla | Policy original (Producción) | Cmd | Roles | Definición original | Reemplazo | Rollback |
 |---|---|---|---|---|---|---|---|
 | 1 | `partidos` | `Authenticated can insert matches` | INSERT | public | WITH CHECK `(auth.uid() IS NOT NULL)` | `partidos_insert_own` de Producción (se mantiene, `creado_por = auth.uid()`) | `create policy "Authenticated can insert matches" on public.partidos as PERMISSIVE for INSERT to public with check ((auth.uid() IS NOT NULL));` |
-| 2 | `partidos` | `Creators can view their own matches` | SELECT | public | USING `(auth.uid() = creado_por)` | `partidos_select_authenticated` (cuentas: lo propio y los partidos donde participa) + `partidos_select_public_reader` (sólo el rol dueño de las vistas, para los partidos abiertos publicados). anon: ninguna lectura directa; el link usa `public_get_match_by_code(código, id)` | `create policy "Creators can view their own matches" on public.partidos as PERMISSIVE for SELECT to public using ((auth.uid() = creado_por));` |
-| 3 | `partidos` | `Lectura publica partidos` | SELECT | public | USING `true` | `partidos_select_authenticated` (cuentas: lo propio y los partidos donde participa) + `partidos_select_public_reader` (sólo el rol dueño de las vistas, para los partidos abiertos publicados). anon: ninguna lectura directa; el link usa `public_get_match_by_code(código, id)` | `create policy "Lectura publica partidos" on public.partidos as PERMISSIVE for SELECT to public using (true);` |
-| 4 | `partidos` | `Players can view matches they are in` | SELECT | public | USING `(EXISTS ( SELECT 1 FROM jugadores j WHERE ((j.partido_id = partidos.id) AND (j.usuario_id = auth.uid()))))` | `partidos_select_authenticated` (cuentas: lo propio y los partidos donde participa) + `partidos_select_public_reader` (sólo el rol dueño de las vistas, para los partidos abiertos publicados). anon: ninguna lectura directa; el link usa `public_get_match_by_code(código, id)` | `create policy "Players can view matches they are in" on public.partidos as PERMISSIVE for SELECT to public using ((EXISTS ( SELECT 1 FROM jugadores j WHERE ((j.partido_id = partidos.id) AND (j.usuario_id = auth.uid())))));` |
-| 5 | `partidos` | `Public can see active matches` | SELECT | authenticated | USING `true` | `partidos_select_authenticated` (cuentas: lo propio y los partidos donde participa) + `partidos_select_public_reader` (sólo el rol dueño de las vistas, para los partidos abiertos publicados). anon: ninguna lectura directa; el link usa `public_get_match_by_code(código, id)` | `create policy "Public can see active matches" on public.partidos as PERMISSIVE for SELECT to authenticated using (true);` |
-| 6 | `partidos` | `partidos_select_if_creator_or_player` | SELECT | public | USING `((creado_por = auth.uid()) OR (EXISTS ( SELECT 1 FROM jugadores j WHERE ((j.match_ref = partidos.match_ref) AND (j.usuario_id = auth.uid())))))` | `partidos_select_authenticated` (cuentas: lo propio y los partidos donde participa) + `partidos_select_public_reader` (sólo el rol dueño de las vistas, para los partidos abiertos publicados). anon: ninguna lectura directa; el link usa `public_get_match_by_code(código, id)` | `create policy partidos_select_if_creator_or_player on public.partidos as PERMISSIVE for SELECT to public using (((creado_por = auth.uid()) OR (EXISTS ( SELECT 1 FROM jugadores j WHERE ((j.match_ref = partidos.match_ref) AND (j.usuario_id = auth.uid()))))));` |
-| 7 | `partidos` | `partidos_select_open_for_authenticated` | SELECT | authenticated | USING `(estado = 'abierto'::text)` | `partidos_select_authenticated` (cuentas: lo propio y los partidos donde participa) + `partidos_select_public_reader` (sólo el rol dueño de las vistas, para los partidos abiertos publicados). anon: ninguna lectura directa; el link usa `public_get_match_by_code(código, id)` | `create policy partidos_select_open_for_authenticated on public.partidos as PERMISSIVE for SELECT to authenticated using ((estado = 'abierto'::text));` |
+| 2 | `partidos` | `Creators can view their own matches` | SELECT | public | USING `(auth.uid() = creado_por)` | `partidos_select_authenticated` (cuentas: lo propio y los partidos de cuyo plantel forman parte; pedir sumarse o recibir un aviso no alcanza, 144000) + `partidos_select_public_reader` (sólo el rol dueño de las vistas: publicados abiertos e involucrados, con el código oculto). anon: ninguna lectura directa; el link usa `public_get_match_by_code(código, id)` | `create policy "Creators can view their own matches" on public.partidos as PERMISSIVE for SELECT to public using ((auth.uid() = creado_por));` |
+| 3 | `partidos` | `Lectura publica partidos` | SELECT | public | USING `true` | `partidos_select_authenticated` (cuentas: lo propio y los partidos de cuyo plantel forman parte; pedir sumarse o recibir un aviso no alcanza, 144000) + `partidos_select_public_reader` (sólo el rol dueño de las vistas: publicados abiertos e involucrados, con el código oculto). anon: ninguna lectura directa; el link usa `public_get_match_by_code(código, id)` | `create policy "Lectura publica partidos" on public.partidos as PERMISSIVE for SELECT to public using (true);` |
+| 4 | `partidos` | `Players can view matches they are in` | SELECT | public | USING `(EXISTS ( SELECT 1 FROM jugadores j WHERE ((j.partido_id = partidos.id) AND (j.usuario_id = auth.uid()))))` | `partidos_select_authenticated` (cuentas: lo propio y los partidos de cuyo plantel forman parte; pedir sumarse o recibir un aviso no alcanza, 144000) + `partidos_select_public_reader` (sólo el rol dueño de las vistas: publicados abiertos e involucrados, con el código oculto). anon: ninguna lectura directa; el link usa `public_get_match_by_code(código, id)` | `create policy "Players can view matches they are in" on public.partidos as PERMISSIVE for SELECT to public using ((EXISTS ( SELECT 1 FROM jugadores j WHERE ((j.partido_id = partidos.id) AND (j.usuario_id = auth.uid())))));` |
+| 5 | `partidos` | `Public can see active matches` | SELECT | authenticated | USING `true` | `partidos_select_authenticated` (cuentas: lo propio y los partidos de cuyo plantel forman parte; pedir sumarse o recibir un aviso no alcanza, 144000) + `partidos_select_public_reader` (sólo el rol dueño de las vistas: publicados abiertos e involucrados, con el código oculto). anon: ninguna lectura directa; el link usa `public_get_match_by_code(código, id)` | `create policy "Public can see active matches" on public.partidos as PERMISSIVE for SELECT to authenticated using (true);` |
+| 6 | `partidos` | `partidos_select_if_creator_or_player` | SELECT | public | USING `((creado_por = auth.uid()) OR (EXISTS ( SELECT 1 FROM jugadores j WHERE ((j.match_ref = partidos.match_ref) AND (j.usuario_id = auth.uid())))))` | `partidos_select_authenticated` (cuentas: lo propio y los partidos de cuyo plantel forman parte; pedir sumarse o recibir un aviso no alcanza, 144000) + `partidos_select_public_reader` (sólo el rol dueño de las vistas: publicados abiertos e involucrados, con el código oculto). anon: ninguna lectura directa; el link usa `public_get_match_by_code(código, id)` | `create policy partidos_select_if_creator_or_player on public.partidos as PERMISSIVE for SELECT to public using (((creado_por = auth.uid()) OR (EXISTS ( SELECT 1 FROM jugadores j WHERE ((j.match_ref = partidos.match_ref) AND (j.usuario_id = auth.uid()))))));` |
+| 7 | `partidos` | `partidos_select_open_for_authenticated` | SELECT | authenticated | USING `(estado = 'abierto'::text)` | `partidos_select_authenticated` (cuentas: lo propio y los partidos de cuyo plantel forman parte; pedir sumarse o recibir un aviso no alcanza, 144000) + `partidos_select_public_reader` (sólo el rol dueño de las vistas: publicados abiertos e involucrados, con el código oculto). anon: ninguna lectura directa; el link usa `public_get_match_by_code(código, id)` | `create policy partidos_select_open_for_authenticated on public.partidos as PERMISSIVE for SELECT to authenticated using ((estado = 'abierto'::text));` |
 | 8 | `jugadores` | `Authenticated can insert jugadores` | INSERT | public | WITH CHECK `(auth.role() = 'authenticated'::text)` | `jugadores_insert_self_or_admin` (el organizador, o la propia cuenta con invitación, solicitud aprobada o link validado) | `create policy "Authenticated can insert jugadores" on public.jugadores as PERMISSIVE for INSERT to public with check ((auth.role() = 'authenticated'::text));` |
 | 9 | `jugadores` | `jugadores_insert_creator` | INSERT | authenticated | WITH CHECK `(usuario_id = auth.uid())` | `jugadores_insert_self_or_admin` (el organizador, o la propia cuenta con invitación, solicitud aprobada o link validado) | `create policy jugadores_insert_creator on public.jugadores as PERMISSIVE for INSERT to authenticated with check ((usuario_id = auth.uid()));` |
 | 10 | `jugadores` | `Lectura publica jugadores` | SELECT | public | USING `true` | `jugadores_select_authenticated` (organizador y plantel del partido, más las filas propias; pedir sumarse o recibir un aviso no alcanza) + `jugadores_select_public_reader` (rol dueño de las vistas). Afuera y anon: sólo entradas enmascaradas (sin `usuario_id`, `score` ni `responsabilidad_score`; `uuid` opaco) | `create policy "Lectura publica jugadores" on public.jugadores as PERMISSIVE for SELECT to public using (true);` |
@@ -54,7 +54,7 @@ antes (R0) y después de aplicar las 28 migraciones. Las definiciones son las qu
 
 | Tabla | Policy | Cmd | Roles | Definición final | La fijan | Cómo se deshace |
 |---|---|---|---|---|---|---|
-| `partidos` | `partidos_select_authenticated` | SELECT | authenticated | USING `((COALESCE(creado_por, admin_id) = ( SELECT auth.uid() AS uid)) OR ((deleted_at IS NULL) AND ((admin_id = ( SELECT auth.uid() AS uid)) OR app_private.match_involves_user(id))))` | 119000 (crea), 136000 y 137000 (ajustan) | rollback 137000 y 136000 la devuelven a la de 119000; rollback 119000 la borra |
+| `partidos` | `partidos_select_authenticated` | SELECT | authenticated | USING `((COALESCE(creado_por, admin_id) = ( SELECT auth.uid() AS uid)) OR ((deleted_at IS NULL) AND ((admin_id = ( SELECT auth.uid() AS uid)) OR app_private.match_roster_identity_visible(id))))` | 119000 (crea), 136000, 137000 y 144000 (ajustan) | rollbacks 144000, 137000 y 136000 la devuelven a la de 119000; rollback 119000 la borra |
 | `partidos` | `partidos_select_public_reader` | SELECT | core_match_public_reader | USING `((( SELECT app_private.request_user_id() AS request_user_id) IS NOT NULL) AND ((COALESCE(creado_por, admin_id) = ( SELECT app_private.request_user_id() AS request_user_id)) OR ((deleted_at IS NULL) AND ((admin_id = ( SELECT app_private.request_user_id() AS request_user_id)) OR partido_is_operationally_open(estado, deleted_at, survey_status, result_status, finished_at, fecha, hora, (COALESCE(falta_jugadores, false) OR COALESCE(busca_arquero, false)), now()) OR app_private.match_involves_user(id, ( SELECT app_private.request_user_id() AS request_user_id))))))` | 137000 | rollback 137000 la borra |
 | `jugadores` | `jugadores_insert_self_or_admin` | INSERT | authenticated | WITH CHECK `(app_private.is_match_admin(partido_id) OR ((usuario_id = ( SELECT auth.uid() AS uid)) AND ((partido_id IS NULL) OR app_private.may_self_join_match(partido_id))))` | 119000 (crea), 140000 (ajusta) | rollback 140000 la devuelve a la de 119000; rollback 119000 la borra |
 | `jugadores` | `jugadores_select_authenticated` | SELECT | authenticated | USING `((usuario_id = ( SELECT auth.uid() AS uid)) OR ((partido_id IS NULL) AND (match_ref IS NULL)) OR ((partido_id IS NULL) AND app_private.match_ref_roster_identity_visible(match_ref)) OR app_private.match_roster_identity_visible(partido_id))` | 119000 (crea), 136000, 140000 y 143000 (ajustan) | rollbacks 143000, 140000 y 136000 la devuelven a la de 119000; rollback 119000 la borra |
@@ -71,7 +71,7 @@ no participa del partido.
 
 Orden (RUNBOOK-193 §9), cada archivo con `psql -1 -v ON_ERROR_STOP=1`:
 
-1. rollbacks 146000 → 133000. 143000, 140000, 137000 y 136000 devuelven las policies de §2 a la forma
+1. rollbacks 146000 → 133000. 144000, 143000, 140000, 137000 y 136000 devuelven las policies de §2 a la forma
    que les dio 119000 y 137000 borra las `*_public_reader`;
 2. 132000 → 120000 ([PROMOTION.md §5](PROMOTION.md)): no tocan ninguna de estas policies;
 3. `20261010119000_core_production_alignment.rollback.sql`, **último**:
@@ -119,17 +119,17 @@ commit;
 - **Policies intactas:** 192 policies del esquema `public` quedan fuera del alcance, entre ellas
   `UPDATE`/`DELETE` de `partidos`/`jugadores`, `partidos_insert_own`, `deny_all` y los `DELETE`
   de votación. Su digest (`md5` de nombre, `permissive`, `cmd`, roles, `using` y `check`) es
-  `86fa2f8a1ac188f4bfdeff38e700364e` antes y después de las 28 migraciones:
+  `86fa2f8a1ac188f4bfdeff38e700364e` antes y después de las 29 migraciones:
   - 119000 lo guarda en `production_alignment_log` (`untouched_policies_digest`);
   - el post-check falla si cambió.
-- **Rollback de policies:** después de las 28 migraciones, los rollbacks 146000→133000 y luego
+- **Rollback de policies:** después de las 29 migraciones, los rollbacks 146000→133000 y luego
   119000 dejan las 60 policies de `partidos`, `jugadores`, `public_voters`, `votos_publicos`,
   `usuarios`, `profiles`, `amigos`, `notifications`, `post_match_surveys`, `partidos_frecuentes`
   y `match_join_requests` idénticas a R0, campo por campo.
   Con las sentencias de §3 corridas a mano en lugar del archivo de rollback, el resultado también
   es idéntico.
 - **119000 sola:** aplicarla y deshacerla deja el catálogo con el mismo digest que R0 (pasada C).
-- **Ensayos A/B:** las 28 migraciones y sus rollbacks pasan sobre el esquema real; ver RUNBOOK-193 §11 y
+- **Ensayos A/B:** las 29 migraciones y sus rollbacks pasan sobre el esquema real; ver RUNBOOK-193 §11 y
   `runbook/evidence/rehearsal-prod-schema-20261009.json`.
 
 Se mantienen, en estas cuatro tablas:
@@ -162,7 +162,7 @@ Cómo funciona:
 - `public_get_or_create_voter` queda sólo para esas RPC (121000; su ACL previo se guarda y el
   rollback lo restaura).
 
-Smoke sobre el esquema real (`integration/prod-schema/smoke.sql`, 74/74):
+Smoke sobre el esquema real (`integration/prod-schema/smoke.sql`, 81/81):
 
 - "anon: no rows from partidos/jugadores/view";
 - "anon: the code opens its match, entries without usuario_id";

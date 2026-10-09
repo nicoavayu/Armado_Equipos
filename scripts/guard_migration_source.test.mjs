@@ -46,6 +46,7 @@ const coreReviewMigrations = [
   '20261010141000_core_organizer_approves_join_requests.sql',
   '20261010142000_core_join_request_notifications.sql',
   '20261010143000_core_roster_identity_roster_only.sql',
+  '20261010144000_core_partidos_row_roster_only.sql',
   '20261010145000_core_match_notification_callers.sql',
   '20261010146000_core_open_definer_writers.sql',
 ];
@@ -72,7 +73,7 @@ const runGuard = (cwd) => spawnSync(process.execPath, [guardPath], {
 });
 
 test('accepts the closed set including Auto-Match, contract repair and global availability', (t) => {
-  assert.equal(approvedMigrations.length, 75);
+  assert.equal(approvedMigrations.length, 76);
   for (const migration of coreReviewMigrations) assert.ok(approvedMigrations.includes(migration));
   assert.ok(approvedMigrations.includes(autoMatchMigration));
   assert.ok(approvedMigrations.includes(contractRepairMigration));

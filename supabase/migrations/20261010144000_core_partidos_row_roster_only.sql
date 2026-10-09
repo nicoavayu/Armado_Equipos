@@ -1,4 +1,3 @@
--- DRAFT — option A for Nico (2026-10-09). NOT in supabase/migrations, NOT in apply-193.psql.
 -- Core: the row of a match in public.partidos (and its codigo) only for its organizer and roster.
 --
 -- Gate B found that partidos_select_authenticated still lets every account "involved" through
@@ -12,11 +11,13 @@
 --     policy still lets an involved account see the match, with the code masked);
 --   * get_public_match_roster (masked), public_get_match_by_code (needs the code), the organizer's
 --     and roster's reads, partidos_insert_own and Production's UPDATE/DELETE policies.
--- Effect to verify with 1.1.21 (gate B): an account invited to a PRIVATE match, or with a
--- pending request, no longer gets that match from the table (select('*') by id returns no row;
--- realtime follows). It still sees it in partidos_view (code masked) and can still join by the
--- invitation, the approved request or the validated link.
--- Requires 20261010143000. Rollback: drafts/20261010144000_core_partidos_row_roster_only.rollback.sql.
+-- Effect, verified with 1.1.21 in gate B (2026-10-09; Nico chose this option): an account invited
+-- to a PRIVATE match, or with a pending request, no longer gets that match from the table
+-- (select('*') by id returns no row; realtime follows). It still sees it in partidos_view (code
+-- masked) and still joins by the invitation, the approved request or the validated link; once in
+-- the roster it reads the match and its code.
+-- Requires 20261010143000. Rollback:
+-- docs/database/core-review/runbook/rollbacks/20261010144000_core_partidos_row_roster_only.rollback.sql.
 
 drop policy if exists partidos_select_authenticated on public.partidos;
 create policy partidos_select_authenticated on public.partidos

@@ -8,8 +8,8 @@
 begin;
 
 -- ---------- as postgres: structure and data ----------
-select json_build_object('check', 'ledger holds 20261010118000 and the 27 migrations 20261010119000…146000 (no 144000)',
-  'pass', (select count(*) from supabase_migrations.schema_migrations where version between '20261010119000' and '20261010146000') = 27
+select json_build_object('check', 'ledger holds 20261010118000 and the 28 migrations 20261010119000…146000',
+  'pass', (select count(*) from supabase_migrations.schema_migrations where version between '20261010119000' and '20261010146000') = 28
       and exists (select 1 from supabase_migrations.schema_migrations where version = '20261010118000'),
   'value', (select count(*) from supabase_migrations.schema_migrations where version between '20261010118000' and '20261010146000'))::text;
 
@@ -67,6 +67,11 @@ select json_build_object('check', '145000: match notifications only from the org
       and (select prosecdef from pg_proc where oid = 'app_private.enqueue_partido_notification_unchecked(bigint,text,text,text,jsonb)'::regprocedure)
       and not has_function_privilege('anon', 'app_private.enqueue_partido_notification_unchecked(bigint,text,text,text,jsonb)', 'execute'),
   'value', json_build_object('authenticated_can_call', has_function_privilege('authenticated', 'public.enqueue_partido_notification(bigint,text,text,text,jsonb)', 'execute')))::text;
+
+select json_build_object('check', '144000: the match row (and its code) from the table only for organizer and roster',
+  'pass', (select pg_get_expr(polqual, polrelid) ~ 'match_roster_identity_visible' and pg_get_expr(polqual, polrelid) !~ 'match_involves_user'
+           from pg_policy where polrelid = 'public.partidos'::regclass and polname = 'partidos_select_authenticated'),
+  'value', null)::text;
 
 select json_build_object('check', '143000: full roster entries only for organizer and roster (views, both RPCs, the table)',
   'pass', to_regprocedure('app_private.match_roster_identity_visible(bigint,uuid)') is not null
@@ -331,6 +336,11 @@ select json_build_object('check', '143000 pending requester: masked entries from
            where pg_temp.entry_not_opaque(e) and not coalesce((e ->> 'is_me')::boolean, false)) = 0
           and (select count(*) from public.jugadores where partido_id = split_part(current_setting('postcheck.pending_requester'), ':', 2)::bigint
                and usuario_id is distinct from auth.uid()) = 0),
+  'value', current_setting('postcheck.pending_requester') <> '')::text;
+
+select json_build_object('check', '144000 pending requester: no match row (no code) from the table',
+  'pass', current_setting('postcheck.pending_requester') = ''
+      or (select count(*) from public.partidos where id = split_part(current_setting('postcheck.pending_requester'), ':', 2)::bigint) = 0,
   'value', current_setting('postcheck.pending_requester') <> '')::text;
 
 -- ---------- as the organizer of the latest match ----------

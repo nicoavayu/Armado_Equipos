@@ -1,6 +1,6 @@
 # Arreglo urgente: sólo el organizador cancela un partido (20261010118000)
 
-**Nada de esto se ejecutó en Producción.** Este arreglo tiene su propio GO, separado de D3. Lo
+**Aplicado en Core Producción el 2026-10-09 (~23:10Z) con el GO de Nico**: antes 3/3, COMMIT, después 6/6; anon → 401 42501. Este arreglo tiene su propio GO, separado de D3. Lo
 ejecuta Nico. El agente no tiene acceso a Producción, y la contraseña de la base sólo se tipea en
 la terminal.
 
