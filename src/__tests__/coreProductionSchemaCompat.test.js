@@ -10,7 +10,8 @@
  * lists and filter columns) and `.rpc('<name>')` calls. Reviewed exceptions:
  *   - STACK_RPCS: created by the 20261010* migrations, not yet in Production; every caller
  *     falls back while they are missing (PGRST202/42883), see each service's tests;
- *   - PENDING_TORNEOS_20261006: created by 20261006120000, which Core Production does not have;
+ *   - PENDING_TORNEOS_20261006: direct Core calls of Torneos' single-project LOCAL composition;
+ *     Production runs the hybrid composition (gateway), so they never reach Core Production;
  *   - PREEXISTING: problems the web live in Production (ffaf131c) already had, regenerated with
  *     `node scripts/core-schema/preexisting.cjs ffaf131c` (they degrade, or are scan artifacts).
  * Anything else fails: fix the code (no explicit column a schema lacks), or justify an entry.
@@ -34,9 +35,11 @@ const STACK_RPCS = new Set([
   'rpc_create_team_local_player',
 ]);
 
-// Torneos connected product (#182): created by 20261006120000, which is NOT applied in Core
-// Production (the D2 window applied 20261007/20261008). Until it is, these calls fail there:
-// apply 20261006120000 to Core or give the callers a fallback.
+// Torneos connected product (#182): the direct Core-client calls of the single-project LOCAL
+// composition, backed by 20261006120000 (its LOCAL twin, never applied to Core Production).
+// Production runs the HYBRID composition: the connected adapters go through the Torneos gateway
+// (see publicCatalogService.js), and the connected screens stay off until CONNECTED_MODE. No Core
+// fallback is needed; an entry here must stay a LOCAL-only call.
 const PENDING_TORNEOS_20261006 = new Set([
   'src/features/torneos/api/publicCatalogService.js rpc:get_tournament_catalog_entry',
   'src/features/torneos/api/publicCatalogService.js rpc:get_tournament_catalog_facets',
