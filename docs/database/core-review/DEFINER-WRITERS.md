@@ -36,11 +36,44 @@ Funciones SECURITY DEFINER de `public` (sin contar las de trigger) que **anon pu
 | `sync_team_match_to_partido` | 146000: envoltorio; por la API sólo un miembro de alguno de los dos equipos |
 | `update_delivery_status` | 146000: sin EXECUTE para PUBLIC/anon/authenticated |
 
-Las otras 30 que escriben sí mencionan a quien llama. **No se revisaron una por una**
-en este trabajo: que mencionen `auth.uid()` no garantiza que lo exijan. Quedan para una revisión
-aparte:
+Las otras 30 que escriben mencionan a quien llama. Se revisaron una por una (2026-10-09, sobre el
+volcado del esquema real): todas exigen sesión y aplican la autorización en su propio cuerpo.
+**Revisadas, ya protegidas por:**
 
-`admin_close_payments`, `admin_set_payment_status`, `admin_update_payment_settings`, `approve_join_request`, `cancel_own_match_join_request`, `create_guest_match_invite`, `create_invite`, `delete_my_notifications`, `ensure_match_payments`, `reopen_own_match_join_request`, `report_my_payment`, `rpc_accept_challenge`, `rpc_accept_team_invitation`, `rpc_cancel_team_match`, `rpc_complete_challenge`, `rpc_confirm_challenge`, `rpc_create_directed_challenge`, `rpc_reject_directed_challenge`, `rpc_report_challenge_result`, `rpc_send_team_invitation`, `rpc_set_challenge_availability`, `rpc_set_challenge_availability`, `rpc_transfer_team_captaincy`, `rpc_update_team_member_shirt_number`, `rpc_upsert_challenge_team_selection`, `send_call_to_vote`, `send_match_chat_message`, `send_team_chat_message`, `send_team_match_chat_message`, `set_notification_presence`.
+| Función | Protección |
+|---|---|
+| `admin_close_payments` | sesión + `payments_is_match_admin` |
+| `admin_set_payment_status` | sesión + `payments_is_match_admin` |
+| `admin_update_payment_settings` | sesión + `payments_is_match_admin` |
+| `approve_join_request` | sesión (42501) + admin del partido (`v_match_admin_id = actor`) |
+| `cancel_own_match_join_request` | sesión + sólo la solicitud propia (`user_id = v_user_id`) |
+| `create_guest_match_invite` | sesión + `creado_por = v_uid` |
+| `create_invite` | sesión + `creado_por = v_uid` |
+| `delete_my_notifications` | sólo borra las propias (`user_id = auth.uid()`); sin sesión no borra nada |
+| `ensure_match_payments` | sesión + `payments_is_match_member` |
+| `reopen_own_match_join_request` | sesión + sólo la solicitud propia |
+| `report_my_payment` | sesión + sólo el pago propio (`user_id = v_uid`) |
+| `rpc_accept_challenge` | sesión + `team_user_is_admin_or_owner` del equipo que acepta |
+| `rpc_accept_team_invitation` | sesión + `invited_user_id = v_uid` |
+| `rpc_cancel_team_match` | sesión + `team_match_user_is_admin_or_owner` |
+| `rpc_complete_challenge` | sesión + `challenge_user_is_owner_or_captain` |
+| `rpc_confirm_challenge` | sesión + `challenge_user_is_owner_or_captain` |
+| `rpc_create_directed_challenge` | sesión + `team_user_is_captain_or_owner` del equipo desafiante |
+| `rpc_reject_directed_challenge` | sesión + `team_user_is_captain_or_owner` del equipo desafiado |
+| `rpc_report_challenge_result` | sesión + admin/dueño/capitán de uno de los equipos |
+| `rpc_send_team_invitation` | sesión + `team_user_is_admin_or_owner` |
+| `rpc_set_challenge_availability` | sesión + sólo la propia disponibilidad (`tm.user_id`/`j.usuario_id = v_uid`); las dos versiones |
+| `rpc_transfer_team_captaincy` | sesión + `team_user_is_admin_or_owner` |
+| `rpc_update_team_member_shirt_number` | sesión + `team_user_is_admin_or_owner` |
+| `rpc_upsert_challenge_team_selection` | sesión + `team_user_is_captain_or_owner` |
+| `send_call_to_vote` | sesión (42501) + organizador/plantel (`forbidden` 42501) |
+| `send_match_chat_message` | sesión + organizador o jugador del partido |
+| `send_team_chat_message` | sesión + `team_user_is_member` |
+| `send_team_match_chat_message` | sesión + miembro de alguno de los dos equipos |
+| `set_notification_presence` | sesión + sólo la fila propia de `usuarios` |
+
+Revisión estática del cuerpo: no se ejercitó cada una contra la base. Los flujos de la app que
+las usan pasaron por el gate B (1.1.21 y web).
 
 El filtro es una heurística sobre el texto. Las 4 funciones de votación por link que aparecen en
 la lista se revisaron y ya están protegidas por el código del partido: es la votación sin sesión
