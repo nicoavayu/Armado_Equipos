@@ -14,7 +14,7 @@ el agente no tiene acceso a Producción y la contraseña de la base sólo se tip
 Este runbook está ensayado sobre ese esquema **real**, aplicado como `postgres` no superusuario
 (`integration/prod-schema/`, §11):
 - datos sintéticos con la forma de Producción;
-- 47 chequeos de humo;
+- 55 chequeos de humo;
 - rollbacks comparados contra el catálogo original.
 
 La evidencia está en
@@ -23,9 +23,9 @@ La evidencia está en
 ## 1. Qué se aplica
 
 El ledger de Producción tiene las 43 migraciones de `main` hasta `20260915`, más `20261007`,
-`20261008` y `20261009120000`. Encima van **24 migraciones, en este orden**. 119000 y 142000
+`20261008` y `20261009120000`. Encima van **25 migraciones, en este orden**. 119000 y 142000
 existen por las diferencias de Producción; ninguna de las dos cambia algo sobre el esquema del
-repositorio.
+repositorio. 143000 cierra lo que el gate B encontró sobre las columnas reales de `jugadores`.
 
 | # | Migración | Qué cambia | Ensayo |
 |---|---|---|---|
@@ -53,6 +53,7 @@ repositorio.
 | 21 | `20261010140000_core_published_roster_identity` | quien no participa (y anon) no recibe `usuario_id` ni `score` de ningún plantel: tabla, realtime, vistas de "Quiero jugar", código del link; RPC `get_public_match_roster` para la web. En el servidor: sumarse uno mismo sólo con invitación, solicitud aprobada o link de invitación validado; el jugador sólo edita nombre, foto y posición de su fila; solicitudes siempre pendientes, una por cuenta y partido | 48 ms |
 | 22 | `20261010141000_core_organizer_approves_join_requests` | `approve_join_request` ejecutable por cuentas, no por anon. En el repositorio no lo era ("forbidden"); en Producción ya lo era, y sólo se le quita a anon. Guarda el ACL previo para el rollback | 37 ms |
 | 23 | `20261010142000_core_join_request_notifications` | **arreglo de Producción.** Hoy, desde la segunda solicitud a un mismo partido, la inserción falla con 23505, porque el aviso al organizador choca con un índice único por partido. `fn_notifications_fill_partido_id` (sólo existe en Producción) deja de volver a llenar `partido_id` en los avisos de cada solicitud | 43 ms |
+| 24 | `20261010143000_core_roster_identity_roster_only` | **lo que encontró el gate B sobre el esquema real.** Quién es cada jugador queda sólo para el organizador y el plantel (regla de Nico). Afuera (cuenta ajena, una cuenta que sólo pidió sumarse o recibió un aviso, y anon por el link) cada entrada de plantel va sin `usuario_id`, `score` ni `responsabilidad_score` (columna de Producción), y su `uuid` (en Producción, el id de la cuenta de un jugador registrado; el de un invitado es su clave de dispositivo) se reemplaza por una clave opaca por fila. Vistas, `get_public_match_roster`, `public_get_match_by_code` y la tabla `jugadores` (y realtime). Las filas `match_ref` sin partido de Producción siguen la misma regla | 47 ms |
 
 Tiempos del ensayo sobre el esquema real con ~1.200 cuentas, 400 partidos y 4.000 filas de
 plantel (1,05 s en total). Ninguna migración usa `CONCURRENTLY` ni abre su propia transacción.
@@ -148,7 +149,7 @@ Cada línea es `{check, pass, value}`. **Si algún `pass` es `false`, no seguir.
 | Postgres ≥ 15 | `true` (Prod: 17) |
 | base escribible | `off` |
 | tamaño < 350 MB | `true` (Prod ≈ 64 MiB tras el mantenimiento) |
-| ledger: está `20261009120000` y ninguna de `20261010119000…142000` | `true` |
+| ledger: está `20261009120000` y ninguna de `20261010119000…143000` | `true` |
 | `postgres` es dueño de tablas y vistas afectadas | `true` |
 | vistas con `security_invoker=on` | `true` |
 | no existe nada del stack (tablas privadas, rol lector, `added_by`) | `true` |
@@ -169,9 +170,9 @@ Cada línea es `{check, pass, value}`. **Si algún `pass` es `false`, no seguir.
 /opt/homebrew/opt/libpq/bin/psql "$CORE_CONNINFO" --password -X -f docs/database/core-review/runbook/apply-193.psql
 ```
 
-- Aplica las 24 migraciones en orden. Cada una va en su propia transacción, junto con su fila
+- Aplica las 25 migraciones en orden. Cada una va en su propia transacción, junto con su fila
   en `supabase_migrations.schema_migrations`.
-- Se esperan 24 líneas `>>> 202610101xxxxx …` y al final `>>> done`.
+- Se esperan 25 líneas `>>> 202610101xxxxx …` y al final `>>> done`.
 - Si una falla, psql se detiene: esa migración se revierte entera y las anteriores quedan
   aplicadas.
 - El mismo comando retoma desde donde quedó, porque saltea lo que ya está en el ledger. Antes
@@ -187,7 +188,7 @@ No escribe nada: es una transacción que se revierte. Actúa como una cuenta nue
 anon, como el organizador del último partido y como una cuenta con teléfono. **Todas las líneas
 deben dar `pass: true`.**
 
-- **Ledger:** las 24 migraciones están registradas.
+- **Ledger:** las 25 migraciones están registradas.
 - **119000:**
   - `SELECT`/`INSERT` de `partidos`/`jugadores` sólo tienen las policies del repositorio
     (más `partidos_insert_own` de Producción);
@@ -197,6 +198,13 @@ deben dar `pass: true`.**
     igual al actual (`UPDATE`/`DELETE` de `partidos`/`jugadores`, `profiles`, `amigos`,
     `notifications`, `post_match_surveys`, `partidos_frecuentes`, `usuarios` y el resto).
   El valor lista lo registrado en `production_alignment_log`.
+- **143000:**
+  - las vistas, las dos RPC de plantel y la policy de lectura de `jugadores` usan
+    `match_roster_identity_visible` (organizador y plantel);
+  - como cuenta nueva y como anon: ninguna entrada de plantel trae `usuario_id`, `score` ni
+    `responsabilidad_score`, y todo `uuid` es la clave opaca de su fila;
+  - como la cuenta de la última solicitud pendiente (fuera del plantel): entradas enmascaradas
+    y ninguna fila de plantel desde la tabla.
 - **142000:** los avisos de cada solicitud no llevan `partido_id`, así que puede haber varias
   solicitudes por partido.
 - **134000:** `template_id` del tipo de `partidos_frecuentes.id`, con FK y trigger del dueño.
@@ -253,17 +261,17 @@ Fuentes: replays de las 32 + 84 formas de lectura de la 1.1.21 y de sus escritur
 
 | Cliente | Con sesión | Sin sesión |
 |---|---|---|
-| **1.1.21 Android/iOS** (tiendas) | **Funciona sin errores nuevos en lo propio.**<br>- perfil propio: teléfono y nacimiento aparecen vacíos (no se borran; un guardado en blanco los conserva);<br>- no ve teléfonos ajenos;<br>- distancias con la ubicación aproximada;<br>- sus partidos y planteles, completos;<br>- **partido publicado ajeno** (140000): lo abre por `partidos_view` con el plantel **vacío** y cupo 0. Pedir sumarse crea una solicitud pendiente (una sola; un segundo toque se reabre por RPC) y el organizador la aprueba con el cupo verificado en el servidor;<br>- sumarse por invitación de la app o por el link de invitación de WhatsApp (código + token, que valida al abrirlo) sigue funcionando. Un link viejo con sólo el código ya no deja sumarse con cuenta;<br>- no recibe en tiempo real los cambios de un partido publicado ajeno. | Desde 125000 una página pública abierta sin sesión dentro de la app vieja no carga el partido. Los links de WhatsApp abren en el navegador, o sea en la web. |
+| **1.1.21 Android/iOS** (tiendas) | **Funciona sin errores nuevos en lo propio.**<br>- perfil propio: teléfono y nacimiento aparecen vacíos (no se borran; un guardado en blanco los conserva);<br>- no ve teléfonos ajenos;<br>- distancias con la ubicación aproximada;<br>- sus partidos y planteles, completos;<br>- **partido publicado ajeno** (140000): lo abre por `partidos_view` con el plantel **vacío** y cupo 0. Pedir sumarse crea una solicitud pendiente (una sola; un segundo toque se reabre por RPC) y el organizador la aprueba con el cupo verificado en el servidor;<br>- sumarse por invitación de la app o por el link de invitación de WhatsApp (código + token, que valida al abrirlo) sigue funcionando. Un link viejo con sólo el código ya no deja sumarse con cuenta;<br>- **invitado o con solicitud pendiente, todavía fuera del plantel** (143000): ve el partido, pero el plantel desde la tabla vacío hasta sumarse (en la vista y por RPC, enmascarado);<br>- no recibe en tiempo real los cambios de un partido publicado ajeno. | Desde 125000 una página pública abierta sin sesión dentro de la app vieja no carga el partido. Los links de WhatsApp abren en el navegador, o sea en la web. |
 | **Web publicada hoy (`main`)** | No se probó pantalla por pantalla: va reemplazada antes (§2). Lo que lea de la tabla sobre un partido ajeno publicado vuelve vacío. | **Se rompe:** votación e invitación por link no cargan el partido. Por eso la web nueva va antes. |
 | **Web nueva (#193 + #187)** | Funciona con y sin migraciones: perfil por `get_my_profile`, borrar campos con `clear_my_profile_fields`, teléfono de contacto por RPC, partidos publicados por la vista, plantel publicado por `get_public_match_roster` (nombres, fotos, cupo; sin `usuario_id`/`score`). | Votación e invitación por código (`public_get_match_by_code`, plantel sin `usuario_id`/`score`; los invitados se reconocen por `has_account`). Foto de invitado: el primero que toma un nombre es dueño de su foto. |
 | **Build nativa nueva (pendiente)** | Igual que la web nueva; además recupera ver y borrar teléfono y nacimiento propios. | — |
 
 ## 9. Rollback por paso
 
-Los rollbacks de 133000–142000 y de 119000 son archivos probados sobre el esquema real con datos
+Los rollbacks de 133000–143000 y de 119000 son archivos probados sobre el esquema real con datos
 (§11). Se aplican en orden inverso.
 
-Hechos 142→133, el catálogo y los datos vuelven exactamente al estado previo a 133000, salvo lo
+Hechos 143→133, el catálogo y los datos vuelven exactamente al estado previo a 133000, salvo lo
 que se conserva a propósito para no perder datos:
 - las tablas `app_private.usuarios_private`, `jugadores_added_by` y `match_link_access`;
 - los dos índices de 136000.
@@ -284,6 +292,7 @@ Comando, con `<archivo>` reemplazado:
 
 | Paso | Archivo / acción | Datos perdidos | Efecto |
 |---|---|---|---|
+| 143000 | `20261010143000_core_roster_identity_roster_only.rollback.sql` (primero) | ninguno | quien pidió sumarse o recibió un aviso vuelve a ver el plantel completo; afuera y anon vuelven a recibir el `uuid` (id de cuenta) y `responsabilidad_score` |
 | 142000 | `20261010142000_core_join_request_notifications.rollback.sql` | ninguno | vuelve el 23505 desde el segundo solicitante de un partido |
 | 141000 | `20261010141000_core_organizer_approves_join_requests.rollback.sql` | ninguno | el ACL de `approve_join_request` vuelve exactamente al previo (Producción: también authenticated y anon) |
 | 140000 | `20261010140000_core_published_roster_identity.rollback.sql` | ninguno (`match_link_access` queda) | vuelven `usuario_id`/`score` en planteles publicados y los atajos de escritura |
@@ -329,19 +338,19 @@ reintentar a ciegas.
 
 **A — por migración:**
 - precheck en `true`;
-- 24/24 aplicadas como `postgres` (1,06 s en total);
+- 25/25 aplicadas como `postgres` (1,15 s en total);
 - postcheck en `true`;
-- humo `integration/prod-schema/smoke.sql`: **47/47**;
-- rollbacks 142→133: estado idéntico al previo a 133000 (policies, funciones, triggers, vistas,
+- humo `integration/prod-schema/smoke.sql`: **55/55**;
+- rollbacks 143→133: estado idéntico al previo a 133000 (policies, funciones, triggers, vistas,
   ACLs, digests de datos). Con la limpieza opcional, **catálogo completo idéntico**;
 - reaplicación y postcheck en `true`; sin reinicio del servidor.
 
 **B — archivos exactos de este runbook:**
 - precheck en `true`;
-- `apply-193.psql`: 24 aplicadas en 175 ms; postcheck en `true` (30/30, incluido el digest de las policies intactas); humo 47/47;
-- segunda corrida: 24 salteadas;
-- rollbacks 142→133 con `-1`: ledger 14;
-- reaplicación retomada: 10 aplicadas, 14 salteadas; postcheck en `true`.
+- `apply-193.psql`: 25 aplicadas en 187 ms; postcheck en `true` (34/34, incluidos el digest de las policies intactas y una solicitud pendiente real de la semilla); humo 55/55;
+- segunda corrida: 25 salteadas;
+- rollbacks 143→133 con `-1`: ledger 14;
+- reaplicación retomada: 11 aplicadas, 14 salteadas; postcheck en `true`.
 
 **C — 119000 sola contra el original:** la migración cambia el catálogo; su rollback lo deja
 **idéntico al original** (digest completo), con los datos iguales.
@@ -349,11 +358,11 @@ reintentar a ciegas.
 **Policies (alcance de Nico del 2026-10-09):**
 - se quitan 18 y se crean 7, todas listadas en [`POLICIES-REPLACED.md`](POLICIES-REPLACED.md);
 - las otras 192 del esquema `public` no cambian;
-- con las 24 aplicadas, los rollbacks 142→133 y luego 119000 dejan las policies de las 11 tablas
+- con las 25 aplicadas, los rollbacks 143→133 y luego 119000 dejan las policies de las 11 tablas
   involucradas idénticas a R0, campo por campo;
 - las sentencias de rollback del documento, corridas a mano, dan el mismo resultado.
 
-**Los 47 chequeos de humo** corren como anon y como cuentas concretas:
+**Los 55 chequeos de humo** corren como anon y como cuentas concretas:
 - campos privados, incluido el email que copia el trigger `auth.users → usuarios` de Producción;
 - lecturas de ajeno, miembro, organizador y anon (tabla, `partidos_view` con su plantel
   embebido, "Quiero jugar", RPCs);
@@ -366,10 +375,14 @@ reintentar a ciegas.
 - anon: el link con código abre **sólo su** partido; voto de invitado por nombre; un código no
   vota en otro partido; nombre registrado rechazado; tablas de votación sin lectura ni escritura
   directa; helper de votantes cerrado;
+- 143000: con `uuid` = id de cuenta en las filas registradas (como las escribe la app), ninguna
+  entrada para un ajeno, para quien sólo pidió sumarse ni para anon trae un id de cuenta o
+  `responsabilidad_score`; las claves opacas son distintas por fila; el miembro sigue viendo todo;
+  un invitado no ve filas del plantel desde la tabla hasta sumarse, y después sí;
 - el job de cierre de encuestas corre.
 
-**Esquema del repositorio:** las 24 también se aplican, y el laboratorio Core reconstruido con
-estas migraciones pasa **366/366**.
+**Esquema del repositorio:** las 25 también se aplican (base limpia `main` + `20261009120000`, 2026-10-09), y el laboratorio Core reconstruido con
+las 24 anteriores pasaba **366/366**.
 
 **Antes de este ensayo**, el dry run del 2026-10-08 sobre el esquema del repositorio había
 encontrado y corregido en 137000 dos defectos:

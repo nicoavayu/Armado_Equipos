@@ -21,6 +21,15 @@ create function pg_temp.check(p_name text, p_pass boolean, p_detail text default
 $f$;
 grant execute on function pg_temp.check(text, boolean, text) to public;
 
+-- Entries of a roster as an outsider must carry: no usuario_id/score/responsabilidad_score, and a
+-- uuid key that is not an account id (143000).
+create function pg_temp.roster_leaks(p_entries jsonb) returns int language sql as $f$
+  select count(*)::int from jsonb_array_elements(coalesce(p_entries, '[]'::jsonb)) e
+  where e ? 'usuario_id' or e ? 'score' or e ? 'responsabilidad_score' or not (e ? 'uuid')
+     or (e ->> 'uuid') in (select md5('smoke-' || k)::uuid::text from unnest(array['org', 'mem', 'stranger', 'req1', 'req2', 'inv', 'lnk']) k)
+$f$;
+grant execute on function pg_temp.roster_leaks(jsonb) to public;
+
 -- ---------- seed (synthetic) ----------
 insert into auth.users (instance_id, id, aud, role, email, encrypted_password, email_confirmed_at, created_at, updated_at, raw_app_meta_data, raw_user_meta_data)
 select '00000000-0000-0000-0000-000000000000', md5('smoke-' || k)::uuid, 'authenticated', 'authenticated', k || '@smoke.test', '', now(), now(), now(), '{}', json_build_object('full_name', initcap(k))::jsonb
@@ -39,6 +48,9 @@ insert into public.jugadores (partido_id, nombre, usuario_id) values
   (995001, 'Org', md5('smoke-org')::uuid), (995001, 'Mem', md5('smoke-mem')::uuid),
   (995002, 'Org', md5('smoke-org')::uuid), (995002, 'Mem', md5('smoke-mem')::uuid),
   (995003, 'Invitado Uno', null), (995003, 'Invitado Dos', null), (995003, 'Mem', md5('smoke-mem')::uuid);
+-- as the app writes it: a registered player's uuid is its account id
+update public.jugadores set uuid = usuario_id, responsabilidad_score = 4.5
+where partido_id between 995001 and 995003 and usuario_id is not null;
 insert into public.notifications (user_id, partido_id, type, title, message, data) values
   (md5('smoke-org')::uuid, 995003, 'call_to_vote', 'A votar', 'Votá', jsonb_build_object('match_id', 995003)),
   (md5('smoke-inv')::uuid, 995002, 'match_invite', 'Invitación', 'Vení', jsonb_build_object('match_id', 995002, 'status', 'pending'));
@@ -78,6 +90,13 @@ select pg_temp.check('stranger: Quiero jugar entries without usuario_id/score',
 select pg_temp.check('stranger: public roster RPC without usuario_id/score',
   (select count(*) from jsonb_array_elements(public.get_public_match_roster(995001)) e where e ? 'usuario_id' or e ? 'score') = 0
   and jsonb_array_length(public.get_public_match_roster(995001)) = 2);
+select pg_temp.check('143 stranger: no account id or responsabilidad_score in partidos_view, Quiero jugar or the roster RPC',
+  (select pg_temp.roster_leaks(to_jsonb(v) -> 'jugadores') from public.partidos_view v where v.id = 995001) = 0
+  and (select pg_temp.roster_leaks(v.jugadores) from public.partidos_abiertos_operativos_v2 v where v.id = 995001) = 0
+  and pg_temp.roster_leaks(public.get_public_match_roster(995001)) = 0,
+  public.get_public_match_roster(995001)::text);
+select pg_temp.check('143 stranger: the opaque uuid keys are distinct per row',
+  (select count(distinct e ->> 'uuid') from jsonb_array_elements(public.get_public_match_roster(995001)) e) = 2);
 select pg_temp.check('stranger: get_match_access_codes gives nothing', (select count(*) from public.get_match_access_codes(array[995001, 995002]::bigint[])) = 0);
 reset role;
 
@@ -87,6 +106,9 @@ set local role authenticated;
 select pg_temp.check('member: sees both its matches with codes', (select count(*) from public.partidos where id in (995001, 995002) and codigo is not null) = 2);
 select pg_temp.check('member: full roster entries in the view', (select count(*) from public.partidos_view v, jsonb_array_elements(coalesce(to_jsonb(v) -> 'jugadores', '[]'::jsonb)) e
    where v.id = 995001 and e ? 'usuario_id') = 2);
+select pg_temp.check('143 member: real uuid and ratings in its own match',
+  (select count(*) from public.partidos_view v, jsonb_array_elements(coalesce(to_jsonb(v) -> 'jugadores', '[]'::jsonb)) e
+   where v.id = 995001 and e ->> 'uuid' = md5('smoke-org')::uuid::text and e ? 'responsabilidad_score') = 1);
 reset role;
 select pg_temp.as_user(md5('smoke-org')::uuid);
 set local role authenticated;
@@ -114,6 +136,11 @@ reset role;
 select pg_temp.as_user(md5('smoke-req2')::uuid);
 set local role authenticated;
 select pg_temp.check('142 req2: a SECOND requester on the same match succeeds', pg_temp.try($$insert into public.match_join_requests (match_id, user_id, status, role) values (995001, auth.uid(), 'pending', 'player')$$) = 'ok');
+select pg_temp.check('143 req2 (pending request): roster RPC and view entries masked',
+  pg_temp.roster_leaks(public.get_public_match_roster(995001)) = 0 and jsonb_array_length(public.get_public_match_roster(995001)) = 2
+  and (select pg_temp.roster_leaks(to_jsonb(v) -> 'jugadores') from public.partidos_view v where v.id = 995001) = 0,
+  public.get_public_match_roster(995001)::text);
+select pg_temp.check('143 req2 (pending request): no roster rows from the table', (select count(*) from public.jugadores where partido_id = 995001) = 0);
 reset role;
 select pg_temp.check('142 organizer got one notice per request',
   (select count(*) from public.notifications where user_id = md5('smoke-org')::uuid and type = 'match_join_request') = 2);
@@ -134,7 +161,9 @@ select pg_temp.check('member: cannot re-score own row', (pg_temp.try($$update pu
 reset role;
 select pg_temp.as_user(md5('smoke-inv')::uuid);
 set local role authenticated;
+select pg_temp.check('143 invited (not in yet): no roster rows from the table', (select count(*) from public.jugadores where partido_id = 995002) = 0);
 select pg_temp.check('invited: joins the private match itself', pg_temp.try($$insert into public.jugadores (partido_id, usuario_id, nombre) values (995002, auth.uid(), 'Inv')$$) = 'ok');
+select pg_temp.check('143 invited after joining: sees the roster', (select count(*) from public.jugadores where partido_id = 995002) = 3);
 reset role;
 select pg_temp.as_user(md5('smoke-lnk')::uuid);
 set local role authenticated;
@@ -152,6 +181,9 @@ select pg_temp.check('anon: no rows from partidos/jugadores/view',
 select pg_temp.check('anon: the code opens its match, entries without usuario_id',
   (public.public_get_match_by_code('SMOKE003', 995003) -> 'partido' ->> 'id') = '995003'
   and (select count(*) from jsonb_array_elements(public.public_get_match_by_code('SMOKE003', 995003) -> 'jugadores') e where e ? 'usuario_id') = 0);
+select pg_temp.check('143 anon: link entries carry no account id or responsabilidad_score',
+  pg_temp.roster_leaks(public.public_get_match_by_code('SMOKE003', 995003) -> 'jugadores') = 0
+  and jsonb_array_length(public.public_get_match_by_code('SMOKE003', 995003) -> 'jugadores') = 3);
 select pg_temp.check('anon: guest votes by name', public.public_submit_player_rating(995003, 'SMOKE003', 'Invitado Uno',
   (select (e ->> 'id')::bigint from jsonb_array_elements(public.public_get_match_by_code('SMOKE003', 995003) -> 'jugadores') e where e ->> 'nombre' = 'Invitado Dos'), 8) = 'ok');
 select pg_temp.check('anon: a registered name cannot vote as guest', public.public_submit_player_rating(995003, 'SMOKE003', 'Mem',

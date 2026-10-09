@@ -8,9 +8,9 @@
 begin;
 
 -- ---------- as postgres: structure and data ----------
-select json_build_object('check', 'ledger holds the 24 migrations 20261010119000…142000',
-  'pass', (select count(*) from supabase_migrations.schema_migrations where version between '20261010119000' and '20261010142000') = 24,
-  'value', (select count(*) from supabase_migrations.schema_migrations where version between '20261010119000' and '20261010142000'))::text;
+select json_build_object('check', 'ledger holds the 25 migrations 20261010119000…143000',
+  'pass', (select count(*) from supabase_migrations.schema_migrations where version between '20261010119000' and '20261010143000') = 25,
+  'value', (select count(*) from supabase_migrations.schema_migrations where version between '20261010119000' and '20261010143000'))::text;
 
 select json_build_object('check', '119000: partidos/jugadores SELECT/INSERT carry only the repository policies, the voting tables are not open',
   'pass', not exists (select 1 from pg_policies where schemaname = 'public' and tablename in ('partidos', 'jugadores')
@@ -38,6 +38,17 @@ select json_build_object('check', '119000: every other policy (UPDATE/DELETE of 
              where schemaname = 'public'
                and not (tablename in ('partidos', 'jugadores') and cmd in ('SELECT', 'INSERT', 'ALL'))
                and not (tablename in ('public_voters', 'votos_publicos') and cmd in ('SELECT', 'INSERT')))))::text;
+
+select json_build_object('check', '143000: full roster entries only for organizer and roster (views, both RPCs, the table)',
+  'pass', to_regprocedure('app_private.match_roster_identity_visible(bigint,uuid)') is not null
+      and (select pg_get_expr(polqual, polrelid) ~ 'match_roster_identity_visible' and pg_get_expr(polqual, polrelid) !~ 'match_involves_user'
+           from pg_policy where polrelid = 'public.jugadores'::regclass and polname = 'jugadores_select_authenticated')
+      and (select prosrc ~ 'match_roster_identity_visible' from pg_proc where oid = 'public.public_get_match_by_code(text,bigint)'::regprocedure)
+      and (select prosrc ~ 'match_roster_identity_visible' from pg_proc where oid = 'public.get_public_match_roster(bigint)'::regprocedure)
+      and (select prosrc ~ 'responsabilidad_score' from pg_proc where oid = 'app_private.roster_entry_json(jsonb,uuid,boolean)'::regprocedure)
+      and not exists (select 1 from pg_class where relnamespace = 'public'::regnamespace and relkind = 'v'
+                      and pg_get_viewdef(oid) ~ 'roster_entry_json' and pg_get_viewdef(oid) !~ 'match_roster_identity_visible'),
+  'value', null)::text;
 
 select json_build_object('check', '142000: request-scoped notices keep no partido_id (one notice per join request)',
   'pass', to_regprocedure('public.fn_notifications_fill_partido_id()') is null
@@ -147,7 +158,10 @@ select json_build_object('check', '131000: survey finalization scheduled every 5
 select set_config('postcheck.open_matches', (select count(*) from public.partidos p where p.deleted_at is null
     and public.partido_is_operationally_open(p.estado, p.deleted_at, p.survey_status, p.result_status, p.finished_at, p.fecha, p.hora,
       coalesce(p.falta_jugadores, false) or coalesce(p.busca_arquero, false), now()))::text, true) is not null as stashed \gset
-select set_config('postcheck.visible_roster', (select count(*) from public.jugadores j where j.partido_id is null)::text, true) is not null as stashed \gset
+select set_config('postcheck.visible_roster', (select count(*) from public.jugadores j where j.partido_id is null and j.match_ref is null)::text, true) is not null as stashed \gset
+-- an account with a pending join request that is neither organizer nor in the roster (143000)
+select set_config('postcheck.pending_requester', coalesce((select r.user_id::text || ':' || r.match_id from public.match_join_requests r
+    where r.status = 'pending' and not app_private.match_roster_identity_visible(r.match_id, r.user_id) order by r.id desc limit 1), ''), true) is not null as stashed \gset
 select set_config('postcheck.open_match', coalesce((select p.id::text from public.partidos p where p.deleted_at is null
     and public.partido_is_operationally_open(p.estado, p.deleted_at, p.survey_status, p.result_status, p.finished_at, p.fecha, p.hora,
       coalesce(p.falta_jugadores, false) or coalesce(p.busca_arquero, false), now()) order by p.id desc limit 1), ''), true) is not null as stashed \gset
@@ -188,6 +202,14 @@ exception when insufficient_privilege then
 end;
 $f$;
 
+-- A roster entry as an outsider sees it (143000): no usuario_id/score/responsabilidad_score, and
+-- the uuid key is md5('arma2-roster-entry:' || id), never the stored value.
+create function pg_temp.entry_not_opaque(p_entry jsonb) returns boolean language sql as $f$
+  select p_entry ? 'usuario_id' or p_entry ? 'score' or p_entry ? 'responsabilidad_score'
+      or (p_entry ? 'uuid' and p_entry ->> 'uuid' is distinct from md5('arma2-roster-entry:' || (p_entry ->> 'id'))::uuid::text)
+$f$;
+grant execute on function pg_temp.entry_not_opaque(jsonb) to public;
+
 -- ---------- as a brand-new account (involved in nothing) ----------
 select set_config('request.jwt.claims', json_build_object('sub', gen_random_uuid(), 'role', 'authenticated')::text, true) is not null as stashed \gset
 set local role authenticated;
@@ -209,6 +231,15 @@ select json_build_object('check', 'new account: no usuario_id or score in any ro
            or (select count(*) from jsonb_array_elements(public.public_get_match_by_code(current_setting('postcheck.link_code'), current_setting('postcheck.link_match')::bigint) -> 'jugadores') e
                where e ? 'usuario_id' or e ? 'score') = 0),
   'value', json_build_object('entries_in_views', (select count(*) from public.partidos_abiertos_operativos_v2 v, jsonb_array_elements(v.jugadores) e)))::text;
+
+select json_build_object('check', '143000 new account: no responsabilidad_score, and every roster uuid is the opaque per-row key (never an account id)',
+  'pass', (select count(*) from public.partidos_abiertos_operativos_v2 v, jsonb_array_elements(v.jugadores) e where pg_temp.entry_not_opaque(e)) = 0
+      and (select count(*) from public.partidos_view v, jsonb_array_elements(coalesce(to_jsonb(v) -> 'jugadores', '[]'::jsonb)) e where pg_temp.entry_not_opaque(e)) = 0
+      and (select count(*) from public.partidos_abiertos_operativos_v2 v, jsonb_array_elements(public.get_public_match_roster(v.id)) e where pg_temp.entry_not_opaque(e)) = 0
+      and (current_setting('postcheck.link_match') = ''
+           or (select count(*) from jsonb_array_elements(public.public_get_match_by_code(current_setting('postcheck.link_code'), current_setting('postcheck.link_match')::bigint) -> 'jugadores') e
+               where pg_temp.entry_not_opaque(e)) = 0),
+  'value', null)::text;
 
 select json_build_object('check', 'new account: cannot join a published match by inserting itself, nor file an approved request',
   'pass', current_setting('postcheck.open_match') = ''
@@ -248,11 +279,30 @@ select json_build_object('check', 'anon: the link code gives roster entries with
           where e ? 'usuario_id' or e ? 'score') = 0,
   'value', null)::text;
 
+select json_build_object('check', '143000 anon: link entries carry no account id or responsabilidad_score',
+  'pass', current_setting('postcheck.link_match') = ''
+      or (select count(*) from jsonb_array_elements(public.public_get_match_by_code(current_setting('postcheck.link_code'), current_setting('postcheck.link_match')::bigint) -> 'jugadores') e
+          where pg_temp.entry_not_opaque(e)) = 0,
+  'value', null)::text;
+
 select json_build_object('check', 'anon: a WhatsApp/voting link (code + id) still opens its own match',
   'pass', current_setting('postcheck.link_match') = ''
       or (public.resolve_match_by_code(current_setting('postcheck.link_code'))::text = current_setting('postcheck.link_match')
           and (public.public_get_match_by_code(current_setting('postcheck.link_code'), current_setting('postcheck.link_match')::bigint) -> 'partido' ->> 'id') = current_setting('postcheck.link_match')),
   'value', current_setting('postcheck.link_match') <> '')::text;
+
+-- ---------- as an account with only a pending join request (143000) ----------
+reset role;
+select set_config('request.jwt.claims', json_build_object('sub', split_part(current_setting('postcheck.pending_requester'), ':', 1), 'role', 'authenticated')::text, true) is not null as stashed \gset
+set local role authenticated;
+
+select json_build_object('check', '143000 pending requester: masked entries from the roster RPC and no roster rows from the table',
+  'pass', current_setting('postcheck.pending_requester') = ''
+      or ((select count(*) from jsonb_array_elements(public.get_public_match_roster(split_part(current_setting('postcheck.pending_requester'), ':', 2)::bigint)) e
+           where pg_temp.entry_not_opaque(e) and not coalesce((e ->> 'is_me')::boolean, false)) = 0
+          and (select count(*) from public.jugadores where partido_id = split_part(current_setting('postcheck.pending_requester'), ':', 2)::bigint
+               and usuario_id is distinct from auth.uid()) = 0),
+  'value', current_setting('postcheck.pending_requester') <> '')::text;
 
 -- ---------- as the organizer of the latest match ----------
 reset role;
