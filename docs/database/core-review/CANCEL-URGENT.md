@@ -96,4 +96,14 @@ y la fila del ledger. Datos perdidos: ninguno.
 ## Ensayo
 
 `node integration/prod-schema/rehearse-118000.mjs`, sobre una copia nueva del esquema real de
-Producción. Los resultados quedan en `integration/prod-schema/.out/report-118000.json`.
+Producción. Resultado del 2026-10-09
+([`runbook/evidence/rehearsal-118000-20261009.json`](runbook/evidence/rehearsal-118000-20261009.json)):
+
+| Paso | Resultado |
+|---|---|
+| Antes | `pass: true`: el cuerpo revisado y su ACL de hoy (PUBLIC, `anon`, `authenticated`, `service_role`) |
+| Aplicar | sin errores; las 3 líneas `after` dan `pass: true` |
+| Humo (9/9) | anon, ajeno y jugador no organizador rechazados; los rechazos no cambian nada; el organizador cancela como la 1.1.21; el partido queda cancelado; el plantel recibe el aviso; el otro partido no se toca; `service_role` sigue pudiendo |
+| Volver a aplicar | no hace nada (el estado no cambia) |
+| Rollback | la función queda **idéntica** a la original: oid, md5 del cuerpo, ACL (mismas entradas, mismo orden), dueño, SECURITY DEFINER, argumentos y valores por defecto. La tabla de respaldo y la fila del ledger desaparecen |
+| Reaplicar | sin errores; `after` en `pass: true` |
