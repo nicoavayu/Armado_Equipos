@@ -1,0 +1,5 @@
+{"step":"quota","event":"FREE season before","plan":"FREE","usage":8,"limit":25}
+{"step":"quota","event":"uploads until the server refused","accepted":17,"refusal":"422 TORNEOS_SEASON_MEDIA_QUOTA_EXCEEDED","quota":{"usage":25,"limit":25,"upgradeRequired":true}}
+{"step":"quota","event":"usage at the limit","usage":25,"limit":25,"remaining":0}
+{"step":"quota","event":"one photo rejected","usage":24,"remaining":1,"nextUpload":"201"}
+{"step":"quota","event":"client attempts to become PREMIUM","results":["grant_tournament_season_plan 403","create_tournament_season_plan_grant 403","set_tournament_season_plan 403","simulate_tournament_fake_payment 403","get_effective_tournament_season_entitlements 403"],"planAfter":"FREE"}

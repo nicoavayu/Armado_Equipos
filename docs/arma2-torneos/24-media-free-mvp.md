@@ -1,5 +1,20 @@
 # Multimedia gratuito: MVP local de galerías
 
+> **Composición híbrida (MEDIA-V1, 2026-10).** En el producto que se publica (gateway + proyecto aislado de Torneos)
+> el signer y el processor de este documento no existen: el **gateway de Torneos** verifica cada foto con el mismo
+> verificador estructural y la escribe y registra con un claim que sólo él firma (migración Torneos
+> `00000000000012_media_gallery_v1.sql`). Diseño, seguridad, costos y activación:
+> [`backend/torneos/media-v1/README.md`](../../backend/torneos/media-v1/README.md) y
+> [`ACTIVATION.md`](../../backend/torneos/media-v1/ACTIVATION.md).
+>
+> Límites vigentes (no los de la tabla de abajo, que es histórica):
+>
+> - **cuota de fotos**: la del catálogo de planes, por temporada — FREE 25, PREMIUM 1000 — aplicada en servidor al pedir
+>   cada carga. Las sub-cuotas por galería / torneo / organización del MVP se retiraron en
+>   `20260828172000_prune_legacy_media_subquota_work.sql`;
+> - **archivo elegido**: hasta 25 MiB (nunca sale del dispositivo); **lo que viaja**: ≤ 4 MiB, ≤ 1600 px / 2,56 MP;
+> - selección 10, concurrencia 2, 30 emisiones cada 15 minutos por persona, URLs de lectura de 300 s.
+
 ## Estado
 
 Esta entrega agrega el código de `MVP_SIMPLE`, pero **no lo activa**. La nueva

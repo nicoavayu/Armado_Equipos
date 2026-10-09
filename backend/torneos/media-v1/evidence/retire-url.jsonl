@@ -1,0 +1,8 @@
+{"step":"retire-url","at":"0 s","event":"URL issued to the participant","get":200}
+{"step":"retire-url","at":"0 s","event":"photo retired (hide)","oldUrlGet":200,"newUrlsForParticipant":0,"stillListed":false,"ownerCanStillSee":1}
+{"step":"retire-url","at":"60 s","event":"old URL after retiring","get":200}
+{"step":"retire-url","at":"120 s","event":"old URL after retiring","get":200}
+{"step":"retire-url","at":"240 s","event":"old URL after retiring","get":200}
+{"step":"retire-url","at":"300 s","event":"old URL after retiring","get":400}
+{"step":"retire-url","at":"310 s","event":"old URL after retiring","get":400}
+{"step":"retire-url","at":"310 s","event":"restored","newUrlsForParticipant":1}

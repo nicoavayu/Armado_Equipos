@@ -268,7 +268,27 @@ function QualificationPanel({ standings, revision, onResolve, busy }) {
   );
 }
 
-function DisciplinePanel({ rows }) {
+function DisciplineCard({ row, statusLabels }) {
+  return (
+    <article className={styles.card}>
+      <div className={styles.disciplineHeader}>
+        <span className={styles.playerMark}>{row.name?.slice(0, 2)}</span>
+        <span><strong>{row.name}</strong><small>{row.fairPlayPoints} puntos disciplinarios</small></span>
+        <span className={styles.cards}>{row.yellowCards}A · {row.directReds + row.secondYellows}R</span>
+      </div>
+      {(row.suspensions || []).length ? row.suspensions.map((suspension) => (
+        <div className={styles.suspension} key={suspension.id}>
+          <ShieldAlert size={17} />
+          <span><strong>{suspension.reason}</strong><small>{suspension.servedMatches}/{suspension.totalMatches} {suspension.totalMatches === 1 ? 'fecha' : 'fechas'} · {statusLabels[suspension.status] || 'En revisión'}</small></span>
+        </div>
+      )) : <p className={styles.noSuspension}>Sin suspensión activa.</p>}
+    </article>
+  );
+}
+
+// Who has cards or sanctions comes first, in the official order; the players with a clean record (most of a
+// league) are one line that opens on demand instead of a card each.
+export function DisciplinePanel({ rows }) {
   const statusLabels = {
     pending: 'Pendiente',
     active: 'Activa',
@@ -277,24 +297,38 @@ function DisciplinePanel({ rows }) {
     revoked: 'Revocada',
   };
   if (!rows.length) return <div className={styles.empty}><Scale size={28} /><h2>Sin novedades disciplinarias</h2><p>Las tarjetas y sanciones nacen exclusivamente de actas oficiales vigentes.</p></div>;
+  const hasRecord = (row) => Number(row.fairPlayPoints) > 0
+    || Number(row.yellowCards) > 0
+    || Number(row.directReds) + Number(row.secondYellows) > 0
+    || (row.suspensions || []).length > 0;
+  const withRecord = rows.filter(hasRecord);
+  const clean = rows.filter((row) => !hasRecord(row));
   return (
-    <div className={styles.disciplineGrid}>
-      {rows.map((row) => (
-        <article className={styles.card} key={row.rosterPlayerId}>
-          <div className={styles.disciplineHeader}>
-            <span className={styles.playerMark}>{row.name?.slice(0, 2)}</span>
-            <span><strong>{row.name}</strong><small>{row.fairPlayPoints} puntos disciplinarios</small></span>
-            <span className={styles.cards}>{row.yellowCards}A · {row.directReds + row.secondYellows}R</span>
-          </div>
-          {(row.suspensions || []).length ? row.suspensions.map((suspension) => (
-            <div className={styles.suspension} key={suspension.id}>
-              <ShieldAlert size={17} />
-              <span><strong>{suspension.reason}</strong><small>{suspension.servedMatches}/{suspension.totalMatches} {suspension.totalMatches === 1 ? 'fecha' : 'fechas'} · {statusLabels[suspension.status] || 'En revisión'}</small></span>
-            </div>
-          )) : <p className={styles.noSuspension}>Sin suspensión activa.</p>}
-        </article>
-      ))}
-    </div>
+    <>
+      {withRecord.length ? (
+        <div className={styles.disciplineGrid}>
+          {withRecord.map((row) => (
+            <DisciplineCard key={row.rosterPlayerId} row={row} statusLabels={statusLabels} />
+          ))}
+        </div>
+      ) : (
+        <div className={styles.empty}><Scale size={28} /><h2>Sin tarjetas ni sanciones</h2><p>Ningún jugador tiene tarjetas en las actas oficiales vigentes.</p></div>
+      )}
+      {clean.length > 0 && (
+        <details className={styles.cleanRecords}>
+          <summary>
+            <span>
+              <strong>{clean.length === 1 ? '1 jugador sin tarjetas' : `${clean.length} jugadores sin tarjetas`}</strong>
+              <small>0 puntos disciplinarios · sin suspensiones</small>
+            </span>
+            <ChevronDown size={17} aria-hidden="true" />
+          </summary>
+          <ul>
+            {clean.map((row) => <li key={row.rosterPlayerId}>{row.name}</li>)}
+          </ul>
+        </details>
+      )}
+    </>
   );
 }
 

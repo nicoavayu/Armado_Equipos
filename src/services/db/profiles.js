@@ -1,4 +1,5 @@
 import { supabase } from '../../lib/supabaseClient';
+import { fetchPublicProfiles, readMyProfile } from './publicProfiles';
 import logger from '../../utils/logger';
 import { prepareImageForUpload } from '../../utils/imageUpload';
 import { hasValidCoordinates } from '../../utils/matchLocation';
@@ -98,13 +99,23 @@ export const uploadFoto = async (file, jugador) => {
  */
 export const getProfile = async (userId) => {
   logger.log('getProfile called for userId:', userId);
-  // Use a simple, safe select of all columns from usuarios filtered by id.
-  // Do NOT mix explicit columns with '*' and do NOT request non-existent columns.
-  const { data, error } = await supabase
-    .from('usuarios')
-    .select('*')
-    .eq('id', userId)
-    .single();
+  // Private columns (email, birth date, exact location) are only readable by their owner,
+  // through get_my_profile(); anyone else gets the public profile. Both keep the whole row
+  // without naming columns, so a schema difference between environments cannot break them.
+  const { data: sessionData } = await supabase.auth.getSession();
+  const isOwnProfile = Boolean(userId) && sessionData?.session?.user?.id === userId;
+  let data = null;
+  let error = null;
+  if (isOwnProfile) {
+    ({ data, error } = await readMyProfile({ single: true }));
+  } else {
+    try {
+      data = (await fetchPublicProfiles([userId]))[0] || null;
+      if (!data) error = { code: 'PGRST116', message: 'Profile not found' };
+    } catch (publicProfileError) {
+      error = publicProfileError;
+    }
+  }
 
   if (error) {
     logger.error('getProfile error:', error);
@@ -288,7 +299,6 @@ export const calculateProfileCompletion = (profile) => {
  */
 export const updateProfile = async (userId, profileData) => {
   logger.log('[UPDATE_PROFILE] Input fields:', Object.keys(profileData));
-  logger.log('[UPDATE_PROFILE] Input data:', profileData);
 
   const completion = calculateProfileCompletion(profileData);
 
@@ -391,6 +401,16 @@ export const updateProfile = async (userId, profileData) => {
 
   const finalData = { ...cleanProfileData, profile_completion: completion, updated_at: new Date().toISOString() };
 
+  // Phone, birth date and exact location live outside the shared row (20261010135000): a
+  // blank write there means "not provided", so emptying one of them is an explicit clear.
+  const isBlank = (value) => value === null || (typeof value === 'string' && value.trim() === '');
+  const fieldsToClear = [
+    Object.prototype.hasOwnProperty.call(cleanProfileData, 'telefono') && isBlank(cleanProfileData.telefono) ? 'telefono' : null,
+    Object.prototype.hasOwnProperty.call(cleanProfileData, 'fecha_nacimiento') && isBlank(cleanProfileData.fecha_nacimiento) ? 'fecha_nacimiento' : null,
+    (Object.prototype.hasOwnProperty.call(cleanProfileData, 'latitud') && isBlank(cleanProfileData.latitud))
+      || (Object.prototype.hasOwnProperty.call(cleanProfileData, 'longitud') && isBlank(cleanProfileData.longitud)) ? 'ubicacion' : null,
+  ].filter(Boolean);
+
   logger.log('[UPDATE_PROFILE] Mapped fields:', Object.keys(finalData));
 
   const getMissingSchemaColumn = (error) => {
@@ -416,11 +436,13 @@ export const updateProfile = async (userId, profileData) => {
   const maxAttempts = Math.max(3, Object.keys(payloadToUpdate).length + 1);
 
   for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+    // Only `id` comes back: private columns are not readable through the table (the
+    // owner's full row is read below through get_my_profile()).
     const { data: updatedData, error } = await supabase
       .from('usuarios')
       .update(payloadToUpdate)
       .eq('id', userId)
-      .select()
+      .select('id')
       .single();
 
     if (!error) {
@@ -441,6 +463,23 @@ export const updateProfile = async (userId, profileData) => {
   }
 
   if (lastError && !data) throw lastError;
+
+  if (fieldsToClear.length > 0) {
+    const { error: clearError } = await supabase.rpc('clear_my_profile_fields', { p_fields: fieldsToClear });
+    // A backend without 20261010135000 keeps the values in the row, where the update above
+    // already cleared them.
+    if (clearError && !['PGRST202', '42883'].includes(String(clearError.code || ''))) {
+      throw clearError;
+    }
+  }
+
+  const { data: savedProfile, error: savedProfileError } = await readMyProfile({ single: true });
+  if (savedProfileError) {
+    logger.warn('[UPDATE_PROFILE] Saved; could not reload the profile, using the sent fields', savedProfileError);
+    data = { ...data, ...payloadToUpdate, id: userId };
+  } else {
+    data = savedProfile;
+  }
 
   // Actualizar el nombre en todos los partidos donde el usuario es jugador
   if (cleanProfileData && cleanProfileData.nombre) {
@@ -557,11 +596,15 @@ export const createOrUpdateProfile = async (user) => {
   // Auth metadata updates should only happen when the user explicitly uploads/changes avatar.
 
   // Insert or update (upsert) into usuarios table
-  const { data, error } = await supabase
+  const { error: upsertError } = await supabase
     .from('usuarios')
     .upsert(profileData, { onConflict: 'id' })
-    .select()
+    .select('id')
     .single();
+  // The owner's full row (private columns included) only comes from get_my_profile().
+  const { data, error } = upsertError
+    ? { data: null, error: upsertError }
+    : await readMyProfile({ single: true });
 
   if (error) {
     logger.error('[PROFILE_BOOTSTRAP] Error upserting user profile to usuarios:', error);
@@ -631,7 +674,7 @@ export const addFreePlayer = async () => {
 
     // Get user profile
     const profile = await getProfile(user.id);
-    logger.log('User profile:', profile);
+    logger.log('User profile:', { id: profile?.id || null });
 
     if (!profile) {
       logger.warn('Profile not found, creating minimal profile');

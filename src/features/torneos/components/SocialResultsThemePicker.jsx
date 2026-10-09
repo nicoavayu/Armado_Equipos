@@ -1,11 +1,9 @@
 import React from 'react';
 import { LockKeyhole } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
 import {
   hasEffectiveTournamentEntitlement,
   TOURNAMENT_ENTITLEMENTS,
 } from '../domain/entitlements';
-import { canonicalRoutes } from '../routing/canonicalRoutes';
 import { SOCIAL_RESULTS_THEMES } from '../social/socialThemes';
 import styles from './SocialStudioPage.module.css';
 
@@ -24,58 +22,53 @@ export function isSocialResultThemeAllowed(themeId, planState, seasonId) {
     || canUsePremiumResultStyles(planState, seasonId);
 }
 
+/**
+ * One row of compact style chips, each with a swatch of the style's own paper and accent, so the choice reads at a
+ * glance without a second preview. A locked style is still selectable: the page previews it for real, behind the
+ * Premium lock, and explains the lock once, where the download would be.
+ */
 export default function SocialResultsThemePicker({
-  organizationId,
   seasonId,
   planState,
   themeId,
   displayThemeId = themeId,
   onSelect,
-  onLockedPreview = null,
 }) {
-  const navigate = useNavigate();
-  const planTarget = seasonId ? canonicalRoutes.seasonPlan(organizationId, seasonId) : canonicalRoutes.organizationMyPlan(organizationId);
   const premiumAllowed = canUsePremiumResultStyles(planState, seasonId);
 
-  // A locked style is previewed for real, never covered: the notice below and the export lock explain it.
-  const chooseTheme = (entry) => {
-    onSelect(entry.id);
-    if (entry.id !== 'base' && !premiumAllowed) onLockedPreview?.(entry.id);
-  };
-
   return (
-      <div className={styles.themePicker}>
-        <div className={styles.chipRow} role="radiogroup" aria-label="Estilo">
-          {SOCIAL_RESULTS_THEMES.map((entry) => {
-            const locked = entry.id !== 'base' && !premiumAllowed;
-            return (
-              <button
-                key={entry.id}
-                type="button"
-                role="radio"
-                aria-checked={displayThemeId === entry.id}
-                aria-label={locked ? `${entry.label}, disponible con Premium` : entry.label}
-                className={`${displayThemeId === entry.id ? styles.chipActive : ''} ${locked ? styles.themeLocked : ''}`}
-                onClick={() => chooseTheme(entry)}
-              >
-                {locked && <LockKeyhole size={15} aria-hidden="true" />}
-                <span>{entry.label}</span>
-                {locked && <small>Premium</small>}
-              </button>
-            );
-          })}
-        </div>
-        {!premiumAllowed && displayThemeId !== 'base' && (
-          <div className={styles.lockedThemeNotice} role="status">
-            <span><LockKeyhole size={14} aria-hidden="true" /> Vista previa del estilo Premium · Se descarga con Premium</span>
-            <button
-              type="button"
-              onClick={() => navigate(`${planTarget}#premium`)}
-            >
-              Ver Premium
-            </button>
-          </div>
+    <div className={styles.themePicker}>
+      <div className={styles.fieldHeading}>
+        <span id="social-style-label">Estilo</span>
+        {!premiumAllowed && (
+          <small><LockKeyhole size={12} aria-hidden="true" /> Premium</small>
         )}
       </div>
+      <div className={styles.styleRow} role="radiogroup" aria-labelledby="social-style-label">
+        {SOCIAL_RESULTS_THEMES.map((entry) => {
+          const locked = entry.id !== 'base' && !premiumAllowed;
+          const active = displayThemeId === entry.id;
+          return (
+            <button
+              key={entry.id}
+              type="button"
+              role="radio"
+              aria-checked={active}
+              aria-label={locked ? `${entry.label}, disponible con Premium` : entry.label}
+              className={`${styles.styleChip} ${active ? styles.styleChipActive : ''} ${locked ? styles.styleChipLocked : ''}`}
+              onClick={() => onSelect(entry.id)}
+            >
+              <span
+                className={styles.styleSwatch}
+                style={{ '--swatch-paper': entry.tokens.background, '--swatch-ink': entry.tokens.accent }}
+                aria-hidden="true"
+              />
+              <span className={styles.styleName}>{entry.label}</span>
+              {locked && <LockKeyhole className={styles.styleLock} size={12} aria-hidden="true" />}
+            </button>
+          );
+        })}
+      </div>
+    </div>
   );
 }

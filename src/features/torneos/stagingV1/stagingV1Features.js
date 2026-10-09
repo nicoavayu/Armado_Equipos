@@ -9,7 +9,7 @@
 //   • OFFICIALIZATION_V1_ON — exactly the OFFICIALIZATION-V1 contract keys (officialization-v1-rpc-allowlist.json +
 //     migration 00000000000005, guarded by test): organization membership and the dual-control policy;
 //   • everything OFF has no RPC in either gateway allowlist or lives outside the gateway
-//     contract (media pipeline, storage uploads, social studio, billing).
+//     contract (media pipeline, storage uploads, social studio, billing) — until its own overlay below.
 const STAGING_V1_ON = Object.freeze({
   organizations_workspaces: true,
   collaborators: true,
@@ -53,6 +53,12 @@ const OFF = Object.freeze({
   team_visual_policy: false,
   media: false,
   social_studio: false,         // the Estudio Social: only the SOCIAL-V1 overlay below turns it on
+  // connected product: only the CONNECTED-V1 overlay below turns them on
+  torneos_profile: false,       // Mi perfil de Torneos (nombre de presentación + avisos que la bandeja cumple)
+  torneos_inbox: false,         // bandeja de actividad de Torneos + contador de la campana
+  catalog_management: false,    // convocatoria, cupos y bandeja de solicitudes del organizador
+  tournament_applications: false, // solicitud de inscripción con equipo autorizado + seguimiento
+  tournament_catalog: false,    // Explorar torneos (catálogo público)
 });
 
 export const stagingV1Features = Object.freeze({ ...STAGING_V1_ON, ...COMPETITION_V1_ON, ...OFFICIALIZATION_V1_ON, ...OFF });
@@ -90,11 +96,52 @@ export const stagingV1SocialOverlay = Object.freeze({
 const planReadSocialFeatures = Object.freeze({ ...planReadFeatures, ...stagingV1SocialOverlay });
 const billingTestSocialFeatures = Object.freeze({ ...billingTestFeatures, ...stagingV1SocialOverlay });
 
-export function stagingV1FeaturesFor(billingMode, { planRead = false, social = false } = {}) {
+// CONNECTED-V1: the connected product (foundation/config.js resolveTorneosConnectedProduct = hybrid + the explicit
+// opt-in that matches the gateway's TORNEOS_CONNECTED_MODE=on). Independent of plan, billing and Social.
+export const stagingV1ConnectedOverlay = Object.freeze({
+  torneos_profile: true,
+  torneos_inbox: true,
+  catalog_management: true,
+  tournament_applications: true,
+  tournament_catalog: true,
+});
+
+// BRANDING-V1: logo / shield upload and the organization's branding context (foundation/config.js
+// resolveTorneosBranding = hybrid + the opt-in that matches the gateway's TORNEOS_BRANDING_MODE=on). Only branding:
+// portraits, team photos, the media pipeline and the visual policy stay off.
+export const stagingV1BrandingOverlay = Object.freeze({
+  branding_assets: true,
+});
+
+// MEDIA-V1: the photo galleries (foundation/config.js resolveTorneosMedia = hybrid + the opt-in that matches the
+// gateway's TORNEOS_MEDIA_MODE=on + the media flag): the organizer's Centro Multimedia and the participant galleries of
+// the hub and the match. Only galleries: portraits, team photos and the visual policy stay off.
+export const stagingV1MediaOverlay = Object.freeze({
+  media: true,
+});
+
+// COMMERCE-PRODUCTION: the purchase overlay is the same for a billing mode resolved to `test` (local lab) or
+// `production` (foundation/config.js: the production web app only); the mode itself never changes what is shown.
+const BILLING_MODES = new Set(['test', 'production']);
+
+function baseFeaturesFor(billingMode, { planRead = false, social = false } = {}) {
   const mode = typeof billingMode === 'string' ? billingMode : billingMode?.mode;
-  if (mode === 'test') return social === true ? billingTestSocialFeatures : billingTestFeatures;
+  if (BILLING_MODES.has(mode)) return social === true ? billingTestSocialFeatures : billingTestFeatures;
   if (planRead !== true) return stagingV1Features;
   return social === true ? planReadSocialFeatures : planReadFeatures;
+}
+
+export function stagingV1FeaturesFor(billingMode, {
+  planRead = false, social = false, connected = false, branding = false, media = false,
+} = {}) {
+  const base = baseFeaturesFor(billingMode, { planRead, social });
+  if (connected !== true && branding !== true && media !== true) return base;
+  return Object.freeze({
+    ...base,
+    ...(connected === true ? stagingV1ConnectedOverlay : {}),
+    ...(branding === true ? stagingV1BrandingOverlay : {}),
+    ...(media === true ? stagingV1MediaOverlay : {}),
+  });
 }
 
 // The legacy composition (single-project LOCAL QA) keeps every surface on.

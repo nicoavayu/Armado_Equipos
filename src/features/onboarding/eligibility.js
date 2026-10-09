@@ -50,14 +50,22 @@ export function isNewAccount(user, options = {}) {
   return createdMs >= cutoffMs;
 }
 
-// Whether the current onboarding version was already completed or explicitly
-// skipped. A future version bump (CURRENT > handled) re-offers automatically.
+// Whether the account already answered the onboarding: completed it or dismissed
+// it ("Ahora no", close). Either one is final: it never opens by itself again
+// (Perfil → Ayuda replays it). A future version bump re-offers only to people who
+// completed an older one.
 export function hasHandledCurrentVersion(state, version = CURRENT_ONBOARDING_VERSION) {
-  // Older v1 clients wrote completed_version on skip. Status is the source of
-  // truth so those users can still be re-offered the pending tour next session.
-  if (state?.status === ONBOARDING_STATUS.SKIPPED) return false;
+  if (state?.status === ONBOARDING_STATUS.SKIPPED) return true;
   const handled = Number(state?.completedVersion ?? 0);
   return Number.isFinite(handled) && handled >= version;
+}
+
+// The account has already been shown the onboarding once (even if it left it
+// half-way: switching to Torneos, reloading or closing the app must not reopen it).
+// Opening it moves the status to in_progress; answering it to skipped/completed.
+// (firstSeenAt is not a signal: any first write — e.g. the welcome card — seeds it.)
+export function hasSeenOnboarding(state) {
+  return Boolean(state?.status) && state.status !== ONBOARDING_STATUS.NOT_STARTED;
 }
 
 const WAITING = Object.freeze({
@@ -99,19 +107,31 @@ export function resolveOnboardingDecision(ctx = {}) {
     return { ...WAITING, ready: true, reason: 'already_handled' };
   }
 
-  const inProgress = state?.status === ONBOARDING_STATUS.IN_PROGRESS;
   const newAccount = isNewAccount(user, ctx);
   const safeNow = Boolean(isSafeHomeSurface && !hasPendingIntent);
+  // Automatic only once per account: the first time (never seen), or a new version
+  // for someone who completed an older one. Half-way runs are not reopened.
+  const firstTime = !hasSeenOnboarding(state);
+  const completedOlderVersion = state?.status === ONBOARDING_STATUS.COMPLETED;
 
-  // New users (and anyone resuming an in-progress run) get the full-screen flow,
-  // but only from a safe Home surface with nothing pending. When it isn't safe
-  // yet we stay "ready" and simply defer — the gate re-checks on navigation.
-  if (inProgress || newAccount) {
+  // New users get the full-screen flow, but only from a safe Home surface with
+  // nothing pending. When it isn't safe yet we stay "ready" and simply defer —
+  // the gate re-checks on navigation.
+  if (newAccount && (firstTime || completedOlderVersion)) {
     return {
       ready: true,
       shouldAutoOpen: safeNow,
       showDiscoveryCard: false,
-      reason: safeNow ? (inProgress ? 'resume' : 'new_user') : 'defer_until_safe',
+      reason: safeNow ? 'new_user' : 'defer_until_safe',
+    };
+  }
+
+  if (hasSeenOnboarding(state)) {
+    return {
+      ready: true,
+      shouldAutoOpen: false,
+      showDiscoveryCard: false,
+      reason: 'already_offered',
     };
   }
 

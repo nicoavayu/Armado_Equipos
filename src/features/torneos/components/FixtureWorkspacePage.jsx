@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   AlertTriangle,
   ArrowRight,
@@ -35,7 +35,7 @@ import {
   instantToZonedLocalInput,
   zonedLocalDateTimeToIso,
 } from '../domain/fixtureAlgorithms';
-import { getCompetitionFormatName } from '../domain/competitionCatalog';
+import { getCompetitionFormatName, getSportModalityName } from '../domain/competitionCatalog';
 import { getTransitionConsequences } from '../domain/competitionLifecycle';
 import {
   countScheduledMatches,
@@ -82,9 +82,38 @@ const GENERATION_METHOD_LABELS = Object.freeze({
 
 const statusLabel = (status, fallback = 'Sin definir') => STATUS_LABELS[status] || fallback;
 
+// The bubble opens under its "?" and is nudged sideways so it never leaves the screen (on a phone the "?" often sits
+// past the middle of a heading). Escape or a tap elsewhere closes it.
 function SectionHelp({ label = 'Ayuda sobre esta sección', children }) {
+  const detailsRef = useRef(null);
+  const place = () => {
+    const details = detailsRef.current;
+    const bubble = details?.querySelector('p');
+    if (!details?.open || !bubble) return;
+    bubble.style.setProperty('--help-shift', '0px');
+    const box = bubble.getBoundingClientRect();
+    const viewport = document.documentElement.clientWidth;
+    const gutter = 12;
+    let shift = 0;
+    if (box.right > viewport - gutter) shift = viewport - gutter - box.right;
+    if (box.left + shift < gutter) shift = gutter - box.left;
+    bubble.style.setProperty('--help-shift', `${Math.round(shift)}px`);
+  };
+  useEffect(() => {
+    const close = (event) => {
+      const details = detailsRef.current;
+      if (!details?.open) return;
+      if (event.type === 'keydown' ? event.key === 'Escape' : !details.contains(event.target)) details.open = false;
+    };
+    document.addEventListener('keydown', close);
+    document.addEventListener('pointerdown', close);
+    return () => {
+      document.removeEventListener('keydown', close);
+      document.removeEventListener('pointerdown', close);
+    };
+  }, []);
   return (
-    <details className={styles.sectionHelp}>
+    <details ref={detailsRef} className={styles.sectionHelp} onToggle={place}>
       <summary aria-label={label} title={label}>
         <CircleHelp size={17} aria-hidden="true" />
       </summary>
@@ -929,6 +958,25 @@ function ScheduleWindowForm() {
   );
 }
 
+// The schedule validation answers codes; the organizer needs the reason in words next to the form, not a count.
+const SCHEDULE_ISSUE_COPY = Object.freeze({
+  foreign_resource: 'Elegí una sede y una cancha de esta organización.',
+  archived_resource: 'La sede o la cancha están archivadas.',
+  incompatible_modality: 'La cancha no es de la modalidad del torneo.',
+  invalid_duration: 'La duración tiene que estar entre 15 y 240 minutos.',
+  self_match: 'Un equipo no puede jugar contra sí mismo.',
+  unresolved_or_invalid_sources: 'Todavía faltan definir los equipos de este partido.',
+  inactive_fixture: 'El partido no es de la versión publicada del fixture.',
+  outside_date_range: 'La fecha queda fuera de las fechas del torneo.',
+  court_overlap: 'La cancha ya tiene otro partido en ese horario.',
+  team_overlap: 'Uno de los equipos ya juega en ese horario.',
+  blocked_schedule_window: 'Ese horario está bloqueado para el torneo.',
+  outside_schedule_window: 'Ese horario queda fuera de la ventana semanal del torneo.',
+  short_rest: 'Uno de los equipos tiene poco descanso entre partidos.',
+  heavy_day_load: 'Hay muchos partidos programados ese día.',
+});
+const scheduleIssueText = (issue) => SCHEDULE_ISSUE_COPY[issue?.code] || 'Hay un conflicto con este horario.';
+
 function SchedulePanel({ canManage }) {
   const {
     versions, participants, matches, venues, courts, actions,
@@ -940,13 +988,18 @@ function SchedulePanel({ canManage }) {
   ));
   const [form, setForm] = useState({
     matchId: '', scheduledAt: '', venueId: '', courtId: '', durationMinutes: 60, reason: '',
+    overrideWarnings: false, overrideReason: '',
   });
   const [validation, setValidation] = useState(null);
   const [busy, setBusy] = useState(false);
   const selected = matches.find((match) => match.id === form.matchId);
   const availableCourts = courts.filter((court) => court.venueId === form.venueId && court.status === 'active');
   const selectedVenue = venues.find((venue) => venue.id === form.venueId);
-  const set = (key) => (event) => setForm((current) => ({ ...current, [key]: event.target.value }));
+  // A validation only describes the values it checked: any change invalidates it.
+  const set = (key) => (event) => {
+    setValidation(null);
+    setForm((current) => ({ ...current, [key]: event.target.value }));
+  };
   const scheduleIso = (() => {
     try {
       return form.scheduledAt && selectedVenue?.timezone
@@ -959,16 +1012,27 @@ function SchedulePanel({ canManage }) {
   const scheduleTimeError = Boolean(
     form.scheduledAt && selectedVenue?.timezone && !scheduleIso,
   );
+  const blockers = validation?.blockers || [];
+  const warnings = validation?.warnings || [];
+  const isReschedule = selected?.status === 'scheduled' || selected?.status === 'postponed';
   const payload = {
     ...form,
     scheduledAt: scheduleIso,
     durationMinutes: Number(form.durationMinutes),
+    overrideWarnings: warnings.length > 0 && form.overrideWarnings,
+    overrideReason: warnings.length > 0 && form.overrideWarnings
+      ? (isReschedule ? form.reason : form.overrideReason).trim()
+      : '',
   };
+  const needsWarningConfirmation = warnings.length > 0 && blockers.length === 0;
+  const warningConfirmationMissing = needsWarningConfirmation && (
+    !form.overrideWarnings || (!isReschedule && form.overrideReason.trim().length < 3)
+  );
   const submit = async (event) => {
     event.preventDefault();
     setBusy(true);
     try {
-      if (selected?.status === 'scheduled' || selected?.status === 'postponed') {
+      if (isReschedule) {
         await actions.reschedule(payload);
       } else {
         await actions.schedule(payload);
@@ -1006,13 +1070,31 @@ function SchedulePanel({ canManage }) {
         <div><span>Programación manual</span><h2>{selected?.status === 'scheduled' ? 'Reprogramar' : 'Asignar horario'}</h2></div>
         <label><span>Partido</span><select required value={form.matchId} onChange={set('matchId')}><option value="">Seleccionar</option>{candidateMatches.map((match) => <option key={match.id} value={match.id}>#{match.matchNumber} · {participantName(match.homeParticipantId)} vs {participantName(match.awayParticipantId)}</option>)}</select></label>
         <label><span>Fecha y hora</span><input required type="datetime-local" value={form.scheduledAt} onChange={set('scheduledAt')} /></label>
-        <label><span>Sede</span><select required value={form.venueId} onChange={(event) => setForm((current) => ({ ...current, venueId: event.target.value, courtId: '' }))}><option value="">Seleccionar</option>{venues.filter((venue) => venue.status === 'active').map((venue) => <option key={venue.id} value={venue.id}>{venue.name}</option>)}</select></label>
-        <label><span>Cancha</span><select required value={form.courtId} onChange={set('courtId')}><option value="">Seleccionar</option>{availableCourts.map((court) => <option key={court.id} value={court.id}>{court.name}</option>)}</select></label>
+        <label><span>Sede</span><select required value={form.venueId} onChange={(event) => { setValidation(null); setForm((current) => ({ ...current, venueId: event.target.value, courtId: '' })); }}><option value="">Seleccionar</option>{venues.filter((venue) => venue.status === 'active').map((venue) => <option key={venue.id} value={venue.id}>{venue.name}</option>)}</select></label>
+        <label><span>Cancha</span><select required value={form.courtId} onChange={set('courtId')}><option value="">Seleccionar</option>{availableCourts.map((court) => <option key={court.id} value={court.id}>{court.sportModality ? `${court.name} · ${getSportModalityName(court.sportModality)}` : court.name}</option>)}</select></label>
         <label><span>Duración</span><input required type="number" min="15" max="240" value={form.durationMinutes} onChange={set('durationMinutes')} /></label>
         {(selected?.status === 'scheduled' || selected?.status === 'postponed') && <label><span>Motivo</span><textarea required minLength={3} value={form.reason} onChange={set('reason')} /></label>}
         {scheduleTimeError && <div className={styles.validation} role="alert"><AlertTriangle size={17} /><span>Esa hora local no existe o es ambigua para la zona horaria de la sede.</span></div>}
-        {validation && <div className={styles.validation} data-valid={validation.valid}><AlertTriangle size={17} /><span>{validation.blockers?.length || 0} bloqueos · {validation.warnings?.length || 0} advertencias</span></div>}
-        {canManage && <div className={styles.formActions}><button type="button" disabled={busy || !form.matchId || !scheduleIso || !form.courtId} onClick={async () => setValidation(await actions.validateSchedule(payload))}>Validar</button><button type="submit" disabled={busy || !scheduleIso}>Guardar</button></div>}
+        {validation && (
+          <div className={styles.validation} data-valid={validation.valid} role="status">
+            {validation.valid && warnings.length === 0 ? <CheckCircle2 size={17} /> : <AlertTriangle size={17} />}
+            <div>
+              {blockers.length > 0 && <><strong>No se puede guardar todavía</strong><ul>{blockers.map((issue) => <li key={issue.code}>{scheduleIssueText(issue)}</li>)}</ul></>}
+              {warnings.length > 0 && <><strong>Advertencias</strong><ul>{warnings.map((issue) => <li key={issue.code}>{scheduleIssueText(issue)}</li>)}</ul></>}
+              {blockers.length === 0 && warnings.length === 0 && <strong>Sin conflictos. Ya podés guardar.</strong>}
+            </div>
+          </div>
+        )}
+        {canManage && needsWarningConfirmation && (
+          <label className={styles.checkLine}>
+            <input type="checkbox" checked={form.overrideWarnings} onChange={(event) => setForm((current) => ({ ...current, overrideWarnings: event.target.checked }))} />
+            <span>Programar igual, con estas advertencias</span>
+          </label>
+        )}
+        {canManage && needsWarningConfirmation && form.overrideWarnings && !isReschedule && (
+          <label><span>Motivo de la excepción</span><textarea required minLength={3} value={form.overrideReason} onChange={(event) => setForm((current) => ({ ...current, overrideReason: event.target.value }))} /></label>
+        )}
+        {canManage && <div className={styles.formActions}><button type="button" disabled={busy || !form.matchId || !scheduleIso || !form.courtId} onClick={async () => setValidation(await actions.validateSchedule(payload))}>Validar</button><button type="submit" disabled={busy || !scheduleIso || !form.courtId || blockers.length > 0 || warningConfirmationMissing}>Guardar</button></div>}
       </form>
       {/*
         * La ventana semanal es del torneo y la categoría, no de la sede: se

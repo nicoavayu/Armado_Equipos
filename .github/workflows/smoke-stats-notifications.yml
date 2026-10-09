@@ -41,8 +41,11 @@ name: Prelaunch Quality Gate
 on:
   push:
     branches: [main, prelaunch-hardening, epic/arma2-torneos]
+  # Stacked PRs whose base is another agent branch (#182 on claude/torneos-ux-integration-178-181,
+  # #189 on #182, the Premium checkout on #189, #187 on #183) get the same gate on their real head:
+  # nothing reaches main through a branch that skipped it.
   pull_request:
-    branches: [main, epic/arma2-torneos]
+    branches: [main, epic/arma2-torneos, 'claude/**']
 
 jobs:
   quality:

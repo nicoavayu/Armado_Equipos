@@ -28,7 +28,8 @@ const TAG = process.env.MP_A4_EVIDENCE_TAG ? `-${process.env.MP_A4_EVIDENCE_TAG}
 const ROUTE = '/commerce/v1/season-checkout';
 const INTERNAL_PATH = '/internal/v1/season-checkout-preference';
 const CHECKOUT_RPC = 'create_tournament_season_checkout_purchase';
-const READ_RPCS = ['get_effective_tournament_season_entitlements', 'get_tournament_purchase'];
+// COMMERCE-PRODUCTION (2026-10-07): + get_tournament_season_purchases, the read-only purchase list of the season (Mi plan).
+const READ_RPCS = ['get_effective_tournament_season_entitlements', 'get_tournament_purchase', 'get_tournament_season_purchases'];
 const STAGING_ALLOWLISTS = ['backend/torneos/phase2d/staging-v1-rpc-allowlist.json', 'backend/torneos/supabase/functions/torneos-gateway/staging-v1-rpc-allowlist.json'];
 const STAGING_ALLOWLIST_SHA = '149c7659f27aa6d61b512c44e1b0b0fa1bff700d4a0a3f9bdb4024418227b78c';
 const MIGRATION_SHA = {
@@ -136,7 +137,7 @@ test(`MP-A4 — T6 gateway commerce (${PHASE})`, async (t) => {
         assert.deepEqual(loadCommerceConfig(env, unitCtx()), { mode: 'off' }, JSON.stringify(Object.keys(env)));
       }
     });
-    await check('U T6-B config: TORNEOS_COMMERCE_MODE=test with a lab internal URL and a strong distinct secret → commerce TEST (URL = the payments mount, 32-byte key, the 2 read RPCs)', async () => {
+    await check('U T6-B config: TORNEOS_COMMERCE_MODE=test with a lab internal URL and a strong distinct secret → commerce TEST (URL = the payments mount, 32-byte key, the 3 read RPCs)', async () => {
       const c = mod().loadCommerceConfig({ ...UNIT_ENV }, unitCtx());
       assert.equal(c.mode, 'test');
       assert.equal(c.paymentsUrl, 'http://torneos-functions:9000/torneos-payments');
@@ -153,8 +154,19 @@ test(`MP-A4 — T6 gateway commerce (${PHASE})`, async (t) => {
       assert.ok(caught instanceof CommerceConfigError, `${label}: fail closed with CommerceConfigError (got ${caught ? caught.constructor.name : 'a config'})`);
       for (const value of Object.values(env)) if (typeof value === 'string' && value.length >= 8) assert.ok(!caught.message.includes(value), `${label}: the error names no value`);
     };
-    await check('U T6-B config: live / production / prod / any value other than exactly "test" → fail closed', async () => {
-      for (const v of ['live', 'production', 'prod', 'LIVE', 'Test', 'TEST', 'sandbox', 'qa', 'off', 'on', 'true', '1', 'test,live']) expectReject({ ...UNIT_ENV, TORNEOS_COMMERCE_MODE: v }, v);
+    await check('U T6-B config: live / prod / any value other than exactly "test" or "production" → fail closed; "production" with this TEST lab configuration → fail closed', async () => {
+      for (const v of ['live', 'prod', 'PRODUCTION', 'Production', 'LIVE', 'Test', 'TEST', 'sandbox', 'qa', 'off', 'on', 'true', '1', 'test,live']) expectReject({ ...UNIT_ENV, TORNEOS_COMMERCE_MODE: v }, v);
+      // COMMERCE-PRODUCTION: production is its own mode. Without its hosted configuration it defaults to hosted and refuses;
+      // in local-lab it still refuses the TEST payments mount. (The mode name itself may appear in the error: it is not a secret.)
+      for (const extra of [{}, { TORNEOS_COMMERCE_DEPLOYMENT: 'local-lab' }]) {
+        const { TORNEOS_COMMERCE_MODE: _mode, ...rest } = { ...UNIT_ENV, ...extra };
+        const env = { ...rest, TORNEOS_COMMERCE_MODE: 'production' };
+        const { loadCommerceConfig, CommerceConfigError } = mod();
+        let caught = null;
+        try { loadCommerceConfig(env, unitCtx()); } catch (error) { caught = error; }
+        assert.ok(caught instanceof CommerceConfigError, `production ${JSON.stringify(extra)}: fail closed`);
+        for (const value of Object.values(rest)) if (typeof value === 'string' && value.length >= 8) assert.ok(!caught.message.includes(value), 'the error names no value');
+      }
     });
     await check('U T6-B config: missing / blank URL or secret → fail closed', async () => {
       for (const name of ['TORNEOS_PAYMENTS_INTERNAL_URL', 'TORNEOS_PAYMENTS_INTERNAL_SECRET']) {
@@ -193,21 +205,21 @@ test(`MP-A4 — T6 gateway commerce (${PHASE})`, async (t) => {
     });
 
     // ==================================================================== U. T6-C allowlist
-    await check('U T6-C allowlist: staging-v1 copies byte-identical (sha 149c7659), 43 names; commerce file exactly the 2 reads; intersection 0; the creation RPC in neither', async () => {
+    await check('U T6-C allowlist: staging-v1 copies byte-identical (sha 149c7659), 43 names; commerce file exactly the 3 reads; intersection 0; the creation RPC in neither', async () => {
       for (const f of STAGING_ALLOWLISTS) assert.equal(sha256(await readFile(`${repo}${f}`, 'utf8')), STAGING_ALLOWLIST_SHA, f);
       assert.equal(BASE43.size, 43); assert.equal(Object.values(stagingDoc.features).flat().length, 43);
       const doc = JSON.parse(await readFile(`${GW_DIR}commerce-test-rpc-allowlist.json`, 'utf8'));
-      assert.deepEqual([...doc.rpcs].sort(), READ_RPCS); assert.equal(doc.rpcs.length, 2); assert.equal(doc.mode, 'test');
+      assert.deepEqual([...doc.rpcs].sort(), READ_RPCS); assert.equal(doc.rpcs.length, 3); assert.equal(doc.mode, 'test');
       assert.deepEqual(doc.rpcs.filter(n => BASE43.has(n)), []);
       assert.ok(!BASE43.has(CHECKOUT_RPC) && !doc.rpcs.includes(CHECKOUT_RPC));
       assert.deepEqual([...mod().validateCommerceAllowlist(doc, BASE43)].sort(), READ_RPCS);
     });
-    await check('U T6-C allowlist: OFF → exactly the 43 (the same set); TEST → 43 + 2 = 45; the creation RPC never in the generic proxy set', async () => {
+    await check('U T6-C allowlist: OFF → exactly the 43 (the same set); TEST → 43 + 3 = 46; the creation RPC never in the generic proxy set', async () => {
       const { effectiveRpcAllowlist, loadCommerceConfig } = mod();
       const off = effectiveRpcAllowlist(BASE43, { mode: 'off' });
       assert.equal(off.size, 43); assert.deepEqual([...off].sort(), [...BASE43].sort());
       const on = effectiveRpcAllowlist(BASE43, loadCommerceConfig({ ...UNIT_ENV }, unitCtx()));
-      assert.equal(on.size, 45); assert.deepEqual([...on].filter(n => !BASE43.has(n)).sort(), READ_RPCS);
+      assert.equal(on.size, 46); assert.deepEqual([...on].filter(n => !BASE43.has(n)).sort(), READ_RPCS);
       assert.ok(!on.has(CHECKOUT_RPC) && !off.has(CHECKOUT_RPC));
       assert.equal(BASE43.size, 43, 'the base set is never mutated');
     });
@@ -460,8 +472,12 @@ test(`MP-A4 — T6 gateway commerce (${PHASE})`, async (t) => {
     await check('U parity wiring: Edge index.ts and Node gateway.mjs both run the SAME commerce module (loadCommerceConfig, effectiveRpcAllowlist, seasonCheckout); only it knows the payments route and the HMAC', async () => {
       assert.match(sources.edgeIndex, /from "\.\/commerce\.ts"/);
       assert.match(sources.node, /import\(['"]\.\/functions\/torneos-gateway\/commerce\.ts['"]\)/);
-      for (const fn of ['loadCommerceConfig(', 'effectiveRpcAllowlist(', 'seasonCheckout(']) {
+      for (const fn of ['loadCommerceConfig(', 'effectiveRpcAllowlist(']) {
         assert.ok(sources.edgeIndex.includes(fn), `index.ts calls ${fn}`); assert.ok(sources.node.includes(fn), `gateway.mjs calls ${fn}`);
+      }
+      // COMMERCE-PRODUCTION: both dispatch the checkout and (production only) the purchase refresh to the same module.
+      for (const fn of ['seasonCheckout', 'purchaseRefresh']) {
+        assert.ok(sources.edgeIndex.includes(fn), `index.ts dispatches ${fn}`); assert.ok(sources.node.includes(`commerceModule.${fn}`), `gateway.mjs dispatches ${fn}`);
       }
       for (const [label, text] of [['index.ts', sources.edgeIndex], ['gateway.mjs', sources.node]]) {
         assert.ok(!/season-checkout-preference|x-signature|createHmac|TORNEOS_PAYMENTS_INTERNAL_SECRET/.test(text), `${label} carries no own payments/HMAC code`);
@@ -779,7 +795,7 @@ test(`MP-A4 — T6 gateway commerce (${PHASE})`, async (t) => {
       }
     });
 
-    await check('TEST T6-C live: commerce TEST proxy = 43 + 2 — the two reads reach the DB; the creation RPC and every other commercial RPC stay 403 "rpc not enabled"; the 43 still pass', async () => {
+    await check('TEST T6-C live: commerce TEST proxy = 43 + 3 — the three reads reach the DB; the creation RPC and every other commercial RPC stay 403 "rpc not enabled"; the 43 still pass', async () => {
       const h = happy.node;
       const r = await onBoth('proxy get_tournament_purchase', async (gw) => rpc(gw, await tok(owner, gw), 'get_tournament_purchase', { p_purchase_id: h.purchaseId }), [200, 'ok']);
       assert.equal(r.node.body.id, h.purchaseId); assert.deepEqual(r.node.body, r.edge.body);
@@ -798,7 +814,7 @@ test(`MP-A4 — T6 gateway commerce (${PHASE})`, async (t) => {
           const x = await rpc(gw, token, name, {});
           if (x.status === 403 && x.body?.error === 'rpc not enabled') refused.push(name);
         }
-        assert.deepEqual(refused, [], `${gw.name}: all 45 pass the allowlist`);
+        assert.deepEqual(refused, [], `${gw.name}: all 46 pass the allowlist`);
       }
     });
 

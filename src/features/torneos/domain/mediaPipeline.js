@@ -95,7 +95,7 @@ export const MEDIA_UPLOAD_STATE_LABELS = Object.freeze({
   ready: 'Lista para subir',
   preparing: 'Preparando',
   uploading: 'Subiendo',
-  processing: 'Procesando',
+  processing: 'Verificando',
   pending_review: 'Pendiente de aprobación',
   error: 'Con error',
   cancelled: 'Cancelada',
@@ -110,7 +110,7 @@ export const MEDIA_ASSET_STATE_LABELS = Object.freeze({
   approved: 'Aprobada',
   published: 'Publicada',
   rejected: 'Rechazada',
-  hidden: 'Oculta',
+  hidden: 'Retirada',
   revoked: 'Consentimiento revocado',
   failed: 'Con error',
 });
@@ -156,6 +156,7 @@ const CONTENT_MESSAGES = Object.freeze({
   MEDIA_ORIENTATION_NOT_NORMALIZED: 'No pudimos normalizar la orientación. Reintentá.',
   MEDIA_METADATA_PRESENT: 'No pudimos limpiar los metadatos de la foto. Reintentá.',
   MEDIA_UNKNOWN_CRITICAL_CHUNK: 'La imagen usa una función que no admitimos.',
+  MEDIA_THUMBNAIL_MISMATCH: 'No pudimos preparar la miniatura de esta foto. Reintentá.',
 });
 
 export function describeMediaPipelineError(error, code) {

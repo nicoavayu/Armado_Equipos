@@ -114,7 +114,7 @@ export function resolveMediaGalleryActions(gallery, capabilities = []) {
 
 /** Lifecycle × asset state × capability for one photo. */
 export function resolveMediaAssetActions(
-  asset, gallery, capabilities = [], { isCover = false } = {},
+  asset, gallery, capabilities = [], { isCover = false, canErase = true } = {},
 ) {
   const gate = resolveMediaGalleryActions(gallery, capabilities);
   const status = asset?.status || '';
@@ -134,7 +134,8 @@ export function resolveMediaAssetActions(
     // Restoring only leads somewhere while the gallery can still show it.
     restore: gate.canReview && status === 'hidden' && !gate.closed,
     // Erasure. No lifecycle gate: the RPC only refuses a file still moving.
-    remove: gate.canRevoke && !['uploading', 'processing'].includes(status),
+    // Only where the composition offers the trusted erasure (MEDIA-V1 retires through moderation instead).
+    remove: canErase && gate.canRevoke && !['uploading', 'processing'].includes(status),
   };
 }
 

@@ -2,6 +2,7 @@ import logger from '../utils/logger';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '../supabase';
+import { fetchPublicMatchByCode, fetchPublicMatchRoster } from '../services/db/publicMatch';
 import { useAuth } from '../components/AuthProvider';
 import { isUserMemberOfMatch, clearGuestMembership } from '../utils/membershipCheck';
 import { formatLocalDateShort } from '../utils/dateLocal';
@@ -276,7 +277,10 @@ async function fetchInviteAccessState({ userId, matchId }) {
 
   if (!extError) {
     rows = extRows || [];
-  } else if (extError.code === '42P01') {
+  } else if (extError.code === '42P01' || extError.code === '42703') {
+    // The view (42P01) or its match_id_text column (42703) may be missing on a
+    // schema rebuilt from the repository: read the base table instead of
+    // declaring a real invitation invalid.
     const orFilters = buildMatchNotificationOrFilter(matchId);
 
     let fallbackQuery = supabase
@@ -344,6 +348,23 @@ async function validateGuestInviteLink({ matchId, codigo, inviteToken }) {
   };
 }
 
+const INVITE_MATCH_FLAG_FIELDS = [
+  'player_invites_enabled',
+  'busca_arquero',
+  'falta_jugadores',
+  'tipo_partido',
+  'precio_cancha_por_persona',
+];
+
+// The flags hydratePlayerInvitesEnabled would otherwise read from `partidos`.
+function pickInviteMatchFlags(matchRow) {
+  return INVITE_MATCH_FLAG_FIELDS.reduce((flags, field) => (
+    matchRow && Object.prototype.hasOwnProperty.call(matchRow, field)
+      ? { ...flags, [field]: matchRow[field] }
+      : flags
+  ), {});
+}
+
 async function hydratePlayerInvitesEnabled(partidoData, matchId) {
   if (!partidoData) return partidoData;
 
@@ -357,15 +378,19 @@ async function hydratePlayerInvitesEnabled(partidoData, matchId) {
   const needsInviteFlag = typeof partidoData.player_invites_enabled !== 'boolean';
   const needsGoalkeeperFlag = typeof partidoData.busca_arquero !== 'boolean';
   const needsPlayersFlag = typeof partidoData.falta_jugadores !== 'boolean';
+  // The invite RPC (get_partido_by_invite) returns neither the match type nor the price:
+  // without them the invitee would decide on 'Masculino' and 'A definir' defaults.
+  const needsTipo = !partidoData.tipo_partido;
+  const needsPrecio = partidoData.precio_cancha_por_persona === undefined;
 
-  if (!needsInviteFlag && !needsGoalkeeperFlag && !needsPlayersFlag) {
+  if (!needsInviteFlag && !needsGoalkeeperFlag && !needsPlayersFlag && !needsTipo && !needsPrecio) {
     return partidoData;
   }
 
   try {
     const { data, error } = await supabase
       .from('partidos')
-      .select('player_invites_enabled, busca_arquero, falta_jugadores')
+      .select('player_invites_enabled, busca_arquero, falta_jugadores, tipo_partido, precio_cancha_por_persona')
       .eq('id', Number(matchId))
       .maybeSingle();
 
@@ -382,6 +407,10 @@ async function hydratePlayerInvitesEnabled(partidoData, matchId) {
       ...(needsInviteFlag ? { player_invites_enabled: data?.player_invites_enabled === true } : {}),
       ...(needsGoalkeeperFlag ? { busca_arquero: data?.busca_arquero === true } : {}),
       ...(needsPlayersFlag ? { falta_jugadores: data?.falta_jugadores === true } : {}),
+      ...(needsTipo && data?.tipo_partido ? { tipo_partido: data.tipo_partido } : {}),
+      ...(needsPrecio && data && data.precio_cancha_por_persona !== undefined
+        ? { precio_cancha_por_persona: data.precio_cancha_por_persona }
+        : {}),
     };
   } catch (error) {
     logger.warn('[INVITE] match flags fallback failed', error);
@@ -789,6 +818,7 @@ function SharedInviteLayout({
   submitting,
   onSumarse,
   onNavigateHome,
+  onRejectInvite,
   onNavigateBack,
   codigoValido,
   mode,
@@ -943,7 +973,9 @@ function SharedInviteLayout({
                   ) : (
                     <div className="flex flex-row gap-3 w-full">
                       <button
-                        onClick={onNavigateHome}
+                        type="button"
+                        onClick={onRejectInvite || onNavigateHome}
+                        disabled={submitting}
                         className={matchSecondaryButtonClass}
                       >
                         <span>Rechazar</span>
@@ -1003,8 +1035,8 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
   });
   const [joinSuccessModal, setJoinSuccessModal] = useState({
     isOpen: false,
-    title: 'Te has unido!',
-    message: 'Podes acceder desde Mis partidos.',
+    title: '¡Listo, ya estás en el partido!',
+    message: 'Lo vas a encontrar en Mis partidos.',
     confirmText: 'Aceptar',
     afterConfirm: null,
   });
@@ -1066,8 +1098,8 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
 
   const openJoinSuccessModal = (configOrAfterConfirm = null) => {
     const defaultConfig = {
-      title: 'Te has unido!',
-      message: 'Podes acceder desde Mis partidos.',
+      title: '¡Listo, ya estás en el partido!',
+      message: 'Lo vas a encontrar en Mis partidos.',
       confirmText: 'Aceptar',
       afterConfirm: null,
     };
@@ -1088,8 +1120,8 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
     const callback = joinSuccessModal.afterConfirm;
     setJoinSuccessModal({
       isOpen: false,
-      title: 'Te has unido!',
-      message: 'Podes acceder desde Mis partidos.',
+      title: '¡Listo, ya estás en el partido!',
+      message: 'Lo vas a encontrar en Mis partidos.',
       confirmText: 'Aceptar',
       afterConfirm: null,
     });
@@ -1183,10 +1215,8 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
       return null;
     }
 
-    const { data: jugadoresData, count } = await supabase
-      .from('jugadores')
-      .select('*', { count: 'exact' })
-      .eq('partido_id', partidoId);
+    // An account not in the match gets the roster without usuario_id/score (20261010140000).
+    const { jugadores: jugadoresData, count } = await fetchPublicMatchRoster(partidoId);
 
     const hydratedPartido = await hydratePlayerInvitesEnabled(partidoData, partidoId);
 
@@ -1341,10 +1371,8 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
 
           if (reqId !== reqIdRef.current) return;
 
-          const { data: jugadoresData, count } = await supabase
-            .from('jugadores')
-            .select('*', { count: 'exact' })
-            .eq('partido_id', partidoId);
+          // An account not in the match gets the roster without usuario_id/score (20261010140000).
+          const { jugadores: jugadoresData, count } = await fetchPublicMatchRoster(partidoId);
 
           // Check if this request is stale
           if (reqId !== reqIdRef.current) return;
@@ -1575,14 +1603,25 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
           setLoading(false);
           return;
         }
-        const partidoData = await hydratePlayerInvitesEnabled(data[0], partidoId);
+        // Without a session the code is the only read on the match (20261010125000): one
+        // call brings its flags and roster. Older backends fall back to direct reads.
+        const byCode = await fetchPublicMatchByCode({ codigo: codigoParam, partidoId });
 
         if (reqId !== reqIdRef.current) return;
 
-        const { data: jugadoresData, count } = await supabase
-          .from('jugadores')
-          .select('*', { count: 'exact' })
-          .eq('partido_id', partidoId);
+        const partidoData = await hydratePlayerInvitesEnabled(
+          byCode.partido ? { ...data[0], ...pickInviteMatchFlags(byCode.partido) } : data[0],
+          partidoId,
+        );
+
+        if (reqId !== reqIdRef.current) return;
+
+        const { data: jugadoresData, count } = byCode.partido
+          ? { data: byCode.jugadores, count: byCode.jugadores.length }
+          : await supabase
+            .from('jugadores')
+            .select('*', { count: 'exact' })
+            .eq('partido_id', partidoId);
 
         if (reqId === reqIdRef.current) {
           setPartido({ ...partidoData, jugadoresCount: count || 0 });
@@ -1780,6 +1819,20 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
       // Usuario logueado puede sumarse directamente
     }
   }, [user, partido, step]);
+
+  // "Rechazar" used to just go Home, leaving the invitation pending: Home kept offering it
+  // as the next step and the organizer never saw an answer. Mark the player's own
+  // invitation as rejected (re-invitable, like any non-pending one) before leaving.
+  const handleRejectInvite = async () => {
+    if (mode === 'invite' && user?.id && partidoId) {
+      try {
+        await markOwnMatchInviteAs({ userId: user.id, matchId: partidoId, status: 'rejected' });
+      } catch (rejectError) {
+        logger.warn('[INVITE] could not mark the invitation as rejected', rejectError);
+      }
+    }
+    navigate('/');
+  };
 
   const handleSumarse = () => {
     if (isMatchClosed(partido)) {
@@ -2530,6 +2583,7 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
           submitting={submitting || joinSubmitting}
           onSumarse={handleSumarse}
           onNavigateHome={() => navigate('/')}
+          onRejectInvite={handleRejectInvite}
           onNavigateBack={handleBack}
           codigoValido={codigoValido}
           mode={mode}

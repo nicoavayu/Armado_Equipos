@@ -20,8 +20,10 @@
 // (service HMAC, RS256 private key, database logins) live only in this function's env.
 //
 // MP-A4: commerce (commerce.ts, shared with the Node lab gateway). TORNEOS_COMMERCE_MODE unset → nothing
-// changes. "test" → POST /commerce/v1/season-checkout and the 2 commerce reads on top of the 43, in the local lab
+// changes. "test" → POST /commerce/v1/season-checkout and the commerce reads on top of the 43, in the local lab
 // or (MP-B1.1 R2, TORNEOS_COMMERCE_DEPLOYMENT=remote-test) on exactly declared https hosts, never Production;
+// "production" (COMMERCE-PRODUCTION) → the same checkout route on the production wrapper, POST
+// /commerce/v1/purchase-refresh and the production reads, against torneos-payments-production only;
 // any other value, or a faulty commerce configuration, disables the whole gateway like any config fault.
 //
 // COMPETITION-V1 (competition.ts): the generic route serves the full-competition RPCs on top of the 43
@@ -32,19 +34,31 @@
 // per-tournament dual-control policy on the generic route; accepting an organization invitation goes through the
 // Core-contract adapter (verified_email), like a team invitation.
 //
+// CONNECTED-V1 (connected.ts, connected-v1-rpc-allowlist.json): TORNEOS_CONNECTED_MODE=on adds the connected product —
+// Torneos profile and inbox, catalog management, registration requests — on the generic route and the public catalog
+// on the public read-only route; the two applicant Core contracts go through the adapter with the applicant
+// authorizer. Absent/off changes nothing; any other value or a faulty document disables the gateway.
+//
+// MEDIA-V1 (media.ts, media-v1-rpc-allowlist.json): TORNEOS_MEDIA_MODE=on adds the photo galleries — the gallery RPCs on the
+// generic route, POST /torneos/media/v1/upload (one verified photo, written and completed under a gateway-only claim)
+// and POST /torneos/media/v1/urls (300 s signed reads the caller may see). Absent/off changes nothing.
+//
 // ERROR-CONTRACT-V1 (competition.ts domainErrorStatus): a proxied 500 whose body is a legacy-SQLSTATE (55000 / 54000)
 // Torneos domain error is answered with its contract status (409 / 422 / 429), body unchanged; every other status,
 // including a genuine 500 and the 503 of a timeout, passes through as before.
 import { decodeJwt } from "npm:jose@6.2.12"
-import { issueToken, verifyToken, uuid, jwks, TTL, type TorneosClaims } from "./token.ts"
+import { issueMediaUploadToken, issueToken, verifyToken, uuid, jwks, TTL, type TorneosClaims } from "./token.ts"
 import { CoreClient, Denied, ROUTES } from "./core-client.ts"
 import { Adapter, AdapterDenied, CONTRACTS } from "./adapter.ts"
 import { connect, allocateIdentity, identityExists, isUnavailable, type Sql } from "./db.ts"
 import { loadConfig, routePath, ConfigError, type GatewayConfig } from "./config.ts"
-import { COMMERCE_ROUTE, CommerceConfigError, effectiveRpcAllowlist, loadCommerceConfig, seasonCheckout, type CommerceConfig } from "./commerce.ts"
+import { COMMERCE_ROUTE, CommerceConfigError, effectiveRpcAllowlist, loadCommerceConfig, purchaseRefresh, REFRESH_ROUTE, seasonCheckout, type CommerceConfig } from "./commerce.ts"
 import { CompetitionConfigError, domainErrorStatus, loadCompetitionContract, loadOfficializationContract, preparePublicRpc, PublicGate, PUBLIC_RPC_ROUTE, withCompetition, withOfficialization, type CompetitionContract } from "./competition.ts"
 import { withPlanRead, PlanReadConfigError } from "./plan-read.ts"
 import { withSocial, SocialConfigError } from "./social.ts"
+import { ConnectedConfigError, loadConnectedContract, prepareConnectedPublicRpc, withConnected, type ConnectedContract } from "./connected.ts"
+import { anonCredential, BRANDING_OBJECT_ROUTE, BRANDING_PUBLIC_RPCS, BrandingConfigError, brandingObject, loadBrandingContract, prepareBrandingPublicRpc, projectPublicBranding, SIGNED_AUTHENTICATED_RPCS, SIGNED_PUBLIC_RPCS, signResponseBody, withBranding, type BrandingContract } from "./branding.ts"
+import { isMediaUnavailable, loadMediaContract, MediaConfigError, MEDIA_UPLOAD_ROUTE, MEDIA_URLS_ROUTE, mediaUpload, mediaUrls, withMedia, type MediaContract } from "./media.ts"
 import allowlistDoc from "./staging-v1-rpc-allowlist.json" with { type: "json" }
 
 // Staging v1 RPC allowlist: fail closed if the document is malformed or empty.
@@ -64,6 +78,9 @@ type Runtime = {
   core: CoreClient
   commerce: CommerceConfig
   competition: CompetitionContract
+  connected: ConnectedContract
+  branding: BrandingContract
+  media: MediaContract
   publicGate: PublicGate
   rpcAllowlist: ReadonlySet<string>
 }
@@ -80,13 +97,23 @@ export function boot(env: Record<string, string | undefined>): Runtime {
   const commerce = loadCommerceConfig(env, { baseAllowlist, gatewayPublicUrl: cfg.publicUrl,
     distinctFrom: [env.TORNEOS_CONTRACT_SERVICE_SECRET, env.TORNEOS_BRIDGE_KEYS, ...cfg.bridge.keys.map((k) => k.privateKey), cfg.coreAnonKey, cfg.torneosAnonKey],
     dependencyUrls: [cfg.coreAuthUrl, cfg.coreJwtIssuer, cfg.coreContractUrl, cfg.torneosRestUrl, cfg.allowedOrigin] })
-  const rpcAllowlist = withSocial(withPlanRead(effectiveRpcAllowlist(baseAllowlist, commerce), env), env)
+  const servedAllowlist = withSocial(withPlanRead(effectiveRpcAllowlist(baseAllowlist, commerce), env), env)
+  // CONNECTED-V1: validated against everything already served on both routes (a faulty document disables the gateway).
+  const connected = loadConnectedContract(env, servedAllowlist, competition.publicRpcs)
+  const connectedAllowlist = withConnected(servedAllowlist, connected)
+  // BRANDING-V1: opt-in logos/shields (private bucket of the Torneos project, signed URLs); a fault disables the gateway.
+  const branding = loadBrandingContract(env, connectedAllowlist, cfg.torneosRestUrl, cfg.torneosAnonKey, undefined,
+    new Set([...competition.publicRpcs, ...connected.publicRpcs]))
+  const brandedAllowlist = withBranding(connectedAllowlist, branding)
+  // MEDIA-V1: opt-in photo galleries (private bucket of the Torneos project, gateway-claim writes); a fault disables the gateway.
+  const media = loadMediaContract(env, brandedAllowlist, cfg.torneosRestUrl)
+  const rpcAllowlist = withMedia(brandedAllowlist, media)
   const identity = connect(cfg.identityWriterUrl, { sslCa: cfg.dbSslCa })
   const adapterSql = connect(cfg.coreAdapterUrl, { sslCa: cfg.dbSslCa })
   const coreHeaders = cfg.coreAnonKey ? { apikey: cfg.coreAnonKey } : {}
   // The Core service secret lives only in this function's env and in Core's function env.
   const core = new CoreClient(cfg.coreContractUrl, cfg.coreContractSecret, { extraHeaders: coreHeaders })
-  return { cfg, identity, adapterSql, adapter: new Adapter(adapterSql, core), core, commerce, competition, publicGate: new PublicGate(), rpcAllowlist }
+  return { cfg, identity, adapterSql, adapter: new Adapter(adapterSql, core), core, commerce, competition, connected, branding, media, publicGate: new PublicGate(), rpcAllowlist }
 }
 
 function getRuntime(): Runtime {
@@ -97,7 +124,7 @@ function getRuntime(): Runtime {
     return runtime
   } catch (error) {
     // Configuration faults disable the gateway; the reason is logged once, without values.
-    bootError = error instanceof ConfigError || error instanceof CommerceConfigError || error instanceof CompetitionConfigError || error instanceof PlanReadConfigError || error instanceof SocialConfigError ? error.message : "boot failed"
+    bootError = error instanceof ConfigError || error instanceof CommerceConfigError || error instanceof CompetitionConfigError || error instanceof ConnectedConfigError || error instanceof BrandingConfigError || error instanceof MediaConfigError || error instanceof PlanReadConfigError || error instanceof SocialConfigError ? error.message : "boot failed"
     console.error(`[torneos-gateway] disabled: ${bootError}`)
     throw new Unavailable()
   }
@@ -188,7 +215,7 @@ async function verifiedCore(rt: Runtime, token: string): Promise<{ userId: strin
   return { userId: user.id, sessionId: p.session_id }
 }
 
-async function proxy(rt: Runtime, req: Request, url: string, token: string | undefined, raw: Uint8Array | undefined, cors: Record<string, string>): Promise<Response> {
+async function proxy(rt: Runtime, req: Request, url: string, token: string | undefined, raw: Uint8Array | undefined, cors: Record<string, string>, rpc: string | null = null): Promise<Response> {
   const headers: Record<string, string> = {}
   if (token) headers.authorization = `Bearer ${token}`
   if (rt.cfg.torneosAnonKey) headers.apikey = rt.cfg.torneosAnonKey
@@ -201,7 +228,11 @@ async function proxy(rt: Runtime, req: Request, url: string, token: string | und
     redirect: "error", signal: AbortSignal.timeout(5000) })
   const out: Record<string, string> = { "content-type": r.headers.get("content-type") ?? "application/json", ...NO_STORE, ...cors }
   if (r.headers.has("content-range")) out["content-range"] = r.headers.get("content-range")!
-  const payload = await r.arrayBuffer()
+  let payload: ArrayBuffer | Uint8Array = await r.arrayBuffer()
+  // BRANDING-V1: the branding context gets signed URLs, signed with the caller's own token (storage RLS decides).
+  if (token && rpc && r.status === 200 && rt.branding.mode === "on" && SIGNED_AUTHENTICATED_RPCS.has(rpc)) {
+    payload = await signResponseBody(new Uint8Array(payload), rt.branding, { bearer: token, apikey: rt.cfg.torneosAnonKey })
+  }
   // ERROR-CONTRACT-V1: a legacy-SQLSTATE domain error (DB without 0006) is answered with its contract status.
   return new Response(payload, { status: domainErrorStatus(r.status, payload), headers: out })
 }
@@ -239,34 +270,89 @@ export async function handle(req: Request): Promise<Response> {
       const token = await issueToken(rt.cfg.bridge, row, c.sessionId)
       return json(200, { access_token: token, token_type: "Bearer", expires_in: TTL }, cors)
     }
-    if (rt.commerce.mode === "test" && req.method === "POST" && path === COMMERCE_ROUTE) {
-      const r = await seasonCheckout({ authorization: req.headers.get("authorization"), search: url.search,
-        contentLength: req.headers.get("content-length"), body: req.body }, rt.commerce, {
-        verifyBridge: (token) => verifyToken(token, rt.cfg.bridge),
-        activeSession: (c) => activeSession(rt, c.core_user_id, c.session_id),
-        identityExists: (c) => identityExists(rt.identity, c.sub, c.core_user_id),
-        isUnavailable: (error) => error instanceof Unavailable || isUnavailable(error),
+    // MP-A4 TEST / COMMERCE-PRODUCTION: the fixed checkout route (and, in production only, the purchase refresh).
+    const commerce = rt.commerce
+    if (commerce.mode !== "off" && req.method === "POST" && (path === COMMERCE_ROUTE || (commerce.mode === "production" && path === REFRESH_ROUTE))) {
+      const request = { authorization: req.headers.get("authorization"), search: url.search, contentLength: req.headers.get("content-length"), body: req.body }
+      const hooks = {
+        verifyBridge: (token: string) => verifyToken(token, rt.cfg.bridge),
+        activeSession: (c: { core_user_id: string; session_id: string }) => activeSession(rt, c.core_user_id, c.session_id),
+        identityExists: (c: { sub: string; core_user_id: string }) => identityExists(rt.identity, c.sub, c.core_user_id),
+        isUnavailable: (error: unknown) => error instanceof Unavailable || isUnavailable(error),
         restUrl: rt.cfg.torneosRestUrl, restApiKey: rt.cfg.torneosAnonKey,
-        log: (entry) => console.log(JSON.stringify(entry)),
-      })
+        log: (entry: unknown) => console.log(JSON.stringify(entry)),
+      }
+      const r = path === COMMERCE_ROUTE ? await seasonCheckout(request, commerce, hooks) : await purchaseRefresh(request, commerce as Extract<CommerceConfig, { mode: "production" }>, hooks)
       return json(r.status, r.body, cors)
     }
     // COMPETITION-V1: the public read-only route. No bearer, no Core session, no identity: anon only.
     const publicRpc = PUBLIC_RPC_ROUTE.exec(path)
     if (publicRpc) {
       if (req.method !== "POST") return json(405, { error: "method not allowed" }, cors)
-      const decision = await preparePublicRpc({ name: publicRpc[1], authorization: req.headers.get("authorization"),
+      const publicRequest = { name: publicRpc[1], authorization: req.headers.get("authorization"),
         apikey: req.headers.get("apikey"), contentType: req.headers.get("content-type"),
-        contentLength: req.headers.get("content-length"), body: req.body }, rt.competition)
+        contentLength: req.headers.get("content-length"), body: req.body }
+      // CONNECTED-V1: its public catalog RPCs carry their own body contract; everything else is COMPETITION-V1.
+      const decision = rt.connected.publicRpcs.has(publicRpc[1])
+        ? await prepareConnectedPublicRpc(publicRequest, rt.connected)
+        : rt.branding.mode === "on" && BRANDING_PUBLIC_RPCS.has(publicRpc[1])
+          ? await prepareBrandingPublicRpc(publicRequest, rt.branding)
+          : await preparePublicRpc(publicRequest, rt.competition)
       if (!decision.ok) return json(decision.status, { error: decision.error }, cors)
       if (!rt.publicGate.tryEnter()) return json(503, { error: "public route busy" }, { ...cors, "retry-after": "1" })
       try {
         const r = await dependencyFetch(`${rt.cfg.torneosRestUrl}${decision.path}`, { method: "POST",
           headers: { "content-type": "application/json", accept: "application/json", ...(rt.cfg.torneosAnonKey ? { apikey: rt.cfg.torneosAnonKey } : {}) },
           body: decision.body, redirect: "error", signal: AbortSignal.timeout(5000) })
-        return new Response(await r.arrayBuffer(), { status: r.status, headers: { "content-type": r.headers.get("content-type") ?? "application/json", ...NO_STORE, ...cors } })
+        let payload: ArrayBuffer | Uint8Array = await r.arrayBuffer()
+        // BRANDING-V1: published branding only (anon key → storage RLS), one signature batch per response.
+        if (r.status === 200 && rt.branding.mode === "on" && SIGNED_PUBLIC_RPCS.has(publicRpc[1]) && rt.cfg.torneosAnonKey) {
+          payload = await signResponseBody(new Uint8Array(payload), rt.branding, anonCredential(rt.cfg.torneosAnonKey))
+          if (BRANDING_PUBLIC_RPCS.has(publicRpc[1])) payload = projectPublicBranding(payload)
+        }
+        return new Response(payload, { status: r.status, headers: { "content-type": r.headers.get("content-type") ?? "application/json", ...NO_STORE, ...cors } })
       } finally {
         rt.publicGate.leave()
+      }
+    }
+    // BRANDING-V1: one versioned object, stored or removed with the caller's own token (storage RLS decides).
+    const brandingPath = rt.branding.mode === "on" ? BRANDING_OBJECT_ROUTE.exec(path) : null
+    if (brandingPath && ["POST", "DELETE"].includes(req.method)) {
+      const token = bearer(req)
+      const p: TorneosClaims = await verifyToken(token, rt.cfg.bridge)
+      const [session, identity] = await Promise.allSettled([
+        activeSession(rt, p.core_user_id, p.session_id),
+        identityExists(rt.identity, p.sub, p.core_user_id),
+      ])
+      if (session.status === "rejected") throw session.reason
+      if (identity.status === "rejected") throw identity.reason
+      if (!identity.value) throw new Error("identity mismatch")
+      const result = await brandingObject({ method: req.method, path: brandingPath[1], contentType: req.headers.get("content-type"),
+        contentLength: req.headers.get("content-length"), body: req.body }, rt.branding, token, rt.cfg.torneosAnonKey)
+      return json(result.status, result.body, cors)
+    }
+    // MEDIA-V1: one verified photo in, or signed reads out — for the caller's own verified identity only.
+    if (rt.media.mode === "on" && req.method === "POST" && (path === MEDIA_UPLOAD_ROUTE || path === MEDIA_URLS_ROUTE)) {
+      const token = bearer(req)
+      const p: TorneosClaims = await verifyToken(token, rt.cfg.bridge)
+      const [session, identity] = await Promise.allSettled([
+        activeSession(rt, p.core_user_id, p.session_id),
+        identityExists(rt.identity, p.sub, p.core_user_id),
+      ])
+      if (session.status === "rejected") throw session.reason
+      if (identity.status === "rejected") throw identity.reason
+      if (!identity.value) throw new Error("identity mismatch")
+      const deps = { bearer: token, apikey: rt.cfg.torneosAnonKey, mint: (sessionId: string) => issueMediaUploadToken(rt.cfg.bridge, p, sessionId) }
+      try {
+        const result = path === MEDIA_UPLOAD_ROUTE
+          ? await mediaUpload({ search: url.search, contentType: req.headers.get("content-type"),
+            contentLength: req.headers.get("content-length"), body: req.body }, rt.media, deps)
+          : await mediaUrls({ contentType: req.headers.get("content-type"), contentLength: req.headers.get("content-length"),
+            body: req.body }, rt.media, deps)
+        return json(result.status, result.body, cors)
+      } catch (error) {
+        if (isMediaUnavailable(error)) throw new Unavailable()
+        throw error
       }
     }
     const rest = /^\/torneos\/rest\/v1\/(rpc\/([a-z0-9_]+)|[a-z0-9_]+)$/.exec(path)
@@ -303,7 +389,7 @@ export async function handle(req: Request): Promise<Response> {
           }
         }
       }
-      return await proxy(rt, req, `${rt.cfg.torneosRestUrl}${path.slice("/torneos/rest/v1".length)}${url.search}`, token, raw, cors)
+      return await proxy(rt, req, `${rt.cfg.torneosRestUrl}${path.slice("/torneos/rest/v1".length)}${url.search}`, token, raw, cors, rpc ?? null)
     }
     return json(404, { error: "not found" }, cors)
   } catch (error) {

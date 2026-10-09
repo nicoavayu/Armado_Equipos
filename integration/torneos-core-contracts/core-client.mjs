@@ -8,7 +8,11 @@
 import { createHmac, randomBytes } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 
-const SCHEMAS = JSON.parse(await readFile(new URL('./schemas.json', import.meta.url), 'utf8')).$defs;
+const SCHEMAS = {
+  ...JSON.parse(await readFile(new URL('./schemas.json', import.meta.url), 'utf8')).$defs,
+  // CONNECTED-V1 (Core contract v1.2): the gateway's own schema for `my_teams`, mounted next to schemas.json.
+  ...JSON.parse(await readFile(new URL('./my-teams.schema.json', import.meta.url), 'utf8')).$defs,
+};
 
 export class Denied extends Error {
   constructor(status = 403, code = 'FORBIDDEN') { super(code); this.status = status; this.code = code; }
@@ -24,6 +28,7 @@ function kindOf(value) {
 /** Same keyword subset as phase2a/schema_validation.py; any violation fails closed. */
 export function validate(value, schema) {
   if (typeof schema === 'string') schema = SCHEMAS[schema];
+  if (!schema) throw new Error('SCHEMA_UNKNOWN');
   if (schema.type) {
     const kinds = Array.isArray(schema.type) ? schema.type : [schema.type];
     if (!kinds.includes(kindOf(value))) throw new Error('SCHEMA_TYPE');
@@ -49,6 +54,8 @@ export const ROUTES = {
   directory_players: '/v1/directory',
   directory_teams: '/v1/directory',
   team_snapshot: '/v1/team-snapshot',
+  // CONNECTED-V1 (Core contract v1.2): the applicant's own teams and whether Core lets them register each one.
+  my_teams: '/v1/my-teams',
 };
 
 export class CoreClient {
@@ -96,7 +103,8 @@ export class CoreClient {
       if (raw.length > 262144) throw new Error('RESPONSE_TOO_LARGE');
       const result = JSON.parse(raw.toString('utf8'));
       const schema = { '/v1/verified-email': 'verifiedEmailResponse', '/v1/team-snapshot': 'teamSnapshotResponse',
-        '/v1/directory': request.kind === 'players' ? 'playersResponse' : 'teamsResponse' }[path];
+        '/v1/directory': request.kind === 'players' ? 'playersResponse' : 'teamsResponse',
+        '/v1/my-teams': 'myTeamsResponse' }[path];
       validate(result, schema);
       if (path === '/v1/team-snapshot' && result.core_team_id !== request.core_team_id) throw new Error('WRONG_TEAM');
       if (path !== '/v1/directory') {

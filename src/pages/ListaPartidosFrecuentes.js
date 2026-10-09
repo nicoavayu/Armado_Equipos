@@ -2,7 +2,9 @@ import logger from '../utils/logger';
 import React, { useState, useEffect } from 'react';
 import { friendlyError } from '../utils/friendlyError';
 import { useNavigate } from 'react-router-dom';
-import { crearPartido, supabase } from '../supabase';
+import { supabase } from '../supabase';
+import { useAuth } from '../components/AuthProvider';
+import { createMatchLinkedToTemplate, templateLinkNotice } from '../services/db/templateMatchLink';
 import PageTitle from '../components/PageTitle';
 import PageLoadingState from '../components/PageLoadingState';
 import HistoryTemplateCard from '../components/historial/HistoryTemplateCard';
@@ -27,9 +29,10 @@ function formatearSede(sede) {
    - Shows template read-only fields (lugar, hora, precio)
    - Requires date input
    - Optional editable time input
-   - Calls crearPartido and emits onUse(createdMatch)
+   - Creates the match linked to the template (read back) and emits onUse(createdMatch)
 */
 function UseTemplateModal({ isOpen, template, onCancel, onUse }) {
+  const { user } = useAuth() || {};
   const [selectedDate, setSelectedDate] = useState('');
   const [selectedTime, setSelectedTime] = useState('');
   const [creating, setCreating] = useState(false);
@@ -124,32 +127,13 @@ function UseTemplateModal({ isOpen, template, onCancel, onUse }) {
         cupo_jugadores: Number(cupo) || 10,
         falta_jugadores: false,
         tipo_partido: template.tipo_partido || 'Masculino',
-        // Link via modern column when available.
-        template_id: template.id,
+        // The insert policy requires the creator (partidos_insert_creator).
+        creado_por: user?.id || null,
       };
 
-      let partido = null;
-      try {
-        partido = await crearPartido(payload);
-      } catch (e) {
-        // Backward-compatible fallback if DB doesn't have template_id yet.
-        if (!/template_id/i.test(e?.message || '')) throw e;
-
-        const legacyPayload = { ...payload };
-        delete legacyPayload.template_id;
-        legacyPayload.from_frequent_match_id = template.id;
-
-        try {
-          partido = await crearPartido(legacyPayload);
-        } catch (legacyErr) {
-          // Some older schemas may not have from_frequent_match_id either.
-          if (!/from_frequent_match_id/i.test(legacyErr?.message || '')) throw legacyErr;
-
-          const minimalPayload = { ...payload };
-          delete minimalPayload.template_id;
-          partido = await crearPartido(minimalPayload);
-        }
-      }
+      // Created already linked to the template and read back: a link that did not stick
+      // is told to the person instead of reporting a plain success.
+      const { partido, link: templateLink } = await createMatchLinkedToTemplate(payload, template.id);
       if (!partido) throw new Error('No match returned');
 
       // Optional: prefill roster from template suggestions (best-effort)
@@ -178,12 +162,26 @@ function UseTemplateModal({ isOpen, template, onCancel, onUse }) {
         logger.warn('[USAR PLANTILLA] roster prefill failed (non-blocking)', e);
       }
 
-      showInlineNotice({
-        key: 'frecuentes_match_created',
-        type: 'success',
-        message: 'Partido creado.',
-      });
-      onUse && onUse(partido);
+      const linkNotice = templateLinkNotice(templateLink, template.nombre);
+      if (!linkNotice) {
+        showInlineNotice({
+          key: 'frecuentes_match_created',
+          type: 'success',
+          message: 'Partido creado.',
+        });
+      } else {
+        logger.error('[USAR PLANTILLA] match created without its template link', {
+          partidoId: partido.id,
+          templateId: template.id,
+          status: templateLink?.status,
+        });
+        notifyBlockingError(linkNotice.message, {
+          title: linkNotice.title,
+          confirmText: 'Entendido',
+          key: 'template_link_notice',
+        });
+      }
+      onUse && onUse({ ...partido, templateLink });
     } catch (err) {
       logger.error('[USAR PLANTILLA] error', err);
       notifyBlockingError('No se pudo crear el partido');

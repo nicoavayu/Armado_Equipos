@@ -3,7 +3,7 @@ import { Navigate, Outlet, useLocation, useOutletContext, useParams } from 'reac
 import { useTorneosCompetition } from '../context/TorneosCompetitionContext';
 import { useTorneosFixture } from '../context/TorneosFixtureContext';
 import { organizationTournaments, readCategoryId } from '../routing/canonicalRoutes';
-import { WorkspaceLoading } from './WorkspaceState';
+import { SESSION_CHECK_DETAIL, WorkspaceLoading } from './WorkspaceState';
 
 //
 // Segundo eslabón de la cadena:
@@ -33,7 +33,7 @@ export default function TournamentRouteGuard() {
   const fallback = organizationTournaments(organizationId);
 
   if (status === 'loading' || routeTournamentStatus === 'loading') {
-    return <WorkspaceLoading label="Confirmando el torneo…" />;
+    return <WorkspaceLoading label="Confirmando el torneo…" detail={SESSION_CHECK_DETAIL} />;
   }
 
   if (routeTournamentStatus === 'not-found') {
@@ -56,7 +56,7 @@ export default function TournamentRouteGuard() {
     || tournaments.find((tournament) => tournament.id === tournamentId)
     || null;
   if (!routeTournament) {
-    return <WorkspaceLoading label="Confirmando el torneo…" />;
+    return <WorkspaceLoading label="Confirmando el torneo…" detail={SESSION_CHECK_DETAIL} />;
   }
   if (routeTournament.organizationId && routeTournament.organizationId !== organizationId) {
     return (

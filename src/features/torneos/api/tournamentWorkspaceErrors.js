@@ -41,6 +41,11 @@ export const ERROR_MESSAGES = {
   TORNEOS_SEASON_MEDIA_QUOTA_EXCEEDED: 'La temporada alcanzó la cuota multimedia de su plan.',
   TORNEOS_SOCIAL_PREMIUM_REQUIRED: 'Esta placa o este estilo necesitan Premium en esta temporada.',
   TORNEOS_BRANDING_PREMIUM_REQUIRED: 'Sólo Premium permite descargar placas sin la firma Arma2.',
+  // BRANDING-V1 (hybrid): the same copy as the LOCAL branding service.
+  TORNEOS_BRANDING_FORBIDDEN: 'No tenés permiso para modificar este asset.',
+  TORNEOS_BRANDING_INVALID_REFERENCE: 'La referencia del asset no es válida.',
+  TORNEOS_BRANDING_INVALID_TYPE: 'Formato no admitido. Usá JPEG, PNG o WebP.',
+  TORNEOS_BRANDING_TOO_LARGE: 'La imagen supera los 2 MB una vez optimizada.',
   // Estudio Social (SOCIAL-V1): the database re-authorizes every export; these are its answers.
   TORNEOS_SOCIAL_EXPORT_FORBIDDEN: 'Tu rol no puede descargar ni compartir placas de esta temporada. Pedíselo a un administrador.',
   TORNEOS_SOCIAL_FORBIDDEN: 'No tenés acceso al Estudio Social de esta organización o temporada.',
@@ -205,6 +210,28 @@ export const ERROR_MESSAGES = {
   TORNEOS_PARTICIPANT_ALREADY_WITHDRAWN: 'Este equipo ya figura como retirado.',
   TORNEOS_PARTICIPANT_HAS_OPEN_OPERATIONS:
     'El equipo tiene un acta abierta. Resolvela o anulala antes de retirarlo.',
+  // CONNECTED-V1: catálogo, solicitudes de inscripción, perfil y avisos de Torneos.
+  TORNEOS_APPLICATIONS_CLOSED: 'Esta convocatoria no está recibiendo solicitudes en este momento.',
+  TORNEOS_CATEGORY_FULL: 'La categoría completó su cupo: no hay lugar para otro equipo.',
+  TORNEOS_TEAM_NOT_AUTHORIZED:
+    'Sólo quien administra el equipo en Arma2 puede inscribirlo. Compartí la convocatoria con tu responsable.',
+  TORNEOS_TEAM_NAME_TAKEN: 'Ya hay un equipo con ese nombre en la categoría.',
+  TORNEOS_APPLICATION_LIMIT_REACHED: 'Ya tenés 3 solicitudes abiertas en este torneo. Resolvé alguna antes de pedir otra.',
+  TORNEOS_APPLICATION_CONDITIONS_REQUIRED: 'Para pedir la inscripción tenés que aceptar las condiciones del torneo.',
+  TORNEOS_PROFILE_NAME_REQUIRED: 'Elegí cómo te va a ver la organización antes de pedir la inscripción.',
+  TORNEOS_PROFILE_INVALID: 'El nombre de presentación tiene que tener entre 2 y 60 caracteres.',
+  TORNEOS_CATALOG_LISTING_NOT_READY:
+    'Para publicar la convocatoria el torneo tiene que estar en inscripción, con su página pública publicada y al menos una categoría activa.',
+  TORNEOS_CATALOG_LISTING_INCOMPLETE: 'Completá el resumen y la localidad antes de publicar la convocatoria.',
+  TORNEOS_CATALOG_LISTING_INVALID: 'Revisá los datos de la convocatoria.',
+  TORNEOS_CONTACT_INVALID: 'Ingresá el WhatsApp con código de país, por ejemplo +54 9 11 2345 6789.',
+  TORNEOS_CONTACT_CONSENT_REQUIRED: 'Confirmá que el WhatsApp se va a mostrar públicamente en la convocatoria.',
+  TORNEOS_CATALOG_LISTING_REMOVED: 'Arma2 retiró esta convocatoria del catálogo y no puede volver a publicarse.',
+  TORNEOS_CAPACITY_BELOW_APPROVED: 'El cupo no puede ser menor que la cantidad de equipos ya aprobados.',
+  TORNEOS_SEARCH_QUERY_INVALID: 'Escribí al menos 2 letras del nombre de tu equipo.',
+  TORNEOS_CATALOG_INVALID_FILTER: 'Revisá los filtros de búsqueda.',
+  TORNEOS_APPLICATIONS_INVALID_FILTER: 'Ese filtro de solicitudes no existe.',
+  TORNEOS_NOTIFICATIONS_INVALID: 'No pudimos procesar esos avisos.',
 };
 
 export class TournamentWorkspaceError extends Error {

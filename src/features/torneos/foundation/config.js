@@ -83,12 +83,17 @@ export function resolveTorneosBackendMode(env = process.env) {
   return { mode: 'disabled', reason: 'TORNEOS_GATEWAY_NOT_CONFIGURED', gatewayUrl: '' };
 }
 
-// MP-A5: whether the hybrid composition may offer the Premium purchase (Mercado Pago Checkout Pro
-// TEST, local lab only). ONE variable never decides it: `REACT_APP_TORNEOS_BILLING_MODE=test` counts
-// only together with the hybrid composition, a gateway AND a Core on loopback, the app itself served
-// from loopback, a development build and no Production reference anywhere. There is no live or
-// production mode: every other value, and every missing condition, is `off`.
+// MP-A5: whether the hybrid composition may offer the Premium purchase. ONE variable never decides it.
+//   `REACT_APP_TORNEOS_BILLING_MODE=test` (Mercado Pago Checkout Pro TEST, local lab only) counts only together
+//   with the hybrid composition, a gateway AND a Core on loopback, the app itself served from loopback, a
+//   development build and no Production reference anywhere.
+//   `REACT_APP_TORNEOS_BILLING_MODE=production` (COMMERCE-PRODUCTION, real charges) counts only together with the
+//   hybrid composition, an https public gateway, a production build of the production deployment with Torneos
+//   Production enabled, PLAN READ (the price and the plan come from that read) and the app served from the
+//   production web host itself (never a preview, never the native shells, whose origin is localhost).
+// Every other value, and every missing condition, is `off`.
 const BILLING_DEPLOY_ENVIRONMENTS = new Set(['development', 'local']);
+export const PRODUCTION_BILLING_APP_HOSTS = Object.freeze(['app.arma2.com.ar']);
 
 function isLoopbackTarget(value) {
   try {
@@ -107,6 +112,7 @@ export function resolveTorneosBillingMode(env = process.env, {
   const off = (reason) => Object.freeze({ mode: 'off', reason });
   const requested = String(env.REACT_APP_TORNEOS_BILLING_MODE ?? '').trim();
   if (!requested) return off('TORNEOS_BILLING_NOT_CONFIGURED');
+  if (requested === 'production') return resolveProductionBilling(env, { backendMode, appHostname, off });
   if (requested !== 'test') return off('TORNEOS_BILLING_MODE_INVALID');
   if (backendMode?.mode !== 'hybrid' || !backendMode.gatewayUrl) return off('TORNEOS_BILLING_REQUIRES_HYBRID');
   const coreUrl = env.REACT_APP_CORE_SUPABASE_URL || env.REACT_APP_SUPABASE_URL || '';
@@ -123,6 +129,27 @@ export function resolveTorneosBillingMode(env = process.env, {
   }
   if (!LOOPBACK_HOSTS.has(String(appHostname || ''))) return off('TORNEOS_BILLING_REQUIRES_LOCAL_APP');
   return Object.freeze({ mode: 'test', reason: null });
+}
+
+function resolveProductionBilling(env, { backendMode, appHostname, off }) {
+  if (backendMode?.mode !== 'hybrid' || !backendMode.gatewayUrl) return off('TORNEOS_BILLING_REQUIRES_HYBRID');
+  let gateway;
+  try {
+    gateway = new URL(backendMode.gatewayUrl);
+  } catch {
+    return off('TORNEOS_BILLING_REQUIRES_PUBLIC_GATEWAY');
+  }
+  if (gateway.protocol !== 'https:' || LOOPBACK_HOSTS.has(gateway.hostname) || gateway.username || gateway.password) {
+    return off('TORNEOS_BILLING_REQUIRES_PUBLIC_GATEWAY');
+  }
+  if (env.NODE_ENV !== 'production'
+    || String(env.REACT_APP_DEPLOY_ENV || '').trim().toLowerCase() !== 'production'
+    || String(env.REACT_APP_TORNEOS_PRODUCTION_ENABLED || '').trim().toLowerCase() !== 'true') {
+    return off('TORNEOS_BILLING_ENVIRONMENT_NOT_ALLOWED');
+  }
+  if (env.REACT_APP_TORNEOS_PLAN_READ_MODE !== 'on') return off('TORNEOS_BILLING_REQUIRES_PLAN_READ');
+  if (!PRODUCTION_BILLING_APP_HOSTS.includes(String(appHostname || ''))) return off('TORNEOS_BILLING_REQUIRES_PRODUCTION_APP');
+  return Object.freeze({ mode: 'production', reason: null });
 }
 
 // Independent of billing. Only an explicit read opt-in in the gateway composition.
@@ -145,4 +172,37 @@ export function resolveTorneosSocialStudio(env = process.env, {
   return backendMode.mode === 'hybrid'
     && planRead === true
     && flags?.socialContentGenerator === true;
+}
+
+// CONNECTED-V1: the connected product (Torneos profile, Torneos inbox, catalog management, registration requests and
+// the public catalog). In the gateway composition it exists only with the explicit opt-in that matches the gateway's
+// TORNEOS_CONNECTED_MODE=on; the single-project LOCAL stack serves it from its own migration. Anything else: no
+// alias, no route, no request.
+// BRANDING-V1: logos and shields of the hybrid composition (upload and the organization's branding context). Hybrid
+// + the explicit opt-in that matches the gateway's TORNEOS_BRANDING_MODE=on. Displaying what the gateway signed
+// needs no flag: without the gateway mode nothing is signed and every mark shows its initials.
+export function resolveTorneosBranding(env = process.env, {
+  backendMode = resolveTorneosBackendMode(env),
+} = {}) {
+  return backendMode.mode === 'hybrid' && env.REACT_APP_TORNEOS_BRANDING_MODE === 'on';
+}
+
+// MEDIA-V1: the photo galleries of the hybrid composition (organizer's Centro Multimedia, uploads through the gateway,
+// participant galleries). Hybrid + the explicit opt-in that matches the gateway's TORNEOS_MEDIA_MODE=on + the
+// production-eligible `mediaEnabled` flag (REACT_APP_TORNEOS_MEDIA_ENABLED=true, which also opens the route). All three
+// or nothing: no alias, no route, no request.
+export function resolveTorneosMedia(env = process.env, {
+  backendMode = resolveTorneosBackendMode(env),
+  flags = null,
+} = {}) {
+  return backendMode.mode === 'hybrid'
+    && env.REACT_APP_TORNEOS_MEDIA_MODE === 'on'
+    && flags?.mediaEnabled === true;
+}
+
+export function resolveTorneosConnectedProduct(env = process.env, {
+  backendMode = resolveTorneosBackendMode(env),
+} = {}) {
+  if (backendMode.mode === 'legacy-local') return true;
+  return backendMode.mode === 'hybrid' && env.REACT_APP_TORNEOS_CONNECTED_MODE === 'on';
 }

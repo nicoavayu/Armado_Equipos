@@ -96,6 +96,7 @@ test('pure contract module', async (t) => {
       assert.equal(contractPath('/v1/team-snapshot', 'torneos-core-contract'), '/v1/team-snapshot');
       assert.equal(contractPath('/torneos-core-contract', 'torneos-core-contract'), null);
       assert.equal(contractPath('/torneos-core-contract/v1/session', 'torneos-core-contract'), '/v1/session');
+      assert.equal(contractPath('/torneos-core-contract/v1/my-teams', 'torneos-core-contract'), '/v1/my-teams');
       assert.equal(contractPath('/torneos-core-contract/v1/other', 'torneos-core-contract'), null);
       assert.equal(contractPath('/other-function/v1/directory', 'torneos-core-contract'), null);
     });
@@ -163,6 +164,20 @@ test('pure contract module', async (t) => {
         { core_user_id: USER, session_id: 'nope' },
         {}, [], null,
       ]) assert.throws(() => validateRequest('/v1/session', bad), { code: 'INVALID_REQUEST' });
+      // v1.2 (CONNECTED-V1): my-teams carries the two binding ids and a bounded limit, nothing else.
+      const myTeams = validateRequest('/v1/my-teams', { core_user_id: USER, session_id: SESSION, limit: 30 });
+      assert.equal(myTeams.operation, 'my_teams');
+      assert.deepEqual(myTeams.sqlRequest, { core_user_id: USER, session_id: SESSION, limit: 30 });
+      assert.equal(myTeams.directory, undefined);
+      for (const bad of [
+        { core_user_id: USER, session_id: SESSION },
+        { core_user_id: USER, session_id: SESSION, limit: 0 },
+        { core_user_id: USER, session_id: SESSION, limit: 31 },
+        { core_user_id: USER, session_id: SESSION, limit: 2.5 },
+        { core_user_id: USER, session_id: SESSION, limit: '30' },
+        { core_user_id: USER, session_id: SESSION, limit: 30, query: 'x' },
+        { core_user_id: USER, session_id: 'nope', limit: 30 },
+      ]) assert.throws(() => validateRequest('/v1/my-teams', bad), { code: 'INVALID_REQUEST' });
       assert.throws(() => validateRequest('/v1/nope', {}), { code: 'NOT_FOUND' });
       assert.ok(new ContractError(400, 'X') instanceof Error);
     });

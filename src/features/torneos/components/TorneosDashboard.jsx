@@ -9,6 +9,7 @@ import {
   ArrowRight,
   CalendarDays,
   CheckCircle2,
+  ChevronDown,
   Circle,
   ClipboardList,
   Gavel,
@@ -63,13 +64,16 @@ const operationalModules = [
   },
 ];
 
+// "01 feb 2026": the summary figure must fit a phone's half-width card ("01 de feb de 2026" was cut).
 function formatDate(value) {
   if (!value) return 'A definir';
-  return new Intl.DateTimeFormat('es-AR', {
+  const parts = new Intl.DateTimeFormat('es-AR', {
     day: '2-digit',
     month: 'short',
     year: 'numeric',
-  }).format(new Date(`${value}T12:00:00`));
+  }).formatToParts(new Date(`${value}T12:00:00`));
+  const part = (type) => parts.find((entry) => entry.type === type)?.value || '';
+  return `${part('day')} ${part('month').replace('.', '')} ${part('year')}`;
 }
 
 export default function TorneosDashboard() {
@@ -198,11 +202,18 @@ export default function TorneosDashboard() {
             />
             <div>
               <span className={styles.eyebrow}>Organización de competencias</span>
-              <h1>{seasons.length ? 'Creá tu primer ' : 'Empezá un '}<em>torneo</em></h1>
+              {canCreateTournament ? (
+                <h1>{seasons.length ? 'Creá tu primer ' : 'Empezá un '}<em>torneo</em></h1>
+              ) : (
+                <h1>Todavía no hay <em>torneos</em></h1>
+              )}
               <p>
-                {seasons.length
-                  ? 'La temporada ya está lista. Ahora definí una competencia y sus reglas.'
-                  : 'Primero creá una temporada; después vas a poder configurar torneos y categorías.'}
+                {/* Only people who can create are told to create: everyone else learns what to expect instead. */}
+                {canCreateTournament
+                  ? (seasons.length
+                    ? 'La temporada ya está lista. Ahora definí una competencia y sus reglas.'
+                    : 'Primero creá una temporada; después vas a poder configurar torneos y categorías.')
+                  : 'Cuando un administrador cree la temporada y su torneo, vas a poder seguirlos desde acá.'}
               </p>
             </div>
           </div>
@@ -211,12 +222,14 @@ export default function TorneosDashboard() {
         <section className={coreStyles.emptyCompetition}>
           <span><Trophy size={27} /></span>
           <div>
-            <span className={coreStyles.kicker}>Primer paso</span>
+            <span className={coreStyles.kicker}>{canCreateTournament ? 'Primer paso' : 'Sin actividad todavía'}</span>
             <h2>{seasons.length ? 'No hay un torneo activo' : 'No hay temporadas todavía'}</h2>
             <p>
-              {seasons.length
-                ? 'Creá el torneo que vas a organizar y completá sus reglas y categorías.'
-                : 'Creá una temporada para agrupar los torneos de este período.'}
+              {canCreateTournament
+                ? (seasons.length
+                  ? 'Creá el torneo que vas a organizar y completá sus reglas y categorías.'
+                  : 'Creá una temporada para agrupar los torneos de este período.')
+                : 'Tu rol puede consultar la organización, pero crear temporadas y torneos es de sus administradores.'}
             </p>
           </div>
           {canCreateTournament && (
@@ -249,6 +262,9 @@ export default function TorneosDashboard() {
   const nextStep = ownerNextStep && !fixturesEnabled && fixtureTargets.includes(ownerNextStep.to)
     ? { ...ownerNextStep, to: null, blocked: true }
     : ownerNextStep;
+  const lifecycleIsNextStep = nextStep?.action?.id === 'start';
+  // The setup checklist leads while the tournament is being prepared; once it is running it is reference material.
+  const preparing = ['draft', 'registration'].includes(activeTournament.status);
   const teams = teamsSummary.data;
   const fixtureReady = fixture.status === 'ready';
   const publishedFixture = fixtureReady
@@ -280,24 +296,36 @@ export default function TorneosDashboard() {
         </span>
       </section>
 
-      <section className={styles.lifecyclePanel} data-blocked={Boolean(nextStep?.blocked)}>
+      {/* One next step, one primary action. A lifecycle change is primary only when it is that step (starting a fully
+          scheduled competition); finishing or reopening stays available, secondary, next to the day's work. */}
+      <section
+        className={styles.lifecyclePanel}
+        data-blocked={Boolean(nextStep?.blocked)}
+        data-lifecycle-first={lifecycleIsNextStep || undefined}
+      >
         <div>
-          <span className={styles.eyebrow}>Estado actual · {stage.label}</span>
+          <span className={styles.eyebrow}>{nextStep?.eyebrow || 'Próximo paso'}</span>
           <h2>{nextStep?.title}</h2>
-          <p>{stage.description} {nextStep?.description}</p>
+          <p>{nextStep?.description}</p>
         </div>
-        {nextStep?.to && (
-          <Link className={styles.dashboardPrimaryLink} to={nextStep.to}>
-            {nextStep.label}
-            <ArrowRight size={17} />
-          </Link>
-        )}
-        {features.lifecycle_actions !== false && (
-          <CompetitionLifecycleActions
-            organization={organization}
-            tournament={activeTournament}
-          />
-        )}
+        <div className={styles.lifecycleCtas}>
+          {nextStep?.to && (
+            <Link
+              className={lifecycleIsNextStep ? styles.dashboardSecondaryLink : styles.dashboardPrimaryLink}
+              to={nextStep.to}
+            >
+              {nextStep.label}
+              <ArrowRight size={17} />
+            </Link>
+          )}
+          {features.lifecycle_actions !== false && (
+            <CompetitionLifecycleActions
+              organization={organization}
+              tournament={activeTournament}
+              emphasis={lifecycleIsNextStep ? 'primary' : 'secondary'}
+            />
+          )}
+        </div>
       </section>
 
       <section className={styles.summaryGrid} aria-label="Resumen del torneo">
@@ -340,13 +368,14 @@ export default function TorneosDashboard() {
       </section>
 
       <section className={styles.dashboardGrid}>
-        <article className={styles.panel}>
-          <div className={styles.panelHeading}>
+        <details className={`${styles.panel} ${styles.checklistPanel}`} open={preparing || undefined}>
+          <summary className={styles.panelHeading}>
             <div>
-              <span className={styles.eyebrow}>Checklist real</span>
+              <span className={styles.eyebrow}>Configuración · {completeCount} de {CHECKLIST_ITEMS.length}</span>
               <h2>Preparación competitiva</h2>
             </div>
-          </div>
+            <ChevronDown className={styles.detailsChevron} size={18} aria-hidden="true" />
+          </summary>
           <ul className={styles.dashboardChecklist}>
             {CHECKLIST_ITEMS.map((item) => (
               <li key={item.key} data-complete={Boolean(checks[item.key])}>
@@ -361,10 +390,10 @@ export default function TorneosDashboard() {
             className={styles.dashboardPrimaryLink}
             to={canonicalRoutes.tournamentConfiguration(organization.id, activeTournament.id)}
           >
-            {canUpdateTournament ? 'Continuar configuración' : 'Consultar configuración'}
+            {canUpdateTournament && preparing ? 'Continuar configuración' : 'Consultar configuración'}
             <ArrowRight size={17} />
           </Link>
-        </article>
+        </details>
 
         <article className={`${styles.panel} ${styles.securityPanel}`}>
           <Shield size={24} aria-hidden="true" />
@@ -422,12 +451,14 @@ export default function TorneosDashboard() {
         </article>
         <article className={`${styles.panel} ${styles.securityPanel}`}>
           <CalendarDays size={24} aria-hidden="true" />
-          <span className={styles.eyebrow}>Operación previa</span>
+          <span className={styles.eyebrow}>Programación</span>
           <h2>{fixtureReady
             ? `${fixture.matches.filter((match) => !hasScheduledTime(match)).length} sin horario`
             : 'Programación no disponible'}</h2>
           <p>{fixtureReady
-            ? 'Asigná horarios y canchas antes de iniciar la competencia.'
+            ? (['active', 'completed'].includes(activeTournament.status)
+              ? 'Asigná horario y cancha a los partidos pendientes para que equipos y jugadores sepan cuándo juegan.'
+              : 'Asigná horarios y canchas antes de iniciar la competencia.')
             : 'Primero necesitamos cargar el fixture para indicar qué partidos requieren programación.'}</p>
           <Link className={styles.dashboardPrimaryLink} to={routes.schedule}>
             Programar partidos

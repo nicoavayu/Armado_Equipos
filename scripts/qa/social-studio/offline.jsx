@@ -19,6 +19,8 @@ const social = args.get('social') !== 'off';
 const role = args.get('role') || 'owner';
 const teamSize = Number(args.get('teamSize') || 5);
 const standingsRows = Number(args.get('rows') || 8);
+// `items=N` keeps only N entries in every other list: the sparse pieces of a league that just started.
+const listSize = args.get('items') ? Number(args.get('items')) : null;
 const org = { id: '10000000-0000-4000-8000-000000000001', name: 'Liga Devoto', slug: 'liga-devoto', role, capabilities: ['organization.read', 'workspace.access', 'workspace.manage'] };
 const season = { id: '20000000-0000-4000-8000-000000000001', name: 'Temporada 2026' };
 const tournament = { id: '30000000-0000-4000-8000-000000000001', seasonId: season.id, organizationId: org.id, name: 'Copa Horizonte 2026' };
@@ -72,7 +74,7 @@ const service = {
         control.failSnapshot = control.failSnapshot.filter((entry) => entry !== piece);
         throw new Error('No pudimos preparar esta pieza con datos oficiales.');
       }
-      return socialQaSnapshot(piece, { organizationId: org.id, tournamentId: tournament.id, ...ids, teamSize, standingsRows });
+      return socialQaSnapshot(piece, { organizationId: org.id, tournamentId: tournament.id, ...ids, teamSize, standingsRows, listSize });
     },
     // The rules of 00000000000008, in the same order: access, then NULL/unknown inputs, then the plan.
     authorizeSocialExport: async ({ organizationId, tournamentId, piece, theme, includeArma2Branding }) => {

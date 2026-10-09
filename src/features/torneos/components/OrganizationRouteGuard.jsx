@@ -5,7 +5,7 @@ import { TorneosCompetitionProvider } from '../context/TorneosCompetitionContext
 import { TorneosFixtureProvider } from '../context/TorneosFixtureContext';
 import { useTorneosWorkspace } from '../context/TorneosWorkspaceContext';
 import PlanContextHeader from './PlanContextHeader';
-import { WorkspaceError, WorkspaceLoading } from './WorkspaceState';
+import { SESSION_CHECK_DETAIL, WorkspaceError, WorkspaceLoading } from './WorkspaceState';
 
 export default function OrganizationRouteGuard() {
   const { organizationId } = useParams();
@@ -97,13 +97,13 @@ export default function OrganizationRouteGuard() {
     status,
   ]);
 
-  if (status === 'validating' || status === 'idle') return <WorkspaceLoading />;
+  if (status === 'validating' || status === 'idle') return <WorkspaceLoading detail={SESSION_CHECK_DETAIL} />;
   if (status === 'error') {
-    return <WorkspaceError message={error} onRetry={() => refresh().catch(() => {})} />;
+    return <WorkspaceError title="No pudimos abrir Torneos" message={error} onRetry={() => refresh().catch(() => {})} />;
   }
   if (!organization && !relationalOrganization && relationalTeamEntryId
     && activationState !== 'forbidden') {
-    return <WorkspaceLoading label="Confirmando acceso al equipo…" />;
+    return <WorkspaceLoading label="Confirmando acceso al equipo…" detail={SESSION_CHECK_DETAIL} />;
   }
   if ((!organization && !relationalOrganization) || activationState === 'forbidden') {
     return (
@@ -118,7 +118,7 @@ export default function OrganizationRouteGuard() {
     );
   }
   if (activationState !== 'ready') {
-    return <WorkspaceLoading label="Confirmando acceso a la organización…" />;
+    return <WorkspaceLoading label="Confirmando acceso a la organización…" detail={SESSION_CHECK_DETAIL} />;
   }
 
   if (relationalOrganization) {

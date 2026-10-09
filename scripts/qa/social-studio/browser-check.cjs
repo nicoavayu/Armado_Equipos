@@ -159,8 +159,19 @@ async function close({ context, errors, remote }, label) {
   const fontErrors = errors.filter((e) => !/fonts\.(gstatic|googleapis)/.test(e));
   if (fontErrors.length || remote.length) throw new Error(`${label}: ${JSON.stringify({ errors: fontErrors, remote })}`);
 }
-const pieces = (page) => page.getByRole('radiogroup', { name: 'Plantilla' });
-const pieceRadio = (page, label) => pieces(page).getByRole('radio', { name: new RegExp(`^${label}`) });
+// The piece is a native select ("Placa"): its option reads "<label>" or, for a piece FREE only previews, "<label> · Premium".
+const pieces = (page) => page.getByRole('combobox', { name: 'Placa' });
+const pieceOptionText = (page, label) => pieces(page).evaluate((select, wanted) => (
+  [...select.options].map((option) => option.textContent).find((text) => text === wanted || text.startsWith(`${wanted} ·`)) || null
+), label);
+async function choosePiece(page, label) {
+  const value = await pieces(page).evaluate((select, wanted) => (
+    [...select.options].find((option) => option.textContent === wanted || option.textContent.startsWith(`${wanted} ·`))?.value
+  ), label);
+  if (!value) throw new Error(`no piece "${label}" in the Placa select`);
+  await pieces(page).selectOption(value);
+}
+const veil = (page) => page.locator('[data-premium-preview-lock="true"]');
 const styleRadio = (page, label) => page.getByRole('radiogroup', { name: 'Estilo' }).getByRole('radio', { name: new RegExp(`^${label}`) });
 const preview = (page) => page.getByRole('img', { name: /^Vista previa de / });
 
@@ -200,7 +211,7 @@ async function configure(page, { id, label, style, format, teamSize = 5 }) {
   const expected = `Vista previa de ${label} en ${format}, estilo ${style}`;
   const before = await settled(page);
   await markRender(page);
-  await pieceRadio(page, label).click();
+  await choosePiece(page, label);
   const curationChanged = await selectCuration(page, id, id === 'best_eleven' ? teamSize : 1);
   await styleRadio(page, style).click();
   await page.getByRole('radiogroup', { name: 'Formato' }).getByRole('radio', { name: format }).click();
@@ -275,6 +286,9 @@ function inspectInPage(node) {
   if (!points.length && !problems.length) problems.push('never on screen');
   for (const [x, y] of points) {
     const hit = document.elementFromPoint(x, y);
+    // A Premium preview a FREE season cannot use is covered on purpose, by its own veil (assertVeiled checks it).
+    const ownVeil = hit?.closest?.('[data-premium-preview-lock]');
+    if (ownVeil && ownVeil.parentElement.contains(node)) continue;
     if (hit && hit !== node && !node.contains(hit)) { problems.push(`covered by ${describe(hit)}`); break; }
   }
   return { problems, box: { x: Math.round(r.left), y: Math.round(r.top), w: Math.round(r.width), h: Math.round(r.height) } };
@@ -288,6 +302,49 @@ async function assertOnScreen(page, label, name, locator, { min = 1 } = {}) {
   }
   return count;
 }
+// A FREE season looking at a Premium piece or style: the art is a teaser, never a clean image. The veil covers the whole
+// art, it is what the pointer reaches at every point of it (so "save image" never reaches the canvas), it refuses the
+// context menu, its PREMIUM badge is on screen, and nothing on the page offers the file.
+async function assertVeiled(page, label) {
+  const state = await veil(page).evaluate((node) => {
+    node.scrollIntoView({ block: 'center' });
+    const host = node.parentElement.querySelector('[role="img"][aria-label^="Vista previa"]');
+    const v = node.getBoundingClientRect(); const a = host?.getBoundingClientRect();
+    const points = a ? [[0.5, 0.5], [0.1, 0.1], [0.9, 0.1], [0.1, 0.9], [0.9, 0.9]].map(([fx, fy]) => {
+      const hit = document.elementFromPoint(a.left + a.width * fx, a.top + a.height * fy);
+      return Boolean(hit && node.contains(hit));
+    }) : [];
+    const menu = new MouseEvent('contextmenu', { bubbles: true, cancelable: true });
+    node.dispatchEvent(menu);
+    const badge = node.querySelector('strong')?.textContent || '';
+    return {
+      art: Boolean(host), covers: a ? (v.left <= a.left + 1 && v.top <= a.top + 1 && v.right >= a.right - 1 && v.bottom >= a.bottom - 1) : false,
+      topmost: points.every(Boolean), menuBlocked: menu.defaultPrevented, badge,
+    };
+  });
+  if (!state.art || !state.covers || !state.topmost || !state.menuBlocked || state.badge !== 'PREMIUM') {
+    throw new Error(`${label}: the Premium preview is not veiled ${JSON.stringify(state)}`);
+  }
+  await expect(page.getByRole('button', { name: /^Descargar/ })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Compartir' })).toHaveCount(0);
+  return state;
+}
+
+// Sparse pieces (a table of two, one sanctioned player, two semifinals) start right under their title instead of
+// floating in the middle of the canvas. Measured on the composition at export size (1080 px wide).
+async function measureSparseStart(page) {
+  return page.locator('div[data-premium-renderer="v2"]').evaluate((root) => {
+    const box = root.getBoundingClientRect(); const k = 1080 / box.width; const height = root.offsetHeight;
+    const leaves = [...root.querySelectorAll('*')].filter((el) => !el.children.length && el.textContent.trim() && el.getBoundingClientRect().height > 0);
+    const title = leaves.reduce((best, el) => (Number.parseFloat(getComputedStyle(el).fontSize) > Number.parseFloat(getComputedStyle(best).fontSize) ? el : best));
+    const list = root.querySelector('[data-premium-row]') || root.querySelector('[data-premium-sparse-list]')?.firstElementChild;
+    if (!list) return { found: false };
+    const titleBottom = (title.getBoundingClientRect().bottom - box.top) * k;
+    const entryTop = (list.getBoundingClientRect().top - box.top) * k;
+    return { found: true, height, title: title.textContent.trim(), titleBottom: Math.round(titleBottom), entryTop: Math.round(entryTop) };
+  });
+}
+
 // Nothing inside the Studio may stick out of the screen, named or not (a control nobody listed included).
 async function assertNothingOffScreen(page, label) {
   const offenders = await page.evaluate(() => {
@@ -349,6 +406,7 @@ async function assertWholeArt(page, label, [, , width, height]) {
       for (const [id, label] of PIECES.filter(([pid]) => FREE_PIECES.includes(pid))) {
         for (const [format, slug, width, height] of FORMATS) {
           await configure(page, { id, label, style: 'Base', format });
+          await expect(veil(page)).toHaveCount(0);
           const shown = await previewCanvasPng(page);
           const [file] = await download(page, `FREE ${id} ${slug}`);
           assertCleanPng(file.buffer, width, height, file.name);
@@ -362,7 +420,7 @@ async function assertWholeArt(page, label, [, , width, height]) {
       // preview and in the 1080×1920 file.
       await configure(page, { id: 'standings', label: 'Tabla de posiciones', style: 'Base', format: 'Historia 9:16' });
       await markRender(page);
-      await pieceRadio(page, 'Resultados de la fecha').click();
+      await choosePiece(page, 'Resultados de la fecha');
       await previewReady(page, { piece: 'Resultados de la fecha', style: 'Base', format: 'Historia 9:16' });
       await markRender(page);
       await page.getByRole('button', { name: 'Actualizar datos oficiales' }).click();
@@ -375,20 +433,23 @@ async function assertWholeArt(page, label, [, , width, height]) {
       if (!kept.name.endsWith('-resultados-de-la-fecha-base-historia-9x16.png') || !keptShown.equals(kept.buffer)) throw new Error(`FREE Resultados keeps 9:16: ${kept.name}`);
       check('FREE: Resultados keeps the chosen format (switch and refresh)', { sha: sha(kept.buffer) });
       for (const [id, label] of PIECES.filter(([pid]) => !FREE_PIECES.includes(pid))) {
-        await pieceRadio(page, label).click();
-        await expect(pieceRadio(page, label)).toContainText('Premium');
+        await choosePiece(page, label);
+        if ((await pieceOptionText(page, label)) !== `${label} · Premium`) throw new Error(`FREE: ${label} is not marked Premium in the Placa select`);
         await expect(page.getByRole('button', { name: /Descargar/ })).toHaveCount(0);
+        await expect(page.getByRole('button', { name: 'Compartir' })).toHaveCount(0);
         await expect(page.getByRole('note').filter({ hasText: `${label} es Premium` })).toBeVisible();
         check('FREE premium piece locked', { piece: id });
       }
-      await pieceRadio(page, 'Tabla de posiciones').click();
+      await choosePiece(page, 'Tabla de posiciones');
       for (const style of STYLES.slice(1)) {
         await styleRadio(page, style).click();
         await previewReady(page, { piece: 'Tabla de posiciones', style, format: 'Historia 9:16' });
         await expect(page.locator(`div[data-premium-renderer="v2"][data-theme="${style.toLowerCase()}"]`)).toHaveCount(1);
         await expect(page.getByRole('button', { name: /Descargar/ })).toHaveCount(0);
+        await expect(page.getByRole('button', { name: 'Compartir' })).toHaveCount(0);
         await expect(page.getByText(`El estilo ${style} es Premium`)).toBeVisible();
         await expect(page.getByRole('dialog')).toHaveCount(0);
+        await assertVeiled(page, `FREE ${style} 9:16`);
         check('FREE premium style previewed and locked', { style });
       }
       const social = await page.evaluate(() => window.__social);
@@ -475,7 +536,7 @@ async function assertWholeArt(page, label, [, , width, height]) {
       const tableShown = await previewCanvasPng(page);
       await control({ snapshotDelayMs: 1500 });
       await markRender(page);
-      await pieceRadio(page, 'Resultados de la fecha').click();
+      await choosePiece(page, 'Resultados de la fecha');
       await assertNothingExportable('FREE → FREE');
       await previewReady(page, { piece: 'Resultados de la fecha', style: 'Base', format: 'Feed 4:5' });
       const results = await exportShown('transitions FREE → FREE', { piece: 'round_results', slug: '-resultados-de-la-fecha-base-feed-4x5' });
@@ -488,7 +549,7 @@ async function assertWholeArt(page, label, [, , width, height]) {
       const scorersShown = await previewCanvasPng(page);
       await control({ snapshotDelayMs: 1500 });
       await markRender(page);
-      await pieceRadio(page, 'Próxima fecha').click();
+      await choosePiece(page, 'Próxima fecha');
       await assertNothingExportable('Premium locked → FREE');
       await previewReady(page, { piece: 'Próxima fecha', style: 'Base', format: 'Feed 4:5' });
       const next = await exportShown('transitions Premium → FREE', { piece: 'next_fixture', slug: '-proxima-fecha-base-feed-4x5' });
@@ -500,7 +561,7 @@ async function assertWholeArt(page, label, [, , width, height]) {
       const lateFile = page.waitForEvent('download', { timeout: 5000 }).catch(() => null);
       await page.getByRole('button', { name: /^Descargar/ }).click();
       await markRender(page);
-      await pieceRadio(page, 'Tabla de posiciones').click();
+      await choosePiece(page, 'Tabla de posiciones');
       await expect(page.getByRole('alert')).toContainText('La vista previa cambió mientras preparábamos el archivo', { timeout: 10000 });
       if (await lateFile) throw new Error('transitions: a file was delivered after the selection changed during its authorization');
       await control({ authorizeDelayMs: 0 });
@@ -510,7 +571,7 @@ async function assertWholeArt(page, label, [, , width, height]) {
 
       // Failures leave a clear, recoverable state.
       await control({ failSnapshot: ['next_fixture'] });
-      await pieceRadio(page, 'Próxima fecha').click();
+      await choosePiece(page, 'Próxima fecha');
       await expect(page.getByText('No pudimos preparar esta pieza con datos oficiales.')).toBeVisible({ timeout: 10000 });
       await assertNothingExportable('snapshot failure');
       await markRender(page);
@@ -693,6 +754,33 @@ async function assertWholeArt(page, label, [, , width, height]) {
       await close(s, `Editorial ${rows}`);
     }
 
+    // ── Sparse content: few entries start under the title, in every Premium style and both formats ─────────────
+    if (want('sparse')) {
+      for (const [query, id, label] of [
+        ['rows=2', 'standings', 'Tabla de posiciones'],
+        ['items=1', 'discipline', 'Sancionados'],
+        ['items=2', 'semifinals', 'Semifinales'],
+        ['items=2', 'round_results', 'Resultados de la fecha'],
+      ]) {
+        const s = await open(browser, base, `plan=premium&${query}`);
+        const { page } = s;
+        for (const style of STYLES.slice(1)) {
+          for (const [format] of FORMATS) {
+            await configure(page, { id, label, style, format });
+            const m = await measureSparseStart(page);
+            const where = `sparse ${id} ${query} ${style} ${format}`;
+            if (!m.found) throw new Error(`${where}: list not found`);
+            // Below the title (never over it), close to it, and in the upper half of the canvas.
+            if (m.entryTop < m.titleBottom - 2 || m.entryTop - m.titleBottom > m.height * 0.2 || m.entryTop > m.height * 0.5) {
+              throw new Error(`${where}: the content does not start under the title ${JSON.stringify(m)}`);
+            }
+            check('sparse content starts under the title', { piece: id, query, style: style.toLowerCase(), format, ...m });
+          }
+        }
+        await close(s, `sparse ${id}`);
+      }
+    }
+
     // ── Responsive: every functional part of the Studio on screen at phone, tablet and desktop widths ───────────
     // Phones run twice: with classic 15 px scrollbars (the narrowest layout, 305 px at 320) and as a touch phone.
     const devices = (width) => (width <= 390 ? [['scrollbar', {}], ['phone', { isMobile: true, hasTouch: true, deviceScaleFactor: 2 }]] : [['desktop', {}]]);
@@ -711,7 +799,8 @@ async function assertWholeArt(page, label, [, , width, height]) {
               await assertNothingOffScreen(page, where);
               await assertOnScreen(page, where, 'preview', preview(page));
               const art = await assertWholeArt(page, where, fmt);
-              await assertOnScreen(page, where, 'piece selector', pieces(page).getByRole('radio'), { min: PIECES.length });
+              await assertOnScreen(page, where, 'piece selector', pieces(page));
+              if ((await pieces(page).locator('option').count()) !== PIECES.length) throw new Error(`${where}: the Placa select does not list the ${PIECES.length} pieces`);
               await assertOnScreen(page, where, 'format selector', page.getByRole('radiogroup', { name: 'Formato' }).getByRole('radio'), { min: FORMATS.length });
               await assertOnScreen(page, where, 'style selector', page.getByRole('radiogroup', { name: 'Estilo' }).getByRole('radio'), { min: STYLES.length });
               await assertOnScreen(page, where, 'refresh', page.getByRole('button', { name: 'Actualizar datos oficiales' }));
@@ -748,6 +837,7 @@ async function assertWholeArt(page, label, [, , width, height]) {
                 files.forEach((file) => evidence.exports.push({ plan: plan.toUpperCase(), piece: 'standings', style: style.toLowerCase(), format: slug, viewport: `${width} ${deviceName}`, file: file.name, sha: sha(file.buffer), previewIdentical: Boolean(shown) }));
               } else {
                 await expect(downloadButton).toHaveCount(0);
+                await assertVeiled(page, where);
                 const lock = page.getByRole('note').filter({ hasText: `El estilo ${style} es Premium` });
                 await assertOnScreen(page, where, 'Premium lock', lock);
                 await assertOnScreen(page, where, 'Ver Premium', lock.getByRole('button', { name: 'Ver Premium' }));
@@ -760,7 +850,7 @@ async function assertWholeArt(page, label, [, , width, height]) {
           const figura = `${at} Figura`;
           if (plan === 'free') {
             await styleRadio(page, 'Base').click();
-            await pieceRadio(page, 'Figura').click();
+            await choosePiece(page, 'Figura');
             const lock = page.getByRole('note').filter({ hasText: 'Figura es Premium' });
             await assertOnScreen(page, figura, 'Premium lock', lock);
             await assertOnScreen(page, figura, 'Ver Premium', lock.getByRole('button', { name: 'Ver Premium' }));

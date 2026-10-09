@@ -1,0 +1,62 @@
+{
+  "phase": "BRANDING-V1",
+  "mode": "TORNEOS_BRANDING_MODE=on (gateway) + REACT_APP_TORNEOS_BRANDING_MODE=on (frontend build)",
+  "migration": "backend/torneos/supabase/migrations/00000000000010_branding_v1.sql",
+  "rollback": "backend/torneos/branding-v1/rollback/00000000000010_branding_v1.rollback.sql",
+  "bucket": {
+    "id": "tournament-branding",
+    "public": false,
+    "file_size_limit": 2097152,
+    "allowed_mime_types": [
+      "image/jpeg",
+      "image/png",
+      "image/webp"
+    ]
+  },
+  "storage_policies": [
+    "tournament_branding_delete_authorized",
+    "tournament_branding_insert_authorized",
+    "tournament_branding_select_authorized",
+    "tournament_branding_select_public",
+    "tournament_branding_update_denied"
+  ],
+  "functions_added": [
+    "public.is_public_tournament_branding_object(text)",
+    "public.can_read_tournament_branding_object(text)"
+  ],
+  "functions_reused": [
+    "public.can_write_tournament_branding_object(text)",
+    "public.is_tournament_branding_path(text,text)",
+    "public.set_tournament_branding_reference(uuid,text,uuid,text)",
+    "public.get_tournament_branding_context(uuid,uuid)",
+    "public.get_public_tournament_branding(text)"
+  ],
+  "rpcs": [
+    "set_tournament_branding_reference",
+    "get_tournament_branding_context"
+  ],
+  "public_rpcs": [
+    "get_public_tournament_branding"
+  ],
+  "signed_public_rpcs": [
+    "search_tournament_catalog",
+    "get_tournament_catalog_entry",
+    "get_public_tournament_page",
+    "get_public_tournament_branding"
+  ],
+  "signed_authenticated_rpcs": [
+    "get_tournament_branding_context",
+    "get_team_registration_context",
+    "get_tournament_teams_context",
+    "get_tournament_participant_hub"
+  ],
+  "object_route": "POST|DELETE /torneos/branding/v1/object/<organization>/<organizations|tournaments|teams>/<entity>/<uuid>.<jpg|png|webp>",
+  "signed_url_ttl_seconds": 3600,
+  "not_enabled": [
+    "player portraits",
+    "team photos",
+    "media pipeline",
+    "team visual policy",
+    "Social Studio logos"
+  ]
+}

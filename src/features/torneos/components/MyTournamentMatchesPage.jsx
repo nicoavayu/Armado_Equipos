@@ -8,6 +8,7 @@ import React, {
 import {
   CalendarDays,
   Check,
+  ChevronDown,
   CircleHelp,
   Clock3,
   MapPin,
@@ -82,8 +83,15 @@ function PlayerMatchCard({
   busy,
   onRespond,
   detailed = false,
+  headingLevel = 2,
 }) {
   const date = formatMatchDate(match.scheduledAt);
+  // A rescheduled match says the time it had before, so nobody keeps the old date in mind.
+  const previous = match.previousScheduledAt && match.previousScheduledAt !== match.scheduledAt
+    ? formatMatchDate(match.previousScheduledAt)
+    : null;
+  // Under a "Por jugar" / "Jugados" group the match is a level-3 heading; alone (its own page) it is level 2.
+  const Heading = headingLevel === 3 ? 'h3' : 'h2';
   return (
     <article className={`${styles.playerMatchCard} ${detailed ? styles.playerMatchCardDetailed : ''}`}>
       <div className={styles.matchRail}>
@@ -95,10 +103,17 @@ function PlayerMatchCard({
         <div className={styles.playerMatchHeading}>
           <div>
             <small>{match.teamName}</small>
-            <h2>vs. {match.opponentName}</h2>
+            <Heading>vs. {match.opponentName}</Heading>
           </div>
           <span className={styles.teamSide}>{match.isHome ? 'LOCAL' : 'VISITANTE'}</span>
         </div>
+        {previous && (
+          <p className={styles.rescheduledNote}>
+            {match.status === 'postponed'
+              ? <><strong>Postergado</strong> · estaba para el {previous.day}, {previous.time}</>
+              : <><strong>Reprogramado</strong> · antes era el {previous.day}, {previous.time}</>}
+          </p>
+        )}
         <dl className={styles.matchFacts}>
           <div><MapPin size={16} /><dt>Sede</dt><dd>{match.venue || 'A confirmar'}</dd></div>
           <div><Swords size={16} /><dt>Cancha</dt><dd>{match.court || 'A confirmar'}</dd></div>
@@ -199,6 +214,32 @@ export default function MyTournamentMatchesPage() {
       : state.matches),
     [matchId, state.matches],
   );
+  // What is still to be played comes first, soonest first (no date yet: last); what was played (it has its
+  // official result) is history, most recent first, folded under the upcoming list.
+  const { upcoming, played } = useMemo(() => {
+    const time = (match) => (match.scheduledAt ? new Date(match.scheduledAt).getTime() : Number.POSITIVE_INFINITY);
+    const upcomingMatches = visibleMatches.filter((match) => !match.officialScore)
+      .sort((a, b) => time(a) - time(b));
+    const playedMatches = visibleMatches.filter((match) => match.officialScore)
+      .sort((a, b) => {
+        const left = Number.isFinite(time(a)) ? time(a) : 0;
+        const right = Number.isFinite(time(b)) ? time(b) : 0;
+        return right - left;
+      });
+    return { upcoming: upcomingMatches, played: playedMatches };
+  }, [visibleMatches]);
+  // One person can be linked to both sides of a match (manager of two teams): the side is part of the identity.
+  const cardKey = (match, index) => `${match.matchId}:${match.teamName || ''}:${match.isHome ? 'home' : 'away'}:${index}`;
+  const renderCard = (match, index) => (
+    <PlayerMatchCard
+      key={cardKey(match, index)}
+      match={match}
+      detailed={Boolean(matchId)}
+      headingLevel={matchId ? 2 : 3}
+      busy={busyMatchId === match.matchId}
+      onRespond={(response) => respond(match, response)}
+    />
+  );
 
   const respond = async (match, response) => {
     if (busyMatchId) return;
@@ -248,18 +289,35 @@ export default function MyTournamentMatchesPage() {
           </p>
           {matchId && <Link to="/torneos/mis-partidos">Volver a Mis partidos</Link>}
         </section>
+      ) : matchId ? (
+        <div className={styles.playerMatches}>{visibleMatches.map(renderCard)}</div>
       ) : (
-        <div className={styles.playerMatches}>
-          {visibleMatches.map((match) => (
-            <PlayerMatchCard
-              key={match.matchId}
-              match={match}
-              detailed={Boolean(matchId)}
-              busy={busyMatchId === match.matchId}
-              onRespond={(response) => respond(match, response)}
-            />
-          ))}
-        </div>
+        <>
+          <section className={styles.playerMatchGroup} aria-labelledby="upcoming-matches-title">
+            <h2 id="upcoming-matches-title" className={styles.playerMatchGroupTitle}>
+              Por jugar <span>{upcoming.length}</span>
+            </h2>
+            {upcoming.length ? (
+              <div className={styles.playerMatches}>{upcoming.map(renderCard)}</div>
+            ) : (
+              <p className={styles.playerMatchGroupEmpty}>
+                No te quedan partidos por jugar. Los que ya se jugaron están abajo, con su resultado oficial.
+              </p>
+            )}
+          </section>
+          {played.length > 0 && (
+            <details className={styles.playedMatches}>
+              <summary>
+                <span>
+                  <strong>Jugados</strong>
+                  <small>{played.length === 1 ? '1 partido con resultado oficial' : `${played.length} partidos con resultado oficial`}</small>
+                </span>
+                <ChevronDown size={18} aria-hidden="true" />
+              </summary>
+              <div className={styles.playerMatches}>{played.map(renderCard)}</div>
+            </details>
+          )}
+        </>
       )}
     </div>
   );

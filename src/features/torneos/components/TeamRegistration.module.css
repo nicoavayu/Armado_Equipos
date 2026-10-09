@@ -9,6 +9,9 @@
 
 .page {
   display: grid;
+  /* One shrinkable track: an implicit auto track grows to its longest unbreakable child and pushes the page
+     past a phone screen. */
+  grid-template-columns: minmax(0, 1fr);
   gap: 22px;
 }
 
@@ -522,6 +525,7 @@
 .formPage,
 .detailPage {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 18px;
 }
 
@@ -1159,6 +1163,7 @@
 
 .invitationPage {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   min-height: calc(100vh - 110px);
   place-items: center;
   padding: 24px;
@@ -1230,6 +1235,14 @@
   .entryActions {
     grid-column: 2;
     grid-row: 1 / span 2;
+  }
+}
+
+/* A player row needs ~540px; beside the 250px requirements panel the roster column is narrower than that until the
+   viewport is wide enough, so the panel goes below the roster instead of covering the rows' status and actions. */
+@media (max-width: 1180px) {
+  .rosterLayout {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
@@ -1510,6 +1523,21 @@
 }
 
 /* OFFICIALIZATION-V1 (smoke): por qué todavía no se puede presentar el plantel. */
+.submitMissing {
+  display: grid;
+  gap: 6px;
+  margin: 10px 0 0;
+  padding: 10px 12px;
+  color: rgba(255, 255, 255, 0.86);
+  background: rgba(255, 196, 107, 0.08);
+  border: 1px solid rgba(255, 196, 107, 0.26);
+  border-radius: 12px;
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+.submitMissing ul { margin: 0; padding-left: 18px; color: #ffc46b; }
+.submitMissing p { margin: 0; color: rgba(255, 255, 255, 0.72); }
+
 .submitHint {
   margin: 8px 0 0;
   color: rgba(255, 255, 255, 0.62);

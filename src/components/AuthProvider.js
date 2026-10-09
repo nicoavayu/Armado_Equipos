@@ -1,12 +1,12 @@
 import logger from '../utils/logger';
-import React, { useState, useEffect, createContext, useContext, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useContext, useCallback, useRef } from 'react';
 import { supabase, getProfile, createOrUpdateProfile } from '../supabase';
 import AppLoadingScreen from './AppLoadingScreen';
 import { clearAuthFlowIfSessionSettled } from '../services/auth/socialAuth';
 import { clearSentryUser, setSentryUser } from '../utils/monitoring/sentry';
 import { withTimeout } from '../utils/promiseTimeout';
 
-const AuthContext = createContext();
+import { AuthContext } from './AuthContext';
 let authProviderInstanceCounter = 0;
 
 const LOCAL_EDIT_MODE = process.env.NODE_ENV === 'development' && process.env.REACT_APP_LOCAL_EDIT_MODE !== 'false';
@@ -73,6 +73,27 @@ function getSentryUserContext(currentUser) {
   };
 }
 
+const stableJson = (value) => {
+  try {
+    return JSON.stringify(value ?? null);
+  } catch {
+    return null;
+  }
+};
+
+// supabase-js emits SIGNED_IN / TOKEN_REFRESHED with a freshly parsed user object every time
+// the app returns to the foreground. Same account + same server snapshot = same identity, so
+// consumers keyed on `user` do not re-run their effects (and refetch) on every focus.
+function isSameUserSnapshot(previous, next) {
+  if (!previous || !next) return false;
+  return previous.id === next.id
+    && previous.email === next.email
+    && previous.updated_at === next.updated_at
+    && previous.email_confirmed_at === next.email_confirmed_at
+    && stableJson(previous.user_metadata) === stableJson(next.user_metadata)
+    && stableJson(previous.app_metadata) === stableJson(next.app_metadata);
+}
+
 function loadLocalDevProfile() {
   if (typeof window === 'undefined') return createLocalDevProfile();
   try {
@@ -102,12 +123,18 @@ export const useAuth = () => {
   }
   return context;
 };
+export { useOptionalAuth } from './AuthContext';
 
 const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const instanceIdRef = useRef(authProviderInstanceCounter += 1);
+  // Session isolation: the account the provider currently represents, the latest profile
+  // request (older responses are dropped) and which account the loaded profile belongs to.
+  const activeUserIdRef = useRef(null);
+  const profileRequestRef = useRef(0);
+  const profileStateRef = useRef({ userId: null, loading: false });
   const authResolved = !loading;
   const shouldShowBlockingSpinner = loading && process.env.NODE_ENV === 'production';
   const shouldPassThroughWhileLoading = loading && process.env.NODE_ENV !== 'production';
@@ -115,6 +142,9 @@ const AuthProvider = ({ children }) => {
   const activateLocalDevSession = useCallback(() => {
     const devUser = createLocalDevUser();
     const devProfile = loadLocalDevProfile();
+    activeUserIdRef.current = devUser.id;
+    profileRequestRef.current += 1;
+    profileStateRef.current = { userId: devUser.id, loading: false };
     setUser(devUser);
     setProfile(devProfile);
     return devUser;
@@ -131,10 +161,24 @@ const AuthProvider = ({ children }) => {
       return;
     }
 
+    const requestId = profileRequestRef.current + 1;
+    profileRequestRef.current = requestId;
+    profileStateRef.current = { userId: currentUser.id, loading: true };
+    // A response is applied only while it is still the latest request for the account the
+    // provider represents: a slow answer for a previous account (or after sign-out) is dropped.
+    const isCurrent = () => profileRequestRef.current === requestId
+      && activeUserIdRef.current === currentUser.id;
+    const applyProfile = (nextProfile) => {
+      if (!isCurrent()) return;
+      profileStateRef.current = { userId: nextProfile ? currentUser.id : null, loading: false };
+      setProfile(nextProfile);
+    };
+
     try {
       let profileData;
       try {
         profileData = await getProfile(currentUser.id);
+        if (!isCurrent()) return;
 
         const metadataAvatar = (currentUser.user_metadata?.avatar_url || currentUser.user_metadata?.picture || '').trim();
         if (metadataAvatar && !profileData?.avatar_url) {
@@ -167,21 +211,51 @@ const AuthProvider = ({ children }) => {
         // For any other error (SQL, missing column 42703, network, etc.) log and stop.
         logger.error('Error fetching profile from getProfile:', error);
         const code = error?.code || error?.status || null;
+        if (!isCurrent()) return;
         if (code === 'PGRST116' || code === 116) {
           profileData = await createOrUpdateProfile(currentUser);
         } else {
           // Unexpected error: do NOT try to create a profile or continue — stop to avoid loops/rate limits.
           logger.error('Unexpected error fetching profile, aborting profile creation to avoid loops:', error);
-          setProfile(null);
+          applyProfile(null);
           return;
         }
       }
 
-      setProfile(profileData);
+      applyProfile(profileData);
     } catch (error) {
       logger.error('Error with profile:', error);
+      applyProfile(null);
+    }
+  };
+
+  // Applies a session's user. A different account replaces identity and hides the previous
+  // profile at once; the same account keeps its identity unless the server snapshot changed,
+  // and only refetches the profile on USER_UPDATED or when none is loaded or loading for it.
+  const applySessionUser = (nextUser, event) => {
+    const sameAccount = activeUserIdRef.current === nextUser.id;
+    activeUserIdRef.current = nextUser.id;
+    setUser((previous) => (isSameUserSnapshot(previous, nextUser) ? previous : nextUser));
+    if (!sameAccount) {
+      profileRequestRef.current += 1;
+      profileStateRef.current = { userId: null, loading: false };
       setProfile(null);
     }
+    const profileState = profileStateRef.current;
+    const profileCoversUser = profileState.userId === nextUser.id;
+    if (!sameAccount || event === 'USER_UPDATED' || !profileCoversUser) {
+      Promise.resolve(fetchProfile(nextUser)).catch((profileError) => {
+        logger.error('[AUTH] Error fetching profile:', profileError);
+      });
+    }
+  };
+
+  const clearSessionUser = () => {
+    activeUserIdRef.current = null;
+    profileRequestRef.current += 1;
+    profileStateRef.current = { userId: null, loading: false };
+    setUser(null);
+    setProfile(null);
   };
 
   const refreshProfile = async () => {
@@ -206,6 +280,9 @@ const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     let mounted = true;
+    // Once the auth listener has delivered a state it is authoritative: a slower initial
+    // getSession() must not re-apply an older account over it.
+    let listenerHasSpoken = false;
     const instanceId = instanceIdRef.current;
 
     const init = async () => {
@@ -224,25 +301,23 @@ const AuthProvider = ({ children }) => {
         sessionUserId = session?.user?.id || null;
 
         if (!mounted) return;
+        if (listenerHasSpoken) {
+          setLoading(false);
+          return;
+        }
 
         if (session?.user) {
           clearAuthFlowIfSessionSettled();
-          setUser(session.user);
+          applySessionUser(session.user, 'INITIAL_SESSION');
           setLoading(false);
-          Promise.resolve(fetchProfile(session.user)).catch((profileError) => {
-            logger.error('[AUTH] Error fetching profile during init:', profileError);
-          });
         } else if (LOCAL_EDIT_MODE) {
           let activated = false;
           try {
             const { data, error } = await supabase.auth.signInAnonymously();
             if (!mounted) return;
             if (!error && data?.user) {
-              setUser(data.user);
+              applySessionUser(data.user, 'SIGNED_IN');
               setLoading(false);
-              Promise.resolve(fetchProfile(data.user)).catch((profileError) => {
-                logger.error('[AUTH] Error fetching anonymous profile:', profileError);
-              });
               activated = true;
             } else if (error) {
               logger.warn('[AUTH] Anonymous sign-in unavailable:', error.message);
@@ -256,19 +331,19 @@ const AuthProvider = ({ children }) => {
             setLoading(false);
           }
         } else {
-          setUser(null);
-          setProfile(null);
+          clearSessionUser();
           setLoading(false);
         }
       } catch (error) {
         logger.error('[AUTH] Error getting initial session:', error);
         if (!mounted) return;
-        if (LOCAL_EDIT_MODE) {
+        if (listenerHasSpoken) {
+          setLoading(false);
+        } else if (LOCAL_EDIT_MODE) {
           activateLocalDevSession();
           setLoading(false);
         } else {
-          setUser(null);
-          setProfile(null);
+          clearSessionUser();
           setLoading(false);
         }
       }
@@ -279,19 +354,16 @@ const AuthProvider = ({ children }) => {
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (!mounted) return;
+      listenerHasSpoken = true;
       if (session?.user) {
         clearAuthFlowIfSessionSettled();
-        setUser(session.user);
+        applySessionUser(session.user, event);
         setLoading(false);
-        Promise.resolve(fetchProfile(session.user)).catch((profileError) => {
-          logger.error('[AUTH] Error fetching profile on auth change:', profileError);
-        });
       } else if (LOCAL_EDIT_MODE) {
         activateLocalDevSession();
         setLoading(false);
       } else {
-        setUser(null);
-        setProfile(null);
+        clearSessionUser();
         setLoading(false);
       }
     });

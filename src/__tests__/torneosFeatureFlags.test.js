@@ -373,7 +373,7 @@ describe('Arma2 Torneos production enablement', () => {
     expect(flags.publicPages).toBe(false);
   });
 
-  test('keeps media closed in production even when every variable says true; the social generator is eligible (SOCIAL-V1)', () => {
+  test('keeps the legacy media upload closed in production even when every variable says true; the gallery flag and the social generator are eligible (MEDIA-V1, SOCIAL-V1)', () => {
     const flags = resolveTorneosFeatureFlags(productionEnv({
       REACT_APP_TORNEOS_PRODUCTION_ENABLED: 'true',
       REACT_APP_TORNEOS_WORKSPACE_SWITCHER_ENABLED: 'true',
@@ -399,7 +399,10 @@ describe('Arma2 Torneos production enablement', () => {
     expect(flags.officialStats).toBe(true);
     expect(flags.publicPages).toBe(true);
 
-    expect(flags.mediaEnabled).toBe(false);
+    // MEDIA-V1: eligible, but never alone — the hybrid composition also needs REACT_APP_TORNEOS_MEDIA_MODE=on and the
+    // gateway TORNEOS_MEDIA_MODE=on (foundation/config.js resolveTorneosMedia, scripts/torneos-frontend/media-adapter.test.mjs).
+    expect(flags.mediaEnabled).toBe(true);
+    // The legacy Core-project upload path (signer/worker *_READY variables) never opens in Production.
     expect(flags.mediaUploadEnabled).toBe(false);
     expect(flags.mediaOperationalReady).toBe(false);
     // Eligible, but never alone: the Studio also needs the hybrid composition and the plan read

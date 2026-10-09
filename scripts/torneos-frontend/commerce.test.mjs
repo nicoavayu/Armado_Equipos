@@ -58,10 +58,13 @@ test('MP-A5 F1 — the staging-v1 map keeps entitlements, plan and billing OFF; 
   assert.ok(Object.isFrozen(stagingV1BillingTestOverlay));
   same(stagingV1FeaturesFor('off'), stagingV1Features);
   same(stagingV1FeaturesFor({ mode: 'off' }), stagingV1Features);
-  for (const bogus of [undefined, null, '', 'live', 'production', 'TEST', { mode: 'live' }, { mode: 'production' }]) {
+  for (const bogus of [undefined, null, '', 'live', 'prod', 'TEST', 'Production', { mode: 'live' }, { mode: 'sandbox' }]) {
     same(stagingV1FeaturesFor(bogus), stagingV1Features);
   }
   const overlaid = stagingV1FeaturesFor({ mode: 'test' });
+  // COMMERCE-PRODUCTION: a mode resolved to production gets exactly the same purchase overlay.
+  same(stagingV1FeaturesFor({ mode: 'production' }), overlaid);
+  same(stagingV1FeaturesFor('production'), overlaid);
   assert.ok(Object.isFrozen(overlaid));
   same(overlaid, { ...stagingV1Features, entitlements: true, plan: true, billing: true });
   // The legacy redirects of Plan stay off in hybrid, overlay or not.
@@ -93,7 +96,7 @@ test('MP-A5 F2 — billing mode matrix: only test + hybrid + loopback gateway/Co
   off({ ...LAB_ENV, REACT_APP_TORNEOS_BILLING_MODE: undefined });
   off({ ...LAB_ENV, REACT_APP_TORNEOS_BILLING_MODE: '' });
   off({ ...LAB_ENV, REACT_APP_TORNEOS_BILLING_MODE: '   ' });
-  // there is no live / production / anything-else mode
+  // there is no live / anything-else mode (production has its own matrix below and never applies to the lab)
   for (const mode of ['live', 'production', 'prod', 'TEST', 'Test', 'true', '1', 'test ', 'sandbox']) {
     if (mode === 'test ') continue; // trimmed, see below
     off({ ...LAB_ENV, REACT_APP_TORNEOS_BILLING_MODE: mode });
@@ -124,6 +127,41 @@ test('MP-A5 F2 — billing mode matrix: only test + hybrid + loopback gateway/Co
   assert.equal(billing({ ...LAB_ENV, REACT_APP_TORNEOS_BILLING_MODE: ' test ' }).mode, 'test');
 });
 
+// ---------------------------------------------------------------- COMMERCE-PRODUCTION: the production billing gate
+const PRODUCTION_ENV = Object.freeze({
+  NODE_ENV: 'production',
+  REACT_APP_DEPLOY_ENV: 'production',
+  REACT_APP_SUPABASE_URL: 'https://core.example.test',
+  REACT_APP_SUPABASE_ANON_KEY: 'public-placeholder',
+  REACT_APP_TORNEOS_GATEWAY_URL: 'https://gateway.example.test/functions/v1/torneos-gateway',
+  REACT_APP_TORNEOS_PRODUCTION_ENABLED: 'true',
+  REACT_APP_TORNEOS_PLAN_READ_MODE: 'on',
+  REACT_APP_TORNEOS_BILLING_MODE: 'production',
+});
+
+test('COMMERCE-PRODUCTION F5 — production billing: only the production web app, a production build, an https gateway and PLAN READ', () => {
+  assert.equal(billing(PRODUCTION_ENV, 'app.arma2.com.ar').mode, 'production');
+  const off = (env, host = 'app.arma2.com.ar') => {
+    const result = billing(env, host);
+    assert.equal(result.mode, 'off', `${JSON.stringify(env)} @ ${host}`);
+    return result.reason;
+  };
+  // never on another host: previews, the native shells (localhost / capacitor), loopback, unknown
+  for (const host of ['arma2-git-main.vercel.app', 'localhost', '127.0.0.1', 'www.arma2.com.ar', '', null]) off(PRODUCTION_ENV, host);
+  // never without the production build / deployment / Torneos Production switch
+  off({ ...PRODUCTION_ENV, NODE_ENV: 'development' });
+  off({ ...PRODUCTION_ENV, REACT_APP_DEPLOY_ENV: 'preview' });
+  off({ ...PRODUCTION_ENV, REACT_APP_TORNEOS_PRODUCTION_ENABLED: 'false' });
+  // never without PLAN READ (price and plan come from that read)
+  assert.equal(off({ ...PRODUCTION_ENV, REACT_APP_TORNEOS_PLAN_READ_MODE: undefined }), 'TORNEOS_BILLING_REQUIRES_PLAN_READ');
+  // never with a loopback, plain-http or credentialed gateway, never outside the hybrid composition
+  off({ ...PRODUCTION_ENV, REACT_APP_TORNEOS_GATEWAY_URL: 'http://gateway.example.test/torneos-gateway' });
+  off({ ...PRODUCTION_ENV, REACT_APP_TORNEOS_GATEWAY_URL: 'https://localhost:58423' });
+  off({ ...PRODUCTION_ENV, REACT_APP_TORNEOS_GATEWAY_URL: '' });
+  // the TEST mode never applies to the production build
+  off({ ...PRODUCTION_ENV, REACT_APP_TORNEOS_BILLING_MODE: 'test' });
+});
+
 test('MP-A5 F3 — Production can never carry billing: env files, Vercel config and the prebuild', async () => {
   const tracked = execFileSync('git', ['ls-files'], { cwd: root, encoding: 'utf8' }).trim().split('\n');
   const productionFiles = tracked.filter((f) => /(^|\/)\.env\.production/.test(f) || /(^|\/)vercel\.json$/.test(f));
@@ -141,6 +179,12 @@ test('MP-A5 F3 — Production can never carry billing: env files, Vercel config 
   for (const mode of ['test', 'live', 'production']) {
     assert.match(String(validateTorneosBillingMode({ REACT_APP_TORNEOS_BILLING_MODE: mode })), /REACT_APP_TORNEOS_BILLING_MODE/);
   }
+  // COMMERCE-PRODUCTION: the one value a build may carry, only for the production deployment with PLAN READ and https.
+  assert.equal(validateTorneosBillingMode(PRODUCTION_ENV), null);
+  assert.match(String(validateTorneosBillingMode({ ...PRODUCTION_ENV, REACT_APP_DEPLOY_ENV: 'preview' })), /production deployment/);
+  assert.match(String(validateTorneosBillingMode({ ...PRODUCTION_ENV, REACT_APP_TORNEOS_PLAN_READ_MODE: '' })), /PLAN_READ_MODE/);
+  assert.match(String(validateTorneosBillingMode({ ...PRODUCTION_ENV, REACT_APP_TORNEOS_GATEWAY_URL: 'http://gateway.example.test' })), /https/);
+  assert.match(String(validateTorneosBillingMode({ ...PRODUCTION_ENV, REACT_APP_TORNEOS_BILLING_MODE: 'test' })), /lab-only/);
 });
 
 test('MP-A5 F4 — no Mercado Pago secret or payments configuration is readable by the frontend', () => {
@@ -156,15 +200,19 @@ test('MP-A5 F4 — no Mercado Pago secret or payments configuration is readable 
 });
 
 // ---------------------------------------------------------------- commerce scope ↔ MP-A4 gateway contract
-test('MP-A5 S1 — the frontend commerce scope is exactly the MP-A4 gateway contract: 2 reads + the fixed checkout path', () => {
+test('MP-A5 S1 — the frontend commerce scope is exactly the gateway contract: 3 reads + the fixed checkout path (+ the production refresh)', () => {
   const rt = runtime();
   const scope = rt.load(prefix + 'stagingV1CommerceScope.js');
   const allowlist = JSON.parse(read('backend/torneos/supabase/functions/torneos-gateway/commerce-test-rpc-allowlist.json'));
   const gateway = read('backend/torneos/supabase/functions/torneos-gateway/commerce.ts');
   same([...scope.STAGING_V1_COMMERCE_READS].sort(), [...allowlist.rpcs].sort());
-  assert.equal(scope.STAGING_V1_COMMERCE_READS.length, 2);
+  assert.equal(scope.STAGING_V1_COMMERCE_READS.length, 3);
   assert.equal(scope.SEASON_CHECKOUT_PATH, CHECKOUT_PATH);
   assert.equal(gateway.match(/export const COMMERCE_ROUTE = "([^"]+)"/)[1], scope.SEASON_CHECKOUT_PATH);
+  // COMMERCE-PRODUCTION: the production read allowlist is the same three reads; the refresh route is the gateway's.
+  same([...JSON.parse(read('backend/torneos/supabase/functions/torneos-gateway/commerce-production-rpc-allowlist.json')).rpcs].sort(), [...scope.STAGING_V1_COMMERCE_READS].sort());
+  assert.equal(gateway.match(/export const REFRESH_ROUTE = "([^"]+)"/)[1], scope.PURCHASE_REFRESH_PATH);
+  same([...scope.COMMERCE_PATHS], [scope.SEASON_CHECKOUT_PATH, scope.PURCHASE_REFRESH_PATH]);
   same([...scope.STAGING_V1_COMMERCE_READS].sort(), JSON.parse(gateway.match(/EXPECTED_COMMERCE_RPCS: readonly string\[\] = Object\.freeze\((\[[^\]]+\])\)/)[1]).sort());
   assert.ok(Object.isFrozen(scope.STAGING_V1_COMMERCE_READS));
   for (const name of scope.STAGING_V1_COMMERCE_READS) assert.equal(scope.isStagingV1CommerceRead(name), true);
@@ -280,8 +328,12 @@ test('MP-A5 T2 — commerce() refuses any other path, method-less or non-object 
     await assert.rejects(h.transport.commerce(CHECKOUT_PATH, BODY, { timeoutMs }), { code: 'TORNEOS_INVALID_REQUEST' });
   }
   assert.equal(h.calls.length, 0);
-  // No generic commerce channel: the transport exposes exactly rpc/select/commerce + lifecycle.
-  same(Object.keys(h.transport).sort(), ['clear', 'commerce', 'dispose', 'rpc', 'select', 'status'].sort());
+  // No generic commerce channel: the transport exposes exactly rpc/select/commerce + lifecycle, and BRANDING-V1's
+  // one-object route (its own path, validated by the client scope; never a commerce path), and MEDIA-V1's two fixed
+  // routes (upload, signed reads: constants of mediaV1Scope.js, no caller-supplied path at all).
+  same(Object.keys(h.transport).sort(), ['brandingObject', 'clear', 'commerce', 'dispose', 'mediaUpload', 'mediaUrls', 'rpc', 'select', 'status'].sort());
+  await assert.rejects(h.transport.brandingObject('POST', CHECKOUT_PATH, undefined), { code: 'TORNEOS_INVALID_REQUEST' });
+  assert.equal(h.calls.length, 0);
 });
 
 test('MP-A5 T3 — per-call timeout: the checkout uses its own deadline, not the RPC default', async () => {

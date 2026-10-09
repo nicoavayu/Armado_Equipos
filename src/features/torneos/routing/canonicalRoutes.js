@@ -198,6 +198,13 @@ export const organizationTeamEntryVisualIdentity = (organizationId, teamEntryId)
 export const organizationTeamEntryRoster = (organizationId, teamEntryId) => (
   `${organizationTeamEntry(organizationId, teamEntryId)}/plantel`
 );
+// CONNECTED-V1: a team representative's own space for their entry (no organization navigation around it).
+export const participantTeamEntry = (organizationId, teamEntryId) => (
+  `/torneos/mis-equipos/${requireId(organizationId, 'organizationId')}/${requireId(teamEntryId, 'teamEntryId')}`
+);
+export const participantTeamEntryRoster = (organizationId, teamEntryId) => (
+  `${participantTeamEntry(organizationId, teamEntryId)}/plantel`
+);
 export const organizationTeamEntryReview = (organizationId, teamEntryId) => (
   `${organizationTeamEntry(organizationId, teamEntryId)}/revision`
 );
@@ -206,6 +213,9 @@ export const organizationTeamEntryReview = (organizationId, teamEntryId) => (
 
 export const tournamentRoot = tournamentRoute('');
 export const tournamentTeams = tournamentRoute('/equipos');
+// CONNECTED-V1: the call for teams (page + catalog + requests) and the organizer's request inbox.
+export const tournamentCatalogListing = tournamentRoute('/convocatoria');
+export const tournamentApplications = tournamentRoute('/solicitudes');
 export const tournamentTeamNew = tournamentRoute('/equipos/nuevo');
 export const tournamentConfiguration = tournamentRoute('/configuracion');
 export const tournamentPlan = tournamentRoute('/plan');
@@ -291,6 +301,10 @@ export const canonicalRoutes = Object.freeze({
   organizationTeamEntryVisualIdentity,
   organizationTeamEntryRoster,
   organizationTeamEntryReview,
+  participantTeamEntry,
+  participantTeamEntryRoster,
+  tournamentCatalogListing,
+  tournamentApplications,
   tournamentRoot,
   tournamentTeams,
   tournamentTeamNew,

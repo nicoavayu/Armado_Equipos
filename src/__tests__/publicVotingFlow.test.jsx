@@ -76,6 +76,27 @@ describe('public guest voting flow', () => {
     });
   });
 
+  test('con el plantel sin usuario_id (20261010140000), "¿Quién sos?" lista solo a los invitados por has_account', async () => {
+    const closedRoster = [
+      { id: 7, uuid: 'guest-ana', nombre: 'Ana', avatar_url: null, has_account: false, is_me: false },
+      { id: 8, uuid: 'guest-beto', nombre: 'Beto', avatar_url: null, has_account: false, is_me: false },
+      { id: 9, uuid: 'reg-martin', nombre: 'Martín', avatar_url: null, has_account: true, is_me: false },
+    ];
+    render(
+      <VotingView
+        jugadores={closedRoster}
+        partidoActual={{ id: 321, codigo: 'H03G61', jugadores: closedRoster }}
+        onReset={jest.fn()}
+        onCancel={jest.fn()}
+      />,
+    );
+
+    expect(await screen.findByText('¿QUIÉN SOS?')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Ana' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Beto' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Martín' })).not.toBeInTheDocument();
+  });
+
   test('un visitante sin cuenta completa un voto válido y ve la confirmación', async () => {
     renderPublicVoting();
 

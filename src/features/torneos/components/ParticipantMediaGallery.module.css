@@ -234,7 +234,25 @@
   place-items: center;
   min-height: 340px;
   background: #07060a;
+  /* Horizontal swipes belong to the viewer; vertical drags still scroll a tall lightbox. */
+  touch-action: pan-y pinch-zoom;
+  user-select: none;
 }
+.lightboxStage[data-loading="true"] > img { opacity: 0; }
+.lightboxStage > img { transition: opacity .18s ease; }
+.stageSpinner {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 34px;
+  height: 34px;
+  border: 3px solid rgba(255,255,255,.16);
+  border-top-color: #63eed0;
+  border-radius: 50%;
+  animation: stageSpin .8s linear infinite;
+}
+@keyframes stageSpin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .stageSpinner { animation-duration: 2.4s; } }
 .lightboxStage > img, .lightboxStage > .protectedFrame {
   display: grid;
   place-items: center;

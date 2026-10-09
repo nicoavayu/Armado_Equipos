@@ -1,5 +1,6 @@
 import logger from './logger';
 import { supabase } from '../supabase';
+import { PARTIDO_COLUMNS } from '../services/db/matchAccessCode';
 
 /**
  * Debug utility to check why matches don't appear in upcoming matches
@@ -53,10 +54,7 @@ window.debugProximosPartidos = async () => {
   logger.log('\n--- Test 4: Full match data ---');
   const { data: partidosData, error: partidosError } = await supabase
     .from('partidos')
-    .select(`
-      *,
-      jugadores(count)
-    `)
+    .select(`${PARTIDO_COLUMNS}, jugadores(count)`)
     .in('id', todosLosPartidosIds)
     .order('fecha', { ascending: true })
     .order('hora', { ascending: true });

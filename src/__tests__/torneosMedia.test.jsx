@@ -452,7 +452,7 @@ describe('media center with a certified pipeline', () => {
     expect(bar).toHaveAttribute('aria-valuenow', '42');
 
     await act(async () => { reportStage('processing'); });
-    expect(screen.getByText(/Procesando/)).toBeInTheDocument();
+    expect(screen.getByText(/Verificando/)).toBeInTheDocument();
     // Processing is genuinely indeterminate, so no bar is shown for it.
     expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
 

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import StoryLikeCarousel from '../components/StoryLikeCarousel';
 
 const StableAwardSlide = ({ label }) => {
@@ -26,5 +26,27 @@ describe('StoryLikeCarousel', () => {
 
     expect(screen.getByText('MEJOR ARQUERO:MEJOR ARQUERO')).toBeInTheDocument();
     expect(screen.queryByText('MEJOR ARQUERO:MVP')).not.toBeInTheDocument();
+  });
+
+  test('holdLastSlide keeps the last slide open instead of closing the story by itself', () => {
+    jest.useFakeTimers();
+    const onClose = jest.fn();
+    render(
+      <StoryLikeCarousel
+        holdLastSlide
+        onClose={onClose}
+        slides={[
+          { key: 'mvp', duration: 1000, content: <div>MVP</div> },
+          { key: 'summary', duration: 1000, content: <div>RESUMEN</div> },
+        ]}
+      />,
+    );
+    act(() => { jest.advanceTimersByTime(1200); });
+    expect(screen.getByText('RESUMEN')).toBeInTheDocument();
+    act(() => { jest.advanceTimersByTime(5000); });
+    expect(screen.getByText('RESUMEN')).toBeInTheDocument();
+    expect(onClose).not.toHaveBeenCalled();
+    act(() => { jest.runOnlyPendingTimers(); });
+    jest.useRealTimers();
   });
 });

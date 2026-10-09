@@ -16,12 +16,15 @@ import { showGlobalNotice } from '../utils/globalNoticeModal';
 import {
   getLastKnownNativePushToken,
   syncNativePushToken,
+  flushPendingPushToken,
 } from '../services/pushTokenService';
 import { track } from '../utils/monitoring/analytics';
 
 let pushBootstrapPromise = null;
 let pushListenersAttached = false;
+let pushTapListenerPromise = null;
 let lastRegistrationToken = '';
+let registrationListenerPromise = null;
 const NATIVE_PUSH_REDIRECT_EVENT = 'native-push-redirect';
 const PENDING_NATIVE_PUSH_REDIRECT_KEY = 'pending_native_push_redirect';
 const FOREGROUND_PUSH_NOTICE_TTL_MS = 5 * 60 * 1000;
@@ -198,59 +201,124 @@ export const consumePendingNativePushRedirect = () => {
 
 export const getNativePushRedirectEventName = () => NATIVE_PUSH_REDIRECT_EVENT;
 
+// A tap on a push opens its destination wherever the app is (Core or Torneos). Only this listener is app-wide: the
+// permission prompt, token registration and foreground notices stay with Core's own bootstrap.
+const handleNativePushAction = async (action) => {
+  const data = action?.notification?.data || action?.notification?.extra || {};
+  const notificationType = String(
+    data?.notificationType
+    || data?.notification_type
+    || data?.type
+    || action?.actionId
+    || action?.notification?.title
+    || '',
+  ).trim();
+
+  const route = resolveRouteFromPushData(data);
+  debugNotificationEvent('NOTIFICATION_TAP', getNativePushDebugPayload({
+    notificationType,
+    data,
+    route,
+    source: 'capacitor_push_action',
+    raw: action || null,
+  }));
+
+  track('push_opened', {
+    notification_type: notificationType || undefined,
+    route: route || undefined,
+    opened_from_push: true,
+    source: 'capacitor_push',
+  });
+
+  const resolvedRoute = await resolvePushRedirectRoute({
+    notificationType,
+    data,
+    route,
+  });
+  debugNotificationEvent('NOTIFICATION_ROUTE_RESOLVED', getNativePushDebugPayload({
+    notificationType,
+    data,
+    route: resolvedRoute,
+    source: 'capacitor_push_action',
+    raw: action || null,
+  }));
+
+  if (isSafeInternalPath(resolvedRoute)) {
+    queueNativePushRedirect({
+      route: resolvedRoute,
+      notificationType,
+    });
+  }
+};
+
+export const attachNativePushTapListener = async () => {
+  if (!Capacitor.isNativePlatform()) return;
+  if (!pushTapListenerPromise) {
+    pushTapListenerPromise = PushNotifications.addListener('pushNotificationActionPerformed', handleNativePushAction)
+      .catch((error) => {
+        pushTapListenerPromise = null;
+        logger.warn('[PUSH] tap listener failed', error);
+      });
+  }
+  await pushTapListenerPromise;
+};
+
+/** Whether a push tap is waiting for Core to open it (read only: Core's redirect hook consumes it). */
+export const peekPendingNativePushRedirect = () => {
+  if (typeof window === 'undefined') return null;
+  try {
+    const parsed = JSON.parse(window.sessionStorage.getItem(PENDING_NATIVE_PUSH_REDIRECT_KEY) || 'null');
+    const route = String(parsed?.route || '').trim();
+    return route ? { route } : null;
+  } catch {
+    return null;
+  }
+};
+
+// The device's registration (token → the account's device_tokens through Core's RPC), attached once for the whole app:
+// Arma2's bootstrap and, when the permission was already granted, the Torneos runtime both rely on it.
+const attachNativePushRegistrationListener = () => {
+  if (!registrationListenerPromise) {
+    registrationListenerPromise = (async () => {
+      await PushNotifications.addListener('registration', async (token) => {
+        const currentToken = String(token?.value || '').trim();
+        if (!currentToken) return;
+
+        try {
+          const previousToken = lastRegistrationToken || await getLastKnownNativePushToken();
+          lastRegistrationToken = currentToken;
+          logger.info('[PUSH] registration_received', {
+            source: 'registration',
+            tokenSuffix: getTokenSuffix(currentToken),
+            previousTokenSuffix: getTokenSuffix(previousToken),
+          });
+          await syncNativePushToken(currentToken, {
+            previousToken,
+            source: 'registration',
+          });
+        } catch (error) {
+          logger.warn('[PUSH] Failed to sync native registration token', error);
+        }
+      });
+
+      await PushNotifications.addListener('registrationError', (error) => {
+        logger.warn('[PUSH] Native registration error', error);
+      });
+    })().catch((error) => {
+      registrationListenerPromise = null;
+      throw error;
+    });
+  }
+  return registrationListenerPromise;
+};
+
 export const initNativePushNotifications = async () => {
   if (!Capacitor.isNativePlatform()) return;
 
   if (!pushBootstrapPromise) {
     pushBootstrapPromise = (async () => {
       if (!pushListenersAttached) {
-        await PushNotifications.addListener('pushNotificationActionPerformed', async (action) => {
-          const data = action?.notification?.data || action?.notification?.extra || {};
-          const notificationType = String(
-            data?.notificationType
-            || data?.notification_type
-            || data?.type
-            || action?.actionId
-            || action?.notification?.title
-            || '',
-          ).trim();
-
-          const route = resolveRouteFromPushData(data);
-          debugNotificationEvent('NOTIFICATION_TAP', getNativePushDebugPayload({
-            notificationType,
-            data,
-            route,
-            source: 'capacitor_push_action',
-            raw: action || null,
-          }));
-
-          track('push_opened', {
-            notification_type: notificationType || undefined,
-            route: route || undefined,
-            opened_from_push: true,
-            source: 'capacitor_push',
-          });
-
-          const resolvedRoute = await resolvePushRedirectRoute({
-            notificationType,
-            data,
-            route,
-          });
-          debugNotificationEvent('NOTIFICATION_ROUTE_RESOLVED', getNativePushDebugPayload({
-            notificationType,
-            data,
-            route: resolvedRoute,
-            source: 'capacitor_push_action',
-            raw: action || null,
-          }));
-
-          if (isSafeInternalPath(resolvedRoute)) {
-            queueNativePushRedirect({
-              route: resolvedRoute,
-              notificationType,
-            });
-          }
-        });
+        await attachNativePushTapListener();
 
         await PushNotifications.addListener('pushNotificationReceived', async (notification) => {
           const data = notification?.data || notification?.extra || {};
@@ -298,30 +366,7 @@ export const initNativePushNotifications = async () => {
           });
         });
 
-        await PushNotifications.addListener('registration', async (token) => {
-          const currentToken = String(token?.value || '').trim();
-          if (!currentToken) return;
-
-          try {
-            const previousToken = lastRegistrationToken || await getLastKnownNativePushToken();
-            lastRegistrationToken = currentToken;
-            logger.info('[PUSH] registration_received', {
-              source: 'registration',
-              tokenSuffix: getTokenSuffix(currentToken),
-              previousTokenSuffix: getTokenSuffix(previousToken),
-            });
-            await syncNativePushToken(currentToken, {
-              previousToken,
-              source: 'registration',
-            });
-          } catch (error) {
-            logger.warn('[PUSH] Failed to sync native registration token', error);
-          }
-        });
-
-        await PushNotifications.addListener('registrationError', (error) => {
-          logger.warn('[PUSH] Native registration error', error);
-        });
+        await attachNativePushRegistrationListener();
 
         pushListenersAttached = true;
       }
@@ -339,6 +384,25 @@ export const initNativePushNotifications = async () => {
   }
 
   await pushBootstrapPromise;
+};
+
+// Torneos never asks for the push permission (it does not use push). When the person already granted it in Arma2,
+// the app keeps the device's registration fresh while it runs in Torneos — token rotation included — so Arma2's
+// notices keep arriving. Without a granted permission nothing happens: no prompt, no registration.
+export const refreshGrantedNativePushRegistration = async ({ source = 'torneos_runtime' } = {}) => {
+  if (!Capacitor.isNativePlatform()) return { status: 'web' };
+  let permission;
+  try {
+    permission = await PushNotifications.checkPermissions();
+  } catch (error) {
+    logger.warn('[PUSH] checkPermissions failed', error);
+    return { status: 'unknown' };
+  }
+  if (permission?.receive !== 'granted') return { status: permission?.receive || 'unknown' };
+  await attachNativePushRegistrationListener();
+  await PushNotifications.register();
+  await flushPendingPushToken({ source }).catch(() => {});
+  return { status: 'granted' };
 };
 
 export const useNativeFeatures = () => {

@@ -1,4 +1,4 @@
-.page { display: grid; gap: 20px; min-width: 0; }
+.page { display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; min-width: 0; }
 .page button, .page input, .page select, .page textarea { box-sizing: border-box; }
 .page button:focus-visible, .page a:focus-visible, .page select:focus-visible,
 .page textarea:focus-visible, .teamDetail summary:focus-visible {
@@ -114,6 +114,18 @@
 .suspension { display: flex; align-items: flex-start; gap: 10px; margin-top: 14px; padding: 12px; border-radius: 12px; color: #ffca9d; background: rgba(222, 111, 38, .09); }
 .suspension span { display: grid; gap: 3px; }
 .noSuspension { margin: 14px 0 0; color: #85808f; }
+/* Clean records: one line that opens on demand, never a card per player with nothing to report. */
+.cleanRecords { margin-top: 14px; border: 1px solid rgba(155, 129, 255, .2); border-radius: 16px; background: rgba(16, 14, 24, .7); }
+.cleanRecords > summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 56px; padding: 10px 16px; cursor: pointer; list-style: none; }
+.cleanRecords > summary::-webkit-details-marker { display: none; }
+.cleanRecords > summary > span { display: grid; gap: 2px; min-width: 0; }
+.cleanRecords > summary small { color: #888293; }
+.cleanRecords > summary svg { flex: 0 0 auto; color: #b6a4ff; transition: transform 160ms ease; }
+.cleanRecords[open] > summary svg { transform: rotate(180deg); }
+.cleanRecords > summary:focus-visible { outline: 3px solid #b6a4ff; outline-offset: 3px; border-radius: 16px; }
+.cleanRecords ul { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 6px 16px; margin: 0; padding: 4px 16px 16px; list-style: none; color: #cfc8de; font-size: 14px; }
+.cleanRecords li { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (prefers-reduced-motion: reduce) { .cleanRecords > summary svg { transition: none; } }
 .empty { display: grid; justify-items: center; gap: 8px; padding: 54px 20px; border-radius: 19px; color: #91899d; text-align: center; }
 .empty p { max-width: 520px; margin: 0; line-height: 1.55; }
 .dialogBackdrop { position: fixed; z-index: 50; inset: 0; display: grid; place-items: center; padding: 18px; background: rgba(5, 4, 9, .76); backdrop-filter: blur(7px); }

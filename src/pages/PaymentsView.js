@@ -23,6 +23,7 @@ import {
   formatPaymentAmount,
   summarizePayments,
 } from '../utils/paymentStatus';
+import { buildHomonymHints } from '../utils/surveyRosterIdentity';
 
 const CARD_TONE = 'bg-[radial-gradient(360px_180px_at_12%_-30%,rgba(139,92,255,0.18),transparent_70%),linear-gradient(165deg,rgba(48,38,98,0.72),rgba(20,16,41,0.94))]';
 const CARD_BASE = `relative ${CARD_TONE} rounded-card p-4 border border-[rgba(148,134,255,0.16)] overflow-hidden shadow-elev-2`;
@@ -56,14 +57,6 @@ const PlayerAvatar = ({ name, dotClass }) => (
   </div>
 );
 
-// Color del sublabel de estado bajo el nombre (fila de pagos editable).
-const STATUS_TEXT = {
-  paid: 'text-[#86efac]',
-  reported_paid: 'text-amber-300',
-  exempt: 'text-[#bae6fd]',
-  pending: 'text-[#fda4af]',
-};
-
 const StatusPill = ({ status }) => {
   const meta = getPaymentStatusMeta(status);
   return (
@@ -73,26 +66,60 @@ const StatusPill = ({ status }) => {
   );
 };
 
-// Admin per-row status buttons. reported_paid => Confirmar/Debe ; otherwise Pagó/Debe/Exento.
-const getRowActions = (status) => {
-  if (status === 'reported_paid') {
-    return [
-      { label: 'Confirmar', to: 'paid' },
-      { label: 'Debe', to: 'pending' },
-    ];
-  }
-  return [
-    { label: 'Pagó', to: 'paid' },
-    { label: 'Debe', to: 'pending' },
-    { label: 'Exento', to: 'exempt' },
-  ];
+// Admin per-row status (a reported payment is confirmed from "Para confirmar").
+const ROW_ACTIONS = [
+  { label: 'Pagó', to: 'paid' },
+  { label: 'Pendiente', to: 'pending' },
+  { label: 'Exento', to: 'exempt' },
+];
+
+const SummaryCount = ({ value, label, tone }) => (
+  <div className="rounded-xl bg-white/[0.04] border border-white/[0.06] px-2 py-1.5 text-center">
+    <div className={`font-oswald text-[18px] font-bold leading-none tabular-nums ${tone}`}>{value}</div>
+    <div className="text-[10.5px] text-white/55 mt-1 whitespace-nowrap">{label}</div>
+  </div>
+);
+
+// One step of "Tu pago": done (check), current (highlighted), todo (actionable) or next (dimmed).
+const PayStep = ({ index, state, title, children }) => (
+  <li className={`flex gap-3 ${state === 'next' ? 'opacity-55' : ''}`}>
+    <span
+      aria-hidden="true"
+      className={`mt-0.5 h-6 w-6 shrink-0 rounded-full flex items-center justify-center text-[12px] font-bold ${
+        state === 'done'
+          ? 'bg-[#22c55e] text-white'
+          : state === 'current'
+            ? 'bg-cta-gradient text-white shadow-cta'
+            : 'border border-white/25 text-white/70'
+      }`}
+    >
+      {state === 'done' ? <Check size={13} /> : index}
+    </span>
+    <div className="min-w-0 flex-1 flex flex-col gap-2">
+      <div className={`text-[14px] font-semibold leading-snug ${state === 'done' ? 'text-white/70' : 'text-white'}`}>
+        <span className="sr-only">{state === 'done' ? 'Hecho: ' : state === 'next' ? 'Después: ' : 'Ahora: '}</span>
+        {title}
+      </div>
+      {children}
+    </div>
+  </li>
+);
+
+// fecha is date-only (wall clock): never parse it as UTC.
+const formatMatchDay = (fecha, hora) => {
+  const [y, m, d] = String(fecha || '').slice(0, 10).split('-').map(Number);
+  if (!y || !m || !d) return '';
+  const day = new Date(y, m - 1, d).toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' });
+  const time = String(hora || '').slice(0, 5);
+  return time ? `${day} · ${time}` : day;
 };
 
-const isActiveAction = (status, to) => (
-  (to === 'paid' && status === 'paid')
-  || (to === 'pending' && status === 'pending')
-  || (to === 'exempt' && status === 'exempt')
-);
+const formatWhen = (iso) => {
+  if (!iso) return '';
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return '';
+  return ` el ${date.toLocaleDateString('es-AR', { day: 'numeric', month: 'numeric' })} a las ${date.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false })}`;
+};
 
 // Relleno del segmento activo dentro del control (mismo lenguaje que el
 // selector Titular/Suplente/Afuera de "Confirmar plantel").
@@ -120,6 +147,11 @@ const PaymentsView = () => {
   const [savingEdit, setSavingEdit] = useState(false);
 
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
+  const [showReportConfirm, setShowReportConfirm] = useState(false);
+  const [remindResult, setRemindResult] = useState('');
+  // Rows handled from "Para confirmar" stay in that section (as settled) until leaving the
+  // page, so the layout does not move under a second tap.
+  const [handledHere, setHandledHere] = useState(() => new Set());
 
   const handleBack = () => {
     const backTo = location.state?.backTo;
@@ -196,7 +228,6 @@ const PaymentsView = () => {
   const settledPct = summary.total > 0 ? ((summary.paid + summary.exempt) / summary.total) * 100 : 0;
   const reportedPct = summary.total > 0 ? (summary.reported / summary.total) * 100 : 0;
 
-  const subtitle = `${summary.paid}/${summary.total} pagaron${summary.reported ? ` · ${summary.reported} a confirmar` : ''}`;
 
   const reloadAfter = async (fn) => {
     setActionBusy(true);
@@ -228,9 +259,13 @@ const PaymentsView = () => {
   const handleRemind = async () => {
     setActionBusy(true);
     try {
+      setRemindResult('');
       const res = await adminRemindPending(partido.id, { matchName });
       await load();
-      if (res?.notified > 0) logger.info(`Recordatorio enviado a ${res.notified} jugador(es)`);
+      const notified = Number(res?.notified) || 0;
+      setRemindResult(notified > 0
+        ? `Aviso enviado a ${notified} ${notified === 1 ? 'jugador' : 'jugadores'}.`
+        : 'No había jugadores con cuenta para avisar.');
     } catch (error) {
       notifyBlockingError('No se pudo enviar el recordatorio');
     } finally {
@@ -291,6 +326,20 @@ const PaymentsView = () => {
   };
 
   const collectorCandidates = rows.filter((r) => r.user_id);
+  const payTo = collectorName || 'quien cobra';
+  const amountText = amount != null ? amountLabel : null;
+  const homonymHints = buildHomonymHints(rows.map((row) => ({
+    uuid: String(row.id),
+    usuario_id: row.user_id || null,
+    nombre: row.player_name,
+  })));
+  const reportedRows = rows.filter((row) => row.status === 'reported_paid' || handledHere.has(row.id));
+  // Reminders reach players with an account (never the organizer); guests get nothing.
+  const remindableCount = rows.filter((row) => row.status === 'pending' && row.user_id && String(row.user_id) !== String(user?.id || '')).length;
+  const guestPendingCount = rows.filter((row) => row.status === 'pending' && !row.user_id).length;
+
+  const rowName = (row) => (row.player_name || '').trim() || 'Jugador';
+  const rowHint = (row) => homonymHints.get(String(row.id)) || null;
 
   return (
     <div className="fixed left-0 w-screen text-white flex flex-col z-[1000]" style={{ top: 'var(--safe-top, 0px)', height: 'calc(100dvh - var(--safe-top, 0px))', transform: 'translateZ(0)' }}>
@@ -299,24 +348,35 @@ const PaymentsView = () => {
       <div className="flex-1 pt-[96px] px-4 pb-[120px] overflow-y-auto w-full box-border">
         <div className="w-full max-w-[560px] mx-auto flex flex-col gap-3">
 
-          {/* Resumen */}
+          {/* Resumen: qué partido, cuánto y en qué estado está el cobro */}
           <div className={CARD_BASE}>
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <div className="font-oswald text-[19px] font-bold text-white capitalize leading-tight truncate">{matchName}</div>
-                <div className="font-sans text-[12.5px] font-medium text-white/65 mt-1">{subtitle}</div>
+                <div className="font-oswald text-[19px] font-bold text-white leading-tight break-words">{matchName}</div>
+                {partido?.fecha ? (
+                  <div className="font-sans text-[12.5px] text-white/60 mt-1">{formatMatchDay(partido.fecha, partido.hora)}</div>
+                ) : null}
               </div>
               <div className="shrink-0 text-right">
                 <SectionLabel className="text-[10px] mb-0.5">Por jugador</SectionLabel>
-                <div className="font-oswald text-[20px] font-bold text-white leading-none whitespace-nowrap">{amountLabel}</div>
+                <div className={`font-oswald font-bold leading-none whitespace-nowrap ${amountText ? 'text-[20px] text-white' : 'text-[15px] text-white/60'}`}>
+                  {amountText || 'Sin monto'}
+                </div>
               </div>
             </div>
 
             {summary.total > 0 ? (
-              <div className="mt-3.5 flex h-2 overflow-hidden rounded-full bg-white/[0.08]">
-                <div className="h-full bg-[#22c55e] transition-all" style={{ width: `${settledPct}%` }} />
-                <div className="h-full bg-amber-400/85 transition-all" style={{ width: `${reportedPct}%` }} />
-              </div>
+              <>
+                <div className="mt-3.5 flex h-2 overflow-hidden rounded-full bg-white/[0.08]">
+                  <div className="h-full bg-[#22c55e] transition-all" style={{ width: `${settledPct}%` }} />
+                  <div className="h-full bg-amber-400/85 transition-all" style={{ width: `${reportedPct}%` }} />
+                </div>
+                <div className="mt-2.5 grid grid-cols-3 gap-2">
+                  <SummaryCount value={summary.paid + summary.exempt} label="Confirmados" tone="text-[#86efac]" />
+                  <SummaryCount value={summary.reported} label="Avisaron" tone="text-amber-300" />
+                  <SummaryCount value={summary.pending} label="Pendientes" tone="text-[#fda4af]" />
+                </div>
+              </>
             ) : null}
 
             {isClosed ? (
@@ -324,9 +384,14 @@ const PaymentsView = () => {
                 <Lock size={11} /> Pagos cerrados
               </div>
             ) : null}
+            {!amountText ? (
+              <p className="mt-2.5 text-[12px] text-white/55 leading-snug">
+                {isAdmin ? 'Todavía no cargaste el monto. Podés hacerlo en “Editar”.' : 'El organizador todavía no cargó el monto.'}
+              </p>
+            ) : null}
           </div>
 
-          {/* Cobro */}
+          {/* Cobro: a quién y cómo */}
           <div className={CARD_BASE}>
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
@@ -338,67 +403,137 @@ const PaymentsView = () => {
                 </div>
                 {hasCollector || collectorName ? (
                   <div className="flex flex-col gap-0.5">
-                    {collectorName ? <div className="text-[14px] text-white font-semibold">Cobra: {collectorName}</div> : null}
-                    {collectorAlias ? <div className="text-[13px] text-white/75">Alias: <span className="font-semibold text-white">{collectorAlias}</span></div> : null}
+                    {collectorName ? <div className="text-[14px] text-white font-semibold break-words">Cobra: {collectorName}</div> : null}
+                    {collectorAlias ? <div className="text-[13px] text-white/75 break-all">Alias: <span className="font-semibold text-white">{collectorAlias}</span></div> : null}
+                    {!collectorAlias ? <div className="text-[12.5px] text-white/55">Sin alias cargado: se le paga en mano.</div> : null}
                   </div>
                 ) : (
-                  <div className="text-[13px] text-white/60">El admin todavía no configuró a quién pagarle.</div>
+                  <div className="text-[13px] text-white/60">
+                    {isAdmin ? 'Cargá quién cobra y su alias para que puedan pagarte.' : 'El organizador todavía no cargó a quién pagarle.'}
+                  </div>
                 )}
               </div>
-              {isAdmin ? (
-                <button type="button" className={`${SECONDARY_BTN} !text-[13px] !min-h-[36px] !px-3 shrink-0`} onClick={openEdit}>
+              {isAdmin && !isClosed ? (
+                <button type="button" className={`${SECONDARY_BTN} !text-[13px] !min-h-[40px] !px-3 shrink-0`} onClick={openEdit}>
                   Editar
                 </button>
               ) : null}
             </div>
           </div>
 
-          {/* Tu pago (jugador no admin con fila propia) */}
+          {/* Tu pago: pagar → avisar → el organizador confirma */}
           {!isAdmin && myRow ? (
             <div className={CARD_BASE}>
-              <SectionLabel>Tu pago</SectionLabel>
-              <div className="flex items-center gap-2 mb-3">
+              <div className="flex items-center justify-between gap-2 mb-3">
+                <SectionLabel className="mb-0">Tu pago</SectionLabel>
                 <StatusPill status={myRow.status} />
-                <span className="text-[13px] text-white/70">{amountLabel}</span>
               </div>
 
-              {myRow.status === 'reported_paid' ? (
-                <button type="button" className={`${DISABLED_BTN} w-full`} disabled>
-                  Esperando confirmación
-                </button>
-              ) : myRow.status === 'paid' ? (
-                <div className="text-[13px] text-[#86efac] font-semibold flex items-center gap-1.5"><Check size={14} /> Pago confirmado</div>
-              ) : myRow.status === 'exempt' ? (
-                <div className="text-[13px] text-[#bae6fd] font-semibold">Estás exento de este pago</div>
-              ) : collectorAlias ? (
-                <div className="flex flex-col gap-2.5">
-                  <button type="button" className={`${PRIMARY_BTN} w-full`} onClick={handleCopyAlias}>
-                    {copied ? <><Check size={16} /> ¡Copiado!</> : <><Copy size={16} /> Copiar alias</>}
-                  </button>
-                  <p className="text-[11.5px] text-[#cfc4ff]/80 leading-snug text-center px-1">
-                    Copiá el alias y pagá desde tu app de preferencia.
-                  </p>
-                  <button type="button" className={`${SECONDARY_BTN} w-full`} disabled={actionBusy} onClick={handleReportMine}>
-                    Ya pagué
-                  </button>
-                </div>
+              {myRow.status === 'exempt' ? (
+                <div className="text-[13.5px] text-[#bae6fd] font-semibold">No tenés que pagar este partido: el organizador te marcó como exento.</div>
               ) : (
-                <div className="flex flex-col gap-2.5">
-                  <div className="text-[13px] text-white/60">Alias no configurado.</div>
-                  <button type="button" className={`${SECONDARY_BTN} w-full`} disabled={actionBusy} onClick={handleReportMine}>
-                    Ya pagué
-                  </button>
-                </div>
+                <ol className="flex flex-col gap-3">
+                  <PayStep
+                    index={1}
+                    state={myRow.status === 'pending' ? 'current' : 'done'}
+                    title={collectorName
+                      ? (amountText ? `Pagale ${amountText} a ${collectorName}` : `Pagale a ${collectorName}`)
+                      : (amountText ? `Pagar ${amountText}` : 'Pagar tu parte')}
+                  >
+                    {myRow.status === 'pending' ? (
+                      collectorAlias ? (
+                        <div className="flex flex-col gap-2">
+                          <button type="button" className={`${PRIMARY_BTN} w-full`} onClick={handleCopyAlias}>
+                            {copied ? <><Check size={16} /> Alias copiado</> : <><Copy size={16} /> Copiar alias</>}
+                          </button>
+                          <p className="text-[12px] text-white/55 leading-snug">
+                            Pagá desde tu app de preferencia. Copiar el alias no registra el pago.
+                          </p>
+                        </div>
+                      ) : (
+                        <p className="text-[12.5px] text-white/60 leading-snug">
+                          {collectorName ? 'No hay alias cargado: pagale en mano o pedile el alias.' : 'Todavía no sabemos a quién pagarle. Si ya pagaste en mano, avisalo abajo.'}
+                        </p>
+                      )
+                    ) : null}
+                  </PayStep>
+
+                  <PayStep
+                    index={2}
+                    state={myRow.status === 'pending' ? 'todo' : 'done'}
+                    title="Avisá que pagaste"
+                  >
+                    {myRow.status === 'pending' ? (
+                      <button type="button" className={`${SECONDARY_BTN} w-full`} disabled={actionBusy} onClick={() => setShowReportConfirm(true)}>
+                        {actionBusy ? 'Avisando…' : 'Ya pagué'}
+                      </button>
+                    ) : (
+                      <p className="text-[12.5px] text-white/60">Avisaste{formatWhen(myRow.reported_paid_at)}.</p>
+                    )}
+                  </PayStep>
+
+                  <PayStep
+                    index={3}
+                    state={myRow.status === 'paid' ? 'done' : (myRow.status === 'reported_paid' ? 'current' : 'next')}
+                    title="El organizador lo confirma"
+                  >
+                    {myRow.status === 'reported_paid' ? (
+                      <p className="text-[12.5px] text-amber-300 leading-snug">Falta que el organizador confirme que le llegó.</p>
+                    ) : null}
+                    {myRow.status === 'paid' ? (
+                      <p className="text-[12.5px] text-[#86efac] font-semibold flex items-center gap-1.5"><Check size={14} /> Pago confirmado{formatWhen(myRow.confirmed_paid_at)}</p>
+                    ) : null}
+                  </PayStep>
+                </ol>
               )}
             </div>
           ) : null}
 
-          {/* Lista de jugadores — línea estética de "Confirmar plantel" */}
+          {/* Para confirmar (organizador): lo que espera una acción suya, primero */}
+          {isAdmin && !isClosed && reportedRows.length > 0 ? (
+            <div className={CARD_BASE}>
+              <SectionLabel>Para confirmar ({reportedRows.filter((row) => row.status === 'reported_paid').length})</SectionLabel>
+              <p className="text-[12px] text-white/55 leading-snug mb-2.5">Avisaron que pagaron. Confirmá cuando veas que te llegó.</p>
+              <div className="flex flex-col gap-2">
+                {reportedRows.map((row) => (
+                  <div key={row.id} className="rounded-[14px] border border-amber-400/25 bg-amber-500/[0.06] p-2.5">
+                    <div className="flex items-center gap-2.5">
+                      <PlayerAvatar name={rowName(row)} dotClass="bg-amber-400" />
+                      <div className="min-w-0 flex-1">
+                        <div className="text-white font-oswald text-[14px] leading-tight break-words">{rowName(row)}</div>
+                        <div className="text-[11.5px] text-white/55 mt-0.5">
+                          {rowHint(row) ? `${rowHint(row)} · ` : ''}Avisó{formatWhen(row.reported_paid_at)}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="mt-2.5 grid grid-cols-2 gap-2">
+                      {row.status === 'reported_paid' ? (
+                        <>
+                          <button type="button" className={`${SECONDARY_BTN} !min-h-[42px]`} disabled={busyRow === row.jugador_id || actionBusy} onClick={() => { setHandledHere((prev) => new Set(prev).add(row.id)); handleSetStatus(row, 'pending'); }}>
+                            No llegó
+                          </button>
+                          <button type="button" className={`${PRIMARY_BTN} !min-h-[42px]`} disabled={busyRow === row.jugador_id || actionBusy} onClick={() => { setHandledHere((prev) => new Set(prev).add(row.id)); handleSetStatus(row, 'paid'); }}>
+                            <Check size={15} /> Confirmar
+                          </button>
+                        </>
+                      ) : (
+                        <div className={`col-span-2 min-h-[42px] flex items-center justify-center gap-1.5 rounded-xl text-[13px] font-semibold ${row.status === 'paid' ? 'text-[#86efac] bg-[#22c55e]/10' : 'text-[#fda4af] bg-[#f43f5e]/10'}`} role="status">
+                          {row.status === 'paid' ? <><Check size={14} /> Confirmado</> : 'Marcado como pendiente'}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
+
+          {/* Lista de jugadores */}
           <div className={CARD_BASE}>
             <div className="flex items-center justify-between mb-2.5">
               <SectionLabel className="mb-0">Jugadores</SectionLabel>
-              <span className="inline-flex items-center rounded-full border border-[#7d5aff]/35 bg-[#6a43ff]/12 px-2.5 py-1 text-[10px] leading-none font-oswald uppercase tracking-[0.05em] text-white/75">
-                Pagaron <span className="ml-1 font-semibold text-white">{summary.paid}/{summary.total}</span>
+              <span className="inline-flex items-center rounded-full border border-[#7d5aff]/35 bg-[#6a43ff]/12 px-2.5 py-1 text-[10px] leading-none font-oswald uppercase tracking-[0.05em] text-white/75 whitespace-nowrap">
+                Confirmados <span className="ml-1 font-semibold text-white">{summary.paid + summary.exempt}/{summary.total}</span>
               </span>
             </div>
             {rows.length === 0 ? (
@@ -410,43 +545,42 @@ const PaymentsView = () => {
                 <div className="divide-y divide-white/[0.06]">
                   {rows.map((row) => {
                     const meta = getPaymentStatusMeta(row.status);
-                    const name = (row.player_name || '').trim() || 'Jugador';
-                    const editable = isAdmin && !isClosed;
-                    // Deudor (debe / no pagó): realce rojo sutil — barra izq + tinte
-                    // muy bajo, sin desplazar el layout ni romper el resto de estados.
+                    const name = rowName(row);
+                    const hint = rowHint(row);
+                    const editable = isAdmin && !isClosed && row.status !== 'reported_paid';
                     const isDebt = row.status === 'pending';
                     return (
                       <div
                         key={row.id}
-                        className={`flex items-center gap-2.5 py-2.5 ${isDebt ? 'bg-[#f43f5e]/[0.06] shadow-[inset_3px_0_0_0_rgba(244,63,94,0.6)]' : ''}`}
+                        className={`py-2.5 ${isDebt ? 'bg-[#f43f5e]/[0.05] shadow-[inset_3px_0_0_0_rgba(244,63,94,0.55)] pl-1.5' : ''}`}
                       >
-                        <PlayerAvatar name={name} dotClass={meta.dotClass} />
-                        <div className="min-w-0 flex-1">
-                          <span className="block truncate text-white font-oswald text-[14px] leading-tight">{name}</span>
-                          {editable ? (
-                            <span className={`block text-[11px] leading-tight mt-0.5 ${STATUS_TEXT[row.status] || STATUS_TEXT.pending}`}>{meta.label}</span>
-                          ) : null}
+                        <div className="flex items-center gap-2.5">
+                          <PlayerAvatar name={name} dotClass={meta.dotClass} />
+                          <div className="min-w-0 flex-1">
+                            <span className="block text-white font-oswald text-[14px] leading-tight break-words">{name}</span>
+                            {hint ? <span className="block text-[11px] leading-tight mt-0.5 text-white/50">{hint}</span> : null}
+                          </div>
+                          {!editable ? <StatusPill status={row.status} /> : null}
                         </div>
                         {editable ? (
-                          <div className="inline-flex shrink-0 items-stretch rounded-full border border-[rgba(148,134,255,0.22)] bg-[#100c2e]/90 p-[3px]">
-                            {getRowActions(row.status).map((action) => {
-                              const active = isActiveAction(row.status, action.to);
+                          <div className="mt-2 grid grid-cols-3 rounded-full border border-[rgba(148,134,255,0.22)] bg-[#100c2e]/90 p-[3px]">
+                            {ROW_ACTIONS.map((action) => {
+                              const active = row.status === action.to;
                               return (
                                 <button
                                   key={action.to}
                                   type="button"
+                                  aria-pressed={active}
                                   disabled={busyRow === row.jugador_id || actionBusy}
-                                  onClick={() => handleSetStatus(row, action.to)}
-                                  className={`min-h-[30px] rounded-full px-2.5 text-[10px] font-oswald uppercase tracking-[0.03em] leading-none transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed ${active ? segmentActiveClass(action.to) : 'text-white/55 hover:text-white/90'}`}
+                                  onClick={() => { if (!active) handleSetStatus(row, action.to); }}
+                                  className={`min-h-[36px] rounded-full px-2 text-[11px] font-oswald uppercase tracking-[0.03em] leading-none whitespace-nowrap transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed ${active ? segmentActiveClass(action.to) : 'text-white/60'}`}
                                 >
-                                  {action.label}
+                                  {busyRow === row.jugador_id && !active ? '…' : action.label}
                                 </button>
                               );
                             })}
                           </div>
-                        ) : (
-                          <StatusPill status={row.status} />
-                        )}
+                        ) : null}
                       </div>
                     );
                   })}
@@ -455,28 +589,37 @@ const PaymentsView = () => {
             )}
           </div>
 
-          {/* Acciones admin */}
+          {/* Acciones del organizador */}
           {isAdmin ? (
-            <div className="flex flex-col gap-2.5">
+            <div className={CARD_BASE}>
               {!isClosed ? (
-                <>
+                <div className="flex flex-col gap-2.5">
                   <button
                     type="button"
-                    className={summary.pending > 0 ? `${SECONDARY_BTN} w-full` : `${DISABLED_BTN} w-full`}
-                    disabled={summary.pending === 0 || actionBusy}
+                    className={remindableCount > 0 ? `${SECONDARY_BTN} w-full` : `${DISABLED_BTN} w-full`}
+                    disabled={remindableCount === 0 || actionBusy}
                     onClick={handleRemind}
                   >
-                    <Bell size={16} /> Recordar pendientes
+                    <Bell size={16} /> Recordar a pendientes
                   </button>
-                  <button type="button" className={`${PRIMARY_BTN} w-full`} disabled={actionBusy} onClick={handleCloseClick}>
-                    <Lock size={16} /> Cerrar partido
-                  </button>
-                  <p className="text-center text-[11.5px] text-white/45 leading-snug px-2">
-                    Se cierran los pagos y el partido sale de Mis partidos.
+                  <p className="text-[12px] text-white/55 leading-snug">
+                    {remindableCount > 0
+                      ? `Les llega un aviso en la app a ${remindableCount} ${remindableCount === 1 ? 'jugador con cuenta' : 'jugadores con cuenta'}.`
+                      : 'No hay jugadores con cuenta pendientes de pago.'}
+                    {guestPendingCount > 0 ? ` A ${guestPendingCount === 1 ? 'el invitado' : `los ${guestPendingCount} invitados`} avisales vos.` : ''}
                   </p>
-                </>
+                  {remindResult ? <p className="text-[12.5px] text-[#86efac] font-semibold" role="status">{remindResult}</p> : null}
+
+                  <div className="h-px bg-white/[0.08] my-1" />
+                  <button type="button" className={`${SECONDARY_BTN} w-full`} disabled={actionBusy} onClick={handleCloseClick}>
+                    <Lock size={16} /> Cerrar pagos
+                  </button>
+                  <p className="text-[12px] text-white/45 leading-snug">
+                    Deja los pagos como están y el partido sale de Mis partidos. Usalo cuando ya no haya nada por cobrar.
+                  </p>
+                </div>
               ) : (
-                <div className="text-center text-[13px] text-white/55 py-1">El partido está cerrado. Ya no aparece en Mis partidos.</div>
+                <div className="text-center text-[13px] text-white/55 py-1">Los pagos están cerrados. El partido ya no aparece en Mis partidos.</div>
               )}
             </div>
           ) : null}
@@ -533,11 +676,24 @@ const PaymentsView = () => {
         </div>
       </Modal>
 
+      {/* Confirmar el aviso de pago */}
+      <ConfirmModal
+        isOpen={showReportConfirm}
+        title="Avisar que pagaste"
+        message={amountText
+          ? `¿Ya le pagaste ${amountText} a ${payTo}? Le avisamos al organizador para que lo confirme.`
+          : `¿Ya le pagaste a ${payTo}? Le avisamos al organizador para que lo confirme.`}
+        onConfirm={() => { setShowReportConfirm(false); handleReportMine(); }}
+        onCancel={() => setShowReportConfirm(false)}
+        confirmText="Sí, ya pagué"
+        cancelText="Todavía no"
+      />
+
       {/* Confirmar cierre con pendientes */}
       <ConfirmModal
         isOpen={showCloseConfirm}
-        title="Cerrar partido"
-        message="Todavía hay jugadores con el pago pendiente. ¿Querés cerrar el partido igual?"
+        title="Cerrar pagos"
+        message="Todavía hay pagos sin confirmar. Si cerrás, quedan como están y el partido sale de Mis partidos. ¿Cerrar igual?"
         onConfirm={() => { setShowCloseConfirm(false); doClose(true); }}
         onCancel={() => setShowCloseConfirm(false)}
         confirmText="Cerrar igual"

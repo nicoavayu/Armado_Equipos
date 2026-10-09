@@ -1,0 +1,25 @@
+{
+  "phase": "MEDIA-V1",
+  "scope": "Photo galleries of the hybrid composition with the baseline gallery contract: the organizer creates a gallery for a tournament, category or match, reviews (approve / reject), sets the cover and order, publishes to the gallery's audience and retires content (hide / restore / revoke a photo, archive / revoke a gallery, handle private reports); the participant reads published galleries of the tournaments it belongs to and reports a photo privately. Every RPC keeps its own capability checks in SQL. Served only with TORNEOS_MEDIA_MODE=on; bytes go through the gateway's upload route (structural verification, gateway-claim write) and reads through its signed-URL route (migration 00000000000012).",
+  "features": {
+    "media_management": [
+      "get_tournament_media_admin_context",
+      "get_tournament_media_upload_capability",
+      "get_tournament_media_asset_processing_tiers",
+      "get_tournament_season_media_usage",
+      "create_tournament_media_gallery",
+      "update_tournament_media_gallery",
+      "cancel_tournament_media_upload_session",
+      "transition_tournament_media_asset",
+      "set_tournament_media_cover",
+      "reorder_tournament_media_item",
+      "publish_tournament_media_gallery",
+      "change_tournament_media_gallery_state",
+      "handle_tournament_media_report"
+    ],
+    "media_participant": [
+      "get_published_tournament_media",
+      "report_tournament_media_asset"
+    ]
+  }
+}

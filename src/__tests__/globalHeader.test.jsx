@@ -13,12 +13,15 @@ let mockAwardsStory = {
   openLatestStory: mockOpenLatestStory,
 };
 
+let mockOtherUnread = { status: 'unknown', hasUnread: false };
 jest.mock('../features/space-navigation', () => ({
   APP_SPACE: { ARMA2: 'arma2', TORNEOS: 'torneos' },
   useSpaceNavigation: () => ({
     currentSpace: mockCurrentSpace,
     switchSpace: mockSwitchSpace,
     isSpaceAvailable: mockIsSpaceAvailable,
+    otherSpace: mockCurrentSpace === 'torneos' ? 'arma2' : 'torneos',
+    otherProductUnread: mockOtherUnread,
   }),
 }));
 
@@ -45,6 +48,7 @@ jest.mock('../components/global-header/AwardsStoryContext', () => ({
 describe('GlobalHeader', () => {
   beforeEach(() => {
     mockCurrentSpace = 'arma2';
+    mockOtherUnread = { status: 'unknown', hasUnread: false };
     mockSwitchSpace.mockClear();
     mockIsSpaceAvailable.mockReturnValue(true);
     mockSetMyGlobalAvailability.mockClear();
@@ -162,5 +166,43 @@ describe('GlobalHeader', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Abrir menú de usuario' }));
     fireEvent.click(screen.getByRole('button', { name: /^No disponible / }));
     await waitFor(() => expect(mockSetMyGlobalAvailability).toHaveBeenCalledWith(false));
+  });
+
+  describe('unread notices in the other product', () => {
+    test('a confirmed unread state in Torneos shows a small dot by the selector, with accessible text', () => {
+      mockOtherUnread = { status: 'ready', hasUnread: true };
+      render(<GlobalHeader />);
+      expect(screen.getByTestId('space-other-unread')).toBeInTheDocument();
+      const trigger = screen.getByRole('button', { name: /Abrir selector de espacio/ });
+      expect(trigger).toHaveAccessibleName('Abrir selector de espacio. Espacio actual: Arma2. Hay avisos sin leer en Torneos');
+      fireEvent.click(trigger);
+      // Each product signals its own: Arma2 (3 unread in its own inbox) and Torneos.
+      expect(screen.getByRole('button', { name: /Arma2 .*Actual Tiene avisos sin leer$/ })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Torneos .*Ir a Torneos Tiene avisos sin leer$/ })).toBeInTheDocument();
+      // Opening the selector marks nothing and switches nothing.
+      expect(mockSwitchSpace).not.toHaveBeenCalled();
+    });
+
+    test.each([
+      [{ status: 'unknown', hasUnread: false }],
+      [{ status: 'error', hasUnread: false }],
+      [{ status: 'unavailable', hasUnread: false }],
+      [{ status: 'ready', hasUnread: false }],
+    ])('no dot unless the read confirmed unread notices (%o): a failure is never shown as anything', (state) => {
+      mockOtherUnread = state;
+      render(<GlobalHeader />);
+      expect(screen.queryByTestId('space-other-unread')).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Abrir selector de espacio/ })).toHaveAccessibleName(
+        'Abrir selector de espacio. Espacio actual: Arma2',
+      );
+    });
+
+    test('inside Torneos the current product state comes from Torneos itself, Core is the other product', () => {
+      mockCurrentSpace = 'torneos';
+      mockOtherUnread = { status: 'ready', hasUnread: true };
+      render(<GlobalHeader currentUnread={{ status: 'ready', hasUnread: false }} accountMenu={<span />} notificationsControl={<span />} />);
+      expect(screen.getByRole('button', { name: /Abrir selector de espacio/ }))
+        .toHaveAccessibleName('Abrir selector de espacio. Espacio actual: Torneos. Hay avisos sin leer en Arma2');
+    });
   });
 });

@@ -7,7 +7,14 @@ import styles from './TorneosShell.module.css';
 
 const DISMISS_KEY = 'arma2:torneos:app-callout-dismissed:v1';
 
-export default function MobileAppCallout() {
+// The copy follows who is reading: a participant follows their tournaments from the phone, an organizer manages
+// one. Same app (Arma2), never a second download.
+const COPY = Object.freeze({
+  participant: 'Seguí tus partidos, la tabla y los avisos de tus torneos desde el celular si querés. La web ya tiene todo.',
+  organizer: 'Seguí administrando tu torneo desde el celular si querés. Para empezar, no necesitás instalarla: la experiencia web es completa.',
+});
+
+export default function MobileAppCallout({ audience = 'organizer' }) {
   const [dismissed, setDismissed] = useState(false);
   useEffect(() => {
     if (isArma2NativeRuntime()) return;
@@ -23,7 +30,7 @@ export default function MobileAppCallout() {
       <div className={styles.appCalloutIcon}><Smartphone size={19} aria-hidden="true" /></div>
       <div className={styles.appCalloutCopy}>
         <strong>La web primero. La app te acompaña.</strong>
-        <span>Seguí administrando tu torneo desde el celular si querés. Para empezar, no necesitás instalarla: la experiencia web es completa.</span>
+        <span>{COPY[audience] || COPY.organizer}</span>
       </div>
       <div className={styles.appCalloutLinks}>
         <a href={TORNEOS_STORE_LINKS.appStore} target="_blank" rel="noreferrer" aria-label="Descargar Arma2 en App Store">

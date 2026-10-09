@@ -799,12 +799,16 @@ export function emptyState(ctx, box, o = {}) {
 }
 
 /** Distributes n rows inside a box: clamps row height and centres the stack. */
+// `align: 'top'` (lists): when the rows reach their cap before filling the box, they start under the title instead of
+// floating in the middle of it. Hero compositions (a single final) keep the default centering.
 export function rowLayout(box, n, o = {}) {
-  const { min = 74, max = 150, gap = 12 } = o;
+  const {
+    min = 74, max = 150, gap = 12, align = 'center',
+  } = o;
   const raw = (box.h - gap * (n - 1)) / n;
   const h = Math.max(min, Math.min(max, raw));
   const total = h * n + gap * (n - 1);
-  const y = box.y + Math.max(0, (box.h - total) / 2);
+  const y = box.y + (align === 'top' ? 0 : Math.max(0, (box.h - total) / 2));
   return { h, gap, y, total };
 }
 

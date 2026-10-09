@@ -371,7 +371,7 @@
 .emptyState h3 { margin: 10px 0 0; color: var(--ink); font-family: 'Bebas Neue', sans-serif; font-size: 24px; text-transform: uppercase; }
 .emptyState p { max-width: 420px; margin: 6px 0 0; font-size: 13px; line-height: 1.5; }
 
-.statePage { display: grid; min-height: 100vh; place-content: center; justify-items: center; padding: 32px; color: #fff; background: #21114e; text-align: center; font-family: Oswald, sans-serif; }
+.statePage { display: grid; grid-template-columns: minmax(0, 1fr); min-height: 100vh; place-content: center; justify-items: center; padding: 32px; color: #fff; background: #21114e; text-align: center; font-family: Oswald, sans-serif; }
 .statePage img { width: 58px; height: 58px; object-fit: contain; margin-bottom: 22px; }
 .statePage > span { color: #bba8ff; font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .15em; }
 .statePage h1 { margin: 8px 0; font-family: 'Bebas Neue', Impact, sans-serif; font-size: clamp(42px, 8vw, 70px); line-height: 1; text-transform: uppercase; }
@@ -438,4 +438,56 @@ a:focus-visible { outline: 3px solid #a78aff; outline-offset: 3px; }
 @media (prefers-reduced-motion: reduce) {
   .loader { animation-duration: 2s; }
   .skipLink { transition: none; }
+}
+
+/* CONNECTED-V1: the call for teams inside the public page (dark card, like the hero it follows) and the way back. */
+.topbarLink {
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
+  margin-left: 10px;
+  padding: 0 14px;
+  color: var(--violet-dark);
+  border: 1px solid #c9bdf7;
+  border-radius: 999px;
+  background: #fff;
+  font: 700 13px/1 Inter, Arial, sans-serif;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.topbarLink:focus-visible,
+.callPrimary:focus-visible {
+  outline: 3px solid #ae98ff;
+  outline-offset: 2px;
+}
+
+.callBlock {
+  width: min(1180px, calc(100% - 40px));
+  margin: 18px auto 0;
+}
+
+.callBlock small {
+  color: rgba(255, 255, 255, .7);
+  font: 500 13px/1.4 Inter, Arial, sans-serif;
+}
+
+.callPrimary {
+  display: inline-flex;
+  align-items: center;
+  min-height: 48px;
+  padding: 0 18px;
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, .15);
+  border-radius: 16px;
+  background: linear-gradient(135deg, #8b5cff, #6a43ff 52%, #5430e0);
+  box-shadow: 0 6px 22px rgba(106, 67, 255, .32);
+  font: 700 15px/1 Inter, Arial, sans-serif;
+  text-decoration: none;
+}
+
+@media (max-width: 560px) {
+  .topbar { flex-wrap: wrap; gap: 8px; padding: 8px 0; }
+  .topbarLink { margin-left: 0; }
+  .callBlock { width: calc(100% - 24px); }
 }

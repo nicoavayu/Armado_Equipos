@@ -1,0 +1,18 @@
+{"step":"apply-0014","driver":"db-0012.mjs run() on the LAB DB (docker psql)","before":"POST_0012","after":"POST_0014","changedOutside":[],"verdict":"APPLY_0014_DONE","mode":"MVP_SIMPLE","counts":"206/16 (with 0013)"}
+{"step":"draft-cycle","event":"upload p38 as owner","result":"201"}
+{"step":"draft-cycle","event":"publish","result":"200","gallery":{"status":"published","has_cover":true,"no_submitted":false,"no_published":false,"no_archived":true,"version":3},"participantSees":true,"participantUrls":"1 of 1"}
+{"step":"draft-cycle","actor":"captain (participant)","hide":"403 TORNEOS_MEDIA_FORBIDDEN","publish":"403 TORNEOS_MEDIA_FORBIDDEN"}
+{"step":"draft-cycle","actor":"outsider","hide":"403 TORNEOS_MEDIA_FORBIDDEN","publish":"403 TORNEOS_MEDIA_FORBIDDEN"}
+{"step":"draft-cycle","actor":"Lab Galería owner (other org)","hide":"403 TORNEOS_MEDIA_FORBIDDEN","publish":"403 TORNEOS_MEDIA_FORBIDDEN"}
+{"step":"draft-cycle","actor":"visitor (no session)","hide":401}
+{"step":"draft-cycle","event":"after the refused attempts","gallery":{"status":"published","has_cover":true,"no_submitted":false,"no_published":false,"no_archived":true,"version":3},"asset":"published"}
+{"step":"draft-cycle","event":"owner retires the only published photo (the cover)","result":"200","gallery":{"status":"draft","has_cover":false,"no_submitted":true,"no_published":true,"no_archived":true,"version":4},"asset":"hidden","participantSees":false,"newParticipantUrls":"0 of 1","urlIssuedBefore":200,"ownerSeesInAdmin":true}
+{"step":"draft-cycle","actor":"captain (participant) on the draft","restore":"403 TORNEOS_MEDIA_FORBIDDEN","publish":"403 TORNEOS_MEDIA_FORBIDDEN"}
+{"step":"draft-cycle","event":"pending photo in the draft","upload":"201","publishWithPending":"400 TORNEOS_MEDIA_GALLERY_NOT_PUBLISHABLE"}
+{"step":"draft-cycle","event":"approve another, set it as cover, publish (retired one still hidden)","result":"200","gallery":{"status":"published","has_cover":true,"no_submitted":false,"no_published":false,"no_archived":true,"version":7},"assets":{"retired":"hidden","another":"published"},"participantSees":true,"participantUrls":"1 of 2 (only the new one)"}
+{"step":"draft-cycle","event":"restore the retired photo in the published gallery","result":"200","asset":"published","participantUrls":"2 of 2"}
+{"step":"draft-cycle","event":"retire both, the cover last","result":"200","gallery":{"status":"draft","has_cover":false,"no_submitted":true,"no_published":true,"no_archived":true,"version":8},"participantSees":false}
+{"step":"draft-cycle","event":"restore the cover photo in the draft","result":"200","asset":"approved"}
+{"step":"draft-cycle","event":"cover + publish again","cover":"200","result":"200","gallery":{"status":"published","has_cover":true,"no_submitted":false,"no_published":false,"no_archived":true,"version":10},"participantSees":true,"assets":{"a":"hidden","b":"published"}}
+{"step":"draft-cycle","event":"explicit archive still works and is final","archive":"200","gallery":"archived","restoreAfterArchive":"400 TORNEOS_MEDIA_TRANSITION_INVALID","republish":"400 TORNEOS_MEDIA_GALLERY_NOT_PUBLISHABLE"}
+{"step":"draft-cycle","event":"gallery audit trail","actions":"media.gallery.created,media.gallery.cover_set,media.gallery.published,media.gallery.unpublished,media.gallery.cover_set,media.gallery.published,media.gallery.unpublished,media.gallery.cover_set,media.gallery.published,media.gallery.archive"}

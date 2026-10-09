@@ -70,7 +70,8 @@ describe('version handling', () => {
   test('completed current version is handled', () => {
     expect(hasHandledCurrentVersion({ completedVersion: 1 }, 1)).toBe(true);
     expect(hasHandledCurrentVersion({ completedVersion: 0 }, 1)).toBe(false);
-    expect(hasHandledCurrentVersion({ completedVersion: 1, status: ONBOARDING_STATUS.SKIPPED }, 1)).toBe(false);
+    // Dismissing ("Ahora no") is a final answer too.
+    expect(hasHandledCurrentVersion({ completedVersion: 0, status: ONBOARDING_STATUS.SKIPPED }, 1)).toBe(true);
   });
 
   test('a future version is not yet handled by a v1 completer', () => {
@@ -110,13 +111,28 @@ describe('resolveOnboardingDecision', () => {
     expect(d.reason).toBe('already_handled');
   });
 
-  test('user who skipped remains pending and can be re-offered next session', () => {
-    // v1 clients wrote completedVersion on skip; status repairs the semantics.
+  test('user who dismissed it is never offered it again automatically', () => {
     const d = resolveOnboardingDecision(baseCtx({
-      state: { completedVersion: 1, status: ONBOARDING_STATUS.SKIPPED },
+      state: { completedVersion: 0, status: ONBOARDING_STATUS.SKIPPED, firstSeenAt: '2026-10-07T10:00:00Z' },
+    }));
+    expect(d.shouldAutoOpen).toBe(false);
+    expect(d.reason).toBe('already_handled');
+  });
+
+  test('coming back (Torneos → Core, reload, reopen) after leaving it half-way does not reopen it', () => {
+    const d = resolveOnboardingDecision(baseCtx({
+      state: { completedVersion: 0, status: ONBOARDING_STATUS.IN_PROGRESS, firstSeenAt: '2026-10-07T10:00:00Z' },
+    }));
+    expect(d.shouldAutoOpen).toBe(false);
+    expect(d.reason).toBe('already_offered');
+  });
+
+  test('a new account that never saw it gets it once, on a safe Home (the welcome card does not count)', () => {
+    const d = resolveOnboardingDecision(baseCtx({
+      state: { completedVersion: 0, status: ONBOARDING_STATUS.NOT_STARTED, firstSeenAt: '2026-10-07T10:00:00Z', welcomeCardDismissed: true },
     }));
     expect(d.shouldAutoOpen).toBe(true);
-    expect(d.showDiscoveryCard).toBe(false);
+    expect(d.reason).toBe('new_user');
   });
 
   test('a future version re-offers to a v1 completer', () => {
@@ -138,13 +154,13 @@ describe('resolveOnboardingDecision', () => {
     expect(resolveOnboardingDecision(baseCtx({ profileResolved: false })).ready).toBe(false);
   });
 
-  test('resumes an in-progress run even for an old account', () => {
+  test('an old account with a run left half-way is not reopened automatically', () => {
     const d = resolveOnboardingDecision(baseCtx({
       user: oldUser,
       state: { completedVersion: 0, status: ONBOARDING_STATUS.IN_PROGRESS, chosenPath: 'organizer' },
     }));
-    expect(d.shouldAutoOpen).toBe(true);
-    expect(d.reason).toBe('resume');
+    expect(d.shouldAutoOpen).toBe(false);
+    expect(d.reason).toBe('already_offered');
   });
 
   describe('priority: never pre-empt a pending intent / unsafe surface', () => {

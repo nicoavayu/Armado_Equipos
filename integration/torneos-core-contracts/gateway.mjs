@@ -16,17 +16,27 @@
 // COMPETITION-V1: the SAME competition.ts as the Edge gateway (mounted read-only with its allowlist): the
 // full-competition RPCs on top of the 43 on the authenticated route, and the anonymous public read-only route
 // POST /torneos/public/v1/rpc/<name>. A malformed competition allowlist disables the gateway.
+// CONNECTED-V1: the same connected.ts loads connected-v1-rpc-allowlist.json when TORNEOS_CONNECTED_MODE=on.
+// BRANDING-V1: the same branding.ts (mounted by compose.branding.yaml) when TORNEOS_BRANDING_MODE=on: the branding
+// RPCs, the object route to the Torneos storage of the lab and signed URLs in the branding responses.
+// MEDIA-V1: the same media.ts (mounted by compose.media.yaml) when TORNEOS_MEDIA_MODE=on: the gallery RPCs, the upload
+// route (verified photo, gateway-claim write + completion) and the signed-read route, against the lab's Torneos storage.
 // OFFICIALIZATION-V1: the same competition.ts loads officialization-v1-rpc-allowlist.json (membership + dual-control
 // policy) onto the authenticated route; accept_tournament_organization_invitation goes through the adapter.
 import http from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { decodeJwt } from 'jose';
 import pg from 'pg';
-import { issueToken, verifyToken, uuid, TTL } from './token.mjs';
+import { issueMediaUploadToken, issueToken, verifyToken, uuid, TTL } from './token.mjs';
 import { CoreClient, Denied } from './core-client.mjs';
 import { Adapter, AdapterDenied, CONTRACTS } from './adapter.mjs';
 
 const origin = 'http://127.0.0.1:58420';
+// The loopback origin the browser-facing bridge presents. Default: this gateway's own published port. A second lab
+// gateway on the same lab (MEDIA-V1's, beside the preview's) is published on another loopback port of the 584xx lab
+// range; `origin` stays the Core issuer base either way.
+const publicOrigin = process.env.PHASE3A_GATEWAY_PUBLIC_ORIGIN || origin;
+if (!/^http:\/\/127\.0\.0\.1:584[0-9]{2}$/.test(publicOrigin)) throw new Error('PHASE3A_GATEWAY_PUBLIC_ORIGIN must be a 584xx loopback origin');
 const readConfig = async () => JSON.parse(await readFile('.runtime/server/config.json', 'utf8'));
 const initial = await readConfig();
 // Staging v1 RPC allowlist: fail closed if the file is missing, malformed or empty.
@@ -64,7 +74,45 @@ if (commerceEnv === null || (commerceEnv.TORNEOS_COMMERCE_MODE ?? '').trim()) {
     console.error(`[gateway] disabled: ${error?.constructor?.name === 'CommerceConfigError' ? error.message : 'boot failed'}`);
   }
 }
-const rpcAllowlist = commerceModule && !disabled ? commerceModule.effectiveRpcAllowlist(BASE_ALLOWLIST, commerce) : BASE_ALLOWLIST;
+const servedAllowlist = commerceModule && !disabled ? commerceModule.effectiveRpcAllowlist(BASE_ALLOWLIST, commerce) : BASE_ALLOWLIST;
+// CONNECTED-V1: the SAME connected.ts as the Edge gateway (mounted read-only with its allowlist), driven by the
+// container's TORNEOS_CONNECTED_MODE (absent/off = unchanged). A faulty mode or document disables the gateway.
+const connectedModule = await import('./functions/torneos-gateway/connected.ts');
+let connected = { mode: 'off', rpcs: new Set(), publicRpcs: new Set() };
+try {
+  connected = connectedModule.loadConnectedContract(process.env, servedAllowlist, competition.publicRpcs);
+} catch (error) {
+  disabled = true;
+  console.error(`[gateway] disabled: ${error?.constructor?.name === 'ConnectedConfigError' ? error.message : 'boot failed'}`);
+}
+const connectedAllowlist = connectedModule.withConnected(servedAllowlist, connected);
+// BRANDING-V1: loaded only when the overlay turns it on (the module is mounted only then). A fault disables the gateway.
+let branding = { mode: 'off', rpcs: new Set() };
+let brandingModule = null;
+if (!['', 'off'].includes((process.env.TORNEOS_BRANDING_MODE ?? '').trim())) {
+  try {
+    brandingModule = await import('./functions/torneos-gateway/branding.ts');
+    branding = brandingModule.loadBrandingContract(process.env, connectedAllowlist, 'http://torneos-rest:3000', initial.anonKey,
+      undefined, new Set([...competition.publicRpcs, ...connected.publicRpcs]));
+  } catch (error) {
+    disabled = true;
+    console.error(`[gateway] disabled: ${error?.constructor?.name === 'BrandingConfigError' ? error.message : 'boot failed'}`);
+  }
+}
+const brandedAllowlist = brandingModule && branding.mode === 'on' ? brandingModule.withBranding(connectedAllowlist, branding) : connectedAllowlist;
+// MEDIA-V1: loaded only when the overlay turns it on (the module is mounted only then). A fault disables the gateway.
+let media = { mode: 'off', rpcs: new Set() };
+let mediaModule = null;
+if (!['', 'off'].includes((process.env.TORNEOS_MEDIA_MODE ?? '').trim())) {
+  try {
+    mediaModule = await import('./functions/torneos-gateway/media.ts');
+    media = mediaModule.loadMediaContract(process.env, brandedAllowlist, 'http://torneos-rest:3000');
+  } catch (error) {
+    disabled = true;
+    console.error(`[gateway] disabled: ${error?.constructor?.name === 'MediaConfigError' ? error.message : 'boot failed'}`);
+  }
+}
+const rpcAllowlist = mediaModule && media.mode === 'on' ? mediaModule.withMedia(brandedAllowlist, media) : brandedAllowlist;
 
 function json(res, status, body) {
   res.writeHead(status, { 'content-type': 'application/json', 'cache-control': 'no-store' });
@@ -111,7 +159,7 @@ async function verifiedCore(token) {
   await activeSession(user.id, p.session_id);
   return { userId: user.id, sessionId: p.session_id };
 }
-async function proxy(req, res, url, token, raw) {
+async function proxy(req, res, url, token, raw, rpc = null) {
   const headers = {};
   if (token) headers.authorization = `Bearer ${token}`;
   for (const name of ['accept', 'content-type', 'prefer', 'range']) {
@@ -120,7 +168,11 @@ async function proxy(req, res, url, token, raw) {
   const r = await dependencyFetch(url, { method: req.method, headers,
     body: ['GET', 'HEAD'].includes(req.method) ? undefined : (raw ?? await body(req)),
     redirect: 'error', signal: AbortSignal.timeout(5000) });
-  const payload = await r.arrayBuffer();
+  let payload = await r.arrayBuffer();
+  // BRANDING-V1: the branding context gets signed URLs, signed with the caller's own token (storage RLS decides).
+  if (token && rpc && r.status === 200 && branding.mode === 'on' && brandingModule.SIGNED_AUTHENTICATED_RPCS.has(rpc)) {
+    payload = await brandingModule.signResponseBody(new Uint8Array(payload), branding, { bearer: token, apikey: null });
+  }
   // ERROR-CONTRACT-V1: same competition.ts rule as the Edge gateway (legacy-SQLSTATE domain error → contract status).
   res.writeHead(competitionModule.domainErrorStatus(r.status, payload), { 'content-type': r.headers.get('content-type') ?? 'application/json',
     'cache-control': 'no-store', ...(r.headers.has('content-range') ? { 'content-range': r.headers.get('content-range') } : {}) });
@@ -166,8 +218,8 @@ const server = http.createServer(async (req, res) => {
   res.setHeader('content-security-policy', "default-src 'self'; script-src 'self'; connect-src 'self'; object-src 'none'; frame-ancestors 'none'");
   try {
     if (disabled) return json(res, 503, { error: 'access denied' });
-    if (req.headers.host !== '127.0.0.1:58420' ||
-        (req.headers.origin && req.headers.origin !== origin)) return json(res, 403, { error: 'origin rejected' });
+    if (req.headers.host !== new URL(publicOrigin).host ||
+        (req.headers.origin && req.headers.origin !== publicOrigin)) return json(res, 403, { error: 'origin rejected' });
     const url = new URL(req.url, origin);
     if (req.method === 'GET' && url.pathname === '/config') {
       return json(res, 200, { coreUrl: origin, torneosUrl: `${origin}/torneos`, anonKey: initial.anonKey });
@@ -191,8 +243,12 @@ const server = http.createServer(async (req, res) => {
       const token = await issueToken(await readConfig(), row, c.sessionId);
       return json(res, 200, { access_token: token, token_type: 'Bearer', expires_in: TTL });
     }
-    if (commerce.mode === 'test' && req.method === 'POST' && url.pathname === commerceModule.COMMERCE_ROUTE) {
-      const r = await commerceModule.seasonCheckout({ authorization: req.headers.authorization ?? null, search: url.search,
+    // COMMERCE-PRODUCTION: production mode serves the same checkout route plus the purchase refresh (same module as Edge).
+    const commerceRoute = commerce.mode !== 'off' && req.method === 'POST' && (url.pathname === commerceModule?.COMMERCE_ROUTE
+      || (commerce.mode === 'production' && url.pathname === commerceModule?.REFRESH_ROUTE));
+    if (commerceRoute) {
+      const handler = url.pathname === commerceModule.COMMERCE_ROUTE ? commerceModule.seasonCheckout : commerceModule.purchaseRefresh;
+      const r = await handler({ authorization: req.headers.authorization ?? null, search: url.search,
         contentLength: req.headers['content-length'] ?? null, body: req }, commerce, {
         verifyBridge: async (token) => verifyToken(token, await readConfig()),
         activeSession: (c) => activeSession(c.core_user_id, c.session_id),
@@ -206,19 +262,63 @@ const server = http.createServer(async (req, res) => {
     const publicRpc = competitionModule.PUBLIC_RPC_ROUTE.exec(url.pathname);
     if (publicRpc) {
       if (req.method !== 'POST') return json(res, 405, { error: 'method not allowed' });
-      const decision = await competitionModule.preparePublicRpc({ name: publicRpc[1], authorization: req.headers.authorization ?? null,
+      const publicRequest = { name: publicRpc[1], authorization: req.headers.authorization ?? null,
         apikey: req.headers.apikey ?? null, contentType: req.headers['content-type'] ?? null,
-        contentLength: req.headers['content-length'] ?? null, body: req }, competition);
+        contentLength: req.headers['content-length'] ?? null, body: req };
+      // CONNECTED-V1: its public catalog RPCs carry their own body contract; everything else is COMPETITION-V1.
+      const decision = connected.publicRpcs.has(publicRpc[1])
+        ? await connectedModule.prepareConnectedPublicRpc(publicRequest, connected)
+        : branding.mode === 'on' && brandingModule.BRANDING_PUBLIC_RPCS.has(publicRpc[1])
+          ? await brandingModule.prepareBrandingPublicRpc(publicRequest, branding)
+          : await competitionModule.preparePublicRpc(publicRequest, competition);
       if (!decision.ok) return json(res, decision.status, { error: decision.error });
       if (!publicGate.tryEnter()) { res.setHeader('retry-after', '1'); return json(res, 503, { error: 'public route busy' }); }
       try {
         const r = await dependencyFetch(`http://torneos-rest:3000${decision.path}`, { method: 'POST',
           headers: { 'content-type': 'application/json', accept: 'application/json' }, body: decision.body,
           redirect: 'error', signal: AbortSignal.timeout(5000) });
+        let payload = new Uint8Array(await r.arrayBuffer());
+        // BRANDING-V1: published branding only (anon key → storage RLS), one signature batch per response.
+        if (r.status === 200 && branding.mode === 'on' && brandingModule.SIGNED_PUBLIC_RPCS.has(publicRpc[1])) {
+          payload = await brandingModule.signResponseBody(payload, branding, brandingModule.anonCredential(initial.anonKey));
+          if (brandingModule.BRANDING_PUBLIC_RPCS.has(publicRpc[1])) payload = brandingModule.projectPublicBranding(payload);
+        }
         res.writeHead(r.status, { 'content-type': r.headers.get('content-type') ?? 'application/json', 'cache-control': 'no-store' });
-        return res.end(Buffer.from(await r.arrayBuffer()));
+        return res.end(Buffer.from(payload));
       } finally {
         publicGate.leave();
+      }
+    }
+    // BRANDING-V1: one versioned object, stored or removed with the caller's own token (storage RLS decides).
+    const brandingPath = branding.mode === 'on' ? brandingModule.BRANDING_OBJECT_ROUTE.exec(url.pathname) : null;
+    if (brandingPath && ['POST', 'DELETE'].includes(req.method)) {
+      const token = bearer(req);
+      const p = await verifyToken(token, await readConfig());
+      await activeSession(p.core_user_id, p.session_id);
+      if (!await identityExists(p.sub, p.core_user_id)) throw new Error('identity mismatch');
+      const result = await brandingModule.brandingObject({ method: req.method, path: brandingPath[1],
+        contentType: req.headers['content-type'] ?? null, contentLength: req.headers['content-length'] ?? null, body: req },
+        branding, token, null);
+      return json(res, result.status, result.body);
+    }
+    // MEDIA-V1: one verified photo in, or signed reads out — for the caller's own verified identity only.
+    if (media.mode === 'on' && req.method === 'POST' && [mediaModule.MEDIA_UPLOAD_ROUTE, mediaModule.MEDIA_URLS_ROUTE].includes(url.pathname)) {
+      const token = bearer(req);
+      const config = await readConfig();
+      const p = await verifyToken(token, config);
+      await activeSession(p.core_user_id, p.session_id);
+      if (!await identityExists(p.sub, p.core_user_id)) throw new Error('identity mismatch');
+      const deps = { bearer: token, apikey: null, mint: (sessionId) => issueMediaUploadToken(config, p, sessionId) };
+      try {
+        const result = url.pathname === mediaModule.MEDIA_UPLOAD_ROUTE
+          ? await mediaModule.mediaUpload({ search: url.search, contentType: req.headers['content-type'] ?? null,
+            contentLength: req.headers['content-length'] ?? null, body: req }, media, deps)
+          : await mediaModule.mediaUrls({ contentType: req.headers['content-type'] ?? null,
+            contentLength: req.headers['content-length'] ?? null, body: req }, media, deps);
+        return json(res, result.status, result.body);
+      } catch (error) {
+        if (mediaModule.isMediaUnavailable(error)) throw new Unavailable();
+        throw error;
       }
     }
     const rest = /^\/torneos\/rest\/v1\/(rpc\/([a-z0-9_]+)|[a-z0-9_]+)$/.exec(url.pathname);
@@ -247,7 +347,7 @@ const server = http.createServer(async (req, res) => {
           }
         }
       }
-      return await proxy(req, res, `http://torneos-rest:3000${url.pathname.slice('/torneos/rest/v1'.length)}${url.search}`, token, raw);
+      return await proxy(req, res, `http://torneos-rest:3000${url.pathname.slice('/torneos/rest/v1'.length)}${url.search}`, token, raw, rpc ?? null);
     }
     return json(res, 404, { error: 'not found' });
   } catch (error) {
@@ -256,6 +356,9 @@ const server = http.createServer(async (req, res) => {
     else res.end();
   }
 });
-server.requestTimeout = 10000;
+// Production's gateway (Cloud Run) cuts a request at 30 s; a lab run that measures slow uploads mirrors it explicitly.
+const requestTimeout = Number(process.env.PHASE3A_GATEWAY_REQUEST_TIMEOUT_MS || 10000);
+if (!Number.isInteger(requestTimeout) || requestTimeout < 10000 || requestTimeout > 60000) throw new Error('PHASE3A_GATEWAY_REQUEST_TIMEOUT_MS must be 10000-60000');
+server.requestTimeout = requestTimeout;
 server.headersTimeout = 10000;
 server.listen(58420, '0.0.0.0', () => console.log('Phase 3A gateway ready'));

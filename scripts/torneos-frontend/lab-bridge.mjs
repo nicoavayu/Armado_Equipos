@@ -9,6 +9,8 @@
 //   127.0.0.1:58422  →  127.0.0.1:58424   lab Core (GoTrue / PostgREST / functions) + CORS
 //   127.0.0.1:58423  →  127.0.0.1:58420   lab gateway, Host/Origin rewritten to the lab
 //                                         origin the gateway allows, + CORS
+//                    (B04_LAB_GATEWAY=edge: 127.0.0.1:58421/torneos-gateway, the Edge Function the hosted gateway runs —
+//                     the one that carries PLAN READ / SOCIAL, for a run that mirrors Production)
 //
 // It never touches remote hosts, never reads env files, never logs bodies or bearers,
 // and refuses any browser origin but the app's. In remote staging the hosted gateway
@@ -16,10 +18,21 @@
 import http from 'node:http';
 
 const APP_ORIGIN = process.env.B04_LAB_APP_ORIGIN || 'http://localhost:3000';
-const LAB_GATEWAY_ORIGIN = 'http://127.0.0.1:58420';
+const EDGE_GATEWAY = process.env.B04_LAB_GATEWAY === 'edge';
+// A second lab gateway (B04_LAB_GATEWAY_ORIGIN, e.g. MEDIA-V1's beside the preview's) and its own bridge ports, all on
+// the 584xx loopback range of the lab; the defaults are the original single-gateway lab.
+const LOOPBACK_584 = /^http:\/\/127\.0\.0\.1:584[0-9]{2}$/;
+const bridgePort = (name, fallback) => {
+  const value = Number(process.env[name] || fallback);
+  if (!Number.isInteger(value) || value < 58400 || value > 58499) throw new Error(`${name} must be a 584xx port`);
+  return value;
+};
+const LAB_GATEWAY_ORIGIN = process.env.B04_LAB_GATEWAY_ORIGIN || (EDGE_GATEWAY ? 'http://127.0.0.1:58421' : 'http://127.0.0.1:58420');
+if (!LOOPBACK_584.test(LAB_GATEWAY_ORIGIN)) throw new Error('B04_LAB_GATEWAY_ORIGIN must be a 584xx loopback origin');
+const LAB_GATEWAY_UPSTREAM = EDGE_GATEWAY ? `${LAB_GATEWAY_ORIGIN}/torneos-gateway` : LAB_GATEWAY_ORIGIN;
 const LAB_CORE_ORIGIN = 'http://127.0.0.1:58424';
-const CORE_PORT = 58422;
-const GATEWAY_PORT = 58423;
+const CORE_PORT = bridgePort('B04_LAB_BRIDGE_CORE_PORT', 58422);
+const GATEWAY_PORT = bridgePort('B04_LAB_BRIDGE_GATEWAY_PORT', 58423);
 const HOP_BY_HOP = new Set(['connection', 'keep-alive', 'transfer-encoding', 'te', 'trailer', 'upgrade', 'proxy-authorization', 'proxy-authenticate', 'host', 'origin', 'content-length']);
 
 function cors(req, res) {
@@ -58,7 +71,9 @@ function bridge({ port, upstream, rewriteOrigin }) {
         method: req.method, headers, body, redirect: 'manual', signal: AbortSignal.timeout(15000),
       });
       for (const [name, value] of response.headers) {
-        if (!HOP_BY_HOP.has(name) && !name.startsWith('access-control-')) res.setHeader(name, value);
+        // fetch already decoded the body: forwarding content-encoding would make the browser decode it twice (the Edge
+        // runtime compresses; the Node gateway does not).
+        if (!HOP_BY_HOP.has(name) && name !== 'content-encoding' && !name.startsWith('access-control-')) res.setHeader(name, value);
       }
       res.writeHead(response.status);
       res.end(Buffer.from(await response.arrayBuffer()));
@@ -71,4 +86,4 @@ function bridge({ port, upstream, rewriteOrigin }) {
 }
 
 bridge({ port: CORE_PORT, upstream: LAB_CORE_ORIGIN, rewriteOrigin: null });
-bridge({ port: GATEWAY_PORT, upstream: LAB_GATEWAY_ORIGIN, rewriteOrigin: LAB_GATEWAY_ORIGIN });
+bridge({ port: GATEWAY_PORT, upstream: LAB_GATEWAY_UPSTREAM, rewriteOrigin: LAB_GATEWAY_ORIGIN });

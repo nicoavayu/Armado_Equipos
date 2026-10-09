@@ -4,7 +4,8 @@ import {
   buildMatchNotificationOrFilter,
 } from '../../utils/matchInviteState';
 
-const PRIVATE_GROUP_USER_FIELDS = 'id, nombre, avatar_url, email, localidad';
+// Never another user's email (not readable since 20261010124000).
+const PRIVATE_GROUP_USER_FIELDS = 'id, nombre, avatar_url, localidad';
 
 const normalizeId = (value) => {
   const normalized = String(value || '').trim();

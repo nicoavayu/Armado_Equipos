@@ -213,6 +213,20 @@ describe('Arma2 Torneos teams flow', () => {
     await waitFor(() => expect(screen.getByText('Presentar plantel')).toBeDisabled());
   });
 
+  test('a player without an account is added with an explicit empty shirt number', async () => {
+    const service = createService();
+    service.createProvisionalPlayer.mockResolvedValue({ id: 'provisional-a', displayName: 'Ana Sin App' });
+    service.addRosterPlayer.mockResolvedValue({});
+    renderPath(`/torneos/organizacion/${ORG}/equipos/${ENTRY}/plantel`, service);
+    fireEvent.change(await screen.findByLabelText('Buscar jugador de Arma2'), { target: { value: 'Ana Sin App' } });
+    fireEvent.click(await screen.findByRole('button', { name: /Crear “Ana Sin App” sin cuenta/ }));
+    await waitFor(() => expect(service.addRosterPlayer).toHaveBeenCalled());
+    const [input] = service.addRosterPlayer.mock.calls[0];
+    // PostgREST resolves add_tournament_roster_player by every named argument: "no number" must travel as null.
+    expect(Object.prototype.hasOwnProperty.call(input, 'shirtNumber')).toBe(true);
+    expect(input).toMatchObject({ provisionalPlayerId: 'provisional-a', displayName: 'Ana Sin App', shirtNumber: null });
+  });
+
   test('renders a roster safely when the persisted settings row is absent', async () => {
     const service = createService();
     service.loadTeamRegistration.mockResolvedValue({
@@ -223,8 +237,10 @@ describe('Arma2 Torneos teams flow', () => {
     renderPath(`/torneos/organizacion/${ORG}/equipos/${ENTRY}/plantel`, service);
 
     expect(await screen.findByRole('heading', { name: 'Barrio Norte' })).toBeInTheDocument();
-    expect(screen.getByText('Los requisitos del plantel todavía no están configurados.'))
-      .toBeInTheDocument();
+    // Said in the roster status and again next to the action it blocks (the button is described by it).
+    expect(screen.getAllByText('Los requisitos del plantel todavía no están configurados.')).toHaveLength(2);
+    expect(screen.getByRole('button', { name: 'Presentar plantel' }))
+      .toHaveAttribute('aria-describedby', 'roster-submit-missing');
     expect(screen.getByText('jugadores · mínimo sin definir')).toBeInTheDocument();
     expect(screen.queryByText('0/0')).not.toBeInTheDocument();
     expect(screen.getAllByText('Sin definir')).toHaveLength(4);

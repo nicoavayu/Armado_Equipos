@@ -1,5 +1,6 @@
 import logger from '../../utils/logger';
 import { supabase } from '../../lib/supabaseClient';
+import { withApproxLocations } from './publicProfiles';
 
 const isValidUUID = (value) => {
   if (!value || typeof value !== 'string') return false;
@@ -101,10 +102,12 @@ export const getAmigos = async (userId) => {
       .select(selectClause)
       .in('id', friendIds);
 
+    // Never email or exact coordinates of another user (not readable since 20261010124000):
+    // distance sorting uses the ~1 km locations merged in below.
     const usuariosSelectClauses = [
-      'id, nombre, avatar_url, acepta_invitaciones, localidad, ranking, partidos_jugados, posicion, email, pierna_habil, nivel, latitud, longitud',
-      'id, nombre, avatar_url, acepta_invitaciones, ranking, partidos_jugados, posicion, email',
-      'id, nombre, avatar_url, ranking, partidos_jugados, posicion, email',
+      'id, nombre, avatar_url, acepta_invitaciones, localidad, ranking, partidos_jugados, posicion, pierna_habil, nivel',
+      'id, nombre, avatar_url, acepta_invitaciones, ranking, partidos_jugados, posicion',
+      'id, nombre, avatar_url, ranking, partidos_jugados, posicion',
     ];
 
     let usersResponse = null;
@@ -131,10 +134,10 @@ export const getAmigos = async (userId) => {
         .order('id', { ascending: false }),
     ]);
 
-    const users = usersResponse.data;
     const usersError = usersResponse.error;
 
     if (usersError) throw usersError;
+    const users = await withApproxLocations(usersResponse.data || []);
     if (profilesError) {
       logger.warn('[GET_AMIGOS] Error fetching profiles avatar fallback:', profilesError);
     }

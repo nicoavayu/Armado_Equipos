@@ -8,7 +8,8 @@
 //
 // Wire contract (backend/torneos/phase2a/CONTRACTS.md, schemas.json; Phase 3B session op:
 // backend/torneos/phase3b/contracts/session.schema.json):
-//   POST /v1/verified-email | /v1/directory | /v1/team-snapshot | /v1/session
+//   POST /v1/verified-email | /v1/directory | /v1/team-snapshot | /v1/session | /v1/my-teams
+//   (v1.2 my-teams: supabase/migrations/20261007120000_torneos_core_contract_v1_2_my_teams.sql)
 //   Headers X-Time (unix seconds), X-Nonce (32 hex), X-Signature (hex HMAC-SHA256
 //   over `path + "\n" + X-Time + "\n" + X-Nonce + "\n" + body`), ±30 s window.
 //   Errors are `{ "error": "CODE" }`; every response is `Cache-Control: no-store`.
@@ -20,6 +21,8 @@ export const CONTRACT_ROUTES: Record<string, string> = {
   // Phase 3B (v1.1): the Core session authority verdict on its own, for the hosted
   // Torneos gateway's per-request online revocation check (Core only over HTTPS).
   "/v1/session": "session",
+  // v1.2 (CONNECTED-V1): the caller's own teams with Core's verdict on whether they can register each one.
+  "/v1/my-teams": "my_teams",
 }
 
 export const MAX_BODY_BYTES = 16384
@@ -157,6 +160,12 @@ export function validateRequest(path: string, raw: unknown): ValidatedRequest {
     const r = exactKeys(raw, ["core_user_id", "session_id"])
     if (!isCanonicalUuid(r.core_user_id) || !isCanonicalUuid(r.session_id)) throw new ContractError(400, "INVALID_REQUEST")
     return { operation, coreUserId: r.core_user_id, sessionId: r.session_id, sqlRequest: { core_user_id: r.core_user_id, session_id: r.session_id } }
+  }
+  if (operation === "my_teams") {
+    const r = exactKeys(raw, ["core_user_id", "session_id", "limit"])
+    if (!isCanonicalUuid(r.core_user_id) || !isCanonicalUuid(r.session_id)) throw new ContractError(400, "INVALID_REQUEST")
+    if (typeof r.limit !== "number" || !Number.isInteger(r.limit) || r.limit < 1 || r.limit > 30) throw new ContractError(400, "INVALID_REQUEST")
+    return { operation, coreUserId: r.core_user_id, sessionId: r.session_id, sqlRequest: { core_user_id: r.core_user_id, session_id: r.session_id, limit: r.limit } }
   }
   if (operation === "verified_email") {
     const r = exactKeys(raw, ["core_user_id", "session_id", "expected_email"])

@@ -76,8 +76,8 @@ describe('purchase status routes', () => {
       tournamentId: undefined,
     });
     expect(simulateFakeTournamentPayment).not.toHaveBeenCalled();
-    expect(screen.getByText(/Premium se activa cuando recibimos la confirmación/)).toBeInTheDocument();
-    expect(screen.getByText('Pago generado')).toBeInTheDocument();
+    expect(screen.getByText(/Premium se activa cuando Mercado Pago confirma el pago/)).toBeInTheDocument();
+    expect(screen.getByText('Esperando el pago')).toBeInTheDocument();
     expect(screen.getByText('Prueba · sin cobro real')).toBeInTheDocument();
     expect(screen.getByText(/status: preference_created · provider: FAKE/)).toBeInTheDocument();
   });

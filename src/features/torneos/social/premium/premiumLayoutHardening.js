@@ -1,4 +1,5 @@
 const PREMIUM_THEME_IDS = new Set(['heritage', 'street', 'scoreboard', 'editorial']);
+const STORY_RESULT_MAX_ROW_HEIGHT = 290;
 
 function text(value) {
   return String(value ?? '').trim();
@@ -80,7 +81,9 @@ export function resolveAdaptiveTableMetrics({
   const available = Math.max(0, Number(availableBodyHeight) || 0);
   const minRowHeight = formatId === 'story' ? 38 : 28;
   const idealRowHeight = formatId === 'story' ? 76 : 66;
-  const defaultMaxRowHeight = formatId === 'story' ? 104 : 92;
+  // Story: up to eight rows keep filling the 1920 px canvas the way the approved compositions do; fewer rows keep this
+  // height and start under the title instead of stretching into floating bands.
+  const defaultMaxRowHeight = formatId === 'story' ? 160 : 92;
   const maxRowHeight = Number.isFinite(maxRowHeightOverride)
     ? Math.max(minRowHeight, maxRowHeightOverride)
     : defaultMaxRowHeight;
@@ -135,9 +138,16 @@ function rowForMatch(root, match, scoreText, unused) {
     row.parentElement
     && row.parentElement !== root
     && text(row.parentElement.textContent) === text(row.textContent)
+    && withinEntrySize(root, row.parentElement)
   ) row = row.parentElement;
   unused.add(row);
   return row;
+}
+
+// A one-match list holds nothing but that match: without a size bound, "the box with the same text" would climb to
+// the canvas body and the row height would be applied to the whole body (pulling the footer up).
+function withinEntrySize(root, node) {
+  return !(root.offsetHeight > 0) || node.offsetHeight <= root.offsetHeight * 0.4;
 }
 
 function rowForScoreboardMatch(root, match, unused) {
@@ -151,6 +161,7 @@ function rowForScoreboardMatch(root, match, unused) {
     && row.parentElement !== root
     && text(row.parentElement.textContent) === text(row.textContent)
     && directElements(row.parentElement).length <= 2
+    && withinEntrySize(root, row.parentElement)
   ) row = row.parentElement;
   unused.add(row);
   return row;
@@ -182,7 +193,12 @@ function hardenResultRows(root, matches, themeId, formatId) {
   const gap = dense ? (rows.length >= 8 ? 10 : 14) : 18;
   const pad = dense ? 10 : 20;
   const available = parent.clientHeight || Number.parseFloat(getComputedStyle(parent).height) || 1100;
-  const rowHeight = Math.max(72, Math.floor((available - pad * 2 - gap * (rows.length - 1)) / rows.length));
+  // Four results already fill the Story canvas; one to three keep that row height and start under the title instead
+  // of each stretching into a third or half of the canvas.
+  const rowHeight = Math.min(
+    STORY_RESULT_MAX_ROW_HEIGHT,
+    Math.max(72, Math.floor((available - pad * 2 - gap * (rows.length - 1)) / rows.length)),
+  );
   Object.assign(parent.style, {
     justifyContent: 'flex-start',
     alignContent: 'start',
@@ -220,10 +236,14 @@ function hardenResultRows(root, matches, themeId, formatId) {
     if (themeId === 'scoreboard') {
       const halves = directElements(row).filter((child) => getComputedStyle(child).display === 'grid');
       halves.forEach((half) => {
+        // The crest and score columns keep the template's widths (the crest sits inside its own padding: a narrower
+        // column pushed it over the team name); only the name column becomes shrinkable.
+        const [crestColumn, , scoreColumn] = getComputedStyle(half).gridTemplateColumns.split(' ')
+          .map((value) => Number.parseFloat(value));
         Object.assign(half.style, {
-          gridTemplateColumns: dense
-            ? '92px minmax(0,1fr) 154px'
-            : '118px minmax(0,1fr) 184px',
+          gridTemplateColumns: Number.isFinite(crestColumn) && Number.isFinite(scoreColumn)
+            ? `${crestColumn}px minmax(0,1fr) ${scoreColumn}px`
+            : (dense ? '92px minmax(0,1fr) 154px' : '118px minmax(0,1fr) 184px'),
           minHeight: '0',
           overflow: 'hidden',
         });
@@ -403,12 +423,16 @@ function hardenTabularFlow(root, rowsData, kind, formatId, themeId) {
       ? ({
         heritage: rows.length <= 4 ? 136 : (rows.length <= 8 ? 98 : null),
         street: rows.length <= 4 ? 136 : (rows.length <= 8 ? 98 : null),
-        scoreboard: rows.length <= 4 ? 118 : (rows.length <= 8 ? 88 : null),
+        scoreboard: rows.length <= 4 ? 118 : (rows.length <= 8 ? 104 : null),
         editorial: rows.length <= 4 ? 116 : (rows.length <= 8 ? 86 : null),
       }[themeId] ?? null)
       : null,
   });
   const { rowHeight } = metrics;
+  // The template's own type size is the ceiling: the fit only ever shrinks a name that would escape its row.
+  const templateFontSizes = nameLeaves.map((leaf) => (
+    leaf ? Number.parseFloat(getComputedStyle(leaf).fontSize) : Number.NaN
+  ));
   Object.assign(parent.style, {
     justifyContent: 'flex-start',
     alignContent: 'start',
@@ -421,6 +445,8 @@ function hardenTabularFlow(root, rowsData, kind, formatId, themeId) {
       alignContent: 'start',
     });
     flowFrame.dataset.premiumFlowFrame = kind;
+    // A frame that only wraps the table (and its notes) inside a centering body would still float as a block.
+    anchorAncestors(flowFrame, root, kind);
   }
   parent.dataset.premiumFlow = kind;
   parent.dataset.rowCount = String(rows.length);
@@ -448,10 +474,16 @@ function hardenTabularFlow(root, rowsData, kind, formatId, themeId) {
     });
     const nameLeaf = nameLeaves[index];
     if (nameLeaf) {
-      let fittedFontSize = metrics.fontSizes[index];
+      const templateFontSize = templateFontSizes[index];
+      let fittedFontSize = Number.isFinite(templateFontSize) && templateFontSize > 0
+        ? Math.min(metrics.fontSizes[index], Math.round(templateFontSize))
+        : metrics.fontSizes[index];
+      // One measured line only where rows are too short to wrap (a dense Editorial page); a few tall rows wrap long
+      // names instead of shrinking them below the rest of the table.
       const useSingleLineAutofit = kind === 'standings'
         && themeId === 'editorial'
-        && formatId === 'portrait';
+        && formatId === 'portrait'
+        && rows.length > 10;
       Object.assign(nameLeaf.style, {
         fontSize: `${fittedFontSize}px`,
         lineHeight: '1.08',
@@ -695,7 +727,9 @@ function hardenNoPhotoFigure(root, themeId, formatId) {
 
   const column = hero.parentElement;
   if (column && getComputedStyle(column).display === 'flex') {
-    column.style.justifyContent = 'space-between';
+    // The title block stays together over the compact hero; the player's identity and stats take the freed space
+    // above them (spreading every child apart split multi-line titles such as Street's).
+    if (hero.nextElementSibling) hero.nextElementSibling.style.marginTop = 'auto';
     column.dataset.premiumFigureComposition = 'no-photo-compact';
   }
 
@@ -773,6 +807,175 @@ function hardenHeritageSemifinalScores(root, matches) {
   });
 }
 
+// Match lists (results, next fixture, semifinals) with only a few entries: each entry keeps the height it has on a full
+// list and the list starts right under the title, instead of floating in the middle of the canvas or stretching every
+// entry into a band. Only wrappers between the list and the canvas body are re-anchored; the page column that places
+// the header and the footer is never touched.
+// [floor, ceiling] of an entry's height. The ceiling is the height an entry has on a full list (four results, a round
+// of fixtures, both semifinals): up to it, the entry is left exactly as the template draws it. A taller, stretched
+// entry shrinks to its own content, never below the floor (it keeps the presence of an entry of a full list).
+const SPARSE_MATCH_HEIGHT = Object.freeze({
+  round_results: { portrait: [250, 250], story: [STORY_RESULT_MAX_ROW_HEIGHT, STORY_RESULT_MAX_ROW_HEIGHT] },
+  next_fixture: { portrait: [250, 250], story: [STORY_RESULT_MAX_ROW_HEIGHT, STORY_RESULT_MAX_ROW_HEIGHT] },
+  semifinals: { portrait: [200, 330], story: [260, 460] },
+});
+const DISTRIBUTED = /center|space-|end/;
+
+function anchorTop(node, kind) {
+  const style = getComputedStyle(node);
+  let changed = false;
+  if (style.display.includes('flex') && style.flexDirection.startsWith('column') && DISTRIBUTED.test(style.justifyContent)) {
+    const spread = style.justifyContent.startsWith('space-');
+    node.style.justifyContent = 'flex-start';
+    // Entries that were separated by the distributed space keep a separation of their own.
+    if (spread && !(Number.parseFloat(style.rowGap) > 0)) node.style.rowGap = '18px';
+    changed = true;
+  }
+  if (style.display.includes('grid') && DISTRIBUTED.test(style.alignContent)) {
+    node.style.alignContent = 'start';
+    changed = true;
+  }
+  if (changed) node.dataset.premiumSparseAnchor = kind;
+  return style;
+}
+
+// The entry of one match: the smallest box holding both team names, widened only to wrappers that hold nothing else
+// and stay well below the canvas (never the body frame of a one-match list).
+function entryForMatch(root, match, unused) {
+  const home = text(match?.home?.name || match?.home?.teamName);
+  const away = text(match?.away?.name || match?.away?.teamName);
+  const found = smallestContainer(root, [home, away], { unused });
+  if (!found) return null;
+  let row = found;
+  while (
+    row.parentElement
+    && row.parentElement !== root
+    && text(row.parentElement.textContent) === text(row.textContent)
+    && directElements(row.parentElement).length <= 2
+    && withinEntrySize(root, row.parentElement)
+  ) row = row.parentElement;
+  unused.add(row);
+  return row;
+}
+
+function anchorMatchList(root, matches, kind, formatId) {
+  if (!matches.length) return;
+  const unused = new Set();
+  const rows = matches.map((match) => entryForMatch(root, match, unused)).filter(Boolean);
+  if (rows.length !== matches.length) return;
+  let parent;
+  let items;
+  if (rows.length === 1) {
+    items = rows;
+    parent = rows[0].parentElement;
+  } else {
+    parent = commonParent(rows);
+    items = rows.map((row) => {
+      let item = row;
+      while (item.parentElement && item.parentElement !== parent) item = item.parentElement;
+      return item;
+    });
+    if (new Set(items).size !== items.length) return;
+  }
+  if (!parent || parent === root) return;
+  const [minHeight, maxHeight] = SPARSE_MATCH_HEIGHT[kind][formatId === 'story' ? 'story' : 'portrait'];
+  const parentStyle = getComputedStyle(parent);
+  items.forEach((item) => {
+    const stretched = item.offsetHeight;
+    if (stretched <= maxHeight) return;
+    // The entry's own content height, measured with nothing stretching it.
+    const saved = item.getAttribute('style');
+    Object.assign(item.style, { flex: '0 0 auto', height: 'auto', minHeight: '0', maxHeight: 'none' });
+    const natural = item.offsetHeight;
+    if (saved === null) item.removeAttribute('style'); else item.setAttribute('style', saved);
+    const target = Math.min(maxHeight, Math.max(natural, minHeight));
+    Object.assign(item.style, {
+      flex: '0 0 auto',
+      height: `${target}px`,
+      minHeight: '0',
+      maxHeight: `${target}px`,
+      boxSizing: 'border-box',
+    });
+    item.dataset.premiumSparseItem = kind;
+  });
+  if (parentStyle.display.includes('grid')) {
+    // Equal fractional tracks spread a short list over the whole body: tracks follow the entries instead.
+    parent.style.gridTemplateRows = 'none';
+    parent.style.gridAutoRows = 'auto';
+  }
+  anchorTop(parent, kind);
+  parent.dataset.premiumSparseList = kind;
+  parent.dataset.rowCount = String(items.length);
+  // A column beside the list (the date of the round next to its matches) starts where the list starts, whether it
+  // sits next to the list or inside it, next to the entries.
+  const besideList = Array.from(parent.parentElement?.children || []).filter((sibling) => (
+    sibling !== parent && Math.abs(sibling.offsetHeight - parent.offsetHeight) <= 4 && sibling.offsetLeft !== parent.offsetLeft
+  ));
+  const besideEntries = Array.from(parent.children).filter((child) => (
+    !items.includes(child) && child.offsetHeight >= parent.offsetHeight - 4
+  ));
+  [...besideList, ...besideEntries].forEach((column) => anchorTop(column, kind));
+  // A list centered across a grid track or a row of columns starts at the top of that track.
+  const outer = parent.parentElement ? getComputedStyle(parent.parentElement) : null;
+  if (outer && (outer.display.includes('grid') || (outer.display.includes('flex') && outer.flexDirection.startsWith('row')))
+    && /center|end/.test(parentStyle.alignSelf === 'auto' ? outer.alignItems : parentStyle.alignSelf)) {
+    parent.style.alignSelf = 'start';
+    parent.dataset.premiumSparseAnchor = kind;
+  }
+  // A list drawn on its own panel (a dark card under the title) wraps its entries instead of stretching an empty
+  // panel down to the footer.
+  const ownBackground = rgba(parentStyle.backgroundColor);
+  const paintsPanel = (ownBackground && ownBackground.a > 0.01) || parentStyle.backgroundImage !== 'none'
+    || parentStyle.clipPath !== 'none';
+  if (paintsPanel) {
+    const stretched = parent.offsetHeight;
+    const saved = parent.getAttribute('style');
+    Object.assign(parent.style, { flex: '0 0 auto', height: 'auto', minHeight: '0' });
+    const natural = parent.offsetHeight;
+    if (natural < stretched * 0.7) {
+      // A cut-out panel (a clip-path with a jagged edge) keeps its entries clear of the edges it cuts.
+      if (parentStyle.clipPath !== 'none') {
+        parent.style.paddingTop = `${(Number.parseFloat(parentStyle.paddingTop) || 0) + 56}px`;
+        parent.style.paddingBottom = `${(Number.parseFloat(parentStyle.paddingBottom) || 0) + 40}px`;
+      }
+      parent.dataset.premiumSparsePanel = kind;
+    } else if (saved === null) parent.removeAttribute('style');
+    else parent.setAttribute('style', saved);
+  }
+  anchorAncestors(parent, root, kind);
+  clearTitle(root, parent, items, kind);
+}
+
+// Wrappers that hold nothing but the list, up to the body frame that grows to fill the canvas (included): each starts
+// its content at the top. The page column that places the header and the footer is above that frame, never touched.
+function anchorAncestors(node, root, kind) {
+  for (let current = node.parentElement; current && current !== root; current = current.parentElement) {
+    if (current.children.length !== 1) break;
+    const style = anchorTop(current, kind);
+    if (Number.parseFloat(style.flexGrow) > 0) break;
+  }
+}
+
+// Some compositions let the title overlap the top of the body on purpose (a badge over a panel): a list that now
+// starts at the top of the body is pushed just below the lowest line of the title it would touch.
+function clearTitle(root, list, items, kind) {
+  const first = items[0]?.getBoundingClientRect();
+  if (!first || !(first.height > 0)) return;
+  let titleBottom = Number.NEGATIVE_INFINITY;
+  root.querySelectorAll('*').forEach((node) => {
+    if (node.children.length || list.contains(node) || !text(node.textContent)) return;
+    const box = node.getBoundingClientRect();
+    if (!(box.height > 0) || box.top >= first.top || box.bottom <= first.top) return;
+    if (box.right <= first.left || box.left >= first.right) return;
+    titleBottom = Math.max(titleBottom, box.bottom);
+  });
+  if (!Number.isFinite(titleBottom)) return;
+  const scale = root.getBoundingClientRect().height / (root.offsetHeight || 1) || 1;
+  const push = Math.ceil((titleBottom - first.top) / scale) + 18;
+  list.style.paddingTop = `${(Number.parseFloat(getComputedStyle(list).paddingTop) || 0) + push}px`;
+  list.dataset.premiumSparseClearTitle = kind;
+}
+
 export function applyPremiumLayoutHardening(root, {
   snapshot,
   editorial = {},
@@ -790,6 +993,7 @@ export function applyPremiumLayoutHardening(root, {
 
   if (piece === 'round_results') {
     hardenResultRows(root, official.matches || [], themeId, formatId);
+    anchorMatchList(root, official.matches || [], 'round_results', formatId);
   } else if (piece === 'standings') {
     hardenTabularFlow(root, official.rows || [], 'standings', formatId, themeId);
   } else if (piece === 'scorers') {
@@ -801,10 +1005,12 @@ export function applyPremiumLayoutHardening(root, {
       hardenEmptyDiscipline(root, themeId);
     }
     hideEmptySuspensions(root, official.players || []);
-  } else if (piece === 'next_fixture' && themeId === 'editorial') {
-    hardenEditorialFixtures(root, official.matches || []);
-  } else if (piece === 'semifinals' && themeId === 'heritage') {
-    hardenHeritageSemifinalScores(root, official.matches || []);
+  } else if (piece === 'next_fixture') {
+    if (themeId === 'editorial') hardenEditorialFixtures(root, official.matches || []);
+    anchorMatchList(root, official.matches || [], 'next_fixture', formatId);
+  } else if (piece === 'semifinals') {
+    if (themeId === 'heritage') hardenHeritageSemifinalScores(root, official.matches || []);
+    anchorMatchList(root, official.matches || [], 'semifinals', formatId);
   } else if (piece === 'mvp') {
     hardenNoPhotoFigure(root, themeId, formatId);
   }

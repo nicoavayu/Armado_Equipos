@@ -3,6 +3,7 @@ import { handleError } from '../lib/errorHandler';
 import { requestImmediatePushDispatchSafe } from './pushDispatchService';
 import logger from '../utils/logger';
 import { isChallengeLikeTeamMatchRow } from '../utils/surveyChallengePolicy';
+import { fetchMatchAccessCode } from './db/matchAccessCode';
 
 /**
  * Get match invite notification for a user and match
@@ -44,18 +45,8 @@ export async function sendVotingNotifications(partidoId, meta = {}) {
     let partidoMeta = { codigo: null };
 
     try {
-      const { data: partidoData, error: partidoMetaError } = await supabase
-        .from('partidos')
-        .select('codigo')
-        .eq('id', partidoId)
-        .single();
-
-      if (partidoMetaError) {
-        logger.error('[Notifications] error fetching partido metadata', partidoMetaError);
-        throw partidoMetaError;
-      }
-
-      partidoMeta = { codigo: partidoData?.codigo ?? null };
+      // The caller is the match's admin: the server hands its code to members only.
+      partidoMeta = { codigo: await fetchMatchAccessCode(partidoId) };
     } catch (partidoMetaError) {
       logger.error('[Notifications] fallback partido query failed', partidoMetaError);
       partidoMeta = { codigo: null };

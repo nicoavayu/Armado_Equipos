@@ -160,6 +160,37 @@ describe('nuevo partido gamer wizard', () => {
     expect(screen.getByTestId('wizard-step-1')).toBeInTheDocument();
   });
 
+  test('el botón deshabilitado explica qué falta en cada paso', async () => {
+    const user = userEvent;
+    renderWizard();
+
+    const hint = () => screen.getByTestId('new-match-next-hint');
+    expect(hint()).toHaveTextContent('Poné un nombre para seguir.');
+    expect(screen.getByRole('button', { name: 'Siguiente' })).toHaveAttribute('aria-describedby', 'new-match-next-hint');
+
+    await user.type(screen.getByLabelText('Nombre del partido'), 'Partido nocturno');
+    expect(hint()).toHaveTextContent('');
+    expect(screen.getByRole('button', { name: 'Siguiente' })).not.toHaveAttribute('aria-describedby');
+    await clickAndFinishTransition(user, screen.getByRole('button', { name: 'Siguiente' }));
+    await clickAndFinishTransition(user, screen.getByRole('button', { name: 'Siguiente' }));
+
+    expect(hint()).toHaveTextContent('Elegí el día y la hora del partido.');
+    await user.click(screen.getByRole('button', { name: 'Mañana' }));
+    expect(hint()).toHaveTextContent('Elegí la hora del partido.');
+    await user.selectOptions(screen.getByLabelText('Hora'), '9');
+    await user.selectOptions(screen.getByLabelText('Minutos'), '00');
+    expect(hint()).toHaveTextContent('Falta elegir AM o PM.');
+    expect(screen.getByRole('button', { name: 'Siguiente' })).toBeDisabled();
+    await user.selectOptions(screen.getByLabelText('AM o PM'), 'PM');
+    expect(hint()).toHaveTextContent('');
+    expect(screen.getByRole('button', { name: 'Siguiente' })).toBeEnabled();
+    await clickAndFinishTransition(user, screen.getByRole('button', { name: 'Siguiente' }));
+
+    expect(hint()).toHaveTextContent('Escribí dónde se juega.');
+    await user.type(screen.getByLabelText('Cancha, sede o dirección'), 'Club Atlético Palermo');
+    expect(hint()).toHaveTextContent('');
+  });
+
   test('avanza con nombre válido y permite elegir formato y tipo', async () => {
     const user = userEvent;
     renderWizard();

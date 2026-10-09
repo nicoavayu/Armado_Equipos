@@ -1,0 +1,10 @@
+{
+  "phase": "BRANDING-V1",
+  "scope": "Logos and shields of the hybrid composition with the existing branding contract: switch the durable reference of an organization logo, a tournament logo or a team shield (set_tournament_branding_reference, authorized in SQL by the same capabilities as the LOCAL composition) and read an organization's branding context. Served only with TORNEOS_BRANDING_MODE=on; objects go through the gateway's object route to the Torneos project's private bucket (migration 00000000000010).",
+  "features": {
+    "branding_assets": [
+      "set_tournament_branding_reference",
+      "get_tournament_branding_context"
+    ]
+  }
+}

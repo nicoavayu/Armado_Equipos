@@ -1,7 +1,6 @@
 import logger from '../utils/logger';
 import { useState, useEffect, useCallback } from 'react';
 import { supabase, getAmigos as getAmigosFromSupabase } from '../supabase';
-import { useNotifications } from '../context/NotificationContext';
 import { requestImmediatePushDispatchSafe } from '../services/pushDispatchService';
 import { track } from '../utils/monitoring/analytics';
 import { insertNotificationSecure } from '../utils/notificationHelpers';
@@ -51,7 +50,6 @@ export const useAmigos = (currentUserId) => {
   const [amigos, setAmigos] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const { createNotification: _createNotification } = useNotifications();
 
   // Get all friends with status 'accepted' usando la nueva función refactorizada
   const getAmigos = useCallback(async (options = {}) => {
@@ -455,10 +453,10 @@ export const useAmigos = (currentUserId) => {
         .in('id', requesterIds);
 
       let usuariosResponse = await fetchUsuarios(
-        'id, nombre, avatar_url, email, posicion, ranking, partidos_jugados, pais_codigo, numero, pierna_habil, nivel',
+        'id, nombre, avatar_url, posicion, ranking, partidos_jugados, pais_codigo, numero, pierna_habil, nivel',
       );
       if (usuariosResponse.error && isMissingColumnError(usuariosResponse.error)) {
-        usuariosResponse = await fetchUsuarios('id, nombre, avatar_url, email, posicion, ranking, partidos_jugados');
+        usuariosResponse = await fetchUsuarios('id, nombre, avatar_url, posicion, ranking, partidos_jugados');
       }
 
       const [

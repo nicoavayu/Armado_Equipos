@@ -26,6 +26,10 @@ const PRODUCTION_ENABLE_ENV_KEY = 'REACT_APP_TORNEOS_PRODUCTION_ENABLED';
 // composición híbrida además exige PLAN READ (foundation/config.js
 // resolveTorneosSocialStudio) y el gateway sólo sirve sus RPC con
 // TORNEOS_SOCIAL_MODE=on.
+// MEDIA-V1: la galería de fotos es elegible por la misma vía: su variable (mediaEnabled) sola no la abre; la
+// composición híbrida además exige REACT_APP_TORNEOS_MEDIA_MODE=on (foundation/config.js resolveTorneosMedia) y el
+// gateway sólo sirve sus RPC y rutas con TORNEOS_MEDIA_MODE=on. La carga legacy (mediaUploadEnabled + las variables
+// *_READY del signer/worker del proyecto Core) sigue cerrada en Production.
 const PRODUCTION_ELIGIBLE_FLAGS = new Set([
   'torneosEnabled',
   'workspacesEnabled',
@@ -35,6 +39,7 @@ const PRODUCTION_ELIGIBLE_FLAGS = new Set([
   'officialStats',
   'publicPages',
   'socialContentGenerator',
+  'mediaEnabled',
 ]);
 const FLAG_ENV_KEYS = {
   torneosEnabled: 'REACT_APP_TORNEOS_ENABLED',

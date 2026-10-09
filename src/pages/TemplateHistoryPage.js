@@ -8,6 +8,7 @@ import { ensureParticipantsSnapshot } from '../services/historySnapshotService';
 import { normalizeAwardType } from '../services/db/userIdentity';
 import AvatarFallback from '../components/AvatarFallback';
 import { useSmartBackNavigation } from '../hooks/useSmartBackNavigation';
+import { buildHomonymHints } from '../utils/surveyRosterIdentity';
 
 const fmtDateShort = (ymd) => {
   if (!ymd) return '—';
@@ -16,6 +17,15 @@ const fmtDateShort = (ymd) => {
     return d.toLocaleDateString('es-AR', { day: 'numeric', month: 'numeric', year: 'numeric' });
   } catch (_e) {
     return String(ymd);
+  }
+};
+
+const fmtWeekday = (ymd) => {
+  if (!ymd) return 'Fecha';
+  try {
+    return new Date(`${ymd}T00:00:00`).toLocaleDateString('es-AR', { weekday: 'long' });
+  } catch (_e) {
+    return 'Fecha';
   }
 };
 
@@ -120,7 +130,7 @@ const ResultStatusPill = ({ ready, fullWidth = false }) => (
   </div>
 );
 
-const PlayerRow = ({ player }) => (
+const PlayerRow = ({ player, hint = null }) => (
   <div className="flex items-center gap-1.5 bg-[rgba(20,16,41,0.85)] border border-[rgba(148,134,255,0.18)] rounded-xl px-2 py-1.5">
     {player?.avatar_url ? (
       <img
@@ -131,11 +141,14 @@ const PlayerRow = ({ player }) => (
     ) : (
       <AvatarFallback name={player?.nombre || 'Jugador'} size="w-6 h-6" className="text-[10px] bg-[#272050] border-[rgba(148,134,255,0.4)]" />
     )}
-    <span className="font-oswald text-[13px] text-white/90 truncate">{player?.nombre || 'Jugador'}</span>
+    <span className="min-w-0 flex flex-col">
+      <span lang="es" className="font-oswald text-[13px] text-white/90 leading-tight break-words [hyphens:auto]">{player?.nombre || 'Jugador'}</span>
+      {hint ? <span className="text-[10.5px] text-white/50 leading-tight">{hint}</span> : null}
+    </span>
   </div>
 );
 
-const TeamColumn = ({ title, team = [], resolvePlayer }) => (
+const TeamColumn = ({ title, team = [], resolvePlayer, hintFor }) => (
   <div className="relative bg-black/25 border border-[rgba(148,134,255,0.16)] rounded-2xl p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] overflow-hidden">
     <div className="font-bebas text-base text-white uppercase tracking-wider mb-2 flex items-center gap-2">
       <span aria-hidden="true" className="w-1 h-[14px] rounded-full bg-[linear-gradient(180deg,#ec007d,#8b5cff)] shrink-0" />
@@ -146,7 +159,7 @@ const TeamColumn = ({ title, team = [], resolvePlayer }) => (
     ) : (
       <div className="grid grid-cols-1 gap-1.5">
         {team.map((ref) => (
-          <PlayerRow key={String(ref)} player={resolvePlayer(ref)} />
+          <PlayerRow key={String(ref)} player={resolvePlayer(ref)} hint={hintFor(resolvePlayer(ref))} />
         ))}
       </div>
     )}
@@ -160,7 +173,7 @@ const AwardRow = ({ title, icon, playerName }) => (
     </span>
     <div className="min-w-0">
       <div className="font-sans text-[10px] font-bold text-[#b0a0ff]/85 uppercase tracking-[0.14em] leading-none">{title}</div>
-      <div className="font-oswald text-[14px] font-semibold text-white mt-1 leading-tight break-words">{playerName || 'Sin dato'}</div>
+      <div lang="es" className="font-oswald text-[14px] font-semibold text-white mt-1 leading-tight break-words [hyphens:auto]">{playerName || 'Sin dato'}</div>
     </div>
   </div>
 );
@@ -178,6 +191,8 @@ const TemplateHistoryPage = () => {
   const [fallbackAbsentCountByMatch, setFallbackAbsentCountByMatch] = useState(new Map());
   const [counts, setCounts] = useState(new Map());
   const [selectedId, setSelectedId] = useState(null);
+  const [loadError, setLoadError] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     if (template || !templateId) return;
@@ -200,6 +215,7 @@ const TemplateHistoryPage = () => {
 
     const load = async () => {
       setLoading(true);
+      setLoadError(false);
       try {
         let partidos = [];
         const baseSelect = 'id, nombre, fecha, hora, sede, estado, template_id';
@@ -373,6 +389,7 @@ const TemplateHistoryPage = () => {
       } catch (error) {
         logger.error('[TemplateHistoryPage] load error', error);
         if (!alive) return;
+        setLoadError(true);
         setMatches([]);
         setResults(new Map());
         setSnapshots(new Map());
@@ -385,7 +402,7 @@ const TemplateHistoryPage = () => {
 
     load();
     return () => { alive = false; };
-  }, [templateId]);
+  }, [templateId, reloadKey]);
 
   const selectedMatch = useMemo(() => {
     const id = Number(selectedId);
@@ -420,6 +437,15 @@ const TemplateHistoryPage = () => {
     });
     return map;
   }, [participants]);
+
+  // Same name, different people: a short hint, never merged (identity = snapshot ref).
+  const participantKey = (p) => String(p?.ref || p?.uuid || p?.usuario_id || p?.id || '');
+  const hintsByKey = useMemo(() => buildHomonymHints(participants.map((p) => ({
+    uuid: participantKey(p),
+    usuario_id: p?.usuario_id || null,
+    nombre: p?.nombre,
+  }))), [participants]);
+  const hintFor = (player) => hintsByKey.get(participantKey(player)) || null;
 
   const resolveName = (ref) => nameByRef.get(String(ref)) || 'Jugador';
   const resolvePlayer = (ref) => {
@@ -465,8 +491,8 @@ const TemplateHistoryPage = () => {
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">
               <div className="font-sans text-[10px] font-bold uppercase tracking-[0.18em] text-[#b0a0ff]/80">Plantilla</div>
-              <div className="font-oswald text-[20px] font-semibold leading-tight text-white truncate mt-0.5">
-                {formatSentenceCase(template?.nombre, 'Plantilla')}
+              <div className="font-oswald text-[20px] font-semibold leading-tight text-white break-words mt-0.5">
+                {String(template?.nombre || '').trim() || 'Plantilla'}
               </div>
             </div>
             {matches.length > 0 && (
@@ -478,10 +504,26 @@ const TemplateHistoryPage = () => {
         )}
 
         {loading ? (
-          <div className="py-14 flex items-center justify-center"><LoadingSpinner size="large" fullScreen /></div>
+          <div className="py-14 flex flex-col items-center justify-center gap-3" role="status">
+            <LoadingSpinner size="large" />
+            <span className="text-white/60 text-[13px]">Cargando el historial…</span>
+          </div>
+        ) : loadError ? (
+          <div className="flex flex-col items-center text-center gap-3 py-8 px-4 border border-dashed border-[rgba(244,63,94,0.35)] rounded-2xl bg-white/[0.025] mt-5" role="alert">
+            <div className="text-white/85 font-oswald text-base">No pudimos cargar el historial.</div>
+            <div className="text-white/55 text-[13px]">Revisá tu conexión y probá de nuevo.</div>
+            <button
+              type="button"
+              onClick={() => setReloadKey((n) => n + 1)}
+              className="min-h-[44px] px-6 rounded-xl font-bebas font-semibold text-[15px] tracking-[0.02em] whitespace-nowrap text-white bg-white/[0.06] border border-[rgba(148,134,255,0.28)] hover:bg-white/[0.12] active:scale-[0.985] transition-all"
+            >
+              Reintentar
+            </button>
+          </div>
         ) : matches.length === 0 ? (
-          <div className="flex flex-col items-center text-center gap-3 py-10 border border-dashed border-[rgba(148,134,255,0.25)] rounded-2xl bg-white/[0.025] mt-5">
-            <div className="text-white/70 font-oswald text-base">Todavía no hay partidos creados desde esta plantilla.</div>
+          <div className="flex flex-col items-center text-center gap-2 py-10 px-4 border border-dashed border-[rgba(148,134,255,0.25)] rounded-2xl bg-white/[0.025] mt-5">
+            <div className="text-white/80 font-oswald text-base">Todavía no hay partidos jugados con esta plantilla.</div>
+            <div className="text-white/55 text-[13px] leading-snug max-w-[300px]">Los partidos que crees desde acá aparecen cuando se cierre su encuesta.</div>
           </div>
         ) : (
           <>
@@ -499,12 +541,18 @@ const TemplateHistoryPage = () => {
                       onClick={() => setSelectedId(mid)}
                       className="group text-left rounded-2xl p-3 border border-[rgba(148,134,255,0.2)] bg-[linear-gradient(168deg,rgba(40,31,84,0.6),rgba(16,12,33,0.85))] hover:border-[rgba(148,134,255,0.5)] transition-[border-color,transform] duration-150 active:scale-[0.985] min-h-[104px] overflow-hidden shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]"
                     >
-                      <div className="flex flex-col items-center gap-1">
-                        <span className="font-sans text-[9.5px] font-bold uppercase tracking-[0.18em] text-[#b0a0ff]/75">Fecha</span>
+                      <div className="flex flex-col items-center gap-0.5">
+                        <span className="font-sans text-[9.5px] font-bold uppercase tracking-[0.18em] text-[#b0a0ff]/75">{fmtWeekday(m.fecha)}</span>
                         <span className="w-full font-bebas text-[20px] text-white leading-6 text-center truncate">
                           {fmtDateShort(m.fecha)}
                         </span>
+                        <span className="font-sans text-[11.5px] text-white/55 leading-none">{fmtTime(m.hora)} hs</span>
                       </div>
+                      {ready && res?.winner_team ? (
+                        <div className="mt-2 text-center font-oswald text-[12.5px] text-white/85 truncate">
+                          {normalizeWinnerTeam(res.winner_team) === 'empate' ? 'Empate' : `Ganó ${winnerLabel(res.winner_team)}`}
+                        </div>
+                      ) : null}
                       <div className="mt-2.5 w-full">
                         <div className="w-full flex">
                           <ResultStatusPill ready={ready} fullWidth />
@@ -536,8 +584,8 @@ const TemplateHistoryPage = () => {
 
                 {teamsConfirmed ? (
                   <div className="grid grid-cols-2 gap-2">
-                    <TeamColumn title="Equipo A" team={teamA} resolvePlayer={resolvePlayer} />
-                    <TeamColumn title="Equipo B" team={teamB} resolvePlayer={resolvePlayer} />
+                    <TeamColumn title="Equipo A" team={teamA} resolvePlayer={resolvePlayer} hintFor={hintFor} />
+                    <TeamColumn title="Equipo B" team={teamB} resolvePlayer={resolvePlayer} hintFor={hintFor} />
                   </div>
                 ) : (
                   <>
@@ -546,7 +594,7 @@ const TemplateHistoryPage = () => {
                     ) : (
                       <div className="grid grid-cols-2 gap-1.5">
                         {participants.map((p, idx) => (
-                          <PlayerRow key={`${p?.ref || p?.uuid || p?.usuario_id || p?.id || idx}`} player={p} />
+                          <PlayerRow key={`${p?.ref || p?.uuid || p?.usuario_id || p?.id || idx}`} player={p} hint={hintFor(p)} />
                         ))}
                       </div>
                     )}
@@ -591,9 +639,16 @@ const TemplateHistoryPage = () => {
                       <div className="text-white/60 text-xs font-oswald">Esperando resultados.</div>
                     ) : (
                       <div className="flex flex-col gap-2">
-                        <AwardRow title="MVP" icon="/mvp.webp" playerName={resolveSnapshotPlayer(resultSnapshot?.mvp, resolveName)} />
-                        <AwardRow title="Mejor arquero" icon="/glove.webp" playerName={resolveSnapshotPlayer(resultSnapshot?.golden_glove, resolveName)} />
-                        <AwardRow title="Más sucio" icon="/red_card.webp" playerName={resolveSnapshotPlayer(resultSnapshot?.mas_sucio, resolveName)} />
+                        {[
+                          { title: 'MVP', icon: '/mvp.webp', value: resultSnapshot?.mvp },
+                          { title: 'Mejor arquero', icon: '/glove.webp', value: resultSnapshot?.golden_glove },
+                          { title: 'Más sucio', icon: '/red_card.webp', value: resultSnapshot?.mas_sucio },
+                        ].filter((award) => award.value).map((award) => (
+                          <AwardRow key={award.title} title={award.title} icon={award.icon} playerName={resolveSnapshotPlayer(award.value, resolveName)} />
+                        ))}
+                        {!resultSnapshot?.mvp && !resultSnapshot?.golden_glove && !resultSnapshot?.mas_sucio ? (
+                          <div className="text-white/60 text-xs font-oswald">No hubo premios en este partido.</div>
+                        ) : null}
                       </div>
                     )}
                   </div>

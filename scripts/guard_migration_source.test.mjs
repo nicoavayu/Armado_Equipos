@@ -15,6 +15,34 @@ const globalAvailabilityMigration = '20260831200904_global_availability_atomic_c
 const socialStudioThemeMigration = '20260901120000_social_studio_theme_export_contract.sql';
 const torneosCoreContractMigration = '20260914120000_torneos_core_contract_v1.sql';
 const torneosCoreContractSessionMigration = '20260915120000_torneos_core_contract_v1_1_session.sql';
+const torneosConnectedLocalMigration = '20261006120000_torneos_connected_product_v1.sql';
+const torneosCoreContractMyTeamsMigration = '20261007120000_torneos_core_contract_v1_2_my_teams.sql';
+const corePushPreferenceMigration = '20261008120000_core_push_preference_v1.sql';
+const coreOpsLogRetentionMigration = '20261009120000_core_ops_log_retention.sql';
+const coreReviewMigrations = [
+  '20261010120000_core_trigger_helper_execute_grants.sql',
+  '20261010121000_core_public_voting_roster_identity.sql',
+  '20261010122000_core_notifications_ext_match_columns.sql',
+  '20261010123000_core_reset_votacion_score_default.sql',
+  '20261010124000_core_usuarios_profile_rpcs.sql',
+  '20261010125000_core_public_match_reads_by_code.sql',
+  '20261010126000_core_team_roster_identity.sql',
+  '20261010127000_core_post_match_surveys_result_columns.sql',
+  '20261010128000_core_contact_phone_and_public_profile_list.sql',
+  '20261010129000_core_survey_finalization_recovery.sql',
+  '20261010130000_core_client_build_reports.sql',
+  '20261010131000_core_survey_server_finalization.sql',
+  '20261010132000_core_friend_request_acceptance.sql',
+  '20261010133000_core_match_access_code.sql',
+  '20261010134000_core_partidos_template_link.sql',
+  '20261010135000_core_private_profile_fields.sql',
+  '20261010136000_core_match_roster_visibility.sql',
+  '20261010137000_core_match_code_never_public.sql',
+  '20261010138000_core_voting_photo_slot_owner.sql',
+  '20261010139000_core_roster_added_by_private.sql',
+  '20261010140000_core_published_roster_identity.sql',
+  '20261010141000_core_organizer_approves_join_requests.sql',
+];
 const approvedMigrations = fs.readdirSync(path.join(repoRoot, 'supabase', 'migrations'))
   .filter((file) => file.endsWith('.sql'))
   .sort();
@@ -38,7 +66,8 @@ const runGuard = (cwd) => spawnSync(process.execPath, [guardPath], {
 });
 
 test('accepts the closed set including Auto-Match, contract repair and global availability', (t) => {
-  assert.equal(approvedMigrations.length, 43);
+  assert.equal(approvedMigrations.length, 69);
+  for (const migration of coreReviewMigrations) assert.ok(approvedMigrations.includes(migration));
   assert.ok(approvedMigrations.includes(autoMatchMigration));
   assert.ok(approvedMigrations.includes(contractRepairMigration));
   assert.ok(approvedMigrations.includes(mediaSessionReuseMigration));
@@ -46,6 +75,10 @@ test('accepts the closed set including Auto-Match, contract repair and global av
   assert.ok(approvedMigrations.includes(socialStudioThemeMigration));
   assert.ok(approvedMigrations.includes(torneosCoreContractMigration));
   assert.ok(approvedMigrations.includes(torneosCoreContractSessionMigration));
+  assert.ok(approvedMigrations.includes(torneosConnectedLocalMigration));
+  assert.ok(approvedMigrations.includes(torneosCoreContractMyTeamsMigration));
+  assert.ok(approvedMigrations.includes(corePushPreferenceMigration));
+  assert.ok(approvedMigrations.includes(coreOpsLogRetentionMigration));
   assert.equal(
     approvedMigrations.filter(
       (file) => file !== autoMatchMigration
@@ -53,7 +86,12 @@ test('accepts the closed set including Auto-Match, contract repair and global av
         && file !== globalAvailabilityMigration
         && file !== socialStudioThemeMigration
         && file !== torneosCoreContractMigration
-        && file !== torneosCoreContractSessionMigration,
+        && file !== torneosCoreContractSessionMigration
+        && file !== torneosConnectedLocalMigration
+        && file !== torneosCoreContractMyTeamsMigration
+        && file !== corePushPreferenceMigration
+        && file !== coreOpsLogRetentionMigration
+        && !coreReviewMigrations.includes(file),
     ).length,
     37,
   );

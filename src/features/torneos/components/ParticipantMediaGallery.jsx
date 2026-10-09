@@ -33,9 +33,13 @@ const REPORT_REASONS = [
 ];
 
 function ProtectedImage({
-  asset, variant = 'grid', alt = '', className = '', eager = false,
+  asset, variant = 'grid', alt = '', className = '', eager = false, onExpired = null, onLoad = null, sizes = null,
 }) {
   const url = getMediaAssetUrl(asset, variant);
+  // MEDIA-V1: the grid loads the 640 px thumbnail; a large tile (the cover) lets the browser pick the full photo only
+  // where the screen needs it (desktop, high density) — the full photo is otherwise downloaded on opening it.
+  const srcSet = sizes && asset.gridUrl && asset.detailUrl && asset.gridUrl !== asset.detailUrl
+    ? `${asset.gridUrl} 640w, ${asset.detailUrl} ${Math.max(asset.width || 1600, 641)}w` : undefined;
   if (!url) {
     return (
       <span className={`${styles.protectedFrame} ${className}`} role="img" aria-label={alt || 'Foto protegida pendiente de entrega segura'}>
@@ -48,17 +52,25 @@ function ProtectedImage({
     <img
       className={className}
       src={url}
+      srcSet={srcSet}
+      sizes={srcSet ? sizes : undefined}
       alt={alt}
       loading={eager ? 'eager' : 'lazy'}
       decoding="async"
       width={asset.width || 1200}
       height={asset.height || 800}
+      // A signed URL lives five minutes: an image that fails to load asks for a fresh one, once.
+      onError={onExpired ? () => onExpired(asset.id) : undefined}
+      onLoad={onLoad || undefined}
     />
   );
 }
 
+const SWIPE_MIN_PX = 48;
+const photoCount = (count) => `${count} ${count === 1 ? 'foto' : 'fotos'}`;
+
 function Lightbox({
-  assets, activeIndex, setActiveIndex, close, service,
+  assets, activeIndex, setActiveIndex, close, service, onExpired,
 }) {
   const dialogRef = useRef(null);
   const closeRef = useRef(null);
@@ -70,6 +82,8 @@ function Lightbox({
   });
   const [reportState, setReportState] = useState({ busy: false, sent: false, error: '' });
   const reportFormId = useId();
+  const swipeRef = useRef(null);
+  const [loadedId, setLoadedId] = useState(null);
   const active = assets[activeIndex];
   const previous = useCallback(() => {
     setActiveIndex((current) => (current - 1 + assets.length) % assets.length);
@@ -79,6 +93,40 @@ function Lightbox({
     setActiveIndex((current) => (current + 1) % assets.length);
     setReportOpen(false);
   }, [assets.length, setActiveIndex]);
+
+  // The page behind the viewer does not scroll while it is open (iOS rubber-banding included).
+  useEffect(() => {
+    const { overflow } = document.body.style;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = overflow; };
+  }, []);
+
+  // The neighbours are fetched ahead, so moving through the gallery shows a photo, not a spinner.
+  useEffect(() => {
+    if (typeof Image === 'undefined' || assets.length < 2) return;
+    [assets[(activeIndex + 1) % assets.length], assets[(activeIndex - 1 + assets.length) % assets.length]]
+      .forEach((neighbour) => {
+        const url = getMediaAssetUrl(neighbour, 'detail');
+        if (url) { const image = new Image(); image.decoding = 'async'; image.src = url; }
+      });
+  }, [activeIndex, assets]);
+
+  // Horizontal swipe on touch screens (touch events: what iOS Safari delivers reliably); a vertical drag, a pinch or
+  // a tap stays a scroll, a zoom or a click.
+  const onTouchStart = (event) => {
+    if (reportOpen || event.touches.length !== 1) { swipeRef.current = null; return; }
+    swipeRef.current = { x: event.touches[0].clientX, y: event.touches[0].clientY };
+  };
+  const onTouchEnd = (event) => {
+    const start = swipeRef.current;
+    swipeRef.current = null;
+    const touch = event.changedTouches?.[0];
+    if (!start || !touch || assets.length < 2) return;
+    const dx = touch.clientX - start.x;
+    const dy = touch.clientY - start.y;
+    if (Math.abs(dx) < SWIPE_MIN_PX || Math.abs(dx) < Math.abs(dy) * 1.4) return;
+    if (dx < 0) next(); else previous();
+  };
 
   useEffect(() => {
     closeRef.current?.focus();
@@ -147,13 +195,25 @@ function Lightbox({
             <X size={21} />
           </button>
         </header>
-        <div className={styles.lightboxStage}>
+        <div
+          className={styles.lightboxStage}
+          onTouchStart={onTouchStart}
+          onTouchEnd={onTouchEnd}
+          onTouchCancel={() => { swipeRef.current = null; }}
+          data-loading={loadedId !== active.id && Boolean(getMediaAssetUrl(active, 'detail'))}
+        >
           <ProtectedImage
+            key={active.id}
             asset={active}
             variant="detail"
             alt={active.caption || `Foto ${activeIndex + 1} de ${active.galleryTitle}`}
             eager
+            onExpired={onExpired}
+            onLoad={() => setLoadedId(active.id)}
           />
+          {loadedId !== active.id && getMediaAssetUrl(active, 'detail') && (
+            <span className={styles.stageSpinner} role="status"><span className={styles.srOnly}>Cargando foto…</span></span>
+          )}
           {assets.length > 1 && (
             <>
               <button type="button" className={styles.previous} onClick={previous} aria-label="Foto anterior">
@@ -255,6 +315,7 @@ export default function ParticipantMediaGallery({
 }) {
   const requestRef = useRef(0);
   const triggerRef = useRef(null);
+  const resignedRef = useRef(new Set());
   const [state, setState] = useState({ status: 'loading', data: null, error: '' });
   const [activeIndex, setActiveIndex] = useState(null);
   const [signedUrls, setSignedUrls] = useState({});
@@ -285,6 +346,7 @@ export default function ParticipantMediaGallery({
     // Signed URLs are scoped to the query that produced them; a new tournament
     // or category must not reuse a grant issued for the previous one.
     setSignedUrls({});
+    resignedRef.current = new Set();
     load();
     return () => {
       requestRef.current += 1;
@@ -330,6 +392,17 @@ export default function ParticipantMediaGallery({
     });
     return () => controller.abort();
   }, [assetIds, service, state.data?.delivery?.status]);
+
+  // An expired (or refused) URL: ask once more for that photo; a photo the caller may no longer see simply stays
+  // a protected placeholder (retired content).
+  const onExpired = useCallback((assetId) => {
+    if (resignedRef.current.has(assetId) || typeof service.signMediaReadUrls !== 'function') return;
+    resignedRef.current.add(assetId);
+    setSignedUrls((current) => Object.fromEntries(Object.entries(current).filter(([key]) => !key.startsWith(`${assetId}:`))));
+    service.signMediaReadUrls([{ assetId, kind: 'grid' }, { assetId, kind: 'detail' }])
+      .then((urls) => setSignedUrls((current) => ({ ...current, ...urls })))
+      .catch(() => {});
+  }, [service]);
 
   const closeLightbox = () => {
     setActiveIndex(null);
@@ -377,14 +450,17 @@ export default function ParticipantMediaGallery({
         <span><LockKeyhole size={14} /> Sólo participantes autorizados</span>
       </header>
       {galleries.map((gallery, galleryIndex) => {
-        const cover = gallery.assets.find((asset) => asset.id === gallery.coverAssetId)
-          || gallery.assets[0];
-        const rest = gallery.assets.filter((asset) => asset.id !== cover?.id);
+        // The grid draws the SIGNED assets (the projection itself never carries a URL), so what the lightbox shows
+        // and what the grid shows are the same links.
+        const signedAssets = assets.filter((asset) => asset.galleryId === gallery.id);
+        const cover = signedAssets.find((asset) => asset.id === gallery.coverAssetId)
+          || signedAssets[0];
+        const rest = signedAssets.filter((asset) => asset.id !== cover?.id);
         return (
           <article className={styles.gallery} key={gallery.id}>
             <header>
-              <span><strong>{gallery.title}</strong><small>{gallery.description || `${gallery.assets.length} fotos publicadas`}</small></span>
-              <em>{gallery.assets.length} fotos</em>
+              <span><strong>{gallery.title}</strong><small>{gallery.description || `${photoCount(gallery.assets.length)} ${gallery.assets.length === 1 ? 'publicada' : 'publicadas'}`}</small></span>
+              <em>{photoCount(gallery.assets.length)}</em>
             </header>
             <div className={styles.photoGrid}>
               {cover && (
@@ -398,6 +474,8 @@ export default function ParticipantMediaGallery({
                     asset={cover}
                     alt={cover.caption || `Portada de ${gallery.title}`}
                     eager={galleryIndex === 0}
+                    onExpired={onExpired}
+                    sizes="(max-width: 760px) 100vw, 62vw"
                   />
                   <span><Camera size={16} /> Abrir galería</span>
                 </button>
@@ -410,7 +488,7 @@ export default function ParticipantMediaGallery({
                     onClick={(event) => openAsset(asset.id, event)}
                     aria-label={`Abrir foto ${index + 2} de ${gallery.title}`}
                   >
-                    <ProtectedImage asset={asset} alt={asset.caption || ''} />
+                    <ProtectedImage asset={asset} alt={asset.caption || ''} onExpired={onExpired} />
                     {index === (compact ? 2 : 6) && rest.length > (compact ? 3 : 7) && (
                       <b>+{rest.length - (compact ? 3 : 7)}</b>
                     )}
@@ -428,6 +506,7 @@ export default function ParticipantMediaGallery({
           setActiveIndex={setActiveIndex}
           close={closeLightbox}
           service={service}
+          onExpired={onExpired}
         />
       )}
     </section>

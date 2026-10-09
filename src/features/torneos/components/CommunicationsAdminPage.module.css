@@ -1,5 +1,8 @@
 .page {
   display: grid;
+  /* One shrinkable track: an implicit auto track grows to its longest unbreakable child and pushes the page
+     past a phone screen. */
+  grid-template-columns: minmax(0, 1fr);
   gap: 20px;
   color: #f7f4ff;
 }
@@ -77,8 +80,10 @@
   color: #aba3bc;
 }
 
+/* Two equal tabs, like the team tabs of a match: they share the row on every width and never leave the screen. */
 .mainTabs {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
   padding: 5px;
   border: 1px solid rgba(155, 132, 233, 0.17);
@@ -573,9 +578,9 @@ button:disabled {
     border-radius: 17px;
   }
 
-  .mainTabs {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
+  .mainTabs button {
+    min-width: 0;
+    padding-inline: 8px;
   }
 
   .composerFooter {

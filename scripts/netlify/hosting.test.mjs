@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import { prepare } from './prepare.mjs';
+import { decide, onlyNonWebChanges } from './should-build.mjs';
 import { createPrivateWebPasswordHash, createPrivateWebAccessToken } from '../../server/privateWebAccess.mjs';
 import access from '../../netlify/functions/private-web-access.mjs';
 import logout from '../../netlify/functions/private-web-logout.mjs';
@@ -72,4 +74,90 @@ test('logout remains same-origin and expires the cookie', async () => {
   const response = await logout(new Request(base + '/api/private-web-logout', { method: 'POST', headers: { origin: base } }));
   assert.equal(response.status, 204);
   assert.match(response.headers.get('Set-Cookie'), /Max-Age=0/);
+});
+test('universal-link files keep the content type and cache vercel.json gives them', () => {
+  const vercel = JSON.parse(fs.readFileSync(new URL('../../vercel.json', import.meta.url), 'utf8'));
+  const toml = fs.readFileSync(new URL('../../netlify.toml', import.meta.url), 'utf8');
+  for (const file of ['/.well-known/apple-app-site-association', '/.well-known/assetlinks.json']) {
+    const expected = vercel.headers.find((rule) => rule.source === file).headers;
+    const block = toml.split('[[headers]]').find((part) => part.includes(`for = "${file}"`));
+    assert.ok(block, `netlify.toml has no header rule for ${file}`);
+    for (const { key, value } of expected) assert.ok(block.includes(`${key} = "${value}"`), `${file}: ${key}`);
+  }
+});
+test('the ignore command skips only merges that touch no web path, and builds when unsure', () => {
+  assert.equal(onlyNonWebChanges(['backend/torneos/x.sql', 'docs/a.md', 'android/app/build.gradle', 'README.md']), true);
+  assert.equal(onlyNonWebChanges(['backend/torneos/x.sql', 'src/App.js']), false);
+  for (const web of ['public/index.html', 'package.json', 'netlify.toml', 'middleware.ts', 'server/privateWebAccess.mjs',
+    'api/private-web-access.mjs', 'netlify/functions/private-web-access.mjs', 'scripts/netlify/prepare.mjs', 'scripts/build-env.mjs']) {
+    assert.equal(onlyNonWebChanges(['docs/a.md', web]), false, web);
+  }
+  assert.equal(onlyNonWebChanges([]), false);
+  assert.deepEqual(decide({ from: undefined, to: 'b' }).skip, false);
+  assert.deepEqual(decide({ from: 'a', to: 'a' }).skip, false);
+  assert.equal(decide({ from: 'a', to: 'b', git: () => { throw new Error('shallow'); } }).skip, false);
+  assert.equal(decide({ from: 'a', to: 'b', git: () => 'supabase/migrations/x.sql\ndocs/y.md\n' }).skip, true);
+  assert.equal(decide({ from: 'a', to: 'b', git: () => 'supabase/migrations/x.sql\nsrc/index.js\n' }).skip, false);
+});
+
+// netlify.toml as { "<table>": { key: value } } (plain tables only; [[array]] blocks are skipped). Enough for this file.
+function tomlTables(text) {
+  const tables = {};
+  let current = null;
+  for (const raw of text.split('\n')) {
+    const line = raw.trim();
+    if (!line || line.startsWith('#')) continue;
+    if (line.startsWith('[[')) { current = null; continue; }
+    const header = line.match(/^\[([^\]]+)\]$/);
+    if (header) { current = header[1]; tables[current] = tables[current] || {}; continue; }
+    const pair = line.match(/^([A-Za-z0-9_.-]+)\s*=\s*"(.*)"$/);
+    if (pair && current) tables[current][pair[1]] = pair[2];
+  }
+  return tables;
+}
+const toml = () => tomlTables(fs.readFileSync(new URL('../../netlify.toml', import.meta.url), 'utf8'));
+
+test('production builds like Vercel: gate secrets validated, Sentry release = commit, only DEPLOY_ENV set by the file', () => {
+  const t = toml();
+  const command = t['context.production'].command;
+  const vercel = JSON.parse(fs.readFileSync(new URL('../../vercel.json', import.meta.url), 'utf8'));
+  for (const step of ['node scripts/netlify/prepare.mjs', 'npm run validate:web-access-env', 'REACT_APP_SENTRY_RELEASE=$COMMIT_REF', 'npm run release:web:sentry']) {
+    assert.ok(command.includes(step), step);
+  }
+  for (const step of ['validate:web-access-env', 'release:web:sentry']) assert.ok(vercel.buildCommand.includes(step), `vercel ${step}`);
+  assert.deepEqual(t['context.production.environment'], { REACT_APP_DEPLOY_ENV: 'production' });
+  // The base environment reaches production: no REACT_APP_* there, so production takes the site's Production values.
+  assert.deepEqual(Object.keys(t['build.environment']).filter((key) => key.startsWith('REACT_APP_')), []);
+});
+test('every non-production deploy stays a preview with Torneos production off, and no context sets billing', () => {
+  const t = toml();
+  for (const context of ['context.deploy-preview.environment', 'context.branch-deploy.environment']) {
+    assert.equal(t[context].REACT_APP_DEPLOY_ENV, 'preview', context);
+    assert.equal(t[context].REACT_APP_TORNEOS_PRODUCTION_ENABLED, 'false', context);
+  }
+  for (const [name, values] of Object.entries(t)) {
+    assert.equal(values.REACT_APP_TORNEOS_BILLING_MODE, undefined, name);
+    if (name.startsWith('context.production')) {
+      assert.deepEqual(Object.keys(values).filter((key) => key.startsWith('REACT_APP_TORNEOS_')), [], name);
+    }
+  }
+});
+test('a merge to main does not deploy on Vercel; other branches keep their Vercel previews', () => {
+  const vercel = JSON.parse(fs.readFileSync(new URL('../../vercel.json', import.meta.url), 'utf8'));
+  assert.deepEqual(vercel.git, { deploymentEnabled: { main: false } });
+});
+test('site-wide headers match Vercel production and nothing marks production noindex', () => {
+  const vercel = JSON.parse(fs.readFileSync(new URL('../../vercel.json', import.meta.url), 'utf8'));
+  const text = fs.readFileSync(new URL('../../netlify.toml', import.meta.url), 'utf8');
+  const block = text.split('[[headers]]').find((part) => part.includes('for = "/*"'));
+  for (const { key, value } of vercel.headers.find((rule) => rule.source === '/(.*)').headers) {
+    assert.ok(block.includes(`${key} = "${value}"`), key);
+  }
+  assert.doesNotMatch(text, /X-Robots-Tag/);
+});
+test('source maps a release build produces stay behind the gate, as on Vercel', async () => {
+  for (const path of ['/static/js/main.1a2b3c4d.js.map', '/static/css/main.1a2b3c4d.css.map', '/static/js/123.1a2b3c4d.chunk.js.map']) {
+    assert.equal(await (await run(path)).text(), '/mobile-only.html', path);
+  }
+  assert.equal(await (await run('/static/js/main.1a2b3c4d.js')).text(), '/static/js/main.1a2b3c4d.js');
 });

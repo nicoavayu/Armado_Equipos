@@ -7,7 +7,7 @@ import {
   Shield,
   Trophy,
 } from 'lucide-react';
-import { useParams, useSearchParams } from 'react-router-dom';
+import { Link, useLocation, useParams, useSearchParams } from 'react-router-dom';
 import Logo from '../../../Logo.png';
 import { publicTournamentService } from '../api/publicTournamentService';
 import {
@@ -18,6 +18,8 @@ import {
 import { getCompetitionFormatName, getSportModalityName } from '../domain/competitionCatalog';
 import styles from './PublicTournamentPage.module.css';
 import BrandingImage from './BrandingImage';
+import CatalogCallSection from './connected/CatalogCallSection';
+import { useOptionalAuth } from '../../../components/AuthContext';
 // Byte-identical file copy of BASE_LOCKUP_DATA_URL (social/base/brandAsset.js):
 // the approved Arma2 Torneos lockup, served as a cacheable asset instead of
 // inlining 77 KB of base64 into the public page chunk.
@@ -309,8 +311,45 @@ function PublicTournamentContent({ page, activeTab, scope, service }) {
   return null;
 }
 
-export default function PublicTournamentPage({ service = publicTournamentService }) {
+// CONNECTED-V1: when the tournament has a published call for teams, the public page shows it (same safe projection
+// as Explorar torneos) with the way to request a place. The call never replaces the page: it is one block of it.
+function PublicCallBlock({ catalogService, publicSlug }) {
+  const auth = useOptionalAuth();
+  const [entry, setEntry] = useState(null);
+  useEffect(() => {
+    if (!catalogService) return undefined;
+    let active = true;
+    catalogService.loadEntry(publicSlug).then((value) => { if (active) setEntry(value || null); }).catch(() => {});
+    return () => { active = false; };
+  }, [catalogService, publicSlug]);
+  if (!entry) return null;
+  const applyPath = `/torneos/explorar/${encodeURIComponent(publicSlug)}/solicitar`;
+  return (
+    <div className={styles.callBlock}>
+      <CatalogCallSection
+        entry={entry}
+        compactHeader
+        actions={entry.state === 'open' ? (
+          <>
+            <Link className={styles.callPrimary} to={applyPath}>Solicitar inscripción</Link>
+            {!auth?.user && <small>Te vamos a pedir que ingreses con tu cuenta de Arma2.</small>}
+          </>
+        ) : null}
+      />
+    </div>
+  );
+}
+
+// «Volver» returns to where the person came from inside Torneos (Explorar, an inbox item…), never to another product.
+function backTarget(state) {
+  const from = typeof state?.from === 'string' ? state.from : '';
+  return /^\/torneos\/[a-z0-9/_-]*$/i.test(from) && !from.startsWith('/torneos/publico') ? from : null;
+}
+
+export default function PublicTournamentPage({ service = publicTournamentService, catalogService = null }) {
   const { publicSlug } = useParams();
+  const location = useLocation();
+  const auth = useOptionalAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const categorySlug = searchParams.get('categoria');
   const [state, setState] = useState({ status: 'loading', page: null });
@@ -392,6 +431,11 @@ export default function PublicTournamentPage({ service = publicTournamentService
       <header className={styles.topbar}>
         <PublicBrandMark page={page} />
         <span className={styles.officialBadge}><Shield size={14} /> Sitio oficial</span>
+        {backTarget(location.state) ? (
+          <Link className={styles.topbarLink} to={backTarget(location.state)}>Volver</Link>
+        ) : catalogService && (
+          <Link className={styles.topbarLink} to={auth?.user ? '/torneos/explorar' : '/torneos/publico'}>Explorar torneos</Link>
+        )}
       </header>
       <section className={styles.hero}>
         <div className={styles.heroIdentity}>
@@ -421,6 +465,7 @@ export default function PublicTournamentPage({ service = publicTournamentService
           <div><Clock3 size={18} /><span>Partidos oficiales</span><b>{page.matches.filter((match) => match.result).length}</b></div>
         </aside>
       </section>
+      <PublicCallBlock catalogService={catalogService} publicSlug={publicSlug} />
       <div className={styles.controls}>
         {page.categories.length > 1 && <label><span>Categoría</span><select aria-label="Categoría" value={selectedCategory?.slug || ''} onChange={(event) => setSearchParams(event.target.value ? { categoria: event.target.value } : {})}>{page.categories.map((category) => <option key={category.slug} value={category.slug}>{category.name}</option>)}</select></label>}
         {page.competition.length > 1 && <label><span>Fase o grupo</span><select aria-label="Fase o grupo" value={scope?.scopeKey || ''} onChange={(event) => setScopeKey(event.target.value)}>{page.competition.map((item) => <option key={item.scopeKey} value={item.scopeKey}>{item.label}</option>)}</select></label>}
