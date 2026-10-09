@@ -10,7 +10,7 @@ no superusuario, igual que en Supabase. La evidencia está en
 ## 1. Qué se aplica
 
 Producción tiene las 43 migraciones de `main` más `20261009120000_core_ops_log_retention`
-(mantenimiento de capacidad del 2026-10-07). Encima van **21 migraciones, en este orden**:
+(mantenimiento de capacidad del 2026-10-07). Encima van **22 migraciones, en este orden**:
 
 | # | Migración | Qué cambia | Dry run |
 |---|---|---|---|
@@ -35,8 +35,9 @@ Producción tiene las 43 migraciones de `main` más `20261009120000_core_ops_log
 | 19 | `20261010138000_core_voting_photo_slot_owner` | la foto de un invitado sólo la cambia quien vota como él | 67 ms |
 | 20 | `20261010139000_core_roster_added_by_private` | quién agregó a cada jugador sale de la fila de `jugadores` a `app_private.jugadores_added_by`; se elimina la columna (ningún cliente la nombra) | 82 ms |
 | 21 | `20261010140000_core_published_roster_identity` | quien no participa (y anon) no recibe `usuario_id` ni `score` de ningún plantel: tabla, realtime, vistas de "Quiero jugar", código del link; RPC `get_public_match_roster` para la web. En el servidor: sumarse uno mismo sólo con invitación, solicitud aprobada o link de invitación validado; el jugador sólo edita nombre, foto y posición de su fila; solicitudes siempre pendientes, una por cuenta y partido | 75 ms |
+| 22 | `20261010141000_core_organizer_approves_join_requests` | el organizador vuelve a poder aprobar solicitudes: `approve_join_request` ejecutable por cuentas (lo llama `approve-join-request` con su sesión). La función ya verifica que sea el creador y bloquea partido y solicitud | 210 ms* |
 
-Tiempos del dry run con ~1.200 cuentas, 400 partidos y 4.000 filas de plantel. Ninguna
+Tiempos del dry run con ~1.200 cuentas, 400 partidos y 4.000 filas de plantel (* 141000: medido con el equipo cargado). Ninguna
 migración usa `CONCURRENTLY` ni abre su propia transacción.
 
 **Con #182:** sus migraciones de Core (`20261006…`, `20261007…`, `20261008…`) tocan otros
@@ -119,6 +120,8 @@ Cada línea es `{check, pass, value}`. **Si algún `pass` es `false`, no seguir.
 | sin transacciones largas | `true` |
 | ninguna cuenta con una sola coordenada | `true`; si no es 0, esas coordenadas sueltas no se conservan (una ubicación es el par) |
 | informativo: teléfonos de `profiles` distintos del de la cuenta | anotar; esa copia queda sólo en el backup |
+| informativo: duplicados de solicitudes | anotar; 140000 no los toca y evita nuevos |
+| **informativo, cómo está Prod hoy: ¿los organizadores pueden aprobar solicitudes?** | `false` = hoy cada aprobación responde "forbidden"; 141000 lo arregla |
 | línea base de valores privados | anotar `with_email`, `with_phone`, `with_birth_date`, `with_location` |
 
 ## 6. Aplicar
@@ -127,9 +130,9 @@ Cada línea es `{check, pass, value}`. **Si algún `pass` es `false`, no seguir.
 /opt/homebrew/opt/libpq/bin/psql "$CORE_CONNINFO" --password -X -f docs/database/core-review/runbook/apply-193.psql
 ```
 
-- Aplica las 21 migraciones en orden. Cada una va en su propia transacción, junto con su fila
+- Aplica las 22 migraciones en orden. Cada una va en su propia transacción, junto con su fila
   en `supabase_migrations.schema_migrations`.
-- Se esperan 21 líneas `>>> 202610101xxxxx …` y al final `>>> done`.
+- Se esperan 22 líneas `>>> 202610101xxxxx …` y al final `>>> done`.
 - Si una falla, psql se detiene: esa migración se revierte entera y las anteriores quedan
   aplicadas.
 - El mismo comando retoma desde donde quedó, porque saltea lo que ya está en el ledger. Antes
@@ -145,7 +148,8 @@ No escribe nada: es una transacción que se revierte. Actúa como una cuenta nue
 anon, como el organizador del último partido y como una cuenta con teléfono. **Todas las líneas
 deben dar `pass: true`.**
 
-- **Ledger:** las 21 migraciones están registradas.
+- **Ledger:** las 22 migraciones están registradas.
+- **141000:** cuentas pueden ejecutar `approve_join_request`, anon no.
 - **140000:**
   - policies, vistas, `public_get_match_by_code` y guardas en su lugar;
   - como cuenta nueva: 0 `usuario_id`/`score` en vistas, "Quiero jugar", `get_public_match_roster` y el link;
@@ -205,7 +209,7 @@ Fuentes: replays de las 32 + 84 formas de lectura de la 1.1.21 y de sus escritur
 
 ## 9. Rollback por paso
 
-Los rollbacks de 135000–140000 son archivos probados en el dry run. Aplicados en orden inverso,
+Los rollbacks de 135000–141000 son archivos probados en el dry run. Aplicados en orden inverso,
 devuelven exactamente el estado previo a 135000; la única diferencia esperada es la de
 `partidos_view` (ver la fila de 137000). Cada rollback borra su fila del ledger, así que
 `apply-193.psql` puede volver a aplicarlo. Comando, con `<archivo>` reemplazado:
@@ -216,6 +220,7 @@ devuelven exactamente el estado previo a 135000; la única diferencia esperada e
 
 | Paso | Archivo / acción | Datos perdidos | Tiempo | Efecto |
 |---|---|---|---|---|
+| 141000 | `20261010141000_core_organizer_approves_join_requests.rollback.sql` | ninguno | < 1 s | los organizadores vuelven a no poder aprobar solicitudes ("forbidden") |
 | 140000 | `20261010140000_core_published_roster_identity.rollback.sql` | ninguno (`app_private.match_link_access` queda) | < 1 s | vuelve a verse `usuario_id`/`score` de planteles publicados y vuelven los atajos de escritura (sumarse a cualquier partido, editar la propia fila entera, solicitudes ya aprobadas o duplicadas) |
 | 139000 | `20261010139000_core_roster_added_by_private.rollback.sql` | ninguno: vuelven a la columna todos los valores registrados, incluidos los de filas agregadas mientras 139000 estuvo aplicada; la tabla privada queda | < 1 s | quien lee una fila de plantel vuelve a ver quién agregó a ese jugador |
 | 138000 | `20261010138000_core_voting_photo_slot_owner.rollback.sql` | ninguno (los claims quedan) | < 1 s | cualquiera con el código vuelve a poder reemplazar fotos de invitados |
@@ -255,20 +260,22 @@ reintentar a ciegas.
   de datos privados idénticos. Los 20 errores son de `pg_cron`, que sólo vive en la base
   `postgres`. En Producción la prueba estricta es `restore-check`.
 - **Prechecks:** todos `true`.
-- **Aplicación:** 21/21 como `postgres`, una transacción cada una, 1,5 s en total, sin reinicio
-  del servidor.
+- **Aplicación:** 22/22 como `postgres`, una transacción cada una, sin reinicio del servidor.
+  - 1,5 s en total para 21 migraciones, con el equipo libre;
+  - la corrida con 141000 se hizo con el equipo muy cargado (load average ~18): todo fue más
+    lento por igual, ~8 s, y ninguna llegó al `lock_timeout` de 5 s.
 - **Post-checks:** todos `true`. Valores privados movidos: 1.203 emails, 361 teléfonos,
   227 nacimientos y 478 ubicaciones, igual que la línea base.
 - **Rollbacks y reaplicación:**
-  - 140→135 aplicados: el estado es idéntico al previo a 135000 (policies, funciones, triggers,
+  - 141→135 aplicados: el estado es idéntico al previo a 135000 (policies, funciones, triggers,
     vistas, digest de `usuarios`/`profiles`, columnas de `jugadores` y los 1.069 `added_by` de la
     semilla, ledger), salvo las 3 columnas esperadas de `partidos_view`;
-  - reaplicación 135→140 y post-checks de nuevo: todos `true`.
+  - reaplicación 135→141 y post-checks de nuevo: todos `true`.
 - **Con los archivos exactos de este runbook** (`apply-193.psql`, `rollbacks/*` con `-1`):
   - aplicación;
-  - segunda corrida idempotente (21 salteadas);
-  - rollbacks 140→135 (ledger 15);
-  - reaplicación retomada (6 aplicadas, 15 salteadas);
+  - segunda corrida idempotente (22 salteadas);
+  - rollbacks 141→135 (ledger 15);
+  - reaplicación retomada (7 aplicadas, 15 salteadas);
   - post-checks en `true`, sin reinicio.
 
 **Lo que el dry run encontró y ya está corregido en 137000:**

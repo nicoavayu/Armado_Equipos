@@ -74,6 +74,7 @@ const expectedCanonicalMigrations = [
   '20261010138000_core_voting_photo_slot_owner.sql',
   '20261010139000_core_roster_added_by_private.sql',
   '20261010140000_core_published_roster_identity.sql',
+  '20261010141000_core_organizer_approves_join_requests.sql',
 ];
 
 const exitWithError = (message) => {

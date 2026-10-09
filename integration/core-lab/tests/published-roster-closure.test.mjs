@@ -165,27 +165,46 @@ test('1.1.21 replay as an outsider: sees the match with an empty roster, request
 });
 
 // ---------- capacity ----------
-test('approving: the last slot goes to exactly one of two concurrent approvals; the other is refused', async () => {
+const tokens = {
+  organizer: await signIn('organizador'),
+  member: await signIn('jugador1'),
+};
+const edgeApprove = async (token, requestId) => {
+  const r = await fetch(`${API}/functions/v1/approve-join-request`, {
+    method: 'POST',
+    headers: { apikey: c.anonKey, 'content-type': 'application/json', ...(token ? { authorization: `Bearer ${token}` } : {}) },
+    body: JSON.stringify({ request_id: requestId }),
+  });
+  const text = await r.text();
+  return { status: r.status, body: text ? JSON.parse(text) : null };
+};
+
+// 20261010141000: the organizer approves through the real approve-join-request function.
+test('approving through approve-join-request: anon and a non-admin are refused; two concurrent approvals for the last slot → exactly one', async () => {
   // OPEN: 2 starters + 3 substitutes → one substitute slot left (cupo + 4).
   const pending = await as.requesterB('POST', 'match_join_requests?select=id', { match_id: OPEN, user_id: qa.ids.jugador7, status: 'pending', role: 'player' });
   assert.equal(pending.status, 201, JSON.stringify(pending.body));
   const ids = sql(`select string_agg(id::text, ',' order by id) from public.match_join_requests where match_id = ${OPEN} and status = 'pending'`).trim().split(',').map(Number);
   assert.equal(ids.length, 2);
-  // approve_join_request as the organizer, from two sessions at once; each holds its
-  // transaction open for a moment so the two really overlap.
-  const approve = (id) => sqlAsync(`begin;
-    select set_config('request.jwt.claims', '{"sub":"${ORG}","role":"authenticated"}', true);
-    select public.approve_join_request(${id})::text;
-    select pg_sleep(0.8);
-    commit;`);
-  const results = await Promise.all(ids.map(approve));
-  const ok = results.filter((r) => r.ok);
-  const refused = results.filter((r) => !r.ok);
-  assert.equal(ok.length, 1, JSON.stringify(results));
-  assert.equal(refused.length, 1, JSON.stringify(results));
-  assert.match(refused[0].error, /completo|FULL/i);
+
+  const anon = await edgeApprove(null, ids[0]);
+  assert.equal(anon.status, 401, JSON.stringify(anon.body));
+  const notAdmin = await edgeApprove(tokens.member, ids[0]);
+  assert.deepEqual([notAdmin.status, notAdmin.body?.message], [403, 'forbidden']);
+  const direct = await as.member('POST', 'rpc/approve_join_request', { p_request_id: ids[0] });
+  assert.equal(direct.status, 403, JSON.stringify(direct.body));
+  const anonDirect = await as.anon('POST', 'rpc/approve_join_request', { p_request_id: ids[0] });
+  assert.ok(anonDirect.status === 401 || anonDirect.status === 403, String(anonDirect.status));
+
+  const results = await Promise.all(ids.map((id) => edgeApprove(tokens.organizer, id)));
+  const approved = results.filter((r) => r.status === 200 && r.body?.ok === true);
+  const full = results.filter((r) => r.body?.ok === false);
+  assert.equal(approved.length, 1, JSON.stringify(results));
+  assert.equal(full.length, 1, JSON.stringify(results));
+  assert.match(full[0].body.message, /El partido está completo/);
   const counts = sql(`select count(*) filter (where not coalesce(is_substitute, false)) || ':' || count(*) from public.jugadores where partido_id = ${OPEN}`).trim();
   assert.equal(counts, '2:6');
+  assert.equal(sql(`select count(*) from public.match_join_requests where match_id = ${OPEN} and status = 'approved'`).trim(), '1');
 });
 
 test('invited accounts joining themselves: two at once for the last slot → exactly one gets in', async () => {
@@ -196,6 +215,22 @@ test('invited accounts joining themselves: two at once for the last slot → exa
   ]);
   assert.deepEqual(results.map((r) => r.status).sort(), [201, 400], JSON.stringify(results.map((r) => r.body)));
   assert.match(JSON.stringify(results.find((r) => r.status === 400).body), /MATCH_FULL/);
+  assert.equal(sql(`select count(*) from public.jugadores where partido_id = ${SECOND}`).trim(), '5');
+});
+
+test('approve_join_request itself: two overlapping database sessions for the same last slot never overfill', async () => {
+  // SECOND after the invited joins: cupo 1 + 4 substitutes = full; one more request must be refused
+  // whatever the interleaving. Two requests, two sessions holding their transaction open.
+  sql(`insert into public.match_join_requests (match_id, user_id, status, role) values
+    (${SECOND}, '${qa.ids.jugador6}', 'pending', 'player'), (${SECOND}, '${qa.ids.jugador7}', 'pending', 'player');`);
+  const ids = sql(`select string_agg(id::text, ',' order by id) from public.match_join_requests where match_id = ${SECOND} and status = 'pending'`).trim().split(',').map(Number);
+  const approve = (id) => sqlAsync(`begin;
+    select set_config('request.jwt.claims', '{"sub":"${ORG}","role":"authenticated"}', true);
+    select public.approve_join_request(${id})::text;
+    select pg_sleep(0.5);
+    commit;`);
+  const results = await Promise.all(ids.map(approve));
+  assert.ok(results.every((r) => !r.ok && /completo|FULL/i.test(r.error)), JSON.stringify(results));
   assert.equal(sql(`select count(*) from public.jugadores where partido_id = ${SECOND}`).trim(), '5');
 });
 

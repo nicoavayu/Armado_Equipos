@@ -36,6 +36,7 @@ por código, jugador sin cuenta). Por eso la web puede salir antes que la base.
 | `20261010138000_core_voting_photo_slot_owner` | la foto de un invitado la cambia sólo la primera sesión que toma ese nombre; no se toma el de quien ya votó | ninguno: el edge function ya responde 409 |
 | `20261010139000_core_roster_added_by_private` | `jugadores.added_by` pasa a `app_private.jugadores_added_by` (trigger AFTER INSERT) y la columna se elimina; `get_match_contact_phone` lee de ahí | ninguno: ni la 1.1.21 ni la web nombran la columna; `select('*')` sigue igual |
 | `20261010140000_core_published_roster_identity` | `usuario_id`/`score` de planteles sólo para quien participa (tabla, realtime, vistas, link, `get_public_match_roster`); sumarse uno mismo sólo con invitación, solicitud aprobada o link validado; fila propia: sólo nombre, foto y posición; solicitudes pendientes y únicas | 1.1.21 ve vacío el plantel de un partido publicado ajeno; pedir sumarse y las invitaciones siguen; un link viejo con sólo el código no deja sumarse con cuenta |
+| `20261010141000_core_organizer_approves_join_requests` | `approve_join_request` ejecutable por cuentas (no anon); sigue verificando que sea el creador y bloqueando partido y solicitud | ninguno: la 1.1.21 y la web aprueban por `approve-join-request`, que deja de responder "forbidden" |
 
 **Nota 125000:** con la web nueva publicada, las páginas públicas (votación por link,
 invitación de invitado) ya leen por código. Una build nativa vieja abierta **sin sesión**
@@ -93,7 +94,7 @@ No hay forma de forzar la actualización.
 - 132000: `drop trigger trg_amigos_request_rules on public.amigos;` y recrear `amigos_insert_sender` sin `status = 'pending'`.
 - 133000: recrear las tres vistas con `p.codigo` (definición previa en el baseline) y `drop function public.get_match_access_codes(bigint[])`.
 - 134000: `drop trigger partidos_template_owner on public.partidos; drop function app_private.tg_partidos_template_owner(); alter table public.partidos drop column template_id;` (se pierden los vínculos creados desde entonces).
-- 140000 / 139000 / 138000 / 137000 / 136000 / 135000: archivos probados en [`runbook/rollbacks/`](runbook/rollbacks/), en ese orden (detalle abajo para 135000/136000).
+- 141000 / 140000 / 139000 / 138000 / 137000 / 136000 / 135000: archivos probados en [`runbook/rollbacks/`](runbook/rollbacks/), en ese orden (detalle abajo para 135000/136000).
 - 135000 (devuelve los valores a la fila, en este orden):
   `drop trigger trg_usuarios_private_fields on public.usuarios; drop trigger trg_profiles_private_phone on public.profiles;`
   `update public.usuarios u set email = p.email, telefono = p.telefono, fecha_nacimiento = p.fecha_nacimiento, latitud = p.latitud, longitud = p.longitud, location_accuracy_m = p.location_accuracy_m from app_private.usuarios_private p where p.user_id = u.id;`

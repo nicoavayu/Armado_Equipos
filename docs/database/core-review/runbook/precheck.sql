@@ -76,7 +76,7 @@ select json_build_object('check', 'informative: join requests duplicated per acc
   'pass', true,
   'value', (select count(*) from (select 1 from public.match_join_requests group by match_id, user_id having count(*) > 1) d))::text;
 
-select json_build_object('check', 'informative: can an account execute approve_join_request? (the approve-join-request function calls it as the organizer; false = approvals already fail today, unrelated to #193)',
+select json_build_object('check', 'informative, how Prod is today: can organizers approve join requests? (approve-join-request calls approve_join_request as the organizer; false = every approval answers "forbidden" now; 20261010141000 fixes it)',
   'pass', true,
   'value', has_function_privilege('authenticated', 'public.approve_join_request(bigint)', 'execute'))::text;
 
