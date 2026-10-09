@@ -14,7 +14,7 @@ el agente no tiene acceso a Producción y la contraseña de la base sólo se tip
 Este runbook está ensayado sobre ese esquema **real**, aplicado como `postgres` no superusuario
 (`integration/prod-schema/`, §11):
 - datos sintéticos con la forma de Producción;
-- 55 chequeos de humo;
+- 66 chequeos de humo;
 - rollbacks comparados contra el catálogo original.
 
 La evidencia está en
@@ -23,9 +23,9 @@ La evidencia está en
 ## 1. Qué se aplica
 
 El ledger de Producción tiene las 43 migraciones de `main` hasta `20260915`, más `20261007`,
-`20261008` y `20261009120000`. Encima van **25 migraciones, en este orden**. 119000 y 142000
+`20261008` y `20261009120000`. Encima van **26 migraciones, en este orden** (`20261010144000` es un borrador aparte, en [`drafts/`](drafts/README.md), y no se aplica). 119000 y 142000
 existen por las diferencias de Producción; ninguna de las dos cambia algo sobre el esquema del
-repositorio. 143000 cierra lo que el gate B encontró sobre las columnas reales de `jugadores`.
+repositorio. 143000 cierra lo que el gate B encontró sobre las columnas reales de `jugadores`; 145000, los avisos de partido abiertos a cualquiera.
 
 | # | Migración | Qué cambia | Ensayo |
 |---|---|---|---|
@@ -54,6 +54,7 @@ repositorio. 143000 cierra lo que el gate B encontró sobre las columnas reales 
 | 22 | `20261010141000_core_organizer_approves_join_requests` | `approve_join_request` ejecutable por cuentas, no por anon. En el repositorio no lo era ("forbidden"); en Producción ya lo era, y sólo se le quita a anon. Guarda el ACL previo para el rollback | 37 ms |
 | 23 | `20261010142000_core_join_request_notifications` | **arreglo de Producción.** Hoy, desde la segunda solicitud a un mismo partido, la inserción falla con 23505, porque el aviso al organizador choca con un índice único por partido. `fn_notifications_fill_partido_id` (sólo existe en Producción) deja de volver a llenar `partido_id` en los avisos de cada solicitud | 43 ms |
 | 24 | `20261010143000_core_roster_identity_roster_only` | **lo que encontró el gate B sobre el esquema real.** Quién es cada jugador queda sólo para el organizador y el plantel (regla de Nico). Afuera (cuenta ajena, una cuenta que sólo pidió sumarse o recibió un aviso, y anon por el link) cada entrada de plantel va sin `usuario_id`, `score` ni `responsabilidad_score` (columna de Producción), y su `uuid` (en Producción, el id de la cuenta de un jugador registrado; el de un invitado es su clave de dispositivo) se reemplaza por una clave opaca por fila. Vistas, `get_public_match_roster`, `public_get_match_by_code` y la tabla `jugadores` (y realtime). Las filas `match_ref` sin partido de Producción siguen la misma regla | 47 ms |
+| 25 | `20261010145000_core_match_notification_callers` | **avisos de partido sólo del organizador y de la gente del partido** (Nico, 2026-10-09). Hoy cualquiera, anon incluido, manda un aviso con texto propio a todo el plantel de cualquier partido. Las dos funciones originales se mueven sin cambios a `app_private.*_unchecked` y en su lugar queda un envoltorio con la misma firma que, llamado por la API, exige: organizador (todo), o involucrado (sólo `match_join_request`/`match_update` al organizador), o jugador del plantel (sólo `match_update` a todos). Las funciones SECURITY DEFINER, pg_cron y `service_role` siguen igual. anon pierde EXECUTE (también sobre `add_creator_to_match`). Detalle, llamadores y rollback: [`NOTIFICATION-FUNCTIONS.md`](NOTIFICATION-FUNCTIONS.md) | 46 ms |
 
 Tiempos del ensayo sobre el esquema real con ~1.200 cuentas, 400 partidos y 4.000 filas de
 plantel (1,05 s en total). Ninguna migración usa `CONCURRENTLY` ni abre su propia transacción.
@@ -149,7 +150,7 @@ Cada línea es `{check, pass, value}`. **Si algún `pass` es `false`, no seguir.
 | Postgres ≥ 15 | `true` (Prod: 17) |
 | base escribible | `off` |
 | tamaño < 350 MB | `true` (Prod ≈ 64 MiB tras el mantenimiento) |
-| ledger: está `20261009120000` y ninguna de `20261010119000…143000` | `true` |
+| ledger: está `20261009120000` y ninguna de `20261010119000…145000` | `true` |
 | `postgres` es dueño de tablas y vistas afectadas | `true` |
 | vistas con `security_invoker=on` | `true` |
 | no existe nada del stack (tablas privadas, rol lector, `added_by`) | `true` |
@@ -170,9 +171,9 @@ Cada línea es `{check, pass, value}`. **Si algún `pass` es `false`, no seguir.
 /opt/homebrew/opt/libpq/bin/psql "$CORE_CONNINFO" --password -X -f docs/database/core-review/runbook/apply-193.psql
 ```
 
-- Aplica las 25 migraciones en orden. Cada una va en su propia transacción, junto con su fila
+- Aplica las 26 migraciones en orden. Cada una va en su propia transacción, junto con su fila
   en `supabase_migrations.schema_migrations`.
-- Se esperan 25 líneas `>>> 202610101xxxxx …` y al final `>>> done`.
+- Se esperan 26 líneas `>>> 202610101xxxxx …` y al final `>>> done`.
 - Si una falla, psql se detiene: esa migración se revierte entera y las anteriores quedan
   aplicadas.
 - El mismo comando retoma desde donde quedó, porque saltea lo que ya está en el ledger. Antes
@@ -188,7 +189,7 @@ No escribe nada: es una transacción que se revierte. Actúa como una cuenta nue
 anon, como el organizador del último partido y como una cuenta con teléfono. **Todas las líneas
 deben dar `pass: true`.**
 
-- **Ledger:** las 25 migraciones están registradas.
+- **Ledger:** las 26 migraciones están registradas.
 - **119000:**
   - `SELECT`/`INSERT` de `partidos`/`jugadores` sólo tienen las policies del repositorio
     (más `partidos_insert_own` de Producción);
@@ -198,6 +199,7 @@ deben dar `pass: true`.**
     igual al actual (`UPDATE`/`DELETE` de `partidos`/`jugadores`, `profiles`, `amigos`,
     `notifications`, `post_match_surveys`, `partidos_frecuentes`, `usuarios` y el resto).
   El valor lista lo registrado en `production_alignment_log`.
+- **145000:** anon no ejecuta `enqueue_partido_notification`, `enqueue_match_participant_notification` ni `add_creator_to_match`; las dos primeras son los envoltorios con control (INVOKER) y las originales están en `app_private` como SECURITY DEFINER, sin anon.
 - **143000:**
   - las vistas, las dos RPC de plantel y la policy de lectura de `jugadores` usan
     `match_roster_identity_visible` (organizador y plantel);
@@ -268,10 +270,10 @@ Fuentes: replays de las 32 + 84 formas de lectura de la 1.1.21 y de sus escritur
 
 ## 9. Rollback por paso
 
-Los rollbacks de 133000–143000 y de 119000 son archivos probados sobre el esquema real con datos
+Los rollbacks de 133000–145000 y de 119000 son archivos probados sobre el esquema real con datos
 (§11). Se aplican en orden inverso.
 
-Hechos 143→133, el catálogo y los datos vuelven exactamente al estado previo a 133000, salvo lo
+Hechos 145→133, el catálogo y los datos vuelven exactamente al estado previo a 133000, salvo lo
 que se conserva a propósito para no perder datos:
 - las tablas `app_private.usuarios_private`, `jugadores_added_by` y `match_link_access`;
 - los dos índices de 136000.
@@ -292,7 +294,8 @@ Comando, con `<archivo>` reemplazado:
 
 | Paso | Archivo / acción | Datos perdidos | Efecto |
 |---|---|---|---|
-| 143000 | `20261010143000_core_roster_identity_roster_only.rollback.sql` (primero) | ninguno | quien pidió sumarse o recibió un aviso vuelve a ver el plantel completo; afuera y anon vuelven a recibir el `uuid` (id de cuenta) y `responsabilidad_score` |
+| 145000 | `20261010145000_core_match_notification_callers.rollback.sql` (primero) | ninguno | vuelven las funciones originales a `public` (mismo cuerpo y oid) con sus permisos exactos: cualquiera, anon incluido, vuelve a poder mandar avisos a cualquier plantel |
+| 143000 | `20261010143000_core_roster_identity_roster_only.rollback.sql` | ninguno | quien pidió sumarse o recibió un aviso vuelve a ver el plantel completo; afuera y anon vuelven a recibir el `uuid` (id de cuenta) y `responsabilidad_score` |
 | 142000 | `20261010142000_core_join_request_notifications.rollback.sql` | ninguno | vuelve el 23505 desde el segundo solicitante de un partido |
 | 141000 | `20261010141000_core_organizer_approves_join_requests.rollback.sql` | ninguno | el ACL de `approve_join_request` vuelve exactamente al previo (Producción: también authenticated y anon) |
 | 140000 | `20261010140000_core_published_roster_identity.rollback.sql` | ninguno (`match_link_access` queda) | vuelven `usuario_id`/`score` en planteles publicados y los atajos de escritura |
@@ -305,7 +308,7 @@ Comando, con `<archivo>` reemplazado:
 | 133000 | `20261010133000_core_match_access_code.rollback.sql` | ninguno | las vistas vuelven a devolver `codigo` |
 | (opcional) | `cleanup-after-verified-rollback.sql` | las copias privadas (los valores ya volvieron a las filas) | catálogo idéntico al previo |
 | 132000 … 120000 | SQL en [`PROMOTION.md` §5](PROMOTION.md) | ver PROMOTION.md | ver PROMOTION.md |
-| 119000 | `20261010119000_core_production_alignment.rollback.sql` (último) | ninguno (`admin_id` nunca se usa en Producción) | Producción vuelve a sus policies abiertas, exactamente como estaban |
+| 119000 | `20261010119000_core_production_alignment.rollback.sql` (último) | ninguno (`admin_id` nunca se usa en Producción) | Producción vuelve a sus policies abiertas, exactamente como estaban. Si 120000…132000 siguen aplicadas, **conserva** lo que sus funciones usan (`partidos.admin_id`, `app_private.is_match_admin`, el USAGE de `app_private`, el log): sin eso `list_my_pending_survey_finalizations` fallaba con 42703 (gate B). Deshechas 120000…132000, correrlo otra vez deja el catálogo original |
 | Todo | restaurar el backup de §3 | **todo lo escrito después del backup** | último recurso; requiere otro GO |
 
 **Si algo falla durante §6:** la migración que falló no dejó nada. Copiar el error y no
@@ -338,31 +341,40 @@ reintentar a ciegas.
 
 **A — por migración:**
 - precheck en `true`;
-- 25/25 aplicadas como `postgres` (1,15 s en total);
+- 26/26 aplicadas como `postgres` (1,21 s en total);
 - postcheck en `true`;
-- humo `integration/prod-schema/smoke.sql`: **55/55**;
-- rollbacks 143→133: estado idéntico al previo a 133000 (policies, funciones, triggers, vistas,
+- humo `integration/prod-schema/smoke.sql`: **66/66**;
+- rollbacks 145→133: estado idéntico al previo a 133000 (policies, funciones, triggers, vistas,
   ACLs, digests de datos). Con la limpieza opcional, **catálogo completo idéntico**;
 - reaplicación y postcheck en `true`; sin reinicio del servidor.
 
 **B — archivos exactos de este runbook:**
 - precheck en `true`;
-- `apply-193.psql`: 25 aplicadas en 187 ms; postcheck en `true` (34/34, incluidos el digest de las policies intactas y una solicitud pendiente real de la semilla); humo 55/55;
-- segunda corrida: 25 salteadas;
-- rollbacks 143→133 con `-1`: ledger 14;
-- reaplicación retomada: 11 aplicadas, 14 salteadas; postcheck en `true`.
+- `apply-193.psql`: 26 aplicadas en 202 ms; postcheck en `true` (35/35, incluidos el digest de las policies intactas y una solicitud pendiente real de la semilla); humo 66/66;
+- segunda corrida: 26 salteadas;
+- rollbacks 145→133 con `-1`: ledger 14;
+- reaplicación retomada: 12 aplicadas, 14 salteadas; postcheck en `true`.
 
 **C — 119000 sola contra el original:** la migración cambia el catálogo; su rollback lo deja
 **idéntico al original** (digest completo), con los datos iguales.
 
+**D — recuperación que deja 120000…132000** (como la del gate B):
+- se aplican las 26, se deshacen 145→133 con la limpieza, y después 119000;
+- se llaman las 28 funciones de 120000…132000 (24 invocables) como una cuenta: ninguna falla por
+  columna, función o tabla inexistente, y ningún cuerpo nombra una función de `app_private` que no exista;
+- el rollback de 119000 conserva `partidos.admin_id` y `app_private.is_match_admin`, y correrlo
+  otra vez no cambia nada;
+- control negativo con el rollback anterior: `list_my_pending_survey_finalizations` → 42703
+  (`match_row.admin_id`) e `is_match_admin` inexistente, lo mismo que vio el gate B.
+
 **Policies (alcance de Nico del 2026-10-09):**
 - se quitan 18 y se crean 7, todas listadas en [`POLICIES-REPLACED.md`](POLICIES-REPLACED.md);
 - las otras 192 del esquema `public` no cambian;
-- con las 25 aplicadas, los rollbacks 143→133 y luego 119000 dejan las policies de las 11 tablas
+- con las 26 aplicadas, los rollbacks 145→133 y luego 119000 dejan las policies de las 11 tablas
   involucradas idénticas a R0, campo por campo;
 - las sentencias de rollback del documento, corridas a mano, dan el mismo resultado.
 
-**Los 55 chequeos de humo** corren como anon y como cuentas concretas:
+**Los 66 chequeos de humo** corren como anon y como cuentas concretas:
 - campos privados, incluido el email que copia el trigger `auth.users → usuarios` de Producción;
 - lecturas de ajeno, miembro, organizador y anon (tabla, `partidos_view` con su plantel
   embebido, "Quiero jugar", RPCs);
@@ -379,9 +391,13 @@ reintentar a ciegas.
   entrada para un ajeno, para quien sólo pidió sumarse ni para anon trae un id de cuenta o
   `responsabilidad_score`; las claves opacas son distintas por fila; el miembro sigue viendo todo;
   un invitado no ve filas del plantel desde la tabla hasta sumarse, y después sí;
+- 145000: anon no manda avisos ni llama `add_creator_to_match`; un ajeno no avisa a un partido
+  que no le toca; quien pidió sumarse avisa al organizador pero no anuncia una cancelación; un
+  jugador anuncia que entró; el organizador manda lo de siempre; `cancel_partido_with_notification`
+  (SECURITY DEFINER) sigue avisando al plantel;
 - el job de cierre de encuestas corre.
 
-**Esquema del repositorio:** las 25 también se aplican (base limpia `main` + `20261009120000`, 2026-10-09), y el laboratorio Core reconstruido con
+**Esquema del repositorio:** las 26 también se aplican (base limpia `main` + `20261009120000`, 2026-10-09), y el laboratorio Core reconstruido con
 las 24 anteriores pasaba **366/366**.
 
 **Antes de este ensayo**, el dry run del 2026-10-08 sobre el esquema del repositorio había

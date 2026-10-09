@@ -1,4 +1,4 @@
-# Policies reemplazadas en Core Producción (stack 20261010119000…143000)
+# Policies reemplazadas en Core Producción (stack 20261010119000…145000)
 
 Alcance autorizado por Nico (2026-10-09): **preparar y ensayar** el reemplazo de sólo estas policies.
 **Nada de esto está aplicado en Producción.** Aplicarlo es D3 y necesita un GO nuevo después del ensayo.
@@ -19,7 +19,7 @@ Quedan **intactas** (verificado, ver §4):
 
 Fuente: `pg_policies` del esquema **real** de Producción (`pg_dump --schema-only` del 2026-10-09,
 `~/Arma2Backups/d3-core-schema-20261009-1641.sql`), cargado en un contenedor descartable sin red,
-antes (R0) y después de aplicar las 25 migraciones. Las definiciones son las que imprime Postgres
+antes (R0) y después de aplicar las 26 migraciones. Las definiciones son las que imprime Postgres
 (`qual` / `with_check`), con los saltos de línea colapsados.
 
 ## 1. Policies que se quitan (18), su reemplazo y su rollback
@@ -50,7 +50,7 @@ antes (R0) y después de aplicar las 25 migraciones. Las definiciones son las qu
 | 17 | `votos_publicos` | `Public votes can be created by everyone` | INSERT | public | WITH CHECK `true` | ninguna: sólo escriben las RPC de votación (SECURITY DEFINER), que validan código + partido | `create policy "Public votes can be created by everyone" on public.votos_publicos as PERMISSIVE for INSERT to public with check (true);` |
 | 18 | `votos_publicos` | `Public votes are visible to everyone` | SELECT | public | USING `true` | `votos_publicos_select_match_member` (plantel y organizador del partido) | `create policy "Public votes are visible to everyone" on public.votos_publicos as PERMISSIVE for SELECT to public using (true);` |
 
-## 2. Policies nuevas (7), en su forma final después de 143000
+## 2. Policies nuevas (7), en su forma final después de 145000
 
 | Tabla | Policy | Cmd | Roles | Definición final | La fijan | Cómo se deshace |
 |---|---|---|---|---|---|---|
@@ -71,7 +71,7 @@ no participa del partido.
 
 Orden (RUNBOOK-193 §9), cada archivo con `psql -1 -v ON_ERROR_STOP=1`:
 
-1. rollbacks 143000 → 133000. 143000, 140000, 137000 y 136000 devuelven las policies de §2 a la forma
+1. rollbacks 145000 → 133000. 143000, 140000, 137000 y 136000 devuelven las policies de §2 a la forma
    que les dio 119000 y 137000 borra las `*_public_reader`;
 2. 132000 → 120000 ([PROMOTION.md §5](PROMOTION.md)): no tocan ninguna de estas policies;
 3. `20261010119000_core_production_alignment.rollback.sql`, **último**:
@@ -119,17 +119,17 @@ commit;
 - **Policies intactas:** 192 policies del esquema `public` quedan fuera del alcance, entre ellas
   `UPDATE`/`DELETE` de `partidos`/`jugadores`, `partidos_insert_own`, `deny_all` y los `DELETE`
   de votación. Su digest (`md5` de nombre, `permissive`, `cmd`, roles, `using` y `check`) es
-  `86fa2f8a1ac188f4bfdeff38e700364e` antes y después de las 25 migraciones:
+  `86fa2f8a1ac188f4bfdeff38e700364e` antes y después de las 26 migraciones:
   - 119000 lo guarda en `production_alignment_log` (`untouched_policies_digest`);
   - el post-check falla si cambió.
-- **Rollback de policies:** después de las 25 migraciones, los rollbacks 143000→133000 y luego
+- **Rollback de policies:** después de las 26 migraciones, los rollbacks 145000→133000 y luego
   119000 dejan las 60 policies de `partidos`, `jugadores`, `public_voters`, `votos_publicos`,
   `usuarios`, `profiles`, `amigos`, `notifications`, `post_match_surveys`, `partidos_frecuentes`
   y `match_join_requests` idénticas a R0, campo por campo.
   Con las sentencias de §3 corridas a mano en lugar del archivo de rollback, el resultado también
   es idéntico.
 - **119000 sola:** aplicarla y deshacerla deja el catálogo con el mismo digest que R0 (pasada C).
-- **Ensayos A/B:** las 25 migraciones y sus rollbacks pasan sobre el esquema real; ver RUNBOOK-193 §11 y
+- **Ensayos A/B:** las 26 migraciones y sus rollbacks pasan sobre el esquema real; ver RUNBOOK-193 §11 y
   `runbook/evidence/rehearsal-prod-schema-20261009.json`.
 
 Se mantienen, en estas cuatro tablas:
@@ -162,7 +162,7 @@ Cómo funciona:
 - `public_get_or_create_voter` queda sólo para esas RPC (121000; su ACL previo se guarda y el
   rollback lo restaura).
 
-Smoke sobre el esquema real (`integration/prod-schema/smoke.sql`, 55/55):
+Smoke sobre el esquema real (`integration/prod-schema/smoke.sql`, 66/66):
 
 - "anon: no rows from partidos/jugadores/view";
 - "anon: the code opens its match, entries without usuario_id";

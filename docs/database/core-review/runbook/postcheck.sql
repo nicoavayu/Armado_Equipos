@@ -8,9 +8,9 @@
 begin;
 
 -- ---------- as postgres: structure and data ----------
-select json_build_object('check', 'ledger holds the 25 migrations 20261010119000…143000',
-  'pass', (select count(*) from supabase_migrations.schema_migrations where version between '20261010119000' and '20261010143000') = 25,
-  'value', (select count(*) from supabase_migrations.schema_migrations where version between '20261010119000' and '20261010143000'))::text;
+select json_build_object('check', 'ledger holds the 26 migrations 20261010119000…145000 (no 144000)',
+  'pass', (select count(*) from supabase_migrations.schema_migrations where version between '20261010119000' and '20261010145000') = 26,
+  'value', (select count(*) from supabase_migrations.schema_migrations where version between '20261010119000' and '20261010145000'))::text;
 
 select json_build_object('check', '119000: partidos/jugadores SELECT/INSERT carry only the repository policies, the voting tables are not open',
   'pass', not exists (select 1 from pg_policies where schemaname = 'public' and tablename in ('partidos', 'jugadores')
@@ -38,6 +38,16 @@ select json_build_object('check', '119000: every other policy (UPDATE/DELETE of 
              where schemaname = 'public'
                and not (tablename in ('partidos', 'jugadores') and cmd in ('SELECT', 'INSERT', 'ALL'))
                and not (tablename in ('public_voters', 'votos_publicos') and cmd in ('SELECT', 'INSERT')))))::text;
+
+select json_build_object('check', '145000: match notifications only from the organizer and the people of the match (anon cannot call them; checked wrappers; originals moved unchanged)',
+  'pass', not has_function_privilege('anon', 'public.enqueue_partido_notification(bigint,text,text,text,jsonb)', 'execute')
+      and not has_function_privilege('anon', 'public.enqueue_match_participant_notification(bigint,text,text,text,jsonb,uuid,boolean)', 'execute')
+      and (to_regprocedure('public.add_creator_to_match(uuid)') is null or not has_function_privilege('anon', 'public.add_creator_to_match(uuid)', 'execute'))
+      and (select not prosecdef and prosrc ~ 'assert_match_notification_allowed' from pg_proc where oid = 'public.enqueue_partido_notification(bigint,text,text,text,jsonb)'::regprocedure)
+      and (select not prosecdef and prosrc ~ 'assert_match_notification_allowed' from pg_proc where oid = 'public.enqueue_match_participant_notification(bigint,text,text,text,jsonb,uuid,boolean)'::regprocedure)
+      and (select prosecdef from pg_proc where oid = 'app_private.enqueue_partido_notification_unchecked(bigint,text,text,text,jsonb)'::regprocedure)
+      and not has_function_privilege('anon', 'app_private.enqueue_partido_notification_unchecked(bigint,text,text,text,jsonb)', 'execute'),
+  'value', json_build_object('authenticated_can_call', has_function_privilege('authenticated', 'public.enqueue_partido_notification(bigint,text,text,text,jsonb)', 'execute')))::text;
 
 select json_build_object('check', '143000: full roster entries only for organizer and roster (views, both RPCs, the table)',
   'pass', to_regprocedure('app_private.match_roster_identity_visible(bigint,uuid)') is not null

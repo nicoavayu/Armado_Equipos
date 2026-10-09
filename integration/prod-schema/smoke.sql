@@ -200,3 +200,45 @@ reset role;
 
 -- ---------- server-side survey finalization runs on this schema (131) ----------
 select pg_temp.check('131 finalization job runs', pg_temp.try($$select public.process_survey_finalizations_backend(25)$$) = 'ok', pg_temp.try($$select public.process_survey_finalizations_backend(25)$$));
+
+-- ---------- match notifications: only the organizer and the people of the match (145) ----------
+select set_config('request.jwt.claims', '{"role":"anon"}', true);
+select set_config('request.jwt.claim.sub', '', true);
+set local role anon;
+select pg_temp.check('145 anon: cannot send match notifications',
+  pg_temp.try($$select public.enqueue_partido_notification(995001, 'match_update', 'X', 'Y')$$) like '42501%'
+  and pg_temp.try($$select public.enqueue_match_participant_notification(995001, 'match_update', 'X', 'Y')$$) like '42501%');
+select pg_temp.check('145 anon: cannot call add_creator_to_match', pg_temp.try($$select public.add_creator_to_match(gen_random_uuid())$$) like '42501%');
+reset role;
+select pg_temp.as_user(md5('smoke-stranger')::uuid);
+set local role authenticated;
+select pg_temp.check('145 stranger: no notice to a match it has nothing to do with',
+  pg_temp.try($$select public.enqueue_partido_notification(995002, 'match_update', 'X', 'Y')$$) like '42501%');
+select pg_temp.check('145 stranger: no cancellation notice to a roster',
+  pg_temp.try($$select public.enqueue_partido_notification(995001, 'match_cancelled', 'X', 'Y')$$) like '42501%'
+  and pg_temp.try($$select public.enqueue_match_participant_notification(995001, 'match_update', 'X', 'Y')$$) like '42501%');
+reset role;
+select pg_temp.as_user(md5('smoke-req2')::uuid);
+set local role authenticated;
+select pg_temp.check('145 requester: tells the organizer about its request (1.1.21)',
+  pg_temp.try($$select public.enqueue_partido_notification(995001, 'match_join_request', 'Solicitud', 'Quiere jugar')$$) = 'ok');
+select pg_temp.check('145 requester: cannot announce a cancellation nor fan out to the roster',
+  pg_temp.try($$select public.enqueue_partido_notification(995001, 'match_cancelled', 'X', 'Y')$$) like '42501%'
+  and pg_temp.try($$select public.enqueue_match_participant_notification(995001, 'match_update', 'X', 'Y')$$) like '42501%');
+reset role;
+select pg_temp.as_user(md5('smoke-mem')::uuid);
+set local role authenticated;
+select pg_temp.check('145 player: announces it joined to the roster (1.1.21)',
+  pg_temp.try($$select public.enqueue_match_participant_notification(995001, 'match_update', 'Se sumó', 'Mem')$$) = 'ok');
+select pg_temp.check('145 player: cannot fan out other types',
+  pg_temp.try($$select public.enqueue_match_participant_notification(995001, 'match_cancelled', 'X', 'Y')$$) like '42501%');
+reset role;
+select pg_temp.as_user(md5('smoke-org')::uuid);
+set local role authenticated;
+select pg_temp.check('145 organizer: sends what it sent before (match_deleted, survey_start)',
+  pg_temp.try($$select public.enqueue_partido_notification(995002, 'match_deleted', 'Borrado', 'X')$$) = 'ok'
+  and pg_temp.try($$select public.enqueue_partido_notification(995003, 'survey_start', 'Encuesta', 'X')$$) = 'ok');
+select pg_temp.check('145 organizer: a SECURITY DEFINER caller still notifies (cancel_partido_with_notification)',
+  pg_temp.try($$select public.cancel_partido_with_notification(995002, 'Lluvia')$$) = 'ok');
+reset role;
+select pg_temp.check('145 the cancellation reached the roster', (select count(*) from public.notifications where partido_id = 995002 and type = 'match_cancelled') >= 1);

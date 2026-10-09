@@ -1,47 +1,49 @@
 {
  "date": "2026-10-09",
  "schema": "Core Production pg_dump --schema-only 2026-10-09 (d3-core-schema-20261009-1641.sql), disposable container without network, synthetic seed",
- "scope": "Nico 2026-10-09: partidos/jugadores SELECT/INSERT, usuarios private fields, guest voting tables; plus 143000 (gate B findings: roster uuid = account id, responsabilidad_score, pending requester); nothing applied in Production",
+ "scope": "Nico 2026-10-09: partidos/jugadores SELECT/INSERT, usuarios private fields, guest voting tables; 143000 (gate B: roster uuid = account id, responsabilidad_score, pending requester); 145000 (match notification functions, authorized 2026-10-09); 144000 is a separate draft, not applied; nothing applied in Production",
  "passes": {
   "A": {
-   "applied": 25,
-   "of": 25,
-   "apply_ms_total": 1151,
+   "applied": 26,
+   "of": 26,
+   "apply_ms_total": 1207,
    "per_migration_ms": {
-    "20261010119000": 58,
-    "20261010120000": 37,
-    "20261010121000": 39,
-    "20261010122000": 39,
-    "20261010123000": 36,
+    "20261010119000": 67,
+    "20261010120000": 42,
+    "20261010121000": 48,
+    "20261010122000": 42,
+    "20261010123000": 43,
     "20261010124000": 42,
-    "20261010125000": 38,
+    "20261010125000": 45,
     "20261010126000": 43,
-    "20261010127000": 41,
-    "20261010128000": 40,
-    "20261010129000": 40,
-    "20261010130000": 42,
-    "20261010131000": 44,
-    "20261010132000": 41,
-    "20261010133000": 48,
-    "20261010134000": 41,
-    "20261010135000": 78,
-    "20261010136000": 43,
-    "20261010137000": 64,
-    "20261010138000": 45,
-    "20261010139000": 56,
-    "20261010140000": 55,
-    "20261010141000": 46,
-    "20261010142000": 48,
-    "20261010143000": 47
+    "20261010127000": 42,
+    "20261010128000": 49,
+    "20261010129000": 43,
+    "20261010130000": 41,
+    "20261010131000": 50,
+    "20261010132000": 40,
+    "20261010133000": 46,
+    "20261010134000": 47,
+    "20261010135000": 71,
+    "20261010136000": 44,
+    "20261010137000": 53,
+    "20261010138000": 39,
+    "20261010139000": 51,
+    "20261010140000": 53,
+    "20261010141000": 37,
+    "20261010142000": 36,
+    "20261010143000": 47,
+    "20261010145000": 46
    },
    "precheck_failures": [],
    "postcheck_failures": [],
    "smoke": {
-    "pass": 55,
+    "pass": 66,
     "fail": [],
     "error": null
    },
    "rollbacks_ok": [
+    "20261010145000",
     "20261010143000",
     "20261010142000",
     "20261010141000",
@@ -56,7 +58,7 @@
    ],
    "rollback_vs_pre133": "identical",
    "catalog_after_cleanup_equals_pre133": true,
-   "reapply_ok": 11,
+   "reapply_ok": 12,
    "postcheck_after_reapply_failures": [],
    "server_restarted": false
   },
@@ -79,7 +81,7 @@
      "pass": true
     },
     {
-     "check": "ledger: Torneos contract and ops retention present, none of 20261010119000…143000 yet",
+     "check": "ledger: Torneos contract and ops retention present, none of 20261010119000…145000 yet",
      "pass": true
     },
     {
@@ -167,13 +169,13 @@
    },
    "apply": {
     "ok": true,
-    "ms": 187,
-    "applied": 25,
-    "ledger": 25
+    "ms": 202,
+    "applied": 26,
+    "ledger": 26
    },
    "postcheck": [
     {
-     "check": "ledger holds the 25 migrations 20261010119000…143000",
+     "check": "ledger holds the 26 migrations 20261010119000…145000 (no 144000)",
      "pass": true
     },
     {
@@ -182,6 +184,10 @@
     },
     {
      "check": "119000: every other policy (UPDATE/DELETE of partidos/jugadores, profiles, amigos, notifications, post_match_surveys, partidos_frecuentes, usuarios…) is exactly as before",
+     "pass": true
+    },
+    {
+     "check": "145000: match notifications only from the organizer and the people of the match (anon cannot call them; checked wrappers; originals moved unchanged)",
      "pass": true
     },
     {
@@ -310,15 +316,16 @@
     }
    ],
    "smoke": {
-    "pass": 55,
+    "pass": 66,
     "fail": [],
     "error": null
    },
    "rerun": {
     "ok": true,
-    "skipped": 25
+    "skipped": 26
    },
    "rollbacks_ok": [
+    "20261010145000",
     "20261010143000",
     "20261010142000",
     "20261010141000",
@@ -334,9 +341,9 @@
    "ledger_after_rollbacks": 14,
    "reapply": {
     "ok": true,
-    "applied": 11,
+    "applied": 12,
     "skipped": 14,
-    "ledger": 25
+    "ledger": 26
    },
    "postcheck_after_reapply_failures": [],
    "server_restarted": false
@@ -346,8 +353,43 @@
    "catalog_back_to_R0": true,
    "snapshot_vs_R0": "identical",
    "server_restarted": false,
-   "apply_119_ms": 56,
-   "rollback_119_ms": 48
+   "apply_119_ms": 58,
+   "rollback_119_ms": 71
+  },
+  "D": {
+   "functions_of_120_132": 28,
+   "applied_all": true,
+   "failed_rollbacks": [],
+   "still_run_applied": {
+    "called": 24,
+    "broken": [],
+    "missing_app_private_functions": [],
+    "partidos_admin_id": true
+   },
+   "kept_by_119_rollback": "app_private.is_match_admin(bigint,uuid), partidos.admin_id",
+   "policies_back_to_original": true,
+   "still_run_after_recovery": {
+    "called": 24,
+    "broken": [],
+    "missing_app_private_functions": [],
+    "partidos_admin_id": true
+   },
+   "second_119_rollback_ok": true,
+   "still_run_after_second_rollback_broken": [],
+   "server_restarted": false,
+   "negative_control_previous_rollback": {
+    "broken": [
+     {
+      "fn": "public.list_my_pending_survey_finalizations",
+      "sqlstate": "42703",
+      "message": "column match_row.admin_id does not exist"
+     }
+    ],
+    "missing_app_private_functions": [
+     "is_match_admin"
+    ],
+    "partidos_admin_id": false
+   }
   }
  },
  "policies": {
@@ -355,16 +397,28 @@
   "created": 7,
   "kept_on_scope_tables": 11,
   "untouched_elsewhere": 192,
-  "full_rollback_143_to_133_then_119_policies_equal_R0": true,
-  "manual_sql_of_POLICIES_REPLACED_equal_R0": true
- },
- "smoke_143_negative_control": {
-  "without_143000": "5 FAIL / 50 PASS (stranger, pending requester x2, invitee, anon)",
-  "with_143000": "55/55"
+  "manual_sql_of_POLICIES_REPLACED_equal_R0": true,
+  "full_rollback_145_to_133_then_119_policies_equal_R0": true
  },
  "repository_schema": {
   "baseline": "origin/main up to 20260915 + Production ledger extras, clean dryrun project",
-  "applied": "25/25 in one rolled-back transaction",
-  "views_using_roster_identity": 2
+  "applied": "26/26 in one rolled-back transaction"
+ },
+ "smoke_negative_controls": {
+  "without_143000": "5 FAIL / 50 PASS",
+  "without_145000": "6 FAIL / 60 PASS",
+  "with_all": "66/66"
+ },
+ "draft_144000": {
+  "requester_pending": {
+   "without": "table 1 row with code",
+   "with": "table 0 rows; partidos_view 1 row, code masked"
+  },
+  "invited_private_not_in": {
+   "without": "table 1 row with code",
+   "with": "table 0 rows; partidos_view 1 row, code masked; roster RPC masked"
+  },
+  "after_joining": "match and code, with and without",
+  "rollback": "pg_get_expr identical to 137000"
  }
 }

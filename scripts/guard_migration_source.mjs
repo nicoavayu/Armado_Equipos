@@ -85,6 +85,7 @@ const expectedCanonicalMigrations = [
   '20261010141000_core_organizer_approves_join_requests.sql',
   '20261010142000_core_join_request_notifications.sql',
   '20261010143000_core_roster_identity_roster_only.sql',
+  '20261010145000_core_match_notification_callers.sql',
 ];
 
 const exitWithError = (message) => {

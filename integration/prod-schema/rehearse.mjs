@@ -5,6 +5,8 @@
 //   B  exact runbook files: precheck → apply-193.psql → postcheck → smoke → re-run (idempotent)
 //      → rollbacks 142→133 (psql -1) → resumed re-apply → postcheck
 //   C  alignment alone: catalog digest R0 → 119000 → its rollback → digest == R0
+//   D  recovery that keeps 120000…132000: apply all → rollbacks 143→133 + cleanup → 119000's
+//      rollback; the functions of 120000…132000 must still run (functions-still-run.sql)
 // Needs the coordinator's ~/Arma2Backups/d3-prod-schema-lab.sh (it loads the schema-only dump of
 // Production into a container with no network). Usage, from the repository root:
 //   node integration/prod-schema/rehearse.mjs <A|B|C>
@@ -127,6 +129,29 @@ if (pass === 'C') {
   report.rollback_119 = rollback('20261010119000_core_production_alignment.rollback.sql');
   report.catalog_back_to_R0 = catalogDigest() === r0;
   report.snapshot_vs_R0 = compare(snap0, snapshot());
+}
+if (pass === 'D') {
+  const fnNames = [...new Set(STACK.filter((f) => f >= '20261010120000' && f < '20261010133000')
+    .flatMap((f) => [...readFileSync(`${W}/supabase/migrations/${f}`, 'utf8').matchAll(/create\s+(?:or\s+replace\s+)?function\s+((?:public|app_private)\.[a-z0-9_]+)\s*\(/gi)])
+    .map((m) => m[1].toLowerCase()))].sort();
+  const stillRun = () => {
+    const r = psql('begin;\n\\i integration/prod-schema/functions-still-run.sql\nrollback;\n', { args: ['-A', '-t', '-q', '-v', `fn_names=${fnNames.join(',')}`] });
+    if (!r.ok) throw new Error(`functions-still-run: ${r.err.slice(-600)}`);
+    return JSON.parse(r.out.split('\n').find((l) => l.startsWith('{')));
+  };
+  report.functions_of_120_132 = fnNames.length;
+  report.apply = STACK.map(applyOne).filter((s) => !s.ok);
+  report.applied_all = !report.apply.length;
+  report.still_run_applied = stillRun();
+  report.rollbacks = [...ROLLBACKS.filter((f) => f !== '20261010119000_core_production_alignment.rollback.sql'), 'cleanup-after-verified-rollback.sql',
+    '20261010119000_core_production_alignment.rollback.sql'].map(rollback).filter((s) => !s.ok);
+  report.kept_by_119_rollback = q("select to_regclass('app_private.production_alignment_log') is null") === 't' ? 'log dropped: nothing kept'
+    : q("select coalesce(string_agg(coalesce(table_name || '.', '') || object_name, ', '), '') from app_private.production_alignment_log where kind in ('kept_function', 'kept_column')");
+  report.policies_back_to_original = q("select count(*) from pg_policies where schemaname = 'public' and tablename in ('partidos', 'jugadores') and policyname in ('Lectura publica partidos', 'Universal read players')") === '2';
+  report.still_run_after_recovery = stillRun();
+  // Running 119000's rollback again in that state changes nothing and keeps the same objects.
+  report.second_119_rollback = rollback('20261010119000_core_production_alignment.rollback.sql');
+  report.still_run_after_second_rollback = stillRun().broken;
 }
 report.server_restarted = restarted();
 writeFileSync(`${OUT}report-${pass}.json`, JSON.stringify(report, null, 1));
