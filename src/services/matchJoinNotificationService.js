@@ -1,7 +1,7 @@
 import logger from '../utils/logger';
 import { supabase } from '../supabase';
 import { requestImmediatePushDispatch } from './pushDispatchService';
-import { isMissingRpcError } from '../utils/backendFallback';
+import { isMissingRpcError, rpcWithLegacyName } from '../utils/backendFallback';
 
 const normalizeName = (value, fallback = 'Un jugador') => {
   const raw = String(value || '').trim();
@@ -153,7 +153,7 @@ const enqueueAdminNotification = async ({
   if (!matchIdNumber) return { ok: false, reason: 'invalid_match_id' };
 
   try {
-    const { error } = await supabase.rpc('enqueue_partido_notification_as_actor', {
+    const { error } = await rpcWithLegacyName(supabase, 'enqueue_partido_notification_as_actor', 'enqueue_partido_notification', {
       p_partido_id: matchIdNumber,
       p_type: type,
       p_title: title,
@@ -292,7 +292,7 @@ const enqueueParticipantNotification = async ({
   };
 
   try {
-    const { error } = await supabase.rpc('enqueue_match_participant_notification_as_actor', {
+    const { error } = await rpcWithLegacyName(supabase, 'enqueue_match_participant_notification_as_actor', 'enqueue_match_participant_notification', {
       p_partido_id: matchIdNumber,
       p_type: type,
       p_title: title,

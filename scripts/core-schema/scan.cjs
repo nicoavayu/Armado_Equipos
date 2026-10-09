@@ -77,6 +77,11 @@ function scan(srcDir, schema, knownRpcs = new Set()) {
     for (const m of src.matchAll(/\.rpc\(\s*['"]([a-zA-Z_0-9]+)['"]/g)) {
       if (!functions.has(m[1]) && !knownRpcs.has(m[1])) problems.push(`${rel} rpc:${m[1]}`);
     }
+    // rpcWithLegacyName(client, 'name', 'legacyName', …): works if either name exists.
+    for (const m of src.matchAll(/rpcWithLegacyName\(\s*[a-zA-Z_$][\w$]*\s*,\s*['"]([a-zA-Z_0-9]+)['"]\s*,\s*['"]([a-zA-Z_0-9]+)['"]/g)) {
+      const exists = (name) => functions.has(name) || knownRpcs.has(name);
+      if (!exists(m[1]) && !exists(m[2])) problems.push(`${rel} rpc:${m[1]}|${m[2]}`);
+    }
   }
   return Array.from(new Set(problems)).sort();
 }

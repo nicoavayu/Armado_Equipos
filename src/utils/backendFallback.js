@@ -41,3 +41,23 @@ export const isMissingEdgeFunctionError = (errorOrResponse) => {
     ?? errorOrResponse.response?.status;
   return Number(status) === 404;
 };
+
+/**
+ * Calls an RPC and, ONLY when PostgREST answers that it does not exist (PGRST202),
+ * calls its legacy name with the same arguments. Core Production has the legacy
+ * enqueue_partido_notification / enqueue_match_participant_notification (checked
+ * server-side since 20261010145000) but not the *_as_actor variants; without this
+ * the client fell through to a direct cross-user insert into notifications, which
+ * Production's RLS refuses (403), so the organizer was never told.
+ * Any other error (401/403, business, SQL) is returned as is: no second call.
+ * @param {{ rpc: Function }} client supabase client
+ * @param {string} name RPC to try first
+ * @param {string} legacyName RPC to try when `name` is missing
+ * @param {object} params arguments, the same for both
+ * @returns {Promise<{ data: *, error: * }>}
+ */
+export const rpcWithLegacyName = async (client, name, legacyName, params) => {
+  const first = await client.rpc(name, params);
+  if (!first?.error || !isMissingRpcError(first.error) || !legacyName) return first;
+  return client.rpc(legacyName, params);
+};

@@ -12,6 +12,7 @@
  *     falls back while they are missing (PGRST202/42883), see each service's tests;
  *   - PENDING_TORNEOS_20261006: direct Core calls of Torneos' single-project LOCAL composition;
  *     Production runs the hybrid composition (gateway), so they never reach Core Production;
+ *   - calls through rpcWithLegacyName(client, 'name', 'legacy', …) count as fine if either name exists;
  *   - PREEXISTING: problems the web live in Production (ffaf131c) already had, regenerated with
  *     `node scripts/core-schema/preexisting.cjs ffaf131c` (they degrade, or are scan artifacts).
  * Anything else fails: fix the code (no explicit column a schema lacks), or justify an entry.
@@ -85,15 +86,11 @@ const PREEXISTING = new Set([
   'src/services/db/matchScheduling.js partidos.from_frequent_match_id',
   'src/services/db/matches.js rpc:cancel_partido_as_admin',
   'src/services/db/matches.js rpc:cleanup_voting_access_state_as_admin',
-  'src/services/db/matches.js rpc:enqueue_partido_notification_as_actor',
   'src/services/db/penalties.js table:partidos_jugadores',
   'src/services/db/surveys.js partidos.surveys_processed',
   'src/services/db/teamChallenges.js rpc:prepare_challenge_team_squad_as_actor',
   'src/services/db/teamChallenges.js rpc:sync_team_match_to_partido_as_actor',
   'src/services/matchFinishService.js cleared_matches.id',
-  'src/services/matchFinishService.js rpc:enqueue_partido_notification_as_actor',
-  'src/services/matchJoinNotificationService.js rpc:enqueue_match_participant_notification_as_actor',
-  'src/services/matchJoinNotificationService.js rpc:enqueue_partido_notification_as_actor',
   'src/services/matchStatsService.js rpc:inc_numeric',
   'src/utils/createPlayerAwardsTable.js rpc:exec_sql',
   'src/utils/matchStatsManager.js rpc:increment_matches_abandoned',
@@ -115,6 +112,8 @@ describe('Core reads and writes against Production\'s real schema', () => {
     const { selectColumns } = require('../../scripts/core-schema/scan.cjs');
     expect(selectColumns('id, nombre, alias:avatar_url, jugadores(count), usuario:usuarios!inner(nombre, x)')).toEqual(['id', 'nombre', 'avatar_url']);
     expect(schema.tables.partidos).not.toContain('admin_id');
+    expect(schema.functions).toContain('enqueue_partido_notification');
+    expect(schema.functions).not.toContain('enqueue_partido_notification_as_actor');
   });
 
   test('the schema the match reads depend on is the one in the fixture', () => {

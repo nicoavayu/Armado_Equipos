@@ -6,6 +6,7 @@ import { requestImmediatePushDispatch } from '../pushDispatchService';
 import { splitMatchPlayersForVotingAndTeams } from '../../utils/teamBalancer';
 import { PARTIDO_SELECT, fetchMatchAccessCode } from './matchAccessCode';
 import { isMissingRpcError } from './publicProfiles';
+import { rpcWithLegacyName } from '../../utils/backendFallback';
 
 const generateMatchCode = (length = 6) => {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -1777,7 +1778,7 @@ export const deletePartidoWithNotification = async (partidoId) => {
   logger.log('[NOTIF_DEBUG] Deleting match with notification:', partidoId);
 
   // First notify
-  const { data: notifResult, error: notifError } = await supabase.rpc('enqueue_partido_notification_as_actor', {
+  const { data: notifResult, error: notifError } = await rpcWithLegacyName(supabase, 'enqueue_partido_notification_as_actor', 'enqueue_partido_notification', {
     p_partido_id: partidoId,
     p_type: 'match_deleted',
     p_title: 'Partido eliminado',
