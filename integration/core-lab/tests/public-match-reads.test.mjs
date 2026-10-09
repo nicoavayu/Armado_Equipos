@@ -52,8 +52,8 @@ test('a cancelled match is not opened by its link', () => {
     select coalesce(public.public_get_match_by_code('LINKLAB1')::text, 'null');`)), ['null']);
 });
 
-test('signed-in accounts keep reading matches as before (unchanged by this migration)', () => {
+test('a signed-in account reads the matches it is involved in, not the others (20261010136000)', () => {
   assert.deepEqual(lines(asAnon(`reset role;
     set local "request.jwt.claims" to '{"sub":"${qa.ids.jugador1}","role":"authenticated"}'; set local role authenticated;
-    select count(*) >= 2 from public.partidos where id in (990301, 990302);`)), ['t']);
+    select string_agg(id::text, ',' order by id) from public.partidos where id in (990301, 990302);`)), ['990301']);
 });

@@ -68,8 +68,13 @@ for (const withPhaseB of [false, true]) {
   });
 }
 
-test('phase A: the table itself still returns the code (closed by phase B, once installed apps update)', () => {
-  assert.deepEqual(lines(inTx(`${as(OUTSIDER)} select codigo from public.partidos where id = ${M};`)), [CODE]);
+// 20261010137000: the code is a credential (link voting), so the table returns a published
+// match only to those involved; everybody else discovers it through the views, without it.
+test('phase A: the table returns the code only to those involved; outsiders discover the match through the views', () => {
+  assert.deepEqual(lines(inTx(`${codeSeenBy(ORG, 'public.partidos')} ${codeSeenBy(MEMBER, 'public.partidos')}`)), [CODE, CODE]);
+  assert.deepEqual(lines(inTx(`${as(OUTSIDER)} select count(*) from public.partidos where id = ${M};`)), ['0']);
+  assert.deepEqual(lines(inTx(`${as(OUTSIDER)} select nombre || ',' || coalesce(codigo, 'null') from public.partidos_view where id = ${M};`)),
+    ['Codigo lab,null']);
 });
 
 test('phase B: nobody reads partidos.codigo from the table; discovery columns and writes keep working', () => {
@@ -78,7 +83,9 @@ test('phase B: nobody reads partidos.codigo from the table; discovery columns an
     assert.equal(read.ok, false);
     assert.match(read.error, /permission denied/);
   }
-  assert.deepEqual(lines(inTx(`${as(OUTSIDER)} select nombre from public.partidos where id = ${M};`, { withPhaseB: true })), ['Codigo lab']);
+  assert.deepEqual(lines(inTx(`${as(MEMBER)} select nombre from public.partidos where id = ${M};`, { withPhaseB: true })), ['Codigo lab']);
+  assert.deepEqual(lines(inTx(`${as(OUTSIDER)} select count(*) from public.partidos where id = ${M};`, { withPhaseB: true })), ['0']);
+  assert.deepEqual(lines(inTx(`${as(OUTSIDER)} select nombre from public.partidos_view where id = ${M};`, { withPhaseB: true })), ['Codigo lab']);
   assert.deepEqual(lines(inTx(`${as(ORG)}
     insert into public.partidos (nombre, codigo, fecha, hora, sede, modalidad, cupo_jugadores, estado, creado_por, admin_id)
     values ('Nuevo lab', 'NUEVOLAB', current_date + 2, '20:00', 'Cancha', 'F5', 10, 'activo', '${ORG}', '${ORG}') returning nombre;
@@ -118,11 +125,18 @@ test('API with phase B: tables, views and RPCs as visitor, outsider and member',
       const codes = await who(`partidos?select=id,codigo&id=eq.${M}`);
       assert.ok(codes.status >= 400, `codigo readable: ${codes.status}`);
     }
-    const discovery = await outsider(`partidos?select=id,nombre&id=eq.${M}`);
-    assert.deepEqual(discovery.body, [{ id: M, nombre: 'Codigo lab' }]);
+    // 20261010137000: the table no longer returns a published match to an outsider; the
+    // views do, without its code.
+    const table = await outsider(`partidos?select=id,nombre&id=eq.${M}`);
+    assert.deepEqual(table.body, []);
+    const memberTable = await member(`partidos?select=id,nombre&id=eq.${M}`);
+    assert.deepEqual(memberTable.body, [{ id: M, nombre: 'Codigo lab' }]);
     const view = await outsider(`partidos_view?select=*&id=eq.${M}`);
     assert.equal(view.status, 200);
+    assert.equal(view.body[0].nombre, 'Codigo lab');
     assert.equal(view.body[0].codigo, null);
+    const anonView = await anon(`partidos_view?select=id&id=eq.${M}`);
+    assert.deepEqual([anonView.status, anonView.body], [200, []]);
     const quiero = await outsider('rpc/get_open_matches_for_quiero_jugar_v2', { method: 'POST', body: JSON.stringify({ p_user_lat: null, p_user_lng: null, p_max_distance_km: 200 }) });
     assert.equal(quiero.status, 200, JSON.stringify(quiero.body));
     assert.equal(quiero.body.find((row) => row.id === M)?.codigo, null);

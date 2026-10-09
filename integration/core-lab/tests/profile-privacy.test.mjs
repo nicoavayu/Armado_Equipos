@@ -1,31 +1,31 @@
 // Personal data of public.usuarios as seen by an unrelated, brand-new account.
-// usuarios_select_authenticated is USING (true) with every column granted: any signed-in
-// account (sign-up is open) reads everyone's email, birth date and coordinates.
-// The fix ships in two phases (installed apps read their own profile with select('*')):
-//   A — 20261010124000: get_my_profile / get_public_profiles / approx location / search;
-//   B — docs/database/core-review/phase-b-usuarios-private-columns.sql: the column revoke,
-//       applied by hand once no app version still reads select('*').
-// Phase B is applied here inside each rolled-back transaction. Every write rolls back.
+// usuarios_select_authenticated is USING (true): any signed-in account (sign-up is open)
+// reads every row. 20261010135000 takes the VALUES out of the shared row instead of
+// revoking the columns (installed apps read the profile with select('*')): email,
+// telefono, fecha_nacimiento and location_accuracy_m are NULL there, latitud/longitud hold
+// a ~1 km approximation, and the real values live in app_private.usuarios_private, read by
+// the owner through get_my_profile() and by the server functions that need them.
+// Every write here rolls back.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import { repo, root, sqlTry } from '../lab.mjs';
+import { root, sqlTry } from '../lab.mjs';
 
 const qa = JSON.parse(await readFile(`${root}.runtime/qa-users.json`, 'utf8'));
-const phaseB = await readFile(`${repo}docs/database/core-review/phase-b-usuarios-private-columns.sql`, 'utf8');
 const ORGANIZER = qa.ids.organizador;
 
 const asRole = (role, userId = null) => `
   ${userId ? `set local "request.jwt.claims" to '{"sub":"${userId}","role":"authenticated"}';` : ''}
   set local role ${role};`;
 
-// The organizer gets a phone, a birth date and an exact location, then (optionally phase B
-// and) the statements run.
-const withPrivateData = (statements, { withPhaseB = true } = {}) => sqlTry(`
+// The organizer gets a phone, a birth date and an exact location (written like any app
+// would), then the statements run.
+const withPrivateData = (statements) => sqlTry(`
   begin;
+  ${asRole('authenticated', ORGANIZER)}
   update public.usuarios set telefono = '+54 9 11 5555-0000', fecha_nacimiento = '1990-05-01',
-    latitud = -34.58123, longitud = -58.43456 where id = '${ORGANIZER}';
-  ${withPhaseB ? phaseB : ''}
+    latitud = -34.58123, longitud = -58.43456, location_accuracy_m = 12 where id = '${ORGANIZER}';
+  reset role;
   ${statements}
   rollback;`);
 
@@ -39,36 +39,41 @@ test('anon cannot read anyone\'s profile row', () => {
     select count(*) from public.usuarios where id = '${ORGANIZER}';`)), ['0']);
 });
 
-test('phase A keeps installed apps working: the owner still reads select(*) of their own row', () => {
-  assert.deepEqual(lines(withPrivateData(`${asRole('authenticated', ORGANIZER)}
-    select email from public.usuarios where id = '${ORGANIZER}';`, { withPhaseB: false })), ['organizador@arma2.lab']);
+test('installed apps keep reading select(*) of any row, and no row carries private values', () => {
+  for (const reader of [ORGANIZER, qa.ids.nuevo]) {
+    assert.deepEqual(lines(withPrivateData(`${asRole('authenticated', reader)}
+      select count(*) filter (where email is not null or telefono is not null or fecha_nacimiento is not null
+        or location_accuracy_m is not null) || '|' || count(*)
+      from (select * from public.usuarios) u;`))[0].split('|')[0], '0');
+  }
 });
 
-test('phase A alone does not close the exposure yet (recorded until phase B is applied)', () => {
-  assert.deepEqual(lines(withPrivateData(`${asRole('authenticated', qa.ids.nuevo)}
-    select email from public.usuarios where id = '${ORGANIZER}';`, { withPhaseB: false })), ['organizador@arma2.lab']);
-});
-
-for (const column of ['email', 'telefono', 'fecha_nacimiento', 'latitud', 'longitud']) {
-  test(`phase B: an unrelated account cannot read another user's ${column}`, () => {
-    const result = withPrivateData(`${asRole('authenticated', qa.ids.nuevo)}
-      select ${column} from public.usuarios where id = '${ORGANIZER}';`);
-    assert.equal(result.ok, false, `readable: ${result.out}`);
-    assert.match(result.error, /permission denied/);
+for (const column of ['email', 'telefono', 'fecha_nacimiento', 'location_accuracy_m']) {
+  test(`an unrelated account reads ${column} of another user as NULL (no error, no value)`, () => {
+    assert.deepEqual(lines(withPrivateData(`${asRole('authenticated', qa.ids.nuevo)}
+      select coalesce(${column}::text, 'null') from public.usuarios where id = '${ORGANIZER}';`)), ['null']);
   });
 }
 
-test('phase B: the public profile stays readable (name, avatar, stats) by any account', () => {
+test('the shared row only holds the location rounded to ~1 km', () => {
+  assert.deepEqual(lines(withPrivateData(`${asRole('authenticated', qa.ids.nuevo)}
+    select latitud || '|' || longitud from public.usuarios where id = '${ORGANIZER}';`)), ['-34.58|-58.43']);
+});
+
+test('the public profile stays readable (name, avatar, stats) by any account', () => {
   assert.deepEqual(lines(withPrivateData(`${asRole('authenticated', qa.ids.nuevo)}
     select nombre is not null and partidos_jugados is not null from public.usuarios where id = '${ORGANIZER}';`)), ['t']);
 });
 
-test('the owner reads their own private data through get_my_profile() (both phases)', () => {
-  for (const withPhaseB of [false, true]) {
-    assert.deepEqual(lines(withPrivateData(`${asRole('authenticated', ORGANIZER)}
-      select concat_ws('|', email, fecha_nacimiento, latitud, longitud) from public.get_my_profile();`, { withPhaseB })),
-    ['organizador@arma2.lab|1990-05-01|-34.58123|-58.43456']);
-  }
+test('the owner reads their own private data through get_my_profile()', () => {
+  assert.deepEqual(lines(withPrivateData(`${asRole('authenticated', ORGANIZER)}
+    select concat_ws('|', email, telefono, fecha_nacimiento, latitud, longitud, location_accuracy_m) from public.get_my_profile();`)),
+  ['organizador@arma2.lab|+54 9 11 5555-0000|1990-05-01|-34.58123|-58.43456|12']);
+});
+
+test('get_my_profile() only ever returns the caller\'s row', () => {
+  assert.deepEqual(lines(withPrivateData(`${asRole('authenticated', qa.ids.nuevo)}
+    select count(*) || '|' || coalesce(max(telefono), 'null') from public.get_my_profile() where id = '${ORGANIZER}';`)), ['0|null']);
 });
 
 test('others get the public profile without the private keys', () => {
@@ -94,15 +99,65 @@ test('search finds by name or by the exact email, never by part of an email, and
 });
 
 test('anon cannot call the profile RPCs', () => {
-  const result = withPrivateData(`${asRole('anon')} select count(*) from public.get_my_profile();`);
-  assert.equal(result.ok, false);
-  assert.match(result.error, /permission denied/);
+  for (const call of ['select count(*) from public.get_my_profile();', "select public.clear_my_profile_fields(array['telefono']);"]) {
+    const result = withPrivateData(`${asRole('anon')} ${call}`);
+    assert.equal(result.ok, false);
+    assert.match(result.error, /permission denied/);
+  }
 });
 
-test('phase B: the owner still edits their own private data', () => {
+test('the private table is not reachable through the API roles', () => {
+  for (const role of ['anon', 'authenticated']) {
+    const result = withPrivateData(`${asRole(role, role === 'authenticated' ? ORGANIZER : null)}
+      select count(*) from app_private.usuarios_private;`);
+    assert.equal(result.ok, false, `readable as ${role}: ${result.out}`);
+    assert.match(result.error, /permission denied/);
+  }
+});
+
+test('the owner edits their data: one coordinate changed keeps the other one exact', () => {
   assert.deepEqual(lines(withPrivateData(`${asRole('authenticated', ORGANIZER)}
     update public.usuarios set fecha_nacimiento = '1991-01-02', latitud = -34.6 where id = '${ORGANIZER}';
-    select fecha_nacimiento || '|' || latitud from public.get_my_profile();`)), ['1991-01-02|-34.6']);
+    select concat_ws('|', fecha_nacimiento, latitud, longitud) from public.get_my_profile();`)), ['1991-01-02|-34.6|-58.43456']);
+});
+
+test('an old app re-saving the masked form (blank phone, approximate location) changes nothing', () => {
+  assert.deepEqual(lines(withPrivateData(`${asRole('authenticated', ORGANIZER)}
+    update public.usuarios set telefono = '', fecha_nacimiento = null, latitud = -34.58, longitud = -58.43, nombre = 'Lucía O.'
+      where id = '${ORGANIZER}';
+    select concat_ws('|', nombre, telefono, fecha_nacimiento, latitud, longitud) from public.get_my_profile();`)),
+  ['Lucía O.|+54 9 11 5555-0000|1990-05-01|-34.58123|-58.43456']);
+});
+
+test('an old app\'s bootstrap upsert (email, nulls) keeps the stored values and masks the row', () => {
+  assert.deepEqual(lines(withPrivateData(`${asRole('authenticated', ORGANIZER)}
+    insert into public.usuarios (id, nombre, email, fecha_nacimiento, latitud, longitud)
+    values ('${ORGANIZER}', 'Lucía', 'organizador@arma2.lab', null, null, null)
+    on conflict (id) do update set nombre = excluded.nombre, email = excluded.email,
+      fecha_nacimiento = excluded.fecha_nacimiento, latitud = excluded.latitud, longitud = excluded.longitud
+    returning coalesce(email, 'null') || '|' || coalesce(fecha_nacimiento::text, 'null');
+    select concat_ws('|', email, telefono, fecha_nacimiento, latitud, longitud) from public.get_my_profile();`)),
+  ['null|null', 'organizador@arma2.lab|+54 9 11 5555-0000|1990-05-01|-34.58123|-58.43456']);
+});
+
+test('the owner clears a value explicitly (and only their own)', () => {
+  assert.deepEqual(lines(withPrivateData(`${asRole('authenticated', ORGANIZER)}
+    select public.clear_my_profile_fields(array['telefono', 'ubicacion']);
+    select concat_ws('|', coalesce(telefono, 'null'), fecha_nacimiento, coalesce(latitud::text, 'null')) from public.get_my_profile();
+    select coalesce(latitud::text, 'null') from public.usuarios where id = '${ORGANIZER}';`)),
+  ['null|1990-05-01|null', 'null']);
+  const bad = withPrivateData(`${asRole('authenticated', ORGANIZER)} select public.clear_my_profile_fields(array['email']);`);
+  assert.equal(bad.ok, false);
+});
+
+test('the legacy profiles table never holds a phone (moved to the private table)', () => {
+  assert.deepEqual(lines(withPrivateData(`${asRole('authenticated', ORGANIZER)}
+    insert into public.profiles (id, nombre, telefono) values ('${ORGANIZER}', 'Lucía', '+54 9 11 7777-0000')
+      on conflict (id) do update set telefono = excluded.telefono;
+    reset role; ${asRole('authenticated', qa.ids.nuevo)}
+    select count(*) from public.profiles where telefono is not null;
+    reset role; ${asRole('authenticated', ORGANIZER)}
+    select coalesce(telefono, 'null') from public.get_my_profile();`)), ['0', '+54 9 11 7777-0000']);
 });
 
 // 20261010128000: the phone is a contact for a match organizer, and only when the player
@@ -147,19 +202,44 @@ test('abuse: a match of my own + a pending invitation I sent does not reveal the
     ${phoneOf(qa.ids.ajeno)}`);
 });
 
+// Joining oneself needs a legitimate path since 20261010140000: here, the guest invite link
+// the player opened (validate_guest_match_invite records it for a signed-in account).
+const LINK_ACCESS = (userId) => `insert into app_private.match_link_access (partido_id, user_id) values (990501, '${userId}');`;
+
 test('the organizer reads it when the player joined the match themselves (their own roster row)', () => {
-  assert.deepEqual(lines(withPrivateData(`${PHONE_MATCH}
+  assert.deepEqual(lines(withPrivateData(`${PHONE_MATCH} ${LINK_ACCESS(qa.ids.ajeno)}
     ${asRole('authenticated', qa.ids.ajeno)}
     insert into public.jugadores (partido_id, nombre, usuario_id) values (990501, 'Ramiro', '${qa.ids.ajeno}');
     reset role; ${asRole('authenticated', ORGANIZER)} ${phoneOf(qa.ids.ajeno)}`)), ['+54 9 11 4444-2222']);
 });
 
-test('added_by is set by the server, never by the client, and cannot be rewritten', () => {
-  assert.deepEqual(lines(withPrivateData(`${PHONE_MATCH} ${asRole('authenticated', ORGANIZER)}
-    insert into public.jugadores (partido_id, nombre, usuario_id, added_by) values (990501, 'Ramiro', '${qa.ids.ajeno}', '${qa.ids.ajeno}');
-    update public.jugadores set added_by = '${qa.ids.ajeno}' where partido_id = 990501 and usuario_id = '${qa.ids.ajeno}';
-    select (added_by = '${ORGANIZER}')::text from public.jugadores where partido_id = 990501 and usuario_id = '${qa.ids.ajeno}';`)),
-  ['true']);
+// 20261010139000: who inserted a roster row lives in app_private.jugadores_added_by.
+test('who added a roster row is recorded by the server, outside the shared row', () => {
+  assert.deepEqual(lines(withPrivateData(`${PHONE_MATCH} ${LINK_ACCESS(qa.ids.ajeno)}
+    ${asRole('authenticated', qa.ids.ajeno)}
+    insert into public.jugadores (partido_id, nombre, usuario_id) values (990501, 'Ramiro', '${qa.ids.ajeno}');
+    reset role; ${asRole('authenticated', ORGANIZER)}
+    insert into public.jugadores (partido_id, nombre, usuario_id) values (990501, 'Sofía Ruiz', '${qa.ids.jugador2}');
+    reset role;
+    select j.nombre || ':' || (a.added_by = j.usuario_id)::text || ':' || (a.added_by = '${ORGANIZER}')::text
+    from public.jugadores j join app_private.jugadores_added_by a on a.jugador_id = j.id
+    where j.partido_id = 990501 order by j.nombre;`)),
+  ['Ramiro:true:false', 'Sofía Ruiz:false:true']);
+});
+
+test('no client can write or read who added whom', () => {
+  const write = withPrivateData(`${PHONE_MATCH} ${asRole('authenticated', ORGANIZER)}
+    insert into public.jugadores (partido_id, nombre, usuario_id, added_by) values (990501, 'Ramiro', '${qa.ids.ajeno}', '${qa.ids.ajeno}');`);
+  assert.equal(write.ok, false);
+  assert.match(write.error, /column "added_by" .* does not exist/);
+  for (const who of [ORGANIZER, qa.ids.ajeno, qa.ids.jugador2]) {
+    const read = withPrivateData(`${PHONE_MATCH} ${asRole('authenticated', who)} select count(*) from app_private.jugadores_added_by;`);
+    assert.equal(read.ok, false, who);
+    assert.match(read.error, /permission denied/);
+  }
+  const anon = withPrivateData(`${PHONE_MATCH} ${asRole('anon')} select count(*) from app_private.jugadores_added_by;`);
+  assert.equal(anon.ok, false);
+  assert.match(anon.error, /permission denied/);
 });
 
 test('abuse: re-pointing someone else\'s join request to the target account is rejected', () => {
@@ -202,8 +282,7 @@ test('an organizer of another match cannot use a request made to a different mat
     select coalesce(public.get_match_contact_phone(990502, '${qa.ids.ajeno}'), 'null');`);
 });
 
-test('phase B: the legacy profiles table no longer exposes telefono', () => {
-  const result = withPrivateData(`${asRole('authenticated', qa.ids.nuevo)} select telefono from public.profiles limit 1;`);
-  assert.equal(result.ok, false);
-  assert.match(result.error, /permission denied/);
+test('the legacy profiles table keeps working with select(*) and no phone in it', () => {
+  assert.deepEqual(lines(withPrivateData(`${asRole('authenticated', qa.ids.nuevo)}
+    select count(*) filter (where telefono is not null) from (select * from public.profiles) p;`)), ['0']);
 });

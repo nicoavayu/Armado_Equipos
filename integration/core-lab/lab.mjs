@@ -52,6 +52,24 @@ export function sqlTry(query, user = 'supabase_admin') {
   return { ok: r.status === 0, out: r.stdout ?? '', error: r.status === 0 ? null : (r.stderr ?? '').split('\n').filter((l) => l.startsWith('ERROR:')).join('\n') };
 }
 
+/** Like sqlTry() but asynchronous, so tests can run two sessions at the same time. */
+export function sqlAsync(query, user = 'supabase_admin') {
+  return new Promise((resolve) => {
+    const child = spawn(docker, ['--host', 'unix:///var/run/docker.sock', 'compose',
+      '--project-name', PROJECT, '--env-file', '.runtime/compose.env', '-f', 'compose.yaml',
+      'exec', '-T', 'core-db', 'psql', '-U', user, '-d', 'postgres', '-X', '-A', '-t', '-q', '-v', 'ON_ERROR_STOP=1'], {
+      cwd: root, env: dockerEnv(),
+    });
+    let out = '';
+    let err = '';
+    child.stdout.on('data', (chunk) => { out += chunk; });
+    child.stderr.on('data', (chunk) => { err += chunk; });
+    child.on('close', (code) => resolve({ ok: code === 0, out,
+      error: code === 0 ? null : err.split('\n').filter((l) => l.startsWith('ERROR:')).join('\n') }));
+    child.stdin.end(query);
+  });
+}
+
 const b64url = (value) => Buffer.from(value).toString('base64url');
 export function signJwt(payload, secret) {
   const head = b64url(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));

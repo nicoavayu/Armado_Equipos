@@ -54,6 +54,9 @@ export default function VotingView({ onReset, onCancel, jugadores, partidoActual
   const isWebPublicVotingRoute = isExactPublicRoute && !Capacitor.isNativePlatform();
   const isPublicVoting = isPublicRoute;
   const isGuestPlayer = (player) => {
+    // Rosters read with the link code no longer carry usuario_id for people outside the
+    // match (20261010140000); they say has_account instead.
+    if (typeof player?.has_account === 'boolean') return !player.has_account;
     const userId = player?.usuario_id;
     return !userId || String(userId).startsWith('guest_');
   };

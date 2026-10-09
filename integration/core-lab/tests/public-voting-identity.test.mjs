@@ -15,12 +15,12 @@ const asAnonOnOpenVoting = (statements) => sqlTry(`
   begin;
   insert into public.partidos (id, nombre, codigo, fecha, hora, sede, modalidad, cupo_jugadores, estado, creado_por, admin_id)
   select 990001, 'Votación lab', '${CODE}', current_date + 1, '21:00', 'Cancha lab', 'F5', 2, 'activo', id, id
-  from public.usuarios where email = 'organizador@arma2.lab';
+  from auth.users where email = 'organizador@arma2.lab';
   insert into public.jugadores (id, partido_id, nombre, usuario_id, is_substitute) values
     (990101, 990001, 'Invitado Uno', null, false),
     (990102, 990001, 'Invitado Dos', null, false),
     (990103, 990001, 'Suplente Tres', null, false),
-    (990104, 990001, 'Martín Gómez', (select id from public.usuarios where email = 'jugador1@arma2.lab'), false);
+    (990104, 990001, 'Martín Gómez', (select id from auth.users where email = 'jugador1@arma2.lab'), false);
   insert into public.notifications (user_id, partido_id, type, title, message, data)
   select creado_por, 990001, 'call_to_vote', 'A votar', 'Votá', jsonb_build_object('match_id', 990001) from public.partidos where id = 990001;
   set local role anon;

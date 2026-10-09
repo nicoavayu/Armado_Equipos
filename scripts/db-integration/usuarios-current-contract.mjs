@@ -74,10 +74,14 @@ try {
   check(row.bio === 'Arquero y organizador', 'bio persists');
   check(row.nacionalidad === 'Argentina', 'nacionalidad persists');
   check(row.pais_codigo === 'AR', 'pais_codigo persists');
+  // 20261010135000: the birth date leaves the shared row (NULL there for every reader) and
+  // persists for its owner, read through get_my_profile().
+  check(row.fecha_nacimiento === null, 'fecha_nacimiento is never returned by the shared row');
+  const own = await client.query('select fecha_nacimiento from public.get_my_profile()');
+  const birth = own.rows[0]?.fecha_nacimiento;
   check(
-    row.fecha_nacimiento === '1994-05-17'
-      || (row.fecha_nacimiento instanceof Date && row.fecha_nacimiento.toISOString().startsWith('1994-05-17')),
-    'fecha_nacimiento persists as date',
+    birth === '1994-05-17' || (birth instanceof Date && birth.toISOString().startsWith('1994-05-17')),
+    'fecha_nacimiento persists as date for its owner',
   );
   check(row.numero === 12, 'numero persists as integer');
   check(row.lesion_activa === true, 'lesion_activa persists');

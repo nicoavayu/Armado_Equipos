@@ -105,6 +105,11 @@ const ANON_ALLOWLIST = [
   'public.public_get_match_by_code(text,bigint)',
   'public.resolve_match_by_code(text)',
   'public.validate_guest_match_invite(bigint,text,text)',
+  // 20261010137000: anon keeps SELECT on partidos_view, whose rows are filtered by these
+  // pure helpers; a function inside a view is executed with the caller's privilege.
+  'public.normalize_partido_estado(text)',
+  'public.partido_is_operationally_open(text,timestamp with time zone,text,text,timestamp with time zone,date,text,boolean,timestamp with time zone)',
+  'public.partido_kickoff_at(date,text)',
 ];
 
 // Functions created after the canonical contracts migration cannot be listed
@@ -112,6 +117,10 @@ const ANON_ALLOWLIST = [
 // fail before the later feature migration has created them. Keep each later
 // authenticated surface explicit here so the catalog remains fail-closed.
 const POST_CANONICAL_AUTHENTICATED_ALLOWLIST = [
+  // 20261010141000: approve-join-request calls it with the organizer's token; it checks the creator itself.
+  ['public.approve_join_request(bigint)', 'frontend_legitimate'],
+  // 20261010140000: the roster of a published match for its public page (no usuario_id/score for outsiders).
+  ['public.get_public_match_roster(bigint)', 'frontend_legitimate'],
   ['public.set_my_global_availability(boolean)', 'frontend_legitimate'],
   ['public.cancel_my_availability_detailed()', 'frontend_legitimate'],
   [
@@ -145,6 +154,8 @@ const POST_CANONICAL_AUTHENTICATED_ALLOWLIST = [
   ['public.report_client_build(text,text,integer)', 'frontend_legitimate'],
   // 20261010133000: the access codes of the caller's own matches (admin or roster).
   ['public.get_match_access_codes(bigint[])', 'frontend_legitimate'],
+  // 20261010135000: the owner clears a private profile value (blank writes keep it).
+  ['public.clear_my_profile_fields(text[])', 'frontend_legitimate'],
   ['public.is_tournament_branding_path(text,text)', 'rls_helper_required'],
   ['public.can_update_tournament_team_branding(uuid,uuid)', 'rls_helper_required'],
   ['public.can_write_tournament_branding_object(text)', 'rls_helper_required'],

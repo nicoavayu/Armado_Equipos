@@ -1,5 +1,5 @@
 {
-  "generatedFrom": "48dcc02880edc6a74008efa716c99a2cf3e1ecb3",
+  "generatedFrom": "1bac7fe94235e286b3ec9ef3b71cd05a7827cb69",
   "legacyBase": "2058da039a2a5eaaed22d87d01946bc596ae5f50",
   "coreSingletonSha256": "f39572e4cab0fd287bd1dea2ca87c97bd5500d0eff57cb8de6160f1e3271600c",
   "reachableCallSignatures": {
@@ -56,7 +56,7 @@
     "src/pages/EncuestaPartido.js": "4c45b5759c8ee1b5a141bc027ddabd2df7c5f10b09994b0d80bcb5667ffb4de1",
     "src/pages/FormularioNuevoPartidoFlow.js": "995626fe8b6486e480774f37f09d82565d5c3ff4db98700777741bffdf031a91",
     "src/pages/ListaPartidosFrecuentes.js": "a91a238f89459cb59dd19129277e7490c763e0f670dc807d82bc268f93443750",
-    "src/pages/PartidoInvitacion.js": "3e550e3a5525eb5add4f24605e6bf03d499f4bc546141cf371a648197572706f",
+    "src/pages/PartidoInvitacion.js": "b13f8cdd4f7ecb2b2d7e7b2ac59118e1934cb478179ba6a230046ea37f887bb6",
     "src/pages/QuieroJugar.js": "e7519f9d67e16faeceb2cadcceee64c69fa429ea808699b4a009291685641b82",
     "src/pages/ResultadosEncuestaView.js": "8601e93a2f7fb28c68c3a18e01c1370119fef5de3a1a05410996d17981dfbe17",
     "src/pages/VotingView.js": "28c2541bb8fb0a394bd7882f3c81bcca72ceb9d8fdb52c7d6b19e78b067d31f2",
@@ -82,8 +82,8 @@
     "src/services/db/payments.js": "7d21fce6297cec6edb8511bcb7599baefe358df5841643cd9203d4363198a82a",
     "src/services/db/penalties.js": "e9fac9f08df126c7e6a7530e0f59829a160544138b77b8300d7f6245172313f4",
     "src/services/db/privateFriendGroups.js": "756aafa2a609b0e6fafb03dfa1d1fe05529c4580845870e5591efaf0c3b30be5",
-    "src/services/db/profiles.js": "6f2f200f362b859c928518e64832b8d9277ce1bebc6f41aebd87cc20cc1e7b8d",
-    "src/services/db/publicMatch.js": "2db7d98ab6280e964c9f8362ea0aee369e8297aef76c3e16456fff3613183fed",
+    "src/services/db/profiles.js": "1c081a12e9f04b620125c62a26bec64dae08d95745f1f40c2198891975366cfa",
+    "src/services/db/publicMatch.js": "7bdb448fd7ce81dc5ddb0cd5ea0410738aa3c056a95a499639ac38f4f9476c17",
     "src/services/db/publicProfiles.js": "3f5db95f9c908b535ba0c4a39411f8a32847e5512aae2235eb9814e4469f3a24",
     "src/services/db/realtime.js": "7629f351a3c5274635dc8b0933476cfaa12a37bbdd354ba9ce7c751061f2600c",
     "src/services/db/surveys.js": "d5083e28e35e65895b1ec1cfd5643090c18cbdcaac87b8abe8ecd9b0919f013a",
