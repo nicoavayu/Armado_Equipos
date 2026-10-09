@@ -1,5 +1,5 @@
 -- Rollback of 20261010140000 (published roster identity). Run as postgres, in one transaction,
--- before the rollback of 139000. Data: none lost (app_private.match_link_access is kept; it only
+-- after the rollback of 141000 (and 142000) and before the rollback of 139000. Data: none lost (app_private.match_link_access is kept; it only
 -- records which accounts opened a valid invite link). Effect, back to 20261010139000:
 --   * any signed-in account reads the roster (usuario_id, score) of matches published looking
 --     for players, from the table, realtime and the "Quiero jugar" views, and anyone with the
@@ -26,76 +26,29 @@ drop trigger if exists trg_jugadores_self_update_guard on public.jugadores;
 drop function if exists app_private.tg_jugadores_self_update_guard();
 drop trigger if exists trg_match_join_request_insert_guard on public.match_join_requests;
 drop function if exists app_private.tg_match_join_request_insert_guard();
+drop function if exists app_private.match_accepts_requests(bigint, uuid);
 drop function if exists app_private.match_accepts_requests(bigint);
 drop function if exists app_private.may_self_join_match(bigint, uuid);
 
-create or replace view public.partidos_abiertos_operativos as
-SELECT p.id,
-    p.created_at,
-    p.updated_at,
-    app_private.match_access_code(p.id) AS codigo,
-    p.match_ref,
-    p.nombre,
-    p.fecha,
-    p.hora,
-    partido_kickoff_at(p.fecha, p.hora) AS kickoff_at,
-    p.sede,
-    COALESCE(NULLIF(TRIM(BOTH FROM p.sede_direccion_normalizada), ''::text), NULLIF(TRIM(BOTH FROM p.sede), ''::text)) AS sede_direccion_normalizada,
-    COALESCE(NULLIF(TRIM(BOTH FROM p.sede_place_id), ''::text), NULLIF(TRIM(BOTH FROM COALESCE((p."sedeMaps" ->> 'place_id'::text), (p."sedeMaps" ->> 'placeId'::text))), ''::text)) AS sede_place_id,
-    p.sede_latitud,
-    p.sede_longitud,
-    p."sedeMaps",
-    p.creado_por,
-    p.modalidad,
-    p.cupo_jugadores,
-    COALESCE(p.falta_jugadores, false) AS falta_jugadores,
-    p.tipo_partido,
-    p.estado,
-    normalize_partido_estado(p.estado) AS estado_normalizado,
-    COALESCE(player_rows.jugadores, '[]'::jsonb) AS jugadores,
-    COALESCE(player_rows.jugadores_count, 0) AS jugadores_count
-   FROM (partidos p
-     LEFT JOIN LATERAL ( SELECT jsonb_agg(to_jsonb(j.*) ORDER BY j.id) AS jugadores,
-            (count(*))::integer AS jugadores_count
-           FROM jugadores j
-          WHERE (j.partido_id = p.id)) player_rows ON (true))
-  WHERE partido_is_operationally_open(p.estado, p.deleted_at, p.survey_status, p.result_status, p.finished_at, p.fecha, p.hora, p.falta_jugadores, now());
-
-create or replace view public.partidos_abiertos_operativos_v2 as
-SELECT p.id,
-    p.created_at,
-    p.updated_at,
-    app_private.match_access_code(p.id) AS codigo,
-    p.match_ref,
-    p.nombre,
-    p.fecha,
-    p.hora,
-    partido_kickoff_at(p.fecha, p.hora) AS kickoff_at,
-    p.sede,
-    COALESCE(NULLIF(TRIM(BOTH FROM p.sede_direccion_normalizada), ''::text), NULLIF(TRIM(BOTH FROM p.sede), ''::text)) AS sede_direccion_normalizada,
-    COALESCE(NULLIF(TRIM(BOTH FROM p.sede_place_id), ''::text), NULLIF(TRIM(BOTH FROM COALESCE((p."sedeMaps" ->> 'place_id'::text), (p."sedeMaps" ->> 'placeId'::text))), ''::text)) AS sede_place_id,
-    p.sede_latitud,
-    p.sede_longitud,
-    p."sedeMaps",
-    p.creado_por,
-    p.modalidad,
-    p.cupo_jugadores,
-    COALESCE(p.falta_jugadores, false) AS falta_jugadores,
-    p.tipo_partido,
-    p.estado,
-    normalize_partido_estado(p.estado) AS estado_normalizado,
-    COALESCE(player_rows.jugadores, '[]'::jsonb) AS jugadores,
-    COALESCE(player_rows.jugadores_count, 0) AS jugadores_count,
-    COALESCE(p.busca_arquero, false) AS busca_arquero
-   FROM (partidos p
-     LEFT JOIN LATERAL ( SELECT jsonb_agg(to_jsonb(j.*) ORDER BY j.id) AS jugadores,
-            (count(*))::integer AS jugadores_count
-           FROM jugadores j
-          WHERE (j.partido_id = p.id)) player_rows ON (true))
-  WHERE partido_is_operationally_open(p.estado, p.deleted_at, p.survey_status, p.result_status, p.finished_at, p.fecha, p.hora, (COALESCE(p.falta_jugadores, false) OR COALESCE(p.busca_arquero, false)), now());
-
-alter view public.partidos_abiertos_operativos set (security_invoker = false);
-alter view public.partidos_abiertos_operativos_v2 set (security_invoker = false);
+-- The views build their roster aggregates as before (rewritten from their current definition,
+-- like the migration did; Core Production's partidos_view embeds a roster too).
+do $rollback_views$
+declare
+  v_view text;
+  v_def text;
+begin
+  foreach v_view in array array['partidos_view', 'partidos_abiertos_operativos', 'partidos_abiertos_operativos_v2'] loop
+    v_def := pg_get_viewdef(format('public.%I', v_view)::regclass);
+    if v_def ~ 'roster_entry_json' then
+      execute format('create or replace view public.%I as %s', v_view,
+        regexp_replace(v_def,
+          'app_private\.roster_entry_json\((.+?), j\.usuario_id, app_private\.match_involves_user\(p\.id, app_private\.request_user_id\(\)\)\)',
+          '\1', 'g'));
+      execute format('alter view public.%I set (security_invoker = false)', v_view);
+    end if;
+  end loop;
+end
+$rollback_views$;
 
 create or replace function public.public_get_match_by_code(p_codigo text, p_partido_id bigint default null::bigint)
 returns jsonb
@@ -124,6 +77,7 @@ $function$;
 
 drop function if exists public.get_public_match_roster(bigint);
 drop function if exists app_private.roster_entry(public.jugadores, boolean);
+drop function if exists app_private.roster_entry_json(jsonb, uuid, boolean);
 
 CREATE OR REPLACE FUNCTION public.validate_guest_match_invite(p_partido_id bigint, p_codigo text, p_token text)
  RETURNS TABLE(ok boolean, reason text)

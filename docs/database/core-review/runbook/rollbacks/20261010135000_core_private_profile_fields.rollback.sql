@@ -20,10 +20,17 @@ set email = coalesce(p.email, u.email),
 from app_private.usuarios_private p
 where p.user_id = u.id;
 
-update public.profiles pr
-set telefono = p.telefono
-from app_private.usuarios_private p
-where p.user_id = pr.id and p.telefono is not null;
+-- Only where profiles.telefono exists (it does not in Core Production).
+do $$
+begin
+  if exists (select 1 from information_schema.columns
+             where table_schema = 'public' and table_name = 'profiles' and column_name = 'telefono') then
+    execute 'update public.profiles pr set telefono = p.telefono
+             from app_private.usuarios_private p
+             where p.user_id = pr.id and p.telefono is not null';
+  end if;
+end;
+$$;
 
 -- The functions as they were before 135000.
 CREATE OR REPLACE FUNCTION public.get_my_profile()
@@ -279,4 +286,5 @@ $function$;
 drop function if exists public.clear_my_profile_fields(text[]);
 drop function if exists app_private.tg_usuarios_private_fields();
 drop function if exists app_private.tg_profiles_private_phone();
+drop function if exists app_private.approx_coordinate(double precision);
 delete from supabase_migrations.schema_migrations where version = '20261010135000';

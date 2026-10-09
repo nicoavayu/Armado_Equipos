@@ -14,6 +14,8 @@
 -- So the caller only needs EXECUTE: no edge-function change, and the service role is not
 -- involved (it would skip the creator check). anon stays without it.
 
+-- (Core Production already grants it to authenticated and anon: then only anon is closed.)
+select app_private.alignment_save_function_acl('public.approve_join_request(bigint)'::regprocedure);
 revoke all on function public.approve_join_request(bigint) from public, anon;
 grant execute on function public.approve_join_request(bigint) to authenticated, service_role;
 

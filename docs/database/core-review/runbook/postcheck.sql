@@ -8,9 +8,41 @@
 begin;
 
 -- ---------- as postgres: structure and data ----------
-select json_build_object('check', 'ledger holds the 22 migrations 20261010120000…141000',
-  'pass', (select count(*) from supabase_migrations.schema_migrations where version between '20261010120000' and '20261010141000') = 22,
-  'value', (select count(*) from supabase_migrations.schema_migrations where version between '20261010120000' and '20261010141000'))::text;
+select json_build_object('check', 'ledger holds the 24 migrations 20261010119000…142000',
+  'pass', (select count(*) from supabase_migrations.schema_migrations where version between '20261010119000' and '20261010142000') = 24,
+  'value', (select count(*) from supabase_migrations.schema_migrations where version between '20261010119000' and '20261010142000'))::text;
+
+select json_build_object('check', '119000: partidos/jugadores SELECT/INSERT carry only the repository policies, the voting tables are not open',
+  'pass', not exists (select 1 from pg_policies where schemaname = 'public' and tablename in ('partidos', 'jugadores')
+             and cmd in ('SELECT', 'INSERT', 'ALL')
+             and policyname not in ('partidos_select_authenticated', 'partidos_select_public_shared', 'partidos_select_public_reader',
+               'partidos_insert_creator', 'partidos_insert_own', 'jugadores_select_authenticated', 'jugadores_select_public_shared',
+               'jugadores_select_public_reader', 'jugadores_insert_self_or_admin'))
+      and not exists (select 1 from pg_policies where schemaname = 'public' and tablename in ('public_voters', 'votos_publicos')
+             and cmd in ('SELECT', 'INSERT') and (qual = 'true' or with_check = 'true'))
+      and to_regprocedure('app_private.is_match_admin(bigint,uuid)') is not null,
+  'value', (select json_agg(kind || ':' || coalesce(table_name || '.', '') || object_name order by id) from app_private.production_alignment_log
+            where kind <> 'untouched_policies_digest'))::text;
+
+select json_build_object('check', '119000: every other policy (UPDATE/DELETE of partidos/jugadores, profiles, amigos, notifications, post_match_surveys, partidos_frecuentes, usuarios…) is exactly as before',
+  'pass', not exists (select 1 from app_private.production_alignment_log where kind = 'untouched_policies_digest')
+          or (select definition from app_private.production_alignment_log where kind = 'untouched_policies_digest' order by id desc limit 1)
+             = (select jsonb_build_object('n', count(*), 'md5', md5(string_agg(format('%s.%s %s %s %s u=%s c=%s', tablename, policyname, permissive, cmd, roles::text, qual, with_check), E'\n' order by tablename, policyname)))
+             from pg_policies
+             where schemaname = 'public'
+               and not (tablename in ('partidos', 'jugadores') and cmd in ('SELECT', 'INSERT', 'ALL'))
+               and not (tablename in ('public_voters', 'votos_publicos') and cmd in ('SELECT', 'INSERT'))),
+  'value', json_build_object('before', (select definition from app_private.production_alignment_log where kind = 'untouched_policies_digest' order by id desc limit 1),
+    'now', (select jsonb_build_object('n', count(*), 'md5', md5(string_agg(format('%s.%s %s %s %s u=%s c=%s', tablename, policyname, permissive, cmd, roles::text, qual, with_check), E'\n' order by tablename, policyname)))
+             from pg_policies
+             where schemaname = 'public'
+               and not (tablename in ('partidos', 'jugadores') and cmd in ('SELECT', 'INSERT', 'ALL'))
+               and not (tablename in ('public_voters', 'votos_publicos') and cmd in ('SELECT', 'INSERT')))))::text;
+
+select json_build_object('check', '142000: request-scoped notices keep no partido_id (one notice per join request)',
+  'pass', to_regprocedure('public.fn_notifications_fill_partido_id()') is null
+      or position('match_join_request' in pg_get_functiondef('public.fn_notifications_fill_partido_id()'::regprocedure)) > 0,
+  'value', to_regprocedure('public.fn_notifications_fill_partido_id()') is not null)::text;
 
 select json_build_object('check', '141000: organizers can approve join requests (approve_join_request executable by accounts, not anon; it keeps its own creator check)',
   'pass', has_function_privilege('authenticated', 'public.approve_join_request(bigint)', 'execute')
@@ -33,9 +65,9 @@ select json_build_object('check', '140000: published rosters per involvement; en
 
 select json_build_object('check', '135000: no email, phone or birth date left in the shared rows',
   'pass', (select count(*) from public.usuarios where email is not null or telefono is not null or fecha_nacimiento is not null) = 0
-      and (select count(*) from public.profiles where telefono is not null) = 0,
+      and (select count(*) from public.profiles pr where to_jsonb(pr) ->> 'telefono' is not null) = 0,
   'value', json_build_object('usuarios', (select count(*) from public.usuarios where email is not null or telefono is not null or fecha_nacimiento is not null),
-    'profiles', (select count(*) from public.profiles where telefono is not null)))::text;
+    'profiles', (select count(*) from public.profiles pr where to_jsonb(pr) ->> 'telefono' is not null)))::text;
 
 select json_build_object('check', '135000: every account has its private row; counts match the precheck baseline',
   'pass', (select count(*) from app_private.usuarios_private) = (select count(*) from public.usuarios),
@@ -98,6 +130,13 @@ select json_build_object('check', '139000: no added_by in public.jugadores; who 
       and not has_table_privilege('anon', 'app_private.jugadores_added_by', 'select')
       and exists (select 1 from pg_trigger where tgname = 'trg_jugadores_added_by' and tgrelid = 'public.jugadores'::regclass and not tgisinternal and (tgtype & 2) = 0 and (tgtype & 1) = 1),
   'value', (select count(*) from app_private.jugadores_added_by))::text;
+
+select json_build_object('check', '134000: partidos.template_id has the type of partidos_frecuentes.id, references it, owner trigger in place',
+  'pass', (select format_type(a.atttypid, a.atttypmod) from pg_attribute a where a.attrelid = 'public.partidos'::regclass and a.attname = 'template_id' and not a.attisdropped)
+          = (select format_type(a.atttypid, a.atttypmod) from pg_attribute a where a.attrelid = 'public.partidos_frecuentes'::regclass and a.attname = 'id' and not a.attisdropped)
+      and exists (select 1 from pg_constraint where conname = 'partidos_template_id_fkey' and conrelid = 'public.partidos'::regclass)
+      and exists (select 1 from pg_trigger where tgname = 'partidos_template_owner' and tgrelid = 'public.partidos'::regclass),
+  'value', (select format_type(a.atttypid, a.atttypmod) from pg_attribute a where a.attrelid = 'public.partidos'::regclass and a.attname = 'template_id' and not a.attisdropped))::text;
 
 select json_build_object('check', '131000: survey finalization scheduled every 5 minutes',
   'pass', exists (select 1 from cron.job where jobname = 'survey_finalization_backend_scheduler' and active and schedule = '*/5 * * * *'),

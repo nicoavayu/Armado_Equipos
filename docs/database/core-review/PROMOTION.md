@@ -15,6 +15,7 @@ por código, jugador sin cuenta). Por eso la web puede salir antes que la base.
 
 | Migración | Qué cambia | En Producción |
 |---|---|---|
+| `20261010119000_core_production_alignment` | alinea Producción con lo que el resto da por hecho: `partidos.admin_id`, 3 helpers, USAGE de `app_private`; reemplaza sólo las 18 policies `SELECT`/`INSERT` abiertas de `partidos`/`jugadores` y de las tablas de votación ([POLICIES-REPLACED.md](POLICIES-REPLACED.md)); registra todo para el rollback | anon deja de leer las tablas; 1.1.21 lo verifica el coordinador en el gate B; las demás 192 policies no cambian |
 | `20261010120000_core_trigger_helper_execute_grants` | grants de helpers de triggers | no-op (ya los tiene) |
 | `20261010121000_core_public_voting_roster_identity` | votar por link solo con un nombre del plantel (invitado titular) | cambia la votación pública |
 | `20261010122000_core_notifications_ext_match_columns` | columnas `match_id_text`/`match_code` | no-op si existen |
@@ -37,6 +38,7 @@ por código, jugador sin cuenta). Por eso la web puede salir antes que la base.
 | `20261010139000_core_roster_added_by_private` | `jugadores.added_by` pasa a `app_private.jugadores_added_by` (trigger AFTER INSERT) y la columna se elimina; `get_match_contact_phone` lee de ahí | ninguno: ni la 1.1.21 ni la web nombran la columna; `select('*')` sigue igual |
 | `20261010140000_core_published_roster_identity` | `usuario_id`/`score` de planteles sólo para quien participa (tabla, realtime, vistas, link, `get_public_match_roster`); sumarse uno mismo sólo con invitación, solicitud aprobada o link validado; fila propia: sólo nombre, foto y posición; solicitudes pendientes y únicas | 1.1.21 ve vacío el plantel de un partido publicado ajeno; pedir sumarse y las invitaciones siguen; un link viejo con sólo el código no deja sumarse con cuenta |
 | `20261010141000_core_organizer_approves_join_requests` | `approve_join_request` ejecutable por cuentas (no anon); sigue verificando que sea el creador y bloqueando partido y solicitud | ninguno: la 1.1.21 y la web aprueban por `approve-join-request`, que deja de responder "forbidden" |
+| `20261010142000_core_join_request_notifications` | `fn_notifications_fill_partido_id` (sólo existe en Producción) deja sin `partido_id` los avisos de solicitud, como ya los normaliza el otro trigger | arregla el 23505 desde el segundo solicitante de un partido; no-op donde la función no existe |
 
 **Nota 125000:** con la web nueva publicada, las páginas públicas (votación por link,
 invitación de invitado) ya leen por código. Una build nativa vieja abierta **sin sesión**

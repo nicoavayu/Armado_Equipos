@@ -131,37 +131,41 @@ create policy partidos_select_authenticated on public.partidos
     )
   );
 
-create or replace view public.partidos_view as
- SELECT id,
-    uuid,
-    match_ref,
-    app_private.match_access_code(id) AS codigo,
-    nombre,
-    fecha,
-    hora,
-    sede,
-    "sedeMaps",
-    modalidad,
-    tipo_partido,
-    cupo_jugadores,
-    falta_jugadores,
-    precio_cancha,
-    creado_por,
-    admin_id,
-    equipos_json,
-    equipos_generados,
-    teams_confirmed,
-    awards_status,
-    awards_resolved_at,
-    estado,
-    deleted_at,
-    created_at,
-    updated_at,
-    busca_arquero,
-    player_invites_enabled,
-    precio_cancha_por_persona
-   FROM public.partidos p
-  WHERE deleted_at IS NULL;
+-- partidos_view keeps its own definition (Core Production's is not the repository's) and gains
+-- the flags the public match page would otherwise read from the table, when it lacks them.
+-- Saved first, so the rollback can put the view back exactly (columns cannot be removed with
+-- CREATE OR REPLACE).
+insert into app_private.production_alignment_log (kind, object_name, definition)
+select 'view_before', 'public.partidos_view',
+       jsonb_build_object('definition', pg_get_viewdef('public.partidos_view'::regclass), 'owner', pg_get_userbyid(c.relowner),
+                          'options', to_jsonb(c.reloptions), 'acl', coalesce(c.relacl, acldefault('r'::"char", c.relowner))::text)
+from pg_class c
+where c.oid = 'public.partidos_view'::regclass
+  and not exists (select 1 from app_private.production_alignment_log where kind = 'view_before' and object_name = 'public.partidos_view');
+
+do $partidos_view_flags$
+declare
+  v_def text := pg_get_viewdef('public.partidos_view'::regclass);
+  v_add text := '';
+  v_column text;
+begin
+  foreach v_column in array array['busca_arquero', 'player_invites_enabled', 'precio_cancha_por_persona'] loop
+    if exists (select 1 from information_schema.columns
+               where table_schema = 'public' and table_name = 'partidos' and column_name = v_column)
+       and not exists (select 1 from information_schema.columns
+                       where table_schema = 'public' and table_name = 'partidos_view' and column_name = v_column) then
+      v_add := v_add || format(E',\n    p.%I', v_column);
+    end if;
+  end loop;
+  if v_add <> '' then
+    if v_def !~ '\n   FROM ' then
+      raise exception 'partidos_view: top-level FROM not found';
+    end if;
+    execute format('create or replace view public.partidos_view as %s',
+                   regexp_replace(v_def, '\n   FROM ', v_add || E'\n   FROM '));
+  end if;
+end
+$partidos_view_flags$;
 
 -- ALTER … OWNER TO also requires the new owner to have CREATE on the schema; the reader
 -- keeps it only for these three statements.

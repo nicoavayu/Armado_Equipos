@@ -1,0 +1,342 @@
+{
+ "date": "2026-10-09",
+ "schema": "Core Production pg_dump --schema-only 2026-10-09 (d3-core-schema-20261009-1641.sql), disposable container without network, synthetic seed",
+ "scope": "Nico 2026-10-09: partidos/jugadores SELECT/INSERT, usuarios private fields, guest voting tables; nothing applied in Production",
+ "passes": {
+  "A": {
+   "applied": 24,
+   "of": 24,
+   "apply_ms_total": 1063,
+   "per_migration_ms": {
+    "20261010119000": 55,
+    "20261010120000": 39,
+    "20261010121000": 39,
+    "20261010122000": 39,
+    "20261010123000": 36,
+    "20261010124000": 39,
+    "20261010125000": 38,
+    "20261010126000": 44,
+    "20261010127000": 41,
+    "20261010128000": 42,
+    "20261010129000": 41,
+    "20261010130000": 38,
+    "20261010131000": 46,
+    "20261010132000": 40,
+    "20261010133000": 42,
+    "20261010134000": 43,
+    "20261010135000": 71,
+    "20261010136000": 41,
+    "20261010137000": 58,
+    "20261010138000": 40,
+    "20261010139000": 57,
+    "20261010140000": 59,
+    "20261010141000": 36,
+    "20261010142000": 39
+   },
+   "precheck_failures": [],
+   "postcheck_failures": [],
+   "smoke": {
+    "pass": 47,
+    "fail": [],
+    "error": null
+   },
+   "rollbacks_ok": [
+    "20261010142000",
+    "20261010141000",
+    "20261010140000",
+    "20261010139000",
+    "20261010138000",
+    "20261010137000",
+    "20261010136000",
+    "20261010135000",
+    "20261010134000",
+    "20261010133000"
+   ],
+   "rollback_vs_pre133": "identical",
+   "catalog_after_cleanup_equals_pre133": true,
+   "reapply_ok": 10,
+   "postcheck_after_reapply_failures": [],
+   "server_restarted": false
+  },
+  "B": {
+   "precheck": [
+    {
+     "check": "connected as postgres, can create the reader role, can act as the API roles",
+     "pass": true
+    },
+    {
+     "check": "Postgres 15 or newer (security_invoker views)",
+     "pass": true
+    },
+    {
+     "check": "database writable",
+     "pass": true
+    },
+    {
+     "check": "database size leaves room on the Free plan (< 350 MB)",
+     "pass": true
+    },
+    {
+     "check": "ledger: Torneos contract and ops retention present, none of 20261010119000…142000 yet",
+     "pass": true
+    },
+    {
+     "check": "postgres owns the tables and match views the stack changes",
+     "pass": true
+    },
+    {
+     "check": "match views run as the caller today (security_invoker)",
+     "pass": true
+    },
+    {
+     "check": "nothing of the stack exists yet (private tables, reader role, roster added_by)",
+     "pass": true
+    },
+    {
+     "check": "partidos.template_id: absent, or of the type of partidos_frecuentes.id (Production: uuid with its foreign key, kept by 134000)",
+     "pass": true
+    },
+    {
+     "check": "informative: what 20261010119000 will align (Production differs from the repository here; expected on Core Production: 18 policies to replace, untouched_policies n=192 md5 86fa2f8a…)",
+     "pass": true
+    },
+    {
+     "check": "informative: profiles.telefono exists? (absent in Production; 135000 then skips it)",
+     "pass": true
+    },
+    {
+     "check": "pg_cron available (20261010131000 schedules the survey finalization)",
+     "pass": true
+    },
+    {
+     "check": "no long transaction that could hold the ALTER/CREATE POLICY locks",
+     "pass": true
+    },
+    {
+     "check": "no account holds a single coordinate (135000 keeps a location only as a lat/long pair)",
+     "pass": true
+    },
+    {
+     "check": "informative: profiles phones that differ from the account phone (135000 keeps the account one; the other stays only in the backup)",
+     "pass": true
+    },
+    {
+     "check": "informative: join requests duplicated per account and match today (140000 refuses new duplicates; existing ones are kept)",
+     "pass": true
+    },
+    {
+     "check": "informative, how Prod is today: can organizers approve join requests? (approve-join-request calls approve_join_request as the organizer; false = every approval answers \"forbidden\" now; 20261010141000 fixes it)",
+     "pass": true
+    },
+    {
+     "check": "baseline: private values in the shared rows (must all move after 135000)",
+     "pass": true
+    }
+   ],
+   "policies_to_replace": [
+    "jugadores.Authenticated can insert jugadores (INSERT)",
+    "jugadores.Lectura publica jugadores (SELECT)",
+    "jugadores.Players can see others in same match (SELECT)",
+    "jugadores.Public can read joueurs debug (SELECT)",
+    "jugadores.Public can read jugadores (SELECT)",
+    "jugadores.Universal read players (SELECT)",
+    "jugadores.jugadores_insert_creator (INSERT)",
+    "partidos.Authenticated can insert matches (INSERT)",
+    "partidos.Creators can view their own matches (SELECT)",
+    "partidos.Lectura publica partidos (SELECT)",
+    "partidos.Players can view matches they are in (SELECT)",
+    "partidos.Public can see active matches (SELECT)",
+    "partidos.partidos_select_if_creator_or_player (SELECT)",
+    "partidos.partidos_select_open_for_authenticated (SELECT)",
+    "public_voters.Public voters are visible to everyone (SELECT)",
+    "public_voters.Public voters can be created by everyone (INSERT)",
+    "votos_publicos.Public votes are visible to everyone (SELECT)",
+    "votos_publicos.Public votes can be created by everyone (INSERT)"
+   ],
+   "untouched_policies": {
+    "before": {
+     "n": 192,
+     "md5": "86fa2f8a1ac188f4bfdeff38e700364e"
+    },
+    "now": {
+     "n": 192,
+     "md5": "86fa2f8a1ac188f4bfdeff38e700364e"
+    }
+   },
+   "apply": {
+    "ok": true,
+    "ms": 175,
+    "applied": 24,
+    "ledger": 24
+   },
+   "postcheck": [
+    {
+     "check": "ledger holds the 24 migrations 20261010119000…142000",
+     "pass": true
+    },
+    {
+     "check": "119000: partidos/jugadores SELECT/INSERT carry only the repository policies, the voting tables are not open",
+     "pass": true
+    },
+    {
+     "check": "119000: every other policy (UPDATE/DELETE of partidos/jugadores, profiles, amigos, notifications, post_match_surveys, partidos_frecuentes, usuarios…) is exactly as before",
+     "pass": true
+    },
+    {
+     "check": "142000: request-scoped notices keep no partido_id (one notice per join request)",
+     "pass": true
+    },
+    {
+     "check": "141000: organizers can approve join requests (approve_join_request executable by accounts, not anon; it keeps its own creator check)",
+     "pass": true
+    },
+    {
+     "check": "140000: published rosters per involvement; entries built for the viewer; self-join, self-update and request guards in place",
+     "pass": true
+    },
+    {
+     "check": "135000: no email, phone or birth date left in the shared rows",
+     "pass": true
+    },
+    {
+     "check": "135000: every account has its private row; counts match the precheck baseline",
+     "pass": true
+    },
+    {
+     "check": "135000: shared coordinates are approximate (2 decimals)",
+     "pass": true
+    },
+    {
+     "check": "136000/137000: table policies are per involvement (no open clause, no USING true)",
+     "pass": true
+    },
+    {
+     "check": "137000: views read as core_match_public_reader (nologin, no bypass), not as the caller",
+     "pass": true
+    },
+    {
+     "check": "grants: own-profile RPCs for accounts only; photo binding for the server only",
+     "pass": true
+    },
+    {
+     "check": "137000: anon and authenticated can execute every function the match views call",
+     "pass": true
+    },
+    {
+     "check": "138000: a guest photo slot belongs to its first session",
+     "pass": true
+    },
+    {
+     "check": "139000: no added_by in public.jugadores; who added whom lives only in app_private, recorded by an AFTER INSERT trigger",
+     "pass": true
+    },
+    {
+     "check": "134000: partidos.template_id has the type of partidos_frecuentes.id, references it, owner trigger in place",
+     "pass": true
+    },
+    {
+     "check": "131000: survey finalization scheduled every 5 minutes",
+     "pass": true
+    },
+    {
+     "check": "new account: the table returns no match (it is involved in none)",
+     "pass": true
+    },
+    {
+     "check": "new account: partidos_view lists exactly the published matches, every code masked",
+     "pass": true
+    },
+    {
+     "check": "new account: no usuario_id or score in any roster entry (views, Quiero jugar, public roster RPC, link code)",
+     "pass": true
+    },
+    {
+     "check": "new account: cannot join a published match by inserting itself, nor file an approved request",
+     "pass": true
+    },
+    {
+     "check": "new account: no match roster from the table, only team rows",
+     "pass": true
+    },
+    {
+     "check": "new account: other people's email, phone and birth date read as NULL",
+     "pass": true
+    },
+    {
+     "check": "new account: get_match_access_codes gives nothing for a match it is not in",
+     "pass": true
+    },
+    {
+     "check": "new account: cannot write through partidos_view",
+     "pass": true
+    },
+    {
+     "check": "anon: no rows from partidos, partidos_view or jugadores (and no error)",
+     "pass": true
+    },
+    {
+     "check": "anon: the link code gives roster entries without usuario_id or score",
+     "pass": true
+    },
+    {
+     "check": "anon: a WhatsApp/voting link (code + id) still opens its own match",
+     "pass": true
+    },
+    {
+     "check": "organizer: reads every match it created, with its code, from the table and the view",
+     "pass": true
+    },
+    {
+     "check": "owner: get_my_profile returns its own phone; the shared row does not",
+     "pass": true
+    }
+   ],
+   "smoke": {
+    "pass": 47,
+    "fail": [],
+    "error": null
+   },
+   "rerun": {
+    "ok": true,
+    "skipped": 24
+   },
+   "rollbacks_ok": [
+    "20261010142000",
+    "20261010141000",
+    "20261010140000",
+    "20261010139000",
+    "20261010138000",
+    "20261010137000",
+    "20261010136000",
+    "20261010135000",
+    "20261010134000",
+    "20261010133000"
+   ],
+   "ledger_after_rollbacks": 14,
+   "reapply": {
+    "ok": true,
+    "applied": 10,
+    "skipped": 14,
+    "ledger": 24
+   },
+   "postcheck_after_reapply_failures": [],
+   "server_restarted": false
+  },
+  "C": {
+   "catalog_changed_by_119": true,
+   "catalog_back_to_R0": true,
+   "snapshot_vs_R0": "identical",
+   "server_restarted": false,
+   "apply_119_ms": 56,
+   "rollback_119_ms": 42
+  }
+ },
+ "policies": {
+  "dropped": 18,
+  "created": 7,
+  "kept_on_scope_tables": 11,
+  "untouched_elsewhere": 192,
+  "full_rollback_142_to_133_then_119_policies_equal_R0": true,
+  "manual_sql_of_POLICIES_REPLACED_equal_R0": true
+ }
+}

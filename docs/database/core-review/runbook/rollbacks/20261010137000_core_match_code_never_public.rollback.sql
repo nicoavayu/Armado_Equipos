@@ -1,9 +1,7 @@
 -- Rollback of 20261010137000 (match code never public). Run as postgres, in one transaction.
 -- Data: none touched. Effect: back to 20261010136000 — any signed-in account reads from the
 -- table every match published looking for players, with its code (the link-voting credential).
--- partidos_view keeps the three appended columns (busca_arquero, player_invites_enabled,
--- precio_cancha_por_persona): CREATE OR REPLACE cannot drop columns and no client breaks on
--- extra columns. Anon keeps EXECUTE on the three pure helpers (no data behind them).
+-- partidos_view is put back exactly as it was before 137000 (saved by the migration). Anon keeps EXECUTE on the three pure helpers (no data behind them).
 drop policy if exists partidos_select_authenticated on public.partidos;
 create policy partidos_select_authenticated on public.partidos
   for select to authenticated
@@ -32,6 +30,40 @@ alter view public.partidos_abiertos_operativos_v2 owner to postgres;
 alter view public.partidos_view set (security_invoker = on);
 alter view public.partidos_abiertos_operativos set (security_invoker = on);
 alter view public.partidos_abiertos_operativos_v2 set (security_invoker = on);
+
+-- partidos_view exactly as it was before 137000 (it may have gained columns).
+do $restore_partidos_view$
+declare
+  v_saved jsonb;
+  r record;
+begin
+  if to_regclass('app_private.production_alignment_log') is null then
+    return;
+  end if;
+  select definition into v_saved from app_private.production_alignment_log
+  where kind = 'view_before' and object_name = 'public.partidos_view' order by id desc limit 1;
+  if v_saved is null then
+    return;
+  end if;
+  if pg_get_viewdef('public.partidos_view'::regclass) is distinct from v_saved ->> 'definition' then
+    drop view public.partidos_view;
+    execute format('create view public.partidos_view as %s', v_saved ->> 'definition');
+    execute format('alter view public.partidos_view owner to %I', v_saved ->> 'owner');
+    if jsonb_typeof(v_saved -> 'options') = 'array' then
+      execute format('alter view public.partidos_view set (%s)',
+        (select string_agg(o, ', ') from jsonb_array_elements_text(v_saved -> 'options') o));
+    end if;
+    for r in select grantee, string_agg(privilege_type, ', ') as privileges
+             from aclexplode((v_saved ->> 'acl')::aclitem[])
+             where grantee <> (select oid from pg_roles where rolname = v_saved ->> 'owner')
+             group by grantee loop
+      execute format('grant %s on public.partidos_view to %s', r.privileges,
+        case when r.grantee = 0 then 'public' else quote_ident(pg_get_userbyid(r.grantee)) end);
+    end loop;
+  end if;
+  delete from app_private.production_alignment_log where kind = 'view_before' and object_name = 'public.partidos_view';
+end
+$restore_partidos_view$;
 
 revoke execute on function app_private.match_involves_user(bigint, uuid) from anon, core_match_public_reader;
 revoke execute on function app_private.match_is_publicly_open(bigint) from anon, core_match_public_reader;
