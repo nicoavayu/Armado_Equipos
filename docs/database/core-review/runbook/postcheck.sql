@@ -8,9 +8,10 @@
 begin;
 
 -- ---------- as postgres: structure and data ----------
-select json_build_object('check', 'ledger holds the 26 migrations 20261010119000…145000 (no 144000)',
-  'pass', (select count(*) from supabase_migrations.schema_migrations where version between '20261010119000' and '20261010145000') = 26,
-  'value', (select count(*) from supabase_migrations.schema_migrations where version between '20261010119000' and '20261010145000'))::text;
+select json_build_object('check', 'ledger holds 20261010118000 and the 27 migrations 20261010119000…146000 (no 144000)',
+  'pass', (select count(*) from supabase_migrations.schema_migrations where version between '20261010119000' and '20261010146000') = 27
+      and exists (select 1 from supabase_migrations.schema_migrations where version = '20261010118000'),
+  'value', (select count(*) from supabase_migrations.schema_migrations where version between '20261010118000' and '20261010146000'))::text;
 
 select json_build_object('check', '119000: partidos/jugadores SELECT/INSERT carry only the repository policies, the voting tables are not open',
   'pass', not exists (select 1 from pg_policies where schemaname = 'public' and tablename in ('partidos', 'jugadores')
@@ -38,6 +39,24 @@ select json_build_object('check', '119000: every other policy (UPDATE/DELETE of 
              where schemaname = 'public'
                and not (tablename in ('partidos', 'jugadores') and cmd in ('SELECT', 'INSERT', 'ALL'))
                and not (tablename in ('public_voters', 'votos_publicos') and cmd in ('SELECT', 'INSERT')))))::text;
+
+select json_build_object('check', '118000 + 146000: no open SECURITY DEFINER writer left (cancel only by the organizer; the rest not executable by anon; the three 1.1.21 ones are checked wrappers)',
+  'pass', (select prosrc ~ '20261010118000' from pg_proc where oid = 'public.cancel_partido_with_notification(bigint,text)'::regprocedure)
+      and not exists (
+        select 1 from unnest(array[
+          'public.cancel_partido_with_notification(bigint,text)', 'public.compute_awards_for_match(bigint)',
+          'public.debug_set_surveys_sent(bigint,boolean)', 'public.fanout_survey_for_match(bigint)',
+          'public.mark_match_assumed_not_played(bigint,text)', 'public.process_awards_for_matches()',
+          'public.process_match_reminder_notifications_backend(integer,integer)',
+          'public.process_survey_start_notifications_backend(integer,integer)', 'public.rpc_crear_partido_debug(jsonb)',
+          'public.update_delivery_status(uuid,text,text)',
+          'public.send_match_kicked_notification(uuid,bigint,text,uuid,timestamp with time zone)',
+          'public.sync_team_match_to_partido(uuid)', 'public.prepare_challenge_team_squad(uuid,boolean)']) f
+        where to_regprocedure(f) is not null and has_function_privilege('anon', f, 'execute'))
+      and (select count(*) from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+           where n.nspname = 'public' and p.proname in ('send_match_kicked_notification', 'sync_team_match_to_partido', 'prepare_challenge_team_squad')
+             and not p.prosecdef and p.prosrc ~ 'assert_api_caller_may') = 3,
+  'value', null)::text;
 
 select json_build_object('check', '145000: match notifications only from the organizer and the people of the match (anon cannot call them; checked wrappers; originals moved unchanged)',
   'pass', not has_function_privilege('anon', 'public.enqueue_partido_notification(bigint,text,text,text,jsonb)', 'execute')

@@ -20,7 +20,7 @@ select json_build_object('check', 'database size leaves room on the Free plan (<
   'pass', pg_database_size(current_database()) < 350 * 1024 * 1024,
   'value', pg_size_pretty(pg_database_size(current_database())))::text;
 
-select json_build_object('check', 'ledger: Torneos contract and ops retention present, none of 20261010119000…145000 yet',
+select json_build_object('check', 'ledger: Torneos contract and ops retention present, none of 20261010119000…146000 yet',
   'pass', exists (select 1 from supabase_migrations.schema_migrations where version = '20260915120000')
     and exists (select 1 from supabase_migrations.schema_migrations where version = '20261009120000')
     and not exists (select 1 from supabase_migrations.schema_migrations where version between '20261010119000' and '20261010149999'),
@@ -81,6 +81,11 @@ select json_build_object('check', 'informative: what 20261010119000 will align (
       where schemaname = 'public'
         and not (tablename in ('partidos', 'jugadores') and cmd in ('SELECT', 'INSERT', 'ALL'))
         and not (tablename in ('public_voters', 'votos_publicos') and cmd in ('SELECT', 'INSERT')))))::text;
+
+select json_build_object('check', 'informative: urgent fix 20261010118000 already applied alone? (apply-193 then skips it)',
+  'pass', true,
+  'value', json_build_object('in_ledger', exists (select 1 from supabase_migrations.schema_migrations where version = '20261010118000'),
+    'cancel_guarded', (select prosrc ~ '20261010118000' from pg_proc where oid = to_regprocedure('public.cancel_partido_with_notification(bigint,text)'))))::text;
 
 select json_build_object('check', 'informative: profiles.telefono exists? (absent in Production; 135000 then skips it)',
   'pass', true,

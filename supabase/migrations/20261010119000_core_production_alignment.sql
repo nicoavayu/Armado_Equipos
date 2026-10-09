@@ -71,13 +71,16 @@ begin
   if v_acl is null then
     return;
   end if;
-  execute format('revoke all on function %s from public, anon, authenticated, service_role', p_function);
-  for r in select * from aclexplode(v_acl) where privilege_type = 'EXECUTE' loop
-    if r.grantee = 0 then
-      execute format('grant execute on function %s to public', p_function);
-    elsif pg_catalog.pg_get_userbyid(r.grantee) in ('anon', 'authenticated', 'service_role') then
-      execute format('grant execute on function %s to %I', p_function, pg_catalog.pg_get_userbyid(r.grantee));
-    end if;
+  -- Same entries in the same order as before: revoke every current grantee (the owner too),
+  -- then grant again in the saved order.
+  for r in select distinct a.grantee from pg_catalog.pg_proc p, pg_catalog.aclexplode(p.proacl) a where p.oid = p_function loop
+    execute format('revoke all on function %s from %s', p_function,
+      case when r.grantee = 0 then 'public' else quote_ident(pg_catalog.pg_get_userbyid(r.grantee)) end);
+  end loop;
+  for r in select a.grantee from pg_catalog.aclexplode(v_acl) with ordinality a(grantor, grantee, privilege_type, is_grantable, ord)
+           where a.privilege_type = 'EXECUTE' order by a.ord loop
+    execute format('grant execute on function %s to %s', p_function,
+      case when r.grantee = 0 then 'public' else quote_ident(pg_catalog.pg_get_userbyid(r.grantee)) end);
   end loop;
   delete from app_private.production_alignment_log
   where kind = 'function_acl_before' and object_name = p_function::text;

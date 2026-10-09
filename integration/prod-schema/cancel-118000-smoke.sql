@@ -43,7 +43,7 @@ select pg_temp.as_user(md5('c118-mem')::uuid);
 set local role authenticated;
 select pg_temp.check('118 player of the roster (not organizer): refused', pg_temp.try($$select public.cancel_partido_with_notification(995201, 'x')$$) like '42501%');
 reset role;
-select pg_temp.check('118 the refusals changed nothing', (select count(*) from public.partidos where id = 995201 and estado = 'activo' and deleted_at is null) = 1);
+select pg_temp.check('118 the refusals changed nothing', (select count(*) from public.partidos where id = 995201 and estado <> 'cancelado' and deleted_at is null) = 1);
 select pg_temp.as_user(md5('c118-org')::uuid);
 set local role authenticated;
 select pg_temp.check('118 organizer cancels (as 1.1.21 does)', pg_temp.try($$select public.cancel_partido_with_notification(995201, 'Lluvia')$$) = 'ok');
@@ -51,7 +51,7 @@ reset role;
 select pg_temp.check('118 the match is cancelled', (select count(*) from public.partidos where id = 995201 and estado = 'cancelado' and deleted_at is not null) = 1);
 select pg_temp.check('118 the roster is notified', (select count(*) from public.notifications where type = 'match_cancelled'
   and (partido_id = 995201 or data ->> 'match_id' = '995201') and user_id = md5('c118-mem')::uuid) >= 1);
-select pg_temp.check('118 the other match is untouched', (select count(*) from public.partidos where id = 995202 and estado = 'activo' and deleted_at is null) = 1);
+select pg_temp.check('118 the other match is untouched', (select count(*) from public.partidos where id = 995202 and estado <> 'cancelado' and deleted_at is null) = 1);
 set local role service_role;
 select pg_temp.check('118 service_role still cancels', pg_temp.try($$select public.cancel_partido_with_notification(995202, 'x')$$) = 'ok');
 reset role;

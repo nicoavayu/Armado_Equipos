@@ -242,3 +242,50 @@ select pg_temp.check('145 organizer: a SECURITY DEFINER caller still notifies (c
   pg_temp.try($$select public.cancel_partido_with_notification(995002, 'Lluvia')$$) = 'ok');
 reset role;
 select pg_temp.check('145 the cancellation reached the roster', (select count(*) from public.notifications where partido_id = 995002 and type = 'match_cancelled') >= 1);
+
+-- ---------- open SECURITY DEFINER writers (118/146) ----------
+insert into public.teams (id, owner_user_id, name, format) values
+  ('22222222-2222-2222-2222-222222222201', md5('smoke-org')::uuid, 'Equipo Org', 5),
+  ('22222222-2222-2222-2222-222222222202', md5('smoke-mem')::uuid, 'Equipo Mem', 5);
+select pg_temp.check('146 a team match insert still runs the bridge trigger (owner path)',
+  pg_temp.try($$insert into public.team_matches (id, team_a_id, team_b_id, format) values ('33333333-3333-3333-3333-333333333301', '22222222-2222-2222-2222-222222222201', '22222222-2222-2222-2222-222222222202', 5)$$) = 'ok');
+select set_config('request.jwt.claims', '{"role":"anon"}', true);
+select set_config('request.jwt.claim.sub', '', true);
+set local role anon;
+select pg_temp.check('146 anon: none of the open writers is callable',
+  pg_temp.try($$select public.cancel_partido_with_notification(995001, 'x')$$) like '42501%'
+  and pg_temp.try($$select public.process_match_reminder_notifications_backend(5, 10)$$) like '42501%'
+  and pg_temp.try($$select public.mark_match_assumed_not_played(995001, 'x')$$) like '42501%'
+  and pg_temp.try($$select public.rpc_crear_partido_debug('{}'::jsonb)$$) like '42501%'
+  and pg_temp.try($$select public.compute_awards_for_match(995003)$$) like '42501%'
+  and pg_temp.try($$select public.send_match_kicked_notification(md5('smoke-mem')::uuid, 995001, 'x', null, now())$$) like '42501%'
+  and pg_temp.try($$select public.sync_team_match_to_partido('33333333-3333-3333-3333-333333333301')$$) like '42501%'
+  and pg_temp.try($$select public.prepare_challenge_team_squad(gen_random_uuid(), true)$$) like '42501%');
+reset role;
+select pg_temp.as_user(md5('smoke-stranger')::uuid);
+set local role authenticated;
+select pg_temp.check('146 stranger: no jobs, no kick notice, no team sync, no squad, no cancel',
+  pg_temp.try($$select public.process_survey_start_notifications_backend(60, 10)$$) like '42501%'
+  and pg_temp.try($$select public.update_delivery_status(gen_random_uuid(), 'sent', null)$$) like '42501%'
+  and pg_temp.try($$select public.send_match_kicked_notification(md5('smoke-mem')::uuid, 995001, 'x', auth.uid(), now())$$) like '42501%'
+  and pg_temp.try($$select public.sync_team_match_to_partido('33333333-3333-3333-3333-333333333301')$$) like '42501%'
+  and pg_temp.try($$select public.prepare_challenge_team_squad(gen_random_uuid(), true)$$) like '42501%'
+  and pg_temp.try($$select public.cancel_partido_with_notification(995001, 'x')$$) like '42501%');
+reset role;
+select pg_temp.as_user(md5('smoke-org')::uuid);
+set local role authenticated;
+select pg_temp.check('146 organizer: sends the kick notice (1.1.21)',
+  pg_temp.try($$select public.send_match_kicked_notification(md5('smoke-mem')::uuid, 995001, 'Abierto smoke', auth.uid(), now())$$) = 'ok');
+select pg_temp.check('146 team owner: syncs its team match (1.1.21)',
+  pg_temp.try($$select public.sync_team_match_to_partido('33333333-3333-3333-3333-333333333301')$$) = 'ok');
+reset role;
+select pg_temp.as_user(md5('smoke-mem')::uuid);
+set local role authenticated;
+select pg_temp.check('146 the other team''s owner syncs it too', pg_temp.try($$select public.sync_team_match_to_partido('33333333-3333-3333-3333-333333333301')$$) = 'ok');
+reset role;
+select pg_temp.check('146 jobs still run as the owner (pg_cron path)',
+  pg_temp.try($$select public.process_match_reminder_notifications_backend(5, 10)$$) = 'ok'
+  and pg_temp.try($$select public.process_survey_start_notifications_backend(60, 10)$$) = 'ok');
+set local role service_role;
+select pg_temp.check('146 service_role keeps EXECUTE', pg_temp.try($$select public.update_delivery_status(gen_random_uuid(), 'sent', null)$$) = 'ok');
+reset role;

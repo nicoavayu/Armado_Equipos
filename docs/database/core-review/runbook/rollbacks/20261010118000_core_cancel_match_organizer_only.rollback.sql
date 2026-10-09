@@ -20,13 +20,14 @@ begin
     'create or replace function public.cancel_partido_with_notification(p_partido_id bigint, p_reason text default %L::text) '
     'returns jsonb language plpgsql security definer as %s',
     'Partido cancelado', quote_literal(v_saved.prosrc));
-  execute format('revoke all on function %s from public, anon, authenticated, service_role', v_fn);
-  for r in select * from aclexplode(v_saved.acl::aclitem[]) where privilege_type = 'EXECUTE' loop
-    if r.grantee = 0 then
-      execute format('grant execute on function %s to public', v_fn);
-    elsif pg_get_userbyid(r.grantee) in ('anon', 'authenticated', 'service_role') then
-      execute format('grant execute on function %s to %I', v_fn, pg_get_userbyid(r.grantee));
-    end if;
+  -- Same entries in the same order as before: revoke every current grantee (the owner too),
+  -- then grant again in the saved order.
+  for r in select distinct a.grantee from pg_proc p, aclexplode(p.proacl) a where p.oid = v_fn loop
+    execute format('revoke all on function %s from %s', v_fn, case when r.grantee = 0 then 'public' else quote_ident(pg_get_userbyid(r.grantee)) end);
+  end loop;
+  for r in select a.grantee from aclexplode(v_saved.acl::aclitem[]) with ordinality a(grantor, grantee, privilege_type, is_grantable, ord)
+           where a.privilege_type = 'EXECUTE' order by a.ord loop
+    execute format('grant execute on function %s to %s', v_fn, case when r.grantee = 0 then 'public' else quote_ident(pg_get_userbyid(r.grantee)) end);
   end loop;
   if md5((select prosrc from pg_proc where oid = v_fn)) <> md5(v_saved.prosrc) then
     raise exception 'cancel_partido_with_notification body not restored';
