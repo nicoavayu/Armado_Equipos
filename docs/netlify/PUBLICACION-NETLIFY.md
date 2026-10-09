@@ -45,6 +45,16 @@ producción del sitio de prueba.
   - 0 secretos: ni el hash ni el secreto del gate, ni `SENTRY_AUTH_TOKEN`, `service_role`, `sb_secret_` o tokens de
     Mercado Pago.
 
+- **Preview real del commit `a716ba45`** (#194, contexto `deploy-preview`, con las variables de Production ya cargadas
+  en el sitio):
+  - 95 archivos JS con `REACT_APP_DEPLOY_ENV:"preview"` y `REACT_APP_TORNEOS_PRODUCTION_ENABLED:"false"` como único
+    flag de Torneos: los valores de Production no llegan a las previews;
+  - 0 coincidencias en 6 patrones de secretos;
+  - `X-XSS-Protection` presente y `X-Robots-Tag: noindex` puesto por Netlify en la preview.
+  - Ningún deploy de producción nuevo: el publicado sigue siendo `9c40146d`.
+- **CI local de `a716ba45`:** `test:ci` completo con exit 0, Jest 3699/3699 (386 suites), hosting 15/15 y el resto de
+  las suites como antes.
+
 ### `vercel.json` (en el candidato): `"git": {"deploymentEnabled": {"main": false}}`
 
 - **Efecto:** el merge de #192 **no publica nada en Vercel**. Vercel lee la configuración del commit que va a
