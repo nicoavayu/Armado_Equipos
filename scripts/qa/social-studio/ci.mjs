@@ -57,7 +57,9 @@ for (const width of [320, 390]) {
 }
 expect(has('FREE authorize payloads'), 'FREE authorization payloads (Base, three pieces, Arma2 signature)');
 expect(has('FREE: Resultados keeps the chosen format (switch and refresh)'), 'D3: Resultados keeps the chosen format');
-expect(has('FREE premium style previewed and locked'), 'FREE: Premium styles previewed and locked');
+expect(has('FREE premium style previewed and locked'), 'FREE: Premium styles previewed and locked (behind the Premium veil)');
+expect(checks.filter((c) => c.name === 'sparse content starts under the title').length === 32,
+  'sparse content: 4 pieces × 4 Premium styles × 2 formats start under the title');
 expect(has('PREMIUM Base signature optional; Premium styles white-label'), 'branding: Arma2 signature optional on PREMIUM Base, white-label styles');
 expect(has('Figura photo/drag/zoom/reset'), 'Figura photo, focal point, zoom and reset');
 expect(has('Editorial multi-page'), 'Editorial multi-page export');

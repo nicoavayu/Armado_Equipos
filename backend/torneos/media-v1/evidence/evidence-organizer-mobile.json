@@ -1,0 +1,61 @@
+[
+  {
+    "scenario": "organizer-upload",
+    "form": "mobile",
+    "elapsedMs": 491,
+    "queue": [
+      {
+        "status": "pending_review",
+        "error": null
+      },
+      {
+        "status": "pending_review",
+        "error": null
+      },
+      {
+        "status": "pending_review",
+        "error": null
+      },
+      {
+        "status": "pending_review",
+        "error": null
+      },
+      {
+        "status": "invalid",
+        "error": "Las fotos HEIC del iPhone no se pueden subir así. Elegilas desde la app Fotos del iPhone (se convierten solas a JPEG) o exportalas como JPEG."
+      },
+      {
+        "status": "error",
+        "error": "No pudimos abrir esta imagen."
+      }
+    ]
+  },
+  {
+    "scenario": "organizer-upload-traffic",
+    "form": "mobile",
+    "uploads": [
+      {
+        "status": 201,
+        "requestBytes": 1519
+      },
+      {
+        "status": 201,
+        "requestBytes": 1519
+      },
+      {
+        "status": 201,
+        "requestBytes": 1519
+      },
+      {
+        "status": 201,
+        "requestBytes": 1519
+      }
+    ]
+  },
+  {
+    "scenario": "organizer-admin-thumbnails",
+    "form": "mobile",
+    "images": 0,
+    "bytes": 0
+  }
+]

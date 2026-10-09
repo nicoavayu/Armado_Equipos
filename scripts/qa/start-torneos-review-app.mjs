@@ -34,7 +34,17 @@ const { assertSafeQaValue, ProductionGuardError } = productionGuard;
 const STACK_PROJECT = 'arma2-torneos-qa-seed';
 const API_ORIGIN = 'http://127.0.0.1:57321';
 const DATABASE_URL = 'postgresql://postgres:postgres@127.0.0.1:57322/postgres';
-const APP_PORT = '3100';
+// El puerto es fijo por defecto. QA_TORNEOS_REVIEW_PORT sólo existe para correr dos
+// revisiones en paralelo desde worktrees distintos; las sesiones QA se emiten para
+// ese origen exacto, así que cambiarlo nunca reutiliza las de otro puerto.
+const APP_PORT = (() => {
+  const requested = String(process.env.QA_TORNEOS_REVIEW_PORT || '').trim();
+  if (!requested) return '3100';
+  if (!/^3[0-9]{3}$/.test(requested)) {
+    throw new Error('QA_TORNEOS_REVIEW_PORT tiene que ser un puerto 3000-3999.');
+  }
+  return requested;
+})();
 const APP_HOST = '127.0.0.1';
 const REVIEW_SEED_KEY = 'qa.review.supplement.v1';
 const AUTH_STATE_DIRECTORY = path.join('.secrets', 'torneos-review-auth');
@@ -42,7 +52,20 @@ const AUTH_STATE_DIRECTORY = path.join('.secrets', 'torneos-review-auth');
 // descubrirlo a mitad de una revisión, con un rol que de golpe no entra. Se
 // renuevan cuando les queda menos de una hora: siempre antes, nunca durante.
 const AUTH_STATE_MIN_SECONDS_LEFT = 3600;
-const QA_ROLES = ['owner', 'admin', 'collaborator', 'delegate', 'player', 'outsider'];
+const BASE_QA_ROLES = ['owner', 'admin', 'collaborator', 'delegate', 'player', 'outsider'];
+// CONNECTED-V1: identidades opcionales; se preparan sólo si el stack las tiene
+// (scripts/qa/seed-torneos-connected-fixtures.mjs).
+const CONNECTED_QA_ROLES = ['organizer', 'applicant', 'dual', 'revoked'];
+let QA_ROLES = BASE_QA_ROLES;
+
+function resolveQaRoles(docker) {
+  const seeded = dbValue(
+    docker,
+    "select coalesce(string_agg(raw_app_meta_data->>'qa_role', ',' order by raw_app_meta_data->>'qa_role'), '')"
+    + " from auth.users where raw_app_meta_data->>'qa_seed_key' = 'torneos-connected-v1';",
+  ).split(',').filter(Boolean);
+  return [...BASE_QA_ROLES, ...CONNECTED_QA_ROLES.filter((role) => seeded.includes(role))];
+}
 
 // Los diez flags de producto y los cinco de readiness multimedia. La lista es
 // la misma que compila la app: si allá se agrega uno, este arranque lo delata
@@ -420,7 +443,7 @@ async function verifyAuthStates(repoRoot, anonKey) {
 }
 
 /**
- * Regenera las seis sesiones con el generador canónico. No se inventa ningún
+ * Regenera las sesiones QA con el generador canónico. No se inventa ningún
  * refresh: se vuelven a firmar tokens de seis horas contra las identidades QA
  * que ya existen en el stack.
  */
@@ -461,7 +484,7 @@ function regenerateAuthStates(repoRoot, docker, anonKey) {
 }
 
 /**
- * Deja las seis sesiones utilizables o falla. Nunca se llega a la app con
+ * Deja las sesiones QA utilizables o falla. Nunca se llega a la app con
  * sesiones a medias: descubrir el vencimiento al cambiar de rol es exactamente
  * lo que este paso viene a evitar.
  */
@@ -498,6 +521,7 @@ async function main() {
   const coverage = assertFlagCoverage(repoRoot);
   const dataset = describeDataset(docker);
   const checkout = describeCheckout(repoRoot);
+  QA_ROLES = resolveQaRoles(docker);
 
   console.log('[qa:torneos:review] destino verificado');
   console.log(`  stack            ${STACK_PROJECT} (${containers} containers arriba)`);
@@ -514,6 +538,7 @@ async function main() {
   console.log(`  app              http://${APP_HOST}:${APP_PORT}`);
   console.log(`  selector de rol  http://${APP_HOST}:${APP_PORT}/qa/rol (puente en /__qa/role-switcher)`);
   console.log(`  mapa QA          http://${APP_HOST}:${APP_PORT}/qa/torneos`);
+  console.log(`  roles QA         ${QA_ROLES.join(', ')}`);
 
   if (!dataset.reviewSeed) {
     console.log('');

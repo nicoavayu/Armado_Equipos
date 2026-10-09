@@ -5,7 +5,7 @@ import {
   BASE_TOURNAMENT_LOGO_KEY,
   adaptSnapshotToBasePiece,
 } from '../features/torneos/social/base/content';
-import { FORMATS } from '../features/torneos/social/base/core';
+import { FORMATS, rowLayout } from '../features/torneos/social/base/core';
 import { PIECES } from '../features/torneos/social/base/pieces';
 import { TORNEOS_URL } from '../features/torneos/social/socialProductConfig';
 
@@ -62,5 +62,25 @@ describe('Social Studio approved Base design system', () => {
   test('uses the Torneos product landing and never the deprecated app domain', () => {
     expect(TORNEOS_URL).toBe('arma2.com.ar/torneos');
     expect(TORNEOS_URL).not.toMatch(/arma2\.app/);
+  });
+});
+
+describe('Base list layouts with few entries', () => {
+  const box = { x: 60, y: 300, w: 960, h: 900 };
+
+  test('a list starts under the title instead of floating in the middle of the body', () => {
+    // Two rows that reach their cap long before filling the body.
+    const top = rowLayout(box, 2, { min: 76, max: 250, gap: 14, align: 'top' });
+    expect(top.y).toBe(box.y);
+    expect(top.h).toBe(250);
+    // The old centered placement, still the default for hero compositions (a single final).
+    const centered = rowLayout(box, 2, { min: 76, max: 250, gap: 14 });
+    expect(centered.y).toBe(box.y + (box.h - centered.total) / 2);
+  });
+
+  test('a full list fills the body exactly as before, whatever the alignment', () => {
+    const top = rowLayout(box, 8, { min: 76, max: 250, gap: 10, align: 'top' });
+    const centered = rowLayout(box, 8, { min: 76, max: 250, gap: 10 });
+    expect(top).toEqual(centered);
   });
 });

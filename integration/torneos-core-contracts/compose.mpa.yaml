@@ -25,6 +25,8 @@ services:
     volumes:
       - ../../backend/torneos/supabase/functions/torneos-gateway/commerce.ts:/lab/functions/torneos-gateway/commerce.ts:ro
       - ../../backend/torneos/supabase/functions/torneos-gateway/commerce-test-rpc-allowlist.json:/lab/functions/torneos-gateway/commerce-test-rpc-allowlist.json:ro
+      # COMMERCE-PRODUCTION: commerce.ts also imports the production read list (used only in production mode).
+      - ../../backend/torneos/supabase/functions/torneos-gateway/commerce-production-rpc-allowlist.json:/lab/functions/torneos-gateway/commerce-production-rpc-allowlist.json:ro
       - ../../backend/torneos/supabase/functions/torneos-payments/hmac.ts:/lab/functions/torneos-payments/hmac.ts:ro
       - ../../backend/torneos/supabase/functions/torneos-payments/remote-hosts.ts:/lab/functions/torneos-payments/remote-hosts.ts:ro
   mp-stub:

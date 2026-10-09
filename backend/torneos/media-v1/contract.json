@@ -1,0 +1,99 @@
+{
+  "phase": "MEDIA-V1",
+  "mode": "TORNEOS_MEDIA_MODE=on (gateway) + REACT_APP_TORNEOS_MEDIA_MODE=on (frontend build) + pipeline mode MVP_SIMPLE (operator SQL, ACTIVATION.md)",
+  "migration": "backend/torneos/supabase/migrations/00000000000012_media_gallery_v1.sql",
+  "rollback": "backend/torneos/media-v1/rollback/00000000000012_media_gallery_v1.rollback.sql",
+  "bucket": {
+    "id": "tournament-media",
+    "public": false,
+    "file_size_limit": 4194304,
+    "allowed_mime_types": [
+      "image/jpeg",
+      "image/png",
+      "image/webp"
+    ]
+  },
+  "storage_policies": [
+    "tournament_media_client_update_denied",
+    "tournament_media_gateway_delete",
+    "tournament_media_gateway_insert",
+    "tournament_media_reader_select",
+    "tournament_media_service_delete",
+    "tournament_media_service_insert",
+    "tournament_media_service_read",
+    "tournament_media_service_update"
+  ],
+  "functions_added": [
+    "private.tournament_media_gateway_session()",
+    "public.tournament_media_thumbnail_path(text)",
+    "public.can_write_tournament_media_gateway_object(text)",
+    "public.can_delete_tournament_media_gateway_object(text)",
+    "public.can_read_tournament_media_object(text)",
+    "public.tournament_media_storage_budget_status()",
+    "public.begin_tournament_media_gallery_upload(uuid,uuid,text,bigint,bigint)",
+    "public.complete_tournament_media_gallery_upload(uuid,text,text,bigint,integer,integer,text,bigint,integer,integer,text)",
+    "public.fail_tournament_media_gallery_upload(uuid,text)",
+    "public.get_tournament_media_read_targets(uuid[],text)"
+  ],
+  "functions_replaced": [
+    "public.tournament_media_storage_contract_status()",
+    "public.tournament_media_effective_readiness()",
+    "public.get_published_tournament_media(uuid,uuid,uuid,integer,integer)"
+  ],
+  "grants_restored": [
+    "public.transition_tournament_media_asset(uuid,text,text)",
+    "public.change_tournament_media_gallery_state(uuid,text,text)",
+    "public.report_tournament_media_asset(uuid,text,text,boolean,uuid)"
+  ],
+  "rpcs": [
+    "get_tournament_media_admin_context",
+    "get_tournament_media_upload_capability",
+    "get_tournament_media_asset_processing_tiers",
+    "get_tournament_season_media_usage",
+    "create_tournament_media_gallery",
+    "update_tournament_media_gallery",
+    "cancel_tournament_media_upload_session",
+    "transition_tournament_media_asset",
+    "set_tournament_media_cover",
+    "reorder_tournament_media_item",
+    "publish_tournament_media_gallery",
+    "change_tournament_media_gallery_state",
+    "handle_tournament_media_report",
+    "get_published_tournament_media",
+    "report_tournament_media_asset"
+  ],
+  "gateway_internal_rpcs": [
+    "begin_tournament_media_gallery_upload",
+    "complete_tournament_media_gallery_upload",
+    "fail_tournament_media_gallery_upload",
+    "get_tournament_media_read_targets"
+  ],
+  "routes": {
+    "upload": "POST /torneos/media/v1/upload?gallery=<uuid>&key=<uuid>[&thumb=<bytes>] (photo image/jpeg|png|webp ≤ 4194304 bytes, then its JPEG thumbnail ≤ 524288 bytes)",
+    "urls": "POST /torneos/media/v1/urls {items:[{assetId,kind}]} (≤ 120 items, ≤ 60 per kind)"
+  },
+  "gateway_claim": "torneos_media_upload_session",
+  "signed_url_ttl_seconds": 300,
+  "not_enabled": [
+    "anonymous / public galleries",
+    "player tagging and consent management",
+    "photographer assignment",
+    "permanent erasure of a stored object (retiring = hide / revoke / archive)",
+    "PROCESSOR_EXTERNAL (worker, libvips, antivirus)"
+  ],
+  "tables_added": [
+    "public.tournament_media_storage_budget"
+  ],
+  "storage_budget_defaults": {
+    "project_max_bytes": 471859200,
+    "gallery_max_bytes": 419430400,
+    "max_inflight_uploads": 12
+  },
+  "thumbnail": {
+    "kind": "thumbnail",
+    "mime": "image/jpeg",
+    "max_edge": 640,
+    "max_bytes": 524288,
+    "path": "<uuid>/<uuid>/<uuid>/<uuid>-thumbnail.jpg"
+  }
+}

@@ -11,6 +11,9 @@ import productionGuard from './production-guard.js';
 
 const { assertLocalDatabaseTarget, assertSafeQaValue } = productionGuard;
 const ROLES = ['owner', 'admin', 'delegate', 'player', 'collaborator', 'outsider'];
+// CONNECTED-V1 (scripts/qa/seed-torneos-connected-fixtures.mjs): optional identities, signed only when seeded.
+const CONNECTED_ROLES = ['organizer', 'applicant', 'dual', 'revoked'];
+const CONNECTED_SEED_KEY = 'torneos-connected-v1';
 
 function base64UrlJson(value) {
   return Buffer.from(JSON.stringify(value)).toString('base64url');
@@ -40,7 +43,7 @@ async function main() {
   if (process.argv.length !== 3 || process.argv[2] !== '--write-local') {
     console.log(JSON.stringify({
       status: 'plan', writes: false, authMutations: false,
-      roles: ROLES,
+      roles: ROLES, optionalRoles: CONNECTED_ROLES,
       usage: 'QA_ALLOW_LOCAL_AUTH_STATES=true node scripts/qa/prepare-torneos-local-auth-states.mjs --write-local',
     }, null, 2));
     return;
@@ -78,16 +81,30 @@ async function main() {
      order by raw_app_meta_data->>'qa_role'`,
     [ROLES],
   );
+  const connected = await client.query(
+    `select id,email,email_confirmed_at,created_at,updated_at,
+            raw_app_meta_data,raw_user_meta_data
+     from auth.users
+     where raw_app_meta_data->>'qa_role'=any($1)
+       and raw_app_meta_data->>'qa_seed_key'=$2
+     order by raw_app_meta_data->>'qa_role'`,
+    [CONNECTED_ROLES, CONNECTED_SEED_KEY],
+  );
   await client.end();
   const byRole = new Map(rows.map((row) => [row.raw_app_meta_data.qa_role, row]));
   const missing = ROLES.filter((role) => !byRole.has(role));
   if (missing.length > 0 || rows.length !== ROLES.length) {
     throw new Error(`Existing QA identities are incomplete: ${missing.join(', ') || 'duplicates'}.`);
   }
+  if (new Set(connected.rows.map((row) => row.raw_app_meta_data.qa_role)).size !== connected.rows.length) {
+    throw new Error('CONNECTED-V1 QA identities are duplicated.');
+  }
+  for (const row of connected.rows) byRole.set(row.raw_app_meta_data.qa_role, row);
+  const signedRoles = [...ROLES, ...CONNECTED_ROLES.filter((role) => byRole.has(role))];
 
   fs.mkdirSync(outputDirectory, { recursive: true, mode: 0o700 });
   const now = Math.floor(Date.now() / 1000);
-  for (const role of ROLES) {
+  for (const role of signedRoles) {
     const row = byRole.get(role);
     const payload = {
       aud: 'authenticated', exp: now + 21_600, iat: now,
@@ -123,8 +140,8 @@ async function main() {
     fs.chmodSync(filePath, 0o600);
   }
   console.log(JSON.stringify({
-    status: 'created', authMutations: false, roles: ROLES,
-    outputDirectory, files: ROLES.length,
+    status: 'created', authMutations: false, roles: signedRoles,
+    outputDirectory, files: signedRoles.length,
   }, null, 2));
 }
 

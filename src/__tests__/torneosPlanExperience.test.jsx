@@ -7,11 +7,14 @@ import { TorneosCompetitionProvider } from '../features/torneos/context/TorneosC
 import { tournamentEntitlementsFixture } from '../testUtils/tournamentEntitlementsFixture';
 import { createTorneosClient } from '../features/torneos/foundation/torneosClient';
 import { createStagingV1WorkspaceService, withoutCommerce } from '../features/torneos/stagingV1/stagingV1WorkspaceService';
+import { TorneosFeaturesProvider } from '../features/torneos/context/TorneosFeaturesContext';
+import { stagingV1FeaturesFor } from '../features/torneos/stagingV1/stagingV1Features';
 const org = {id:'10000000-0000-4000-8000-000000000001', name:'Liga Devoto'};
 const seasons = [1,2].map(i => ({id:`20000000-0000-4000-8000-00000000000${i}`,name:`Temporada ${2025+i}`}));
-function show({count=2, load=async ({seasonId})=>tournamentEntitlementsFixture({seasonId}), pinned=null}={}) {
+function show({count=2, load=async ({seasonId})=>tournamentEntitlementsFixture({seasonId}), pinned=null, features=null}={}) {
  const service={loadCompetitionContext:jest.fn().mockResolvedValue({seasons:seasons.slice(0,count),tournaments:[],preference:{activeSeasonId:count ? seasons[0].id:null}}),setTournamentContext:jest.fn().mockResolvedValue({}),...(load ? {loadSeasonEntitlements:jest.fn(load)} : {})};
- const element=(seasonId)=> <MemoryRouter><TorneosCompetitionProvider organizationId={org.id} routeSeasonId={seasonId} service={service}><PlanExperiencePage organization={org}/></TorneosCompetitionProvider></MemoryRouter>;
+ const page=(seasonId)=> <TorneosCompetitionProvider organizationId={org.id} routeSeasonId={seasonId} service={service}><PlanExperiencePage organization={org}/></TorneosCompetitionProvider>;
+ const element=(seasonId)=> <MemoryRouter>{features ? <TorneosFeaturesProvider features={features}>{page(seasonId)}</TorneosFeaturesProvider> : page(seasonId)}</MemoryRouter>;
  const rendered=render(element(pinned));
  return {service,rerender:(id)=>rendered.rerender(element(id))};
 }
@@ -25,8 +28,10 @@ test.each(['FREE','PREMIUM'])('%s is confirmed for its season; no checkout is of
  expect(screen.getByText('Propietario + 10')).toBeInTheDocument();
  expect(screen.getByRole('heading',{name:'Próximamente'})).toBeInTheDocument();
 });
+// Production's composition (plan read on; Social, galería and logos off). Without a provider the legacy composition
+// turns every surface on, logo upload included, so Mi plan rightly lists Logos y escudos as available there.
 test('the FREE vs PREMIUM comparison lists only what works today; future capabilities live apart',async()=>{
- show();
+ show({features:stagingV1FeaturesFor('off',{planRead:true})});
  await screen.findByRole('heading',{name:'FREE · Temporada 2026'});
  const rows=screen.getAllByRole('row').slice(1).map(row=>row.querySelector('th').textContent);
  expect(rows).toEqual(['Fixture, partidos, actas y tabla','Página pública y comunicados','Colaboradores por temporada']);

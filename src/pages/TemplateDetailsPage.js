@@ -6,6 +6,7 @@ import { supabase } from '../supabase';
 import ConfirmModal from '../components/ConfirmModal';
 import { useAuth } from '../components/AuthProvider';
 import { crearPartidoDesdeFrec } from '../services/db/frequentMatches';
+import { templateLinkNotice } from '../services/db/templateMatchLink';
 import { findDuplicateTemplateMatch, findUserScheduleConflicts } from '../services/db/matchScheduling';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
 import { resolveNextTemplateDate } from '../utils/frequentTemplateDate';
@@ -119,6 +120,14 @@ const TemplateDetailsPage = () => {
       templateData?.modalidad || 'F5',
       cupo,
     );
+    const linkNotice = templateLinkNotice(partido?.templateLink, templateData?.nombre);
+    if (linkNotice) {
+      notifyBlockingError(linkNotice.message, {
+        title: linkNotice.title,
+        confirmText: 'Entendido',
+        key: 'template_link_notice',
+      });
+    }
     navigate(`/admin/${partido.id}`);
   };
 

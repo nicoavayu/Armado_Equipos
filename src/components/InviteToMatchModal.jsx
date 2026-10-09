@@ -204,7 +204,7 @@ const InviteToMatchModal = ({ isOpen, onClose, friend, currentUserId }) => {
 
             const { data: partidosData, error: partidosError } = await supabase
                 .from('partidos')
-                .select('id, nombre, fecha, hora, sede, modalidad, cupo_jugadores, tipo_partido, creado_por, codigo, estado, deleted_at, survey_status, result_status, finished_at, player_invites_enabled, falta_jugadores')
+                .select('id, nombre, fecha, hora, sede, modalidad, cupo_jugadores, tipo_partido, creado_por, estado, deleted_at, survey_status, result_status, finished_at, player_invites_enabled, falta_jugadores')
                 .in('id', myMatchIds)
                 .order('fecha', { ascending: true })
                 .order('hora', { ascending: true });

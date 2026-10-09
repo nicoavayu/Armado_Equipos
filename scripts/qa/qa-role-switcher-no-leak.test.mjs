@@ -13,7 +13,7 @@ import { fileURLToPath } from 'node:url';
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const AUTH_STATE_DIRECTORY = path.join(REPO_ROOT, '.secrets', 'torneos-review-auth');
 const BUILD_DIRECTORY = path.join(REPO_ROOT, 'build');
-const QA_ROLES = ['owner', 'admin', 'collaborator', 'delegate', 'player', 'outsider'];
+const QA_ROLES = ['owner', 'admin', 'collaborator', 'delegate', 'player', 'outsider', 'organizer', 'applicant', 'dual', 'revoked'];
 
 function walk(directory, extensions) {
   const found = [];

@@ -25,6 +25,7 @@ import DistanceSlider from './DistanceSlider';
 import PageTitle from '../PageTitle';
 import { PlayerCardTrigger } from '../ProfileComponents';
 import { supabase } from '../../lib/supabaseClient';
+import { readMyProfile } from '../../services/db/publicProfiles';
 import { PRIMARY_CTA_BUTTON_CLASS } from '../../styles/buttonClasses';
 import { hasValidCoordinates, toCoordinateNumber } from '../../utils/matchLocation';
 import { captureException } from '../../utils/monitoring/sentry';
@@ -856,11 +857,8 @@ export default function AvailabilityOpportunityCard() {
       const { data, error: profileError } = await runAutoMatchRefreshStep(
         AUTO_MATCH_REFRESH_STEPS.profileLocation,
         async () => {
-          const response = await supabase
-            .from('usuarios')
-            .select('latitud, longitud')
-            .eq('id', user.id)
-            .maybeSingle();
+          // Own exact location: only the owner reads it (get_my_profile).
+          const response = await readMyProfile({ columns: 'latitud, longitud' });
           if (response.error) throw response.error;
           return response;
         },

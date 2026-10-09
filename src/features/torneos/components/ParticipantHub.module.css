@@ -7,6 +7,7 @@
   --hub-muted: #aaa4b8;
   min-width: 0;
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 20px;
   color: #f8f5ff;
 }
@@ -834,4 +835,16 @@
   height: 100%;
   padding: 5px;
   object-fit: contain;
+}
+
+/* «Mis torneos» is participation; someone who also manages organizations is pointed to Gestionar, discreetly. */
+.manageHint {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.64);
+  font-size: 0.88rem;
+}
+
+.manageHint a {
+  color: #b9a8ff;
+  font-weight: 700;
 }

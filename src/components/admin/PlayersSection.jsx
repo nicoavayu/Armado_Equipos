@@ -1663,8 +1663,8 @@ const PlayersSection = ({
         />
         <ConfirmModal
           isOpen={joinSuccessModalOpen}
-          title="Te has unido!"
-          message="Podes acceder desde Mis partidos."
+          title="¡Listo, ya estás en el partido!"
+          message="Lo vas a encontrar en Mis partidos."
           confirmText="Aceptar"
           singleButton={true}
           onConfirm={() => setJoinSuccessModalOpen(false)}

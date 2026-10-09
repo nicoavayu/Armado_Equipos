@@ -1,5 +1,8 @@
 import React from 'react';
 import { DragDropContext, Draggable, Droppable } from '@hello-pangea/dnd';
+import { Check } from 'lucide-react';
+import { getInitials } from './AvatarFallback';
+import { buildHomonymHints } from '../utils/surveyRosterIdentity';
 
 const TEAM_A_ID = 'equipoA';
 const TEAM_B_ID = 'equipoB';
@@ -16,6 +19,7 @@ const resolveAvatar = (player) => player?.avatar_url || player?.foto_url || null
 
 const PlayerChip = ({
   player,
+  hint = null,
   provided,
   snapshot,
   isReplacementTarget = false,
@@ -29,21 +33,22 @@ const PlayerChip = ({
       ref={provided.innerRef}
       {...dragProps}
       {...dragHandleProps}
-      className={`group flex items-center gap-2 rounded-[5px] border border-white/20 bg-white/[0.10] px-2.5 py-2 text-left transition-all duration-150 ease-out
+      className={`group flex items-center gap-2 rounded-xl border border-white/15 bg-white/[0.08] px-2 py-1.5 text-left transition-all duration-150 ease-out
         ${snapshot.isDragging ? 'scale-[1.02] border-[#128BE9]/65 bg-[#128BE9]/18 shadow-[0_8px_24px_rgba(18,139,233,0.35)]' : 'hover:bg-white/[0.14]'}
         ${isReplacementTarget ? 'ring-2 ring-[#0EA9C6]/80 border-[#0EA9C6]/70 bg-[#0EA9C6]/15' : ''}`}
     >
-      <div className="h-8 w-8 shrink-0 overflow-hidden rounded-[5px] border border-white/20 bg-black/20">
+      <div className="h-8 w-8 shrink-0 overflow-hidden rounded-full border border-white/20 bg-black/20">
         {avatar ? (
-          <img src={avatar} alt={resolveName(player)} className="h-full w-full object-cover" />
+          <img src={avatar} alt="" className="h-full w-full object-cover" style={{ objectPosition: '50% 30%' }} />
         ) : (
-          <div className="flex h-full w-full items-center justify-center text-xs font-semibold text-white/70">
-            {resolveName(player).charAt(0)}
+          <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-blue-500 to-purple-600 text-[11px] font-bold uppercase text-white" aria-hidden="true">
+            {getInitials(resolveName(player))}
           </div>
         )}
       </div>
-      <div className="min-w-0 flex-1 text-sm font-oswald text-white/90">
-        <div className="truncate">{resolveName(player)}</div>
+      <div className="min-w-0 flex-1 text-[13px] font-oswald leading-tight text-white/90">
+        <div className="line-clamp-2 break-words">{resolveName(player)}</div>
+        {hint ? <div className="truncate text-[11px] text-white/55">{hint}</div> : null}
       </div>
     </div>
   );
@@ -54,6 +59,7 @@ const TeamColumn = ({
   droppableId,
   playerKeys,
   playersByKey = {},
+  hints = null,
   selected = false,
   onSelect,
   isDragging = false,
@@ -71,14 +77,20 @@ const TeamColumn = ({
         if (disabled && !allowWinnerSelectionWhenDisabled) return;
         onSelect?.();
       }}
-      className={`min-w-0 rounded-[5px] border p-2.5 text-left backdrop-blur-md transition-all duration-150 ease-out ${
+      className={`relative min-w-0 rounded-2xl border p-2.5 text-left transition-all duration-150 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/85 focus-visible:ring-offset-2 focus-visible:ring-offset-[#1c1442] ${
         selected
-          ? 'border-[#85CCFF]/85 bg-[linear-gradient(160deg,rgba(29,134,224,0.26)_0%,rgba(16,46,112,0.24)_100%)] shadow-[0_0_0_1px_rgba(133,204,255,0.52),0_0_24px_rgba(49,153,241,0.42),0_14px_30px_rgba(13,40,106,0.38)] ring-1 ring-[#a6dcff]/45'
-          : 'border-white/15 bg-white/[0.06]'
+          ? 'border-[#a78bfa] bg-[rgba(106,67,255,0.28)] shadow-[0_0_0_1px_rgba(167,139,250,0.85),0_0_22px_rgba(139,92,255,0.42)]'
+          : 'border-[rgba(148,134,255,0.22)] bg-white/[0.06]'
       } ${disabled && !allowWinnerSelectionWhenDisabled ? 'cursor-default' : 'cursor-pointer'}`}
     >
+      {selected ? (
+        <span className="a2-pop absolute -top-2.5 right-2.5 inline-flex items-center gap-1 rounded-pill bg-accent px-2 py-0.5 text-[11px] font-bold uppercase tracking-[0.08em] text-white shadow-glow-accent">
+          <Check size={12} strokeWidth={3} aria-hidden="true" />
+          Ganó
+        </span>
+      ) : null}
       <div className="mb-2 px-0.5">
-        <div className="font-bebas text-[22px] leading-none tracking-wide text-white/95">{title}</div>
+        <div className="truncate font-bebas text-[22px] leading-none tracking-wide text-white/95">{title}</div>
         <div className="mt-1 text-[12px] font-oswald text-white/70">{playerKeys.length} jugadores</div>
       </div>
       <Droppable droppableId={droppableId} isDropDisabled={disabled}>
@@ -106,6 +118,7 @@ const TeamColumn = ({
                   {(dragProvided, dragSnapshot) => (
                     <PlayerChip
                       player={player}
+                      hint={hints?.get(player?.uuid) || null}
                       provided={dragProvided}
                       snapshot={dragSnapshot}
                       isReplacementTarget={isReplacementTarget}
@@ -135,6 +148,8 @@ export default function TeamsDnDEditor({
   onWinnerChange,
   allowWinnerSelectionWhenDisabled = false,
 }) {
+  // Same name, no photo: a short hint tells the chips apart.
+  const homonymHints = React.useMemo(() => buildHomonymHints(Object.values(playersByKey || {})), [playersByKey]);
   const suppressSelectRef = React.useRef(false);
   const [isDragging, setIsDragging] = React.useState(false);
   const [dragTarget, setDragTarget] = React.useState(null);
@@ -250,6 +265,7 @@ export default function TeamsDnDEditor({
           droppableId={TEAM_A_ID}
           playerKeys={teamA}
           playersByKey={playersByKey}
+          hints={homonymHints}
           selected={selectedWinner === 'equipo_a'}
           isDragging={isDragging}
           dragTarget={dragTarget}
@@ -266,6 +282,7 @@ export default function TeamsDnDEditor({
           droppableId={TEAM_B_ID}
           playerKeys={teamB}
           playersByKey={playersByKey}
+          hints={homonymHints}
           selected={selectedWinner === 'equipo_b'}
           isDragging={isDragging}
           dragTarget={dragTarget}

@@ -168,17 +168,17 @@ describe('participant tournament communications', () => {
     });
   });
 
-  test('updates self preferences while explaining mandatory inbox items', async () => {
+  test('the Avisos tab says where notices arrive and offers no toggle the inbox would ignore', async () => {
     const service = createParticipantService();
     renderPanel(service);
-    await userEvent.click(await screen.findByRole('tab', { name: 'Preferencias' }));
-    expect(screen.getByText(/Push y email siguen desactivados/)).toBeInTheDocument();
-    const general = screen.getByRole('checkbox', { name: 'Comunicados generales' });
-    await userEvent.click(general);
-    await userEvent.click(screen.getByRole('button', { name: 'Guardar preferencias' }));
-    expect(service.updateNotificationPreferences).toHaveBeenCalledWith(
-      expect.objectContaining({ tournamentId: 'tournament-a', general: false }),
-    );
+    await userEvent.click(await screen.findByRole('tab', { name: 'Avisos' }));
+    expect(screen.getByText(/llegan a tu bandeja de Torneos/)).toBeInTheDocument();
+    expect(screen.getByText(/todavía no envía notificaciones push ni emails/)).toBeInTheDocument();
+    expect(screen.queryAllByRole('checkbox')).toHaveLength(0);
+    expect(screen.getByRole('link', { name: 'Ver mi perfil de Torneos' })).toHaveAttribute('href', '/torneos/perfil');
+    // The stored per-tournament toggles were never read by the inbox: the panel no longer reads or writes them.
+    expect(service.loadNotificationPreferences).not.toHaveBeenCalled();
+    expect(service.updateNotificationPreferences).not.toHaveBeenCalled();
   });
 
   test('fails closed on participant errors without keeping previous content', async () => {
@@ -224,59 +224,6 @@ describe('participant tournament communications', () => {
     resolveOld({ items: [inboxItem()], unreadCount: 1 });
     await waitFor(() => {
       expect(screen.queryByText('Cambio de horario confirmado')).not.toBeInTheDocument();
-    });
-  });
-
-  test('does not apply a late preference save to a different tournament', async () => {
-    let resolveOldSave;
-    const oldSave = new Promise((resolve) => {
-      resolveOldSave = resolve;
-    });
-    const service = createParticipantService({
-      loadNotificationPreferences: jest.fn().mockImplementation(
-        async (tournamentId) => ({
-          tournamentId,
-          general: true,
-          matchChanges: true,
-          callups: true,
-          discipline: true,
-          documents: true,
-          summaries: true,
-        }),
-      ),
-      updateNotificationPreferences: jest.fn().mockReturnValue(oldSave),
-    });
-    const view = renderPanel(service);
-    await userEvent.click(await screen.findByRole('tab', { name: 'Preferencias' }));
-    await userEvent.click(
-      screen.getByRole('checkbox', { name: 'Comunicados generales' }),
-    );
-    await userEvent.click(screen.getByRole('button', { name: 'Guardar preferencias' }));
-    view.rerender(
-      <MemoryRouter>
-        <TournamentCommunicationsPanel
-          tournamentId="tournament-b"
-          categoryId="category-b"
-          service={service}
-        />
-      </MemoryRouter>,
-    );
-    await waitFor(() => {
-      expect(screen.getByRole('checkbox', { name: 'Comunicados generales' }))
-        .toBeChecked();
-    });
-    resolveOldSave({
-      tournamentId: 'tournament-a',
-      general: false,
-      matchChanges: true,
-      callups: true,
-      discipline: true,
-      documents: true,
-      summaries: true,
-    });
-    await waitFor(() => {
-      expect(screen.getByRole('checkbox', { name: 'Comunicados generales' }))
-        .toBeChecked();
     });
   });
 });

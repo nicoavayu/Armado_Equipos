@@ -1,5 +1,5 @@
 import logger from '../utils/logger';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../supabase';
 import { handleError, AppError, ERROR_CODES } from '../lib/errorHandler';
@@ -10,6 +10,33 @@ import PageTransition from '../components/PageTransition';
 import ConfirmModal from '../components/ConfirmModal';
 import TeamsDnDEditor from '../components/TeamsDnDEditor';
 import SurveyImportantDisclaimer from '../components/survey/SurveyImportantDisclaimer';
+import SurveyStepHeader from '../components/survey/SurveyStepHeader';
+import SurveyQuestion from '../components/survey/SurveyQuestion';
+import SurveyYesNo from '../components/survey/SurveyYesNo';
+import SurveyPlayerGrid from '../components/survey/SurveyPlayerGrid';
+import SurveyActionBar, { SurveyRosterStack, SurveySelectionSummary } from '../components/survey/SurveyActionBar';
+import SurveySavedCelebration from '../components/survey/SurveySavedCelebration';
+import { surveyHaptic } from '../components/survey/surveyHaptics';
+import '../components/survey/surveyMotion.css';
+import {
+  CalendarCheck,
+  CalendarDays,
+  Check,
+  CircleHelp,
+  ClipboardX,
+  Clock3,
+  CloudRain,
+  Hand,
+  Loader2,
+  MapPin,
+  ShieldCheck,
+  Shuffle,
+  Star,
+  TriangleAlert,
+  Trophy,
+  UserX,
+  UsersRound,
+} from 'lucide-react';
 import {
   finalizeIfComplete,
   hasExistingSurveyResponse,
@@ -23,6 +50,11 @@ import { useSmartBackNavigation } from '../hooks/useSmartBackNavigation';
 import { listChallengeApprovedSquad, listTeamMatchMembers } from '../services/db/teamChallenges';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
 import { SURVEY_START_DELAY_MS } from '../config/surveyConfig';
+import {
+  isDuplicateSurveyResponseError,
+  resolveSurveySubmitErrorMessage,
+  runWithSubmitTimeout,
+} from '../utils/surveySubmitGuards';
 import { SURVEY_WINDOW_HOURS } from '../utils/surveyNotificationCopy';
 import {
   resolveEffectiveSurveyWindow,
@@ -51,6 +83,13 @@ import {
   SURVEY_CHALLENGE_DISABLED_MESSAGE,
   isChallengeLikeTeamMatchRow,
 } from '../utils/surveyChallengePolicy';
+import {
+  buildHomonymHints,
+  dedupeSurveyRoster,
+  fillMissingPlayerFields,
+  haveConflictingIdentity,
+  resolveSurveyPlayerIdentity,
+} from '../utils/surveyRosterIdentity';
 
 // Styles are now directly in Tailwind
 // import './LegacyVoting.css'; // Removed
@@ -91,6 +130,12 @@ const NOT_PLAYED_REASON_OPTIONS = [
     description: 'Cierra la encuesta sin continuar el flujo del partido jugado.',
   },
 ];
+
+const NOT_PLAYED_REASON_ICONS = {
+  absence_without_notice: UserX,
+  weather_or_pitch: CloudRain,
+  organization_issues: ClipboardX,
+};
 
 const getViewportMetrics = () => {
   if (typeof window === 'undefined') {
@@ -241,6 +286,7 @@ const resolveTeamMatchFixedTeams = ({
   if (membersA.length === 0 || membersB.length === 0) return { teamA: [], teamB: [] };
 
   const byUserId = new Map();
+  const byPlayerId = new Map();
   const byName = new Map();
   const allRosterKeys = [];
 
@@ -252,6 +298,11 @@ const resolveTeamMatchFixedTeams = ({
     const userToken = normalizeIdentityToken(player?.usuario_id);
     if (userToken && !byUserId.has(userToken)) {
       byUserId.set(userToken, key);
+    }
+
+    const playerIdNum = Number(player?.id || 0);
+    if (Number.isFinite(playerIdNum) && playerIdNum > 0 && !byPlayerId.has(playerIdNum)) {
+      byPlayerId.set(playerIdNum, key);
     }
 
     const nameToken = normalizeIdentityToken(player?.nombre);
@@ -271,6 +322,13 @@ const resolveTeamMatchFixedTeams = ({
         usedKeys.add(userKey);
         return userKey;
       }
+    }
+
+    const memberPlayerId = Number(member?.jugador_id || member?.jugador?.id || 0);
+    const playerKey = byPlayerId.get(memberPlayerId);
+    if (playerKey && !usedKeys.has(playerKey)) {
+      usedKeys.add(playerKey);
+      return playerKey;
     }
 
     const nameToken = normalizeIdentityToken(member?.jugador?.nombre);
@@ -305,90 +363,8 @@ const resolveTeamMatchFixedTeams = ({
   return { teamA: dedupTeamA, teamB: dedupTeamB };
 };
 
-const fillMissingPlayerFields = (existing, candidate) => ({
-  ...existing,
-  uuid: existing?.uuid || candidate?.uuid || null,
-  usuario_id: existing?.usuario_id || candidate?.usuario_id || null,
-  nombre: existing?.nombre || candidate?.nombre || 'Jugador',
-  avatar_url: existing?.avatar_url || candidate?.avatar_url || null,
-  score: existing?.score ?? candidate?.score ?? null,
-  is_goalkeeper: existing?.is_goalkeeper ?? candidate?.is_goalkeeper ?? false,
-});
-
-const dedupeChallengeSurveyRoster = (players = [], options = {}) => {
-  const includeLooseName = options?.includeLooseName === true;
-  const input = Array.isArray(players) ? players : [];
-  const deduped = [];
-  const tokenToIndex = new Map();
-
-  const buildIdentityTokens = (player) => {
-    const tokens = [];
-    const userToken = normalizeIdentityToken(player?.usuario_id);
-    if (userToken) tokens.push(`user:${userToken}`);
-
-    const numericId = Number(player?.id || 0);
-    if (Number.isFinite(numericId) && numericId > 0) tokens.push(`id:${numericId}`);
-
-    const uuidToken = normalizeIdentityToken(player?.uuid);
-    if (uuidToken && !uuidToken.startsWith('tm-') && !uuidToken.startsWith('member-')) {
-      tokens.push(`uuid:${uuidToken}`);
-    }
-
-    const nameToken = normalizeIdentityToken(player?.nombre);
-    if (nameToken) {
-      const avatarToken = normalizeIdentityToken(player?.avatar_url || player?.foto_url || '');
-      tokens.push(`name_avatar:${nameToken}|${avatarToken}`);
-      if (includeLooseName) {
-        tokens.push(`name:${nameToken}`);
-      }
-    }
-    return Array.from(new Set(tokens.filter(Boolean)));
-  };
-
-  input.forEach((player) => {
-    const keyToken = normalizeIdentityToken(resolvePlayerKey(player));
-    const identityTokens = buildIdentityTokens(player);
-    if (keyToken) identityTokens.push(`key:${keyToken}`);
-
-    const existingIndex = identityTokens.reduce((found, token) => (
-      found >= 0 ? found : (tokenToIndex.has(token) ? tokenToIndex.get(token) : -1)
-    ), -1);
-
-    if (existingIndex >= 0) {
-      deduped[existingIndex] = fillMissingPlayerFields(deduped[existingIndex], player);
-      const mergedTokens = buildIdentityTokens(deduped[existingIndex]);
-      const mergedKeyToken = normalizeIdentityToken(resolvePlayerKey(deduped[existingIndex]));
-      if (mergedKeyToken) mergedTokens.push(`key:${mergedKeyToken}`);
-      mergedTokens.forEach((token) => tokenToIndex.set(token, existingIndex));
-      return;
-    }
-
-    deduped.push(player);
-    const nextIndex = deduped.length - 1;
-    identityTokens.forEach((token) => tokenToIndex.set(token, nextIndex));
-  });
-
-  return deduped;
-};
-
-const resolveChallengePlayerIdentity = (player) => {
-  const userToken = normalizeIdentityToken(player?.usuario_id);
-  if (userToken) return `user:${userToken}`;
-
-  const uuidToken = normalizeIdentityToken(player?.uuid);
-  if (uuidToken && !uuidToken.startsWith('tm-') && !uuidToken.startsWith('member-')) {
-    return `uuid:${uuidToken}`;
-  }
-
-  const nameToken = normalizeIdentityToken(player?.nombre);
-  if (nameToken) return `name:${nameToken}`;
-
-  const idNum = Number(player?.id || 0);
-  if (Number.isFinite(idNum) && idNum > 0) return `id:${idNum}`;
-
-  const keyToken = normalizeIdentityToken(resolvePlayerKey(player));
-  return keyToken ? `key:${keyToken}` : null;
-};
+const dedupeChallengeSurveyRoster = dedupeSurveyRoster;
+const resolveChallengePlayerIdentity = resolveSurveyPlayerIdentity;
 
 const sanitizeTeamKeysByIdentity = ({
   teamKeys = [],
@@ -492,7 +468,13 @@ const mergeApprovedChallengeSquadIntoRoster = ({ roster = [], approvedByTeamId =
     const uuidToken = normalizeIdentityToken(player?.uuid);
     if (uuidToken && !byUuid.has(uuidToken)) byUuid.set(uuidToken, index);
     const nameToken = normalizeIdentityToken(player?.nombre);
-    if (nameToken && !byName.has(nameToken)) byName.set(nameToken, index);
+    if (nameToken) byName.set(nameToken, new Set([...(byName.get(nameToken) || []), index]));
+  };
+  // The name joins two records only when one record has it and their IDs do not disagree.
+  const indexByName = (nameToken, candidate) => {
+    const indexes = Array.from(byName.get(nameToken) || []);
+    if (indexes.length !== 1 || haveConflictingIdentity(merged[indexes[0]], candidate)) return -1;
+    return indexes[0];
   };
 
   merged.forEach((player, index) => registerIndex(player, index));
@@ -506,12 +488,6 @@ const mergeApprovedChallengeSquadIntoRoster = ({ roster = [], approvedByTeamId =
       const uuidToken = normalizeIdentityToken(jugador?.uuid);
       const nameToken = normalizeIdentityToken(jugador?.nombre);
 
-      let index = -1;
-      if (playerId && byPlayerId.has(playerId)) index = byPlayerId.get(playerId);
-      else if (userToken && byUserId.has(userToken)) index = byUserId.get(userToken);
-      else if (uuidToken && byUuid.has(uuidToken)) index = byUuid.get(uuidToken);
-      else if (nameToken && byName.has(nameToken)) index = byName.get(nameToken);
-
       const candidate = {
         id: playerId,
         uuid: jugador?.uuid || jugador?.usuario_id || `approved-${row?.id || playerId || nameToken || 'player'}`,
@@ -521,6 +497,12 @@ const mergeApprovedChallengeSquadIntoRoster = ({ roster = [], approvedByTeamId =
         score: jugador?.score ?? null,
         is_goalkeeper: false,
       };
+
+      let index = -1;
+      if (playerId && byPlayerId.has(playerId)) index = byPlayerId.get(playerId);
+      else if (userToken && byUserId.has(userToken)) index = byUserId.get(userToken);
+      else if (uuidToken && byUuid.has(uuidToken)) index = byUuid.get(uuidToken);
+      else if (nameToken) index = indexByName(nameToken, candidate);
 
       if (index >= 0) {
         merged[index] = fillMissingPlayerFields(merged[index], candidate);
@@ -736,13 +718,26 @@ const EncuestaPartido = () => {
   const { partidoId, matchId } = useParams();
   const id = partidoId ?? matchId;
   const { user } = useAuth();
-  const { fetchNotifications } = useNotifications();
+  // Public web routes (/encuesta/:id) render without a NotificationProvider.
+  const { fetchNotifications } = useNotifications() || {};
   const navigate = useNavigate();
   const { navigateWithAnimation: _navigateWithAnimation } = useAnimatedNavigation();
   const navigateBackFromSurvey = useSmartBackNavigation({ fallback: '/' });
 
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  // Set synchronously on the first tap: a second tap in the same frame cannot start
+  // another submission before `submitting` re-renders the button disabled.
+  const submitInFlightRef = useRef(false);
+  const isMountedRef = useRef(true);
+  const [submitError, setSubmitError] = useState('');
+  const [submittedNow, setSubmittedNow] = useState(false);
+  // SÍ/NO answers show as chosen only after the person taps them (defaults are not answers).
+  const [answeredChoices, setAnsweredChoices] = useState({});
+  const markAnswered = (field) => setAnsweredChoices((prev) => (prev[field] ? prev : { ...prev, [field]: true }));
+  // Steps already answered on this path, to go back and change an answer.
+  const [stepHistory, setStepHistory] = useState([]);
+  const [stepDirection, setStepDirection] = useState('forward');
   const [partido, setPartido] = useState(null);
   const [teamsConfirmed, setTeamsConfirmed] = useState(false);
   const [confirmedTeams, setConfirmedTeams] = useState({ teamA: [], teamB: [] });
@@ -762,6 +757,8 @@ const EncuestaPartido = () => {
   const [loggedRosterCount, setLoggedRosterCount] = useState(0);
   const [surveyClosed, setSurveyClosed] = useState(false);
   const [surveyClosedAt, setSurveyClosedAt] = useState(null);
+  // Only for someone who already answered: the survey has closed since (results are out).
+  const [answeredAndClosed, setAnsweredAndClosed] = useState(false);
   const [surveyUnavailableMessage, setSurveyUnavailableMessage] = useState('');
 
   const [formData, setFormData] = useState(DEFAULT_FORM_DATA);
@@ -780,6 +777,13 @@ const EncuestaPartido = () => {
   const viewportHeight = viewportMetrics.height;
 
   useScrollResetOnChange(currentStep);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   const closeSurveyModal = () => {
     setSurveyModal({ isOpen: false, title: '', message: '' });
@@ -876,6 +880,11 @@ const EncuestaPartido = () => {
       setChallengeSurveyName('');
       setChallengeSurveyTeamLabels({ teamA: 'Equipo A', teamB: 'Equipo B' });
       setCurrentStep(SURVEY_STEPS.PLAYED);
+      setStepHistory([]);
+      setStepDirection('forward');
+      setAnsweredChoices({});
+      setSubmittedNow(false);
+      setSubmitError('');
       setFormData({ ...DEFAULT_FORM_DATA });
       setLinkedPlayerId(null);
       setLinkedPlayerIds([]);
@@ -1303,6 +1312,8 @@ const EncuestaPartido = () => {
           now: Date.now(),
         });
 
+        setAnsweredAndClosed(Boolean(hasSubmitted && closedState.closed));
+
         if (!hasSubmitted && closedState.closed) {
           let closedAt = closedState.finishedAt || closedState.closesAt || null;
           try {
@@ -1561,6 +1572,24 @@ const EncuestaPartido = () => {
 
   const handleInputChange = (field, value) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
+  };
+
+  // Forward moves remember where they came from, so "atrás" returns to the previous
+  // question of this path with its answer still selected.
+  const goToStep = (nextStep) => {
+    setStepHistory((prev) => [...prev, currentStep]);
+    setStepDirection('forward');
+    setSubmitError('');
+    setCurrentStep(nextStep);
+  };
+
+  const goBack = () => {
+    if (submitInFlightRef.current || stepHistory.length === 0) return;
+    const previousStep = stepHistory[stepHistory.length - 1];
+    setStepHistory(stepHistory.slice(0, -1));
+    setStepDirection('back');
+    setSubmitError('');
+    setCurrentStep(previousStep);
   };
 
   const toggleJugadorAusente = (jugadorId) => {
@@ -2040,29 +2069,27 @@ const EncuestaPartido = () => {
       return { canSubmit: false, closedAt: null };
     }
 
-    let lifecycleRow = null;
-    try {
-      const { data, error } = await supabase
+    // Independent reads: one round trip instead of two.
+    const readOrNull = async (query) => {
+      try {
+        const { data, error } = await query;
+        return error ? null : (data || null);
+      } catch (_error) {
+        return null;
+      }
+    };
+    const [lifecycleRow, lifecycleTeamMatchRow] = await Promise.all([
+      readOrNull(supabase
         .from('partidos')
         .select('survey_status, survey_opened_at, survey_closes_at, result_status, finished_at, fecha, hora')
         .eq('id', matchIdNum)
-        .maybeSingle();
-      if (!error) lifecycleRow = data || null;
-    } catch (_error) {
-      lifecycleRow = null;
-    }
-
-    let lifecycleTeamMatchRow = null;
-    try {
-      const { data, error } = await supabase
+        .maybeSingle()),
+      readOrNull(supabase
         .from('team_matches')
         .select('scheduled_at')
         .eq('partido_id', matchIdNum)
-        .maybeSingle();
-      if (!error) lifecycleTeamMatchRow = data || null;
-    } catch (_teamMatchError) {
-      lifecycleTeamMatchRow = null;
-    }
+        .maybeSingle()),
+    ]);
 
     const lifecycleMatchStartAt = resolveSurveyMatchStartAt({
       partidoRow: lifecycleRow,
@@ -2135,9 +2162,75 @@ const EncuestaPartido = () => {
     },
   });
 
+  // After the answer is saved: closing the survey and computing results/awards when this
+  // was the last voter. It does not change what the person sees (the saved screen), so it
+  // runs after showing it instead of keeping the button busy for ~10 more round trips.
+  const reconcileSurveyAfterSubmit = async (matchIdNum, trace) => {
+    let finalizeResult = null;
+    try {
+      finalizeResult = await trace.measure(
+        'background.finalizeIfComplete',
+        () => finalizeIfComplete(matchIdNum, { trace }),
+      );
+      trace.mark('finalizeIfComplete_result', {
+        done: finalizeResult?.done === true,
+        alreadyClosed: finalizeResult?.alreadyClosed === true,
+        closedByThisCall: finalizeResult?.closedByThisCall === true,
+        surveyStatus: finalizeResult?.survey_status || null,
+        expectedVoters: finalizeResult?.expectedVoters ?? null,
+        submissionsCount: finalizeResult?.submissionsCount ?? null,
+        remainingVotes: finalizeResult?.remainingVotes ?? null,
+        deadlineReached: finalizeResult?.deadlineReached === true,
+        allEligibleVoted: finalizeResult?.allEligibleVoted === true,
+        triggeredByLastVoter: finalizeResult?.triggeredByLastVoter === true,
+      });
+    } catch (e) {
+      logger.warn('[finalizeIfComplete] non-blocking error:', e);
+      trace.mark('finalizeIfComplete_non_blocking_error', {
+        message: e?.message || String(e),
+        code: e?.code || null,
+      });
+    }
+
+    let postSubmitSubmissionGate = null;
+    if (shouldRecheckPostSubmitSubmissionGate(finalizeResult)) {
+      try {
+        postSubmitSubmissionGate = await trace.measure(
+          'background.ensureSurveyCanReceiveSubmission',
+          () => ensureSurveyCanReceiveSubmission(),
+        );
+      } catch (_submissionGateError) {
+        postSubmitSubmissionGate = null;
+      }
+    }
+
+    const postSubmitUiState = resolvePostSubmitCompletionUiState({
+      finalizeResult,
+      submissionGate: postSubmitSubmissionGate,
+    });
+    if (!isMountedRef.current) return;
+    setSurveyClosed(postSubmitUiState.shouldMarkSurveyClosed);
+    setSurveyClosedAt(postSubmitUiState.closedAt || null);
+    setEncuestaFinalizada(postSubmitUiState.shouldMarkSurveyClosed);
+    trace.mark('background.reconciled', {
+      shouldMarkSurveyClosed: postSubmitUiState.shouldMarkSurveyClosed,
+      closedAt: postSubmitUiState.closedAt || null,
+    });
+
+    // NO auto-limpiamos el partido de "Mis partidos" al completar la encuesta.
+    // La tarjeta post-partido ahora tiene su propio ciclo de vida (pagos): la
+    // visibilidad la decide shouldShowPostMatchCard. Para el admin la tarjeta
+    // debe seguir visible hasta que cierre los pagos/partido desde la pantalla
+    // de pagos (o se cumpla la ventana de 7 días); para el jugador, sigue
+    // visible si tiene un pago pendiente. Limpiar acá ocultaba la gestión de
+    // pagos del admin apenas completaba su propia encuesta (bug crítico).
+    trace.mark('clearMatchFromList_skipped_post_match_card_owns_lifecycle');
+  };
+
   const continueSubmitFlow = async ({ skipPersistTeams = false, trace: incomingTrace = null } = {}) => {
     const trace = incomingTrace || createSubmitTrace('continueSubmitFlow', { skipPersistTeams });
     let submitStatus = 'unknown';
+    setSubmitError('');
     try {
       trace.mark('flow_start', { skipPersistTeams });
 
@@ -2148,16 +2241,6 @@ const EncuestaPartido = () => {
       }
 
       const matchIdNum = Number(id);
-      const submissionGate = await trace.measure(
-        'pre_validation.ensureSurveyCanReceiveSubmission',
-        () => ensureSurveyCanReceiveSubmission(),
-      );
-      if (!submissionGate.canSubmit) {
-        enforceSurveyClosedUiState(submissionGate.closedAt);
-        submitStatus = 'survey_closed_before_insert';
-        return;
-      }
-
       const currentUserSurveyPlayerIds = resolveCurrentUserSurveyPlayerIds();
       const canonicalSurveyPlayerId = resolveCanonicalSurveyPlayerId({
         primaryPlayerId: linkedPlayerId,
@@ -2168,14 +2251,27 @@ const EncuestaPartido = () => {
         submitStatus = 'invalid_survey_player';
         return;
       }
-      const hasExistingResponse = await trace.measure(
-        'pre_validation.hasExistingSurveyResponse',
-        () => hasExistingSurveyResponse({
-          partidoId: matchIdNum,
-          playerIds: currentUserSurveyPlayerIds,
-        }),
-        { playerIdsCount: currentUserSurveyPlayerIds.length },
-      );
+
+      // "Is it still open?" and "did I already answer?" are independent reads: one round trip.
+      const [submissionGate, hasExistingResponse] = await runWithSubmitTimeout(() => Promise.all([
+        trace.measure(
+          'pre_validation.ensureSurveyCanReceiveSubmission',
+          () => ensureSurveyCanReceiveSubmission(),
+        ),
+        trace.measure(
+          'pre_validation.hasExistingSurveyResponse',
+          () => hasExistingSurveyResponse({
+            partidoId: matchIdNum,
+            playerIds: currentUserSurveyPlayerIds,
+          }),
+          { playerIdsCount: currentUserSurveyPlayerIds.length },
+        ),
+      ]));
+      if (!submissionGate.canSubmit) {
+        enforceSurveyClosedUiState(submissionGate.closedAt);
+        submitStatus = 'survey_closed_before_insert';
+        return;
+      }
       if (hasExistingResponse) {
         setAlreadySubmitted(true);
         setEncuestaFinalizada(true);
@@ -2185,10 +2281,10 @@ const EncuestaPartido = () => {
 
       const outcome = resolveSurveyOutcome();
       if (outcome.seJugo && !skipPersistTeams && (!shouldDisableTeamReorganization || isTeamChallengeSurvey)) {
-        const persistResult = await trace.measure(
+        const persistResult = await runWithSubmitTimeout(() => trace.measure(
           'pre_validation.persistSurveyTeamsDefinition',
           () => persistSurveyTeamsDefinition(),
-        );
+        ));
         if (!persistResult.ok) {
           openSurveyModal(persistResult.message, 'No se pudieron guardar los equipos');
           submitStatus = 'persist_teams_failed';
@@ -2228,17 +2324,20 @@ const EncuestaPartido = () => {
         created_at: new Date().toISOString(),
       };
 
-      const insertResult = await trace.measure(
-        'db.insert_post_match_surveys',
-        () => supabase
-          .from('post_match_surveys')
-          .insert([surveyData]),
-        {
-          seJugo: outcome.seJugo,
-          absentCount: ausentesIds.length,
-          violentCount: violentosIds.length,
+      const insertSurvey = (payload, label, details = {}) => runWithSubmitTimeout((signal) => trace.measure(
+        label,
+        () => {
+          const request = supabase.from('post_match_surveys').insert([payload]);
+          return signal && typeof request.abortSignal === 'function' ? request.abortSignal(signal) : request;
         },
-      );
+        details,
+      ));
+
+      const insertResult = await insertSurvey(surveyData, 'db.insert_post_match_surveys', {
+        seJugo: outcome.seJugo,
+        absentCount: ausentesIds.length,
+        violentCount: violentosIds.length,
+      });
       let insertError = insertResult.error || null;
       let usedLegacySurveyInsert = false;
 
@@ -2248,15 +2347,18 @@ const EncuestaPartido = () => {
         delete legacySurveyData.ganador;
         delete legacySurveyData.resultado;
         usedLegacySurveyInsert = true;
-        const legacyRes = await trace.measure(
-          'db.insert_post_match_surveys_legacy_retry',
-          () => supabase.from('post_match_surveys').insert([legacySurveyData]),
-        );
+        const legacyRes = await insertSurvey(legacySurveyData, 'db.insert_post_match_surveys_legacy_retry');
         insertError = legacyRes.error || null;
       }
+
+      // Unique per match and voter: a double tap or a retry after a lost response is
+      // already saved, not an error.
+      const alreadyStored = Boolean(insertError) && isDuplicateSurveyResponseError(insertError);
+      if (alreadyStored) insertError = null;
       trace.mark('db.insert_post_match_surveys_result', {
         ok: !insertError,
         usedLegacySurveyInsert,
+        alreadyStored,
       });
 
       if (insertError) {
@@ -2264,89 +2366,35 @@ const EncuestaPartido = () => {
         throw insertError;
       }
 
-      let finalizeResult = null;
-      try {
-        finalizeResult = await trace.measure(
-          'finalizeIfComplete',
-          () => finalizeIfComplete(matchIdNum, { trace }),
-        );
-        trace.mark('finalizeIfComplete_result', {
-          done: finalizeResult?.done === true,
-          alreadyClosed: finalizeResult?.alreadyClosed === true,
-          closedByThisCall: finalizeResult?.closedByThisCall === true,
-          surveyStatus: finalizeResult?.survey_status || null,
-          expectedVoters: finalizeResult?.expectedVoters ?? null,
-          submissionsCount: finalizeResult?.submissionsCount ?? null,
-          remainingVotes: finalizeResult?.remainingVotes ?? null,
-          deadlineReached: finalizeResult?.deadlineReached === true,
-          allEligibleVoted: finalizeResult?.allEligibleVoted === true,
-          triggeredByLastVoter: finalizeResult?.triggeredByLastVoter === true,
-        });
-      } catch (e) {
-        logger.warn('[finalizeIfComplete] non-blocking error:', e);
-        trace.mark('finalizeIfComplete_non_blocking_error', {
-          message: e?.message || String(e),
-          code: e?.code || null,
-        });
-      }
-
-      let postSubmitSubmissionGate = null;
-      if (shouldRecheckPostSubmitSubmissionGate(finalizeResult)) {
-        try {
-          postSubmitSubmissionGate = await trace.measure(
-            'post_validation.ensureSurveyCanReceiveSubmission',
-            () => ensureSurveyCanReceiveSubmission(),
-          );
-        } catch (_submissionGateError) {
-          postSubmitSubmissionGate = null;
-        }
-      } else {
-        trace.mark('post_validation.ensureSurveyCanReceiveSubmission_skipped', {
-          reason: 'finalize_result_definitive',
-          surveyStatus: finalizeResult?.survey_status || null,
-        });
-      }
-
-      const postSubmitUiState = resolvePostSubmitCompletionUiState({
-        finalizeResult,
-        submissionGate: postSubmitSubmissionGate,
-      });
-
+      // Saved: show it now. Closing the survey / results continue in the background.
+      setSubmittedNow(true);
       setAlreadySubmitted(true);
-      setSurveyClosed(postSubmitUiState.shouldMarkSurveyClosed);
-      setSurveyClosedAt(postSubmitUiState.closedAt || null);
-      setEncuestaFinalizada(postSubmitUiState.shouldMarkSurveyClosed);
-      if (postSubmitUiState.shouldMarkSurveyClosed) {
-        setCurrentStep(SURVEY_STEPS.DONE);
-      }
-      trace.mark('visual_state_updated', {
-        shouldMarkSurveyClosed: postSubmitUiState.shouldMarkSurveyClosed,
-        closedAt: postSubmitUiState.closedAt || null,
-      });
-
-      // NO auto-limpiamos el partido de "Mis partidos" al completar la encuesta.
-      // La tarjeta post-partido ahora tiene su propio ciclo de vida (pagos): la
-      // visibilidad la decide shouldShowPostMatchCard. Para el admin la tarjeta
-      // debe seguir visible hasta que cierre los pagos/partido desde la pantalla
-      // de pagos (o se cumpla la ventana de 7 días); para el jugador, sigue
-      // visible si tiene un pago pendiente. Limpiar acá ocultaba la gestión de
-      // pagos del admin apenas completaba su propia encuesta (bug crítico).
-      trace.mark('clearMatchFromList_skipped_post_match_card_owns_lifecycle');
+      trace.mark('visual_state_updated', { savedBeforeReconcile: true });
       submitStatus = 'success';
-
+      reconcileSurveyAfterSubmit(matchIdNum, trace).catch((reconcileError) => {
+        logger.warn('[ENCUESTA] post-submit reconcile failed', reconcileError);
+      });
     } catch (error) {
       submitStatus = 'error';
-      handleError(error, { showToast: true, onError: () => { } });
+      // Nothing was saved: the answers stay on screen and the button allows a retry.
+      handleError(error, { showToast: false, onError: () => { } });
+      if (isMountedRef.current) setSubmitError(resolveSurveySubmitErrorMessage(error));
     } finally {
-      setSubmitting(false);
+      submitInFlightRef.current = false;
+      if (isMountedRef.current) setSubmitting(false);
       trace.end({ status: submitStatus });
     }
   };
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
+    e?.preventDefault?.();
     const trace = createSubmitTrace('handleSubmit');
     trace.mark('click_received');
+
+    if (submitInFlightRef.current) {
+      trace.end({ status: 'blocked', reason: 'already_processing' });
+      return;
+    }
 
     if (!user || !id) {
       notifyBlockingError('Debes iniciar sesión para calificar un partido');
@@ -2385,12 +2433,13 @@ const EncuestaPartido = () => {
       return;
     }
 
+    submitInFlightRef.current = true;
     setSubmitting(true);
     await continueSubmitFlow({ trace });
   };
 
   const handleLockTeamsAndContinue = async () => {
-    if (submitting || encuestaFinalizada || alreadySubmitted) return;
+    if (submitInFlightRef.current || submitting || encuestaFinalizada || alreadySubmitted) return;
 
     if (shouldShowWinnerSelectionInOrganizeStep && !['equipo_a', 'equipo_b', 'empate'].includes(formData.ganador)) {
       openSurveyModal('Elegí quién ganó o marcá empate para finalizar la encuesta.', 'Falta seleccionar resultado');
@@ -2403,7 +2452,9 @@ const EncuestaPartido = () => {
       : null;
     trace?.mark('click_received');
 
+    submitInFlightRef.current = true;
     setSubmitting(true);
+    setSubmitError('');
     try {
       const persistResult = trace
         ? await trace.measure(
@@ -2426,20 +2477,22 @@ const EncuestaPartido = () => {
         return;
       }
 
-      setCurrentStep(SURVEY_STEPS.RESULT);
+      goToStep(SURVEY_STEPS.RESULT);
     } catch (error) {
       trace?.end({ status: 'error', reason: 'persist_teams_exception' });
-      throw error;
+      handleError(error, { showToast: false, onError: () => { } });
+      if (isMountedRef.current) setSubmitError(resolveSurveySubmitErrorMessage(error));
     } finally {
-      setSubmitting(false);
+      submitInFlightRef.current = false;
+      if (isMountedRef.current) setSubmitting(false);
     }
   };
 
   const handleNotPlayedPrimaryAction = async () => {
-    if (!selectedNotPlayedReason || submitting || encuestaFinalizada) return;
+    if (!selectedNotPlayedReason || submitInFlightRef.current || submitting || encuestaFinalizada) return;
 
     if (selectedNotPlayedReason.value === 'absence_without_notice') {
-      setCurrentStep(SURVEY_STEPS.NOT_PLAYED_ABSENTS);
+      goToStep(SURVEY_STEPS.NOT_PLAYED_ABSENTS);
       return;
     }
 
@@ -2447,13 +2500,19 @@ const EncuestaPartido = () => {
       selectedNotPlayedReason: selectedNotPlayedReason.value,
     });
     trace.mark('click_received');
+    submitInFlightRef.current = true;
     setSubmitting(true);
     await continueSubmitFlow({ trace });
   };
 
   const formatFecha = (fechaStr) => {
     try {
-      const fecha = new Date(fechaStr);
+      // 'YYYY-MM-DD' is a calendar day: parsed as UTC it showed the previous day in Argentina.
+      const calendarDay = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(fechaStr || '').trim());
+      const fecha = calendarDay
+        ? new Date(Number(calendarDay[1]), Number(calendarDay[2]) - 1, Number(calendarDay[3]))
+        : new Date(fechaStr);
+      if (Number.isNaN(fecha.getTime())) return fechaStr || 'Fecha no disponible';
       return fecha.toLocaleDateString('es-ES', {
         weekday: 'long',
         day: 'numeric',
@@ -2478,34 +2537,17 @@ const EncuestaPartido = () => {
     boxSizing: 'border-box',
   };
   const cardClass = `w-full max-w-[1180px] mx-auto h-full min-h-0 px-2.5 sm:px-4 ${isCompressedLayout ? 'pb-3 sm:pb-4' : 'pb-5 sm:pb-6'} flex flex-col overflow-hidden`;
-  const stepClass = `w-full flex-1 min-h-0 flex flex-col items-center justify-center ${isTightLayout ? 'gap-1 sm:gap-1.5 pb-0 sm:pb-0.5' : isCompressedLayout ? 'gap-1.5 sm:gap-2 pb-1 sm:pb-1.5' : 'gap-2 sm:gap-3 pb-1.5 sm:pb-2'}`;
-  const playerStepClass = `w-full flex-1 min-h-0 flex flex-col items-center justify-between gap-0 ${isCompressedLayout ? 'pb-0 sm:pb-1' : 'pb-1 sm:pb-1.5'}`;
-  const questionRowClass = 'w-full shrink-0 flex items-center justify-center pt-0';
-  const progressRowClass = `sticky top-0 z-40 w-full shrink-0 ${isCompressedLayout ? 'pt-1 sm:pt-1.5' : 'pt-1.5 sm:pt-2'}`;
   const progressGapClass = `w-full shrink-0 ${isTightLayout ? 'h-4 sm:h-5' : isCompressedLayout ? 'h-5 sm:h-6' : 'h-7 sm:h-8'}`;
   const progressActionsClass = `w-full shrink-0 flex items-start justify-end ${isTightLayout ? 'h-9 pt-1.5 sm:h-10' : isCompressedLayout ? 'h-10 pt-2 sm:h-11' : 'h-11 pt-2.5 sm:h-12'}`;
-  const contentRowClass = 'w-full flex-1 min-h-0 flex items-center justify-center overflow-visible';
-  const playerContentRowClass = `w-full flex-1 min-h-0 flex items-center justify-center overflow-visible ${isTightLayout ? 'pt-2 sm:pt-3 pb-1 sm:pb-1.5' : isCompressedLayout ? 'pt-3 sm:pt-4 pb-2 sm:pb-3' : 'pt-5 sm:pt-6 pb-3 sm:pb-4'}`;
-  const actionRowClass = `w-full shrink-0 flex items-center justify-center ${isTightLayout ? 'pt-1.5 sm:pt-2' : isCompressedLayout ? 'pt-2 sm:pt-3' : 'pt-3 sm:pt-4'}`;
-  const playerActionRowClass = `w-full shrink-0 flex items-center justify-center ${isTightLayout ? 'pt-1.5 sm:pt-2' : isCompressedLayout ? 'pt-2 sm:pt-2.5' : 'pt-2.5 sm:pt-3.5'}`;
   const logoRowClass = 'hidden';
-  const titleClass = `font-bebas text-white font-bold text-center uppercase drop-shadow-[0_8px_18px_rgba(6,9,36,0.42)] break-words w-full px-1 ${isTightLayout ? 'text-[clamp(24px,5.6vw,52px)] tracking-[0.04em] leading-[0.88]' : isCompressedLayout ? 'text-[clamp(28px,6vw,62px)] tracking-[0.048em] leading-[0.9]' : 'text-[clamp(30px,6.2vw,74px)] tracking-[0.055em] leading-[0.92]'}`;
-  const surveyBtnBaseClass = `w-full border border-[rgba(148,134,255,0.35)] bg-white/[0.08] text-white font-bebas text-center cursor-pointer transition-[opacity,background-color,border-color] duration-220 ease-out hover:bg-white/[0.14] flex items-center justify-center rounded-2xl tracking-[0.08em] shadow-[inset_0_1px_0_rgba(255,255,255,0.18),0_12px_30px_rgba(8,6,30,0.32)] disabled:opacity-55 disabled:cursor-not-allowed ${isTightLayout ? 'text-[18px] sm:text-[20px] py-2 min-h-[46px]' : isCompressedLayout ? 'text-[19px] sm:text-[22px] py-2 min-h-[48px]' : 'text-[20px] sm:text-[24px] py-2.5 min-h-[52px]'}`;
+  const titleClass = `font-bebas text-white font-bold text-center uppercase drop-shadow-[0_8px_18px_rgba(6,9,36,0.42)] break-words w-full px-1 ${isTightLayout ? 'text-[clamp(24px,5.6vw,42px)] tracking-[0.04em] leading-[0.95]' : isCompressedLayout ? 'text-[clamp(26px,6vw,48px)] tracking-[0.045em] leading-[0.95]' : 'text-[clamp(28px,6.2vw,54px)] tracking-[0.05em] leading-[0.95]'}`;
+  const surveyBtnBaseClass = `w-full border border-[rgba(148,134,255,0.35)] bg-white/[0.08] text-white font-bebas text-center cursor-pointer transition-[opacity,background-color,border-color,transform] duration-200 ease-out hover:bg-white/[0.14] active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/85 focus-visible:ring-offset-2 focus-visible:ring-offset-[#1c1442] flex items-center justify-center rounded-2xl tracking-[0.08em] shadow-[inset_0_1px_0_rgba(255,255,255,0.18),0_12px_30px_rgba(8,6,30,0.32)] disabled:opacity-55 disabled:cursor-not-allowed ${isTightLayout ? 'text-[18px] sm:text-[20px] py-2 min-h-[46px]' : isCompressedLayout ? 'text-[19px] sm:text-[22px] py-2 min-h-[48px]' : 'text-[20px] sm:text-[24px] py-2.5 min-h-[52px]'}`;
   const btnClass = `${surveyBtnBaseClass} font-bold uppercase !border-white/20 !bg-cta-gradient hover:!brightness-105 !shadow-cta`;
   const optionBtnClass = `${surveyBtnBaseClass} uppercase`;
-  const optionBtnSelectedClass = 'bg-[rgba(106,67,255,0.42)] border-[#a78bfa] shadow-[inset_0_1px_0_rgba(255,255,255,0.3),0_16px_30px_rgba(54,32,140,0.45),0_0_18px_rgba(106,67,255,0.3)]';
-  const compactPrimaryBtnClass = `${btnClass} !w-auto ${isTightLayout ? '!min-w-[128px] sm:!min-w-[150px] !px-4 sm:!px-5' : isCompressedLayout ? '!min-w-[136px] sm:!min-w-[160px] !px-4 sm:!px-5' : '!min-w-[146px] sm:!min-w-[176px] !px-5 sm:!px-6'}`;
-  const compactSecondaryBtnClass = `${optionBtnClass} !w-full !min-h-[50px] !py-2 !px-4 bg-white/[0.07] border-white/24 shadow-[inset_0_1px_0_rgba(255,255,255,0.16),0_8px_16px_rgba(7,10,35,0.22)]`;
+  const optionBtnSelectedClass = '!bg-[rgba(106,67,255,0.42)] !border-[#a78bfa] shadow-[inset_0_1px_0_rgba(255,255,255,0.3),0_16px_30px_rgba(54,32,140,0.45),0_0_18px_rgba(106,67,255,0.3)]';
   const resultSecondaryBtnClass = `${optionBtnClass} !w-auto ${isTightLayout ? '!min-h-[44px] !py-1.5 !px-4 sm:!px-5' : isCompressedLayout ? '!min-h-[46px] !py-2 !px-4 sm:!px-5' : '!min-h-[48px] !py-2 !px-5 sm:!px-6'}`;
-  const compactButtonRowClass = 'w-full max-w-[760px] mx-auto flex items-center justify-center';
-  const compactDualButtonRowClass = `w-full max-w-[760px] mx-auto flex items-center justify-center ${isCompressedLayout ? 'gap-2 sm:gap-2.5' : 'gap-2.5 sm:gap-3'}`;
-  const gridClass = `grid grid-cols-2 w-full max-w-[920px] mx-auto ${isCompressedLayout ? 'gap-2 sm:gap-2.5' : 'gap-3'}`;
-  const textClass = `text-white font-oswald text-center font-normal tracking-wide ${isCompressedLayout ? 'text-[16px] md:text-[18px]' : 'text-[18px] md:text-[20px]'}`;
-  const actionDockClass = 'w-full max-w-[980px] mx-auto flex flex-col gap-1';
   const centeredSummaryStackClass = `w-full flex-1 min-h-0 flex flex-col items-center justify-center ${isCompressedLayout ? 'gap-4 sm:gap-5' : 'gap-5 sm:gap-6'}`;
   const centeredSummaryButtonWrapClass = 'w-full max-w-[460px] sm:max-w-[500px] mx-auto';
-  const miniCardsStageClass = `w-full h-full min-h-0 overflow-visible flex items-center justify-center ${isTightLayout ? 'px-1.5 sm:px-2 pb-1 sm:pb-1.5' : isCompressedLayout ? 'px-2 sm:px-2.5 pb-1.5 sm:pb-2' : 'px-2 sm:px-3 pb-2 sm:pb-3'}`;
-  const notPlayedReasonListClass = `w-full max-w-[760px] mx-auto flex flex-col ${isCompressedLayout ? 'gap-2 sm:gap-2.5' : 'gap-3 sm:gap-3.5'}`;
   const selectedNotPlayedReason = NOT_PLAYED_REASON_OPTIONS.find((option) => option.value === formData.motivo_no_jugado) || null;
   const notPlayedPrimaryButtonLabel = selectedNotPlayedReason?.value === 'absence_without_notice' ? 'Continuar' : 'Finalizar';
 
@@ -2538,306 +2580,91 @@ const EncuestaPartido = () => {
   const progressCurrentStep = currentStep === SURVEY_STEPS.DONE
     ? progressTotalSteps
     : Math.max(currentFlowIndex + 1, 1);
-  const progressFillScale = Math.min(Math.max(progressCurrentStep / progressTotalSteps, 0), 1);
-  const progressFillPercent = Math.round(progressFillScale * 100);
-  const [animatedProgressPercent, setAnimatedProgressPercent] = useState(progressFillPercent);
+  const canGoBack = stepHistory.length > 0 && !submitting && currentStep !== SURVEY_STEPS.DONE;
 
-  useEffect(() => {
-    const animationFrame = window.requestAnimationFrame(() => {
-      setAnimatedProgressPercent(progressFillPercent);
-    });
+  const surveyMatchLabel = (isTeamChallengeSurvey && challengeSurveyName) ? challengeSurveyName : (partido?.nombre || '');
 
-    return () => window.cancelAnimationFrame(animationFrame);
-  }, [progressFillPercent]);
-
-  const renderStepProgress = () => (
-    <div className={progressRowClass}>
-      <div className="w-full">
-        <div className="h-[3px] w-full overflow-hidden rounded-full bg-white/14 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.12)]">
-          <div
-            className="h-full origin-left rounded-full transition-[width] duration-[280ms] ease-out"
-            style={{
-              width: `${animatedProgressPercent}%`,
-              background:
-                'linear-gradient(90deg, rgba(139,92,255,0.9) 0%, rgba(176,160,255,0.85) 55%, rgba(236,0,125,0.85) 100%)',
-              boxShadow: '0 0 8px rgba(139,92,255,0.35)',
-            }}
-          />
-        </div>
-      </div>
-    </div>
-  );
-
-  const renderExitSurveyButton = ({ immediate = false } = {}) => {
+  const renderExitSurveyButton = ({ immediate = false, inline = false } = {}) => {
     if (!immediate && currentStep === SURVEY_STEPS.DONE) {
       return null;
     }
 
+    const button = (
+      <button
+        type="button"
+        aria-label="Cerrar encuesta"
+        onClick={() => {
+          if (immediate) {
+            navigateBackFromSurvey();
+            return;
+          }
+          setExitSurveyModalOpen(true);
+        }}
+        className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-transparent text-[28px] leading-none text-white/78 transition-colors duration-150 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80 sm:text-[30px]"
+      >
+        <span className="-mt-[2px]" aria-hidden="true">×</span>
+      </button>
+    );
+    if (inline) return button;
+
     return (
       <div className={progressActionsClass}>
-        <button
-          type="button"
-          aria-label="Cerrar encuesta"
-          onClick={() => {
-            if (immediate) {
-              navigateBackFromSurvey();
-              return;
-            }
-            setExitSurveyModalOpen(true);
-          }}
-          className="inline-flex h-9 w-9 items-center justify-center bg-transparent text-[28px] leading-none text-white/78 transition-all duration-150 hover:text-white active:scale-[0.98] sm:h-10 sm:w-10 sm:text-[30px]"
-        >
-          <span className="-mt-[2px]">×</span>
-        </button>
+        {button}
       </div>
     );
   };
 
-  const resolveAdaptiveGridConfig = (playerCount, ratio, height) => {
-    const safeCount = Math.max(playerCount || 1, 1);
-    const safeHeight = Math.max(height || 0, 1);
-    const isWideViewport = ratio >= 0.95;
-    const isShortViewport = safeHeight <= 860;
-    const isVeryShortViewport = safeHeight <= 760;
-    let columns;
-    let rows;
+  // Busy label for the buttons that save: the tap is acknowledged at once, and nothing
+  // says "done" until the answer is stored.
+  const renderSaveButtonLabel = (label) => (submitting ? (
+    <span className="inline-flex items-center justify-center gap-2">
+      <Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" />
+      GUARDANDO…
+    </span>
+  ) : label);
 
-    if (safeCount <= 10) {
-      columns = isWideViewport ? 4 : 3;
-      if (!isWideViewport && isShortViewport && safeCount >= 8) {
-        columns += 1;
-      }
-      rows = Math.ceil(safeCount / columns);
-    } else if (safeCount <= 14) {
-      columns = isWideViewport ? 5 : 4;
-      if (!isWideViewport && isShortViewport) {
-        columns += 1;
-      }
-      rows = Math.max(isVeryShortViewport ? 2 : 3, Math.ceil(safeCount / columns));
-    } else if (safeCount <= 22) {
-      columns = isWideViewport ? 6 : 5;
-      if (!isWideViewport && isShortViewport) {
-        columns += 1;
-      }
-      rows = Math.max(isVeryShortViewport ? 3 : 4, Math.ceil(safeCount / columns));
-    } else {
-      columns = isWideViewport ? 7 : 6;
-      if (!isWideViewport && isVeryShortViewport) {
-        columns += 1;
-      }
-      rows = Math.ceil(safeCount / columns);
+  // Nothing was saved: say so next to the button that retries; the answers stay as chosen.
+  const renderSubmitError = () => (submitError ? (
+    <p role="alert" className="mt-2 text-center font-oswald text-[14px] leading-snug text-[#ffb3cf]">
+      {submitError}
+    </p>
+  ) : null);
+
+  const surveyStepPlayer = (uuid) => (uuid ? jugadores.find((player) => player.uuid === uuid) || null : null);
+
+  // What was saved, said back on the final screen (only what this path asked).
+  const buildSurveyRecap = () => {
+    const recap = [];
+    const outcome = resolveSurveyOutcome();
+    const absentCount = (formData.jugadores_ausentes || []).length;
+    if (!outcome.seJugo) {
+      recap.push({ label: '¿Se jugó?', value: 'No' });
+      if (selectedNotPlayedReason) recap.push({ label: 'Motivo', value: selectedNotPlayedReason.label });
+      if (absentCount > 0) recap.push({ label: 'Faltaron', value: `${absentCount} ${absentCount === 1 ? 'jugador' : 'jugadores'}` });
+      return recap;
     }
-
-    while (rows * columns < safeCount) {
-      rows += 1;
+    const homonymHints = buildHomonymHints(jugadores);
+    const shownName = (player) => [player.nombre, homonymHints.get(player.uuid)].filter(Boolean).join(' · ');
+    const mvpPlayer = surveyStepPlayer(formData.mvp_id);
+    if (mvpPlayer) recap.push({ label: 'Mejor jugador', value: shownName(mvpPlayer), player: mvpPlayer });
+    const goalkeeper = surveyStepPlayer(formData.arquero_id);
+    if (goalkeeper) recap.push({ label: 'Mejor arquero', value: shownName(goalkeeper), player: goalkeeper });
+    else if (formData.sin_arquero_fijo) recap.push({ label: 'Mejor arquero', value: 'No hubo' });
+    if (absentCount > 0) recap.push({ label: 'Faltaron', value: `${absentCount} ${absentCount === 1 ? 'jugador' : 'jugadores'}` });
+    if (mvpPlayer || goalkeeper || formData.sin_arquero_fijo) {
+      const dirtyCount = (formData.jugadores_violentos || []).length;
+      recap.push({
+        label: 'Partido limpio',
+        value: formData.partido_limpio || dirtyCount === 0 ? 'Sí' : `No · ${dirtyCount} ${dirtyCount === 1 ? 'marcado' : 'marcados'}`,
+      });
     }
-
-    const gap = isVeryShortViewport
-      ? safeCount >= 22 ? 4 : safeCount >= 14 ? 5 : 6
-      : isShortViewport
-        ? safeCount >= 22 ? 5 : safeCount >= 14 ? 6 : 7
-        : safeCount >= 22 ? 6 : safeCount >= 14 ? 8 : 9;
-    const nameSizeClass = safeCount >= 22 || isVeryShortViewport
-      ? 'text-[8px] sm:text-[9px]'
-      : safeCount >= 14 || isShortViewport
-        ? 'text-[9px] sm:text-[10px]'
-        : 'text-[11px] sm:text-[12px]';
-    const silhouetteSizeClass = safeCount >= 22 || isVeryShortViewport
-      ? 'h-[38%] w-[38%]'
-      : safeCount >= 14 || isShortViewport
-        ? 'h-[44%] w-[44%]'
-        : 'h-[54%] w-[54%]';
-    const gridMaxWidth = safeCount <= 10
-      ? (isWideViewport ? 980 : isShortViewport ? 860 : 760)
-      : safeCount <= 14
-        ? (isWideViewport ? 1060 : isShortViewport ? 940 : 840)
-        : (isWideViewport ? 1160 : isShortViewport ? 1020 : 920);
-    const gridPadding = isVeryShortViewport ? '2px' : isShortViewport ? '3px 2px' : '4px 3px';
-
-    return {
-      rows,
-      columns,
-      gap,
-      nameSizeClass,
-      silhouetteSizeClass,
-      gridMaxWidth,
-      gridPadding,
-    };
+    const teamALabel = isTeamChallengeSurvey ? challengeSurveyTeamLabels.teamA : 'Equipo A';
+    const teamBLabel = isTeamChallengeSurvey ? challengeSurveyTeamLabels.teamB : 'Equipo B';
+    if (formData.ganador === 'equipo_a') recap.push({ label: 'Resultado', value: `Ganó ${teamALabel}` });
+    else if (formData.ganador === 'equipo_b') recap.push({ label: 'Resultado', value: `Ganó ${teamBLabel}` });
+    else if (formData.ganador === 'empate') recap.push({ label: 'Resultado', value: 'Empate' });
+    return recap;
   };
-
-  const PlayerPhotoFallback = ({ silhouetteSizeClass }) => (
-    <div className="relative h-full w-full overflow-hidden bg-[linear-gradient(160deg,#3b2f7a_0%,#2c2362_45%,#1c1644_100%)]">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_18%,rgba(207,196,255,0.24)_0%,rgba(44,35,98,0)_66%)]" />
-      <svg
-        viewBox="0 0 160 160"
-        aria-hidden="true"
-        className={`absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-[46%] text-white/34 ${silhouetteSizeClass}`}
-      >
-        <path
-          fill="currentColor"
-          d="M80 68c14 0 25-11 25-25S94 18 80 18 55 29 55 43s11 25 25 25Zm0 10c-24 0-44 14-50 36a8 8 0 0 0 8 10h84a8 8 0 0 0 8-10c-6-22-26-36-50-36Z"
-        />
-      </svg>
-    </div>
-  );
-
-  const renderMiniPlayerCards = ({
-    isSelected,
-    onSelect,
-  }) => {
-    const playerCount = jugadores.length;
-    const adaptiveGrid = resolveAdaptiveGridConfig(playerCount, viewportRatio, viewportHeight);
-    const hasSelection = jugadores.some((candidate) => isSelected(candidate.uuid));
-    const renderGrid = ({
-      players,
-      gridConfig,
-      keyPrefix,
-      rowMinHeight = null,
-      maxHeight = '100%',
-      gridMaxWidth = gridConfig.gridMaxWidth,
-    }) => (
-      <div
-        className="mx-auto grid h-full w-full place-content-center overflow-visible"
-        style={{
-          gridTemplateColumns: `repeat(${gridConfig.columns}, minmax(0, 1fr))`,
-          gridTemplateRows: rowMinHeight
-            ? `repeat(${gridConfig.rows}, minmax(${rowMinHeight}px, auto))`
-            : `repeat(${gridConfig.rows}, minmax(0, 1fr))`,
-          gap: `${gridConfig.gap}px`,
-          maxWidth: `${gridMaxWidth}px`,
-          maxHeight,
-          minHeight: 0,
-          padding: gridConfig.gridPadding,
-        }}
-      >
-        {players.map((jugador, index) => {
-          const selected = isSelected(jugador.uuid);
-          const hasPhoto = Boolean(jugador.avatar_url || jugador.foto_url);
-          return (
-            <button
-              key={`${keyPrefix}${jugador.uuid}`}
-              type="button"
-              onClick={() => onSelect(jugador.uuid)}
-              className={`group relative h-full min-h-0 min-w-0 transform-gpu overflow-visible rounded-xl border bg-[linear-gradient(168deg,rgba(106,67,255,0.28),rgba(22,16,55,0.9))] transition-[transform,opacity,filter] duration-[260ms] ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80 ${
-                selected
-                  ? `z-20 -translate-y-[2px] ${isTightLayout ? 'scale-[1.015]' : isCompressedLayout ? 'scale-[1.022]' : 'scale-[1.035]'}`
-                  : 'z-10 translate-y-0 scale-100'
-              } ${
-                hasSelection && !selected ? 'saturate-[0.74]' : ''
-              }`}
-              style={{
-                borderColor: selected ? 'rgba(216,206,255,0.85)' : 'rgba(148,134,255,0.26)',
-                opacity: hasSelection && !selected ? 0.45 : 1,
-                boxShadow: selected
-                  ? '0 0 0 1px rgba(199,184,255,0.85), 0 0 22px rgba(139,92,255,0.4), 0 16px 26px rgba(7,5,28,0.5)'
-                  : '0 10px 18px rgba(8,6,30,0.4)',
-              }}
-            >
-              {selected ? (
-                <div className="pointer-events-none absolute -inset-1.5 rounded-[14px] bg-[radial-gradient(circle,rgba(176,160,255,0.4)_0%,rgba(176,160,255,0.12)_50%,rgba(176,160,255,0)_76%)]" />
-              ) : null}
-              <div
-                className="relative flex h-full w-full flex-col overflow-hidden rounded-xl"
-                style={{
-                  animation: 'cardIn 420ms cubic-bezier(0.22,1,0.36,1) both',
-                  animationDelay: `${Math.min(index * 16, 160)}ms`,
-                }}
-              >
-                <div className="relative h-[75%] w-full overflow-hidden bg-[#161038]">
-                  {hasPhoto ? (
-                    <img
-                      src={jugador.avatar_url || jugador.foto_url}
-                      alt={jugador.nombre}
-                      className="h-full w-full object-contain object-center bg-[#151037]"
-                      loading="lazy"
-                    />
-                  ) : (
-                    <PlayerPhotoFallback
-                      silhouetteSizeClass={gridConfig.silhouetteSizeClass}
-                    />
-                  )}
-                  <div className="pointer-events-none absolute inset-x-0 bottom-0 h-[46%] bg-gradient-to-t from-[#0a0722]/94 via-[#120d33]/55 to-transparent" />
-                </div>
-                <div className="relative flex h-[25%] w-full items-center justify-center px-1.5 bg-[linear-gradient(180deg,rgba(34,26,74,0.96)_0%,rgba(22,16,52,0.98)_100%)]">
-                  <span
-                    className={`w-full truncate text-center font-oswald font-semibold tracking-[0.035em] text-white ${gridConfig.nameSizeClass}`}
-                  >
-                    {jugador.nombre}
-                  </span>
-                </div>
-              </div>
-            </button>
-          );
-        })}
-      </div>
-    );
-
-    if (challengeSurveyPlayerSections.length > 0) {
-      return (
-        <div className={`${miniCardsStageClass} items-stretch`}>
-          <div className="w-full h-full min-h-0 max-w-[980px] overflow-y-auto overscroll-contain pr-1">
-            <div className={`mx-auto flex min-h-full w-full flex-col ${isTightLayout ? 'gap-2.5' : isCompressedLayout ? 'gap-3' : 'gap-4'}`}>
-              {challengeSurveyPlayerSections.map((section, index) => {
-                const sectionGrid = resolveAdaptiveGridConfig(
-                  section.players.length,
-                  viewportRatio,
-                  Math.max(viewportHeight - (isTightLayout ? 300 : isCompressedLayout ? 340 : 380), 360),
-                );
-                const rowMinHeight = isTightLayout
-                  ? 90
-                  : isCompressedLayout
-                    ? 98
-                    : 110;
-
-                return (
-                  <div key={section.key} className="w-full min-h-0">
-                    <div className={`flex items-center gap-3 ${index > 0 ? 'pt-1' : ''}`}>
-                      <span className={`shrink-0 font-bebas uppercase tracking-[0.08em] text-white/88 ${isTightLayout ? 'text-[16px]' : isCompressedLayout ? 'text-[17px]' : 'text-[18px]'}`}>
-                        {section.label}
-                      </span>
-                      <span className="h-px flex-1 bg-white/14" />
-                    </div>
-                    <div className={isTightLayout ? 'pt-1.5' : isCompressedLayout ? 'pt-2' : 'pt-2.5'}>
-                      {renderGrid({
-                        players: section.players,
-                        gridConfig: sectionGrid,
-                        keyPrefix: `${section.key}-`,
-                        rowMinHeight,
-                        maxHeight: 'none',
-                        gridMaxWidth: Math.min(sectionGrid.gridMaxWidth, 880),
-                      })}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-      );
-    }
-
-    return (
-      <div className={miniCardsStageClass}>
-        {renderGrid({
-          players: jugadores,
-          gridConfig: adaptiveGrid,
-          keyPrefix: 'all-',
-        })}
-      </div>
-    );
-  };
-
-  // Animation style
-  const animationStyle = `
-    @keyframes slideIn {
-      from { transform: translateY(14px); opacity: 0; }
-      to { transform: translateY(0); opacity: 1; }
-    }
-    @keyframes cardIn {
-      from { transform: translateY(12px) scale(0.96); opacity: 0; }
-      to { transform: translateY(0) scale(1); opacity: 1; }
-    }
-  `;
 
   if (loading) {
     return (
@@ -2868,11 +2695,11 @@ const EncuestaPartido = () => {
           <div className="relative z-[1] h-full w-full overflow-hidden" style={safeAreaStyle}>
             <div className={cardClass}>
               {renderExitSurveyButton({ immediate: true }) || <div className={progressGapClass} />}
-              <div className={`${centeredSummaryStackClass} animate-[slideIn_0.42s_cubic-bezier(0.22,1,0.36,1)_forwards]`}>
+              <div className={`${centeredSummaryStackClass} a2-rise`}>
                 <div className="w-full">
-                  <div className={titleClass}>
+                  <h1 id="survey-step-title" className={titleClass}>
                     ENCUESTA NO DISPONIBLE
-                  </div>
+                  </h1>
                 </div>
                 <div className="text-white text-[18px] md:text-[22px] font-oswald text-center font-normal tracking-wide leading-[1.25]">
                   {surveyUnavailableMessage}
@@ -2901,11 +2728,11 @@ const EncuestaPartido = () => {
           <div className="relative z-[1] h-full w-full overflow-hidden" style={safeAreaStyle}>
             <div className={cardClass}>
               {renderExitSurveyButton({ immediate: true }) || <div className={progressGapClass} />}
-              <div className={`${centeredSummaryStackClass} animate-[slideIn_0.42s_cubic-bezier(0.22,1,0.36,1)_forwards]`}>
+              <div className={`${centeredSummaryStackClass} a2-rise`}>
                 <div className="w-full">
-                  <div className={titleClass}>
+                  <h1 id="survey-step-title" className={titleClass}>
                     ENCUESTA CERRADA
-                  </div>
+                  </h1>
                 </div>
                 <div className="text-white text-[18px] md:text-[22px] font-oswald text-center font-normal tracking-wide leading-[1.25]">
                   {getSurveyClosedMessage(surveyClosedAt)}
@@ -2942,26 +2769,34 @@ const EncuestaPartido = () => {
         <div className="relative h-[100dvh] w-full overflow-hidden">
           <div className="absolute inset-0 overflow-hidden" style={screenBackgroundStyle} />
           <div className="relative z-[1] h-full w-full overflow-hidden" style={safeAreaStyle}>
-            <div className={cardClass}>
-              {renderExitSurveyButton({ immediate: true }) || <div className={progressGapClass} />}
-              <div className={`${centeredSummaryStackClass} animate-[slideIn_0.42s_cubic-bezier(0.22,1,0.36,1)_forwards]`}>
-                <div className="w-full">
-                  <div className="font-bebas text-[30px] md:text-[44px] text-white tracking-[0.04em] font-bold text-center leading-[1.05] uppercase drop-shadow-md break-words w-full">
-                    YA COMPLETASTE<br />LA ENCUESTA
-                  </div>
-                </div>
-                <div className="text-white text-[18px] md:text-[22px] font-oswald text-center font-normal tracking-wide leading-[1.25]">
-                  ¡Gracias por tu participación!
-                </div>
-                <div className={centeredSummaryButtonWrapClass}>
-                  <button className={btnClass} onClick={() => navigate('/')}>
-                    VOLVER AL INICIO
-                  </button>
-                </div>
-                <div className={logoRowClass}>
-                  <SurveyFooterLogo />
-                </div>
-              </div>
+            <div className="mx-auto flex h-full w-full max-w-[520px] flex-col overflow-y-auto px-3.5 pb-4">
+              <SurveyStepHeader
+                matchLabel={surveyMatchLabel}
+                stepNumber={progressTotalSteps}
+                stepCount={progressTotalSteps}
+                isDone
+                onClose={() => navigateBackFromSurvey()}
+              />
+              {submittedNow ? (
+                <SurveySavedCelebration
+                  justSaved
+                  title="¡GRACIAS POR CALIFICAR!"
+                  message="Tus respuestas quedaron guardadas."
+                  detail={`Los resultados se publicarán en ~${SURVEY_WINDOW_HOURS} horas.`}
+                  recap={buildSurveyRecap()}
+                  onHome={() => navigate('/')}
+                  buttonClassName={btnClass}
+                />
+              ) : (
+                <SurveySavedCelebration
+                  title={<>YA COMPLETASTE<br />LA ENCUESTA</>}
+                  message={answeredAndClosed ? 'La encuesta ya cerró y los resultados están listos.' : '¡Gracias por tu participación!'}
+                  detail={answeredAndClosed ? '' : 'Los resultados salen cuando cierre la encuesta.'}
+                  homeLabel={answeredAndClosed ? 'VER RESULTADOS' : 'VOLVER AL INICIO'}
+                  onHome={() => (answeredAndClosed ? navigate(`/resultados-encuesta/${partidoId || matchId}`) : navigate('/'))}
+                  buttonClassName={btnClass}
+                />
+              )}
             </div>
           </div>
         </div>
@@ -2977,11 +2812,11 @@ const EncuestaPartido = () => {
           <div className="relative z-[1] h-full w-full overflow-hidden" style={safeAreaStyle}>
             <div className={cardClass}>
               {renderExitSurveyButton({ immediate: true }) || <div className={progressGapClass} />}
-              <div className={`${centeredSummaryStackClass} animate-[slideIn_0.42s_cubic-bezier(0.22,1,0.36,1)_forwards]`}>
+              <div className={`${centeredSummaryStackClass} a2-rise`}>
                 <div className="w-full">
-                  <div className={titleClass}>
+                  <h1 id="survey-step-title" className={titleClass}>
                     ENCUESTA NO DISPONIBLE
-                  </div>
+                  </h1>
                 </div>
                 <div className="text-white text-[18px] md:text-[22px] font-oswald text-center font-normal tracking-wide leading-[1.25]">
                   No se pudieron cargar los datos del partido.
@@ -3012,604 +2847,587 @@ const EncuestaPartido = () => {
     );
   }
 
-  return (
-    <PageTransition>
-      <div className="relative h-[100dvh] w-full overflow-hidden">
-        <div className="absolute inset-0 overflow-hidden" style={screenBackgroundStyle} />
-        <div className="relative z-[1] h-full w-full overflow-hidden" style={safeAreaStyle}>
-          <style>{animationStyle}</style>
-          <div className={cardClass}>
-            {renderStepProgress()}
-            {renderExitSurveyButton() || <div className={progressGapClass} />}
-          {/* STEP 0: ¿SE JUGÓ? */}
-          {currentStep === SURVEY_STEPS.PLAYED && (
-            <div className={`${stepClass} !justify-start animate-[slideIn_0.42s_cubic-bezier(0.22,1,0.36,1)_forwards]`}>
-              <div className="w-full flex-1 min-h-0 flex flex-col items-center justify-center">
-                <div className={questionRowClass}>
-                  <div className="w-full">
-                    <div className={titleClass}>
-                      ¿SE JUGÓ EL PARTIDO?
-                    </div>
-                    {isTeamChallengeSurvey && challengeSurveyName ? (
-                      <div className={`text-center font-oswald leading-tight text-white ${isCompressedLayout ? 'mt-1 text-[16px] md:text-[18px]' : 'mt-1.5 text-[18px] md:text-[21px]'}`}>
-                        Desafío: {challengeSurveyName}
-                      </div>
-                    ) : null}
-                    <div className={`text-white font-oswald text-center font-normal tracking-wide ${isCompressedLayout ? 'mt-1.5 text-[15px] md:text-[18px]' : 'mt-2 text-[17px] md:text-[20px]'}`}>
-                      {formatFecha(partido.fecha)}<br />
-                      {partido.hora && `${partido.hora} - `}{partido.sede ? partido.sede.split(/[,(]/)[0].trim() : 'Sin ubicación'}
-                    </div>
+  const surveyShellClass = 'mx-auto flex h-full w-full max-w-[520px] flex-col px-3.5';
+  const stepContentClass = 'flex min-h-0 flex-1 flex-col';
+  // Long lists scroll under a soft fade instead of a hard edge above the buttons.
+  const scrollAreaClass = 'min-h-0 flex-1 overflow-y-auto overscroll-contain px-0.5 pb-8 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [mask-image:linear-gradient(to_bottom,#000_calc(100%-32px),transparent)]';
+  const secondaryActionClass = `${optionBtnClass} !w-auto shrink-0 !px-5`;
+  const questionTopClass = isCompressedLayout ? 'shrink-0 pt-3.5' : 'shrink-0 pt-5';
+  const sectionsForGrid = challengeSurveyPlayerSections.length > 0 ? challengeSurveyPlayerSections : null;
+
+  const renderPlayersStep = ({
+    icon,
+    title,
+    hint,
+    isSelected,
+    onSelect,
+    multiple = false,
+    selectedPlayers = [],
+    emptyLabel,
+    actions,
+    withError = false,
+  }) => (
+    <>
+      <div className={questionTopClass}>
+        <SurveyQuestion icon={icon} title={title} hint={hint} compact />
+      </div>
+      <div className={`${scrollAreaClass} pt-4`}>
+        <SurveyPlayerGrid
+          players={jugadores}
+          sections={sectionsForGrid}
+          isSelected={isSelected}
+          onSelect={onSelect}
+          multiple={multiple}
+        />
+      </div>
+      <SurveyActionBar
+        summary={(
+          <SurveySelectionSummary
+            players={selectedPlayers}
+            emptyLabel={emptyLabel}
+            hints={buildHomonymHints(jugadores)}
+          />
+        )}
+        error={withError ? renderSubmitError() : null}
+      >
+        {actions}
+      </SurveyActionBar>
+    </>
+  );
+
+  const renderStepBody = () => {
+    switch (currentStep) {
+      case SURVEY_STEPS.PLAYED:
+        return (
+          <>
+            <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-4 overflow-y-auto pt-2">
+              <SurveyQuestion
+                icon={CalendarCheck}
+                title="¿SE JUGÓ EL PARTIDO?"
+                hint="Son pocos pasos y tu voto define los premios del partido."
+                compact={isCompressedLayout}
+              >
+                {isTeamChallengeSurvey && challengeSurveyName ? (
+                  <p className="mt-1 font-oswald text-[15px] text-white/90">Desafío: {challengeSurveyName}</p>
+                ) : null}
+              </SurveyQuestion>
+              <div className="a2-survey-rise surface-card w-full max-w-[420px] px-4 py-3" style={{ animationDelay: '120ms' }}>
+                <dl className="flex flex-col gap-2 font-oswald text-[14px] text-white/90">
+                  <div className="flex items-center gap-2.5">
+                    <dt className="sr-only">Fecha</dt>
+                    <CalendarDays size={17} className="shrink-0 text-[#b9a6ff]" aria-hidden="true" />
+                    <dd className="first-letter:uppercase">{formatFecha(partido.fecha)}</dd>
                   </div>
-                </div>
-                <div className={actionRowClass}>
-                  <div className={gridClass}>
-                    <button
-                      className={`${optionBtnClass} ${formData.se_jugo ? optionBtnSelectedClass : ''}`}
-                      onClick={() => {
-                        handleInputChange('se_jugo', true);
-                        handleInputChange('motivo_no_jugado', '');
-                        if (formData.ganador === 'no_jugado') {
-                          handleInputChange('ganador', '');
-                        }
-                        setCurrentStep(
-                          compactFlowMode
-                            ? resolveNextResultGateStep({
-                              teamsConfirmed,
-                              teamsLocked,
-                              forceOrganizeTeamsStep: shouldForceOrganizeTeamsStep,
-                              disableOrganizeTeamsStep: shouldDisableTeamReorganization,
-                            })
-                            : SURVEY_STEPS.ATTENDANCE,
-                        );
-                      }}
-                      type="button"
-                    >
-                      SÍ
-                    </button>
-                    <button
-                      className={`${optionBtnClass} ${!formData.se_jugo ? optionBtnSelectedClass : ''}`}
-                      onClick={() => {
-                        handleInputChange('se_jugo', false);
-                        handleInputChange('ganador', 'no_jugado');
-                        handleInputChange('motivo_no_jugado', '');
-                        handleInputChange('jugadores_ausentes', []);
-                        setCurrentStep(SURVEY_STEPS.NOT_PLAYED_REASON);
-                      }}
-                      type="button"
-                    >
-                      NO
-                    </button>
+                  {partido.hora ? (
+                    <div className="flex items-center gap-2.5">
+                      <dt className="sr-only">Hora</dt>
+                      <Clock3 size={17} className="shrink-0 text-[#b9a6ff]" aria-hidden="true" />
+                      <dd>{partido.hora}</dd>
+                    </div>
+                  ) : null}
+                  <div className="flex items-center gap-2.5">
+                    <dt className="sr-only">Lugar</dt>
+                    <MapPin size={17} className="shrink-0 text-[#b9a6ff]" aria-hidden="true" />
+                    <dd className="min-w-0 truncate">{partido.sede ? partido.sede.split(/[,(]/)[0].trim() : 'Sin ubicación'}</dd>
                   </div>
-                </div>
+                </dl>
               </div>
-              <div className={`w-full shrink-0 ${isCompressedLayout ? 'pt-2 sm:pt-3 pb-0.5 sm:pb-1' : 'pt-3 sm:pt-4 pb-1.5 sm:pb-2'}`}>
-                <SurveyImportantDisclaimer className="mx-auto w-full max-w-[820px]" />
-              </div>
-              <div className={logoRowClass}>
-                <SurveyFooterLogo />
-              </div>
+              <SurveyImportantDisclaimer variant="survey" className="a2-survey-rise w-full max-w-[420px]" />
             </div>
-          )}
-
-          {/* STEP 1: ¿ASISTIERON TODOS? */}
-          {currentStep === SURVEY_STEPS.ATTENDANCE && (
-            <div className={`${stepClass} animate-[slideIn_0.42s_cubic-bezier(0.22,1,0.36,1)_forwards]`}>
-              <div className={questionRowClass}>
-                <div className={titleClass}>
-                  ¿ASISTIERON TODOS?
-                </div>
-              </div>
-              <div className={actionRowClass}>
-                <div className={gridClass}>
-                  <button
-                    className={optionBtnClass}
-                    onClick={() => {
-                      handleInputChange('asistieron_todos', true);
-                      setCurrentStep(SURVEY_STEPS.MVP);
-                    }}
-                    type="button"
-                  >
-                    SÍ
-                  </button>
-                  <button
-                    className={optionBtnClass}
-                    onClick={() => {
-                      handleInputChange('asistieron_todos', false);
-                      setCurrentStep(SURVEY_STEPS.ABSENTS);
-                    }}
-                    type="button"
-                  >
-                    NO
-                  </button>
-                </div>
-              </div>
-              <div className={logoRowClass}>
-                <SurveyFooterLogo />
-              </div>
-            </div>
-          )}
-
-          {/* STEP 2: MVP */}
-          {currentStep === SURVEY_STEPS.MVP && (
-            <div className={`${playerStepClass} animate-[slideIn_0.42s_cubic-bezier(0.22,1,0.36,1)_forwards]`}>
-              <div className={questionRowClass}>
-                <div className={titleClass}>
-                  ¿QUIÉN FUE EL MEJOR JUGADOR?
-                </div>
-              </div>
-              <div className={playerContentRowClass}>
-                {renderMiniPlayerCards({
-                  isSelected: (uuid) => formData.mvp_id === uuid,
-                  onSelect: (uuid) => handleInputChange('mvp_id', uuid),
-                })}
-              </div>
-              <div className={playerActionRowClass}>
-                <div className={compactButtonRowClass}>
-                  <button
-                    className={compactPrimaryBtnClass}
-                    onClick={() => setCurrentStep(SURVEY_STEPS.GOALKEEPER)}
-                    disabled={!formData.mvp_id}
-                  >
-                    SIGUIENTE
-                  </button>
-                </div>
-              </div>
-              <div className={logoRowClass}>
-                <SurveyFooterLogo />
-              </div>
-            </div>
-          )}
-
-          {/* STEP 3: ARQUERO */}
-          {currentStep === SURVEY_STEPS.GOALKEEPER && (
-            <div className={`${playerStepClass} animate-[slideIn_0.42s_cubic-bezier(0.22,1,0.36,1)_forwards]`}>
-              <div className={questionRowClass}>
-                <div className={titleClass}>
-                  ¿QUIÉN FUE EL MEJOR ARQUERO?
-                </div>
-              </div>
-              <div className={playerContentRowClass}>
-                {renderMiniPlayerCards({
-                  isSelected: (uuid) => formData.arquero_id === uuid,
-                  onSelect: (uuid) => {
-                    handleInputChange('arquero_id', uuid);
-                    handleInputChange('sin_arquero_fijo', false);
-                  },
-                })}
-              </div>
-              <div className={playerActionRowClass}>
-                <div className={compactDualButtonRowClass}>
-                  <button
-                    type="button"
-                    className={`${compactPrimaryBtnClass} ${formData.sin_arquero_fijo && !formData.arquero_id ? optionBtnSelectedClass : ''}`}
-                    onClick={() => {
-                      handleInputChange('arquero_id', '');
-                      handleInputChange('sin_arquero_fijo', true);
-                      setCurrentStep(SURVEY_STEPS.CLEAN_MATCH);
-                    }}
-                  >
-                    NO HUBO
-                  </button>
-                  <button
-                    className={compactPrimaryBtnClass}
-                    onClick={() => setCurrentStep(SURVEY_STEPS.CLEAN_MATCH)}
-                    disabled={!formData.arquero_id && !formData.sin_arquero_fijo}
-                  >
-                    SIGUIENTE
-                  </button>
-                </div>
-              </div>
-              <div className={logoRowClass}>
-                <SurveyFooterLogo />
-              </div>
-            </div>
-          )}
-
-          {/* STEP 4: ¿PARTIDO LIMPIO? */}
-          {currentStep === SURVEY_STEPS.CLEAN_MATCH && (
-            <div className={`${stepClass} animate-[slideIn_0.42s_cubic-bezier(0.22,1,0.36,1)_forwards]`}>
-              <div className={questionRowClass}>
-                <div className={titleClass}>
-                  ¿FUE UN PARTIDO LIMPIO?
-                </div>
-              </div>
-              <div className={actionRowClass}>
-                <div className={gridClass}>
-                  <button
-                    className={`${optionBtnClass} ${formData.partido_limpio ? optionBtnSelectedClass : ''}`}
-                    onClick={() => {
-                      handleInputChange('partido_limpio', true);
-                      setCurrentStep(resolveNextResultGateStep({
+            <SurveyActionBar>
+              <SurveyYesNo
+                value={answeredChoices.se_jugo ? (formData.se_jugo ? 'yes' : 'no') : null}
+                onYes={() => {
+                  markAnswered('se_jugo');
+                  handleInputChange('se_jugo', true);
+                  handleInputChange('motivo_no_jugado', '');
+                  if (formData.ganador === 'no_jugado') {
+                    handleInputChange('ganador', '');
+                  }
+                  goToStep(
+                    compactFlowMode
+                      ? resolveNextResultGateStep({
                         teamsConfirmed,
                         teamsLocked,
                         forceOrganizeTeamsStep: shouldForceOrganizeTeamsStep,
                         disableOrganizeTeamsStep: shouldDisableTeamReorganization,
-                      }));
-                    }}
-                    type="button"
-                  >
-                    SÍ
-                  </button>
-                  <button
-                    className={`${optionBtnClass} ${!formData.partido_limpio ? optionBtnSelectedClass : ''}`}
-                    onClick={() => {
-                      handleInputChange('partido_limpio', false);
-                      setCurrentStep(SURVEY_STEPS.DIRTY_PLAYERS);
-                    }}
-                    type="button"
-                  >
-                    NO
-                  </button>
-                </div>
-              </div>
-              <div className={logoRowClass}>
-                <SurveyFooterLogo />
+                      })
+                      : SURVEY_STEPS.ATTENDANCE,
+                  );
+                }}
+                onNo={() => {
+                  markAnswered('se_jugo');
+                  handleInputChange('se_jugo', false);
+                  handleInputChange('ganador', 'no_jugado');
+                  handleInputChange('motivo_no_jugado', '');
+                  handleInputChange('jugadores_ausentes', []);
+                  goToStep(SURVEY_STEPS.NOT_PLAYED_REASON);
+                }}
+              />
+            </SurveyActionBar>
+          </>
+        );
+
+      case SURVEY_STEPS.ATTENDANCE:
+        return (
+          <>
+            <div className="flex min-h-0 flex-1 flex-col items-center justify-center">
+              <SurveyQuestion
+                icon={UsersRound}
+                title="¿ASISTIERON TODOS?"
+                hint="Si faltó alguien, lo marcás en el paso siguiente."
+                compact={isCompressedLayout}
+              />
+              <div className="mt-6">
+                <SurveyRosterStack players={jugadores} />
               </div>
             </div>
-          )}
+            <SurveyActionBar>
+              <SurveyYesNo
+                value={answeredChoices.asistieron_todos ? (formData.asistieron_todos ? 'yes' : 'no') : null}
+                onYes={() => {
+                  markAnswered('asistieron_todos');
+                  handleInputChange('asistieron_todos', true);
+                  // Coming back to change NO → SÍ: nobody is absent anymore.
+                  handleInputChange('jugadores_ausentes', []);
+                  goToStep(SURVEY_STEPS.MVP);
+                }}
+                onNo={() => {
+                  markAnswered('asistieron_todos');
+                  handleInputChange('asistieron_todos', false);
+                  goToStep(SURVEY_STEPS.ABSENTS);
+                }}
+              />
+            </SurveyActionBar>
+          </>
+        );
 
-          {/* STEP 5: ¿QUIÉN GANÓ? */}
-          {currentStep === SURVEY_STEPS.RESULT && (
-            <div className={`${stepClass} animate-[slideIn_0.42s_cubic-bezier(0.22,1,0.36,1)_forwards]`}>
-              <div className={questionRowClass}>
-                <div className="w-full">
-                  <div className={titleClass}>
-                    ¿QUIÉN GANÓ?
-                  </div>
-                  {!isTeamChallengeSurvey && (
-                    <div className="mt-2 text-center font-oswald text-[13px] leading-snug text-white/75 md:text-[14px]">
-                      {teamsContextLabel}
-                    </div>
-                  )}
-                </div>
-              </div>
-              <div className={`${contentRowClass} items-start`}>
-                <div className="w-full max-w-[760px] mx-auto">
-                  {finalTeams.teamA.length > 0 && finalTeams.teamB.length > 0 ? (
-                    <div className="w-full space-y-3">
-                      <TeamsDnDEditor
-                        teamA={finalTeams.teamA}
-                        teamB={finalTeams.teamB}
-                        playersByKey={playersByKey}
-                        teamALabel={isTeamChallengeSurvey ? challengeSurveyTeamLabels.teamA : 'Equipo A'}
-                        teamBLabel={isTeamChallengeSurvey ? challengeSurveyTeamLabels.teamB : 'Equipo B'}
-                        selectedWinner={formData.ganador}
-                        onWinnerChange={(winner) => {
-                          handleInputChange('ganador', winner);
-                          handleInputChange('se_jugo', true);
-                          closeSurveyModal();
-                        }}
-                        allowWinnerSelectionWhenDisabled={finalTeamsValidation.ok}
-                        disabled={true}
-                        onChange={() => {}}
-                      />
-                    </div>
-                  ) : (
-                    <div className="h-[2px] w-full" />
-                  )}
+      case SURVEY_STEPS.MVP:
+        return renderPlayersStep({
+          icon: Star,
+          title: '¿QUIÉN FUE EL MEJOR JUGADOR?',
+          hint: 'Elegí uno. Podés cambiarlo antes de seguir.',
+          isSelected: (uuid) => formData.mvp_id === uuid,
+          onSelect: (uuid) => handleInputChange('mvp_id', uuid),
+          selectedPlayers: [surveyStepPlayer(formData.mvp_id)],
+          emptyLabel: 'Tocá a un jugador',
+          actions: (
+            <button
+              type="button"
+              className={btnClass}
+              onClick={() => goToStep(SURVEY_STEPS.GOALKEEPER)}
+              disabled={!formData.mvp_id}
+            >
+              SIGUIENTE
+            </button>
+          ),
+        });
 
-                  <div className="mt-6 sm:mt-7 flex flex-wrap items-center justify-center gap-2.5 sm:gap-3">
-                    <button
-                      type="button"
-                      className={`${resultSecondaryBtnClass} ${formData.ganador === 'empate' ? optionBtnSelectedClass : ''}`}
-                      onClick={() => {
-                        handleInputChange('ganador', 'empate');
-                        handleInputChange('se_jugo', true);
-                        closeSurveyModal();
-                      }}
-                    >
-                      EMPATE
-                    </button>
-                  </div>
-                </div>
-              </div>
-              <div className={actionRowClass}>
-                <div className={actionDockClass}>
-                  <button
-                    className={btnClass}
-                    onClick={handleSubmit}
-                    disabled={submitting || encuestaFinalizada || !formData.ganador}
-                  >
-                    FINALIZAR ENCUESTA
-                  </button>
-                </div>
-              </div>
-              <div className={logoRowClass}>
-                <SurveyFooterLogo />
-              </div>
+      case SURVEY_STEPS.GOALKEEPER:
+        return renderPlayersStep({
+          icon: Hand,
+          title: '¿QUIÉN FUE EL MEJOR ARQUERO?',
+          hint: 'Elegí uno, o «No hubo» si no hubo arquero fijo.',
+          isSelected: (uuid) => formData.arquero_id === uuid,
+          onSelect: (uuid) => {
+            handleInputChange('arquero_id', uuid);
+            handleInputChange('sin_arquero_fijo', false);
+          },
+          selectedPlayers: [surveyStepPlayer(formData.arquero_id)],
+          emptyLabel: 'Tocá a un jugador',
+          actions: (
+            <>
+              <button
+                type="button"
+                className={`${secondaryActionClass} ${formData.sin_arquero_fijo && !formData.arquero_id ? optionBtnSelectedClass : ''}`}
+                onClick={() => {
+                  handleInputChange('arquero_id', '');
+                  handleInputChange('sin_arquero_fijo', true);
+                  goToStep(SURVEY_STEPS.CLEAN_MATCH);
+                }}
+              >
+                NO HUBO
+              </button>
+              <button
+                type="button"
+                className={btnClass}
+                onClick={() => goToStep(SURVEY_STEPS.CLEAN_MATCH)}
+                disabled={!formData.arquero_id && !formData.sin_arquero_fijo}
+              >
+                SIGUIENTE
+              </button>
+            </>
+          ),
+        });
+
+      case SURVEY_STEPS.CLEAN_MATCH:
+        return (
+          <>
+            <div className="flex min-h-0 flex-1 flex-col items-center justify-center">
+              <SurveyQuestion
+                icon={ShieldCheck}
+                title="¿FUE UN PARTIDO LIMPIO?"
+                hint="Si respondés NO, marcás quién jugó sucio."
+                compact={isCompressedLayout}
+              />
             </div>
-          )}
+            <SurveyActionBar>
+              <SurveyYesNo
+                value={answeredChoices.partido_limpio ? (formData.partido_limpio ? 'yes' : 'no') : null}
+                onYes={() => {
+                  markAnswered('partido_limpio');
+                  handleInputChange('partido_limpio', true);
+                  // Coming back to change NO → SÍ: nobody is marked as dirty anymore.
+                  handleInputChange('jugadores_violentos', []);
+                  goToStep(resolveNextResultGateStep({
+                    teamsConfirmed,
+                    teamsLocked,
+                    forceOrganizeTeamsStep: shouldForceOrganizeTeamsStep,
+                    disableOrganizeTeamsStep: shouldDisableTeamReorganization,
+                  }));
+                }}
+                onNo={() => {
+                  markAnswered('partido_limpio');
+                  handleInputChange('partido_limpio', false);
+                  goToStep(SURVEY_STEPS.DIRTY_PLAYERS);
+                }}
+              />
+            </SurveyActionBar>
+          </>
+        );
 
-          {/* STEP 6: JUGADORES VIOLENTOS */}
-          {currentStep === SURVEY_STEPS.DIRTY_PLAYERS && (
-            <div className={`${playerStepClass} animate-[slideIn_0.42s_cubic-bezier(0.22,1,0.36,1)_forwards]`}>
-              <div className={questionRowClass}>
-                <div className={titleClass}>
-                  ¿QUIÉN JUGÓ SUCIO?
-                </div>
-              </div>
-              <div className={playerContentRowClass}>
-                {renderMiniPlayerCards({
-                  isSelected: (uuid) => formData.jugadores_violentos.includes(uuid),
-                  onSelect: (uuid) => toggleJugadorViolento(uuid),
-                })}
-              </div>
-              <div className={playerActionRowClass}>
-                <div className={compactButtonRowClass}>
-                  <button
-                    className={compactPrimaryBtnClass}
-                    onClick={() => {
-                      setCurrentStep(resolveNextResultGateStep({
-                        teamsConfirmed,
-                        teamsLocked,
-                        forceOrganizeTeamsStep: shouldForceOrganizeTeamsStep,
-                        disableOrganizeTeamsStep: shouldDisableTeamReorganization,
-                      }));
-                    }}
-                    disabled={formData.jugadores_violentos.length === 0}
-                  >
-                    SIGUIENTE
-                  </button>
-                </div>
-              </div>
-              <div className={logoRowClass}>
-                <SurveyFooterLogo />
-              </div>
-            </div>
-          )}
-
-          {/* STEP 7: ORGANIZAR EQUIPOS */}
-          {currentStep === SURVEY_STEPS.ORGANIZE_TEAMS && (
-            <div className={`${stepClass} !justify-start ${isCompressedLayout ? 'pt-1 sm:pt-2' : 'pt-2 sm:pt-4'} animate-[slideIn_0.42s_cubic-bezier(0.22,1,0.36,1)_forwards]`}>
-              <div className={questionRowClass}>
-                <div className="w-full">
-                  <div className={titleClass}>
-                    {shouldShowWinnerSelectionInOrganizeStep ? '¿Quién ganó el partido?' : 'ARMÁ LOS EQUIPOS COMO FINALMENTE SE JUGÓ'}
-                  </div>
-                  <div className={`text-center font-oswald leading-snug text-white/75 ${isCompressedLayout ? 'mt-1.5 text-[12px] md:text-[13px]' : 'mt-2 text-[13px] md:text-[14px]'}`}>
-                    {shouldShowWinnerSelectionInOrganizeStep ? friendlyOrganizeAndResultHelperText : organizeTeamsHelperText}
-                  </div>
-                </div>
-              </div>
-              <div className={`w-full flex-1 min-h-0 flex items-center justify-center ${isCompressedLayout ? 'pt-1.5 sm:pt-2' : 'pt-2 sm:pt-3'}`}>
-                <div className="w-full max-w-[760px] mx-auto">
+      case SURVEY_STEPS.RESULT:
+        return (
+          <>
+            <div className={`${scrollAreaClass} pt-2`}>
+              <SurveyQuestion
+                icon={Trophy}
+                title="¿QUIÉN GANÓ?"
+                hint={finalTeams.teamA.length > 0 && finalTeams.teamB.length > 0
+                  ? 'Tocá el equipo que ganó o marcá empate.'
+                  : 'Marcá el resultado del partido.'}
+                compact
+              >
+                {!isTeamChallengeSurvey ? (
+                  <p className="mt-1 max-w-[34ch] font-oswald text-[12.5px] leading-snug text-white/58">{teamsContextLabel}</p>
+                ) : null}
+              </SurveyQuestion>
+              <div className="mt-4 w-full">
+                {finalTeams.teamA.length > 0 && finalTeams.teamB.length > 0 ? (
                   <TeamsDnDEditor
                     teamA={finalTeams.teamA}
                     teamB={finalTeams.teamB}
                     playersByKey={playersByKey}
                     teamALabel={isTeamChallengeSurvey ? challengeSurveyTeamLabels.teamA : 'Equipo A'}
                     teamBLabel={isTeamChallengeSurvey ? challengeSurveyTeamLabels.teamB : 'Equipo B'}
-                    selectedWinner={shouldShowWinnerSelectionInOrganizeStep ? formData.ganador : ''}
+                    selectedWinner={formData.ganador}
                     onWinnerChange={(winner) => {
-                      if (!shouldShowWinnerSelectionInOrganizeStep) return;
+                      surveyHaptic('light');
                       handleInputChange('ganador', winner);
                       handleInputChange('se_jugo', true);
                       closeSurveyModal();
                     }}
-                    onChange={(next) => {
-                      if (shouldDisableTeamReorganization) return;
-                      setFinalTeams(next);
+                    allowWinnerSelectionWhenDisabled={finalTeamsValidation.ok}
+                    disabled={true}
+                    onChange={() => {}}
+                  />
+                ) : null}
+                <div className="mt-4 flex items-center justify-center">
+                  <button
+                    type="button"
+                    aria-pressed={formData.ganador === 'empate'}
+                    className={`${resultSecondaryBtnClass} ${formData.ganador === 'empate' ? `${optionBtnSelectedClass} a2-survey-pop` : ''}`}
+                    onClick={() => {
+                      surveyHaptic('light');
+                      handleInputChange('ganador', 'empate');
+                      handleInputChange('se_jugo', true);
                       closeSurveyModal();
                     }}
-                    disabled={shouldDisableTeamReorganization}
-                  />
+                  >
+                    EMPATE
+                  </button>
+                </div>
+              </div>
+            </div>
+            <SurveyActionBar error={renderSubmitError()}>
+              <button
+                type="button"
+                className={btnClass}
+                onClick={handleSubmit}
+                disabled={submitting || encuestaFinalizada || !formData.ganador}
+                aria-busy={submitting}
+              >
+                {renderSaveButtonLabel('FINALIZAR ENCUESTA')}
+              </button>
+            </SurveyActionBar>
+          </>
+        );
 
-                  {shouldShowWinnerSelectionInOrganizeStep ? (
-                    <div className={`w-full flex items-center justify-center ${isCompressedLayout ? 'pt-3 sm:pt-4' : 'pt-4 sm:pt-5'}`}>
+      case SURVEY_STEPS.DIRTY_PLAYERS:
+        return renderPlayersStep({
+          icon: TriangleAlert,
+          title: '¿QUIÉN JUGÓ SUCIO?',
+          hint: 'Podés marcar más de uno.',
+          isSelected: (uuid) => formData.jugadores_violentos.includes(uuid),
+          onSelect: (uuid) => toggleJugadorViolento(uuid),
+          multiple: true,
+          selectedPlayers: formData.jugadores_violentos.map(surveyStepPlayer),
+          emptyLabel: 'Marcá a uno o más jugadores',
+          actions: (
+            <button
+              type="button"
+              className={btnClass}
+              onClick={() => {
+                goToStep(resolveNextResultGateStep({
+                  teamsConfirmed,
+                  teamsLocked,
+                  forceOrganizeTeamsStep: shouldForceOrganizeTeamsStep,
+                  disableOrganizeTeamsStep: shouldDisableTeamReorganization,
+                }));
+              }}
+              disabled={formData.jugadores_violentos.length === 0}
+            >
+              SIGUIENTE
+            </button>
+          ),
+        });
+
+      case SURVEY_STEPS.ORGANIZE_TEAMS:
+        return (
+          <>
+            <div className={`${scrollAreaClass} pt-2`}>
+              <SurveyQuestion
+                icon={shouldShowWinnerSelectionInOrganizeStep ? Trophy : Shuffle}
+                title={shouldShowWinnerSelectionInOrganizeStep ? '¿Quién ganó el partido?' : 'ARMÁ LOS EQUIPOS COMO FINALMENTE SE JUGÓ'}
+                hint={shouldShowWinnerSelectionInOrganizeStep ? friendlyOrganizeAndResultHelperText : organizeTeamsHelperText}
+                compact
+              />
+              <div className="mt-4 w-full">
+                <TeamsDnDEditor
+                  teamA={finalTeams.teamA}
+                  teamB={finalTeams.teamB}
+                  playersByKey={playersByKey}
+                  teamALabel={isTeamChallengeSurvey ? challengeSurveyTeamLabels.teamA : 'Equipo A'}
+                  teamBLabel={isTeamChallengeSurvey ? challengeSurveyTeamLabels.teamB : 'Equipo B'}
+                  selectedWinner={shouldShowWinnerSelectionInOrganizeStep ? formData.ganador : ''}
+                  onWinnerChange={(winner) => {
+                    if (!shouldShowWinnerSelectionInOrganizeStep) return;
+                    surveyHaptic('light');
+                    handleInputChange('ganador', winner);
+                    handleInputChange('se_jugo', true);
+                    closeSurveyModal();
+                  }}
+                  onChange={(next) => {
+                    if (shouldDisableTeamReorganization) return;
+                    setFinalTeams(next);
+                    closeSurveyModal();
+                  }}
+                  disabled={shouldDisableTeamReorganization}
+                />
+                {shouldShowWinnerSelectionInOrganizeStep ? (
+                  <div className="mt-4 flex items-center justify-center">
+                    <button
+                      type="button"
+                      aria-pressed={formData.ganador === 'empate'}
+                      className={`${resultSecondaryBtnClass} !min-w-[170px] ${formData.ganador === 'empate' ? `${optionBtnSelectedClass} a2-survey-pop` : ''}`}
+                      onClick={() => {
+                        surveyHaptic('light');
+                        handleInputChange('ganador', 'empate');
+                        handleInputChange('se_jugo', true);
+                        closeSurveyModal();
+                      }}
+                    >
+                      Empate
+                    </button>
+                  </div>
+                ) : null}
+              </div>
+            </div>
+            <SurveyActionBar error={renderSubmitError()}>
+              <button
+                type="button"
+                className={btnClass}
+                onClick={handleLockTeamsAndContinue}
+                aria-busy={submitting}
+                disabled={
+                  submitting
+                  || encuestaFinalizada
+                  || (shouldShowWinnerSelectionInOrganizeStep && !['equipo_a', 'equipo_b', 'empate'].includes(formData.ganador))
+                }
+              >
+                {renderSaveButtonLabel(shouldShowWinnerSelectionInOrganizeStep ? 'FINALIZAR ENCUESTA' : 'CONTINUAR')}
+              </button>
+            </SurveyActionBar>
+          </>
+        );
+
+      case SURVEY_STEPS.NOT_PLAYED_REASON:
+        return (
+          <>
+            <div className={`${scrollAreaClass} pt-4`}>
+              <SurveyQuestion
+                icon={CircleHelp}
+                title="¿QUÉ PASÓ?"
+                hint="Elegí el motivo para cerrar la encuesta."
+                compact
+              />
+              <div className="mt-5 flex w-full flex-col gap-2.5" role="radiogroup" aria-labelledby="survey-step-title">
+                {NOT_PLAYED_REASON_OPTIONS.map((option, index) => {
+                  const isSelected = selectedNotPlayedReason?.value === option.value;
+                  const OptionIcon = NOT_PLAYED_REASON_ICONS[option.value] || CircleHelp;
+                  return (
+                    <div key={option.value} className="a2-survey-rise" style={{ animationDelay: `${80 + (index * 60)}ms` }}>
                       <button
                         type="button"
-                        className={`${resultSecondaryBtnClass} !min-w-[170px] ${formData.ganador === 'empate' ? optionBtnSelectedClass : ''}`}
+                        role="radio"
+                        aria-checked={isSelected}
+                        className={`flex w-full items-center gap-3.5 rounded-[20px] border px-4 py-4 text-left transition-[transform,background-color,border-color,box-shadow] duration-200 ease-out active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/85 ${
+                          isSelected
+                            ? 'a2-survey-pop border-[#b9a6ff] bg-[rgba(106,67,255,0.34)] shadow-[0_0_0_1px_rgba(185,166,255,0.6),0_14px_30px_rgba(54,32,140,0.45)]'
+                            : 'border-[rgba(148,134,255,0.24)] bg-surface-gradient shadow-elev-1'
+                        }`}
                         onClick={() => {
-                          handleInputChange('ganador', 'empate');
-                          handleInputChange('se_jugo', true);
-                          closeSurveyModal();
+                          surveyHaptic('light');
+                          handleNotPlayedReasonSelect(option.value);
                         }}
                       >
-                        Empate
+                        <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] border ${isSelected ? 'border-white/40 bg-white/20' : 'border-white/12 bg-white/[0.06]'}`} aria-hidden="true">
+                          <OptionIcon size={22} strokeWidth={2.2} className="text-white" />
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block font-bebas text-[22px] leading-none tracking-[0.05em] text-white">{option.label}</span>
+                          <span className={`mt-1 block font-oswald text-[13px] leading-snug ${isSelected ? 'text-white/90' : 'text-white/64'}`}>{option.description}</span>
+                        </span>
+                        <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border ${isSelected ? 'border-accent bg-accent' : 'border-white/30'}`} aria-hidden="true">
+                          {isSelected ? <Check size={14} strokeWidth={3.2} className="text-white" /> : null}
+                        </span>
                       </button>
                     </div>
-                  ) : null}
-                </div>
-              </div>
-              <div className={`w-full shrink-0 flex items-center justify-center ${isCompressedLayout ? 'pb-1 sm:pb-1.5' : 'pb-2 sm:pb-2.5'} ${shouldShowWinnerSelectionInOrganizeStep ? (isCompressedLayout ? 'pt-5 sm:pt-6' : 'pt-8 sm:pt-10') : (isCompressedLayout ? 'pt-1.5 sm:pt-2' : 'pt-2 sm:pt-3')}`}>
-                <div className={actionDockClass}>
-                  <button
-                    className={btnClass}
-                    onClick={handleLockTeamsAndContinue}
-                    disabled={
-                      submitting
-                      || encuestaFinalizada
-                      || (shouldShowWinnerSelectionInOrganizeStep && !['equipo_a', 'equipo_b', 'empate'].includes(formData.ganador))
-                    }
-                  >
-                    {shouldShowWinnerSelectionInOrganizeStep ? 'FINALIZAR ENCUESTA' : 'CONTINUAR'}
-                  </button>
-                </div>
-              </div>
-              <div className={logoRowClass}>
-                <SurveyFooterLogo />
-              </div>
-            </div>
-          )}
-
-          {/* STEP 10: MOTIVO NO JUGADO */}
-          {currentStep === SURVEY_STEPS.NOT_PLAYED_REASON && (
-            <div className={`${stepClass} animate-[slideIn_0.42s_cubic-bezier(0.22,1,0.36,1)_forwards]`}>
-              <div className={questionRowClass}>
-                <div className="w-full">
-                  <div className={titleClass}>
-                    ¿QUÉ PASÓ?
-                  </div>
-                  <div className={`${textClass} ${isCompressedLayout ? 'mt-2 sm:mt-2.5' : 'mt-2.5 sm:mt-3'} text-white/82`}>
-                    Elegí el motivo para cerrar la encuesta.
-                  </div>
-                </div>
-              </div>
-              <div className={contentRowClass}>
-                <div className={notPlayedReasonListClass}>
-                  {NOT_PLAYED_REASON_OPTIONS.map((option) => {
-                    const isSelected = selectedNotPlayedReason?.value === option.value;
-                    return (
-                      <button
-                        key={option.value}
-                        type="button"
-                        className={`
-                          w-full text-left rounded-[16px] border transition-all duration-200
-                          ${isCompressedLayout ? 'px-4 py-4 sm:px-5 sm:py-4.5' : 'px-5 py-5 sm:px-6 sm:py-5.5'}
-                          ${isSelected
-                            ? 'border-[#a78bfa] bg-[rgba(106,67,255,0.35)] shadow-[inset_0_1px_0_rgba(255,255,255,0.3),0_16px_32px_rgba(54,32,140,0.4),0_0_18px_rgba(106,67,255,0.25)]'
-                            : 'border-[rgba(148,134,255,0.22)] bg-white/[0.06] shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_10px_24px_rgba(8,6,30,0.25)] hover:bg-white/[0.1] hover:border-[rgba(148,134,255,0.4)]'}
-                        `}
-                        onClick={() => handleNotPlayedReasonSelect(option.value)}
-                      >
-                        <div className="flex items-start justify-between gap-4">
-                          <div className="min-w-0">
-                            <div className={`font-bebas tracking-[0.05em] ${isCompressedLayout ? 'text-[24px] sm:text-[26px]' : 'text-[26px] sm:text-[30px]'} ${isSelected ? 'text-white' : 'text-white/92'}`}>
-                              {option.label}
-                            </div>
-                            <div className={`font-oswald leading-relaxed ${isCompressedLayout ? 'mt-1 text-[14px] sm:text-[15px]' : 'mt-1.5 text-[15px] sm:text-[16px]'} ${isSelected ? 'text-white/90' : 'text-white/68'}`}>
-                              {option.description}
-                            </div>
-                          </div>
-                          <div className={`mt-0.5 h-5 w-5 shrink-0 rounded-full border ${isSelected ? 'border-[#ec007d] bg-[#ec007d] shadow-[0_0_0_4px_rgba(236,0,125,0.18)]' : 'border-white/26 bg-transparent'}`} />
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-              <div className={actionRowClass}>
-                <div className={actionDockClass}>
-                  <button
-                    className={btnClass}
-                    type="button"
-                    onClick={handleNotPlayedPrimaryAction}
-                    disabled={!selectedNotPlayedReason || submitting || encuestaFinalizada}
-                  >
-                    {notPlayedPrimaryButtonLabel}
-                  </button>
-                </div>
-              </div>
-              <div className={logoRowClass}>
-                <SurveyFooterLogo />
-              </div>
-            </div>
-          )}
-
-          {/* STEP 11: AUSENTES SIN AVISO (PARTIDO NO JUGADO) */}
-          {currentStep === SURVEY_STEPS.NOT_PLAYED_ABSENTS && (
-            <div className={`${playerStepClass} animate-[slideIn_0.42s_cubic-bezier(0.22,1,0.36,1)_forwards]`}>
-              <div className={questionRowClass}>
-                <div className="w-full">
-                  <div className={titleClass}>
-                    ¿QUIÉNES FALTARON?
-                  </div>
-                  <div className={`${textClass} ${isCompressedLayout ? 'mt-2 sm:mt-2.5' : 'mt-2.5 sm:mt-3'} text-white/82`}>
-                    Marcá uno o varios ausentes sin aviso. Después de confirmar, la encuesta termina.
-                  </div>
-                </div>
-              </div>
-              <div className={playerContentRowClass}>
-                {renderMiniPlayerCards({
-                  isSelected: (uuid) => formData.jugadores_ausentes.includes(uuid),
-                  onSelect: (uuid) => toggleJugadorAusente(uuid),
+                  );
                 })}
               </div>
-              <div className={playerActionRowClass}>
-                <div className={actionDockClass}>
-                  <button
-                    className={btnClass}
-                    onClick={handleSubmit}
-                    disabled={formData.jugadores_ausentes.length === 0}
-                  >
-                    FINALIZAR
-                  </button>
-                </div>
-              </div>
-              <div className={logoRowClass}>
-                <SurveyFooterLogo />
-              </div>
             </div>
-          )}
+            <SurveyActionBar error={renderSubmitError()}>
+              <button
+                type="button"
+                className={btnClass}
+                onClick={handleNotPlayedPrimaryAction}
+                disabled={!selectedNotPlayedReason || submitting || encuestaFinalizada}
+                aria-busy={submitting}
+              >
+                {renderSaveButtonLabel(notPlayedPrimaryButtonLabel)}
+              </button>
+            </SurveyActionBar>
+          </>
+        );
 
-          {/* STEP 12: AUSENTES (PARTIDO JUGADO) */}
-          {currentStep === SURVEY_STEPS.ABSENTS && (
-            <div className={`${playerStepClass} animate-[slideIn_0.42s_cubic-bezier(0.22,1,0.36,1)_forwards]`}>
-              <div className={questionRowClass}>
-                <div className={titleClass}>
-                  ¿QUIÉNES FALTARON?
-                </div>
-              </div>
-              <div className={playerContentRowClass}>
-                {renderMiniPlayerCards({
-                  isSelected: (uuid) => formData.jugadores_ausentes.includes(uuid),
-                  onSelect: (uuid) => toggleJugadorAusente(uuid),
-                })}
-              </div>
-              <div className={playerActionRowClass}>
-                <div className={compactButtonRowClass}>
-                  <button
-                    className={compactPrimaryBtnClass}
-                    onClick={() => setCurrentStep(SURVEY_STEPS.MVP)}
-                    disabled={formData.jugadores_ausentes.length === 0}
-                  >
-                    SIGUIENTE
-                  </button>
-                </div>
-              </div>
-              <div className={logoRowClass}>
-                <SurveyFooterLogo />
-              </div>
-            </div>
-          )}
+      case SURVEY_STEPS.NOT_PLAYED_ABSENTS:
+        return renderPlayersStep({
+          icon: UserX,
+          title: '¿QUIÉNES FALTARON?',
+          hint: 'Marcá uno o varios ausentes sin aviso. Después de confirmar, la encuesta termina.',
+          isSelected: (uuid) => formData.jugadores_ausentes.includes(uuid),
+          onSelect: (uuid) => toggleJugadorAusente(uuid),
+          multiple: true,
+          selectedPlayers: formData.jugadores_ausentes.map(surveyStepPlayer),
+          emptyLabel: 'Marcá a quienes faltaron',
+          withError: true,
+          actions: (
+            <button
+              type="button"
+              className={btnClass}
+              onClick={handleSubmit}
+              disabled={submitting || encuestaFinalizada || formData.jugadores_ausentes.length === 0}
+              aria-busy={submitting}
+            >
+              {renderSaveButtonLabel('FINALIZAR')}
+            </button>
+          ),
+        });
 
-          {/* STEP 99: FINAL */}
-          {currentStep === SURVEY_STEPS.DONE && (
-            <div className={`${centeredSummaryStackClass} animate-[slideIn_0.42s_cubic-bezier(0.22,1,0.36,1)_forwards]`}>
-              <div className="w-full">
-                <div className={titleClass}>
-                  ¡GRACIAS POR CALIFICAR!
-                </div>
-              </div>
-              <div className={`${textClass} text-[26px] !mb-0`}>
-                Los resultados se publicarán en ~{SURVEY_WINDOW_HOURS} horas.
-              </div>
-              <div className={centeredSummaryButtonWrapClass}>
-                <button
-                  className={btnClass}
-                  onClick={() => navigate('/')}
-                >
-                  VOLVER AL INICIO
-                </button>
-              </div>
-              <div className={logoRowClass}>
-                <SurveyFooterLogo />
-              </div>
+      case SURVEY_STEPS.ABSENTS:
+        return renderPlayersStep({
+          icon: UserX,
+          title: '¿QUIÉNES FALTARON?',
+          hint: 'Podés marcar varios.',
+          isSelected: (uuid) => formData.jugadores_ausentes.includes(uuid),
+          onSelect: (uuid) => toggleJugadorAusente(uuid),
+          multiple: true,
+          selectedPlayers: formData.jugadores_ausentes.map(surveyStepPlayer),
+          emptyLabel: 'Marcá a quienes faltaron',
+          actions: (
+            <button
+              type="button"
+              className={btnClass}
+              onClick={() => goToStep(SURVEY_STEPS.MVP)}
+              disabled={formData.jugadores_ausentes.length === 0}
+            >
+              SIGUIENTE
+            </button>
+          ),
+        });
+
+      case SURVEY_STEPS.DONE:
+        return (
+          <SurveySavedCelebration
+            justSaved
+            title="¡GRACIAS POR CALIFICAR!"
+            message="Tus respuestas quedaron guardadas."
+            detail={`Los resultados se publicarán en ~${SURVEY_WINDOW_HOURS} horas.`}
+            recap={buildSurveyRecap()}
+            onHome={() => navigate('/')}
+            buttonClassName={btnClass}
+          />
+        );
+
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <PageTransition>
+      <div className="relative h-[100dvh] w-full overflow-hidden">
+        <div className="absolute inset-0 overflow-hidden" style={screenBackgroundStyle} />
+        <div className="relative z-[1] h-full w-full overflow-hidden" style={safeAreaStyle}>
+          <div className={surveyShellClass}>
+            <SurveyStepHeader
+              matchLabel={surveyMatchLabel}
+              stepNumber={progressCurrentStep}
+              stepCount={progressTotalSteps}
+              isDone={currentStep === SURVEY_STEPS.DONE}
+              onBack={canGoBack ? goBack : null}
+              onClose={currentStep === SURVEY_STEPS.DONE ? null : () => setExitSurveyModalOpen(true)}
+            />
+            <div
+              key={currentStep}
+              className={`${stepContentClass} ${stepDirection === 'back' ? 'a2-survey-step-back' : 'a2-survey-step-forward'}`}
+            >
+              {renderStepBody()}
             </div>
-          )}
+          </div>
         </div>
       </div>
-    </div>
-    <ConfirmModal
-      isOpen={surveyModal.isOpen}
-      title={surveyModal.title}
-      message={surveyModal.message}
-      confirmText="Aceptar"
-      singleButton={true}
-      onConfirm={closeSurveyModal}
-      onCancel={closeSurveyModal}
-      actionsAlign="center"
-    />
-    <ConfirmModal
-      isOpen={exitSurveyModalOpen}
-      title="Cerrar encuesta"
-      message="Si salís ahora, la encuesta va a quedar pendiente y vas a poder volver más tarde para completarla."
-      confirmText="Salir"
-      cancelText="Cancelar"
-      onConfirm={confirmExitSurvey}
-      onCancel={closeExitSurveyModal}
-      actionsAlign="center"
-    />
+      <ConfirmModal
+        isOpen={surveyModal.isOpen}
+        title={surveyModal.title}
+        message={surveyModal.message}
+        confirmText="Aceptar"
+        singleButton={true}
+        onConfirm={closeSurveyModal}
+        onCancel={closeSurveyModal}
+        actionsAlign="center"
+      />
+      <ConfirmModal
+        isOpen={exitSurveyModalOpen}
+        title="Cerrar encuesta"
+        message="Si salís ahora, la encuesta va a quedar pendiente y vas a poder volver más tarde para completarla."
+        confirmText="Salir"
+        cancelText="Cancelar"
+        onConfirm={confirmExitSurvey}
+        onCancel={closeExitSurveyModal}
+        actionsAlign="center"
+      />
     </PageTransition>
   );
 };

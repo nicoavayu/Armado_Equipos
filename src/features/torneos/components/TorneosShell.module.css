@@ -489,6 +489,12 @@
   min-height: 64px;
 }
 
+/* Personal screens: on a wide layout the sidebar already says where you are, so the topbar is not drawn; on a phone
+   it only appears for someone who manages organizations (it carries their switcher). */
+.topbarPersonal {
+  display: none;
+}
+
 .contextBackLink {
   min-height: 44px;
   display: inline-flex;
@@ -2095,6 +2101,7 @@
 .placeholderPage {
   min-height: 420px;
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   place-items: center;
   text-align: center;
 }
@@ -2154,6 +2161,10 @@
     min-height: 68px;
     justify-content: stretch;
     padding: 8px 14px;
+  }
+
+  .topbarPersonal {
+    display: flex;
   }
 
   .shellWithoutGlobalHeader .topbar {
@@ -2761,3 +2772,132 @@
 .planContext { margin-left: auto; min-width: 0; }
 .topbar:has(.planContext) { flex-wrap: wrap; }
 @media (max-width: 760px) { .planContext { width: 100%; } }
+
+/* ── Inicio: one next step, a compact summary, setup as reference once the tournament runs ─────────────────── */
+.lifecycleCtas {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+  min-width: min(100%, 248px);
+}
+
+.lifecycleCtas > .dashboardPrimaryLink,
+.lifecycleCtas > .dashboardSecondaryLink {
+  margin-top: 0;
+}
+
+/* Starting a fully scheduled competition IS the next step: its button leads, the matches link follows. */
+.lifecyclePanel[data-lifecycle-first] .lifecycleCtas > :first-child {
+  order: 2;
+}
+
+.dashboardSecondaryLink {
+  min-height: 43px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0 13px;
+  color: #e9e4ff;
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: none;
+  background: transparent;
+  border: 1px solid rgba(148, 134, 255, 0.4);
+  border-radius: var(--torneos-control-radius);
+}
+
+.dashboardSecondaryLink:hover,
+.dashboardSecondaryLink:focus-visible {
+  color: #fff;
+  border-color: rgba(185, 173, 255, 0.7);
+}
+
+/* The secondary lifecycle trigger (finish, reopen) reads as a deliberate action, not as the day's main button. */
+.lifecycleCtas .lifecycleSecondaryButton[data-emphasis="secondary"] {
+  min-height: 43px;
+  padding-block: 0;
+  color: #d9d2f2;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.checklistPanel > summary {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.checklistPanel > summary::-webkit-details-marker {
+  display: none;
+}
+
+.checklistPanel .detailsChevron {
+  flex: 0 0 auto;
+  margin-top: 6px;
+  color: var(--torneos-purple-bright);
+  transition: transform 160ms ease;
+}
+
+.checklistPanel[open] .detailsChevron {
+  transform: rotate(180deg);
+}
+
+.checklistPanel > summary:focus-visible {
+  outline: 2px solid var(--torneos-purple-bright);
+  outline-offset: 4px;
+  border-radius: 10px;
+}
+
+@media (max-width: 680px) {
+  /* The four summary figures read as a 2 × 2 block instead of four full-width cards. */
+  .summaryGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .summaryGrid article {
+    padding: 13px 14px;
+  }
+
+  .summaryGrid strong {
+    font-size: 24px;
+  }
+
+  .summaryGrid small {
+    white-space: normal;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+  }
+
+  /* The tournament identity is a header, not a poster: crest beside the name. */
+  .dashboard > .dashboardHero .organizationIdentity {
+    flex-direction: row;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .dashboard > .dashboardHero .largeMonogram {
+    width: 52px;
+    height: 52px;
+  }
+
+  .dashboard > .dashboardHero p {
+    margin-top: 8px;
+  }
+
+  .lifecycleCtas {
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .checklistPanel .detailsChevron {
+    transition: none;
+  }
+}

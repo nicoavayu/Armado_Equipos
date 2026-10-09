@@ -15,7 +15,10 @@ const ACTION_ICONS = {
   reopen: RotateCcw,
 };
 
-export default function CompetitionLifecycleActions({ organization, tournament }) {
+// `emphasis`: a lifecycle change is the primary action only when it IS the next step (starting a fully scheduled
+// competition). Finishing or reopening sits next to the day-to-day action ("Abrir partidos", "Ver tabla final"), so it
+// is secondary there: same place, same confirmation, but it never competes with the work of the day.
+export default function CompetitionLifecycleActions({ organization, tournament, emphasis = 'primary' }) {
   const {
     startCompetition,
     finishCompetition,
@@ -60,7 +63,8 @@ export default function CompetitionLifecycleActions({ organization, tournament }
       {!confirming ? (
         <button
           type="button"
-          className={`${styles.lifecycleActionButton} ${styles.lifecycleTriggerButton}`}
+          className={`${emphasis === 'secondary' ? styles.lifecycleSecondaryButton : styles.lifecycleActionButton} ${styles.lifecycleTriggerButton}`}
+          data-emphasis={emphasis}
           onClick={() => { setConfirming(true); setError(''); }}
         >
           {Icon && <Icon size={18} aria-hidden="true" />}

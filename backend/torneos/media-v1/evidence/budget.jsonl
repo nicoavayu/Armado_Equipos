@@ -1,0 +1,4 @@
+{"step":"budget","event":"gallery budget = stored + 1 KB","upload":"409 TORNEOS_MEDIA_STORAGE_BUDGET_EXCEEDED","storedBytes":3396022}
+{"step":"budget","event":"three simultaneous uploads with 1 slot","results":["201","429 TORNEOS_MEDIA_BUSY","429 TORNEOS_MEDIA_BUSY"]}
+{"step":"budget","event":"the refused ones retried after","results":["201","201","429 TORNEOS_MEDIA_BUSY"]}
+{"step":"budget","event":"restored","budget":{"pendingBytes":0,"galleryMaxBytes":419430400,"inflightUploads":0,"projectMaxBytes":471859200,"galleryStoredBytes":3413819,"maxInflightUploads":12,"projectStoredBytes":3420618,"brandingStoredBytes":6799}}

@@ -15,7 +15,7 @@ const DirectFix = () => {
         
         // 2. Obtener el perfil del usuario
         const { data: profile } = await supabase.from('usuarios')
-          .select('*')
+          .select('avatar_url')
           .eq('id', user.id)
           .single();
           

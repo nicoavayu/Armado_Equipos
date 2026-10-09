@@ -8,9 +8,14 @@ jest.mock('../hooks/useScrollReset', () => ({
   useScrollResetContainer: () => jest.fn(),
 }));
 
-jest.mock('../features/onboarding', () => ({
-  OnboardingProvider: ({ children }) => <>{children}</>,
-  OnboardingHost: () => null,
+jest.mock('../features/onboarding/OnboardingProvider', () => ({
+  __esModule: true,
+  default: ({ children }) => <>{children}</>,
+}));
+
+jest.mock('../features/onboarding/LazyOnboardingHost', () => ({
+  __esModule: true,
+  default: () => null,
 }));
 
 jest.mock('../components/global-header/GlobalHeader', () => () => (

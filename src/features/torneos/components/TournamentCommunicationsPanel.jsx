@@ -199,57 +199,21 @@ function DocumentsView({
   );
 }
 
-function PreferencesView({
-  preferences,
-  busy,
-  onSave,
-}) {
-  const [draft, setDraft] = useState(preferences);
-  useEffect(() => setDraft(preferences), [preferences]);
-  if (!draft) return null;
-  const fields = [
-    ['general', 'Comunicados generales'],
-    ['matchChanges', 'Cambios de partidos'],
-    ['callups', 'Convocatorias'],
-    ['discipline', 'Disciplina'],
-    ['documents', 'Documentos'],
-    ['summaries', 'Resúmenes'],
-  ];
+// The per-tournament toggles this tab used to offer were stored but never read by the inbox, and there is no push or
+// email channel for Torneos. Offering them promised something that does not happen, so the tab now says what is real.
+function ChannelsView() {
   return (
-    <form
-      className={styles.preferencesCard}
-      onSubmit={(event) => {
-        event.preventDefault();
-        onSave(draft);
-      }}
-    >
+    <section className={styles.preferencesCard}>
       <div>
-        <p className={styles.eyebrow}>Preferencias personales</p>
-        <h2>Qué querés destacar</h2>
+        <p className={styles.eyebrow}>Avisos</p>
+        <h2>Dónde te llegan</h2>
         <p>
-          El inbox interno siempre conserva avisos obligatorios de partidos propios,
-          sanciones y documentos requeridos. Push y email siguen desactivados.
+          Los comunicados de este torneo llegan a tu bandeja de Torneos, con su prioridad y sus confirmaciones.
+          Torneos todavía no envía notificaciones push ni emails, así que no hay nada que configurar por canal.
         </p>
       </div>
-      <div className={styles.preferenceList}>
-        {fields.map(([key, label]) => (
-          <label key={key}>
-            <span>{label}</span>
-            <input
-              type="checkbox"
-              checked={Boolean(draft[key])}
-              onChange={(event) => setDraft((current) => ({
-                ...current,
-                [key]: event.target.checked,
-              }))}
-            />
-          </label>
-        ))}
-      </div>
-      <button type="submit" disabled={busy}>
-        {busy ? 'Guardando…' : 'Guardar preferencias'}
-      </button>
-    </form>
+      <Link className={styles.preferencesLink} to="/torneos/perfil">Ver mi perfil de Torneos</Link>
+    </section>
   );
 }
 
@@ -285,11 +249,11 @@ export default function TournamentCommunicationsPanel({
       error: '',
     });
     try {
-      const [inbox, documents, preferences] = await Promise.all([
+      const [inbox, documents] = await Promise.all([
         service.loadCommunicationsInbox({ tournamentId, limit: 30 }),
         service.loadPublishedDocuments({ tournamentId, categoryId }),
-        service.loadNotificationPreferences(tournamentId),
       ]);
+      const preferences = null;
       if (requestRef.current !== requestId) return;
       setState({
         status: 'ready',
@@ -373,23 +337,6 @@ export default function TournamentCommunicationsPanel({
     }
   };
 
-  const savePreferences = async (preferences) => {
-    if (busy) return;
-    const actionScope = scopeKey;
-    setBusy('preferences');
-    try {
-      const saved = await service.updateNotificationPreferences({
-        tournamentId,
-        ...preferences,
-      });
-      if (scopeRef.current === actionScope) {
-        setState((current) => ({ ...current, preferences: saved }));
-      }
-    } finally {
-      if (scopeRef.current === actionScope) setBusy('');
-    }
-  };
-
   if (state.status === 'loading') {
     return (
       <div className={styles.skeletonGrid} aria-label="Cargando novedades">
@@ -431,7 +378,7 @@ export default function TournamentCommunicationsPanel({
         <div>
           <p className={styles.eyebrow}>Centro del torneo</p>
           <h2>Novedades oficiales</h2>
-          <p>Información publicada por la organización, sin email ni push.</p>
+          <p>Información publicada por la organización. Llega a tu bandeja de Torneos.</p>
         </div>
         {state.inbox?.unreadCount > 0 && (
           <span className={styles.unreadCount}>
@@ -443,7 +390,7 @@ export default function TournamentCommunicationsPanel({
         {[
           ['news', 'Novedades', Bell],
           ['documents', 'Documentos', BookOpen],
-          ['preferences', 'Preferencias', SlidersHorizontal],
+          ['preferences', 'Avisos', SlidersHorizontal],
         ].map(([key, label, Icon]) => (
           <button
             type="button"
@@ -501,13 +448,7 @@ export default function TournamentCommunicationsPanel({
           onAcknowledge={acknowledgeDocument}
         />
       )}
-      {section === 'preferences' && (
-        <PreferencesView
-          preferences={state.preferences}
-          busy={busy === 'preferences'}
-          onSave={savePreferences}
-        />
-      )}
+      {section === 'preferences' && <ChannelsView />}
     </section>
   );
 }

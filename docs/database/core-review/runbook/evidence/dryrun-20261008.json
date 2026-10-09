@@ -1,0 +1,520 @@
+{
+ "kind": "core-review-193-dry-run",
+ "date": "2026-10-09",
+ "revision": "22 migrations (120000–141000)",
+ "environment": {
+  "compose_project": "arma2-dryrun (disposable, no published ports, torn down after each pass)",
+  "image": "public.ecr.aws/supabase/postgres:17.6.1.143 + GoTrue v2.194.0 + storage-api v1.67.15",
+  "applied_as": "postgres (not superuser, createrole, bypassrls) — like hosted Supabase",
+  "baseline": "origin/main supabase/migrations (43) + 20261009120000_core_ops_log_retention (applied in Prod 2026-10-07)",
+  "seed": "synthetic: 1203 accounts (email all, phone ~30 %, birth date ~20 %, location pair ~40 %), 403 matches, 4009 roster rows, 1201 notifications, 1 guest photo slot shared by 2 sessions; before 135000, 1069 roster rows get an added_by (trigger paused for that seed only)"
+ },
+ "files_sha256": {
+  "precheck.sql": "27b8ee2c980ad6364e3caedc3c47680e3d22268c3a128cc9634894fca4405fe8",
+  "postcheck.sql": "f6b923e914caa74bec6d821f14196e08766f573d5f8ae6914587df0615930e73",
+  "apply-193.psql": "812c06a3b6abcca314583a89c57fc33d9aaa971dbd3aa0bf1e7c36ca272d195b",
+  "rollbacks/20261010135000_core_private_profile_fields.rollback.sql": "1f00abed7c84c625b49206bb0d5086fc0c06b9ba3537860cdcf970c53642c8a0",
+  "rollbacks/20261010136000_core_match_roster_visibility.rollback.sql": "e023cfd1cb3c998e398179e2fd0c55c0aeb989aecec45c281e2141d44f1da311",
+  "rollbacks/20261010137000_core_match_code_never_public.rollback.sql": "fef49deb67b4ecd22f55be28a465b97f2db17a30f78429ba0e76463cb2a23082",
+  "rollbacks/20261010138000_core_voting_photo_slot_owner.rollback.sql": "7de1db466f0bf438c64c354ed2adf9ca3e6cc46a09334ad61b48373b5f9173b0",
+  "rollbacks/20261010139000_core_roster_added_by_private.rollback.sql": "c4706b3b3731a03465365569025284de6c5fc860bb94430538c443eb544a33d1",
+  "rollbacks/20261010140000_core_published_roster_identity.rollback.sql": "f70606ea4e3c53f22965f07598607ad52f4e70fe9c7841126c472afd9dd7e1ab",
+  "rollbacks/20261010141000_core_organizer_approves_join_requests.rollback.sql": "19271147b99711b3d196d6492ce6dcc1bf707588e8266fb52d11d579550af6ae",
+  "supabase/migrations/20261010120000_core_trigger_helper_execute_grants.sql": "31b0d51fab51e31c8991919c8ed3d633184870301dee51ad5f22701e6924f258",
+  "supabase/migrations/20261010121000_core_public_voting_roster_identity.sql": "6b42cfebe32773205ac1821161a87c1c7180230ca463cea6116c560735f66b62",
+  "supabase/migrations/20261010122000_core_notifications_ext_match_columns.sql": "6f0b3eb8a2bc8ca76439f22104ef37b90e25c6761ef5a191a21fb7dd83b3d3ad",
+  "supabase/migrations/20261010123000_core_reset_votacion_score_default.sql": "d11d91c5d19ebd629598e6e268870ae7eb380e91902cad2ef790ca020f7fc3c4",
+  "supabase/migrations/20261010124000_core_usuarios_profile_rpcs.sql": "db30d1898a4e4211a36d0c0592088475b9119cfa1939bdb56fb46f16585076d7",
+  "supabase/migrations/20261010125000_core_public_match_reads_by_code.sql": "35dbbcbee36cf3b60e4927858c3963d3f3f4884bfa37e99e1fd3e82c05cf3ae1",
+  "supabase/migrations/20261010126000_core_team_roster_identity.sql": "6c37aa6c243cbacc30e0b5489e544d26b4ce21d4615fb1651f139f8cbd840296",
+  "supabase/migrations/20261010127000_core_post_match_surveys_result_columns.sql": "085687b30cf2b1e45c297c103dbe0a67b0315a683edf8a516c177c86433786d9",
+  "supabase/migrations/20261010128000_core_contact_phone_and_public_profile_list.sql": "498dec1dab692e685cf5dfae0a5e8809b2e22dad2c16acbd4b4a2bf76f432d11",
+  "supabase/migrations/20261010129000_core_survey_finalization_recovery.sql": "157467235eb8c2ff3287876c3e9b062df0991d9f1ac616571daec3ee0839ace6",
+  "supabase/migrations/20261010130000_core_client_build_reports.sql": "2340a208713058517a1c982980dea180e26e5e2ed35290f2e5aff94bbddbe945",
+  "supabase/migrations/20261010131000_core_survey_server_finalization.sql": "a33bfee062aba08b945b6e405754fe7402f0b158af12d393ac5337a62d573bef",
+  "supabase/migrations/20261010132000_core_friend_request_acceptance.sql": "410db903bdcd60d70f975545662c108b7be7f7ea8e8172369345e89b1380ada0",
+  "supabase/migrations/20261010133000_core_match_access_code.sql": "5ea8a9de6ed39ae2fa7c51f6a2a3f8392fb488d30e3db3f4e402383afe5bc535",
+  "supabase/migrations/20261010134000_core_partidos_template_link.sql": "ce2cf245fddb094d769436bb6f4463ebbdfa121e9d7e2c171c62deaabcbd5124",
+  "supabase/migrations/20261010135000_core_private_profile_fields.sql": "a6052a760a3eb71b0cf01b485c0d9af5a9ba41cad4dddf3f0f2a80719e6db908",
+  "supabase/migrations/20261010136000_core_match_roster_visibility.sql": "0c8cfd47ee617f6543abd3d25efbcb1c6b5e79e2a3155562a98884493ee79f4b",
+  "supabase/migrations/20261010137000_core_match_code_never_public.sql": "58a8685895fecce815a85635f46df0d9228c0ba215c6d7dd16bd7a75a1832775",
+  "supabase/migrations/20261010138000_core_voting_photo_slot_owner.sql": "5de6799e1bf44f915c914334e89e365f3a8cc81cdd41244cb2cc152e836357ad",
+  "supabase/migrations/20261010139000_core_roster_added_by_private.sql": "3ca05124dc5671d2a29cb08afddcd406dbddfe94afba84c03ba3aec96c4c7f33",
+  "supabase/migrations/20261010140000_core_published_roster_identity.sql": "6f591572b968305563689d8a9520ce4bf9b1929f68cc64c29d0210276550744b",
+  "supabase/migrations/20261010141000_core_organizer_approves_join_requests.sql": "3633a8ce17122a28e3a8f22cd5091d73f8b0962efb677902aae5531051dee4f3"
+ },
+ "pass2_per_migration": {
+  "backup": {
+   "ms": 1421,
+   "bytes": 3980119
+  },
+  "restore_check": {
+   "ms": 14245,
+   "pg_restore_exit_ok": false,
+   "errors": 20,
+   "identical": false,
+   "note": "restored into a second database of the same container: pg_cron can only live in database postgres (all errors are cron objects); every table count and the private-data digest identical. In Prod the strict check is ops_free_plan.py restore-check (disposable container, database postgres)."
+  },
+  "precheck": [
+   {
+    "check": "connected as postgres, can create the reader role, can act as the API roles",
+    "pass": true,
+    "value": {
+     "user": "postgres",
+     "createrole": true,
+     "bypassrls": true,
+     "superuser": false
+    }
+   },
+   {
+    "check": "Postgres 15 or newer (security_invoker views)",
+    "pass": true,
+    "value": "17.6"
+   },
+   {
+    "check": "database writable",
+    "pass": true,
+    "value": "off"
+   },
+   {
+    "check": "database size leaves room on the Free plan (< 350 MB)",
+    "pass": true,
+    "value": "31 MB"
+   },
+   {
+    "check": "ledger: Torneos contract and ops retention present, none of 20261010120000…138000 yet",
+    "pass": true,
+    "value": [
+     "20260914120000",
+     "20260915120000",
+     "20261009120000"
+    ]
+   },
+   {
+    "check": "postgres owns the tables and match views the stack changes",
+    "pass": true,
+    "value": {
+     "notifications": "postgres",
+     "profiles": "postgres",
+     "jugadores": "postgres",
+     "amigos": "postgres",
+     "match_join_requests": "postgres",
+     "partidos_abiertos_operativos": "postgres",
+     "partidos_abiertos_operativos_v2": "postgres",
+     "partidos_view": "postgres",
+     "usuarios": "postgres",
+     "partidos": "postgres",
+     "voting_photo_slot_claims": "postgres"
+    }
+   },
+   {
+    "check": "match views run as the caller today (security_invoker)",
+    "pass": true,
+    "value": {
+     "partidos_abiertos_operativos": [
+      "security_invoker=on"
+     ],
+     "partidos_abiertos_operativos_v2": [
+      "security_invoker=on"
+     ],
+     "partidos_view": [
+      "security_invoker=on"
+     ]
+    }
+   },
+   {
+    "check": "nothing of the stack exists yet (private tables, reader role, template link, roster added_by)",
+    "pass": true,
+    "value": {
+     "usuarios_private": false,
+     "reader_role": false,
+     "partidos_template_id": null,
+     "jugadores_added_by": false
+    }
+   },
+   {
+    "check": "pg_cron available (20261010131000 schedules the survey finalization)",
+    "pass": true,
+    "value": 10
+   },
+   {
+    "check": "no long transaction that could hold the ALTER/CREATE POLICY locks",
+    "pass": true,
+    "value": 0
+   },
+   {
+    "check": "no account holds a single coordinate (135000 keeps a location only as a lat/long pair)",
+    "pass": true,
+    "value": 0
+   },
+   {
+    "check": "informative: profiles phones that differ from the account phone (135000 keeps the account one; the other stays only in the backup)",
+    "pass": true,
+    "value": {
+     "both_set_and_different": 0,
+     "only_in_usuarios": 0
+    }
+   },
+   {
+    "check": "informative: join requests duplicated per account and match today (140000 refuses new duplicates; existing ones are kept)",
+    "pass": true,
+    "value": 0
+   },
+   {
+    "check": "informative, how Prod is today: can organizers approve join requests? (approve-join-request calls approve_join_request as the organizer; false = every approval answers \"forbidden\" now; 20261010141000 fixes it)",
+    "pass": true,
+    "value": false
+   },
+   {
+    "check": "baseline: private values in the shared rows (must all move after 135000)",
+    "pass": true,
+    "value": {
+     "usuarios": 1203,
+     "with_email": 1203,
+     "with_phone": 366,
+     "with_birth_date": 221,
+     "with_location": 506,
+     "profiles_with_phone": 366,
+     "partidos": 403,
+     "jugadores": 4009,
+     "shared_photo_slots": 1
+    }
+   }
+  ],
+  "apply_ms": {
+   "20261010120000": 234,
+   "20261010121000": 210,
+   "20261010122000": 252,
+   "20261010123000": 237,
+   "20261010124000": 172,
+   "20261010125000": 248,
+   "20261010126000": 319,
+   "20261010127000": 288,
+   "20261010128000": 307,
+   "20261010129000": 223,
+   "20261010130000": 282,
+   "20261010131000": 1079,
+   "20261010132000": 694,
+   "20261010133000": 1165,
+   "20261010134000": 673,
+   "20261010135000": 341,
+   "20261010136000": 232,
+   "20261010137000": 288,
+   "20261010138000": 225,
+   "20261010139000": 269,
+   "20261010140000": 361,
+   "20261010141000": 210
+  },
+  "apply_total_ms": 8309,
+  "server_restarted": false,
+  "postcheck": [
+   {
+    "check": "ledger holds the 22 migrations 20261010120000…141000",
+    "pass": true,
+    "value": 22
+   },
+   {
+    "check": "141000: organizers can approve join requests (approve_join_request executable by accounts, not anon; it keeps its own creator check)",
+    "pass": true,
+    "value": true
+   },
+   {
+    "check": "140000: published rosters per involvement; entries built for the viewer; self-join, self-update and request guards in place",
+    "pass": true,
+    "value": null
+   },
+   {
+    "check": "135000: no email, phone or birth date left in the shared rows",
+    "pass": true,
+    "value": {
+     "usuarios": 0,
+     "profiles": 0
+    }
+   },
+   {
+    "check": "135000: every account has its private row; counts match the precheck baseline",
+    "pass": true,
+    "value": {
+     "usuarios": 1203,
+     "private_rows": 1203,
+     "with_email": 1203,
+     "with_phone": 366,
+     "with_birth_date": 221,
+     "with_location": 506
+    }
+   },
+   {
+    "check": "135000: shared coordinates are approximate (2 decimals)",
+    "pass": true,
+    "value": 506
+   },
+   {
+    "check": "136000/137000: table policies are per involvement (no open clause, no USING true)",
+    "pass": true,
+    "value": 10
+   },
+   {
+    "check": "137000: views read as core_match_public_reader (nologin, no bypass), not as the caller",
+    "pass": true,
+    "value": {
+     "partidos_abiertos_operativos": "core_match_public_reader",
+     "partidos_abiertos_operativos_v2": "core_match_public_reader",
+     "partidos_view": "core_match_public_reader"
+    }
+   },
+   {
+    "check": "grants: own-profile RPCs for accounts only; photo binding for the server only",
+    "pass": true,
+    "value": null
+   },
+   {
+    "check": "137000: anon and authenticated can execute every function the match views call",
+    "pass": true,
+    "value": {
+     "partido_is_operationally_open(text,timestamp with time zone,text,text,timestamp with time zone,date,text,boolean,timestamp with time zone)": true,
+     "partido_kickoff_at(date,text)": true,
+     "normalize_partido_estado(text)": true,
+     "app_private.request_user_id()": true,
+     "app_private.match_involves_user(bigint,uuid)": true,
+     "app_private.match_is_publicly_open(bigint)": true,
+     "app_private.match_access_code(bigint)": true
+    }
+   },
+   {
+    "check": "138000: a guest photo slot belongs to its first session",
+    "pass": true,
+    "value": null
+   },
+   {
+    "check": "139000: no added_by in public.jugadores; who added whom lives only in app_private, recorded by an AFTER INSERT trigger",
+    "pass": true,
+    "value": 1069
+   },
+   {
+    "check": "131000: survey finalization scheduled every 5 minutes",
+    "pass": true,
+    "value": 11
+   },
+   {
+    "check": "new account: the table returns no match (it is involved in none)",
+    "pass": true,
+    "value": 0
+   },
+   {
+    "check": "new account: partidos_view lists exactly the published matches, every code masked",
+    "pass": true,
+    "value": {
+     "listed": 22,
+     "expected": 22,
+     "codes": 0
+    }
+   },
+   {
+    "check": "new account: no usuario_id or score in any roster entry (views, Quiero jugar, public roster RPC, link code)",
+    "pass": true,
+    "value": {
+     "entries_in_views": 212
+    }
+   },
+   {
+    "check": "new account: cannot join a published match by inserting itself, nor file an approved request",
+    "pass": true,
+    "value": true
+   },
+   {
+    "check": "new account: no match roster from the table, only team rows",
+    "pass": true,
+    "value": {
+     "visible": 0,
+     "expected": 0
+    }
+   },
+   {
+    "check": "new account: other people's email, phone and birth date read as NULL",
+    "pass": true,
+    "value": 1203
+   },
+   {
+    "check": "new account: get_match_access_codes gives nothing for a match it is not in",
+    "pass": true,
+    "value": null
+   },
+   {
+    "check": "new account: cannot write through partidos_view",
+    "pass": true,
+    "value": null
+   },
+   {
+    "check": "anon: no rows from partidos, partidos_view or jugadores (and no error)",
+    "pass": true,
+    "value": null
+   },
+   {
+    "check": "anon: the link code gives roster entries without usuario_id or score",
+    "pass": true,
+    "value": null
+   },
+   {
+    "check": "anon: a WhatsApp/voting link (code + id) still opens its own match",
+    "pass": true,
+    "value": true
+   },
+   {
+    "check": "organizer: reads every match it created, with its code, from the table and the view",
+    "pass": true,
+    "value": 1
+   },
+   {
+    "check": "owner: get_my_profile returns its own phone; the shared row does not",
+    "pass": true,
+    "value": true
+   }
+  ],
+  "rollbacks": [
+   {
+    "file": "20261010141000_core_organizer_approves_join_requests.rollback.sql",
+    "ok": true,
+    "ms": 4720
+   },
+   {
+    "file": "20261010140000_core_published_roster_identity.rollback.sql",
+    "ok": true,
+    "ms": 641
+   },
+   {
+    "file": "20261010139000_core_roster_added_by_private.rollback.sql",
+    "ok": true,
+    "ms": 301
+   },
+   {
+    "file": "20261010138000_core_voting_photo_slot_owner.rollback.sql",
+    "ok": true,
+    "ms": 269
+   },
+   {
+    "file": "20261010137000_core_match_code_never_public.rollback.sql",
+    "ok": true,
+    "ms": 405
+   },
+   {
+    "file": "20261010136000_core_match_roster_visibility.rollback.sql",
+    "ok": true,
+    "ms": 231
+   },
+   {
+    "file": "20261010135000_core_private_profile_fields.rollback.sql",
+    "ok": true,
+    "ms": 329
+   }
+  ],
+  "rollback_vs_state_before_135000": "identical",
+  "added_by_round_trip": {
+   "before_135000_rows": 1069,
+   "after_139000_rows_in_jugadores": 0,
+   "after_rollbacks_rows": 1069,
+   "digest_identical": true,
+   "private_rows_after_reapply": {
+    "private_rows": 1069,
+    "column": false
+   }
+  },
+  "reapply_ok": true,
+  "postcheck_after_reapply_failures": [],
+  "timing_note": "this run happened with the host under heavy load (load average ~18, other sessions); every step slowed evenly. The previous unloaded run of 120000–140000 took 1527 ms in total. No migration reached its 5 s lock_timeout."
+ },
+ "pass3_exact_runbook_files": {
+  "started_at": "2026-10-09T14:20:29.867Z",
+  "precheck_failures": [],
+  "apply": {
+   "ok": true,
+   "ms": 10401,
+   "applied": 22,
+   "ledger": 22,
+   "error": null
+  },
+  "postcheck_failures": [],
+  "rerun": {
+   "ok": true,
+   "skipped": 22
+  },
+  "rollbacks": [
+   {
+    "file": "20261010141000_core_organizer_approves_join_requests.rollback.sql",
+    "ok": true,
+    "ms": 179,
+    "error": null
+   },
+   {
+    "file": "20261010140000_core_published_roster_identity.rollback.sql",
+    "ok": true,
+    "ms": 223,
+    "error": null
+   },
+   {
+    "file": "20261010139000_core_roster_added_by_private.rollback.sql",
+    "ok": true,
+    "ms": 541,
+    "error": null
+   },
+   {
+    "file": "20261010138000_core_voting_photo_slot_owner.rollback.sql",
+    "ok": true,
+    "ms": 215,
+    "error": null
+   },
+   {
+    "file": "20261010137000_core_match_code_never_public.rollback.sql",
+    "ok": true,
+    "ms": 203,
+    "error": null
+   },
+   {
+    "file": "20261010136000_core_match_roster_visibility.rollback.sql",
+    "ok": true,
+    "ms": 183,
+    "error": null
+   },
+   {
+    "file": "20261010135000_core_private_profile_fields.rollback.sql",
+    "ok": true,
+    "ms": 307,
+    "error": null
+   }
+  ],
+  "ledger_after_rollbacks": 15,
+  "reapply": {
+   "ok": true,
+   "applied": 7,
+   "skipped": 15,
+   "ledger": 22
+  },
+  "postcheck_after_reapply_failures": [],
+  "server_restarted": false
+ },
+ "found_and_fixed_by_the_dry_run": [
+  "grant core_match_public_reader to current_user (137000) crashed the backend with signal 11 when run by postgres; every connection was reset. Now granted by name.",
+  "ALTER VIEW … OWNER TO core_match_public_reader needs the new owner to have CREATE on schema public (a superuser skips that check). Now granted only around the three statements and revoked."
+ ],
+ "postcheck_note": "\"anon and authenticated can execute every function the match views call\" is shown false (and anon on partidos_view fails with permission denied) when anon EXECUTE on match_involves_user is revoked — the case seen on rehearsal, where the 136000 helpers are owned by supabase_admin.",
+ "snapshot_covers": [
+  "added_by_digest",
+  "added_by_rows",
+  "added_by_trigger",
+  "approve_exec",
+  "claims",
+  "code_and_invite_fns",
+  "contact_phone_fn",
+  "functions",
+  "jugadores_columns",
+  "jugadores_with_check",
+  "policies",
+  "profiles_digest",
+  "request_policies",
+  "roles",
+  "roster_helpers",
+  "roster_triggers",
+  "triggers",
+  "usuarios_digest",
+  "views"
+ ]
+}

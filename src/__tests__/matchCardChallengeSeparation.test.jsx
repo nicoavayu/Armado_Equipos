@@ -109,10 +109,14 @@ describe('MatchCard post-match presentation', () => {
         isFinished
         isPostMatch
         postMatchInfo={{
-          encuestaLabel: 'Encuesta pendiente',
-          pagoLabel: 'Pago pendiente · $1.500',
-          encuestaAction: { label: 'Encuesta', onClick: onSurvey },
-          pagosAction: { label: 'Pagar', primary: true, onClick: onPayment },
+          matchName: 'Martes 21 h',
+          resultLabel: 'Empate',
+          lines: [
+            { key: 'survey', text: 'Encuesta pendiente', tone: 'warn' },
+            { key: 'payment', text: 'Pago pendiente · $1.500', tone: 'danger' },
+          ],
+          primaryAction: { label: 'Completar encuesta', primary: true, onClick: onSurvey },
+          secondaryAction: { label: 'Pagar', primary: false, onClick: onPayment },
         }}
       />,
     );
@@ -120,7 +124,10 @@ describe('MatchCard post-match presentation', () => {
     expect(screen.getByText('POST PARTIDO')).toBeInTheDocument();
     expect(container.querySelector('.match-card-post-match')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Encuesta' }));
+    expect(screen.getByText('Martes 21 h')).toBeInTheDocument();
+    expect(screen.getByText('Empate')).toBeInTheDocument();
+    expect(screen.getByText('Pago pendiente · $1.500')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Completar encuesta' }));
     fireEvent.click(screen.getByRole('button', { name: 'Pagar' }));
 
     expect(onSurvey).toHaveBeenCalledTimes(1);

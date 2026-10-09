@@ -9,12 +9,13 @@ import React, {
 import {
   AlertTriangle,
   Check,
+  ChevronDown,
   Download,
   Image as ImageIcon,
   LayoutTemplate,
   Loader2,
   LockKeyhole,
-  Palette,
+  PenLine,
   RefreshCw,
   RotateCcw,
   Share2,
@@ -27,7 +28,6 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useTorneosCompetition } from '../context/TorneosCompetitionContext';
 import { useTorneosWorkspace } from '../context/TorneosWorkspaceContext';
 import {
-  SOCIAL_ACCENTS,
   SOCIAL_FORMATS,
   SOCIAL_PLAYER_LINE_LABELS,
   SOCIAL_PLAYER_LINES,
@@ -58,7 +58,6 @@ import {
   resolveSocialExportPolicy,
   resolveSocialPreviewBranding,
 } from '../social/socialAccessPolicy';
-import { SOCIAL_THEME_REGISTRY } from '../social/socialThemes';
 import { BASE_LOCKUP_DATA_URL } from '../social/base/brandAsset';
 import { canonicalRoutes } from '../routing/canonicalRoutes';
 import SocialResultsThemePicker from './SocialResultsThemePicker';
@@ -156,6 +155,18 @@ function staleRenderError() {
 
 const NO_SNAPSHOT = Object.freeze({ key: '', version: 0, status: 'idle', data: null, error: '' });
 
+// The eleven pieces, grouped the way an organizer thinks about them. The groups are the same for every plan: FREE
+// only adds "· Premium" to the pieces it can preview but not download.
+const PIECE_GROUPS = Object.freeze([
+  ['La fecha', ['round_results', 'next_fixture', 'round_summary']],
+  ['Tablas', ['standings', 'scorers', 'discipline']],
+  ['Destacados', ['best_eleven', 'mvp']],
+  ['Fase final', ['semifinals', 'final', 'champion']],
+]);
+
+/**
+ * The one place a FREE season learns why this piece cannot be downloaded: where the download button would be.
+ */
 function StudioPremiumLock({ title, copy, organizationId, seasonId }) {
   const navigate = useNavigate();
   const target = seasonId
@@ -169,6 +180,30 @@ function StudioPremiumLock({ title, copy, organizationId, seasonId }) {
         <small>{copy}</small>
       </span>
       <button type="button" onClick={() => navigate(`${target}#premium`)}>Ver Premium</button>
+    </div>
+  );
+}
+
+/**
+ * Covers a Premium preview a FREE season can look at but not use: the art stays visible as a teaser, behind a
+ * watermark, a scrim and the Premium badge, so a screenshot is not a clean piece. It also takes the pointer, so the
+ * browser's "save image" never reaches the canvas underneath. This is presentation only: the server still refuses the
+ * export.
+ */
+function PremiumPreviewVeil() {
+  return (
+    <div
+      className={styles.premiumVeil}
+      data-premium-preview-lock="true"
+      aria-hidden="true"
+      onContextMenu={(event) => event.preventDefault()}
+      onDragStart={(event) => event.preventDefault()}
+    >
+      <span className={styles.premiumVeilBadge}>
+        <LockKeyhole size={16} strokeWidth={2.2} />
+        <strong>PREMIUM</strong>
+        <small>Vista previa</small>
+      </span>
     </div>
   );
 }
@@ -788,23 +823,22 @@ export default function SocialStudioPage() {
   const candidates = snapshot?.official?.candidates || [];
   const format = SOCIAL_FORMATS[editorial.format];
   const planLabel = trustedSeasonPlan ? (isPremiumSeason ? 'PREMIUM' : 'FREE') : null;
+  // A Premium piece or style a FREE season is looking at: previewed behind the lock, never downloadable.
+  const previewLocked = Boolean(snapshot) && !catalogAccess.exportable;
   const hero = (
     <header className={styles.hero}>
       <div>
-        <p>Placas listas para publicar · Datos oficiales</p>
+        <p>Placas para redes · Datos oficiales</p>
         <h1>Estudio Social</h1>
-        <span>Generá placas para redes con los resultados, la tabla y los partidos que ya publicaste.</span>
+        <span>Elegí una placa, revisá la vista previa y descargala para tus redes.</span>
       </div>
-      <div className={styles.heroMetrics}>
-        <article><LayoutTemplate size={19} aria-hidden="true" /><span><strong>{availablePieces.length}</strong><small>placas</small></span></article>
-        <article><Palette size={19} aria-hidden="true" /><span><strong>{SOCIAL_THEME_REGISTRY.length}</strong><small>estilos</small></span></article>
-        <article><ImageIcon size={19} aria-hidden="true" /><span><strong>{Object.keys(SOCIAL_FORMATS).length}</strong><small>formatos</small></span></article>
-        {planLabel && (
-          <article className={styles.heroPlan} data-plan={planLabel}>
-            <Sparkles size={19} aria-hidden="true" /><span><strong>{planLabel}</strong><small>plan de la temporada</small></span>
-          </article>
-        )}
-      </div>
+      {planLabel && (
+        <span className={styles.planChip} data-plan={planLabel}>
+          <Sparkles size={15} aria-hidden="true" />
+          <strong>{planLabel}</strong>
+          <small>plan de la temporada</small>
+        </span>
+      )}
     </header>
   );
 
@@ -821,6 +855,23 @@ export default function SocialStudioPage() {
     );
   }
 
+  const scopeIncomplete = !scope.categoryId || !scope.phaseId;
+  const scopeRound = requiresRound ? rounds.find((entry) => entry.id === scope.roundId) : null;
+  const scopeSummary = [
+    tournament?.name,
+    category?.name || 'Elegí una categoría',
+    category ? (phase?.name || 'Elegí una fase') : null,
+    requiresRound && phase ? (scopeRound?.name || 'Todas las fechas') : null,
+  ].filter(Boolean);
+  const pieceOptionLabel = (entry) => {
+    const access = describeSocialCatalogAccess({
+      familyId: entry.id,
+      themeId: 'base',
+      entitlements: effectiveEntitlements,
+    });
+    return access.locked ? `${entry.label} · Premium` : entry.label;
+  };
+
   return (
     <div className={styles.page}>
       {hero}
@@ -834,292 +885,213 @@ export default function SocialStudioPage() {
           </span>
         </div>
       )}
-      {notice && (
-        <div className={styles.noticeBanner} role="status">
-          <Check size={17} aria-hidden="true" /> {notice}
-        </div>
-      )}
 
       <div className={styles.workspace}>
-        <section className={styles.controls} aria-label="Configuración de la pieza">
-          <fieldset>
-            <legend>Alcance</legend>
-            <label>
-              <span>Torneo</span>
-              <select
-                value={scope.tournamentId}
-                onChange={(event) => {
-                  const next = tournaments.find((entry) => entry.id === event.target.value);
-                  setScope(scopeForTournament(next));
-                  setNotice('');
-                  const nextSeasonId = resolveSocialStudioSeasonId(
-                    next,
-                    competition.tournaments,
-                  );
-                  if (nextSeasonId) {
-                    competition.selectContext(nextSeasonId, next.id).catch(() => {});
-                  }
-                }}
-              >
-                {tournaments.map((entry) => (
-                  <option key={entry.id} value={entry.id}>{entry.name}</option>
-                ))}
-              </select>
-            </label>
-            <label>
-              <span>Categoría</span>
-              <select
-                value={scope.categoryId}
-                onChange={(event) => setScope((current) => ({
-                  ...current, categoryId: event.target.value, phaseId: '', roundId: '',
-                }))}
-              >
-                <option value="">Elegí una categoría</option>
-                {(tournament?.categories || []).map((entry) => (
-                  <option key={entry.id} value={entry.id}>{entry.name}</option>
-                ))}
-              </select>
-            </label>
-            <label>
-              <span>Fase</span>
-              <select
-                value={scope.phaseId}
-                onChange={(event) => setScope((current) => ({
-                  ...current, phaseId: event.target.value, roundId: '',
-                }))}
-              >
-                <option value="">Elegí una fase</option>
-                {(category?.phases || []).map((entry) => (
-                  <option key={entry.id} value={entry.id}>{entry.name}</option>
-                ))}
-              </select>
-            </label>
-            {piece?.requiresRound && (
+        {/* What the piece is: its data, the piece, the style and the format. Everything else is optional and lives
+            under the preview, so on a phone the preview follows these few controls. */}
+        <section className={styles.toolbar} aria-label="Configuración de la pieza">
+          <details className={styles.scope} open={scopeIncomplete || undefined}>
+            <summary>
+              <span className={styles.scopeCopy}>
+                <small>Datos de</small>
+                <strong>{scopeSummary.join(' · ')}</strong>
+              </span>
+              <span className={styles.scopeToggle}>
+                Cambiar <ChevronDown size={15} aria-hidden="true" />
+              </span>
+            </summary>
+            <fieldset className={styles.scopeFields}>
+              <legend className={styles.srOnly}>Alcance</legend>
               <label>
-                <span>Fecha</span>
+                <span>Torneo</span>
                 <select
-                  value={scope.roundId}
-                  onChange={(event) => setScope((current) => ({
-                    ...current, roundId: event.target.value,
-                  }))}
+                  value={scope.tournamentId}
+                  onChange={(event) => {
+                    const next = tournaments.find((entry) => entry.id === event.target.value);
+                    setScope(scopeForTournament(next));
+                    setNotice('');
+                    const nextSeasonId = resolveSocialStudioSeasonId(
+                      next,
+                      competition.tournaments,
+                    );
+                    if (nextSeasonId) {
+                      competition.selectContext(nextSeasonId, next.id).catch(() => {});
+                    }
+                  }}
                 >
-                  <option value="">Todas</option>
-                  {rounds.map((entry) => (
+                  {tournaments.map((entry) => (
                     <option key={entry.id} value={entry.id}>{entry.name}</option>
                   ))}
                 </select>
               </label>
-            )}
-          </fieldset>
-
-          <fieldset className={styles.pieceFieldset}>
-            <legend>Pieza</legend>
-            <div className={styles.pieceGrid} role="radiogroup" aria-label="Plantilla">
-              {availablePieces.map((entry) => {
-                const access = describeSocialCatalogAccess({
-                  familyId: entry.id,
-                  themeId: 'base',
-                  entitlements: effectiveEntitlements,
-                });
-                return (
-                <button
-                  key={entry.id}
-                  type="button"
-                  role="radio"
-                  aria-checked={pieceId === entry.id}
-                  className={`${pieceId === entry.id ? styles.pieceActive : ''} ${access.locked ? styles.pieceLocked : ''}`}
-                  onClick={() => setPieceId(entry.id)}
+              <label>
+                <span>Categoría</span>
+                <select
+                  value={scope.categoryId}
+                  onChange={(event) => setScope((current) => ({
+                    ...current, categoryId: event.target.value, phaseId: '', roundId: '',
+                  }))}
                 >
-                  {access.locked && <LockKeyhole size={13} aria-hidden="true" />}
-                  {entry.label}
-                  <small>{access.locked ? 'Premium' : 'Disponible'}</small>
-                </button>
-                );
-              })}
-            </div>
-            {!isPremiumSeason && (
-              <p className={styles.previewHint}>
-                <LockKeyhole size={14} aria-hidden="true" /> Con FREE descargás {FREE_PIECES_COPY} en estilo Base. Premium suma las {availablePieces.length} placas y los {SOCIAL_THEME_REGISTRY.length} estilos.
-              </p>
-            )}
-          </fieldset>
-
-          <fieldset>
-            <legend>Formato y estilo</legend>
-            <div className={styles.chipRow} role="radiogroup" aria-label="Formato">
-              {Object.values(SOCIAL_FORMATS).map((entry) => (
-                <button
-                  key={entry.id}
-                  type="button"
-                  role="radio"
-                  aria-checked={editorial.format === entry.id}
-                  className={editorial.format === entry.id ? styles.chipActive : ''}
-                  onClick={() => updateEditorial({ format: entry.id })}
+                  <option value="">Elegí una categoría</option>
+                  {(tournament?.categories || []).map((entry) => (
+                    <option key={entry.id} value={entry.id}>{entry.name}</option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                <span>Fase</span>
+                <select
+                  value={scope.phaseId}
+                  onChange={(event) => setScope((current) => ({
+                    ...current, phaseId: event.target.value, roundId: '',
+                  }))}
                 >
-                  {entry.label}
-                </button>
+                  <option value="">Elegí una fase</option>
+                  {(category?.phases || []).map((entry) => (
+                    <option key={entry.id} value={entry.id}>{entry.name}</option>
+                  ))}
+                </select>
+              </label>
+              {piece?.requiresRound && (
+                <label>
+                  <span>Fecha</span>
+                  <select
+                    value={scope.roundId}
+                    onChange={(event) => setScope((current) => ({
+                      ...current, roundId: event.target.value,
+                    }))}
+                  >
+                    <option value="">Todas</option>
+                    {rounds.map((entry) => (
+                      <option key={entry.id} value={entry.id}>{entry.name}</option>
+                    ))}
+                  </select>
+                </label>
+              )}
+            </fieldset>
+          </details>
+
+          <div className={styles.pieceRow}>
+            <label className={styles.pieceSelect}>
+              <span>Placa</span>
+              <select value={pieceId} onChange={(event) => setPieceId(event.target.value)}>
+                {PIECE_GROUPS.map(([group, ids]) => (
+                  <optgroup key={group} label={group}>
+                    {ids.map((id) => availablePieces.find((entry) => entry.id === id)).filter(Boolean).map((entry) => (
+                      <option key={entry.id} value={entry.id}>{pieceOptionLabel(entry)}</option>
+                    ))}
+                  </optgroup>
                 ))}
-            </div>
-            <SocialResultsThemePicker
-                organizationId={organizationId}
-                seasonId={seasonId}
-                planState={competition.planState}
-                themeId={themeId}
-                displayThemeId={effectiveThemeId}
-                onSelect={setThemeId}
-                onLockedPreview={() => setNotice('Estás viendo el estilo Premium real. Para descargarlo necesitás Premium en esta temporada.')}
-              />
-            {selectedTheme.id !== 'base' && (
-              <div className={styles.chipRow} role="radiogroup" aria-label="Acento">
-                {SOCIAL_ACCENTS.map((entry) => (
+              </select>
+              <ChevronDown className={styles.selectChevron} size={16} aria-hidden="true" />
+            </label>
+            <div className={styles.formatField}>
+              <span id="social-format-label">Formato</span>
+              <div className={styles.segmented} role="radiogroup" aria-labelledby="social-format-label">
+                {Object.values(SOCIAL_FORMATS).map((entry) => (
                   <button
                     key={entry.id}
                     type="button"
                     role="radio"
-                    aria-checked={editorial.accent === entry.id}
-                    aria-label={`Acento ${entry.label}`}
-                    className={editorial.accent === entry.id ? styles.chipActive : ''}
-                    onClick={() => updateEditorial({ accent: entry.id })}
+                    aria-checked={editorial.format === entry.id}
+                    className={editorial.format === entry.id ? styles.segmentActive : ''}
+                    onClick={() => updateEditorial({ format: entry.id })}
                   >
-                    <Palette size={15} aria-hidden="true" /> {entry.label}
+                    <span
+                      className={styles.formatGlyph}
+                      data-format={entry.id}
+                      aria-hidden="true"
+                    />
+                    {entry.label}
                   </button>
                 ))}
               </div>
-            )}
-          </fieldset>
+            </div>
+          </div>
 
-          {selectedTheme.id === 'base' ? <fieldset>
-            <legend>Firma Arma2</legend>
-            <label className={styles.checkboxRow}>
-              <input
-                type="checkbox"
-                checked={includeArma2Branding}
-                disabled={!canRemoveArma2Branding}
-                onChange={(event) => setIncludeArma2Branding(event.target.checked)}
-              />
-              <span>Mostrar la firma Arma2 en la placa</span>
-            </label>
-            {!canRemoveArma2Branding && (
-              <StudioPremiumLock
-                title="En FREE la firma Arma2 va siempre"
-                copy="Con Premium podés descargar el estilo Base sin la firma."
-                organizationId={organizationId}
-                seasonId={seasonId}
-              />
-            )}
-          </fieldset> : (
-            <p className={styles.whiteLabelNotice}>Los estilos Premium no llevan la firma Arma2: la placa sale sólo con la identidad de tu torneo.</p>
+          <SocialResultsThemePicker
+            organizationId={organizationId}
+            seasonId={seasonId}
+            planState={competition.planState}
+            themeId={themeId}
+            displayThemeId={effectiveThemeId}
+            onSelect={setThemeId}
+          />
+
+          {!isPremiumSeason && (
+            <p className={styles.planHint}>
+              Con FREE descargás {FREE_PIECES_COPY} en estilo Base. El resto se puede ver y se descarga con Premium.
+            </p>
           )}
-
-          {selectedTheme.id !== 'base' && (
-            <fieldset disabled={!canEditText}>
-              <legend>Texto</legend>
-              <label>
-                <span>Título</span>
-                <input
-                  value={editorial.title}
-                  maxLength={SOCIAL_TEXT_LIMITS.title}
-                  onChange={(event) => updateEditorial({ title: event.target.value })}
-                />
-              </label>
-              <label>
-                <span>Subtítulo</span>
-                <input
-                  value={editorial.subtitle}
-                  maxLength={SOCIAL_TEXT_LIMITS.subtitle}
-                  onChange={(event) => updateEditorial({ subtitle: event.target.value })}
-                />
-              </label>
-              <label>
-                <span>Texto editorial</span>
-                <textarea
-                  value={editorial.note}
-                  maxLength={SOCIAL_TEXT_LIMITS.note}
-                  onChange={(event) => updateEditorial({ note: event.target.value })}
-                  placeholder="Una línea breve, opcional."
-                />
-              </label>
-              <label>
-                <span>Sitio o CTA</span>
-                <input
-                  value={editorial.cta}
-                  maxLength={SOCIAL_TEXT_LIMITS.cta}
-                  onChange={(event) => updateEditorial({ cta: event.target.value })}
-                />
-              </label>
-            </fieldset>
-          )}
-
-          {piece?.requiresHumanSelection && (
-            <fieldset disabled={!canSelect}>
-              <legend>
-                <Users size={15} aria-hidden="true" /> Selección manual
-              </legend>
-              <p className={styles.curationCopy}>
-                Estas piezas las decide una persona. Arma2 no elige jugadores ni
-                redacta textos automáticamente.
-              </p>
-              <div className={styles.candidateList}>
-                {candidates.slice(0, 60).map((candidate) => {
-                  const id = candidate.rosterPlayerId || candidate.participantId;
-                  const checked = editorial.selection.includes(id);
-                  return (
-                    <div key={id} className={`${styles.candidateCard} ${checked ? styles.candidateChecked : ''}`}>
-                      <label>
-                        <input
-                          type="checkbox"
-                          checked={checked}
-                          onChange={() => toggleSelection(id)}
-                        />
-                        <span>
-                          <strong>{candidate.name || candidate.teamName}</strong>
-                          <small>
-                            {candidate.goals !== undefined
-                              ? `${candidate.goals} G · ${candidate.assists ?? 0} A`
-                              : `${candidate.points ?? 0} pts`}
-                          </small>
-                        </span>
-                      </label>
-                      {pieceId === 'best_eleven' && checked && (
-                        <select
-                          aria-label={`Línea de ${candidate.name || candidate.teamName}`}
-                          value={editorial.selectedLines?.[id] || fallbackSocialPlayerLine(candidate)}
-                          onChange={(event) => updateEditorial({
-                            selectedLines: { ...editorial.selectedLines, [id]: event.target.value },
-                          })}
-                        >
-                          {SOCIAL_PLAYER_LINES.map((line) => (
-                            <option key={line} value={line}>{SOCIAL_PLAYER_LINE_LABELS[line]}</option>
-                          ))}
-                        </select>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </fieldset>
-          )}
-
         </section>
+
+        {piece?.requiresHumanSelection && (
+          <fieldset className={styles.curation} disabled={!canSelect}>
+            <legend>
+              <Users size={15} aria-hidden="true" /> Selección manual
+            </legend>
+            <p className={styles.curationCopy}>
+              Estas placas las decide una persona: Arma2 no elige jugadores ni redacta textos.
+            </p>
+            <div className={styles.candidateList}>
+              {candidates.slice(0, 60).map((candidate) => {
+                const id = candidate.rosterPlayerId || candidate.participantId;
+                const checked = editorial.selection.includes(id);
+                return (
+                  <div key={id} className={`${styles.candidateCard} ${checked ? styles.candidateChecked : ''}`}>
+                    <label>
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => toggleSelection(id)}
+                      />
+                      <span>
+                        <strong>{candidate.name || candidate.teamName}</strong>
+                        <small>
+                          {candidate.goals !== undefined
+                            ? `${candidate.goals} G · ${candidate.assists ?? 0} A`
+                            : `${candidate.points ?? 0} pts`}
+                        </small>
+                      </span>
+                    </label>
+                    {pieceId === 'best_eleven' && checked && (
+                      <select
+                        aria-label={`Línea de ${candidate.name || candidate.teamName}`}
+                        value={editorial.selectedLines?.[id] || fallbackSocialPlayerLine(candidate)}
+                        onChange={(event) => updateEditorial({
+                          selectedLines: { ...editorial.selectedLines, [id]: event.target.value },
+                        })}
+                      >
+                        {SOCIAL_PLAYER_LINES.map((line) => (
+                          <option key={line} value={line}>{SOCIAL_PLAYER_LINE_LABELS[line]}</option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </fieldset>
+        )}
 
         <section className={styles.previewPanel} aria-label="Vista previa">
           <header>
             <span>
               <strong>{piece?.label}</strong>
-              <small>{format.width} × {format.height}</small>
+              <small>{format.label} · {format.width} × {format.height}</small>
             </span>
             <button type="button" onClick={loadSnapshot} aria-label="Actualizar datos oficiales">
-              <RefreshCw size={16} aria-hidden="true" /> Actualizar
+              <RefreshCw size={16} aria-hidden="true" /> <span className={styles.refreshLabel}>Actualizar</span>
             </button>
           </header>
 
           <div
-            className={`${styles.previewStage} ${hasFigurePhoto ? styles.previewStageDraggable : ''}`}
-            style={{ width: PREVIEW_WIDTH, maxWidth: '100%' }}
-            onPointerDown={startPhotoDrag}
-            onPointerMove={movePhotoDrag}
-            onPointerUp={stopPhotoDrag}
-            onPointerCancel={stopPhotoDrag}
+            className={`${styles.previewStage} ${hasFigurePhoto && !previewLocked ? styles.previewStageDraggable : ''}`}
+            data-format={editorial.format}
+            onPointerDown={previewLocked ? undefined : startPhotoDrag}
+            onPointerMove={previewLocked ? undefined : movePhotoDrag}
+            onPointerUp={previewLocked ? undefined : stopPhotoDrag}
+            onPointerCancel={previewLocked ? undefined : stopPhotoDrag}
             onClick={hasFigurePhoto ? claimFiguraDragPointer : undefined}
           >
             {/* The format's proportions belong to the art box, inside the stage border: on the stage itself
@@ -1129,6 +1101,7 @@ export default function SocialStudioPage() {
               className={styles.previewHost}
               style={{ aspectRatio: `${format.width} / ${format.height}` }}
             />
+            {previewLocked && previewStatus === 'ready' && <PremiumPreviewVeil />}
             {['loading', 'rendering'].includes(previewStatus) && (
               <span className={styles.previewOverlay} role="status">
                 <Loader2 size={22} aria-hidden="true" /> Generando…
@@ -1178,7 +1151,7 @@ export default function SocialStudioPage() {
           )}
 
           {/* The photo is framed by dragging on the preview: its tools live next to it, never scrolled away. */}
-          {pieceId === 'mvp' && (
+          {pieceId === 'mvp' && !previewLocked && (
             <fieldset className={styles.photoEditor} disabled={!canSelect}>
               <legend><ImageIcon size={15} aria-hidden="true" /> Foto de la figura</legend>
               <input
@@ -1236,6 +1209,11 @@ export default function SocialStudioPage() {
               </button>
             </footer>
           )}
+          {notice && (
+            <p className={styles.noticeBanner} role="status">
+              <Check size={16} aria-hidden="true" /> {notice}
+            </p>
+          )}
           {exportError && (
             <p className={styles.previewError} role="alert">{exportError}</p>
           )}
@@ -1247,10 +1225,78 @@ export default function SocialStudioPage() {
           {canExport && !catalogAccess.exportable && (
             <StudioPremiumLock
               title={effectiveThemeId !== 'base' ? `El estilo ${selectedTheme.label} es Premium` : `${piece?.label || 'Esta placa'} es Premium`}
-              copy={`Podés verla completa. Con FREE descargás ${FREE_PIECES_COPY} en estilo Base, con la firma Arma2. La compra de Premium todavía no está disponible.`}
+              copy="Podés verla completa. Para descargarla o compartirla, la temporada necesita Premium. La compra de Premium todavía no está disponible."
               organizationId={organizationId}
               seasonId={seasonId}
             />
+          )}
+        </section>
+
+        <section className={styles.refine} aria-label="Ajustes opcionales">
+          {selectedTheme.id === 'base' ? (
+            <div className={styles.signature}>
+              <label className={styles.checkboxRow}>
+                <input
+                  type="checkbox"
+                  checked={includeArma2Branding}
+                  disabled={!canRemoveArma2Branding}
+                  onChange={(event) => setIncludeArma2Branding(event.target.checked)}
+                />
+                <span>Mostrar la firma Arma2 en la placa</span>
+              </label>
+              {!canRemoveArma2Branding && (
+                <small className={styles.fieldHint}>
+                  <LockKeyhole size={12} aria-hidden="true" /> En FREE la firma Arma2 va siempre. Con Premium podés quitarla.
+                </small>
+              )}
+            </div>
+          ) : (
+            <p className={styles.whiteLabelNotice}>Los estilos Premium no llevan la firma Arma2: la placa sale sólo con la identidad de tu torneo.</p>
+          )}
+
+          {selectedTheme.id !== 'base' && (
+            <details className={styles.textEditor}>
+              <summary>
+                <PenLine size={15} aria-hidden="true" /> Editar textos <small>Opcional</small>
+                <ChevronDown className={styles.detailsChevron} size={15} aria-hidden="true" />
+              </summary>
+              <fieldset disabled={!canEditText}>
+                <legend className={styles.srOnly}>Texto</legend>
+                <label>
+                  <span>Título</span>
+                  <input
+                    value={editorial.title}
+                    maxLength={SOCIAL_TEXT_LIMITS.title}
+                    onChange={(event) => updateEditorial({ title: event.target.value })}
+                  />
+                </label>
+                <label>
+                  <span>Subtítulo</span>
+                  <input
+                    value={editorial.subtitle}
+                    maxLength={SOCIAL_TEXT_LIMITS.subtitle}
+                    onChange={(event) => updateEditorial({ subtitle: event.target.value })}
+                  />
+                </label>
+                <label>
+                  <span>Texto editorial</span>
+                  <textarea
+                    value={editorial.note}
+                    maxLength={SOCIAL_TEXT_LIMITS.note}
+                    onChange={(event) => updateEditorial({ note: event.target.value })}
+                    placeholder="Una línea breve, opcional."
+                  />
+                </label>
+                <label>
+                  <span>Sitio o CTA</span>
+                  <input
+                    value={editorial.cta}
+                    maxLength={SOCIAL_TEXT_LIMITS.cta}
+                    onChange={(event) => updateEditorial({ cta: event.target.value })}
+                  />
+                </label>
+              </fieldset>
+            </details>
           )}
         </section>
       </div>

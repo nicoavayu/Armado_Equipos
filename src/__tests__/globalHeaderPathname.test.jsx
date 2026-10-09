@@ -11,9 +11,14 @@ jest.mock('../hooks/useScrollReset', () => ({
   useScrollResetContainer: () => jest.fn(),
 }));
 
-jest.mock('../features/onboarding', () => ({
-  OnboardingProvider: ({ children }) => <>{children}</>,
-  OnboardingHost: () => null,
+jest.mock('../features/onboarding/OnboardingProvider', () => ({
+  __esModule: true,
+  default: ({ children }) => <>{children}</>,
+}));
+
+jest.mock('../features/onboarding/LazyOnboardingHost', () => ({
+  __esModule: true,
+  default: () => null,
 }));
 
 jest.mock('../components/global-header/GlobalHeader', () => () => (
@@ -73,10 +78,19 @@ describe('SpaceHeader root-only mounting', () => {
     ['/torneos/organizacion/org-1/inicio', true],
     ['/torneos/organizacion/org-1/fixture', true],
     ['/torneos/organizacion/org-1/competencia/tabla', true],
-    ['/torneos/organizacion/org-1/fixture/grupos', false],
-    ['/torneos/organizacion/org-1/torneos/nuevo', false],
-    ['/torneos/mis-partidos/partido-1', false],
-    ['/torneos/torneo/torneo-1', false],
+    // Every authenticated Torneos screen keeps the account, the Torneos bell and the product selector — inside a
+    // tournament, a match or an organization tool too.
+    ['/torneos/organizacion/org-1/fixture/grupos', true],
+    ['/torneos/organizacion/org-1/torneos/nuevo', true],
+    ['/torneos/mis-partidos/partido-1', true],
+    ['/torneos/torneo/torneo-1', true],
+    ['/torneos/torneo/torneo-1/fotos', true],
+    ['/torneos/mis-equipos/org-1/entry-1/plantel', true],
+    ['/torneos/explorar/liga-copa/solicitar', true],
+    // Public pages have their own header; Core routes are not Torneos.
+    ['/torneos/publico', false],
+    ['/torneos/publico/liga-copa', false],
+    ['/quiero-jugar', false],
   ])('defines Torneos route %s header visibility as %s', (pathname, expected) => {
     expect(shouldShowTorneosSpaceHeader(pathname)).toBe(expected);
   });

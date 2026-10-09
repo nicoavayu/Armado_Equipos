@@ -10,6 +10,7 @@ import { useAuth } from '../components/AuthProvider';
 import ConfirmModal from '../components/ConfirmModal';
 import { findDuplicateTemplateMatch, findUserScheduleConflicts } from '../services/db/matchScheduling';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
+import { templateLinkNotice } from '../services/db/templateMatchLink';
 import {
   nextYmdForWeekday,
   normalizeYmd,
@@ -130,6 +131,14 @@ const FrecuentesPage = () => {
       partidoFrecuente?.modalidad || 'F5',
       cupo,
     );
+    const linkNotice = templateLinkNotice(partido?.templateLink, partidoFrecuente?.nombre);
+    if (linkNotice) {
+      notifyBlockingError(linkNotice.message, {
+        title: linkNotice.title,
+        confirmText: 'Entendido',
+        key: 'template_link_notice',
+      });
+    }
 
     // Keep the template date moving forward so next creation suggests the following week.
     if (partidoFrecuente?.id && fechaObjetivo) {

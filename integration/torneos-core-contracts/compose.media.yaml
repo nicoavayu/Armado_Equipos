@@ -1,0 +1,22 @@
+# MEDIA-V1 overlay (compose -f compose.yaml -f compose.branding.yaml -f compose.media.yaml). Local only. Needs the
+# BRANDING-V1 overlay: it brings the Torneos storage of the lab, and media.ts reuses branding.ts's storage-target rule.
+#   * torneos-storage: the per-object limit rises to the MVP_SIMPLE normalized-photo ceiling (4 MiB); each bucket keeps
+#     its own limit (tournament-branding 2 MiB, tournament-media 4 MiB — migration 00000000000012).
+#   * Both gateways get TORNEOS_MEDIA_MODE=on: the gallery RPCs, POST /torneos/media/v1/upload and
+#     POST /torneos/media/v1/urls (torneos-gateway/media.ts, the same module on Node and Edge).
+services:
+  torneos-storage:
+    environment:
+      FILE_SIZE_LIMIT: "4194304"
+      UPLOAD_FILE_SIZE_LIMIT: "4194304"
+  gateway:
+    environment:
+      TORNEOS_MEDIA_MODE: "on"
+    volumes:
+      - ../../backend/torneos/supabase/functions/torneos-gateway/media.ts:/lab/functions/torneos-gateway/media.ts:ro
+      - ../../backend/torneos/supabase/functions/torneos-gateway/media-image.ts:/lab/functions/torneos-gateway/media-image.ts:ro
+      - ../../backend/torneos/supabase/functions/torneos-gateway/media-contract.ts:/lab/functions/torneos-gateway/media-contract.ts:ro
+      - ../../backend/torneos/supabase/functions/torneos-gateway/media-v1-rpc-allowlist.json:/lab/functions/torneos-gateway/media-v1-rpc-allowlist.json:ro
+  torneos-functions:
+    environment:
+      TORNEOS_MEDIA_MODE: "on"

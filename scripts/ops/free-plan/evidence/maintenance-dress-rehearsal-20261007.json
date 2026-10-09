@@ -1,0 +1,147 @@
+{
+ "kind": "arma2-core-capacity-maintenance",
+ "target": "lab:56021",
+ "commit": "92e4f536281d8c4933948075263357b90dd55330",
+ "backup": {
+  "folder": "<scratchpad>/maint-lab/core-maintenance-20261007T040151Z/backup",
+  "created_at": "20261007T040154Z",
+  "snapshot": "0000003E-00000004-1",
+  "ciphertext_sha256": "91c8d527b0c97c07220dfcfb6b13a95b7063e7eea19cc7678a0b2d5656bf8351",
+  "restore_check": "RESTORE-CHECK-20261007T040205Z.json",
+  "history_kept": {
+   "cron.job_run_details": 1144567,
+   "public.push_sender_scheduler_runs": 296617
+  }
+ },
+ "steps": [
+  {
+   "step": "reindex",
+   "verdict": "REINDEX_DONE",
+   "seconds": 0.01,
+   "health": {
+    "read_only": "off",
+    "jobs_active": 8,
+    "cron_runs_since": 4,
+    "push_ticks_since": 1,
+    "cron_failed_since": 0,
+    "push_tick_job_active": true,
+    "waited_s": 75
+   },
+   "database_mb": [
+    350.3,
+    304.2
+   ]
+  },
+  {
+   "step": "migration-20261009120000",
+   "verdict": "MIGRATION-20261009120000_DONE",
+   "seconds": 0.01,
+   "health": {
+    "read_only": "off",
+    "jobs_active": 10,
+    "cron_runs_since": 4,
+    "push_ticks_since": 1,
+    "cron_failed_since": 0,
+    "push_tick_job_active": true,
+    "waited_s": 75
+   },
+   "database_mb": [
+    304.2,
+    304.2
+   ]
+  },
+  {
+   "step": "compact",
+   "verdict": "COMPACT_DONE",
+   "seconds": 0.11,
+   "health": {
+    "read_only": "off",
+    "jobs_active": 10,
+    "cron_runs_since": 6,
+    "push_ticks_since": 1,
+    "cron_failed_since": 0,
+    "push_tick_job_active": true,
+    "waited_s": 75
+   },
+   "database_mb": [
+    304.2,
+    35.2
+   ]
+  }
+ ],
+ "rows_removed": {
+  "cron_job_run_details": 1124780,
+  "push_sender_scheduler_runs": 286578
+ },
+ "delivery_log_index_mb": [
+  46.1,
+  0.1
+ ],
+ "database_mb": {
+  "before": 350.3,
+  "after": 35.2,
+  "recovered": 315.1
+ },
+ "cron_jobs_after": [
+  {
+   "name": "auto_match_sweep",
+   "active": true,
+   "schedule": "*/5 * * * *"
+  },
+  {
+   "name": "challenge_result_survey_backend_fanout",
+   "active": true,
+   "schedule": "* * * * *"
+  },
+  {
+   "name": "directed_challenge_expiry_scheduler",
+   "active": true,
+   "schedule": "*/10 * * * *"
+  },
+  {
+   "name": "match_reminder_1h_scheduler",
+   "active": true,
+   "schedule": "*/5 * * * *"
+  },
+  {
+   "name": "notifications_retention_cleanup_scheduler",
+   "active": true,
+   "schedule": "17 3 * * *"
+  },
+  {
+   "name": "ops_delivery_log_reindex",
+   "active": true,
+   "schedule": "11 4 1 * *"
+  },
+  {
+   "name": "ops_log_retention_scheduler",
+   "active": true,
+   "schedule": "41 3 * * *"
+  },
+  {
+   "name": "push_sender_dispatch_scheduler",
+   "active": true,
+   "schedule": "* * * * *"
+  },
+  {
+   "name": "survey_reminder_backend_scheduler",
+   "active": true,
+   "schedule": "* * * * *"
+  },
+  {
+   "name": "survey_start_backend_scheduler",
+   "active": true,
+   "schedule": "* * * * *"
+  }
+ ],
+ "ledger_after": [
+  "20260914120000",
+  "20260915120000",
+  "20261009120000"
+ ],
+ "what": "Dress rehearsal of scripts/ops/free-plan/core-capacity-maintenance.sh on a disposable Core copy with Production volumes (1.14 M cron runs, 296 k ticks, bloated delivery-log indexes) and ACTIVE pg_cron jobs; loopback, Production untouched",
+ "r0": {
+  "backup": "BACKUP COMPLETE lab:56021: 185 tables, 1462676 rows, 15.7 MB dump, snapshot 0000003E-00000004-1",
+  "restore_check": "RESTORE VERIFIED: 185 tables / 1462676 rows, 0 differences, 0 pg_restore errors (10.8 s)"
+ }
+}

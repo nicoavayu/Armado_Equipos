@@ -1,0 +1,285 @@
+-- #193 promotion — applies 20261010120000…141000 on Core, in order, each in its own transaction
+-- together with its ledger row (supabase_migrations.schema_migrations). A version already in the
+-- ledger is skipped, so the same file resumes after a stop or re-applies after a rollback (the
+-- rollbacks remove their ledger row). Run from the repository root, connected as postgres:
+--   psql "<conninfo>" --password -X -f docs/database/core-review/runbook/apply-193.psql
+-- The first error stops psql: that migration rolls back entirely; the earlier ones stay applied.
+-- Generated from the migration files (RUNBOOK-193.md); do not edit by hand.
+\set ON_ERROR_STOP on
+\timing on
+set lock_timeout = '5s';
+set statement_timeout = '120s';
+
+do $$
+begin
+  if current_user <> 'postgres' then
+    raise exception 'connect as postgres (now: %)', current_user;
+  end if;
+end;
+$$;
+
+select exists (select 1 from supabase_migrations.schema_migrations where version = '20261010120000') as already_applied \gset
+\if :already_applied
+\echo '=== 20261010120000 already in the ledger: skipped'
+\else
+\echo '>>> 20261010120000 core_trigger_helper_execute_grants'
+begin;
+\i supabase/migrations/20261010120000_core_trigger_helper_execute_grants.sql
+\set migration_source `cat supabase/migrations/20261010120000_core_trigger_helper_execute_grants.sql`
+insert into supabase_migrations.schema_migrations (version, name, statements) values ('20261010120000', 'core_trigger_helper_execute_grants', array[:'migration_source']);
+commit;
+\endif
+
+select exists (select 1 from supabase_migrations.schema_migrations where version = '20261010121000') as already_applied \gset
+\if :already_applied
+\echo '=== 20261010121000 already in the ledger: skipped'
+\else
+\echo '>>> 20261010121000 core_public_voting_roster_identity'
+begin;
+\i supabase/migrations/20261010121000_core_public_voting_roster_identity.sql
+\set migration_source `cat supabase/migrations/20261010121000_core_public_voting_roster_identity.sql`
+insert into supabase_migrations.schema_migrations (version, name, statements) values ('20261010121000', 'core_public_voting_roster_identity', array[:'migration_source']);
+commit;
+\endif
+
+select exists (select 1 from supabase_migrations.schema_migrations where version = '20261010122000') as already_applied \gset
+\if :already_applied
+\echo '=== 20261010122000 already in the ledger: skipped'
+\else
+\echo '>>> 20261010122000 core_notifications_ext_match_columns'
+begin;
+\i supabase/migrations/20261010122000_core_notifications_ext_match_columns.sql
+\set migration_source `cat supabase/migrations/20261010122000_core_notifications_ext_match_columns.sql`
+insert into supabase_migrations.schema_migrations (version, name, statements) values ('20261010122000', 'core_notifications_ext_match_columns', array[:'migration_source']);
+commit;
+\endif
+
+select exists (select 1 from supabase_migrations.schema_migrations where version = '20261010123000') as already_applied \gset
+\if :already_applied
+\echo '=== 20261010123000 already in the ledger: skipped'
+\else
+\echo '>>> 20261010123000 core_reset_votacion_score_default'
+begin;
+\i supabase/migrations/20261010123000_core_reset_votacion_score_default.sql
+\set migration_source `cat supabase/migrations/20261010123000_core_reset_votacion_score_default.sql`
+insert into supabase_migrations.schema_migrations (version, name, statements) values ('20261010123000', 'core_reset_votacion_score_default', array[:'migration_source']);
+commit;
+\endif
+
+select exists (select 1 from supabase_migrations.schema_migrations where version = '20261010124000') as already_applied \gset
+\if :already_applied
+\echo '=== 20261010124000 already in the ledger: skipped'
+\else
+\echo '>>> 20261010124000 core_usuarios_profile_rpcs'
+begin;
+\i supabase/migrations/20261010124000_core_usuarios_profile_rpcs.sql
+\set migration_source `cat supabase/migrations/20261010124000_core_usuarios_profile_rpcs.sql`
+insert into supabase_migrations.schema_migrations (version, name, statements) values ('20261010124000', 'core_usuarios_profile_rpcs', array[:'migration_source']);
+commit;
+\endif
+
+select exists (select 1 from supabase_migrations.schema_migrations where version = '20261010125000') as already_applied \gset
+\if :already_applied
+\echo '=== 20261010125000 already in the ledger: skipped'
+\else
+\echo '>>> 20261010125000 core_public_match_reads_by_code'
+begin;
+\i supabase/migrations/20261010125000_core_public_match_reads_by_code.sql
+\set migration_source `cat supabase/migrations/20261010125000_core_public_match_reads_by_code.sql`
+insert into supabase_migrations.schema_migrations (version, name, statements) values ('20261010125000', 'core_public_match_reads_by_code', array[:'migration_source']);
+commit;
+\endif
+
+select exists (select 1 from supabase_migrations.schema_migrations where version = '20261010126000') as already_applied \gset
+\if :already_applied
+\echo '=== 20261010126000 already in the ledger: skipped'
+\else
+\echo '>>> 20261010126000 core_team_roster_identity'
+begin;
+\i supabase/migrations/20261010126000_core_team_roster_identity.sql
+\set migration_source `cat supabase/migrations/20261010126000_core_team_roster_identity.sql`
+insert into supabase_migrations.schema_migrations (version, name, statements) values ('20261010126000', 'core_team_roster_identity', array[:'migration_source']);
+commit;
+\endif
+
+select exists (select 1 from supabase_migrations.schema_migrations where version = '20261010127000') as already_applied \gset
+\if :already_applied
+\echo '=== 20261010127000 already in the ledger: skipped'
+\else
+\echo '>>> 20261010127000 core_post_match_surveys_result_columns'
+begin;
+\i supabase/migrations/20261010127000_core_post_match_surveys_result_columns.sql
+\set migration_source `cat supabase/migrations/20261010127000_core_post_match_surveys_result_columns.sql`
+insert into supabase_migrations.schema_migrations (version, name, statements) values ('20261010127000', 'core_post_match_surveys_result_columns', array[:'migration_source']);
+commit;
+\endif
+
+select exists (select 1 from supabase_migrations.schema_migrations where version = '20261010128000') as already_applied \gset
+\if :already_applied
+\echo '=== 20261010128000 already in the ledger: skipped'
+\else
+\echo '>>> 20261010128000 core_contact_phone_and_public_profile_list'
+begin;
+\i supabase/migrations/20261010128000_core_contact_phone_and_public_profile_list.sql
+\set migration_source `cat supabase/migrations/20261010128000_core_contact_phone_and_public_profile_list.sql`
+insert into supabase_migrations.schema_migrations (version, name, statements) values ('20261010128000', 'core_contact_phone_and_public_profile_list', array[:'migration_source']);
+commit;
+\endif
+
+select exists (select 1 from supabase_migrations.schema_migrations where version = '20261010129000') as already_applied \gset
+\if :already_applied
+\echo '=== 20261010129000 already in the ledger: skipped'
+\else
+\echo '>>> 20261010129000 core_survey_finalization_recovery'
+begin;
+\i supabase/migrations/20261010129000_core_survey_finalization_recovery.sql
+\set migration_source `cat supabase/migrations/20261010129000_core_survey_finalization_recovery.sql`
+insert into supabase_migrations.schema_migrations (version, name, statements) values ('20261010129000', 'core_survey_finalization_recovery', array[:'migration_source']);
+commit;
+\endif
+
+select exists (select 1 from supabase_migrations.schema_migrations where version = '20261010130000') as already_applied \gset
+\if :already_applied
+\echo '=== 20261010130000 already in the ledger: skipped'
+\else
+\echo '>>> 20261010130000 core_client_build_reports'
+begin;
+\i supabase/migrations/20261010130000_core_client_build_reports.sql
+\set migration_source `cat supabase/migrations/20261010130000_core_client_build_reports.sql`
+insert into supabase_migrations.schema_migrations (version, name, statements) values ('20261010130000', 'core_client_build_reports', array[:'migration_source']);
+commit;
+\endif
+
+select exists (select 1 from supabase_migrations.schema_migrations where version = '20261010131000') as already_applied \gset
+\if :already_applied
+\echo '=== 20261010131000 already in the ledger: skipped'
+\else
+\echo '>>> 20261010131000 core_survey_server_finalization'
+begin;
+\i supabase/migrations/20261010131000_core_survey_server_finalization.sql
+\set migration_source `cat supabase/migrations/20261010131000_core_survey_server_finalization.sql`
+insert into supabase_migrations.schema_migrations (version, name, statements) values ('20261010131000', 'core_survey_server_finalization', array[:'migration_source']);
+commit;
+\endif
+
+select exists (select 1 from supabase_migrations.schema_migrations where version = '20261010132000') as already_applied \gset
+\if :already_applied
+\echo '=== 20261010132000 already in the ledger: skipped'
+\else
+\echo '>>> 20261010132000 core_friend_request_acceptance'
+begin;
+\i supabase/migrations/20261010132000_core_friend_request_acceptance.sql
+\set migration_source `cat supabase/migrations/20261010132000_core_friend_request_acceptance.sql`
+insert into supabase_migrations.schema_migrations (version, name, statements) values ('20261010132000', 'core_friend_request_acceptance', array[:'migration_source']);
+commit;
+\endif
+
+select exists (select 1 from supabase_migrations.schema_migrations where version = '20261010133000') as already_applied \gset
+\if :already_applied
+\echo '=== 20261010133000 already in the ledger: skipped'
+\else
+\echo '>>> 20261010133000 core_match_access_code'
+begin;
+\i supabase/migrations/20261010133000_core_match_access_code.sql
+\set migration_source `cat supabase/migrations/20261010133000_core_match_access_code.sql`
+insert into supabase_migrations.schema_migrations (version, name, statements) values ('20261010133000', 'core_match_access_code', array[:'migration_source']);
+commit;
+\endif
+
+select exists (select 1 from supabase_migrations.schema_migrations where version = '20261010134000') as already_applied \gset
+\if :already_applied
+\echo '=== 20261010134000 already in the ledger: skipped'
+\else
+\echo '>>> 20261010134000 core_partidos_template_link'
+begin;
+\i supabase/migrations/20261010134000_core_partidos_template_link.sql
+\set migration_source `cat supabase/migrations/20261010134000_core_partidos_template_link.sql`
+insert into supabase_migrations.schema_migrations (version, name, statements) values ('20261010134000', 'core_partidos_template_link', array[:'migration_source']);
+commit;
+\endif
+
+select exists (select 1 from supabase_migrations.schema_migrations where version = '20261010135000') as already_applied \gset
+\if :already_applied
+\echo '=== 20261010135000 already in the ledger: skipped'
+\else
+\echo '>>> 20261010135000 core_private_profile_fields'
+begin;
+\i supabase/migrations/20261010135000_core_private_profile_fields.sql
+\set migration_source `cat supabase/migrations/20261010135000_core_private_profile_fields.sql`
+insert into supabase_migrations.schema_migrations (version, name, statements) values ('20261010135000', 'core_private_profile_fields', array[:'migration_source']);
+commit;
+\endif
+
+select exists (select 1 from supabase_migrations.schema_migrations where version = '20261010136000') as already_applied \gset
+\if :already_applied
+\echo '=== 20261010136000 already in the ledger: skipped'
+\else
+\echo '>>> 20261010136000 core_match_roster_visibility'
+begin;
+\i supabase/migrations/20261010136000_core_match_roster_visibility.sql
+\set migration_source `cat supabase/migrations/20261010136000_core_match_roster_visibility.sql`
+insert into supabase_migrations.schema_migrations (version, name, statements) values ('20261010136000', 'core_match_roster_visibility', array[:'migration_source']);
+commit;
+\endif
+
+select exists (select 1 from supabase_migrations.schema_migrations where version = '20261010137000') as already_applied \gset
+\if :already_applied
+\echo '=== 20261010137000 already in the ledger: skipped'
+\else
+\echo '>>> 20261010137000 core_match_code_never_public'
+begin;
+\i supabase/migrations/20261010137000_core_match_code_never_public.sql
+\set migration_source `cat supabase/migrations/20261010137000_core_match_code_never_public.sql`
+insert into supabase_migrations.schema_migrations (version, name, statements) values ('20261010137000', 'core_match_code_never_public', array[:'migration_source']);
+commit;
+\endif
+
+select exists (select 1 from supabase_migrations.schema_migrations where version = '20261010138000') as already_applied \gset
+\if :already_applied
+\echo '=== 20261010138000 already in the ledger: skipped'
+\else
+\echo '>>> 20261010138000 core_voting_photo_slot_owner'
+begin;
+\i supabase/migrations/20261010138000_core_voting_photo_slot_owner.sql
+\set migration_source `cat supabase/migrations/20261010138000_core_voting_photo_slot_owner.sql`
+insert into supabase_migrations.schema_migrations (version, name, statements) values ('20261010138000', 'core_voting_photo_slot_owner', array[:'migration_source']);
+commit;
+\endif
+
+select exists (select 1 from supabase_migrations.schema_migrations where version = '20261010139000') as already_applied \gset
+\if :already_applied
+\echo '=== 20261010139000 already in the ledger: skipped'
+\else
+\echo '>>> 20261010139000 core_roster_added_by_private'
+begin;
+\i supabase/migrations/20261010139000_core_roster_added_by_private.sql
+\set migration_source `cat supabase/migrations/20261010139000_core_roster_added_by_private.sql`
+insert into supabase_migrations.schema_migrations (version, name, statements) values ('20261010139000', 'core_roster_added_by_private', array[:'migration_source']);
+commit;
+\endif
+
+select exists (select 1 from supabase_migrations.schema_migrations where version = '20261010140000') as already_applied \gset
+\if :already_applied
+\echo '=== 20261010140000 already in the ledger: skipped'
+\else
+\echo '>>> 20261010140000 core_published_roster_identity'
+begin;
+\i supabase/migrations/20261010140000_core_published_roster_identity.sql
+\set migration_source `cat supabase/migrations/20261010140000_core_published_roster_identity.sql`
+insert into supabase_migrations.schema_migrations (version, name, statements) values ('20261010140000', 'core_published_roster_identity', array[:'migration_source']);
+commit;
+\endif
+
+select exists (select 1 from supabase_migrations.schema_migrations where version = '20261010141000') as already_applied \gset
+\if :already_applied
+\echo '=== 20261010141000 already in the ledger: skipped'
+\else
+\echo '>>> 20261010141000 core_organizer_approves_join_requests'
+begin;
+\i supabase/migrations/20261010141000_core_organizer_approves_join_requests.sql
+\set migration_source `cat supabase/migrations/20261010141000_core_organizer_approves_join_requests.sql`
+insert into supabase_migrations.schema_migrations (version, name, statements) values ('20261010141000', 'core_organizer_approves_join_requests', array[:'migration_source']);
+commit;
+\endif
+
+\echo '>>> done: run postcheck.sql'

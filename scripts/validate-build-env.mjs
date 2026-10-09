@@ -26,12 +26,22 @@ export function validateTorneosGatewayTarget(env = process.env) {
   return null;
 }
 
-// MP-A5: the Premium purchase (Mercado Pago Checkout Pro TEST) exists only in the local lab dev
-// server. A build never carries REACT_APP_TORNEOS_BILLING_MODE, whatever its value: the runtime
-// already refuses billing in a production build, this refuses the bundle before it exists.
+// MP-A5: the Premium purchase with Mercado Pago Checkout Pro TEST exists only in the local lab dev server: a build
+// never carries REACT_APP_TORNEOS_BILLING_MODE=test (or any other value). COMMERCE-PRODUCTION: the one value a build
+// may carry is `production`, and only for the production deployment with PLAN READ on (the runtime additionally
+// demands the production web host and an https gateway; validateTorneosGatewayTarget checks the gateway here).
 export function validateTorneosBillingMode(env = process.env) {
-  if (!String(env.REACT_APP_TORNEOS_BILLING_MODE ?? '').trim()) return null;
-  return 'REACT_APP_TORNEOS_BILLING_MODE is lab-only (local dev server); builds must not set it';
+  const mode = String(env.REACT_APP_TORNEOS_BILLING_MODE ?? '').trim();
+  if (!mode) return null;
+  if (mode !== 'production') return 'REACT_APP_TORNEOS_BILLING_MODE is lab-only (local dev server) except production; builds must not set it';
+  if (String(env.REACT_APP_DEPLOY_ENV || '').trim().toLowerCase() !== 'production') {
+    return 'REACT_APP_TORNEOS_BILLING_MODE=production is only for the production deployment (REACT_APP_DEPLOY_ENV=production)';
+  }
+  if (env.REACT_APP_TORNEOS_PLAN_READ_MODE !== 'on') return 'REACT_APP_TORNEOS_BILLING_MODE=production requires REACT_APP_TORNEOS_PLAN_READ_MODE=on';
+  if (!String(env.REACT_APP_TORNEOS_GATEWAY_URL || '').trim().startsWith('https://')) {
+    return 'REACT_APP_TORNEOS_BILLING_MODE=production requires an https REACT_APP_TORNEOS_GATEWAY_URL';
+  }
+  return null;
 }
 
 const isMain = process.argv[1] && new URL(`file://${process.argv[1]}`).href === import.meta.url;

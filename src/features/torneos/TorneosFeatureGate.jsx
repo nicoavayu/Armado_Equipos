@@ -5,6 +5,9 @@ import { torneosFeatureFlags } from './config/featureFlags';
 import {
   resolveTorneosBackendMode,
   resolveTorneosBillingMode,
+  resolveTorneosConnectedProduct,
+  resolveTorneosBranding,
+  resolveTorneosMedia,
   resolveTorneosPlanRead,
   resolveTorneosSocialStudio,
 } from './foundation/config';
@@ -18,8 +21,9 @@ const StagingV1TorneosApp = lazy(() => import('./stagingV1/StagingV1TorneosApp')
 // single-project LOCAL QA stack; anything else stays closed — a staging or
 // preview build without a gateway never serves Torneos from the Core project.
 export const torneosBackendMode = resolveTorneosBackendMode(process.env);
-// MP-A5: the Premium purchase (Checkout Pro TEST) only for the hybrid composition in the local
-// lab — see resolveTorneosBillingMode; `off` everywhere else, whatever a single variable says.
+// MP-A5 / COMMERCE-PRODUCTION: the Premium purchase only for the hybrid composition in the local lab (TEST) or on the
+// production web app (production) — see resolveTorneosBillingMode; `off` everywhere else (native shells included),
+// whatever a single variable says.
 export const torneosBillingMode = resolveTorneosBillingMode(process.env, {
   backendMode: torneosBackendMode,
   appHostname: typeof window === 'undefined' ? null : window.location.hostname,
@@ -60,6 +64,12 @@ export default function TorneosFeatureGate({
   planRead = resolveTorneosPlanRead(process.env, { backendMode }),
   // SOCIAL-V1: hybrid + PLAN READ + the production-eligible Social flag, all three or nothing.
   social = resolveTorneosSocialStudio(process.env, { backendMode, planRead, flags: torneosFeatureFlags }),
+  // CONNECTED-V1: hybrid + the explicit opt-in that matches the gateway's TORNEOS_CONNECTED_MODE=on.
+  connected = resolveTorneosConnectedProduct(process.env, { backendMode }),
+  // BRANDING-V1: hybrid + the explicit opt-in that matches the gateway's TORNEOS_BRANDING_MODE=on.
+  branding = resolveTorneosBranding(process.env, { backendMode }),
+  // MEDIA-V1: hybrid + REACT_APP_TORNEOS_MEDIA_MODE=on (gateway TORNEOS_MEDIA_MODE=on) + the media flag.
+  media = resolveTorneosMedia(process.env, { backendMode, flags: torneosFeatureFlags }),
   service,
   native = isArma2NativeRuntime(),
 }) {
@@ -70,7 +80,15 @@ export default function TorneosFeatureGate({
   if (!service && backendMode.mode === 'hybrid') {
     return (
       <Suspense fallback={<AppLoadingScreen />}>
-        <StagingV1TorneosApp gatewayUrl={backendMode.gatewayUrl} billingMode={billingMode} planRead={planRead} social={social} />
+        <StagingV1TorneosApp
+          gatewayUrl={backendMode.gatewayUrl}
+          billingMode={billingMode}
+          planRead={planRead}
+          social={social}
+          connected={connected}
+          branding={branding}
+          media={media}
+        />
       </Suspense>
     );
   }

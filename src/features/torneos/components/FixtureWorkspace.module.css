@@ -1,5 +1,8 @@
 .page {
   display: grid;
+  /* One shrinkable track: an implicit auto track grows to its longest unbreakable child and pushes the page
+     past a phone screen. */
+  grid-template-columns: minmax(0, 1fr);
   gap: 24px;
   min-width: 0;
 }
@@ -591,6 +594,18 @@
   align-items: stretch;
 }
 
+/* Below ~1240 px the three columns (560 + 170 + 140) no longer fit next to the sidebar: the season/tournament
+   selector takes the first row and the category and its status share the second, instead of leaving the screen. */
+@media (max-width: 1240px) {
+  .contextBar {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .contextBar > section {
+    grid-column: 1 / -1;
+  }
+}
+
 .contextBar > section {
   grid-template-columns: minmax(240px, 0.85fr) minmax(320px, 1.15fr);
   margin: 0;
@@ -735,13 +750,18 @@
   outline: none;
 }
 
+.sectionHelp:not([open]) > p {
+  display: none;
+}
+
 .sectionHelp p {
   position: absolute;
   z-index: 12;
   top: calc(100% + 8px);
   left: 0;
-  width: min(300px, 76vw);
+  width: min(300px, calc(100vw - 24px));
   margin: 0;
+  transform: translateX(var(--help-shift, 0px));
   padding: 13px 14px;
   border: 1px solid rgba(177, 151, 255, 0.36);
   border-radius: 12px;
@@ -1323,6 +1343,32 @@
   background: rgba(21, 111, 75, 0.18);
 }
 
+/* The schedule validation lists its reasons in words; the icon stays at the top of the block. */
+.validation > div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.validation ul {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.validation:has(ul) {
+  align-items: flex-start;
+}
+
+.checkLine {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.scheduleForm .checkLine input {
+  width: auto;
+}
+
 .venueLayout,
 .resourceForms {
   display: grid;
@@ -1669,4 +1715,17 @@
 .scheduleForm input,
 .scheduleForm select {
   border-radius: var(--torneos-control-radius);
+}
+
+/* The four fixture figures read as a 2 × 2 block on phones instead of four full-width cards. */
+@media (max-width: 680px) {
+  .metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .metrics article {
+    min-height: 0;
+    padding: 14px;
+  }
 }

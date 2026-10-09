@@ -115,7 +115,11 @@ function PlayerRow({
 }
 
 export default function TeamRegistrationPage({ initialTab = 'inscripcion' }) {
-  const { organization } = useOutletContext();
+  const { organization, registration = null, onRegistrationChanged = null } = useOutletContext();
+  // CONNECTED-V1: a request made from Explorar is sent, not "presented", and stops while the call does not accept
+  // requests (the backend refuses it anyway; this only says why before trying).
+  const isApplication = registration?.source === 'application';
+  const applicationBlocked = Boolean(isApplication && registration?.blockReason);
   const { teamEntryId } = useParams();
   const { service } = useTorneosWorkspace();
   // Portraits, team photo and shield are served by other RPCs, storage and Edge
@@ -136,7 +140,12 @@ export default function TeamRegistrationPage({ initialTab = 'inscripcion' }) {
   const portraitsRequestRef = useRef(0);
   const [teamPhoto, setTeamPhoto] = useState(() => ({ status: teamPhotosEnabled ? 'loading' : 'ready', state: null }));
   const teamPhotoRequestRef = useRef(0);
-  const entryTab = {
+  const entryTab = organization.participantRoutes ? {
+    inscripcion: canonicalRoutes.participantTeamEntry(organization.id, teamEntryId),
+    visualIdentity: canonicalRoutes.participantTeamEntry(organization.id, teamEntryId),
+    plantel: canonicalRoutes.participantTeamEntryRoster(organization.id, teamEntryId),
+    revision: canonicalRoutes.participantTeamEntry(organization.id, teamEntryId),
+  } : {
     inscripcion: canonicalRoutes.organizationTeamEntryRegistration(organization.id, teamEntryId),
     visualIdentity: canonicalRoutes.organizationTeamEntryVisualIdentity(
       organization.id,
@@ -287,6 +296,8 @@ export default function TeamRegistrationPage({ initialTab = 'inscripcion' }) {
     arma2UserId: player.userId,
     displayName: player.displayName,
     avatarUrl: player.avatarUrl,
+    // Explicit: PostgREST resolves the function by every named argument, and an undefined one is dropped.
+    shirtNumber: null,
     primaryPosition: player.positions?.[0] || null,
     isGoalkeeper: player.positions?.[0] === 'ARQ',
   }), 'Jugador agregado.');
@@ -302,6 +313,7 @@ export default function TeamRegistrationPage({ initialTab = 'inscripcion' }) {
       rosterId: data.roster.id,
       provisionalPlayerId: provisional.id,
       displayName: provisional.displayName,
+      shirtNumber: null,
     });
   }, 'Jugador sin cuenta agregado.');
   const updatePlayer = (player, patch) => run(`player-${player.id}`, () => (
@@ -566,7 +578,19 @@ export default function TeamRegistrationPage({ initialTab = 'inscripcion' }) {
                   )}
                 />
               ))}
-              {!players.length && <div className={styles.inlineEmpty}><UserPlus size={24} /><span><strong>Plantel vacío</strong>{' '}<small>Buscá un jugador o crealo sin cuenta.</small></span></div>}
+              {!players.length && (
+                <div className={styles.inlineEmpty}>
+                  <UserPlus size={24} />
+                  <span>
+                    <strong>Plantel vacío</strong>{' '}
+                    <small>
+                      {data.entry.linked
+                        ? 'Los jugadores de tu equipo de Arma2 no se agregan solos: buscá a cada uno o crealo sin cuenta. Cada jugador que sumás queda guardado.'
+                        : 'Buscá un jugador o crealo sin cuenta. Cada jugador que sumás queda guardado.'}
+                    </small>
+                  </span>
+                </div>
+              )}
             </div>
           </section>
           <aside className={styles.requirementsPanel}>
@@ -589,17 +613,36 @@ export default function TeamRegistrationPage({ initialTab = 'inscripcion' }) {
               <button
                 className={styles.primaryButton}
                 type="button"
-                disabled={!submittable || !progress.complete || Boolean(busy)}
+                disabled={!submittable || !progress.complete || applicationBlocked || Boolean(busy)}
+                aria-describedby={submittable && (!progress.complete || applicationBlocked) ? 'roster-submit-missing' : undefined}
                 title={submittable ? undefined : 'El responsable del equipo tiene que aceptar la invitación antes de presentar el plantel.'}
                 onClick={() => run(
                   'submit',
-                  () => service.submitTeamEntry({ organizationId: organization.id, teamEntryId }),
-                  'Inscripción presentada para revisión.',
+                  async () => {
+                    await service.submitTeamEntry({ organizationId: organization.id, teamEntryId });
+                    onRegistrationChanged?.();
+                  },
+                  isApplication
+                    ? 'Solicitud enviada. La organización la va a revisar; enviarla no confirma un cupo.'
+                    : 'Inscripción presentada para revisión.',
                 )}
               >
                 {busy === 'submit' ? <Loader2 className={styles.spin} size={18} /> : <Send size={18} />}
-                Presentar plantel
+                {isApplication ? 'Enviar solicitud' : 'Presentar plantel'}
               </button>
+            )}
+            {/* The button never stays disabled without saying why, next to it. */}
+            {editable && submittable && (!progress.complete || applicationBlocked) && (
+              <div id="roster-submit-missing" className={styles.submitMissing} role="status">
+                <strong>{isApplication ? 'Para enviar la solicitud falta:' : 'Para presentar el plantel falta:'}</strong>
+                <ul>
+                  {applicationBlocked && <li>Que la organización vuelva a recibir solicitudes en esta convocatoria.</li>}
+                  {progress.errors.map((error) => <li key={error}>{error}</li>)}
+                </ul>
+                {progress.goalkeepers < progress.minimumGoalkeepers && (
+                  <p>Para marcar al arquero, elegí «Arquero» en la posición de un jugador del plantel.</p>
+                )}
+              </div>
             )}
             {editable && !submittable && (
               <p className={styles.submitHint}>
@@ -615,7 +658,7 @@ export default function TeamRegistrationPage({ initialTab = 'inscripcion' }) {
       {initialTab === 'revision' && canReview && (
         <div className={styles.reviewLayout}>
           <section className={styles.reviewPanel}>
-            <div className={styles.sectionHeading}><span>03</span><div><h2>Decisión del organizador</h2><p>El backend vuelve a validar el plantel antes de aprobar.</p></div></div>
+            <div className={styles.sectionHeading}><span>03</span><div><h2>Decisión del organizador</h2><p>Antes de aprobar se vuelve a revisar el plantel.</p></div></div>
             <div className={styles.decisionPicker}>
               <button type="button" aria-pressed={review.decision === 'changes_requested'} onClick={() => setReview({ ...review, decision: 'changes_requested' })}><MessageSquareWarning size={19} /> Solicitar cambios</button>
               <button type="button" aria-pressed={review.decision === 'approved'} onClick={() => setReview({ ...review, decision: 'approved' })}><ShieldCheck size={19} /> Aprobar</button>

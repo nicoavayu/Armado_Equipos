@@ -24,6 +24,11 @@ import {
 } from './mediaPipeline';
 
 const JPEG_QUALITY = 0.86;
+// MEDIA-V1: the grid image that travels with each photo. 640 px covers a grid tile at 2x/3x density and the cover on a
+// phone; the gateway refuses anything larger than 640 px or 512 KiB.
+export const THUMBNAIL_MAX_EDGE = 640;
+export const THUMBNAIL_MAX_BYTES = 512 * 1024;
+const THUMBNAIL_QUALITY = 0.8;
 
 export class MediaClientError extends Error {
   constructor(code, message) {
@@ -108,13 +113,18 @@ export function fitMediaDimensions(width, height, limits = MEDIA_LIMITS) {
   };
 }
 
-function drawTo(source, width, height) {
+function drawTo(source, width, height, { opaque = false } = {}) {
   const canvas = document.createElement('canvas');
   canvas.width = width;
   canvas.height = height;
   const context = canvas.getContext('2d');
   if (!context) {
     throw new MediaClientError('canvas_unavailable', 'Este navegador no puede procesar la foto.');
+  }
+  // A JPEG has no transparency: a transparent area becomes white, never black.
+  if (opaque) {
+    context.fillStyle = '#ffffff';
+    context.fillRect(0, 0, width, height);
   }
   context.imageSmoothingEnabled = true;
   context.imageSmoothingQuality = 'high';
@@ -152,8 +162,19 @@ export function targetMimeFor(file, { allowHeicTranscode = true } = {}) {
  * everything the processor will check anyway — this exists to keep obvious
  * mistakes out of the queue, not to be a security boundary.
  */
+const HEIC_NAME = /\.(heic|heif)$/i;
+
 export function validateSelection(file, limits = MEDIA_LIMITS) {
   if (!file) return { valid: false, code: 'missing', message: 'Elegí un archivo.' };
+  // iPhone photos in their original format: said before any upload starts, with what to do instead.
+  const heic = MEDIA_TRANSCODABLE_MIME.includes(String(file.type || '').toLowerCase()) || HEIC_NAME.test(String(file.name || ''));
+  if (heic && limits.allowHeicTranscode === false) {
+    return {
+      valid: false,
+      code: 'mime',
+      message: 'Las fotos HEIC del iPhone no se pueden subir así. Elegilas desde la app Fotos del iPhone (se convierten solas a JPEG) o exportalas como JPEG.',
+    };
+  }
   if (!targetMimeFor(file, { allowHeicTranscode: limits.allowHeicTranscode !== false })) {
     return {
       valid: false,
@@ -198,12 +219,15 @@ export async function prepareUploadPayload(file, { signal, limits = MEDIA_LIMITS
   if (!hasCanvas()) {
     throw new MediaClientError('canvas_unavailable', 'Este navegador no puede procesar la foto.');
   }
-  const mime = targetMimeFor(file, {
+  const accepted = targetMimeFor(file, {
     allowHeicTranscode: limits.allowHeicTranscode !== false,
   });
-  if (!mime) {
+  if (!accepted) {
     throw new MediaClientError('mime', 'Formato no admitido. Usá JPEG, PNG o WebP.');
   }
+  // MEDIA-V1 galleries keep every photo as JPEG: a 1600 px PNG weighs ~10× the same photo as JPEG (lab: 2.48 MB vs
+  // 0.14–0.31 MB), and the grid and the Free plan pay for every byte.
+  const mime = limits.outputMime === 'image/jpeg' ? 'image/jpeg' : accepted;
 
   const decoded = await decode(file);
   try {
@@ -241,7 +265,7 @@ export async function prepareUploadPayload(file, { signal, limits = MEDIA_LIMITS
         ? undefined
         : Math.max(0.58, JPEG_QUALITY - (attempt * 0.04));
       // eslint-disable-next-line no-await-in-loop
-      const candidate = await encode(drawTo(decoded, width, height), mime, quality);
+      const candidate = await encode(drawTo(decoded, width, height, { opaque: mime === 'image/jpeg' }), mime, quality);
       if (candidate.size <= limits.maxFileBytes) {
         source = candidate;
         break;
@@ -254,7 +278,23 @@ export async function prepareUploadPayload(file, { signal, limits = MEDIA_LIMITS
       );
     }
 
-    return { mime, width, height, source };
+    // MEDIA-V1: the thumbnail is drawn from the same decoded, oriented pixels, so it is the same photo, smaller.
+    let thumbnail = null;
+    if (limits.thumbnail === true) {
+      const longest = Math.max(width, height);
+      const scale = longest <= THUMBNAIL_MAX_EDGE ? 1 : THUMBNAIL_MAX_EDGE / longest;
+      const thumbWidth = Math.max(1, Math.floor(width * scale));
+      const thumbHeight = Math.max(1, Math.floor(height * scale));
+      const canvas = drawTo(decoded, thumbWidth, thumbHeight, { opaque: true });
+      for (let attempt = 0; attempt < 4 && !thumbnail; attempt += 1) {
+        // eslint-disable-next-line no-await-in-loop
+        const candidate = await encode(canvas, 'image/jpeg', THUMBNAIL_QUALITY - attempt * 0.08);
+        if (candidate.size <= THUMBNAIL_MAX_BYTES) thumbnail = { source: candidate, width: thumbWidth, height: thumbHeight };
+      }
+      if (!thumbnail) throw new MediaClientError('thumbnail', 'No pudimos preparar la miniatura de esta foto.');
+    }
+
+    return { mime, width, height, source, thumbnail };
   } finally {
     if (typeof decoded.close === 'function') decoded.close();
   }

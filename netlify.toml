@@ -1,0 +1,67 @@
+[build]
+  command = "node scripts/netlify/prepare.mjs && npm run build"
+  publish = "build"
+  functions = "netlify/functions"
+  edge_functions = ".netlify-generated/edge-functions"
+  # Free plan: a merge that touches no web path does not build or publish (15 credits per production deploy).
+  ignore = "node scripts/netlify/should-build.mjs"
+
+[build.environment]
+  NODE_VERSION = "22"
+  GENERATE_SOURCEMAP = "false"
+
+# Production (app.arma2.com.ar): the same build Vercel runs today. The private web gate secrets are validated before
+# building, and the Sentry release is the deployed commit (the upload skips itself without SENTRY_AUTH_TOKEN; the .map
+# files stay behind the gate, as on Vercel). Every REACT_APP_* value comes from the site's environment variables
+# scoped to the Production context (docs/netlify/PUBLICACION-NETLIFY.md §2); nothing here may set a Torneos flag.
+[context.production]
+  command = "node scripts/netlify/prepare.mjs && npm run validate:web-access-env && REACT_APP_SENTRY_RELEASE=$COMMIT_REF REACT_APP_SENTRY_ENVIRONMENT=${REACT_APP_SENTRY_ENVIRONMENT:-production} npm run release:web:sentry"
+
+[context.production.environment]
+  REACT_APP_DEPLOY_ENV = "production"
+
+# Every other deploy (PR previews, branch deploys) is a preview with Torneos production off, whatever the site's
+# variables say: a file value overrides the UI in its context.
+[context.deploy-preview.environment]
+  REACT_APP_DEPLOY_ENV = "preview"
+  REACT_APP_TORNEOS_PRODUCTION_ENABLED = "false"
+
+[context.branch-deploy.environment]
+  REACT_APP_DEPLOY_ENV = "preview"
+  REACT_APP_TORNEOS_PRODUCTION_ENABLED = "false"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    X-Frame-Options = "DENY"
+    Referrer-Policy = "same-origin"
+    X-XSS-Protection = "1; mode=block"
+
+# Universal links / App Links: the same content type and cache as vercel.json (iOS reads the extensionless file).
+[[headers]]
+  for = "/.well-known/apple-app-site-association"
+  [headers.values]
+    Content-Type = "application/json; charset=utf-8"
+    Cache-Control = "public, max-age=3600"
+
+[[headers]]
+  for = "/.well-known/assetlinks.json"
+  [headers.values]
+    Content-Type = "application/json; charset=utf-8"
+    Cache-Control = "public, max-age=3600"
+
+[[headers]]
+  for = "/static/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/index.html"
+  [headers.values]
+    Cache-Control = "no-cache"

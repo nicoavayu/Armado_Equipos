@@ -1,0 +1,74 @@
+{
+ "generated_at": "2026-10-07",
+ "what": "ops_free_plan.py / core_apply.py on the disposable rehearsal lab (loopback; Production untouched)",
+ "pg_dump": "pg_dump (PostgreSQL) 18.3",
+ "database_backups": {
+  "core": {
+   "source": "lab:56011",
+   "created_at": "20261007T031446Z",
+   "tables": 184,
+   "rows": 22952,
+   "dump_bytes": 4144334,
+   "backup_seconds": 7.2,
+   "custom_roles": [
+    "poc_session_reader"
+   ],
+   "restore_check": {
+    "image": "public.ecr.aws/supabase/postgres:17.6.1.143",
+    "seconds": 31.6,
+    "pg_restore_errors": 0,
+    "differences": 0,
+    "verdict": "RESTORE VERIFIED"
+   }
+  },
+  "torneos": {
+   "source": "lab:56012",
+   "created_at": "20261007T031524Z",
+   "tables": 130,
+   "rows": 36969,
+   "dump_bytes": 4888178,
+   "backup_seconds": 6.4,
+   "custom_roles": [
+    "lab_core_adapter",
+    "lab_identity_writer",
+    "lab_payment_service",
+    "torneos_core_adapter",
+    "torneos_identity_writer",
+    "torneos_payment_service"
+   ],
+   "restore_check": {
+    "image": "public.ecr.aws/supabase/postgres:17.6.1.143",
+    "seconds": 24.6,
+    "pg_restore_errors": 0,
+    "differences": 0,
+    "verdict": "RESTORE VERIFIED"
+   }
+  }
+ },
+ "storage": {
+  "buckets": [
+   "tournament-branding"
+  ],
+  "files": 9,
+  "archive_check": "STORAGE ARCHIVE VERIFIED 9/9 (in memory)",
+  "restore_to_temporary_bucket": "STORAGE RESTORED: 9 uploaded, 0 already there, 0 problems (bucket emptied and deleted)",
+  "restore_again_to_original_bucket": "STORAGE RESTORED: 0 uploaded, 9 already there (not overwritten), 0 problems"
+ },
+ "negative_checks": {
+  "wrong_passphrase": "STOP: gpg decryption failed (wrong passphrase or damaged file), exit 1",
+  "manifest_altered_by_one_row": "RESTORE MISMATCH: 1 differences, exit 1",
+  "acl_normalisation": "first run showed 2 cosmetic ACL differences (aclitem order; explicit owner-only ACL vs NULL); the manifest now compares effective privileges (acldefault, sorted items)"
+ },
+ "core_apply_on_disposable_core_copy": [
+  "STOP: PHRASE_REQUIRED: APPLY CORE reindex lab fe0e2b6d2ae2",
+  "REINDEX_DONE: database 29.8 -> 29.9 MB in 0.04 s",
+  "MIGRATION-20261009120000_DONE: database 29.9 -> 29.9 MB in 0.05 s",
+  "STOP: 20261009120000 is already in the ledger",
+  "STOP: compact needs --verified-backup <folder> (ops_free_plan.py backup-db + restore-check)",
+  "COMPACT_DONE: database 29.9 -> 29.9 MB in 0.25 s",
+  "MIGRATION-20261007120000_DONE: database 29.9 -> 29.9 MB in 0.04 s",
+  "MIGRATION-20261008120000_DONE: database 29.9 -> 29.9 MB in 0.09 s",
+  "ROLLBACK-PUSH-PREFERENCE_DONE: database 29.9 -> 29.9 MB in 0.04 s",
+  "20260903213456 production_torneos_explicit_acl_contract 0 | 20260914120000 torneos_core_contract_v1 0 | 20260915120000 torneos_core_contract_v1_1_session 0 | 20261007120000 torneos_core_contract_v1_2_my_teams 1 | 20261008120000 core_push_preference_v1 1 | 20261009120000 core_ops_log_retention 1"
+ ]
+}

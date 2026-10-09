@@ -6,8 +6,12 @@
   --social-violet: #9d7bff;
   --social-blue: #3b82f6;
   --social-cyan: #63eed0;
+  --social-card: rgba(14, 11, 22, .68);
+  --social-line: rgba(255, 255, 255, .08);
+  --social-line-strong: rgba(255, 255, 255, .13);
+  --social-copy-soft: #b2aac4;
   display: grid;
-  gap: 20px;
+  gap: 16px;
   padding: 0 0 max(28px, env(safe-area-inset-bottom));
   color: #f3effa;
 }
@@ -25,166 +29,181 @@
   100% { background-position: -200% 0; }
 }
 
+/* ── Hero: the page's name and the season plan, nothing that pushes the work down ─────────────────────────── */
 .hero {
   display: flex;
   flex-wrap: wrap;
-  gap: 18px;
+  gap: 12px 18px;
   justify-content: space-between;
   align-items: flex-end;
-  padding: 22px;
-  border-radius: 22px;
+  padding: 18px 20px;
+  border-radius: 20px;
   border: 1px solid rgba(255, 255, 255, .07);
   background:
     radial-gradient(circle at 18% 12%, rgba(157, 123, 255, .3), transparent 46%),
     linear-gradient(140deg, #1a1230, #0b0912);
 }
-.hero p { margin: 0 0 4px; font-size: 12px; letter-spacing: 2px; text-transform: uppercase; color: var(--social-cyan); }
-.hero h1 { margin: 0; font-family: 'Bebas Neue', 'Oswald', sans-serif; font-size: 40px; letter-spacing: 1px; }
-.hero span { color: #b2aac4; font-size: 14px; }
-.heroMetrics { display: flex; gap: 10px; flex-wrap: wrap; }
-.heroMetrics article {
-  display: flex; align-items: center; gap: 9px;
-  padding: 10px 14px; border-radius: 14px;
-  border: 1px solid rgba(255, 255, 255, .08);
-  background: rgba(9, 7, 16, .6);
+.hero p { margin: 0 0 2px; font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: var(--social-cyan); }
+.hero h1 { margin: 0; font-family: 'Bebas Neue', 'Oswald', sans-serif; font-size: 38px; line-height: 1; letter-spacing: 1px; }
+.hero span { display: block; margin-top: 6px; color: var(--social-copy-soft); font-size: 14px; }
+.planChip {
+  display: inline-flex !important; align-items: center; gap: 7px;
+  margin: 0 !important; padding: 8px 12px; border-radius: 999px;
+  border: 1px solid rgba(157, 123, 255, .3); background: rgba(9, 7, 16, .6);
+  color: #ddd6f3 !important; font-size: 12px !important;
 }
-.heroMetrics svg { color: var(--social-violet); }
-.heroMetrics span { display: grid; }
-.heroMetrics strong { font-size: 18px; }
-.heroMetrics small { color: #9a92ae; font-size: 11px; }
+.planChip svg { color: var(--social-violet); }
+.planChip strong { color: #fff; font-size: 13px; letter-spacing: .06em; }
+.planChip small { color: #9a92ae; font-size: 11px; }
+.planChip[data-plan="PREMIUM"] { border-color: rgba(99, 238, 208, .38); }
+.planChip[data-plan="PREMIUM"] svg { color: var(--social-cyan); }
 
 .readOnlyBanner, .noticeBanner {
-  display: flex; align-items: center; gap: 12px;
-  padding: 13px 16px; border-radius: 14px;
-  border: 1px solid rgba(255, 255, 255, .08);
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px 14px; border-radius: 14px;
+  border: 1px solid var(--social-line);
   background: rgba(16, 12, 26, .8);
 }
-.noticeBanner { border-color: rgba(139, 124, 255, .35); color: #d8d2ff; }
 .readOnlyBanner span { display: grid; gap: 3px; }
 .readOnlyBanner small { color: #aaa2b9; }
-
-.workspace { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 20px; align-items: start; }
-
-.controls { display: grid; gap: 16px; min-width: 0; }
-.controls fieldset {
-  display: grid; gap: 12px; margin: 0; padding: 16px;
-  border: 1px solid rgba(255, 255, 255, .08); border-radius: 18px;
-  background: rgba(14, 11, 22, .68);
+.noticeBanner {
+  width: 100%; max-width: 360px; margin: 0; padding: 9px 12px; justify-content: center;
+  border-color: rgba(99, 238, 208, .3); color: #c9f5ea; font-size: 12px; line-height: 1.4;
 }
-.controls fieldset[disabled] { opacity: .55; }
-.controls legend {
-  display: inline-flex; align-items: center; gap: 6px;
-  padding: 0 8px; font-size: 12px; letter-spacing: 2px;
-  text-transform: uppercase; color: var(--social-cyan);
+.noticeBanner svg { flex: 0 0 auto; color: var(--social-cyan); }
+
+/* ── Workspace: what the piece is (left) · the piece (right, sticky) · optional settings (left, below) ───────── */
+.workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: auto auto 1fr;
+  gap: 16px 20px;
+  align-items: start;
 }
-.controls label { display: grid; gap: 6px; font-size: 13px; color: #cfc7de; }
-.controls select, .controls input[type='text'], .controls input:not([type]), .controls textarea {
-  min-height: 44px; padding: 10px 12px;
-  border: 1px solid rgba(255, 255, 255, .12); border-radius: 12px;
+.toolbar, .curation, .refine { grid-column: 1; min-width: 0; }
+.previewPanel { grid-column: 2; grid-row: 1 / span 3; }
+
+.toolbar, .curation, .refine {
+  display: grid; gap: 14px; margin: 0; padding: 14px;
+  border: 1px solid var(--social-line); border-radius: 18px;
+  background: var(--social-card);
+}
+.refine:empty { display: none; }
+
+.toolbar label, .curation label, .refine label { display: grid; gap: 6px; font-size: 13px; color: #cfc7de; }
+.toolbar select, .refine input:not([type='checkbox']), .refine textarea, .candidateCard select {
+  width: 100%; min-height: 44px; padding: 10px 12px;
+  border: 1px solid var(--social-line-strong); border-radius: 12px;
   background: #100c1b; color: #f3effa; font: inherit;
 }
-.controls textarea { min-height: 88px; resize: vertical; }
-.controls :is(select, input, textarea):focus-visible,
-.controls button:focus-visible, .previewPanel button:focus-visible {
+.refine textarea { min-height: 88px; resize: vertical; }
+.page :is(select, input, textarea, button, summary):focus-visible {
   outline: 2px solid var(--social-cyan); outline-offset: 2px;
 }
 
-.pieceFieldset { container-type: inline-size; }
-.pieceGrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
-.pieceGrid button, .chipRow button {
+/* Field labels: one small caps line, the same in every control. */
+.toolbar label > span, .formatField > span, .fieldHeading > span, .scopeFields label > span {
+  font-size: 11px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: #a79fbb;
+}
+
+/* Scope: always visible as one line ("which data am I publishing?"), the four selects only on demand. */
+.scope { border-bottom: 1px solid var(--social-line); padding-bottom: 12px; }
+.scope > summary {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  min-height: 44px; cursor: pointer; list-style: none; border-radius: 10px;
+}
+.scope > summary::-webkit-details-marker { display: none; }
+.scopeCopy { display: grid; gap: 2px; min-width: 0; }
+.scopeCopy small { color: var(--social-cyan); font-size: 10px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; }
+.scopeCopy strong { font-size: 13px; font-weight: 600; line-height: 1.35; color: #ece7f7; overflow-wrap: anywhere; }
+.scopeToggle {
+  display: inline-flex; flex: 0 0 auto; align-items: center; gap: 4px;
+  padding: 6px 10px; border: 1px solid var(--social-line-strong); border-radius: 999px;
+  color: #d8d2ff; font-size: 12px; font-weight: 700;
+}
+.scopeToggle svg { transition: transform 160ms ease; }
+.scope[open] .scopeToggle svg { transform: rotate(180deg); }
+.scopeFields {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px;
+  min-width: 0; margin: 12px 0 0; padding: 0; border: 0;
+}
+
+/* Piece and format share a row only when the column has room for the longest piece name. */
+.toolbar { container-type: inline-size; }
+.pieceRow { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; align-items: end; }
+@container (min-width: 600px) {
+  .pieceRow { grid-template-columns: minmax(0, 1fr) minmax(250px, auto); }
+}
+.pieceSelect { position: relative; }
+.pieceSelect select { appearance: none; padding-right: 38px; font-weight: 650; }
+.selectChevron { position: absolute; right: 12px; bottom: 14px; color: #b9adff; pointer-events: none; }
+.formatField { display: grid; gap: 6px; min-width: 0; }
+.segmented {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px;
+  padding: 3px; border: 1px solid var(--social-line-strong); border-radius: 12px; background: #100c1b;
+}
+.segmented button {
   display: inline-flex; align-items: center; justify-content: center; gap: 7px;
-  min-width: 0; min-height: 44px; padding: 8px 14px;
-  border: 1px solid rgba(255, 255, 255, .12); border-radius: 12px;
-  background: transparent; color: #dcd5e9; font-weight: 600; line-height: 1.25;
-  text-wrap: balance; cursor: pointer;
+  min-width: 0; min-height: 38px; padding: 0 12px; border: 0; border-radius: 9px;
+  background: transparent; color: #cfc7de; font: inherit; font-size: 13px; font-weight: 650;
+  white-space: nowrap; cursor: pointer; transition: background 160ms ease, color 160ms ease;
 }
-.pieceGrid button { flex-wrap: wrap; }
-.pieceGrid button small {
-  flex-basis: 100%; color: #938ba7; font-size: 9px; letter-spacing: .06em;
-  text-transform: uppercase;
+.segmented button:hover { color: #fff; }
+.segmentActive { background: linear-gradient(135deg, #8b5cff, #6a43ff) !important; color: #fff !important; box-shadow: 0 4px 14px rgba(106, 67, 255, .32); }
+.formatGlyph { flex: 0 0 auto; width: 10px; height: 12.5px; border: 1.6px solid currentColor; border-radius: 2px; opacity: .85; }
+.formatGlyph[data-format="story"] { width: 8px; height: 14px; }
+
+/* Styles: a five-up gallery, each tile a swatch of the style's own paper and accent over its name. */
+.themePicker { display: grid; gap: 6px; min-width: 0; }
+.fieldHeading { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.fieldHeading small { display: inline-flex; align-items: center; gap: 4px; color: #a99fd0; font-size: 11px; text-align: right; }
+.styleRow { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 5px; }
+.styleChip {
+  position: relative;
+  display: grid; gap: 5px; min-width: 0; min-height: 60px; padding: 3px 3px 6px;
+  border: 1px solid var(--social-line-strong); border-radius: 12px;
+  background: rgba(255, 255, 255, .02); color: #dcd5e9; font: inherit;
+  cursor: pointer; transition: border-color 160ms ease, background 160ms ease;
 }
-.pieceLocked { border-color: rgba(167, 150, 225, .18) !important; }
-.pieceLocked svg { color: #b9adff; }
-.pieceActive, .chipActive {
+.styleChip:hover { border-color: rgba(157, 123, 255, .5); }
+.styleSwatch {
+  display: block; width: 100%; height: 28px; border-radius: 8px;
+  background: linear-gradient(135deg, var(--swatch-paper) 0 60%, var(--swatch-ink) 60% 100%);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .16);
+}
+/* Oswald (the condensed face of Arma2's sports headings) keeps "Scoreboard" whole on a five-up phone row. */
+.styleName {
+  overflow: hidden; font-family: 'Oswald', 'Bebas Neue', sans-serif; font-size: 12px; font-weight: 500;
+  line-height: 1.15; letter-spacing: 0; text-align: center; text-overflow: ellipsis; white-space: nowrap;
+}
+.styleLock {
+  position: absolute; top: 9px; right: 9px; box-sizing: content-box; padding: 3px;
+  border-radius: 999px; background: rgba(16, 11, 33, .86); color: #c9beff;
+}
+.styleChipLocked { color: #cfc8de; }
+.styleChipActive {
   border-color: var(--social-violet) !important;
   background: rgba(157, 123, 255, .18) !important;
   color: #fff !important;
+  box-shadow: 0 0 0 1px var(--social-violet);
 }
-.chipRow { display: flex; flex-wrap: wrap; gap: 8px; }
+.planHint { margin: 0; color: #a99fd0; font-size: 12px; line-height: 1.45; }
 
-.themePicker { display: grid; gap: 8px; }
-.themePicker .chipRow button { white-space: nowrap; text-wrap: nowrap; }
-.themeLocked {
-  justify-content: flex-start !important;
-  color: #d8d3e4 !important;
-  background: rgba(111, 91, 185, .055) !important;
-  border-color: rgba(167, 150, 225, .2) !important;
+/* ── Manual selection (Figura, Equipo de la fecha, Campeón): required before the preview can render ─────────── */
+.curation legend, .photoEditor legend {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 0 6px; font-size: 12px; letter-spacing: 2px; text-transform: uppercase; color: var(--social-cyan);
 }
-.themeLocked svg { flex: 0 0 auto; color: #b9adff; }
-.themeLocked span { min-width: 0; }
-.themeLocked small {
-  padding: 3px 5px;
-  color: #c8beff;
-  background: rgba(139, 124, 255, .12);
-  border: 1px solid rgba(139, 124, 255, .16);
-  border-radius: 999px;
-  font-size: 8px;
-  font-weight: 800;
-  letter-spacing: .05em;
-  line-height: 1;
-  text-transform: uppercase;
-}
-.planVerificationNotice {
-  margin: 0;
-  color: #b9b1c9;
-  font-size: 11px;
-  line-height: 1.45;
-}
-.lockedThemeNotice {
-  display: flex; align-items: center; justify-content: space-between; gap: 10px;
-  padding: 10px 12px; border: 1px solid rgba(157, 123, 255, .25);
-  border-radius: 12px; background: rgba(157, 123, 255, .08); color: #d8d2ff;
-  font-size: 11px;
-}
-.lockedThemeNotice span { display: inline-flex; align-items: center; gap: 6px; }
-.lockedThemeNotice button {
-  min-height: 34px; padding: 0 10px; border: 1px solid rgba(255,255,255,.14);
-  border-radius: 9px; background: transparent; color: #fff; cursor: pointer;
-}
-.premiumLock {
-  display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 10px;
-  width: 100%; max-width: 420px; padding: 12px 14px; border: 1px solid rgba(157, 123, 255, .3);
-  border-radius: 14px; background: rgba(157, 123, 255, .08); color: #e4defa; text-align: left;
-}
-.premiumLock > svg { color: #b9adff; }
-.premiumLock span { display: grid; gap: 3px; min-width: 0; }
-.premiumLock strong { font-size: 13px; }
-.premiumLock small { color: #b4abca; font-size: 12px; line-height: 1.45; }
-.premiumLock button {
-  min-height: 44px; padding: 0 14px; border: 0; border-radius: 11px;
-  background: #8b7cff; color: #100b21; font: inherit; font-weight: 750; cursor: pointer; white-space: nowrap;
-}
-.premiumLock button:focus-visible { outline: 2px solid var(--social-cyan); outline-offset: 2px; }
-.heroPlan[data-plan="PREMIUM"] { border-color: rgba(99, 238, 208, .35) !important; }
-.heroPlan[data-plan="PREMIUM"] svg { color: var(--social-cyan); }
-.whiteLabelNotice {
-  margin: 0; padding: 12px 14px; border: 1px solid rgba(99, 238, 208, .18);
-  border-radius: 12px; color: #b9d8d1; background: rgba(99, 238, 208, .05);
-  font-size: 12px; line-height: 1.5;
-}
-
-.checkboxRow { display: flex; align-items: center; gap: 10px; min-height: 44px; }
-.checkboxRow input { width: 20px; height: 20px; }
-
+.curation[disabled], .photoEditor[disabled] { opacity: .55; }
 .curationCopy { margin: 0; font-size: 12px; color: #9a92ae; }
-.candidateList { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; max-height: 320px; overflow: auto; }
+.candidateList { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; max-height: 300px; overflow: auto; }
 .candidateCard {
   display: grid; gap: 8px; min-width: 0;
-  padding: 8px 10px; border: 1px solid rgba(255, 255, 255, .09);
+  padding: 6px 10px; border: 1px solid rgba(255, 255, 255, .09);
   border-radius: 12px; background: rgba(6, 5, 12, .55);
 }
 .candidateCard > label {
-  display: flex; align-items: center; gap: 10px; min-height: 44px;
+  display: flex !important; align-items: center; gap: 10px; min-height: 44px;
   cursor: pointer;
 }
 .candidateList input { width: 18px; height: 18px; }
@@ -192,49 +211,46 @@
 .candidateList strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .candidateList small { color: #948ca8; font-size: 11px; }
 .candidateChecked { border-color: var(--social-violet); background: rgba(157, 123, 255, .14); }
-.candidateCard select { width: 100%; min-height: 36px; padding: 6px 9px; }
+.candidateCard select { min-height: 36px; padding: 6px 9px; }
+
+/* ── Optional settings: signature and texts ─────────────────────────────────────────────────────────────── */
+.signature { display: grid; gap: 4px; }
+.checkboxRow { display: flex !important; align-items: center; gap: 10px; min-height: 44px; }
+.checkboxRow input { width: 20px; height: 20px; }
+.fieldHint { display: inline-flex; align-items: center; gap: 5px; color: #a99fd0; font-size: 12px; line-height: 1.4; }
+.whiteLabelNotice {
+  margin: 0; color: #b9d8d1; font-size: 12px; line-height: 1.5;
+}
+.textEditor > summary {
+  display: flex; align-items: center; gap: 8px; min-height: 44px;
+  cursor: pointer; list-style: none; color: #e4def3; font-size: 14px; font-weight: 650;
+}
+.textEditor > summary::-webkit-details-marker { display: none; }
+.textEditor > summary small { color: #8f87a3; font-size: 11px; font-weight: 500; }
+.detailsChevron { margin-left: auto; color: #b9adff; transition: transform 160ms ease; }
+.textEditor[open] .detailsChevron { transform: rotate(180deg); }
+.textEditor fieldset { display: grid; gap: 12px; margin: 8px 0 0; padding: 0; border: 0; min-width: 0; }
+.textEditor fieldset[disabled] { opacity: .55; }
 
 .srOnly {
   position: absolute !important; width: 1px !important; height: 1px !important;
   padding: 0 !important; margin: -1px !important; overflow: hidden !important;
   clip: rect(0, 0, 0, 0) !important; white-space: nowrap !important; border: 0 !important;
 }
-/* Figura photo tools live in the preview panel, under the art they frame. */
-.previewPanel .photoEditor {
-  display: grid; gap: 10px; width: 100%; max-width: 320px; min-width: 0; margin: 0; padding: 12px;
-  border: 1px solid rgba(255, 255, 255, .08); border-radius: 14px; background: rgba(14, 11, 22, .68);
-}
-.previewPanel .photoEditor[disabled] { opacity: .55; }
-.previewPanel .photoEditor legend {
-  display: inline-flex; align-items: center; gap: 6px; padding: 0 6px;
-  font-size: 12px; letter-spacing: 2px; text-transform: uppercase; color: var(--social-cyan);
-}
-.previewPanel .photoEditor label { display: grid; gap: 6px; font-size: 13px; color: #cfc7de; }
-.previewPanel .photoEditor :is(button, input):focus-visible { outline: 2px solid var(--social-cyan); outline-offset: 2px; }
-.photoEditor > button {
-  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
-  min-height: 42px; padding: 0 13px; border: 1px solid rgba(255,255,255,.14);
-  border-radius: 11px; background: rgba(157,123,255,.1); color: #f3effa;
-  font: inherit; font-weight: 700; cursor: pointer;
-}
-.photoName { color: #aaa2b9; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.zoomControl { grid-template-columns: auto minmax(100px, 1fr) auto !important; align-items: center; gap: 10px !important; }
-.zoomControl span { display: inline-flex; align-items: center; gap: 6px; }
-.zoomControl input { width: 100% !important; min-height: 28px !important; padding: 0 !important; }
-.zoomControl output { color: var(--social-cyan); font-variant-numeric: tabular-nums; }
-.resetCrop { background: transparent !important; font-weight: 600 !important; }
 
+/* ── Preview ─────────────────────────────────────────────────────────────────────────────────────────────── */
 .previewPanel {
   /* One explicit minmax(0, 1fr) track: the implicit auto track took the stage's 300 px (max-width: 100% cannot
      clamp a track that is sized from that very item) and pushed the preview, header and actions past a phone. */
   min-width: 0;
   display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; justify-items: center;
-  padding: 16px; border: 1px solid rgba(255, 255, 255, .08);
+  padding: 16px; border: 1px solid var(--social-line);
   border-radius: 20px; background: rgba(9, 7, 16, .72);
   position: sticky; top: 16px;
 }
 .previewPanel header { display: flex; width: 100%; align-items: center; justify-content: space-between; gap: 12px; }
-.previewPanel header span { display: grid; }
+.previewPanel header span { display: grid; min-width: 0; }
+.previewPanel header strong { line-height: 1.25; overflow-wrap: anywhere; }
 .previewPanel header small { color: #948ca8; font-size: 11px; }
 .previewPanel header button, .exportActions button {
   display: inline-flex; align-items: center; justify-content: center; gap: 8px;
@@ -242,21 +258,21 @@
   background: linear-gradient(120deg, var(--social-violet), #7657ff);
   color: #fff; font-weight: 700; cursor: pointer;
 }
-.previewPanel header button { background: transparent; border: 1px solid rgba(255, 255, 255, .12); color: #dcd5e9; font-weight: 600; }
+.previewPanel header button { flex: 0 0 auto; background: transparent; border: 1px solid var(--social-line-strong); color: #dcd5e9; font-weight: 600; }
 .secondaryAction { background: transparent !important; border: 1px solid rgba(255, 255, 255, .14) !important; color: #dcd5e9 !important; }
 .exportActions button:disabled { opacity: .45; cursor: not-allowed; }
-.exportActions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+.exportActions { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 8px; width: 100%; max-width: 360px; }
 .pagination { display: flex; align-items: center; justify-content: center; gap: 10px; }
 .pagination span { color: #b7afc6; font-size: 12px; font-weight: 700; }
 .pagination button {
-  min-height: 32px; padding: 0 10px; border: 1px solid rgba(255,255,255,.14);
+  min-height: 36px; padding: 0 12px; border: 1px solid rgba(255,255,255,.14);
   border-radius: 9px; background: rgba(157,123,255,.1); color: #eee9f6;
   font: inherit; font-size: 12px; font-weight: 700; cursor: pointer;
 }
 .pagination button:disabled { opacity: .4; cursor: not-allowed; }
 
 .previewStage {
-  position: relative; overflow: hidden; border-radius: 14px;
+  position: relative; overflow: hidden; width: 300px; max-width: 100%; border-radius: 14px;
   border: 1px solid rgba(255, 255, 255, .1); background: #07060d;
 }
 .previewStageDraggable { cursor: grab; touch-action: none; user-select: none; }
@@ -279,6 +295,62 @@ div.previewCanvas[data-premium-renderer="v2"] {
 .previewOverlay svg { color: var(--social-cyan); animation: socialSpin 1s linear infinite; }
 @keyframes socialSpin { to { transform: rotate(360deg); } }
 
+/* Premium preview for FREE: visible as a teaser, never clean. A diagonal PREMIUM watermark over the whole art, a scrim
+   that deepens toward the bottom and the badge in the middle; it takes the pointer so "save image" never reaches the
+   canvas. */
+.premiumVeil {
+  position: absolute; inset: 0; z-index: 2;
+  display: grid; place-items: center;
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='150' height='96'%3E%3Ctext x='-6' y='60' transform='rotate(-24 75 48)' fill='white' fill-opacity='0.34' font-family='Arial Black,Arial,sans-serif' font-size='17' font-weight='900' letter-spacing='3'%3EPREMIUM%3C/text%3E%3C/svg%3E") 0 0 / 150px 96px repeat,
+    linear-gradient(180deg, rgba(12, 8, 26, .28) 0%, rgba(12, 8, 26, .46) 55%, rgba(12, 8, 26, .72) 100%);
+  user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
+}
+.premiumVeilBadge {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 9px 14px; border-radius: 999px;
+  border: 1px solid rgba(185, 173, 255, .55);
+  background: rgba(16, 11, 33, .9);
+  box-shadow: 0 10px 28px rgba(5, 3, 16, .55), 0 0 0 4px rgba(106, 67, 255, .16);
+  color: #fff;
+}
+.premiumVeilBadge svg { color: #b9adff; }
+.premiumVeilBadge strong { font-size: 13px; letter-spacing: .16em; }
+.premiumVeilBadge small { color: #b4abca; font-size: 11px; }
+
+.premiumLock {
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 10px;
+  width: 100%; max-width: 420px; padding: 12px 14px; border: 1px solid rgba(157, 123, 255, .3);
+  border-radius: 14px; background: rgba(157, 123, 255, .08); color: #e4defa; text-align: left;
+}
+.premiumLock > svg { color: #b9adff; }
+.premiumLock span { display: grid; gap: 3px; min-width: 0; }
+.premiumLock strong { font-size: 13px; }
+.premiumLock small { color: #b4abca; font-size: 12px; line-height: 1.45; }
+.premiumLock button {
+  min-height: 44px; padding: 0 14px; border: 0; border-radius: 11px;
+  background: #8b7cff; color: #100b21; font: inherit; font-weight: 750; cursor: pointer; white-space: nowrap;
+}
+
+/* Figura photo tools live in the preview panel, under the art they frame. */
+.photoEditor {
+  display: grid; gap: 10px; width: 100%; max-width: 320px; min-width: 0; margin: 0; padding: 12px;
+  border: 1px solid var(--social-line); border-radius: 14px; background: var(--social-card);
+}
+.photoEditor label { display: grid; gap: 6px; font-size: 13px; color: #cfc7de; }
+.photoEditor > button {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  min-height: 42px; padding: 0 13px; border: 1px solid rgba(255,255,255,.14);
+  border-radius: 11px; background: rgba(157,123,255,.1); color: #f3effa;
+  font: inherit; font-weight: 700; cursor: pointer;
+}
+.photoName { color: #aaa2b9; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.zoomControl { grid-template-columns: auto minmax(100px, 1fr) auto !important; align-items: center; gap: 10px !important; }
+.zoomControl span { display: inline-flex; align-items: center; gap: 6px; }
+.zoomControl input { width: 100% !important; min-height: 28px !important; padding: 0 !important; }
+.zoomControl output { color: var(--social-cyan); font-variant-numeric: tabular-nums; }
+.resetCrop { background: transparent !important; font-weight: 600 !important; }
+
 .previewError, .previewHint, .provenance { margin: 0; max-width: 360px; text-align: center; font-size: 12px; line-height: 1.45; }
 .previewError { color: #f9b4ad; }
 .previewHint { color: #f4c27e; }
@@ -293,22 +365,38 @@ div.previewCanvas[data-premium-renderer="v2"] {
 .stateCard h2 { margin: 0; font-family: 'Bebas Neue', 'Oswald', sans-serif; font-size: 26px; }
 .stateCard p { margin: 0; max-width: 420px; color: #a79fbb; font-size: 14px; }
 
+@media (min-width: 1280px) {
+  /* A desktop has the room: the 4:5 preview grows to a size where the type of a dense table is readable. */
+  .previewStage[data-format="portrait"] { width: 340px; }
+}
 @media (max-width: 1024px) {
-  /* minmax(0, 1fr): a 1fr track would never shrink below the 300 px preview (cut off at 320 px). */
-  .workspace { grid-template-columns: minmax(0, 1fr); }
+  /* One column in reading order: what the piece is, the selection it needs, the preview, then the optional settings.
+     minmax(0, 1fr): a 1fr track would never shrink below the 300 px preview (cut off at 320 px). */
+  .workspace { grid-template-columns: minmax(0, 1fr); grid-template-rows: none; }
+  .toolbar, .curation, .refine, .previewPanel { grid-column: 1; grid-row: auto; }
   .previewPanel { position: static; min-width: 0; }
 }
+@media (max-width: 379px) {
+  /* Five tiles would leave "Scoreboard" no room for its name: three per row, two rows. */
+  .styleRow { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (max-width: 400px) {
+  /* The refresh keeps its 44 px target and its accessible name; the word gives the piece title its room. */
+  .previewPanel header button { width: 44px; padding: 0; }
+  .previewPanel header button .refreshLabel { display: none; }
+}
 @media (max-width: 480px) {
-  .hero { padding: 18px; }
-  .hero h1 { font-size: 32px; }
-  .heroMetrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); width: 100%; }
-  .candidateList { grid-template-columns: 1fr; }
+  .page { gap: 12px; }
+  .hero { padding: 14px 16px; border-radius: 18px; }
+  .hero h1 { font-size: 30px; }
+  .hero span:not(.planChip) { display: none; }
+  .toolbar, .curation, .refine { padding: 12px; border-radius: 16px; }
+  .previewPanel { padding: 12px; }
+  .candidateList { grid-template-columns: 1fr; max-height: 236px; }
   .premiumLock { grid-template-columns: auto minmax(0, 1fr); }
   .premiumLock button { grid-column: 1 / -1; width: 100%; }
 }
-@container (max-width: 440px) {
-  .pieceGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-}
 @media (prefers-reduced-motion: reduce) {
   .skeleton span, .previewOverlay svg { animation: none; }
+  .scopeToggle svg, .detailsChevron { transition: none; }
 }
