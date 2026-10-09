@@ -62,102 +62,29 @@ $function$;
 revoke all on function public.get_match_access_codes(bigint[]) from public, anon;
 grant execute on function public.get_match_access_codes(bigint[]) to authenticated, service_role;
 
-create or replace view public.partidos_view
-with (security_invoker = on) as
- select p.id,
-    p.uuid,
-    p.match_ref,
-    app_private.match_access_code(p.id) as codigo,
-    p.nombre,
-    p.fecha,
-    p.hora,
-    p.sede,
-    p."sedeMaps",
-    p.modalidad,
-    p.tipo_partido,
-    p.cupo_jugadores,
-    p.falta_jugadores,
-    p.precio_cancha,
-    p.creado_por,
-    p.admin_id,
-    p.equipos_json,
-    p.equipos_generados,
-    p.teams_confirmed,
-    p.awards_status,
-    p.awards_resolved_at,
-    p.estado,
-    p.deleted_at,
-    p.created_at,
-    p.updated_at
-   from public.partidos p
-  where p.deleted_at is null;
-
-create or replace view public.partidos_abiertos_operativos
-with (security_invoker = on) as
- select p.id,
-    p.created_at,
-    p.updated_at,
-    app_private.match_access_code(p.id) as codigo,
-    p.match_ref,
-    p.nombre,
-    p.fecha,
-    p.hora,
-    public.partido_kickoff_at(p.fecha, p.hora) as kickoff_at,
-    p.sede,
-    coalesce(nullif(trim(both from p.sede_direccion_normalizada), ''::text), nullif(trim(both from p.sede), ''::text)) as sede_direccion_normalizada,
-    coalesce(nullif(trim(both from p.sede_place_id), ''::text), nullif(trim(both from coalesce(p."sedeMaps" ->> 'place_id'::text, p."sedeMaps" ->> 'placeId'::text)), ''::text)) as sede_place_id,
-    p.sede_latitud,
-    p.sede_longitud,
-    p."sedeMaps",
-    p.creado_por,
-    p.modalidad,
-    p.cupo_jugadores,
-    coalesce(p.falta_jugadores, false) as falta_jugadores,
-    p.tipo_partido,
-    p.estado,
-    public.normalize_partido_estado(p.estado) as estado_normalizado,
-    coalesce(player_rows.jugadores, '[]'::jsonb) as jugadores,
-    coalesce(player_rows.jugadores_count, 0) as jugadores_count
-   from public.partidos p
-     left join lateral ( select jsonb_agg(to_jsonb(j.*) order by j.id) as jugadores,
-            count(*)::integer as jugadores_count
-           from public.jugadores j
-          where j.partido_id = p.id) player_rows on true
-  where public.partido_is_operationally_open(p.estado, p.deleted_at, p.survey_status, p.result_status, p.finished_at, p.fecha, p.hora, p.falta_jugadores, now());
-
-create or replace view public.partidos_abiertos_operativos_v2
-with (security_invoker = on) as
- select p.id,
-    p.created_at,
-    p.updated_at,
-    app_private.match_access_code(p.id) as codigo,
-    p.match_ref,
-    p.nombre,
-    p.fecha,
-    p.hora,
-    public.partido_kickoff_at(p.fecha, p.hora) as kickoff_at,
-    p.sede,
-    coalesce(nullif(trim(both from p.sede_direccion_normalizada), ''::text), nullif(trim(both from p.sede), ''::text)) as sede_direccion_normalizada,
-    coalesce(nullif(trim(both from p.sede_place_id), ''::text), nullif(trim(both from coalesce(p."sedeMaps" ->> 'place_id'::text, p."sedeMaps" ->> 'placeId'::text)), ''::text)) as sede_place_id,
-    p.sede_latitud,
-    p.sede_longitud,
-    p."sedeMaps",
-    p.creado_por,
-    p.modalidad,
-    p.cupo_jugadores,
-    coalesce(p.falta_jugadores, false) as falta_jugadores,
-    p.tipo_partido,
-    p.estado,
-    public.normalize_partido_estado(p.estado) as estado_normalizado,
-    coalesce(player_rows.jugadores, '[]'::jsonb) as jugadores,
-    coalesce(player_rows.jugadores_count, 0) as jugadores_count,
-    coalesce(p.busca_arquero, false) as busca_arquero
-   from public.partidos p
-     left join lateral ( select jsonb_agg(to_jsonb(j.*) order by j.id) as jugadores,
-            count(*)::integer as jugadores_count
-           from public.jugadores j
-          where j.partido_id = p.id) player_rows on true
-  where public.partido_is_operationally_open(p.estado, p.deleted_at, p.survey_status, p.result_status, p.finished_at, p.fecha, p.hora, coalesce(p.falta_jugadores, false) or coalesce(p.busca_arquero, false), now());
+-- The three views keep their own definition and only return the masked code instead of the
+-- column. They are rewritten from their CURRENT definition: Core Production's partidos_view is
+-- not the repository's (other columns, an embedded roster, no deleted_at filter), and
+-- installed apps read it with select('*'), so nothing but codigo may change.
+do $match_access_code_views$
+declare
+  v_view text;
+  v_def text;
+  v_new text;
+begin
+  foreach v_view in array array['partidos_view', 'partidos_abiertos_operativos', 'partidos_abiertos_operativos_v2'] loop
+    v_def := pg_get_viewdef(format('public.%I', v_view)::regclass);
+    if v_def ~ 'match_access_code' then
+      continue;
+    end if;
+    v_new := regexp_replace(v_def, '(\n\s+)(p\.)?codigo,', '\1app_private.match_access_code(p.id) AS codigo,');
+    if v_new = v_def then
+      raise exception 'view % has no codigo column to mask', v_view;
+    end if;
+    execute format('create or replace view public.%I with (security_invoker = on) as %s', v_view, v_new);
+  end loop;
+end
+$match_access_code_views$;
 
 do $match_access_code_check$
 begin
