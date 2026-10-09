@@ -44,7 +44,7 @@ import { clampPlayerRating } from '../utils/playerRating';
 import ShareableMatchSummaryCard from '../components/share/ShareableMatchSummaryCard';
 import { buildHomonymHints } from '../utils/surveyRosterIdentity';
 import { buildCeremonyEntries, hasSeenCeremony, markCeremonySeen } from '../utils/awardsCeremony';
-import { PARTIDO_COLUMNS } from '../services/db/matchAccessCode';
+import { PARTIDO_SELECT } from '../services/db/matchAccessCode';
 
 const ensurePlayersList = (players) => {
   if (players && players.length > 0) return players;
@@ -914,10 +914,11 @@ const ResultadosEncuestaView = () => {
 
       let profilesData = [];
       try {
-        // Public columns only: profiles.telefono is private data.
+        // Public columns only (profiles.telefono is private data), and only the ones Core
+        // Production's profiles has (no posicion/ciudad there).
         const { data: profilesRows } = await supabase
           .from('profiles')
-          .select('id, nombre, avatar_url, posicion, ciudad')
+          .select('id, nombre, avatar_url')
           .in('id', profileIds);
         profilesData = Array.isArray(profilesRows) ? profilesRows : [];
       } catch (_profilesFallbackErr) {
@@ -2043,7 +2044,7 @@ const ResultadosEncuestaView = () => {
     try {
       const matchIdNum = Number(partidoId);
       const [{ data: partidoData, error: partidoErr }, { data: playersData, error: playersErr }, { data: resultsData, error: resultsError }] = await Promise.all([
-        supabase.from('partidos').select(PARTIDO_COLUMNS).eq('id', matchIdNum).maybeSingle(),
+        supabase.from('partidos').select(PARTIDO_SELECT).eq('id', matchIdNum).maybeSingle(),
         supabase.from('jugadores').select('*').eq('partido_id', matchIdNum),
         supabase.from('survey_results').select('*').eq('partido_id', matchIdNum).maybeSingle(),
       ]);
