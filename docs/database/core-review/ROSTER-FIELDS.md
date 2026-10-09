@@ -105,7 +105,7 @@ y cupo 0. Lo que puede **hacer** lo decide el servidor:
 | Sumarse con el link de invitación de WhatsApp (código + token: la app lo valida al abrirlo y eso queda registrado 24 h) | 201; titular o suplente según el cupo |
 | Sumarse con un link viejo de sólo código, con cuenta | 403. Nico aceptó que los links viejos dejen de andar |
 | Invitado sin cuenta por link (`join-match-guest`, token) | sin cambios; cupo verificado |
-| Organizador aprueba (`approve-join-request` → `approve_join_request`) | bloquea solicitud y partido (`FOR UPDATE`): nunca pasa de `cupo` titulares + 4 suplentes; el excedente → "El partido está completo" |
+| Organizador aprueba (`approve-join-request` → `approve_join_request`, 141000) | bloquea solicitud y partido (`FOR UPDATE`): nunca pasa de `cupo` titulares + 4 suplentes; el excedente → "El partido está completo" |
 | Editar la propia fila: nombre, foto, posición | 200 |
 | Editar la propia fila: pasar de suplente a titular, cambiar de partido, cambiarse el puntaje | 403 `42501` |
 | Salir del partido (borrar la propia fila) | sin cambios; el primer suplente sube por trigger del servidor |
@@ -116,8 +116,8 @@ partido (`FOR UPDATE`) y cuenta. Probado en el laboratorio:
 - dos invitados que se suman a la vez por el último lugar: entra uno, el otro recibe
   `MATCH_FULL_WITH_SUBSTITUTES`.
 
-**Hallazgo previo, no causado por #193:** en el esquema canónico de `main`, `authenticated` no
-puede ejecutar `approve_join_request`. `approve-join-request` lo llama como el organizador, así
-que en el laboratorio aprobar devuelve "forbidden". El precheck del runbook muestra si
-Producción está igual. Si lo está, las aprobaciones ya fallan hoy; corregirlo es un cambio aparte
-que espera GO.
+**Aprobar solicitudes (141000).** En el esquema canónico de `main`, `authenticated` no podía
+ejecutar `approve_join_request`, así que `approve-join-request` respondía "forbidden" a todo
+organizador. Desde 140000, aprobar es el camino normal para que entre alguien de afuera, así que
+141000 se lo permite a las cuentas. La función mantiene su verificación (sólo el creador) y el
+bloqueo. El precheck muestra cómo está Producción hoy.

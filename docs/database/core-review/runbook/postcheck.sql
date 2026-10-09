@@ -8,9 +8,14 @@
 begin;
 
 -- ---------- as postgres: structure and data ----------
-select json_build_object('check', 'ledger holds the 21 migrations 20261010120000…140000',
-  'pass', (select count(*) from supabase_migrations.schema_migrations where version between '20261010120000' and '20261010140000') = 21,
-  'value', (select count(*) from supabase_migrations.schema_migrations where version between '20261010120000' and '20261010140000'))::text;
+select json_build_object('check', 'ledger holds the 22 migrations 20261010120000…141000',
+  'pass', (select count(*) from supabase_migrations.schema_migrations where version between '20261010120000' and '20261010141000') = 22,
+  'value', (select count(*) from supabase_migrations.schema_migrations where version between '20261010120000' and '20261010141000'))::text;
+
+select json_build_object('check', '141000: organizers can approve join requests (approve_join_request executable by accounts, not anon; it keeps its own creator check)',
+  'pass', has_function_privilege('authenticated', 'public.approve_join_request(bigint)', 'execute')
+      and not has_function_privilege('anon', 'public.approve_join_request(bigint)', 'execute'),
+  'value', has_function_privilege('authenticated', 'public.approve_join_request(bigint)', 'execute'))::text;
 
 select json_build_object('check', '140000: published rosters per involvement; entries built for the viewer; self-join, self-update and request guards in place',
   'pass', (select pg_get_expr(polqual, polrelid) !~ 'match_is_publicly_open' from pg_policy where polrelid = 'public.jugadores'::regclass and polname = 'jugadores_select_authenticated')

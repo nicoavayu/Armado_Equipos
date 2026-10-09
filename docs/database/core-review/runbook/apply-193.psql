@@ -1,4 +1,4 @@
--- #193 promotion — applies 20261010120000…140000 on Core, in order, each in its own transaction
+-- #193 promotion — applies 20261010120000…141000 on Core, in order, each in its own transaction
 -- together with its ledger row (supabase_migrations.schema_migrations). A version already in the
 -- ledger is skipped, so the same file resumes after a stop or re-applies after a rollback (the
 -- rollbacks remove their ledger row). Run from the repository root, connected as postgres:
@@ -267,6 +267,18 @@ begin;
 \i supabase/migrations/20261010140000_core_published_roster_identity.sql
 \set migration_source `cat supabase/migrations/20261010140000_core_published_roster_identity.sql`
 insert into supabase_migrations.schema_migrations (version, name, statements) values ('20261010140000', 'core_published_roster_identity', array[:'migration_source']);
+commit;
+\endif
+
+select exists (select 1 from supabase_migrations.schema_migrations where version = '20261010141000') as already_applied \gset
+\if :already_applied
+\echo '=== 20261010141000 already in the ledger: skipped'
+\else
+\echo '>>> 20261010141000 core_organizer_approves_join_requests'
+begin;
+\i supabase/migrations/20261010141000_core_organizer_approves_join_requests.sql
+\set migration_source `cat supabase/migrations/20261010141000_core_organizer_approves_join_requests.sql`
+insert into supabase_migrations.schema_migrations (version, name, statements) values ('20261010141000', 'core_organizer_approves_join_requests', array[:'migration_source']);
 commit;
 \endif
 
