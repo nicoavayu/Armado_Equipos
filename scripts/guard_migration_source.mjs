@@ -60,6 +60,7 @@ const expectedCanonicalMigrations = [
   // notifications_ext match columns (parity with Production; see the Core report),
   // organizer vote reset, profile RPCs (privacy phase A), public match reads by code, team
   // roster identity and the survey's reported winner (parity).
+  '20261010118000_core_cancel_match_organizer_only.sql',
   '20261010120000_core_trigger_helper_execute_grants.sql',
   '20261010121000_core_public_voting_roster_identity.sql',
   '20261010122000_core_notifications_ext_match_columns.sql',
