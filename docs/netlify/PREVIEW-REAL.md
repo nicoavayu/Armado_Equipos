@@ -2,7 +2,7 @@
 
 **URL:** https://deploy-preview-194--silly-licorice-383784.netlify.app (Deploy Preview del PR #194, en borrador y marcado «NO MERGEAR»).
 
-- **Candidato:** `9603ff22`. Lo construye Netlify desde GitHub; no hay CLI ni token en esta máquina.
+- **Candidato:** `9603ff22`; reconstruida y verificada de nuevo sobre `d81fe468` (bundle con `get_public_match_roster`, 0 secretos). Lo construye Netlify desde GitHub; no hay CLI ni token en esta máquina.
 - **Sin cambios de configuración en Netlify.**
 - **Por qué existe #194:** el proyecto de prueba sólo construye Deploy Previews de PRs contra su rama de producción (`codex/netlify-hosting-preview`). Por eso #192, que apunta a `main`, nunca tuvo preview. #194 apunta a esa rama. No se mergea: mergearlo publicaría este árbol como producción del sitio de prueba.
 - **Costo:** los Deploy Previews no consumen créditos en Netlify Free.

@@ -103,7 +103,7 @@ Core en la web está detrás del acceso privado. La contraseña de laboratorio e
 - Base de Torneos, Storage de Core y Storage de Torneos con `ops_free_plan.py` y restauración verificada.
 - Backup de Core de menos de 24 h antes de sus migraciones.
 
-**H — Mudanza a Netlify (PENDIENTE):**
+**H — Mudanza a Netlify:** preparada en [`PUBLICACION-NETLIFY.md`](PUBLICACION-NETLIFY.md) (2026-10-09). Lista original:
 1. Verificar el deploy preview con una sesión de Netlify del equipo (tabla de `INTEGRATED-PREVIEW.md` §2).
 2. `[context.production.environment]` con los valores de Production. Hoy se fuerza `preview` y Torneos apagado.
 3. Paridad del build: `validate:web-access-env`, release de Sentry (`$COMMIT_REF`, `SENTRY_AUTH_TOKEN` sólo en el build).
@@ -192,6 +192,8 @@ La versión 1.1.21, publicada hoy en las tiendas, se rompe con la fase B y no ha
 No hay contrataciones nuevas. Si se alcanza un límite: Deno Pro USD 20 por mes, o un plan pago de Netlify. Ninguno está autorizado.
 
 ## 7. Orden de publicación y recuperación ante fallos
+
+> **Reemplazado (2026-10-09)** por [`PUBLICACION-NETLIFY.md`](PUBLICACION-NETLIFY.md): Netlify elegido, variables, Vercel sin deploy de `main`, corte de DNS, día D y recuperación. Esta tabla queda como historia.
 
 | Paso | Qué | Si falla |
 | --- | --- | --- |
