@@ -1,48 +1,51 @@
 {
  "date": "2026-10-09",
  "schema": "Core Production pg_dump --schema-only 2026-10-09 (d3-core-schema-20261009-1641.sql), disposable container without network, synthetic seed",
- "scope": "Nico 2026-10-09: partidos/jugadores SELECT/INSERT, usuarios private fields, guest voting tables; 143000 (gate B: roster uuid = account id, responsabilidad_score, pending requester); 145000 (match notification functions, authorized 2026-10-09); 144000 is a separate draft, not applied; nothing applied in Production",
+ "scope": "Nico 2026-10-09: partidos/jugadores SELECT/INSERT, usuarios private fields, guest voting tables; 143000 (gate B: roster uuid = account id, responsabilidad_score, pending requester); 145000 (match notification functions, authorized 2026-10-09); 144000 is a separate draft, not applied; nothing applied in Production; 118000 (urgent cancel fix, own GO, also part of D3 and skipped if already applied) and 146000 (open SECURITY DEFINER writers), authorized 2026-10-09",
  "passes": {
   "A": {
-   "applied": 26,
-   "of": 26,
-   "apply_ms_total": 1207,
+   "applied": 28,
+   "of": 28,
+   "apply_ms_total": 1089,
    "per_migration_ms": {
-    "20261010119000": 67,
-    "20261010120000": 42,
-    "20261010121000": 48,
-    "20261010122000": 42,
-    "20261010123000": 43,
-    "20261010124000": 42,
-    "20261010125000": 45,
-    "20261010126000": 43,
-    "20261010127000": 42,
-    "20261010128000": 49,
-    "20261010129000": 43,
-    "20261010130000": 41,
-    "20261010131000": 50,
-    "20261010132000": 40,
-    "20261010133000": 46,
-    "20261010134000": 47,
-    "20261010135000": 71,
-    "20261010136000": 44,
-    "20261010137000": 53,
-    "20261010138000": 39,
-    "20261010139000": 51,
-    "20261010140000": 53,
-    "20261010141000": 37,
-    "20261010142000": 36,
-    "20261010143000": 47,
-    "20261010145000": 46
+    "20261010118000": 38,
+    "20261010119000": 49,
+    "20261010120000": 32,
+    "20261010121000": 34,
+    "20261010122000": 36,
+    "20261010123000": 34,
+    "20261010124000": 35,
+    "20261010125000": 35,
+    "20261010126000": 38,
+    "20261010127000": 36,
+    "20261010128000": 38,
+    "20261010129000": 34,
+    "20261010130000": 35,
+    "20261010131000": 41,
+    "20261010132000": 33,
+    "20261010133000": 40,
+    "20261010134000": 40,
+    "20261010135000": 69,
+    "20261010136000": 40,
+    "20261010137000": 49,
+    "20261010138000": 34,
+    "20261010139000": 45,
+    "20261010140000": 45,
+    "20261010141000": 34,
+    "20261010142000": 33,
+    "20261010143000": 39,
+    "20261010145000": 36,
+    "20261010146000": 37
    },
    "precheck_failures": [],
    "postcheck_failures": [],
    "smoke": {
-    "pass": 66,
+    "pass": 74,
     "fail": [],
     "error": null
    },
    "rollbacks_ok": [
+    "20261010146000",
     "20261010145000",
     "20261010143000",
     "20261010142000",
@@ -58,7 +61,7 @@
    ],
    "rollback_vs_pre133": "identical",
    "catalog_after_cleanup_equals_pre133": true,
-   "reapply_ok": 12,
+   "reapply_ok": 13,
    "postcheck_after_reapply_failures": [],
    "server_restarted": false
   },
@@ -81,7 +84,7 @@
      "pass": true
     },
     {
-     "check": "ledger: Torneos contract and ops retention present, none of 20261010119000…145000 yet",
+     "check": "ledger: Torneos contract and ops retention present, none of 20261010119000…146000 yet",
      "pass": true
     },
     {
@@ -102,6 +105,10 @@
     },
     {
      "check": "informative: what 20261010119000 will align (Production differs from the repository here; expected on Core Production: 18 policies to replace, untouched_policies n=192 md5 86fa2f8a…)",
+     "pass": true
+    },
+    {
+     "check": "informative: urgent fix 20261010118000 already applied alone? (apply-193 then skips it)",
      "pass": true
     },
     {
@@ -169,13 +176,13 @@
    },
    "apply": {
     "ok": true,
-    "ms": 202,
-    "applied": 26,
-    "ledger": 26
+    "ms": 193,
+    "applied": 28,
+    "ledger": 27
    },
    "postcheck": [
     {
-     "check": "ledger holds the 26 migrations 20261010119000…145000 (no 144000)",
+     "check": "ledger holds 20261010118000 and the 27 migrations 20261010119000…146000 (no 144000)",
      "pass": true
     },
     {
@@ -184,6 +191,10 @@
     },
     {
      "check": "119000: every other policy (UPDATE/DELETE of partidos/jugadores, profiles, amigos, notifications, post_match_surveys, partidos_frecuentes, usuarios…) is exactly as before",
+     "pass": true
+    },
+    {
+     "check": "118000 + 146000: no open SECURITY DEFINER writer left (cancel only by the organizer; the rest not executable by anon; the three 1.1.21 ones are checked wrappers)",
      "pass": true
     },
     {
@@ -316,15 +327,16 @@
     }
    ],
    "smoke": {
-    "pass": 66,
+    "pass": 74,
     "fail": [],
     "error": null
    },
    "rerun": {
     "ok": true,
-    "skipped": 26
+    "skipped": 28
    },
    "rollbacks_ok": [
+    "20261010146000",
     "20261010145000",
     "20261010143000",
     "20261010142000",
@@ -341,9 +353,9 @@
    "ledger_after_rollbacks": 14,
    "reapply": {
     "ok": true,
-    "applied": 12,
-    "skipped": 14,
-    "ledger": 26
+    "applied": 13,
+    "skipped": 15,
+    "ledger": 27
    },
    "postcheck_after_reapply_failures": [],
    "server_restarted": false
@@ -353,8 +365,8 @@
    "catalog_back_to_R0": true,
    "snapshot_vs_R0": "identical",
    "server_restarted": false,
-   "apply_119_ms": 58,
-   "rollback_119_ms": 71
+   "apply_119_ms": 52,
+   "rollback_119_ms": 63
   },
   "D": {
    "functions_of_120_132": 28,
@@ -397,8 +409,7 @@
   "created": 7,
   "kept_on_scope_tables": 11,
   "untouched_elsewhere": 192,
-  "manual_sql_of_POLICIES_REPLACED_equal_R0": true,
-  "full_rollback_145_to_133_then_119_policies_equal_R0": true
+  "manual_sql_of_POLICIES_REPLACED_equal_R0": true
  },
  "repository_schema": {
   "baseline": "origin/main up to 20260915 + Production ledger extras, clean dryrun project",
@@ -407,7 +418,8 @@
  "smoke_negative_controls": {
   "without_143000": "5 FAIL / 50 PASS",
   "without_145000": "6 FAIL / 60 PASS",
-  "with_all": "66/66"
+  "with_all": "74/74",
+  "without_146000": "2 FAIL / 72 PASS (anon and stranger can still call the open writers)"
  },
  "draft_144000": {
   "requester_pending": {
@@ -420,5 +432,12 @@
   },
   "after_joining": "match and code, with and without",
   "rollback": "pg_get_expr identical to 137000"
+ },
+ "inventory_r0": {
+  "anon_executable_definer_non_trigger": 112,
+  "writing": 50,
+  "writing_without_caller_reference": 20,
+  "covered": "118000 (1), 145000 (3), 146000 (12), voting RPCs guarded by code (4, 121000 closed public_get_or_create_voter)",
+  "writing_with_caller_reference_not_reviewed": 30
  }
 }
