@@ -1,0 +1,115 @@
+{
+ "date": "2026-10-09",
+ "schema": "Core Production pg_dump --schema-only 2026-10-09, fresh disposable container without network, applied as postgres",
+ "r0": {
+  "oid": 17785,
+  "md5": "3651c2dc0a7d0543730dbb541eeaa91a",
+  "acl": "{=X/postgres,postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+  "owner": "postgres",
+  "secdef": true,
+  "volatile": "v",
+  "config": null,
+  "args": "p_partido_id bigint, p_reason text DEFAULT 'Partido cancelado'::text",
+  "result": "jsonb",
+  "lang": "13619",
+  "cost": 100,
+  "saved_table": false,
+  "ledger": false
+ },
+ "check_before": [
+  {
+   "phase": "before",
+   "check": "body is the reviewed one (md5 3651c2dc…) or already guarded",
+   "pass": true,
+   "value": "3651c2dc0a7d0543730dbb541eeaa91a"
+  },
+  {
+   "phase": "before",
+   "check": "informative: today's ACL and owner (the rollback restores this ACL)",
+   "pass": true,
+   "value": {
+    "acl": "{=X/postgres,postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+    "owner": "postgres",
+    "oid": 17785
+   }
+  },
+  {
+   "phase": "before",
+   "check": "informative: 20261010118000 in the ledger?",
+   "pass": true,
+   "value": false
+  }
+ ],
+ "apply": {
+  "ok": true,
+  "error": null
+ },
+ "after": {
+  "oid": 17785,
+  "md5": "464f9ef1ee6dbb475e9e306b67b8982c",
+  "acl": "{postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+  "owner": "postgres",
+  "secdef": true,
+  "volatile": "v",
+  "config": null,
+  "args": "p_partido_id bigint, p_reason text DEFAULT 'Partido cancelado'::text",
+  "result": "jsonb",
+  "lang": "13619",
+  "cost": 100,
+  "saved_table": true,
+  "ledger": true
+ },
+ "check_after": [
+  {
+   "phase": "after",
+   "check": "ledger has 20261010118000; the body carries the organizer guard; still SECURITY DEFINER",
+   "pass": true,
+   "value": null
+  },
+  {
+   "phase": "after",
+   "check": "anon (and PUBLIC) cannot execute it; service_role still can",
+   "pass": true,
+   "value": {
+    "authenticated": true
+   }
+  },
+  {
+   "phase": "after",
+   "check": "a signed-in account that is not the organizer is refused (42501) on the latest match",
+   "pass": true,
+   "value": null
+  }
+ ],
+ "smoke": {
+  "pass": 9,
+  "fail": [],
+  "error": null
+ },
+ "rerun_noop": true,
+ "rollback": {
+  "ok": true,
+  "error": null
+ },
+ "after_rollback": {
+  "oid": 17785,
+  "md5": "3651c2dc0a7d0543730dbb541eeaa91a",
+  "acl": "{=X/postgres,postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+  "owner": "postgres",
+  "secdef": true,
+  "volatile": "v",
+  "config": null,
+  "args": "p_partido_id bigint, p_reason text DEFAULT 'Partido cancelado'::text",
+  "result": "jsonb",
+  "lang": "13619",
+  "cost": 100,
+  "saved_table": false,
+  "ledger": false
+ },
+ "after_rollback_equals_r0": true,
+ "reapply": {
+  "ok": true,
+  "error": null
+ },
+ "check_after_reapply_failures": []
+}

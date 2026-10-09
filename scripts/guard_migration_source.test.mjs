@@ -20,6 +20,7 @@ const torneosCoreContractMyTeamsMigration = '20261007120000_torneos_core_contrac
 const corePushPreferenceMigration = '20261008120000_core_push_preference_v1.sql';
 const coreOpsLogRetentionMigration = '20261009120000_core_ops_log_retention.sql';
 const coreReviewMigrations = [
+  '20261010118000_core_cancel_match_organizer_only.sql',
   '20261010120000_core_trigger_helper_execute_grants.sql',
   '20261010121000_core_public_voting_roster_identity.sql',
   '20261010122000_core_notifications_ext_match_columns.sql',
@@ -66,7 +67,7 @@ const runGuard = (cwd) => spawnSync(process.execPath, [guardPath], {
 });
 
 test('accepts the closed set including Auto-Match, contract repair and global availability', (t) => {
-  assert.equal(approvedMigrations.length, 69);
+  assert.equal(approvedMigrations.length, 70);
   for (const migration of coreReviewMigrations) assert.ok(approvedMigrations.includes(migration));
   assert.ok(approvedMigrations.includes(autoMatchMigration));
   assert.ok(approvedMigrations.includes(contractRepairMigration));

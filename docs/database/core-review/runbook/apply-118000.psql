@@ -1,0 +1,31 @@
+-- URGENT fix 20261010118000 (only the organizer cancels a match) on Core, alone, in one
+-- transaction together with its ledger row. Skipped if the version is already in the ledger
+-- (apply-193.psql has the same block, so D3 never applies it twice). Run from the repository
+-- root, connected as postgres:
+--   psql "<conninfo>" --password -X -f docs/database/core-review/runbook/apply-118000.psql
+\set ON_ERROR_STOP on
+\timing on
+set lock_timeout = '5s';
+set statement_timeout = '60s';
+
+do $$
+begin
+  if current_user <> 'postgres' then
+    raise exception 'connect as postgres (now: %)', current_user;
+  end if;
+end;
+$$;
+
+select exists (select 1 from supabase_migrations.schema_migrations where version = '20261010118000') as already_applied \gset
+\if :already_applied
+\echo '=== 20261010118000 already in the ledger: skipped'
+\else
+\echo '>>> 20261010118000 core_cancel_match_organizer_only'
+begin;
+\i supabase/migrations/20261010118000_core_cancel_match_organizer_only.sql
+\set migration_source `cat supabase/migrations/20261010118000_core_cancel_match_organizer_only.sql`
+insert into supabase_migrations.schema_migrations (version, name, statements) values ('20261010118000', 'core_cancel_match_organizer_only', array[:'migration_source']);
+commit;
+\endif
+
+\echo '>>> done: run cancel-118000-check.sql (phase "after")'
