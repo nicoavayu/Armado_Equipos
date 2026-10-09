@@ -23,7 +23,7 @@ select json_build_object('check', 'database size leaves room on the Free plan (<
 select json_build_object('check', 'ledger: Torneos contract and ops retention present, none of 20261010120000…138000 yet',
   'pass', exists (select 1 from supabase_migrations.schema_migrations where version = '20260915120000')
     and exists (select 1 from supabase_migrations.schema_migrations where version = '20261009120000')
-    and not exists (select 1 from supabase_migrations.schema_migrations where version between '20261010120000' and '20261010139999'),
+    and not exists (select 1 from supabase_migrations.schema_migrations where version between '20261010120000' and '20261010149999'),
   'value', (select json_agg(version order by version) from supabase_migrations.schema_migrations where version >= '20260914120000'))::text;
 
 select json_build_object('check', 'postgres owns the tables and match views the stack changes',
@@ -45,7 +45,8 @@ select json_build_object('check', 'nothing of the stack exists yet (private tabl
     and not exists (select 1 from pg_roles where rolname = 'core_match_public_reader')
     and not exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'partidos' and column_name = 'template_id')
     and not exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'jugadores' and column_name = 'added_by')
-    and to_regclass('app_private.jugadores_added_by') is null,
+    and to_regclass('app_private.jugadores_added_by') is null
+    and to_regclass('app_private.match_link_access') is null,
   'value', json_build_object('usuarios_private', to_regclass('app_private.usuarios_private') is not null,
     'reader_role', exists (select 1 from pg_roles where rolname = 'core_match_public_reader'),
     'partidos_template_id', (select data_type from information_schema.columns where table_schema = 'public' and table_name = 'partidos' and column_name = 'template_id'),
@@ -70,6 +71,14 @@ select json_build_object('check', 'informative: profiles phones that differ from
        where nullif(btrim(pr.telefono), '') is not null and nullif(btrim(u.telefono), '') is not null and btrim(pr.telefono) <> btrim(u.telefono)),
     'only_in_usuarios', (select count(*) from public.profiles pr join public.usuarios u on u.id = pr.id
        where nullif(btrim(pr.telefono), '') is null and nullif(btrim(u.telefono), '') is not null)))::text;
+
+select json_build_object('check', 'informative: join requests duplicated per account and match today (140000 refuses new duplicates; existing ones are kept)',
+  'pass', true,
+  'value', (select count(*) from (select 1 from public.match_join_requests group by match_id, user_id having count(*) > 1) d))::text;
+
+select json_build_object('check', 'informative: can an account execute approve_join_request? (the approve-join-request function calls it as the organizer; false = approvals already fail today, unrelated to #193)',
+  'pass', true,
+  'value', has_function_privilege('authenticated', 'public.approve_join_request(bigint)', 'execute'))::text;
 
 -- Baseline to compare after 135000 (counts only, no values).
 select json_build_object('check', 'baseline: private values in the shared rows (must all move after 135000)', 'pass', true,

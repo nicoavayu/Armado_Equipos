@@ -216,8 +216,14 @@ test('a match published looking for players is shown through the views (code mas
     id: OPEN_MATCH, codigo: null, busca_arquero: false, player_invites_enabled: false, falta_jugadores: true,
     tipo_partido: 'Masculino', precio_cancha_por_persona: 2500,
   }]);
-  const roster = await as.stranger('GET', `jugadores?select=nombre&partido_id=eq.${OPEN_MATCH}`);
-  assert.deepEqual(roster.body.map((row) => row.nombre), ['Sofía (lab)']);
+  // 20261010140000: the table no longer gives an outsider the roster of a published match;
+  // the public page reads it through get_public_match_roster, without usuario_id or score.
+  const table = await as.stranger('GET', `jugadores?select=*&partido_id=eq.${OPEN_MATCH}`);
+  assert.deepEqual([table.status, table.body], [200, []]);
+  const roster = await as.stranger('POST', 'rpc/get_public_match_roster', { p_partido_id: OPEN_MATCH });
+  assert.equal(roster.status, 200, JSON.stringify(roster.body));
+  assert.deepEqual(roster.body.map((row) => [row.nombre, row.has_account, row.is_me, 'usuario_id' in row, 'score' in row]),
+    [['Sofía (lab)', true, false, false, false]]);
   const listing = await as.stranger('GET', `partidos_abiertos_operativos_v2?select=id,codigo&id=eq.${OPEN_MATCH}`);
   assert.deepEqual(listing.body, [{ id: OPEN_MATCH, codigo: null }]);
   const rpc = await as.stranger('POST', 'rpc/get_open_matches_for_quiero_jugar_v2', { p_user_lat: null, p_user_lng: null, p_max_distance_km: 30 });
@@ -232,7 +238,7 @@ test('nobody reads who added a player: select(*) has no added_by and asking for 
   for (const who of ['stranger', 'openMember', 'organizer']) {
     const all = await as[who]('GET', `jugadores?select=*&partido_id=eq.${OPEN_MATCH}`);
     assert.equal(all.status, 200, `${who}: ${JSON.stringify(all.body)}`);
-    assert.ok(all.body.length > 0, who);
+    assert.ok(who === 'stranger' ? all.body.length === 0 : all.body.length > 0, who);
     assert.ok(all.body.every((row) => !('added_by' in row)), who);
     const asked = await as[who]('GET', `jugadores?select=id,added_by&partido_id=eq.${OPEN_MATCH}`);
     assert.equal(asked.status, 400, `${who}: ${asked.status}`);
@@ -319,6 +325,14 @@ test('1.1.21 writes with RETURNING keep working: create a match, add a guest, jo
   try {
     const guest = await write('organizador')('POST', 'jugadores?select=*', { partido_id: matchId, nombre: 'Invitado creado' });
     assert.equal(guest.status, 201, JSON.stringify(guest.body));
+    // 20261010140000: joining oneself needs an invitation (or an approved request / a valid
+    // invite link). Without it the insert is refused; with it, 1.1.21's own insert works.
+    const uninvited = await write('jugador5')('POST', 'jugadores?select=*', { partido_id: matchId, nombre: 'Jugador 5', usuario_id: qa.ids.jugador5 });
+    assert.equal(uninvited.status, 403, JSON.stringify(uninvited.body));
+    const invite = await write('organizador')('POST', 'rpc/send_match_invite', {
+      p_user_id: qa.ids.jugador5, p_partido_id: matchId, p_title: 'Invitación', p_message: 'Vení', p_invite_mode: 'direct',
+    });
+    assert.ok(invite.status < 300, JSON.stringify(invite.body));
     const joined = await write('jugador5')('POST', 'jugadores?select=*', { partido_id: matchId, nombre: 'Jugador 5', usuario_id: qa.ids.jugador5 });
     assert.equal(joined.status, 201, JSON.stringify(joined.body));
     const edited = await write('organizador')('PATCH', `partidos?id=eq.${matchId}&select=id,nombre`, { nombre: 'Creado lab (editado)' });
@@ -328,6 +342,6 @@ test('1.1.21 writes with RETURNING keep working: create a match, add a guest, jo
     const seen = await write('jugador5')('PATCH', `jugadores?partido_id=eq.${matchId}&usuario_id=eq.${qa.ids.jugador5}&select=id`, { nombre: 'Jugador Cinco' });
     assert.equal(seen.status, 200, JSON.stringify(seen.body));
   } finally {
-    sqlTry(`delete from public.partidos where id = ${matchId};`);
+    sqlTry(`delete from public.notifications where partido_id = ${matchId}; delete from public.partidos where id = ${matchId};`);
   }
 });

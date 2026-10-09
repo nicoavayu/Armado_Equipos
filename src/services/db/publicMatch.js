@@ -34,3 +34,32 @@ export async function fetchPublicMatchByCode({ codigo, partidoId = null } = {}) 
     unsupported: false,
   };
 }
+
+/**
+ * The roster of a match published looking for players, as the public page shows it to an
+ * account that is not in it (20261010140000): names, photos, goalkeeper/substitute flags and
+ * has_account / is_me, without usuario_id or score (those stay with the organizer and the
+ * roster, who get them here too). Older backends, or a mocked client without the RPC, read
+ * the table as before.
+ * @returns {Promise<{ jugadores: Array<object>, count: number }>}
+ */
+export async function fetchPublicMatchRoster(partidoId) {
+  const id = Number(partidoId);
+  let result = null;
+  try {
+    result = typeof supabase.rpc === 'function'
+      ? await supabase.rpc('get_public_match_roster', { p_partido_id: id })
+      : null;
+  } catch (_error) {
+    result = null;
+  }
+  const { data, error } = result || {};
+  if (!error && Array.isArray(data)) {
+    return { jugadores: data, count: data.length };
+  }
+  const { data: rows, count } = await supabase
+    .from('jugadores')
+    .select('*', { count: 'exact' })
+    .eq('partido_id', id);
+  return { jugadores: rows || [], count: count || 0 };
+}

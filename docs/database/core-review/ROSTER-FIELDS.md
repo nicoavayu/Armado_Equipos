@@ -1,6 +1,6 @@
 # Planteles de partidos publicados — campo por campo
 
-Estado al 2026-10-08, con 135000–139000 aplicadas.
+Estado al 2026-10-09, con 135000–140000 aplicadas. **El residual de `usuario_id` y `score` quedó cerrado en 140000** (opción A, decidida por Nico el 2026-10-09).
 
 **Quién ve una fila de `jugadores` de un partido ajeno** sólo mientras ese partido está
 publicado buscando jugadores ("Quiero jugar"):
@@ -25,7 +25,7 @@ las 16 columnas del plantel a quien tiene el código. Podría devolver `tiene_cu
 de `usuario_id`, y no devolver `score` ni `added_by`. Es un cambio coordinado de la RPC y de la
 web: la votación usa `usuario_id IS NULL` para saber quiénes son invitados.
 
-## Qué permite hoy `usuario_id` + `score` (residual abierto)
+## Qué permitían `usuario_id` + `score` hasta 140000
 
 Sólo sobre partidos **publicados buscando jugadores** (antes del inicio y con lugar). La lectura
 está al alcance de cualquier cuenta con sesión, y el registro es abierto. Con eso, alguien puede:
@@ -76,29 +76,48 @@ está al alcance de cualquier cuenta con sesión, y el registro es abierto. Con 
 
 Eso alcanza para forzar a las builds futuras. La 1.1.21 sólo se cierra del lado del servidor.
 
-## Cierre: opciones con fecha o condición
+## Cierre: 140000 (opción A)
 
-**A. Cerrar ya, sin build nueva.**
-- Una migración "fase B de planteles" saca a las cuentas ajenas la cláusula de "publicado" en
-  `jugadores` (filas sólo para quien participa) y pasa la web nueva a leer el plantel de un
-  partido publicado por una RPC sin `usuario_id` ni `score`.
-- **Costo:** en la 1.1.21, la página pública de un partido publicado ajeno muestra el plantel
-  vacío y el cupo en 0. Falta probar en el lab qué hace la 1.1.21 al pedir sumarse con ese cupo
-  falso.
-- Se puede publicar junto con #193 en cuanto se pruebe.
+**Para una cuenta que no participa en el partido, y para anon**, ningún plantel trae `usuario_id`
+ni `score`:
+- la tabla no devuelve filas de partidos publicados, y realtime sigue esa regla;
+- en las vistas de "Quiero jugar" y en `get_open_matches_for_quiero_jugar_v2`, cada entrada viene
+  sin esos campos y con `has_account` / `is_me`;
+- `public_get_match_by_code` (votación e invitación por link) arma las entradas de la misma
+  forma;
+- la web lee el plantel publicado con `get_public_match_roster`: nombres, fotos, puesto, cupo.
 
-**B. Atado a la app nueva.**
-- **D0:** sale la build N en las dos tiendas, con plantel por RPC, `report_client_build` y versión
-  mínima.
-- **D0 + 14:** la mínima pasa a N, y quedan forzadas todas las builds que reportan.
-- Cuando `privacy_phase_b_readiness(N, N, 30)` muestre `native_below_minimum = 0` y
-  `active_without_any_report` en un número que Nico acepte, o al llegar a D0 + 30 (lo que pase
-  primero), se aplica la misma migración de A.
-- La 1.1.21 que quede degrada igual que en A.
+Organizador, administrador y plantel siguen viendo todo. La votación por link funciona igual:
+"¿Quién sos?" lista a quienes tienen `has_account` falso, y su foto y su voto pasan.
 
-**Recomendación:** A si Nico no acepta el residual ni siquiera por unas semanas. El único costo
-lo pagan quienes sigan en 1.1.21, y sólo al mirar partidos ajenos publicados. Si no, B. Ninguna
-de las dos está implementada: esperan decisión y GO.
+**No hace falta build nativa.** La 1.1.21 muestra vacío el plantel de un partido publicado ajeno
+y cupo 0. Lo que puede **hacer** lo decide el servidor:
 
-Hasta aplicar A o B, mientras el partido sigue publicado, queda abierto: los nombres, la foto,
-el `usuario_id` y el `score` del plantel, visibles para cualquier cuenta con sesión.
+| Camino de escritura de la 1.1.21 sobre un partido publicado ajeno | Qué devuelve ahora |
+|---|---|
+| "Pedir sumarse" (`match_join_requests` insert `pending`) | 201: solicitud pendiente |
+| Segundo toque / reintento | 409 `23505`; la app lo resuelve con `reopen_own_match_join_request` → `pending`. Nunca dos solicitudes |
+| Solicitud creada ya `approved` (cliente modificado) | 403 `42501` |
+| Solicitud a un partido borrado o cancelado | error `match_not_available` |
+| Cancelar la propia solicitud | RPC `cancel_own_match_join_request` (sin cambios) |
+| Sumarse insertándose en `jugadores` sin invitación, solicitud aprobada ni link validado | 403 (RLS) |
+| Sumarse con invitación de la app (notificación `match_invite` no superada por una expulsión) | 201; titular o suplente según el cupo |
+| Sumarse con el link de invitación de WhatsApp (código + token: la app lo valida al abrirlo y eso queda registrado 24 h) | 201; titular o suplente según el cupo |
+| Sumarse con un link viejo de sólo código, con cuenta | 403. Nico aceptó que los links viejos dejen de andar |
+| Invitado sin cuenta por link (`join-match-guest`, token) | sin cambios; cupo verificado |
+| Organizador aprueba (`approve-join-request` → `approve_join_request`) | bloquea solicitud y partido (`FOR UPDATE`): nunca pasa de `cupo` titulares + 4 suplentes; el excedente → "El partido está completo" |
+| Editar la propia fila: nombre, foto, posición | 200 |
+| Editar la propia fila: pasar de suplente a titular, cambiar de partido, cambiarse el puntaje | 403 `42501` |
+| Salir del partido (borrar la propia fila) | sin cambios; el primer suplente sube por trigger del servidor |
+
+**Cupo bajo concurrencia.** Toda alta pasa por `assign_substitute_slot`, que bloquea la fila del
+partido (`FOR UPDATE`) y cuenta. Probado en el laboratorio:
+- dos aprobaciones simultáneas por el último lugar: entra una;
+- dos invitados que se suman a la vez por el último lugar: entra uno, el otro recibe
+  `MATCH_FULL_WITH_SUBSTITUTES`.
+
+**Hallazgo previo, no causado por #193:** en el esquema canónico de `main`, `authenticated` no
+puede ejecutar `approve_join_request`. `approve-join-request` lo llama como el organizador, así
+que en el laboratorio aprobar devuelve "forbidden". El precheck del runbook muestra si
+Producción está igual. Si lo está, las aprobaciones ya fallan hoy; corregirlo es un cambio aparte
+que espera GO.
