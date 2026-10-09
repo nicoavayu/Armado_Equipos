@@ -73,3 +73,48 @@ Se hizo sobre una **copia descartable** (`arma2-dress-rehearsal`, puertos 594xx,
 - Netlify real.
 - La app de WhatsApp en sí: el link se abrió en un navegador.
 - Mercado Pago, que queda fuera del alcance.
+
+## Cierre del residual: planteles publicados sin identificadores ni puntajes (`140000` + `141000`, #193 `aa89bedd`)
+
+Se verificó en una segunda copia descartable (`arma2-dress2`), con Core en `120000–141000` aplicadas como `postgres`.
+
+### La app instalada 1.1.21 (`dad2a0b9`, bundle web en viewport de teléfono)
+
+**Antes de `140000`:** una cuenta ajena veía los 9 nombres y «1» lugar.
+
+**Después de `140000`:**
+- la misma cuenta ve el plantel **vacío** (10 lugares libres);
+- «Solicitar unirme» crea **una** solicitud pendiente: «Esperando aprobación del admin»;
+- una vez involucrada, ve el plantel completo.
+
+### Por la API (lo que puede hacer cualquier cliente)
+
+| Prueba | Resultado |
+| --- | --- |
+| Cuenta ajena: tabla `jugadores` del partido publicado | 0 filas (`*/0`) |
+| Cuenta ajena: «Quiero jugar», `get_public_match_roster` | 9 entradas, 0 `usuario_id`/`score` |
+| Organizador | ve todo |
+| Anónimo con el link (`public_get_match_by_code`) | 0 identificadores y puntajes; marca `has_account` para la votación |
+| Sumarse insertándose en el plantel | 403 |
+| Solicitud creada como «aprobada» | 403 |
+| Doble toque al pedir sumarse | 201, después 409 `23505`: 1 sola solicitud |
+| Tres aprobaciones simultáneas por el último lugar (10 titulares + 3 suplentes) | exactamente 1 entra; 2 reciben «El partido está completo (10 titulares + 4 suplentes)» |
+| Organizador aprueba (`141000`), con un lugar libre y dos solicitudes a la vez | 1 aprobada; la otra, «El partido está completo»; reaprobar la misma → «El jugador ya está en el partido» |
+| Una cuenta que no organiza intenta aprobar | 403 «Forbidden» |
+
+### Link de WhatsApp y votación por nombre, con la web del candidato después de `140000`
+
+- «¿Quién sos?» lista sólo a los invitados: las cuentas registradas no aparecen.
+- Se vota a los 13 jugadores y se ve «¡Gracias por votar!». Sin login y 0 errores.
+
+### Torneos con `140000`
+
+Suite conectada: los recorridos B–D pasan 6/6. El contrato Core → Torneos no se afecta.
+
+### Hallazgo previo, corregido en `141000`
+
+Con los permisos de `main`, el organizador **no podía aprobar solicitudes** (`approve_join_request` → «permission denied»), probablemente también hoy en Production. El precheck del runbook lo informa.
+
+### Fuera de esta copia
+
+La función `approve-join-request` no corre en el laboratorio (404). Core la probó por la función real en su laboratorio (366/366), incluidas dos aprobaciones simultáneas.
