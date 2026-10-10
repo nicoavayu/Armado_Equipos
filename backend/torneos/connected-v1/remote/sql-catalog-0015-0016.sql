@@ -1,5 +1,5 @@
--- PILOT 0015 + 0016 operator catalog (read only): one JSON row consumed by db-0015-0016.mjs classify() / changedOutside().
 with tracked(name, sig) as (values
+  -- PILOT 0015 + 0016 operator catalog (read only): one JSON row consumed by db-0015-0016.mjs classify() / changedOutside().
   -- the bodies 0015 / 0016 replace (tracked by md5) and the trigger function 0016 adds
   ('player', 'public.get_player_tournament_matches()'),
   ('managed', 'public.get_managed_tournament_matches()'),
@@ -35,7 +35,7 @@ select json_build_object(
    'trigger', exists (select 1 from pg_trigger where tgrelid = 'public.tournament_match_reschedules'::regclass
      and tgname = 'tournament_match_reschedules_notify' and not tgisinternal and tgenabled = 'O'),
    'rows', (select count(*) from public.tournament_user_notifications where kind like 'match.%')),
- -- What 0015 / 0016 must never move: every other function (body, ACL, owner, security, config), relation, policy and the
+ -- What 0015 / 0016 must never move: every other function (body, ACL, owner, secdef flag, config), relation, policy and the
  -- other constraints and triggers of the two tables they touch.
  'kept_fn', (select json_build_object('count', count(*), 'digest', md5(string_agg(f.sig || ':' || md5(p.prosrc) || ':' || coalesce(p.proacl::text, '-') || ':' || pg_get_userbyid(p.proowner) || ':' || p.prosecdef::text || ':' || coalesce(p.proconfig::text, '-'), ',' order by f.sig)))
    from fns f join pg_proc p on p.oid = f.oid
@@ -52,4 +52,4 @@ select json_build_object(
    from pg_trigger where not tgisinternal
      and tgrelid in ('public.tournament_user_notifications'::regclass, 'public.tournament_match_reschedules'::regclass)
      and tgname <> 'tournament_match_reschedules_notify')
-)::text;
+)::text

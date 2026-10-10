@@ -114,11 +114,22 @@ test('db 0015/0016 observe is read only and the catalog is one read-only JSON se
   const out = await run('observe', [], db.deps);
   assert.equal(out.verdict.state, 'POST_0016'); assert.equal(db.applied.length, 0);
   const sql = fs.readFileSync(new URL('./remote/sql-catalog-0015-0016.sql', import.meta.url), 'utf8').replace(/--[^\n]*/g, '');
-  assert.match(sql.trim(), /^with [\s\S]*select json_build_object\([\s\S]*\)::text;$/);
+  assert.match(sql.trim(), /^with [\s\S]*select json_build_object\([\s\S]*\)::text$/);
   assert.doesNotMatch(sql, /\b(insert|update|delete|create|alter|drop|grant|revoke|truncate|set )\b/i);
   for (const name of ['get_player_tournament_matches', 'get_managed_tournament_matches', 'reschedule_tournament_match',
     'get_my_torneos_notifications', 'notify_tournament_match_schedule_change', 'tournament_match_reschedules_notify',
     'tournament_user_notifications_reschedule_recipient_key', 'tournament_user_notifications_match_shape_check']) {
     assert.ok(sql.includes(name), name);
   }
+});
+
+// The real transport wraps the catalog with readOnlyScript, whose guard is lexical (no `;`, no write word even in a
+// comment, must start with select/with). The lab transport skips it, so it is checked here on the file exactly as
+// realDeps() reads it (Production 2026-10-10: the guard refused the previous catalog before any connection).
+test('db 0015/0016 catalog passes the real transport guard as realDeps() reads it', async () => {
+  const C = await import('../infra/torneos-officialization-error-v1/oec-remote-contract.mjs');
+  const sql = fs.readFileSync(new URL('./remote/sql-catalog-0015-0016.sql', import.meta.url), 'utf8').trim();
+  const script = C.readOnlyScript(sql);
+  assert.match(script, /^BEGIN TRANSACTION READ ONLY;\n(with|select)\b/);
+  assert.match(script, /\n\)(::text)?;\nROLLBACK;\n$/);
 });
