@@ -2,24 +2,15 @@ import { supabase } from '../../lib/supabaseClient';
 import { isMissingRpcError } from './publicProfiles';
 
 // A match's access code (partidos.codigo) opens its public voting and its invitation page.
-// Only its admin and the players in its roster get it (20261010133000); everybody else sees
-// the match without it, and a code that arrives in a link is validated by the server.
-// Phase B revokes the column on the table itself, so this client never reads partidos with
-// '*' (nor insert/update ... select()): it lists the columns and asks for the code here.
-
-// Every partidos column except codigo. A new column must be added here to be read.
-export const PARTIDO_COLUMNS = [
-  'id', 'uuid', 'match_ref', 'nombre', 'fecha', 'hora', 'sede', 'sedeMaps', 'modalidad',
-  'tipo_partido', 'cupo_jugadores', 'falta_jugadores', 'precio_cancha', 'creado_por', 'admin_id',
-  'equipos_json', 'equipos_generados', 'teams_confirmed', 'awards_status', 'awards_resolved_at',
-  'estado', 'deleted_at', 'created_at', 'updated_at', 'surveys_sent', 'reminder_sent_at',
-  'final_team_a', 'final_team_b', 'final_teams_updated_at', 'final_teams_updated_by',
-  'survey_team_a', 'survey_team_b', 'teams_source', 'teams_locked', 'teams_locked_by_user_id',
-  'teams_locked_at', 'result_status', 'winner_team', 'finished_at', 'survey_opened_at',
-  'survey_closes_at', 'survey_expected_voters', 'survey_status', 'sede_place_id',
-  'sede_direccion_normalizada', 'sede_latitud', 'sede_longitud', 'player_invites_enabled',
-  'busca_arquero', 'precio_cancha_por_persona', 'equipos',
-].join(', ');
+// Only its admin and the players in its roster get it (20261010133000/137000); everybody else
+// sees the match without it, and a code that arrives in a link is validated by the server.
+// The rule is per ROW (the table returns a match only to those involved, 20261010137000), not
+// per column: reads of partidos keep select('*') like installed apps do. An explicit column
+// list cannot be used here: Core Production's partidos is not the repository's (it has no
+// uuid, admin_id, precio_cancha or equipos_generados, and has columns the repository lacks),
+// and naming a missing column fails the whole read (42703). The schema test
+// (coreProductionSchemaCompat.test.js) checks reads against Production's real columns.
+export const PARTIDO_SELECT = '*';
 
 const toMatchIds = (ids) => Array.from(new Set(
   (Array.isArray(ids) ? ids : [ids])

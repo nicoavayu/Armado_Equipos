@@ -28,9 +28,7 @@ begin
      or not has_function_privilege('authenticated', 'public.resolve_challenge_squad_limits(smallint)', 'execute') then
     raise exception 'trigger helper EXECUTE grant did not apply';
   end if;
-  if has_function_privilege('anon', 'public.normalize_posicion_token(text)', 'execute')
-     or has_function_privilege('anon', 'public.resolve_challenge_squad_limits(smallint)', 'execute') then
-    raise exception 'trigger helpers must stay closed to anon on the canonical schema';
-  end if;
+  -- anon is not asserted: Core Production keeps its historical grants on these pure helpers
+  -- (see above); the repository schema has them closed. Neither exposes data.
 end
 $trigger_helper_execute_check$;

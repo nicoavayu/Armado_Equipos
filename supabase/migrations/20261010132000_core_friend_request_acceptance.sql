@@ -56,12 +56,22 @@ before insert or update on public.amigos
 for each row execute function app_private.tg_amigos_request_rules();
 
 -- The policies say the same thing (defense in depth, and readable in the dashboard).
-drop policy if exists amigos_insert_sender on public.amigos;
-create policy amigos_insert_sender
-on public.amigos for insert
-to authenticated
-with check (
-  user_id = (select auth.uid())
-  and friend_id <> (select auth.uid())
-  and status = 'pending'
-);
+-- The policy is the repository's; Core Production has its own INSERT policy on amigos, which
+-- stays untouched (Nico, 2026-10-09). The trigger above enforces the rules either way.
+do $amigos_insert_policy$
+begin
+  if exists (select 1 from pg_policies where schemaname = 'public' and tablename = 'amigos' and cmd = 'INSERT'
+             and policyname <> 'amigos_insert_sender') then
+    return;
+  end if;
+  drop policy if exists amigos_insert_sender on public.amigos;
+  create policy amigos_insert_sender
+  on public.amigos for insert
+  to authenticated
+  with check (
+    user_id = (select auth.uid())
+    and friend_id <> (select auth.uid())
+    and status = 'pending'
+  );
+end
+$amigos_insert_policy$;

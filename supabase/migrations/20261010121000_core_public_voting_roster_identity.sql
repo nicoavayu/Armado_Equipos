@@ -273,6 +273,11 @@ EXCEPTION
 END;
 $function$;
 
+-- Only the voting RPCs (SECURITY DEFINER) create voters; no client calls this directly (checked
+-- in 1.1.21 and the web). Core Production still granted it to everyone.
+select app_private.alignment_save_function_acl('public.public_get_or_create_voter(bigint,text,text)'::regprocedure);
+revoke execute on function public.public_get_or_create_voter(bigint, text, text) from public, anon, authenticated;
+
 do $public_voting_identity_check$
 begin
   if position('roster_player.usuario_id IS NULL' in pg_get_functiondef('public.public_get_or_create_voter(bigint,text,text)'::regprocedure)) = 0 then

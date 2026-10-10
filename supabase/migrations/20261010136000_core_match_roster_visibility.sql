@@ -47,6 +47,12 @@ as $function$
       select 1 from public.jugadores j
       where j.partido_id = p_partido_id and j.usuario_id = p_user_id
     )
+    -- Roster rows linked by match_ref (Core Production's policies honor that link too).
+    or exists (
+      select 1 from public.partidos m
+      join public.jugadores j on j.match_ref = m.match_ref
+      where m.id = p_partido_id and m.match_ref is not null and j.usuario_id = p_user_id
+    )
     or exists (
       select 1 from public.match_join_requests r
       where r.match_id = p_partido_id and r.user_id = p_user_id

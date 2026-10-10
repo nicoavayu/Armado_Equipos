@@ -42,13 +42,17 @@ as $function$
   select case when p_value is null then null else round(p_value::numeric, 2)::double precision end
 $function$;
 
+-- profiles.telefono exists in the repository schema but NOT in Core Production (RUNBOOK-193
+-- precheck, 2026-10-09). Everything about it below runs only when the column exists; reading
+-- it through to_jsonb() gives NULL when it does not.
+
 -- 1) Copy what the shared rows hold today (usuarios first, profiles.telefono as fallback).
 insert into app_private.usuarios_private as p
   (user_id, email, telefono, fecha_nacimiento, latitud, longitud, location_accuracy_m)
 select
   u.id,
   nullif(btrim(u.email), ''),
-  coalesce(nullif(btrim(u.telefono), ''), nullif(btrim(pr.telefono), '')),
+  coalesce(nullif(btrim(u.telefono), ''), nullif(btrim(to_jsonb(pr) ->> 'telefono'), '')),
   u.fecha_nacimiento,
   case when u.latitud is not null and u.longitud is not null then u.latitud end,
   case when u.latitud is not null and u.longitud is not null then u.longitud end,
@@ -77,7 +81,14 @@ where email is not null or telefono is not null or fecha_nacimiento is not null
    or latitud is distinct from app_private.approx_coordinate(latitud)
    or longitud is distinct from app_private.approx_coordinate(longitud);
 
-update public.profiles set telefono = null where telefono is not null;
+do $$
+begin
+  if exists (select 1 from information_schema.columns
+             where table_schema = 'public' and table_name = 'profiles' and column_name = 'telefono') then
+    execute 'update public.profiles set telefono = null where telefono is not null';
+  end if;
+end;
+$$;
 
 -- 3) From now on every write is captured and masked.
 create or replace function app_private.tg_usuarios_private_fields()
@@ -170,9 +181,16 @@ $function$;
 revoke all on function app_private.tg_profiles_private_phone() from public, anon, authenticated;
 
 drop trigger if exists trg_profiles_private_phone on public.profiles;
-create trigger trg_profiles_private_phone
-  before insert or update on public.profiles
-  for each row execute function app_private.tg_profiles_private_phone();
+do $$
+begin
+  if exists (select 1 from information_schema.columns
+             where table_schema = 'public' and table_name = 'profiles' and column_name = 'telefono') then
+    create trigger trg_profiles_private_phone
+      before insert or update on public.profiles
+      for each row execute function app_private.tg_profiles_private_phone();
+  end if;
+end;
+$$;
 
 -- 4) The owner's full profile.
 create or replace function public.get_my_profile()
@@ -500,7 +518,7 @@ begin
   ) then
     raise exception 'public.usuarios still holds private values';
   end if;
-  if exists (select 1 from public.profiles where telefono is not null) then
+  if exists (select 1 from public.profiles pr where to_jsonb(pr) ->> 'telefono' is not null) then
     raise exception 'public.profiles still holds phone numbers';
   end if;
   if has_table_privilege('authenticated', 'app_private.usuarios_private', 'select')

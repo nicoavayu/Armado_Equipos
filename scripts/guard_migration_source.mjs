@@ -60,6 +60,8 @@ const expectedCanonicalMigrations = [
   // notifications_ext match columns (parity with Production; see the Core report),
   // organizer vote reset, profile RPCs (privacy phase A), public match reads by code, team
   // roster identity and the survey's reported winner (parity).
+  '20261010118000_core_cancel_match_organizer_only.sql',
+  '20261010119000_core_production_alignment.sql',
   '20261010120000_core_trigger_helper_execute_grants.sql',
   '20261010121000_core_public_voting_roster_identity.sql',
   '20261010122000_core_notifications_ext_match_columns.sql',
@@ -82,6 +84,11 @@ const expectedCanonicalMigrations = [
   '20261010139000_core_roster_added_by_private.sql',
   '20261010140000_core_published_roster_identity.sql',
   '20261010141000_core_organizer_approves_join_requests.sql',
+  '20261010142000_core_join_request_notifications.sql',
+  '20261010143000_core_roster_identity_roster_only.sql',
+  '20261010144000_core_partidos_row_roster_only.sql',
+  '20261010145000_core_match_notification_callers.sql',
+  '20261010146000_core_open_definer_writers.sql',
 ];
 
 const exitWithError = (message) => {

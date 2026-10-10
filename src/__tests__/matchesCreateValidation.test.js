@@ -40,8 +40,9 @@ describe('crearPartido name validation', () => {
       nombre: 'Partido real',
       codigo: 'ABC123',
     });
-    // The code is the creator's own choice; it is never read back (phase B revokes it).
-    expect(select.mock.calls[0][0]).not.toMatch(/codigo|\*/);
+    // Every column the database has (Production's partidos differs from the repository's;
+    // see coreProductionSchemaCompat.test.js). The code returned is the creator's own choice.
+    expect(select.mock.calls[0][0]).toBe('*');
 
     expect(supabase.from).toHaveBeenCalledWith('partidos');
     expect(insert).toHaveBeenCalledWith([

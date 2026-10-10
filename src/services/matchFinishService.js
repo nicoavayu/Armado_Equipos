@@ -1,5 +1,6 @@
 import logger from '../utils/logger';
 import { supabase } from '../supabase';
+import { rpcWithLegacyName } from '../utils/backendFallback';
 import { toBigIntId } from '../utils';
 import { parseLocalDateTime } from '../utils/dateLocal';
 import {
@@ -344,7 +345,7 @@ export const checkAndNotifyMatchFinish = async (partido) => {
     };
 
     // Intentar camino canónico (RPC fanout para todos los logueados del partido).
-    const { data: rpcData, error: rpcError } = await supabase.rpc('enqueue_partido_notification_as_actor', {
+    const { data: rpcData, error: rpcError } = await rpcWithLegacyName(supabase, 'enqueue_partido_notification_as_actor', 'enqueue_partido_notification', {
       p_partido_id: partidoId,
       p_type: 'survey_start',
       p_title: title,

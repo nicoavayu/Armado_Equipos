@@ -1,4 +1,4 @@
-import { PARTIDO_COLUMNS, fetchMatchAccessCode, fetchMatchAccessCodes } from '../services/db/matchAccessCode';
+import { PARTIDO_SELECT, fetchMatchAccessCode, fetchMatchAccessCodes } from '../services/db/matchAccessCode';
 import { supabase } from '../lib/supabaseClient';
 
 jest.mock('../lib/supabaseClient', () => ({ supabase: { rpc: jest.fn(), from: jest.fn() } }));
@@ -10,10 +10,9 @@ const legacyQuery = (result) => {
 
 afterEach(() => jest.clearAllMocks());
 
-test('the match columns never include the access code (phase B revokes it)', () => {
-  const columns = PARTIDO_COLUMNS.split(',').map((column) => column.trim());
-  expect(columns).not.toContain('codigo');
-  expect(columns).toEqual(expect.arrayContaining(['id', 'nombre', 'fecha', 'hora', 'creado_por', 'survey_status', 'sedeMaps']));
+test('reads of partidos select every column the database has (Production\'s partidos differs from the repository\'s)', () => {
+  // A named column that one schema lacks fails the whole read (42703); see coreProductionSchemaCompat.test.js.
+  expect(PARTIDO_SELECT).toBe('*');
 });
 
 test('codes come from the server, only for the matches the account belongs to', async () => {

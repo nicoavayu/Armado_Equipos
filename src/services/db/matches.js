@@ -4,8 +4,9 @@ import { schedulePostMatchNotification } from '../notificationService';
 import { incrementPartidosAbandonados } from '../matchStatsService';
 import { requestImmediatePushDispatch } from '../pushDispatchService';
 import { splitMatchPlayersForVotingAndTeams } from '../../utils/teamBalancer';
-import { PARTIDO_COLUMNS, fetchMatchAccessCode } from './matchAccessCode';
+import { PARTIDO_SELECT, fetchMatchAccessCode } from './matchAccessCode';
 import { isMissingRpcError } from './publicProfiles';
+import { rpcWithLegacyName } from '../../utils/backendFallback';
 
 const generateMatchCode = (length = 6) => {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -214,7 +215,7 @@ export const getPartidoPorId = async (partidoId) => {
   const [{ data, error }, codigo] = await Promise.all([
     supabase
       .from('partidos')
-      .select(PARTIDO_COLUMNS)
+      .select(PARTIDO_SELECT)
       .eq('id', pid)
       .single(),
     fetchMatchAccessCode(pid).catch(() => null),
@@ -367,7 +368,7 @@ export const crearPartido = async (partidoData) => {
     const { data, error } = await supabase
       .from('partidos')
       .insert([payload])
-      .select(PARTIDO_COLUMNS)
+      .select(PARTIDO_SELECT)
       .single();
     // The creator chose the code; it is not read back (phase B).
     if (!error) return { ...data, codigo: payload.codigo };
@@ -1777,7 +1778,7 @@ export const deletePartidoWithNotification = async (partidoId) => {
   logger.log('[NOTIF_DEBUG] Deleting match with notification:', partidoId);
 
   // First notify
-  const { data: notifResult, error: notifError } = await supabase.rpc('enqueue_partido_notification_as_actor', {
+  const { data: notifResult, error: notifError } = await rpcWithLegacyName(supabase, 'enqueue_partido_notification_as_actor', 'enqueue_partido_notification', {
     p_partido_id: partidoId,
     p_type: 'match_deleted',
     p_title: 'Partido eliminado',
