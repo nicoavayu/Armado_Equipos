@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { loadGatewayTree } from '../infra/torneos-gateway-auth/gateway-loader.mjs';
 import * as G from '../infra/torneos-gateway-auth/gateway-auth-contract.mjs';
-import { STORE_SECRET, SECRET_KEY, PUBLISHABLE_KEY, ORIGIN, storeEnv } from './test-support.mjs';
+import { STORE_SECRET, SECRET_KEY, PUBLISHABLE_KEY, ORIGIN, storeEnv } from './test/support.mjs';
 
 const FIX = 'scripts/edge-functions/fixtures/tournament-media/';
 const fixture = (name) => new Uint8Array(fs.readFileSync(FIX + name));

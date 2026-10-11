@@ -10,7 +10,7 @@ import { loadGatewayTree } from '../infra/torneos-gateway-auth/gateway-loader.mj
 import { fixtureEnv, BASE } from '../infra/torneos-competition-v1/test-support.mjs';
 import * as G from '../infra/torneos-gateway-auth/gateway-auth-contract.mjs';
 import { mintBridgeToken } from '../infra/torneos-gateway-auth/bridge-probe.mjs';
-import { STORE_SECRET, SECRET_KEY, PUBLISHABLE_KEY, FUNCTION_URL, storeRoute } from '../media-store-v1/test-support.mjs';
+import { STORE_SECRET, SECRET_KEY, PUBLISHABLE_KEY, FUNCTION_URL, storeRoute } from '../media-store-v1/test/support.mjs';
 
 const FN = 'backend/torneos/supabase/functions/torneos-gateway/';
 const FIX = 'scripts/edge-functions/fixtures/tournament-media/';

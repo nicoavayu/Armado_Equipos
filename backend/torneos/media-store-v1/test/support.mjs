@@ -2,7 +2,7 @@
 // function (store.ts, loaded from the same transpiled tree), with the hosted configuration (SUPABASE_URL, a secret key,
 // a publishable key). The function's own calls — the Data API's authorize_tournament_storage_objects and Storage —
 // come back through the caller's fetch emulation. Never touches a network.
-import * as G from '../infra/torneos-gateway-auth/gateway-auth-contract.mjs';
+import * as G from '../../infra/torneos-gateway-auth/gateway-auth-contract.mjs';
 
 export const STORE_SECRET = 'ab'.repeat(32);
 export const SECRET_KEY = 'sb_secret_test_media_store_only';
