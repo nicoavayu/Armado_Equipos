@@ -44,7 +44,7 @@ select json_build_object(
    'policies', (select coalesce(json_agg(policyname::text order by policyname), '[]'::json) from pg_policies
      where schemaname = 'storage' and tablename = 'objects' and policyname like 'tournament_branding_%'),
    'functions', (select count(*) from fns f where f.qname in ('public.can_read_tournament_branding_object', 'public.is_public_tournament_branding_object'))),
- -- Everything that existed before 0009 must stay byte-identical (bodies, ACL, owner, security, config).
+ -- Everything that existed before 0009 must stay byte-identical (bodies, ACL, owner, secdef flag, config).
  'kept_fn', (select json_build_object('count', count(*), 'digest', md5(string_agg(p.oid::regprocedure::text || ':' || md5(p.prosrc) || ':' || coalesce(p.proacl::text, '-') || ':' || pg_get_userbyid(p.proowner) || ':' || p.prosecdef::text || ':' || coalesce(p.proconfig::text, '-'), ',' order by p.oid::regprocedure::text)))
    from fns f join pg_proc p on p.oid = f.oid where f.qname not in (select name from added)),
  'kept_relations', (select json_build_object('count', count(*), 'digest', md5(string_agg(n.nspname || '.' || c.relname || ':' || c.relkind::text || ':' || c.relrowsecurity::text || ':' || coalesce(c.relacl::text, '-') || ':' || pg_get_userbyid(c.relowner), ',' order by n.nspname, c.relname)))

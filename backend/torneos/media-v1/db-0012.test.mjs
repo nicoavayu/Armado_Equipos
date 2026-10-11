@@ -208,3 +208,14 @@ test('db 0012 catalog SQL is one read-only JSON select that names every pinned o
   for (const name of MEDIA_FUNCTIONS) assert.ok(sql.includes(`'${name}'`), name);
   for (const key of ['kept_fn', 'kept_relations', 'kept_policies', 'other_buckets', 'commerce', 'media_objects', 'mode']) assert.ok(sql.includes(`'${key}'`), key);
 });
+
+// The real transport wraps the catalog with readOnlyScript, whose guard is lexical (no `;`, no write word even in a
+// comment, must start with select/with). The lab transport skips it, so it is checked here on the file exactly as
+// realDeps() reads it (Production 2026-10-10: the guard refused the previous catalog before any connection).
+test('db 0012 catalog passes the real transport guard as realDeps() reads it', async () => {
+  const C = await import('../infra/torneos-officialization-error-v1/oec-remote-contract.mjs');
+  const sql = fs.readFileSync(new URL('./remote/sql-catalog.sql', import.meta.url), 'utf8').trim();
+  const script = C.readOnlyScript(sql);
+  assert.match(script, /^BEGIN TRANSACTION READ ONLY;\n(with|select)\b/);
+  assert.match(script, /\n\)(::text)?;\nROLLBACK;\n$/);
+});
