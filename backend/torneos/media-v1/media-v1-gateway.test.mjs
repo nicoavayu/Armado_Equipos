@@ -10,6 +10,7 @@ import { loadGatewayTree } from '../infra/torneos-gateway-auth/gateway-loader.mj
 import { fixtureEnv, BASE } from '../infra/torneos-competition-v1/test-support.mjs';
 import * as G from '../infra/torneos-gateway-auth/gateway-auth-contract.mjs';
 import { mintBridgeToken } from '../infra/torneos-gateway-auth/bridge-probe.mjs';
+import { STORE_SECRET, SECRET_KEY, PUBLISHABLE_KEY, FUNCTION_URL, storeRoute } from '../media-store-v1/test-support.mjs';
 
 const FN = 'backend/torneos/supabase/functions/torneos-gateway/';
 const FIX = 'scripts/edge-functions/fixtures/tournament-media/';
@@ -33,7 +34,10 @@ const decodeJwt = (jwt) => JSON.parse(Buffer.from(jwt.split('.')[1], 'base64url'
 
 const issued = () => ({ state: 'issued', sessionId: SES, token: 'a'.repeat(64), expiresAt: 'x', objectName: OBJECT });
 const world = {};
-const reset = () => Object.assign(world, { identity: true, rest: [], storage: [], replies: {}, storageStatus: 200, refuse: new Set() });
+// MEDIA-STORE-V1: `store` records the gateway's calls to the media store (op, identity); `authorize` the store's questions to
+// the database; `deny` the database's refusals ("<operation>:<name>").
+const reset = () => Object.assign(world, { identity: true, rest: [], storage: [], replies: {}, storageStatus: 200, refuse: new Set(),
+  store: [], authorize: [], deny: new Set() });
 reset();
 globalThis.__mediaWorld = world;
 const stub = `export default function postgres() { return { begin: async (fn) => fn({ unsafe: async (q, params) => {
@@ -42,12 +46,22 @@ const stub = `export default function postgres() { return { begin: async (fn) =>
   throw new Error('Unexpected SQL (writes forbidden)');
 } }), end: async () => {} }; }`;
 
-let fx, tree, gateway, originalFetch, currentEnv;
+let fx, tree, gateway, originalFetch, currentEnv, route;
 test.before(async () => {
   fx = fixtureEnv({ caPem: TEST_CA });
   originalFetch = globalThis.fetch;
   globalThis.fetch = async (url, init = {}) => {
     const u = String(url);
+    if (route && u.startsWith(`${FUNCTION_URL}/`)) {
+      world.store.push({ op: u.slice(FUNCTION_URL.length + 4).split('?')[0], identity: init.headers['x-torneos-store-identity'] });
+      return route.handle(u, init);
+    }
+    if (u === G.GATEWAY_TOPOLOGY.torneosRestUrl + '/rpc/authorize_tournament_storage_objects') {
+      const args = JSON.parse(init.body);
+      world.authorize.push({ ...args, authorization: init.headers.authorization, apikey: init.headers.apikey });
+      return new Response(JSON.stringify(args.p_names.filter((n) => !world.deny.has(`${args.p_operation}:${n}`))),
+        { status: 200, headers: { 'content-type': 'application/json' } });
+    }
     if (u === G.GATEWAY_TOPOLOGY.coreAuthUrl + '/health') return new Response('{}', { status: 200 });
     if (u === G.GATEWAY_TOPOLOGY.coreContractUrl + '/v1/session') {
       return new Response(JSON.stringify({ active: true, checked_at: Math.floor(Date.now() / 1000) }), { status: 200 });
@@ -69,15 +83,20 @@ test.before(async () => {
           ? { path: p, signedURL: null, error: 'Either the object does not exist or you do not have access to it' }
           : { path: p, signedURL: `/object/sign/tournament-media/${p}?token=t-${p.slice(-12)}`, error: null }))), { status: 200 });
       }
+      if (init.method === 'DELETE' && u === `${STORAGE}/object/tournament-media`) {
+        return new Response(JSON.stringify(JSON.parse(init.body).prefixes.map((name) => ({ name }))), { status: 200 });
+      }
       return new Response('{}', { status: world.storageStatus });
     }
     throw new Error('Unexpected network destination ' + u);
   };
-  currentEnv = { ...fx.env, TORNEOS_CONNECTED_MODE: 'on', TORNEOS_BRANDING_MODE: 'on', TORNEOS_MEDIA_MODE: 'on' };
+  currentEnv = { ...fx.env, TORNEOS_CONNECTED_MODE: 'on', TORNEOS_BRANDING_MODE: 'on', TORNEOS_MEDIA_MODE: 'on', TORNEOS_MEDIA_STORE_SECRET: STORE_SECRET };
   globalThis.Deno = { env: { toObject: () => currentEnv } };
   tree = await loadGatewayTree({ postgresModule: stub });
   gateway = await tree.import('torneos-gateway/index.ts');
+  route = await storeRoute(tree, (u, i) => globalThis.fetch(u, i));
 });
+const S = { TORNEOS_MEDIA_STORE_SECRET: STORE_SECRET };
 test.after(async () => { globalThis.fetch = originalFetch; delete globalThis.Deno; delete globalThis.__mediaWorld; await tree.cleanup(); });
 test.beforeEach(reset);
 
@@ -122,26 +141,28 @@ test('strict opt-in; storage is only the Torneos project\'s own or the local lab
     assert.equal(contract.mode, 'off');
     assert.deepEqual([...withMedia(base, contract)], [...base]);
   }
-  const on = loadMediaContract({ TORNEOS_MEDIA_MODE: 'on' }, base, rest);
-  assert.deepEqual([on.storageUrl, on.publicBase, on.restUrl], [STORAGE, STORAGE, rest]);
+  const on = loadMediaContract({ ...S, TORNEOS_MEDIA_MODE: 'on' }, base, rest);
+  assert.deepEqual([on.storageUrl, on.publicBase, on.restUrl, on.store.url], [STORAGE, STORAGE, rest, FUNCTION_URL]);
+  assert.throws(() => loadMediaContract({ TORNEOS_MEDIA_MODE: 'on' }, base, rest), MediaConfigError, 'the store secret is mandatory');
   for (const mode of ['ON', 'true', '1', 'on ']) {
-    assert.throws(() => loadMediaContract({ TORNEOS_MEDIA_MODE: mode }, base, rest), MediaConfigError, mode);
-    assert.throws(() => gateway.boot({ ...fx.env, TORNEOS_MEDIA_MODE: mode }), MediaConfigError, `boot ${mode}`);
+    assert.throws(() => loadMediaContract({ ...S, TORNEOS_MEDIA_MODE: mode }, base, rest), MediaConfigError, mode);
+    assert.throws(() => gateway.boot({ ...fx.env, ...S, TORNEOS_MEDIA_MODE: mode }), MediaConfigError, `boot ${mode}`);
   }
-  assert.throws(() => loadMediaContract({ TORNEOS_MEDIA_MODE: 'on', TORNEOS_STORAGE_URL: 'https://cdn.example.test' }, base, rest), MediaConfigError);
-  assert.throws(() => loadMediaContract({ TORNEOS_MEDIA_MODE: 'on' }, base, 'http://torneos-rest:3000'), MediaConfigError, 'lab needs its explicit targets');
-  assert.throws(() => loadMediaContract({ TORNEOS_MEDIA_MODE: 'on' }, new Set([...base, RPCS[0]]), rest), MediaConfigError, 'overlap');
-  assert.throws(() => loadMediaContract({ TORNEOS_MEDIA_MODE: 'on' }, new Set(['begin_tournament_media_gallery_upload']), rest), MediaConfigError, 'internal served elsewhere');
-  assert.throws(() => loadMediaContract({ TORNEOS_MEDIA_MODE: 'on' }, base, rest, { ...DOC, phase: 'X' }), MediaConfigError);
-  assert.throws(() => loadMediaContract({ TORNEOS_MEDIA_MODE: 'on' }, base, rest,
+  assert.throws(() => loadMediaContract({ ...S, TORNEOS_MEDIA_MODE: 'on', TORNEOS_STORAGE_URL: 'https://cdn.example.test' }, base, rest), MediaConfigError);
+  assert.throws(() => loadMediaContract({ ...S, TORNEOS_MEDIA_MODE: 'on', TORNEOS_MEDIA_STORE_URL: 'https://evil.example.test/x' }, base, rest), MediaConfigError);
+  assert.throws(() => loadMediaContract({ ...S, TORNEOS_MEDIA_MODE: 'on' }, base, 'http://torneos-rest:3000'), MediaConfigError, 'lab needs its explicit targets');
+  assert.throws(() => loadMediaContract({ ...S, TORNEOS_MEDIA_MODE: 'on' }, new Set([...base, RPCS[0]]), rest), MediaConfigError, 'overlap');
+  assert.throws(() => loadMediaContract({ ...S, TORNEOS_MEDIA_MODE: 'on' }, new Set(['begin_tournament_media_gallery_upload']), rest), MediaConfigError, 'internal served elsewhere');
+  assert.throws(() => loadMediaContract({ ...S, TORNEOS_MEDIA_MODE: 'on' }, base, rest, { ...DOC, phase: 'X' }), MediaConfigError);
+  assert.throws(() => loadMediaContract({ ...S, TORNEOS_MEDIA_MODE: 'on' }, base, rest,
     { ...DOC, features: { ...DOC.features, media_participant: [...DOC.features.media_participant, 'complete_tournament_media_gallery_upload'] } }), MediaConfigError);
-  const off = gateway.boot({ ...fx.env, TORNEOS_CONNECTED_MODE: 'on', TORNEOS_BRANDING_MODE: 'on' });
+  const off = gateway.boot({ ...fx.env, ...S, TORNEOS_CONNECTED_MODE: 'on', TORNEOS_BRANDING_MODE: 'on' });
   const booted = gateway.boot(currentEnv);
   assert.deepEqual([...booted.rpcAllowlist].filter((name) => !off.rpcAllowlist.has(name)), RPCS);
   assert.equal(off.media.mode, 'off');
   // A second, independent copy of the gateway booted without the mode: no media route at all.
   const saved = currentEnv;
-  currentEnv = { ...fx.env, TORNEOS_CONNECTED_MODE: 'on', TORNEOS_BRANDING_MODE: 'on' };
+  currentEnv = { ...fx.env, ...S, TORNEOS_CONNECTED_MODE: 'on', TORNEOS_BRANDING_MODE: 'on' };
   const offTree = await loadGatewayTree({ postgresModule: stub });
   try {
     const offGateway = await offTree.import('torneos-gateway/index.ts');
@@ -167,15 +188,20 @@ test('upload: verified bytes → session with the caller\'s token → write + co
   assert.deepEqual(begin.args, { p_gallery_id: GAL, p_idempotency_key: KEY, p_mime: 'image/jpeg', p_byte_size: JPEG.length, p_thumbnail_size: null });
   const [put] = world.storage;
   assert.deepEqual([put.url, put.method, put.headers['x-upsert'], put.headers['content-type']], [`/object/tournament-media/${OBJECT}`, 'POST', 'false', 'image/jpeg']);
+  assert.deepEqual([put.headers.apikey, put.headers.authorization], [SECRET_KEY, undefined], 'MEDIA-STORE-V1: the service key, inside the store only');
   assert.deepEqual(new Uint8Array(put.body), JPEG, 'exactly the verified bytes');
   const caller = decodeJwt(bearer);
-  const claim = decodeJwt(put.headers.authorization.slice(7));
-  assert.notEqual(put.headers.authorization, `Bearer ${bearer}`, 'never the caller\'s own token');
+  const [write] = world.store;
+  assert.equal(write.op, 'media-put');
+  assert.notEqual(write.identity, bearer, 'never the caller\'s own token');
+  const claim = decodeJwt(write.identity);
+  assert.deepEqual(world.authorize.map((a) => [a.p_bucket, a.p_operation, a.p_names, a.authorization, a.apikey]),
+    [['tournament-media', 'write', [OBJECT], `Bearer ${write.identity}`, PUBLISHABLE_KEY]], 'the database judges the session claim');
   assert.equal(claim.torneos_media_upload_session, SES);
   for (const k of ['sub', 'core_user_id', 'session_id', 'role', 'iss', 'aud']) assert.equal(claim[k], caller[k], k);
   assert.equal(claim.exp - claim.iat, 120);
   assert.equal(complete.name, 'complete_tournament_media_gallery_upload');
-  assert.equal(complete.authorization, put.headers.authorization);
+  assert.equal(complete.authorization, `Bearer ${write.identity}`);
   assert.deepEqual(complete.args, { p_session_id: SES, p_token: 'a'.repeat(64), p_detected_mime: 'image/jpeg', p_byte_size: JPEG.length,
     p_width: 64, p_height: 48, p_checksum_sha256: crypto.createHash('sha256').update(JPEG).digest('hex'),
     p_thumbnail_size: null, p_thumbnail_width: null, p_thumbnail_height: null, p_thumbnail_checksum: null });
@@ -200,7 +226,8 @@ test('thumbnail: photo then JPEG thumbnail in one body; both verified, both writ
   assert.equal(begin.args.p_thumbnail_size, thumb.length);
   assert.deepEqual(world.storage.map((call) => [call.method, call.url, call.headers['content-type']]), [
     ['POST', `/object/tournament-media/${OBJECT}`, 'image/jpeg'], ['POST', `/object/tournament-media/${THUMB_OBJECT}`, 'image/jpeg']]);
-  assert.equal(world.storage[0].headers.authorization, world.storage[1].headers.authorization, 'the same session claim');
+  assert.deepEqual(world.store.map((call) => call.op), ['media-put', 'media-put']);
+  assert.equal(world.store[0].identity, world.store[1].identity, 'the same session claim');
   assert.deepEqual(new Uint8Array(world.storage[1].body), thumb);
   assert.deepEqual([complete.args.p_thumbnail_size, complete.args.p_thumbnail_width, complete.args.p_thumbnail_height],
     [thumb.length, 64, 48]);
@@ -219,22 +246,17 @@ test('thumbnail: photo then JPEG thumbnail in one body; both verified, both writ
   assert.equal((await upload(body, { query: `gallery=${GAL}&key=${KEY}&thumb=${thumb.length}` })).status, 503,
     'a session that does not announce the thumbnail never gets one written');
   assert.equal(world.storage.length, 0);
-  // A thumbnail write refused by storage undoes the photo already written.
+  // A thumbnail write the database refuses undoes the photo already written.
   reset();
   world.replies.begin_tournament_media_gallery_upload = [200, { ...issued(), thumbnailObjectName: THUMB_OBJECT }];
   world.replies.fail_tournament_media_gallery_upload = [200, { status: 'failed' }];
-  let calls = 0;
-  const saved = globalThis.fetch;
-  globalThis.fetch = async (url, init) => {
-    if (String(url).endsWith(THUMB_OBJECT) && init.method === 'POST') { calls += 1; world.storage.push({ url: 'thumb', method: 'POST' }); return new Response('{}', { status: 400 }); }
-    return saved(url, init);
-  };
-  try {
-    refused = await upload(body, { query: `gallery=${GAL}&key=${KEY}&thumb=${thumb.length}` });
-  } finally { globalThis.fetch = saved; }
+  world.deny = new Set([`write:${THUMB_OBJECT}`]);
+  refused = await upload(body, { query: `gallery=${GAL}&key=${KEY}&thumb=${thumb.length}` });
   assert.equal(refused.status, 403);
-  assert.equal(calls, 1);
-  assert.ok(world.storage.some((call) => call.method === 'DELETE' && call.url === `/object/tournament-media/${OBJECT}`), 'the photo is undone');
+  assert.deepEqual(world.storage.filter((call) => call.method === 'POST').map((call) => call.url), [`/object/tournament-media/${OBJECT}`], 'the thumbnail never reached Storage');
+  const undo = world.storage.find((call) => call.method === 'DELETE');
+  assert.deepEqual([undo.url, JSON.parse(undo.body)], ['/object/tournament-media', { prefixes: [OBJECT] }], 'the photo is undone');
+  assert.ok(world.authorize.some((a) => a.p_operation === 'delete' && a.p_names.includes(OBJECT)), 'the undo is the database\'s decision too');
   assert.ok(world.rest.some((call) => call.name === 'fail_tournament_media_gallery_upload'));
 });
 
@@ -313,10 +335,12 @@ test('a refused completion undoes its own write and records why; a storage confl
   world.replies.fail_tournament_media_gallery_upload = [200, { status: 'failed' }];
   let r = await upload(JPEG);
   assert.deepEqual([r.status, (await r.json()).error], [409, 'TORNEOS_MEDIA_DUPLICATE']);
-  const [put, removed] = world.storage;
-  assert.deepEqual([removed.method, removed.url, removed.headers.authorization], ['DELETE', put.url, put.headers.authorization]);
+  const [, removed] = world.storage;
+  assert.deepEqual([removed.method, removed.url, JSON.parse(removed.body)], ['DELETE', '/object/tournament-media', { prefixes: [OBJECT] }]);
+  const [write, undo] = world.store;
+  assert.deepEqual([write.op, undo.op, undo.identity], ['media-put', 'media-delete', write.identity], 'undone under the same session claim');
   const failed = world.rest.find((call) => call.name === 'fail_tournament_media_gallery_upload');
-  assert.deepEqual([failed.authorization, failed.args], [put.headers.authorization, { p_session_id: SES, p_failure_code: 'DUPLICATE' }]);
+  assert.deepEqual([failed.authorization, failed.args], [`Bearer ${write.identity}`, { p_session_id: SES, p_failure_code: 'DUPLICATE' }]);
   reset();
   world.replies.begin_tournament_media_gallery_upload = [200, issued()];
   world.storageStatus = 409;
@@ -324,9 +348,13 @@ test('a refused completion undoes its own write and records why; a storage confl
   assert.equal(r.status, 409);
   assert.deepEqual(world.rest.map((call) => call.name), ['begin_tournament_media_gallery_upload', 'fail_tournament_media_gallery_upload']);
   reset();
+  // The database refuses the write (an expired or foreign session, a gallery the caller may no longer upload to).
   world.replies.begin_tournament_media_gallery_upload = [200, issued()];
-  world.storageStatus = 400;
-  assert.deepEqual([(r = await upload(JPEG)).status, (await r.json()).error], [403, 'TORNEOS_MEDIA_FORBIDDEN'], 'storage RLS refusal');
+  world.replies.fail_tournament_media_gallery_upload = [200, { status: 'failed' }];
+  world.deny = new Set([`write:${OBJECT}`]);
+  assert.deepEqual([(r = await upload(JPEG)).status, (await r.json()).error], [403, 'TORNEOS_MEDIA_FORBIDDEN'], 'database refusal');
+  assert.equal(world.storage.length, 0, 'nothing reached Storage');
+  assert.deepEqual(world.rest.find((call) => call.name === 'fail_tournament_media_gallery_upload').args.p_failure_code, 'STORAGE_REFUSED');
   reset();
   world.replies.begin_tournament_media_gallery_upload = [200, { ...issued(), objectName: OBJECT.replace(GAL, TNT) }];
   assert.equal((await upload(JPEG)).status, 503, 'an object outside the requested gallery is never written');
@@ -348,7 +376,7 @@ test('read URLs: the caller\'s targets per kind, ONE signature batch with the ca
   world.replies.get_tournament_media_read_targets = (args) => [200, args.p_asset_ids
     .filter((id) => id !== '50000000-0000-4000-8000-0000000000ff')
     .map((id) => ({ assetId: id, kind: args.p_kind, objectName: id === AST ? (args.p_kind === 'grid' ? OBJECT.replace('.jpg', '-thumbnail.jpg') : OBJECT) : OBJECT2 }))];
-  world.refuse = new Set([OBJECT2]);
+  world.deny = new Set([`read:${OBJECT2}`]);
   const bearer = token();
   const r = await urls({ items: [{ assetId: AST, kind: 'grid' }, { assetId: AST, kind: 'detail' }, { assetId: AST2, kind: 'grid' },
     { assetId: '50000000-0000-4000-8000-0000000000ff', kind: 'grid' }] }, { bearer });
@@ -364,8 +392,11 @@ test('read URLs: the caller\'s targets per kind, ONE signature batch with the ca
     ['get_tournament_media_read_targets', `Bearer ${bearer}`, 'grid'], ['get_tournament_media_read_targets', `Bearer ${bearer}`, 'detail']]);
   const signs = world.storage.filter((call) => call.url === '/object/sign/tournament-media');
   assert.equal(signs.length, 1);
-  assert.equal(signs[0].headers.authorization, `Bearer ${bearer}`, 'storage RLS decides again, as the caller');
-  assert.deepEqual(JSON.parse(signs[0].body).paths, [THUMB, OBJECT2, OBJECT], 'the grid signs the thumbnail, detail the photo');
+  assert.deepEqual(world.store.map((call) => [call.op, call.identity]), [['media-sign', bearer]]);
+  assert.deepEqual(world.authorize.map((a) => [a.p_operation, a.p_names, a.authorization]), [['read', [THUMB, OBJECT2, OBJECT], `Bearer ${bearer}`]],
+    'can_read_tournament_media_object decides again, as the caller');
+  assert.deepEqual([signs[0].headers.apikey, signs[0].headers.authorization], [SECRET_KEY, undefined]);
+  assert.deepEqual(JSON.parse(signs[0].body).paths, [THUMB, OBJECT], 'only what the database allowed is signed');
   assert.ok(!JSON.stringify(json).includes(OBJECT2), 'a refused object never leaves the gateway');
   for (const body of [{}, { items: [] }, { items: [{ assetId: 'x', kind: 'grid' }] }, { items: [{ assetId: AST, kind: 'original' }] },
     { items: [{ assetId: AST, kind: 'grid', path: 'x' }] }, { items: Array.from({ length: 121 }, () => ({ assetId: AST, kind: 'grid' })) },

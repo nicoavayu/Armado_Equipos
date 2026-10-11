@@ -3,7 +3,7 @@ import { isCompetitionV1Operation, isCompetitionV1PublicOperation } from './comp
 import { isOfficializationV1Operation } from './officializationV1Scope';
 import { isSocialV1Operation } from './socialV1Scope';
 import { isConnectedV1Operation, isConnectedV1PublicOperation } from './connectedV1Scope';
-import { BRANDING_OBJECT_PATH, isBrandingV1Operation, isBrandingV1PublicOperation } from './brandingV1Scope';
+import { BRANDING_OBJECT_PATH, BRANDING_OWNER_PATH, isBrandingV1Operation, isBrandingV1PublicOperation } from './brandingV1Scope';
 import { isMediaV1Operation, MEDIA_READ_KINDS, MEDIA_THUMBNAIL_MAX_BYTES, MEDIA_UPLOAD_MAX_BYTES, MEDIA_UPLOAD_TYPES, MEDIA_URLS_MAX_ITEMS } from './mediaV1Scope';
 import { isStagingV1Table } from './stagingV1Tables';
 import { isStagingV1CommerceRead, PURCHASE_REFRESH_PATH, SEASON_CHECKOUT_PATH } from './stagingV1CommerceScope';
@@ -84,10 +84,12 @@ export function createTorneosClient({
       }
       return transport.commerce(PURCHASE_REFRESH_PATH, body, options);
     },
-    // BRANDING-V1: store (POST, with the file) or remove (DELETE) one versioned branding object.
+    // BRANDING-V1 / MEDIA-STORE-V1: store (POST to the OWNER path, with the file; the server names the object and
+    // returns its path) or remove (DELETE of one full versioned object path).
     async brandingObject(method, path, file = undefined, options = {}) {
       if (branding !== true) throw new TorneosBoundaryError('TORNEOS_OUTSIDE_STAGING_V1');
-      if (!['POST', 'DELETE'].includes(method) || !BRANDING_OBJECT_PATH.test(String(path))) {
+      if (!((method === 'POST' && BRANDING_OWNER_PATH.test(String(path)))
+        || (method === 'DELETE' && BRANDING_OBJECT_PATH.test(String(path))))) {
         throw new TorneosBoundaryError('TORNEOS_INVALID_REQUEST');
       }
       if (!connected || typeof transport.brandingObject !== 'function') {

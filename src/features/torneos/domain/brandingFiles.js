@@ -73,6 +73,13 @@ export function isVersionedBrandingPath(path, kind = null) {
   return !kind || path.split('/')[1] === ENTITY_FOLDERS[kind];
 }
 
+/** MEDIA-STORE-V1 (hybrid): the owner of an upload; the server generates the versioned object name under it. */
+export function brandingOwnerPath({ organizationId, kind, entityId }) {
+  const folder = ENTITY_FOLDERS[kind];
+  if (!folder || !organizationId || !entityId) throw new Error('No pudimos preparar la referencia de branding.');
+  return `${organizationId}/${folder}/${entityId}`;
+}
+
 export function buildBrandingPath({ organizationId, kind, entityId, mime }) {
   const folder = ENTITY_FOLDERS[kind];
   const extension = MIME_EXTENSION[mime];

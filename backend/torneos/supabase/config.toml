@@ -17,3 +17,11 @@ verify_jwt = false
 # torneos_payment_service (never service_role).
 [functions.torneos-payments]
 verify_jwt = false
+
+# MEDIA-STORE-V1: the only component that writes, removes and signs objects of the private buckets (hosted Storage refuses
+# the bridge's RS256 tokens). One caller, the Torneos gateway, with an HMAC over the request and the caller's own bridge
+# token as the identity the database judges (authorize_tournament_storage_objects, 0017); neither is a project Auth JWT,
+# so the platform verifier is off. verify_jwt = false is NOT open access: unsigned requests get 401 before anything is
+# read, and every operation is decided by the database for that identity before the service key is used.
+[functions.torneos-media-store]
+verify_jwt = false

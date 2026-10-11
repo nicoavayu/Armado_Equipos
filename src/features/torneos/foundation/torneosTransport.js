@@ -400,13 +400,13 @@ export function createTorneosTransport({
       const { json } = await send('POST', path, { body, signal, timeoutMs });
       return json;
     },
-    // BRANDING-V1: the client validated the path; the image must match its extension and the bucket limit.
+    // BRANDING-V1 / MEDIA-STORE-V1: the client validated the path (owner for POST, object for DELETE); an upload
+    // must be one of the bucket's image types within its limit (the server verifies the real type again).
     async brandingObject(method, path, file = undefined, { signal } = {}) {
-      const extension = String(path).slice(String(path).lastIndexOf('.') + 1);
       if (method === 'POST') {
-        const type = BRANDING_UPLOAD_TYPES[extension];
+        const type = file?.type;
         if (!file || typeof file.size !== 'number' || file.size <= 0 || file.size > BRANDING_UPLOAD_MAX_BYTES
-          || file.type !== type) {
+          || !Object.values(BRANDING_UPLOAD_TYPES).includes(type)) {
           throw new TorneosBoundaryError('TORNEOS_INVALID_REQUEST');
         }
         const { json } = await send('POST', `${BRANDING_OBJECT_ROUTE}/${path}`, {

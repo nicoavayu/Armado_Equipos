@@ -122,11 +122,14 @@ function crestPng([r, g, b], [r2, g2, b2], size = 192) {
 }
 async function storeBranding(token, organizationId, kind, entityId, bytes) {
   const folder = { organization: 'organizations', tournament: 'tournaments', team: 'teams' }[kind];
-  const objectPath = `${organizationId}/${folder}/${entityId}/${crypto.randomUUID()}.png`;
-  const stored = await fetch(`${GATEWAY}/torneos/branding/v1/object/${objectPath}`, {
+  // MEDIA-STORE-V1: the upload names the owner; the server generates the versioned object name and returns it.
+  const owner = `${organizationId}/${folder}/${entityId}`;
+  const stored = await fetch(`${GATEWAY}/torneos/branding/v1/object/${owner}`, {
     method: 'POST', headers: { authorization: `Bearer ${token}`, 'content-type': 'image/png' }, body: bytes, signal: AbortSignal.timeout(15000),
   });
   if (stored.status !== 200) throw new Error(`branding object ${kind} → ${stored.status} ${(await stored.text()).slice(0, 120)}`);
+  const objectPath = (await stored.json()).path;
+  if (typeof objectPath !== 'string' || !objectPath.startsWith(`${owner}/`)) throw new Error(`branding object ${kind} → unexpected path`);
   const reference = await gatewayRpc(token, 'set_tournament_branding_reference', {
     p_organization_id: organizationId, p_entity_kind: kind, p_entity_id: entityId, p_path: objectPath });
   if (reference?.previousPath) {

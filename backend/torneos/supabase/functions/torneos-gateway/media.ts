@@ -13,7 +13,10 @@
 //     bridge token that carries the gateway claim for THAT session (migration 00000000000012: only that claim may
 //     write to the bucket or complete an upload, and the browser never holds it); (3) POST /torneos/media/v1/urls
 //     signs 300 s read URLs for the assets the CALLER may read (the baseline's authorize_tournament_media_read, then
-//     storage RLS again on the signature);
+//     can_read_tournament_media_object again on the signature). MEDIA-STORE-V1: hosted Storage refuses the bridge's
+//     RS256 tokens, so writes, undo removals and signatures go through the torneos-media-store function, which asks the
+//     database (00000000000017, the same predicates) with the claim / caller token before using the service key it
+//     alone holds;
 //   • any other value, a malformed document, an overlapping name or an unsafe storage target throws MediaConfigError
 //     and the gateway refuses to boot (fail closed).
 //
@@ -22,6 +25,7 @@ import mediaDoc from "./media-v1-rpc-allowlist.json" with { type: "json" }
 import { MVP_SIMPLE_MEDIA_LIMITS } from "./media-contract.ts"
 import { inspectImage, MediaImageError, sha256Hex, verifyNormalizedImage, type MediaImageLimits } from "./media-image.ts"
 import { storageTargets } from "./branding.ts"
+import { loadMediaStore, MediaStoreUnavailable, storeCall, storeJson, type MediaStoreContract } from "./media-store-client.ts"
 
 export class MediaConfigError extends Error {}
 
@@ -58,8 +62,9 @@ export type MediaContract = {
   restUrl: string
   storageUrl: string
   publicBase: string
+  store: MediaStoreContract | null
 }
-const OFF: MediaContract = Object.freeze({ mode: "off", rpcs: new Set<string>(), restUrl: "", storageUrl: "", publicBase: "" })
+const OFF: MediaContract = Object.freeze({ mode: "off", rpcs: new Set<string>(), restUrl: "", storageUrl: "", publicBase: "", store: null })
 
 /**
  * @param authenticated every RPC the authenticated route already serves (every contract booted before this one)
@@ -96,7 +101,8 @@ export function loadMediaContract(env: Record<string, string | undefined>, authe
   }
   const rest = restUrl.replace(/\/$/, "")
   const { storageUrl, publicBase } = storageTargets(env, rest, MediaConfigError)
-  return Object.freeze({ mode: "on", rpcs, restUrl: rest, storageUrl, publicBase })
+  const store = loadMediaStore(env, rest, MediaConfigError)
+  return Object.freeze({ mode: "on", rpcs, restUrl: rest, storageUrl, publicBase, store })
 }
 
 /** Authenticated generic route: everything already served ∪ MEDIA-V1 (when on). */
@@ -307,41 +313,39 @@ export async function mediaUpload(request: MediaUploadRequest, contract: MediaCo
   const fail = async (failureCode: string) => {
     try { await rpc(contract, deps, claim, "fail_tournament_media_gallery_upload", { p_session_id: sessionId, p_failure_code: failureCode }) } catch { /* the sweeper retires it */ }
   }
-  const authorization = { authorization: `Bearer ${claim}`, ...(deps.apikey ? { apikey: deps.apikey } : {}) }
+  if (!contract.store) throw new Unavailable()
+  const mediaStore = contract.store
   const written: string[] = []
   const undo = async () => {
-    for (const name of written) {
-      try {
-        const removed = await (deps.fetchImpl ?? fetch)(`${contract.storageUrl}/object/${MEDIA_BUCKET}/${name}`, {
-          method: "DELETE", headers: authorization, redirect: "error", signal: AbortSignal.timeout(5000) })
-        await removed.body?.cancel()
-      } catch { /* the sweeper owns orphans */ }
-    }
-  }
-  const store = async (name: string, content: Uint8Array, type: string): Promise<MediaResult | null> => {
-    let stored: Response
+    if (written.length === 0) return
     try {
-      stored = await (deps.fetchImpl ?? fetch)(`${contract.storageUrl}/object/${MEDIA_BUCKET}/${name}`, {
-        method: "POST",
-        headers: { ...authorization, "content-type": type, "cache-control": "private, max-age=31536000, immutable", "x-upsert": "false" },
-        body: content, redirect: "error", signal: AbortSignal.timeout(15000),
-      })
-    } catch {
+      await storeCall(mediaStore, "media-delete", claim, { body: storeJson({ names: written }), timeoutMs: 5000 }, deps.fetchImpl)
+    } catch { /* the sweeper owns orphans */ }
+  }
+  const store = async (name: string, content: Uint8Array, type: string, kind: "photo" | "thumbnail"): Promise<MediaResult | null> => {
+    let stored
+    try {
+      stored = await storeCall(mediaStore, "media-put", claim,
+        { query: new URLSearchParams({ kind, name }).toString(), body: content, contentType: type }, deps.fetchImpl)
+    } catch (error) {
+      if (!(error instanceof MediaStoreUnavailable)) throw error
       await undo()
       await fail("STORAGE_UNAVAILABLE")
       throw new Unavailable()
     }
-    await stored.body?.cancel()
     if (stored.status === 200) { written.push(name); return null }
     await undo()
-    await fail(stored.status === 409 ? "OBJECT_EXISTS" : stored.status >= 500 ? "STORAGE_UNAVAILABLE" : "STORAGE_REFUSED")
-    if (stored.status >= 500) throw new Unavailable()
-    return { status: stored.status === 409 ? 409 : 403, body: { error: stored.status === 409 ? "TORNEOS_MEDIA_UPLOAD_IN_PROGRESS" : "TORNEOS_MEDIA_FORBIDDEN" } }
+    await fail(stored.status === 409 ? "OBJECT_EXISTS" : "STORAGE_REFUSED")
+    if (stored.status === 409) return { status: 409, body: { error: "TORNEOS_MEDIA_UPLOAD_IN_PROGRESS" } }
+    if (stored.status === 413 || stored.status === 415 || stored.status === 422) {
+      return { status: 422, body: { error: "TORNEOS_MEDIA_CONTENT_REJECTED", code: typeof stored.body.error === "string" ? stored.body.error : "MEDIA_CONTENT_CORRUPT" } }
+    }
+    return { status: 403, body: { error: "TORNEOS_MEDIA_FORBIDDEN" } }
   }
-  const photoRefused = await store(objectName, bytes, inspection.mime)
+  const photoRefused = await store(objectName, bytes, inspection.mime, "photo")
   if (photoRefused) return photoRefused
   if (thumb && typeof thumbName === "string") {
-    const thumbRefused = await store(thumbName, thumb, "image/jpeg")
+    const thumbRefused = await store(thumbName, thumb, "image/jpeg", "thumbnail")
     if (thumbRefused) return thumbRefused
   }
 
@@ -414,32 +418,21 @@ export async function mediaUrls(request: MediaUrlsRequest, contract: MediaContra
   }
 }
 
-/** One storage call: the caller's own token, so storage RLS (can_read_tournament_media_object) decides again. */
+/** One media-store call: the caller's own token, so can_read_tournament_media_object decides again before signing. */
 async function signObjects(paths: readonly string[], contract: MediaContract, deps: MediaDeps): Promise<Map<string, string>> {
   const urls = new Map<string, string>()
-  if (paths.length === 0) return urls
-  let response: Response
+  if (paths.length === 0 || !contract.store) return urls
+  let reply
   try {
-    response = await (deps.fetchImpl ?? fetch)(`${contract.storageUrl}/object/sign/${MEDIA_BUCKET}`, {
-      method: "POST",
-      headers: { "content-type": "application/json", authorization: `Bearer ${deps.bearer}`, ...(deps.apikey ? { apikey: deps.apikey } : {}) },
-      body: JSON.stringify({ expiresIn: MEDIA_SIGNED_URL_TTL, paths }),
-      redirect: "error", signal: AbortSignal.timeout(3000),
-    })
+    reply = await storeCall(contract.store, "media-sign", deps.bearer, { body: storeJson({ names: paths }), timeoutMs: 4000 }, deps.fetchImpl)
   } catch {
     return urls
   }
-  if (response.status !== 200) { await response.body?.cancel(); return urls }
-  let entries: unknown
-  try { entries = await response.json() } catch { return urls }
-  if (!Array.isArray(entries)) return urls
-  const prefix = `/object/sign/${MEDIA_BUCKET}/`
-  for (const entry of entries) {
-    if (!entry || typeof entry !== "object") continue
-    const { path, signedURL, error } = entry as { path?: unknown; signedURL?: unknown; error?: unknown }
-    if (error || typeof path !== "string" || !paths.includes(path) || typeof signedURL !== "string") continue
-    if (!signedURL.startsWith(`${prefix}${path}?token=`) || /[\s"<>]/.test(signedURL)) continue
-    urls.set(path, `${contract.publicBase}${signedURL}`)
+  const signed = reply.status === 200 ? reply.body.urls : null
+  if (!signed || typeof signed !== "object") return urls
+  for (const [path, url] of Object.entries(signed as Record<string, unknown>)) {
+    if (paths.includes(path) && typeof url === "string" && url.startsWith(`${contract.publicBase}/object/sign/${MEDIA_BUCKET}/${path}?token=`)
+      && !/[\s"<>]/.test(url)) urls.set(path, url)
   }
   return urls
 }

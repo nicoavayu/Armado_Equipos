@@ -31,6 +31,8 @@ select json_build_object(
  -- 0013 (COMMERCE-PRODUCTION) present as a whole: its public functions add 2 authenticated execution grants.
  'commerce', to_regprocedure('public.create_tournament_season_production_checkout_purchase(uuid,uuid,uuid)') is not null
    and to_regclass('public.tournament_commerce_production_settings') is not null,
+ -- 0017 (MEDIA-STORE-V1) present: its one public RPC is executable by authenticated (+1 / +0).
+ 'media_store', to_regprocedure('public.authorize_tournament_storage_objects(text,text,text[])') is not null,
  'media_objects', (select count(*) from storage.objects where bucket_id = 'tournament-media'),
  'media', json_build_object(
    'functions', (select coalesce(json_agg(qname order by qname), '[]'::json) from fns where qname in (select name from added)),

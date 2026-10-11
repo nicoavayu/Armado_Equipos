@@ -62,6 +62,8 @@ export const STATES = Object.freeze({
   POST_0014: Object.freeze({ counts: [204, 16], media: true, bodies: 'draft' }),
 });
 export const COMMERCE_DELTA = Object.freeze([2, 0]);
+// 0017 (MEDIA-STORE-V1, backend/torneos/media-store-v1) adds exactly one authenticated RPC on top of 0012, nothing for anon.
+export const MEDIA_STORE_DELTA = Object.freeze([1, 0]);
 export const MODES = Object.freeze(['DISABLED', 'MVP_SIMPLE', 'PROCESSOR_EXTERNAL']);
 const sha256 = (bytes) => crypto.createHash('sha256').update(bytes).digest('hex');
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
@@ -91,9 +93,12 @@ export function classify(catalog) {
   if (!bodies) failures.push(`media_bodies ${JSON.stringify(m.bodies)}`);
   if (!same(catalog.roster_search, ROSTER_SEARCH.fixed)) failures.push(`roster_search ${JSON.stringify(catalog.roster_search)}`);
   if (typeof catalog.commerce !== 'boolean') failures.push(`commerce ${catalog.commerce}`);
+  if (typeof catalog.media_store !== 'boolean') failures.push(`media_store ${catalog.media_store}`);
+  if (catalog.media_store === true && !media) failures.push('media_store_without_0012');
   const state = Object.entries(STATES).find(([, s]) => s.media === media && s.bodies === bodies)?.[0];
   if (!state) return { state: 'DRIFT', failures: [...failures, 'no_state'] };
-  const want = STATES[state].counts.map((n, i) => n + (catalog.commerce === true ? COMMERCE_DELTA[i] : 0));
+  const want = STATES[state].counts.map((n, i) => n + (catalog.commerce === true ? COMMERCE_DELTA[i] : 0)
+    + (catalog.media_store === true ? MEDIA_STORE_DELTA[i] : 0));
   if (catalog.counts?.authenticated !== want[0] || catalog.counts?.anon !== want[1]) failures.push(`counts ${catalog.counts?.authenticated}/${catalog.counts?.anon} want ${want.join('/')}`);
   if (failures.length) return { state: 'DRIFT', failures };
   const out = { state, failures: [] };
@@ -102,7 +107,7 @@ export function classify(catalog) {
 }
 
 /** What 0012 must not touch: returns the names of the sections that changed. */
-export const changedOutside = (before, after) => ['kept_fn', 'kept_relations', 'kept_policies', 'other_buckets', 'commerce']
+export const changedOutside = (before, after) => ['kept_fn', 'kept_relations', 'kept_policies', 'other_buckets', 'commerce', 'media_store']
   .filter((key) => !same(before[key], after[key]));
 
 function phraseFor(mode, arg) {
@@ -144,6 +149,8 @@ export async function run(mode, args, { readFile = fs.readFileSync, catalog, app
   // Order of switching off is frontend → gateway → mode → base: the contract is never withdrawn under live sessions.
   if (mode === 'rollback-0012' && before.mode === 'MVP_SIMPLE') throw new Error('ROLLBACK_REFUSED mode is MVP_SIMPLE: set PROCESSOR_EXTERNAL first (ACTIVATION.md)');
   if (mode === 'apply-0012' && before.storage_ready !== true) throw new Error('STORAGE_SCHEMA_MISSING');
+  // 0017's authorize calls 0012's storage predicates: it is rolled back first (media-store-v1/remote/db-0017.mjs).
+  if (mode === 'rollback-0012' && before.media_store === true) throw new Error('ROLLBACK_REFUSED 0017 is installed: roll back 0017 first');
   // 0014 is a pure body swap (no new grant, object or policy): it may land with the pipeline live.
   out.psql = await applySql(sql);
   const after = await catalog();

@@ -33,6 +33,9 @@ const ORG = '11111111-1111-4111-8111-111111111111';
 const TNT = '22222222-2222-4222-8222-222222222222';
 const PATH = `${ORG}/tournaments/${TNT}/33333333-3333-4333-8333-333333333333.png`;
 const OTHER = `${ORG}/tournaments/${TNT}/44444444-4444-4444-8444-444444444444.png`;
+const GENERATED = '55555555-5555-4555-8555-555555555555';
+// Another tournament's object: never a valid answer to an upload for TNT.
+const FOREIGN = `${ORG}/tournaments/66666666-6666-4666-8666-666666666666/77777777-7777-4777-8777-777777777777.png`;
 const signed = (path, base = 'https://abcdefghijklmnopqrst.supabase.co/storage/v1') => `${base}/object/sign/tournament-branding/${path}?token=t`;
 const fakeStorageClient = { storage: { from: () => ({ getPublicUrl: (p) => ({ data: { publicUrl: `https://core.example.test/public/${p}` } }) }) } };
 
@@ -101,7 +104,8 @@ function recordingTransport(answers = {}) {
     calls,
     transport: {
       rpc: async (name, params) => { calls.push(['rpc', name, params]); return typeof answers[name] === 'function' ? answers[name](params) : (answers[name] ?? null); },
-      brandingObject: async (method, path) => { calls.push([method, path]); if (answers.fail === method) throw Object.assign(new Error('boom'), { code: 'TORNEOS_UNAVAILABLE' }); return method === 'POST' ? { path } : { removed: true }; },
+      // MEDIA-STORE-V1: a POST names the owner; the server answers the versioned name it generated under it.
+      brandingObject: async (method, path) => { calls.push([method, path]); if (answers.fail === method) throw Object.assign(new Error('boom'), { code: 'TORNEOS_UNAVAILABLE' }); return method === 'POST' ? { path: answers.storedPath ?? `${path}/${GENERATED}.png` } : { removed: true }; },
       clear() {},
       dispose() {},
     },
@@ -121,12 +125,22 @@ describe('hybrid adapter branding', () => {
     const file = new Blob(['png'], { type: 'image/png' });
     const result = await service.uploadBrandingAsset({ organizationId: ORG, kind: 'tournament', entityId: TNT, file });
     const [stored, reference, removed] = calls;
-    expect(stored[0]).toBe('POST');
-    expect(stored[1]).toMatch(new RegExp(`^${ORG}/tournaments/${TNT}/[0-9a-f-]{36}\\.png$`));
+    // MEDIA-STORE-V1: only the owner travels; the reference is the name the server generated.
+    expect(stored).toEqual(['POST', `${ORG}/tournaments/${TNT}`]);
+    const generated = `${ORG}/tournaments/${TNT}/${GENERATED}.png`;
     expect(reference).toEqual(['rpc', 'set_tournament_branding_reference',
-      { p_organization_id: ORG, p_entity_kind: 'tournament', p_entity_id: TNT, p_path: stored[1] }]);
+      { p_organization_id: ORG, p_entity_kind: 'tournament', p_entity_id: TNT, p_path: generated }]);
     expect(removed).toEqual(['DELETE', OTHER]);
-    expect(result.path).toBe(stored[1]);
+    expect(result.path).toBe(generated);
+  });
+
+  test('a stored name outside the requested owner is refused before any reference switch', async () => {
+    const { transport, calls } = recordingTransport({ storedPath: FOREIGN });
+    const service = createStagingV1WorkspaceService({ transport, branding: true });
+    await expect(service.uploadBrandingAsset({ organizationId: ORG, kind: 'tournament', entityId: TNT, file: new Blob(['png'], { type: 'image/png' }) }))
+      .rejects.toThrow();
+    expect(calls.some(([kind, name]) => kind === 'rpc' && name === 'set_tournament_branding_reference')).toBe(false);
+    expect(calls.filter(([method]) => method === 'DELETE')).toEqual([]);
   });
 
   test('a refused reference removes the object it just stored and reports the refusal', async () => {
@@ -136,8 +150,8 @@ describe('hybrid adapter branding', () => {
     const service = createStagingV1WorkspaceService({ transport, branding: true });
     await expect(service.uploadBrandingAsset({ organizationId: ORG, kind: 'tournament', entityId: TNT, file: new Blob(['png'], { type: 'image/png' }) }))
       .rejects.toThrow();
-    const stored = calls.find(([method]) => method === 'POST')[1];
-    expect(calls.at(-1)).toEqual(['DELETE', stored]);
+    expect(calls.find(([method]) => method === 'POST')[1]).toBe(`${ORG}/tournaments/${TNT}`);
+    expect(calls.at(-1)).toEqual(['DELETE', `${ORG}/tournaments/${TNT}/${GENERATED}.png`]);
   });
 
   test('responses the gateway signs keep only signed paths; others are untouched', async () => {

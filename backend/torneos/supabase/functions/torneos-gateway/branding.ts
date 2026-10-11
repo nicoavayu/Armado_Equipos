@@ -5,18 +5,23 @@
 //
 //   • TORNEOS_BRANDING_MODE absent, "" or "off" → nothing changes (no route, no RPC, responses untouched);
 //   • "on" → (1) the authenticated route gains exactly the RPCs of branding-v1-rpc-allowlist.json (the existing
-//     branding contract: switch a reference, read the organization's branding context); (2) the object route
-//     stores/removes one versioned object in the Torneos project's PRIVATE `tournament-branding` bucket with the
-//     caller's own bridge token, so storage RLS (00000000000010: can_write_tournament_branding_object) decides;
-//     (3) a fixed set of RPC responses gets a short-lived signed URL next to each branding path, signed in ONE batch
-//     per response — public RPCs with the anon key (storage RLS: only the current branding of a published page),
-//     authenticated RPCs with the caller's token (also what the caller may write);
+//     branding contract: switch a reference, read the organization's branding context); (2) MEDIA-STORE-V1: the upload
+//     route POST /torneos/branding/v1/object/<organization>/<kind>s/<entity> stores ONE new versioned object whose
+//     name the torneos-media-store function generates (the browser never chooses a name), and DELETE on the object
+//     route removes one that is referenced nowhere — both through that function, which asks the database
+//     (00000000000017: authorize_tournament_storage_objects, i.e. can_write_tournament_branding_object) with the
+//     caller's own token before using the service key it alone holds; hosted Storage refuses the bridge's RS256
+//     tokens, so the gateway never calls Storage with them; (3) a fixed set of RPC responses gets a short-lived signed
+//     URL next to each branding path, signed in ONE batch per response — public RPCs with the anon key directly
+//     (storage RLS: only the current branding of a published page), authenticated RPCs through the function
+//     (can_read_tournament_branding_object for the caller);
 //   • any other value, a malformed document, an overlapping name or an unsafe storage target throws
 //     BrandingConfigError and the gateway refuses to boot (fail closed).
 //
 // Paths never leave as URLs unless storage signed them; a path storage refuses keeps its URL null (the page shows the
 // initials). Nothing here is a public bucket, a service key or a list of objects.
 import brandingDoc from "./branding-v1-rpc-allowlist.json" with { type: "json" }
+import { loadMediaStore, MediaStoreUnavailable, storeCall, storeJson, type MediaStoreContract } from "./media-store-client.ts"
 
 export class BrandingConfigError extends Error {}
 
@@ -25,6 +30,10 @@ const UUID = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
 /** The baseline's is_tournament_branding_path, byte for byte in intent: one versioned object, never a folder. */
 export const BRANDING_PATH = new RegExp(`^${UUID}/(organizations|tournaments|teams)/${UUID}/${UUID}\\.(jpg|png|webp)$`)
 export const BRANDING_OBJECT_ROUTE = new RegExp(`^/torneos/branding/v1/object/(${UUID}/(?:organizations|tournaments|teams)/${UUID}/${UUID}\\.(?:jpg|png|webp))$`)
+/** MEDIA-STORE-V1: the upload route names only the owner; the object's name is generated server-side. */
+export const BRANDING_UPLOAD_ROUTE = new RegExp(`^/torneos/branding/v1/object/(${UUID}/(?:organizations|tournaments|teams)/${UUID})$`)
+const BRANDING_OWNER = new RegExp(`^(${UUID})/(organizations|tournaments|teams)/(${UUID})$`)
+const KIND_BY_FOLDER: Readonly<Record<string, string>> = Object.freeze({ organizations: "organization", tournaments: "tournament", teams: "team" })
 export const BRANDING_MAX_BYTES = 2 * 1024 * 1024
 export const SIGNED_URL_TTL = 3600
 const MAX_PATHS_PER_RESPONSE = 200
@@ -58,9 +67,11 @@ export type BrandingContract = {
   storageUrl: string
   /** Base of the signed URLs handed to browsers (hosted: the same; lab: the loopback port). */
   publicBase: string
+  /** MEDIA-STORE-V1: everything with an identity (writes, removals, authenticated signatures) goes through it. */
+  store: MediaStoreContract | null
 }
 
-const OFF: BrandingContract = Object.freeze({ mode: "off", rpcs: new Set<string>(), storageUrl: "", publicBase: "" })
+const OFF: BrandingContract = Object.freeze({ mode: "off", rpcs: new Set<string>(), storageUrl: "", publicBase: "", store: null })
 const NAME = /^[a-z0-9_]+$/
 const LAB_STORAGE = "http://torneos-storage:5000"
 const LAB_PUBLIC = /^http:\/\/(127\.0\.0\.1|localhost):[0-9]{2,5}$/
@@ -124,7 +135,8 @@ export function loadBrandingContract(env: Record<string, string | undefined>, au
   // Public signatures need the project's anon key (storage RLS: published branding only).
   if (!anonKey) throw new BrandingConfigError("TORNEOS_ANON_KEY is required to sign public branding")
   const { storageUrl, publicBase } = storageTargets(env, restUrl)
-  return Object.freeze({ mode: "on", rpcs, storageUrl, publicBase })
+  const store = loadMediaStore(env, restUrl, BrandingConfigError)
+  return Object.freeze({ mode: "on", rpcs, storageUrl, publicBase, store })
 }
 
 /** Authenticated generic route: everything already served ∪ BRANDING-V1 (when on). */
@@ -213,11 +225,30 @@ export function anonCredential(anonKey: string): { bearer: string | null; apikey
   return { bearer: jwt ? anonKey : null, apikey: anonKey }
 }
 
-/** One storage call per response: the signed URL of every branding path in it (refused or failed paths: absent). */
-export async function signPaths(paths: readonly string[], contract: BrandingContract, credential: { bearer: string | null; apikey: string | null },
+/** Who a signature batch is for: the public (anon key, Storage directly) or an identity (through the media store). */
+export type BrandingSigner = { bearer: string | null; apikey: string | null } | { identity: string }
+
+/** One call per response: the signed URL of every branding path in it (refused or failed paths: absent). */
+export async function signPaths(paths: readonly string[], contract: BrandingContract, credential: BrandingSigner,
   fetchImpl: FetchLike = fetch): Promise<Map<string, string>> {
   const urls = new Map<string, string>()
   if (contract.mode !== "on" || paths.length === 0) return urls
+  if ("identity" in credential) {
+    if (!contract.store) return urls
+    let reply
+    try {
+      reply = await storeCall(contract.store, "branding-sign", credential.identity, { body: storeJson({ paths }), timeoutMs: 4000 }, fetchImpl)
+    } catch {
+      return urls
+    }
+    const signed = reply.status === 200 ? reply.body.urls : null
+    if (!signed || typeof signed !== "object") return urls
+    for (const [path, url] of Object.entries(signed as Record<string, unknown>)) {
+      if (paths.includes(path) && typeof url === "string" && url.startsWith(`${contract.publicBase}/object/sign/${BRANDING_BUCKET}/${path}?token=`)
+        && !/[\s"<>]/.test(url)) urls.set(path, url)
+    }
+    return urls
+  }
   let response: Response
   try {
     response = await fetchImpl(`${contract.storageUrl}/object/sign/${BRANDING_BUCKET}`, {
@@ -247,7 +278,7 @@ export async function signPaths(paths: readonly string[], contract: BrandingCont
 }
 
 /** A JSON response body with a signed URL next to each branding path; anything unparsable is returned unchanged. */
-export async function signResponseBody(raw: Uint8Array, contract: BrandingContract, credential: { bearer: string | null; apikey: string | null },
+export async function signResponseBody(raw: Uint8Array, contract: BrandingContract, credential: BrandingSigner,
   fetchImpl: FetchLike = fetch): Promise<Uint8Array> {
   if (contract.mode !== "on") return raw
   let payload: Json
@@ -292,42 +323,47 @@ async function readLimited(body: BrandingObjectRequest["body"], declared: number
 }
 
 /**
- * Stores (POST) or removes (DELETE) ONE versioned branding object with the caller's own bridge token. The gateway
- * decides nothing about permissions: storage RLS runs can_write_tournament_branding_object for that identity.
- * Objects are immutable (no upsert); the reference switch is set_tournament_branding_reference on the RPC route.
+ * MEDIA-STORE-V1: stores (POST on the upload route) or removes (DELETE on the object route) ONE versioned branding
+ * object through the torneos-media-store function, with the caller's own bridge token as the identity the database
+ * judges. The gateway decides nothing about permissions and never names the object: the function generates the name,
+ * verifies the real image type and asks authorize_tournament_storage_objects first. Objects are immutable (no upsert);
+ * the reference switch is set_tournament_branding_reference on the RPC route; a removal is refused while the object is
+ * referenced anywhere.
  */
 export async function brandingObject(request: BrandingObjectRequest, contract: BrandingContract, bearerToken: string,
-  apikey: string | null, fetchImpl: FetchLike = fetch): Promise<BrandingObjectResult> {
-  if (contract.mode !== "on") return { status: 404, body: { error: "not found" } }
-  if (!BRANDING_PATH.test(request.path)) return { status: 400, body: { error: "TORNEOS_BRANDING_INVALID_REFERENCE" } }
-  const target = `${contract.storageUrl}/object/${BRANDING_BUCKET}/${request.path}`
-  const auth = { authorization: `Bearer ${bearerToken}`, ...(apikey ? { apikey } : {}) }
-  if (request.method === "DELETE") {
-    const response = await fetchImpl(target, { method: "DELETE", headers: auth, redirect: "error", signal: AbortSignal.timeout(5000) })
-    await response.body?.cancel()
-    if (response.status === 200) return { status: 200, body: { removed: true } }
-    if (response.status >= 500) return { status: 503, body: { error: "storage unavailable" } }
-    return { status: 404, body: { error: "TORNEOS_BRANDING_OBJECT_NOT_REMOVED" } }
+  _apikey: string | null, fetchImpl: FetchLike = fetch): Promise<BrandingObjectResult> {
+  if (contract.mode !== "on" || !contract.store) return { status: 404, body: { error: "not found" } }
+  try {
+    if (request.method === "DELETE") {
+      if (!BRANDING_PATH.test(request.path)) return { status: 400, body: { error: "TORNEOS_BRANDING_INVALID_REFERENCE" } }
+      const reply = await storeCall(contract.store, "branding-delete", bearerToken, { body: storeJson({ path: request.path }), timeoutMs: 5000 }, fetchImpl)
+      if (reply.status === 200) return { status: 200, body: { removed: true } }
+      if (reply.status === 403) return { status: 403, body: { error: "TORNEOS_BRANDING_FORBIDDEN" } }
+      return { status: 404, body: { error: "TORNEOS_BRANDING_OBJECT_NOT_REMOVED" } }
+    }
+    if (request.method !== "POST") return { status: 405, body: { error: "method not allowed" } }
+    // A name chosen by the browser is never accepted: the upload route carries the owner only.
+    const owner = BRANDING_OWNER.exec(request.path)
+    if (!owner) return { status: 400, body: { error: "TORNEOS_BRANDING_INVALID_REFERENCE" } }
+    const mime = (request.contentType ?? "").split(";")[0].trim().toLowerCase()
+    if (!Object.values(MIME_BY_EXTENSION).includes(mime)) return { status: 415, body: { error: "TORNEOS_BRANDING_INVALID_TYPE" } }
+    const declared = /^[0-9]{1,8}$/.test(request.contentLength ?? "") ? Number(request.contentLength) : -1
+    if (declared <= 0 || declared > BRANDING_MAX_BYTES) return { status: 413, body: { error: "TORNEOS_BRANDING_TOO_LARGE" } }
+    const bytes = await readLimited(request.body, declared)
+    if (!bytes) return { status: 413, body: { error: "TORNEOS_BRANDING_TOO_LARGE" } }
+    const query = new URLSearchParams({ entity: owner[3], kind: KIND_BY_FOLDER[owner[2]], organization: owner[1] }).toString()
+    const reply = await storeCall(contract.store, "branding-put", bearerToken, { query, body: bytes, contentType: mime }, fetchImpl)
+    const path = reply.body.path
+    if (reply.status === 200 && typeof path === "string" && BRANDING_PATH.test(path) && path.startsWith(`${request.path}/`)) {
+      return { status: 200, body: { path } }
+    }
+    if (reply.status === 403) return { status: 403, body: { error: "TORNEOS_BRANDING_FORBIDDEN" } }
+    if (reply.status === 409) return { status: 409, body: { error: "TORNEOS_BRANDING_OBJECT_EXISTS" } }
+    if (reply.status === 413) return { status: 413, body: { error: "TORNEOS_BRANDING_TOO_LARGE" } }
+    if (reply.status === 415 || reply.status === 422) return { status: 415, body: { error: "TORNEOS_BRANDING_INVALID_TYPE" } }
+    return { status: 400, body: { error: "TORNEOS_BRANDING_INVALID_REFERENCE" } }
+  } catch (error) {
+    if (error instanceof MediaStoreUnavailable) return { status: 503, body: { error: "storage unavailable" } }
+    throw error
   }
-  if (request.method !== "POST") return { status: 405, body: { error: "method not allowed" } }
-  const extension = request.path.slice(request.path.lastIndexOf(".") + 1)
-  const mime = MIME_BY_EXTENSION[extension]
-  if ((request.contentType ?? "").split(";")[0].trim().toLowerCase() !== mime) {
-    return { status: 415, body: { error: "TORNEOS_BRANDING_INVALID_TYPE" } }
-  }
-  const declared = /^[0-9]{1,8}$/.test(request.contentLength ?? "") ? Number(request.contentLength) : -1
-  if (declared <= 0 || declared > BRANDING_MAX_BYTES) return { status: 413, body: { error: "TORNEOS_BRANDING_TOO_LARGE" } }
-  const bytes = await readLimited(request.body, declared)
-  if (!bytes) return { status: 413, body: { error: "TORNEOS_BRANDING_TOO_LARGE" } }
-  const response = await fetchImpl(target, {
-    method: "POST",
-    headers: { ...auth, "content-type": mime, "cache-control": "max-age=31536000", "x-upsert": "false" },
-    body: bytes, redirect: "error", signal: AbortSignal.timeout(10000),
-  })
-  await response.body?.cancel()
-  if (response.status === 200) return { status: 200, body: { path: request.path } }
-  if (response.status >= 500) return { status: 503, body: { error: "storage unavailable" } }
-  if (response.status === 409) return { status: 409, body: { error: "TORNEOS_BRANDING_OBJECT_EXISTS" } }
-  // RLS refusal (storage answers 400/403 for "new row violates row-level security policy").
-  return { status: 403, body: { error: "TORNEOS_BRANDING_FORBIDDEN" } }
 }

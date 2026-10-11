@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import crypto from 'node:crypto';
 import {
-  COMMERCE_DELTA, FILES, MEDIA_BODIES, MEDIA_BUCKET, MEDIA_FUNCTIONS, MEDIA_POLICIES, MODES, REF, STATES, classify, modeSql, run,
+  COMMERCE_DELTA, MEDIA_STORE_DELTA, changedOutside, FILES, MEDIA_BODIES, MEDIA_BUCKET, MEDIA_FUNCTIONS, MEDIA_POLICIES, MODES, REF, STATES, classify, modeSql, run,
 } from './remote/db-0012.mjs';
 import { ROSTER_SEARCH } from '../connected-v1/remote/db-0009-0011.mjs';
 
@@ -23,12 +23,13 @@ function prosrc(sql, qualified) {
   return sql.slice(start, sql.indexOf(open[1], start));
 }
 
-function catalogAt(state, { commerce = false, mode, mutate = (c) => c } = {}) {
+function catalogAt(state, { commerce = false, mediaStore = false, mode, mutate = (c) => c } = {}) {
   const s = STATES[state];
   return mutate({
-    torneos_tables: true, storage_ready: true, roster_search: { ...ROSTER_SEARCH.fixed }, commerce, media_objects: 0,
+    torneos_tables: true, storage_ready: true, roster_search: { ...ROSTER_SEARCH.fixed }, commerce, media_store: mediaStore, media_objects: 0,
     mode: mode ?? (s.media ? 'MVP_SIMPLE' : 'PROCESSOR_EXTERNAL'),
-    counts: { authenticated: s.counts[0] + (commerce ? COMMERCE_DELTA[0] : 0), anon: s.counts[1] + (commerce ? COMMERCE_DELTA[1] : 0) },
+    counts: { authenticated: s.counts[0] + (commerce ? COMMERCE_DELTA[0] : 0) + (mediaStore ? MEDIA_STORE_DELTA[0] : 0),
+      anon: s.counts[1] + (commerce ? COMMERCE_DELTA[1] : 0) + (mediaStore ? MEDIA_STORE_DELTA[1] : 0) },
     media: s.media
       ? { functions: [...MEDIA_FUNCTIONS], policies: [...MEDIA_POLICIES], budget_table: true, bodies: { ...MEDIA_BODIES[s.bodies] },
         bucket: { ...MEDIA_BUCKET, allowed_mime_types: [...MEDIA_BUCKET.allowed_mime_types] }, grants: { transition: true, change_state: true, report: true } }
@@ -218,4 +219,30 @@ test('db 0012 catalog passes the real transport guard as realDeps() reads it', a
   const script = C.readOnlyScript(sql);
   assert.match(script, /^BEGIN TRANSACTION READ ONLY;\n(with|select)\b/);
   assert.match(script, /\n\)(::text)?;\nROLLBACK;\n$/);
+});
+
+test('0017 (MEDIA-STORE-V1) on top: exactly +1 authenticated / +0 anon, only with 0012; mode still switches; rollback-0012 waits for 0017', async () => {
+  assert.deepEqual(MEDIA_STORE_DELTA, [1, 0]);
+  for (const state of ['POST_0012', 'POST_0014']) {
+    for (const commerce of [false, true]) {
+      assert.deepEqual(classify(catalogAt(state, { commerce, mediaStore: true })), { state, failures: [] }, `${state} commerce=${commerce}`);
+    }
+  }
+  // The delta is exact: 0017 present but its grant not counted (or one more) is drift, and so is 0017 without 0012.
+  const off = (n) => catalogAt('POST_0014', { mediaStore: true, mutate: (c) => { c.counts.authenticated += n; return c; } });
+  assert.match(classify(off(-1)).failures.join(), /counts 204\/16 want 205\/16/);
+  assert.match(classify(off(1)).failures.join(), /counts 206\/16 want 205\/16/);
+  assert.match(classify(catalogAt('POST_0014', { mutate: (c) => { c.media_store = undefined; return c; } })).failures.join(), /media_store undefined/);
+  const without = catalogAt('POST_0011', { mutate: (c) => { c.media_store = true; c.counts.authenticated += 1; return c; } });
+  assert.match(classify(without).failures.join(), /media_store_without_0012/);
+  // MVP_SIMPLE / PROCESSOR_EXTERNAL keep working with 0017 installed; 0017 appearing or vanishing during a step is movement.
+  let current = catalogAt('POST_0014', { mediaStore: true, mode: 'PROCESSOR_EXTERNAL' });
+  const deps = { catalog: async () => current, applySql: async (sql) => { current = { ...current, mode: /'([A-Z_]+)'/.exec(sql)[1] }; return { code: 0 }; } };
+  const on = await run('mode', ['MVP_SIMPLE', ...`SET TORNEOS MEDIA PIPELINE MODE MVP_SIMPLE ${REF}`.split(' ')], deps);
+  assert.deepEqual([on.verdict, on.before, on.after, on.changedOutside], ['MODE_MVP_SIMPLE_DONE', 'POST_0014', 'POST_0014', []]);
+  const contained = await run('mode', ['PROCESSOR_EXTERNAL', ...`SET TORNEOS MEDIA PIPELINE MODE PROCESSOR_EXTERNAL ${REF}`.split(' ')], deps);
+  assert.equal(contained.verdict, 'MODE_PROCESSOR_EXTERNAL_DONE');
+  assert.deepEqual(changedOutside(catalogAt('POST_0014'), catalogAt('POST_0014', { mediaStore: true })), ['media_store']);
+  current = catalogAt('POST_0012', { mediaStore: true, mode: 'PROCESSOR_EXTERNAL' });
+  await assert.rejects(run('rollback-0012', phrase('rollback-0012'), deps), /ROLLBACK_REFUSED 0017 is installed/);
 });
