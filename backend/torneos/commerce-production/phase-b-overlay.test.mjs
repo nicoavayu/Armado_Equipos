@@ -48,7 +48,7 @@ test('gateway-commerce.env is exactly the lab production commerce: local-lab, th
 });
 
 test('the lab router: torneos-payments-production gets its values unprefixed and boots in the offline lab configuration', () => {
-  assert.deepEqual([...WORKERS].sort(), ['torneos-gateway', 'torneos-payments', 'torneos-payments-production']);
+  assert.deepEqual([...WORKERS].sort(), ['torneos-gateway', 'torneos-media-store', 'torneos-payments', 'torneos-payments-production']);
   const worker = Object.fromEntries(workerEnv('torneos-payments-production', container));
   assert.deepEqual(Object.keys(worker).sort(), Object.keys(functionsEnv).map((k) => k.replace(/^PRODUCTION_PAYMENTS__/, '')).sort());
   assert.ok(!Object.keys(worker).some((k) => /^PRODUCTION_PAYMENTS__|^MERCADO_PAGO_TEST_|^CORE_|^TORNEOS_BRIDGE_|^TORNEOS_COMMERCE_|^TORNEOS_PAYMENTS_DEPLOYMENT$/.test(k)));
@@ -57,6 +57,15 @@ test('the lab router: torneos-payments-production gets its values unprefixed and
   assert.equal(cfg.deployment, null, 'lab configuration, never hosted');
   assert.equal(cfg.labMpApiOrigin, 'http://mp-stub:8080');
   assert.match(cfg.notificationUrl, /\.invalid\//);
+});
+
+test('the lab router: torneos-media-store (MEDIA-STORE-V1) gets only its MEDIA_STORE__ values, never a payments or bridge value', () => {
+  const store = Object.fromEntries(workerEnv('torneos-media-store', { ...container, MEDIA_STORE__TORNEOS_MEDIA_STORE_SECRET: 'cd'.repeat(32),
+    MEDIA_STORE__SUPABASE_SERVICE_ROLE_KEY: 'lab.service.key' }));
+  assert.deepEqual(Object.keys(store).sort(), ['SUPABASE_SERVICE_ROLE_KEY', 'TORNEOS_MEDIA_STORE_SECRET']);
+  for (const value of [...SECRET_VALUES, secrets.internalSecret]) assert.ok(!Object.values(store).includes(value));
+  const paymentsWorker = Object.fromEntries(workerEnv('torneos-payments-production', { ...container, MEDIA_STORE__SUPABASE_SERVICE_ROLE_KEY: 'lab.service.key' }));
+  assert.ok(!Object.values(paymentsWorker).includes('lab.service.key'), 'the service key of the lab store reaches no other worker');
 });
 
 test('the lab router: the TEST worker never sees a production value; the gateway never sees a payments secret', () => {
