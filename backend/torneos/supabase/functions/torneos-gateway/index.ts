@@ -57,7 +57,7 @@ import { CompetitionConfigError, domainErrorStatus, loadCompetitionContract, loa
 import { withPlanRead, PlanReadConfigError } from "./plan-read.ts"
 import { withSocial, SocialConfigError } from "./social.ts"
 import { ConnectedConfigError, loadConnectedContract, prepareConnectedPublicRpc, withConnected, type ConnectedContract } from "./connected.ts"
-import { anonCredential, BRANDING_OBJECT_ROUTE, BRANDING_PUBLIC_RPCS, BrandingConfigError, brandingObject, loadBrandingContract, prepareBrandingPublicRpc, projectPublicBranding, SIGNED_AUTHENTICATED_RPCS, SIGNED_PUBLIC_RPCS, signResponseBody, withBranding, type BrandingContract } from "./branding.ts"
+import { anonCredential, BRANDING_OBJECT_ROUTE, BRANDING_PUBLIC_RPCS, BRANDING_UPLOAD_ROUTE, BrandingConfigError, brandingObject, loadBrandingContract, prepareBrandingPublicRpc, projectPublicBranding, SIGNED_AUTHENTICATED_RPCS, SIGNED_PUBLIC_RPCS, signResponseBody, withBranding, type BrandingContract } from "./branding.ts"
 import { isMediaUnavailable, loadMediaContract, MediaConfigError, MEDIA_UPLOAD_ROUTE, MEDIA_URLS_ROUTE, mediaUpload, mediaUrls, withMedia, type MediaContract } from "./media.ts"
 import allowlistDoc from "./staging-v1-rpc-allowlist.json" with { type: "json" }
 
@@ -231,7 +231,7 @@ async function proxy(rt: Runtime, req: Request, url: string, token: string | und
   let payload: ArrayBuffer | Uint8Array = await r.arrayBuffer()
   // BRANDING-V1: the branding context gets signed URLs, signed with the caller's own token (storage RLS decides).
   if (token && rpc && r.status === 200 && rt.branding.mode === "on" && SIGNED_AUTHENTICATED_RPCS.has(rpc)) {
-    payload = await signResponseBody(new Uint8Array(payload), rt.branding, { bearer: token, apikey: rt.cfg.torneosAnonKey })
+    payload = await signResponseBody(new Uint8Array(payload), rt.branding, { identity: token })
   }
   // ERROR-CONTRACT-V1: a legacy-SQLSTATE domain error (DB without 0006) is answered with its contract status.
   return new Response(payload, { status: domainErrorStatus(r.status, payload), headers: out })
@@ -315,8 +315,9 @@ export async function handle(req: Request): Promise<Response> {
         rt.publicGate.leave()
       }
     }
-    // BRANDING-V1: one versioned object, stored or removed with the caller's own token (storage RLS decides).
-    const brandingPath = rt.branding.mode === "on" ? BRANDING_OBJECT_ROUTE.exec(path) : null
+    // BRANDING-V1 / MEDIA-STORE-V1: one versioned object, stored (owner route, name generated server-side) or removed
+    // (object route) through the media store, with the caller's own token as the identity the database judges.
+    const brandingPath = rt.branding.mode === "on" ? (BRANDING_OBJECT_ROUTE.exec(path) ?? BRANDING_UPLOAD_ROUTE.exec(path)) : null
     if (brandingPath && ["POST", "DELETE"].includes(req.method)) {
       const token = bearer(req)
       const p: TorneosClaims = await verifyToken(token, rt.cfg.bridge)

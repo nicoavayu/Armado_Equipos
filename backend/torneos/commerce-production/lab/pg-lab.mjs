@@ -46,6 +46,20 @@ function docker(args, { input, capture = true } = {}) {
   });
   return { ok: r.status === 0, out: r.stdout ?? '', err: r.stderr ?? '' };
 }
+// The public ECR registry refuses some anonymous pulls from shared CI runners (observed on GitHub Actions: `docker run`
+// stopped at "Unable to find image … locally"). The image is pulled first, with a few spaced attempts, and a final
+// refusal says why (the registry's own last lines), instead of the first line of `docker run`.
+function ensureImage(image) {
+  if (docker(['image', 'inspect', '--format', '{{.Id}}', image]).ok) return;
+  let last = '';
+  for (const wait of [0, 5, 15, 30]) {
+    if (wait) spawnSync('sleep', [String(wait)]);
+    const r = docker(['pull', '--quiet', image]);
+    if (r.ok) return;
+    last = r.err.trim().split('\n').slice(-2).join(' | ');
+  }
+  throw new Error(`docker pull ${image} failed after 4 attempts: ${last}`);
+}
 
 /** psql as supabase_admin (the installer of the certified lab). Throws with the ERROR lines only. */
 export function sql(query, { user = 'supabase_admin' } = {}) {
@@ -164,6 +178,7 @@ async function migrateStorage(dbPassword) {
   const secret = randomBytes(32).toString('hex');
   const name = `${CONTAINER}-storage`;
   docker(['rm', '-f', name]);
+  ensureImage(STORAGE_IMAGE);
   const r = docker(['run', '-d', '--name', name, '--network', NETWORK, '-e', 'STORAGE_BACKEND=file', '-e', 'FILE_STORAGE_BACKEND_PATH=/var/lib/storage',
     '-e', 'TENANT_ID=commerce-production-lab', '-e', 'REGION=local', '-e', 'GLOBAL_S3_BUCKET=lab', '-e', 'DB_MIGRATIONS_FREEZE_AT=',
     '-e', `AUTH_JWT_SECRET=${secret}`, '-e', `ANON_KEY=${hs256(secret, { role: 'anon' })}`, '-e', `SERVICE_KEY=${hs256(secret, { role: 'service_role' })}`,
@@ -197,6 +212,7 @@ export async function up({ fresh = false, upTo = null, storage = true } = {}) {
   if (!s) {
     docker(['rm', '-f', CONTAINER]);
     docker(['network', 'create', '--label', 'arma2.lab=commerce-production', NETWORK]);
+    ensureImage(IMAGE);
     const dbPassword = randomBytes(18).toString('hex');
     const r = docker(['run', '-d', '--name', CONTAINER, '--label', 'arma2.lab=commerce-production', '--network', NETWORK, '--network-alias', 'torneos-db',
       '-e', `POSTGRES_PASSWORD=${dbPassword}`, '-p', '127.0.0.1::5432', IMAGE,

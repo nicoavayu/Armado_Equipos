@@ -42,7 +42,7 @@
 // erasure of an object is not part of MEDIA-V1.
 import { v4 as uuidv4 } from 'uuid';
 import { createTorneosClient } from '../foundation/torneosClient';
-import { isTorneosBoundaryError } from '../foundation/errors';
+import { isTorneosBoundaryError, TorneosBoundaryError } from '../foundation/errors';
 import { stagingV1Tables } from '../foundation/stagingV1Tables';
 import { COMMERCE_REQUEST_TIMEOUT_MS } from '../foundation/torneosTransport';
 import {
@@ -52,7 +52,8 @@ import {
 } from '../api/tournamentWorkspaceErrors';
 import { TOURNAMENT_STATUS_TRANSITIONS } from '../domain/competitionLifecycle';
 import { normalizeMatchOutcome } from '../domain/matchOutcome';
-import { buildBrandingPath, prepareBrandingFile } from '../domain/brandingFiles';
+import { brandingOwnerPath, prepareBrandingFile } from '../domain/brandingFiles';
+import { BRANDING_OBJECT_PATH } from '../foundation/brandingV1Scope';
 import { requireAuthorizedBrandingUrls } from '../domain/brandingUrlRegistry';
 import { withSignedBranding } from './brandingUrls';
 import { prepareUploadPayload, MediaClientError } from '../domain/mediaImageClient';
@@ -577,8 +578,13 @@ export function createStagingV1WorkspaceService({
       let uploadedPath = null;
       try {
         const prepared = await prepareBrandingFile(file);
-        uploadedPath = buildBrandingPath({ organizationId, kind, entityId, mime: prepared.mime });
-        await client.brandingObject('POST', uploadedPath, prepared.source);
+        // MEDIA-STORE-V1: the server names the object; only the owner travels.
+        const owner = brandingOwnerPath({ organizationId, kind, entityId });
+        const stored = await client.brandingObject('POST', owner, prepared.source);
+        if (typeof stored?.path !== 'string' || !BRANDING_OBJECT_PATH.test(stored.path) || !stored.path.startsWith(`${owner}/`)) {
+          throw new TorneosBoundaryError('TORNEOS_UNAVAILABLE');
+        }
+        uploadedPath = stored.path;
         const reference = await client.execute('set_tournament_branding_reference', {
           p_organization_id: organizationId, p_entity_kind: kind, p_entity_id: entityId, p_path: uploadedPath,
         });

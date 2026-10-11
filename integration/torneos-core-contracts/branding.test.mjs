@@ -1,16 +1,20 @@
 // BRANDING-V1 — logos and shields on the REAL local hybrid stack: Supabase Storage on the isolated Torneos database
-// (compose.branding.yaml), 00000000000010 (private bucket + storage RLS reusing can_write_tournament_branding_object),
-// and the gateway under test (Node by default, Edge with GATEWAY=edge) with TORNEOS_BRANDING_MODE=on.
+// (compose.branding.yaml), trusting only what HOSTED Storage trusts (the project's ES256 key + the legacy HS256 secret),
+// 00000000000010 (private bucket + storage RLS), 00000000000017 (authorize_tournament_storage_objects) and the
+// torneos-media-store worker (MEDIA-STORE-V1), with the gateway under test (Node by default, Edge with GATEWAY=edge).
 //
-//   A. install: 0010 recorded once; the bucket is private; exactly the five branding policies; a public URL serves nothing.
-//   B. organizer: stores a tournament logo with ITS bridge token, switches the reference, and its branding context comes
-//      back with a signed URL that serves exactly those bytes. Before publication nobody else can sign it.
+//   A. install: 0010 and 0017 recorded once; the bucket is private; exactly the five branding policies.
+//   B. organizer: uploads a tournament logo to the OWNER route (the store names the object and asks the database with
+//      the organizer's own token), switches the reference, and its branding context comes back with a signed URL that
+//      serves exactly those bytes. Before publication nobody else can sign it.
 //   C. publication: catalog search, the call and the public page carry signed URLs (one signature batch per response);
 //      the organization logo is the fallback mark; replacing a logo retires the old object for everyone.
 //   D. refusals: another identity can neither store nor reference nor remove; wrong type, size and path are refused
-//      before storage; no bearer, no object route.
+//      before storage; a name chosen by the browser is refused; a referenced logo cannot be removed; no bearer, no route.
 //   E. a team's own responsible stores its shield and sees it signed in its registration context; nobody else can.
 //   F. unpublishing the page withdraws every public signature (storage RLS, not only the gateway).
+//
+//   G. hosted parity: the bridge token straight at Storage is refused ("alg" not allowed), as on hosted Supabase.
 //
 // Runs after `TORNEOS_CONNECTED_MODE=on TORNEOS_BRANDING_MODE=on node lab.mjs up`. Nothing touches a remote target.
 import { test } from 'node:test';
@@ -69,7 +73,16 @@ const gw = (name, token, params = {}) => request(`/torneos/rest/v1/rpc/${name}`,
 const pub = (name, data) => request(`/torneos/public/v1/rpc/${name}`, null, 'POST', data);
 const object = (path, token, method = 'POST', bytes = undefined, headers = {}) =>
   request(`/torneos/branding/v1/object/${path}`, token, method, bytes, method === 'POST' ? { 'content-type': 'image/png', ...headers } : headers);
-const brandingPath = (org, folder, entity) => `${org}/${folder}/${entity}/${randomUUID()}.png`;
+// MEDIA-STORE-V1: the browser names the OWNER only; the store generates the object name (uuid + real extension).
+const owner = (org, folder, entity) => `${org}/${folder}/${entity}`;
+const stores = async (ownerPath, token, bytes, headers = {}) => {
+  const r = await object(ownerPath, token, 'POST', bytes, headers);
+  if (r.status === 200) {
+    assert.match(r.body.path, new RegExp(`^${ownerPath}/[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\\.png$`), show(r));
+    assert.deepEqual(Object.keys(r.body), ['path']);
+  }
+  return r;
+};
 
 async function exchange(u) {
   const r = await request('/exchange', u.coreToken, 'POST');
@@ -113,7 +126,9 @@ test(`BRANDING-V1 — logos and shields on the real hybrid stack (${GATEWAY_NAME
   const S = {};
 
   await check('A. 0010 installed once; private bucket; exactly the branding policies; no public URL', async () => {
-    assert.equal(torneosSql("select count(*) from lab_meta.torneos_migrations where name = '00000000000010_branding_v1.sql'").trim(), '1');
+    assert.equal(torneosSql("select count(*) from lab_meta.torneos_migrations where name in ('00000000000010_branding_v1.sql', '00000000000017_media_store_v1.sql')").trim(), '2');
+    assert.equal(torneosSql(`select has_function_privilege('authenticated', 'public.authorize_tournament_storage_objects(text,text,text[])', 'EXECUTE')
+      || '/' || has_function_privilege('anon', 'public.authorize_tournament_storage_objects(text,text,text[])', 'EXECUTE')`).trim(), 'true/false');
     assert.equal(torneosSql("select public::text from storage.buckets where id = 'tournament-branding'").trim(), 'false');
     assert.equal(torneosSql(`select string_agg(policyname || ':' || cmd || ':' || roles::text, ',' order by policyname)
       from pg_policies where schemaname = 'storage' and tablename = 'objects' and policyname like 'tournament_branding_%'`).trim(),
@@ -135,9 +150,11 @@ test(`BRANDING-V1 — logos and shields on the real hybrid stack (${GATEWAY_NAME
     await ok('change_tournament_status', S.organizer, { p_organization_id: S.org, p_tournament_id: S.tournament, p_status: 'registration' });
 
     S.logoBytes = png(0x3a7f);
-    S.logo = brandingPath(S.org, 'tournaments', S.tournament);
-    const stored = await object(S.logo, await tok(S.organizer), 'POST', S.logoBytes);
-    assert.deepEqual([stored.status, stored.body], [200, { path: S.logo }], show(stored));
+    const stored = await stores(owner(S.org, 'tournaments', S.tournament), await tok(S.organizer), S.logoBytes);
+    assert.equal(stored.status, 200, show(stored));
+    S.logo = stored.body.path;
+    // Stored by the service role after the database said yes: no client identity owns the object.
+    assert.equal(torneosSql(`select count(*) || '/' || count(owner_id) from storage.objects where bucket_id = 'tournament-branding' and name = '${S.logo}'`).trim(), '1/0');
     const reference = await ok('set_tournament_branding_reference', S.organizer, { p_organization_id: S.org, p_entity_kind: 'tournament', p_entity_id: S.tournament, p_path: S.logo });
     assert.equal(reference.previousPath ?? null, null);
 
@@ -161,9 +178,10 @@ test(`BRANDING-V1 — logos and shields on the real hybrid stack (${GATEWAY_NAME
     await ok('set_tournament_catalog_listing_status', S.organizer, { p_organization_id: S.org, p_tournament_id: S.tournament, p_listed: true });
     await ok('set_tournament_applications_state', S.organizer, { p_organization_id: S.org, p_tournament_id: S.tournament, p_state: 'open' });
 
-    S.orgLogo = brandingPath(S.org, 'organizations', S.org);
     S.orgBytes = png(0x51c2);
-    assert.equal((await object(S.orgLogo, await tok(S.organizer), 'POST', S.orgBytes)).status, 200);
+    const orgStored = await stores(owner(S.org, 'organizations', S.org), await tok(S.organizer), S.orgBytes);
+    assert.equal(orgStored.status, 200, show(orgStored));
+    S.orgLogo = orgStored.body.path;
     await ok('set_tournament_branding_reference', S.organizer, { p_organization_id: S.org, p_entity_kind: 'organization', p_entity_id: S.org, p_path: S.orgLogo });
 
     const search = await pub('search_tournament_catalog', { p_query: RUN, p_scope: 'all' });
@@ -187,9 +205,12 @@ test(`BRANDING-V1 — logos and shields on the real hybrid stack (${GATEWAY_NAME
   });
 
   await check('C2. replacing a logo retires the old object: no signature, removed by its owner', async () => {
-    const next = brandingPath(S.org, 'tournaments', S.tournament);
     const nextBytes = png(0x0b0b);
-    assert.equal((await object(next, await tok(S.organizer), 'POST', nextBytes)).status, 200);
+    const nextStored = await stores(owner(S.org, 'tournaments', S.tournament), await tok(S.organizer), nextBytes);
+    assert.equal(nextStored.status, 200, show(nextStored));
+    const next = nextStored.body.path;
+    // While referenced, not even its organizer can remove it (the database's in-use rule).
+    assert.deepEqual([(await object(S.logo, await tok(S.organizer), 'DELETE')).status], [403], 'a referenced logo stays');
     const reference = await ok('set_tournament_branding_reference', S.organizer, { p_organization_id: S.org, p_entity_kind: 'tournament', p_entity_id: S.tournament, p_path: next });
     assert.equal(reference.previousPath, S.logo);
     assert.equal(anonCanSign(S.logo, anonKey).ok, false, 'an old version is never public');
@@ -203,8 +224,7 @@ test(`BRANDING-V1 — logos and shields on the real hybrid stack (${GATEWAY_NAME
   });
 
   await check('D. refusals: foreign identity, type, size, path and no bearer', async () => {
-    const foreign = brandingPath(S.org, 'tournaments', S.tournament);
-    const stored = await object(foreign, await tok(S.other), 'POST', png(1));
+    const stored = await stores(owner(S.org, 'tournaments', S.tournament), await tok(S.other), png(1));
     assert.deepEqual([stored.status, stored.body?.error], [403, 'TORNEOS_BRANDING_FORBIDDEN'], show(stored));
     const reference = await gw('set_tournament_branding_reference', await tok(S.other), { p_organization_id: S.org, p_entity_kind: 'tournament', p_entity_id: S.tournament, p_path: S.logo });
     assert.notEqual(reference.status, 200, 'another identity cannot switch the reference');
@@ -212,12 +232,20 @@ test(`BRANDING-V1 — logos and shields on the real hybrid stack (${GATEWAY_NAME
     assert.notEqual(removed.status, 200, show(removed));
     assert.equal(torneosSql(`select count(*) from storage.objects where bucket_id = 'tournament-branding' and name = '${S.logo}'`).trim(), '1');
     const token = await tok(S.organizer);
-    assert.equal((await object(brandingPath(S.org, 'tournaments', S.tournament), token, 'POST', png(2), { 'content-type': 'image/jpeg' })).status, 415);
-    const huge = await object(brandingPath(S.org, 'tournaments', S.tournament), token, 'POST', Buffer.alloc(2 * 1024 * 1024 + 1, 1));
+    const before = torneosSql(`select count(*) from storage.objects where bucket_id = 'tournament-branding' and name like '${S.org}/%'`).trim();
+    const ownerPath = owner(S.org, 'tournaments', S.tournament);
+    assert.equal((await object(ownerPath, token, 'POST', png(2), { 'content-type': 'image/jpeg' })).status, 415, 'the REAL type decides');
+    assert.equal((await object(ownerPath, token, 'POST', Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"/>'), { 'content-type': 'image/png' })).status, 415);
+    assert.equal((await object(ownerPath, token, 'POST', Buffer.from('not an image at all'), { 'content-type': 'image/webp' })).status, 415);
+    assert.equal((await object(ownerPath, token, 'POST', png(2), { 'content-type': 'image/gif' })).status, 415);
+    const huge = await object(ownerPath, token, 'POST', Buffer.alloc(2 * 1024 * 1024 + 1, 1));
     assert.equal(huge.status, 413);
-    assert.equal((await object(`${S.org}/tournaments/${S.tournament}/../x.png`, token, 'POST', png(3))).status, 404, 'not a versioned object path');
-    assert.equal((await object(brandingPath(S.org, 'tournaments', S.tournament), null, 'POST', png(4))).status, 401);
-    assert.equal(torneosSql(`select count(*) from storage.objects where bucket_id = 'tournament-branding' and owner_id is null`).trim(), '0');
+    const named = await object(`${ownerPath}/${randomUUID()}.png`, token, 'POST', png(3));
+    assert.deepEqual([named.status, named.body?.error], [400, 'TORNEOS_BRANDING_INVALID_REFERENCE'], 'the browser never names the object');
+    assert.equal((await object(`${S.org}/tournaments/${S.tournament}/../x.png`, token, 'POST', png(3))).status, 404, 'not an owner route');
+    assert.equal((await object(`${S.org}/tournaments/${S.org}`, token, 'POST', png(5))).status, 403, 'an entity that is not this tournament');
+    assert.equal((await object(ownerPath, null, 'POST', png(4))).status, 401);
+    assert.equal(torneosSql(`select count(*) from storage.objects where bucket_id = 'tournament-branding' and name like '${S.org}/%'`).trim(), before, 'nothing stored');
   });
 
   await check('E. team shield: the organization stores it (visual policy organization_only); the team responsible sees it signed; nobody else', async () => {
@@ -225,13 +253,15 @@ test(`BRANDING-V1 — logos and shields on the real hybrid stack (${GATEWAY_NAME
     const started = await ok('start_tournament_application', S.applicant, { p_public_slug: S.slug, p_category_slug: 'libre',
       p_core_team_id: null, p_team_name: `Halcones ${RUN}`, p_message: null, p_accept_conditions: true, p_idempotency_key: randomUUID() });
     S.entry = started.teamEntryId;
-    S.shield = brandingPath(S.org, 'teams', S.entry);
+    const shieldOwner = owner(S.org, 'teams', S.entry);
     S.shieldBytes = png(0x7e11);
     // The tournament's default visual policy keeps team branding with the organization: the captain cannot store it.
-    const byCaptain = await object(S.shield, await tok(S.applicant), 'POST', S.shieldBytes);
+    const byCaptain = await stores(shieldOwner, await tok(S.applicant), S.shieldBytes);
     assert.deepEqual([byCaptain.status, byCaptain.body?.error], [403, 'TORNEOS_BRANDING_FORBIDDEN'], show(byCaptain));
-    assert.equal((await object(S.shield, await tok(S.other), 'POST', S.shieldBytes)).status, 403, 'not their organization');
-    assert.equal((await object(S.shield, await tok(S.organizer), 'POST', S.shieldBytes)).status, 200);
+    assert.equal((await stores(shieldOwner, await tok(S.other), S.shieldBytes)).status, 403, 'not their organization');
+    const shield = await stores(shieldOwner, await tok(S.organizer), S.shieldBytes);
+    assert.equal(shield.status, 200, show(shield));
+    S.shield = shield.body.path;
     await ok('set_tournament_branding_reference', S.organizer, { p_organization_id: S.org, p_entity_kind: 'team', p_entity_id: S.entry, p_path: S.shield });
     const context = await ok('get_team_registration_context', S.applicant, { p_organization_id: S.org, p_team_entry_id: S.entry });
     assert.equal(context.entry.shieldPath, S.shield);
@@ -251,5 +281,18 @@ test(`BRANDING-V1 — logos and shields on the real hybrid stack (${GATEWAY_NAME
     const context = await ok('get_tournament_branding_context', S.organizer, { p_organization_id: S.org, p_tournament_id: null });
     assert.ok((await fetchSigned(context.tournaments.find((item) => item.id === S.tournament).logoUrl)).bytes.equals(S.logoBytes),
       'the organizer still sees its own logo');
+  });
+  await check('G. hosted parity: a bridge token straight at Storage is refused before any policy ("alg" not allowed)', async () => {
+    const bearer = await tok(S.organizer);
+    const out = inGateway(`const h = { authorization: 'Bearer ' + ${JSON.stringify(bearer)}, 'content-type': 'application/json' };
+      const put = await fetch('http://torneos-storage:5000/object/tournament-branding/${owner(S.org, 'tournaments', S.tournament)}/${randomUUID()}.png',
+        { method: 'POST', headers: { ...h, 'content-type': 'image/png' }, body: new Uint8Array([137, 80, 78, 71]) });
+      const sign = await fetch('http://torneos-storage:5000/object/sign/tournament-branding', { method: 'POST', headers: h,
+        body: JSON.stringify({ expiresIn: 60, paths: [${JSON.stringify(S.logo)}] }) });
+      console.log(JSON.stringify({ put: put.status, putBody: await put.text(), sign: sign.status, signBody: await sign.text() }));`);
+    const r = JSON.parse(out.trim().split('\n').pop());
+    assert.deepEqual([r.put, r.sign], [400, 400], JSON.stringify(r));
+    assert.match(r.putBody, /alg.*not allowed/i);
+    assert.match(r.signBody, /alg.*not allowed/i);
   });
 });

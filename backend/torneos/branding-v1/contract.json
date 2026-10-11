@@ -50,7 +50,8 @@
     "get_tournament_teams_context",
     "get_tournament_participant_hub"
   ],
-  "object_route": "POST|DELETE /torneos/branding/v1/object/<organization>/<organizations|tournaments|teams>/<entity>/<uuid>.<jpg|png|webp>",
+  "object_route": "POST /torneos/branding/v1/object/<organization>/<organizations|tournaments|teams>/<entity> (MEDIA-STORE-V1: the store names the object <uuid>.<real extension>) | DELETE /torneos/branding/v1/object/<organization>/<organizations|tournaments|teams>/<entity>/<uuid>.<jpg|png|webp>",
+  "object_store": "torneos-media-store (0017 authorize_tournament_storage_objects with the caller's token, then the service key; hosted Storage refuses bridge tokens)",
   "signed_url_ttl_seconds": 3600,
   "not_enabled": [
     "player portraits",

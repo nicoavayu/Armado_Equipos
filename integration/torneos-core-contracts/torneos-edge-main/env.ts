@@ -23,6 +23,15 @@ const GATEWAY_ENV = [
   "TORNEOS_BRANDING_MODE", "TORNEOS_STORAGE_URL", "TORNEOS_STORAGE_PUBLIC_URL",
   // MEDIA-V1: the photo galleries' opt-in mode only (no secret; it reuses the BRANDING-V1 storage targets above).
   "TORNEOS_MEDIA_MODE",
+  // MEDIA-STORE-V1: where the torneos-media-store worker is and the HMAC secret shared with it (never a service key).
+  "TORNEOS_MEDIA_STORE_URL", "TORNEOS_MEDIA_STORE_SECRET",
+] as const
+// MEDIA-STORE-V1 (lab): torneos-media-store receives ONLY its own configuration, kept in the container under the
+// MEDIA_STORE__ prefix and handed to it unprefixed — the Torneos service key above all, which no other worker ever sees.
+const MEDIA_STORE_PREFIX = "MEDIA_STORE__"
+const MEDIA_STORE_ENV = [
+  "TORNEOS_MEDIA_STORE_SECRET", "TORNEOS_MEDIA_STORE_REST_URL", "TORNEOS_MEDIA_STORE_STORAGE_URL", "TORNEOS_MEDIA_STORE_PUBLIC_URL",
+  "SUPABASE_SERVICE_ROLE_KEY", "SUPABASE_ANON_KEY",
 ] as const
 const GATEWAY_COMMERCE_ENV = ["TORNEOS_PAYMENTS_INTERNAL_URL", "TORNEOS_PAYMENTS_INTERNAL_SECRET"] as const
 const PAYMENTS_ENV = [
@@ -47,6 +56,7 @@ const ENV_BY_WORKER = new Map<string, readonly string[]>([
   ["torneos-gateway", GATEWAY_ENV],
   ["torneos-payments", PAYMENTS_ENV],
   ["torneos-payments-production", PRODUCTION_PAYMENTS_ENV],
+  ["torneos-media-store", MEDIA_STORE_ENV],
 ])
 /** The only function names the router mounts. */
 export const WORKERS: ReadonlySet<string> = new Set(ENV_BY_WORKER.keys())
@@ -54,6 +64,10 @@ export const WORKERS: ReadonlySet<string> = new Set(ENV_BY_WORKER.keys())
 export function workerEnv(serviceName: string, env: Record<string, string | undefined>): [string, string][] {
   const names = ENV_BY_WORKER.get(serviceName)
   if (!names) throw new Error("unknown worker")
+  if (serviceName === "torneos-media-store") {
+    return names.filter((name) => typeof env[`${MEDIA_STORE_PREFIX}${name}`] === "string")
+      .map((name) => [name, env[`${MEDIA_STORE_PREFIX}${name}`] as string])
+  }
   if (serviceName === "torneos-payments-production") {
     return names.filter((name) => typeof env[`${PRODUCTION_PAYMENTS_PREFIX}${name}`] === "string")
       .map((name) => [name, env[`${PRODUCTION_PAYMENTS_PREFIX}${name}`] as string])

@@ -30,10 +30,14 @@ export const COMMERCE = process.env.TORNEOS_LAB_MODE === 'commerce';
 // BRANDING-V1: Supabase Storage on the isolated Torneos database (compose.branding.yaml) + the gateways' branding mode.
 export const BRANDING = process.env.TORNEOS_BRANDING_MODE === 'on';
 export const STORAGE_PUBLIC_BASE = 'http://127.0.0.1:58425';
+// MEDIA-V1: the gallery overlay (compose.media.yaml) on top of BRANDING (it needs the lab's Torneos storage).
+export const MEDIA = process.env.TORNEOS_MEDIA_MODE === 'on';
+if (MEDIA && !BRANDING) throw new Error('TORNEOS_MEDIA_MODE=on needs TORNEOS_BRANDING_MODE=on');
 if (process.env.TORNEOS_LAB_MODE && !COMMERCE) throw new Error('TORNEOS_LAB_MODE accepts only "commerce"');
 export const PAYMENTS_BASE = 'http://127.0.0.1:58421/torneos-payments';
 export const MP_STUB_BASE = 'http://127.0.0.1:58426';
-const COMPOSE_FILES = ['-f', 'compose.yaml', ...(COMMERCE ? ['-f', 'compose.mpa.yaml'] : []), ...(BRANDING ? ['-f', 'compose.branding.yaml'] : [])];
+const COMPOSE_FILES = ['-f', 'compose.yaml', ...(COMMERCE ? ['-f', 'compose.mpa.yaml'] : []), ...(BRANDING ? ['-f', 'compose.branding.yaml'] : []),
+  ...(MEDIA ? ['-f', 'compose.media.yaml'] : [])];
 
 // Force the local Unix socket, ignoring DOCKER_HOST/context inherited by the shell.
 export function dc(args, input, capture = false) {
@@ -92,8 +96,23 @@ export async function writeEdgeEnv(c) {
   if (process.env.TORNEOS_CONNECTED_MODE) lines.push(`TORNEOS_CONNECTED_MODE=${process.env.TORNEOS_CONNECTED_MODE}`);
   // BRANDING-V1: same opt-in; the storage targets are the lab's (hosted: derived from TORNEOS_REST_URL).
   if (BRANDING) lines.push('TORNEOS_BRANDING_MODE=on', 'TORNEOS_STORAGE_URL=http://torneos-storage:5000', `TORNEOS_STORAGE_PUBLIC_URL=${STORAGE_PUBLIC_BASE}`);
+  // MEDIA-STORE-V1: the gateway reaches the torneos-media-store worker (HMAC secret shared with it). The worker's own
+  // configuration — the Torneos service key above all — travels under the MEDIA_STORE__ prefix, which only that worker
+  // receives, unprefixed (torneos-edge-main/env.ts); the gateway never sees a service key.
+  const store = BRANDING ? mediaStoreGatewayEnv(c) : [];
+  if (BRANDING) {
+    lines.push(...store, `MEDIA_STORE__TORNEOS_MEDIA_STORE_SECRET=${c.mediaStoreSecret}`,
+      'MEDIA_STORE__TORNEOS_MEDIA_STORE_REST_URL=http://torneos-rest:3000', 'MEDIA_STORE__TORNEOS_MEDIA_STORE_STORAGE_URL=http://torneos-storage:5000',
+      `MEDIA_STORE__TORNEOS_MEDIA_STORE_PUBLIC_URL=${STORAGE_PUBLIC_BASE}`, `MEDIA_STORE__SUPABASE_SERVICE_ROLE_KEY=${c.serviceRoleKey}`,
+      `MEDIA_STORE__SUPABASE_ANON_KEY=${c.anonKey}`);
+  }
   await writeFile(`${root}.runtime/torneos-gateway.env`, lines.join('\n') + '\n', { mode: 0o600 });
+  // The Node gateway (compose.branding.yaml env_file): the same two gateway values, nothing else.
+  if (BRANDING) await writeFile(`${root}.runtime/media-store-gateway.env`, store.join('\n') + '\n', { mode: 0o600 });
+  else await rm(`${root}.runtime/media-store-gateway.env`, { force: true });
 }
+export const MEDIA_STORE_URL = 'http://torneos-functions:9000/torneos-media-store';
+export const mediaStoreGatewayEnv = (c) => [`TORNEOS_MEDIA_STORE_URL=${MEDIA_STORE_URL}`, `TORNEOS_MEDIA_STORE_SECRET=${c.mediaStoreSecret}`];
 export async function writeServerConfig(c) {
   // The running gateway needs neither Core's JWT secret nor any DB admin password.
   await mkdir(`${root}.runtime/server`, { recursive: true, mode: 0o700 });
@@ -131,6 +150,15 @@ async function prepare() {
   if (!current.paymentServicePassword) {
     await writeFile(`${root}.runtime/config.json`, JSON.stringify({ ...current, paymentServicePassword: randomBytes(32).toString('hex') }), { mode: 0o600 });
   }
+  // MEDIA-STORE-V1: the gateway↔media-store HMAC secret, and the lab project's own ES256 signing key — the ONLY key the
+  // lab's Storage trusts, as on hosted Supabase (a kept .runtime gets both on its next prepare).
+  const stored = await config();
+  if (!stored.mediaStoreSecret || !stored.projectKey) {
+    const pair = await generateKeyPair('ES256', { extractable: true });
+    const projectKey = { ...await exportJWK(pair.publicKey), kid: randomBytes(16).toString('hex'), alg: 'ES256', use: 'sig' };
+    await writeFile(`${root}.runtime/config.json`, JSON.stringify({ ...stored, mediaStoreSecret: stored.mediaStoreSecret ?? randomBytes(32).toString('hex'),
+      projectKey: stored.projectKey ?? projectKey }), { mode: 0o600 });
+  }
   await writeServerConfig(await config());
   await writeEdgeEnv(await config());
   if (BRANDING) await writeStorageEnv(await config());
@@ -139,11 +167,13 @@ async function prepare() {
   // MP-A4: outside commerce mode no gateway commerce configuration may survive from an earlier run.
   else await Promise.all(GATEWAY_COMMERCE_FILES.map((f) => rm(`${root}.runtime/${f}`, { force: true })));
 }
-// BRANDING-V1 (branding mode only): the storage-api of the isolated Torneos database. It verifies the bridge's RS256
-// tokens through JWT_JWKS (hosted: Third-Party Auth with the same JWKS) and the lab anon key through AUTH_JWT_SECRET
-// (in this lab the Torneos anon key is the lab's legacy anon key). Never handed to a gateway.
+// BRANDING-V1 (branding mode only): the storage-api of the isolated Torneos database, trusting what HOSTED Storage
+// trusts: the project's own signing key (JWT_JWKS = one ES256 key) and the legacy HS256 secret (AUTH_JWT_SECRET: the
+// lab anon / service keys). NOT the bridge's RS256 keys: hosted Storage refuses them ("alg" not allowed) even though
+// the Data API accepts them through Third-Party Auth — the earlier lab trusted them here and hid that (MEDIA-STORE-V1).
+// Never handed to a gateway.
 async function writeStorageEnv(c) {
-  const jwks = { keys: c.keys.filter((k) => c.trustedKids.includes(k.kid)).map((k) => k.publicKey) };
+  const jwks = { keys: [c.projectKey] };
   const lines = [
     `ANON_KEY=${c.anonKey}`,
     `SERVICE_KEY=${c.serviceRoleKey}`,
@@ -268,7 +298,7 @@ export async function installTorneos(c) {
     const text = await readFile(dir + name, 'utf8');
     const digest = createHash('sha256').update(text).digest('hex');
     // BRANDING-V1 needs the project's Storage schema (hosted: always there; this lab: only the branding overlay).
-    if (name.endsWith('_branding_v1.sql') && !storageReady) {
+    if ((name.endsWith('_branding_v1.sql') || name.endsWith('_media_store_v1.sql')) && !storageReady) {
       followUps.push({ file: (dir + name).slice(repo.length), sha256: digest, applied: false, skipped: 'no storage service in this lab run' });
       continue;
     }

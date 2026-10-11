@@ -169,9 +169,10 @@ async function proxy(req, res, url, token, raw, rpc = null) {
     body: ['GET', 'HEAD'].includes(req.method) ? undefined : (raw ?? await body(req)),
     redirect: 'error', signal: AbortSignal.timeout(5000) });
   let payload = await r.arrayBuffer();
-  // BRANDING-V1: the branding context gets signed URLs, signed with the caller's own token (storage RLS decides).
+  // BRANDING-V1 / MEDIA-STORE-V1: the branding context gets signed URLs, signed through the media store for the
+  // caller's own token (can_read_tournament_branding_object decides).
   if (token && rpc && r.status === 200 && branding.mode === 'on' && brandingModule.SIGNED_AUTHENTICATED_RPCS.has(rpc)) {
-    payload = await brandingModule.signResponseBody(new Uint8Array(payload), branding, { bearer: token, apikey: null });
+    payload = await brandingModule.signResponseBody(new Uint8Array(payload), branding, { identity: token });
   }
   // ERROR-CONTRACT-V1: same competition.ts rule as the Edge gateway (legacy-SQLSTATE domain error → contract status).
   res.writeHead(competitionModule.domainErrorStatus(r.status, payload), { 'content-type': r.headers.get('content-type') ?? 'application/json',
@@ -289,8 +290,10 @@ const server = http.createServer(async (req, res) => {
         publicGate.leave();
       }
     }
-    // BRANDING-V1: one versioned object, stored or removed with the caller's own token (storage RLS decides).
-    const brandingPath = branding.mode === 'on' ? brandingModule.BRANDING_OBJECT_ROUTE.exec(url.pathname) : null;
+    // BRANDING-V1 / MEDIA-STORE-V1: one versioned object, stored (owner route, name generated server-side) or removed,
+    // through the media store with the caller's own token.
+    const brandingPath = branding.mode === 'on'
+      ? (brandingModule.BRANDING_OBJECT_ROUTE.exec(url.pathname) ?? brandingModule.BRANDING_UPLOAD_ROUTE.exec(url.pathname)) : null;
     if (brandingPath && ['POST', 'DELETE'].includes(req.method)) {
       const token = bearer(req);
       const p = await verifyToken(token, await readConfig());

@@ -1,0 +1,12 @@
+{"step":"observe","state":"POST_0017","failures":[],"buckets":{"tournament-branding":{"public":false,"limit":2097152,"mime":["image/jpeg","image/png","image/webp"]},"tournament-media":{"public":false,"limit":4194304,"mime":["image/jpeg","image/png","image/webp"]}},"bodies":{"authorize":"27c94843c2e3a7d9f05df448f464f069","in_use":"fd7eb865713c713c96e595f9a35ce230"},"acl":{"authorize":{"secdef":true,"config":["search_path=\"\""],"authenticated":true,"anon":false,"service_role":false},"in_use":{"secdef":true,"config":["search_path=\"\""],"authenticated":false,"anon":false,"service_role":false}},"counts":{"authenticated":207,"anon":16}}
+{"step":"rollback (as the lab installer postgres)","verdict":"ROLLBACK_0017_DONE","before":"POST_0017","after":"PRE_0017","changedOutside":[],"psql":0}
+{"step":"apply as postgres","verdict":"APPLY_0017_DONE","before":"PRE_0017","after":"POST_0017","changedOutside":[],"psql":0}
+{"step":"owner after apply","owner":"postgres"}
+{"step":"apply again (must be refused before any write)","verdict":"PRE_STATE_POST_0017 "}
+{"step":"rollback as postgres","verdict":"ROLLBACK_0017_DONE","before":"POST_0017","after":"PRE_0017","changedOutside":[],"psql":0}
+{"step":"re-apply as postgres","verdict":"APPLY_0017_DONE","before":"PRE_0017","after":"POST_0017","changedOutside":[],"psql":0}
+{"step":"files","apply":"57d4fe759c2bc9ae4d5e272d98d20cdc73465ddd2020e0c5c44418440778cc19","rollback":"fdaf00cf7dfd9d1fbfb08890deaa10e93e0f367dc5bf085cda0811bcfd20c7c9"}
+{"step":"db-0012 observe with 0017","state":"POST_0014","failures":[],"mode":"PROCESSOR_EXTERNAL","media_store":true,"commerce":true,"counts":{"authenticated":207,"anon":16}}
+{"step":"db-0012 mode MVP_SIMPLE (media-on)","verdict":"MODE_MVP_SIMPLE_DONE","before":"POST_0014","after":"POST_0014","modeBefore":"PROCESSOR_EXTERNAL","modeAfter":"MVP_SIMPLE","changedOutside":[]}
+{"step":"db-0012 rollback without its phrase (refused before any read)","verdict":"PHRASE_REQUIRED: ROLLBACK TORNEOS 0012 onzpwnqxnvlgsevivngf "}
+{"step":"db-0017 observe after media-on","state":"POST_0017","failures":[]}
