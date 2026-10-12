@@ -63,6 +63,10 @@ const VISIBILITY_LABELS = {
   related_teams: 'Equipos relacionados',
   administrative_private: 'Sólo administración',
 };
+// «Equipos relacionados» needs photos tagged with their teams, and this release has no way to tag them (the tagging
+// RPC is not on the gateway's allowlist): a gallery with that visibility would be visible to staff only. It is not
+// offered when creating; the label stays for any gallery that already has it.
+const CREATABLE_VISIBILITIES = Object.keys(VISIBILITY_LABELS).filter((value) => value !== 'related_teams');
 const EMPTY_FORM = {
   tournamentId: '',
   categoryId: '',
@@ -911,8 +915,8 @@ export default function MediaAdminPage() {
             <label>
               <span>Visibilidad</span>
               <select value={form.visibility} onChange={(event) => updateForm('visibility', event.target.value)}>
-                {Object.entries(VISIBILITY_LABELS).map(([value, label]) => (
-                  <option key={value} value={value}>{label}</option>
+                {CREATABLE_VISIBILITIES.map((value) => (
+                  <option key={value} value={value}>{VISIBILITY_LABELS[value]}</option>
                 ))}
               </select>
             </label>
