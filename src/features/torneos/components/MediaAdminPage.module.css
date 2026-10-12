@@ -225,6 +225,11 @@
 .galleryActions > p { flex: 1 1 240px; margin: 0; color: #948c9f; font-size: 12px; line-height: 1.45; }
 .galleryActions .archiveAction { border-color: rgba(255,255,255,.18); color: #cfc7dd; }
 .composer footer button, .galleryActions button {
+  /* El reset global muestra los svg como bloque: sin flex, el ícono queda arriba del texto («Archivar galería»). */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--torneos-action-gap);
   min-height: var(--torneos-action-height);
   border: 1px solid rgba(255,255,255,.12);
   border-radius: var(--torneos-action-radius);
