@@ -145,6 +145,13 @@ describe('organizer tournament media center', () => {
     );
   });
 
+  test('does not offer «Equipos relacionados» when creating: no published way to relate photos to teams', async () => {
+    renderAdmin();
+    await userEvent.click(await screen.findByRole('button', { name: 'Crear galería' }));
+    const options = [...screen.getByLabelText('Visibilidad').querySelectorAll('option')].map((option) => option.value);
+    expect(options).toEqual(['organization', 'tournament_participants', 'match_participants', 'administrative_private']);
+  });
+
   test('keeps a valid file when another file has an invalid MIME', async () => {
     mockContextService = createAdminService(adminPayload({
       galleries: [{
