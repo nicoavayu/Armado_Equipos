@@ -182,8 +182,11 @@ describe('MEDIA-V1 · organizer', () => {
     expect(screen.queryByRole('button', { name: /Eliminar/ })).not.toBeInTheDocument();
     expect(screen.getByText('Retirada')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Restaurar/ })).toBeInTheDocument();
+    // Before retiring: the button says it keeps counting toward the quota; after: the notice says it again (phones show no hover text).
+    expect(retire).toHaveAttribute('title', expect.stringMatching(/Sigue contando para el cupo de fotos de la temporada y se puede restaurar/));
     await userEvent.click(retire);
     expect(mockContextService.transitionMediaAsset).toHaveBeenCalledWith(expect.objectContaining({ assetId: 'asset-a', action: 'hide' }));
+    expect(await screen.findByText(/Foto retirada: ya no la ven los participantes\. Sigue contando para el cupo/)).toBeInTheDocument();
     expect(confirm).not.toHaveBeenCalled();
     confirm.mockRestore();
   });
@@ -198,7 +201,7 @@ describe('MEDIA-V1 · organizer', () => {
     renderAdmin();
     const retire = await screen.findByRole('button', { name: /Retirar/ });
     await userEvent.click(retire);
-    expect(confirm).toHaveBeenLastCalledWith(expect.stringMatching(/única foto publicada.*volverá a borrador.*hasta que la publiques de nuevo/s));
+    expect(confirm).toHaveBeenLastCalledWith(expect.stringMatching(/única foto publicada.*volverá a borrador.*hasta que la publiques de nuevo.*sigue contando para el cupo/s));
     expect(confirm.mock.calls[0][0]).not.toMatch(/archivad/);
     expect(mockContextService.transitionMediaAsset).not.toHaveBeenCalled();
 

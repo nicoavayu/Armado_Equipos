@@ -21,8 +21,8 @@ const STORAGE = `${ORIGIN}/storage/v1`;
 const REST = `${ORIGIN}/rest/v1`;
 
 let tree, store, protocol, config;
-const world = { authorize: [], storage: [], deny: new Set(), authorizeStatus: 200, storageStatus: 200, extra: null, throwOn: null };
-const reset = () => Object.assign(world, { authorize: [], storage: [], deny: new Set(), authorizeStatus: 200, storageStatus: 200, extra: null, throwOn: null });
+const world = { authorize: [], storage: [], deny: new Set(), authorizeStatus: 200, storageStatus: 200, extra: null, throwOn: null, absent: new Set() };
+const reset = () => Object.assign(world, { authorize: [], storage: [], deny: new Set(), authorizeStatus: 200, storageStatus: 200, extra: null, throwOn: null, absent: new Set() });
 async function fakeFetch(url, init) {
   const u = String(url);
   if (world.throwOn && u.startsWith(world.throwOn)) throw new Error('network down');
@@ -41,7 +41,7 @@ async function fakeFetch(url, init) {
       return new Response(JSON.stringify([...paths.map((p) => ({ path: p, signedURL: `/object/sign/${bucket}/${p}?token=tok`, error: null })),
         { path: 'not-asked', signedURL: `/object/sign/${bucket}/not-asked?token=tok`, error: null }]), { status: world.storageStatus });
     }
-    if (init.method === 'DELETE') return new Response(JSON.stringify(JSON.parse(init.body).prefixes.map((name) => ({ name }))), { status: world.storageStatus });
+    if (init.method === 'DELETE') return new Response(JSON.stringify(JSON.parse(init.body).prefixes.filter((name) => !world.absent.has(name)).map((name) => ({ name }))), { status: world.storageStatus });
     return new Response('{}', { status: world.storageStatus });
   }
   throw new Error('unexpected ' + u);
@@ -198,4 +198,22 @@ test('a disabled store (faulty configuration) refuses everything; GET and unknow
   assert.doesNotMatch(source, /console\./, 'the store logs nothing');
   assert.doesNotMatch(source, /x-upsert":\s*"true"/);
   assert.equal(G.TORNEOS_REF.length, 20);
+});
+
+test('a removal tells a real absence (404 NOT_REMOVED) from a provider failure (503), after the same authorization', async () => {
+  reset();
+  assert.deepEqual([(await call('branding-delete', { body: { path: BRAND } })).status], [200], 'present: removed');
+  world.absent = new Set([BRAND]);
+  const again = await call('branding-delete', { body: { path: BRAND } });
+  assert.deepEqual([again.status, again.json], [404, { error: 'NOT_REMOVED' }], 'already gone: Storage answered 200 with nothing removed');
+  for (const status of [400, 401, 403, 404, 409]) {
+    world.storageStatus = status;
+    const failed = await call('branding-delete', { body: { path: BRAND } });
+    assert.deepEqual([failed.status, failed.json], [503, { error: 'UNAVAILABLE' }], `Storage ${status} is a provider failure, never «absent»`);
+  }
+  world.storageStatus = 200;
+  world.deny = new Set([`delete:${BRAND}`]);
+  const denied = await call('branding-delete', { body: { path: BRAND } });
+  assert.equal(denied.status, 403, 'the database still decides first');
+  assert.equal(world.storage.filter((c) => c.method === 'DELETE').length, 7, 'a denied removal never reached Storage');
 });
