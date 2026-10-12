@@ -930,6 +930,11 @@
 }
 
 .provisionalAction {
+  /* The global reset shows SVGs as blocks: without flex the icon sat above «Crear “…” sin cuenta». */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
   min-height: 44px;
   border: 1px dashed rgba(126, 148, 255, 0.48);
   border-radius: 11px;
