@@ -32,19 +32,25 @@ BEGIN
   IF v_md5 IS DISTINCT FROM 'abe70db7fc988f0e06a505f63aeca330' THEN
     RAISE EXCEPTION 'TORNEOS_0019_PRECONDITION_FAILED: the 0013 production activation is not in force (%)', v_md5;
   END IF;
-  IF (SELECT count(*) FROM public.tournament_commercial_offers WHERE product_code = 'torneos_premium') <> 1
-    OR NOT EXISTS (SELECT 1 FROM public.tournament_commercial_offers WHERE product_code = 'torneos_premium'
-      AND offer_code = 'launch' AND offer_version = 1 AND list_amount = 49900 AND amount = 39900 AND valid_until IS NULL) THEN
-    RAISE EXCEPTION 'TORNEOS_0019_PRECONDITION_FAILED: the offers are not the single launch v1 (49900/39900)';
+  -- The 0013 catalog: launch v1 (49900/39900) open; or, after a rollback of 0019, also its closed launch v2.
+  IF NOT EXISTS (SELECT 1 FROM public.tournament_commercial_offers WHERE product_code = 'torneos_premium'
+      AND offer_code = 'launch' AND offer_version = 1 AND list_amount = 49900 AND amount = 39900 AND valid_until IS NULL)
+    OR EXISTS (SELECT 1 FROM public.tournament_commercial_offers WHERE product_code = 'torneos_premium'
+      AND NOT (offer_code = 'launch' AND offer_version = 1)
+      AND NOT (offer_code = 'launch' AND offer_version = 2 AND list_amount = 20000 AND amount = 20000 AND availability = 'unavailable')) THEN
+    RAISE EXCEPTION 'TORNEOS_0019_PRECONDITION_FAILED: the offers are not 0013''s launch v1 (49900/39900)';
   END IF;
 END $pre$;
 
 -- ============================================================================================ price
 UPDATE public.tournament_commercial_offers SET valid_until = now()
 WHERE product_code = 'torneos_premium' AND offer_code = 'launch' AND offer_version = 1;
+-- Re-applied after its rollback, the same v2 row opens again (purchases may snapshot it: it is never deleted).
 INSERT INTO public.tournament_commercial_offers (product_code, offer_code, offer_version, offer_label, currency,
   list_amount, amount, valid_from, valid_until, availability)
-VALUES ('torneos_premium', 'launch', 2, 'Precio de lanzamiento', 'ARS', 20000, 20000, now(), NULL, 'available');
+VALUES ('torneos_premium', 'launch', 2, 'Precio de lanzamiento', 'ARS', 20000, 20000, now(), NULL, 'available')
+ON CONFLICT (product_code, offer_code, offer_version)
+DO UPDATE SET valid_from = now(), valid_until = NULL, availability = 'available';
 
 ALTER TABLE public.tournament_pricing_config DROP CONSTRAINT tournament_pricing_config_prices_check;
 ALTER TABLE public.tournament_pricing_config ADD CONSTRAINT tournament_pricing_config_prices_check

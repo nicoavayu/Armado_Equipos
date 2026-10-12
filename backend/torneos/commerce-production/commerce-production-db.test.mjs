@@ -14,6 +14,9 @@ import {
 } from './lab/fixtures.mjs';
 
 const MIGRATION = path.join(MIGRATIONS_DIR, '00000000000013_mercadopago_checkout_pro_production.sql');
+// 0019 (season commerce) runs on top of 0013 in this lab, as it will in Production.
+const MIGRATION_0019 = path.join(MIGRATIONS_DIR, '00000000000019_season_commerce.sql');
+const ROLLBACK_0019 = path.join(MIGRATIONS_DIR, '../../season-lifecycle/rollback/00000000000019_season_commerce.rollback.sql');
 let prod;
 let testDb;
 const t0 = Date.parse('2026-10-07T12:00:00.000Z');
@@ -47,10 +50,15 @@ const reversal = (p, action, payment, minute, providerStatus = action) => prod.c
   [p.id, action, providerStatus, null, pid(payment), at(minute)]);
 
 describe('schema and ACL', () => {
-  test('re-applying 0013 is a no-op that keeps the operator switch', () => {
+  test('re-applying 0013 is a no-op that keeps the operator switch (0019 rolled back first, then applied again)', () => {
+    // Re-applying 0013 over 0019 would put 0013's checkout and activation back without the season rules: never done
+    // directly. 0019 is rolled back, 0013 re-applied, 0019 applied again (its precondition accepts its own closed v2).
     setScope('allowlist', 'Laboratorio reaplicación');
+    sql(readFileSync(ROLLBACK_0019, 'utf8'));
     sql(readFileSync(MIGRATION, 'utf8'));
     assert.equal(admin('select checkout_scope from public.tournament_commerce_production_settings').trim(), 'allowlist');
+    sql(readFileSync(MIGRATION_0019, 'utf8'));
+    assert.equal(admin("select amount from public.tournament_commercial_offers where offer_version = 2 and valid_until is null and availability = 'available'").trim(), '20000');
     setScope('open');
   });
 
@@ -129,7 +137,8 @@ describe('purchase creation', () => {
     const w = world('snapshot');
     const p = checkout(w.owner, w);
     assert.deepEqual({ provider: p.provider, env: p.providerEnvironment, product: p.productCode, amount: p.amount, list: p.listAmount, currency: p.currency },
-      { provider: 'MERCADO_PAGO', env: 'production', product: 'torneos_premium', amount: 39900, list: 49900, currency: 'ARS' });
+      { provider: 'MERCADO_PAGO', env: 'production', product: 'torneos_premium', amount: 20000, list: 20000, currency: 'ARS' });
+    assert.deepEqual([p.offerCode, p.offerVersion], ['launch', 2], '0019: «Precio de lanzamiento» ARS 20.000, nothing to strike through');
     assert.equal(p.externalReference, `arma2:season:purchase:${p.id}`);
     assert.deepEqual(eventTypes(p.id), ['purchase.created']);
   });
@@ -403,8 +412,73 @@ describe('Premium is real and season-scoped', () => {
     await status(p, 'approved', '8101', 1);
     const premium = entitlementsOf(p.org, p.season);
     assert.deepEqual([premium.plan, premium.limits.galleryAssetLimit, premium.social.baseFamilyLimit, premium.capabilities['social_studio.premium'], premium.branding.canRemoveArma2],
-      ['PREMIUM', 1000, 11, true, true]);
+      ['PREMIUM', 100, 11, true, true]);
     assert.equal(premium.assignmentSource, 'purchase');
+  });
+});
+
+describe('season rules (0019 on 0018)', () => {
+  const activateSeason = (w) => asUserJson(w.owner, `select public.update_tournament_season(${lit(w.org)}, ${lit(w.season)}, p_status => 'active')`);
+  const closeSeason = (w) => asUserJson(w.owner, `select public.update_tournament_season(${lit(w.org)}, ${lit(w.season)}, p_status => 'completed', p_confirm_media_deletion => true)`);
+  const deadlineOf = (w) => admin(`select media_deadline_at from public.tournament_seasons where id = ${lit(w.season)}`).trim();
+
+  test('a closed season cannot be bought, nor an open purchase of it continued', async () => {
+    const w = world('closed-buy'); activateSeason(w);
+    const p = checkout(w.owner, w);
+    closeSeason(w);
+    assert.equal(refusal(w.owner, `select public.create_tournament_season_production_checkout_purchase(${lit(w.org)}, ${lit(w.season)}, ${lit(randomUUID())})`), 'TORNEOS_SEASON_NOT_PURCHASABLE');
+    // Past the deadline without any job having run: the same.
+    const v = world('expired-buy'); activateSeason(v);
+    admin(`UPDATE public.tournament_seasons SET media_deadline_at = now() - interval '1 minute', activated_at = now() - interval '200 days' WHERE id = ${lit(v.season)}`);
+    assert.equal(refusal(v.owner, `select public.create_tournament_season_production_checkout_purchase(${lit(v.org)}, ${lit(v.season)}, ${lit(randomUUID())})`), 'TORNEOS_SEASON_NOT_PURCHASABLE');
+    void p;
+  });
+
+  test('buying Premium never moves the season deadline (draft or active)', async () => {
+    const w = world('no-extend'); activateSeason(w);
+    const before = deadlineOf(w);
+    const p = await payable(w);
+    await status(p, 'approved', '9101', 1);
+    assert.equal(planOf(w.org, w.season), 'PREMIUM');
+    assert.equal(deadlineOf(w), before);
+    const d = world('draft-buy');
+    const q = await payable(d);
+    await status(q, 'approved', '9102', 1);
+    assert.equal(deadlineOf(d), '', 'a draft has no deadline until it is activated');
+    asUserJson(d.owner, `select public.update_tournament_season(${lit(d.org)}, ${lit(d.season)}, p_status => 'active')`);
+    assert.notEqual(deadlineOf(d), '', 'activation, not the purchase, starts the six months');
+  });
+
+  test('a payment approved after the season closed never grants Premium: approved + season_closed, manual refund, replays idempotent', async () => {
+    const w = world('late-pay'); activateSeason(w);
+    const p = await payable(w);
+    closeSeason(w);
+    const first = await status(p, 'approved', '9201', 1);
+    assert.notEqual(first.outcome, 'approved');
+    const row = purchaseRow(p.id);
+    assert.deepEqual([row.status, row.activation_error_code, row.entitlement_activated_at], ['approved', 'season_closed', null]);
+    assert.equal(planOf(w.org, w.season), 'FREE');
+    assert.equal(Number(admin(`select count(*) from public.tournament_season_plan_grants where origin_purchase_id = ${lit(p.id)}`)), 0);
+    // The webhook again (same snapshot, then a newer one): no second event, no grant.
+    await status(p, 'approved', '9201', 1);
+    await status(p, 'approved', '9201', 2);
+    assert.equal(eventTypes(p.id).filter((e) => e === 'payment.approved_season_closed').length, 1);
+    assert.equal(planOf(w.org, w.season), 'FREE');
+    assert.equal(Number(admin(`select count(*) from public.tournament_audit_log where resource_id = ${lit(p.id)} and action = 'billing.season_purchase_late_payment'`)), 1);
+    // The operator refunds it in Mercado Pago: the reversal arrives and closes the purchase, still without Premium.
+    await reversal(p, 'refund', '9201', 5, 'refunded');
+    assert.equal(purchaseRow(p.id).status, 'refunded');
+    assert.equal(planOf(w.org, w.season), 'FREE');
+  });
+
+  test('a different payment for a season_closed purchase is a conflict, never a grant', async () => {
+    const w = world('late-two'); activateSeason(w);
+    const p = await payable(w);
+    closeSeason(w);
+    await status(p, 'approved', '9301', 1);
+    await refusedBy(status(p, 'approved', '9302', 2)).catch(() => {});
+    assert.equal(planOf(w.org, w.season), 'FREE');
+    assert.equal(purchaseRow(p.id).approved_provider_payment_id, pid('9301'));
   });
 });
 

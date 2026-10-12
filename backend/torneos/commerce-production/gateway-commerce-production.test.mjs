@@ -131,7 +131,7 @@ describe('checkout and refresh through the gateway (lab database, production pay
     const r = await checkoutAs(w.owner, w);
     assert.equal(r.status, 200, JSON.stringify(r.body));
     assert.equal(r.body.purchase.providerEnvironment, 'production');
-    assert.equal(r.body.purchase.amount, 39900);
+    assert.equal(r.body.purchase.amount, 20000);
     assert.match(r.body.preference.checkoutUrl, /^https:\/\/www\.mercadopago\.com\.ar\//);
     assert.deepEqual(restCalls.slice(-1), ['create_tournament_season_production_checkout_purchase']);
     // A body that tries to carry a price, a provider or an environment is refused before the database.

@@ -94,7 +94,7 @@ function projection(over = {}) {
   const id = randomUUID();
   return { schemaVersion: 3, id, organizationId: randomUUID(), seasonId: randomUUID(), tournamentId: null, productCode: 'torneos_premium',
     provider: 'MERCADO_PAGO', providerEnvironment: 'production', providerPreferenceId: null, externalReference: `arma2:season:purchase:${id}`,
-    status: 'created', amount: 39900, listAmount: 49900, currency: 'ARS', createdAt: new Date().toISOString(),
+    status: 'created', amount: 20000, listAmount: 20000, currency: 'ARS', createdAt: new Date().toISOString(),
     preferenceExpiresAt: new Date(Date.now() + 1800_000).toISOString(), ...over };
 }
 
@@ -129,7 +129,7 @@ describe('routes (offline)', () => {
     assert.match(r.body.checkoutUrl, /^https:\/\/www\.mercadopago\.com\.ar\//);
     const pref = mp.preference(r.body.preferenceId);
     assert.equal(pref.idempotencyKey, purchase.id);
-    assert.deepEqual(pref.body.items, [{ id: 'torneos_premium', title: 'Arma2 Torneos Premium', quantity: 1, currency_id: 'ARS', unit_price: 39900 }]);
+    assert.deepEqual(pref.body.items, [{ id: 'torneos_premium', title: 'Arma2 Torneos Premium', quantity: 1, currency_id: 'ARS', unit_price: 20000 }]);
     assert.equal(pref.body.external_reference, purchase.externalReference);
     assert.deepEqual(pref.body.metadata, { purchase_id: purchase.id });
     assert.equal(pref.body.notification_url, LAB_ENV.TORNEOS_PAYMENTS_NOTIFICATION_URL);
