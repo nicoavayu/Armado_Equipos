@@ -58,7 +58,11 @@ export async function storeCall(store: MediaStoreContract, op: string, identity:
   }
   let payload: unknown = null
   try { payload = await response.json() } catch { payload = null }
-  if (response.status >= 500 || response.status === 401 || response.status === 404) throw new MediaStoreUnavailable()
+  // A 404 is the function's own answer only when it says NOT_REMOVED (the object is not there: a real absence). Any
+  // other 404 (an unknown route, a function that is not deployed) is an outage, like 401 and 5xx.
+  const notRemoved = response.status === 404 && payload !== null && typeof payload === "object"
+    && (payload as Record<string, unknown>).error === "NOT_REMOVED"
+  if (response.status >= 500 || response.status === 401 || (response.status === 404 && !notRemoved)) throw new MediaStoreUnavailable()
   return { status: response.status, body: payload && typeof payload === "object" && !Array.isArray(payload) ? payload as Record<string, unknown> : {} }
 }
 

@@ -27,7 +27,7 @@ const path = (n) => `${OWNER}/3000000${n}-0000-4000-8000-000000000003.png`;
 const PNG = new Uint8Array(fs.readFileSync(FIX + 'clean-64x48.png'));
 const JPEG = new Uint8Array(fs.readFileSync(FIX + 'clean-64x48.jpg'));
 
-const fresh = () => ({ identity: true, rest: [], storage: [], store: [], authorize: [], restBody: null, refuse: new Set(),
+const fresh = () => ({ absent: new Set(), deleteStatus: 200, identity: true, rest: [], storage: [], store: [], authorize: [], restBody: null, refuse: new Set(),
   storageStatus: 200, deny: new Set(), authorizeStatus: 200 });
 const world = fresh();
 globalThis.__brandingWorld = world;
@@ -74,7 +74,8 @@ test.before(async () => {
           : { path: p, signedURL: `/object/sign/tournament-branding/${p}?token=t-${p.slice(-8)}`, error: null }))), { status: 200 });
       }
       if (init.method === 'DELETE' && u === `${STORAGE}/object/tournament-branding`) {
-        return new Response(JSON.stringify(JSON.parse(raw).prefixes.map((name) => ({ name }))), { status: 200 });
+        if (world.deleteStatus !== 200) return new Response('{"message":"refused"}', { status: world.deleteStatus });
+        return new Response(JSON.stringify(JSON.parse(raw).prefixes.filter((name) => !world.absent.has(name)).map((name) => ({ name }))), { status: 200 });
       }
       return new Response('{}', { status: world.storageStatus });
     }
@@ -315,4 +316,24 @@ test('the media store refuses anything not signed by the gateway: no signature, 
   assert.equal(unsigned.status, 401, 'a browser with its own bridge token cannot call it');
   const res = await store.handle(new Request('https://x.supabase.co/torneos-media-store/v1/list', { method: 'POST' }), config);
   assert.equal(res.status, 404, 'no other operation exists');
+});
+
+test('removal of an object already gone: 404 «not removed», not an outage; a provider failure stays 503; a missing function stays 503', async () => {
+  const bearer = token();
+  assert.equal((await object(path(6), { method: 'DELETE', raw: null, bearer })).status, 200, 'first removal');
+  world.absent = new Set([path(6)]);
+  const again = await object(path(6), { method: 'DELETE', raw: null, bearer });
+  assert.deepEqual([again.status, await again.json()], [404, { error: 'TORNEOS_BRANDING_OBJECT_NOT_REMOVED' }], 'a repeated removal says what happened');
+  world.absent = new Set();
+  world.deleteStatus = 403;
+  const failed = await object(path(6), { method: 'DELETE', raw: null, bearer });
+  assert.equal(failed.status, 503, 'Storage refusing the service key is a provider failure, never «already gone»');
+  world.deleteStatus = 200;
+  world.deny = new Set([`delete:${path(6)}`]);
+  assert.equal((await object(path(6), { method: 'DELETE', raw: null, bearer })).status, 403, 'authorization still first');
+  world.deny = new Set();
+  const saved = route; route = { handle: async () => new Response('{"error":"NOT_FOUND"}', { status: 404, headers: { 'content-type': 'application/json' } }) };
+  try {
+    assert.equal((await object(path(6), { method: 'DELETE', raw: null, bearer })).status, 503, 'a 404 that is not the store\'s NOT_REMOVED (route / function missing) is an outage');
+  } finally { route = saved; }
 });

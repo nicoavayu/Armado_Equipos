@@ -604,7 +604,12 @@ export function createStagingV1WorkspaceService({
         const reference = await client.execute('set_tournament_branding_reference', {
           p_organization_id: organizationId, p_entity_kind: kind, p_entity_id: entityId, p_path: null,
         });
-        if (reference?.previousPath) await client.brandingObject('DELETE', reference.previousPath);
+        if (reference?.previousPath) {
+          // The object already gone is the state asked for (a repeated «Quitar»); an outage or a refusal still fails.
+          await client.brandingObject('DELETE', reference.previousPath).catch((error) => {
+            if (error?.gatewayError !== 'TORNEOS_BRANDING_OBJECT_NOT_REMOVED') throw error;
+          });
+        }
         return reference;
       } catch (error) {
         throw brandingError(error, kind, 'quitar');

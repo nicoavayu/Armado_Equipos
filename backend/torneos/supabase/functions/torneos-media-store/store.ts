@@ -227,13 +227,13 @@ async function storageDelete(ctx: Ctx, bucket: string, list: string[]): Promise<
   } catch {
     throw new Outage()
   }
-  if (response.status >= 500) { await response.body?.cancel(); throw new Outage() }
-  if (response.status !== 200) { await response.body?.cancel(); return [] }
+  // Storage answers a removal with 200 and the list of what it removed (empty when nothing was there). Any other answer
+  // is a provider failure, never "already absent": a misconfigured key or a refused request must not read as removed.
+  if (response.status !== 200) { await response.body?.cancel(); throw new Outage() }
   let removed: unknown
-  try { removed = await response.json() } catch { return [] }
-  return Array.isArray(removed)
-    ? removed.map((entry) => (entry as { name?: unknown })?.name).filter((name): name is string => typeof name === "string" && list.includes(name))
-    : []
+  try { removed = await response.json() } catch { throw new Outage() }
+  if (!Array.isArray(removed)) throw new Outage()
+  return removed.map((entry) => (entry as { name?: unknown })?.name).filter((name): name is string => typeof name === "string" && list.includes(name))
 }
 
 async function storageSign(ctx: Ctx, bucket: string, list: string[], ttl: number): Promise<Record<string, string>> {

@@ -105,7 +105,7 @@ function recordingTransport(answers = {}) {
     transport: {
       rpc: async (name, params) => { calls.push(['rpc', name, params]); return typeof answers[name] === 'function' ? answers[name](params) : (answers[name] ?? null); },
       // MEDIA-STORE-V1: a POST names the owner; the server answers the versioned name it generated under it.
-      brandingObject: async (method, path) => { calls.push([method, path]); if (answers.fail === method) throw Object.assign(new Error('boom'), { code: 'TORNEOS_UNAVAILABLE' }); return method === 'POST' ? { path: answers.storedPath ?? `${path}/${GENERATED}.png` } : { removed: true }; },
+      brandingObject: async (method, path) => { calls.push([method, path]); if (method === 'DELETE' && answers.deleteError) throw Object.assign(new Error(answers.deleteError.code), answers.deleteError); if (answers.fail === method) throw Object.assign(new Error('boom'), { code: 'TORNEOS_UNAVAILABLE' }); return method === 'POST' ? { path: answers.storedPath ?? `${path}/${GENERATED}.png` } : { removed: true }; },
       clear() {},
       dispose() {},
     },
@@ -132,6 +132,16 @@ describe('hybrid adapter branding', () => {
       { p_organization_id: ORG, p_entity_kind: 'tournament', p_entity_id: TNT, p_path: generated }]);
     expect(removed).toEqual(['DELETE', OTHER]);
     expect(result.path).toBe(generated);
+  });
+
+  test('removing a logo whose object is already gone succeeds; an outage while removing still fails', async () => {
+    const gone = recordingTransport({ set_tournament_branding_reference: { previousPath: OTHER }, deleteError: { code: 'TORNEOS_RPC_ERROR', gatewayError: 'TORNEOS_BRANDING_OBJECT_NOT_REMOVED' } });
+    const service = createStagingV1WorkspaceService({ transport: gone.transport, branding: true });
+    await expect(service.removeBrandingAsset({ organizationId: ORG, kind: 'tournament', entityId: TNT })).resolves.toEqual({ previousPath: OTHER });
+    expect(gone.calls.at(-1)).toEqual(['DELETE', OTHER]);
+    const down = recordingTransport({ set_tournament_branding_reference: { previousPath: OTHER }, deleteError: { code: 'TORNEOS_UNAVAILABLE', gatewayError: null } });
+    const failing = createStagingV1WorkspaceService({ transport: down.transport, branding: true });
+    await expect(failing.removeBrandingAsset({ organizationId: ORG, kind: 'tournament', entityId: TNT })).rejects.toThrow();
   });
 
   test('a stored name outside the requested owner is refused before any reference switch', async () => {
