@@ -170,6 +170,10 @@ export function notificationTarget(item) {
   if ((item.kind === 'match.rescheduled' || item.kind === 'match.postponed') && item.matchId) {
     return `/torneos/mis-partidos/${encodeURIComponent(item.matchId)}`;
   }
+  // 0018: «Las fotos se eliminan en 7 días / mañana» leads to Multimedia, where each photo can still be saved.
+  if (item.kind === 'season.media_deletion_7d' || item.kind === 'season.media_deletion_1d') {
+    return `/torneos/organizacion/${encodeURIComponent(item.organizationId)}/multimedia`;
+  }
   if (item.audience === 'organization') {
     const query = item.teamEntryId ? `?equipo=${encodeURIComponent(item.teamEntryId)}` : '';
     return `/torneos/organizacion/${encodeURIComponent(item.organizationId)}/torneo/${encodeURIComponent(item.tournamentId)}/solicitudes${query}`;

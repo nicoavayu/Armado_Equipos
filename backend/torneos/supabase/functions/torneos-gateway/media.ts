@@ -180,6 +180,9 @@ async function rpc(contract: MediaContract, deps: MediaDeps, token: string, name
 function refusal(outcome: Extract<RpcOutcome, { ok: false }>): MediaResult {
   const status = ({
     TORNEOS_SEASON_MEDIA_QUOTA_EXCEEDED: 422,
+    // 0018: a closed season takes no photo; a photo above 500 000 bytes is refused at its session.
+    TORNEOS_SEASON_MEDIA_CLOSED: 409,
+    TORNEOS_MEDIA_FILE_TOO_LARGE: 422,
     TORNEOS_MEDIA_FILE_INVALID: 422,
     TORNEOS_MEDIA_METADATA_NOT_STRIPPED: 422,
     TORNEOS_MEDIA_UPLOAD_IN_PROGRESS: 409,

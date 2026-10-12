@@ -171,6 +171,35 @@ describe('MEDIA-V1 · organizer', () => {
     expect(screen.queryByText('No pudimos abrir Multimedia')).not.toBeInTheDocument();
   });
 
+  // 0018: the date the season's photos are removed is said before any upload, and each photo can be saved first.
+  const lifecycle = (overrides = {}) => ({ status: 'active', activatedAt: '2026-10-12T15:00:00Z', activationBasis: 'explicit',
+    mediaDeadlineAt: '2027-04-12T15:00:00Z', mediaOpen: true, maxMonths: 6, photosPendingDeletion: 0, ...overrides });
+
+  test('0018: the deletion date is shown before uploading, and «Descargar» saves the full photo under its safe name', async () => {
+    mockContextService = hybridService(adminPayload({ status: 'published', coverAssetId: 'asset-a', assets: [asset('asset-a')] }));
+    mockContextService.loadSeasonMediaUsage.mockResolvedValue({ schemaVersion: 1, seasonId: 'season-a', plan: 'FREE', assetCount: 1,
+      pendingCount: 0, usage: 1, limit: 25, remaining: 24, seasonLifecycle: lifecycle() });
+    mockContextService.signMediaReadUrls.mockImplementation(async (items) => Object.fromEntries(items.map(({ assetId, kind }) => (
+      [`${assetId}:${kind}`, `https://store.example/object/sign/tournament-media/${assetId}-${kind}?token=t`]))));
+    const clicked = [];
+    const click = jest.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function record() { clicked.push(this.href); });
+    renderAdmin();
+    expect(await screen.findByText(/Las fotos y miniaturas de esta temporada se eliminan el 12\/04\/2027 a las 12:00\. Descargá las que quieras conservar antes\./)).toBeInTheDocument();
+    await userEvent.click(await screen.findByRole('button', { name: /Descargar/ }));
+    await waitFor(() => expect(clicked).toEqual(['https://store.example/object/sign/tournament-media/asset-a-detail?token=t&download=foto-asset-a.jpg']));
+    expect(mockContextService.signMediaReadUrls).toHaveBeenCalledWith([{ assetId: 'asset-a', kind: 'detail' }]);
+    click.mockRestore();
+  });
+
+  test('0018: a season that ended says so and offers no download', async () => {
+    mockContextService = hybridService(adminPayload({ status: 'published', coverAssetId: 'asset-a', assets: [asset('asset-a')] }));
+    mockContextService.loadSeasonMediaUsage.mockResolvedValue({ schemaVersion: 1, seasonId: 'season-a', plan: 'FREE', assetCount: 1,
+      pendingCount: 0, usage: 1, limit: 25, remaining: 24, seasonLifecycle: lifecycle({ status: 'completed', mediaOpen: false }) });
+    renderAdmin();
+    expect(await screen.findByText(/La temporada terminó: sus fotos y miniaturas se eliminan y ya no se pueden subir nuevas\./)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Descargar/ })).not.toBeInTheDocument();
+  });
+
   test('published photos can be retired and restored, never erased, in the hybrid composition', async () => {
     mockContextService = hybridService(adminPayload({
       status: 'published', coverAssetId: 'asset-a',

@@ -150,7 +150,9 @@ export const MEDIA_UPLOAD_MESSAGES = Object.freeze({
   TORNEOS_MEDIA_BUSY: ['Hay muchas fotos subiéndose ahora en Arma2 Torneos. Reintentá en unos segundos.', true],
   // Project-wide byte budget: retiring a photo keeps its file, so it frees nothing; only the operator can raise it.
   TORNEOS_MEDIA_STORAGE_BUDGET_EXCEEDED: ['El espacio para fotos de Arma2 Torneos está completo por ahora. Escribinos para seguir subiendo.', false],
-  TORNEOS_MEDIA_TOO_LARGE: ['La foto supera los 4 MB incluso optimizada. Probá con otra.', false],
+  TORNEOS_MEDIA_TOO_LARGE: ['La foto pesa más de 500 KB incluso optimizada. Probá con otra.', false],
+  TORNEOS_MEDIA_FILE_TOO_LARGE: ['La foto pesa más de 500 KB incluso optimizada. Probá con otra.', false],
+  TORNEOS_SEASON_MEDIA_CLOSED: ['La temporada terminó: ya no se pueden subir fotos.', false],
   TORNEOS_MEDIA_TYPE_UNSUPPORTED: ['Formato no admitido. Usá JPEG, PNG o WebP.', false],
   TORNEOS_MEDIA_FILE_INVALID: ['No pudimos verificar esta imagen. Probá con otro archivo.', false],
   TORNEOS_MEDIA_UPLOAD_SESSION_INVALID: ['La preparación de esta foto venció. Reintentá.', true],
@@ -229,6 +231,7 @@ export const COMMERCE_MESSAGES = Object.freeze({
   TORNEOS_CHECKOUT_FAILED: 'No pudimos preparar el pago y no se realizó ningún cobro. Volvé a intentar en unos minutos.',
   TORNEOS_PAYMENTS_UNAVAILABLE: 'El servicio de pagos no está disponible en este momento y no se realizó ningún cobro. Volvé a intentar en unos minutos.',
   TORNEOS_BILLING_DISABLED: 'La compra de Premium todavía no está habilitada para esta organización. No se realizó ningún cobro.',
+  TORNEOS_SEASON_NOT_PURCHASABLE: 'Esta temporada ya terminó: no se puede comprar Premium para ella. No se realizó ningún cobro.',
 });
 
 function commerceCodeOf(error) {
@@ -914,6 +917,7 @@ export function createStagingV1WorkspaceService({
     ),
     updateSeason: ({
       organizationId, seasonId, name = null, slug = null, startDate = null, endDate = null, status = null,
+      confirmMediaDeletion = false,
     }) => call(
       'update_tournament_season',
       {
@@ -926,6 +930,8 @@ export function createStagingV1WorkspaceService({
         p_status: status,
         p_clear_start_date: startDate === '',
         p_clear_end_date: endDate === '',
+        // 0018: only sent once the organizer confirmed that finishing early removes the season's photos.
+        ...(confirmMediaDeletion === true ? { p_confirm_media_deletion: true } : {}),
       },
       'No pudimos actualizar la temporada.',
     ),

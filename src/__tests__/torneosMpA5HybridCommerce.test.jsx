@@ -69,7 +69,7 @@ function competition() {
   };
 }
 
-function entitlements({ plan = TOURNAMENT_PLANS.FREE, listPrice = 51000, launchPrice = 41000, assignmentSource } = {}) {
+function entitlements({ plan = TOURNAMENT_PLANS.FREE, listPrice = 51000, launchPrice = 41000, assignmentSource, seasonLifecycle } = {}) {
   const payload = tournamentEntitlementsFixture({
     organizationId: ORG,
     seasonId: SEASON,
@@ -78,7 +78,7 @@ function entitlements({ plan = TOURNAMENT_PLANS.FREE, listPrice = 51000, launchP
     ...(assignmentSource ? { assignmentSource } : {}),
   });
   // Server projection prices that differ from any launch constant: the page must print these.
-  return { ...payload, pricing: { ...payload.pricing, listPrice, launchPrice } };
+  return { ...payload, pricing: { ...payload.pricing, listPrice, launchPrice }, ...(seasonLifecycle ? { seasonLifecycle } : {}) };
 }
 const premium = () => entitlements({ plan: TOURNAMENT_PLANS.PREMIUM, assignmentSource: TOURNAMENT_PLAN_SOURCES.PURCHASE });
 
@@ -281,7 +281,7 @@ describe('COMMERCE-PRODUCTION: Mi plan sells Premium with the purchase overlay (
     const panel = await screen.findByRole('region', { name: 'Pasá Apertura 2026 a Premium' });
     expect(panel).toHaveTextContent(/41\.000/);
     expect(panel).toHaveTextContent(/51\.000/);
-    expect(panel).toHaveTextContent('ARS · por temporada');
+    expect(panel).toHaveTextContent('ARS finales · por temporada');
     expect(panel).toHaveTextContent('Pago único. No es una suscripción: no se renueva ni se vuelve a cobrar.');
     expect(panel).toHaveTextContent('Incluye todos los torneos de esta temporada.');
     expect(panel).toHaveTextContent('Entorno de prueba: no se cobra dinero real.');
@@ -292,6 +292,41 @@ describe('COMMERCE-PRODUCTION: Mi plan sells Premium with the purchase overlay (
     expect(adapter.createCheckout).toHaveBeenCalledTimes(1);
     expect(adapter.createCheckout).toHaveBeenCalledWith({ organizationId: ORG, seasonId: SEASON, idempotencyKey: KEY });
     expect(adapter.loadSeasonPurchases).toHaveBeenCalledWith({ organizationId: ORG, seasonId: SEASON });
+  });
+
+  // 0018/0019: «Precio de lanzamiento: ARS 20.000 finales por temporada», the deadline before paying, a closed season.
+  const lifecycle = (overrides = {}) => ({ status: 'active', activatedAt: '2026-10-12T15:00:00Z', activationBasis: 'explicit',
+    mediaDeadlineAt: '2027-04-12T15:00:00Z', mediaOpen: true, maxMonths: 6, photosPendingDeletion: 0, ...overrides });
+
+  test('0019: the launch price is the only price (nothing struck through), with the deadline and the photo rule before paying', async () => {
+    const adapter = createAdapter({ seasonEntitlements: entitlements({ listPrice: 20000, launchPrice: 20000, seasonLifecycle: lifecycle() }) });
+    renderHybrid(PLAN_PATH, { adapter });
+    const panel = await screen.findByRole('region', { name: 'Pasá Apertura 2026 a Premium' });
+    expect(panel).toHaveTextContent(/20\.000/);
+    expect(panel).not.toHaveTextContent('Precio habitual');
+    expect(panel.querySelector('s')).toBeNull();
+    expect(panel).toHaveTextContent('ARS finales · por temporada');
+    expect(panel).toHaveTextContent('La temporada vence el 12/04/2027 a las 12:00: dura hasta 6 meses desde que la activaste. Comprar Premium no cambia esa fecha.');
+    expect(panel).toHaveTextContent('Al terminar la temporada se eliminan sus fotos y miniaturas. Los resultados, tablas e historial se conservan.');
+    expect(within(panel).getByRole('button', { name: 'Pagar con Mercado Pago' })).toBeEnabled();
+  });
+
+  test('0019: a season that ended is never offered for purchase', async () => {
+    const adapter = createAdapter({ seasonEntitlements: entitlements({ listPrice: 20000, launchPrice: 20000,
+      seasonLifecycle: lifecycle({ status: 'completed', mediaOpen: false }) }) });
+    renderHybrid(PLAN_PATH, { adapter });
+    const panel = await screen.findByRole('region', { name: 'Pasá Apertura 2026 a Premium' });
+    expect(panel).toHaveTextContent('Esta temporada ya terminó: no se puede comprar Premium para ella.');
+    expect(within(panel).queryByRole('button', { name: 'Pagar con Mercado Pago' })).not.toBeInTheDocument();
+  });
+
+  test('0019: a payment approved after the season ended shows no Premium and says it will be refunded', async () => {
+    const adapter = createAdapter({ seasonEntitlements: entitlements({ seasonLifecycle: lifecycle({ status: 'completed', mediaOpen: false }) }) });
+    adapter.loadSeasonPurchases.mockResolvedValue(seasonPurchases([purchase('approved', { activationErrorCode: 'season_closed', approvedAt: '2027-04-13T10:00:00Z' })]));
+    renderHybrid(PLAN_PATH, { adapter });
+    const panel = await screen.findByRole('region', { name: 'Recibimos el pago después de que terminó la temporada' });
+    expect(panel).toHaveTextContent('Ese pago no activa Premium porque la temporada ya había terminado. Te lo vamos a devolver por Mercado Pago');
+    expect(within(panel).queryByRole('button')).not.toBeInTheDocument();
   });
 
   test('PREMIUM: confirmation of the paid season, no purchase offered', async () => {

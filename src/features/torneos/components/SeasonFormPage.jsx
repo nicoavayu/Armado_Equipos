@@ -23,6 +23,11 @@ import { WorkspaceError, WorkspaceLoading } from './WorkspaceState';
 import styles from './CompetitionCore.module.css';
 import { capturePremiumIntent, hasPendingPremiumIntent, withPremiumIntent } from '../domain/premiumIntent';
 
+const SEASON_ACTIVATE_CONFIRM = '¿Activar la temporada? Desde ahora dura hasta 6 meses: al terminar se eliminan sus fotos y '
+  + 'miniaturas (los resultados, tablas e historial se conservan). Comprar Premium no cambia ese plazo.';
+const SEASON_COMPLETE_CONFIRM = '¿Marcar la temporada como completada? Se eliminan todas sus fotos y miniaturas, también las '
+  + 'publicadas, y no se pueden recuperar. Descargá antes las que quieras conservar. Los resultados, tablas e historial se conservan.';
+
 export default function SeasonFormPage() {
   const { organization } = useOutletContext();
   const { seasonId } = useParams();
@@ -133,10 +138,13 @@ export default function SeasonFormPage() {
   };
 
   const changeStatus = async (nextStatus) => {
+    // 0018: activating starts the six months; finishing removes the season's photos (they cannot be recovered).
+    if (nextStatus === 'active' && !window.confirm(SEASON_ACTIVATE_CONFIRM)) return;
+    if (nextStatus === 'completed' && !window.confirm(SEASON_COMPLETE_CONFIRM)) return;
     setBusy(nextStatus);
     setFormError('');
     try {
-      await updateSeason({ seasonId: season.id, status: nextStatus });
+      await updateSeason({ seasonId: season.id, status: nextStatus, ...(nextStatus === 'completed' ? { confirmMediaDeletion: true } : {}) });
       if (nextStatus === 'archived') {
         navigate(canonicalRoutes.organizationTournaments(organization.id), { replace: true });
       }

@@ -15,6 +15,7 @@ import {
   Camera,
   Check,
   CheckCircle2,
+  Download,
   Eye,
   EyeOff,
   FileImage,
@@ -33,6 +34,7 @@ import {
 } from 'lucide-react';
 import { useParams } from 'react-router-dom';
 import { useTorneosWorkspace } from '../context/TorneosWorkspaceContext';
+import { formatSeasonDeadline, normalizeSeasonLifecycle } from '../domain/seasonLifecycle';
 import {
   MEDIA_ASSET_STATE_LABELS,
   MEDIA_LIMITS,
@@ -173,7 +175,7 @@ function DeletePhotoDialog({ busy, onCancel, onConfirm }) {
 }
 
 function AssetPreview({
-  asset, cover, gallery, capabilities, onAction, onMove, thumbnailUrl, lastOrder, canErase = true,
+  asset, cover, gallery, capabilities, onAction, onMove, thumbnailUrl, lastOrder, canErase = true, onDownload = null,
 }) {
   // Four ready variants is the same gate the database enforces on approval, so
   // the card can say "procesando" without guessing.
@@ -284,6 +286,14 @@ function AssetPreview({
           )}
         </div>
       )}
+      {/* 0018: before the season ends, any photo can be saved (the server signs it only while the season is open). */}
+      {!processing && onDownload && (
+        <div className={styles.assetActionRow}>
+          <button type="button" className={styles.assetGhostAction} onClick={() => onDownload(asset)}>
+            <Download size={15} aria-hidden="true" /> Descargar
+          </button>
+        </div>
+      )}
     </article>
   );
 }
@@ -312,6 +322,7 @@ export default function MediaAdminPage() {
   const [thumbnails, setThumbnails] = useState({});
   const [pendingDelete, setPendingDelete] = useState(null);
   const [seasonUsage, setSeasonUsage] = useState(null);
+  const seasonLifecycle = normalizeSeasonLifecycle(seasonUsage?.seasonLifecycle);
   queueRef.current = queue;
   // MEDIA-V1: the hybrid composition retires photos (hide / revoke); permanent erasure exists only where the service
   // offers it.
@@ -737,6 +748,24 @@ export default function MediaAdminPage() {
     }
   };
 
+  // 0018: one photo saved to the device — a fresh signed read of the full photo with Storage's `download` parameter, so the
+  // browser saves it under its safe name. Nothing is kept: the URL lives 300 s and is used once.
+  const downloadAsset = async (asset) => {
+    try {
+      const urls = await service.signMediaReadUrls([{ assetId: asset.id, kind: 'detail' }]);
+      const url = urls[`${asset.id}:detail`];
+      if (!url) throw new Error('unsigned');
+      const link = document.createElement('a');
+      link.href = `${url}${url.includes('?') ? '&' : '?'}download=${encodeURIComponent(asset.safeName)}`;
+      link.rel = 'noopener';
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch {
+      setNotice('No pudimos preparar la descarga de esa foto. Reintentá en unos segundos.');
+    }
+  };
+
   // Thumbnails are signed on demand and never persisted: the projection from
   // the database carries no URL at all, by design.
   useEffect(() => {
@@ -832,6 +861,14 @@ export default function MediaAdminPage() {
           <em>{seasonUsage.usage} / {seasonUsage.limit}</em>
           <i aria-hidden="true"><b style={{ width: `${Math.min(100, Math.round((seasonUsage.usage / Math.max(1, seasonUsage.limit)) * 100))}%` }} /></i>
         </div>
+      )}
+      {/* 0018: the date the season's photos are removed, before any upload; and the closed state. */}
+      {seasonLifecycle && seasonLifecycle.status !== 'draft' && formatSeasonDeadline(seasonLifecycle.mediaDeadlineAt) && (
+        <p className={styles.seasonDeadline} role="note">
+          {seasonLifecycle.mediaOpen
+            ? `Las fotos y miniaturas de esta temporada se eliminan el ${formatSeasonDeadline(seasonLifecycle.mediaDeadlineAt)}. Descargá las que quieras conservar antes. Los resultados, tablas e historial se conservan.`
+            : 'La temporada terminó: sus fotos y miniaturas se eliminan y ya no se pueden subir nuevas. Los resultados, tablas e historial se conservan.'}
+        </p>
       )}
 
       {quotaSeasonId && quotaSeasonId === planCompetition?.activeSeason?.id && planCompetition?.planState?.status === 'ready'
@@ -1081,6 +1118,8 @@ export default function MediaAdminPage() {
                       lastOrder={selectedGallery.assets.length - 1}
                       thumbnailUrl={thumbnails[`${asset.id}:thumbnail`] || ''}
                       canErase={canErase}
+                      onDownload={typeof service.signMediaReadUrls === 'function' && seasonLifecycle?.mediaOpen !== false
+                        ? downloadAsset : null}
                     />
                   ))}
                 </div>

@@ -261,11 +261,65 @@ begin
 end;
 $$;
 
+CREATE OR REPLACE FUNCTION public.get_tournament_season_purchases(p_organization_id uuid, p_season_id uuid) RETURNS jsonb
+    LANGUAGE plpgsql STABLE SECURITY DEFINER
+    SET search_path TO ''
+    AS $$
+declare
+  v_uid uuid := private.current_identity_id();
+  v_manage boolean;
+  v_available boolean;
+  v_items jsonb;
+begin
+  if v_uid is null then
+    raise exception using errcode = '42501', message = 'TORNEOS_AUTH_REQUIRED';
+  end if;
+  if p_organization_id is null or p_season_id is null
+    or not exists (
+      select 1 from public.tournament_seasons season
+      where season.organization_id = p_organization_id and season.id = p_season_id
+    )
+    or not public.has_tournament_season_access(p_organization_id,p_season_id) then
+    raise exception using errcode = '42501', message = 'TORNEOS_PURCHASE_FORBIDDEN';
+  end if;
+  v_manage := public.has_tournament_organization_capability(p_organization_id,'billing.manage')
+    and public.has_tournament_season_capability(p_organization_id,p_season_id,'billing.manage');
+  select coalesce(jsonb_agg(item order by created_at desc), '[]'::jsonb) into v_items from (
+    select purchase.created_at, jsonb_build_object(
+      'id',purchase.id,'status',purchase.status,'provider',purchase.provider,
+      'providerEnvironment',purchase.provider_environment,'productCode',purchase.product_code,
+      'listAmount',purchase.list_amount_snapshot,'amount',purchase.amount_snapshot,'currency',purchase.currency,
+      'providerStatus',purchase.provider_status,'preferenceExpiresAt',purchase.preference_expires_at,
+      'approvedAt',purchase.approved_at,'entitlementActivatedAt',purchase.entitlement_activated_at,
+      'refundedAt',purchase.refunded_at,'chargedBackAt',purchase.charged_back_at,'cancelledAt',purchase.cancelled_at,
+      'createdAt',purchase.created_at,'updatedAt',purchase.updated_at,'boughtByMe',purchase.buyer_user_id = v_uid
+    ) item
+    from public.tournament_purchases purchase
+    where purchase.organization_id = p_organization_id and purchase.season_id = p_season_id
+      and purchase.product_code = 'torneos_premium'
+      and (v_manage or purchase.buyer_user_id = v_uid)
+    order by purchase.created_at desc
+    limit 20
+  ) listed;
+  -- Whether a production purchase can start for this organization now (the operator switch): Mi plan never offers a
+  -- payment the server would refuse.
+  select settings.checkout_scope = 'open' or (settings.checkout_scope = 'allowlist' and exists (
+    select 1 from public.tournament_commerce_production_allowlist allowed where allowed.organization_id = p_organization_id))
+  into v_available
+  from public.tournament_commerce_production_settings settings where settings.singleton;
+  return jsonb_build_object('schemaVersion',1,'organizationId',p_organization_id,'seasonId',p_season_id,
+    'canManageBilling',v_manage,'checkoutAvailable',coalesce(v_available,false),'purchases',v_items);
+end;
+$$;
+
 DO $post$
 BEGIN
   IF (SELECT md5(prosrc) FROM pg_proc WHERE oid = to_regprocedure('public.create_tournament_season_production_checkout_purchase(uuid,uuid,uuid)')) IS DISTINCT FROM 'fc9559b0c1fb1b070c13ab1be0bda395'
     OR (SELECT md5(prosrc) FROM pg_proc WHERE oid = to_regprocedure('private.activate_production_tournament_purchase(uuid,text,text,text)')) IS DISTINCT FROM 'abe70db7fc988f0e06a505f63aeca330' THEN
     RAISE EXCEPTION 'TORNEOS_0019_ROLLBACK_POSTCONDITION_FAILED: 0013 bodies';
+  END IF;
+  IF (SELECT md5(prosrc) FROM pg_proc WHERE oid = to_regprocedure('public.get_tournament_season_purchases(uuid,uuid)')) IS DISTINCT FROM '484f63507d2e789bf0d15381c0a5d9ac' THEN
+    RAISE EXCEPTION 'TORNEOS_0019_ROLLBACK_POSTCONDITION_FAILED: season purchases read';
   END IF;
 END $post$;
 COMMIT;

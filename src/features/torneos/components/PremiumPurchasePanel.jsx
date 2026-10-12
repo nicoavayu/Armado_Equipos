@@ -8,6 +8,7 @@ import { isCheckoutProUrl } from '../domain/checkoutRedirect';
 import {
   canContinueCheckout, formatArs, formatPurchaseDate, purchaseStatusCopy, seasonPurchaseSummary,
 } from '../domain/premiumPurchase';
+import { SEASON_MEDIA_DELETION_COPY, seasonDeadlineCopy } from '../domain/seasonLifecycle';
 import styles from './PremiumPurchasePanel.module.css';
 
 const INVALID_CHECKOUT_URL = 'Mercado Pago devolvió una dirección de pago inválida. No se realizó ningún cobro.';
@@ -52,6 +53,14 @@ export default function PremiumPurchasePanel({ organization, season, entitlement
 
   const pricing = entitlements?.pricing || null;
   const isPremium = entitlements?.plan === 'PREMIUM';
+  // 0018/0019: the deadline the server stated, shown before paying; a season that ended is never offered.
+  const lifecycle = entitlements?.seasonLifecycle || null;
+  const seasonEnded = Boolean(lifecycle && lifecycle.status !== 'draft' && !lifecycle.mediaOpen);
+  const deadlineNote = lifecycle ? (
+    <p className={styles.note}>
+      {seasonDeadlineCopy(lifecycle)}{!seasonEnded && ' Comprar Premium no cambia esa fecha.'} {SEASON_MEDIA_DELETION_COPY}
+    </p>
+  ) : null;
   const summary = seasonPurchaseSummary(purchases.data);
   const canManage = typeof purchases.data?.canManageBilling === 'boolean'
     ? purchases.data.canManageBilling : ['owner', 'admin'].includes(organization?.role);
@@ -116,6 +125,7 @@ export default function PremiumPurchasePanel({ organization, season, entitlement
           </dl>
         )}
         <p className={styles.note}>No es una suscripción: no se renueva ni se vuelve a cobrar.</p>
+        {deadlineNote}
         {paid && <Link className={styles.secondary} to={statusLink(paid)}>Ver la compra</Link>}
         {environmentNote}
       </section>
@@ -132,6 +142,22 @@ export default function PremiumPurchasePanel({ organization, season, entitlement
         <p className={styles.lead}>
           El pago de Premium de esta temporada está en disputa en Mercado Pago. Mientras se resuelve, la temporada funciona
           como FREE y no se puede iniciar otra compra. No se borró nada de lo cargado.
+        </p>
+        <Link className={styles.secondary} to={statusLink(summary.purchase)}>Ver la compra</Link>
+      </section>
+    );
+  }
+
+  if (summary.kind === 'late_payment') {
+    return (
+      <section className={styles.panel} data-state="warning" aria-labelledby="premium-purchase-title">
+        <header className={styles.heading}>
+          <AlertTriangle size={22} aria-hidden="true" />
+          <div><span>PAGO FUERA DE PLAZO</span><h2 id="premium-purchase-title">Recibimos el pago después de que terminó la temporada</h2></div>
+        </header>
+        <p className={styles.lead}>
+          Ese pago no activa Premium porque la temporada ya había terminado. Te lo vamos a devolver por Mercado Pago;
+          la devolución se ve acá cuando se procese.
         </p>
         <Link className={styles.secondary} to={statusLink(summary.purchase)}>Ver la compra</Link>
       </section>
@@ -190,19 +216,22 @@ export default function PremiumPurchasePanel({ organization, season, entitlement
             <small>Precio habitual <s>{formatArs(pricing.listPrice)}</s></small>
           )}
           {entitlements?.offer?.label && <span>{entitlements.offer.label}</span>}
-          <div className={styles.amount}><strong>{formatArs(pricing.launchPrice)}</strong><em>ARS · por temporada</em></div>
+          <div className={styles.amount}><strong>{formatArs(pricing.launchPrice)}</strong><em>ARS finales · por temporada</em></div>
           <p>Pago único. No es una suscripción: no se renueva ni se vuelve a cobrar.</p>
         </div>
       ) : (
         <p className={styles.lead}>No pudimos consultar el precio de esta temporada. Reintentá en unos momentos.</p>
       )}
       <p className={styles.lead}>Incluye todos los torneos de esta temporada. Otras temporadas tienen su propio plan.</p>
+      {deadlineNote}
       {premiumRows.length > 0 && (
         <ul className={styles.benefits} aria-label="Qué agrega Premium">
           {premiumRows.map(({ name, premium }) => <li key={name}><CheckCircle2 size={15} aria-hidden="true" /><span><strong>{name}</strong>{premium}</span></li>)}
         </ul>
       )}
-      {checkoutAvailable ? (
+      {seasonEnded ? (
+        <p className={styles.note}>Esta temporada ya terminó: no se puede comprar Premium para ella.</p>
+      ) : checkoutAvailable ? (
         <>
           <div className={styles.actions}>
             <button type="button" className={styles.primary} onClick={beginCheckout} disabled={!canManage || !pricing || busy}>

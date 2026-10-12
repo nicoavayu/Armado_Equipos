@@ -49,8 +49,8 @@ export const PLAN_COMING_SOON = Object.freeze([
   {
     name: 'Galería de fotos',
     summary: 'Fotos de la temporada.',
-    free: ['Hasta 25 archivos'],
-    premium: ['Hasta 1.000 archivos'],
+    free: ['Hasta 25 fotos'],
+    premium: ['Hasta 100 fotos'],
   },
   {
     name: 'Logos y escudos',
@@ -73,12 +73,12 @@ export const PLAN_SOCIAL_STUDIO_ROW = Object.freeze({
 
 // MEDIA-V1: la fila de la galería cuando está disponible. Las cifras son las del
 // catálogo de planes (tournament_plan_catalog.gallery_asset_limit: FREE 25,
-// PREMIUM 1000 fotos por temporada), las mismas que el servidor cuenta en cada
+// PREMIUM 100 fotos por temporada desde 0018), las mismas que el servidor cuenta en cada
 // carga; un test las ata al catálogo.
 export const PLAN_MEDIA_GALLERY_ROW = Object.freeze({
   name: 'Galería de fotos',
   free: 'Hasta 25 fotos por temporada',
-  premium: 'Hasta 1.000 fotos por temporada',
+  premium: 'Hasta 100 fotos por temporada',
 });
 
 // BRANDING-V1: logos y escudos, cuando la composición los ofrece. Están en los

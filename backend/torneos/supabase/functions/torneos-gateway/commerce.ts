@@ -97,6 +97,8 @@ const DB_REFUSALS: Record<string, [number, string]> = {
   TORNEOS_PURCHASE_INVALID: [400, "TORNEOS_CHECKOUT_INVALID"],
   TORNEOS_AUTH_REQUIRED: [401, "access denied"],
   TORNEOS_BILLING_DISABLED: [409, "TORNEOS_BILLING_DISABLED"],
+  // 0019: the season ended (completed, archived or past its deadline): no purchase starts or continues.
+  TORNEOS_SEASON_NOT_PURCHASABLE: [409, "TORNEOS_SEASON_NOT_PURCHASABLE"],
 }
 // torneos-payments internal answers (MP-A3 contract) → gateway answer. Anything unlisted is a contract fault (502).
 const PAYMENTS_REFUSALS: Record<string, [number, string]> = {

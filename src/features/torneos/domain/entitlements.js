@@ -1,3 +1,4 @@
+import { normalizeSeasonLifecycle } from './seasonLifecycle';
 export const TOURNAMENT_PLANS = Object.freeze({
   FREE: 'FREE',
   PREMIUM: 'PREMIUM',
@@ -138,6 +139,8 @@ export function normalizeTournamentEntitlements(payload, expectedScope = null) {
       billingModel: payload.pricing.billingModel,
       scope: payload.pricing.scope,
     } : null,
+    // 0018: the season's deadline and media state, as the server sent it (null when absent or untrusted).
+    seasonLifecycle: isTrusted ? normalizeSeasonLifecycle(payload?.seasonLifecycle) : null,
     offer: isTrusted && payload?.offer ? {
       code: payload.offer.code || null,
       version: Number.isInteger(payload.offer.version) ? payload.offer.version : null,

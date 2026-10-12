@@ -1,5 +1,5 @@
 {
-  "generatedFrom": "26aabd8e440f805b5e108780ac28a3c071092de7",
+  "generatedFrom": "c9f540fb29a36e5a124c523836efd3798647f35d",
   "legacyBase": "2058da039a2a5eaaed22d87d01946bc596ae5f50",
   "coreSingletonSha256": "f39572e4cab0fd287bd1dea2ca87c97bd5500d0eff57cb8de6160f1e3271600c",
   "reachableCallSignatures": {
@@ -483,7 +483,7 @@
     },
     {
       "file": "src/features/torneos/components/MediaAdminPage.jsx",
-      "line": 35,
+      "line": 36,
       "source": "../context/TorneosWorkspaceContext"
     },
     {

@@ -12,6 +12,8 @@
 --   * tournament_pricing_config (read by no function): CHECK launch < list relaxed to <=, both 20000, comment says so.
 --   * create_tournament_season_production_checkout_purchase: a season that is not open (completed, archived or past its
 --     deadline) cannot be bought nor an open purchase continued → 55000 TORNEOS_SEASON_NOT_PURCHASABLE.
+--   * get_tournament_season_purchases (Mi plan): each purchase carries activationErrorCode, and checkoutAvailable is false
+--     for a closed season.
 --   * private.activate_production_tournament_purchase: a payment approved for a closed season never grants Premium; it is
 --     recorded as approved + activation_error_code 'season_closed' + event payment.approved_season_closed, for a manual
 --     refund. Webhook replays stay idempotent; a different payment id is TORNEOS_PAYMENT_CONFLICT.
@@ -21,6 +23,10 @@ BEGIN;
 DO $pre$
 DECLARE v_md5 text;
 BEGIN
+  SELECT md5(prosrc) INTO v_md5 FROM pg_proc WHERE oid = to_regprocedure('public.get_tournament_season_purchases(uuid,uuid)');
+  IF v_md5 IS DISTINCT FROM '484f63507d2e789bf0d15381c0a5d9ac' THEN
+    RAISE EXCEPTION 'TORNEOS_0019_PRECONDITION_FAILED: the 0013 season purchases read is not in force (%)', v_md5;
+  END IF;
   IF to_regprocedure('private.tournament_season_media_open(uuid,uuid)') IS NULL THEN
     RAISE EXCEPTION 'TORNEOS_0019_PRECONDITION_FAILED: 00000000000018 is not in force';
   END IF;
@@ -348,6 +354,61 @@ begin
 end;
 $$;
 
+-- ============================================================================================ Mi plan read
+CREATE OR REPLACE FUNCTION public.get_tournament_season_purchases(p_organization_id uuid, p_season_id uuid) RETURNS jsonb
+    LANGUAGE plpgsql STABLE SECURITY DEFINER
+    SET search_path TO ''
+    AS $$
+declare
+  v_uid uuid := private.current_identity_id();
+  v_manage boolean;
+  v_available boolean;
+  v_items jsonb;
+begin
+  if v_uid is null then
+    raise exception using errcode = '42501', message = 'TORNEOS_AUTH_REQUIRED';
+  end if;
+  if p_organization_id is null or p_season_id is null
+    or not exists (
+      select 1 from public.tournament_seasons season
+      where season.organization_id = p_organization_id and season.id = p_season_id
+    )
+    or not public.has_tournament_season_access(p_organization_id,p_season_id) then
+    raise exception using errcode = '42501', message = 'TORNEOS_PURCHASE_FORBIDDEN';
+  end if;
+  v_manage := public.has_tournament_organization_capability(p_organization_id,'billing.manage')
+    and public.has_tournament_season_capability(p_organization_id,p_season_id,'billing.manage');
+  select coalesce(jsonb_agg(item order by created_at desc), '[]'::jsonb) into v_items from (
+    select purchase.created_at, jsonb_build_object(
+      'id',purchase.id,'status',purchase.status,'provider',purchase.provider,
+      'providerEnvironment',purchase.provider_environment,'productCode',purchase.product_code,
+      'listAmount',purchase.list_amount_snapshot,'amount',purchase.amount_snapshot,'currency',purchase.currency,
+      'providerStatus',purchase.provider_status,'preferenceExpiresAt',purchase.preference_expires_at,
+      'approvedAt',purchase.approved_at,'entitlementActivatedAt',purchase.entitlement_activated_at,
+      'refundedAt',purchase.refunded_at,'chargedBackAt',purchase.charged_back_at,'cancelledAt',purchase.cancelled_at,
+      'activationErrorCode',purchase.activation_error_code,
+      'createdAt',purchase.created_at,'updatedAt',purchase.updated_at,'boughtByMe',purchase.buyer_user_id = v_uid
+    ) item
+    from public.tournament_purchases purchase
+    where purchase.organization_id = p_organization_id and purchase.season_id = p_season_id
+      and purchase.product_code = 'torneos_premium'
+      and (v_manage or purchase.buyer_user_id = v_uid)
+    order by purchase.created_at desc
+    limit 20
+  ) listed;
+  -- Whether a production purchase can start for this organization now (the operator switch): Mi plan never offers a
+  -- payment the server would refuse.
+  select settings.checkout_scope = 'open' or (settings.checkout_scope = 'allowlist' and exists (
+    select 1 from public.tournament_commerce_production_allowlist allowed where allowed.organization_id = p_organization_id))
+  into v_available
+  from public.tournament_commerce_production_settings settings where settings.singleton;
+  -- 0019: a closed season (completed, archived or past its deadline) is never offered for purchase.
+  v_available := coalesce(v_available,false) and private.tournament_season_media_open(p_organization_id,p_season_id);
+  return jsonb_build_object('schemaVersion',1,'organizationId',p_organization_id,'seasonId',p_season_id,
+    'canManageBilling',v_manage,'checkoutAvailable',coalesce(v_available,false),'purchases',v_items);
+end;
+$$;
+
 DO $post$
 DECLARE v_md5 text; v_offer record;
 BEGIN
@@ -358,6 +419,10 @@ BEGIN
   SELECT md5(prosrc) INTO v_md5 FROM pg_proc WHERE oid = to_regprocedure('private.activate_production_tournament_purchase(uuid,text,text,text)');
   IF v_md5 IS DISTINCT FROM '5789b8dedcdb0df08f65f685b93e0ecb' THEN
     RAISE EXCEPTION 'TORNEOS_0019_POSTCONDITION_FAILED: activation body (%)', v_md5;
+  END IF;
+  SELECT md5(prosrc) INTO v_md5 FROM pg_proc WHERE oid = to_regprocedure('public.get_tournament_season_purchases(uuid,uuid)');
+  IF v_md5 IS DISTINCT FROM '2c96bc3721e910d997ff32567b46121d' THEN
+    RAISE EXCEPTION 'TORNEOS_0019_POSTCONDITION_FAILED: season purchases read body (%)', v_md5;
   END IF;
   SELECT * INTO v_offer FROM public.tournament_commercial_offers offer
   WHERE offer.product_code = 'torneos_premium' AND offer.availability = 'available'
