@@ -67,6 +67,10 @@ const VISIBILITY_LABELS = {
 // RPC is not on the gateway's allowlist): a gallery with that visibility would be visible to staff only. It is not
 // offered when creating; the label stays for any gallery that already has it.
 const CREATABLE_VISIBILITIES = Object.keys(VISIBILITY_LABELS).filter((value) => value !== 'related_teams');
+// Retiring is reversible but not free: a retired photo still counts toward the season's photo quota (only rejected
+// ones do not). Said before (button description) and after (notice), since a phone shows no hover text.
+const RETIRE_HINT = 'Deja de verse para los participantes. Sigue contando para el cupo de fotos de la temporada y se puede restaurar.';
+const RETIRED_NOTICE = 'Foto retirada: ya no la ven los participantes. Sigue contando para el cupo de la temporada y podés restaurarla.';
 const EMPTY_FORM = {
   tournamentId: '',
   categoryId: '',
@@ -226,6 +230,7 @@ function AssetPreview({
                 <button
                   type="button"
                   className={styles.assetGhostAction}
+                  title={RETIRE_HINT}
                   onClick={() => onAction(asset, 'hide')}
                 >
                   <EyeOff size={15} aria-hidden="true" /> Retirar
@@ -644,11 +649,11 @@ export default function MediaAdminPage() {
       && !selectedGallery.assets.some((other) => other.id !== asset.id && other.status === 'published');
     if (lastPublished && !window.confirm(
       '¿Retirar la única foto publicada? La galería volverá a borrador: dejará de verse para los participantes '
-      + 'hasta que la publiques de nuevo.',
+      + 'hasta que la publiques de nuevo. La foto sigue contando para el cupo de fotos de la temporada.',
     )) return;
     actOnAsset(asset, action, lastPublished ? {
       done: 'La galería volvió a borrador. Restaurá la foto o aprobá otra, elegí la portada y publicala de nuevo.',
-    } : {});
+    } : action === 'hide' ? { done: RETIRED_NOTICE } : {});
   };
 
   const confirmDelete = () => {
