@@ -1345,7 +1345,8 @@ export default function TournamentWizardPage() {
             <section className={styles.checklistPanel}>
               <div>
                 <span className={styles.kicker}>Validación real</span>
-                <h3>Listo para preparar inscripción</h3>
+                {/* Said only when the server's checklist is ready: the button below stays disabled otherwise. */}
+                <h3>{tournament?.checklist?.ready ? 'Listo para preparar inscripción' : 'Falta completar lo marcado para preparar la inscripción'}</h3>
               </div>
               <ul>
                 {CHECKLIST_ITEMS.map((item) => {
