@@ -18,8 +18,13 @@
 //     full container walk), ≤ 2 MiB, ≤ 4096 px per edge, orientation 1; metadata is stripped before storing;
 //   • media-put: the name is the one the database issued for the caller's live upload session (it is only accepted if
 //     authorize says the session claim may write it); the bytes must already be normalized (no metadata, orientation 1)
-//     and within the MVP_SIMPLE limits (photo) or the thumbnail limits (JPEG ≤ 640 px, ≤ 512 KiB);
-//   • the *-sign operations sign only the names authorize returns (branding 3600 s, media 300 s).
+//     and within the MVP_SIMPLE limits (photo) or the thumbnail limits (JPEG ≤ 640 px, ≤ 500 000 bytes);
+//   • the *-sign operations sign only the names authorize returns (branding 3600 s, media 300 s);
+//   • media-purge (0018): the season-end removal. Signed with its OWN secret (TORNEOS_MEDIA_PURGE_SECRET; without it the
+//     operation does not exist) and no user identity: the scheduler never holds the gateway's secret. The database
+//     decides everything (claim_tournament_media_purge leases photos of closed seasons and lists their orphans); this
+//     function only removes those objects in the media bucket and confirms each photo (complete_tournament_media_purge).
+//     A photo whose objects could not be removed is not confirmed: its lease expires and the next run retries it.
 //
 // It never logs or returns a key, a token or a signed URL in an error; errors are fixed codes.
 import { inspectImage, MediaImageError, verifyNormalizedImage } from "../torneos-gateway/media-image.ts"
@@ -42,17 +47,22 @@ const EXTENSION: Readonly<Record<string, string>> = Object.freeze({ "image/jpeg"
 export const BRANDING_LIMITS = Object.freeze({ maxFileBytes: 2 * 1024 * 1024, maxPixels: 4096 * 4096, maxEdge: 4096 })
 const PHOTO_LIMITS = Object.freeze({ maxFileBytes: MVP_SIMPLE_MEDIA_LIMITS.maxFileBytes, maxPixels: MVP_SIMPLE_MEDIA_LIMITS.maxPixels,
   maxEdge: MVP_SIMPLE_MEDIA_LIMITS.maxEdge })
-const THUMB_LIMITS = Object.freeze({ maxFileBytes: 512 * 1024, maxPixels: 640 * 640, maxEdge: 640 })
+const THUMB_LIMITS = Object.freeze({ maxFileBytes: 500_000, maxPixels: 640 * 640, maxEdge: 640 })
 const MAX_BODY = MVP_SIMPLE_MEDIA_LIMITS.maxFileBytes
 const MAX_JSON = 32 * 1024
 const MAX_BRANDING_SIGN = 200
 const MAX_MEDIA_SIGN = 120
-const OPERATIONS: ReadonlySet<string> = new Set(["branding-put", "branding-delete", "branding-sign", "media-put", "media-delete", "media-sign"])
+const OPERATIONS: ReadonlySet<string> = new Set(["branding-put", "branding-delete", "branding-sign", "media-put", "media-delete", "media-sign", "media-purge"])
+// Every object a photo can have in the media bucket: the photo, its thumbnail and a processor variant.
+const MEDIA_PURGE = /^[0-9a-f-]{36}\/[0-9a-f-]{36}\/[0-9a-f-]{36}\/[0-9a-f-]{36}(-(thumbnail|grid|detail|original))?\.(jpg|png|webp)$/
+const MAX_PURGE = 100
 
 export class StoreConfigError extends Error {}
 
 export type StoreConfig = {
   secret: Uint8Array
+  /** 0018: the season-end purge's own secret; null = media-purge disabled. */
+  purgeSecret: Uint8Array | null
   restUrl: string
   storageUrl: string
   publicBase: string
@@ -87,6 +97,12 @@ function namedKey(json: string | undefined, prefix: string): string | null {
 export function loadStoreConfig(env: Record<string, string | undefined>): StoreConfig {
   const secret = parseSecret(env.TORNEOS_MEDIA_STORE_SECRET)
   if (!secret) throw new StoreConfigError("TORNEOS_MEDIA_STORE_SECRET must be 64–128 hex characters")
+  const purgeRaw = (env.TORNEOS_MEDIA_PURGE_SECRET ?? "").trim()
+  const purgeSecret = purgeRaw ? parseSecret(purgeRaw) : null
+  if (purgeRaw && !purgeSecret) throw new StoreConfigError("TORNEOS_MEDIA_PURGE_SECRET must be 64–128 hex characters")
+  if (purgeRaw && purgeRaw === (env.TORNEOS_MEDIA_STORE_SECRET ?? "").trim()) {
+    throw new StoreConfigError("TORNEOS_MEDIA_PURGE_SECRET must differ from the gateway's secret")
+  }
   const origin = (env.SUPABASE_URL ?? "").trim().replace(/\/$/, "")
   let restUrl: string, storageUrl: string, publicBase: string
   if (origin) {
@@ -110,7 +126,7 @@ export function loadStoreConfig(env: Record<string, string | undefined>): StoreC
   else throw new StoreConfigError("no service key")
   const apikey = namedKey(env.SUPABASE_PUBLISHABLE_KEYS, "sb_publishable_") ?? (env.SUPABASE_ANON_KEY ?? "").trim()
   if (!apikey) throw new StoreConfigError("no publishable key")
-  return Object.freeze({ secret, restUrl, storageUrl, publicBase, serviceHeaders: Object.freeze(serviceHeaders), apikey })
+  return Object.freeze({ secret, purgeSecret, restUrl, storageUrl, publicBase, serviceHeaders: Object.freeze(serviceHeaders), apikey })
 }
 
 export type StoreDeps = {
@@ -196,6 +212,22 @@ async function authorize(ctx: Ctx, bucket: string, operation: string, list: stri
   if (!Array.isArray(allowed)) throw new Outage()
   // Only names that were asked about: the database can narrow, never add.
   return new Set(allowed.filter((name): name is string => typeof name === "string" && list.includes(name)))
+}
+
+/** A service RPC of the purge (service role through the Data API): only the two 0018 functions, fixed arguments. */
+async function serviceRpc(ctx: Ctx, fn: "claim_tournament_media_purge" | "complete_tournament_media_purge", args: Record<string, unknown>): Promise<unknown> {
+  let response: Response
+  try {
+    response = await ctx.deps.fetchImpl(`${ctx.cfg.restUrl}/rpc/${fn}`, {
+      method: "POST",
+      headers: { ...ctx.cfg.serviceHeaders, "content-type": "application/json", accept: "application/json" },
+      body: JSON.stringify(args), redirect: "error", signal: AbortSignal.timeout(10000),
+    })
+  } catch {
+    throw new Outage()
+  }
+  if (response.status !== 200) { await response.body?.cancel(); throw new Outage() }
+  try { return await response.json() } catch { throw new Outage() }
 }
 
 async function storagePut(ctx: Ctx, bucket: string, name: string, bytes: Uint8Array, mime: string, cacheControl: string): Promise<void> {
@@ -330,6 +362,32 @@ async function operate(op: string, params: URLSearchParams, body: Uint8Array, co
       const removed = await storageDelete(ctx, MEDIA_BUCKET, list.filter((name) => allowed.has(name)))
       return json(200, { removed })
     }
+    case "media-purge": {
+      if (keys !== "") throw new Refusal(400, "INVALID_ARGUMENTS")
+      const limit = parseJson(body, ["limit"]).limit
+      if (!Number.isInteger(limit) || (limit as number) < 1 || (limit as number) > MAX_PURGE) throw new Refusal(400, "INVALID_ARGUMENTS")
+      const claim = await serviceRpc(ctx, "claim_tournament_media_purge", { p_limit: limit }) as { assets?: unknown; orphans?: unknown }
+      if (!claim || !Array.isArray(claim.assets) || !Array.isArray(claim.orphans)) throw new Outage()
+      let purged = 0, failed = 0, orphansRemoved = 0
+      for (const entry of claim.assets as Array<{ assetId?: unknown; names?: unknown }>) {
+        const list = Array.isArray(entry?.names) ? entry.names.filter((n): n is string => typeof n === "string" && MEDIA_PURGE.test(n)) : []
+        if (typeof entry?.assetId !== "string" || !UUID.test(entry.assetId) || list.length === 0) { failed++; continue }
+        try {
+          // Removed or already absent: Storage answers 200 either way. Anything else leaves the photo for the next run.
+          await storageDelete(ctx, MEDIA_BUCKET, list)
+          await serviceRpc(ctx, "complete_tournament_media_purge", { p_asset_id: entry.assetId })
+          purged++
+        } catch (error) {
+          if (!(error instanceof Outage)) throw error
+          failed++
+        }
+      }
+      const orphans = (claim.orphans as unknown[]).filter((n): n is string => typeof n === "string" && MEDIA_PURGE.test(n))
+      if (orphans.length > 0) {
+        try { orphansRemoved = (await storageDelete(ctx, MEDIA_BUCKET, orphans)).length } catch (error) { if (!(error instanceof Outage)) throw error }
+      }
+      return json(200, { purged, failed, orphansRemoved })
+    }
     case "media-sign": {
       if (keys !== "") throw new Refusal(400, "INVALID_ARGUMENTS")
       const list = names(parseJson(body, ["names"]).names, MAX_MEDIA_SIGN, MEDIA_READ)
@@ -338,6 +396,22 @@ async function operate(op: string, params: URLSearchParams, body: Uint8Array, co
     }
   }
   throw new Refusal(404, "NOT_FOUND")
+}
+
+/** media-purge: its own secret, no identity (signed over an empty identity), JSON only. Absent secret → no such route. */
+async function handlePurge(req: Request, url: URL, cfg: StoreConfig, d: Required<StoreDeps>): Promise<Response> {
+  if (!cfg.purgeSecret) return json(404, { error: "NOT_FOUND" })
+  const timestamp = req.headers.get("x-torneos-store-timestamp") ?? ""
+  const signature = (req.headers.get("x-torneos-store-signature") ?? "").toLowerCase()
+  if (req.headers.has("x-torneos-store-identity") || !/^[0-9]{10}$/.test(timestamp) || !/^[0-9a-f]{64}$/.test(signature)
+    || Math.abs(Math.floor(d.now() / 1000) - Number(timestamp)) > SIGNATURE_WINDOW_S) {
+    return json(401, { error: "UNAUTHENTICATED" })
+  }
+  const body = await readBody(req, MAX_JSON)
+  const expected = await sign(cfg.purgeSecret, await signingInput(req.method, "/torneos-media-store/v1/media-purge", url.search, timestamp, body, ""))
+  if (!timingSafeEqualHex(signature, expected)) return json(401, { error: "UNAUTHENTICATED" })
+  if ((req.headers.get("content-type") ?? "").split(";")[0].trim().toLowerCase() !== "application/json") return json(415, { error: "UNSUPPORTED_TYPE" })
+  return await operate("media-purge", url.searchParams, body, "application/json", { cfg, deps: d, identity: "" })
 }
 
 const ROUTE = /^\/(?:functions\/v1\/)?torneos-media-store\/v1\/([a-z-]+)$/
@@ -352,6 +426,7 @@ export async function handle(req: Request, cfg: StoreConfig, deps: StoreDeps = {
     const match = ROUTE.exec(url.pathname)
     if (req.method !== "POST" || !match || !OPERATIONS.has(match[1])) return json(404, { error: "NOT_FOUND" })
     const op = match[1]
+    if (op === "media-purge") return await handlePurge(req, url, cfg, d)
     const identity = req.headers.get("x-torneos-store-identity") ?? ""
     const timestamp = req.headers.get("x-torneos-store-timestamp") ?? ""
     const signature = (req.headers.get("x-torneos-store-signature") ?? "").toLowerCase()

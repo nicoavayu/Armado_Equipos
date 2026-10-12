@@ -7,7 +7,7 @@
 //   • "on" → (1) the authenticated route gains exactly the RPCs of media-v1-rpc-allowlist.json (the baseline gallery
 //     contract: galleries, review, cover / order, publication, retiring content, reports, the participant read);
 //     (2) POST /torneos/media/v1/upload?gallery=<uuid>&key=<uuid>[&thumb=<bytes>] takes ONE normalized photo (JPEG /
-//     PNG / WebP, ≤ 4 MiB) followed by its JPEG thumbnail (≤ 640 px, ≤ 512 KiB): the gateway verifies both structures with the pipeline's own verifier (media-image.ts: magic bytes,
+//     PNG / WebP, ≤ 500 000 bytes since 0018) followed by its JPEG thumbnail (≤ 640 px, ≤ 500 000 bytes): the gateway verifies both structures with the pipeline's own verifier (media-image.ts: magic bytes,
 //     full container walk, no metadata carrier, orientation 1, real dimensions ≤ 1600 px / 2.56 MP), hashes it, opens
 //     or replays the session with the caller's token, writes the object and completes the session with a 120 s
 //     bridge token that carries the gateway claim for THAT session (migration 00000000000012: only that claim may
@@ -34,8 +34,8 @@ export const MEDIA_UPLOAD_ROUTE = "/torneos/media/v1/upload"
 export const MEDIA_URLS_ROUTE = "/torneos/media/v1/urls"
 export const MEDIA_MAX_BYTES = MVP_SIMPLE_MEDIA_LIMITS.maxFileBytes
 export const MEDIA_SIGNED_URL_TTL = 300
-/** The grid image that travels with each photo: a JPEG of at most 640 px and 512 KiB (MEDIA-V1 thumbnails). */
-export const MEDIA_THUMBNAIL_MAX_BYTES = 512 * 1024
+/** The grid image that travels with each photo: a JPEG of at most 640 px and 500 000 bytes (MEDIA-V1 thumbnails). */
+export const MEDIA_THUMBNAIL_MAX_BYTES = 500_000
 export const MEDIA_THUMBNAIL_MAX_EDGE = 640
 /** The claim only the gateway signs: the upload session a token may write and complete. */
 export const MEDIA_GATEWAY_CLAIM = "torneos_media_upload_session"

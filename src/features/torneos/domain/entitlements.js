@@ -84,7 +84,8 @@ function validPricing(pricing) {
     && pricing.listPrice > 0
     && Number.isInteger(pricing?.launchPrice)
     && pricing.launchPrice > 0
-    && pricing.launchPrice < pricing.listPrice
+    // 0019: the launch price can be the only price (list = launch): nothing to strike through.
+    && pricing.launchPrice <= pricing.listPrice
     && pricing?.billingModel === 'one_time'
     && pricing?.scope === 'season';
 }

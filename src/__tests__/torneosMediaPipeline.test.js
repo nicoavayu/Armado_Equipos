@@ -252,7 +252,7 @@ describe('local file handling', () => {
       MVP_SIMPLE_MEDIA_LIMITS,
     ).code).toBe('size');
     expect(MVP_SIMPLE_MEDIA_LIMITS).toMatchObject({
-      maxFileBytes: 4 * 1024 * 1024,
+      maxFileBytes: 500_000,
       maxPixels: 2_560_000,
       maxEdge: 1600,
       maxBatchFiles: 10,
@@ -273,7 +273,7 @@ describe('local file handling', () => {
     expect(panorama.width * panorama.height).toBeLessThanOrEqual(2_560_000);
   });
 
-  test('the simple encoder downsizes again until its one object fits 4 MiB', async () => {
+  test('the simple encoder downsizes again until its one object fits 500 000 bytes (0018)', async () => {
     const decoded = { width: 4000, height: 3000, close: jest.fn() };
     const originalCreateImageBitmap = global.createImageBitmap;
     global.createImageBitmap = jest.fn().mockResolvedValue(decoded);
@@ -282,7 +282,7 @@ describe('local file handling', () => {
       .mockReturnValue(context);
     const toBlobSpy = jest.spyOn(HTMLCanvasElement.prototype, 'toBlob')
       .mockImplementation(function encodeForTest(callback, mime) {
-        const size = this.width >= 1600 ? 5 * 1024 * 1024 : 3 * 1024 * 1024;
+        const size = this.width >= 1600 ? 600_000 : 300_000;
         callback(new Blob([new Uint8Array(size)], { type: mime }));
       });
     try {
@@ -291,7 +291,7 @@ describe('local file handling', () => {
         { limits: MVP_SIMPLE_MEDIA_LIMITS },
       );
       expect(result).toMatchObject({ mime: 'image/jpeg', width: 1408, height: 1056 });
-      expect(result.source.size).toBe(3 * 1024 * 1024);
+      expect(result.source.size).toBe(300_000);
       expect(result).not.toHaveProperty('renditions');
       expect(toBlobSpy).toHaveBeenCalledTimes(3);
       expect(decoded.close).toHaveBeenCalledTimes(1);

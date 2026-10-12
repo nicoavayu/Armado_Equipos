@@ -183,11 +183,17 @@ Las fotos **retiradas** siguen contando. Las **rechazadas** no.
   - en el servidor, `store.ts` rechaza más de 500000 bytes;
   - un trigger exige el mismo tope en los inserts nuevos, sin tocar filas ya existentes (se agrega en lugar de cambiar el CHECK, para no invalidar datos);
   - las dimensiones siguen en 1600 px y 640 px.
-- **Límite global:** tabla singleton `tournament_media_storage_budget (limit_bytes, reserve_per_session_bytes)`.
-  - Valor inicial propuesto: 800 MB, frente al 1 GB del plan gratuito, a confirmar en el GO.
-  - Al crear una sesión de subida se valida `uso + reservas + 1.000.000 ≤ limit_bytes`. Si no alcanza, error `TORNEOS_MEDIA_STORAGE_FULL`, con texto «El almacenamiento de fotos está lleno por ahora».
-  - **Sólo el operador lo cambia**, con un rol de servicio. No hay RPC para clientes.
-  - Nunca contrata ni amplía nada.
+- **Límite global: ya existe y se reutiliza**, sin crear otro. Lo descubrí al implementar:
+  - Es `tournament_media_storage_budget` de 0012, con un tope para el proyecto Torneos, otro para las fotos y miniaturas, y un máximo de subidas simultáneas.
+  - `begin_tournament_media_gallery_upload` lo controla bajo un lock global **antes** de aceptar cualquier byte; si no alcanza responde `TORNEOS_MEDIA_STORAGE_BUDGET_EXCEEDED`.
+  - Valores actuales: proyecto 450 MiB, fotos 400 MiB y 12 subidas en vuelo.
+  - Sólo el operador lo cambia y nunca contrata nada.
+  - El 1 GB gratuito se cuenta **para toda la organización de Supabase**, Core incluido: Core tenía unos 0,33 GB el 2026-10-07.
+  - La limpieza de temporada libera bytes de ese mismo presupuesto.
+  - La evaluación de costos y margen para fijarlo está en `EVALUACION-PLANIFICADOR-Y-ALMACENAMIENTO.md`.
+- **Tope de 500 KB, dónde se aplica:**
+  - imagen: en la sesión de subida (0018) y en el código del gateway y de `torneos-media-store`, que miden los bytes reales;
+  - miniatura: sólo en ese código, porque 0012 registra su tamaño después de crear la sesión.
 
 ## 3. Migraciones nuevas (sin editar las aplicadas)
 
@@ -226,6 +232,6 @@ Las fotos **retiradas** siguen contando. Las **rechazadas** no.
 |---|---|---|
 | A1 | Backfill de `activated_at` para temporadas activas: el momento de aplicar la migración (recomendado) | Nico, en el GO de 0018 |
 | A2 | Planificador: `pg_cron` + `pg_net`, o Cloud Scheduler | Nico, en el GO (es infraestructura) |
-| A3 | Límite global inicial (propuesta 800 MB) | Nico, en el GO |
+| A3 | Valores del presupuesto de 0012 (hoy 450 MiB proyecto / 400 MiB fotos), según la evaluación de costos y margen | Nico, en el GO |
 | A4 | Devolución de pagos tardíos: manual desde MP en la v1 | Codex revisa; Nico confirma |
 | A5 | Descarga por foto (sin ZIP) como cumplimiento de «posibilidad de descargar» | Codex y Nico |

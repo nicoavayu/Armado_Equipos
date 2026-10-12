@@ -39,6 +39,12 @@ export const ERROR_MESSAGES = {
   TORNEOS_SEASON_ALREADY_PREMIUM: 'Esta temporada ya tiene Premium activo.',
   TORNEOS_SEASON_COLLABORATOR_LIMIT_REACHED: 'La temporada alcanzó el límite de colaboradores de su plan.',
   TORNEOS_SEASON_MEDIA_QUOTA_EXCEEDED: 'La temporada alcanzó la cuota multimedia de su plan.',
+  // 0018 / 0019: season media lifecycle and season commerce.
+  TORNEOS_SEASON_MEDIA_CLOSED: 'La temporada terminó: ya no se pueden subir fotos.',
+  TORNEOS_MEDIA_FILE_TOO_LARGE: 'La foto pesa más de 500 KB una vez optimizada.',
+  TORNEOS_MEDIA_STORAGE_FULL: 'El almacenamiento de fotos está lleno por ahora. Probá más tarde.',
+  TORNEOS_SEASON_MEDIA_DELETION_CONFIRMATION_REQUIRED: 'Para finalizar la temporada antes de tiempo confirmá que se eliminan sus fotos.',
+  TORNEOS_SEASON_NOT_PURCHASABLE: 'Esta temporada ya terminó: no se puede comprar Premium para ella.',
   TORNEOS_SOCIAL_PREMIUM_REQUIRED: 'Esta placa o este estilo necesitan Premium en esta temporada.',
   TORNEOS_BRANDING_PREMIUM_REQUIRED: 'Sólo Premium permite descargar placas sin la firma Arma2.',
   // BRANDING-V1 (hybrid): the same copy as the LOCAL branding service.

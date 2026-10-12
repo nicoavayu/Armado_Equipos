@@ -19,7 +19,8 @@ export const MEDIA_UPLOAD_URL_TTL_SECONDS = 300
 
 export const MVP_SIMPLE_MEDIA_LIMITS = Object.freeze({
   maxSelectedFileBytes: 8 * 1024 * 1024,
-  maxFileBytes: 4 * 1024 * 1024,
+  // 0018: at most 500 000 bytes per optimized photo (the database refuses a larger session).
+  maxFileBytes: 500_000,
   maxPixels: 2_560_000,
   maxEdge: 1600,
   maxBatchFiles: 10,
