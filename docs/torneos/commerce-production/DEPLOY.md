@@ -5,9 +5,19 @@ explícito de Nico. Mergear no activa nada: la base de datos instala el interrup
 `TORNEOS_COMMERCE_MODE` no expone rutas de compra y el frontend sin `REACT_APP_TORNEOS_BILLING_MODE` no muestra precio
 ni botón.
 
-Producto sin cambios: **Premium por temporada, pago único**, producto `torneos_premium`, oferta vigente del catálogo
-(`launch` v1: lista ARS 49.900, lanzamiento ARS 39.900). No hay suscripciones ni precios nuevos: el precio sale siempre
-de `tournament_commercial_offers` y lo fija la base de datos.
+Producto: **Premium por temporada, pago único**, producto `torneos_premium`.
+- **Precio (2026-10-12, Nico):** «Precio de lanzamiento: ARS 20.000 finales por temporada». Lo instala la oferta `launch` v2 de la migración **0019**, con lista = importe = 20000, así que no hay precio tachado. La v1 de 0013 (49.900/39.900) queda cerrada.
+- Sin suscripción ni renovación automática.
+- El precio sale siempre de `tournament_commercial_offers` y lo fija la base de datos.
+
+**Reglas de temporada (0018 y 0019):**
+- La temporada dura hasta 6 meses desde su activación explícita. Comprar Premium no reinicia ni extiende el plazo.
+- Una temporada cerrada (completada, archivada o vencida) no se puede comprar.
+- Un pago aprobado tarde **no** otorga Premium: queda `approved` con `season_closed` y se devuelve a mano desde el panel de MP.
+- Premium da 100 fotos por temporada; FREE da 25.
+- Detalle en `docs/torneos/commercial-season/INVENTARIO-Y-SEMANTICA.md`.
+
+**Orden de aplicación:** 0018 → 0013 → 0019 (0013 nunca se reaplica sobre 0019: desharía las reglas de temporada).
 
 ## 1. Qué había y qué agrega esta rama
 
@@ -31,7 +41,7 @@ byte, y `0013` fija por md5 los cuerpos de la cadena TEST antes y después de ap
 | Migración `00000000000013` | Torneos DB | `MERCADO_PAGO/production`; rol `torneos_payment_production_service` (7 RPC, ninguna tabla); trigger de aislamiento por login; interruptor `off`/`allowlist`/`open`; wrapper de compra productivo; RPC de compras de la temporada (con `checkoutAvailable`); RPC de servicio ordenados (watermark de MP-B1.2); reconciliación y throttle por compra |
 | `torneos-payments-production` | Deno Deploy, app `torneos-payments` | Preference, webhook (secreto productivo, `live_mode` true), reconciliación a pedido y cron cada 15 min; atestación `/users/me` (seller productivo, nunca `test_user`) |
 | Gateway, modo `production` | Cloud Run `torneos-gateway` | `season-checkout` al wrapper productivo, `purchase-refresh` (“ya pagué”), 3 lecturas |
-| Frontend, billing `production` | Vercel | Panel de compra en Mi plan, página de estado con reconciliación; sólo en `app.arma2.com.ar`, build de producción, PLAN READ y gateway https |
+| Frontend, billing `production` | Netlify (sitio `silly-licorice-383784`, rama `netlify-production`) | Panel de compra en Mi plan, página de estado con reconciliación; sólo en `app.arma2.com.ar`, build de producción, PLAN READ y gateway https |
 | Operación | `backend/torneos/commerce-production/remote/`, `backend/torneos/infra/torneos-payments-production/` | Driver de DB con frases, login productivo por Keychain + SCRAM, despliegue Deno con frases, monitoreo SELECT-only, rollback |
 
 ## 2. Recorrido y garantías
@@ -71,7 +81,7 @@ Mi plan (FREE/PREMIUM, precio, alcance, pago único)
 | --- | --- | --- | --- |
 | `checkout_scope` | Torneos DB (`db-0013.mjs scope`) | `off` | `allowlist`: sólo organizaciones listadas; `open`: todas |
 | `TORNEOS_COMMERCE_MODE` | Gateway Cloud Run | ausente | `production`: rutas de compra y refresh |
-| `REACT_APP_TORNEOS_BILLING_MODE` | Vercel Production | ausente | `production`: panel de compra (sólo `app.arma2.com.ar`) |
+| `REACT_APP_TORNEOS_BILLING_MODE` | Netlify, contexto production | ausente | `production`: panel de compra (sólo `app.arma2.com.ar`) |
 | App `torneos-payments` | Deno Deploy | no existe | Preference, webhook y cron |
 | Webhooks “Modo productivo” | Panel de Mercado Pago | sin URL | Notificaciones firmadas a la app |
 
@@ -134,7 +144,7 @@ Verificar `status`. En los logs de la app debe verse `reconcile_summary` cada 15
 Con el interruptor en `off`, un checkout por la URL del tag responde `409 TORNEOS_BILLING_DISABLED`, lo que prueba el
 cableado sin crear compras. Recién después, 100 % y quitar el tag. Rollback: tráfico a la revisión anterior.
 
-**P7 — Frontend.** Vercel Production: `REACT_APP_TORNEOS_BILLING_MODE=production` y redeploy. Con el interruptor en
+**P7 — Frontend.** Netlify, contexto production: `REACT_APP_TORNEOS_BILLING_MODE=production` y nuevo build desde `netlify-production`, con los demás flags sin cambios. Con el interruptor en
 `off`, Mi plan muestra precio y beneficios con “La compra de Premium todavía no está disponible para esta organización”
 (lo decide `checkoutAvailable`), sin botón. Rollback: quitar la variable y redeploy.
 
@@ -160,7 +170,7 @@ cableado sin crear compras. Recién después, 100 % y quitar el tag. Rollback: t
 ## 6. Primer cobro real: procedimiento y evidencia
 
 1. `db-0013.mjs allow <org de Nico>` y `scope allowlist`.
-2. En `app.arma2.com.ar`, desktop y teléfono: Mi plan de una temporada FREE de esa organización → precio ARS 39.900 →
+2. En `app.arma2.com.ar`, desktop y teléfono: Mi plan de una temporada FREE **activa** de esa organización → «Precio de lanzamiento» ARS 20.000 finales, con la fecha de vencimiento visible →
    “Pagar con Mercado Pago” → pagar con un medio real.
 3. Verificar: la página de estado pasa a “Premium ya está activo”, Mi plan dice PREMIUM, y otra temporada de la misma
    organización sigue FREE.
@@ -192,7 +202,7 @@ Iniciar la devolución por API sigue fuera del alcance certificado (igual que en
 | Deno Deploy (app nueva `torneos-payments`) | Webhooks, Preferences y cron (96 corridas por día) | 1M requests/mes, 10 h de CPU activa, 20 GiB de egreso, hasta 10 crons por revisión ([pricing](https://deno.com/deploy/pricing), [cron](https://docs.deno.com/deploy/reference/cron/)) |
 | Supabase Torneos (Free) | 3 tablas pequeñas y RPC | 500 MB de base, 1 GB de storage, 5 GB de egreso, pausa tras 1 semana de inactividad ([pricing](https://supabase.com/pricing)). El cron consulta la base cada 15 minutos |
 | Cloud Run (gateway) | 2 rutas nuevas | Sin cambios de servicio |
-| Vercel (frontend) | Panel de compra | **Ver la decisión D1**: el plan Hobby es sólo para uso personal y no comercial |
+| Netlify (frontend) | Panel de compra | La web se movió de Vercel Hobby a Netlify el 2026-10-10 (D1). Revisar los términos del plan gratuito de Netlify para el uso comercial antes de P7 |
 
 **Comisiones de Mercado Pago (no son costo de infraestructura y no son cero).** Checkout Pro, según la página oficial
 consultada el 2026-10-07 ([mercadopago.com.ar/herramientas-para-vender/check-out](https://www.mercadopago.com.ar/herramientas-para-vender/check-out)):
@@ -206,21 +216,25 @@ consultada el 2026-10-07 ([mercadopago.com.ar/herramientas-para-vender/check-out
 
 La misma página aclara que los costos varían por impuestos provinciales. Además pueden aplicar retenciones o
 percepciones según la situación fiscal, y el costo real lo muestra la cuenta (“Costos y plazos”). Como referencia, sobre
-ARS 39.900, al instante: 6,29 % = ARS 2.509,71 más IVA 21 % (ARS 527,04), es decir ARS 3.036,75 antes de impuestos
-provinciales. No se asumió que la comisión se devuelva con una devolución.
+ARS 20.000, al instante:
+- 6,29 % = ARS 1.258,00;
+- más IVA 21 % (ARS 264,18);
+- total ARS 1.522,18 antes de impuestos provinciales.
+
+**Las tarifas se verifican otra vez antes de P8:** las de la tabla son del 2026-10-07. No se asumió que la comisión se devuelva con una devolución.
 
 ## 8. Decisiones y pasos que sólo puede dar Nico
 
 | # | Tema | Por qué | Propuesta |
 | --- | --- | --- | --- |
-| D1 | **Vercel Hobby no admite uso comercial** | Las [Fair Use Guidelines](https://vercel.com/docs/limits/fair-use-guidelines) incluyen como uso comercial “any method of requesting or processing payment from visitors of the site”. Pro cuesta USD 20/mes ([pricing](https://vercel.com/pricing)) | Decidir antes de P7: contratar Pro, o mover el frontend a un hosting gratuito que admita uso comercial. No lo resolví por mi cuenta (la consigna prohíbe servicios pagos nuevos) |
+| D1 | **Resuelto 2026-10-10: la web pasó a Netlify.** Antes: Vercel Hobby no admite uso comercial | Las [Fair Use Guidelines](https://vercel.com/docs/limits/fair-use-guidelines) incluyen como uso comercial “any method of requesting or processing payment from visitors of the site”. Pro cuesta USD 20/mes ([pricing](https://vercel.com/pricing)) | Decidir antes de P7: contratar Pro, o mover el frontend a un hosting gratuito que admita uso comercial. No lo resolví por mi cuenta (la consigna prohíbe servicios pagos nuevos) |
 | D2 | Deno Deploy Free | El pricing lo describe “for personal use and smaller projects” sin prohibir uso comercial | Confirmar los términos antes de P5 |
 | D3 | Requisitos legales y fiscales del cobro | Términos de venta y política de devolución publicados, botón de arrepentimiento (Res. SCI 424/2020) y facturación | Definirlos y publicarlos. Esta rama no inventa condiciones ni textos legales |
-| D4 | Storage Free (1 GB de la organización, 5 GB de egreso/mes) | Premium sube la galería a 1.000 fotos por temporada (lo eleva la sesión #182/Galería) | Tope o alarma antes de vender Premium a escala |
+| D4 | Storage Free (1 GB de la organización, 5 GB de egreso/mes) | **0018: Premium 100 fotos por temporada, borradas al terminar.** El presupuesto de 0012 (450/400 MiB) frena las subidas antes de agotar el espacio | Ver `docs/torneos/commercial-season/EVALUACION-PLANIFICADOR-Y-ALMACENAMIENTO.md` |
 | D5 | Plazo de acreditación en Mercado Pago | Define la comisión (§7) | Elegirlo en el panel antes de P8 |
 
 **Acciones exactas de Nico (con GO):** P2 y P3 (contraseña del instalador en el Keychain, ya custodiada), P4 (panel de
-Mercado Pago), P5 (token de Deno y credenciales productivas en la TTY), P6 (Cloud Run y Secret Manager), P7 (Vercel) y P8
+Mercado Pago), P5 (token de Deno y credenciales productivas en la TTY), P6 (Cloud Run y Secret Manager), P7 (Netlify) y P8
 (pago y devolución).
 
 ## 9. Desactivación y rollback (preservando compras e historial)
@@ -228,7 +242,7 @@ Mercado Pago), P5 (token de Deno y credenciales productivas en la TTY), P6 (Clou
 En orden de menor a mayor impacto:
 
 1. **Cerrar ventas:** `db-0013.mjs scope off`. Es inmediato y no toca pagos en curso. Mi plan deja de mostrar el botón.
-2. **Ocultar la compra:** quitar `REACT_APP_TORNEOS_BILLING_MODE` en Vercel y redeploy. Mi plan queda informativo.
+2. **Ocultar la compra:** quitar `REACT_APP_TORNEOS_BILLING_MODE` en Netlify y hacer un nuevo build. Mi plan queda informativo.
 3. **Gateway sin commerce:** volver a la revisión anterior. Sin `get_tournament_purchase` en la allowlist, la página de
    estado deja de leerse. Por eso **sólo** se hace cuando no queden compras abiertas.
 4. **App de pagos:** mantenerla mientras haya aprobaciones de los últimos 200 días, para recibir devoluciones y
