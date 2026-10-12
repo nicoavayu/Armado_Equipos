@@ -445,4 +445,24 @@ describe('FixtureWorkspacePage', () => {
       courtId: 'court-a', overrideWarnings: true, overrideReason: 'Único horario de la cancha.',
     }));
   });
+
+  test('without an active venue the schedule form says why it cannot save and links to Sedes', async () => {
+    const { venues, courts } = mockFixtureState;
+    mockFixtureState.venues = [{ ...venues[0], status: 'archived' }];
+    mockFixtureState.courts = [];
+    // The context already shows the failure; the button must not leave it unhandled.
+    mockFixtureState.actions.autoSchedule.mockRejectedValue(new Error('rango'));
+    try {
+      render(<MemoryRouter><FixtureWorkspacePage mode="schedule" /></MemoryRouter>);
+      const note = screen.getByRole('note');
+      expect(note).toHaveTextContent('Para asignar horarios necesitás una sede activa con cancha.');
+      expect(within(note).getByRole('link', { name: 'Cargala en Sedes' })).toHaveAttribute('href', '/torneos/organizacion/org-a/sedes');
+      expect(screen.getByRole('button', { name: 'Guardar' })).toBeDisabled();
+      fireEvent.click(screen.getByRole('button', { name: /Programar automáticamente/ }));
+      await waitFor(() => expect(mockFixtureState.actions.autoSchedule).toHaveBeenCalledWith('version-a'));
+    } finally {
+      mockFixtureState.venues = venues;
+      mockFixtureState.courts = courts;
+    }
+  });
 });

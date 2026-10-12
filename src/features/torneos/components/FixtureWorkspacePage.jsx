@@ -978,9 +978,11 @@ const SCHEDULE_ISSUE_COPY = Object.freeze({
 const scheduleIssueText = (issue) => SCHEDULE_ISSUE_COPY[issue?.code] || 'Hay un conflicto con este horario.';
 
 function SchedulePanel({ canManage }) {
+  const { organization } = useOutletContext();
   const {
     versions, participants, matches, venues, courts, actions,
   } = useTorneosFixture();
+  const activeVenues = venues.filter((venue) => venue.status === 'active');
   const candidateMatches = matches.filter((match) => (
     !['cancelled', 'ready'].includes(match.status)
     && match.homeParticipantId
@@ -1045,7 +1047,7 @@ function SchedulePanel({ canManage }) {
     <div className={styles.scheduleLayout}>
       <section className={styles.panel}>
         <div className={styles.panelHeading}><div><span>Agenda real</span><h2>Partidos</h2></div>
-          {canManage && versions.length > 0 && <button type="button" onClick={() => actions.autoSchedule((versions.find((version) => version.status === 'published') || versions.find((version) => version.status === 'draft') || versions[0]).id)}><Sparkles size={16} /> Programar automáticamente</button>}
+          {canManage && versions.length > 0 && <button type="button" onClick={() => actions.autoSchedule((versions.find((version) => version.status === 'published') || versions.find((version) => version.status === 'draft') || versions[0]).id).catch(() => { /* reported by the fixture context */ })}><Sparkles size={16} /> Programar automáticamente</button>}
         </div>
         <div className={styles.scheduleList}>{candidateMatches.map((match) => (
           <button key={match.id} type="button" aria-pressed={form.matchId === match.id} onClick={() => setForm((current) => ({
@@ -1070,7 +1072,10 @@ function SchedulePanel({ canManage }) {
         <div><span>Programación manual</span><h2>{selected?.status === 'scheduled' ? 'Reprogramar' : 'Asignar horario'}</h2></div>
         <label><span>Partido</span><select required value={form.matchId} onChange={set('matchId')}><option value="">Seleccionar</option>{candidateMatches.map((match) => <option key={match.id} value={match.id}>#{match.matchNumber} · {participantName(match.homeParticipantId)} vs {participantName(match.awayParticipantId)}</option>)}</select></label>
         <label><span>Fecha y hora</span><input required type="datetime-local" value={form.scheduledAt} onChange={set('scheduledAt')} /></label>
-        <label><span>Sede</span><select required value={form.venueId} onChange={(event) => { setValidation(null); setForm((current) => ({ ...current, venueId: event.target.value, courtId: '' })); }}><option value="">Seleccionar</option>{venues.filter((venue) => venue.status === 'active').map((venue) => <option key={venue.id} value={venue.id}>{venue.name}</option>)}</select></label>
+        <label><span>Sede</span><select required value={form.venueId} onChange={(event) => { setValidation(null); setForm((current) => ({ ...current, venueId: event.target.value, courtId: '' })); }}><option value="">Seleccionar</option>{activeVenues.map((venue) => <option key={venue.id} value={venue.id}>{venue.name}</option>)}</select></label>
+        {canManage && activeVenues.length === 0 && (
+          <div className={styles.validation} role="note"><AlertTriangle size={17} aria-hidden="true" /><p>Para asignar horarios necesitás una sede activa con cancha. <Link to={canonicalRoutes.organizationVenues(organization.id)}>Cargala en Sedes</Link>.</p></div>
+        )}
         <label><span>Cancha</span><select required value={form.courtId} onChange={set('courtId')}><option value="">Seleccionar</option>{availableCourts.map((court) => <option key={court.id} value={court.id}>{court.sportModality ? `${court.name} · ${getSportModalityName(court.sportModality)}` : court.name}</option>)}</select></label>
         <label><span>Duración</span><input required type="number" min="15" max="240" value={form.durationMinutes} onChange={set('durationMinutes')} /></label>
         {(selected?.status === 'scheduled' || selected?.status === 'postponed') && <label><span>Motivo</span><textarea required minLength={3} value={form.reason} onChange={set('reason')} /></label>}

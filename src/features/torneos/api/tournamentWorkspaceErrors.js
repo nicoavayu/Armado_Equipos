@@ -97,7 +97,7 @@ export const ERROR_MESSAGES = {
   TORNEOS_INVALID_QUALIFIERS: 'Elegí una cantidad de clasificados compatible con los equipos del torneo.',
   TORNEOS_SCHEDULE_CONFLICT: 'La programación tiene un conflicto bloqueante.',
   TORNEOS_SCHEDULE_WARNING_CONFIRMATION: 'Revisá las advertencias y confirmá el override con motivo.',
-  TORNEOS_AUTOSCHEDULE_RANGE_REQUIRED: 'Definí un rango acotado para usar la programación automática.',
+  TORNEOS_AUTOSCHEDULE_RANGE_REQUIRED: 'Para programar automáticamente, el torneo necesita fecha tentativa inicial y final (hasta un año entre ambas). Mientras tanto, podés asignar cada horario a mano.',
   TORNEOS_CYCLIC_MATCH_SOURCE: 'La fuente del cruce produciría una referencia cíclica.',
   TORNEOS_MATCH_FORBIDDEN: 'El partido no está disponible o no tenés permiso para verlo.',
   TORNEOS_MATCH_NOT_OPENABLE: 'El partido todavía no reúne las condiciones para abrir el acta.',
