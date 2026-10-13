@@ -1,0 +1,9 @@
+✔ Production order 0018 → 0013 → 0019, back 0019 → 0013 → 0018, and forward again (14125.623709ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 14683.622625

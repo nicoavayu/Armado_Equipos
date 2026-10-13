@@ -9,7 +9,7 @@ import http from 'node:http';
 import { randomBytes } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
-import { up, MIGRATIONS_DIR, REPO, sql, sqlTry } from '../commerce-production/lab/pg-lab.mjs';
+import { up, labExec, MIGRATIONS_DIR, REPO, sql, sqlTry } from '../commerce-production/lab/pg-lab.mjs';
 import { loadGatewayTree } from '../infra/torneos-gateway-auth/gateway-loader.mjs';
 import { storeEnv } from '../media-store-v1/test/support.mjs';
 
@@ -57,12 +57,23 @@ test('jobs at the offset minutes; without the Vault entries the caller sends not
 });
 
 test('the purge request pg_net sends is accepted by the real torneos-media-store handler (signature built in SQL)', async () => {
+  // Observable preconditions: the container resolves the host name pg_net will call (pg-lab adds it on Linux).
+  const resolved = labExec('getent', 'hosts', 'host.docker.internal');
+  assert.ok(resolved.ok, `host.docker.internal does not resolve inside the lab container (recreate the lab: pg-lab adds --add-host): ${resolved.err}`);
   sql(`select vault.create_secret('${PURGE_SECRET}', 'torneos_media_purge_secret')`);
   sql(`select vault.create_secret('http://host.docker.internal:${port}/torneos-media-store/v1/media-purge', 'torneos_media_store_purge_url')`);
   const requestId = one('select private.request_tournament_media_purge(7)');
   assert.match(requestId, /^\d+$/);
-  for (let i = 0; i < 40 && received.length === 0; i += 1) await new Promise((r) => { setTimeout(r, 250); });
-  assert.equal(received.length, 1, 'pg_net delivered exactly one request');
+  // Wait for pg_net's answer row (its worker is asynchronous), up to 20 s, then say exactly what happened.
+  let response = null;
+  for (let i = 0; i < 80 && (received.length === 0 || !response); i += 1) {
+    await new Promise((r) => { setTimeout(r, 250); });
+    const row = sql(`select coalesce((select json_build_object('status', status_code, 'timedOut', timed_out, 'error', error_msg)::text
+      from net._http_response where id = ${requestId}), '')`).trim();
+    response = row ? JSON.parse(row) : null;
+  }
+  assert.equal(received.length, 1, `pg_net delivered exactly one request (resolved ${resolved.out.trim()}; pg_net answer ${JSON.stringify(response)})`);
+  assert.equal(response?.status, 204, `pg_net recorded the receiver's answer: ${JSON.stringify(response)}`);
   const got = received[0];
   assert.equal(got.method, 'POST'); assert.equal(got.url, '/torneos-media-store/v1/media-purge');
   assert.equal(got.headers['x-torneos-store-identity'], undefined);

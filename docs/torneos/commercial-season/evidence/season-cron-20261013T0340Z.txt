@@ -1,0 +1,11 @@
+✔ jobs at the offset minutes; without the Vault entries the caller sends nothing (4214.131833ms)
+✔ the purge request pg_net sends is accepted by the real torneos-media-store handler (signature built in SQL) (660.049042ms)
+✔ rollback: no job left, caller gone; re-apply works (892.48925ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 6681.06325
