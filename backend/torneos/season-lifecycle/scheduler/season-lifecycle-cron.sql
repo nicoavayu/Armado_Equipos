@@ -41,7 +41,8 @@ begin
   if v_secret is null or v_url is null or v_secret !~ '^[0-9a-f]{64,128}$' or v_url !~ '^https?://' then
     return null;
   end if;
-  v_body := json_build_object('limit', least(greatest(coalesce(p_limit, 50), 1), 100))::text;
+  -- pg_net sends the jsonb's own text ({"limit": 50}), so that is the text signed — never json's ({"limit" : 50}).
+  v_body := jsonb_build_object('limit', least(greatest(coalesce(p_limit, 50), 1), 100))::text;
   v_input := concat_ws(E'\n', 'POST', '/torneos-media-store/v1/media-purge', '', v_ts,
     encode(extensions.digest(convert_to(v_body, 'UTF8'), 'sha256'), 'hex'),
     encode(extensions.digest(convert_to('', 'UTF8'), 'sha256'), 'hex'));
