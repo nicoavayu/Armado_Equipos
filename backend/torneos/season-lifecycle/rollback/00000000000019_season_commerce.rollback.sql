@@ -1,5 +1,5 @@
--- ROLLBACK of 00000000000019_season_commerce.sql (documented, never automatic). Restores the 0013 bodies and the 0013
--- offer (launch v1 49900/39900); launch v2 is closed, never deleted (purchases may snapshot it). Payments already
+-- ROLLBACK of 00000000000019_season_commerce.sql (documented, never automatic). Restores the 0013 bodies and puts 0013's
+-- price back in force as a new 'launch' version (49900/39900); no offer row is modified or deleted. Payments already
 -- recorded as 'season_closed' stay as they are (they are refunded by hand); no grant is created or removed.
 BEGIN;
 DO $pre$
@@ -10,10 +10,13 @@ BEGIN
   END IF;
 END $pre$;
 
-UPDATE public.tournament_commercial_offers SET valid_until = now(), availability = 'unavailable'
-WHERE product_code = 'torneos_premium' AND offer_code = 'launch' AND offer_version = 2;
-UPDATE public.tournament_commercial_offers SET valid_until = NULL
-WHERE product_code = 'torneos_premium' AND offer_code = 'launch' AND offer_version = 1;
+-- The price goes back the same way it came: a NEW 'launch' version with 0013's price, newest available, starting now.
+-- No offer row is modified (a purchased offer is immutable); every earlier version stays as history.
+INSERT INTO public.tournament_commercial_offers (product_code, offer_code, offer_version, offer_label, currency,
+  list_amount, amount, valid_from, valid_until, availability)
+SELECT 'torneos_premium', 'launch', coalesce(max(offer_version), 0) + 1, 'Precio lanzamiento', 'ARS', 49900, 39900,
+  statement_timestamp(), NULL, 'available'
+FROM public.tournament_commercial_offers WHERE product_code = 'torneos_premium' AND offer_code = 'launch';
 UPDATE public.tournament_pricing_config SET list_price_minor = 49900, launch_price_minor = 39900, updated_at = now() WHERE config_key = 'v1';
 ALTER TABLE public.tournament_pricing_config DROP CONSTRAINT tournament_pricing_config_prices_check;
 ALTER TABLE public.tournament_pricing_config ADD CONSTRAINT tournament_pricing_config_prices_check

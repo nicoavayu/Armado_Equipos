@@ -6,9 +6,10 @@
 -- from its explicit activation; buying Premium never restarts or extends it.
 --
 -- What it changes, and nothing else:
---   * tournament_commercial_offers: offer 'launch' v2, list = amount = 20000 ARS (no previous price to strike through),
---     label «Precio de lanzamiento», no valid_until. v1 (49900/39900) closes now and stays for the purchases that
---     snapshot it. Amounts are whole pesos: torneos-payments-production sends unit_price = amount.
+--   * tournament_commercial_offers: a NEW 'launch' version (next number), list = amount = 20000 ARS (no previous price
+--     to strike through), label «Precio de lanzamiento», starting now: it is the newest available offer, so the resolver
+--     and the checkout take it. No existing offer is modified — a purchased offer is immutable — earlier versions stay.
+--     Amounts are whole pesos: torneos-payments-production sends unit_price = amount.
 --   * tournament_pricing_config (read by no function): CHECK launch < list relaxed to <=, both 20000, comment says so.
 --   * create_tournament_season_production_checkout_purchase: a season that is not open (completed, archived or past its
 --     deadline) cannot be bought nor an open purchase continued → 55000 TORNEOS_SEASON_NOT_PURCHASABLE.
@@ -50,25 +51,27 @@ BEGIN
   IF v_md5 IS DISTINCT FROM 'abe70db7fc988f0e06a505f63aeca330' THEN
     RAISE EXCEPTION 'TORNEOS_0019_PRECONDITION_FAILED: the 0013 production activation is not in force (%)', v_md5;
   END IF;
-  -- The 0013 catalog: launch v1 (49900/39900) open; or, after a rollback of 0019, also its closed launch v2.
-  IF NOT EXISTS (SELECT 1 FROM public.tournament_commercial_offers WHERE product_code = 'torneos_premium'
-      AND offer_code = 'launch' AND offer_version = 1 AND list_amount = 49900 AND amount = 39900 AND valid_until IS NULL)
-    OR EXISTS (SELECT 1 FROM public.tournament_commercial_offers WHERE product_code = 'torneos_premium'
-      AND NOT (offer_code = 'launch' AND offer_version = 1)
-      AND NOT (offer_code = 'launch' AND offer_version = 2 AND list_amount = 20000 AND amount = 20000 AND availability = 'unavailable')) THEN
-    RAISE EXCEPTION 'TORNEOS_0019_PRECONDITION_FAILED: the offers are not 0013''s launch v1 (49900/39900)';
+  -- The offer in force (the rule both the resolver and the checkout use) must be 0013's price: 49900 / 39900.
+  IF NOT EXISTS (
+    SELECT 1 FROM (
+      SELECT offer.list_amount, offer.amount FROM public.tournament_commercial_offers offer
+      WHERE offer.product_code = 'torneos_premium' AND offer.availability = 'available'
+        AND offer.valid_from <= statement_timestamp() AND (offer.valid_until IS NULL OR offer.valid_until > statement_timestamp())
+      ORDER BY offer.valid_from DESC, offer.offer_version DESC LIMIT 1
+    ) current WHERE current.list_amount = 49900 AND current.amount = 39900
+  ) THEN
+    RAISE EXCEPTION 'TORNEOS_0019_PRECONDITION_FAILED: the offer in force is not 0013''s launch price (49900/39900)';
   END IF;
 END $pre$;
 
 -- ============================================================================================ price
-UPDATE public.tournament_commercial_offers SET valid_until = now()
-WHERE product_code = 'torneos_premium' AND offer_code = 'launch' AND offer_version = 1;
--- Re-applied after its rollback, the same v2 row opens again (purchases may snapshot it: it is never deleted).
+-- An offer a purchase snapshots is immutable (protect_referenced_tournament_offer): no existing row is touched. A new
+-- 'launch' version (the next number) starts now and wins as the newest available offer; earlier ones stay as history.
 INSERT INTO public.tournament_commercial_offers (product_code, offer_code, offer_version, offer_label, currency,
   list_amount, amount, valid_from, valid_until, availability)
-VALUES ('torneos_premium', 'launch', 2, 'Precio de lanzamiento', 'ARS', 20000, 20000, now(), NULL, 'available')
-ON CONFLICT (product_code, offer_code, offer_version)
-DO UPDATE SET valid_from = now(), valid_until = NULL, availability = 'available';
+SELECT 'torneos_premium', 'launch', coalesce(max(offer_version), 0) + 1, 'Precio de lanzamiento', 'ARS', 20000, 20000,
+  statement_timestamp(), NULL, 'available'
+FROM public.tournament_commercial_offers WHERE product_code = 'torneos_premium' AND offer_code = 'launch';
 
 ALTER TABLE public.tournament_pricing_config DROP CONSTRAINT tournament_pricing_config_prices_check;
 ALTER TABLE public.tournament_pricing_config ADD CONSTRAINT tournament_pricing_config_prices_check
@@ -708,8 +711,9 @@ BEGIN
   WHERE offer.product_code = 'torneos_premium' AND offer.availability = 'available'
     AND offer.valid_from <= statement_timestamp() AND (offer.valid_until IS NULL OR offer.valid_until > statement_timestamp())
   ORDER BY offer.valid_from DESC, offer.offer_version DESC LIMIT 1;
-  IF v_offer.offer_version IS DISTINCT FROM 2 OR v_offer.amount <> 20000 OR v_offer.list_amount <> 20000 OR v_offer.currency <> 'ARS' THEN
-    RAISE EXCEPTION 'TORNEOS_0019_POSTCONDITION_FAILED: the current offer is not launch v2 20000 ARS';
+  IF v_offer.offer_code IS DISTINCT FROM 'launch' OR v_offer.amount <> 20000 OR v_offer.list_amount <> 20000
+    OR v_offer.currency <> 'ARS' OR v_offer.offer_label <> 'Precio de lanzamiento' THEN
+    RAISE EXCEPTION 'TORNEOS_0019_POSTCONDITION_FAILED: the offer in force is not «Precio de lanzamiento» 20000 ARS';
   END IF;
   IF has_function_privilege('anon', 'public.create_tournament_season_production_checkout_purchase(uuid,uuid,uuid)', 'EXECUTE')
     OR NOT has_function_privilege('authenticated', 'public.create_tournament_season_production_checkout_purchase(uuid,uuid,uuid)', 'EXECUTE')

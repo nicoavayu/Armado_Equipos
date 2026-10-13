@@ -7,7 +7,8 @@ import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
-import { up, MIGRATIONS_DIR, sql, sqlTry } from './lab/pg-lab.mjs';
+import { up, CONTAINER, MIGRATIONS_DIR, sql, sqlTry } from './lab/pg-lab.mjs';
+import { spawn } from 'node:child_process';
 import {
   admin, age, allow, asUserJson, checkout, entitlementsOf, eventTypes, grantEvents, identity, j, lit, member, paymentsDb, planOf,
   purchaseRow, refusal, refusedBy, season, setScope, testCheckout, world,
@@ -58,7 +59,9 @@ describe('schema and ACL', () => {
     sql(readFileSync(MIGRATION, 'utf8'));
     assert.equal(admin('select checkout_scope from public.tournament_commerce_production_settings').trim(), 'allowlist');
     sql(readFileSync(MIGRATION_0019, 'utf8'));
-    assert.equal(admin("select amount from public.tournament_commercial_offers where offer_version = 2 and valid_until is null and availability = 'available'").trim(), '20000');
+    // After rollback → 0013 → 0019 the offer in force is 20000 again (each step a NEW version; none modified).
+    assert.equal(admin(`select amount from public.tournament_commercial_offers where product_code = 'torneos_premium' and availability = 'available'
+      and valid_from <= now() and (valid_until is null or valid_until > now()) order by valid_from desc, offer_version desc limit 1`).trim(), '20000');
     setScope('open');
   });
 
@@ -138,7 +141,7 @@ describe('purchase creation', () => {
     const p = checkout(w.owner, w);
     assert.deepEqual({ provider: p.provider, env: p.providerEnvironment, product: p.productCode, amount: p.amount, list: p.listAmount, currency: p.currency },
       { provider: 'MERCADO_PAGO', env: 'production', product: 'torneos_premium', amount: 20000, list: 20000, currency: 'ARS' });
-    assert.deepEqual([p.offerCode, p.offerVersion], ['launch', 2], '0019: «Precio de lanzamiento» ARS 20.000, nothing to strike through');
+    assert.equal(p.offerCode, 'launch', '0019: «Precio de lanzamiento» ARS 20.000, nothing to strike through');
     assert.equal(p.externalReference, `arma2:season:purchase:${p.id}`);
     assert.deepEqual(eventTypes(p.id), ['purchase.created']);
   });
@@ -417,6 +420,30 @@ describe('Premium is real and season-scoped', () => {
   });
 });
 
+/**
+ * One transaction in its OWN psql process (installer session), with `setup` (e.g. SET LOCAL ROLE + claims) before the
+ * statement and an optional hold before COMMIT: two of them a beat apart are a controlled race. Resolves { error, out }.
+ */
+function txAsync(setup, statement, holdSeconds = 0) {
+  const docker = process.platform === 'darwin' ? '/Applications/Docker.app/Contents/Resources/bin/docker' : 'docker';
+  return new Promise((resolve) => {
+    const child = spawn(docker, ['--host', 'unix:///var/run/docker.sock', 'exec', '-i', CONTAINER, 'psql', '-U', 'supabase_admin',
+      '-d', 'postgres', '-X', '-A', '-t', '-q', '-v', 'ON_ERROR_STOP=1']);
+    let err = ''; let out = '';
+    child.stdout.on('data', (c) => { out += c; });
+    child.stderr.on('data', (c) => { err += c; });
+    child.on('close', (code) => resolve({ error: code === 0 ? null : (/TORNEOS_[A-Z_]+/.exec(err)?.[0] ?? err), out }));
+    child.stdin.end(`BEGIN; ${setup} ${statement};${holdSeconds ? ` SELECT pg_sleep(${holdSeconds});` : ''} COMMIT;`);
+  });
+}
+const asUserSetup = (actor) => {
+  const now = Math.floor(Date.now() / 1000);
+  const claims = { role: 'authenticated', iss: 'urn:arma2:local:identity-bridge', aud: 'arma2-torneos-local', sub: actor.id,
+    core_user_id: actor.core, session_id: randomUUID(), jti: randomUUID(), iat: now, nbf: now, exp: now + 120 };
+  return `SET LOCAL ROLE authenticated; SELECT set_config('request.jwt.claims', ${lit(JSON.stringify(claims))}, true);`;
+};
+const pause = (ms) => new Promise((resolve) => { setTimeout(resolve, ms); });
+
 describe('season rules (0019 on 0018)', () => {
   const activateSeason = (w) => asUserJson(w.owner, `select public.update_tournament_season(${lit(w.org)}, ${lit(w.season)}, p_status => 'active')`);
   const closeSeason = (w) => asUserJson(w.owner, `select public.update_tournament_season(${lit(w.org)}, ${lit(w.season)}, p_status => 'completed', p_confirm_media_deletion => true)`);
@@ -474,6 +501,49 @@ describe('season rules (0019 on 0018)', () => {
     // The same refund again (webhook retry, reconciliation): nothing new.
     await reversal(p, 'refund', '9201', 6, 'refunded');
     assert.equal(eventTypes(p.id).filter((e) => e === 'payment.season_closed_refunded').length, 1);
+  });
+
+  test('race: a close holding its lock makes a concurrent approval wait, then the payment is a late one (no Premium)', async () => {
+    const w = world('race-close-pay'); activateSeason(w);
+    const p = await payable(w);
+    const closing = txAsync(asUserSetup(w.owner),
+      `select public.update_tournament_season(${lit(w.org)}, ${lit(w.season)}, p_status => 'completed', p_confirm_media_deletion => true)`, 3);
+    await pause(1000);
+    const started = Date.now();
+    const approved = await status(p, 'approved', '9501', 1);
+    assert.equal((await closing).error, null);
+    assert.ok(Date.now() - started >= 1500, 'the approval waited for the close');
+    assert.deepEqual([approved.outcome, approved.requiresManualRefund], ['approved_season_closed', true]);
+    assert.equal(planOf(w.org, w.season), 'FREE');
+  });
+
+  test('race: an approval holding its lock makes a concurrent close wait; the season was paid before it closed', async () => {
+    const w = world('race-pay-close'); activateSeason(w);
+    const p = await payable(w);
+    const approving = txAsync('SET LOCAL ROLE torneos_payment_production_service;',
+      `select public.apply_production_tournament_payment_status(${lit(p.id)}, 'approved', 'approved', null, ${lit(pid('9601'))}, ${lit(at(1))})`, 3);
+    await pause(1000);
+    const started = Date.now();
+    const closed = await txAsync(asUserSetup(w.owner),
+      `select public.update_tournament_season(${lit(w.org)}, ${lit(w.season)}, p_status => 'completed', p_confirm_media_deletion => true)`);
+    assert.equal((await approving).error, null);
+    assert.equal(closed.error, null);
+    assert.ok(Date.now() - started >= 1500, 'the close waited for the approval');
+    const row = purchaseRow(p.id);
+    assert.deepEqual([row.status, row.activation_error_code], ['approved', null]);
+    assert.equal(Number(admin(`select count(*) from public.tournament_season_plan_grants where origin_purchase_id = ${lit(p.id)}`)), 1);
+    assert.equal(admin(`select status from public.tournament_seasons where id = ${lit(w.season)}`).trim(), 'completed');
+  });
+
+  test('race: a close holding its lock makes a concurrent checkout wait, then refuses it', async () => {
+    const w = world('race-close-buy'); activateSeason(w);
+    const closing = txAsync(asUserSetup(w.owner),
+      `select public.update_tournament_season(${lit(w.org)}, ${lit(w.season)}, p_status => 'completed', p_confirm_media_deletion => true)`, 3);
+    await pause(1000);
+    const buying = await txAsync(asUserSetup(w.owner),
+      `select public.create_tournament_season_production_checkout_purchase(${lit(w.org)}, ${lit(w.season)}, ${lit(randomUUID())})`);
+    assert.equal((await closing).error, null);
+    assert.equal(buying.error, 'TORNEOS_SEASON_NOT_PURCHASABLE');
   });
 
   test('a chargeback on a late payment changes nothing and asks for manual review (no Premium to suspend)', async () => {
