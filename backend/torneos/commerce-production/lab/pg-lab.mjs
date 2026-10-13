@@ -61,6 +61,9 @@ function ensureImage(image) {
   throw new Error(`docker pull ${image} failed after 4 attempts: ${last}`);
 }
 
+/** A command inside the lab database container, for diagnostics ({ ok, out, err }). */
+export function labExec(...args) { return docker(['exec', CONTAINER, ...args]); }
+
 /** psql as supabase_admin (the installer of the certified lab). Throws with the ERROR lines only. */
 export function sql(query, { user = 'supabase_admin' } = {}) {
   const r = sqlTry(query, { user });
@@ -211,10 +214,16 @@ export async function up({ fresh = false, upTo = null, storage = true } = {}) {
   if (s && staleMigrations().length) { docker(['rm', '-f', CONTAINER]); s = null; }
   if (!s) {
     docker(['rm', '-f', CONTAINER]);
-    docker(['network', 'create', '--label', 'arma2.lab=commerce-production', NETWORK]);
+    const net = docker(['network', 'create', '--label', 'arma2.lab=commerce-production', NETWORK]);
+    // An existing network is fine; any other refusal (e.g. "all predefined address pools have been fully subnetted" on a
+    // host with many networks) is said here instead of surfacing later as "network … not found" from docker run.
+    if (!net.ok && !/already exists/.test(net.err)) throw new Error(`docker network create ${NETWORK} failed: ${net.err.trim()}`);
     ensureImage(IMAGE);
     const dbPassword = randomBytes(18).toString('hex');
+    // host.docker.internal → the host, on Linux too (Docker Desktop resolves it by itself, a Linux CI runner does not): the
+    // season runner suite has pg_net, inside this container, deliver a request to a receiver listening on the host.
     const r = docker(['run', '-d', '--name', CONTAINER, '--label', 'arma2.lab=commerce-production', '--network', NETWORK, '--network-alias', 'torneos-db',
+      '--add-host', 'host.docker.internal:host-gateway',
       '-e', `POSTGRES_PASSWORD=${dbPassword}`, '-p', '127.0.0.1::5432', IMAGE,
       'postgres', '-D', '/etc/postgresql', '-c', 'log_statement=none', '-c', 'log_min_error_statement=panic', '-c', 'log_parameter_max_length_on_error=0']);
     if (!r.ok) throw new Error(`docker run failed: ${r.err.split('\n')[0]}`);

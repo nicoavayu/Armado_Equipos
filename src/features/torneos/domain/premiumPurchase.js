@@ -51,6 +51,9 @@ export function seasonPurchaseSummary(answer) {
   const purchases = Array.isArray(answer?.purchases) ? answer.purchases : [];
   const open = purchases.find((p) => OPEN_PURCHASE_STATUSES.includes(p.status));
   if (open) return { kind: 'open', purchase: open };
+  // 0019: a payment approved after the season closed never activated Premium; it is waiting for a manual refund.
+  const late = purchases.find((p) => p.status === 'approved' && p.activationErrorCode === 'season_closed');
+  if (late) return { kind: 'late_payment', purchase: late };
   const settled = purchases.find((p) => ['approved', 'refunded', 'charged_back'].includes(p.status));
   if (settled) return { kind: settled.status, purchase: settled };
   return { kind: 'none', purchase: null };

@@ -113,8 +113,14 @@ test('planComparisonFor: each surface leaves Próximamente only when it is avail
 test('the gallery row quotes the plan catalog the server enforces', () => {
   // eslint-disable-next-line global-require
   const baseline = require('fs').readFileSync(require('path').join(__dirname, '../../backend/torneos/supabase/migrations/00000000000000_torneos_baseline_v1.sql'), 'utf8');
-  const limit = (plan) => Number(new RegExp(`INSERT INTO public\\.tournament_plan_catalog \\(plan_code, gallery_asset_limit[^)]*\\) VALUES \\('${plan}', (\\d+),`).exec(baseline)[1]);
-  expect([limit('FREE'), limit('PREMIUM')]).toEqual([25, 1000]);
+  // The catalog as the migrations leave it: the baseline's rows, then 0018's PREMIUM 100 (the last word wins).
+  const lifecycle = require('fs').readFileSync(require('path').join(__dirname, '../../backend/torneos/supabase/migrations/00000000000018_season_media_lifecycle.sql'), 'utf8');
+  const limit = (plan) => {
+    const updated = new RegExp(`UPDATE public\\.tournament_plan_catalog SET gallery_asset_limit = (\\d+)[^;]*WHERE plan_code = '${plan}'`).exec(lifecycle);
+    if (updated) return Number(updated[1]);
+    return Number(new RegExp(`INSERT INTO public\\.tournament_plan_catalog \\(plan_code, gallery_asset_limit[^)]*\\) VALUES \\('${plan}', (\\d+),`).exec(baseline)[1]);
+  };
+  expect([limit('FREE'), limit('PREMIUM')]).toEqual([25, 100]);
   expect(PLAN_MEDIA_GALLERY_ROW.free).toBe(`Hasta ${limit('FREE')} fotos por temporada`);
   expect(PLAN_MEDIA_GALLERY_ROW.premium).toBe(`Hasta ${limit('PREMIUM').toLocaleString('es-AR')} fotos por temporada`);
 });

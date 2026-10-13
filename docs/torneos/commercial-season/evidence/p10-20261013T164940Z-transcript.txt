@@ -1,0 +1,61 @@
+P10 — sandbox de Mercado Pago contra un laboratorio local (0000→0019). Producción no se toca.
+Casos: 
+  A  open season: APRO → Premium for that season only
+  B  rejected (OTHE) keeps the purchase open and FREE, then pending (CONT) stays FREE
+  C  season closed before paying: APRO → approved + season_closed, manual refund, FREE; panel refund → refunded, FREE
+  D  double payment: a second APRO on case A's link → manual refund, still one grant
+
+
+Vendedor de prueba comprobado por Mercado Pago: TESTUSER8646299169050047675 (id 3712890098, tag test_user, MLA). Tiene que ser el mismo usuario de la ventana del vendedor.
+Apretá Enter para crear el laboratorio y el primer link… PASS A Mercado Pago accepted the Preference {"runtime":200,"mercadoPago":{"status":201,"notificationUrl":"lab-invalid","message":null}}
+PASS A purchase priced from the offer in force 20000
+
+[A] Pagá este link en la ventana privada del COMPRADOR de prueba, con la tarjeta de prueba y titular APRO (tarjeta aprobada):
+
+      https://www.mercadopago.com.ar/checkout/v1/redirect?pref_id=3712890098-9e5462ff-60f1-4975-88b3-2679ce2838e1
+
+      Al terminar, Mercado Pago te manda a torneos-payments-test…deno.net y ves un 404: es lo esperado.
+[A] Enter cuando Mercado Pago haya mostrado el resultado. Si Mercado Pago NO lo permitió, escribí  n <motivo>  y Enter: PASS A approved and verified {"status":"approved","outcome":"verified"}
+PASS A Premium for that season "PREMIUM"
+PASS A another season of the same organization stays FREE "FREE"
+PASS A exactly one grant 1
+PASS B Mercado Pago accepted the Preference {"runtime":200,"mercadoPago":{"status":201,"notificationUrl":"lab-invalid","message":null}}
+
+[B] Pagá este link en la ventana privada del COMPRADOR de prueba, con la tarjeta de prueba y titular OTHE (tarjeta rechazada):
+
+      https://www.mercadopago.com.ar/checkout/v1/redirect?pref_id=3712890098-2878a824-0bcd-4cf4-aa8e-498c5128b9ac
+
+      Al terminar, Mercado Pago te manda a torneos-payments-test…deno.net y ves un 404: es lo esperado.
+[B] Enter cuando Mercado Pago haya mostrado el resultado. Si Mercado Pago NO lo permitió, escribí  n <motivo>  y Enter: PASS B rejected attempt keeps the purchase open {"status":"preference_created","outcome":"verified"}
+PASS B FREE after the rejection "FREE"
+
+[B] Pagá este link en la ventana privada del COMPRADOR de prueba, con la tarjeta de prueba y titular CONT (pago pendiente, MISMO link):
+
+      https://www.mercadopago.com.ar/checkout/v1/redirect?pref_id=3712890098-2878a824-0bcd-4cf4-aa8e-498c5128b9ac
+
+      Al terminar, Mercado Pago te manda a torneos-payments-test…deno.net y ves un 404: es lo esperado.
+[B] Enter cuando Mercado Pago haya mostrado el resultado. Si Mercado Pago NO lo permitió, escribí  n <motivo>  y Enter: PASS B pending attempt recorded, still FREE {"status":"pending","outcome":"verified","payments":2}
+PASS C Mercado Pago accepted the Preference {"runtime":200,"mercadoPago":{"status":201,"notificationUrl":"lab-invalid","message":null}}
+PASS C the season is closed before paying null
+
+[C] Pagá este link en la ventana privada del COMPRADOR de prueba, con la tarjeta de prueba y titular APRO (tarjeta aprobada, con la temporada YA cerrada):
+
+      https://www.mercadopago.com.ar/checkout/v1/redirect?pref_id=3712890098-a046e6a9-cecc-4b29-a769-c18dc5689a07
+
+      Al terminar, Mercado Pago te manda a torneos-payments-test…deno.net y ves un 404: es lo esperado.
+[C] Enter cuando Mercado Pago haya mostrado el resultado. Si Mercado Pago NO lo permitió, escribí  n <motivo>  y Enter: PASS C approved + season_closed, manual refund {"status":"approved","activation":"season_closed","outcome":"requires_manual_refund"}
+PASS C no Premium, no grant {"plan":"FREE","grants":0}
+
+[C] En la ventana del VENDEDOR de prueba: Tu actividad → el pago 183958040918 ($ 20000) → Devolver dinero → devolución total.
+[C] Enter cuando el panel lo muestre devuelto. Si Mercado Pago NO lo permitió, escribí  n <motivo>  y Enter: PASS C refunded once, still FREE {"status":"refunded","plan":"FREE"}
+PASS C one late-payment event and one refund event ["purchase.created","preference.created","payment.approved_season_closed","payment.season_closed_refunded"]
+
+[D] Pagá este link en la ventana privada del COMPRADOR de prueba, con la tarjeta de prueba y titular APRO (un SEGUNDO pago aprobado sobre el link del caso A):
+
+      https://www.mercadopago.com.ar/checkout/v1/redirect?pref_id=3712890098-9e5462ff-60f1-4975-88b3-2679ce2838e1
+
+      Al terminar, Mercado Pago te manda a torneos-payments-test…deno.net y ves un 404: es lo esperado.
+[D] Enter cuando Mercado Pago haya mostrado el resultado. Si Mercado Pago NO lo permitió, escribí  n <motivo>  y Enter: PASS D second payment seen by the search {"before":1,"after":2}
+PASS D it asks for a manual refund, still one grant, still Premium {"outcome":"requires_manual_refund","grants":1,"plan":"PREMIUM"}
+
+P10_PASS — evidencia /Users/nicoavayu/Arma2Backups/p10-evidence/p10-sandbox-20261013T164947Z.txt

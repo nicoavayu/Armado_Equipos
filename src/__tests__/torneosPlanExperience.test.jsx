@@ -52,8 +52,8 @@ test('Próximamente explains the Estudio Social in human terms, without internal
  expect([...tier('FREE')].map(li=>li.textContent)).toEqual(['Estilo Base','Resultados','Tabla de posiciones','Próxima fecha']);
  expect([...tier('PREMIUM')].map(li=>li.textContent)).toEqual(['Todas las placas','5 estilos: Base, Heritage, Street, Scoreboard y Editorial','Posibilidad de quitar la firma Arma2']);
  const gallery=screen.getByRole('region',{name:'Galería de fotos'});
- expect(gallery).toHaveTextContent('Hasta 25 archivos');
- expect(gallery).toHaveTextContent('Hasta 1.000 archivos');
+ expect(gallery).toHaveTextContent('Hasta 25 fotos');
+ expect(gallery).toHaveTextContent('Hasta 100 fotos');
 });
 test.each([0,1,2])('%i seasons can be inspected',async count=>{
  show({count});

@@ -1,3 +1,4 @@
+import { normalizeSeasonLifecycle } from './seasonLifecycle';
 export const TOURNAMENT_PLANS = Object.freeze({
   FREE: 'FREE',
   PREMIUM: 'PREMIUM',
@@ -84,7 +85,8 @@ function validPricing(pricing) {
     && pricing.listPrice > 0
     && Number.isInteger(pricing?.launchPrice)
     && pricing.launchPrice > 0
-    && pricing.launchPrice < pricing.listPrice
+    // 0019: the launch price can be the only price (list = launch): nothing to strike through.
+    && pricing.launchPrice <= pricing.listPrice
     && pricing?.billingModel === 'one_time'
     && pricing?.scope === 'season';
 }
@@ -137,6 +139,8 @@ export function normalizeTournamentEntitlements(payload, expectedScope = null) {
       billingModel: payload.pricing.billingModel,
       scope: payload.pricing.scope,
     } : null,
+    // 0018: the season's deadline and media state, as the server sent it (null when absent or untrusted).
+    seasonLifecycle: isTrusted ? normalizeSeasonLifecycle(payload?.seasonLifecycle) : null,
     offer: isTrusted && payload?.offer ? {
       code: payload.offer.code || null,
       version: Number.isInteger(payload.offer.version) ? payload.offer.version : null,

@@ -21,8 +21,8 @@ const STORAGE = `${ORIGIN}/storage/v1`;
 const REST = `${ORIGIN}/rest/v1`;
 
 let tree, store, protocol, config;
-const world = { authorize: [], storage: [], deny: new Set(), authorizeStatus: 200, storageStatus: 200, extra: null, throwOn: null, absent: new Set() };
-const reset = () => Object.assign(world, { authorize: [], storage: [], deny: new Set(), authorizeStatus: 200, storageStatus: 200, extra: null, throwOn: null, absent: new Set() });
+const world = { authorize: [], storage: [], deny: new Set(), authorizeStatus: 200, storageStatus: 200, extra: null, throwOn: null, absent: new Set(), claim: null, completed: [], rpcHeaders: [] };
+const reset = () => Object.assign(world, { authorize: [], storage: [], deny: new Set(), authorizeStatus: 200, storageStatus: 200, extra: null, throwOn: null, absent: new Set(), claim: null, completed: [], rpcHeaders: [] });
 async function fakeFetch(url, init) {
   const u = String(url);
   if (world.throwOn && u.startsWith(world.throwOn)) throw new Error('network down');
@@ -32,6 +32,14 @@ async function fakeFetch(url, init) {
     if (world.authorizeStatus !== 200) return new Response('{"message":"x"}', { status: world.authorizeStatus });
     const allowed = args.p_names.filter((n) => !world.deny.has(`${args.p_operation}:${n}`));
     return new Response(JSON.stringify(world.extra ? [...allowed, world.extra] : allowed), { status: 200 });
+  }
+  if (u === `${REST}/rpc/claim_tournament_media_purge`) {
+    world.rpcHeaders.push(init.headers);
+    return new Response(JSON.stringify(world.claim), { status: 200 });
+  }
+  if (u === `${REST}/rpc/complete_tournament_media_purge`) {
+    world.completed.push(JSON.parse(init.body).p_asset_id);
+    return new Response(JSON.stringify({ purged: true }), { status: 200 });
   }
   if (u.startsWith(`${STORAGE}/`)) {
     world.storage.push({ url: u.slice(STORAGE.length), method: init.method, headers: init.headers, body: init.body, redirect: init.redirect });
@@ -216,4 +224,62 @@ test('a removal tells a real absence (404 NOT_REMOVED) from a provider failure (
   const denied = await call('branding-delete', { body: { path: BRAND } });
   assert.equal(denied.status, 403, 'the database still decides first');
   assert.equal(world.storage.filter((c) => c.method === 'DELETE').length, 7, 'a denied removal never reached Storage');
+});
+
+// 0018 — the season-end purge: its own secret, no identity, the database decides what goes; logos never.
+const PURGE_SECRET = 'cd'.repeat(32);
+async function purge(cfg, { secret = cfg.purgeSecret, body = { limit: 20 }, identity = null } = {}) {
+  const bytes = new TextEncoder().encode(JSON.stringify(body));
+  const ts = String(Math.floor(Date.now() / 1000));
+  const signature = secret ? await protocol.sign(secret, await protocol.signingInput('POST', '/torneos-media-store/v1/media-purge', '', ts, bytes, '')) : '0'.repeat(64);
+  const headers = { 'content-type': 'application/json', 'x-torneos-store-timestamp': ts, 'x-torneos-store-signature': signature };
+  if (identity) headers['x-torneos-store-identity'] = identity;
+  const res = await store.handle(new Request(`${ORIGIN}/torneos-media-store/v1/media-purge`, { method: 'POST', body: bytes, headers }), cfg, { fetchImpl: fakeFetch });
+  const text = await res.text();
+  for (const secretText of [SECRET_KEY, PUBLISHABLE_KEY, STORE_SECRET, PURGE_SECRET]) assert.ok(!text.includes(secretText));
+  return { status: res.status, json: text ? JSON.parse(text) : null };
+}
+const A1 = '80000000-0000-4000-8000-000000000001';
+const A2 = '80000000-0000-4000-8000-000000000002';
+const O1 = `${ORG}/${TNT}/${GAL}/90000000-0000-4000-8000-000000000009.jpg`;
+
+test('media-purge does not exist without its own secret, and refuses the gateway secret, an identity or a bad signature', async () => {
+  assert.equal((await purge(config, { secret: config.secret })).status, 404, 'no TORNEOS_MEDIA_PURGE_SECRET → no route');
+  const withPurge = store.loadStoreConfig({ ...storeEnv(), TORNEOS_MEDIA_PURGE_SECRET: PURGE_SECRET });
+  assert.equal((await purge(withPurge, { secret: withPurge.secret })).status, 401, 'the gateway secret does not sign a purge');
+  assert.equal((await purge(withPurge, { identity: IDENTITY })).status, 401, 'a purge carries no user identity');
+  assert.throws(() => store.loadStoreConfig({ ...storeEnv(), TORNEOS_MEDIA_PURGE_SECRET: 'short' }), /TORNEOS_MEDIA_PURGE_SECRET/);
+  assert.throws(() => store.loadStoreConfig({ ...storeEnv(), TORNEOS_MEDIA_PURGE_SECRET: STORE_SECRET }), /must differ/);
+  assert.equal(world.storage.length, 0);
+});
+
+test('media-purge removes exactly what the database leased (photo + thumbnail + orphans), confirms each photo, never a logo', async () => {
+  const cfg = store.loadStoreConfig({ ...storeEnv(), TORNEOS_MEDIA_PURGE_SECRET: PURGE_SECRET });
+  const A3 = '80000000-0000-4000-8000-000000000003';
+  const VARIANT_OUT = `${ORG}/${TNT}/${GAL}/70000000-0000-4000-8000-000000000003-huge.jpg`;
+  world.claim = { assets: [{ assetId: A1, names: [OBJECT, THUMB] }, { assetId: A2, names: [BRAND] },
+    { assetId: A3, names: [OBJECT.replace('0008.jpg', '0003.jpg'), VARIANT_OUT] }], orphans: [O1, BRAND] };
+  world.absent = new Set([THUMB]);
+  const out = await purge(cfg);
+  assert.equal(out.status, 200);
+  assert.deepEqual(out.json, { purged: 1, failed: 2, orphansRemoved: 1,
+    errors: [{ assetId: A2, code: 'INVALID_NAME' }, { assetId: A3, code: 'INVALID_NAME' }] });
+  assert.deepEqual(world.completed, [A1], 'one name outside the patterns rejects the whole photo: nothing removed, nothing confirmed');
+  const deleted = world.storage.filter((r) => r.method === 'DELETE').flatMap((r) => { assert.equal(r.url, '/object/tournament-media'); return JSON.parse(r.body).prefixes; });
+  assert.deepEqual(deleted.sort(), [O1, OBJECT, THUMB].sort(), 'an already absent thumbnail is fine; a logo path never reaches Storage');
+  assert.deepEqual(world.rpcHeaders[0], { apikey: SECRET_KEY, 'content-type': 'application/json', accept: 'application/json' });
+});
+
+test('media-purge: a Storage failure confirms nothing (the lease expires and the next run retries), a bad limit is refused', async () => {
+  const cfg = store.loadStoreConfig({ ...storeEnv(), TORNEOS_MEDIA_PURGE_SECRET: PURGE_SECRET });
+  world.claim = { assets: [{ assetId: A1, names: [OBJECT, THUMB] }], orphans: [] };
+  world.storageStatus = 503;
+  assert.deepEqual((await purge(cfg)).json, { purged: 0, failed: 1, orphansRemoved: 0, errors: [{ assetId: A1, code: 'UNAVAILABLE' }] });
+  assert.deepEqual(world.completed, []);
+  // The provider is back: the next run (the lease expired, the database leases it again) removes and confirms it.
+  world.storageStatus = 200;
+  assert.deepEqual((await purge(cfg)).json, { purged: 1, failed: 0, orphansRemoved: 0, errors: [] });
+  assert.deepEqual(world.completed, [A1]);
+  assert.equal((await purge(cfg, { body: { limit: 0 } })).status, 400);
+  assert.equal((await purge(cfg, { body: { limit: 101 } })).status, 400);
 });

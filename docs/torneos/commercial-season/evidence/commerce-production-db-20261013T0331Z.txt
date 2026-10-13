@@ -1,0 +1,60 @@
+▶ schema and ACL
+  ✔ re-applying 0013 is a no-op that keeps the operator switch (0019 rolled back first, then applied again) (1436.249125ms)
+  ✔ the environment CHECK admits MERCADO_PAGO production and nothing new for FAKE (85.443666ms)
+  ✔ every client and service role executes exactly what it must (6273.99725ms)
+  ✔ payment logins cannot read or write any commercial table directly (81.303667ms)
+✔ schema and ACL (46385.152791ms)
+▶ operator switch and authorization
+  ✔ off refuses every organization; allowlist only the listed one; open everyone (3742.335209ms)
+  ✔ only owners and admins of the season may buy; outsiders and other organizations never (2433.559167ms)
+✔ operator switch and authorization (6176.2005ms)
+▶ purchase creation
+  ✔ the purchase snapshot is the current offer, fixed server-side (1166.854375ms)
+  ✔ double tap and retries with the same key answer the same purchase (1627.192959ms)
+  ✔ concurrent first taps create exactly one purchase (829.700792ms)
+  ✔ reusing a key for another season is a conflict, never a silent new purchase (1017.621958ms)
+  ✔ an open TEST purchase of the season is never continued as production (and vice versa) (1968.622709ms)
+  ✔ a stale preference expires on the next checkout; an open payment never does (2646.596167ms)
+✔ purchase creation (9257.0605ms)
+▶ verified payment lifecycle (production service role)
+  ✔ preference: recorded once, replay accepted, a different one refused (474.508667ms)
+  ✔ approved activates Premium for that season only, exactly once (1934.754583ms)
+  ✔ older or late statuses never degrade an activated purchase (1889.31325ms)
+  ✔ pending then approved; a rejected attempt keeps the purchase open for another card (735.269666ms)
+  ✔ refund revokes Premium once; the season can be bought again (2241.529667ms)
+  ✔ chargeback: disputed suspends (no new purchase), restored brings Premium back, buyer won revokes (1617.263458ms)
+  ✔ anomalies never grant: approved after close, reversal before activation, another payment (2327.885583ms)
+  ✔ a payment already approved for another purchase is a conflict (1847.722833ms)
+  ✔ the production service never touches TEST purchases (423.419084ms)
+  ✔ the TEST login cannot move a production purchase, even through the generic baseline function (1319.544459ms)
+✔ verified payment lifecycle (production service role) (14811.801833ms)
+▶ reconciliation bookkeeping
+  ✔ claims are atomic and throttled; completion records the outcome (552.690542ms)
+  ✔ candidates: open purchases after the webhook head start, least recently checked first (1582.860417ms)
+✔ reconciliation bookkeeping (2135.683875ms)
+▶ Mi plan: purchases of a season
+  ✔ managers see the season purchases, others only their own, outsiders nothing (2507.907ms)
+✔ Mi plan: purchases of a season (2508.043458ms)
+▶ Premium is real and season-scoped
+  ✔ collaborator seats follow the plan; losing Premium removes nobody (2312.50825ms)
+  ✔ Premium capabilities and limits switch with the grant, per season (1266.260667ms)
+✔ Premium is real and season-scoped (3578.916375ms)
+▶ season rules (0019 on 0018)
+  ✔ a closed season cannot be bought, nor an open purchase of it continued (1896.934875ms)
+  ✔ buying Premium never moves the season deadline (draft or active) (3777.218625ms)
+  ✔ a payment approved after the season closed never grants Premium: approved + season_closed, manual refund, replays idempotent (1809.934042ms)
+  ✔ a chargeback on a late payment changes nothing and asks for manual review (no Premium to suspend) (1259.385625ms)
+  ✔ a different payment for a season_closed purchase is a conflict, never a grant (1615.49ms)
+✔ season rules (0019 on 0018) (10359.222666ms)
+▶ the TEST chain is untouched
+  ✔ certified TEST bodies keep their md5 (478.471375ms)
+  ✔ a TEST purchase still cannot be created as production by the TEST wrapper (431.645042ms)
+✔ the TEST chain is untouched (910.195417ms)
+ℹ tests 34
+ℹ suites 9
+ℹ pass 34
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 98481.637459

@@ -1,0 +1,42 @@
+✔ jobs at the offset minutes; without the Vault entries the caller sends nothing (4722.499666ms)
+✔ the purge request pg_net sends is accepted by the real torneos-media-store handler (signature built in SQL) (702.463417ms)
+✔ rollback: no job left, caller gone; re-apply works (755.849833ms)
+▶ P1 apply, roll back, apply again
+  ✔ 0018 applies on POST_0017, gives existing non-draft seasons six months from now, and its rollback restores POST_0017 (8259.330541ms)
+  ✔ ACL: service RPCs only for service_role, helpers for nobody, update_tournament_season for authenticated (3370.224ms)
+✔ P1 apply, roll back, apply again (15394.697834ms)
+▶ S1/S2 activation, deadline and closing
+  ✔ explicit activation records the moment and a six-month deadline that a later edit never moves (1166.824291ms)
+  ✔ finishing early requires the explicit deletion confirmation, then marks every photo of the season (4350.638333ms)
+  ✔ the deadline closes the season, marks its photos, and keeps tournaments, results and logos (4202.4395ms)
+✔ S1/S2 activation, deadline and closing (9720.283708ms)
+▶ S5 notices
+  ✔ 7 days and 1 day before: one notice per tournament with photos and per reviewer, never twice, none without photos (4119.226625ms)
+✔ S5 notices (4119.460625ms)
+▶ S6 purge
+  ✔ claim leases each photo once, completion is idempotent, orphans of closed seasons are listed, logos never (7554.33325ms)
+✔ S6 purge (7554.512875ms)
+▶ S7 and quota: uploads
+  ✔ a closed season takes no upload; an open one does (2367.563667ms)
+  ✔ more than 500 000 bytes is refused at the session (1339.38475ms)
+  ✔ FREE: 25 photos per season, concurrent requests never pass the limit (12213.680625ms)
+  ✔ PREMIUM: 100 photos per season (56678.49525ms)
+  ✔ the global ceiling stays 0012's budget, unchanged by 0018, and a purge gives its bytes back (519.956584ms)
+✔ S7 and quota: uploads (73119.408541ms)
+▶ F1 races between closing a season and a new upload (two connections, controlled barriers)
+  ✔ close first, holding its lock: the upload waits and then sees the season closed (3839.5825ms)
+  ✔ upload first, holding its lock: the close waits, then revokes that session with the others (3917.285916ms)
+✔ F1 races between closing a season and a new upload (two connections, controlled barriers) (7757.010583ms)
+▶ P8 authorization and reads
+  ✔ a closed season signs nothing, not even for its staff; another organization cannot close a season (7455.552625ms)
+  ✔ Mi plan and Multimedia read the lifecycle (date before paying or uploading) (1286.421334ms)
+✔ P8 authorization and reads (8742.070333ms)
+✔ Production order 0018 → 0013 → 0019, back 0019 → 0013 → 0018, and forward again (13512.257417ms)
+ℹ tests 20
+ℹ suites 7
+ℹ pass 20
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 148819.354542

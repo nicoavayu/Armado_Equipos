@@ -1,0 +1,38 @@
+▶ P1 apply, roll back, apply again
+  ✔ 0018 applies on POST_0017, gives existing non-draft seasons six months from now, and its rollback restores POST_0017 (11001.846333ms)
+  ✔ ACL: service RPCs only for service_role, helpers for nobody, update_tournament_season for authenticated (1357.363583ms)
+✔ P1 apply, roll back, apply again (15739.808792ms)
+▶ S1/S2 activation, deadline and closing
+  ✔ explicit activation records the moment and a six-month deadline that a later edit never moves (1200.353125ms)
+  ✔ finishing early requires the explicit deletion confirmation, then marks every photo of the season (1771.091875ms)
+  ✔ the deadline closes the season, marks its photos, and keeps tournaments, results and logos (2580.404375ms)
+✔ S1/S2 activation, deadline and closing (5552.282375ms)
+▶ S5 notices
+  ✔ 7 days and 1 day before: one notice per tournament with photos and per reviewer, never twice, none without photos (7782.448542ms)
+✔ S5 notices (7782.807167ms)
+▶ S6 purge
+  ✔ claim leases each photo once, completion is idempotent, orphans of closed seasons are listed, logos never (4884.662084ms)
+✔ S6 purge (4884.798208ms)
+▶ S7 and quota: uploads
+  ✔ a closed season takes no upload; an open one does (1776.794ms)
+  ✔ more than 500 000 bytes is refused at the session (989.009125ms)
+  ✔ FREE: 25 photos per season, concurrent requests never pass the limit (14009.606208ms)
+  ✔ PREMIUM: 100 photos per season (52908.052541ms)
+  ✔ the global ceiling stays 0012's budget, unchanged by 0018, and a purge gives its bytes back (1789.883125ms)
+✔ S7 and quota: uploads (71473.656791ms)
+▶ F1 races between closing a season and a new upload (two connections, controlled barriers)
+  ✔ close first, holding its lock: the upload waits and then sees the season closed (4960.781834ms)
+  ✔ upload first, holding its lock: the close waits, then revokes that session with the others (4632.619875ms)
+✔ F1 races between closing a season and a new upload (two connections, controlled barriers) (9593.635458ms)
+▶ P8 authorization and reads
+  ✔ a closed season signs nothing, not even for its staff; another organization cannot close a season (1826.088541ms)
+  ✔ Mi plan and Multimedia read the lifecycle (date before paying or uploading) (901.849333ms)
+✔ P8 authorization and reads (2728.15375ms)
+ℹ tests 16
+ℹ suites 7
+ℹ pass 16
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 118256.469792

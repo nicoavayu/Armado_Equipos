@@ -25,9 +25,9 @@ import {
 
 const JPEG_QUALITY = 0.86;
 // MEDIA-V1: the grid image that travels with each photo. 640 px covers a grid tile at 2x/3x density and the cover on a
-// phone; the gateway refuses anything larger than 640 px or 512 KiB.
+// phone; the gateway refuses anything larger than 640 px or 500 000 bytes (0018).
 export const THUMBNAIL_MAX_EDGE = 640;
-export const THUMBNAIL_MAX_BYTES = 512 * 1024;
+export const THUMBNAIL_MAX_BYTES = 500_000;
 const THUMBNAIL_QUALITY = 0.8;
 
 export class MediaClientError extends Error {
@@ -274,7 +274,7 @@ export async function prepareUploadPayload(file, { signal, limits = MEDIA_LIMITS
     if (!source) {
       throw new MediaClientError(
         'size',
-        `La foto supera los ${Math.floor(limits.maxFileBytes / 1024 / 1024)} MB una vez optimizada.`,
+        `No pudimos dejar la foto por debajo de ${Math.round(limits.maxFileBytes / 1000)} KB al optimizarla.`,
       );
     }
 
