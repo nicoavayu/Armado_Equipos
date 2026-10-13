@@ -63,7 +63,11 @@ Nada se aplicó en Producción. Premium, pagos y borrado real siguen apagados.
   - `docker network create` fallaba en silencio, y después aparecía como «network … not found». En esta Mac el motivo era «all predefined address pools have been fully subnetted»: hay 33 redes de otros laboratorios.
   - pg-lab ahora corta con ese mensaje exacto.
   - Liberé sólo laboratorios desechables míos (sufijo `ac9f037b`). No toqué los de otras sesiones.
-- **El resultado en GitHub va en la tabla de evidencia de abajo.** No lo doy por verde hasta verlo.
+- **GitHub (Prelaunch Quality Gate, job quality):**
+  - run 38347155143 sobre 500bb4c8 (el arreglo): **success**; en Linux, `ok 7 - the purge request pg_net sends is accepted…`;
+  - run 38347786097 sobre 6539b2be (+ P10 offline): **success**;
+  - run 38348305188 sobre cf2250fd (+ diagnóstico de red): **success**.
+  - Este commit sólo toca docs; su run es el del head final.
 
 ## Evidencia (archivos `.txt` en `docs/torneos/commercial-season/evidence/`; `*.log` está en .gitignore, por eso antes no estaban en la rama)
 
