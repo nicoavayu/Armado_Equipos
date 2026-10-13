@@ -2,9 +2,7 @@
 
 **Actualizado:** 2026-10-13 · rama `claude/torneos-season-commercial-gallery` · head del commit que trae este archivo (ver `git log -1`).
 **No hay notificación directa a Codex:** este archivo y la sesión de Claude «Arma2 Torneos como producto conectado» son el canal.
-**No está listo para GO.** Falta:
-- la prueba de punta a punta en el sandbox actual de Mercado Pago (P10);
-- los drivers de operador para 0018, 0019 y el runner.
+**No está listo para GO.** Falta una sola cosa: correr P10 contra el sandbox actual de Mercado Pago. El wrapper está listo y probado offline; sólo espera el paso humano de Nico (ver «P10» abajo).
 
 Nada se aplicó en Producción. Premium, pagos y borrado real siguen apagados.
 
@@ -49,11 +47,25 @@ Nada se aplicó en Producción. Premium, pagos y borrado real siguen apagados.
   - Más estricta a propósito, en cuatro casos documentados: `data.id` no numérico (no es un pago), sin `x-request-id`, `ts` duplicado y `ts` que no tiene 10 ni 13 dígitos.
   - Alcance: sólo el tópico payment.
 
-## Evidencia (logs en `docs/torneos/commercial-season/evidence/`)
+## CI de GitHub: pg_net en Linux (run 38344642171)
+
+- **Síntoma:** `season-cron.test.mjs:65`, «pg_net delivered exactly one request», con 0 requests en 10 s. En la Mac pasaba.
+- **Causa observada, no supuesta:**
+  - En un motor Docker de Linux, `host.docker.internal` no existe; Docker Desktop lo resuelve por su cuenta.
+  - pg_net registra entonces `error_msg = "Couldn't resolve host name"` en `net._http_response`. Lo reproduje en el laboratorio con un nombre que no resuelve.
+- **Corrección:** `pg-lab.mjs` crea el contenedor de la base con `--add-host host.docker.internal:host-gateway`, que es lo mismo que Docker Desktop hace solo.
+- **Diagnóstico observable en la prueba:**
+  - Antes de enviar, verifica que el nombre resuelva dentro del contenedor (`getent hosts`).
+  - Espera la fila de `net._http_response` y pone en el mensaje de falla `status_code`, `timed_out` y `error_msg`.
+  - La aserción no se relajó: sigue exigiendo exactamente un request, y ahora además el 204 que registró pg_net.
+- **Evidencia local:** `season-all-add-host-20261013T0434Z.txt` (25/25, con `HostConfig.ExtraHosts = [host.docker.internal:host-gateway]`).
+- **El resultado en GitHub va en la tabla de evidencia de abajo.** No lo doy por verde hasta verlo.
+
+## Evidencia (archivos `.txt` en `docs/torneos/commercial-season/evidence/`; `*.log` está en .gitignore, por eso antes no estaban en la rama)
 
 | Suite | Resultado | Laboratorio |
 |---|---|---|
-| `test:torneos:season` (lifecycle 16 + orden de Producción 1 + runner 3) | **20/20** | `arma2-season-lab-db-*` (0000→0017, con 0018 y 0019 aplicados y revertidos por las pruebas) |
+| `test:torneos:season` (lifecycle 16 + orden de Producción 1 + runner 3 + driver 5 + P10 offline 3) | **28/28** local | `arma2-season-lab-db-*` (0000→0017, con 0018 y 0019 aplicados y revertidos por las pruebas) |
 | `test:torneos:commerce-production` (incluye DB, gateway, driver y vuelta atrás de 0013, orden de migraciones, privilegios y vectores del SDK) | **95/95** | `arma2-commerce-season-db-*` (0000→0019) |
 | `media-store` / `media` / `branding` | 21/21 · 36/36 · 18/18 | sin base |
 | Jest / frontend-foundation | 3722/3722 · 109/109 | — |
@@ -68,23 +80,67 @@ Nada se aplicó en Producción. Premium, pagos y borrado real siguen apagados.
 
 ## P10: sandbox actual de Mercado Pago (lo único que falta antes del GO)
 
-**Por qué no se usa la cadena alojada.** La cadena TEST certificada (Deno `torneos-payments-test` sobre la base de Producción) usa las reglas actuales. Probar 0018 y 0019 ahí exigiría aplicarlas en Producción, cosa que no se hace antes del GO.
+**Wrapper:** `backend/torneos/season-lifecycle/p10/p10-sandbox.mjs`.
 
-**Plan, en laboratorio aislado:**
-- Postgres local con 0000→0019.
-- El runtime real `torneos-payments-production`, cargado en Node con el árbol del gateway y apuntado a esa base.
-- La API real de MP en **modo prueba**: vendedor y comprador de prueba.
-- El estado entra por la consulta autoritativa (`/v1/payments/search` por `external_reference`) y por la conciliación. MP no puede llegar a localhost para mandar el webhook: la firma la cubren los vectores del SDK y la certificación TEST del 2026-09-26.
-- Casos a recorrer:
-  - aprobado con la temporada abierta → Premium;
-  - aprobado con la temporada cerrada → `approved_season_closed` y devolución manual en el panel de prueba → `refunded`;
-  - rechazado y pendiente;
-  - pago doble.
+**Por qué no se usa la cadena alojada.** La cadena TEST certificada (Deno `torneos-payments-test` sobre la base de Producción) usa las reglas actuales. Probar 0018 y 0019 ahí exigiría aplicarlas en Producción.
 
-**Lo que necesita a Nico (pantalla de MP; nada por chat):**
-1. El Access Token de prueba del vendedor de prueba de la app de MP. Lo carga en un campo oculto del wrapper.
-2. Hacer él el pago en el checkout del sandbox con el comprador de prueba. No puedo iniciar sesión ni ingresar tarjetas.
-3. La devolución en el panel del vendedor de prueba.
+**Qué corre y dónde:**
+- **Base:** laboratorio local nuevo, contenedor `arma2-season-p10-db`, con 0000→0019 de esta rama.
+- **Runtime:** el handler real `torneos-payments-production`: las mismas sentencias de `rpc.ts`, el login de producción y `SET LOCAL ROLE`.
+- **Proveedor:** la API real de MP con el Access Token del **vendedor de prueba**.
+  - El token se pide en un prompt oculto y queda sólo en memoria: nunca se loguea ni se escribe.
+  - El fetcher sólo habla con `https://api.mercadopago.com` y sólo hace las llamadas del runtime (GET y el POST de la Preference). Ni devoluciones ni pagos.
+- **Estado:** entra por la ruta de refresco del comprador (`purchase-reconcile` → `/v1/payments/search`). MP no puede llegar a localhost para el webhook; su firma la cubren `webhook-signature-sdk` y la certificación TEST del 2026-09-26.
+
+**Único ajuste de laboratorio, y por qué.**
+- El runtime de producción atestigua al vendedor y rechaza un usuario de prueba (tag `test_user` en `/users/me`).
+- El wrapper **exige** primero ese tag: un vendedor real se rechaza antes de crear el laboratorio.
+- Después le pasa al runtime la misma respuesta sin ese único tag.
+- No hace falta tocar `live_mode`: el sandbox ya contesta `true` (observado el 2026-09-26).
+
+**Casos, y lo que se verifica:**
+- **A.** Temporada abierta, tarjeta APRO.
+  - Monto 20.000 tomado de la oferta vigente.
+  - `approved` + `verified`; Premium sólo en esa temporada; un único grant.
+- **B.** Tarjeta OTHE, después CONT, sobre el mismo link.
+  - La compra sigue abierta y en FREE; el pendiente no otorga nada.
+- **C.** Temporada cerrada antes de pagar, tarjeta APRO.
+  - `approved` + `season_closed`, `requires_manual_refund`, FREE y sin grant.
+  - Después Nico devuelve en el panel: `refunded` una sola vez, sigue FREE; un evento de pago tardío y uno de devolución.
+- **D.** Segundo APRO sobre el link de A.
+  - `requires_manual_refund`; sigue habiendo un solo grant y Premium.
+- Si un caso falla (timeout, Preference rechazada), queda registrado como FAIL con su motivo y los siguientes corren igual.
+
+**Evidencia:** se escribe en `evidence/p10-sandbox-<ts>Z.txt`. Veredicto `P10_PASS` o `P10_FAIL`; contiene ids de laboratorio y de pagos de prueba, nunca el token.
+
+**Probado offline:** `p10-sandbox.test.mjs` 3/3. Corre el mismo `runP10()` con el emulador en la forma del sandbox, más tres pruebas:
+- un vendedor real se rechaza antes del laboratorio;
+- el fetcher bloquea devoluciones y otros orígenes;
+- un caso fallido no frena a los demás.
+
+**Riesgo sin probar hasta la corrida real.** La Preference usa back URLs y `notification_url` de laboratorio (`*.unit.invalid`). Si MP las rechaza, el caso queda en `P10_PREFERENCE_FAILED` con la respuesta de MP, y se cambia por un host válido sin tocar nada más.
+
+### El único paso humano (Nico, mañana; nada por chat)
+
+En su terminal, desde la raíz del repo en esta rama:
+
+```bash
+node backend/torneos/season-lifecycle/p10/p10-sandbox.mjs
+```
+
+1. Pega el **Access Token del vendedor de prueba** de la app Arma2 (Tus integraciones → la app → Cuentas de prueba → vendedor → Credenciales de producción, `APP_USR-…`) en el prompt oculto.
+2. Para cada link que imprime: abre una ventana privada, entra como **comprador de prueba** y paga con una tarjeta de prueba. El titular indica el resultado:
+   - **A:** APRO;
+   - **B:** OTHE y después CONT, sobre el mismo link;
+   - **C:** APRO;
+   - **D:** APRO otra vez sobre el link de A.
+
+   Después aprieta Enter. La página de vuelta no carga porque apunta a un host de laboratorio, y eso es lo esperado.
+3. Cuando lo pide (caso C): en el panel del **vendedor de prueba**, devuelve el pago indicado completo y aprieta Enter.
+
+Dura unos 15 minutos. Si sólo hay tiempo para lo esencial: `--cases A,C`.
+
+**Recuperación:** el laboratorio es desechable y se recrea en cada corrida. Si algo se corta, se vuelve a correr y no deja nada en Producción ni en MP más allá de los pagos de prueba.
 
 ## Después de P10
 

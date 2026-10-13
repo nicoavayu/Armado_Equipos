@@ -1,0 +1,50 @@
+✔ pins: each file of this branch, its phrase, and the catalog passes the real read-only transport guard (5.596709ms)
+✔ budget: literal values only, ≤ 1 GB, gallery ≤ project (0.225875ms)
+✔ classify: Production today, and every leftover or half state is DRIFT (0.800541ms)
+✔ gates: phrase, file hash, the state of its own axis before, and nothing else moving (1.047834ms)
+✔ rehearsal on the lab: rollback-0018 → apply-0018 → apply-0019 → apply-runner → budget → back (3844.731792ms)
+✔ only a TEST seller of MLA is accepted; the fetcher is locked to the runtime's own calls (21.246875ms)
+✔ cases A–D through the real runtime on a fresh 0000→0019 lab (14291.68975ms)
+✔ a case that never completes is a FAIL with its reason, and the next case still runs (13017.927208ms)
+✔ jobs at the offset minutes; without the Vault entries the caller sends nothing (2990.3445ms)
+✔ the purge request pg_net sends is accepted by the real torneos-media-store handler (signature built in SQL) (447.161833ms)
+✔ rollback: no job left, caller gone; re-apply works (173.290542ms)
+▶ P1 apply, roll back, apply again
+  ✔ 0018 applies on POST_0017, gives existing non-draft seasons six months from now, and its rollback restores POST_0017 (1492.218083ms)
+  ✔ ACL: service RPCs only for service_role, helpers for nobody, update_tournament_season for authenticated (325.782041ms)
+✔ P1 apply, roll back, apply again (4172.916916ms)
+▶ S1/S2 activation, deadline and closing
+  ✔ explicit activation records the moment and a six-month deadline that a later edit never moves (257.103291ms)
+  ✔ finishing early requires the explicit deletion confirmation, then marks every photo of the season (444.535042ms)
+  ✔ the deadline closes the season, marks its photos, and keeps tournaments, results and logos (594.733375ms)
+✔ S1/S2 activation, deadline and closing (1296.510666ms)
+▶ S5 notices
+  ✔ 7 days and 1 day before: one notice per tournament with photos and per reviewer, never twice, none without photos (730.549083ms)
+✔ S5 notices (730.660375ms)
+▶ S6 purge
+  ✔ claim leases each photo once, completion is idempotent, orphans of closed seasons are listed, logos never (1134.253125ms)
+✔ S6 purge (1134.354458ms)
+▶ S7 and quota: uploads
+  ✔ a closed season takes no upload; an open one does (332.789167ms)
+  ✔ more than 500 000 bytes is refused at the session (232.809125ms)
+  ✔ FREE: 25 photos per season, concurrent requests never pass the limit (2504.785084ms)
+  ✔ PREMIUM: 100 photos per season (9450.664875ms)
+  ✔ the global ceiling stays 0012's budget, unchanged by 0018, and a purge gives its bytes back (472.24675ms)
+✔ S7 and quota: uploads (12993.448417ms)
+▶ F1 races between closing a season and a new upload (two connections, controlled barriers)
+  ✔ close first, holding its lock: the upload waits and then sees the season closed (3293.181ms)
+  ✔ upload first, holding its lock: the close waits, then revokes that session with the others (3323.962125ms)
+✔ F1 races between closing a season and a new upload (two connections, controlled barriers) (6617.283875ms)
+▶ P8 authorization and reads
+  ✔ a closed season signs nothing, not even for its staff; another organization cannot close a season (557.404792ms)
+  ✔ Mi plan and Multimedia read the lifecycle (date before paying or uploading) (203.27475ms)
+✔ P8 authorization and reads (760.752125ms)
+✔ Production order 0018 → 0013 → 0019, back 0019 → 0013 → 0018, and forward again (4671.274042ms)
+ℹ tests 28
+ℹ suites 7
+ℹ pass 28
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 68171.567333
