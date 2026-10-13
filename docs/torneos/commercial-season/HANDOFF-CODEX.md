@@ -107,6 +107,10 @@ Nada se aplicó en Producción. Premium, pagos y borrado real siguen apagados.
   - que `api.mercadopago.com` responda (401 sin token);
   - que el host de vuelta conteste 404.
 - `p10-run.sh check` hace sólo esas comprobaciones.
+- **`p10-run.sh ensayo`** recorre en la terminal el mismo flujo de Nico contra el emulador: sin token ni MP. Termina en `ENSAYO_OK`, y la evidencia dice `certifies: false`.
+  - Lo corrí bajo una pseudo-terminal (Enter en cada paso, salida por `tee` como en el launcher).
+  - Así apareció un defecto que ya está corregido: con un stream de `/dev/tty` por pregunta, la lectura pendiente del stream cerrado se tragaba la línea siguiente. Ahora hay un único `tty.ReadStream` para toda la corrida.
+- **Reserva de red:** la red del laboratorio P10 (`arma2-season-p10-db-514d86ac-net`) quedó creada para que Docker no se quede sin lugar antes de mañana. El launcher la reconoce y no crea otra.
 - **El token:** se lee sin eco desde `/dev/tty` y se limpia el pegado con corchetes, como en la sesión TEST certificada. Va por stdin, nunca por argv, env ni archivo.
 - **Antes de crear el laboratorio:**
   - el wrapper exige que la cuenta tenga el tag `test_user`, que sea de MLA y que su id coincida con el último segmento del token;
@@ -141,7 +145,7 @@ Nada se aplicó en Producción. Premium, pagos y borrado real siguen apagados.
 
 ### Qué está validado offline y qué sólo con MP real
 
-**Validado offline:** `p10-sandbox.test.mjs` **6/6**, el mismo `runP10()` con el emulador en la forma del sandbox.
+**Validado offline:** `p10-sandbox.test.mjs` **6/6** (más el ensayo bajo una pseudo-terminal), el mismo `runP10()` con el emulador en la forma del sandbox.
 - Los cuatro casos de punta a punta sobre 0000→0019 y el runtime real.
 - Un vendedor real, o un token de otra cuenta, se rechaza antes de crear el laboratorio.
 - El fetcher bloquea devoluciones, pagos y otros orígenes.

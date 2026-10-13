@@ -33,8 +33,9 @@
 //      the app-level webhook (the certified TEST app), which P10 must not drive.
 // The fetcher is origin-locked to https://api.mercadopago.com and allows only the calls the runtime makes (GETs and the
 // Preference POST): no refund, no payment creation.
-import { appendFileSync, createReadStream, mkdirSync, readFileSync } from 'node:fs';
+import { appendFileSync, mkdirSync, openSync, readFileSync } from 'node:fs';
 import path from 'node:path';
+import tty from 'node:tty';
 import { fileURLToPath } from 'node:url';
 
 export const MP_ORIGIN = 'https://api.mercadopago.com';
@@ -296,6 +297,8 @@ export async function runP10({ accessToken, baseFetch, human, provider, cases = 
   }
   evidence.finished = new Date().toISOString();
   Object.assign(evidence, verdictOf(evidence.checks, cases, evidence.notPerformed));
+  // Only a run against the real Mercado Pago sandbox can certify P10.
+  evidence.certifies = provider === 'mercadopago' && evidence.verdict === 'P10_PASS';
   // What only the real provider can show; an emulator run proves the wrapper, never these.
   evidence.realProviderFacts = provider === 'mercadopago'
     ? { preferenceAcceptance: stats.preferences.map(({ status, accepted, notificationUrl, stored }) => ({ status, accepted, notificationUrl, stored: stored ?? null })) }
@@ -304,13 +307,15 @@ export async function runP10({ accessToken, baseFetch, human, provider, cases = 
 }
 
 // ------------------------------------------------------------------------------------------------ CLI (a person)
-/** A line typed on the terminal itself (stdin carries the token). */
+/**
+ * A line typed on the terminal itself (stdin carries the token). One tty stream for the whole run: a closed fs stream on
+ * /dev/tty keeps a pending read that swallows the next line (seen under a pty, 2026-10-13).
+ */
+let terminal = null;
 async function ask(prompt) {
   const { createInterface } = await import('node:readline/promises');
-  const input = createReadStream('/dev/tty');
-  const rl = createInterface({ input, output: process.stdout });
-  const answer = await rl.question(prompt); rl.close(); input.destroy();
-  return answer.trim();
+  terminal ??= createInterface({ input: new tty.ReadStream(openSync('/dev/tty', 'r')), output: process.stdout });
+  return (await terminal.question(prompt)).trim();
 }
 const enter = async (prompt) => { await ask(prompt); };
 /** Enter = done; `n` + a reason = it could not be done in Mercado Pago (the case stays PENDING with that reason). */
@@ -319,39 +324,61 @@ async function doneOrNot(caseId, what) {
   if (/^n\b/i.test(answer)) throw new NotPerformed(answer.replace(/^n\s*/i, '').slice(0, 200) || 'sin motivo');
 }
 
+/**
+ * `--rehearsal`: the same terminal flow with the in-process emulator in sandbox shape, no token and no Mercado Pago.
+ * Each Enter at a payment prompt makes that test-card payment in the emulator; the evidence says provider "emulator".
+ */
+async function rehearsalProvider() {
+  const { makeMercadoPago } = await import('../../infra/torneos-payments-test/mp-emulator.mjs');
+  const seller = '2468013579';
+  const token = `APP_USR-${seller}123456-101326-${'0'.repeat(32)}-${seller}`;
+  const mp = makeMercadoPago({ sellerId: seller, accessToken: token, me: { id: Number(seller), nickname: 'TESTUSER_ENSAYO', site_id: 'MLA', tags: ['normal', 'test_user'] } });
+  mp.refuseLiveRefunds(true);
+  const card = { APRO: ['approved', 'accredited'], OTHE: ['rejected', 'cc_rejected_other_reason'], CONT: ['in_process', 'pending_contingency'] };
+  return { token, baseFetch: (i, n) => mp.fetch(i, n),
+    pay: (initPoint, holder) => mp.pay(new URL(initPoint).searchParams.get('pref_id'), { status: card[holder][0], statusDetail: card[holder][1], at: new Date(Date.now() - 5000).toISOString() }),
+    refund: (paymentId) => mp.panelRefund(paymentId) };
+}
+
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  if (!process.argv.includes('--token-stdin')) {
+  const rehearsal = process.argv.includes('--rehearsal') ? await rehearsalProvider() : null;
+  if (!rehearsal && !process.argv.includes('--token-stdin')) {
     console.error('P10_USE_LAUNCHER: run ~/Arma2Backups/p10-run.sh (it checks the checkout, Docker and networks, and asks the token hidden)');
     process.exit(2);
   }
   process.env.COMMERCE_PRODUCTION_LAB_CONTAINER ||= DEFAULT_CONTAINER;
   const casesArg = process.argv.includes('--cases') ? process.argv[process.argv.indexOf('--cases') + 1] : ALL_CASES.join(',');
   const cases = ALL_CASES.filter((c) => casesArg.toUpperCase().split(',').map((s) => s.trim()).includes(c));
-  let accessToken = readFileSync(0, 'utf8').trim();
+  let accessToken = rehearsal ? rehearsal.token : readFileSync(0, 'utf8').trim();
   if (!/^APP_USR-\d{6,20}-\d{6}-[0-9a-f]{32}-\d{6,20}$/.test(accessToken)) { console.error('P10_TOKEN_SHAPE'); process.exit(2); }
   const human = {
     async pay({ caseId, initPoint, card, note }) {
       console.log(`\n[${caseId}] Pagá este link en la ventana privada del COMPRADOR de prueba, con la tarjeta de prueba y titular ${card} (${note}):\n\n      ${initPoint}\n\n      Al terminar, Mercado Pago te manda a torneos-payments-test…deno.net y ves un 404: es lo esperado.`);
       await doneOrNot(caseId, 'Mercado Pago haya mostrado el resultado');
+      if (rehearsal) rehearsal.pay(initPoint, card);
     },
     async refund({ caseId, paymentId, amount }) {
       console.log(`\n[${caseId}] En la ventana del VENDEDOR de prueba: Tu actividad → el pago ${paymentId} ($ ${amount}) → Devolver dinero → devolución total.`);
       await doneOrNot(caseId, 'el panel lo muestre devuelto');
+      if (rehearsal) rehearsal.refund(paymentId);
     },
   };
   const onSeller = async ({ id, nickname }) => {
-    console.log(`\nVendedor de prueba comprobado por Mercado Pago: ${nickname} (id ${id}, tag test_user, MLA). Tiene que ser el mismo usuario de la ventana del vendedor.`);
+    console.log(`\nVendedor de prueba comprobado por ${rehearsal ? 'el EMULADOR' : 'Mercado Pago'}: ${nickname} (id ${id}, tag test_user, MLA). Tiene que ser el mismo usuario de la ventana del vendedor.`);
     await enter('Apretá Enter para crear el laboratorio y el primer link… ');
   };
   try {
+    if (rehearsal) console.log('ENSAYO — emulador de Mercado Pago, sin token y sin red: no certifica nada, sólo muestra el recorrido.\n');
     console.log(`P10 — sandbox de Mercado Pago contra un laboratorio local (0000→0019). Producción no se toca.\nCasos: ${cases.map((c) => `\n  ${c}  ${CASES[c]}`).join('')}${cases.length < ALL_CASES.length ? '\n  (corrida PARCIAL: los casos que falten quedan pendientes, no certificados)' : ''}\n`);
-    const evidence = await runP10({ accessToken, baseFetch: fetch, provider: 'mercadopago', human, cases, onSeller, log: (line) => console.log(line) });
+    const evidence = await runP10({ accessToken, baseFetch: rehearsal ? rehearsal.baseFetch : fetch, provider: rehearsal ? 'emulator' : 'mercadopago',
+      human, cases, onSeller, log: (line) => console.log(line), ...(rehearsal ? { pollMs: 0, maxPolls: 3, ageClaims: true } : {}) });
     mkdirSync(EVIDENCE_DIR, { recursive: true });
-    const file = path.join(EVIDENCE_DIR, `p10-sandbox-${evidence.started.replace(/[-:]/g, '').slice(0, 15)}Z.txt`);
+    const file = path.join(EVIDENCE_DIR, `p10-${rehearsal ? 'ensayo' : 'sandbox'}-${evidence.started.replace(/[-:]/g, '').slice(0, 15)}Z.txt`);
     const text = `${JSON.stringify(evidence, null, 2)}\n`;
     if (text.includes(accessToken)) throw new Error('P10_EVIDENCE_WOULD_CONTAIN_THE_TOKEN');
     appendFileSync(file, text);
-    console.log(`\n${evidence.verdict}${evidence.pending.length ? ` (pendientes: ${evidence.pending.join(', ')})` : ''} — evidencia ${file}`);
+    const shown = rehearsal ? `ENSAYO_${evidence.verdict === 'P10_FAIL' ? 'FAIL' : 'OK'} (emulador: no certifica P10)` : evidence.verdict;
+    console.log(`\n${shown}${evidence.pending.length ? ` (pendientes: ${evidence.pending.join(', ')})` : ''} — evidencia ${file}`);
     accessToken = '';
     process.exit(evidence.verdict === 'P10_PASS' ? 0 : evidence.verdict === 'P10_PARTIAL' ? 3 : 1);
   } catch (error) {

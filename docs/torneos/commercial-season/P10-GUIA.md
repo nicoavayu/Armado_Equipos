@@ -14,6 +14,10 @@ Nunca pegues el token en un chat. Va sólo en la terminal, donde no se ve al peg
 
    Tiene que terminar en `COMPROBACIONES OK`. Si dice `STOP`, mandá esa línea a Codex o a Claude; no contiene secretos.
 
+   **Optativo, 2 minutos:** `~/Arma2Backups/p10-run.sh ensayo` muestra el mismo recorrido contra un emulador.
+   - No pide token ni usa Mercado Pago. Vas apretando Enter.
+   - Termina en `ENSAYO_OK` y **no certifica nada**.
+
 2. **El token.** En tu navegador normal, con tu cuenta real de Mercado Pago:
    - entrá a <https://www.mercadopago.com.ar/developers/panel/app>;
    - abrí la app de Arma2 (la de la certificación TEST del 26/09);

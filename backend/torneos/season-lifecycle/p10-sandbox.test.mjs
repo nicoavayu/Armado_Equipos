@@ -74,6 +74,7 @@ test('cases A–D through the real runtime on a fresh 0000→0019 lab', { timeou
   assert.equal(evidence.verdict, 'P10_PASS', lines.join('\n'));
   assert.equal(evidence.offer.amount, 20000);
   assert.equal(evidence.realProviderFacts, 'not established (emulator run)');
+  assert.equal(evidence.certifies, false, 'an emulator run never certifies P10');
   assert.equal(evidence.provider.stats.attestationRewrites, 1, 'one attestation per isolate');
   assert.equal(evidence.provider.stats.notificationUrl, 'lab-invalid');
   assert.equal(sent.length, 3, 'three Preferences (A, B, C)');
