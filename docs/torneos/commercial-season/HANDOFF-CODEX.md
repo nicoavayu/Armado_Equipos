@@ -59,6 +59,10 @@ Nada se aplicó en Producción. Premium, pagos y borrado real siguen apagados.
   - Espera la fila de `net._http_response` y pone en el mensaje de falla `status_code`, `timed_out` y `error_msg`.
   - La aserción no se relajó: sigue exigiendo exactamente un request, y ahora además el 204 que registró pg_net.
 - **Evidencia local:** `season-all-add-host-20261013T0434Z.txt` (25/25, con `HostConfig.ExtraHosts = [host.docker.internal:host-gateway]`).
+- **Otro diagnóstico local, de paso.**
+  - `docker network create` fallaba en silencio, y después aparecía como «network … not found». En esta Mac el motivo era «all predefined address pools have been fully subnetted»: hay 33 redes de otros laboratorios.
+  - pg-lab ahora corta con ese mensaje exacto.
+  - Liberé sólo laboratorios desechables míos (sufijo `ac9f037b`). No toqué los de otras sesiones.
 - **El resultado en GitHub va en la tabla de evidencia de abajo.** No lo doy por verde hasta verlo.
 
 ## Evidencia (archivos `.txt` en `docs/torneos/commercial-season/evidence/`; `*.log` está en .gitignore, por eso antes no estaban en la rama)
@@ -66,7 +70,7 @@ Nada se aplicó en Producción. Premium, pagos y borrado real siguen apagados.
 | Suite | Resultado | Laboratorio |
 |---|---|---|
 | `test:torneos:season` (lifecycle 16 + orden de Producción 1 + runner 3 + driver 5 + P10 offline 3) | **28/28** local | `arma2-season-lab-db-*` (0000→0017, con 0018 y 0019 aplicados y revertidos por las pruebas) |
-| `test:torneos:commerce-production` (incluye DB, gateway, driver y vuelta atrás de 0013, orden de migraciones, privilegios y vectores del SDK) | **95/95** | `arma2-commerce-season-db-*` (0000→0019) |
+| `test:torneos:commerce-production` (incluye DB, gateway, driver y vuelta atrás de 0013, orden de migraciones, privilegios y vectores del SDK) | **95/95** local, con `--add-host` | `arma2-commerce-season-db-*` (0000→0019) |
 | `media-store` / `media` / `branding` | 21/21 · 36/36 · 18/18 | sin base |
 | Jest / frontend-foundation | 3722/3722 · 109/109 | — |
 

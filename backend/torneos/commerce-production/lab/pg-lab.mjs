@@ -214,7 +214,10 @@ export async function up({ fresh = false, upTo = null, storage = true } = {}) {
   if (s && staleMigrations().length) { docker(['rm', '-f', CONTAINER]); s = null; }
   if (!s) {
     docker(['rm', '-f', CONTAINER]);
-    docker(['network', 'create', '--label', 'arma2.lab=commerce-production', NETWORK]);
+    const net = docker(['network', 'create', '--label', 'arma2.lab=commerce-production', NETWORK]);
+    // An existing network is fine; any other refusal (e.g. "all predefined address pools have been fully subnetted" on a
+    // host with many networks) is said here instead of surfacing later as "network … not found" from docker run.
+    if (!net.ok && !/already exists/.test(net.err)) throw new Error(`docker network create ${NETWORK} failed: ${net.err.trim()}`);
     ensureImage(IMAGE);
     const dbPassword = randomBytes(18).toString('hex');
     // host.docker.internal → the host, on Linux too (Docker Desktop resolves it by itself, a Linux CI runner does not): the
