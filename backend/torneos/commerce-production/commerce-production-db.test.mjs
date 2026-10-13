@@ -454,7 +454,7 @@ describe('season rules (0019 on 0018)', () => {
     const p = await payable(w);
     closeSeason(w);
     const first = await status(p, 'approved', '9201', 1);
-    assert.notEqual(first.outcome, 'approved');
+    assert.deepEqual([first.outcome, first.requiresManualRefund], ['approved_season_closed', true]);
     const row = purchaseRow(p.id);
     assert.deepEqual([row.status, row.activation_error_code, row.entitlement_activated_at], ['approved', 'season_closed', null]);
     assert.equal(planOf(w.org, w.season), 'FREE');
@@ -466,8 +466,24 @@ describe('season rules (0019 on 0018)', () => {
     assert.equal(planOf(w.org, w.season), 'FREE');
     assert.equal(Number(admin(`select count(*) from public.tournament_audit_log where resource_id = ${lit(p.id)} and action = 'billing.season_purchase_late_payment'`)), 1);
     // The operator refunds it in Mercado Pago: the reversal arrives and closes the purchase, still without Premium.
-    await reversal(p, 'refund', '9201', 5, 'refunded');
+    const refunded = await reversal(p, 'refund', '9201', 5, 'refunded');
+    assert.equal(refunded.outcome, 'season_closed_refunded');
     assert.equal(purchaseRow(p.id).status, 'refunded');
+    assert.ok(purchaseRow(p.id).refunded_at);
+    assert.equal(planOf(w.org, w.season), 'FREE');
+    // The same refund again (webhook retry, reconciliation): nothing new.
+    await reversal(p, 'refund', '9201', 6, 'refunded');
+    assert.equal(eventTypes(p.id).filter((e) => e === 'payment.season_closed_refunded').length, 1);
+  });
+
+  test('a chargeback on a late payment changes nothing and asks for manual review (no Premium to suspend)', async () => {
+    const w = world('late-cb'); activateSeason(w);
+    const p = await payable(w);
+    closeSeason(w);
+    await status(p, 'approved', '9401', 1);
+    const cb = await reversal(p, 'chargeback_disputed', '9401', 3, 'in_mediation');
+    assert.deepEqual([cb.outcome, cb.requiresManualReview], ['season_closed_chargeback', true]);
+    assert.equal(purchaseRow(p.id).status, 'approved');
     assert.equal(planOf(w.org, w.season), 'FREE');
   });
 

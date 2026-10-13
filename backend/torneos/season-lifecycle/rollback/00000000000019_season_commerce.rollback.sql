@@ -312,6 +312,228 @@ begin
 end;
 $$;
 
+CREATE OR REPLACE FUNCTION private.unordered_production_tournament_payment_status(p_purchase_id uuid, p_status text, p_provider_status text, p_provider_status_detail text, p_provider_payment_id text) RETURNS jsonb
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO ''
+    AS $$
+declare
+  v_purchase public.tournament_purchases%rowtype;
+  v_payment text := nullif(btrim(p_provider_payment_id),'');
+  v_provider_status text := left(btrim(coalesce(p_provider_status,'')),80);
+  v_detail text := nullif(left(btrim(p_provider_status_detail),120),'');
+  v_from text;
+  v_target text;
+  v_event text;
+  v_outcome text;
+  v_manual_refund boolean := false;
+  v_touch boolean := false;
+  v_result jsonb;
+begin
+  if p_status is null or p_status not in ('approved','pending','rejected','cancelled','expired') then
+    raise exception using errcode = '22023', message = 'TORNEOS_PROVIDER_STATUS_INVALID';
+  end if;
+  if v_payment is null or char_length(v_payment) > 80 then
+    raise exception using errcode = '22023', message = 'TORNEOS_PAYMENT_INVALID';
+  end if;
+  if char_length(v_provider_status) < 2 then v_provider_status := p_status; end if;
+  select * into v_purchase from public.tournament_purchases where id = p_purchase_id for update;
+  if v_purchase.id is null or v_purchase.provider <> 'MERCADO_PAGO' or v_purchase.provider_environment <> 'production' then
+    raise exception using errcode = '22023', message = 'TORNEOS_PURCHASE_INVALID';
+  end if;
+  if v_purchase.status = 'created' then
+    raise exception using errcode = '55000', message = 'TORNEOS_PURCHASE_NOT_READY';
+  end if;
+  v_from := v_purchase.status;
+  v_target := v_purchase.status;
+
+  if p_status = 'approved' and v_purchase.status in ('preference_created','pending') then
+    if exists (
+      select 1 from public.tournament_purchases other
+      where other.provider = 'MERCADO_PAGO' and other.provider_environment = 'production'
+        and other.approved_provider_payment_id = v_payment and other.id <> v_purchase.id
+    ) then
+      raise exception using errcode = '22023', message = 'TORNEOS_PAYMENT_CONFLICT';
+    end if;
+    v_result := private.activate_production_tournament_purchase(v_purchase.id,v_provider_status,v_detail,v_payment);
+    select * into v_purchase from public.tournament_purchases where id = p_purchase_id;
+    return v_result || jsonb_build_object(
+      'outcome',case when v_purchase.status = 'approved' then 'approved' else 'activation_failed' end,
+      'stateChanged',v_purchase.status <> v_from,'idempotentReplay',false,
+      'requiresManualRefund',false,'requiresManualReview',v_purchase.status <> 'approved'
+    );
+  end if;
+
+  if p_status = 'approved' then
+    if v_purchase.status in ('approved','refunded','charged_back')
+      and v_purchase.approved_provider_payment_id = v_payment then
+      if v_purchase.status = 'approved' then
+        v_outcome := 'duplicate_approved'; v_event := 'payment.approved_duplicate';
+      else
+        v_outcome := 'stale_ignored'; v_event := 'payment.stale_status_ignored';
+      end if;
+    elsif v_purchase.status in ('approved','refunded','charged_back') then
+      v_outcome := 'duplicate_payment'; v_event := 'payment.approved_duplicate_payment'; v_manual_refund := true;
+    else
+      v_outcome := 'approved_after_close'; v_event := 'payment.approved_after_close'; v_manual_refund := true;
+    end if;
+  elsif v_purchase.status not in ('preference_created','pending') then
+    v_outcome := 'stale_ignored'; v_event := 'payment.stale_status_ignored';
+  elsif p_status = 'pending' then
+    if exists (
+      select 1 from public.tournament_purchase_events e
+      where e.purchase_id = v_purchase.id
+        and e.event_type in ('payment.attempt_rejected','payment.attempt_cancelled','payment.attempt_expired','payment.approved')
+        and e.metadata->>'providerPaymentId' = v_payment
+    ) then
+      v_outcome := 'stale_ignored'; v_event := 'payment.stale_status_ignored';
+    else
+      v_outcome := 'pending'; v_event := 'payment.pending'; v_target := 'pending'; v_touch := true;
+    end if;
+  else
+    v_outcome := 'attempt_' || p_status; v_event := 'payment.attempt_' || p_status;
+    if v_purchase.status = 'pending' and not exists (
+      select 1 from public.tournament_purchase_events opened
+      where opened.purchase_id = v_purchase.id and opened.event_type = 'payment.pending'
+        and opened.metadata->>'providerPaymentId' is distinct from v_payment
+        and not exists (
+          select 1 from public.tournament_purchase_events closed
+          where closed.purchase_id = v_purchase.id
+            and closed.event_type in ('payment.attempt_rejected','payment.attempt_cancelled','payment.attempt_expired','payment.approved')
+            and closed.metadata->>'providerPaymentId' = opened.metadata->>'providerPaymentId'
+        )
+    ) then
+      v_target := 'preference_created';
+    end if;
+    v_touch := v_purchase.status = 'preference_created' or v_target <> v_purchase.status;
+  end if;
+
+  if exists (
+    select 1 from public.tournament_purchase_events e
+    where e.purchase_id = v_purchase.id and e.event_type = v_event
+      and e.metadata->>'providerPaymentId' = v_payment and e.metadata->>'status' = p_status
+  ) then
+    return public.tournament_purchase_projection(v_purchase) || jsonb_build_object(
+      'outcome',v_outcome,'stateChanged',false,'idempotentReplay',true,
+      'requiresManualRefund',v_manual_refund,'requiresManualReview',false
+    );
+  end if;
+  if v_touch then
+    update public.tournament_purchases set
+      status = v_target,provider_status = v_provider_status,provider_status_detail = v_detail,
+      last_verified_at = now()
+    where id = v_purchase.id returning * into v_purchase;
+  end if;
+  insert into public.tournament_purchase_events (
+    purchase_id,organization_id,event_type,from_status,to_status,provider_status,
+    provider_status_detail,actor_type,metadata
+  ) values (
+    v_purchase.id,v_purchase.organization_id,v_event,v_from,v_purchase.status,v_provider_status,
+    v_detail,'provider',
+    jsonb_build_object('providerPaymentId',v_payment,'status',p_status,'seasonId',v_purchase.season_id)
+      || case when v_manual_refund then jsonb_build_object('requiresManualRefund',true) else '{}'::jsonb end
+  );
+  return public.tournament_purchase_projection(v_purchase) || jsonb_build_object(
+    'outcome',v_outcome,'stateChanged',v_purchase.status <> v_from,'idempotentReplay',false,
+    'requiresManualRefund',v_manual_refund,'requiresManualReview',false
+  );
+end;
+$$;
+
+CREATE OR REPLACE FUNCTION private.unordered_production_tournament_payment_reversal(p_purchase_id uuid, p_action text, p_provider_status text, p_provider_status_detail text, p_provider_payment_id text) RETURNS jsonb
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO ''
+    AS $$
+declare
+  v_purchase public.tournament_purchases%rowtype;
+  v_payment text := nullif(btrim(p_provider_payment_id),'');
+  v_provider_status text := left(btrim(coalesce(p_provider_status,'')),80);
+  v_detail text := nullif(left(btrim(p_provider_status_detail),120),'');
+  v_last text;
+  v_event text;
+  v_outcome text;
+  v_error text;
+  v_manual_review boolean := false;
+  v_result jsonb;
+begin
+  if p_action is null or p_action not in ('refund','chargeback_disputed','chargeback_restored','chargeback_buyer_won') then
+    raise exception using errcode = '22023', message = 'TORNEOS_REVERSAL_INVALID';
+  end if;
+  if v_payment is null or char_length(v_payment) > 80 then
+    raise exception using errcode = '22023', message = 'TORNEOS_PAYMENT_INVALID';
+  end if;
+  if char_length(v_provider_status) < 2 then v_provider_status := p_action; end if;
+  select * into v_purchase from public.tournament_purchases where id = p_purchase_id for update;
+  if v_purchase.id is null or v_purchase.provider <> 'MERCADO_PAGO' or v_purchase.provider_environment <> 'production' then
+    raise exception using errcode = '22023', message = 'TORNEOS_PURCHASE_INVALID';
+  end if;
+
+  if v_purchase.entitlement_activated_at is null then
+    v_outcome := 'reversal_without_activation'; v_event := 'payment.reversal_without_activation';
+  elsif v_purchase.approved_provider_payment_id is distinct from v_payment then
+    v_outcome := 'reversal_other_payment'; v_event := 'payment.reversal_other_payment';
+  else
+    select event.event_type into v_last
+    from public.tournament_season_plan_grant_events event
+    join public.tournament_season_plan_grants grant_row on grant_row.id = event.season_grant_id
+    where grant_row.origin_purchase_id = v_purchase.id
+    order by event.id desc limit 1;
+    if v_last = 'revoked' and p_action in ('chargeback_disputed','chargeback_restored') then
+      v_outcome := 'reversal_ignored_after_revocation'; v_event := 'payment.reversal_ignored_after_revocation';
+    else
+      begin
+        v_result := public.apply_tournament_purchase_reversal(
+          v_purchase.id,p_action,
+          case p_action
+            when 'refund' then 'Reembolso total verificado por el proveedor'
+            when 'chargeback_disputed' then 'Contracargo verificado en disputa por el proveedor'
+            when 'chargeback_restored' then 'Contracargo resuelto a favor de Arma2 por el proveedor'
+            else 'Contracargo resuelto a favor del comprador por el proveedor'
+          end
+        );
+      exception when object_not_in_prerequisite_state then
+        get stacked diagnostics v_error = message_text;
+        v_outcome := 'reversal_conflict'; v_event := 'payment.reversal_conflict'; v_manual_review := true;
+      end;
+      if v_result is not null then
+        update public.tournament_purchases set
+          provider_status = v_provider_status,provider_status_detail = v_detail,last_verified_at = now()
+        where id = v_purchase.id returning * into v_purchase;
+        return public.tournament_purchase_projection(v_purchase) || jsonb_build_object(
+          'outcome','reversal_applied',
+          'stateChanged',not coalesce((v_result->>'idempotentReplay')::boolean,false),
+          'idempotentReplay',coalesce((v_result->>'idempotentReplay')::boolean,false),
+          'requiresManualRefund',false,'requiresManualReview',false
+        );
+      end if;
+    end if;
+  end if;
+
+  if exists (
+    select 1 from public.tournament_purchase_events e
+    where e.purchase_id = v_purchase.id and e.event_type = v_event
+      and e.metadata->>'providerPaymentId' = v_payment and e.metadata->>'status' = p_action
+  ) then
+    return public.tournament_purchase_projection(v_purchase) || jsonb_build_object(
+      'outcome',v_outcome,'stateChanged',false,'idempotentReplay',true,
+      'requiresManualRefund',false,'requiresManualReview',v_manual_review
+    );
+  end if;
+  insert into public.tournament_purchase_events (
+    purchase_id,organization_id,event_type,from_status,to_status,provider_status,
+    provider_status_detail,actor_type,metadata
+  ) values (
+    v_purchase.id,v_purchase.organization_id,v_event,v_purchase.status,v_purchase.status,
+    v_provider_status,v_detail,'provider',
+    jsonb_build_object('providerPaymentId',v_payment,'status',p_action,'seasonId',v_purchase.season_id)
+      || case when v_error is not null then jsonb_build_object('error',left(v_error,120)) else '{}'::jsonb end
+  );
+  return public.tournament_purchase_projection(v_purchase) || jsonb_build_object(
+    'outcome',v_outcome,'stateChanged',false,'idempotentReplay',false,
+    'requiresManualRefund',false,'requiresManualReview',v_manual_review
+  );
+end;
+$$;
+
 DO $post$
 BEGIN
   IF (SELECT md5(prosrc) FROM pg_proc WHERE oid = to_regprocedure('public.create_tournament_season_production_checkout_purchase(uuid,uuid,uuid)')) IS DISTINCT FROM 'fc9559b0c1fb1b070c13ab1be0bda395'
@@ -320,6 +542,12 @@ BEGIN
   END IF;
   IF (SELECT md5(prosrc) FROM pg_proc WHERE oid = to_regprocedure('public.get_tournament_season_purchases(uuid,uuid)')) IS DISTINCT FROM '484f63507d2e789bf0d15381c0a5d9ac' THEN
     RAISE EXCEPTION 'TORNEOS_0019_ROLLBACK_POSTCONDITION_FAILED: season purchases read';
+  END IF;
+  IF (SELECT md5(prosrc) FROM pg_proc WHERE oid = to_regprocedure('private.unordered_production_tournament_payment_status(uuid,text,text,text,text)')) IS DISTINCT FROM '071388d5357883a14066f95cc633f1e7' THEN
+    RAISE EXCEPTION 'TORNEOS_0019_ROLLBACK_POSTCONDITION_FAILED: status policy';
+  END IF;
+  IF (SELECT md5(prosrc) FROM pg_proc WHERE oid = to_regprocedure('private.unordered_production_tournament_payment_reversal(uuid,text,text,text,text)')) IS DISTINCT FROM '80a0fe7a8fec2f34a8219d9b6514d82e' THEN
+    RAISE EXCEPTION 'TORNEOS_0019_ROLLBACK_POSTCONDITION_FAILED: reversal policy';
   END IF;
 END $post$;
 COMMIT;
