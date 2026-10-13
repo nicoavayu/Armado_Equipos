@@ -2,7 +2,9 @@
 
 **Actualizado:** 2026-10-13 · rama `claude/torneos-season-commercial-gallery` · head del commit que trae este archivo (ver `git log -1`).
 **No hay notificación directa a Codex:** este archivo y la sesión de Claude «Arma2 Torneos como producto conectado» son el canal.
-**No está listo para GO.** Falta una sola cosa: correr P10 contra el sandbox actual de Mercado Pago. El wrapper está listo y probado offline; sólo espera el paso humano de Nico (ver «P10» abajo).
+**No está listo para GO.** Falta correr P10 contra el sandbox actual de Mercado Pago.
+- El wrapper y su launcher están listos y probados offline.
+- Lo que sólo Mercado Pago real puede mostrar sigue **sin validar**, empezando por que acepte la Preference con estas URLs (ver «P10» abajo).
 
 Nada se aplicó en Producción. Premium, pagos y borrado real siguen apagados.
 
@@ -73,7 +75,7 @@ Nada se aplicó en Producción. Premium, pagos y borrado real siguen apagados.
 
 | Suite | Resultado | Laboratorio |
 |---|---|---|
-| `test:torneos:season` (lifecycle 16 + orden de Producción 1 + runner 3 + driver 5 + P10 offline 3) | **28/28** local | `arma2-season-lab-db-*` (0000→0017, con 0018 y 0019 aplicados y revertidos por las pruebas) |
+| `test:torneos:season` (lifecycle 16 + orden de Producción 1 + runner 3 + driver 5 + P10 offline 6) | **31/31** local | `arma2-season-lab-db-*` (0000→0017, con 0018 y 0019 aplicados y revertidos por las pruebas) |
 | `test:torneos:commerce-production` (incluye DB, gateway, driver y vuelta atrás de 0013, orden de migraciones, privilegios y vectores del SDK) | **95/95** local, con `--add-host` | `arma2-commerce-season-db-*` (0000→0019) |
 | `media-store` / `media` / `branding` | 21/21 · 36/36 · 18/18 | sin base |
 | Jest / frontend-foundation | 3722/3722 · 109/109 | — |
@@ -88,67 +90,102 @@ Nada se aplicó en Producción. Premium, pagos y borrado real siguen apagados.
 
 ## P10: sandbox actual de Mercado Pago (lo único que falta antes del GO)
 
-**Wrapper:** `backend/torneos/season-lifecycle/p10/p10-sandbox.mjs`.
+**Piezas:**
+- **Guía para Nico:** `P10-GUIA.md`, en esta carpeta.
+- **Launcher:** `~/Arma2Backups/p10-run.sh`, fuera del repo.
+- **Wrapper:** `backend/torneos/season-lifecycle/p10/p10-sandbox.mjs`.
 
-**Por qué no se usa la cadena alojada.** La cadena TEST certificada (Deno `torneos-payments-test` sobre la base de Producción) usa las reglas actuales. Probar 0018 y 0019 ahí exigiría aplicarlas en Producción.
+### Launcher
 
-**Qué corre y dónde:**
-- **Base:** laboratorio local nuevo, contenedor `arma2-season-p10-db`, con 0000→0019 de esta rama.
-- **Runtime:** el handler real `torneos-payments-production`: las mismas sentencias de `rpc.ts`, el login de producción y `SET LOCAL ROLE`.
-- **Proveedor:** la API real de MP con el Access Token del **vendedor de prueba**.
-  - El token se pide en un prompt oculto y queda sólo en memoria: nunca se loguea ni se escribe.
-  - El fetcher sólo habla con `https://api.mercadopago.com` y sólo hace las llamadas del runtime (GET y el POST de la Preference). Ni devoluciones ni pagos.
-- **Estado:** entra por la ruta de refresco del comprador (`purchase-reconcile` → `/v1/payments/search`). MP no puede llegar a localhost para el webhook; su firma la cubren `webhook-signature-sdk` y la certificación TEST del 2026-09-26.
+- Corre desde un checkout propio y limpio, `~/Downloads/arma2/arma2-p10`, fijado al head exacto que figura en el script. No usa el checkout raíz de Nico (está en release 1.1.13 con cambios).
+- **Antes de pedir nada, comprueba:**
+  - el head y que no haya cambios locales;
+  - Node 20 o más;
+  - que `node_modules` corresponda al `package-lock` de ese head (marca `node_modules/.p10-lock-sha256`, escrita al instalar);
+  - que Docker responda;
+  - que haya lugar para la red del laboratorio. Crea y borra una red de prueba propia, y **no toca laboratorios ajenos**: si no hay lugar, para y lo dice;
+  - que `api.mercadopago.com` responda (401 sin token);
+  - que el host de vuelta conteste 404.
+- `p10-run.sh check` hace sólo esas comprobaciones.
+- **El token:** se lee sin eco desde `/dev/tty` y se limpia el pegado con corchetes, como en la sesión TEST certificada. Va por stdin, nunca por argv, env ni archivo.
+- **Antes de crear el laboratorio:**
+  - el wrapper exige que la cuenta tenga el tag `test_user`, que sea de MLA y que su id coincida con el último segmento del token;
+  - muestra nombre e id del vendedor de prueba para que Nico lo compare con la ventana del vendedor, y espera su Enter.
+- **Evidencia:** queda en `~/Arma2Backups/p10-evidence/` (JSON y transcript, sin token), así el checkout sigue limpio. Después se copia a la rama.
 
-**Único ajuste de laboratorio, y por qué.**
-- El runtime de producción atestigua al vendedor y rechaza un usuario de prueba (tag `test_user` en `/users/me`).
-- El wrapper **exige** primero ese tag: un vendedor real se rechaza antes de crear el laboratorio.
-- Después le pasa al runtime la misma respuesta sin ese único tag.
-- No hace falta tocar `live_mode`: el sandbox ya contesta `true` (observado el 2026-09-26).
+### Qué corre y dónde
 
-**Casos, y lo que se verifica:**
-- **A.** Temporada abierta, tarjeta APRO.
+- **Base:** laboratorio local nuevo con 0000→0019.
+- **Runtime:** el handler real `torneos-payments-production`.
+- **Proveedor:** la API real de MP con las «Credenciales de prueba» de la app, que pertenecen al vendedor de prueba creado automáticamente (igual que en la certificación TEST del 2026-09-26).
+- **Estado:** entra por la ruta de refresco del comprador (`purchase-reconcile` → `/v1/payments/search`).
+- **Fetcher:** sólo `https://api.mercadopago.com`, y sólo las llamadas del runtime: GET y el POST de la Preference. No crea devoluciones ni pagos.
+
+### URLs de la Preference (evaluadas a pedido de Codex)
+
+**back_urls.**
+- El runtime, en forma de laboratorio, exige hosts `*.invalid` (`config.ts`, «lab shape»): así nunca manda un comprador a un lugar real.
+- Para el comprador, la Preference que recibe MP lleva **las mismas rutas** sobre `https://torneos-payments-test.nicoavayu.deno.net`. Es el host TEST ya certificado y ya usado como base de back_urls el 2026-09-26 (`APP_PUBLIC_URL` del contrato TEST).
+- Su router responde 404 a cualquier ruta que no sea una de sus dos (lo verifiqué en el código y con un GET). Por eso no hay frontend, ni lectura de base, ni nada de Producción.
+- **Se descartaron dos alternativas:**
+  - `www.arma2.com.ar`: redirige `/torneos/*` a `torneos.arma2.com.ar`, la web de Producción;
+  - `app.arma2.com.ar`: es la web de Producción.
+- El armado de la ruta lo fijan las pruebas unitarias del runtime.
+
+**notification_url.** No es necesaria para P10, porque el estado entra por la conciliación.
+- Queda el valor de laboratorio del runtime (`*.invalid`): no genera tráfico a ningún lado y es coherente con la forma de laboratorio.
+- **Nunca se omite.** Sin ese campo, MP podría usar el webhook configurado en la app, que es la app TEST certificada, conectada a la base de Producción.
+- Sólo si MP rechaza la Preference **por ese campo**, se reenvía una vez con `…deno.net/p10/notification-sink`. Es una ruta 404 del mismo host, donde nada escucha. Va con otra clave de idempotencia y la evidencia lo registra (`notificationUrl: "sink"`, `refusedFirst`).
+
+**Riesgo residual (documentado, sin evidencia de que ocurra).** Si MP mandara además la notificación al webhook de la app, la app TEST leería el pago y buscaría `get_provider_tournament_purchase` con una referencia de laboratorio que no existe en Producción. Termina en 404 `purchase_not_found`: una lectura, sin escritura.
+
+### Qué está validado offline y qué sólo con MP real
+
+**Validado offline:** `p10-sandbox.test.mjs` **6/6**, el mismo `runP10()` con el emulador en la forma del sandbox.
+- Los cuatro casos de punta a punta sobre 0000→0019 y el runtime real.
+- Un vendedor real, o un token de otra cuenta, se rechaza antes de crear el laboratorio.
+- El fetcher bloquea devoluciones, pagos y otros orígenes.
+- Las back_urls salen hacia el host TEST con las rutas del runtime.
+- El reenvío por `notification_url` funciona como se describió.
+- Un caso fallido no frena a los demás.
+- Un paso que MP no permitió deja el caso pendiente, no aprobado.
+
+**Sólo con MP real** (la evidencia lo marca: `realProviderFacts`; en una corrida con emulador dice «not established»):
+- que MP **acepte la Preference** con esas back_urls y esa `notification_url`. Queda registrado por Preference: estado HTTP, si se aceptó, y lo que MP guardó (`stored`);
+- los nombres reales de estado para OTHE y CONT;
+- que la búsqueda refleje cada pago, y con qué demora;
+- que se pueda pagar dos veces la misma Preference (caso D);
+- que la devolución del panel llegue como `refunded`;
+- que `live_mode` siga siendo `true` en el sandbox.
+
+### Veredicto
+
+- `P10_PASS` **sólo** si corrieron y pasaron A, B, C y D.
+- Una corrida de un subconjunto, o con un caso que MP no permitió, es `P10_PARTIAL` y nombra los pendientes. **No certifica P10.**
+- Cualquier chequeo fallido es `P10_FAIL`.
+
+### Casos
+
+- **A.** Temporada abierta, APRO.
   - Monto 20.000 tomado de la oferta vigente.
   - `approved` + `verified`; Premium sólo en esa temporada; un único grant.
-- **B.** Tarjeta OTHE, después CONT, sobre el mismo link.
+- **B.** OTHE y después CONT, sobre el mismo link.
   - La compra sigue abierta y en FREE; el pendiente no otorga nada.
-- **C.** Temporada cerrada antes de pagar, tarjeta APRO.
+- **C.** Temporada cerrada antes de pagar, APRO.
   - `approved` + `season_closed`, `requires_manual_refund`, FREE y sin grant.
   - Después Nico devuelve en el panel: `refunded` una sola vez, sigue FREE; un evento de pago tardío y uno de devolución.
 - **D.** Segundo APRO sobre el link de A.
   - `requires_manual_refund`; sigue habiendo un solo grant y Premium.
-- Si un caso falla (timeout, Preference rechazada), queda registrado como FAIL con su motivo y los siguientes corren igual.
 
-**Evidencia:** se escribe en `evidence/p10-sandbox-<ts>Z.txt`. Veredicto `P10_PASS` o `P10_FAIL`; contiene ids de laboratorio y de pagos de prueba, nunca el token.
+### Paso humano (Nico; nada por chat)
 
-**Probado offline:** `p10-sandbox.test.mjs` 3/3. Corre el mismo `runP10()` con el emulador en la forma del sandbox, más tres pruebas:
-- un vendedor real se rechaza antes del laboratorio;
-- el fetcher bloquea devoluciones y otros orígenes;
-- un caso fallido no frena a los demás.
+`P10-GUIA.md`: unos 20 minutos.
+- Preparar tres ventanas: el panel de su app, el comprador de prueba en Chrome privado y el vendedor de prueba en Safari privado.
+- Pegar el token en la terminal.
+- Hacer cinco pagos de prueba con la tarjeta y los titulares de la tabla.
+- Hacer una devolución en el panel.
 
-**Riesgo sin probar hasta la corrida real.** La Preference usa back URLs y `notification_url` de laboratorio (`*.unit.invalid`). Si MP las rechaza, el caso queda en `P10_PREFERENCE_FAILED` con la respuesta de MP, y se cambia por un host válido sin tocar nada más.
-
-### El único paso humano (Nico, mañana; nada por chat)
-
-En su terminal, desde la raíz del repo en esta rama:
-
-```bash
-node backend/torneos/season-lifecycle/p10/p10-sandbox.mjs
-```
-
-1. Pega el **Access Token del vendedor de prueba** de la app Arma2 (Tus integraciones → la app → Cuentas de prueba → vendedor → Credenciales de producción, `APP_USR-…`) en el prompt oculto.
-2. Para cada link que imprime: abre una ventana privada, entra como **comprador de prueba** y paga con una tarjeta de prueba. El titular indica el resultado:
-   - **A:** APRO;
-   - **B:** OTHE y después CONT, sobre el mismo link;
-   - **C:** APRO;
-   - **D:** APRO otra vez sobre el link de A.
-
-   Después aprieta Enter. La página de vuelta no carga porque apunta a un host de laboratorio, y eso es lo esperado.
-3. Cuando lo pide (caso C): en el panel del **vendedor de prueba**, devuelve el pago indicado completo y aprieta Enter.
-
-Dura unos 15 minutos. Si sólo hay tiempo para lo esencial: `--cases A,C`.
-
-**Recuperación:** el laboratorio es desechable y se recrea en cada corrida. Si algo se corta, se vuelve a correr y no deja nada en Producción ni en MP más allá de los pagos de prueba.
+**Recuperación:** el laboratorio es desechable y se recrea en cada corrida. Ctrl+C no deja nada en Producción. Los pagos de prueba quedan sólo en las cuentas de prueba, sin dinero real.
 
 ## Después de P10
 
