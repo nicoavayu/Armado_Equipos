@@ -58,17 +58,39 @@ Nada se aplicó en Producción. Premium, pagos y borrado real siguen apagados.
 | `media-store` / `media` / `branding` | 21/21 · 36/36 · 18/18 | sin base |
 | Jest / frontend-foundation | 3722/3722 · 109/109 | — |
 
-## Qué sigue, en orden
+## Hecho después de la revisión
 
-1. **Drivers de operador** para 0018, 0019 y el runner, como `db-0015-0016.mjs`:
-   - estados (observe);
-   - frase, hash del archivo y regla «nada fuera de lo suyo se movió»;
-   - el valor A3 del presupuesto de 0012;
-   - el login de pagos.
-   - Se ensayan en el laboratorio.
-2. **PR borrador y CI** con este head.
-3. **Recién entonces, acceso a Mercado Pago (Nico)** para P10: sandbox actual, credenciales TEST y URL del webhook. Él las carga, nunca por chat.
-4. **GO final sobre la evidencia**, por pasos: 0018 → runner → 0013 → 0019 → función, gateway y web. Pagos y borrado real se activan sólo con su propio GO.
+- **Driver de operador** `backend/torneos/season-lifecycle/remote/db-season.mjs`.
+  - Modos: observe, apply/rollback de 0018, 0019 y el runner, y `budget` (A3).
+  - Cada escritura exige frase, sha256, estado por eje y orden entre ejes, y que nada fuera de lo suyo se mueva.
+  - Ensayado en el laboratorio a través del mismo `run()`. `test:torneos:season` **25/25**.
+- **PR borrador** [#204](https://github.com/nicoavayu/Armado_Equipos/pull/204), con CI en GitHub.
+
+## P10: sandbox actual de Mercado Pago (lo único que falta antes del GO)
+
+**Por qué no se usa la cadena alojada.** La cadena TEST certificada (Deno `torneos-payments-test` sobre la base de Producción) usa las reglas actuales. Probar 0018 y 0019 ahí exigiría aplicarlas en Producción, cosa que no se hace antes del GO.
+
+**Plan, en laboratorio aislado:**
+- Postgres local con 0000→0019.
+- El runtime real `torneos-payments-production`, cargado en Node con el árbol del gateway y apuntado a esa base.
+- La API real de MP en **modo prueba**: vendedor y comprador de prueba.
+- El estado entra por la consulta autoritativa (`/v1/payments/search` por `external_reference`) y por la conciliación. MP no puede llegar a localhost para mandar el webhook: la firma la cubren los vectores del SDK y la certificación TEST del 2026-09-26.
+- Casos a recorrer:
+  - aprobado con la temporada abierta → Premium;
+  - aprobado con la temporada cerrada → `approved_season_closed` y devolución manual en el panel de prueba → `refunded`;
+  - rechazado y pendiente;
+  - pago doble.
+
+**Lo que necesita a Nico (pantalla de MP; nada por chat):**
+1. El Access Token de prueba del vendedor de prueba de la app de MP. Lo carga en un campo oculto del wrapper.
+2. Hacer él el pago en el checkout del sandbox con el comprador de prueba. No puedo iniciar sesión ni ingresar tarjetas.
+3. La devolución en el panel del vendedor de prueba.
+
+## Después de P10
+
+**GO final sobre la evidencia**, por pasos:
+- 0018 → runner → 0013 → 0019 → función, gateway y web.
+- Pagos y borrado real, cada uno con su propio GO.
 
 ## #203 (aparte)
 
