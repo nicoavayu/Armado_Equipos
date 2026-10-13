@@ -47,31 +47,29 @@ Nada se pasa por chat. Lo que se pide, se pide oculto en la terminal.
 
 **Al terminar se anotan** la revisión del gateway y el deploy de Netlify: son los puntos de vuelta de §4.
 
-**Estado (2026-10-13):**
-- **Función hecha:** Nico la desplegó a las 18:24Z, con un token temporal restringido a Torneos.
-  - `REDEPLOY_DONE`, artefacto `1290d3c3…`, `torneos-media-store` ACTIVE de v1 a v2.
-  - La prueba sin firma devuelve 401 y el proyecto está `ACTIVE_HEALTHY` (sa-east-1).
-  - El 403 de `api_keys` corresponde al permiso mínimo del token.
-  - Evidencia: `~/Arma2Backups/stab203-20261013T182428Z-function.json`, sin token.
-- **Gateway y web: preparados, sin ejecutar.** El clasificador de modo automático de Claude rechazó preparar la build de la imagen de Producción, así que los ejecuta un humano con `~/Arma2Backups/stab-203-gateway-web.sh`:
-  1. `build`: Cloud Build con la misma mecánica que la imagen viva `main-c8678c54` (build f2b4be82). Son 32 archivos y sólo cambia `media-store-client.ts`. Imprime el digest.
-  2. `tag <digest>`: revisión nueva al 0 % con tag `g11stab203`, la misma configuración que `00025-naw` (sólo cambia la imagen). Prueba el tag y la revisión viva sin autenticación; las dos líneas tienen que decir `OK`.
-  3. `promote <revisión>`: 100 % y prueba el host público.
-  4. `web`: fast-forward de `netlify-production` a 54036f59; espera hasta que cambie el bundle (hoy `main.64cfbb6d.js`).
-- **Recuperación:**
-  - gateway: `stab-203-gateway-web.sh rollback`, que vuelve a `00025-naw`;
-  - web: Netlify → Deploys → `6accedce…` → Publish deploy;
-  - función: `stab-203-run.sh function-rollback`.
-- **Pruebas sin autenticación de la revisión viva** (host público, prefijo `/functions/v1/torneos-gateway`): `200 200 200 401 401 401 404`. Un 503 aislado de `/health` en el minuto :30 pasó al reintentar.
-- **Para la vuelta atrás de #204:** al terminar, la revisión nueva del gateway y el deploy nuevo de Netlify se anotan acá. Pasan a ser los puntos de vuelta de §4.
+**Estado: #203 COMPLETO (2026-10-13).** Lo ejecutó Nico y lo verificó Codex.
+- **Función:** `REDEPLOY_DONE` a las 18:24Z, artefacto `1290d3c3…`, v2.
+- **Gateway:** `torneos-gateway-00027-huz` al 100 % (tag `g11stab203`). Pruebas sin autenticación: `200 200 200 401 401 401 404`.
+- **Web:** `netlify-production` en `54036f59`, bundle `main.f17ee18f.js`, `/torneos/health` 200.
+
+**Puntos de vuelta de #204** (no se repite nada de #203):
+- gateway → `00027-huz`;
+- web → el deploy de Netlify de `54036f59` (`main.f17ee18f.js`);
+- función → `1290d3c3…` (`stab-203-run.sh function`).
 
 ## 2. GO: merge de #204
 
 **Antes del merge:** revisión de Codex y aprobación de Nico.
 
+**Qué hace el merge por sí solo.** Corre el CI de GitHub y genera un deploy **Preview** de Vercel. **No publica nada para los usuarios:**
+- la web de producción sale de la rama `netlify-production`, que no se mueve;
+- `app.arma2.com.ar` apunta a Netlify;
+- `arma2.vercel.app` redirige ahí;
+- ni la función ni el gateway se despliegan solos.
+
 **Después del merge, Claude:**
 - crea `~/Downloads/arma2/arma2-season-204` limpio en el commit del merge;
-- fija ese commit en `~/Arma2Backups/season-204-run.sh`. Hasta entonces el script dice `STOP … PENDING_MERGE`.
+- fija ese commit en `~/Arma2Backups/season-204-run.sh` y en `~/Arma2Backups/season-204-gateway-web.sh`. Hasta entonces los dos dicen `STOP … PENDING_MERGE`.
 
 ## 3. Backup nuevo (sólo lectura en Producción)
 
@@ -89,9 +87,20 @@ Nada se pasa por chat. Lo que se pide, se pide oculto en la terminal.
 
 | # | Paso | Quién | Recuperación |
 |---|---|---|---|
-| 1 | **Web:** `netlify-production` → merge de #204 | Claude/Codex | El deploy de §1.3 |
-| 2 | **Función:** `season-204-run.sh deploy-function`, artefacto `b8f2f8a9…`, **sin** secreto de purga, así que `media-purge` responde 404 | **Nico** (token de Supabase) | `season-204-run.sh function-rollback`, que vuelve a `1290d3c3…` (#203) |
-| 3 | **Gateway:** imagen del merge; tag, verificación y 100 % | Claude/Codex | La revisión de §1.2 |
+| 1 | **Web:** `season-204-gateway-web.sh web` (fast-forward de `netlify-production` al merge; espera a que el bundle deje de ser `main.f17ee18f.js`) | Nico (o Codex) | Netlify → Deploys → el deploy de `54036f59` → Publish deploy |
+| 2 | **Función:** `season-204-run.sh deploy-function`, artefacto `b8f2f8a9…`, **sin** secreto de purga, así que `media-purge` responde 404 | **Nico** (pega oculto el token temporal de Supabase de Torneos) | `season-204-run.sh function-rollback`, que vuelve a `1290d3c3…` |
+| 3 | **Gateway:** `season-204-gateway-web.sh build` → `tag <digest>` (al 0 %, tag `g12season204`, comparado con `g11stab203`) → `promote <revisión>` | Nico (o Codex) con la sesión `gcloud` del dueño | `season-204-gateway-web.sh rollback` → `00027-huz` |
+
+**Imagen del gateway.** Mismos 32 archivos que la imagen viva. Cambian sólo `commerce.ts`, `media-contract.ts` y `media.ts`. La revisión nueva hereda la configuración de `00027-huz`: sólo cambia la imagen.
+
+**Costos del paso de código** (estimados, plan actual):
+- **Netlify:** 1 deploy de producción = 15 créditos de 300 por mes. Volver a un deploy anterior cuesta 0.
+- **Supabase:** el redeploy de la función no tiene costo en el plan Free.
+- **Cloud Build:** alrededor de 1 minuto, dentro del cupo gratuito mensual.
+- **Artifact Registry:** una imagen más, unos 100–200 MB, del orden de centavos de USD por mes si se pasa del cupo gratuito.
+- **Cloud Run:** la revisión nueva no agrega costo fijo.
+- **GitHub Actions** (CI del merge, unos 25 minutos) y el **Preview de Vercel** (Hobby): sin costo extra.
+- **Total:** del orden de 0 a centavos de USD, más 15 créditos de Netlify.
 
 **Compatibilidad verificada mientras la base no tiene 0018:**
 - **Vigencia:** sin `seasonLifecycle` en las respuestas, la web no muestra vigencia ni textos de borrado.
@@ -139,23 +148,32 @@ Sigue `docs/torneos/commerce-production/DEPLOY.md` §4 y §6. En resumen:
 
 **Apagar:** `season-204-run.sh disable-purge`. **Las fotos ya borradas no se recuperan.**
 
-## GO concreto para #204 (a pedir cuando #203 esté entero)
+## GO concreto para #204 (listo para pedir)
 
-1. **GO merge #204.**
-   - Requisitos: #203 publicado (función, gateway y web); este PR con CI verde; P10 `P10_PASS` (ya está).
-   - Después, Claude fija el commit del merge en `season-204-run.sh` y prepara el script de gateway y web de #204, derivado de `stab-203-gateway-web.sh`: mismo grafo y misma mecánica, con tag `main-<merge>`.
-2. **GO código #204** (sin migraciones). Orden web → función → gateway (§4).
-   - La función pide **un** token temporal de Supabase con los permisos de §0.
-3. **GO por migración:** 0018 → runner → 0013 → 0019 (§5), cada uno con su frase y con el backup de §3.
-4. **Pagos (§6) y borrado real (§7):** GO separados y posteriores.
+**Estado del candidato:**
+- PR #204: head `67b973c2…`, o el commit de docs posterior que trae este texto (ver `HANDOFF-CODEX.md`).
+- CI verde, mergeable, sin conflictos. main sigue en `54036f59`.
+
+**Validado:** P10 `P10_PASS` sobre 45ea110a (no se repite). Las stores publicadas (iOS y Android 1.1.21 (41)) no traen Torneos, así que el lanzamiento web no necesita builds. La Android 1.1.22 (43) está sólo en prueba interna y **no se promueve**.
+
+**GO 1: merge + código de #204** (sin migraciones, sin cobros, sin purga):
+1. Merge de #204 a main, con merge commit, como en #203.
+2. Claude fija el commit en los dos scripts y crea el checkout limpio.
+3. Web, después función, después gateway (§4), con la recuperación de cada fila.
+
+**Intervención mínima de Nico en el GO 1:**
+- pegar oculto el token temporal de Supabase de Torneos (24 h) cuando lo pida `season-204-run.sh deploy-function`, y escribir la frase que muestra;
+- correr los cuatro comandos del gateway y la web, o autorizar que los corra Codex. El modo automático de Claude no prepara builds de Producción.
+
+**GO siguientes, cada uno aparte:**
+- **GO 2:** backup nuevo verificado (§3), y migraciones 0018 → runner con la purga inactiva → 0013 → 0019 (§5), una por GO.
+- **GO 3:** pagos (§6), después de validar lo fiscal y la facturación.
+- **GO 4:** borrado real (§7).
 
 ## Próximo comando humano indispensable
 
-Gateway de #203, en este orden. La sesión `gcloud` del dueño ya está abierta y no hace falta ningún token.
+**El GO 1** (merge + código de #204), dicho por Nico o por Codex. Con ese GO, Claude fija los scripts y el primer comando humano es:
 
 ```
-~/Arma2Backups/stab-203-gateway-web.sh build
-~/Arma2Backups/stab-203-gateway-web.sh tag <digest que imprime build>
-~/Arma2Backups/stab-203-gateway-web.sh promote <revisión que imprime tag>
-~/Arma2Backups/stab-203-gateway-web.sh web
+~/Arma2Backups/season-204-gateway-web.sh web
 ```
