@@ -45,8 +45,8 @@ select json_build_object(
    'approved', count(*) filter (where status = 'approved'), 'refunded', count(*) filter (where status = 'refunded'),
    'charged_back', count(*) filter (where status = 'charged_back'))
    from public.tournament_purchases where provider = 'MERCADO_PAGO' and provider_environment = 'production'),
- -- The installer's implicit creator membership (hosted: postgres is CREATEROLE, not superuser, ADMIN, no INHERIT, no SET,
- -- granted by the bootstrap superuser) is reported apart and is not a login holding the role (see 0013's rollback).
+ -- Implicit creator membership of the installer (hosted: postgres has CREATEROLE, is no superuser, admin yes, inherit no,
+ -- set no, given by the bootstrap superuser) is reported apart and is not a login holding the role (see the 0013 undo file).
  'production_logins', (select coalesce(json_agg(json_build_object('name', l.rolname, 'login', l.rolcanlogin, 'inherit', l.rolinherit, 'super', l.rolsuper,
    'bypassrls', l.rolbypassrls) order by l.rolname), '[]'::json)
    from pg_auth_members m join pg_roles r on r.oid = m.roleid join pg_roles l on l.oid = m.member where r.rolname = 'torneos_payment_production_service'

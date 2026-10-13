@@ -107,3 +107,10 @@ test('rollback on a database that never sold anything returns to the state befor
   const back = await deps.catalog();
   assert.deepEqual({ ...back, production_purchases: null }, { ...pristine, production_purchases: null });
 });
+
+// The catalog is sent through the certified read-only transport (db-0013 observe / every gate): it must pass that
+// guard as it is — a comment with an apostrophe or a write verb makes it refuse the whole catalog (sql_write_verb).
+test('the catalog passes the real read-only transport guard', async () => {
+  const C = await import('../infra/torneos-officialization-error-v1/oec-remote-contract.mjs');
+  assert.match(C.readOnlyScript(CATALOG_SQL), /^BEGIN TRANSACTION READ ONLY;\n(with|select)\b/);
+});
