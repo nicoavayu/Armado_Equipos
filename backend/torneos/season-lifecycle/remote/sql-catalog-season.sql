@@ -52,6 +52,12 @@ select json_build_object(
    where offer.product_code = 'torneos_premium' and offer.availability = 'available'
      and offer.valid_from <= statement_timestamp() and (offer.valid_until is null or offer.valid_until > statement_timestamp())
    order by offer.valid_from desc, offer.offer_version desc limit 1),
+ -- Names only (never a value): whether the purge Vault entries exist, and the production checkout switch of 0013.
+ 'vault_purge_entries', case when to_regclass('vault.secrets') is null or not has_table_privilege('vault.secrets', 'SELECT') then null else ((xpath('//n/text()', query_to_xml(
+     'select count(*) as n from vault.secrets where name in (''torneos_media_purge_secret'', ''torneos_media_store_purge_url'')',
+     false, false, '')))[1])::text::int end,
+ 'checkout_scope', case when to_regclass('public.tournament_commerce_production_settings') is null then null else ((xpath('//s/text()', query_to_xml(
+     'select checkout_scope as s from public.tournament_commerce_production_settings where singleton', false, false, '')))[1])::text end,
  'budget', (select json_build_object('project', project_max_bytes, 'gallery', gallery_max_bytes, 'inflight', max_inflight_uploads)
    from public.tournament_media_storage_budget where singleton),
  'storage_bytes', (select json_build_object(

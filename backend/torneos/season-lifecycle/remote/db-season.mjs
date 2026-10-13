@@ -1,13 +1,17 @@
 #!/usr/bin/env node
 // SEASON operator driver for the Torneos Production DB: 0018 (season media lifecycle), 0019 (season commerce, after
-// 0013) and the runner (pg_cron + pg_net jobs). Never run by CI, and never by the operator without GO.
+// 0013), the runner (pg_cron + pg_net jobs, the purge job created inactive) and the real-deletion switch. Never run by
+// CI, and never by the operator without GO (the purge switch has a GO of its own).
 //   node backend/torneos/season-lifecycle/remote/db-season.mjs observe                                  (read only)
 //   … apply-0018 | rollback-0018 | apply-0019 | rollback-0019 | apply-runner | rollback-runner   <exact phrase>
+//   … enable-purge | disable-purge                                                                 <exact phrase>
 //   … budget <project_bytes> <gallery_bytes>                                                       <exact phrase>
+// 0019 changes the price in force (20.000 ↔ 39.900 on rollback): apply-0019 and rollback-0019 require the production
+// checkout switch of 0013 at 'off'. enable-purge requires both Vault entries (names only are read).
 // Transport = the certified one (installer postgres.<ref>, Session Pooler sa-east-1:5432, verify-full + the Supabase CA,
 // the installer password read from the macOS Keychain into memory only and redacted from every output). Every write is
 // gated by the exact phrase, the file sha256, the exact observed state before and after on its own axis (media: PRE_0018 /
-// POST_0018; commerce: NONE / POST_0013 / POST_0019; runner: OFF / ON), and "nothing outside moved": every other
+// POST_0018; commerce: NONE / POST_0013 / POST_0019; runner: OFF / ON / PURGE_ON), and "nothing outside moved": every other
 // function (body, ACL, owner, config), relation and policy by digest, and EXECUTE counts identical. The files check
 // themselves too (md5 pre/postconditions in one transaction): the driver adds the state gate and the evidence.
 import fs from 'node:fs';
@@ -25,8 +29,10 @@ export const FILES = Object.freeze({
   'rollback-0018': file('backend/torneos/season-lifecycle/rollback/00000000000018_season_media_lifecycle.rollback.sql', '43d9ee8042b97c1a36cfd4ff24ec4124a48fce113fc3ea2acf2415ff6c44c162', 'media', 'POST_0018', 'PRE_0018', '0018'),
   'apply-0019': file('backend/torneos/supabase/migrations/00000000000019_season_commerce.sql', '2cd55a0dac816cba13e3516ffaeacb338faa1980902ecede397c9960dc586258', 'commerce', 'POST_0013', 'POST_0019', '0019'),
   'rollback-0019': file('backend/torneos/season-lifecycle/rollback/00000000000019_season_commerce.rollback.sql', '6b85089d01e4a383689f3d1d7cc24c2bb2b66d24675cb1fdc60b65a028635612', 'commerce', 'POST_0019', 'POST_0013', '0019'),
-  'apply-runner': file('backend/torneos/season-lifecycle/scheduler/season-lifecycle-cron.sql', '4117dbfecdead0c0c73d89b973e4b142e7cb2c5ee28dea4e51a5c20f77f3887b', 'runner', 'OFF', 'ON', 'RUNNER'),
+  'apply-runner': file('backend/torneos/season-lifecycle/scheduler/season-lifecycle-cron.sql', 'c41e5a8716d97603378a4a403eea7b07dfd97fc9d437842a433f3823ea1b866c', 'runner', 'OFF', 'ON', 'RUNNER'),
   'rollback-runner': file('backend/torneos/season-lifecycle/scheduler/season-lifecycle-cron.rollback.sql', '40cc12fbbd97cd8de3a6adfd5db6bdcbb0e0e47d3821f0de5a1c6fe556e16e3c', 'runner', 'ON', 'OFF', 'RUNNER'),
+  'enable-purge': file('backend/torneos/season-lifecycle/scheduler/season-media-purge-enable.sql', 'cc1385d6b36d7bd01a99b4693e70801b24a6721e6a1ebab8f28d32631e98a0bf', 'runner', 'ON', 'PURGE_ON', 'PURGE'),
+  'disable-purge': file('backend/torneos/season-lifecycle/scheduler/season-media-purge-disable.sql', 'b5d026c03f14071a6d8f63bcad6f778486d87c8a20344d23c884d16d33141c63', 'runner', 'PURGE_ON', 'ON', 'PURGE'),
 });
 // md5(prosrc), measured on the lab (they are also the pins inside the files).
 const MEDIA = Object.freeze({
@@ -44,7 +50,9 @@ const COMMERCE = Object.freeze({
   POST_0019: { checkout: '9bba694e95d0a55ade612431de57dd6d', activation: '5789b8dedcdb0df08f65f685b93e0ecb',
     status_policy: '6dfd55905a5968736fe6806bb335ea56', reversal_policy: '7efeadcefddb54f907effc35374cbc1d', purchases: '2c96bc3721e910d997ff32567b46121d' },
 });
-export const RUNNER_JOBS = 'torneos-season-media-lifecycle 3-59/15 * * * * true|torneos-season-media-purge 8-59/15 * * * * true';
+// cron.job as the catalog reads it: the runner leaves the purge job inactive; only enable-purge turns it on.
+export const RUNNER_JOBS = 'torneos-season-media-lifecycle 3-59/15 * * * * true|torneos-season-media-purge 8-59/15 * * * * false';
+export const RUNNER_JOBS_PURGE_ON = 'torneos-season-media-lifecycle 3-59/15 * * * * true|torneos-season-media-purge 8-59/15 * * * * true';
 const SERVICE_ONLY = Object.freeze({ authenticated: false, anon: false, service_role: true });
 const sha256 = (bytes) => crypto.createHash('sha256').update(bytes).digest('hex');
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
@@ -60,8 +68,8 @@ export function classify(catalog) {
   if (!media) failures.push(`media bodies ${JSON.stringify(pick(catalog.bodies, Object.keys(MEDIA.PRE_0018)))}`);
   if (!commerce) failures.push(`commerce bodies ${JSON.stringify(pick(catalog.bodies, Object.keys(COMMERCE.NONE)))}`);
   const runnerOn = catalog.bodies?.purge_request != null;
-  const runner = runnerOn ? 'ON' : 'OFF';
-  if (runnerOn && catalog.cron?.jobs !== RUNNER_JOBS) failures.push(`runner jobs ${catalog.cron?.jobs}`);
+  const runner = !runnerOn ? 'OFF' : catalog.cron?.jobs === RUNNER_JOBS_PURGE_ON ? 'PURGE_ON' : 'ON';
+  if (runnerOn && ![RUNNER_JOBS, RUNNER_JOBS_PURGE_ON].includes(catalog.cron?.jobs)) failures.push(`runner jobs ${catalog.cron?.jobs}`);
   if (!runnerOn && catalog.cron?.jobs != null) failures.push(`jobs without runner ${catalog.cron?.jobs}`);
   if (media === 'POST_0018') {
     if (!same(catalog.season?.columns, ['activated_at', 'activation_basis', 'media_deadline_at'])) failures.push(`season columns ${JSON.stringify(catalog.season?.columns)}`);
@@ -93,7 +101,7 @@ const BUDGET_MAX = 1024 * 1024 * 1024;
 export function phraseFor(mode, args = []) {
   if (mode === 'budget') return `SET TORNEOS MEDIA STORAGE BUDGET ${args[0]} ${args[1]} ${REF}`;
   const f = FILES[mode];
-  if (!f) throw new Error('usage: observe | apply-0018 | rollback-0018 | apply-0019 | rollback-0019 | apply-runner | rollback-runner | budget <project> <gallery>');
+  if (!f) throw new Error('usage: observe | apply-0018 | rollback-0018 | apply-0019 | rollback-0019 | apply-runner | rollback-runner | enable-purge | disable-purge | budget <project> <gallery>');
   return `${mode.split('-')[0].toUpperCase()} TORNEOS ${f.phase} ${REF} ${f.sha256.slice(0, 12)}`;
 }
 
@@ -134,9 +142,13 @@ export async function run(mode, args, { readFile = fs.readFileSync, catalog, app
   const pre = classify(before);
   if (pre.state === 'DRIFT' || pre[f.axis] !== f.from) throw new Error(`PRE_STATE_${pre.state} ${(pre.failures || []).join('; ')}`);
   // The order between axes: 0019 and the runner need 0018; 0018 never goes away under 0019 or the runner; 0019 needs 0013.
-  const blocked = (mode === 'rollback-0018' && (pre.commerce === 'POST_0019' || pre.runner === 'ON'))
+  const blocked = (mode === 'rollback-0018' && (pre.commerce === 'POST_0019' || pre.runner !== 'OFF'))
     || ((mode === 'apply-0019' || mode === 'apply-runner') && pre.media !== 'POST_0018');
   if (blocked) throw new Error(`PRE_STATE_${pre.state} order`);
+  // The price in force changes with 0019 (and back): only with the production checkout switched off.
+  if ((mode === 'apply-0019' || mode === 'rollback-0019') && before.checkout_scope !== 'off') throw new Error(`CHECKOUT_NOT_OFF ${before.checkout_scope}`);
+  // Real deletion: only with both Vault entries in place (the file checks again inside its transaction).
+  if (mode === 'enable-purge' && before.vault_purge_entries !== 2) throw new Error(`VAULT_ENTRIES_MISSING ${before.vault_purge_entries}`);
   out.psql = await applySql(bytes.toString('utf8'));
   const after = await catalog();
   const post = classify(after);

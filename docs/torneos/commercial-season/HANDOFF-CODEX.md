@@ -83,9 +83,13 @@ Nada se aplicó en Producción. Premium, pagos y borrado real siguen apagados.
 ## Hecho después de la revisión
 
 - **Driver de operador** `backend/torneos/season-lifecycle/remote/db-season.mjs`.
-  - Modos: observe, apply/rollback de 0018, 0019 y el runner, y `budget` (A3).
+  - Modos:
+    - observe;
+    - apply/rollback de 0018, 0019 y el runner;
+    - `enable-purge`/`disable-purge`, el interruptor del borrado real (ver la revisión de operadores abajo);
+    - `budget` (A3).
   - Cada escritura exige frase, sha256, estado por eje y orden entre ejes, y que nada fuera de lo suyo se mueva.
-  - Ensayado en el laboratorio a través del mismo `run()`. `test:torneos:season` **25/25**.
+  - Ensayado en el laboratorio a través del mismo `run()`. `test:torneos:season` **32/32**.
 - **PR borrador** [#204](https://github.com/nicoavayu/Armado_Equipos/pull/204), con CI en GitHub.
 
 ## P10: sandbox actual de Mercado Pago (lo único que falta antes del GO)
@@ -104,7 +108,7 @@ Nada se aplicó en Producción. Premium, pagos y borrado real siguen apagados.
   - que `node_modules` corresponda al `package-lock` de ese head (marca `node_modules/.p10-lock-sha256`, escrita al instalar);
   - que Docker responda;
   - que haya lugar para la red del laboratorio. Crea y borra una red de prueba propia, y **no toca laboratorios ajenos**: si no hay lugar, para y lo dice;
-  - que `api.mercadopago.com` responda (401 sin token);
+  - que `api.mercadopago.com` responda: sin token contesta 401, o 403 de su PolicyAgent (lo observado hoy);
   - que el host de vuelta conteste 404.
 - `p10-run.sh check` hace sólo esas comprobaciones.
 - **`p10-run.sh ensayo`** recorre en la terminal el mismo flujo de Nico contra el emulador: sin token ni MP. Termina en `ENSAYO_OK`, y la evidencia dice `certifies: false`.
@@ -191,11 +195,35 @@ Nada se aplicó en Producción. Premium, pagos y borrado real siguen apagados.
 
 **Recuperación:** el laboratorio es desechable y se recrea en cada corrida. Ctrl+C no deja nada en Producción. Los pagos de prueba quedan sólo en las cuentas de prueba, sin dinero real.
 
+## Revisión de operadores y vueltas atrás (2026-10-13)
+
+| # | Hallazgo | Cambio | Prueba |
+|---|---|---|---|
+| O1 | **El runner dejaba la purga activa.** El borrado real dependía sólo, y de forma implícita, de que existieran los secretos en Vault. | El runner crea el job de purga **inactivo**. El borrado real es un paso aparte con GO propio: `enable-purge` (frase `ENABLE TORNEOS PURGE …`), con precondición de los dos secretos en Vault. El catálogo lee **sólo los nombres**, y si no tiene permiso queda `null`, lo que también rechaza. Se apaga con `disable-purge`, que deja el job de ciclo de vida intacto. | `season-cron`: activo/inactivo, sin Vault se rechaza, dos veces se rechaza, on → off. `db-season` en el laboratorio: rechazo sin Vault → on → off. |
+| O2 | **0019 cambia el precio vigente**: 20.000, y 39.900 al volver atrás. Aplicarlo o revertirlo con el checkout abierto cambia el precio a mitad de una compra. | `apply-0019` y `rollback-0019` exigen `checkout_scope = 'off'` (el interruptor de 0013), leído en el catálogo antes de escribir. | Fake y laboratorio: con `open` se rechaza sin escribir, con `off` pasa. |
+| O3 | Se podía sacar el runner con la purga encendida. | `rollback-runner` sólo parte de `RUNNER_ON`; desde `RUNNER_PURGE_ON` se rechaza. `rollback-0018` exige el runner apagado del todo. | Fake y laboratorio. |
+| O4 | **Volver a aplicar 0018 después de deshacerlo reinicia el reloj.** Las temporadas existentes reciben de nuevo «6 meses desde la migración», así que el plazo se alarga, nunca se acorta, y los avisos 7d/1d se mandan para la nueva fecha. | Sin cambio de código: queda como regla de operación. Un rollback seguido de reaplicación es una decisión de producto, no un paso técnico neutro. | — |
+| O5 | La vuelta atrás de 0018 no recupera fotos ya purgadas. | Ya estaba dicho en el archivo. Con O1, mientras no haya `enable-purge` no hay nada purgado. | — |
+
+**Pins nuevos** (`node db-season.mjs pins`):
+- apply-runner `c41e5a87…`;
+- enable-purge `cc1385d6…`;
+- disable-purge `b5d026c0…`;
+- los demás no cambian.
+
 ## Después de P10
 
-**GO final sobre la evidencia**, por pasos:
-- 0018 → runner → 0013 → 0019 → función, gateway y web.
-- Pagos y borrado real, cada uno con su propio GO.
+**GO final sobre la evidencia**, por pasos. Cada uno con su frase y su propio GO:
+1. `apply-0018`.
+2. `apply-runner`: ciclo de vida activo, purga **inactiva**. Antes, habilitar pg_cron y pg_net en el proyecto (las crea el archivo).
+3. 0013 (su driver `db-0013.mjs`).
+4. `apply-0019`, con el checkout en `off`.
+5. Función, gateway y web.
+6. **Pagos:** el interruptor de checkout de 0013, con su propio GO.
+7. **Borrado real:** con su propio GO.
+   - Secretos en Vault, cargados desde la TTY por el operador.
+   - `torneos-media-store` con `TORNEOS_MEDIA_PURGE_SECRET`.
+   - Después `enable-purge`.
 
 ## #203 (aparte)
 

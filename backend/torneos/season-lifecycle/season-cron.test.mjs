@@ -15,6 +15,9 @@ import { storeEnv } from '../media-store-v1/test/support.mjs';
 
 const CRON = readFileSync(path.join(REPO, 'backend/torneos/season-lifecycle/scheduler/season-lifecycle-cron.sql'), 'utf8');
 const CRON_ROLLBACK = readFileSync(path.join(REPO, 'backend/torneos/season-lifecycle/scheduler/season-lifecycle-cron.rollback.sql'), 'utf8');
+const PURGE_ON = readFileSync(path.join(REPO, 'backend/torneos/season-lifecycle/scheduler/season-media-purge-enable.sql'), 'utf8');
+const PURGE_OFF = readFileSync(path.join(REPO, 'backend/torneos/season-lifecycle/scheduler/season-media-purge-disable.sql'), 'utf8');
+const activeOf = () => one("select string_agg(jobname || '=' || active::text, ',' order by jobname) from cron.job where jobname like 'torneos-season-media-%'");
 const M18 = readFileSync(path.join(MIGRATIONS_DIR, '00000000000018_season_media_lifecycle.sql'), 'utf8');
 const one = (q) => sql(q).trim();
 const PURGE_SECRET = randomBytes(32).toString('hex');
@@ -50,6 +53,9 @@ test('jobs at the offset minutes; without the Vault entries the caller sends not
   const jobs = one("select string_agg(jobname || ' ' || schedule || ' ' || command, ' | ' order by jobname) from cron.job where jobname like 'torneos-season-media-%'");
   assert.equal(jobs, 'torneos-season-media-lifecycle 3-59/15 * * * * select public.run_tournament_season_media_lifecycle() | '
     + 'torneos-season-media-purge 8-59/15 * * * * select private.request_tournament_media_purge(50)');
+  assert.equal(activeOf(), 'torneos-season-media-lifecycle=true,torneos-season-media-purge=false', 'the purge job is created inactive');
+  assert.match(sqlTry(PURGE_ON).error, /Vault entries missing/, 'real deletion cannot be switched on without the Vault entries');
+  assert.match(sqlTry(PURGE_OFF).error, /not active/);
   assert.equal(one('select private.request_tournament_media_purge(50) is null'), 't');
   // The lifecycle job's command, exactly as pg_cron runs it.
   assert.match(one('select public.run_tournament_season_media_lifecycle()'), /"seasonsClosed": \d+/);
@@ -94,10 +100,19 @@ test('the purge request pg_net sends is accepted by the real torneos-media-store
   assert.equal((await replay(got.body, other)).status, 401, 'another purge secret is refused');
 });
 
+test('real-deletion switch: on only with the Vault entries, off again; the lifecycle job never moves', () => {
+  // The Vault entries are those of the previous test.
+  sql(PURGE_ON);
+  assert.equal(activeOf(), 'torneos-season-media-lifecycle=true,torneos-season-media-purge=true');
+  assert.match(sqlTry(PURGE_ON).error, /inactive purge job is not in force/, 'twice is refused');
+  sql(PURGE_OFF);
+  assert.equal(activeOf(), 'torneos-season-media-lifecycle=true,torneos-season-media-purge=false');
+});
+
 test('rollback: no job left, caller gone; re-apply works', () => {
   sql(CRON_ROLLBACK);
   assert.equal(one("select count(*) from cron.job where jobname like 'torneos-season-media-%'"), '0');
   assert.equal(one("select to_regprocedure('private.request_tournament_media_purge(integer)') is null"), 't');
   sql(CRON);
-  assert.equal(one("select count(*) from cron.job where jobname like 'torneos-season-media-%' and active"), '2');
+  assert.equal(activeOf(), 'torneos-season-media-lifecycle=true,torneos-season-media-purge=false', 're-applied with the purge job inactive');
 });

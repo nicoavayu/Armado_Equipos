@@ -8,6 +8,8 @@
 --   * torneos-season-media-purge, every 15 minutes at :08/:23/:38/:53 → private.request_tournament_media_purge(50):
 --     one signed POST (pg_net, asynchronous) to torneos-media-store's media-purge. The function leases, removes and
 --     confirms; a failed run leaves the leases to expire and the next run retries.
+--     It is created INACTIVE: real deletion has its own GO (season-media-purge-enable.sql, which also requires the Vault
+--     entries), and season-media-purge-disable.sql turns it off again without touching anything else.
 -- Secrets: the purge secret and the function URL live in Supabase Vault (vault.secrets), created by the operator from a
 -- TTY, never in this file. The signature is the function's protocol: HMAC-SHA256 over
 --   method \n /torneos-media-store/v1/media-purge \n "" \n ts \n sha256(body) \n sha256("")
@@ -60,11 +62,13 @@ revoke all on function private.request_tournament_media_purge(integer) from publ
 
 SELECT cron.schedule('torneos-season-media-lifecycle', '3-59/15 * * * *', 'select public.run_tournament_season_media_lifecycle()');
 SELECT cron.schedule('torneos-season-media-purge', '8-59/15 * * * *', 'select private.request_tournament_media_purge(50)');
+SELECT cron.alter_job(jobid, active := false) FROM cron.job WHERE jobname = 'torneos-season-media-purge';
 
 DO $post$
 BEGIN
-  IF (SELECT count(*) FROM cron.job WHERE jobname IN ('torneos-season-media-lifecycle', 'torneos-season-media-purge') AND active) <> 2 THEN
-    RAISE EXCEPTION 'TORNEOS_SEASON_CRON_POSTCONDITION_FAILED: jobs';
+  IF NOT EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'torneos-season-media-lifecycle' AND active)
+    OR NOT EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'torneos-season-media-purge' AND NOT active) THEN
+    RAISE EXCEPTION 'TORNEOS_SEASON_CRON_POSTCONDITION_FAILED: jobs (lifecycle active, purge inactive)';
   END IF;
   IF has_function_privilege('authenticated', 'private.request_tournament_media_purge(integer)', 'EXECUTE')
     OR has_function_privilege('anon', 'private.request_tournament_media_purge(integer)', 'EXECUTE') THEN
