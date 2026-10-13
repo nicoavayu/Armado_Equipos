@@ -9,6 +9,13 @@
 -- Preconditions: exactly the 0013 state, no production purchase, no login holding the production role (drop the
 -- production login first: it is the bootstrap's, never this file's). Postconditions: the 0013 objects are gone, the
 -- environment CHECK is the 0002 one again and the certified TEST chain is byte-identical (pinned by md5).
+--
+-- The installer's own membership is not "a login holding the role". On the hosted project the installer `postgres` is
+-- not a superuser; it has CREATEROLE, and PostgreSQL 16+ (Production: 17.6, createrole_self_grant = '') records, when a
+-- non-superuser creates a role, an implicit membership of the creator in it: ADMIN OPTION, no INHERIT, no SET, granted
+-- by the bootstrap superuser (supabase_admin). The installer cannot revoke it (REVOKE is a no-op: it is not the
+-- grantor), and DROP ROLE removes it with the role. That one membership is ignored; any other member — the production
+-- login, any other role, or a different grant to the installer — still refuses the rollback.
 BEGIN;
 
 DO $pre$
@@ -37,7 +44,9 @@ BEGIN
   IF EXISTS (SELECT 1 FROM public.tournament_purchases WHERE provider = 'MERCADO_PAGO' AND provider_environment = 'production') THEN
     RAISE EXCEPTION USING errcode = '55000', message = 'TORNEOS_MP_PRODUCTION_ROLLBACK_REFUSED: production purchases exist; disable production commerce instead';
   END IF;
-  IF EXISTS (SELECT 1 FROM pg_auth_members m JOIN pg_roles r ON r.oid = m.roleid WHERE r.rolname = 'torneos_payment_production_service') THEN
+  IF EXISTS (SELECT 1 FROM pg_auth_members m JOIN pg_roles r ON r.oid = m.roleid WHERE r.rolname = 'torneos_payment_production_service'
+      AND NOT (m.member = (SELECT oid FROM pg_roles WHERE rolname = current_user) AND m.admin_option AND NOT m.inherit_option
+        AND NOT m.set_option AND (SELECT rolsuper FROM pg_roles WHERE oid = m.grantor))) THEN
     RAISE EXCEPTION USING errcode = '55000', message = 'TORNEOS_MP_PRODUCTION_ROLLBACK_REFUSED: a login still holds torneos_payment_production_service';
   END IF;
 END $pre$;

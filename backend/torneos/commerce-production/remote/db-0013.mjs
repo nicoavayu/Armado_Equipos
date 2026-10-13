@@ -26,7 +26,7 @@ export const FILES = Object.freeze({
   'apply-0013': file('backend/torneos/supabase/migrations/00000000000013_mercadopago_checkout_pro_production.sql',
     '72943492749d399850c69d807902069dfa47afd68b668aaf6dea0bf407d9eece', 'PRE_0013', 'POST_0013'),
   'rollback-0013': file('backend/torneos/commerce-production/rollback/00000000000013_mercadopago_checkout_pro_production.rollback.sql',
-    '2365a37cb53c87ca403ab59fdf4dd9659a2a94c9b12bd175b61563b43e3177db', 'POST_0013', 'PRE_0013'),
+    '546b7d46965315d7d1eb7d5852f125850a5868a27875a5dbaa83fc690b8b757f', 'POST_0013', 'PRE_0013'),
 });
 export const CHECK_0002 = "CHECK ((((provider = 'FAKE'::text) AND (provider_environment = ANY (ARRAY['local'::text, 'qa'::text]))) OR ((provider = 'MERCADO_PAGO'::text) AND (provider_environment = 'test'::text))))";
 export const CHECK_0013 = "CHECK ((((provider = 'FAKE'::text) AND (provider_environment = ANY (ARRAY['local'::text, 'qa'::text]))) OR ((provider = 'MERCADO_PAGO'::text) AND (provider_environment = ANY (ARRAY['test'::text, 'production'::text])))))";

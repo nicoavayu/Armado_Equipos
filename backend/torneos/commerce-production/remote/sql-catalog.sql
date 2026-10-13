@@ -45,9 +45,16 @@ select json_build_object(
    'approved', count(*) filter (where status = 'approved'), 'refunded', count(*) filter (where status = 'refunded'),
    'charged_back', count(*) filter (where status = 'charged_back'))
    from public.tournament_purchases where provider = 'MERCADO_PAGO' and provider_environment = 'production'),
+ -- The installer's implicit creator membership (hosted: postgres is CREATEROLE, not superuser, ADMIN, no INHERIT, no SET,
+ -- granted by the bootstrap superuser) is reported apart and is not a login holding the role (see 0013's rollback).
  'production_logins', (select coalesce(json_agg(json_build_object('name', l.rolname, 'login', l.rolcanlogin, 'inherit', l.rolinherit, 'super', l.rolsuper,
    'bypassrls', l.rolbypassrls) order by l.rolname), '[]'::json)
-   from pg_auth_members m join pg_roles r on r.oid = m.roleid join pg_roles l on l.oid = m.member where r.rolname = 'torneos_payment_production_service'),
+   from pg_auth_members m join pg_roles r on r.oid = m.roleid join pg_roles l on l.oid = m.member where r.rolname = 'torneos_payment_production_service'
+     and not (m.member = (select oid from pg_roles where rolname = current_user) and m.admin_option and not m.inherit_option and not m.set_option
+       and (select rolsuper from pg_roles where oid = m.grantor))),
+ 'installer_implicit_grant', exists (select 1 from pg_auth_members m join pg_roles r on r.oid = m.roleid where r.rolname = 'torneos_payment_production_service'
+   and m.member = (select oid from pg_roles where rolname = current_user) and m.admin_option and not m.inherit_option and not m.set_option
+   and (select rolsuper from pg_roles where oid = m.grantor)),
  'test_logins', (select coalesce(json_agg(l.rolname order by l.rolname), '[]'::json)
    from pg_auth_members m join pg_roles r on r.oid = m.roleid join pg_roles l on l.oid = m.member where r.rolname = 'torneos_payment_service'),
  'outside', json_build_object('count', (select count(*) from outside), 'digest', (select md5(string_agg(line, E'\n' order by line)) from outside)),

@@ -1,0 +1,21 @@
+GO 2 rehearsal — Production topology, every step AS postgres (non-superuser, CREATEROLE), patched 0013 rollback/driver
+Lab: 0000→0017 without 0013; every public/private table, sequence, routine, type and the private schema owned by postgres.
+Drivers: db-season.mjs run() for 0018 / runner / 0019 and db-0013.mjs run() for 0013, catalog read as postgres.
+
+lab owners: postgres=112
+start: PRE_0018+NONE+RUNNER_OFF
+apply-0018: APPLY_0018_DONE PRE_0018+NONE+RUNNER_OFF -> POST_0018+NONE+RUNNER_OFF
+apply-runner: APPLY_RUNNER_DONE POST_0018+NONE+RUNNER_OFF -> POST_0018+NONE+RUNNER_ON
+jobs: torneos-season-media-lifecycle=true,torneos-season-media-purge=false
+apply-0013 (db-0013 driver, as postgres): APPLY_0013_DONE PRE_0013 -> POST_0013
+scope: off
+apply-0019: APPLY_0019_DONE POST_0018+POST_0013+RUNNER_ON -> POST_0018+POST_0019+RUNNER_ON
+offer: {"amount":20000,"list":20000,"label":"Precio de lanzamiento"}
+rollback-0019: ROLLBACK_0019_DONE POST_0018+POST_0019+RUNNER_ON -> POST_0018+POST_0013+RUNNER_ON
+rollback-0013 (db-0013 driver, as postgres): ROLLBACK_0013_DONE POST_0013 -> PRE_0013
+rollback-runner: ROLLBACK_RUNNER_DONE POST_0018+NONE+RUNNER_ON -> POST_0018+NONE+RUNNER_OFF
+rollback-0018: ROLLBACK_0018_DONE POST_0018+NONE+RUNNER_OFF -> PRE_0018+NONE+RUNNER_OFF
+end: PRE_0018+NONE+RUNNER_OFF
+
+Before the patch, same topology (2026-10-13): rollback-0013 → "TORNEOS_MP_PRODUCTION_ROLLBACK_REFUSED: a login still holds
+torneos_payment_production_service" (member: postgres, admin=true, grantor=supabase_admin); REVOKE by postgres = no-op.
