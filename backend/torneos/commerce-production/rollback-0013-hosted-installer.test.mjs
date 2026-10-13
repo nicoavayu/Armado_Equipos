@@ -4,13 +4,16 @@
 // (ADMIN, no INHERIT, no SET, granted by the bootstrap superuser) that the installer cannot revoke; the rollback and the
 // driver catalog ignore exactly that membership and nothing else. Checks: the catalog, the data and the permissions are
 // identical after apply → rollback, re-apply works, and the rollback still refuses with a login, another role, a
-// different grant to the installer, or a production purchase — leaving those memberships and rows in place.
+// different grant to the installer, or a production purchase — leaving those memberships and rows in place. The login
+// bootstrap (P3, production-contract renderProductionLoginSql) and drop-login run as the installer too: the login guard
+// ignores the same implicit membership (and only it), and the installer GRANTs the role through it.
 //   node --test backend/torneos/commerce-production/rollback-0013-hosted-installer.test.mjs
 import { after, before, test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import crypto from 'node:crypto';
 
 process.env.COMMERCE_PRODUCTION_LAB_CONTAINER = 'arma2-commerce-hosted-installer-db';
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -106,6 +109,37 @@ test('apply → rollback leaves catalog, permissions and data identical; the imp
   assert.deepEqual(snapshot(), before0, 'catalog, permissions and data as before 0013');
   const again = await run('apply-0013');
   assert.equal(again.verdict, 'APPLY_0013_DONE', JSON.stringify(again));
+});
+
+test('P3 as the installer: login created (SCRAM only), the rollback refuses while it holds the role, drop-login, rollback works again', async () => {
+  const { scramVerifier } = await import('../infra/torneos-gateway-auth/gateway-auth-contract.mjs');
+  const P = await import('../infra/torneos-payments-production/production-contract.mjs');
+  let value = null;
+  const keychain = { dbPassword: { check: () => (value ? 'PRESENT' : 'ABSENT'),
+    generate: () => { if (value) throw new Error('KEYCHAIN_ENTRY_PRESENT_REFUSE_OVERWRITE'); value = crypto.randomBytes(30).toString('base64url'); return 'KEYCHAIN_GENERATED'; },
+    read: () => value } };
+  const loginDeps = { ...deps, keychain, scram: (password) => P.renderProductionLoginSql(scramVerifier(password)) };
+  const word = (mode) => `${mode === 'login' ? 'CREATE' : 'DROP'} TORNEOS PAYMENTS PRODUCTION LOGIN ${P.PRODUCTION_LOGIN} ${D.REF}`.split(' ');
+  assert.equal(D.classify(await deps.catalog()).state, 'POST_0013');
+  // Before the fix the guard counted the installer's implicit membership: PRODUCTION_LOGIN_ALREADY_PRESENT.
+  const created = await D.run('login', word('login'), loginDeps);
+  assert.equal(created.verdict, 'LOGIN_DONE', JSON.stringify(created));
+  const catalog = await deps.catalog();
+  assert.deepEqual(catalog.production_logins.map((l) => [l.name, l.login, l.inherit, l.super, l.bypassrls]), [[P.PRODUCTION_LOGIN, true, false, false, false]]);
+  assert.equal(catalog.installer_implicit_grant, true, 'the installer membership is still reported apart');
+  assert.equal(one(`select pg_get_userbyid(grantor)||' i='||inherit_option||' s='||set_option from pg_auth_members where roleid = '${ROLE}'::regrole and member = '${P.PRODUCTION_LOGIN}'::regrole`),
+    'postgres i=false s=true', 'the installer grants the role through its implicit ADMIN membership');
+  // The login holding the role refuses the rollback (file and driver), and a second login is refused.
+  assert.ok(/a login still holds/.test(asPostgres(R13).error ?? ''));
+  await assert.rejects(run('rollback-0013'), /ROLLBACK_REFUSED/);
+  await assert.rejects(D.run('login', word('login'), loginDeps), /PRODUCTION_LOGIN_ALREADY_PRESENT/);
+  const dropped = await D.run('drop-login', word('drop-login'), loginDeps);
+  assert.equal(dropped.verdict, 'DROP_LOGIN_DONE', JSON.stringify(dropped));
+  assert.equal(one(`select count(*) from pg_roles where rolname = '${P.PRODUCTION_LOGIN}'`), '0');
+  assert.deepEqual((await deps.catalog()).production_logins, []);
+  // Back to the state of the previous test: rollback and re-apply still work.
+  assert.equal((await run('rollback-0013')).verdict, 'ROLLBACK_0013_DONE');
+  assert.equal((await run('apply-0013')).verdict, 'APPLY_0013_DONE');
 });
 
 test('the rollback still refuses — and keeps everything — with another member, a different installer grant, a login, or a purchase', async () => {

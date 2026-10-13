@@ -65,7 +65,12 @@ export const POOLER_HOST = 'aws-0-sa-east-1.pooler.supabase.com';
 export const POOLER_PORT = 6543;
 export const dbUrlFor = (password) => `postgres://${PRODUCTION_LOGIN}.${TORNEOS_REF}:${encodeURIComponent(password)}@${POOLER_HOST}:${POOLER_PORT}/postgres`;
 
-/** The ONLY SQL of the login bootstrap: one transaction; guards first (login absent, no other production login, role shape), SCRAM only. */
+/**
+ * The ONLY SQL of the login bootstrap: one transaction; guards first (login absent, no other production login, role shape), SCRAM only.
+ * "No other production login" ignores exactly the hosted installer's implicit creator membership in the production role
+ * (postgres is CREATEROLE, not superuser: ADMIN, no INHERIT, no SET, granted by the bootstrap superuser — see
+ * docs/torneos/commerce-production/ROLLBACK-0013-INSTALADOR.md); that same membership is what lets the installer GRANT it.
+ */
 export function renderProductionLoginSql(verifier) {
   if (!G.SCRAM_PATTERN.test(verifier ?? '')) throw new Error('verifier_shape');
   return [
@@ -74,7 +79,9 @@ export function renderProductionLoginSql(verifier) {
     `DO $guard$ BEGIN
   IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '${PRODUCTION_LOGIN}') THEN RAISE EXCEPTION 'PAYMENTS_PRODUCTION_LOGIN_ALREADY_PRESENT'; END IF;
   IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '${PRODUCTION_ROLE}' AND NOT rolcanlogin AND NOT rolinherit AND NOT rolsuper AND NOT rolbypassrls) THEN RAISE EXCEPTION 'PRODUCTION_ROLE_SHAPE_UNEXPECTED'; END IF;
-  IF EXISTS (SELECT 1 FROM pg_auth_members m JOIN pg_roles r ON r.oid = m.roleid WHERE r.rolname = '${PRODUCTION_ROLE}') THEN RAISE EXCEPTION 'PRODUCTION_LOGIN_ALREADY_PRESENT'; END IF;
+  IF EXISTS (SELECT 1 FROM pg_auth_members m JOIN pg_roles r ON r.oid = m.roleid WHERE r.rolname = '${PRODUCTION_ROLE}'
+    AND NOT (m.member = (SELECT oid FROM pg_roles WHERE rolname = current_user) AND m.admin_option AND NOT m.inherit_option
+      AND NOT m.set_option AND (SELECT rolsuper FROM pg_roles WHERE oid = m.grantor))) THEN RAISE EXCEPTION 'PRODUCTION_LOGIN_ALREADY_PRESENT'; END IF;
 END $guard$;`.replace(/\n/g, ' '),
     `CREATE ROLE ${PRODUCTION_LOGIN} LOGIN NOINHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS PASSWORD '${verifier}';`,
     `GRANT ${PRODUCTION_ROLE} TO ${PRODUCTION_LOGIN} WITH INHERIT FALSE, SET TRUE;`,
