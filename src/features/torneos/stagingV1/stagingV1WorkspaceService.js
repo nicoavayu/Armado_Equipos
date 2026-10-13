@@ -915,12 +915,11 @@ export function createStagingV1WorkspaceService({
       },
       'No pudimos crear la temporada.',
     ),
-    updateSeason: ({
+    updateSeason: async ({
       organizationId, seasonId, name = null, slug = null, startDate = null, endDate = null, status = null,
       confirmMediaDeletion = false,
-    }) => call(
-      'update_tournament_season',
-      {
+    }) => {
+      const params = {
         p_organization_id: organizationId,
         p_season_id: seasonId,
         p_name: name,
@@ -930,11 +929,19 @@ export function createStagingV1WorkspaceService({
         p_status: status,
         p_clear_start_date: startDate === '',
         p_clear_end_date: endDate === '',
-        // 0018: only sent once the organizer confirmed that finishing early removes the season's photos.
-        ...(confirmMediaDeletion === true ? { p_confirm_media_deletion: true } : {}),
-      },
-      'No pudimos actualizar la temporada.',
-    ),
+      };
+      const failure = 'No pudimos actualizar la temporada.';
+      // 0018: only sent once the organizer confirmed that finishing early removes the season's photos.
+      if (confirmMediaDeletion !== true) return call('update_tournament_season', params, failure);
+      try {
+        return await client.execute('update_tournament_season', { ...params, p_confirm_media_deletion: true });
+      } catch (error) {
+        // A database before 0018 has no such argument (PostgREST PGRST202: no function with this signature) and removes
+        // nothing when a season ends: there the season finishes exactly as it always did. Any other error stands.
+        if (error?.rpcError?.code !== 'PGRST202') throw translateBoundaryError(error, failure);
+        return call('update_tournament_season', params, failure);
+      }
+    },
     createTournament: ({
       organizationId, seasonId, name, slug, description = null, sportModality, competitionFormat,
       genderCategory, startDate = null, endDate = null, idempotencyKey,

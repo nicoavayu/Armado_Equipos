@@ -1,0 +1,322 @@
+{
+  "started": "2026-10-13T16:49:47.709Z",
+  "provider": {
+    "kind": "mercadopago",
+    "sellerIsTestUser": true,
+    "stats": {
+      "calls": {
+        "GET /users/me": 1,
+        "POST /checkout/preferences": 3,
+        "GET /v1/payments/search": 12,
+        "GET /v1/payments/{id}": 8,
+        "GET /merchant_orders/{id}": 8,
+        "GET /checkout/preferences/{id}": 8
+      },
+      "attestationRewrites": 1,
+      "preferences": [
+        {
+          "status": 201,
+          "accepted": true,
+          "backUrlsOrigin": "https://torneos-payments-test.nicoavayu.deno.net",
+          "notificationUrl": "lab-invalid",
+          "id": "3712890098-9e5462ff-60f1-4975-88b3-2679ce2838e1",
+          "stored": {
+            "backUrlsOrigin": [
+              "https://torneos-payments-test.nicoavayu.deno.net"
+            ],
+            "notificationHost": "payments.unit.invalid",
+            "autoReturn": "approved"
+          }
+        },
+        {
+          "status": 201,
+          "accepted": true,
+          "backUrlsOrigin": "https://torneos-payments-test.nicoavayu.deno.net",
+          "notificationUrl": "lab-invalid",
+          "id": "3712890098-2878a824-0bcd-4cf4-aa8e-498c5128b9ac",
+          "stored": {
+            "backUrlsOrigin": [
+              "https://torneos-payments-test.nicoavayu.deno.net"
+            ],
+            "notificationHost": "payments.unit.invalid",
+            "autoReturn": "approved"
+          }
+        },
+        {
+          "status": 201,
+          "accepted": true,
+          "backUrlsOrigin": "https://torneos-payments-test.nicoavayu.deno.net",
+          "notificationUrl": "lab-invalid",
+          "id": "3712890098-a046e6a9-cecc-4b29-a769-c18dc5689a07",
+          "stored": {
+            "backUrlsOrigin": [
+              "https://torneos-payments-test.nicoavayu.deno.net"
+            ],
+            "notificationHost": "payments.unit.invalid",
+            "autoReturn": "approved"
+          }
+        }
+      ],
+      "notificationUrl": "lab-invalid"
+    }
+  },
+  "cases": {
+    "A": {
+      "purchaseId": "a6197daf-0aa5-4e0f-9349-0ffdeeecda9a",
+      "preferenceId": "3712890098-9e5462ff-60f1-4975-88b3-2679ce2838e1",
+      "amount": 20000,
+      "paymentIds": [
+        "183955750996"
+      ]
+    },
+    "B": {
+      "purchaseId": "a469b2bb-15f3-4179-b914-0d5bc50c67ea",
+      "preferenceId": "3712890098-2878a824-0bcd-4cf4-aa8e-498c5128b9ac",
+      "amount": 20000,
+      "paymentIds": [
+        "182933451869",
+        "182933847869"
+      ]
+    },
+    "C": {
+      "purchaseId": "de800d89-e3d8-41d4-a6da-a5b05974e81e",
+      "preferenceId": "3712890098-a046e6a9-cecc-4b29-a769-c18dc5689a07",
+      "amount": 20000,
+      "paymentIds": [
+        "183958040918"
+      ]
+    },
+    "D": {
+      "purchaseId": "a6197daf-0aa5-4e0f-9349-0ffdeeecda9a",
+      "preferenceId": "3712890098-9e5462ff-60f1-4975-88b3-2679ce2838e1",
+      "amount": 20000,
+      "paymentIds": [
+        "183955750996",
+        "182936317927"
+      ]
+    }
+  },
+  "checks": [
+    {
+      "caseId": "A",
+      "name": "Mercado Pago accepted the Preference",
+      "ok": true,
+      "got": {
+        "runtime": 200,
+        "mercadoPago": {
+          "status": 201,
+          "notificationUrl": "lab-invalid",
+          "message": null
+        }
+      }
+    },
+    {
+      "caseId": "A",
+      "name": "purchase priced from the offer in force",
+      "ok": true,
+      "got": 20000
+    },
+    {
+      "caseId": "A",
+      "name": "approved and verified",
+      "ok": true,
+      "got": {
+        "status": "approved",
+        "outcome": "verified"
+      }
+    },
+    {
+      "caseId": "A",
+      "name": "Premium for that season",
+      "ok": true,
+      "got": "PREMIUM"
+    },
+    {
+      "caseId": "A",
+      "name": "another season of the same organization stays FREE",
+      "ok": true,
+      "got": "FREE"
+    },
+    {
+      "caseId": "A",
+      "name": "exactly one grant",
+      "ok": true,
+      "got": 1
+    },
+    {
+      "caseId": "B",
+      "name": "Mercado Pago accepted the Preference",
+      "ok": true,
+      "got": {
+        "runtime": 200,
+        "mercadoPago": {
+          "status": 201,
+          "notificationUrl": "lab-invalid",
+          "message": null
+        }
+      }
+    },
+    {
+      "caseId": "B",
+      "name": "rejected attempt keeps the purchase open",
+      "ok": true,
+      "got": {
+        "status": "preference_created",
+        "outcome": "verified"
+      }
+    },
+    {
+      "caseId": "B",
+      "name": "FREE after the rejection",
+      "ok": true,
+      "got": "FREE"
+    },
+    {
+      "caseId": "B",
+      "name": "pending attempt recorded, still FREE",
+      "ok": true,
+      "got": {
+        "status": "pending",
+        "outcome": "verified",
+        "payments": 2
+      }
+    },
+    {
+      "caseId": "C",
+      "name": "Mercado Pago accepted the Preference",
+      "ok": true,
+      "got": {
+        "runtime": 200,
+        "mercadoPago": {
+          "status": 201,
+          "notificationUrl": "lab-invalid",
+          "message": null
+        }
+      }
+    },
+    {
+      "caseId": "C",
+      "name": "the season is closed before paying",
+      "ok": true,
+      "got": null
+    },
+    {
+      "caseId": "C",
+      "name": "approved + season_closed, manual refund",
+      "ok": true,
+      "got": {
+        "status": "approved",
+        "activation": "season_closed",
+        "outcome": "requires_manual_refund"
+      }
+    },
+    {
+      "caseId": "C",
+      "name": "no Premium, no grant",
+      "ok": true,
+      "got": {
+        "plan": "FREE",
+        "grants": 0
+      }
+    },
+    {
+      "caseId": "C",
+      "name": "refunded once, still FREE",
+      "ok": true,
+      "got": {
+        "status": "refunded",
+        "plan": "FREE"
+      }
+    },
+    {
+      "caseId": "C",
+      "name": "one late-payment event and one refund event",
+      "ok": true,
+      "got": [
+        "purchase.created",
+        "preference.created",
+        "payment.approved_season_closed",
+        "payment.season_closed_refunded"
+      ]
+    },
+    {
+      "caseId": "D",
+      "name": "second payment seen by the search",
+      "ok": true,
+      "got": {
+        "before": 1,
+        "after": 2
+      }
+    },
+    {
+      "caseId": "D",
+      "name": "it asks for a manual refund, still one grant, still Premium",
+      "ok": true,
+      "got": {
+        "outcome": "requires_manual_refund",
+        "grants": 1,
+        "plan": "PREMIUM"
+      }
+    }
+  ],
+  "casesRun": [
+    "A",
+    "B",
+    "C",
+    "D"
+  ],
+  "notPerformed": [],
+  "lab": {
+    "container": "arma2-season-p10-db-514d86ac",
+    "migrationsApplied": 20
+  },
+  "offer": {
+    "amount": 20000,
+    "list": 20000,
+    "label": "Precio de lanzamiento"
+  },
+  "finished": "2026-10-13T17:17:34.894Z",
+  "verdict": "P10_PASS",
+  "pending": [],
+  "certifies": true,
+  "realProviderFacts": {
+    "preferenceAcceptance": [
+      {
+        "status": 201,
+        "accepted": true,
+        "notificationUrl": "lab-invalid",
+        "stored": {
+          "backUrlsOrigin": [
+            "https://torneos-payments-test.nicoavayu.deno.net"
+          ],
+          "notificationHost": "payments.unit.invalid",
+          "autoReturn": "approved"
+        }
+      },
+      {
+        "status": 201,
+        "accepted": true,
+        "notificationUrl": "lab-invalid",
+        "stored": {
+          "backUrlsOrigin": [
+            "https://torneos-payments-test.nicoavayu.deno.net"
+          ],
+          "notificationHost": "payments.unit.invalid",
+          "autoReturn": "approved"
+        }
+      },
+      {
+        "status": 201,
+        "accepted": true,
+        "notificationUrl": "lab-invalid",
+        "stored": {
+          "backUrlsOrigin": [
+            "https://torneos-payments-test.nicoavayu.deno.net"
+          ],
+          "notificationHost": "payments.unit.invalid",
+          "autoReturn": "approved"
+        }
+      }
+    ]
+  }
+}

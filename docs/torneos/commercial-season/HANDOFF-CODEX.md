@@ -2,11 +2,22 @@
 
 **Actualizado:** 2026-10-13 · rama `claude/torneos-season-commercial-gallery` · head del commit que trae este archivo (ver `git log -1`).
 **No hay notificación directa a Codex:** este archivo y la sesión de Claude «Arma2 Torneos como producto conectado» son el canal.
-**No está listo para GO.** Falta correr P10 contra el sandbox actual de Mercado Pago.
-- El wrapper y su launcher están listos y probados offline.
-- Lo que sólo Mercado Pago real puede mostrar sigue **sin validar**, empezando por que acepte la Preference con estas URLs (ver «P10» abajo).
+## Estado al 2026-10-13 (tarde)
 
-Nada se aplicó en Producción. Premium, pagos y borrado real siguen apagados.
+**P10 contra el sandbox real de Mercado Pago: `P10_PASS`** sobre 45ea110a (ver «P10: resultado»).
+- La publicación y la recuperación están preparadas en **`PUBLICACION.md`**.
+- Nada se aplicó ni se publicó en Producción.
+- Siguen apagados el checkout (0013 no está), la purga (el runner ni siquiera está) y el billing de la web. El cron de Core está intacto.
+
+**Próximo comando humano indispensable:** `~/Arma2Backups/stab-203-run.sh function`.
+- Es la función de #203, ya aprobada.
+- Nico pega el token temporal de Supabase y escribe la frase que se muestra.
+- Todo lo de #204 espera el GO de merge.
+
+**Cambio después de P10.** Revisando la compatibilidad de la publicación, encontré que la web de #204 sobre una base sin 0018 no podía completar temporadas: PGRST202 por `p_confirm_media_deletion`.
+- `updateSeason` ahora reintenta una vez sin el parámetro, y sólo ante PGRST202.
+- `torneosSeasonCompleteCompat.test.js` 4/4; Jest 3726/3726; foundation 109/109; B04 regenerado.
+- Ese cambio es sólo de la web y no toca nada de lo que P10 ejercitó.
 
 ## Seguimiento de la revisión de Codex (b8c1f0f7)
 
@@ -92,7 +103,31 @@ Nada se aplicó en Producción. Premium, pagos y borrado real siguen apagados.
   - Ensayado en el laboratorio a través del mismo `run()`. `test:torneos:season` **32/32**.
 - **PR borrador** [#204](https://github.com/nicoavayu/Armado_Equipos/pull/204), con CI en GitHub.
 
-## P10: sandbox actual de Mercado Pago (lo único que falta antes del GO)
+## P10: resultado (sandbox real, 2026-10-13 16:49–17:17Z, autorizado por Nico)
+
+**Veredicto:** `P10_PASS`, `certifies: true`, 18/18 chequeos. Corrieron A, B, C y D, sin pendientes ni pasos no realizados.
+- Lab 0000→0019 (20 migraciones).
+- Oferta en vigor: 20.000 / 20.000, «Precio de lanzamiento».
+
+**Por caso:**
+- **A:** temporada abierta, APRO → `approved` + `verified`, Premium sólo en esa temporada, un grant.
+- **B:** OTHE → la compra sigue abierta y en FREE. CONT sobre el mismo link → `pending`, sigue FREE (2 pagos).
+- **C:** temporada cerrada antes de pagar, APRO → `approved` + `season_closed`, `requires_manual_refund`, FREE y sin grant.
+  - La devolución en el panel del vendedor de prueba llegó como **`refunded`**.
+  - Un evento de pago tardío y uno de devolución.
+- **D:** MP **permitió** un segundo pago sobre la Preference de A. La búsqueda lo vio y quedó en `requires_manual_refund`, con un solo grant y Premium.
+
+**Hechos que sólo MP real podía mostrar (`realProviderFacts`):**
+- MP aceptó las tres Preferences con 201.
+- Guardó las back_urls en `https://torneos-payments-test.nicoavayu.deno.net` y la `notification_url` de laboratorio (`payments.unit.invalid`), con `auto_return: approved`. No hizo falta el reenvío al sink.
+- La atestación del vendedor de prueba (`test_user`, MLA, dueño del token) pasó una vez.
+- El fetcher hizo sólo lecturas y 3 POST de Preference; ninguna devolución por API.
+
+**Evidencia** (copiada desde `~/Arma2Backups/p10-evidence/`; revisada: sin token, mails ni datos personales, sólo ids de cuentas, Preferences y pagos de prueba):
+- `evidence/p10-sandbox-20261013T164947Z.txt` (sha256 `fa4d5003…`);
+- `evidence/p10-20261013T164940Z-transcript.txt` (`452b6d29…`).
+
+## P10: preparación (referencia)
 
 **Piezas:**
 - **Guía para Nico:** `P10-GUIA.md`, en esta carpeta.
