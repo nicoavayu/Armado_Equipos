@@ -9,6 +9,10 @@
 - Nada se aplicó ni se publicó en Producción.
 - Siguen apagados el checkout (0013 no está), la purga (el runner ni siquiera está) y el billing de la web. El cron de Core está intacto.
 
+**Candidato y CI.** El código candidato es **f9d07306**.
+- GitHub Prelaunch Quality Gate, run 38439053631: **success**.
+- Los commits posteriores sólo tocan docs; el run de cada uno figura en los checks del PR.
+
 **Próximo comando humano indispensable:** `~/Arma2Backups/stab-203-run.sh function`.
 - Es la función de #203, ya aprobada.
 - Nico pega el token temporal de Supabase y escribe la frase que se muestra.
