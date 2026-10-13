@@ -47,6 +47,24 @@ Nada se pasa por chat. Lo que se pide, se pide oculto en la terminal.
 
 **Al terminar se anotan** la revisión del gateway y el deploy de Netlify: son los puntos de vuelta de §4.
 
+**Estado (2026-10-13):**
+- **Función hecha:** Nico la desplegó a las 18:24Z, con un token temporal restringido a Torneos.
+  - `REDEPLOY_DONE`, artefacto `1290d3c3…`, `torneos-media-store` ACTIVE de v1 a v2.
+  - La prueba sin firma devuelve 401 y el proyecto está `ACTIVE_HEALTHY` (sa-east-1).
+  - El 403 de `api_keys` corresponde al permiso mínimo del token.
+  - Evidencia: `~/Arma2Backups/stab203-20261013T182428Z-function.json`, sin token.
+- **Gateway y web: preparados, sin ejecutar.** El clasificador de modo automático de Claude rechazó preparar la build de la imagen de Producción, así que los ejecuta un humano con `~/Arma2Backups/stab-203-gateway-web.sh`:
+  1. `build`: Cloud Build con la misma mecánica que la imagen viva `main-c8678c54` (build f2b4be82). Son 32 archivos y sólo cambia `media-store-client.ts`. Imprime el digest.
+  2. `tag <digest>`: revisión nueva al 0 % con tag `g11stab203`, la misma configuración que `00025-naw` (sólo cambia la imagen). Prueba el tag y la revisión viva sin autenticación; las dos líneas tienen que decir `OK`.
+  3. `promote <revisión>`: 100 % y prueba el host público.
+  4. `web`: fast-forward de `netlify-production` a 54036f59; espera hasta que cambie el bundle (hoy `main.64cfbb6d.js`).
+- **Recuperación:**
+  - gateway: `stab-203-gateway-web.sh rollback`, que vuelve a `00025-naw`;
+  - web: Netlify → Deploys → `6accedce…` → Publish deploy;
+  - función: `stab-203-run.sh function-rollback`.
+- **Pruebas sin autenticación de la revisión viva** (host público, prefijo `/functions/v1/torneos-gateway`): `200 200 200 401 401 401 404`. Un 503 aislado de `/health` en el minuto :30 pasó al reintentar.
+- **Para la vuelta atrás de #204:** al terminar, la revisión nueva del gateway y el deploy nuevo de Netlify se anotan acá. Pasan a ser los puntos de vuelta de §4.
+
 ## 2. GO: merge de #204
 
 **Antes del merge:** revisión de Codex y aprobación de Nico.
@@ -121,10 +139,23 @@ Sigue `docs/torneos/commerce-production/DEPLOY.md` §4 y §6. En resumen:
 
 **Apagar:** `season-204-run.sh disable-purge`. **Las fotos ya borradas no se recuperan.**
 
+## GO concreto para #204 (a pedir cuando #203 esté entero)
+
+1. **GO merge #204.**
+   - Requisitos: #203 publicado (función, gateway y web); este PR con CI verde; P10 `P10_PASS` (ya está).
+   - Después, Claude fija el commit del merge en `season-204-run.sh` y prepara el script de gateway y web de #204, derivado de `stab-203-gateway-web.sh`: mismo grafo y misma mecánica, con tag `main-<merge>`.
+2. **GO código #204** (sin migraciones). Orden web → función → gateway (§4).
+   - La función pide **un** token temporal de Supabase con los permisos de §0.
+3. **GO por migración:** 0018 → runner → 0013 → 0019 (§5), cada uno con su frase y con el backup de §3.
+4. **Pagos (§6) y borrado real (§7):** GO separados y posteriores.
+
 ## Próximo comando humano indispensable
 
-```bash
-~/Arma2Backups/stab-203-run.sh function
-```
+Gateway de #203, en este orden. La sesión `gcloud` del dueño ya está abierta y no hace falta ningún token.
 
-Es la función de #203: Nico pega el token temporal de Supabase (§0) y escribe la frase que muestra. Todo lo de #204 necesita antes el GO de merge (§2).
+```
+~/Arma2Backups/stab-203-gateway-web.sh build
+~/Arma2Backups/stab-203-gateway-web.sh tag <digest que imprime build>
+~/Arma2Backups/stab-203-gateway-web.sh promote <revisión que imprime tag>
+~/Arma2Backups/stab-203-gateway-web.sh web
+```

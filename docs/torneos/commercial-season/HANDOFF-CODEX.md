@@ -13,10 +13,11 @@
 - GitHub Prelaunch Quality Gate, run 38439053631: **success**.
 - Los commits posteriores sólo tocan docs; el run de cada uno figura en los checks del PR.
 
-**Próximo comando humano indispensable:** `~/Arma2Backups/stab-203-run.sh function`.
-- Es la función de #203, ya aprobada.
-- Nico pega el token temporal de Supabase y escribe la frase que se muestra.
-- Todo lo de #204 espera el GO de merge.
+**#203:**
+- La función está **hecha**: 18:24Z, `REDEPLOY_DONE`, v2, artefacto `1290d3c3…`.
+- Gateway y web los ejecuta un humano con `~/Arma2Backups/stab-203-gateway-web.sh` (build → tag → promote → web), porque el clasificador de modo automático rechazó que Claude prepare la build de Producción. Detalle y recuperación en `PUBLICACION.md` §1.
+
+**Próximo comando humano indispensable:** `~/Arma2Backups/stab-203-gateway-web.sh build`. El GO concreto de #204 está en `PUBLICACION.md`.
 
 **Cambio después de P10.** Revisando la compatibilidad de la publicación, encontré que la web de #204 sobre una base sin 0018 no podía completar temporadas: PGRST202 por `p_confirm_media_deletion`.
 - `updateSeason` ahora reintenta una vez sin el parámetro, y sólo ante PGRST202.
