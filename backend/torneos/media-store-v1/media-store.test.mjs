@@ -255,12 +255,16 @@ test('media-purge does not exist without its own secret, and refuses the gateway
 
 test('media-purge removes exactly what the database leased (photo + thumbnail + orphans), confirms each photo, never a logo', async () => {
   const cfg = store.loadStoreConfig({ ...storeEnv(), TORNEOS_MEDIA_PURGE_SECRET: PURGE_SECRET });
-  world.claim = { assets: [{ assetId: A1, names: [OBJECT, THUMB] }, { assetId: A2, names: [BRAND] }], orphans: [O1, BRAND] };
+  const A3 = '80000000-0000-4000-8000-000000000003';
+  const VARIANT_OUT = `${ORG}/${TNT}/${GAL}/70000000-0000-4000-8000-000000000003-huge.jpg`;
+  world.claim = { assets: [{ assetId: A1, names: [OBJECT, THUMB] }, { assetId: A2, names: [BRAND] },
+    { assetId: A3, names: [OBJECT.replace('0008.jpg', '0003.jpg'), VARIANT_OUT] }], orphans: [O1, BRAND] };
   world.absent = new Set([THUMB]);
   const out = await purge(cfg);
   assert.equal(out.status, 200);
-  assert.deepEqual(out.json, { purged: 1, failed: 1, orphansRemoved: 1 });
-  assert.deepEqual(world.completed, [A1], 'an asset whose only name is not a media object is not confirmed');
+  assert.deepEqual(out.json, { purged: 1, failed: 2, orphansRemoved: 1,
+    errors: [{ assetId: A2, code: 'INVALID_NAME' }, { assetId: A3, code: 'INVALID_NAME' }] });
+  assert.deepEqual(world.completed, [A1], 'one name outside the patterns rejects the whole photo: nothing removed, nothing confirmed');
   const deleted = world.storage.filter((r) => r.method === 'DELETE').flatMap((r) => { assert.equal(r.url, '/object/tournament-media'); return JSON.parse(r.body).prefixes; });
   assert.deepEqual(deleted.sort(), [O1, OBJECT, THUMB].sort(), 'an already absent thumbnail is fine; a logo path never reaches Storage');
   assert.deepEqual(world.rpcHeaders[0], { apikey: SECRET_KEY, 'content-type': 'application/json', accept: 'application/json' });
@@ -270,8 +274,12 @@ test('media-purge: a Storage failure confirms nothing (the lease expires and the
   const cfg = store.loadStoreConfig({ ...storeEnv(), TORNEOS_MEDIA_PURGE_SECRET: PURGE_SECRET });
   world.claim = { assets: [{ assetId: A1, names: [OBJECT, THUMB] }], orphans: [] };
   world.storageStatus = 503;
-  assert.deepEqual((await purge(cfg)).json, { purged: 0, failed: 1, orphansRemoved: 0 });
+  assert.deepEqual((await purge(cfg)).json, { purged: 0, failed: 1, orphansRemoved: 0, errors: [{ assetId: A1, code: 'UNAVAILABLE' }] });
   assert.deepEqual(world.completed, []);
+  // The provider is back: the next run (the lease expired, the database leases it again) removes and confirms it.
+  world.storageStatus = 200;
+  assert.deepEqual((await purge(cfg)).json, { purged: 1, failed: 0, orphansRemoved: 0, errors: [] });
+  assert.deepEqual(world.completed, [A1]);
   assert.equal((await purge(cfg, { body: { limit: 0 } })).status, 400);
   assert.equal((await purge(cfg, { body: { limit: 101 } })).status, 400);
 });

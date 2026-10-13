@@ -35,7 +35,7 @@ export const FUNCTION_URL = `https://${REF}.supabase.co/functions/v1/${SLUG}`;
 export const GCP = Object.freeze({ project: 'arma2-465223', secret: 'torneos-gw-media-store-secret',
   member: 'serviceAccount:torneos-gateway-prod@arma2-465223.iam.gserviceaccount.com', role: 'roles/secretmanager.secretAccessor' });
 /** sha256 of the artifact manifest (path + sha256 of every file the entrypoint reaches), pinned to the reviewed tree. */
-export const ARTIFACT_SHA256 = 'dac25c2dbd66ab5006fa9ccbf655c8302532f4c8335214b2474e8d88fd7607b2';
+export const ARTIFACT_SHA256 = 'b8f2f8a9261e8a726855a2ce5920ec18ad025e45f1fe1d4ae505e8408fd6a084';
 const SECRET_PATTERN = /^[0-9a-f]{64}$/;
 
 const BASE = `/v1/projects/${REF}`;

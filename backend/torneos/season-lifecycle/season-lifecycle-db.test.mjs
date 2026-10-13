@@ -33,9 +33,9 @@ function asset(w, tournamentId, galleryId, { status = 'published', bytes = 30000
   const file = randomUUID();
   const name = `${w.org}/${tournamentId}/${galleryId}/${file}.jpg`;
   const id = one(`INSERT INTO public.tournament_media_assets (organization_id, tournament_id, gallery_id, internal_path, safe_name,
-      detected_mime, byte_size, width, height, checksum_sha256, status, uploaded_by, processing_tier)
+      detected_mime, byte_size, width, height, checksum_sha256, status, uploaded_by, processing_tier, metadata_stripped, normalization_verified_at)
     VALUES (${lit(w.org)}, ${lit(tournamentId)}, ${lit(galleryId)}, ${lit(name)}, ${lit(`foto-${randomBytes(6).toString('hex')}.jpg`)},
-      'image/jpeg', ${bytes}, 1200, 800, ${lit(randomBytes(32).toString('hex'))}, ${lit(status)}, ${lit(w.owner.id)}, 'mvp_simple') RETURNING id`);
+      'image/jpeg', ${bytes}, 1200, 800, ${lit(randomBytes(32).toString('hex'))}, ${lit(status)}, ${lit(w.owner.id)}, 'mvp_simple', true, now()) RETURNING id`);
   for (const object of [name, name.replace(/\.jpg$/, '-thumbnail.jpg')]) storageObject(object, bytes);
   return { id, name };
 }
@@ -51,29 +51,50 @@ function ageSeason(w, days) {
     media_deadline_at = (((now() - interval '${days} days') at time zone 'America/Argentina/Buenos_Aires') + interval '6 months')
       at time zone 'America/Argentina/Buenos_Aires' WHERE id = ${lit(w.season)}`);
 }
+/** Leaves exactly `hours` until the season's deletion moment (activation six months before it). */
+function deadlineIn(w, hours) {
+  admin(`UPDATE public.tournament_seasons SET media_deadline_at = now() + interval '${hours} hours',
+    activated_at = (((now() + interval '${hours} hours') at time zone 'America/Argentina/Buenos_Aires') - interval '6 months')
+      at time zone 'America/Argentina/Buenos_Aires' WHERE id = ${lit(w.season)}`);
+}
+/** Storage's API stands for the removal here (the protect_delete trigger refuses a direct DELETE, as in production). */
+function storageApiDelete(where) {
+  admin(`BEGIN; SET LOCAL storage.allow_delete_query = 'true'; DELETE FROM storage.objects WHERE ${where}; COMMIT;`);
+}
 function requestUpload(w, galleryId, size = 300000) {
   return asUserJson(w.owner, `select public.request_tournament_media_upload_session(${lit(galleryId)}, 'foto.jpg', 'image/jpeg', ${size}, ${lit(randomUUID())})`);
 }
 const uploadRefusal = (w, galleryId, size = 300000) => refusal(w.owner,
   `select public.request_tournament_media_upload_session(${lit(galleryId)}, 'foto.jpg', 'image/jpeg', ${size}, ${lit(randomUUID())})`);
 
-/** The same request as `actor`, in its own psql process: N of them really run at the same time. */
-function uploadRefusalAsync(actor, galleryId, size = 300000) {
+/**
+ * One statement as `actor` in its OWN psql process and transaction, optionally holding the transaction open for
+ * `holdSeconds` after it (pg_sleep before COMMIT): two of them started a beat apart are a controlled race.
+ * Resolves { error: <TORNEOS_ token | text> | null, out }.
+ */
+function asActorAsync(actor, statement, { holdSeconds = 0 } = {}) {
   const now = Math.floor(Date.now() / 1000);
   const claims = { role: 'authenticated', iss: 'urn:arma2:local:identity-bridge', aud: 'arma2-torneos-local', sub: actor.id,
     core_user_id: actor.core, session_id: randomUUID(), jti: randomUUID(), iat: now, nbf: now, exp: now + 120 };
   const query = `BEGIN; SET LOCAL ROLE authenticated; SELECT set_config('request.jwt.claims', ${lit(JSON.stringify(claims))}, true);
-    select public.request_tournament_media_upload_session(${lit(galleryId)}, 'foto.jpg', 'image/jpeg', ${size}, ${lit(randomUUID())}); COMMIT;`;
+    ${statement};${holdSeconds ? ` SELECT pg_sleep(${holdSeconds});` : ''} COMMIT;`;
   const docker = process.platform === 'darwin' ? '/Applications/Docker.app/Contents/Resources/bin/docker' : 'docker';
   return new Promise((resolve) => {
     const child = spawn(docker, ['--host', 'unix:///var/run/docker.sock', 'exec', '-i', CONTAINER, 'psql', '-U', 'supabase_admin',
       '-d', 'postgres', '-X', '-A', '-t', '-q', '-v', 'ON_ERROR_STOP=1']);
-    let err = '';
+    let err = ''; let out = '';
+    child.stdout.on('data', (chunk) => { out += chunk; });
     child.stderr.on('data', (chunk) => { err += chunk; });
-    child.on('close', (code) => resolve(code === 0 ? null : (/TORNEOS_[A-Z_]+/.exec(err)?.[0] ?? err)));
+    child.on('close', (code) => resolve({ error: code === 0 ? null : (/TORNEOS_[A-Z_]+/.exec(err)?.[0] ?? err), out }));
     child.stdin.end(query);
   });
 }
+const uploadStatement = (galleryId, size = 300000) =>
+  `select public.request_tournament_media_upload_session(${lit(galleryId)}, 'foto.jpg', 'image/jpeg', ${size}, ${lit(randomUUID())})`;
+const closeStatement = (w) =>
+  `select public.update_tournament_season(${lit(w.org)}, ${lit(w.season)}, p_status => 'completed', p_confirm_media_deletion => true)`;
+const uploadRefusalAsync = async (actor, galleryId, size = 300000) => (await asActorAsync(actor, uploadStatement(galleryId, size))).error;
+const pause = (ms) => new Promise((resolve) => { setTimeout(resolve, ms); });
 
 before(async () => {
   await up({ upTo: '00000000000017' });
@@ -86,6 +107,13 @@ describe('P1 apply, roll back, apply again', () => {
     const old = world('old');
     asUserJson(old.owner, `select public.update_tournament_season(${lit(old.org)}, ${lit(old.season)}, p_status => 'active')`);
     const draft = world('draft');
+    // A season closed BEFORE 0018, with a published photo and an organization logo: its history must not vanish.
+    const closedBefore = world('closed-before');
+    asUserJson(closedBefore.owner, `select public.update_tournament_season(${lit(closedBefore.org)}, ${lit(closedBefore.season)}, p_status => 'active')`);
+    const cbT = tournament(closedBefore); const cbG = gallery(closedBefore, cbT); const cbA = asset(closedBefore, cbT, cbG);
+    const logo = `${closedBefore.org}/organizations/${closedBefore.org}/${randomUUID()}.png`;
+    admin(`INSERT INTO storage.objects (bucket_id, name, metadata) VALUES ('tournament-branding', ${lit(logo)}, '{"size": 10}')`);
+    asUserJson(closedBefore.owner, `select public.update_tournament_season(${lit(closedBefore.org)}, ${lit(closedBefore.season)}, p_status => 'completed')`);
     sql(MIGRATION);
     const migrated = seasonRow(old);
     assert.equal(migrated.activation_basis, 'migration_0018');
@@ -101,6 +129,25 @@ describe('P1 apply, roll back, apply again', () => {
     assert.equal(one("select count(*) from information_schema.columns where table_name = 'tournament_seasons' and column_name = 'activated_at'"), '0');
     sql(MIGRATION);
     assert.equal(applied(), true);
+    // Grandfathered: the first job after the migration keeps the photos of the season closed before it, readable and
+    // downloadable until its announced date (six months), still closed to uploads; at that date they go, the logo stays.
+    const cb = seasonRow(closedBefore);
+    assert.equal(cb.status, 'completed'); assert.equal(cb.activation_basis, 'migration_0018');
+    service('select public.run_tournament_season_media_lifecycle()');
+    assert.equal(assetRow(cbA.id).storage_state, 'active', 'no surprise deletion');
+    assert.equal(asUserJson(closedBefore.owner, `select to_jsonb(public.can_read_tournament_media_object(${lit(cbA.name)}))`), true);
+    assert.equal(uploadRefusal(closedBefore, cbG), 'TORNEOS_SEASON_MEDIA_CLOSED');
+    const lifecycle = asUserJson(closedBefore.owner, `select public.get_tournament_season_media_usage(${lit(closedBefore.org)}, ${lit(closedBefore.season)})`).seasonLifecycle;
+    assert.deepEqual([lifecycle.mediaOpen, lifecycle.mediaReadable], [false, true]);
+    // Archiving it before its date keeps the photos too.
+    admin(`UPDATE public.tournaments SET status = 'archived', archived_at = now() WHERE id = ${lit(cbT)}`);
+    asUserJson(closedBefore.owner, `select public.update_tournament_season(${lit(closedBefore.org)}, ${lit(closedBefore.season)}, p_status => 'archived')`);
+    assert.equal(assetRow(cbA.id).storage_state, 'active');
+    admin(`UPDATE public.tournament_seasons SET media_deadline_at = now() - interval '1 minute', activated_at = now() - interval '200 days' WHERE id = ${lit(closedBefore.season)}`);
+    service('select public.run_tournament_season_media_lifecycle()');
+    assert.equal(assetRow(cbA.id).storage_state, 'retention_marked', 'at its date the photos go');
+    assert.equal(one(`select count(*) from storage.objects where bucket_id = 'tournament-branding' and name = ${lit(logo)}`), '1', 'logos never');
+    assert.equal(asUserJson(closedBefore.owner, `select to_jsonb(public.can_read_tournament_media_object(${lit(cbA.name)}))`), false);
     // Re-applying is refused, never a silent double apply.
     assert.match(sqlTry(MIGRATION).error, /TORNEOS_0018_PRECONDITION_FAILED: already applied/);
   });
@@ -108,7 +155,7 @@ describe('P1 apply, roll back, apply again', () => {
   test('ACL: service RPCs only for service_role, helpers for nobody, update_tournament_season for authenticated', () => {
     const can = (role, fn) => one(`select has_function_privilege('${role}', '${fn}', 'EXECUTE')`) === 't';
     for (const fn of ['public.run_tournament_season_media_lifecycle()', 'public.claim_tournament_media_purge(integer)',
-      'public.complete_tournament_media_purge(uuid)', 'public.set_tournament_media_storage_budget(bigint,text)']) {
+      'public.complete_tournament_media_purge(uuid)']) {
       assert.equal(can('service_role', fn), true, fn); assert.equal(can('authenticated', fn), false, fn); assert.equal(can('anon', fn), false, fn);
     }
     assert.equal(can('authenticated', 'public.update_tournament_season(uuid,uuid,text,text,date,date,text,boolean,boolean,boolean)'), true);
@@ -135,6 +182,7 @@ describe('S1/S2 activation, deadline and closing', () => {
     assert.equal(assetRow(a.id).storage_state, 'active');
     const out = asUserJson(w.owner, `select public.update_tournament_season(${lit(w.org)}, ${lit(w.season)}, p_status => 'completed', p_confirm_media_deletion => true)`);
     assert.equal(out.status, 'completed'); assert.equal(out.photosMarkedForDeletion, 1);
+    assert.ok(Date.parse(out.mediaDeadlineAt) <= Date.now() + 1000, 'a confirmed early close makes the deletion moment now');
     assert.equal(assetRow(a.id).storage_state, 'retention_marked');
     assert.equal(assetRow(a.id).retention_reason, `SEASON_ENDED:${w.season}`);
   });
@@ -166,7 +214,7 @@ describe('S5 notices', () => {
     tournament(w, 'sin-fotos');
     const kinds = () => j(admin(`select coalesce(json_agg(kind || ':' || recipient_user_id order by kind, recipient_user_id), '[]')
       from public.tournament_user_notifications where season_id = ${lit(w.season)}`));
-    ageSeason(w, 180 - 5);          // ~5 days left → the 7-day notice
+    deadlineIn(w, 5 * 24);          // 5 days left → the 7-day notice
     service('select public.run_tournament_season_media_lifecycle()');
     service('select public.run_tournament_season_media_lifecycle()');
     const seven = kinds();
@@ -174,7 +222,7 @@ describe('S5 notices', () => {
     assert.ok(seven.some((k) => k.endsWith(w.owner.id)));
     const recipients = new Set(seven.map((k) => k.split(':')[1]));
     assert.equal(seven.length, recipients.size, 'one per recipient');
-    ageSeason(w, 183 - 0.5);        // hours left → the 1-day notice, once
+    deadlineIn(w, 12);              // 12 hours left → the 1-day notice, once
     service('select public.run_tournament_season_media_lifecycle()');
     service('select public.run_tournament_season_media_lifecycle()');
     const all = kinds();
@@ -210,7 +258,7 @@ describe('S6 purge', () => {
     assert.ok(first.orphans.includes(orphan));
     assert.ok(first.orphans.every((n) => !n.includes('/organizations/')), 'never a logo');
     // The worker removed the objects; completion twice is the same result.
-    admin(`DELETE FROM storage.objects WHERE bucket_id = 'tournament-media' AND name LIKE ${lit(`${w.org}/${t}/%`)}`);
+    storageApiDelete(`bucket_id = 'tournament-media' AND name LIKE ${lit(`${w.org}/${t}/%`)}`);
     assert.equal(service(`select public.complete_tournament_media_purge(${lit(a1.id)})`).idempotentReplay, false);
     assert.equal(service(`select public.complete_tournament_media_purge(${lit(a1.id)})`).idempotentReplay, true);
     assert.equal(assetRow(a1.id).storage_state, 'storage_purged');
@@ -228,7 +276,9 @@ describe('S7 and quota: uploads', () => {
   test('a closed season takes no upload; an open one does', () => {
     const w = world('upclosed'); activate(w);
     const t = tournament(w); const g = gallery(w, t);
-    assert.ok(requestUpload(w, g).sessionId || true);
+    const session = requestUpload(w, g);
+    assert.match(String(session.sessionId), /^[0-9a-f-]{36}$/);
+    assert.equal(one(`select status from public.tournament_media_upload_sessions where id = ${lit(session.sessionId)}`), 'issued');
     ageSeason(w, 200);
     assert.equal(uploadRefusal(w, g), 'TORNEOS_SEASON_MEDIA_CLOSED');
   });
@@ -266,8 +316,37 @@ describe('S7 and quota: uploads', () => {
     const t = tournament(w); const g = gallery(w, t); asset(w, t, g, { bytes: 400000 });
     assert.equal(budget().galleryStoredBytes, before.galleryStoredBytes + 800000, 'photo + thumbnail counted');
     asUserJson(w.owner, `select public.update_tournament_season(${lit(w.org)}, ${lit(w.season)}, p_status => 'completed', p_confirm_media_deletion => true)`);
-    admin(`DELETE FROM storage.objects WHERE bucket_id = 'tournament-media' AND name LIKE ${lit(`${w.org}/${t}/%`)}`);
+    storageApiDelete(`bucket_id = 'tournament-media' AND name LIKE ${lit(`${w.org}/${t}/%`)}`);
     assert.equal(budget().galleryStoredBytes, before.galleryStoredBytes);
+  });
+});
+
+describe('F1 races between closing a season and a new upload (two connections, controlled barriers)', () => {
+  test('close first, holding its lock: the upload waits and then sees the season closed', async () => {
+    const w = world('race-close'); activate(w);
+    const t = tournament(w); const g = gallery(w, t);
+    const closing = asActorAsync(w.owner, closeStatement(w), { holdSeconds: 3 });
+    await pause(1000);
+    const started = Date.now();
+    const upload = await asActorAsync(w.owner, uploadStatement(g));
+    assert.equal((await closing).error, null);
+    assert.equal(upload.error, 'TORNEOS_SEASON_MEDIA_CLOSED');
+    assert.ok(Date.now() - started >= 1500, 'the upload waited for the close to commit');
+    assert.equal(one(`select count(*) from public.tournament_media_upload_sessions s join public.tournaments t on t.id = s.tournament_id
+      where t.season_id = ${lit(w.season)} and s.status = 'issued'`), '0');
+  });
+
+  test('upload first, holding its lock: the close waits, then revokes that session with the others', async () => {
+    const w = world('race-upload'); activate(w);
+    const t = tournament(w); const g = gallery(w, t);
+    const uploading = asActorAsync(w.owner, uploadStatement(g), { holdSeconds: 3 });
+    await pause(1000);
+    const closed = await asActorAsync(w.owner, closeStatement(w));
+    assert.equal((await uploading).error, null);
+    assert.equal(closed.error, null);
+    const states = j(admin(`select coalesce(json_agg(s.status), '[]') from public.tournament_media_upload_sessions s
+      join public.tournaments t on t.id = s.tournament_id where t.season_id = ${lit(w.season)}`));
+    assert.deepEqual(states, ['revoked'], 'no issued session survives the close');
   });
 });
 
@@ -290,7 +369,8 @@ describe('P8 authorization and reads', () => {
     const ent = asUserJson(w.owner, `select public.get_effective_tournament_season_entitlements(${lit(w.org)}, ${lit(w.season)})`);
     const usage = asUserJson(w.owner, `select public.get_tournament_season_media_usage(${lit(w.org)}, ${lit(w.season)})`);
     for (const lifecycle of [ent.seasonLifecycle, usage.seasonLifecycle]) {
-      assert.equal(lifecycle.status, 'active'); assert.equal(lifecycle.mediaOpen, true); assert.equal(lifecycle.maxMonths, 6);
+      assert.equal(lifecycle.status, 'active'); assert.equal(lifecycle.mediaOpen, true); assert.equal(lifecycle.mediaReadable, true);
+      assert.equal(lifecycle.maxMonths, 6);
       assert.ok(lifecycle.mediaDeadlineAt);
     }
     assert.equal(usage.limit, 25);

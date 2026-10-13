@@ -368,25 +368,34 @@ async function operate(op: string, params: URLSearchParams, body: Uint8Array, co
       if (!Number.isInteger(limit) || (limit as number) < 1 || (limit as number) > MAX_PURGE) throw new Refusal(400, "INVALID_ARGUMENTS")
       const claim = await serviceRpc(ctx, "claim_tournament_media_purge", { p_limit: limit }) as { assets?: unknown; orphans?: unknown }
       if (!claim || !Array.isArray(claim.assets) || !Array.isArray(claim.orphans)) throw new Outage()
-      let purged = 0, failed = 0, orphansRemoved = 0
+      let purged = 0, orphansRemoved = 0
+      // Observable without exposing a path: which photo stayed pending and why (its lease expires, the next run retries).
+      const errors: Array<{ assetId: string | null; code: string }> = []
       for (const entry of claim.assets as Array<{ assetId?: unknown; names?: unknown }>) {
-        const list = Array.isArray(entry?.names) ? entry.names.filter((n): n is string => typeof n === "string" && MEDIA_PURGE.test(n)) : []
-        if (typeof entry?.assetId !== "string" || !UUID.test(entry.assetId) || list.length === 0) { failed++; continue }
+        const assetId = typeof entry?.assetId === "string" && UUID.test(entry.assetId) ? entry.assetId : null
+        const names = Array.isArray(entry?.names) ? entry.names : []
+        // All or nothing per photo: one object name outside the media patterns rejects the whole photo — removing only
+        // the valid part and confirming it would mark as purged a photo whose other objects are still stored.
+        if (!assetId || names.length === 0 || !names.every((n): n is string => typeof n === "string" && MEDIA_PURGE.test(n))) {
+          errors.push({ assetId, code: "INVALID_NAME" })
+          continue
+        }
         try {
           // Removed or already absent: Storage answers 200 either way. Anything else leaves the photo for the next run.
-          await storageDelete(ctx, MEDIA_BUCKET, list)
-          await serviceRpc(ctx, "complete_tournament_media_purge", { p_asset_id: entry.assetId })
+          await storageDelete(ctx, MEDIA_BUCKET, names as string[])
+          await serviceRpc(ctx, "complete_tournament_media_purge", { p_asset_id: assetId })
           purged++
         } catch (error) {
           if (!(error instanceof Outage)) throw error
-          failed++
+          errors.push({ assetId, code: "UNAVAILABLE" })
         }
       }
+      const failed = errors.length
       const orphans = (claim.orphans as unknown[]).filter((n): n is string => typeof n === "string" && MEDIA_PURGE.test(n))
       if (orphans.length > 0) {
         try { orphansRemoved = (await storageDelete(ctx, MEDIA_BUCKET, orphans)).length } catch (error) { if (!(error instanceof Outage)) throw error }
       }
-      return json(200, { purged, failed, orphansRemoved })
+      return json(200, { purged, failed, orphansRemoved, errors })
     }
     case "media-sign": {
       if (keys !== "") throw new Refusal(400, "INVALID_ARGUMENTS")

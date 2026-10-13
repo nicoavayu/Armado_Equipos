@@ -6,10 +6,13 @@
 -- Semantics and decisions: docs/torneos/commercial-season/INVENTARIO-Y-SEMANTICA.md (S1–S7).
 --
 -- What it adds or changes, and nothing else:
---   * tournament_seasons.activated_at / media_deadline_at / activation_basis. Only the draft → active transition writes
---     them (basis 'explicit'). Every season that is not a draft when this runs gets activated_at = the moment of this
---     migration (basis 'migration_0018'): six full months, no surprise deletion (Nico, 2026-10-12). The deadline is
---     activated_at + 6 months on the Buenos Aires calendar. Buying Premium never moves it (no commerce code touches it).
+--   * tournament_seasons.activated_at / media_deadline_at / activation_basis. media_deadline_at is THE moment the season's
+--     photos and thumbnails are removed: activated_at + 6 months on the Buenos Aires calendar (draft → active, basis
+--     'explicit'), or the moment of a confirmed early close. Every season that is not a draft when this runs — active,
+--     completed or archived — gets activated_at = this migration (basis 'migration_0018') and six full months: an already
+--     closed season stays closed to uploads, but keeps its photos readable and downloadable until that announced date,
+--     and the 7d / 1d notices reach it too (no surprise deletion of history; Nico 2026-10-12, Codex review). Buying
+--     Premium never moves the date (no commerce code touches it).
 --   * update_tournament_season gains p_confirm_media_deletion (default false; same name, same ACL): finishing a season
 --     before its deadline requires it, and finishing or archiving marks the season's photos for removal.
 --   * Photos of a closed season (completed, archived, or past its deadline even if no job ran yet) are no longer
@@ -101,7 +104,7 @@ WHERE status <> 'draft';
 ALTER TABLE public.tournament_seasons
   ADD CONSTRAINT tournament_seasons_activation_shape_check CHECK (
     (activated_at IS NULL AND media_deadline_at IS NULL AND activation_basis IS NULL)
-    OR (activated_at IS NOT NULL AND media_deadline_at > activated_at
+    OR (activated_at IS NOT NULL AND media_deadline_at >= activated_at
         AND activation_basis IN ('explicit', 'migration_0018'))
   ),
   -- A draft was never activated; an active or completed season always was. An archived one may have been either.
@@ -125,6 +128,18 @@ returns boolean language sql stable security definer set search_path = '' as $$
 $$;
 revoke all on function private.tournament_season_media_open(uuid, uuid) from public, anon, authenticated, service_role;
 
+-- Readable (and downloadable) until the announced deletion moment, whatever the status: an already closed season keeps
+-- its photos until its date; a draft (no date) is readable.
+create function private.tournament_season_media_readable(p_organization_id uuid, p_season_id uuid)
+returns boolean language sql stable security definer set search_path = '' as $$
+  select exists (
+    select 1 from public.tournament_seasons season
+    where season.organization_id = p_organization_id and season.id = p_season_id
+      and (season.media_deadline_at is null or season.media_deadline_at > now())
+  );
+$$;
+revoke all on function private.tournament_season_media_readable(uuid, uuid) from public, anon, authenticated, service_role;
+
 -- The lifecycle the clients show (Mi plan before paying, Multimedia before uploading).
 create function private.tournament_season_lifecycle_json(p_organization_id uuid, p_season_id uuid)
 returns jsonb language sql stable security definer set search_path = '' as $$
@@ -134,6 +149,7 @@ returns jsonb language sql stable security definer set search_path = '' as $$
     'activationBasis', season.activation_basis,
     'mediaDeadlineAt', season.media_deadline_at,
     'mediaOpen', private.tournament_season_media_open(season.organization_id, season.id),
+    'mediaReadable', private.tournament_season_media_readable(season.organization_id, season.id),
     'maxMonths', 6,
     'photosPendingDeletion', (
       select count(*) from public.tournament_media_assets asset
@@ -221,12 +237,15 @@ begin
       archived_at=case when p_status='archived' then now() else archived_at end,
       activated_at=case when p_status='active' then now() else activated_at end,
       activation_basis=case when p_status='active' then 'explicit' else activation_basis end,
-      media_deadline_at=case when p_status='active' then private.tournament_season_media_deadline(now()) else media_deadline_at end
+      media_deadline_at=case when p_status='active' then private.tournament_season_media_deadline(now())
+        when p_status='completed' and media_deadline_at > now() then now() else media_deadline_at end
     where id=p_season_id returning * into v_season;
   exception when unique_violation then
     raise exception using errcode='23505',message='TORNEOS_SEASON_SLUG_TAKEN';
   end;
-  if v_season.status in ('completed','archived') then
+  -- Photos go only at the announced moment (or a confirmed early close, which made it now): archiving a season closed
+  -- before 0018 keeps its photos until its date.
+  if v_season.media_deadline_at is not null and v_season.media_deadline_at <= now() then
     v_marked := private.mark_tournament_season_media_for_deletion(p_organization_id, p_season_id);
   end if;
   if p_status in ('active','completed') then
@@ -285,7 +304,11 @@ begin
   if v_season_id is null then
     raise exception using errcode='22023',message='TORNEOS_MEDIA_SCOPE_INVALID';
   end if;
-  -- 0018: a closed season (completed, archived, past its deadline) takes no more photos.
+  -- 0018: a closed season (completed, archived, past its deadline) takes no more photos. The season row is held FOR
+  -- SHARE first, so a close (FOR UPDATE) either waits for this session to commit — and then revokes it with the others —
+  -- or commits first and this check sees it closed. Lock order everywhere: season row, then the advisory locks.
+  perform 1 from public.tournament_seasons season
+  where season.organization_id = new.organization_id and season.id = v_season_id for share;
   if not private.tournament_season_media_open(new.organization_id, v_season_id) then
     raise exception using errcode='22023',message='TORNEOS_SEASON_MEDIA_CLOSED';
   end if;
@@ -366,13 +389,13 @@ begin
   if v_asset_id is null then
     return false;
   end if;
-  -- 0018: nothing of a closed season is signed any more (not even for its staff), nor a photo marked for removal.
+  -- 0018: nothing is signed after the season's deletion moment (not even for its staff), nor a photo marked for removal.
   select asset.organization_id, tournament.season_id into v_organization_id, v_season_id
   from public.tournament_media_assets asset
   join public.tournaments tournament
     on tournament.organization_id = asset.organization_id and tournament.id = asset.tournament_id
   where asset.id = v_asset_id and asset.storage_state = 'active';
-  if v_season_id is null or not private.tournament_season_media_open(v_organization_id, v_season_id) then
+  if v_season_id is null or not private.tournament_season_media_readable(v_organization_id, v_season_id) then
     return false;
   end if;
   perform public.authorize_tournament_media_read(v_identity, v_asset_id, 'detail');
@@ -473,7 +496,7 @@ begin
       case when now() >= season.media_deadline_at - interval '1 day' then 'season.media_deletion_1d'
            else 'season.media_deletion_7d' end kind
     from public.tournament_seasons season
-    where season.status = 'active' and season.media_deadline_at > now()
+    where season.media_deadline_at > now()
       and now() >= season.media_deadline_at - interval '7 days'
   ),
   with_photos as (
@@ -549,7 +572,7 @@ begin
   end loop;
   for v_season in
     select season.organization_id, season.id from public.tournament_seasons season
-    where season.status in ('completed', 'archived') and exists (
+    where season.media_deadline_at <= now() and exists (
       select 1 from public.tournament_media_assets asset join public.tournaments tournament
         on tournament.organization_id = asset.organization_id and tournament.id = asset.tournament_id
       where tournament.season_id = season.id and asset.organization_id = season.organization_id
@@ -660,15 +683,15 @@ BEGIN
     RAISE EXCEPTION 'TORNEOS_0018_POSTCONDITION_FAILED: update_tournament_season grants';
   END IF;
   SELECT md5(prosrc) INTO v_md5 FROM pg_proc WHERE oid = 'public.enforce_tournament_media_gallery_limit()'::regprocedure;
-  IF v_md5 IS DISTINCT FROM 'd9966b4e32e02c1f749784f6185de6bc' THEN
+  IF v_md5 IS DISTINCT FROM '5623a9fae3d4313c732951d3a6dafc0f' THEN
     RAISE EXCEPTION 'TORNEOS_0018_POSTCONDITION_FAILED: enforce_tournament_media_gallery_limit is not the 0018 body (%)', v_md5;
   END IF;
   SELECT md5(prosrc) INTO v_md5 FROM pg_proc WHERE oid = 'public.update_tournament_season(uuid,uuid,text,text,date,date,text,boolean,boolean,boolean)'::regprocedure;
-  IF v_md5 IS DISTINCT FROM 'df3a51e6988a5ea3adf83d4ac8501d82' THEN
+  IF v_md5 IS DISTINCT FROM 'e3d3be4f2e6aed2cb85c34d1548dd64b' THEN
     RAISE EXCEPTION 'TORNEOS_0018_POSTCONDITION_FAILED: update_tournament_season is not the 0018 body (%)', v_md5;
   END IF;
   SELECT md5(prosrc) INTO v_md5 FROM pg_proc WHERE oid = 'public.can_read_tournament_media_object(text)'::regprocedure;
-  IF v_md5 IS DISTINCT FROM 'a53c4c4b06dc8c345bf89e5c2925e51f' THEN
+  IF v_md5 IS DISTINCT FROM '91a0b405d7e19f6099f6ba643ef88642' THEN
     RAISE EXCEPTION 'TORNEOS_0018_POSTCONDITION_FAILED: can_read_tournament_media_object is not the 0018 body (%)', v_md5;
   END IF;
   SELECT md5(prosrc) INTO v_md5 FROM pg_proc WHERE oid = 'public.get_tournament_season_media_usage(uuid,uuid)'::regprocedure;
@@ -690,6 +713,7 @@ BEGIN
   END LOOP;
   FOREACH v_fn IN ARRAY array[
     'private.tournament_season_media_deadline(timestamptz)', 'private.tournament_season_media_open(uuid,uuid)',
+    'private.tournament_season_media_readable(uuid,uuid)',
     'private.tournament_season_lifecycle_json(uuid,uuid)', 'private.mark_tournament_season_media_for_deletion(uuid,uuid)',
     'private.notify_tournament_season_media_deletion()'
   ] LOOP

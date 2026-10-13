@@ -7,8 +7,8 @@ BEGIN;
 
 DO $pre$
 BEGIN
-  IF (SELECT md5(prosrc) FROM pg_proc WHERE oid = to_regprocedure('public.update_tournament_season(uuid,uuid,text,text,date,date,text,boolean,boolean,boolean)')) IS DISTINCT FROM 'df3a51e6988a5ea3adf83d4ac8501d82'
-    OR (SELECT md5(prosrc) FROM pg_proc WHERE oid = 'public.enforce_tournament_media_gallery_limit()'::regprocedure) IS DISTINCT FROM 'd9966b4e32e02c1f749784f6185de6bc' THEN
+  IF (SELECT md5(prosrc) FROM pg_proc WHERE oid = to_regprocedure('public.update_tournament_season(uuid,uuid,text,text,date,date,text,boolean,boolean,boolean)')) IS DISTINCT FROM 'e3d3be4f2e6aed2cb85c34d1548dd64b'
+    OR (SELECT md5(prosrc) FROM pg_proc WHERE oid = 'public.enforce_tournament_media_gallery_limit()'::regprocedure) IS DISTINCT FROM '5623a9fae3d4313c732951d3a6dafc0f' THEN
     RAISE EXCEPTION 'TORNEOS_0018_ROLLBACK_PRECONDITION_FAILED: the 0018 bodies are not in force';
   END IF;
 END $pre$;
@@ -245,6 +245,7 @@ GRANT ALL ON FUNCTION public.update_tournament_season(uuid, uuid, text, text, da
 
 DROP FUNCTION private.mark_tournament_season_media_for_deletion(uuid, uuid);
 DROP FUNCTION private.tournament_season_lifecycle_json(uuid, uuid);
+DROP FUNCTION private.tournament_season_media_readable(uuid, uuid);
 DROP FUNCTION private.tournament_season_media_open(uuid, uuid);
 ALTER TABLE public.tournament_seasons
   DROP CONSTRAINT tournament_seasons_activation_status_check,
