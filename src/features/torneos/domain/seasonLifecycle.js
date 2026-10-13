@@ -18,6 +18,8 @@ export function normalizeSeasonLifecycle(raw) {
     mediaDeadlineAt: isoOrNull(raw.mediaDeadlineAt),
     activationBasis: raw.activationBasis === 'explicit' || raw.activationBasis === 'migration_0018' ? raw.activationBasis : null,
     mediaOpen: raw.mediaOpen === true,
+    // Photos readable and downloadable until the deletion moment, even for a season that is already closed to uploads.
+    mediaReadable: raw.mediaReadable === true,
     maxMonths: Number.isInteger(raw.maxMonths) ? raw.maxMonths : 6,
     photosPendingDeletion: Number.isInteger(raw.photosPendingDeletion) ? raw.photosPendingDeletion : 0,
   };
@@ -40,7 +42,10 @@ export function seasonDeadlineCopy(lifecycle) {
   if (lifecycle.status === 'draft' || !when) {
     return `La temporada dura hasta ${lifecycle.maxMonths} meses desde que la actives.`;
   }
-  if (!lifecycle.mediaOpen) return `La temporada terminó. Sus fotos y miniaturas se eliminan (fecha límite: ${when}).`;
+  if (!lifecycle.mediaOpen && lifecycle.mediaReadable) {
+    return `La temporada terminó: no se suben fotos nuevas. Sus fotos y miniaturas se eliminan el ${when}.`;
+  }
+  if (!lifecycle.mediaOpen) return 'La temporada terminó y sus fotos y miniaturas se eliminaron.';
   return `La temporada vence el ${when}: dura hasta ${lifecycle.maxMonths} meses desde que la activaste.`;
 }
 

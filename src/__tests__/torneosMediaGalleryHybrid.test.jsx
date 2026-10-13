@@ -173,7 +173,7 @@ describe('MEDIA-V1 · organizer', () => {
 
   // 0018: the date the season's photos are removed is said before any upload, and each photo can be saved first.
   const lifecycle = (overrides = {}) => ({ status: 'active', activatedAt: '2026-10-12T15:00:00Z', activationBasis: 'explicit',
-    mediaDeadlineAt: '2027-04-12T15:00:00Z', mediaOpen: true, maxMonths: 6, photosPendingDeletion: 0, ...overrides });
+    mediaDeadlineAt: '2027-04-12T15:00:00Z', mediaOpen: true, mediaReadable: true, maxMonths: 6, photosPendingDeletion: 0, ...overrides });
 
   test('0018: the deletion date is shown before uploading, and «Descargar» saves the full photo under its safe name', async () => {
     mockContextService = hybridService(adminPayload({ status: 'published', coverAssetId: 'asset-a', assets: [asset('asset-a')] }));
@@ -191,12 +191,18 @@ describe('MEDIA-V1 · organizer', () => {
     click.mockRestore();
   });
 
-  test('0018: a season that ended says so and offers no download', async () => {
+  test('0018: a season closed before its date keeps the download until then; after it, nothing to download', async () => {
     mockContextService = hybridService(adminPayload({ status: 'published', coverAssetId: 'asset-a', assets: [asset('asset-a')] }));
     mockContextService.loadSeasonMediaUsage.mockResolvedValue({ schemaVersion: 1, seasonId: 'season-a', plan: 'FREE', assetCount: 1,
       pendingCount: 0, usage: 1, limit: 25, remaining: 24, seasonLifecycle: lifecycle({ status: 'completed', mediaOpen: false }) });
+    const view = renderAdmin();
+    expect(await screen.findByText(/La temporada terminó: no se suben fotos nuevas\. Las fotos y miniaturas de esta temporada se eliminan el 12\/04\/2027/)).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: /Descargar/ })).toBeInTheDocument();
+    view.unmount();
+    mockContextService.loadSeasonMediaUsage.mockResolvedValue({ schemaVersion: 1, seasonId: 'season-a', plan: 'FREE', assetCount: 0,
+      pendingCount: 0, usage: 0, limit: 25, remaining: 25, seasonLifecycle: lifecycle({ status: 'completed', mediaOpen: false, mediaReadable: false }) });
     renderAdmin();
-    expect(await screen.findByText(/La temporada terminó: sus fotos y miniaturas se eliminan y ya no se pueden subir nuevas\./)).toBeInTheDocument();
+    expect(await screen.findByText(/La temporada terminó y sus fotos y miniaturas se eliminaron\./)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Descargar/ })).not.toBeInTheDocument();
   });
 

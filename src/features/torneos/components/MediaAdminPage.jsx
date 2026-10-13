@@ -865,9 +865,9 @@ export default function MediaAdminPage() {
       {/* 0018: the date the season's photos are removed, before any upload; and the closed state. */}
       {seasonLifecycle && seasonLifecycle.status !== 'draft' && formatSeasonDeadline(seasonLifecycle.mediaDeadlineAt) && (
         <p className={styles.seasonDeadline} role="note">
-          {seasonLifecycle.mediaOpen
-            ? `Las fotos y miniaturas de esta temporada se eliminan el ${formatSeasonDeadline(seasonLifecycle.mediaDeadlineAt)}. Descargá las que quieras conservar antes. Los resultados, tablas e historial se conservan.`
-            : 'La temporada terminó: sus fotos y miniaturas se eliminan y ya no se pueden subir nuevas. Los resultados, tablas e historial se conservan.'}
+          {seasonLifecycle.mediaReadable
+            ? `${seasonLifecycle.mediaOpen ? '' : 'La temporada terminó: no se suben fotos nuevas. '}Las fotos y miniaturas de esta temporada se eliminan el ${formatSeasonDeadline(seasonLifecycle.mediaDeadlineAt)}. Descargá las que quieras conservar antes. Los resultados, tablas e historial se conservan.`
+            : 'La temporada terminó y sus fotos y miniaturas se eliminaron. Los resultados, tablas e historial se conservan.'}
         </p>
       )}
 
@@ -1118,8 +1118,8 @@ export default function MediaAdminPage() {
                       lastOrder={selectedGallery.assets.length - 1}
                       thumbnailUrl={thumbnails[`${asset.id}:thumbnail`] || ''}
                       canErase={canErase}
-                      onDownload={typeof service.signMediaReadUrls === 'function' && seasonLifecycle?.mediaOpen !== false
-                        ? downloadAsset : null}
+                      onDownload={typeof service.signMediaReadUrls === 'function'
+                        && (!seasonLifecycle || seasonLifecycle.mediaReadable) ? downloadAsset : null}
                     />
                   ))}
                 </div>

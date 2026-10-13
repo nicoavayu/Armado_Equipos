@@ -9,7 +9,7 @@ import { tournamentEntitlementsFixture } from '../testUtils/tournamentEntitlemen
 import { notificationTarget } from '../features/torneos/domain/connectedProduct';
 
 const ACTIVE = { status: 'active', activatedAt: '2026-10-12T15:00:00Z', activationBasis: 'explicit', mediaDeadlineAt: '2027-04-12T15:00:00Z',
-  mediaOpen: true, maxMonths: 6, photosPendingDeletion: 0 };
+  mediaOpen: true, mediaReadable: true, maxMonths: 6, photosPendingDeletion: 0 };
 
 test('the lifecycle is taken as the server sent it, and anything malformed is dropped', () => {
   expect(normalizeSeasonLifecycle(ACTIVE)).toEqual(ACTIVE);
@@ -25,7 +25,10 @@ test('the deadline is said in Buenos Aires time, and never invented for a draft'
   expect(seasonDeadlineCopy(normalizeSeasonLifecycle(ACTIVE))).toBe('La temporada vence el 12/04/2027 a las 12:00: dura hasta 6 meses desde que la activaste.');
   expect(seasonDeadlineCopy(normalizeSeasonLifecycle({ ...ACTIVE, status: 'draft', activatedAt: null, mediaDeadlineAt: null })))
     .toBe('La temporada dura hasta 6 meses desde que la actives.');
-  expect(seasonDeadlineCopy(normalizeSeasonLifecycle({ ...ACTIVE, status: 'completed', mediaOpen: false }))).toMatch(/^La temporada terminó\./);
+  expect(seasonDeadlineCopy(normalizeSeasonLifecycle({ ...ACTIVE, status: 'completed', mediaOpen: false })))
+    .toBe('La temporada terminó: no se suben fotos nuevas. Sus fotos y miniaturas se eliminan el 12/04/2027 a las 12:00.');
+  expect(seasonDeadlineCopy(normalizeSeasonLifecycle({ ...ACTIVE, status: 'completed', mediaOpen: false, mediaReadable: false })))
+    .toBe('La temporada terminó y sus fotos y miniaturas se eliminaron.');
   expect(SEASON_MEDIA_DELETION_COPY).toMatch(/Los resultados, tablas e historial se conservan\.$/);
 });
 
