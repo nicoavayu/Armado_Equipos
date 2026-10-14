@@ -10,7 +10,7 @@ import { MemoryRouter } from 'react-router-dom';
 import TermsOfSalePage from '../pages/TermsOfSalePage';
 import PrivacyPage from '../pages/PrivacyPage';
 import TermsPage from '../pages/TermsPage';
-import RevocationPage, { revocationCode, revocationMailto } from '../pages/RevocationPage';
+import RevocationPage, { revocationReference, revocationMailto } from '../pages/RevocationPage';
 import LegalFooter from '../legal/LegalFooter';
 import { CONSUMER_COMPLAINTS_URL, LEGAL_IDENTITY, legalIdentityComplete } from '../legal/legalIdentity';
 
@@ -62,25 +62,43 @@ describe('terms of sale', () => {
 });
 
 describe('Botón de arrepentimiento', () => {
-  test('code format and the email the consumer sends (subject + body carry the code)', () => {
-    const code = revocationCode(new Date('2026-10-14T18:00:00Z'), () => 0);
-    expect(code).toBe('ARR-20261014-AAAAAA');
-    const url = revocationMailto('ventas@example.com', code, { name: 'Ana Pérez', email: 'ana@example.com', operation: '184150037496', season: '', comment: '' });
+  test('reference format and the prepared email (subject + body carry the reference, labelled as a reference)', () => {
+    const ref = revocationReference(new Date('2026-10-14T18:00:00Z'), () => 0);
+    expect(ref).toBe('ARR-20261014-AAAAAA');
+    const url = revocationMailto('ventas@example.com', ref, { name: 'Ana Pérez', email: 'ana@example.com', operation: '184150037496', season: '', comment: '' });
     expect(url.startsWith('mailto:ventas@example.com?subject=Arrepentimiento%20ARR-20261014-AAAAAA&body=')).toBe(true);
     const body = decodeURIComponent(url.split('&body=')[1]);
-    expect(body).toContain('Código de solicitud: ARR-20261014-AAAAAA');
+    expect(body).toContain('Referencia: ARR-20261014-AAAAAA');
+    expect(body).not.toContain('Código de solicitud');
     expect(body).toContain('Operación de Mercado Pago (o fecha y monto): 184150037496');
     expect(body).not.toContain('Organización y temporada');
   });
 
-  test('without a contact email the page says the channel is not enabled (the opening is blocked meanwhile)', () => {
+  test('the page only PREPARES the email: it says it does not send it, and the local reference is not a receipt', () => {
     renderAt(<RevocationPage />);
-    if (LEGAL_IDENTITY.contactEmail) {
-      expect(screen.getByRole('form', { name: 'Solicitud de arrepentimiento' })).toBeTruthy();
-    } else {
-      expect(screen.getByRole('alert').textContent).toContain('todavía no está habilitado');
-    }
-    expect(document.body.textContent).toContain('No hace falta iniciar sesión');
+    const text = () => document.body.textContent;
+    expect(text()).toContain('No hace falta iniciar sesión');
+    expect(text()).toContain('no lo envía por vos');
+    expect(screen.queryByRole('button', { name: /enviar solicitud/i })).toBeNull();
+    const submit = screen.getByRole('button', { name: 'Preparar el correo' });
+    expect(submit.disabled).toBe(true);
+    fireEvent.change(screen.getByLabelText('Nombre y apellido'), { target: { value: 'Ana Pérez' } });
+    fireEvent.change(screen.getByLabelText('Email de contacto'), { target: { value: 'ana@example.com' } });
+    fireEvent.change(screen.getByLabelText(/Número de operación/), { target: { value: '184150037496' } });
+    fireEvent.click(submit);
+    expect(text()).toContain('Tu solicitud todavía no fue enviada');
+    expect(text()).toContain('Falta que envíes el correo');
+    expect(text()).toContain('no es un comprobante de recepción');
+    expect(text()).not.toMatch(/recibimos tu solicitud|solicitud enviada|te confirmamos la recepción dentro de/i);
+    const link = screen.getByRole('link', { name: 'Abrir mi correo con la solicitud lista' });
+    expect(link.getAttribute('href').startsWith(`mailto:${LEGAL_IDENTITY.contactEmail}?subject=Arrepentimiento%20ARR-`)).toBe(true);
+    // Without a mail client: the address and the full text to copy by hand.
+    expect(screen.getByRole('button', { name: 'Copiar dirección' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Copiar texto' })).toBeTruthy();
+    const area = screen.getByLabelText('Texto del correo');
+    expect(area.value).toContain(`Para: ${LEGAL_IDENTITY.contactEmail}`);
+    expect(area.value).toMatch(/Asunto: Arrepentimiento ARR-\d{8}-[A-Z2-9]{6}/);
+    expect(area.value).toContain('Operación de Mercado Pago (o fecha y monto): 184150037496');
   });
 });
 

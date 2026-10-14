@@ -4,7 +4,7 @@ import {
   CONSUMER_COMPLAINTS_LABEL, CONSUMER_COMPLAINTS_URL, LEGAL_IDENTITY, LEGAL_ROUTES,
 } from './legalIdentity';
 
-/** Datos del proveedor y enlaces legales. El «Botón de arrepentimiento» va siempre visible (Res. SCI 424/2020). */
+/** Datos del proveedor y enlaces legales. El «Botón de arrepentimiento» va siempre visible en el pie. */
 export default function LegalFooter({ className = '' }) {
   const { name, cuit, contactEmail, publicAddress, city } = LEGAL_IDENTITY;
   return (
