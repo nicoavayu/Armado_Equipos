@@ -47,6 +47,18 @@ export const CRON_BATCH = 20
 export const ATTESTATION_RETRY_MS = 10_000
 const MAX_INTERNAL_BODY = 1024
 const MAX_WEBHOOK_BODY = 32 * 1024
+// IPN (legacy) notifications Mercado Pago ALSO sends to the Preference's notification_url, besides the signed Webhooks one:
+// `?topic=<topic>&id=<digits>`, no data.id, no x-signature (IPN cannot be validated with the secret). Observed in Production
+// (GO3 QA, 2026-10-14): `topic=merchant_order`, answered 400 and retried by Mercado Pago every 15 minutes.
+const IPN_TOPICS: ReadonlySet<string> = new Set(["merchant_order", "payment", "chargebacks"])
+/** Exactly the IPN shape (two query keys, once each, a known topic, a numeric id), or null. */
+function ipnNotification(url: URL): { topic: string } | null {
+  const keys = [...url.searchParams.keys()]
+  if (keys.length !== 2 || !keys.includes("topic") || !keys.includes("id")) return null
+  const topic = url.searchParams.get("topic") ?? ""
+  const id = url.searchParams.get("id") ?? ""
+  return IPN_TOPICS.has(topic) && /^\d{1,32}$/.test(id) ? { topic } : null
+}
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/
 const EXTERNAL_REFERENCE_RE = /^arma2:season:purchase:([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/
 const ISO_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?(?:Z|[+-]\d{2}:\d{2})$/
@@ -363,6 +375,11 @@ export function createProductionPaymentsService(deps: ServiceDeps): ProductionPa
     let raw: string | null
     try { raw = await readBody(req, MAX_WEBHOOK_BODY) } catch { return fail(400, "invalid_request") }
     if (raw === null) return fail(413, "payload_too_large")
+    // An IPN notification is acknowledged and never applied: it is unsigned, so nothing it says is trusted; the signed
+    // Webhooks notification and the reconciliation cron carry every state change. 200 stops Mercado Pago's retries.
+    // Only that exact shape: every other request still meets the 400/401 gates below.
+    const ipn = ipnNotification(url)
+    if (ipn) return result(200, { received: true, outcome: "ipn_ignored" }, `ipn_ignored_${ipn.topic}`)
     let payload: unknown
     try { payload = JSON.parse(raw) } catch { return fail(400, "invalid_request") }
     if (!isPlainObject(payload)) return fail(400, "invalid_request")

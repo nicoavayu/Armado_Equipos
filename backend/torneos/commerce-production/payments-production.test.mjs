@@ -171,6 +171,42 @@ describe('routes (offline)', () => {
     assert.equal((await send(svc, webhookRequest({ dataId: '123', type: 'merchant_order' }))).status, 400);
     assert.equal(db.applied.length, 0);
   });
+
+  // GO3 QA (Production, 2026-10-14): besides the signed Webhooks notification, Mercado Pago sent ~25 IPN notifications
+  // `?id=<n>&topic=merchant_order` to the same URL; answered 400, they were retried every 15 minutes.
+  test('IPN notifications (?topic=&id=, unsigned) are acknowledged 200 and never applied; nothing else changes', async () => {
+    const purchase = projection();
+    const db = memoryDb(purchase);
+    const base = emulator();
+    const calls = [];
+    const mp = { ...base, fetch: (input, init) => { calls.push(String(input)); return base.fetch(input, init); } };
+    const logs = [];
+    const svc = service({ db, mp, log: (entry) => logs.push(entry) });
+    const ipn = (query, { body = '{"resource":"https://api.mercadolibre.com/merchant_orders/45282517084","topic":"merchant_order"}', headers = {} } = {}) =>
+      new Request(`${BASE}/webhooks/mercadopago/v1?${query}`, { method: 'POST', headers: { 'content-type': 'application/json', ...headers }, body });
+    const before = calls.length;
+    for (const [query, body] of [['id=45282517084&topic=merchant_order', undefined], ['topic=merchant_order&id=45282517084', undefined],
+      ['id=184150037496&topic=payment', '{"resource":"184150037496","topic":"payment"}'], ['id=123&topic=chargebacks', ''], ['id=45282517084&topic=merchant_order', 'not json']]) {
+      const r = await send(svc, ipn(query, body === undefined ? {} : { body }));
+      assert.deepEqual(r, { status: 200, body: { received: true, outcome: 'ipn_ignored' } }, query);
+    }
+    assert.equal(db.applied.length, 0, 'an IPN notification never applies anything');
+    assert.equal(calls.slice(before).filter((u) => !u.endsWith('/users/me')).length, 0, 'an IPN notification never asks Mercado Pago about the resource');
+    assert.ok(logs.some((e) => e.route === 'webhook' && e.status === 200 && e.code === 'ipn_ignored_merchant_order'), 'logged as ipn_ignored_<topic>');
+    // Only the exact IPN shape: everything else keeps the gates (400 invalid_request / 401 / 413).
+    for (const query of ['id=45282517084&topic=point_integration_ipn', 'id=45282517084&topic=delivery_cancellation', 'id=abc&topic=merchant_order',
+      'id=45282517084', 'topic=merchant_order', 'id=1&topic=merchant_order&source_news=ipn', 'id=1&id=2&topic=merchant_order',
+      'id=1&topic=merchant_order&topic=payment', 'id=&topic=merchant_order', `id=${'1'.repeat(33)}&topic=merchant_order`]) {
+      assert.equal((await send(svc, ipn(query))).status, 400, query);
+    }
+    assert.equal((await send(svc, ipn('id=1&topic=merchant_order&data.id=1'))).status, 401, 'IPN keys plus data.id is not IPN: the signed path refuses it unsigned');
+    assert.equal((await send(svc, ipn('id=45282517084&topic=merchant_order', { headers: { origin: 'https://evil.example' } }))).status, 400, 'Origin still refused');
+    assert.equal((await send(svc, ipn('id=45282517084&topic=merchant_order', { body: 'x'.repeat(33 * 1024) }))).status, 413, 'body cap still applies');
+    // The signed Webhooks path is untouched: forged signature 401, merchant_order type 400.
+    assert.equal((await send(svc, webhookRequest({ dataId: '123', secret: 'another-secret-0000000' }))).status, 401);
+    assert.equal((await send(svc, webhookRequest({ dataId: '123', type: 'merchant_order' }))).status, 400);
+    assert.equal(db.applied.length, 0);
+  });
 });
 
 // ============================================================================ Part E — lab
