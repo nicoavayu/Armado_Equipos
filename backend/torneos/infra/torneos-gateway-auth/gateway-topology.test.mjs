@@ -3,7 +3,8 @@
 //   PASS  Core Production HTTPS authority + Torneos (onzpwnqxnvlgsevivngf) REST/DB, pinned exactly.
 //   FAIL  Core Production (or Staging) in a postgres URL / as Torneos REST; the Torneos ref as Core authority;
 //         mixed refs in a plane; a Production half with a non-Production half; non-canonical Production URLs;
-//         another web origin; an Edge-Function host; wrong / privileged logins; no verified TLS; commerce on;
+//         another web origin; an Edge-Function host; wrong / privileged logins; no verified TLS; commerce TEST (or any
+//         mode but production);
 //         Core keys above anon anywhere in the environment.
 // The certified semantics stay as they were: RS256, TTL 120 s, tolerance 5 s, the iss/aud constants.
 // Run: node --test backend/torneos/infra/torneos-gateway-auth/gateway-topology.test.mjs
@@ -143,6 +144,7 @@ const FAIL = {
   // TLS, commerce, keys.
   'no verified TLS CA': { TORNEOS_DB_SSL_CA: '' },
   'commerce TEST against Core Prod': { TORNEOS_COMMERCE_MODE: 'test' },
+  'commerce mode not production against Core Prod': { TORNEOS_COMMERCE_MODE: 'live' },
   'CORE_ANON_KEY is a secret key': { CORE_ANON_KEY: 'sb_secret_corefixture0000000000' },
   'CORE_ANON_KEY is the Core service_role JWT': { CORE_ANON_KEY: jwt({ ref: CORE, role: 'service_role', iss: 'supabase' }) },
   'TORNEOS_ANON_KEY is a service_role JWT': { TORNEOS_ANON_KEY: jwt({ ref: DATA, role: 'service_role', iss: 'supabase' }) },
@@ -176,6 +178,33 @@ test('boot(): Production topology with commerce TEST is refused before any conne
   const rt = idx.boot(PROD_ENV);
   assert.equal(rt.cfg.topology.kind, 'production');
   assert.equal(rt.commerce.mode, 'off');
+  assert.equal(stub.calls.length, 0, 'boot opens no database session');
+});
+
+// COMMERCE-PRODUCTION on the Production topology: the exact env shape of the hosted gateway (00029-sav + the 3 commerce
+// variables + the internal key). Production commerce boots; its own guards still refuse a TEST host, a non-canonical URL,
+// the lab deployment and a missing key, all before any connection.
+const PAYMENTS_HOST = 'torneos-payments.nicoavayu.deno.net';
+const PROD_COMMERCE = { TORNEOS_COMMERCE_MODE: 'production', TORNEOS_COMMERCE_PRODUCTION_PAYMENTS_HOST: PAYMENTS_HOST,
+  TORNEOS_PAYMENTS_INTERNAL_URL: `https://${PAYMENTS_HOST}/functions/v1/torneos-payments-production`, TORNEOS_PAYMENTS_INTERNAL_SECRET: crypto.randomBytes(32).toString('hex') };
+test('boot(): Production topology with PRODUCTION commerce boots (hosted, canonical payments URL, 3 production reads); its guards still refuse', async () => {
+  const idx = await tree.import('torneos-gateway/index.ts');
+  const stub = await import(`${tree.dir}/postgres-driver.mjs`);
+  stub.calls.length = 0;
+  const rt = idx.boot({ ...PROD_ENV, ...PROD_COMMERCE });
+  assert.equal(rt.cfg.topology.kind, 'production');
+  assert.equal(rt.commerce.mode, 'production');
+  assert.equal(rt.commerce.deployment, 'production');
+  assert.equal(rt.commerce.paymentsUrl, `https://${PAYMENTS_HOST}/functions/v1/torneos-payments-production`);
+  for (const name of ['get_effective_tournament_season_entitlements', 'get_tournament_purchase', 'get_tournament_season_purchases']) assert.ok(rt.rpcAllowlist.has(name), name);
+  assert.ok(!rt.rpcAllowlist.has('create_tournament_season_production_checkout_purchase'), 'the checkout RPC is never in the generic allowlist');
+  for (const [name, patch] of Object.entries({
+    'TEST payments host': { TORNEOS_COMMERCE_PRODUCTION_PAYMENTS_HOST: 'torneos-payments-test.nicoavayu.deno.net', TORNEOS_PAYMENTS_INTERNAL_URL: 'https://torneos-payments-test.nicoavayu.deno.net/functions/v1/torneos-payments-production' },
+    'URL not the declared host': { TORNEOS_PAYMENTS_INTERNAL_URL: `https://${PAYMENTS_HOST}/functions/v1/torneos-payments` },
+    'lab deployment': { TORNEOS_COMMERCE_DEPLOYMENT: 'local-lab' },
+    'no internal key': { TORNEOS_PAYMENTS_INTERNAL_SECRET: '' },
+    'TEST-only remote names': { TORNEOS_COMMERCE_REMOTE_PAYMENTS_HOST: PAYMENTS_HOST },
+  })) assert.throws(() => idx.boot({ ...PROD_ENV, ...PROD_COMMERCE, ...patch }), Error, name);
   assert.equal(stub.calls.length, 0, 'boot opens no database session');
 });
 

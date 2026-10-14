@@ -135,7 +135,10 @@ export function assertTopology(u: PlaneUrls, extra: { dbSslCa: boolean; commerce
   }
   if (u.identityWriter.host !== u.coreAdapter.host) throw new TopologyError("the two database logins target different hosts")
   if (!extra.dbSslCa) throw new TopologyError("TORNEOS_DB_SSL_CA is required against the Torneos data project (verified TLS)")
-  if (extra.commerceMode !== "") throw new TopologyError("commerce must be OFF against Core Production")
+  // COMMERCE-PRODUCTION: against Core Production commerce is OFF or the production mode, whose own configuration
+  // (commerce.ts) pins the hosted deployment, the canonical payments host/URL and https dependencies. TEST, or any
+  // other value, never runs here.
+  if (extra.commerceMode !== "" && extra.commerceMode !== "production") throw new TopologyError("only production commerce may run against Core Production")
   return { kind: "production", coreRef, dataRef }
 }
 
