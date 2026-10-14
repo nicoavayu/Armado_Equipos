@@ -51,7 +51,7 @@ describe('terms of sale', () => {
     expect(text).toContain('Hasta 100 fotos por temporada');
     expect(text).toContain('10 días corridos');
     expect(text).toContain(`${LEGAL_IDENTITY.name}, CUIT ${LEGAL_IDENTITY.cuit}`);
-    expect(screen.getAllByRole('link', { name: 'Botón de arrepentimiento' }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole('link', { name: 'BOTÓN DE ARREPENTIMIENTO' }).length).toBeGreaterThan(0);
   });
 
   test('no tax status, invoice or deletion promise is claimed', () => {
@@ -119,7 +119,7 @@ describe('footer and terms', () => {
   test('the footer always shows the identity, the Botón de arrepentimiento and the complaints link', () => {
     renderAt(<LegalFooter />);
     expect(document.body.textContent).toContain(`CUIT ${LEGAL_IDENTITY.cuit}`);
-    expect(screen.getByRole('link', { name: 'Botón de arrepentimiento' }).getAttribute('href')).toBe('/arrepentimiento');
+    expect(screen.getByRole('link', { name: 'BOTÓN DE ARREPENTIMIENTO' }).getAttribute('href')).toBe('/arrepentimiento');
     expect(screen.getByRole('link', { name: /Para reclamos ingrese aquí/ }).getAttribute('href')).toBe(CONSUMER_COMPLAINTS_URL);
   });
 

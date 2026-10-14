@@ -68,7 +68,7 @@ export default function TermsOfSalePage() {
       <p>
         Podés revocar la compra dentro de los <strong>{REVOCATION_DAYS} días corridos</strong> desde el pago, sin dar
         motivos y sin costo (art. 34 de la Ley 24.240 y art. 1110 del Código Civil y Comercial), con el{' '}
-        <Link to={LEGAL_ROUTES.revocation}>Botón de arrepentimiento</Link>, que te ayuda a enviarnos la solicitud por email;
+        <Link to={LEGAL_ROUTES.revocation}>BOTÓN DE ARREPENTIMIENTO</Link>, que te ayuda a enviarnos la solicitud por email;
         al recibirla te confirmamos la recepción por email. Devolvemos el total por Mercado Pago y, al devolverse el pago,
         la temporada vuelve al plan FREE.
       </p>

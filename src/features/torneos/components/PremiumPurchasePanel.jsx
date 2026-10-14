@@ -252,7 +252,7 @@ export default function PremiumPurchasePanel({ organization, season, entitlement
           </p>
           <p className={styles.note}>
             Al pagar aceptás los <Link to="/terminos-de-venta">Términos de venta</Link>. Tenés 10 días corridos desde el pago para
-            arrepentirte: <Link to="/arrepentimiento">Botón de arrepentimiento</Link>.
+            arrepentirte: <Link to="/arrepentimiento">BOTÓN DE ARREPENTIMIENTO</Link>.
           </p>
         </>
       ) : purchases.status === 'error' ? (

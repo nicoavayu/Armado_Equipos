@@ -97,7 +97,8 @@ function isPublicSpaBuildAsset(pathname) {
 }
 
 // Legal pages (terms, terms of sale, privacy, account deletion, Botón de arrepentimiento): public reads, never gated —
-// consumer law requires them reachable without registration (Res. SCI 424/2020 for the Botón de arrepentimiento).
+// consumer law requires them reachable without registration (Disposición DNDCyAC 954/2025, complemented by 3/2026, for the
+// «BOTÓN DE ARREPENTIMIENTO» link).
 const PUBLIC_LEGAL_PATHS = new Set(['/terms', '/terminos-de-venta', '/privacy', '/account-deletion', '/arrepentimiento']);
 
 function isPublicLegalPage(pathname) {

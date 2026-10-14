@@ -43,7 +43,7 @@ test('legal pages (terms, terms of sale, privacy, account deletion, Botón de ar
   }
   // The public gate (home page) carries the provider identity and the Botón de arrepentimiento.
   const gatePage = fs.readFileSync(new URL('../../public/mobile-only.html', import.meta.url), 'utf8');
-  for (const needle of ['href="/arrepentimiento"', 'Botón de arrepentimiento', 'href="/terminos-de-venta"', 'href="/privacy"', 'CUIT 20-30334438-2',
+  for (const needle of ['href="/arrepentimiento"', 'BOTÓN DE ARREPENTIMIENTO', 'href="/terminos-de-venta"', 'href="/privacy"', 'CUIT 20-30334438-2',
     'Defensa de las y los Consumidores. Para reclamos ingrese aquí']) assert.ok(gatePage.includes(needle), needle);
 });
 test('legacy WhatsApp voting alias redirects without weakening the gate', async () => {
