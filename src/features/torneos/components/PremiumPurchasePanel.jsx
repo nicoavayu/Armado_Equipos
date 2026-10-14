@@ -250,6 +250,10 @@ export default function PremiumPurchasePanel({ organization, season, entitlement
             Vas a pagar en Mercado Pago. Premium se activa cuando Mercado Pago confirma el pago; si cerrás la ventana, el estado
             se ve acá en Mi plan.
           </p>
+          <p className={styles.note}>
+            Al pagar aceptás los <Link to="/terminos-de-venta">Términos de venta</Link>. Tenés 10 días corridos desde el pago para
+            arrepentirte: <Link to="/arrepentimiento">BOTÓN DE ARREPENTIMIENTO</Link>.
+          </p>
         </>
       ) : purchases.status === 'error' ? (
         <div className={styles.actions}>

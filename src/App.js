@@ -64,6 +64,9 @@ const HealthCheck = lazy(() => import('./pages/HealthCheck'));
 const TermsPage = lazy(() => import('./pages/TermsPage'));
 const PrivacyPage = lazy(() => import('./pages/PrivacyPage'));
 const AccountDeletionInfoPage = lazy(() => import('./pages/AccountDeletionInfoPage'));
+const TermsOfSalePage = lazy(() => import('./pages/TermsOfSalePage'));
+const RevocationPage = lazy(() => import('./pages/RevocationPage'));
+const ServiceCancellationPage = lazy(() => import('./pages/ServiceCancellationPage'));
 const VotarEquiposPage = lazy(() => import('./pages/VotarEquiposPage'));
 const AuthHome = lazy(() => import('./components/AuthHome'));
 const AuthCallback = lazy(() => import('./components/AuthCallback'));
@@ -161,6 +164,21 @@ export default function App() {
                   <Route path="/account-deletion" element={
                     <Suspense fallback={<AppLoadingScreen />}>
                       <AccountDeletionInfoPage />
+                    </Suspense>
+                  } />
+                  <Route path="/terminos-de-venta" element={
+                    <Suspense fallback={<AppLoadingScreen />}>
+                      <TermsOfSalePage />
+                    </Suspense>
+                  } />
+                  <Route path="/arrepentimiento" element={
+                    <Suspense fallback={<AppLoadingScreen />}>
+                      <RevocationPage />
+                    </Suspense>
+                  } />
+                  <Route path="/baja-del-servicio" element={
+                    <Suspense fallback={<AppLoadingScreen />}>
+                      <ServiceCancellationPage />
                     </Suspense>
                   } />
                   <Route path="/login" element={

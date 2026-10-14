@@ -1,4 +1,6 @@
 import logger from '../utils/logger';
+import LegalFooter from '../legal/LegalFooter';
+import '../legal/legal.css';
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from './AuthProvider';
@@ -256,6 +258,7 @@ export default function AuthHome() {
             Política de Privacidad
           </Link>
         </p>
+        <LegalFooter className="mx-auto mt-2 box-border w-full max-w-[340px]" />
       </div>
     </div>
   );

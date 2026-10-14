@@ -361,7 +361,10 @@ test('guard detects secrets, privileged JWTs, hardcoded endpoints and production
 
 // CONNECTED-V1: the organizer's optional WhatsApp contact opens WhatsApp's public click-to-chat link (the same one
 // Core's share button uses). It is a link the person follows, not a backend target; no other URL is allowed.
-const EXTERNAL_LINKS = new Map([['src/features/torneos/domain/connectedProduct.js', ['https://wa.me/']]]);
+// The consumer-complaints link (Ventanilla Federal de Defensa de las y los Consumidores) is the one official URL the legal
+// pages must carry.
+const EXTERNAL_LINKS = new Map([['src/features/torneos/domain/connectedProduct.js', ['https://wa.me/']],
+  ['src/legal/legalIdentity.js', ['https://www.argentina.gob.ar/produccion/defensadelconsumidor/formulario']]]);
 
 test('new/changed frontend and config lines contain no secrets or hardcoded targets', () => {
   const tracked = execFileSync('git', ['diff','--name-only','HEAD','--','src','config'], {cwd:root,encoding:'utf8'}).trim().split('\n');
