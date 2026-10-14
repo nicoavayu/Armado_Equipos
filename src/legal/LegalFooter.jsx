@@ -4,7 +4,7 @@ import {
   CONSUMER_COMPLAINTS_LABEL, CONSUMER_COMPLAINTS_URL, LEGAL_IDENTITY, LEGAL_ROUTES,
 } from './legalIdentity';
 
-/** Datos del proveedor y enlaces legales. El enlace con la leyenda «BOTÓN DE ARREPENTIMIENTO» va siempre visible en el pie. */
+/** Datos del proveedor y enlaces legales. «BOTÓN DE ARREPENTIMIENTO» y «BOTÓN DE BAJA DE SERVICIO» van destacados (botones). */
 export default function LegalFooter({ className = '' }) {
   const { name, cuit, contactEmail, publicAddress, city } = LEGAL_IDENTITY;
   return (
@@ -15,11 +15,14 @@ export default function LegalFooter({ className = '' }) {
         {publicAddress && <span>{publicAddress}, {city}</span>}
         {contactEmail && <a href={`mailto:${contactEmail}`}>{contactEmail}</a>}
       </p>
+      <nav className="legal-footer__buttons" aria-label="Arrepentimiento y baja">
+        <Link to={LEGAL_ROUTES.revocation} className="legal-footer__button">BOTÓN DE ARREPENTIMIENTO</Link>
+        <Link to={LEGAL_ROUTES.cancellation} className="legal-footer__button">BOTÓN DE BAJA DE SERVICIO</Link>
+      </nav>
       <nav className="legal-footer__links" aria-label="Enlaces legales">
         <Link to={LEGAL_ROUTES.terms}>Términos</Link>
         <Link to={LEGAL_ROUTES.termsOfSale}>Términos de venta</Link>
         <Link to={LEGAL_ROUTES.privacy}>Privacidad</Link>
-        <Link to={LEGAL_ROUTES.revocation} className="legal-footer__revocation">BOTÓN DE ARREPENTIMIENTO</Link>
         <a href={CONSUMER_COMPLAINTS_URL} target="_blank" rel="noopener noreferrer">{CONSUMER_COMPLAINTS_LABEL}</a>
       </nav>
     </footer>

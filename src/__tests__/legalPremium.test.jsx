@@ -11,6 +11,7 @@ import TermsOfSalePage from '../pages/TermsOfSalePage';
 import PrivacyPage from '../pages/PrivacyPage';
 import TermsPage from '../pages/TermsPage';
 import RevocationPage, { revocationReference, revocationMailto } from '../pages/RevocationPage';
+import ServiceCancellationPage from '../pages/ServiceCancellationPage';
 import LegalFooter from '../legal/LegalFooter';
 import { CONSUMER_COMPLAINTS_URL, LEGAL_IDENTITY, legalIdentityComplete } from '../legal/legalIdentity';
 
@@ -33,6 +34,12 @@ describe('provider identity', () => {
     const html = fs.readFileSync(path.join(__dirname, '../../public/mobile-only.html'), 'utf8');
     expect(html).toContain(`Arma2 — ${LEGAL_IDENTITY.name} · CUIT ${LEGAL_IDENTITY.cuit}`);
     expect(html).toContain('href="/arrepentimiento"');
+    expect(html).toContain('href="/baja-del-servicio"');
+    // First access: both legends in a fixed bar, always visible (and again in the footer).
+    const bar = html.slice(html.indexOf('class="gate-consumer-bar"'));
+    expect(bar.indexOf('BOTÓN DE ARREPENTIMIENTO')).toBeGreaterThan(0);
+    expect(bar.indexOf('BOTÓN DE BAJA DE SERVICIO')).toBeGreaterThan(0);
+    expect(fs.readFileSync(path.join(__dirname, '../../public/web-access.css'), 'utf8')).toMatch(/\.gate-consumer-bar \{[^}]*position: fixed;[^}]*bottom: 0;/);
     expect(html).toContain(CONSUMER_COMPLAINTS_URL);
     if (LEGAL_IDENTITY.contactEmail) expect(html).toContain(LEGAL_IDENTITY.contactEmail);
     if (LEGAL_IDENTITY.publicAddress) expect(html).toContain(LEGAL_IDENTITY.publicAddress);
@@ -102,6 +109,39 @@ describe('Botón de arrepentimiento', () => {
   });
 });
 
+describe('baja del servicio', () => {
+  test('explains one-time payment, and that baja, arrepentimiento and account deletion are different; no refund beyond the terms', () => {
+    renderAt(<ServiceCancellationPage />);
+    const text = document.body.textContent;
+    expect(text).toContain('Premium es un pago único por temporada: no es una suscripción');
+    expect(text).toContain('No se renueva automáticamente ni se vuelve a cobrar');
+    expect(text).toContain('Pedir la baja del servicio');
+    expect(text).toContain('Arrepentirte de la compra');
+    expect(text).toContain('Eliminar tu cuenta de Arma2');
+    expect(text).toContain('Pedir la baja no genera por sí sola una devolución');
+    // The baja item itself promises no refund (refunds stay those of the terms of sale); nowhere a pro-rata refund.
+    const bajaItem = screen.getAllByRole('listitem').find((li) => li.textContent.startsWith('Pedir la baja del servicio')).textContent;
+    expect(bajaItem).not.toMatch(/te devolvemos|reembolsamos|devolución (total|proporcional)/i);
+    expect(text).not.toMatch(/proporcional|prorrat/i);
+    expect(screen.getAllByRole('link', { name: 'Términos de venta' }).every((a) => a.getAttribute('href') === '/terminos-de-venta')).toBe(true);
+    expect(screen.getByRole('link', { name: 'Eliminar cuenta' }).getAttribute('href')).toBe('/account-deletion');
+  });
+
+  test('the same email channel: only prepares the email, BAJA reference, operation optional, no reception promise', () => {
+    renderAt(<ServiceCancellationPage />);
+    const submit = screen.getByRole('button', { name: 'Preparar el correo' });
+    fireEvent.change(screen.getByLabelText('Nombre y apellido'), { target: { value: 'Ana Pérez' } });
+    fireEvent.change(screen.getByLabelText('Email de contacto'), { target: { value: 'ana@example.com' } });
+    expect(submit.disabled).toBe(false);
+    fireEvent.click(submit);
+    expect(document.body.textContent).toContain('Tu solicitud todavía no fue enviada');
+    expect(document.body.textContent).toContain('no es un comprobante de recepción');
+    const link = screen.getByRole('link', { name: 'Abrir mi correo con la solicitud lista' });
+    expect(link.getAttribute('href')).toMatch(/^mailto:arma2app@gmail\.com\?subject=Baja%20del%20servicio%20BAJA-\d{8}-[A-Z2-9]{6}&body=/);
+    expect(decodeURIComponent(link.getAttribute('href').split('&body=')[1])).toContain('Solicito la baja del servicio contratado en Arma2 Torneos.');
+  });
+});
+
 describe('privacy', () => {
   test('lists the verified providers and the AAIP legend; PostHog (no production key) is not listed', () => {
     renderAt(<PrivacyPage />);
@@ -120,6 +160,8 @@ describe('footer and terms', () => {
     renderAt(<LegalFooter />);
     expect(document.body.textContent).toContain(`CUIT ${LEGAL_IDENTITY.cuit}`);
     expect(screen.getByRole('link', { name: 'BOTÓN DE ARREPENTIMIENTO' }).getAttribute('href')).toBe('/arrepentimiento');
+    expect(screen.getByRole('link', { name: 'BOTÓN DE BAJA DE SERVICIO' }).getAttribute('href')).toBe('/baja-del-servicio');
+    for (const name of ['BOTÓN DE ARREPENTIMIENTO', 'BOTÓN DE BAJA DE SERVICIO']) expect(screen.getByRole('link', { name }).className).toContain('legal-footer__button');
     expect(screen.getByRole('link', { name: /Para reclamos ingrese aquí/ }).getAttribute('href')).toBe(CONSUMER_COMPLAINTS_URL);
   });
 

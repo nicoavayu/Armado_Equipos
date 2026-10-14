@@ -96,10 +96,10 @@ function isPublicSpaBuildAsset(pathname) {
   return PUBLIC_SPA_BUILD_ASSET_PATTERNS.some((pattern) => pattern.test(pathname));
 }
 
-// Legal pages (terms, terms of sale, privacy, account deletion, Botón de arrepentimiento): public reads, never gated —
+// Legal pages (terms, terms of sale, privacy, account deletion, Botón de arrepentimiento, baja del servicio): public reads —
 // consumer law requires them reachable without registration (Disposición DNDCyAC 954/2025, complemented by 3/2026, for the
-// «BOTÓN DE ARREPENTIMIENTO» link).
-const PUBLIC_LEGAL_PATHS = new Set(['/terms', '/terminos-de-venta', '/privacy', '/account-deletion', '/arrepentimiento']);
+// «BOTÓN DE ARREPENTIMIENTO» and «BOTÓN DE BAJA DE SERVICIO» links).
+const PUBLIC_LEGAL_PATHS = new Set(['/terms', '/terminos-de-venta', '/privacy', '/account-deletion', '/arrepentimiento', '/baja-del-servicio']);
 
 function isPublicLegalPage(pathname) {
   return PUBLIC_LEGAL_PATHS.has(pathname);

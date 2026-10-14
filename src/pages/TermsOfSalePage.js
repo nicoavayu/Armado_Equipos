@@ -73,23 +73,32 @@ export default function TermsOfSalePage() {
         la temporada vuelve al plan FREE.
       </p>
 
-      <h2>7. Si algo falla</h2>
+      <h2>7. Baja del servicio</h2>
+      <p>
+        Premium es un pago único: no se renueva ni se vuelve a cobrar, así que no hay cobros futuros que cancelar. Igual
+        podés pedir la baja del servicio con el <Link to={LEGAL_ROUTES.cancellation}>BOTÓN DE BAJA DE SERVICIO</Link>, por
+        email; te confirmamos la recepción por email. Pedir la baja no genera por sí sola una devolución: las devoluciones
+        son las de estos términos (arrepentimiento y fallas de activación). Eliminar tu cuenta de Arma2 es otra cosa
+        (Perfil → Eliminar cuenta).
+      </p>
+
+      <h2>8. Si algo falla</h2>
       <p>
         Si pagaste y Premium no se activó, escribinos{contactEmail ? <> a <a href={`mailto:${contactEmail}`}>{contactEmail}</a></> : ''} con
         el número de operación de Mercado Pago: lo revisamos y, si no se puede activar, devolvemos el total. Toda
         devolución total deja la temporada en FREE.
       </p>
 
-      <h2>8. Desconocimiento del pago (contracargo)</h2>
+      <h2>9. Desconocimiento del pago (contracargo)</h2>
       <p>
         Si el pago se desconoce ante Mercado Pago o ante el emisor de la tarjeta, Premium queda suspendido para esa
         temporada mientras se resuelve. Si se resuelve a favor de quien pagó, la temporada queda en FREE.
       </p>
 
-      <h2>9. Cambios</h2>
+      <h2>10. Cambios</h2>
       <p>Si cambian el precio o lo que incluye Premium, el cambio no afecta a las temporadas ya pagadas.</p>
 
-      <h2>10. Reclamos</h2>
+      <h2>11. Reclamos</h2>
       <p>
         Podés reclamar ante <a href={CONSUMER_COMPLAINTS_URL} target="_blank" rel="noopener noreferrer">{CONSUMER_COMPLAINTS_LABEL}</a>.
         Se aplica la ley de la República Argentina; como consumidor, podés reclamar en la jurisdicción de tu domicilio.

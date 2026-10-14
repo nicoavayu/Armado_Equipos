@@ -23,6 +23,7 @@ export const LEGAL_ROUTES = Object.freeze({
   termsOfSale: '/terminos-de-venta',
   privacy: '/privacy',
   revocation: '/arrepentimiento',
+  cancellation: '/baja-del-servicio',
   accountDeletion: '/account-deletion',
 });
 
