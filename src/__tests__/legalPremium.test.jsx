@@ -17,9 +17,14 @@ import { CONSUMER_COMPLAINTS_URL, LEGAL_IDENTITY, legalIdentityComplete } from '
 const renderAt = (node) => render(<MemoryRouter>{node}</MemoryRouter>);
 
 describe('provider identity', () => {
-  test('name and CUIT authorized by Nico; email and address pending (null) until he gives them', () => {
+  test('identity exactly as Nico authorized it: name, CUIT, public address (no apartment, no DNI) and commercial email', () => {
     expect(LEGAL_IDENTITY.name).toBe('Nicolás Gabriel Avayu');
     expect(LEGAL_IDENTITY.cuit).toBe('20-30334438-2');
+    expect(LEGAL_IDENTITY.publicAddress).toBe('Bacon 4884');
+    expect(LEGAL_IDENTITY.city).toBe('Ciudad Autónoma de Buenos Aires, Argentina');
+    expect(LEGAL_IDENTITY.contactEmail).toBe('arma2app@gmail.com');
+    expect(JSON.stringify(LEGAL_IDENTITY)).not.toMatch(/depto|departamento|piso|dni/i);
+    expect(legalIdentityComplete()).toBe(true);
     expect(legalIdentityComplete()).toBe(LEGAL_IDENTITY.contactEmail !== null && LEGAL_IDENTITY.publicAddress !== null);
     expect(legalIdentityComplete({ ...LEGAL_IDENTITY, contactEmail: 'a@b.co', publicAddress: 'Calle 1' })).toBe(true);
   });
