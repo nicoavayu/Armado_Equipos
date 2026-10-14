@@ -1,6 +1,6 @@
 # TORNEOS-CALL-MAP — auditoría B04
 
-Inventario legacy congelado en `2058da039a2a5eaaed22d87d01946bc596ae5f50` (Phase 2D); árbol integrado auditado en `45ea110a181a50a9f707b6f4a39230b6421d47de`. Reconstruido del código. No representa resultados de R2/R3/R4/R5.
+Inventario legacy congelado en `2058da039a2a5eaaed22d87d01946bc596ae5f50` (Phase 2D); árbol integrado auditado en `96fae4453a350aab0e3f9251b8e2fa5814405091`. Reconstruido del código. No representa resultados de R2/R3/R4/R5.
 
 180 sitios RPC legacy; 179 nombres distintos; 108 nombres dentro de scope; 71 fuera. La selección dinámica de `changeTournamentMatchPlan` se resuelve a sus tres nombres literales. No quedan RPC dinámicas sin resolver.
 
@@ -382,8 +382,8 @@ Cada fila es un import que alcanza el singleton por el grafo estático, no una c
 | [src/features/torneos/components/PlayerPortraitActions.jsx:10](../../../src/features/torneos/components/PlayerPortraitActions.jsx#L10) | `./PlayerPortraitDialog` |
 | [src/features/torneos/components/PlayerPortraitDialog.jsx:10](../../../src/features/torneos/components/PlayerPortraitDialog.jsx#L10) | `./usePlayerPortraitUrl` |
 | [src/features/torneos/components/PremiumPurchasePanel.jsx:5](../../../src/features/torneos/components/PremiumPurchasePanel.jsx#L5) | `../context/TorneosCommerceContext` |
-| [src/features/torneos/components/PublicTournamentPage.jsx:12](../../../src/features/torneos/components/PublicTournamentPage.jsx#L12) | `../api/publicTournamentService` |
-| [src/features/torneos/components/PublicTournamentPage.jsx:20](../../../src/features/torneos/components/PublicTournamentPage.jsx#L20) | `./BrandingImage` |
+| [src/features/torneos/components/PublicTournamentPage.jsx:14](../../../src/features/torneos/components/PublicTournamentPage.jsx#L14) | `../api/publicTournamentService` |
+| [src/features/torneos/components/PublicTournamentPage.jsx:22](../../../src/features/torneos/components/PublicTournamentPage.jsx#L22) | `./BrandingImage` |
 | [src/features/torneos/components/PublicTournamentRoute.jsx:2](../../../src/features/torneos/components/PublicTournamentRoute.jsx#L2) | `./PublicTournamentPage` |
 | [src/features/torneos/components/PublicTournamentRoute.jsx:3](../../../src/features/torneos/components/PublicTournamentRoute.jsx#L3) | `../api/publicTournamentService` |
 | [src/features/torneos/components/PublicTournamentRoute.jsx:5](../../../src/features/torneos/components/PublicTournamentRoute.jsx#L5) | `../stagingV1/publicTournamentComposition` |

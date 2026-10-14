@@ -96,6 +96,14 @@ function isPublicSpaBuildAsset(pathname) {
   return PUBLIC_SPA_BUILD_ASSET_PATTERNS.some((pattern) => pattern.test(pathname));
 }
 
+// Legal pages (terms, terms of sale, privacy, account deletion, Botón de arrepentimiento): public reads, never gated —
+// consumer law requires them reachable without registration (Res. SCI 424/2020 for the Botón de arrepentimiento).
+const PUBLIC_LEGAL_PATHS = new Set(['/terms', '/terminos-de-venta', '/privacy', '/account-deletion', '/arrepentimiento']);
+
+function isPublicLegalPage(pathname) {
+  return PUBLIC_LEGAL_PATHS.has(pathname);
+}
+
 function isPublicTorneosWebEntry(pathname) {
   return pathname === '/torneos'
     || pathname.startsWith('/torneos/')
@@ -120,6 +128,7 @@ export default async function privateWebGate(request) {
       isAllowedPublicVotingRequest(url)
       || isAllowedPublicMatchInviteRequest(url)
       || isPublicTorneosWebEntry(url.pathname)
+      || isPublicLegalPage(url.pathname)
       || isPublicSpaBuildAsset(url.pathname)
     )
   ) {

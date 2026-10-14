@@ -31,6 +31,21 @@ test('public login, tournament routes and valid WhatsApp links retain their allo
   }
   assert.equal(await (await run('/partido/1/invitacion?codigo=ABCD')).text(), '/mobile-only.html');
 });
+test('legal pages (terms, terms of sale, privacy, account deletion, Botón de arrepentimiento) are public reads; writes stay denied', async () => {
+  for (const path of ['/terms', '/terminos-de-venta', '/privacy', '/account-deletion', '/arrepentimiento']) {
+    assert.equal(await (await run(path)).text(), path, path);
+    assert.equal(await (await run(path, { method: 'HEAD' })).text(), path, `HEAD ${path}`);
+    assert.equal((await run(path, { method: 'POST', body: 'x' })).status, 403, `POST ${path}`);
+  }
+  // Exact paths only: nothing under them, and the rest of the site stays gated.
+  for (const path of ['/terms/x', '/arrepentimiento/admin', '/privacy.html', '/terminos']) {
+    assert.equal(await (await run(path)).text(), '/mobile-only.html', path);
+  }
+  // The public gate (home page) carries the provider identity and the Botón de arrepentimiento.
+  const gatePage = fs.readFileSync(new URL('../../public/mobile-only.html', import.meta.url), 'utf8');
+  for (const needle of ['href="/arrepentimiento"', 'Botón de arrepentimiento', 'href="/terminos-de-venta"', 'href="/privacy"', 'CUIT 20-30334438-2',
+    'Defensa de las y los Consumidores. Para reclamos ingrese aquí']) assert.ok(gatePage.includes(needle), needle);
+});
 test('legacy WhatsApp voting alias redirects without weakening the gate', async () => {
   const response = await run('/?codigo=ABCD');
   assert.equal(response.status, 308);

@@ -410,3 +410,10 @@ input {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Legal footer of the public gate (identity and links; the Botón de arrepentimiento must be visible on the home page). */
+.gate-legal { margin-top: 1.25rem; font-size: 12px; line-height: 1.6; color: rgba(255, 255, 255, 0.72); text-align: center; overflow-wrap: anywhere; }
+.gate-legal__identity { margin: 0 0 0.35rem; }
+.gate-legal__links { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.25rem 0.9rem; }
+.gate-legal a { color: inherit; text-decoration: underline; }
+.gate-legal__revocation { font-weight: 700; }

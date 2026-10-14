@@ -1,49 +1,92 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import LegalPageLayout from '../legal/LegalPageLayout';
+import { LEGAL_IDENTITY, LEGAL_ROUTES, LEGAL_UPDATED_AT } from '../legal/legalIdentity';
 
-const updatedAt = '14 de febrero de 2026';
-
+// Proveedores verificados en el código y la configuración (2026-10-14): Supabase (base, autenticación, almacenamiento),
+// Netlify (web), Google Cloud Run (servidor de Torneos), Deno Deploy (pagos), Mercado Pago (cobros), Sentry (errores de la
+// web), Google Maps Platform (mapas y búsqueda de lugares), Google y Apple (inicio de sesión), Firebase (notificaciones push;
+// en Android además Analytics y Crashlytics). PostHog está en el código pero sin clave en producción: no se lista.
 export default function PrivacyPage() {
+  const { name, cuit, contactEmail, publicAddress, city } = LEGAL_IDENTITY;
   return (
-    <div className="min-h-screen w-full bg-[#0f172a] text-white px-5 py-10">
-      <div className="mx-auto w-full max-w-3xl bg-white/5 border border-white/10 rounded-2xl p-6 md:p-8">
-        <h1 className="text-3xl font-oswald tracking-wide mb-2">Política de Privacidad</h1>
-        <p className="text-white/70 text-sm mb-6">Última actualización: {updatedAt}</p>
+    <LegalPageLayout title="Política de Privacidad" updatedAt={LEGAL_UPDATED_AT}>
+      <h2>1. Responsable</h2>
+      <p>
+        {name}, CUIT {cuit}{publicAddress ? `, ${publicAddress}, ${city}` : ''}.
+        {contactEmail && <> Consultas de privacidad: <a href={`mailto:${contactEmail}`}>{contactEmail}</a>.</>}
+      </p>
 
-        <section className="space-y-3 text-white/90 leading-relaxed">
-          <p>
-            Arma2 recopila y procesa datos para permitir el funcionamiento de la app:
-            autenticación, perfil de jugador, partidos, invitaciones y notificaciones.
-          </p>
-          <p>
-            Datos que podemos procesar: email, nombre, foto de perfil, ubicación aproximada
-            (si la habilitás), actividad dentro de partidos y notificaciones relacionadas.
-          </p>
-          <p>
-            Usamos proveedores de infraestructura para operar el servicio (por ejemplo, base de
-            datos y autenticación). No vendemos tus datos personales.
-          </p>
-          <p>
-            Podés solicitar la eliminación de tu cuenta y datos desde la app en la sección
-            Perfil, opción <strong>Eliminar cuenta</strong>.
-          </p>
-        </section>
+      <h2>2. Qué datos tratamos</h2>
+      <ul>
+        <li>
+          <strong>Cuenta y perfil:</strong> email, nombre y foto de perfil; y, si los cargás, teléfono, fecha de nacimiento,
+          posición y ubicación aproximada.
+        </li>
+        <li><strong>Arma2 (partidos):</strong> partidos, invitaciones, votaciones, actividad y notificaciones.</li>
+        <li>
+          <strong>Torneos:</strong> organizaciones, temporadas, torneos, equipos, planteles, partidos, resultados,
+          comunicados, logos, escudos y fotos que cargás.
+        </li>
+        <li>
+          <strong>Compras:</strong> organización y temporada, plan, monto, estado del pago, número de operación de Mercado
+          Pago y fechas. No recibimos ni guardamos datos de tarjetas ni de la cuenta de Mercado Pago de quien paga.
+        </li>
+        <li>
+          <strong>Datos técnicos:</strong> registros de acceso y errores para que el servicio funcione y sea seguro;
+          reportes de errores de la web (Sentry) y, en la app de Android, estadísticas de uso y de fallas (Firebase).
+        </li>
+      </ul>
 
-        <div className="mt-8 flex flex-wrap gap-3">
-          <Link
-            to="/terms"
-            className="px-4 py-2 rounded-lg border border-white/20 bg-white/10 hover:bg-white/20 transition-colors"
-          >
-            Ver Términos y Condiciones
-          </Link>
-          <Link
-            to="/login"
-            className="px-4 py-2 rounded-lg border border-white/20 bg-transparent hover:bg-white/10 transition-colors"
-          >
-            Volver
-          </Link>
-        </div>
-      </div>
-    </div>
+      <h2>3. Para qué los usamos</h2>
+      <ul>
+        <li>Prestar el servicio: tu cuenta, tus partidos y torneos, y las páginas públicas que publicás.</li>
+        <li>Cobrar Premium, activarlo y gestionar devoluciones y contracargos.</li>
+        <li>Enviar las notificaciones que habilitás.</li>
+        <li>Seguridad, prevención de abusos, soporte y corrección de errores.</li>
+      </ul>
+      <p><strong>No vendemos tus datos</strong> ni los usamos para publicidad de terceros.</p>
+
+      <h2>4. Proveedores que los procesan por cuenta nuestra</h2>
+      <table>
+        <tbody>
+          <tr><td>Supabase</td><td>Base de datos, autenticación y almacenamiento</td></tr>
+          <tr><td>Netlify</td><td>Publicación de la web</td></tr>
+          <tr><td>Google Cloud</td><td>Servidor de Torneos</td></tr>
+          <tr><td>Deno Deploy</td><td>Servicio de pagos</td></tr>
+          <tr><td>Mercado Pago</td><td>Cobros y devoluciones</td></tr>
+          <tr><td>Sentry</td><td>Reportes de errores de la web</td></tr>
+          <tr><td>Google Maps Platform</td><td>Mapas y búsqueda de lugares</td></tr>
+          <tr><td>Google y Apple</td><td>Inicio de sesión con esas cuentas</td></tr>
+          <tr><td>Firebase (Google)</td><td>Notificaciones push; en Android, estadísticas de uso y de fallas</td></tr>
+        </tbody>
+      </table>
+      <p>
+        Algunos guardan datos fuera de Argentina. Lo que publicás como público (por ejemplo, el fixture o la tabla de un
+        torneo) lo puede ver cualquiera.
+      </p>
+
+      <h2>5. Cuánto tiempo los guardamos</h2>
+      <ul>
+        <li>Cuenta y contenido: mientras la cuenta exista o hasta que los borres.</li>
+        <li>Fotos de una temporada: hasta el fin de la temporada; después pueden eliminarse.</li>
+        <li>Compras: el tiempo que exigen las normas aplicables, aunque borres la cuenta.</li>
+      </ul>
+
+      <h2>6. Tus derechos</h2>
+      <p>
+        Podés pedir acceso, rectificación, actualización o supresión de tus datos (Ley 25.326)
+        {contactEmail ? <> escribiendo a <a href={`mailto:${contactEmail}`}>{contactEmail}</a></> : ''}. Para borrar tu
+        cuenta, ver <Link to={LEGAL_ROUTES.accountDeletion}>Eliminar cuenta</Link>.
+      </p>
+      <p>
+        La AGENCIA DE ACCESO A LA INFORMACIÓN PÚBLICA, en su carácter de Órgano de Control de la Ley N° 25.326, tiene la
+        atribución de atender las denuncias y reclamos que interpongan quienes resulten afectados en sus derechos por
+        incumplimiento de las normas vigentes en materia de protección de datos personales.
+      </p>
+
+      <h2>7. Cambios</h2>
+      <p>Si cambiamos esta política, lo avisamos en la app antes de que el cambio rija.</p>
+    </LegalPageLayout>
   );
 }

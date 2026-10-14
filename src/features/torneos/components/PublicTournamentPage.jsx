@@ -1,4 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import LegalFooter from '../../../legal/LegalFooter';
+import '../../../legal/legal.css';
 import {
   CalendarDays,
   ChevronRight,
@@ -477,6 +479,7 @@ export default function PublicTournamentPage({ service = publicTournamentService
         <PublicTournamentContent page={page} activeTab={activeTab} scope={scope} service={service} />
       </main>
       <footer className={styles.pageFooter}><PublicBrandMark page={page} /><p>Información oficial publicada por {page.organization.name}.</p></footer>
+      <LegalFooter />
     </div>
   );
 }
