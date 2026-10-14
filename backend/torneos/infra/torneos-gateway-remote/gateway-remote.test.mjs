@@ -75,7 +75,7 @@ test('Deno API allowlist: reads only on the one app, writes only armed, bodies p
   assert.throws(() => R.assertDenoWriteBody('deploy', { assets: { ...assets, 'torneos-gateway/leak.ts': { kind: 'file', encoding: 'utf-8', content: `const k = "${passwords.torneos_edge_core_adapter}"; const u = "postgres://a:${passwords.torneos_edge_core_adapter}@h/p"` } }, labels: {}, production: true, preview: false }), /secret_shaped/);
 });
 
-test('deployed source = the gateway module graph (30 files, jose/postgres pins), never payments config or the MP provider', () => {
+test('deployed source = the gateway module graph (32 files, exactly, jose/postgres pins), never payments config or the MP provider', () => {
   const g = moduleGraph();
   // COMPETITION-V1: 14 + competition.ts and its allowlist (competition-v1-rpc-allowlist.json);
   // OFFICIALIZATION-V1: + officialization-v1-rpc-allowlist.json (loaded by competition.ts);
@@ -87,7 +87,21 @@ test('deployed source = the gateway module graph (30 files, jose/postgres pins),
   // MEDIA-V1: + media.ts, media-image.ts, media-contract.ts (verbatim copies of the pipeline verifier: _shared is never in
   // the graph) and media-v1-rpc-allowlist.json (imported by index.ts, TORNEOS_MEDIA_MODE default OFF).
   // COMMERCE-PRODUCTION: + commerce-production-rpc-allowlist.json (loaded by commerce.ts, TORNEOS_COMMERCE_MODE default OFF).
-  assert.equal(g.files.length, 30);
+  // MEDIA-STORE-V1: + media-store-client.ts and media-store-protocol.ts (imported by media.ts; hosted Storage refuses bridge
+  // tokens, so writes and signatures go through the torneos-media-store function).
+  // The list is exact: it is the graph the Cloud Run image packages (the operator build copies these 32 files, no more).
+  assert.deepEqual([...g.files].sort(), [
+    'torneos-gateway/adapter.ts', 'torneos-gateway/branding-v1-rpc-allowlist.json', 'torneos-gateway/branding.ts',
+    'torneos-gateway/commerce-production-rpc-allowlist.json', 'torneos-gateway/commerce-test-rpc-allowlist.json', 'torneos-gateway/commerce.ts',
+    'torneos-gateway/competition-v1-rpc-allowlist.json', 'torneos-gateway/competition.ts', 'torneos-gateway/config.ts',
+    'torneos-gateway/connected-v1-rpc-allowlist.json', 'torneos-gateway/connected.ts', 'torneos-gateway/core-client.ts', 'torneos-gateway/db.ts',
+    'torneos-gateway/index.ts', 'torneos-gateway/media-contract.ts', 'torneos-gateway/media-image.ts', 'torneos-gateway/media-store-client.ts',
+    'torneos-gateway/media-store-protocol.ts', 'torneos-gateway/media-v1-rpc-allowlist.json', 'torneos-gateway/media.ts',
+    'torneos-gateway/my-teams.schema.json', 'torneos-gateway/officialization-v1-rpc-allowlist.json', 'torneos-gateway/plan-read.ts',
+    'torneos-gateway/schemas.json', 'torneos-gateway/session.schema.json', 'torneos-gateway/social-v1-rpc-allowlist.json', 'torneos-gateway/social.ts',
+    'torneos-gateway/staging-v1-rpc-allowlist.json', 'torneos-gateway/token.ts', 'torneos-gateway/topology.ts', 'torneos-payments/hmac.ts',
+    'torneos-payments/remote-hosts.ts',
+  ].sort());
   assert.ok(['torneos-gateway/competition.ts', 'torneos-gateway/competition-v1-rpc-allowlist.json', 'torneos-gateway/officialization-v1-rpc-allowlist.json', 'torneos-gateway/plan-read.ts', 'torneos-gateway/social.ts', 'torneos-gateway/social-v1-rpc-allowlist.json',
     'torneos-gateway/connected.ts', 'torneos-gateway/connected-v1-rpc-allowlist.json', 'torneos-gateway/my-teams.schema.json',
     'torneos-gateway/branding.ts', 'torneos-gateway/branding-v1-rpc-allowlist.json',
