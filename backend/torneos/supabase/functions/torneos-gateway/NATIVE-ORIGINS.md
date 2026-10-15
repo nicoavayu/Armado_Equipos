@@ -163,15 +163,20 @@ En el smoke de Android se re-mide `https://localhost` contra el Cloud Run actual
 **Prerrequisitos:**
 - PR mergeado con GO. El merge **no** despliega nada.
 - Medición del §5 registrada.
-- Lectura (read-only) de la revisión que sirve el 100 % (la última anotada en las notas de operación es
-  `torneos-gateway-00029-sav`, del 2026-10-13; **confirmarla**).
+- **Confirmar en modo read-only, antes de desplegar,** qué revisión sirve el 100 %.
+  - Última verificación: 2026-10-15 00:28Z, con `~/Arma2Backups/go4-run.sh status`.
+  - Revisión viva: `torneos-gateway-00033-wow` al 100 %, imagen `e36ff1ce`, commerce `production`.
+  - `torneos-gateway-00029-sav` es la revisión de **rollback de esa promoción**. Sirve sólo si no hay compras abiertas,
+    y **no** es el punto de vuelta de este deploy.
 
 1. **Imagen.**
-   - Misma lista de 32 archivos que la imagen viva, armada desde el commit del merge, como en el runbook de
-     `docs/torneos/commercial-season/PUBLICACION.md`.
-   - Comparar los sha256 con la fuente de la imagen viva. Si esa fuente es `main` en `b4fb150a`, sólo cambian
-     `torneos-gateway/topology.ts` y `torneos-gateway/config.ts`.
-   - Si cambia algo más, **STOP** y revisar.
+   - Se arma desde la **fuente de la imagen viva actual** (`e36ff1ce`, commerce production, linaje de `main`
+     `b4fb150a`) más este PR, como en el runbook de `docs/torneos/commercial-season/PUBLICACION.md`.
+   - Usa la misma lista de 32 archivos que la imagen viva.
+   - Comparar los sha256 con los de la imagen viva `e36ff1ce`: sólo cambian `torneos-gateway/topology.ts` y
+     `torneos-gateway/config.ts`.
+   - Si cambia algo más, **STOP** y revisar. Por ejemplo, si `main` avanzó con otros cambios del gateway, esta
+     imagen ya no es «la viva + el origen iOS».
 2. **Revisión nueva sin tráfico:**
 
    ```
@@ -179,9 +184,10 @@ En el smoke de Android se re-mide `https://localhost` contra el Cloud Run actual
    ```
 
    - Sin `--set-env-vars`, `--update-env-vars` ni `--update-secrets`.
-   - La revisión hereda el env y los secretos de la actual: **sólo cambia la imagen**.
+   - La revisión hereda el env y los secretos de `00033-wow`, incluida la configuración de commerce `production`:
+     **sólo cambia la imagen**.
 3. **Probes contra la URL del tag**, con `x-forwarded-host` = el host público, sin autenticación:
-   - las respuestas sin `Origin` son iguales a las de la revisión viva;
+   - las respuestas sin `Origin` son iguales a las de la revisión viva (`00033-wow`);
    - para la web y `https://localhost` no cambia nada;
    - preflight con `Origin: capacitor://localhost` → **204** con `access-control-allow-origin: capacitor://localhost`
      y `vary: origin`;
@@ -194,14 +200,16 @@ En el smoke de Android se re-mide `https://localhost` contra el Cloud Run actual
 
    - Un split de tráfico no aporta nada: la web y Android reciben respuestas idénticas (lo prueba el test diferencial).
      Si se prefiere, 10 % → 100 %.
-   - Anotar la revisión nueva y la anterior.
-5. **Rollback** (segundos, sin rebuild):
+   - Anotar la revisión nueva y la anterior (`00033-wow`).
+5. **Rollback** (segundos, sin rebuild): volver el tráfico a la revisión que servía antes, `torneos-gateway-00033-wow`
+   (confirmada en el paso de prerrequisitos). **No** volver a `00029-sav`.
 
    ```
-   gcloud run services update-traffic torneos-gateway --to-revisions <anterior>=100
+   gcloud run services update-traffic torneos-gateway --to-revisions torneos-gateway-00033-wow=100
    ```
 
-   - Efecto: Torneos se apaga **sólo en iOS** (kill switch). La web y Android no cambian.
+   - Efecto: Torneos se apaga **sólo en iOS** (kill switch). La web, Android y commerce `production` no cambian,
+     porque `00033-wow` tiene el mismo env.
    - Antes de que se publique la app de iOS no rompe nada.
 6. **Orden respecto de la app.**
    - Este deploy va **antes** de mandar el build de iOS a revisión: la cuenta demo del revisor necesita Torneos andando.
