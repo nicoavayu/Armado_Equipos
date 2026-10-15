@@ -1,0 +1,36 @@
+# MODERATION 0022 — ensayo local (npm run test:torneos:moderation)
+Fecha: 2026-10-15T22:39Z. Base: origin/main b4fb150a. Rama: claude/torneos-moderation.
+Laboratorio: PostgreSQL descartable public.ecr.aws/supabase/postgres:17.6.1.143 (commerce-production/lab/pg-lab.mjs),
+contenedor arma2-moderation-lab-db-896d7f5d, red propia arma2-moderation-lab-db-896d7f5d-net 10.233.60.0/24, puerto
+sólo en 127.0.0.1. 0000 → 0019 como instalador del lab, luego dueños = postgres (no superusuario, como el proyecto
+hospedado); 0022 y su rollback aplicados por db-0022.mjs run() como postgres. Datos 100 % ficticios («Lab …», «Los
+Insultos …», «Apodo Ofensivo …»). Nada remoto: ni Production, ni Staging, ni el gateway, ni la web.
+
+migración 0022 sha256 b4d3c41da9fb5d0915302bd458987106771aa486e3116263ba06914d71947c88
+rollback 0022 sha256 8e4dfb465be818af40d4f0b56f7cd18153ef64a94ca91c552cdb4e528c265b6d
+
+✔ db 0022 pins the exact files of this branch, the target ref and the bodies the migration installs
+✔ db 0022 classify: PRE_0022, POST_0022, and every drift fails closed
+✔ db 0022 changedOutside: exactly ±7 authenticated, anon and service_role fixed, kept sections identical
+✔ db 0022 run: phrase, file hash and observed state gate every schema write; rows need the force phrase
+✔ db 0022 inbox: read only, POST_0022 only, a fixed status set
+✔ db 0022 act: validated report id, status, action and note; exact phrase; one quoted call
+✔ apply-0022 through the operator driver: PRE_0022 → POST_0022, +7 authenticated RPCs, nothing else moved
+✔ fictional worlds: two organizations with published pages, players, an application and announcements
+✔ reporting needs a signed-in identity: anon has no EXECUTE, an invalid token is TORNEOS_AUTH_REQUIRED
+✔ every kind resolves server-side: public content by slug (+ the text shown), private content by id with access
+✔ dedupe: one open report per reporter and target; the same idempotency key is the same report
+✔ rate limit: 10 per hour and 30 per day per reporter → PT429 TORNEOS_REPORT_RATE_LIMITED
+✔ isolation: org A managers see only org A organization-scope reports, never who reported; nobody else sees them
+✔ the organization resolves team and player reports with its tools; the public page shows the neutral values
+✔ escalation hands a report to the platform; the organization keeps a read-only line
+✔ platform: take down a tournament (page + catalog, held against republishing), release, logos, announcements, applicants
+✔ take down a whole organization: every tournament page held
+✔ organization blocks an applicant: no new application to any of its tournaments until unblocked
+✔ a participant mutes an organization: current and new announcements go to the archive, emergencies still arrive
+✔ rollback-0022 is refused while moderation rows exist; the force phrase discards them; the catalog is identical; re-apply works
+ℹ tests 20
+ℹ pass 20
+ℹ fail 0
+ℹ skipped 0
+ℹ duration_ms 10327.719833

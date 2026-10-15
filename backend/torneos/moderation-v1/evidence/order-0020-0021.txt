@@ -1,0 +1,36 @@
+# MODERATION 0022 — orden respecto de 0020 (sponsors) y 0021 (borrado de cuenta)
+Fecha: 2026-10-15T22:39Z. Base: origin/main b4fb150a. Rama: claude/torneos-moderation.
+Laboratorio: PostgreSQL descartable public.ecr.aws/supabase/postgres:17.6.1.143 (commerce-production/lab/pg-lab.mjs),
+contenedor arma2-moderation-lab-db-896d7f5d, red propia arma2-moderation-lab-db-896d7f5d-net 10.233.60.0/24, puerto
+sólo en 127.0.0.1. 0000 → 0019 como instalador del lab, luego dueños = postgres (no superusuario, como el proyecto
+hospedado); 0022 y su rollback aplicados por db-0022.mjs run() como postgres. Datos 100 % ficticios («Lab …», «Los
+Insultos …», «Apodo Ofensivo …»). Nada remoto: ni Production, ni Staging, ni el gateway, ni la web.
+
+Archivos de las otras ramas, copiados sólo para leer (no se tocó ninguna rama ni worktree ajeno):
+  0020.sql           3b2ed5370a637ea86475ceba0a100802e5928c2187dcf1e70bb057ae3d64582c  origin/claude/torneos-premium-sponsors 45d56f51 (PR #212)
+  0020.rollback.sql  dc8422ca7f99c63773e46cfefd3d005912bc7bda029470fdacf2429be33e41dd  idem
+  0021.sql           67c9cfef46eccd10d23b7a3a2d6908ab7b976335e1a496e3eb884726ca03f50f  claude/torneos-account-deletion, archivo SIN commitear del otro agente (2026-10-15)
+  0021.rollback.sql  419c1bea5299b3b28203637ebe76acb5e1a8cf84ed344b2cd74fdafc584abc16  idem
+Si 0020 o 0021 cambian antes del merge, repetir:
+  node backend/torneos/moderation-v1/test/order-rehearsal.mjs <dir con 0020.sql 0020.rollback.sql 0021.sql 0021.rollback.sql>
+Orden 1: 0020 → 0021 → 0022; orden 2: 0022 → 0020 → 0021. En cada uno: reporte + resolución de la organización y
+borrado de la cuenta de quien reportó con private.erase_tournament_account (0021): el reporte se conserva.
+
+{"step":"start","s0020":false,"s0021":false,"s0022":false}
+{"step":"apply 0020","ok":true}
+{"step":"apply 0021","ok":true}
+{"step":"apply 0022 (driver) after 0020+0021","verdict":"APPLY_0022_DONE","changedOutside":[]}
+{"step":"smoke 1","report":"organization","handled":"resolved","erasure":"erased","reportKept":true}
+{"step":"rollback 0022 (forced)","verdict":"ROLLBACK_0022_DONE","changedOutside":[]}
+{"step":"rollback 0021","ok":true}
+{"step":"rollback 0020","ok":true}
+{"step":"after order 1","s0020":false,"s0021":false,"s0022":false}
+{"step":"apply 0022 (driver) first","verdict":"APPLY_0022_DONE"}
+{"step":"apply 0020 after 0022","ok":true}
+{"step":"apply 0021 after 0022","ok":true}
+{"step":"classify with 0020+0021 on top","state":"POST_0022"}
+{"step":"smoke 2","report":"organization","handled":"resolved","erasure":"erased","reportKept":true}
+{"step":"rollback 0021","ok":true}
+{"step":"rollback 0020","ok":true}
+{"step":"rollback 0022 last (forced)","verdict":"ROLLBACK_0022_DONE","changedOutside":[]}
+{"step":"end","s0020":false,"s0021":false,"s0022":false}
