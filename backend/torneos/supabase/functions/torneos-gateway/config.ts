@@ -20,7 +20,7 @@ const LAB_HOSTS = new Set(["core-auth", "core-api", "torneos-rest", "torneos-db"
 export type GatewayConfig = {
   publicUrl: URL                 // how the browser reaches this function (host check, /config)
   allowedOrigin: string          // the exact web origin (TORNEOS_ALLOWED_ORIGIN)
-  allowedOrigins: readonly string[] // exact origins allowed (CORS + Origin check): the web origin, + the Android app on Production
+  allowedOrigins: readonly string[] // exact origins allowed (CORS + Origin check): the web origin, + the Android and iOS apps on Production
   coreAuthUrl: string            // GoTrue base (…/auth/v1 on hosted; http://core-auth:9999 in the lab)
   coreJwtIssuer: string          // expected `iss` of Core access tokens
   coreAnonKey: string | null     // Core public key for Kong's apikey (hosted only)
@@ -117,7 +117,7 @@ export function loadConfig(env: Record<string, string | undefined>): GatewayConf
   return {
     publicUrl,
     allowedOrigin: allowed.origin,
-    allowedOrigins: Object.freeze(topology.kind === "production" ? [allowed.origin, PRODUCTION.nativeAppOrigin] : [allowed.origin]),
+    allowedOrigins: Object.freeze(topology.kind === "production" ? [allowed.origin, PRODUCTION.nativeAppOrigin, PRODUCTION.nativeIosOrigin] : [allowed.origin]),
     coreAuthUrl: coreAuth.href.replace(/\/$/, ""),
     coreJwtIssuer: issuer.href.replace(/\/$/, ""),
     coreAnonKey,

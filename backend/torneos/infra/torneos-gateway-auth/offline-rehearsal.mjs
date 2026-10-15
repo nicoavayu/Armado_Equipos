@@ -467,9 +467,13 @@ export default function postgres(url, options) {
       check('RPC outside the allowlist (commerce) → 403 rpc not enabled (never retried)', gated.status === 403 && gated.body.error === 'rpc not enabled', { status: gated.status });
       const withIdentity = await call('/exchange', { method: 'POST', token: ct, body: { core_user_id: crypto.randomUUID() } });
       check('exchange with identity input → 400', withIdentity.status === 400, { status: withIdentity.status });
-      const capacitor = await call('/config', { origin: 'capacitor://localhost' });
       const localhost = await call('/config', { origin: 'https://localhost' });
-      check('capacitor://localhost → 403, no CORS; the Android app origin https://localhost → 200 with its exact CORS grant (web + Android only)', capacitor.status === 403 && !capacitor.cors && localhost.status === 200 && localhost.cors === 'https://localhost', { capacitor: capacitor.status, localhost: localhost.status });
+      const capacitor = await call('/config', { origin: 'capacitor://localhost' });
+      const nearMisses = await Promise.all(['capacitor://localhost/', 'CAPACITOR://localhost', 'capacitor://evil', 'ionic://localhost', 'null']
+        .map((origin) => call('/config', { origin })));
+      check('the Android app origin https://localhost and the iOS app origin capacitor://localhost → 200, each with its exact CORS grant; near misses (trailing slash, case, other host/scheme, null) → 403, no CORS (web + Android + iOS only)',
+        localhost.status === 200 && localhost.cors === 'https://localhost' && capacitor.status === 200 && capacitor.cors === 'capacitor://localhost'
+          && nearMisses.every((r) => r.status === 403 && !r.cors), { localhost: localhost.status, capacitor: capacitor.status, near_misses: nearMisses.map((r) => r.status) });
       core.contractUp = false;
       const down = await call('/torneos/rest/v1/torneos_identity?select=id', { token: bridge });
       const exDown = await call('/exchange', { method: 'POST', token: ct, body: '{}' });
@@ -547,10 +551,10 @@ async function runDenoLeg(DENO, jwksPinFile, keychain) {
     let out = ''; child.stdout.on('data', (d) => { out += d; }); child.stderr.on('data', (d) => { out += d; });
     for (let i = 0; i < 120 && !out.includes('GA_LISTENING'); i++) await sleep(250);
     const req = (p, { method = 'GET', origin = G.WEB_ORIGIN, auth } = {}) => httpJson(PORT, { method, path: `/functions/v1/torneos-gateway${p}`, headers: { host: GATEWAY_HOST, ...(origin ? { origin } : {}), ...(auth ? { authorization: `Bearer ${auth}` } : {}) }, body: method === 'POST' ? '{}' : undefined });
-    const cfg = await req('/config'); const jw = await req('/.well-known/jwks.json'); const ex = await req('/exchange', { method: 'POST', auth: 'eyJx.eyJ4.x' }); const cap = await req('/config', { origin: 'capacitor://localhost' });
+    const cfg = await req('/config'); const jw = await req('/.well-known/jwks.json'); const ex = await req('/exchange', { method: 'POST', auth: 'eyJx.eyJ4.x' }); const cap = await req('/config', { origin: 'capacitor://localhost/' }); const ios = await req('/config', { origin: 'capacitor://localhost' });
     child.kill('SIGTERM');
-    const pass = cfg.status === 200 && cfg.body?.coreUrl === `https://${G.CORE_PROD_REF}.supabase.co` && jw.status === 200 && jw.body?.keys?.length === 2 && ex.status === 503 && cap.status === 403 && !/disabled:/.test(out);
-    return { ran: true, pass, deno: spawnSync(DENO, ['--version'], { encoding: 'utf8' }).stdout.split('\n')[0], config: cfg.status, jwks: jw.status, exchange_core_unreachable: ex.status, capacitor_origin: cap.status, boot_error: /disabled: (.*)/.exec(out)?.[1] ?? null };
+    const pass = cfg.status === 200 && cfg.body?.coreUrl === `https://${G.CORE_PROD_REF}.supabase.co` && jw.status === 200 && jw.body?.keys?.length === 2 && ex.status === 503 && cap.status === 403 && ios.status === 200 && !/disabled:/.test(out);
+    return { ran: true, pass, deno: spawnSync(DENO, ['--version'], { encoding: 'utf8' }).stdout.split('\n')[0], config: cfg.status, jwks: jw.status, exchange_core_unreachable: ex.status, capacitor_origin_trailing_slash: cap.status, capacitor_origin: ios.status, boot_error: /disabled: (.*)/.exec(out)?.[1] ?? null };
   } finally { fs.rmSync(root, { recursive: true, force: true }); }
 }
 
