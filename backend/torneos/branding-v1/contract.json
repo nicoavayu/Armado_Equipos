@@ -3,6 +3,8 @@
   "mode": "TORNEOS_BRANDING_MODE=on (gateway) + REACT_APP_TORNEOS_BRANDING_MODE=on (frontend build)",
   "migration": "backend/torneos/supabase/migrations/00000000000010_branding_v1.sql",
   "rollback": "backend/torneos/branding-v1/rollback/00000000000010_branding_v1.rollback.sql",
+  "sponsors_migration": "backend/torneos/supabase/migrations/00000000000020_premium_sponsors.sql",
+  "sponsors_rollback": "backend/torneos/sponsors-v1/rollback/00000000000020_premium_sponsors.rollback.sql",
   "bucket": {
     "id": "tournament-branding",
     "public": false,
@@ -33,7 +35,11 @@
   ],
   "rpcs": [
     "set_tournament_branding_reference",
-    "get_tournament_branding_context"
+    "get_tournament_branding_context",
+    "get_tournament_organization_sponsors",
+    "upsert_tournament_organization_sponsor",
+    "archive_tournament_organization_sponsor",
+    "authorize_tournament_social_sponsors"
   ],
   "public_rpcs": [
     "get_public_tournament_branding"
@@ -48,7 +54,9 @@
     "get_tournament_branding_context",
     "get_team_registration_context",
     "get_tournament_teams_context",
-    "get_tournament_participant_hub"
+    "get_tournament_participant_hub",
+    "get_tournament_organization_sponsors",
+    "authorize_tournament_social_sponsors"
   ],
   "object_route": "POST /torneos/branding/v1/object/<organization>/<organizations|tournaments|teams>/<entity> (MEDIA-STORE-V1: the store names the object <uuid>.<real extension>) | DELETE /torneos/branding/v1/object/<organization>/<organizations|tournaments|teams>/<entity>/<uuid>.<jpg|png|webp>",
   "object_store": "torneos-media-store (0017 authorize_tournament_storage_objects with the caller's token, then the service key; hosted Storage refuses bridge tokens)",

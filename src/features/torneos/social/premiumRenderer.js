@@ -6,6 +6,8 @@
  * ./premium/generated.
  */
 
+import { PREMIUM_SPONSOR_BAND_METRICS } from './premium/shared/PremiumPrimitives';
+
 export { PREMIUM_REQUIRED_FONTS, ensurePremiumSocialFonts } from './premium/premiumFonts';
 export {
   createPremiumDomRender,
@@ -46,12 +48,14 @@ export function drawPremiumCoverImage(ctx, image, x, y, width, height, focal = {
   return true;
 }
 
-/** Compatibility sizing helper used by existing QA assertions. */
+/** Height of the sponsor band (label + tiles, without the composition's own margin): 194 px in 4:5, 260 px in 9:16. */
 export function sponsorRailHeight(sponsors, isStory = false) {
   const renderable = Array.isArray(sponsors)
     ? sponsors.filter((entry) => entry?.image || entry?.src).slice(0, 3)
     : [];
-  return renderable.length ? (isStory ? 112 : 88) : 0;
+  if (!renderable.length) return 0;
+  const metrics = PREMIUM_SPONSOR_BAND_METRICS[isStory ? 'story' : 'portrait'];
+  return Math.round(metrics.labelSize * 1.15) + metrics.labelGap + metrics.tileHeight;
 }
 
 export function renderPremiumSocialPiece() {

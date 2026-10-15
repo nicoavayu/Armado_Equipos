@@ -48,12 +48,21 @@
 @media (max-width: 520px) {
   .nav {
     width: 100%;
+    /* The sections wrap instead of scrolling: a hidden scroll left the last tab cut at the edge on a phone (E2E demo
+       D5). Every tab keeps its 44 px touch target. */
+    flex-wrap: wrap;
   }
 
   .nav a {
-    flex: 1;
+    flex: 1 1 auto;
     min-width: 0;
     padding-inline: 10px;
     font-size: 12px;
+  }
+
+  /* Four sections (with Sponsors): two rows of two, all the same width. */
+  .nav a:first-child:nth-last-child(4),
+  .nav a:first-child:nth-last-child(4) ~ a {
+    flex: 1 1 calc(50% - 3px);
   }
 }

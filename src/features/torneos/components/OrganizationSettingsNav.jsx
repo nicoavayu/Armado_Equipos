@@ -1,5 +1,5 @@
 import React from 'react';
-import { BadgeCheck, Settings2, Users } from 'lucide-react';
+import { BadgeCheck, Handshake, Settings2, Users } from 'lucide-react';
 import { NavLink, useParams } from 'react-router-dom';
 import { canonicalRoutes } from '../routing/canonicalRoutes';
 import { useTorneosFeature } from '../context/TorneosFeaturesContext';
@@ -22,6 +22,8 @@ export default function OrganizationSettingsNav() {
   const { organizationId, tournamentId, seasonId: routeSeasonId } = useParams();
   const planEnabled = useTorneosFeature('plan');
   const legacyRoutes = useTorneosFeature('plan_legacy_routes');
+  // PREMIUM SPONSORS ride the branding composition: without it there is no Sponsors section.
+  const sponsorsEnabled = useTorneosFeature('branding_assets');
   const competition = useOptionalTorneosCompetition();
   const target = planEnabled ? planTarget({
     organizationId,
@@ -55,6 +57,15 @@ export default function OrganizationSettingsNav() {
         <Users size={17} aria-hidden="true" />
         Miembros
       </NavLink>
+      {sponsorsEnabled && (
+        <NavLink
+          to={canonicalRoutes.organizationSponsors(organizationId)}
+          className={({ isActive }) => (isActive ? styles.active : '')}
+        >
+          <Handshake size={17} aria-hidden="true" />
+          Sponsors
+        </NavLink>
+      )}
     </nav>
   );
 }

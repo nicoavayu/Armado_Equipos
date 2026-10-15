@@ -7,6 +7,12 @@ const features = {
   "branding_assets": [
     "set_tournament_branding_reference",
     "get_tournament_branding_context"
+  ],
+  "sponsors": [
+    "get_tournament_organization_sponsors",
+    "upsert_tournament_organization_sponsor",
+    "archive_tournament_organization_sponsor",
+    "authorize_tournament_social_sponsors"
   ]
 };
 

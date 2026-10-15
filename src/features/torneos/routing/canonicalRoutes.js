@@ -169,6 +169,7 @@ export const organizationMembers = organizationRoute('/miembros');
 export const organizationSettings = organizationRoute('/configuracion');
 export const organizationMyPlan = organizationRoute('/mi-plan');
 export const organizationSettingsPlan = organizationRoute('/configuracion/plan');
+export const organizationSponsors = organizationRoute('/configuracion/sponsors');
 export const organizationCommunications = organizationRoute('/comunicaciones');
 export const organizationMedia = organizationRoute('/multimedia');
 export const organizationSocialStudio = organizationRoute('/estudio-social');
@@ -290,6 +291,7 @@ export const canonicalRoutes = Object.freeze({
   organizationMembers,
   organizationSettings,
   organizationSettingsPlan,
+  organizationSponsors,
   organizationMyPlan,
   organizationCommunications,
   organizationMedia,

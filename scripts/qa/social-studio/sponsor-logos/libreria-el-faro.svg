@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 1200" width="1200" height="1200">
+  <!-- Fictional brand (QA fixture). Square emblem on a transparent background. Fonts: Libre Franklin, Bodoni Moda. -->
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Bodoni+Moda:wght@700&amp;family=Libre+Franklin:wght@700&amp;display=block');
+    .ring { font: 700 82px 'Libre Franklin', Arial, sans-serif; letter-spacing: 20px; fill: #F6EBD2; }
+    .word { font: 700 118px 'Bodoni Moda', Georgia, serif; fill: #1B3A5C; }
+  </style>
+  <defs>
+    <path id="arc" d="M 180 600 A 420 420 0 0 1 1020 600"/>
+    <clipPath id="disc"><circle cx="600" cy="600" r="330"/></clipPath>
+  </defs>
+  <circle cx="600" cy="600" r="560" fill="#1B3A5C"/>
+  <circle cx="600" cy="600" r="530" fill="none" stroke="#E8B04A" stroke-width="10"/>
+  <text class="ring" text-anchor="middle"><textPath href="#arc" startOffset="50%">LIBRERÍA</textPath></text>
+  <circle cx="600" cy="600" r="340" fill="#F6EBD2"/>
+  <g clip-path="url(#disc)">
+    <polygon points="600,470 1000,330 1000,560" fill="#E8B04A" opacity="0.9"/>
+    <polygon points="600,470 200,330 200,560" fill="#E8B04A" opacity="0.9"/>
+    <rect x="240" y="800" width="720" height="200" fill="#1B3A5C"/>
+    <path d="M240 812 Q 330 772 420 812 T 600 812 T 780 812 T 960 812 V 830 H 240 Z" fill="#F6EBD2" opacity="0.35"/>
+    <polygon points="548,520 652,520 690,820 510,820" fill="#1B3A5C"/>
+    <polygon points="539,600 661,600 667,650 533,650" fill="#C2412D"/>
+    <polygon points="526,710 674,710 680,760 520,760" fill="#C2412D"/>
+    <rect x="560" y="440" width="80" height="80" fill="#E8B04A"/>
+    <polygon points="540,440 660,440 600,392" fill="#1B3A5C"/>
+    <rect x="530" y="512" width="140" height="18" fill="#1B3A5C"/>
+  </g>
+  <rect x="270" y="900" width="660" height="170" rx="18" fill="#F6EBD2"/>
+  <text class="word" x="600" y="1026" text-anchor="middle">EL FARO</text>
+</svg>

@@ -33,6 +33,8 @@ select json_build_object(
    and to_regclass('public.tournament_commerce_production_settings') is not null,
  -- 0017 (MEDIA-STORE-V1) present: its one public RPC is executable by authenticated (+1 / +0).
  'media_store', to_regprocedure('public.authorize_tournament_storage_objects(text,text,text[])') is not null,
+ -- 0020 (PREMIUM SPONSORS) present: its four public RPCs are executable by authenticated (+4 / +0).
+ 'sponsors', to_regprocedure('public.authorize_tournament_social_sponsors(uuid,uuid,text,uuid[])') is not null,
  'media_objects', (select count(*) from storage.objects where bucket_id = 'tournament-media'),
  'media', json_build_object(
    'functions', (select coalesce(json_agg(qname order by qname), '[]'::json) from fns where qname in (select name from added)),

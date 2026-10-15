@@ -236,6 +236,7 @@ function fitTeamNameLeaf(leaf, { max, min, maxHeight = Number.POSITIVE_INFINITY 
 
 function hardenResultRows(root, matches, themeId, formatId) {
   if (formatId !== 'story' || !matches.length) return;
+  const sponsorBand = root.querySelector('[data-premium-sponsor-band]');
   const unused = new Set();
   const rows = matches.map((match) => {
     const result = match?.result || match?.score;
@@ -279,8 +280,15 @@ function hardenResultRows(root, matches, themeId, formatId) {
   }[themeId];
   const nameSize = dense ? (rows.length >= 8 ? 23 : 27) : 34;
   const nameMin = dense ? 16 : 20;
-  const scoreSize = dense ? (rows.length >= 8 ? 43 : 52) : 68;
-  const crestSize = Math.min(dense ? 58 : 82, Math.max(38, rowHeight * 0.56));
+  const templateScoreSize = dense ? (rows.length >= 8 ? 43 : 52) : 68;
+  const templateCrestSize = Math.min(dense ? 58 : 82, Math.max(38, rowHeight * 0.56));
+  // PREMIUM SPONSORS: Scoreboard stacks the two teams of a match in one row; with the band's shorter rows each half
+  // keeps its score and its crest (a 5:6 shield) inside it. Without a band the approved sizes stand.
+  const half = rowHeight / 2;
+  const scoreSize = sponsorBand && themeId === 'scoreboard'
+    ? Math.min(templateScoreSize, Math.floor(half * 0.62)) : templateScoreSize;
+  const crestSize = sponsorBand && themeId === 'scoreboard'
+    ? Math.min(templateCrestSize, Math.floor((half - 8) / 1.2)) : templateCrestSize;
 
   rows.forEach((row, index) => {
     Object.assign(row.style, {
@@ -316,6 +324,8 @@ function hardenResultRows(root, matches, themeId, formatId) {
           if (crest) Object.assign(crest.style, {
             width: `${crestSize}px`, maxWidth: '100%', margin: '0 auto',
           });
+          // With the band the shield is smaller: its initials follow it.
+          if (crest && sponsorBand) crest.style.fontSize = `${Math.floor(crestSize * 0.4)}px`;
         }
         if (halfCells[1]) Object.assign(halfCells[1].style, {
           minWidth: '0', overflow: 'hidden', paddingLeft: '10px', paddingRight: '10px',
@@ -416,6 +426,31 @@ function gridRowForName(root, name, unused) {
   return null;
 }
 
+// PREMIUM SPONSORS: a piece with a sponsor band gives the band its own room under the table. The rows must end where the
+// table's frame ends (above the band's margin), not where the frame's viewport would let the body grow. The frame is
+// anchored to the top first (as the flow below does anyway) so the body's top is where it will stay. Without a band this
+// is Infinity and nothing is touched: those compositions keep their approved measurement.
+function sponsorBandLimit(root, parent, frame) {
+  if (!root.querySelector('[data-premium-sponsor-band]') || !frame || frame === parent) return Number.POSITIVE_INFINITY;
+  Object.assign(frame.style, { justifyContent: 'flex-start', alignContent: 'start' });
+  const scale = root.offsetWidth / (root.getBoundingClientRect().width || root.offsetWidth || 1);
+  const paddingBottom = Number.parseFloat(getComputedStyle(frame).paddingBottom) || 0;
+  // What the frame holds under the table (Disciplina's suspensions) keeps its room too.
+  let below = 0;
+  for (let node = parent; node && node !== frame; node = node.parentElement) {
+    const holder = getComputedStyle(node.parentElement);
+    const gap = holder.display.includes('flex') || holder.display.includes('grid') ? (Number.parseFloat(holder.rowGap) || 0) : 0;
+    for (let sibling = node.nextElementSibling; sibling; sibling = sibling.nextElementSibling) {
+      const style = getComputedStyle(sibling);
+      if (style.position === 'absolute' || style.position === 'fixed' || style.display === 'none') continue;
+      below += sibling.getBoundingClientRect().height * scale + gap
+        + (Number.parseFloat(style.marginTop) || 0) + (Number.parseFloat(style.marginBottom) || 0);
+    }
+  }
+  const limit = (frame.getBoundingClientRect().bottom - parent.getBoundingClientRect().top) * scale - paddingBottom - below;
+  return limit > 0 ? Math.floor(limit) : Number.POSITIVE_INFINITY;
+}
+
 function hardenTabularFlow(root, rowsData, kind, formatId, themeId) {
   if (!rowsData.length) return;
   const unused = new Set();
@@ -452,9 +487,9 @@ function hardenTabularFlow(root, rowsData, kind, formatId, themeId) {
     && kind === 'standings'
     ? 18
     : 0;
-  const availableBodyHeight = Math.max(
-    0,
-    (measuredBodyHeight || fallbackBodyHeight) - footerSafetyInset,
+  const availableBodyHeight = Math.min(
+    Math.max(0, (measuredBodyHeight || fallbackBodyHeight) - footerSafetyInset),
+    sponsorBandLimit(root, parent, flowFrame),
   );
   const nameLeaves = rowsData.map((entry, index) => leafWithText(
     rows[index],
@@ -1125,6 +1160,60 @@ function clearTitle(root, list, items, kind) {
   list.dataset.premiumSparseClearTitle = kind;
 }
 
+// PREMIUM SPONSORS: a panel the composition gives a fixed minimum height (Figura's photo and its stats) can still reach
+// into the band. Its minimum gives way by exactly what crosses the band's top margin, outermost panel first, so the
+// panel keeps its proportions and nothing is drawn under the logos. Pieces without a band never get here.
+function reflowAboveSponsorBand(root) {
+  const band = root.querySelector('[data-premium-sponsor-band]');
+  if (!band) return;
+  const scale = root.offsetWidth / (root.getBoundingClientRect().width || root.offsetWidth || 1);
+  const inFlow = (node) => {
+    for (let current = node; current && current !== root; current = current.parentElement) {
+      const { position } = getComputedStyle(current);
+      if (position === 'absolute' || position === 'fixed') return false;
+    }
+    return true;
+  };
+  for (let pass = 0; pass < 4; pass += 1) {
+    const limit = band.getBoundingClientRect().top - (Number.parseFloat(getComputedStyle(band).marginTop) || 0) / scale;
+    const crossing = Array.from(root.querySelectorAll('*')).filter((node) => {
+      if (band.contains(node) || node.contains(band)) return false;
+      const box = node.getBoundingClientRect();
+      return box.height > 0 && box.top < limit && box.bottom > limit + 0.5 && inFlow(node);
+    });
+    if (!crossing.length) break;
+    const over = Math.ceil((Math.max(...crossing.map((node) => node.getBoundingClientRect().bottom)) - limit) * scale);
+    const panel = crossing.find((node) => Number.parseFloat(node.style.minHeight) > 0);
+    if (!panel) break;
+    panel.style.minHeight = `${Math.max(0, Number.parseFloat(panel.style.minHeight) - over)}px`;
+    panel.dataset.premiumSponsorReflow = String(over);
+  }
+  // A column of fixed-size panels (Figura in Historia) is pushed past the canvas by the band instead: the panel above
+  // the band with the most room to spare inside it gives up exactly the overflow, so the footer stays on the canvas.
+  const column = band.parentElement;
+  const overflow = column ? Math.ceil(column.scrollHeight - column.clientHeight) : 0;
+  if (!(overflow > 0)) return;
+  const spare = (node) => {
+    const box = node.getBoundingClientRect();
+    const inside = Array.from(node.querySelectorAll('*')).map((child) => child.getBoundingClientRect())
+      .filter((child) => child.height > 0);
+    if (!inside.length) return 0;
+    const top = Math.min(...inside.map((child) => child.top));
+    const bottom = Math.max(...inside.map((child) => child.bottom));
+    return ((box.height - (bottom - top)) * scale);
+  };
+  const panels = [];
+  for (let node = band.previousElementSibling; node; node = node.previousElementSibling) {
+    const basis = (node.style.flex || '').match(/^0 0 (\d+(?:\.\d+)?)px$/);
+    if (basis && inFlow(node)) panels.push({ node, basis: Number(basis[1]), room: spare(node) });
+  }
+  const panel = panels.filter((entry) => entry.room >= overflow + 8).sort((a, b) => b.room - a.room)[0];
+  if (!panel) return;
+  const size = `${panel.basis - overflow}px`;
+  Object.assign(panel.node.style, { flex: `0 0 ${size}`, height: size, minHeight: size });
+  panel.node.dataset.premiumSponsorReflow = String(overflow);
+}
+
 export function applyPremiumLayoutHardening(root, {
   snapshot,
   editorial = {},
@@ -1178,5 +1267,6 @@ export function applyPremiumLayoutHardening(root, {
   if (piece === 'standings' && themeId === 'editorial') {
     hardenEditorialPagination(root, pagination, formatId);
   }
+  reflowAboveSponsorBand(root);
   return root;
 }

@@ -1,8 +1,8 @@
 # TORNEOS-CALL-MAP — auditoría B04
 
-Inventario legacy congelado en `2058da039a2a5eaaed22d87d01946bc596ae5f50` (Phase 2D); árbol integrado auditado en `96fae4453a350aab0e3f9251b8e2fa5814405091`. Reconstruido del código. No representa resultados de R2/R3/R4/R5.
+Inventario legacy congelado en `2058da039a2a5eaaed22d87d01946bc596ae5f50` (Phase 2D); árbol integrado auditado en `940ae0e3cb32d695b8da61a77046fb1fc1d2a471`. Reconstruido del código. No representa resultados de R2/R3/R4/R5.
 
-180 sitios RPC legacy; 179 nombres distintos; 108 nombres dentro de scope; 71 fuera. La selección dinámica de `changeTournamentMatchPlan` se resuelve a sus tres nombres literales. No quedan RPC dinámicas sin resolver.
+184 sitios RPC legacy; 183 nombres distintos; 108 nombres dentro de scope; 75 fuera. La selección dinámica de `changeTournamentMatchPlan` se resuelve a sus tres nombres literales. No quedan RPC dinámicas sin resolver.
 
 ## Encaminadas por el adapter híbrido — staging v1 + COMPETITION-V1 (108)
 
@@ -10,114 +10,114 @@ Inventario legacy congelado en `2058da039a2a5eaaed22d87d01946bc596ae5f50` (Phase
 
 | RPC | Función frontend legacy | Sitio legacy |
 | --- | --- | --- |
-| `accept_tournament_team_invitation` | `acceptTournamentTeamInvitation` | [src/features/torneos/api/tournamentWorkspaceService.js:739](../../../src/features/torneos/api/tournamentWorkspaceService.js#L739) |
-| `acknowledge_tournament_document` | `acknowledgeTournamentDocument` | [src/features/torneos/api/tournamentWorkspaceService.js:1724](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1724) |
-| `add_tournament_match_event` | `addTournamentMatchEvent` | [src/features/torneos/api/tournamentWorkspaceService.js:1186](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1186) |
-| `add_tournament_roster_player` | `addTournamentRosterPlayer` | [src/features/torneos/api/tournamentWorkspaceService.js:652](../../../src/features/torneos/api/tournamentWorkspaceService.js#L652) |
-| `append_tournament_playoff_phase` | `appendTournamentPlayoffPhase` | [src/features/torneos/api/tournamentWorkspaceService.js:862](../../../src/features/torneos/api/tournamentWorkspaceService.js#L862) |
-| `archive_tournament_team_entry` | `archiveTournamentTeamEntry` | [src/features/torneos/api/tournamentWorkspaceService.js:713](../../../src/features/torneos/api/tournamentWorkspaceService.js#L713) |
-| `assign_tournament_season_member` | `assignTournamentSeasonMember` | [src/features/torneos/api/tournamentWorkspaceService.js:137](../../../src/features/torneos/api/tournamentWorkspaceService.js#L137) |
-| `auto_schedule_tournament_matches` | `autoScheduleTournamentMatches` | [src/features/torneos/api/tournamentWorkspaceService.js:1044](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1044) |
-| `change_tournament_status` | `changeTournamentCompetitionStatus` | [src/features/torneos/api/tournamentWorkspaceService.js:488](../../../src/features/torneos/api/tournamentWorkspaceService.js#L488) |
-| `create_manual_fixture_version` | `createManualTournamentFixture` | [src/features/torneos/api/tournamentWorkspaceService.js:829](../../../src/features/torneos/api/tournamentWorkspaceService.js#L829) |
-| `create_tournament_announcement_draft` | `createTournamentAnnouncementDraft` | [src/features/torneos/api/tournamentWorkspaceService.js:1755](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1755) |
-| `create_tournament_court` | `createTournamentCourt` | [src/features/torneos/api/tournamentWorkspaceService.js:967](../../../src/features/torneos/api/tournamentWorkspaceService.js#L967) |
-| `create_tournament_document` | `createTournamentDocument` | [src/features/torneos/api/tournamentWorkspaceService.js:1874](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1874) |
-| `create_tournament_match_correction` | `createTournamentMatchCorrection` | [src/features/torneos/api/tournamentWorkspaceService.js:1240](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1240) |
-| `create_tournament_organization` | `createTournamentOrganization` | [src/features/torneos/api/tournamentWorkspaceService.js:223](../../../src/features/torneos/api/tournamentWorkspaceService.js#L223) |
-| `create_tournament_provisional_player` | `createTournamentProvisionalPlayer` | [src/features/torneos/api/tournamentWorkspaceService.js:644](../../../src/features/torneos/api/tournamentWorkspaceService.js#L644) |
-| `create_tournament_season` | `createTournamentSeason` | [src/features/torneos/api/tournamentWorkspaceService.js:344](../../../src/features/torneos/api/tournamentWorkspaceService.js#L344) |
-| `create_tournament_team_entry` | `createTournamentTeamEntry` | [src/features/torneos/api/tournamentWorkspaceService.js:618](../../../src/features/torneos/api/tournamentWorkspaceService.js#L618) |
-| `create_tournament_venue` | `createTournamentVenue` | [src/features/torneos/api/tournamentWorkspaceService.js:945](../../../src/features/torneos/api/tournamentWorkspaceService.js#L945) |
-| `create_tournament_with_defaults` | `createTournamentCompetition` | [src/features/torneos/api/tournamentWorkspaceService.js:403](../../../src/features/torneos/api/tournamentWorkspaceService.js#L403) |
-| `execute_tournament_group_draw` | `executeTournamentGroupDraw` | [src/features/torneos/api/tournamentWorkspaceService.js:807](../../../src/features/torneos/api/tournamentWorkspaceService.js#L807) |
-| `finish_tournament_competition` | `finishTournamentCompetition` | [src/features/torneos/api/tournamentWorkspaceService.js:517](../../../src/features/torneos/api/tournamentWorkspaceService.js#L517) |
-| `freeze_tournament_participants` | `freezeTournamentParticipants` | [src/features/torneos/api/tournamentWorkspaceService.js:780](../../../src/features/torneos/api/tournamentWorkspaceService.js#L780) |
-| `generate_tournament_fixture` | `generateTournamentFixture` | [src/features/torneos/api/tournamentWorkspaceService.js:818](../../../src/features/torneos/api/tournamentWorkspaceService.js#L818) |
-| `get_managed_tournament_matches` | `loadPlayerTournamentMatches` | [src/features/torneos/api/tournamentWorkspaceService.js:1069](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1069) |
-| `get_match_squad_context` | `loadTournamentMatchSquad` | [src/features/torneos/api/tournamentWorkspaceService.js:1122](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1122) |
-| `get_my_managed_match_squad_context` | `loadMyManagedTournamentMatchSquad` | [src/features/torneos/api/tournamentWorkspaceService.js:1130](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1130) |
-| `get_my_tournament_memberships` | `loadMyTournamentMemberships` | [src/features/torneos/api/tournamentWorkspaceService.js:1354](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1354) |
-| `get_my_tournament_notification_preferences` | `loadTournamentNotificationPreferences` | [src/features/torneos/api/tournamentWorkspaceService.js:1526](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1526) |
-| `get_player_tournament_matches` | `loadPlayerTournamentMatches` | [src/features/torneos/api/tournamentWorkspaceService.js:1068](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1068) |
-| `get_published_tournament_documents` | `loadPublishedTournamentDocuments` | [src/features/torneos/api/tournamentWorkspaceService.js:1714](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1714) |
-| `get_published_tournament_matches` | `loadPublishedTournamentMatches` | [src/features/torneos/api/tournamentWorkspaceService.js:1437](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1437) |
-| `get_published_tournament_standings` | `loadPublishedTournamentStandings` | [src/features/torneos/api/tournamentWorkspaceService.js:1473](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1473) |
-| `get_published_tournament_statistics` | `loadPublishedTournamentStatistics` | [src/features/torneos/api/tournamentWorkspaceService.js:1487](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1487) |
-| `get_published_tournament_teams` | `loadPublishedTournamentTeams` | [src/features/torneos/api/tournamentWorkspaceService.js:1459](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1459) |
-| `get_team_registration_context` | `loadTeamRegistrationContext` | [src/features/torneos/api/tournamentWorkspaceService.js:606](../../../src/features/torneos/api/tournamentWorkspaceService.js#L606) |
-| `get_tournament_announcement` | `loadTournamentAnnouncement` | [src/features/torneos/api/tournamentWorkspaceService.js:1510](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1510) |
-| `get_tournament_communications_admin_context` | `loadTournamentCommunicationsAdminContext` | [src/features/torneos/api/tournamentWorkspaceService.js:1734](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1734) |
-| `get_tournament_communications_inbox` | `loadTournamentCommunicationsInbox` | [src/features/torneos/api/tournamentWorkspaceService.js:1501](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1501) |
-| `get_tournament_competition_context` | `loadTournamentCompetitionContext` | [src/features/torneos/api/tournamentWorkspaceService.js:311](../../../src/features/torneos/api/tournamentWorkspaceService.js#L311) |
-| `get_tournament_creation_eligibility` | `loadTournamentCreationEligibility` | [src/features/torneos/api/tournamentWorkspaceService.js:67](../../../src/features/torneos/api/tournamentWorkspaceService.js#L67) |
-| `get_tournament_fixture_context` | `loadTournamentFixtureContext` | [src/features/torneos/api/tournamentWorkspaceService.js:764](../../../src/features/torneos/api/tournamentWorkspaceService.js#L764) |
-| `get_tournament_match_operation_context` | `loadTournamentMatchOperation` | [src/features/torneos/api/tournamentWorkspaceService.js:1115](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1115) |
-| `get_tournament_match_operations_context` | `loadTournamentMatchOperations` | [src/features/torneos/api/tournamentWorkspaceService.js:1107](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1107) |
-| `get_tournament_participant_hub` | `loadTournamentParticipantHub` | [src/features/torneos/api/tournamentWorkspaceService.js:1400](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1400) |
-| `get_tournament_participant_match` | `loadTournamentParticipantMatch` | [src/features/torneos/api/tournamentWorkspaceService.js:1448](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1448) |
-| `get_tournament_public_page_settings` | `loadTournamentPublicPageSettings` | [src/features/torneos/api/tournamentWorkspaceService.js:176](../../../src/features/torneos/api/tournamentWorkspaceService.js#L176) |
-| `get_tournament_schedule_context` | `loadTournamentScheduleContext` | [src/features/torneos/api/tournamentWorkspaceService.js:772](../../../src/features/torneos/api/tournamentWorkspaceService.js#L772) |
-| `get_tournament_standings_context` | `loadTournamentStandings` | [src/features/torneos/api/tournamentWorkspaceService.js:1265](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1265) |
-| `get_tournament_statistics_context` | `loadTournamentStatistics` | [src/features/torneos/api/tournamentWorkspaceService.js:1272](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1272) |
-| `get_tournament_teams_context` | `loadTournamentTeamsContext` | [src/features/torneos/api/tournamentWorkspaceService.js:592](../../../src/features/torneos/api/tournamentWorkspaceService.js#L592) |
-| `get_tournament_workspace_context` | `loadTournamentWorkspaceContext` | [src/features/torneos/api/tournamentWorkspaceService.js:35](../../../src/features/torneos/api/tournamentWorkspaceService.js#L35) |
-| `invite_tournament_team_manager` | `inviteTournamentTeamManager` | [src/features/torneos/api/tournamentWorkspaceService.js:729](../../../src/features/torneos/api/tournamentWorkspaceService.js#L729) |
-| `is_tournament_organization_slug_available` | `checkTournamentOrganizationSlugAvailability` | [src/features/torneos/api/tournamentWorkspaceService.js:260](../../../src/features/torneos/api/tournamentWorkspaceService.js#L260) |
-| `list_tournament_season_member_assignments` | `listTournamentSeasonMemberAssignments` | [src/features/torneos/api/tournamentWorkspaceService.js:130](../../../src/features/torneos/api/tournamentWorkspaceService.js#L130) |
-| `make_tournament_match_official` | `makeTournamentMatchOfficial` | [src/features/torneos/api/tournamentWorkspaceService.js:1225](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1225) |
-| `mark_tournament_announcement_read` | `markTournamentAnnouncementRead` | [src/features/torneos/api/tournamentWorkspaceService.js:1519](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1519) |
-| `open_tournament_match_operation` | `openTournamentMatchOperation` | [src/features/torneos/api/tournamentWorkspaceService.js:1153](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1153) |
-| `preview_tournament_announcement_audience` | `previewTournamentAnnouncementAudience` | [src/features/torneos/api/tournamentWorkspaceService.js:1847](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1847) |
-| `publish_tournament_announcement` | `publishTournamentAnnouncement` | [src/features/torneos/api/tournamentWorkspaceService.js:1856](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1856) |
-| `publish_tournament_document_version` | `publishTournamentDocumentVersion` | [src/features/torneos/api/tournamentWorkspaceService.js:1889](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1889) |
-| `publish_tournament_fixture` | `publishTournamentFixture` | [src/features/torneos/api/tournamentWorkspaceService.js:855](../../../src/features/torneos/api/tournamentWorkspaceService.js#L855) |
-| `publish_tournament_standings_revision` | `publishTournamentStandings` | [src/features/torneos/api/tournamentWorkspaceService.js:1287](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1287) |
-| `rebuild_tournament_standings` | `rebuildTournamentStandings` | [src/features/torneos/api/tournamentWorkspaceService.js:1279](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1279) |
-| `remove_tournament_roster_player` | `removeTournamentRosterPlayer` | [src/features/torneos/api/tournamentWorkspaceService.js:680](../../../src/features/torneos/api/tournamentWorkspaceService.js#L680) |
-| `remove_tournament_season_member_assignment` | `removeTournamentSeasonMemberAssignment` | [src/features/torneos/api/tournamentWorkspaceService.js:149](../../../src/features/torneos/api/tournamentWorkspaceService.js#L149) |
-| `reopen_tournament_competition` | `reopenTournamentCompetition` | [src/features/torneos/api/tournamentWorkspaceService.js:535](../../../src/features/torneos/api/tournamentWorkspaceService.js#L535) |
-| `reopen_tournament_participants` | `reopenTournamentParticipants` | [src/features/torneos/api/tournamentWorkspaceService.js:789](../../../src/features/torneos/api/tournamentWorkspaceService.js#L789) |
-| `replace_tournament_announcement_audience` | `replaceTournamentAnnouncementAudience` | [src/features/torneos/api/tournamentWorkspaceService.js:1798](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1798) |
-| `request_tournament_match_correction` | `requestTournamentMatchCorrection` | [src/features/torneos/api/tournamentWorkspaceService.js:1232](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1232) |
-| `reschedule_tournament_match` | `rescheduleTournamentMatch` | [src/features/torneos/api/tournamentWorkspaceService.js:1017](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1017) |
-| `resolve_tournament_qualification` | `resolveTournamentQualification` | [src/features/torneos/api/tournamentWorkspaceService.js:1294](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1294) |
-| `respond_match_availability` | `respondTournamentMatchAvailability` | [src/features/torneos/api/tournamentWorkspaceService.js:1088](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1088) |
-| `review_tournament_match_operation` | `reviewTournamentMatchOperation` | [src/features/torneos/api/tournamentWorkspaceService.js:1209](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1209) |
-| `review_tournament_team_entry` | `reviewTournamentTeamEntry` | [src/features/torneos/api/tournamentWorkspaceService.js:695](../../../src/features/torneos/api/tournamentWorkspaceService.js#L695) |
-| `save_match_squad` | `saveTournamentMatchSquad` | [src/features/torneos/api/tournamentWorkspaceService.js:1136](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1136) |
-| `save_tournament_category` | `saveTournamentCategory` | [src/features/torneos/api/tournamentWorkspaceService.js:459](../../../src/features/torneos/api/tournamentWorkspaceService.js#L459) |
-| `save_tournament_draw_pots` | `saveTournamentDrawPots` | [src/features/torneos/api/tournamentWorkspaceService.js:798](../../../src/features/torneos/api/tournamentWorkspaceService.js#L798) |
-| `save_tournament_schedule_windows` | `saveTournamentScheduleWindows` | [src/features/torneos/api/tournamentWorkspaceService.js:985](../../../src/features/torneos/api/tournamentWorkspaceService.js#L985) |
-| `schedule_tournament_match` | `scheduleTournamentMatch` | [src/features/torneos/api/tournamentWorkspaceService.js:1004](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1004) |
-| `search_tournament_arma2_teams` | `searchTournamentArma2Teams` | [src/features/torneos/api/tournamentWorkspaceService.js:755](../../../src/features/torneos/api/tournamentWorkspaceService.js#L755) |
-| `search_tournament_players` | `searchTournamentPlayers` | [src/features/torneos/api/tournamentWorkspaceService.js:745](../../../src/features/torneos/api/tournamentWorkspaceService.js#L745) |
-| `set_active_tournament_context` | `setActiveTournamentContext` | [src/features/torneos/api/tournamentWorkspaceService.js:577](../../../src/features/torneos/api/tournamentWorkspaceService.js#L577) |
-| `set_my_tournament_hub_category` | `setTournamentHubCategory` | [src/features/torneos/api/tournamentWorkspaceService.js:1423](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1423) |
-| `set_tournament_announcement_link` | `setTournamentAnnouncementLink` | [src/features/torneos/api/tournamentWorkspaceService.js:1816](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1816) |
-| `set_tournament_match_outcome` | `setTournamentMatchOutcome` | [src/features/torneos/api/tournamentWorkspaceService.js:1170](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1170) |
-| `set_tournament_match_score` | `setTournamentMatchScore` | [src/features/torneos/api/tournamentWorkspaceService.js:1178](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1178) |
-| `set_tournament_public_page_published` | `setTournamentPublicPagePublished` | [src/features/torneos/api/tournamentWorkspaceService.js:209](../../../src/features/torneos/api/tournamentWorkspaceService.js#L209) |
-| `set_tournament_workspace_preference` | `setTournamentWorkspacePreference` | [src/features/torneos/api/tournamentWorkspaceService.js:244](../../../src/features/torneos/api/tournamentWorkspaceService.js#L244) |
-| `start_tournament_competition` | `startTournamentCompetition` | [src/features/torneos/api/tournamentWorkspaceService.js:503](../../../src/features/torneos/api/tournamentWorkspaceService.js#L503) |
-| `submit_match_squad` | `submitTournamentMatchSquad` | [src/features/torneos/api/tournamentWorkspaceService.js:1145](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1145) |
-| `submit_tournament_match_operation` | `submitTournamentMatchOperation` | [src/features/torneos/api/tournamentWorkspaceService.js:1202](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1202) |
-| `submit_tournament_team_entry` | `submitTournamentTeamEntry` | [src/features/torneos/api/tournamentWorkspaceService.js:688](../../../src/features/torneos/api/tournamentWorkspaceService.js#L688) |
-| `supersede_tournament_fixture` | `supersedeTournamentFixture` | [src/features/torneos/api/tournamentWorkspaceService.js:882](../../../src/features/torneos/api/tournamentWorkspaceService.js#L882) |
-| `update_draft_fixture` | `updateDraftTournamentFixture` | [src/features/torneos/api/tournamentWorkspaceService.js:839](../../../src/features/torneos/api/tournamentWorkspaceService.js#L839) |
-| `update_my_tournament_notification_preferences` | `updateTournamentNotificationPreferences` | [src/features/torneos/api/tournamentWorkspaceService.js:1540](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1540) |
-| `update_tournament_announcement_draft` | `updateTournamentAnnouncementDraft` | [src/features/torneos/api/tournamentWorkspaceService.js:1835](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1835) |
-| `update_tournament_configuration` | `updateTournamentCompetition` | [src/features/torneos/api/tournamentWorkspaceService.js:430](../../../src/features/torneos/api/tournamentWorkspaceService.js#L430) |
-| `update_tournament_organization` | `updateTournamentOrganization` | [src/features/torneos/api/tournamentWorkspaceService.js:281](../../../src/features/torneos/api/tournamentWorkspaceService.js#L281) |
-| `update_tournament_roster_player` | `updateTournamentRosterPlayer` | [src/features/torneos/api/tournamentWorkspaceService.js:668](../../../src/features/torneos/api/tournamentWorkspaceService.js#L668) |
-| `update_tournament_season` | `updateTournamentSeason` | [src/features/torneos/api/tournamentWorkspaceService.js:370](../../../src/features/torneos/api/tournamentWorkspaceService.js#L370) |
-| `update_tournament_team_entry` | `updateTournamentTeamEntry` | [src/features/torneos/api/tournamentWorkspaceService.js:636](../../../src/features/torneos/api/tournamentWorkspaceService.js#L636) |
-| `validate_tournament_fixture` | `validateTournamentFixture` | [src/features/torneos/api/tournamentWorkspaceService.js:848](../../../src/features/torneos/api/tournamentWorkspaceService.js#L848) |
-| `validate_tournament_match_operation` | `validateTournamentMatchOperation` | [src/features/torneos/api/tournamentWorkspaceService.js:1218](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1218) |
-| `validate_tournament_match_schedule` | `validateTournamentMatchSchedule` | [src/features/torneos/api/tournamentWorkspaceService.js:993](../../../src/features/torneos/api/tournamentWorkspaceService.js#L993) |
-| `void_tournament_match_event` | `voidTournamentMatchEvent` | [src/features/torneos/api/tournamentWorkspaceService.js:1194](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1194) |
-| `withdraw_tournament_competition_participant` | `withdrawTournamentCompetitionParticipant` | [src/features/torneos/api/tournamentWorkspaceService.js:556](../../../src/features/torneos/api/tournamentWorkspaceService.js#L556) |
-| `withdraw_tournament_team_entry` | `withdrawTournamentTeamEntry` | [src/features/torneos/api/tournamentWorkspaceService.js:705](../../../src/features/torneos/api/tournamentWorkspaceService.js#L705) |
+| `accept_tournament_team_invitation` | `acceptTournamentTeamInvitation` | [src/features/torneos/api/tournamentWorkspaceService.js:745](../../../src/features/torneos/api/tournamentWorkspaceService.js#L745) |
+| `acknowledge_tournament_document` | `acknowledgeTournamentDocument` | [src/features/torneos/api/tournamentWorkspaceService.js:1730](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1730) |
+| `add_tournament_match_event` | `addTournamentMatchEvent` | [src/features/torneos/api/tournamentWorkspaceService.js:1192](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1192) |
+| `add_tournament_roster_player` | `addTournamentRosterPlayer` | [src/features/torneos/api/tournamentWorkspaceService.js:658](../../../src/features/torneos/api/tournamentWorkspaceService.js#L658) |
+| `append_tournament_playoff_phase` | `appendTournamentPlayoffPhase` | [src/features/torneos/api/tournamentWorkspaceService.js:868](../../../src/features/torneos/api/tournamentWorkspaceService.js#L868) |
+| `archive_tournament_team_entry` | `archiveTournamentTeamEntry` | [src/features/torneos/api/tournamentWorkspaceService.js:719](../../../src/features/torneos/api/tournamentWorkspaceService.js#L719) |
+| `assign_tournament_season_member` | `assignTournamentSeasonMember` | [src/features/torneos/api/tournamentWorkspaceService.js:143](../../../src/features/torneos/api/tournamentWorkspaceService.js#L143) |
+| `auto_schedule_tournament_matches` | `autoScheduleTournamentMatches` | [src/features/torneos/api/tournamentWorkspaceService.js:1050](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1050) |
+| `change_tournament_status` | `changeTournamentCompetitionStatus` | [src/features/torneos/api/tournamentWorkspaceService.js:494](../../../src/features/torneos/api/tournamentWorkspaceService.js#L494) |
+| `create_manual_fixture_version` | `createManualTournamentFixture` | [src/features/torneos/api/tournamentWorkspaceService.js:835](../../../src/features/torneos/api/tournamentWorkspaceService.js#L835) |
+| `create_tournament_announcement_draft` | `createTournamentAnnouncementDraft` | [src/features/torneos/api/tournamentWorkspaceService.js:1761](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1761) |
+| `create_tournament_court` | `createTournamentCourt` | [src/features/torneos/api/tournamentWorkspaceService.js:973](../../../src/features/torneos/api/tournamentWorkspaceService.js#L973) |
+| `create_tournament_document` | `createTournamentDocument` | [src/features/torneos/api/tournamentWorkspaceService.js:1880](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1880) |
+| `create_tournament_match_correction` | `createTournamentMatchCorrection` | [src/features/torneos/api/tournamentWorkspaceService.js:1246](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1246) |
+| `create_tournament_organization` | `createTournamentOrganization` | [src/features/torneos/api/tournamentWorkspaceService.js:229](../../../src/features/torneos/api/tournamentWorkspaceService.js#L229) |
+| `create_tournament_provisional_player` | `createTournamentProvisionalPlayer` | [src/features/torneos/api/tournamentWorkspaceService.js:650](../../../src/features/torneos/api/tournamentWorkspaceService.js#L650) |
+| `create_tournament_season` | `createTournamentSeason` | [src/features/torneos/api/tournamentWorkspaceService.js:350](../../../src/features/torneos/api/tournamentWorkspaceService.js#L350) |
+| `create_tournament_team_entry` | `createTournamentTeamEntry` | [src/features/torneos/api/tournamentWorkspaceService.js:624](../../../src/features/torneos/api/tournamentWorkspaceService.js#L624) |
+| `create_tournament_venue` | `createTournamentVenue` | [src/features/torneos/api/tournamentWorkspaceService.js:951](../../../src/features/torneos/api/tournamentWorkspaceService.js#L951) |
+| `create_tournament_with_defaults` | `createTournamentCompetition` | [src/features/torneos/api/tournamentWorkspaceService.js:409](../../../src/features/torneos/api/tournamentWorkspaceService.js#L409) |
+| `execute_tournament_group_draw` | `executeTournamentGroupDraw` | [src/features/torneos/api/tournamentWorkspaceService.js:813](../../../src/features/torneos/api/tournamentWorkspaceService.js#L813) |
+| `finish_tournament_competition` | `finishTournamentCompetition` | [src/features/torneos/api/tournamentWorkspaceService.js:523](../../../src/features/torneos/api/tournamentWorkspaceService.js#L523) |
+| `freeze_tournament_participants` | `freezeTournamentParticipants` | [src/features/torneos/api/tournamentWorkspaceService.js:786](../../../src/features/torneos/api/tournamentWorkspaceService.js#L786) |
+| `generate_tournament_fixture` | `generateTournamentFixture` | [src/features/torneos/api/tournamentWorkspaceService.js:824](../../../src/features/torneos/api/tournamentWorkspaceService.js#L824) |
+| `get_managed_tournament_matches` | `loadPlayerTournamentMatches` | [src/features/torneos/api/tournamentWorkspaceService.js:1075](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1075) |
+| `get_match_squad_context` | `loadTournamentMatchSquad` | [src/features/torneos/api/tournamentWorkspaceService.js:1128](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1128) |
+| `get_my_managed_match_squad_context` | `loadMyManagedTournamentMatchSquad` | [src/features/torneos/api/tournamentWorkspaceService.js:1136](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1136) |
+| `get_my_tournament_memberships` | `loadMyTournamentMemberships` | [src/features/torneos/api/tournamentWorkspaceService.js:1360](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1360) |
+| `get_my_tournament_notification_preferences` | `loadTournamentNotificationPreferences` | [src/features/torneos/api/tournamentWorkspaceService.js:1532](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1532) |
+| `get_player_tournament_matches` | `loadPlayerTournamentMatches` | [src/features/torneos/api/tournamentWorkspaceService.js:1074](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1074) |
+| `get_published_tournament_documents` | `loadPublishedTournamentDocuments` | [src/features/torneos/api/tournamentWorkspaceService.js:1720](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1720) |
+| `get_published_tournament_matches` | `loadPublishedTournamentMatches` | [src/features/torneos/api/tournamentWorkspaceService.js:1443](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1443) |
+| `get_published_tournament_standings` | `loadPublishedTournamentStandings` | [src/features/torneos/api/tournamentWorkspaceService.js:1479](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1479) |
+| `get_published_tournament_statistics` | `loadPublishedTournamentStatistics` | [src/features/torneos/api/tournamentWorkspaceService.js:1493](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1493) |
+| `get_published_tournament_teams` | `loadPublishedTournamentTeams` | [src/features/torneos/api/tournamentWorkspaceService.js:1465](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1465) |
+| `get_team_registration_context` | `loadTeamRegistrationContext` | [src/features/torneos/api/tournamentWorkspaceService.js:612](../../../src/features/torneos/api/tournamentWorkspaceService.js#L612) |
+| `get_tournament_announcement` | `loadTournamentAnnouncement` | [src/features/torneos/api/tournamentWorkspaceService.js:1516](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1516) |
+| `get_tournament_communications_admin_context` | `loadTournamentCommunicationsAdminContext` | [src/features/torneos/api/tournamentWorkspaceService.js:1740](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1740) |
+| `get_tournament_communications_inbox` | `loadTournamentCommunicationsInbox` | [src/features/torneos/api/tournamentWorkspaceService.js:1507](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1507) |
+| `get_tournament_competition_context` | `loadTournamentCompetitionContext` | [src/features/torneos/api/tournamentWorkspaceService.js:317](../../../src/features/torneos/api/tournamentWorkspaceService.js#L317) |
+| `get_tournament_creation_eligibility` | `loadTournamentCreationEligibility` | [src/features/torneos/api/tournamentWorkspaceService.js:73](../../../src/features/torneos/api/tournamentWorkspaceService.js#L73) |
+| `get_tournament_fixture_context` | `loadTournamentFixtureContext` | [src/features/torneos/api/tournamentWorkspaceService.js:770](../../../src/features/torneos/api/tournamentWorkspaceService.js#L770) |
+| `get_tournament_match_operation_context` | `loadTournamentMatchOperation` | [src/features/torneos/api/tournamentWorkspaceService.js:1121](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1121) |
+| `get_tournament_match_operations_context` | `loadTournamentMatchOperations` | [src/features/torneos/api/tournamentWorkspaceService.js:1113](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1113) |
+| `get_tournament_participant_hub` | `loadTournamentParticipantHub` | [src/features/torneos/api/tournamentWorkspaceService.js:1406](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1406) |
+| `get_tournament_participant_match` | `loadTournamentParticipantMatch` | [src/features/torneos/api/tournamentWorkspaceService.js:1454](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1454) |
+| `get_tournament_public_page_settings` | `loadTournamentPublicPageSettings` | [src/features/torneos/api/tournamentWorkspaceService.js:182](../../../src/features/torneos/api/tournamentWorkspaceService.js#L182) |
+| `get_tournament_schedule_context` | `loadTournamentScheduleContext` | [src/features/torneos/api/tournamentWorkspaceService.js:778](../../../src/features/torneos/api/tournamentWorkspaceService.js#L778) |
+| `get_tournament_standings_context` | `loadTournamentStandings` | [src/features/torneos/api/tournamentWorkspaceService.js:1271](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1271) |
+| `get_tournament_statistics_context` | `loadTournamentStatistics` | [src/features/torneos/api/tournamentWorkspaceService.js:1278](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1278) |
+| `get_tournament_teams_context` | `loadTournamentTeamsContext` | [src/features/torneos/api/tournamentWorkspaceService.js:598](../../../src/features/torneos/api/tournamentWorkspaceService.js#L598) |
+| `get_tournament_workspace_context` | `loadTournamentWorkspaceContext` | [src/features/torneos/api/tournamentWorkspaceService.js:41](../../../src/features/torneos/api/tournamentWorkspaceService.js#L41) |
+| `invite_tournament_team_manager` | `inviteTournamentTeamManager` | [src/features/torneos/api/tournamentWorkspaceService.js:735](../../../src/features/torneos/api/tournamentWorkspaceService.js#L735) |
+| `is_tournament_organization_slug_available` | `checkTournamentOrganizationSlugAvailability` | [src/features/torneos/api/tournamentWorkspaceService.js:266](../../../src/features/torneos/api/tournamentWorkspaceService.js#L266) |
+| `list_tournament_season_member_assignments` | `listTournamentSeasonMemberAssignments` | [src/features/torneos/api/tournamentWorkspaceService.js:136](../../../src/features/torneos/api/tournamentWorkspaceService.js#L136) |
+| `make_tournament_match_official` | `makeTournamentMatchOfficial` | [src/features/torneos/api/tournamentWorkspaceService.js:1231](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1231) |
+| `mark_tournament_announcement_read` | `markTournamentAnnouncementRead` | [src/features/torneos/api/tournamentWorkspaceService.js:1525](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1525) |
+| `open_tournament_match_operation` | `openTournamentMatchOperation` | [src/features/torneos/api/tournamentWorkspaceService.js:1159](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1159) |
+| `preview_tournament_announcement_audience` | `previewTournamentAnnouncementAudience` | [src/features/torneos/api/tournamentWorkspaceService.js:1853](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1853) |
+| `publish_tournament_announcement` | `publishTournamentAnnouncement` | [src/features/torneos/api/tournamentWorkspaceService.js:1862](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1862) |
+| `publish_tournament_document_version` | `publishTournamentDocumentVersion` | [src/features/torneos/api/tournamentWorkspaceService.js:1895](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1895) |
+| `publish_tournament_fixture` | `publishTournamentFixture` | [src/features/torneos/api/tournamentWorkspaceService.js:861](../../../src/features/torneos/api/tournamentWorkspaceService.js#L861) |
+| `publish_tournament_standings_revision` | `publishTournamentStandings` | [src/features/torneos/api/tournamentWorkspaceService.js:1293](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1293) |
+| `rebuild_tournament_standings` | `rebuildTournamentStandings` | [src/features/torneos/api/tournamentWorkspaceService.js:1285](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1285) |
+| `remove_tournament_roster_player` | `removeTournamentRosterPlayer` | [src/features/torneos/api/tournamentWorkspaceService.js:686](../../../src/features/torneos/api/tournamentWorkspaceService.js#L686) |
+| `remove_tournament_season_member_assignment` | `removeTournamentSeasonMemberAssignment` | [src/features/torneos/api/tournamentWorkspaceService.js:155](../../../src/features/torneos/api/tournamentWorkspaceService.js#L155) |
+| `reopen_tournament_competition` | `reopenTournamentCompetition` | [src/features/torneos/api/tournamentWorkspaceService.js:541](../../../src/features/torneos/api/tournamentWorkspaceService.js#L541) |
+| `reopen_tournament_participants` | `reopenTournamentParticipants` | [src/features/torneos/api/tournamentWorkspaceService.js:795](../../../src/features/torneos/api/tournamentWorkspaceService.js#L795) |
+| `replace_tournament_announcement_audience` | `replaceTournamentAnnouncementAudience` | [src/features/torneos/api/tournamentWorkspaceService.js:1804](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1804) |
+| `request_tournament_match_correction` | `requestTournamentMatchCorrection` | [src/features/torneos/api/tournamentWorkspaceService.js:1238](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1238) |
+| `reschedule_tournament_match` | `rescheduleTournamentMatch` | [src/features/torneos/api/tournamentWorkspaceService.js:1023](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1023) |
+| `resolve_tournament_qualification` | `resolveTournamentQualification` | [src/features/torneos/api/tournamentWorkspaceService.js:1300](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1300) |
+| `respond_match_availability` | `respondTournamentMatchAvailability` | [src/features/torneos/api/tournamentWorkspaceService.js:1094](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1094) |
+| `review_tournament_match_operation` | `reviewTournamentMatchOperation` | [src/features/torneos/api/tournamentWorkspaceService.js:1215](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1215) |
+| `review_tournament_team_entry` | `reviewTournamentTeamEntry` | [src/features/torneos/api/tournamentWorkspaceService.js:701](../../../src/features/torneos/api/tournamentWorkspaceService.js#L701) |
+| `save_match_squad` | `saveTournamentMatchSquad` | [src/features/torneos/api/tournamentWorkspaceService.js:1142](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1142) |
+| `save_tournament_category` | `saveTournamentCategory` | [src/features/torneos/api/tournamentWorkspaceService.js:465](../../../src/features/torneos/api/tournamentWorkspaceService.js#L465) |
+| `save_tournament_draw_pots` | `saveTournamentDrawPots` | [src/features/torneos/api/tournamentWorkspaceService.js:804](../../../src/features/torneos/api/tournamentWorkspaceService.js#L804) |
+| `save_tournament_schedule_windows` | `saveTournamentScheduleWindows` | [src/features/torneos/api/tournamentWorkspaceService.js:991](../../../src/features/torneos/api/tournamentWorkspaceService.js#L991) |
+| `schedule_tournament_match` | `scheduleTournamentMatch` | [src/features/torneos/api/tournamentWorkspaceService.js:1010](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1010) |
+| `search_tournament_arma2_teams` | `searchTournamentArma2Teams` | [src/features/torneos/api/tournamentWorkspaceService.js:761](../../../src/features/torneos/api/tournamentWorkspaceService.js#L761) |
+| `search_tournament_players` | `searchTournamentPlayers` | [src/features/torneos/api/tournamentWorkspaceService.js:751](../../../src/features/torneos/api/tournamentWorkspaceService.js#L751) |
+| `set_active_tournament_context` | `setActiveTournamentContext` | [src/features/torneos/api/tournamentWorkspaceService.js:583](../../../src/features/torneos/api/tournamentWorkspaceService.js#L583) |
+| `set_my_tournament_hub_category` | `setTournamentHubCategory` | [src/features/torneos/api/tournamentWorkspaceService.js:1429](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1429) |
+| `set_tournament_announcement_link` | `setTournamentAnnouncementLink` | [src/features/torneos/api/tournamentWorkspaceService.js:1822](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1822) |
+| `set_tournament_match_outcome` | `setTournamentMatchOutcome` | [src/features/torneos/api/tournamentWorkspaceService.js:1176](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1176) |
+| `set_tournament_match_score` | `setTournamentMatchScore` | [src/features/torneos/api/tournamentWorkspaceService.js:1184](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1184) |
+| `set_tournament_public_page_published` | `setTournamentPublicPagePublished` | [src/features/torneos/api/tournamentWorkspaceService.js:215](../../../src/features/torneos/api/tournamentWorkspaceService.js#L215) |
+| `set_tournament_workspace_preference` | `setTournamentWorkspacePreference` | [src/features/torneos/api/tournamentWorkspaceService.js:250](../../../src/features/torneos/api/tournamentWorkspaceService.js#L250) |
+| `start_tournament_competition` | `startTournamentCompetition` | [src/features/torneos/api/tournamentWorkspaceService.js:509](../../../src/features/torneos/api/tournamentWorkspaceService.js#L509) |
+| `submit_match_squad` | `submitTournamentMatchSquad` | [src/features/torneos/api/tournamentWorkspaceService.js:1151](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1151) |
+| `submit_tournament_match_operation` | `submitTournamentMatchOperation` | [src/features/torneos/api/tournamentWorkspaceService.js:1208](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1208) |
+| `submit_tournament_team_entry` | `submitTournamentTeamEntry` | [src/features/torneos/api/tournamentWorkspaceService.js:694](../../../src/features/torneos/api/tournamentWorkspaceService.js#L694) |
+| `supersede_tournament_fixture` | `supersedeTournamentFixture` | [src/features/torneos/api/tournamentWorkspaceService.js:888](../../../src/features/torneos/api/tournamentWorkspaceService.js#L888) |
+| `update_draft_fixture` | `updateDraftTournamentFixture` | [src/features/torneos/api/tournamentWorkspaceService.js:845](../../../src/features/torneos/api/tournamentWorkspaceService.js#L845) |
+| `update_my_tournament_notification_preferences` | `updateTournamentNotificationPreferences` | [src/features/torneos/api/tournamentWorkspaceService.js:1546](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1546) |
+| `update_tournament_announcement_draft` | `updateTournamentAnnouncementDraft` | [src/features/torneos/api/tournamentWorkspaceService.js:1841](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1841) |
+| `update_tournament_configuration` | `updateTournamentCompetition` | [src/features/torneos/api/tournamentWorkspaceService.js:436](../../../src/features/torneos/api/tournamentWorkspaceService.js#L436) |
+| `update_tournament_organization` | `updateTournamentOrganization` | [src/features/torneos/api/tournamentWorkspaceService.js:287](../../../src/features/torneos/api/tournamentWorkspaceService.js#L287) |
+| `update_tournament_roster_player` | `updateTournamentRosterPlayer` | [src/features/torneos/api/tournamentWorkspaceService.js:674](../../../src/features/torneos/api/tournamentWorkspaceService.js#L674) |
+| `update_tournament_season` | `updateTournamentSeason` | [src/features/torneos/api/tournamentWorkspaceService.js:376](../../../src/features/torneos/api/tournamentWorkspaceService.js#L376) |
+| `update_tournament_team_entry` | `updateTournamentTeamEntry` | [src/features/torneos/api/tournamentWorkspaceService.js:642](../../../src/features/torneos/api/tournamentWorkspaceService.js#L642) |
+| `validate_tournament_fixture` | `validateTournamentFixture` | [src/features/torneos/api/tournamentWorkspaceService.js:854](../../../src/features/torneos/api/tournamentWorkspaceService.js#L854) |
+| `validate_tournament_match_operation` | `validateTournamentMatchOperation` | [src/features/torneos/api/tournamentWorkspaceService.js:1224](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1224) |
+| `validate_tournament_match_schedule` | `validateTournamentMatchSchedule` | [src/features/torneos/api/tournamentWorkspaceService.js:999](../../../src/features/torneos/api/tournamentWorkspaceService.js#L999) |
+| `void_tournament_match_event` | `voidTournamentMatchEvent` | [src/features/torneos/api/tournamentWorkspaceService.js:1200](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1200) |
+| `withdraw_tournament_competition_participant` | `withdrawTournamentCompetitionParticipant` | [src/features/torneos/api/tournamentWorkspaceService.js:562](../../../src/features/torneos/api/tournamentWorkspaceService.js#L562) |
+| `withdraw_tournament_team_entry` | `withdrawTournamentTeamEntry` | [src/features/torneos/api/tournamentWorkspaceService.js:711](../../../src/features/torneos/api/tournamentWorkspaceService.js#L711) |
 
 ## Permitidas por los contratos, sin llamada frontend (18)
 
@@ -142,85 +142,89 @@ Inventario legacy congelado en `2058da039a2a5eaaed22d87d01946bc596ae5f50` (Phase
 
 La foundation copia las 126 operaciones de los contratos aprobados (Phase 2D + COMPETITION-V1 + OFFICIALIZATION-V1) exactamente; no amplía la allowlist del backend. Además lee tres tablas del contrato certificado (`tournament_organization_members`, `tournament_venues`, `tournament_courts`, `foundation/stagingV1Tables.js`) y la página pública usa la ruta anónima de sólo lectura del gateway (`get_public_tournament_page`).
 
-## Bloqueadas por scope (71)
+## Bloqueadas por scope (75)
 
 `torneosClient.execute` devuelve `TORNEOS_OUTSIDE_STAGING_V1` antes de cualquier red. El adapter staging-v1 no tiene alias para ninguna; las pantallas las esconden o deshabilitan vía `TorneosFeaturesContext` (`stagingV1/stagingV1Features.js`).
 
 | RPC | Función frontend | Sitio |
 | --- | --- | --- |
-| `archive_tournament_fixture` | `archiveTournamentFixture` | [src/features/torneos/api/tournamentWorkspaceService.js:874](../../../src/features/torneos/api/tournamentWorkspaceService.js#L874) |
-| `authorize_tournament_social_export` | `authorizeTournamentSocialExport` | [src/features/torneos/api/tournamentWorkspaceService.js:2132](../../../src/features/torneos/api/tournamentWorkspaceService.js#L2132) |
-| `cancel_tournament_match` | `changeTournamentMatchPlan` | [src/features/torneos/api/tournamentWorkspaceService.js:1036](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1036) |
-| `cancel_tournament_media_upload_session` | `cancelTournamentMediaUploadSession` | [src/features/torneos/api/tournamentWorkspaceService.js:1996](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1996) |
-| `cancel_tournament_purchase` | `cancelTournamentPurchase` | [src/features/torneos/api/tournamentWorkspaceService.js:167](../../../src/features/torneos/api/tournamentWorkspaceService.js#L167) |
-| `change_tournament_media_gallery_state` | `changeTournamentMediaGalleryState` | [src/features/torneos/api/tournamentWorkspaceService.js:2043](../../../src/features/torneos/api/tournamentWorkspaceService.js#L2043) |
-| `create_tournament_disciplinary_override` | `createTournamentDisciplinaryOverride` | [src/features/torneos/api/tournamentWorkspaceService.js:1321](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1321) |
-| `create_tournament_media_gallery` | `createTournamentMediaGallery` | [src/features/torneos/api/tournamentWorkspaceService.js:1950](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1950) |
-| `create_tournament_points_adjustment` | `createTournamentPointsAdjustment` | [src/features/torneos/api/tournamentWorkspaceService.js:1301](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1301) |
-| `get_effective_tournament_entitlements` | `loadEffectiveTournamentEntitlements`, `loadTournamentMediaAdminContext` | [src/features/torneos/api/tournamentWorkspaceService.js:50](../../../src/features/torneos/api/tournamentWorkspaceService.js#L50), [src/features/torneos/api/tournamentWorkspaceService.js:1922](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1922) |
-| `get_effective_tournament_season_entitlements` | `loadEffectiveTournamentSeasonEntitlements` | [src/features/torneos/api/tournamentWorkspaceService.js:60](../../../src/features/torneos/api/tournamentWorkspaceService.js#L60) |
-| `get_my_torneos_inbox_summary` | `loadTorneosInboxSummary` | [src/features/torneos/api/tournamentWorkspaceService.js:1579](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1579) |
-| `get_my_torneos_notifications` | `loadTorneosNotifications` | [src/features/torneos/api/tournamentWorkspaceService.js:1565](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1565) |
-| `get_my_torneos_profile` | `loadTorneosProfile` | [src/features/torneos/api/tournamentWorkspaceService.js:1554](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1554) |
-| `get_my_tournament_participations` | `loadMyTournamentParticipations` | [src/features/torneos/api/tournamentWorkspaceService.js:1697](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1697) |
-| `get_my_tournament_registrations` | `loadMyTournamentRegistrations` | [src/features/torneos/api/tournamentWorkspaceService.js:1704](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1704) |
-| `get_player_tournament_statistics` | `loadPlayerTournamentStatistics` | [src/features/torneos/api/tournamentWorkspaceService.js:1339](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1339) |
-| `get_player_tournament_suspensions` | `loadPlayerTournamentSuspensions` | [src/features/torneos/api/tournamentWorkspaceService.js:1345](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1345) |
+| `archive_tournament_fixture` | `archiveTournamentFixture` | [src/features/torneos/api/tournamentWorkspaceService.js:880](../../../src/features/torneos/api/tournamentWorkspaceService.js#L880) |
+| `archive_tournament_organization_sponsor` | `archiveTournamentOrganizationSponsor` | [src/features/torneos/api/tournamentSponsorsService.js:94](../../../src/features/torneos/api/tournamentSponsorsService.js#L94) |
+| `authorize_tournament_social_export` | `authorizeTournamentSocialExport` | [src/features/torneos/api/tournamentWorkspaceService.js:2138](../../../src/features/torneos/api/tournamentWorkspaceService.js#L2138) |
+| `authorize_tournament_social_sponsors` | `authorizeTournamentSocialSponsors` | [src/features/torneos/api/tournamentSponsorsService.js:109](../../../src/features/torneos/api/tournamentSponsorsService.js#L109) |
+| `cancel_tournament_match` | `changeTournamentMatchPlan` | [src/features/torneos/api/tournamentWorkspaceService.js:1042](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1042) |
+| `cancel_tournament_media_upload_session` | `cancelTournamentMediaUploadSession` | [src/features/torneos/api/tournamentWorkspaceService.js:2002](../../../src/features/torneos/api/tournamentWorkspaceService.js#L2002) |
+| `cancel_tournament_purchase` | `cancelTournamentPurchase` | [src/features/torneos/api/tournamentWorkspaceService.js:173](../../../src/features/torneos/api/tournamentWorkspaceService.js#L173) |
+| `change_tournament_media_gallery_state` | `changeTournamentMediaGalleryState` | [src/features/torneos/api/tournamentWorkspaceService.js:2049](../../../src/features/torneos/api/tournamentWorkspaceService.js#L2049) |
+| `create_tournament_disciplinary_override` | `createTournamentDisciplinaryOverride` | [src/features/torneos/api/tournamentWorkspaceService.js:1327](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1327) |
+| `create_tournament_media_gallery` | `createTournamentMediaGallery` | [src/features/torneos/api/tournamentWorkspaceService.js:1956](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1956) |
+| `create_tournament_points_adjustment` | `createTournamentPointsAdjustment` | [src/features/torneos/api/tournamentWorkspaceService.js:1307](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1307) |
+| `get_effective_tournament_entitlements` | `loadEffectiveTournamentEntitlements`, `loadTournamentMediaAdminContext` | [src/features/torneos/api/tournamentWorkspaceService.js:56](../../../src/features/torneos/api/tournamentWorkspaceService.js#L56), [src/features/torneos/api/tournamentWorkspaceService.js:1928](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1928) |
+| `get_effective_tournament_season_entitlements` | `loadEffectiveTournamentSeasonEntitlements` | [src/features/torneos/api/tournamentWorkspaceService.js:66](../../../src/features/torneos/api/tournamentWorkspaceService.js#L66) |
+| `get_my_torneos_inbox_summary` | `loadTorneosInboxSummary` | [src/features/torneos/api/tournamentWorkspaceService.js:1585](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1585) |
+| `get_my_torneos_notifications` | `loadTorneosNotifications` | [src/features/torneos/api/tournamentWorkspaceService.js:1571](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1571) |
+| `get_my_torneos_profile` | `loadTorneosProfile` | [src/features/torneos/api/tournamentWorkspaceService.js:1560](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1560) |
+| `get_my_tournament_participations` | `loadMyTournamentParticipations` | [src/features/torneos/api/tournamentWorkspaceService.js:1703](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1703) |
+| `get_my_tournament_registrations` | `loadMyTournamentRegistrations` | [src/features/torneos/api/tournamentWorkspaceService.js:1710](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1710) |
+| `get_player_tournament_statistics` | `loadPlayerTournamentStatistics` | [src/features/torneos/api/tournamentWorkspaceService.js:1345](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1345) |
+| `get_player_tournament_suspensions` | `loadPlayerTournamentSuspensions` | [src/features/torneos/api/tournamentWorkspaceService.js:1351](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1351) |
 | `get_public_tournament_branding` | `loadPublicTournamentPage` | [src/features/torneos/api/publicTournamentService.js:16](../../../src/features/torneos/api/publicTournamentService.js#L16) |
 | `get_public_tournament_page` | `loadPublicTournamentPage` | [src/features/torneos/api/publicTournamentService.js:12](../../../src/features/torneos/api/publicTournamentService.js#L12) |
-| `get_published_tournament_media` | `loadPublishedTournamentMedia` | [src/features/torneos/api/tournamentWorkspaceService.js:2057](../../../src/features/torneos/api/tournamentWorkspaceService.js#L2057) |
-| `get_tournament_application_inbox` | `loadTournamentApplicationInbox` | [src/features/torneos/api/tournamentWorkspaceService.js:1653](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1653) |
+| `get_published_tournament_media` | `loadPublishedTournamentMedia` | [src/features/torneos/api/tournamentWorkspaceService.js:2063](../../../src/features/torneos/api/tournamentWorkspaceService.js#L2063) |
+| `get_tournament_application_inbox` | `loadTournamentApplicationInbox` | [src/features/torneos/api/tournamentWorkspaceService.js:1659](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1659) |
 | `get_tournament_branding_context` | `loadTournamentBrandingContext` | [src/features/torneos/api/tournamentBrandingService.js:38](../../../src/features/torneos/api/tournamentBrandingService.js#L38) |
 | `get_tournament_catalog_entry` | `<callback>` | [src/features/torneos/api/publicCatalogService.js:52](../../../src/features/torneos/api/publicCatalogService.js#L52) |
 | `get_tournament_catalog_facets` | `<callback>` | [src/features/torneos/api/publicCatalogService.js:48](../../../src/features/torneos/api/publicCatalogService.js#L48) |
-| `get_tournament_catalog_listing_settings` | `loadTournamentCatalogListingSettings` | [src/features/torneos/api/tournamentWorkspaceService.js:1583](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1583) |
-| `get_tournament_media_admin_context` | `loadTournamentMediaAdminContext` | [src/features/torneos/api/tournamentWorkspaceService.js:1902](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1902) |
-| `get_tournament_media_asset_processing_tiers` | `loadTournamentMediaAdminContext` | [src/features/torneos/api/tournamentWorkspaceService.js:1912](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1912) |
-| `get_tournament_media_upload_capability` | `loadTournamentMediaAdminContext` | [src/features/torneos/api/tournamentWorkspaceService.js:1909](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1909) |
-| `get_tournament_purchase` | `loadTournamentPurchase` | [src/features/torneos/api/tournamentWorkspaceService.js:107](../../../src/features/torneos/api/tournamentWorkspaceService.js#L107) |
-| `get_tournament_season_media_usage` | `loadTournamentSeasonMediaUsage` | [src/features/torneos/api/tournamentWorkspaceService.js:123](../../../src/features/torneos/api/tournamentWorkspaceService.js#L123) |
-| `get_tournament_social_snapshot` | `loadTournamentSocialSnapshot` | [src/features/torneos/api/tournamentWorkspaceService.js:2114](../../../src/features/torneos/api/tournamentWorkspaceService.js#L2114) |
-| `get_tournament_social_studio_context` | `loadTournamentSocialStudioContext` | [src/features/torneos/api/tournamentWorkspaceService.js:2100](../../../src/features/torneos/api/tournamentWorkspaceService.js#L2100) |
+| `get_tournament_catalog_listing_settings` | `loadTournamentCatalogListingSettings` | [src/features/torneos/api/tournamentWorkspaceService.js:1589](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1589) |
+| `get_tournament_media_admin_context` | `loadTournamentMediaAdminContext` | [src/features/torneos/api/tournamentWorkspaceService.js:1908](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1908) |
+| `get_tournament_media_asset_processing_tiers` | `loadTournamentMediaAdminContext` | [src/features/torneos/api/tournamentWorkspaceService.js:1918](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1918) |
+| `get_tournament_media_upload_capability` | `loadTournamentMediaAdminContext` | [src/features/torneos/api/tournamentWorkspaceService.js:1915](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1915) |
+| `get_tournament_organization_sponsors` | `loadTournamentOrganizationSponsors` | [src/features/torneos/api/tournamentSponsorsService.js:32](../../../src/features/torneos/api/tournamentSponsorsService.js#L32) |
+| `get_tournament_purchase` | `loadTournamentPurchase` | [src/features/torneos/api/tournamentWorkspaceService.js:113](../../../src/features/torneos/api/tournamentWorkspaceService.js#L113) |
+| `get_tournament_season_media_usage` | `loadTournamentSeasonMediaUsage` | [src/features/torneos/api/tournamentWorkspaceService.js:129](../../../src/features/torneos/api/tournamentWorkspaceService.js#L129) |
+| `get_tournament_social_snapshot` | `loadTournamentSocialSnapshot` | [src/features/torneos/api/tournamentWorkspaceService.js:2120](../../../src/features/torneos/api/tournamentWorkspaceService.js#L2120) |
+| `get_tournament_social_studio_context` | `loadTournamentSocialStudioContext` | [src/features/torneos/api/tournamentWorkspaceService.js:2106](../../../src/features/torneos/api/tournamentWorkspaceService.js#L2106) |
 | `get_tournament_team_photo_state` | `loadTeamPhotoState` | [src/features/torneos/api/tournamentTeamPhotoService.js:153](../../../src/features/torneos/api/tournamentTeamPhotoService.js#L153) |
-| `get_tournament_team_visual_policy` | `loadTournamentTeamVisualPolicy` | [src/features/torneos/api/tournamentWorkspaceService.js:186](../../../src/features/torneos/api/tournamentWorkspaceService.js#L186) |
-| `handle_tournament_media_report` | `handleTournamentMediaReport` | [src/features/torneos/api/tournamentWorkspaceService.js:2166](../../../src/features/torneos/api/tournamentWorkspaceService.js#L2166) |
-| `list_my_core_teams_for_application` | `listMyCoreTeamsForApplication` | [src/features/torneos/api/tournamentWorkspaceService.js:1671](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1671) |
+| `get_tournament_team_visual_policy` | `loadTournamentTeamVisualPolicy` | [src/features/torneos/api/tournamentWorkspaceService.js:192](../../../src/features/torneos/api/tournamentWorkspaceService.js#L192) |
+| `handle_tournament_media_report` | `handleTournamentMediaReport` | [src/features/torneos/api/tournamentWorkspaceService.js:2172](../../../src/features/torneos/api/tournamentWorkspaceService.js#L2172) |
+| `list_my_core_teams_for_application` | `listMyCoreTeamsForApplication` | [src/features/torneos/api/tournamentWorkspaceService.js:1677](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1677) |
 | `list_tournament_player_portrait_refs` | `loadRosterPortraits` | [src/features/torneos/api/tournamentPlayerPortraitService.js:135](../../../src/features/torneos/api/tournamentPlayerPortraitService.js#L135) |
-| `lock_tournament_roster` | `lockTournamentRoster` | [src/features/torneos/api/tournamentWorkspaceService.js:721](../../../src/features/torneos/api/tournamentWorkspaceService.js#L721) |
-| `mark_my_torneos_notifications_read` | `markTorneosNotificationsRead` | [src/features/torneos/api/tournamentWorkspaceService.js:1573](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1573) |
-| `mark_tournament_suspension_served` | `markTournamentSuspensionServed` | [src/features/torneos/api/tournamentWorkspaceService.js:1331](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1331) |
-| `postpone_tournament_match` | `changeTournamentMatchPlan` | [src/features/torneos/api/tournamentWorkspaceService.js:1036](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1036) |
-| `publish_tournament_media_gallery` | `publishTournamentMediaGallery` | [src/features/torneos/api/tournamentWorkspaceService.js:2033](../../../src/features/torneos/api/tournamentWorkspaceService.js#L2033) |
-| `record_manual_match_availability` | `recordManualTournamentMatchAvailability` | [src/features/torneos/api/tournamentWorkspaceService.js:1096](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1096) |
-| `reorder_tournament_media_item` | `reorderTournamentMediaItem` | [src/features/torneos/api/tournamentWorkspaceService.js:2025](../../../src/features/torneos/api/tournamentWorkspaceService.js#L2025) |
-| `report_tournament_media_asset` | `reportTournamentMediaAsset` | [src/features/torneos/api/tournamentWorkspaceService.js:2073](../../../src/features/torneos/api/tournamentWorkspaceService.js#L2073) |
-| `request_tournament_media_upload_session` | `requestTournamentMediaUploadSession` | [src/features/torneos/api/tournamentWorkspaceService.js:1986](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1986) |
-| `restore_tournament_match_unscheduled` | `changeTournamentMatchPlan` | [src/features/torneos/api/tournamentWorkspaceService.js:1036](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1036) |
-| `revoke_tournament_points_adjustment` | `revokeTournamentPointsAdjustment` | [src/features/torneos/api/tournamentWorkspaceService.js:1314](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1314) |
+| `lock_tournament_roster` | `lockTournamentRoster` | [src/features/torneos/api/tournamentWorkspaceService.js:727](../../../src/features/torneos/api/tournamentWorkspaceService.js#L727) |
+| `mark_my_torneos_notifications_read` | `markTorneosNotificationsRead` | [src/features/torneos/api/tournamentWorkspaceService.js:1579](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1579) |
+| `mark_tournament_suspension_served` | `markTournamentSuspensionServed` | [src/features/torneos/api/tournamentWorkspaceService.js:1337](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1337) |
+| `postpone_tournament_match` | `changeTournamentMatchPlan` | [src/features/torneos/api/tournamentWorkspaceService.js:1042](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1042) |
+| `publish_tournament_media_gallery` | `publishTournamentMediaGallery` | [src/features/torneos/api/tournamentWorkspaceService.js:2039](../../../src/features/torneos/api/tournamentWorkspaceService.js#L2039) |
+| `record_manual_match_availability` | `recordManualTournamentMatchAvailability` | [src/features/torneos/api/tournamentWorkspaceService.js:1102](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1102) |
+| `reorder_tournament_media_item` | `reorderTournamentMediaItem` | [src/features/torneos/api/tournamentWorkspaceService.js:2031](../../../src/features/torneos/api/tournamentWorkspaceService.js#L2031) |
+| `report_tournament_media_asset` | `reportTournamentMediaAsset` | [src/features/torneos/api/tournamentWorkspaceService.js:2079](../../../src/features/torneos/api/tournamentWorkspaceService.js#L2079) |
+| `request_tournament_media_upload_session` | `requestTournamentMediaUploadSession` | [src/features/torneos/api/tournamentWorkspaceService.js:1992](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1992) |
+| `restore_tournament_match_unscheduled` | `changeTournamentMatchPlan` | [src/features/torneos/api/tournamentWorkspaceService.js:1042](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1042) |
+| `revoke_tournament_points_adjustment` | `revokeTournamentPointsAdjustment` | [src/features/torneos/api/tournamentWorkspaceService.js:1320](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1320) |
 | `revoke_tournament_team_photo` | `revokeTeamPhoto` | [src/features/torneos/api/tournamentTeamPhotoService.js:252](../../../src/features/torneos/api/tournamentTeamPhotoService.js#L252) |
-| `save_tournament_catalog_listing` | `saveTournamentCatalogListing` | [src/features/torneos/api/tournamentWorkspaceService.js:1604](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1604) |
-| `save_tournament_category_capacity` | `saveTournamentCategoryCapacity` | [src/features/torneos/api/tournamentWorkspaceService.js:1638](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1638) |
-| `save_tournament_match_operation_draft` | `saveTournamentMatchOperationDraft` | [src/features/torneos/api/tournamentWorkspaceService.js:1161](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1161) |
-| `search_my_applicable_core_teams` | `searchApplicableCoreTeams` | [src/features/torneos/api/tournamentWorkspaceService.js:1663](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1663) |
+| `save_tournament_catalog_listing` | `saveTournamentCatalogListing` | [src/features/torneos/api/tournamentWorkspaceService.js:1610](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1610) |
+| `save_tournament_category_capacity` | `saveTournamentCategoryCapacity` | [src/features/torneos/api/tournamentWorkspaceService.js:1644](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1644) |
+| `save_tournament_match_operation_draft` | `saveTournamentMatchOperationDraft` | [src/features/torneos/api/tournamentWorkspaceService.js:1167](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1167) |
+| `search_my_applicable_core_teams` | `searchApplicableCoreTeams` | [src/features/torneos/api/tournamentWorkspaceService.js:1669](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1669) |
 | `search_tournament_catalog` | `<callback>` | [src/features/torneos/api/publicCatalogService.js:44](../../../src/features/torneos/api/publicCatalogService.js#L44) |
-| `set_tournament_announcement_audience` | `setTournamentAnnouncementAudience` | [src/features/torneos/api/tournamentWorkspaceService.js:1780](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1780) |
-| `set_tournament_applications_state` | `setTournamentApplicationsState` | [src/features/torneos/api/tournamentWorkspaceService.js:1630](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1630) |
+| `set_tournament_announcement_audience` | `setTournamentAnnouncementAudience` | [src/features/torneos/api/tournamentWorkspaceService.js:1786](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1786) |
+| `set_tournament_applications_state` | `setTournamentApplicationsState` | [src/features/torneos/api/tournamentWorkspaceService.js:1636](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1636) |
 | `set_tournament_branding_reference` | `uploadTournamentBrandingAsset`, `removeTournamentBrandingAsset` | [src/features/torneos/api/tournamentBrandingService.js:71](../../../src/features/torneos/api/tournamentBrandingService.js#L71), [src/features/torneos/api/tournamentBrandingService.js:105](../../../src/features/torneos/api/tournamentBrandingService.js#L105) |
-| `set_tournament_catalog_listing_status` | `setTournamentCatalogListingStatus` | [src/features/torneos/api/tournamentWorkspaceService.js:1622](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1622) |
-| `set_tournament_media_cover` | `setTournamentMediaCover` | [src/features/torneos/api/tournamentWorkspaceService.js:2014](../../../src/features/torneos/api/tournamentWorkspaceService.js#L2014) |
+| `set_tournament_catalog_listing_status` | `setTournamentCatalogListingStatus` | [src/features/torneos/api/tournamentWorkspaceService.js:1628](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1628) |
+| `set_tournament_media_cover` | `setTournamentMediaCover` | [src/features/torneos/api/tournamentWorkspaceService.js:2020](../../../src/features/torneos/api/tournamentWorkspaceService.js#L2020) |
 | `set_tournament_player_portrait_crop` | `setPlayerPortraitCrop` | [src/features/torneos/api/tournamentPlayerPortraitService.js:209](../../../src/features/torneos/api/tournamentPlayerPortraitService.js#L209) |
-| `set_tournament_social_permission` | `setTournamentSocialPermission` | [src/features/torneos/api/tournamentWorkspaceService.js:2146](../../../src/features/torneos/api/tournamentWorkspaceService.js#L2146) |
+| `set_tournament_social_permission` | `setTournamentSocialPermission` | [src/features/torneos/api/tournamentWorkspaceService.js:2152](../../../src/features/torneos/api/tournamentWorkspaceService.js#L2152) |
 | `set_tournament_team_photo_editorial_status` | `setTeamPhotoEditorialStatus` | [src/features/torneos/api/tournamentTeamPhotoService.js:235](../../../src/features/torneos/api/tournamentTeamPhotoService.js#L235) |
-| `set_tournament_team_visual_policy` | `setTournamentTeamVisualPolicy` | [src/features/torneos/api/tournamentWorkspaceService.js:197](../../../src/features/torneos/api/tournamentWorkspaceService.js#L197) |
-| `start_tournament_application` | `startTournamentApplication` | [src/features/torneos/api/tournamentWorkspaceService.js:1685](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1685) |
-| `transition_tournament_media_asset` | `transitionTournamentMediaAsset` | [src/features/torneos/api/tournamentWorkspaceService.js:2006](../../../src/features/torneos/api/tournamentWorkspaceService.js#L2006) |
-| `update_my_torneos_profile` | `updateTorneosProfile` | [src/features/torneos/api/tournamentWorkspaceService.js:1558](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1558) |
-| `update_tournament_court` | `updateTournamentCourt` | [src/features/torneos/api/tournamentWorkspaceService.js:977](../../../src/features/torneos/api/tournamentWorkspaceService.js#L977) |
-| `update_tournament_media_gallery` | `updateTournamentMediaGallery` | [src/features/torneos/api/tournamentWorkspaceService.js:1970](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1970) |
-| `update_tournament_venue` | `updateTournamentVenue` | [src/features/torneos/api/tournamentWorkspaceService.js:959](../../../src/features/torneos/api/tournamentWorkspaceService.js#L959) |
-| `void_tournament_match_operation` | `voidTournamentMatchOperation` | [src/features/torneos/api/tournamentWorkspaceService.js:1247](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1247) |
+| `set_tournament_team_visual_policy` | `setTournamentTeamVisualPolicy` | [src/features/torneos/api/tournamentWorkspaceService.js:203](../../../src/features/torneos/api/tournamentWorkspaceService.js#L203) |
+| `start_tournament_application` | `startTournamentApplication` | [src/features/torneos/api/tournamentWorkspaceService.js:1691](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1691) |
+| `transition_tournament_media_asset` | `transitionTournamentMediaAsset` | [src/features/torneos/api/tournamentWorkspaceService.js:2012](../../../src/features/torneos/api/tournamentWorkspaceService.js#L2012) |
+| `update_my_torneos_profile` | `updateTorneosProfile` | [src/features/torneos/api/tournamentWorkspaceService.js:1564](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1564) |
+| `update_tournament_court` | `updateTournamentCourt` | [src/features/torneos/api/tournamentWorkspaceService.js:983](../../../src/features/torneos/api/tournamentWorkspaceService.js#L983) |
+| `update_tournament_media_gallery` | `updateTournamentMediaGallery` | [src/features/torneos/api/tournamentWorkspaceService.js:1976](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1976) |
+| `update_tournament_venue` | `updateTournamentVenue` | [src/features/torneos/api/tournamentWorkspaceService.js:965](../../../src/features/torneos/api/tournamentWorkspaceService.js#L965) |
+| `upsert_tournament_organization_sponsor` | `saveTournamentOrganizationSponsor` | [src/features/torneos/api/tournamentSponsorsService.js:76](../../../src/features/torneos/api/tournamentSponsorsService.js#L76) |
+| `void_tournament_match_operation` | `voidTournamentMatchOperation` | [src/features/torneos/api/tournamentWorkspaceService.js:1253](../../../src/features/torneos/api/tournamentWorkspaceService.js#L1253) |
 
-## Accesos backend nuevos de B04 (15)
+## Accesos backend nuevos de B04 (23)
 
 Los únicos sitios fuera del inventario legacy. El transporte habla sólo con el gateway; el puente de sesión sólo lee la sesión Core.
 
@@ -229,6 +233,14 @@ Los únicos sitios fuera del inventario legacy. El transporte habla sólo con el
 | rpc | `supabase.rpc` | [src/features/torneos/api/publicCatalogService.js:44](../../../src/features/torneos/api/publicCatalogService.js#L44) |
 | rpc | `supabase.rpc` | [src/features/torneos/api/publicCatalogService.js:48](../../../src/features/torneos/api/publicCatalogService.js#L48) |
 | rpc | `supabase.rpc` | [src/features/torneos/api/publicCatalogService.js:52](../../../src/features/torneos/api/publicCatalogService.js#L52) |
+| storage | `supabase.storage.from.remove` | [src/features/torneos/api/tournamentSponsorsService.js:25](../../../src/features/torneos/api/tournamentSponsorsService.js#L25) |
+| from | `supabase.storage.from` | [src/features/torneos/api/tournamentSponsorsService.js:25](../../../src/features/torneos/api/tournamentSponsorsService.js#L25) |
+| rpc | `supabase.rpc` | [src/features/torneos/api/tournamentSponsorsService.js:32](../../../src/features/torneos/api/tournamentSponsorsService.js#L32) |
+| storage | `supabase.storage.from.upload` | [src/features/torneos/api/tournamentSponsorsService.js:66](../../../src/features/torneos/api/tournamentSponsorsService.js#L66) |
+| from | `supabase.storage.from` | [src/features/torneos/api/tournamentSponsorsService.js:66](../../../src/features/torneos/api/tournamentSponsorsService.js#L66) |
+| rpc | `supabase.rpc` | [src/features/torneos/api/tournamentSponsorsService.js:76](../../../src/features/torneos/api/tournamentSponsorsService.js#L76) |
+| rpc | `supabase.rpc` | [src/features/torneos/api/tournamentSponsorsService.js:94](../../../src/features/torneos/api/tournamentSponsorsService.js#L94) |
+| rpc | `supabase.rpc` | [src/features/torneos/api/tournamentSponsorsService.js:109](../../../src/features/torneos/api/tournamentSponsorsService.js#L109) |
 | persistence | `window.localStorage.getItem` | [src/features/torneos/components/TorneosLanding.jsx:50](../../../src/features/torneos/components/TorneosLanding.jsx#L50) |
 | persistence | `window.localStorage.setItem` | [src/features/torneos/components/TorneosLanding.jsx:53](../../../src/features/torneos/components/TorneosLanding.jsx#L53) |
 | rpc | `transport.rpc` | [src/features/torneos/foundation/torneosClient.js:61](../../../src/features/torneos/foundation/torneosClient.js#L61) |
@@ -259,11 +271,11 @@ Ninguna de estas superficies se habilita en la composición híbrida. `from` pue
 | transport | `fetch` | No literal / sin argumento | [src/features/torneos/api/tournamentPlayerPortraitService.js:107](../../../src/features/torneos/api/tournamentPlayerPortraitService.js#L107) |
 | auth | `supabase.auth.getSession` | No literal / sin argumento | [src/features/torneos/api/tournamentTeamPhotoService.js:90](../../../src/features/torneos/api/tournamentTeamPhotoService.js#L90) |
 | transport | `fetch` | No literal / sin argumento | [src/features/torneos/api/tournamentTeamPhotoService.js:110](../../../src/features/torneos/api/tournamentTeamPhotoService.js#L110) |
-| function | `supabase.functions.invoke` | `tournament-checkout` | [src/features/torneos/api/tournamentWorkspaceService.js:77](../../../src/features/torneos/api/tournamentWorkspaceService.js#L77) |
-| function | `supabase.functions.invoke` | `tournament-fake-payment` | [src/features/torneos/api/tournamentWorkspaceService.js:157](../../../src/features/torneos/api/tournamentWorkspaceService.js#L157) |
-| from | `supabase.from` | `tournament_organization_members` | [src/features/torneos/api/tournamentWorkspaceService.js:296](../../../src/features/torneos/api/tournamentWorkspaceService.js#L296) |
-| from | `supabase.from` | `tournament_venues` | [src/features/torneos/api/tournamentWorkspaceService.js:905](../../../src/features/torneos/api/tournamentWorkspaceService.js#L905) |
-| from | `supabase.from` | `tournament_courts` | [src/features/torneos/api/tournamentWorkspaceService.js:911](../../../src/features/torneos/api/tournamentWorkspaceService.js#L911) |
+| function | `supabase.functions.invoke` | `tournament-checkout` | [src/features/torneos/api/tournamentWorkspaceService.js:83](../../../src/features/torneos/api/tournamentWorkspaceService.js#L83) |
+| function | `supabase.functions.invoke` | `tournament-fake-payment` | [src/features/torneos/api/tournamentWorkspaceService.js:163](../../../src/features/torneos/api/tournamentWorkspaceService.js#L163) |
+| from | `supabase.from` | `tournament_organization_members` | [src/features/torneos/api/tournamentWorkspaceService.js:302](../../../src/features/torneos/api/tournamentWorkspaceService.js#L302) |
+| from | `supabase.from` | `tournament_venues` | [src/features/torneos/api/tournamentWorkspaceService.js:911](../../../src/features/torneos/api/tournamentWorkspaceService.js#L911) |
+| from | `supabase.from` | `tournament_courts` | [src/features/torneos/api/tournamentWorkspaceService.js:917](../../../src/features/torneos/api/tournamentWorkspaceService.js#L917) |
 | persistence | `window.localStorage.getItem` | No literal / sin argumento | [src/features/torneos/components/MobileAppCallout.jsx:21](../../../src/features/torneos/components/MobileAppCallout.jsx#L21) |
 | persistence | `window.localStorage.setItem` | No literal / sin argumento | [src/features/torneos/components/MobileAppCallout.jsx:26](../../../src/features/torneos/components/MobileAppCallout.jsx#L26) |
 | persistence | `window.localStorage.getItem` | No literal / sin argumento | [src/features/torneos/context/TorneosWorkspaceContext.jsx:32](../../../src/features/torneos/context/TorneosWorkspaceContext.jsx#L32) |
@@ -324,7 +336,7 @@ Ninguna de estas superficies se habilita en la composición híbrida. `from` pue
 | [src/supabase.js:16](../../../src/supabase.js#L16) | `./lib/supabaseClient` |
 | [src/utils/checkView.js:2](../../../src/utils/checkView.js#L2) | `../lib/supabaseClient` |
 
-## Dependencias Core transitivas dentro de Torneos (181 aristas)
+## Dependencias Core transitivas dentro de Torneos (186 aristas)
 
 Cada fila es un import que alcanza el singleton por el grafo estático, no una consulta de datos ni una llamada en tiempo de ejecución. La única arista nueva de B04 es `stagingV1/coreSessionBridge.js → lib/coreSupabaseClient.js` (lectura de sesión y eventos de auth; nunca `rpc`/`from`/`storage`).
 
@@ -344,11 +356,14 @@ Cada fila es un import que alcanza el singleton por el grafo estático, no una c
 | [src/features/torneos/api/tournamentBrandingService.js:2](../../../src/features/torneos/api/tournamentBrandingService.js#L2) | `../domain/brandingAssets` |
 | [src/features/torneos/api/tournamentMediaUploadClient.js:19](../../../src/features/torneos/api/tournamentMediaUploadClient.js#L19) | `../../../services/api/supabase` |
 | [src/features/torneos/api/tournamentPlayerPortraitService.js:10](../../../src/features/torneos/api/tournamentPlayerPortraitService.js#L10) | `../../../services/api/supabase` |
+| [src/features/torneos/api/tournamentSponsorsService.js:7](../../../src/features/torneos/api/tournamentSponsorsService.js#L7) | `../../../services/api/supabase` |
+| [src/features/torneos/api/tournamentSponsorsService.js:8](../../../src/features/torneos/api/tournamentSponsorsService.js#L8) | `../domain/brandingAssets` |
 | [src/features/torneos/api/tournamentTeamPhotoService.js:13](../../../src/features/torneos/api/tournamentTeamPhotoService.js#L13) | `../../../services/api/supabase` |
 | [src/features/torneos/api/tournamentWorkspaceService.js:7](../../../src/features/torneos/api/tournamentWorkspaceService.js#L7) | `../../../services/api/supabase` |
 | [src/features/torneos/api/tournamentWorkspaceService.js:9](../../../src/features/torneos/api/tournamentWorkspaceService.js#L9) | `../domain/brandingAssets` |
 | [src/features/torneos/api/tournamentWorkspaceService.js:10](../../../src/features/torneos/api/tournamentWorkspaceService.js#L10) | `./tournamentBrandingService` |
-| [src/features/torneos/api/tournamentWorkspaceService.js:11](../../../src/features/torneos/api/tournamentWorkspaceService.js#L11) | `./tournamentMediaUploadClient` |
+| [src/features/torneos/api/tournamentWorkspaceService.js:11](../../../src/features/torneos/api/tournamentWorkspaceService.js#L11) | `./tournamentSponsorsService` |
+| [src/features/torneos/api/tournamentWorkspaceService.js:17](../../../src/features/torneos/api/tournamentWorkspaceService.js#L17) | `./tournamentMediaUploadClient` |
 | [src/features/torneos/components/BrandingAssetField.jsx:3](../../../src/features/torneos/components/BrandingAssetField.jsx#L3) | `../api/tournamentBrandingService` |
 | [src/features/torneos/components/BrandingAssetField.jsx:7](../../../src/features/torneos/components/BrandingAssetField.jsx#L7) | `../context/TorneosWorkspaceContext` |
 | [src/features/torneos/components/BrandingAssetField.jsx:9](../../../src/features/torneos/components/BrandingAssetField.jsx#L9) | `./BrandingImage` |
@@ -373,6 +388,7 @@ Cada fila es un import que alcanza el singleton por el grafo estático, no una c
 | [src/features/torneos/components/OrganizationRouteGuard.jsx:6](../../../src/features/torneos/components/OrganizationRouteGuard.jsx#L6) | `../context/TorneosWorkspaceContext` |
 | [src/features/torneos/components/OrganizationSettingsPage.jsx:12](../../../src/features/torneos/components/OrganizationSettingsPage.jsx#L12) | `../context/TorneosWorkspaceContext` |
 | [src/features/torneos/components/OrganizationSettingsPage.jsx:15](../../../src/features/torneos/components/OrganizationSettingsPage.jsx#L15) | `./BrandingAssetField` |
+| [src/features/torneos/components/OrganizationSponsorsPage.jsx:15](../../../src/features/torneos/components/OrganizationSponsorsPage.jsx#L15) | `../context/TorneosWorkspaceContext` |
 | [src/features/torneos/components/OrganizationVenuesPage.jsx:4](../../../src/features/torneos/components/OrganizationVenuesPage.jsx#L4) | `../context/TorneosWorkspaceContext` |
 | [src/features/torneos/components/PersonalWorkspaceSwitcher.jsx:12](../../../src/features/torneos/components/PersonalWorkspaceSwitcher.jsx#L12) | `../context/TorneosWorkspaceContext` |
 | [src/features/torneos/components/PlanExperiencePage.jsx:8](../../../src/features/torneos/components/PlanExperiencePage.jsx#L8) | `../context/TorneosCommerceContext` |
@@ -390,7 +406,7 @@ Cada fila es un import que alcanza el singleton por el grafo estático, no una c
 | [src/features/torneos/components/PublicTournamentRoute.jsx:6](../../../src/features/torneos/components/PublicTournamentRoute.jsx#L6) | `../api/publicCatalogService` |
 | [src/features/torneos/components/PurchaseStatusPage.jsx:11](../../../src/features/torneos/components/PurchaseStatusPage.jsx#L11) | `../context/TorneosCommerceContext` |
 | [src/features/torneos/components/RosterPlayerPortrait.jsx:7](../../../src/features/torneos/components/RosterPlayerPortrait.jsx#L7) | `./usePlayerPortraitUrl` |
-| [src/features/torneos/components/SocialStudioPage.jsx:29](../../../src/features/torneos/components/SocialStudioPage.jsx#L29) | `../context/TorneosWorkspaceContext` |
+| [src/features/torneos/components/SocialStudioPage.jsx:30](../../../src/features/torneos/components/SocialStudioPage.jsx#L30) | `../context/TorneosWorkspaceContext` |
 | [src/features/torneos/components/TeamInvitationPage.jsx:4](../../../src/features/torneos/components/TeamInvitationPage.jsx#L4) | `../context/TorneosWorkspaceContext` |
 | [src/features/torneos/components/TeamPhotoPanel.jsx:11](../../../src/features/torneos/components/TeamPhotoPanel.jsx#L11) | `../api/tournamentTeamPhotoService` |
 | [src/features/torneos/components/TeamPhotoPanel.jsx:17](../../../src/features/torneos/components/TeamPhotoPanel.jsx#L17) | `./useTeamPhotoUrl` |
@@ -420,39 +436,40 @@ Cada fila es un import que alcanza el singleton por el grafo estático, no una c
 | [src/features/torneos/components/TorneosShell.jsx:44](../../../src/features/torneos/components/TorneosShell.jsx#L44) | `./OrganizationRouteGuard` |
 | [src/features/torneos/components/TorneosShell.jsx:45](../../../src/features/torneos/components/TorneosShell.jsx#L45) | `./OrganizationVenuesPage` |
 | [src/features/torneos/components/TorneosShell.jsx:47](../../../src/features/torneos/components/TorneosShell.jsx#L47) | `./OrganizationSettingsPage` |
-| [src/features/torneos/components/TorneosShell.jsx:48](../../../src/features/torneos/components/TorneosShell.jsx#L48) | `./PlanExperiencePage` |
-| [src/features/torneos/components/TorneosShell.jsx:49](../../../src/features/torneos/components/TorneosShell.jsx#L49) | `./PurchaseStatusPage` |
-| [src/features/torneos/components/TorneosShell.jsx:51](../../../src/features/torneos/components/TorneosShell.jsx#L51) | `./TorneosDashboard` |
-| [src/features/torneos/components/TorneosShell.jsx:52](../../../src/features/torneos/components/TorneosShell.jsx#L52) | `./TorneosLanding` |
-| [src/features/torneos/components/TorneosShell.jsx:54](../../../src/features/torneos/components/TorneosShell.jsx#L54) | `./TournamentWizardPage` |
-| [src/features/torneos/components/TorneosShell.jsx:55](../../../src/features/torneos/components/TorneosShell.jsx#L55) | `./TeamsPage` |
-| [src/features/torneos/components/TorneosShell.jsx:56](../../../src/features/torneos/components/TorneosShell.jsx#L56) | `./NewTeamEntryPage` |
-| [src/features/torneos/components/TorneosShell.jsx:57](../../../src/features/torneos/components/TorneosShell.jsx#L57) | `./TeamRegistrationPage` |
-| [src/features/torneos/components/TorneosShell.jsx:58](../../../src/features/torneos/components/TorneosShell.jsx#L58) | `./TeamInvitationPage` |
-| [src/features/torneos/components/TorneosShell.jsx:59](../../../src/features/torneos/components/TorneosShell.jsx#L59) | `./OrganizationInvitationPage` |
-| [src/features/torneos/components/TorneosShell.jsx:60](../../../src/features/torneos/components/TorneosShell.jsx#L60) | `./WorkspaceSwitcher` |
-| [src/features/torneos/components/TorneosShell.jsx:61](../../../src/features/torneos/components/TorneosShell.jsx#L61) | `./FixtureWorkspacePage` |
-| [src/features/torneos/components/TorneosShell.jsx:62](../../../src/features/torneos/components/TorneosShell.jsx#L62) | `./MatchOperationsPage` |
-| [src/features/torneos/components/TorneosShell.jsx:63](../../../src/features/torneos/components/TorneosShell.jsx#L63) | `./MyTournamentMatchesPage` |
-| [src/features/torneos/components/TorneosShell.jsx:64](../../../src/features/torneos/components/TorneosShell.jsx#L64) | `./CaptainMatchSquadPage` |
-| [src/features/torneos/components/TorneosShell.jsx:65](../../../src/features/torneos/components/TorneosShell.jsx#L65) | `./CompetitionCenterPage` |
-| [src/features/torneos/components/TorneosShell.jsx:66](../../../src/features/torneos/components/TorneosShell.jsx#L66) | `./MyTournamentsPage` |
-| [src/features/torneos/components/TorneosShell.jsx:67](../../../src/features/torneos/components/TorneosShell.jsx#L67) | `./TournamentHubPage` |
-| [src/features/torneos/components/TorneosShell.jsx:68](../../../src/features/torneos/components/TorneosShell.jsx#L68) | `./CommunicationsAdminPage` |
-| [src/features/torneos/components/TorneosShell.jsx:69](../../../src/features/torneos/components/TorneosShell.jsx#L69) | `./MediaAdminPage` |
-| [src/features/torneos/components/TorneosShell.jsx:70](../../../src/features/torneos/components/TorneosShell.jsx#L70) | `./SocialStudioPage` |
-| [src/features/torneos/components/TorneosShell.jsx:71](../../../src/features/torneos/components/TorneosShell.jsx#L71) | `./connected/TorneosAccountMenu` |
-| [src/features/torneos/components/TorneosShell.jsx:72](../../../src/features/torneos/components/TorneosShell.jsx#L72) | `./connected/TorneosInboxBell` |
-| [src/features/torneos/components/TorneosShell.jsx:73](../../../src/features/torneos/components/TorneosShell.jsx#L73) | `./connected/useTorneosInboxSummary` |
-| [src/features/torneos/components/TorneosShell.jsx:74](../../../src/features/torneos/components/TorneosShell.jsx#L74) | `./connected/PersonalNavigation` |
-| [src/features/torneos/components/TorneosShell.jsx:75](../../../src/features/torneos/components/TorneosShell.jsx#L75) | `./connected/ExplorePage` |
-| [src/features/torneos/components/TorneosShell.jsx:76](../../../src/features/torneos/components/TorneosShell.jsx#L76) | `./connected/CatalogCallPage` |
-| [src/features/torneos/components/TorneosShell.jsx:77](../../../src/features/torneos/components/TorneosShell.jsx#L77) | `./connected/TournamentApplicationPage` |
-| [src/features/torneos/components/TorneosShell.jsx:78](../../../src/features/torneos/components/TorneosShell.jsx#L78) | `./connected/TorneosInboxPage` |
-| [src/features/torneos/components/TorneosShell.jsx:79](../../../src/features/torneos/components/TorneosShell.jsx#L79) | `./connected/TorneosProfilePage` |
-| [src/features/torneos/components/TorneosShell.jsx:80](../../../src/features/torneos/components/TorneosShell.jsx#L80) | `./connected/ParticipantTeamRoute` |
-| [src/features/torneos/components/TorneosShell.jsx:81](../../../src/features/torneos/components/TorneosShell.jsx#L81) | `./connected/CatalogListingPage` |
-| [src/features/torneos/components/TorneosShell.jsx:82](../../../src/features/torneos/components/TorneosShell.jsx#L82) | `./connected/ApplicationInboxPage` |
+| [src/features/torneos/components/TorneosShell.jsx:48](../../../src/features/torneos/components/TorneosShell.jsx#L48) | `./OrganizationSponsorsPage` |
+| [src/features/torneos/components/TorneosShell.jsx:49](../../../src/features/torneos/components/TorneosShell.jsx#L49) | `./PlanExperiencePage` |
+| [src/features/torneos/components/TorneosShell.jsx:50](../../../src/features/torneos/components/TorneosShell.jsx#L50) | `./PurchaseStatusPage` |
+| [src/features/torneos/components/TorneosShell.jsx:52](../../../src/features/torneos/components/TorneosShell.jsx#L52) | `./TorneosDashboard` |
+| [src/features/torneos/components/TorneosShell.jsx:53](../../../src/features/torneos/components/TorneosShell.jsx#L53) | `./TorneosLanding` |
+| [src/features/torneos/components/TorneosShell.jsx:55](../../../src/features/torneos/components/TorneosShell.jsx#L55) | `./TournamentWizardPage` |
+| [src/features/torneos/components/TorneosShell.jsx:56](../../../src/features/torneos/components/TorneosShell.jsx#L56) | `./TeamsPage` |
+| [src/features/torneos/components/TorneosShell.jsx:57](../../../src/features/torneos/components/TorneosShell.jsx#L57) | `./NewTeamEntryPage` |
+| [src/features/torneos/components/TorneosShell.jsx:58](../../../src/features/torneos/components/TorneosShell.jsx#L58) | `./TeamRegistrationPage` |
+| [src/features/torneos/components/TorneosShell.jsx:59](../../../src/features/torneos/components/TorneosShell.jsx#L59) | `./TeamInvitationPage` |
+| [src/features/torneos/components/TorneosShell.jsx:60](../../../src/features/torneos/components/TorneosShell.jsx#L60) | `./OrganizationInvitationPage` |
+| [src/features/torneos/components/TorneosShell.jsx:61](../../../src/features/torneos/components/TorneosShell.jsx#L61) | `./WorkspaceSwitcher` |
+| [src/features/torneos/components/TorneosShell.jsx:62](../../../src/features/torneos/components/TorneosShell.jsx#L62) | `./FixtureWorkspacePage` |
+| [src/features/torneos/components/TorneosShell.jsx:63](../../../src/features/torneos/components/TorneosShell.jsx#L63) | `./MatchOperationsPage` |
+| [src/features/torneos/components/TorneosShell.jsx:64](../../../src/features/torneos/components/TorneosShell.jsx#L64) | `./MyTournamentMatchesPage` |
+| [src/features/torneos/components/TorneosShell.jsx:65](../../../src/features/torneos/components/TorneosShell.jsx#L65) | `./CaptainMatchSquadPage` |
+| [src/features/torneos/components/TorneosShell.jsx:66](../../../src/features/torneos/components/TorneosShell.jsx#L66) | `./CompetitionCenterPage` |
+| [src/features/torneos/components/TorneosShell.jsx:67](../../../src/features/torneos/components/TorneosShell.jsx#L67) | `./MyTournamentsPage` |
+| [src/features/torneos/components/TorneosShell.jsx:68](../../../src/features/torneos/components/TorneosShell.jsx#L68) | `./TournamentHubPage` |
+| [src/features/torneos/components/TorneosShell.jsx:69](../../../src/features/torneos/components/TorneosShell.jsx#L69) | `./CommunicationsAdminPage` |
+| [src/features/torneos/components/TorneosShell.jsx:70](../../../src/features/torneos/components/TorneosShell.jsx#L70) | `./MediaAdminPage` |
+| [src/features/torneos/components/TorneosShell.jsx:71](../../../src/features/torneos/components/TorneosShell.jsx#L71) | `./SocialStudioPage` |
+| [src/features/torneos/components/TorneosShell.jsx:72](../../../src/features/torneos/components/TorneosShell.jsx#L72) | `./connected/TorneosAccountMenu` |
+| [src/features/torneos/components/TorneosShell.jsx:73](../../../src/features/torneos/components/TorneosShell.jsx#L73) | `./connected/TorneosInboxBell` |
+| [src/features/torneos/components/TorneosShell.jsx:74](../../../src/features/torneos/components/TorneosShell.jsx#L74) | `./connected/useTorneosInboxSummary` |
+| [src/features/torneos/components/TorneosShell.jsx:75](../../../src/features/torneos/components/TorneosShell.jsx#L75) | `./connected/PersonalNavigation` |
+| [src/features/torneos/components/TorneosShell.jsx:76](../../../src/features/torneos/components/TorneosShell.jsx#L76) | `./connected/ExplorePage` |
+| [src/features/torneos/components/TorneosShell.jsx:77](../../../src/features/torneos/components/TorneosShell.jsx#L77) | `./connected/CatalogCallPage` |
+| [src/features/torneos/components/TorneosShell.jsx:78](../../../src/features/torneos/components/TorneosShell.jsx#L78) | `./connected/TournamentApplicationPage` |
+| [src/features/torneos/components/TorneosShell.jsx:79](../../../src/features/torneos/components/TorneosShell.jsx#L79) | `./connected/TorneosInboxPage` |
+| [src/features/torneos/components/TorneosShell.jsx:80](../../../src/features/torneos/components/TorneosShell.jsx#L80) | `./connected/TorneosProfilePage` |
+| [src/features/torneos/components/TorneosShell.jsx:81](../../../src/features/torneos/components/TorneosShell.jsx#L81) | `./connected/ParticipantTeamRoute` |
+| [src/features/torneos/components/TorneosShell.jsx:82](../../../src/features/torneos/components/TorneosShell.jsx#L82) | `./connected/CatalogListingPage` |
+| [src/features/torneos/components/TorneosShell.jsx:83](../../../src/features/torneos/components/TorneosShell.jsx#L83) | `./connected/ApplicationInboxPage` |
 | [src/features/torneos/components/TournamentHubPage.jsx:36](../../../src/features/torneos/components/TournamentHubPage.jsx#L36) | `../context/TorneosWorkspaceContext` |
 | [src/features/torneos/components/TournamentHubPage.jsx:42](../../../src/features/torneos/components/TournamentHubPage.jsx#L42) | `./BrandingImage` |
 | [src/features/torneos/components/TournamentPublicPageSettings.jsx:11](../../../src/features/torneos/components/TournamentPublicPageSettings.jsx#L11) | `../api/tournamentWorkspaceService` |
