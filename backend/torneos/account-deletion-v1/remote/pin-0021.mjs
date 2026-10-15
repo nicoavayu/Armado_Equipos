@@ -21,9 +21,9 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   let driver = fs.readFileSync(DRIVER, 'utf8');
   driver = driver.replace(/(00000000000021_account_erasure\.sql',\n\s+')[^']+(')/, `$1${sha256(m)}$2`)
     .replace(/(00000000000021_account_erasure\.rollback\.sql',\n\s+')[^']+(')/, `$1${sha256(r)}$2`)
-    .replace(/(POST_0021: Object\.freeze\(\{ erase: ')[^']+(', label: ')[^']+(')/,
-      `$1${md5(body(m, 'private.erase_tournament_account'))}$2${md5(body(m, 'private.account_erasure_label'))}$3`);
+    .replace(/(POST_0021: Object\.freeze\(\{ erase: ')[^']+(', confirm: ')[^']+(', label: ')[^']+(')/,
+      `$1${md5(body(m, 'private.erase_tournament_account'))}$2${md5(body(m, 'private.confirm_tournament_account_erasure'))}$3${md5(body(m, 'private.account_erasure_label'))}$4`);
   fs.writeFileSync(DRIVER, driver);
-  process.stdout.write(`${JSON.stringify({ apply: sha256(m), rollback: sha256(r),
-    erase: md5(body(m, 'private.erase_tournament_account')), label: md5(body(m, 'private.account_erasure_label')) })}\n`);
+  process.stdout.write(`${JSON.stringify({ apply: sha256(m), rollback: sha256(r), erase: md5(body(m, 'private.erase_tournament_account')),
+    confirm: md5(body(m, 'private.confirm_tournament_account_erasure')), label: md5(body(m, 'private.account_erasure_label')) })}\n`);
 }

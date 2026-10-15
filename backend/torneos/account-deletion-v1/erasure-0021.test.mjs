@@ -1,22 +1,26 @@
 // ACCOUNT ERASURE 0021 — the erasure itself, on the hosted-like lab (Production's ownership: everything owned by the
 // non-superuser installer `postgres`), with FICTIONAL people only (test/world.mjs). Every person the design names is
-// erased through the gateway's own database path (the core-adapter login, SET LOCAL ROLE torneos_core_adapter) and the
-// outcome is checked table by table: deleted / anonymised / kept. Also: idempotency, a failure injected mid-way and the
-// retry, isolation (one person's erasure never moves another's data, nor any other organization's), permissions, no
-// orphan organizations, public pages and standings numerically unchanged, purchases byte-identical.
+// erased through the gateway's own database path (the dedicated erasure login, SET LOCAL ROLE torneos_erasure_writer) and
+// the outcome is checked table by table: deleted / anonymised / kept. Also: least privilege of the erasure role, the
+// ledger states (torneos_erased → core_confirmed) with Core failing before / after, the reconcile query, idempotency, a
+// failure injected mid-way and the retry, isolation (one person's erasure never moves another's data, nor any other
+// organization's), no orphan organizations, public pages and standings numerically unchanged, purchases byte-identical.
 //   node --test --test-concurrency=1 backend/torneos/account-deletion-v1/erasure-0021.test.mjs
-//   ACCOUNT_DELETION_EVIDENCE=1 …   writes evidence/erasure-0021-lab.jsonl
-//   ACCOUNT_DELETION_WITH_0020=<0020 sql> …   the same on main + 0020 (sponsors), its own lab container
+//   ACCOUNT_DELETION_EVIDENCE=1 …   writes evidence/erasure-0021-lab<variant>.jsonl
+//   ACCOUNT_DELETION_WITH_0020=<0020 sql> / ACCOUNT_DELETION_WITH_0022=<0022 sql> …   the same on main + 0020 / + 0022 /
+//   + both (sponsors, moderation), each in its own lab container
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
+import fs from 'node:fs';
 import pg from 'pg';
-import { prepare, toPost, installerPool, gatewayLoginUrl, lab, WITH_0020 } from './test/lab.mjs';
+import { prepare, toPost, installerPool, gatewayLoginUrl, lab, WITH_0020, WITH_0022 } from './test/lab.mjs';
 import { buildWorld, RUN } from './test/world.mjs';
-import { adapterDb, changedTables, digests, evidence, publicPage, refusalAs, withoutNames } from './test/support.mjs';
+import { changedTables, digests, erasureDb, evidence, publicPage, reconcile, refusalAs, withoutNames } from './test/support.mjs';
 
 const record = evidence('erasure-0021-lab');
-let pool; let db; let pay; let writer; let adapter; let w; let P; let I;
+let pool; let db; let pay; let writer; let adapter; let eraser; let w; let P; let I;
+const sha = (core) => createHash('sha256').update(core).digest('hex');
 const step = async (name, fn) => {
   try { const details = await fn(); record({ check: name, ok: true, ...(details ? { details } : {}) }); }
   catch (error) { record({ check: name, ok: false, error: String(error.message).slice(0, 400) }); throw error; }
@@ -35,7 +39,8 @@ async function othersDigest() {
     (select md5(coalesce(string_agg(x::text, '|' order by x::text), '')) from public.tournament_match_squad_players x where not (x.organization_id = any($1))) squads,
     (select md5(coalesce(string_agg(x::text, '|' order by x::text), '')) from public.tournament_user_profiles x where not (x.user_id = any($2))) profiles,
     (select md5(coalesce(string_agg(x::text, '|' order by x::text), '')) from public.torneos_identity x where not (x.id = any($2))) identities,
-    (select md5(coalesce(string_agg(x::text, '|' order by x::text), '')) from public.tournament_purchases x) purchases`, [orgsOfRun(), Object.values(P).map((p) => p.id)]);
+    (select md5(coalesce(string_agg(x::text, '|' order by x::text), '')) from public.tournament_purchases x) purchases`,
+  [orgsOfRun(), [...Object.values(P), M.fan, M.other].filter(Boolean).map((p) => p.id)]);
   return r[0];
 }
 
@@ -43,10 +48,11 @@ test.before(async () => {
   await prepare();
   await toPost();
   pool = installerPool();
-  db = adapterDb();
+  db = erasureDb();
   pay = new pg.Pool({ connectionString: lab.loginUrl('production'), max: 1 });
   writer = new pg.Pool({ connectionString: gatewayLoginUrl('identityWriter'), max: 1 });
   adapter = new pg.Pool({ connectionString: gatewayLoginUrl('coreAdapter'), max: 1 });
+  eraser = new pg.Pool({ connectionString: gatewayLoginUrl('erasureWriter'), max: 1 });
   const paymentsCall = async (fn, args) => {
     const c = await pay.connect();
     try {
@@ -64,7 +70,7 @@ test.before(async () => {
   record({ check: 'world', ok: true, details: { run: RUN, with0020: Boolean(WITH_0020), people: Object.keys(P).length,
     organizations: orgsOfRun().length } });
 });
-test.after(async () => { await db?.end(); await pool?.end(); await pay?.end(); await writer?.end(); await adapter?.end(); });
+test.after(async () => { await db?.end(); await pool?.end(); await pay?.end(); await writer?.end(); await adapter?.end(); await eraser?.end(); });
 
 let pageBefore; let projectionBefore; let othersBefore; let purchaseBefore;
 test('E0 baseline: the public page shows the real player names; official history, standings and the purchase are captured', async () => step('E0 baseline', async () => {
@@ -82,21 +88,79 @@ test('E0 baseline: the public page shows the real player names; official history
   return { players: pageBefore.competition?.[0]?.players?.length, purchase: purchaseBefore[0].row.status };
 }));
 
-test('E1 permissions: only torneos_core_adapter may erase; no client role reads the ledger or calls the pseudonym', async () => step('E1 permissions', async () => {
-  const call = 'select private.erase_tournament_account(gen_random_uuid(), gen_random_uuid())';
+test('E1 permissions: only torneos_erasure_writer may erase or confirm; every API / RPC role (core adapter included) is denied', async () => step('E1 permissions', async () => {
+  const erase = 'select private.erase_tournament_account(gen_random_uuid(), gen_random_uuid())';
+  const confirm = 'select private.confirm_tournament_account_erasure(gen_random_uuid(), gen_random_uuid())';
   const out = {};
-  const as = (role) => (role === 'torneos_identity_writer' ? writer : pool);
-  for (const role of ['anon', 'authenticated', 'service_role', 'torneos_identity_writer']) {
-    out[role] = await refusalAs(as(role), role, call);
+  const as = (role) => (role === 'torneos_identity_writer' ? writer : role === 'torneos_core_adapter' ? adapter : pool);
+  for (const role of ['anon', 'authenticated', 'service_role', 'torneos_identity_writer', 'torneos_core_adapter', 'torneos_payment_production_service']) {
+    const p = role === 'torneos_payment_production_service' ? pay : as(role);
+    out[role] = await refusalAs(p, role, erase);
     assert.match(out[role] ?? '', /permission denied/, `${role} must not erase`);
-    assert.match(await refusalAs(as(role), role, 'select count(*) from private.tournament_account_erasures') ?? '', /permission denied/, `${role} must not read the ledger`);
-    assert.match(await refusalAs(as(role), role, "select private.account_erasure_label('x', gen_random_uuid(), null)") ?? '', /permission denied/);
+    assert.match(await refusalAs(p, role, confirm) ?? '', /permission denied/, `${role} must not confirm`);
+    assert.match(await refusalAs(p, role, 'select count(*) from private.tournament_account_erasures') ?? '', /permission denied/, `${role} must not read the ledger`);
+    assert.match(await refusalAs(p, role, "select private.account_erasure_label('x', gen_random_uuid(), null)") ?? '', /permission denied/);
   }
-  // The gateway's role may call it (a random Core user: no_identity, nothing written), and nothing else.
-  assert.equal(await refusalAs(adapter, 'torneos_core_adapter', call), null, 'the gateway role may');
-  assert.match(await refusalAs(adapter, 'torneos_core_adapter', 'select count(*) from private.tournament_account_erasures') ?? '', /permission denied/, 'the adapter only calls; it never reads the ledger');
-  assert.match(await refusalAs(adapter, 'torneos_core_adapter', "update public.torneos_identity set core_user_id = gen_random_uuid() where false") ?? '', /permission denied/, 'no direct write on identities');
+  // The gateway's two other logins cannot become the erasure role (NOINHERIT members of their own role only).
+  assert.match(await refusalAs(adapter, 'torneos_erasure_writer', 'select 1') ?? '', /permission denied to set role/);
+  assert.match(await refusalAs(writer, 'torneos_erasure_writer', 'select 1') ?? '', /permission denied to set role/);
+  // The erasure role may call both (a random Core user: no_identity / no_ledger, nothing written).
+  assert.equal(await refusalAs(eraser, 'torneos_erasure_writer', erase), null, 'the erasure role may erase');
+  assert.equal(await refusalAs(eraser, 'torneos_erasure_writer', confirm), null, 'the erasure role may confirm');
   return out;
+}));
+
+test('E1b least privilege: the erasure login can do NOTHING else — no table, no other function, no other role', async () => step('E1b least privilege', async () => {
+  const refusals = {};
+  for (const [name, text] of Object.entries({
+    loginWithoutRole: null, // NOINHERIT: before SET ROLE the login holds nothing at all
+    readIdentities: 'select count(*) from public.torneos_identity',
+    readProfiles: 'select count(*) from public.tournament_user_profiles',
+    insertProfile: "insert into public.tournament_user_profiles(user_id, display_name) values (gen_random_uuid(), 'x')",
+    updateIdentities: 'update public.torneos_identity set core_user_id = gen_random_uuid() where false',
+    readLedger: 'select count(*) from private.tournament_account_erasures',
+    readPurchases: 'select count(*) from public.tournament_purchases',
+    readAttestations: 'select count(*) from private.core_contract_attestations',
+    pseudonym: "select private.account_erasure_label('x', gen_random_uuid(), null)",
+    coreContract: "select private.authorize_core_contract('x', '{}'::jsonb)",
+    currentIdentity: 'select private.current_identity_id()',
+    publicRpc: "select public.get_public_tournament_page('x', null)",
+    createTable: 'create table public.lab_erasure_probe(x int)',
+  })) {
+    if (text === null) {
+      const c = await eraser.connect();
+      try { await c.query('select private.erase_tournament_account(gen_random_uuid(), gen_random_uuid())'); refusals[name] = null; }
+      catch (e) { refusals[name] = e.message; } finally { c.release(); }
+    } else refusals[name] = await refusalAs(eraser, 'torneos_erasure_writer', text);
+    assert.match(refusals[name] ?? '', /permission denied/, name);
+  }
+  for (const role of ['torneos_core_adapter', 'torneos_identity_writer', 'service_role', 'authenticated', 'anon', 'postgres', 'authenticator',
+    'torneos_payment_production_service']) {
+    assert.match(await refusalAs(eraser, role, 'select 1') ?? '', /permission denied to set role/, `SET ROLE ${role}`);
+  }
+  // Catalog: compared with a role created with nothing, the erasure role can EXECUTE exactly the two erasure functions
+  // in public / private / storage, and holds no privilege on any table, view or sequence there.
+  const extra = await rows(`select coalesce(array_agg(p.oid::regprocedure::text order by p.oid::regprocedure::text), '{}') fns
+    from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+    where n.nspname in ('public', 'private', 'storage') and has_function_privilege('torneos_erasure_writer', p.oid, 'EXECUTE')
+      and not exists (select 1 from aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a where a.grantee = 0 and a.privilege_type = 'EXECUTE')`);
+  assert.deepEqual(extra[0].fns, ['private.confirm_tournament_account_erasure(uuid,uuid)', 'private.erase_tournament_account(uuid,uuid)']);
+  const tables = await val(`select count(*)::int from pg_class c join pg_namespace n on n.oid = c.relnamespace
+    where n.nspname in ('public', 'private', 'storage') and c.relkind in ('r', 'p', 'v', 'm', 'f', 'S')
+      and has_table_privilege('torneos_erasure_writer', c.oid, 'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER')`);
+  assert.equal(tables, 0);
+  const attrs = await rows(`select rolcanlogin, rolinherit, rolsuper, rolcreaterole, rolcreatedb, rolbypassrls,
+    (select count(*)::int from pg_auth_members m where m.member = r.oid) member_of from pg_roles r where rolname = 'torneos_erasure_writer'`);
+  assert.deepEqual(attrs, [{ rolcanlogin: false, rolinherit: false, rolsuper: false, rolcreaterole: false, rolcreatedb: false, rolbypassrls: false, member_of: 0 }]);
+  // The login, provisioned with the operator's SQL (SCRAM verifier): LOGIN NOINHERIT, member of the erasure role only.
+  const login = await rows(`select l.rolcanlogin, l.rolinherit, l.rolsuper, l.rolcreaterole, l.rolbypassrls,
+    array(select r.rolname::text from pg_auth_members m join pg_roles r on r.oid = m.roleid where m.member = l.oid order by 1) member_of
+    from pg_roles l where l.rolname = 'torneos_edge_erasure_writer'`);
+  assert.deepEqual(login[0], { rolcanlogin: true, rolinherit: false, rolsuper: false, rolcreaterole: false, rolbypassrls: false,
+    member_of: ['torneos_erasure_writer'] });
+  assert.equal(lab.sql("select rolpassword like 'SCRAM-SHA-256$4096:%' from pg_authid where rolname = 'torneos_edge_erasure_writer'").trim(), 't',
+    'the server holds a SCRAM verifier, never the plaintext');
+  return { refusals: Object.keys(refusals).length, executable: extra[0].fns, tables, login: login[0] };
 }));
 
 test('E2 a Core user who never used Torneos: no_identity, nothing moves anywhere', async () => step('E2 nadie', async () => {
@@ -107,11 +171,53 @@ test('E2 a Core user who never used Torneos: no_identity, nothing moves anywhere
   return r;
 }));
 
+// 0022 (moderation, #216), only when the lab has it: reports by and about people this suite erases, a mute, a block.
+const M = {};
+if (WITH_0022) {
+  test('E2b (0022) moderation rows by and about people erased below: fan reports pedro and a team, pedro muted Liga Norte and is blocked by olga', async () => step('E2b moderation fixtures', async () => {
+    M.fan = { id: randomUUID(), core: randomUUID() };
+    await pool.query('insert into public.torneos_identity(id, core_user_id) values ($1, $2)', [M.fan.id, M.fan.core]);
+    const report = async (kind, target, label, snapshot, reporter, detail) => (await pool.query(`insert into public.tournament_content_reports
+      (organization_id, tournament_id, target_kind, target_id, target_label, content_snapshot, review_scope, reporter_user_id, reason, detail, idempotency_key)
+      values ($1, $2, $3, $4, $5, $6, 'organization', $7, 'offensive', $8, gen_random_uuid()) returning id`,
+    [I.norte, I.T.id, kind, target, label, snapshot, reporter, detail])).rows[0].id;
+    M.teamReport = await report('team', I.uno.entry, 'Equipo Ficticio', {}, M.fan.id, 'Detalle del denunciante con su celular 11-5555-0000');
+    M.playerReport = await report('player', I.pedroRow.id, 'Pedro Ficticio', { playerName: 'Pedro Ficticio' }, M.fan.id, null);
+    const capiEntry = await val('select team_entry_id from public.tournament_team_applications where applicant_user_id = $1', [P.capi.id]);
+    M.appReport = await report('application', capiEntry, 'Solicitud', { message: 'Mensaje del solicitante con su celular' }, P.olga.id, null);
+    for (const r of [M.teamReport, M.playerReport]) {
+      await pool.query(`insert into public.tournament_content_report_events(report_id, actor_user_id, actor_type, event, to_status) values ($1, $2, 'user', 'created', 'open')`, [r, M.fan.id]);
+    }
+    await pool.query(`insert into public.tournament_content_report_events(report_id, actor_user_id, actor_type, event, from_status, to_status) values ($1, $2, 'user', 'status_changed', 'open', 'under_review')`, [M.teamReport, P.olga.id]);
+    await pool.query('insert into public.tournament_communication_mutes(user_id, organization_id) values ($1, $2)', [P.pedro.id, I.norte]);
+    M.block = (await pool.query(`insert into public.tournament_applicant_blocks(organization_id, blocked_user_id, reason, created_by) values ($1, $2, 'Bloqueo de laboratorio', $3) returning id`,
+      [I.norte, P.pedro.id, P.olga.id])).rows[0].id;
+    // A block created BY someone erased below (capi) on someone never erased: the staff act stays, with its severed reference.
+    M.other = { id: randomUUID(), core: randomUUID() };
+    await pool.query('insert into public.torneos_identity(id, core_user_id) values ($1, $2)', [M.other.id, M.other.core]);
+    M.capiBlock = (await pool.query(`insert into public.tournament_applicant_blocks(organization_id, blocked_user_id, reason, created_by) values ($1, $2, 'Bloqueo creado por staff', $3) returning id`,
+      [I.norte, M.other.id, P.capi.id])).rows[0].id;
+    return { reports: 3, mutes: 1, blocks: 2 };
+  }));
+}
+
 let pedroSummary;
 test('E3 pedro (player with goals and a card, official report, completed tournament): pseudonym everywhere, numbers kept, personal rows deleted', async () => step('E3 pedro', async () => {
   const pseudo = await label('Jugador eliminado', P.pedro, I.norte);
   const before = await digests(pool);
   pedroSummary = await db.erase(P.pedro.core);
+  if (WITH_0022) {
+    // 0022: the report ABOUT pedro follows his roster row (pseudonym in label and snapshot); his mute and the block of him go;
+    // the reporter (fan, not erased yet) and the staff act stay.
+    assert.deepEqual(await rows('select target_label, content_snapshot, reporter_user_id from public.tournament_content_reports where id = $1', [M.playerReport]),
+      [{ target_label: pseudo, content_snapshot: { playerName: pseudo }, reporter_user_id: M.fan.id }]);
+    assert.equal(await val('select count(*)::int from public.tournament_communication_mutes where user_id = $1', [P.pedro.id]), 0);
+    assert.equal(await val('select count(*)::int from public.tournament_applicant_blocks where blocked_user_id = $1', [P.pedro.id]), 0);
+    assert.deepEqual([pedroSummary.counts.playerReportsAnonymised, pedroSummary.counts.communicationMutesDeleted, pedroSummary.counts.applicantBlocksDeleted,
+      pedroSummary.counts.reportsDetached], [1, 1, 1, 0]);
+  } else {
+    assert.equal(pedroSummary.counts.reportsDetached, undefined, 'main without 0022: the moderation step is skipped');
+  }
   assert.equal(pedroSummary.outcome, 'erased');
   const c = pedroSummary.counts;
   assert.deepEqual([c.rosterPlayersAnonymised, c.squadSnapshotsAnonymised, c.matchReportSnapshotsAnonymised, c.availabilityNotesCleared,
@@ -140,8 +246,10 @@ test('E3 pedro (player with goals and a card, official report, completed tournam
   assert.equal(await val('select count(*)::int from public.tournament_match_events where roster_player_id = $1 and voided_at is null', [I.pedroRow.id]), 3, 'two goals and a card');
   assert.equal(await val('select count(*)::int from public.tournament_document_acknowledgements where user_id = $1', [P.pedro.id]), 1);
   assert.equal(await val('select count(*)::int from public.tournament_announcement_deliveries where recipient_user_id = $1', [P.pedro.id]), 1);
-  const ledger = await rows('select core_user_sha256, identity_id from private.tournament_account_erasures where identity_id = $1', [P.pedro.id]);
+  const ledger = await rows('select core_user_sha256, identity_id, state, core_confirmed_at from private.tournament_account_erasures where identity_id = $1', [P.pedro.id]);
   assert.equal(ledger.length, 1);
+  assert.deepEqual([ledger[0].state, ledger[0].core_confirmed_at], ['torneos_erased', null], 'Torneos did its part; Core has not confirmed yet');
+  assert.equal(ledger[0].core_user_sha256, sha(P.pedro.core));
   assert.match(ledger[0].core_user_sha256, /^[0-9a-f]{64}$/);
   // PUBLIC: the page no longer names him, the numbers are the same.
   const page = await publicPage(pool, pageBefore.publicSlug);
@@ -330,3 +438,139 @@ test('E17 isolation: other worlds on this lab and the people never erased here a
     [Object.values(P).map((p) => p.id)]);
   return { erasedHere: ledger };
 }));
+
+// ------------------------------------------------------------------------------------------------ Core ↔ Torneos states
+// Torneos and Core are two databases: there is no transaction across them. Torneos erases first (irreversible) and its
+// ledger row is born torneos_erased; Core confirms with confirm_tournament_account_erasure only AFTER deleting its own
+// account (core_confirmed). These tests drive the Torneos side exactly as the gateway does for each Core outcome.
+const person = async (name) => {
+  const p = { id: randomUUID(), core: randomUUID(), request: randomUUID() };
+  await pool.query('insert into public.torneos_identity(id, core_user_id) values ($1, $2)', [p.id, p.core]);
+  await pool.query('insert into public.tournament_user_profiles(user_id, display_name) values ($1, $2)', [p.id, `${name} Ficticio`]);
+  return p;
+};
+const ledgerOf = (p) => rows(`select id, request_id, state, core_confirmed_by, core_confirm_request_id from private.tournament_account_erasures
+  where core_user_sha256 = $1 order by erased_at, id`, [sha(p.core)]);
+const listed = async (p, olderThan) => (await reconcile(pool, olderThan)).filter((r) => r.core_user_sha256 === sha(p.core));
+const COMPLETE = fs.readFileSync(new URL('./remote/reconcile-complete-0021.sql', import.meta.url), 'utf8');
+const operatorComplete = (erasureId) => lab.sqlTry(COMPLETE.replaceAll('<erasure_id>', erasureId), { user: 'postgres' });
+const SMALL = ['public.torneos_identity', 'public.tournament_user_profiles', 'private.tournament_account_erasures'];
+
+test('E18 Core fails AFTER Torneos erased: the row stays torneos_erased; the retry gets already_erased (no-op) and Core\'s confirmation completes it', async () => step('E18 core fails after torneos, retry', async () => {
+  const p = await person('Reintento');
+  const first = await db.erase(p.core, p.request);
+  assert.equal(first.outcome, 'erased');
+  // Core: profile_delete_failed / auth_delete_failed → no confirmation is sent. The person sees «podés reintentar».
+  assert.deepEqual((await ledgerOf(p)).map((r) => [r.state, r.request_id]), [['torneos_erased', p.request]]);
+  assert.equal((await listed(p, '0 seconds')).length, 1, 'visible to the operator while unconfirmed');
+  // The retry (same idempotency key): Torneos is a no-op …
+  const before = await digests(pool);
+  assert.equal((await db.erase(p.core, p.request)).outcome, 'already_erased');
+  assert.deepEqual(changedTables(before, await digests(pool)), []);
+  // … Core finishes and confirms.
+  const confirmed = await db.confirm(p.core, p.request);
+  assert.deepEqual([confirmed.outcome, confirmed.confirmedNow, confirmed.sweep], ['core_confirmed', 1, 'already_erased']);
+  assert.deepEqual((await ledgerOf(p)).map((r) => [r.state, r.core_confirmed_by, r.core_confirm_request_id]), [['core_confirmed', 'core', p.request]]);
+  assert.equal((await listed(p, '0 seconds')).length, 0, 'gone from the reconcile list');
+  return { first: first.outcome, retry: 'already_erased', confirm: confirmed.outcome };
+}));
+
+test('E19 Torneos erased and Core never retried: listed by the reconcile query once older than its threshold; the operator completion confirms it once', async () => step('E19 never retried → reconcile', async () => {
+  const p = await person('Abandono');
+  assert.equal((await db.erase(p.core, p.request)).outcome, 'erased');
+  const [row] = await ledgerOf(p);
+  assert.equal((await listed(p)).length, 0, 'fresh: not yet older than the default 24 h');
+  await pool.query("update private.tournament_account_erasures set erased_at = erased_at - interval '25 hours' where id = $1", [row.id]); // the lab's clock
+  const [r] = await listed(p);
+  assert.deepEqual([r.erasure_id, r.request_id, r.identity_recreated], [row.id, p.request, false]);
+  assert.deepEqual(Object.keys(r), ['erasure_id', 'core_user_sha256', 'request_id', 'erased_at', 'age', 'pending_storage_objects', 'identity_recreated'],
+    'no names, emails or Core ids');
+  // The operator checked Core (the user is gone) and completes it: core_confirmed by 'operator'; a second run changes nothing.
+  assert.equal(operatorComplete(row.id).ok, true);
+  assert.deepEqual((await ledgerOf(p)).map((x) => [x.state, x.core_confirmed_by]), [['core_confirmed', 'operator']]);
+  const before = await digests(pool, SMALL);
+  assert.equal(operatorComplete(row.id).ok, true);
+  assert.deepEqual(changedTables(before, await digests(pool, SMALL)), []);
+  assert.equal((await listed(p)).length, 0);
+  return { listedAfter: '25 hours', completedBy: 'operator' };
+}));
+
+test('E20 double request: two simultaneous erasures of the same person → one erased, one already_erased, one ledger row; double confirmation is idempotent', async () => step('E20 double request', async () => {
+  const p = await person('Doble');
+  const outcomes = (await Promise.all([db.erase(p.core, p.request), db.erase(p.core, p.request)])).map((r) => r.outcome).sort();
+  assert.deepEqual(outcomes, ['already_erased', 'erased']);
+  assert.equal((await ledgerOf(p)).length, 1);
+  const [a, b] = await Promise.all([db.confirm(p.core, p.request), db.confirm(p.core, p.request)]);
+  assert.deepEqual([a.outcome, b.outcome, a.confirmedNow + b.confirmedNow], ['core_confirmed', 'core_confirmed', 1]);
+  const before = await digests(pool, SMALL);
+  assert.equal((await db.confirm(p.core, p.request)).confirmedNow, 0);
+  assert.deepEqual(changedTables(before, await digests(pool, SMALL)), []);
+  return { outcomes };
+}));
+
+test('E21 the opposite failures: Torneos fails → nothing in Torneos (no ledger row) and the retry completes; Core done but its confirmation lost while an identity was re-created → reconcile shows it, the operator completion sweeps it', async () => step('E21 opposite failures', async () => {
+  // (a) Torneos fails mid-way (injected): nothing at all, no ledger row; Core never starts (delete-account.test.mjs: fail closed).
+  const p = await person('FallaTorneos');
+  await pool.query(`create function public.lab_inject_erasure_failure() returns trigger language plpgsql as $$ begin raise exception 'LAB_INJECTED_FAILURE'; end $$`);
+  await pool.query('create trigger lab_inject_erasure_failure before delete on public.tournament_user_profiles for each row execute function public.lab_inject_erasure_failure()');
+  const before = await digests(pool, SMALL);
+  let failure = null;
+  try { await db.erase(p.core, p.request); } catch (error) { failure = error.message; }
+  await pool.query('drop trigger lab_inject_erasure_failure on public.tournament_user_profiles');
+  await pool.query('drop function public.lab_inject_erasure_failure()');
+  assert.match(failure ?? '', /LAB_INJECTED_FAILURE/);
+  assert.deepEqual(changedTables(before, await digests(pool, SMALL)), []);
+  assert.equal((await ledgerOf(p)).length, 0);
+  assert.equal((await db.erase(p.core, p.request)).outcome, 'erased', 'the retry completes');
+  // (b) Core deleted its account but the confirmation never arrived; meanwhile a Torneos session re-created an identity
+  //     (the gateway's own upsert, as torneos_identity_writer).
+  const q = await person('ConfirmacionPerdida');
+  assert.equal((await db.erase(q.core, q.request)).outcome, 'erased');
+  const c = await writer.connect();
+  try {
+    await c.query('BEGIN'); await c.query('SET LOCAL ROLE torneos_identity_writer');
+    await c.query(`INSERT INTO public.torneos_identity(core_user_id) VALUES ($1) ON CONFLICT(core_user_id) DO UPDATE SET core_user_id = EXCLUDED.core_user_id`, [q.core]);
+    await c.query('COMMIT');
+  } finally { c.release(); }
+  const [row] = await ledgerOf(q);
+  const [r] = await listed(q, '0 seconds');
+  assert.deepEqual([r.erasure_id, r.identity_recreated], [row.id, true]);
+  assert.equal(operatorComplete(row.id).ok, true);
+  assert.equal(await val('select count(*)::int from public.torneos_identity where core_user_id = $1', [q.core]), 0, 'the re-created identity was swept');
+  assert.deepEqual((await ledgerOf(q)).map((x) => x.state), ['core_confirmed', 'core_confirmed']);
+  assert.equal((await listed(q, '0 seconds')).length, 0);
+  return { torneosFailure: failure.slice(0, 40), recreatedSwept: true };
+}));
+
+test('E22 confirmation of a person Torneos never knew: no_ledger, nothing moves; the confirmation\'s sweep erases an identity opened after the erasure', async () => step('E22 confirm edge cases', async () => {
+  const before = await digests(pool, SMALL);
+  const unknown = await db.confirm(randomUUID(), randomUUID());
+  assert.deepEqual([unknown.outcome, unknown.sweep], ['no_ledger', 'no_identity']);
+  assert.deepEqual(changedTables(before, await digests(pool, SMALL)), []);
+  const p = await person('Barrido');
+  await db.erase(p.core, p.request);
+  await pool.query('insert into public.torneos_identity(core_user_id) values ($1)', [p.core]); // a session between erasure and Core deletion
+  const confirmed = await db.confirm(p.core, p.request);
+  assert.deepEqual([confirmed.outcome, confirmed.sweep, confirmed.confirmedNow], ['core_confirmed', 'erased', 2]);
+  assert.equal(await val('select count(*)::int from public.torneos_identity where core_user_id = $1', [p.core]), 0);
+  return { sweep: confirmed.sweep };
+}));
+
+if (WITH_0022) {
+  test('E23 (0022) the reporter is erased: reports stay without reporter, detail or own «created» events; staff events and acts keep their reference; the application report lost the message', async () => step('E23 moderation', async () => {
+    const r = await db.erase(M.fan.core);
+    assert.equal(r.counts.reportsDetached, 2);
+    assert.deepEqual(await rows('select reporter_user_id, detail from public.tournament_content_reports where id = any($1)', [[M.teamReport, M.playerReport]]),
+      [{ reporter_user_id: null, detail: null }, { reporter_user_id: null, detail: null }]);
+    assert.equal(await val('select count(*)::int from public.tournament_content_reports where id = any($1)', [[M.teamReport, M.playerReport, M.appReport]]), 3, 'reports kept');
+    assert.equal(await val('select count(*)::int from public.tournament_content_report_events where actor_user_id = $1', [M.fan.id]), 0);
+    assert.equal(await val(`select actor_user_id from public.tournament_content_report_events where report_id = $1 and event = 'status_changed'`, [M.teamReport]), P.olga.id,
+      'the staff event keeps its (severed) reference');
+    // capi (erased in E10) applied: the report about his application lost the message, as the application did.
+    // olga (erased in E5) filed that report: it stays, without her.
+    assert.deepEqual(await rows("select reporter_user_id, content_snapshot ->> 'message' as message from public.tournament_content_reports where id = $1", [M.appReport]),
+      [{ reporter_user_id: null, message: null }]);
+    assert.equal(await val('select created_by from public.tournament_applicant_blocks where id = $1', [M.capiBlock]), P.capi.id, 'the block created by capi stays (staff act)');
+    return r.counts;
+  }));
+}

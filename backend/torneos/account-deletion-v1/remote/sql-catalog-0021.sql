@@ -1,7 +1,9 @@
 with tracked(name, sig) as (values
   -- ACCOUNT ERASURE 0021 operator catalog (read only): one JSON row consumed by db-0021.mjs classify() / changedOutside().
   ('erase', 'private.erase_tournament_account(uuid,uuid)'),
+  ('confirm', 'private.confirm_tournament_account_erasure(uuid,uuid)'),
   ('label', 'private.account_erasure_label(text,uuid,uuid)')),
+erasure_role as (select r.* from pg_roles r where r.rolname = 'torneos_erasure_writer'),
 guards(rel, trigger) as (values
   ('public.torneos_identity', 'torneos_identity_immutable'),
   ('public.tournament_organization_members', 'tournament_organization_members_protect_owner'),
@@ -35,6 +37,7 @@ select json_build_object(
  'acl', (select json_object_agg(t.name, (select json_build_object(
      'secdef', p.prosecdef, 'config', p.proconfig,
      'owner_is_installer', pg_get_userbyid(p.proowner) = current_user,
+     'erasure_writer', coalesce((select has_function_privilege(r.oid, p.oid, 'EXECUTE') from erasure_role r), false),
      'core_adapter', has_function_privilege('torneos_core_adapter', p.oid, 'EXECUTE'),
      'identity_writer', has_function_privilege('torneos_identity_writer', p.oid, 'EXECUTE'),
      'authenticated', has_function_privilege('authenticated', p.oid, 'EXECUTE'),
@@ -47,9 +50,27 @@ select json_build_object(
        or has_table_privilege('authenticated', c.oid, 'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER')
        or has_table_privilege('service_role', c.oid, 'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER')
        or has_table_privilege('torneos_core_adapter', c.oid, 'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER')
-       or has_table_privilege('torneos_identity_writer', c.oid, 'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER'),
+       or has_table_privilege('torneos_identity_writer', c.oid, 'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER')
+       or coalesce((select has_table_privilege(r.oid, c.oid, 'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER') from erasure_role r), false),
      'policies', (select count(*) from pg_policies where schemaname = 'private' and tablename = 'tournament_account_erasures'))
    from pg_class c where c.oid = to_regclass('private.tournament_account_erasures')),
+ -- The erasure role (0021): its attributes and EVERY privilege it holds in public / private / storage, by name. Its
+ -- logins (members) are provisioned out of band: counted for the operator, never part of the state.
+ 'erasure_role', (select json_build_object(
+     'login', r.rolcanlogin, 'inherit', r.rolinherit,
+     'attributes', r.rolsuper or r.rolcreaterole or r.rolcreatedb or r.rolreplication or r.rolbypassrls,
+     'member_of', (select count(*) from pg_auth_members m where m.member = r.oid),
+     'schemas', (select coalesce(json_agg(n.nspname order by n.nspname), '[]') from pg_namespace n
+       where n.nspname in ('public', 'private', 'storage') and exists (select 1 from aclexplode(n.nspacl) a where a.grantee = r.oid)),
+     'functions', (select coalesce(json_agg(p.oid::regprocedure::text order by p.oid::regprocedure::text), '[]') from pg_proc p
+       join pg_namespace n on n.oid = p.pronamespace
+       where n.nspname in ('public', 'private', 'storage') and exists (select 1 from aclexplode(p.proacl) a where a.grantee = r.oid)),
+     'relations', (select count(*) from pg_class c join pg_namespace n on n.oid = c.relnamespace
+       where n.nspname in ('public', 'private', 'storage') and exists (select 1 from aclexplode(c.relacl) a where a.grantee = r.oid)))
+   from erasure_role r),
+ -- (the installer's own ADMIN membership from CREATE ROLE, PostgreSQL 16+, is not a login of the role: left out)
+ 'erasure_role_logins', (select coalesce(json_agg(l.rolname order by l.rolname), '[]') from pg_auth_members m join erasure_role r on m.roleid = r.oid
+   join pg_roles l on l.oid = m.member where l.rolname <> current_user),
  -- A row count only (never ids or hashes): undoing 0021 is refused while the ledger has rows.
  'rows', case when to_regclass('private.tournament_account_erasures') is null then null
    else (xpath('/row/c/text()', query_to_xml('select count(*) as c from private.tournament_account_erasures', false, true, '')))[1]::text::bigint end,

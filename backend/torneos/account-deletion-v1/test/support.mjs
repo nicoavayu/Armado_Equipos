@@ -4,39 +4,54 @@ import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import pg from 'pg';
-import { gatewayLoginUrl, lab, WITH_0020 } from './lab.mjs';
+import { gatewayLoginUrl, lab, VARIANT, WITH_0020, WITH_0022 } from './lab.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 export const EVIDENCE_DIR = path.join(HERE, '../evidence');
 const EVIDENCE = process.env.ACCOUNT_DELETION_EVIDENCE === '1';
 
-/** One JSON line per named check, into evidence/<file>.jsonl (only with ACCOUNT_DELETION_EVIDENCE=1). */
+/** One JSON line per named check, into evidence/<file><variant>.jsonl (only with ACCOUNT_DELETION_EVIDENCE=1). */
 export function evidence(file) {
-  const target = path.join(EVIDENCE_DIR, `${file}${WITH_0020 ? '-with-0020' : ''}.jsonl`);
+  const target = path.join(EVIDENCE_DIR, `${file}${VARIANT}.jsonl`);
   if (EVIDENCE) { fs.mkdirSync(EVIDENCE_DIR, { recursive: true }); fs.writeFileSync(target, ''); }
   return (entry) => { if (EVIDENCE) fs.appendFileSync(target, `${JSON.stringify({ at: new Date().toISOString(), ...entry })}\n`); };
 }
 
-/** The erasure exactly as the gateway runs it: the core-adapter login, SET LOCAL ROLE torneos_core_adapter, one call. */
-export function adapterDb() {
-  const pool = new pg.Pool({ connectionString: gatewayLoginUrl('coreAdapter'), max: 3 });
+/** The erasure exactly as the gateway runs it: the dedicated erasure login, SET LOCAL ROLE torneos_erasure_writer, one call. */
+export function erasureDb() {
+  const pool = new pg.Pool({ connectionString: gatewayLoginUrl('erasureWriter'), max: 3 });
+  const call = async (fn, core, requestId) => {
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      await client.query('SET LOCAL ROLE torneos_erasure_writer');
+      await client.query('SET LOCAL statement_timeout = 15000');
+      const { rows } = await client.query(`SELECT private.${fn}($1::uuid, $2::uuid) AS result`, [core, requestId]);
+      await client.query('COMMIT');
+      return rows[0].result;
+    } catch (error) {
+      await client.query('ROLLBACK').catch(() => {});
+      throw error;
+    } finally { client.release(); }
+  };
   return {
-    async erase(core, requestId = randomUUID()) {
-      const client = await pool.connect();
-      try {
-        await client.query('BEGIN');
-        await client.query('SET LOCAL ROLE torneos_core_adapter');
-        await client.query('SET LOCAL statement_timeout = 15000');
-        const { rows } = await client.query('SELECT private.erase_tournament_account($1::uuid, $2::uuid) AS result', [core, requestId]);
-        await client.query('COMMIT');
-        return rows[0].result;
-      } catch (error) {
-        await client.query('ROLLBACK').catch(() => {});
-        throw error;
-      } finally { client.release(); }
-    },
+    erase: (core, requestId = randomUUID()) => call('erase_tournament_account', core, requestId),
+    confirm: (core, requestId = randomUUID()) => call('confirm_tournament_account_erasure', core, requestId),
     end: () => pool.end(),
   };
+}
+
+/** The operator's read-only reconcile query (remote/reconcile-0021.sql) with its age threshold replaced, in a READ ONLY tx. */
+export async function reconcile(pool, olderThan = null) {
+  const file = fs.readFileSync(path.join(HERE, '../remote/reconcile-0021.sql'), 'utf8');
+  const text = olderThan === null ? file : file.replace(/interval '24 hours'/, `interval '${olderThan}'`);
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN TRANSACTION READ ONLY');
+    const { rows } = await client.query(text);
+    await client.query('ROLLBACK');
+    return rows;
+  } finally { client.release(); }
 }
 
 /** Runs one statement as a role (PostgREST-like), returns the error message or null. */
@@ -68,8 +83,12 @@ export const TOUCHABLE = Object.freeze(['public.torneos_identity', 'public.tourn
   'public.tournament_document_acknowledgements', 'public.tournament_match_events', 'public.tournament_match_scores', 'public.tournament_player_statistics',
   'public.tournament_team_standings', 'public.tournament_discipline_ledgers']);
 
+export const MODERATION_0022 = Object.freeze(['public.tournament_content_reports', 'public.tournament_content_report_events',
+  'public.tournament_communication_mutes', 'public.tournament_applicant_blocks']);
+
 export async function digests(pool, tables = TOUCHABLE, extra = []) {
-  const list = [...tables, ...extra.filter(Boolean), ...(WITH_0020 && tables === TOUCHABLE ? ['public.tournament_organization_sponsors'] : [])];
+  const list = [...tables, ...extra.filter(Boolean), ...(WITH_0020 && tables === TOUCHABLE ? ['public.tournament_organization_sponsors'] : []),
+    ...(WITH_0022 && tables === TOUCHABLE ? MODERATION_0022 : [])];
   const parts = list.map((t) => `select '${t}' as t, md5(coalesce(string_agg(x::text, '|' order by x::text), '')) as d from ${t} x`);
   const { rows } = await pool.query(parts.join(' union all '));
   return Object.fromEntries(rows.map((r) => [r.t, r.d]));

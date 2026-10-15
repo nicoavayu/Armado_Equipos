@@ -28,17 +28,31 @@
 --               active owner (postcondition).
 --
 -- What it adds, and nothing else:
---   * private.tournament_account_erasures: the erasure ledger (sha256 of the Core user id, the severed identity, the
---     summary, the storage objects left for the operator). No client role can read it.
+--   * torneos_erasure_writer: a NOLOGIN NOINHERIT role whose ONLY privileges are USAGE on schema private and EXECUTE on
+--     the two erasure functions below (nothing on any table, no other function, member of no role). The gateway reaches
+--     it through its own login (torneos_edge_erasure_writer, created out of band with a SCRAM verifier like the other
+--     torneos_edge_* logins; its password lives only in the gateway's Secret Manager entry), never through
+--     torneos_core_adapter or torneos_identity_writer, which cannot run the erasure.
+--   * private.tournament_account_erasures: the erasure ledger, one row per severed identity: sha256 of the Core user id,
+--     the deletion request id (Core's idempotency key), the state torneos_erased → core_confirmed, the summary and the
+--     storage objects left for the operator. No client role (nor the erasure role) can read it.
 --   * private.account_erasure_label(kind, identity, organization): the pseudonym.
 --   * private.erase_tournament_account(core_user_id, request_id): the erasure, in ONE transaction (all or nothing),
---     idempotent by core user id: { outcome: erased | already_erased | no_identity, … }. EXECUTE only for
---     torneos_core_adapter (the gateway's Core-contract role; the gateway calls it only for a request signed by Core).
+--     idempotent by core user id: { outcome: erased | already_erased | no_identity, … }. A new ledger row is born
+--     torneos_erased.
+--   * private.confirm_tournament_account_erasure(core_user_id, request_id): Core's confirmation, AFTER it deleted its own
+--     account: sweeps (erases an identity re-created in between, if any) and moves the person's ledger rows to
+--     core_confirmed: { outcome: core_confirmed | no_ledger }.
+-- Torneos and Core are two databases: this is NOT atomic across them. Torneos erases first and that is irreversible (the
+-- originals are not kept anywhere). If Core then fails, the ledger row stays torneos_erased: the person's retry gets
+-- already_erased (a no-op) and lets Core finish; if nobody retries, the operator's read-only reconcile query
+-- (backend/torneos/account-deletion-v1/remote/reconcile-0021.sql) lists the rows Core never confirmed.
 -- No existing function body, policy, grant, table or trigger definition changes. The guard triggers that make official
 -- history immutable are disabled and re-enabled INSIDE the erasure transaction only, around the anonymising updates
 -- (ALTER TABLE … DISABLE/ENABLE TRIGGER needs the table owner = the installer that owns this function); the function
 -- refuses to start if any of them is not enabled, and verifies they are all enabled again before it returns.
--- Applies on main (0000 → 0019) and on main + 0020 (sponsors): the sponsors table is handled only if it exists.
+-- Applies on main (0000 → 0019) and on main + 0020 (sponsors) and/or 0022 (moderation), in any order: the sponsors and
+-- moderation tables are handled only if they exist when an erasure runs (dynamic SQL; nothing here references them).
 BEGIN;
 
 DO $pre$
@@ -57,31 +71,48 @@ BEGIN
   END IF;
   IF to_regclass('private.tournament_account_erasures') IS NOT NULL
     OR to_regprocedure('private.erase_tournament_account(uuid,uuid)') IS NOT NULL
-    OR to_regprocedure('private.account_erasure_label(text,uuid,uuid)') IS NOT NULL THEN
+    OR to_regprocedure('private.confirm_tournament_account_erasure(uuid,uuid)') IS NOT NULL
+    OR to_regprocedure('private.account_erasure_label(text,uuid,uuid)') IS NOT NULL
+    OR EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'torneos_erasure_writer') THEN
     RAISE EXCEPTION 'TORNEOS_ACCOUNT_ERASURE_PRECONDITION_FAILED: already applied';
   END IF;
 END
 $pre$;
+
+-- The erasure role: NOLOGIN (the gateway's login is created out of band and made a NOINHERIT member of it), NOINHERIT,
+-- member of nothing. Its privileges are exactly the three grants at the end of this file.
+create role torneos_erasure_writer nologin noinherit;
+comment on role torneos_erasure_writer is
+  'Account erasure (0021): may only EXECUTE private.erase_tournament_account and private.confirm_tournament_account_erasure. Reached by the gateway login torneos_edge_erasure_writer (provisioned out of band; its credential lives only in Secret Manager).';
 
 create table private.tournament_account_erasures (
   id uuid primary key default pg_catalog.gen_random_uuid(),
   request_id uuid not null,
   core_user_sha256 text not null,
   identity_id uuid not null references public.torneos_identity(id) on delete restrict,
+  state text not null default 'torneos_erased',
   erased_at timestamptz not null default now(),
+  core_confirmed_at timestamptz,
+  core_confirmed_by text,
+  core_confirm_request_id uuid,
   summary jsonb not null,
   pending_storage_objects jsonb not null default '[]'::jsonb,
   constraint tournament_account_erasures_identity_unique unique (identity_id),
   constraint tournament_account_erasures_hash_check check (core_user_sha256 ~ '^[0-9a-f]{64}$'),
+  constraint tournament_account_erasures_state_check check (state in ('torneos_erased', 'core_confirmed')),
+  constraint tournament_account_erasures_confirmed_check check (
+    (state = 'torneos_erased' and core_confirmed_at is null and core_confirmed_by is null and core_confirm_request_id is null)
+    or (state = 'core_confirmed' and core_confirmed_at is not null and core_confirmed_by in ('core', 'operator'))),
   constraint tournament_account_erasures_summary_check check (jsonb_typeof(summary) = 'object'),
   constraint tournament_account_erasures_objects_check check (jsonb_typeof(pending_storage_objects) = 'array')
 );
 create index tournament_account_erasures_hash_idx on private.tournament_account_erasures (core_user_sha256);
+create index tournament_account_erasures_unconfirmed_idx on private.tournament_account_erasures (erased_at) where state = 'torneos_erased';
 alter table private.tournament_account_erasures enable row level security;
 alter table private.tournament_account_erasures force row level security;
 revoke all on private.tournament_account_erasures from public, anon, authenticated, service_role;
 comment on table private.tournament_account_erasures is
-  'Account erasures (0021): one row per severed identity. core_user_sha256 = sha256 of the deleted Core user id, kept only to answer a repeated request as already_erased. No client role can read it.';
+  'Account erasures (0021): one row per severed identity. core_user_sha256 = sha256 of the deleted Core user id (answers a repeated request as already_erased; matches Core in a reconcile); request_id = the deletion request (Core''s idempotency key); state torneos_erased → core_confirmed once Core deleted its own account. No client role can read it.';
 
 create function private.account_erasure_label(p_kind text, p_identity uuid, p_organization uuid)
 returns text
@@ -365,6 +396,43 @@ begin
     v_counts := v_counts || jsonb_build_object('sponsorsDetached', v_n);
   end if;
 
+  -- 7b. Moderation (0022, when present). Reports the person FILED stay (moderation history of the organization and the
+  --     platform) without the reporter and without the reporter's free text; their own «created» events lose the actor
+  --     too, or the detachment would be undone. Reports ABOUT the person's content follow the content: a player report
+  --     carries the pseudonym the roster now shows, an application report loses the message the application lost. The
+  --     person's mutes only served them; blocks of the person can never match again (severed identity) and their reason
+  --     is text about the person. Staff acts (handled_by, created_by, released_by, other event actors) keep the severed
+  --     reference, as tournament_audit_log and the media moderation actions do.
+  if to_regclass('public.tournament_content_reports') is not null then
+    execute 'update public.tournament_content_report_events e set actor_user_id = null
+      from public.tournament_content_reports r
+      where e.report_id = r.id and r.reporter_user_id = $1 and e.actor_user_id = $1 and e.event = ''created''' using v_identity;
+    execute 'update public.tournament_content_reports set reporter_user_id = null, detail = null, updated_at = now()
+      where reporter_user_id = $1' using v_identity;
+    get diagnostics v_n = row_count;
+    v_counts := v_counts || jsonb_build_object('reportsDetached', v_n);
+    execute 'update public.tournament_content_reports r
+      set target_label = left(p.display_name, 200),
+          content_snapshot = r.content_snapshot || jsonb_build_object(''playerName'', p.display_name), updated_at = now()
+      from public.tournament_roster_players p
+      where r.target_kind = ''player'' and r.target_id = p.id and p.id = any($1)' using v_rosters;
+    get diagnostics v_n = row_count;
+    v_counts := v_counts || jsonb_build_object('playerReportsAnonymised', v_n);
+    execute 'update public.tournament_content_reports r
+      set content_snapshot = r.content_snapshot || jsonb_build_object(''message'', null), updated_at = now()
+      from public.tournament_team_applications a
+      where r.target_kind = ''application'' and r.target_id = a.team_entry_id and a.applicant_user_id = $1
+        and r.content_snapshot ->> ''message'' is not null' using v_identity;
+    get diagnostics v_n = row_count;
+    v_counts := v_counts || jsonb_build_object('applicationReportsScrubbed', v_n);
+    execute 'delete from public.tournament_communication_mutes where user_id = $1' using v_identity;
+    get diagnostics v_n = row_count;
+    v_counts := v_counts || jsonb_build_object('communicationMutesDeleted', v_n);
+    execute 'delete from public.tournament_applicant_blocks where blocked_user_id = $1' using v_identity;
+    get diagnostics v_n = row_count;
+    v_counts := v_counts || jsonb_build_object('applicantBlocksDeleted', v_n);
+  end if;
+
   -- 8. Rows that only served the person.
   delete from public.tournament_user_notifications where recipient_user_id = v_identity;
   get diagnostics v_n = row_count;
@@ -430,30 +498,92 @@ begin
   return v_summary || jsonb_build_object('erasureId', v_erasure);
 end;
 $$;
-revoke all on function private.erase_tournament_account(uuid, uuid) from public, anon, authenticated, service_role;
-grant execute on function private.erase_tournament_account(uuid, uuid) to torneos_core_adapter;
+revoke all on function private.erase_tournament_account(uuid, uuid)
+  from public, anon, authenticated, service_role, torneos_core_adapter, torneos_identity_writer;
 comment on function private.erase_tournament_account(uuid, uuid) is
-  'Account erasure (0021): anonymises / ends / deletes what Torneos holds about one Core user, in one transaction, idempotent by Core user id. Only torneos_core_adapter (the gateway, for a request signed by Core) may call it.';
+  'Account erasure (0021): anonymises / ends / deletes what Torneos holds about one Core user, in one transaction, idempotent by Core user id; the ledger row is born torneos_erased. Only torneos_erasure_writer (the gateway''s erasure login, for a request signed by Core) may call it.';
+
+create function private.confirm_tournament_account_erasure(p_core_user_id uuid, p_request_id uuid)
+returns jsonb
+language plpgsql
+volatile
+security definer
+set search_path = ''
+as $$
+declare
+  v_hash text;
+  v_sweep jsonb;
+  v_n bigint;
+  v_total bigint;
+begin
+  if p_core_user_id is null or p_request_id is null then
+    raise exception using errcode = '22023', message = 'TORNEOS_ACCOUNT_ERASURE_INVALID';
+  end if;
+  v_hash := encode(sha256(convert_to(p_core_user_id::text, 'UTF8')), 'hex');
+  -- Core says its own account deletion finished. First the sweep: a Torneos session opened between the erasure and the
+  -- Core deletion may have re-created an (empty) identity for this Core user; it is erased now (a no-op otherwise).
+  v_sweep := private.erase_tournament_account(p_core_user_id, p_request_id);
+  update private.tournament_account_erasures
+  set state = 'core_confirmed', core_confirmed_at = now(), core_confirmed_by = 'core', core_confirm_request_id = p_request_id
+  where core_user_sha256 = v_hash and state = 'torneos_erased';
+  get diagnostics v_n = row_count;
+  select count(*) into v_total from private.tournament_account_erasures e where e.core_user_sha256 = v_hash;
+  if exists (select 1 from private.tournament_account_erasures e where e.core_user_sha256 = v_hash and e.state <> 'core_confirmed') then
+    raise exception using errcode = '55000', message = 'TORNEOS_ACCOUNT_ERASURE_POSTCONDITION_FAILED', detail = 'confirmation';
+  end if;
+  return jsonb_build_object('outcome', case when v_total = 0 then 'no_ledger' else 'core_confirmed' end,
+    'requestId', p_request_id, 'confirmedNow', v_n, 'sweep', v_sweep->>'outcome');
+end;
+$$;
+revoke all on function private.confirm_tournament_account_erasure(uuid, uuid)
+  from public, anon, authenticated, service_role, torneos_core_adapter, torneos_identity_writer;
+comment on function private.confirm_tournament_account_erasure(uuid, uuid) is
+  'Account erasure (0021): Core confirms it deleted its own account. Sweeps (erases an identity re-created in between) and moves the person''s ledger rows torneos_erased → core_confirmed; idempotent. Only torneos_erasure_writer may call it.';
+
+-- The erasure role's privileges, exactly: reach the private schema and run the two erasure functions. Nothing else.
+grant usage on schema private to torneos_erasure_writer;
+grant execute on function private.erase_tournament_account(uuid, uuid) to torneos_erasure_writer;
+grant execute on function private.confirm_tournament_account_erasure(uuid, uuid) to torneos_erasure_writer;
 
 DO $post$
+DECLARE
+  v_role text;
+  v_fn text;
 BEGIN
-  IF has_function_privilege('anon', 'private.erase_tournament_account(uuid,uuid)', 'EXECUTE')
-    OR has_function_privilege('authenticated', 'private.erase_tournament_account(uuid,uuid)', 'EXECUTE')
-    OR has_function_privilege('service_role', 'private.erase_tournament_account(uuid,uuid)', 'EXECUTE')
-    OR NOT has_function_privilege('torneos_core_adapter', 'private.erase_tournament_account(uuid,uuid)', 'EXECUTE')
-    OR has_function_privilege('torneos_identity_writer', 'private.erase_tournament_account(uuid,uuid)', 'EXECUTE')
-    OR has_function_privilege('anon', 'private.account_erasure_label(text,uuid,uuid)', 'EXECUTE')
-    OR has_function_privilege('authenticated', 'private.account_erasure_label(text,uuid,uuid)', 'EXECUTE')
-    OR has_function_privilege('service_role', 'private.account_erasure_label(text,uuid,uuid)', 'EXECUTE')
-    OR has_function_privilege('torneos_core_adapter', 'private.account_erasure_label(text,uuid,uuid)', 'EXECUTE') THEN
-    RAISE EXCEPTION 'TORNEOS_ACCOUNT_ERASURE_POSTCONDITION_FAILED: function grants';
+  -- Only the erasure role may run the erasure or the confirmation; nobody may call the pseudonym or touch the ledger.
+  FOREACH v_fn IN ARRAY array['private.erase_tournament_account(uuid,uuid)', 'private.confirm_tournament_account_erasure(uuid,uuid)'] LOOP
+    IF NOT has_function_privilege('torneos_erasure_writer', v_fn, 'EXECUTE') THEN
+      RAISE EXCEPTION 'TORNEOS_ACCOUNT_ERASURE_POSTCONDITION_FAILED: % not granted to torneos_erasure_writer', v_fn;
+    END IF;
+    FOREACH v_role IN ARRAY array['anon', 'authenticated', 'service_role', 'torneos_core_adapter', 'torneos_identity_writer'] LOOP
+      IF has_function_privilege(v_role, v_fn, 'EXECUTE') THEN
+        RAISE EXCEPTION 'TORNEOS_ACCOUNT_ERASURE_POSTCONDITION_FAILED: % may execute %', v_role, v_fn;
+      END IF;
+    END LOOP;
+  END LOOP;
+  FOREACH v_role IN ARRAY array['anon', 'authenticated', 'service_role', 'torneos_core_adapter', 'torneos_identity_writer', 'torneos_erasure_writer'] LOOP
+    IF has_function_privilege(v_role, 'private.account_erasure_label(text,uuid,uuid)', 'EXECUTE')
+      OR has_table_privilege(v_role, 'private.tournament_account_erasures', 'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER') THEN
+      RAISE EXCEPTION 'TORNEOS_ACCOUNT_ERASURE_POSTCONDITION_FAILED: % reaches the pseudonym or the ledger', v_role;
+    END IF;
+  END LOOP;
+  -- The erasure role: no login, no inheritance, no attribute, member of no role, and no grant on any other function,
+  -- table, view or sequence of public / private / storage.
+  IF NOT EXISTS (SELECT 1 FROM pg_roles r WHERE r.rolname = 'torneos_erasure_writer' AND NOT r.rolcanlogin AND NOT r.rolinherit
+      AND NOT r.rolsuper AND NOT r.rolcreaterole AND NOT r.rolcreatedb AND NOT r.rolreplication AND NOT r.rolbypassrls)
+    OR EXISTS (SELECT 1 FROM pg_auth_members m WHERE m.member = 'torneos_erasure_writer'::regrole) THEN
+    RAISE EXCEPTION 'TORNEOS_ACCOUNT_ERASURE_POSTCONDITION_FAILED: torneos_erasure_writer attributes';
   END IF;
-  IF has_table_privilege('anon', 'private.tournament_account_erasures', 'SELECT')
-    OR has_table_privilege('authenticated', 'private.tournament_account_erasures', 'SELECT')
-    OR has_table_privilege('service_role', 'private.tournament_account_erasures', 'SELECT')
-    OR has_table_privilege('torneos_core_adapter', 'private.tournament_account_erasures', 'SELECT')
-    OR has_table_privilege('torneos_identity_writer', 'private.tournament_account_erasures', 'SELECT') THEN
-    RAISE EXCEPTION 'TORNEOS_ACCOUNT_ERASURE_POSTCONDITION_FAILED: ledger grants';
+  IF EXISTS (
+      SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+      WHERE n.nspname IN ('public', 'private', 'storage')
+        AND p.oid NOT IN ('private.erase_tournament_account(uuid,uuid)'::regprocedure, 'private.confirm_tournament_account_erasure(uuid,uuid)'::regprocedure)
+        AND EXISTS (SELECT 1 FROM aclexplode(p.proacl) a WHERE a.grantee = 'torneos_erasure_writer'::regrole))
+    OR EXISTS (
+      SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+      WHERE n.nspname IN ('public', 'private', 'storage')
+        AND EXISTS (SELECT 1 FROM aclexplode(c.relacl) a WHERE a.grantee = 'torneos_erasure_writer'::regrole)) THEN
+    RAISE EXCEPTION 'TORNEOS_ACCOUNT_ERASURE_POSTCONDITION_FAILED: torneos_erasure_writer holds another privilege';
   END IF;
   -- The guard triggers the erasure toggles must belong to tables the installer (this function's owner) owns.
   IF EXISTS (

@@ -4,20 +4,25 @@
 // (same emulation as sponsors-v1/test/lab.mjs). With ACCOUNT_DELETION_WITH_0020=<path of 00000000000020_premium_sponsors.sql>
 // the sponsors migration (another branch, #212) is applied as `postgres` before 0021: 0021 must apply on main AND on
 // main + 0020. 0021 and its rollback are applied by db-0021.mjs's own run() as `postgres`, exactly as the operator would.
+// With ACCOUNT_DELETION_WITH_0022=<path of 00000000000022_content_moderation.sql> (moderation, #216) that migration is
+// applied the same way (after 0020 when both are given): 0021 must apply and erase on main + 0022 and main + 0020 + 0022.
 // Only fictional data ever enters this database. Nothing here reaches a remote host.
 import fs from 'node:fs';
 import path from 'node:path';
 import { randomBytes } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import pg from 'pg';
+import { ERASURE_LOGIN, REGRANT_SQL, newCredential, renderProvisionSql, renderRotationSql } from '../remote/erasure-login.mjs';
 
-process.env.COMMERCE_PRODUCTION_LAB_CONTAINER ||= process.env.ACCOUNT_DELETION_WITH_0020
-  ? 'arma2-account-deletion-0020-lab-db' : 'arma2-account-deletion-lab-db';
+export const WITH_0020 = process.env.ACCOUNT_DELETION_WITH_0020 || null;
+export const WITH_0022 = process.env.ACCOUNT_DELETION_WITH_0022 || null;
+/** The suffix of evidence files and lab containers for this variant: '', '-with-0020', '-with-0022', '-with-0020-0022'. */
+export const VARIANT = `${WITH_0020 || WITH_0022 ? '-with' : ''}${WITH_0020 ? '-0020' : ''}${WITH_0022 ? '-0022' : ''}`;
+process.env.COMMERCE_PRODUCTION_LAB_CONTAINER ||= `arma2-account-deletion${VARIANT.replace('-with', '')}-lab-db`;
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 export const lab = await import('../../commerce-production/lab/pg-lab.mjs');
 export const D = await import('../remote/db-0021.mjs');
 export const CATALOG = fs.readFileSync(path.join(HERE, '../remote/sql-catalog-0021.sql'), 'utf8').trim();
-export const WITH_0020 = process.env.ACCOUNT_DELETION_WITH_0020 || null;
 
 export const one = (q) => lab.sql(q).trim();
 export const asPostgres = (text) => { const r = lab.sqlTry(text, { user: 'postgres' }); return { code: r.ok ? 0 : 3, stderr_tail: r.error ?? '' }; };
@@ -60,6 +65,10 @@ export async function prepare() {
     const r = asPostgres(fs.readFileSync(WITH_0020, 'utf8'));
     if (r.code !== 0) throw new Error(`0020 did not apply on the lab: ${r.stderr_tail}`);
   }
+  if (WITH_0022 && one("select to_regclass('public.tournament_content_reports') is null") === 't') {
+    const r = asPostgres(fs.readFileSync(WITH_0022, 'utf8'));
+    if (r.code !== 0) throw new Error(`0022 did not apply on the lab: ${r.stderr_tail}`);
+  }
 }
 
 /** Makes sure the lab is at PRE_0021 (a previous run may have left 0021 and a ledger: discarded, the lab is disposable). */
@@ -74,14 +83,36 @@ export async function toPost() {
   if (out.verdict !== 'APPLY_0021_DONE') throw new Error(`lab apply failed: ${JSON.stringify(out)}`);
 }
 
-// The gateway's two database logins, as on the hosted project: NOINHERIT members of the baseline's NOLOGIN roles.
+// The gateway's database logins, as on the hosted project: NOINHERIT members of the NOLOGIN roles. The erasure login is
+// the Production one (torneos_edge_erasure_writer), provisioned / rotated / re-granted with the exact SQL the operator
+// sends (remote/erasure-login.mjs: SCRAM verifier, the plaintext never reaches the server).
 export const GATEWAY_LOGINS = Object.freeze({
   coreAdapter: Object.freeze({ login: 'lab_erasure_core_adapter', role: 'torneos_core_adapter' }),
   identityWriter: Object.freeze({ login: 'lab_erasure_identity_writer', role: 'torneos_identity_writer' }),
+  erasureWriter: Object.freeze({ login: ERASURE_LOGIN, role: 'torneos_erasure_writer' }),
 });
 const passwords = {};
+/** The erasure login as the operator provisions it: first time → provision SQL; again → rotation SQL (+ re-grant). */
+export function provisionErasureLogin() {
+  const { password, verifier } = newCredential(randomBytes);
+  const exists = one(`select count(*) from pg_roles where rolname = '${ERASURE_LOGIN}'`) === '1';
+  const r = asPostgres(exists ? `${renderRotationSql(verifier)}${REGRANT_SQL}` : renderProvisionSql(verifier));
+  if (r.code !== 0) throw new Error(`erasure login provisioning failed: ${r.stderr_tail}`);
+  passwords[ERASURE_LOGIN] = password;
+  return { url: `postgres://${ERASURE_LOGIN}:${password}@127.0.0.1:${lab.state().port}/postgres`, rotated: exists };
+}
 export function gatewayLoginUrl(kind) {
   const { login, role } = GATEWAY_LOGINS[kind];
+  if (kind === 'erasureWriter') {
+    if (!passwords[login]) provisionErasureLogin();
+    // A forced rollback + re-apply of 0021 drops and recreates the role (the membership goes): the runbook's re-grant.
+    else if (one(`select count(*) from pg_auth_members m join pg_roles r on r.oid = m.roleid join pg_roles l on l.oid = m.member
+      where r.rolname = '${role}' and l.rolname = '${login}'`) !== '1') {
+      const r = asPostgres(REGRANT_SQL);
+      if (r.code !== 0) throw new Error(`erasure login re-grant failed: ${r.stderr_tail}`);
+    }
+    return `postgres://${login}:${passwords[login]}@127.0.0.1:${lab.state().port}/postgres`;
+  }
   if (!passwords[login]) {
     passwords[login] = randomBytes(18).toString('hex');
     lab.sql(`DO $$ BEGIN
@@ -108,7 +139,8 @@ export function postgresStandIn() {
 const urls = globalThis.__erasureLabUrls;
 export default function postgres(url) {
   const login = decodeURIComponent(new URL(url).username).split('.')[0];
-  const target = login.includes('core_adapter') ? urls.coreAdapter : urls.identityWriter;
+  const target = login.includes('erasure_writer') ? urls.erasureWriter : login.includes('core_adapter') ? urls.coreAdapter : urls.identityWriter;
+  if (!target) throw Object.assign(new Error('connect ECONNREFUSED (no lab login for ' + login + ')'), { code: 'ECONNREFUSED' });
   const pool = new pg.Pool({ connectionString: target, max: 2 });
   return {
     begin: async (fn) => {

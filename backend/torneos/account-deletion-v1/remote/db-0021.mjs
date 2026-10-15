@@ -12,7 +12,8 @@
 // is gated by the exact phrase, the file sha256, the exact observed state before (PRE_0021 → POST_0021 and back) and
 // after, and "nothing else moved": every other function (body, ACL, owner, secdef flag, config), every relation, policy
 // and user trigger of public / private / storage. The EXECUTE counts of anon and authenticated never move (0021 grants
-// only to torneos_core_adapter). Every body 0021 installs is pinned by md5 in POST_0021. Works with or without 0020.
+// only to its own role torneos_erasure_writer, whose every privilege is pinned by name in POST_0021). Every body 0021
+// installs is pinned by md5 in POST_0021. Works with or without 0020 and/or 0022.
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
@@ -24,25 +25,31 @@ export const REF = 'onzpwnqxnvlgsevivngf';
 const file = (rel, sha256, from, to) => Object.freeze({ path: path.join(REPO, rel), rel, sha256, from, to, phase: '0021' });
 export const FILES = Object.freeze({
   'apply-0021': file('backend/torneos/supabase/migrations/00000000000021_account_erasure.sql',
-    '67c9cfef46eccd10d23b7a3a2d6908ab7b976335e1a496e3eb884726ca03f50f', 'PRE_0021', 'POST_0021'),
+    '56d0b35454a153743da64baa7457d88270354c0d0fd0332a5c55c092047515b5', 'PRE_0021', 'POST_0021'),
   'rollback-0021': file('backend/torneos/account-deletion-v1/rollback/00000000000021_account_erasure.rollback.sql',
-    '419c1bea5299b3b28203637ebe76acb5e1a8cf84ed344b2cd74fdafc584abc16', 'POST_0021', 'PRE_0021'),
+    '4c95d97bd843246f32f631b2f1fcfeb0c291855544fb786baa5b89867efd27f2', 'POST_0021', 'PRE_0021'),
 });
 /** The session setting the rollback file honours to discard the erasure ledger (see its header). */
 export const FORCE_WORDS = 'DISCARD ERASURE LEDGER';
 export const FORCE_SQL = `SET torneos.account_erasure_rollback_force = '${FORCE_WORDS}';\n`;
 /** md5(prosrc): POST_0021 = the exact text between the dollar quotes of the migration. */
 export const BODIES = Object.freeze({
-  PRE_0021: Object.freeze({ erase: null, label: null }),
-  POST_0021: Object.freeze({ erase: '8c04c16f4bca3b5e4f44e1bdefb09417', label: '588ebb88ffb2e70b96a3aaca06367cf0' }),
+  PRE_0021: Object.freeze({ erase: null, confirm: null, label: null }),
+  POST_0021: Object.freeze({ erase: '899dae4c18cffa2de32ad9a66e742a92', confirm: 'a26bcb671dea01fc83e0f6d41b5bc051', label: '588ebb88ffb2e70b96a3aaca06367cf0' }),
 });
-const erase = Object.freeze({ secdef: true, config: ['search_path=""'], owner_is_installer: true, core_adapter: true, identity_writer: false,
-  authenticated: false, anon: false, service_role: false });
-const label = Object.freeze({ secdef: false, config: ['search_path=""'], owner_is_installer: true, core_adapter: false, identity_writer: false,
-  authenticated: false, anon: false, service_role: false });
+// Key order = the catalog's json_build_object order (compared as JSON).
+const fn = (secdef, erasureWriter) => Object.freeze({ secdef, config: ['search_path=""'], owner_is_installer: true, erasure_writer: erasureWriter,
+  core_adapter: false, identity_writer: false, authenticated: false, anon: false, service_role: false });
 export const ACL = Object.freeze({
-  PRE_0021: Object.freeze({ erase: null, label: null }),
-  POST_0021: Object.freeze({ erase, label }),
+  PRE_0021: Object.freeze({ erase: null, confirm: null, label: null }),
+  POST_0021: Object.freeze({ erase: fn(true, true), confirm: fn(true, true), label: fn(false, false) }),
+});
+/** The erasure role, whole: no login, no inheritance, no attribute, member of nothing; USAGE on private and EXECUTE on the
+ *  two erasure functions, and not one other grant in public / private / storage. */
+export const ERASURE_ROLE = Object.freeze({
+  PRE_0021: null,
+  POST_0021: Object.freeze({ login: false, inherit: false, attributes: false, member_of: 0, schemas: Object.freeze(['private']),
+    functions: Object.freeze(['private.confirm_tournament_account_erasure(uuid,uuid)', 'private.erase_tournament_account(uuid,uuid)']), relations: 0 }),
 });
 export const TABLE = Object.freeze({ PRE_0021: null, POST_0021: Object.freeze({ rls: true, force_rls: true, client_grants: false, policies: 0 }) });
 /** The guard triggers the erasure toggles inside its transaction: present, enabled ('O'), on tables the installer owns. */
@@ -76,6 +83,8 @@ export function classify(catalog) {
     if (!same(catalog.acl?.[name] ?? null, ACL[state][name])) failures.push(`acl.${name} ${JSON.stringify(catalog.acl?.[name])}`);
   }
   if (!same(catalog.table ?? null, TABLE[state])) failures.push(`table ${JSON.stringify(catalog.table)}`);
+  if (!same(catalog.erasure_role ?? null, ERASURE_ROLE[state])) failures.push(`erasure_role ${JSON.stringify(catalog.erasure_role)}`);
+  if (state === 'PRE_0021' && catalog.erasure_role_logins?.length) failures.push('erasure_role_logins_without_role');
   if (state === 'PRE_0021' && catalog.rows != null) failures.push('rows_without_table');
   if (state === 'POST_0021' && !(Number.isInteger(catalog.rows) && catalog.rows >= 0)) failures.push(`rows ${catalog.rows}`);
   if (failures.length) return { state: 'DRIFT', failures };
