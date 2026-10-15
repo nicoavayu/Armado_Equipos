@@ -11,6 +11,7 @@ import {
   Check,
   ChevronDown,
   Download,
+  Handshake,
   Image as ImageIcon,
   LayoutTemplate,
   Loader2,
@@ -27,6 +28,15 @@ import {
 import { useNavigate, useParams } from 'react-router-dom';
 import { useTorneosCompetition } from '../context/TorneosCompetitionContext';
 import { useTorneosWorkspace } from '../context/TorneosWorkspaceContext';
+import { useTorneosFeature } from '../context/TorneosFeaturesContext';
+import { hasEffectiveTournamentEntitlement, TOURNAMENT_ENTITLEMENTS } from '../domain/entitlements';
+import {
+  isSelectableSponsor,
+  sameSponsorList,
+  SPONSOR_LIMITS,
+  sponsorIdentity,
+  sponsorRenderEntry,
+} from '../domain/sponsors';
 import {
   SOCIAL_FORMATS,
   SOCIAL_PLAYER_LINE_LABELS,
@@ -84,6 +94,7 @@ const EXPORT_ERROR_COPY = Object.freeze({
   THEME_UNKNOWN: 'Ese estilo no está disponible. Elegí uno de la lista.',
   SOCIAL_AUTHORIZATION_MISMATCH: 'No pudimos confirmar la autorización de esta placa. Volvé a intentar.',
   RENDER_STALE: 'La vista previa cambió mientras preparábamos el archivo. Volvé a intentar.',
+  SPONSORS_AUTHORIZATION_MISMATCH: 'Los sponsors cambiaron desde la vista previa. La actualizamos: revisala y volvé a descargar.',
   PREMIUM_FONT_UNAVAILABLE: 'No pudimos cargar las tipografías del estilo. Revisá la conexión y volvé a intentar.',
   SOCIAL_FONTS_UNAVAILABLE: 'No pudimos cargar las tipografías de la placa. Revisá la conexión y volvé a intentar.',
 });
@@ -102,6 +113,7 @@ function describeRenderError(error) {
   const code = error?.code || String(error?.message || '').split(':')[0];
   if (code === 'PREMIUM_FONT_UNAVAILABLE' || code === 'SOCIAL_FONTS_UNAVAILABLE') return EXPORT_ERROR_COPY[code];
   if (code === 'ASSET_PHOTO_UNAVAILABLE') return 'No pudimos leer esa foto. Probá con otra imagen JPG, PNG o WebP.';
+  if (code === 'ASSET_SPONSOR_UNAVAILABLE') return 'No pudimos cargar el logo de un sponsor. Quitalo de la selección o volvé a intentar.';
   return 'No pudimos generar la vista previa con estos datos.';
 }
 
@@ -145,6 +157,29 @@ export function assertSocialSnapshotAnswersRequest(snapshot, request) {
     throw error;
   }
   return snapshot;
+}
+
+/**
+ * PREMIUM SPONSORS: the server authorizes the sponsors of a piece before its file exists, and the file may only carry the
+ * list it answered — the same sponsors, in the same order, with the same names and logo objects as the render on screen,
+ * each with a logo the page can draw. Anything else is refused: the preview is refreshed from the server instead of a
+ * different list being swapped into the file.
+ */
+export function assertSocialSponsorsAuthorization(authorization, {
+  seasonId, tournamentId, theme, sponsors,
+}) {
+  if (authorization?.authorized !== true
+    || (authorization.seasonId && authorization.seasonId !== seasonId)
+    || (authorization.tournamentId && authorization.tournamentId !== tournamentId)
+    || (authorization.theme && authorization.theme !== theme)
+    || !Array.isArray(authorization.sponsors)
+    || !sameSponsorList(authorization.sponsors, sponsors)
+    || !authorization.sponsors.every(isSelectableSponsor)) {
+    const error = new Error('SPONSORS_AUTHORIZATION_MISMATCH');
+    error.code = 'SPONSORS_AUTHORIZATION_MISMATCH';
+    throw error;
+  }
+  return authorization.sponsors;
 }
 
 function staleRenderError() {
@@ -290,6 +325,12 @@ export default function SocialStudioPage() {
   const [notice, setNotice] = useState('');
   const [exportError, setExportError] = useState('');
   const [localPhoto, setLocalPhoto] = useState(null);
+  // PREMIUM SPONSORS: the organization's sponsors as the server lists them for this season, and the ids chosen for the
+  // piece. The list is only asked for when the season's trusted plan includes sponsors (FREE never asks).
+  const [sponsorState, setSponsorState] = useState({ key: '', status: 'idle', data: null, error: '' });
+  const [sponsorReload, setSponsorReload] = useState(0);
+  const [sponsorSelection, setSponsorSelection] = useState([]);
+  const brandingFeature = useTorneosFeature('branding_assets');
   // Web fonts can arrive after the first render (cold cache, slow network): a font failure is retried a few times
   // before the preview reports it. Rendering stays fail-closed: never a piece drawn with fallback typography.
   const [fontRetry, setFontRetry] = useState(0);
@@ -333,6 +374,12 @@ export default function SocialStudioPage() {
     && competition.planState.data?.scope?.seasonId === seasonId;
   const effectiveEntitlements = trustedSeasonPlan ? competition.planState.data : null;
   const isPremiumSeason = hasSocialStudioPremium(effectiveEntitlements);
+  const sponsorsSupported = brandingFeature
+    && typeof service.loadOrganizationSponsors === 'function'
+    && typeof service.authorizeSocialSponsors === 'function';
+  const seasonOffersSponsors = trustedSeasonPlan
+    && hasEffectiveTournamentEntitlement(effectiveEntitlements, TOURNAMENT_ENTITLEMENTS.SPONSORS);
+  const sponsorsKey = sponsorsSupported && seasonOffersSponsors && seasonId ? `${organizationId}:${seasonId}` : '';
   const canRemoveArma2Branding = isPremiumSeason;
   const catalogAccess = describeSocialCatalogAccess({
     familyId: pieceId,
@@ -346,6 +393,31 @@ export default function SocialStudioPage() {
   useEffect(() => {
     if (!canRemoveArma2Branding) setIncludeArma2Branding(true);
   }, [canRemoveArma2Branding]);
+
+  // The list is read once per organization and season (another season starts with no sponsor chosen) and again after
+  // an export the server refused (sponsorReload): what is no longer listed simply drops out of the selection.
+  useEffect(() => {
+    setSponsorSelection((current) => (current.length ? [] : current));
+  }, [sponsorsKey]);
+  useEffect(() => {
+    if (!sponsorsKey) return undefined;
+    let active = true;
+    setSponsorState((current) => (current.key === sponsorsKey && current.status === 'ready'
+      ? current
+      : { key: sponsorsKey, status: 'loading', data: null, error: '' }));
+    service.loadOrganizationSponsors({ organizationId, seasonId })
+      .then((data) => {
+        if (active) setSponsorState({ key: sponsorsKey, status: 'ready', data, error: '' });
+      })
+      .catch((error) => {
+        if (active) {
+          setSponsorState({
+            key: sponsorsKey, status: 'error', data: null, error: error?.message || 'No pudimos cargar los sponsors.',
+          });
+        }
+      });
+    return () => { active = false; };
+  }, [organizationId, seasonId, service, sponsorsKey, sponsorReload]);
 
   const scopeForTournament = useCallback((entry) => {
     const nextCategory = entry?.categories?.[0];
@@ -439,6 +511,30 @@ export default function SocialStudioPage() {
     () => resolveSocialTheme(effectiveThemeId),
     [effectiveThemeId],
   );
+  // Sponsors exist for a piece only where everything agrees: the composition offers them, the season's plan and the
+  // server say the season has them, and the style draws them (never Base).
+  const sponsorData = sponsorsKey && sponsorState.key === sponsorsKey ? sponsorState.data : null;
+  const themeTakesSponsors = selectedTheme.capabilities?.sponsors === true;
+  const showSponsorPicker = Boolean(sponsorData?.entitled) && themeTakesSponsors;
+  const maxSponsors = sponsorData?.limits?.maxPerExport || SPONSOR_LIMITS.maxPerExport;
+  const selectableSponsors = useMemo(
+    () => (sponsorData?.sponsors || []).filter(isSelectableSponsor),
+    [sponsorData],
+  );
+  const renderSponsors = useMemo(() => (showSponsorPicker
+    ? sponsorSelection
+      .map((id) => selectableSponsors.find((entry) => entry.id === id))
+      .filter(Boolean)
+      .slice(0, maxSponsors)
+      .map(sponsorRenderEntry)
+    : []), [maxSponsors, selectableSponsors, showSponsorPicker, sponsorSelection]);
+  const sponsorInputs = renderSponsors.length ? [renderSponsors.map(sponsorIdentity)] : [];
+
+  // Base draws no sponsor: going back to it clears the choice instead of keeping it hidden.
+  useEffect(() => {
+    if (!themeTakesSponsors) setSponsorSelection((current) => (current.length ? [] : current));
+  }, [themeTakesSponsors]);
+
   const standingsPagination = useMemo(
     () => resolveEditorialStandingsPagination(snapshot, editorial, selectedTheme),
     [editorial, selectedTheme, snapshot],
@@ -462,7 +558,7 @@ export default function SocialStudioPage() {
   // the style, the signature and the local photo. Each prepared render carries the value it was made from, and
   // Download and Share only work while that is still the page's value.
   const renderInputsKey = snapshot
-    ? JSON.stringify([snapshotRequestKey, snapshotEntry.version, editorial, selectedTheme.id, branding, localPhoto?.key || null])
+    ? JSON.stringify([snapshotRequestKey, snapshotEntry.version, editorial, selectedTheme.id, branding, localPhoto?.key || null, ...sponsorInputs])
     : '';
   useLayoutEffect(() => { currentRenderInputsRef.current = renderInputsKey; });
 
@@ -493,6 +589,7 @@ export default function SocialStudioPage() {
       branding,
       brandAssetUrls: branding.showArma2Branding ? OFFICIAL_BRAND_ASSETS : null,
       photoSourceUrl,
+      ...(renderSponsors.length ? { sponsors: renderSponsors } : {}),
       signal: controller.signal,
       onStatus: (status) => {
         if (!cancelled) setRenderState({ status, error: '', renderKey: '', inputsKey: '' });
@@ -527,9 +624,11 @@ export default function SocialStudioPage() {
         editorial,
         branding,
         photoSourceUrl,
+        sponsors: renderSponsors,
         target: Object.freeze({
           organizationId: snapshot.source.organizationId,
           tournamentId: snapshot.source.tournamentId,
+          seasonId,
           piece: snapshot.piece,
           theme: selectedTheme.id,
           includeArma2Branding: branding.showArma2Branding === true,
@@ -562,7 +661,7 @@ export default function SocialStudioPage() {
       clearTimeout(fontRetryTimer.current);
     };
     // fontRetry only re-runs a render that failed on fonts; it is reset whenever the piece itself changes.
-  }, [snapshot, renderInputsKey, editorial, organizationId, service, piece, selectedTheme, branding, localPhoto, fontRetry]);
+  }, [snapshot, renderInputsKey, editorial, organizationId, service, piece, selectedTheme, branding, localPhoto, fontRetry, renderSponsors, seasonId]);
 
   // Download and Share work only on a finished render of exactly what is selected now.
   const renderMatchesSelection = renderInputsKey !== ''
@@ -571,7 +670,7 @@ export default function SocialStudioPage() {
   // While the selected piece's data is on its way the preview is loading, not empty.
   const previewStatus = !snapshot && snapshotPending ? 'loading' : renderState.status;
 
-  useEffect(() => { setFontRetry((attempt) => (attempt === 0 ? attempt : 0)); }, [snapshot, editorial, selectedTheme, branding, localPhoto]);
+  useEffect(() => { setFontRetry((attempt) => (attempt === 0 ? attempt : 0)); }, [snapshot, editorial, selectedTheme, branding, localPhoto, renderSponsors]);
 
   // The Premium preview is the 1080 px composition scaled down: the scale follows the real stage width (a phone
   // narrows it below 300 px), so the whole art stays visible and the export keeps its exact size.
@@ -597,7 +696,16 @@ export default function SocialStudioPage() {
     if (localPhotoUrlRef.current) URL.revokeObjectURL(localPhotoUrlRef.current);
   }, []);
 
-  useEffect(() => { setExportError(''); }, [pieceId, effectiveThemeId, editorial, scope, includeArma2Branding]);
+  useEffect(() => { setExportError(''); }, [pieceId, effectiveThemeId, editorial, scope, includeArma2Branding, sponsorSelection]);
+
+  const toggleSponsor = (id) => {
+    if (!canCreate) return;
+    setSponsorSelection((current) => {
+      if (current.includes(id)) return current.filter((entry) => entry !== id);
+      if (current.length >= maxSponsors) return current;
+      return [...current, id];
+    });
+  };
 
   // Re-choosing what is already chosen (a format chip, the same zoom) keeps the same state: no new render.
   const updateEditorial = (patch) => setEditorial((current) => (
@@ -742,6 +850,29 @@ export default function SocialStudioPage() {
         theme: target.theme,
         showArma2Branding: exportPolicy.showArma2Branding,
       });
+      // PREMIUM SPONSORS: the server authorizes the piece's sponsors too, and the file carries only the list it answered
+      // (the same as the render on screen, or nothing is exported). A piece without sponsors asks nothing more.
+      let authorizedSponsors = [];
+      if (rendered.sponsors.length) {
+        try {
+          const answer = await service.authorizeSocialSponsors({
+            seasonId: target.seasonId,
+            tournamentId: target.tournamentId,
+            theme: target.theme,
+            sponsorIds: rendered.sponsors.map((entry) => entry.id),
+          });
+          authorizedSponsors = assertSocialSponsorsAuthorization(answer, {
+            seasonId: target.seasonId,
+            tournamentId: target.tournamentId,
+            theme: target.theme,
+            sponsors: rendered.sponsors,
+          }).map(sponsorRenderEntry);
+        } catch (error) {
+          // Whatever changed (a sponsor archived, a logo replaced, Premium gone), the list on screen is read again.
+          setSponsorReload((value) => value + 1);
+          throw error;
+        }
+      }
       assertStillShown();
       const result = await exportSocialPiece({
         prepared,
@@ -773,6 +904,7 @@ export default function SocialStudioPage() {
               branding: rendered.branding,
               brandAssetUrls: rendered.branding.showArma2Branding ? OFFICIAL_BRAND_ASSETS : null,
               photoSourceUrl: rendered.photoSourceUrl,
+              ...(authorizedSponsors.length ? { sponsors: authorizedSponsors } : {}),
             });
             files.push(await exportSocialPiece({
               prepared: pagePrepared,
@@ -1252,6 +1384,56 @@ export default function SocialStudioPage() {
             </div>
           ) : (
             <p className={styles.whiteLabelNotice}>Los estilos Premium no llevan la firma Arma2: la placa sale sólo con la identidad de tu torneo.</p>
+          )}
+
+          {showSponsorPicker && (
+            <fieldset className={styles.sponsorPicker} disabled={!canCreate}>
+              <legend>
+                <Handshake size={15} aria-hidden="true" /> Sponsors (hasta {maxSponsors})
+              </legend>
+              {selectableSponsors.length ? (
+                <>
+                  <p className={styles.curationCopy}>
+                    Elegí hasta {maxSponsors} sponsors para esta placa. Se ven en la vista previa y salen en el archivo.
+                  </p>
+                  <div className={styles.sponsorList}>
+                    {selectableSponsors.map((sponsor) => {
+                      const checked = sponsorSelection.includes(sponsor.id);
+                      return (
+                        <label
+                          key={sponsor.id}
+                          className={`${styles.sponsorOption} ${checked ? styles.candidateChecked : ''}`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            disabled={!checked && sponsorSelection.length >= maxSponsors}
+                            onChange={() => toggleSponsor(sponsor.id)}
+                          />
+                          <span className={styles.sponsorLogo} aria-hidden="true">
+                            <img src={sponsor.logoUrl} alt="" draggable="false" />
+                          </span>
+                          <strong>{sponsor.name}</strong>
+                        </label>
+                      );
+                    })}
+                  </div>
+                  <small className={styles.fieldHint}>
+                    {sponsorSelection.length} de {maxSponsors} elegidos
+                  </small>
+                </>
+              ) : (
+                <p className={styles.curationCopy}>
+                  Todavía no hay sponsors con logo. Cargalos en Configuración → Sponsors.
+                </p>
+              )}
+            </fieldset>
+          )}
+          {themeTakesSponsors && sponsorsKey && sponsorState.key === sponsorsKey && sponsorState.status === 'error' && (
+            <p className={styles.sponsorError} role="status">
+              {sponsorState.error}{' '}
+              <button type="button" onClick={() => setSponsorReload((value) => value + 1)}>Reintentar</button>
+            </p>
           )}
 
           {selectedTheme.id !== 'base' && (
