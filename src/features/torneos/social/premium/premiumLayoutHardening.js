@@ -175,6 +175,7 @@ function setLeafType(root, value, styles) {
 
 function hardenResultRows(root, matches, themeId, formatId) {
   if (formatId !== 'story' || !matches.length) return;
+  const sponsorBand = root.querySelector('[data-premium-sponsor-band]');
   const unused = new Set();
   const rows = matches.map((match) => {
     const result = match?.result || match?.score;
@@ -217,8 +218,15 @@ function hardenResultRows(root, matches, themeId, formatId) {
     editorial: dense ? '72px minmax(0,1fr) 150px minmax(0,1fr) 72px' : '88px minmax(0,1fr) 176px minmax(0,1fr) 88px',
   }[themeId];
   const nameSize = dense ? (rows.length >= 8 ? 23 : 27) : 34;
-  const scoreSize = dense ? (rows.length >= 8 ? 43 : 52) : 68;
-  const crestSize = Math.min(dense ? 58 : 82, Math.max(38, rowHeight * 0.56));
+  const templateScoreSize = dense ? (rows.length >= 8 ? 43 : 52) : 68;
+  const templateCrestSize = Math.min(dense ? 58 : 82, Math.max(38, rowHeight * 0.56));
+  // PREMIUM SPONSORS: Scoreboard stacks the two teams of a match in one row; with the band's shorter rows each half
+  // keeps its score and its crest (a 5:6 shield) inside it. Without a band the approved sizes stand.
+  const half = rowHeight / 2;
+  const scoreSize = sponsorBand && themeId === 'scoreboard'
+    ? Math.min(templateScoreSize, Math.floor(half * 0.62)) : templateScoreSize;
+  const crestSize = sponsorBand && themeId === 'scoreboard'
+    ? Math.min(templateCrestSize, Math.floor((half - 8) / 1.2)) : templateCrestSize;
 
   rows.forEach((row, index) => {
     Object.assign(row.style, {
@@ -254,6 +262,8 @@ function hardenResultRows(root, matches, themeId, formatId) {
           if (crest) Object.assign(crest.style, {
             width: `${crestSize}px`, maxWidth: '100%', margin: '0 auto',
           });
+          // With the band the shield is smaller: its initials follow it.
+          if (crest && sponsorBand) crest.style.fontSize = `${Math.floor(crestSize * 0.4)}px`;
         }
         if (halfCells[1]) Object.assign(halfCells[1].style, {
           minWidth: '0', overflow: 'hidden', paddingLeft: '10px', paddingRight: '10px',
@@ -269,8 +279,16 @@ function hardenResultRows(root, matches, themeId, formatId) {
         fontSize: `${nameSize}px`, lineHeight: '1.02', overflowWrap: 'anywhere', maxWidth: '100%',
       });
       const result = match?.result || match?.score;
+      // PREMIUM SPONSORS: in a draw both halves read the same score; with the band's shorter rows the second one must be
+      // sized too (otherwise it keeps the template's size and its row cuts it). Without a band this stays as approved.
+      const sized = sponsorBand ? new Set() : null;
       [result?.homeScore ?? result?.home, result?.awayScore ?? result?.away].forEach((value) => {
-        const leaf = leafWithText(row, String(value));
+        const leaf = sized
+          ? Array.from(row.querySelectorAll('*')).find((node) => (
+            node.children.length === 0 && text(node.textContent) === text(value) && !sized.has(node)
+          )) || null
+          : leafWithText(row, String(value));
+        if (leaf && sized) sized.add(leaf);
         if (leaf) Object.assign(leaf.style, {
           fontSize: `${scoreSize}px`, lineHeight: '1', whiteSpace: 'nowrap',
         });

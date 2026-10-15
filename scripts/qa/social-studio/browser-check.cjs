@@ -313,8 +313,9 @@ const SPONSOR_BAND_VARIANTS = [
   ['champion-photo', { piece: 'champion', photo: true }],
 ];
 const POSTER_PIECES = ['final', 'champion'];
-// The pieces exported with 0–3 sponsors through the Studio, and the slug their kept files carry.
-const SPONSOR_PIECES = [['standings', 'Tabla de posiciones', 'tabla'], ['round_results', 'Resultados de la fecha', 'resultados']];
+// The pieces exported with 0–3 sponsors through the Studio, and the slug their kept files carry. Tabla goes last: the
+// checks after the exports start from Tabla in Editorial · Historia 9:16 with three sponsors.
+const SPONSOR_PIECES = [['round_results', 'Resultados de la fecha', 'resultados'], ['standings', 'Tabla de posiciones', 'tabla']];
 // The band is prominent: tiles of at least 150 px (Feed 4:5) / 200 px (Historia 9:16) in export pixels, a label of at
 // least 18 / 22 px, one tile per sponsor, every logo drawn at a readable size; and it breaks nothing: inside the canvas,
 // nothing of the composition under it, no text pushed out of the canvas or cut by a box that was whole without sponsors.
@@ -730,7 +731,7 @@ async function assertWholeArt(page, label, [, , width, height]) {
       if (names.length < 4) throw new Error(`sponsors: the fixture lists ${names.length} sponsors`);
       const sponsorAuthorizations = () => page.evaluate(() => window.__social.sponsorAuthorize.length);
       const shotsFor = new Set(['standings heritage feed-4x5 3', 'standings street historia-9x16 1', 'standings editorial feed-4x5 3']);
-      const measureShown = () => page.locator('[role="img"][aria-label^="Vista previa"] div[data-premium-renderer="v2"]')
+      const measureShown = () => page.locator('div[role="img"][data-premium-renderer="v2"][aria-label^="Vista previa"]')
         .evaluate((node) => window.__measurePremium(node));
       let previous = null;
       for (const [id, label, pieceSlug] of SPONSOR_PIECES) for (const style of STYLES.slice(1)) {
