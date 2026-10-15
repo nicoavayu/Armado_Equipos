@@ -48,10 +48,15 @@
 @media (max-width: 520px) {
   .nav {
     width: 100%;
+    /* Four sections (with Sponsors) do not fit a 320 px phone at full width: the row scrolls instead of clipping. */
+    overflow-x: auto;
+    scrollbar-width: none;
   }
 
+  .nav::-webkit-scrollbar { display: none; }
+
   .nav a {
-    flex: 1;
+    flex: 1 0 auto;
     min-width: 0;
     padding-inline: 10px;
     font-size: 12px;
