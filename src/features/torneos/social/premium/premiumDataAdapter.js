@@ -83,6 +83,49 @@ function pickSkeleton(skeletons, key, index) {
   return list[index] || list[index % list.length] || {};
 }
 
+// PREMIUM SPONSORS: the band draws each logo on a white tile; a logo that is light ink on a transparent background
+// (mostly see-through, its visible pixels near white) would vanish there, so it gets a dark tile ("dark" tone).
+export function sponsorLogoTone(pixels) {
+  let transparent = 0;
+  let visible = 0;
+  let luminance = 0;
+  const total = pixels.length / 4;
+  const step = Math.max(1, Math.floor(total / 40000)) * 4;
+  let sampled = 0;
+  for (let index = 0; index < pixels.length; index += step) {
+    sampled += 1;
+    const alpha = pixels[index + 3] / 255;
+    if (alpha < 0.1) transparent += 1;
+    else if (alpha > 0.5) {
+      visible += 1;
+      luminance += (0.2126 * pixels[index] + 0.7152 * pixels[index + 1] + 0.0722 * pixels[index + 2]) / 255;
+    }
+  }
+  if (!visible || !sampled) return 'light';
+  return transparent / sampled > 0.1 && luminance / visible > 0.8 ? 'dark' : 'light';
+}
+
+function sponsorLogo(asset, declaredTone) {
+  const declared = declaredTone === 'dark' || asset?.tone === 'dark' ? 'dark' : 'light';
+  if (!asset) return { src: null, tone: 'light' };
+  if (typeof asset === 'string') return { src: asset, tone: declared };
+  if (typeof asset.src === 'string' && asset.src) return { src: asset.src, tone: declared };
+  if (typeof document === 'undefined' || !asset.width || !asset.height) return { src: null, tone: 'light' };
+  const canvas = document.createElement('canvas');
+  canvas.width = asset.width;
+  canvas.height = asset.height;
+  const context = canvas.getContext('2d');
+  if (!context) return { src: null, tone: 'light' };
+  context.drawImage(asset, 0, 0);
+  let tone = 'light';
+  try {
+    tone = sponsorLogoTone(context.getImageData(0, 0, canvas.width, canvas.height).data);
+  } catch (_error) {
+    tone = 'light';
+  }
+  return { src: canvas.toDataURL('image/png'), tone };
+}
+
 function score(match) {
   const result = match?.result || match?.score || null;
   if (!result) return { home: '—', away: '—', joined: '—' };
@@ -361,7 +404,7 @@ export function createPremiumViewModel({
   const visibleSponsors = (sponsors || []).map((sponsor, index) => ({
     id: sponsor.id || `sponsor-${index}`,
     name: sponsor.name || '',
-    src: assetSource(sponsor.image || sponsor.src),
+    ...sponsorLogo(sponsor.image || sponsor.src, sponsor.tone),
   })).filter((sponsor) => sponsor.src).slice(0, 3);
   const geometryValues = {
     ...geometry,

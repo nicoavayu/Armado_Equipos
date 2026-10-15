@@ -49,7 +49,7 @@ export const PREMIUM_V2_GEOMETRY = Object.freeze({
       "campHasCrest": false,
       "campNoCrest": false,
       "withSponsors": {
-        "rowH": 160,
+        "rowH": 134,
         "stdH": 84,
         "hasSponsors": true
       }
@@ -106,7 +106,12 @@ export const PREMIUM_V2_GEOMETRY = Object.freeze({
       "campHasCrest": false,
       "campNoCrest": false,
       "withSponsors": {
-        "rowH": 78,
+        "scoreFS": 40,
+        "crestPx": 50,
+        "crestW": 72,
+        "nameFS": 22,
+        "rowGap": 6,
+        "rowH": 62,
         "stdH": 84,
         "hasSponsors": true
       }
@@ -159,7 +164,7 @@ export const PREMIUM_V2_GEOMETRY = Object.freeze({
       "campHasCrest": false,
       "campNoCrest": false,
       "withSponsors": {
-        "rowH": 160,
+        "rowH": 136,
         "stdH": 84,
         "hasSponsors": true
       }
@@ -3177,7 +3182,7 @@ export const PREMIUM_V2_GEOMETRY = Object.freeze({
       "isCampFoto": false,
       "campFotoNameFS": 38,
       "withSponsors": {
-        "rowH": 180,
+        "rowH": 144,
         "stdH": 88,
         "hasSponsors": true
       }
@@ -3275,7 +3280,12 @@ export const PREMIUM_V2_GEOMETRY = Object.freeze({
       "isCampFoto": false,
       "campFotoNameFS": 38,
       "withSponsors": {
-        "rowH": 88,
+        "scoreFS": 40,
+        "crestPx": 50,
+        "crestW": 72,
+        "nameFS": 22,
+        "rowGap": 6,
+        "rowH": 64,
         "stdH": 88,
         "hasSponsors": true
       }
@@ -3349,7 +3359,7 @@ export const PREMIUM_V2_GEOMETRY = Object.freeze({
       "isCampFoto": false,
       "campFotoNameFS": 38,
       "withSponsors": {
-        "rowH": 180,
+        "rowH": 143,
         "stdH": 88,
         "hasSponsors": true
       }
@@ -10053,6 +10063,7 @@ export const PREMIUM_V2_GEOMETRY = Object.freeze({
       "isCampFoto": false,
       "campFotoNameFS": 50,
       "withSponsors": {
+        "rowH": 160,
         "stdH": 76,
         "hasSponsors": true
       }
@@ -10108,6 +10119,7 @@ export const PREMIUM_V2_GEOMETRY = Object.freeze({
       "isCampFoto": false,
       "campFotoNameFS": 50,
       "withSponsors": {
+        "rowH": 80,
         "stdH": 76,
         "hasSponsors": true
       }
@@ -10159,6 +10171,7 @@ export const PREMIUM_V2_GEOMETRY = Object.freeze({
       "isCampFoto": false,
       "campFotoNameFS": 50,
       "withSponsors": {
+        "rowH": 160,
         "stdH": 76,
         "hasSponsors": true
       }
