@@ -64,6 +64,8 @@ export const STATES = Object.freeze({
 export const COMMERCE_DELTA = Object.freeze([2, 0]);
 // 0017 (MEDIA-STORE-V1, backend/torneos/media-store-v1) adds exactly one authenticated RPC on top of 0012, nothing for anon.
 export const MEDIA_STORE_DELTA = Object.freeze([1, 0]);
+// 0020 (PREMIUM SPONSORS, backend/torneos/sponsors-v1) adds exactly four authenticated RPCs on top of 0017, nothing for anon.
+export const SPONSORS_DELTA = Object.freeze([4, 0]);
 export const MODES = Object.freeze(['DISABLED', 'MVP_SIMPLE', 'PROCESSOR_EXTERNAL']);
 const sha256 = (bytes) => crypto.createHash('sha256').update(bytes).digest('hex');
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
@@ -95,10 +97,13 @@ export function classify(catalog) {
   if (typeof catalog.commerce !== 'boolean') failures.push(`commerce ${catalog.commerce}`);
   if (typeof catalog.media_store !== 'boolean') failures.push(`media_store ${catalog.media_store}`);
   if (catalog.media_store === true && !media) failures.push('media_store_without_0012');
+  if (typeof catalog.sponsors !== 'boolean') failures.push(`sponsors ${catalog.sponsors}`);
+  if (catalog.sponsors === true && catalog.media_store !== true) failures.push('sponsors_without_0017');
   const state = Object.entries(STATES).find(([, s]) => s.media === media && s.bodies === bodies)?.[0];
   if (!state) return { state: 'DRIFT', failures: [...failures, 'no_state'] };
   const want = STATES[state].counts.map((n, i) => n + (catalog.commerce === true ? COMMERCE_DELTA[i] : 0)
-    + (catalog.media_store === true ? MEDIA_STORE_DELTA[i] : 0));
+    + (catalog.media_store === true ? MEDIA_STORE_DELTA[i] : 0)
+    + (catalog.sponsors === true ? SPONSORS_DELTA[i] : 0));
   if (catalog.counts?.authenticated !== want[0] || catalog.counts?.anon !== want[1]) failures.push(`counts ${catalog.counts?.authenticated}/${catalog.counts?.anon} want ${want.join('/')}`);
   if (failures.length) return { state: 'DRIFT', failures };
   const out = { state, failures: [] };
@@ -107,7 +112,7 @@ export function classify(catalog) {
 }
 
 /** What 0012 must not touch: returns the names of the sections that changed. */
-export const changedOutside = (before, after) => ['kept_fn', 'kept_relations', 'kept_policies', 'other_buckets', 'commerce', 'media_store']
+export const changedOutside = (before, after) => ['kept_fn', 'kept_relations', 'kept_policies', 'other_buckets', 'commerce', 'media_store', 'sponsors']
   .filter((key) => !same(before[key], after[key]));
 
 function phraseFor(mode, arg) {
