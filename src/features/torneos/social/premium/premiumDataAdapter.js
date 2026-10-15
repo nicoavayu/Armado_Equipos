@@ -1,7 +1,7 @@
 import { PREMIUM_V2_GEOMETRY } from './generated/premiumGeometry';
 import { fitPremiumLines, fitPremiumWords } from './premiumAutofit';
 
-const TITLES = Object.freeze({
+export const PREMIUM_PIECE_TITLES = Object.freeze({
   round_results: ['RESULTADOS', 'DE LA FECHA'],
   next_fixture: ['PRÓXIMA', 'FECHA'],
   standings: ['TABLA', 'DE POSICIONES'],
@@ -59,6 +59,13 @@ export function tournamentInitials(value) {
   if (!source.length) return '';
   if (source.length === 1) return source[0].slice(0, 2);
   return source.slice(0, 3).map((word) => word[0]).join('');
+}
+
+// The Figura without a photo shows the player's first name, whole ("Nico" → NICO; Editorial sets it as written, in its
+// italic). Never a three-letter stub ("NIC") that reads as a cut name.
+export function figureDisplayName(value, themeId) {
+  const first = String(value ?? '').trim().split(/\s+/)[0] || '';
+  return themeId === 'editorial' ? first : first.toLocaleUpperCase('es-AR');
 }
 
 // Joins the non-empty parts of a label ("TORNEO FINALIZADO" + "" → "TORNEO FINALIZADO", never a dangling separator).
@@ -448,7 +455,7 @@ export function createPremiumViewModel({
   const finalHome = teamModel(finalMatch.home, assets, crestAssets);
   const finalAway = teamModel(finalMatch.away, assets, crestAssets);
   const finalMeta = finalMetadata(finalMatch, timezone);
-  const [titleTop, titleBottom] = TITLES[snapshot?.piece] || ['RESULTADOS', 'DE LA FECHA'];
+  const [titleTop, titleBottom] = PREMIUM_PIECE_TITLES[snapshot?.piece] || ['RESULTADOS', 'DE LA FECHA'];
   const year = text(competition.seasonName || competition.seasonYear || '', '')
     || text(competition.tournamentName, '').match(/\b20\d{2}\b/)?.[0]
     || text(snapshot?.generatedAt, '').slice(0, 4)
@@ -539,16 +546,19 @@ export function createPremiumViewModel({
     showFigureSafeGuides: false,
     figFirst,
     figLast,
-    figIni: initials(figure.name),
+    figIni: figureDisplayName(figure.name, themeId) || '—',
     figPos: LINE_LABELS[figure.position] || text(figure.position, 'JUGADOR'),
     figTeamIni: figureTeam.ini,
     figTeamKind: figureTeam.kind,
     figTeamC1: figureTeam.c1,
     figTeamC2: figureTeam.c2,
     figTeamName: figureTeam.name,
+    // The candidates' numbers are the published statistics of the phase (get_published_tournament_statistics), the
+    // same accumulated data as Goleadores: the Figura is chosen for the round, its numbers are labelled as the
+    // tournament's, never as the round's.
     figStats: [
-      { v: String(figure.goals ?? figure.stats?.goals ?? '—'), l: 'GOLES' },
-      { v: String(figure.appearances ?? figure.stats?.appearances ?? '—'), l: 'PARTIDOS' },
+      { v: String(figure.goals ?? figure.stats?.goals ?? '—'), l: 'GOLES EN EL TORNEO' },
+      { v: String(figure.appearances ?? figure.stats?.appearances ?? '—'), l: 'PARTIDOS EN EL TORNEO' },
     ],
     fA: finalHome,
     fB: finalAway,

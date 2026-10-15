@@ -445,7 +445,8 @@ describe('Social Studio V2 product renderer', () => {
     const rendered = renderCase(theme, 'mvp', 'story', 11, { photo: null });
     const fallback = rendered.node.querySelector(`[data-premium-figure-fallback="${theme.id}"]`);
     expect(fallback).not.toBeNull();
-    expect(fallback.textContent).toContain('JR');
+    // The player's first name, whole ("Jugador Real 1"), never a stub of initials.
+    expect(fallback.querySelector('strong').textContent).toBe(theme.id === 'editorial' ? 'Jugador' : 'JUGADOR');
     expect(rendered.node.querySelector('[data-premium-figure-frame="true"] > span')).toBeNull();
     expect(rendered.node.querySelector('[data-premium-figure-no-photo="compact"]')).not.toBeNull();
     expect(rendered.node.querySelector('[data-premium-figure-composition="no-photo-compact"]'))
