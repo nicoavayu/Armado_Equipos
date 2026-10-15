@@ -15,6 +15,7 @@
    - Dónde: Configuración de la organización → pestaña **Sponsors**.
    - Quién: propietario y administrador (`organization.update`).
 2. **Selección por placa:** hasta 3 sponsors activos con logo. Se ve en la preview y se incluye en el export.
+   - **Quién (regla deliberada, para revisión — demo E2E B1, decisión del coordinador 2026-10-15):** sólo propietario y administrador (`organization.update`), en el servidor y en la UI. Un colaborador con permiso de exportar sigue exportando placas, **sin** sponsors: no ve el selector (sólo la línea «Los sponsors los agrega el propietario o un administrador.»). No se amplía `can_read_tournament_branding_object`.
    - Sólo en los estilos Premium con `capabilities.sponsors=true`: Heritage, Street, Scoreboard y Editorial. En Base no se ofrece.
    - Aplica a todas las piezas y a los dos formatos, Feed 4:5 e Historia 9:16.
 3. **Entitlement Premium (`sponsors`):**
@@ -48,6 +49,7 @@
   - `archive_tournament_organization_sponsor(p_organization_id, p_sponsor_id)` → `{ previousLogoPath }`. Exige `organization.update`, no el entitlement.
   - `authorize_tournament_social_sponsors(p_season_id, p_tournament_id, p_theme, p_sponsor_ids uuid[])` → `{ authorized, sponsors: [{ id, name, logoPath }] }`.
     - Exige `social.export` en la temporada, un tema distinto de base y con `sponsors`, a lo sumo 3 ids distintos, todos activos, de la misma organización y con logo, y el entitlement efectivo de la temporada.
+    - Con una selección **no vacía** exige además `organization.update` en la organización del torneo (propietario, administrador) → `TORNEOS_SPONSORS_FORBIDDEN`, comprobado antes de juzgar cualquier entrada. La selección vacía no cambia.
     - Si falla, devuelve un error tipado que no filtra datos de otra organización.
     - **No se toca** `authorize_tournament_social_export` (0008: sus pins y firmas son fijos).
 - **`private.tournament_branding_object_in_use`:** se extiende para que una ruta referenciada por un sponsor activo cuente como en uso.
@@ -79,7 +81,7 @@
 ## 3. Verificación
 - **DB, en el lab:**
   - aislamiento entre 2 organizaciones;
-  - roles: owner y admin pueden, collaborator no;
+  - roles: owner y admin pueden, collaborator no (tampoco autorizar sponsors en una placa, aunque tenga `social.export`: sólo la selección vacía);
   - con y sin entitlement;
   - revocación del grant: authorize y upsert rechazados, lectura y archivo permitidos;
   - un sponsor archivado no se autoriza;
