@@ -24,7 +24,7 @@ export const REF = 'onzpwnqxnvlgsevivngf';
 const file = (rel, sha256, from, to) => Object.freeze({ path: path.join(REPO, rel), rel, sha256, from, to, phase: '0020' });
 export const FILES = Object.freeze({
   'apply-0020': file('backend/torneos/supabase/migrations/00000000000020_premium_sponsors.sql',
-    'edd9a83e6b1f360659ecc2a7d5fd303a87a1361eaf3ac7ab17ad21efd14b897e', 'PRE_0020', 'POST_0020'),
+    '3b2ed5370a637ea86475ceba0a100802e5928c2187dcf1e70bb057ae3d64582c', 'PRE_0020', 'POST_0020'),
   'rollback-0020': file('backend/torneos/sponsors-v1/rollback/00000000000020_premium_sponsors.rollback.sql',
     'dc8422ca7f99c63773e46cfefd3d005912bc7bda029470fdacf2429be33e41dd', 'POST_0020', 'PRE_0020'),
 });
@@ -36,7 +36,7 @@ export const BODIES = Object.freeze({
   PRE_0020: Object.freeze({ in_use: 'fd7eb865713c713c96e595f9a35ce230', entitled: null, get: null, upsert: null, archive: null, authorize: null }),
   POST_0020: Object.freeze({
     in_use: '8189dc2bebca6c29ca15eb6840d95c91', entitled: 'b2290185d145ca7f611d32ae4ad61c72', get: '1da369a35b85046f46b39bd58345b760',
-    upsert: '3aba4c646ace22abdb7c2b5879506dcd', archive: '23ba6885cb807d91d669536166e9e655', authorize: 'd15f11f46d6ae896f5ecf6f3b470e5a5',
+    upsert: '3aba4c646ace22abdb7c2b5879506dcd', archive: '23ba6885cb807d91d669536166e9e655', authorize: '6adc7fa5fc9680dd082f8a895ea63ef5',
   }),
 });
 const rpc = Object.freeze({ secdef: true, config: ['search_path=""'], authenticated: true, anon: false, service_role: false });

@@ -149,7 +149,19 @@ describe('roles', () => {
     assert.equal(code(col, authorizeSql(w.season, t, 'heritage', [byAdmin.id])), 'TORNEOS_SOCIAL_EXPORT_FORBIDDEN');
     admin(`INSERT INTO public.tournament_social_permissions (organization_id, user_id, can_export, granted_by)
       VALUES (${lit(w.org)}, ${lit(col.id)}, true, ${lit(w.owner.id)})`);
-    assert.deepEqual(authorize(col, w.season, t, 'heritage', [byAdmin.id]).sponsors.map((x) => x.id), [byAdmin.id]);
+    // Deliberate rule (B1 of the E2E demo): with social.export a collaborator keeps exporting, but WITHOUT sponsors —
+    // putting sponsors on a piece needs organization.update (owner, admin), and that is checked before any input.
+    assert.deepEqual(authorize(col, w.season, t, 'heritage', []).sponsors, [], 'empty selection: the export goes on');
+    assert.deepEqual(authorize(col, w.season, t, 'base', []).sponsors, []);
+    assert.deepEqual(failure(col, authorizeSql(w.season, t, 'heritage', [byAdmin.id])),
+      { code: 'TORNEOS_SPONSORS_FORBIDDEN', state: '42501', detail: null });
+    assert.equal(code(col, authorizeSql(w.season, t, 'base', [byAdmin.id])), 'TORNEOS_SPONSORS_FORBIDDEN', 'access before the theme');
+    assert.equal(code(col, authorizeSql(w.season, t, 'heritage', [randomUUID()])), 'TORNEOS_SPONSORS_FORBIDDEN', 'access before the ids');
+    assert.equal(code(col, authorizeSql(w.season, t, 'heritage', null)), 'TORNEOS_SPONSORS_SELECTION_INVALID');
+    // Owner and admin (organization.update, social.export by role) may.
+    for (const manager of [w.owner, adm]) {
+      assert.deepEqual(authorize(manager, w.season, t, 'heritage', [byAdmin.id]).sponsors.map((x) => x.id), [byAdmin.id]);
+    }
     const unassigned = member(w.org, 'admin', []);
     assert.equal(code(unassigned, authorizeSql(w.season, t, 'heritage', [byAdmin.id])), 'TORNEOS_SOCIAL_EXPORT_FORBIDDEN', 'season access');
     assert.equal(code(unassigned, `select public.get_tournament_organization_sponsors(${lit(w.org)}, ${lit(w.season)})`), 'TORNEOS_SPONSORS_FORBIDDEN');

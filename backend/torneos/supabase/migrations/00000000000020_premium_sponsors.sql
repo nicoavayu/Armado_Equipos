@@ -25,9 +25,11 @@
 --         organization.update + entitlement; ≤ 20 active per organization; { sponsor, previousLogoPath }.
 --       archive_tournament_organization_sponsor(org, sponsor)                   organization.update only (always allowed);
 --         logical (archived_at), clears logo_path; { sponsorId, archived, alreadyArchived, previousLogoPath }.
---       authorize_tournament_social_sponsors(season, tournament, theme, sponsor_ids[])   social.export on the season; theme
---         heritage|street|scoreboard|editorial (base never), ≤ 3 distinct active sponsors with a logo of the tournament's
---         organization, the season's effective `sponsors`; { authorized, …, sponsors[] } — the ONLY list an export may draw.
+--       authorize_tournament_social_sponsors(season, tournament, theme, sponsor_ids[])   social.export on the season; a
+--         NON-EMPTY selection also needs organization.update (owner, admin: deliberate — a collaborator exports without
+--         sponsors); theme heritage|street|scoreboard|editorial (base never), ≤ 3 distinct active sponsors with a logo of
+--         the tournament's organization, the season's effective `sponsors`; { authorized, …, sponsors[] } — the ONLY list
+--         an export may draw.
 --     Errors (SQLSTATE → HTTP through PostgREST, body { code, message, details }): 42501 TORNEOS_AUTH_REQUIRED,
 --     42501 TORNEOS_SPONSORS_FORBIDDEN, 42501 TORNEOS_SOCIAL_EXPORT_FORBIDDEN, 42501 TORNEOS_SPONSORS_PREMIUM_REQUIRED,
 --     22023 TORNEOS_SPONSOR_INVALID (details: name | logo_path | sort_order | sponsor_id), 22023 TORNEOS_SOCIAL_THEME_UNKNOWN,
@@ -363,6 +365,12 @@ begin
     or not public.has_tournament_social_capability(v_organization_id, 'social.export') then
     raise exception using errcode = '42501', message = 'TORNEOS_SOCIAL_EXPORT_FORBIDDEN';
   end if;
+  -- Deliberate rule: putting sponsors ON a piece is the organization's decision (owner, administrator). A collaborator
+  -- with social.export keeps exporting, without sponsors (an empty selection). Also checked before any input is judged.
+  if coalesce(cardinality(p_sponsor_ids), 0) > 0
+    and not public.has_tournament_organization_capability(v_organization_id, 'organization.update') then
+    raise exception using errcode = '42501', message = 'TORNEOS_SPONSORS_FORBIDDEN';
+  end if;
   if p_theme is null or p_theme not in ('base', 'heritage', 'street', 'scoreboard', 'editorial') then
     raise exception using errcode = '22023', message = 'TORNEOS_SOCIAL_THEME_UNKNOWN';
   end if;
@@ -440,7 +448,7 @@ DECLARE
     'public.get_tournament_organization_sponsors(uuid,uuid)', '1da369a35b85046f46b39bd58345b760',
     'public.upsert_tournament_organization_sponsor(uuid,uuid,text,text,integer)', '3aba4c646ace22abdb7c2b5879506dcd',
     'public.archive_tournament_organization_sponsor(uuid,uuid)', '23ba6885cb807d91d669536166e9e655',
-    'public.authorize_tournament_social_sponsors(uuid,uuid,text,uuid[])', 'd15f11f46d6ae896f5ecf6f3b470e5a5'
+    'public.authorize_tournament_social_sponsors(uuid,uuid,text,uuid[])', '6adc7fa5fc9680dd082f8a895ea63ef5'
   );
   v_rpcs constant text[] := array[
     'public.get_tournament_organization_sponsors(uuid,uuid)',

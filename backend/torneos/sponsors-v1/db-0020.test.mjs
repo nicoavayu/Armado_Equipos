@@ -80,6 +80,11 @@ test('0020: one table (RLS, no API grant, no policy), four authenticated-only RP
   assert.match(bodyIn(MIGRATION, HEADS.upsert), /organization\.update[\s\S]*tournament_sponsors_entitled\(p_organization_id, null, null\)/);
   assert.doesNotMatch(bodyIn(MIGRATION, HEADS.archive), /entitled/, 'archiving never needs Premium');
   assert.match(bodyIn(MIGRATION, HEADS.authorize), /'social\.export'[\s\S]*tournament_sponsors_entitled\(v_organization_id, p_season_id, p_tournament_id\)/);
+  // Deliberate rule: a non-empty selection is the organization's decision (owner, admin), checked right after the export's
+  // own access and before any input is judged; can_read_tournament_branding_object is not widened for it.
+  assert.match(bodyIn(MIGRATION, HEADS.authorize),
+    /'social\.export'\) then[\s\S]*?end if;\s+--[^\n]*\n\s+--[^\n]*\n\s+if coalesce\(cardinality\(p_sponsor_ids\), 0\) > 0\s+and not public\.has_tournament_organization_capability\(v_organization_id, 'organization\.update'\) then\s+raise exception using errcode = '42501', message = 'TORNEOS_SPONSORS_FORBIDDEN';\s+end if;\s+if p_theme is null/);
+  assert.doesNotMatch(statements(MIGRATION), /function public\.can_read_tournament_branding_object/);
   assert.match(bodyIn(MIGRATION, HEADS.in_use), /tournament_organization_sponsors sponsor\s+where sponsor\.logo_path = p_name and sponsor\.archived_at is null/);
   assert.ok(bodyIn(MIGRATION, HEADS.in_use).startsWith(bodyIn(M0017, 'create function private.tournament_branding_object_in_use').replace(/;\n$/, '')),
     'the 0017 body, extended');
