@@ -5,6 +5,7 @@ import {
   getSupabasePublishableCredential,
   getSupabaseSecretCredential,
 } from "../_shared/supabaseApiKeys.ts";
+import { requestTorneosAccountErasure } from "../_shared/torneosAccountErasure.ts";
 
 type QueryError = {
   message?: string;
@@ -373,6 +374,18 @@ serve(async (req) => {
       });
     }
 
+    // Torneos (a separate project) FIRST, and fail closed: if Torneos does not confirm the erasure, nothing is deleted in
+    // Core and the person can simply retry (the Torneos erasure is idempotent). The Core user id is the one of the session
+    // verified above, never a client value. _shared/torneosAccountErasure.ts; Torneos migration 0021.
+    const torneos = await requestTorneosAccountErasure({ env: Deno.env, coreUserId: user.id });
+    if (!torneos.ok) {
+      console.warn(`[delete-account] torneos erasure not confirmed: ${torneos.code}`);
+      return new Response(
+        JSON.stringify({ ok: false, message: "torneos_erasure_failed", code: torneos.code, retryable: true }),
+        { status: 503, headers: { ...cors, "Content-Type": "application/json" } },
+      );
+    }
+
     const adminClient = createClient(supabaseUrl, serviceCredential.key, {
       global: { fetch: createSupabaseCredentialFetch(serviceCredential) },
       auth: { autoRefreshToken: false, persistSession: false },
@@ -441,10 +454,17 @@ serve(async (req) => {
       );
     }
 
+    // A Torneos session opened between the erasure and the Core deletion could have re-created an (empty) identity for
+    // this user: one more idempotent pass. Best effort: the account is already gone, a failure is only logged (and the
+    // reconcile runbook in backend/torneos/account-deletion-v1/README.md covers it).
+    const sweep = await requestTorneosAccountErasure({ env: Deno.env, coreUserId: user.id });
+    if (!sweep.ok) console.warn(`[delete-account] torneos post-deletion sweep not confirmed: ${sweep.code}`);
+
     return new Response(
       JSON.stringify({
         ok: true,
         message: "account_deleted",
+        torneos: torneos.outcome,
       }),
       { status: 200, headers: { ...cors, "Content-Type": "application/json" } },
     );
