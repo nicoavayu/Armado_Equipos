@@ -115,5 +115,84 @@
   ],
   "public_contact": {
     "contact_whatsapp": "Optional, published only when the organization saves it with p_contact_public = true; never a profile phone."
+  },
+  "moderation": {
+    "purpose": "Report user-generated content (Apple App Review 1.2 / Google Play UGC), the organization's review of team and player names, the platform's review of everything else, applicant blocks and muting an organization's communications. Served by this same contract (TORNEOS_CONNECTED_MODE=on).",
+    "migration": "backend/torneos/supabase/migrations/00000000000022_content_moderation.sql",
+    "rollback": "backend/torneos/moderation-v1/rollback/00000000000022_content_moderation.rollback.sql",
+    "spec": "docs/superpowers/specs/2026-10-15-torneos-moderation-design.md",
+    "local": null,
+    "rpcs": [
+      "report_tournament_content",
+      "get_tournament_content_reports",
+      "handle_tournament_content_report",
+      "block_tournament_applicant",
+      "unblock_tournament_applicant",
+      "set_tournament_communications_muted",
+      "get_my_tournament_communication_mutes"
+    ],
+    "operator_only": [
+      "platform_list_tournament_content_reports",
+      "platform_handle_tournament_content_report"
+    ],
+    "internal": [
+      "tournament_moderation_is_manager",
+      "tournament_moderation_handle",
+      "tournament_moderation_public_page_hold",
+      "tournament_moderation_application_block",
+      "tournament_moderation_delivery_mute"
+    ],
+    "tables": [
+      "tournament_content_reports",
+      "tournament_content_report_events",
+      "tournament_communication_mutes",
+      "tournament_applicant_blocks",
+      "private.tournament_moderation_holds"
+    ],
+    "triggers": {
+      "tournament_public_pages": [
+        "tournament_public_pages_moderation_hold"
+      ],
+      "tournament_team_applications": [
+        "tournament_team_applications_moderation_block"
+      ],
+      "tournament_announcement_deliveries": [
+        "tournament_announcement_deliveries_moderation_mute"
+      ]
+    },
+    "errors": {
+      "TORNEOS_REPORT_INVALID": "22023",
+      "TORNEOS_REPORT_TARGET_INVALID": "22023",
+      "TORNEOS_REPORT_RATE_LIMITED": "PT429",
+      "TORNEOS_REPORT_NOT_FOUND": "PT409",
+      "TORNEOS_REPORT_ALREADY_CLOSED": "PT409",
+      "TORNEOS_REPORT_ACTION_INVALID": "22023",
+      "TORNEOS_MODERATION_FORBIDDEN": "42501",
+      "TORNEOS_APPLICATION_BLOCKED": "42501",
+      "TORNEOS_PUBLIC_PAGE_MODERATION_HOLD": "42501",
+      "TORNEOS_COMMUNICATIONS_MUTE_FORBIDDEN": "42501",
+      "TORNEOS_BLOCK_NOT_FOUND": "PT409"
+    },
+    "reporters": "authenticated identities only; there is no public write route",
+    "review": {
+      "organization": [
+        "team",
+        "player"
+      ],
+      "platform": [
+        "organization",
+        "tournament",
+        "catalog_listing",
+        "announcement",
+        "application",
+        "escalated"
+      ]
+    },
+    "rate_limit": {
+      "per_hour": 10,
+      "per_day": 30
+    },
+    "reporter_visible_to_organization": false,
+    "operator_driver": "backend/torneos/moderation-v1/remote/db-0022.mjs"
   }
 }
