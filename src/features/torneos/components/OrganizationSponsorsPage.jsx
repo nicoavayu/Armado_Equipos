@@ -15,6 +15,7 @@ import { useOutletContext } from 'react-router-dom';
 import { useTorneosWorkspace } from '../context/TorneosWorkspaceContext';
 import { useOptionalTorneosCompetition } from '../context/TorneosCompetitionContext';
 import { validateBrandingFile } from '../domain/brandingFiles';
+import { isNativeCommerceBlocked, nativePremiumNotice } from '../domain/nativeCommerce';
 import {
   hasHiddenSponsorLogo,
   SPONSOR_LIMITS,
@@ -252,6 +253,8 @@ export default function OrganizationSponsorsPage() {
   const limits = data?.limits || SPONSOR_LIMITS;
   const canManage = data?.canManage === true;
   const entitled = data?.entitled === true;
+  // Store apps (coordinated with #214): a neutral notice, no selling copy and no Premium call to action.
+  const nativeCommerceBlocked = isNativeCommerceBlocked();
   const canEdit = canManage && entitled;
   const full = sponsors.length >= limits.maxActive;
 
@@ -307,17 +310,23 @@ export default function OrganizationSponsorsPage() {
         {state.status === 'ready' && !entitled && (
           <div className={styles.premium}>
             <LockKeyhole size={20} aria-hidden="true" />
-            <div>
-              <strong>Sponsors es una función Premium.</strong>
-              <p>
-                Con Premium cargás hasta {limits.maxActive} sponsors con su logo y elegís hasta {limits.maxPerExport} por
-                placa en los estilos Premium del Estudio Social (Heritage, Street, Scoreboard y Editorial).
-              </p>
-              {sponsors.length > 0 && (
-                <p>Tus sponsors quedan guardados y vuelven a estar disponibles cuando la temporada tenga Premium.</p>
-              )}
-              <PremiumUpsell feature="Sponsors" organizationId={organizationId} seasonId={seasonId} />
-            </div>
+            {nativeCommerceBlocked ? (
+              <div>
+                <p>{nativePremiumNotice('Sponsors')}</p>
+              </div>
+            ) : (
+              <div>
+                <strong>Sponsors es una función Premium.</strong>
+                <p>
+                  Con Premium cargás hasta {limits.maxActive} sponsors con su logo y elegís hasta {limits.maxPerExport} por
+                  placa en los estilos Premium del Estudio Social (Heritage, Street, Scoreboard y Editorial).
+                </p>
+                {sponsors.length > 0 && (
+                  <p>Tus sponsors quedan guardados y vuelven a estar disponibles cuando la temporada tenga Premium.</p>
+                )}
+                <PremiumUpsell feature="Sponsors" organizationId={organizationId} seasonId={seasonId} />
+              </div>
+            )}
           </div>
         )}
 

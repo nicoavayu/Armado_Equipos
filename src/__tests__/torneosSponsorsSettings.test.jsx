@@ -5,6 +5,7 @@
 import React from 'react';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Outlet, Route, Routes } from 'react-router-dom';
+import { Capacitor } from '@capacitor/core';
 import OrganizationSponsorsPage from '../features/torneos/components/OrganizationSponsorsPage';
 import OrganizationSettingsNav from '../features/torneos/components/OrganizationSettingsNav';
 import { TorneosFeaturesProvider } from '../features/torneos/context/TorneosFeaturesContext';
@@ -151,6 +152,48 @@ test('without Premium: the Premium explanation and gate, the rows kept read-only
   expect(screen.getByRole('button', { name: 'Archivar Ferretería El Tornillo' })).toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: /Sponsors · Premium/ }));
   expect(screen.getByRole('dialog')).toHaveTextContent('Esta función está incluida en Premium.');
+});
+
+// Store apps (coordinated with #214, domain/nativeCommerce.js): no Premium selling inside the native shells.
+describe('inside the store apps (Capacitor native)', () => {
+  const runOn = (platform) => {
+    jest.spyOn(Capacitor, 'isNativePlatform').mockReturnValue(platform !== 'web');
+    jest.spyOn(Capacitor, 'getPlatform').mockReturnValue(platform);
+  };
+  afterEach(() => jest.restoreAllMocks());
+
+  test.each(['ios', 'android'])('%s without Premium: only «Sponsors: disponible con Premium.», no sales copy, no button or link', async (platform) => {
+    runOn(platform);
+    setup({ list: answer({ entitled: false }) });
+    expect(await screen.findByText('Sponsors: disponible con Premium.')).toBeInTheDocument();
+    expect(screen.queryByText(/función Premium/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Con Premium cargás/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/cuando la temporada tenga Premium/)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Premium/ })).not.toBeInTheDocument();
+    // The notice points nowhere (the settings tabs, Plan among them, are the app's navigation, not a sales link).
+    const notice = screen.getByText('Sponsors: disponible con Premium.').closest('div').parentElement;
+    expect(within(notice).queryAllByRole('link')).toEqual([]);
+    expect(within(notice).queryAllByRole('button')).toEqual([]);
+    expect(screen.queryAllByRole('link').filter((link) => /premium/i.test(link.textContent))).toEqual([]);
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    // What the organization already has stays: its rows, read-only, archive allowed.
+    expect(screen.getByRole('button', { name: 'Archivar Ferretería El Tornillo' })).toBeInTheDocument();
+  });
+
+  test('with Premium the native page manages sponsors as on the web (only selling is hidden)', async () => {
+    runOn('android');
+    setup();
+    expect(await screen.findByRole('button', { name: 'Agregar sponsor' })).toBeInTheDocument();
+    expect(screen.queryByText('Sponsors: disponible con Premium.')).not.toBeInTheDocument();
+  });
+
+  test('on the web the Premium explanation and its button stay', async () => {
+    runOn('web');
+    setup({ list: answer({ entitled: false }) });
+    expect(await screen.findByText('Sponsors es una función Premium.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Sponsors · Premium/ })).toBeInTheDocument();
+    expect(screen.queryByText('Sponsors: disponible con Premium.')).not.toBeInTheDocument();
+  });
 });
 
 test('without organization.update: read-only, no action at all', async () => {
