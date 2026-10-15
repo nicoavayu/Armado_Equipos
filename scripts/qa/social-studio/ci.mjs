@@ -89,6 +89,8 @@ expect(checks.filter((c) => c.name === 'sparse content starts under the title').
   'sparse content: 4 pieces × 4 Premium styles × 2 formats start under the title');
 expect(checks.filter((c) => c.name === 'Premium placas fit their canvas').length === 88,
   'Premium placas fit: 11 pieces × 4 Premium styles × 2 formats inside the canvas, names and draws whole');
+expect(checks.filter((c) => c.name === 'Premium placas fit their canvas with the sponsor band').length === 88,
+  'Premium placas fit with three sponsors: the band and the canvas rule together (11 pieces × 4 styles × 2 formats)');
 expect(has('PREMIUM Base signature optional; Premium styles white-label'), 'branding: Arma2 signature optional on PREMIUM Base, white-label styles');
 expect(has('Figura photo/drag/zoom/reset'), 'Figura photo, focal point, zoom and reset');
 expect(has('Editorial multi-page'), 'Editorial multi-page export');

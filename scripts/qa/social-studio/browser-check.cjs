@@ -8,7 +8,7 @@
 // SOCIAL_QA_PROFILE=ci is the deterministic subset the Prelaunch Quality Gate runs on every PR (`npm run
 // test:torneos:social:browser`): Social OFF, FREE, PREMIUM (every style, both formats), branding, real exports,
 // Editorial pages, the Premium placas fit (11 pieces × 4 styles × 2 formats inside their canvas, names and draws
-// whole), the transitions (slow answers, a changed mind, failures: the file is always what is on screen), the Premium
+// whole; again with three sponsors), the transitions (slow answers, a changed mind, failures: the file is always what is on screen), the Premium
 // sponsors (0–3 × the four Premium styles × both formats × Tabla and Resultados, the band measured; the band matrix
 // over every piece; FREE unchanged) and the phone layouts at 390 and 320 px. Without it (the certification before
 // gate A) every
@@ -1213,6 +1213,34 @@ async function assertWholeArt(page, label, [, , width, height]) {
         }
       }
       await close(s, 'fit');
+
+      // The same canvas rule with the sponsor band (three sponsors): the band's room-making and #213's fit hold
+      // together — no box, text or sponsor tile outside the canvas, Street's decoration included, names and draws whole.
+      const b = await open(browser, base, 'plan=premium&sponsors=on');
+      const names = await b.page.evaluate(() => window.__sponsorNames());
+      for (const [id, label] of PIECES) {
+        for (const style of STYLES.slice(1)) {
+          for (const [format, slug, width, height] of FORMATS) {
+            // Final and Campeón are full-bleed posters without a band: they keep the three chosen, and draw none.
+            const poster = POSTER_PIECES.includes(id);
+            await configure(b.page, { id, label, style, format });
+            if (!poster) await chooseSponsors(b.page, names, 3, { piece: label, style, format });
+            await b.page.evaluate(() => document.fonts.ready);
+            const node = b.page.locator('div[data-premium-renderer="v2"]');
+            const m = await node.evaluate(inspectPremiumFit);
+            const band = await node.evaluate((root) => window.__measurePremium(root));
+            const where = `fit+band ${id} ${style} ${slug}`;
+            if (m.problems.length) throw new Error(`${where}: ${m.problems.join(' | ')}`);
+            if (poster ? band.band : band.band?.count !== 3) throw new Error(`${where}: band ${JSON.stringify(band.band)}`);
+            const outside = band.tiles.filter(({ tile }) => tile.x < 0 || tile.y < 0 || tile.x + tile.w > width || tile.y + tile.h > height);
+            if (outside.length) throw new Error(`${where}: sponsor tile outside the canvas ${JSON.stringify(outside)}`);
+            check('Premium placas fit their canvas with the sponsor band', {
+              piece: id, style: style.toLowerCase(), format: slug, band: band.band?.box || null, tiles: band.tiles.length, ...m,
+            });
+          }
+        }
+      }
+      await close(b, 'fit+band');
     }
 
     // ── Responsive: every functional part of the Studio on screen at phone, tablet and desktop widths ───────────
