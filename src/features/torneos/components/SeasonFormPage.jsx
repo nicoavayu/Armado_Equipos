@@ -22,9 +22,12 @@ import { canonicalRoutes } from '../routing/canonicalRoutes';
 import { WorkspaceError, WorkspaceLoading } from './WorkspaceState';
 import styles from './CompetitionCore.module.css';
 import { capturePremiumIntent, hasPendingPremiumIntent, withPremiumIntent } from '../domain/premiumIntent';
+import { isNativeCommerceBlocked } from '../domain/nativeCommerce';
 
 const SEASON_ACTIVATE_CONFIRM = '¿Activar la temporada? Desde ahora dura hasta 6 meses: al terminar se eliminan sus fotos y '
   + 'miniaturas (los resultados, tablas e historial se conservan). Comprar Premium no cambia ese plazo.';
+// Store apps never mention buying (domain/nativeCommerce): the same fact without the purchase.
+const SEASON_ACTIVATE_CONFIRM_NATIVE = SEASON_ACTIVATE_CONFIRM.replace('Comprar Premium no cambia', 'Premium no cambia');
 const SEASON_COMPLETE_CONFIRM = '¿Marcar la temporada como completada? Se eliminan todas sus fotos y miniaturas, también las '
   + 'publicadas, y no se pueden recuperar. Descargá antes las que quieras conservar. Los resultados, tablas e historial se conservan.';
 
@@ -139,7 +142,7 @@ export default function SeasonFormPage() {
 
   const changeStatus = async (nextStatus) => {
     // 0018: activating starts the six months; finishing removes the season's photos (they cannot be recovered).
-    if (nextStatus === 'active' && !window.confirm(SEASON_ACTIVATE_CONFIRM)) return;
+    if (nextStatus === 'active' && !window.confirm(isNativeCommerceBlocked() ? SEASON_ACTIVATE_CONFIRM_NATIVE : SEASON_ACTIVATE_CONFIRM)) return;
     if (nextStatus === 'completed' && !window.confirm(SEASON_COMPLETE_CONFIRM)) return;
     setBusy(nextStatus);
     setFormError('');

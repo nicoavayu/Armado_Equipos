@@ -11,10 +11,13 @@ import CatalogCallSection from './CatalogCallSection';
 import BrandingImage from '../BrandingImage';
 import { useCatalogService } from './useCatalogService';
 import styles from './ConnectedProduct.module.css';
+import { toShareableAppUrl } from '../../../../utils/shareableAppUrl';
+import { shareLink } from '../../../../utils/shareLink';
 
-export function publicTournamentUrl(publicSlug) {
-  const origin = typeof window === 'undefined' ? '' : window.location.origin;
-  return `${origin}/torneos/publico/${encodeURIComponent(publicSlug)}`;
+// The public web address of the call: never the WebView origin of the native shells (localhost), which nobody outside
+// the phone can open.
+export function publicTournamentUrl(publicSlug, options) {
+  return toShareableAppUrl(`/torneos/publico/${encodeURIComponent(publicSlug)}`, options);
 }
 
 // Sharing is how a player without authority over the team gets the call to the person who has it.
@@ -23,12 +26,8 @@ export function ShareCallButton({ publicSlug, tournamentName }) {
   const share = async () => {
     const url = publicTournamentUrl(publicSlug);
     try {
-      if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
-        await navigator.share({ title: tournamentName, text: `Convocatoria: ${tournamentName}`, url });
-        return;
-      }
-      await navigator.clipboard.writeText(url);
-      setCopied('Enlace copiado');
+      const outcome = await shareLink({ title: tournamentName, text: `Convocatoria: ${tournamentName}`, url });
+      if (outcome === 'copied') setCopied('Enlace copiado');
     } catch {
       setCopied('');
     }
