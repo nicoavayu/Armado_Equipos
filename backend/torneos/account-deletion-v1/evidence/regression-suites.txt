@@ -1,0 +1,37 @@
+# Regression suites run on the branch (2026-10-15, local)
+## Jest full (CI=true react-scripts test --watchAll=false --runInBand)
+Test Suites: 392 passed, 392 total
+Tests:       3747 passed, 3747 total
+## test:torneos:frontend-foundation (B04 fixture regenerated with scripts/torneos-frontend/report.mjs: ProfileEditor moved its delete-account call to src/legal/accountDeletion.js)
+ℹ tests 109
+ℹ pass 109
+ℹ fail 0
+## test:edge-functions (incl. the new delete-account.test.mjs)
+ℹ tests 89
+ℹ pass 89
+ℹ fail 0
+## test:torneos:connected
+ℹ tests 30
+ℹ pass 30
+ℹ fail 0
+## test:torneos:social
+ℹ tests 26
+ℹ pass 26
+ℹ fail 0
+## test:torneos:branding
+ℹ tests 18
+ℹ pass 18
+ℹ fail 0
+## test:torneos:media
+ℹ tests 36
+ℹ pass 36
+ℹ fail 0
+## test:torneos:media-store
+ℹ tests 21
+ℹ pass 21
+ℹ fail 0
+## commerce-production-db + payments-production + gateway-commerce-production (labs that apply EVERY migration, 0021 included, as the lab installer)
+ℹ tests 67
+ℹ pass 67
+ℹ fail 0
+## Not run: test:torneos:season (p10 sandbox excluded on purpose), integration/torneos-core-contracts full stack (Node gateway parity: the route exists only in the hosted Deno gateway).

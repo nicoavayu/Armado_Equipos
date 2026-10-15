@@ -1,0 +1,90 @@
+# ACCOUNT ERASURE 0021 — local rehearsal 2026-10-15 (fictional data only; nothing remote). Branch claude/torneos-account-deletion on b4fb150a.
+# Lab: commerce-production pg-lab, own container per variant, Production ownership (postgres, not superuser) + hosted default ACL (public and private).
+
+## main (0000 → 0019 → 0021)
+✔ the pinned files and bodies are the ones in the tree (13.55625ms)
+✔ 0021 adds two functions and one private table; it changes no existing body, policy, role, table or trigger definition (0.782834ms)
+✔ the erasure body: security definer + empty search_path, one transaction, every bypassed guard re-enabled and verified, payments never written (1.188791ms)
+✔ every foreign key to torneos_identity in the tree is classified by the design matrix (a new one fails here until classified) (14.400459ms)
+✔ classify: the two states (with or without 0020), and every drift by name (0.694333ms)
+✔ changedOutside: anything else moving is named; EXECUTE counts of anon/authenticated must not move at all (0.760458ms)
+✔ run(): phrase, file hash, pre-state and the ledger refusal are checked before any write (1.122042ms)
+✔ the rollback removes only what 0021 added, refuses with ledger rows unless forced, and touches no data (0.094875ms)
+✔ lab: observe → apply → re-apply refused → rollback refused with ledger rows → forced rollback (anonymisation stays) → re-apply (12506.016875ms)
+ℹ tests 9
+ℹ pass 9
+ℹ fail 0
+✔ A1 a signed request erases: 200 {ok, outcome} only (no ids, no counts), as torneos_core_adapter with the erasure timeouts (439.56425ms)
+✔ A2 every outcome the function can give passes through; an unknown one is a 503 (1.605042ms)
+✔ A3 authentication: bad signature, the RAW contract secret (Torneos → Core key), a stale or future time, malformed headers → 401 and no SQL (1.435959ms)
+✔ A4 a browser can never call it: any Origin (even the allowed web origin) → 403; foreign host → 403; GET → 405 (0.414667ms)
+✔ A5 the body is closed: exactly core_user_id + request_id, canonical lowercase UUIDs, JSON content type, ≤ 512 bytes (1.86225ms)
+✔ A6 a database failure (unavailable, lock timeout, refused postcondition) is a retryable 503 that reveals nothing (0.910791ms)
+✔ A7 the other routes are unchanged: a Core-signed erasure request is not a bearer, and /exchange still refuses it (0.247166ms)
+✔ B Core shared module → real gateway → real 0021 on the lab: erased → already_erased; never-used → no_identity; wrong secret refused (2890.3875ms)
+✔ E0 baseline: the public page shows the real player names; official history, standings and the purchase are captured (2979.826708ms)
+✔ E1 permissions: only torneos_core_adapter may erase; no client role reads the ledger or calls the pseudonym (26.65325ms)
+✔ E2 a Core user who never used Torneos: no_identity, nothing moves anywhere (13.958334ms)
+✔ E3 pedro (player with goals and a card, official report, completed tournament): pseudonym everywhere, numbers kept, personal rows deleted (31.734959ms)
+✔ E4 idempotency: erasing pedro again (new request id) is a no-op: already_erased, nothing moves (7.361333ms)
+✔ E5 olga (owner with members): Liga Norte goes to ana, the longest-standing active admin; beto/dora/carla untouched; page stays (9.767833ms)
+✔ E6 solo (owner alone): archived, public page unpublished (the public route returns null), listing withdrawn without WhatsApp (8.871833ms)
+✔ E7 premium (owner alone with an APPROVED Premium purchase): archived; purchase, its events and the season grant byte-identical (5.861417ms)
+✔ E8 lidia (only a collaborator besides her): archived, the collaborator is NOT promoted (5.647208ms)
+✔ E9 carla (collaborator in two organizations, one of them archived): both memberships removed (5.695084ms)
+✔ E10 capi (captain + applicant): manager revoked with pseudonym and no email, his invitation email replaced, application message cleared, the team entry unchanged (7.233ms)
+✔ E11 paula (claimed provisional player): name, normalized name, email and phone gone; her roster row and squad snapshot carry the pseudonym (5.763917ms)
+✔ E12 dora (admin, author of a published announcement): text kept, author link to the severed identity kept, season seat and membership gone (4.5815ms)
+✔ E13 foto (player with a portrait and photographer): portrait → delete_pending + consent revoked, the object listed for the operator, Storage untouched (5.963ms)
+✔ E14 a failure injected mid-way rolls EVERYTHING back (guards re-enabled, identity intact); the retry completes and transfers Liga Norte again (14.988416ms)
+✔ E15 concurrent erasures serialize (advisory lock): beto and rival at the same time, both erased, Liga Norte archived after its last admin (15.502417ms)
+✔ E16 invariants: no organization is active without an active owner whose identity is live; every guard enabled; official history still immutable (3.380083ms)
+✔ E17 isolation: other worlds on this lab and the people never erased here are untouched; purchases byte-identical (1.483708ms)
+ℹ tests 26
+ℹ pass 26
+ℹ fail 0
+
+## main + 0020 (sponsors, #212 at 45d56f51) → 0021
+✔ the pinned files and bodies are the ones in the tree (16.272917ms)
+✔ 0021 adds two functions and one private table; it changes no existing body, policy, role, table or trigger definition (1.169791ms)
+✔ the erasure body: security definer + empty search_path, one transaction, every bypassed guard re-enabled and verified, payments never written (1.308625ms)
+✔ every foreign key to torneos_identity in the tree is classified by the design matrix (a new one fails here until classified) (15.680125ms)
+✔ classify: the two states (with or without 0020), and every drift by name (0.81575ms)
+✔ changedOutside: anything else moving is named; EXECUTE counts of anon/authenticated must not move at all (0.906459ms)
+✔ run(): phrase, file hash, pre-state and the ledger refusal are checked before any write (1.444417ms)
+✔ the rollback removes only what 0021 added, refuses with ledger rows unless forced, and touches no data (0.117625ms)
+✔ lab: observe → apply → re-apply refused → rollback refused with ledger rows → forced rollback (anonymisation stays) → re-apply (12504.823917ms)
+ℹ tests 9
+ℹ pass 9
+ℹ fail 0
+✔ A1 a signed request erases: 200 {ok, outcome} only (no ids, no counts), as torneos_core_adapter with the erasure timeouts (389.131375ms)
+✔ A2 every outcome the function can give passes through; an unknown one is a 503 (1.576834ms)
+✔ A3 authentication: bad signature, the RAW contract secret (Torneos → Core key), a stale or future time, malformed headers → 401 and no SQL (1.09525ms)
+✔ A4 a browser can never call it: any Origin (even the allowed web origin) → 403; foreign host → 403; GET → 405 (0.261167ms)
+✔ A5 the body is closed: exactly core_user_id + request_id, canonical lowercase UUIDs, JSON content type, ≤ 512 bytes (1.393625ms)
+✔ A6 a database failure (unavailable, lock timeout, refused postcondition) is a retryable 503 that reveals nothing (0.69825ms)
+✔ A7 the other routes are unchanged: a Core-signed erasure request is not a bearer, and /exchange still refuses it (0.1685ms)
+✔ B Core shared module → real gateway → real 0021 on the lab: erased → already_erased; never-used → no_identity; wrong secret refused (2958.338042ms)
+✔ E0 baseline: the public page shows the real player names; official history, standings and the purchase are captured (3024.631208ms)
+✔ E1 permissions: only torneos_core_adapter may erase; no client role reads the ledger or calls the pseudonym (50.620666ms)
+✔ E2 a Core user who never used Torneos: no_identity, nothing moves anywhere (16.632458ms)
+✔ E3 pedro (player with goals and a card, official report, completed tournament): pseudonym everywhere, numbers kept, personal rows deleted (35.162166ms)
+✔ E4 idempotency: erasing pedro again (new request id) is a no-op: already_erased, nothing moves (6.990792ms)
+✔ E5 olga (owner with members): Liga Norte goes to ana, the longest-standing active admin; beto/dora/carla untouched; page stays (9.490417ms)
+✔ E6 solo (owner alone): archived, public page unpublished (the public route returns null), listing withdrawn without WhatsApp (8.369875ms)
+✔ E7 premium (owner alone with an APPROVED Premium purchase): archived; purchase, its events and the season grant byte-identical (4.60775ms)
+✔ E8 lidia (only a collaborator besides her): archived, the collaborator is NOT promoted (4.773125ms)
+✔ E9 carla (collaborator in two organizations, one of them archived): both memberships removed (5.478333ms)
+✔ E10 capi (captain + applicant): manager revoked with pseudonym and no email, his invitation email replaced, application message cleared, the team entry unchanged (6.18175ms)
+✔ E11 paula (claimed provisional player): name, normalized name, email and phone gone; her roster row and squad snapshot carry the pseudonym (4.995125ms)
+✔ E12 dora (admin, author of a published announcement): text kept, author link to the severed identity kept, season seat and membership gone (4.31225ms)
+✔ E13 foto (player with a portrait and photographer): portrait → delete_pending + consent revoked, the object listed for the operator, Storage untouched (4.756416ms)
+✔ E14 a failure injected mid-way rolls EVERYTHING back (guards re-enabled, identity intact); the retry completes and transfers Liga Norte again (15.705458ms)
+✔ E15 concurrent erasures serialize (advisory lock): beto and rival at the same time, both erased, Liga Norte archived after its last admin (16.490875ms)
+✔ E16 invariants: no organization is active without an active owner whose identity is live; every guard enabled; official history still immutable (4.173875ms)
+✔ E17 isolation: other worlds on this lab and the people never erased here are untouched; purchases byte-identical (1.756625ms)
+ℹ tests 26
+ℹ pass 26
+ℹ fail 0
+
+## 0021 → 0020 (order-0020.test.mjs): see order-0021-then-0020-lab.jsonl

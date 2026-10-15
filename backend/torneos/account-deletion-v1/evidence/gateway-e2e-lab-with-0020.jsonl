@@ -1,0 +1,1 @@
+{"at":"2026-10-15T22:40:46.431Z","check":"core → gateway → 0021","ok":true,"details":{"first":"erased","second":"already_erased","never":"no_identity","wrongSecret":"torneos_erasure_refused","left":{"profiles":0,"mapped":0}}}
