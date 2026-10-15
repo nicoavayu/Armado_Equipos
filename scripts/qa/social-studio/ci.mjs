@@ -55,17 +55,25 @@ for (const width of [320, 390]) {
   expect(exports.some((e) => e.viewport?.startsWith(`${width} `) && e.style === 'editorial'), `Editorial pages exported at ${width}`);
   expect(has('D2 mobile navigation symmetric, no dead body gutter', (c) => c.width === width && c.device === 'scrollbar'), `D2: mobile navigation at ${width} with a classic scrollbar`);
 }
-// PREMIUM SPONSORS: 0, 1 and 3 sponsors in every Premium style and both formats, each a real file; FREE unchanged.
-for (const format of ['feed-4x5', 'historia-9x16']) {
-  for (const style of ['heritage', 'street', 'scoreboard', 'editorial']) {
-    for (const count of [0, 1, 3]) {
-      expect(exports.some((e) => e.section === 'sponsors' && e.style === style && e.format === format && e.sponsors === count
-        && Array.isArray(e.sponsorNames) && e.sponsorNames.length === count), `sponsors: ${count} × ${style} ${format} export`);
+// PREMIUM SPONSORS: 0–3 sponsors in every Premium style and both formats, Tabla and Resultados, each a real file whose
+// band was measured on screen (a tile per sponsor); FREE unchanged; every other piece through the band matrix.
+for (const piece of ['standings', 'round_results']) {
+  for (const format of ['feed-4x5', 'historia-9x16']) {
+    for (const style of ['heritage', 'street', 'scoreboard', 'editorial']) {
+      for (const count of [0, 1, 2, 3]) {
+        expect(exports.some((e) => e.section === 'sponsors' && e.piece === piece && e.style === style && e.format === format && e.sponsors === count
+          && Array.isArray(e.sponsorNames) && e.sponsorNames.length === count && (e.tiles || []).length === count
+          && (count === 0 ? !e.band : e.band?.count === count)), `sponsors: ${count} × ${piece} ${style} ${format} export`);
+      }
     }
   }
 }
+expect(has('sponsors: band matrix — every piece × four styles × two formats × 0–3 sponsors, nothing under the band, nothing cut', (c) => c.renders === 4 * 2 * 21 * 4),
+  'sponsors: band matrix (21 piece variants × 4 styles × 2 formats × 0–3 sponsors)');
 for (const name of [
-  'sponsors: 0/1/3 × four Premium styles × two formats exported through Descargar PNG',
+  'sponsors: 0–3 × four Premium styles × two formats × Tabla and Resultados exported through Descargar PNG',
+  'sponsors: the band on every exported piece is prominent, whole and over nothing',
+  'sponsors: a white logo on a transparent background gets a dark tile',
   'sponsors: at most 3 per piece',
   'sponsors: a refused authorization exports nothing, then the retry does',
   'sponsors: Base hides and clears the selection',

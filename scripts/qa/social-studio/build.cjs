@@ -1,4 +1,5 @@
-// Compiles the offline Estudio Social fixture (offline.jsx) into artifacts/social-studio/site.
+// Compiles the offline Estudio Social fixture (offline.jsx → index.html) and the sponsor band matrix (sponsor-band.jsx →
+// sponsor-band.html) into artifacts/social-studio/site.
 const path = require('path');
 const fs = require('fs');
 const webpack = require('webpack');
@@ -16,8 +17,8 @@ const env = {
 };
 webpack({
   mode: 'development',
-  entry: path.join(__dirname, 'offline.jsx'),
-  output: { path: output, filename: 'app.js', publicPath: '/' },
+  entry: { app: path.join(__dirname, 'offline.jsx'), 'sponsor-band': path.join(__dirname, 'sponsor-band.jsx') },
+  output: { path: output, filename: '[name].js', publicPath: '/' },
   devtool: false,
   resolve: {
     extensions: ['.js', '.jsx', '.json'],
@@ -36,6 +37,8 @@ webpack({
   plugins: [new webpack.DefinePlugin({ 'process.env': JSON.stringify(env) })],
 }, (err, stats) => {
   if (err || stats.hasErrors()) { console.error(err || stats.toString({ all: false, errors: true })); process.exitCode = 1; return; }
-  fs.writeFileSync(path.join(output, 'index.html'), '<!doctype html><html lang="es"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>*{box-sizing:border-box}body{margin:0;font-family:Inter,Arial,sans-serif;background:#0c0a1d}button,select{font:inherit}</style><div id="root"></div><script src="/app.js"></script></html>');
+  const page = (script) => `<!doctype html><html lang="es"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>*{box-sizing:border-box}body{margin:0;font-family:Inter,Arial,sans-serif;background:#0c0a1d}button,select{font:inherit}</style><div id="root"></div><script src="/${script}.js"></script></html>`;
+  fs.writeFileSync(path.join(output, 'index.html'), page('app'));
+  fs.writeFileSync(path.join(output, 'sponsor-band.html'), page('sponsor-band'));
   console.log('Social Studio offline fixture compiled');
 });

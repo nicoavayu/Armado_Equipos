@@ -4,7 +4,7 @@
 // something the database refuses fails here too. No network besides this server and the Google Fonts faces.
 //
 // PREMIUM SPONSORS (`sponsors=on`): the branding composition is on and the organization has four fictional sponsors
-// whose logos are drawn here, in the page, as PNG data URLs (no file, no network, no real brand). The emulated
+// whose logos are the designed PNGs of sponsor-logos/ (served by this harness: no network, no real brand). The emulated
 // get_tournament_organization_sponsors / authorize_tournament_social_sponsors follow the rules of 0020: access first,
 // then the theme (Base refuses a non-empty selection), at most three distinct active ids with a logo, and the season's
 // `sponsors` entitlement (PREMIUM only). Settings can add, edit and archive them in memory.
@@ -18,6 +18,11 @@ import { TorneosFeaturesProvider } from '../../../src/features/torneos/context/T
 import { stagingV1FeaturesFor } from '../../../src/features/torneos/stagingV1/stagingV1Features';
 import { tournamentEntitlementsFixture } from '../../../src/testUtils/tournamentEntitlementsFixture';
 import { socialQaSnapshot, socialQaStandings } from '../../../src/testUtils/socialStudioSnapshots';
+import './sponsorBandMeasure';
+import logoTornillo from './sponsor-logos/ferreteria-el-tornillo.png';
+import logoEspiga from './sponsor-logos/panaderia-la-espiga.png';
+import logoFenix from './sponsor-logos/gimnasio-fenix.png';
+import logoFaro from './sponsor-logos/libreria-el-faro.png';
 
 const args = new URLSearchParams(window.location.search);
 const plan = args.get('plan') || 'free';
@@ -52,37 +57,32 @@ const refuse = (code) => { record.refusals.push(code); const error = new Error(c
 const control = (window.__socialControl = { snapshotDelayMs: 0, authorizeDelayMs: 0, failSnapshot: [], failAuthorize: 0, failSponsorAuthorize: null });
 const pause = (ms) => (ms > 0 ? new Promise((resolve) => { setTimeout(resolve, ms); }) : Promise.resolve());
 
-// ── fictional sponsors (no real brand): a flat mark + a monogram, drawn once into a PNG data URL ────────────────────
-function sponsorLogo({ background, accent, mark, shape }, { square = false } = {}) {
+// ── fictional sponsors (no real brand): designed vector logos (sponsor-logos/*.svg), rasterized to 1200 px PNGs ──────
+// Realistic variety for the band: a transparent logo in dark ink (Ferretería El Tornillo), one that carries its own
+// coloured field (Panadería La Espiga), a wide horizontal wordmark (Gimnasio Fénix) and a square emblem (Librería El
+// Faro). `node scripts/qa/social-studio/sponsor-logos/rasterize.cjs` redraws the PNGs from their SVG sources.
+// `logos=square` replaces the first one with a square 200 × 200 logo bordered on its four edges: the settings frame
+// must show it whole (E2E demo D3), all four borders visible = nothing cropped.
+function squareLogo() {
   const canvas = document.createElement('canvas');
-  // `logos=square` draws the first logo square (200 × 200): the settings frame must show it whole (E2E demo D3).
-  canvas.width = square ? 200 : 360; canvas.height = square ? 200 : 140;
+  canvas.width = 200; canvas.height = 200;
   const ctx = canvas.getContext('2d');
-  ctx.fillStyle = background; ctx.fillRect(0, 0, canvas.width, canvas.height);
-  ctx.fillStyle = accent;
-  ctx.beginPath();
-  if (shape === 'bolt') { ctx.moveTo(40, 20); ctx.lineTo(110, 20); ctx.lineTo(80, 64); ctx.lineTo(118, 64); ctx.lineTo(48, 122); ctx.lineTo(66, 76); ctx.lineTo(34, 76); ctx.closePath(); }
-  else if (shape === 'wheat') { for (let i = 0; i < 5; i += 1) ctx.ellipse(76, 28 + i * 20, 16, 9, i % 2 ? 0.6 : -0.6, 0, Math.PI * 2); }
-  else if (shape === 'wing') { ctx.moveTo(24, 110); ctx.quadraticCurveTo(70, 10, 130, 24); ctx.quadraticCurveTo(96, 54, 118, 60); ctx.quadraticCurveTo(80, 76, 96, 92); ctx.closePath(); }
-  else { ctx.arc(76, 70, 48, 0, Math.PI * 2); }
-  ctx.fill();
-  ctx.fillStyle = accent;
-  ctx.font = `bold ${square ? 46 : 64}px Arial, sans-serif`;
-  ctx.textBaseline = 'middle';
-  ctx.fillText(mark, square ? 24 : 150, square ? 168 : 72);
-  // The square one carries a border on its four edges: on screen, all four visible = nothing cropped.
-  if (square) { ctx.strokeStyle = accent; ctx.lineWidth = 10; ctx.strokeRect(5, 5, 190, 190); }
+  ctx.fillStyle = '#F4F1EA'; ctx.fillRect(0, 0, 200, 200);
+  ctx.fillStyle = '#C2410C';
+  ctx.beginPath(); ctx.moveTo(40, 20); ctx.lineTo(110, 20); ctx.lineTo(80, 64); ctx.lineTo(118, 64); ctx.lineTo(48, 122); ctx.lineTo(66, 76); ctx.lineTo(34, 76); ctx.closePath(); ctx.fill();
+  ctx.font = 'bold 46px Arial, sans-serif'; ctx.textBaseline = 'middle'; ctx.fillText('FET', 24, 168);
+  ctx.strokeStyle = '#C2410C'; ctx.lineWidth = 10; ctx.strokeRect(5, 5, 190, 190);
   return canvas.toDataURL('image/png');
 }
 const SPONSOR_SEED = [
-  { id: '70000000-0000-4000-8000-000000000001', name: 'Ferretería El Tornillo', logo: { background: '#F4F1EA', accent: '#C2410C', mark: 'FET', shape: 'bolt' } },
-  { id: '70000000-0000-4000-8000-000000000002', name: 'Panadería La Espiga', logo: { background: '#FFF7E6', accent: '#A16207', mark: 'PLE', shape: 'wheat' } },
-  { id: '70000000-0000-4000-8000-000000000003', name: 'Gimnasio Fénix', logo: { background: '#111827', accent: '#F59E0B', mark: 'GF', shape: 'wing' } },
-  { id: '70000000-0000-4000-8000-000000000004', name: 'Kiosco Doble Siete', logo: { background: '#ECFDF5', accent: '#047857', mark: 'K77', shape: 'circle' } },
+  { id: '70000000-0000-4000-8000-000000000001', name: 'Ferretería El Tornillo', logo: logoTornillo },
+  { id: '70000000-0000-4000-8000-000000000002', name: 'Panadería La Espiga', logo: logoEspiga },
+  { id: '70000000-0000-4000-8000-000000000003', name: 'Gimnasio Fénix', logo: logoFenix },
+  { id: '70000000-0000-4000-8000-000000000004', name: 'Librería El Faro', logo: logoFaro },
 ];
 const sponsorRows = sponsorsOn ? SPONSOR_SEED.map((entry, index) => ({
   id: entry.id, name: entry.name, logoPath: `${org.id}/organizations/${org.id}/7100000${index}-0000-4000-8000-000000000001.png`,
-  logoUrl: sponsorLogo(entry.logo, { square: index === 0 && args.get('logos') === 'square' }), sortOrder: index, archived: false,
+  logoUrl: index === 0 && args.get('logos') === 'square' ? squareLogo() : entry.logo, sortOrder: index, archived: false,
 })) : [];
 window.__sponsorNames = () => sponsorRows.filter((row) => !row.archived).map((row) => row.name);
 const activeSponsors = () => sponsorRows.filter((row) => !row.archived).sort((a, b) => a.sortOrder - b.sortOrder);

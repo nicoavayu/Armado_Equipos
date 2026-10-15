@@ -8,7 +8,8 @@
 // SOCIAL_QA_PROFILE=ci is the deterministic subset the Prelaunch Quality Gate runs on every PR (`npm run
 // test:torneos:social:browser`): Social OFF, FREE, PREMIUM (every style, both formats), branding, real exports,
 // Editorial pages, the transitions (slow answers, a changed mind, failures: the file is always what is on screen), the
-// Premium sponsors (0, 1 and 3 × the four Premium styles × both formats; FREE unchanged) and
+// Premium sponsors (0–3 × the four Premium styles × both formats × Tabla and Resultados, the band measured; the band
+// matrix over every piece; FREE unchanged) and
 // the phone layouts at 390 and 320 px. Without it (the certification before gate A) every
 // section runs in full: 11 pieces × 5 styles × 2 formats, Figura, Equipo ideal 5–11 and six widths.
 const { chromium, expect } = require('@playwright/test');
@@ -295,6 +296,48 @@ async function chooseSponsors(page, names, count, expected) {
     const drawn = [...surface.querySelectorAll('img')].map((img) => img.alt).filter((alt) => known.includes(alt));
     return JSON.stringify(drawn) === JSON.stringify(want);
   }, { want: wanted, known: names, label: `Vista previa de ${expected.piece} en ${expected.format}, estilo ${expected.style}` }, { timeout: 30000 });
+}
+
+// The band matrix: every piece, plus the variants that change a composition's density (a long table and its Editorial
+// pages, eight results, long club names, a sparse list, eleven players, a photo).
+const SPONSOR_BAND_VARIANTS = [
+  ['standings', { piece: 'standings' }], ['standings-4', { piece: 'standings', standingsRows: 4 }],
+  ['standings-16-p1', { piece: 'standings', standingsRows: 16, page: 1 }], ['standings-16-p2', { piece: 'standings', standingsRows: 16, page: 2 }],
+  ['round_results', { piece: 'round_results' }], ['round_results-2', { piece: 'round_results', listSize: 2 }],
+  ['round_results-8', { piece: 'round_results', matches: 'eight' }], ['round_results-long', { piece: 'round_results', matches: 'long' }],
+  ['next_fixture', { piece: 'next_fixture' }], ['next_fixture-1', { piece: 'next_fixture', listSize: 1 }],
+  ['scorers', { piece: 'scorers' }], ['discipline', { piece: 'discipline' }],
+  ['best_eleven', { piece: 'best_eleven' }], ['best_eleven-11', { piece: 'best_eleven', teamSize: 11 }],
+  ['mvp', { piece: 'mvp' }], ['mvp-photo', { piece: 'mvp', photo: true }], ['round_summary', { piece: 'round_summary' }],
+  ['semifinals', { piece: 'semifinals' }], ['final', { piece: 'final' }], ['champion', { piece: 'champion' }],
+  ['champion-photo', { piece: 'champion', photo: true }],
+];
+const POSTER_PIECES = ['final', 'champion'];
+// The pieces exported with 0–3 sponsors through the Studio, and the slug their kept files carry.
+const SPONSOR_PIECES = [['standings', 'Tabla de posiciones', 'tabla'], ['round_results', 'Resultados de la fecha', 'resultados']];
+// The band is prominent: tiles of at least 150 px (Feed 4:5) / 200 px (Historia 9:16) in export pixels, a label of at
+// least 18 / 22 px, one tile per sponsor, every logo drawn at a readable size; and it breaks nothing: inside the canvas,
+// nothing of the composition under it, no text pushed out of the canvas or cut by a box that was whole without sponsors.
+const SPONSOR_BAND_MIN = { portrait: { tile: 150, label: 18, logo: 40 }, story: { tile: 200, label: 22, logo: 46 } };
+function assertSponsorBand(where, measure, count, formatId, withoutSponsors) {
+  const fail = (what) => { throw new Error(`${where}: ${what} ${JSON.stringify({ band: measure.band, tiles: measure.tiles, overlaps: measure.overlaps.slice(0, 4), clipped: measure.clipped.slice(0, 4) })}`); };
+  if (!count) {
+    if (measure.band || measure.tiles.length) fail('a piece without sponsors draws a band');
+    return;
+  }
+  const min = SPONSOR_BAND_MIN[formatId];
+  if (!measure.band || measure.band.count !== count || measure.tiles.length !== count) fail(`the band does not draw ${count} sponsor(s)`);
+  if (measure.band.box.y < 0 || measure.band.box.y + measure.band.box.h > measure.canvas.h) fail('the band leaves the canvas');
+  if (!measure.label || measure.label.fontSize < min.label) fail('the band label is not legible');
+  if (measure.tiles.some((tile) => tile.tile.h < min.tile || tile.logo.h < min.logo || tile.logo.w < 100)) fail('a logo is too small');
+  const heights = new Set(measure.tiles.map((tile) => `${tile.tile.w}x${tile.tile.h}`));
+  if (heights.size !== 1) fail('the tiles are not the same size');
+  if (measure.overlaps.length) fail('the composition runs under the band');
+  const excess = Math.max(0, measure.overflowY - (withoutSponsors?.overflowY || 0));
+  if (excess > 0) fail(`the band pushes ${excess} px out of the canvas`);
+  const before = new Map((withoutSponsors?.clipped || []).map((entry) => [entry.text, entry.by]));
+  const cut = measure.clipped.filter((entry) => entry.by > 3 && entry.by > (before.get(entry.text) ?? 0) + 3);
+  if (cut.length) fail('text is cut that was whole without sponsors');
 }
 
 // ── on-screen inspection ────────────────────────────────────────────────────────────────────────────────────────
@@ -672,10 +715,12 @@ async function assertWholeArt(page, label, [, , width, height]) {
       await close(p, 'transitions PREMIUM');
     }
 
-    // ── PREMIUM SPONSORS: 0, 1 and 3 sponsors × the four Premium styles × both formats, real files ───────────────
-    // offline.jsx `sponsors=on`: the branding composition with four fictional sponsors (PNG logos drawn in the page).
-    // Every file comes from the real «Descargar PNG», after the emulated authorize_tournament_social_sponsors (0020)
-    // answered exactly the sponsors on screen; Base never offers them; FREE asks nothing and its file does not change.
+    // ── PREMIUM SPONSORS: 0–3 sponsors × the four Premium styles × both formats, Tabla and Resultados, real files ──
+    // offline.jsx `sponsors=on`: the branding composition with four fictional sponsors (the designed logos of
+    // sponsor-logos/). Every file comes from the real «Descargar PNG», after the emulated
+    // authorize_tournament_social_sponsors (0020) answered exactly the sponsors on screen; the band on screen is measured
+    // (prominent logos, nothing under it, nothing cut); Base never offers them; FREE asks nothing and its file does not
+    // change. The band matrix then checks every other piece through the renderer itself.
     if (want('sponsors')) {
       fs.rmSync(SPONSOR_EXPORTS, { recursive: true, force: true });
       fs.mkdirSync(SPONSOR_EXPORTS, { recursive: true });
@@ -684,17 +729,23 @@ async function assertWholeArt(page, label, [, , width, height]) {
       const names = await page.evaluate(() => window.__sponsorNames());
       if (names.length < 4) throw new Error(`sponsors: the fixture lists ${names.length} sponsors`);
       const sponsorAuthorizations = () => page.evaluate(() => window.__social.sponsorAuthorize.length);
-      const shotsFor = new Set(['heritage feed-4x5 3', 'street historia-9x16 1', 'editorial feed-4x5 3']);
+      const shotsFor = new Set(['standings heritage feed-4x5 3', 'standings street historia-9x16 1', 'standings editorial feed-4x5 3']);
+      const measureShown = () => page.locator('[role="img"][aria-label^="Vista previa"] div[data-premium-renderer="v2"]')
+        .evaluate((node) => window.__measurePremium(node));
       let previous = null;
-      for (const style of STYLES.slice(1)) {
+      for (const [id, label, pieceSlug] of SPONSOR_PIECES) for (const style of STYLES.slice(1)) {
         for (const [format, slug, width, height] of FORMATS) {
-          await configure(page, { id: 'standings', label: 'Tabla de posiciones', style, format });
+          await configure(page, { id, label, style, format });
           const files = [];
-          for (const count of [0, 1, 3]) {
-            const where = `sponsors ${style} ${slug} ${count}`;
-            await chooseSponsors(page, names, count, { piece: 'Tabla de posiciones', style, format });
+          let withoutSponsors = null;
+          for (const count of [0, 1, 2, 3]) {
+            const where = `sponsors ${pieceSlug} ${style} ${slug} ${count}`;
+            await chooseSponsors(page, names, count, { piece: label, style, format });
             const drawn = await renderedSponsors(page, names);
             if (JSON.stringify(drawn) !== JSON.stringify(names.slice(0, count))) throw new Error(`${where}: the preview draws ${JSON.stringify(drawn)}`);
+            const measure = await measureShown();
+            if (count === 0) withoutSponsors = measure;
+            assertSponsorBand(where, measure, count, slug === 'historia-9x16' ? 'story' : 'portrait', withoutSponsors);
             const before = await sponsorAuthorizations();
             const [file] = await download(page, where);
             assertCleanPng(file.buffer, width, height, file.name);
@@ -709,13 +760,14 @@ async function assertWholeArt(page, label, [, , width, height]) {
             }
             if (files.some((other) => other.equals(file.buffer))) throw new Error(`${where}: the file did not change with the sponsors`);
             files.push(file.buffer);
-            const kept = path.join(SPONSOR_EXPORTS, `${style.toLowerCase()}-${slug}-${count}-sponsors.png`);
+            const kept = path.join(SPONSOR_EXPORTS, `${pieceSlug}-${style.toLowerCase()}-${slug}-${count}-sponsors.png`);
             fs.writeFileSync(kept, file.buffer);
             evidence.exports.push({
-              plan: 'PREMIUM', section: 'sponsors', piece: 'standings', style: style.toLowerCase(), format: slug, sponsors: count,
+              plan: 'PREMIUM', section: 'sponsors', piece: id, style: style.toLowerCase(), format: slug, sponsors: count,
               sponsorNames: names.slice(0, count), file: path.relative(ROOT, kept), sha: sha(file.buffer),
+              band: measure.band, label: measure.label, tiles: measure.tiles,
             });
-            if (shotsFor.has(`${style.toLowerCase()} ${slug} ${count}`)) {
+            if (shotsFor.has(`${id} ${style.toLowerCase()} ${slug} ${count}`)) {
               await page.locator('section[aria-label="Ajustes opcionales"]').scrollIntoViewIfNeeded();
               await page.screenshot({ path: path.join(OUT, `sponsors-selector-${style.toLowerCase()}-${slug}-${count}.png`), fullPage: false });
             }
@@ -724,7 +776,8 @@ async function assertWholeArt(page, label, [, , width, height]) {
         }
       }
       if (!previous) throw new Error('sponsors: nothing exported');
-      check('sponsors: 0/1/3 × four Premium styles × two formats exported through Descargar PNG', { exports: 24 });
+      check('sponsors: 0–3 × four Premium styles × two formats × Tabla and Resultados exported through Descargar PNG', { exports: 64 });
+      check('sponsors: the band on every exported piece is prominent, whole and over nothing');
 
       // At most three: the fourth cannot be chosen, and the counter says so.
       const group = sponsorGroup(page);
@@ -848,6 +901,44 @@ async function assertWholeArt(page, label, [, , width, height]) {
       }
       if (!freeFiles[0].equals(freeFiles[1])) throw new Error('sponsors: FREE file changed with the sponsors composition on');
       check('sponsors: FREE unchanged (no selector, no request, same file)', { sha: sha(freeFiles[0]) });
+
+      // The band matrix (sponsor-band.html): every piece and its density variants, rendered by the real Premium
+      // renderer with 0–3 sponsors in the four styles and both formats, measured like the exports above; and a white
+      // logo on a transparent background gets a dark tile.
+      const matrix = await newPage(browser, base, { width: 1200, height: 2000 });
+      await matrix.page.goto(`${base}/sponsor-band.html`);
+      await matrix.page.waitForFunction(() => window.__sponsorBand, null, { timeout: 15000 });
+      let rendered = 0;
+      for (const theme of ['heritage', 'street', 'scoreboard', 'editorial']) {
+        for (const formatId of ['portrait', 'story']) {
+          for (const [variant, spec] of SPONSOR_BAND_VARIANTS) {
+            let withoutSponsors = null;
+            for (const count of [0, 1, 2, 3]) {
+              const where = `sponsor band ${theme} ${formatId} ${variant} ${count}`;
+              const { measure } = await matrix.page.evaluate((options) => window.__sponsorBand.render(options), {
+                theme, format: formatId, count, ...spec,
+              });
+              if (count === 0) withoutSponsors = measure;
+              // Final and Campeón are full-bleed posters whose approved compositions never carried sponsors.
+              if (POSTER_PIECES.includes(spec.piece)) {
+                if (measure.band || measure.tiles.length || measure.overflowY > withoutSponsors.overflowY) throw new Error(`${where}: a poster piece changed with sponsors`);
+              } else {
+                assertSponsorBand(where, measure, count, formatId, withoutSponsors);
+              }
+              rendered += 1;
+            }
+          }
+          const { measure } = await matrix.page.evaluate((options) => window.__sponsorBand.render(options), {
+            theme, format: formatId, piece: 'standings', count: 3, light: true,
+          });
+          if (measure.tiles.map((tile) => tile.tone).join() !== 'light,light,dark') {
+            throw new Error(`sponsor band ${theme} ${formatId}: a white logo on transparent did not get a dark tile ${JSON.stringify(measure.tiles)}`);
+          }
+        }
+      }
+      await close(matrix, 'sponsor band matrix');
+      check('sponsors: band matrix — every piece × four styles × two formats × 0–3 sponsors, nothing under the band, nothing cut', { renders: rendered });
+      check('sponsors: a white logo on a transparent background gets a dark tile');
     }
 
     // ── Figura: local photo, drag of the focal point, zoom, reset; preview = export; fallback without photo ─────
