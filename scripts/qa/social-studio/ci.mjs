@@ -55,6 +55,23 @@ for (const width of [320, 390]) {
   expect(exports.some((e) => e.viewport?.startsWith(`${width} `) && e.style === 'editorial'), `Editorial pages exported at ${width}`);
   expect(has('D2 mobile navigation symmetric, no dead body gutter', (c) => c.width === width && c.device === 'scrollbar'), `D2: mobile navigation at ${width} with a classic scrollbar`);
 }
+// PREMIUM SPONSORS: 0, 1 and 3 sponsors in every Premium style and both formats, each a real file; FREE unchanged.
+for (const format of ['feed-4x5', 'historia-9x16']) {
+  for (const style of ['heritage', 'street', 'scoreboard', 'editorial']) {
+    for (const count of [0, 1, 3]) {
+      expect(exports.some((e) => e.section === 'sponsors' && e.style === style && e.format === format && e.sponsors === count
+        && Array.isArray(e.sponsorNames) && e.sponsorNames.length === count), `sponsors: ${count} × ${style} ${format} export`);
+    }
+  }
+}
+for (const name of [
+  'sponsors: 0/1/3 × four Premium styles × two formats exported through Descargar PNG',
+  'sponsors: at most 3 per piece',
+  'sponsors: a refused authorization exports nothing, then the retry does',
+  'sponsors: Base hides and clears the selection',
+  'sponsors: settings list (Premium) and Premium explanation (FREE)',
+  'sponsors: FREE unchanged (no selector, no request, same file)',
+]) expect(has(name), name);
 expect(has('FREE authorize payloads'), 'FREE authorization payloads (Base, three pieces, Arma2 signature)');
 expect(has('FREE: Resultados keeps the chosen format (switch and refresh)'), 'D3: Resultados keeps the chosen format');
 expect(has('FREE premium style previewed and locked'), 'FREE: Premium styles previewed and locked (behind the Premium veil)');

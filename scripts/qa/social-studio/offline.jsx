@@ -2,6 +2,12 @@
 // TorneosShell, the real page, renderers, fonts (src/styles.css) and export pipeline. Only the backend is emulated,
 // including the database rules of authorize_tournament_social_export (00000000000008), so a page that asked for
 // something the database refuses fails here too. No network besides this server and the Google Fonts faces.
+//
+// PREMIUM SPONSORS (`sponsors=on`): the branding composition is on and the organization has four fictional sponsors
+// whose logos are drawn here, in the page, as PNG data URLs (no file, no network, no real brand). The emulated
+// get_tournament_organization_sponsors / authorize_tournament_social_sponsors follow the rules of 0020: access first,
+// then the theme (Base refuses a non-empty selection), at most three distinct active ids with a logo, and the season's
+// `sponsors` entitlement (PREMIUM only). Settings can add, edit and archive them in memory.
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import '../../../src/styles.css';
@@ -33,16 +39,127 @@ const FREE_PIECES = ['round_results', 'standings', 'next_fixture'];
 const THEMES = ['base', 'heritage', 'street', 'scoreboard', 'editorial'];
 const PIECES = ['round_results', 'next_fixture', 'standings', 'mvp', 'final', 'champion', 'scorers', 'discipline', 'best_eleven', 'round_summary', 'semifinals'];
 const premium = plan === 'premium';
-const record = (window.__social = { authorize: [], snapshots: [], refusals: [] });
+const sponsorsOn = args.get('sponsors') === 'on';
+const record = (window.__social = { authorize: [], snapshots: [], refusals: [], sponsorLoads: [], sponsorAuthorize: [], sponsorWrites: [] });
 // The official order of the table rows, for the multi-page checks.
 window.__socialTeamNames = (count) => socialQaStandings(count).map((row) => row.teamName);
 const refuse = (code) => { record.refusals.push(code); const error = new Error(code); error.code = code; throw error; };
 // Transitions (D1): the browser gate slows answers down or fails one, to open the windows a slow network opens. Nothing
 // is held or failed unless a check asks for it.
-const control = (window.__socialControl = { snapshotDelayMs: 0, authorizeDelayMs: 0, failSnapshot: [], failAuthorize: 0 });
+const control = (window.__socialControl = { snapshotDelayMs: 0, authorizeDelayMs: 0, failSnapshot: [], failAuthorize: 0, failSponsorAuthorize: null });
 const pause = (ms) => (ms > 0 ? new Promise((resolve) => { setTimeout(resolve, ms); }) : Promise.resolve());
 
+// ── fictional sponsors (no real brand): a flat mark + a monogram, drawn once into a PNG data URL ────────────────────
+function sponsorLogo({ background, accent, mark, shape }) {
+  const canvas = document.createElement('canvas');
+  canvas.width = 360; canvas.height = 140;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = background; ctx.fillRect(0, 0, 360, 140);
+  ctx.fillStyle = accent;
+  ctx.beginPath();
+  if (shape === 'bolt') { ctx.moveTo(40, 20); ctx.lineTo(110, 20); ctx.lineTo(80, 64); ctx.lineTo(118, 64); ctx.lineTo(48, 122); ctx.lineTo(66, 76); ctx.lineTo(34, 76); ctx.closePath(); }
+  else if (shape === 'wheat') { for (let i = 0; i < 5; i += 1) ctx.ellipse(76, 28 + i * 20, 16, 9, i % 2 ? 0.6 : -0.6, 0, Math.PI * 2); }
+  else if (shape === 'wing') { ctx.moveTo(24, 110); ctx.quadraticCurveTo(70, 10, 130, 24); ctx.quadraticCurveTo(96, 54, 118, 60); ctx.quadraticCurveTo(80, 76, 96, 92); ctx.closePath(); }
+  else { ctx.arc(76, 70, 48, 0, Math.PI * 2); }
+  ctx.fill();
+  ctx.fillStyle = accent;
+  ctx.font = 'bold 64px Arial, sans-serif';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(mark, 150, 72);
+  return canvas.toDataURL('image/png');
+}
+const SPONSOR_SEED = [
+  { id: '70000000-0000-4000-8000-000000000001', name: 'Ferretería El Tornillo', logo: { background: '#F4F1EA', accent: '#C2410C', mark: 'FET', shape: 'bolt' } },
+  { id: '70000000-0000-4000-8000-000000000002', name: 'Panadería La Espiga', logo: { background: '#FFF7E6', accent: '#A16207', mark: 'PLE', shape: 'wheat' } },
+  { id: '70000000-0000-4000-8000-000000000003', name: 'Gimnasio Fénix', logo: { background: '#111827', accent: '#F59E0B', mark: 'GF', shape: 'wing' } },
+  { id: '70000000-0000-4000-8000-000000000004', name: 'Kiosco Doble Siete', logo: { background: '#ECFDF5', accent: '#047857', mark: 'K77', shape: 'circle' } },
+];
+const sponsorRows = sponsorsOn ? SPONSOR_SEED.map((entry, index) => ({
+  id: entry.id, name: entry.name, logoPath: `${org.id}/organizations/${org.id}/7100000${index}-0000-4000-8000-000000000001.png`,
+  logoUrl: sponsorLogo(entry.logo), sortOrder: index, archived: false,
+})) : [];
+window.__sponsorNames = () => sponsorRows.filter((row) => !row.archived).map((row) => row.name);
+const activeSponsors = () => sponsorRows.filter((row) => !row.archived).sort((a, b) => a.sortOrder - b.sortOrder);
+// Collaborators read the list, but the gateway signs no logo for them (README: logoUrl null).
+const listedSponsor = (row) => ({ id: row.id, name: row.name, logoPath: row.logoPath, logoUrl: role === 'collaborator' ? null : row.logoUrl, sortOrder: row.sortOrder });
+const fileAsDataUrl = (file) => new Promise((resolve, reject) => {
+  const reader = new FileReader();
+  reader.onload = () => resolve(reader.result);
+  reader.onerror = () => reject(new Error('No pudimos leer el logo.'));
+  reader.readAsDataURL(file);
+});
+const sponsorService = sponsorsOn ? {
+  loadOrganizationSponsors: async ({ organizationId, seasonId = null }) => {
+    record.sponsorLoads.push({ seasonId });
+    if (organizationId !== org.id || (seasonId && seasonId !== season.id)) refuse('TORNEOS_SPONSORS_FORBIDDEN');
+    return {
+      schemaVersion: 1, organizationId, seasonId, canManage: role !== 'collaborator', entitled: premium,
+      limits: { maxActive: 20, maxPerExport: 3, nameMaxLength: 60 }, sponsors: activeSponsors().map(listedSponsor),
+    };
+  },
+  saveOrganizationSponsor: async ({ organizationId, sponsorId = null, name, file = null, logoPath = null, sortOrder = null }) => {
+    record.sponsorWrites.push({ kind: 'save', sponsorId, name });
+    if (organizationId !== org.id || role === 'collaborator') refuse('TORNEOS_SPONSORS_FORBIDDEN');
+    if (!premium) refuse('TORNEOS_SPONSORS_PREMIUM_REQUIRED');
+    const trimmed = String(name || '').trim();
+    if (!trimmed || trimmed.length > 60) refuse('TORNEOS_SPONSOR_INVALID');
+    const row = sponsorId ? sponsorRows.find((entry) => entry.id === sponsorId && !entry.archived) : null;
+    if (sponsorId && !row) refuse('TORNEOS_SPONSOR_NOT_FOUND');
+    if (!row && activeSponsors().length >= 20) refuse('TORNEOS_SPONSOR_LIMIT_REACHED');
+    const next = row || { id: `70000000-0000-4000-8000-${String(sponsorRows.length + 1).padStart(12, '0')}`, archived: false, sortOrder: activeSponsors().length };
+    const previousLogoPath = file && row ? row.logoPath : null;
+    next.name = trimmed;
+    if (file) {
+      next.logoUrl = await fileAsDataUrl(file);
+      next.logoPath = `${org.id}/organizations/${org.id}/7200000${sponsorRows.length}-0000-4000-8000-${String(Date.now()).slice(-12).padStart(12, '0')}.png`;
+    } else if (!row) {
+      next.logoPath = logoPath; next.logoUrl = null;
+    }
+    if (Number.isInteger(sortOrder)) next.sortOrder = sortOrder;
+    if (!row) sponsorRows.push(next);
+    return { sponsor: { id: next.id, name: next.name, logoPath: next.logoPath, sortOrder: next.sortOrder }, previousLogoPath };
+  },
+  archiveOrganizationSponsor: async ({ organizationId, sponsorId }) => {
+    record.sponsorWrites.push({ kind: 'archive', sponsorId });
+    if (organizationId !== org.id || role === 'collaborator') refuse('TORNEOS_SPONSORS_FORBIDDEN');
+    const row = sponsorRows.find((entry) => entry.id === sponsorId);
+    if (!row) refuse('TORNEOS_SPONSOR_NOT_FOUND');
+    const alreadyArchived = row.archived;
+    const previousLogoPath = alreadyArchived ? null : row.logoPath;
+    row.archived = true; row.logoPath = null;
+    return { sponsorId, archived: true, alreadyArchived, previousLogoPath };
+  },
+  // The rules of authorize_tournament_social_sponsors (0020), in its order.
+  authorizeSocialSponsors: async ({ seasonId, tournamentId, theme, sponsorIds }) => {
+    record.sponsorAuthorize.push({ theme, sponsorIds });
+    if (control.failSponsorAuthorize) {
+      const code = control.failSponsorAuthorize;
+      control.failSponsorAuthorize = null;
+      const error = new Error({
+        TORNEOS_SPONSORS_SELECTION_UNAVAILABLE: 'Uno de los sponsors elegidos ya no está disponible o no tiene logo. Revisá la selección.',
+        TORNEOS_SPONSORS_PREMIUM_REQUIRED: 'Los sponsors son una función Premium: la temporada necesita Premium para sumarlos o usarlos en las placas.',
+      }[code] || code);
+      error.code = code;
+      record.refusals.push(`sponsors:${code}`);
+      throw error;
+    }
+    if (role === 'collaborator' || seasonId !== season.id || tournamentId !== tournament.id) refuse('TORNEOS_SOCIAL_EXPORT_FORBIDDEN');
+    if (!THEMES.includes(theme)) refuse('TORNEOS_SOCIAL_THEME_UNKNOWN');
+    if (!Array.isArray(sponsorIds)) refuse('TORNEOS_SPONSORS_SELECTION_INVALID');
+    if (sponsorIds.length && theme === 'base') refuse('TORNEOS_SPONSORS_THEME_UNSUPPORTED');
+    if (sponsorIds.length > 3 || new Set(sponsorIds).size !== sponsorIds.length) refuse('TORNEOS_SPONSORS_SELECTION_INVALID');
+    const rows = sponsorIds.map((id) => sponsorRows.find((entry) => entry.id === id && !entry.archived && entry.logoPath));
+    if (rows.some((row) => !row)) refuse('TORNEOS_SPONSORS_SELECTION_UNAVAILABLE');
+    if (sponsorIds.length && !premium) refuse('TORNEOS_SPONSORS_PREMIUM_REQUIRED');
+    return {
+      authorized: true, organizationId: org.id, seasonId, tournamentId, theme, capability: 'sponsors',
+      sponsors: rows.map((row) => ({ id: row.id, name: row.name, logoPath: row.logoPath, logoUrl: row.logoUrl })),
+    };
+  },
+} : {};
+
 const service = {
+  ...sponsorService,
   loadContext: async () => ({ organizations: [org], preference: { activeOrganizationId: org.id } }),
   loadCompetitionContext: async () => ({ seasons: [season], tournaments: [tournament], preference: { activeSeasonId: season.id, activeTournamentId: tournament.id } }),
   setTournamentContext: async () => ({}),
@@ -101,7 +218,7 @@ const service = {
   } : {}),
 };
 
-const features = stagingV1FeaturesFor('off', { planRead: true, social });
+const features = stagingV1FeaturesFor('off', { planRead: true, social, branding: sponsorsOn });
 createRoot(document.getElementById('root')).render(
   <MemoryRouter initialEntries={[`/torneos/organizacion/${org.id}/${args.get('path') || 'estudio-social'}`]}>
     <TorneosFeaturesProvider features={features}>

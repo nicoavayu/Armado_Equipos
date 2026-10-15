@@ -7,7 +7,8 @@
 //
 // SOCIAL_QA_PROFILE=ci is the deterministic subset the Prelaunch Quality Gate runs on every PR (`npm run
 // test:torneos:social:browser`): Social OFF, FREE, PREMIUM (every style, both formats), branding, real exports,
-// Editorial pages, the transitions (slow answers, a changed mind, failures: the file is always what is on screen) and
+// Editorial pages, the transitions (slow answers, a changed mind, failures: the file is always what is on screen), the
+// Premium sponsors (0, 1 and 3 × the four Premium styles × both formats; FREE unchanged) and
 // the phone layouts at 390 and 320 px. Without it (the certification before gate A) every
 // section runs in full: 11 pieces × 5 styles × 2 formats, Figura, Equipo ideal 5–11 and six widths.
 const { chromium, expect } = require('@playwright/test');
@@ -20,6 +21,8 @@ const { start } = require('./serve.cjs');
 const ROOT = path.resolve(__dirname, '../../..');
 const OUT = path.join(ROOT, 'artifacts/social-studio');
 const DOWNLOADS = path.join(OUT, 'downloads');
+// Every sponsor export is kept under its own name (the downloads folder keeps only the last file of each name).
+const SPONSOR_EXPORTS = path.join(OUT, 'sponsors');
 const ALLOWED_REMOTE = new Set(['fonts.gstatic.com', 'fonts.googleapis.com']);
 const PIECES = [
   ['round_results', 'Resultados de la fecha'], ['next_fixture', 'Próxima fecha'], ['standings', 'Tabla de posiciones'],
@@ -136,7 +139,7 @@ async function serveFont(route) {
     return route.abort();
   }
 }
-async function open(browser, base, query, viewport = { width: 1440, height: 1000 }, device = {}) {
+async function newPage(browser, base, viewport, device = {}) {
   const context = await browser.newContext({ viewport, acceptDownloads: true, reducedMotion: 'reduce', ...device });
   const page = await context.newPage();
   const errors = []; const remote = [];
@@ -148,6 +151,18 @@ async function open(browser, base, query, viewport = { width: 1440, height: 1000
     if (ALLOWED_REMOTE.has(url.hostname)) return serveFont(route);
     remote.push(url.href); return route.abort();
   });
+  return { page, context, errors, remote };
+}
+// Configuración → Sponsors of the offline organization (`path=configuracion/sponsors`).
+async function openSettings(browser, base, query, viewport = { width: 1280, height: 900 }) {
+  const opened = await newPage(browser, base, viewport);
+  await opened.page.goto(`${base}/?${query}`);
+  await expect(opened.page.getByRole('heading', { name: 'Sponsors', exact: true })).toBeVisible({ timeout: 15000 });
+  await expect(opened.page.getByText(/Cargando sponsors/)).toHaveCount(0, { timeout: 15000 });
+  return opened;
+}
+async function open(browser, base, query, viewport = { width: 1440, height: 1000 }, device = {}) {
+  const { page, context, errors, remote } = await newPage(browser, base, viewport, device);
   await page.goto(`${base}/?${query}`);
   await expect(page.getByRole('heading', { name: 'Estudio Social', exact: true })).toBeVisible({ timeout: 15000 });
   // The season plan is read before anything is measured: its arrival re-renders the preview.
@@ -252,6 +267,35 @@ async function assertSameRender(page, label) {
   if (!(await page.evaluate(() => document.querySelector('canvas[role="img"]')?.dataset.qaCaptured === '1'))) throw new Error(`${label}: the preview re-rendered between capture and export`);
 }
 const sha = (buffer) => crypto.createHash('sha256').update(buffer).digest('hex').slice(0, 16);
+
+// ── sponsors ───────────────────────────────────────────────────────────────────────────────────────────────────
+const sponsorGroup = (page) => page.getByRole('group', { name: /^Sponsors \(hasta \d\)$/ });
+// The sponsors the preview on screen really draws (their logos carry the sponsor's name as alt), in drawing order.
+async function renderedSponsors(page, names) {
+  return page.evaluate((known) => {
+    const surface = document.querySelector('[role="img"][aria-label^="Vista previa"]');
+    return surface ? [...surface.querySelectorAll('img')].map((img) => img.alt).filter((alt) => known.includes(alt)) : [];
+  }, names);
+}
+// Chooses the first `count` sponsors, in list order, and waits for a finished preview that draws exactly them.
+async function chooseSponsors(page, names, count, expected) {
+  const group = sponsorGroup(page);
+  await expect(group).toBeVisible({ timeout: 15000 });
+  const boxes = group.getByRole('checkbox');
+  const wanted = names.slice(0, count);
+  const checked = await boxes.evaluateAll((inputs) => inputs.filter((input) => input.checked).length);
+  if (checked === count && JSON.stringify(await renderedSponsors(page, names)) === JSON.stringify(wanted)) return;
+  await markRender(page);
+  for (let i = names.length - 1; i >= 0; i -= 1) if (await boxes.nth(i).isChecked()) await boxes.nth(i).uncheck();
+  for (let i = 0; i < count; i += 1) await boxes.nth(i).check();
+  await page.waitForFunction(({ want, known, label }) => {
+    const surface = document.querySelector('[role="img"][aria-label^="Vista previa"]');
+    const busy = [...document.querySelectorAll('[role="status"]')].some((el) => el.textContent.includes('Generando'));
+    if (!surface || surface.dataset.qaPrevious || busy || surface.getAttribute('aria-label') !== label) return false;
+    const drawn = [...surface.querySelectorAll('img')].map((img) => img.alt).filter((alt) => known.includes(alt));
+    return JSON.stringify(drawn) === JSON.stringify(want);
+  }, { want: wanted, known: names, label: `Vista previa de ${expected.piece} en ${expected.format}, estilo ${expected.style}` }, { timeout: 30000 });
+}
 
 // ── on-screen inspection ────────────────────────────────────────────────────────────────────────────────────────
 // The app clips horizontal overflow globally (html { overflow-x: clip }), so scrollWidth stays equal to the viewport
@@ -626,6 +670,133 @@ async function assertWholeArt(page, label, [, , width, height]) {
       check('transitions: PREMIUM style, format and signature switches export what is shown', { shas: [heritage, street, story, unsigned].map((f) => sha(f.buffer)) });
       await pp.getByRole('checkbox', { name: 'Mostrar la firma Arma2 en la placa' }).check();
       await close(p, 'transitions PREMIUM');
+    }
+
+    // ── PREMIUM SPONSORS: 0, 1 and 3 sponsors × the four Premium styles × both formats, real files ───────────────
+    // offline.jsx `sponsors=on`: the branding composition with four fictional sponsors (PNG logos drawn in the page).
+    // Every file comes from the real «Descargar PNG», after the emulated authorize_tournament_social_sponsors (0020)
+    // answered exactly the sponsors on screen; Base never offers them; FREE asks nothing and its file does not change.
+    if (want('sponsors')) {
+      fs.rmSync(SPONSOR_EXPORTS, { recursive: true, force: true });
+      fs.mkdirSync(SPONSOR_EXPORTS, { recursive: true });
+      const s = await open(browser, base, 'plan=premium&sponsors=on');
+      const { page } = s;
+      const names = await page.evaluate(() => window.__sponsorNames());
+      if (names.length < 4) throw new Error(`sponsors: the fixture lists ${names.length} sponsors`);
+      const sponsorAuthorizations = () => page.evaluate(() => window.__social.sponsorAuthorize.length);
+      const shotsFor = new Set(['heritage feed-4x5 3', 'street historia-9x16 1', 'editorial feed-4x5 3']);
+      let previous = null;
+      for (const style of STYLES.slice(1)) {
+        for (const [format, slug, width, height] of FORMATS) {
+          await configure(page, { id: 'standings', label: 'Tabla de posiciones', style, format });
+          const files = [];
+          for (const count of [0, 1, 3]) {
+            const where = `sponsors ${style} ${slug} ${count}`;
+            await chooseSponsors(page, names, count, { piece: 'Tabla de posiciones', style, format });
+            const drawn = await renderedSponsors(page, names);
+            if (JSON.stringify(drawn) !== JSON.stringify(names.slice(0, count))) throw new Error(`${where}: the preview draws ${JSON.stringify(drawn)}`);
+            const before = await sponsorAuthorizations();
+            const [file] = await download(page, where);
+            assertCleanPng(file.buffer, width, height, file.name);
+            if (!file.name.endsWith(`-${style.toLowerCase()}-${slug}.png`)) throw new Error(`${where}: file name ${file.name}`);
+            const calls = await page.evaluate(() => window.__social.sponsorAuthorize);
+            if (count === 0 && calls.length !== before) throw new Error(`${where}: a piece without sponsors asked for a sponsors authorization`);
+            if (count > 0) {
+              const last = calls.at(-1);
+              if (calls.length !== before + 1 || last.theme !== style.toLowerCase() || last.sponsorIds.length !== count) {
+                throw new Error(`${where}: sponsors authorization ${JSON.stringify(last)}`);
+              }
+            }
+            if (files.some((other) => other.equals(file.buffer))) throw new Error(`${where}: the file did not change with the sponsors`);
+            files.push(file.buffer);
+            const kept = path.join(SPONSOR_EXPORTS, `${style.toLowerCase()}-${slug}-${count}-sponsors.png`);
+            fs.writeFileSync(kept, file.buffer);
+            evidence.exports.push({
+              plan: 'PREMIUM', section: 'sponsors', piece: 'standings', style: style.toLowerCase(), format: slug, sponsors: count,
+              sponsorNames: names.slice(0, count), file: path.relative(ROOT, kept), sha: sha(file.buffer),
+            });
+            if (shotsFor.has(`${style.toLowerCase()} ${slug} ${count}`)) {
+              await page.locator('section[aria-label="Ajustes opcionales"]').scrollIntoViewIfNeeded();
+              await page.screenshot({ path: path.join(OUT, `sponsors-selector-${style.toLowerCase()}-${slug}-${count}.png`), fullPage: false });
+            }
+            previous = file.buffer;
+          }
+        }
+      }
+      if (!previous) throw new Error('sponsors: nothing exported');
+      check('sponsors: 0/1/3 × four Premium styles × two formats exported through Descargar PNG', { exports: 24 });
+
+      // At most three: the fourth cannot be chosen, and the counter says so.
+      const group = sponsorGroup(page);
+      const boxes = group.getByRole('checkbox');
+      await expect(boxes).toHaveCount(names.length);
+      await expect(boxes.nth(3)).toBeDisabled();
+      await expect(group.getByText('3 de 3 elegidos')).toBeVisible();
+      check('sponsors: at most 3 per piece');
+
+      // A refused authorization (a sponsor archived meanwhile): an alert, no file; the next try exports.
+      await chooseSponsors(page, names, 1, { piece: 'Tabla de posiciones', style: 'Editorial', format: 'Historia 9:16' });
+      await page.evaluate(() => { window.__socialControl.failSponsorAuthorize = 'TORNEOS_SPONSORS_SELECTION_UNAVAILABLE'; });
+      const refusedFile = page.waitForEvent('download', { timeout: 3000 }).catch(() => null);
+      await page.getByRole('button', { name: /^Descargar/ }).click();
+      await expect(page.getByRole('alert')).toContainText('ya no está disponible', { timeout: 10000 });
+      if (await refusedFile) throw new Error('sponsors: a file was delivered although the sponsors were refused');
+      await expect(page.getByRole('button', { name: /^Descargar/ })).toBeEnabled({ timeout: 30000 });
+      const [retried] = await download(page, 'sponsors retry after a refusal');
+      assertCleanPng(retried.buffer, 1080, 1920, retried.name);
+      check('sponsors: a refused authorization exports nothing, then the retry does');
+
+      // Base offers no sponsor and going there clears the choice.
+      await chooseSponsors(page, names, 3, { piece: 'Tabla de posiciones', style: 'Editorial', format: 'Historia 9:16' });
+      await markRender(page);
+      await styleRadio(page, 'Base').click();
+      await previewReady(page, { piece: 'Tabla de posiciones', style: 'Base', format: 'Historia 9:16' });
+      await expect(sponsorGroup(page)).toHaveCount(0);
+      await markRender(page);
+      await styleRadio(page, 'Heritage').click();
+      await previewReady(page, { piece: 'Tabla de posiciones', style: 'Heritage', format: 'Historia 9:16' });
+      await expect(sponsorGroup(page)).toBeVisible();
+      if ((await sponsorGroup(page).getByRole('checkbox', { checked: true }).count()) !== 0) throw new Error('sponsors: Base did not clear the selection');
+      if ((await renderedSponsors(page, names)).length) throw new Error('sponsors: Heritage after Base still draws sponsors');
+      check('sponsors: Base hides and clears the selection');
+      const social = await page.evaluate(() => window.__social);
+      if (social.refusals.some((code) => !code.startsWith('sponsors:'))) throw new Error(`sponsors: the page asked for something the database refuses: ${social.refusals}`);
+      await close(s, 'sponsors PREMIUM');
+
+      // Configuración → Sponsors: the list (Premium) and the Premium explanation (FREE).
+      const settings = await openSettings(browser, base, 'plan=premium&sponsors=on&path=configuracion/sponsors');
+      await expect(settings.page.getByRole('list', { name: 'Sponsors de la organización' }).getByRole('listitem')).toHaveCount(names.length);
+      await expect(settings.page.getByRole('button', { name: 'Agregar sponsor' })).toBeEnabled();
+      await settings.page.screenshot({ path: path.join(OUT, 'sponsors-settings-premium.png'), fullPage: true });
+      await close(settings, 'sponsors settings PREMIUM');
+      const freeSettings = await openSettings(browser, base, 'plan=free&sponsors=on&path=configuracion/sponsors');
+      await expect(freeSettings.page.getByText('Sponsors es una función Premium.')).toBeVisible();
+      await expect(freeSettings.page.getByRole('button', { name: 'Agregar sponsor' })).toHaveCount(0);
+      await freeSettings.page.screenshot({ path: path.join(OUT, 'sponsors-settings-free.png'), fullPage: true });
+      await close(freeSettings, 'sponsors settings FREE');
+      check('sponsors: settings list (Premium) and Premium explanation (FREE)');
+
+      // FREE: no selector, no sponsors request, and the very same file as without the sponsors composition.
+      const freeFiles = [];
+      for (const query of ['plan=free', 'plan=free&sponsors=on']) {
+        const f = await open(browser, base, query);
+        await configure(f.page, { id: 'standings', label: 'Tabla de posiciones', style: 'Base', format: 'Feed 4:5' });
+        await expect(sponsorGroup(f.page)).toHaveCount(0);
+        const shown = await previewCanvasPng(f.page);
+        const [file] = await download(f.page, `sponsors FREE ${query}`);
+        await assertSameRender(f.page, `sponsors FREE ${query}`);
+        if (!shown.equals(file.buffer)) throw new Error(`sponsors FREE ${query}: the file is not the preview`);
+        await markRender(f.page);
+        await styleRadio(f.page, 'Heritage').click();
+        await previewReady(f.page, { piece: 'Tabla de posiciones', style: 'Heritage', format: 'Feed 4:5' });
+        await expect(sponsorGroup(f.page)).toHaveCount(0);
+        const calls = await f.page.evaluate(() => window.__social.sponsorLoads.length + window.__social.sponsorAuthorize.length);
+        if (calls) throw new Error(`sponsors FREE ${query}: ${calls} sponsors requests`);
+        freeFiles.push(file.buffer);
+        await close(f, `sponsors FREE ${query}`);
+      }
+      if (!freeFiles[0].equals(freeFiles[1])) throw new Error('sponsors: FREE file changed with the sponsors composition on');
+      check('sponsors: FREE unchanged (no selector, no request, same file)', { sha: sha(freeFiles[0]) });
     }
 
     // ── Figura: local photo, drag of the focal point, zoom, reset; preview = export; fallback without photo ─────
