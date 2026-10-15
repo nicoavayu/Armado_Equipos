@@ -15,7 +15,7 @@ export const LEGAL_IDENTITY = Object.freeze({
 export const CONSUMER_COMPLAINTS_LABEL = 'Defensa de las y los Consumidores. Para reclamos ingrese aquí';
 export const CONSUMER_COMPLAINTS_URL = 'https://www.argentina.gob.ar/produccion/defensadelconsumidor/formulario';
 
-export const LEGAL_UPDATED_AT = '14 de octubre de 2026';
+export const LEGAL_UPDATED_AT = '15 de octubre de 2026';
 export const REVOCATION_DAYS = 10;
 
 export const LEGAL_ROUTES = Object.freeze({

@@ -22,7 +22,8 @@ export default function TermsPage() {
         <Link to={LEGAL_ROUTES.termsOfSale}>Términos de venta</Link>.
       </p>
       <p>
-        Podés cerrar sesión en cualquier momento y eliminar tu cuenta desde la app en la sección Perfil. Ver también la{' '}
+        Podés cerrar sesión en cualquier momento y eliminar tu cuenta desde la app (Perfil → Eliminar cuenta), desde la web o
+        pedirlo por email: ver <Link to={LEGAL_ROUTES.accountDeletion}>Eliminar cuenta</Link> y la{' '}
         <Link to={LEGAL_ROUTES.privacy}>Política de Privacidad</Link>.
       </p>
     </LegalPageLayout>
