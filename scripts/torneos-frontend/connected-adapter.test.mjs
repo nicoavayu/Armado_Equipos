@@ -4,7 +4,7 @@
 //   • the client scope equals the gateway allowlist; without `connected: true` it fails closed before the network
 //   • the public catalog: same arguments on the LOCAL stack and on the gateway's public route; closed elsewhere
 //   • the composition: connected only with hybrid + REACT_APP_TORNEOS_CONNECTED_MODE=on (always on the LOCAL stack)
-//   • the platform removal lever never exists on any client
+//   • the platform removal lever never exists on any client; neither do the platform_* moderation functions (0022)
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { runtime } from './sandbox.mjs';
@@ -81,6 +81,23 @@ const SAMPLES = {
   loadMyRegistrations: [[{}], [{ limit: 50, offset: 0 }]],
   listMyCoreTeamsForApplication: [[{ publicSlug: 'copa-abierta' }]],
   loadMyParticipations: [[{}], [{ limit: 6, offset: 12 }]],
+  // MODERATION (0022), served by the same contract: domain/contentModeration.js builds both bodies.
+  reportContent: [
+    [{ kind: 'team', publicSlug: 'copa-abierta', targetLabel: ' Los Halcones ', reason: 'offensive', idempotencyKey: KEY }],
+    [{ kind: 'tournament', publicSlug: 'copa-abierta', reason: 'impersonation', detail: '  Usa el nombre de otra liga  ', idempotencyKey: KEY }],
+    [{ kind: 'announcement', targetId: NOTIFICATION, reason: 'spam', idempotencyKey: KEY }],
+    [{ kind: 'application', targetId: ENTRY, publicSlug: 'ignored-slug', reason: 'other', detail: 'Mensaje agresivo', idempotencyKey: KEY }],
+  ],
+  loadContentReports: [[{ organizationId: ORG }], [{ organizationId: ORG, status: 'pending' }]],
+  handleContentReport: [
+    [{ reportId: NOTIFICATION, status: 'under_review' }],
+    [{ reportId: NOTIFICATION, status: 'resolved', action: 'neutralize_team_name', note: ' Nombre ofensivo ' }],
+    [{ reportId: NOTIFICATION, status: 'escalated', note: 'Suplantación' }],
+  ],
+  blockApplicant: [[{ organizationId: ORG, teamEntryId: ENTRY, reason: ' Mensajes agresivos ' }]],
+  unblockApplicant: [[{ organizationId: ORG, blockId: CORE_TEAM }]],
+  setCommunicationsMuted: [[{ announcementId: NOTIFICATION, muted: true }], [{ organizationId: ORG, muted: false }]],
+  loadCommunicationMutes: [[]],
 };
 
 test('each connected alias sends the same RPC name and p_* payload as the LOCAL service', async () => {
@@ -148,6 +165,7 @@ test('without connected the hybrid adapter has no connected alias; with it, neve
   const service = loadAdapter(recorder.transport, { connected: true });
   for (const name of CONNECTED_METHODS) assert.equal(typeof service[name], 'function', name);
   assert.equal(service.platformRemoveCatalogListing, undefined);
+  assert.equal(Object.keys(service).some((name) => /platform/i.test(name)), false, 'no platform alias at all');
   const { withoutCommerce } = runtime({ modules: { uuid: uuidStub } }).load(ADAPTER);
   const stripped = withoutCommerce(service);
   for (const name of CONNECTED_METHODS) assert.equal(typeof stripped[name], 'function', `${name} survives the commerce strip`);
@@ -161,6 +179,18 @@ test('invalid input fails before the network', async () => {
     () => service.updateTorneosProfile({ displayName: 'x' }),
     () => service.markTorneosNotificationsRead({ notificationIds: ['not-a-uuid'] }),
     () => service.markTorneosNotificationsRead({ notificationIds: 'all' }),
+    // MODERATION: what the database would refuse never leaves the browser.
+    () => service.reportContent({ kind: 'galaxy', publicSlug: 'copa', reason: 'spam', idempotencyKey: KEY }),
+    () => service.reportContent({ kind: 'team', publicSlug: 'copa-abierta', reason: 'spam', idempotencyKey: KEY }),
+    () => service.reportContent({ kind: 'tournament', publicSlug: 'copa-abierta', reason: 'hate', idempotencyKey: KEY }),
+    () => service.reportContent({ kind: 'tournament', publicSlug: 'copa-abierta', reason: 'spam', detail: 'x'.repeat(501), idempotencyKey: KEY }),
+    () => service.reportContent({ kind: 'announcement', targetId: 'nope', reason: 'spam', idempotencyKey: KEY }),
+    () => service.handleContentReport({ reportId: NOTIFICATION, status: 'resolved' }),
+    () => service.handleContentReport({ reportId: NOTIFICATION, status: 'deleted', note: 'x y z' }),
+    () => service.blockApplicant({ organizationId: ORG, teamEntryId: ENTRY, reason: 'no' }),
+    () => service.setCommunicationsMuted({ organizationId: ORG, announcementId: NOTIFICATION, muted: true }),
+    () => service.setCommunicationsMuted({ announcementId: NOTIFICATION, muted: 'yes' }),
+    () => service.loadContentReports({ organizationId: 'x' }),
   ]) {
     await assert.rejects(action(), (e) => e.code === 'TORNEOS_INVALID_REQUEST');
   }

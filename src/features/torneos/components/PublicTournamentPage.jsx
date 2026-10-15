@@ -22,6 +22,7 @@ import styles from './PublicTournamentPage.module.css';
 import BrandingImage from './BrandingImage';
 import CatalogCallSection from './connected/CatalogCallSection';
 import { useOptionalAuth } from '../../../components/AuthContext';
+import ContentReportDialog, { ReportTrigger } from './moderation/ContentReportDialog';
 // Byte-identical file copy of BASE_LOCKUP_DATA_URL (social/base/brandAsset.js):
 // the approved Arma2 Torneos lockup, served as a cacheable asset instead of
 // inlining 77 KB of base64 into the public page chunk.
@@ -348,7 +349,26 @@ function backTarget(state) {
   return /^\/torneos\/[a-z0-9/_-]*$/i.test(from) && !from.startsWith('/torneos/publico') ? from : null;
 }
 
-export default function PublicTournamentPage({ service = publicTournamentService, catalogService = null }) {
+// MODERATION (0022): everything a visitor can report from this page, by what the page shows (it carries no ids).
+export function publicReportTargets(page, { publicSlug, hasCall = false } = {}) {
+  if (!page || !publicSlug) return [];
+  const unique = (names) => [...new Set(names.filter((name) => typeof name === 'string' && name.trim()))]
+    .sort((a, b) => a.localeCompare(b, 'es'));
+  const teams = unique((page.teams || []).map((team) => team.name));
+  const players = unique((page.competition || []).flatMap((scope) => [
+    ...(scope.players || []).map((player) => player.name),
+    ...(scope.discipline || []).map((player) => player.name),
+  ]));
+  return [
+    { kind: 'tournament', title: `El torneo «${page.tournament?.name}» (nombre, descripción o logo)`, publicSlug },
+    { kind: 'organization', title: `La organización «${page.organization?.name}» (nombre o logo)`, publicSlug },
+    ...(hasCall ? [{ kind: 'catalog_listing', title: 'La convocatoria para equipos', publicSlug }] : []),
+    ...(teams.length ? [{ kind: 'team', title: 'Un equipo (nombre o escudo)', publicSlug, choices: teams }] : []),
+    ...(players.length ? [{ kind: 'player', title: 'Un jugador (nombre)', publicSlug, choices: players }] : []),
+  ];
+}
+
+export default function PublicTournamentPage({ service = publicTournamentService, catalogService = null, reportService = null }) {
   const { publicSlug } = useParams();
   const location = useLocation();
   const auth = useOptionalAuth();
@@ -358,6 +378,7 @@ export default function PublicTournamentPage({ service = publicTournamentService
   const [activeTab, setActiveTab] = useState('inicio');
   const [scopeKey, setScopeKey] = useState('');
   const tabsRef = useRef(null);
+  const [reporting, setReporting] = useState(false);
 
   useEffect(() => {
     let current = true;
@@ -478,7 +499,20 @@ export default function PublicTournamentPage({ service = publicTournamentService
       <main id="contenido-publico" className={styles.content} tabIndex="-1">
         <PublicTournamentContent page={page} activeTab={activeTab} scope={scope} service={service} />
       </main>
-      <footer className={styles.pageFooter}><PublicBrandMark page={page} /><p>Información oficial publicada por {page.organization.name}.</p></footer>
+      <footer className={styles.pageFooter}>
+        <PublicBrandMark page={page} />
+        <p>Información oficial publicada por {page.organization.name}.</p>
+        <ReportTrigger label="Reportar contenido" onClick={() => setReporting(true)} />
+      </footer>
+      <ContentReportDialog
+        open={reporting}
+        onClose={() => setReporting(false)}
+        targets={publicReportTargets(page, { publicSlug, hasCall: Boolean(catalogService) })}
+        submit={reportService ? (input) => reportService.report(input) : null}
+        signedIn={Boolean(auth?.user)}
+        loginHref={`/login?returnTo=${encodeURIComponent(`${location.pathname}${location.search}`)}`}
+        origin={typeof window === 'undefined' ? '' : window.location.origin}
+      />
       <LegalFooter />
     </div>
   );

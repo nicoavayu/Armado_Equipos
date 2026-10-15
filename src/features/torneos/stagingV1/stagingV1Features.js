@@ -59,6 +59,10 @@ const OFF = Object.freeze({
   catalog_management: false,    // convocatoria, cupos y bandeja de solicitudes del organizador
   tournament_applications: false, // solicitud de inscripción con equipo autorizado + seguimiento
   tournament_catalog: false,    // Explorar torneos (catálogo público)
+  // moderation (0022), part of the connected product: only the CONNECTED-V1 overlay below turns them on
+  content_reports: false,       // «Reportar» en página pública, convocatoria, comunicados y solicitudes
+  content_moderation: false,    // Moderación de la organización (reportes de equipos/jugadores, bloqueo de solicitantes)
+  user_blocks: false,           // silenciar los comunicados de una organización
 });
 
 export const stagingV1Features = Object.freeze({ ...STAGING_V1_ON, ...COMPETITION_V1_ON, ...OFFICIALIZATION_V1_ON, ...OFF });
@@ -97,13 +101,17 @@ const planReadSocialFeatures = Object.freeze({ ...planReadFeatures, ...stagingV1
 const billingTestSocialFeatures = Object.freeze({ ...billingTestFeatures, ...stagingV1SocialOverlay });
 
 // CONNECTED-V1: the connected product (foundation/config.js resolveTorneosConnectedProduct = hybrid + the explicit
-// opt-in that matches the gateway's TORNEOS_CONNECTED_MODE=on). Independent of plan, billing and Social.
+// opt-in that matches the gateway's TORNEOS_CONNECTED_MODE=on). Independent of plan, billing and Social. Moderation
+// (report, review, block — migration 00000000000022) is part of it: the phase-1 native build ships CONNECTED.
 export const stagingV1ConnectedOverlay = Object.freeze({
   torneos_profile: true,
   torneos_inbox: true,
   catalog_management: true,
   tournament_applications: true,
   tournament_catalog: true,
+  content_reports: true,
+  content_moderation: true,
+  user_blocks: true,
 });
 
 // BRANDING-V1: logo / shield upload and the organization's branding context (foundation/config.js
