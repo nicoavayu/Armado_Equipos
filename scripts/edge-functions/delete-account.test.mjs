@@ -2,7 +2,9 @@
 // Transpiles the real TypeScript (same approach as torneos-core-contract.test.mjs) and drives the real handler with a
 // fake Supabase (user + admin clients) and a fake Torneos gateway that verifies the signature exactly as the gateway does.
 // Pins the designed behaviour: Torneos FIRST and FAIL-CLOSED (nothing deleted in Core unless Torneos confirms), the Core
-// user id only from the verified session, a retry after any failure completes, and a post-deletion sweep.
+// user id only from the verified session, one derived idempotency key for every call about one account, a retry after
+// any failure completes (Torneos already_erased → Core finishes), and the confirmation to Torneos only after the Core
+// deletion (its loss never turns a completed deletion into an error: the Torneos reconcile query covers it).
 import assert from 'node:assert/strict';
 import { createHmac, randomBytes, randomUUID } from 'node:crypto';
 import fs from 'node:fs/promises';
@@ -23,11 +25,20 @@ const USER = randomUUID();
 let outDir; let erasure;
 const world = { calls: [], gateway: [], env: {} };
 
+const ERASE = '/core/v1/account-erasure';
+const CONFIRM = '/core/v1/account-erasure/confirm';
+const erasureKey = () => createHmac('sha256', Buffer.from(SECRET, 'hex')).update('torneos-core-contract:account-erasure:v1').digest();
 /** The gateway's verification, re-implemented independently in Node crypto (not the module under test). */
-function gatewayVerifies(headers, body) {
-  const key = createHmac('sha256', Buffer.from(SECRET, 'hex')).update('torneos-core-contract:account-erasure:v1').digest();
-  const expected = createHmac('sha256', key).update(`/core/v1/account-erasure\n${headers['x-time']}\n${headers['x-nonce']}\n`).update(body).digest('hex');
+function gatewayVerifies(route, headers, body) {
+  const expected = createHmac('sha256', erasureKey()).update(`${route}\n${headers['x-time']}\n${headers['x-nonce']}\n`).update(body).digest('hex');
   return expected === headers['x-signature'] && Math.abs(Date.now() / 1000 - Number(headers['x-time'])) <= 30 && /^[0-9a-f]{32}$/.test(headers['x-nonce']);
+}
+/** The idempotency key, re-implemented independently: HMAC(K, label + user id), first 16 bytes, UUIDv8 bits. */
+function expectedRequestId(user) {
+  const b = createHmac('sha256', erasureKey()).update(`account-deletion-request:v1:${user}`).digest().subarray(0, 16);
+  b[6] = (b[6] & 0x0f) | 0x80; b[8] = (b[8] & 0x3f) | 0x80;
+  const h = b.toString('hex');
+  return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`;
 }
 
 function fakeQuery(table) {
@@ -40,7 +51,11 @@ function fakeQuery(table) {
 }
 const adminClient = {
   from: (table) => fakeQuery(table),
-  auth: { admin: { deleteUser: async (id) => { world.calls.push(`deleteUser:${id}`); return { error: null }; } } },
+  auth: { admin: { deleteUser: async (id) => {
+    world.calls.push(`deleteUser:${id}`);
+    if (world.authFails > 0) { world.authFails -= 1; return { error: { message: 'auth boom', code: 'unexpected_failure' } }; }
+    return { error: null };
+  } } },
 };
 const userClient = { auth: { getUser: async () => ({ data: { user: world.user === null ? null : { id: world.user ?? USER } }, error: null }) } };
 
@@ -67,12 +82,15 @@ test.before(async () => {
   globalThis.__deleteAccountUser = userClient;
   globalThis.fetch = async (url, init = {}) => {
     const u = String(url);
-    if (u !== `${GATEWAY}/core/v1/account-erasure`) throw new Error(`unexpected destination ${u}`);
+    const route = u.startsWith(GATEWAY) ? u.slice(GATEWAY.length) : null;
+    if (route !== ERASE && route !== CONFIRM) throw new Error(`unexpected destination ${u}`);
     const body = Buffer.from(init.body);
-    const entry = { headers: init.headers, body: JSON.parse(body.toString('utf8')), verified: gatewayVerifies(init.headers, body), at: world.calls.length };
+    const entry = { route, headers: init.headers, body: JSON.parse(body.toString('utf8')), verified: gatewayVerifies(route, init.headers, body), at: world.calls.length };
     world.gateway.push(entry);
-    world.calls.push('torneos');
-    const answer = world.answers.length ? world.answers.shift() : { status: 200, body: { ok: true, outcome: 'erased' } };
+    world.calls.push(route === ERASE ? 'torneos' : 'torneos-confirm');
+    const fallback = route === ERASE ? { status: 200, body: { ok: true, outcome: 'erased' } } : { status: 200, body: { ok: true, outcome: 'core_confirmed' } };
+    const queue = route === ERASE ? world.answers : world.confirmAnswers;
+    const answer = queue.length ? queue.shift() : fallback;
     if (answer === 'network') throw new TypeError('fetch failed');
     if (!entry.verified) return new Response('{"error":"SERVICE_AUTH_REQUIRED"}', { status: 401 });
     return new Response(JSON.stringify(answer.body), { status: answer.status });
@@ -82,27 +100,38 @@ test.before(async () => {
 });
 test.after(async () => { delete globalThis.Deno; await fs.rm(outDir, { recursive: true, force: true }); });
 test.beforeEach(() => {
-  Object.assign(world, { calls: [], gateway: [], answers: [], failOn: null, user: undefined,
+  Object.assign(world, { calls: [], gateway: [], answers: [], confirmAnswers: [], failOn: null, authFails: 0, user: undefined,
     env: { SUPABASE_URL: 'https://core.example.invalid', TORNEOS_GATEWAY_URL: GATEWAY, TORNEOS_CONTRACT_SERVICE_SECRET: SECRET } });
 });
 
 const call = (body = { confirm: true, core_user_id: randomUUID() }) => globalThis.__deleteAccountHandler(new Request('https://core.example.invalid/functions/v1/delete-account', {
   method: 'POST', headers: { authorization: 'Bearer user-token', 'content-type': 'application/json', origin: 'https://app.arma2.com.ar' }, body: JSON.stringify(body) }));
-const coreWrites = () => world.calls.filter((c) => c !== 'torneos');
+const coreWrites = () => world.calls.filter((c) => !c.startsWith('torneos'));
 
-test('success: Torneos is erased FIRST (signed, the session user id), then Core cleans up, deletes usuarios and the auth user, then sweeps Torneos once more', async () => {
+test('success: Torneos is erased FIRST (signed, the session user id), then Core cleans up, deletes usuarios and the auth user, then CONFIRMS to Torneos', async () => {
   const r = await call();
   assert.equal(r.status, 200);
   assert.deepEqual(await r.json(), { ok: true, message: 'account_deleted', torneos: 'erased' });
   assert.equal(world.calls[0], 'torneos', 'nothing in Core before Torneos confirms');
-  assert.equal(world.gateway.length, 2, 'erasure + post-deletion sweep');
-  assert.ok(world.gateway.every((g) => g.verified), 'both requests carry a valid signature');
+  assert.deepEqual(world.gateway.map((g) => g.route), [ERASE, CONFIRM], 'erasure, then the confirmation');
+  assert.ok(world.gateway.every((g) => g.verified), 'both requests carry a valid signature for their own route');
   assert.equal(world.gateway[0].body.core_user_id, USER, 'the id of the verified session, not the client body');
-  assert.match(world.gateway[0].body.request_id, /^[0-9a-f-]{36}$/);
   assert.deepEqual(Object.keys(world.gateway[0].body).sort(), ['core_user_id', 'request_id']);
+  assert.equal(world.gateway[0].body.request_id, expectedRequestId(USER), 'the derived idempotency key');
+  assert.equal(world.gateway[1].body.request_id, world.gateway[0].body.request_id, 'the confirmation carries the same key');
   const order = world.calls;
   assert.ok(order.indexOf('delete:usuarios') > 0 && order.indexOf(`deleteUser:${USER}`) > order.indexOf('delete:usuarios'));
-  assert.equal(order.at(-1), 'torneos', 'the sweep runs after the auth user is gone');
+  assert.equal(order.at(-1), 'torneos-confirm', 'the confirmation runs only after the auth user is gone');
+});
+
+test('the idempotency key: the same for every attempt about one account (retries, double requests), different per account, never the user id', async () => {
+  world.answers = [{ status: 503, body: {} }, { status: 503, body: {} }];
+  await call();
+  await call();
+  const keys = new Set(world.gateway.filter((g) => g.route === ERASE).map((g) => g.body.request_id));
+  assert.deepEqual([...keys], [expectedRequestId(USER)]);
+  assert.notEqual(expectedRequestId(USER), expectedRequestId(randomUUID()));
+  assert.ok(!expectedRequestId(USER).includes(USER.slice(0, 8)));
 });
 
 for (const [name, answers, code] of [
@@ -153,24 +182,47 @@ test('retry after a failure completes: first call fails closed, the second (Torn
   assert.ok(world.calls.includes(`deleteUser:${USER}`));
 });
 
-test('a Core failure after Torneos confirmed is retryable: profile_delete_failed now, the retry finds Torneos already_erased and finishes', async () => {
-  world.failOn = (table, op) => (table === 'usuarios' && op === 'delete' ? { error: { message: 'boom', code: 'XX000' } } : null);
-  const first = await call();
-  assert.equal(first.status, 500);
-  assert.equal((await first.json()).message, 'profile_delete_failed');
-  assert.ok(!world.calls.some((c) => c.startsWith('deleteUser')));
-  world.failOn = null; world.calls = []; world.gateway = [];
-  world.answers = [{ status: 200, body: { ok: true, outcome: 'already_erased' } }];
-  const second = await call();
-  assert.equal(second.status, 200);
+for (const [name, failOn, message] of [
+  ['usuarios delete fails', (table, op) => (table === 'usuarios' && op === 'delete' ? { error: { message: 'boom', code: 'XX000' } } : null), 'profile_delete_failed'],
+  ['auth user delete fails', 'auth', 'auth_delete_failed'],
+]) {
+  test(`Core fails AFTER Torneos erased (${name}): ${message}, retryable, NO confirmation sent; the retry gets Torneos already_erased, finishes and confirms`, async () => {
+    if (failOn === 'auth') world.authFails = 2; else world.failOn = failOn;
+    const first = await call();
+    assert.equal(first.status, 500);
+    const body = await first.json();
+    assert.deepEqual([body.message, body.retryable], [message, true]);
+    assert.deepEqual(world.gateway.map((g) => g.route), [ERASE], 'Torneos is erased (irreversible) and NOT confirmed: the reconcile query would list it');
+    if (failOn !== 'auth') assert.ok(!world.calls.some((c) => c.startsWith('deleteUser')));
+    world.failOn = null; world.authFails = 0; world.calls = []; world.gateway = [];
+    world.answers = [{ status: 200, body: { ok: true, outcome: 'already_erased' } }];
+    const second = await call();
+    assert.deepEqual([second.status, (await second.json()).torneos], [200, 'already_erased']);
+    assert.ok(world.calls.includes(`deleteUser:${USER}`));
+    assert.deepEqual(world.gateway.map((g) => [g.route, g.body.request_id]), [[ERASE, expectedRequestId(USER)], [CONFIRM, expectedRequestId(USER)]]);
+  });
+}
+
+test('the confirmation lost (Torneos down after the Core deletion) never turns a completed deletion into an error; it is logged for the reconcile', async () => {
+  world.confirmAnswers = ['network', 'network'];
+  const warnings = [];
+  const warn = console.warn; console.warn = (...args) => warnings.push(args.join(' '));
+  try {
+    const r = await call();
+    assert.equal(r.status, 200);
+    assert.equal((await r.json()).message, 'account_deleted');
+  } finally { console.warn = warn; }
   assert.ok(world.calls.includes(`deleteUser:${USER}`));
+  assert.deepEqual(world.gateway.map((g) => g.route), [ERASE, CONFIRM, CONFIRM], 'one retry, then given up');
+  assert.ok(warnings.some((w) => /torneos confirmation not delivered: torneos_confirmation_unavailable/.test(w)));
+  assert.ok(!warnings.some((w) => w.includes(USER)), 'the user id is never logged');
 });
 
-test('a failed post-deletion sweep never turns a completed deletion into an error', async () => {
-  world.answers = [{ status: 200, body: { ok: true, outcome: 'erased' } }, 'network', 'network'];
-  const r = await call();
-  assert.equal(r.status, 200);
-  assert.equal((await r.json()).message, 'account_deleted');
+test('double request: two deletions of the same account at once both carry the one idempotency key (Torneos serialises them: erased / already_erased)', async () => {
+  world.answers = [{ status: 200, body: { ok: true, outcome: 'erased' } }, { status: 200, body: { ok: true, outcome: 'already_erased' } }];
+  const [a, b] = await Promise.all([call(), call()]);
+  assert.deepEqual([a.status, b.status], [200, 200]);
+  assert.deepEqual([...new Set(world.gateway.map((g) => g.body.request_id))], [expectedRequestId(USER)]);
 });
 
 test('no session → 401 and Torneos is never called; no confirmation → 400 and Torneos is never called', async () => {
@@ -195,4 +247,11 @@ test('the shared module: URL and secret parsing fail closed; the signature match
   assert.notEqual(Buffer.from(key).toString('hex'), SECRET, 'the raw contract secret never signs this direction');
   const invalid = await erasure.requestTorneosAccountErasure({ env: { get: (n) => world.env[n] }, coreUserId: 'not-a-uuid' });
   assert.deepEqual(invalid, { ok: false, code: 'torneos_erasure_invalid_user', retryable: false });
+  // The confirmation is signed for its own path: an erase signature can never pass as a confirmation (nor the reverse).
+  const confirmSig = await erasure.signErasure(key, '1700000000', 'a'.repeat(32), body, erasure.ACCOUNT_ERASURE_CONFIRM_ROUTE);
+  assert.equal(confirmSig, createHmac('sha256', expectedKey).update(`/core/v1/account-erasure/confirm\n1700000000\n${'a'.repeat(32)}\n`).update(body).digest('hex'));
+  assert.notEqual(confirmSig, sig);
+  assert.equal(await erasure.deriveRequestId(key, USER), expectedRequestId(USER));
+  const unconfigured = await erasure.confirmTorneosAccountErasure({ env: { get: () => undefined }, coreUserId: USER });
+  assert.deepEqual(unconfigured, { ok: false, code: 'torneos_confirmation_unconfigured', retryable: false });
 });

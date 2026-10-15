@@ -1,6 +1,7 @@
 // torneos-gateway/db.ts — the ONLY database access of the gateway: the Torneos project's
-// own database, through two dedicated LOGIN roles that are NOINHERIT members of the
-// baseline's NOLOGIN roles (torneos_identity_writer, torneos_core_adapter). Every unit of
+// own database, through dedicated LOGIN roles that are NOINHERIT members of NOLOGIN roles
+// (torneos_identity_writer, torneos_core_adapter; and, for the account erasure only,
+// torneos_erasure_writer of migration 0021, through its own third login). Every unit of
 // work is one transaction that begins with SET LOCAL ROLE, exactly like the Node gateway
 // (pg.Pool + BEGIN / SET LOCAL ROLE / COMMIT). No Core database is ever reachable from here.
 //
@@ -64,15 +65,23 @@ export async function allocateIdentity(sql: Sql, coreUserId: string): Promise<Id
 /** ACCOUNT ERASURE (0021): longer bounds than an RPC (one transaction that may touch a few hundred rows), fail-fast on locks. */
 export const ERASURE_STATEMENT_TIMEOUT_MS = 15000
 export const ERASURE_LOCK_TIMEOUT_MS = 5000
+/** The only two calls the erasure login ever makes, each as the dedicated role (never the core adapter's login or role). */
+export const ERASURE_FUNCTIONS = Object.freeze({
+  erase: "SELECT private.erase_tournament_account($1::uuid, $2::uuid) AS result",
+  confirm: "SELECT private.confirm_tournament_account_erasure($1::uuid, $2::uuid) AS result",
+})
 
-/** private.erase_tournament_account as torneos_core_adapter, for a Core user id taken ONLY from Core's signed request. */
-export async function eraseAccount(sql: Sql, coreUserId: string, requestId: string): Promise<Record<string, unknown>> {
+/**
+ * private.erase_tournament_account / private.confirm_tournament_account_erasure as torneos_erasure_writer, through the
+ * dedicated erasure login (TORNEOS_DB_ERASURE_WRITER_URL), for a Core user id taken ONLY from Core's signed request.
+ */
+export async function runErasure(sql: Sql, call: keyof typeof ERASURE_FUNCTIONS, coreUserId: string, requestId: string): Promise<Record<string, unknown>> {
   try {
     return await sql.begin(async (tx) => {
-      await tx.unsafe("SET LOCAL ROLE torneos_core_adapter")
+      await tx.unsafe("SET LOCAL ROLE torneos_erasure_writer")
       await tx.unsafe(`SET LOCAL statement_timeout = ${ERASURE_STATEMENT_TIMEOUT_MS}`)
       await tx.unsafe(`SET LOCAL lock_timeout = ${ERASURE_LOCK_TIMEOUT_MS}`)
-      const rows = await tx.unsafe("SELECT private.erase_tournament_account($1::uuid, $2::uuid) AS result", [coreUserId, requestId])
+      const rows = await tx.unsafe(ERASURE_FUNCTIONS[call], [coreUserId, requestId])
       return rows[0].result as Record<string, unknown>
     })
   } catch (error) {

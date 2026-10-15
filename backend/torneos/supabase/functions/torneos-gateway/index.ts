@@ -43,8 +43,9 @@
 // generic route, POST /torneos/media/v1/upload (one verified photo, written and completed under a gateway-only claim)
 // and POST /torneos/media/v1/urls (300 s signed reads the caller may see). Absent/off changes nothing.
 //
-// ACCOUNT ERASURE (account-erasure.ts, migration 0021): POST /core/v1/account-erasure, signed by Core's delete-account
-// function with a key derived from the contract secret; runs private.erase_tournament_account as torneos_core_adapter.
+// ACCOUNT ERASURE (account-erasure.ts, migration 0021): POST /core/v1/account-erasure and /core/v1/account-erasure/confirm,
+// signed by Core's delete-account function with a key derived from the contract secret; they run only through the
+// dedicated erasure login (TORNEOS_DB_ERASURE_WRITER_URL → torneos_erasure_writer) and answer 503 without it.
 //
 // ERROR-CONTRACT-V1 (competition.ts domainErrorStatus): a proxied 500 whose body is a legacy-SQLSTATE (55000 / 54000)
 // Torneos domain error is answered with its contract status (409 / 422 / 429), body unchanged; every other status,
@@ -62,7 +63,7 @@ import { withSocial, SocialConfigError } from "./social.ts"
 import { ConnectedConfigError, loadConnectedContract, prepareConnectedPublicRpc, withConnected, type ConnectedContract } from "./connected.ts"
 import { anonCredential, BRANDING_OBJECT_ROUTE, BRANDING_PUBLIC_RPCS, BRANDING_UPLOAD_ROUTE, BrandingConfigError, brandingObject, loadBrandingContract, prepareBrandingPublicRpc, projectPublicBranding, SIGNED_AUTHENTICATED_RPCS, SIGNED_PUBLIC_RPCS, signResponseBody, withBranding, type BrandingContract } from "./branding.ts"
 import { isMediaUnavailable, loadMediaContract, MediaConfigError, MEDIA_UPLOAD_ROUTE, MEDIA_URLS_ROUTE, mediaUpload, mediaUrls, withMedia, type MediaContract } from "./media.ts"
-import { ACCOUNT_ERASURE_ROUTE, accountErasure, deriveErasureKey } from "./account-erasure.ts"
+import { accountErasure, deriveErasureKey, isErasureRoute, toHex } from "./account-erasure.ts"
 import allowlistDoc from "./staging-v1-rpc-allowlist.json" with { type: "json" }
 
 // Staging v1 RPC allowlist: fail closed if the document is malformed or empty.
@@ -87,6 +88,9 @@ type Runtime = {
   media: MediaContract
   publicGate: PublicGate
   rpcAllowlist: ReadonlySet<string>
+  // ACCOUNT ERASURE (0021): the dedicated erasure login (null when TORNEOS_DB_ERASURE_WRITER_URL is not set: the two
+  // erasure routes answer 503, nothing else changes) and the Core-signature key derived on first use.
+  erasureSql: Sql | null
   erasureKey?: Uint8Array
 }
 let runtime: Runtime | null = null
@@ -115,10 +119,11 @@ export function boot(env: Record<string, string | undefined>): Runtime {
   const rpcAllowlist = withMedia(brandedAllowlist, media)
   const identity = connect(cfg.identityWriterUrl, { sslCa: cfg.dbSslCa })
   const adapterSql = connect(cfg.coreAdapterUrl, { sslCa: cfg.dbSslCa })
+  const erasureSql = cfg.erasureWriterUrl ? connect(cfg.erasureWriterUrl, { sslCa: cfg.dbSslCa, max: 1 }) : null
   const coreHeaders = cfg.coreAnonKey ? { apikey: cfg.coreAnonKey } : {}
   // The Core service secret lives only in this function's env and in Core's function env.
   const core = new CoreClient(cfg.coreContractUrl, cfg.coreContractSecret, { extraHeaders: coreHeaders })
-  return { cfg, identity, adapterSql, adapter: new Adapter(adapterSql, core), core, commerce, competition, connected, branding, media, publicGate: new PublicGate(), rpcAllowlist }
+  return { cfg, identity, adapterSql, adapter: new Adapter(adapterSql, core), core, commerce, competition, connected, branding, media, publicGate: new PublicGate(), rpcAllowlist, erasureSql }
 }
 
 function getRuntime(): Runtime {
@@ -275,14 +280,19 @@ export async function handle(req: Request): Promise<Response> {
       const token = await issueToken(rt.cfg.bridge, row, c.sessionId)
       return json(200, { access_token: token, token_type: "Bearer", expires_in: TTL }, cors)
     }
-    // ACCOUNT ERASURE (0021): Core's signed server-to-server request when a person deletes their account. Never a
-    // browser (an Origin header is refused), never a bearer, no CORS; the database decides everything.
-    if (path === ACCOUNT_ERASURE_ROUTE) {
+    // ACCOUNT ERASURE (0021): Core's signed server-to-server requests when a person deletes their account (erase before
+    // Core deletes, confirm after). Never a browser (an Origin header is refused), never a bearer, no CORS; only the
+    // dedicated erasure login runs them (fail closed without it); the database decides everything.
+    if (isErasureRoute(path)) {
       if (req.method !== "POST") return json(405, { error: "method not allowed" })
-      rt.erasureKey ??= await deriveErasureKey(rt.cfg.coreContractSecret)
+      if (!rt.erasureKey) {
+        rt.erasureKey = await deriveErasureKey(rt.cfg.coreContractSecret)
+        // The erasure login's credential must be its own: never the key Core signs with.
+        if (rt.cfg.erasureWriterPassword !== null && rt.cfg.erasureWriterPassword === toHex(rt.erasureKey)) rt.erasureSql = null
+      }
       const r = await accountErasure({ origin, contentType: req.headers.get("content-type"), contentLength: req.headers.get("content-length"),
         time: req.headers.get("x-time"), nonce: req.headers.get("x-nonce"), signature: req.headers.get("x-signature"), body: req.body },
-      rt.erasureKey, rt.adapterSql)
+      rt.erasureKey, rt.erasureSql, Date.now() / 1000, path)
       return json(r.status, r.body)
     }
     // MP-A4 TEST / COMMERCE-PRODUCTION: the fixed checkout route (and, in production only, the purchase refresh).

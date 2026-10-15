@@ -30,6 +30,10 @@ export type GatewayConfig = {
   torneosAnonKey: string | null  // Torneos public key for Kong's apikey (hosted only); also /config
   identityWriterUrl: string      // postgres:// login, NOINHERIT member of torneos_identity_writer
   coreAdapterUrl: string         // postgres:// login, NOINHERIT member of torneos_core_adapter
+  // ACCOUNT ERASURE (0021), optional: postgres:// login, NOINHERIT member of torneos_erasure_writer (its own login and
+  // password, distinct from the other two and from the Core contract secret). Absent → the erasure routes answer 503.
+  erasureWriterUrl: string | null
+  erasureWriterPassword: string | null
   dbSslCa: string | undefined
   bridge: BridgeConfig
   topology: Topology             // production (Core Production + Torneos data, pinned) or nonproduction
@@ -99,6 +103,18 @@ export function loadConfig(env: Record<string, string | undefined>): GatewayConf
   const rest = assertHttpOrigin("TORNEOS_REST_URL", required(env, "TORNEOS_REST_URL"))
   const identityWriterUrl = assertPostgresUrl("TORNEOS_DB_IDENTITY_WRITER_URL", required(env, "TORNEOS_DB_IDENTITY_WRITER_URL"))
   const coreAdapterUrl = assertPostgresUrl("TORNEOS_DB_CORE_ADAPTER_URL", required(env, "TORNEOS_DB_CORE_ADAPTER_URL"))
+  const erasureRaw = optional(env, "TORNEOS_DB_ERASURE_WRITER_URL")
+  const erasureWriterUrl = erasureRaw === null ? null : assertPostgresUrl("TORNEOS_DB_ERASURE_WRITER_URL", erasureRaw)
+  let erasureWriterPassword: string | null = null
+  if (erasureWriterUrl !== null) {
+    const password = (u: string) => decodeURIComponent(new URL(u).password)
+    erasureWriterPassword = password(erasureWriterUrl)
+    // Its own credential: never empty, never another login's password, never (inside) the Core contract secret.
+    if (!erasureWriterPassword || erasureWriterPassword === password(identityWriterUrl) || erasureWriterPassword === password(coreAdapterUrl)
+      || secretHex.includes(erasureWriterPassword.toLowerCase()) || erasureWriterPassword.toLowerCase().includes(secretHex)) {
+      throw new ConfigError("TORNEOS_DB_ERASURE_WRITER_URL must carry its own credential")
+    }
+  }
   const dbSslCa = optional(env, "TORNEOS_DB_SSL_CA") ? decodeEnvDocument(optional(env, "TORNEOS_DB_SSL_CA")!) : undefined
   const coreAnonKey = optional(env, "CORE_ANON_KEY")
   const torneosAnonKey = optional(env, "TORNEOS_ANON_KEY")
@@ -107,7 +123,7 @@ export function loadConfig(env: Record<string, string | undefined>): GatewayConf
     assertPublicKey("CORE_ANON_KEY", coreAnonKey)
     assertPublicKey("TORNEOS_ANON_KEY", torneosAnonKey)
     topology = assertTopology({ publicUrl, allowedOrigin: allowed, coreAuth, coreIssuer: issuer, coreContract: contract, rest,
-      identityWriter: new URL(identityWriterUrl), coreAdapter: new URL(coreAdapterUrl) },
+      identityWriter: new URL(identityWriterUrl), coreAdapter: new URL(coreAdapterUrl), erasureWriter: erasureWriterUrl === null ? null : new URL(erasureWriterUrl) },
       { dbSslCa: dbSslCa !== undefined, commerceMode: (env.TORNEOS_COMMERCE_MODE ?? "").trim() })
   } catch (error) { throw asConfigError(error) }
   let contractUrl: string
@@ -127,6 +143,8 @@ export function loadConfig(env: Record<string, string | undefined>): GatewayConf
     torneosAnonKey,
     identityWriterUrl,
     coreAdapterUrl,
+    erasureWriterUrl,
+    erasureWriterPassword,
     dbSslCa,
     bridge: parseBridgeKeys(required(env, "TORNEOS_BRIDGE_KEYS")),
     topology,

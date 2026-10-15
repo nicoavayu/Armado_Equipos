@@ -188,5 +188,9 @@ test('source guard: exact membership only, the Android origin pinned once in top
   // config.ts reads the same env names as the live source: the Android origin is not configurable.
   const envNames = (src) => [...new Set([...src.matchAll(/(?:required|optional)\(env, "([A-Z_]+)"\)|env\.([A-Z_]+)/g)].map((m) => m[1] ?? m[2]))].sort();
   const liveCfg = fs.readFileSync(path.join(tmp, 'backend/torneos/supabase/functions/torneos-gateway/config.ts'), 'utf8');
-  assert.deepEqual(envNames(cfg), envNames(liveCfg));
+  // ACCOUNT ERASURE (0021, #217) adds exactly one name, the dedicated erasure login's URL (a database credential, not an
+  // origin); nothing else may appear.
+  const added = envNames(cfg).filter((name) => !envNames(liveCfg).includes(name));
+  assert.deepEqual(added, envNames(liveCfg).includes('TORNEOS_DB_ERASURE_WRITER_URL') ? [] : ['TORNEOS_DB_ERASURE_WRITER_URL']);
+  assert.deepEqual(envNames(liveCfg).filter((name) => !envNames(cfg).includes(name)), [], 'no env name removed');
 });
