@@ -51,9 +51,11 @@ export const SIGNED_PUBLIC_RPCS: ReadonlySet<string> = new Set([
 export const BRANDING_PUBLIC_RPCS: ReadonlySet<string> = new Set(["get_public_tournament_branding"])
 const PUBLIC_SLUG = /^[a-z0-9](?:[a-z0-9-]{1,94}[a-z0-9])$/
 const PUBLIC_BODY_LIMIT = 2048
+// Premium sponsors (0020): the organization's list and an export's authorized list carry `logoPath` inside `sponsors[]`
+// (the recursive signer adds `logoUrl`; can_read_tournament_branding_object still decides for the caller).
 export const SIGNED_AUTHENTICATED_RPCS: ReadonlySet<string> = new Set([
   "get_tournament_branding_context", "get_team_registration_context", "get_tournament_teams_context",
-  "get_tournament_participant_hub",
+  "get_tournament_participant_hub", "get_tournament_organization_sponsors", "authorize_tournament_social_sponsors",
 ])
 /** branding path key → the URL key added next to it. */
 export const URL_KEYS: Readonly<Record<string, string>> = Object.freeze({

@@ -1,10 +1,16 @@
 {
   "phase": "BRANDING-V1",
-  "scope": "Logos and shields of the hybrid composition with the existing branding contract: switch the durable reference of an organization logo, a tournament logo or a team shield (set_tournament_branding_reference, authorized in SQL by the same capabilities as the LOCAL composition) and read an organization's branding context. Served only with TORNEOS_BRANDING_MODE=on; objects go through the gateway's object route to the Torneos project's private bucket (migration 00000000000010).",
+  "scope": "Logos and shields of the hybrid composition with the existing branding contract: switch the durable reference of an organization logo, a tournament logo or a team shield (set_tournament_branding_reference, authorized in SQL by the same capabilities as the LOCAL composition) and read an organization's branding context. Premium sponsors (migration 00000000000020): read, create or edit, and archive an organization's sponsors, and authorize the sponsors of a Social Studio export (all decided in SQL: organization.update, social.export and the season's `sponsors` capability). Served only with TORNEOS_BRANDING_MODE=on; objects go through the gateway's object route to the Torneos project's private bucket (migration 00000000000010).",
   "features": {
     "branding_assets": [
       "set_tournament_branding_reference",
       "get_tournament_branding_context"
+    ],
+    "sponsors": [
+      "get_tournament_organization_sponsors",
+      "upsert_tournament_organization_sponsor",
+      "archive_tournament_organization_sponsor",
+      "authorize_tournament_social_sponsors"
     ]
   }
 }
