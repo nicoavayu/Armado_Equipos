@@ -173,6 +173,27 @@ function setLeafType(root, value, styles) {
   Object.assign(leaf.style, styles);
 }
 
+// A team name breaks only between words: the size steps down until its longest word fits the cell and the lines fit
+// the row. Only a single word wider than the cell at the minimum size may still break (it would be clipped otherwise).
+function fitTeamNameLeaf(leaf, { max, min, maxHeight }) {
+  if (!leaf) return;
+  Object.assign(leaf.style, {
+    fontSize: `${max}px`, lineHeight: '1.02', maxWidth: '100%', overflowWrap: 'normal', wordBreak: 'normal',
+  });
+  leaf.dataset.premiumNameFit = 'words';
+  if (!(leaf.clientWidth > 0)) return;
+  const fits = () => leaf.scrollWidth <= leaf.clientWidth + 1 && leaf.scrollHeight <= maxHeight;
+  let size = max;
+  while (size > min && !fits()) {
+    size -= 1;
+    leaf.style.fontSize = `${size}px`;
+  }
+  if (leaf.scrollWidth > leaf.clientWidth + 1) {
+    leaf.style.overflowWrap = 'anywhere';
+    leaf.dataset.premiumNameFit = 'anywhere';
+  }
+}
+
 function hardenResultRows(root, matches, themeId, formatId) {
   if (formatId !== 'story' || !matches.length) return;
   const unused = new Set();
@@ -217,6 +238,7 @@ function hardenResultRows(root, matches, themeId, formatId) {
     editorial: dense ? '72px minmax(0,1fr) 150px minmax(0,1fr) 72px' : '88px minmax(0,1fr) 176px minmax(0,1fr) 88px',
   }[themeId];
   const nameSize = dense ? (rows.length >= 8 ? 23 : 27) : 34;
+  const nameMin = dense ? 16 : 20;
   const scoreSize = dense ? (rows.length >= 8 ? 43 : 52) : 68;
   const crestSize = Math.min(dense ? 58 : 82, Math.max(38, rowHeight * 0.56));
 
@@ -262,12 +284,10 @@ function hardenResultRows(root, matches, themeId, formatId) {
           minWidth: '0', overflow: 'hidden', fontSize: `${scoreSize}px`, lineHeight: '1',
         });
       });
-      setLeafType(row, match?.home?.name || match?.home?.teamName, {
-        fontSize: `${nameSize}px`, lineHeight: '1.02', overflowWrap: 'anywhere', maxWidth: '100%',
-      });
-      setLeafType(row, match?.away?.name || match?.away?.teamName, {
-        fontSize: `${nameSize}px`, lineHeight: '1.02', overflowWrap: 'anywhere', maxWidth: '100%',
-      });
+      [match?.home?.name || match?.home?.teamName, match?.away?.name || match?.away?.teamName]
+        .forEach((name) => fitTeamNameLeaf(leafWithText(row, name), {
+          max: nameSize, min: nameMin, maxHeight: rowHeight,
+        }));
       const result = match?.result || match?.score;
       [result?.homeScore ?? result?.home, result?.awayScore ?? result?.away].forEach((value) => {
         const leaf = leafWithText(row, String(value));
@@ -312,12 +332,10 @@ function hardenResultRows(root, matches, themeId, formatId) {
       }));
       Object.assign(cells[2].style, { minWidth: '0', overflow: 'hidden', maxWidth: '100%' });
     }
-    setLeafType(row, match?.home?.name || match?.home?.teamName, {
-      fontSize: `${nameSize}px`, lineHeight: '1.02', overflowWrap: 'anywhere', maxWidth: '100%',
-    });
-    setLeafType(row, match?.away?.name || match?.away?.teamName, {
-      fontSize: `${nameSize}px`, lineHeight: '1.02', overflowWrap: 'anywhere', maxWidth: '100%',
-    });
+    [match?.home?.name || match?.home?.teamName, match?.away?.name || match?.away?.teamName]
+      .forEach((name) => fitTeamNameLeaf(leafWithText(row, name), {
+        max: nameSize, min: nameMin, maxHeight: rowHeight,
+      }));
     const result = match?.result || match?.score;
     if (result) {
       const scoreText = `${result.homeScore ?? result.home} - ${result.awayScore ?? result.away}`;

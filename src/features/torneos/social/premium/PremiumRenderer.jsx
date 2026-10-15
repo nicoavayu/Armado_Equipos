@@ -60,7 +60,8 @@ export default function PremiumRenderer({ theme, editorial, ...props }) {
       formatId,
       figureInitials,
     }}>
-      <Layout {...props} snapshot={renderSnapshot} editorial={editorial} />
+      {/* An Editorial standings page holds 15 rows; "N EQUIPOS" counts the whole table. */}
+      <Layout {...props} snapshot={renderSnapshot} editorial={editorial} standingsTotal={pagination.totalRows} />
       <PremiumHardeningEffect
         snapshot={renderSnapshot}
         editorial={editorial}

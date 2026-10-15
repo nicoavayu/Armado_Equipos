@@ -10,6 +10,8 @@ export function PremiumCrest({
   src, ini = '--', kind = 'shield', c1 = '#22252B', c2 = '#FFFFFF', fb = false,
   fbBg = 'transparent', fbInk = '#111111', fbBorder = '#111111', style = null,
 }) {
+  // A crest with neither an image nor initials (a tournament without logo or name) is not drawn at all.
+  if (!src && !String(ini ?? '').trim()) return null;
   if (src) {
     return (
       <div style={{ width: '100%', aspectRatio: '5 / 6', ...style }}>

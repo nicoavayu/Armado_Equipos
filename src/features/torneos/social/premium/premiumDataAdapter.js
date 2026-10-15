@@ -6,7 +6,8 @@ const TITLES = Object.freeze({
   next_fixture: ['PRÓXIMA', 'FECHA'],
   standings: ['TABLA', 'DE POSICIONES'],
   mvp: ['FIGURA', 'DE LA FECHA'],
-  scorers: ['GOLEADORES', 'DE LA FECHA'],
+  // The scorers snapshot is the published phase statistics (accumulated), never one round.
+  scorers: ['GOLEADORES', 'DEL TORNEO'],
   discipline: ['DISCIPLINA', 'Y FAIR PLAY'],
   best_eleven: ['EQUIPO', 'IDEAL'],
   round_summary: ['RESUMEN', 'DE LA FECHA'],
@@ -43,6 +44,49 @@ function initials(value) {
   const parts = normalized.split(/\s+/).filter(Boolean);
   if (parts.length === 1) return parts[0].slice(0, 3).toUpperCase();
   return parts.slice(0, 3).map((part) => part[0]).join('').toUpperCase();
+}
+
+const CREST_STOPWORDS = new Set(['DE', 'DEL', 'LA', 'LAS', 'LOS', 'EL', 'Y', 'E']);
+
+// The tournament's own monogram: the initials of its name, without the year or connectors ("Copa Primavera 2026" → CP).
+// Empty when the tournament has no name, so the crest slot hides instead of showing a sample monogram.
+export function tournamentInitials(value) {
+  const words = String(value ?? '').trim().toLocaleUpperCase('es-AR').split(/\s+/)
+    .map((word) => word.replace(/[^\p{L}\p{N}]/gu, ''))
+    .filter((word) => word && !/^\d+$/.test(word));
+  const meaningful = words.filter((word) => !CREST_STOPWORDS.has(word));
+  const source = meaningful.length ? meaningful : words;
+  if (!source.length) return '';
+  if (source.length === 1) return source[0].slice(0, 2);
+  return source.slice(0, 3).map((word) => word[0]).join('');
+}
+
+// Joins the non-empty parts of a label ("TORNEO FINALIZADO" + "" → "TORNEO FINALIZADO", never a dangling separator).
+export function joinPremiumLabel(...parts) {
+  return parts.map((part) => String(part ?? '').trim()).filter(Boolean).join(' · ');
+}
+
+const ROMAN = Object.freeze([
+  [1000, 'M'], [900, 'CM'], [500, 'D'], [400, 'CD'], [100, 'C'], [90, 'XC'], [50, 'L'], [40, 'XL'],
+  [10, 'X'], [9, 'IX'], [5, 'V'], [4, 'IV'], [1, 'I'],
+]);
+
+// Editorial sets the season year in Roman numerals (the sample's "MMXXVI" was 2026, fixed).
+function romanYear(value) {
+  let rest = Number.parseInt(value, 10);
+  if (!Number.isFinite(rest) || rest <= 0 || rest >= 4000) return '';
+  let roman = '';
+  for (const [amount, symbol] of ROMAN) {
+    while (rest >= amount) {
+      roman += symbol;
+      rest -= amount;
+    }
+  }
+  return roman;
+}
+
+function countLabel(count, singular, plural) {
+  return `${count} ${count === 1 ? singular : plural}`;
 }
 
 function assetSource(asset) {
@@ -349,11 +393,12 @@ function resolveVariant(snapshot, formatId, editorial, photoSrc) {
 
 export function createPremiumViewModel({
   snapshot, content, editorial = {}, assets = {}, branding = {}, sponsors = [],
-  themeId, formatId,
+  themeId, formatId, standingsTotal = null,
 }) {
   const crestAssets = {};
+  // The tournament crest is its own logo, or its own initials: never the design sample's "CH" (Copa Horizonte), and
+  // never a team crest whose initials happen to be "CH".
   const tournamentLogo = assetSource(assets?.branding?.tournamentLogo);
-  if (tournamentLogo) crestAssets.CH = tournamentLogo;
   const photoSrc = assetSource(assets?.photo);
   const variant = resolveVariant(snapshot, formatId, editorial, photoSrc);
   const geometry = PREMIUM_V2_GEOMETRY[`${themeId}:${formatId}`]?.[variant];
@@ -368,6 +413,9 @@ export function createPremiumViewModel({
     ...(visibleSponsors.length ? geometry.withSponsors : null),
   };
   delete geometryValues.withSponsors;
+  // hasLogo/noLogo in the geometry only say whether this layout has a crest slot (a crest or a text monogram, as the
+  // approved sample showed it). What fills the slot comes from the tournament.
+  const crestSlot = Boolean(geometryValues.hasLogo || geometryValues.noLogo);
   const competition = snapshot?.competition || content?.competition || {};
   const official = snapshot?.official || {};
   const timezone = competition.timezone || 'America/Argentina/Buenos_Aires';
@@ -407,6 +455,12 @@ export function createPremiumViewModel({
     || '';
   const round = text(competition.roundName, 'FECHA');
   const roundNumber = competition.roundNumber ?? round.match(/\d+/)?.[0] ?? '—';
+  const roundTag = text(competition.roundName, '')
+    || (competition.roundNumber != null ? `FECHA ${competition.roundNumber}` : '');
+  const roundLabel = (roundTag || round).toLocaleUpperCase('es-AR');
+  const roundPad = /^\d$/.test(String(roundNumber)) ? `0${roundNumber}` : String(roundNumber);
+  const rawTournamentName = text(branding.tournamentName || competition.tournamentName, '');
+  const tournamentIni = tournamentInitials(rawTournamentName);
   const tournamentName = text(branding.tournamentName || competition.tournamentName, 'TORNEO');
   const tournamentSeason = year && !tournamentName.includes(year)
     ? `${tournamentName} ${year}`
@@ -415,9 +469,22 @@ export function createPremiumViewModel({
   const figureName = text(figure.name, 'JUGADOR DESTACADO').split(/\s+/);
   const figFirst = figureName.slice(0, -1).join(' ') || figureName[0];
   const figLast = figureName.length > 1 ? figureName.at(-1) : '';
+  const teamCount = Number.isFinite(standingsTotal) ? standingsTotal : (official.rows || []).length;
+  const championPlayed = championRaw.played;
+  const championPoints = championRaw.points;
+  const championDifference = championRaw.goalDifference;
+  const campRecord = joinPremiumLabel(
+    championPlayed != null ? countLabel(championPlayed, 'FECHA', 'FECHAS') : '',
+    championPoints != null ? countLabel(championPoints, 'PUNTO', 'PUNTOS') : '',
+  );
   return {
     ...geometryValues,
     crestAssets,
+    // Crest slot: the tournament logo when there is one, its initials otherwise, nothing without either.
+    hasLogo: crestSlot && Boolean(tournamentLogo || (geometryValues.hasLogo && tournamentIni)),
+    noLogo: crestSlot && !tournamentLogo && Boolean(geometryValues.noLogo && tournamentIni),
+    tournamentLogoSrc: tournamentLogo || null,
+    tournamentIni,
     tournamentName,
     tournamentSeason,
     seasonLabel: year ? `TEMPORADA ${year}` : 'TEMPORADA',
@@ -425,6 +492,19 @@ export function createPremiumViewModel({
     round,
     roundNo: String(roundNumber),
     roundNum: String(roundNumber),
+    // Story layouts: the round as the approved samples set it (upper case, two-digit number), from the snapshot.
+    roundLabel,
+    roundTag: roundTag.toLocaleUpperCase('es-AR'),
+    roundPad,
+    seasonYear: year || '—',
+    seasonYearRoman: romanYear(year),
+    matchCountLabel: countLabel(matches.length, 'PARTIDO', 'PARTIDOS'),
+    teamCountLabel: countLabel(teamCount, 'EQUIPO', 'EQUIPOS'),
+    campRecord,
+    campRecordFull: joinPremiumLabel(
+      campRecord,
+      championDifference != null && Number(championDifference) > 0 ? `+${championDifference}` : championDifference,
+    ),
     nextRound: round,
     nextRoundIt: round,
     nextRoundNum: String(roundNumber),
