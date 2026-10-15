@@ -1,11 +1,13 @@
 // PREMIUM SPONSORS — the band never touches a piece without sponsors, and with them it is the prominent band. Every Premium composition (4 styles × 2 formats)
 // of every piece and its density variants is rendered to static markup WITHOUT sponsors and compared with the markup
-// the renderer produced before the prominent sponsor band existed (PR #212 @ 9279f9df): byte for byte, through its
-// sha256. A FREE piece is the Base canvas, which the band never reaches (torneosSocialSponsorsRender.test.js).
+// the Premium placas fix renders without the sponsors work (PR #213 @ 92259aad, the base this branch is stacked on):
+// byte for byte, through its sha256. A FREE piece is the Base canvas, which the band never reaches
+// (torneosSocialSponsorsRender.test.js).
 //
-// The baseline is fixtures/premium-no-sponsors-markup.json. It is only ever regenerated on purpose, from the commit a
-// change must stay identical to: `UPDATE_PREMIUM_NO_SPONSORS_BASELINE=1 npx react-scripts test --watchAll=false
-// torneosSocialPremiumNoSponsorsRegression`.
+// The baseline is fixtures/premium-no-sponsors-markup.json, generated from #213's own tree (not from this branch). It
+// is only ever regenerated on purpose, from the commit a change must stay identical to:
+// `UPDATE_PREMIUM_NO_SPONSORS_BASELINE=1 npx react-scripts test --watchAll=false torneosSocialPremiumNoSponsorsRegression`
+// run on that commit's renderer.
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { createHash } from 'crypto';
