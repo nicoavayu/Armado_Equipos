@@ -43,6 +43,9 @@
 // generic route, POST /torneos/media/v1/upload (one verified photo, written and completed under a gateway-only claim)
 // and POST /torneos/media/v1/urls (300 s signed reads the caller may see). Absent/off changes nothing.
 //
+// ACCOUNT ERASURE (account-erasure.ts, migration 0021): POST /core/v1/account-erasure, signed by Core's delete-account
+// function with a key derived from the contract secret; runs private.erase_tournament_account as torneos_core_adapter.
+//
 // ERROR-CONTRACT-V1 (competition.ts domainErrorStatus): a proxied 500 whose body is a legacy-SQLSTATE (55000 / 54000)
 // Torneos domain error is answered with its contract status (409 / 422 / 429), body unchanged; every other status,
 // including a genuine 500 and the 503 of a timeout, passes through as before.
@@ -59,6 +62,7 @@ import { withSocial, SocialConfigError } from "./social.ts"
 import { ConnectedConfigError, loadConnectedContract, prepareConnectedPublicRpc, withConnected, type ConnectedContract } from "./connected.ts"
 import { anonCredential, BRANDING_OBJECT_ROUTE, BRANDING_PUBLIC_RPCS, BRANDING_UPLOAD_ROUTE, BrandingConfigError, brandingObject, loadBrandingContract, prepareBrandingPublicRpc, projectPublicBranding, SIGNED_AUTHENTICATED_RPCS, SIGNED_PUBLIC_RPCS, signResponseBody, withBranding, type BrandingContract } from "./branding.ts"
 import { isMediaUnavailable, loadMediaContract, MediaConfigError, MEDIA_UPLOAD_ROUTE, MEDIA_URLS_ROUTE, mediaUpload, mediaUrls, withMedia, type MediaContract } from "./media.ts"
+import { ACCOUNT_ERASURE_ROUTE, accountErasure, deriveErasureKey } from "./account-erasure.ts"
 import allowlistDoc from "./staging-v1-rpc-allowlist.json" with { type: "json" }
 
 // Staging v1 RPC allowlist: fail closed if the document is malformed or empty.
@@ -83,6 +87,7 @@ type Runtime = {
   media: MediaContract
   publicGate: PublicGate
   rpcAllowlist: ReadonlySet<string>
+  erasureKey?: Uint8Array
 }
 let runtime: Runtime | null = null
 let bootError: string | null = null
@@ -269,6 +274,16 @@ export async function handle(req: Request): Promise<Response> {
       const row = await allocateIdentity(rt.identity, c.userId)
       const token = await issueToken(rt.cfg.bridge, row, c.sessionId)
       return json(200, { access_token: token, token_type: "Bearer", expires_in: TTL }, cors)
+    }
+    // ACCOUNT ERASURE (0021): Core's signed server-to-server request when a person deletes their account. Never a
+    // browser (an Origin header is refused), never a bearer, no CORS; the database decides everything.
+    if (path === ACCOUNT_ERASURE_ROUTE) {
+      if (req.method !== "POST") return json(405, { error: "method not allowed" })
+      rt.erasureKey ??= await deriveErasureKey(rt.cfg.coreContractSecret)
+      const r = await accountErasure({ origin, contentType: req.headers.get("content-type"), contentLength: req.headers.get("content-length"),
+        time: req.headers.get("x-time"), nonce: req.headers.get("x-nonce"), signature: req.headers.get("x-signature"), body: req.body },
+      rt.erasureKey, rt.adapterSql)
+      return json(r.status, r.body)
     }
     // MP-A4 TEST / COMMERCE-PRODUCTION: the fixed checkout route (and, in production only, the purchase refresh).
     const commerce = rt.commerce

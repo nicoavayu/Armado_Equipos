@@ -61,6 +61,26 @@ export async function allocateIdentity(sql: Sql, coreUserId: string): Promise<Id
   })
 }
 
+/** ACCOUNT ERASURE (0021): longer bounds than an RPC (one transaction that may touch a few hundred rows), fail-fast on locks. */
+export const ERASURE_STATEMENT_TIMEOUT_MS = 15000
+export const ERASURE_LOCK_TIMEOUT_MS = 5000
+
+/** private.erase_tournament_account as torneos_core_adapter, for a Core user id taken ONLY from Core's signed request. */
+export async function eraseAccount(sql: Sql, coreUserId: string, requestId: string): Promise<Record<string, unknown>> {
+  try {
+    return await sql.begin(async (tx) => {
+      await tx.unsafe("SET LOCAL ROLE torneos_core_adapter")
+      await tx.unsafe(`SET LOCAL statement_timeout = ${ERASURE_STATEMENT_TIMEOUT_MS}`)
+      await tx.unsafe(`SET LOCAL lock_timeout = ${ERASURE_LOCK_TIMEOUT_MS}`)
+      const rows = await tx.unsafe("SELECT private.erase_tournament_account($1::uuid, $2::uuid) AS result", [coreUserId, requestId])
+      return rows[0].result as Record<string, unknown>
+    })
+  } catch (error) {
+    if (isUnavailable(error)) throw new DbUnavailable()
+    throw error
+  }
+}
+
 /** Same check as Phase 1.5/3A, through the bridge role's own read policy. */
 export async function identityExists(sql: Sql, id: string, coreUserId: string): Promise<boolean> {
   return await asRole(sql, "torneos_identity_writer", async (tx) => {
