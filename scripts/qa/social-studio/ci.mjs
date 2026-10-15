@@ -70,6 +70,8 @@ for (const name of [
   'sponsors: a refused authorization exports nothing, then the retry does',
   'sponsors: Base hides and clears the selection',
   'sponsors: settings list (Premium) and Premium explanation (FREE)',
+  'sponsors: a collaborator with export exports without sponsors and never reads «sin logo»',
+  'sponsors: a square logo is whole inside its frame; the settings tabs never clip (desktop and phone)',
   'sponsors: FREE unchanged (no selector, no request, same file)',
 ]) expect(has(name), name);
 expect(has('FREE authorize payloads'), 'FREE authorization payloads (Base, three pieces, Arma2 signature)');

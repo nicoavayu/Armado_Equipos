@@ -44,6 +44,10 @@ function normalizeSponsor(entry, resolveLogoUrl) {
     name: entry.name,
     logoPath,
     logoUrl: typeof logoUrl === 'string' && logoUrl ? logoUrl : null,
+    // The server stores a logo for this sponsor, even when this caller cannot see it (the hybrid composition drops a
+    // path the gateway did not sign, and signs organization objects only for owners and administrators). Copy only:
+    // drawing or exporting a sponsor still needs its signed logo (isSelectableSponsor).
+    hasLogo: Boolean(logoPath) || entry.hasLogo === true,
     sortOrder: Number.isInteger(entry.sortOrder) ? entry.sortOrder : null,
   });
 }
@@ -105,6 +109,9 @@ export function sameSponsorList(left = [], right = []) {
     return a.id === b.id && a.name === b.name && a.logoPath === b.logoPath;
   });
 }
+
+/** A logo exists but this caller cannot see it (a collaborator's read): never «sin logo», never drawable. */
+export const hasHiddenSponsorLogo = (sponsor) => Boolean(sponsor?.hasLogo && !sponsor?.logoUrl);
 
 /** A sponsor can be chosen for a piece only with a logo the composition can draw. */
 export const isSelectableSponsor = (sponsor) => Boolean(sponsor?.logoPath && sponsor?.logoUrl);

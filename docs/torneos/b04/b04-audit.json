@@ -1,5 +1,5 @@
 {
-  "generatedFrom": "db962f5945a5f57d05387773e0d6658341f63330",
+  "generatedFrom": "940ae0e3cb32d695b8da61a77046fb1fc1d2a471",
   "legacyBase": "2058da039a2a5eaaed22d87d01946bc596ae5f50",
   "coreSingletonSha256": "f39572e4cab0fd287bd1dea2ca87c97bd5500d0eff57cb8de6160f1e3271600c",
   "reachableCallSignatures": {
@@ -554,7 +554,7 @@
     },
     {
       "file": "src/features/torneos/components/OrganizationSponsorsPage.jsx",
-      "line": 14,
+      "line": 15,
       "source": "../context/TorneosWorkspaceContext"
     },
     {

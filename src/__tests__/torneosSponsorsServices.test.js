@@ -13,6 +13,7 @@ import {
   forgetAuthorizedBrandingUrls,
 } from '../features/torneos/domain/brandingUrlRegistry';
 import { ERROR_MESSAGES } from '../features/torneos/api/tournamentWorkspaceErrors';
+import { hasHiddenSponsorLogo, isSelectableSponsor } from '../features/torneos/domain/sponsors';
 
 jest.mock('../features/torneos/domain/brandingFiles', () => {
   const actual = jest.requireActual('../features/torneos/domain/brandingFiles');
@@ -130,11 +131,14 @@ describe('hybrid composition (gateway)', () => {
     expect(answer.canManage).toBe(true);
     expect(answer.limits).toEqual({ maxActive: 20, maxPerExport: 3, nameMaxLength: 60 });
     expect(answer.sponsors).toEqual([
-      { id: S1, name: 'Ferretería El Tornillo', logoPath: path(1), logoUrl: signed(path(1)), sortOrder: 0 },
-      // Not signed (a collaborator's read): neither path nor URL survive, so it cannot be drawn or exported.
-      { id: S2, name: 'Panadería La Espiga', logoPath: null, logoUrl: null, sortOrder: 1 },
-      { id: S3, name: 'Gimnasio Fénix', logoPath: null, logoUrl: null, sortOrder: 2 },
+      { id: S1, name: 'Ferretería El Tornillo', logoPath: path(1), logoUrl: signed(path(1)), hasLogo: true, sortOrder: 0 },
+      // Not signed (a collaborator's read): neither path nor URL survive, so it cannot be drawn or exported — but it
+      // HAS a logo (E2E demo B1): the read-only list must not call it «sin logo».
+      { id: S2, name: 'Panadería La Espiga', logoPath: null, logoUrl: null, hasLogo: true, sortOrder: 1 },
+      { id: S3, name: 'Gimnasio Fénix', logoPath: null, logoUrl: null, hasLogo: false, sortOrder: 2 },
     ]);
+    expect(answer.sponsors.map(isSelectableSponsor)).toEqual([true, false, false]);
+    expect(answer.sponsors.map(hasHiddenSponsorLogo)).toEqual([false, true, false]);
     expect(authorizedBrandingUrl(path(1))).toBe(signed(path(1)));
     await service.loadOrganizationSponsors({ organizationId: ORG });
     expect(calls.at(-1)).toEqual(['rpc', 'get_tournament_organization_sponsors', { p_organization_id: ORG, p_season_id: null }]);
@@ -284,7 +288,7 @@ describe('LOCAL composition (single project)', () => {
     expect(mockLocal.calls).toEqual([['rpc', 'get_tournament_organization_sponsors', { p_organization_id: ORG, p_season_id: SEASON }]]);
     expect(answer.sponsors[0]).toEqual({
       id: S1, name: 'Ferretería El Tornillo', logoPath: path(1),
-      logoUrl: `https://local.example.test/public/tournament-branding/${path(1)}`, sortOrder: 0,
+      logoUrl: `https://local.example.test/public/tournament-branding/${path(1)}`, hasLogo: true, sortOrder: 0,
     });
     expect(answer.sponsors[2].logoUrl).toBeNull();
   });

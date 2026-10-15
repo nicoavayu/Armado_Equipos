@@ -776,6 +776,57 @@ async function assertWholeArt(page, label, [, , width, height]) {
       await close(freeSettings, 'sponsors settings FREE');
       check('sponsors: settings list (Premium) and Premium explanation (FREE)');
 
+      // A collaborator WITH the export grant (E2E demo B1, deliberate rule): no selector, one muted line, the export
+      // goes on without any sponsors authorization; in Configuración the logos it cannot see are never «sin logo».
+      const exporter = await open(browser, base, 'plan=premium&sponsors=on&role=exporter');
+      await configure(exporter.page, { id: 'standings', label: 'Tabla de posiciones', style: 'Heritage', format: 'Feed 4:5' });
+      await expect(sponsorGroup(exporter.page)).toHaveCount(0);
+      await expect(exporter.page.getByText('Los sponsors los agrega el propietario o un administrador.')).toBeVisible();
+      await exporter.page.screenshot({ path: path.join(OUT, 'sponsors-exporter-studio.png'), fullPage: false });
+      const [exporterFile] = await download(exporter.page, 'sponsors exporter');
+      assertCleanPng(exporterFile.buffer, 1080, 1350, exporterFile.name);
+      if ((await exporter.page.evaluate(() => window.__social.sponsorAuthorize.length)) !== 0) throw new Error('sponsors: the exporter asked for a sponsors authorization');
+      await close(exporter, 'sponsors exporter');
+      const exporterSettings = await openSettings(browser, base, 'plan=premium&sponsors=on&role=exporter&path=configuracion/sponsors');
+      await expect(exporterSettings.page.getByText(/Sin logo/)).toHaveCount(0);
+      await expect(exporterSettings.page.getByText('Con logo · lo ven el propietario y los administradores')).toHaveCount(names.length);
+      await exporterSettings.page.screenshot({ path: path.join(OUT, 'sponsors-settings-exporter.png'), fullPage: true });
+      await close(exporterSettings, 'sponsors settings exporter');
+      check('sponsors: a collaborator with export exports without sponsors and never reads «sin logo»');
+
+      // The logo frame never crops (D3: a square logo, whole inside the box) and the settings tabs never clip on a phone
+      // (D5: they wrap; 44 px targets).
+      for (const [slug, viewport] of [['desktop', { width: 1280, height: 900 }], ['phone', { width: 390, height: 844 }]]) {
+        const framed = await openSettings(browser, base, 'plan=premium&sponsors=on&logos=square&path=configuracion/sponsors', viewport);
+        const fit = await framed.page.evaluate(() => {
+          const img = document.querySelector('ol[aria-label="Sponsors de la organización"] li img');
+          const box = img.parentElement.getBoundingClientRect();
+          const r = img.getBoundingClientRect();
+          // The drawn image (contain) inside the element box, centred.
+          const scale = Math.min(r.width / img.naturalWidth, r.height / img.naturalHeight);
+          const drawn = { width: img.naturalWidth * scale, height: img.naturalHeight * scale };
+          return {
+            fit: getComputedStyle(img).objectFit, natural: [img.naturalWidth, img.naturalHeight],
+            inside: r.left >= box.left - 0.5 && r.top >= box.top - 0.5 && r.right <= box.right + 0.5 && r.bottom <= box.bottom + 0.5,
+            drawn, box: { width: box.width, height: box.height },
+          };
+        });
+        if (fit.fit !== 'contain' || !fit.inside || fit.natural[0] !== fit.natural[1] || fit.drawn.height > fit.box.height || fit.drawn.width > fit.box.width) {
+          throw new Error(`sponsors ${slug}: the logo frame crops ${JSON.stringify(fit)}`);
+        }
+        const tabs = await framed.page.evaluate(() => {
+          const nav = document.querySelector('nav[aria-label="Secciones de configuración"]').getBoundingClientRect();
+          return [...document.querySelectorAll('nav[aria-label="Secciones de configuración"] a')].map((a) => {
+            const r = a.getBoundingClientRect();
+            return { text: a.textContent.trim(), inside: r.left >= nav.left - 0.5 && r.right <= nav.right + 0.5 && r.right <= window.innerWidth, height: r.height };
+          });
+        });
+        if (tabs.length !== 4 || tabs.some((tab) => !tab.inside || tab.height < 44)) throw new Error(`sponsors ${slug}: settings tabs ${JSON.stringify(tabs)}`);
+        await framed.page.screenshot({ path: path.join(OUT, `sponsors-settings-square-logo-${slug}.png`), fullPage: true });
+        await close(framed, `sponsors settings square logo ${slug}`);
+      }
+      check('sponsors: a square logo is whole inside its frame; the settings tabs never clip (desktop and phone)');
+
       // FREE: no selector, no sponsors request, and the very same file as without the sponsors composition.
       const freeFiles = [];
       for (const query of ['plan=free', 'plan=free&sponsors=on']) {

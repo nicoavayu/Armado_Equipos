@@ -1,6 +1,6 @@
 # TORNEOS-CALL-MAP — auditoría B04
 
-Inventario legacy congelado en `2058da039a2a5eaaed22d87d01946bc596ae5f50` (Phase 2D); árbol integrado auditado en `db962f5945a5f57d05387773e0d6658341f63330`. Reconstruido del código. No representa resultados de R2/R3/R4/R5.
+Inventario legacy congelado en `2058da039a2a5eaaed22d87d01946bc596ae5f50` (Phase 2D); árbol integrado auditado en `940ae0e3cb32d695b8da61a77046fb1fc1d2a471`. Reconstruido del código. No representa resultados de R2/R3/R4/R5.
 
 184 sitios RPC legacy; 183 nombres distintos; 108 nombres dentro de scope; 75 fuera. La selección dinámica de `changeTournamentMatchPlan` se resuelve a sus tres nombres literales. No quedan RPC dinámicas sin resolver.
 
@@ -388,7 +388,7 @@ Cada fila es un import que alcanza el singleton por el grafo estático, no una c
 | [src/features/torneos/components/OrganizationRouteGuard.jsx:6](../../../src/features/torneos/components/OrganizationRouteGuard.jsx#L6) | `../context/TorneosWorkspaceContext` |
 | [src/features/torneos/components/OrganizationSettingsPage.jsx:12](../../../src/features/torneos/components/OrganizationSettingsPage.jsx#L12) | `../context/TorneosWorkspaceContext` |
 | [src/features/torneos/components/OrganizationSettingsPage.jsx:15](../../../src/features/torneos/components/OrganizationSettingsPage.jsx#L15) | `./BrandingAssetField` |
-| [src/features/torneos/components/OrganizationSponsorsPage.jsx:14](../../../src/features/torneos/components/OrganizationSponsorsPage.jsx#L14) | `../context/TorneosWorkspaceContext` |
+| [src/features/torneos/components/OrganizationSponsorsPage.jsx:15](../../../src/features/torneos/components/OrganizationSponsorsPage.jsx#L15) | `../context/TorneosWorkspaceContext` |
 | [src/features/torneos/components/OrganizationVenuesPage.jsx:4](../../../src/features/torneos/components/OrganizationVenuesPage.jsx#L4) | `../context/TorneosWorkspaceContext` |
 | [src/features/torneos/components/PersonalWorkspaceSwitcher.jsx:12](../../../src/features/torneos/components/PersonalWorkspaceSwitcher.jsx#L12) | `../context/TorneosWorkspaceContext` |
 | [src/features/torneos/components/PlanExperiencePage.jsx:8](../../../src/features/torneos/components/PlanExperiencePage.jsx#L8) | `../context/TorneosCommerceContext` |

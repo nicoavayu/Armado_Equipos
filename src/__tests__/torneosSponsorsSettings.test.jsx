@@ -162,6 +162,43 @@ test('without organization.update: read-only, no action at all', async () => {
   }
 });
 
+test('collaborator: a sponsor whose logo it cannot see is never «sin logo» — neutral placeholder and a note (B1)', async () => {
+  setup({
+    list: answer({
+      canManage: false,
+      sponsors: [
+        // As the hybrid adapter answers a collaborator: the path was not signed, but the server stores a logo.
+        { id: S1, name: 'Ferretería El Tornillo', logoPath: null, logoUrl: null, hasLogo: true, sortOrder: 0 },
+        { id: S2, name: 'Panadería La Espiga', logoPath: null, logoUrl: null, hasLogo: false, sortOrder: 1 },
+      ],
+    }),
+  });
+  const list = await screen.findByRole('list', { name: 'Sponsors de la organización' });
+  const [withLogo, withoutLogo] = within(list).getAllByRole('listitem');
+  expect(within(withLogo).queryByText(/Sin logo/)).not.toBeInTheDocument();
+  expect(within(withLogo).getByText('Con logo · lo ven el propietario y los administradores')).toBeInTheDocument();
+  expect(withLogo.querySelector('[data-logo="hidden"]')).not.toBeNull();
+  expect(withLogo.querySelector('img')).toBeNull();
+  expect(within(withoutLogo).getByText('Sin logo · no se puede usar en placas')).toBeInTheDocument();
+  expect(withoutLogo.querySelector('[data-logo="hidden"]')).toBeNull();
+  expect(screen.getByText(/los agrega el propietario o un\s+administrador/)).toBeInTheDocument();
+});
+
+test('the editor explains the frame (no crop) and warns about white logos on transparent backgrounds (D4)', async () => {
+  setup();
+  fireEvent.click(await screen.findByRole('button', { name: 'Agregar sponsor' }));
+  const form = screen.getByRole('form', { name: 'Nuevo sponsor' });
+  expect(within(form).getByText(/sin recortes/)).toBeInTheDocument();
+  expect(within(form).getByText(/los logos blancos sobre transparente pueden no verse en los estilos claros/)).toBeInTheDocument();
+});
+
+test('the Premium button reads «Sponsors · Premium» with the app\'s lock icon, never an emoji (D5)', async () => {
+  setup({ list: answer({ entitled: false }) });
+  const button = await screen.findByRole('button', { name: 'Sponsors · Premium' });
+  expect(button.textContent).not.toMatch(/\p{Extended_Pictographic}/u);
+  expect(button.querySelector('svg')).not.toBeNull();
+});
+
 test('a composition without the sponsor aliases makes no request', async () => {
   setup({ service: {} });
   expect(await screen.findByText('Los sponsors no están disponibles en esta versión de Torneos.')).toBeInTheDocument();

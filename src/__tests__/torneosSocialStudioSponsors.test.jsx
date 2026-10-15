@@ -54,12 +54,15 @@ const contentOf = (options) => `${options.snapshot.piece}|${options.theme?.id}|$
 
 function setup({
   plan = TOURNAMENT_PLANS.PREMIUM, entitled = true, features = stagingV1FeaturesFor('off', { planRead: true, social: true, branding: true }),
-  sponsors = [...SPONSORS, NO_LOGO], aliases = true, authorizeAnswer = null,
+  sponsors = [...SPONSORS, NO_LOGO], aliases = true, authorizeAnswer = null, canManage = true, listAnswer = null,
+  authorizeExportAnswer = null,
 } = {}) {
   const calls = { load: [], authorize: [], authorizeExport: [] };
   const list = () => ({
-    organizationId: ORG, seasonId: SEASON, canManage: true, entitled,
+    organizationId: ORG, seasonId: SEASON, canManage, entitled,
     limits: { maxActive: 20, maxPerExport: 3, nameMaxLength: 60 }, sponsors,
+    // A later read can answer differently (an archived sponsor, Premium suspended): listAnswer(n, base), n from 1.
+    ...(listAnswer ? listAnswer(calls.load.length) : {}),
   });
   const service = {
     loadSocialStudioContext: async () => ({
@@ -72,6 +75,7 @@ function setup({
     }),
     authorizeSocialExport: async (request) => {
       calls.authorizeExport.push(request);
+      if (authorizeExportAnswer) return authorizeExportAnswer(request, calls.authorizeExport.length);
       return { authorized: true, organizationId: ORG, seasonId: SEASON, tournamentId: T1, piece: request.piece, theme: request.theme, includeArma2Branding: request.includeArma2Branding, plan };
     },
     ...(aliases ? {
@@ -298,4 +302,90 @@ test('the authorization check: same sponsors, order, names and logo objects, eac
     { ...ok, sponsors: [SPONSORS[0], { ...SPONSORS[1], logoUrl: null }] },
     { ...ok, sponsors: [SPONSORS[0], { ...SPONSORS[1], name: 'Otro' }] },
   ]) expect(() => assertSocialSponsorsAuthorization(bad, context)).toThrow('SPONSORS_AUTHORIZATION_MISMATCH');
+});
+
+test('collaborator with export (canManage false): no selector, one muted line, and the export asks no sponsors (B1)', async () => {
+  const calls = setup({ canManage: false });
+  await shown('standings|base|sin-sponsors');
+  expect(screen.queryByText('Los sponsors los agrega el propietario o un administrador.')).not.toBeInTheDocument();
+  for (const style of ['Heritage', 'Street', 'Scoreboard', 'Editorial']) {
+    fireEvent.click(styleButton(style));
+    await shown(`standings|${style.toLowerCase()}|sin-sponsors`);
+    expect(picker()).not.toBeInTheDocument();
+    expect(screen.getByText('Los sponsors los agrega el propietario o un administrador.')).toBeInTheDocument();
+  }
+  expect(screen.queryByText(/Todavía no hay sponsors con logo/)).not.toBeInTheDocument();
+  await act(async () => { fireEvent.click(downloadButton()); });
+  await waitFor(() => expect(deliveredNames()).toHaveLength(1));
+  expect(calls.authorize).toEqual([]);
+  expect(studio.prepareSocialRender.mock.calls.every(([options]) => !options.sponsors?.length)).toBe(true);
+});
+
+test('archived while chosen (demo step 8, B2): refused export, list read again, the counter counts only listed sponsors, three can be chosen again', async () => {
+  const archived = SPONSORS[2].id; // Gimnasio Fénix
+  const calls = setup({
+    // The second read (after the refusal) no longer lists the archived sponsor.
+    listAnswer: (reads) => (reads >= 2 ? { sponsors: [...SPONSORS.filter((entry) => entry.id !== archived), NO_LOGO] } : {}),
+    authorizeAnswer: (request) => {
+      if (request.sponsorIds.includes(archived)) {
+        throw Object.assign(new Error('Uno de los sponsors elegidos ya no está disponible o no tiene logo. Revisá la selección.'), { code: 'TORNEOS_SPONSORS_SELECTION_UNAVAILABLE' });
+      }
+      return {
+        authorized: true, organizationId: ORG, seasonId: SEASON, tournamentId: T1, theme: request.theme, capability: 'sponsors',
+        sponsors: request.sponsorIds.map((id) => SPONSORS.find((entry) => entry.id === id)),
+      };
+    },
+  });
+  await shown('standings|base|sin-sponsors');
+  fireEvent.click(styleButton('Heritage'));
+  await waitFor(() => expect(picker()).toBeInTheDocument());
+  choose('Gimnasio');
+  choose('Ferretería');
+  await shown('standings|heritage|Gimnasio Fénix+Ferretería El Tornillo');
+  expect(within(picker()).getByText('2 de 3 elegidos')).toBeInTheDocument();
+  await act(async () => { fireEvent.click(downloadButton()); });
+  expect(await screen.findByRole('alert')).toHaveTextContent('ya no está disponible');
+  expect(deliveredNames()).toEqual([]);
+  await waitFor(() => expect(calls.load).toHaveLength(2));
+  await waitFor(() => expect(within(picker()).queryByRole('checkbox', { name: /Gimnasio Fénix/ })).not.toBeInTheDocument());
+  // Only the listed one counts: 1 of 3, and the refusal's copy stays on screen.
+  await waitFor(() => expect(within(picker()).getByText('1 de 3 elegidos')).toBeInTheDocument());
+  expect(screen.getByRole('alert')).toHaveTextContent('ya no está disponible');
+  await shown('standings|heritage|Ferretería El Tornillo');
+  // Two more can be chosen (three in all), then the last one is locked.
+  choose('Panadería');
+  expect(within(picker()).getByText('2 de 3 elegidos')).toBeInTheDocument();
+  expect(within(picker()).getByRole('checkbox', { name: /Kiosco Doble Siete/ })).toBeEnabled();
+  choose('Kiosco');
+  expect(within(picker()).getByText('3 de 3 elegidos')).toBeInTheDocument();
+  expect(within(picker()).getAllByRole('checkbox').filter((box) => box.checked)).toHaveLength(3);
+  await shown('standings|heritage|Ferretería El Tornillo+Panadería La Espiga+Kiosco Doble Siete');
+  // The retry exports with what is listed.
+  await act(async () => { fireEvent.click(downloadButton()); });
+  await waitFor(() => expect(deliveredNames()).toHaveLength(1));
+  expect(calls.authorize.at(-1).sponsorIds).toEqual([SPONSORS[0].id, SPONSORS[1].id, SPONSORS[3].id]);
+});
+
+test('Premium suspended mid-session (D7): the export\'s general refusal stays, and the list read again hides the selector', async () => {
+  let suspended = false;
+  const calls = setup({
+    listAnswer: () => (suspended ? { entitled: false } : {}),
+    authorizeExportAnswer: () => {
+      suspended = true;
+      throw Object.assign(new Error('Esta placa o este estilo necesitan Premium en esta temporada.'), { code: 'TORNEOS_SOCIAL_PREMIUM_REQUIRED' });
+    },
+  });
+  await shown('standings|base|sin-sponsors');
+  fireEvent.click(styleButton('Street'));
+  await waitFor(() => expect(picker()).toBeInTheDocument());
+  choose('Panadería');
+  await shown('standings|street|Panadería La Espiga');
+  await act(async () => { fireEvent.click(downloadButton()); });
+  expect(await screen.findByRole('alert')).toHaveTextContent('necesitan Premium en esta temporada');
+  await waitFor(() => expect(calls.load).toHaveLength(2));
+  await waitFor(() => expect(picker()).not.toBeInTheDocument());
+  await waitFor(() => expect(onScreen()).toBe('standings|street|sin-sponsors'));
+  expect(screen.getByRole('alert')).toHaveTextContent('necesitan Premium en esta temporada');
+  expect(calls.authorize).toEqual([]);
+  expect(deliveredNames()).toEqual([]);
 });

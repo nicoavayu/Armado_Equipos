@@ -645,10 +645,24 @@ export function createStagingV1WorkspaceService({
   const sponsorAliases = brandingEnabled ? {
     loadOrganizationSponsors: async ({ organizationId, seasonId = null } = {}) => {
       if (!isUuid(organizationId) || !(seasonId === null || isUuid(seasonId))) throw invalidRequest();
-      const answer = await call('get_tournament_organization_sponsors', {
-        p_organization_id: organizationId, p_season_id: seasonId,
-      }, 'No pudimos cargar los sponsors.');
-      return normalizeSponsorsAnswer(answer, { resolveLogoUrl: signedLogoUrl });
+      let raw;
+      try {
+        raw = await client.execute('get_tournament_organization_sponsors', {
+          p_organization_id: organizationId, p_season_id: seasonId,
+        });
+      } catch (error) {
+        throw translateBoundaryError(error, 'No pudimos cargar los sponsors.');
+      }
+      // A path the gateway did not sign is dropped below (withSignedBranding), as for every branding read; the gateway
+      // signs organization objects only for owners and administrators. Whether a sponsor HAS a logo is kept apart, so a
+      // collaborator's read-only list never says «sin logo» of a sponsor that has one (it still cannot draw it).
+      const withLogo = new Set((Array.isArray(raw?.sponsors) ? raw.sponsors : [])
+        .filter((entry) => typeof entry?.logoPath === 'string' && entry.logoPath)
+        .map((entry) => entry.id));
+      const answer = withSignedBranding(raw);
+      return normalizeSponsorsAnswer(answer && Array.isArray(answer.sponsors)
+        ? { ...answer, sponsors: answer.sponsors.map((entry) => ({ ...entry, hasLogo: withLogo.has(entry?.id) })) }
+        : answer, { resolveLogoUrl: signedLogoUrl });
     },
     saveOrganizationSponsor: async ({
       organizationId, sponsorId = null, name, file = null, logoPath = null, sortOrder = null,

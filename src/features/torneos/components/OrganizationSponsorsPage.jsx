@@ -3,6 +3,7 @@ import {
   Archive,
   Check,
   Handshake,
+  ImageIcon,
   ImagePlus,
   LoaderCircle,
   LockKeyhole,
@@ -14,7 +15,12 @@ import { useOutletContext } from 'react-router-dom';
 import { useTorneosWorkspace } from '../context/TorneosWorkspaceContext';
 import { useOptionalTorneosCompetition } from '../context/TorneosCompetitionContext';
 import { validateBrandingFile } from '../domain/brandingFiles';
-import { SPONSOR_LIMITS, SPONSOR_SORT_ORDER_MAX, validateSponsorName } from '../domain/sponsors';
+import {
+  hasHiddenSponsorLogo,
+  SPONSOR_LIMITS,
+  SPONSOR_SORT_ORDER_MAX,
+  validateSponsorName,
+} from '../domain/sponsors';
 import OrganizationSettingsNav from './OrganizationSettingsNav';
 import PremiumUpsell from './PremiumUpsell';
 import shell from './TorneosShell.module.css';
@@ -24,7 +30,8 @@ import styles from './OrganizationSponsorsPage.module.css';
 // three per piece of the Estudio Social. The server decides everything that matters — who may change them (owner and
 // administrator), whether the organization has Premium sponsors, what is listed — and this page shows its answer:
 // without Premium the rows stay (read-only, they can still be archived) behind the Premium explanation; without the
-// organization.update role, read-only.
+// organization.update role, read-only — and the logos are not visible (the gateway signs organization objects only for
+// owners and administrators): a sponsor with a logo shows a neutral placeholder, never «sin logo».
 function sponsorInitials(name = '') {
   const words = String(name).trim().split(/\s+/).filter(Boolean);
   return (words.slice(0, 2).map((word) => word[0]).join('') || 'SP').toUpperCase();
@@ -34,11 +41,19 @@ function SponsorLogo({ sponsor, previewUrl = '' }) {
   const [failed, setFailed] = useState(false);
   const src = previewUrl || (!failed ? sponsor?.logoUrl : '') || '';
   useEffect(() => { setFailed(false); }, [sponsor?.logoUrl]);
-  return (
-    <span className={styles.logo} aria-hidden="true">
-      {src ? <img src={src} alt="" onError={() => setFailed(true)} /> : <strong>{sponsorInitials(sponsor?.name)}</strong>}
-    </span>
-  );
+  // The frame never crops: the image is laid inside it (object-fit: contain), whatever its proportions.
+  if (src) {
+    return <span className={styles.logo} aria-hidden="true"><img src={src} alt="" onError={() => setFailed(true)} /></span>;
+  }
+  // A logo this person cannot see (or that did not load): a neutral placeholder, not the initials of a logo-less sponsor.
+  if (sponsor?.hasLogo) {
+    return (
+      <span className={`${styles.logo} ${styles.logoHidden}`} aria-hidden="true" data-logo="hidden">
+        <ImageIcon size={22} />
+      </span>
+    );
+  }
+  return <span className={styles.logo} aria-hidden="true"><strong>{sponsorInitials(sponsor?.name)}</strong></span>;
 }
 
 function SponsorEditor({ sponsor = null, busy, onCancel, onSave }) {
@@ -84,6 +99,7 @@ function SponsorEditor({ sponsor = null, busy, onCancel, onSave }) {
         <div className={styles.editorLogoCopy}>
           <strong>Logo del sponsor</strong>
           <p>PNG, JPEG o WebP · hasta 2 MB al guardar · sin recortes.</p>
+          <p>Usá un logo con fondo o en colores oscuros: los logos blancos sobre transparente pueden no verse en los estilos claros.</p>
           {fileMessage && <span className={shell.fieldError} role="alert">{fileMessage}</span>}
           {!fileMessage && touched && needsLogo && <span className={shell.fieldError} role="alert">Elegí el logo del sponsor.</span>}
         </div>
@@ -283,7 +299,8 @@ export default function OrganizationSponsorsPage() {
         {state.status === 'ready' && !canManage && (
           <div className={shell.readOnlyBanner}>
             <LockKeyhole size={18} aria-hidden="true" />
-            Modo lectura · Tu rol no permite gestionar los sponsors.
+            Modo lectura · Tu rol no permite gestionar los sponsors. Los sponsors de las placas los agrega el propietario o un
+            administrador.
           </div>
         )}
 
@@ -334,7 +351,10 @@ export default function OrganizationSponsorsPage() {
                       <SponsorLogo sponsor={sponsor} />
                       <span className={styles.name}>
                         <strong>{sponsor.name}</strong>
-                        {!sponsor.logoPath && <small>Sin logo · no se puede usar en placas</small>}
+                        {!sponsor.hasLogo && !sponsor.logoPath && <small>Sin logo · no se puede usar en placas</small>}
+                        {hasHiddenSponsorLogo(sponsor) && !canManage && (
+                          <small className={styles.note}>Con logo · lo ven el propietario y los administradores</small>
+                        )}
                       </span>
                       {canManage && !confirming && (
                         <span className={styles.actions}>

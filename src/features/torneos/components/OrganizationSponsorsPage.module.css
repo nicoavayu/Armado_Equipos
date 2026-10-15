@@ -80,10 +80,16 @@
   font: 700 13px/1 var(--torneos-ui-font, Arial, sans-serif);
 }
 
+/* A fixed box; the logo is laid INSIDE it, never cropped. The image is absolutely positioned against the box (a
+   percentage height inside a grid row of `auto` height does not resolve, and the image then overflowed and was clipped:
+   E2E demo D3), so any proportion — square, tall, wide — fits whole with object-fit: contain. */
 .logo {
+  position: relative;
   display: grid;
+  box-sizing: border-box;
   width: 84px;
   height: 56px;
+  flex: 0 0 auto;
   place-items: center;
   overflow: hidden;
   border: 1px solid rgba(158, 211, 255, 0.28);
@@ -91,8 +97,19 @@
   background: #f4f1ea;
 }
 
-.logo img { width: 100%; height: 100%; object-fit: contain; }
+.logo img {
+  position: absolute;
+  inset: 4px;
+  display: block;
+  width: calc(100% - 8px);
+  height: calc(100% - 8px);
+  max-width: none;
+  object-fit: contain;
+  object-position: center;
+}
 .logo strong { color: #2a2340; font: 700 20px Oswald, sans-serif; letter-spacing: 0.06em; }
+/* A logo the person cannot see (collaborators): neutral, not the initials of a sponsor without a logo. */
+.logoHidden { background: rgba(255, 255, 255, 0.08); border-style: dashed; color: rgba(255, 255, 255, 0.55); }
 
 .name { display: grid; min-width: 0; gap: 3px; }
 .name strong {
@@ -103,6 +120,7 @@
   white-space: nowrap;
 }
 .name small { color: #ffc7a8; font-size: 12px; }
+.name small.note { color: var(--torneos-muted, rgba(255, 255, 255, 0.62)); }
 
 .actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
 

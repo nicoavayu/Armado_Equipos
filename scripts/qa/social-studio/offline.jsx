@@ -22,7 +22,10 @@ import { socialQaSnapshot, socialQaStandings } from '../../../src/testUtils/soci
 const args = new URLSearchParams(window.location.search);
 const plan = args.get('plan') || 'free';
 const social = args.get('social') !== 'off';
+// `role=collaborator`: no social.export. `role=exporter`: a collaborator WITH the export grant — exports, but never with
+// sponsors (0020: a non-empty selection needs organization.update) and, like every collaborator, sees no sponsor logo.
 const role = args.get('role') || 'owner';
+const collaboratorRole = role === 'collaborator' || role === 'exporter';
 const teamSize = Number(args.get('teamSize') || 5);
 const standingsRows = Number(args.get('rows') || 8);
 // `items=N` keeps only N entries in every other list: the sparse pieces of a league that just started.
@@ -50,11 +53,12 @@ const control = (window.__socialControl = { snapshotDelayMs: 0, authorizeDelayMs
 const pause = (ms) => (ms > 0 ? new Promise((resolve) => { setTimeout(resolve, ms); }) : Promise.resolve());
 
 // ── fictional sponsors (no real brand): a flat mark + a monogram, drawn once into a PNG data URL ────────────────────
-function sponsorLogo({ background, accent, mark, shape }) {
+function sponsorLogo({ background, accent, mark, shape }, { square = false } = {}) {
   const canvas = document.createElement('canvas');
-  canvas.width = 360; canvas.height = 140;
+  // `logos=square` draws the first logo square (200 × 200): the settings frame must show it whole (E2E demo D3).
+  canvas.width = square ? 200 : 360; canvas.height = square ? 200 : 140;
   const ctx = canvas.getContext('2d');
-  ctx.fillStyle = background; ctx.fillRect(0, 0, 360, 140);
+  ctx.fillStyle = background; ctx.fillRect(0, 0, canvas.width, canvas.height);
   ctx.fillStyle = accent;
   ctx.beginPath();
   if (shape === 'bolt') { ctx.moveTo(40, 20); ctx.lineTo(110, 20); ctx.lineTo(80, 64); ctx.lineTo(118, 64); ctx.lineTo(48, 122); ctx.lineTo(66, 76); ctx.lineTo(34, 76); ctx.closePath(); }
@@ -63,9 +67,11 @@ function sponsorLogo({ background, accent, mark, shape }) {
   else { ctx.arc(76, 70, 48, 0, Math.PI * 2); }
   ctx.fill();
   ctx.fillStyle = accent;
-  ctx.font = 'bold 64px Arial, sans-serif';
+  ctx.font = `bold ${square ? 46 : 64}px Arial, sans-serif`;
   ctx.textBaseline = 'middle';
-  ctx.fillText(mark, 150, 72);
+  ctx.fillText(mark, square ? 24 : 150, square ? 168 : 72);
+  // The square one carries a border on its four edges: on screen, all four visible = nothing cropped.
+  if (square) { ctx.strokeStyle = accent; ctx.lineWidth = 10; ctx.strokeRect(5, 5, 190, 190); }
   return canvas.toDataURL('image/png');
 }
 const SPONSOR_SEED = [
@@ -76,12 +82,15 @@ const SPONSOR_SEED = [
 ];
 const sponsorRows = sponsorsOn ? SPONSOR_SEED.map((entry, index) => ({
   id: entry.id, name: entry.name, logoPath: `${org.id}/organizations/${org.id}/7100000${index}-0000-4000-8000-000000000001.png`,
-  logoUrl: sponsorLogo(entry.logo), sortOrder: index, archived: false,
+  logoUrl: sponsorLogo(entry.logo, { square: index === 0 && args.get('logos') === 'square' }), sortOrder: index, archived: false,
 })) : [];
 window.__sponsorNames = () => sponsorRows.filter((row) => !row.archived).map((row) => row.name);
 const activeSponsors = () => sponsorRows.filter((row) => !row.archived).sort((a, b) => a.sortOrder - b.sortOrder);
-// Collaborators read the list, but the gateway signs no logo for them (README: logoUrl null).
-const listedSponsor = (row) => ({ id: row.id, name: row.name, logoPath: row.logoPath, logoUrl: role === 'collaborator' ? null : row.logoUrl, sortOrder: row.sortOrder });
+// Collaborators read the list, but the gateway signs no logo for them (README: logoUrl null), and the hybrid adapter
+// drops the unsigned path while keeping that the sponsor HAS a logo (hasLogo).
+const listedSponsor = (row) => (collaboratorRole
+  ? { id: row.id, name: row.name, logoPath: null, logoUrl: null, hasLogo: Boolean(row.logoPath), sortOrder: row.sortOrder }
+  : { id: row.id, name: row.name, logoPath: row.logoPath, logoUrl: row.logoUrl, hasLogo: Boolean(row.logoPath), sortOrder: row.sortOrder });
 const fileAsDataUrl = (file) => new Promise((resolve, reject) => {
   const reader = new FileReader();
   reader.onload = () => resolve(reader.result);
@@ -93,13 +102,13 @@ const sponsorService = sponsorsOn ? {
     record.sponsorLoads.push({ seasonId });
     if (organizationId !== org.id || (seasonId && seasonId !== season.id)) refuse('TORNEOS_SPONSORS_FORBIDDEN');
     return {
-      schemaVersion: 1, organizationId, seasonId, canManage: role !== 'collaborator', entitled: premium,
+      schemaVersion: 1, organizationId, seasonId, canManage: !collaboratorRole, entitled: premium,
       limits: { maxActive: 20, maxPerExport: 3, nameMaxLength: 60 }, sponsors: activeSponsors().map(listedSponsor),
     };
   },
   saveOrganizationSponsor: async ({ organizationId, sponsorId = null, name, file = null, logoPath = null, sortOrder = null }) => {
     record.sponsorWrites.push({ kind: 'save', sponsorId, name });
-    if (organizationId !== org.id || role === 'collaborator') refuse('TORNEOS_SPONSORS_FORBIDDEN');
+    if (organizationId !== org.id || collaboratorRole) refuse('TORNEOS_SPONSORS_FORBIDDEN');
     if (!premium) refuse('TORNEOS_SPONSORS_PREMIUM_REQUIRED');
     const trimmed = String(name || '').trim();
     if (!trimmed || trimmed.length > 60) refuse('TORNEOS_SPONSOR_INVALID');
@@ -121,7 +130,7 @@ const sponsorService = sponsorsOn ? {
   },
   archiveOrganizationSponsor: async ({ organizationId, sponsorId }) => {
     record.sponsorWrites.push({ kind: 'archive', sponsorId });
-    if (organizationId !== org.id || role === 'collaborator') refuse('TORNEOS_SPONSORS_FORBIDDEN');
+    if (organizationId !== org.id || collaboratorRole) refuse('TORNEOS_SPONSORS_FORBIDDEN');
     const row = sponsorRows.find((entry) => entry.id === sponsorId);
     if (!row) refuse('TORNEOS_SPONSOR_NOT_FOUND');
     const alreadyArchived = row.archived;
@@ -144,6 +153,7 @@ const sponsorService = sponsorsOn ? {
       throw error;
     }
     if (role === 'collaborator' || seasonId !== season.id || tournamentId !== tournament.id) refuse('TORNEOS_SOCIAL_EXPORT_FORBIDDEN');
+    if (Array.isArray(sponsorIds) && sponsorIds.length && collaboratorRole) refuse('TORNEOS_SPONSORS_FORBIDDEN');
     if (!THEMES.includes(theme)) refuse('TORNEOS_SOCIAL_THEME_UNKNOWN');
     if (!Array.isArray(sponsorIds)) refuse('TORNEOS_SPONSORS_SELECTION_INVALID');
     if (sponsorIds.length && theme === 'base') refuse('TORNEOS_SPONSORS_THEME_UNSUPPORTED');
@@ -170,8 +180,10 @@ const service = {
   },
   ...(social ? {
     loadSocialStudioContext: async () => ({
-      capabilities: role === 'collaborator' ? ['social.read'] : ['social.read', 'social.create', 'social.export', 'social.manual_selection', 'social.editorial_text', 'social.brand_toggle'],
-      brand: { organizationName: org.name, canHideArma2Logo: role !== 'collaborator' },
+      capabilities: role === 'collaborator' ? ['social.read']
+        : role === 'exporter' ? ['social.read', 'social.create', 'social.export', 'social.manual_selection', 'social.editorial_text']
+          : ['social.read', 'social.create', 'social.export', 'social.manual_selection', 'social.editorial_text', 'social.brand_toggle'],
+      brand: { organizationName: org.name, canHideArma2Logo: !collaboratorRole },
       tournaments: args.get('tournaments') === '0' ? [] : [{
         id: tournament.id, name: tournament.name, status: 'in_progress',
         categories: args.get('fixture') === 'none' ? [] : [{

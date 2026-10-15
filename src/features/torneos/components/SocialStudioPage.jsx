@@ -512,23 +512,42 @@ export default function SocialStudioPage() {
     [effectiveThemeId],
   );
   // Sponsors exist for a piece only where everything agrees: the composition offers them, the season's plan and the
-  // server say the season has them, and the style draws them (never Base).
+  // server say the season has them, the style draws them (never Base), and the person may put sponsors on a piece —
+  // the organization's owner or an administrator (canManage = organization.update; the server refuses anyone else's
+  // non-empty selection with TORNEOS_SPONSORS_FORBIDDEN). A collaborator with export keeps exporting without sponsors.
   const sponsorData = sponsorsKey && sponsorState.key === sponsorsKey ? sponsorState.data : null;
   const themeTakesSponsors = selectedTheme.capabilities?.sponsors === true;
-  const showSponsorPicker = Boolean(sponsorData?.entitled) && themeTakesSponsors;
+  const sponsorsOffered = Boolean(sponsorData?.entitled) && themeTakesSponsors;
+  const showSponsorPicker = sponsorsOffered && sponsorData?.canManage === true;
+  const sponsorsByManagersOnly = sponsorsOffered && sponsorData?.canManage !== true;
   const maxSponsors = sponsorData?.limits?.maxPerExport || SPONSOR_LIMITS.maxPerExport;
   const selectableSponsors = useMemo(
     () => (sponsorData?.sponsors || []).filter(isSelectableSponsor),
     [sponsorData],
   );
+  // Only ids still listed count: the counter, the «at most N» lock and the render never see a sponsor the server no
+  // longer lists (archived, logo removed) — E2E demo B2.
+  const selectedSponsorIds = useMemo(
+    () => sponsorSelection.filter((id) => selectableSponsors.some((entry) => entry.id === id)),
+    [selectableSponsors, sponsorSelection],
+  );
   const renderSponsors = useMemo(() => (showSponsorPicker
-    ? sponsorSelection
+    ? selectedSponsorIds
       .map((id) => selectableSponsors.find((entry) => entry.id === id))
       .filter(Boolean)
       .slice(0, maxSponsors)
       .map(sponsorRenderEntry)
-    : []), [maxSponsors, selectableSponsors, showSponsorPicker, sponsorSelection]);
+    : []), [maxSponsors, selectableSponsors, showSponsorPicker, selectedSponsorIds]);
   const sponsorInputs = renderSponsors.length ? [renderSponsors.map(sponsorIdentity)] : [];
+
+  // Whenever the list is read (again), what it no longer offers drops out of the selection itself.
+  useEffect(() => {
+    if (!sponsorData) return;
+    setSponsorSelection((current) => {
+      const kept = current.filter((id) => selectableSponsors.some((entry) => entry.id === id));
+      return kept.length === current.length ? current : kept;
+    });
+  }, [selectableSponsors, sponsorData]);
 
   // Base draws no sponsor: going back to it clears the choice instead of keeping it hidden.
   useEffect(() => {
@@ -696,14 +715,18 @@ export default function SocialStudioPage() {
     if (localPhotoUrlRef.current) URL.revokeObjectURL(localPhotoUrlRef.current);
   }, []);
 
-  useEffect(() => { setExportError(''); }, [pieceId, effectiveThemeId, editorial, scope, includeArma2Branding, sponsorSelection]);
+  // The person's own changes clear a previous export error. Choosing sponsors does it in toggleSponsor (not here): the
+  // selection is also pruned when the list is read again after a refusal, and that refusal's copy must stay on screen.
+  useEffect(() => { setExportError(''); }, [pieceId, effectiveThemeId, editorial, scope, includeArma2Branding]);
 
   const toggleSponsor = (id) => {
     if (!canCreate) return;
+    setExportError('');
     setSponsorSelection((current) => {
-      if (current.includes(id)) return current.filter((entry) => entry !== id);
-      if (current.length >= maxSponsors) return current;
-      return [...current, id];
+      const valid = current.filter((entry) => selectableSponsors.some((sponsor) => sponsor.id === entry));
+      if (valid.includes(id)) return valid.filter((entry) => entry !== id);
+      if (valid.length >= maxSponsors) return valid;
+      return [...valid, id];
     });
   };
 
@@ -933,6 +956,12 @@ export default function SocialStudioPage() {
     } catch (error) {
       setNotice('');
       setExportError(describeSocialExportError(error));
+      // Premium gone mid-session (E2E demo D7): the export's own authorization refuses first, with its general copy,
+      // before any sponsors are asked about. The sponsors list (and its `entitled`, the season's) is read again so the
+      // selector hides; the copy above stays. (A refused sponsors authorization reads it again where it is asked.)
+      if (sponsorsKey && error?.code === 'TORNEOS_SOCIAL_PREMIUM_REQUIRED') {
+        setSponsorReload((value) => value + 1);
+      }
     } finally {
       letGo();
       setBusy('');
@@ -1398,7 +1427,7 @@ export default function SocialStudioPage() {
                   </p>
                   <div className={styles.sponsorList}>
                     {selectableSponsors.map((sponsor) => {
-                      const checked = sponsorSelection.includes(sponsor.id);
+                      const checked = selectedSponsorIds.includes(sponsor.id);
                       return (
                         <label
                           key={sponsor.id}
@@ -1407,7 +1436,7 @@ export default function SocialStudioPage() {
                           <input
                             type="checkbox"
                             checked={checked}
-                            disabled={!checked && sponsorSelection.length >= maxSponsors}
+                            disabled={!checked && selectedSponsorIds.length >= maxSponsors}
                             onChange={() => toggleSponsor(sponsor.id)}
                           />
                           <span className={styles.sponsorLogo} aria-hidden="true">
@@ -1419,7 +1448,7 @@ export default function SocialStudioPage() {
                     })}
                   </div>
                   <small className={styles.fieldHint}>
-                    {sponsorSelection.length} de {maxSponsors} elegidos
+                    {selectedSponsorIds.length} de {maxSponsors} elegidos
                   </small>
                 </>
               ) : (
@@ -1428,6 +1457,11 @@ export default function SocialStudioPage() {
                 </p>
               )}
             </fieldset>
+          )}
+          {sponsorsByManagersOnly && (
+            <p className={styles.fieldHint} data-sponsors="managers-only">
+              <Handshake size={12} aria-hidden="true" /> Los sponsors los agrega el propietario o un administrador.
+            </p>
           )}
           {themeTakesSponsors && sponsorsKey && sponsorState.key === sponsorsKey && sponsorState.status === 'error' && (
             <p className={styles.sponsorError} role="status">
