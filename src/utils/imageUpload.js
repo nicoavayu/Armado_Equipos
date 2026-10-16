@@ -16,7 +16,21 @@ const REENCODE_SIZE_THRESHOLD = 1.5 * 1024 * 1024; // re-encode displayable imag
 const HEIC_MIME_TYPES = ['image/heic', 'image/heif', 'image/heic-sequence', 'image/heif-sequence'];
 const HEIC_EXTENSIONS = ['.heic', '.heif'];
 const DISPLAYABLE_RASTER_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
-const PASSTHROUGH_TYPES = ['image/svg+xml', 'image/gif'];
+// SVG is never passed through: it is markup that can carry <script>, and the
+// public `team-crests` bucket would serve it as a document on the storage
+// origin (stored XSS when the public URL is opened directly).
+const PASSTHROUGH_TYPES = ['image/gif'];
+const SVG_EXTENSIONS = ['.svg', '.svgz'];
+const SVG_SNIFF_BYTES = 1024;
+
+// Raster formats the storage buckets accept for user images.
+export const UPLOAD_RASTER_TYPES = Object.freeze([...DISPLAYABLE_RASTER_TYPES]);
+
+// `accept` attribute for image pickers (crest, team member photo): raster only,
+// plus HEIC/HEIF which prepareImageForUpload re-encodes to JPEG. Never SVG.
+export const IMAGE_UPLOAD_ACCEPT = 'image/png,image/jpeg,image/webp,image/heic,image/heif,.heic,.heif';
+
+export const SVG_REJECTED_MESSAGE = 'No aceptamos imágenes SVG. Elegí una foto JPG, PNG o WEBP.';
 
 const lowerType = (file) => String(file?.type || '').toLowerCase();
 const lowerName = (file) => String(file?.name || '').toLowerCase();
@@ -26,6 +40,46 @@ export const isHeicFile = (file) => {
   if (HEIC_MIME_TYPES.includes(lowerType(file))) return true;
   const name = lowerName(file);
   return HEIC_EXTENSIONS.some((ext) => name.endsWith(ext));
+};
+
+export const isSvgFile = (file) => {
+  if (!file) return false;
+  if (lowerType(file).includes('svg')) return true;
+  const name = lowerName(file).trim();
+  return SVG_EXTENSIONS.some((ext) => name.endsWith(ext));
+};
+
+// SVG/XML markup has no binary magic number; a raster file never starts with
+// `<` (after an optional BOM/whitespace). Used to catch SVG renamed as .png/.jpg.
+export const looksLikeSvgMarkup = (text) => {
+  const head = String(text || '').replace(/^\uFEFF/, '').trimStart().slice(0, SVG_SNIFF_BYTES).toLowerCase();
+  if (!head.startsWith('<')) return false;
+  return head.startsWith('<?xml') || head.startsWith('<!doctype svg') || head.includes('<svg');
+};
+
+const readHeadAsText = (file) => new Promise((resolve) => {
+  try {
+    const head = typeof file.slice === 'function' ? file.slice(0, SVG_SNIFF_BYTES) : file;
+    if (typeof head.text === 'function') {
+      head.text().then(resolve, () => resolve(''));
+      return;
+    }
+    if (typeof FileReader === 'undefined') {
+      resolve('');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : '');
+    reader.onerror = () => resolve('');
+    reader.readAsText(head);
+  } catch (err) {
+    resolve('');
+  }
+});
+
+export const sniffSvgContent = async (file) => {
+  if (!file) return false;
+  return looksLikeSvgMarkup(await readHeadAsText(file));
 };
 
 export const isImageFile = (file) => {
@@ -39,6 +93,9 @@ export const isImageFile = (file) => {
 export const validateImageFile = (file, { maxBytes = DEFAULT_MAX_IMAGE_BYTES } = {}) => {
   if (!file) {
     return { ok: false, code: 'MISSING', message: 'No seleccionaste ninguna imagen.' };
+  }
+  if (isSvgFile(file)) {
+    return { ok: false, code: 'SVG_NOT_ALLOWED', message: SVG_REJECTED_MESSAGE };
   }
   if (!isImageFile(file)) {
     return {
@@ -118,8 +175,10 @@ const canvasToBlob = (canvas, type, quality) => new Promise((resolve, reject) =>
 /**
  * Normalize a user-selected image into a web-displayable file ready for upload.
  *
- * - Rejects non-images and oversized files with a clear, user-facing message.
- * - Passes SVG/GIF through untouched (vector / animation).
+ * - Rejects non-images, SVG (by MIME, extension or markup content) and oversized
+ *   files with a clear, user-facing message. SVG is never uploaded: it can carry
+ *   scripts that run when its public URL is opened directly.
+ * - Passes GIF through untouched (animation).
  * - Decodes the image; if it cannot be decoded (e.g. real HEIC on Android, or a
  *   corrupt file) it throws a clear error instead of failing silently.
  * - Re-encodes HEIC/HEIF, oversized photos and exotic formats to JPEG, keeping
@@ -139,6 +198,11 @@ export const prepareImageForUpload = async (file, options = {}) => {
   const validation = validateImageFile(file, { maxBytes });
   if (!validation.ok) {
     throw makeError(validation.message, validation.code);
+  }
+
+  // An SVG renamed to .png/.jpg (or with a spoofed MIME type) is still markup.
+  if (await sniffSvgContent(file)) {
+    throw makeError(SVG_REJECTED_MESSAGE, 'SVG_NOT_ALLOWED');
   }
 
   const type = lowerType(file);
