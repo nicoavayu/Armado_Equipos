@@ -138,11 +138,12 @@ export default function AuthHome() {
   }
 
   return (
-    <div className="auth-premium-bg fixed inset-0 z-[9999] flex min-h-[100dvh] w-full max-w-[100vw] items-center justify-center overflow-x-hidden overflow-y-hidden px-5 max-[420px]:px-4">
+    <div className="auth-premium-bg fixed inset-0 z-[9999] flex min-h-[100dvh] w-full max-w-[100vw] justify-center overflow-x-hidden overflow-y-auto px-5 py-4 max-[420px]:px-4">
       <div className="auth-premium-noise" aria-hidden="true" />
-      <div className="w-full max-w-[380px] min-w-0">
-        <div className="auth-logo-block mb-10 text-center">
-          <img src={logo} alt="ARMA2" className="auth-logo-mark mx-auto h-[122px] w-auto max-w-full object-contain" />
+      {/* m-auto centra en vertical sin recortar arriba cuando la pantalla es baja (320×568): todo queda alcanzable. */}
+      <div className="m-auto w-full max-w-[380px] min-w-0">
+        <div className="auth-logo-block mb-10 text-center [@media(max-height:640px)]:mb-6">
+          <img src={logo} alt="ARMA2" className="auth-logo-mark mx-auto h-[122px] w-auto max-w-full object-contain [@media(max-height:640px)]:h-[96px]" />
           <p className="mt-[14px] text-sm font-medium tracking-[0.3px] text-[rgba(255,255,255,0.9)]">Futbol amateur, nivel pro</p>
         </div>
 
@@ -258,7 +259,9 @@ export default function AuthHome() {
             Política de Privacidad
           </Link>
         </p>
-        <LegalFooter className="mx-auto mt-2 box-border w-full max-w-[340px]" />
+        {/* Pie legal compacto: las dos leyendas de la Disp. 954/2025 y «Datos del proveedor» (sin nombre, CUIT ni domicilio
+            acá: viven en /legales). Términos y Privacidad ya están en la línea de consentimiento: no se repiten. */}
+        <LegalFooter variant="login" className="mx-auto mt-1 box-border w-full max-w-[340px]" />
       </div>
     </div>
   );

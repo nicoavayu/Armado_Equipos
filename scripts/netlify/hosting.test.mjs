@@ -31,20 +31,23 @@ test('public login, tournament routes and valid WhatsApp links retain their allo
   }
   assert.equal(await (await run('/partido/1/invitacion?codigo=ABCD')).text(), '/mobile-only.html');
 });
-test('legal pages (terms, terms of sale, privacy, account deletion, arrepentimiento, baja del servicio) are public reads; writes stay denied', async () => {
-  for (const path of ['/terms', '/terminos-de-venta', '/privacy', '/account-deletion', '/arrepentimiento', '/baja-del-servicio']) {
+test('legal pages (terms, terms of sale, privacy, account deletion, arrepentimiento, baja del servicio, provider data) are public reads; writes stay denied', async () => {
+  for (const path of ['/terms', '/terminos-de-venta', '/privacy', '/account-deletion', '/arrepentimiento', '/baja-del-servicio', '/legales']) {
     assert.equal(await (await run(path)).text(), path, path);
     assert.equal(await (await run(path, { method: 'HEAD' })).text(), path, `HEAD ${path}`);
     assert.equal((await run(path, { method: 'POST', body: 'x' })).status, 403, `POST ${path}`);
   }
   // Exact paths only: nothing under them, and the rest of the site stays gated.
-  for (const path of ['/terms/x', '/arrepentimiento/admin', '/baja-del-servicio/x', '/privacy.html', '/terminos', '/baja']) {
+  for (const path of ['/terms/x', '/arrepentimiento/admin', '/baja-del-servicio/x', '/privacy.html', '/terminos', '/baja', '/legales/x', '/legal']) {
     assert.equal(await (await run(path)).text(), '/mobile-only.html', path);
   }
-  // The public gate (home page, first access) carries the provider identity and both legends, also in a fixed bar.
+  // The public gate (home page, first access) carries both legends in its fixed strip and links the provider data at
+  // /legales; the provider's name, CUIT and address are not on it (owner decision 2026-10-15).
   const gatePage = fs.readFileSync(new URL('../../public/mobile-only.html', import.meta.url), 'utf8');
-  for (const needle of ['href="/arrepentimiento"', 'BOTÓN DE ARREPENTIMIENTO', 'href="/baja-del-servicio"', 'BOTÓN DE BAJA DE SERVICIO', 'class="gate-consumer-bar"', 'href="/terminos-de-venta"', 'href="/privacy"', 'CUIT 20-30334438-2',
-    'Defensa de las y los Consumidores. Para reclamos ingrese aquí']) assert.ok(gatePage.includes(needle), needle);
+  for (const needle of ['href="/arrepentimiento"', 'BOTÓN DE ARREPENTIMIENTO', 'href="/baja-del-servicio"', 'BOTÓN DE BAJA DE SERVICIO', 'class="gate-consumer-bar"', 'href="/legales"', 'href="/privacy"', 'href="/terms"']) {
+    assert.ok(gatePage.includes(needle), needle);
+  }
+  for (const absent of ['CUIT', '20-30334438-2', 'Bacon 4884']) assert.ok(!gatePage.includes(absent), absent);
 });
 test('legacy WhatsApp voting alias redirects without weakening the gate', async () => {
   const response = await run('/?codigo=ABCD');
