@@ -397,8 +397,11 @@ test('guard detects secrets, privileged JWTs, hardcoded endpoints and production
 // Core's share button uses). It is a link the person follows, not a backend target; no other URL is allowed.
 // The consumer-complaints link (Ventanilla Federal de Defensa de las y los Consumidores) is the one official URL the legal
 // pages must carry.
+// Account deletion: Apple's own help page on how to stop using Sign in with Apple with an app (Support 102571), which the
+// account-deletion texts link when the Apple tokens could not be revoked (Apple TN3194).
 const EXTERNAL_LINKS = new Map([['src/features/torneos/domain/connectedProduct.js', ['https://wa.me/']],
-  ['src/legal/legalIdentity.js', ['https://www.argentina.gob.ar/produccion/defensadelconsumidor/formulario']]]);
+  ['src/legal/legalIdentity.js', ['https://www.argentina.gob.ar/produccion/defensadelconsumidor/formulario']],
+  ['src/legal/accountDeletion.js', ['https://support.apple.com/102571']]]);
 
 test('new/changed frontend and config lines contain no secrets or hardcoded targets', () => {
   const tracked = execFileSync('git', ['diff','--name-only','HEAD','--','src','config'], {cwd:root,encoding:'utf8'}).trim().split('\n');

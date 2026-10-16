@@ -35,7 +35,17 @@ import {
   signOutWithPushDeactivation,
 } from '../services/authLogoutService';
 import { closePrivateWebAccess } from '../utils/privateWebAccess';
-import { ACCOUNT_DELETION_SHORT, requestCoreAccountDeletion } from '../legal/accountDeletion';
+import {
+  ACCOUNT_DELETION_SHORT,
+  APPLE_NO_REAUTH_NOTICE,
+  APPLE_REAUTH_DECLINED,
+  APPLE_REAUTH_NOTICE,
+  APPLE_UNLINK_MANUAL,
+  hasAppleIdentity,
+  runAccountDeletion,
+} from '../legal/accountDeletion';
+import AppleUnlinkSteps from '../legal/AppleUnlinkSteps';
+import { isIosNativePlatform, requestAppleAuthorizationCodeForDeletion } from '../services/auth/appleDeletionReauth';
 
 const GEO_LOG_PREFIX = '[PROFILE_GEO]';
 const LOCATION_DETECTION_FAILED_MESSAGE = 'No pudimos obtener tu ubicación. Volvé a intentarlo.';
@@ -422,20 +432,60 @@ const DeleteAccountModal = ({
   onConfirmationTextChange,
   onClose,
   onConfirm,
+  isAppleAccount = false,
+  appleOnThisDevice = false,
+  appleStep = 'idle',
+  onDeleteWithoutApple,
+  onAppleStepBack,
+  onUnlinkAcknowledged,
 }) => {
   if (!isOpen) return null;
 
   const canConfirm = confirmationText.trim().toUpperCase() === 'ELIMINAR' && !loading;
+  const secondaryButtonClass = 'h-[50px] min-w-[128px] px-6 rounded-[var(--radius-standard)] text-[16px] font-semibold tracking-[0.01em] font-oswald whitespace-nowrap cursor-pointer border bg-[rgba(23,35,74,0.72)] border-[rgba(148,134,255,0.2)] text-white hover:brightness-110 active:opacity-95 disabled:opacity-50 disabled:cursor-default transition-all';
+  const dangerButtonClass = 'h-[50px] min-w-[132px] px-6 rounded-[var(--radius-standard)] text-[16px] font-semibold tracking-[0.01em] font-oswald whitespace-nowrap border transition-all bg-[linear-gradient(132deg,#b91c1c_0%,#dc2626_50%,#ef4444_100%)] border-red-300/40 text-white shadow-[0_0_14px_rgba(239,68,68,0.22)] hover:brightness-110 active:opacity-95 cursor-pointer disabled:opacity-50 disabled:cursor-default';
+
+  let stepContent = null;
+  if (appleStep === 'unlink') {
+    // The account is already deleted; the Apple tokens could not be revoked: how to unlink by hand (Apple TN3194).
+    stepContent = (
+      <div className="space-y-4" role="status">
+        <p className="text-[15px] leading-relaxed text-white/85">{APPLE_UNLINK_MANUAL}</p>
+        <AppleUnlinkSteps className="text-[15px] leading-relaxed text-white/85" />
+        <div className="flex justify-end">
+          <button type="button" className={dangerButtonClass} onClick={onUnlinkAcknowledged} disabled={loading}>Entendido</button>
+        </div>
+      </div>
+    );
+  } else if (appleStep === 'declined') {
+    // The person closed the Apple sheet: nothing was deleted yet; deleting anyway stays possible (Apple TN3194).
+    stepContent = (
+      <div className="space-y-4" role="alert">
+        <p className="text-[15px] leading-relaxed text-white/85">{APPLE_REAUTH_DECLINED}</p>
+        <AppleUnlinkSteps className="text-[15px] leading-relaxed text-white/70" />
+        <div className="flex flex-col sm:flex-row gap-3 justify-end">
+          <button type="button" className={secondaryButtonClass} onClick={onAppleStepBack} disabled={loading}>Volver</button>
+          <button type="button" className={dangerButtonClass} onClick={onDeleteWithoutApple} disabled={loading}>
+            {loading ? 'Eliminando...' : 'Eliminar igual'}
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   const modalContent = (
     <div data-modal-root="true" className="fixed inset-0 z-[20000] bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
       <div className="w-full max-w-[500px] bg-white/5 backdrop-blur-2xl rounded-[var(--radius-standard)] p-6 border border-white/10 shadow-[0_32px_64px_rgba(0,0,0,0.5)]">
         <div className="flex items-start justify-between gap-4 mb-4">
           <div className="pr-2">
-            <h3 className="text-2xl leading-none font-oswald font-semibold tracking-[0.01em] text-white">Eliminar cuenta</h3>
-            <p className="text-base leading-relaxed text-white/80 mt-2 font-oswald">
-              Esta acción es permanente y no se puede deshacer.
-            </p>
+            <h3 className="text-2xl leading-none font-oswald font-semibold tracking-[0.01em] text-white">
+              {appleStep === 'unlink' ? 'Cuenta eliminada' : 'Eliminar cuenta'}
+            </h3>
+            {appleStep !== 'unlink' && (
+              <p className="text-base leading-relaxed text-white/80 mt-2 font-oswald">
+                Esta acción es permanente y no se puede deshacer.
+              </p>
+            )}
           </div>
           <button
             type="button"
@@ -448,6 +498,7 @@ const DeleteAccountModal = ({
           </button>
         </div>
 
+        {stepContent || (
         <form
           className="space-y-4"
           onSubmit={(e) => {
@@ -459,6 +510,11 @@ const DeleteAccountModal = ({
             {ACCOUNT_DELETION_SHORT}{' '}
             <Link className="underline" to="/account-deletion">Qué se borra y qué se conserva</Link>
           </p>
+          {isAppleAccount && (
+            <p className="text-[15px] leading-relaxed text-white/85">
+              {appleOnThisDevice ? APPLE_REAUTH_NOTICE : APPLE_NO_REAUTH_NOTICE}
+            </p>
+          )}
 
           <div className="space-y-2">
             <label className="block text-white/85 text-sm font-semibold tracking-wide">
@@ -498,6 +554,7 @@ const DeleteAccountModal = ({
             </button>
           </div>
         </form>
+        )}
       </div>
     </div>
   );
@@ -578,6 +635,8 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
   const [showLogoutConfirmModal, setShowLogoutConfirmModal] = useState(false);
   const [showDeleteAccountModal, setShowDeleteAccountModal] = useState(false);
   const [deleteAccountConfirmation, setDeleteAccountConfirmation] = useState('');
+  // Sign in with Apple during the deletion: 'idle' | 'declined' (the Apple sheet was closed) | 'unlink' (deleted, not revoked)
+  const [deleteAppleStep, setDeleteAppleStep] = useState('idle');
   const [inlineNotice, setInlineNotice] = useState(null);
   const [locationLoading, setLocationLoading] = useState(false);
   const [locationDisabled, setLocationDisabled] = useState(false);
@@ -1269,28 +1328,17 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
     }
 
     setDeleteAccountConfirmation('');
+    setDeleteAppleStep('idle');
     setShowDeleteAccountModal(true);
   }, [showInlineNotice, user?.id, isLocalDevSession]);
 
-  const closeDeleteAccountModal = useCallback(() => {
-    if (loading) return;
-    setShowDeleteAccountModal(false);
-    setDeleteAccountConfirmation('');
-  }, [loading]);
-
-  const confirmDeleteAccount = useCallback(async () => {
-    if (deleteAccountConfirmation.trim().toUpperCase() !== 'ELIMINAR') {
-      showInlineNotice('warning', 'Para confirmar, escribí ELIMINAR.');
-      return;
-    }
-
+  // The account is gone on the server: close the modal, clear the local session and leave.
+  const finishAccountDeletion = useCallback(async () => {
     setLoading(true);
     try {
-      // Core delete-account: Torneos first (fail-closed), then Core. Messages for the person: legal/accountDeletion.js.
-      await requestCoreAccountDeletion(supabase);
-
       setShowDeleteAccountModal(false);
       setDeleteAccountConfirmation('');
+      setDeleteAppleStep('idle');
       setShowLogoutConfirmModal(false);
       showInlineNotice('success', 'Cuenta eliminada correctamente.');
       const logoutResult = await clearLocalAuthSession();
@@ -1300,13 +1348,67 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
       onClose();
       navigate('/login', { replace: true });
     } catch (error) {
-      // eslint-disable-next-line no-console
-      logger.error('[DELETE_ACCOUNT] raw error:', error?.message, error);
-      notifyBlockingError(friendlyError(error, 'No se pudo eliminar la cuenta. Intentá de nuevo más tarde.'));
+      logger.error('[DELETE_ACCOUNT] logout after deletion failed:', error?.message);
+      notifyBlockingError(friendlyError(error, 'No se pudo cerrar la sesión. Cerrá la app y volvé a abrirla.'));
     } finally {
       setLoading(false);
     }
-  }, [deleteAccountConfirmation, navigate, onClose, showInlineNotice]);
+  }, [navigate, onClose, showInlineNotice]);
+
+  const closeDeleteAccountModal = useCallback(() => {
+    if (loading) return;
+    // After the deletion (Apple unlink instructions on screen) closing the modal finishes the deletion.
+    if (deleteAppleStep === 'unlink') {
+      finishAccountDeletion();
+      return;
+    }
+    setShowDeleteAccountModal(false);
+    setDeleteAccountConfirmation('');
+    setDeleteAppleStep('idle');
+  }, [loading, deleteAppleStep, finishAccountDeletion]);
+
+  const runDeleteAccount = useCallback(async ({ withoutApple = false } = {}) => {
+    if (deleteAccountConfirmation.trim().toUpperCase() !== 'ELIMINAR') {
+      showInlineNotice('warning', 'Para confirmar, escribí ELIMINAR.');
+      return;
+    }
+
+    setLoading(true);
+    let outcome;
+    try {
+      // Core delete-account: Torneos first (fail-closed), then the person's photos (fail-closed), then Core; an Apple
+      // account on the iPhone confirms with Apple first so its tokens are revoked. Messages: legal/accountDeletion.js.
+      outcome = await runAccountDeletion({
+        client: supabase,
+        user,
+        isIosNative: isIosNativePlatform,
+        getAppleAuthorizationCode: requestAppleAuthorizationCodeForDeletion,
+        withoutApple,
+      });
+    } catch (error) {
+      logger.error('[DELETE_ACCOUNT] raw error:', error?.message);
+      notifyBlockingError(friendlyError(error, 'No se pudo eliminar la cuenta. Intentá de nuevo más tarde.'));
+      setLoading(false);
+      return;
+    }
+    setLoading(false);
+    if (outcome.status === 'apple_declined') {
+      // Nothing deleted yet: explain and let the person delete anyway (Apple TN3194) or go back.
+      setDeleteAppleStep('declined');
+      return;
+    }
+    if (outcome.appleUnlinkNeeded) {
+      setDeleteAppleStep('unlink');
+      return;
+    }
+    await finishAccountDeletion();
+  }, [deleteAccountConfirmation, finishAccountDeletion, showInlineNotice, user]);
+
+  const confirmDeleteAccount = useCallback(() => runDeleteAccount(), [runDeleteAccount]);
+  const confirmDeleteWithoutApple = useCallback(() => runDeleteAccount({ withoutApple: true }), [runDeleteAccount]);
+  const backFromAppleStep = useCallback(() => setDeleteAppleStep('idle'), []);
+  const isAppleAccount = hasAppleIdentity(user);
+  const appleOnThisDevice = isAppleAccount && isIosNativePlatform();
 
   const handleGeolocation = useCallback(() => {
     if (locationLoading) return;
@@ -1550,6 +1652,12 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
           onConfirmationTextChange={setDeleteAccountConfirmation}
           onClose={closeDeleteAccountModal}
           onConfirm={confirmDeleteAccount}
+          isAppleAccount={isAppleAccount}
+          appleOnThisDevice={appleOnThisDevice}
+          appleStep={deleteAppleStep}
+          onDeleteWithoutApple={confirmDeleteWithoutApple}
+          onAppleStepBack={backFromAppleStep}
+          onUnlinkAcknowledged={finishAccountDeletion}
         />
         <ConfirmModal
           isOpen={showLogoutConfirmModal}
@@ -1798,6 +1906,12 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
           onConfirmationTextChange={setDeleteAccountConfirmation}
           onClose={closeDeleteAccountModal}
           onConfirm={confirmDeleteAccount}
+          isAppleAccount={isAppleAccount}
+          appleOnThisDevice={appleOnThisDevice}
+          appleStep={deleteAppleStep}
+          onDeleteWithoutApple={confirmDeleteWithoutApple}
+          onAppleStepBack={backFromAppleStep}
+          onUnlinkAcknowledged={finishAccountDeletion}
         />
         <ConfirmModal
           isOpen={showLogoutConfirmModal}
