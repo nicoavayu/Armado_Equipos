@@ -36,7 +36,7 @@ test('jugadores-fotos: removes <uid>/… (any depth), root <uid>_… files and <
   assert.deepEqual(result, { status: 'ok', removed: 4, keptReferenced: 0 });
   assert.deepEqual(removedPaths(storage, 'jugadores-fotos'), [...mine].sort());
   assert.deepEqual(storage.objects('jugadores-fotos'), [...foreign].sort());
-  const rootList = storage.calls.find((c) => c.op === 'list' && c.prefix === '');
+  const rootList = storage.calls.find((c) => c.op === 'list' && c.bucket === 'jugadores-fotos' && c.prefix === '');
   assert.equal(rootList.options.search, UID, 'the root listing is narrowed by search; the filter itself is in code');
   assert.deepEqual(rootList.options.sortBy, { column: 'name', order: 'asc' });
 });
@@ -165,4 +165,188 @@ test('too deep: objects below MAX_DEPTH folders → incomplete storage_too_deep 
   const result = await run(storage);
   assert.deepEqual(result, { status: 'incomplete', removed: 1, keptReferenced: 0, code: 'storage_too_deep' });
   assert.deepEqual(storage.objects('jugadores-fotos'), [deep]);
+});
+
+// ── Bucket classification (Codex review of #218: `avatars` was not classified) ───────────────────────────────────────
+
+const REPO = process.cwd();
+const listFiles = async (dir, keep) => {
+  const out = [];
+  for (const entry of await fs.readdir(dir, { withFileTypes: true })) {
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) { if (!['node_modules', '__tests__', '__mocks__'].includes(entry.name)) out.push(...await listFiles(full, keep)); }
+    else if (keep(entry.name)) out.push(full);
+  }
+  return out;
+};
+/** Every Storage bucket id the Core repo declares or uses: SQL (create/update buckets, policies), config.toml, Edge
+ * Functions and the app (storage.from('…'), *_BUCKET constants). The Torneos project (backend/torneos) is another
+ * Supabase project with its own Storage: not Core, not this step. */
+async function bucketsDeclaredInRepo() {
+  const found = new Map();
+  const note = (bucket, file) => { if (!found.has(bucket)) found.set(bucket, new Set()); found.get(bucket).add(path.relative(REPO, file)); };
+  const sqlFiles = await listFiles(path.join(REPO, 'supabase'), (n) => n.endsWith('.sql'));
+  for (const file of sqlFiles) {
+    const sql = await fs.readFile(file, 'utf8');
+    for (const block of sql.matchAll(/insert\s+into\s+storage\.buckets[\s\S]*?(?:on\s+conflict|;)/gi)) {
+      for (const tuple of block[0].matchAll(/\(\s*'([a-z0-9][a-z0-9_-]*)'/gi)) note(tuple[1], file);
+    }
+    for (const match of sql.matchAll(/update\s+storage\.buckets[\s\S]*?where\s+id\s*=\s*'([^']+)'/gi)) note(match[1], file);
+    for (const match of sql.matchAll(/bucket(?:_id|\.id)\s*=\s*'([^']+)'/gi)) note(match[1], file);
+    for (const match of sql.matchAll(/bucket(?:_id|\.id)\s+in\s*\(([^)]*)\)/gi)) for (const q of match[1].matchAll(/'([^']+)'/g)) note(q[1], file);
+  }
+  const tomlPath = path.join(REPO, 'supabase', 'config.toml');
+  const toml = await fs.readFile(tomlPath, 'utf8');
+  for (const match of toml.matchAll(/^\s*\[storage\.buckets\.([^\]]+)\]/gm)) note(match[1].replace(/^"|"$/g, ''), tomlPath);
+  const codeFiles = [
+    ...await listFiles(path.join(REPO, 'supabase', 'functions'), (n) => /\.(ts|js|mjs)$/.test(n)),
+    ...await listFiles(path.join(REPO, 'src'), (n) => /\.(js|jsx|ts|tsx)$/.test(n) && !/\.test\./.test(n)),
+  ];
+  for (const file of codeFiles) {
+    const code = await fs.readFile(file, 'utf8');
+    for (const match of code.matchAll(/storage\s*\.from\(\s*['"`]([^'"`]+)['"`]/g)) note(match[1], file);
+    for (const match of code.matchAll(/\b[A-Z][A-Z0-9_]*BUCKET\s*(?::\s*[A-Za-z]+\s*)?=\s*['"`]([^'"`]+)['"`]/g)) note(match[1], file);
+  }
+  return found;
+}
+
+test('classification: every bucket the Core repo declares is classified (fail closed: a new bucket fails this test until it is)', async () => {
+  const declared = await bucketsDeclaredInRepo();
+  for (const known of ['jugadores-fotos', 'team-crests', 'avatars', 'tournament-branding', 'tournament-player-portraits', 'tournament-team-photos', 'tournament-media']) {
+    assert.ok(declared.has(known), `the scanner still finds ${known} (guards against a scanner that silently finds nothing)`);
+  }
+  const unclassified = [...declared.keys()].filter((bucket) => m.bucketRule(bucket) === null)
+    .map((bucket) => `${bucket} (${[...declared.get(bucket)].join(', ')})`);
+  assert.deepEqual(unclassified, [], 'classify it in CORE_STORAGE_BUCKETS (supabase/functions/_shared/coreAccountStorageErasure.ts) and in the design doc §2.6');
+});
+
+test('the operator inventory SQL is READ ONLY + ROLLBACK, SELECT-only, covers every erased bucket and prints no names', async () => {
+  const raw = await fs.readFile(path.join(REPO, 'scripts', 'ops', 'core-account-deletion', 'storage-inventory-readonly.sql'), 'utf8');
+  const sql = raw.split('\n').map((line) => line.replace(/--.*$/, '')).join('\n');
+  const statements = sql.split(';').map((s) => s.trim()).filter(Boolean);
+  assert.equal(statements[0].toLowerCase(), 'begin transaction read only');
+  assert.equal(statements.at(-1).toLowerCase(), 'rollback');
+  for (const statement of statements.slice(1, -1)) {
+    assert.match(statement, /^(set local statement_timeout = '\d+s'|select\b|with\b)/i, statement.slice(0, 60));
+  }
+  assert.doesNotMatch(sql, /\b(insert|update|delete|alter|drop|create|grant|revoke|truncate|copy|call|do)\b/i);
+  // Output columns are aggregates or bucket settings: never the object name, an owner id, a URL or a user id.
+  assert.doesNotMatch(sql, /select\s+(distinct\s+)?(o\.)?(name|owner_id|id)\s*[,\n]/i);
+  for (const bucket of m.ERASED_BUCKETS) assert.ok(sql.includes(`'${bucket}'`), bucket);
+});
+
+test('classification: the table is explicit, frozen and erases exactly jugadores-fotos, avatars and team-crests', () => {
+  assert.ok(Object.isFrozen(m.CORE_STORAGE_BUCKETS));
+  for (const [bucket, rule] of Object.entries(m.CORE_STORAGE_BUCKETS)) {
+    assert.ok(Object.isFrozen(rule), bucket);
+    assert.ok(['person', 'team', 'organization'].includes(rule.owner), bucket);
+    assert.ok(['uid_folder_and_uid_underscore', 'uid_underscore', 'uid_folder_unreferenced', 'never'].includes(rule.erasure), bucket);
+    assert.ok(typeof rule.reason === 'string' && rule.reason.length > 40, `${bucket} says why`);
+    if (rule.owner === 'organization') assert.equal(rule.erasure, 'never', `${bucket}: organization content is never erased with a person`);
+  }
+  assert.deepEqual([...m.ERASED_BUCKETS], ['jugadores-fotos', 'avatars', 'team-crests']);
+  assert.deepEqual(
+    Object.fromEntries(Object.entries(m.CORE_STORAGE_BUCKETS).map(([b, r]) => [b, `${r.owner}:${r.erasure}`])),
+    {
+      'jugadores-fotos': 'person:uid_folder_and_uid_underscore',
+      avatars: 'person:uid_underscore',
+      'team-crests': 'team:uid_folder_unreferenced',
+      'tournament-branding': 'organization:never',
+      'tournament-player-portraits': 'organization:never',
+      'tournament-team-photos': 'organization:never',
+      'tournament-media': 'organization:never',
+    },
+  );
+  assert.equal(m.bucketRule('unknown-bucket'), null);
+  assert.equal(m.bucketRule('__proto__'), null);
+  assert.equal(m.bucketRule('toString'), null);
+});
+
+test('classification: a bucket that is not erased (tournament-*, unknown) is never listed nor removed, and no path in it is ever "own"', async () => {
+  const opened = [];
+  const storage = createFakeStorage({ 'tournament-branding': [`${UID}/a.png`], 'unknown-bucket': [`${UID}_1.jpg`] });
+  const api = { from: (bucket) => { opened.push(bucket); return storage.api.from(bucket); } };
+  await m.eraseCoreAccountStorage({ storage: api, db: createFakeReferenceDb(), userId: UID });
+  assert.deepEqual(opened, ['jugadores-fotos', 'avatars', 'team-crests']);
+  assert.deepEqual(storage.objects('tournament-branding'), [`${UID}/a.png`]);
+  for (const bucket of ['tournament-branding', 'tournament-player-portraits', 'tournament-team-photos', 'tournament-media', 'unknown-bucket', '__proto__']) {
+    for (const p of [`${UID}/a.png`, `${UID}_1.jpg`, `organizations/${UID}/x.png`]) assert.ok(!m.isOwnPath(bucket, UID, p), `${bucket}:${p}`);
+  }
+});
+
+test('avatars: removes root <uid>_… (files and <uid>_… folders); never <uid>/…, another id, a name with the uid in the middle or in uppercase', async () => {
+  const mine = [`${UID}_1600000000000.png`, `${UID}_1700000000000.jpg`, `${UID}_old/z.jpg`];
+  const foreign = [`${OTHER}_1.png`, `${OTHER}/a.png`, `foo${UID}_x.png`, `${UID.toUpperCase()}_1.png`, `x/${UID}_1.png`, `${UID}/folder.png`, 'default.png'];
+  const storage = createFakeStorage({ avatars: [...mine, ...foreign] });
+  assert.deepEqual(await run(storage), { status: 'ok', removed: 3, keptReferenced: 0 });
+  assert.deepEqual(removedPaths(storage, 'avatars'), [...mine].sort());
+  assert.deepEqual(storage.objects('avatars'), [...foreign].sort());
+  assert.ok(!storage.calls.some((c) => c.bucket === 'avatars' && c.op === 'list' && c.prefix === UID), 'avatars never lists a <uid>/ folder');
+  assert.ok(m.isOwnPath('avatars', UID, `${UID}_1.png`));
+  assert.ok(!m.isOwnPath('avatars', UID, `${UID}/a.png`));
+  assert.ok(!m.isOwnPath('avatars', UID, `${UID}_`), 'the bare prefix is not an object');
+});
+
+test('guest/…, partido_… and every name without the uid prefix stay in every bucket (they are out of scope: their own GO)', async () => {
+  const untouched = {
+    'jugadores-fotos': ['guest/12/aaaa.jpg', 'guest/13/bbbb.png', 'partido_1700.jpg', 'sin-dueno.jpg', `${OTHER}_1.jpg`],
+    avatars: ['default.png', `${OTHER}_9.png`],
+    'team-crests': ['draft/x.png', `${OTHER}/t/1.png`],
+  };
+  const storage = createFakeStorage({
+    'jugadores-fotos': [...untouched['jugadores-fotos'], `${UID}_1.jpg`],
+    avatars: [...untouched.avatars, `${UID}_1.png`],
+    'team-crests': [...untouched['team-crests'], `${UID}/draft/1.png`],
+  });
+  assert.deepEqual(await run(storage), { status: 'ok', removed: 3, keptReferenced: 0 });
+  for (const [bucket, paths] of Object.entries(untouched)) assert.deepEqual(storage.objects(bucket), [...paths].sort(), bucket);
+});
+
+test('large user (today\'s max: 136 photos, 8 avatars, 15 crests) among 300+ other objects: everything of theirs, nothing else', async () => {
+  const photos = Array.from({ length: 136 }, (_, i) => `${UID}_${1600000000000 + i}.${i % 3 ? 'jpg' : 'png'}`);
+  const avatars = Array.from({ length: 8 }, (_, i) => `${UID}_${1500000000000 + i}.png`);
+  const crests = Array.from({ length: 15 }, (_, i) => `${UID}/team-${i % 4}/${1700000000000 + i}-escudo.png`);
+  const others = Array.from({ length: 198 }, (_, i) => (i % 2 ? `${randomUUID()}_${i}.jpg` : `guest/${i}/x.jpg`));
+  const storage = createFakeStorage({ 'jugadores-fotos': [...photos, ...others], avatars: [...avatars, `${OTHER}_1.png`], 'team-crests': [...crests, `${OTHER}/t/x.png`] });
+  const db = createFakeReferenceDb({ teams: [{ crest_url: `${PUBLIC}/team-crests/${crests[0]}` }] });
+  assert.deepEqual(await run(storage, db), { status: 'ok', removed: 136 + 8 + 14, keptReferenced: 1 });
+  assert.deepEqual(storage.objects('jugadores-fotos'), [...others].sort());
+  assert.deepEqual(storage.objects('avatars'), [`${OTHER}_1.png`]);
+  assert.deepEqual(storage.objects('team-crests'), [crests[0], `${OTHER}/t/x.png`].sort());
+  const photoRemoves = storage.calls.filter((c) => c.op === 'remove' && c.bucket === 'jugadores-fotos');
+  assert.deepEqual(photoRemoves.map((c) => c.paths.length), [100, 36], '136 photos → batches of 100 + 36');
+});
+
+test('pagination of the ROOT listing: 1250 root <uid>_… photos and 1100 avatars are listed in pages of 1000 (offsets 0, 1000) and all removed', async () => {
+  const photos = Array.from({ length: 1250 }, (_, i) => `${UID}_${String(i).padStart(6, '0')}.jpg`);
+  const avatars = Array.from({ length: 1100 }, (_, i) => `${UID}_${String(i).padStart(6, '0')}.png`);
+  const storage = createFakeStorage({ 'jugadores-fotos': [...photos, `${OTHER}_1.jpg`], avatars: [...avatars, `${OTHER}_1.png`] });
+  assert.deepEqual(await run(storage), { status: 'ok', removed: 2350, keptReferenced: 0 });
+  for (const bucket of ['jugadores-fotos', 'avatars']) {
+    const rootLists = storage.calls.filter((c) => c.op === 'list' && c.bucket === bucket && c.prefix === '');
+    assert.deepEqual(rootLists.map((c) => c.options.offset), [0, 1000], bucket);
+    assert.ok(rootLists.every((c) => c.options.limit === 1000 && c.options.search === UID), bucket);
+  }
+  assert.deepEqual(storage.objects('jugadores-fotos'), [`${OTHER}_1.jpg`]);
+  assert.deepEqual(storage.objects('avatars'), [`${OTHER}_1.png`]);
+  assert.ok(storage.calls.filter((c) => c.op === 'remove').every((c) => c.paths.length <= 100));
+});
+
+test('the bound counts across buckets: 4990 photos + 20 avatars → incomplete at 5000; the retry finishes the avatars', async () => {
+  const photos = Array.from({ length: 4990 }, (_, i) => `${UID}/${String(i).padStart(5, '0')}.jpg`);
+  const avatars = Array.from({ length: 20 }, (_, i) => `${UID}_${i}.png`);
+  const storage = createFakeStorage({ 'jugadores-fotos': photos, avatars });
+  assert.deepEqual(await run(storage), { status: 'incomplete', removed: 5000, keptReferenced: 0, code: 'storage_too_many_objects' });
+  assert.deepEqual(await run(storage), { status: 'ok', removed: 10, keptReferenced: 0 });
+  assert.deepEqual([storage.objects('jugadores-fotos'), storage.objects('avatars')], [[], []]);
+});
+
+test('legacy SVG under the person\'s prefix (6 in Prod jugadores-fotos) is removed by path with remove(): never downloaded, signed or rendered', async () => {
+  const svgs = [`${UID}_1600000000000.svg`, `${UID}/legacy.svg`, `${UID}_1600000000001.SVG`];
+  const storage = createFakeStorage({ 'jugadores-fotos': [...svgs, `${OTHER}_1.svg`], avatars: [`${UID}_x.svg`] });
+  assert.deepEqual(await run(storage), { status: 'ok', removed: 4, keptReferenced: 0 });
+  assert.deepEqual(removedPaths(storage, 'jugadores-fotos'), [...svgs].sort());
+  assert.deepEqual(removedPaths(storage, 'avatars'), [`${UID}_x.svg`]);
+  assert.deepEqual(storage.objects('jugadores-fotos'), [`${OTHER}_1.svg`]);
+  assert.deepEqual([...new Set(storage.calls.map((c) => c.op))].sort(), ['list', 'remove'], 'only list and remove: no download, signed URL or public URL');
 });
