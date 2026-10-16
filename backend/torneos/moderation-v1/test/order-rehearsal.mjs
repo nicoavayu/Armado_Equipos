@@ -1,6 +1,9 @@
-// Ordering rehearsal of 0022 next to 0020 (sponsors, origin/claude/torneos-premium-sponsors) and 0021 (account erasure,
-// the other agent's in-progress file, copied read-only): both orders, each with a functional smoke and full rollbacks.
-// Prints one JSON line per step (evidence).
+// Ordering rehearsal of 0022 next to 0020 (sponsors, origin/claude/torneos-premium-sponsors, PR #212) and 0021 (account
+// erasure, the committed file of origin/claude/torneos-account-deletion, PR #217, copied read-only): both orders, each with a
+// functional smoke (a report filed and resolved, then the reporter's account erased by 0021) and full rollbacks.
+// 0021 never deletes the identity row (it severs it): what keeps 0022 compatible is 0021's explicit classification of
+// 0022's tables, checked here (reporter and detail cleared, the reporter's own «created» event without actor, the report
+// and the staff column handled_by kept, the identity row still present). Prints one JSON line per step (evidence).
 import fs from 'node:fs';
 import { randomUUID } from 'node:crypto';
 const W = new URL('../../../../', import.meta.url).pathname.replace(/\/$/, '');
@@ -19,14 +22,22 @@ const state = () => ({ s0020: has("select to_regclass('public.tournament_organiz
 function smoke(label) {
   const w = L.world(`ord${label}`);
   const fan = L.F.identity('fan');
-  const r = L.call(fan, 'report_tournament_content', `'team', ${lit(w.slug)}, null, ${lit(w.teamName)}, 'offensive', null, ${lit(randomUUID())}`);
+  const r = L.call(fan, 'report_tournament_content', `'team', ${lit(w.slug)}, null, ${lit(w.teamName)}, 'offensive', 'Detalle de laboratorio', ${lit(randomUUID())}`);
   const handled = L.call(w.admin, 'handle_tournament_content_report', `${lit(r.reportId)}, 'resolved', 'neutralize_team_name', 'Ensayo de orden'`);
   const result = { report: r.reviewScope, handled: handled.status };
   if (state().s0021) {
-    // The reporter deletes their account: 0021 erases it; the report stays, its reporter is the severed identity.
-    const erased = JSON.parse(L.lab.sql(`select private.erase_tournament_account(${lit(fan.core)}, ${lit(randomUUID())})::text`, { user: 'postgres' }).trim().split('\n').pop());
+    // The reporter deletes their account: 0021 erases it as torneos_erasure_writer (the only role 0021 grants it to; the
+    // lab's superuser takes that role, as the gateway's erasure login does). The report stays, without its reporter.
+    const erased = JSON.parse(L.lab.sql(`set role torneos_erasure_writer;\nselect private.erase_tournament_account(${lit(fan.core)}, ${lit(randomUUID())})::text;`).trim().split('\n').pop());
     result.erasure = erased.outcome;
-    result.reportKept = L.one(`select count(*) from public.tournament_content_reports where id = ${lit(r.reportId)}`) === '1';
+    const q = (sql) => L.one(sql.replace('$R', lit(r.reportId)));
+    result.reportKept = q('select count(*) from public.tournament_content_reports where id = $R') === '1';
+    result.identityRowKept = L.one(`select count(*) from public.torneos_identity where id = ${lit(fan.id)}`) === '1';
+    result.reporterNull = q('select (reporter_user_id is null)::text from public.tournament_content_reports where id = $R') === 'true';
+    result.detailNull = q('select (detail is null)::text from public.tournament_content_reports where id = $R') === 'true';
+    result.createdActorNull = q("select count(*) from public.tournament_content_report_events where report_id = $R and event = 'created' and actor_user_id is not null") === '0';
+    result.handledByKept = q('select (handled_by is not null)::text from public.tournament_content_reports where id = $R') === 'true';
+    result.reportsDetached = erased.counts?.reportsDetached ?? null;
   }
   out(`smoke ${label}`, result);
 }

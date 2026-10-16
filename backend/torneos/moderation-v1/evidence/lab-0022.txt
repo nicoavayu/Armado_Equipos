@@ -1,7 +1,7 @@
 # MODERATION 0022 — ensayo local (npm run test:torneos:moderation)
-Fecha: 2026-10-15T22:39Z. Base: origin/main b4fb150a. Rama: claude/torneos-moderation.
+Fecha: 2026-10-16T00:25Z. Base: origin/main b4fb150a. Rama: claude/torneos-moderation (sobre 44a75273; 0022 sin cambios).
 Laboratorio: PostgreSQL descartable public.ecr.aws/supabase/postgres:17.6.1.143 (commerce-production/lab/pg-lab.mjs),
-contenedor arma2-moderation-lab-db-896d7f5d, red propia arma2-moderation-lab-db-896d7f5d-net 10.233.60.0/24, puerto
+contenedor arma2-moderation-lab-db-2163cf14, red propia arma2-moderation-lab-db-2163cf14-net 10.233.90.0/24, puerto
 sólo en 127.0.0.1. 0000 → 0019 como instalador del lab, luego dueños = postgres (no superusuario, como el proyecto
 hospedado); 0022 y su rollback aplicados por db-0022.mjs run() como postgres. Datos 100 % ficticios («Lab …», «Los
 Insultos …», «Apodo Ofensivo …»). Nada remoto: ni Production, ni Staging, ni el gateway, ni la web.
@@ -30,7 +30,10 @@ rollback 0022 sha256 8e4dfb465be818af40d4f0b56f7cd18153ef64a94ca91c552cdb4e528c2
 ✔ a participant mutes an organization: current and new announcements go to the archive, emergencies still arrive
 ✔ rollback-0022 is refused while moderation rows exist; the force phrase discards them; the catalog is identical; re-apply works
 ℹ tests 20
+ℹ suites 0
 ℹ pass 20
 ℹ fail 0
+ℹ cancelled 0
 ℹ skipped 0
-ℹ duration_ms 10327.719833
+ℹ todo 0
+ℹ duration_ms 9848.036

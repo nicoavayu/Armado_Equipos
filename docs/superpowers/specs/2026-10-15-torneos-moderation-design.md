@@ -31,7 +31,8 @@ ficticios.
 | 14 | Bloqueo | **(a) Jugador → organización:** «Silenciar comunicados de esta organización». Los comunicados nuevos llegan archivados (no aparecen en la bandeja ni suman no leídos) y los actuales se archivan; los de tipo `emergency` siguen llegando. Se puede deshacer. **(b) Organización → solicitante:** «Bloquear solicitante» desde la bandeja de solicitudes: esa persona no puede volver a pedir lugar en ningún torneo de la organización. Se puede deshacer. **(c) Plataforma → usuario:** el baneo existente de Core Auth corta Torneos (el gateway exige sesión Core activa); queda documentado en el runbook. | Son las únicas interacciones usuario→usuario de Torneos: comunicados (incluido el destinatario `specific_user`) y solicitudes con mensaje. No hay chat ni comentarios. |
 | 15 | Filtro automático | **No** en esta PR. Queda la aprobación previa del organizador (inscripciones y planteles) y la moderación posterior. | Una lista de palabras en castellano rioplatense con falsos positivos merece su propio diseño; se informa como gap. |
 | 16 | Gateway | Las RPC nuevas se suman al contrato **CONNECTED-V1** (`TORNEOS_CONNECTED_MODE=on`), grupos `content_reports`, `content_moderation` y `user_blocks`. Ninguna ruta pública nueva. | La fase 1 nativa ya exige CONNECTED; no hace falta otra variable de entorno ni otra palanca de despliegue. |
-| 17 | Orden respecto de 0020 / 0021 | 0022 **no reemplaza ninguna función existente**: sólo crea tablas, funciones y tres triggers nuevos sobre tablas existentes. Pinnea por md5 las funciones de las que depende. Aplica sobre `main` (0000→0019) y sobre `main + 0020 + 0021` en cualquier orden. | 0020 pinnea cuerpos y cuenta funciones dentro de su propia transacción; 0021 (borrado de cuenta) no está publicado. |
+| 17 | Orden respecto de 0020 / 0021 | 0022 **no reemplaza ninguna función existente**: sólo crea tablas, funciones y tres triggers nuevos sobre tablas existentes. Pinnea por md5 las funciones de las que depende. Aplica sobre `main` (0000→0019) y sobre `main + 0020 + 0021` en cualquier orden (ensayado con el 0021 commiteado de #217, §9). | 0020 pinnea cuerpos y cuenta funciones dentro de su propia transacción; 0021 (#217) trata las tablas de 0022 sólo si existen (SQL dinámico). |
+| 18 | Borrado de cuenta (0021, #217) | La compatibilidad **no** viene de los `ON DELETE` de 0022: 0021 **nunca borra la fila de `torneos_identity`** (la «corta»: reemplaza su `core_user_id` por un UUID al azar), así que ningún `SET NULL` / `CASCADE` hacia la identidad se dispara. La da la **clasificación explícita** de las tablas de 0022 dentro de `private.erase_tournament_account` (0021, paso «7b. Moderation»), detallada en §2.1. | Las FK de 0022 quedan como están (no hay prueba que muestre un problema); sólo actuarían si algún día se borrara una identidad, cosa que hoy nada hace. |
 
 ---
 
@@ -55,8 +56,8 @@ había uno abierto: «Ya habías reportado esto; sigue en revisión.»
 
 `public.tournament_content_reports` — `organization_id` (FK, cascade), `tournament_id` (null para organización),
 `target_kind`, `target_id`, `target_label` (≤ 200), `content_snapshot` (jsonb ≤ 4 KB), `review_scope`
-(`organization` | `platform`), `reporter_user_id` (FK identidad, **ON DELETE SET NULL**: compatible con el borrado de
-cuenta), `reason`, `detail`, `status` (`open` → `under_review` → `resolved` | `dismissed`), `action_taken`,
+(`organization` | `platform`), `reporter_user_id` (FK identidad, `ON DELETE SET NULL`; ver §2.1: el borrado de cuenta no
+borra identidades, así que esta acción no es lo que lo hace compatible), `reason`, `detail`, `status` (`open` → `under_review` → `resolved` | `dismissed`), `action_taken`,
 `resolution_note`, `handled_by` / `handled_by_platform` / `handled_at`, `escalated_at`, `idempotency_key`, fechas.
 Índice único parcial (reporter, kind, target) mientras está abierto o en revisión.
 
@@ -74,6 +75,27 @@ Triggers nuevos (funciones nuevas, tablas existentes):
 - `tournament_team_applications` BEFORE INSERT: solicitante bloqueado por esa organización → `TORNEOS_APPLICATION_BLOCKED`.
 - `tournament_announcement_deliveries` BEFORE INSERT: destinatario que silenció la organización y comunicado que no es
   `emergency` → la entrega nace `archived`.
+
+### 2.1 Borrado de cuenta (0021, PR #217)
+
+Las FK de 0022 hacia `torneos_identity` (`reporter_user_id`, `handled_by`, `actor_user_id`, `created_by`, `released_by`
+→ `SET NULL`; `tournament_communication_mutes.user_id` y `tournament_applicant_blocks.blocked_user_id` → `CASCADE`) sólo
+actuarían si se borrara una fila de identidad. **0021 nunca la borra**: en `main`, 78 de las 91 FK hacia la identidad son
+`RESTRICT` (historial deportivo, compras, auditoría), así que 0021 la corta (su `core_user_id` pasa a ser un UUID al
+azar) y deja las referencias válidas. Por eso lo que hace compatible a 0022 con el borrado es la **clasificación
+explícita** que 0021 aplica a estas tablas cuando existen (`private.erase_tournament_account`, paso «7b. Moderation»;
+migración `00000000000021_account_erasure.sql` de #217, sha256 `0535f241…9c26`):
+
+| Tabla / columna de 0022 | Qué hace 0021 |
+|---|---|
+| Reportes que la persona **presentó** | Se conservan (historial de moderación) con `reporter_user_id = null` y `detail = null` (su texto libre). |
+| Eventos de esos reportes | `actor_user_id = null` **sólo** en los eventos `created` de la propia persona (si no, el evento la volvería a ligar). |
+| Reportes **sobre** contenido de la persona | Jugador: `target_label` y `content_snapshot.playerName` pasan al seudónimo que muestra el plantel («Jugador eliminado …»). Solicitud: `content_snapshot.message` → null (como el mensaje de la solicitud). |
+| `tournament_communication_mutes` de la persona | Se borran (sólo le servían a ella). |
+| `tournament_applicant_blocks` donde la persona es la bloqueada | Se borran (la identidad cortada nunca vuelve a coincidir; el motivo es texto sobre la persona). |
+| Columnas de staff (`handled_by`, `created_by`, `released_by`, actores de otros eventos) | Se conservan, apuntando a la identidad cortada (igual que `tournament_audit_log`). |
+
+Ensayado en los dos órdenes con el 0021 commiteado de #217 (§9).
 
 ## 3. RPC (authenticated, por el gateway CONNECTED-V1)
 
@@ -118,7 +140,28 @@ se revisa después de publicado y con la aprobación previa del organizador en i
 
 `backend/torneos/moderation-v1/README.md`: rutina diaria `node …/db-0022.mjs inbox` (sólo lectura), acción con
 `act <reportId> <status> <action> <nota>` y frase `ACT TORNEOS 0022 <ref> <reportId-8>`; baneo de cuenta en Core Auth
-(corta Torneos); baja de catálogo existente. Objetivo 24/48 h.
+(corta Torneos); baja de catálogo existente.
+
+Modelo operativo: **manual**. Un operador de Arma2 corre `db-0022.mjs inbox` **una vez por día** (no hay push, email ni
+panel). Objetivo **interno**: primera revisión ≤ 24 h y decisión ≤ 48 h desde el reporte (`ageHours` en la bandeja).
+Es una meta de operación, **no una promesa pública**: los Términos la presentan como «un objetivo, no una garantía» y
+el diálogo de reporte dice «en general»; ninguno fija un plazo exigible. Si
+nadie corre la bandeja, los reportes de plataforma esperan; los de equipo/jugador los ve la organización en su página de
+Moderación sin depender de la rutina.
+
+## 6.1 Filtro de contenido objetable (Apple 1.2)
+
+**No hay filtro automático de palabras** (ni en el cliente ni en la base). Los controles reales son:
+1. **Aprobación previa del organizador**: inscripciones y planteles no aparecen en la página pública sin que la
+   organización los acepte.
+2. **Reporte** dentro de la app en cada superficie de fase 1 con contenido de otro usuario (§1).
+3. **Moderación** de la organización (equipos y jugadores, con herramientas para ocultar nombres y escudos) y de la
+   plataforma (todo lo demás y lo escalado, con baja con retención).
+4. **Bloqueo** (silenciar comunicados, bloquear solicitantes) y baneo de cuenta en Core Auth.
+5. **Términos** que definen el contenido prohibido y dicen que no hay filtro automático.
+
+Apple 1.2 pide «a method for filtering objectionable material»: si esta combinación alcanza es **juicio del revisor de
+App Review**; no hay garantía de aprobación. Si lo piden, el filtro es una PR aparte (§8).
 
 ## 7. Despliegue y recuperación (cada paso con su GO)
 
@@ -135,3 +178,13 @@ Recuperación: web → deploy anterior; gateway → revisión anterior; base →
 - El aviso a la plataforma no es push/email: depende de la rutina diaria del operador.
 - El stack LOCAL no tiene las tablas.
 - La página de equipo del hub del participante no tiene «Reportar» (sólo la pública).
+
+## 9. Ensayo de orden con 0020 y 0021
+
+`backend/torneos/moderation-v1/evidence/order-0020-0021.txt` (`test/order-rehearsal.mjs`): 0020 de #212 (`45d56f51`) y el
+0021 **commiteado** de #217 (`899808d4`; migración sha256
+`0535f241ed080c38c244f7a51a491f67baafdd86c5089f6aac9bd69e2e019c26`, rollback
+`4bd7b70f4d4b95521e594da421dc6510093de60198fcac2b24562762c71302f6`), copiados sólo para leer. Órdenes
+0020 → 0021 → 0022 y 0022 → 0020 → 0021: en ambos, el borrado (como `torneos_erasure_writer`) deja la fila de identidad,
+conserva el reporte sin reporter ni detalle, deja sin actor su evento `created` y conserva `handled_by`; los rollbacks
+vuelven al estado inicial. Si 0020 o 0021 cambian antes del merge, se repite con el mismo script.

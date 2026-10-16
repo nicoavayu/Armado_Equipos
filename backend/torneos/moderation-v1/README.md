@@ -41,7 +41,14 @@ En un host con los pools de Docker agotados, crear antes la red del laboratorio 
 3. **Web** y, después, el **build nativo** (fase 1: CONNECTED + BRANDING).
 
 Orden respecto de 0020 (sponsors) y 0021 (borrado de cuenta): 0022 no reemplaza ninguna función existente, así que
-aplica antes o después de ambas. Ensayado en los dos órdenes (`evidence/order-0020-0021.txt`).
+aplica antes o después de ambas. Ensayado en los dos órdenes con el 0021 commiteado de #217
+(`evidence/order-0020-0021.txt`).
+
+Borrado de cuenta: 0021 nunca borra la fila de identidad (la corta), así que los `ON DELETE` de 0022 no intervienen. La
+compatibilidad la da la clasificación explícita de las tablas de 0022 en `private.erase_tournament_account` (0021, paso
+«7b. Moderation»): reportes presentados por la persona sin reporter ni detalle, sus eventos `created` sin actor,
+reportes sobre su contenido con el seudónimo del plantel / sin el mensaje de la solicitud, sus silencios y los bloqueos
+donde es la bloqueada borrados, columnas de staff conservadas. Detalle en el diseño, §2.1.
 
 ## Recuperación
 
@@ -55,7 +62,7 @@ aplica antes o después de ambas. Ensayado en los dos órdenes (`evidence/order-
 
 No hay panel de administración ni aviso por email (Torneos no envía emails y no se agrega un servicio pago).
 
-- **Todos los días** (objetivo: primera revisión ≤ 24 h, decisión ≤ 48 h):
+- **Todos los días, a mano** (objetivo interno, no una promesa pública: primera revisión ≤ 24 h, decisión ≤ 48 h):
   `node backend/torneos/moderation-v1/remote/db-0022.mjs inbox` → JSON de sólo lectura con los reportes pendientes
   de la plataforma (y los escalados), la foto del contenido, el motivo, `ageHours`. Nunca muestra quién reportó.
 - **Decidir**: `node …/db-0022.mjs act <reportId> <under_review|resolved|dismissed> <acción|none> <nota…> ACT TORNEOS 0022 <ref> <primeros 8 del reportId>`
