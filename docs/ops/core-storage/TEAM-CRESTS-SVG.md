@@ -1,8 +1,10 @@
 # Bucket público `team-crests`: cerrar SVG (XSS almacenado)
 
 > **Estado: paquete preparado, NADA aplicado.** Este documento no cambia
-> Producción. Cada paso remoto (inventario, cambio de bucket, decisión sobre
-> objetos existentes) necesita su propio GO explícito de Nico.
+> Producción. Cada paso remoto (cambio de bucket, decisión sobre objetos
+> existentes) necesita su propio GO explícito de Nico. El único paso remoto
+> hecho hasta ahora es el **inventario solo lectura del 2026-10-16**
+> (sección 2), que corrió el coordinador con autorización de Nico.
 
 - Proyecto: Arma2 Core Production (`rcyuuoaqfwcembdajcss`).
 - Bucket: `team-crests` (escudos de equipo y fotos de miembros de equipo).
@@ -25,12 +27,49 @@ Policies (baseline, sin cambios en este paquete):
 - `team_crests_insert_owner_folder` / `_update_owner_folder` / `_delete_owner_folder` —
   `authenticated`, sólo bajo `<auth.uid()>/…`.
 
-Para comparar: `jugadores-fotos` (público) ya admite sólo
-`image/jpeg, image/png, image/webp`. La baseline es la fuente del repo; **el
-valor real de Producción hay que leerlo con el inventario** (sección 5) antes
-de tocar nada, porque puede haber divergido.
+Para comparar: `jugadores-fotos` (público) admite
+`image/jpeg, image/png, image/webp, image/gif` con 15 MiB desde el Stage A
+del parche M4 (`20260724124000`, incorporado en
+`supabase/migrations/20260727215106_canonical_core_rls_contracts.sql`; antes
+`allowed_mime_types` era `NULL`, o sea cualquier tipo). La baseline es la
+fuente del repo; el valor real de Producción se leyó con el inventario
+(sección 2).
 
-## 2. El riesgo
+## 2. Inventario de Producción (2026-10-16)
+
+**Método.** Lo corrió el coordinador (Codex) contra Core Production por un
+conector que Nico autorizó: transacciones `READ ONLY` terminadas en
+`ROLLBACK`, sólo conteos y configuración, sin datos personales. No se abrió,
+descargó, cambió ni borró ningún objeto ni bucket. Las consultas equivalentes
+están en
+[`team-crests-svg-inventory-readonly.sql`](../../../scripts/ops/core-storage/team-crests-svg-inventory-readonly.sql).
+
+| Bucket | Config. actual en Prod | Objetos | Por tipo | SVG |
+| --- | --- | --- | --- | --- |
+| `team-crests` | `public`, 5 MiB, `allowed_mime_types` **todavía incluye `image/svg+xml`** | 24 | 8 jpeg / 16 png | **0 objetos, 0 referencias** |
+| `jugadores-fotos` | `public`, 15 MiB, `jpeg, png, webp, gif` (SVG **no** permitido hoy) | 334 | 192 jpeg, 133 png, 6 SVG, 1 heif, 2 heic | **6 (legacy)** |
+| `avatars` | — | 8 | — | — |
+
+- `team-crests`: 20 objetos referenciados por `teams.crest_url` /
+  `team_members.photo_url` y 4 sin referencia.
+- `jugadores-fotos`: el allowlist actual no admite SVG, así que los 6 son
+  **anteriores** a él (subidos cuando `allowed_mime_types` era `NULL`). Ver
+  sección 8.
+
+**Limitaciones.**
+
+- Referenciado/no referenciado se calculó comparando la URL guardada con la
+  ruta del objeto **sin decodificar** (`%20`, etc.). Un nombre con caracteres
+  codificados puede figurar como no referenciado: los 4 "sin referencia" de
+  `team-crests` son una cota superior, no una lista para borrar.
+- El inventario es una foto al 2026-10-16. Hasta que el bucket cambie
+  (sección 5), un SVG nuevo en `team-crests` sigue siendo posible por la API
+  de Storage.
+- La configuración exacta de `team-crests` para el rollback es la que
+  devolvió la consulta 1 de ese inventario; este documento sólo registra que
+  incluye `image/svg+xml`.
+
+## 3. El riesgo
 
 - Un SVG es un documento XML que puede contener `<script>`, `onload=…`,
   `<foreignObject>` con HTML, etc.
@@ -63,7 +102,7 @@ ni `innerHTML` con estas URLs.
 - **La navegación directa a la URL pública sí ejecuta el script.** Ese es el
   vector que cierra este paquete.
 
-## 3. Corrección de cliente (este PR, primero)
+## 4. Corrección de cliente (este PR, primero)
 
 - `src/utils/imageUpload.js`: SVG deja de "pasar intacto". `validateImageFile`
   lo rechaza por MIME (`*svg*`) o extensión (`.svg`, `.svgz`) con el mensaje
@@ -80,16 +119,31 @@ ni `innerHTML` con estas URLs.
   `image/svg+xml` (constante compartida `IMAGE_UPLOAD_ACCEPT`); texto de ayuda
   «PNG, JPG, WEBP o HEIC».
 
+**Cobertura: todos los selectores de imagen de Core.** Cada subida pasa por
+`prepareImageForUpload` (escudo y foto de miembro → `team-crests`; avatar en
+`ProfileEditor`, `services/db/profiles.js` y `services/api/playerService.js`,
+foto de partido frecuente y foto de votación → `jugadores-fotos`), así que un
+SVG se rechaza con el mensaje claro en cualquiera de ellos, aunque el selector
+de `ProfileEditor` / `EditarPartidoFrecuente` siga con `accept="image/*"` y
+el sistema operativo lo deje elegir.
+
+`image/gif` sigue permitido en `jugadores-fotos` (bucket) y no se toca: GIF es
+raster, no ejecuta script; queda fuera de alcance de este paquete.
+
 El cliente es defensa en profundidad: un atacante puede llamar a la API de
 Storage sin la app. **El cierre real es la configuración del bucket.**
 
-## 4. Configuración PROPUESTA
+## 5. Configuración PROPUESTA
 
-| Campo | Hoy (repo) | Propuesto |
+| Campo | Hoy (repo; Prod 2026-10-16) | Propuesto |
 | --- | --- | --- |
 | `public` | `true` | `true` (sin cambio: lectura pública de raster) |
-| `file_size_limit` | `5242880` | `5242880` (sin cambio) |
-| `allowed_mime_types` | `jpeg, png, webp, svg+xml` | `jpeg, png, webp` |
+| `file_size_limit` | `5242880` (5 MiB) | `5242880` (sin cambio) |
+| `allowed_mime_types` | `jpeg, png, webp, svg+xml` (Prod: incluye `svg+xml`) | `jpeg, png, webp` |
+
+Como el inventario encontró **0 SVG** en `team-crests`, el cambio no tiene
+ningún seguimiento sobre objetos existentes y puede aplicarse **apenas esté
+desplegada la corrección de cliente** (sección 9).
 
 Storage valida `allowed_mime_types` contra el `Content-Type` de cada subida
 nueva. Un SVG subido declarándose `image/png` queda guardado y servido como
@@ -132,8 +186,9 @@ el límite de 5 MB).
 
 ### SQL de rollback (NO ejecutado; requiere GO)
 
-Restaurar **el valor exacto que devolvió el inventario** (consulta 1). Si
-coincide con el repo, es:
+Restaurar **el valor exacto que devolvió la consulta 1 del inventario del
+2026-10-16** (confirmado: incluye `image/svg+xml`; contrastar el array
+completo con esa salida antes de correrlo). Si coincide con el repo, es:
 
 ```sql
 begin;
@@ -163,17 +218,18 @@ commit;
 El rollback reabre el vector: sólo se justifica si el cambio rompe subidas
 raster legítimas (no debería: el cliente ya sube sólo jpeg/png/webp).
 
-## 5. Prerrequisitos
+## 6. Prerrequisitos
 
 1. **Cliente desplegado** (este PR mergeado y publicado en web; en la app
    nativa, la versión que lo incluya). Con el cliente viejo, quien elija un
    SVG verá el error genérico de Storage en vez del mensaje claro; no rompe
    nada más.
-2. **Inventario solo lectura** con
+2. **Inventario solo lectura — HECHO el 2026-10-16** (sección 2). Se puede
+   repetir con
    `scripts/ops/core-storage/team-crests-svg-inventory-readonly.sql`
-   (`BEGIN READ ONLY` … `ROLLBACK`, sólo `SELECT`). Lo corre una persona con
-   GO; la URL de conexión va por entorno/llavero, nunca en archivo. Consulta
-   central:
+   (`BEGIN READ ONLY` … `ROLLBACK`, sólo `SELECT`) justo antes del cambio
+   para confirmar que siguen siendo 0. Lo corre una persona con GO; la URL de
+   conexión va por entorno/llavero, nunca en archivo. Consulta central:
 
    ```sql
    select name, metadata->>'mimetype', created_at
@@ -185,46 +241,120 @@ raster legítimas (no debería: el cliente ya sube sólo jpeg/png/webp).
    Además devuelve: configuración actual de `team-crests` y `jugadores-fotos`
    (guardar para el rollback), conteo por MIME, objetos no raster, equipos
    (`teams.crest_url`) y miembros (`team_members.photo_url`) que apuntan a
-   SVG, y control cruzado de SVG en `jugadores-fotos`.
+   SVG, control cruzado de SVG en `jugadores-fotos` y, para la sección 8, la
+   revisión de metadatos de esos SVG (consulta 8, **salida sensible**) y su
+   resumen por forma de ruta (consulta 9).
 3. Guardar la salida del inventario con fecha (UTC) junto a la evidencia del
-   cambio.
+   cambio (la de la consulta 8, fuera del repo).
 
-## 6. Compatibilidad: qué pasa con los SVG existentes
+## 7. SVG existentes en `team-crests`: no hay
 
-- **Siguen sirviéndose.** `allowed_mime_types` sólo se valida en subidas
-  nuevas; los objetos ya guardados con `image/svg+xml` mantienen su
-  `Content-Type` y su URL pública. Los escudos SVG existentes se siguen viendo
-  en la app (vía `<img>`).
-- **El riesgo de esos objetos concretos sigue vivo**: si alguno es malicioso,
-  su URL pública sigue ejecutando script al abrirse directo.
-- Reemplazar un escudo desde la app sube un raster nuevo (otra ruta, por el
-  `Date.now()` del nombre) y actualiza `crest_url`; el SVG viejo queda
-  huérfano pero accesible por su URL.
+- **Inventario 2026-10-16: 0 objetos SVG y 0 referencias a SVG** en
+  `teams.crest_url` / `team_members.photo_url` (sección 2).
+- Por eso el cambio de bucket **no tiene seguimiento sobre objetos
+  existentes**: no hay nada que re-encodear, retirar ni revisar en
+  `team-crests`. Las opciones A/B/C que este paquete preveía para SVG
+  existentes ya no aplican a este bucket.
+- **El único riesgo que queda es el de subidas nuevas**: mientras
+  `allowed_mime_types` incluya `image/svg+xml`, cualquier usuario autenticado
+  puede subir un SVG a su carpeta por la API de Storage, sin la app. Lo cierra
+  el cambio de la sección 5, que puede ir **inmediatamente después** del
+  despliegue del cliente.
+- Si al repetir el inventario justo antes del cambio apareciera algún SVG
+  nuevo, se trata igual que los de `jugadores-fotos` (sección 8): revisión de
+  metadatos y una decisión con GO aparte. El cambio de bucket no depende de
+  esa decisión (sólo afecta subidas nuevas).
+- El rollback SQL de la sección 5 se mantiene en seco, sin cambios.
 
-### Opciones para los SVG existentes (cada una con GO aparte)
+## 8. Hallazgo nuevo: 6 SVG legacy en `jugadores-fotos` (público)
+
+> **Nada ejecutado.** No abrir, descargar ni borrar estos objetos. Cada paso
+> de esta sección necesita su propio GO de Nico.
+
+**Qué hay.** El inventario del 2026-10-16 encontró 6 objetos SVG en
+`jugadores-fotos` (bucket **público**, 15 MiB). El allowlist actual
+(`jpeg, png, webp, gif`) no admite SVG, así que son **anteriores** al Stage A
+del parche M4 (`20260724124000`), cuando `allowed_mime_types` era `NULL`.
+
+**Riesgo.** Cada uno es alcanzable directo en su URL pública
+`…/storage/v1/object/public/jugadores-fotos/<ruta>`. Si alguno contiene
+script, abrir esa URL lo ejecuta en el origen de Storage (`*.supabase.co`):
+el mismo vector de XSS almacenado de la sección 3. Dentro de la app no hay
+ejecución (los avatares se muestran con `<img>`). No sabemos si alguno es
+malicioso: **no se abrió ninguno, a propósito**.
+
+**Lo que ya no puede pasar.** El bucket no acepta SVG nuevos, y la corrección
+de cliente de este PR rechaza SVG en todos los selectores (sección 4). El
+problema se limita a estos 6 objetos.
+
+### Propuesta (sin ejecutar; cada paso con GO)
+
+**a) Revisión de metadatos, solo lectura.** Consultas 8 y 9 de
+`team-crests-svg-inventory-readonly.sql` (`BEGIN READ ONLY` … `ROLLBACK`).
+Por objeto devuelve:
+
+- id del objeto;
+- forma de la ruta: `uid_carpeta` (`<uid>/…`), `uid_prefijo_legacy`
+  (`<uid>_…`), `invitado_votacion` (`guest/…`), `partido_frecuente_legacy`
+  (`partido_…`) u `otra`;
+- forma del owner: sin owner, igual al uid de la ruta, distinto, o ruta sin uid;
+- `created_at`, tamaño en bytes y MIME guardado;
+- si la cuenta del uid de la ruta existe;
+- si lo referencia `usuarios.avatar_url`, `jugadores.avatar_url`,
+  `profiles.avatar_url`, `team_members.photo_url`, `teams.crest_url`,
+  `tournament_roster_players.avatar_url` o los `avatar_url_snapshot` de
+  partidos de torneo.
+
+Reglas de la consulta:
+
+- **No devuelve la ruta** (contiene uids), ni nombres ni emails.
+- Sobre `usuarios`/`jugadores` sólo hace `EXISTS` por la columna que
+  referencia (o por `id`), sin listas explícitas de columnas.
+- La salida de la consulta 8 es **sensible** (ids ligados a cuentas): se
+  guarda fuera del repo y no se pega en PRs ni chats. La consulta 9 es el
+  resumen sin ids, por forma de ruta.
+- Misma limitación que en la sección 2: compara URLs sin decodificar.
+- No incluye `auth.users` (metadatos de Auth) ni una columna de imagen de
+  `partidos_frecuentes`, que no está en el esquema canónico.
+- **Nunca** abrir el contenido en un navegador.
+
+**b) Opciones por objeto, según (a).**
 
 | Opción | Qué implica | Cuándo |
 | --- | --- | --- |
-| A. Dejar como están | Riesgo residual documentado; revisar a mano el contenido (como texto, **nunca abriéndolo en el navegador**) buscando `<script`, `on*=`, `href="javascript:`, `<foreignObject`. | Inventario = 0, o pocos y todos benignos. |
-| B. Re-encodear a PNG | Descargar cada SVG como texto, rasterizar offline en sandbox (p. ej. `resvg`/`rsvg-convert`, sin red), subir el PNG a la misma carpeta del dueño (service role), actualizar `teams.crest_url` / `team_members.photo_url` a la nueva URL y recién después retirar el SVG. | Hay SVG legítimos y en uso. |
-| C. Retirar | Quitar los objetos con la **API de Storage** (no `delete from storage.objects`, que deja el archivo físico huérfano) y poner `crest_url`/`photo_url` en `null` (la app muestra el fallback de iniciales). | Contenido malicioso o sin uso. |
+| Retirar los no referenciados | Quitar el objeto por la **API de Storage** con service role, nunca con `delete from storage.objects` (deja el archivo físico huérfano). | Ninguna fila lo referencia. |
+| Re-encodear a PNG | 1. Bajar los bytes **en un entorno aislado** (contenedor sin red tras la descarga, nunca un navegador). 2. Rasterizar offline (`resvg`/`rsvg-convert`). 3. Subir el PNG a la misma carpeta/forma de ruta. 4. Repuntar las columnas que lo referencian. 5. Recién después retirar el SVG. | Está referenciado y en uso. |
+| Dejar con nota de riesgo | Registrar id, forma y motivo; riesgo residual aceptado por Nico. | Si se decide no tocar Producción por ahora. |
 
-Ninguna se ejecuta en este paquete. B y C escriben en Producción.
+**c) Relación con el borrado de cuenta (#218).** #218 hace que
+`delete-account` borre de `jugadores-fotos` todo lo que está bajo `<uid>/…`
+y lo que empieza con `<uid>_…` en la raíz. Entonces:
 
-## 7. Orden de despliegue
+- los SVG con forma `uid_carpeta` o `uid_prefijo_legacy` se borran **cuando
+  esa cuenta se elimine**, no antes: hasta entonces siguen públicos;
+- los de forma `invitado_votacion`, `partido_frecuente_legacy` u `otra` no
+  pertenecen a ninguna cuenta y #218 nunca los toca;
+- #218 no reemplaza esta decisión.
+
+## 9. Orden de despliegue
 
 1. **Cliente** (este PR): merge + deploy web (y build nativa cuando
    corresponda). Verificar en la app que elegir un `.svg` muestra «No
    aceptamos imágenes SVG…» y que un PNG/JPG sigue subiendo.
-2. **Inventario** solo lectura (GO). Guardar la configuración actual.
-3. **Configuración del bucket** (GO): SQL de la sección 4.
-4. **Verificación** (sección 8).
-5. **Decisión sobre SVG existentes** (GO separado): A, B o C.
+2. **Inventario** solo lectura — hecho el 2026-10-16 (sección 2): 0 SVG en
+   `team-crests`. Opcional: repetir las consultas 1–7 justo antes del paso 3.
+3. **Configuración del bucket** (GO): SQL de la sección 5, inmediatamente
+   después del paso 1. No hay objetos SVG existentes que esperar en
+   `team-crests`.
+4. **Verificación** (sección 10).
+5. **`jugadores-fotos`, 6 SVG legacy** (sección 8; independiente de los pasos
+   1–4): revisión de metadatos con GO y después la decisión por objeto con
+   otro GO.
 6. **Alinear el repo** (PR aparte): una migración que deje la baseline/
    entornos nuevos sin `image/svg+xml`, para que un rebuild de laboratorio no
    reintroduzca SVG. No se incluye aquí para que nada se aplique por accidente.
 
-## 8. Verificación (después del paso 3)
+## 10. Verificación (después del paso 3)
 
 Con una cuenta QA (token por entorno, nunca en archivo) y su propia carpeta:
 
@@ -245,19 +375,20 @@ curl -sS -o /dev/null -w '%{http_code}\n' -X POST \
 
 - Releer la fila: `select id, public, file_size_limit, allowed_mime_types from storage.buckets where id = 'team-crests';`.
 - En la app: crear/editar un equipo con escudo PNG y foto de miembro JPG →
-  se ven; escudos existentes (incluidos SVG previos) se siguen viendo.
+  se ven; los escudos existentes (todos jpeg/png según el inventario) se
+  siguen viendo.
 - El PNG de verificación queda en la carpeta del QA; retirarlo por la API de
   Storage dentro del mismo GO.
 
-## 9. Rollback
+## 11. Rollback
 
-- **Bucket**: SQL de rollback de la sección 4 con el valor guardado por el
-  inventario. Inmediato; no toca objetos.
+- **Bucket**: SQL de rollback de la sección 5 con el valor guardado por el
+  inventario del 2026-10-16. Inmediato; no toca objetos.
 - **Cliente**: revertir el PR. Sin migraciones ni datos involucrados.
 - Disparadores: subidas raster legítimas rechazadas por Storage tras el
   cambio (no esperado), o errores de subida de escudo/foto en la app.
 
-## 10. Torneos
+## 12. Torneos
 
 - Branding de Torneos usa otro bucket (`tournament-branding`, privado en el
   proyecto Torneos según `backend/torneos/supabase/migrations/00000000000010_branding_v1.sql`)
@@ -272,5 +403,9 @@ curl -sS -o /dev/null -w '%{http_code}\n' -X POST \
 
 ---
 
-**No se cambió nada en Producción.** Sin buckets, policies, objetos ni
-consultas remotas en la preparación de este paquete.
+**No se cambió nada en Producción.** Sin buckets, policies ni objetos
+tocados. La única consulta remota fue el inventario solo lectura del
+2026-10-16 (sección 2), que corrió el coordinador con autorización de Nico;
+la preparación de este paquete no corrió nada remoto. Las consultas nuevas 8
+y 9 se validaron sólo contra un Postgres 16 local descartable con tablas
+sustitutas.
