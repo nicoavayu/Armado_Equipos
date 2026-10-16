@@ -1,90 +1,232 @@
-# ACCOUNT ERASURE 0021 — local rehearsal 2026-10-15 (fictional data only; nothing remote). Branch claude/torneos-account-deletion on b4fb150a.
-# Lab: commerce-production pg-lab, own container per variant, Production ownership (postgres, not superuser) + hosted default ACL (public and private).
+# ACCOUNT ERASURE 0021 — local rehearsal 2026-10-15 (fictional data only; nothing remote). Revision of PR #217 per Codex review.
+# Lab: commerce-production pg-lab, own container + own network (explicit subnet 10.233.80–83.0/24) per variant, Production ownership
+# (postgres, not superuser) + hosted default ACL (public and private). Networks and containers removed afterwards.
+# 0021 sha256 56d0b35454a153743da64baa7457d88270354c0d0fd0332a5c55c092047515b5 · md5 bodies: erase 899dae4c18cffa2de32ad9a66e742a92, confirm a26bcb671dea01fc83e0f6d41b5bc051, label 588ebb88ffb2e70b96a3aaca06367cf0
 
-## main (0000 → 0019 → 0021)
-✔ the pinned files and bodies are the ones in the tree (13.55625ms)
-✔ 0021 adds two functions and one private table; it changes no existing body, policy, role, table or trigger definition (0.782834ms)
-✔ the erasure body: security definer + empty search_path, one transaction, every bypassed guard re-enabled and verified, payments never written (1.188791ms)
-✔ every foreign key to torneos_identity in the tree is classified by the design matrix (a new one fails here until classified) (14.400459ms)
-✔ classify: the two states (with or without 0020), and every drift by name (0.694333ms)
-✔ changedOutside: anything else moving is named; EXECUTE counts of anon/authenticated must not move at all (0.760458ms)
-✔ run(): phrase, file hash, pre-state and the ledger refusal are checked before any write (1.122042ms)
-✔ the rollback removes only what 0021 added, refuses with ledger rows unless forced, and touches no data (0.094875ms)
-✔ lab: observe → apply → re-apply refused → rollback refused with ledger rows → forced rollback (anonymisation stays) → re-apply (12506.016875ms)
-ℹ tests 9
-ℹ pass 9
+## main (0000 → 0019 → 0021) + order 0021 → 0020 + delete-account
+✔ A1 a signed erase: 200 {ok, outcome} only (no ids, no counts), through the ERASURE login as torneos_erasure_writer with the erasure timeouts
+✔ A2 the confirmation route: its own signature, confirm_tournament_account_erasure, outcomes core_confirmed / no_ledger; an erase signature never passes as a confirmation
+✔ A3 every erase outcome the function can give passes through; an unknown one is a 503
+✔ A4 authentication: bad signature, the RAW contract secret (Torneos → Core key), a stale or future time, malformed headers → 401 and no SQL
+✔ A5 a browser can never call it: any Origin (even the allowed web origin) → 403; foreign host → 403; GET → 405 (both routes)
+✔ A6 the body is closed: exactly core_user_id + request_id, canonical lowercase UUIDs, JSON content type, ≤ 512 bytes
+✔ A7 a database failure (unavailable, lock timeout, refused postcondition) is a retryable 503 that reveals nothing
+✔ A8 the other routes are unchanged: a Core-signed erasure request is not a bearer, and /exchange still refuses it
+✔ A9 fail closed WITHOUT the erasure login: the gateway boots, an unsigned call is 401, a signed one is 503 — and no SQL runs on any login
+✔ A10 the erasure login must be its own: the core adapter's login or password, or the Core contract secret as its password, disable the gateway
+✔ B Core shared module → real gateway → real 0021 on the lab, through the erasure login: erased → already_erased → confirmed; never-used → no_identity / no_ledger; wrong secret refused
+✔ the pinned files and bodies are the ones in the tree
+✔ 0021 adds three functions, one private table and one NOLOGIN role; it changes no existing body, policy, role, table or trigger definition
+✔ the ledger states: torneos_erased → core_confirmed (by core or operator); the confirmation sweeps first and refuses to leave a row unconfirmed
+✔ the erasure login (out of band): SCRAM verifier only, LOGIN NOINHERIT, member of the erasure role only; Secret Manager names
+✔ the erasure body: security definer + empty search_path, one transaction, every bypassed guard re-enabled and verified, payments never written
+✔ every foreign key to torneos_identity in the tree is classified by the design matrix (a new one fails here until classified)
+✔ classify: the two states (with or without 0020), and every drift by name
+✔ changedOutside: anything else moving is named; EXECUTE counts of anon/authenticated must not move at all
+✔ run(): phrase, file hash, pre-state and the ledger refusal are checked before any write
+✔ the rollback removes only what 0021 added, refuses with ledger rows unless forced, and touches no data
+✔ lab: observe → apply → re-apply refused → rollback refused with ledger rows → forced rollback (anonymisation stays) → re-apply
+✔ E0 baseline: the public page shows the real player names; official history, standings and the purchase are captured
+✔ E1 permissions: only torneos_erasure_writer may erase or confirm; every API / RPC role (core adapter included) is denied
+✔ E1b least privilege: the erasure login can do NOTHING else — no table, no other function, no other role
+✔ E2 a Core user who never used Torneos: no_identity, nothing moves anywhere
+✔ E3 pedro (player with goals and a card, official report, completed tournament): pseudonym everywhere, numbers kept, personal rows deleted
+✔ E4 idempotency: erasing pedro again (new request id) is a no-op: already_erased, nothing moves
+✔ E5 olga (owner with members): Liga Norte goes to ana, the longest-standing active admin; beto/dora/carla untouched; page stays
+✔ E6 solo (owner alone): archived, public page unpublished (the public route returns null), listing withdrawn without WhatsApp
+✔ E7 premium (owner alone with an APPROVED Premium purchase): archived; purchase, its events and the season grant byte-identical
+✔ E8 lidia (only a collaborator besides her): archived, the collaborator is NOT promoted
+✔ E9 carla (collaborator in two organizations, one of them archived): both memberships removed
+✔ E10 capi (captain + applicant): manager revoked with pseudonym and no email, his invitation email replaced, application message cleared, the team entry unchanged
+✔ E11 paula (claimed provisional player): name, normalized name, email and phone gone; her roster row and squad snapshot carry the pseudonym
+✔ E12 dora (admin, author of a published announcement): text kept, author link to the severed identity kept, season seat and membership gone
+✔ E13 foto (player with a portrait and photographer): portrait → delete_pending + consent revoked, the object listed for the operator, Storage untouched
+✔ E14 a failure injected mid-way rolls EVERYTHING back (guards re-enabled, identity intact); the retry completes and transfers Liga Norte again
+✔ E15 concurrent erasures serialize (advisory lock): beto and rival at the same time, both erased, Liga Norte archived after its last admin
+✔ E16 invariants: no organization is active without an active owner whose identity is live; every guard enabled; official history still immutable
+✔ E17 isolation: other worlds on this lab and the people never erased here are untouched; purchases byte-identical
+✔ E18 Core fails AFTER Torneos erased: the row stays torneos_erased; the retry gets already_erased (no-op) and Core's confirmation completes it
+✔ E19 Torneos erased and Core never retried: listed by the reconcile query once older than its threshold; the operator completion confirms it once
+✔ E20 double request: two simultaneous erasures of the same person → one erased, one already_erased, one ledger row; double confirmation is idempotent
+✔ E21 the opposite failures: Torneos fails → nothing in Torneos (no ledger row) and the retry completes; Core done but its confirmation lost while an identity was re-created → reconcile shows it, the operator completion sweeps it
+✔ E22 confirmation of a person Torneos never knew: no_ledger, nothing moves; the confirmation's sweep erases an identity opened after the erasure
+✔ 0021 → 0020: 0020 applies over 0021 as the installer and 0021 stays POST_0021 (sponsors detected)
+✔ success: Torneos is erased FIRST (signed, the session user id), then Core cleans up, deletes usuarios and the auth user, then CONFIRMS to Torneos
+✔ the idempotency key: the same for every attempt about one account (retries, double requests), different per account, never the user id
+✔ fail-closed: Torneos answers 503 twice → 503 torneos_erasure_failed, NOTHING deleted in Core
+✔ fail-closed: Torneos is unreachable twice → 503 torneos_erasure_failed, NOTHING deleted in Core
+✔ fail-closed: Torneos refuses the signature (401) → 503 torneos_erasure_failed, NOTHING deleted in Core
+✔ fail-closed: Torneos answers 200 with an unknown outcome → 503 torneos_erasure_failed, NOTHING deleted in Core
+✔ fail-closed: Torneos not configured in Core (no gateway URL or no secret) → 503, nothing deleted, no request leaves
+✔ one transient 503 is retried with a fresh nonce, then succeeds
+✔ retry after a failure completes: first call fails closed, the second (Torneos already_erased) deletes the Core account
+✔ Core fails AFTER Torneos erased (usuarios delete fails): profile_delete_failed, retryable, NO confirmation sent; the retry gets Torneos already_erased, finishes and confirms
+✔ Core fails AFTER Torneos erased (auth user delete fails): auth_delete_failed, retryable, NO confirmation sent; the retry gets Torneos already_erased, finishes and confirms
+✔ the confirmation lost (Torneos down after the Core deletion) never turns a completed deletion into an error; it is logged for the reconcile
+✔ double request: two deletions of the same account at once both carry the one idempotency key (Torneos serialises them: erased / already_erased)
+✔ no session → 401 and Torneos is never called; no confirmation → 400 and Torneos is never called
+✔ the shared module: URL and secret parsing fail closed; the signature matches an independent implementation
+ℹ tests 62
+ℹ pass 62
 ℹ fail 0
-✔ A1 a signed request erases: 200 {ok, outcome} only (no ids, no counts), as torneos_core_adapter with the erasure timeouts (439.56425ms)
-✔ A2 every outcome the function can give passes through; an unknown one is a 503 (1.605042ms)
-✔ A3 authentication: bad signature, the RAW contract secret (Torneos → Core key), a stale or future time, malformed headers → 401 and no SQL (1.435959ms)
-✔ A4 a browser can never call it: any Origin (even the allowed web origin) → 403; foreign host → 403; GET → 405 (0.414667ms)
-✔ A5 the body is closed: exactly core_user_id + request_id, canonical lowercase UUIDs, JSON content type, ≤ 512 bytes (1.86225ms)
-✔ A6 a database failure (unavailable, lock timeout, refused postcondition) is a retryable 503 that reveals nothing (0.910791ms)
-✔ A7 the other routes are unchanged: a Core-signed erasure request is not a bearer, and /exchange still refuses it (0.247166ms)
-✔ B Core shared module → real gateway → real 0021 on the lab: erased → already_erased; never-used → no_identity; wrong secret refused (2890.3875ms)
-✔ E0 baseline: the public page shows the real player names; official history, standings and the purchase are captured (2979.826708ms)
-✔ E1 permissions: only torneos_core_adapter may erase; no client role reads the ledger or calls the pseudonym (26.65325ms)
-✔ E2 a Core user who never used Torneos: no_identity, nothing moves anywhere (13.958334ms)
-✔ E3 pedro (player with goals and a card, official report, completed tournament): pseudonym everywhere, numbers kept, personal rows deleted (31.734959ms)
-✔ E4 idempotency: erasing pedro again (new request id) is a no-op: already_erased, nothing moves (7.361333ms)
-✔ E5 olga (owner with members): Liga Norte goes to ana, the longest-standing active admin; beto/dora/carla untouched; page stays (9.767833ms)
-✔ E6 solo (owner alone): archived, public page unpublished (the public route returns null), listing withdrawn without WhatsApp (8.871833ms)
-✔ E7 premium (owner alone with an APPROVED Premium purchase): archived; purchase, its events and the season grant byte-identical (5.861417ms)
-✔ E8 lidia (only a collaborator besides her): archived, the collaborator is NOT promoted (5.647208ms)
-✔ E9 carla (collaborator in two organizations, one of them archived): both memberships removed (5.695084ms)
-✔ E10 capi (captain + applicant): manager revoked with pseudonym and no email, his invitation email replaced, application message cleared, the team entry unchanged (7.233ms)
-✔ E11 paula (claimed provisional player): name, normalized name, email and phone gone; her roster row and squad snapshot carry the pseudonym (5.763917ms)
-✔ E12 dora (admin, author of a published announcement): text kept, author link to the severed identity kept, season seat and membership gone (4.5815ms)
-✔ E13 foto (player with a portrait and photographer): portrait → delete_pending + consent revoked, the object listed for the operator, Storage untouched (5.963ms)
-✔ E14 a failure injected mid-way rolls EVERYTHING back (guards re-enabled, identity intact); the retry completes and transfers Liga Norte again (14.988416ms)
-✔ E15 concurrent erasures serialize (advisory lock): beto and rival at the same time, both erased, Liga Norte archived after its last admin (15.502417ms)
-✔ E16 invariants: no organization is active without an active owner whose identity is live; every guard enabled; official history still immutable (3.380083ms)
-✔ E17 isolation: other worlds on this lab and the people never erased here are untouched; purchases byte-identical (1.483708ms)
-ℹ tests 26
-ℹ pass 26
-ℹ fail 0
+ℹ skipped 0
 
-## main + 0020 (sponsors, #212 at 45d56f51) → 0021
-✔ the pinned files and bodies are the ones in the tree (16.272917ms)
-✔ 0021 adds two functions and one private table; it changes no existing body, policy, role, table or trigger definition (1.169791ms)
-✔ the erasure body: security definer + empty search_path, one transaction, every bypassed guard re-enabled and verified, payments never written (1.308625ms)
-✔ every foreign key to torneos_identity in the tree is classified by the design matrix (a new one fails here until classified) (15.680125ms)
-✔ classify: the two states (with or without 0020), and every drift by name (0.81575ms)
-✔ changedOutside: anything else moving is named; EXECUTE counts of anon/authenticated must not move at all (0.906459ms)
-✔ run(): phrase, file hash, pre-state and the ledger refusal are checked before any write (1.444417ms)
-✔ the rollback removes only what 0021 added, refuses with ledger rows unless forced, and touches no data (0.117625ms)
-✔ lab: observe → apply → re-apply refused → rollback refused with ledger rows → forced rollback (anonymisation stays) → re-apply (12504.823917ms)
-ℹ tests 9
-ℹ pass 9
+## main + 0020 (sponsors, #212 file 3b2ed537…)
+✔ A1 a signed erase: 200 {ok, outcome} only (no ids, no counts), through the ERASURE login as torneos_erasure_writer with the erasure timeouts
+✔ A2 the confirmation route: its own signature, confirm_tournament_account_erasure, outcomes core_confirmed / no_ledger; an erase signature never passes as a confirmation
+✔ A3 every erase outcome the function can give passes through; an unknown one is a 503
+✔ A4 authentication: bad signature, the RAW contract secret (Torneos → Core key), a stale or future time, malformed headers → 401 and no SQL
+✔ A5 a browser can never call it: any Origin (even the allowed web origin) → 403; foreign host → 403; GET → 405 (both routes)
+✔ A6 the body is closed: exactly core_user_id + request_id, canonical lowercase UUIDs, JSON content type, ≤ 512 bytes
+✔ A7 a database failure (unavailable, lock timeout, refused postcondition) is a retryable 503 that reveals nothing
+✔ A8 the other routes are unchanged: a Core-signed erasure request is not a bearer, and /exchange still refuses it
+✔ A9 fail closed WITHOUT the erasure login: the gateway boots, an unsigned call is 401, a signed one is 503 — and no SQL runs on any login
+✔ A10 the erasure login must be its own: the core adapter's login or password, or the Core contract secret as its password, disable the gateway
+✔ B Core shared module → real gateway → real 0021 on the lab, through the erasure login: erased → already_erased → confirmed; never-used → no_identity / no_ledger; wrong secret refused
+✔ the pinned files and bodies are the ones in the tree
+✔ 0021 adds three functions, one private table and one NOLOGIN role; it changes no existing body, policy, role, table or trigger definition
+✔ the ledger states: torneos_erased → core_confirmed (by core or operator); the confirmation sweeps first and refuses to leave a row unconfirmed
+✔ the erasure login (out of band): SCRAM verifier only, LOGIN NOINHERIT, member of the erasure role only; Secret Manager names
+✔ the erasure body: security definer + empty search_path, one transaction, every bypassed guard re-enabled and verified, payments never written
+✔ every foreign key to torneos_identity in the tree (+ 00000000000020) is classified by the design matrix (a new one fails here until classified)
+✔ classify: the two states (with or without 0020), and every drift by name
+✔ changedOutside: anything else moving is named; EXECUTE counts of anon/authenticated must not move at all
+✔ run(): phrase, file hash, pre-state and the ledger refusal are checked before any write
+✔ the rollback removes only what 0021 added, refuses with ledger rows unless forced, and touches no data
+✔ lab: observe → apply → re-apply refused → rollback refused with ledger rows → forced rollback (anonymisation stays) → re-apply
+✔ E0 baseline: the public page shows the real player names; official history, standings and the purchase are captured
+✔ E1 permissions: only torneos_erasure_writer may erase or confirm; every API / RPC role (core adapter included) is denied
+✔ E1b least privilege: the erasure login can do NOTHING else — no table, no other function, no other role
+✔ E2 a Core user who never used Torneos: no_identity, nothing moves anywhere
+✔ E3 pedro (player with goals and a card, official report, completed tournament): pseudonym everywhere, numbers kept, personal rows deleted
+✔ E4 idempotency: erasing pedro again (new request id) is a no-op: already_erased, nothing moves
+✔ E5 olga (owner with members): Liga Norte goes to ana, the longest-standing active admin; beto/dora/carla untouched; page stays
+✔ E6 solo (owner alone): archived, public page unpublished (the public route returns null), listing withdrawn without WhatsApp
+✔ E7 premium (owner alone with an APPROVED Premium purchase): archived; purchase, its events and the season grant byte-identical
+✔ E8 lidia (only a collaborator besides her): archived, the collaborator is NOT promoted
+✔ E9 carla (collaborator in two organizations, one of them archived): both memberships removed
+✔ E10 capi (captain + applicant): manager revoked with pseudonym and no email, his invitation email replaced, application message cleared, the team entry unchanged
+✔ E11 paula (claimed provisional player): name, normalized name, email and phone gone; her roster row and squad snapshot carry the pseudonym
+✔ E12 dora (admin, author of a published announcement): text kept, author link to the severed identity kept, season seat and membership gone
+✔ E13 foto (player with a portrait and photographer): portrait → delete_pending + consent revoked, the object listed for the operator, Storage untouched
+✔ E14 a failure injected mid-way rolls EVERYTHING back (guards re-enabled, identity intact); the retry completes and transfers Liga Norte again
+✔ E15 concurrent erasures serialize (advisory lock): beto and rival at the same time, both erased, Liga Norte archived after its last admin
+✔ E16 invariants: no organization is active without an active owner whose identity is live; every guard enabled; official history still immutable
+✔ E17 isolation: other worlds on this lab and the people never erased here are untouched; purchases byte-identical
+✔ E18 Core fails AFTER Torneos erased: the row stays torneos_erased; the retry gets already_erased (no-op) and Core's confirmation completes it
+✔ E19 Torneos erased and Core never retried: listed by the reconcile query once older than its threshold; the operator completion confirms it once
+✔ E20 double request: two simultaneous erasures of the same person → one erased, one already_erased, one ledger row; double confirmation is idempotent
+✔ E21 the opposite failures: Torneos fails → nothing in Torneos (no ledger row) and the retry completes; Core done but its confirmation lost while an identity was re-created → reconcile shows it, the operator completion sweeps it
+✔ E22 confirmation of a person Torneos never knew: no_ledger, nothing moves; the confirmation's sweep erases an identity opened after the erasure
+ℹ tests 46
+ℹ pass 46
 ℹ fail 0
-✔ A1 a signed request erases: 200 {ok, outcome} only (no ids, no counts), as torneos_core_adapter with the erasure timeouts (389.131375ms)
-✔ A2 every outcome the function can give passes through; an unknown one is a 503 (1.576834ms)
-✔ A3 authentication: bad signature, the RAW contract secret (Torneos → Core key), a stale or future time, malformed headers → 401 and no SQL (1.09525ms)
-✔ A4 a browser can never call it: any Origin (even the allowed web origin) → 403; foreign host → 403; GET → 405 (0.261167ms)
-✔ A5 the body is closed: exactly core_user_id + request_id, canonical lowercase UUIDs, JSON content type, ≤ 512 bytes (1.393625ms)
-✔ A6 a database failure (unavailable, lock timeout, refused postcondition) is a retryable 503 that reveals nothing (0.69825ms)
-✔ A7 the other routes are unchanged: a Core-signed erasure request is not a bearer, and /exchange still refuses it (0.1685ms)
-✔ B Core shared module → real gateway → real 0021 on the lab: erased → already_erased; never-used → no_identity; wrong secret refused (2958.338042ms)
-✔ E0 baseline: the public page shows the real player names; official history, standings and the purchase are captured (3024.631208ms)
-✔ E1 permissions: only torneos_core_adapter may erase; no client role reads the ledger or calls the pseudonym (50.620666ms)
-✔ E2 a Core user who never used Torneos: no_identity, nothing moves anywhere (16.632458ms)
-✔ E3 pedro (player with goals and a card, official report, completed tournament): pseudonym everywhere, numbers kept, personal rows deleted (35.162166ms)
-✔ E4 idempotency: erasing pedro again (new request id) is a no-op: already_erased, nothing moves (6.990792ms)
-✔ E5 olga (owner with members): Liga Norte goes to ana, the longest-standing active admin; beto/dora/carla untouched; page stays (9.490417ms)
-✔ E6 solo (owner alone): archived, public page unpublished (the public route returns null), listing withdrawn without WhatsApp (8.369875ms)
-✔ E7 premium (owner alone with an APPROVED Premium purchase): archived; purchase, its events and the season grant byte-identical (4.60775ms)
-✔ E8 lidia (only a collaborator besides her): archived, the collaborator is NOT promoted (4.773125ms)
-✔ E9 carla (collaborator in two organizations, one of them archived): both memberships removed (5.478333ms)
-✔ E10 capi (captain + applicant): manager revoked with pseudonym and no email, his invitation email replaced, application message cleared, the team entry unchanged (6.18175ms)
-✔ E11 paula (claimed provisional player): name, normalized name, email and phone gone; her roster row and squad snapshot carry the pseudonym (4.995125ms)
-✔ E12 dora (admin, author of a published announcement): text kept, author link to the severed identity kept, season seat and membership gone (4.31225ms)
-✔ E13 foto (player with a portrait and photographer): portrait → delete_pending + consent revoked, the object listed for the operator, Storage untouched (4.756416ms)
-✔ E14 a failure injected mid-way rolls EVERYTHING back (guards re-enabled, identity intact); the retry completes and transfers Liga Norte again (15.705458ms)
-✔ E15 concurrent erasures serialize (advisory lock): beto and rival at the same time, both erased, Liga Norte archived after its last admin (16.490875ms)
-✔ E16 invariants: no organization is active without an active owner whose identity is live; every guard enabled; official history still immutable (4.173875ms)
-✔ E17 isolation: other worlds on this lab and the people never erased here are untouched; purchases byte-identical (1.756625ms)
-ℹ tests 26
-ℹ pass 26
-ℹ fail 0
+ℹ skipped 0
 
-## 0021 → 0020 (order-0020.test.mjs): see order-0021-then-0020-lab.jsonl
+## main + 0022 (moderation, #216 file b4d3c41d…)
+✔ A1 a signed erase: 200 {ok, outcome} only (no ids, no counts), through the ERASURE login as torneos_erasure_writer with the erasure timeouts
+✔ A2 the confirmation route: its own signature, confirm_tournament_account_erasure, outcomes core_confirmed / no_ledger; an erase signature never passes as a confirmation
+✔ A3 every erase outcome the function can give passes through; an unknown one is a 503
+✔ A4 authentication: bad signature, the RAW contract secret (Torneos → Core key), a stale or future time, malformed headers → 401 and no SQL
+✔ A5 a browser can never call it: any Origin (even the allowed web origin) → 403; foreign host → 403; GET → 405 (both routes)
+✔ A6 the body is closed: exactly core_user_id + request_id, canonical lowercase UUIDs, JSON content type, ≤ 512 bytes
+✔ A7 a database failure (unavailable, lock timeout, refused postcondition) is a retryable 503 that reveals nothing
+✔ A8 the other routes are unchanged: a Core-signed erasure request is not a bearer, and /exchange still refuses it
+✔ A9 fail closed WITHOUT the erasure login: the gateway boots, an unsigned call is 401, a signed one is 503 — and no SQL runs on any login
+✔ A10 the erasure login must be its own: the core adapter's login or password, or the Core contract secret as its password, disable the gateway
+✔ B Core shared module → real gateway → real 0021 on the lab, through the erasure login: erased → already_erased → confirmed; never-used → no_identity / no_ledger; wrong secret refused
+✔ the pinned files and bodies are the ones in the tree
+✔ 0021 adds three functions, one private table and one NOLOGIN role; it changes no existing body, policy, role, table or trigger definition
+✔ the ledger states: torneos_erased → core_confirmed (by core or operator); the confirmation sweeps first and refuses to leave a row unconfirmed
+✔ the erasure login (out of band): SCRAM verifier only, LOGIN NOINHERIT, member of the erasure role only; Secret Manager names
+✔ the erasure body: security definer + empty search_path, one transaction, every bypassed guard re-enabled and verified, payments never written
+✔ every foreign key to torneos_identity in the tree (+ 00000000000022) is classified by the design matrix (a new one fails here until classified)
+✔ classify: the two states (with or without 0020), and every drift by name
+✔ changedOutside: anything else moving is named; EXECUTE counts of anon/authenticated must not move at all
+✔ run(): phrase, file hash, pre-state and the ledger refusal are checked before any write
+✔ the rollback removes only what 0021 added, refuses with ledger rows unless forced, and touches no data
+✔ lab: observe → apply → re-apply refused → rollback refused with ledger rows → forced rollback (anonymisation stays) → re-apply
+✔ E0 baseline: the public page shows the real player names; official history, standings and the purchase are captured
+✔ E1 permissions: only torneos_erasure_writer may erase or confirm; every API / RPC role (core adapter included) is denied
+✔ E1b least privilege: the erasure login can do NOTHING else — no table, no other function, no other role
+✔ E2 a Core user who never used Torneos: no_identity, nothing moves anywhere
+✔ E2b (0022) moderation rows by and about people erased below: fan reports pedro and a team, pedro muted Liga Norte and is blocked by olga
+✔ E3 pedro (player with goals and a card, official report, completed tournament): pseudonym everywhere, numbers kept, personal rows deleted
+✔ E4 idempotency: erasing pedro again (new request id) is a no-op: already_erased, nothing moves
+✔ E5 olga (owner with members): Liga Norte goes to ana, the longest-standing active admin; beto/dora/carla untouched; page stays
+✔ E6 solo (owner alone): archived, public page unpublished (the public route returns null), listing withdrawn without WhatsApp
+✔ E7 premium (owner alone with an APPROVED Premium purchase): archived; purchase, its events and the season grant byte-identical
+✔ E8 lidia (only a collaborator besides her): archived, the collaborator is NOT promoted
+✔ E9 carla (collaborator in two organizations, one of them archived): both memberships removed
+✔ E10 capi (captain + applicant): manager revoked with pseudonym and no email, his invitation email replaced, application message cleared, the team entry unchanged
+✔ E11 paula (claimed provisional player): name, normalized name, email and phone gone; her roster row and squad snapshot carry the pseudonym
+✔ E12 dora (admin, author of a published announcement): text kept, author link to the severed identity kept, season seat and membership gone
+✔ E13 foto (player with a portrait and photographer): portrait → delete_pending + consent revoked, the object listed for the operator, Storage untouched
+✔ E14 a failure injected mid-way rolls EVERYTHING back (guards re-enabled, identity intact); the retry completes and transfers Liga Norte again
+✔ E15 concurrent erasures serialize (advisory lock): beto and rival at the same time, both erased, Liga Norte archived after its last admin
+✔ E16 invariants: no organization is active without an active owner whose identity is live; every guard enabled; official history still immutable
+✔ E17 isolation: other worlds on this lab and the people never erased here are untouched; purchases byte-identical
+✔ E18 Core fails AFTER Torneos erased: the row stays torneos_erased; the retry gets already_erased (no-op) and Core's confirmation completes it
+✔ E19 Torneos erased and Core never retried: listed by the reconcile query once older than its threshold; the operator completion confirms it once
+✔ E20 double request: two simultaneous erasures of the same person → one erased, one already_erased, one ledger row; double confirmation is idempotent
+✔ E21 the opposite failures: Torneos fails → nothing in Torneos (no ledger row) and the retry completes; Core done but its confirmation lost while an identity was re-created → reconcile shows it, the operator completion sweeps it
+✔ E22 confirmation of a person Torneos never knew: no_ledger, nothing moves; the confirmation's sweep erases an identity opened after the erasure
+✔ E23 (0022) the reporter is erased: reports stay without reporter, detail or own «created» events; staff events and acts keep their reference; the application report lost the message
+ℹ tests 48
+ℹ pass 48
+ℹ fail 0
+ℹ skipped 0
+
+## main + 0020 + 0022
+✔ A1 a signed erase: 200 {ok, outcome} only (no ids, no counts), through the ERASURE login as torneos_erasure_writer with the erasure timeouts
+✔ A2 the confirmation route: its own signature, confirm_tournament_account_erasure, outcomes core_confirmed / no_ledger; an erase signature never passes as a confirmation
+✔ A3 every erase outcome the function can give passes through; an unknown one is a 503
+✔ A4 authentication: bad signature, the RAW contract secret (Torneos → Core key), a stale or future time, malformed headers → 401 and no SQL
+✔ A5 a browser can never call it: any Origin (even the allowed web origin) → 403; foreign host → 403; GET → 405 (both routes)
+✔ A6 the body is closed: exactly core_user_id + request_id, canonical lowercase UUIDs, JSON content type, ≤ 512 bytes
+✔ A7 a database failure (unavailable, lock timeout, refused postcondition) is a retryable 503 that reveals nothing
+✔ A8 the other routes are unchanged: a Core-signed erasure request is not a bearer, and /exchange still refuses it
+✔ A9 fail closed WITHOUT the erasure login: the gateway boots, an unsigned call is 401, a signed one is 503 — and no SQL runs on any login
+✔ A10 the erasure login must be its own: the core adapter's login or password, or the Core contract secret as its password, disable the gateway
+✔ B Core shared module → real gateway → real 0021 on the lab, through the erasure login: erased → already_erased → confirmed; never-used → no_identity / no_ledger; wrong secret refused
+✔ the pinned files and bodies are the ones in the tree
+✔ 0021 adds three functions, one private table and one NOLOGIN role; it changes no existing body, policy, role, table or trigger definition
+✔ the ledger states: torneos_erased → core_confirmed (by core or operator); the confirmation sweeps first and refuses to leave a row unconfirmed
+✔ the erasure login (out of band): SCRAM verifier only, LOGIN NOINHERIT, member of the erasure role only; Secret Manager names
+✔ the erasure body: security definer + empty search_path, one transaction, every bypassed guard re-enabled and verified, payments never written
+✔ every foreign key to torneos_identity in the tree (+ 00000000000020, 00000000000022) is classified by the design matrix (a new one fails here until classified)
+✔ classify: the two states (with or without 0020), and every drift by name
+✔ changedOutside: anything else moving is named; EXECUTE counts of anon/authenticated must not move at all
+✔ run(): phrase, file hash, pre-state and the ledger refusal are checked before any write
+✔ the rollback removes only what 0021 added, refuses with ledger rows unless forced, and touches no data
+✔ lab: observe → apply → re-apply refused → rollback refused with ledger rows → forced rollback (anonymisation stays) → re-apply
+✔ E0 baseline: the public page shows the real player names; official history, standings and the purchase are captured
+✔ E1 permissions: only torneos_erasure_writer may erase or confirm; every API / RPC role (core adapter included) is denied
+✔ E1b least privilege: the erasure login can do NOTHING else — no table, no other function, no other role
+✔ E2 a Core user who never used Torneos: no_identity, nothing moves anywhere
+✔ E2b (0022) moderation rows by and about people erased below: fan reports pedro and a team, pedro muted Liga Norte and is blocked by olga
+✔ E3 pedro (player with goals and a card, official report, completed tournament): pseudonym everywhere, numbers kept, personal rows deleted
+✔ E4 idempotency: erasing pedro again (new request id) is a no-op: already_erased, nothing moves
+✔ E5 olga (owner with members): Liga Norte goes to ana, the longest-standing active admin; beto/dora/carla untouched; page stays
+✔ E6 solo (owner alone): archived, public page unpublished (the public route returns null), listing withdrawn without WhatsApp
+✔ E7 premium (owner alone with an APPROVED Premium purchase): archived; purchase, its events and the season grant byte-identical
+✔ E8 lidia (only a collaborator besides her): archived, the collaborator is NOT promoted
+✔ E9 carla (collaborator in two organizations, one of them archived): both memberships removed
+✔ E10 capi (captain + applicant): manager revoked with pseudonym and no email, his invitation email replaced, application message cleared, the team entry unchanged
+✔ E11 paula (claimed provisional player): name, normalized name, email and phone gone; her roster row and squad snapshot carry the pseudonym
+✔ E12 dora (admin, author of a published announcement): text kept, author link to the severed identity kept, season seat and membership gone
+✔ E13 foto (player with a portrait and photographer): portrait → delete_pending + consent revoked, the object listed for the operator, Storage untouched
+✔ E14 a failure injected mid-way rolls EVERYTHING back (guards re-enabled, identity intact); the retry completes and transfers Liga Norte again
+✔ E15 concurrent erasures serialize (advisory lock): beto and rival at the same time, both erased, Liga Norte archived after its last admin
+✔ E16 invariants: no organization is active without an active owner whose identity is live; every guard enabled; official history still immutable
+✔ E17 isolation: other worlds on this lab and the people never erased here are untouched; purchases byte-identical
+✔ E18 Core fails AFTER Torneos erased: the row stays torneos_erased; the retry gets already_erased (no-op) and Core's confirmation completes it
+✔ E19 Torneos erased and Core never retried: listed by the reconcile query once older than its threshold; the operator completion confirms it once
+✔ E20 double request: two simultaneous erasures of the same person → one erased, one already_erased, one ledger row; double confirmation is idempotent
+✔ E21 the opposite failures: Torneos fails → nothing in Torneos (no ledger row) and the retry completes; Core done but its confirmation lost while an identity was re-created → reconcile shows it, the operator completion sweeps it
+✔ E22 confirmation of a person Torneos never knew: no_ledger, nothing moves; the confirmation's sweep erases an identity opened after the erasure
+✔ E23 (0022) the reporter is erased: reports stay without reporter, detail or own «created» events; staff events and acts keep their reference; the application report lost the message
+ℹ tests 48
+ℹ pass 48
+ℹ fail 0
+ℹ skipped 0

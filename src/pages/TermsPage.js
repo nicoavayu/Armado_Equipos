@@ -23,7 +23,8 @@ export default function TermsPage() {
       </p>
       <p>
         Podés cerrar sesión en cualquier momento y eliminar tu cuenta desde la app (Perfil → Eliminar cuenta), desde la web o
-        pedirlo por email: ver <Link to={LEGAL_ROUTES.accountDeletion}>Eliminar cuenta</Link> y la{' '}
+        pedirlo por email. Si falla una parte del borrado, podés reintentar; lo ya anonimizado en Torneos no se puede
+        revertir. Ver <Link to={LEGAL_ROUTES.accountDeletion}>Eliminar cuenta</Link> y la{' '}
         <Link to={LEGAL_ROUTES.privacy}>Política de Privacidad</Link>.
       </p>
     </LegalPageLayout>

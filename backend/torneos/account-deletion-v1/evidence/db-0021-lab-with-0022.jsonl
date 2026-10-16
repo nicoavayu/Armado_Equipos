@@ -1,0 +1,12 @@
+{"at":"2026-10-15T23:52:40.716Z","step":"observe","verdict":{"state":"PRE_0021","failures":[]},"sponsors0020":false}
+{"at":"2026-10-15T23:52:42.210Z","step":"apply-0021","verdict":"APPLY_0021_DONE","before":"PRE_0021","after":"POST_0021","changedOutside":[]}
+{"at":"2026-10-15T23:52:42.507Z","step":"re-apply","refused":true}
+{"at":"2026-10-15T23:52:43.021Z","step":"erasure login provisioned (SCRAM, out of band)","state":"POST_0021","logins":["torneos_edge_erasure_writer"],"role":{"login":false,"inherit":false,"attributes":false,"member_of":0,"schemas":["private"],"functions":["private.confirm_tournament_account_erasure(uuid,uuid)","private.erase_tournament_account(uuid,uuid)"],"relations":0}}
+{"at":"2026-10-15T23:52:43.873Z","step":"erasure credential rotated","oldPassword":"28P01 refused","newPassword":"ok"}
+{"at":"2026-10-15T23:52:44.262Z","step":"rollback without force","refused":true}
+{"at":"2026-10-15T23:52:44.742Z","step":"rollback-0021 (forced)","verdict":"ROLLBACK_0021_DONE","before":"POST_0021","after":"PRE_0021","changedOutside":[],"forced":true}
+{"at":"2026-10-15T23:52:44.745Z","step":"after rollback: the erasure is not undone","profiles":0,"identityStillMapped":0}
+{"at":"2026-10-15T23:52:45.162Z","step":"re-apply after rollback","verdict":"APPLY_0021_DONE","changedOutside":[]}
+{"at":"2026-10-15T23:52:45.406Z","step":"erasure login after rollback + re-apply","beforeRegrant":"permission denied to set role","afterRegrant":"ok"}
+{"at":"2026-10-15T23:52:45.430Z","step":"erasure of the same user after rollback + re-apply","outcome":"no_identity"}
+{"at":"2026-10-15T23:52:45.649Z","step":"final observe","state":"POST_0021","readOnly":"on"}

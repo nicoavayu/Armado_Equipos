@@ -52,9 +52,9 @@ export default function AccountDeletionInfoPage() {
       <h2>Pedirla por email (sin iniciar sesión)</h2>
       <p>
         Si no podés iniciar sesión, pedí la eliminación <strong>por email a {contactEmail || 'nuestro correo de contacto'}</strong>.
-        Este formulario arma el correo; <strong>no lo envía por vos</strong>. Te confirmamos la recepción por email y, una vez
-        verificado que la cuenta es tuya, la eliminamos dentro de los 5 días hábiles (Ley 25.326, art. 16), con el mismo
-        alcance que el botón.
+        Este formulario arma el correo; <strong>no lo envía por vos</strong>. Te confirmamos por email la recepción y te
+        informamos cuando esté hecho. Antes verificamos que la cuenta es tuya; la eliminación tiene el mismo alcance que el
+        botón.
       </p>
       <EmailRequestForm kind={ACCOUNT_DELETION_REQUEST} />
 

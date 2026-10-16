@@ -72,7 +72,8 @@ export default function PrivacyPage() {
         <li>
           Si eliminás la cuenta: se borran tu cuenta, tu perfil y tus datos personales en Arma2 y en Torneos. En partidos,
           planteles, actas y estadísticas tu nombre se reemplaza por uno anónimo y los resultados se conservan (son la
-          historia de los demás equipos y organizaciones). Detalle completo en{' '}
+          historia de los demás equipos y organizaciones). Primero se borra en Torneos y después en Arma2: si falla una
+          parte, podés reintentar; lo ya anonimizado en Torneos no se puede revertir. Detalle completo en{' '}
           <Link to={LEGAL_ROUTES.accountDeletion}>Eliminar cuenta</Link>.
         </li>
         <li>Fotos de una temporada: hasta el fin de la temporada; después pueden eliminarse.</li>

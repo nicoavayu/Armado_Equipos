@@ -6,6 +6,7 @@ import AccountDeletionPanel from '../legal/AccountDeletionPanel';
 import {
   ACCOUNT_DELETION_SHORT,
   ACCOUNT_DELETION_SUMMARY,
+  CORE_DELETION_PARTIAL_MESSAGE,
   TORNEOS_ERASURE_FAILED_MESSAGE,
   accountDeletionErrorMessage,
   requestCoreAccountDeletion,
@@ -42,6 +43,16 @@ describe('requestCoreAccountDeletion (the one Core flow, Torneos first)', () => 
     expect(TORNEOS_ERASURE_FAILED_MESSAGE).toMatch(/no borramos nada: tu cuenta sigue activa/);
   });
 
+  test('Core failing AFTER Torneos: honest (Torneos already anonymised, irreversible; the Arma2 account still exists) and retryable', () => {
+    for (const message of ['profile_delete_failed', 'auth_delete_failed']) {
+      const text = accountDeletionErrorMessage({ message });
+      expect(text).toBe(CORE_DELETION_PARTIAL_MESSAGE);
+      expect(text).toMatch(/no se puede revertir/);
+      expect(text).toMatch(/sigue existiendo/);
+      expect(text).toMatch(/Volvé a intentarlo/);
+    }
+  });
+
   test('other server answers map to messages for people, never to codes', () => {
     expect(accountDeletionErrorMessage({ message: 'profile_delete_failed' })).toMatch(/Volvé a intentarlo/);
     expect(accountDeletionErrorMessage({ message: 'not_authenticated' })).toMatch(/Iniciá sesión de nuevo/);
@@ -58,8 +69,28 @@ describe('the texts say what the code does', () => {
     expect(all).toMatch(/defensa del consumidor/);
     expect(all).toMatch(/administrador más antiguo/);
     expect(all).toMatch(/no se reembolsa ni se modifica ninguna compra/);
-    expect(all).toMatch(/foto de perfil .* no se borra automáticamente/);
+    expect(all).toContain('Las fotos de perfil de Arma2 todavía no se eliminan automáticamente; se suma en una próxima actualización.');
     expect(ACCOUNT_DELETION_SHORT).not.toMatch(/datos asociados/);
+  });
+
+  test('no atomicity is promised across Torneos and Arma2: a failed part can be retried, what Torneos anonymised cannot be reverted', () => {
+    for (const text of [ACCOUNT_DELETION_SUMMARY.timing, ACCOUNT_DELETION_SHORT]) {
+      expect(text).toMatch(/si falla una parte, podés reintentar/i);
+      expect(text).toMatch(/lo ya anonimizado en Torneos no se puede revertir/);
+    }
+    expect(ACCOUNT_DELETION_SUMMARY.timing).not.toMatch(/inmediato/);
+  });
+
+  test('photos: no email procedure (Apple does not accept support flows to complete a deletion)', () => {
+    const photo = ACCOUNT_DELETION_SUMMARY.kept.find((item) => /fotos de perfil/.test(item));
+    expect(photo).not.toMatch(/email|correo|formulario|pedilo/i);
+  });
+
+  test('no fixed public deadline (24 h / 5 días hábiles): the internal target lives only in the runbook', () => {
+    const all = [...ACCOUNT_DELETION_SUMMARY.deleted, ...ACCOUNT_DELETION_SUMMARY.anonymised, ...ACCOUNT_DELETION_SUMMARY.kept,
+      ACCOUNT_DELETION_SUMMARY.organizations, ACCOUNT_DELETION_SUMMARY.timing, ACCOUNT_DELETION_SHORT, TORNEOS_ERASURE_FAILED_MESSAGE,
+      CORE_DELETION_PARTIAL_MESSAGE].join(' ');
+    expect(all).not.toMatch(/hábiles|24 ?h|horas/i);
   });
 });
 
@@ -105,7 +136,9 @@ describe('/account-deletion (public): the web request Google asks for', () => {
     expect(screen.getByText(/Perfil → Eliminar cuenta, y confirmá escribiendo ELIMINAR/)).toBeInTheDocument();
     expect(await screen.findByText(/No tenés la sesión iniciada en este navegador/)).toBeInTheDocument();
     expect(screen.getByText(/no lo envía por vos/)).toBeInTheDocument();
-    expect(screen.getByText(/5 días hábiles/)).toBeInTheDocument();
+    expect(screen.getByText(/te\s+informamos cuando esté hecho/)).toBeInTheDocument();
+    expect(document.body.textContent).not.toMatch(/hábiles|24 ?h\b|24 horas/i);
+    expect(document.body.textContent).toMatch(/si falla una parte, podés reintentar/i);
     const form = screen.getByRole('form', { name: 'Preparar el pedido de eliminación de cuenta' });
     expect(form).toBeInTheDocument();
     expect(screen.queryByText(/Organización y temporada/)).not.toBeInTheDocument();

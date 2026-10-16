@@ -19,9 +19,9 @@ sin dueño que pueda entrar y los nombres de jugadores publicados. 78 de las 91 
 | D4 | **Organizaciones del titular:** se transfieren al **admin activo más antiguo** (`joined_at`, `created_at`, `id`). Si no hay admin activo (sólo colaboradores, o nadie), la organización se **archiva**: sus páginas públicas se despublican y sus publicaciones en «Explorar torneos» se retiran, con el WhatsApp de contacto borrado. **Un colaborador no se asciende.** | Un admin ya tenía casi todos los poderes; un colaborador no: ascenderlo le daría control de compras, miembros y publicación que el titular nunca le dio. Una página pública o una convocatoria abierta sin nadie que responda puede inducir a error a terceros (inscripciones, pagos, contacto) y es contenido del titular. Los datos no se destruyen: quedan internos y un traspaso manual por soporte puede reactivarla. |
 | D5 | **Compras: intactas.** Ni montos, ni estados, ni eventos, ni planes, ni temporadas. Sólo cambia, indirectamente, que el comprador es la identidad cortada. | Contabilidad, Ley 24.240 (arrepentimiento, contracargos) y la Privacidad ya lo dicen. La lógica de pagos no se toca. |
 | D6 | **Fotos (MEDIA, apagado en fase 1):** los retratos de la persona entran al borrado en dos fases ya existente (`delete_pending` + consentimiento revocado); los objetos quedan listados en el registro para el operador. **No se borra ningún objeto de Storage ni se habilita ningún cron.** Las fotos de galería que subió como staff son de la organización y se conservan (sin vínculo con ella). | El borrado real de objetos lo hace el store con sus guardas, y el cron de purga está prohibido en este trabajo. `delete_pending` ya oculta el retrato en todas las lecturas. |
-| D7 | **Integración:** Core `delete-account` llama al gateway de Torneos **antes** de borrar nada en Core, por una ruta nueva firmada (`POST /core/v1/account-erasure`), con una clave **derivada** del secreto que ambos ya tienen (`TORNEOS_CONTRACT_SERVICE_SECRET`). El gateway ejecuta `private.erase_tournament_account` como `torneos_core_adapter`. | Reutiliza el canal servidor-a-servidor existente sin secretos nuevos ni claves de servicio en clientes. El `core_user_id` sale de la sesión que Core verificó, nunca del cliente. |
-| D8 | **Fail-closed** con reintento seguro. Si Torneos no confirma, Core no borra nada y responde `503 torneos_erasure_failed` («tu cuenta sigue activa, probá de nuevo»). Todo es idempotente. Después de borrar la cuenta Core hay una segunda pasada (barrido) de mejor esfuerzo. **Sin cron nuevo.** | Si Core borrara primero y Torneos fallara, nadie podría reintentar (no hay sesión ni usuario) y haría falta reconciliar a mano. Así, la persona puede reintentar y la cuenta nunca queda borrada a medias. |
-| D9 | **Una sola transacción** en Torneos. Si algo falla, no queda nada a medias; el reintento empieza de cero. Las erasures se serializan con un advisory lock. | Ensayado con un fallo inyectado a mitad (E14). |
+| D7 | **Integración:** Core `delete-account` llama al gateway de Torneos **antes** de borrar nada en Core (`POST /core/v1/account-erasure`) y, **después** de borrar su cuenta, le confirma que terminó (`POST /core/v1/account-erasure/confirm`). Las dos rutas van firmadas con una clave **derivada** del secreto que ambos ya tienen (`TORNEOS_CONTRACT_SERVICE_SECRET`): autentica a Core, no es una credencial de base. El gateway ejecuta las funciones con un **login dedicado y de mínimo privilegio** (`torneos_edge_erasure_writer`, miembro NOINHERIT de `torneos_erasure_writer`), con su propia contraseña en Secret Manager; **nunca** con `torneos_core_adapter`. | Core no suma secretos. Un compromiso de la credencial del adaptador (o del canal del contrato) ya no alcanza para anonimizar cuentas: hace falta además la credencial de borrado, que sólo puede ejecutar estas dos funciones. El `core_user_id` sale de la sesión que Core verificó, nunca del cliente. |
+| D8 | **Fail-closed antes de Torneos, reintento después.** Si Torneos no confirma el borrado, Core no borra nada y responde `503 torneos_erasure_failed` («tu cuenta sigue activa, probá de nuevo»). **Torneos y Core son dos bases: no hay atomicidad entre ellas.** Lo que Torneos anonimiza es irreversible. Si Core falla después, el registro de Torneos queda en `torneos_erased`; la persona reintenta con el mismo botón (Torneos responde `already_erased`, sin cambios) y Core termina. Si nadie reintenta, la consulta de reconciliación (sólo lectura) lo muestra al operador. Clave de idempotencia por cuenta (derivada del id de Core). **Sin cron nuevo.** | Si Core borrara primero y Torneos fallara, nadie podría reintentar (no hay sesión ni usuario). En este orden siempre queda un camino: reintentar o reconciliar. Ninguno «deshace» lo de Torneos. |
+| D9 | **Una sola transacción dentro de Torneos.** Si algo falla en Torneos, no queda nada a medias ahí; el reintento empieza de cero. Las erasures se serializan con un advisory lock. La atomicidad termina en el borde de Torneos (D8). | Ensayado con un fallo inyectado a mitad (E14, E21). |
 | D10 | Los guardas que hacen inmutable la historia oficial se **desactivan y reactivan dentro de la misma transacción**, sólo alrededor de los `UPDATE` de nombres. La función se niega a empezar si alguno no está activo y verifica al final que todos lo estén. Ningún cuerpo de función existente cambia. | Cambiar los cuerpos de los guardas movería pines de otros drivers (OEC, 0020). `ALTER TABLE … DISABLE TRIGGER` es transaccional: si algo falla vuelve solo; nadie más ve el estado intermedio (bloqueo `SHARE ROW EXCLUSIVE`, las lecturas siguen). |
 | D11 | **Web:** `/account-deletion` permite **pedir** el borrado sin sesión (formulario honesto con `EmailRequestForm`, referencia `ELIM-…`) y, con sesión iniciada en ese navegador, **eliminar la cuenta ahí mismo** con el mismo flujo Core. «Eliminar cuenta» de Torneos lleva ahí. | Google exige un recurso web para pedir el borrado; en la web `/profile` redirige a `/torneos`. Una sola cuenta, un solo flujo. |
 
@@ -44,7 +44,7 @@ Leyenda: **BORRA** (filas eliminadas) · **ANONIMIZA** (campos personales reempl
 | `user_workspace_preferences` | BORRA | Preferencias propias. |
 | `private.core_contract_attestations` | BORRA las suyas y las que lo mencionan | Copias efímeras de respuestas de Core (pueden contener su nombre). |
 | `private.tournament_team_entry_core_snapshots` | ANONIMIZA: se quita su elemento de `players` | Copia congelada de su nombre y avatar de Core. Nadie lee esa lista después de crear el plantel. El equipo queda. |
-| `private.tournament_account_erasures` | Nuevo registro (0021): sha256 del id Core, identidad cortada, resumen, objetos pendientes | Idempotencia («ya borrado») y trazabilidad para el operador. Ningún rol cliente lo lee. |
+| `private.tournament_account_erasures` | Nuevo registro (0021): sha256 del id Core, identidad cortada, clave del pedido (`request_id`), estado `torneos_erased` → `core_confirmed`, resumen, objetos pendientes | Idempotencia («ya borrado»), reconciliación con Core y trazabilidad para el operador. Ningún rol cliente (ni el de borrado) lo lee. |
 
 ### 2.2 Organizaciones y accesos
 
@@ -117,9 +117,23 @@ Leyenda: **BORRA** (filas eliminadas) · **ANONIMIZA** (campos personales reempl
 | `tournament_media_assets`, `tournament_media_galleries`, `tournament_media_gallery_items` | CONSERVA | Galería de la organización (D6). |
 | `tournament_media_moderation_actions`, `tournament_media_reports` | CONSERVA | Moderación (referencia cortada). |
 
-Una prueba (`db-0021.test.mjs`) recorre todas las migraciones y falla si aparece una tabla con FK a `torneos_identity` que no esté en
-esta matriz. **Ojo con 0022 (moderación, otra rama):** si agrega tablas con FK a la identidad (por ejemplo, reportes), hay que sumarlas
-acá y, si guardan datos personales, a la función.
+### 2.5 Moderación (0022, si existe; SQL dinámico como 0020, cualquier orden de aplicación)
+
+0021 no borra la fila de identidad (D1): los `ON DELETE SET NULL / CASCADE` de 0022 nunca se disparan. Por eso 0021 lo hace explícito.
+
+| Tabla | Qué pasa | Por qué |
+|---|---|---|
+| `tournament_content_reports`: los que **hizo** la persona | CONSERVA el reporte y su estado. ANONIMIZA `reporter_user_id` → `null` y `detail` → `null`. | El reporte es historia de moderación de la organización y de la plataforma. Quién reportó y su texto libre (puede tener un teléfono) son de la persona. |
+| `tournament_content_reports`: los que son **sobre** su contenido | ANONIMIZA. Reporte de `player` sobre sus filas de plantel: `target_label` y `content_snapshot.playerName` pasan al seudónimo. Reporte de `application` sobre su solicitud: `content_snapshot.message` pasa a `null`. | La copia del reporte sigue al contenido: el plantel ya muestra el seudónimo y la solicitud ya perdió el mensaje (§2.3). |
+| `tournament_content_reports`: `handled_by`, `resolution_note`, acción tomada | CONSERVA (referencia cortada) | Es un acto de la organización. |
+| `tournament_content_report_events` | ANONIMIZA `actor_user_id` → `null` en los eventos `created` de sus propios reportes. El resto CONSERVA (referencia cortada). | Sin esto, el evento de creación volvería a vincular el reporte con la identidad. Los actos del staff quedan, como en `tournament_audit_log`. |
+| `tournament_communication_mutes` | BORRA las suyas | Preferencia propia (como las de §2.1). |
+| `tournament_applicant_blocks`: donde la persona es la **bloqueada** | BORRA | La identidad cortada nunca vuelve a solicitar (una cuenta nueva es otra identidad), así que el bloqueo queda inerte. Su `reason` es texto sobre la persona. La constancia queda en `tournament_audit_log`. |
+| `tournament_applicant_blocks`: `created_by` / `released_by` de la persona (staff) | CONSERVA (referencia cortada) | Es un acto de la organización. |
+| `private.tournament_moderation_holds` | No aplica (no tiene columna de identidad) | Retención de la plataforma sobre una página. |
+
+Una prueba (`db-0021.test.mjs`) recorre todas las migraciones y falla si aparece una tabla con FK a `torneos_identity` que no esté en esta matriz.
+Con `ACCOUNT_DELETION_WITH_0020` / `ACCOUNT_DELETION_WITH_0022` suma los archivos de esas ramas. Pasa en main, main+0020, main+0022 y main+0020+0022.
 
 ---
 
@@ -140,57 +154,126 @@ Para no perder una organización, el texto del modal y de `/account-deletion` le
 
 ```
 App / web ──(sesión del usuario)──▶ Core delete-account
-   1. verifica la sesión (getUser) y la confirmación
-   2. POST {TORNEOS_GATEWAY_URL}/core/v1/account-erasure   firmado (HMAC derivado, ±30 s)
-        └─▶ gateway Torneos: verifica firma, cuerpo cerrado, sin Origin
-              └─▶ SET LOCAL ROLE torneos_core_adapter; private.erase_tournament_account(core_user_id, request_id)
-   3. si Torneos NO confirmó → 503 torneos_erasure_failed (nada borrado en Core; reintento seguro)
+   1. verifica la sesión (getUser) y la confirmación; request_id = clave de idempotencia derivada del id de Core
+   2. POST {TORNEOS_GATEWAY_URL}/core/v1/account-erasure            firmado (HMAC derivado, ±30 s)
+        └─▶ gateway: verifica firma, cuerpo cerrado, sin Origin
+              └─▶ login torneos_edge_erasure_writer; SET LOCAL ROLE torneos_erasure_writer;
+                  private.erase_tournament_account(core_user_id, request_id)        → registro: torneos_erased
+   3. si Torneos NO confirmó → 503 torneos_erasure_failed (nada borrado en ningún lado; reintento seguro)
+   ── (costura) Storage: un PR siguiente borra acá las fotos de perfil de Core, antes de tocar filas de Core
    4. limpieza Core (la de siempre) → usuarios → auth.admin.deleteUser
-   5. barrido Torneos (mejor esfuerzo; si falla sólo se registra)
+        └─ si falla: 500 profile_delete_failed / auth_delete_failed, retryable. Torneos ya quedó anonimizado
+           (irreversible) y SIN confirmar; el reintento de la persona recibe already_erased y Core termina.
+   5. POST …/core/v1/account-erasure/confirm (mismo request_id)       → registro: core_confirmed
+        └─▶ private.confirm_tournament_account_erasure: barre una identidad re-creada en el medio y confirma.
+            Mejor esfuerzo: si falla sólo se registra; la consulta de reconciliación muestra la fila.
 ```
 
-- **Clave:** `K = HMAC-SHA256(TORNEOS_CONTRACT_SERVICE_SECRET, "torneos-core-contract:account-erasure:v1")`. Es el secreto que Core ya tiene para `torneos-core-contract` y que el gateway ya tiene para firmar hacia Core. La derivación separa los sentidos: una solicitud capturada en un sentido no sirve en el otro.
-- **Nonce:** no se guarda. Un replay dentro de la ventana sólo repite la misma erasure, que es idempotente.
+### Seguridad
+
+- **Clave de firma:** `K = HMAC-SHA256(TORNEOS_CONTRACT_SERVICE_SECRET, "torneos-core-contract:account-erasure:v1")`.
+  - Es el secreto que Core ya tiene para `torneos-core-contract` y que el gateway ya tiene para firmar hacia Core.
+  - La derivación separa los sentidos: una solicitud capturada en un sentido no sirve en el otro.
+  - El path está firmado: una firma de `erase` no sirve como `confirm`, ni al revés.
+  - Autentica a Core. No es una credencial de base de datos.
+- **Credencial de base, aparte:** el login `torneos_edge_erasure_writer`.
+  - Su URL completa vive sólo en Secret Manager (`torneos-gw-db-erasure-writer-url`) y Cloud Run la monta como `TORNEOS_DB_ERASURE_WRITER_URL`.
+  - El gateway exige que sea su propio login y su propia contraseña: distinta de la del adaptador y de la del escritor de identidades, y que no sea ni contenga el secreto del contrato. La comparación con la clave derivada se hace al primer uso.
+  - Sin ella, las dos rutas responden 503 después de autenticar la firma (falla cerrado) y el resto del gateway sigue igual.
+- **Rol `torneos_erasure_writer` (0021):**
+  - Es NOLOGIN, NOINHERIT y no es miembro de ningún rol.
+  - Sus privilegios son exactamente `USAGE` en `private` y `EXECUTE` en las dos funciones de borrado. Nada en tablas, vistas, secuencias ni otras funciones; lo verifica la postcondición de 0021, el catálogo del operador y E1b.
+  - `anon`, `authenticated`, `service_role`, `torneos_identity_writer`, `torneos_core_adapter` y el rol de pagos no pueden ejecutar ninguna de las dos funciones (E1).
+- **Nonce:** no se guarda. Un replay dentro de la ventana sólo repite la misma llamada, que es idempotente.
 - **Configuración nueva en Core:** `TORNEOS_GATEWAY_URL` (la URL pública del gateway; no es secreta). Sin ella, `delete-account` **falla cerrado** (`torneos_erasure_unconfigured`).
-- **Rol:** `torneos_core_adapter` (el del contrato). `anon`, `authenticated`, `service_role` y `torneos_identity_writer` no pueden ejecutar la función (E1).
-- **Alcance de un compromiso del gateway:** ya hoy puede emitir tokens de cualquier identidad. Ahora además puede **anonimizar** una cuenta de la que conozca el `core_user_id` (irreversible). Es un aumento real y se declara; la mitigación posible (un login dedicado sólo para esta ruta) se dejó fuera para no agregar secretos (pregunta abierta 1).
-- **Respuestas:** `200 {ok, outcome: erased | already_erased | no_identity}`, `400 INVALID_REQUEST`, `401 SERVICE_AUTH_REQUIRED`, `403` (Origin u host ajeno), `405`, `503 TORNEOS_UNAVAILABLE`. El gateway no devuelve ids ni conteos; el resumen queda en el registro privado.
+- **Alcance de un compromiso:** emitir tokens sigue dependiendo de los logins del bridge y del adaptador. Para anonimizar cuentas hace falta además la credencial de borrado (que no sirve para otra cosa) y la clave de firma de Core.
+- **Respuestas:**
+  - `erase`: `200 {ok, outcome: erased | already_erased | no_identity}`.
+  - `confirm`: `200 {ok, outcome: core_confirmed | no_ledger}`.
+  - Errores: `400 INVALID_REQUEST`, `401 SERVICE_AUTH_REQUIRED`, `403` (Origin u host ajeno), `405`, `503 TORNEOS_UNAVAILABLE`.
+  - Nunca devuelve ids ni conteos.
+
+### Estados, idempotencia y reconciliación
+
+- **Registro** (`private.tournament_account_erasures`): una fila por identidad cortada. La clave es `sha256(core_user_id)` + `request_id`. Los estados son:
+  - `torneos_erased`: Torneos hizo su parte. Toda fila nace así, en la misma transacción que el borrado.
+  - `core_confirmed`: Core avisó que borró su cuenta (`core_confirmed_by = 'core'`), o el operador lo verificó (`'operator'`).
+  - No hay estado «requested»: el borrado de Torneos es una sola transacción. O no quedó nada (no hay fila), o quedó `torneos_erased`.
+- **Clave de idempotencia de Core:** `request_id = UUIDv8(HMAC(K, "account-deletion-request:v1:" + core_user_id))`.
+  - Es la misma en cada intento, en un pedido doble y en la confirmación.
+  - Core no guarda nada y el valor no revela el id.
+- **Reconciliación (sin cron):** `remote/reconcile-0021.sql` es de sólo lectura.
+  - Lista las filas `torneos_erased` más viejas que N horas (por defecto 24).
+  - Muestra el id de la fila, el hash, el `request_id`, la antigüedad y si la identidad fue re-creada. No muestra nombres, emails ni ids de Core.
+  - El operador busca el hash en Core (`auth.users`, sólo lectura). Si el usuario ya no existe, `remote/reconcile-complete-0021.sql` (con GO) barre y confirma con `core_confirmed_by = 'operator'`.
+  - Si el usuario todavía existe, la cuenta Core sigue activa y lo de Torneos ya está anonimizado. Lo seguro es que la persona reintente con el mismo botón; el operador no borra cuentas Core a mano en este PR.
 
 ### Fallas parciales y reintentos
 
 | Situación | Qué pasa | Cómo se recupera |
 |---|---|---|
-| Torneos caído o la erasure falla | 503 en Core; **nada** borrado ni en Core ni en Torneos (una transacción) | La persona reintenta. |
-| Torneos borró, Core falla después (`profile_delete_failed`, `auth_delete_failed`) | Torneos ya está anonimizado; la cuenta Core sigue | La persona reintenta: Torneos responde `already_erased` y Core termina. |
-| La persona abre Torneos entre la erasure y el borrado Core | El gateway puede crear una identidad nueva y vacía | El barrido post-borrado la borra. Si el barrido falla, queda una identidad vacía con el id del usuario borrado: runbook de reconciliación (README). |
-| Usuario que nunca usó Torneos | `no_identity`, nada cambia | — |
+| Torneos caído o la erasure falla | 503 en Core. **Nada** se borra ni en Core ni en Torneos (una transacción); no queda fila en el registro. | La persona reintenta (E21a). |
+| Torneos borró y Core falla después (`profile_delete_failed`, `auth_delete_failed`) | Torneos ya está anonimizado, **irreversible**. La fila queda en `torneos_erased`. La cuenta Core sigue, quizá sin parte de sus datos (la limpieza Core corre antes de borrar `usuarios`). | La persona reintenta: Torneos responde `already_erased` (no-op), Core termina y confirma (E18, test de Core). Si nadie reintenta, la reconciliación la muestra (E19). |
+| Core borró y la confirmación no llegó | La fila queda en `torneos_erased`. | La reconciliación la muestra y el operador la completa (E19, E21b). |
+| La persona abre Torneos entre la erasure y el borrado Core | El gateway puede crear una identidad nueva y vacía. | La confirmación la barre (E22). Si la confirmación se pierde, la reconciliación marca `identity_recreated` y la completación la barre (E21b). |
+| Pedido doble | El advisory lock serializa: uno sale `erased` y el otro `already_erased`; queda una sola fila. | — (E20). |
+| Usuario que nunca usó Torneos | `no_identity` / `no_ledger`. Nada cambia. | — |
+
+**No se dice en ningún lado que «si falla, no se borra nada»** salvo para el caso en que falla Torneos, que es el único en que es cierto.
 
 ---
 
 ## 5. Pedido por web y textos
 
-- `/account-deletion` (`src/pages/AccountDeletionInfoPage.js`), pública: qué se borra / anonimiza / conserva y por qué, plazos, tres caminos: (1) en la app, Perfil → Eliminar cuenta; (2) en la web, con la sesión iniciada en ese navegador, el botón de la misma página (mismo flujo Core); (3) **pedido por email** sin sesión (`EmailRequestForm`, referencia `ELIM-AAAAMMDD-XXXXXX`, no se envía solo, la recepción se confirma por email; se completa dentro de los 5 días hábiles de verificar la titularidad, art. 16 Ley 25.326).
-- Modal de `ProfileEditor` (`:458`), Privacidad (`PrivacyPage.js:71`), Perfil de Torneos (`TorneosProfilePage.jsx:273`), Términos y Baja del servicio: dicen exactamente lo de la matriz, con el porqué (historia deportiva, registros contables) y el plazo (inmediato en la app).
-- Middleware: `/account-deletion` ya es pública; no cambia.
+- **`/account-deletion`** (`src/pages/AccountDeletionInfoPage.js`), pública.
+  - Dice qué se borra, qué se anonimiza, qué se conserva y por qué.
+  - Ofrece tres caminos:
+    1. En la app: Perfil → Eliminar cuenta.
+    2. En la web, con la sesión iniciada en ese navegador: el botón de la misma página (mismo flujo de Core).
+    3. **Pedido por email** sin sesión (`EmailRequestForm`, referencia `ELIM-AAAAMMDD-XXXXXX`). La página no lo envía.
+  - Para el pedido por email, el texto público es neutro y **sin plazos fijos**: «te confirmamos por email la recepción y te informamos cuando esté hecho».
+  - El objetivo legal (art. 16 Ley 25.326, 5 días hábiles) vive sólo en el runbook interno, como objetivo interno pendiente de compromiso operativo de Nico.
+- **Textos fieles a la no-atomicidad:** el modal de `ProfileEditor`, `/account-deletion`, Privacidad y Términos dicen «si falla una parte, podés reintentar; lo ya anonimizado en Torneos no se puede revertir».
+  - El error de Core después de Torneos lo dice así, sin prometer que «no se borró nada».
+  - El error de Torneos dice que no se borró nada, que es cierto en ese caso.
+- **Fotos de perfil de Core:** «todavía no se eliminan automáticamente; se suma en una próxima actualización», **sin** procedimiento por email (Apple no acepta completar el borrado por soporte).
+  - Un PR siguiente agrega el paso de Storage en la costura de `delete-account` (después de Torneos, antes de las filas de Core) y la revocación de Sign in with Apple, y actualiza el texto.
+- **Middleware:** `/account-deletion` ya es pública; no cambia.
 
 ---
 
 ## 6. Rollback y qué no se puede deshacer
 
-- `rollback/00000000000021_account_erasure.rollback.sql` quita la función, el seudónimo y el registro. Se niega si el registro tiene filas, salvo `SET torneos.account_erasure_rollback_force = 'DISCARD ERASURE LEDGER'`.
-- **No restaura nada anonimizado** (irreversible por diseño: los originales no se guardan). Después de un rollback forzado y re-aplicado, un pedido repetido de alguien ya borrado responde `no_identity` en vez de `already_erased` (se perdió el registro; no hay nada que borrar igual).
-- Ensayado: apply → re-apply rechazado → rollback rechazado con filas → rollback forzado → re-apply, con `changedOutside: []` en cada paso.
+- `rollback/00000000000021_account_erasure.rollback.sql` quita las dos funciones de borrado, el seudónimo, el registro y el rol `torneos_erasure_writer`.
+  - El `DROP ROLE` también saca al login de esa membresía.
+  - El login queda: el operador decide si lo borra.
+  - Si después se re-aplica 0021, hay que volver a darle la membresía (`REGRANT_SQL`, ensayado en el laboratorio).
+- Se niega si el registro tiene filas, salvo con `SET torneos.account_erasure_rollback_force = 'DISCARD ERASURE LEDGER'`.
+- **No restaura nada anonimizado** (irreversible por diseño: los originales no se guardan).
+- Después de un rollback forzado y re-aplicado, un pedido repetido de alguien ya borrado responde `no_identity` en vez de `already_erased`: se perdió el registro, y de todas formas no hay nada que borrar.
+- Ensayado, con `changedOutside: []` en cada paso:
+  - apply, credencial provista y rotada;
+  - re-apply rechazado;
+  - rollback rechazado con filas;
+  - rollback forzado;
+  - re-apply, login rechazado hasta el re-grant, y después funciona.
 
 ## 7. Orden de despliegue (cada paso con su GO)
 
-1. **Torneos 0021** (`db-0021.mjs observe` → `apply-0021`). Inerte: nadie la llama.
-2. **Gateway** (nueva revisión con la ruta). Inerte: sólo responde a Core firmado.
-3. **Core:** secreto `TORNEOS_GATEWAY_URL` en las funciones de Core y despliegue de `delete-account`. Desde acá el borrado llega a Torneos. **Sin `TORNEOS_GATEWAY_URL` el borrado falla cerrado**: configurar antes de desplegar.
-4. **Web** (textos y `/account-deletion`). Puede ir junto con 3; nunca antes de 3 (los textos prometen lo que hace 3).
+1. **Torneos 0021** (`db-0021.mjs observe` → `apply-0021`). Inerte: nadie la llama. Crea el rol sin login.
+2. **Credencial de borrado (Nico / ops):** crear el login con `remote/erasure-login.mjs` (verificador SCRAM, la contraseña nunca llega al servidor). Después:
+   - guardar la URL en Secret Manager `torneos-gw-db-erasure-writer-url`;
+   - darle acceso de lectura sólo a la cuenta de servicio del gateway;
+   - verificar con `observe` (`erasure_role_logins = ['torneos_edge_erasure_writer']`).
+   Procedimiento y rotación en el README.
+3. **Gateway:** nueva revisión con las dos rutas y `TORNEOS_DB_ERASURE_WRITER_URL` montada desde Secret Manager, al 0 % con tag; probar con firma inválida (401). Después 100 %. Sin la credencial, las rutas responden 503 y Core falla cerrado.
+4. **Core:** secreto `TORNEOS_GATEWAY_URL` en las funciones de Core y despliegue de `delete-account`. Desde acá el borrado llega a Torneos. **Sin `TORNEOS_GATEWAY_URL` el borrado falla cerrado**: configurarlo antes de desplegar.
+5. **Web** (textos y `/account-deletion`). Puede ir junto con 4; nunca antes de 4 (los textos prometen lo que hace 4).
 
-Vuelta atrás: web → Core (función anterior) → gateway (revisión anterior) → rollback 0021 (forzado si ya hubo erasures; no restaura datos).
+Vuelta atrás: web → Core (función anterior) → gateway (revisión anterior) → credencial (deshabilitar el secreto; opcionalmente `DROP ROLE torneos_edge_erasure_writer`) → rollback 0021 (forzado si ya hubo erasures; no restaura datos).
 
-## 8. Preguntas abiertas
+## 8. Decisiones tomadas en la revisión (antes preguntas abiertas)
 
-1. ¿Login dedicado para la ruta de erasure (separarlo de `torneos_core_adapter`)? Reduce el alcance de un compromiso del gateway; agrega un secreto. Se dejó para decidir.
-2. Plazo y canal del pedido por email (24 h de acuse, 5 días hábiles de cumplimiento): confirmar con Nico.
+1. **Login dedicado:** sí. Rol y credencial propios, de mínimo privilegio (D7).
+2. **Plazos públicos:** ninguno. El texto es neutro. El objetivo legal interno (5 días hábiles, art. 16 Ley 25.326) vive sólo en el runbook, «pendiente de compromiso operativo de Nico».
+3. **Atomicidad:** no se promete entre bases. Hay estados, idempotencia y reconciliación sin cron (§4).

@@ -17,27 +17,35 @@ export const ACCOUNT_DELETION_SUMMARY = Object.freeze({
     'Las compras y pagos (montos, fechas, estado y número de operación), sin vínculo con tu cuenta: lo exigen las normas contables y de defensa del consumidor (arrepentimiento, devoluciones y contracargos).',
     'Los comunicados y documentos que publicaste en nombre de una organización: son de la organización.',
     'Los mensajes que mandaste en chats de equipo de Arma2, sin tu nombre.',
-    'El archivo de tu foto de perfil de Arma2 deja de estar asociado a tu cuenta, pero hoy no se borra automáticamente: si querés que lo borremos, pedilo por email con el formulario de esta página.',
+    // Estado de ESTE cambio (sin canal por email: Apple no acepta completar el borrado por soporte). Un PR siguiente borra
+    // las fotos de perfil en delete-account (paso de Storage, ver el «seam» en supabase/functions/delete-account) y
+    // actualiza este texto.
+    'Las fotos de perfil de Arma2 todavía no se eliminan automáticamente; se suma en una próxima actualización.',
   ]),
   organizations: 'Si sos titular de una organización de Torneos, pasa al administrador más antiguo. Si no tiene administradores, se cierra: deja de verse (incluida su página pública) y no se reembolsa ni se modifica ninguna compra. Si querés que siga, sumá un administrador antes de eliminar la cuenta.',
-  timing: 'Desde la app o la web, con la sesión iniciada, el borrado es inmediato. Si Torneos no responde, no se borra nada y podés volver a intentarlo.',
+  timing: 'Desde la app o la web, con la sesión iniciada, el borrado se hace en el momento: primero en Torneos y después en Arma2. '
+    + 'Si Torneos no responde, no se borra nada y tu cuenta sigue activa. Si falla una parte, podés reintentar con el mismo botón para '
+    + 'terminar; lo ya anonimizado en Torneos no se puede revertir.',
 });
 
 /** Short text for confirmation dialogs (ProfileEditor modal, the web button). */
 export const ACCOUNT_DELETION_SHORT = 'Se borran tu cuenta y tu perfil en Arma2 y en Torneos, y se cierra tu sesión. '
-  + 'En partidos, planteles y estadísticas tu nombre se reemplaza por uno anónimo; los resultados y las compras se conservan sin vínculo con vos.';
+  + 'En partidos, planteles y estadísticas tu nombre se reemplaza por uno anónimo; los resultados y las compras se conservan sin vínculo con vos. '
+  + 'Si falla una parte, podés reintentar; lo ya anonimizado en Torneos no se puede revertir.';
 
 export const TORNEOS_ERASURE_FAILED_MESSAGE = 'No pudimos borrar tus datos de Torneos, así que no borramos nada: tu cuenta sigue activa. '
-  + 'Probá de nuevo en unos minutos. Si sigue fallando, pedí el borrado por email desde la página «Eliminar cuenta».';
+  + 'Probá de nuevo en unos minutos.';
+
+/** Core failed AFTER Torneos was anonymised (two databases: no transaction across them). Honest and retryable. */
+export const CORE_DELETION_PARTIAL_MESSAGE = 'Ya se anonimizó lo tuyo en Torneos (eso no se puede revertir), pero no pudimos terminar de '
+  + 'eliminar tu cuenta de Arma2: sigue existiendo. Volvé a intentarlo con el mismo botón para terminar.';
 
 /** The server answer of delete-account → a message for the person (null when it is a success). */
 export function accountDeletionErrorMessage(body) {
   const message = String(body?.message || '');
   if (message === 'torneos_erasure_failed') return TORNEOS_ERASURE_FAILED_MESSAGE;
   if (message === 'not_authenticated') return 'Tu sesión venció. Iniciá sesión de nuevo y volvé a intentarlo.';
-  if (message === 'profile_delete_failed' || message === 'auth_delete_failed') {
-    return 'No pudimos terminar de eliminar la cuenta. Volvé a intentarlo: lo que ya se borró no se repite.';
-  }
+  if (message === 'profile_delete_failed' || message === 'auth_delete_failed') return CORE_DELETION_PARTIAL_MESSAGE;
   return null;
 }
 
