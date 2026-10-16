@@ -4,6 +4,7 @@ import { publicTournamentService } from '../api/publicTournamentService';
 import { torneosFeatureFlags } from '../config/featureFlags';
 import { resolvePublicCatalogService, resolvePublicTournamentService } from '../stagingV1/publicTournamentComposition';
 import { publicCatalogService } from '../api/publicCatalogService';
+import { createContentReportService } from '../stagingV1/contentReportService';
 
 // The anonymous public tournament page, composed like /torneos: the gateway's public route in the
 // hybrid composition, the legacy service only on the LOCAL single-project stack, and a closed
@@ -22,5 +23,16 @@ export default function PublicTournamentRoute({ flags = torneosFeatureFlags, env
     () => resolvePublicCatalogService({ env, flags, legacyService: publicCatalogService }),
     [env, flags],
   );
-  return <PublicTournamentPage service={service} catalogService={catalogService.mode === 'closed' ? null : catalogService} />;
+  // MODERATION (0022): «Reportar contenido» with a session, by the same composition rule (null → sign in / email only).
+  const reportService = useMemo(
+    () => (service.mode === 'closed' ? null : createContentReportService({ env })),
+    [env, service],
+  );
+  return (
+    <PublicTournamentPage
+      service={service}
+      catalogService={catalogService.mode === 'closed' ? null : catalogService}
+      reportService={reportService}
+    />
+  );
 }

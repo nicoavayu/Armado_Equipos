@@ -2,7 +2,8 @@
 // backend/torneos/connected-v1/contract.json); guards verify equality.
 //
 // The connected product: Torneos profile, Torneos inbox, catalog management, registration requests (authenticated
-// route) and the public catalog (anonymous read-only route). Opt-in: the client permits it only when the composition
+// route) and the public catalog (anonymous read-only route). MODERATION (migration 00000000000022): reporting content,
+// the organization's review of team / player names and applicant blocks, and muting an organization's communications. Opt-in: the client permits it only when the composition
 // says so (`connected: true`). Like the other scopes this only restricts the client; the gateway
 // (TORNEOS_CONNECTED_MODE) and the database (00000000000009_connected_product_v1.sql) decide what is served.
 const features = {
@@ -29,6 +30,19 @@ const features = {
     "get_my_tournament_registrations",
     "list_my_core_teams_for_application",
     "get_my_tournament_participations"
+  ],
+  "content_reports": [
+    "report_tournament_content"
+  ],
+  "content_moderation": [
+    "get_tournament_content_reports",
+    "handle_tournament_content_report",
+    "block_tournament_applicant",
+    "unblock_tournament_applicant"
+  ],
+  "user_blocks": [
+    "set_tournament_communications_muted",
+    "get_my_tournament_communication_mutes"
   ]
 };
 const publicFeatures = {

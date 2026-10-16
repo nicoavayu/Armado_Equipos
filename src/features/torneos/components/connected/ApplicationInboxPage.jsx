@@ -22,6 +22,7 @@ import { useTorneosWorkspace } from '../../context/TorneosWorkspaceContext';
 import { canonicalRoutes } from '../../routing/canonicalRoutes';
 import { formatDateTime, registrationStage } from '../../domain/connectedProduct';
 import styles from './ConnectedProduct.module.css';
+import ApplicationModeration from '../moderation/ApplicationModeration';
 
 const TABS = Object.freeze([
   { value: 'submitted', label: 'Pendientes' },
@@ -280,6 +281,7 @@ export default function ApplicationInboxPage() {
                     Ver plantel
                   </Link>
                 </footer>
+                {data.canReview && <ApplicationModeration service={service} organizationId={organizationId} application={item} />}
               </article>
             </li>
           );

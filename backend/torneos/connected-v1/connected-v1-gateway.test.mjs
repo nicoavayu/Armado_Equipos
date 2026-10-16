@@ -63,14 +63,17 @@ const pub = (name, body, options = {}) => gateway.handle(request('/torneos/publi
 
 test('the allowlist is the contract and is disjoint from every other allowlist', () => {
   assert.equal(DOC.phase, 'CONNECTED-V1');
-  assert.deepEqual(AUTHENTICATED, CONTRACT.rpcs);
+  // 0009's RPCs, then MODERATION (0022) served by this same contract.
+  assert.deepEqual(AUTHENTICATED, [...CONTRACT.rpcs, ...CONTRACT.moderation.rpcs]);
   assert.deepEqual(PUBLIC, CONTRACT.public_rpcs);
   for (const file of ['staging-v1-rpc-allowlist.json', 'competition-v1-rpc-allowlist.json', 'officialization-v1-rpc-allowlist.json',
     'commerce-test-rpc-allowlist.json', 'social-v1-rpc-allowlist.json']) {
     const other = JSON.stringify(JSON.parse(fs.readFileSync(FN + file, 'utf8')));
-    for (const name of [...AUTHENTICATED, ...PUBLIC, ...CONTRACT.service_only]) assert.ok(!other.includes(`"${name}"`), `${name} in ${file}`);
+    for (const name of [...AUTHENTICATED, ...PUBLIC, ...CONTRACT.service_only, ...CONTRACT.moderation.operator_only]) {
+      assert.ok(!other.includes(`"${name}"`), `${name} in ${file}`);
+    }
   }
-  for (const name of [...CONTRACT.service_only, ...CONTRACT.internal]) {
+  for (const name of [...CONTRACT.service_only, ...CONTRACT.internal, ...CONTRACT.moderation.operator_only, ...CONTRACT.moderation.internal]) {
     assert.ok(!JSON.stringify(DOC).includes(`"${name}"`), `${name} is never served`);
   }
 });
@@ -111,14 +114,19 @@ test('a tampered allowlist document closes the gateway instead of widening it', 
   assert.throws(() => loadConnectedContract(on, new Set(), new Set(['search_tournament_catalog'])), ConnectedConfigError, 'already public elsewhere');
 });
 
-test('boot: CONNECTED adds exactly its 14 authenticated RPCs and its 3 public RPCs, next to everything else', () => {
+test('boot: CONNECTED adds exactly its authenticated RPCs (0009 + the 7 of moderation) and its 3 public RPCs, next to everything else', () => {
   const off = gateway.boot({ ...fx.env });
   const on = gateway.boot({ ...fx.env, TORNEOS_CONNECTED_MODE: 'on' });
   assert.deepEqual([...on.rpcAllowlist].filter((name) => !off.rpcAllowlist.has(name)), AUTHENTICATED);
   assert.deepEqual([...off.rpcAllowlist].filter((name) => !on.rpcAllowlist.has(name)), []);
   assert.deepEqual([...on.connected.publicRpcs], PUBLIC);
   assert.equal(off.connected.publicRpcs.size, 0);
-  for (const runtime of [off, on]) assert.equal(runtime.rpcAllowlist.has('platform_remove_tournament_catalog_listing'), false);
+  assert.equal(AUTHENTICATED.length, CONTRACT.rpcs.length + 7);
+  for (const runtime of [off, on]) {
+    for (const name of ['platform_remove_tournament_catalog_listing', ...CONTRACT.moderation.operator_only]) {
+      assert.equal(runtime.rpcAllowlist.has(name), false, name);
+    }
+  }
   const both = gateway.boot({ ...fx.env, TORNEOS_CONNECTED_MODE: 'on', TORNEOS_PLAN_READ_MODE: 'on', TORNEOS_SOCIAL_MODE: 'on' });
   for (const name of AUTHENTICATED) assert.equal(both.rpcAllowlist.has(name), true, `${name} coexists with PLAN READ and SOCIAL`);
 });
@@ -142,6 +150,13 @@ test('CONNECTED on: the authenticated RPCs reach PostgREST with the bridge beare
     get_tournament_application_inbox: { p_organization_id: '10000000-0000-4000-8000-000000000001', p_tournament_id: '30000000-0000-4000-8000-000000000001', p_status: 'submitted', p_limit: 20, p_offset: 0 },
     // A new team needs no Core attestation: straight to PostgREST.
     start_tournament_application: { p_public_slug: 'copa', p_category_slug: 'libre', p_core_team_id: null, p_team_name: 'Nuevo', p_message: null, p_accept_conditions: true, p_idempotency_key: '70000000-0000-4000-8000-000000000001' },
+    // MODERATION (0022): plain authenticated RPCs, no Core contract, the body as the client sent it.
+    report_tournament_content: { p_target_kind: 'team', p_public_slug: 'copa', p_target_id: null, p_target_label: 'Los Leones', p_reason: 'offensive', p_detail: null, p_idempotency_key: '70000000-0000-4000-8000-000000000002' },
+    get_tournament_content_reports: { p_organization_id: '10000000-0000-4000-8000-000000000001', p_status: 'pending' },
+    handle_tournament_content_report: { p_report_id: '80000000-0000-4000-8000-000000000001', p_status: 'resolved', p_action: 'neutralize_team_name', p_note: 'Nombre ofensivo' },
+    block_tournament_applicant: { p_organization_id: '10000000-0000-4000-8000-000000000001', p_team_entry_id: '20000000-0000-4000-8000-000000000001', p_reason: 'Mensajes agresivos' },
+    set_tournament_communications_muted: { p_organization_id: null, p_announcement_id: '90000000-0000-4000-8000-000000000001', p_muted: true },
+    get_my_tournament_communication_mutes: {},
   };
   for (const [name, body] of Object.entries(samples)) {
     world.rest = [];
@@ -201,6 +216,9 @@ test('CONNECTED on: the public catalog is anonymous, with an exact body contract
     ['get_tournament_catalog_facets', { p_any: 'x' }, 400],
     ['get_my_torneos_profile', {}, 403],
     ['platform_remove_tournament_catalog_listing', {}, 403],
+    // Reporting is never anonymous: no public write route exists.
+    ['report_tournament_content', { p_target_kind: 'tournament', p_public_slug: 'copa-abierta' }, 403],
+    ['platform_list_tournament_content_reports', {}, 403],
   ]) {
     world.rest = [];
     assert.equal((await pub(name, body)).status, status, `${name} ${JSON.stringify(body)}`);
@@ -227,5 +245,16 @@ test('CONNECTED off: nothing new is served on either route', async () => {
   } finally {
     currentEnv = { ...fx.env, TORNEOS_CONNECTED_MODE: 'on' };
     await offTree.cleanup();
+  }
+});
+
+test('MODERATION: the platform functions are never served, with or without a bearer, on either route', async () => {
+  for (const name of CONTRACT.moderation.operator_only) {
+    world.rest = [];
+    const res = await rpc(name, { body: { p_report_id: '80000000-0000-4000-8000-000000000001', p_status: 'resolved' } });
+    assert.equal(res.status, 403, name);
+    assert.equal((await res.json()).error, 'rpc not enabled');
+    assert.equal((await pub(name, {})).status, 403, `${name} public`);
+    assert.equal(world.rest.length, 0, `${name} never reaches PostgREST`);
   }
 });

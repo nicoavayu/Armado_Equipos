@@ -15,6 +15,9 @@ import {
   saveTournamentOrganizationSponsor,
 } from './tournamentSponsorsService';
 import {
+  blockApplicantParams, handleReportParams, mutedParams, reportContentParams,
+} from '../domain/contentModeration';
+import {
   deleteTournamentMediaAsset,
   signTournamentMediaReadUrls,
   uploadTournamentMediaPhoto,
@@ -1706,6 +1709,57 @@ export async function loadMyTournamentParticipations({ limit = 18, offset = 0 } 
   }), 'No pudimos cargar tus torneos.');
 }
 
+// ── MODERATION (0022): report content, the organization's review and blocks, muting an organization's communications ──
+// The same p_* bodies as the hybrid adapter (domain/contentModeration.js builds both). The single-project LOCAL stack has
+// no 0022 (no Core migration is part of it): there the database answers "function not found" and the page says so.
+
+function moderationParams(build, input) {
+  try {
+    return build(input);
+  } catch {
+    throw new TournamentWorkspaceError('TORNEOS_INVALID_REQUEST', 'La solicitud no es válida. Revisá los datos y volvé a intentar.');
+  }
+}
+
+export async function reportTournamentContent(input) {
+  return unwrapRpc(await supabase.rpc('report_tournament_content', moderationParams(reportContentParams, input)),
+    'No pudimos enviar el reporte.');
+}
+
+export async function loadTournamentContentReports({ organizationId, status = null } = {}) {
+  return unwrapRpc(await supabase.rpc('get_tournament_content_reports', {
+    p_organization_id: organizationId,
+    p_status: status,
+  }), 'No pudimos cargar los reportes.');
+}
+
+export async function handleTournamentContentReport(input) {
+  return unwrapRpc(await supabase.rpc('handle_tournament_content_report', moderationParams(handleReportParams, input)),
+    'No pudimos guardar la decisión sobre el reporte.');
+}
+
+export async function blockTournamentApplicant(input) {
+  return unwrapRpc(await supabase.rpc('block_tournament_applicant', moderationParams(blockApplicantParams, input)),
+    'No pudimos bloquear al solicitante.');
+}
+
+export async function unblockTournamentApplicant({ organizationId, blockId } = {}) {
+  return unwrapRpc(await supabase.rpc('unblock_tournament_applicant', {
+    p_organization_id: organizationId,
+    p_block_id: blockId,
+  }), 'No pudimos quitar el bloqueo.');
+}
+
+export async function setTournamentCommunicationsMuted(input) {
+  return unwrapRpc(await supabase.rpc('set_tournament_communications_muted', moderationParams(mutedParams, input)),
+    'No pudimos cambiar los avisos de esta organización.');
+}
+
+export async function loadMyTournamentCommunicationMutes() {
+  return unwrapRpc(await supabase.rpc('get_my_tournament_communication_mutes', {}),
+    'No pudimos cargar las organizaciones silenciadas.');
+}
+
 export async function loadMyTournamentRegistrations({ limit = 20, offset = 0 } = {}) {
   return unwrapRpc(await supabase.rpc('get_my_tournament_registrations', {
     p_limit: limit,
@@ -2352,6 +2406,13 @@ export const tournamentWorkspaceService = Object.freeze({
   startTournamentApplication,
   loadMyParticipations: loadMyTournamentParticipations,
   loadMyRegistrations: loadMyTournamentRegistrations,
+  reportContent: reportTournamentContent,
+  loadContentReports: loadTournamentContentReports,
+  handleContentReport: handleTournamentContentReport,
+  blockApplicant: blockTournamentApplicant,
+  unblockApplicant: unblockTournamentApplicant,
+  setCommunicationsMuted: setTournamentCommunicationsMuted,
+  loadCommunicationMutes: loadMyTournamentCommunicationMutes,
   resolveTeamShieldUrl,
   resolveTournamentLogoUrl,
   createIdempotencyKey,

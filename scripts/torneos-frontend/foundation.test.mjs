@@ -315,6 +315,14 @@ test('the only backend access B04 adds is the gateway transport (fetch) and the 
     // through the composition's rule (LOCAL service on the QA stack; the gateway with the read-only session bridge).
     'src/features/torneos/stagingV1/torneosInboxProbe.js -> ../api/tournamentWorkspaceService',
     'src/features/torneos/stagingV1/torneosInboxProbe.js -> ./coreSessionBridge',
+    // MODERATION (0022): «Reportar contenido» from the public tournament page (outside the shell), with the inbox probe's
+    // composition rule (LOCAL service on the QA stack; the gateway with the read-only session bridge), and the
+    // organization's moderation page, which reads the MOUNTED composition's service.
+    'src/features/torneos/components/PublicTournamentRoute.jsx -> ../stagingV1/contentReportService',
+    'src/features/torneos/stagingV1/contentReportService.js -> ../api/tournamentWorkspaceService',
+    'src/features/torneos/stagingV1/contentReportService.js -> ./coreSessionBridge',
+    'src/features/torneos/components/TorneosShell.jsx -> ./moderation/OrganizationModerationPage',
+    'src/features/torneos/components/moderation/OrganizationModerationPage.jsx -> ../../context/TorneosWorkspaceContext',
     // BRANDING-V1: the upload field stores the asset through the MOUNTED composition's service (hybrid: the gateway's
     // object route; LOCAL: its storage service, the field's previous default, still the fallback).
     'src/features/torneos/components/BrandingAssetField.jsx -> ../context/TorneosWorkspaceContext',
@@ -441,7 +449,9 @@ test('foundation is consumed only by the staging-v1 composition and the feature 
     'src/features/torneos/stagingV1/publicTournamentComposition.js',
     'src/features/torneos/stagingV1/stagingV1WorkspaceService.js',
     'src/features/torneos/stagingV1/torneosInboxProbe.js',
-  ]);
+    // MODERATION (0022): «Reportar contenido» on the public page, composed like the inbox probe.
+    'src/features/torneos/stagingV1/contentReportService.js',
+  ].sort());
   const rt = runtime({ modules: { uuid: uuidStub } });
   rt.load(prefix+'stagingV1Service.js').createStagingV1Service();
   assert.equal(rt.creations.length, 0); assert.equal(rt.networkCalls(), 0);

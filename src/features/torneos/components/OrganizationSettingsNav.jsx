@@ -1,6 +1,6 @@
 import React from 'react';
-import { BadgeCheck, Handshake, Settings2, Users } from 'lucide-react';
-import { NavLink, useParams } from 'react-router-dom';
+import { BadgeCheck, Handshake, Settings2, ShieldAlert, Users } from 'lucide-react';
+import { NavLink, useOutletContext, useParams } from 'react-router-dom';
 import { canonicalRoutes } from '../routing/canonicalRoutes';
 import { useTorneosFeature } from '../context/TorneosFeaturesContext';
 import { useOptionalTorneosCompetition } from '../context/TorneosCompetitionContext';
@@ -25,6 +25,9 @@ export default function OrganizationSettingsNav() {
   // PREMIUM SPONSORS ride the branding composition: without it there is no Sponsors section.
   const sponsorsEnabled = useTorneosFeature('branding_assets');
   const competition = useOptionalTorneosCompetition();
+  // MODERATION (0022): owners and administrators only (the RPC decides again).
+  const role = useOutletContext()?.organization?.role;
+  const moderation = useTorneosFeature('content_moderation') && (role === 'owner' || role === 'admin');
   const target = planEnabled ? planTarget({
     organizationId,
     tournamentId,
@@ -64,6 +67,15 @@ export default function OrganizationSettingsNav() {
         >
           <Handshake size={17} aria-hidden="true" />
           Sponsors
+        </NavLink>
+      )}
+      {moderation && (
+        <NavLink
+          to={canonicalRoutes.organizationModeration(organizationId)}
+          className={({ isActive }) => (isActive ? styles.active : '')}
+        >
+          <ShieldAlert size={17} aria-hidden="true" />
+          Moderación
         </NavLink>
       )}
     </nav>
