@@ -12,6 +12,7 @@ import * as G from '../torneos-gateway-auth/gateway-auth-contract.mjs';
 import * as R from '../torneos-gateway-remote/remote-contract.mjs';
 import { makeRemote, readOnlyEnv, installerEnv } from './competition-remote.mjs';
 import { buildCandidate, buildPrevious } from './competition-bundle.mjs';
+import { readGraphPin } from '../torneos-gateway-remote/gateway-graph-pin.mjs';
 import { fixtureEnv, gatewayPair, fakeDeno, fakeDb, fakeDeltaPin, contractState } from './test-support.mjs';
 
 const DENO_TOKEN = `ddo_${crypto.randomBytes(24).toString('base64url')}`;
@@ -69,12 +70,18 @@ test('state classifier: PRE / POST / ROLLED_BACK exactly; every deviation is DRI
   assert.equal(C.classifyState(null).state, 'DRIFT');
 });
 
-test('bundles: previous rebuilt from git = the deploy pin (14 files, 723c5d39…); candidate = the working-tree graph with the competition (+2), OFFICIALIZATION-V1 (+1), PLAN READ (+1), SOCIAL-V1 (+2), CONNECTED-V1 (+3), BRANDING-V1 (+2), MEDIA-V1 (+4) and COMMERCE-PRODUCTION (+1) files', () => {
+test('bundles: previous rebuilt from git = the deploy pin (14 files, 723c5d39…); candidate = the working-tree graph with the competition (+2), OFFICIALIZATION-V1 (+1), PLAN READ (+1), SOCIAL-V1 (+2), CONNECTED-V1 (+3), BRANDING-V1 (+2), MEDIA-V1 (+4), COMMERCE-PRODUCTION (+1), MEDIA-STORE-V1 (+2) and ACCOUNT ERASURE (+1) files = 33, byte-exact to pins/gateway-graph.json', () => {
   const prev = buildPrevious();
   assert.equal(prev.digest, C.CURRENT.digest); assert.equal(prev.manifest.length, 14); assert.equal(prev.head, C.CURRENT.head);
   assert.deepEqual(prev.manifest, C.readCurrentDeployPin().source.files);
   const cand = buildCandidate({ requireClean: false });
-  assert.equal(cand.manifest.length, 30);
+  // + MEDIA-STORE-V1 (+2: media-store-client.ts, media-store-protocol.ts) and ACCOUNT ERASURE #217 (+1: account-erasure.ts)
+  // = 33. Exact: every path, sha256 and size and the bundle digest equal pins/gateway-graph.json (gateway-graph-pin.mjs).
+  const pinned = readGraphPin();
+  assert.equal(cand.manifest.length, 33);
+  assert.deepEqual(cand.manifest, pinned.manifest);
+  assert.equal(cand.digest, pinned.digest);
+  assert.ok(cand.manifest.some((m) => m.path === 'torneos-gateway/account-erasure.ts'));
   assert.ok(['torneos-gateway/competition.ts', 'torneos-gateway/competition-v1-rpc-allowlist.json', 'torneos-gateway/officialization-v1-rpc-allowlist.json', 'torneos-gateway/plan-read.ts', 'torneos-gateway/social.ts', 'torneos-gateway/social-v1-rpc-allowlist.json',
     'torneos-gateway/connected.ts', 'torneos-gateway/connected-v1-rpc-allowlist.json', 'torneos-gateway/my-teams.schema.json',
     'torneos-gateway/branding.ts', 'torneos-gateway/branding-v1-rpc-allowlist.json',
