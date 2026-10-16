@@ -117,6 +117,5 @@ Torneos y Core son dos bases: **no hay atomicidad entre ellas**. Lo que Torneos 
 
 - No borra objetos de Storage ni habilita la purga de fotos (cron prohibido).
 - No toca pagos, compras, planes ni el webhook. La app de pagos ya rechaza cualquier `TORNEOS_DB_*` en su entorno alojado.
-- No borra el archivo de la foto de perfil de Core (`jugadores-fotos`). Los textos dicen «todavía no se eliminan automáticamente; se suma en una próxima actualización», sin camino por email. Queda la costura en `delete-account` para el PR siguiente.
-- No revoca tokens de Sign in with Apple. Va en el mismo PR siguiente.
+- Las fotos de perfil de Core (`jugadores-fotos`, subidas sin uso en `team-crests`) y la revocación de Sign in with Apple **no** son de este PR: las agrega el PR apilado `claude/core-deletion-storage-apple` (paso de Storage fail-closed en la costura de `delete-account`, después de Torneos y antes de las filas de Core; revocación de Apple best-effort antes de borrar el usuario de auth), que también actualiza los textos.
 - No suma ningún cron.

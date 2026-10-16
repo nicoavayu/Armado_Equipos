@@ -161,8 +161,9 @@ App / web ──(sesión del usuario)──▶ Core delete-account
               └─▶ login torneos_edge_erasure_writer; SET LOCAL ROLE torneos_erasure_writer;
                   private.erase_tournament_account(core_user_id, request_id)        → registro: torneos_erased
    3. si Torneos NO confirmó → 503 torneos_erasure_failed (nada borrado en ningún lado; reintento seguro)
-   ── (costura) Storage: un PR siguiente borra acá las fotos de perfil de Core, antes de tocar filas de Core
-   4. limpieza Core (la de siempre) → usuarios → auth.admin.deleteUser
+   ── Storage (PR apilado claude/core-deletion-storage-apple): fotos de la persona en jugadores-fotos y subidas sin
+      uso en team-crests, fail-closed → 503 storage_erasure_failed antes de tocar filas de Core
+   4. limpieza Core (la de siempre) → usuarios → [Apple: revocación best-effort, mismo PR apilado] → auth.admin.deleteUser
         └─ si falla: 500 profile_delete_failed / auth_delete_failed, retryable. Torneos ya quedó anonimizado
            (irreversible) y SIN confirmar; el reintento de la persona recibe already_erased y Core termina.
    5. POST …/core/v1/account-erasure/confirm (mismo request_id)       → registro: core_confirmed
@@ -248,8 +249,8 @@ App / web ──(sesión del usuario)──▶ Core delete-account
 - **Textos fieles a la no-atomicidad:** el modal de `ProfileEditor`, `/account-deletion`, Privacidad y Términos dicen «si falla una parte, podés reintentar; lo ya anonimizado en Torneos no se puede revertir».
   - El error de Core después de Torneos lo dice así, sin prometer que «no se borró nada».
   - El error de Torneos dice que no se borró nada, que es cierto en ese caso.
-- **Fotos de perfil de Core:** «todavía no se eliminan automáticamente; se suma en una próxima actualización», **sin** procedimiento por email (Apple no acepta completar el borrado por soporte).
-  - Un PR siguiente agrega el paso de Storage en la costura de `delete-account` (después de Torneos, antes de las filas de Core) y la revocación de Sign in with Apple, y actualiza el texto.
+- **Fotos de perfil de Core:** **sin** procedimiento por email (Apple no acepta completar el borrado por soporte).
+  - El PR apilado `claude/core-deletion-storage-apple` agrega el paso de Storage en la costura de `delete-account` (después de Torneos, antes de las filas de Core) y la revocación de Sign in with Apple, y cambia el texto: la foto de perfil **se borra**; se conservan sólo los escudos y fotos de plantel que un equipo sigue usando.
 - **Middleware:** `/account-deletion` ya es pública; no cambia.
 
 ---
