@@ -1,0 +1,44 @@
+# ACCOUNT ERASURE 0021 × 0020 × 0022 — integration rehearsals 2026-10-16 (LOCAL, fictional data, disposable lab, own network
+# 10.233.85.0/24). Local throwaway branch = this head + origin/claude/torneos-premium-sponsors (#212) + origin/claude/torneos-moderation
+# (#216, 44a75273), merged with --no-ff, never pushed. 0021 sha256 0535f241ed080c38c244f7a51a491f67baafdd86c5089f6aac9bd69e2e019c26.
+
+## #216 order-rehearsal.mjs (order 1: 0020 → 0021 → 0022; order 2: 0022 → 0020 → 0021; smoke + rollbacks)
+{"step":"start","s0020":false,"s0021":false,"s0022":false}
+{"step":"apply 0020","ok":true}
+{"step":"apply 0021","ok":true}
+{"step":"apply 0022 (driver) after 0020+0021","verdict":"APPLY_0022_DONE","changedOutside":[]}
+{"step":"smoke 1","report":"organization","handled":"resolved","erasure":"erased","reportKept":true}
+{"step":"rollback 0022 (forced)","verdict":"ROLLBACK_0022_DONE","changedOutside":[]}
+{"step":"rollback 0021","ok":true}
+{"step":"rollback 0020","ok":true}
+{"step":"after order 1","s0020":false,"s0021":false,"s0022":false}
+{"step":"apply 0022 (driver) first","verdict":"APPLY_0022_DONE"}
+{"step":"apply 0020 after 0022","ok":true}
+{"step":"apply 0021 after 0022","ok":true}
+{"step":"classify with 0020+0021 on top","state":"POST_0022"}
+{"step":"smoke 2","report":"organization","handled":"resolved","erasure":"erased","reportKept":true}
+{"step":"rollback 0021","ok":true}
+{"step":"rollback 0020","ok":true}
+{"step":"rollback 0022 last (forced)","verdict":"ROLLBACK_0022_DONE","changedOutside":[]}
+{"step":"end","s0020":false,"s0021":false,"s0022":false}
+
+## integracion-0020-0021-0022/ext-rehearsal.mjs (order 3: 0021 → 0022 → 0020, each by its own operator driver; cross-feature probe)
+{"step":"start","s0020":false,"s0021":false,"s0022":false}
+{"step":"order3 apply 0021 (driver)","verdict":"APPLY_0021_DONE"}
+{"step":"order3 apply 0022 (driver) after 0021","verdict":"APPLY_0022_DONE","changedOutside":[]}
+{"step":"order3 apply 0020 (driver) after 0021+0022","verdict":"APPLY_0020_DONE","changedOutside":[]}
+{"step":"order3 observe 0021","verdict":{"state":"POST_0021","failures":[]}}
+{"step":"order3 classify 0022","state":"POST_0022"}
+{"step":"order3 classify 0020","state":"POST_0020"}
+{"step":"probe before erasure","fanReports_reporterStillLinked":"2","fanReports_detailKept":"1","fanEvents_actorStillLinked":"2","victimRoster_realNameLeft":"1","playerReport_realNameInLabel":"1","playerReport_realNameInSnapshot":"1","application_messageKept":"1","appReport_messageInSnapshot":"1","victimMutes":"1","victimBlocks":"1","reportsTotal":"3"}
+{"step":"erase victim","outcome":"erased"}
+{"step":"erase fan","outcome":"erased"}
+{"step":"probe after erasure","fanReports_reporterStillLinked":"0","fanReports_detailKept":"0","fanEvents_actorStillLinked":"0","victimRoster_realNameLeft":"0","playerReport_realNameInLabel":"0","playerReport_realNameInSnapshot":"0","application_messageKept":"0","appReport_messageInSnapshot":"0","victimMutes":"0","victimBlocks":"0","reportsTotal":"3"}
+{"step":"erase victim again","outcome":"already_erased"}
+{"step":"rollback 0020 (driver, forced)","verdict":"ROLLBACK_0020_DONE","changedOutside":[]}
+{"step":"rollback 0022 (driver, forced)","verdict":"ROLLBACK_0022_DONE","changedOutside":[]}
+{"step":"rollback 0021 (driver, forced)","verdict":"ROLLBACK_0021_DONE"}
+{"step":"end","s0020":false,"s0021":false,"s0022":false}
+
+## #216 suites on the integrated tree: db-0022.test.mjs + moderation-0022.test.mjs → 20/20
+## db-0021.test.mjs (offline) on the integrated tree: 11/11 (FK classification test green with 0020 + 0022 in the tree)

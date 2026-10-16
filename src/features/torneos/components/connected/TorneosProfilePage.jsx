@@ -270,7 +270,10 @@ export default function TorneosProfilePage() {
       <section className={`${styles.profileSection} ${styles.accountSection}`} aria-labelledby="profile-account-title">
         <header>
           <h2 id="profile-account-title"><KeyRound size={18} aria-hidden="true" /> Cuenta Arma2</h2>
-          <p>Tu cuenta es la misma en Arma2 y en Torneos. Estas acciones afectan a toda la cuenta, no sólo a Torneos.</p>
+          <p>
+            Tu cuenta es la misma en Arma2 y en Torneos: estas acciones afectan a toda la cuenta. Eliminarla borra tu cuenta y tu
+            perfil en las dos; en planteles, actas y estadísticas tu nombre pasa a ser anónimo y los resultados se conservan.
+          </p>
         </header>
         <dl className={styles.accountFacts}>
           <div><dt>Email</dt><dd>{profile.email || '—'}</dd></div>
@@ -281,7 +284,7 @@ export default function TorneosProfilePage() {
             {signingOut ? <Loader2 className={styles.spin} size={17} aria-hidden="true" /> : <LogOut size={17} aria-hidden="true" />}
             Cerrar sesión
           </button>
-          <Link className={styles.textAction} to="/account-deletion">Cómo eliminar la cuenta</Link>
+          <Link className={styles.textAction} to="/account-deletion">Eliminar cuenta</Link>
         </div>
       </section>
     </div>
