@@ -1,6 +1,8 @@
-// ANDROID ORIGIN — the gateway accepts exactly two browser origins on Production: the web app
-// (https://app.arma2.com.ar, TORNEOS_ALLOWED_ORIGIN) and the Android app's WebView (https://localhost, pinned in
-// topology.ts, measured on the wire 2026-09-29: Capacitor 7.4.5, Android 16, WebView 134). Offline, on the REAL
+// ANDROID ORIGIN — the gateway accepts exactly three browser origins on Production: the web app
+// (https://app.arma2.com.ar, TORNEOS_ALLOWED_ORIGIN), the Android app's WebView (https://localhost, pinned in
+// topology.ts, measured on the wire 2026-09-29: Capacitor 7.4.5, Android 16, WebView 134) and — since the iOS origin
+// change, see ../torneos-ios-origin/ios-origin.test.mjs and torneos-gateway/NATIVE-ORIGINS.md — the iOS app's WKWebView
+// (capacitor://localhost, pinned in topology.ts, to be measured on the wire before its deploy). Offline, on the REAL
 // handle() of two sources: `live` = the function tree at the deployed commit (digest 6c252863…, revision t5vxxvzp1t9f)
 // extracted from git, `candidate` = the working tree. Nothing else may change: same env names, same 401/403/503, same
 // no-store, the Origin check still runs before auth, and an Origin is still never a credential.
@@ -22,6 +24,7 @@ const LIVE_COMMIT = '0f049ef5657a3b3046276ff00f44464aba998c08';
 const LIVE_DIGEST = '6c252863fd94bcad0f785af9bb3636d09b2bc2265baafb0af2a771efdb6143a4';
 const WEB = 'https://app.arma2.com.ar';
 const ANDROID = 'https://localhost';
+const IOS = 'capacitor://localhost';
 
 const DENY = [
   'https://evil.example',
@@ -29,7 +32,8 @@ const DENY = [
   'https://evil.localhost',
   'https://localhost.evil.example',
   'http://localhost',              // same host, other scheme
-  'capacitor://localhost',         // the iOS Capacitor default: not demonstrated as needed, not enabled
+  'capacitor://localhost/',        // the iOS origin with a trailing slash: not the serialized form, refused
+  'CAPACITOR://localhost',         // case variant of the iOS origin
   'ionic://localhost',
   'https://localhost:8443',        // same scheme+host, other port
   'https://localhost:443',         // not the serialized form a browser sends
@@ -83,19 +87,19 @@ test('the live tree extracted from git is the deployed source (digest 6c252863�
   assert.equal(live.manifest.length, 17);
 });
 
-test('config: Production allows exactly [web, Android]; TORNEOS_ALLOWED_ORIGIN is still pinned to the web origin', () => {
+test('config: Production allows exactly [web, Android, iOS]; TORNEOS_ALLOWED_ORIGIN is still pinned to the web origin', () => {
   const cfg = config.loadConfig(env);
   assert.equal(cfg.topology.kind, 'production');
   assert.equal(cfg.allowedOrigin, WEB);
-  assert.deepEqual([...cfg.allowedOrigins], [WEB, ANDROID]);
+  assert.deepEqual([...cfg.allowedOrigins], [WEB, ANDROID, IOS]);
   assert.ok(Object.isFrozen(cfg.allowedOrigins));
-  // The Android origin is not an env value: pointing the env at it (or any other origin) still disables the gateway.
-  for (const origin of [ANDROID, 'capacitor://localhost', 'https://arma2.com.ar']) {
+  // The native origins are not env values: pointing the env at one (or any other origin) still disables the gateway.
+  for (const origin of [ANDROID, IOS, 'https://arma2.com.ar']) {
     assert.throws(() => config.loadConfig({ ...env, TORNEOS_ALLOWED_ORIGIN: origin }), config.ConfigError, origin);
   }
 });
 
-test('config: non-production topologies keep their single env origin (no Android origin outside Production)', () => {
+test('config: non-production topologies keep their single env origin (no native origin outside Production)', () => {
   const lab = { ...env, TORNEOS_GATEWAY_PUBLIC_URL: 'http://127.0.0.1:54321/functions/v1/torneos-gateway', TORNEOS_ALLOWED_ORIGIN: 'http://localhost:3000',
     CORE_AUTH_URL: 'http://core-auth:9999', CORE_JWT_ISSUER: 'http://core-auth:9999', CORE_CONTRACT_URL: 'http://core-api:8000/functions/v1/torneos-core-contract',
     CORE_ANON_KEY: '', TORNEOS_REST_URL: 'http://torneos-rest:3000', TORNEOS_DB_SSL_CA: '',
@@ -106,8 +110,8 @@ test('config: non-production topologies keep their single env origin (no Android
   assert.deepEqual([...cfg.allowedOrigins], ['http://localhost:3000']);
 });
 
-test('ALLOW: web and Android origins → 200 /health, 204 preflight, 200 /config, each with its own exact CORS grant', async () => {
-  for (const origin of [WEB, ANDROID]) {
+test('ALLOW: web, Android and iOS origins → 200 /health, 204 preflight, 200 /config, each with its own exact CORS grant', async () => {
+  for (const origin of [WEB, ANDROID, IOS]) {
     const h = await call('candidate', '/health', { origin });
     assert.deepEqual([h.status, h.json?.ready, h.acao, h.vary, h.cache], [200, true, origin, 'origin', 'no-store'], `${origin} /health`);
     const pre = await preflight('candidate', origin);
@@ -140,7 +144,7 @@ test('absent Origin (non-browser client): unchanged — served without any CORS 
   }
 });
 
-test('an allowed Origin is never a credential: Android gets exactly the web answers on authenticated routes (401)', async () => {
+test('an allowed Origin is never a credential: Android and iOS get exactly the web answers on authenticated routes (401)', async () => {
   const cases = [
     ['/exchange', { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' }],
     ['/exchange', { method: 'POST', headers: { 'content-type': 'application/json', authorization: 'Bearer eyJx.eyJ4.x' }, body: '{}' }],
@@ -151,22 +155,24 @@ test('an allowed Origin is never a credential: Android gets exactly the web answ
   for (const [p, opts] of cases) {
     const web = await call('candidate', p, { ...opts, origin: WEB });
     const android = await call('candidate', p, { ...opts, origin: ANDROID });
+    const ios = await call('candidate', p, { ...opts, origin: IOS });
     assert.equal(web.status, 401, `${p} web`);
     assert.deepEqual([android.status, android.json], [web.status, web.json], `${p}: Android ≡ web`);
-    assert.deepEqual([web.acao, android.acao], [WEB, ANDROID]);
+    assert.deepEqual([ios.status, ios.json], [web.status, web.json], `${p}: iOS ≡ web`);
+    assert.deepEqual([web.acao, android.acao, ios.acao], [WEB, ANDROID, IOS]);
   }
 });
 
-test('differential vs the live source: only https://localhost changes (403 → 200); every other answer is identical', async () => {
-  for (const origin of [WEB, ANDROID, undefined, ...DENY]) {
+test('differential vs the pre-Android source: only https://localhost and capacitor://localhost change (403 → 200); every other answer is identical', async () => {
+  for (const origin of [WEB, ANDROID, IOS, undefined, ...DENY]) {
     for (const [name, run] of [['health', (w) => call(w, '/health', { origin })], ['preflight', (w) => preflight(w, origin)],
       ['exchange', (w) => call(w, '/exchange', { method: 'POST', origin, headers: { 'content-type': 'application/json' }, body: '{}' })]]) {
       const live = await run('live'); const cand = await run('candidate');
-      if (origin === ANDROID) {
-        assert.equal(live.status, 403, `live rejects Android (${name})`);
+      if (origin === ANDROID || origin === IOS) {
+        assert.equal(live.status, 403, `live rejects ${origin} (${name})`);
         assert.equal(live.acao, null);
-        assert.notEqual(cand.status, 403, `candidate admits Android (${name})`);
-        assert.equal(cand.acao, ANDROID);
+        assert.notEqual(cand.status, 403, `candidate admits ${origin} (${name})`);
+        assert.equal(cand.acao, origin);
       } else {
         assert.deepEqual(cand, live, `${String(origin)} ${name}: unchanged`);
       }
@@ -174,7 +180,7 @@ test('differential vs the live source: only https://localhost changes (403 → 2
   }
 });
 
-test('source guard: exact membership only, the Android origin pinned once in topology.ts, no wildcard, no new env', () => {
+test('source guard: exact membership only, each native origin pinned once in topology.ts, no wildcard, no new env', () => {
   const read = (rel) => fs.readFileSync(path.join(FUNCTIONS_DIR, 'torneos-gateway', rel), 'utf8');
   const index = read('index.ts'); const cfg = read('config.ts'); const topo = read('topology.ts');
   assert.match(index, /"access-control-allow-origin": origin,/);
@@ -185,7 +191,9 @@ test('source guard: exact membership only, the Android origin pinned once in top
   const tree = fs.readdirSync(path.join(FUNCTIONS_DIR, 'torneos-gateway')).filter((f) => f.endsWith('.ts')).map((f) => read(f)).join('\n');
   assert.equal(tree.split('"https://localhost"').length - 1, 1, 'the Android origin literal appears exactly once');
   assert.match(topo, /nativeAppOrigin: "https:\/\/localhost",/);
-  // config.ts reads the same env names as the live source: the Android origin is not configurable.
+  assert.equal(tree.split('"capacitor://localhost"').length - 1, 1, 'the iOS origin literal appears exactly once');
+  assert.match(topo, /nativeIosOrigin: "capacitor:\/\/localhost",/);
+  // config.ts reads the same env names as the live source: the native origins are not configurable.
   const envNames = (src) => [...new Set([...src.matchAll(/(?:required|optional)\(env, "([A-Z_]+)"\)|env\.([A-Z_]+)/g)].map((m) => m[1] ?? m[2]))].sort();
   const liveCfg = fs.readFileSync(path.join(tmp, 'backend/torneos/supabase/functions/torneos-gateway/config.ts'), 'utf8');
   // ACCOUNT ERASURE (0021, #217) adds exactly one name, the dedicated erasure login's URL (a database credential, not an

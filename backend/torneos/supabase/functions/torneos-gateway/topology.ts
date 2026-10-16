@@ -37,6 +37,11 @@ export const PRODUCTION = Object.freeze({
   // The Android app's WebView (Capacitor 7: androidScheme https, hostname localhost), measured on the wire
   // 2026-09-29. Pinned here, never from env; allowed only in addition to the web origin, only on Production.
   nativeAppOrigin: "https://localhost",
+  // The iOS app's WKWebView (Capacitor 7: no iosScheme -> scheme "capacitor", hostname localhost). Same rules as the
+  // Android origin: pinned here, never from env, only in addition to the web origin, only on Production; compared as
+  // an EXACT string with the request's Origin header, never through new URL(x).origin (for a non-special scheme that
+  // is "null"). Must be measured on the wire (Safari Web Inspector) before deploy: NATIVE-ORIGINS.md.
+  nativeIosOrigin: "capacitor://localhost",
   identityWriterLogin: "torneos_edge_identity_writer",
   coreAdapterLogin: "torneos_edge_core_adapter",
   // ACCOUNT ERASURE (0021): NOINHERIT member of torneos_erasure_writer only; provisioned out of band, its URL only in
