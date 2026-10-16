@@ -411,20 +411,18 @@ input {
   }
 }
 
-/* Legal footer of the public gate (identity and links; the Botón de arrepentimiento must be visible on the home page). */
-.gate-legal { margin-top: 1.25rem; font-size: 12px; line-height: 1.6; color: rgba(255, 255, 255, 0.72); text-align: center; overflow-wrap: anywhere; }
-.gate-legal__identity { margin: 0 0 0.35rem; }
+/* Legal footer of the public gate: discreet text links only; the provider's data lives at /legales (one tap). */
+.gate-legal { margin-top: 1.25rem; font-size: 12px; line-height: 1.6; color: rgba(255, 255, 255, 0.72); text-align: center; }
 .gate-legal__links { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.25rem 0.9rem; }
-.gate-legal a { color: inherit; text-decoration: underline; }
+.gate-legal a { color: inherit; text-decoration: underline; text-underline-offset: 2px; white-space: nowrap; }
 
-/* «BOTÓN DE ARREPENTIMIENTO» / «BOTÓN DE BAJA DE SERVICIO»: a simple vista desde el primer acceso (barra fija, legible). */
-.gate-page--public { padding-bottom: 8.5rem; }   /* la barra fija ocupa dos renglones en un teléfono */
+/* «BOTÓN DE ARREPENTIMIENTO» / «BOTÓN DE BAJA DE SERVICIO»: a simple vista desde el primer acceso, como una franja fija
+   y fina de enlaces de texto (no botones grandes). La página deja lugar abajo para que nunca tape el pie. */
+.gate-page--public { padding-bottom: 3.5rem; }
 .gate-consumer-bar {
-  position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; display: flex; flex-wrap: wrap; justify-content: center; gap: 0.5rem;
-  padding: 0.6rem 0.75rem calc(0.6rem + env(safe-area-inset-bottom)); background: rgba(12, 10, 29, 0.94); border-top: 1px solid rgba(255, 255, 255, 0.18);
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; display: flex; flex-wrap: wrap; justify-content: center; gap: 0.15rem 1rem;
+  padding: 0.45rem 0.75rem calc(0.45rem + env(safe-area-inset-bottom)); background: rgba(12, 10, 29, 0.9);
+  border-top: 1px solid rgba(255, 255, 255, 0.12); font-size: 11px; line-height: 1.5; letter-spacing: 0.01em;
 }
-.gate-consumer-bar__button {
-  display: inline-block; padding: 0.45rem 0.85rem; border-radius: 999px; border: 1.5px solid #fff; background: rgba(255, 255, 255, 0.14);
-  color: #fff; font-size: 14px; font-weight: 800; letter-spacing: 0.02em; text-decoration: none; line-height: 1.2;
-}
-.gate-consumer-bar__button:hover, .gate-consumer-bar__button:focus-visible { background: rgba(255, 255, 255, 0.26); }
+.gate-consumer-bar a { color: rgba(255, 255, 255, 0.92); font-weight: 600; text-decoration: underline; text-underline-offset: 2px; white-space: nowrap; }
+.gate-consumer-bar a:hover, .gate-consumer-bar a:focus-visible { color: #fff; }

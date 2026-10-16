@@ -1,8 +1,9 @@
 // Datos del proveedor que la web publica (Ley 24.240 y normas de comercio electrónico). Una sola fuente para las páginas
-// legales, el pie y el gate estático (public/mobile-only.html, verificado por legalPages.test.jsx).
+// legales: «Datos del proveedor» (/legales), Términos de venta y Privacidad. El ingreso, el gate estático
+// (public/mobile-only.html) y los pies NO muestran estos datos: los enlazan a /legales con un toque (legalPremium.test.jsx).
 // Autorizados por Nico (2026-10-14): nombre, CUIT, domicilio público (sin departamento) y email comercial. Si alguno
 // faltara, legalIdentityComplete() es false, las páginas no lo muestran y la apertura pública no procede (el procedimiento
-// de apertura verifica el pie publicado). Nada de esto afirma inscripción ni condición fiscal.
+// de apertura verifica /legales publicado). Nada de esto afirma inscripción ni condición fiscal.
 export const LEGAL_IDENTITY = Object.freeze({
   name: 'Nicolás Gabriel Avayu',
   cuit: '20-30334438-2',
@@ -25,6 +26,7 @@ export const LEGAL_ROUTES = Object.freeze({
   revocation: '/arrepentimiento',
   cancellation: '/baja-del-servicio',
   accountDeletion: '/account-deletion',
+  provider: '/legales',
 });
 
 export function legalIdentityComplete(identity = LEGAL_IDENTITY) {

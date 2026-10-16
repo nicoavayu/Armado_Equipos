@@ -1,29 +1,40 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import {
-  CONSUMER_COMPLAINTS_LABEL, CONSUMER_COMPLAINTS_URL, LEGAL_IDENTITY, LEGAL_ROUTES,
-} from './legalIdentity';
+import { LEGAL_ROUTES } from './legalIdentity';
+import { isArma2NativeRuntime } from '../utils/runtimePlatform';
 
-/** Datos del proveedor y enlaces legales. «BOTÓN DE ARREPENTIMIENTO» y «BOTÓN DE BAJA DE SERVICIO» van destacados (botones). */
-export default function LegalFooter({ className = '' }) {
-  const { name, cuit, contactEmail, publicAddress, city } = LEGAL_IDENTITY;
+// Leyendas exactas de la Disposición SSDCyLC 954/2025 (art. 1 «BOTÓN DE ARREPENTIMIENTO», art. 4 «BOTÓN DE BAJA DE
+// SERVICIO»): «a simple vista, en lugar destacado y en el primer acceso», sin registro previo. La norma no fija tamaño:
+// van como enlaces de texto legibles, no como bloque comercial.
+export const REVOCATION_LINK_LABEL = 'BOTÓN DE ARREPENTIMIENTO';
+export const CANCELLATION_LINK_LABEL = 'BOTÓN DE BAJA DE SERVICIO';
+export const PROVIDER_LINK_LABEL = 'Datos del proveedor';
+
+/**
+ * Pie legal compacto. Los datos del proveedor (nombre, CUIT, domicilio, email) NO van acá: viven en /legales («Datos del
+ * proveedor», un toque) y en los Términos de venta.
+ * - variant 'login': el ingreso ya enlaza Términos y Privacidad en su línea de consentimiento, así que el pie no los repite.
+ * - native: la app nativa no vende (Premium se compra sólo en la web), así que no enlaza el arrepentimiento ni la baja de
+ *   una compra web (App Store 3.1.1 / Google Play Payments: nada que lleve a un medio de compra fuera de la tienda).
+ */
+export default function LegalFooter({ className = '', variant = 'full', native = isArma2NativeRuntime() }) {
+  const links = [
+    ...(native ? [] : [
+      { to: LEGAL_ROUTES.revocation, label: REVOCATION_LINK_LABEL, consumer: true },
+      { to: LEGAL_ROUTES.cancellation, label: CANCELLATION_LINK_LABEL, consumer: true },
+    ]),
+    ...(variant === 'login' ? [] : [
+      { to: LEGAL_ROUTES.terms, label: 'Términos' },
+      { to: LEGAL_ROUTES.privacy, label: 'Privacidad' },
+    ]),
+    { to: LEGAL_ROUTES.provider, label: PROVIDER_LINK_LABEL },
+  ];
   return (
     <footer className={`legal-footer ${className}`.trim()} aria-label="Información legal">
-      <p className="legal-footer__identity">
-        <span>Arma2 — {name}</span>
-        <span>CUIT {cuit}</span>
-        {publicAddress && <span>{publicAddress}, {city}</span>}
-        {contactEmail && <a href={`mailto:${contactEmail}`}>{contactEmail}</a>}
-      </p>
-      <nav className="legal-footer__buttons" aria-label="Arrepentimiento y baja">
-        <Link to={LEGAL_ROUTES.revocation} className="legal-footer__button">BOTÓN DE ARREPENTIMIENTO</Link>
-        <Link to={LEGAL_ROUTES.cancellation} className="legal-footer__button">BOTÓN DE BAJA DE SERVICIO</Link>
-      </nav>
       <nav className="legal-footer__links" aria-label="Enlaces legales">
-        <Link to={LEGAL_ROUTES.terms}>Términos</Link>
-        <Link to={LEGAL_ROUTES.termsOfSale}>Términos de venta</Link>
-        <Link to={LEGAL_ROUTES.privacy}>Privacidad</Link>
-        <a href={CONSUMER_COMPLAINTS_URL} target="_blank" rel="noopener noreferrer">{CONSUMER_COMPLAINTS_LABEL}</a>
+        {links.map(({ to, label, consumer }) => (
+          <Link key={to} to={to} className={consumer ? 'legal-footer__consumer' : undefined}>{label}</Link>
+        ))}
       </nav>
     </footer>
   );

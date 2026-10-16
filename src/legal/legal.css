@@ -10,13 +10,10 @@
   border: 1px solid rgba(255, 255, 255, 0.2); background: rgba(255, 255, 255, 0.06); color: #fff;
 }
 .legal-body button { margin-top: 1rem; padding: 0.55rem 1rem; border-radius: 0.5rem; border: 1px solid rgba(255, 255, 255, 0.3); background: rgba(255, 255, 255, 0.12); color: #fff; }
-.legal-footer { font-size: 12px; line-height: 1.6; color: rgba(255, 255, 255, 0.72); text-align: center; padding: 1rem 0.5rem; overflow-wrap: anywhere; }
-.legal-footer__identity { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.25rem 0.75rem; margin: 0 0 0.35rem; }
-.legal-footer__links { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.25rem 0.9rem; }
-.legal-footer a { color: inherit; text-decoration: underline; }
-.legal-footer__buttons { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.5rem; margin: 0.5rem 0 0.6rem; }
-.legal-footer a.legal-footer__button {
-  display: inline-block; padding: 0.45rem 0.85rem; border-radius: 999px; border: 1.5px solid #fff; background: rgba(255, 255, 255, 0.14);
-  color: #fff; font-size: 14px; font-weight: 800; letter-spacing: 0.02em; text-decoration: none; line-height: 1.2;
-}
-.legal-footer a.legal-footer__button:hover, .legal-footer a.legal-footer__button:focus-visible { background: rgba(255, 255, 255, 0.26); }
+/* Pie legal compacto: enlaces de texto, sin datos del proveedor (viven en /legales). Las dos leyendas de la Disp. 954/2025
+   quedan legibles (mismo cuerpo, en blanco y semibold) sin volverse botones. */
+.legal-footer { font-size: 12px; line-height: 1.5; color: rgba(255, 255, 255, 0.72); text-align: center; padding: 0.5rem 0.25rem; }
+.legal-footer__links { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.2rem 0.85rem; }
+.legal-footer a { color: inherit; text-decoration: underline; text-underline-offset: 2px; white-space: nowrap; }
+.legal-footer a.legal-footer__consumer { color: rgba(255, 255, 255, 0.92); font-weight: 600; }
+.legal-footer a:hover, .legal-footer a:focus-visible { color: #fff; }

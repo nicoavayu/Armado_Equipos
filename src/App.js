@@ -67,6 +67,7 @@ const AccountDeletionInfoPage = lazy(() => import('./pages/AccountDeletionInfoPa
 const TermsOfSalePage = lazy(() => import('./pages/TermsOfSalePage'));
 const RevocationPage = lazy(() => import('./pages/RevocationPage'));
 const ServiceCancellationPage = lazy(() => import('./pages/ServiceCancellationPage'));
+const ProviderInfoPage = lazy(() => import('./pages/ProviderInfoPage'));
 const VotarEquiposPage = lazy(() => import('./pages/VotarEquiposPage'));
 const AuthHome = lazy(() => import('./components/AuthHome'));
 const AuthCallback = lazy(() => import('./components/AuthCallback'));
@@ -179,6 +180,11 @@ export default function App() {
                   <Route path="/baja-del-servicio" element={
                     <Suspense fallback={<AppLoadingScreen />}>
                       <ServiceCancellationPage />
+                    </Suspense>
+                  } />
+                  <Route path="/legales" element={
+                    <Suspense fallback={<AppLoadingScreen />}>
+                      <ProviderInfoPage />
                     </Suspense>
                   } />
                   <Route path="/login" element={

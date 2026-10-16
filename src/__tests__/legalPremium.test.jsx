@@ -13,7 +13,7 @@ import TermsPage from '../pages/TermsPage';
 import RevocationPage, { revocationReference, revocationMailto } from '../pages/RevocationPage';
 import ServiceCancellationPage from '../pages/ServiceCancellationPage';
 import LegalFooter from '../legal/LegalFooter';
-import { CONSUMER_COMPLAINTS_URL, LEGAL_IDENTITY, legalIdentityComplete } from '../legal/legalIdentity';
+import { LEGAL_IDENTITY, legalIdentityComplete } from '../legal/legalIdentity';
 
 const renderAt = (node) => render(<MemoryRouter>{node}</MemoryRouter>);
 
@@ -30,19 +30,23 @@ describe('provider identity', () => {
     expect(legalIdentityComplete({ ...LEGAL_IDENTITY, contactEmail: 'a@b.co', publicAddress: 'Calle 1' })).toBe(true);
   });
 
-  test('the static public gate (home page) shows the same identity, the Botón de arrepentimiento and the complaints link', () => {
+  test('the static public gate (home page) keeps the provider data off the first screen and both legends in a slim fixed strip', () => {
     const html = fs.readFileSync(path.join(__dirname, '../../public/mobile-only.html'), 'utf8');
-    expect(html).toContain(`Arma2 — ${LEGAL_IDENTITY.name} · CUIT ${LEGAL_IDENTITY.cuit}`);
-    expect(html).toContain('href="/arrepentimiento"');
-    expect(html).toContain('href="/baja-del-servicio"');
-    // First access: both legends in a fixed bar, always visible (and again in the footer).
-    const bar = html.slice(html.indexOf('class="gate-consumer-bar"'));
-    expect(bar.indexOf('BOTÓN DE ARREPENTIMIENTO')).toBeGreaterThan(0);
-    expect(bar.indexOf('BOTÓN DE BAJA DE SERVICIO')).toBeGreaterThan(0);
-    expect(fs.readFileSync(path.join(__dirname, '../../public/web-access.css'), 'utf8')).toMatch(/\.gate-consumer-bar \{[^}]*position: fixed;[^}]*bottom: 0;/);
-    expect(html).toContain(CONSUMER_COMPLAINTS_URL);
-    if (LEGAL_IDENTITY.contactEmail) expect(html).toContain(LEGAL_IDENTITY.contactEmail);
-    if (LEGAL_IDENTITY.publicAddress) expect(html).toContain(LEGAL_IDENTITY.publicAddress);
+    // Owner decision (2026-10-15): no name, CUIT, address or email on the home page; one tap to /legales.
+    for (const value of [LEGAL_IDENTITY.name, LEGAL_IDENTITY.cuit, LEGAL_IDENTITY.publicAddress, LEGAL_IDENTITY.contactEmail, 'CUIT']) {
+      expect(html).not.toContain(value);
+    }
+    expect(html).toContain('<a href="/legales">Datos del proveedor</a>');
+    // First access (Disp. 954/2025 arts. 1 and 4): both legends, exact, once each, in the fixed strip — text links, not pills.
+    const bar = html.slice(html.indexOf('class="gate-consumer-bar"'), html.indexOf('</nav>', html.indexOf('class="gate-consumer-bar"')));
+    expect(bar).toContain('<a href="/arrepentimiento">BOTÓN DE ARREPENTIMIENTO</a>');
+    expect(bar).toContain('<a href="/baja-del-servicio">BOTÓN DE BAJA DE SERVICIO</a>');
+    expect(html.split('BOTÓN DE ARREPENTIMIENTO</a>').length - 1).toBe(1);
+    expect(html.split('BOTÓN DE BAJA DE SERVICIO</a>').length - 1).toBe(1);
+    const css = fs.readFileSync(path.join(__dirname, '../../public/web-access.css'), 'utf8');
+    expect(css).toMatch(/\.gate-consumer-bar \{[^}]*position: fixed;[^}]*bottom: 0;/);
+    expect(css).not.toContain('gate-consumer-bar__button');
+    for (const href of ['/terms', '/privacy']) expect(html.split(`href="${href}"`).length - 1).toBe(1);
   });
 });
 
@@ -156,13 +160,21 @@ describe('privacy', () => {
 });
 
 describe('footer and terms', () => {
-  test('the footer always shows the identity, the Botón de arrepentimiento and the complaints link', () => {
-    renderAt(<LegalFooter />);
-    expect(document.body.textContent).toContain(`CUIT ${LEGAL_IDENTITY.cuit}`);
-    expect(screen.getByRole('link', { name: 'BOTÓN DE ARREPENTIMIENTO' }).getAttribute('href')).toBe('/arrepentimiento');
-    expect(screen.getByRole('link', { name: 'BOTÓN DE BAJA DE SERVICIO' }).getAttribute('href')).toBe('/baja-del-servicio');
-    for (const name of ['BOTÓN DE ARREPENTIMIENTO', 'BOTÓN DE BAJA DE SERVICIO']) expect(screen.getByRole('link', { name }).className).toContain('legal-footer__button');
-    expect(screen.getByRole('link', { name: /Para reclamos ingrese aquí/ }).getAttribute('href')).toBe(CONSUMER_COMPLAINTS_URL);
+  test('the footer is compact: both legends as text links, Términos, Privacidad and Datos del proveedor; no provider data', () => {
+    renderAt(<LegalFooter native={false} />);
+    const text = document.body.textContent;
+    for (const value of [LEGAL_IDENTITY.name, LEGAL_IDENTITY.cuit, LEGAL_IDENTITY.publicAddress, LEGAL_IDENTITY.contactEmail, 'CUIT']) {
+      expect(text).not.toContain(value);
+    }
+    const hrefs = screen.getAllByRole('link').map((a) => [a.textContent, a.getAttribute('href')]);
+    expect(hrefs).toEqual([
+      ['BOTÓN DE ARREPENTIMIENTO', '/arrepentimiento'],
+      ['BOTÓN DE BAJA DE SERVICIO', '/baja-del-servicio'],
+      ['Términos', '/terms'],
+      ['Privacidad', '/privacy'],
+      ['Datos del proveedor', '/legales'],
+    ]);
+    expect(screen.queryByRole('link', { name: /Para reclamos ingrese aquí/ })).toBeNull();
   });
 
   test('the general terms link the terms of sale', () => {
