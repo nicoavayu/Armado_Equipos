@@ -1,0 +1,45 @@
+# MODERATION 0022 — orden respecto de 0020 (sponsors) y 0021 (borrado de cuenta), con el 0021 COMMITEADO de #217
+Fecha: 2026-10-16T00:25Z. Base: origin/main b4fb150a. Rama: claude/torneos-moderation (sobre 44a75273).
+Laboratorio: PostgreSQL descartable public.ecr.aws/supabase/postgres:17.6.1.143 (commerce-production/lab/pg-lab.mjs),
+contenedor arma2-moderation-lab-db-2163cf14, red propia arma2-moderation-lab-db-2163cf14-net 10.233.90.0/24 (creada a
+mano con subred explícita y borrada al terminar), puerto sólo en 127.0.0.1. 0000 → 0019 como instalador del lab, luego
+dueños = postgres (no superusuario, como el proyecto hospedado); 0020 / 0021 / sus rollbacks aplicados como postgres;
+0022 y su rollback por db-0022.mjs run() como postgres. El borrado se ejecuta como torneos_erasure_writer (el único rol
+al que 0021 le da EXECUTE). Datos 100 % ficticios. Nada remoto: ni Production, ni Staging, ni el gateway, ni la web.
+
+Archivos de las otras ramas, copiados sólo para leer a un directorio temporal (no se tocó ninguna rama ni worktree ajeno):
+  0020.sql           3b2ed5370a637ea86475ceba0a100802e5928c2187dcf1e70bb057ae3d64582c  origin/claude/torneos-premium-sponsors 45d56f51 (PR #212)
+  0020.rollback.sql  dc8422ca7f99c63773e46cfefd3d005912bc7bda029470fdacf2429be33e41dd  idem
+  0021.sql           0535f241ed080c38c244f7a51a491f67baafdd86c5089f6aac9bd69e2e019c26  origin/claude/torneos-account-deletion 899808d4 (PR #217)
+  0021.rollback.sql  4bd7b70f4d4b95521e594da421dc6510093de60198fcac2b24562762c71302f6  idem
+0022 sin cambios: migración b4d3c41da9fb5d0915302bd458987106771aa486e3116263ba06914d71947c88,
+rollback 8e4dfb465be818af40d4f0b56f7cd18153ef64a94ca91c552cdb4e528c265b6d.
+Si 0020 o 0021 cambian antes del merge, repetir:
+  node backend/torneos/moderation-v1/test/order-rehearsal.mjs <dir con 0020.sql 0020.rollback.sql 0021.sql 0021.rollback.sql>
+
+Orden 1: 0020 → 0021 → 0022; orden 2: 0022 → 0020 → 0021. En cada uno: un reporte con detalle, resuelto por la
+organización, y después el borrado de la cuenta de quien reportó con private.erase_tournament_account (0021).
+Qué prueba el smoke: 0021 NO borra la fila de identidad (identityRowKept: la corta, cambiando su core_user_id), así que
+los ON DELETE SET NULL / CASCADE de 0022 no intervienen; la compatibilidad la da la clasificación explícita de las tablas
+de 0022 en 0021 (paso «7b. Moderation»): el reporte se conserva (reportKept) sin reporter (reporterNull) ni detalle
+(detailNull), su evento «created» queda sin actor (createdActorNull), la columna de staff handled_by se conserva
+(handledByKept); el resumen del borrado dice counts.reportsDetached = 1.
+
+{"step":"start","s0020":false,"s0021":false,"s0022":false}
+{"step":"apply 0020","ok":true}
+{"step":"apply 0021","ok":true}
+{"step":"apply 0022 (driver) after 0020+0021","verdict":"APPLY_0022_DONE","changedOutside":[]}
+{"step":"smoke 1","report":"organization","handled":"resolved","erasure":"erased","reportKept":true,"identityRowKept":true,"reporterNull":true,"detailNull":true,"createdActorNull":true,"handledByKept":true,"reportsDetached":1}
+{"step":"rollback 0022 (forced)","verdict":"ROLLBACK_0022_DONE","changedOutside":[]}
+{"step":"rollback 0021","ok":true}
+{"step":"rollback 0020","ok":true}
+{"step":"after order 1","s0020":false,"s0021":false,"s0022":false}
+{"step":"apply 0022 (driver) first","verdict":"APPLY_0022_DONE"}
+{"step":"apply 0020 after 0022","ok":true}
+{"step":"apply 0021 after 0022","ok":true}
+{"step":"classify with 0020+0021 on top","state":"POST_0022"}
+{"step":"smoke 2","report":"organization","handled":"resolved","erasure":"erased","reportKept":true,"identityRowKept":true,"reporterNull":true,"detailNull":true,"createdActorNull":true,"handledByKept":true,"reportsDetached":1}
+{"step":"rollback 0021","ok":true}
+{"step":"rollback 0020","ok":true}
+{"step":"rollback 0022 last (forced)","verdict":"ROLLBACK_0022_DONE","changedOutside":[]}
+{"step":"end","s0020":false,"s0021":false,"s0022":false}

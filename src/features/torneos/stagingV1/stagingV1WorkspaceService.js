@@ -27,7 +27,9 @@
 //
 // CONNECTED-V1: with `connected: true` (foundation/config.js resolveTorneosConnectedProduct) it also serves the
 // connected product — Torneos profile and inbox, catalog management, registration requests — with the legacy RPC
-// and p_* payload (scripts/torneos-frontend/connected-adapter.test.mjs). Never the platform removal lever.
+// and p_* payload (scripts/torneos-frontend/connected-adapter.test.mjs). Never the platform removal lever. MODERATION
+// (0022) rides on it: report content, the organization's review and applicant blocks, muting an organization's
+// communications. Never the platform_* moderation functions (operator only, no API grant).
 //
 // BRANDING-V1: with `branding: true` (foundation/config.js resolveTorneosBranding) it also serves the existing branding
 // contract — upload/remove a logo or shield (object route + set_tournament_branding_reference, the LOCAL service's
@@ -58,6 +60,9 @@ import { requireAuthorizedBrandingUrls } from '../domain/brandingUrlRegistry';
 import { withSignedBranding } from './brandingUrls';
 import { prepareUploadPayload, MediaClientError } from '../domain/mediaImageClient';
 import { describeMediaPipelineError } from '../domain/mediaPipeline';
+import {
+  blockApplicantParams, handleReportParams, mutedParams, reportContentParams,
+} from '../domain/contentModeration';
 
 // Copy for failures that happen before or around the RPC (transport, session,
 // gateway). The RPC's own functional codes keep the legacy ERROR_MESSAGES copy.
@@ -119,6 +124,9 @@ export const CONNECTED_METHODS = Object.freeze([
   'loadTorneosInboxSummary', 'loadCatalogListingSettings', 'saveCatalogListing', 'setCatalogListingStatus',
   'setApplicationsState', 'saveCategoryCapacity', 'loadApplicationInbox', 'searchApplicableCoreTeams',
   'startTournamentApplication', 'loadMyRegistrations', 'listMyCoreTeamsForApplication', 'loadMyParticipations',
+  // MODERATION (0022), served by the same CONNECTED-V1 contract.
+  'reportContent', 'loadContentReports', 'handleContentReport', 'blockApplicant', 'unblockApplicant',
+  'setCommunicationsMuted', 'loadCommunicationMutes',
 ]);
 export const BRANDING_METHODS = Object.freeze(['uploadBrandingAsset', 'removeBrandingAsset', 'loadBrandingContext']);
 // Responses the gateway signs (torneos-gateway/branding.ts SIGNED_AUTHENTICATED_RPCS): their paths keep only with a URL.
@@ -324,6 +332,14 @@ export function createStagingV1WorkspaceService({
       throw translateBoundaryError(error, fallbackMessage);
     }
     return SIGNED_BRANDING_RPCS.has(operation) ? withSignedBranding(result) : result;
+  };
+  // A moderation body the database would refuse never leaves the client.
+  const moderationParams = (build, input) => {
+    try {
+      return build(input);
+    } catch {
+      throw invalidRequest();
+    }
   };
 
   async function loadMyTournaments({ limit = 20, offset = 0 } = {}) {
@@ -559,6 +575,27 @@ export function createStagingV1WorkspaceService({
       p_limit: limit,
       p_offset: offset,
     }, 'No pudimos cargar tus torneos.'),
+    // MODERATION (0022): report content, the organization's review and blocks, muting an organization's communications.
+    // The same p_* bodies as the LOCAL service (domain/contentModeration.js builds both).
+    reportContent: async (input) => call('report_tournament_content', moderationParams(reportContentParams, input),
+      'No pudimos enviar el reporte.'),
+    loadContentReports: async ({ organizationId, status = null } = {}) => {
+      if (!UUID.test(String(organizationId))) throw invalidRequest();
+      return call('get_tournament_content_reports', { p_organization_id: organizationId, p_status: status },
+        'No pudimos cargar los reportes.');
+    },
+    handleContentReport: async (input) => call('handle_tournament_content_report', moderationParams(handleReportParams, input),
+      'No pudimos guardar la decisión sobre el reporte.'),
+    blockApplicant: async (input) => call('block_tournament_applicant', moderationParams(blockApplicantParams, input),
+      'No pudimos bloquear al solicitante.'),
+    unblockApplicant: async ({ organizationId, blockId } = {}) => {
+      if (!UUID.test(String(organizationId)) || !UUID.test(String(blockId))) throw invalidRequest();
+      return call('unblock_tournament_applicant', { p_organization_id: organizationId, p_block_id: blockId },
+        'No pudimos quitar el bloqueo.');
+    },
+    setCommunicationsMuted: async (input) => call('set_tournament_communications_muted', moderationParams(mutedParams, input),
+      'No pudimos cambiar los avisos de esta organización.'),
+    loadCommunicationMutes: () => call('get_my_tournament_communication_mutes', {}, 'No pudimos cargar las organizaciones silenciadas.'),
   } : {};
 
   // BRANDING-V1: the LOCAL service's exact sequence (tournamentBrandingService.js) over the gateway: store a new

@@ -14,6 +14,7 @@ import {
 import { Link } from 'react-router-dom';
 import { useTorneosWorkspace } from '../context/TorneosWorkspaceContext';
 import { announceTorneosInboxChanged } from './connected/torneosInboxEvents';
+import { CommunicationModerationBar, MutedOrganizations } from './moderation/CommunicationModeration';
 import styles from './TournamentCommunications.module.css';
 
 function formatDate(value) {
@@ -186,6 +187,7 @@ export default function MyCommunicationsPage({ embedded = false }) {
             </button>
           )}
         </footer>
+        <CommunicationModerationBar service={service} detail={detail} onMuted={announceTorneosInboxChanged} />
       </article>
     );
   }
@@ -250,6 +252,7 @@ export default function MyCommunicationsPage({ embedded = false }) {
           <p>No hay comunicados para este filtro.</p>
         </section>
       )}
+      <MutedOrganizations service={service} />
     </section>
   );
 }

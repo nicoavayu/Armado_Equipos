@@ -169,6 +169,8 @@ export const organizationMembers = organizationRoute('/miembros');
 export const organizationSettings = organizationRoute('/configuracion');
 export const organizationMyPlan = organizationRoute('/mi-plan');
 export const organizationSettingsPlan = organizationRoute('/configuracion/plan');
+// MODERATION (0022): owners and administrators review reports about their tournaments' teams and players.
+export const organizationModeration = organizationRoute('/configuracion/moderacion');
 export const organizationCommunications = organizationRoute('/comunicaciones');
 export const organizationMedia = organizationRoute('/multimedia');
 export const organizationSocialStudio = organizationRoute('/estudio-social');
@@ -290,6 +292,7 @@ export const canonicalRoutes = Object.freeze({
   organizationMembers,
   organizationSettings,
   organizationSettingsPlan,
+  organizationModeration,
   organizationMyPlan,
   organizationCommunications,
   organizationMedia,
