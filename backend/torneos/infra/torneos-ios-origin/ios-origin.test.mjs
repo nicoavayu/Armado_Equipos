@@ -3,8 +3,9 @@
 // addition to the web origin, compared as an EXACT string with the request's Origin header (never through
 // `new URL(x).origin`, which is "null" for a non-special scheme). See torneos-gateway/NATIVE-ORIGINS.md.
 //
-// Offline, on the REAL handle() of two sources: `base` = the function tree at the branch point of this change (origin/main
-// b4fb150a, extracted from git), `candidate` = the working tree; three gateway environments (every product mode off; the
+// Offline, on the REAL handle() of two sources: `base` = the function tree immediately before this change lands (the
+// torneos integration commit 601723dc = main b4fb150a + #213 #212 #217 #218 #216 #214, extracted from git), `candidate` =
+// the working tree; three gateway environments (every product mode off; the
 // product modes the web runs — CONNECTED + BRANDING + MEDIA; and the same plus COMMERCE-PRODUCTION). Core, Torneos REST,
 // Storage and payments are recording stubs; nothing leaves the process.
 //
@@ -32,8 +33,11 @@ import { fixtureEnv } from '../torneos-competition-v1/test-support.mjs';
 import { GATEWAY_BASE as BASE } from '../torneos-competition-v1/competition-remote-contract.mjs';
 import { STORE_SECRET } from '../../media-store-v1/test/support.mjs';
 
-// origin/main when this change branched (PR #211 merged). Its gateway tree is the source of every image built since #210.
-const BASE_COMMIT = 'b4fb150a12fcc521f227e935f23dab5cbcee6c22';
+// The tree immediately before this change lands: in the torneos integration branch, the merge commit right before #215
+// (main b4fb150a + #213 #212 #217 #218 #216 #214). #215 was written against origin/main b4fb150a (PR #211 merged); since
+// then #217 added account-erasure.ts and TORNEOS_DB_ERASURE_WRITER_URL to the gateway and #216 widened the CONNECTED-V1
+// allowlist. Re-pinned so the differential keeps its meaning: only #215's own change (topology.ts + config.ts) differs.
+const BASE_COMMIT = '601723dc4882c77536dbc5d31061789d430a274c';
 const WEB = 'https://app.arma2.com.ar';
 const ANDROID = 'https://localhost';
 const IOS = 'capacitor://localhost';
@@ -276,7 +280,7 @@ test('Referer is never read: a capacitor:// Referer grants nothing without Origi
 });
 
 // ───────────────────────── differential vs the branch point ─────────────────────────
-test('differential vs origin/main b4fb150a: only capacitor://localhost changes (403 → the web answer); everything else is identical', async () => {
+test('differential vs the pre-#215 tree 601723dc: only capacitor://localhost changes (403 → the web answer); everything else is identical', async () => {
   for (const profile of Object.keys(PROFILES)) {
     for (const origin of [WEB, ANDROID, IOS, undefined, ...DENY]) {
       for (const r of ROUTES) {

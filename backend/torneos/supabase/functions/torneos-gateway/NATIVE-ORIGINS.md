@@ -3,8 +3,8 @@
 **Estado (2026-10-15):** el código que admite `capacitor://localhost` está en un PR draft. **No está desplegado.**
 Cloud Run, el env y los secretos de Producción no se tocaron.
 
-Este documento no forma parte de la imagen del gateway. La imagen se arma con una lista explícita de 32 archivos
-(`.ts` y `.json`), y este `.md` no está en esa lista.
+Este documento no forma parte de la imagen del gateway. La imagen se arma con una lista explícita de 33 archivos
+(`.ts` y `.json`: los 32 de `main` `b4fb150a` más `account-erasure.ts` de #217), y este `.md` no está en esa lista.
 
 ---
 
@@ -54,10 +54,10 @@ No hay cookies ni `access-control-allow-credentials`. Es el mismo riesgo que se 
 
 ## 2. Garantías de comparación exacta
 
-1. El header se lee **una sola vez**: `index.ts:241`, `req.headers.get("origin")`.
-2. Se compara con `Array.prototype.includes` contra la lista congelada (`config.ts:120`), en dos lugares:
-   - `index.ts:135`: el permiso CORS;
-   - `index.ts:248`: el gate.
+1. El header se lee **una sola vez**: `index.ts:251`, `req.headers.get("origin")`.
+2. Se compara con `Array.prototype.includes` contra la lista congelada (`config.ts:136`), en dos lugares:
+   - `index.ts:145`: el permiso CORS;
+   - `index.ts:258`: el gate.
 
    Es igualdad estricta de strings. La API `Headers` de Fetch sólo quita los espacios de los bordes, que según HTTP no
    son parte del valor.
@@ -94,13 +94,14 @@ No hay cookies ni `access-control-allow-credentials`. Es el mismo riesgo que se 
 | `torneos-gateway/topology.ts:38` | `PRODUCTION.nativeAppOrigin = "https://localhost"` (Android) | sin cambios |
 | `torneos-gateway/topology.ts:43` | `PRODUCTION.nativeIosOrigin = "capacitor://localhost"` | **nuevo**: literal único, en código |
 | `torneos-gateway/topology.ts:108,125` | `TORNEOS_ALLOWED_ORIGIN` es https y, en Producción, exactamente el origen web | sin cambios: el env no puede ser un origen nativo |
-| `torneos-gateway/config.ts:93` | `TORNEOS_ALLOWED_ORIGIN` es un origen pelado | sin cambios |
-| `torneos-gateway/config.ts:120` | `allowedOrigins` congelada: `[web, Android, iOS]` en Producción; `[env]` fuera de Producción | **cambia**: se agrega `PRODUCTION.nativeIosOrigin` |
-| `torneos-gateway/index.ts:134-143` | `corsHeaders`: permiso sólo si `allowedOrigins.includes(origin)`, eco exacto, `vary: origin` | sin cambios |
-| `torneos-gateway/index.ts:241,248` | lectura única del header y gate de host + origen **antes de cualquier ruta** | sin cambios |
-| `torneos-gateway/index.ts:252-254` | preflight `OPTIONS`: 204 sólo con permiso; si no, 403 | sin cambios: cubre todas las rutas |
-| `torneos-gateway/index.ts:99` | `cfg.allowedOrigin` (sólo la web) va a `commerce.ts` como URL de dependencia, para exigir https en la configuración | sin cambios: los orígenes nativos no se pasan ahí |
-| `index.ts:275` (commerce), `:289` (ruta pública), `:320` (objetos de branding), `:336` (media), `:359` (REST/RPC) | no tienen chequeo de origen propio: todas están detrás del gate de `:248` | consistentes por construcción. El test recorre cada ruta |
+| `torneos-gateway/config.ts:97` | `TORNEOS_ALLOWED_ORIGIN` es un origen pelado | sin cambios |
+| `torneos-gateway/config.ts:136` | `allowedOrigins` congelada: `[web, Android, iOS]` en Producción; `[env]` fuera de Producción | **cambia**: se agrega `PRODUCTION.nativeIosOrigin` |
+| `torneos-gateway/index.ts:144-153` | `corsHeaders`: permiso sólo si `allowedOrigins.includes(origin)`, eco exacto, `vary: origin` | sin cambios |
+| `torneos-gateway/index.ts:251,258` | lectura única del header y gate de host + origen **antes de cualquier ruta** | sin cambios |
+| `torneos-gateway/index.ts:262-264` | preflight `OPTIONS`: 204 sólo con permiso; si no, 403 | sin cambios: cubre todas las rutas |
+| `torneos-gateway/index.ts:108` | `cfg.allowedOrigin` (sólo la web) va a `commerce.ts` como URL de dependencia, para exigir https en la configuración | sin cambios: los orígenes nativos no se pasan ahí |
+| `index.ts:300` (commerce), `:314` (ruta pública), `:345` (objetos de branding), `:361` (media), `:384` (REST/RPC) | no tienen chequeo de origen propio: todas están detrás del gate de `:258` | consistentes por construcción. El test recorre cada ruta |
+| `index.ts:286-296` + `account-erasure.ts:112` (borrado de cuenta, #217) | además del gate de `:258`, rechaza **cualquier** request con `Origin` (403), también los orígenes admitidos | sin cambios: ningún navegador (web o nativo) llega al borrado |
 | `commerce.ts` | no lee `Origin`. Las URLs de retorno de la compra no dependen del origen | sin cambios |
 | `torneos-payments-production/handler.ts:276,374` y `torneos-payments/handler.ts:183,261` | rechazan **cualquier** request con `Origin`: la ruta interna con 403 y el webhook con 400 | sin cambios: ningún navegador (web o nativo) llega a pagos |
 | `torneos-media-store` | sin manejo de origen: es de servidor a servidor, lo llama sólo el gateway con su secreto | sin cambios |
@@ -172,9 +173,14 @@ En el smoke de Android se re-mide `https://localhost` contra el Cloud Run actual
 1. **Imagen.**
    - Se arma desde la **fuente de la imagen viva actual** (`e36ff1ce`, commerce production, linaje de `main`
      `b4fb150a`) más este PR, como en el runbook de `docs/torneos/commercial-season/PUBLICACION.md`.
-   - Usa la misma lista de 32 archivos que la imagen viva.
+   - Usa la lista de 33 archivos: los 32 de la imagen viva más `account-erasure.ts` (#217), si #217 entra antes o junto con este PR.
    - Comparar los sha256 con los de la imagen viva `e36ff1ce`: sólo cambian `torneos-gateway/topology.ts` y
      `torneos-gateway/config.ts`.
+   - En el merge conjunto (rama de integración), la imagen es la de `pins/gateway-graph.json` de
+     `backend/torneos/infra/torneos-gateway-remote/` (33 archivos, sha256 por archivo y digest). Contra el árbol
+     anterior a este PR (`601723dc`) cambian sólo `topology.ts` y `config.ts`; contra `main` `b4fb150a` cambian además
+     los archivos de #212/#216/#217 (`branding.ts`, `branding-v1-rpc-allowlist.json`, `connected-v1-rpc-allowlist.json`,
+     `db.ts`, `index.ts`) y se agrega `account-erasure.ts`.
    - Si cambia algo más, **STOP** y revisar. Por ejemplo, si `main` avanzó con otros cambios del gateway, esta
      imagen ya no es «la viva + el origen iOS».
 2. **Revisión nueva sin tráfico:**
@@ -396,7 +402,8 @@ En los dos casos, la ventana de deprecación del §7.2 se mide contra ese piso.
 ## 8. Tests
 
 - `backend/torneos/infra/torneos-ios-origin/ios-origin.test.mjs`: el `handle()` real de dos fuentes, comparado
-  contra `b4fb150a`. Cubre:
+  contra el árbol inmediatamente anterior a este PR (en la rama de integración, `601723dc` = `main` `b4fb150a` + #213 #212
+  #217 #218 #216 #214). Cubre:
   - tres entornos: todo apagado; CONNECTED + BRANDING + MEDIA; y lo mismo + COMMERCE-PRODUCTION;
   - todas las rutas;
   - negativos;
