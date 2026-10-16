@@ -100,8 +100,12 @@ export function makeRemote(deps) {
     if (fd.length) failures.push(`FOUNDATION_DRIFT ${fd.join(',')}`);
     // (b) gateway-auth + payments-test deltas exactly as certified.
     if (pins.payments) {
-      if (canon(G.DELTA_PATHS.map((k) => G.getPath(catalog, k))) !== canon(G.DELTA_PATHS.map((k) => G.getPath(pins.payments.catalog, k)))) failures.push('DELTA_PATHS_DRIFT');
-      if (canon({ logins: gatewayRoles.logins, memberships: gatewayRoles.memberships, payment_logins: gatewayRoles.payment_logins }) !== canon(pins.payments.gateway_roles)) failures.push('GATEWAY_ROLES_DRIFT');
+      // ACCOUNT ERASURE (0021): its NOLOGIN role and its single login are the only accepted additions, with their exact shape
+      // (G.erasureFailures); they are set aside before the exact comparison, so any other role change is still drift.
+      failures.push(...G.erasureFailures(catalog, gatewayRoles).map((x) => `ERASURE_${x}`));
+      const { catalog: rc, roles: rr } = G.withoutErasure(catalog, gatewayRoles);
+      if (canon(G.DELTA_PATHS.map((k) => G.getPath(rc, k))) !== canon(G.DELTA_PATHS.map((k) => G.getPath(pins.payments.catalog, k)))) failures.push('DELTA_PATHS_DRIFT');
+      if (canon({ logins: rr.logins, memberships: rr.memberships, payment_logins: rr.payment_logins }) !== canon(pins.payments.gateway_roles)) failures.push('GATEWAY_ROLES_DRIFT');
       if (canon(paymentRoles) !== canon(pins.payments.payment_roles)) failures.push('PAYMENT_ROLES_DRIFT');
     }
     // (c) the moved paths equal the pin of the classified state.

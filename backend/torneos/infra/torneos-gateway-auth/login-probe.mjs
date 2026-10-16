@@ -8,13 +8,14 @@
 // server's own answer, not a parsed error string. The password reaches psql only as PGPASSWORD of a minimal env.
 import crypto from 'node:crypto';
 import { spawn as realSpawn } from 'node:child_process';
-import { TORNEOS_REF, EDGE_LOGINS, BRIDGE } from './gateway-auth-contract.mjs';
+import { TORNEOS_REF, EDGE_LOGINS, ERASURE_LOGIN, BRIDGE } from './gateway-auth-contract.mjs';
 import { PSQL_BIN, CA_CERT, POOLER_HOST_PATTERN } from './psql-gateway-auth.mjs';
 
 export const PROBE_PORTS = Object.freeze([5432, 6543]);
 const TIMEOUT_MS = 60 * 1000;
 const OK = '00000';
 const DENIED = '42501';
+const NOT_OK = 'NOT_OK';
 const FORBIDDEN_TARGETS = Object.freeze(['postgres', 'service_role', 'authenticated', 'anon', 'authenticator', 'torneos_payment_service', 'supabase_admin']);
 
 export function loginEnv({ host, port, login, password }) {
@@ -44,6 +45,9 @@ export function loginChecks(login, { fresh = { coreUserId: crypto.randomUUID(), 
     check('noinherit_no_table_before_set_role', 'SELECT count(*) FROM public.torneos_identity', DENIED),
     check('noinherit_no_private_before_set_role', "SELECT private.authorize_core_contract('verified_email', '{}'::jsonb)", DENIED),
     ...[other, ...FORBIDDEN_TARGETS].map((r) => check(`set_role_refused_${r}`, `SET LOCAL ROLE ${r}`, DENIED)),
+    // ACCOUNT ERASURE (0021): neither W3 login reaches the erasure role or its login. Absent before 0021 / the credential
+    // step (22023), 42501 after: refused in every stage (NOT_OK = any SQLSTATE but 00000).
+    ...[ERASURE_LOGIN.memberOf, ERASURE_LOGIN.login].map((r) => check(`set_role_refused_${r}`, `SET LOCAL ROLE ${r}`, NOT_OK)),
     check('create_table_refused', 'CREATE TABLE public.torneos_gateway_probe_refused (x int)', DENIED),
     check('create_role_refused', 'CREATE ROLE torneos_gateway_probe_refused', DENIED),
   ];
@@ -112,7 +116,7 @@ export function evaluateLoginProbe(login, checks, stdout) {
   for (const c of want) {
     const r = results.find((x) => x.name === c.name);
     if (!r) { failures.push(`missing_${c.name}`); continue; }
-    if (r.sqlstate !== c.expect) failures.push(`${c.name}_sqlstate_${r.sqlstate}_want_${c.expect}`);
+    if (c.expect === NOT_OK ? r.sqlstate === OK : r.sqlstate !== c.expect) failures.push(`${c.name}_sqlstate_${r.sqlstate}_want_${c.expect}`);
     else if (c.message && r.message !== c.message) failures.push(`${c.name}_message_not_${c.message}`);
   }
   if (results.length !== want.length) failures.push(`unexpected_result_count_${results.length}_want_${want.length}`);

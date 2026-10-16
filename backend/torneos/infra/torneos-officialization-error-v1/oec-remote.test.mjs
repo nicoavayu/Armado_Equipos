@@ -33,6 +33,13 @@ test('pins: migration + rollback bytes, 0000–0005 byte-identical, function set
   // 0007 (SEASON-SCOPE-FIX) is applied in Production outside OEC: known to the directory set, pinned, never an OEC write.
   for (const m of [C.M0007, C.R0007]) C.assertFileHash(m.file, m.sha256);
   assert.equal(C.M0007.sha256, 'ba0450f965f3357679e493efc8ac465eb37c836dafccdf21138ea9244d85a205');
+  // 0009–0022: each pinned by its own driver, known here so the directory set stays exact (0020 sponsors, 0021 erasure,
+  // 0022 moderation included); nothing else may appear in the directory.
+  assert.deepEqual(C.LATER_KNOWN.map((m) => m.seq), ['0009', '0010', '0011', '0012', '0013', '0014', '0015', '0016', '0017', '0018', '0019', '0020', '0021', '0022']);
+  assert.deepEqual(C.LATER_KNOWN.filter((m) => ['0020', '0021', '0022'].includes(m.seq)).map((m) => m.sha256.slice(0, 12)), ['3b2ed5370a63', '0535f241ed08', 'b4d3c41da9fb']);
+  for (const m of C.LATER_KNOWN) C.assertFileHash(m.file, m.sha256);
+  const listed = fs.readdirSync(path.join(C.REPO_ROOT, 'backend/torneos/supabase/migrations')).filter((f) => f.endsWith('.sql'));
+  assert.equal(listed.length, 23);
   assert.deepEqual([C.GRANTED_0004.length, C.CLOSED.length, C.NEW_0005.length, C.REPLACED_0005.length, C.EC_PINS.length, C.ALL_SIGS.length], [15, 23, 9, 3, 18, 60]);
   assert.deepEqual([C.COUNTS.post0004, C.COUNTS.post0005, C.COUNTS.anon], [162, 171, 12]);
   assert.deepEqual(C.REPLACED_0005.map((r) => r.before.slice(0, 8)), ['4f43a729', '2f43290e', '488ca6bb']);

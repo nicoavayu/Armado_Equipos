@@ -262,14 +262,20 @@ for (const sql of [INSTALLER_SQL, PAYMENT_ROLES_SQL, CENSUS_SQL, QA_TRAIL_SQL]) 
  * that, by construction, count the new login (all logins, exactly 2 torneos logins, 0 payment logins); those are replaced
  * by exact statements about the two gateway logins AND the payments login.
  */
-export const GATEWAY_INVARIANTS_REPLACED = Object.freeze(['torneos_login_roles_not_exactly_2', 'edge_logins_not_exact', 'payment_login_present']);
+// The gateway's exact torneos login / role statements are replaced by the ones below, which add the payments login; the
+// erasure stage (0021 role, its login out of band) is the gateway's (G.erasureStage) and is still checked by it.
+export const GATEWAY_INVARIANTS_REPLACED = Object.freeze(['torneos_login_roles_not_exactly_2', 'torneos_login_roles_not_exactly_3', 'edge_logins_not_exact', 'payment_login_present', 'torneos_roles_not_exact']);
 export function paymentsDeltaFailures(catalog, gatewayRoles, paymentRoles, { expectLogin = true } = {}) {
   const f = G.gatewayInvariantFailures(catalog, gatewayRoles).filter((x) => !GATEWAY_INVARIANTS_REPLACED.includes(x));
   const logins = (gatewayRoles?.logins ?? []).map((l) => l.name).sort();
-  const edge = G.EDGE_LOGINS.map((l) => l.login).sort();
+  const stage = G.erasureStage(catalog, gatewayRoles);
+  const edge = G.expectedEdgeLogins(stage).map((l) => l.login).sort();
   const want = expectLogin ? [...edge, PAYMENT_LOGIN].sort() : edge;
   if (JSON.stringify(logins) !== JSON.stringify(want)) f.push('torneos_logins_not_exact');
   if (Number(catalog?.login_roles_torneos) !== want.length) f.push(`torneos_login_roles_not_exactly_${want.length}`);
+  const roleNames = (catalog?.roles ?? []).map((r) => r.name).sort();
+  const wantRoles = [...G.TORNEOS_GROUP_ROLES, ...want, ...(stage === 'pre_0021' ? [] : [G.ERASURE_ROLE])].sort();
+  if (JSON.stringify(roleNames) !== JSON.stringify(wantRoles)) f.push('torneos_roles_not_exact');
   if (!expectLogin) {
     if (Number(gatewayRoles?.payment_logins) !== 0 || paymentRoles?.login !== null) f.push('payment_login_present');
     return f;

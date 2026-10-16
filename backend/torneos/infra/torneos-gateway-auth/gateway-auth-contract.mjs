@@ -241,10 +241,12 @@ export function installerCapability(m) {
 }
 
 /** W2/W3 state from the catalog + the role shape. 'applied' | 'pending' | 'foreign' (anything else: STOP). */
-export function dbState(catalog, roles, foundationPin, deltaPin) {
+export function dbState(catalogIn, rolesIn, foundationPin, deltaPin) {
   const canon = (v) => JSON.stringify(v, (k, x) => (x && typeof x === 'object' && !Array.isArray(x) ? Object.fromEntries(Object.keys(x).sort().map((key) => [key, x[key]])) : x));
+  if (!catalogIn || !rolesIn) return { state: 'unreadable' };
+  // ACCOUNT ERASURE (0021): its role / login, ONLY with their exact shape, are not W2/W3 drift (see erasureFailures).
+  const { catalog, roles } = withoutErasure(catalogIn, rolesIn);
   const eq = (p, pin) => canon(getPath(catalog, p)) === canon(getPath(pin, p));
-  if (!catalog || !roles) return { state: 'unreadable' };
   const asFoundation = DELTA_PATHS.every((p) => eq(p, foundationPin.catalog));
   const asDelta = deltaPin && DELTA_PATHS.every((p) => eq(p, deltaPin.catalog)) && canon(roles.logins) === canon(deltaPin.roles.logins) && canon(roles.memberships) === canon(deltaPin.roles.memberships);
   const preRequest = canon(catalog.authenticator_pre_request) === canon(PRE_REQUEST_ROLECONFIG) ? 'applied' : (Array.isArray(catalog.authenticator_pre_request) && catalog.authenticator_pre_request.length === 0 ? 'pending' : 'foreign');
@@ -253,20 +255,94 @@ export function dbState(catalog, roles, foundationPin, deltaPin) {
   return { state: 'foreign', w2: preRequest, w3: asFoundation ? 'pending' : 'foreign', differing: DELTA_PATHS.filter((p) => !eq(p, (deltaPin ?? foundationPin).catalog)) };
 }
 
+// ─────────────────────────── ACCOUNT ERASURE (0021, #217): the only later role additions ───────────────────────────
+// 0021 creates ONE group role, `torneos_erasure_writer` (NOLOGIN NOINHERIT, member of no role; EXECUTE on the two erasure
+// functions only). Out of band, with its own GO, ops creates ONE login, `torneos_edge_erasure_writer` (LOGIN NOINHERIT,
+// SCRAM, member of torneos_erasure_writer only), exactly like the two W3 logins. These are the ONLY roles the certification
+// accepts beyond W3, in exactly three stages; any other torneos% role or login, membership or attribute stays a failure.
+//   pre_0021         neither exists (the certified W3 state)
+//   post_0021        the NOLOGIN role only
+//   post_0021_login  the role and its single login
+export const ERASURE_ROLE = 'torneos_erasure_writer';
+export const ERASURE_LOGIN = Object.freeze({ login: 'torneos_edge_erasure_writer', memberOf: ERASURE_ROLE });
+const ERASURE_NAMES = [ERASURE_ROLE, ERASURE_LOGIN.login];
+/** The baseline NOLOGIN group roles (0000): torneos_core_adapter, torneos_identity_writer, torneos_payment_service. */
+export const TORNEOS_GROUP_ROLES = Object.freeze(FC.API_ROLES.filter((r) => r.startsWith('torneos')).sort());
+/** 'pre_0021' | 'post_0021' | 'post_0021_login' | 'foreign' (a login without its role). */
+export function erasureStage(catalog, roles) {
+  const names = new Set([...(catalog?.roles ?? []).map((r) => r.name), ...(roles?.logins ?? []).map((l) => l.name)]);
+  const role = names.has(ERASURE_ROLE); const login = names.has(ERASURE_LOGIN.login);
+  if (!role && !login) return 'pre_0021';
+  if (role && !login) return 'post_0021';
+  return role ? 'post_0021_login' : 'foreign';
+}
+/** The torneos logins a certification must see for the erasure stage: the two W3 logins (+ the erasure login). */
+export function expectedEdgeLogins(stage) {
+  return stage === 'post_0021_login' ? [...EDGE_LOGINS, ERASURE_LOGIN] : [...EDGE_LOGINS];
+}
+/** Exact shape of the erasure role / login when present (catalog = CATALOG_SQL, roles = GATEWAY_ROLES_SQL). */
+export function erasureFailures(catalog, roles) {
+  const stage = erasureStage(catalog, roles);
+  if (stage === 'pre_0021') return [];
+  if (stage === 'foreign') return ['erasure_login_without_role'];
+  const f = [];
+  const role = (catalog?.roles ?? []).find((r) => r.name === ERASURE_ROLE);
+  if (!role || role.login !== false || role.inherit !== false || role.super || role.bypassrls || role.createrole || role.createdb) f.push('erasure_role_shape');
+  const rm = catalog?.role_members ?? [];
+  // The role is a member of NO role; its members are the installer (PG 16+ ADMIN from CREATE ROLE) and, at
+  // post_0021_login, the erasure login — nothing else.
+  if (rm.some((m) => m.member === ERASURE_ROLE)) f.push('erasure_role_member_of_a_role');
+  const wantMembers = stage === 'post_0021_login' ? [INSTALLER_ROLE, ERASURE_LOGIN.login] : [INSTALLER_ROLE];
+  if (JSON.stringify(rm.filter((m) => m.role === ERASURE_ROLE).map((m) => m.member).sort()) !== JSON.stringify([...wantMembers].sort())) f.push('erasure_role_members_not_exact');
+  if (stage === 'post_0021_login') {
+    // The login reaches exactly its group role; only the installer is a member of the login (ADMIN from CREATE ROLE).
+    if (JSON.stringify(rm.filter((m) => m.member === ERASURE_LOGIN.login).map((m) => m.role)) !== JSON.stringify([ERASURE_ROLE])) f.push('erasure_login_member_of_not_exact');
+    if (JSON.stringify(rm.filter((m) => m.role === ERASURE_LOGIN.login).map((m) => m.member)) !== JSON.stringify([INSTALLER_ROLE])) f.push('erasure_login_members_not_exact');
+    const crole = (catalog?.roles ?? []).find((r) => r.name === ERASURE_LOGIN.login);
+    if (!crole || crole.login !== true || crole.inherit !== false || crole.super || crole.bypassrls || crole.createrole || crole.createdb) f.push('erasure_login_shape');
+  }
+  return f;
+}
+/** The catalog / roles with EXACTLY the erasure additions removed (only when they have their exact shape), so a pin of an
+ *  earlier stage can still be compared; any other difference keeps showing. */
+export function withoutErasure(catalog, roles) {
+  if (!catalog || erasureFailures(catalog, roles).length) return { catalog, roles };
+  const stage = erasureStage(catalog, roles);
+  if (stage === 'pre_0021') return { catalog, roles };
+  const keep = (n) => !ERASURE_NAMES.includes(n);
+  const c = { ...catalog,
+    roles: (catalog.roles ?? []).filter((r) => keep(r.name)),
+    role_members: (catalog.role_members ?? []).filter((m) => keep(m.role) && keep(m.member)),
+    login_roles_torneos: Number(catalog.login_roles_torneos) - (stage === 'post_0021_login' ? 1 : 0) };
+  const r = roles && { ...roles,
+    logins: (roles.logins ?? []).filter((l) => keep(l.name)),
+    memberships: (roles.memberships ?? []).filter((m) => keep(m.role) && keep(m.member)) };
+  return { catalog: c, roles: r };
+}
+
 /** Invariants of the post-gateway/auth database, asserted independently of the pins. */
 export function gatewayInvariantFailures(catalog, roles) {
   const f = FC.catalogInvariantFailures(catalog).filter((x) => !FOUNDATION_INVARIANTS_SUPERSEDED.includes(x));
-  if (Number(catalog?.login_roles_torneos) !== 2) f.push('torneos_login_roles_not_exactly_2');
+  const stage = erasureStage(catalog, roles);
+  const expected = expectedEdgeLogins(stage);
+  // pre_0021 / post_0021: exactly the 2 W3 logins; post_0021_login: + the erasure login (3). Never anything else.
+  if (Number(catalog?.login_roles_torneos) !== expected.length) f.push(`torneos_login_roles_not_exactly_${expected.length}`);
   const logins = roles?.logins ?? [];
   const names = logins.map((l) => l.name).sort();
-  if (names.join(',') !== EDGE_LOGINS.map((l) => l.login).sort().join(',')) f.push('edge_logins_not_exact');
+  if (names.join(',') !== expected.map((l) => l.login).sort().join(',')) f.push('edge_logins_not_exact');
+  f.push(...erasureFailures(catalog, roles));
+  // Every torneos% role is a known one: the 3 baseline group roles, the W3 logins, and the erasure additions of the stage.
+  const knownRoles = [...TORNEOS_GROUP_ROLES, ...expected.map((l) => l.login),
+    ...(stage === 'pre_0021' ? [] : [ERASURE_ROLE])].sort();
+  const catalogRoles = (catalog?.roles ?? []).map((r) => r.name).sort();
+  if (JSON.stringify(catalogRoles) !== JSON.stringify(knownRoles)) f.push('torneos_roles_not_exact');
   for (const l of logins) {
     if (l.inherit !== false) f.push(`login_inherit_${l.name}`);
     if (l.super || l.createrole || l.createdb || l.replication || l.bypassrls) f.push(`login_privileged_${l.name}`);
     if (l.config !== null && !(Array.isArray(l.config) && l.config.length === 0)) f.push(`login_config_${l.name}`);
     if (l.valid_until !== null) f.push(`login_valid_until_${l.name}`);
   }
-  for (const { login, memberOf } of EDGE_LOGINS) {
+  for (const { login, memberOf } of expected) {
     const own = (roles?.memberships ?? []).filter((m) => m.member === login);
     if (own.length !== 1 || own[0].role !== memberOf || own[0].admin !== false || own[0].set !== true) f.push(`membership_not_exact_${login}`);
   }

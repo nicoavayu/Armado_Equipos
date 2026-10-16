@@ -190,7 +190,18 @@ test('pins: migration hashes are the certified four; drift is detected', () => {
   const dirFiles = fs.readdirSync(path.join(F.REPO_ROOT, F.MIGRATIONS_DIR)).filter((f) => f.endsWith('.sql')).sort();
   assert.deepEqual(dirFiles.slice(0, 4), F.MIGRATIONS.map((m) => m.file), 'the migrations directory starts with exactly the four certified files');
   // Later migrations (00000000000004 COMPETITION-V1 onwards) belong to later phases: INFRA-1 never loads or applies them.
-  assert.deepEqual(dirFiles.slice(4).filter((f) => F.MIGRATIONS.some((m) => m.file === f) || !/^0000000000000[4-9]_[a-z0-9_]+\.sql$/.test(f)), []);
+  // The later set is exact (each is hash-pinned by its own driver and by OEC's LATER_KNOWN): 0020 premium sponsors (#212),
+  // 0021 account erasure (#217, NOLOGIN role torneos_erasure_writer), 0022 moderation (#216). Any other file fails here.
+  assert.deepEqual(dirFiles.slice(4), [
+    '00000000000004_competition_v1_rpc_exposure.sql', '00000000000005_officialization_v1.sql', '00000000000006_domain_error_contract.sql',
+    '00000000000007_season_entitlements_scope.sql', '00000000000008_social_v1_export_authorization.sql', '00000000000009_connected_product_v1.sql',
+    '00000000000010_branding_v1.sql', '00000000000011_connected_roster_search.sql', '00000000000012_media_gallery_v1.sql',
+    '00000000000013_mercadopago_checkout_pro_production.sql', '00000000000014_media_gallery_draft_on_retire.sql',
+    '00000000000015_participant_match_reschedule_visibility.sql', '00000000000016_match_reschedule_notice.sql', '00000000000017_media_store_v1.sql',
+    '00000000000018_season_media_lifecycle.sql', '00000000000019_season_commerce.sql', '00000000000020_premium_sponsors.sql',
+    '00000000000021_account_erasure.sql', '00000000000022_content_moderation.sql',
+  ]);
+  assert.deepEqual(dirFiles.slice(4).filter((f) => F.MIGRATIONS.some((m) => m.file === f) || !/^000000000000[0-9]{2}_[a-z0-9_]+\.sql$/.test(f)), []);
 });
 test('custody: Keychain namespace is exclusive; psql env is minimal and sa-east-1 only', () => {
   assert.doesNotThrow(() => assertNamespace(F.KEYCHAIN_DB));
