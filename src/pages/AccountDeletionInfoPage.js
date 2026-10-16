@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import LegalPageLayout from '../legal/LegalPageLayout';
 import EmailRequestForm from '../legal/EmailRequestForm';
 import AccountDeletionPanel from '../legal/AccountDeletionPanel';
+import AppleUnlinkSteps from '../legal/AppleUnlinkSteps';
 import { ACCOUNT_DELETION_SUMMARY } from '../legal/accountDeletion';
 import { LEGAL_IDENTITY, LEGAL_ROUTES, LEGAL_UPDATED_AT } from '../legal/legalIdentity';
 
@@ -24,7 +25,7 @@ export const ACCOUNT_DELETION_REQUEST = Object.freeze({
 
 export default function AccountDeletionInfoPage() {
   const { contactEmail } = LEGAL_IDENTITY;
-  const { deleted, anonymised, kept, organizations, timing } = ACCOUNT_DELETION_SUMMARY;
+  const { deleted, anonymised, kept, organizations, timing, apple } = ACCOUNT_DELETION_SUMMARY;
   return (
     <LegalPageLayout title="Eliminación de Cuenta" updatedAt={LEGAL_UPDATED_AT}>
       <p>
@@ -40,6 +41,9 @@ export default function AccountDeletionInfoPage() {
       <ul>{kept.map((item) => <li key={item}>{item}</li>)}</ul>
       <h2>Organizaciones de Torneos</h2>
       <p>{organizations}</p>
+      <h2>Si entraste con Apple</h2>
+      <p>{apple}</p>
+      <AppleUnlinkSteps />
 
       <h2>Eliminarla ahora</h2>
       <ul>

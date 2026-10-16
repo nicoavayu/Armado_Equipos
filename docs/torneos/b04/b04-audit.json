@@ -1,5 +1,5 @@
 {
-  "generatedFrom": "b4fb150a12fcc521f227e935f23dab5cbcee6c22",
+  "generatedFrom": "899808d42f07ddb3f52dd86326eaded3c8d6ddae",
   "legacyBase": "2058da039a2a5eaaed22d87d01946bc596ae5f50",
   "coreSingletonSha256": "f39572e4cab0fd287bd1dea2ca87c97bd5500d0eff57cb8de6160f1e3271600c",
   "reachableCallSignatures": {
@@ -53,7 +53,7 @@
     "src/hooks/useAmigos.js": "17c48e1911d094ee77890e408172a0f98ee153ae9ed19f7d2ecc28f2970ec854",
     "src/hooks/useNativeFeatures.js": "81262fe911f7aaefa3f37f6fc1ca1722fa9c332383a3a5a96421fb5f6c9f4661",
     "src/hooks/useSupabaseRealtime.js": "bbee9aabed7b2e6aef995a7652c07c36962f9d63b08949617fd7741160358bf9",
-    "src/legal/accountDeletion.js": "522a7cbabecafe3f48f7c2a7e202d6db5c15146c3a47f53ee45774ee4a1d9a3f",
+    "src/legal/accountDeletion.js": "7eed8a9ce1617c3da8bdeceac86cf1b2d4725371828d9c41733b46b6c94d1a09",
     "src/lib/supabaseClient.js": "797da8adf4008e5aaec84a0772255d1aa57d18e3f9eb2f4cebb49b396ec36185",
     "src/pages/AdminPanel.js": "b3beba1156823c02aa05ed9d329bdcb9d7587cdaea877a4c16c9a12a093eae75",
     "src/pages/EditarPartidoFrecuente.js": "0357a5f93abb68a4337d5bbb3a07d0d96bc2c788945119c96f60928da2f55bb3",
