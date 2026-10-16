@@ -396,7 +396,8 @@ serve(async (req) => {
       auth: { autoRefreshToken: false, persistSession: false },
     });
 
-    // ── Step 2: the person's own Core Storage objects (profile photos; unused team-crests uploads), AFTER Torneos
+    // ── Step 2: the person's own Core Storage objects (profile photos in jugadores-fotos and the legacy avatars bucket;
+    // unused team-crests uploads; every bucket classified in CORE_STORAGE_BUCKETS), AFTER Torneos
     // confirmed and BEFORE any Core row is touched: listing is by prefix (no Core row needed), and a failure still answers
     // a retryable 503 with the Core account intact (the retry gets Torneos already_erased and Storage resumes where it
     // stopped: what was removed is no longer listed). _shared/coreAccountStorageErasure.ts. Logs carry counts only.

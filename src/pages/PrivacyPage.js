@@ -71,7 +71,8 @@ export default function PrivacyPage() {
         <li>Cuenta y contenido: mientras la cuenta exista o hasta que los borres.</li>
         <li>
           Si eliminás la cuenta: se borran tu cuenta, tu perfil y tus datos personales en Arma2 y en Torneos, tu foto de
-          perfil de Arma2 y las imágenes que subiste y que no usa ningún equipo. En partidos, planteles, actas y
+          perfil de Arma2 y sus versiones anteriores, tus fotos de jugador, y los escudos y fotos de plantel que subiste y
+          que no usa ningún equipo. En partidos, planteles, actas y
           estadísticas tu nombre se reemplaza por uno anónimo y los resultados se conservan (son la historia de los demás
           equipos y organizaciones); los escudos y fotos de plantel que siguen usando equipos con otros integrantes quedan
           como parte del equipo, sin vínculo con vos. Si entraste con Apple, al eliminarla desde la app en el iPhone

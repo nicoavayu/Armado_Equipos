@@ -102,8 +102,10 @@ describe('the texts say what the code does', () => {
   });
 
   test('photos: the profile photo IS deleted now; what a team still uses is kept and said so; no email procedure anywhere', () => {
-    expect(ACCOUNT_DELETION_SUMMARY.deleted.join(' ')).toMatch(/Tu foto de perfil de Arma2 \(y sus versiones anteriores\) y las imágenes que subiste y que no usa ningún equipo/);
+    // Exactly the buckets the Storage step erases (jugadores-fotos, avatars, unused team-crests); never «todas tus fotos».
+    expect(ACCOUNT_DELETION_SUMMARY.deleted.join(' ')).toMatch(/tu foto de perfil y sus versiones anteriores \(también las del formato de avatar anterior\), tus fotos de jugador, y los escudos y fotos de plantel que subiste y que no usa ningún equipo/);
     expect(ACCOUNT_DELETION_SUMMARY.kept.join(' ')).toMatch(/escudos y fotos de plantel que siguen usando equipos con otros integrantes/);
+    expect(ACCOUNT_DELETION_SUMMARY.kept.join(' ')).toMatch(/fotos que se subieron sin cuenta \(por ejemplo, la de un invitado en una votación\) y las imágenes de partidos: no están asociadas a tu cuenta/);
     expect(ACCOUNT_DELETION_SHORT).toMatch(/tu foto de perfil de Arma2/);
     const all = [...ACCOUNT_DELETION_SUMMARY.deleted, ...ACCOUNT_DELETION_SUMMARY.kept, ACCOUNT_DELETION_SUMMARY.apple, ACCOUNT_DELETION_SHORT].join(' ');
     expect(all).not.toMatch(/todavía no se eliminan|próxima actualización/);

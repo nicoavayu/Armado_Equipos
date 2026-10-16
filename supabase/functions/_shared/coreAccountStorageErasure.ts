@@ -1,12 +1,21 @@
 // supabase/functions/_shared/coreAccountStorageErasure.ts
 //
 // ACCOUNT DELETION — the person's own files in Core Storage. Called by `delete-account` with the id of the session it
-// just verified (never a client value) and its service-role client. Plan: PLAN-FOTOS-CORE-Y-APPLE.md §1.
+// just verified (never a client value) and its service-role client. Plan: PLAN-FOTOS-CORE-Y-APPLE.md §1. Every Core
+// bucket is classified in CORE_STORAGE_BUCKETS below (evidence in docs/superpowers/specs/2026-10-15-torneos-account-
+// deletion-design.md §2.6). A bucket that is not there is never touched, and a test fails when the repo declares one
+// that is not classified.
 //
 //   jugadores-fotos   every object under `<uid>/…` and every root object `<uid>_…` (the profile photo and its old
 //                     versions). Never `guest/…`, never `partido_…`, never another id.
+//   avatars           every root object `<uid>_…` (legacy profile photos of the old uploadAvatar). Never another id.
 //   team-crests       every object under `<uid>/…` that NO row uses: `teams.crest_url` and `team_members.photo_url` keep
 //                     theirs (a crest or a roster photo is part of a team that other people still see).
+//   tournament-*      never (organization content of the legacy Torneos-in-Core; Torneos is its own project).
+//
+// Deletion is by PATH only: an object is never downloaded, opened, rendered or signed (a legacy SVG under the person's
+// prefix is removed like any other file). `owner_id` is not a criterion (the Storage list API does not return it): the
+// name the app wrote from the session id is.
 //
 // Guards: the uid must be a lowercase UUID (36 fixed characters, so no other uid can be a prefix of `<uid>/` or
 // `<uid>_`); the buckets are fixed here; every path is checked against the prefix right before `remove()` and one
@@ -18,6 +27,7 @@
 // Never throws. Never logs (the caller logs only the counts and the code: no path, no URL, no user id).
 
 export const PHOTOS_BUCKET = "jugadores-fotos"
+export const AVATARS_BUCKET = "avatars"
 export const CRESTS_BUCKET = "team-crests"
 export const LIST_PAGE = 1000
 export const REMOVE_BATCH = 100
@@ -25,6 +35,69 @@ export const MAX_OBJECTS = 5000
 export const MAX_DEPTH = 8
 export const STORAGE_TIMEOUT_MS = 10000
 export const REFERENCE_PAGE = 1000
+
+/**
+ * How the account deletion treats each Core bucket. `erasure`:
+ *   uid_folder_and_uid_underscore  `<uid>/…` (any depth) and root `<uid>_…` (files, and folders named so)
+ *   uid_underscore                 root `<uid>_…` only (files, and folders named so)
+ *   uid_folder_unreferenced        `<uid>/…` minus what teams.crest_url / team_members.photo_url use (team-crests only)
+ *   never                          not touched by the account deletion (the reason says why)
+ * scripts/edge-functions/core-account-storage-erasure.test.mjs fails if a bucket declared anywhere in supabase/ is
+ * missing here.
+ */
+export type BucketErasure = "uid_folder_and_uid_underscore" | "uid_underscore" | "uid_folder_unreferenced" | "never"
+export type BucketRule = Readonly<{ owner: "person" | "team" | "organization"; erasure: BucketErasure; reason: string }>
+
+export const CORE_STORAGE_BUCKETS: Readonly<Record<string, BucketRule>> = Object.freeze({
+  [PHOTOS_BUCKET]: Object.freeze({
+    owner: "person",
+    erasure: "uid_folder_and_uid_underscore",
+    reason: "The person's profile photo and its old versions: `<uid>_<ts>.jpg` (ProfileEditor) and `<uid>/<uuid>.<ext>` "
+      + "(uploadFoto). `guest/…` (guest voting, no account) and `partido_…` cannot be attributed: never touched.",
+  } as const),
+  [AVATARS_BUCKET]: Object.freeze({
+    owner: "person",
+    erasure: "uid_underscore",
+    reason: "Legacy profile photos: the old uploadAvatar wrote `<uid>_<ts>.<ext>` here (removed 2025-07-16, fe13e326). "
+      + "No write flow today (public read only, 20260622150000). Prod 2026-10-16: 8 objects, all `<uid>_…`, no orphans.",
+  } as const),
+  [CRESTS_BUCKET]: Object.freeze({
+    owner: "team",
+    erasure: "uid_folder_unreferenced",
+    reason: "Team crests and roster photos uploaded by whoever edits the team (`<uid>/<team|draft>/…`): what a row still "
+      + "uses belongs to the team and stays; drafts and old versions nobody uses are removed.",
+  } as const),
+  "tournament-branding": Object.freeze({
+    owner: "organization",
+    erasure: "never",
+    reason: "Legacy Torneos-in-Core: organization assets (`<orgId>/…`). Torneos is its own project (#217). Prod 2026-10-16: 0 objects.",
+  } as const),
+  "tournament-player-portraits": Object.freeze({
+    owner: "organization",
+    erasure: "never",
+    reason: "Legacy Torneos-in-Core, private, service-role only (`organizations/<orgId>/…`). Prod 2026-10-16: 0 objects.",
+  } as const),
+  "tournament-team-photos": Object.freeze({
+    owner: "organization",
+    erasure: "never",
+    reason: "Legacy Torneos-in-Core, private, service-role only (`organizations/<orgId>/…`). Prod 2026-10-16: 0 objects.",
+  } as const),
+  "tournament-media": Object.freeze({
+    owner: "organization",
+    erasure: "never",
+    reason: "Never created in Core (the baseline says so; only a contract check and policies name it). Prod 2026-10-16: 0 objects.",
+  } as const),
+})
+
+/** The rule of a bucket, or null when it is not classified (an unclassified bucket is never touched). */
+export function bucketRule(bucket: string): BucketRule | null {
+  return Object.prototype.hasOwnProperty.call(CORE_STORAGE_BUCKETS, bucket) ? CORE_STORAGE_BUCKETS[bucket] : null
+}
+
+/** The buckets the step erases from, in this order. */
+export const ERASED_BUCKETS: readonly string[] = Object.freeze(
+  Object.keys(CORE_STORAGE_BUCKETS).filter((bucket) => CORE_STORAGE_BUCKETS[bucket].erasure !== "never"),
+)
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 
@@ -82,9 +155,15 @@ export function crestPathFromUrl(url: unknown): string | null {
 export function isOwnPath(bucket: string, uid: string, path: string): boolean {
   if (!UUID_RE.test(uid) || typeof path !== "string") return false
   if (path.split("/").some((segment) => segment === ".." || segment === ".")) return false
-  if (bucket === PHOTOS_BUCKET) return (path.startsWith(`${uid}/`) || path.startsWith(`${uid}_`)) && path.length > uid.length + 1
-  if (bucket === CRESTS_BUCKET) return path.startsWith(`${uid}/`) && path.length > uid.length + 1
-  return false
+  if (path.length <= uid.length + 1) return false
+  const inFolder = path.startsWith(`${uid}/`)
+  const underscore = path.startsWith(`${uid}_`)
+  switch (bucketRule(bucket)?.erasure) {
+    case "uid_folder_and_uid_underscore": return inFolder || underscore
+    case "uid_underscore": return underscore
+    case "uid_folder_unreferenced": return inFolder && bucket === CRESTS_BUCKET
+    default: return false
+  }
 }
 
 type Walk = { found: string[]; cap: number; overflow: boolean; tooDeep: boolean; timeoutMs: number }
@@ -116,7 +195,7 @@ async function walkFolder(api: StorageBucketApi, folder: string, depth: number, 
   }
 }
 
-/** Root objects (and root folders) of jugadores-fotos named `<uid>_…`. `search` narrows the listing; the filter is ours. */
+/** Root objects (and root folders) named `<uid>_…` (jugadores-fotos, avatars). `search` narrows the listing; the filter is ours. */
 async function walkRootUnderscore(api: StorageBucketApi, uid: string, walk: Walk): Promise<void> {
   for (let offset = 0; ; offset += LIST_PAGE) {
     const page = await listPage(api, "", offset, walk, uid)
@@ -175,33 +254,40 @@ export async function eraseCoreAccountStorage(options: StorageErasureOptions): P
   const timeoutMs = options.timeoutMs ?? STORAGE_TIMEOUT_MS
   const walk: Walk = { found: [], cap: options.maxObjects ?? MAX_OBJECTS, overflow: false, tooDeep: false, timeoutMs }
   try {
-    const photos = options.storage.from(PHOTOS_BUCKET)
-    const crests = options.storage.from(CRESTS_BUCKET)
-
-    await walkFolder(photos, uid, 1, walk)
-    if (!walk.overflow) await walkRootUnderscore(photos, uid, walk)
-    const photoPaths = walk.found.splice(0)
-    const photoCount = photoPaths.length
-    walk.cap = Math.max(0, walk.cap - photoCount)
-
-    let crestPaths: string[] = []
-    if (!walk.overflow) {
-      await walkFolder(crests, uid, 1, walk)
-      const listed = walk.found.splice(0)
-      if (listed.length) {
-        const keep = await referencedCrests(options.db, uid, timeoutMs)
-        crestPaths = listed.filter((path) => !keep.has(path))
-        keptReferenced = listed.length - crestPaths.length
+    // 1. List every erased bucket (nothing is removed until all of them are listed and the crest references are known).
+    const plan: { api: StorageBucketApi; bucket: string; paths: string[] }[] = []
+    for (const bucket of ERASED_BUCKETS) {
+      if (walk.overflow) break
+      const erasure = bucketRule(bucket)?.erasure
+      const api = options.storage.from(bucket)
+      if (erasure === "uid_folder_and_uid_underscore") {
+        await walkFolder(api, uid, 1, walk)
+        if (!walk.overflow) await walkRootUnderscore(api, uid, walk)
+      } else if (erasure === "uid_underscore") {
+        await walkRootUnderscore(api, uid, walk)
+      } else if (erasure === "uid_folder_unreferenced" && bucket === CRESTS_BUCKET) {
+        await walkFolder(api, uid, 1, walk)
+      } else {
+        throw new StepError("storage_unclassified_bucket")
       }
+      const listed = walk.found.splice(0)
+      walk.cap = Math.max(0, walk.cap - listed.length)
+      let paths = listed
+      if (erasure === "uid_folder_unreferenced" && listed.length) {
+        const keep = await referencedCrests(options.db, uid, timeoutMs)
+        paths = listed.filter((path) => !keep.has(path))
+        keptReferenced += listed.length - paths.length
+      }
+      plan.push({ api, bucket, paths })
     }
 
-    // The last guard before any remove(): one foreign path aborts everything.
-    if (!photoPaths.every((p) => isOwnPath(PHOTOS_BUCKET, uid, p)) || !crestPaths.every((p) => isOwnPath(CRESTS_BUCKET, uid, p))) {
+    // 2. The last guard before any remove(): one foreign path aborts everything.
+    if (!plan.every(({ bucket, paths }) => paths.every((p) => isOwnPath(bucket, uid, p)))) {
       return { status: "failed", removed: 0, keptReferenced, code: "storage_guard_violation" }
     }
 
-    await removeAll(photos, photoPaths, timeoutMs, done)
-    await removeAll(crests, crestPaths, timeoutMs, done)
+    // 3. Remove, by path only (never a download, never a signed URL).
+    for (const { api, paths } of plan) await removeAll(api, paths, timeoutMs, done)
 
     if (walk.overflow) return { status: "incomplete", removed: done.removed, keptReferenced, code: "storage_too_many_objects" }
     if (walk.tooDeep) return { status: "incomplete", removed: done.removed, keptReferenced, code: "storage_too_deep" }

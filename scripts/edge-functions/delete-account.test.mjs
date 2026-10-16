@@ -303,6 +303,7 @@ const OTHER_USER = randomUUID();
 const seedStorage = () => {
   world.storage = createFakeStorage({
     'jugadores-fotos': [`${USER}/a.jpg`, `${USER}_1700.jpg`, `${OTHER_USER}/b.jpg`, 'guest/m/g.jpg', 'partido_1.jpg'],
+    avatars: [`${USER}_1500.png`, `${OTHER_USER}_1500.png`],
     'team-crests': [`${USER}/team-1/1700-escudo.png`, `${USER}/draft/1-borrador.png`, `${OTHER_USER}/t/x.png`],
   });
   world.refs = createFakeReferenceDb({ teams: [{ crest_url: `https://core.example.invalid/storage/v1/object/public/team-crests/${USER}/team-1/1700-escudo.png` }] });
@@ -312,11 +313,12 @@ const asAppleUser = () => {
   Object.assign(world.env, { APPLE_SIWA_TEAM_ID: 'TEAM123456', APPLE_SIWA_CLIENT_ID: 'com.teambalancer.app', APPLE_SIWA_KEY_ID: 'KEY9876543', APPLE_SIWA_PRIVATE_KEY: applePem });
 };
 
-test('storage: after Torneos and BEFORE any Core row, the person\'s photos and unused crests are removed; referenced crests and other people\'s files stay', async () => {
+test('storage: after Torneos and BEFORE any Core row, the person\'s photos (jugadores-fotos, legacy avatars) and unused crests are removed; referenced crests and other people\'s files stay', async () => {
   seedStorage();
   const r = await call();
   assert.equal(r.status, 200);
   assert.deepEqual(world.storage.objects('jugadores-fotos'), [`${OTHER_USER}/b.jpg`, 'guest/m/g.jpg', 'partido_1.jpg'].sort());
+  assert.deepEqual(world.storage.objects('avatars'), [`${OTHER_USER}_1500.png`]);
   assert.deepEqual(world.storage.objects('team-crests'), [`${USER}/team-1/1700-escudo.png`, `${OTHER_USER}/t/x.png`].sort());
   const order = world.calls;
   const firstRemove = order.indexOf('storage-remove:jugadores-fotos');
@@ -393,7 +395,7 @@ test('logs: counts and codes only — never the user id, an object path, a URL, 
     world.storage.state.failOn = (op) => (op === 'remove' ? { message: `boom ${USER}/a.jpg` } : null);
     assert.equal((await call()).status, 503);
   } finally { Object.assign(console, saved); }
-  assert.ok(lines.some((l) => /storage erasure: ok removed=3 kept_referenced=1/.test(l)));
+  assert.ok(lines.some((l) => /storage erasure: ok removed=4 kept_referenced=1/.test(l)));
   assert.ok(lines.some((l) => /apple revocation: revoked/.test(l)));
   for (const secret of [USER, OTHER_USER, 'a.jpg', 'escudo', 'https://', APPLE_CODE, APPLE_SUB, 'rt-secret-value', 'BEGIN PRIVATE KEY']) {
     assert.ok(!lines.some((l) => l.includes(secret)), `no log line contains ${secret.slice(0, 12)}…`);

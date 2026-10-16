@@ -43,6 +43,11 @@ export function createFakeStorage(initial = {}) {
       for (const path of paths) if (set.delete(path)) removed.push({ name: path });
       return Promise.resolve({ data: removed, error: null });
     },
+    // Reading an object is never part of the account deletion (it removes by path): these exist only so a test can
+    // prove they are never called.
+    download(path) { calls.push({ op: 'download', bucket, paths: [path] }); return Promise.resolve({ data: null, error: { message: 'not in this fake' } }); },
+    createSignedUrl(path) { calls.push({ op: 'createSignedUrl', bucket, paths: [path] }); return Promise.resolve({ data: null, error: { message: 'not in this fake' } }); },
+    getPublicUrl(path) { calls.push({ op: 'getPublicUrl', bucket, paths: [path] }); return { data: { publicUrl: `https://fake.invalid/${bucket}/${path}` } }; },
   });
 
   return {

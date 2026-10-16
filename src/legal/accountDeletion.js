@@ -6,7 +6,10 @@
 export const ACCOUNT_DELETION_SUMMARY = Object.freeze({
   deleted: Object.freeze([
     'Tu cuenta de acceso (email y forma de inicio de sesión) y tu perfil de Arma2 y de Torneos.',
-    'Tu foto de perfil de Arma2 (y sus versiones anteriores) y las imágenes que subiste y que no usa ningún equipo.',
+    // Exactly what supabase/functions/_shared/coreAccountStorageErasure.ts removes (CORE_STORAGE_BUCKETS): jugadores-fotos
+    // and avatars by the account id; team-crests only what no team uses. Nothing else is promised.
+    'Tus fotos de Arma2: tu foto de perfil y sus versiones anteriores (también las del formato de avatar anterior), tus '
+      + 'fotos de jugador, y los escudos y fotos de plantel que subiste y que no usa ningún equipo.',
     'Tus amistades, notificaciones, preferencias, votos y encuestas, y tus pedidos para sumarte a partidos.',
     'Tu acceso a organizaciones, temporadas y equipos de Torneos (membresías, roles de capitán o delegado).',
   ]),
@@ -20,6 +23,7 @@ export const ACCOUNT_DELETION_SUMMARY = Object.freeze({
     'Los comunicados y documentos que publicaste en nombre de una organización: son de la organización.',
     'Los mensajes que mandaste en chats de equipo de Arma2, sin tu nombre.',
     'Los escudos y fotos de plantel que siguen usando equipos con otros integrantes: quedan como parte del equipo, sin vínculo con vos.',
+    'Las fotos que se subieron sin cuenta (por ejemplo, la de un invitado en una votación) y las imágenes de partidos: no están asociadas a tu cuenta.',
   ]),
   organizations: 'Si sos titular de una organización de Torneos, pasa al administrador más antiguo. Si no tiene administradores, se cierra: deja de verse (incluida su página pública) y no se reembolsa ni se modifica ninguna compra. Si querés que siga, sumá un administrador antes de eliminar la cuenta.',
   timing: 'Desde la app o la web, con la sesión iniciada, el borrado se hace en el momento: primero en Torneos y después en Arma2. '
