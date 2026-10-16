@@ -7,8 +7,9 @@
 //
 // SOCIAL_QA_PROFILE=ci is the deterministic subset the Prelaunch Quality Gate runs on every PR (`npm run
 // test:torneos:social:browser`): Social OFF, FREE, PREMIUM (every style, both formats), branding, real exports,
-// Editorial pages, the transitions (slow answers, a changed mind, failures: the file is always what is on screen) and
-// the phone layouts at 390 and 320 px. Without it (the certification before gate A) every
+// Editorial pages, the Premium placas fit (11 pieces × 4 styles × 2 formats inside their canvas, names and draws
+// whole), the transitions (slow answers, a changed mind, failures: the file is always what is on screen) and the phone
+// layouts at 390 and 320 px. Without it (the certification before gate A) every
 // section runs in full: 11 pieces × 5 styles × 2 formats, Figura, Equipo ideal 5–11 and six widths.
 const { chromium, expect } = require('@playwright/test');
 const fs = require('fs');
@@ -343,6 +344,100 @@ async function measureSparseStart(page) {
     const entryTop = (list.getBoundingClientRect().top - box.top) * k;
     return { found: true, height, title: title.textContent.trim(), titleBottom: Math.round(titleBottom), entryTop: Math.round(entryTop) };
   });
+}
+
+// Premium placas fit (measured on the composition at export size): no box and no text drawn outside the canvas (the
+// composition clips it, so the file would lose it), no word of any text split over two lines, team names inside their
+// own box, both scores of a draw at the same size and whole, and a Figura without photo whose name sits inside its frame.
+function inspectPremiumFit(root) {
+  const composition = root.firstElementChild;
+  const box = composition.getBoundingClientRect();
+  const k = composition.offsetWidth / box.width;
+  const width = composition.offsetWidth; const height = composition.offsetHeight;
+  const rel = (r) => [r.left - box.left, r.top - box.top, r.right - box.left, r.bottom - box.top].map((v) => Math.round(v * k));
+  const label = (el) => `${el.tagName.toLowerCase()} "${(el.textContent || '').trim().slice(0, 32)}"`;
+  const problems = [];
+  const outside = (r) => r.left < box.left - k || r.top < box.top - k || r.right > box.right + k || r.bottom > box.bottom + k;
+  const visible = (el) => typeof el.checkVisibility !== 'function' || el.checkVisibility({ opacityProperty: true, visibilityProperty: true });
+  const overflow = [composition.scrollWidth - composition.clientWidth, composition.scrollHeight - composition.clientHeight];
+  if (overflow.some((value) => value > 1)) problems.push(`the composition overflows its canvas by ${overflow.join('×')} px`);
+  const runOf = (el) => {
+    const textNode = [...el.childNodes].find((node) => node.nodeType === 3 && node.textContent.trim());
+    if (!textNode) return null;
+    const range = document.createRange(); range.selectNodeContents(textNode);
+    return { textNode, rect: range.getBoundingClientRect() };
+  };
+  const clipOf = (el) => {
+    const clip = { left: box.left, top: box.top, right: box.right, bottom: box.bottom };
+    for (let a = el; a && a !== composition; a = a.parentElement) {
+      const cs = getComputedStyle(a); const ab = a.getBoundingClientRect();
+      if (cs.overflowX !== 'visible') { clip.left = Math.max(clip.left, ab.left); clip.right = Math.min(clip.right, ab.right); }
+      if (cs.overflowY !== 'visible') { clip.top = Math.max(clip.top, ab.top); clip.bottom = Math.min(clip.bottom, ab.bottom); }
+    }
+    return clip;
+  };
+  let words = 0;
+  for (const el of composition.querySelectorAll('*')) {
+    if (!visible(el)) continue;
+    const r = el.getBoundingClientRect();
+    if (r.width < 1 || r.height < 1) continue;
+    if (outside(r)) problems.push(`${label(el)} drawn outside the canvas at ${rel(r)}`);
+    if (el.children.length) continue;
+    const run = runOf(el);
+    if (!run) continue;
+    // Sideways the glyph run counts; vertically the line box (a display face's content area overhangs a tight line
+    // height by design, without ink there).
+    const ink = { left: run.rect.left, right: run.rect.right, top: Math.max(r.top, run.rect.top), bottom: Math.min(r.bottom, run.rect.bottom) };
+    if (outside(ink)) problems.push(`text ${label(el)} runs outside the canvas at ${rel(ink)}`);
+    const pattern = /\S+/g;
+    for (let match = pattern.exec(run.textNode.textContent); match; match = pattern.exec(run.textNode.textContent)) {
+      words += 1;
+      const range = document.createRange();
+      range.setStart(run.textNode, match.index); range.setEnd(run.textNode, match.index + match[0].length);
+      const tops = new Set([...range.getClientRects()].filter((q) => q.width > 0.5).map((q) => Math.round(q.top)));
+      if (tops.size > 1) problems.push(`the word "${match[0]}" of ${label(el)} is split over two lines`);
+    }
+    if (el.dataset.premiumNameFit) {
+      const spill = Math.max(r.left - run.rect.left, run.rect.right - r.right) * k;
+      const clip = clipOf(el);
+      const cut = Math.max(clip.left - run.rect.left, run.rect.right - clip.right) * k;
+      if (spill > 2 || cut > 1) problems.push(`team name ${label(el)} does not fit its box (spill ${Math.round(spill)} px, cut ${Math.round(cut)} px)`);
+    }
+  }
+  const scores = [...composition.querySelectorAll('[data-premium-score]')];
+  if (scores.length) {
+    const sizes = new Set(scores.flatMap((cell) => [cell, ...cell.querySelectorAll('*')]).map((node) => getComputedStyle(node).fontSize));
+    if (sizes.size !== 1) problems.push(`the scores are drawn at different sizes ${[...sizes]}`);
+    scores.forEach((cell) => {
+      const leaf = [cell, ...cell.querySelectorAll('*')].find((node) => !node.children.length && node.textContent.trim());
+      const run = leaf && runOf(leaf);
+      if (!run) return;
+      const c = cell.getBoundingClientRect(); const own = leaf.getBoundingClientRect();
+      const cut = Math.max(c.left - run.rect.left, run.rect.right - c.right, c.top - own.top, own.bottom - c.bottom) * k;
+      if (cut > 1) problems.push(`score ${label(cell)} is cut by ${Math.round(cut)} px`);
+    });
+  }
+  const figure = composition.querySelector('[data-premium-figure-name="fit"]');
+  let figureName = null;
+  if (figure) {
+    const run = runOf(figure);
+    // Its frame: the first box around it that is positioned, clips or draws a rule (Editorial's inner frame).
+    let frame = figure.parentElement;
+    while (frame && frame !== composition) {
+      const cs = getComputedStyle(frame);
+      if (cs.position === 'absolute' || cs.overflow !== 'visible' || cs.borderTopStyle !== 'none') break;
+      frame = frame.parentElement;
+    }
+    const fb = frame.getBoundingClientRect(); const fs = getComputedStyle(frame);
+    const inner = { left: fb.left + Number.parseFloat(fs.borderLeftWidth) / k, right: fb.right - Number.parseFloat(fs.borderRightWidth) / k };
+    const clip = clipOf(figure.parentElement);
+    const cut = Math.max(clip.left - run.rect.left, run.rect.right - clip.right, inner.left - run.rect.left, run.rect.right - inner.right) * k;
+    figureName = { text: figure.textContent.trim(), size: Math.round(Number.parseFloat(getComputedStyle(figure).fontSize)), box: rel(run.rect) };
+    if (cut > 1) problems.push(`the Figura name ${label(figure)} is cut by its frame (${Math.round(cut)} px)`);
+  }
+  const titleFit = [...composition.querySelectorAll('[data-premium-title-fit]')]
+    .map((el) => `${el.textContent.trim()} ${el.dataset.premiumTitleFit}px`);
+  return { canvas: [width, height], words, scores: scores.length, figureName, titleFit, problems: problems.slice(0, 8) };
 }
 
 // Nothing inside the Studio may stick out of the screen, named or not (a control nobody listed included).
@@ -779,6 +874,31 @@ async function assertWholeArt(page, label, [, , width, height]) {
         }
         await close(s, `sparse ${id}`);
       }
+    }
+
+    // ── Premium placas fit: 11 pieces × 4 Premium styles × 2 formats inside their canvas, names whole, draws whole ──
+    // The fixture's long club names ("Club Unión de los Trabajadores del Sur") and its 2–2 draw are the hard cases.
+    if (want('fit')) {
+      const s = await open(browser, base, 'plan=premium');
+      const { page } = s;
+      for (const [id, label] of PIECES) {
+        for (const style of STYLES.slice(1)) {
+          for (const [format, slug] of FORMATS) {
+            await configure(page, { id, label, style, format });
+            await page.evaluate(() => document.fonts.ready);
+            const m = await page.locator('div[data-premium-renderer="v2"]').evaluate(inspectPremiumFit);
+            const where = `fit ${id} ${style} ${slug}`;
+            if (m.problems.length) throw new Error(`${where}: ${m.problems.join(' | ')}`);
+            if (!m.words) throw new Error(`${where}: no text measured`);
+            // Only a title that would run past the canvas is refitted: «SEMIFINALES» in Street Historia (its sample
+            // title was shorter). Every other title keeps the approved size.
+            const refits = id === 'semifinals' && style === 'Street' && slug === 'historia-9x16';
+            if (m.titleFit.length !== (refits ? 1 : 0)) throw new Error(`${where}: title refit ${JSON.stringify(m.titleFit)}`);
+            check('Premium placas fit their canvas', { piece: id, style: style.toLowerCase(), format: slug, ...m });
+          }
+        }
+      }
+      await close(s, 'fit');
     }
 
     // ── Responsive: every functional part of the Studio on screen at phone, tablet and desktop widths ───────────
