@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Check, Loader2 } from 'lucide-react';
 import Modal from '../../../components/Modal';
-import { prepareImageForUpload } from '../../../utils/imageUpload';
+import { IMAGE_UPLOAD_ACCEPT, prepareImageForUpload } from '../../../utils/imageUpload';
 import { notifyBlockingError } from '../../../utils/notifyBlockingError';
 import {
   TEAM_COUNTRY_OPTIONS,
@@ -414,7 +414,7 @@ const TeamFormModal = ({ isOpen, initialTeam, onClose, onSubmit, isSubmitting = 
             <input
               ref={crestFileRef}
               type="file"
-              accept="image/png,image/jpeg,image/webp,image/svg+xml,image/heic,image/heif,.heic,.heif"
+              accept={IMAGE_UPLOAD_ACCEPT}
               onChange={(event) => {
                 const file = event.target.files?.[0];
                 if (file) handleCrestChange(file);

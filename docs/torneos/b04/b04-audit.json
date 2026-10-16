@@ -1,5 +1,5 @@
 {
-  "generatedFrom": "96fae4453a350aab0e3f9251b8e2fa5814405091",
+  "generatedFrom": "b4fb150a12fcc521f227e935f23dab5cbcee6c22",
   "legacyBase": "2058da039a2a5eaaed22d87d01946bc596ae5f50",
   "coreSingletonSha256": "f39572e4cab0fd287bd1dea2ca87c97bd5500d0eff57cb8de6160f1e3271600c",
   "reachableCallSignatures": {
@@ -105,7 +105,7 @@
     "src/services/pushDispatchService.js": "a9b6227f68fff883235499f9ea60a4a016941ed01d1c049d81c5ace005b7f73e",
     "src/services/pushTokenService.js": "edf546ac9e60e1fe8db162548f3812510742711364710458ddd31d3db848c6a6",
     "src/services/realtimeService.js": "d0ff99b3b50b3ee16ccfb8a3c2b7243fce42870fdd501fe61e55859f2acf018b",
-    "src/services/storage/teamCrests.js": "7f6d2a6a3a704ba328692cf0b0eaf931585839b89f4a22e1f5a4bbfed96d3228",
+    "src/services/storage/teamCrests.js": "05bd1dd263559671aa73812e73d00b73883903dc7d8fad0f3f8a27d62795c2f9",
     "src/services/surveyCompletionService.js": "e985a2723de2023ac07607b47bb0c99dfc92c2010de6ac32ef10f706844c1b86",
     "src/services/surveyTeamsService.js": "06afdaeaf1b85aefde0def9f4bba7fe85d0cdd50ad8e256a7be94418e12e54a8",
     "src/services/votingPhotoUpload.js": "81e968f1687d8a11c573653f4dc4aa716fdd90036614477c166e75386fc623de",

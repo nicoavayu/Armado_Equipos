@@ -27,7 +27,7 @@ import {
 import { getAmigos } from '../../../services/db/friends';
 import { uploadTeamCrest, uploadTeamMemberPhoto } from '../../../services/storage/teamCrests';
 import { notifyBlockingError } from '../../../utils/notifyBlockingError';
-import { prepareImageForUpload } from '../../../utils/imageUpload';
+import { IMAGE_UPLOAD_ACCEPT, prepareImageForUpload } from '../../../utils/imageUpload';
 import { formatSkillLevelLabel, getTeamProvidedColors } from '../utils/teamColors';
 import { QUIERO_JUGAR_EQUIPOS_SUBTAB_STORAGE_KEY, resolveTeamRosterLimit } from '../config';
 import { useSupabaseRealtime } from '../../../hooks/useSupabaseRealtime';
@@ -1771,13 +1771,13 @@ const EquipoDetalleView = ({ teamId, userId }) => {
                   </button>
 
                   <p className="mt-1 text-xs text-white/60 truncate">
-                    {memberPhotoDisplay ? 'Foto lista' : 'PNG, JPG, WEBP, HEIC o SVG'}
+                    {memberPhotoDisplay ? 'Foto lista' : 'PNG, JPG, WEBP o HEIC'}
                   </p>
 
                   <input
                     ref={memberPhotoInputRef}
                     type="file"
-                    accept="image/png,image/jpeg,image/webp,image/svg+xml,image/heic,image/heif,.heic,.heif"
+                    accept={IMAGE_UPLOAD_ACCEPT}
                     onChange={(event) => {
                       const file = event.target.files?.[0];
                       if (file) handleSelectMemberPhoto(file);
