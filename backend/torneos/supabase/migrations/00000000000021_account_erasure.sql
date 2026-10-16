@@ -43,6 +43,10 @@
 --   * private.confirm_tournament_account_erasure(core_user_id, request_id): Core's confirmation, AFTER it deleted its own
 --     account: sweeps (erases an identity re-created in between, if any) and moves the person's ledger rows to
 --     core_confirmed: { outcome: core_confirmed | no_ledger }.
+--   * TOMBSTONE: private.refuse_erased_identity() + trigger torneos_identity_refuse_erased (BEFORE INSERT on
+--     public.torneos_identity): no identity is ever created again for a Core user the ledger records
+--     (TORNEOS_ACCOUNT_ERASED), whatever Core JWT is still valid; it waits on the per-person erasure lock.
+--   * Locks: lock_timeout (5 s) is set BEFORE the per-person and the global advisory locks (bounded, retryable).
 -- Torneos and Core are two databases: this is NOT atomic across them. Torneos erases first and that is irreversible (the
 -- originals are not kept anywhere). If Core then fails, the ledger row stays torneos_erased: the person's retry gets
 -- already_erased (a no-op) and lets Core finish; if nobody retries, the operator's read-only reconcile query
@@ -73,6 +77,8 @@ BEGIN
     OR to_regprocedure('private.erase_tournament_account(uuid,uuid)') IS NOT NULL
     OR to_regprocedure('private.confirm_tournament_account_erasure(uuid,uuid)') IS NOT NULL
     OR to_regprocedure('private.account_erasure_label(text,uuid,uuid)') IS NOT NULL
+    OR to_regprocedure('private.refuse_erased_identity()') IS NOT NULL
+    OR EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'torneos_identity_refuse_erased')
     OR EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'torneos_erasure_writer') THEN
     RAISE EXCEPTION 'TORNEOS_ACCOUNT_ERASURE_PRECONDITION_FAILED: already applied';
   END IF;
@@ -171,9 +177,14 @@ begin
     raise exception using errcode = '22023', message = 'TORNEOS_ACCOUNT_ERASURE_INVALID';
   end if;
   v_hash := encode(sha256(convert_to(p_core_user_id::text, 'UTF8')), 'hex');
-  -- Erasures run one at a time (two people who are each other's successor never race), and fail instead of waiting long.
-  perform pg_advisory_xact_lock(hashtextextended('torneos.account_erasure', 21));
+  -- The wait bound FIRST: lock_timeout also bounds advisory locks (measured on the lab, E25), so a busy erasure fails
+  -- in 5 s with 55P03 (retryable: the gateway answers 503, Core keeps the account) instead of waiting unbounded.
   perform set_config('lock_timeout', '5000', true);
+  -- This person's key, exclusive: the identity writer's tombstone check (private.refuse_erased_identity) waits on it,
+  -- so no identity can be created for this Core user while the erasure runs, and none after it (the ledger row).
+  perform pg_advisory_xact_lock(hashtextextended('torneos.account_erasure:' || v_hash, 21));
+  -- Then the global key: erasures run one at a time (two people who are each other's successor never race).
+  perform pg_advisory_xact_lock(hashtextextended('torneos.account_erasure', 21));
 
   select identity.id into v_identity
   from public.torneos_identity identity
@@ -540,6 +551,38 @@ revoke all on function private.confirm_tournament_account_erasure(uuid, uuid)
 comment on function private.confirm_tournament_account_erasure(uuid, uuid) is
   'Account erasure (0021): Core confirms it deleted its own account. Sweeps (erases an identity re-created in between) and moves the person''s ledger rows torneos_erased → core_confirmed; idempotent. Only torneos_erasure_writer may call it.';
 
+-- TOMBSTONE: the ledger is authoritative. No identity is ever created again for an erased Core user, whatever still
+-- holds a valid Core JWT (deleting a Supabase Auth user does not revoke the access tokens it already issued) or a
+-- session racing the erasure: the gateway's identity writer (INSERT … ON CONFLICT on torneos_identity) is refused with
+-- TORNEOS_ACCOUNT_ERASED. Resolving an existing identity needs (id, core_user_id) to match (private.current_identity_id),
+-- which the erasure severed, so a bridge token issued before the erasure resolves to nobody. A NEW Core account (a new
+-- core_user_id) is a new person: its identity is created as always.
+create function private.refuse_erased_identity()
+returns trigger
+language plpgsql
+volatile
+security definer
+set search_path = ''
+as $$
+declare
+  v_hash text := encode(sha256(convert_to(new.core_user_id::text, 'UTF8')), 'hex');
+begin
+  -- Shared on this person's key: waits (bounded by the caller's lock_timeout / statement_timeout) while an erasure of
+  -- this Core user runs, never for other people's exchanges; then reads the ledger with a fresh snapshot.
+  perform pg_advisory_xact_lock_shared(hashtextextended('torneos.account_erasure:' || v_hash, 21));
+  if exists (select 1 from private.tournament_account_erasures e where e.core_user_sha256 = v_hash) then
+    raise exception using errcode = '42501', message = 'TORNEOS_ACCOUNT_ERASED';
+  end if;
+  return new;
+end;
+$$;
+revoke all on function private.refuse_erased_identity()
+  from public, anon, authenticated, service_role, torneos_core_adapter, torneos_identity_writer, torneos_erasure_writer;
+comment on function private.refuse_erased_identity() is
+  'Account erasure (0021) tombstone: refuses (TORNEOS_ACCOUNT_ERASED) any new identity for a Core user the erasure ledger records.';
+create trigger torneos_identity_refuse_erased before insert on public.torneos_identity
+  for each row execute function private.refuse_erased_identity();
+
 -- The erasure role's privileges, exactly: reach the private schema and run the two erasure functions. Nothing else.
 grant usage on schema private to torneos_erasure_writer;
 grant execute on function private.erase_tournament_account(uuid, uuid) to torneos_erasure_writer;
@@ -560,6 +603,16 @@ BEGIN
         RAISE EXCEPTION 'TORNEOS_ACCOUNT_ERASURE_POSTCONDITION_FAILED: % may execute %', v_role, v_fn;
       END IF;
     END LOOP;
+  END LOOP;
+  -- The tombstone guard: present, enabled, BEFORE INSERT on the identity table; nobody may call its function directly.
+  IF NOT EXISTS (SELECT 1 FROM pg_trigger t WHERE t.tgrelid = 'public.torneos_identity'::regclass AND t.tgname = 'torneos_identity_refuse_erased'
+      AND t.tgenabled = 'O' AND t.tgfoid = 'private.refuse_erased_identity()'::regprocedure) THEN
+    RAISE EXCEPTION 'TORNEOS_ACCOUNT_ERASURE_POSTCONDITION_FAILED: tombstone trigger';
+  END IF;
+  FOREACH v_role IN ARRAY array['anon', 'authenticated', 'service_role', 'torneos_core_adapter', 'torneos_identity_writer', 'torneos_erasure_writer'] LOOP
+    IF has_function_privilege(v_role, 'private.refuse_erased_identity()', 'EXECUTE') THEN
+      RAISE EXCEPTION 'TORNEOS_ACCOUNT_ERASURE_POSTCONDITION_FAILED: % may execute the tombstone function', v_role;
+    END IF;
   END LOOP;
   FOREACH v_role IN ARRAY array['anon', 'authenticated', 'service_role', 'torneos_core_adapter', 'torneos_identity_writer', 'torneos_erasure_writer'] LOOP
     IF has_function_privilege(v_role, 'private.account_erasure_label(text,uuid,uuid)', 'EXECUTE')

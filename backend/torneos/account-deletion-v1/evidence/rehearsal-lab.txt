@@ -1,7 +1,7 @@
 # ACCOUNT ERASURE 0021 — local rehearsal 2026-10-15 (fictional data only; nothing remote). Revision of PR #217 per Codex review.
 # Lab: commerce-production pg-lab, own container + own network (explicit subnet 10.233.80–83.0/24) per variant, Production ownership
 # (postgres, not superuser) + hosted default ACL (public and private). Networks and containers removed afterwards.
-# 0021 sha256 56d0b35454a153743da64baa7457d88270354c0d0fd0332a5c55c092047515b5 · md5 bodies: erase 899dae4c18cffa2de32ad9a66e742a92, confirm a26bcb671dea01fc83e0f6d41b5bc051, label 588ebb88ffb2e70b96a3aaca06367cf0
+# 0021 sha256 0535f241ed080c38c244f7a51a491f67baafdd86c5089f6aac9bd69e2e019c26 · md5 bodies: erase 92a61ce6c0eebdbc232ce2ca15a9e128, confirm a26bcb671dea01fc83e0f6d41b5bc051, refuse bbd1590d2d386f9a2dae11e5ee78f16d, label 588ebb88ffb2e70b96a3aaca06367cf0
 
 ## main (0000 → 0019 → 0021) + order 0021 → 0020 + delete-account
 ✔ A1 a signed erase: 200 {ok, outcome} only (no ids, no counts), through the ERASURE login as torneos_erasure_writer with the erasure timeouts
@@ -14,9 +14,12 @@
 ✔ A8 the other routes are unchanged: a Core-signed erasure request is not a bearer, and /exchange still refuses it
 ✔ A9 fail closed WITHOUT the erasure login: the gateway boots, an unsigned call is 401, a signed one is 503 — and no SQL runs on any login
 ✔ A10 the erasure login must be its own: the core adapter's login or password, or the Core contract secret as its password, disable the gateway
+✔ A11 the tombstone on /exchange: the database refusal TORNEOS_ACCOUNT_ERASED becomes a typed AccountErased (403 TORNEOS_ACCOUNT_ERASED), never a new identity
+✔ A12 timeouts nest: the database lock bound (5 s) < the erasure statement bound (15 s) < Core's request timeout (20 s), so a busy lock is a retryable 503, never a hung request
 ✔ B Core shared module → real gateway → real 0021 on the lab, through the erasure login: erased → already_erased → confirmed; never-used → no_identity / no_ledger; wrong secret refused
 ✔ the pinned files and bodies are the ones in the tree
-✔ 0021 adds three functions, one private table and one NOLOGIN role; it changes no existing body, policy, role, table or trigger definition
+✔ 0021 adds four functions, one private table, one NOLOGIN role and ONE new trigger (the tombstone); it changes no existing body, policy, role, table or trigger definition
+✔ the tombstone and the locks: the per-person lock is taken by the erasure (exclusive) and by the identity guard (shared); lock_timeout is set BEFORE any advisory lock
 ✔ the ledger states: torneos_erased → core_confirmed (by core or operator); the confirmation sweeps first and refuses to leave a row unconfirmed
 ✔ the erasure login (out of band): SCRAM verifier only, LOGIN NOINHERIT, member of the erasure role only; Secret Manager names
 ✔ the erasure body: security definer + empty search_path, one transaction, every bypassed guard re-enabled and verified, payments never written
@@ -49,7 +52,9 @@
 ✔ E19 Torneos erased and Core never retried: listed by the reconcile query once older than its threshold; the operator completion confirms it once
 ✔ E20 double request: two simultaneous erasures of the same person → one erased, one already_erased, one ledger row; double confirmation is idempotent
 ✔ E21 the opposite failures: Torneos fails → nothing in Torneos (no ledger row) and the retry completes; Core done but its confirmation lost while an identity was re-created → reconcile shows it, the operator completion sweeps it
-✔ E22 confirmation of a person Torneos never knew: no_ledger, nothing moves; the confirmation's sweep erases an identity opened after the erasure
+✔ E22 confirmation of a person Torneos never knew: no_ledger, nothing moves; the confirmation (sweep included) is idempotent
+✔ E24 TOMBSTONE: a still-valid Core JWT after the erasure never gets an identity back; an old bridge token resolves to nobody; a NEW Core account works; no race with a concurrent exchange
+✔ E25 LOCK BOUND: with the erasure lock held elsewhere, an erasure fails in ~5 s with 55P03 (retryable) instead of waiting; an exchange waits at most its 2 s; then both succeed
 ✔ 0021 → 0020: 0020 applies over 0021 as the installer and 0021 stays POST_0021 (sponsors detected)
 ✔ success: Torneos is erased FIRST (signed, the session user id), then Core cleans up, deletes usuarios and the auth user, then CONFIRMS to Torneos
 ✔ the idempotency key: the same for every attempt about one account (retries, double requests), different per account, never the user id
@@ -66,8 +71,8 @@
 ✔ double request: two deletions of the same account at once both carry the one idempotency key (Torneos serialises them: erased / already_erased)
 ✔ no session → 401 and Torneos is never called; no confirmation → 400 and Torneos is never called
 ✔ the shared module: URL and secret parsing fail closed; the signature matches an independent implementation
-ℹ tests 62
-ℹ pass 62
+ℹ tests 67
+ℹ pass 67
 ℹ fail 0
 ℹ skipped 0
 
@@ -82,9 +87,12 @@
 ✔ A8 the other routes are unchanged: a Core-signed erasure request is not a bearer, and /exchange still refuses it
 ✔ A9 fail closed WITHOUT the erasure login: the gateway boots, an unsigned call is 401, a signed one is 503 — and no SQL runs on any login
 ✔ A10 the erasure login must be its own: the core adapter's login or password, or the Core contract secret as its password, disable the gateway
+✔ A11 the tombstone on /exchange: the database refusal TORNEOS_ACCOUNT_ERASED becomes a typed AccountErased (403 TORNEOS_ACCOUNT_ERASED), never a new identity
+✔ A12 timeouts nest: the database lock bound (5 s) < the erasure statement bound (15 s) < Core's request timeout (20 s), so a busy lock is a retryable 503, never a hung request
 ✔ B Core shared module → real gateway → real 0021 on the lab, through the erasure login: erased → already_erased → confirmed; never-used → no_identity / no_ledger; wrong secret refused
 ✔ the pinned files and bodies are the ones in the tree
-✔ 0021 adds three functions, one private table and one NOLOGIN role; it changes no existing body, policy, role, table or trigger definition
+✔ 0021 adds four functions, one private table, one NOLOGIN role and ONE new trigger (the tombstone); it changes no existing body, policy, role, table or trigger definition
+✔ the tombstone and the locks: the per-person lock is taken by the erasure (exclusive) and by the identity guard (shared); lock_timeout is set BEFORE any advisory lock
 ✔ the ledger states: torneos_erased → core_confirmed (by core or operator); the confirmation sweeps first and refuses to leave a row unconfirmed
 ✔ the erasure login (out of band): SCRAM verifier only, LOGIN NOINHERIT, member of the erasure role only; Secret Manager names
 ✔ the erasure body: security definer + empty search_path, one transaction, every bypassed guard re-enabled and verified, payments never written
@@ -117,9 +125,11 @@
 ✔ E19 Torneos erased and Core never retried: listed by the reconcile query once older than its threshold; the operator completion confirms it once
 ✔ E20 double request: two simultaneous erasures of the same person → one erased, one already_erased, one ledger row; double confirmation is idempotent
 ✔ E21 the opposite failures: Torneos fails → nothing in Torneos (no ledger row) and the retry completes; Core done but its confirmation lost while an identity was re-created → reconcile shows it, the operator completion sweeps it
-✔ E22 confirmation of a person Torneos never knew: no_ledger, nothing moves; the confirmation's sweep erases an identity opened after the erasure
-ℹ tests 46
-ℹ pass 46
+✔ E22 confirmation of a person Torneos never knew: no_ledger, nothing moves; the confirmation (sweep included) is idempotent
+✔ E24 TOMBSTONE: a still-valid Core JWT after the erasure never gets an identity back; an old bridge token resolves to nobody; a NEW Core account works; no race with a concurrent exchange
+✔ E25 LOCK BOUND: with the erasure lock held elsewhere, an erasure fails in ~5 s with 55P03 (retryable) instead of waiting; an exchange waits at most its 2 s; then both succeed
+ℹ tests 51
+ℹ pass 51
 ℹ fail 0
 ℹ skipped 0
 
@@ -134,9 +144,12 @@
 ✔ A8 the other routes are unchanged: a Core-signed erasure request is not a bearer, and /exchange still refuses it
 ✔ A9 fail closed WITHOUT the erasure login: the gateway boots, an unsigned call is 401, a signed one is 503 — and no SQL runs on any login
 ✔ A10 the erasure login must be its own: the core adapter's login or password, or the Core contract secret as its password, disable the gateway
+✔ A11 the tombstone on /exchange: the database refusal TORNEOS_ACCOUNT_ERASED becomes a typed AccountErased (403 TORNEOS_ACCOUNT_ERASED), never a new identity
+✔ A12 timeouts nest: the database lock bound (5 s) < the erasure statement bound (15 s) < Core's request timeout (20 s), so a busy lock is a retryable 503, never a hung request
 ✔ B Core shared module → real gateway → real 0021 on the lab, through the erasure login: erased → already_erased → confirmed; never-used → no_identity / no_ledger; wrong secret refused
 ✔ the pinned files and bodies are the ones in the tree
-✔ 0021 adds three functions, one private table and one NOLOGIN role; it changes no existing body, policy, role, table or trigger definition
+✔ 0021 adds four functions, one private table, one NOLOGIN role and ONE new trigger (the tombstone); it changes no existing body, policy, role, table or trigger definition
+✔ the tombstone and the locks: the per-person lock is taken by the erasure (exclusive) and by the identity guard (shared); lock_timeout is set BEFORE any advisory lock
 ✔ the ledger states: torneos_erased → core_confirmed (by core or operator); the confirmation sweeps first and refuses to leave a row unconfirmed
 ✔ the erasure login (out of band): SCRAM verifier only, LOGIN NOINHERIT, member of the erasure role only; Secret Manager names
 ✔ the erasure body: security definer + empty search_path, one transaction, every bypassed guard re-enabled and verified, payments never written
@@ -170,10 +183,12 @@
 ✔ E19 Torneos erased and Core never retried: listed by the reconcile query once older than its threshold; the operator completion confirms it once
 ✔ E20 double request: two simultaneous erasures of the same person → one erased, one already_erased, one ledger row; double confirmation is idempotent
 ✔ E21 the opposite failures: Torneos fails → nothing in Torneos (no ledger row) and the retry completes; Core done but its confirmation lost while an identity was re-created → reconcile shows it, the operator completion sweeps it
-✔ E22 confirmation of a person Torneos never knew: no_ledger, nothing moves; the confirmation's sweep erases an identity opened after the erasure
+✔ E22 confirmation of a person Torneos never knew: no_ledger, nothing moves; the confirmation (sweep included) is idempotent
+✔ E24 TOMBSTONE: a still-valid Core JWT after the erasure never gets an identity back; an old bridge token resolves to nobody; a NEW Core account works; no race with a concurrent exchange
+✔ E25 LOCK BOUND: with the erasure lock held elsewhere, an erasure fails in ~5 s with 55P03 (retryable) instead of waiting; an exchange waits at most its 2 s; then both succeed
 ✔ E23 (0022) the reporter is erased: reports stay without reporter, detail or own «created» events; staff events and acts keep their reference; the application report lost the message
-ℹ tests 48
-ℹ pass 48
+ℹ tests 53
+ℹ pass 53
 ℹ fail 0
 ℹ skipped 0
 
@@ -188,9 +203,12 @@
 ✔ A8 the other routes are unchanged: a Core-signed erasure request is not a bearer, and /exchange still refuses it
 ✔ A9 fail closed WITHOUT the erasure login: the gateway boots, an unsigned call is 401, a signed one is 503 — and no SQL runs on any login
 ✔ A10 the erasure login must be its own: the core adapter's login or password, or the Core contract secret as its password, disable the gateway
+✔ A11 the tombstone on /exchange: the database refusal TORNEOS_ACCOUNT_ERASED becomes a typed AccountErased (403 TORNEOS_ACCOUNT_ERASED), never a new identity
+✔ A12 timeouts nest: the database lock bound (5 s) < the erasure statement bound (15 s) < Core's request timeout (20 s), so a busy lock is a retryable 503, never a hung request
 ✔ B Core shared module → real gateway → real 0021 on the lab, through the erasure login: erased → already_erased → confirmed; never-used → no_identity / no_ledger; wrong secret refused
 ✔ the pinned files and bodies are the ones in the tree
-✔ 0021 adds three functions, one private table and one NOLOGIN role; it changes no existing body, policy, role, table or trigger definition
+✔ 0021 adds four functions, one private table, one NOLOGIN role and ONE new trigger (the tombstone); it changes no existing body, policy, role, table or trigger definition
+✔ the tombstone and the locks: the per-person lock is taken by the erasure (exclusive) and by the identity guard (shared); lock_timeout is set BEFORE any advisory lock
 ✔ the ledger states: torneos_erased → core_confirmed (by core or operator); the confirmation sweeps first and refuses to leave a row unconfirmed
 ✔ the erasure login (out of band): SCRAM verifier only, LOGIN NOINHERIT, member of the erasure role only; Secret Manager names
 ✔ the erasure body: security definer + empty search_path, one transaction, every bypassed guard re-enabled and verified, payments never written
@@ -224,9 +242,11 @@
 ✔ E19 Torneos erased and Core never retried: listed by the reconcile query once older than its threshold; the operator completion confirms it once
 ✔ E20 double request: two simultaneous erasures of the same person → one erased, one already_erased, one ledger row; double confirmation is idempotent
 ✔ E21 the opposite failures: Torneos fails → nothing in Torneos (no ledger row) and the retry completes; Core done but its confirmation lost while an identity was re-created → reconcile shows it, the operator completion sweeps it
-✔ E22 confirmation of a person Torneos never knew: no_ledger, nothing moves; the confirmation's sweep erases an identity opened after the erasure
+✔ E22 confirmation of a person Torneos never knew: no_ledger, nothing moves; the confirmation (sweep included) is idempotent
+✔ E24 TOMBSTONE: a still-valid Core JWT after the erasure never gets an identity back; an old bridge token resolves to nobody; a NEW Core account works; no race with a concurrent exchange
+✔ E25 LOCK BOUND: with the erasure lock held elsewhere, an erasure fails in ~5 s with 55P03 (retryable) instead of waiting; an exchange waits at most its 2 s; then both succeed
 ✔ E23 (0022) the reporter is erased: reports stay without reporter, detail or own «created» events; staff events and acts keep their reference; the application report lost the message
-ℹ tests 48
-ℹ pass 48
+ℹ tests 53
+ℹ pass 53
 ℹ fail 0
 ℹ skipped 0

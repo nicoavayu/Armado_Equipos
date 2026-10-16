@@ -50,6 +50,7 @@ const stub = `export default function postgres(url) {
   return { begin: async (fn) => fn({ unsafe: async (q, params) => {
     const w = globalThis.__erasureWorld; w.sql.push({ login, q, params });
     if (q.startsWith('SET LOCAL ')) return [];
+    if (q.startsWith('INSERT INTO public.torneos_identity')) { if (w.identityError) throw w.identityError; return [{ id: params[0], core_user_id: params[0] }]; }
     if (q.startsWith('SELECT private.erase_tournament_account') || q.startsWith('SELECT private.confirm_tournament_account_erasure')) {
       const a = typeof w.answer === 'function' ? w.answer(q) : w.answer;
       if (a instanceof Error) throw a; return [{ result: a }];
@@ -208,6 +209,35 @@ test('A10 the erasure login must be its own: the core adapter\'s login or passwo
   }
 });
 
+test('A11 the tombstone on /exchange: the database refusal TORNEOS_ACCOUNT_ERASED becomes a typed AccountErased (403 TORNEOS_ACCOUNT_ERASED), never a new identity', async () => {
+  const db = await tree.import('torneos-gateway/db.ts');
+  const postgres = (await import(pathToFileURL(path.join(tree.dir, 'postgres-driver.mjs')).href)).default;
+  const sql = postgres(fx.env.TORNEOS_DB_IDENTITY_WRITER_URL);
+  world.identityError = Object.assign(new Error('TORNEOS_ACCOUNT_ERASED'), { code: '42501' });
+  try {
+    await assert.rejects(db.allocateIdentity(sql, randomUUID()), (e) => e instanceof db.AccountErased);
+    world.identityError = Object.assign(new Error('permission denied'), { code: '42501' });
+    await assert.rejects(db.allocateIdentity(sql, randomUUID()), (e) => !(e instanceof db.AccountErased), 'only the tombstone message is typed');
+  } finally { world.identityError = null; }
+  const id = randomUUID();
+  assert.deepEqual(await db.allocateIdentity(sql, id), { id, core_user_id: id });
+  const index = await fs.readFile(path.join(tree.dir, 'torneos-gateway', 'index.ts'), 'utf8').catch(async () => fs.readFile('backend/torneos/supabase/functions/torneos-gateway/index.ts', 'utf8'));
+  assert.match(index, /if \(error instanceof AccountErased\) return json\(403, \{ error: ACCOUNT_ERASED \}, cors\)/);
+  assert.equal(db.ACCOUNT_ERASED, 'TORNEOS_ACCOUNT_ERASED');
+});
+
+test('A12 timeouts nest: the database lock bound (5 s) < the erasure statement bound (15 s) < Core\'s request timeout (20 s), so a busy lock is a retryable 503, never a hung request', async () => {
+  const db = await tree.import('torneos-gateway/db.ts');
+  const core = await fs.readFile('supabase/functions/_shared/torneosAccountErasure.ts', 'utf8');
+  const coreTimeout = Number(/export const ERASURE_TIMEOUT_MS = (\d+)/.exec(core)[1]);
+  const migration = await fs.readFile('backend/torneos/supabase/migrations/00000000000021_account_erasure.sql', 'utf8');
+  const dbLock = Number(/set_config\('lock_timeout', '(\d+)', true\)/.exec(migration)[1]);
+  assert.equal(dbLock, db.ERASURE_LOCK_TIMEOUT_MS);
+  assert.ok(db.ERASURE_LOCK_TIMEOUT_MS < db.ERASURE_STATEMENT_TIMEOUT_MS && db.ERASURE_STATEMENT_TIMEOUT_MS < coreTimeout, `${dbLock} < ${db.ERASURE_STATEMENT_TIMEOUT_MS} < ${coreTimeout}`);
+  world.answer = Object.assign(new Error('canceling statement due to lock timeout'), { code: '55P03' });
+  assert.deepEqual(await read(await gateway.handle(request(secret(), body()))), [503, { error: 'TORNEOS_UNAVAILABLE' }], 'the lock bound → retryable 503 (Core: torneos_erasure_failed, account kept)');
+});
+
 // ------------------------------------------------------------------------------------------------ B. end to end on the lab
 if (process.env.ACCOUNT_DELETION_SKIP_LAB !== '1') {
   test('B Core shared module → real gateway → real 0021 on the lab, through the erasure login: erased → already_erased → confirmed; never-used → no_identity / no_ledger; wrong secret refused', async () => {
@@ -234,6 +264,15 @@ if (process.env.ACCOUNT_DELETION_SKIP_LAB !== '1') {
       await pool.query("insert into public.tournament_user_profiles(user_id, display_name) values ($1, 'Gateway Ficticio')", [id]);
       const first = await core.requestTorneosAccountErasure({ env: coreEnv(), coreUserId: coreId, fetchImpl: viaGateway });
       const ledgerAfterErase = (await pool.query('select state, request_id from private.tournament_account_erasures where identity_id = $1', [id])).rows;
+      // The gateway's real /exchange upsert (db.ts allocateIdentity, identity-writer login) for the erased Core user — what a
+      // still-valid Core JWT would reach: the tombstone refuses it, no identity row appears.
+      const rdb = await realTree.import('torneos-gateway/db.ts');
+      const rpg = (await import(pathToFileURL(path.join(realTree.dir, 'postgres-driver.mjs')).href)).default;
+      const identitySql = rpg(env.TORNEOS_DB_IDENTITY_WRITER_URL);
+      await assert.rejects(rdb.allocateIdentity(identitySql, coreId), (e) => e instanceof rdb.AccountErased);
+      const fresh = await rdb.allocateIdentity(identitySql, randomUUID());
+      assert.ok(fresh.id, 'a new Core account still gets its identity');
+      await identitySql.end();
       const second = await core.requestTorneosAccountErasure({ env: coreEnv(), coreUserId: coreId, fetchImpl: viaGateway });
       const confirmed = await core.confirmTorneosAccountErasure({ env: coreEnv(), coreUserId: coreId, fetchImpl: viaGateway });
       const ledgerAfterConfirm = (await pool.query('select state, core_confirm_request_id from private.tournament_account_erasures where identity_id = $1', [id])).rows;

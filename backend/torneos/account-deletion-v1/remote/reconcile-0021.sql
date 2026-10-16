@@ -4,7 +4,7 @@
 -- No cron runs this; the operator does, by hand (procedure in ../README.md «Reconciliación»). It prints no names, no
 -- emails and no Core ids: only the ledger id, the sha256 of the Core user id (to look the user up in Core), the request
 -- id and timestamps, and whether an identity for the same Core user exists again in Torneos (a session opened after the
--- erasure: the confirmation's sweep would erase it).
+-- erasure: the confirmation's sweep would erase it; with the tombstone trigger this only happens after a forced rollback).
 -- Threshold: change only the literal interval (default 24 hours).
 select e.id as erasure_id,
        e.core_user_sha256,

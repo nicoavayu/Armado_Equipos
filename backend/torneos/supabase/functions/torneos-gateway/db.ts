@@ -53,13 +53,23 @@ export async function asRole<T>(sql: Sql, role: "torneos_identity_writer" | "tor
 
 export type IdentityRow = { id: string; core_user_id: string }
 
+/** ACCOUNT ERASURE (0021): the Core user was erased from Torneos (tombstone); no identity is ever created for it again. */
+export class AccountErased extends Error {}
+export const ACCOUNT_ERASED = "TORNEOS_ACCOUNT_ERASED"
+
 /** The certified bridge upsert: same row, same identity, on every exchange. */
 export async function allocateIdentity(sql: Sql, coreUserId: string): Promise<IdentityRow> {
-  return await asRole(sql, "torneos_identity_writer", async (tx) => {
-    const rows = await tx.unsafe(`INSERT INTO public.torneos_identity(core_user_id) VALUES ($1)
-      ON CONFLICT(core_user_id) DO UPDATE SET core_user_id = EXCLUDED.core_user_id RETURNING id, core_user_id`, [coreUserId])
-    return rows[0] as unknown as IdentityRow
-  })
+  try {
+    return await asRole(sql, "torneos_identity_writer", async (tx) => {
+      const rows = await tx.unsafe(`INSERT INTO public.torneos_identity(core_user_id) VALUES ($1)
+        ON CONFLICT(core_user_id) DO UPDATE SET core_user_id = EXCLUDED.core_user_id RETURNING id, core_user_id`, [coreUserId])
+      return rows[0] as unknown as IdentityRow
+    })
+  } catch (error) {
+    // The tombstone trigger (0021): a still-valid Core JWT of an erased account never gets a Torneos identity back.
+    if ((error as { message?: unknown })?.message === ACCOUNT_ERASED) throw new AccountErased()
+    throw error
+  }
 }
 
 /** ACCOUNT ERASURE (0021): longer bounds than an RPC (one transaction that may touch a few hundred rows), fail-fast on locks. */

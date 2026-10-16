@@ -8,7 +8,7 @@ Diseño, decisiones y matriz por tabla: [`docs/superpowers/specs/2026-10-15-torn
 
 | Pieza | Archivo | Qué hace |
 |---|---|---|
-| Migración Torneos 0021 | `backend/torneos/supabase/migrations/00000000000021_account_erasure.sql` | Crea dos funciones SECURITY DEFINER: `private.erase_tournament_account(core_user_id, request_id)` y `private.confirm_tournament_account_erasure(core_user_id, request_id)`. Las dos son sólo para el rol nuevo **`torneos_erasure_writer`** (NOLOGIN, NOINHERIT, sin ningún otro privilegio). También crea `private.account_erasure_label` y el registro `private.tournament_account_erasures`, con estados `torneos_erased` → `core_confirmed`. Borra en una transacción y es idempotente. Trata 0020 (sponsors) y 0022 (moderación) si existen. |
+| Migración Torneos 0021 | `backend/torneos/supabase/migrations/00000000000021_account_erasure.sql` | Crea dos funciones SECURITY DEFINER: `private.erase_tournament_account(core_user_id, request_id)` y `private.confirm_tournament_account_erasure(core_user_id, request_id)`. Las dos son sólo para el rol nuevo **`torneos_erasure_writer`** (NOLOGIN, NOINHERIT, sin ningún otro privilegio). También crea `private.account_erasure_label` y el registro `private.tournament_account_erasures`, con estados `torneos_erased` → `core_confirmed`. Borra en una transacción y es idempotente. Trata 0020 (sponsors) y 0022 (moderación) si existen. Suma la **tumba**: el trigger `torneos_identity_refuse_erased` rechaza con `TORNEOS_ACCOUNT_ERASED` toda identidad nueva para un Core user borrado, aunque su JWT siga valiendo. El `lock_timeout` de 5 s se fija **antes** de los locks advisory: el de la persona primero y después el global. |
 | Rollback | `rollback/00000000000021_account_erasure.rollback.sql` | Quita lo que agregó 0021, incluido el rol. **No restaura datos anonimizados.** Si el registro tiene filas, exige `SET torneos.account_erasure_rollback_force = 'DISCARD ERASURE LEDGER'`. |
 | Driver del operador | `remote/db-0021.mjs` (+ `remote/sql-catalog-0021.sql`, `remote/pin-0021.mjs`) | Modos `observe` / `apply-0021` / `rollback-0021`, con frase exacta, sha256 del archivo y estado previo y posterior pinneados (incluye **cada privilegio del rol de borrado, por nombre**). Verifica que no se movió nada más. Mismo transporte que `db-0017` / `db-0020`. **Preparado, no ejecutado.** |
 | Login de borrado | `remote/erasure-login.mjs` | Nombres (login, variable, secreto de Secret Manager) y el único SQL que el operador manda: alta, rotación y re-grant, con verificador SCRAM. |
@@ -90,7 +90,7 @@ Torneos y Core son dos bases: **no hay atomicidad entre ellas**. Lo que Torneos 
    - No muestra nombres, emails ni ids de Core.
 2. **Buscar en Core** (sólo lectura, editor SQL de Core): `select count(*) from auth.users where encode(sha256(convert_to(id::text, 'UTF8')), 'hex') = '<core_user_sha256>';`
 3. **Si da 0:** Core terminó y sólo se perdió la confirmación. Con GO, correr `remote/reconcile-complete-0021.sql` reemplazando `<erasure_id>`.
-   - Si `identity_recreated` es true, barre esa identidad. El id de Core se lee de esa fila, nunca se tipea.
+   - Si `identity_recreated` es true, barre esa identidad. El id de Core se lee de esa fila, nunca se tipea. Con la tumba esto no debería pasar; sólo puede pasar después de un rollback forzado.
    - Marca la fila `core_confirmed` por `operator`.
    - Correrlo dos veces no cambia nada.
 4. **Si da 1:** la cuenta Core sigue activa y lo de Torneos ya está anonimizado (irreversible).
@@ -106,7 +106,9 @@ Torneos y Core son dos bases: **no hay atomicidad entre ellas**. Lo que Torneos 
 
 ## Recuperación
 
-- **Torneos caído:** Core responde 503 y no borra nada; la persona reintenta. No hay nada que reparar.
+- **Torneos caído u ocupado:** Core responde 503 y no borra nada; la persona reintenta. Un lock ocupado falla en unos 5 s con `55P03`. No hay nada que reparar.
+- **Sesión o JWT de una cuenta ya borrada:** el gateway responde `403 TORNEOS_ACCOUNT_ERASED` en `/exchange` y no se crea ninguna identidad (tumba). Es lo esperado; no hay nada que reparar.
+- **Rollback forzado de 0021:** descarta el registro y con él las tumbas.
 - **Core falla después de Torneos:** la persona reintenta y termina. Si no lo hace, va a reconciliación (arriba).
 - **Volver atrás:** web → Core (función anterior; `delete-account` vuelve a no tocar Torneos) → gateway (revisión anterior; sin las rutas, Core falla cerrado) → credencial (deshabilitar el secreto; opcionalmente borrar el login) → rollback 0021 (forzado si hubo erasures). **Ningún paso restaura datos anonimizados.**
 - **Organización archivada que alguien quiere seguir usando:** traspaso manual por soporte (insertar o promover un titular y poner `status = 'active'`, `archived_at = null`), con auditoría. Queda fuera de este PR.

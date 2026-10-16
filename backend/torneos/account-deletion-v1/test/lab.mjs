@@ -40,6 +40,13 @@ export const applied = () => one("select to_regprocedure('private.erase_tourname
 /** 0000 → 0019, Production's ownership, then 0020 when asked; 0021 present or not as found (callers decide). */
 export async function prepare() {
   await lab.up({ upTo: '00000000000019', fresh: process.env.ACCOUNT_DELETION_LAB_FRESH === '1' });
+  // A variant lab must hold exactly its variant: order-0020.test.mjs leaves 0020 on the main lab (0021 → 0020), and an
+  // earlier revision of 0021 cannot be rolled back by this tree's rollback file. Either → start this lab over.
+  const has0020 = one("select to_regclass('public.tournament_organization_sponsors') is not null") === 't';
+  const has0022 = one("select to_regclass('public.tournament_content_reports') is not null") === 't';
+  const stale0021 = applied() && one("select md5(prosrc) from pg_proc where oid = to_regprocedure('private.erase_tournament_account(uuid,uuid)')")
+    !== D.BODIES.POST_0021.erase;
+  if ((has0020 && !WITH_0020) || (has0022 && !WITH_0022) || stale0021) await lab.up({ upTo: '00000000000019', fresh: true });
   lab.sql(`DO $$ DECLARE r record; BEGIN
     FOR r IN SELECT format('ALTER TABLE %I.%I OWNER TO postgres', n.nspname, c.relname) q FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
       WHERE n.nspname IN ('public','private') AND c.relkind IN ('r','p','v','m','f') AND pg_get_userbyid(c.relowner) <> 'postgres'

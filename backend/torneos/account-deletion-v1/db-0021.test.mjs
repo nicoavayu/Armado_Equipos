@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import crypto from 'node:crypto';
 import { randomUUID } from 'node:crypto';
-import { ACL, BODIES, ERASURE_ROLE, FILES, GUARDS, REF, TABLE, changedOutside, classify, phraseFor, run } from './remote/db-0021.mjs';
+import { ACL, BODIES, ERASURE_ROLE, FILES, GUARDS, REF, TABLE, TOMBSTONE, changedOutside, classify, phraseFor, run } from './remote/db-0021.mjs';
 import { body } from './remote/pin-0021.mjs';
 import * as EL from './remote/erasure-login.mjs';
 import { scramKeys } from '../infra/torneos-gateway-auth/gateway-auth-contract.mjs';
@@ -23,18 +23,21 @@ test('the pinned files and bodies are the ones in the tree', () => {
   assert.equal(sha256(ROLLBACK), FILES['rollback-0021'].sha256);
   assert.equal(md5(body(MIGRATION, 'private.erase_tournament_account')), BODIES.POST_0021.erase);
   assert.equal(md5(body(MIGRATION, 'private.confirm_tournament_account_erasure')), BODIES.POST_0021.confirm);
+  assert.equal(md5(body(MIGRATION, 'private.refuse_erased_identity')), BODIES.POST_0021.refuse);
   assert.equal(md5(body(MIGRATION, 'private.account_erasure_label')), BODIES.POST_0021.label);
   assert.equal(phraseFor('apply-0021'), `APPLY TORNEOS 0021 ${REF} ${FILES['apply-0021'].sha256.slice(0, 12)}`);
   assert.equal(phraseFor('rollback-0021', { force: true }), `ROLLBACK TORNEOS 0021 ${REF} ${FILES['rollback-0021'].sha256.slice(0, 12)} DISCARD ERASURE LEDGER`);
 });
 
-test('0021 adds three functions, one private table and one NOLOGIN role; it changes no existing body, policy, role, table or trigger definition', () => {
-  assert.equal((statements.match(/create function/gi) || []).length, 3);
+test('0021 adds four functions, one private table, one NOLOGIN role and ONE new trigger (the tombstone); it changes no existing body, policy, role, table or trigger definition', () => {
+  assert.equal((statements.match(/create function/gi) || []).length, 4);
   assert.equal((statements.match(/create table/gi) || []).length, 1);
   assert.deepEqual(statements.match(/create\s+role[^;]*;/gi), ['create role torneos_erasure_writer nologin noinherit;'], 'one role, no login, no attribute');
+  assert.deepEqual(statements.match(/create\s+trigger[^;]*;/gi)?.map((s) => s.replace(/\s+/g, ' ')),
+    ['create trigger torneos_identity_refuse_erased before insert on public.torneos_identity for each row execute function private.refuse_erased_identity();']);
   for (const forbidden of [/create or replace/i, /create policy/i, /drop policy/i, /alter policy/i, /alter\s+role/i, /drop\s+role/i, /password/i,
     /grant\s+torneos_\w+\s+to/i, /drop\s+(function|table|trigger)/i,
-    /create\s+trigger/i, /security\s+invoker/i, /grant\s+(select|insert|update|delete|all)\s+on/i, /storage\./i, /cron\./i, /net\.http/i]) {
+    /security\s+invoker/i, /grant\s+(select|insert|update|delete|all)\s+on/i, /storage\./i, /cron\./i, /net\.http/i]) {
     assert.doesNotMatch(statements, forbidden, String(forbidden));
   }
   // The erasure role's grants, exactly; nothing to the core adapter (it used to run the erasure: no longer).
@@ -47,6 +50,21 @@ test('0021 adds three functions, one private table and one NOLOGIN role; it chan
     assert.match(statements, new RegExp(`revoke all on function private\\.${fn}\\(uuid, uuid\\)\\s+from public, anon, authenticated, service_role, torneos_core_adapter, torneos_identity_writer;`), fn);
   }
   assert.match(statements, /revoke all on function private\.account_erasure_label\(text, uuid, uuid\) from public, anon, authenticated, service_role;/);
+  assert.match(statements, /revoke all on function private\.refuse_erased_identity\(\)\s+from public, anon, authenticated, service_role, torneos_core_adapter, torneos_identity_writer, torneos_erasure_writer;/);
+});
+
+test('the tombstone and the locks: the per-person lock is taken by the erasure (exclusive) and by the identity guard (shared); lock_timeout is set BEFORE any advisory lock', () => {
+  const erase = body(MIGRATION, 'private.erase_tournament_account');
+  const timeout = erase.indexOf("set_config('lock_timeout', '5000', true)");
+  const person = erase.indexOf("pg_advisory_xact_lock(hashtextextended('torneos.account_erasure:' || v_hash, 21))");
+  const global = erase.indexOf("pg_advisory_xact_lock(hashtextextended('torneos.account_erasure', 21))");
+  assert.ok(timeout > 0 && timeout < person && person < global, 'timeout → per-person → global (one order everywhere: no deadlock)');
+  const refuse = body(MIGRATION, 'private.refuse_erased_identity');
+  assert.match(refuse, /pg_advisory_xact_lock_shared\(hashtextextended\('torneos\.account_erasure:' \|\| v_hash, 21\)\)/);
+  assert.ok(refuse.indexOf('pg_advisory_xact_lock_shared') < refuse.indexOf('private.tournament_account_erasures'), 'wait, then read the ledger');
+  assert.match(refuse, /errcode = '42501', message = 'TORNEOS_ACCOUNT_ERASED'/);
+  assert.doesNotMatch(refuse, /hashtextextended\('torneos\.account_erasure', 21\)/, 'exchanges never wait on the global erasure lock');
+  assert.match(MIGRATION, /create function private\.refuse_erased_identity\(\)[\s\S]*?security definer\nset search_path = ''/);
   assert.match(statements, /revoke all on private\.tournament_account_erasures from public, anon, authenticated, service_role;/);
   assert.match(MIGRATION, /^BEGIN;/m); assert.match(MIGRATION, /^COMMIT;/m);
 });
@@ -149,6 +167,7 @@ const catalogAt = (state, mutate = (c) => c) => mutate({
   prerequisites: { connected_v1: true, core_adapter_role: true, identity_trigger: true, guards: JSON.parse(JSON.stringify(GUARDS)), sponsors_0020: false },
   bodies: { ...BODIES[state] }, acl: JSON.parse(JSON.stringify(ACL[state])), table: TABLE[state] ? { ...TABLE[state] } : null,
   erasure_role: JSON.parse(JSON.stringify(ERASURE_ROLE[state])), erasure_role_logins: state === 'POST_0021' ? ['torneos_edge_erasure_writer'] : [],
+  tombstone_trigger: TOMBSTONE[state] ? { ...TOMBSTONE[state] } : null,
   rows: state === 'POST_0021' ? 0 : null, counts: { authenticated: 600, anon: 30 }, ...JSON.parse(JSON.stringify(kept)),
 });
 
@@ -173,6 +192,9 @@ test('classify: the two states (with or without 0020), and every drift by name',
   assert.match(classify(catalogAt('POST_0021', (c) => { c.erasure_role.schemas.push('public'); return c; })).failures.join(), /erasure_role/);
   assert.match(classify(catalogAt('PRE_0021', (c) => { c.erasure_role = { ...ERASURE_ROLE.POST_0021 }; return c; })).failures.join(), /erasure_role/);
   assert.equal(classify(catalogAt('POST_0021', (c) => { c.erasure_role_logins = []; return c; })).state, 'POST_0021', 'the login is provisioned after 0021, out of band');
+  assert.match(classify(catalogAt('POST_0021', (c) => { c.tombstone_trigger.enabled = 'D'; return c; })).failures.join(), /tombstone_trigger/);
+  assert.match(classify(catalogAt('POST_0021', (c) => { c.tombstone_trigger = null; return c; })).failures.join(), /tombstone_trigger/);
+  assert.match(classify(catalogAt('POST_0021', (c) => { c.acl.refuse.identity_writer = true; return c; })).failures.join(), /acl\.refuse/);
 });
 
 test('changedOutside: anything else moving is named; EXECUTE counts of anon/authenticated must not move at all', () => {
@@ -206,6 +228,7 @@ test('the rollback removes only what 0021 added, refuses with ledger rows unless
   assert.match(r, /drop function private\.erase_tournament_account\(uuid, uuid\);/);
   assert.match(r, /drop function private\.account_erasure_label\(text, uuid, uuid\);/);
   assert.match(r, /drop function private\.confirm_tournament_account_erasure\(uuid, uuid\);/);
+  assert.match(r, /drop trigger torneos_identity_refuse_erased on public\.torneos_identity;\ndrop function private\.refuse_erased_identity\(\);/);
   assert.match(r, /drop table private\.tournament_account_erasures;/);
   assert.match(r, /revoke usage on schema private from torneos_erasure_writer;\ndrop role torneos_erasure_writer;/);
   assert.doesNotMatch(r, /drop role torneos_edge/i, 'the out-of-band login is the operator\'s to keep or drop');

@@ -523,37 +523,145 @@ test('E21 the opposite failures: Torneos fails → nothing in Torneos (no ledger
   assert.equal((await ledgerOf(p)).length, 0);
   assert.equal((await db.erase(p.core, p.request)).outcome, 'erased', 'the retry completes');
   // (b) Core deleted its account but the confirmation never arrived; meanwhile a Torneos session re-created an identity
-  //     (the gateway's own upsert, as torneos_identity_writer).
+  //     (the gateway's own upsert, as torneos_identity_writer) — the tombstone refuses it, nothing is re-created.
   const q = await person('ConfirmacionPerdida');
   assert.equal((await db.erase(q.core, q.request)).outcome, 'erased');
-  const c = await writer.connect();
-  try {
-    await c.query('BEGIN'); await c.query('SET LOCAL ROLE torneos_identity_writer');
-    await c.query(`INSERT INTO public.torneos_identity(core_user_id) VALUES ($1) ON CONFLICT(core_user_id) DO UPDATE SET core_user_id = EXCLUDED.core_user_id`, [q.core]);
-    await c.query('COMMIT');
-  } finally { c.release(); }
+  await assert.rejects(exchange(q.core), /TORNEOS_ACCOUNT_ERASED/);
   const [row] = await ledgerOf(q);
   const [r] = await listed(q, '0 seconds');
-  assert.deepEqual([r.erasure_id, r.identity_recreated], [row.id, true]);
+  assert.deepEqual([r.erasure_id, r.identity_recreated], [row.id, false]);
   assert.equal(operatorComplete(row.id).ok, true);
-  assert.equal(await val('select count(*)::int from public.torneos_identity where core_user_id = $1', [q.core]), 0, 'the re-created identity was swept');
-  assert.deepEqual((await ledgerOf(q)).map((x) => x.state), ['core_confirmed', 'core_confirmed']);
+  assert.equal(await val('select count(*)::int from public.torneos_identity where core_user_id = $1', [q.core]), 0);
+  assert.deepEqual((await ledgerOf(q)).map((x) => [x.state, x.core_confirmed_by]), [['core_confirmed', 'operator']]);
   assert.equal((await listed(q, '0 seconds')).length, 0);
-  return { torneosFailure: failure.slice(0, 40), recreatedSwept: true };
+  return { torneosFailure: failure.slice(0, 40), lostConfirmation: 'completed by the operator', recreation: 'refused' };
 }));
 
-test('E22 confirmation of a person Torneos never knew: no_ledger, nothing moves; the confirmation\'s sweep erases an identity opened after the erasure', async () => step('E22 confirm edge cases', async () => {
+test('E22 confirmation of a person Torneos never knew: no_ledger, nothing moves; the confirmation (sweep included) is idempotent', async () => step('E22 confirm edge cases', async () => {
   const before = await digests(pool, SMALL);
   const unknown = await db.confirm(randomUUID(), randomUUID());
   assert.deepEqual([unknown.outcome, unknown.sweep], ['no_ledger', 'no_identity']);
   assert.deepEqual(changedTables(before, await digests(pool, SMALL)), []);
   const p = await person('Barrido');
   await db.erase(p.core, p.request);
-  await pool.query('insert into public.torneos_identity(core_user_id) values ($1)', [p.core]); // a session between erasure and Core deletion
-  const confirmed = await db.confirm(p.core, p.request);
-  assert.deepEqual([confirmed.outcome, confirmed.sweep, confirmed.confirmedNow], ['core_confirmed', 'erased', 2]);
-  assert.equal(await val('select count(*)::int from public.torneos_identity where core_user_id = $1', [p.core]), 0);
-  return { sweep: confirmed.sweep };
+  const first = await db.confirm(p.core, p.request);
+  assert.deepEqual([first.outcome, first.sweep, first.confirmedNow], ['core_confirmed', 'already_erased', 1]);
+  const again = await digests(pool, SMALL);
+  const second = await db.confirm(p.core, p.request);
+  assert.deepEqual([second.outcome, second.sweep, second.confirmedNow], ['core_confirmed', 'already_erased', 0]);
+  assert.deepEqual(changedTables(again, await digests(pool, SMALL)), [], 'the sweep is idempotent');
+  return { first: first.sweep, second: second.sweep };
+}));
+
+// ------------------------------------------------------------------------------------------------ tombstone + locks
+/** The gateway's /exchange upsert exactly (db.ts allocateIdentity), as torneos_identity_writer with its 2 s statement bound. */
+async function exchange(core) {
+  const c = await writer.connect();
+  try {
+    await c.query('BEGIN'); await c.query('SET LOCAL ROLE torneos_identity_writer'); await c.query('SET LOCAL statement_timeout = 2000');
+    const { rows: r } = await c.query(`INSERT INTO public.torneos_identity(core_user_id) VALUES ($1)
+      ON CONFLICT(core_user_id) DO UPDATE SET core_user_id = EXCLUDED.core_user_id RETURNING id, core_user_id`, [core]);
+    await c.query('COMMIT');
+    return r[0];
+  } catch (error) { await c.query('ROLLBACK').catch(() => {}); throw error; } finally { c.release(); }
+}
+/** What PostgREST resolves for a bridge token (private.current_identity_id) with these claims, as `authenticated`. */
+async function resolve(identity, core) {
+  const now = Math.floor(Date.now() / 1000);
+  const claims = { role: 'authenticated', iss: 'urn:arma2:local:identity-bridge', aud: 'arma2-torneos-local', sub: identity, core_user_id: core,
+    session_id: randomUUID(), jti: randomUUID(), iat: now, nbf: now, exp: now + 120 };
+  const c = await pool.connect();
+  try {
+    await c.query('BEGIN'); await c.query('SET LOCAL ROLE authenticated');
+    await c.query("select set_config('request.jwt.claims', $1, true)", [JSON.stringify(claims)]);
+    const { rows: r } = await c.query('select private.current_identity_id() as id');
+    await c.query('ROLLBACK');
+    return r[0].id;
+  } finally { c.release(); }
+}
+
+test('E24 TOMBSTONE: a still-valid Core JWT after the erasure never gets an identity back; an old bridge token resolves to nobody; a NEW Core account works; no race with a concurrent exchange', async () => step('E24 tombstone', async () => {
+  // (a) before / after: the same Core user exchanging again (a JWT Supabase did not revoke) is refused, no row created.
+  const p = await person('Tumba');
+  const before = await exchange(p.core);
+  assert.equal(before.id, p.id, 'the normal exchange returns the existing identity');
+  assert.equal(await resolve(p.id, p.core), p.id, 'a bridge token resolves before the erasure');
+  await db.erase(p.core, p.request);
+  const refused = await exchange(p.core).then(() => null, (e) => ({ code: e.code, message: e.message }));
+  assert.deepEqual(refused, { code: '42501', message: 'TORNEOS_ACCOUNT_ERASED' });
+  assert.equal(await val('select count(*)::int from public.torneos_identity where core_user_id = $1', [p.core]), 0, 'no identity row created');
+  assert.equal(await resolve(p.id, p.core), null, 'a bridge token issued before the erasure resolves to nobody');
+  // Still refused after Core confirmed (and forever: the ledger is the tombstone); every other path inserts the same way.
+  await db.confirm(p.core, p.request);
+  await assert.rejects(exchange(p.core), /TORNEOS_ACCOUNT_ERASED/);
+  await assert.rejects(pool.query('insert into public.torneos_identity(core_user_id) values ($1)', [p.core]), /TORNEOS_ACCOUNT_ERASED/, 'even the installer');
+  // (c) the same person signs up again: a NEW Core account (new core_user_id) is a new person → a new, empty identity.
+  const fresh = randomUUID();
+  const created = await exchange(fresh);
+  assert.ok(created.id && created.id !== p.id);
+  assert.equal(await val('select count(*)::int from public.tournament_user_profiles where user_id = $1', [created.id]), 0, 'nothing of the erased account');
+  // (b) concurrent exchange DURING the erasure: the erasure holds this person's lock (uncommitted); the exchange waits on
+  //     it, then sees the tombstone. Nothing survives or appears. (While an erasure transaction is open, every identity
+  //     INSERT waits anyway: its guard toggles take SHARE ROW EXCLUSIVE on torneos_identity until COMMIT — D10; an
+  //     erasure lasts well under a second, the exchange's own bound is 2 s, and a timed-out exchange is retried.)
+  const q = await person('Carrera');
+  const e = await eraser.connect();
+  let raced;
+  try {
+    await e.query('BEGIN'); await e.query('SET LOCAL ROLE torneos_erasure_writer');
+    await e.query('SELECT private.erase_tournament_account($1::uuid, $2::uuid)', [q.core, q.request]);
+    raced = exchange(q.core).then(() => 'created', (err) => err.message);
+    await new Promise((r) => setTimeout(r, 300));
+    assert.equal(await Promise.race([raced, Promise.resolve('pending')]), 'pending', 'the racing exchange waits for the erasure');
+    await e.query('COMMIT');
+  } catch (error) { await e.query('ROLLBACK').catch(() => {}); throw error; } finally { e.release(); }
+  assert.equal(await raced, 'TORNEOS_ACCOUNT_ERASED');
+  assert.equal(await val('select count(*)::int from public.torneos_identity where core_user_id = $1', [q.core]), 0);
+  // (d) the sweep stays idempotent and finds nothing to sweep.
+  assert.equal((await db.confirm(q.core, q.request)).sweep, 'already_erased');
+  assert.equal((await db.confirm(q.core, q.request)).confirmedNow, 0);
+  return { afterErasure: refused.message, newAccount: 'created', concurrent: 'TORNEOS_ACCOUNT_ERASED' };
+}));
+
+test('E25 LOCK BOUND: with the erasure lock held elsewhere, an erasure fails in ~5 s with 55P03 (retryable) instead of waiting; an exchange waits at most its 2 s; then both succeed', async () => step('E25 lock bound', async () => {
+  const p = await person('Cola');
+  const unrelated = await person('Libre');
+  const holder = await pool.connect();
+  let erase; let elapsed; let unrelatedMs;
+  try {
+    await holder.query('BEGIN');
+    await holder.query("select pg_advisory_xact_lock(hashtextextended('torneos.account_erasure', 21))"); // the global key, as a running erasure
+    const t0 = Date.now();
+    const waiting = db.erase(p.core, p.request).then(() => null, (error) => ({ code: error.code, message: error.message }));
+    await new Promise((r) => setTimeout(r, 200));
+    // An erasure waiting on the advisory lock holds no table lock yet: another person's exchange is not delayed.
+    const t1 = Date.now();
+    assert.equal((await exchange(unrelated.core)).id, unrelated.id);
+    unrelatedMs = Date.now() - t1;
+    erase = await waiting;
+    elapsed = Date.now() - t0;
+  } finally { await holder.query('ROLLBACK').catch(() => {}); holder.release(); }
+  assert.ok(unrelatedMs < 1000, `unrelated exchange not delayed (${unrelatedMs} ms)`);
+  assert.equal(erase?.code, '55P03', JSON.stringify(erase));
+  assert.ok(elapsed >= 4500 && elapsed < 9000, `bounded by lock_timeout 5 s (took ${elapsed} ms)`);
+  assert.equal((await ledgerOf(p)).length, 0, 'nothing done; the retry is safe');
+  // The per-person key held (a running erasure of this person): the exchange gives up within its statement bound.
+  const q = await person('Cola2');
+  const h2 = await pool.connect();
+  let ex; let elapsed2;
+  try {
+    await h2.query('BEGIN');
+    await h2.query("select pg_advisory_xact_lock(hashtextextended('torneos.account_erasure:' || encode(sha256(convert_to($1::text, 'UTF8')), 'hex'), 21))", [q.core]);
+    const t0 = Date.now();
+    ex = await exchange(q.core).then(() => null, (error) => error.code);
+    elapsed2 = Date.now() - t0;
+  } finally { await h2.query('ROLLBACK').catch(() => {}); h2.release(); }
+  assert.ok(['57014', '55P03'].includes(ex), String(ex));
+  assert.ok(elapsed2 < 4000, `the exchange is bounded too (took ${elapsed2} ms)`);
+  // Released: both go through.
+  assert.equal((await db.erase(p.core, p.request)).outcome, 'erased');
+  assert.equal((await exchange(q.core)).id, q.id);
+  return { eraseCode: erase.code, eraseMs: elapsed, unrelatedExchangeMs: unrelatedMs, exchangeCode: ex, exchangeMs: elapsed2 };
 }));
 
 if (WITH_0022) {

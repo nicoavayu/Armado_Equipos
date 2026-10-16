@@ -1,7 +1,9 @@
 # Regression suites run on the branch (2026-10-15, local, revision 2 per Codex review)
 ## test:torneos:account-deletion — 4 lab variants (rehearsal-lab.txt has every test name)
-main (db 11 + erasure 24 + gateway 11 + order-0020 1 + delete-account 15): 62/62
-main + 0020: 46/46 · main + 0022: 48/48 · main + 0020 + 0022: 48/48
+main (db 12 + erasure 26 + gateway 13 + order-0020 1 + delete-account 15): 67/67
+main + 0020: 51/51 · main + 0022: 53/53 · main + 0020 + 0022: 53/53
+(E24 tombstone, E25 lock bound: erasure 55P03 at 5000 ms with the global key held; unrelated exchange 13 ms; exchange on a
+held per-person key 57014 at 2004 ms)
 ## Jest full (CI=true react-scripts test --watchAll=false --runInBand)
 Test Suites: 392 passed, 392 total
 Tests:       3751 passed, 3751 total

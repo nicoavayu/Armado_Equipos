@@ -468,8 +468,9 @@ serve(async (req) => {
       );
     }
 
-    // ── Step 4: tell Torneos the Core account is gone (its ledger row: torneos_erased → core_confirmed). Torneos also sweeps
-    // an (empty) identity a session may have re-created between the erasure and the Core deletion. Best effort: the
+    // ── Step 4: tell Torneos the Core account is gone (its ledger row: torneos_erased → core_confirmed). Re-creating a
+    // Torneos identity with a still-valid JWT of this user is already refused by the Torneos tombstone
+    // (TORNEOS_ACCOUNT_ERASED); the confirmation's sweep stays as an idempotent defense. Best effort: the
     // account is already gone; a failure is only logged, and the Torneos row stays torneos_erased, where the operator's
     // read-only reconcile query finds it (backend/torneos/account-deletion-v1/README.md «Reconciliación»).
     const confirmation = await confirmTorneosAccountErasure({ env: Deno.env, coreUserId: user.id });

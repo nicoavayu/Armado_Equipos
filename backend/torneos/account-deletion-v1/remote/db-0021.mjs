@@ -25,24 +25,29 @@ export const REF = 'onzpwnqxnvlgsevivngf';
 const file = (rel, sha256, from, to) => Object.freeze({ path: path.join(REPO, rel), rel, sha256, from, to, phase: '0021' });
 export const FILES = Object.freeze({
   'apply-0021': file('backend/torneos/supabase/migrations/00000000000021_account_erasure.sql',
-    '56d0b35454a153743da64baa7457d88270354c0d0fd0332a5c55c092047515b5', 'PRE_0021', 'POST_0021'),
+    '0535f241ed080c38c244f7a51a491f67baafdd86c5089f6aac9bd69e2e019c26', 'PRE_0021', 'POST_0021'),
   'rollback-0021': file('backend/torneos/account-deletion-v1/rollback/00000000000021_account_erasure.rollback.sql',
-    '4c95d97bd843246f32f631b2f1fcfeb0c291855544fb786baa5b89867efd27f2', 'POST_0021', 'PRE_0021'),
+    '4bd7b70f4d4b95521e594da421dc6510093de60198fcac2b24562762c71302f6', 'POST_0021', 'PRE_0021'),
 });
 /** The session setting the rollback file honours to discard the erasure ledger (see its header). */
 export const FORCE_WORDS = 'DISCARD ERASURE LEDGER';
 export const FORCE_SQL = `SET torneos.account_erasure_rollback_force = '${FORCE_WORDS}';\n`;
 /** md5(prosrc): POST_0021 = the exact text between the dollar quotes of the migration. */
 export const BODIES = Object.freeze({
-  PRE_0021: Object.freeze({ erase: null, confirm: null, label: null }),
-  POST_0021: Object.freeze({ erase: '899dae4c18cffa2de32ad9a66e742a92', confirm: 'a26bcb671dea01fc83e0f6d41b5bc051', label: '588ebb88ffb2e70b96a3aaca06367cf0' }),
+  PRE_0021: Object.freeze({ erase: null, confirm: null, refuse: null, label: null }),
+  POST_0021: Object.freeze({ erase: '92a61ce6c0eebdbc232ce2ca15a9e128', confirm: 'a26bcb671dea01fc83e0f6d41b5bc051', refuse: 'bbd1590d2d386f9a2dae11e5ee78f16d', label: '588ebb88ffb2e70b96a3aaca06367cf0' }),
 });
 // Key order = the catalog's json_build_object order (compared as JSON).
 const fn = (secdef, erasureWriter) => Object.freeze({ secdef, config: ['search_path=""'], owner_is_installer: true, erasure_writer: erasureWriter,
   core_adapter: false, identity_writer: false, authenticated: false, anon: false, service_role: false });
 export const ACL = Object.freeze({
-  PRE_0021: Object.freeze({ erase: null, confirm: null, label: null }),
-  POST_0021: Object.freeze({ erase: fn(true, true), confirm: fn(true, true), label: fn(false, false) }),
+  PRE_0021: Object.freeze({ erase: null, confirm: null, refuse: null, label: null }),
+  POST_0021: Object.freeze({ erase: fn(true, true), confirm: fn(true, true), refuse: fn(true, false), label: fn(false, false) }),
+});
+/** The tombstone guard: BEFORE INSERT FOR EACH ROW on torneos_identity, enabled, calling the pinned function. */
+export const TOMBSTONE = Object.freeze({
+  PRE_0021: null,
+  POST_0021: Object.freeze({ enabled: 'O', before_insert_row: true, function: 'private.refuse_erased_identity()' }),
 });
 /** The erasure role, whole: no login, no inheritance, no attribute, member of nothing; USAGE on private and EXECUTE on the
  *  two erasure functions, and not one other grant in public / private / storage. */
@@ -84,6 +89,7 @@ export function classify(catalog) {
   }
   if (!same(catalog.table ?? null, TABLE[state])) failures.push(`table ${JSON.stringify(catalog.table)}`);
   if (!same(catalog.erasure_role ?? null, ERASURE_ROLE[state])) failures.push(`erasure_role ${JSON.stringify(catalog.erasure_role)}`);
+  if (!same(catalog.tombstone_trigger ?? null, TOMBSTONE[state])) failures.push(`tombstone_trigger ${JSON.stringify(catalog.tombstone_trigger)}`);
   if (state === 'PRE_0021' && catalog.erasure_role_logins?.length) failures.push('erasure_role_logins_without_role');
   if (state === 'PRE_0021' && catalog.rows != null) failures.push('rows_without_table');
   if (state === 'POST_0021' && !(Number.isInteger(catalog.rows) && catalog.rows >= 0)) failures.push(`rows ${catalog.rows}`);

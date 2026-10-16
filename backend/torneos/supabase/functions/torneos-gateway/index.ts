@@ -54,7 +54,7 @@ import { decodeJwt } from "npm:jose@6.2.12"
 import { issueMediaUploadToken, issueToken, verifyToken, uuid, jwks, TTL, type TorneosClaims } from "./token.ts"
 import { CoreClient, Denied, ROUTES } from "./core-client.ts"
 import { Adapter, AdapterDenied, CONTRACTS } from "./adapter.ts"
-import { connect, allocateIdentity, identityExists, isUnavailable, type Sql } from "./db.ts"
+import { connect, allocateIdentity, identityExists, isUnavailable, AccountErased, ACCOUNT_ERASED, type Sql } from "./db.ts"
 import { loadConfig, routePath, ConfigError, type GatewayConfig } from "./config.ts"
 import { COMMERCE_ROUTE, CommerceConfigError, effectiveRpcAllowlist, loadCommerceConfig, purchaseRefresh, REFRESH_ROUTE, seasonCheckout, type CommerceConfig } from "./commerce.ts"
 import { CompetitionConfigError, domainErrorStatus, loadCompetitionContract, loadOfficializationContract, preparePublicRpc, PublicGate, PUBLIC_RPC_ROUTE, withCompetition, withOfficialization, type CompetitionContract } from "./competition.ts"
@@ -421,6 +421,8 @@ export async function handle(req: Request): Promise<Response> {
   } catch (error) {
     // Never log request, bearer, SQL, errors with context, or response bodies.
     if (error instanceof CoreUnavailable) return json(503, { error: "CORE_UNAVAILABLE" }, cors)
+    // ACCOUNT ERASURE (0021): the account was erased from Torneos; a still-valid Core JWT never re-creates it.
+    if (error instanceof AccountErased) return json(403, { error: ACCOUNT_ERASED }, cors)
     const unavailable = error instanceof Unavailable || isUnavailable(error)
     return json(unavailable ? 503 : 401, { error: "access denied" }, cors)
   }

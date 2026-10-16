@@ -2,6 +2,7 @@ with tracked(name, sig) as (values
   -- ACCOUNT ERASURE 0021 operator catalog (read only): one JSON row consumed by db-0021.mjs classify() / changedOutside().
   ('erase', 'private.erase_tournament_account(uuid,uuid)'),
   ('confirm', 'private.confirm_tournament_account_erasure(uuid,uuid)'),
+  ('refuse', 'private.refuse_erased_identity()'),
   ('label', 'private.account_erasure_label(text,uuid,uuid)')),
 erasure_role as (select r.* from pg_roles r where r.rolname = 'torneos_erasure_writer'),
 guards(rel, trigger) as (values
@@ -69,6 +70,10 @@ select json_build_object(
        where n.nspname in ('public', 'private', 'storage') and exists (select 1 from aclexplode(c.relacl) a where a.grantee = r.oid)))
    from erasure_role r),
  -- (the installer's own ADMIN membership from CREATE ROLE, PostgreSQL 16+, is not a login of the role: left out)
+ -- The tombstone guard (0021): BEFORE INSERT on the identity table, enabled, calling the pinned function.
+ 'tombstone_trigger', (select json_build_object('enabled', t.tgenabled::text, 'before_insert_row', (t.tgtype & 7) = 7 and (t.tgtype & 28) = 4,
+     'function', t.tgfoid::regprocedure::text)
+   from pg_trigger t where t.tgrelid = to_regclass('public.torneos_identity') and t.tgname = 'torneos_identity_refuse_erased'),
  'erasure_role_logins', (select coalesce(json_agg(l.rolname order by l.rolname), '[]') from pg_auth_members m join erasure_role r on m.roleid = r.oid
    join pg_roles l on l.oid = m.member where l.rolname <> current_user),
  -- A row count only (never ids or hashes): undoing 0021 is refused while the ledger has rows.
@@ -85,5 +90,5 @@ select json_build_object(
    from pg_policies where schemaname in ('public', 'private', 'storage')),
  'kept_triggers', (select json_build_object('count', count(*), 'digest', md5(string_agg(t.tgrelid::regclass::text || '.' || t.tgname || ':' || t.tgenabled::text || ':' || md5(pg_get_triggerdef(t.oid)), ',' order by t.tgrelid::regclass::text, t.tgname)))
    from pg_trigger t join pg_class c on c.oid = t.tgrelid join pg_namespace n on n.oid = c.relnamespace
-   where not t.tgisinternal and n.nspname in ('public', 'private'))
+   where not t.tgisinternal and n.nspname in ('public', 'private') and t.tgname <> 'torneos_identity_refuse_erased')
 )::text
