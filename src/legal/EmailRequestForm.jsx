@@ -11,14 +11,14 @@ export function requestReference(prefix, now = new Date(), random = Math.random)
   return `${prefix}-${day}-${tail}`;
 }
 
-export function requestBody(intro, reference, form) {
+export function requestBody(intro, reference, form, operationBodyLabel = 'Operación de Mercado Pago (o fecha y monto)') {
   return [
     intro,
     '',
     `Referencia: ${reference}`,
     `Nombre y apellido: ${form.name}`,
     `Email de contacto: ${form.email}`,
-    `Operación de Mercado Pago (o fecha y monto): ${form.operation}`,
+    `${operationBodyLabel}: ${form.operation}`,
     form.season ? `Organización y temporada: ${form.season}` : null,
     form.comment ? `Comentario: ${form.comment}` : null,
   ].filter((line) => line !== null).join('\n');
@@ -38,8 +38,9 @@ async function copyText(text) {
 }
 
 /**
- * kind: { prefix: 'ARR' | 'BAJA', subject: 'Arrepentimiento' | 'Baja del servicio', intro: first line of the email,
- *         formLabel, operationLabel, operationRequired }
+ * kind: { prefix: 'ARR' | 'BAJA' | 'ELIM', subject: 'Arrepentimiento' | 'Baja del servicio' | 'Eliminar cuenta', intro: first line
+ *         of the email, formLabel, operationLabel, operationRequired, operationBodyLabel? (line of the email; default the
+ *         Mercado Pago operation), seasonField? (false hides «Organización y temporada») }
  */
 export default function EmailRequestForm({ kind }) {
   const { contactEmail } = LEGAL_IDENTITY;
@@ -55,7 +56,7 @@ export default function EmailRequestForm({ kind }) {
   };
   const copy = async (what, text) => setCopied((await copyText(text)) ? what : `${what}-error`);
   const subject = reference ? `${kind.subject} ${reference}` : '';
-  const body = reference ? requestBody(kind.intro, reference, form) : '';
+  const body = reference ? requestBody(kind.intro, reference, form, kind.operationBodyLabel) : '';
   const fullText = reference ? `Para: ${contactEmail}\nAsunto: ${subject}\n\n${body}` : '';
 
   if (!contactEmail) return <p role="alert">El canal de solicitudes todavía no está habilitado.</p>;
@@ -65,7 +66,9 @@ export default function EmailRequestForm({ kind }) {
         <label>Nombre y apellido<input value={form.name} onChange={set('name')} required autoComplete="name" /></label>
         <label>Email de contacto<input type="email" value={form.email} onChange={set('email')} required autoComplete="email" /></label>
         <label>{kind.operationLabel}<input value={form.operation} onChange={set('operation')} required={kind.operationRequired} /></label>
-        <label>Organización y temporada (opcional)<input value={form.season} onChange={set('season')} /></label>
+        {kind.seasonField !== false && (
+          <label>Organización y temporada (opcional)<input value={form.season} onChange={set('season')} /></label>
+        )}
         <label>Comentario (opcional)<textarea rows={3} value={form.comment} onChange={set('comment')} /></label>
         <button type="submit" disabled={!ready}>Preparar el correo</button>
       </form>

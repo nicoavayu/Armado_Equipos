@@ -1,7 +1,7 @@
 import logger from '../utils/logger';
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import ReactDOM from 'react-dom';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Capacitor } from '@capacitor/core';
 import { useAuth } from './AuthProvider';
 import { updateProfile, calculateProfileCompletion, supabase } from '../supabase';
@@ -35,6 +35,7 @@ import {
   signOutWithPushDeactivation,
 } from '../services/authLogoutService';
 import { closePrivateWebAccess } from '../utils/privateWebAccess';
+import { ACCOUNT_DELETION_SHORT, requestCoreAccountDeletion } from '../legal/accountDeletion';
 
 const GEO_LOG_PREFIX = '[PROFILE_GEO]';
 const LOCATION_DETECTION_FAILED_MESSAGE = 'No pudimos obtener tu ubicación. Volvé a intentarlo.';
@@ -455,7 +456,8 @@ const DeleteAccountModal = ({
           }}
         >
           <p className="text-[15px] leading-relaxed text-white/85">
-            Se eliminará tu perfil, tus datos asociados y se cerrará tu sesión automáticamente.
+            {ACCOUNT_DELETION_SHORT}{' '}
+            <Link className="underline" to="/account-deletion">Qué se borra y qué se conserva</Link>
           </p>
 
           <div className="space-y-2">
@@ -1284,23 +1286,8 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
 
     setLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke('delete-account', {
-        body: { confirm: true },
-      });
-
-      if (error) {
-        let serverMsg = '';
-        try {
-          const body = await error.context?.json?.();
-          serverMsg = [body?.message, body?.details, body?.code, body?.hint].filter(Boolean).join(' | ');
-        } catch (_) {}
-        throw new Error(serverMsg || error.message || 'No se pudo eliminar la cuenta.');
-      }
-
-      if (!data?.ok) {
-        const detail = [data?.details, data?.code, data?.hint].filter(Boolean).join(' | ');
-        throw new Error(`${data?.message || 'No se pudo eliminar la cuenta.'}${detail ? ` — ${detail}` : ''}`);
-      }
+      // Core delete-account: Torneos first (fail-closed), then Core. Messages for the person: legal/accountDeletion.js.
+      await requestCoreAccountDeletion(supabase);
 
       setShowDeleteAccountModal(false);
       setDeleteAccountConfirmation('');

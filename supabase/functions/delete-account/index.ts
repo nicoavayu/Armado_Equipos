@@ -5,6 +5,7 @@ import {
   getSupabasePublishableCredential,
   getSupabaseSecretCredential,
 } from "../_shared/supabaseApiKeys.ts";
+import { confirmTorneosAccountErasure, requestTorneosAccountErasure } from "../_shared/torneosAccountErasure.ts";
 
 type QueryError = {
   message?: string;
@@ -373,10 +374,33 @@ serve(async (req) => {
       });
     }
 
+    // ── Step 1: Torneos (a separate project) FIRST, and fail closed: if Torneos does not confirm the erasure, nothing is
+    // deleted in Core and the person can simply retry. The Core user id is the one of the session verified above, never a
+    // client value; every call for this user carries the same derived idempotency key. _shared/torneosAccountErasure.ts;
+    // Torneos migration 0021. Torneos and Core are two databases: from here on this is NOT atomic. What Torneos
+    // anonymised is irreversible; if a later step fails, the person retries (Torneos answers already_erased, a no-op) and
+    // Core finishes, or the operator's reconcile query lists the Torneos row Core never confirmed.
+    const torneos = await requestTorneosAccountErasure({ env: Deno.env, coreUserId: user.id });
+    if (!torneos.ok) {
+      console.warn(`[delete-account] torneos erasure not confirmed: ${torneos.code}`);
+      return new Response(
+        JSON.stringify({ ok: false, message: "torneos_erasure_failed", code: torneos.code, retryable: true }),
+        { status: 503, headers: { ...cors, "Content-Type": "application/json" } },
+      );
+    }
+
     const adminClient = createClient(supabaseUrl, serviceCredential.key, {
       global: { fetch: createSupabaseCredentialFetch(serviceCredential) },
       auth: { autoRefreshToken: false, persistSession: false },
     });
+
+    // ── Step 2 (SEAM, not implemented in this change): Storage. A follow-up adds here the deletion of the person's Core
+    // Storage objects (profile photos), AFTER Torneos confirmed and BEFORE any Core row is touched, so its failure can
+    // still answer a retryable error with the Core account intact (Torneos would answer already_erased on the retry).
+    // Sign in with Apple token revocation belongs to that same follow-up. Until then the public texts say photos are not
+    // deleted automatically yet (src/legal/accountDeletion.js).
+
+    // ── Step 3: Core rows, then the auth user.
 
     // Clean up dependent data before deleting the root row.
     await cleanupUserData(adminClient, user.id);
@@ -409,6 +433,8 @@ serve(async (req) => {
         JSON.stringify({
           ok: false,
           message: "profile_delete_failed",
+          // Torneos is already erased (irreversible) and not confirmed: the retry finishes (Torneos: already_erased).
+          retryable: true,
           details: profileDeleteError.message,
           code: profileDeleteError.code,
           hint: profileDeleteError.hint,
@@ -434,6 +460,7 @@ serve(async (req) => {
         JSON.stringify({
           ok: false,
           message: "auth_delete_failed",
+          retryable: true,
           details: deleteAuthError.message,
           code: (deleteAuthError as { code?: string }).code,
         }),
@@ -441,10 +468,19 @@ serve(async (req) => {
       );
     }
 
+    // ── Step 4: tell Torneos the Core account is gone (its ledger row: torneos_erased → core_confirmed). Re-creating a
+    // Torneos identity with a still-valid JWT of this user is already refused by the Torneos tombstone
+    // (TORNEOS_ACCOUNT_ERASED); the confirmation's sweep stays as an idempotent defense. Best effort: the
+    // account is already gone; a failure is only logged, and the Torneos row stays torneos_erased, where the operator's
+    // read-only reconcile query finds it (backend/torneos/account-deletion-v1/README.md «Reconciliación»).
+    const confirmation = await confirmTorneosAccountErasure({ env: Deno.env, coreUserId: user.id });
+    if (!confirmation.ok) console.warn(`[delete-account] torneos confirmation not delivered: ${confirmation.code}`);
+
     return new Response(
       JSON.stringify({
         ok: true,
         message: "account_deleted",
+        torneos: torneos.outcome,
       }),
       { status: 200, headers: { ...cors, "Content-Type": "application/json" } },
     );

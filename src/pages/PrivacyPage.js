@@ -69,8 +69,18 @@ export default function PrivacyPage() {
       <h2>5. Cuánto tiempo los guardamos</h2>
       <ul>
         <li>Cuenta y contenido: mientras la cuenta exista o hasta que los borres.</li>
+        <li>
+          Si eliminás la cuenta: se borran tu cuenta, tu perfil y tus datos personales en Arma2 y en Torneos. En partidos,
+          planteles, actas y estadísticas tu nombre se reemplaza por uno anónimo y los resultados se conservan (son la
+          historia de los demás equipos y organizaciones). Primero se borra en Torneos y después en Arma2: si falla una
+          parte, podés reintentar; lo ya anonimizado en Torneos no se puede revertir. Detalle completo en{' '}
+          <Link to={LEGAL_ROUTES.accountDeletion}>Eliminar cuenta</Link>.
+        </li>
         <li>Fotos de una temporada: hasta el fin de la temporada; después pueden eliminarse.</li>
-        <li>Compras: el tiempo que exigen las normas aplicables, aunque borres la cuenta.</li>
+        <li>
+          Compras: el tiempo que exigen las normas aplicables (contables y de defensa del consumidor), aunque borres la cuenta;
+          quedan sin vínculo con tu cuenta.
+        </li>
       </ul>
 
       <h2>6. Tus derechos</h2>
