@@ -45,6 +45,7 @@ import OrganizationRouteGuard from './OrganizationRouteGuard';
 import OrganizationVenuesPage from './OrganizationVenuesPage';
 import TournamentRouteGuard from './TournamentRouteGuard';
 import OrganizationSettingsPage from './OrganizationSettingsPage';
+import OrganizationSponsorsPage from './OrganizationSponsorsPage';
 import PlanExperiencePage from './PlanExperiencePage';
 import PurchaseStatusPage from './PurchaseStatusPage';
 import { useOptionalTorneosCompetition } from '../context/TorneosCompetitionContext';
@@ -672,6 +673,7 @@ function TorneosShellContent() {
               )}
               <Route path="configuracion" element={<OrganizationSettingsPage />} />
               <Route path="configuracion/plan" element={gate('plan_legacy_routes', <LegacyPlanRedirect />)} />
+              <Route path="configuracion/sponsors" element={gate('branding_assets', <OrganizationSponsorsPage />)} />
               <Route path="miembros" element={<OrganizationMembersPage />} />
             </Route>
             <Route path="mis-partidos" element={gate('match_operations', <MyTournamentMatchesPage />)} />

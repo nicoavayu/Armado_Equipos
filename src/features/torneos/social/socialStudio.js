@@ -224,6 +224,14 @@ function stableValue(value) {
   }, {});
 }
 
+// PREMIUM SPONSORS: a piece's sponsors are identified by who they are, how they are named and the exact logo object
+// (a replaced logo is a new object, so the key — and with it the preview — changes). Never by the logo's URL: a signed
+// URL changes on every read while the logo stays the same.
+function sponsorKey(entry) {
+  if (!entry) return null;
+  return { id: entry.id || null, name: entry.name || null, logoPath: entry.logoPath || null };
+}
+
 export function createSocialRenderKey({
   snapshot, content, editorial, format, theme, variant, assetPlan, branding, sponsors = [],
 }) {
@@ -235,9 +243,47 @@ export function createSocialRenderKey({
     theme,
     variant,
     branding: normalizeSocialBranding(branding, content),
-    sponsors: sponsors.map((entry) => entry?.id || entry?.name || null),
+    sponsors: sponsors.map(sponsorKey),
     assets: assetPlan,
   }));
+}
+
+/**
+ * The sponsors a piece really draws: only a style whose capabilities include sponsors (never Base), at most three, each
+ * with an identity and a logo to draw. Anything else draws (and keys) no sponsor at all.
+ */
+export function resolveDrawnSponsors(sponsors, theme) {
+  const selectedTheme = resolveSocialTheme(theme);
+  if (!selectedTheme.capabilities?.sponsors || !Array.isArray(sponsors)) return [];
+  return sponsors
+    .filter((entry) => entry && entry.id && (entry.image || entry.src))
+    .slice(0, 3)
+    .map((entry) => Object.freeze({
+      id: entry.id,
+      name: entry.name || '',
+      logoPath: entry.logoPath || null,
+      image: entry.image || entry.src,
+    }));
+}
+
+/**
+ * Sponsor logos become bitmaps before the piece is drawn, like crests: the composition never holds the (signed) URL,
+ * the file never carries it, and a render is the same however late the logo arrives. A logo the person chose and that
+ * cannot be read stops the render: silently dropping a sponsor would produce a piece they did not ask for.
+ */
+async function resolveSponsorBitmaps(drawn, { signal } = {}) {
+  const bitmaps = [];
+  try {
+    for (const entry of drawn) {
+      const bitmap = typeof entry.image === 'string' ? await loadBitmap(entry.image, { signal }) : entry.image;
+      if (!bitmap) throw new SocialRenderError('ASSET_SPONSOR_UNAVAILABLE', entry.id);
+      bitmaps.push(bitmap);
+    }
+    return bitmaps;
+  } catch (error) {
+    bitmaps.forEach((bitmap) => { if (bitmap && typeof bitmap.close === 'function') bitmap.close(); });
+    throw error;
+  }
 }
 
 /**
@@ -272,6 +318,8 @@ export async function prepareSocialRender({
     format: editorial.format,
   }) : null;
   const selectedTheme = resolveSocialTheme(theme);
+  const drawnSponsors = resolveDrawnSponsors(sponsors, selectedTheme);
+  const sponsorIdentities = drawnSponsors.map(({ image, ...identity }) => Object.freeze(identity));
   const normalizedBranding = normalizeSocialBranding(branding, content);
   const assetPlan = createSocialAssetPlan(snapshot, editorial, content, {
     branding: normalizedBranding,
@@ -288,6 +336,7 @@ export async function prepareSocialRender({
     assets = await resolveSocialAssets(snapshot, editorial, {
       signMediaReadUrls, resolveShieldUrl, signal, assetPlan, photoSourceUrl,
     });
+    if (drawnSponsors.length) assets.sponsors = await resolveSponsorBitmaps(drawnSponsors, { signal });
     onStatus?.('rendering');
     const format = SOCIAL_FORMATS[editorial.format] || SOCIAL_FORMATS.portrait;
     let canvas = null;
@@ -299,7 +348,7 @@ export async function prepareSocialRender({
       if (!ctx) throw new SocialRenderError('CANVAS_UNAVAILABLE');
       drawSocialPiece(ctx, {
         snapshot, content, editorial, assets, format, theme: selectedTheme, variant,
-        branding: normalizedBranding, sponsors,
+        branding: normalizedBranding, sponsors: sponsorIdentities,
       });
     } else {
       premiumRender = createPremiumDomRender({
@@ -309,18 +358,18 @@ export async function prepareSocialRender({
         assets,
         branding: { ...normalizedBranding, showArma2Branding: false },
         theme: selectedTheme,
-        sponsors,
+        sponsors: sponsorIdentities.map((entry, index) => ({ ...entry, image: assets.sponsors[index] })),
       });
       ({ node, root } = premiumRender);
       await waitForPremiumDomAssets(node);
     }
     const renderKey = createSocialRenderKey({
       snapshot, content, editorial, format, theme: selectedTheme, variant, assetPlan,
-      branding: normalizedBranding, sponsors,
+      branding: normalizedBranding, sponsors: sponsorIdentities,
     });
     return {
       canvas, node, root, format, content, theme: selectedTheme, variant, assets, assetPlan,
-      branding: normalizedBranding, brandAssetUrls, sponsors, renderKey,
+      branding: normalizedBranding, brandAssetUrls, sponsors: sponsorIdentities, renderKey,
     };
   } catch (error) {
     releasePremiumDomRender(premiumRender);
@@ -475,6 +524,7 @@ export function releaseSocialAssets(assets) {
   Object.values(assets.shields || {}).forEach(close);
   close(assets.photo);
   Object.values(assets.branding || {}).forEach(close);
+  (assets.sponsors || []).forEach(close);
 }
 
 // An export (authorization, PNG encoding, share sheet) keeps using its prepared render after the preview has moved on

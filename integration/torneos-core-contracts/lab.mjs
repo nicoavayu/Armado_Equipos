@@ -298,7 +298,8 @@ export async function installTorneos(c) {
     const text = await readFile(dir + name, 'utf8');
     const digest = createHash('sha256').update(text).digest('hex');
     // BRANDING-V1 needs the project's Storage schema (hosted: always there; this lab: only the branding overlay).
-    if ((name.endsWith('_branding_v1.sql') || name.endsWith('_media_store_v1.sql')) && !storageReady) {
+    // PREMIUM SPONSORS (0020) extends 0017's in-use rule and needs the branding bucket: same condition.
+    if ((name.endsWith('_branding_v1.sql') || name.endsWith('_media_store_v1.sql') || name.endsWith('_premium_sponsors.sql')) && !storageReady) {
       followUps.push({ file: (dir + name).slice(repo.length), sha256: digest, applied: false, skipped: 'no storage service in this lab run' });
       continue;
     }

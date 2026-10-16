@@ -9,6 +9,12 @@ import { normalizeMatchOutcome } from '../domain/matchOutcome';
 import { resolveBrandingAssetUrl } from '../domain/brandingAssets';
 import { loadTournamentBrandingContext } from './tournamentBrandingService';
 import {
+  archiveTournamentOrganizationSponsor,
+  authorizeTournamentSocialSponsors,
+  loadTournamentOrganizationSponsors,
+  saveTournamentOrganizationSponsor,
+} from './tournamentSponsorsService';
+import {
   deleteTournamentMediaAsset,
   signTournamentMediaReadUrls,
   uploadTournamentMediaPhoto,
@@ -2321,6 +2327,11 @@ export const tournamentWorkspaceService = Object.freeze({
   loadSocialSnapshot: loadTournamentSocialSnapshot,
   authorizeSocialExport: authorizeTournamentSocialExport,
   setSocialPermission: setTournamentSocialPermission,
+  // PREMIUM SPONSORS (0020): the organization's sponsors (Configuración → Sponsors) and a piece's sponsors (Estudio).
+  loadOrganizationSponsors: loadTournamentOrganizationSponsors,
+  saveOrganizationSponsor: saveTournamentOrganizationSponsor,
+  archiveOrganizationSponsor: archiveTournamentOrganizationSponsor,
+  authorizeSocialSponsors: authorizeTournamentSocialSponsors,
   loadPublicPageSettings: loadTournamentPublicPageSettings,
   setPublicPagePublished: setTournamentPublicPagePublished,
   loadTeamVisualPolicy: loadTournamentTeamVisualPolicy,

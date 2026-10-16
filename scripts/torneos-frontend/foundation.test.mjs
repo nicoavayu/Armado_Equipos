@@ -20,6 +20,9 @@ const connectedSource = JSON.parse(read('backend/torneos/supabase/functions/torn
 const CONNECTED_AUTHENTICATED = Object.values(connectedSource.features).flat();
 const CONNECTED_PUBLIC = Object.values(connectedSource.public).flat();
 const CONNECTED = new Set([...CONNECTED_AUTHENTICATED, ...CONNECTED_PUBLIC]);
+// PREMIUM SPONSORS (0020): the only RPC names the LOCAL sponsors service may call — the `sponsors` feature of BRANDING-V1.
+const SPONSORS_LOCAL = JSON.parse(read('backend/torneos/supabase/functions/torneos-gateway/branding-v1-rpc-allowlist.json')).features.sponsors;
+const SPONSORS_SERVICE = 'src/features/torneos/api/tournamentSponsorsService.js';
 const prefix = 'src/features/torneos/foundation/';
 const uuidStub = { v4: () => 'placeholder' };
 // Objects built inside the sandbox realm have another Object.prototype: compare by value.
@@ -173,7 +176,10 @@ test('backend access reachable from Torneos matches the audited fixture exactly;
 
 test('the only backend access B04 adds is the gateway transport (fetch) and the read-only Core session bridge', () => {
   const legacyFiles = new Set(legacy.calls.map((c) => c.file));
-  const added = baseline.calls.filter((c) => !legacyFiles.has(c.file)).map(({ file, kind, callee }) => ({ file, kind, callee }));
+  // Compared per file and kind (a file lists its calls in source order; what matters is which calls exist).
+  const byFileKind = (a, b) => `${a.file}\u0000${a.kind}\u0000${a.callee}`.localeCompare(`${b.file}\u0000${b.kind}\u0000${b.callee}`);
+  const added = baseline.calls.filter((c) => !legacyFiles.has(c.file)).map(({ file, kind, callee }) => ({ file, kind, callee }))
+    .sort(byFileKind);
   assert.deepEqual(added, [
     { file: 'src/features/torneos/foundation/torneosClient.js', kind: 'rpc', callee: 'transport.rpc' },
     // MEDIA-V1: the photo upload to the gateway's media route with real byte progress (XMLHttpRequest; fetch where it
@@ -196,7 +202,25 @@ test('the only backend access B04 adds is the gateway transport (fetch) and the 
     { file: 'src/features/torneos/api/publicCatalogService.js', kind: 'rpc', callee: 'supabase.rpc' },
     { file: 'src/features/torneos/components/TorneosLanding.jsx', kind: 'persistence', callee: 'window.localStorage.getItem' },
     { file: 'src/features/torneos/components/TorneosLanding.jsx', kind: 'persistence', callee: 'window.localStorage.setItem' },
-  ]).sort((a, b) => `${a.file}\u0000${a.kind}`.localeCompare(`${b.file}\u0000${b.kind}`)));
+  ]).concat([
+    // PREMIUM SPONSORS on the LOCAL single-project stack (the hybrid composition reaches the same four RPCs and the
+    // branding object route through the gateway): the four sponsors RPCs, the logo upload to the existing branding
+    // bucket (organization kind) and the removal of a refused upload or of a replaced / archived logo.
+    { file: SPONSORS_SERVICE, kind: 'rpc', callee: 'supabase.rpc' },
+    { file: SPONSORS_SERVICE, kind: 'rpc', callee: 'supabase.rpc' },
+    { file: SPONSORS_SERVICE, kind: 'rpc', callee: 'supabase.rpc' },
+    { file: SPONSORS_SERVICE, kind: 'rpc', callee: 'supabase.rpc' },
+    { file: SPONSORS_SERVICE, kind: 'from', callee: 'supabase.storage.from' },
+    { file: SPONSORS_SERVICE, kind: 'from', callee: 'supabase.storage.from' },
+    { file: SPONSORS_SERVICE, kind: 'storage', callee: 'supabase.storage.from.remove' },
+    { file: SPONSORS_SERVICE, kind: 'storage', callee: 'supabase.storage.from.upload' },
+  ]).sort(byFileKind));
+  for (const call of baseline.calls.filter((c) => c.file === SPONSORS_SERVICE && c.kind === 'rpc')) {
+    assert.ok(call.targets.length === 1 && SPONSORS_LOCAL.includes(call.targets[0]), `sponsors call ${call.targets}`);
+  }
+  for (const call of baseline.calls.filter((c) => c.file === SPONSORS_SERVICE && c.kind === 'storage')) {
+    assert.match(call.expression.replace(/\s+/g, ""), /^supabase\.storage\.from\(BRANDING_BUCKET\)/, 'sponsor logos live in the existing branding bucket');
+  }
   for (const call of baseline.calls.filter((c) => c.file === 'src/features/torneos/api/publicCatalogService.js')) {
     assert.ok(call.targets.length === 1 && CONNECTED_PUBLIC.includes(call.targets[0]), `public catalog call ${call.targets}`);
   }
@@ -294,6 +318,16 @@ test('the only backend access B04 adds is the gateway transport (fetch) and the 
     // BRANDING-V1: the upload field stores the asset through the MOUNTED composition's service (hybrid: the gateway's
     // object route; LOCAL: its storage service, the field's previous default, still the fallback).
     'src/features/torneos/components/BrandingAssetField.jsx -> ../context/TorneosWorkspaceContext',
+    // PREMIUM SPONSORS (0020): Configuración → Sponsors reads and changes the organization's sponsors through the
+    // MOUNTED composition's service (hybrid: the BRANDING-V1 aliases; LOCAL: its own storage service), and the shell
+    // mounts it behind the branding feature.
+    'src/features/torneos/components/OrganizationSponsorsPage.jsx -> ../context/TorneosWorkspaceContext',
+    'src/features/torneos/components/TorneosShell.jsx -> ./OrganizationSponsorsPage',
+    // The LOCAL single-project composition's sponsors service: its own Core client and the branding resolver, reached
+    // only through the LOCAL workspace service (the hybrid composition never imports it).
+    'src/features/torneos/api/tournamentSponsorsService.js -> ../../../services/api/supabase',
+    'src/features/torneos/api/tournamentSponsorsService.js -> ../domain/brandingAssets',
+    'src/features/torneos/api/tournamentWorkspaceService.js -> ./tournamentSponsorsService',
     // The call and the request show the tournament's logo with the same branding rule as the card and the public page.
     'src/features/torneos/components/connected/CatalogCallPage.jsx -> ../BrandingImage',
     'src/features/torneos/components/connected/TournamentApplicationPage.jsx -> ../BrandingImage',
@@ -415,7 +449,8 @@ test('audit resolves every legacy RPC dispatch; the single unresolved dispatch i
   const actual = audit(currentSources());
   const rpc = actual.calls.filter(c => c.kind === 'rpc');
   // 161 audited dispatches + CONNECTED-V1: the 14 authenticated aliases of the LOCAL service and the 3 public catalog reads.
-  assert.equal(rpc.length, 161 + CONNECTED_AUTHENTICATED.length + CONNECTED_PUBLIC.length);
+  // + PREMIUM SPONSORS: the four RPCs of the LOCAL sponsors service.
+  assert.equal(rpc.length, 161 + CONNECTED_AUTHENTICATED.length + CONNECTED_PUBLIC.length + SPONSORS_LOCAL.length);
   assert.deepEqual(rpc.filter(c => c.targets.length === 0).map(c => c.file), ['src/features/torneos/foundation/torneosClient.js']);
 });
 

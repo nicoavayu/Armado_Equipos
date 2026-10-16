@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import crypto from 'node:crypto';
 import {
-  COMMERCE_DELTA, MEDIA_STORE_DELTA, changedOutside, FILES, MEDIA_BODIES, MEDIA_BUCKET, MEDIA_FUNCTIONS, MEDIA_POLICIES, MODES, REF, STATES, classify, modeSql, run,
+  COMMERCE_DELTA, MEDIA_STORE_DELTA, SPONSORS_DELTA, changedOutside, FILES, MEDIA_BODIES, MEDIA_BUCKET, MEDIA_FUNCTIONS, MEDIA_POLICIES, MODES, REF, STATES, classify, modeSql, run,
 } from './remote/db-0012.mjs';
 import { ROSTER_SEARCH } from '../connected-v1/remote/db-0009-0011.mjs';
 
@@ -23,13 +23,13 @@ function prosrc(sql, qualified) {
   return sql.slice(start, sql.indexOf(open[1], start));
 }
 
-function catalogAt(state, { commerce = false, mediaStore = false, mode, mutate = (c) => c } = {}) {
+function catalogAt(state, { commerce = false, mediaStore = false, sponsors = false, mode, mutate = (c) => c } = {}) {
   const s = STATES[state];
   return mutate({
-    torneos_tables: true, storage_ready: true, roster_search: { ...ROSTER_SEARCH.fixed }, commerce, media_store: mediaStore, media_objects: 0,
+    torneos_tables: true, storage_ready: true, roster_search: { ...ROSTER_SEARCH.fixed }, commerce, media_store: mediaStore, sponsors, media_objects: 0,
     mode: mode ?? (s.media ? 'MVP_SIMPLE' : 'PROCESSOR_EXTERNAL'),
-    counts: { authenticated: s.counts[0] + (commerce ? COMMERCE_DELTA[0] : 0) + (mediaStore ? MEDIA_STORE_DELTA[0] : 0),
-      anon: s.counts[1] + (commerce ? COMMERCE_DELTA[1] : 0) + (mediaStore ? MEDIA_STORE_DELTA[1] : 0) },
+    counts: { authenticated: s.counts[0] + (commerce ? COMMERCE_DELTA[0] : 0) + (mediaStore ? MEDIA_STORE_DELTA[0] : 0) + (sponsors ? SPONSORS_DELTA[0] : 0),
+      anon: s.counts[1] + (commerce ? COMMERCE_DELTA[1] : 0) + (mediaStore ? MEDIA_STORE_DELTA[1] : 0) + (sponsors ? SPONSORS_DELTA[1] : 0) },
     media: s.media
       ? { functions: [...MEDIA_FUNCTIONS], policies: [...MEDIA_POLICIES], budget_table: true, bodies: { ...MEDIA_BODIES[s.bodies] },
         bucket: { ...MEDIA_BUCKET, allowed_mime_types: [...MEDIA_BUCKET.allowed_mime_types] }, grants: { transition: true, change_state: true, report: true } }
@@ -245,4 +245,24 @@ test('0017 (MEDIA-STORE-V1) on top: exactly +1 authenticated / +0 anon, only wit
   assert.deepEqual(changedOutside(catalogAt('POST_0014'), catalogAt('POST_0014', { mediaStore: true })), ['media_store']);
   current = catalogAt('POST_0012', { mediaStore: true, mode: 'PROCESSOR_EXTERNAL' });
   await assert.rejects(run('rollback-0012', phrase('rollback-0012'), deps), /ROLLBACK_REFUSED 0017 is installed/);
+});
+
+test('0020 (PREMIUM SPONSORS) on top of 0017: exactly +4 authenticated / +0 anon, only with 0017; mode still switches', async () => {
+  assert.deepEqual(SPONSORS_DELTA, [4, 0]);
+  for (const commerce of [false, true]) {
+    assert.deepEqual(classify(catalogAt('POST_0014', { commerce, mediaStore: true, sponsors: true })), { state: 'POST_0014', failures: [] }, `commerce=${commerce}`);
+  }
+  const off = (n) => catalogAt('POST_0014', { mediaStore: true, sponsors: true, mutate: (c) => { c.counts.authenticated += n; return c; } });
+  assert.match(classify(off(-4)).failures.join(), /counts 205\/16 want 209\/16/, 'its grants not counted');
+  assert.match(classify(off(1)).failures.join(), /counts 210\/16 want 209\/16/);
+  assert.match(classify(catalogAt('POST_0014', { mediaStore: true, mutate: (c) => { delete c.sponsors; return c; } })).failures.join(), /sponsors undefined/);
+  const without = catalogAt('POST_0014', { mutate: (c) => { c.sponsors = true; c.counts.authenticated += 4; return c; } });
+  assert.match(classify(without).failures.join(), /sponsors_without_0017/);
+  let current = catalogAt('POST_0014', { mediaStore: true, sponsors: true, mode: 'MVP_SIMPLE' });
+  const deps = { catalog: async () => current, applySql: async (sql) => { current = { ...current, mode: /'([A-Z_]+)'/.exec(sql)[1] }; return { code: 0 }; } };
+  const contained = await run('mode', ['PROCESSOR_EXTERNAL', ...`SET TORNEOS MEDIA PIPELINE MODE PROCESSOR_EXTERNAL ${REF}`.split(' ')], deps);
+  assert.deepEqual([contained.verdict, contained.changedOutside], ['MODE_PROCESSOR_EXTERNAL_DONE', []], 'containment still works with 0020');
+  assert.deepEqual(changedOutside(catalogAt('POST_0014', { mediaStore: true }), catalogAt('POST_0014', { mediaStore: true, sponsors: true })), ['sponsors']);
+  assert.match(fs.readFileSync('backend/torneos/media-v1/remote/sql-catalog.sql', 'utf8'),
+    /'sponsors', to_regprocedure\('public\.authorize_tournament_social_sponsors\(uuid,uuid,text,uuid\[\]\)'\) is not null/);
 });

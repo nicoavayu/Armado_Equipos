@@ -232,6 +232,40 @@
 .textEditor fieldset { display: grid; gap: 12px; margin: 8px 0 0; padding: 0; border: 0; min-width: 0; }
 .textEditor fieldset[disabled] { opacity: .55; }
 
+/* ── Sponsors (Premium styles only): up to three logos, chosen by the person, drawn in the preview and the file ──── */
+.sponsorPicker {
+  display: grid; gap: 10px; min-width: 0; margin: 0; padding: 12px;
+  border: 1px solid var(--social-line); border-radius: 14px; background: rgba(6, 5, 12, .35);
+}
+.sponsorPicker legend {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 0 6px; font-size: 12px; letter-spacing: 2px; text-transform: uppercase; color: var(--social-cyan);
+}
+.sponsorPicker[disabled] { opacity: .55; }
+.sponsorList { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 220px), 1fr)); gap: 8px; }
+.refine .sponsorOption {
+  display: flex; align-items: center; gap: 10px; min-width: 0; min-height: 52px;
+  padding: 6px 10px; border: 1px solid rgba(255, 255, 255, .09); border-radius: 12px;
+  background: rgba(6, 5, 12, .55); cursor: pointer;
+}
+.sponsorOption input { flex: none; width: 18px; height: 18px; }
+.sponsorOption:has(input:disabled) { cursor: not-allowed; opacity: .6; }
+.sponsorLogo {
+  display: grid; flex: none; width: 56px; height: 36px; place-items: center; overflow: hidden;
+  border-radius: 8px; background: #f4f1ea;
+}
+.sponsorLogo img { width: 100%; height: 100%; object-fit: contain; }
+/* A sponsor's name is read whole: two lines before it is cut. */
+.sponsorOption strong {
+  display: -webkit-box; min-width: 0; overflow: hidden; color: #f3effa; font-size: 13px; line-height: 1.25;
+  -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow-wrap: anywhere;
+}
+.sponsorError { margin: 0; color: #f9b4ad; font-size: 12px; line-height: 1.45; }
+.sponsorError button {
+  padding: 0; border: 0; background: none; color: var(--social-cyan); font: inherit; font-weight: 700;
+  text-decoration: underline; cursor: pointer;
+}
+
 .srOnly {
   position: absolute !important; width: 1px !important; height: 1px !important;
   padding: 0 !important; margin: -1px !important; overflow: hidden !important;

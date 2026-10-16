@@ -86,5 +86,7 @@ export const COMPETITION_EXCLUDED = ['archiveFixture', 'changeMatchPlan', 'lockR
   'loadPlayerSuspensions', 'updateVenue', 'updateCourt', 'setAnnouncementAudience', 'saveMatchOperationDraft', 'voidMatchOperation',
   'loadMediaAdminContext', 'loadPublishedMedia', 'reportMediaAsset', 'signMediaReadUrls', 'uploadMediaPhoto', 'deleteMediaAsset',
   'loadSocialStudioContext', 'loadSocialSnapshot', 'authorizeSocialExport', 'setSocialPermission', 'loadTeamVisualPolicy',
-  'setTeamVisualPolicy', 'resolveTeamShieldUrl', 'resolveTournamentLogoUrl', 'loadSeasonMediaUsage', 'handleMediaReport'];
+  'setTeamVisualPolicy', 'resolveTeamShieldUrl', 'resolveTournamentLogoUrl', 'loadSeasonMediaUsage', 'handleMediaReport',
+  // PREMIUM SPONSORS ride the branding opt-in: never in the default adapter.
+  'loadOrganizationSponsors', 'saveOrganizationSponsor', 'archiveOrganizationSponsor', 'authorizeSocialSponsors'];
 

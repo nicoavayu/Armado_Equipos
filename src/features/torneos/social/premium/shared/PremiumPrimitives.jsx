@@ -162,8 +162,102 @@ export function PremiumImageSlot({ src, placeholder = '', focalX = 0.5, focalY =
   );
 }
 
-export function PremiumSponsorMark({ sponsor }) {
-  const src = sponsor?.src || sponsor?.imageSrc || null;
-  if (!src) return null;
-  return <img src={src} alt={sponsor?.name || ''} draggable="false" style={{ display: 'block', width: 118, height: 46, objectFit: 'contain' }} />;
+// PREMIUM SPONSORS — the «CON EL APOYO DE» band. One to three logos, each whole (object-fit: contain) inside a tile of
+// the same size and padding, laid out across the width (one centred, two split, three evenly): legible on a phone. The
+// tile is white so a logo in any dark ink reads on every style; a light logo on a transparent background
+// (premiumDataAdapter: tone "dark") gets the style's ink instead. Only drawn when a piece has sponsors: without them the
+// compositions are untouched.
+export const PREMIUM_SPONSOR_BAND_METRICS = Object.freeze({
+  portrait: Object.freeze({
+    labelSize: 19, labelGap: 12, tileHeight: 160, tilePadY: 12, tilePadX: 20, tileGap: 22, tileMaxWidth: 400,
+  }),
+  story: Object.freeze({
+    labelSize: 24, labelGap: 16, tileHeight: 216, tilePadY: 16, tilePadX: 26, tileGap: 28, tileMaxWidth: 440,
+  }),
+});
+
+const SPONSOR_BAND_THEMES = Object.freeze({
+  heritage: {
+    label: 'CON EL APOYO DE', labelColor: '#4F473F', labelWeight: 700, labelSpacing: '0.26em',
+    rule: 'rgba(22,24,28,0.3)', centered: false,
+    tile: '#FFFFFF', tileBorder: '2px solid rgba(22,24,28,0.16)', tileRadius: 4, ink: '#16181C',
+  },
+  street: {
+    label: 'APOYAN', chip: { background: '#EDE4D3', color: '#0B0B0C', transform: 'rotate(-1.4deg)', padding: '5px 12px 4px' },
+    labelColor: '#0B0B0C', labelWeight: 700, labelSpacing: '0.18em',
+    rule: 'rgba(237,228,211,0.35)', centered: false,
+    tile: '#FFFFFF', tileBorder: '2px solid #FFFFFF', tileRadius: 0,
+    ink: '#1A1A1D', inkBorder: '2px solid rgba(237,228,211,0.45)',
+  },
+  scoreboard: {
+    label: 'CON EL APOYO DE', labelColor: '#3E4838', labelWeight: 600, labelSpacing: '0.24em',
+    rule: '#C3C9B7', centered: false,
+    tile: '#FFFFFF', tileBorder: '2px solid #C3C9B7', tileRadius: 0, ink: '#093A22',
+  },
+  editorial: {
+    label: 'CON EL APOYO DE', labelColor: 'rgba(27,42,70,0.82)', labelWeight: 600, labelSpacing: '0.28em',
+    rule: 'rgba(27,42,70,0.35)', centered: true,
+    tile: '#FFFFFF', tileBorder: '1.5px solid rgba(27,42,70,0.3)', tileRadius: 2, ink: '#1B2A46',
+  },
+});
+
+export function PremiumSponsorBand({ sponsors, style = null }) {
+  const { themeId, formatId } = useContext(PremiumRenderContext);
+  const drawn = (sponsors || []).filter((sponsor) => sponsor?.src).slice(0, 3);
+  if (!drawn.length) return null;
+  const metrics = PREMIUM_SPONSOR_BAND_METRICS[formatId === 'story' ? 'story' : 'portrait'];
+  const theme = SPONSOR_BAND_THEMES[themeId] || SPONSOR_BAND_THEMES.heritage;
+  const rule = <span aria-hidden="true" style={{ flex: '1 1 0', minWidth: 24, height: 2, background: theme.rule }} />;
+  return (
+    <div
+      data-premium-sponsor-band={drawn.length}
+      style={{
+        flex: 'none', display: 'flex', flexDirection: 'column', gap: metrics.labelGap, width: '100%',
+        boxSizing: 'border-box', ...style,
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: Math.round(metrics.labelSize * 0.9) }}>
+        {theme.centered ? rule : null}
+        <span
+          data-premium-sponsor-label="true"
+          style={{
+            flex: 'none', whiteSpace: 'nowrap', lineHeight: 1.15, fontSize: metrics.labelSize,
+            fontWeight: theme.labelWeight, letterSpacing: theme.labelSpacing, color: theme.labelColor,
+            ...theme.chip,
+          }}
+        >
+          {theme.label}
+        </span>
+        {rule}
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'center', gap: metrics.tileGap, width: '100%' }}>
+        {drawn.map((sponsor, index) => {
+          const dark = sponsor.tone === 'dark';
+          return (
+            <div
+              key={sponsor.id || index}
+              data-premium-sponsor-tile="true"
+              data-tone={dark ? 'dark' : 'light'}
+              style={{
+                flex: `1 1 ${metrics.tileMaxWidth}px`, maxWidth: metrics.tileMaxWidth, minWidth: 0,
+                height: metrics.tileHeight, boxSizing: 'border-box',
+                padding: `${metrics.tilePadY}px ${metrics.tilePadX}px`,
+                background: dark ? theme.ink : theme.tile,
+                border: dark ? (theme.inkBorder || theme.tileBorder) : theme.tileBorder,
+                borderRadius: theme.tileRadius, overflow: 'hidden',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}
+            >
+              <img
+                src={sponsor.src}
+                alt={sponsor.name || ''}
+                draggable="false"
+                style={{ display: 'block', width: '100%', height: '100%', objectFit: 'contain' }}
+              />
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
 }

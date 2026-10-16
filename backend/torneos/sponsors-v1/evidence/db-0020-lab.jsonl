@@ -1,0 +1,7 @@
+{"step":"apply-0020 as postgres (lab, hosted topology)","verdict":"APPLY_0020_DONE","before":"PRE_0020","after":"POST_0020","changedOutside":[],"psql":0}
+{"step":"apply as postgres","verdict":"APPLY_0020_DONE","before":"PRE_0020","after":"POST_0020","forced":false,"changedOutside":[],"psql":0}
+{"step":"rollback as postgres (no rows)","verdict":"ROLLBACK_0020_DONE","before":"POST_0020","after":"PRE_0020","forced":false,"changedOutside":[],"psql":0}
+{"step":"re-apply as postgres","verdict":"APPLY_0020_DONE","before":"PRE_0020","after":"POST_0020","forced":false,"changedOutside":[],"psql":0}
+{"step":"rollback as postgres --force (1 row discarded)","verdict":"ROLLBACK_0020_DONE","before":"POST_0020","after":"PRE_0020","forced":true,"changedOutside":[],"psql":0}
+{"step":"re-apply as postgres (final state)","verdict":"APPLY_0020_DONE","before":"PRE_0020","after":"POST_0020","forced":false,"changedOutside":[],"psql":0}
+{"step":"files","apply":"3b2ed5370a637ea86475ceba0a100802e5928c2187dcf1e70bb057ae3d64582c","rollback":"dc8422ca7f99c63773e46cfefd3d005912bc7bda029470fdacf2429be33e41dd"}

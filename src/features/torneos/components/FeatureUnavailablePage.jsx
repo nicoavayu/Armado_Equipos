@@ -13,6 +13,7 @@ const FEATURE_LABELS = Object.freeze({
   plan: 'Planes y compras',
   media: 'Multimedia',
   social_studio: 'Estudio Social',
+  branding_assets: 'Identidad visual y sponsors',
   team_photos: 'Identidad visual del equipo',
 });
 
