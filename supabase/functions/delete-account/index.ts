@@ -5,6 +5,9 @@ import {
   getSupabasePublishableCredential,
   getSupabaseSecretCredential,
 } from "../_shared/supabaseApiKeys.ts";
+import { confirmTorneosAccountErasure, requestTorneosAccountErasure } from "../_shared/torneosAccountErasure.ts";
+import { eraseCoreAccountStorage, storageErasureMode } from "../_shared/coreAccountStorageErasure.ts";
+import { revokeAppleSignIn } from "../_shared/appleSignInRevocation.ts";
 
 type QueryError = {
   message?: string;
@@ -373,10 +376,47 @@ serve(async (req) => {
       });
     }
 
+    // ── Step 1: Torneos (a separate project) FIRST, and fail closed: if Torneos does not confirm the erasure, nothing is
+    // deleted in Core and the person can simply retry. The Core user id is the one of the session verified above, never a
+    // client value; every call for this user carries the same derived idempotency key. _shared/torneosAccountErasure.ts;
+    // Torneos migration 0021. Torneos and Core are two databases: from here on this is NOT atomic. What Torneos
+    // anonymised is irreversible; if a later step fails, the person retries (Torneos answers already_erased, a no-op) and
+    // Core finishes, or the operator's reconcile query lists the Torneos row Core never confirmed.
+    const torneos = await requestTorneosAccountErasure({ env: Deno.env, coreUserId: user.id });
+    if (!torneos.ok) {
+      console.warn(`[delete-account] torneos erasure not confirmed: ${torneos.code}`);
+      return new Response(
+        JSON.stringify({ ok: false, message: "torneos_erasure_failed", code: torneos.code, retryable: true }),
+        { status: 503, headers: { ...cors, "Content-Type": "application/json" } },
+      );
+    }
+
     const adminClient = createClient(supabaseUrl, serviceCredential.key, {
       global: { fetch: createSupabaseCredentialFetch(serviceCredential) },
       auth: { autoRefreshToken: false, persistSession: false },
     });
+
+    // ── Step 2: the person's own Core Storage objects (profile photos in jugadores-fotos and the legacy avatars bucket;
+    // unused team-crests uploads; every bucket classified in CORE_STORAGE_BUCKETS), AFTER Torneos
+    // confirmed and BEFORE any Core row is touched: listing is by prefix (no Core row needed), and a failure still answers
+    // a retryable 503 with the Core account intact (the retry gets Torneos already_erased and Storage resumes where it
+    // stopped: what was removed is no longer listed). _shared/coreAccountStorageErasure.ts. Logs carry counts only.
+    // CORE_ACCOUNT_STORAGE_ERASURE=best_effort is the operator's emergency valve (a secret, not a deploy): the deletion
+    // then goes on and what is left is found by the read-only orphan query
+    // (scripts/ops/core-account-deletion/storage-inventory-readonly.sql) and removed with its own GO.
+    const storage = await eraseCoreAccountStorage({ storage: adminClient.storage, db: adminClient, userId: user.id });
+    console.log(
+      `[delete-account] storage erasure: ${storage.status} removed=${storage.removed} kept_referenced=${storage.keptReferenced}`
+        + (storage.code ? ` code=${storage.code}` : ""),
+    );
+    if (storage.status !== "ok" && storageErasureMode(Deno.env.get("CORE_ACCOUNT_STORAGE_ERASURE")) === "required") {
+      return new Response(
+        JSON.stringify({ ok: false, message: "storage_erasure_failed", code: storage.code ?? storage.status, retryable: true }),
+        { status: 503, headers: { ...cors, "Content-Type": "application/json" } },
+      );
+    }
+
+    // ── Step 3: Core rows, then the auth user.
 
     // Clean up dependent data before deleting the root row.
     await cleanupUserData(adminClient, user.id);
@@ -409,6 +449,8 @@ serve(async (req) => {
         JSON.stringify({
           ok: false,
           message: "profile_delete_failed",
+          // Torneos is already erased (irreversible) and not confirmed: the retry finishes (Torneos: already_erased).
+          retryable: true,
           details: profileDeleteError.message,
           code: profileDeleteError.code,
           hint: profileDeleteError.hint,
@@ -416,6 +458,14 @@ serve(async (req) => {
         { status: 500, headers: { ...cors, "Content-Type": "application/json" } },
       );
     }
+
+    // ── Sign in with Apple: revoke the person's Apple tokens with the fresh authorizationCode the iOS app obtained for
+    // this deletion (_shared/appleSignInRevocation.ts). After usuarios is gone (Torneos and Storage already succeeded,
+    // so nothing is revoked for a deletion that will not happen) and BEFORE the auth user is deleted (its Apple identity
+    // is what the id_token `sub` must match). NEVER blocks the deletion (Apple TN3194): for anything but `revoked` the
+    // app shows how to unlink Arma2 in iPhone Settings. The code is single-use: a later retry simply comes without it.
+    const apple = await revokeAppleSignIn({ env: Deno.env, user, authorizationCode: body?.apple_authorization_code });
+    if (apple !== "not_apple") console.log(`[delete-account] apple revocation: ${apple}`);
 
     // Delete the auth user last (cascades auth-referenced tables).
     let { error: deleteAuthError } = await adminClient.auth.admin.deleteUser(user.id);
@@ -434,6 +484,7 @@ serve(async (req) => {
         JSON.stringify({
           ok: false,
           message: "auth_delete_failed",
+          retryable: true,
           details: deleteAuthError.message,
           code: (deleteAuthError as { code?: string }).code,
         }),
@@ -441,10 +492,32 @@ serve(async (req) => {
       );
     }
 
+    // ── Step 4: tell Torneos the Core account is gone (its ledger row: torneos_erased → core_confirmed). Re-creating a
+    // Torneos identity with a still-valid JWT of this user is already refused by the Torneos tombstone
+    // (TORNEOS_ACCOUNT_ERASED); the confirmation's sweep stays as an idempotent defense. Best effort: the
+    // account is already gone; a failure is only logged, and the Torneos row stays torneos_erased, where the operator's
+    // read-only reconcile query finds it (backend/torneos/account-deletion-v1/README.md «Reconciliación»).
+    const confirmation = await confirmTorneosAccountErasure({ env: Deno.env, coreUserId: user.id });
+    if (!confirmation.ok) console.warn(`[delete-account] torneos confirmation not delivered: ${confirmation.code}`);
+
+    // ── Step 5: best-effort Storage sweep. The person's JWT stays valid until it expires, so an upload in flight could
+    // land after step 2; the sweep runs with service role (the auth user no longer has to exist). A failure is only
+    // logged (counts): the operator's read-only orphan query finds what is left (no cron).
+    const sweep = await eraseCoreAccountStorage({ storage: adminClient.storage, db: adminClient, userId: user.id });
+    if (sweep.status !== "ok") {
+      console.warn(
+        `[delete-account] storage_sweep_not_confirmed: ${sweep.status} removed=${sweep.removed} code=${sweep.code ?? "none"}`,
+      );
+    } else if (sweep.removed > 0) {
+      console.log(`[delete-account] storage sweep removed=${sweep.removed}`);
+    }
+
     return new Response(
       JSON.stringify({
         ok: true,
         message: "account_deleted",
+        torneos: torneos.outcome,
+        apple,
       }),
       { status: 200, headers: { ...cors, "Content-Type": "application/json" } },
     );

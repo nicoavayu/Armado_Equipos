@@ -61,6 +61,15 @@ export const ERROR_MESSAGES = {
   TORNEOS_SOCIAL_PIECE_INVALID: 'Esa placa no está disponible. Elegí una de la lista.',
   TORNEOS_SOCIAL_BRANDING_INVALID: 'No pudimos confirmar la firma Arma2 de la placa. Volvé a intentar.',
   TORNEOS_SOCIAL_TEAM_FORMAT_INVALID: 'La modalidad del torneo no permite armar el Equipo ideal. Revisá la configuración de la categoría.',
+  // PREMIUM SPONSORS (0020): the organization's sponsors and their use in the Estudio Social.
+  TORNEOS_SPONSORS_FORBIDDEN: 'No tenés permiso para gestionar los sponsors de esta organización.',
+  TORNEOS_SPONSORS_PREMIUM_REQUIRED: 'Los sponsors son una función Premium: la temporada necesita Premium para sumarlos o usarlos en las placas.',
+  TORNEOS_SPONSOR_INVALID: 'Revisá los datos del sponsor.',
+  TORNEOS_SPONSORS_THEME_UNSUPPORTED: 'El estilo Base no lleva sponsors. Elegí Heritage, Street, Scoreboard o Editorial.',
+  TORNEOS_SPONSORS_SELECTION_INVALID: 'Podés elegir hasta 3 sponsors distintos por placa.',
+  TORNEOS_SPONSOR_NOT_FOUND: 'Ese sponsor ya no está disponible. Actualizá la lista.',
+  TORNEOS_SPONSORS_SELECTION_UNAVAILABLE: 'Uno de los sponsors elegidos ya no está disponible o no tiene logo. Revisá la selección.',
+  TORNEOS_SPONSOR_LIMIT_REACHED: 'Llegaste al máximo de 20 sponsors activos. Archivá uno para sumar otro.',
   TORNEOS_PURCHASE_FORBIDDEN: 'No encontramos esa compra o no tenés permiso para verla.',
   TORNEOS_SCOPE_IMMUTABLE: 'No se puede mover un recurso entre organizaciones o torneos.',
   TORNEOS_REGISTRATION_CLOSED: 'La inscripción no está abierta para ese torneo o categoría.',
@@ -238,6 +247,19 @@ export const ERROR_MESSAGES = {
   TORNEOS_CATALOG_INVALID_FILTER: 'Revisá los filtros de búsqueda.',
   TORNEOS_APPLICATIONS_INVALID_FILTER: 'Ese filtro de solicitudes no existe.',
   TORNEOS_NOTIFICATIONS_INVALID: 'No pudimos procesar esos avisos.',
+  // MODERATION (0022)
+  TORNEOS_REPORT_INVALID: 'Revisá el motivo y el detalle del reporte.',
+  TORNEOS_REPORT_TARGET_INVALID: 'No encontramos ese contenido: puede que ya no esté publicado.',
+  TORNEOS_REPORT_RATE_LIMITED: 'Enviaste muchos reportes seguidos. Esperá un rato o escribinos a arma2app@gmail.com.',
+  TORNEOS_REPORT_NOT_FOUND: 'Ese reporte no existe o lo revisa Arma2.',
+  TORNEOS_REPORT_ALREADY_CLOSED: 'Ese reporte ya tiene una decisión.',
+  TORNEOS_REPORT_ACTION_INVALID: 'Esa acción no corresponde a este reporte.',
+  TORNEOS_MODERATION_FORBIDDEN: 'Sólo el propietario y los administradores de la organización pueden moderar.',
+  TORNEOS_APPLICATION_BLOCKED: 'Esta organización no recibe solicitudes tuyas.',
+  TORNEOS_PUBLIC_PAGE_MODERATION_HOLD:
+    'Arma2 suspendió la página pública de este torneo por moderación. Escribinos a arma2app@gmail.com para revisarlo.',
+  TORNEOS_COMMUNICATIONS_MUTE_FORBIDDEN: 'Sólo podés silenciar organizaciones que te enviaron comunicados.',
+  TORNEOS_BLOCK_NOT_FOUND: 'Ese bloqueo ya no está activo.',
 };
 
 export class TournamentWorkspaceError extends Error {
@@ -259,12 +281,23 @@ export function getKnownErrorCode(error) {
   return Object.keys(ERROR_MESSAGES).find((code) => value.includes(code)) || null;
 }
 
+// A few refusals name the field they refused (`details`): the person reads what to fix, never the field's name.
+export const ERROR_DETAIL_MESSAGES = Object.freeze({
+  TORNEOS_SPONSOR_INVALID: Object.freeze({
+    name: 'El nombre del sponsor tiene que tener entre 1 y 60 caracteres.',
+    logo_path: 'El logo del sponsor no es válido. Volvé a subirlo.',
+    sort_order: 'El orden del sponsor tiene que ser un número entre 0 y 999.',
+    sponsor_id: 'Ese sponsor ya no está disponible. Actualizá la lista.',
+  }),
+});
+
 export function toWorkspaceError(error, fallbackMessage) {
   if (error instanceof TournamentWorkspaceError) return error;
   const code = getKnownErrorCode(error) || 'TORNEOS_REQUEST_FAILED';
+  const detail = typeof error?.details === 'string' ? ERROR_DETAIL_MESSAGES[code]?.[error.details.trim()] : null;
   return new TournamentWorkspaceError(
     code,
-    ERROR_MESSAGES[code] || fallbackMessage,
+    detail || ERROR_MESSAGES[code] || fallbackMessage,
     error,
   );
 }

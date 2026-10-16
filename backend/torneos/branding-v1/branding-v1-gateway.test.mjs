@@ -156,7 +156,7 @@ test('strict opt-in; storage and the media store are only the Torneos project\'s
     BrandingConfigError, 'public overlap');
 });
 
-test('boot: BRANDING adds exactly its two RPCs; off serves none, no object route, no public logos', async () => {
+test('boot: BRANDING adds exactly its RPCs (branding assets + sponsors); off serves none, no object route, no public logos', async () => {
   const off = gateway.boot({ ...fx.env, TORNEOS_CONNECTED_MODE: 'on' });
   const on = gateway.boot(withSecret({ ...fx.env, TORNEOS_CONNECTED_MODE: 'on', TORNEOS_BRANDING_MODE: 'on' }));
   assert.deepEqual([...on.rpcAllowlist].filter((name) => !off.rpcAllowlist.has(name)), RPCS);
@@ -231,6 +231,41 @@ test('authenticated responses: signed through the media store for the caller (da
   const other = await rpc('get_tournament_competition_context', { body: { p_organization_id: ORG } });
   assert.deepEqual(await other.json(), { logoPath: path(1) }, 'outside the signed set nothing is added');
   assert.equal(world.storage.length + world.store.length, 0);
+});
+
+test('premium sponsors (0020): both reads sign `logoPath` inside `sponsors[]` for the caller; the writes are served unsigned', async () => {
+  const sponsorLogo = (n) => `${ORG}/organizations/${ORG}/5000000${n}-0000-4000-8000-000000000005.png`;
+  for (const name of ['get_tournament_organization_sponsors', 'authorize_tournament_social_sponsors']) {
+    world.storage.length = 0; world.store.length = 0; world.authorize.length = 0;
+    world.restBody = { organizationId: ORG, sponsors: [{ id: 'a', name: 'Uno', logoPath: sponsorLogo(1) },
+      { id: 'b', name: 'Dos', logoPath: sponsorLogo(2) }, { id: 'c', name: 'Sin logo', logoPath: null }] };
+    world.deny = new Set([`read:${sponsorLogo(2)}`]);
+    const bearer = token();
+    const r = await rpc(name, { bearer, body: { p_organization_id: ORG } });
+    assert.equal(r.status, 200, name);
+    assert.deepEqual(world.store.map((call) => [call.op, call.identity]), [['branding-sign', bearer]], `${name}: one batch, the caller's identity`);
+    assert.deepEqual(world.authorize.map((a) => [a.p_operation, a.p_names]), [['read', [sponsorLogo(1), sponsorLogo(2)]]]);
+    const json = await r.json();
+    assert.equal(json.sponsors[0].logoUrl, `${STORAGE}/object/sign/tournament-branding/${sponsorLogo(1)}?token=t-${sponsorLogo(1).slice(-8)}`, name);
+    assert.equal(json.sponsors[1].logoUrl, null, `${name}: refused by the database → no URL`);
+    assert.equal(json.sponsors[2].logoUrl, null, `${name}: no logo → null URL`);
+    assert.deepEqual(json.sponsors.map((s) => s.logoPath), [sponsorLogo(1), sponsorLogo(2), null], 'paths kept');
+  }
+  for (const name of ['upsert_tournament_organization_sponsor', 'archive_tournament_organization_sponsor']) {
+    world.storage.length = 0; world.store.length = 0;
+    world.restBody = { sponsor: { id: 'a', name: 'Uno', logoPath: sponsorLogo(1) }, previousLogoPath: sponsorLogo(3) };
+    const r = await rpc(name, { body: { p_organization_id: ORG } });
+    assert.equal(r.status, 200, name);
+    assert.deepEqual(await r.json(), world.restBody, `${name}: answered as the database wrote it`);
+    assert.equal(world.storage.length + world.store.length, 0, `${name}: nothing signed`);
+  }
+});
+
+test('the client scope (brandingV1Scope.js) is exactly this allowlist', () => {
+  const source = fs.readFileSync('src/features/torneos/foundation/brandingV1Scope.js', 'utf8');
+  const literal = /const features = (\{[\s\S]*?\n\});/.exec(source);
+  assert.ok(literal, 'features literal');
+  assert.deepEqual(JSON.parse(literal[1]), DOC.features);
 });
 
 test('upload: the server names the object (real type), the database decides, the service key writes (no upsert); the browser never names it', async () => {

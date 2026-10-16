@@ -73,6 +73,26 @@ export const R0007 = Object.freeze({ file: 'backend/torneos/season-scope-fix/rol
  *  so the directory set stays exact; OEC never sends it. */
 export const M0008 = Object.freeze({ seq: '0008', file: `${MIG_DIR}/00000000000008_social_v1_export_authorization.sql`, sha256: '8b1e7bf96c13caa5b8102ff1150e462346820e472c8a58f8f6bd6be0a6310c2f' });
 export const R0008 = Object.freeze({ file: 'backend/torneos/social-v1/rollback/00000000000008_social_v1_export_authorization.rollback.sql', sha256: 'dcc65afe7aeb1f0b9013616d24bac9c9d95a4a6b0ee003d81b7ac66f08be148d' });
+/** 0009–0022: applied (or to be applied) by their own drivers, each with its own GO — CONNECTED-V1 0009/0011/0015/0016,
+ *  BRANDING 0010, MEDIA 0012/0014/0017/0018, COMMERCE-PRODUCTION 0013/0019, PREMIUM SPONSORS 0020 (#212), ACCOUNT ERASURE
+ *  0021 (#217: creates the NOLOGIN role torneos_erasure_writer), MODERATION 0022 (#216). Known and hash-pinned so the
+ *  directory set stays exact: an unknown file, a missing one or one changed byte is MIGRATION_DRIFT. OEC never sends them. */
+export const LATER_KNOWN = Object.freeze([
+  ['0009', '00000000000009_connected_product_v1.sql', '8bb8e6c84bbe0acb6d5976a49fde88d2fbd55626a6001e595c5c2cc8db994cac'],
+  ['0010', '00000000000010_branding_v1.sql', '55afd5e81bcc62a81b89c4299c452eec8d357291c96c34810d37f719f8d86ee8'],
+  ['0011', '00000000000011_connected_roster_search.sql', '3cac4d885955242d4b544c2a2081d1cbb187cbc1b05b22ee6596571addd6703a'],
+  ['0012', '00000000000012_media_gallery_v1.sql', '859fa24d259f4f0b0d3074d68c126c9a03f402bdf31f4d11485e01737fd6f7cb'],
+  ['0013', '00000000000013_mercadopago_checkout_pro_production.sql', '72943492749d399850c69d807902069dfa47afd68b668aaf6dea0bf407d9eece'],
+  ['0014', '00000000000014_media_gallery_draft_on_retire.sql', 'd455afd1d1525f47bd6b2c8ccc4900e36e56b8f96bd18e5ae15d5de87f970a07'],
+  ['0015', '00000000000015_participant_match_reschedule_visibility.sql', '7aa5d7fa4bdf0d12df0f45ea578bc6b588384f83033aa716b6e2241692c08740'],
+  ['0016', '00000000000016_match_reschedule_notice.sql', 'de06a84a728654c1fd78a46a10fad4ab9b56b50f89ed2376f480b73983729746'],
+  ['0017', '00000000000017_media_store_v1.sql', '57d4fe759c2bc9ae4d5e272d98d20cdc73465ddd2020e0c5c44418440778cc19'],
+  ['0018', '00000000000018_season_media_lifecycle.sql', '549d980c750da34836c782e7cd0852ff93f8b3477d63abb61e3d29a3b82fcdc8'],
+  ['0019', '00000000000019_season_commerce.sql', '2cd55a0dac816cba13e3516ffaeacb338faa1980902ecede397c9960dc586258'],
+  ['0020', '00000000000020_premium_sponsors.sql', '3b2ed5370a637ea86475ceba0a100802e5928c2187dcf1e70bb057ae3d64582c'],
+  ['0021', '00000000000021_account_erasure.sql', '0535f241ed080c38c244f7a51a491f67baafdd86c5089f6aac9bd69e2e019c26'],
+  ['0022', '00000000000022_content_moderation.sql', 'b4d3c41da9fb5d0915302bd458987106771aa486e3116263ba06914d71947c88'],
+].map(([seq, name, sha256]) => Object.freeze({ seq, file: `${MIG_DIR}/${name}`, sha256 })));
 if (APPLIED[4].sha256 !== CV1.MIGRATION.sha256) throw new Error('oec_0004_pin_differs_from_competition_v1');
 
 export function assertFileHash(rel, expected) {
@@ -84,12 +104,12 @@ export function assertFileHash(rel, expected) {
 /** Every migration and rollback file this tooling can touch, re-hashed (migration drift = refusal). */
 export function migrationDrift() {
   const out = [];
-  for (const m of [...APPLIED, M0005, M0006, M0007, M0008, R0005, R0006, R0007, R0008]) {
+  for (const m of [...APPLIED, M0005, M0006, M0007, M0008, ...LATER_KNOWN, R0005, R0006, R0007, R0008]) {
     try { assertFileHash(m.file, m.sha256); } catch (e) { out.push(String(e.message)); }
   }
   const dir = path.join(REPO_ROOT, MIG_DIR);
   const listed = fs.readdirSync(dir).filter((f) => f.endsWith('.sql')).sort();
-  const known = [...APPLIED, M0005, M0006, M0007, M0008].map((m) => path.basename(m.file)).sort();
+  const known = [...APPLIED, M0005, M0006, M0007, M0008, ...LATER_KNOWN].map((m) => path.basename(m.file)).sort();
   if (JSON.stringify(listed) !== JSON.stringify(known)) out.push(`migrations_dir_set ${listed.join(',')}`);
   return out;
 }

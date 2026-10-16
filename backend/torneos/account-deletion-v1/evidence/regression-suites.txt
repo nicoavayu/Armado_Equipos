@@ -1,0 +1,30 @@
+# Regression suites run on the branch (2026-10-15, local, revision 2 per Codex review)
+## test:torneos:account-deletion — 4 lab variants (rehearsal-lab.txt has every test name)
+main (db 12 + erasure 26 + gateway 13 + order-0020 1 + delete-account 15): 67/67
+main + 0020: 51/51 · main + 0022: 53/53 · main + 0020 + 0022: 53/53
+(E24 tombstone, E25 lock bound: erasure 55P03 at 5000 ms with the global key held; unrelated exchange 13 ms; exchange on a
+held per-person key 57014 at 2004 ms)
+## Jest full (CI=true react-scripts test --watchAll=false --runInBand)
+Test Suites: 392 passed, 392 total
+Tests:       3751 passed, 3751 total
+## test:torneos:frontend-foundation (no B04 regeneration needed in this revision)
+ℹ tests 109
+ℹ pass 109
+ℹ fail 0
+## test:edge-functions (incl. delete-account.test.mjs)
+ℹ tests 92
+ℹ pass 92
+ℹ fail 0
+## test:torneos:connected 30/30 · social 26/26 · branding 18/18 · media 36/36 · media-store 21/21
+## commerce-production-db + payments-production + gateway-commerce-production (labs that apply EVERY migration, 0021 included)
+ℹ tests 67
+ℹ pass 67
+ℹ fail 0
+## Gateway infra suites (gateway-auth, gateway-topology incl. the new erasure-login test, b03, android-origin, competition-remote,
+## gateway-remote, oec-remote, phase3b gateway-port): 89 tests, 84 pass, 5 fail — NONE introduced by this revision:
+##   gateway-remote «deployed source (30 files)» and competition-remote «bundles»: the gateway graph is 33 files (main 32 after #209,
+##     + account-erasure.ts from #217 revision 1; this revision adds no file).
+##   oec-remote «pins» / «full sequence» / «fail closed»: its pinned migrations set predates 0021 (same as with 0020 / 0022).
+##   android-origin «no new env»: updated to accept exactly TORNEOS_DB_ERASURE_WRITER_URL (passes 9/9).
+## Not run: test:torneos:season (p10 sandbox excluded on purpose), integration/torneos-core-contracts full stack (Node gateway parity:
+## the routes exist only in the hosted Deno gateway).

@@ -164,6 +164,87 @@ test('delta pin (derived by the rehearsal): tied to this foundation + SQL; exact
   assert.ok(G.gatewayInvariantFailures(catalog, { ...roles, logins: roles.logins.map((l) => ({ ...l, inherit: true })) }).some((x) => x.startsWith('login_inherit_')));
 });
 
+// ACCOUNT ERASURE (0021, #217): the certification accepts exactly three role stages — W3 (pre_0021), + the NOLOGIN role
+// torneos_erasure_writer (post_0021), + its single login torneos_edge_erasure_writer provisioned out of band
+// (post_0021_login) — and still refuses every other role, login, membership or attribute (negative mutations below).
+function erasureFixture(stage, { payments = false } = {}) {
+  const foundation = JSON.parse(fs.readFileSync(G.FOUNDATION_PIN_FILE, 'utf8'));
+  const delta = JSON.parse(fs.readFileSync(G.DELTA_PIN_FILE, 'utf8'));
+  const pdelta = JSON.parse(fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), '../torneos-payments-test/pins/payments-test-delta.json'), 'utf8'));
+  const base = payments ? pdelta.catalog : delta.catalog;
+  const catalog = structuredClone({ ...foundation.catalog, ...base });
+  const roles = structuredClone({ ...(payments ? pdelta.gateway_roles : delta.roles), payment_logins: payments ? 1 : 0, login_member_of_api_role: 0, authenticator_config: ['pgrst.db_pre_request=private.check_token'], auth_users: 0 });
+  const nologin = (name) => ({ name, login: false, inherit: false, super: false, bypassrls: false, createrole: false, createdb: false });
+  if (stage !== 'pre_0021') {
+    catalog.roles.push(nologin(G.ERASURE_ROLE));
+    catalog.role_members.push({ role: G.ERASURE_ROLE, member: 'postgres' });
+  }
+  if (stage === 'post_0021_login') {
+    catalog.roles.push({ ...nologin(G.ERASURE_LOGIN.login), login: true });
+    catalog.role_members.push({ role: G.ERASURE_ROLE, member: G.ERASURE_LOGIN.login }, { role: G.ERASURE_LOGIN.login, member: 'postgres' });
+    catalog.login_roles_torneos += 1;
+    roles.logins.push({ ...roles.logins[0], name: G.ERASURE_LOGIN.login });
+    roles.memberships.push({ role: G.ERASURE_ROLE, member: G.ERASURE_LOGIN.login, admin: false, inherit: false, set: true },
+      { role: G.ERASURE_LOGIN.login, member: 'postgres', admin: true, inherit: false, set: false });
+  }
+  catalog.roles.sort((a, b) => a.name.localeCompare(b.name));
+  return { catalog, roles, foundation, delta, pdelta, paymentRoles: structuredClone(pdelta.payment_roles) };
+}
+
+test('ACCOUNT ERASURE (0021): pre_0021 / post_0021 / post_0021_login certify (W2/W3 still "applied"); every other role change fails', async () => {
+  const P = await import('../torneos-payments-test/payments-test-contract.mjs');
+  assert.equal(G.ERASURE_ROLE, 'torneos_erasure_writer');
+  assert.deepEqual({ ...G.ERASURE_LOGIN }, { login: 'torneos_edge_erasure_writer', memberOf: 'torneos_erasure_writer' });
+  // The names are the ones 0021 and the out-of-band provisioning use.
+  const mig = fs.readFileSync(path.join(G.REPO_ROOT, 'backend/torneos/supabase/migrations/00000000000021_account_erasure.sql'), 'utf8');
+  assert.match(mig, /^create role torneos_erasure_writer nologin noinherit;$/m);
+  const EL = await import('../../account-deletion-v1/remote/erasure-login.mjs');
+  assert.deepEqual([EL.ERASURE_ROLE, EL.ERASURE_LOGIN], [G.ERASURE_ROLE, G.ERASURE_LOGIN.login]);
+  assert.deepEqual(G.TORNEOS_GROUP_ROLES, ['torneos_core_adapter', 'torneos_identity_writer', 'torneos_payment_service']);
+  for (const stage of ['pre_0021', 'post_0021', 'post_0021_login']) {
+    const x = erasureFixture(stage);
+    assert.equal(G.erasureStage(x.catalog, x.roles), stage);
+    assert.deepEqual(G.gatewayInvariantFailures(x.catalog, x.roles), [], stage);
+    assert.equal(G.dbState(x.catalog, x.roles, x.foundation, x.delta).state, 'applied', stage);
+    const p = erasureFixture(stage, { payments: true });
+    assert.deepEqual(P.paymentsDeltaFailures(p.catalog, p.roles, p.paymentRoles), [], `payments ${stage}`);
+    const stripped = G.withoutErasure(p.catalog, p.roles);
+    assert.deepEqual(G.DELTA_PATHS.map((k) => G.getPath(stripped.catalog, k)), G.DELTA_PATHS.map((k) => G.getPath(p.pdelta.catalog, k)), `payments pin ${stage}`);
+  }
+  assert.deepEqual(G.expectedEdgeLogins('post_0021_login').map((l) => l.login), ['torneos_edge_identity_writer', 'torneos_edge_core_adapter', 'torneos_edge_erasure_writer']);
+  // The payments login probe (payments-db.mjs) refuses SET ROLE into the erasure role / login in every stage.
+  const D = await import('../torneos-payments-test/payments-db.mjs');
+  const ck = { before: D.loginChecks().before.filter((c) => /erasure/.test(c.name)), own: [] };
+  assert.deepEqual(ck.before.map((c) => [c.name, c.expect]), [['set_role_refused_torneos_erasure_writer', 'NOT_OK'], ['set_role_refused_torneos_edge_erasure_writer', 'NOT_OK']]);
+  const out = (state) => ['W|torneos_payments_test|torneos_payments_test|1', ...ck.before.map((c) => `E|${c.name}| ${state} | x`), 'Z|done'].join('\n');
+  for (const state of ['22023', '42501']) assert.equal(D.evaluateLoginProbe(ck, out(state)).pass, true, state);
+  assert.deepEqual(D.evaluateLoginProbe(ck, out('00000')).failures, ck.before.map((c) => `${c.name}_sqlstate_00000_want_NOT_OK`));
+  // ── negative mutations: each must fail (gateway invariants, payments delta, and W2/W3 state = foreign) ──
+  const rogueRole = { name: 'torneos_rogue', login: false, inherit: false, super: false, bypassrls: false, createrole: false, createdb: false };
+  const cases = [
+    ['unknown NOLOGIN torneos role', 'post_0021', (x) => { x.catalog.roles.push(rogueRole); }, 'torneos_roles_not_exact'],
+    ['unknown torneos login', 'post_0021_login', (x) => { x.catalog.roles.push({ ...rogueRole, name: 'torneos_edge_rogue', login: true }); x.catalog.login_roles_torneos += 1; x.roles.logins.push({ ...x.roles.logins[0], name: 'torneos_edge_rogue' }); }, 'edge_logins_not_exact'],
+    ['erasure login without its role', 'post_0021_login', (x) => { x.catalog.roles = x.catalog.roles.filter((r) => r.name !== G.ERASURE_ROLE); }, 'erasure_login_without_role'],
+    ['erasure role with LOGIN', 'post_0021', (x) => { x.catalog.roles.find((r) => r.name === G.ERASURE_ROLE).login = true; }, 'erasure_role_shape'],
+    ['erasure role INHERIT', 'post_0021', (x) => { x.catalog.roles.find((r) => r.name === G.ERASURE_ROLE).inherit = true; }, 'erasure_role_shape'],
+    ['erasure role BYPASSRLS', 'post_0021', (x) => { x.catalog.roles.find((r) => r.name === G.ERASURE_ROLE).bypassrls = true; }, 'erasure_role_shape'],
+    ['erasure role member of another role (grant)', 'post_0021', (x) => { x.catalog.role_members.push({ role: 'torneos_core_adapter', member: G.ERASURE_ROLE }); }, 'erasure_role_member_of_a_role'],
+    ['another login member of the erasure role (grant)', 'post_0021_login', (x) => { x.catalog.role_members.push({ role: G.ERASURE_ROLE, member: 'torneos_edge_core_adapter' }); }, 'erasure_role_members_not_exact'],
+    ['erasure login also member of the identity writer (grant)', 'post_0021_login', (x) => { x.catalog.role_members.push({ role: 'torneos_identity_writer', member: G.ERASURE_LOGIN.login }); x.roles.memberships.push({ role: 'torneos_identity_writer', member: G.ERASURE_LOGIN.login, admin: false, inherit: false, set: true }); }, 'erasure_login_member_of_not_exact'],
+    ['erasure login INHERIT', 'post_0021_login', (x) => { x.catalog.roles.find((r) => r.name === G.ERASURE_LOGIN.login).inherit = true; x.roles.logins.find((l) => l.name === G.ERASURE_LOGIN.login).inherit = true; }, 'erasure_login_shape'],
+    ['erasure login with ADMIN on its role', 'post_0021_login', (x) => { x.roles.memberships.find((m) => m.member === G.ERASURE_LOGIN.login).admin = true; }, `membership_not_exact_${G.ERASURE_LOGIN.login}`],
+    ['login count off by one', 'post_0021_login', (x) => { x.catalog.login_roles_torneos -= 1; }, 'torneos_login_roles_not_exactly_3'],
+    ['erasure login reaches a privileged role', 'post_0021_login', (x) => { x.roles.login_member_of_api_role = 1; }, 'edge_login_member_of_privileged_role'],
+  ];
+  for (const [label, stage, mutate, code] of cases) {
+    const x = erasureFixture(stage); mutate(x);
+    assert.ok(G.gatewayInvariantFailures(x.catalog, x.roles).includes(code), `${label}: ${code} in ${G.gatewayInvariantFailures(x.catalog, x.roles)}`);
+    if (!['edge_login_member_of_privileged_role', `membership_not_exact_${G.ERASURE_LOGIN.login}`].includes(code)) assert.equal(G.dbState(x.catalog, x.roles, x.foundation, x.delta).state, 'foreign', `${label}: W2/W3 foreign`);
+    const p = erasureFixture(stage, { payments: true }); mutate(p);
+    assert.notDeepEqual(P.paymentsDeltaFailures(p.catalog, p.roles, p.paymentRoles), [], `${label}: payments delta fails`);
+  }
+});
+
 test('ring: fresh k1/k2, Production kids from thumbprints, public JWKS only, custody lines < 100 chars (getpass 128), custody ≡ pin', () => {
   assert.deepEqual(ring.slots.map((s) => s.slot), ['k1', 'k2']);
   for (const s of ring.slots) { assert.match(s.kid, G.KID_PATTERN); assert.ok(s.kid.endsWith(K.thumbprint(s.publicJwk).slice(0, 16))); }
@@ -576,6 +657,12 @@ test('login probe: pinned host/port/login only; every block ends in ROLLBACK (ne
     assert.equal(LP.evaluateLoginProbe(login, c, good).pass, true, login);
     const bad = good.replace(`R|set_role_refused_service_role| 42501`, 'R|set_role_refused_service_role| 00000');
     assert.ok(LP.evaluateLoginProbe(login, c, bad).failures.includes('set_role_refused_service_role_sqlstate_00000_want_42501'));
+    // 0021: the erasure role / login are refused in every stage (absent 22023, present 42501); reaching them (00000) fails.
+    for (const r of [G.ERASURE_ROLE, G.ERASURE_LOGIN.login]) {
+      assert.ok(c.before.some((k) => k.name === `set_role_refused_${r}` && k.sql === `SET LOCAL ROLE ${r}`), r);
+      for (const state of ['22023', '42501']) assert.equal(LP.evaluateLoginProbe(login, c, good.replace(`R|set_role_refused_${r}| NOT_OK`, `R|set_role_refused_${r}| ${state}`)).pass, true, `${r} ${state}`);
+      assert.ok(LP.evaluateLoginProbe(login, c, good.replace(`R|set_role_refused_${r}| NOT_OK`, `R|set_role_refused_${r}| 00000`)).failures.includes(`set_role_refused_${r}_sqlstate_00000_want_NOT_OK`), r);
+    }
     assert.ok(LP.evaluateLoginProbe(login, c, good.replace('E|done', '')).failures.includes('probe_incomplete'));
     assert.ok(LP.evaluateLoginProbe(login, c, good.replace(`W|${login}|${login}|1`, `W|${login}|${login}|0`)).failures.includes('session_identity_not_the_login'));
   }

@@ -170,6 +170,49 @@ test(`FAIL: ${Object.keys(FAIL).length} topology violations each disable the who
   }
 });
 
+// ACCOUNT ERASURE (0021): the optional third login, TORNEOS_DB_ERASURE_WRITER_URL → torneos_edge_erasure_writer (NOINHERIT
+// member of torneos_erasure_writer). Absent = the erasure routes answer 503; present = pinned like the other two, with its
+// own login and its own credential.
+const erasurePooler = (login = 'torneos_edge_erasure_writer', ref = DATA, host = 'aws-0-sa-east-1.pooler.supabase.com', password = 'pw-erasure-own') =>
+  `postgres://${login}.${ref}:${password}@${host}:5432/postgres`;
+test('ERASURE login: optional; when set, pinned (login, host, database), its own login and credential, never a Core project', () => {
+  assert.equal(C.loadConfig(PROD_ENV).erasureWriterUrl, null, 'absent: the gateway boots, the erasure routes are off');
+  const cfg = C.loadConfig({ ...PROD_ENV, TORNEOS_DB_ERASURE_WRITER_URL: erasurePooler() });
+  assert.equal(cfg.erasureWriterUrl, erasurePooler());
+  assert.equal(cfg.topology.kind, 'production');
+  assert.equal(C.loadConfig({ ...LAB_ENV, TORNEOS_DB_ERASURE_WRITER_URL: 'postgres://lab_erasure_writer:pw-erasure@torneos-db:5432/postgres' }).topology.kind, 'nonproduction');
+  assert.equal(T.PRODUCTION.erasureWriterLogin, 'torneos_edge_erasure_writer');
+  assert.ok(T.FORBIDDEN_LOGIN.test('torneos_erasure_writer'), 'the NOLOGIN role itself is never a login');
+  const FAIL_ERASURE = {
+    'the core adapter login': erasurePooler('torneos_edge_core_adapter'),
+    'the identity writer login': erasurePooler('torneos_edge_identity_writer'),
+    'the NOLOGIN erasure role': erasurePooler('torneos_erasure_writer'),
+    'the NOLOGIN core adapter role': erasurePooler('torneos_core_adapter'),
+    'postgres': erasurePooler('postgres'),
+    'service_role': erasurePooler('service_role'),
+    'another login name': erasurePooler('torneos_edge_eraser'),
+    'Core Production as data plane': erasurePooler('torneos_edge_erasure_writer', CORE),
+    'another project': erasurePooler('torneos_edge_erasure_writer', OTHER),
+    'pooler outside sa-east-1': erasurePooler('torneos_edge_erasure_writer', DATA, 'aws-0-us-east-1.pooler.supabase.com'),
+    'another host than the other two logins': `postgres://torneos_edge_erasure_writer:pw-erasure-own@db.${DATA}.supabase.co:5432/postgres`,
+    'the core adapter\'s password': erasurePooler('torneos_edge_erasure_writer', DATA, undefined, 'pw-fixture'),
+    'the contract secret as password': erasurePooler('torneos_edge_erasure_writer', DATA, undefined, PROD_ENV.TORNEOS_CONTRACT_SERVICE_SECRET),
+    'no password': `postgres://torneos_edge_erasure_writer.${DATA}@aws-0-sa-east-1.pooler.supabase.com:5432/postgres`,
+    'not postgres://': `https://torneos_edge_erasure_writer.${DATA}:pw-erasure-own@aws-0-sa-east-1.pooler.supabase.com/postgres`,
+  };
+  for (const [name, url] of Object.entries(FAIL_ERASURE)) {
+    let error = null;
+    try { C.loadConfig({ ...PROD_ENV, TORNEOS_DB_ERASURE_WRITER_URL: url }); } catch (e) { error = e; }
+    assert.ok(error instanceof C.ConfigError, `${name}: expected ConfigError, got ${error?.constructor?.name ?? 'accepted'}`);
+    assert.doesNotMatch(error.message, /pw-|BEGIN/, `${name}: reason carries a secret`);
+    assert.ok(!error.message.includes(PROD_ENV.TORNEOS_CONTRACT_SERVICE_SECRET), `${name}: reason carries the secret`);
+  }
+  // The other two URLs can never carry the erasure login (nor the lab's shared login be reused for the erasure).
+  assert.throws(() => C.loadConfig({ ...PROD_ENV, TORNEOS_DB_CORE_ADAPTER_URL: pooler('torneos_edge_erasure_writer') }), C.ConfigError);
+  assert.throws(() => C.loadConfig({ ...PROD_ENV, TORNEOS_DB_IDENTITY_WRITER_URL: pooler('torneos_edge_erasure_writer') }), C.ConfigError);
+  assert.throws(() => C.loadConfig({ ...LAB_ENV, TORNEOS_DB_ERASURE_WRITER_URL: 'postgres://lab_core_adapter:pw-erasure@torneos-db:5432/postgres' }), C.ConfigError);
+});
+
 test('boot(): Production topology with commerce TEST is refused before any connection; Production without commerce boots', async () => {
   const idx = await tree.import('torneos-gateway/index.ts');
   const stub = await import(`${tree.dir}/postgres-driver.mjs`);

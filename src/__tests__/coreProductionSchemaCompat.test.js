@@ -10,8 +10,8 @@
  * lists and filter columns) and `.rpc('<name>')` calls. Reviewed exceptions:
  *   - STACK_RPCS: created by the 20261010* migrations, not yet in Production; every caller
  *     falls back while they are missing (PGRST202/42883), see each service's tests;
- *   - PENDING_TORNEOS_20261006: direct Core calls of Torneos' single-project LOCAL composition;
- *     Production runs the hybrid composition (gateway), so they never reach Core Production;
+ *   - PENDING_TORNEOS_20261006 / PENDING_TORNEOS_SPONSORS_0020: direct Core calls of Torneos' single-project LOCAL
+ *     composition; Production runs the hybrid composition (gateway), so they never reach Core Production;
  *   - calls through rpcWithLegacyName(client, 'name', 'legacy', …) count as fine if either name exists;
  *   - PREEXISTING: problems the web live in Production (ffaf131c) already had, regenerated with
  *     `node scripts/core-schema/preexisting.cjs ffaf131c` (they degrade, or are scan artifacts).
@@ -63,6 +63,29 @@ const PENDING_TORNEOS_20261006 = new Set([
   'src/features/torneos/api/tournamentWorkspaceService.js rpc:update_my_torneos_profile',
 ]);
 
+// Torneos premium sponsors (0020): the four RPCs of the LOCAL sponsors service (api/tournamentSponsorsService.js),
+// reached only by the single-project LOCAL composition. The hybrid composition serves them through the Torneos gateway
+// (BRANDING-V1, Torneos project), so they never reach Core Production either.
+const PENDING_TORNEOS_SPONSORS_0020 = new Set([
+  'src/features/torneos/api/tournamentSponsorsService.js rpc:archive_tournament_organization_sponsor',
+  'src/features/torneos/api/tournamentSponsorsService.js rpc:authorize_tournament_social_sponsors',
+  'src/features/torneos/api/tournamentSponsorsService.js rpc:get_tournament_organization_sponsors',
+  'src/features/torneos/api/tournamentSponsorsService.js rpc:upsert_tournament_organization_sponsor',
+]);
+
+// Torneos moderation (0022): the same LOCAL-only rule. These are the single-project LOCAL composition's direct calls;
+// the functions live only in the isolated Torneos project (00000000000022, no Core twin), Production reaches them through
+// the gateway, and on the LOCAL stack without 0022 the page answers "not available" and offers the email.
+const PENDING_TORNEOS_0022 = new Set([
+  'src/features/torneos/api/tournamentWorkspaceService.js rpc:block_tournament_applicant',
+  'src/features/torneos/api/tournamentWorkspaceService.js rpc:get_my_tournament_communication_mutes',
+  'src/features/torneos/api/tournamentWorkspaceService.js rpc:get_tournament_content_reports',
+  'src/features/torneos/api/tournamentWorkspaceService.js rpc:handle_tournament_content_report',
+  'src/features/torneos/api/tournamentWorkspaceService.js rpc:report_tournament_content',
+  'src/features/torneos/api/tournamentWorkspaceService.js rpc:set_tournament_communications_muted',
+  'src/features/torneos/api/tournamentWorkspaceService.js rpc:unblock_tournament_applicant',
+]);
+
 const PREEXISTING = new Set([
   'src/components/StatsView.js survey_results.awards_generated',
   'src/components/StatsView.js survey_results.awards_status',
@@ -101,11 +124,13 @@ describe('Core reads and writes against Production\'s real schema', () => {
   const problems = scan(path.join(__dirname, '..'), schema, STACK_RPCS);
 
   test('nothing new names a table, column or RPC that Production lacks', () => {
-    expect(problems.filter((problem) => !PREEXISTING.has(problem) && !PENDING_TORNEOS_20261006.has(problem))).toEqual([]);
+    expect(problems.filter((problem) => !PREEXISTING.has(problem) && !PENDING_TORNEOS_20261006.has(problem)
+      && !PENDING_TORNEOS_SPONSORS_0020.has(problem) && !PENDING_TORNEOS_0022.has(problem))).toEqual([]);
   });
 
   test('the exception lists only hold problems that still exist (remove fixed ones)', () => {
-    expect([...PREEXISTING, ...PENDING_TORNEOS_20261006].filter((problem) => !problems.includes(problem))).toEqual([]);
+    expect([...PREEXISTING, ...PENDING_TORNEOS_20261006, ...PENDING_TORNEOS_SPONSORS_0020, ...PENDING_TORNEOS_0022]
+      .filter((problem) => !problems.includes(problem))).toEqual([]);
   });
 
   test('a column a schema lacks is caught (scanner self-check)', () => {

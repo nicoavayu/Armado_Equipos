@@ -1,0 +1,1 @@
+{"at":"2026-10-16T00:15:32.041Z","check":"core → gateway (erasure login) → 0021","ok":true,"details":{"first":"erased","ledger":"torneos_erased","second":"already_erased","confirm":"core_confirmed","ledgerAfterConfirm":"core_confirmed","never":"no_identity","neverConfirm":"no_ledger","wrongSecret":"torneos_erasure_refused","left":{"profiles":0,"mapped":0}}}

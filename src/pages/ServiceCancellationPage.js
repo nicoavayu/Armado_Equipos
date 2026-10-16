@@ -40,8 +40,9 @@ export default function ServiceCancellationPage() {
           plan FREE.
         </li>
         <li>
-          <strong>Eliminar tu cuenta de Arma2</strong>: desde la app, en Perfil → Eliminar cuenta (ver{' '}
-          <Link to={LEGAL_ROUTES.accountDeletion}>Eliminar cuenta</Link>). No es lo mismo que la baja de una compra.
+          <strong>Eliminar tu cuenta de Arma2</strong>: desde la app (Perfil → Eliminar cuenta), desde la web o por email (ver{' '}
+          <Link to={LEGAL_ROUTES.accountDeletion}>Eliminar cuenta</Link>). No es lo mismo que la baja de una compra: las
+          compras se conservan, sin vínculo con tu cuenta.
         </li>
       </ul>
       <p>

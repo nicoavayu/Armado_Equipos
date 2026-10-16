@@ -1,0 +1,206 @@
+/* Configuración → Sponsors. The card, fields, banners and main buttons are the settings page's own
+   (TorneosShell.module.css); this file only lays out the list, the logo frame and the inline editor. */
+.titleRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.title {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  margin: 0;
+  color: #fff;
+  font-family: var(--torneos-ui-font);
+  font-size: 19px;
+}
+
+.limits,
+.muted {
+  margin: 4px 0 0;
+  color: var(--torneos-muted, rgba(255, 255, 255, 0.62));
+  font: 13px/1.45 Arial, sans-serif;
+}
+
+.muted {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.premium {
+  display: flex;
+  gap: 12px;
+  padding: 16px;
+  color: #ddd2f2;
+  background: rgba(136, 92, 255, 0.1);
+  border: 1px solid rgba(136, 92, 255, 0.26);
+  border-radius: var(--torneos-control-radius, 16px);
+}
+
+.premium > svg { flex: 0 0 auto; margin-top: 2px; color: #b9a8ff; }
+.premium strong { color: #fff; font-size: 15px; }
+.premium p { margin: 6px 0 0; font: 13px/1.5 Arial, sans-serif; }
+
+.list {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.item {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid rgba(142, 125, 255, 0.22);
+  border-radius: var(--torneos-control-radius, 16px);
+  background: rgba(8, 15, 40, 0.42);
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 28px 84px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+}
+
+.order {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border-radius: 999px;
+  background: rgba(139, 124, 255, 0.18);
+  color: #d8d1ff;
+  font: 700 13px/1 var(--torneos-ui-font, Arial, sans-serif);
+}
+
+/* A fixed box; the logo is laid INSIDE it, never cropped. The image is absolutely positioned against the box (a
+   percentage height inside a grid row of `auto` height does not resolve, and the image then overflowed and was clipped:
+   E2E demo D3), so any proportion — square, tall, wide — fits whole with object-fit: contain. */
+.logo {
+  position: relative;
+  display: grid;
+  box-sizing: border-box;
+  width: 84px;
+  height: 56px;
+  flex: 0 0 auto;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid rgba(158, 211, 255, 0.28);
+  border-radius: 10px;
+  background: #f4f1ea;
+}
+
+.logo img {
+  position: absolute;
+  inset: 4px;
+  display: block;
+  width: calc(100% - 8px);
+  height: calc(100% - 8px);
+  max-width: none;
+  object-fit: contain;
+  object-position: center;
+}
+.logo strong { color: #2a2340; font: 700 20px Oswald, sans-serif; letter-spacing: 0.06em; }
+/* A logo the person cannot see (collaborators): neutral, not the initials of a sponsor without a logo. */
+.logoHidden { background: rgba(255, 255, 255, 0.08); border-style: dashed; color: rgba(255, 255, 255, 0.55); }
+
+.name { display: grid; min-width: 0; gap: 3px; }
+.name strong {
+  overflow: hidden;
+  color: #fff;
+  font-size: 15px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.name small { color: #ffc7a8; font-size: 12px; }
+.name small.note { color: var(--torneos-muted, rgba(255, 255, 255, 0.62)); }
+
+.actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+
+.secondaryAction {
+  display: inline-flex;
+  min-height: var(--torneos-action-height, 44px);
+  align-items: center;
+  justify-content: center;
+  gap: var(--torneos-action-gap, 8px);
+  padding: 0 var(--torneos-action-padding-x, 14px);
+  border: 1px solid rgba(142, 125, 255, 0.38);
+  border-radius: var(--torneos-action-radius, 12px);
+  background: rgba(106, 67, 255, 0.16);
+  color: #fff;
+  font-family: var(--torneos-ui-font);
+  font-size: var(--torneos-action-font-size, 14px);
+  font-weight: var(--torneos-action-font-weight, 700);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.secondaryAction:hover:not(:disabled) { border-color: #9ed3ff; background: rgba(106, 67, 255, 0.27); }
+.secondaryAction:focus-visible { outline: var(--torneos-focus-ring, 2px solid #9ed3ff); outline-offset: 2px; }
+.secondaryAction:disabled { cursor: not-allowed; opacity: 0.55; }
+.danger { border-color: rgba(255, 110, 133, 0.35); background: rgba(255, 79, 106, 0.08); color: #ffc2cb; }
+
+.confirm {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid rgba(255, 107, 132, 0.28);
+  border-radius: 12px;
+  background: rgba(255, 79, 106, 0.07);
+}
+
+.confirm p { margin: 0; color: #ffd7dd; font: 13px/1.5 Arial, sans-serif; }
+.confirm .actions { justify-content: flex-start; }
+
+.editor {
+  display: grid;
+  gap: 16px;
+  padding: 16px;
+  border: 1px solid rgba(142, 125, 255, 0.3);
+  border-radius: var(--torneos-control-radius, 16px);
+  background: linear-gradient(135deg, rgba(139, 103, 255, 0.09), rgba(18, 139, 233, 0.05));
+}
+
+.editorLogo {
+  display: grid;
+  grid-template-columns: 84px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+}
+
+.editorLogoCopy { display: grid; min-width: 0; gap: 4px; }
+.editorLogoCopy strong { color: #fff; font-size: 15px; }
+.editorLogoCopy p { margin: 0; color: rgba(255, 255, 255, 0.58); font-size: 12px; }
+
+.fileInput { display: none; }
+
+.editorActions { display: flex; flex-wrap: wrap; gap: 10px; }
+
+.linkButton {
+  margin-left: auto;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #9ed3ff;
+  font: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+@media (max-width: 640px) {
+  .row { grid-template-columns: 24px 64px minmax(0, 1fr); gap: 10px; }
+  .row .actions { grid-column: 1 / -1; justify-content: stretch; }
+  .row .actions button { flex: 1; }
+  .logo { width: 64px; height: 44px; }
+  .editorLogo { grid-template-columns: 64px minmax(0, 1fr); }
+  .editorLogo > button { grid-column: 1 / -1; }
+  .order { width: 24px; height: 24px; }
+}

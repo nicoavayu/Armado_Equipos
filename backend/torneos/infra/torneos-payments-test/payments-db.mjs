@@ -84,6 +84,9 @@ export function loginChecks({ fresh = crypto.randomUUID() } = {}) {
     c('noinherit_no_table_before_set_role', 'SELECT count(*) FROM public.tournament_purchases', DENIED),
     ...['postgres', 'service_role', 'authenticated', 'anon', 'authenticator', 'supabase_admin', 'torneos_identity_writer', 'torneos_core_adapter',
       'torneos_edge_identity_writer', 'torneos_edge_core_adapter'].map((r) => c(`set_role_refused_${r}`, `SET LOCAL ROLE ${r}`, DENIED)),
+    // ACCOUNT ERASURE (0021): the erasure role and its login are never reachable from the payments login. Before 0021 /
+    // before the credential step they do not exist (22023), after it the answer is 42501: refused in every stage.
+    ...['torneos_erasure_writer', 'torneos_edge_erasure_writer'].map((r) => c(`set_role_refused_${r}`, `SET LOCAL ROLE ${r}`, 'NOT_OK')),
     c('create_table_refused', 'CREATE TABLE public.torneos_payments_probe_refused (x int)', DENIED),
     c('create_role_refused', 'CREATE ROLE torneos_payments_probe_refused', DENIED),
   ];

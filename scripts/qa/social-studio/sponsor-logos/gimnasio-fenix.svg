@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 250" width="1200" height="250">
+  <!-- Fictional brand (QA fixture). Horizontal wordmark, transparent background. Fonts: Archivo Black, Archivo Narrow. -->
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Archivo+Black&amp;family=Archivo+Narrow:wght@700&amp;display=block');
+    .gym { font: 700 80px 'Archivo Narrow', 'Arial Narrow', sans-serif; letter-spacing: 6px; fill: #14161B; }
+    .word { font: 400 158px 'Archivo Black', 'Arial Black', sans-serif; letter-spacing: -2px; fill: url(#fire); }
+  </style>
+  <defs>
+    <linearGradient id="fire" x1="0" y1="1" x2="0" y2="0">
+      <stop offset="0" stop-color="#D7261E"/>
+      <stop offset="1" stop-color="#F59E0B"/>
+    </linearGradient>
+  </defs>
+  <g transform="translate(18 14)">
+    <path fill="url(#fire)" d="M112 222 C 40 210 6 160 22 104 C 32 140 52 154 70 156 C 46 118 56 62 104 20 C 100 64 116 92 140 104 C 134 74 146 46 170 28 C 168 74 196 100 202 142 C 210 194 168 228 112 222 Z"/>
+    <path fill="#FFF7E8" d="M112 206 C 84 202 68 182 74 156 C 84 170 96 174 106 172 C 98 150 106 128 124 114 C 126 140 140 150 150 164 C 160 186 142 208 112 206 Z"/>
+  </g>
+  <text class="gym" x="248" y="168">GIMNASIO</text>
+  <text class="word" x="648" y="198">FÉNIX</text>
+  <rect x="252" y="196" width="364" height="12" fill="#14161B"/>
+</svg>

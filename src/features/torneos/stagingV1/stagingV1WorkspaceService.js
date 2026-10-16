@@ -27,12 +27,18 @@
 //
 // CONNECTED-V1: with `connected: true` (foundation/config.js resolveTorneosConnectedProduct) it also serves the
 // connected product — Torneos profile and inbox, catalog management, registration requests — with the legacy RPC
-// and p_* payload (scripts/torneos-frontend/connected-adapter.test.mjs). Never the platform removal lever.
+// and p_* payload (scripts/torneos-frontend/connected-adapter.test.mjs). Never the platform removal lever. MODERATION
+// (0022) rides on it: report content, the organization's review and applicant blocks, muting an organization's
+// communications. Never the platform_* moderation functions (operator only, no API grant).
 //
 // BRANDING-V1: with `branding: true` (foundation/config.js resolveTorneosBranding) it also serves the existing branding
 // contract — upload/remove a logo or shield (object route + set_tournament_branding_reference, the LOCAL service's
 // exact sequence) and the organization's branding context. Whatever the option, a branding path of a response only
 // becomes an image through a URL the gateway signed (brandingUrls.js); nothing here resolves storage URLs itself.
+// PREMIUM SPONSORS (0020) ride the same contract (brandingV1Scope `sponsors`): read the organization's sponsors, save one
+// (its logo stored first through the existing object route, organization kind; a refused save removes what it stored and
+// a replaced logo is removed afterwards), archive one (then its logo is removed) and authorize a piece's sponsors before
+// an export. Both reads are signed by the gateway: a logo is an image only through the URL it signed.
 //
 // MEDIA-V1: with `media: true` (foundation/config.js resolveTorneosMedia) it also serves the photo galleries — the
 // LOCAL service's gallery aliases with the same RPC name and p_* payload (scripts/torneos-frontend/media-adapter.test.mjs),
@@ -54,10 +60,20 @@ import { TOURNAMENT_STATUS_TRANSITIONS } from '../domain/competitionLifecycle';
 import { normalizeMatchOutcome } from '../domain/matchOutcome';
 import { brandingOwnerPath, prepareBrandingFile } from '../domain/brandingFiles';
 import { BRANDING_OBJECT_PATH } from '../foundation/brandingV1Scope';
-import { requireAuthorizedBrandingUrls } from '../domain/brandingUrlRegistry';
 import { withSignedBranding } from './brandingUrls';
+import { authorizedBrandingUrl, requireAuthorizedBrandingUrls } from '../domain/brandingUrlRegistry';
+import {
+  isSponsorId,
+  normalizeSponsorsAnswer,
+  normalizeSponsorsAuthorization,
+  SPONSOR_LIMITS,
+  SPONSOR_SORT_ORDER_MAX,
+} from '../domain/sponsors';
 import { prepareUploadPayload, MediaClientError } from '../domain/mediaImageClient';
 import { describeMediaPipelineError } from '../domain/mediaPipeline';
+import {
+  blockApplicantParams, handleReportParams, mutedParams, reportContentParams,
+} from '../domain/contentModeration';
 
 // Copy for failures that happen before or around the RPC (transport, session,
 // gateway). The RPC's own functional codes keep the legacy ERROR_MESSAGES copy.
@@ -119,12 +135,19 @@ export const CONNECTED_METHODS = Object.freeze([
   'loadTorneosInboxSummary', 'loadCatalogListingSettings', 'saveCatalogListing', 'setCatalogListingStatus',
   'setApplicationsState', 'saveCategoryCapacity', 'loadApplicationInbox', 'searchApplicableCoreTeams',
   'startTournamentApplication', 'loadMyRegistrations', 'listMyCoreTeamsForApplication', 'loadMyParticipations',
+  // MODERATION (0022), served by the same CONNECTED-V1 contract.
+  'reportContent', 'loadContentReports', 'handleContentReport', 'blockApplicant', 'unblockApplicant',
+  'setCommunicationsMuted', 'loadCommunicationMutes',
 ]);
 export const BRANDING_METHODS = Object.freeze(['uploadBrandingAsset', 'removeBrandingAsset', 'loadBrandingContext']);
+// PREMIUM SPONSORS: part of the branding composition (same opt-in, same gateway contract), never without it.
+export const SPONSOR_METHODS = Object.freeze([
+  'loadOrganizationSponsors', 'saveOrganizationSponsor', 'archiveOrganizationSponsor', 'authorizeSocialSponsors',
+]);
 // Responses the gateway signs (torneos-gateway/branding.ts SIGNED_AUTHENTICATED_RPCS): their paths keep only with a URL.
 const SIGNED_BRANDING_RPCS = new Set([
   'get_tournament_branding_context', 'get_team_registration_context', 'get_tournament_teams_context',
-  'get_tournament_participant_hub',
+  'get_tournament_participant_hub', 'get_tournament_organization_sponsors', 'authorize_tournament_social_sponsors',
 ]);
 const BRANDING_LABELS = Object.freeze({
   organization: 'logo de la organización', tournament: 'logo del torneo', team: 'escudo del equipo',
@@ -324,6 +347,14 @@ export function createStagingV1WorkspaceService({
       throw translateBoundaryError(error, fallbackMessage);
     }
     return SIGNED_BRANDING_RPCS.has(operation) ? withSignedBranding(result) : result;
+  };
+  // A moderation body the database would refuse never leaves the client.
+  const moderationParams = (build, input) => {
+    try {
+      return build(input);
+    } catch {
+      throw invalidRequest();
+    }
   };
 
   async function loadMyTournaments({ limit = 20, offset = 0 } = {}) {
@@ -559,6 +590,27 @@ export function createStagingV1WorkspaceService({
       p_limit: limit,
       p_offset: offset,
     }, 'No pudimos cargar tus torneos.'),
+    // MODERATION (0022): report content, the organization's review and blocks, muting an organization's communications.
+    // The same p_* bodies as the LOCAL service (domain/contentModeration.js builds both).
+    reportContent: async (input) => call('report_tournament_content', moderationParams(reportContentParams, input),
+      'No pudimos enviar el reporte.'),
+    loadContentReports: async ({ organizationId, status = null } = {}) => {
+      if (!UUID.test(String(organizationId))) throw invalidRequest();
+      return call('get_tournament_content_reports', { p_organization_id: organizationId, p_status: status },
+        'No pudimos cargar los reportes.');
+    },
+    handleContentReport: async (input) => call('handle_tournament_content_report', moderationParams(handleReportParams, input),
+      'No pudimos guardar la decisión sobre el reporte.'),
+    blockApplicant: async (input) => call('block_tournament_applicant', moderationParams(blockApplicantParams, input),
+      'No pudimos bloquear al solicitante.'),
+    unblockApplicant: async ({ organizationId, blockId } = {}) => {
+      if (!UUID.test(String(organizationId)) || !UUID.test(String(blockId))) throw invalidRequest();
+      return call('unblock_tournament_applicant', { p_organization_id: organizationId, p_block_id: blockId },
+        'No pudimos quitar el bloqueo.');
+    },
+    setCommunicationsMuted: async (input) => call('set_tournament_communications_muted', moderationParams(mutedParams, input),
+      'No pudimos cambiar los avisos de esta organización.'),
+    loadCommunicationMutes: () => call('get_my_tournament_communication_mutes', {}, 'No pudimos cargar las organizaciones silenciadas.'),
   } : {};
 
   // BRANDING-V1: the LOCAL service's exact sequence (tournamentBrandingService.js) over the gateway: store a new
@@ -617,6 +669,97 @@ export function createStagingV1WorkspaceService({
       } catch (error) {
         throw brandingError(error, kind, 'quitar');
       }
+    },
+  } : {};
+
+  // PREMIUM SPONSORS: every id is checked before the network; the server decides role, organization and entitlement.
+  // A logo is stored before the save (the server only accepts an object of this organization's own folder) and removed
+  // when the save is refused; the logo a save or an archive replaced is removed afterwards. A removal that fails after
+  // the server already answered never undoes that answer: the object store keeps refusing to drop an object still in
+  // use, and an orphan is only storage.
+  const signedLogoUrl = (path) => authorizedBrandingUrl(path);
+  const sponsorError = (error, fallback) => translateBoundaryError(error, fallback);
+  const sponsorAliases = brandingEnabled ? {
+    loadOrganizationSponsors: async ({ organizationId, seasonId = null } = {}) => {
+      if (!isUuid(organizationId) || !(seasonId === null || isUuid(seasonId))) throw invalidRequest();
+      let raw;
+      try {
+        raw = await client.execute('get_tournament_organization_sponsors', {
+          p_organization_id: organizationId, p_season_id: seasonId,
+        });
+      } catch (error) {
+        throw translateBoundaryError(error, 'No pudimos cargar los sponsors.');
+      }
+      // A path the gateway did not sign is dropped below (withSignedBranding), as for every branding read; the gateway
+      // signs organization objects only for owners and administrators. Whether a sponsor HAS a logo is kept apart, so a
+      // collaborator's read-only list never says «sin logo» of a sponsor that has one (it still cannot draw it).
+      const withLogo = new Set((Array.isArray(raw?.sponsors) ? raw.sponsors : [])
+        .filter((entry) => typeof entry?.logoPath === 'string' && entry.logoPath)
+        .map((entry) => entry.id));
+      const answer = withSignedBranding(raw);
+      return normalizeSponsorsAnswer(answer && Array.isArray(answer.sponsors)
+        ? { ...answer, sponsors: answer.sponsors.map((entry) => ({ ...entry, hasLogo: withLogo.has(entry?.id) })) }
+        : answer, { resolveLogoUrl: signedLogoUrl });
+    },
+    saveOrganizationSponsor: async ({
+      organizationId, sponsorId = null, name, file = null, logoPath = null, sortOrder = null,
+    } = {}) => {
+      if (!isUuid(organizationId) || !(sponsorId === null || isUuid(sponsorId)) || typeof name !== 'string'
+        || !(logoPath === null || BRANDING_OBJECT_PATH.test(String(logoPath)))
+        || !(sortOrder === null || (Number.isInteger(sortOrder) && sortOrder >= 0 && sortOrder <= SPONSOR_SORT_ORDER_MAX))) {
+        throw invalidRequest();
+      }
+      let uploadedPath = null;
+      try {
+        if (file) {
+          const prepared = await prepareBrandingFile(file);
+          const owner = brandingOwnerPath({ organizationId, kind: 'organization', entityId: organizationId });
+          const stored = await client.brandingObject('POST', owner, prepared.source);
+          if (typeof stored?.path !== 'string' || !BRANDING_OBJECT_PATH.test(stored.path) || !stored.path.startsWith(`${owner}/`)) {
+            throw new TorneosBoundaryError('TORNEOS_UNAVAILABLE');
+          }
+          uploadedPath = stored.path;
+        }
+        const answer = await client.execute('upsert_tournament_organization_sponsor', {
+          p_organization_id: organizationId,
+          p_sponsor_id: sponsorId,
+          p_name: name,
+          p_logo_path: uploadedPath || logoPath,
+          p_sort_order: sortOrder,
+        });
+        const previous = answer?.previousLogoPath;
+        if (previous && previous !== (uploadedPath || logoPath) && BRANDING_OBJECT_PATH.test(String(previous))) {
+          await removeBrandingObject(previous);
+        }
+        return answer;
+      } catch (error) {
+        if (uploadedPath) await removeBrandingObject(uploadedPath);
+        // The file itself was refused before any request (format, size, dimensions): its own copy.
+        if (!isTorneosBoundaryError(error) && !(error instanceof TournamentWorkspaceError)) {
+          throw new Error(error?.message || 'No pudimos guardar el sponsor.');
+        }
+        throw sponsorError(error, 'No pudimos guardar el sponsor.');
+      }
+    },
+    archiveOrganizationSponsor: async ({ organizationId, sponsorId } = {}) => {
+      if (!isUuid(organizationId) || !isUuid(sponsorId)) throw invalidRequest();
+      const answer = await call('archive_tournament_organization_sponsor', {
+        p_organization_id: organizationId, p_sponsor_id: sponsorId,
+      }, 'No pudimos archivar el sponsor.');
+      const previous = answer?.previousLogoPath;
+      if (previous && BRANDING_OBJECT_PATH.test(String(previous))) await removeBrandingObject(previous);
+      return answer;
+    },
+    authorizeSocialSponsors: async ({ seasonId, tournamentId, theme, sponsorIds } = {}) => {
+      if (![seasonId, tournamentId].every(isUuid) || !isName(theme) || !Array.isArray(sponsorIds)
+        || sponsorIds.length > SPONSOR_LIMITS.maxPerExport || !sponsorIds.every(isSponsorId)
+        || new Set(sponsorIds).size !== sponsorIds.length) {
+        throw invalidRequest();
+      }
+      const answer = await call('authorize_tournament_social_sponsors', {
+        p_season_id: seasonId, p_tournament_id: tournamentId, p_theme: theme, p_sponsor_ids: sponsorIds,
+      }, 'No pudimos autorizar los sponsors de esta placa.');
+      return normalizeSponsorsAuthorization(answer, { resolveLogoUrl: signedLogoUrl });
     },
   } : {};
 
@@ -746,6 +889,7 @@ export function createStagingV1WorkspaceService({
     ...socialAliases,
     ...connectedAliases,
     ...brandingAliases,
+    ...sponsorAliases,
     ...mediaAliases,
     // ── organizations / workspaces ─────────────────────────────────────────
     loadContext: () => call(

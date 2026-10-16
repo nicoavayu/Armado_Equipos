@@ -160,8 +160,12 @@ export function makeSession({ pat, deno, mpToken, mpSecret, deps }) {
       f.push(...C.paymentsDeltaFailures(o.catalog, o.gatewayRoles, o.paymentRoles, { expectLogin }).map((x) => `DELTA_${x}`));
       if (expectLogin) {
         if (!p.delta) f.push('PAYMENTS_DELTA_PIN_MISSING');
-        else if (canon({ c: G.DELTA_PATHS.map((k) => G.getPath(o.catalog, k)), g: { logins: o.gatewayRoles.logins, memberships: o.gatewayRoles.memberships, payment_logins: o.gatewayRoles.payment_logins }, p: o.paymentRoles })
-          !== canon({ c: G.DELTA_PATHS.map((k) => G.getPath(p.delta.catalog, k)), g: p.delta.gateway_roles, p: p.delta.payment_roles })) f.push('PAYMENTS_DELTA_PIN_MISMATCH');
+        else {
+          // ACCOUNT ERASURE (0021): only its exact role / login are set aside (paymentsDeltaFailures checked their shape).
+          const { catalog: rc, roles: rr } = G.withoutErasure(o.catalog, o.gatewayRoles);
+          if (canon({ c: G.DELTA_PATHS.map((k) => G.getPath(rc, k)), g: { logins: rr.logins, memberships: rr.memberships, payment_logins: rr.payment_logins }, p: o.paymentRoles })
+            !== canon({ c: G.DELTA_PATHS.map((k) => G.getPath(p.delta.catalog, k)), g: p.delta.gateway_roles, p: p.delta.payment_roles })) f.push('PAYMENTS_DELTA_PIN_MISMATCH');
+        }
       }
     }
     if (G.b03State(o.tpa, p.jwks).state !== 'applied') f.push('B03_NOT_APPLIED');

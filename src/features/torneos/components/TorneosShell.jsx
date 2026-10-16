@@ -40,11 +40,13 @@ import FeatureUnavailablePage from './FeatureUnavailablePage';
 import CreateOrganizationPage from './CreateOrganizationPage';
 import CompetitionOverviewPage from './CompetitionOverviewPage';
 import OrganizationMembersPage from './OrganizationMembersPage';
+import OrganizationModerationPage from './moderation/OrganizationModerationPage';
 import LegacyTournamentRoute from './LegacyTournamentRoute';
 import OrganizationRouteGuard from './OrganizationRouteGuard';
 import OrganizationVenuesPage from './OrganizationVenuesPage';
 import TournamentRouteGuard from './TournamentRouteGuard';
 import OrganizationSettingsPage from './OrganizationSettingsPage';
+import OrganizationSponsorsPage from './OrganizationSponsorsPage';
 import PlanExperiencePage from './PlanExperiencePage';
 import PurchaseStatusPage from './PurchaseStatusPage';
 import { useOptionalTorneosCompetition } from '../context/TorneosCompetitionContext';
@@ -172,7 +174,7 @@ export const organizationNavigation = [
     path: 'configuracion',
     icon: Settings2,
     builder: 'organizationSettings',
-    relatedPaths: ['configuracion/plan'],
+    relatedPaths: ['configuracion/plan', 'configuracion/moderacion'],
     feature: 'organizations_workspaces',
   },
 ];
@@ -672,6 +674,8 @@ function TorneosShellContent() {
               )}
               <Route path="configuracion" element={<OrganizationSettingsPage />} />
               <Route path="configuracion/plan" element={gate('plan_legacy_routes', <LegacyPlanRedirect />)} />
+              <Route path="configuracion/sponsors" element={gate('branding_assets', <OrganizationSponsorsPage />)} />
+              <Route path="configuracion/moderacion" element={gate('content_moderation', <OrganizationModerationPage />)} />
               <Route path="miembros" element={<OrganizationMembersPage />} />
             </Route>
             <Route path="mis-partidos" element={gate('match_operations', <MyTournamentMatchesPage />)} />

@@ -55,11 +55,42 @@ for (const width of [320, 390]) {
   expect(exports.some((e) => e.viewport?.startsWith(`${width} `) && e.style === 'editorial'), `Editorial pages exported at ${width}`);
   expect(has('D2 mobile navigation symmetric, no dead body gutter', (c) => c.width === width && c.device === 'scrollbar'), `D2: mobile navigation at ${width} with a classic scrollbar`);
 }
+// PREMIUM SPONSORS: 0–3 sponsors in every Premium style and both formats, Tabla and Resultados, each a real file whose
+// band was measured on screen (a tile per sponsor); FREE unchanged; every other piece through the band matrix.
+for (const piece of ['standings', 'round_results']) {
+  for (const format of ['feed-4x5', 'historia-9x16']) {
+    for (const style of ['heritage', 'street', 'scoreboard', 'editorial']) {
+      for (const count of [0, 1, 2, 3]) {
+        expect(exports.some((e) => e.section === 'sponsors' && e.piece === piece && e.style === style && e.format === format && e.sponsors === count
+          && Array.isArray(e.sponsorNames) && e.sponsorNames.length === count && (e.tiles || []).length === count
+          && (count === 0 ? !e.band : e.band?.count === count)), `sponsors: ${count} × ${piece} ${style} ${format} export`);
+      }
+    }
+  }
+}
+expect(has('sponsors: band matrix — every piece × four styles × two formats × 0–3 sponsors, nothing under the band, nothing cut', (c) => c.renders === 4 * 2 * 21 * 4),
+  'sponsors: band matrix (21 piece variants × 4 styles × 2 formats × 0–3 sponsors)');
+for (const name of [
+  'sponsors: 0–3 × four Premium styles × two formats × Tabla and Resultados exported through Descargar PNG',
+  'sponsors: the band on every exported piece is prominent, whole and over nothing',
+  'sponsors: a white logo on a transparent background gets a dark tile',
+  'sponsors: at most 3 per piece',
+  'sponsors: a refused authorization exports nothing, then the retry does',
+  'sponsors: Base hides and clears the selection',
+  'sponsors: settings list (Premium) and Premium explanation (FREE)',
+  'sponsors: a collaborator with export exports without sponsors and never reads «sin logo»',
+  'sponsors: a square logo is whole inside its frame; the settings tabs never clip (desktop and phone)',
+  'sponsors: FREE unchanged (no selector, no request, same file)',
+]) expect(has(name), name);
 expect(has('FREE authorize payloads'), 'FREE authorization payloads (Base, three pieces, Arma2 signature)');
 expect(has('FREE: Resultados keeps the chosen format (switch and refresh)'), 'D3: Resultados keeps the chosen format');
 expect(has('FREE premium style previewed and locked'), 'FREE: Premium styles previewed and locked (behind the Premium veil)');
 expect(checks.filter((c) => c.name === 'sparse content starts under the title').length === 32,
   'sparse content: 4 pieces × 4 Premium styles × 2 formats start under the title');
+expect(checks.filter((c) => c.name === 'Premium placas fit their canvas').length === 88,
+  'Premium placas fit: 11 pieces × 4 Premium styles × 2 formats inside the canvas, names and draws whole');
+expect(checks.filter((c) => c.name === 'Premium placas fit their canvas with the sponsor band').length === 88,
+  'Premium placas fit with three sponsors: the band and the canvas rule together (11 pieces × 4 styles × 2 formats)');
 expect(has('PREMIUM Base signature optional; Premium styles white-label'), 'branding: Arma2 signature optional on PREMIUM Base, white-label styles');
 expect(has('Figura photo/drag/zoom/reset'), 'Figura photo, focal point, zoom and reset');
 expect(has('Editorial multi-page'), 'Editorial multi-page export');

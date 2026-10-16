@@ -74,7 +74,10 @@ if (DENO_CERTIFIED.app.id !== '5d4f18e9-1614-4e24-b8e0-fd7cff8e4c3d' || DENO_CER
 // ─────────────────────────── origins ───────────────────────────
 export const WEB_ORIGIN = G.WEB_ORIGIN;
 export const ANDROID_ORIGIN = 'https://localhost';
-/** Must stay 403 on both sources: other scheme, iOS Capacitor default, other port, foreign host. */
+/** Must stay 403 on both sources: other scheme, iOS Capacitor default, other port, foreign host.
+ *  Historical: both sources are the pinned Deno-era commits (live 0f049ef5, candidate f7efe18f), which do refuse
+ *  capacitor://localhost. Main now admits it on Production (topology.ts nativeIosOrigin); that change is covered by
+ *  ../torneos-ios-origin/ios-origin.test.mjs and torneos-gateway/NATIVE-ORIGINS.md, not by this Deno deploy tooling. */
 export const DENY_ORIGINS = Object.freeze(['http://localhost', 'capacitor://localhost', 'https://localhost:8443', 'https://evil.example']);
 if (WEB_ORIGIN !== 'https://app.arma2.com.ar') throw new Error('android_origin_web_pin');
 

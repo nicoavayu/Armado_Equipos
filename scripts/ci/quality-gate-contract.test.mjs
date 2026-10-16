@@ -34,7 +34,11 @@
  *       npm run test:torneos:connected    — CONNECTED-V1: the 0009 migration/rollback
  *                                           pins and the gateway opt-in against the
  *                                           real gateway source (no DB, no network)
- *       npm run test:torneos:branding     — BRANDING-V1: the 0010 private bucket and
+ *       npm run test:torneos:moderation   — MODERATION (0022): the operator driver offline,
+ *                                           then report / review / block / mute and
+ *                                           apply → rollback → re-apply on a disposable
+ *                                           PostgreSQL with fictional data
+ *       npm run test:torneos:branding    — BRANDING-V1: the 0010 private bucket and
  *                                           storage policies, and the gateway's
  *                                           object route and signed URLs against
  *                                           the real gateway source (no network)
@@ -118,7 +122,7 @@ const workflowExecutedScripts = [...workflowDirectives.matchAll(/npm run ([a-z0-
 /** The suites `test:ci` must compose. Removing one from the script fails here. */
 const REQUIRED_IN_TEST_CI = [
   'test:staging:guard', 'test:worker:signer-renewer', 'test:worker:media:ci', 'test:torneos:social',
-  'test:torneos:social:browser', 'test:torneos:connected', 'test:torneos:branding', 'test:torneos:media',
+  'test:torneos:social:browser', 'test:torneos:connected', 'test:torneos:moderation', 'test:torneos:branding', 'test:torneos:media',
 ];
 
 /**

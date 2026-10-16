@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { LockKeyhole, X } from 'lucide-react';
 import styles from './PremiumFeatureGate.module.css';
+import { isNativeCommerceBlocked } from '../domain/nativeCommerce';
 
 export default function PremiumFeatureGate({ open, onClose, onViewPremium, feature = 'Función Premium' }) {
   const dialogRef = useRef(null);
@@ -34,6 +35,8 @@ export default function PremiumFeatureGate({ open, onClose, onViewPremium, featu
   }, [onClose, open]);
 
   if (!open) return null;
+  // Store apps: the dialog only states the fact and closes; no «Ver Premium» (domain/nativeCommerce).
+  const native = isNativeCommerceBlocked();
 
   return (
     <div
@@ -62,10 +65,10 @@ export default function PremiumFeatureGate({ open, onClose, onViewPremium, featu
         <p>{feature}</p>
         <h2 id="premium-feature-title">Esta función está incluida en Premium.</h2>
         <span id="premium-feature-copy">
-          Consultá qué agrega Premium a esta temporada.
+          {native ? 'El plan de esta temporada no la incluye.' : 'Consultá qué agrega Premium a esta temporada.'}
         </span>
         <div className={styles.actions}>
-          <button type="button" onClick={onViewPremium}>Ver Premium</button>
+          {!native && <button type="button" onClick={onViewPremium}>Ver Premium</button>}
           <button type="button" className={styles.secondary} onClick={onClose}>Cerrar</button>
         </div>
       </section>

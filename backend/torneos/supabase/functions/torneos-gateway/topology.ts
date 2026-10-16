@@ -3,8 +3,9 @@
 // Two planes, never the same project:
 //   Core AUTHORITY  CORE_AUTH_URL, CORE_JWT_ISSUER, CORE_CONTRACT_URL. Reached ONLY over HTTPS: GoTrue
 //                   (/user, /health) and the signed Core contract. Never a database, never a key above anon.
-//   Torneos DATA    TORNEOS_REST_URL, TORNEOS_DB_IDENTITY_WRITER_URL, TORNEOS_DB_CORE_ADAPTER_URL. The only
-//                   database this gateway ever opens, through the two torneos_edge_* logins.
+//   Torneos DATA    TORNEOS_REST_URL, TORNEOS_DB_IDENTITY_WRITER_URL, TORNEOS_DB_CORE_ADAPTER_URL and, when set,
+//                   TORNEOS_DB_ERASURE_WRITER_URL (account erasure, 0021). The only database this gateway ever
+//                   opens, through the torneos_edge_* logins: three distinct logins, never one for another's job.
 //
 // The rule is not "Production is forbidden". It is: Core Production is allowed EXCLUSIVELY as the HTTPS
 // authority, and never as a data backend. Concretely:
@@ -36,15 +37,23 @@ export const PRODUCTION = Object.freeze({
   // The Android app's WebView (Capacitor 7: androidScheme https, hostname localhost), measured on the wire
   // 2026-09-29. Pinned here, never from env; allowed only in addition to the web origin, only on Production.
   nativeAppOrigin: "https://localhost",
+  // The iOS app's WKWebView (Capacitor 7: no iosScheme -> scheme "capacitor", hostname localhost). Same rules as the
+  // Android origin: pinned here, never from env, only in addition to the web origin, only on Production; compared as
+  // an EXACT string with the request's Origin header, never through new URL(x).origin (for a non-special scheme that
+  // is "null"). Must be measured on the wire (Safari Web Inspector) before deploy: NATIVE-ORIGINS.md.
+  nativeIosOrigin: "capacitor://localhost",
   identityWriterLogin: "torneos_edge_identity_writer",
   coreAdapterLogin: "torneos_edge_core_adapter",
+  // ACCOUNT ERASURE (0021): NOINHERIT member of torneos_erasure_writer only; provisioned out of band, its URL only in
+  // Secret Manager (backend/torneos/account-deletion-v1/README.md).
+  erasureWriterLogin: "torneos_edge_erasure_writer",
   // Supavisor (session :5432 / transaction :6543) in the project's region, or the direct host.
   poolerHost: /^aws-\d+-sa-east-1\.pooler\.supabase\.com$/,
   directHost: `db.${TORNEOS_DATA_REF}.supabase.co`,
 })
 
-// Logins no gateway URL may carry, in any topology (admin, platform, API roles, payments).
-const FORBIDDEN_LOGIN = /^(postgres|supabase_[a-z_]*|service_role|authenticator|anon|authenticated|pgbouncer|dashboard_user|torneos_payment[a-z_]*|torneos_identity_writer|torneos_core_adapter)$/
+// Logins no gateway URL may carry, in any topology (admin, platform, API roles, payments, the NOLOGIN roles themselves).
+export const FORBIDDEN_LOGIN = /^(postgres|supabase_[a-z_]*|service_role|authenticator|anon|authenticated|pgbouncer|dashboard_user|torneos_payment[a-z_]*|torneos_identity_writer|torneos_core_adapter|torneos_erasure_writer)$/
 // Environment names that carry Core administrative material: never in this gateway's environment.
 export const FORBIDDEN_CORE_ADMIN_ENV: readonly string[] = Object.freeze(["CORE_SERVICE_ROLE_KEY", "CORE_SECRET_KEY", "CORE_JWT_SECRET", "CORE_DB_URL", "CORE_DATABASE_URL"])
 
@@ -83,17 +92,29 @@ export type PlaneUrls = {
   rest: URL
   identityWriter: URL
   coreAdapter: URL
+  erasureWriter?: URL | null     // optional (0021): absent = the erasure routes are off
 }
 
 /** Applies the two-plane rule; returns the topology or throws TopologyError (reason only, never a value). */
 export function assertTopology(u: PlaneUrls, extra: { dbSslCa: boolean; commerceMode: string }): Topology {
+  const logins: [string, URL][] = [["TORNEOS_DB_IDENTITY_WRITER_URL", u.identityWriter], ["TORNEOS_DB_CORE_ADAPTER_URL", u.coreAdapter],
+    ...(u.erasureWriter ? [["TORNEOS_DB_ERASURE_WRITER_URL", u.erasureWriter] as [string, URL]] : [])]
   // Data plane: never a Core project, whatever the topology — the refs are checked in every part of the URL.
-  for (const [name, url] of [["TORNEOS_REST_URL", u.rest], ["TORNEOS_DB_IDENTITY_WRITER_URL", u.identityWriter], ["TORNEOS_DB_CORE_ADAPTER_URL", u.coreAdapter]] as [string, URL][]) {
+  for (const [name, url] of [["TORNEOS_REST_URL", u.rest], ...logins] as [string, URL][]) {
     const raw = decodeURIComponent(url.href).toLowerCase()
     if (CORE_REFS.some((ref) => raw.includes(ref))) throw new TopologyError(`${name} names a Core project (Core is reachable only over HTTPS as the authority)`)
   }
-  for (const [name, url] of [["TORNEOS_DB_IDENTITY_WRITER_URL", u.identityWriter], ["TORNEOS_DB_CORE_ADAPTER_URL", u.coreAdapter]] as [string, URL][]) {
+  for (const [name, url] of logins) {
     if (FORBIDDEN_LOGIN.test(loginOf(url))) throw new TopologyError(`${name} uses a forbidden login`)
+  }
+  // Each database job has its own login: the erasure login is never the adapter's or the identity writer's, nor the
+  // reverse (a shared login would hand the erasure to every core-contract call, or the contract to the erasure).
+  if (u.erasureWriter) {
+    const erasure = loginOf(u.erasureWriter)
+    if (erasure === loginOf(u.identityWriter) || erasure === loginOf(u.coreAdapter)) throw new TopologyError("TORNEOS_DB_ERASURE_WRITER_URL must use its own login")
+  }
+  for (const [name, url] of logins.slice(0, 2)) {
+    if (loginOf(url) === PRODUCTION.erasureWriterLogin) throw new TopologyError(`${name} uses the erasure login`)
   }
   // Authority plane: never the Torneos data project.
   for (const [name, url] of [["CORE_AUTH_URL", u.coreAuth], ["CORE_JWT_ISSUER", u.coreIssuer], ["CORE_CONTRACT_URL", u.coreContract]] as [string, URL][]) {
@@ -104,7 +125,7 @@ export function assertTopology(u: PlaneUrls, extra: { dbSslCa: boolean; commerce
     if (refsOf(url).some((ref) => CORE_REFS.includes(ref))) throw new TopologyError(`${name} names a Core project`)
   }
   const coreRef = planeRef("the Core authority plane", [["CORE_AUTH_URL", u.coreAuth], ["CORE_JWT_ISSUER", u.coreIssuer], ["CORE_CONTRACT_URL", u.coreContract]])
-  const dataRef = planeRef("the Torneos data plane", [["TORNEOS_REST_URL", u.rest], ["TORNEOS_DB_IDENTITY_WRITER_URL", u.identityWriter], ["TORNEOS_DB_CORE_ADAPTER_URL", u.coreAdapter]])
+  const dataRef = planeRef("the Torneos data plane", [["TORNEOS_REST_URL", u.rest], ...logins])
   if (coreRef !== null && coreRef === dataRef) throw new TopologyError("the Core authority and the Torneos data plane name the same project")
   const production = coreRef === CORE_PRODUCTION_REF || dataRef === TORNEOS_DATA_REF
   if (!production) return { kind: "nonproduction", coreRef, dataRef }
@@ -125,6 +146,7 @@ export function assertTopology(u: PlaneUrls, extra: { dbSslCa: boolean; commerce
   const expected: [string, URL, string][] = [
     ["TORNEOS_DB_IDENTITY_WRITER_URL", u.identityWriter, PRODUCTION.identityWriterLogin],
     ["TORNEOS_DB_CORE_ADAPTER_URL", u.coreAdapter, PRODUCTION.coreAdapterLogin],
+    ...(u.erasureWriter ? [["TORNEOS_DB_ERASURE_WRITER_URL", u.erasureWriter, PRODUCTION.erasureWriterLogin] as [string, URL, string]] : []),
   ]
   for (const [name, url, login] of expected) {
     const user = decodeURIComponent(url.username).toLowerCase()
@@ -134,6 +156,7 @@ export function assertTopology(u: PlaneUrls, extra: { dbSslCa: boolean; commerce
     if (url.pathname !== "/postgres") throw new TopologyError(`${name} database is not postgres`)
   }
   if (u.identityWriter.host !== u.coreAdapter.host) throw new TopologyError("the two database logins target different hosts")
+  if (u.erasureWriter && u.erasureWriter.host !== u.coreAdapter.host) throw new TopologyError("the erasure login targets a different host")
   if (!extra.dbSslCa) throw new TopologyError("TORNEOS_DB_SSL_CA is required against the Torneos data project (verified TLS)")
   // COMMERCE-PRODUCTION: against Core Production commerce is OFF or the production mode, whose own configuration
   // (commerce.ts) pins the hosted deployment, the canonical payments host/URL and https dependencies. TEST, or any

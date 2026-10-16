@@ -7,8 +7,11 @@
 //
 // SOCIAL_QA_PROFILE=ci is the deterministic subset the Prelaunch Quality Gate runs on every PR (`npm run
 // test:torneos:social:browser`): Social OFF, FREE, PREMIUM (every style, both formats), branding, real exports,
-// Editorial pages, the transitions (slow answers, a changed mind, failures: the file is always what is on screen) and
-// the phone layouts at 390 and 320 px. Without it (the certification before gate A) every
+// Editorial pages, the Premium placas fit (11 pieces × 4 styles × 2 formats inside their canvas, names and draws
+// whole; again with three sponsors), the transitions (slow answers, a changed mind, failures: the file is always what is on screen), the Premium
+// sponsors (0–3 × the four Premium styles × both formats × Tabla and Resultados, the band measured; the band matrix
+// over every piece; FREE unchanged) and the phone layouts at 390 and 320 px. Without it (the certification before
+// gate A) every
 // section runs in full: 11 pieces × 5 styles × 2 formats, Figura, Equipo ideal 5–11 and six widths.
 const { chromium, expect } = require('@playwright/test');
 const fs = require('fs');
@@ -20,6 +23,8 @@ const { start } = require('./serve.cjs');
 const ROOT = path.resolve(__dirname, '../../..');
 const OUT = path.join(ROOT, 'artifacts/social-studio');
 const DOWNLOADS = path.join(OUT, 'downloads');
+// Every sponsor export is kept under its own name (the downloads folder keeps only the last file of each name).
+const SPONSOR_EXPORTS = path.join(OUT, 'sponsors');
 const ALLOWED_REMOTE = new Set(['fonts.gstatic.com', 'fonts.googleapis.com']);
 const PIECES = [
   ['round_results', 'Resultados de la fecha'], ['next_fixture', 'Próxima fecha'], ['standings', 'Tabla de posiciones'],
@@ -136,7 +141,7 @@ async function serveFont(route) {
     return route.abort();
   }
 }
-async function open(browser, base, query, viewport = { width: 1440, height: 1000 }, device = {}) {
+async function newPage(browser, base, viewport, device = {}) {
   const context = await browser.newContext({ viewport, acceptDownloads: true, reducedMotion: 'reduce', ...device });
   const page = await context.newPage();
   const errors = []; const remote = [];
@@ -148,6 +153,18 @@ async function open(browser, base, query, viewport = { width: 1440, height: 1000
     if (ALLOWED_REMOTE.has(url.hostname)) return serveFont(route);
     remote.push(url.href); return route.abort();
   });
+  return { page, context, errors, remote };
+}
+// Configuración → Sponsors of the offline organization (`path=configuracion/sponsors`).
+async function openSettings(browser, base, query, viewport = { width: 1280, height: 900 }) {
+  const opened = await newPage(browser, base, viewport);
+  await opened.page.goto(`${base}/?${query}`);
+  await expect(opened.page.getByRole('heading', { name: 'Sponsors', exact: true })).toBeVisible({ timeout: 15000 });
+  await expect(opened.page.getByText(/Cargando sponsors/)).toHaveCount(0, { timeout: 15000 });
+  return opened;
+}
+async function open(browser, base, query, viewport = { width: 1440, height: 1000 }, device = {}) {
+  const { page, context, errors, remote } = await newPage(browser, base, viewport, device);
   await page.goto(`${base}/?${query}`);
   await expect(page.getByRole('heading', { name: 'Estudio Social', exact: true })).toBeVisible({ timeout: 15000 });
   // The season plan is read before anything is measured: its arrival re-renders the preview.
@@ -253,6 +270,78 @@ async function assertSameRender(page, label) {
 }
 const sha = (buffer) => crypto.createHash('sha256').update(buffer).digest('hex').slice(0, 16);
 
+// ── sponsors ───────────────────────────────────────────────────────────────────────────────────────────────────
+const sponsorGroup = (page) => page.getByRole('group', { name: /^Sponsors \(hasta \d\)$/ });
+// The sponsors the preview on screen really draws (their logos carry the sponsor's name as alt), in drawing order.
+async function renderedSponsors(page, names) {
+  return page.evaluate((known) => {
+    const surface = document.querySelector('[role="img"][aria-label^="Vista previa"]');
+    return surface ? [...surface.querySelectorAll('img')].map((img) => img.alt).filter((alt) => known.includes(alt)) : [];
+  }, names);
+}
+// Chooses the first `count` sponsors, in list order, and waits for a finished preview that draws exactly them.
+async function chooseSponsors(page, names, count, expected) {
+  const group = sponsorGroup(page);
+  await expect(group).toBeVisible({ timeout: 15000 });
+  const boxes = group.getByRole('checkbox');
+  const wanted = names.slice(0, count);
+  const checked = await boxes.evaluateAll((inputs) => inputs.filter((input) => input.checked).length);
+  if (checked === count && JSON.stringify(await renderedSponsors(page, names)) === JSON.stringify(wanted)) return;
+  await markRender(page);
+  for (let i = names.length - 1; i >= 0; i -= 1) if (await boxes.nth(i).isChecked()) await boxes.nth(i).uncheck();
+  for (let i = 0; i < count; i += 1) await boxes.nth(i).check();
+  await page.waitForFunction(({ want, known, label }) => {
+    const surface = document.querySelector('[role="img"][aria-label^="Vista previa"]');
+    const busy = [...document.querySelectorAll('[role="status"]')].some((el) => el.textContent.includes('Generando'));
+    if (!surface || surface.dataset.qaPrevious || busy || surface.getAttribute('aria-label') !== label) return false;
+    const drawn = [...surface.querySelectorAll('img')].map((img) => img.alt).filter((alt) => known.includes(alt));
+    return JSON.stringify(drawn) === JSON.stringify(want);
+  }, { want: wanted, known: names, label: `Vista previa de ${expected.piece} en ${expected.format}, estilo ${expected.style}` }, { timeout: 30000 });
+}
+
+// The band matrix: every piece, plus the variants that change a composition's density (a long table and its Editorial
+// pages, eight results, long club names, a sparse list, eleven players, a photo).
+const SPONSOR_BAND_VARIANTS = [
+  ['standings', { piece: 'standings' }], ['standings-4', { piece: 'standings', standingsRows: 4 }],
+  ['standings-16-p1', { piece: 'standings', standingsRows: 16, page: 1 }], ['standings-16-p2', { piece: 'standings', standingsRows: 16, page: 2 }],
+  ['round_results', { piece: 'round_results' }], ['round_results-2', { piece: 'round_results', listSize: 2 }],
+  ['round_results-8', { piece: 'round_results', matches: 'eight' }], ['round_results-long', { piece: 'round_results', matches: 'long' }],
+  ['next_fixture', { piece: 'next_fixture' }], ['next_fixture-1', { piece: 'next_fixture', listSize: 1 }],
+  ['scorers', { piece: 'scorers' }], ['discipline', { piece: 'discipline' }],
+  ['best_eleven', { piece: 'best_eleven' }], ['best_eleven-11', { piece: 'best_eleven', teamSize: 11 }],
+  ['mvp', { piece: 'mvp' }], ['mvp-photo', { piece: 'mvp', photo: true }], ['round_summary', { piece: 'round_summary' }],
+  ['semifinals', { piece: 'semifinals' }], ['final', { piece: 'final' }], ['champion', { piece: 'champion' }],
+  ['champion-photo', { piece: 'champion', photo: true }],
+];
+const POSTER_PIECES = ['final', 'champion'];
+// The pieces exported with 0–3 sponsors through the Studio, and the slug their kept files carry. Tabla goes last: the
+// checks after the exports start from Tabla in Editorial · Historia 9:16 with three sponsors.
+const SPONSOR_PIECES = [['round_results', 'Resultados de la fecha', 'resultados'], ['standings', 'Tabla de posiciones', 'tabla']];
+// The band is prominent: tiles of at least 150 px (Feed 4:5) / 200 px (Historia 9:16) in export pixels, a label of at
+// least 18 / 22 px, one tile per sponsor, every logo drawn at a readable size; and it breaks nothing: inside the canvas,
+// nothing of the composition under it, no text pushed out of the canvas or cut by a box that was whole without sponsors.
+const SPONSOR_BAND_MIN = { portrait: { tile: 150, label: 18, logo: 40 }, story: { tile: 200, label: 22, logo: 46 } };
+function assertSponsorBand(where, measure, count, formatId, withoutSponsors) {
+  const fail = (what) => { throw new Error(`${where}: ${what} ${JSON.stringify({ band: measure.band, tiles: measure.tiles, overlaps: measure.overlaps.slice(0, 4), clipped: measure.clipped.slice(0, 4) })}`); };
+  if (!count) {
+    if (measure.band || measure.tiles.length) fail('a piece without sponsors draws a band');
+    return;
+  }
+  const min = SPONSOR_BAND_MIN[formatId];
+  if (!measure.band || measure.band.count !== count || measure.tiles.length !== count) fail(`the band does not draw ${count} sponsor(s)`);
+  if (measure.band.box.y < 0 || measure.band.box.y + measure.band.box.h > measure.canvas.h) fail('the band leaves the canvas');
+  if (!measure.label || measure.label.fontSize < min.label) fail('the band label is not legible');
+  if (measure.tiles.some((tile) => tile.tile.h < min.tile || tile.logo.h < min.logo || tile.logo.w < 100)) fail('a logo is too small');
+  const heights = new Set(measure.tiles.map((tile) => `${tile.tile.w}x${tile.tile.h}`));
+  if (heights.size !== 1) fail('the tiles are not the same size');
+  if (measure.overlaps.length) fail('the composition runs under the band');
+  const excess = Math.max(0, measure.overflowY - (withoutSponsors?.overflowY || 0));
+  if (excess > 0) fail(`the band pushes ${excess} px out of the canvas`);
+  const before = new Map((withoutSponsors?.clipped || []).map((entry) => [entry.text, entry.by]));
+  const cut = measure.clipped.filter((entry) => entry.by > 3 && entry.by > (before.get(entry.text) ?? 0) + 3);
+  if (cut.length) fail('text is cut that was whole without sponsors');
+}
+
 // ── on-screen inspection ────────────────────────────────────────────────────────────────────────────────────────
 // The app clips horizontal overflow globally (html { overflow-x: clip }), so scrollWidth stays equal to the viewport
 // even when a control is pushed half off the screen. What counts is each element's real box: every functional part
@@ -343,6 +432,100 @@ async function measureSparseStart(page) {
     const entryTop = (list.getBoundingClientRect().top - box.top) * k;
     return { found: true, height, title: title.textContent.trim(), titleBottom: Math.round(titleBottom), entryTop: Math.round(entryTop) };
   });
+}
+
+// Premium placas fit (measured on the composition at export size): no box and no text drawn outside the canvas (the
+// composition clips it, so the file would lose it), no word of any text split over two lines, team names inside their
+// own box, both scores of a draw at the same size and whole, and a Figura without photo whose name sits inside its frame.
+function inspectPremiumFit(root) {
+  const composition = root.firstElementChild;
+  const box = composition.getBoundingClientRect();
+  const k = composition.offsetWidth / box.width;
+  const width = composition.offsetWidth; const height = composition.offsetHeight;
+  const rel = (r) => [r.left - box.left, r.top - box.top, r.right - box.left, r.bottom - box.top].map((v) => Math.round(v * k));
+  const label = (el) => `${el.tagName.toLowerCase()} "${(el.textContent || '').trim().slice(0, 32)}"`;
+  const problems = [];
+  const outside = (r) => r.left < box.left - k || r.top < box.top - k || r.right > box.right + k || r.bottom > box.bottom + k;
+  const visible = (el) => typeof el.checkVisibility !== 'function' || el.checkVisibility({ opacityProperty: true, visibilityProperty: true });
+  const overflow = [composition.scrollWidth - composition.clientWidth, composition.scrollHeight - composition.clientHeight];
+  if (overflow.some((value) => value > 1)) problems.push(`the composition overflows its canvas by ${overflow.join('×')} px`);
+  const runOf = (el) => {
+    const textNode = [...el.childNodes].find((node) => node.nodeType === 3 && node.textContent.trim());
+    if (!textNode) return null;
+    const range = document.createRange(); range.selectNodeContents(textNode);
+    return { textNode, rect: range.getBoundingClientRect() };
+  };
+  const clipOf = (el) => {
+    const clip = { left: box.left, top: box.top, right: box.right, bottom: box.bottom };
+    for (let a = el; a && a !== composition; a = a.parentElement) {
+      const cs = getComputedStyle(a); const ab = a.getBoundingClientRect();
+      if (cs.overflowX !== 'visible') { clip.left = Math.max(clip.left, ab.left); clip.right = Math.min(clip.right, ab.right); }
+      if (cs.overflowY !== 'visible') { clip.top = Math.max(clip.top, ab.top); clip.bottom = Math.min(clip.bottom, ab.bottom); }
+    }
+    return clip;
+  };
+  let words = 0;
+  for (const el of composition.querySelectorAll('*')) {
+    if (!visible(el)) continue;
+    const r = el.getBoundingClientRect();
+    if (r.width < 1 || r.height < 1) continue;
+    if (outside(r)) problems.push(`${label(el)} drawn outside the canvas at ${rel(r)}`);
+    if (el.children.length) continue;
+    const run = runOf(el);
+    if (!run) continue;
+    // Sideways the glyph run counts; vertically the line box (a display face's content area overhangs a tight line
+    // height by design, without ink there).
+    const ink = { left: run.rect.left, right: run.rect.right, top: Math.max(r.top, run.rect.top), bottom: Math.min(r.bottom, run.rect.bottom) };
+    if (outside(ink)) problems.push(`text ${label(el)} runs outside the canvas at ${rel(ink)}`);
+    const pattern = /\S+/g;
+    for (let match = pattern.exec(run.textNode.textContent); match; match = pattern.exec(run.textNode.textContent)) {
+      words += 1;
+      const range = document.createRange();
+      range.setStart(run.textNode, match.index); range.setEnd(run.textNode, match.index + match[0].length);
+      const tops = new Set([...range.getClientRects()].filter((q) => q.width > 0.5).map((q) => Math.round(q.top)));
+      if (tops.size > 1) problems.push(`the word "${match[0]}" of ${label(el)} is split over two lines`);
+    }
+    if (el.dataset.premiumNameFit) {
+      const spill = Math.max(r.left - run.rect.left, run.rect.right - r.right) * k;
+      const clip = clipOf(el);
+      const cut = Math.max(clip.left - run.rect.left, run.rect.right - clip.right) * k;
+      if (spill > 2 || cut > 1) problems.push(`team name ${label(el)} does not fit its box (spill ${Math.round(spill)} px, cut ${Math.round(cut)} px)`);
+    }
+  }
+  const scores = [...composition.querySelectorAll('[data-premium-score]')];
+  if (scores.length) {
+    const sizes = new Set(scores.flatMap((cell) => [cell, ...cell.querySelectorAll('*')]).map((node) => getComputedStyle(node).fontSize));
+    if (sizes.size !== 1) problems.push(`the scores are drawn at different sizes ${[...sizes]}`);
+    scores.forEach((cell) => {
+      const leaf = [cell, ...cell.querySelectorAll('*')].find((node) => !node.children.length && node.textContent.trim());
+      const run = leaf && runOf(leaf);
+      if (!run) return;
+      const c = cell.getBoundingClientRect(); const own = leaf.getBoundingClientRect();
+      const cut = Math.max(c.left - run.rect.left, run.rect.right - c.right, c.top - own.top, own.bottom - c.bottom) * k;
+      if (cut > 1) problems.push(`score ${label(cell)} is cut by ${Math.round(cut)} px`);
+    });
+  }
+  const figure = composition.querySelector('[data-premium-figure-name="fit"]');
+  let figureName = null;
+  if (figure) {
+    const run = runOf(figure);
+    // Its frame: the first box around it that is positioned, clips or draws a rule (Editorial's inner frame).
+    let frame = figure.parentElement;
+    while (frame && frame !== composition) {
+      const cs = getComputedStyle(frame);
+      if (cs.position === 'absolute' || cs.overflow !== 'visible' || cs.borderTopStyle !== 'none') break;
+      frame = frame.parentElement;
+    }
+    const fb = frame.getBoundingClientRect(); const fs = getComputedStyle(frame);
+    const inner = { left: fb.left + Number.parseFloat(fs.borderLeftWidth) / k, right: fb.right - Number.parseFloat(fs.borderRightWidth) / k };
+    const clip = clipOf(figure.parentElement);
+    const cut = Math.max(clip.left - run.rect.left, run.rect.right - clip.right, inner.left - run.rect.left, run.rect.right - inner.right) * k;
+    figureName = { text: figure.textContent.trim(), size: Math.round(Number.parseFloat(getComputedStyle(figure).fontSize)), box: rel(run.rect) };
+    if (cut > 1) problems.push(`the Figura name ${label(figure)} is cut by its frame (${Math.round(cut)} px)`);
+  }
+  const titleFit = [...composition.querySelectorAll('[data-premium-title-fit]')]
+    .map((el) => `${el.textContent.trim()} ${el.dataset.premiumTitleFit}px`);
+  return { canvas: [width, height], words, scores: scores.length, figureName, titleFit, problems: problems.slice(0, 8) };
 }
 
 // Nothing inside the Studio may stick out of the screen, named or not (a control nobody listed included).
@@ -628,6 +811,232 @@ async function assertWholeArt(page, label, [, , width, height]) {
       await close(p, 'transitions PREMIUM');
     }
 
+    // ── PREMIUM SPONSORS: 0–3 sponsors × the four Premium styles × both formats, Tabla and Resultados, real files ──
+    // offline.jsx `sponsors=on`: the branding composition with four fictional sponsors (the designed logos of
+    // sponsor-logos/). Every file comes from the real «Descargar PNG», after the emulated
+    // authorize_tournament_social_sponsors (0020) answered exactly the sponsors on screen; the band on screen is measured
+    // (prominent logos, nothing under it, nothing cut); Base never offers them; FREE asks nothing and its file does not
+    // change. The band matrix then checks every other piece through the renderer itself.
+    if (want('sponsors')) {
+      fs.rmSync(SPONSOR_EXPORTS, { recursive: true, force: true });
+      fs.mkdirSync(SPONSOR_EXPORTS, { recursive: true });
+      const s = await open(browser, base, 'plan=premium&sponsors=on');
+      const { page } = s;
+      const names = await page.evaluate(() => window.__sponsorNames());
+      if (names.length < 4) throw new Error(`sponsors: the fixture lists ${names.length} sponsors`);
+      const sponsorAuthorizations = () => page.evaluate(() => window.__social.sponsorAuthorize.length);
+      const shotsFor = new Set(['standings heritage feed-4x5 3', 'standings street historia-9x16 1', 'standings editorial feed-4x5 3']);
+      const measureShown = () => page.locator('div[role="img"][data-premium-renderer="v2"][aria-label^="Vista previa"]')
+        .evaluate((node) => window.__measurePremium(node));
+      let previous = null;
+      for (const [id, label, pieceSlug] of SPONSOR_PIECES) for (const style of STYLES.slice(1)) {
+        for (const [format, slug, width, height] of FORMATS) {
+          await configure(page, { id, label, style, format });
+          const files = [];
+          let withoutSponsors = null;
+          for (const count of [0, 1, 2, 3]) {
+            const where = `sponsors ${pieceSlug} ${style} ${slug} ${count}`;
+            await chooseSponsors(page, names, count, { piece: label, style, format });
+            const drawn = await renderedSponsors(page, names);
+            if (JSON.stringify(drawn) !== JSON.stringify(names.slice(0, count))) throw new Error(`${where}: the preview draws ${JSON.stringify(drawn)}`);
+            const measure = await measureShown();
+            if (count === 0) withoutSponsors = measure;
+            assertSponsorBand(where, measure, count, slug === 'historia-9x16' ? 'story' : 'portrait', withoutSponsors);
+            const before = await sponsorAuthorizations();
+            const [file] = await download(page, where);
+            assertCleanPng(file.buffer, width, height, file.name);
+            if (!file.name.endsWith(`-${style.toLowerCase()}-${slug}.png`)) throw new Error(`${where}: file name ${file.name}`);
+            const calls = await page.evaluate(() => window.__social.sponsorAuthorize);
+            if (count === 0 && calls.length !== before) throw new Error(`${where}: a piece without sponsors asked for a sponsors authorization`);
+            if (count > 0) {
+              const last = calls.at(-1);
+              if (calls.length !== before + 1 || last.theme !== style.toLowerCase() || last.sponsorIds.length !== count) {
+                throw new Error(`${where}: sponsors authorization ${JSON.stringify(last)}`);
+              }
+            }
+            if (files.some((other) => other.equals(file.buffer))) throw new Error(`${where}: the file did not change with the sponsors`);
+            files.push(file.buffer);
+            const kept = path.join(SPONSOR_EXPORTS, `${pieceSlug}-${style.toLowerCase()}-${slug}-${count}-sponsors.png`);
+            fs.writeFileSync(kept, file.buffer);
+            evidence.exports.push({
+              plan: 'PREMIUM', section: 'sponsors', piece: id, style: style.toLowerCase(), format: slug, sponsors: count,
+              sponsorNames: names.slice(0, count), file: path.relative(ROOT, kept), sha: sha(file.buffer),
+              band: measure.band, label: measure.label, tiles: measure.tiles,
+            });
+            if (shotsFor.has(`${id} ${style.toLowerCase()} ${slug} ${count}`)) {
+              await page.locator('section[aria-label="Ajustes opcionales"]').scrollIntoViewIfNeeded();
+              await page.screenshot({ path: path.join(OUT, `sponsors-selector-${style.toLowerCase()}-${slug}-${count}.png`), fullPage: false });
+            }
+            previous = file.buffer;
+          }
+        }
+      }
+      if (!previous) throw new Error('sponsors: nothing exported');
+      check('sponsors: 0–3 × four Premium styles × two formats × Tabla and Resultados exported through Descargar PNG', { exports: 64 });
+      check('sponsors: the band on every exported piece is prominent, whole and over nothing');
+
+      // At most three: the fourth cannot be chosen, and the counter says so.
+      const group = sponsorGroup(page);
+      const boxes = group.getByRole('checkbox');
+      await expect(boxes).toHaveCount(names.length);
+      await expect(boxes.nth(3)).toBeDisabled();
+      await expect(group.getByText('3 de 3 elegidos')).toBeVisible();
+      check('sponsors: at most 3 per piece');
+
+      // A refused authorization (a sponsor archived meanwhile): an alert, no file; the next try exports.
+      await chooseSponsors(page, names, 1, { piece: 'Tabla de posiciones', style: 'Editorial', format: 'Historia 9:16' });
+      await page.evaluate(() => { window.__socialControl.failSponsorAuthorize = 'TORNEOS_SPONSORS_SELECTION_UNAVAILABLE'; });
+      const refusedFile = page.waitForEvent('download', { timeout: 3000 }).catch(() => null);
+      await page.getByRole('button', { name: /^Descargar/ }).click();
+      await expect(page.getByRole('alert')).toContainText('ya no está disponible', { timeout: 10000 });
+      if (await refusedFile) throw new Error('sponsors: a file was delivered although the sponsors were refused');
+      await expect(page.getByRole('button', { name: /^Descargar/ })).toBeEnabled({ timeout: 30000 });
+      const [retried] = await download(page, 'sponsors retry after a refusal');
+      assertCleanPng(retried.buffer, 1080, 1920, retried.name);
+      check('sponsors: a refused authorization exports nothing, then the retry does');
+
+      // Base offers no sponsor and going there clears the choice.
+      await chooseSponsors(page, names, 3, { piece: 'Tabla de posiciones', style: 'Editorial', format: 'Historia 9:16' });
+      await markRender(page);
+      await styleRadio(page, 'Base').click();
+      await previewReady(page, { piece: 'Tabla de posiciones', style: 'Base', format: 'Historia 9:16' });
+      await expect(sponsorGroup(page)).toHaveCount(0);
+      await markRender(page);
+      await styleRadio(page, 'Heritage').click();
+      await previewReady(page, { piece: 'Tabla de posiciones', style: 'Heritage', format: 'Historia 9:16' });
+      await expect(sponsorGroup(page)).toBeVisible();
+      if ((await sponsorGroup(page).getByRole('checkbox', { checked: true }).count()) !== 0) throw new Error('sponsors: Base did not clear the selection');
+      if ((await renderedSponsors(page, names)).length) throw new Error('sponsors: Heritage after Base still draws sponsors');
+      check('sponsors: Base hides and clears the selection');
+      const social = await page.evaluate(() => window.__social);
+      if (social.refusals.some((code) => !code.startsWith('sponsors:'))) throw new Error(`sponsors: the page asked for something the database refuses: ${social.refusals}`);
+      await close(s, 'sponsors PREMIUM');
+
+      // Configuración → Sponsors: the list (Premium) and the Premium explanation (FREE).
+      const settings = await openSettings(browser, base, 'plan=premium&sponsors=on&path=configuracion/sponsors');
+      await expect(settings.page.getByRole('list', { name: 'Sponsors de la organización' }).getByRole('listitem')).toHaveCount(names.length);
+      await expect(settings.page.getByRole('button', { name: 'Agregar sponsor' })).toBeEnabled();
+      await settings.page.screenshot({ path: path.join(OUT, 'sponsors-settings-premium.png'), fullPage: true });
+      await close(settings, 'sponsors settings PREMIUM');
+      const freeSettings = await openSettings(browser, base, 'plan=free&sponsors=on&path=configuracion/sponsors');
+      await expect(freeSettings.page.getByText('Sponsors es una función Premium.')).toBeVisible();
+      await expect(freeSettings.page.getByRole('button', { name: 'Agregar sponsor' })).toHaveCount(0);
+      await freeSettings.page.screenshot({ path: path.join(OUT, 'sponsors-settings-free.png'), fullPage: true });
+      await close(freeSettings, 'sponsors settings FREE');
+      check('sponsors: settings list (Premium) and Premium explanation (FREE)');
+
+      // A collaborator WITH the export grant (E2E demo B1, deliberate rule): no selector, one muted line, the export
+      // goes on without any sponsors authorization; in Configuración the logos it cannot see are never «sin logo».
+      const exporter = await open(browser, base, 'plan=premium&sponsors=on&role=exporter');
+      await configure(exporter.page, { id: 'standings', label: 'Tabla de posiciones', style: 'Heritage', format: 'Feed 4:5' });
+      await expect(sponsorGroup(exporter.page)).toHaveCount(0);
+      await expect(exporter.page.getByText('Los sponsors los agrega el propietario o un administrador.')).toBeVisible();
+      await exporter.page.screenshot({ path: path.join(OUT, 'sponsors-exporter-studio.png'), fullPage: false });
+      const [exporterFile] = await download(exporter.page, 'sponsors exporter');
+      assertCleanPng(exporterFile.buffer, 1080, 1350, exporterFile.name);
+      if ((await exporter.page.evaluate(() => window.__social.sponsorAuthorize.length)) !== 0) throw new Error('sponsors: the exporter asked for a sponsors authorization');
+      await close(exporter, 'sponsors exporter');
+      const exporterSettings = await openSettings(browser, base, 'plan=premium&sponsors=on&role=exporter&path=configuracion/sponsors');
+      await expect(exporterSettings.page.getByText(/Sin logo/)).toHaveCount(0);
+      await expect(exporterSettings.page.getByText('Con logo · lo ven el propietario y los administradores')).toHaveCount(names.length);
+      await exporterSettings.page.screenshot({ path: path.join(OUT, 'sponsors-settings-exporter.png'), fullPage: true });
+      await close(exporterSettings, 'sponsors settings exporter');
+      check('sponsors: a collaborator with export exports without sponsors and never reads «sin logo»');
+
+      // The logo frame never crops (D3: a square logo, whole inside the box) and the settings tabs never clip on a phone
+      // (D5: they wrap; 44 px targets).
+      for (const [slug, viewport] of [['desktop', { width: 1280, height: 900 }], ['phone', { width: 390, height: 844 }]]) {
+        const framed = await openSettings(browser, base, 'plan=premium&sponsors=on&logos=square&path=configuracion/sponsors', viewport);
+        const fit = await framed.page.evaluate(() => {
+          const img = document.querySelector('ol[aria-label="Sponsors de la organización"] li img');
+          const box = img.parentElement.getBoundingClientRect();
+          const r = img.getBoundingClientRect();
+          // The drawn image (contain) inside the element box, centred.
+          const scale = Math.min(r.width / img.naturalWidth, r.height / img.naturalHeight);
+          const drawn = { width: img.naturalWidth * scale, height: img.naturalHeight * scale };
+          return {
+            fit: getComputedStyle(img).objectFit, natural: [img.naturalWidth, img.naturalHeight],
+            inside: r.left >= box.left - 0.5 && r.top >= box.top - 0.5 && r.right <= box.right + 0.5 && r.bottom <= box.bottom + 0.5,
+            drawn, box: { width: box.width, height: box.height },
+          };
+        });
+        if (fit.fit !== 'contain' || !fit.inside || fit.natural[0] !== fit.natural[1] || fit.drawn.height > fit.box.height || fit.drawn.width > fit.box.width) {
+          throw new Error(`sponsors ${slug}: the logo frame crops ${JSON.stringify(fit)}`);
+        }
+        const tabs = await framed.page.evaluate(() => {
+          const nav = document.querySelector('nav[aria-label="Secciones de configuración"]').getBoundingClientRect();
+          return [...document.querySelectorAll('nav[aria-label="Secciones de configuración"] a')].map((a) => {
+            const r = a.getBoundingClientRect();
+            return { text: a.textContent.trim(), inside: r.left >= nav.left - 0.5 && r.right <= nav.right + 0.5 && r.right <= window.innerWidth, height: r.height };
+          });
+        });
+        if (tabs.length !== 4 || tabs.some((tab) => !tab.inside || tab.height < 44)) throw new Error(`sponsors ${slug}: settings tabs ${JSON.stringify(tabs)}`);
+        await framed.page.screenshot({ path: path.join(OUT, `sponsors-settings-square-logo-${slug}.png`), fullPage: true });
+        await close(framed, `sponsors settings square logo ${slug}`);
+      }
+      check('sponsors: a square logo is whole inside its frame; the settings tabs never clip (desktop and phone)');
+
+      // FREE: no selector, no sponsors request, and the very same file as without the sponsors composition.
+      const freeFiles = [];
+      for (const query of ['plan=free', 'plan=free&sponsors=on']) {
+        const f = await open(browser, base, query);
+        await configure(f.page, { id: 'standings', label: 'Tabla de posiciones', style: 'Base', format: 'Feed 4:5' });
+        await expect(sponsorGroup(f.page)).toHaveCount(0);
+        const shown = await previewCanvasPng(f.page);
+        const [file] = await download(f.page, `sponsors FREE ${query}`);
+        await assertSameRender(f.page, `sponsors FREE ${query}`);
+        if (!shown.equals(file.buffer)) throw new Error(`sponsors FREE ${query}: the file is not the preview`);
+        await markRender(f.page);
+        await styleRadio(f.page, 'Heritage').click();
+        await previewReady(f.page, { piece: 'Tabla de posiciones', style: 'Heritage', format: 'Feed 4:5' });
+        await expect(sponsorGroup(f.page)).toHaveCount(0);
+        const calls = await f.page.evaluate(() => window.__social.sponsorLoads.length + window.__social.sponsorAuthorize.length);
+        if (calls) throw new Error(`sponsors FREE ${query}: ${calls} sponsors requests`);
+        freeFiles.push(file.buffer);
+        await close(f, `sponsors FREE ${query}`);
+      }
+      if (!freeFiles[0].equals(freeFiles[1])) throw new Error('sponsors: FREE file changed with the sponsors composition on');
+      check('sponsors: FREE unchanged (no selector, no request, same file)', { sha: sha(freeFiles[0]) });
+
+      // The band matrix (sponsor-band.html): every piece and its density variants, rendered by the real Premium
+      // renderer with 0–3 sponsors in the four styles and both formats, measured like the exports above; and a white
+      // logo on a transparent background gets a dark tile.
+      const matrix = await newPage(browser, base, { width: 1200, height: 2000 });
+      await matrix.page.goto(`${base}/sponsor-band.html`);
+      await matrix.page.waitForFunction(() => window.__sponsorBand, null, { timeout: 15000 });
+      let rendered = 0;
+      for (const theme of ['heritage', 'street', 'scoreboard', 'editorial']) {
+        for (const formatId of ['portrait', 'story']) {
+          for (const [variant, spec] of SPONSOR_BAND_VARIANTS) {
+            let withoutSponsors = null;
+            for (const count of [0, 1, 2, 3]) {
+              const where = `sponsor band ${theme} ${formatId} ${variant} ${count}`;
+              const { measure } = await matrix.page.evaluate((options) => window.__sponsorBand.render(options), {
+                theme, format: formatId, count, ...spec,
+              });
+              if (count === 0) withoutSponsors = measure;
+              // Final and Campeón are full-bleed posters whose approved compositions never carried sponsors.
+              if (POSTER_PIECES.includes(spec.piece)) {
+                if (measure.band || measure.tiles.length || measure.overflowY > withoutSponsors.overflowY) throw new Error(`${where}: a poster piece changed with sponsors`);
+              } else {
+                assertSponsorBand(where, measure, count, formatId, withoutSponsors);
+              }
+              rendered += 1;
+            }
+          }
+          const { measure } = await matrix.page.evaluate((options) => window.__sponsorBand.render(options), {
+            theme, format: formatId, piece: 'standings', count: 3, light: true,
+          });
+          if (measure.tiles.map((tile) => tile.tone).join() !== 'light,light,dark') {
+            throw new Error(`sponsor band ${theme} ${formatId}: a white logo on transparent did not get a dark tile ${JSON.stringify(measure.tiles)}`);
+          }
+        }
+      }
+      await close(matrix, 'sponsor band matrix');
+      check('sponsors: band matrix — every piece × four styles × two formats × 0–3 sponsors, nothing under the band, nothing cut', { renders: rendered });
+      check('sponsors: a white logo on a transparent background gets a dark tile');
+    }
+
     // ── Figura: local photo, drag of the focal point, zoom, reset; preview = export; fallback without photo ─────
     if (want('figura')) {
       const s = await open(browser, base, 'plan=premium');
@@ -779,6 +1188,59 @@ async function assertWholeArt(page, label, [, , width, height]) {
         }
         await close(s, `sparse ${id}`);
       }
+    }
+
+    // ── Premium placas fit: 11 pieces × 4 Premium styles × 2 formats inside their canvas, names whole, draws whole ──
+    // The fixture's long club names ("Club Unión de los Trabajadores del Sur") and its 2–2 draw are the hard cases.
+    if (want('fit')) {
+      const s = await open(browser, base, 'plan=premium');
+      const { page } = s;
+      for (const [id, label] of PIECES) {
+        for (const style of STYLES.slice(1)) {
+          for (const [format, slug] of FORMATS) {
+            await configure(page, { id, label, style, format });
+            await page.evaluate(() => document.fonts.ready);
+            const m = await page.locator('div[data-premium-renderer="v2"]').evaluate(inspectPremiumFit);
+            const where = `fit ${id} ${style} ${slug}`;
+            if (m.problems.length) throw new Error(`${where}: ${m.problems.join(' | ')}`);
+            if (!m.words) throw new Error(`${where}: no text measured`);
+            // Only a title that would run past the canvas is refitted: «SEMIFINALES» in Street Historia (its sample
+            // title was shorter). Every other title keeps the approved size.
+            const refits = id === 'semifinals' && style === 'Street' && slug === 'historia-9x16';
+            if (m.titleFit.length !== (refits ? 1 : 0)) throw new Error(`${where}: title refit ${JSON.stringify(m.titleFit)}`);
+            check('Premium placas fit their canvas', { piece: id, style: style.toLowerCase(), format: slug, ...m });
+          }
+        }
+      }
+      await close(s, 'fit');
+
+      // The same canvas rule with the sponsor band (three sponsors): the band's room-making and #213's fit hold
+      // together — no box, text or sponsor tile outside the canvas, Street's decoration included, names and draws whole.
+      const b = await open(browser, base, 'plan=premium&sponsors=on');
+      const names = await b.page.evaluate(() => window.__sponsorNames());
+      for (const [id, label] of PIECES) {
+        for (const style of STYLES.slice(1)) {
+          for (const [format, slug, width, height] of FORMATS) {
+            // Final and Campeón are full-bleed posters without a band: they keep the three chosen, and draw none.
+            const poster = POSTER_PIECES.includes(id);
+            await configure(b.page, { id, label, style, format });
+            if (!poster) await chooseSponsors(b.page, names, 3, { piece: label, style, format });
+            await b.page.evaluate(() => document.fonts.ready);
+            const node = b.page.locator('div[data-premium-renderer="v2"]');
+            const m = await node.evaluate(inspectPremiumFit);
+            const band = await node.evaluate((root) => window.__measurePremium(root));
+            const where = `fit+band ${id} ${style} ${slug}`;
+            if (m.problems.length) throw new Error(`${where}: ${m.problems.join(' | ')}`);
+            if (poster ? band.band : band.band?.count !== 3) throw new Error(`${where}: band ${JSON.stringify(band.band)}`);
+            const outside = band.tiles.filter(({ tile }) => tile.x < 0 || tile.y < 0 || tile.x + tile.w > width || tile.y + tile.h > height);
+            if (outside.length) throw new Error(`${where}: sponsor tile outside the canvas ${JSON.stringify(outside)}`);
+            check('Premium placas fit their canvas with the sponsor band', {
+              piece: id, style: style.toLowerCase(), format: slug, band: band.band?.box || null, tiles: band.tiles.length, ...m,
+            });
+          }
+        }
+      }
+      await close(b, 'fit+band');
     }
 
     // ── Responsive: every functional part of the Studio on screen at phone, tablet and desktop widths ───────────

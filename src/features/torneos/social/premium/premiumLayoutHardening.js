@@ -1,3 +1,5 @@
+import { PREMIUM_PIECE_TITLES } from './premiumDataAdapter';
+
 const PREMIUM_THEME_IDS = new Set(['heritage', 'street', 'scoreboard', 'editorial']);
 const STORY_RESULT_MAX_ROW_HEIGHT = 290;
 
@@ -173,8 +175,68 @@ function setLeafType(root, value, styles) {
   Object.assign(leaf.style, styles);
 }
 
+// True when one of the text's words (a run without spaces, "Tiki-Taka" included) is drawn on two lines. It needs real
+// layout (Range rects); without it (jsdom) nothing is reported.
+function splitsAWord(leaf) {
+  const textNode = Array.from(leaf.childNodes).find((node) => node.nodeType === 3);
+  if (!textNode || typeof document.createRange !== 'function') return false;
+  const value = textNode.textContent;
+  const pattern = /\S+/g;
+  for (let match = pattern.exec(value); match; match = pattern.exec(value)) {
+    const range = document.createRange();
+    range.setStart(textNode, match.index);
+    range.setEnd(textNode, match.index + match[0].length);
+    if (typeof range.getClientRects !== 'function') return false;
+    const tops = new Set(Array.from(range.getClientRects())
+      .filter((rect) => rect.width > 0.5)
+      .map((rect) => Math.round(rect.top)));
+    if (tops.size > 1) return true;
+  }
+  return false;
+}
+
+// True when the leaf's box runs out of the nearest box that clips it sideways (a name cell with overflow hidden).
+function cutSideways(leaf) {
+  const box = leaf.getBoundingClientRect();
+  if (!(box.width > 0)) return false;
+  for (let node = leaf.parentElement; node; node = node.parentElement) {
+    if (getComputedStyle(node).overflowX === 'visible') continue;
+    const clip = node.getBoundingClientRect();
+    return box.left < clip.left - 1 || box.right > clip.right + 1;
+  }
+  return false;
+}
+
+// A team name breaks only between words: the size steps down until its longest word fits the cell, no word is split
+// over two lines (a hyphen is not a place to break a name) and the lines fit the row. Only a single word wider than the
+// cell at the minimum size may still break (it would be clipped otherwise). Without `max` the template's own size is
+// the ceiling and its line height is kept: a name that already fits is left exactly as drawn.
+function fitTeamNameLeaf(leaf, { max, min, maxHeight = Number.POSITIVE_INFINITY }) {
+  if (!leaf) return;
+  const ceiling = Number.isFinite(max) ? max : Math.round(Number.parseFloat(getComputedStyle(leaf).fontSize));
+  if (!(ceiling > 0)) return;
+  Object.assign(leaf.style, {
+    fontSize: `${ceiling}px`, maxWidth: '100%', overflowWrap: 'normal', wordBreak: 'normal',
+  });
+  if (Number.isFinite(max)) leaf.style.lineHeight = '1.02';
+  leaf.dataset.premiumNameFit = 'words';
+  if (!(leaf.clientWidth > 0)) return;
+  const fits = () => leaf.scrollWidth <= leaf.clientWidth + 1 && leaf.scrollHeight <= maxHeight
+    && !splitsAWord(leaf) && !cutSideways(leaf);
+  let size = ceiling;
+  while (size > min && !fits()) {
+    size -= 1;
+    leaf.style.fontSize = `${size}px`;
+  }
+  if (leaf.scrollWidth > leaf.clientWidth + 1) {
+    leaf.style.overflowWrap = 'anywhere';
+    leaf.dataset.premiumNameFit = 'anywhere';
+  }
+}
+
 function hardenResultRows(root, matches, themeId, formatId) {
   if (formatId !== 'story' || !matches.length) return;
+  const sponsorBand = root.querySelector('[data-premium-sponsor-band]');
   const unused = new Set();
   const rows = matches.map((match) => {
     const result = match?.result || match?.score;
@@ -217,8 +279,16 @@ function hardenResultRows(root, matches, themeId, formatId) {
     editorial: dense ? '72px minmax(0,1fr) 150px minmax(0,1fr) 72px' : '88px minmax(0,1fr) 176px minmax(0,1fr) 88px',
   }[themeId];
   const nameSize = dense ? (rows.length >= 8 ? 23 : 27) : 34;
-  const scoreSize = dense ? (rows.length >= 8 ? 43 : 52) : 68;
-  const crestSize = Math.min(dense ? 58 : 82, Math.max(38, rowHeight * 0.56));
+  const nameMin = dense ? 16 : 20;
+  const templateScoreSize = dense ? (rows.length >= 8 ? 43 : 52) : 68;
+  const templateCrestSize = Math.min(dense ? 58 : 82, Math.max(38, rowHeight * 0.56));
+  // PREMIUM SPONSORS: Scoreboard stacks the two teams of a match in one row; with the band's shorter rows each half
+  // keeps its score and its crest (a 5:6 shield) inside it. Without a band the approved sizes stand.
+  const half = rowHeight / 2;
+  const scoreSize = sponsorBand && themeId === 'scoreboard'
+    ? Math.min(templateScoreSize, Math.floor(half * 0.62)) : templateScoreSize;
+  const crestSize = sponsorBand && themeId === 'scoreboard'
+    ? Math.min(templateCrestSize, Math.floor((half - 8) / 1.2)) : templateCrestSize;
 
   rows.forEach((row, index) => {
     Object.assign(row.style, {
@@ -254,27 +324,28 @@ function hardenResultRows(root, matches, themeId, formatId) {
           if (crest) Object.assign(crest.style, {
             width: `${crestSize}px`, maxWidth: '100%', margin: '0 auto',
           });
+          // With the band the shield is smaller: its initials follow it.
+          if (crest && sponsorBand) crest.style.fontSize = `${Math.floor(crestSize * 0.4)}px`;
         }
         if (halfCells[1]) Object.assign(halfCells[1].style, {
           minWidth: '0', overflow: 'hidden', paddingLeft: '10px', paddingRight: '10px',
         });
-        if (halfCells[2]) Object.assign(halfCells[2].style, {
-          minWidth: '0', overflow: 'hidden', fontSize: `${scoreSize}px`, lineHeight: '1',
-        });
+        if (halfCells[2]) {
+          Object.assign(halfCells[2].style, {
+            minWidth: '0', overflow: 'hidden', fontSize: `${scoreSize}px`, lineHeight: '1',
+          });
+          // Each half sizes its own score. Looking the value up by its text found the first "3" of a 3–3 twice: the
+          // second score of a draw kept the template size and its row cut it.
+          Array.from(halfCells[2].querySelectorAll('*')).forEach((node) => Object.assign(node.style, {
+            fontSize: `${scoreSize}px`, lineHeight: '1', whiteSpace: 'nowrap',
+          }));
+          halfCells[2].dataset.premiumScore = 'fitted';
+        }
       });
-      setLeafType(row, match?.home?.name || match?.home?.teamName, {
-        fontSize: `${nameSize}px`, lineHeight: '1.02', overflowWrap: 'anywhere', maxWidth: '100%',
-      });
-      setLeafType(row, match?.away?.name || match?.away?.teamName, {
-        fontSize: `${nameSize}px`, lineHeight: '1.02', overflowWrap: 'anywhere', maxWidth: '100%',
-      });
-      const result = match?.result || match?.score;
-      [result?.homeScore ?? result?.home, result?.awayScore ?? result?.away].forEach((value) => {
-        const leaf = leafWithText(row, String(value));
-        if (leaf) Object.assign(leaf.style, {
-          fontSize: `${scoreSize}px`, lineHeight: '1', whiteSpace: 'nowrap',
-        });
-      });
+      [match?.home?.name || match?.home?.teamName, match?.away?.name || match?.away?.teamName]
+        .forEach((name) => fitTeamNameLeaf(leafWithText(row, name), {
+          max: nameSize, min: nameMin, maxHeight: rowHeight,
+        }));
       return;
     }
     const contentRow = themeId === 'street'
@@ -312,12 +383,10 @@ function hardenResultRows(root, matches, themeId, formatId) {
       }));
       Object.assign(cells[2].style, { minWidth: '0', overflow: 'hidden', maxWidth: '100%' });
     }
-    setLeafType(row, match?.home?.name || match?.home?.teamName, {
-      fontSize: `${nameSize}px`, lineHeight: '1.02', overflowWrap: 'anywhere', maxWidth: '100%',
-    });
-    setLeafType(row, match?.away?.name || match?.away?.teamName, {
-      fontSize: `${nameSize}px`, lineHeight: '1.02', overflowWrap: 'anywhere', maxWidth: '100%',
-    });
+    [match?.home?.name || match?.home?.teamName, match?.away?.name || match?.away?.teamName]
+      .forEach((name) => fitTeamNameLeaf(leafWithText(row, name), {
+        max: nameSize, min: nameMin, maxHeight: rowHeight,
+      }));
     const result = match?.result || match?.score;
     if (result) {
       const scoreText = `${result.homeScore ?? result.home} - ${result.awayScore ?? result.away}`;
@@ -357,6 +426,31 @@ function gridRowForName(root, name, unused) {
   return null;
 }
 
+// PREMIUM SPONSORS: a piece with a sponsor band gives the band its own room under the table. The rows must end where the
+// table's frame ends (above the band's margin), not where the frame's viewport would let the body grow. The frame is
+// anchored to the top first (as the flow below does anyway) so the body's top is where it will stay. Without a band this
+// is Infinity and nothing is touched: those compositions keep their approved measurement.
+function sponsorBandLimit(root, parent, frame) {
+  if (!root.querySelector('[data-premium-sponsor-band]') || !frame || frame === parent) return Number.POSITIVE_INFINITY;
+  Object.assign(frame.style, { justifyContent: 'flex-start', alignContent: 'start' });
+  const scale = root.offsetWidth / (root.getBoundingClientRect().width || root.offsetWidth || 1);
+  const paddingBottom = Number.parseFloat(getComputedStyle(frame).paddingBottom) || 0;
+  // What the frame holds under the table (Disciplina's suspensions) keeps its room too.
+  let below = 0;
+  for (let node = parent; node && node !== frame; node = node.parentElement) {
+    const holder = getComputedStyle(node.parentElement);
+    const gap = holder.display.includes('flex') || holder.display.includes('grid') ? (Number.parseFloat(holder.rowGap) || 0) : 0;
+    for (let sibling = node.nextElementSibling; sibling; sibling = sibling.nextElementSibling) {
+      const style = getComputedStyle(sibling);
+      if (style.position === 'absolute' || style.position === 'fixed' || style.display === 'none') continue;
+      below += sibling.getBoundingClientRect().height * scale + gap
+        + (Number.parseFloat(style.marginTop) || 0) + (Number.parseFloat(style.marginBottom) || 0);
+    }
+  }
+  const limit = (frame.getBoundingClientRect().bottom - parent.getBoundingClientRect().top) * scale - paddingBottom - below;
+  return limit > 0 ? Math.floor(limit) : Number.POSITIVE_INFINITY;
+}
+
 function hardenTabularFlow(root, rowsData, kind, formatId, themeId) {
   if (!rowsData.length) return;
   const unused = new Set();
@@ -393,9 +487,9 @@ function hardenTabularFlow(root, rowsData, kind, formatId, themeId) {
     && kind === 'standings'
     ? 18
     : 0;
-  const availableBodyHeight = Math.max(
-    0,
-    (measuredBodyHeight || fallbackBodyHeight) - footerSafetyInset,
+  const availableBodyHeight = Math.min(
+    Math.max(0, (measuredBodyHeight || fallbackBodyHeight) - footerSafetyInset),
+    sponsorBandLimit(root, parent, flowFrame),
   );
   const nameLeaves = rowsData.map((entry, index) => leafWithText(
     rows[index],
@@ -788,19 +882,109 @@ function hardenEditorialFixtures(root, matches) {
       balance.style.alignItems = 'center';
       balance.style.columnGap = '18px';
     }
-    setLeafType(balance, match?.home?.name, { textAlign: 'right', maxWidth: '100%', overflowWrap: 'anywhere' });
-    setLeafType(balance, match?.away?.name, { textAlign: 'left', maxWidth: '100%', overflowWrap: 'anywhere' });
+    // Names break between words only (they used to break at any letter): a long word shrinks the name instead.
+    setLeafType(balance, match?.home?.name, { textAlign: 'right' });
+    setLeafType(balance, match?.away?.name, { textAlign: 'left' });
+    [match?.home?.name, match?.away?.name].forEach((name) => fitTeamNameLeaf(leafWithText(balance, name), { min: 18 }));
     balance.dataset.premiumFixtureBalance = 'true';
   });
 }
 
+// Team names of a match list (semifinals, next fixture) break between words only and shrink when a word does not fit.
+function fitNamedLeaves(root, names, min) {
+  const wanted = new Set(names.map(text).filter(Boolean));
+  if (!wanted.size) return;
+  Array.from(root.querySelectorAll('*'))
+    .filter((node) => node.children.length === 0 && wanted.has(text(node.textContent)))
+    .forEach((leaf) => fitTeamNameLeaf(leaf, { min }));
+}
+
+function fitMatchNames(root, matches) {
+  fitNamedLeaves(root, matches.flatMap((match) => [
+    match?.home?.name || match?.home?.teamName, match?.away?.name || match?.away?.teamName,
+  ]), 18);
+}
+
+// A one-line display title ("SEMIFINALES" at the size the sample's shorter title had) that runs past the canvas is
+// scaled down until it ends as far from the right edge as it starts from the left one. A title that fits is untouched.
+function fitCanvasTitle(root, title) {
+  const expected = text(title);
+  if (!expected || typeof document.createRange !== 'function') return;
+  // `root` is the composition itself: the 1080 px canvas.
+  const canvas = root.getBoundingClientRect();
+  if (!(canvas.width > 0)) return;
+  Array.from(root.querySelectorAll('*'))
+    .filter((node) => node.children.length === 0 && text(node.textContent) === expected)
+    .forEach((leaf) => {
+      const range = document.createRange();
+      range.selectNodeContents(leaf);
+      if (typeof range.getBoundingClientRect !== 'function') return;
+      const run = () => range.getBoundingClientRect();
+      if (run().right <= canvas.right + 1) return;
+      const limit = canvas.right - Math.max(0, run().left - canvas.left);
+      let size = Number.parseFloat(getComputedStyle(leaf).fontSize);
+      for (let guard = 0; guard < 6 && run().right > limit + 1 && size > 24; guard += 1) {
+        size = Math.max(24, Math.floor(size * ((limit - run().left) / (run().right - run().left))));
+        leaf.style.fontSize = `${size}px`;
+      }
+      leaf.dataset.premiumTitleFit = String(Math.round(size));
+    });
+}
+
+// Without a photo the Figura shows the player's first name, whole: it shrinks until it fits the frame that holds it
+// (Editorial: inside the inner rule), never a three-letter stub that reads as a cut name.
+function fitFigureName(root, name) {
+  const expected = text(name);
+  if (!expected) return;
+  Array.from(root.querySelectorAll('*'))
+    .filter((node) => node.children.length === 0 && text(node.textContent) === expected)
+    // The display name only (180–230 px in the templates), never the player's name label (at most 82 px).
+    .filter((node) => Number.parseFloat(getComputedStyle(node).fontSize) >= 150)
+    .forEach((leaf) => {
+      leaf.dataset.premiumFigureName = 'fit';
+      leaf.style.whiteSpace = 'nowrap';
+      let frame = leaf.parentElement;
+      while (frame && frame !== root) {
+        const style = getComputedStyle(frame);
+        if (style.position === 'absolute' || style.overflow !== 'visible' || style.borderTopStyle !== 'none') break;
+        frame = frame.parentElement;
+      }
+      if (!frame || frame === root || typeof document.createRange !== 'function') return;
+      const range = document.createRange();
+      range.selectNodeContents(leaf);
+      if (typeof range.getBoundingClientRect !== 'function') return;
+      const frameStyle = getComputedStyle(frame);
+      const box = frame.getBoundingClientRect();
+      const scale = box.width / (frame.offsetWidth || box.width || 1);
+      const inset = (Number.parseFloat(frameStyle.paddingLeft) || 0) + (Number.parseFloat(frameStyle.borderLeftWidth) || 0);
+      const insetRight = (Number.parseFloat(frameStyle.paddingRight) || 0) + (Number.parseFloat(frameStyle.borderRightWidth) || 0);
+      // A margin of 6 % of the frame on each side keeps an italic or skewed face clear of the frame's edge.
+      const margin = box.width * 0.06;
+      const left = box.left + inset * scale + margin;
+      const right = box.right - insetRight * scale - margin;
+      let size = Number.parseFloat(getComputedStyle(leaf).fontSize);
+      for (let guard = 0; guard < 8 && size > 40; guard += 1) {
+        const run = range.getBoundingClientRect();
+        if (run.width <= 0 || (run.left >= left - 1 && run.right <= right + 1)) break;
+        size = Math.max(40, Math.floor(size * Math.min(0.97, (right - left) / run.width)));
+        leaf.style.fontSize = `${size}px`;
+      }
+      leaf.dataset.premiumFigureNameSize = String(Math.round(size));
+    });
+}
+
 function hardenHeritageSemifinalScores(root, matches) {
+  const used = new Set();
   matches.slice(0, 2).forEach((match) => {
     const result = match?.result || match?.score;
     if (!result) return;
     const score = `${result.homeScore ?? result.home} - ${result.awayScore ?? result.away}`;
-    const leaf = leafWithText(root, score);
+    // Two semifinals with the same score: each match takes its own leaf.
+    const leaf = Array.from(root.querySelectorAll('*')).find((node) => (
+      node.children.length === 0 && text(node.textContent) === score && !used.has(node)
+    ));
     if (leaf) {
+      used.add(leaf);
       leaf.style.color = '#EFE6D8';
       leaf.dataset.premiumContrast = 'heritage-score';
     }
@@ -976,12 +1160,68 @@ function clearTitle(root, list, items, kind) {
   list.dataset.premiumSparseClearTitle = kind;
 }
 
+// PREMIUM SPONSORS: a panel the composition gives a fixed minimum height (Figura's photo and its stats) can still reach
+// into the band. Its minimum gives way by exactly what crosses the band's top margin, outermost panel first, so the
+// panel keeps its proportions and nothing is drawn under the logos. Pieces without a band never get here.
+function reflowAboveSponsorBand(root) {
+  const band = root.querySelector('[data-premium-sponsor-band]');
+  if (!band) return;
+  const scale = root.offsetWidth / (root.getBoundingClientRect().width || root.offsetWidth || 1);
+  const inFlow = (node) => {
+    for (let current = node; current && current !== root; current = current.parentElement) {
+      const { position } = getComputedStyle(current);
+      if (position === 'absolute' || position === 'fixed') return false;
+    }
+    return true;
+  };
+  for (let pass = 0; pass < 4; pass += 1) {
+    const limit = band.getBoundingClientRect().top - (Number.parseFloat(getComputedStyle(band).marginTop) || 0) / scale;
+    const crossing = Array.from(root.querySelectorAll('*')).filter((node) => {
+      if (band.contains(node) || node.contains(band)) return false;
+      const box = node.getBoundingClientRect();
+      return box.height > 0 && box.top < limit && box.bottom > limit + 0.5 && inFlow(node);
+    });
+    if (!crossing.length) break;
+    const over = Math.ceil((Math.max(...crossing.map((node) => node.getBoundingClientRect().bottom)) - limit) * scale);
+    const panel = crossing.find((node) => Number.parseFloat(node.style.minHeight) > 0);
+    if (!panel) break;
+    panel.style.minHeight = `${Math.max(0, Number.parseFloat(panel.style.minHeight) - over)}px`;
+    panel.dataset.premiumSponsorReflow = String(over);
+  }
+  // A column of fixed-size panels (Figura in Historia) is pushed past the canvas by the band instead: the panel above
+  // the band with the most room to spare inside it gives up exactly the overflow, so the footer stays on the canvas.
+  const column = band.parentElement;
+  const overflow = column ? Math.ceil(column.scrollHeight - column.clientHeight) : 0;
+  if (!(overflow > 0)) return;
+  const spare = (node) => {
+    const box = node.getBoundingClientRect();
+    const inside = Array.from(node.querySelectorAll('*')).map((child) => child.getBoundingClientRect())
+      .filter((child) => child.height > 0);
+    if (!inside.length) return 0;
+    const top = Math.min(...inside.map((child) => child.top));
+    const bottom = Math.max(...inside.map((child) => child.bottom));
+    return ((box.height - (bottom - top)) * scale);
+  };
+  const panels = [];
+  for (let node = band.previousElementSibling; node; node = node.previousElementSibling) {
+    const basis = (node.style.flex || '').match(/^0 0 (\d+(?:\.\d+)?)px$/);
+    if (basis && inFlow(node)) panels.push({ node, basis: Number(basis[1]), room: spare(node) });
+  }
+  const panel = panels.filter((entry) => entry.room >= overflow + 8).sort((a, b) => b.room - a.room)[0];
+  if (!panel) return;
+  const size = `${panel.basis - overflow}px`;
+  Object.assign(panel.node.style, { flex: `0 0 ${size}`, height: size, minHeight: size });
+  panel.node.dataset.premiumSponsorReflow = String(overflow);
+}
+
 export function applyPremiumLayoutHardening(root, {
   snapshot,
   editorial = {},
   themeId,
   formatId,
   pagination = null,
+  figureName = '',
+  figureTeamName = '',
 } = {}) {
   if (!root || !PREMIUM_THEME_IDS.has(themeId)) return root;
   const piece = snapshot?.piece;
@@ -994,6 +1234,8 @@ export function applyPremiumLayoutHardening(root, {
   if (piece === 'round_results') {
     hardenResultRows(root, official.matches || [], themeId, formatId);
     anchorMatchList(root, official.matches || [], 'round_results', formatId);
+    // The feed keeps the template's sizes; a name with a word wider than its cell shrinks instead of breaking it.
+    if (formatId !== 'story') fitMatchNames(root, official.matches || []);
   } else if (piece === 'standings') {
     hardenTabularFlow(root, official.rows || [], 'standings', formatId, themeId);
   } else if (piece === 'scorers') {
@@ -1008,14 +1250,23 @@ export function applyPremiumLayoutHardening(root, {
   } else if (piece === 'next_fixture') {
     if (themeId === 'editorial') hardenEditorialFixtures(root, official.matches || []);
     anchorMatchList(root, official.matches || [], 'next_fixture', formatId);
+    fitMatchNames(root, official.matches || []);
   } else if (piece === 'semifinals') {
     if (themeId === 'heritage') hardenHeritageSemifinalScores(root, official.matches || []);
     anchorMatchList(root, official.matches || [], 'semifinals', formatId);
+    fitMatchNames(root, official.matches || []);
   } else if (piece === 'mvp') {
     hardenNoPhotoFigure(root, themeId, formatId);
+    fitFigureName(root, figureName);
+    fitNamedLeaves(root, [figureTeamName], 18);
+  } else if (piece === 'best_eleven') {
+    // Player names on the pitch break between words too ("Santiago Roldán", never "Santia/go").
+    fitNamedLeaves(root, (official.candidates || []).map((player) => player?.name), 12);
   }
+  fitCanvasTitle(root, PREMIUM_PIECE_TITLES[piece]?.[0]);
   if (piece === 'standings' && themeId === 'editorial') {
     hardenEditorialPagination(root, pagination, formatId);
   }
+  reflowAboveSponsorBand(root);
   return root;
 }

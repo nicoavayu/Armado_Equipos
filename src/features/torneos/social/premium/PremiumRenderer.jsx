@@ -8,6 +8,7 @@ import Scoreboard916 from './generated/Scoreboard916';
 import Editorial45 from './generated/Editorial45';
 import Editorial916 from './generated/Editorial916';
 import { applyPremiumLayoutHardening } from './premiumLayoutHardening';
+import { figureDisplayName } from './premiumDataAdapter';
 import { resolveEditorialStandingsPagination } from './premiumPagination';
 import { PremiumRenderContext } from './shared/PremiumPrimitives';
 
@@ -22,14 +23,16 @@ export const PREMIUM_DOM_LAYOUTS = Object.freeze({
   'editorial:story': Editorial916,
 });
 
-function PremiumHardeningEffect({ snapshot, editorial, themeId, formatId, pagination }) {
+function PremiumHardeningEffect({
+  snapshot, editorial, themeId, formatId, pagination, figureName, figureTeamName,
+}) {
   const markerRef = useRef(null);
   useLayoutEffect(() => {
     const root = markerRef.current?.previousElementSibling;
     applyPremiumLayoutHardening(root, {
-      snapshot, editorial, themeId, formatId, pagination,
+      snapshot, editorial, themeId, formatId, pagination, figureName, figureTeamName,
     });
-  }, [editorial, formatId, pagination, snapshot, themeId]);
+  }, [editorial, figureName, figureTeamName, formatId, pagination, snapshot, themeId]);
   return <span ref={markerRef} data-premium-hardening="v1" style={{ display: 'none' }} />;
 }
 
@@ -45,28 +48,27 @@ export default function PremiumRenderer({ theme, editorial, ...props }) {
   const selectedPlayer = candidates.find((candidate) => (
     (candidate.rosterPlayerId || candidate.participantId) === selectedId
   )) || props.content?.selectedPlayer || candidates[0] || null;
-  const figureInitials = String(selectedPlayer?.name || '')
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0])
-    .join('')
-    .toUpperCase();
+  // Without a photo the story Figura shows the first name, whole, like the feed (fitted to its frame by the hardening).
+  const figureName = figureDisplayName(selectedPlayer?.name, themeId);
+  const figureTeam = selectedPlayer?.team || {};
+  const figureTeamName = String(figureTeam.name || figureTeam.teamName || figureTeam.shortName || '').trim();
   return (
     <PremiumRenderContext.Provider value={{
       piece: renderSnapshot?.piece,
       themeId,
       formatId,
-      figureInitials,
+      figureInitials: figureName,
     }}>
-      <Layout {...props} snapshot={renderSnapshot} editorial={editorial} />
+      {/* An Editorial standings page holds 15 rows; "N EQUIPOS" counts the whole table. */}
+      <Layout {...props} snapshot={renderSnapshot} editorial={editorial} standingsTotal={pagination.totalRows} />
       <PremiumHardeningEffect
         snapshot={renderSnapshot}
         editorial={editorial}
         themeId={themeId}
         formatId={formatId}
         pagination={pagination}
+        figureName={figureName}
+        figureTeamName={figureTeamName}
       />
     </PremiumRenderContext.Provider>
   );
