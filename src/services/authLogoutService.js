@@ -3,6 +3,17 @@ import { deactivateCurrentDevicePushToken } from './pushTokenService';
 import { clearSentryUser } from '../utils/monitoring/sentry';
 
 const DEFAULT_MAX_DEACTIVATE_ATTEMPTS = 3;
+
+// Torneos state that belongs to the account that is signing out and outlives the React tree (browser storage).
+// Exactly these keys and nothing else: no storage.clear(), no device preferences (home view, app callout), no
+// Supabase/Core keys (supabase.auth.signOut owns those). Keep in sync with
+// src/features/torneos/context/TorneosWorkspaceContext.jsx (TORNEOS_WORKSPACE_STORAGE_KEY) and
+// src/features/torneos/domain/premiumIntent.js (PREMIUM_INTENT_STORAGE_KEY); a test pins both.
+// The Torneos gateway bridge bearer lives in memory only and is already dropped by the transport on SIGNED_OUT.
+export const TORNEOS_ACCOUNT_STORAGE_KEYS = Object.freeze([
+  Object.freeze({ storage: 'localStorage', key: 'arma2:torneos:last-workspace:v2' }),
+  Object.freeze({ storage: 'sessionStorage', key: 'arma2:torneos:premium-intent:v1' }),
+]);
 const RETRY_DELAYS_MS = [0, 350, 900];
 
 const sleep = (ms) => new Promise((resolve) => {
@@ -52,6 +63,26 @@ export const deactivatePushTokenWithRetry = async ({
   };
 };
 
+// Never throws and never blocks the sign-out: a storage that is missing or refuses (private mode) is reported only.
+export const clearAccountScopedLocalState = () => {
+  const failedKeys = [];
+  TORNEOS_ACCOUNT_STORAGE_KEYS.forEach(({ storage, key }) => {
+    try {
+      const target = typeof window !== 'undefined' ? window[storage] : null;
+      if (target && typeof target.removeItem === 'function') target.removeItem(key);
+    } catch (_error) {
+      failedKeys.push(key);
+    }
+  });
+  return failedKeys.length === 0
+    ? { success: true }
+    : {
+      success: false,
+      failedKeys,
+      message: 'Cerraste sesión, pero no pudimos limpiar algunos datos locales de Torneos en este dispositivo.',
+    };
+};
+
 export const signOutWithPushDeactivation = async ({
   reason = 'user_logout',
   force = false,
@@ -81,10 +112,12 @@ export const signOutWithPushDeactivation = async ({
   }
 
   clearSentryUser();
+  const localCleanup = clearAccountScopedLocalState();
 
   return {
     success: true,
     cleanup,
+    localCleanup,
     forced: force && !cleanup.success,
   };
 };
@@ -99,9 +132,11 @@ export const clearLocalAuthSession = async () => {
     }
 
     clearSentryUser();
+    const localCleanup = clearAccountScopedLocalState();
 
     return {
       success: true,
+      localCleanup,
     };
   } catch (error) {
     return {

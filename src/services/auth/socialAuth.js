@@ -18,6 +18,12 @@ import { withTimeout } from '../../utils/promiseTimeout';
 const IOS_BUNDLE_ID = 'com.teambalancer.app';
 const AUTH_REQUEST_TIMEOUT_MS = 15000;
 
+// Google reuses the account already signed in to the browser (web), the Chrome Custom Tab (Android) or the
+// app's SFSafariViewController cookie store (iOS) unless the authorization request asks it to show the chooser.
+// Supabase forwards `queryParams` to Google's authorize URL; this changes nothing else about the flow
+// (redirectTo, skipBrowserRedirect and the client's flowType stay exactly as they were).
+export const GOOGLE_OAUTH_QUERY_PARAMS = Object.freeze({ prompt: 'select_account' });
+
 const getSafeObjectKeys = (value) => {
   try {
     if (!value || (typeof value !== 'object' && typeof value !== 'function')) {
@@ -226,18 +232,20 @@ export const signInWithGoogle = async ({ source = 'auth_button' } = {}) => {
     if (isNative) {
       options.skipBrowserRedirect = true;
     }
+    options.queryParams = { ...GOOGLE_OAUTH_QUERY_PARAMS };
 
     logAuth('oauth_start', {
       flow: `${source}_google_auth`,
       isNative,
       redirectTo,
       skipBrowserRedirect: options.skipBrowserRedirect === true,
+      prompt: options.queryParams.prompt,
     });
 
     const { data, error } = await withTimeout(
       supabase.auth.signInWithOAuth({
         provider: 'google',
-        options: Object.keys(options).length > 0 ? options : undefined,
+        options,
       }),
       AUTH_REQUEST_TIMEOUT_MS,
       'Supabase no respondió a tiempo. Verificá tu conexión e intentá de nuevo.',
