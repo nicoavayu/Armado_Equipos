@@ -136,6 +136,73 @@ Leyenda: **BORRA** (filas eliminadas) · **ANONIMIZA** (campos personales reempl
 Una prueba (`db-0021.test.mjs`) recorre todas las migraciones y falla si aparece una tabla con FK a `torneos_identity` que no esté en esta matriz.
 Con `ACCOUNT_DELETION_WITH_0020` / `ACCOUNT_DELETION_WITH_0022` suma los archivos de esas ramas. Pasa en main, main+0020, main+0022 y main+0020+0022.
 
+### 2.6 Storage de Core: clasificación de buckets e inventario de Producción (2026-10-16)
+
+Lo hace el paso de Storage del PR apilado `claude/core-deletion-storage-apple`
+(`supabase/functions/_shared/coreAccountStorageErasure.ts`). La tabla de abajo está **en el código**
+(`CORE_STORAGE_BUCKETS`). Un bucket que no está en la tabla **nunca se toca**. Una prueba
+(`core-account-storage-erasure.test.mjs`) recorre `supabase/` (SQL, `config.toml`, Edge Functions) y `src/`, y **falla**
+si aparece un bucket sin clasificar.
+
+| Bucket | De quién es | Qué borra la eliminación de cuenta | Evidencia en el código |
+|---|---|---|---|
+| `jugadores-fotos` | de la persona | Todo `<uid>/…` (a cualquier profundidad) y todo `<uid>_…` en la raíz. Nunca `guest/…`, `partido_…`, otro uid, un nombre con el uid en el medio o en mayúsculas | `ProfileEditor.js` sube `<uid>_<ts>.jpg` (foto de perfil con recorte). `profiles.js` / `playerService.js` suben `<uid>/<uuid>.<ext>` (foto de jugador). `upload-voting-photo` sube `guest/<match>/<uuid>` (invitado, sin cuenta) |
+| `avatars` | de la persona (legado) | Todo `<uid>_…` en la raíz. Nada más: ni `<uid>/…`, ni otro uid | El viejo `uploadAvatar(userId, file)` de `src/supabase.js` subía `${userId}_${Date.now()}.${ext}` acá y guardaba la URL como foto de perfil. Se sacó el 2025-07-16 (`fe13e326`). Hoy no hay ningún flujo que escriba: sólo lectura pública (`20260622150000_storage_scoped_policies.sql`: «orphan bucket: no write flow in the app») |
+| `team-crests` | del equipo | Sólo lo de `<uid>/…` que **ninguna fila usa** (`teams.crest_url`, `team_members.photo_url`). Lo que se usa se conserva | `teamCrests.js` sube `<uid>/<team\|draft>/<ts>-<nombre>` y `<uid>/<team>/members/<id\|draft>/<ts>-<nombre>` |
+| `tournament-branding` | de la organización | **Nada** (fuera de alcance) | Legado de Torneos-en-Core (`20260817062612…sql`). Torneos es otro proyecto; su borrado es #217 |
+| `tournament-player-portraits` | de la organización | **Nada** (fuera de alcance) | Legado, privado, sólo service-role (`20260817220554…sql`) |
+| `tournament-team-photos` | de la organización | **Nada** (fuera de alcance) | Legado, privado, sólo service-role (`20260821180000…sql`) |
+| `tournament-media` | de la organización | **Nada** (fuera de alcance) | El baseline dice que no existe. Sólo lo nombran un chequeo de contrato y policies |
+
+Reglas comunes:
+- El uid es el de la sesión verificada y tiene que ser un UUID en minúsculas (36 caracteres fijos). Ningún otro uid puede
+  ser prefijo de `<uid>/` ni de `<uid>_`, así que no hay derrame a otras cuentas.
+- Se borra **por path**, con `remove()`. Nunca se descarga, abre, firma ni renderiza un objeto. Los SVG viejos que estén
+  bajo el prefijo de la persona se borran igual que cualquier otro archivo.
+- `owner_id` **no** es criterio: la API de listado de Storage no lo devuelve. Lo que cuenta es el nombre que la app armó con
+  el id de la sesión.
+- Antes de cada `remove()` se vuelve a comprobar cada path contra la regla del bucket. Un solo path ajeno aborta todo el
+  paso sin borrar nada.
+
+**Inventario de Producción.** Core Production (`rcyuuoaqfwcembdajcss`), 2026-10-16. Lo hizo el coordinador (Codex) **vía
+un conector autorizado por Nico, sólo conteos**: transacción READ ONLY con ROLLBACK, sin nombres ni datos personales. La
+consulta reproducible es `scripts/ops/core-account-deletion/storage-inventory-readonly.sql` (sumó `avatars`, la
+configuración de cada bucket, los tipos de archivo, la profundidad y el cruce de `owner_id` nulo con la forma del nombre).
+
+| Bucket | Objetos | Tipos | Forma | Configuración |
+|---|---|---|---|---|
+| `jugadores-fotos` | 334 | 192 jpeg · 133 png · **6 SVG** (legado) · 1 heif · 2 heic | 283 `<uid>_…` · 4 `guest/…` · 98 sin owner (los conteos se solapan, así reportados). Profundidad 0 | pública · jpeg/png/webp/gif · 15 MiB (**no** admite SVG) |
+| `avatars` | 8 | — | 8 `<uid>_…`, sin huérfanos. Profundidad 0 | — |
+| `team-crests` | 24 | 8 jpeg · 16 png · 0 SVG (0 referencias a SVG) | 24 `<uid>/<teamId>/…`. Profundidad máxima 4. 20 referenciados / 4 sin referencia (la comparación de URL es sin decodificar: limitación conocida) | pública · 5 MiB · **todavía admite `image/svg+xml`** |
+| `tournament-*` | 0 | — | — | — |
+
+- **Máximo por persona:** 136 fotos, 15 escudos, 8 avatares. Entra holgado en el tope de 5000 objetos por llamada. Las
+  pruebas cubren al usuario más grande (136 + 8 + 15) y listados de más de 100 y de más de 1000 objetos.
+- **Huérfanos** (prefijo de un uid sin fila en `auth.users`): `jugadores-fotos` 103 objetos / 84 usuarios;
+  `team-crests` 6 objetos / 2 usuarios. **No** los borra ningún código.
+- **Sin owner.** Los 98 objetos con `owner_id` nulo se solapan con las otras formas. Por aritmética (283 + 4 + 98 − 334),
+  al menos 51 tienen nombre `<uid>_…` o `guest/…`. Por eso al menos 47 objetos `<uid>_…` no tienen owner. Esos **sí** se
+  borran con la cuenta de ese uid, porque el criterio es el nombre (ver reglas). Los que no tienen el prefijo de un uid
+  (`guest/…`, `partido_…`, otros nombres) **nunca** se tocan. La sección 7 de la consulta da el desglose exacto.
+
+**Fuera de alcance de la eliminación de cuenta, cada uno con su propio GO:**
+1. **`guest/…` (4) y los objetos sin el prefijo de un uid.** No se pueden atribuir a una cuenta. Los textos lo dicen («las
+   fotos que se subieron sin cuenta … no están asociadas a tu cuenta»).
+2. **Limpieza de huérfanos** (103 / 84 y 6 / 2). Es una propuesta aparte y necesita:
+   - un script de operador con dry-run que liste primero;
+   - comprobar que ninguna fila los referencia (`usuarios.avatar_url`, `jugadores.avatar_url`, `teams.crest_url`,
+     `team_members.photo_url`, `votos`…) y que no se comparten;
+   - su propio GO;
+   - `remove()` en lotes, sin cron.
+
+   **No** se puede suponer que no se comparten.
+3. **`team-crests` todavía admite SVG** (riesgo de XSS almacenado en un bucket público). Hoy hay 0 objetos SVG. El cambio de
+   configuración va en su propio paquete y con su GO.
+
+**Textos.** Dicen exactamente qué fotos se borran: la foto de perfil y sus versiones anteriores (incluido el formato de
+avatar anterior), las fotos de jugador, y los escudos y fotos de plantel subidos que ningún equipo usa. En ningún lado
+dicen «borramos todas tus fotos».
+
 ---
 
 ## 3. Organizaciones, temporadas e inscripciones en curso
@@ -161,8 +228,9 @@ App / web ──(sesión del usuario)──▶ Core delete-account
               └─▶ login torneos_edge_erasure_writer; SET LOCAL ROLE torneos_erasure_writer;
                   private.erase_tournament_account(core_user_id, request_id)        → registro: torneos_erased
    3. si Torneos NO confirmó → 503 torneos_erasure_failed (nada borrado en ningún lado; reintento seguro)
-   ── (costura) Storage: un PR siguiente borra acá las fotos de perfil de Core, antes de tocar filas de Core
-   4. limpieza Core (la de siempre) → usuarios → auth.admin.deleteUser
+   ── Storage (PR apilado claude/core-deletion-storage-apple): fotos de la persona en jugadores-fotos y en avatars
+      (legado) y subidas sin uso en team-crests (§2.6), fail-closed → 503 storage_erasure_failed antes de tocar filas de Core
+   4. limpieza Core (la de siempre) → usuarios → [Apple: revocación best-effort, mismo PR apilado] → auth.admin.deleteUser
         └─ si falla: 500 profile_delete_failed / auth_delete_failed, retryable. Torneos ya quedó anonimizado
            (irreversible) y SIN confirmar; el reintento de la persona recibe already_erased y Core termina.
    5. POST …/core/v1/account-erasure/confirm (mismo request_id)       → registro: core_confirmed
@@ -248,8 +316,8 @@ App / web ──(sesión del usuario)──▶ Core delete-account
 - **Textos fieles a la no-atomicidad:** el modal de `ProfileEditor`, `/account-deletion`, Privacidad y Términos dicen «si falla una parte, podés reintentar; lo ya anonimizado en Torneos no se puede revertir».
   - El error de Core después de Torneos lo dice así, sin prometer que «no se borró nada».
   - El error de Torneos dice que no se borró nada, que es cierto en ese caso.
-- **Fotos de perfil de Core:** «todavía no se eliminan automáticamente; se suma en una próxima actualización», **sin** procedimiento por email (Apple no acepta completar el borrado por soporte).
-  - Un PR siguiente agrega el paso de Storage en la costura de `delete-account` (después de Torneos, antes de las filas de Core) y la revocación de Sign in with Apple, y actualiza el texto.
+- **Fotos de perfil de Core:** **sin** procedimiento por email (Apple no acepta completar el borrado por soporte).
+  - El PR apilado `claude/core-deletion-storage-apple` agrega el paso de Storage en la costura de `delete-account` (después de Torneos, antes de las filas de Core) y la revocación de Sign in with Apple, y cambia el texto: la foto de perfil **se borra**; se conservan sólo los escudos y fotos de plantel que un equipo sigue usando.
 - **Middleware:** `/account-deletion` ya es pública; no cambia.
 
 ---
