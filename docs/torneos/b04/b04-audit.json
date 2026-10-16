@@ -1,5 +1,5 @@
 {
-  "generatedFrom": "96fae4453a350aab0e3f9251b8e2fa5814405091",
+  "generatedFrom": "b4fb150a12fcc521f227e935f23dab5cbcee6c22",
   "legacyBase": "2058da039a2a5eaaed22d87d01946bc596ae5f50",
   "coreSingletonSha256": "f39572e4cab0fd287bd1dea2ca87c97bd5500d0eff57cb8de6160f1e3271600c",
   "reachableCallSignatures": {
@@ -66,7 +66,7 @@
     "src/services/absenceService.js": "165054dc97813a40d84c81f479bd600aaf9ac67b074140a1f2b03cdf9e7be9e3",
     "src/services/api/playerService.js": "9b5de2841fabd9e73f30a59488a595dde813a39c638788c497b0c268ee733a40",
     "src/services/api/supabase.js": "1450e1ee26c49a6e825bc9c4e676bf6f8cb5d4951ec00f52b6911b2783456031",
-    "src/services/auth/socialAuth.js": "b6b782c8ed7081ab253a1c0d60482835b908e029df404475a1ad532ed0804919",
+    "src/services/auth/socialAuth.js": "7d2e58948eb1205a3f00a20e2c1d381c2c4fdc99c788bb0c660c67169cb8751e",
     "src/services/authLogoutService.js": "fe859f73dee0abd2ec5c2e6d1c4586f1f90be27a47152c25692be007b35fea70",
     "src/services/awardsService.js": "980bcc97c85cbbe4aae9582f97e175d8faacef5a5ee40389c2c3d116755be07c",
     "src/services/challengeResultNotificationService.js": "8f8f1b02c783cf7ced404fd81be09eb425e1360c4f537f78fd71f520a5beff0f",
